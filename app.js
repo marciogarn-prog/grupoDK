@@ -206,6 +206,9 @@ const cadVeiculoAdminSenha = document.getElementById("cadVeiculoAdminSenha");
 const cadVeiculoSenhaConfirmarBtn = document.getElementById("cadVeiculoSenhaConfirmarBtn");
 const cadVeiculoSenhaCancelarBtn = document.getElementById("cadVeiculoSenhaCancelarBtn");
 const gerarDadosUsoPdfBtn = document.getElementById("gerarDadosUsoPdfBtn");
+const exportDadosBackupBtn = document.getElementById("exportDadosBackupBtn");
+const importDadosBackupBtn = document.getElementById("importDadosBackupBtn");
+const importDadosBackupInput = document.getElementById("importDadosBackupInput");
 const dadosUsoSenhaWrap = document.getElementById("dadosUsoSenhaWrap");
 const dadosUsoAdminSenha = document.getElementById("dadosUsoAdminSenha");
 const dadosUsoSenhaConfirmarBtn = document.getElementById("dadosUsoSenhaConfirmarBtn");
@@ -291,6 +294,15 @@ const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
 const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
 const CAD_LANCAMENTOS_ALUGUEL_KEY = "dk_lancamentos_aluguel";
 const AUDIT_LOG_KEY = "dk_audit_log";
+const BACKUP_KEYS = [
+  CAD_CLIENTES_KEY,
+  CAD_VEICULOS_KEY,
+  CAD_LOCACOES_KEY,
+  LOCACAO_DATABASE_KEY,
+  CAD_MANUTENCOES_KEY,
+  CAD_LANCAMENTOS_ALUGUEL_KEY,
+  AUDIT_LOG_KEY,
+];
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
 const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
@@ -322,6 +334,7 @@ const PLACAS_LOCADAS_MANUAIS = [
 ];
 let relatorioLocacaoTipoSelecionado = "";
 let relatorioLocacaoCache = null;
+let dadosUsoAcaoPendente = "";
 
 function showGroupHome() {
   grupoHome.classList.remove("hidden");
@@ -591,6 +604,57 @@ function loadCadastro(key) {
 
 function saveCadastro(key, list) {
   localStorage.setItem(key, JSON.stringify(list));
+}
+
+function backupFileName() {
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  return `dk-backup-localstorage-${stamp}.json`;
+}
+
+function downloadJsonFile(fileName, payload) {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildOperationalBackupPayload() {
+  const store = {};
+  BACKUP_KEYS.forEach((key) => {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      store[key] = [];
+      return;
+    }
+    try {
+      store[key] = JSON.parse(raw);
+    } catch {
+      store[key] = [];
+    }
+  });
+  return {
+    version: 1,
+    source: "dk-localstorage",
+    exportedAtIso: new Date().toISOString(),
+    exportedBy: getCurrentUserLabel(),
+    data: store,
+  };
+}
+
+function applyOperationalBackupPayload(payload) {
+  if (!payload || typeof payload !== "object" || typeof payload.data !== "object" || !payload.data) {
+    throw new Error("backup_invalido");
+  }
+  BACKUP_KEYS.forEach((key) => {
+    const incoming = payload.data[key];
+    const normalized = Array.isArray(incoming) ? incoming : [];
+    localStorage.setItem(key, JSON.stringify(normalized));
+  });
 }
 
 function clearAllLocacoesOnce() {
@@ -6395,10 +6459,29 @@ relatorioLocacaoExcelBtn.addEventListener("click", () => {
 });
 
 gerarDadosUsoPdfBtn.addEventListener("click", () => {
+  dadosUsoAcaoPendente = "pdf";
   dadosUsoSenhaWrap.classList.remove("hidden");
   dadosUsoAdminSenha.value = "";
   dadosUsoAdminSenha.focus();
 });
+
+if (exportDadosBackupBtn) {
+  exportDadosBackupBtn.addEventListener("click", () => {
+    dadosUsoAcaoPendente = "backup_export";
+    dadosUsoSenhaWrap.classList.remove("hidden");
+    dadosUsoAdminSenha.value = "";
+    dadosUsoAdminSenha.focus();
+  });
+}
+
+if (importDadosBackupBtn) {
+  importDadosBackupBtn.addEventListener("click", () => {
+    dadosUsoAcaoPendente = "backup_import";
+    dadosUsoSenhaWrap.classList.remove("hidden");
+    dadosUsoAdminSenha.value = "";
+    dadosUsoAdminSenha.focus();
+  });
+}
 
 dadosUsoSenhaConfirmarBtn.addEventListener("click", () => {
   const senha = String(dadosUsoAdminSenha.value || "").trim();
@@ -6412,13 +6495,59 @@ dadosUsoSenhaConfirmarBtn.addEventListener("click", () => {
   }
   dadosUsoSenhaWrap.classList.add("hidden");
   dadosUsoAdminSenha.value = "";
+  if (dadosUsoAcaoPendente === "backup_export") {
+    const payload = buildOperationalBackupPayload();
+    downloadJsonFile(backupFileName(), payload);
+    addAuditLog("exportar_backup_dados", "backup_localstorage", `Registros: ${Object.keys(payload.data || {}).length}`);
+    renderAdminResult(
+      "03 - Dados de utilizacao",
+      "<p><strong>Backup exportado com sucesso.</strong> Salve o JSON no Drive antes de atualizar o sistema.</p>"
+    );
+    dadosUsoAcaoPendente = "";
+    return;
+  }
+  if (dadosUsoAcaoPendente === "backup_import") {
+    if (importDadosBackupInput) {
+      importDadosBackupInput.value = "";
+      importDadosBackupInput.click();
+    }
+    dadosUsoAcaoPendente = "";
+    return;
+  }
   exportAuditLogPdf();
+  dadosUsoAcaoPendente = "";
 });
 
 dadosUsoSenhaCancelarBtn.addEventListener("click", () => {
   dadosUsoSenhaWrap.classList.add("hidden");
   dadosUsoAdminSenha.value = "";
+  dadosUsoAcaoPendente = "";
 });
+
+if (importDadosBackupInput) {
+  importDadosBackupInput.addEventListener("change", async (event) => {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    try {
+      const raw = await file.text();
+      const parsed = JSON.parse(raw);
+      applyOperationalBackupPayload(parsed);
+      addAuditLog("importar_backup_dados", "backup_localstorage", `Arquivo: ${file.name}`);
+      renderAdminResult(
+        "03 - Dados de utilizacao",
+        `<p><strong>Backup restaurado com sucesso.</strong> Arquivo aplicado: ${escapeHtml(file.name)}.</p>
+         <p>Recarregue a página para sincronizar a interface com os dados restaurados.</p>`
+      );
+    } catch {
+      renderAdminResult(
+        "03 - Dados de utilizacao",
+        "<p><strong>Falha ao restaurar backup.</strong> Use um arquivo JSON gerado pela exportacao do proprio sistema.</p>"
+      );
+    } finally {
+      importDadosBackupInput.value = "";
+    }
+  });
+}
 
 if (lancamentoAluguelForm) {
   lancamentoAluguelForm.addEventListener("submit", async (event) => {
