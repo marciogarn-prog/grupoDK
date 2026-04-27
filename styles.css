@@ -1,0 +1,950 @@
+:root {
+  --primary: #111111;
+  --primary-soft: #18181b;
+  --accent: #e10600;
+  --danger: #b42318;
+  --ok: #15803d;
+  --text: #f5f5f5;
+  --muted: #b3b3b3;
+  --card: #0f0f10;
+  --bg: #070707;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url("./icons/icon-512.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(62vw, 460px);
+  opacity: 0.14;
+  pointer-events: none;
+  z-index: 0;
+  filter: saturate(1.1) contrast(1.1);
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(225, 6, 0, 0.16), transparent 35%),
+    radial-gradient(circle at 80% 85%, rgba(225, 6, 0, 0.12), transparent 38%);
+}
+
+.topbar {
+  background: var(--primary);
+  color: #fff;
+  padding: 1rem 1.25rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  border-bottom: 1px solid #2a2a2f;
+}
+
+.profile-card {
+  margin-bottom: 1rem;
+  border-top: 4px solid var(--accent);
+  background: linear-gradient(145deg, #121214, #0c0c0d);
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.8rem;
+}
+
+.profile-item {
+  border: 1px solid #2a2a2f;
+  border-radius: 10px;
+  padding: 0.8rem;
+  background: #121214;
+}
+
+.profile-item h3 {
+  margin: 0 0 0.5rem;
+}
+
+.profile-item p {
+  margin: 0.35rem 0;
+}
+
+.profile-card a {
+  color: #ff3b33;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profile-card a:hover {
+  text-decoration: underline;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.topbar p {
+  margin: 0.2rem 0 0;
+  font-size: 0.95rem;
+  opacity: 0.9;
+}
+
+.container {
+  max-width: 1320px;
+  margin: 6.2rem auto 2rem;
+  padding: 0 1rem;
+  position: relative;
+  z-index: 1;
+}
+
+#locadoraArea,
+#centroArea {
+  display: grid;
+  gap: 1rem;
+}
+
+.login-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 14px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  padding: 1.25rem;
+  border: 1px solid #232326;
+}
+
+h2 {
+  margin-top: 0;
+}
+
+.subtext {
+  color: var(--muted);
+  margin-top: -0.2rem;
+}
+
+form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+label {
+  font-weight: 600;
+}
+
+input {
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid #313137;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #141417;
+  color: #f5f5f5;
+}
+
+button {
+  margin-top: 0.6rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #e10600;
+  color: #fff;
+}
+
+button.secondary {
+  background: #1d1d21;
+  border: 1px solid #313137;
+}
+
+button.install-btn {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.vehicle-box {
+  margin-top: 1rem;
+  background: var(--primary-soft);
+  border: 1px solid #2f2f34;
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.vehicle-box p {
+  margin: 0.48rem 0;
+}
+
+#lancamentoAluguelResumo {
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+}
+
+#lancamentoAluguelResumo.resumo-status-moto-positivo {
+  background: #a7d8ff;
+  color: #111111;
+}
+
+#lancamentoAluguelResumo.resumo-status-transporte-positivo {
+  background: #8ff0a4;
+  color: #111111;
+}
+
+#lancamentoAluguelResumo.resumo-status-carro {
+  background: #b79062;
+  color: #111111;
+}
+
+#lancamentoAluguelResumo.resumo-status-debito {
+  background: #ff6b6b;
+  color: #111111;
+}
+
+.security-note {
+  color: var(--muted);
+  margin-top: 1rem;
+}
+
+.admin-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+  margin: 1rem 0;
+}
+
+.admin-shell {
+  margin-top: 0.8rem;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 0.9rem;
+  min-height: calc(100vh - 220px);
+}
+
+.admin-sidebar {
+  border: 1px solid #2a2a2f;
+  border-radius: 12px;
+  padding: 0.7rem;
+  background: #111114;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.admin-sidebar button {
+  margin-top: 0;
+  text-align: left;
+}
+
+.sidebar-submenu {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.2rem 0 0.35rem;
+  padding: 0.35rem;
+  border-left: 2px solid #2f2f34;
+}
+
+.sidebar-submenu button {
+  font-size: 0.9rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.admin-content {
+  position: relative;
+  border: 1px solid #2a2a2f;
+  border-radius: 12px;
+  padding: 0.8rem;
+  background: rgba(15, 15, 16, 0.88);
+  overflow-y: auto;
+  max-height: calc(100vh - 220px);
+}
+
+.admin-content::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(160deg, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.78)),
+    url("./icons/icon-512.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(40vw, 360px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.admin-content > * {
+  position: relative;
+  z-index: 1;
+}
+
+.admin-group {
+  border: 1px solid #2a2a2f;
+  border-radius: 10px;
+  padding: 0.8rem;
+  background: #111114;
+}
+
+.admin-group h3 {
+  margin: 0;
+}
+
+.secondary.active {
+  border-color: #e10600;
+  box-shadow: inset 0 0 0 1px #e10600;
+  background: #2a1111;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.inline-form button {
+  margin-top: 0;
+}
+
+.lancamento-aluguel-layout {
+  grid-template-columns: minmax(180px, 1.5fr) minmax(180px, 1.5fr) 88px minmax(220px, 1.35fr);
+  align-items: end;
+}
+
+#lancAluguelClienteNome {
+  grid-column: 1 / span 2;
+}
+
+#lancAluguelSemanaInicio {
+  grid-column: 4;
+}
+
+#lancAluguelPlaca {
+  grid-column: 1;
+}
+
+#lancAluguelCpf {
+  grid-column: 2;
+}
+
+#lancAluguelDiaPagamento {
+  grid-column: 3;
+}
+
+#lancAluguelSemanaFim {
+  grid-column: 4;
+}
+
+#lancAluguelValorPago {
+  grid-column: 1;
+}
+
+.lancamento-aluguel-actions {
+  grid-column: 4;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.lancamento-aluguel-actions button {
+  margin-top: 0;
+}
+
+#lancAluguelPlaca,
+#lancAluguelCpf,
+#lancAluguelDiaPagamento {
+  min-height: 34px;
+  padding: 0.45rem 0.55rem;
+}
+
+.inline-form-field-label {
+  justify-self: end;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.inline-form-field-label-left {
+  justify-self: start;
+}
+
+.inline-form-date-stack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.2rem;
+}
+
+.inline-form-date-stack #lancAluguelSemanaFim {
+  justify-self: end;
+  width: 92%;
+}
+
+.manutencao-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.35rem 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #2f2f34;
+  border-radius: 8px;
+  background: #141417;
+}
+
+#manutencaoTipoToggleBtn {
+  text-align: left;
+}
+
+.manutencao-checks label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  color: #f5f5f5;
+  margin: 0;
+}
+
+.manutencao-checks input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.report-actions button {
+  margin-top: 0;
+}
+
+.report-actions p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.report-options {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cadastro-lista {
+  display: block;
+}
+
+.cadastro-lista p {
+  margin: 0.3rem 0;
+}
+
+.admin-action {
+  margin-top: 0;
+}
+
+#adminResultBody p {
+  margin: 0.45rem 0;
+}
+
+.caixa-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+
+.caixa-card {
+  border: 1px solid #2f2f34;
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  background: #141417;
+}
+
+.caixa-label {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.caixa-value {
+  margin: 0.35rem 0 0.2rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.valor-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(260px, 360px);
+  gap: 1rem;
+  align-items: start;
+}
+
+.pie-wrap {
+  border: 1px solid #2f2f34;
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: #121214;
+}
+
+.pie-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0.4rem 0 0;
+}
+
+.pie-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
+  font-size: 0.9rem;
+}
+
+.pie-legend .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: 0 0 10px;
+}
+
+.chart-wrap {
+  margin-top: 0.8rem;
+  border: 1px solid #2f2f34;
+  border-radius: 10px;
+  padding: 0.6rem;
+  background: #121214;
+}
+
+.chart-wrap p {
+  margin: 0.3rem 0 0;
+  font-size: 0.9rem;
+}
+
+.finance-options {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.finance-option-btn {
+  margin-top: 0;
+  text-align: left;
+}
+
+.finance-summary-line {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.finance-summary-line p {
+  margin: 0;
+}
+
+.model-detail-btn {
+  margin-top: 0;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+.model-detail-box {
+  margin-top: 0.9rem;
+  border: 1px dashed #3a3a42;
+  border-radius: 8px;
+  padding: 0.8rem;
+  background: #151519;
+}
+
+.model-detail-box h4 {
+  margin: 0 0 0.5rem;
+}
+
+.relatorio-tabulado {
+  margin: 0.4rem 0 0;
+  white-space: pre;
+  overflow-x: auto;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.relatorio-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  background: #ffffff;
+  color: #111111;
+}
+
+.relatorio-table th,
+.relatorio-table td {
+  border: 1px solid #2f2f34;
+  padding: 0.45rem 0.5rem;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  color: #111111;
+  vertical-align: top;
+}
+
+.relatorio-table th {
+  background: #1a1a1f;
+  font-weight: 700;
+  color: #ff4f48;
+}
+
+.relatorio-table th small {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: #ffd9d7;
+  font-weight: 600;
+}
+
+.relatorio-table tbody tr:nth-child(even) {
+  background: #f5f5f5;
+}
+
+.relatorio-table tbody tr:nth-child(odd) {
+  background: #ffffff;
+}
+
+.relatorio-table.relatorio-compacto {
+  font-size: 0.82rem;
+}
+
+.relatorio-table.relatorio-compacto th,
+.relatorio-table.relatorio-compacto td {
+  padding: 0.32rem 0.4rem;
+  line-height: 1.15;
+}
+
+.saldo-devedor-cell {
+  font-weight: 700;
+}
+
+.saldo-devedor-cell-emdia {
+  color: #0b2a6f;
+}
+
+.saldo-devedor-cell-atraso {
+  color: #e10600;
+}
+
+.missing-info {
+  color: #e10600;
+  font-weight: 700;
+}
+
+.modal-card-wide {
+  max-width: min(98vw, 1240px);
+  width: min(98vw, 1240px);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 1.15rem 1.25rem;
+}
+
+a.cliente-vida-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+a.placa-historico-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+a.placa-historico-link:hover {
+  filter: brightness(1.15);
+}
+
+a.cliente-vida-link:hover {
+  filter: brightness(1.15);
+}
+
+#clienteVidaBody .cliente-vida-datas-nota {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.35rem 0 0.6rem;
+  line-height: 1.35;
+}
+
+.cliente-vida-chart {
+  margin-top: 1rem;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cliente-vida-contratos {
+  margin-top: 0.75rem;
+}
+
+.cliente-vida-grade-section {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #2f2f34;
+}
+
+.cliente-vida-grade-section h4 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.cliente-vida-grade-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem 1.25rem;
+  margin-top: 0.65rem;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .cliente-vida-grade-wrap {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cliente-vida-grade-panel .subtext {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin: 0 0 0.5rem;
+  line-height: 1.35;
+}
+
+#clienteVidaBody .cliente-vida-grade-table {
+  width: 100%;
+  min-width: 0;
+  margin-top: 0.35rem;
+  font-size: 0.86rem;
+}
+
+#clienteVidaBody .cliente-vida-grade-table th,
+#clienteVidaBody .cliente-vida-grade-table td {
+  padding: 0.45rem 0.65rem;
+}
+
+.cliente-vida-grade-chart {
+  margin-top: 0.85rem;
+  width: 100%;
+  overflow-x: auto;
+}
+
+#clienteVidaBody.modal-resumo {
+  overflow-x: visible;
+  padding: 1rem 1.15rem;
+  margin-bottom: 0;
+}
+
+#clienteVidaBody .cliente-vida-contratos {
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  border-radius: 10px;
+  border: 1px solid #2f2f34;
+  background: #0a0a0c;
+  padding: 0.65rem 0.75rem;
+  margin-top: 0.85rem;
+}
+
+#clienteVidaBody .cliente-vida-table {
+  width: 100%;
+  min-width: 1020px;
+  margin-top: 0;
+  font-size: 0.88rem;
+}
+
+#clienteVidaBody .cliente-vida-table th,
+#clienteVidaBody .cliente-vida-table td {
+  padding: 0.55rem 0.9rem;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  vertical-align: middle;
+  line-height: 1.35;
+}
+
+#clienteVidaBody .cliente-vida-table th.col-data,
+#clienteVidaBody .cliente-vida-table td.col-data {
+  white-space: nowrap;
+  min-width: 5.75rem;
+}
+
+#clienteVidaBody .cliente-vida-table th.col-modelo,
+#clienteVidaBody .cliente-vida-table td.col-modelo {
+  white-space: normal;
+  min-width: 170px;
+  max-width: 340px;
+}
+
+#clienteVidaBody .cliente-vida-table th.col-moeda,
+#clienteVidaBody .cliente-vida-table td.col-moeda {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+#clienteVidaBody .cliente-vida-table th.col-situacao,
+#clienteVidaBody .cliente-vida-table td.col-situacao {
+  white-space: nowrap;
+  min-width: 7.5rem;
+}
+
+#clienteVidaBody > p {
+  line-height: 1.45;
+  max-width: 100%;
+}
+
+.relatorio-table tbody tr.contrato-ativo-row td {
+  background: rgba(21, 128, 61, 0.18);
+  font-weight: 600;
+}
+
+.relatorio-table tbody tr.missing-row td {
+  color: #e10600 !important;
+  font-weight: 700;
+}
+
+.message {
+  min-height: 1.2rem;
+  margin-top: 0.7rem;
+  font-weight: 600;
+}
+
+.message.error {
+  color: var(--danger);
+}
+
+.message.success {
+  color: var(--ok);
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.warning {
+  border: 1px solid #facc15;
+  background: #fef9c3;
+  color: #713f12;
+  border-radius: 8px;
+  padding: 0.7rem;
+  margin: 0.75rem 0 1rem;
+  font-size: 0.92rem;
+}
+
+.footer {
+  text-align: center;
+  padding: 1rem;
+  color: var(--muted);
+}
+
+.hidden {
+  display: none !important;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 120;
+  padding: 1rem;
+}
+
+.modal-card {
+  width: min(680px, 100%);
+  background: #111114;
+  border: 1px solid #2f2f34;
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.modal-card h3 {
+  margin: 0 0 0.4rem;
+}
+
+.modal-card p {
+  margin: 0.2rem 0 0.7rem;
+}
+
+.modal-resumo {
+  border: 1px solid #2f2f34;
+  border-radius: 10px;
+  background: #141417;
+  padding: 0.7rem;
+  margin-bottom: 0.7rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 980px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .admin-content {
+    max-height: none;
+  }
+
+  .relatorio-table {
+    font-size: 0.8rem;
+  }
+
+  .relatorio-table th,
+  .relatorio-table td {
+    padding: 0.3rem 0.35rem;
+    line-height: 1.1;
+  }
+
+  .relatorio-table.relatorio-compacto {
+    font-size: 0.76rem;
+  }
+}

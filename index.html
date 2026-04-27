@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#111111">
+  <meta name="description" content="DK Centro Automotivo e DK Locadora em Petrolina-PE. Oficina automotiva, carros e motos.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="stylesheet" href="styles.css">
+  <title>DK Centro Automotivo | Área do Cliente</title>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Grupo DK</h1>
+      <p>DK Centro Automotivo + DK Locadora | Petrolina - PE</p>
+    </div>
+    <button id="installButton" class="install-btn hidden">Instalar App</button>
+  </header>
+
+  <main class="container">
+    <section id="grupoHome" class="card profile-card">
+      <h2>Empresas do Grupo DK</h2>
+      <div class="profile-grid">
+        <article class="profile-item">
+          <h3>DK Centro Automotivo</h3>
+          <p><strong>Instagram:</strong> @dk_centroautomotivo</p>
+          <p>📍 Avenida da Redencao | Antonio Cassimiro | Petrolina PE</p>
+          <p>Mecanica em geral | Alinhamento | Balanceamento | Injecao eletronica</p>
+          <p>
+            <a href="https://bit.ly/DKCENTROAUTOMOTIVO" target="_blank" rel="noopener noreferrer">
+              Abrir link da bio
+            </a>
+          </p>
+          <button id="openCentroButton" type="button">Entrar no Centro Automotivo</button>
+        </article>
+
+        <article class="profile-item">
+          <h3>DK Locadora</h3>
+          <p><strong>Instagram:</strong> @dk_locacoesmt</p>
+          <p>📍 Avenida da Redencao | Antonio Cassimiro | Petrolina PE</p>
+          <p>Aluguel de veiculos | Aluguel de motos</p>
+          <p>📱 (87) 8182-9389</p>
+          <p>
+            <a href="https://wa.me/558781829389" target="_blank" rel="noopener noreferrer">
+              Falar no WhatsApp
+            </a>
+          </p>
+          <button id="openLocadoraButton" type="button">Entrar na DK Locadora</button>
+        </article>
+      </div>
+    </section>
+
+    <section id="centroArea" class="hidden">
+      <section class="card">
+        <div class="dash-header">
+          <h2>DK Centro Automotivo</h2>
+          <button id="backToGroupFromCentro" class="secondary" type="button">Voltar ao Grupo DK</button>
+        </div>
+        <p class="subtext">Servicos automotivos em Petrolina-PE.</p>
+        <article class="vehicle-box">
+          <p>📍 Avenida da Redencao | Antonio Cassimiro | Petrolina PE</p>
+          <p>🔧 Mecanica em geral | Alinhamento | Balanceamento | Injecao eletronica</p>
+          <p>
+            <a href="https://instagram.com/dk_centroautomotivo" target="_blank" rel="noopener noreferrer">
+              Acessar Instagram do Centro Automotivo
+            </a>
+          </p>
+        </article>
+      </section>
+    </section>
+
+    <section id="locadoraArea" class="hidden">
+      <section class="card">
+        <div class="dash-header">
+          <h2>DK Locadora</h2>
+          <button id="backToGroupFromLocadora" class="secondary" type="button">Voltar ao Grupo DK</button>
+        </div>
+        <p class="subtext">Escolha o tipo de acesso para entrar na plataforma.</p>
+      </section>
+
+      <section id="loginArea" class="login-grid">
+        <section id="loginClienteCard" class="card">
+          <h2>Acesso do Cliente</h2>
+          <p class="subtext">Entre para ver apenas os dados do seu contrato.</p>
+          <p id="envWarning" class="warning hidden"></p>
+          <form id="loginClienteForm">
+            <label for="cpfCliente">CPF</label>
+            <input id="cpfCliente" name="cpf" type="text" placeholder="000.000.000-00" required>
+
+            <label for="senhaCliente">Senha</label>
+            <input id="senhaCliente" name="senha" type="password" placeholder="Senha do cliente" required>
+
+            <button type="submit">Entrar como cliente</button>
+          </form>
+          <p id="loginClienteMessage" class="message" aria-live="polite"></p>
+          <p class="hint">Clientes: senha inicial padrao <strong>1234</strong>.</p>
+        </section>
+
+        <section id="loginAdminCard" class="card">
+          <h2>Acesso do Funcionário</h2>
+          <p class="subtext">Area de gestao da DK Locadora.</p>
+          <form id="loginAdminForm">
+            <label for="cpfAdmin">CPF do funcionário</label>
+            <input id="cpfAdmin" name="cpf" type="text" placeholder="CPF do funcionário" required>
+
+            <label for="senhaAdmin">Senha</label>
+            <input id="senhaAdmin" name="senha" type="password" placeholder="Senha do administrador" required>
+
+            <button type="submit">Entrar como funcionário</button>
+          </form>
+          <p id="loginAdminMessage" class="message" aria-live="polite"></p>
+        </section>
+      </section>
+
+      <section id="dashboardCard" class="card hidden">
+        <div class="dash-header">
+          <h2>Meu Veículo Contratado</h2>
+          <button id="logoutButton" class="secondary">Sair</button>
+        </div>
+
+        <article class="vehicle-box">
+          <p><strong>Cliente:</strong> <span id="clienteNome"></span></p>
+          <p><strong>Contrato:</strong> <span id="contratoNumero"></span></p>
+          <p><strong>Veículo:</strong> <span id="veiculoModelo"></span></p>
+          <p><strong>Categoria:</strong> <span id="veiculoCategoria"></span></p>
+          <p><strong>Placa:</strong> <span id="veiculoPlaca"></span></p>
+          <p><strong>Retirada:</strong> <span id="contratoInicio"></span></p>
+          <p><strong>Devolução:</strong> <span id="contratoFim"></span></p>
+          <p><strong>Status:</strong> <span id="contratoStatus"></span></p>
+          <p><strong>Valor semanal (I):</strong> <span id="valorSemanal"></span></p>
+          <p><strong>Dias (N):</strong> <span id="quantidadeDias"></span></p>
+          <p><strong>Deveria ter pago até hoje (O):</strong> <span id="valorDevidoHoje"></span></p>
+          <p><strong>Já pagou (P):</strong> <span id="valorPago"></span></p>
+          <p><strong>Situação financeira:</strong> <span id="situacaoFinanceira"></span></p>
+        </article>
+
+        <p class="security-note">
+          Por segurança, esta área exibe somente o contrato associado ao seu acesso.
+        </p>
+        <p>
+          <a href="https://instagram.com/dk_locacoesmt" target="_blank" rel="noopener noreferrer">
+            Acessar Instagram da DK Locadora
+          </a>
+        </p>
+      </section>
+
+      <section id="adminCard" class="card hidden">
+        <div class="dash-header">
+          <h2>Painel do Funcionário</h2>
+          <button id="adminLogoutButton" class="secondary">Sair</button>
+        </div>
+        <p class="subtext">Consultas rapidas da operacao DK Centro Automotivo e DK Locadora.</p>
+        <div class="admin-shell">
+          <aside class="admin-sidebar">
+            <button type="button" id="adminNavOperacao" class="secondary">01 - Operacao</button>
+            <div id="adminOperacaoMenu" class="sidebar-submenu hidden">
+              <button type="button" class="secondary operacao-target-btn" data-target="cliente">Cadastro cliente</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="veiculo">Cadastro veiculo</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="locacao">Cadastro locacao</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="manutencao">Cadastro manutencao</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="lancamentoAluguel">Lançamento de aluguel</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="lancamentoDespesa">Lançamento de despesas</button>
+            </div>
+            <button type="button" id="adminNavInformacao" class="secondary">02 - Informacao</button>
+            <div id="adminInformacaoMenu" class="sidebar-submenu hidden">
+              <button type="button" id="infoScopeAtivosBtn" class="secondary">Clientes ativos</button>
+              <button type="button" id="infoScopeInativosBtn" class="secondary">Clientes inativos</button>
+              <button type="button" id="infoScopeTodosBtn" class="secondary">Todos os clientes</button>
+              <button type="button" id="infoScopeCaixaBtn" class="secondary">Caixa</button>
+            </div>
+            <button type="button" id="adminNavDados" class="secondary">03 - Dados de utilizacao</button>
+          </aside>
+
+          <div class="admin-content">
+            <div id="adminOperacaoSection" class="admin-section">
+              <section id="operacaoClienteSection" class="admin-group">
+            <h3>Cadastro do Cliente</h3>
+            <form id="clienteCadastroForm" class="inline-form">
+              <input type="text" id="cadClienteCpf" placeholder="CPF" required>
+              <input type="text" id="cadClienteCodigo" placeholder="Cód. automático" readonly>
+              <input type="text" id="cadClienteDataCadastro" placeholder="Data do Cadastro">
+              <input type="text" id="cadClienteNome" placeholder="NOME" required>
+              <input type="text" id="cadClienteCelular" placeholder="Nº do Celular">
+              <input type="text" id="cadClienteRecado1" placeholder="Recados 01">
+              <input type="text" id="cadClienteRecado2" placeholder="Recados 02">
+              <input type="text" id="cadClienteCnh" placeholder="Nº da CNH-e">
+              <input type="text" id="cadClienteCategoria" placeholder="Categoria">
+              <input type="text" id="cadClienteVencimento" placeholder="Vencimento">
+              <input type="text" id="cadClienteEar" placeholder="EAR?">
+              <input type="text" id="cadClienteCep" placeholder="CEP">
+              <input type="text" id="cadClienteMunicipioUf" placeholder="Município/UF">
+              <input type="text" id="cadClienteEndereco" placeholder="Endereço">
+              <button type="submit">Salvar cliente</button>
+              <button type="button" id="cadClienteClearBtn" class="secondary">Limpar dados</button>
+              <button type="button" id="cadClienteUpdateBtn" class="secondary hidden">Editar</button>
+              <button type="button" id="cadClienteCancelBtn" class="secondary hidden">Bloquear cliente</button>
+              <button type="button" id="cadClienteUnblockBtn" class="secondary hidden">Desbloquear cliente</button>
+              <button type="button" id="cadClienteDeleteBtn" class="secondary hidden">Excluir cliente</button>
+            </form>
+            <div id="clienteCancelOpcoes" class="report-actions hidden">
+              <button type="button" id="cancelarClienteQuebraBtn" class="secondary">Quebra de contrato</button>
+              <button type="button" id="cancelarClienteNegativadoBtn" class="secondary">Cadastro não aprovado</button>
+            </div>
+            <div id="clienteSenhaWrap" class="report-actions hidden">
+              <input type="password" id="cadClienteAdminSenha" placeholder="Senha do administrador">
+              <button type="button" id="cadClienteSenhaConfirmarBtn" class="secondary">Confirmar senha</button>
+              <button type="button" id="cadClienteSenhaCancelarBtn" class="secondary">Cancelar</button>
+            </div>
+            <div class="report-actions">
+              <button type="button" id="gerarRelatorioClienteBtn" class="secondary">Gerar relatório</button>
+              <div id="relatorioClienteOpcoes" class="report-options hidden">
+                <button type="button" id="relatorioClientePdfBtn">PDF</button>
+                <button type="button" id="relatorioClienteExcelBtn">Excel</button>
+              </div>
+            </div>
+            <p id="clienteCadastroErro" class="message error hidden"></p>
+            <div id="cadastroClienteLista" class="cadastro-lista"></div>
+              </section>
+
+              <section id="operacaoVeiculoSection" class="admin-group hidden">
+            <h3>Cadastro do Veículo</h3>
+            <form id="veiculoCadastroForm" class="inline-form">
+              <select id="cadVeiculoTipo" required>
+                <option value="">Tipo do veículo</option>
+                <option value="CARRO">CARRO</option>
+                <option value="MOTO">MOTO</option>
+              </select>
+              <input type="text" id="cadVeiculoPlaca" placeholder="Placa" required>
+              <input type="text" id="cadVeiculoTagPreview" placeholder="Tag (automática)" readonly>
+              <input type="text" id="cadVeiculoMarca" placeholder="Marca">
+              <input type="text" id="cadVeiculoModelo" placeholder="Modelo" required>
+              <input type="text" id="cadVeiculoValor" placeholder="Valor">
+              <input type="text" id="cadVeiculoCor" placeholder="Cor">
+              <input type="text" id="cadVeiculoChassi" placeholder="Chassi">
+              <input type="text" id="cadVeiculoAnoModelo" placeholder="Ano/Modelo">
+              <input type="text" id="cadVeiculoRenavam" placeholder="Renavam">
+              <input type="text" id="cadVeiculoMotor" placeholder="Motor">
+              <button type="submit">Salvar veículo</button>
+              <button type="button" id="cadVeiculoClearBtn" class="secondary">Limpar dados</button>
+              <button type="button" id="cadVeiculoUpdateBtn" class="secondary hidden">Atualizar</button>
+              <button type="button" id="cadVeiculoCancelBtn" class="secondary hidden">Cancelar veículo</button>
+            </form>
+            <div id="veiculoCancelOpcoes" class="report-actions hidden">
+              <button type="button" id="cancelarPorVendaBtn" class="secondary">Venda</button>
+              <button type="button" id="cancelarPorSinistroBtn" class="secondary">Sinistro</button>
+              <button type="button" id="cancelarPorRouboBtn" class="secondary">Roubo</button>
+            </div>
+            <div id="veiculoSenhaWrap" class="report-actions hidden">
+              <input type="password" id="cadVeiculoAdminSenha" placeholder="Senha do administrador">
+              <button type="button" id="cadVeiculoSenhaConfirmarBtn" class="secondary">Confirmar senha</button>
+              <button type="button" id="cadVeiculoSenhaCancelarBtn" class="secondary">Cancelar</button>
+            </div>
+            <div class="report-actions">
+              <button type="button" id="gerarRelatorioVeiculoBtn" class="secondary">Gerar relatório</button>
+              <div id="relatorioVeiculoOpcoes" class="report-options hidden">
+                <button type="button" id="relatorioVeiculoPdfBtn">PDF</button>
+                <button type="button" id="relatorioVeiculoExcelBtn">Excel</button>
+              </div>
+            </div>
+            <p id="veiculoCadastroErro" class="message error hidden">EQUIPAMENTO JA CADASTRADO</p>
+            <div id="cadastroVeiculoLista" class="cadastro-lista"></div>
+              </section>
+
+              <section id="operacaoLocacaoSection" class="admin-group hidden">
+            <h3>Cadastro da Locação</h3>
+            <form id="locacaoCadastroForm" class="inline-form">
+              <select id="cadLocacaoPlaca" required>
+                <option value="">Placa do veículo (disponíveis)</option>
+              </select>
+              <input type="text" id="cadLocacaoCpf" placeholder="CPF do cliente" required>
+              <input type="text" id="cadLocacaoInicio" placeholder="Início (dd/mm/aaaa)" required>
+              <input type="text" id="cadLocacaoFim" placeholder="Fim (dd/mm/aaaa)">
+              <input type="text" id="cadLocacaoValor" placeholder="Valor semanal">
+              <button type="submit">Salvar locação</button>
+              <button type="button" id="cadLocacaoClearBtn" class="secondary">Limpar dados</button>
+            </form>
+            <div class="report-actions">
+              <button type="button" id="gerarRelatorioLocacaoBtn" class="secondary">Gerar relatório</button>
+              <div id="relatorioLocacaoOpcoes" class="report-options hidden">
+                <button type="button" id="relatorioLocadosBtn">Veículos locados</button>
+                <button type="button" id="relatorioDisponiveisBtn">Veículos disponíveis</button>
+              </div>
+              <div id="relatorioLocacaoFormatos" class="report-options hidden">
+                <button type="button" id="relatorioLocacaoTelaBtn">Tela</button>
+                <button type="button" id="relatorioLocacaoPdfBtn">PDF</button>
+                <button type="button" id="relatorioLocacaoExcelBtn">Excel</button>
+              </div>
+            </div>
+            <article id="locacaoReportBox" class="vehicle-box hidden">
+              <h4 id="locacaoReportTitle">Relatório de locação</h4>
+              <div id="locacaoReportBody"></div>
+            </article>
+            <div id="cadastroLocacaoLista" class="cadastro-lista"></div>
+              </section>
+
+              <section id="operacaoManutencaoSection" class="admin-group hidden">
+            <h3>Cadastro de Manutenção</h3>
+            <form id="manutencaoCadastroForm" class="inline-form">
+              <input type="text" id="cadManutencaoPlaca" placeholder="Placa do veículo" required>
+              <input type="text" id="cadManutencaoData" placeholder="Data de entrada (dd/mm/aaaa)" required>
+              <input type="text" id="cadManutencaoPrevistaSaida" placeholder="Previsão de saída (dd/mm/aaaa)" required>
+              <input type="text" id="cadManutencaoRealSaida" placeholder="Data real de saída (dd/mm/aaaa)">
+              <button type="button" id="manutencaoTipoToggleBtn" class="secondary">Tipo de manutenção</button>
+              <div id="manutencaoTipoPanel" class="manutencao-checks hidden">
+                <label><input type="checkbox" class="cadManutencaoItem" value="TROCA DE OLEO"> Troca de oleo</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="TROCA DE PNEU DIANTEIRO"> Troca de pneu dianteiro</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="TROCA DE PNEU TRASEIRO"> Troca de pneu traseiro</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="TROCA DE PASTILHAS"> Troca de pastilhas</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="TROCA DE RELACAO"> Troca de relação</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="MANUTENCAO MOTOR"> Manutenção motor</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="MANUTENCAO SUSPENSAO"> Manutenção suspensão</label>
+                <label><input type="checkbox" class="cadManutencaoItem" value="MANUTENCAO ELETRICA"> Manutenção elétrica</label>
+              </div>
+              <input type="text" id="cadManutencaoValor" placeholder="Valor da manutenção">
+              <button type="submit">Salvar manutenção</button>
+            </form>
+            <div class="report-actions">
+              <button type="button" id="gerarRelatorioManutencaoBtn" class="secondary">Relatório manutenção</button>
+            </div>
+            <article id="manutencaoReportBox" class="vehicle-box hidden">
+              <h4 id="manutencaoReportTitle">Relatório de manutenção</h4>
+              <div id="manutencaoReportBody"></div>
+            </article>
+            <div id="cadastroManutencaoLista" class="cadastro-lista"></div>
+              </section>
+
+              <section id="operacaoLancamentoAluguelSection" class="admin-group hidden">
+            <h3>Lançamento de aluguel</h3>
+            <p class="subtext">Registrar pagamentos semanais de aluguel por placa e CPF.</p>
+            <form id="lancamentoAluguelForm" class="inline-form lancamento-aluguel-layout">
+              <input type="text" id="lancAluguelClienteNome" placeholder="Nome do cliente (busca com sugestão)" list="lancAluguelClienteSugestoes" autocomplete="off">
+              <datalist id="lancAluguelClienteSugestoes"></datalist>
+              <input type="text" id="lancAluguelSemanaInicio" placeholder="Data início (dd/mm/aaaa)" required>
+              <input type="text" id="lancAluguelPlaca" placeholder="Placa" required>
+              <input type="text" id="lancAluguelCpf" placeholder="CPF" required>
+              <select id="lancAluguelDiaPagamento" required>
+                <option value="">Dia</option>
+                <option value="SEG">SEG</option>
+                <option value="TER">TER</option>
+                <option value="QUA">QUA</option>
+                <option value="QUI">QUI</option>
+                <option value="SEX">SEX</option>
+                <option value="SAB">SAB</option>
+              </select>
+              <input type="text" id="lancAluguelSemanaFim" placeholder="Próx. paga (dd/mm/aaaa)" required>
+              <input type="text" id="lancAluguelValorPago" placeholder="Valor pago (R$)" required>
+              <div class="lancamento-aluguel-actions">
+                <button type="submit">Salvar lançamento</button>
+                <button type="button" id="lancAluguelClearBtn" class="secondary">Limpar dados</button>
+              </div>
+            </form>
+            <p id="lancamentoAluguelErro" class="message error hidden"></p>
+            <div class="report-actions">
+              <button type="button" id="lancAluguelDiagnosticoBtn" class="secondary">Verificar lançamentos salvos</button>
+            </div>
+            <div id="lancAluguelDiagnosticoBox" class="vehicle-box hidden"></div>
+            <div class="vehicle-box">
+              <h4>Resumo do cliente para lançamento</h4>
+              <div id="lancamentoAluguelResumo"></div>
+            </div>
+            <div class="vehicle-box">
+              <h4>Últimos lançamentos</h4>
+              <div id="cadastroLancamentoAluguelLista" class="cadastro-lista"></div>
+            </div>
+              </section>
+
+              <section id="operacaoLancamentoDespesaSection" class="admin-group hidden">
+            <h3>Lançamento de despesas</h3>
+            <p class="subtext">Área reservada para registrar lançamentos de despesas.</p>
+            <div class="vehicle-box">
+              <p>Em breve: tela de lançamento detalhado de despesas.</p>
+            </div>
+              </section>
+            </div>
+
+            <div id="adminInformacaoSection" class="admin-section hidden">
+              <div id="informacaoAtivosActions" class="admin-group hidden">
+                <h3>Clientes Ativos</h3>
+              <div class="admin-actions">
+                <button type="button" class="admin-action" data-scope="ativos" data-action="placa">Veiculos por placa</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="modelo">Veiculos por modelo</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="tempo">Tempo de locacao por cliente</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="receita">Receita total</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="valor">Valor de locacao</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="financeiro">Situacao financeira (O x P)</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="inadimplencia">Inadimplencia media</button>
+                <button type="button" class="admin-action" data-scope="ativos" data-action="quadrogeral">Quadro geral</button>
+              </div>
+              </div>
+
+              <div id="informacaoInativosActions" class="admin-group hidden">
+                <h3>Clientes Inativos</h3>
+              <div class="admin-actions">
+                <button type="button" class="admin-action" data-scope="inativos" data-action="placa">Veiculos por placa</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="modelo">Veiculos por modelo</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="tempo">Tempo de locacao por cliente</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="receita">Receita total</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="valor">Valor de locacao</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="financeiro">Situacao financeira (O x P)</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="inadimplencia">Inadimplencia media</button>
+                <button type="button" class="admin-action" data-scope="inativos" data-action="quadrogeral">Quadro geral</button>
+              </div>
+              </div>
+
+              <div id="informacaoTodosActions" class="admin-group hidden">
+                <h3>Todos os clientes</h3>
+              <div class="admin-actions">
+                <button type="button" class="admin-action" data-scope="todos" data-action="placa">Veiculos por placa</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="modelo">Veiculos por modelo</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="tempo">Tempo de locacao por cliente</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="receita">Receita total</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="valor">Valor de locacao</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="financeiro">Situacao financeira (O x P)</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="inadimplencia">Inadimplencia media</button>
+                <button type="button" class="admin-action" data-scope="todos" data-action="quadrogeral">Quadro geral</button>
+              </div>
+              </div>
+
+              <article class="vehicle-box">
+                <h3 id="adminResultTitle">Selecione uma consulta</h3>
+                <div id="adminResultBody"></div>
+              </article>
+            </div>
+
+            <div id="adminDadosSection" class="admin-section hidden">
+              <section class="admin-group">
+                <h3>Dados de utilização</h3>
+                <p>Gerar histórico temporal de alterações no sistema.</p>
+                <div class="report-actions">
+                  <button type="button" id="gerarDadosUsoPdfBtn" class="secondary">Gerar relatório PDF</button>
+                </div>
+                <div id="dadosUsoSenhaWrap" class="report-actions hidden">
+                  <input type="password" id="dadosUsoAdminSenha" placeholder="Senha do administrador">
+                  <button type="button" id="dadosUsoSenhaConfirmarBtn" class="secondary">Confirmar senha</button>
+                  <button type="button" id="dadosUsoSenhaCancelarBtn" class="secondary">Cancelar</button>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>DK Centro Automotivo - Petrolina/PE</p>
+  </footer>
+
+  <div id="veiculoConfirmDialog" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Confirmar cadastro de veículo</h3>
+      <p>Confira os dados antes de salvar:</p>
+      <p><strong>TODOS OS DADOS ESTÃO CORRETOS?</strong></p>
+      <div id="veiculoConfirmResumo" class="modal-resumo"></div>
+      <div class="report-actions">
+        <button type="button" id="veiculoConfirmSimBtn">Sim</button>
+        <button type="button" id="veiculoConfirmVoltarBtn" class="secondary">Voltar para edição</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="clienteConfirmDialog" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Confirmar cadastro de cliente</h3>
+      <p>Confira os dados antes de salvar:</p>
+      <p><strong>TODOS OS DADOS ESTÃO CORRETOS?</strong></p>
+      <div id="clienteConfirmResumo" class="modal-resumo"></div>
+      <div class="report-actions">
+        <button type="button" id="clienteConfirmSimBtn">Sim</button>
+        <button type="button" id="clienteConfirmVoltarBtn" class="secondary">Voltar para edição</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="locacaoConfirmDialog" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Confirmar cadastro de locação</h3>
+      <p>Confira os dados antes de salvar:</p>
+      <p><strong>TODOS OS DADOS ESTÃO CORRETOS?</strong></p>
+      <div id="locacaoConfirmResumo" class="modal-resumo"></div>
+      <div class="report-actions">
+        <button type="button" id="locacaoConfirmSimBtn">Sim</button>
+        <button type="button" id="locacaoConfirmVoltarBtn" class="secondary">Voltar para edição</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="lancamentoAluguelConfirmDialog" class="modal-overlay hidden">
+    <div class="modal-card">
+      <h3>Confirmar lançamento de aluguel</h3>
+      <p>Confira os dados antes de salvar:</p>
+      <p><strong>TODOS OS DADOS ESTAO CORRETOS?</strong></p>
+      <div id="lancamentoAluguelConfirmResumo" class="modal-resumo"></div>
+      <div class="report-actions">
+        <button type="button" id="lancamentoAluguelConfirmSimBtn">Sim</button>
+        <button type="button" id="lancamentoAluguelConfirmVoltarBtn" class="secondary">Voltar para edição</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="clienteVidaDialog" class="modal-overlay hidden">
+    <div class="modal-card modal-card-wide">
+      <div class="report-actions" style="justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0;">Cliente na DK</h3>
+        <button type="button" id="clienteVidaFecharBtn" class="secondary">Fechar</button>
+      </div>
+      <div id="clienteVidaBody" class="modal-resumo"></div>
+    </div>
+  </div>
+
+  <div id="placaHistoricoDialog" class="modal-overlay hidden">
+    <div class="modal-card modal-card-wide">
+      <div class="report-actions" style="justify-content: space-between; align-items: center;">
+        <h3 style="margin: 0;">Histórico da placa</h3>
+        <button type="button" id="placaHistoricoFecharBtn" class="secondary">Fechar</button>
+      </div>
+      <div id="placaHistoricoBody" class="modal-resumo"></div>
+    </div>
+  </div>
+
+  <script src="dk-data.js"></script>
+  <script src="monthly-data.js"></script>
+  <script src="receita2026-data.js"></script>
+  <script src="frota-data.js"></script>
+  <script src="veiculos-seed.js"></script>
+  <script src="clientes-seed.js"></script>
+  <script src="locacoes-seed.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

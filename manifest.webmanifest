@@ -1,0 +1,25 @@
+{
+  "name": "DK Locadora - Cliente",
+  "short_name": "DK Cliente",
+  "description": "Acesso do cliente da DK Locadora em Petrolina-PE.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#0a2a66",
+  "lang": "pt-BR",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
