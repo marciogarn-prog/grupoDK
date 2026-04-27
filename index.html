@@ -381,7 +381,8 @@
             <p class="subtext">Acesso exclusivo do titular (owner) para criar novos logins administrativos.</p>
             <form id="funcionarioCadastroForm" class="inline-form">
               <input type="text" id="cadFuncionarioCpf" placeholder="CPF (somente numeros)" required>
-              <input type="text" id="cadFuncionarioNome" placeholder="Nome do funcionario" required>
+              <input type="text" id="cadFuncionarioNome" list="cadFuncionarioNomeSugestoes" placeholder="Nome do funcionario" required autocomplete="off">
+              <datalist id="cadFuncionarioNomeSugestoes"></datalist>
               <input type="password" id="cadFuncionarioSenha" placeholder="Senha de acesso (opcional na edição)" autocomplete="new-password">
               <select id="cadFuncionarioRole" required>
                 <option value="operacao">Perfil: Operacional</option>

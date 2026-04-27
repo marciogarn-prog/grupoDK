@@ -208,6 +208,7 @@ const cadastroFuncionarioLista = document.getElementById("cadastroFuncionarioLis
 const funcionarioCadastroForm = document.getElementById("funcionarioCadastroForm");
 const cadFuncionarioCpf = document.getElementById("cadFuncionarioCpf");
 const cadFuncionarioNome = document.getElementById("cadFuncionarioNome");
+const cadFuncionarioNomeSugestoes = document.getElementById("cadFuncionarioNomeSugestoes");
 const cadFuncionarioSenha = document.getElementById("cadFuncionarioSenha");
 const cadFuncionarioRole = document.getElementById("cadFuncionarioRole");
 const cadFuncionarioClearBtn = document.getElementById("cadFuncionarioClearBtn");
@@ -434,6 +435,88 @@ function findFuncionarioByCpfOrNome(cpfRaw, nomeRaw) {
       return cpfMatch || nomeMatch;
     }) || null
   );
+}
+
+const FUNCIONARIO_NOME_SUGESTAO_MAX = 40;
+let funcionarioAutofillGuard = false;
+
+function clearFuncionarioNomeDatalist() {
+  if (!cadFuncionarioNomeSugestoes) return;
+  while (cadFuncionarioNomeSugestoes.firstChild) {
+    cadFuncionarioNomeSugestoes.removeChild(cadFuncionarioNomeSugestoes.firstChild);
+  }
+}
+
+function populateFuncionarioNomeDatalistFromQuery(queryRaw, options = {}) {
+  if (!cadFuncionarioNomeSugestoes) return;
+  const { allowAllWhenEmpty = false } = options;
+  clearFuncionarioNomeDatalist();
+  const trimmed = String(queryRaw || "").trim();
+  const q = normalizeKey(trimmed);
+  if (!q && !allowAllWhenEmpty) return;
+
+  const nomesOrdenados = funcionariosAccess
+    .map((f) => String(f.nome || "").trim())
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+  const vistos = new Set();
+  const escolhidos = [];
+  for (const nome of nomesOrdenados) {
+    const nk = normalizeKey(nome);
+    if (vistos.has(nk)) continue;
+    if (q && !nk.includes(q)) continue;
+    vistos.add(nk);
+    escolhidos.push(nome);
+    if (escolhidos.length >= FUNCIONARIO_NOME_SUGESTAO_MAX) break;
+  }
+
+  for (const nome of escolhidos) {
+    const opt = document.createElement("option");
+    opt.value = nome;
+    cadFuncionarioNomeSugestoes.appendChild(opt);
+  }
+}
+
+function tryAutofillFuncionarioNomePorCpf() {
+  if (funcionarioAutofillGuard) return;
+  if (funcionarioEdicaoCpf) {
+    const cpfEdit = onlyDigits(String(funcionarioEdicaoCpf));
+    const cpfCampo = onlyDigits(String(cadFuncionarioCpf?.value || ""));
+    if (cpfEdit === cpfCampo) return;
+  }
+  const cpf = onlyDigits(String(cadFuncionarioCpf?.value || ""));
+  if (cpf.length !== 11) return;
+  const f = funcionariosAccess.find((x) => onlyDigits(String(x.cpf || "")) === cpf);
+  if (!f) return;
+  const nomeDest = String(f.nome || "").trim();
+  if (!nomeDest) return;
+  const nomeAtual = String(cadFuncionarioNome?.value || "").trim();
+  if (normalizeKey(nomeAtual) === normalizeKey(nomeDest)) return;
+  funcionarioAutofillGuard = true;
+  cadFuncionarioNome.value = nomeDest;
+  funcionarioAutofillGuard = false;
+  populateFuncionarioNomeDatalistFromQuery(cadFuncionarioNome.value);
+}
+
+function tryAutofillFuncionarioCpfPorNome() {
+  if (funcionarioAutofillGuard) return;
+  if (cadFuncionarioCpf?.readOnly) return;
+  const nome = String(cadFuncionarioNome?.value || "").trim();
+  if (!nome) return;
+  const nk = normalizeKey(nome);
+  const matches = funcionariosAccess.filter(
+    (x) => normalizeKey(String(x.nome || "").trim()) === nk
+  );
+  if (matches.length !== 1) return;
+  const f = matches[0];
+  const cpf = onlyDigits(String(f.cpf || ""));
+  if (cpf.length !== 11) return;
+  const cpfCampo = onlyDigits(String(cadFuncionarioCpf?.value || ""));
+  if (cpfCampo === cpf) return;
+  funcionarioAutofillGuard = true;
+  cadFuncionarioCpf.value = formatCpf(cpf);
+  funcionarioAutofillGuard = false;
 }
 
 function refreshFuncionarioAdminActionButtons() {
@@ -6116,6 +6199,7 @@ if (cadFuncionarioClearBtn) {
   cadFuncionarioClearBtn.addEventListener("click", () => {
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
     sairModoEdicaoFuncionario();
+    clearFuncionarioNomeDatalist();
     refreshFuncionarioAccessInputsByRole();
     refreshFuncionarioAdminActionButtons();
     if (funcionarioCadastroErro) {
@@ -6135,13 +6219,31 @@ if (cadFuncionarioRole) {
 if (cadFuncionarioCpf) {
   cadFuncionarioCpf.addEventListener("input", () => {
     cadFuncionarioCpf.value = formatCpf(onlyDigits(String(cadFuncionarioCpf.value || "")));
+    tryAutofillFuncionarioNomePorCpf();
     refreshFuncionarioAdminActionButtons();
   });
 }
 
 if (cadFuncionarioNome) {
+  cadFuncionarioNome.addEventListener("focus", () => {
+    if (funcionarioAutofillGuard) return;
+    if (!String(cadFuncionarioNome.value || "").trim()) {
+      populateFuncionarioNomeDatalistFromQuery("", { allowAllWhenEmpty: true });
+    }
+  });
   cadFuncionarioNome.addEventListener("input", () => {
+    if (!funcionarioAutofillGuard) {
+      const q = String(cadFuncionarioNome.value || "");
+      populateFuncionarioNomeDatalistFromQuery(q);
+      tryAutofillFuncionarioCpfPorNome();
+    }
     refreshFuncionarioAdminActionButtons();
+  });
+  cadFuncionarioNome.addEventListener("change", () => {
+    if (!funcionarioAutofillGuard) {
+      tryAutofillFuncionarioCpfPorNome();
+      refreshFuncionarioAdminActionButtons();
+    }
   });
 }
 
@@ -6243,6 +6345,7 @@ if (funcionarioCadastroForm) {
       addAuditLog("editar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
       if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
       sairModoEdicaoFuncionario();
+      clearFuncionarioNomeDatalist();
       refreshFuncionarioAccessInputsByRole();
       refreshFuncionarioAdminActionButtons();
       if (funcionarioCadastroErro) {
@@ -6277,6 +6380,7 @@ if (funcionarioCadastroForm) {
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
     sairModoEdicaoFuncionario();
+    clearFuncionarioNomeDatalist();
     refreshFuncionarioAccessInputsByRole();
     refreshFuncionarioAdminActionButtons();
     if (funcionarioCadastroErro) {
