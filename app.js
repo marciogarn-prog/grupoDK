@@ -2576,6 +2576,88 @@ function trimQuadroReceitaRows(rows) {
   return rows.slice(start, end + 1);
 }
 
+function trailQuadroFindStartIdx(trailArr) {
+  const a = normalizeWeekArray(trailArr);
+  const startIdx = a.findIndex((c) => {
+    const t = String(c ?? "").trim();
+    return t === "#" || parseSemanaPagamentoCell(c) !== 0;
+  });
+  return startIdx < 0 ? 0 : startIdx;
+}
+
+/**
+ * Localiza SEM-XX do quadro (índice 0 = SEM-01 no mês) pela data da semana de pagamento,
+ * usando a mesma régua semanal da RECEITA (início do contrato + 7·w a partir da 1ª célula marcada na trilha).
+ * Pagamentos de 2026 usam só a trilha RECEITA 2026 para não colidir com colunas da aba 2025.
+ */
+function findQuadroSlotForLancamentoSemana(record, semanaInicioStr) {
+  const pay = toDateOnly(parseBrDate(semanaInicioStr));
+  const inicio = toDateOnly(parseRecordStartDate(record));
+  if (!pay || !inicio) return null;
+  const defs25 = getReceita2025GridMonthDefs();
+  const defs26 = getReceita2026GridMonthDefs();
+  const cb25 = defs25.length ? Number(defs25[0].colInicio) : 26;
+  const cb26 = defs26.length ? Number(defs26[0].colInicio) : 27;
+  const hist = normalizeWeekArray(record.semanasHistorico);
+  const trail26 = receita2026TrailForRecord(record);
+  const payYear = pay.getFullYear();
+
+  const scanTrail = (trailArr, colBase, defs, block, yearTag) => {
+    const s0 = trailQuadroFindStartIdx(trailArr);
+    for (let idx = s0; idx < trailArr.length; idx += 1) {
+      const w = idx - s0;
+      const weekStart = addCalendarDays(inicio, w * 7);
+      if (!weekStart) continue;
+      const weekEnd = addCalendarDays(weekStart, 6);
+      if (!weekEnd || pay < weekStart || pay > weekEnd) continue;
+      const col = colBase + idx;
+      const def = defs.find((dd) => col >= dd.colInicio && col <= dd.colFim);
+      if (!def) continue;
+      return {
+        block,
+        mes: String(def.mes || ""),
+        slotIdx: col - def.colInicio,
+        col,
+      };
+    }
+    return null;
+  };
+
+  if (payYear <= 2025) {
+    const hit = scanTrail(hist, cb25, defs25, "25", 2025);
+    if (hit) return hit;
+  }
+  if (payYear >= 2026) {
+    const hit26 = scanTrail(trail26, cb26, defs26, "26", 2026);
+    if (hit26) return hit26;
+  }
+  const fallbackHist = scanTrail(hist, cb25, defs25, "25", 2025);
+  if (fallbackHist) return fallbackHist;
+  return scanTrail(trail26, cb26, defs26, "26", 2026);
+}
+
+function mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, block, mesAbbr, monthMetas) {
+  collectLancamentosFilteredQuadro(cpfDigits, placaRaw).forEach((it) => {
+    const slot = findQuadroSlotForLancamentoSemana(record, it.semanaInicio);
+    if (!slot || slot.block !== block || slot.mes !== mesAbbr) return;
+    if (slot.slotIdx < 0 || slot.slotIdx >= monthMetas.length) return;
+    const add = getLancamentoAluguelValor(it);
+    const cur = monthMetas[slot.slotIdx];
+    const nextVal = cur.val + add;
+    const stillEmptyRaw =
+      String(cur.raw ?? "").trim() === "" || String(cur.raw ?? "").trim() === "#";
+    monthMetas[slot.slotIdx] = {
+      raw: cur.raw,
+      val: nextVal,
+      empty:
+        Math.abs(nextVal) < 1e-9 &&
+        stillEmptyRaw &&
+        !(Math.abs(add) >= 1e-9),
+    };
+    if (Math.abs(nextVal) >= 1e-9) monthMetas[slot.slotIdx].empty = false;
+  });
+}
+
 function formatQuadroMonthSlotTd(meta, cellOpts) {
   const highlightNovo = cellOpts?.highlightNovo;
   const highlightPreview = cellOpts?.highlightPreview;
@@ -2633,6 +2715,10 @@ function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlig
   const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
   tryDefs(defs25, colBase25, normalizeWeekArray(record.semanasHistorico), "25", 2025);
   tryDefs(defs26, colBase26, receita2026TrailForRecord(record), "26", 2026);
+  const slotByDate = findQuadroSlotForLancamentoSemana(record, item.semanaInicio);
+  if (slotByDate) {
+    keys.add(`${slotByDate.block}|${slotByDate.mes}|${Math.min(slotByDate.slotIdx, 5)}`);
+  }
   return keys;
 }
 
@@ -2666,6 +2752,7 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     for (let col = d.colInicio; col <= d.colFim; col += 1) {
       monthMetas.push(slotMetaFromTrailAtCol(hist, colBase25, col));
     }
+    mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "25", String(d.mes || ""), monthMetas);
     const six = packSixSlotMetas(monthMetas);
     const rowSum = monthMetas.reduce((acc, m) => acc + m.val, 0);
     rawRows.push({
@@ -2682,6 +2769,7 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     for (let col = d.colInicio; col <= d.colFim; col += 1) {
       monthMetas.push(slotMetaFromTrailAtCol(trail26, colBase26, col));
     }
+    mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "26", String(d.mes || ""), monthMetas);
     const six = packSixSlotMetas(monthMetas);
     const rowSum = monthMetas.reduce((acc, m) => acc + m.val, 0);
     rawRows.push({
