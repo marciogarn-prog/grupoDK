@@ -54,6 +54,12 @@ const funcionariosAccess = [
     nome: "Nilza Santos",
     role: "operacao",
   },
+  {
+    cpf: "06523244440",
+    senha: "110499Gb@",
+    nome: "Administrador",
+    role: "operacao",
+  },
 ];
 
 const adminData =
