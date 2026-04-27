@@ -412,7 +412,10 @@ function onlyDigits(value) {
 
 hydrateFuncionariosAccess();
 const adminSecundario = funcionariosAccess.find((f) => f.cpf === "06523244440");
-if (adminSecundario) adminSecundario.role = "owner";
+if (adminSecundario) {
+  adminSecundario.role = "owner";
+  adminSecundario.nome = "Marcus Santos";
+}
 saveFuncionariosAccess();
 
 function escapeHtml(value) {
