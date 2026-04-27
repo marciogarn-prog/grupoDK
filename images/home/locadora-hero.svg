@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="800" height="480" role="img" aria-label="Arte abstrata: estrada e mobilidade">
+  <defs>
+    <linearGradient id="bg" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" style="stop-color:#08080a"/>
+      <stop offset="100%" style="stop-color:#151018"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" fill="url(#bg)"/>
+  <path d="M0 180 Q400 220 800 160 L800 480 L0 480 Z" fill="#e10600" opacity="0.08"/>
+  <path d="M320 480 L420 160 L460 160 L360 480 Z" fill="#1f1f24" opacity="0.95"/>
+  <path d="M380 480 L440 200 L455 200 L395 480 Z" fill="#e10600" opacity="0.55"/>
+  <path d="M200 380 L600 340" stroke="#f5f5f5" stroke-width="3" stroke-dasharray="18 22" opacity="0.35"/>
+  <ellipse cx="520" cy="310" rx="120" ry="36" fill="none" stroke="#f5f5f5" stroke-width="5" opacity="0.7"/>
+  <ellipse cx="520" cy="310" rx="75" ry="22" fill="#141417"/>
+  <path d="M430 305 L610 305 L595 335 L445 335 Z" fill="#2a2a30" opacity="0.95"/>
+</svg>

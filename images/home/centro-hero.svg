@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 480" width="800" height="480" role="img" aria-label="Arte abstrata: oficina e mecânica">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0c"/>
+      <stop offset="100%" style="stop-color:#1a1210"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="480" fill="url(#g)"/>
+  <rect x="0" y="360" width="800" height="120" fill="#0d0d0f" opacity="0.9"/>
+  <path d="M0 320 L800 300 L800 480 L0 480 Z" fill="#e10600" opacity="0.12"/>
+  <circle cx="620" cy="260" r="140" fill="none" stroke="#e10600" stroke-width="2" opacity="0.35"/>
+  <g fill="none" stroke="#f5f5f5" stroke-width="12" stroke-linecap="round" opacity="0.85">
+    <path d="M160 290 L260 290 M210 230 L210 340"/>
+    <path d="M290 290 L390 290 M340 245 L340 335"/>
+    <path d="M440 275 L560 275 M460 275 L470 305 M530 275 L520 305"/>
+  </g>
+  <circle cx="210" cy="290" r="55" stroke="#e10600" stroke-width="6" fill="none"/>
+  <path d="M660 170 L690 230 L740 245 L695 295 L695 355 L725 395" stroke="#e10600" stroke-width="5" fill="none" opacity="0.8"/>
+</svg>

@@ -119,6 +119,12 @@ const openCentroButton = document.getElementById("openCentroButton");
 const backToGroupFromLocadora = document.getElementById("backToGroupFromLocadora");
 const backToGroupFromCentro = document.getElementById("backToGroupFromCentro");
 const loginArea = document.getElementById("loginArea");
+const loginClienteCard = document.getElementById("loginClienteCard");
+const loginAdminCard = document.getElementById("loginAdminCard");
+const topbarAcessoCliente = document.getElementById("topbarAcessoCliente");
+const topbarAcessoColaborador = document.getElementById("topbarAcessoColaborador");
+const landingAcessoCliente = document.getElementById("landingAcessoCliente");
+const landingAcessoColaborador = document.getElementById("landingAcessoColaborador");
 const loginClienteForm = document.getElementById("loginClienteForm");
 const loginAdminForm = document.getElementById("loginAdminForm");
 const loginClienteMessage = document.getElementById("loginClienteMessage");
@@ -397,6 +403,22 @@ function showCentroArea() {
   grupoHome.classList.add("hidden");
   locadoraArea.classList.add("hidden");
   centroArea.classList.remove("hidden");
+}
+
+function openLocadoraLoginTarget(target) {
+  const colaborador = target === "colaborador";
+  showLocadoraArea();
+  loginArea.classList.remove("hidden");
+  dashboardCard.classList.add("hidden");
+  adminCard.classList.add("hidden");
+  const card = colaborador ? loginAdminCard : loginClienteCard;
+  const focusId = colaborador ? "cpfAdmin" : "cpfCliente";
+  requestAnimationFrame(() => {
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    document.getElementById(focusId)?.focus();
+    card?.classList.add("login-card--pulse");
+    window.setTimeout(() => card?.classList.remove("login-card--pulse"), 2200);
+  });
 }
 
 function buildFullOperacaoAccess() {
@@ -6115,6 +6137,19 @@ openLocadoraButton.addEventListener("click", () => {
   dashboardCard.classList.add("hidden");
   adminCard.classList.add("hidden");
 });
+
+if (topbarAcessoCliente) {
+  topbarAcessoCliente.addEventListener("click", () => openLocadoraLoginTarget("cliente"));
+}
+if (topbarAcessoColaborador) {
+  topbarAcessoColaborador.addEventListener("click", () => openLocadoraLoginTarget("colaborador"));
+}
+if (landingAcessoCliente) {
+  landingAcessoCliente.addEventListener("click", () => openLocadoraLoginTarget("cliente"));
+}
+if (landingAcessoColaborador) {
+  landingAcessoColaborador.addEventListener("click", () => openLocadoraLoginTarget("colaborador"));
+}
 
 openCentroButton.addEventListener("click", () => {
   showCentroArea();

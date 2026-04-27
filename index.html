@@ -13,44 +13,89 @@
 </head>
 <body>
   <header class="topbar">
-    <div>
+    <div class="topbar-brand">
       <h1>Grupo DK</h1>
-      <p>DK Centro Automotivo + DK Locadora | Petrolina - PE</p>
+      <p>DK Centro Automotivo + DK Locadora · Petrolina&nbsp;-&nbsp;PE</p>
     </div>
-    <button id="installButton" class="install-btn hidden">Instalar App</button>
+    <nav class="topbar-nav" aria-label="Acesso à plataforma">
+      <button type="button" id="topbarAcessoCliente" class="topbar-access topbar-access--cliente">Acesso cliente</button>
+      <button type="button" id="topbarAcessoColaborador" class="topbar-access topbar-access--staff">Acesso colaborador</button>
+      <button id="installButton" class="install-btn hidden">Instalar App</button>
+    </nav>
   </header>
 
   <main class="container">
-    <section id="grupoHome" class="card profile-card">
-      <h2>Empresas do Grupo DK</h2>
-      <div class="profile-grid">
-        <article class="profile-item">
-          <h3>DK Centro Automotivo</h3>
-          <p><strong>Instagram:</strong> @dk_centroautomotivo</p>
-          <p>📍 Avenida da Redencao | Antonio Cassimiro | Petrolina PE</p>
-          <p>Mecanica em geral | Alinhamento | Balanceamento | Injecao eletronica</p>
-          <p>
-            <a href="https://bit.ly/DKCENTROAUTOMOTIVO" target="_blank" rel="noopener noreferrer">
-              Abrir link da bio
-            </a>
+    <section id="grupoHome" class="landing">
+      <div class="landing-hero">
+        <div class="landing-hero__text">
+          <p class="landing-kicker">Oficina e locação no mesmo endereço</p>
+          <h2 class="landing-title">Serviços automotivos e mobilidade sob medida para você</h2>
+          <p class="landing-lead">
+            Use os botões no topo para abrir sua área de cliente ou de equipe na DK Locadora.
+            Conheça também o Centro Automotivo e acompanhe o dia a dia nas redes.
           </p>
-          <button id="openCentroButton" type="button">Entrar no Centro Automotivo</button>
+          <div class="landing-cta-row">
+            <button type="button" id="landingAcessoCliente" class="landing-cta landing-cta--primary">Sou cliente</button>
+            <button type="button" id="landingAcessoColaborador" class="landing-cta landing-cta--ghost">Sou colaborador</button>
+          </div>
+        </div>
+        <div class="landing-hero__shine" aria-hidden="true"></div>
+      </div>
+
+      <div class="landing-panels">
+        <article class="landing-panel landing-panel--centro">
+          <div class="landing-panel__media">
+            <img
+              src="images/home/centro-hero.svg"
+              width="800"
+              height="480"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              class="landing-panel__img"
+            >
+          </div>
+          <div class="landing-panel__body">
+            <h3 class="landing-panel__title">DK Centro Automotivo</h3>
+            <p class="landing-panel__meta">@dk_centroautomotivo · Avenida da Redencao · Petrolina PE</p>
+            <ul class="landing-panel__list">
+              <li>Mecânica em geral, alinhamento, balanceamento e injeção eletrônica</li>
+            </ul>
+            <div class="landing-panel__actions">
+              <a class="landing-link" href="https://instagram.com/dk_centroautomotivo" target="_blank" rel="noopener noreferrer">Instagram</a>
+              <a class="landing-link" href="https://bit.ly/DKCENTROAUTOMOTIVO" target="_blank" rel="noopener noreferrer">Link da bio</a>
+              <button id="openCentroButton" type="button" class="landing-panel__btn">Área institucional</button>
+            </div>
+          </div>
         </article>
 
-        <article class="profile-item">
-          <h3>DK Locadora</h3>
-          <p><strong>Instagram:</strong> @dk_locacoesmt</p>
-          <p>📍 Avenida da Redencao | Antonio Cassimiro | Petrolina PE</p>
-          <p>Aluguel de veiculos | Aluguel de motos</p>
-          <p>📱 (87) 8182-9389</p>
-          <p>
-            <a href="https://wa.me/558781829389" target="_blank" rel="noopener noreferrer">
-              Falar no WhatsApp
-            </a>
-          </p>
-          <button id="openLocadoraButton" type="button">Entrar na DK Locadora</button>
+        <article class="landing-panel landing-panel--locadora">
+          <div class="landing-panel__media">
+            <img
+              src="images/home/locadora-hero.svg"
+              width="800"
+              height="480"
+              alt=""
+              loading="lazy"
+              decoding="async"
+              class="landing-panel__img"
+            >
+          </div>
+          <div class="landing-panel__body">
+            <h3 class="landing-panel__title">DK Locadora</h3>
+            <p class="landing-panel__meta">@dk_locacoesmt · (87) 8182-9389</p>
+            <ul class="landing-panel__list">
+              <li>Aluguel de carros e motos · contratos e consultas pela plataforma</li>
+            </ul>
+            <div class="landing-panel__actions">
+              <a class="landing-link" href="https://instagram.com/dk_locacoesmt" target="_blank" rel="noopener noreferrer">Instagram</a>
+              <a class="landing-link" href="https://wa.me/558781829389" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+              <button id="openLocadoraButton" type="button" class="landing-panel__btn landing-panel__btn--accent">Ir para login DK Locadora</button>
+            </div>
+          </div>
         </article>
       </div>
+
     </section>
 
     <section id="centroArea" class="hidden">
@@ -82,7 +127,7 @@
       </section>
 
       <section id="loginArea" class="login-grid">
-        <section id="loginClienteCard" class="card">
+        <section id="loginClienteCard" class="card login-card">
           <h2>Acesso do Cliente</h2>
           <p class="subtext">Entre para ver apenas os dados do seu contrato.</p>
           <p id="envWarning" class="warning hidden"></p>
@@ -99,7 +144,7 @@
           <p class="hint">Clientes: senha inicial padrao <strong>1234</strong>.</p>
         </section>
 
-        <section id="loginAdminCard" class="card">
+        <section id="loginAdminCard" class="card login-card">
           <h2>Acesso do Funcionário</h2>
           <p class="subtext">Area de gestao da DK Locadora.</p>
           <form id="loginAdminForm">
