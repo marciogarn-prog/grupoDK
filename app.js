@@ -42,6 +42,15 @@ const mockClientes = [
 ];
 
 const FUNCIONARIOS_ACCESS_KEY = "dk_funcionarios_access";
+const OPERACAO_ACCESS_TARGETS = [
+  "cliente",
+  "veiculo",
+  "locacao",
+  "manutencao",
+  "lancamentoAluguel",
+  "lancamentoDespesa",
+  "funcionario",
+];
 const funcionariosAccess = [
   {
     cpf: "03037897430",
@@ -203,6 +212,12 @@ const cadFuncionarioSenha = document.getElementById("cadFuncionarioSenha");
 const cadFuncionarioRole = document.getElementById("cadFuncionarioRole");
 const cadFuncionarioClearBtn = document.getElementById("cadFuncionarioClearBtn");
 const funcionarioCadastroErro = document.getElementById("funcionarioCadastroErro");
+const cadFuncionarioAcessoCliente = document.getElementById("cadFuncionarioAcessoCliente");
+const cadFuncionarioAcessoVeiculo = document.getElementById("cadFuncionarioAcessoVeiculo");
+const cadFuncionarioAcessoLocacao = document.getElementById("cadFuncionarioAcessoLocacao");
+const cadFuncionarioAcessoManutencao = document.getElementById("cadFuncionarioAcessoManutencao");
+const cadFuncionarioAcessoLancamentoAluguel = document.getElementById("cadFuncionarioAcessoLancamentoAluguel");
+const cadFuncionarioAcessoLancamentoDespesa = document.getElementById("cadFuncionarioAcessoLancamentoDespesa");
 const veiculoCadastroErro = document.getElementById("veiculoCadastroErro");
 const cadVeiculoPlacaInput = document.getElementById("cadVeiculoPlaca");
 const cadVeiculoTagPreviewInput = document.getElementById("cadVeiculoTagPreview");
@@ -378,6 +393,64 @@ function showCentroArea() {
   centroArea.classList.remove("hidden");
 }
 
+function buildFullOperacaoAccess() {
+  return {
+    cliente: true,
+    veiculo: true,
+    locacao: true,
+    manutencao: true,
+    lancamentoAluguel: true,
+    lancamentoDespesa: true,
+    funcionario: true,
+  };
+}
+
+function normalizeOperacaoAccess(acessos, role) {
+  if (role === "owner") return buildFullOperacaoAccess();
+  const fallback = buildFullOperacaoAccess();
+  return {
+    cliente: acessos?.cliente ?? fallback.cliente,
+    veiculo: acessos?.veiculo ?? fallback.veiculo,
+    locacao: acessos?.locacao ?? fallback.locacao,
+    manutencao: acessos?.manutencao ?? fallback.manutencao,
+    lancamentoAluguel: acessos?.lancamentoAluguel ?? fallback.lancamentoAluguel,
+    lancamentoDespesa: acessos?.lancamentoDespesa ?? fallback.lancamentoDespesa,
+    funcionario: false,
+  };
+}
+
+function getFuncionarioBySession() {
+  const session = getSession();
+  if (session?.tipo !== "admin") return null;
+  const cpfSessao = onlyDigits(String(session.cpf || ""));
+  return funcionariosAccess.find((f) => f.cpf === cpfSessao) || null;
+}
+
+function canAccessOperacaoTarget(target) {
+  const funcionario = getFuncionarioBySession();
+  if (!funcionario) return false;
+  if (funcionario.role === "owner") return true;
+  const acessos = normalizeOperacaoAccess(funcionario.acessos, funcionario.role);
+  return Boolean(acessos[target]);
+}
+
+function refreshFuncionarioAccessInputsByRole() {
+  const role = String(cadFuncionarioRole?.value || "operacao").trim() === "owner" ? "owner" : "operacao";
+  const inputs = [
+    cadFuncionarioAcessoCliente,
+    cadFuncionarioAcessoVeiculo,
+    cadFuncionarioAcessoLocacao,
+    cadFuncionarioAcessoManutencao,
+    cadFuncionarioAcessoLancamentoAluguel,
+    cadFuncionarioAcessoLancamentoDespesa,
+  ].filter(Boolean);
+  const mark = role === "owner";
+  inputs.forEach((input) => {
+    input.checked = mark ? true : input.checked;
+    input.disabled = mark;
+  });
+}
+
 function saveFuncionariosAccess() {
   localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
 }
@@ -397,6 +470,10 @@ function hydrateFuncionariosAccess() {
         senha: String(f?.senha || "").trim(),
         nome: String(f?.nome || "").trim(),
         role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
+        acessos: normalizeOperacaoAccess(
+          f?.acessos || null,
+          String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
+        ),
       }))
       .filter((f) => f.cpf.length === 11 && f.senha && f.nome);
     if (!normalized.length) return;
@@ -415,8 +492,10 @@ const adminSecundario = funcionariosAccess.find((f) => f.cpf === "06523244440");
 if (adminSecundario) {
   adminSecundario.role = "owner";
   adminSecundario.nome = "Marcus Santos";
+  adminSecundario.acessos = buildFullOperacaoAccess();
 }
 saveFuncionariosAccess();
+refreshFuncionarioAccessInputsByRole();
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -585,12 +664,11 @@ function setAdminSection(section) {
 }
 
 function setOperacaoSubsection(target) {
-  const session = getSession();
-  const isOwner = session?.tipo === "admin" && session?.role === "owner";
-  if ((target || "cliente") === "funcionario" && !isOwner) {
+  const targetSafe = target || "cliente";
+  if (!canAccessOperacaoTarget(targetSafe)) {
     operacaoAbaAtual = "cliente";
   } else {
-    operacaoAbaAtual = target || "cliente";
+    operacaoAbaAtual = targetSafe;
   }
   if (operacaoClienteSection) operacaoClienteSection.classList.toggle("hidden", operacaoAbaAtual !== "cliente");
   if (operacaoVeiculoSection) operacaoVeiculoSection.classList.toggle("hidden", operacaoAbaAtual !== "veiculo");
@@ -603,12 +681,11 @@ function setOperacaoSubsection(target) {
     operacaoLancamentoDespesaSection.classList.toggle("hidden", operacaoAbaAtual !== "lancamentoDespesa");
   }
   if (operacaoFuncionarioSection) {
-    operacaoFuncionarioSection.classList.toggle("hidden", operacaoAbaAtual !== "funcionario" || !isOwner);
+    operacaoFuncionarioSection.classList.toggle("hidden", operacaoAbaAtual !== "funcionario");
   }
   operacaoTargetButtons.forEach((button) => {
-    if (button.dataset.target === "funcionario") {
-      button.classList.toggle("hidden", !isOwner);
-    }
+    const buttonTarget = String(button.dataset.target || "");
+    button.classList.toggle("hidden", !canAccessOperacaoTarget(buttonTarget));
     button.classList.toggle("active", button.dataset.target === operacaoAbaAtual);
   });
 }
@@ -5435,9 +5512,8 @@ function renderAdminDashboard() {
   adminNavInformacao.classList.toggle("hidden", !isOwner);
   adminNavDados.classList.toggle("hidden", !isOwner);
   operacaoTargetButtons.forEach((button) => {
-    if (button.dataset.target === "funcionario") {
-      button.classList.toggle("hidden", !isOwner);
-    }
+    const buttonTarget = String(button.dataset.target || "");
+    button.classList.toggle("hidden", !canAccessOperacaoTarget(buttonTarget));
   });
   setAdminSection("operacao");
   setOperacaoSubsection(operacaoAbaAtual || "cliente");
@@ -5969,10 +6045,17 @@ if (infoScopeCaixaBtn) {
 if (cadFuncionarioClearBtn) {
   cadFuncionarioClearBtn.addEventListener("click", () => {
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+    refreshFuncionarioAccessInputsByRole();
     if (funcionarioCadastroErro) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
     }
+  });
+}
+
+if (cadFuncionarioRole) {
+  cadFuncionarioRole.addEventListener("change", () => {
+    refreshFuncionarioAccessInputsByRole();
   });
 }
 
@@ -5991,6 +6074,17 @@ if (funcionarioCadastroForm) {
     const nome = String(cadFuncionarioNome?.value || "").trim();
     const senha = String(cadFuncionarioSenha?.value || "").trim();
     const role = String(cadFuncionarioRole?.value || "operacao").trim() === "owner" ? "owner" : "operacao";
+    const acessos = normalizeOperacaoAccess(
+      {
+        cliente: Boolean(cadFuncionarioAcessoCliente?.checked),
+        veiculo: Boolean(cadFuncionarioAcessoVeiculo?.checked),
+        locacao: Boolean(cadFuncionarioAcessoLocacao?.checked),
+        manutencao: Boolean(cadFuncionarioAcessoManutencao?.checked),
+        lancamentoAluguel: Boolean(cadFuncionarioAcessoLancamentoAluguel?.checked),
+        lancamentoDespesa: Boolean(cadFuncionarioAcessoLancamentoDespesa?.checked),
+      },
+      role
+    );
     if (cpf.length !== 11 || !nome || senha.length < 4) {
       if (funcionarioCadastroErro) {
         funcionarioCadastroErro.textContent =
@@ -6007,10 +6101,11 @@ if (funcionarioCadastroForm) {
       }
       return;
     }
-    funcionariosAccess.push({ cpf, senha, nome, role });
+    funcionariosAccess.push({ cpf, senha, nome, role, acessos });
     saveFuncionariosAccess();
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+    refreshFuncionarioAccessInputsByRole();
     if (funcionarioCadastroErro) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
