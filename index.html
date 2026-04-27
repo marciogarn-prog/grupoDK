@@ -382,7 +382,7 @@
             <form id="funcionarioCadastroForm" class="inline-form">
               <input type="text" id="cadFuncionarioCpf" placeholder="CPF (somente numeros)" required>
               <input type="text" id="cadFuncionarioNome" placeholder="Nome do funcionario" required>
-              <input type="password" id="cadFuncionarioSenha" placeholder="Senha de acesso" required>
+              <input type="password" id="cadFuncionarioSenha" placeholder="Senha de acesso (opcional na edição)" autocomplete="new-password">
               <select id="cadFuncionarioRole" required>
                 <option value="operacao">Perfil: Operacional</option>
                 <option value="owner">Perfil: Administrador</option>
@@ -395,8 +395,9 @@
                 <label><input type="checkbox" id="cadFuncionarioAcessoLancamentoAluguel" checked> Lançamento aluguel</label>
                 <label><input type="checkbox" id="cadFuncionarioAcessoLancamentoDespesa" checked> Lançamento despesas</label>
               </div>
-              <button type="submit">Salvar funcionário</button>
+              <button type="submit" id="cadFuncionarioSubmitBtn">Salvar funcionário</button>
               <button type="button" id="cadFuncionarioClearBtn" class="secondary">Limpar dados</button>
+              <button type="button" id="cadFuncionarioEditBtn" class="secondary hidden">Editar funcionário</button>
               <button type="button" id="cadFuncionarioBlockBtn" class="secondary hidden">Bloquear acesso</button>
             </form>
             <p id="funcionarioCadastroErro" class="message error hidden"></p>

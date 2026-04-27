@@ -211,6 +211,8 @@ const cadFuncionarioNome = document.getElementById("cadFuncionarioNome");
 const cadFuncionarioSenha = document.getElementById("cadFuncionarioSenha");
 const cadFuncionarioRole = document.getElementById("cadFuncionarioRole");
 const cadFuncionarioClearBtn = document.getElementById("cadFuncionarioClearBtn");
+const cadFuncionarioSubmitBtn = document.getElementById("cadFuncionarioSubmitBtn");
+const cadFuncionarioEditBtn = document.getElementById("cadFuncionarioEditBtn");
 const cadFuncionarioBlockBtn = document.getElementById("cadFuncionarioBlockBtn");
 const funcionarioCadastroErro = document.getElementById("funcionarioCadastroErro");
 const cadFuncionarioAcessoCliente = document.getElementById("cadFuncionarioAcessoCliente");
@@ -316,6 +318,8 @@ let clienteAcaoSenhaPendente = "";
 let clienteCancelMotivoPendente = "";
 let locacaoImpedimentoAlertShown = false;
 let operacaoAbaAtual = "cliente";
+/** CPF em edicao na tela de funcionario (null = modo cadastro novo). */
+let funcionarioEdicaoCpf = null;
 let informacaoEscopoAtual = "";
 let currentAdminReportSaldo = null;
 let currentQuadroGeralRows = [];
@@ -432,13 +436,49 @@ function findFuncionarioByCpfOrNome(cpfRaw, nomeRaw) {
   );
 }
 
-function refreshFuncionarioBlockButton() {
-  if (!cadFuncionarioBlockBtn) return;
-  const found = findFuncionarioByCpfOrNome(cadFuncionarioCpf?.value, cadFuncionarioNome?.value);
+function refreshFuncionarioAdminActionButtons() {
   const session = getSession();
   const isOwner = session?.tipo === "admin" && session?.role === "owner";
-  const canBlock = isOwner && Boolean(found) && found.role !== "owner" && !found.blocked;
-  cadFuncionarioBlockBtn.classList.toggle("hidden", !canBlock);
+  const found = findFuncionarioByCpfOrNome(cadFuncionarioCpf?.value, cadFuncionarioNome?.value);
+
+  if (cadFuncionarioEditBtn) {
+    const podeEditar =
+      isOwner && Boolean(found) && !found.blocked && funcionarioEdicaoCpf === null;
+    cadFuncionarioEditBtn.classList.toggle("hidden", !podeEditar);
+  }
+
+  if (cadFuncionarioBlockBtn) {
+    const podeBloquear =
+      isOwner && Boolean(found) && found.role !== "owner" && !found.blocked && funcionarioEdicaoCpf === null;
+    cadFuncionarioBlockBtn.classList.toggle("hidden", !podeBloquear);
+  }
+}
+
+function sairModoEdicaoFuncionario() {
+  funcionarioEdicaoCpf = null;
+  if (cadFuncionarioCpf) {
+    cadFuncionarioCpf.readOnly = false;
+    cadFuncionarioCpf.removeAttribute("readonly");
+  }
+  if (cadFuncionarioSubmitBtn) cadFuncionarioSubmitBtn.textContent = "Salvar funcionário";
+}
+
+function aplicarFuncionarioAoFormulario(funcionario) {
+  if (!funcionario) return;
+  if (cadFuncionarioCpf) cadFuncionarioCpf.value = formatCpf(funcionario.cpf || "");
+  if (cadFuncionarioNome) cadFuncionarioNome.value = String(funcionario.nome || "").trim();
+  if (cadFuncionarioSenha) cadFuncionarioSenha.value = "";
+  if (cadFuncionarioRole) cadFuncionarioRole.value = funcionario.role === "owner" ? "owner" : "operacao";
+  const norm = normalizeOperacaoAccess(funcionario.acessos, funcionario.role);
+  if (cadFuncionarioAcessoCliente) cadFuncionarioAcessoCliente.checked = Boolean(norm.cliente);
+  if (cadFuncionarioAcessoVeiculo) cadFuncionarioAcessoVeiculo.checked = Boolean(norm.veiculo);
+  if (cadFuncionarioAcessoLocacao) cadFuncionarioAcessoLocacao.checked = Boolean(norm.locacao);
+  if (cadFuncionarioAcessoManutencao) cadFuncionarioAcessoManutencao.checked = Boolean(norm.manutencao);
+  if (cadFuncionarioAcessoLancamentoAluguel)
+    cadFuncionarioAcessoLancamentoAluguel.checked = Boolean(norm.lancamentoAluguel);
+  if (cadFuncionarioAcessoLancamentoDespesa)
+    cadFuncionarioAcessoLancamentoDespesa.checked = Boolean(norm.lancamentoDespesa);
+  refreshFuncionarioAccessInputsByRole();
 }
 
 function getFuncionarioBySession() {
@@ -519,6 +559,7 @@ if (adminSecundario) {
 }
 saveFuncionariosAccess();
 refreshFuncionarioAccessInputsByRole();
+refreshFuncionarioAdminActionButtons();
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -6074,8 +6115,9 @@ if (infoScopeCaixaBtn) {
 if (cadFuncionarioClearBtn) {
   cadFuncionarioClearBtn.addEventListener("click", () => {
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+    sairModoEdicaoFuncionario();
     refreshFuncionarioAccessInputsByRole();
-    refreshFuncionarioBlockButton();
+    refreshFuncionarioAdminActionButtons();
     if (funcionarioCadastroErro) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
@@ -6086,19 +6128,41 @@ if (cadFuncionarioClearBtn) {
 if (cadFuncionarioRole) {
   cadFuncionarioRole.addEventListener("change", () => {
     refreshFuncionarioAccessInputsByRole();
+    refreshFuncionarioAdminActionButtons();
   });
 }
 
 if (cadFuncionarioCpf) {
   cadFuncionarioCpf.addEventListener("input", () => {
     cadFuncionarioCpf.value = formatCpf(onlyDigits(String(cadFuncionarioCpf.value || "")));
-    refreshFuncionarioBlockButton();
+    refreshFuncionarioAdminActionButtons();
   });
 }
 
 if (cadFuncionarioNome) {
   cadFuncionarioNome.addEventListener("input", () => {
-    refreshFuncionarioBlockButton();
+    refreshFuncionarioAdminActionButtons();
+  });
+}
+
+if (cadFuncionarioEditBtn) {
+  cadFuncionarioEditBtn.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.tipo !== "admin" || session?.role !== "owner") return;
+    const alvo = findFuncionarioByCpfOrNome(cadFuncionarioCpf?.value, cadFuncionarioNome?.value);
+    if (!alvo || alvo.blocked) return;
+    funcionarioEdicaoCpf = alvo.cpf;
+    if (cadFuncionarioCpf) {
+      cadFuncionarioCpf.readOnly = true;
+      cadFuncionarioCpf.setAttribute("readonly", "readonly");
+    }
+    aplicarFuncionarioAoFormulario(alvo);
+    if (cadFuncionarioSubmitBtn) cadFuncionarioSubmitBtn.textContent = "Atualizar funcionário";
+    refreshFuncionarioAdminActionButtons();
+    if (funcionarioCadastroErro) {
+      funcionarioCadastroErro.textContent = "";
+      funcionarioCadastroErro.classList.add("hidden");
+    }
   });
 }
 
@@ -6114,7 +6178,7 @@ if (cadFuncionarioBlockBtn) {
     saveFuncionariosAccess();
     addAuditLog("bloquear_funcionario", "funcionario", `${alvo.nome} - CPF ${formatCpf(alvo.cpf)}`);
     window.alert("ACESSO BLOQUEADO COM SUCESSO");
-    refreshFuncionarioBlockButton();
+    refreshFuncionarioAdminActionButtons();
     renderCadastros();
   });
 }
@@ -6145,18 +6209,65 @@ if (funcionarioCadastroForm) {
       },
       role
     );
-    if (cpf.length !== 11 || !nome || senha.length < 4) {
+    if (cpf.length !== 11 || !nome) {
       if (funcionarioCadastroErro) {
-        funcionarioCadastroErro.textContent =
-          "PREENCHA CPF VALIDO (11 DIGITOS), NOME E SENHA COM PELO MENOS 4 CARACTERES.";
+        funcionarioCadastroErro.textContent = "PREENCHA CPF VALIDO (11 DIGITOS) E NOME.";
         funcionarioCadastroErro.classList.remove("hidden");
       }
       return;
     }
+
+    const idxEdicao =
+      funcionarioEdicaoCpf !== null
+        ? funcionariosAccess.findIndex((f) => onlyDigits(String(f.cpf || "")) === funcionarioEdicaoCpf)
+        : -1;
+
+    if (idxEdicao >= 0) {
+      if (senha.length > 0 && senha.length < 4) {
+        if (funcionarioCadastroErro) {
+          funcionarioCadastroErro.textContent = "SE FOR TROCAR A SENHA, USE PELO MENOS 4 CARACTERES.";
+          funcionarioCadastroErro.classList.remove("hidden");
+        }
+        return;
+      }
+      const atual = funcionariosAccess[idxEdicao];
+      const novaSenha = senha.length >= 4 ? senha : atual.senha;
+      funcionariosAccess[idxEdicao] = {
+        ...atual,
+        nome,
+        role,
+        senha: novaSenha,
+        acessos,
+      };
+      saveFuncionariosAccess();
+      addAuditLog("editar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
+      if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+      sairModoEdicaoFuncionario();
+      refreshFuncionarioAccessInputsByRole();
+      refreshFuncionarioAdminActionButtons();
+      if (funcionarioCadastroErro) {
+        funcionarioCadastroErro.textContent = "";
+        funcionarioCadastroErro.classList.add("hidden");
+      }
+      window.alert("FUNCIONARIO ATUALIZADO COM SUCESSO");
+      renderCadastros();
+      return;
+    }
+
+    if (senha.length < 4) {
+      if (funcionarioCadastroErro) {
+        funcionarioCadastroErro.textContent =
+          "PREENCHA SENHA COM PELO MENOS 4 CARACTERES PARA NOVO CADASTRO.";
+        funcionarioCadastroErro.classList.remove("hidden");
+      }
+      return;
+    }
+
     const existe = funcionariosAccess.some((f) => onlyDigits(String(f.cpf || "")) === cpf);
     if (existe) {
       if (funcionarioCadastroErro) {
-        funcionarioCadastroErro.textContent = "JA EXISTE FUNCIONARIO CADASTRADO COM ESTE CPF.";
+        funcionarioCadastroErro.textContent =
+          "JA EXISTE FUNCIONARIO COM ESTE CPF. CLIQUE EM EDITAR FUNCIONARIO PARA ALTERAR.";
         funcionarioCadastroErro.classList.remove("hidden");
       }
       return;
@@ -6165,8 +6276,9 @@ if (funcionarioCadastroForm) {
     saveFuncionariosAccess();
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+    sairModoEdicaoFuncionario();
     refreshFuncionarioAccessInputsByRole();
-    refreshFuncionarioBlockButton();
+    refreshFuncionarioAdminActionButtons();
     if (funcionarioCadastroErro) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
