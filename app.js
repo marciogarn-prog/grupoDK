@@ -58,7 +58,7 @@ const funcionariosAccess = [
     cpf: "06523244440",
     senha: "110499Gb@",
     nome: "Administrador",
-    role: "operacao",
+    role: "owner",
   },
 ];
 
@@ -686,13 +686,13 @@ function isSenhaFuncionarioAtualValida(senhaInformada) {
 }
 
 function getOwnerAccess() {
-  return funcionariosAccess.find((f) => f.cpf === "03037897430" || f.role === "owner") || null;
+  return funcionariosAccess.find((f) => f.role === "owner") || null;
 }
 
+/** Aceita a senha de qualquer funcionario cadastrado como titular (owner). */
 function isSenhaOwnerValida(senhaInformada) {
-  const owner = getOwnerAccess();
-  if (!owner) return false;
-  return String(senhaInformada || "").trim() === owner.senha;
+  const senha = String(senhaInformada || "").trim();
+  return funcionariosAccess.some((f) => f.role === "owner" && senha === f.senha);
 }
 
 function loadAuditLog() {
