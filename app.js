@@ -41,6 +41,7 @@ const mockClientes = [
   },
 ];
 
+const FUNCIONARIOS_ACCESS_KEY = "dk_funcionarios_access";
 const funcionariosAccess = [
   {
     cpf: "03037897430",
@@ -135,6 +136,7 @@ const operacaoLocacaoSection = document.getElementById("operacaoLocacaoSection")
 const operacaoManutencaoSection = document.getElementById("operacaoManutencaoSection");
 const operacaoLancamentoAluguelSection = document.getElementById("operacaoLancamentoAluguelSection");
 const operacaoLancamentoDespesaSection = document.getElementById("operacaoLancamentoDespesaSection");
+const operacaoFuncionarioSection = document.getElementById("operacaoFuncionarioSection");
 const infoScopeAtivosBtn = document.getElementById("infoScopeAtivosBtn");
 const infoScopeInativosBtn = document.getElementById("infoScopeInativosBtn");
 const infoScopeTodosBtn = document.getElementById("infoScopeTodosBtn");
@@ -193,6 +195,14 @@ const cadastroVeiculoLista = document.getElementById("cadastroVeiculoLista");
 const cadastroLocacaoLista = document.getElementById("cadastroLocacaoLista");
 const cadastroManutencaoLista = document.getElementById("cadastroManutencaoLista");
 const cadastroLancamentoAluguelLista = document.getElementById("cadastroLancamentoAluguelLista");
+const cadastroFuncionarioLista = document.getElementById("cadastroFuncionarioLista");
+const funcionarioCadastroForm = document.getElementById("funcionarioCadastroForm");
+const cadFuncionarioCpf = document.getElementById("cadFuncionarioCpf");
+const cadFuncionarioNome = document.getElementById("cadFuncionarioNome");
+const cadFuncionarioSenha = document.getElementById("cadFuncionarioSenha");
+const cadFuncionarioRole = document.getElementById("cadFuncionarioRole");
+const cadFuncionarioClearBtn = document.getElementById("cadFuncionarioClearBtn");
+const funcionarioCadastroErro = document.getElementById("funcionarioCadastroErro");
 const veiculoCadastroErro = document.getElementById("veiculoCadastroErro");
 const cadVeiculoPlacaInput = document.getElementById("cadVeiculoPlaca");
 const cadVeiculoTagPreviewInput = document.getElementById("cadVeiculoTagPreview");
@@ -368,9 +378,42 @@ function showCentroArea() {
   centroArea.classList.remove("hidden");
 }
 
+function saveFuncionariosAccess() {
+  localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
+}
+
+function hydrateFuncionariosAccess() {
+  const raw = localStorage.getItem(FUNCIONARIOS_ACCESS_KEY);
+  if (!raw) {
+    saveFuncionariosAccess();
+    return;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+    const normalized = parsed
+      .map((f) => ({
+        cpf: onlyDigits(String(f?.cpf || "")),
+        senha: String(f?.senha || "").trim(),
+        nome: String(f?.nome || "").trim(),
+        role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
+      }))
+      .filter((f) => f.cpf.length === 11 && f.senha && f.nome);
+    if (!normalized.length) return;
+    funcionariosAccess.splice(0, funcionariosAccess.length, ...normalized);
+  } catch {
+    // Mantém fallback em memória se armazenamento estiver inválido.
+  }
+}
+
 function onlyDigits(value) {
   return value.replace(/\D/g, "");
 }
+
+hydrateFuncionariosAccess();
+const adminSecundario = funcionariosAccess.find((f) => f.cpf === "06523244440");
+if (adminSecundario) adminSecundario.role = "owner";
+saveFuncionariosAccess();
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -539,7 +582,13 @@ function setAdminSection(section) {
 }
 
 function setOperacaoSubsection(target) {
-  operacaoAbaAtual = target || "cliente";
+  const session = getSession();
+  const isOwner = session?.tipo === "admin" && session?.role === "owner";
+  if ((target || "cliente") === "funcionario" && !isOwner) {
+    operacaoAbaAtual = "cliente";
+  } else {
+    operacaoAbaAtual = target || "cliente";
+  }
   if (operacaoClienteSection) operacaoClienteSection.classList.toggle("hidden", operacaoAbaAtual !== "cliente");
   if (operacaoVeiculoSection) operacaoVeiculoSection.classList.toggle("hidden", operacaoAbaAtual !== "veiculo");
   if (operacaoLocacaoSection) operacaoLocacaoSection.classList.toggle("hidden", operacaoAbaAtual !== "locacao");
@@ -550,7 +599,13 @@ function setOperacaoSubsection(target) {
   if (operacaoLancamentoDespesaSection) {
     operacaoLancamentoDespesaSection.classList.toggle("hidden", operacaoAbaAtual !== "lancamentoDespesa");
   }
+  if (operacaoFuncionarioSection) {
+    operacaoFuncionarioSection.classList.toggle("hidden", operacaoAbaAtual !== "funcionario" || !isOwner);
+  }
   operacaoTargetButtons.forEach((button) => {
+    if (button.dataset.target === "funcionario") {
+      button.classList.toggle("hidden", !isOwner);
+    }
     button.classList.toggle("active", button.dataset.target === operacaoAbaAtual);
   });
 }
@@ -3388,6 +3443,7 @@ function renderCadastros() {
   const locacoes = loadCadastro(CAD_LOCACOES_KEY);
   const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
   const lancamentosAluguel = getLancamentosAluguel();
+  const funcionarios = funcionariosAccess.slice();
   refreshLocacaoPlacaOptions();
 
   cadastroClienteLista.innerHTML = clientes.length
@@ -3464,6 +3520,20 @@ function renderCadastros() {
           )
           .join("")
       : "<p>Nenhum lançamento de aluguel cadastrado.</p>";
+  }
+  if (cadastroFuncionarioLista) {
+    cadastroFuncionarioLista.innerHTML = funcionarios.length
+      ? funcionarios
+          .slice()
+          .reverse()
+          .map(
+            (f) =>
+              `<p><strong>${escapeHtml(f.nome || "Sem nome")}</strong> | CPF: ${formatCpf(
+                f.cpf || ""
+              )} | Perfil: ${escapeHtml(String(f.role || "operacao").toUpperCase())}</p>`
+          )
+          .join("")
+      : "<p>Nenhum funcionario cadastrado.</p>";
   }
   renderLancamentoAluguelResumo();
 }
@@ -5361,6 +5431,11 @@ function renderAdminDashboard() {
   adminCard.classList.remove("hidden");
   adminNavInformacao.classList.toggle("hidden", !isOwner);
   adminNavDados.classList.toggle("hidden", !isOwner);
+  operacaoTargetButtons.forEach((button) => {
+    if (button.dataset.target === "funcionario") {
+      button.classList.toggle("hidden", !isOwner);
+    }
+  });
   setAdminSection("operacao");
   setOperacaoSubsection(operacaoAbaAtual || "cliente");
   setInformacaoScope("todos");
@@ -5885,6 +5960,60 @@ if (infoScopeCaixaBtn) {
   infoScopeCaixaBtn.addEventListener("click", () => {
     setAdminSection("informacao");
     setInformacaoScope("caixa");
+  });
+}
+
+if (cadFuncionarioClearBtn) {
+  cadFuncionarioClearBtn.addEventListener("click", () => {
+    if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+    if (funcionarioCadastroErro) {
+      funcionarioCadastroErro.textContent = "";
+      funcionarioCadastroErro.classList.add("hidden");
+    }
+  });
+}
+
+if (funcionarioCadastroForm) {
+  funcionarioCadastroForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const session = getSession();
+    if (session?.tipo !== "admin" || session?.role !== "owner") {
+      if (funcionarioCadastroErro) {
+        funcionarioCadastroErro.textContent = "ACESSO NEGADO: APENAS TITULAR PODE CADASTRAR FUNCIONARIO.";
+        funcionarioCadastroErro.classList.remove("hidden");
+      }
+      return;
+    }
+    const cpf = onlyDigits(String(cadFuncionarioCpf?.value || ""));
+    const nome = String(cadFuncionarioNome?.value || "").trim();
+    const senha = String(cadFuncionarioSenha?.value || "").trim();
+    const role = String(cadFuncionarioRole?.value || "operacao").trim() === "owner" ? "owner" : "operacao";
+    if (cpf.length !== 11 || !nome || senha.length < 4) {
+      if (funcionarioCadastroErro) {
+        funcionarioCadastroErro.textContent =
+          "PREENCHA CPF VALIDO (11 DIGITOS), NOME E SENHA COM PELO MENOS 4 CARACTERES.";
+        funcionarioCadastroErro.classList.remove("hidden");
+      }
+      return;
+    }
+    const existe = funcionariosAccess.some((f) => onlyDigits(String(f.cpf || "")) === cpf);
+    if (existe) {
+      if (funcionarioCadastroErro) {
+        funcionarioCadastroErro.textContent = "JA EXISTE FUNCIONARIO CADASTRADO COM ESTE CPF.";
+        funcionarioCadastroErro.classList.remove("hidden");
+      }
+      return;
+    }
+    funcionariosAccess.push({ cpf, senha, nome, role });
+    saveFuncionariosAccess();
+    addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
+    if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
+    if (funcionarioCadastroErro) {
+      funcionarioCadastroErro.textContent = "";
+      funcionarioCadastroErro.classList.add("hidden");
+    }
+    window.alert("FUNCIONARIO CADASTRADO COM SUCESSO");
+    renderCadastros();
   });
 }
 

@@ -163,6 +163,7 @@
               <button type="button" class="secondary operacao-target-btn" data-target="manutencao">Cadastro manutencao</button>
               <button type="button" class="secondary operacao-target-btn" data-target="lancamentoAluguel">Lançamento de aluguel</button>
               <button type="button" class="secondary operacao-target-btn" data-target="lancamentoDespesa">Lançamento de despesas</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="funcionario">Cadastro funcionario</button>
             </div>
             <button type="button" id="adminNavInformacao" class="secondary">02 - Informacao</button>
             <div id="adminInformacaoMenu" class="sidebar-submenu hidden">
@@ -373,6 +374,24 @@
             <div class="vehicle-box">
               <p>Em breve: tela de lançamento detalhado de despesas.</p>
             </div>
+              </section>
+
+              <section id="operacaoFuncionarioSection" class="admin-group hidden">
+            <h3>Cadastro de Funcionário</h3>
+            <p class="subtext">Acesso exclusivo do titular (owner) para criar novos logins administrativos.</p>
+            <form id="funcionarioCadastroForm" class="inline-form">
+              <input type="text" id="cadFuncionarioCpf" placeholder="CPF (somente numeros)" required>
+              <input type="text" id="cadFuncionarioNome" placeholder="Nome do funcionario" required>
+              <input type="password" id="cadFuncionarioSenha" placeholder="Senha de acesso" required>
+              <select id="cadFuncionarioRole" required>
+                <option value="operacao">Perfil: operacao</option>
+                <option value="owner">Perfil: owner (titular)</option>
+              </select>
+              <button type="submit">Salvar funcionário</button>
+              <button type="button" id="cadFuncionarioClearBtn" class="secondary">Limpar dados</button>
+            </form>
+            <p id="funcionarioCadastroErro" class="message error hidden"></p>
+            <div id="cadastroFuncionarioLista" class="cadastro-lista"></div>
               </section>
             </div>
 
