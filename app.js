@@ -347,6 +347,8 @@ const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
 const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
 const CAD_LANCAMENTOS_ALUGUEL_KEY = "dk_lancamentos_aluguel";
+/** Sobrescritas manuais do quadro RECEITA por célula SEM (persistido no backup). */
+const CAD_QUADRO_RECEITA_OVERRIDES_KEY = "dk_quadro_receita_overrides";
 const AUDIT_LOG_KEY = "dk_audit_log";
 const BACKUP_KEYS = [
   CAD_CLIENTES_KEY,
@@ -355,6 +357,7 @@ const BACKUP_KEYS = [
   LOCACAO_DATABASE_KEY,
   CAD_MANUTENCOES_KEY,
   CAD_LANCAMENTOS_ALUGUEL_KEY,
+  CAD_QUADRO_RECEITA_OVERRIDES_KEY,
   AUDIT_LOG_KEY,
 ];
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
@@ -1296,6 +1299,62 @@ function loadCadastro(key) {
 
 function saveCadastro(key, list) {
   localStorage.setItem(key, JSON.stringify(list));
+}
+
+function loadQuadroReceitaOverridesMap() {
+  const arr = loadCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY);
+  const out = {};
+  if (!Array.isArray(arr)) return out;
+  arr.forEach((row) => {
+    if (!row || row.key == null) return;
+    const v = Number(row.valor);
+    if (!Number.isFinite(v)) return;
+    out[String(row.key)] = v;
+  });
+  return out;
+}
+
+function saveQuadroReceitaOverridesMap(map) {
+  const arr = Object.keys(map).map((key) => ({
+    key,
+    valor: map[key],
+  }));
+  saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, arr);
+}
+
+function quadroOverrideReceitaKey(cpfDigits, placaRaw, block, mesAbbr, slotIdx) {
+  return `${onlyDigits(String(cpfDigits || ""))}_${normalizePlate(placaRaw || "")}_R${block}_${String(mesAbbr || "").toUpperCase()}_${slotIdx}`;
+}
+
+function quadroOverrideCalendarKey(cpfDigits, placaRaw, ymKey, slotIdx) {
+  return `${onlyDigits(String(cpfDigits || ""))}_${normalizePlate(placaRaw || "")}_CAL_${ymKey}_${slotIdx}`;
+}
+
+function applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, block, mesAbbr, six) {
+  const store = loadQuadroReceitaOverridesMap();
+  six.forEach((m, i) => {
+    const k = quadroOverrideReceitaKey(cpfDigits, placaRaw, block, mesAbbr, i);
+    if (!Object.prototype.hasOwnProperty.call(store, k)) return;
+    const v = store[k];
+    if (!Number.isFinite(v)) return;
+    six[i] = {
+      raw: String(v),
+      val: v,
+      empty: Math.abs(v) < 1e-9,
+    };
+    if (Math.abs(v) >= 1e-9) six[i].empty = false;
+  });
+}
+
+function applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ymKey, slots) {
+  const store = loadQuadroReceitaOverridesMap();
+  slots.forEach((s, i) => {
+    const k = quadroOverrideCalendarKey(cpfDigits, placaRaw, ymKey, i);
+    if (!Object.prototype.hasOwnProperty.call(store, k)) return;
+    const v = store[k];
+    if (!Number.isFinite(v)) return;
+    s.total = v;
+  });
 }
 
 function backupFileName() {
@@ -2658,9 +2717,32 @@ function mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, block,
   });
 }
 
-function formatQuadroMonthSlotTd(meta, cellOpts) {
+function formatQuadroInputDisplay(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n) || Math.abs(n) < 1e-9) return "";
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatQuadroMonthSlotTd(meta, cellOpts, editableCtx) {
   const highlightNovo = cellOpts?.highlightNovo;
   const highlightPreview = cellOpts?.highlightPreview;
+  if (editableCtx?.enabled) {
+    const key = quadroOverrideReceitaKey(
+      editableCtx.cpf,
+      editableCtx.placa,
+      editableCtx.block,
+      editableCtx.mes,
+      editableCtx.slotIdx
+    );
+    const displayVal = formatQuadroInputDisplay(meta.val);
+    const isNeg = meta.val < -1e-9;
+    let inpCls = "quadro-cell-input";
+    if (highlightNovo) inpCls += " quadro-cell-input--novo";
+    if (isNeg) inpCls += " quadro-cell-input--neg";
+    return `<td class="quadro-cell quadro-cell--editable-wrap"><input type="text" class="${inpCls}" data-q-kind="sem" data-q-key="${escapeHtml(
+      key
+    )}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
+  }
   if (meta.empty && Math.abs(meta.val) < 1e-9) {
     return `<td class="quadro-cell quadro-cell--empty">—</td>`;
   }
@@ -2723,6 +2805,7 @@ function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlig
 }
 
 function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, options = {}) {
+  const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
   const highlightKeys = buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId);
   const rowForTotals = record || findContratoForLancamentoResumo(cpfDigits, placaRaw);
@@ -2754,7 +2837,8 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     }
     mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "25", String(d.mes || ""), monthMetas);
     const six = packSixSlotMetas(monthMetas);
-    const rowSum = monthMetas.reduce((acc, m) => acc + m.val, 0);
+    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "25", String(d.mes || ""), six);
+    const rowSum = six.reduce((acc, m) => acc + m.val, 0);
     rawRows.push({
       label: mesAbbrToLabelGrade(d.mes, "2025"),
       block: "25",
@@ -2771,7 +2855,8 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     }
     mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "26", String(d.mes || ""), monthMetas);
     const six = packSixSlotMetas(monthMetas);
-    const rowSum = monthMetas.reduce((acc, m) => acc + m.val, 0);
+    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "26", String(d.mes || ""), six);
+    const rowSum = six.reduce((acc, m) => acc + m.val, 0);
     rawRows.push({
       label: mesAbbrToLabelGrade(d.mes, "2026"),
       block: "26",
@@ -2786,9 +2871,22 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
   trimmed.forEach((r) => {
     const slotsHtml = r.six
       .map((meta, i) =>
-        formatQuadroMonthSlotTd(meta, {
-          highlightNovo: highlightKeys.has(`${r.block}|${r.mes}|${i}`),
-        })
+        formatQuadroMonthSlotTd(
+          meta,
+          {
+            highlightNovo: highlightKeys.has(`${r.block}|${r.mes}|${i}`),
+          },
+          editableDialog
+            ? {
+                enabled: true,
+                cpf: cpfDigits,
+                placa: placaRaw,
+                block: r.block,
+                mes: r.mes,
+                slotIdx: i,
+              }
+            : null
+        )
       )
       .join("");
     const rowEmpty =
@@ -2800,10 +2898,14 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
         ? "quadro-cell quadro-row-total quadro-cell--empty"
         : `quadro-cell quadro-row-total${totalNeg ? " quadro-cell--negativo" : ""}`;
     const totalDisp = rowEmpty ? "—" : currencyBRL(r.rowSum);
+    const rowKey = `${r.block}|${r.mes}`;
+    const totalTd = editableDialog
+      ? `<td class="${totalCls} quadro-row-total--live" data-q-row-key="${escapeHtml(rowKey)}">${totalDisp}</td>`
+      : `<td class="${totalCls}">${totalDisp}</td>`;
     rowsHtml += `
-      <tr>
+      <tr${editableDialog ? ` data-q-row-key="${escapeHtml(rowKey)}"` : ""}>
         <td class="quadro-mes">${escapeHtml(r.label)}</td>
-        <td class="${totalCls}">${totalDisp}</td>
+        ${totalTd}
         ${slotsHtml}
       </tr>`;
   });
@@ -2833,7 +2935,48 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     </div>`;
 }
 
+function formatCalendarMonthSlotTd(s, editableCtx, ymKey, slotIdx) {
+  if (editableCtx?.enabled) {
+    const key = quadroOverrideCalendarKey(editableCtx.cpf, editableCtx.placa, ymKey, slotIdx);
+    const displayVal = formatQuadroInputDisplay(s.total);
+    let inpCls = "quadro-cell-input";
+    if (s.hasPreview) inpCls += " quadro-cell-input--preview";
+    else if (s.hasNovo) inpCls += " quadro-cell-input--novo";
+    return `<td class="quadro-cell quadro-cell--editable-wrap"><input type="text" class="${inpCls}" data-q-kind="sem" data-q-key="${escapeHtml(
+      key
+    )}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
+  }
+  if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+  let cls = "quadro-cell quadro-cell--valor";
+  if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
+  else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
+  return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
+}
+
+function computeMonthSlotsSixSemanas(monthItems, highlightId) {
+  const sorted = monthItems
+    .filter((it) => parseBrDate(it.semanaInicio))
+    .sort(
+      (a, b) =>
+        (parseBrDate(a.semanaInicio)?.getTime() || 0) -
+        (parseBrDate(b.semanaInicio)?.getTime() || 0)
+    );
+  const slots = Array.from({ length: 6 }, () => ({
+    total: 0,
+    hasNovo: false,
+    hasPreview: false,
+  }));
+  sorted.forEach((it, idx) => {
+    const slot = Math.min(idx, 5);
+    slots[slot].total += getLancamentoAluguelValor(it);
+    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
+    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
+  });
+  return slots;
+}
+
 function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options = {}) {
+  const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
   const preview = options.preview;
   let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw);
@@ -2867,12 +3010,29 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
   let rowsHtml = "";
   mesesKeys.forEach((ym) => {
     const monthItems = byMonth[ym] || [];
-    const slotsHtml = fillMonthSlotsSixSemanas(monthItems, highlightId);
-    const rowSum = monthItems.reduce((acc, it) => acc + getLancamentoAluguelValor(it), 0);
+    const slots = computeMonthSlotsSixSemanas(monthItems, highlightId);
+    applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ym, slots);
+    const rowSum = slots.reduce((acc, s) => acc + s.total, 0);
+    const rowKeyCal = `CAL|${ym}`;
+    const editableCtx = editableDialog
+      ? { enabled: true, cpf: cpfDigits, placa: placaRaw }
+      : null;
+    const slotsHtml = slots
+      .map((s, i) => formatCalendarMonthSlotTd(s, editableCtx, ym, i))
+      .join("");
+    const rowEmpty = Math.abs(rowSum) < 1e-9;
+    const totalNeg = rowSum < -1e-9;
+    const totalCls = rowEmpty
+      ? "quadro-cell quadro-row-total quadro-cell--empty"
+      : `quadro-cell quadro-row-total${totalNeg ? " quadro-cell--negativo" : ""}`;
+    const totalDisp = rowEmpty ? "—" : currencyBRL(rowSum);
+    const totalTd = editableDialog
+      ? `<td class="${totalCls} quadro-row-total--live" data-q-row-key="${escapeHtml(rowKeyCal)}">${totalDisp}</td>`
+      : `<td class="${totalCls}">${totalDisp}</td>`;
     rowsHtml += `
-      <tr>
+      <tr${editableDialog ? ` data-q-row-key="${escapeHtml(rowKeyCal)}"` : ""}>
         <td class="quadro-mes">${escapeHtml(ymKeyToAbrSlash(ym))}</td>
-        <td class="quadro-cell quadro-row-total">${rowSum > 0 ? currencyBRL(rowSum) : "—"}</td>
+        ${totalTd}
         ${slotsHtml}
       </tr>`;
   });
@@ -2902,24 +3062,7 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
 }
 
 function fillMonthSlotsSixSemanas(monthItems, highlightId) {
-  const sorted = monthItems
-    .filter((it) => parseBrDate(it.semanaInicio))
-    .sort(
-      (a, b) =>
-        (parseBrDate(a.semanaInicio)?.getTime() || 0) -
-        (parseBrDate(b.semanaInicio)?.getTime() || 0)
-    );
-  const slots = Array.from({ length: 6 }, () => ({
-    total: 0,
-    hasNovo: false,
-    hasPreview: false,
-  }));
-  sorted.forEach((it, idx) => {
-    const slot = Math.min(idx, 5);
-    slots[slot].total += getLancamentoAluguelValor(it);
-    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
-    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
-  });
+  const slots = computeMonthSlotsSixSemanas(monthItems, highlightId);
   return slots
     .map((s) => {
       if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
@@ -2944,6 +3087,66 @@ function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
   return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
 }
 
+function updateQuadroRowTotalFromInputs(tr) {
+  if (!tr) return;
+  const inputs = tr.querySelectorAll("input.quadro-cell-input[data-q-key]");
+  let sum = 0;
+  inputs.forEach((inp) => {
+    sum += parseCurrencyBR(inp.value);
+  });
+  const totalTd = tr.querySelector("td.quadro-row-total--live");
+  if (!totalTd) return;
+  totalTd.classList.remove("quadro-cell--empty", "quadro-cell--negativo");
+  if (Math.abs(sum) < 1e-9) {
+    totalTd.textContent = "—";
+    totalTd.classList.add("quadro-cell--empty");
+  } else {
+    totalTd.textContent = currencyBRL(sum);
+    if (sum < -1e-9) totalTd.classList.add("quadro-cell--negativo");
+  }
+}
+
+function wireQuadroHistoricoEditableInputs(container) {
+  const onInp = (e) => {
+    const t = e.target;
+    if (!t || !t.matches || !t.matches("input.quadro-cell-input")) return;
+    const tr = t.closest("tr");
+    updateQuadroRowTotalFromInputs(tr);
+  };
+  container.addEventListener("input", onInp);
+  return () => container.removeEventListener("input", onInp);
+}
+
+function quadroEditableSnapshotSerialize(container) {
+  const o = {};
+  container.querySelectorAll("input.quadro-cell-input[data-q-key]").forEach((inp) => {
+    const k = inp.getAttribute("data-q-key");
+    if (!k) return;
+    o[k] = String(inp.value || "").trim();
+  });
+  const keys = Object.keys(o).sort();
+  const norm = {};
+  keys.forEach((k) => {
+    norm[k] = o[k];
+  });
+  return JSON.stringify(norm);
+}
+
+function persistQuadroHistoricoOverridesFromInputs(container) {
+  const map = loadQuadroReceitaOverridesMap();
+  container.querySelectorAll("input.quadro-cell-input[data-q-key]").forEach((inp) => {
+    const k = inp.getAttribute("data-q-key");
+    if (!k) return;
+    const raw = String(inp.value || "").trim();
+    if (raw === "") {
+      delete map[k];
+    } else {
+      map[k] = parseCurrencyBR(inp.value);
+    }
+  });
+  saveQuadroReceitaOverridesMap(map);
+}
+
 function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
   if (
     !lancamentoAluguelHistoricoDialog ||
@@ -2956,26 +3159,52 @@ function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
   const html = buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, {
     highlightId: null,
     preview,
+    editableDialog: true,
   });
   lancamentoAluguelHistoricoQuadro.innerHTML = html;
+  const unwireInputs = wireQuadroHistoricoEditableInputs(lancamentoAluguelHistoricoQuadro);
+  const initialSnap = quadroEditableSnapshotSerialize(lancamentoAluguelHistoricoQuadro);
   lancamentoAluguelHistoricoDialog.classList.remove("hidden");
   return new Promise((resolve) => {
+    const cleanup = () => {
+      unwireInputs();
+    };
     const close = () => {
       lancamentoAluguelHistoricoDialog.classList.add("hidden");
     };
     const onSim = () => {
+      const currentSnap = quadroEditableSnapshotSerialize(lancamentoAluguelHistoricoQuadro);
+      const changed = currentSnap !== initialSnap;
+      if (changed) {
+        const senha = window.prompt(
+          "Alteracao no quadro detectada. Digite a senha do administrador para salvar as celulas editadas:"
+        );
+        if (senha === null) return;
+        if (!isSenhaOwnerValida(senha)) {
+          window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
+          return;
+        }
+        persistQuadroHistoricoOverridesFromInputs(lancamentoAluguelHistoricoQuadro);
+        addAuditLog(
+          "quadro_receita_overrides",
+          "lancamento_aluguel_quadro",
+          `${onlyDigits(cpfDigits)} ${String(placaRaw || "").trim().toUpperCase()}`
+        );
+      }
+      cleanup();
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
       resolve(true);
     };
     const onEditar = () => {
-      const senha = window.prompt("Digite a senha do administrador para editar o histórico:");
+      const senha = window.prompt("Digite a senha do administrador para editar o histórico na lista:");
       if (senha === null) return;
       if (!isSenhaOwnerValida(senha)) {
         window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
         return;
       }
+      cleanup();
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
