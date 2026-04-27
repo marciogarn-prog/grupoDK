@@ -26,7 +26,12 @@
 
   <main class="container">
     <section id="grupoHome" class="landing">
-      <div class="landing-hero">
+      <div class="home-layout-toolbar">
+        <button type="button" id="homeLayoutEditToggleBtn" class="secondary">Editar layout</button>
+        <button type="button" id="homeLayoutSaveBtn" class="secondary">Salvar layout</button>
+        <button type="button" id="homeLayoutResetBtn" class="secondary">Resetar layout</button>
+      </div>
+      <div class="landing-hero" data-home-layout-box="hero">
         <div class="landing-hero__text">
           <p class="landing-kicker">Oficina e locação no mesmo endereço</p>
           <h2 class="landing-title">Serviços automotivos e mobilidade sob medida para você</h2>
@@ -43,7 +48,7 @@
       </div>
 
       <div class="landing-panels">
-        <article class="landing-panel landing-panel--centro">
+        <article class="landing-panel landing-panel--centro" data-home-layout-box="centro">
           <div class="landing-panel__media">
             <img
               src="images/home/centro-hero.svg"
@@ -69,7 +74,7 @@
           </div>
         </article>
 
-        <article class="landing-panel landing-panel--locadora">
+        <article class="landing-panel landing-panel--locadora" data-home-layout-box="locadora">
           <div class="landing-panel__media">
             <img
               src="images/home/locadora-hero.svg"
@@ -424,11 +429,21 @@
               <section id="operacaoFuncionarioSection" class="admin-group hidden">
             <h3>Cadastro de Funcionário</h3>
             <p class="subtext">Acesso exclusivo do titular (owner) para criar novos logins administrativos.</p>
+            <div class="func-layout-toolbar">
+              <button type="button" id="funcLayoutEditToggleBtn" class="secondary">Editar caixas</button>
+              <button type="button" id="funcLayoutSaveBtn" class="secondary">Salvar layout</button>
+              <button type="button" id="funcLayoutResetBtn" class="secondary">Resetar layout</button>
+            </div>
             <form id="funcionarioCadastroForm" class="inline-form funcionario-inline-form">
               <input type="text" id="cadFuncionarioCpf" placeholder="CPF (somente numeros)" required>
               <input type="text" id="cadFuncionarioNome" list="cadFuncionarioNomeSugestoes" placeholder="Nome do funcionario" required autocomplete="off">
               <datalist id="cadFuncionarioNomeSugestoes"></datalist>
-              <input type="password" id="cadFuncionarioSenha" placeholder="Senha de acesso (opcional na edição)" autocomplete="new-password">
+              <input type="password" id="cadFuncionarioSenha" placeholder="Senha: use na edição ou para administrador" autocomplete="new-password">
+              <p class="hint funcionario-senha-nota" id="cadFuncionarioSenhaNota">
+                <strong>Operacional:</strong> a senha inicial é definida automaticamente como <strong>123456</strong>;
+                no primeiro acesso o colaborador deve trocar para <strong>exatamente 6 números</strong>.
+                <strong>Administrador:</strong> defina a senha aqui ao cadastrar (mínimo 4 caracteres).
+              </p>
               <select id="cadFuncionarioRole" required>
                 <option value="operacao">Perfil: Operacional</option>
                 <option value="owner">Perfil: Administrador</option>

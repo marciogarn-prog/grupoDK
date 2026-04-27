@@ -171,6 +171,46 @@ body::after {
   flex-direction: column;
   gap: 2rem;
   margin-bottom: 2rem;
+  position: relative;
+}
+
+.home-layout-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.home-layout-toolbar button {
+  margin-top: 0;
+  padding: 0.45rem 0.85rem;
+  font-size: 0.8rem;
+}
+
+.landing-custom-layout {
+  display: block;
+}
+
+.landing-custom-layout [data-home-layout-box] {
+  position: absolute;
+  margin: 0;
+  resize: both;
+  overflow: auto;
+  min-width: 280px;
+  min-height: 180px;
+}
+
+.landing-custom-layout .landing-panels {
+  display: contents;
+}
+
+.landing-custom-layout .landing-hero {
+  min-height: 220px;
+}
+
+.landing-custom-layout.layout-edit-mode [data-home-layout-box] {
+  cursor: move;
+  border-color: #e10600;
+  box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.25);
 }
 
 .landing-hero {
@@ -660,6 +700,46 @@ button.install-btn {
 .funcionario-inline-form > input:not([type="checkbox"]),
 .funcionario-inline-form > select {
   min-height: 2.65rem;
+}
+
+.funcionario-inline-form > .funcionario-senha-nota {
+  grid-column: 1 / -1;
+  margin: -0.15rem 0 0.35rem;
+  max-width: 46rem;
+  line-height: 1.45;
+  font-size: 0.86rem;
+}
+
+.func-layout-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+}
+
+.func-layout-toolbar button {
+  margin-top: 0;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
+.funcionario-inline-form.func-custom-layout {
+  display: block;
+  position: relative;
+}
+
+.funcionario-inline-form.func-custom-layout > [data-func-layout-box] {
+  position: absolute;
+  margin: 0;
+  resize: both;
+  overflow: auto;
+  min-width: 180px;
+  min-height: 42px;
+}
+
+.funcionario-inline-form.func-custom-layout.layout-edit-mode > [data-func-layout-box] {
+  border-color: #e10600;
+  box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.25);
 }
 
 .inline-form button {
