@@ -125,6 +125,10 @@ const topbarAcessoCliente = document.getElementById("topbarAcessoCliente");
 const topbarAcessoColaborador = document.getElementById("topbarAcessoColaborador");
 const landingAcessoCliente = document.getElementById("landingAcessoCliente");
 const landingAcessoColaborador = document.getElementById("landingAcessoColaborador");
+const homeLayoutEditToggleBtn = document.getElementById("homeLayoutEditToggleBtn");
+const homeLayoutSaveBtn = document.getElementById("homeLayoutSaveBtn");
+const homeLayoutResetBtn = document.getElementById("homeLayoutResetBtn");
+const homeLayoutBoxes = document.querySelectorAll("[data-home-layout-box]");
 const loginClienteForm = document.getElementById("loginClienteForm");
 const loginAdminForm = document.getElementById("loginAdminForm");
 const loginClienteMessage = document.getElementById("loginClienteMessage");
@@ -228,6 +232,9 @@ const cadFuncionarioAcessoLocacao = document.getElementById("cadFuncionarioAcess
 const cadFuncionarioAcessoManutencao = document.getElementById("cadFuncionarioAcessoManutencao");
 const cadFuncionarioAcessoLancamentoAluguel = document.getElementById("cadFuncionarioAcessoLancamentoAluguel");
 const cadFuncionarioAcessoLancamentoDespesa = document.getElementById("cadFuncionarioAcessoLancamentoDespesa");
+const funcLayoutEditToggleBtn = document.getElementById("funcLayoutEditToggleBtn");
+const funcLayoutSaveBtn = document.getElementById("funcLayoutSaveBtn");
+const funcLayoutResetBtn = document.getElementById("funcLayoutResetBtn");
 const veiculoCadastroErro = document.getElementById("veiculoCadastroErro");
 const cadVeiculoPlacaInput = document.getElementById("cadVeiculoPlaca");
 const cadVeiculoTagPreviewInput = document.getElementById("cadVeiculoTagPreview");
@@ -295,6 +302,10 @@ const lancamentoAluguelConfirmDialog = document.getElementById("lancamentoAlugue
 const lancamentoAluguelConfirmResumo = document.getElementById("lancamentoAluguelConfirmResumo");
 const lancamentoAluguelConfirmSimBtn = document.getElementById("lancamentoAluguelConfirmSimBtn");
 const lancamentoAluguelConfirmVoltarBtn = document.getElementById("lancamentoAluguelConfirmVoltarBtn");
+const lancamentoAluguelHistoricoDialog = document.getElementById("lancamentoAluguelHistoricoDialog");
+const lancamentoAluguelHistoricoQuadro = document.getElementById("lancamentoAluguelHistoricoQuadro");
+const lancamentoAluguelHistoricoSimBtn = document.getElementById("lancamentoAluguelHistoricoSimBtn");
+const lancamentoAluguelHistoricoEditarBtn = document.getElementById("lancamentoAluguelHistoricoEditarBtn");
 const installButton = document.getElementById("installButton");
 const envWarning = document.getElementById("envWarning");
 const dateInputIds = [
@@ -349,6 +360,7 @@ const BACKUP_KEYS = [
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
 const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
+const SENHA_INICIAL_OPERACAO = "123456";
 const EMPRESA_RELATORIO = "DK Locadora";
 const CNPJ_RELATORIO = "59.665.734/0001-32";
 const MAINTENANCE_START_HOUR = 2;
@@ -378,6 +390,15 @@ const PLACAS_LOCADAS_MANUAIS = [
 let relatorioLocacaoTipoSelecionado = "";
 let relatorioLocacaoCache = null;
 let dadosUsoAcaoPendente = "";
+let ultimoLancamentoAluguelSalvoId = null;
+let homeLayoutEditMode = false;
+let homeLayoutDragState = null;
+let homeLayoutResizeObserver = null;
+const HOME_LAYOUT_KEY = "dk_home_layout_v1";
+let funcLayoutEditMode = false;
+let funcLayoutDragState = null;
+let funcLayoutResizeObserver = null;
+const FUNC_LAYOUT_KEY = "dk_funcionario_form_layout_v1";
 
 function showGroupHome() {
   grupoHome.classList.remove("hidden");
@@ -419,6 +440,362 @@ function openLocadoraLoginTarget(target) {
     card?.classList.add("login-card--pulse");
     window.setTimeout(() => card?.classList.remove("login-card--pulse"), 2200);
   });
+}
+
+function getHomeLayoutBoxesArray() {
+  return Array.from(homeLayoutBoxes || []);
+}
+
+function setHomeLayoutToolbarState() {
+  if (homeLayoutEditToggleBtn) {
+    homeLayoutEditToggleBtn.textContent = homeLayoutEditMode ? "Sair edição" : "Editar layout";
+  }
+}
+
+function computeHomeLayoutMinHeight(layout) {
+  let maxBottom = 0;
+  Object.values(layout || {}).forEach((box) => {
+    if (!box) return;
+    const bottom = Number(box.top || 0) + Number(box.height || 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  return Math.max(620, Math.ceil(maxBottom + 24));
+}
+
+function collectCurrentHomeLayout() {
+  const boxes = getHomeLayoutBoxesArray();
+  if (!grupoHome || !boxes.length) return {};
+  const containerRect = grupoHome.getBoundingClientRect();
+  const layout = {};
+  boxes.forEach((box) => {
+    const key = String(box.dataset.homeLayoutBox || "").trim();
+    if (!key) return;
+    const rect = box.getBoundingClientRect();
+    layout[key] = {
+      left: Math.max(0, Math.round(rect.left - containerRect.left)),
+      top: Math.max(0, Math.round(rect.top - containerRect.top)),
+      width: Math.max(220, Math.round(rect.width)),
+      height: Math.max(140, Math.round(rect.height)),
+    };
+  });
+  return layout;
+}
+
+function applyHomeLayout(layoutInput) {
+  const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+  const boxes = getHomeLayoutBoxesArray();
+  if (!grupoHome || !boxes.length) return;
+  grupoHome.classList.add("landing-custom-layout");
+  boxes.forEach((box) => {
+    const key = String(box.dataset.homeLayoutBox || "").trim();
+    const shape = layout[key];
+    if (!shape) return;
+    box.style.left = `${Math.max(0, Number(shape.left || 0))}px`;
+    box.style.top = `${Math.max(0, Number(shape.top || 0))}px`;
+    box.style.width = `${Math.max(220, Number(shape.width || 220))}px`;
+    box.style.height = `${Math.max(140, Number(shape.height || 140))}px`;
+  });
+  grupoHome.style.minHeight = `${computeHomeLayoutMinHeight(layout)}px`;
+}
+
+function clearHomeLayoutInlineStyles() {
+  const boxes = getHomeLayoutBoxesArray();
+  boxes.forEach((box) => {
+    box.style.left = "";
+    box.style.top = "";
+    box.style.width = "";
+    box.style.height = "";
+  });
+  if (grupoHome) {
+    grupoHome.classList.remove("landing-custom-layout", "layout-edit-mode");
+    grupoHome.style.minHeight = "";
+  }
+}
+
+function persistHomeLayoutFromScreen() {
+  const layout = collectCurrentHomeLayout();
+  localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(layout));
+  applyHomeLayout(layout);
+  return layout;
+}
+
+function bootstrapHomeLayoutFromStorage() {
+  if (!grupoHome) return;
+  const raw = localStorage.getItem(HOME_LAYOUT_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    applyHomeLayout(parsed);
+  } catch {
+    // Ignora layout inválido para evitar quebrar a home.
+  }
+}
+
+function startHomeLayoutEdit() {
+  if (!grupoHome) return;
+  if (!grupoHome.classList.contains("landing-custom-layout")) {
+    const snapshot = collectCurrentHomeLayout();
+    applyHomeLayout(snapshot);
+  }
+  homeLayoutEditMode = true;
+  grupoHome.classList.add("layout-edit-mode");
+  setHomeLayoutToolbarState();
+}
+
+function stopHomeLayoutEdit() {
+  homeLayoutEditMode = false;
+  homeLayoutDragState = null;
+  if (grupoHome) grupoHome.classList.remove("layout-edit-mode");
+  setHomeLayoutToolbarState();
+}
+
+function resolveHomeLayoutDragTarget(startNode) {
+  const node = startNode instanceof Element ? startNode : null;
+  if (!node) return null;
+  const box = node.closest("[data-home-layout-box]");
+  if (!box || !(box instanceof HTMLElement)) return null;
+  const interactive = node.closest("button, a, input, select, textarea, label, form");
+  if (interactive) return null;
+  return box;
+}
+
+function bindHomeLayoutEditorEvents() {
+  if (!grupoHome) return;
+  if (homeLayoutResizeObserver) return;
+
+  homeLayoutResizeObserver = new ResizeObserver(() => {
+    if (!homeLayoutEditMode) return;
+    const layout = collectCurrentHomeLayout();
+    grupoHome.style.minHeight = `${computeHomeLayoutMinHeight(layout)}px`;
+  });
+  getHomeLayoutBoxesArray().forEach((box) => homeLayoutResizeObserver.observe(box));
+
+  grupoHome.addEventListener("pointerdown", (event) => {
+    if (!homeLayoutEditMode) return;
+    const box = resolveHomeLayoutDragTarget(event.target);
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    homeLayoutDragState = {
+      box,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: parseFloat(box.style.left || "0") || 0,
+      originTop: parseFloat(box.style.top || "0") || 0,
+      boxWidth: rect.width,
+      boxHeight: rect.height,
+    };
+    box.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  grupoHome.addEventListener("pointermove", (event) => {
+    const drag = homeLayoutDragState;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    const containerWidth = grupoHome.clientWidth;
+    const nextLeft = Math.max(0, Math.min(containerWidth - drag.boxWidth, drag.originLeft + dx));
+    const nextTop = Math.max(0, drag.originTop + dy);
+    drag.box.style.left = `${Math.round(nextLeft)}px`;
+    drag.box.style.top = `${Math.round(nextTop)}px`;
+    const layout = collectCurrentHomeLayout();
+    grupoHome.style.minHeight = `${computeHomeLayoutMinHeight(layout)}px`;
+  });
+
+  const finishDrag = (event) => {
+    if (!homeLayoutDragState) return;
+    if (event && homeLayoutDragState.pointerId !== event.pointerId) return;
+    homeLayoutDragState = null;
+  };
+
+  grupoHome.addEventListener("pointerup", finishDrag);
+  grupoHome.addEventListener("pointercancel", finishDrag);
+}
+
+function getFuncionarioLayoutBoxesArray() {
+  if (!funcionarioCadastroForm) return [];
+  return Array.from(funcionarioCadastroForm.querySelectorAll("[data-func-layout-box]"));
+}
+
+function ensureFuncionarioLayoutBoxAttributes() {
+  if (!funcionarioCadastroForm) return;
+  Array.from(funcionarioCadastroForm.children).forEach((el, idx) => {
+    if (!(el instanceof HTMLElement)) return;
+    const tag = el.tagName;
+    if (!["INPUT", "SELECT", "DIV", "BUTTON"].includes(tag)) return;
+    if (tag === "INPUT" && el.type === "checkbox") return;
+    if (tag === "DIV" && !el.id) return;
+    if (!el.dataset.funcLayoutBox) {
+      el.dataset.funcLayoutBox = el.id || `funcItem${idx + 1}`;
+    }
+  });
+}
+
+function setFuncionarioLayoutToolbarState() {
+  if (!funcLayoutEditToggleBtn) return;
+  funcLayoutEditToggleBtn.textContent = funcLayoutEditMode ? "Sair edição" : "Editar caixas";
+}
+
+function collectFuncionarioLayout() {
+  if (!funcionarioCadastroForm) return {};
+  const boxes = getFuncionarioLayoutBoxesArray();
+  const formRect = funcionarioCadastroForm.getBoundingClientRect();
+  const layout = {};
+  boxes.forEach((el) => {
+    const key = String(el.dataset.funcLayoutBox || "");
+    if (!key) return;
+    const rect = el.getBoundingClientRect();
+    layout[key] = {
+      left: Math.max(0, Math.round(rect.left - formRect.left)),
+      top: Math.max(0, Math.round(rect.top - formRect.top)),
+      width: Math.max(160, Math.round(rect.width)),
+      height: Math.max(42, Math.round(rect.height)),
+    };
+  });
+  return layout;
+}
+
+function computeFuncionarioLayoutMinHeight(layout) {
+  let maxBottom = 0;
+  Object.values(layout || {}).forEach((item) => {
+    if (!item) return;
+    const bottom = Number(item.top || 0) + Number(item.height || 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  return Math.max(320, Math.ceil(maxBottom + 16));
+}
+
+function applyFuncionarioLayout(layoutInput) {
+  if (!funcionarioCadastroForm) return;
+  ensureFuncionarioLayoutBoxAttributes();
+  const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+  const boxes = getFuncionarioLayoutBoxesArray();
+  funcionarioCadastroForm.classList.add("func-custom-layout");
+  boxes.forEach((el) => {
+    const key = String(el.dataset.funcLayoutBox || "");
+    const box = layout[key];
+    if (!box) return;
+    el.style.left = `${Math.max(0, Number(box.left || 0))}px`;
+    el.style.top = `${Math.max(0, Number(box.top || 0))}px`;
+    el.style.width = `${Math.max(160, Number(box.width || 160))}px`;
+    el.style.height = `${Math.max(42, Number(box.height || 42))}px`;
+  });
+  funcionarioCadastroForm.style.minHeight = `${computeFuncionarioLayoutMinHeight(layout)}px`;
+}
+
+function clearFuncionarioLayoutInlineStyles() {
+  if (!funcionarioCadastroForm) return;
+  const boxes = getFuncionarioLayoutBoxesArray();
+  boxes.forEach((el) => {
+    el.style.left = "";
+    el.style.top = "";
+    el.style.width = "";
+    el.style.height = "";
+  });
+  funcionarioCadastroForm.classList.remove("func-custom-layout", "layout-edit-mode");
+  funcionarioCadastroForm.style.minHeight = "";
+}
+
+function bootstrapFuncionarioLayoutFromStorage() {
+  if (!funcionarioCadastroForm) return;
+  const raw = localStorage.getItem(FUNC_LAYOUT_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    applyFuncionarioLayout(parsed);
+  } catch {
+    // Ignora layout inválido no storage.
+  }
+}
+
+function persistFuncionarioLayoutFromScreen() {
+  const layout = collectFuncionarioLayout();
+  localStorage.setItem(FUNC_LAYOUT_KEY, JSON.stringify(layout));
+  applyFuncionarioLayout(layout);
+}
+
+function startFuncionarioLayoutEdit() {
+  if (!funcionarioCadastroForm) return;
+  ensureFuncionarioLayoutBoxAttributes();
+  if (!funcionarioCadastroForm.classList.contains("func-custom-layout")) {
+    applyFuncionarioLayout(collectFuncionarioLayout());
+  }
+  funcLayoutEditMode = true;
+  funcionarioCadastroForm.classList.add("layout-edit-mode");
+  setFuncionarioLayoutToolbarState();
+}
+
+function stopFuncionarioLayoutEdit() {
+  funcLayoutEditMode = false;
+  funcLayoutDragState = null;
+  funcionarioCadastroForm?.classList.remove("layout-edit-mode");
+  setFuncionarioLayoutToolbarState();
+}
+
+function bindFuncionarioLayoutEditorEvents() {
+  if (!funcionarioCadastroForm || funcLayoutResizeObserver) return;
+  ensureFuncionarioLayoutBoxAttributes();
+
+  funcLayoutResizeObserver = new ResizeObserver(() => {
+    if (!funcLayoutEditMode || !funcionarioCadastroForm) return;
+    const layout = collectFuncionarioLayout();
+    funcionarioCadastroForm.style.minHeight = `${computeFuncionarioLayoutMinHeight(layout)}px`;
+  });
+  getFuncionarioLayoutBoxesArray().forEach((el) => funcLayoutResizeObserver.observe(el));
+
+  funcionarioCadastroForm.addEventListener("pointerdown", (event) => {
+    if (!funcLayoutEditMode || (!event.altKey && !event.shiftKey)) return;
+    const node = event.target instanceof Element ? event.target : null;
+    const box = node?.closest("[data-func-layout-box]");
+    if (!box || !(box instanceof HTMLElement)) return;
+    const rect = box.getBoundingClientRect();
+    const mode = event.shiftKey ? "resize" : "move";
+    funcLayoutDragState = {
+      mode,
+      box,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: parseFloat(box.style.left || "0") || 0,
+      originTop: parseFloat(box.style.top || "0") || 0,
+      boxWidth: rect.width,
+      boxHeight: rect.height,
+    };
+    box.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  funcionarioCadastroForm.addEventListener("pointermove", (event) => {
+    if (!funcLayoutDragState || funcLayoutDragState.pointerId !== event.pointerId || !funcionarioCadastroForm) return;
+    const dx = event.clientX - funcLayoutDragState.startX;
+    const dy = event.clientY - funcLayoutDragState.startY;
+    if (funcLayoutDragState.mode === "resize") {
+      const maxWidth = Math.max(160, funcionarioCadastroForm.clientWidth - funcLayoutDragState.originLeft);
+      const nextWidth = Math.max(160, Math.min(maxWidth, funcLayoutDragState.boxWidth + dx));
+      const nextHeight = Math.max(42, funcLayoutDragState.boxHeight + dy);
+      funcLayoutDragState.box.style.width = `${Math.round(nextWidth)}px`;
+      funcLayoutDragState.box.style.height = `${Math.round(nextHeight)}px`;
+    } else {
+      const maxLeft = Math.max(0, funcionarioCadastroForm.clientWidth - funcLayoutDragState.boxWidth);
+      const nextLeft = Math.max(0, Math.min(maxLeft, funcLayoutDragState.originLeft + dx));
+      const nextTop = Math.max(0, funcLayoutDragState.originTop + dy);
+      funcLayoutDragState.box.style.left = `${Math.round(nextLeft)}px`;
+      funcLayoutDragState.box.style.top = `${Math.round(nextTop)}px`;
+    }
+    const layout = collectFuncionarioLayout();
+    funcionarioCadastroForm.style.minHeight = `${computeFuncionarioLayoutMinHeight(layout)}px`;
+  });
+
+  const finish = (event) => {
+    if (!funcLayoutDragState) return;
+    if (event && funcLayoutDragState.pointerId !== event.pointerId) return;
+    funcLayoutDragState = null;
+  };
+  funcionarioCadastroForm.addEventListener("pointerup", finish);
+  funcionarioCadastroForm.addEventListener("pointercancel", finish);
 }
 
 function buildFullOperacaoAccess() {
@@ -622,6 +999,10 @@ function saveFuncionariosAccess() {
   localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
 }
 
+function isOperacaoPasswordValid(value) {
+  return /^\d{6}$/.test(String(value || "").trim());
+}
+
 function hydrateFuncionariosAccess() {
   const raw = localStorage.getItem(FUNCIONARIOS_ACCESS_KEY);
   if (!raw) {
@@ -638,6 +1019,7 @@ function hydrateFuncionariosAccess() {
         nome: String(f?.nome || "").trim(),
         role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
         blocked: Boolean(f?.blocked),
+        mustChangePassword: Boolean(f?.mustChangePassword),
         acessos: normalizeOperacaoAccess(
           f?.acessos || null,
           String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
@@ -2063,6 +2445,206 @@ function isCarroLancamentoResumo(placaRaw, contrato) {
   return normalizeKey(v.tag).includes("DKCR");
 }
 
+const MESES_ABR_PG = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+function ymKeyToAbrSlash(ymKey) {
+  const parts = String(ymKey || "").split("-");
+  const yy = Number(parts[0]);
+  const mm = Number(parts[1]);
+  if (!Number.isFinite(yy) || !Number.isFinite(mm) || mm < 1 || mm > 12) return String(ymKey || "");
+  return `${MESES_ABR_PG[mm - 1]}/${String(yy).slice(-2)}`;
+}
+
+function collectLancamentosFilteredQuadro(cpfDigits, placaRaw) {
+  const placaN = normalizePlate(placaRaw);
+  return getLancamentosAluguel().filter((l) => {
+    if (onlyDigits(String(l.cpf || "")) !== cpfDigits) return false;
+    if (!placaN) return true;
+    return normalizePlate(l.placa) === placaN;
+  });
+}
+
+function mergePreviewLancamento(items, preview) {
+  const next = items.slice();
+  if (!preview || !preview.semanaInicio || !(parseCurrencyBR(preview.valorPago) > 0)) return next;
+  next.push({
+    id: "__preview__",
+    cpf: preview.cpfDigits,
+    placa: preview.placa,
+    semanaInicio: preview.semanaInicio,
+    valorPago: preview.valorPago,
+    createdAt: 0,
+  });
+  return next;
+}
+
+function getQuadroMesesRange(contrato, items) {
+  const today = toDateOnly(new Date());
+  let minD = today;
+  const sc = contrato ? parseRecordStartDate(contrato) : null;
+  if (sc instanceof Date && !Number.isNaN(sc.getTime())) {
+    minD = toDateOnly(sc);
+  }
+  items.forEach((it) => {
+    const d = parseBrDate(it.semanaInicio);
+    if (d && toDateOnly(d) < minD) minD = toDateOnly(d);
+  });
+  let maxD = today;
+  items.forEach((it) => {
+    const d = parseBrDate(it.semanaInicio);
+    if (d && toDateOnly(d) > maxD) maxD = toDateOnly(d);
+  });
+  const endExt = new Date(maxD.getFullYear(), maxD.getMonth() + 15, 1);
+  const sy = minD.getFullYear();
+  const sm = minD.getMonth() + 1;
+  const ey = endExt.getFullYear();
+  const em = endExt.getMonth() + 1;
+  return buildMonthRange(sy, sm, ey, em);
+}
+
+function fillMonthSlotsSixSemanas(monthItems, highlightId) {
+  const sorted = monthItems
+    .filter((it) => parseBrDate(it.semanaInicio))
+    .sort(
+      (a, b) =>
+        (parseBrDate(a.semanaInicio)?.getTime() || 0) -
+        (parseBrDate(b.semanaInicio)?.getTime() || 0)
+    );
+  const slots = Array.from({ length: 6 }, () => ({
+    total: 0,
+    hasNovo: false,
+    hasPreview: false,
+  }));
+  sorted.forEach((it, idx) => {
+    const slot = Math.min(idx, 5);
+    slots[slot].total += getLancamentoAluguelValor(it);
+    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
+    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
+  });
+  return slots
+    .map((s) => {
+      if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+      let cls = "quadro-cell quadro-cell--valor";
+      if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
+      else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
+      return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
+    })
+    .join("");
+}
+
+function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
+  const highlightId = options.highlightId;
+  const preview = options.preview;
+  let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw);
+  if (preview && preview.valorPago != null && preview.semanaInicio) {
+    items = mergePreviewLancamento(items, preview);
+  }
+  const contrato = findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  let totalDevido = 0;
+  let totalPagoContrato = 0;
+  if (contrato) {
+    const dyn = withDynamicFinancialFields({
+      ...contrato,
+      valorSemanal: contrato.valorSemanal || contrato.valorPlano || 0,
+      devidoHoje: contrato.devidoHoje || contrato.devido || 0,
+    });
+    totalDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido || 0);
+    totalPagoContrato = parseCurrencyBR(contrato.pago || contrato.valorPago || 0);
+  }
+  const mesesKeys = getQuadroMesesRange(contrato, items);
+  const byMonth = {};
+  mesesKeys.forEach((ym) => {
+    byMonth[ym] = [];
+  });
+  items.forEach((it) => {
+    const d = parseBrDate(it.semanaInicio);
+    if (!d) return;
+    const ym = monthKey(toDateOnly(d));
+    if (!byMonth[ym]) byMonth[ym] = [];
+    byMonth[ym].push(it);
+  });
+  let rowsHtml = "";
+  mesesKeys.forEach((ym) => {
+    const monthItems = byMonth[ym] || [];
+    const slotsHtml = fillMonthSlotsSixSemanas(monthItems, highlightId);
+    const rowSum = monthItems.reduce((acc, it) => acc + getLancamentoAluguelValor(it), 0);
+    rowsHtml += `
+      <tr>
+        <td class="quadro-mes">${escapeHtml(ymKeyToAbrSlash(ym))}</td>
+        <td class="quadro-cell quadro-row-total">${rowSum > 0 ? currencyBRL(rowSum) : "—"}</td>
+        ${slotsHtml}
+      </tr>`;
+  });
+  return `
+    <div class="quadro-pagamento-scroll">
+      <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês">
+        <thead>
+          <tr class="quadro-summary-row quadro-summary-devido">
+            <td colspan="2">TOTAL DEVIDO</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-devido">${currencyBRL(totalDevido)}</td>
+          </tr>
+          <tr class="quadro-summary-row quadro-summary-pago">
+            <td colspan="2">TOTAL PAGO</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-pago">${currencyBRL(totalPagoContrato)}</td>
+          </tr>
+          <tr>
+            <th scope="col">Mês</th>
+            <th scope="col">TOTAL</th>
+            ${[1, 2, 3, 4, 5, 6]
+              .map((n) => `<th scope="col">SEM-${String(n).padStart(2, "0")}</th>`)
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
+  if (
+    !lancamentoAluguelHistoricoDialog ||
+    !lancamentoAluguelHistoricoQuadro ||
+    !lancamentoAluguelHistoricoSimBtn ||
+    !lancamentoAluguelHistoricoEditarBtn
+  ) {
+    return Promise.resolve(true);
+  }
+  const html = buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, {
+    highlightId: null,
+    preview,
+  });
+  lancamentoAluguelHistoricoQuadro.innerHTML = html;
+  lancamentoAluguelHistoricoDialog.classList.remove("hidden");
+  return new Promise((resolve) => {
+    const close = () => {
+      lancamentoAluguelHistoricoDialog.classList.add("hidden");
+    };
+    const onSim = () => {
+      close();
+      lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
+      lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      resolve(true);
+    };
+    const onEditar = () => {
+      const senha = window.prompt("Digite a senha do administrador para editar o histórico:");
+      if (senha === null) return;
+      if (!isSenhaOwnerValida(senha)) {
+        window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
+        return;
+      }
+      close();
+      lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
+      lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      if (cadastroLancamentoAluguelLista) {
+        cadastroLancamentoAluguelLista.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      resolve(false);
+    };
+    lancamentoAluguelHistoricoSimBtn.addEventListener("click", onSim);
+    lancamentoAluguelHistoricoEditarBtn.addEventListener("click", onEditar);
+  });
+}
+
 function renderLancamentoAluguelResumo() {
   if (!lancamentoAluguelResumo) return;
   const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
@@ -2119,6 +2701,9 @@ function renderLancamentoAluguelResumo() {
   } else if (saldoPositivo && planoKey.includes("MEU TRANSPORTE")) {
     lancamentoAluguelResumo.classList.add("resumo-status-transporte-positivo");
   }
+  const quadroHtml = buildQuadroPagamentoHistoricoHtml(cpf, placaRaw, {
+    highlightId: ultimoLancamentoAluguelSalvoId,
+  });
   lancamentoAluguelResumo.innerHTML = `
     <p><strong>${escapeHtml(nome)}</strong> - ${escapeHtml(modelo)} - data de inicio da locacao <strong>${escapeHtml(
     inicio || "-"
@@ -2132,6 +2717,8 @@ function renderLancamentoAluguelResumo() {
     )} | <strong>Pagamento deste lancamento (sugestao):</strong> ${currencyBRL(
       valorLancamento
     )} | <strong>Saldo a pagar:</strong> ${currencyBRL(saldoPagar)}</p>
+    <h4 style="margin:1rem 0 0.45rem;font-size:0.95rem;">Quadro resumo (histórico por mês — até 6 semanas)</h4>
+    ${quadroHtml}
   `;
 }
 
@@ -6093,6 +6680,33 @@ loginAdminForm.addEventListener("submit", (event) => {
     showMessage(loginAdminMessage, "Acesso bloqueado para este funcionario. Fale com o administrador.", "error");
     return;
   }
+  if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
+    const novaSenha = window.prompt(
+      "Primeiro acesso detectado. Defina uma nova senha com 6 números para continuar."
+    );
+    if (novaSenha === null) {
+      showMessage(loginAdminMessage, "Troca de senha obrigatória para primeiro acesso.", "error");
+      return;
+    }
+    const novaSenhaTrim = String(novaSenha || "").trim();
+    if (!isOperacaoPasswordValid(novaSenhaTrim) || novaSenhaTrim === SENHA_INICIAL_OPERACAO) {
+      showMessage(loginAdminMessage, "Use uma senha nova com exatamente 6 números.", "error");
+      return;
+    }
+    const confirmaSenha = window.prompt("Confirme a nova senha de 6 números.");
+    if (confirmaSenha === null || String(confirmaSenha || "").trim() !== novaSenhaTrim) {
+      showMessage(loginAdminMessage, "Confirmação de senha inválida.", "error");
+      return;
+    }
+    funcionario.senha = novaSenhaTrim;
+    funcionario.mustChangePassword = false;
+    saveFuncionariosAccess();
+    addAuditLog(
+      "troca_primeiro_acesso_funcionario",
+      "funcionario",
+      `${funcionario.nome} - CPF ${formatCpf(funcionario.cpf)}`
+    );
+  }
 
   localStorage.setItem(
     "dk_sessao_cliente",
@@ -6137,6 +6751,59 @@ openLocadoraButton.addEventListener("click", () => {
   dashboardCard.classList.add("hidden");
   adminCard.classList.add("hidden");
 });
+
+if (homeLayoutEditToggleBtn) {
+  homeLayoutEditToggleBtn.addEventListener("click", () => {
+    if (homeLayoutEditMode) {
+      stopHomeLayoutEdit();
+      return;
+    }
+    startHomeLayoutEdit();
+    bindHomeLayoutEditorEvents();
+  });
+}
+if (homeLayoutSaveBtn) {
+  homeLayoutSaveBtn.addEventListener("click", () => {
+    persistHomeLayoutFromScreen();
+    stopHomeLayoutEdit();
+    window.alert("Layout salvo com sucesso.");
+  });
+}
+if (homeLayoutResetBtn) {
+  homeLayoutResetBtn.addEventListener("click", () => {
+    localStorage.removeItem(HOME_LAYOUT_KEY);
+    stopHomeLayoutEdit();
+    clearHomeLayoutInlineStyles();
+    window.alert("Layout resetado para o padrão.");
+  });
+}
+
+if (funcLayoutEditToggleBtn) {
+  funcLayoutEditToggleBtn.addEventListener("click", () => {
+    if (funcLayoutEditMode) {
+      stopFuncionarioLayoutEdit();
+      return;
+    }
+    startFuncionarioLayoutEdit();
+    bindFuncionarioLayoutEditorEvents();
+    window.alert("Modo edição ativo. Use ALT + arrastar para mover e SHIFT + arrastar para redimensionar.");
+  });
+}
+if (funcLayoutSaveBtn) {
+  funcLayoutSaveBtn.addEventListener("click", () => {
+    persistFuncionarioLayoutFromScreen();
+    stopFuncionarioLayoutEdit();
+    window.alert("Layout do cadastro de funcionário salvo.");
+  });
+}
+if (funcLayoutResetBtn) {
+  funcLayoutResetBtn.addEventListener("click", () => {
+    localStorage.removeItem(FUNC_LAYOUT_KEY);
+    stopFuncionarioLayoutEdit();
+    clearFuncionarioLayoutInlineStyles();
+    window.alert("Layout do cadastro de funcionário resetado.");
+  });
+}
 
 if (topbarAcessoCliente) {
   topbarAcessoCliente.addEventListener("click", () => openLocadoraLoginTarget("cliente"));
@@ -6360,20 +7027,29 @@ if (funcionarioCadastroForm) {
         : -1;
 
     if (idxEdicao >= 0) {
-      if (senha.length > 0 && senha.length < 4) {
+      const atual = funcionariosAccess[idxEdicao];
+      const novaSenha = senha.length > 0 ? senha : atual.senha;
+      if (role === "operacao" && !isOperacaoPasswordValid(novaSenha)) {
+        if (funcionarioCadastroErro) {
+          funcionarioCadastroErro.textContent =
+            "PARA PERFIL OPERACIONAL, A SENHA DEVE TER EXATAMENTE 6 NUMEROS.";
+          funcionarioCadastroErro.classList.remove("hidden");
+        }
+        return;
+      }
+      if (role === "owner" && senha.length > 0 && senha.length < 4) {
         if (funcionarioCadastroErro) {
           funcionarioCadastroErro.textContent = "SE FOR TROCAR A SENHA, USE PELO MENOS 4 CARACTERES.";
           funcionarioCadastroErro.classList.remove("hidden");
         }
         return;
       }
-      const atual = funcionariosAccess[idxEdicao];
-      const novaSenha = senha.length >= 4 ? senha : atual.senha;
       funcionariosAccess[idxEdicao] = {
         ...atual,
         nome,
         role,
         senha: novaSenha,
+        mustChangePassword: role === "operacao" ? false : Boolean(atual.mustChangePassword),
         acessos,
       };
       saveFuncionariosAccess();
@@ -6392,10 +7068,10 @@ if (funcionarioCadastroForm) {
       return;
     }
 
-    if (senha.length < 4) {
+    if (role === "owner" && senha.length < 4) {
       if (funcionarioCadastroErro) {
         funcionarioCadastroErro.textContent =
-          "PREENCHA SENHA COM PELO MENOS 4 CARACTERES PARA NOVO CADASTRO.";
+          "PREENCHA SENHA COM PELO MENOS 4 CARACTERES PARA NOVO CADASTRO DE ADMINISTRADOR.";
         funcionarioCadastroErro.classList.remove("hidden");
       }
       return;
@@ -6410,7 +7086,16 @@ if (funcionarioCadastroForm) {
       }
       return;
     }
-    funcionariosAccess.push({ cpf, senha, nome, role, blocked: false, acessos });
+    const senhaCadastro = role === "operacao" ? SENHA_INICIAL_OPERACAO : senha;
+    funcionariosAccess.push({
+      cpf,
+      senha: senhaCadastro,
+      nome,
+      role,
+      blocked: false,
+      mustChangePassword: role === "operacao",
+      acessos,
+    });
     saveFuncionariosAccess();
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
@@ -6422,7 +7107,13 @@ if (funcionarioCadastroForm) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
     }
-    window.alert("FUNCIONARIO CADASTRADO COM SUCESSO");
+    if (role === "operacao") {
+      window.alert(
+        `FUNCIONARIO CADASTRADO COM SUCESSO. SENHA INICIAL: ${SENHA_INICIAL_OPERACAO}. NO PRIMEIRO ACESSO, A TROCA PARA 6 NUMEROS E OBRIGATORIA.`
+      );
+    } else {
+      window.alert("FUNCIONARIO CADASTRADO COM SUCESSO");
+    }
     renderCadastros();
   });
 }
@@ -7131,6 +7822,12 @@ if (lancamentoAluguelForm) {
       }
       return;
     }
+    const historicoOk = await askLancamentoAluguelHistoricoUpdated(cpf, placa, {
+      valorPago,
+      semanaInicio,
+    });
+    if (!historicoOk) return;
+
     const lancamentos = getLancamentosAluguel();
     const codigoLancamento = nextLancamentoAluguelCode(cpf, lancamentos);
     const confirmado = await askLancamentoAluguelConfirmation({
@@ -7160,14 +7857,26 @@ if (lancamentoAluguelForm) {
     saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, lancamentos);
     processPendingLancamentosAluguelBaixa();
     addAuditLog("cadastrar_lancamento_aluguel", "lancamento_aluguel", `${codigoLancamento} - ${placa}`);
+    ultimoLancamentoAluguelSalvoId = id;
+    const savedCpf = cpf;
+    const savedPlaca = placa;
     window.alert("LANCAMENTO SALVO COM SUCESSO");
     lancamentoAluguelForm.reset();
+    if (lancAluguelCpfInput) lancAluguelCpfInput.value = formatCpf(savedCpf);
+    if (lancAluguelPlacaInput) lancAluguelPlacaInput.value = String(savedPlaca || "")
+      .trim()
+      .toUpperCase();
     if (lancAluguelSemanaInicioInput) lancAluguelSemanaInicioInput.dataset.autoSuggested = "0";
     if (lancAluguelValorPagoInput) lancAluguelValorPagoInput.dataset.autoSuggested = "0";
     if (lancamentoAluguelErro) {
       lancamentoAluguelErro.textContent = "";
       lancamentoAluguelErro.classList.add("hidden");
     }
+    autoFillLancamentoFromCpf(savedCpf);
+    prefillLancamentoAluguelByCpf(savedCpf);
+    suggestValorPagoFromContrato();
+    suggestSemanaInicioFromDiaPagamento();
+    renderLancamentoAluguelResumo();
     renderCadastros();
   });
 }
@@ -7176,6 +7885,9 @@ if (lancAluguelCpfInput) {
   lancAluguelCpfInput.addEventListener("input", () => {
     const cpf = onlyDigits(String(lancAluguelCpfInput.value || ""));
     lancAluguelCpfInput.value = formatCpf(cpf);
+    if (cpf.length !== 11) {
+      ultimoLancamentoAluguelSalvoId = null;
+    }
     if (cpf.length === 11) {
       const cli = findClienteByCpfCadastro(cpf);
       if (cli && lancAluguelClienteNomeInput) lancAluguelClienteNomeInput.value = String(cli.nome || "").trim();
@@ -7252,6 +7964,7 @@ if (lancAluguelDiaPagamentoInput) {
 
 if (lancAluguelClearBtn) {
   lancAluguelClearBtn.addEventListener("click", () => {
+    ultimoLancamentoAluguelSalvoId = null;
     if (lancamentoAluguelForm) lancamentoAluguelForm.reset();
     if (lancAluguelClienteSugestoes) lancAluguelClienteSugestoes.innerHTML = "";
     if (lancAluguelSemanaInicioInput) lancAluguelSemanaInicioInput.dataset.autoSuggested = "0";
@@ -7751,6 +8464,12 @@ fixKnownRentalValueOverrides();
 cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();
 ensureLocacaoInicioDefault();
+setHomeLayoutToolbarState();
+bootstrapHomeLayoutFromStorage();
+bindHomeLayoutEditorEvents();
+setFuncionarioLayoutToolbarState();
+bootstrapFuncionarioLayoutFromStorage();
+bindFuncionarioLayoutEditorEvents();
 requireLoggedArea();
 setInterval(() => {
   enforceMaintenanceAndDailyRoutines();
