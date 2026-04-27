@@ -1357,6 +1357,16 @@ function applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ymKey, slots) 
   });
 }
 
+/** Pago vindo do registro (planilha) + soma dos lançamentos de aluguel do app (mesmo CPF/placa). */
+function totalPagoBarComLancamentosApp(cpfDigits, placaRaw, pagoRegistro) {
+  const base = parseCurrencyBR(pagoRegistro || 0);
+  const appSum = collectLancamentosFilteredQuadro(onlyDigits(cpfDigits), placaRaw).reduce(
+    (a, l) => a + getLancamentoAluguelValor(l),
+    0
+  );
+  return base + appSum;
+}
+
 function backupFileName() {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `dk-backup-localstorage-${stamp}.json`;
@@ -2692,8 +2702,7 @@ function findQuadroSlotForLancamentoSemana(record, semanaInicioStr, semanaFimStr
   const scanTrailOverlap = (trailArr, colBase, defs, block) => {
     const s0 = trailQuadroFindStartIdx(trailArr);
     let best = null;
-    let bestScore = -1;
-    let bestWk = 0;
+    let bestScore = -1e18;
     for (let idx = s0; idx < trailArr.length; idx += 1) {
       const w = idx - s0;
       const weekStart = addCalendarDays(inicio, w * 7);
@@ -2705,16 +2714,24 @@ function findQuadroSlotForLancamentoSemana(record, semanaInicioStr, semanaFimStr
       if (!def) continue;
       const days = quadroRangeOverlapDays(dLo, dHi, weekStart, weekEnd);
       if (days <= 0) continue;
-      if (
-        days > bestScore ||
-        (days === bestScore && (best == null || weekStart.getTime() > bestWk))
-      ) {
-        bestScore = days;
-        bestWk = weekStart.getTime();
+      const tHiT = dHi.getTime();
+      const tLoT = dLo.getTime();
+      const tWs = weekStart.getTime();
+      const tWe = weekEnd.getTime();
+      const dHiIn = tHiT >= tWs && tHiT <= tWe;
+      const dLoIn = tLoT >= tWs && tLoT <= tWe;
+      const slotIdx = col - def.colInicio;
+      const score =
+        days * 1e9 +
+        (dHiIn ? 1e6 : 0) +
+        (dLoIn ? 1e3 : 0) +
+        slotIdx;
+      if (score > bestScore) {
+        bestScore = score;
         best = {
           block,
           mes: String(def.mes || ""),
-          slotIdx: col - def.colInicio,
+          slotIdx,
           col,
         };
       }
@@ -2899,7 +2916,11 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
       devidoHoje: rowForTotals.devidoHoje || rowForTotals.devido || 0,
     });
     totalDevido = parseCurrencyBR(dyn.devidoHoje || rowForTotals.devidoHoje || rowForTotals.devido || 0);
-    totalPagoContrato = parseCurrencyBR(rowForTotals.pago || rowForTotals.valorPago || 0);
+    totalPagoContrato = totalPagoBarComLancamentosApp(
+      cpfDigits,
+      placaRaw,
+      rowForTotals.pago || rowForTotals.valorPago || 0
+    );
   }
 
   const defs25 = getReceita2025GridMonthDefs();
@@ -3001,9 +3022,11 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
           </tr>
           <tr class="quadro-summary-row quadro-summary-pago">
             <td colspan="2">TOTAL PAGO</td>
-            <td colspan="6" class="quadro-moeda quadro-bg-pago">${currencyBRL(totalPagoContrato)}</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-pago" title="Pago no cadastro/planilha, mais a soma dos lancamentos de aluguel salvos no app.">${currencyBRL(
+              totalPagoContrato
+            )}</td>
           </tr>
-          <tr>
+        <tr>
             <th scope="col">Mês</th>
             <th scope="col">TOTAL</th>
             ${[1, 2, 3, 4, 5, 6]
@@ -3074,7 +3097,11 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
       devidoHoje: contrato.devidoHoje || contrato.devido || 0,
     });
     totalDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido || 0);
-    totalPagoContrato = parseCurrencyBR(contrato.pago || contrato.valorPago || 0);
+    totalPagoContrato = totalPagoBarComLancamentosApp(
+      cpfDigits,
+      placaRaw,
+      contrato.pago || contrato.valorPago || 0
+    );
   }
   const mesesKeys = getQuadroMesesRange(contrato, items);
   const byMonth = {};
@@ -3127,7 +3154,9 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
           </tr>
           <tr class="quadro-summary-row quadro-summary-pago">
             <td colspan="2">TOTAL PAGO</td>
-            <td colspan="6" class="quadro-moeda quadro-bg-pago">${currencyBRL(totalPagoContrato)}</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-pago" title="Pago no cadastro/planilha, mais a soma dos lancamentos de aluguel salvos no app.">${currencyBRL(
+              totalPagoContrato
+            )}</td>
           </tr>
           <tr>
             <th scope="col">Mês</th>
@@ -3228,7 +3257,14 @@ function persistQuadroHistoricoOverridesFromInputs(container) {
   saveQuadroReceitaOverridesMap(map);
 }
 
-function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
+/**
+ * @param {object} [opts]
+ * @param {object} [opts.preview] — pré-visualização do formulário (etapa de confirmação)
+ * @param {() => void} [opts.onAfterSim] — após confirmar "Sim" (ex.: atualizar o resumo na tela)
+ */
+function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
+  const preview = opts?.preview;
+  const onAfterSim = opts?.onAfterSim;
   if (
     !lancamentoAluguelHistoricoDialog ||
     !lancamentoAluguelHistoricoQuadro ||
@@ -3276,6 +3312,7 @@ function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      onAfterSim?.();
       resolve(true);
     };
     const onEditar = () => {
@@ -3297,6 +3334,10 @@ function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
     lancamentoAluguelHistoricoSimBtn.addEventListener("click", onSim);
     lancamentoAluguelHistoricoEditarBtn.addEventListener("click", onEditar);
   });
+}
+
+function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
+  return runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, { preview });
 }
 
 function renderLancamentoAluguelResumo() {
@@ -3372,6 +3413,9 @@ function renderLancamentoAluguelResumo() {
       valorLancamento
     )} | <strong>Saldo a pagar:</strong> ${currencyBRL(saldoPagar)}</p>
     <h4 style="margin:1rem 0 0.45rem;font-size:0.95rem;">Quadro resumo (histórico por mês — até 6 semanas)</h4>
+    <p class="subtext" style="margin:0.35rem 0 0.5rem">
+      <button type="button" class="secondary" id="lancamentoAluguelAbrirQuadroEdit">Abrir quadro em modo edição (valores e senha)</button>
+    </p>
     ${quadroHtml}
   `;
 }
@@ -8468,6 +8512,24 @@ if (importDadosBackupInput) {
     } finally {
       importDadosBackupInput.value = "";
     }
+  });
+}
+
+if (lancamentoAluguelResumo && !lancamentoAluguelResumo.dataset.quadroEditBound) {
+  lancamentoAluguelResumo.dataset.quadroEditBound = "1";
+  lancamentoAluguelResumo.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!t || t.id !== "lancamentoAluguelAbrirQuadroEdit") return;
+    e.preventDefault();
+    const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
+    const placa = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
+    if (cpf.length !== 11) {
+      window.alert("Informe um CPF valido (11 digitos) no lancamento.");
+      return;
+    }
+    void runLancamentoAluguelHistoricoDialog(cpf, placa, {
+      onAfterSim: () => renderLancamentoAluguelResumo(),
+    });
   });
 }
 
