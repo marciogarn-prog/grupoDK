@@ -3530,7 +3530,7 @@ function renderCadastros() {
             (f) =>
               `<p><strong>${escapeHtml(f.nome || "Sem nome")}</strong> | CPF: ${formatCpf(
                 f.cpf || ""
-              )} | Perfil: ${escapeHtml(String(f.role || "operacao").toUpperCase())}</p>`
+              )} | Perfil: ${escapeHtml(\(f.role === "owner" ? "ADMINISTRADOR" : "OPERACIONAL"\))}</p>`
           )
           .join("")
       : "<p>Nenhum funcionario cadastrado.</p>";
