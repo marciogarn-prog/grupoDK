@@ -211,6 +211,7 @@ const cadFuncionarioNome = document.getElementById("cadFuncionarioNome");
 const cadFuncionarioSenha = document.getElementById("cadFuncionarioSenha");
 const cadFuncionarioRole = document.getElementById("cadFuncionarioRole");
 const cadFuncionarioClearBtn = document.getElementById("cadFuncionarioClearBtn");
+const cadFuncionarioBlockBtn = document.getElementById("cadFuncionarioBlockBtn");
 const funcionarioCadastroErro = document.getElementById("funcionarioCadastroErro");
 const cadFuncionarioAcessoCliente = document.getElementById("cadFuncionarioAcessoCliente");
 const cadFuncionarioAcessoVeiculo = document.getElementById("cadFuncionarioAcessoVeiculo");
@@ -419,6 +420,27 @@ function normalizeOperacaoAccess(acessos, role) {
   };
 }
 
+function findFuncionarioByCpfOrNome(cpfRaw, nomeRaw) {
+  const cpf = onlyDigits(String(cpfRaw || ""));
+  const nome = String(nomeRaw || "").trim().toLowerCase();
+  return (
+    funcionariosAccess.find((f) => {
+      const cpfMatch = cpf.length === 11 && onlyDigits(String(f.cpf || "")) === cpf;
+      const nomeMatch = Boolean(nome) && String(f.nome || "").trim().toLowerCase() === nome;
+      return cpfMatch || nomeMatch;
+    }) || null
+  );
+}
+
+function refreshFuncionarioBlockButton() {
+  if (!cadFuncionarioBlockBtn) return;
+  const found = findFuncionarioByCpfOrNome(cadFuncionarioCpf?.value, cadFuncionarioNome?.value);
+  const session = getSession();
+  const isOwner = session?.tipo === "admin" && session?.role === "owner";
+  const canBlock = isOwner && Boolean(found) && found.role !== "owner" && !found.blocked;
+  cadFuncionarioBlockBtn.classList.toggle("hidden", !canBlock);
+}
+
 function getFuncionarioBySession() {
   const session = getSession();
   if (session?.tipo !== "admin") return null;
@@ -470,6 +492,7 @@ function hydrateFuncionariosAccess() {
         senha: String(f?.senha || "").trim(),
         nome: String(f?.nome || "").trim(),
         role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
+        blocked: Boolean(f?.blocked),
         acessos: normalizeOperacaoAccess(
           f?.acessos || null,
           String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
@@ -3610,7 +3633,9 @@ function renderCadastros() {
             (f) =>
               `<p><strong>${escapeHtml(f.nome || "Sem nome")}</strong> | CPF: ${formatCpf(
                 f.cpf || ""
-              )} | Perfil: ${escapeHtml(f.role === "owner" ? "ADMINISTRADOR" : "OPERACIONAL")}</p>`
+              )} | Perfil: ${escapeHtml(f.role === "owner" ? "ADMINISTRADOR" : "OPERACIONAL")} | Acesso: ${
+                f.blocked ? "<strong>BLOQUEADO</strong>" : "ATIVO"
+              }</p>`
           )
           .join("")
       : "<p>Nenhum funcionario cadastrado.</p>";
@@ -5918,6 +5943,10 @@ loginAdminForm.addEventListener("submit", (event) => {
     showMessage(loginAdminMessage, "CPF ou senha de funcionário invalidos.", "error");
     return;
   }
+  if (funcionario.blocked) {
+    showMessage(loginAdminMessage, "Acesso bloqueado para este funcionario. Fale com o administrador.", "error");
+    return;
+  }
 
   localStorage.setItem(
     "dk_sessao_cliente",
@@ -6046,6 +6075,7 @@ if (cadFuncionarioClearBtn) {
   cadFuncionarioClearBtn.addEventListener("click", () => {
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
     refreshFuncionarioAccessInputsByRole();
+    refreshFuncionarioBlockButton();
     if (funcionarioCadastroErro) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
@@ -6056,6 +6086,36 @@ if (cadFuncionarioClearBtn) {
 if (cadFuncionarioRole) {
   cadFuncionarioRole.addEventListener("change", () => {
     refreshFuncionarioAccessInputsByRole();
+  });
+}
+
+if (cadFuncionarioCpf) {
+  cadFuncionarioCpf.addEventListener("input", () => {
+    cadFuncionarioCpf.value = formatCpf(onlyDigits(String(cadFuncionarioCpf.value || "")));
+    refreshFuncionarioBlockButton();
+  });
+}
+
+if (cadFuncionarioNome) {
+  cadFuncionarioNome.addEventListener("input", () => {
+    refreshFuncionarioBlockButton();
+  });
+}
+
+if (cadFuncionarioBlockBtn) {
+  cadFuncionarioBlockBtn.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.tipo !== "admin" || session?.role !== "owner") return;
+    const alvo = findFuncionarioByCpfOrNome(cadFuncionarioCpf?.value, cadFuncionarioNome?.value);
+    if (!alvo || alvo.role === "owner") return;
+    const ok = window.confirm(`Confirma bloquear o acesso de ${alvo.nome} (${formatCpf(alvo.cpf)})?`);
+    if (!ok) return;
+    alvo.blocked = true;
+    saveFuncionariosAccess();
+    addAuditLog("bloquear_funcionario", "funcionario", `${alvo.nome} - CPF ${formatCpf(alvo.cpf)}`);
+    window.alert("ACESSO BLOQUEADO COM SUCESSO");
+    refreshFuncionarioBlockButton();
+    renderCadastros();
   });
 }
 
@@ -6101,11 +6161,12 @@ if (funcionarioCadastroForm) {
       }
       return;
     }
-    funcionariosAccess.push({ cpf, senha, nome, role, acessos });
+    funcionariosAccess.push({ cpf, senha, nome, role, blocked: false, acessos });
     saveFuncionariosAccess();
     addAuditLog("cadastrar_funcionario", "funcionario", `${nome} - CPF ${formatCpf(cpf)} - PERFIL ${role}`);
     if (funcionarioCadastroForm) funcionarioCadastroForm.reset();
     refreshFuncionarioAccessInputsByRole();
+    refreshFuncionarioBlockButton();
     if (funcionarioCadastroErro) {
       funcionarioCadastroErro.textContent = "";
       funcionarioCadastroErro.classList.add("hidden");
