@@ -1,11 +1,11 @@
 {
-  "name": "DK Locadora - Cliente",
-  "short_name": "DK Cliente",
-  "description": "Acesso do cliente da DK Locadora em Petrolina-PE.",
+  "name": "Grupo DK",
+  "short_name": "Grupo DK",
+  "description": "DK Centro Automotivo e DK Locadora · Petrolina-PE.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f5f7fb",
-  "theme_color": "#0a2a66",
+  "background_color": "#070707",
+  "theme_color": "#111111",
   "lang": "pt-BR",
   "orientation": "portrait-primary",
   "icons": [

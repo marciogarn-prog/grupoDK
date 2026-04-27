@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-locadora-v1";
+const CACHE_NAME = "dk-grupo-v2";
 const ASSETS = [
   "./",
   "./index.html",
