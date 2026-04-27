@@ -2502,37 +2502,250 @@ function getQuadroMesesRange(contrato, items) {
   return buildMonthRange(sy, sm, ey, em);
 }
 
-function fillMonthSlotsSixSemanas(monthItems, highlightId) {
-  const sorted = monthItems
-    .filter((it) => parseBrDate(it.semanaInicio))
-    .sort(
-      (a, b) =>
-        (parseBrDate(a.semanaInicio)?.getTime() || 0) -
-        (parseBrDate(b.semanaInicio)?.getTime() || 0)
-    );
-  const slots = Array.from({ length: 6 }, () => ({
-    total: 0,
-    hasNovo: false,
-    hasPreview: false,
-  }));
-  sorted.forEach((it, idx) => {
-    const slot = Math.min(idx, 5);
-    slots[slot].total += getLancamentoAluguelValor(it);
-    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
-    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
-  });
-  return slots
-    .map((s) => {
-      if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
-      let cls = "quadro-cell quadro-cell--valor";
-      if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
-      else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
-      return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
-    })
-    .join("");
+const QUADRO_MES_ABBR_TO_NUM = {
+  JAN: 1,
+  FEV: 2,
+  MAR: 3,
+  ABR: 4,
+  MAI: 5,
+  JUN: 6,
+  JUL: 7,
+  AGO: 8,
+  SET: 9,
+  OUT: 10,
+  NOV: 11,
+  DEZ: 12,
+};
+
+function ymFromReceitaDefMes(mesAbbr, year) {
+  const m = QUADRO_MES_ABBR_TO_NUM[String(mesAbbr || "").toUpperCase()];
+  if (!m) return null;
+  return year * 100 + m;
 }
 
-function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
+function receitaQuadroTrailHasCells(record) {
+  const hist = normalizeWeekArray(record?.semanasHistorico);
+  const t26 = receita2026TrailForRecord(record);
+  const anyMark = (arr) =>
+    arr.some((c) => {
+      const t = String(c ?? "").trim();
+      return t !== "" && t !== "#";
+    });
+  return anyMark(hist) || anyMark(t26);
+}
+
+function slotMetaFromTrailAtCol(trail, colBase, col) {
+  const a = normalizeWeekArray(trail);
+  const idx = col - colBase;
+  const raw = idx >= 0 && idx < a.length ? a[idx] : "";
+  const val = parseSemanaPagamentoCell(raw);
+  const empty = raw == null || String(raw).trim() === "" || String(raw).trim() === "#";
+  return { raw, val, empty };
+}
+
+function packSixSlotMetas(monthMetas) {
+  if (monthMetas.length <= 6) {
+    const out = monthMetas.slice();
+    while (out.length < 6) out.push({ raw: "", val: 0, empty: true });
+    return out.slice(0, 6);
+  }
+  const out = monthMetas.slice(0, 5);
+  let sum = 0;
+  let anyNonEmpty = false;
+  for (let i = 5; i < monthMetas.length; i += 1) {
+    sum += monthMetas[i].val;
+    if (!monthMetas[i].empty) anyNonEmpty = true;
+  }
+  out.push({
+    raw: anyNonEmpty ? "*" : "",
+    val: sum,
+    empty: !anyNonEmpty && Math.abs(sum) < 1e-9,
+  });
+  return out;
+}
+
+function trimQuadroReceitaRows(rows) {
+  const isEmptyRow = (r) => {
+    if (Math.abs(r.rowSum) >= 1e-9) return false;
+    return !r.six.some((m) => !m.empty || Math.abs(m.val) >= 1e-9);
+  };
+  const start = rows.findIndex((r) => !isEmptyRow(r));
+  if (start < 0) return [];
+  let end = rows.length - 1;
+  while (end > start && isEmptyRow(rows[end])) end -= 1;
+  return rows.slice(start, end + 1);
+}
+
+function formatQuadroMonthSlotTd(meta, cellOpts) {
+  const highlightNovo = cellOpts?.highlightNovo;
+  const highlightPreview = cellOpts?.highlightPreview;
+  if (meta.empty && Math.abs(meta.val) < 1e-9) {
+    return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+  }
+  const isNeg = meta.val < -1e-9;
+  let cls = "quadro-cell quadro-cell--valor";
+  if (highlightPreview) cls = "quadro-cell quadro-cell--preview";
+  else if (highlightNovo) cls = "quadro-cell quadro-cell--novo";
+  else if (isNeg) cls += " quadro-cell--negativo";
+  return `<td class="${cls}">${currencyBRL(meta.val)}</td>`;
+}
+
+function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId) {
+  const keys = new Set();
+  if (highlightId == null || highlightId === "") return keys;
+  const items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw).filter(
+    (i) => Number(i.id) === Number(highlightId)
+  );
+  if (!items.length) return keys;
+  const item = items[0];
+  const valor = getLancamentoAluguelValor(item);
+  const dItem = parseBrDate(item.semanaInicio);
+  const itemYm =
+    dItem && !Number.isNaN(dItem.getTime())
+      ? dItem.getFullYear() * 100 + (dItem.getMonth() + 1)
+      : null;
+
+  const tryDefs = (defs, colBase, trail, block, yearForYm) => {
+    if (!defs.length || !Number.isFinite(colBase)) return;
+    defs.forEach((d) => {
+      const rowYm = ymFromReceitaDefMes(d.mes, yearForYm);
+      if (itemYm != null && rowYm != null && rowYm !== itemYm) return;
+      let colSlot = 0;
+      for (let col = d.colInicio; col <= d.colFim; col += 1) {
+        const meta = slotMetaFromTrailAtCol(trail, colBase, col);
+        const packedSlot = colSlot < 6 ? colSlot : 5;
+        if (
+          !meta.empty &&
+          Math.abs(meta.val - valor) < 0.02 &&
+          packedSlot >= 0 &&
+          packedSlot < 6
+        ) {
+          keys.add(`${block}|${d.mes}|${packedSlot}`);
+        }
+        colSlot += 1;
+      }
+    });
+  };
+
+  const defs25 = getReceita2025GridMonthDefs();
+  const defs26 = getReceita2026GridMonthDefs();
+  const colBase25 = defs25.length ? Number(defs25[0].colInicio) : NaN;
+  const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
+  tryDefs(defs25, colBase25, normalizeWeekArray(record.semanasHistorico), "25", 2025);
+  tryDefs(defs26, colBase26, receita2026TrailForRecord(record), "26", 2026);
+  return keys;
+}
+
+function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, options = {}) {
+  const highlightId = options.highlightId;
+  const highlightKeys = buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId);
+  const rowForTotals = record || findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  let totalDevido = 0;
+  let totalPagoContrato = 0;
+  if (rowForTotals) {
+    const dyn = withDynamicFinancialFields({
+      ...rowForTotals,
+      valorSemanal: rowForTotals.valorSemanal || rowForTotals.valorPlano || 0,
+      devidoHoje: rowForTotals.devidoHoje || rowForTotals.devido || 0,
+    });
+    totalDevido = parseCurrencyBR(dyn.devidoHoje || rowForTotals.devidoHoje || rowForTotals.devido || 0);
+    totalPagoContrato = parseCurrencyBR(rowForTotals.pago || rowForTotals.valorPago || 0);
+  }
+
+  const defs25 = getReceita2025GridMonthDefs();
+  const defs26 = getReceita2026GridMonthDefs();
+  const colBase25 = defs25.length ? Number(defs25[0].colInicio) : NaN;
+  const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
+  const hist = normalizeWeekArray(record.semanasHistorico);
+  const trail26 = receita2026TrailForRecord(record);
+
+  const rawRows = [];
+
+  defs25.forEach((d) => {
+    const monthMetas = [];
+    for (let col = d.colInicio; col <= d.colFim; col += 1) {
+      monthMetas.push(slotMetaFromTrailAtCol(hist, colBase25, col));
+    }
+    const six = packSixSlotMetas(monthMetas);
+    const rowSum = monthMetas.reduce((acc, m) => acc + m.val, 0);
+    rawRows.push({
+      label: mesAbbrToLabelGrade(d.mes, "2025"),
+      block: "25",
+      mes: String(d.mes || ""),
+      six,
+      rowSum,
+    });
+  });
+
+  defs26.forEach((d) => {
+    const monthMetas = [];
+    for (let col = d.colInicio; col <= d.colFim; col += 1) {
+      monthMetas.push(slotMetaFromTrailAtCol(trail26, colBase26, col));
+    }
+    const six = packSixSlotMetas(monthMetas);
+    const rowSum = monthMetas.reduce((acc, m) => acc + m.val, 0);
+    rawRows.push({
+      label: mesAbbrToLabelGrade(d.mes, "2026"),
+      block: "26",
+      mes: String(d.mes || ""),
+      six,
+      rowSum,
+    });
+  });
+
+  const trimmed = trimQuadroReceitaRows(rawRows);
+  let rowsHtml = "";
+  trimmed.forEach((r) => {
+    const slotsHtml = r.six
+      .map((meta, i) =>
+        formatQuadroMonthSlotTd(meta, {
+          highlightNovo: highlightKeys.has(`${r.block}|${r.mes}|${i}`),
+        })
+      )
+      .join("");
+    const rowEmpty =
+      Math.abs(r.rowSum) < 1e-9 &&
+      !r.six.some((m) => !m.empty || Math.abs(m.val) >= 1e-9);
+    const totalNeg = r.rowSum < -1e-9;
+    const totalCls =
+      rowEmpty
+        ? "quadro-cell quadro-row-total quadro-cell--empty"
+        : `quadro-cell quadro-row-total${totalNeg ? " quadro-cell--negativo" : ""}`;
+    const totalDisp = rowEmpty ? "—" : currencyBRL(r.rowSum);
+    rowsHtml += `
+      <tr>
+        <td class="quadro-mes">${escapeHtml(r.label)}</td>
+        <td class="${totalCls}">${totalDisp}</td>
+        ${slotsHtml}
+      </tr>`;
+  });
+
+  return `
+    <div class="quadro-pagamento-scroll">
+      <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês (RECEITA / RECEITA 2026)">
+        <thead>
+          <tr class="quadro-summary-row quadro-summary-devido">
+            <td colspan="2">TOTAL DEVIDO</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-devido">${currencyBRL(totalDevido)}</td>
+          </tr>
+          <tr class="quadro-summary-row quadro-summary-pago">
+            <td colspan="2">TOTAL PAGO</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-pago">${currencyBRL(totalPagoContrato)}</td>
+          </tr>
+          <tr>
+            <th scope="col">Mês</th>
+            <th scope="col">TOTAL</th>
+            ${[1, 2, 3, 4, 5, 6]
+              .map((n) => `<th scope="col">SEM-${String(n).padStart(2, "0")}</th>`)
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options = {}) {
   const highlightId = options.highlightId;
   const preview = options.preview;
   let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw);
@@ -2598,6 +2811,49 @@ function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
         <tbody>${rowsHtml}</tbody>
       </table>
     </div>`;
+}
+
+function fillMonthSlotsSixSemanas(monthItems, highlightId) {
+  const sorted = monthItems
+    .filter((it) => parseBrDate(it.semanaInicio))
+    .sort(
+      (a, b) =>
+        (parseBrDate(a.semanaInicio)?.getTime() || 0) -
+        (parseBrDate(b.semanaInicio)?.getTime() || 0)
+    );
+  const slots = Array.from({ length: 6 }, () => ({
+    total: 0,
+    hasNovo: false,
+    hasPreview: false,
+  }));
+  sorted.forEach((it, idx) => {
+    const slot = Math.min(idx, 5);
+    slots[slot].total += getLancamentoAluguelValor(it);
+    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
+    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
+  });
+  return slots
+    .map((s) => {
+      if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+      let cls = "quadro-cell quadro-cell--valor";
+      if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
+      else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
+      return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
+    })
+    .join("");
+}
+
+function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
+  const preview = options.preview;
+  if (preview && preview.semanaInicio && parseCurrencyBR(preview.valorPago) > 0) {
+    return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
+  }
+  const rec = findReceitaRecordForQuadro(cpfDigits, placaRaw);
+  if (rec && receitaQuadroTrailHasCells(rec)) {
+    const html = buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, rec, options);
+    if (!/<tbody>\s*<\/tbody>/s.test(html)) return html;
+  }
+  return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
 }
 
 function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
@@ -4748,6 +5004,38 @@ function findReceitaRecordForEstudo(cpfDigits) {
   let matches = pool.filter((r) => onlyDigits(String(r.cpf || "")) === key);
   if (!matches.length && pool !== receita2026Data && receita2026Data.length) {
     matches = receita2026Data.filter((r) => onlyDigits(String(r.cpf || "")) === key);
+  }
+  if (!matches.length) return null;
+  const ativo = matches.find((r) => !String(r.fim || "").trim());
+  if (ativo) return ativo;
+  return matches.sort((a, b) => Number(b.inicioSerial || 0) - Number(a.inicioSerial || 0))[0];
+}
+
+/**
+ * Mesmo pool que RECEITA / RECEITA 2026 em findReceitaRecordForEstudo,
+ * com filtro opcional por placa (para quadro por contrato).
+ */
+function findReceitaRecordForQuadro(cpfDigits, placaRaw) {
+  const cpf = onlyDigits(String(cpfDigits || ""));
+  const placa = normalizePlate(placaRaw);
+  if (cpf.length !== 11) return null;
+  const pool =
+    adminData.length > 0
+      ? adminData
+      : receita2026Data.length
+        ? receita2026Data
+        : [];
+  let matches = pool.filter((r) => onlyDigits(String(r.cpf || "")) === cpf);
+  if (placa) {
+    const byPlate = matches.filter((r) => normalizePlate(r.placa) === placa);
+    if (byPlate.length) matches = byPlate;
+  }
+  if (!matches.length && pool !== receita2026Data && receita2026Data.length) {
+    matches = receita2026Data.filter((r) => onlyDigits(String(r.cpf || "")) === cpf);
+    if (placa) {
+      const byPlate = matches.filter((r) => normalizePlate(r.placa) === placa);
+      if (byPlate.length) matches = byPlate;
+    }
   }
   if (!matches.length) return null;
   const ativo = matches.find((r) => !String(r.fim || "").trim());

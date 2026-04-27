@@ -1380,6 +1380,15 @@ a.cliente-vida-link:hover {
   font-style: italic;
 }
 
+.quadro-cell--negativo {
+  color: #f87171 !important;
+  font-weight: 600;
+}
+
+.quadro-row-total.quadro-cell--negativo {
+  color: #f87171 !important;
+}
+
 .quadro-row-total {
   font-weight: 600;
   color: #fafafa !important;
