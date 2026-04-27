@@ -2531,6 +2531,7 @@ function mergePreviewLancamento(items, preview) {
     cpf: preview.cpfDigits,
     placa: preview.placa,
     semanaInicio: preview.semanaInicio,
+    semanaFim: preview.semanaFim || preview.semanaInicio,
     valorPago: preview.valorPago,
     createdAt: 0,
   });
@@ -2645,30 +2646,91 @@ function trailQuadroFindStartIdx(trailArr) {
 }
 
 /**
- * Localiza SEM-XX do quadro (índice 0 = SEM-01 no mês) pela data da semana de pagamento,
- * usando a mesma régua semanal da RECEITA (início do contrato + 7·w a partir da 1ª célula marcada na trilha).
- * Pagamentos de 2026 usam só a trilha RECEITA 2026 para não colidir com colunas da aba 2025.
+ * Número de dias (fim inclusivo) em comum entre [periodStart, periodEnd] e [weekStart, weekEnd].
  */
-function findQuadroSlotForLancamentoSemana(record, semanaInicioStr) {
-  const pay = toDateOnly(parseBrDate(semanaInicioStr));
+function quadroRangeOverlapDays(periodStart, periodEnd, weekStart, weekEnd) {
+  if (!periodStart || !periodEnd || !weekStart || !weekEnd) return 0;
+  const tLoT = periodStart.getTime() > weekStart.getTime() ? periodStart : weekStart;
+  const tHiT = periodEnd.getTime() < weekEnd.getTime() ? periodEnd : weekEnd;
+  if (tLoT.getTime() > tHiT.getTime()) return 0;
+  const loD = toDateOnly(tLoT);
+  const hiD = toDateOnly(tHiT);
+  if (!loD || !hiD) return 0;
+  const dayMs = 1000 * 60 * 60 * 24;
+  return Math.floor((hiD.getTime() - loD.getTime()) / dayMs) + 1;
+}
+
+/**
+ * Localiza SEM-XX do quadro (índice 0 = SEM-01 no mês) pela **semana do lançamento (início e fim)**.
+ * Se só o início caísse em uma célula SEM-0N mas a maior parte do período em SEM-0N+1, o
+ * mapeamento antigo (só início) errava. Usa **sobreposição de dias** com a janela
+ * [início do contrato + 7·w, … +6] a partir da 1ª célula da trilha, e escolhe a coluna
+ * com **mais dias** em comum; empate: semana de referência **mais tardia** (cobre
+ * pagamentos que vão de domingo a sábado, etc.). Pagamentos 2025 na trilha RECEITA;
+ * 2026+ na trilha RECEITA 2026. Fallback: primeira coluna cujo [ws,we] contém a data de início.
+ */
+function findQuadroSlotForLancamentoSemana(record, semanaInicioStr, semanaFimStr) {
+  let dLo = toDateOnly(parseBrDate(semanaInicioStr));
+  if (!dLo) return null;
+  let dHi = toDateOnly(parseBrDate(semanaFimStr));
+  if (!dHi) dHi = dLo;
+  if (dLo.getTime() > dHi.getTime()) {
+    const t = dLo;
+    dLo = dHi;
+    dHi = t;
+  }
   const inicio = toDateOnly(parseRecordStartDate(record));
-  if (!pay || !inicio) return null;
+  if (!inicio) return null;
   const defs25 = getReceita2025GridMonthDefs();
   const defs26 = getReceita2026GridMonthDefs();
   const cb25 = defs25.length ? Number(defs25[0].colInicio) : 26;
   const cb26 = defs26.length ? Number(defs26[0].colInicio) : 27;
   const hist = normalizeWeekArray(record.semanasHistorico);
   const trail26 = receita2026TrailForRecord(record);
-  const payYear = pay.getFullYear();
+  const refYear = dLo.getFullYear();
 
-  const scanTrail = (trailArr, colBase, defs, block, yearTag) => {
+  const scanTrailOverlap = (trailArr, colBase, defs, block) => {
+    const s0 = trailQuadroFindStartIdx(trailArr);
+    let best = null;
+    let bestScore = -1;
+    let bestWk = 0;
+    for (let idx = s0; idx < trailArr.length; idx += 1) {
+      const w = idx - s0;
+      const weekStart = addCalendarDays(inicio, w * 7);
+      if (!weekStart) continue;
+      const weekEnd = addCalendarDays(weekStart, 6);
+      if (!weekEnd) continue;
+      const col = colBase + idx;
+      const def = defs.find((dd) => col >= dd.colInicio && col <= dd.colFim);
+      if (!def) continue;
+      const days = quadroRangeOverlapDays(dLo, dHi, weekStart, weekEnd);
+      if (days <= 0) continue;
+      if (
+        days > bestScore ||
+        (days === bestScore && (best == null || weekStart.getTime() > bestWk))
+      ) {
+        bestScore = days;
+        bestWk = weekStart.getTime();
+        best = {
+          block,
+          mes: String(def.mes || ""),
+          slotIdx: col - def.colInicio,
+          col,
+        };
+      }
+    }
+    return best;
+  };
+
+  const scanTrailDLoOnly = (trailArr, colBase, defs, block) => {
     const s0 = trailQuadroFindStartIdx(trailArr);
     for (let idx = s0; idx < trailArr.length; idx += 1) {
       const w = idx - s0;
       const weekStart = addCalendarDays(inicio, w * 7);
       if (!weekStart) continue;
       const weekEnd = addCalendarDays(weekStart, 6);
-      if (!weekEnd || pay < weekStart || pay > weekEnd) continue;
+      if (!weekEnd) continue;
+      if (dLo < weekStart || dLo > weekEnd) continue;
       const col = colBase + idx;
       const def = defs.find((dd) => col >= dd.colInicio && col <= dd.colFim);
       if (!def) continue;
@@ -2682,22 +2744,37 @@ function findQuadroSlotForLancamentoSemana(record, semanaInicioStr) {
     return null;
   };
 
-  if (payYear <= 2025) {
-    const hit = scanTrail(hist, cb25, defs25, "25", 2025);
+  if (refYear <= 2025) {
+    const hit = scanTrailOverlap(hist, cb25, defs25, "25");
     if (hit) return hit;
   }
-  if (payYear >= 2026) {
-    const hit26 = scanTrail(trail26, cb26, defs26, "26", 2026);
+  if (refYear >= 2026) {
+    const hit26 = scanTrailOverlap(trail26, cb26, defs26, "26");
     if (hit26) return hit26;
   }
-  const fallbackHist = scanTrail(hist, cb25, defs25, "25", 2025);
-  if (fallbackHist) return fallbackHist;
-  return scanTrail(trail26, cb26, defs26, "26", 2026);
+  const hFb = scanTrailOverlap(hist, cb25, defs25, "25");
+  if (hFb) return hFb;
+  const tFb = scanTrailOverlap(trail26, cb26, defs26, "26");
+  if (tFb) return tFb;
+
+  if (refYear <= 2025) {
+    const fb1 = scanTrailDLoOnly(hist, cb25, defs25, "25");
+    if (fb1) return fb1;
+  }
+  if (refYear >= 2026) {
+    const f26 = scanTrailDLoOnly(trail26, cb26, defs26, "26");
+    if (f26) return f26;
+  }
+  return scanTrailDLoOnly(hist, cb25, defs25, "25") || scanTrailDLoOnly(trail26, cb26, defs26, "26");
 }
 
 function mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, block, mesAbbr, monthMetas) {
   collectLancamentosFilteredQuadro(cpfDigits, placaRaw).forEach((it) => {
-    const slot = findQuadroSlotForLancamentoSemana(record, it.semanaInicio);
+    const slot = findQuadroSlotForLancamentoSemana(
+      record,
+      it.semanaInicio,
+      it.semanaFim || it.semanaInicio
+    );
     if (!slot || slot.block !== block || slot.mes !== mesAbbr) return;
     if (slot.slotIdx < 0 || slot.slotIdx >= monthMetas.length) return;
     const add = getLancamentoAluguelValor(it);
@@ -2797,7 +2874,11 @@ function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlig
   const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
   tryDefs(defs25, colBase25, normalizeWeekArray(record.semanasHistorico), "25", 2025);
   tryDefs(defs26, colBase26, receita2026TrailForRecord(record), "26", 2026);
-  const slotByDate = findQuadroSlotForLancamentoSemana(record, item.semanaInicio);
+  const slotByDate = findQuadroSlotForLancamentoSemana(
+    record,
+    item.semanaInicio,
+    item.semanaFim || item.semanaInicio
+  );
   if (slotByDate) {
     keys.add(`${slotByDate.block}|${slotByDate.mes}|${Math.min(slotByDate.slotIdx, 5)}`);
   }
@@ -8430,6 +8511,7 @@ if (lancamentoAluguelForm) {
     const historicoOk = await askLancamentoAluguelHistoricoUpdated(cpf, placa, {
       valorPago,
       semanaInicio,
+      semanaFim,
     });
     if (!historicoOk) return;
 
