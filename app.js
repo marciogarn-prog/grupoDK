@@ -58,7 +58,7 @@ const funcionariosAccess = [
   {
     cpf: "06523244440",
     senha: "110499Gb@",
-    nome: "Administrador",
+    nome: "Marcus Santos",
     role: "owner",
   },
 ];
