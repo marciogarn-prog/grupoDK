@@ -26,6 +26,7 @@
     <nav class="topbar-nav" aria-label="Acesso à plataforma">
       <button type="button" id="topbarAcessoCliente" class="topbar-access topbar-access--cliente">Acesso cliente</button>
       <button type="button" id="topbarAcessoColaborador" class="topbar-access topbar-access--staff">Acesso colaborador</button>
+      <button type="button" id="updateButton" class="update-btn hidden">Buscar atualizações</button>
       <button id="installButton" class="install-btn hidden">Instalar App</button>
     </nav>
   </header>
@@ -387,6 +388,30 @@
               <section id="operacaoLancamentoAluguelSection" class="admin-group hidden">
             <h3>Lançamento de aluguel</h3>
             <p class="subtext">Registrar pagamentos semanais de aluguel por placa e CPF.</p>
+            <div class="vehicle-box comprovante-ia-box">
+              <h4>Comprovante de pagamento (IA)</h4>
+              <p class="subtext">Cole uma captura de tela ou PDF exportado como imagem aqui, ou o texto do PIX/comprovante. Configure uma chave da API OpenAI uma vez (fica só neste navegador). Cada comprovante só pode gerar um lançamento salvo; duplicidade é bloqueada pelo sistema.</p>
+              <div class="comprovante-ia-row">
+                <div id="comprovantePasteZone" class="comprovante-paste-zone" tabindex="0">
+                  <span class="comprovante-paste-hint">Clique e cole (Ctrl+V) uma imagem do comprovante, ou use o botão abaixo.</span>
+                  <img id="comprovantePreview" class="comprovante-preview hidden" alt="Pré-visualização do comprovante">
+                </div>
+                <input type="file" id="comprovanteFileInput" accept="image/*" class="hidden">
+                <div class="comprovante-ia-side">
+                  <label for="comprovanteTextoFallback">Texto do comprovante (opcional se enviar imagem)</label>
+                  <textarea id="comprovanteTextoFallback" class="comprovante-textarea" rows="5" placeholder="Cole aqui o texto do comprovante (PIX, TED, etc.) para leitura sem imagem."></textarea>
+                  <div class="comprovante-api-row">
+                    <input type="password" id="comprovanteApiKeyInput" autocomplete="off" placeholder="Chave API OpenAI (sk-...)">
+                    <button type="button" id="comprovanteApiKeySaveBtn" class="secondary">Salvar chave local</button>
+                  </div>
+                  <p id="comprovanteApiStatus" class="subtext" role="status" aria-live="polite"></p>
+                  <div class="report-actions">
+                    <button type="button" id="comprovanteExtrairBtn">Extrair dados com IA</button>
+                    <button type="button" id="comprovanteLimparBtn" class="secondary">Limpar comprovante</button>
+                  </div>
+                </div>
+              </div>
+            </div>
             <form id="lancamentoAluguelForm" class="inline-form lancamento-aluguel-layout">
               <input type="text" id="lancAluguelClienteNome" placeholder="Nome do cliente (busca com sugestão)" list="lancAluguelClienteSugestoes" autocomplete="off">
               <datalist id="lancAluguelClienteSugestoes"></datalist>
@@ -600,15 +625,69 @@
     </div>
   </div>
 
+  <div id="comprovanteIADialog" class="modal-overlay hidden">
+    <div class="modal-card modal-card-wide">
+      <h3>Confirmar dados extraídos do comprovante</h3>
+      <p class="subtext">Revise e ajuste antes de aplicar ao formulário de lançamento.</p>
+      <div class="comprovante-modal-fields">
+        <label>Nome do cliente / beneficiário (locação)
+          <input type="text" id="comprovanteModalNome" autocomplete="off">
+        </label>
+        <label>CPF do locatário
+          <input type="text" id="comprovanteModalCpf" inputmode="numeric" autocomplete="off" placeholder="000.000.000-00">
+        </label>
+        <label>Placa
+          <input type="text" id="comprovanteModalPlaca" autocomplete="off">
+        </label>
+        <label>Data do pagamento (dd/mm/aaaa)
+          <input type="text" id="comprovanteModalData" autocomplete="off">
+        </label>
+        <label>Valor (R$)
+          <input type="text" id="comprovanteModalValor" autocomplete="off">
+        </label>
+        <label>Nome no comprovante (pagador / PIX)
+          <input type="text" id="comprovanteModalNomePagador" placeholder="—">
+        </label>
+        <label class="comprovante-check-label">
+          <input type="checkbox" id="comprovanteModalTerceiro">
+          Pagamento feito por terceiro (PIX ou conta de outra pessoa)
+        </label>
+      </div>
+      <div id="comprovanteLocacaoWrap" class="hidden comprovante-locacao-wrap">
+        <p><strong>Para qual locação este comprovante será utilizado?</strong></p>
+        <label>
+          <select id="comprovanteLocacaoSelect"></select>
+        </label>
+        <p class="subtext">Escolha o contrato (cliente e veículo) que deve receber este pagamento.</p>
+      </div>
+      <div class="report-actions">
+        <button type="button" id="comprovanteAplicarBtn">Aplicar ao formulário</button>
+        <button type="button" id="comprovanteModalCancelBtn" class="secondary">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="comprovanteViewerDialog" class="modal-overlay hidden">
+    <div class="modal-card modal-card-wide">
+      <h3>Comprovante do pagamento</h3>
+      <p class="subtext">Registro salvo neste navegador junto com o lançamento.</p>
+      <div id="comprovanteViewerBody" class="comprovante-viewer-body"></div>
+      <div class="report-actions">
+        <button type="button" id="comprovanteViewerFechar">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="lancamentoAluguelHistoricoDialog" class="modal-overlay hidden">
     <div class="modal-card modal-card-wide">
       <h3>Quadro resumo — histórico de pagamento</h3>
-      <p class="subtext">Revise os valores antes de gravar este lançamento.</p>
+      <p class="subtext">Revise ou edite as células (SEM-01 a SEM-06). Se alterar algum valor, ao confirmar com &quot;Sim&quot; será pedida a senha do administrador para salvar no cadastro local (sobrescreve a célula anterior).</p>
       <div id="lancamentoAluguelHistoricoQuadro" class="quadro-pagamento-wrap"></div>
       <p><strong>Histórico de pagamento atualizado?</strong></p>
       <div class="report-actions">
         <button type="button" id="lancamentoAluguelHistoricoSimBtn">Sim</button>
         <button type="button" id="lancamentoAluguelHistoricoEditarBtn" class="secondary">Editar histórico</button>
+        <button type="button" id="lancamentoAluguelHistoricoCancelarBtn" class="secondary">Cancelar</button>
       </div>
     </div>
   </div>

@@ -306,7 +306,32 @@ const lancamentoAluguelHistoricoDialog = document.getElementById("lancamentoAlug
 const lancamentoAluguelHistoricoQuadro = document.getElementById("lancamentoAluguelHistoricoQuadro");
 const lancamentoAluguelHistoricoSimBtn = document.getElementById("lancamentoAluguelHistoricoSimBtn");
 const lancamentoAluguelHistoricoEditarBtn = document.getElementById("lancamentoAluguelHistoricoEditarBtn");
+const lancamentoAluguelHistoricoCancelarBtn = document.getElementById(
+  "lancamentoAluguelHistoricoCancelarBtn"
+);
+const comprovantePasteZone = document.getElementById("comprovantePasteZone");
+const comprovantePreview = document.getElementById("comprovantePreview");
+const comprovanteFileInput = document.getElementById("comprovanteFileInput");
+const comprovanteTextoFallback = document.getElementById("comprovanteTextoFallback");
+const comprovanteApiKeyInput = document.getElementById("comprovanteApiKeyInput");
+const comprovanteApiKeySaveBtn = document.getElementById("comprovanteApiKeySaveBtn");
+const comprovanteApiStatus = document.getElementById("comprovanteApiStatus");
+const comprovanteExtrairBtn = document.getElementById("comprovanteExtrairBtn");
+const comprovanteLimparBtn = document.getElementById("comprovanteLimparBtn");
+const comprovanteIADialog = document.getElementById("comprovanteIADialog");
+const comprovanteModalNome = document.getElementById("comprovanteModalNome");
+const comprovanteModalCpf = document.getElementById("comprovanteModalCpf");
+const comprovanteModalPlaca = document.getElementById("comprovanteModalPlaca");
+const comprovanteModalData = document.getElementById("comprovanteModalData");
+const comprovanteModalValor = document.getElementById("comprovanteModalValor");
+const comprovanteModalNomePagador = document.getElementById("comprovanteModalNomePagador");
+const comprovanteModalTerceiro = document.getElementById("comprovanteModalTerceiro");
+const comprovanteLocacaoWrap = document.getElementById("comprovanteLocacaoWrap");
+const comprovanteLocacaoSelect = document.getElementById("comprovanteLocacaoSelect");
+const comprovanteAplicarBtn = document.getElementById("comprovanteAplicarBtn");
+const comprovanteModalCancelBtn = document.getElementById("comprovanteModalCancelBtn");
 const installButton = document.getElementById("installButton");
+const updateButton = document.getElementById("updateButton");
 const envWarning = document.getElementById("envWarning");
 const dateInputIds = [
   "cadClienteDataCadastro",
@@ -321,6 +346,8 @@ const dateInputIds = [
 ];
 
 let deferredPrompt = null;
+let swRegistration = null;
+let updateReloadPending = false;
 let currentModelGroups = {};
 let currentScopeLabel = "";
 let currentFinanceiroEmDia = [];
@@ -347,6 +374,12 @@ const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
 const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
 const CAD_LANCAMENTOS_ALUGUEL_KEY = "dk_lancamentos_aluguel";
+/** Sobrescritas manuais do quadro RECEITA por célula SEM (persistido no backup). */
+const CAD_QUADRO_RECEITA_OVERRIDES_KEY = "dk_quadro_receita_overrides";
+/** CPF(s) com histórico bloqueado para edição/apagamento de lançamentos já existentes. */
+const CPF_LANCAMENTO_EDICAO_BLOQUEADA = new Set(["11498953492", "11377276406"]);
+/** Banco local de imagem/texto do comprovante por fingerprint (localStorage). */
+const CAD_COMPROVANTES_BANCO_KEY = "dk_comprovantes_banco";
 const AUDIT_LOG_KEY = "dk_audit_log";
 const BACKUP_KEYS = [
   CAD_CLIENTES_KEY,
@@ -355,6 +388,8 @@ const BACKUP_KEYS = [
   LOCACAO_DATABASE_KEY,
   CAD_MANUTENCOES_KEY,
   CAD_LANCAMENTOS_ALUGUEL_KEY,
+  CAD_QUADRO_RECEITA_OVERRIDES_KEY,
+  CAD_COMPROVANTES_BANCO_KEY,
   AUDIT_LOG_KEY,
 ];
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
@@ -1298,6 +1333,91 @@ function saveCadastro(key, list) {
   localStorage.setItem(key, JSON.stringify(list));
 }
 
+function loadQuadroReceitaOverridesMap() {
+  const arr = loadCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY);
+  const out = {};
+  if (!Array.isArray(arr)) return out;
+  arr.forEach((row) => {
+    if (!row || row.key == null) return;
+    const v = Number(row.valor);
+    if (!Number.isFinite(v)) return;
+    out[String(row.key)] = v;
+  });
+  return out;
+}
+
+function saveQuadroReceitaOverridesMap(map) {
+  const arr = Object.keys(map).map((key) => ({
+    key,
+    valor: map[key],
+  }));
+  saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, arr);
+}
+
+function quadroOverrideReceitaKey(cpfDigits, placaRaw, block, mesAbbr, slotIdx) {
+  return `${onlyDigits(String(cpfDigits || ""))}_${normalizePlate(placaRaw || "")}_R${block}_${String(mesAbbr || "").toUpperCase()}_${slotIdx}`;
+}
+
+function quadroOverrideCalendarKey(cpfDigits, placaRaw, ymKey, slotIdx) {
+  return `${onlyDigits(String(cpfDigits || ""))}_${normalizePlate(placaRaw || "")}_CAL_${ymKey}_${slotIdx}`;
+}
+
+/** Regra de negócio: último valor salvo com senha de administrador é soberano (inclusive zero). */
+function hasQuadroReceitaOverrideKey(key) {
+  const store = loadQuadroReceitaOverridesMap();
+  return Object.prototype.hasOwnProperty.call(store, String(key || ""));
+}
+
+function isCpfComEdicaoLancamentoBloqueada(cpfDigits) {
+  return CPF_LANCAMENTO_EDICAO_BLOQUEADA.has(onlyDigits(String(cpfDigits || "")));
+}
+
+function applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, block, mesAbbr, six) {
+  const store = loadQuadroReceitaOverridesMap();
+  six.forEach((m, i) => {
+    const k = quadroOverrideReceitaKey(cpfDigits, placaRaw, block, mesAbbr, i);
+    if (!Object.prototype.hasOwnProperty.call(store, k)) return;
+    const v = store[k];
+    if (!Number.isFinite(v)) return;
+    six[i] = {
+      ...six[i],
+      raw: String(v),
+      val: v,
+      empty: Math.abs(v) < 1e-9,
+    };
+    if (Math.abs(v) >= 1e-9) six[i].empty = false;
+  });
+}
+
+/** Sobrescreve totais calculados pelo que o administrador gravou no quadro CAL (prioridade máxima). */
+function applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ymKey, slots) {
+  const store = loadQuadroReceitaOverridesMap();
+  slots.forEach((s, i) => {
+    const k = quadroOverrideCalendarKey(cpfDigits, placaRaw, ymKey, i);
+    if (!Object.prototype.hasOwnProperty.call(store, k)) return;
+    const v = store[k];
+    if (!Number.isFinite(v)) return;
+    s.total = v;
+  });
+}
+
+/** Pago vindo do registro (planilha) + soma dos lançamentos de aluguel do app (mesmo CPF/placa). */
+function totalPagoBarComLancamentosApp(cpfDigits, placaRaw, pagoRegistro) {
+  const base = parseCurrencyBR(pagoRegistro || 0);
+  const appSum = collectLancamentosFilteredQuadro(onlyDigits(cpfDigits), placaRaw).reduce(
+    (a, l) => a + getLancamentoAluguelValor(l),
+    0
+  );
+  return base + appSum;
+}
+
+/** Pago da planilha + lançamentos do app — mesmo critério do quadro/resumo (por CPF/placa). */
+function pagoHarmonizadoRegistro(r) {
+  const cpf = onlyDigits(String(r?.cpf || ""));
+  if (cpf.length !== 11) return parseCurrencyBR(r?.pago);
+  return totalPagoBarComLancamentosApp(cpf, String(r?.placa || "").trim(), r?.pago);
+}
+
 function backupFileName() {
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `dk-backup-localstorage-${stamp}.json`;
@@ -2177,6 +2297,16 @@ function findBestContratoForLancamentoByPlaca(placaRaw) {
   return ativoLoc || locMatches[locMatches.length - 1];
 }
 
+/** Vários registros receita no mesmo CPF: preferir **ativo** (sem fim de contrato), senão o de início mais recente. */
+function pickActiveOrLatestLocacaoRow(rows) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const ativo = rows.find((r) => !String(r.fim || "").trim());
+  if (ativo) return ativo;
+  return rows
+    .slice()
+    .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
+}
+
 function normalizeDiaPagamentoSugestao(value) {
   const dia = normalizeKey(String(value || "")).slice(0, 3);
   if (dia === "SEG" || dia === "TER" || dia === "QUA" || dia === "QUI" || dia === "SEX" || dia === "SAB") {
@@ -2258,15 +2388,33 @@ function getLancamentoClienteCandidates() {
       placa: "",
     });
   });
+  const adminByCpf = new Map();
   getAdminDataset().forEach((r) => {
     const cpf = onlyDigits(String(r.cpf || ""));
     if (cpf.length !== 11) return;
+    if (!adminByCpf.has(cpf)) adminByCpf.set(cpf, []);
+    adminByCpf.get(cpf).push(r);
+  });
+  adminByCpf.forEach((rows, cpf) => {
     const prev = byCpf.get(cpf) || { nome: "", cpf, placa: "" };
+    const best = pickActiveOrLatestLocacaoRow(rows);
+    if (!best) return;
+    const nomeFromReceita = rows.map((x) => String(x.nome || "").trim()).find((n) => n);
     byCpf.set(cpf, {
-      nome: String(prev.nome || r.nome || "").trim(),
+      nome: String(prev.nome || nomeFromReceita || best.nome || "").trim(),
       cpf,
-      placa: normalizePlate(prev.placa || r.placa || ""),
+      placa: normalizePlate(best.placa || ""),
     });
+  });
+  loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+    const cpf = onlyDigits(String(l.cpf || ""));
+    if (cpf.length !== 11) return;
+    if (!String(l.fim || "").trim()) {
+      const prev = byCpf.get(cpf);
+      if (prev && !prev.placa) {
+        byCpf.set(cpf, { ...prev, placa: normalizePlate(l.placa || prev.placa || "") });
+      }
+    }
   });
   return Array.from(byCpf.values()).filter((x) => x.nome && x.cpf);
 }
@@ -2309,6 +2457,734 @@ function autoFillLancamentoByNome(nomeRaw) {
   suggestValorPagoFromContrato();
   suggestSemanaInicioFromDiaPagamento();
   renderLancamentoAluguelResumo();
+}
+
+const OPENAI_KEY_STORAGE = "dk_openai_api_key";
+let comprovanteImagemPendente = { base64: null, mime: null };
+/** SHA-256 hex do último comprovante lido (imagem ou texto); uso único por lançamento salvo. */
+let comprovanteFpPendente = null;
+/** Snapshot do arquivo/texto ao aplicar comprovante ao formulário (gravado ao salvar o lançamento). */
+let pendingComprovanteSnapshot = null;
+
+function loadComprovantesBancoMap() {
+  try {
+    const raw = localStorage.getItem(CAD_COMPROVANTES_BANCO_KEY);
+    if (!raw) return {};
+    const o = JSON.parse(raw);
+    return typeof o === "object" && o !== null && !Array.isArray(o) ? o : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveComprovantesBancoMap(map) {
+  localStorage.setItem(CAD_COMPROVANTES_BANCO_KEY, JSON.stringify(map));
+}
+
+function getComprovanteBanco(fp) {
+  if (!fp) return null;
+  return loadComprovantesBancoMap()[fp] || null;
+}
+
+function upsertComprovanteBanco(fp, row) {
+  if (!fp) return;
+  const all = loadComprovantesBancoMap();
+  const prev = all[fp] || {};
+  all[fp] = {
+    ...prev,
+    ...row,
+    fp,
+    atualizadoEm: Date.now(),
+  };
+  saveComprovantesBancoMap(all);
+}
+
+/**
+ * Na hora de salvar o lançamento: usa o que ainda está na área do comprovante e,
+ * se faltar, o snapshot de quando clicou em Aplicar (mesmo fingerprint).
+ */
+function coletarPayloadComprovanteParaSalvar(fpSalvar) {
+  if (!fpSalvar) return { base64: undefined, mime: undefined, texto: "" };
+  const snap =
+    pendingComprovanteSnapshot && pendingComprovanteSnapshot.fp === fpSalvar ? pendingComprovanteSnapshot : null;
+  let base64;
+  let mime;
+  if (comprovanteImagemPendente?.base64 && comprovanteImagemPendente?.mime) {
+    base64 = comprovanteImagemPendente.base64;
+    mime = comprovanteImagemPendente.mime;
+  } else if (snap?.base64 && snap?.mime) {
+    base64 = snap.base64;
+    mime = snap.mime;
+  }
+  const textoLive = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "";
+  const texto = textoLive || (snap?.texto ? String(snap.texto).trim() : "");
+  return { base64, mime, texto };
+}
+
+/** Fallback quando não há Web Crypto (ex.: página em HTTP não-local) ou falha do digest. */
+function fingerprintComprovanteSync(str) {
+  let h = 2166136261 >>> 0;
+  const s = String(str);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `fnv|${(h >>> 0).toString(16)}|${s.length}`;
+}
+
+async function sha256HexPreferencial(str) {
+  const s = String(str);
+  if (!globalThis.crypto?.subtle) {
+    return fingerprintComprovanteSync(s);
+  }
+  try {
+    const enc = new TextEncoder().encode(s);
+    const max = 9 * 1024 * 1024;
+    if (enc.byteLength > max) {
+      const head = s.slice(0, 8000);
+      const tail = s.slice(-8000);
+      return fingerprintComprovanteSync(`large|${s.length}|${head}|${tail}`);
+    }
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return fingerprintComprovanteSync(s);
+  }
+}
+
+function setComprovanteFeedback(message, kind) {
+  if (!comprovanteApiStatus) return;
+  comprovanteApiStatus.textContent = message || "";
+  comprovanteApiStatus.classList.remove("comprovante-api-status--erro", "comprovante-api-status--ok");
+  if (!message) return;
+  if (kind === "erro") comprovanteApiStatus.classList.add("comprovante-api-status--erro");
+  if (kind === "ok") comprovanteApiStatus.classList.add("comprovante-api-status--ok");
+  try {
+    comprovanteApiStatus.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Identifica o arquivo colado (imagem tem prioridade). Mesmo comprovante = mesmo hash.
+ */
+async function computeComprovanteFingerprintFromPending() {
+  const img = comprovanteImagemPendente;
+  const text = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "";
+  if (img.base64 && img.mime) {
+    return sha256HexPreferencial(`img|${img.mime}|${img.base64}`);
+  }
+  if (text) {
+    const norm = text.replace(/\s+/g, " ").trim();
+    return sha256HexPreferencial(`txt|${norm}`);
+  }
+  return null;
+}
+
+function isComprovanteFpJaUtilizado(fp) {
+  if (!fp || typeof fp !== "string") return false;
+  return getLancamentosAluguel().some((l) => l && typeof l === "object" && String(l.comprovanteFp || "") === fp);
+}
+
+function getStoredOpenAIKey() {
+  return String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
+}
+
+function setDiaPagamentoFromDataBr(dataStr) {
+  if (!lancAluguelDiaPagamentoInput) return;
+  const d = parseBrDate(String(dataStr || "").trim());
+  if (!d || Number.isNaN(d.getTime())) return;
+  const map = { 1: "SEG", 2: "TER", 3: "QUA", 4: "QUI", 5: "SEX", 6: "SAB", 0: "SAB" };
+  lancAluguelDiaPagamentoInput.value = map[d.getDay()] || "SEG";
+}
+
+function extrairComprovanteHeuristica(texto) {
+  const t = String(texto || "");
+  const out = {
+    nomeClienteOuBeneficiario: null,
+    nomePagador: null,
+    cpf: null,
+    placaVeiculo: null,
+    dataPagamento: null,
+    valor: null,
+    pagamentoPorTerceiro: false,
+    origem: "heuristica",
+  };
+  const cpfM = t.match(/(\d{3})[.\s]?(\d{3})[.\s]?(\d{3})[-\s]?(\d{2})/);
+  if (cpfM) out.cpf = `${cpfM[1]}${cpfM[2]}${cpfM[3]}${cpfM[4]}`;
+  const placaM = t.match(/\b([A-Za-z]{3}\d[A-Za-z0-9]\d{2})\b/);
+  if (placaM) {
+    out.placaVeiculo = placaM[1].toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+  const dataM = t.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+  if (dataM) out.dataPagamento = `${dataM[1]}/${dataM[2]}/${dataM[3]}`;
+  const valM = t.match(/R\$\s*([\d./]+)/i) || t.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/);
+  if (valM) {
+    const n = valM[0].includes("R$") ? parseCurrencyBR(valM[0]) : parseCurrencyBR(valM[1]);
+    if (Number.isFinite(n) && n > 0) out.valor = n;
+  }
+  return out;
+}
+
+function buildLocacoesAtivasParaComprovante() {
+  const seen = new Set();
+  const out = [];
+  getAdminDataset()
+    .filter((r) => !String(r.fim || "").trim())
+    .forEach((r) => {
+      const cpf = onlyDigits(String(r.cpf || ""));
+      const placa = normalizePlate(r.placa);
+      if (cpf.length !== 11 || !placa) return;
+      const k = `${cpf}|${placa}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      const nome = String(r.nome || findClienteByCpfCadastro(cpf)?.nome || "").trim() || "Cliente";
+      out.push({ cpf, placa, nome, label: `${nome} — ${placa} — ${formatCpf(cpf)}` });
+    });
+  loadCadastro(CAD_LOCACOES_KEY)
+    .filter((l) => !String(l.fim || "").trim())
+    .forEach((l) => {
+      const cpf = onlyDigits(String(l.cpf || ""));
+      const placa = normalizePlate(l.placa);
+      if (cpf.length !== 11 || !placa) return;
+      const k = `${cpf}|${placa}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      const nome = String(findClienteByCpfCadastro(cpf)?.nome || "").trim() || "Cliente";
+      out.push({ cpf, placa, nome, label: `${nome} — ${placa} — ${formatCpf(cpf)}` });
+    });
+  return out.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+}
+
+function comprovanteNomesDiferentesTerceiro(nomeLocatario, nomePagador) {
+  const a = normalizeName(String(nomeLocatario || ""));
+  const b = normalizeName(String(nomePagador || ""));
+  if (!a || !b) return false;
+  if (a === b) return false;
+  if (a.length >= 4 && b.includes(a.slice(0, 4))) return false;
+  if (b.length >= 4 && a.includes(b.slice(0, 4))) return false;
+  return true;
+}
+
+function tokenizarNomeParaMatch(value) {
+  return normalizeName(value)
+    .split(/\s+/)
+    .map((t) => t.replace(/[^A-Z0-9]/g, ""))
+    .filter((t) => t.length >= 2);
+}
+
+/**
+ * Compara nome do pagador (PIX) com nome do locatário no cadastro para sugerir CPF/placa/locação.
+ */
+function scoreNomePagadorVsLocatario(nomePagador, nomeLocatario) {
+  const a = normalizeName(nomePagador);
+  const b = normalizeName(nomeLocatario);
+  if (!a || !b) return 0;
+  if (a === b) return 1000;
+  const ta = tokenizarNomeParaMatch(nomePagador);
+  const tb = tokenizarNomeParaMatch(nomeLocatario);
+  if (!ta.length || !tb.length) return 0;
+  let score = 0;
+  if (ta[0] === tb[0]) score += 380;
+  const ua = ta[ta.length - 1];
+  const ub = tb[tb.length - 1];
+  if (ua && ub && ua === ub && ua.length > 2) score += 360;
+  tb.forEach((tok) => {
+    if (ta.some((x) => x === tok)) score += 130;
+    else if (ta.some((x) => x.includes(tok) || tok.includes(x))) score += 55;
+  });
+  return score;
+}
+
+function encontrarMelhorLocacaoPorNomePagador(nomePagadorRaw) {
+  const nomePagador = String(nomePagadorRaw || "").trim();
+  if (!nomePagador || nomePagador === "—") return null;
+  const rows = buildLocacoesAtivasParaComprovante();
+  let best = null;
+  let bestScore = 0;
+  rows.forEach((row) => {
+    const s = scoreNomePagadorVsLocatario(nomePagador, row.nome);
+    if (s > bestScore) {
+      bestScore = s;
+      best = row;
+    }
+  });
+  const MIN_SCORE = 420;
+  if (!best || bestScore < MIN_SCORE) return null;
+  return best;
+}
+
+/** Preenche nome do locatário, CPF, placa e select de locação a partir do nome no comprovante (pagador). */
+function aplicarSugestaoLocacaoPorNomePagador() {
+  if (!comprovanteModalNomePagador) return;
+  const nomePag = String(comprovanteModalNomePagador.value || "").trim();
+  if (!nomePag || nomePag === "—") return;
+  const best = encontrarMelhorLocacaoPorNomePagador(nomePag);
+  if (!best) return;
+  if (comprovanteModalNome) comprovanteModalNome.value = best.nome;
+  if (comprovanteModalCpf) comprovanteModalCpf.value = formatCpf(best.cpf);
+  if (comprovanteModalPlaca) comprovanteModalPlaca.value = best.placa;
+  const wrapVis = comprovanteLocacaoWrap && !comprovanteLocacaoWrap.classList.contains("hidden");
+  if (wrapVis && comprovanteLocacaoSelect) {
+    const want = `${best.cpf}||${best.placa}`;
+    const opt = Array.from(comprovanteLocacaoSelect.options).find((o) => o.value === want);
+    if (opt) comprovanteLocacaoSelect.value = want;
+  }
+}
+
+function popularComprovanteLocacaoSelect() {
+  if (!comprovanteLocacaoSelect) return;
+  comprovanteLocacaoSelect.innerHTML = '<option value="">Selecione a locação (cliente e placa)</option>';
+  buildLocacoesAtivasParaComprovante().forEach((row) => {
+    const o = document.createElement("option");
+    o.value = `${row.cpf}||${row.placa}`;
+    o.textContent = row.label;
+    o.dataset.nome = row.nome;
+    o.dataset.cpf = row.cpf;
+    o.dataset.placa = row.placa;
+    comprovanteLocacaoSelect.appendChild(o);
+  });
+}
+
+function atualizarComprovanteLocacaoUI() {
+  if (!comprovanteLocacaoWrap || !comprovanteModalTerceiro) return;
+  const nomePag = String(comprovanteModalNomePagador?.value || "").trim();
+  const pagOk = nomePag && nomePag !== "—";
+  const on =
+    comprovanteModalTerceiro.checked ||
+    (pagOk && comprovanteNomesDiferentesTerceiro(comprovanteModalNome?.value, nomePag));
+  comprovanteLocacaoWrap.classList.toggle("hidden", !on);
+  if (on) popularComprovanteLocacaoSelect();
+  aplicarSugestaoLocacaoPorNomePagador();
+}
+
+async function chamarOpenAIComprovante() {
+  const key = getStoredOpenAIKey();
+  const textExtra = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "";
+  if (!comprovanteImagemPendente.base64 && !textExtra) {
+    throw new Error("Cole uma imagem do comprovante (Ctrl+V) e/ou o texto abaixo.");
+  }
+  if (!key) {
+    throw new Error("Salve a chave da API OpenAI (é necessária para leitura com IA).");
+  }
+  const schema =
+    '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"pagamentoPorTerceiro":boolean}';
+  const instr = `Você é leitor de comprovante de pagamento (PIX, TED, boleto) em português. Responda APENAS com JSON válido: ${schema}. CPF com 11 dígitos, sem formatação. placa no padrão Mercosul maiúsculo. data no formato dd/mm/aaaa. Se o nome do pagador/PIX for diferente do beneficiário, pagamentoPorTerceiro: true.`;
+  const content = [];
+  content.push({ type: "text", text: instr });
+  if (comprovanteImagemPendente.base64 && comprovanteImagemPendente.mime) {
+    content.push({
+      type: "image_url",
+      image_url: { url: `data:${comprovanteImagemPendente.mime};base64,${comprovanteImagemPendente.base64}` },
+    });
+  }
+  if (textExtra) {
+    content.push({ type: "text", text: `Texto do comprovante (ou OCR do usuário):\n${textExtra}` });
+  }
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content }],
+      response_format: { type: "json_object" },
+      max_tokens: 1000,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t.slice(0, 280) || res.status);
+  }
+  const data = await res.json();
+  let raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error("Resposta vazia da API.");
+  raw = String(raw).trim();
+  const fence = raw.match(/^```(?:json)?\s*([\s\S]*?)```$/im);
+  if (fence) raw = fence[1].trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("A IA não retornou JSON válido. Tente outra imagem ou cole o texto do comprovante.");
+  }
+  parsed.origem = "openai";
+  return parsed;
+}
+
+function abrirComprovanteModal(extr) {
+  if (!comprovanteIADialog) return;
+  if (comprovanteModalNome) comprovanteModalNome.value = String(extr.nomeClienteOuBeneficiario || "").trim();
+  if (comprovanteModalCpf) {
+    const d = onlyDigits(String(extr.cpf || ""));
+    comprovanteModalCpf.value = d.length === 11 ? formatCpf(d) : "";
+  }
+  if (comprovanteModalPlaca) {
+    comprovanteModalPlaca.value = String(extr.placaVeiculo || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+  if (comprovanteModalData) {
+    comprovanteModalData.value = String(extr.dataPagamento || "").trim();
+  }
+  if (comprovanteModalValor) {
+    const vNum = parseValorComprovanteApi(extr.valor);
+    comprovanteModalValor.value = vNum > 0 ? currencyBRL(vNum) : "";
+  }
+  if (comprovanteModalNomePagador) {
+    comprovanteModalNomePagador.value = String(extr.nomePagador || extr.nomePagadorPix || "").trim() || "—";
+  }
+  if (comprovanteModalTerceiro) {
+    comprovanteModalTerceiro.checked = Boolean(
+      extr.pagamentoPorTerceiro || comprovanteNomesDiferentesTerceiro(extr.nomeClienteOuBeneficiario, extr.nomePagador)
+    );
+  }
+  atualizarComprovanteLocacaoUI();
+  comprovanteIADialog.classList.remove("hidden");
+  try {
+    comprovanteIADialog.scrollIntoView({ block: "center", behavior: "smooth" });
+  } catch {
+    /* ignore */
+  }
+}
+
+function fecharComprovanteModal() {
+  if (comprovanteIADialog) comprovanteIADialog.classList.add("hidden");
+}
+
+/** Aceita número ou string da API (evita modal quebrado quando valor vem como texto). */
+function parseValorComprovanteApi(v) {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number" && Number.isFinite(v)) return v > 0 ? v : 0;
+  const n = parseCurrencyBR(String(v).trim());
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+async function aplicarComprovanteAoFormulario() {
+  if (!comprovanteModalCpf) return;
+  let fp = comprovanteFpPendente || (await computeComprovanteFingerprintFromPending());
+  if (!fp) {
+    window.alert(
+      "Não foi possível identificar este comprovante (sem imagem nem texto na área). Cole novamente antes de aplicar — cada comprovante só pode ser lançado uma vez."
+    );
+    return;
+  }
+  if (isComprovanteFpJaUtilizado(fp)) {
+    window.alert(
+      "Este comprovante já foi utilizado em um lançamento salvo. Não é possível duplicar. Se foi erro, apague o lançamento correspondente no cadastro ou use outro comprovante."
+    );
+    return;
+  }
+  const precisaEscolherLocacao =
+    comprovanteLocacaoWrap && !comprovanteLocacaoWrap.classList.contains("hidden");
+  if (precisaEscolherLocacao && (!comprovanteLocacaoSelect || !comprovanteLocacaoSelect.value)) {
+    window.alert("Selecione a locação para a qual o comprovante será aplicado.");
+    return;
+  }
+  let cpf;
+  let placa;
+  let nome;
+  if (precisaEscolherLocacao && comprovanteLocacaoSelect?.value) {
+    const opt = comprovanteLocacaoSelect.selectedOptions[0];
+    cpf = onlyDigits(String(opt?.dataset.cpf || ""));
+    placa = normalizePlate(String(opt?.dataset.placa || ""));
+    nome = String(opt?.dataset.nome || "").trim();
+  } else {
+    nome = String(comprovanteModalNome?.value || "").trim();
+    cpf = onlyDigits(String(comprovanteModalCpf.value || ""));
+    placa = normalizePlate(String(comprovanteModalPlaca.value || ""));
+  }
+  if (lancAluguelClienteNomeInput) lancAluguelClienteNomeInput.value = nome;
+  if (lancAluguelCpfInput) lancAluguelCpfInput.value = cpf.length === 11 ? formatCpf(cpf) : "";
+  if (lancAluguelPlacaInput) lancAluguelPlacaInput.value = placa;
+  const dataP = String(comprovanteModalData.value || "").trim();
+  if (lancAluguelSemanaInicioInput) {
+    lancAluguelSemanaInicioInput.value = dataP;
+    lancAluguelSemanaInicioInput.dataset.autoSuggested = "1";
+  }
+  if (lancAluguelSemanaFimInput) {
+    const d0 = parseBrDate(dataP);
+    if (d0) {
+      const f = addCalendarDays(d0, 7);
+      if (f) lancAluguelSemanaFimInput.value = formatDataDmaBr(f);
+    }
+  }
+  setDiaPagamentoFromDataBr(dataP);
+  const v = comprovanteModalValor ? parseCurrencyBR(String(comprovanteModalValor.value || "")) : 0;
+  if (lancAluguelValorPagoInput && v > 0) {
+    lancAluguelValorPagoInput.value = currencyBRL(v);
+    lancAluguelValorPagoInput.dataset.autoSuggested = "0";
+  }
+  autoFillLancamentoFromCpf(cpf);
+  prefillLancamentoAluguelByCpf(cpf);
+  if (placa) autoFillLancamentoFromPlaca(placa);
+  suggestValorPagoFromContrato();
+  renderLancamentoAluguelResumo();
+  if (lancamentoAluguelForm) {
+    lancamentoAluguelForm.dataset.comprovanteFp = fp;
+  }
+  pendingComprovanteSnapshot = {
+    fp,
+    base64: comprovanteImagemPendente.base64 || null,
+    mime: comprovanteImagemPendente.mime || null,
+    texto: comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "",
+  };
+  comprovanteFpPendente = null;
+  fecharComprovanteModal();
+  if (lancamentoAluguelErro) lancamentoAluguelErro.classList.add("hidden");
+}
+
+function fileToComprovantePendente(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    setComprovanteFeedback("Use uma imagem (PNG, JPEG, etc.).", "erro");
+    return;
+  }
+  const fr = new FileReader();
+  fr.onload = () => {
+    const res = String(fr.result || "");
+    const m = res.match(/^data:([^;]+);base64,(.+)$/);
+    if (m) {
+      comprovanteImagemPendente = { base64: m[2], mime: m[1] };
+      if (comprovantePreview) {
+        comprovantePreview.src = res;
+        comprovantePreview.classList.remove("hidden");
+      }
+      setComprovanteFeedback("Imagem pronta. Clique em Extrair dados com IA.", "ok");
+    }
+  };
+  fr.readAsDataURL(file);
+}
+
+if (comprovanteApiKeyInput && getStoredOpenAIKey()) {
+  comprovanteApiKeyInput.placeholder = "Chave OpenAI (já salva localmente — digite para alterar)";
+}
+
+if (comprovanteApiKeySaveBtn && comprovanteApiKeyInput) {
+  comprovanteApiKeySaveBtn.addEventListener("click", () => {
+    const k = String(comprovanteApiKeyInput.value || "").trim();
+    if (!k) {
+      localStorage.removeItem(OPENAI_KEY_STORAGE);
+      setComprovanteFeedback("Chave removida do navegador.", "ok");
+      return;
+    }
+    localStorage.setItem(OPENAI_KEY_STORAGE, k);
+    comprovanteApiKeyInput.value = "";
+    setComprovanteFeedback("Chave salva neste aparelho (localStorage). Clique em Extrair dados com IA.", "ok");
+  });
+}
+
+if (comprovantePasteZone) {
+  comprovantePasteZone.addEventListener("paste", (e) => {
+    const item = e.clipboardData?.files?.[0];
+    if (item && item.type.startsWith("image/")) {
+      e.preventDefault();
+      fileToComprovantePendente(item);
+    }
+  });
+  comprovantePasteZone.addEventListener("click", () => {
+    comprovanteFileInput?.click();
+  });
+}
+
+if (comprovanteFileInput) {
+  comprovanteFileInput.addEventListener("change", () => {
+    const f = comprovanteFileInput.files?.[0];
+    if (f) fileToComprovantePendente(f);
+    comprovanteFileInput.value = "";
+  });
+}
+
+if (comprovanteLimparBtn) {
+  comprovanteLimparBtn.addEventListener("click", () => {
+    comprovanteImagemPendente = { base64: null, mime: null };
+    comprovanteFpPendente = null;
+    fecharComprovanteModal();
+    if (comprovantePreview) {
+      comprovantePreview.src = "";
+      comprovantePreview.classList.add("hidden");
+    }
+    if (comprovanteTextoFallback) comprovanteTextoFallback.value = "";
+    pendingComprovanteSnapshot = null;
+    setComprovanteFeedback("", null);
+  });
+}
+
+if (comprovanteModalTerceiro) {
+  comprovanteModalTerceiro.addEventListener("change", atualizarComprovanteLocacaoUI);
+}
+if (comprovanteModalNome) {
+  comprovanteModalNome.addEventListener("input", () => {
+    atualizarComprovanteLocacaoUI();
+  });
+}
+if (comprovanteModalNomePagador) {
+  comprovanteModalNomePagador.addEventListener("input", () => {
+    atualizarComprovanteLocacaoUI();
+  });
+}
+
+if (comprovanteExtrairBtn) {
+  comprovanteExtrairBtn.addEventListener("click", async () => {
+    setComprovanteFeedback("Lendo… aguarde.", "ok");
+    comprovanteExtrairBtn.disabled = true;
+    try {
+      const textoLivre = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "") : "";
+      const temImg = Boolean(comprovanteImagemPendente.base64);
+      const kDigitada = comprovanteApiKeyInput ? String(comprovanteApiKeyInput.value || "").trim() : "";
+      if (kDigitada) {
+        localStorage.setItem(OPENAI_KEY_STORAGE, kDigitada);
+        comprovanteApiKeyInput.value = "";
+      }
+      const temChave = Boolean(getStoredOpenAIKey());
+      if (!temImg && !textoLivre.trim()) {
+        throw new Error(
+          "Cole antes uma imagem na área tracejada (Ctrl+V ou clique para arquivo) e/ou o texto do PIX na caixa ao lado."
+        );
+      }
+      comprovanteFpPendente = await computeComprovanteFingerprintFromPending();
+      if (!comprovanteFpPendente) {
+        throw new Error("Não foi possível registrar o comprovante para controle de uso único.");
+      }
+      if (isComprovanteFpJaUtilizado(comprovanteFpPendente)) {
+        comprovanteFpPendente = null;
+        throw new Error(
+          "Este comprovante já foi utilizado em um lançamento salvo. Apague o lançamento no cadastro se precisar reutilizar, ou use outro comprovante."
+        );
+      }
+      if (temChave && (temImg || textoLivre.trim())) {
+        const d = await chamarOpenAIComprovante();
+        abrirComprovanteModal(d);
+        setComprovanteFeedback("Dados extraídos. Confira o modal acima da página.", "ok");
+        return;
+      }
+      if (!temImg && textoLivre.trim()) {
+        const h = extrairComprovanteHeuristica(textoLivre);
+        const temAlgo = h.cpf || h.placaVeiculo || h.dataPagamento || (h.valor != null && h.valor > 0);
+        if (!temAlgo) {
+          comprovanteFpPendente = null;
+          throw new Error(
+            "Nada identificado no texto. Cole uma chave OpenAI acima para analisar imagem ou texto com IA."
+          );
+        }
+        setComprovanteFeedback(
+          "Sem IA: regras simples no texto. Salve a chave OpenAI para leitura completa (imagem).",
+          "ok"
+        );
+        abrirComprovanteModal(h);
+        return;
+      }
+      throw new Error(
+        "Para ler imagem é necessária a chave da API OpenAI (clique em Salvar chave local). Ou cole só texto e use extração sem IA."
+      );
+    } catch (err) {
+      comprovanteFpPendente = null;
+      const msg = err?.message || "Falha na leitura.";
+      console.error("[comprovante]", err);
+      setComprovanteFeedback(msg, "erro");
+    } finally {
+      comprovanteExtrairBtn.disabled = false;
+    }
+  });
+}
+
+if (comprovanteAplicarBtn) {
+  comprovanteAplicarBtn.addEventListener("click", async () => {
+    await aplicarComprovanteAoFormulario();
+  });
+}
+if (comprovanteModalCancelBtn) {
+  comprovanteModalCancelBtn.addEventListener("click", fecharComprovanteModal);
+}
+
+function openComprovanteViewerDialog(fp) {
+  const dialog = document.getElementById("comprovanteViewerDialog");
+  const body = document.getElementById("comprovanteViewerBody");
+  if (!dialog || !body) return;
+  const data = getComprovanteBanco(fp);
+  if (!data) {
+    body.innerHTML =
+      "<p>Comprovante não encontrado no armazenamento local (outro aparelho ou limpeza de dados do navegador).</p>";
+    dialog.classList.remove("hidden");
+    return;
+  }
+  const bits = [
+    data.codigoLancamento && `Cód. ${escapeHtml(String(data.codigoLancamento))}`,
+    data.cpf && escapeHtml(formatCpf(onlyDigits(String(data.cpf)))),
+    data.placa && escapeHtml(String(data.placa).toUpperCase()),
+    data.semanaInicio && escapeHtml(String(data.semanaInicio)),
+  ].filter(Boolean);
+  let html = bits.length ? `<p class="subtext comprovante-viewer-meta">${bits.join(" · ")}</p>` : "";
+  if (data.base64 && data.mime && String(data.mime).startsWith("image/")) {
+    html += `<div class="comprovante-viewer-img-wrap"><img src="data:${String(
+      data.mime
+    )};base64,${String(data.base64)}" alt="Comprovante" class="comprovante-viewer-img"/></div>`;
+  } else if (String(data.texto || "").trim()) {
+    html += `<pre class="comprovante-viewer-texto">${escapeHtml(String(data.texto))}</pre>`;
+  } else {
+    html +=
+      "<p><em>Imagem ou texto não foi armazenado (salve o lançamento logo após &quot;Aplicar ao formulário&quot; com o comprovante ainda na área).</em></p>";
+  }
+  body.innerHTML = html;
+  dialog.classList.remove("hidden");
+}
+
+function openComprovanteMultiChooser(fps) {
+  const dialog = document.getElementById("comprovanteViewerDialog");
+  const body = document.getElementById("comprovanteViewerBody");
+  if (!dialog || !body) return;
+  const list = (fps || []).filter(Boolean);
+  if (!list.length) return;
+  if (list.length === 1) {
+    openComprovanteViewerDialog(list[0]);
+    return;
+  }
+  body.innerHTML = `<p class="subtext">Vários pagamentos com comprovante nesta célula. Escolha:</p><div class="comprovante-multi-btns">${list
+    .map(
+      (fp, i) =>
+        `<button type="button" class="secondary comprovante-abrir-fp-btn" data-comprovante-fp="${escapeHtml(
+          fp
+        )}">Comprovante ${i + 1}</button>`
+    )
+    .join(" ")}</div>`;
+  dialog.classList.remove("hidden");
+  body.querySelectorAll(".comprovante-abrir-fp-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const f = btn.getAttribute("data-comprovante-fp");
+      if (f) openComprovanteViewerDialog(f);
+    });
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const one = e.target.closest(".quadro-valor-comprovante-btn");
+  if (one) {
+    e.preventDefault();
+    const fp = one.getAttribute("data-comprovante-fp");
+    if (fp) openComprovanteViewerDialog(fp);
+    return;
+  }
+  const multi = e.target.closest(".quadro-valor-comprovante-multi");
+  if (multi) {
+    e.preventDefault();
+    try {
+      const raw = multi.getAttribute("data-comprovante-fps-json");
+      const fps = raw ? JSON.parse(raw) : [];
+      openComprovanteMultiChooser(fps);
+    } catch {
+      /* ignore */
+    }
+  }
+});
+
+const comprovanteViewerDialogEl = document.getElementById("comprovanteViewerDialog");
+const comprovanteViewerFecharBtn = document.getElementById("comprovanteViewerFechar");
+if (comprovanteViewerFecharBtn && comprovanteViewerDialogEl) {
+  comprovanteViewerFecharBtn.addEventListener("click", () => {
+    comprovanteViewerDialogEl.classList.add("hidden");
+  });
+  comprovanteViewerDialogEl.addEventListener("click", (ev) => {
+    if (ev.target === comprovanteViewerDialogEl) comprovanteViewerDialogEl.classList.add("hidden");
+  });
 }
 
 function autoFillSemanaFimFromInicio() {
@@ -2360,6 +3236,8 @@ function suggestValorPagoFromContrato() {
   if (!canOverride) return;
   const contrato = getSuggestedContratoForLancamento();
   if (!contrato) return;
+  const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
+  const placaRaw = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
   const valorSemanal = parseCurrencyBR(contrato.valorSemanal || contrato.valorPlano);
   const dyn = withDynamicFinancialFields({
     ...contrato,
@@ -2367,7 +3245,15 @@ function suggestValorPagoFromContrato() {
     devidoHoje: contrato.devidoHoje || contrato.devido || 0,
   });
   const valorDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido);
-  const valorPagoAcumulado = parseCurrencyBR(contrato.pago || contrato.valorPago);
+  const valorPagoAcumulado =
+    cpf.length === 11
+      ? totalPagoBarComLancamentosApp(cpf, placaRaw, contrato.pago || contrato.valorPago || 0)
+      : parseCurrencyBR(contrato.pago || contrato.valorPago);
+  if (valorPagoAcumulado > valorDevido) {
+    lancAluguelValorPagoInput.value = currencyBRL(0);
+    lancAluguelValorPagoInput.dataset.autoSuggested = "1";
+    return;
+  }
   const valorSugerido = Math.max(0, valorDevido + valorSemanal - valorPagoAcumulado);
   if (valorSugerido > 0) {
     lancAluguelValorPagoInput.value = currencyBRL(valorSugerido);
@@ -2472,6 +3358,7 @@ function mergePreviewLancamento(items, preview) {
     cpf: preview.cpfDigits,
     placa: preview.placa,
     semanaInicio: preview.semanaInicio,
+    semanaFim: preview.semanaFim || preview.semanaInicio,
     valorPago: preview.valorPago,
     createdAt: 0,
   });
@@ -2502,7 +3389,701 @@ function getQuadroMesesRange(contrato, items) {
   return buildMonthRange(sy, sm, ey, em);
 }
 
-function fillMonthSlotsSixSemanas(monthItems, highlightId) {
+const QUADRO_MES_ABBR_TO_NUM = {
+  JAN: 1,
+  FEV: 2,
+  MAR: 3,
+  ABR: 4,
+  MAI: 5,
+  JUN: 6,
+  JUL: 7,
+  AGO: 8,
+  SET: 9,
+  OUT: 10,
+  NOV: 11,
+  DEZ: 12,
+};
+
+function ymFromReceitaDefMes(mesAbbr, year) {
+  const m = QUADRO_MES_ABBR_TO_NUM[String(mesAbbr || "").toUpperCase()];
+  if (!m) return null;
+  return year * 100 + m;
+}
+
+function mergeUniqueSortedMonthKeys(rangeKeys, extraKeys) {
+  const set = new Set(Array.isArray(rangeKeys) ? rangeKeys : []);
+  (extraKeys || []).forEach((k) => set.add(k));
+  return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+/**
+ * SEM-01…SEM-06 no quadro **calendário civil**: cada semana é uma **linha** da grade mensal
+ * (domingo→sábado). Primeira/semana inicial pode ser incompleta (ex.: abril começa na quarta).
+ * Ex.: abril/2026 — dia 23 cai na 4ª linha → índice 3 (SEM-04).
+ * Base: data de referência do lançamento (`semanaInicio`).
+ */
+function calendarMonthGridWeekSlotIndex(dateObj) {
+  const d = toDateOnly(dateObj);
+  if (!d || Number.isNaN(d.getTime())) return 0;
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  const first = new Date(y, m, 1);
+  const wdFirst = first.getDay();
+  const position = wdFirst + (day - 1);
+  const row = Math.floor(position / 7);
+  return Math.min(Math.max(0, row), 5);
+}
+
+/**
+ * Ano civil da linha do quadro RECEITA (MONTHLY_DATA): bloco 26 = 2026;
+ * bloco 25 = 2025 exceto JAN final da aba RECEITA (cols 84–88) = janeiro 2026.
+ */
+function receitaRowCalendarYear(block, mesAbbr) {
+  const u = String(mesAbbr || "").toUpperCase();
+  if (block === "26") return 2026;
+  if (block === "25") {
+    if (u === "JAN") return 2026;
+    return 2025;
+  }
+  return 2025;
+}
+
+/**
+ * SEM do quadro RECEITA alinhada à **grade mensal dom–sáb** (mesma ideia da planilha visual).
+ * Evita depender só da trilha por semanas do contrato quando o DK_DATA não espelha a célula.
+ */
+function calendarSlotIntoReceitaWeek(semanaInicioStr, block, mesAbbr) {
+  const d = parseBrDate(semanaInicioStr);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const mapAbbr = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  const abbr = mapAbbr[d.getMonth()];
+  if (String(mesAbbr || "").toUpperCase() !== abbr) return null;
+  const wantY = receitaRowCalendarYear(block, mesAbbr);
+  if (d.getFullYear() !== wantY) return null;
+  /** Janeiro/2026: só em RECEITA 2026 (bloco 26); a linha JAN no final da RECEITA 2025 não recebe o mesmo lançamento. */
+  if (abbr === "JAN" && wantY === 2026 && block === "25") return null;
+  const slotIdx = calendarMonthGridWeekSlotIndex(d);
+  return { block, mes: String(mesAbbr || ""), slotIdx };
+}
+
+/** Mês civil (abbr planilha) da data de início do lançamento — evita duplicar o mesmo pagamento em dois meses do quadro. */
+function mesAbbrCivilFromSemanaInicio(semanaInicioStr) {
+  const d = parseBrDate(semanaInicioStr);
+  if (!d || Number.isNaN(d.getTime())) return "";
+  const mapAbbr = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  return mapAbbr[d.getMonth()] || "";
+}
+
+/**
+ * Um lançamento só entra na linha do mês civil correspondente à sua semanaInicio.
+ * Prioridade: grade calendário RECEITA; senão trilha DK_DATA no mesmo mês (nunca trail noutro mês).
+ */
+function resolveReceitaSlotForLancamentoInMonth(record, it, block, mesAbbr, monthMetaLen) {
+  const mesU = String(mesAbbr || "").toUpperCase();
+  const mesPag = mesAbbrCivilFromSemanaInicio(it.semanaInicio);
+  if (mesPag && mesU !== mesPag) return null;
+
+  const slotCal = calendarSlotIntoReceitaWeek(it.semanaInicio, block, mesAbbr);
+  if (
+    slotCal &&
+    slotCal.block === block &&
+    String(slotCal.mes || "").toUpperCase() === mesU &&
+    slotCal.slotIdx >= 0 &&
+    slotCal.slotIdx < monthMetaLen
+  ) {
+    return slotCal;
+  }
+
+  const slotTrail = findQuadroSlotForLancamentoSemana(
+    record,
+    it.semanaInicio,
+    it.semanaFim || it.semanaInicio
+  );
+  if (
+    slotTrail &&
+    slotTrail.block === block &&
+    String(slotTrail.mes || "").toUpperCase() === mesU &&
+    slotTrail.slotIdx >= 0 &&
+    slotTrail.slotIdx < monthMetaLen
+  ) {
+    return slotTrail;
+  }
+  return null;
+}
+
+function receitaQuadroTrailHasCells(record) {
+  const hist = normalizeWeekArray(record?.semanasHistorico);
+  const t26 = receita2026TrailForRecord(record);
+  const anyMark = (arr) =>
+    arr.some((c) => {
+      const t = String(c ?? "").trim();
+      return t !== "" && t !== "#";
+    });
+  return anyMark(hist) || anyMark(t26);
+}
+
+function slotMetaFromTrailAtCol(trail, colBase, col) {
+  const a = normalizeWeekArray(trail);
+  const idx = col - colBase;
+  const raw = idx >= 0 && idx < a.length ? a[idx] : "";
+  const val = parseSemanaPagamentoCell(raw);
+  const empty = raw == null || String(raw).trim() === "" || String(raw).trim() === "#";
+  return { raw, val, empty };
+}
+
+function packSixSlotMetas(monthMetas) {
+  if (monthMetas.length <= 6) {
+    const out = monthMetas.slice();
+    while (out.length < 6) out.push({ raw: "", val: 0, empty: true });
+    return out.slice(0, 6);
+  }
+  const out = monthMetas.slice(0, 5);
+  let sum = 0;
+  let anyNonEmpty = false;
+  for (let i = 5; i < monthMetas.length; i += 1) {
+    sum += monthMetas[i].val;
+    if (!monthMetas[i].empty) anyNonEmpty = true;
+  }
+  out.push({
+    raw: anyNonEmpty ? "*" : "",
+    val: sum,
+    empty: !anyNonEmpty && Math.abs(sum) < 1e-9,
+  });
+  return out;
+}
+
+function packSixComprovanteSlots(compRows) {
+  if (!compRows || !compRows.length) {
+    return Array.from({ length: 6 }, () => []);
+  }
+  if (compRows.length <= 6) {
+    const out = compRows.map((r) => [...r]);
+    while (out.length < 6) out.push([]);
+    return out.slice(0, 6).map((r) => dedupeComprovantesPorSlot(r));
+  }
+  const out = compRows.slice(0, 5).map((r) => [...r]);
+  const merged = [];
+  for (let i = 5; i < compRows.length; i += 1) merged.push(...compRows[i]);
+  out.push(merged);
+  return out.map((r) => dedupeComprovantesPorSlot(r));
+}
+
+function collectComprovantesByReceitaMonthSlot(record, cpf, placa, block, mesAbbr, colCount) {
+  const rows = Array.from({ length: colCount }, () => []);
+  collectLancamentosFilteredQuadro(cpf, placa).forEach((it) => {
+    const fp = String(it.comprovanteFp || "").trim();
+    if (!fp) return;
+    const slot = resolveReceitaSlotForLancamentoInMonth(record, it, block, mesAbbr, colCount);
+    if (!slot) return;
+    rows[slot.slotIdx].push({
+      fp,
+      id: it.id,
+      valor: getLancamentoAluguelValor(it),
+    });
+  });
+  return rows;
+}
+
+/**
+ * Mantém todas as linhas desde o início da grade RECEITA até o último mês com dado,
+ * incluindo meses anteriores vazios (para o administrador editar OUT/NOV igual à planilha).
+ * Só remove linhas **vazias no final** do período.
+ */
+function trimQuadroReceitaRows(rows) {
+  const isEmptyRow = (r) => {
+    if (Math.abs(r.rowSum) >= 1e-9) return false;
+    return !r.six.some((m) => !m.empty || Math.abs(m.val) >= 1e-9);
+  };
+  if (!rows.length) return [];
+  let end = rows.length - 1;
+  while (end >= 0 && isEmptyRow(rows[end])) end -= 1;
+  if (end < 0) return [];
+  return rows.slice(0, end + 1);
+}
+
+function trailQuadroFindStartIdx(trailArr) {
+  const a = normalizeWeekArray(trailArr);
+  const startIdx = a.findIndex((c) => {
+    const t = String(c ?? "").trim();
+    return t === "#" || parseSemanaPagamentoCell(c) !== 0;
+  });
+  return startIdx < 0 ? 0 : startIdx;
+}
+
+/**
+ * Número de dias (fim inclusivo) em comum entre [periodStart, periodEnd] e [weekStart, weekEnd].
+ */
+function quadroRangeOverlapDays(periodStart, periodEnd, weekStart, weekEnd) {
+  if (!periodStart || !periodEnd || !weekStart || !weekEnd) return 0;
+  const tLoT = periodStart.getTime() > weekStart.getTime() ? periodStart : weekStart;
+  const tHiT = periodEnd.getTime() < weekEnd.getTime() ? periodEnd : weekEnd;
+  if (tLoT.getTime() > tHiT.getTime()) return 0;
+  const loD = toDateOnly(tLoT);
+  const hiD = toDateOnly(tHiT);
+  if (!loD || !hiD) return 0;
+  const dayMs = 1000 * 60 * 60 * 24;
+  return Math.floor((hiD.getTime() - loD.getTime()) / dayMs) + 1;
+}
+
+/**
+ * Localiza SEM-XX do quadro (índice 0 = SEM-01 no mês) pela **semana do lançamento (início e fim)**.
+ * Se só o início caísse em uma célula SEM-0N mas a maior parte do período em SEM-0N+1, o
+ * mapeamento antigo (só início) errava. Usa **sobreposição de dias** com a janela
+ * [início do contrato + 7·w, … +6] a partir da 1ª célula da trilha, e escolhe a coluna
+ * com **mais dias** em comum; empate: semana de referência **mais tardia** (cobre
+ * pagamentos que vão de domingo a sábado, etc.). Pagamentos 2025 na trilha RECEITA;
+ * 2026+ na trilha RECEITA 2026. Fallback: primeira coluna cujo [ws,we] contém a data de início.
+ */
+function findQuadroSlotForLancamentoSemana(record, semanaInicioStr, semanaFimStr) {
+  let dLo = toDateOnly(parseBrDate(semanaInicioStr));
+  if (!dLo) return null;
+  let dHi = toDateOnly(parseBrDate(semanaFimStr));
+  if (!dHi) dHi = dLo;
+  if (dLo.getTime() > dHi.getTime()) {
+    const t = dLo;
+    dLo = dHi;
+    dHi = t;
+  }
+  const inicio = toDateOnly(parseRecordStartDate(record));
+  if (!inicio) return null;
+  const defs25 = getReceita2025GridMonthDefs();
+  const defs26 = getReceita2026GridMonthDefs();
+  const cb25 = defs25.length ? Number(defs25[0].colInicio) : 26;
+  const cb26 = defs26.length ? Number(defs26[0].colInicio) : 27;
+  const hist = normalizeWeekArray(record.semanasHistorico);
+  const trail26 = receita2026TrailForRecord(record);
+  const refYear = dLo.getFullYear();
+
+  const scanTrailOverlap = (trailArr, colBase, defs, block) => {
+    const s0 = trailQuadroFindStartIdx(trailArr);
+    let best = null;
+    let bestScore = -1e18;
+    for (let idx = s0; idx < trailArr.length; idx += 1) {
+      const w = idx - s0;
+      const weekStart = addCalendarDays(inicio, w * 7);
+      if (!weekStart) continue;
+      const weekEnd = addCalendarDays(weekStart, 6);
+      if (!weekEnd) continue;
+      const col = colBase + idx;
+      const def = defs.find((dd) => col >= dd.colInicio && col <= dd.colFim);
+      if (!def) continue;
+      const days = quadroRangeOverlapDays(dLo, dHi, weekStart, weekEnd);
+      if (days <= 0) continue;
+      const tHiT = dHi.getTime();
+      const tLoT = dLo.getTime();
+      const tWs = weekStart.getTime();
+      const tWe = weekEnd.getTime();
+      const dHiIn = tHiT >= tWs && tHiT <= tWe;
+      const dLoIn = tLoT >= tWs && tLoT <= tWe;
+      const slotIdx = col - def.colInicio;
+      const score =
+        days * 1e9 +
+        (dHiIn ? 1e6 : 0) +
+        (dLoIn ? 1e3 : 0) +
+        slotIdx;
+      if (score > bestScore) {
+        bestScore = score;
+        best = {
+          block,
+          mes: String(def.mes || ""),
+          slotIdx,
+          col,
+        };
+      }
+    }
+    return best;
+  };
+
+  const scanTrailDLoOnly = (trailArr, colBase, defs, block) => {
+    const s0 = trailQuadroFindStartIdx(trailArr);
+    for (let idx = s0; idx < trailArr.length; idx += 1) {
+      const w = idx - s0;
+      const weekStart = addCalendarDays(inicio, w * 7);
+      if (!weekStart) continue;
+      const weekEnd = addCalendarDays(weekStart, 6);
+      if (!weekEnd) continue;
+      if (dLo < weekStart || dLo > weekEnd) continue;
+      const col = colBase + idx;
+      const def = defs.find((dd) => col >= dd.colInicio && col <= dd.colFim);
+      if (!def) continue;
+      return {
+        block,
+        mes: String(def.mes || ""),
+        slotIdx: col - def.colInicio,
+        col,
+      };
+    }
+    return null;
+  };
+
+  if (refYear <= 2025) {
+    const hit = scanTrailOverlap(hist, cb25, defs25, "25");
+    if (hit) return hit;
+  }
+  if (refYear >= 2026) {
+    const hit26 = scanTrailOverlap(trail26, cb26, defs26, "26");
+    if (hit26) return hit26;
+  }
+  const hFb = scanTrailOverlap(hist, cb25, defs25, "25");
+  if (hFb) return hFb;
+  const tFb = scanTrailOverlap(trail26, cb26, defs26, "26");
+  if (tFb) return tFb;
+
+  if (refYear <= 2025) {
+    const fb1 = scanTrailDLoOnly(hist, cb25, defs25, "25");
+    if (fb1) return fb1;
+  }
+  if (refYear >= 2026) {
+    const f26 = scanTrailDLoOnly(trail26, cb26, defs26, "26");
+    if (f26) return f26;
+  }
+  return scanTrailDLoOnly(hist, cb25, defs25, "25") || scanTrailDLoOnly(trail26, cb26, defs26, "26");
+}
+
+function mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, block, mesAbbr, monthMetas) {
+  collectLancamentosFilteredQuadro(cpfDigits, placaRaw).forEach((it) => {
+    const slot = resolveReceitaSlotForLancamentoInMonth(record, it, block, mesAbbr, monthMetas.length);
+    if (!slot) return;
+    const add = getLancamentoAluguelValor(it);
+    const cur = monthMetas[slot.slotIdx];
+    const nextVal = cur.val + add;
+    const stillEmptyRaw =
+      String(cur.raw ?? "").trim() === "" || String(cur.raw ?? "").trim() === "#";
+    monthMetas[slot.slotIdx] = {
+      raw: cur.raw,
+      val: nextVal,
+      empty:
+        Math.abs(nextVal) < 1e-9 &&
+        stillEmptyRaw &&
+        !(Math.abs(add) >= 1e-9),
+    };
+    if (Math.abs(nextVal) >= 1e-9) monthMetas[slot.slotIdx].empty = false;
+  });
+}
+
+function formatQuadroInputDisplay(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n) || Math.abs(n) < 1e-9) return "";
+  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function formatQuadroMonthSlotTd(meta, cellOpts, editableCtx) {
+  const highlightNovo = cellOpts?.highlightNovo;
+  const highlightPreview = cellOpts?.highlightPreview;
+  if (editableCtx?.enabled) {
+    const key = quadroOverrideReceitaKey(
+      editableCtx.cpf,
+      editableCtx.placa,
+      editableCtx.block,
+      editableCtx.mes,
+      editableCtx.slotIdx
+    );
+    const displayVal = formatQuadroInputDisplay(meta.val);
+    const hasSavedOverride = hasQuadroReceitaOverrideKey(key);
+    const hadValue =
+      hasSavedOverride ||
+      String(meta.raw ?? "").trim() !== "" ||
+      Math.abs(Number(meta.val) || 0) >= 1e-9 ||
+      !meta.empty;
+    const isNeg = meta.val < -1e-9;
+    let inpCls = "quadro-cell-input";
+    if (highlightNovo) inpCls += " quadro-cell-input--novo";
+    if (isNeg) inpCls += " quadro-cell-input--neg";
+    return `<td class="quadro-cell quadro-cell--editable-wrap"><input type="text" class="${inpCls}" data-q-kind="sem" data-q-key="${escapeHtml(
+      key
+    )}" data-q-original="${escapeHtml(displayVal)}" data-q-had-value="${hadValue ? "1" : "0"}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
+  }
+  if (meta.empty && Math.abs(meta.val) < 1e-9) {
+    return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+  }
+  const isNeg = meta.val < -1e-9;
+  let cls = "quadro-cell quadro-cell--valor";
+  if (highlightPreview) cls = "quadro-cell quadro-cell--preview";
+  else if (highlightNovo) cls = "quadro-cell quadro-cell--novo";
+  else if (isNeg) cls += " quadro-cell--negativo";
+  const inner = formatQuadroValorCellHtml(meta.val, meta.comprovantes || []);
+  return `<td class="${cls}">${inner}</td>`;
+}
+
+function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId) {
+  const keys = new Set();
+  if (highlightId == null || highlightId === "") return keys;
+  const items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw).filter(
+    (i) => Number(i.id) === Number(highlightId)
+  );
+  if (!items.length) return keys;
+  const item = items[0];
+  const valor = getLancamentoAluguelValor(item);
+  const dItem = parseBrDate(item.semanaInicio);
+  const itemYm =
+    dItem && !Number.isNaN(dItem.getTime())
+      ? dItem.getFullYear() * 100 + (dItem.getMonth() + 1)
+      : null;
+
+  const tryDefs = (defs, colBase, trail, block, yearForYm) => {
+    if (!defs.length || !Number.isFinite(colBase)) return;
+    defs.forEach((d) => {
+      const rowYm = ymFromReceitaDefMes(d.mes, yearForYm);
+      if (itemYm != null && rowYm != null && rowYm !== itemYm) return;
+      let colSlot = 0;
+      for (let col = d.colInicio; col <= d.colFim; col += 1) {
+        const meta = slotMetaFromTrailAtCol(trail, colBase, col);
+        const packedSlot = colSlot < 6 ? colSlot : 5;
+        if (
+          !meta.empty &&
+          Math.abs(meta.val - valor) < 0.02 &&
+          packedSlot >= 0 &&
+          packedSlot < 6
+        ) {
+          keys.add(`${block}|${d.mes}|${packedSlot}`);
+        }
+        colSlot += 1;
+      }
+    });
+  };
+
+  const defs25 = getReceita2025GridMonthDefs();
+  const defs26 = getReceita2026GridMonthDefs();
+  const colBase25 = defs25.length ? Number(defs25[0].colInicio) : NaN;
+  const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
+  tryDefs(defs25, colBase25, normalizeWeekArray(record.semanasHistorico), "25", 2025);
+  tryDefs(defs26, colBase26, receita2026TrailForRecord(record), "26", 2026);
+  defs25.forEach((d) => {
+    const cal = calendarSlotIntoReceitaWeek(item.semanaInicio, "25", String(d.mes || ""));
+    if (cal) keys.add(`${cal.block}|${cal.mes}|${Math.min(cal.slotIdx, 5)}`);
+  });
+  defs26.forEach((d) => {
+    const cal = calendarSlotIntoReceitaWeek(item.semanaInicio, "26", String(d.mes || ""));
+    if (cal) keys.add(`${cal.block}|${cal.mes}|${Math.min(cal.slotIdx, 5)}`);
+  });
+  const slotByDate = findQuadroSlotForLancamentoSemana(
+    record,
+    item.semanaInicio,
+    item.semanaFim || item.semanaInicio
+  );
+  if (slotByDate) {
+    keys.add(`${slotByDate.block}|${slotByDate.mes}|${Math.min(slotByDate.slotIdx, 5)}`);
+  }
+  return keys;
+}
+
+function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, options = {}) {
+  const editableDialog = Boolean(options.editableDialog);
+  const highlightId = options.highlightId;
+  const highlightKeys = buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId);
+  const rowForTotals = record || findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  let totalDevido = 0;
+  let totalPagoContrato = 0;
+  if (rowForTotals) {
+    const dyn = withDynamicFinancialFields({
+      ...rowForTotals,
+      valorSemanal: rowForTotals.valorSemanal || rowForTotals.valorPlano || 0,
+      devidoHoje: rowForTotals.devidoHoje || rowForTotals.devido || 0,
+    });
+    totalDevido = parseCurrencyBR(dyn.devidoHoje || rowForTotals.devidoHoje || rowForTotals.devido || 0);
+    totalPagoContrato = totalPagoBarComLancamentosApp(
+      cpfDigits,
+      placaRaw,
+      rowForTotals.pago || rowForTotals.valorPago || 0
+    );
+  }
+
+  const defs25 = getReceita2025GridMonthDefs();
+  const defs26 = getReceita2026GridMonthDefs();
+  const colBase25 = defs25.length ? Number(defs25[0].colInicio) : NaN;
+  const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
+  const hist = normalizeWeekArray(record.semanasHistorico);
+  const trail26 = receita2026TrailForRecord(record);
+
+  const rawRows = [];
+
+  defs25.forEach((d) => {
+    const monthMetas = [];
+    for (let col = d.colInicio; col <= d.colFim; col += 1) {
+      monthMetas.push(slotMetaFromTrailAtCol(hist, colBase25, col));
+    }
+    const compRows = collectComprovantesByReceitaMonthSlot(
+      record,
+      cpfDigits,
+      placaRaw,
+      "25",
+      String(d.mes || ""),
+      monthMetas.length
+    );
+    mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "25", String(d.mes || ""), monthMetas);
+    const six = packSixSlotMetas(monthMetas);
+    const sixComp = packSixComprovanteSlots(compRows);
+    const sixMerged = six.map((m, i) => ({ ...m, comprovantes: sixComp[i] || [] }));
+    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "25", String(d.mes || ""), sixMerged);
+    const rowSum = sixMerged.reduce((acc, m) => acc + m.val, 0);
+    rawRows.push({
+      label: mesAbbrToLabelGrade(d.mes, "2025"),
+      block: "25",
+      mes: String(d.mes || ""),
+      six: sixMerged,
+      rowSum,
+    });
+  });
+
+  defs26.forEach((d) => {
+    const monthMetas = [];
+    for (let col = d.colInicio; col <= d.colFim; col += 1) {
+      monthMetas.push(slotMetaFromTrailAtCol(trail26, colBase26, col));
+    }
+    const compRows = collectComprovantesByReceitaMonthSlot(
+      record,
+      cpfDigits,
+      placaRaw,
+      "26",
+      String(d.mes || ""),
+      monthMetas.length
+    );
+    mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "26", String(d.mes || ""), monthMetas);
+    const six = packSixSlotMetas(monthMetas);
+    const sixComp = packSixComprovanteSlots(compRows);
+    const sixMerged = six.map((m, i) => ({ ...m, comprovantes: sixComp[i] || [] }));
+    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "26", String(d.mes || ""), sixMerged);
+    const rowSum = sixMerged.reduce((acc, m) => acc + m.val, 0);
+    rawRows.push({
+      label: mesAbbrToLabelGrade(d.mes, "2026"),
+      block: "26",
+      mes: String(d.mes || ""),
+      six: sixMerged,
+      rowSum,
+    });
+  });
+
+  const trimmed = trimQuadroReceitaRows(rawRows);
+  const somaQuadroPago = trimmed.reduce((acc, r) => acc + r.rowSum, 0);
+  const tituloTotalPagoQuadro =
+    Math.abs(somaQuadroPago - totalPagoContrato) > 0.02
+      ? `Soma das células deste quadro (= barra verde). Cadastro/planilha + lançamentos app (barra acima no resumo): ${currencyBRL(
+          totalPagoContrato
+        )}. Se divergirem, confira meses em branco, reimporte DK_DATA ou ajuste as células no modo edição.`
+      : "Soma das linhas “TOTAL” deste quadro (RECEITA + lançamentos no app), alinhada ao pago do cadastro.";
+  let rowsHtml = "";
+  trimmed.forEach((r) => {
+    const slotsHtml = r.six
+      .map((meta, i) =>
+        formatQuadroMonthSlotTd(
+          meta,
+          {
+            highlightNovo: highlightKeys.has(`${r.block}|${r.mes}|${i}`),
+          },
+          editableDialog
+            ? {
+                enabled: true,
+                cpf: cpfDigits,
+                placa: placaRaw,
+                block: r.block,
+                mes: r.mes,
+                slotIdx: i,
+              }
+            : null
+        )
+      )
+      .join("");
+    const rowEmpty =
+      Math.abs(r.rowSum) < 1e-9 &&
+      !r.six.some((m) => !m.empty || Math.abs(m.val) >= 1e-9);
+    const totalNeg = r.rowSum < -1e-9;
+    const totalCls =
+      rowEmpty
+        ? "quadro-cell quadro-row-total quadro-cell--empty"
+        : `quadro-cell quadro-row-total${totalNeg ? " quadro-cell--negativo" : ""}`;
+    const totalDisp = rowEmpty ? "—" : currencyBRL(r.rowSum);
+    const rowKey = `${r.block}|${r.mes}`;
+    const totalTd = editableDialog
+      ? `<td class="${totalCls} quadro-row-total--live" data-q-row-key="${escapeHtml(rowKey)}">${totalDisp}</td>`
+      : `<td class="${totalCls}">${totalDisp}</td>`;
+    rowsHtml += `
+      <tr${editableDialog ? ` data-q-row-key="${escapeHtml(rowKey)}"` : ""}>
+        <td class="quadro-mes">${escapeHtml(r.label)}</td>
+        ${totalTd}
+        ${slotsHtml}
+      </tr>`;
+  });
+
+  return `
+    <div class="quadro-pagamento-scroll" data-quadro-soma-pago="${escapeHtml(String(somaQuadroPago))}">
+      <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês (RECEITA / RECEITA 2026)" title="Valores das células vêm do DK_DATA (semanas/semanasHistorico). Lançamentos do app somam na semana pela grade do mês (dom a sáb) quando a data cai nesse mês. Modo edição: valores do administrador prevalecem. Se faltar célula no export, reimporte a planilha.">
+        <thead>
+          <tr class="quadro-summary-row quadro-summary-devido">
+            <td colspan="2">TOTAL DEVIDO</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-devido">${currencyBRL(totalDevido)}</td>
+          </tr>
+          <tr class="quadro-summary-row quadro-summary-pago">
+            <td colspan="2">TOTAL PAGO</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-pago" title="${escapeHtml(tituloTotalPagoQuadro)}">${currencyBRL(
+              somaQuadroPago
+            )}</td>
+          </tr>
+        <tr>
+            <th scope="col">Mês</th>
+            <th scope="col">TOTAL</th>
+            ${[1, 2, 3, 4, 5, 6]
+              .map((n) => `<th scope="col">SEM-${String(n).padStart(2, "0")}</th>`)
+              .join("")}
+          </tr>
+        </thead>
+        <tbody>${rowsHtml}</tbody>
+      </table>
+    </div>`;
+}
+
+function dedupeComprovantesPorSlot(items) {
+  const seen = new Set();
+  const out = [];
+  (items || []).forEach((x) => {
+    const fp = String(x?.fp || "").trim();
+    if (!fp || seen.has(fp)) return;
+    seen.add(fp);
+    out.push({ fp, id: x.id, valor: x.valor });
+  });
+  return out;
+}
+
+/** Valor com controle para abrir o comprovante salvo no navegador (fingerprint). */
+function formatQuadroValorCellHtml(totalVal, comprovantes) {
+  const valorText = currencyBRL(totalVal);
+  const list = dedupeComprovantesPorSlot(comprovantes).filter((c) => getComprovanteBanco(c.fp));
+  if (!list.length) {
+    return `<span class="quadro-cell-valor">${valorText}</span>`;
+  }
+  if (list.length === 1) {
+    return `<button type="button" class="quadro-valor-comprovante-btn" data-comprovante-fp="${escapeHtml(
+      list[0].fp
+    )}" title="Ver comprovante deste pagamento">${valorText}</button>`;
+  }
+  return `<span class="quadro-cell-valor">${valorText}</span> <button type="button" class="quadro-valor-comprovante-multi secondary" data-comprovante-fps-json="${escapeHtml(
+    JSON.stringify(list.map((x) => x.fp))
+  )}" title="Vários comprovantes nesta célula">${list.length} comprovantes</button>`;
+}
+
+function formatCalendarMonthSlotTd(s, editableCtx, ymKey, slotIdx) {
+  if (editableCtx?.enabled) {
+    const key = quadroOverrideCalendarKey(editableCtx.cpf, editableCtx.placa, ymKey, slotIdx);
+    const displayVal = formatQuadroInputDisplay(s.total);
+    const hasSavedOverride = hasQuadroReceitaOverrideKey(key);
+    const hadValue = hasSavedOverride || Math.abs(Number(s.total) || 0) >= 1e-9;
+    let inpCls = "quadro-cell-input";
+    if (s.hasPreview) inpCls += " quadro-cell-input--preview";
+    else if (s.hasNovo) inpCls += " quadro-cell-input--novo";
+    return `<td class="quadro-cell quadro-cell--editable-wrap"><input type="text" class="${inpCls}" data-q-kind="sem" data-q-key="${escapeHtml(
+      key
+    )}" data-q-original="${escapeHtml(displayVal)}" data-q-had-value="${hadValue ? "1" : "0"}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
+  }
+  if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+  let cls = "quadro-cell quadro-cell--valor";
+  if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
+  else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
+  const inner = formatQuadroValorCellHtml(s.total, s.comprovantes);
+  return `<td class="${cls}">${inner}</td>`;
+}
+
+/** Quadro mensal tipo calendário: semanas = linhas dom–sáb (não usa trilha RECEITA). */
+function computeMonthSlotsSixSemanas(monthItems, highlightId) {
   const sorted = monthItems
     .filter((it) => parseBrDate(it.semanaInicio))
     .sort(
@@ -2514,25 +4095,28 @@ function fillMonthSlotsSixSemanas(monthItems, highlightId) {
     total: 0,
     hasNovo: false,
     hasPreview: false,
+    comprovantes: [],
   }));
-  sorted.forEach((it, idx) => {
-    const slot = Math.min(idx, 5);
-    slots[slot].total += getLancamentoAluguelValor(it);
-    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
-    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
+  sorted.forEach((it) => {
+    const dRef = parseBrDate(it.semanaInicio);
+    const slotIdx = calendarMonthGridWeekSlotIndex(dRef);
+    const val = getLancamentoAluguelValor(it);
+    slots[slotIdx].total += val;
+    if (String(it.id) === "__preview__") slots[slotIdx].hasPreview = true;
+    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slotIdx].hasNovo = true;
+    const fp = String(it.comprovanteFp || "").trim();
+    if (fp) {
+      slots[slotIdx].comprovantes.push({ fp, id: it.id, valor: val });
+    }
   });
-  return slots
-    .map((s) => {
-      if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
-      let cls = "quadro-cell quadro-cell--valor";
-      if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
-      else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
-      return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
-    })
-    .join("");
+  slots.forEach((s) => {
+    s.comprovantes = dedupeComprovantesPorSlot(s.comprovantes);
+  });
+  return slots;
 }
 
-function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
+function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options = {}) {
+  const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
   const preview = options.preview;
   let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw);
@@ -2549,34 +4133,55 @@ function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
       devidoHoje: contrato.devidoHoje || contrato.devido || 0,
     });
     totalDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido || 0);
-    totalPagoContrato = parseCurrencyBR(contrato.pago || contrato.valorPago || 0);
+    totalPagoContrato = totalPagoBarComLancamentosApp(
+      cpfDigits,
+      placaRaw,
+      contrato.pago || contrato.valorPago || 0
+    );
   }
-  const mesesKeys = getQuadroMesesRange(contrato, items);
+  const rangeKeys = getQuadroMesesRange(contrato, items);
   const byMonth = {};
-  mesesKeys.forEach((ym) => {
-    byMonth[ym] = [];
-  });
   items.forEach((it) => {
     const d = parseBrDate(it.semanaInicio);
     if (!d) return;
-    const ym = monthKey(toDateOnly(d));
-    if (!byMonth[ym]) byMonth[ym] = [];
-    byMonth[ym].push(it);
+    const ymKey = monthKey(toDateOnly(d));
+    if (!byMonth[ymKey]) byMonth[ymKey] = [];
+    byMonth[ymKey].push(it);
   });
+  const mesesKeys = mergeUniqueSortedMonthKeys(rangeKeys, Object.keys(byMonth));
   let rowsHtml = "";
+  let somaQuadroPago = 0;
   mesesKeys.forEach((ym) => {
     const monthItems = byMonth[ym] || [];
-    const slotsHtml = fillMonthSlotsSixSemanas(monthItems, highlightId);
-    const rowSum = monthItems.reduce((acc, it) => acc + getLancamentoAluguelValor(it), 0);
+    const slots = computeMonthSlotsSixSemanas(monthItems, highlightId);
+    applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ym, slots);
+    const rowSum = slots.reduce((acc, s) => acc + s.total, 0);
+    somaQuadroPago += rowSum;
+    const rowKeyCal = `CAL|${ym}`;
+    const editableCtx = editableDialog
+      ? { enabled: true, cpf: cpfDigits, placa: placaRaw }
+      : null;
+    const slotsHtml = slots
+      .map((s, i) => formatCalendarMonthSlotTd(s, editableCtx, ym, i))
+      .join("");
+    const rowEmpty = Math.abs(rowSum) < 1e-9;
+    const totalNeg = rowSum < -1e-9;
+    const totalCls = rowEmpty
+      ? "quadro-cell quadro-row-total quadro-cell--empty"
+      : `quadro-cell quadro-row-total${totalNeg ? " quadro-cell--negativo" : ""}`;
+    const totalDisp = rowEmpty ? "—" : currencyBRL(rowSum);
+    const totalTd = editableDialog
+      ? `<td class="${totalCls} quadro-row-total--live" data-q-row-key="${escapeHtml(rowKeyCal)}">${totalDisp}</td>`
+      : `<td class="${totalCls}">${totalDisp}</td>`;
     rowsHtml += `
-      <tr>
+      <tr${editableDialog ? ` data-q-row-key="${escapeHtml(rowKeyCal)}"` : ""}>
         <td class="quadro-mes">${escapeHtml(ymKeyToAbrSlash(ym))}</td>
-        <td class="quadro-cell quadro-row-total">${rowSum > 0 ? currencyBRL(rowSum) : "—"}</td>
+        ${totalTd}
         ${slotsHtml}
       </tr>`;
   });
   return `
-    <div class="quadro-pagamento-scroll">
+    <div class="quadro-pagamento-scroll" data-quadro-soma-pago="${escapeHtml(String(somaQuadroPago))}">
       <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês">
         <thead>
           <tr class="quadro-summary-row quadro-summary-devido">
@@ -2585,7 +4190,9 @@ function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
           </tr>
           <tr class="quadro-summary-row quadro-summary-pago">
             <td colspan="2">TOTAL PAGO</td>
-            <td colspan="6" class="quadro-moeda quadro-bg-pago">${currencyBRL(totalPagoContrato)}</td>
+            <td colspan="6" class="quadro-moeda quadro-bg-pago" title="Pago no cadastro/planilha, mais a soma dos lancamentos de aluguel salvos no app.">${currencyBRL(
+              totalPagoContrato
+            )}</td>
           </tr>
           <tr>
             <th scope="col">Mês</th>
@@ -2600,53 +4207,216 @@ function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
     </div>`;
 }
 
-function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
+function fillMonthSlotsSixSemanas(monthItems, highlightId) {
+  const slots = computeMonthSlotsSixSemanas(monthItems, highlightId);
+  return slots
+    .map((s) => {
+      if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
+      let cls = "quadro-cell quadro-cell--valor";
+      if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
+      else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
+      return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
+    })
+    .join("");
+}
+
+function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
+  const preview = options.preview;
+  if (preview && preview.semanaInicio && parseCurrencyBR(preview.valorPago) > 0) {
+    return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
+  }
+  const rec = findReceitaRecordForQuadro(cpfDigits, placaRaw);
+  if (rec && receitaQuadroTrailHasCells(rec)) {
+    const html = buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, rec, options);
+    if (!/<tbody>\s*<\/tbody>/s.test(html)) return html;
+  }
+  return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
+}
+
+function updateQuadroRowTotalFromInputs(tr) {
+  if (!tr) return;
+  const inputs = tr.querySelectorAll("input.quadro-cell-input[data-q-key]");
+  let sum = 0;
+  inputs.forEach((inp) => {
+    sum += parseCurrencyBR(inp.value);
+  });
+  const totalTd = tr.querySelector("td.quadro-row-total--live");
+  if (!totalTd) return;
+  totalTd.classList.remove("quadro-cell--empty", "quadro-cell--negativo");
+  if (Math.abs(sum) < 1e-9) {
+    totalTd.textContent = "—";
+    totalTd.classList.add("quadro-cell--empty");
+  } else {
+    totalTd.textContent = currencyBRL(sum);
+    if (sum < -1e-9) totalTd.classList.add("quadro-cell--negativo");
+  }
+}
+
+function wireQuadroHistoricoEditableInputs(container) {
+  const onInp = (e) => {
+    const t = e.target;
+    if (!t || !t.matches || !t.matches("input.quadro-cell-input")) return;
+    const tr = t.closest("tr");
+    updateQuadroRowTotalFromInputs(tr);
+  };
+  container.addEventListener("input", onInp);
+  return () => container.removeEventListener("input", onInp);
+}
+
+function quadroEditableSnapshotSerialize(container) {
+  const o = {};
+  container.querySelectorAll("input.quadro-cell-input[data-q-key]").forEach((inp) => {
+    const k = inp.getAttribute("data-q-key");
+    if (!k) return;
+    o[k] = String(inp.value || "").trim();
+  });
+  const keys = Object.keys(o).sort();
+  const norm = {};
+  keys.forEach((k) => {
+    norm[k] = o[k];
+  });
+  return JSON.stringify(norm);
+}
+
+function persistQuadroHistoricoOverridesFromInputs(container) {
+  const map = loadQuadroReceitaOverridesMap();
+  container.querySelectorAll("input.quadro-cell-input[data-q-key]").forEach((inp) => {
+    const k = inp.getAttribute("data-q-key");
+    if (!k) return;
+    const raw = String(inp.value || "").trim();
+    const hadValue = String(inp.getAttribute("data-q-had-value") || "") === "1";
+    if (raw === "") {
+      // Se havia valor originalmente e o admin apagou, persistir zero para não "voltar" ao valor de base.
+      if (hadValue) map[k] = 0;
+      else delete map[k];
+    } else {
+      map[k] = parseCurrencyBR(inp.value);
+    }
+  });
+  saveQuadroReceitaOverridesMap(map);
+}
+
+function extractQuadroSomaPagoFromHtml(html) {
+  const m = String(html || "").match(/data-quadro-soma-pago="([^"]+)"/i);
+  if (!m) return NaN;
+  return Number(String(m[1]).replace(",", "."));
+}
+
+/**
+ * @param {object} [opts]
+ * @param {object} [opts.preview] — pré-visualização do formulário (etapa de confirmação)
+ * @param {() => void} [opts.onAfterSim] — após confirmar "Sim" (ex.: atualizar o resumo na tela)
+ */
+function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
+  const preview = opts?.preview;
+  const onAfterSim = opts?.onAfterSim;
+  const edicaoBloqueadaCpf = isCpfComEdicaoLancamentoBloqueada(cpfDigits);
   if (
     !lancamentoAluguelHistoricoDialog ||
     !lancamentoAluguelHistoricoQuadro ||
     !lancamentoAluguelHistoricoSimBtn ||
-    !lancamentoAluguelHistoricoEditarBtn
+    !lancamentoAluguelHistoricoEditarBtn ||
+    !lancamentoAluguelHistoricoCancelarBtn
   ) {
     return Promise.resolve(true);
   }
   const html = buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, {
     highlightId: null,
     preview,
+    editableDialog: !edicaoBloqueadaCpf,
   });
   lancamentoAluguelHistoricoQuadro.innerHTML = html;
+  lancamentoAluguelHistoricoEditarBtn.classList.toggle("hidden", edicaoBloqueadaCpf);
+  lancamentoAluguelHistoricoEditarBtn.disabled = edicaoBloqueadaCpf;
+  lancamentoAluguelHistoricoEditarBtn.title = edicaoBloqueadaCpf
+    ? "Edição do histórico bloqueada para este CPF."
+    : "";
+  const unwireInputs = wireQuadroHistoricoEditableInputs(lancamentoAluguelHistoricoQuadro);
+  const initialSnap = quadroEditableSnapshotSerialize(lancamentoAluguelHistoricoQuadro);
   lancamentoAluguelHistoricoDialog.classList.remove("hidden");
   return new Promise((resolve) => {
+    const senhaAdminValida = (senhaInformada) =>
+      isSenhaFuncionarioAtualValida(senhaInformada) || isSenhaOwnerValida(senhaInformada);
+    const cleanup = () => {
+      unwireInputs();
+    };
     const close = () => {
       lancamentoAluguelHistoricoDialog.classList.add("hidden");
     };
     const onSim = () => {
+      const currentSnap = quadroEditableSnapshotSerialize(lancamentoAluguelHistoricoQuadro);
+      const changed = currentSnap !== initialSnap;
+      if (changed) {
+        const senha = window.prompt(
+          "Alteracao no quadro detectada. Digite a senha do administrador para salvar as celulas editadas:"
+        );
+        if (senha === null) return;
+        if (!senhaAdminValida(senha)) {
+          window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
+          return;
+        }
+        persistQuadroHistoricoOverridesFromInputs(lancamentoAluguelHistoricoQuadro);
+        addAuditLog(
+          "quadro_receita_overrides",
+          "lancamento_aluguel_quadro",
+          `${onlyDigits(cpfDigits)} ${String(placaRaw || "").trim().toUpperCase()}`
+        );
+      }
+      cleanup();
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      lancamentoAluguelHistoricoCancelarBtn.removeEventListener("click", onCancelar);
+      onAfterSim?.();
       resolve(true);
     };
     const onEditar = () => {
-      const senha = window.prompt("Digite a senha do administrador para editar o histórico:");
+      if (edicaoBloqueadaCpf) {
+        window.alert("CPF com edição de histórico bloqueada. Apenas novos lançamentos são permitidos.");
+        return;
+      }
+      const senha = window.prompt("Digite a senha do administrador para editar o histórico na lista:");
       if (senha === null) return;
-      if (!isSenhaOwnerValida(senha)) {
+      if (!senhaAdminValida(senha)) {
         window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
         return;
       }
+      cleanup();
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      lancamentoAluguelHistoricoCancelarBtn.removeEventListener("click", onCancelar);
       if (cadastroLancamentoAluguelLista) {
         cadastroLancamentoAluguelLista.scrollIntoView({ behavior: "smooth", block: "start" });
       }
       resolve(false);
     };
+    const onCancelar = () => {
+      cleanup();
+      close();
+      lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
+      lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      lancamentoAluguelHistoricoCancelarBtn.removeEventListener("click", onCancelar);
+      resolve(false);
+    };
     lancamentoAluguelHistoricoSimBtn.addEventListener("click", onSim);
     lancamentoAluguelHistoricoEditarBtn.addEventListener("click", onEditar);
+    lancamentoAluguelHistoricoCancelarBtn.addEventListener("click", onCancelar);
   });
+}
+
+function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
+  return runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, { preview });
 }
 
 function renderLancamentoAluguelResumo() {
   if (!lancamentoAluguelResumo) return;
+  lancamentoAluguelResumo.classList.remove(
+    "resumo-status-moto-positivo",
+    "resumo-status-transporte-positivo",
+    "resumo-status-carro",
+    "resumo-status-debito"
+  );
   const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const placaRaw = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
   if (cpf.length !== 11) {
@@ -2670,28 +4440,34 @@ function renderLancamentoAluguelResumo() {
     devidoHoje: contrato.devidoHoje || contrato.devido || 0,
   });
   const valorDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido);
-  const valorPagoAcumulado = parseCurrencyBR(contrato.pago || contrato.valorPago);
-  const totalLancamentosAluguel = getLancamentosAluguel()
-    .filter((l) => {
-      const cpfOk = onlyDigits(String(l.cpf || "")) === cpf;
-      const plateOk = placa ? normalizePlate(l.placa) === placa : true;
-      return cpfOk && plateOk;
-    })
-    .reduce((acc, l) => acc + getLancamentoAluguelValor(l), 0);
+  const pagoRegistro = parseCurrencyBR(contrato.pago || contrato.valorPago);
+  const totalLancamentosAluguel = collectLancamentosFilteredQuadro(cpf, placaRaw).reduce(
+    (acc, l) => acc + getLancamentoAluguelValor(l),
+    0
+  );
+  /** Mesma base do quadro: pago (planilha) + soma dos lançamentos de aluguel no app. */
+  const valorPagoAcumulado = totalPagoBarComLancamentosApp(
+    cpf,
+    placaRaw,
+    contrato.pago || contrato.valorPago || 0
+  );
   const valorPagoDigitado = parseCurrencyBR(String(lancAluguelValorPagoInput?.value || ""));
-  const valorLancamento = valorPagoDigitado > 0 ? valorPagoDigitado : totalLancamentosAluguel;
-  const saldoPagar = Math.max(0, valorDevido + totalLancamentosAluguel - valorPagoAcumulado);
+  const valorLancamentoSugestao =
+    valorPagoDigitado > 0 ? valorPagoDigitado : totalLancamentosAluguel;
+  const quadroHtml = buildQuadroPagamentoHistoricoHtml(cpf, placaRaw, {
+    highlightId: ultimoLancamentoAluguelSalvoId,
+  });
+  const somaQuadroPago = extractQuadroSomaPagoFromHtml(quadroHtml);
+  const valorPagoAcumuladoEfetivo = Number.isFinite(somaQuadroPago) ? somaQuadroPago : valorPagoAcumulado;
+  /** Pago em dia ou crédito: nada a pagar neste lançamento; sugestão zero. */
+  const valorLancamento =
+    valorPagoAcumuladoEfetivo > valorDevido ? 0 : valorLancamentoSugestao;
+  const saldoPagar = Math.max(0, valorDevido - valorPagoAcumuladoEfetivo);
   const plano = getPlanoLancamentoResumo(contrato);
   const planoKey = normalizeKey(plano);
-  const saldoPositivo = valorPagoAcumulado > valorDevido;
-  const emDebito = valorPagoAcumulado < valorDevido;
+  const saldoPositivo = valorPagoAcumuladoEfetivo > valorDevido;
+  const emDebito = valorPagoAcumuladoEfetivo < valorDevido;
   const isCarro = isCarroLancamentoResumo(placa, contrato);
-  lancamentoAluguelResumo.classList.remove(
-    "resumo-status-moto-positivo",
-    "resumo-status-transporte-positivo",
-    "resumo-status-carro",
-    "resumo-status-debito"
-  );
   if (emDebito) {
     lancamentoAluguelResumo.classList.add("resumo-status-debito");
   } else if (isCarro) {
@@ -2701,9 +4477,6 @@ function renderLancamentoAluguelResumo() {
   } else if (saldoPositivo && planoKey.includes("MEU TRANSPORTE")) {
     lancamentoAluguelResumo.classList.add("resumo-status-transporte-positivo");
   }
-  const quadroHtml = buildQuadroPagamentoHistoricoHtml(cpf, placaRaw, {
-    highlightId: ultimoLancamentoAluguelSalvoId,
-  });
   lancamentoAluguelResumo.innerHTML = `
     <p><strong>${escapeHtml(nome)}</strong> - ${escapeHtml(modelo)} - data de inicio da locacao <strong>${escapeHtml(
     inicio || "-"
@@ -2711,13 +4484,20 @@ function renderLancamentoAluguelResumo() {
     <p><strong>Plano:</strong> ${escapeHtml(plano)}</p>
     <p><strong>Valor semanal:</strong> ${currencyBRL(valorSemanal)} | <strong>Valor devido:</strong> ${currencyBRL(
     valorDevido
-  )} | <strong>Valor pago acumulado:</strong> ${currencyBRL(valorPagoAcumulado)}</p>
-    <p><strong>Lançamentos de aluguel:</strong> ${currencyBRL(
+  )} | <strong>Valor pago acumulado:</strong> <span title="Pago do cadastro (${currencyBRL(
+    pagoRegistro
+  )}) mais soma dos lançamentos no app. Quando houver edição manual no quadro, este campo reflete a soma atual da barra TOTAL PAGO do quadro.">${currencyBRL(
+    valorPagoAcumuladoEfetivo
+  )}</span></p>
+    <p><strong>Lançamentos de aluguel (app, já somados acima):</strong> ${currencyBRL(
       totalLancamentosAluguel
-    )} | <strong>Pagamento deste lancamento (sugestao):</strong> ${currencyBRL(
+    )} | <strong>Pagamento deste lançamento (sugestão):</strong> ${currencyBRL(
       valorLancamento
-    )} | <strong>Saldo a pagar:</strong> ${currencyBRL(saldoPagar)}</p>
+    )} | <strong>Saldo a pagar (devido − pago acum.):</strong> ${currencyBRL(saldoPagar)}</p>
     <h4 style="margin:1rem 0 0.45rem;font-size:0.95rem;">Quadro resumo (histórico por mês — até 6 semanas)</h4>
+    <p class="subtext" style="margin:0.35rem 0 0.5rem">
+      <button type="button" class="secondary" id="lancamentoAluguelAbrirQuadroEdit">Abrir quadro em modo edição (valores e senha)</button>
+    </p>
     ${quadroHtml}
   `;
 }
@@ -3228,7 +5008,7 @@ function computeSaldoFromRecords(records) {
   if (!Array.isArray(records) || !records.length) return 0;
   return records.reduce((acc, r) => {
     const devido = parseCurrencyBR(r?.devidoHoje);
-    const pago = parseCurrencyBR(r?.pago);
+    const pago = pagoHarmonizadoRegistro(r);
     return acc + (devido - pago);
   }, 0);
 }
@@ -3556,7 +5336,7 @@ function buildLocacaoDatabaseRowsFromReceita2026() {
     const valorQNum = parseCurrencyBR(r.q);
     const investimento = valorQNum - valorSemanalNum;
     const plano = investimento > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE";
-    const pagoNum = parseCurrencyBR(r.pago);
+    const pagoNum = pagoHarmonizadoRegistro({ cpf, placa: placaNormalizada, pago: r.pago });
     const devidoNum = parseCurrencyBR(financeiro.devidoHoje);
     const saldoNum = pagoNum - devidoNum;
     const isLatestByPlate = latestIndexByPlate.get(placaNormalizada)?.index === idx;
@@ -3591,7 +5371,7 @@ function buildLocacaoDatabaseRowsFromReceita2026() {
       plano,
       valorInvestimento: currencyBRL(investimento),
       valorDevidoHoje: financeiro.devidoHoje || "",
-      valorPagoHoje: r.pago || "",
+      valorPagoHoje: currencyBRL(pagoNum),
       saldo: `${saldoNum >= 0 ? "+" : "-"} ${currencyBRL(Math.abs(saldoNum))}`,
       saldoNumerico: saldoNum,
     };
@@ -4383,13 +6163,17 @@ function currencyBRL(value) {
   });
 }
 
-function getSituacaoFinanceira(contrato) {
-  if (Number(contrato.valorPago) > Number(contrato.valorDevidoHoje)) {
-    return "Regular";
-  }
-  if (Number(contrato.valorPago) === Number(contrato.valorDevidoHoje)) {
-    return "Em dia";
-  }
+function getSituacaoFinanceira(contrato, opts = {}) {
+  const devido = parseCurrencyBR(contrato.valorDevidoHoje ?? contrato.devidoHoje);
+  const cpf = onlyDigits(String(opts.cpf ?? contrato.cpf ?? ""));
+  const placa = String(opts.placa ?? contrato.placa ?? contrato?.veiculo?.placa ?? "").trim();
+  const pagoBase = contrato.valorPago ?? contrato.pago;
+  const pago =
+    cpf.length === 11
+      ? totalPagoBarComLancamentosApp(cpf, placa, pagoBase)
+      : parseCurrencyBR(pagoBase);
+  if (pago > devido) return "Regular";
+  if (pago === devido) return "Em dia";
   return "Em atraso";
 }
 
@@ -4405,7 +6189,7 @@ function parseCurrencyBR(value) {
 }
 
 function getSituacaoFinanceiraAdmin(reg) {
-  const pago = parseCurrencyBR(reg.pago);
+  const pago = pagoHarmonizadoRegistro(reg);
   const devido = parseCurrencyBR(reg.devidoHoje);
   if (pago > devido) return "Regular";
   if (pago === devido) return "Em dia";
@@ -4648,8 +6432,17 @@ function renderDashboard(cliente) {
   document.getElementById("valorSemanal").textContent = currencyBRL(cliente.contrato.valorLocacao);
   document.getElementById("quantidadeDias").textContent = String(cliente.contrato.dias);
   document.getElementById("valorDevidoHoje").textContent = currencyBRL(cliente.contrato.valorDevidoHoje);
-  document.getElementById("valorPago").textContent = currencyBRL(cliente.contrato.valorPago);
-  document.getElementById("situacaoFinanceira").textContent = getSituacaoFinanceira(cliente.contrato);
+  const cpfDash = onlyDigits(String(cliente.cpf || ""));
+  const placaDash = String(cliente.contrato?.veiculo?.placa || "").trim();
+  const pagoDash =
+    cpfDash.length === 11
+      ? totalPagoBarComLancamentosApp(cpfDash, placaDash, cliente.contrato.valorPago)
+      : parseCurrencyBR(cliente.contrato.valorPago);
+  document.getElementById("valorPago").textContent = currencyBRL(pagoDash);
+  document.getElementById("situacaoFinanceira").textContent = getSituacaoFinanceira(cliente.contrato, {
+    cpf: cliente.cpf,
+    placa: cliente.contrato?.veiculo?.placa,
+  });
 
   loginArea.classList.add("hidden");
   dashboardCard.classList.remove("hidden");
@@ -4748,6 +6541,38 @@ function findReceitaRecordForEstudo(cpfDigits) {
   let matches = pool.filter((r) => onlyDigits(String(r.cpf || "")) === key);
   if (!matches.length && pool !== receita2026Data && receita2026Data.length) {
     matches = receita2026Data.filter((r) => onlyDigits(String(r.cpf || "")) === key);
+  }
+  if (!matches.length) return null;
+  const ativo = matches.find((r) => !String(r.fim || "").trim());
+  if (ativo) return ativo;
+  return matches.sort((a, b) => Number(b.inicioSerial || 0) - Number(a.inicioSerial || 0))[0];
+}
+
+/**
+ * Mesmo pool que RECEITA / RECEITA 2026 em findReceitaRecordForEstudo,
+ * com filtro opcional por placa (para quadro por contrato).
+ */
+function findReceitaRecordForQuadro(cpfDigits, placaRaw) {
+  const cpf = onlyDigits(String(cpfDigits || ""));
+  const placa = normalizePlate(placaRaw);
+  if (cpf.length !== 11) return null;
+  const pool =
+    adminData.length > 0
+      ? adminData
+      : receita2026Data.length
+        ? receita2026Data
+        : [];
+  let matches = pool.filter((r) => onlyDigits(String(r.cpf || "")) === cpf);
+  if (placa) {
+    const byPlate = matches.filter((r) => normalizePlate(r.placa) === placa);
+    if (byPlate.length) matches = byPlate;
+  }
+  if (!matches.length && pool !== receita2026Data && receita2026Data.length) {
+    matches = receita2026Data.filter((r) => onlyDigits(String(r.cpf || "")) === cpf);
+    if (placa) {
+      const byPlate = matches.filter((r) => normalizePlate(r.placa) === placa);
+      if (byPlate.length) matches = byPlate;
+    }
   }
   if (!matches.length) return null;
   const ativo = matches.find((r) => !String(r.fim || "").trim());
@@ -5557,7 +7382,7 @@ function avaliarRegularidadeCliente(contratos) {
   }
   const dyn = withDynamicFinancialFields(ref);
   const devido = parseCurrencyBR(dyn.devidoHoje);
-  const pago = parseCurrencyBR(ref.pago);
+  const pago = pagoHarmonizadoRegistro(ref);
   if (!(devido > 0)) {
     return { texto: "Regular (sem valor devido calculado na base).", ok: true };
   }
@@ -5596,7 +7421,7 @@ function openClienteVidaDialog(cpfDigits) {
       const modelo = findModeloByPlaca(placa);
       const ini = formatContratoInicioClienteVida(c);
       const fim = formatContratoFimClienteVida(c);
-      const pago = parseCurrencyBR(c.pago);
+      const pago = pagoHarmonizadoRegistro(c);
       const vs = parseCurrencyBR(c.valorSemanal);
       const dyn = withDynamicFinancialFields(c);
       const dev = parseCurrencyBR(dyn.devidoHoje);
@@ -5685,7 +7510,7 @@ function buildGroupedFinanceRows(records, mode) {
     }
     const group = groups.get(key);
     group.due += parseCurrencyBR(r.devidoHoje);
-    group.paid += parseCurrencyBR(r.pago);
+    group.paid += pagoHarmonizadoRegistro(r);
     group.contracts.push(r);
   });
 
@@ -6406,7 +8231,7 @@ function runAdminAction(action, scope) {
       (acc, r) => acc + parseCurrencyBR(r.valorSemanal),
       0
     );
-    const totalPago = records.reduce((acc, r) => acc + parseCurrencyBR(r.pago), 0);
+    const totalPago = records.reduce((acc, r) => acc + pagoHarmonizadoRegistro(r), 0);
     const html = `<p><strong>Receita semanal total (I):</strong> ${currencyBRL(totalSemanal)}</p>
       <p class="subtext">Previsão semanal: soma da coluna I da aba RECEITA 2026 somente nas linhas sem data de fim (coluna L vazia).</p>
       <p><strong>Total pago pelos clientes (P):</strong> ${currencyBRL(totalPago)}</p>
@@ -6461,7 +8286,7 @@ function runAdminAction(action, scope) {
     const atraso = [];
     financeiroBase.forEach((r) => {
       const devido = parseCurrencyBR(r.devidoHoje);
-      const pago = parseCurrencyBR(r.pago);
+      const pago = pagoHarmonizadoRegistro(r);
       const isDebtorColor = Number(r.cor || 0) === 255;
       if (scope === "inativos" && receita2026Data.length) {
         if (isDebtorColor || pago < devido) {
@@ -7785,6 +9610,28 @@ if (importDadosBackupInput) {
   });
 }
 
+if (lancamentoAluguelResumo && !lancamentoAluguelResumo.dataset.quadroEditBound) {
+  lancamentoAluguelResumo.dataset.quadroEditBound = "1";
+  lancamentoAluguelResumo.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!t || t.id !== "lancamentoAluguelAbrirQuadroEdit") return;
+    e.preventDefault();
+    const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
+    const placa = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
+    if (cpf.length !== 11) {
+      window.alert("Informe um CPF valido (11 digitos) no lancamento.");
+      return;
+    }
+    if (isCpfComEdicaoLancamentoBloqueada(cpf)) {
+      window.alert("CPF com edição bloqueada. Você pode cadastrar novos lançamentos, mas não editar o histórico.");
+      return;
+    }
+    void runLancamentoAluguelHistoricoDialog(cpf, placa, {
+      onAfterSim: () => renderLancamentoAluguelResumo(),
+    });
+  });
+}
+
 if (lancamentoAluguelForm) {
   lancamentoAluguelForm.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -7825,6 +9672,7 @@ if (lancamentoAluguelForm) {
     const historicoOk = await askLancamentoAluguelHistoricoUpdated(cpf, placa, {
       valorPago,
       semanaInicio,
+      semanaFim,
     });
     if (!historicoOk) return;
 
@@ -7841,8 +9689,19 @@ if (lancamentoAluguelForm) {
     });
     if (!confirmado) return;
 
+    const fpSalvar = lancamentoAluguelForm?.dataset?.comprovanteFp
+      ? String(lancamentoAluguelForm.dataset.comprovanteFp).trim()
+      : "";
+    if (fpSalvar && isComprovanteFpJaUtilizado(fpSalvar)) {
+      if (lancamentoAluguelErro) {
+        lancamentoAluguelErro.textContent =
+          "Este comprovante já foi utilizado em outro lançamento. Não é possível salvar em duplicidade.";
+        lancamentoAluguelErro.classList.remove("hidden");
+      }
+      return;
+    }
     const id = Date.now();
-    lancamentos.push({
+    const novo = {
       id,
       createdAt: id,
       codigoLancamento,
@@ -7853,7 +9712,27 @@ if (lancamentoAluguelForm) {
       semanaInicio,
       semanaFim,
       status: "ATIVO",
-    });
+    };
+    if (fpSalvar) novo.comprovanteFp = fpSalvar;
+    if (fpSalvar) {
+      const pay = coletarPayloadComprovanteParaSalvar(fpSalvar);
+      const row = {
+        lancamentoId: id,
+        codigoLancamento,
+        valorPago,
+        semanaInicio,
+        semanaFim,
+        cpf,
+        placa,
+      };
+      if (pay.base64 && pay.mime) {
+        row.base64 = pay.base64;
+        row.mime = pay.mime;
+      }
+      if (pay.texto) row.texto = pay.texto;
+      upsertComprovanteBanco(fpSalvar, row);
+    }
+    lancamentos.push(novo);
     saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, lancamentos);
     processPendingLancamentosAluguelBaixa();
     addAuditLog("cadastrar_lancamento_aluguel", "lancamento_aluguel", `${codigoLancamento} - ${placa}`);
@@ -7861,6 +9740,16 @@ if (lancamentoAluguelForm) {
     const savedCpf = cpf;
     const savedPlaca = placa;
     window.alert("LANCAMENTO SALVO COM SUCESSO");
+    if (fpSalvar) {
+      setComprovanteFeedback(
+        "Comprovante gravado neste aparelho com o pagamento. Pode clicar em Limpar comprovante; o arquivo continua no histórico.",
+        "ok"
+      );
+    }
+    if (lancamentoAluguelForm && lancamentoAluguelForm.dataset.comprovanteFp) {
+      delete lancamentoAluguelForm.dataset.comprovanteFp;
+    }
+    pendingComprovanteSnapshot = null;
     lancamentoAluguelForm.reset();
     if (lancAluguelCpfInput) lancAluguelCpfInput.value = formatCpf(savedCpf);
     if (lancAluguelPlacaInput) lancAluguelPlacaInput.value = String(savedPlaca || "")
@@ -7965,6 +9854,10 @@ if (lancAluguelDiaPagamentoInput) {
 if (lancAluguelClearBtn) {
   lancAluguelClearBtn.addEventListener("click", () => {
     ultimoLancamentoAluguelSalvoId = null;
+    if (lancamentoAluguelForm && lancamentoAluguelForm.dataset.comprovanteFp) {
+      delete lancamentoAluguelForm.dataset.comprovanteFp;
+    }
+    pendingComprovanteSnapshot = null;
     if (lancamentoAluguelForm) lancamentoAluguelForm.reset();
     if (lancAluguelClienteSugestoes) lancAluguelClienteSugestoes.innerHTML = "";
     if (lancAluguelSemanaInicioInput) lancAluguelSemanaInicioInput.dataset.autoSuggested = "0";
@@ -8010,6 +9903,10 @@ if (cadastroLancamentoAluguelLista) {
     const idx = lancamentos.findIndex((l) => Number(l.id || 0) === id);
     if (idx < 0) return;
     const item = lancamentos[idx];
+    if (isCpfComEdicaoLancamentoBloqueada(item.cpf)) {
+      window.alert("CPF com edição bloqueada. Não é permitido apagar lançamentos já existentes.");
+      return;
+    }
     const ok = window.confirm(
       `Confirma apagar o lançamento ${item.codigoLancamento || "-"} (${item.placa || "-"})?`
     );
@@ -8284,7 +10181,7 @@ function handleReportAreaClick(event) {
 
     if (target.dataset.finance === "emdia") {
       const totalSaldoEmDia = currentFinanceiroEmDia.reduce(
-        (acc, r) => acc + Math.max(0, parseCurrencyBR(r.pago) - parseCurrencyBR(r.devidoHoje)),
+        (acc, r) => acc + Math.max(0, pagoHarmonizadoRegistro(r) - parseCurrencyBR(r.devidoHoje)),
         0
       );
       const emDiaRows =
@@ -8294,7 +10191,7 @@ function handleReportAreaClick(event) {
               .slice(0, 200)
               .map((r) => {
                 const devido = parseCurrencyBR(r.devidoHoje);
-                const pago = parseCurrencyBR(r.pago);
+                const pago = pagoHarmonizadoRegistro(r);
                 const saldoSobrando = Math.max(0, pago - devido);
                 return [
                   r.nome || "Nao informado",
@@ -8330,7 +10227,7 @@ function handleReportAreaClick(event) {
         return;
       }
       const totalSaldoAtraso = currentFinanceiroAtraso.reduce(
-        (acc, r) => acc + Math.max(0, parseCurrencyBR(r.devidoHoje) - parseCurrencyBR(r.pago)),
+        (acc, r) => acc + Math.max(0, parseCurrencyBR(r.devidoHoje) - pagoHarmonizadoRegistro(r)),
         0
       );
       const atrasoRows =
@@ -8341,7 +10238,7 @@ function handleReportAreaClick(event) {
               .map(
                 (r) => {
                   const devido = parseCurrencyBR(r.devidoHoje);
-                  const pago = parseCurrencyBR(r.pago);
+                  const pago = pagoHarmonizadoRegistro(r);
                   const saldoDevedor = Math.max(0, devido - pago);
                   return [
                     r.nome || "Nao informado",
@@ -8437,10 +10334,83 @@ installButton.addEventListener("click", async () => {
   installButton.classList.add("hidden");
 });
 
+function setUpdateButtonState(label, disabled) {
+  if (!updateButton) return;
+  updateButton.textContent = label;
+  updateButton.disabled = Boolean(disabled);
+}
+
+function revealUpdateButton(label) {
+  if (!updateButton) return;
+  updateButton.classList.remove("hidden");
+  setUpdateButtonState(label || "Buscar atualizações", false);
+}
+
+function wireServiceWorkerUpdateSignals(registration) {
+  if (!registration || updateReloadPending) return;
+
+  if (registration.waiting) {
+    revealUpdateButton("Atualização pronta - aplicar");
+    return;
+  }
+
+  registration.addEventListener("updatefound", () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+
+    newWorker.addEventListener("statechange", () => {
+      if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+        revealUpdateButton("Atualização pronta - aplicar");
+      }
+    });
+  });
+}
+
+async function checkForAppUpdate(manualTrigger) {
+  if (!swRegistration) return;
+  if (manualTrigger) setUpdateButtonState("Verificando...", true);
+
+  try {
+    await swRegistration.update();
+    if (swRegistration.waiting) {
+      setUpdateButtonState("Aplicando atualização...", true);
+      swRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
+      updateReloadPending = true;
+      return;
+    }
+
+    if (manualTrigger) {
+      setUpdateButtonState("App já atualizado", true);
+      setTimeout(() => setUpdateButtonState("Buscar atualizações", false), 1800);
+    }
+  } catch (error) {
+    if (manualTrigger) {
+      setUpdateButtonState("Falha ao verificar", true);
+      setTimeout(() => setUpdateButtonState("Buscar atualizações", false), 2200);
+    }
+  }
+}
+
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js");
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then((registration) => {
+        swRegistration = registration;
+        revealUpdateButton("Buscar atualizações");
+        wireServiceWorkerUpdateSignals(registration);
+      });
   });
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (updateReloadPending) window.location.reload();
+  });
+
+  if (updateButton) {
+    updateButton.addEventListener("click", () => {
+      checkForAppUpdate(true);
+    });
+  }
 }
 
 if (window.location.protocol === "file:") {
@@ -8448,6 +10418,7 @@ if (window.location.protocol === "file:") {
     "Voce abriu por arquivo local. Para funcionar como app instalavel, rode com servidor local (http://localhost).";
   envWarning.classList.remove("hidden");
   installButton.classList.add("hidden");
+  if (updateButton) updateButton.classList.add("hidden");
 }
 
 seedVeiculosDatabaseIfNeeded();

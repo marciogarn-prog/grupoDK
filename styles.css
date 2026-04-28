@@ -114,6 +114,20 @@ body::after {
   border-radius: 999px;
 }
 
+.topbar-nav .update-btn {
+  margin-top: 0;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.82rem;
+  border-radius: 999px;
+  background: #1d1d21;
+  border: 1px solid #3a3a42;
+  color: #f5f5f5;
+}
+
+.topbar-nav .update-btn:hover {
+  border-color: #e10600;
+}
+
 .profile-card {
   margin-bottom: 1rem;
   border-top: 4px solid var(--accent);
@@ -744,6 +758,214 @@ button.install-btn {
 
 .inline-form button {
   margin-top: 0;
+}
+
+/* Comprovante de pagamento (IA) — lançamento de aluguel */
+.comprovante-ia-box {
+  margin-top: 0.75rem;
+}
+
+.comprovante-ia-box .subtext {
+  color: #9ca3af;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.comprovante-ia-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem 1rem;
+  align-items: start;
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 900px) {
+  .comprovante-ia-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.comprovante-paste-zone {
+  min-height: 120px;
+  border: 2px dashed #3f3f46;
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.comprovante-paste-zone:hover,
+.comprovante-paste-zone:focus {
+  border-color: #e10600;
+  outline: none;
+  background: rgba(225, 6, 0, 0.06);
+}
+
+.comprovante-paste-hint {
+  color: #a1a1aa;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.comprovante-paste-zone:has(.comprovante-preview:not(.hidden)) .comprovante-paste-hint {
+  display: none;
+}
+
+.comprovante-preview {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  border-radius: 6px;
+  display: block;
+}
+
+.comprovante-ia-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.comprovante-ia-side label {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.comprovante-textarea {
+  width: 100%;
+  min-height: 100px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #e4e4e7;
+}
+
+.comprovante-textarea:focus {
+  outline: none;
+  border-color: #e10600;
+  box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.25);
+}
+
+.comprovante-api-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.comprovante-api-row input[type="password"] {
+  flex: 1 1 180px;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+#comprovanteApiStatus {
+  margin: 0.2rem 0 0.35rem;
+  min-height: 1.25rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+#comprovanteApiStatus.comprovante-api-status--erro {
+  color: #fecaca;
+  background: rgba(127, 29, 29, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.6);
+  border-radius: 6px;
+  padding: 0.45rem 0.55rem;
+}
+
+#comprovanteApiStatus.comprovante-api-status--ok {
+  color: #bbf7d0;
+}
+
+#comprovanteExtrairBtn,
+#comprovanteLimparBtn {
+  margin-top: 0.25rem;
+}
+
+#comprovanteIADialog .comprovante-modal-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.65rem 0.9rem;
+  margin: 0.75rem 0;
+  align-items: end;
+}
+
+#comprovanteIADialog .comprovante-modal-fields > label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.88rem;
+  color: #d4d4d8;
+}
+
+#comprovanteIADialog .comprovante-modal-fields input {
+  min-height: 34px;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #fafafa;
+}
+
+#comprovanteIADialog .comprovante-modal-fields input:focus {
+  outline: none;
+  border-color: #e10600;
+}
+
+#comprovanteIADialog .comprovante-check-label {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+#comprovanteIADialog .comprovante-check-label input {
+  min-height: auto;
+  width: auto;
+}
+
+.comprovante-locacao-wrap {
+  margin: 0.75rem 0 0.5rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid #3f3f46;
+  background: rgba(225, 6, 0, 0.08);
+}
+
+.comprovante-locacao-wrap p {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  color: #e4e4e7;
+}
+
+#comprovanteLocacaoSelect {
+  width: 100%;
+  min-height: 36px;
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #3f3f46;
+  background: #18181b;
+  color: #fafafa;
+  font-size: 0.9rem;
+}
+
+@media (max-width: 560px) {
+  #comprovanteIADialog .comprovante-modal-fields {
+    grid-template-columns: 1fr;
+  }
 }
 
 .lancamento-aluguel-layout {
@@ -1380,6 +1602,57 @@ a.cliente-vida-link:hover {
   font-style: italic;
 }
 
+.quadro-cell--editable-wrap {
+  padding: 0.25rem !important;
+  vertical-align: middle;
+}
+
+.quadro-cell-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 4.25rem;
+  max-width: 7rem;
+  padding: 0.28rem 0.4rem;
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+  border-radius: 6px;
+  border: 1px solid #52525b;
+  background: #27272a;
+  color: #fafafa;
+}
+
+.quadro-cell-input:focus {
+  outline: 2px solid #60a5fa;
+  outline-offset: 1px;
+}
+
+.quadro-cell-input--novo {
+  border-color: #60a5fa;
+  color: #93c5fd !important;
+}
+
+.quadro-cell-input--preview {
+  border-color: #7dd3fc;
+  color: #7dd3fc !important;
+}
+
+.quadro-cell-input--neg {
+  color: #f87171 !important;
+}
+
+#lancamentoAluguelHistoricoQuadro .quadro-cell-input {
+  background: #2a2a30;
+}
+
+.quadro-cell--negativo {
+  color: #f87171 !important;
+  font-weight: 600;
+}
+
+.quadro-row-total.quadro-cell--negativo {
+  color: #f87171 !important;
+}
+
 .quadro-row-total {
   font-weight: 600;
   color: #fafafa !important;
@@ -1398,6 +1671,71 @@ a.cliente-vida-link:hover {
 #lancamentoAluguelHistoricoQuadro .quadro-pagamento-table th,
 #lancamentoAluguelHistoricoQuadro .quadro-pagamento-table td {
   color: #f1f5f9;
+}
+
+.quadro-valor-comprovante-btn {
+  display: inline;
+  font: inherit;
+  font-weight: 600;
+  color: #7dd3fc;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.quadro-valor-comprovante-btn:hover {
+  color: #bae6fd;
+}
+
+button.quadro-valor-comprovante-multi {
+  font-size: 0.75rem;
+  margin-left: 0.2rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.comprovante-viewer-body {
+  min-height: 2rem;
+  max-height: min(70vh, 640px);
+  overflow: auto;
+  margin: 0.5rem 0;
+}
+
+.comprovante-viewer-meta {
+  margin-bottom: 0.5rem !important;
+}
+
+.comprovante-viewer-img-wrap {
+  text-align: center;
+  background: #0a0a0b;
+  border-radius: 8px;
+  padding: 0.5rem;
+}
+
+.comprovante-viewer-img {
+  max-width: 100%;
+  max-height: min(60vh, 520px);
+  object-fit: contain;
+}
+
+.comprovante-viewer-texto {
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.88rem;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 8px;
+  padding: 0.6rem;
+  color: #e4e4e7;
+}
+
+.comprovante-multi-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
 }
 
 .warning {
