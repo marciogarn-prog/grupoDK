@@ -1,9 +1,10 @@
-const CACHE_NAME = "dk-grupo-v3";
+const CACHE_NAME = "dk-grupo-v5";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./cadastro-ia-cliente.js",
   "./manifest.webmanifest",
   "./icons/icon-192.svg",
   "./icons/icon-512.svg",

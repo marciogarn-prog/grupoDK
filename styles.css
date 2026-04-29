@@ -188,6 +188,99 @@ body::after {
   position: relative;
 }
 
+.landing-hero-with-qr {
+  display: grid;
+  grid-template-columns: minmax(160px, 200px) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.landing-qr-aside {
+  padding: 1rem 1rem 1.1rem;
+  border-radius: 14px;
+  border: 1px solid #2a2a2f;
+  background: linear-gradient(180deg, #101014 0%, #0a0a0d 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  position: sticky;
+  top: 5.5rem;
+}
+
+.landing-qr-aside__title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.landing-qr-aside__img {
+  display: block;
+  width: 100%;
+  max-width: 180px;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #2f2f34;
+  background: #fff;
+  padding: 4px;
+}
+
+.landing-qr-aside__hint {
+  margin: 0.65rem 0 0.75rem;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.landing-qr-aside__btn {
+  width: 100%;
+  margin-top: 0;
+}
+
+@media (max-width: 900px) {
+  .landing-hero-with-qr {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-qr-aside {
+    position: relative;
+    top: auto;
+  }
+}
+
+.cadastro-ia-wizard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-top: 0.5rem;
+}
+
+.cadastro-ia-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.cadastro-ia-file-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.cadastro-ia-file-label input[type="file"] {
+  font-size: 0.82rem;
+  max-width: 100%;
+}
+
+.cadastro-ia-run {
+  margin-top: 0.35rem;
+  align-self: flex-start;
+}
+
+.cadastro-ia-msg {
+  margin: 0.25rem 0 0;
+}
+
 .home-layout-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -711,6 +804,27 @@ button.install-btn {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
+.cliente-inline-form.cliente-custom-layout {
+  display: block;
+  position: relative;
+}
+
+.cliente-inline-form.cliente-custom-layout > [data-cliente-layout-box] {
+  position: absolute;
+  margin: 0;
+  resize: none;
+  overflow: visible;
+  min-width: 180px;
+  min-height: 42px;
+}
+
+.cliente-inline-form.cliente-custom-layout.layout-edit-mode > [data-cliente-layout-box] {
+  border-color: #e10600;
+  box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.25);
+  resize: both;
+  overflow: auto;
+}
+
 .funcionario-inline-form > input:not([type="checkbox"]),
 .funcionario-inline-form > select {
   min-height: 2.65rem;
@@ -758,6 +872,143 @@ button.install-btn {
 
 .inline-form button {
   margin-top: 0;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) {
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCpf {
+  grid-column: 1;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCodigo {
+  grid-column: 2;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteDataCadastro {
+  grid-column: 3;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteNome {
+  grid-column: 4 / 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCelular {
+  grid-column: 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteRecado1 {
+  grid-column: 1 / 3;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteRecado2 {
+  grid-column: 3 / 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCnh {
+  grid-column: 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCategoria {
+  grid-column: 1;
+  max-width: 140px;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteVencimento {
+  grid-column: 2;
+  max-width: 140px;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteEar {
+  grid-column: 3;
+  max-width: 110px;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCep {
+  grid-column: 4;
+  max-width: 140px;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteComplemento {
+  grid-column: 5;
+  min-width: 160px;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteMunicipioUf {
+  grid-column: 1 / 2;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteEndereco {
+  grid-column: 2 / 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteConfirmEnderecoBtn {
+  grid-column: 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCepStatus {
+  grid-column: 1 / -1;
+  margin-top: -0.05rem;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) button[type="submit"] {
+  grid-column: 4;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteClearBtn {
+  grid-column: 5;
+}
+
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteUpdateBtn,
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCancelBtn,
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteUnblockBtn,
+#clienteCadastroForm:not(.cliente-custom-layout) #cadClienteDeleteBtn {
+  grid-column: span 1;
+}
+
+@media (max-width: 980px) {
+  #clienteCadastroForm:not(.cliente-custom-layout) {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCpf,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCodigo,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteDataCadastro,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteNome,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCelular,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteRecado1,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteRecado2,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCnh,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCategoria,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteVencimento,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteEar,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCep,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteComplemento,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteCepStatus,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteMunicipioUf,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteEndereco,
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteConfirmEnderecoBtn,
+  #clienteCadastroForm:not(.cliente-custom-layout) button[type="submit"],
+  #clienteCadastroForm:not(.cliente-custom-layout) #cadClienteClearBtn {
+    grid-column: auto;
+    max-width: none;
+    min-width: 0;
+  }
+}
+
+.locacao-plano-box {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 1.2rem;
+  padding: 0.35rem 0.1rem 0.15rem;
+}
+
+.locacao-plano-box label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
 }
 
 /* Comprovante de pagamento (IA) — lançamento de aluguel */
@@ -977,6 +1228,10 @@ button.install-btn {
   grid-column: 1 / span 2;
 }
 
+#lancAluguelNumeroContrato {
+  grid-column: 1 / -1;
+}
+
 #lancAluguelSemanaInicio {
   grid-column: 4;
 }
@@ -1013,6 +1268,7 @@ button.install-btn {
 
 #lancAluguelPlaca,
 #lancAluguelCpf,
+#lancAluguelNumeroContrato,
 #lancAluguelDiaPagamento {
   min-height: 34px;
   padding: 0.45rem 0.55rem;
