@@ -133,6 +133,24 @@ const loginClienteForm = document.getElementById("loginClienteForm");
 const loginAdminForm = document.getElementById("loginAdminForm");
 const loginClienteMessage = document.getElementById("loginClienteMessage");
 const loginAdminMessage = document.getElementById("loginAdminMessage");
+const clientePublicoCadastroForm = document.getElementById("clientePublicoCadastroForm");
+const publicCadClienteCpf = document.getElementById("publicCadClienteCpf");
+const publicCadClienteDataCadastro = document.getElementById("publicCadClienteDataCadastro");
+const publicCadClienteNome = document.getElementById("publicCadClienteNome");
+const publicCadClienteCelular = document.getElementById("publicCadClienteCelular");
+const publicCadClienteRecado1 = document.getElementById("publicCadClienteRecado1");
+const publicCadClienteRecado2 = document.getElementById("publicCadClienteRecado2");
+const publicCadClienteCnh = document.getElementById("publicCadClienteCnh");
+const publicCadClienteCategoria = document.getElementById("publicCadClienteCategoria");
+const publicCadClienteVencimento = document.getElementById("publicCadClienteVencimento");
+const publicCadClienteEar = document.getElementById("publicCadClienteEar");
+const publicCadClienteCep = document.getElementById("publicCadClienteCep");
+const publicCadClienteComplemento = document.getElementById("publicCadClienteComplemento");
+const publicCadClienteMunicipioUf = document.getElementById("publicCadClienteMunicipioUf");
+const publicCadClienteEndereco = document.getElementById("publicCadClienteEndereco");
+const publicCadClienteConfirmEnderecoBtn = document.getElementById("publicCadClienteConfirmEnderecoBtn");
+const publicCadClienteCepStatus = document.getElementById("publicCadClienteCepStatus");
+const publicCadClienteErro = document.getElementById("publicCadClienteErro");
 const dashboardCard = document.getElementById("dashboardCard");
 const logoutButton = document.getElementById("logoutButton");
 const adminCard = document.getElementById("adminCard");
@@ -145,9 +163,15 @@ const adminNavInformacao = document.getElementById("adminNavInformacao");
 const adminNavDados = document.getElementById("adminNavDados");
 const adminOperacaoMenu = document.getElementById("adminOperacaoMenu");
 const adminInformacaoMenu = document.getElementById("adminInformacaoMenu");
+const adminDadosMenu = document.getElementById("adminDadosMenu");
+const adminDadosUsoBtn = document.getElementById("adminDadosUsoBtn");
+const adminValidacaoCadastroBtn = document.getElementById("adminValidacaoCadastroBtn");
 const adminOperacaoSection = document.getElementById("adminOperacaoSection");
 const adminInformacaoSection = document.getElementById("adminInformacaoSection");
 const adminDadosSection = document.getElementById("adminDadosSection");
+const adminDadosUsoSection = document.getElementById("adminDadosUsoSection");
+const adminValidacaoCadastroSection = document.getElementById("adminValidacaoCadastroSection");
+const adminValidacaoCadastroLista = document.getElementById("adminValidacaoCadastroLista");
 const operacaoTargetButtons = document.querySelectorAll(".operacao-target-btn");
 const operacaoClienteSection = document.getElementById("operacaoClienteSection");
 const operacaoVeiculoSection = document.getElementById("operacaoVeiculoSection");
@@ -165,6 +189,16 @@ const informacaoInativosActions = document.getElementById("informacaoInativosAct
 const informacaoTodosActions = document.getElementById("informacaoTodosActions");
 const clienteCadastroForm = document.getElementById("clienteCadastroForm");
 const cadClienteCpfInput = document.getElementById("cadClienteCpf");
+const cadClienteCnhInput = document.getElementById("cadClienteCnh");
+const cadClienteCepInput = document.getElementById("cadClienteCep");
+const cadClienteMunicipioUfInput = document.getElementById("cadClienteMunicipioUf");
+const cadClienteEnderecoInput = document.getElementById("cadClienteEndereco");
+const cadClienteComplementoInput = document.getElementById("cadClienteComplemento");
+const cadClienteCepStatus = document.getElementById("cadClienteCepStatus");
+const cadClienteConfirmEnderecoBtn = document.getElementById("cadClienteConfirmEnderecoBtn");
+const clienteLayoutEditToggleBtn = document.getElementById("clienteLayoutEditToggleBtn");
+const clienteLayoutSaveBtn = document.getElementById("clienteLayoutSaveBtn");
+const clienteLayoutResetBtn = document.getElementById("clienteLayoutResetBtn");
 const cadClienteClearBtn = document.getElementById("cadClienteClearBtn");
 const cadClienteUpdateBtn = document.getElementById("cadClienteUpdateBtn");
 const cadClienteCancelBtn = document.getElementById("cadClienteCancelBtn");
@@ -182,9 +216,16 @@ const veiculoCadastroForm = document.getElementById("veiculoCadastroForm");
 const locacaoCadastroForm = document.getElementById("locacaoCadastroForm");
 const cadLocacaoCpfInput = document.getElementById("cadLocacaoCpf");
 const cadLocacaoPlacaInput = document.getElementById("cadLocacaoPlaca");
+const cadLocacaoPlacaSugestoes = document.getElementById("cadLocacaoPlacaSugestoes");
+const cadLocacaoClienteNomeInput = document.getElementById("cadLocacaoClienteNome");
+const cadLocacaoCpfSugestoes = document.getElementById("cadLocacaoCpfSugestoes");
+const cadLocacaoClienteNomeSugestoes = document.getElementById("cadLocacaoClienteNomeSugestoes");
 const cadLocacaoInicioInput = document.getElementById("cadLocacaoInicio");
 const cadLocacaoFimInput = document.getElementById("cadLocacaoFim");
 const cadLocacaoValorInput = document.getElementById("cadLocacaoValor");
+const cadLocacaoInvestimentoInput = document.getElementById("cadLocacaoInvestimento");
+const cadLocacaoPlanoInputs = document.querySelectorAll('input[name="cadLocacaoPlano"]');
+const cadLocacaoContratoInput = document.getElementById("cadLocacaoContrato");
 const locacaoSubmitButton = locacaoCadastroForm.querySelector('button[type="submit"]');
 const cadLocacaoClearBtn = document.getElementById("cadLocacaoClearBtn");
 const lancamentoAluguelForm = document.getElementById("lancamentoAluguelForm");
@@ -192,6 +233,7 @@ const lancAluguelClienteNomeInput = document.getElementById("lancAluguelClienteN
 const lancAluguelClienteSugestoes = document.getElementById("lancAluguelClienteSugestoes");
 const lancAluguelPlacaInput = document.getElementById("lancAluguelPlaca");
 const lancAluguelCpfInput = document.getElementById("lancAluguelCpf");
+const lancAluguelNumeroContratoInput = document.getElementById("lancAluguelNumeroContrato");
 const lancAluguelDiaPagamentoInput = document.getElementById("lancAluguelDiaPagamento");
 const lancAluguelValorPagoInput = document.getElementById("lancAluguelValorPago");
 const lancAluguelSemanaInicioInput = document.getElementById("lancAluguelSemanaInicio");
@@ -261,6 +303,8 @@ const dadosUsoSenhaWrap = document.getElementById("dadosUsoSenhaWrap");
 const dadosUsoAdminSenha = document.getElementById("dadosUsoAdminSenha");
 const dadosUsoSenhaConfirmarBtn = document.getElementById("dadosUsoSenhaConfirmarBtn");
 const dadosUsoSenhaCancelarBtn = document.getElementById("dadosUsoSenhaCancelarBtn");
+const clienteAreaQrImg = document.getElementById("clienteAreaQrImg");
+const enviarQrWhatsappBtn = document.getElementById("enviarQrWhatsappBtn");
 const gerarRelatorioClienteBtn = document.getElementById("gerarRelatorioClienteBtn");
 const relatorioClienteOpcoes = document.getElementById("relatorioClienteOpcoes");
 const relatorioClientePdfBtn = document.getElementById("relatorioClientePdfBtn");
@@ -363,12 +407,14 @@ let clienteAcaoSenhaPendente = "";
 let clienteCancelMotivoPendente = "";
 let locacaoImpedimentoAlertShown = false;
 let operacaoAbaAtual = "cliente";
+let adminDadosAbaAtual = "dadosUso";
 /** CPF em edicao na tela de funcionario (null = modo cadastro novo). */
 let funcionarioEdicaoCpf = null;
 let informacaoEscopoAtual = "";
 let currentAdminReportSaldo = null;
 let currentQuadroGeralRows = [];
 const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
+const CAD_CLIENTES_VALIDACAO_KEY = "dk_clientes_validacao_pendente";
 const CAD_VEICULOS_KEY = "dk_veiculos_cadastro";
 const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
@@ -383,6 +429,7 @@ const CAD_COMPROVANTES_BANCO_KEY = "dk_comprovantes_banco";
 const AUDIT_LOG_KEY = "dk_audit_log";
 const BACKUP_KEYS = [
   CAD_CLIENTES_KEY,
+  CAD_CLIENTES_VALIDACAO_KEY,
   CAD_VEICULOS_KEY,
   CAD_LOCACOES_KEY,
   LOCACAO_DATABASE_KEY,
@@ -395,6 +442,13 @@ const BACKUP_KEYS = [
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
 const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
+/** Migração única: zera toda a pilha operacional de locação/lançamentos; mantém clientes e veículos. */
+const RESET_LOCACAO_STACK_SITE_V2_KEY = "dk_reset_locacao_stack_site_v2";
+const LEGACY_LANCAMENTO_KEYS = [
+  "dk_lancamento_aluguel",
+  "dk_lancamentos_aluguel_cadastro",
+  "dk_lancamento_aluguel_cadastro",
+];
 const SENHA_INICIAL_OPERACAO = "123456";
 const EMPRESA_RELATORIO = "DK Locadora";
 const CNPJ_RELATORIO = "59.665.734/0001-32";
@@ -434,6 +488,10 @@ let funcLayoutEditMode = false;
 let funcLayoutDragState = null;
 let funcLayoutResizeObserver = null;
 const FUNC_LAYOUT_KEY = "dk_funcionario_form_layout_v1";
+let clienteLayoutEditMode = false;
+let clienteLayoutDragState = null;
+let clienteLayoutResizeObserver = null;
+const CLIENTE_LAYOUT_KEY = "dk_cliente_form_layout_v2";
 
 function showGroupHome() {
   grupoHome.classList.remove("hidden");
@@ -831,6 +889,189 @@ function bindFuncionarioLayoutEditorEvents() {
   };
   funcionarioCadastroForm.addEventListener("pointerup", finish);
   funcionarioCadastroForm.addEventListener("pointercancel", finish);
+}
+
+function getClienteLayoutBoxesArray() {
+  if (!clienteCadastroForm) return [];
+  return Array.from(clienteCadastroForm.querySelectorAll("[data-cliente-layout-box]"));
+}
+
+function ensureClienteLayoutBoxAttributes() {
+  if (!clienteCadastroForm) return;
+  Array.from(clienteCadastroForm.children).forEach((el, idx) => {
+    if (!(el instanceof HTMLElement)) return;
+    const tag = el.tagName;
+    if (!["INPUT", "SELECT", "DIV", "P", "BUTTON"].includes(tag)) return;
+    if (tag === "INPUT" && el.type === "checkbox") return;
+    if (!el.dataset.clienteLayoutBox) {
+      el.dataset.clienteLayoutBox = el.id || `clienteItem${idx + 1}`;
+    }
+  });
+}
+
+function setClienteLayoutToolbarState() {
+  if (!clienteLayoutEditToggleBtn) return;
+  clienteLayoutEditToggleBtn.textContent = clienteLayoutEditMode ? "Sair edição" : "Editar caixas";
+}
+
+function collectClienteLayout() {
+  if (!clienteCadastroForm) return {};
+  const boxes = getClienteLayoutBoxesArray();
+  const formRect = clienteCadastroForm.getBoundingClientRect();
+  const layout = {};
+  boxes.forEach((el) => {
+    const key = String(el.dataset.clienteLayoutBox || "");
+    if (!key) return;
+    const rect = el.getBoundingClientRect();
+    layout[key] = {
+      left: Math.max(0, Math.round(rect.left - formRect.left)),
+      top: Math.max(0, Math.round(rect.top - formRect.top)),
+      width: Math.max(160, Math.round(rect.width)),
+      height: Math.max(42, Math.round(rect.height)),
+    };
+  });
+  return layout;
+}
+
+function computeClienteLayoutMinHeight(layout) {
+  let maxBottom = 0;
+  Object.values(layout || {}).forEach((item) => {
+    if (!item) return;
+    const bottom = Number(item.top || 0) + Number(item.height || 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  return Math.max(320, Math.ceil(maxBottom + 16));
+}
+
+function applyClienteLayout(layoutInput) {
+  if (!clienteCadastroForm) return;
+  ensureClienteLayoutBoxAttributes();
+  const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+  const boxes = getClienteLayoutBoxesArray();
+  clienteCadastroForm.classList.add("cliente-custom-layout");
+  boxes.forEach((el) => {
+    const key = String(el.dataset.clienteLayoutBox || "");
+    const box = layout[key];
+    if (!box) return;
+    el.style.left = `${Math.max(0, Number(box.left || 0))}px`;
+    el.style.top = `${Math.max(0, Number(box.top || 0))}px`;
+    el.style.width = `${Math.max(160, Number(box.width || 160))}px`;
+    el.style.height = `${Math.max(42, Number(box.height || 42))}px`;
+  });
+  clienteCadastroForm.style.minHeight = `${computeClienteLayoutMinHeight(layout)}px`;
+}
+
+function clearClienteLayoutInlineStyles() {
+  if (!clienteCadastroForm) return;
+  const boxes = getClienteLayoutBoxesArray();
+  boxes.forEach((el) => {
+    el.style.left = "";
+    el.style.top = "";
+    el.style.width = "";
+    el.style.height = "";
+  });
+  clienteCadastroForm.classList.remove("cliente-custom-layout", "layout-edit-mode");
+  clienteCadastroForm.style.minHeight = "";
+}
+
+function bootstrapClienteLayoutFromStorage() {
+  if (!clienteCadastroForm) return;
+  const raw = localStorage.getItem(CLIENTE_LAYOUT_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    applyClienteLayout(parsed);
+  } catch {
+    // Ignora layout inválido no storage.
+  }
+}
+
+function persistClienteLayoutFromScreen() {
+  const layout = collectClienteLayout();
+  localStorage.setItem(CLIENTE_LAYOUT_KEY, JSON.stringify(layout));
+  applyClienteLayout(layout);
+}
+
+function startClienteLayoutEdit() {
+  if (!clienteCadastroForm) return;
+  ensureClienteLayoutBoxAttributes();
+  if (!clienteCadastroForm.classList.contains("cliente-custom-layout")) {
+    applyClienteLayout(collectClienteLayout());
+  }
+  clienteLayoutEditMode = true;
+  clienteCadastroForm.classList.add("layout-edit-mode");
+  setClienteLayoutToolbarState();
+}
+
+function stopClienteLayoutEdit() {
+  clienteLayoutEditMode = false;
+  clienteLayoutDragState = null;
+  clienteCadastroForm?.classList.remove("layout-edit-mode");
+  setClienteLayoutToolbarState();
+}
+
+function bindClienteLayoutEditorEvents() {
+  if (!clienteCadastroForm || clienteLayoutResizeObserver) return;
+  ensureClienteLayoutBoxAttributes();
+
+  clienteLayoutResizeObserver = new ResizeObserver(() => {
+    if (!clienteLayoutEditMode || !clienteCadastroForm) return;
+    const layout = collectClienteLayout();
+    clienteCadastroForm.style.minHeight = `${computeClienteLayoutMinHeight(layout)}px`;
+  });
+  getClienteLayoutBoxesArray().forEach((el) => clienteLayoutResizeObserver.observe(el));
+
+  clienteCadastroForm.addEventListener("pointerdown", (event) => {
+    if (!clienteLayoutEditMode || (!event.altKey && !event.shiftKey)) return;
+    const node = event.target instanceof Element ? event.target : null;
+    const box = node?.closest("[data-cliente-layout-box]");
+    if (!box || !(box instanceof HTMLElement)) return;
+    const rect = box.getBoundingClientRect();
+    const mode = event.shiftKey ? "resize" : "move";
+    clienteLayoutDragState = {
+      mode,
+      box,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: parseFloat(box.style.left || "0") || 0,
+      originTop: parseFloat(box.style.top || "0") || 0,
+      boxWidth: rect.width,
+      boxHeight: rect.height,
+    };
+    box.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  clienteCadastroForm.addEventListener("pointermove", (event) => {
+    if (!clienteLayoutDragState || clienteLayoutDragState.pointerId !== event.pointerId || !clienteCadastroForm) return;
+    const dx = event.clientX - clienteLayoutDragState.startX;
+    const dy = event.clientY - clienteLayoutDragState.startY;
+    if (clienteLayoutDragState.mode === "resize") {
+      const maxWidth = Math.max(160, clienteCadastroForm.clientWidth - clienteLayoutDragState.originLeft);
+      const nextWidth = Math.max(160, Math.min(maxWidth, clienteLayoutDragState.boxWidth + dx));
+      const nextHeight = Math.max(42, clienteLayoutDragState.boxHeight + dy);
+      clienteLayoutDragState.box.style.width = `${Math.round(nextWidth)}px`;
+      clienteLayoutDragState.box.style.height = `${Math.round(nextHeight)}px`;
+    } else {
+      const maxLeft = Math.max(0, clienteCadastroForm.clientWidth - clienteLayoutDragState.boxWidth);
+      const nextLeft = Math.max(0, Math.min(maxLeft, clienteLayoutDragState.originLeft + dx));
+      const nextTop = Math.max(0, clienteLayoutDragState.originTop + dy);
+      clienteLayoutDragState.box.style.left = `${Math.round(nextLeft)}px`;
+      clienteLayoutDragState.box.style.top = `${Math.round(nextTop)}px`;
+    }
+    const layout = collectClienteLayout();
+    clienteCadastroForm.style.minHeight = `${computeClienteLayoutMinHeight(layout)}px`;
+  });
+
+  const finish = (event) => {
+    if (!clienteLayoutDragState) return;
+    if (event && clienteLayoutDragState.pointerId !== event.pointerId) return;
+    clienteLayoutDragState = null;
+  };
+  clienteCadastroForm.addEventListener("pointerup", finish);
+  clienteCadastroForm.addEventListener("pointercancel", finish);
 }
 
 function buildFullOperacaoAccess() {
@@ -1247,6 +1488,36 @@ function setAdminSection(section) {
   adminDadosSection.classList.toggle("hidden", !isDados);
   if (adminOperacaoMenu) adminOperacaoMenu.classList.toggle("hidden", !isOperacao);
   if (adminInformacaoMenu) adminInformacaoMenu.classList.toggle("hidden", !isInformacao);
+  if (adminNavOperacao) adminNavOperacao.classList.toggle("active", isOperacao);
+  if (adminNavInformacao) adminNavInformacao.classList.toggle("active", isInformacao);
+  if (adminNavDados) adminNavDados.classList.toggle("active", isDados);
+  if (!isDados) {
+    if (adminDadosUsoBtn) adminDadosUsoBtn.classList.remove("active");
+    if (adminValidacaoCadastroBtn) adminValidacaoCadastroBtn.classList.remove("active");
+  } else {
+    setAdminDadosSubsection(adminDadosAbaAtual || "dadosUso");
+  }
+}
+
+function toggleAdminSection(section) {
+  const isOperacaoOpen =
+    section === "operacao" &&
+    adminOperacaoSection &&
+    !adminOperacaoSection.classList.contains("hidden");
+  const isInformacaoOpen =
+    section === "informacao" &&
+    adminInformacaoSection &&
+    !adminInformacaoSection.classList.contains("hidden");
+  const isDadosOpen =
+    section === "dados" &&
+    adminDadosSection &&
+    !adminDadosSection.classList.contains("hidden");
+  if (isOperacaoOpen || isInformacaoOpen || isDadosOpen) {
+    setAdminSection("");
+    return false;
+  }
+  setAdminSection(section);
+  return true;
 }
 
 function setOperacaoSubsection(target) {
@@ -1315,6 +1586,18 @@ function setInformacaoScope(scope) {
       </div>
     `;
     renderAdminResult("Caixa", html);
+  }
+}
+
+function setAdminDadosSubsection(target) {
+  adminDadosAbaAtual = target === "validacaoCadastro" ? "validacaoCadastro" : "dadosUso";
+  if (adminDadosUsoSection) adminDadosUsoSection.classList.toggle("hidden", adminDadosAbaAtual !== "dadosUso");
+  if (adminValidacaoCadastroSection) {
+    adminValidacaoCadastroSection.classList.toggle("hidden", adminDadosAbaAtual !== "validacaoCadastro");
+  }
+  if (adminDadosUsoBtn) adminDadosUsoBtn.classList.toggle("active", adminDadosAbaAtual === "dadosUso");
+  if (adminValidacaoCadastroBtn) {
+    adminValidacaoCadastroBtn.classList.toggle("active", adminDadosAbaAtual === "validacaoCadastro");
   }
 }
 
@@ -1401,13 +1684,14 @@ function applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ymKey, slots) 
   });
 }
 
-/** Pago vindo do registro (planilha) + soma dos lançamentos de aluguel do app (mesmo CPF/placa). */
-function totalPagoBarComLancamentosApp(cpfDigits, placaRaw, pagoRegistro) {
+/** Pago vindo do registro (planilha) + soma dos lançamentos de aluguel do app (CPF/placa e, se informado, nº do contrato). */
+function totalPagoBarComLancamentosApp(cpfDigits, placaRaw, pagoRegistro, numeroContratoOpt) {
   const base = parseCurrencyBR(pagoRegistro || 0);
-  const appSum = collectLancamentosFilteredQuadro(onlyDigits(cpfDigits), placaRaw).reduce(
-    (a, l) => a + getLancamentoAluguelValor(l),
-    0
-  );
+  const appSum = collectLancamentosFilteredQuadro(
+    onlyDigits(cpfDigits),
+    placaRaw,
+    numeroContratoOpt
+  ).reduce((a, l) => a + getLancamentoAluguelValor(l), 0);
   return base + appSum;
 }
 
@@ -1476,6 +1760,36 @@ function clearAllLocacoesOnce() {
   localStorage.setItem(CLEAR_LOCACOES_ONCE_KEY, "done");
 }
 
+/**
+ * Zera cadastro de locações, quadro geral, lançamentos de aluguel e dados ligados.
+ * Não altera dk_clientes_cadastro nem dk_veiculos_cadastro.
+ * Impede reimportação automática da planilha (locacoes-seed) neste navegador.
+ */
+function resetLocacaoStackForSiteEntryOnce() {
+  if (localStorage.getItem(RESET_LOCACAO_STACK_SITE_V2_KEY) === "done") return;
+
+  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(LOCACAO_DATABASE_KEY, []);
+  saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, []);
+  saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, []);
+  saveComprovantesBancoMap({});
+  localStorage.removeItem(DAILY_RECON_KEY);
+  LEGACY_LANCAMENTO_KEYS.forEach((k) => localStorage.removeItem(k));
+  localStorage.setItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY, "done");
+
+  try {
+    addAuditLog(
+      "reset_stack",
+      "locacao",
+      "Migracao site v2: base de locacao e lancamentos zerada; cadastrar locacoes e lancamentos pelo site."
+    );
+  } catch {
+    // ignorar se auditoria indisponivel no bootstrap
+  }
+
+  localStorage.setItem(RESET_LOCACAO_STACK_SITE_V2_KEY, "done");
+}
+
 function getCurrentUserLabel() {
   const session = getSession();
   if (!session) return "Sistema";
@@ -1533,7 +1847,212 @@ function findClienteByCpfCadastro(cpf) {
   return clientes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
 }
 
+function findClientePendenteValidacaoByCpf(cpf) {
+  const normalized = onlyDigits(String(cpf || ""));
+  if (!normalized) return null;
+  const pendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
+  return pendentes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
+}
+
+function enqueueClienteParaValidacao(payload, sourceLabel) {
+  const cpf = onlyDigits(String(payload?.cpf || ""));
+  const nome = String(payload?.nome || "").trim();
+  if (cpf.length !== 11 || !nome) {
+    return { ok: false, message: "PREENCHA NOME E CPF VALIDOS PARA ENVIAR PARA AVALIACAO." };
+  }
+  if (findClienteByCpfCadastro(cpf)) {
+    return { ok: false, message: "CPF JA CADASTRADO NA BASE PRINCIPAL." };
+  }
+  if (findClientePendenteValidacaoByCpf(cpf)) {
+    return { ok: false, message: "ESTE CPF JA ESTA PENDENTE NA VALIDACAO DE CADASTRO." };
+  }
+  const pendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
+  const novoPendente = {
+    ...payload,
+    id: Date.now(),
+    createdAt: Date.now(),
+    cpf,
+    nome,
+    status: "PENDENTE_VALIDACAO",
+  };
+  pendentes.push(novoPendente);
+  saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, pendentes);
+  addAuditLog(
+    "enviar_cliente_validacao",
+    "cliente_validacao",
+    `${nome} - CPF ${formatCpf(cpf)}${sourceLabel ? ` - origem ${sourceLabel}` : ""}`
+  );
+  return { ok: true };
+}
+
+function upsertClienteCadastroByCpf(payload, status) {
+  const cpf = onlyDigits(String(payload?.cpf || ""));
+  if (cpf.length !== 11) return false;
+  const clientes = loadCadastro(CAD_CLIENTES_KEY);
+  const idx = clientes.findIndex((c) => onlyDigits(String(c.cpf || "")) === cpf);
+  const base = {
+    ...payload,
+    cpf,
+    status: status || payload?.status || "ATIVO",
+  };
+  if (idx >= 0) clientes[idx] = { ...clientes[idx], ...base };
+  else clientes.push({ ...base, id: Number(payload?.id || Date.now()) });
+  saveCadastro(CAD_CLIENTES_KEY, clientes);
+  return true;
+}
+
+let clienteCepLookupSeq = 0;
+
+function formatCepMask(value) {
+  const digits = onlyDigits(String(value || "")).slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+function setCadClienteCepStatus(message, type = "") {
+  if (!cadClienteCepStatus) return;
+  cadClienteCepStatus.textContent = String(message || "");
+  cadClienteCepStatus.classList.remove("hidden", "error", "success");
+  if (!message) {
+    cadClienteCepStatus.classList.add("hidden");
+    return;
+  }
+  if (type === "error") cadClienteCepStatus.classList.add("error");
+  if (type === "success") cadClienteCepStatus.classList.add("success");
+}
+
+function setPublicCadCepStatus(message, type = "") {
+  if (!publicCadClienteCepStatus) return;
+  publicCadClienteCepStatus.textContent = String(message || "");
+  publicCadClienteCepStatus.classList.remove("hidden", "error", "success");
+  if (!message) {
+    publicCadClienteCepStatus.classList.add("hidden");
+    return;
+  }
+  if (type === "error") publicCadClienteCepStatus.classList.add("error");
+  if (type === "success") publicCadClienteCepStatus.classList.add("success");
+}
+
+function setClienteEnderecoConfirmado(confirmed) {
+  if (!clienteCadastroForm) return;
+  clienteCadastroForm.dataset.enderecoConfirmado = confirmed ? "1" : "0";
+  if (cadClienteConfirmEnderecoBtn) {
+    cadClienteConfirmEnderecoBtn.classList.toggle("active", confirmed);
+  }
+}
+
+function invalidateClienteEnderecoConfirmacao() {
+  setClienteEnderecoConfirmado(false);
+}
+
+function setPublicClienteEnderecoConfirmado(confirmed) {
+  if (!clientePublicoCadastroForm) return;
+  clientePublicoCadastroForm.dataset.enderecoConfirmado = confirmed ? "1" : "0";
+  if (publicCadClienteConfirmEnderecoBtn) {
+    publicCadClienteConfirmEnderecoBtn.classList.toggle("active", confirmed);
+  }
+}
+
+async function buscarEnderecoPublicoPorCep(force = false) {
+  if (!publicCadClienteCep || !publicCadClienteMunicipioUf || !publicCadClienteEndereco) return;
+  const cepDigits = onlyDigits(String(publicCadClienteCep.value || ""));
+  publicCadClienteCep.value = formatCepMask(cepDigits);
+  if (cepDigits.length !== 8) {
+    setPublicCadCepStatus("");
+    return;
+  }
+  if (!force && publicCadClienteCep.dataset.lastLookupCep === cepDigits) return;
+  publicCadClienteCep.dataset.lastLookupCep = cepDigits;
+  setPublicCadCepStatus("🔎 Buscando CEP...", "");
+  try {
+    const resp = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+    if (!resp.ok) throw new Error("CEP lookup HTTP error");
+    const data = await resp.json();
+    if (data?.erro) {
+      setPublicCadCepStatus("⚠️ CEP não encontrado. Preencha manualmente.", "error");
+      return;
+    }
+    const cidade = String(data.localidade || "").trim();
+    const uf = String(data.uf || "").trim();
+    const logradouro = String(data.logradouro || "").trim();
+    const bairro = String(data.bairro || "").trim();
+    if (cidade && uf) publicCadClienteMunicipioUf.value = `${cidade}/${uf}`;
+    const prefixo = [logradouro, bairro].filter(Boolean).join(" - ").trim();
+    if (prefixo) publicCadClienteEndereco.value = prefixo;
+    setPublicCadCepStatus("✅ CEP encontrado. Confira e complete número/complemento.", "success");
+    setPublicClienteEnderecoConfirmado(false);
+  } catch {
+    setPublicCadCepStatus("⚠️ Não foi possível consultar o CEP agora.", "error");
+  }
+}
+
+async function buscarEnderecoClientePorCep(force = false) {
+  if (!cadClienteCepInput || !cadClienteMunicipioUfInput || !cadClienteEnderecoInput) return;
+  const cepDigits = onlyDigits(String(cadClienteCepInput.value || ""));
+  cadClienteCepInput.value = formatCepMask(cepDigits);
+  if (cepDigits.length !== 8) {
+    setCadClienteCepStatus("");
+    return;
+  }
+  if (!force && cadClienteCepInput.dataset.lastLookupCep === cepDigits) return;
+  const lookupSeq = ++clienteCepLookupSeq;
+  cadClienteCepInput.dataset.lastLookupCep = cepDigits;
+  setCadClienteCepStatus("🔎 Buscando CEP...", "");
+  const originalMunicipio = String(cadClienteMunicipioUfInput.value || "").trim();
+  const originalEndereco = String(cadClienteEnderecoInput.value || "").trim();
+  try {
+    const resp = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+    if (!resp.ok) throw new Error("CEP lookup HTTP error");
+    const data = await resp.json();
+    if (lookupSeq !== clienteCepLookupSeq) return;
+    if (data?.erro) {
+      setCadClienteCepStatus(
+        "⚠️ CEP não encontrado. Preencha endereço, cidade e estado manualmente.",
+        "error"
+      );
+      return;
+    }
+    const cidade = String(data.localidade || "").trim();
+    const uf = String(data.uf || "").trim();
+    const logradouro = String(data.logradouro || "").trim();
+    const bairro = String(data.bairro || "").trim();
+    if (cidade && uf) {
+      cadClienteMunicipioUfInput.value = `${cidade}/${uf}`;
+    } else if (!originalMunicipio && cidade) {
+      cadClienteMunicipioUfInput.value = cidade;
+    }
+    const prefixo = [logradouro, bairro].filter(Boolean).join(" - ").trim();
+    if (prefixo) {
+      if (!originalEndereco || originalEndereco === cadClienteEnderecoInput.dataset.autoEnderecoBase) {
+        cadClienteEnderecoInput.value = prefixo;
+      }
+      cadClienteEnderecoInput.dataset.autoEnderecoBase = prefixo;
+    }
+    setCadClienteCepStatus(
+      "✅ CEP encontrado. Confira e complete número/complemento no endereço.",
+      "success"
+    );
+    invalidateClienteEnderecoConfirmacao();
+  } catch {
+    // Falha de rede/serviço: mantém preenchimento manual sem bloquear o cadastro.
+    setCadClienteCepStatus(
+      "⚠️ Não foi possível consultar o CEP agora. Você pode preencher manualmente.",
+      "error"
+    );
+  }
+}
+
 function preencherFormCliente(cliente) {
+  const enderecoRaw = String(cliente.endereco || "").trim();
+  const enderecoBase =
+    String(cliente.enderecoBase || "").trim() || enderecoRaw.split(",")[0]?.trim() || "";
+  const complemento =
+    String(cliente.complemento || "").trim() ||
+    enderecoRaw
+      .split(",")
+      .slice(1)
+      .join(",")
+      .trim();
   document.getElementById("cadClienteCodigo").value = cliente.codigo || "";
   document.getElementById("cadClienteDataCadastro").value = cliente.dataCadastro || "";
   document.getElementById("cadClienteCpf").value = formatCpf(cliente.cpf || "");
@@ -1545,9 +2064,18 @@ function preencherFormCliente(cliente) {
   document.getElementById("cadClienteCategoria").value = cliente.categoria || "";
   document.getElementById("cadClienteVencimento").value = cliente.vencimento || "";
   document.getElementById("cadClienteEar").value = cliente.ear || "";
-  document.getElementById("cadClienteCep").value = cliente.cep || "";
+  document.getElementById("cadClienteCep").value = formatCepMask(cliente.cep || "");
   document.getElementById("cadClienteMunicipioUf").value = cliente.municipioUf || "";
-  document.getElementById("cadClienteEndereco").value = cliente.endereco || "";
+  document.getElementById("cadClienteEndereco").value = enderecoBase;
+  if (cadClienteComplementoInput) cadClienteComplementoInput.value = complemento;
+  if (cadClienteCepInput) {
+    cadClienteCepInput.dataset.lastLookupCep = onlyDigits(String(cliente.cep || ""));
+  }
+  if (cadClienteEnderecoInput) {
+    cadClienteEnderecoInput.dataset.autoEnderecoBase = "";
+  }
+  setCadClienteCepStatus("");
+  setClienteEnderecoConfirmado(true);
 }
 
 function entrarModoAtualizacaoCliente(cliente) {
@@ -1630,7 +2158,62 @@ function setLocacaoFormBlocked(blocked) {
   cadLocacaoInicioInput.disabled = blocked;
   cadLocacaoFimInput.disabled = blocked;
   cadLocacaoValorInput.disabled = blocked;
+  if (cadLocacaoInvestimentoInput) cadLocacaoInvestimentoInput.disabled = blocked;
+  cadLocacaoPlanoInputs.forEach((inp) => {
+    inp.disabled = blocked;
+  });
+  if (cadLocacaoContratoInput) cadLocacaoContratoInput.disabled = blocked;
   if (locacaoSubmitButton) locacaoSubmitButton.disabled = blocked;
+  if (!blocked) {
+    applyLocacaoPlanoRules();
+  }
+}
+
+function getLocacaoPlanoSelecionado() {
+  const checked = Array.from(cadLocacaoPlanoInputs).find((inp) => inp.checked);
+  const plano = String(checked?.value || "").trim().toUpperCase();
+  return plano === "DK MEU TRANSPORTE" ? "DK MEU TRANSPORTE" : "DK MINHA MOTO";
+}
+
+function addCalendarMonths(date, months) {
+  const d = toDateOnly(date);
+  if (!d) return null;
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const originalDay = x.getDate();
+  x.setDate(1);
+  x.setMonth(x.getMonth() + months);
+  const lastDay = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+  x.setDate(Math.min(originalDay, lastDay));
+  return x;
+}
+
+function formatLocacaoCurrencyInput(inputEl) {
+  if (!inputEl) return;
+  const n = parseCurrencyBR(String(inputEl.value || ""));
+  inputEl.value = n > 0 ? currencyBRL(n) : "";
+}
+
+function recomputeLocacaoFimByPlano() {
+  if (!cadLocacaoInicioInput || !cadLocacaoFimInput) return;
+  const inicio = parseBrDate(String(cadLocacaoInicioInput.value || "").trim());
+  if (!inicio) return;
+  const plano = getLocacaoPlanoSelecionado();
+  const fim =
+    plano === "DK MINHA MOTO" ? addCalendarDays(inicio, 150 * 7) : addCalendarMonths(inicio, 1);
+  if (fim) cadLocacaoFimInput.value = formatDataDmaBr(fim);
+}
+
+function applyLocacaoPlanoRules() {
+  const plano = getLocacaoPlanoSelecionado();
+  if (cadLocacaoInvestimentoInput) {
+    const bloquearInvestimento = plano === "DK MEU TRANSPORTE";
+    const formBloqueado = Boolean(locacaoSubmitButton?.disabled);
+    cadLocacaoInvestimentoInput.disabled = formBloqueado || bloquearInvestimento;
+    if (bloquearInvestimento) {
+      cadLocacaoInvestimentoInput.value = currencyBRL(0);
+    }
+  }
+  recomputeLocacaoFimByPlano();
 }
 
 function validateLocacaoCpfBlock() {
@@ -1651,7 +2234,7 @@ function validateLocacaoCpfBlock() {
 }
 
 function refreshLocacaoPlacaOptions() {
-  if (!cadLocacaoPlacaInput) return;
+  if (!cadLocacaoPlacaInput || !cadLocacaoPlacaSugestoes) return;
   const snapshot = buildOperationalSnapshot();
   const options = snapshot.availableVehicles
     .map((v) => {
@@ -1661,16 +2244,46 @@ function refreshLocacaoPlacaOptions() {
     })
     .filter((v) => v.placa);
   const previousValue = String(cadLocacaoPlacaInput.value || "").trim().toUpperCase();
-  cadLocacaoPlacaInput.innerHTML = `
-    <option value="">Placa do veículo (disponíveis)</option>
-    ${options
-      .map((v) => `<option value="${v.placa}">${v.placa} - ${v.modelo}</option>`)
-      .join("")}
-  `;
-  const exists = options.some((v) => v.placa === previousValue);
-  if (exists) {
-    cadLocacaoPlacaInput.value = previousValue;
+  cadLocacaoPlacaSugestoes.innerHTML = options
+    .map((v) => `<option value="${v.placa}" label="${escapeHtml(v.modelo)}"></option>`)
+    .join("");
+  cadLocacaoPlacaInput.value = previousValue;
+}
+
+function refreshLocacaoClienteSugestoes() {
+  const candidatos = getLancamentoClienteCandidates().slice(0, 200);
+  if (cadLocacaoCpfSugestoes) {
+    cadLocacaoCpfSugestoes.innerHTML = candidatos
+      .map(
+        (c) =>
+          `<option value="${formatCpf(c.cpf)}" label="${escapeHtml(String(c.nome || "").trim())}"></option>`
+      )
+      .join("");
   }
+  if (cadLocacaoClienteNomeSugestoes) {
+    cadLocacaoClienteNomeSugestoes.innerHTML = candidatos
+      .map((c) => `<option value="${escapeHtml(String(c.nome || "").trim())}" label="${formatCpf(c.cpf)}"></option>`)
+      .join("");
+  }
+}
+
+function applyLocacaoClienteByCpf(cpfRaw) {
+  const cpf = onlyDigits(String(cpfRaw || ""));
+  if (cpf.length !== 11) return;
+  const cli = findClienteByCpfCadastro(cpf);
+  if (!cli || !cadLocacaoClienteNomeInput) return;
+  cadLocacaoClienteNomeInput.value = String(cli.nome || "").trim();
+}
+
+function applyLocacaoClienteByNome(nomeRaw) {
+  const nome = normalizeName(String(nomeRaw || ""));
+  if (!nome) return;
+  const match = getLancamentoClienteCandidates().find(
+    (c) => normalizeName(String(c.nome || "")) === nome
+  );
+  if (!match) return;
+  if (cadLocacaoCpfInput) cadLocacaoCpfInput.value = formatCpf(match.cpf);
+  validateLocacaoCpfBlock();
 }
 
 function normalizeKey(value) {
@@ -1970,6 +2583,7 @@ function askClienteCadastroConfirmation(payload) {
     <p><strong>EAR:</strong> ${payload.ear || "-"}</p>
     <p><strong>CEP:</strong> ${payload.cep || "-"}</p>
     <p><strong>Município/UF:</strong> ${payload.municipioUf || "-"}</p>
+    <p><strong>Complemento:</strong> ${payload.complemento || "-"}</p>
     <p><strong>Endereço:</strong> ${payload.endereco || "-"}</p>
   `;
   clienteConfirmDialog.classList.remove("hidden");
@@ -1999,10 +2613,14 @@ function askLocacaoCadastroConfirmation(payload) {
   locacaoConfirmResumo.innerHTML = `
     <p><strong>CPF:</strong> ${formatCpf(payload.cpf || "") || "-"}</p>
     <p><strong>Cliente:</strong> ${payload.clienteNome || "-"}</p>
+    <p><strong>Nº contrato:</strong> ${escapeHtml(String(payload.numeroContrato || "").trim() || "—")}</p>
+    <p><strong>Plano:</strong> ${escapeHtml(String(payload.plano || "-"))}</p>
     <p><strong>Placa:</strong> ${payload.placa || "-"}</p>
     <p><strong>Modelo:</strong> ${payload.modelo || "-"}</p>
     <p><strong>Início:</strong> ${payload.inicio || "-"}</p>
     <p><strong>Fim:</strong> ${payload.fim || "-"}</p>
+    <p><strong>Caixa 01 (locação):</strong> ${payload.valorLocacao || "-"}</p>
+    <p><strong>Caixa 02 (investimento):</strong> ${payload.valorInvestimento || "-"}</p>
     <p><strong>Valor semanal:</strong> ${payload.valorSemanal || "-"}</p>
   `;
   locacaoConfirmDialog.classList.remove("hidden");
@@ -2029,8 +2647,10 @@ function askLancamentoAluguelConfirmation(payload) {
   ) {
     return Promise.resolve(true);
   }
+  const ncConf = normalizeNumeroContratoKey(payload.numeroContrato || "");
   lancamentoAluguelConfirmResumo.innerHTML = `
     <p><strong>Código:</strong> ${payload.codigoLancamento || "-"}</p>
+    <p><strong>Nº contrato:</strong> ${ncConf ? escapeHtml(ncConf) : "-"}</p>
     <p><strong>Placa:</strong> ${payload.placa || "-"}</p>
     <p><strong>CPF:</strong> ${formatCpf(payload.cpf || "") || "-"}</p>
     <p><strong>Dia de pagamento:</strong> ${payload.diaPagamento || "-"}</p>
@@ -2263,35 +2883,47 @@ function prefillLancamentoAluguelByCpf(cpfDigits) {
   }
 }
 
-function findBestContratoForLancamentoByCpf(cpfDigits) {
+function findBestContratoForLancamentoByCpf(cpfDigits, numeroContratoOpt) {
   const cpf = onlyDigits(String(cpfDigits || ""));
+  const nc = normalizeNumeroContratoKey(numeroContratoOpt || "");
   if (cpf.length !== 11) return null;
   const adminMatches = getAdminDataset().filter((r) => onlyDigits(String(r.cpf || "")) === cpf);
-  if (adminMatches.length) {
+  if (adminMatches.length && !nc) {
     const ativo = adminMatches.find((r) => !String(r.fim || "").trim());
     if (ativo) return ativo;
     return adminMatches
       .slice()
       .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
   }
-  const locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
+  let locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
+  if (nc) {
+    const porNc = locMatches.filter((l) => normalizeNumeroContratoKey(l.numeroContrato) === nc);
+    if (porNc.length) locMatches = porNc;
+    else return null;
+  }
   if (!locMatches.length) return null;
   const ativoLoc = locMatches.find((l) => !String(l.fim || "").trim());
   return ativoLoc || locMatches[locMatches.length - 1];
 }
 
-function findBestContratoForLancamentoByPlaca(placaRaw) {
+function findBestContratoForLancamentoByPlaca(placaRaw, numeroContratoOpt) {
   const placa = normalizePlate(placaRaw);
+  const nc = normalizeNumeroContratoKey(numeroContratoOpt || "");
   if (!placa) return null;
   const adminMatches = getAdminDataset().filter((r) => normalizePlate(r.placa) === placa);
-  if (adminMatches.length) {
+  if (adminMatches.length && !nc) {
     const ativo = adminMatches.find((r) => !String(r.fim || "").trim());
     if (ativo) return ativo;
     return adminMatches
       .slice()
       .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
   }
-  const locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => normalizePlate(l.placa) === placa);
+  let locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => normalizePlate(l.placa) === placa);
+  if (nc) {
+    const porNc = locMatches.filter((l) => normalizeNumeroContratoKey(l.numeroContrato) === nc);
+    if (porNc.length) locMatches = porNc;
+    else return null;
+  }
   if (!locMatches.length) return null;
   const ativoLoc = locMatches.find((l) => !String(l.fim || "").trim());
   return ativoLoc || locMatches[locMatches.length - 1];
@@ -2336,16 +2968,25 @@ function getDiaPagamentoFromSources(cpfDigits, placaRaw) {
   );
 }
 
+function maybeAutofillNumeroContratoFromContrato(contrato) {
+  if (!lancAluguelNumeroContratoInput || !contrato) return;
+  if (normalizeNumeroContratoKey(lancAluguelNumeroContratoInput.value || "")) return;
+  const nc = normalizeNumeroContratoKey(contrato.numeroContrato || "");
+  if (nc) lancAluguelNumeroContratoInput.value = nc;
+}
+
 function autoFillLancamentoFromCpf(cpfDigits) {
   const cpf = onlyDigits(String(cpfDigits || ""));
   if (cpf.length !== 11) return;
-  const contrato = findBestContratoForLancamentoByCpf(cpf);
+  const ncField = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+  const contrato = findBestContratoForLancamentoByCpf(cpf, ncField || undefined);
   if (!contrato) return;
   const placaAtual = normalizePlate(String(lancAluguelPlacaInput?.value || ""));
   const placaContrato = normalizePlate(String(contrato.placa || ""));
   if (placaContrato && placaAtual !== placaContrato && lancAluguelPlacaInput) {
     lancAluguelPlacaInput.value = placaContrato;
   }
+  maybeAutofillNumeroContratoFromContrato(contrato);
   if (lancAluguelDiaPagamentoInput) {
     const diaContrato =
       normalizeDiaPagamentoSugestao(contrato.diaPagamento) ||
@@ -2359,7 +3000,8 @@ function autoFillLancamentoFromCpf(cpfDigits) {
 function autoFillLancamentoFromPlaca(placaRaw) {
   const placa = normalizePlate(placaRaw);
   if (!placa) return;
-  const contrato = findBestContratoForLancamentoByPlaca(placa);
+  const ncField = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+  const contrato = findBestContratoForLancamentoByPlaca(placa, ncField || undefined);
   if (!contrato) return;
   const cpfAtual = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const cpfContrato = onlyDigits(String(contrato.cpf || ""));
@@ -2367,6 +3009,7 @@ function autoFillLancamentoFromPlaca(placaRaw) {
     lancAluguelCpfInput.value = formatCpf(cpfContrato);
     prefillLancamentoAluguelByCpf(cpfContrato);
   }
+  maybeAutofillNumeroContratoFromContrato(contrato);
   if (lancAluguelDiaPagamentoInput) {
     const diaContrato =
       normalizeDiaPagamentoSugestao(contrato.diaPagamento) ||
@@ -2650,13 +3293,28 @@ function buildLocacoesAtivasParaComprovante() {
       const cpf = onlyDigits(String(l.cpf || ""));
       const placa = normalizePlate(l.placa);
       if (cpf.length !== 11 || !placa) return;
-      const k = `${cpf}|${placa}`;
+      const nc = normalizeNumeroContratoKey(l.numeroContrato || "");
+      const k = nc ? `CT:${nc}` : `${cpf}|${placa}|${l.id || ""}`;
       if (seen.has(k)) return;
       seen.add(k);
       const nome = String(findClienteByCpfCadastro(cpf)?.nome || "").trim() || "Cliente";
-      out.push({ cpf, placa, nome, label: `${nome} — ${placa} — ${formatCpf(cpf)}` });
+      const base = `${nome} — ${placa} — ${formatCpf(cpf)}`;
+      out.push({
+        cpf,
+        placa,
+        nome,
+        numeroContrato: nc,
+        label: nc ? `${base} — Contrato ${nc}` : base,
+      });
     });
   return out.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+}
+
+function comprovanteLocacaoOptionValue(cpf, placa, numeroContratoRaw) {
+  const cpfD = onlyDigits(String(cpf || ""));
+  const placaN = normalizePlate(placa);
+  const nc = normalizeNumeroContratoKey(numeroContratoRaw || "");
+  return `${cpfD}|||${placaN}|||${encodeURIComponent(nc)}`;
 }
 
 function comprovanteNomesDiferentesTerceiro(nomeLocatario, nomePagador) {
@@ -2729,7 +3387,7 @@ function aplicarSugestaoLocacaoPorNomePagador() {
   if (comprovanteModalPlaca) comprovanteModalPlaca.value = best.placa;
   const wrapVis = comprovanteLocacaoWrap && !comprovanteLocacaoWrap.classList.contains("hidden");
   if (wrapVis && comprovanteLocacaoSelect) {
-    const want = `${best.cpf}||${best.placa}`;
+    const want = comprovanteLocacaoOptionValue(best.cpf, best.placa, best.numeroContrato);
     const opt = Array.from(comprovanteLocacaoSelect.options).find((o) => o.value === want);
     if (opt) comprovanteLocacaoSelect.value = want;
   }
@@ -2737,14 +3395,16 @@ function aplicarSugestaoLocacaoPorNomePagador() {
 
 function popularComprovanteLocacaoSelect() {
   if (!comprovanteLocacaoSelect) return;
-  comprovanteLocacaoSelect.innerHTML = '<option value="">Selecione a locação (cliente e placa)</option>';
+  comprovanteLocacaoSelect.innerHTML =
+    '<option value="">Selecione a locação (contrato, cliente e placa)</option>';
   buildLocacoesAtivasParaComprovante().forEach((row) => {
     const o = document.createElement("option");
-    o.value = `${row.cpf}||${row.placa}`;
+    o.value = comprovanteLocacaoOptionValue(row.cpf, row.placa, row.numeroContrato);
     o.textContent = row.label;
     o.dataset.nome = row.nome;
     o.dataset.cpf = row.cpf;
     o.dataset.placa = row.placa;
+    o.dataset.numeroContrato = normalizeNumeroContratoKey(row.numeroContrato || "");
     comprovanteLocacaoSelect.appendChild(o);
   });
 }
@@ -2889,6 +3549,8 @@ async function aplicarComprovanteAoFormulario() {
     cpf = onlyDigits(String(opt?.dataset.cpf || ""));
     placa = normalizePlate(String(opt?.dataset.placa || ""));
     nome = String(opt?.dataset.nome || "").trim();
+    const ncSel = normalizeNumeroContratoKey(opt?.dataset?.numeroContrato || "");
+    if (lancAluguelNumeroContratoInput && ncSel) lancAluguelNumeroContratoInput.value = ncSel;
   } else {
     nome = String(comprovanteModalNome?.value || "").trim();
     cpf = onlyDigits(String(comprovanteModalCpf.value || ""));
@@ -3220,11 +3882,16 @@ function suggestSemanaInicioFromDiaPagamento() {
 function getSuggestedContratoForLancamento() {
   const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const placa = normalizePlate(String(lancAluguelPlacaInput?.value || ""));
+  const nc = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
   if (cpf.length === 11 && placa) {
-    return findContratoForLancamentoResumo(cpf, placa) || findBestContratoForLancamentoByCpf(cpf);
+    return (
+      findContratoForLancamentoResumo(cpf, placa, nc || undefined) ||
+      findBestContratoForLancamentoByCpf(cpf, nc || undefined) ||
+      findBestContratoForLancamentoByPlaca(placa, nc || undefined)
+    );
   }
-  if (placa) return findBestContratoForLancamentoByPlaca(placa);
-  if (cpf.length === 11) return findBestContratoForLancamentoByCpf(cpf);
+  if (placa) return findBestContratoForLancamentoByPlaca(placa, nc || undefined);
+  if (cpf.length === 11) return findBestContratoForLancamentoByCpf(cpf, nc || undefined);
   return null;
 }
 
@@ -3245,9 +3912,15 @@ function suggestValorPagoFromContrato() {
     devidoHoje: contrato.devidoHoje || contrato.devido || 0,
   });
   const valorDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido);
+  const ncForm = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
   const valorPagoAcumulado =
     cpf.length === 11
-      ? totalPagoBarComLancamentosApp(cpf, placaRaw, contrato.pago || contrato.valorPago || 0)
+      ? totalPagoBarComLancamentosApp(
+          cpf,
+          placaRaw,
+          contrato.pago || contrato.valorPago || 0,
+          ncForm || undefined
+        )
       : parseCurrencyBR(contrato.pago || contrato.valorPago);
   if (valorPagoAcumulado > valorDevido) {
     lancAluguelValorPagoInput.value = currencyBRL(0);
@@ -3272,27 +3945,36 @@ function formatLancamentoValorPagoInput() {
   lancAluguelValorPagoInput.value = valor > 0 ? currencyBRL(valor) : "";
 }
 
-function findContratoForLancamentoResumo(cpfDigits, placaRaw) {
+function findContratoForLancamentoResumo(cpfDigits, placaRaw, numeroContratoOpt) {
   const cpf = onlyDigits(String(cpfDigits || ""));
   const placa = normalizePlate(placaRaw);
+  const ncWant = normalizeNumeroContratoKey(numeroContratoOpt || "");
   if (cpf.length !== 11) return null;
+
   const adminMatches = getAdminDataset().filter((r) => {
     const cpfOk = onlyDigits(String(r.cpf || "")) === cpf;
     const plateOk = placa ? normalizePlate(r.placa) === placa : true;
     return cpfOk && plateOk;
   });
-  if (adminMatches.length) {
+  if (adminMatches.length && !ncWant) {
     const ativo = adminMatches.find((r) => !String(r.fim || "").trim());
     if (ativo) return ativo;
     return adminMatches
       .slice()
       .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
   }
-  const locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
+
+  let locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
     const cpfOk = onlyDigits(String(l.cpf || "")) === cpf;
     const plateOk = placa ? normalizePlate(l.placa) === placa : true;
     return cpfOk && plateOk;
   });
+  if (ncWant) {
+    const porContrato = locMatches.filter(
+      (l) => normalizeNumeroContratoKey(l.numeroContrato) === ncWant
+    );
+    if (porContrato.length) locMatches = porContrato;
+  }
   if (!locMatches.length) return null;
   const ativoLoc = locMatches.find((l) => !String(l.fim || "").trim());
   const loc = ativoLoc || locMatches[locMatches.length - 1];
@@ -3304,6 +3986,7 @@ function findContratoForLancamentoResumo(cpfDigits, placaRaw) {
   return {
     ...adminRef,
     ...loc,
+    numeroContrato: loc.numeroContrato || "",
     nome: findClienteByCpfCadastro(cpf)?.nome || "",
     valorSemanal: loc.valorSemanal || loc.valorPlano || "",
     pago: loc.pago || "",
@@ -3341,19 +4024,58 @@ function ymKeyToAbrSlash(ymKey) {
   return `${MESES_ABR_PG[mm - 1]}/${String(yy).slice(-2)}`;
 }
 
-function collectLancamentosFilteredQuadro(cpfDigits, placaRaw) {
+/** Normaliza número de contrato para comparação (único no sistema). */
+function normalizeNumeroContratoKey(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+}
+
+/** Verifica se já existe outra locação com o mesmo número de contrato. */
+function contratoNumeroJaExisteNaBase(numeroNorm, excludeLocacaoId) {
+  if (!numeroNorm) return false;
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  return locs.some((l) => {
+    if (excludeLocacaoId != null && Number(l.id) === Number(excludeLocacaoId)) return false;
+    return normalizeNumeroContratoKey(l.numeroContrato) === numeroNorm;
+  });
+}
+
+/**
+ * Lançamentos antigos podem não ter numeroContrato; se só existir uma locação na base
+ * para aquele CPF+placa, esses lançamentos são tratados como dessa locação.
+ */
+function legacyLancamentoSemContratoCabeNesteContrato(l, cpfDigits, placaN, ncFilter) {
+  if (normalizeNumeroContratoKey(l.numeroContrato)) return false;
+  const locs = loadCadastro(CAD_LOCACOES_KEY).filter((x) => {
+    return (
+      onlyDigits(String(x.cpf || "")) === cpfDigits &&
+      normalizePlate(String(x.placa || "")) === placaN
+    );
+  });
+  if (locs.length !== 1) return false;
+  return normalizeNumeroContratoKey(locs[0].numeroContrato) === ncFilter;
+}
+
+function collectLancamentosFilteredQuadro(cpfDigits, placaRaw, numeroContratoOpt) {
   const placaN = normalizePlate(placaRaw);
+  const ncFilter = normalizeNumeroContratoKey(numeroContratoOpt || "");
   return getLancamentosAluguel().filter((l) => {
     if (onlyDigits(String(l.cpf || "")) !== cpfDigits) return false;
     if (!placaN) return true;
-    return normalizePlate(l.placa) === placaN;
+    if (normalizePlate(l.placa) !== placaN) return false;
+    if (!ncFilter) return true;
+    const lNc = normalizeNumeroContratoKey(l.numeroContrato || "");
+    if (lNc && lNc === ncFilter) return true;
+    return legacyLancamentoSemContratoCabeNesteContrato(l, cpfDigits, placaN, ncFilter);
   });
 }
 
 function mergePreviewLancamento(items, preview) {
   const next = items.slice();
   if (!preview || !preview.semanaInicio || !(parseCurrencyBR(preview.valorPago) > 0)) return next;
-  next.push({
+  const row = {
     id: "__preview__",
     cpf: preview.cpfDigits,
     placa: preview.placa,
@@ -3361,7 +4083,10 @@ function mergePreviewLancamento(items, preview) {
     semanaFim: preview.semanaFim || preview.semanaInicio,
     valorPago: preview.valorPago,
     createdAt: 0,
-  });
+  };
+  const ncP = normalizeNumeroContratoKey(preview.numeroContrato || "");
+  if (ncP) row.numeroContrato = ncP;
+  next.push(row);
   return next;
 }
 
@@ -3871,8 +4596,10 @@ function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlig
 function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, options = {}) {
   const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
+  const ncOpt = options.numeroContrato || "";
   const highlightKeys = buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId);
-  const rowForTotals = record || findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  const rowForTotals =
+    record || findContratoForLancamentoResumo(cpfDigits, placaRaw, ncOpt || undefined);
   let totalDevido = 0;
   let totalPagoContrato = 0;
   if (rowForTotals) {
@@ -3885,7 +4612,8 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     totalPagoContrato = totalPagoBarComLancamentosApp(
       cpfDigits,
       placaRaw,
-      rowForTotals.pago || rowForTotals.valorPago || 0
+      rowForTotals.pago || rowForTotals.valorPago || 0,
+      ncOpt || undefined
     );
   }
 
@@ -4119,11 +4847,12 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
   const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
   const preview = options.preview;
-  let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw);
+  const ncOpt = options.numeroContrato || "";
+  let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw, ncOpt);
   if (preview && preview.valorPago != null && preview.semanaInicio) {
     items = mergePreviewLancamento(items, preview);
   }
-  const contrato = findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  const contrato = findContratoForLancamentoResumo(cpfDigits, placaRaw, ncOpt || undefined);
   let totalDevido = 0;
   let totalPagoContrato = 0;
   if (contrato) {
@@ -4136,7 +4865,8 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
     totalPagoContrato = totalPagoBarComLancamentosApp(
       cpfDigits,
       placaRaw,
-      contrato.pago || contrato.valorPago || 0
+      contrato.pago || contrato.valorPago || 0,
+      ncOpt || undefined
     );
   }
   const rangeKeys = getQuadroMesesRange(contrato, items);
@@ -4225,6 +4955,9 @@ function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
   if (preview && preview.semanaInicio && parseCurrencyBR(preview.valorPago) > 0) {
     return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
   }
+  if (options.numeroContrato) {
+    return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
+  }
   const rec = findReceitaRecordForQuadro(cpfDigits, placaRaw);
   if (rec && receitaQuadroTrailHasCells(rec)) {
     const html = buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, rec, options);
@@ -4310,6 +5043,9 @@ function extractQuadroSomaPagoFromHtml(html) {
 function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
   const preview = opts?.preview;
   const onAfterSim = opts?.onAfterSim;
+  const numeroContratoOpt = normalizeNumeroContratoKey(
+    opts?.numeroContrato || preview?.numeroContrato || ""
+  );
   const edicaoBloqueadaCpf = isCpfComEdicaoLancamentoBloqueada(cpfDigits);
   if (
     !lancamentoAluguelHistoricoDialog ||
@@ -4324,6 +5060,7 @@ function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
     highlightId: null,
     preview,
     editableDialog: !edicaoBloqueadaCpf,
+    numeroContrato: numeroContratoOpt || undefined,
   });
   lancamentoAluguelHistoricoQuadro.innerHTML = html;
   lancamentoAluguelHistoricoEditarBtn.classList.toggle("hidden", edicaoBloqueadaCpf);
@@ -4406,7 +5143,19 @@ function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
 }
 
 function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
-  return runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, { preview });
+  const mergedPreview =
+    preview && typeof preview === "object"
+      ? {
+          ...preview,
+          cpfDigits: preview.cpfDigits ?? cpfDigits,
+          placa: preview.placa ?? placaRaw,
+        }
+      : preview;
+  const nc = normalizeNumeroContratoKey(preview?.numeroContrato || "");
+  return runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, {
+    preview: mergedPreview,
+    numeroContrato: nc || undefined,
+  });
 }
 
 function renderLancamentoAluguelResumo() {
@@ -4419,14 +5168,21 @@ function renderLancamentoAluguelResumo() {
   );
   const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const placaRaw = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
+  const ncResumo = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
   if (cpf.length !== 11) {
     lancamentoAluguelResumo.innerHTML =
-      "<p>Informe CPF (e opcionalmente placa) para visualizar o resumo do lançamento.</p>";
+      "<p>Informe CPF, placa e número do contrato para visualizar o resumo do lançamento.</p>";
     return;
   }
-  const contrato = findContratoForLancamentoResumo(cpf, placaRaw);
+  if (!ncResumo) {
+    lancamentoAluguelResumo.innerHTML =
+      "<p>Informe o <strong>número do contrato</strong> (único no sistema) para identificar qual vínculo cliente + veículo + período usar.</p>";
+    return;
+  }
+  const contrato = findContratoForLancamentoResumo(cpf, placaRaw, ncResumo);
   if (!contrato) {
-    lancamentoAluguelResumo.innerHTML = "<p>Nenhum contrato localizado para esse CPF/placa.</p>";
+    lancamentoAluguelResumo.innerHTML =
+      "<p>Nenhum contrato localizado para esse CPF, placa e número de contrato. Confira o cadastro de locação.</p>";
     return;
   }
   const nome = String(contrato.nome || findClienteByCpfCadastro(cpf)?.nome || "Nao informado");
@@ -4441,7 +5197,7 @@ function renderLancamentoAluguelResumo() {
   });
   const valorDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido);
   const pagoRegistro = parseCurrencyBR(contrato.pago || contrato.valorPago);
-  const totalLancamentosAluguel = collectLancamentosFilteredQuadro(cpf, placaRaw).reduce(
+  const totalLancamentosAluguel = collectLancamentosFilteredQuadro(cpf, placaRaw, ncResumo).reduce(
     (acc, l) => acc + getLancamentoAluguelValor(l),
     0
   );
@@ -4449,13 +5205,15 @@ function renderLancamentoAluguelResumo() {
   const valorPagoAcumulado = totalPagoBarComLancamentosApp(
     cpf,
     placaRaw,
-    contrato.pago || contrato.valorPago || 0
+    contrato.pago || contrato.valorPago || 0,
+    ncResumo
   );
   const valorPagoDigitado = parseCurrencyBR(String(lancAluguelValorPagoInput?.value || ""));
   const valorLancamentoSugestao =
     valorPagoDigitado > 0 ? valorPagoDigitado : totalLancamentosAluguel;
   const quadroHtml = buildQuadroPagamentoHistoricoHtml(cpf, placaRaw, {
     highlightId: ultimoLancamentoAluguelSalvoId,
+    numeroContrato: ncResumo,
   });
   const somaQuadroPago = extractQuadroSomaPagoFromHtml(quadroHtml);
   const valorPagoAcumuladoEfetivo = Number.isFinite(somaQuadroPago) ? somaQuadroPago : valorPagoAcumulado;
@@ -4478,6 +5236,7 @@ function renderLancamentoAluguelResumo() {
     lancamentoAluguelResumo.classList.add("resumo-status-transporte-positivo");
   }
   lancamentoAluguelResumo.innerHTML = `
+    <p><strong>Nº contrato:</strong> ${escapeHtml(ncResumo)}</p>
     <p><strong>${escapeHtml(nome)}</strong> - ${escapeHtml(modelo)} - data de inicio da locacao <strong>${escapeHtml(
     inicio || "-"
   )}</strong></p>
@@ -6060,20 +6819,48 @@ function renderCadastros() {
   const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
   const lancamentosAluguel = getLancamentosAluguel();
   const funcionarios = funcionariosAccess.slice();
+  const validacoesPendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
   refreshLocacaoPlacaOptions();
+  refreshLocacaoClienteSugestoes();
+  applyLocacaoPlanoRules();
 
-  cadastroClienteLista.innerHTML = clientes.length
-    ? clientes
-        .slice(-10)
-        .reverse()
-        .map(
-          (c) =>
-            `<p><strong>${c.nome}</strong> | CPF: ${formatCpf(c.cpf)}${
-              c.celular ? ` | Cel: ${c.celular}` : ""
-            }${c.municipioUf ? ` | ${c.municipioUf}` : ""}</p>`
-        )
-        .join("")
-    : "<p>Nenhum cliente cadastrado.</p>";
+  if (cadastroClienteLista) {
+    cadastroClienteLista.innerHTML = "";
+    cadastroClienteLista.classList.add("hidden");
+  }
+
+  if (adminValidacaoCadastroLista) {
+    const pendentesOrdenados = validacoesPendentes
+      .slice()
+      .sort((a, b) => Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0));
+    adminValidacaoCadastroLista.innerHTML = pendentesOrdenados.length
+      ? pendentesOrdenados
+          .map((c) => {
+            const id = Number(c.id || 0);
+            const obsTxt = String(c.observacaoAdm || "").trim();
+            const obsHtml = obsTxt
+              ? `<br><span class="hint">${escapeHtml(obsTxt)}</span>`
+              : "";
+            const ia = c.cadastroIa && typeof c.cadastroIa === "object" ? c.cadastroIa : null;
+            let iaHtml = "";
+            if (ia?.autenticidade) {
+              const a = ia.autenticidade;
+              const frente = a.cnhFrente?.pareceAutentico !== false ? "frente OK" : "frente revisar";
+              const verso = a.cnhVerso?.pareceAutentico !== false ? "verso OK" : "verso revisar";
+              const comp = a.comprovanteResidencia?.pareceAutentico !== false ? "comp. OK" : "comp. revisar";
+              iaHtml = `<br><span class="hint">IA (autenticidade heurística): ${escapeHtml(
+                `${frente}; ${verso}; ${comp}`
+              )}${ia.geo ? " · Geo capturada" : ""}</span>`;
+            }
+            return `<p><strong>${escapeHtml(String(c.nome || "Sem nome"))}</strong> | CPF: ${formatCpf(
+              c.cpf || ""
+            )} | CEP: ${escapeHtml(String(c.cep || "-"))} | Endereço: ${escapeHtml(
+              String(c.endereco || "-")
+            )}${obsHtml}${iaHtml}<br><button type="button" class="secondary" data-validacao-aprovar="${id}">Aprovar</button> <button type="button" class="secondary" data-validacao-reprovar="${id}">Reprovar</button></p>`;
+          })
+          .join("")
+      : "<p>Nenhum cadastro pendente de validação.</p>";
+  }
 
   cadastroVeiculoLista.innerHTML = veiculos.length
     ? veiculos
@@ -6094,7 +6881,11 @@ function renderCadastros() {
         .reverse()
         .map(
           (l) =>
-            `<p><strong>CPF:</strong> ${formatCpf(l.cpf)} | <strong>Placa:</strong> ${l.placa} | <strong>Inicio:</strong> ${l.inicio}${l.fim ? ` | <strong>Fim:</strong> ${l.fim}` : ""}${l.valorSemanal ? ` | <strong>Valor:</strong> ${l.valorSemanal}` : ""}</p>`
+            `<p><strong>CPF:</strong> ${formatCpf(l.cpf)} | <strong>Placa:</strong> ${l.placa}${
+              l.numeroContrato ? ` | <strong>Contrato:</strong> ${escapeHtml(String(l.numeroContrato))}` : ""
+            } | <strong>Inicio:</strong> ${l.inicio}${l.fim ? ` | <strong>Fim:</strong> ${l.fim}` : ""}${
+              l.valorSemanal ? ` | <strong>Valor:</strong> ${l.valorSemanal}` : ""
+            }</p>`
         )
         .join("")
     : "<p>Nenhuma locação cadastrada.</p>";
@@ -6369,21 +7160,33 @@ function buildOperationalSnapshot() {
 }
 
 function getAdminDataset() {
-  if (!adminData.length) {
-    return mockClientes.map((c) => ({
-      nome: c.nome,
-      placa: c.contrato.veiculo.placa,
-      inicio: c.contrato.inicio,
-      fim: c.contrato.fim,
-      valorSemanal: c.contrato.valorLocacao,
-      devidoHoje: c.contrato.valorDevidoHoje,
-      pago: c.contrato.valorPago,
-      dias: c.contrato.dias,
+  const clientes = loadCadastro(CAD_CLIENTES_KEY);
+  const nomeByCpf = new Map(
+    clientes
+      .map((c) => [onlyDigits(String(c.cpf || "")), String(c.nome || "").trim()])
+      .filter(([cpf]) => cpf.length === 11)
+  );
+  const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+  return locacoes.map((l) =>
+    withDynamicFinancialFields({
+      cpf: onlyDigits(String(l.cpf || "")),
+      nome: nomeByCpf.get(onlyDigits(String(l.cpf || ""))) || "Nao informado",
+      placa: normalizePlate(String(l.placa || "")),
+      inicio: String(l.inicio || "").trim(),
+      fim: String(l.fim || "").trim(),
+      valorSemanal: String(l.valorSemanal || "").trim(),
+      devidoHoje: "",
+      pago: 0,
+      dias: "",
       q: 0,
       cor: 0,
-    }));
-  }
-  return adminData;
+      inicioSerial: null,
+      fimSerial: null,
+      semanas: [],
+      semanasCompletas: [],
+      numeroContrato: String(l.numeroContrato || "").trim(),
+    })
+  );
 }
 
 function getRecordsByScope(scope) {
@@ -7046,6 +7849,7 @@ function mergeContractsForPlaca(placaRaw) {
       cpf: cpfLoc || l.cpf || "",
       nome: String(cli?.nome || "").trim(),
       placa: l.placa || plateKey,
+      numeroContrato: String(l.numeroContrato || "").trim(),
       inicio: l.inicio || "",
       inicioSerial: matched?.inicioSerial ?? null,
       fim: l.fim || "",
@@ -7161,6 +7965,7 @@ function mergeContractsForCliente(cpfDigits) {
       cpf: l.cpf,
       nome: String(cli?.nome || "").trim(),
       placa: l.placa,
+      numeroContrato: String(l.numeroContrato || "").trim(),
       inicio: l.inicio,
       inicioSerial: matched?.inicioSerial ?? null,
       fim: l.fim || "",
@@ -8094,6 +8899,7 @@ function renderAdminDashboard() {
   adminCard.classList.remove("hidden");
   adminNavInformacao.classList.toggle("hidden", !isOwner);
   adminNavDados.classList.toggle("hidden", !isOwner);
+  if (adminDadosMenu) adminDadosMenu.classList.toggle("hidden", !isOwner);
   operacaoTargetButtons.forEach((button) => {
     const buttonTarget = String(button.dataset.target || "");
     button.classList.toggle("hidden", !canAccessOperacaoTarget(buttonTarget));
@@ -8105,8 +8911,265 @@ function renderAdminDashboard() {
   renderCadastros();
   renderAdminResult(
     "Selecione uma consulta por grupo",
-    "<p>Abra Informação no menu lateral e escolha Clientes Ativos ou Clientes Inativos.</p>"
+    "<p>Abra Informação no menu lateral e escolha Contratos Ativos ou Contratos Inativos.</p>"
   );
+}
+
+function getClienteAreaPublicUrl() {
+  const url = new URL(window.location.href);
+  url.hash = "cadastro-ia";
+  return url.toString();
+}
+
+function refreshClienteAreaQrCode() {
+  const targetUrl = getClienteAreaPublicUrl();
+  const mkSrc = (size) =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=${size}&data=${encodeURIComponent(targetUrl)}`;
+  if (clienteAreaQrImg) clienteAreaQrImg.src = mkSrc("280x280");
+  const landingQr = document.getElementById("landingClienteQrImg");
+  if (landingQr) landingQr.src = mkSrc("220x220");
+}
+
+function fileToBase64Cliente(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = String(reader.result || "");
+      const m = res.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) {
+        reject(new Error("Leitura da imagem falhou."));
+        return;
+      }
+      resolve({ mime: m[1], base64: m[2] });
+    };
+    reader.onerror = () => reject(new Error("Arquivo inválido."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function mergeObservacoesAdmCadastroIa(parsed) {
+  const padraoTitular = "TITULAR DO COMPROVANTE DE RESIDENCIA DIFERENTE DO TITULAR DA HABILITAÇAO";
+  const lines = [];
+  if (parsed && Array.isArray(parsed.observacoesAdm)) {
+    parsed.observacoesAdm.forEach((x) => {
+      const s = String(x || "").trim();
+      if (s) lines.push(s);
+    });
+  }
+  if (parsed && parsed.titularComprovanteDiferenteDaCnh) {
+    const has = lines.some(
+      (l) =>
+        l.toUpperCase().includes("COMPROVANTE") && l.toUpperCase().includes("HABILITA")
+    );
+    if (!has) lines.push(padraoTitular);
+  }
+  return lines.filter(Boolean).join(" | ");
+}
+
+function buildCadastroIaMeta(parsed, geo) {
+  return {
+    geo: geo || null,
+    processadoEm: Date.now(),
+    autenticidade: parsed?.autenticidade || null,
+    titularComprovanteDiferenteDaCnh: Boolean(parsed?.titularComprovanteDiferenteDaCnh),
+    nomeTitularComprovante: String(parsed?.nomeTitularComprovanteResidencia || "").trim() || null,
+  };
+}
+
+function applyCadastroIaResultToPublicForm(parsed, geo) {
+  const obs = mergeObservacoesAdmCadastroIa(parsed);
+  if (clientePublicoCadastroForm) {
+    clientePublicoCadastroForm.dataset.cadastroIaMeta = JSON.stringify({
+      ...buildCadastroIaMeta(parsed, geo),
+      observacaoAdm: obs || "",
+      resultadoBruto: parsed,
+    });
+  }
+  const cpf = onlyDigits(String(parsed?.cpf || ""));
+  if (publicCadClienteCpf) publicCadClienteCpf.value = cpf.length === 11 ? formatCpf(cpf) : "";
+  if (publicCadClienteNome) publicCadClienteNome.value = String(parsed?.nomeCompletoCnh || "").trim();
+  if (publicCadClienteCnh) publicCadClienteCnh.value = onlyDigits(String(parsed?.numeroRegistroCnh || "")).slice(0, 20);
+  if (publicCadClienteCategoria) publicCadClienteCategoria.value = String(parsed?.categoriaCnh || "").trim().slice(0, 16);
+  if (publicCadClienteVencimento) publicCadClienteVencimento.value = String(parsed?.validadeCnh || "").trim().slice(0, 10);
+  if (publicCadClienteDataCadastro) publicCadClienteDataCadastro.value = todayBrDate();
+  const cepDigits = onlyDigits(String(parsed?.cep || ""));
+  if (publicCadClienteCep && cepDigits.length === 8) {
+    publicCadClienteCep.value = formatCepMask(cepDigits);
+    void buscarEnderecoPublicoPorCep(true);
+  }
+  const endL = String(parsed?.enderecoLinha1 || "").trim();
+  if (endL && publicCadClienteEndereco && !String(publicCadClienteEndereco.value || "").trim()) {
+    publicCadClienteEndereco.value = endL.slice(0, 120);
+  }
+  const cidadeUf = String(parsed?.cidadeUf || "").trim();
+  if (cidadeUf && publicCadClienteMunicipioUf && !String(publicCadClienteMunicipioUf.value || "").trim()) {
+    publicCadClienteMunicipioUf.value = cidadeUf.slice(0, 60);
+  }
+  setPublicClienteEnderecoConfirmado(false);
+}
+
+function applyCadastroIaResultToStaffForm(parsed, geo) {
+  const obs = mergeObservacoesAdmCadastroIa(parsed);
+  if (clienteCadastroForm) {
+    clienteCadastroForm.dataset.cadastroIaMeta = JSON.stringify({
+      ...buildCadastroIaMeta(parsed, geo),
+      observacaoAdm: obs || "",
+      resultadoBruto: parsed,
+    });
+  }
+  const cpf = onlyDigits(String(parsed?.cpf || ""));
+  if (cadClienteCpfInput) cadClienteCpfInput.value = cpf.length === 11 ? formatCpf(cpf) : "";
+  const nomeEl = document.getElementById("cadClienteNome");
+  if (nomeEl) nomeEl.value = String(parsed?.nomeCompletoCnh || "").trim();
+  if (cadClienteCnhInput) cadClienteCnhInput.value = onlyDigits(String(parsed?.numeroRegistroCnh || "")).slice(0, 20);
+  const catEl = document.getElementById("cadClienteCategoria");
+  if (catEl) catEl.value = String(parsed?.categoriaCnh || "").trim().slice(0, 16);
+  const venEl = document.getElementById("cadClienteVencimento");
+  if (venEl) venEl.value = String(parsed?.validadeCnh || "").trim().slice(0, 10);
+  const dataCadEl = document.getElementById("cadClienteDataCadastro");
+  if (dataCadEl) dataCadEl.value = todayBrDate();
+  const cepDigits = onlyDigits(String(parsed?.cep || ""));
+  if (cadClienteCepInput && cepDigits.length === 8) {
+    cadClienteCepInput.value = formatCepMask(cepDigits);
+    void buscarEnderecoClientePorCep(true);
+  }
+  const endL = String(parsed?.enderecoLinha1 || "").trim();
+  if (endL && cadClienteEnderecoInput && !String(cadClienteEnderecoInput.value || "").trim()) {
+    cadClienteEnderecoInput.value = endL.slice(0, 120);
+  }
+  const cidadeUf = String(parsed?.cidadeUf || "").trim();
+  if (cidadeUf && cadClienteMunicipioUfInput && !String(cadClienteMunicipioUfInput.value || "").trim()) {
+    cadClienteMunicipioUfInput.value = cidadeUf.slice(0, 60);
+  }
+  invalidateClienteEnderecoConfirmacao();
+  const cpfOnly = onlyDigits(String(cadClienteCpfInput?.value || ""));
+  if (cpfOnly.length === 11) refreshClienteCodigoByCpf(cpfOnly);
+}
+
+function parseCadastroIaPayloadFromForm(formEl) {
+  if (!formEl) return { observacaoAdm: "", cadastroIa: null };
+  try {
+    const raw = formEl.dataset.cadastroIaMeta;
+    if (!raw) return { observacaoAdm: "", cadastroIa: null };
+    const o = JSON.parse(raw);
+    return {
+      observacaoAdm: String(o.observacaoAdm || "").trim(),
+      cadastroIa: {
+        geo: o.geo || null,
+        processadoEm: o.processadoEm,
+        autenticidade: o.autenticidade || null,
+        titularComprovanteDiferenteDaCnh: Boolean(o.titularComprovanteDiferenteDaCnh),
+        nomeTitularComprovante: o.nomeTitularComprovante || null,
+      },
+    };
+  } catch {
+    return { observacaoAdm: "", cadastroIa: null };
+  }
+}
+
+function bindCadastroIaWizards() {
+  if (typeof window.dkExtrairCadastroClienteDocumentos !== "function") return;
+  document.querySelectorAll("[data-ia-wizard]").forEach((root) => {
+    const mode = String(root.getAttribute("data-ia-wizard") || "");
+    const geoBtn = root.querySelector(".cadastro-ia-geo");
+    const geoStatus = root.querySelector(".cadastro-ia-geo-status");
+    const runBtn = root.querySelector(".cadastro-ia-run");
+    const msgEl = root.querySelector(".cadastro-ia-msg");
+    let geo = null;
+    const inputs = {
+      cnhFrente: root.querySelector('[data-ia-part="cnhFrente"]'),
+      cnhVerso: root.querySelector('[data-ia-part="cnhVerso"]'),
+      comprovante: root.querySelector('[data-ia-part="comprovante"]'),
+    };
+    function setMsg(text, kind) {
+      if (!msgEl) return;
+      msgEl.textContent = text || "";
+      msgEl.classList.remove("error", "success");
+      if (kind === "error") msgEl.classList.add("error");
+      if (kind === "success") msgEl.classList.add("success");
+    }
+    if (geoBtn) {
+      geoBtn.addEventListener("click", () => {
+        if (!navigator.geolocation) {
+          if (geoStatus) geoStatus.textContent = "Geolocalização não disponível neste aparelho.";
+          return;
+        }
+        if (geoStatus) geoStatus.textContent = "Obtendo localização…";
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            geo = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              ts: Date.now(),
+            };
+            if (geoStatus)
+              geoStatus.textContent = `Localização obtida (±${Math.round(pos.coords.accuracy)} m).`;
+          },
+          () => {
+            if (geoStatus)
+              geoStatus.textContent =
+                "Permissão negada ou indisponível. Você pode continuar sem localização.";
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      });
+    }
+    if (runBtn) {
+      runBtn.addEventListener("click", async () => {
+        const key = getStoredOpenAIKey();
+        if (!key) {
+          setMsg(
+            "Configure a chave OpenAI na área de lançamento de aluguel (comprovante com IA).",
+            "error"
+          );
+          return;
+        }
+        try {
+          const blobs = {};
+          for (const k of ["cnhFrente", "cnhVerso", "comprovante"]) {
+            const inp = inputs[k];
+            const f = inp?.files?.[0];
+            if (!f) {
+              setMsg("Selecione as três fotos (frente CNH, verso CNH, comprovante).", "error");
+              return;
+            }
+            blobs[k] = await fileToBase64Cliente(f);
+          }
+          setMsg("Processando com IA…", "");
+          runBtn.disabled = true;
+          const parsed = await window.dkExtrairCadastroClienteDocumentos(key, {
+            cnhFrente: blobs.cnhFrente,
+            cnhVerso: blobs.cnhVerso,
+            comprovante: blobs.comprovante,
+            geo,
+          });
+          if (mode === "public") applyCadastroIaResultToPublicForm(parsed, geo);
+          else applyCadastroIaResultToStaffForm(parsed, geo);
+          setMsg(
+            "Formulário preenchido com a IA. Confira os dados e confirme o endereço antes de enviar.",
+            "success"
+          );
+        } catch (e) {
+          setMsg(String(e?.message || e || "Erro ao processar."), "error");
+        } finally {
+          runBtn.disabled = false;
+        }
+      });
+    }
+  });
+}
+
+function applyDeepLinkCadastroIaFromHash() {
+  if ((window.location.hash || "").toLowerCase() !== "#cadastro-ia") return;
+  if (getSession()) return;
+  showLocadoraArea();
+  loginArea.classList.remove("hidden");
+  dashboardCard.classList.add("hidden");
+  adminCard.classList.add("hidden");
+  requestAnimationFrame(() => {
+    document.getElementById("cadastroIaClientePublic")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function runAdminAction(action, scope) {
@@ -8116,10 +9179,10 @@ function runAdminAction(action, scope) {
   const previewLimit = 120;
   const scopeLabel =
     scope === "ativos"
-      ? "Clientes Ativos"
+      ? "Contratos Ativos"
       : scope === "inativos"
-        ? "Clientes Inativos"
-        : "Todos os clientes";
+        ? "Contratos Inativos"
+        : "Todos os contratos";
   currentScopeLabel = scopeLabel;
   const consistencyHtml = `<p class="hint">Base única: Ativos ${snapshot.checks.ativos} | Disponíveis ${snapshot.checks.disponiveis} | Em manutenção ${snapshot.checks.manutencao} | Frota ${snapshot.checks.frotaTotal}</p>`;
 
@@ -8141,9 +9204,46 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "modelo") {
+    const veiculosCadastro = loadCadastro(CAD_VEICULOS_KEY);
+    const veiculosBase = veiculosCadastro.length ? veiculosCadastro : frotaData;
+    const activePlates = new Set(
+      snapshot.activeRecords.map((r) => normalizePlate(r.placa)).filter(Boolean)
+    );
+    const inactivePlates = new Set(
+      snapshot.inactiveRecords.map((r) => normalizePlate(r.placa)).filter(Boolean)
+    );
+    let sourceRows = veiculosBase
+      .map((v) => {
+        const placa = normalizePlate(v.placa || "");
+        if (!placa) return null;
+        return {
+          placa,
+          nome: "Sem vínculo de cliente",
+          modeloVeiculo: String(v.modelo || "").trim(),
+        };
+      })
+      .filter(Boolean);
+    if (scope === "ativos") {
+      sourceRows = sourceRows.filter((r) => activePlates.has(r.placa));
+    } else if (scope === "inativos") {
+      sourceRows = sourceRows.filter((r) => inactivePlates.has(r.placa));
+    }
+    if (!sourceRows.length && veiculosBase.length) {
+      sourceRows = veiculosBase
+        .map((v) => {
+          const placa = normalizePlate(v.placa || "");
+          if (!placa) return null;
+          return {
+            placa,
+            nome: "Sem vínculo de cliente",
+            modeloVeiculo: String(v.modelo || "").trim(),
+          };
+        })
+        .filter(Boolean);
+    }
     const grouped = {};
-    records.forEach((r) => {
-      const modelo = findModeloByPlaca(r.placa);
+    sourceRows.forEach((r) => {
+      const modelo = r.modeloVeiculo || findModeloByPlaca(r.placa);
       if (!grouped[modelo]) grouped[modelo] = [];
       grouped[modelo].push(r);
     });
@@ -8223,7 +9323,7 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "receita") {
-    const baseReceita2026 = receita2026Data.length ? receita2026Data : records;
+    const baseReceita2026 = records;
     const previsaoSemanalRows = baseReceita2026.filter(
       (r) => !String(r.fim || "").trim()
     );
@@ -8278,27 +9378,12 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "financeiro") {
-    const financeiroBase =
-      scope === "inativos" && receita2026Data.length
-        ? receita2026Data.filter((r) => String(r.fim || "").trim())
-        : records;
+    const financeiroBase = records;
     const emDia = [];
     const atraso = [];
     financeiroBase.forEach((r) => {
       const devido = parseCurrencyBR(r.devidoHoje);
       const pago = pagoHarmonizadoRegistro(r);
-      const isDebtorColor = Number(r.cor || 0) === 255;
-      if (scope === "inativos" && receita2026Data.length) {
-        if (isDebtorColor || pago < devido) {
-          atraso.push({
-            ...r,
-            valorAtraso: Math.max(0, devido - pago),
-          });
-          return;
-        }
-        emDia.push(r);
-        return;
-      }
       if (pago >= devido) {
         emDia.push(r);
       } else {
@@ -8363,14 +9448,28 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "quadrogeral") {
-    const rows = syncLocacaoDatabaseFromReceita2026();
-    currentQuadroGeralRows = rows;
-    const filtered =
-      scope === "ativos"
-        ? rows.filter((r) => r.statusLocacao === "ATIVO")
-        : scope === "inativos"
-          ? rows.filter((r) => r.statusLocacao === "INATIVO")
-          : rows;
+    const filtered = records.map((r, idx) => {
+      const cpf = onlyDigits(String(r.cpf || ""));
+      const placa = normalizePlate(String(r.placa || ""));
+      const pagoNum = pagoHarmonizadoRegistro({ ...r, cpf, placa });
+      const devidoNum = parseCurrencyBR(r.devidoHoje);
+      const saldoNum = pagoNum - devidoNum;
+      return {
+        id: idx + 1,
+        clienteNome: String(r.nome || "Nao informado").trim(),
+        cpf,
+        placa,
+        modeloVeiculo: findModeloByPlaca(placa),
+        dataInicio: String(r.inicio || "").trim(),
+        dataFim: String(r.fim || "").trim(),
+        plano: toPlanName(r),
+        valorDevidoHoje: currencyBRL(devidoNum),
+        valorPagoHoje: currencyBRL(pagoNum),
+        saldo: `${saldoNum >= 0 ? "+" : "-"} ${currencyBRL(Math.abs(saldoNum))}`,
+        saldoNumerico: saldoNum,
+      };
+    });
+    currentQuadroGeralRows = filtered;
     const preview = filtered.slice(0, 200);
     const table = buildStructuredTable(
       ["CLIENTE", "CPF", "PLACA", "MODELO", "INICIO", "FIM", "PLANO", "DEVIDO", "PAGO", "SALDO"],
@@ -8629,6 +9728,32 @@ if (funcLayoutResetBtn) {
     window.alert("Layout do cadastro de funcionário resetado.");
   });
 }
+if (clienteLayoutEditToggleBtn) {
+  clienteLayoutEditToggleBtn.addEventListener("click", () => {
+    if (clienteLayoutEditMode) {
+      stopClienteLayoutEdit();
+      return;
+    }
+    startClienteLayoutEdit();
+    bindClienteLayoutEditorEvents();
+    window.alert("Modo edição ativo. Use ALT + arrastar para mover e SHIFT + arrastar para redimensionar.");
+  });
+}
+if (clienteLayoutSaveBtn) {
+  clienteLayoutSaveBtn.addEventListener("click", () => {
+    persistClienteLayoutFromScreen();
+    stopClienteLayoutEdit();
+    window.alert("Layout do cadastro de cliente salvo.");
+  });
+}
+if (clienteLayoutResetBtn) {
+  clienteLayoutResetBtn.addEventListener("click", () => {
+    localStorage.removeItem(CLIENTE_LAYOUT_KEY);
+    stopClienteLayoutEdit();
+    clearClienteLayoutInlineStyles();
+    window.alert("Layout do cadastro de cliente resetado.");
+  });
+}
 
 if (topbarAcessoCliente) {
   topbarAcessoCliente.addEventListener("click", () => openLocadoraLoginTarget("cliente"));
@@ -8641,6 +9766,15 @@ if (landingAcessoCliente) {
 }
 if (landingAcessoColaborador) {
   landingAcessoColaborador.addEventListener("click", () => openLocadoraLoginTarget("colaborador"));
+}
+{
+  const landingIaBtn = document.getElementById("landingAbrirCadastroIaBtn");
+  if (landingIaBtn) {
+    landingIaBtn.addEventListener("click", () => {
+      window.location.hash = "cadastro-ia";
+      applyDeepLinkCadastroIaFromHash();
+    });
+  }
 }
 
 openCentroButton.addEventListener("click", () => {
@@ -8664,7 +9798,8 @@ backToGroupFromCentro.addEventListener("click", () => {
 });
 
 adminNavOperacao.addEventListener("click", () => {
-  setAdminSection("operacao");
+  const opened = toggleAdminSection("operacao");
+  if (!opened) return;
   setOperacaoSubsection(operacaoAbaAtual || "cliente");
 });
 
@@ -8674,7 +9809,8 @@ adminNavInformacao.addEventListener("click", () => {
     setAdminSection("operacao");
     return;
   }
-  setAdminSection("informacao");
+  const opened = toggleAdminSection("informacao");
+  if (!opened) return;
   if (!informacaoEscopoAtual) setInformacaoScope("todos");
 });
 
@@ -8684,8 +9820,31 @@ adminNavDados.addEventListener("click", () => {
     setAdminSection("operacao");
     return;
   }
-  setAdminSection("dados");
+  toggleAdminSection("dados");
 });
+
+if (adminDadosUsoBtn) {
+  adminDadosUsoBtn.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.role !== "owner") {
+      setAdminSection("operacao");
+      return;
+    }
+    setAdminSection("dados");
+    setAdminDadosSubsection("dadosUso");
+  });
+}
+if (adminValidacaoCadastroBtn) {
+  adminValidacaoCadastroBtn.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.role !== "owner") {
+      setAdminSection("operacao");
+      return;
+    }
+    setAdminSection("dados");
+    setAdminDadosSubsection("validacaoCadastro");
+  });
+}
 
 operacaoTargetButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -8961,10 +10120,17 @@ clienteCadastroForm.addEventListener("submit", async (event) => {
   const categoria = String(document.getElementById("cadClienteCategoria").value || "").trim();
   const vencimento = String(document.getElementById("cadClienteVencimento").value || "").trim();
   const ear = String(document.getElementById("cadClienteEar").value || "").trim();
-  const cep = String(document.getElementById("cadClienteCep").value || "").trim();
-  const municipioUf = String(document.getElementById("cadClienteMunicipioUf").value || "").trim();
-  const endereco = String(document.getElementById("cadClienteEndereco").value || "").trim();
+  const cep = formatCepMask(String(cadClienteCepInput?.value || "").trim());
+  const municipioUf = String(cadClienteMunicipioUfInput?.value || "").trim();
+  const enderecoBase = String(cadClienteEnderecoInput?.value || "").trim();
+  const complemento = String(cadClienteComplementoInput?.value || "").trim();
+  const endereco = [enderecoBase, complemento].filter(Boolean).join(", ");
   if (!nome || !cpf) return;
+  if (String(clienteCadastroForm?.dataset?.enderecoConfirmado || "0") !== "1") {
+    clienteCadastroErro.textContent = "CONFIRME O ENDERECO NO BOTAO 'CONFIRMAR ENDERECO' ANTES DE SALVAR.";
+    clienteCadastroErro.classList.remove("hidden");
+    return;
+  }
 
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const duplicado = clientes.find(
@@ -8986,30 +10152,42 @@ clienteCadastroForm.addEventListener("submit", async (event) => {
     ear,
     cep,
     municipioUf,
+    complemento,
     endereco,
   });
   if (!confirmado) return;
-  clientes.push({
-    id: Date.now(),
-    codigo,
-    dataCadastro,
-    cpf,
-    nome,
-    celular,
-    recado1,
-    recado2,
-    cnh,
-    categoria,
-    vencimento,
-    ear,
-    cep,
-    municipioUf,
-    endereco,
-  });
-  saveCadastro(CAD_CLIENTES_KEY, clientes);
-  addAuditLog("cadastrar_cliente", "cliente", `${nome} - CPF ${formatCpf(cpf)}`);
-  window.alert("CLIENTE CADASTRADO COM SUCESSO");
+  const iaExtra = parseCadastroIaPayloadFromForm(clienteCadastroForm);
+  const envio = enqueueClienteParaValidacao(
+    {
+      codigo,
+      dataCadastro,
+      cpf,
+      nome,
+      celular,
+      recado1,
+      recado2,
+      cnh,
+      categoria,
+      vencimento,
+      ear,
+      cep,
+      municipioUf,
+      enderecoBase,
+      complemento,
+      endereco,
+      ...iaExtra,
+    },
+    "operacao"
+  );
+  if (!envio.ok) {
+    clienteCadastroErro.textContent = envio.message || "NAO FOI POSSIVEL ENVIAR PARA AVALIACAO.";
+    clienteCadastroErro.classList.remove("hidden");
+    return;
+  }
+  window.alert("CADASTRO ENVIADO PARA AVALIACAO DO ADMINISTRADOR");
   clienteCadastroForm.reset();
+  delete clienteCadastroForm.dataset.cadastroIaMeta;
+  setClienteEnderecoConfirmado(false);
   sairModoAtualizacaoCliente();
   renderCadastros();
 });
@@ -9041,6 +10219,51 @@ cadClienteCpfInput.addEventListener("input", () => {
   }
 });
 
+if (cadClienteCepInput) {
+  cadClienteCepInput.addEventListener("input", () => {
+    cadClienteCepInput.value = formatCepMask(cadClienteCepInput.value);
+    invalidateClienteEnderecoConfirmacao();
+    if (onlyDigits(String(cadClienteCepInput.value || "")).length === 8) {
+      void buscarEnderecoClientePorCep();
+    }
+  });
+  cadClienteCepInput.addEventListener("blur", () => {
+    cadClienteCepInput.value = formatCepMask(cadClienteCepInput.value);
+    void buscarEnderecoClientePorCep(true);
+  });
+}
+
+if (cadClienteCnhInput) {
+  cadClienteCnhInput.addEventListener("input", () => {
+    cadClienteCnhInput.value = onlyDigits(String(cadClienteCnhInput.value || "")).slice(0, 20);
+  });
+}
+
+[cadClienteMunicipioUfInput, cadClienteEnderecoInput, cadClienteComplementoInput].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("input", () => {
+    invalidateClienteEnderecoConfirmacao();
+  });
+});
+
+if (cadClienteConfirmEnderecoBtn) {
+  cadClienteConfirmEnderecoBtn.addEventListener("click", () => {
+    const cep = formatCepMask(String(cadClienteCepInput?.value || "").trim());
+    const municipioUf = String(cadClienteMunicipioUfInput?.value || "").trim();
+    const enderecoBase = String(cadClienteEnderecoInput?.value || "").trim();
+    const complemento = String(cadClienteComplementoInput?.value || "").trim();
+    if (!cep || !municipioUf || !enderecoBase || !complemento) {
+      setCadClienteCepStatus(
+        "⚠️ Para confirmar o endereço, preencha CEP, Município/UF, Rua/Bairro e Número/Casa/AP.",
+        "error"
+      );
+      return;
+    }
+    setClienteEnderecoConfirmado(true);
+    setCadClienteCepStatus("✅ Endereço confirmado para o cadastro.", "success");
+  });
+}
+
 cadClienteUpdateBtn.addEventListener("click", () => {
   if (clienteEmEdicaoId === null) return;
   if (!clienteEdicaoAutorizada) {
@@ -9062,10 +10285,17 @@ cadClienteUpdateBtn.addEventListener("click", () => {
   const categoria = String(document.getElementById("cadClienteCategoria").value || "").trim();
   const vencimento = String(document.getElementById("cadClienteVencimento").value || "").trim();
   const ear = String(document.getElementById("cadClienteEar").value || "").trim();
-  const cep = String(document.getElementById("cadClienteCep").value || "").trim();
-  const municipioUf = String(document.getElementById("cadClienteMunicipioUf").value || "").trim();
-  const endereco = String(document.getElementById("cadClienteEndereco").value || "").trim();
+  const cep = formatCepMask(String(cadClienteCepInput?.value || "").trim());
+  const municipioUf = String(cadClienteMunicipioUfInput?.value || "").trim();
+  const enderecoBase = String(cadClienteEnderecoInput?.value || "").trim();
+  const complemento = String(cadClienteComplementoInput?.value || "").trim();
+  const endereco = [enderecoBase, complemento].filter(Boolean).join(", ");
   if (!nome || !cpf) return;
+  if (String(clienteCadastroForm?.dataset?.enderecoConfirmado || "0") !== "1") {
+    clienteCadastroErro.textContent = "CONFIRME O ENDERECO NO BOTAO 'CONFIRMAR ENDERECO' ANTES DE ATUALIZAR.";
+    clienteCadastroErro.classList.remove("hidden");
+    return;
+  }
 
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const cpfDuplicado = clientes.find(
@@ -9093,11 +10323,14 @@ cadClienteUpdateBtn.addEventListener("click", () => {
     ear,
     cep,
     municipioUf,
+    enderecoBase,
+    complemento,
     endereco,
   };
   saveCadastro(CAD_CLIENTES_KEY, clientes);
   addAuditLog("atualizar_cliente", "cliente", `${nome} - CPF ${formatCpf(cpf)}`);
   clienteCadastroForm.reset();
+  setClienteEnderecoConfirmado(false);
   sairModoAtualizacaoCliente();
   renderCadastros();
 });
@@ -9242,8 +10475,125 @@ cadClienteSenhaCancelarBtn.addEventListener("click", () => {
 
 cadClienteClearBtn.addEventListener("click", () => {
   clienteCadastroForm.reset();
+  if (cadClienteCepInput) {
+    cadClienteCepInput.dataset.lastLookupCep = "";
+  }
+  if (cadClienteEnderecoInput) {
+    cadClienteEnderecoInput.dataset.autoEnderecoBase = "";
+  }
+  setCadClienteCepStatus("");
+  setClienteEnderecoConfirmado(false);
   sairModoAtualizacaoCliente();
 });
+
+if (publicCadClienteCpf) {
+  publicCadClienteCpf.addEventListener("input", () => {
+    publicCadClienteCpf.value = formatCpf(onlyDigits(String(publicCadClienteCpf.value || "")));
+  });
+}
+if (publicCadClienteCnh) {
+  publicCadClienteCnh.addEventListener("input", () => {
+    publicCadClienteCnh.value = onlyDigits(String(publicCadClienteCnh.value || "")).slice(0, 20);
+  });
+}
+if (publicCadClienteCep) {
+  publicCadClienteCep.addEventListener("input", () => {
+    publicCadClienteCep.value = formatCepMask(publicCadClienteCep.value);
+    setPublicClienteEnderecoConfirmado(false);
+    if (onlyDigits(String(publicCadClienteCep.value || "")).length === 8) {
+      void buscarEnderecoPublicoPorCep();
+    }
+  });
+  publicCadClienteCep.addEventListener("blur", () => {
+    publicCadClienteCep.value = formatCepMask(publicCadClienteCep.value);
+    void buscarEnderecoPublicoPorCep(true);
+  });
+}
+[publicCadClienteMunicipioUf, publicCadClienteEndereco, publicCadClienteComplemento].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("input", () => setPublicClienteEnderecoConfirmado(false));
+});
+if (publicCadClienteConfirmEnderecoBtn) {
+  publicCadClienteConfirmEnderecoBtn.addEventListener("click", () => {
+    const cep = formatCepMask(String(publicCadClienteCep?.value || "").trim());
+    const municipioUf = String(publicCadClienteMunicipioUf?.value || "").trim();
+    const enderecoBase = String(publicCadClienteEndereco?.value || "").trim();
+    const complemento = String(publicCadClienteComplemento?.value || "").trim();
+    if (!cep || !municipioUf || !enderecoBase || !complemento) {
+      setPublicCadCepStatus("⚠️ Preencha CEP, Município/UF, Rua/Bairro e Número/Casa/AP.", "error");
+      return;
+    }
+    setPublicClienteEnderecoConfirmado(true);
+    setPublicCadCepStatus("✅ Endereço confirmado para envio.", "success");
+  });
+}
+if (clientePublicoCadastroForm) {
+  clientePublicoCadastroForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const cpf = onlyDigits(String(publicCadClienteCpf?.value || ""));
+    const nome = String(publicCadClienteNome?.value || "").trim();
+    const dataCadastro = String(publicCadClienteDataCadastro?.value || "").trim();
+    const celular = String(publicCadClienteCelular?.value || "").trim();
+    const recado1 = String(publicCadClienteRecado1?.value || "").trim();
+    const recado2 = String(publicCadClienteRecado2?.value || "").trim();
+    const cnh = String(publicCadClienteCnh?.value || "").trim();
+    const categoria = String(publicCadClienteCategoria?.value || "").trim();
+    const vencimento = String(publicCadClienteVencimento?.value || "").trim();
+    const ear = String(publicCadClienteEar?.value || "").trim();
+    const cep = formatCepMask(String(publicCadClienteCep?.value || "").trim());
+    const municipioUf = String(publicCadClienteMunicipioUf?.value || "").trim();
+    const enderecoBase = String(publicCadClienteEndereco?.value || "").trim();
+    const complemento = String(publicCadClienteComplemento?.value || "").trim();
+    const endereco = [enderecoBase, complemento].filter(Boolean).join(", ");
+    if (String(clientePublicoCadastroForm.dataset.enderecoConfirmado || "0") !== "1") {
+      if (publicCadClienteErro) {
+        publicCadClienteErro.textContent = "CONFIRME O ENDERECO ANTES DE ENVIAR PARA AVALIACAO.";
+        publicCadClienteErro.classList.remove("hidden");
+      }
+      return;
+    }
+    const iaExtra = parseCadastroIaPayloadFromForm(clientePublicoCadastroForm);
+    const envio = enqueueClienteParaValidacao(
+      {
+        codigo: nextClienteCodigo(),
+        dataCadastro,
+        cpf,
+        nome,
+        celular,
+        recado1,
+        recado2,
+        cnh,
+        categoria,
+        vencimento,
+        ear,
+        cep,
+        municipioUf,
+        enderecoBase,
+        complemento,
+        endereco,
+        ...iaExtra,
+      },
+      "area_cliente"
+    );
+    if (!envio.ok) {
+      if (publicCadClienteErro) {
+        publicCadClienteErro.textContent = envio.message || "NAO FOI POSSIVEL ENVIAR.";
+        publicCadClienteErro.classList.remove("hidden");
+      }
+      return;
+    }
+    if (publicCadClienteErro) {
+      publicCadClienteErro.textContent = "";
+      publicCadClienteErro.classList.add("hidden");
+    }
+    window.alert("CADASTRO ENVIADO PARA AVALIACAO DO ADMINISTRADOR.");
+    clientePublicoCadastroForm.reset();
+    delete clientePublicoCadastroForm.dataset.cadastroIaMeta;
+    setPublicCadCepStatus("");
+    setPublicClienteEnderecoConfirmado(false);
+    renderCadastros();
+  });
+}
 
 cadClienteUnblockBtn.addEventListener("click", () => {
   if (clienteEmEdicaoId === null) return;
@@ -9259,6 +10609,54 @@ cadClienteUnblockBtn.addEventListener("click", () => {
 cadClienteDeleteBtn.addEventListener("click", () => {
   iniciarExclusaoCliente();
 });
+
+if (adminValidacaoCadastroLista) {
+  adminValidacaoCadastroLista.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const idAprovar = Number(target.dataset.validacaoAprovar || 0);
+    const idReprovar = Number(target.dataset.validacaoReprovar || 0);
+    const id = idAprovar || idReprovar;
+    if (!id) return;
+    const pendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
+    const idx = pendentes.findIndex((x) => Number(x.id || 0) === id);
+    if (idx < 0) return;
+    const item = pendentes[idx];
+    if (idAprovar) {
+      const ok = window.confirm(
+        `Aprovar cadastro de ${item.nome || "cliente"} (${formatCpf(item.cpf || "")})?`
+      );
+      if (!ok) return;
+      upsertClienteCadastroByCpf(item, "ATIVO");
+      addAuditLog(
+        "aprovar_cliente_validacao",
+        "cliente_validacao",
+        `${item.nome || "-"} - CPF ${formatCpf(item.cpf || "")}`
+      );
+      pendentes.splice(idx, 1);
+      saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, pendentes);
+      window.alert("CADASTRO APROVADO COM SUCESSO.");
+      renderCadastros();
+      return;
+    }
+    if (idReprovar) {
+      const ok = window.confirm(
+        `Reprovar cadastro de ${item.nome || "cliente"} (${formatCpf(item.cpf || "")})?`
+      );
+      if (!ok) return;
+      upsertClienteCadastroByCpf(item, "CADASTRO NAO APROVADO");
+      addAuditLog(
+        "reprovar_cliente_validacao",
+        "cliente_validacao",
+        `${item.nome || "-"} - CPF ${formatCpf(item.cpf || "")}`
+      );
+      pendentes.splice(idx, 1);
+      saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, pendentes);
+      window.alert("CADASTRO REPROVADO.");
+      renderCadastros();
+    }
+  });
+}
 
 veiculoCadastroForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -9526,6 +10924,16 @@ gerarDadosUsoPdfBtn.addEventListener("click", () => {
   dadosUsoAdminSenha.focus();
 });
 
+if (enviarQrWhatsappBtn) {
+  enviarQrWhatsappBtn.addEventListener("click", () => {
+    const targetUrl = getClienteAreaPublicUrl();
+    const mensagem =
+      "Olá! Use este link para instalar/acessar o app DK Locadora (Área do Cliente): " + targetUrl;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    window.open(waUrl, "_blank", "noopener");
+  });
+}
+
 if (exportDadosBackupBtn) {
   exportDadosBackupBtn.addEventListener("click", () => {
     dadosUsoAcaoPendente = "backup_export";
@@ -9622,11 +11030,19 @@ if (lancamentoAluguelResumo && !lancamentoAluguelResumo.dataset.quadroEditBound)
       window.alert("Informe um CPF valido (11 digitos) no lancamento.");
       return;
     }
+    const ncQuadro = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+    if (!ncQuadro) {
+      window.alert(
+        "Informe o número do contrato no lançamento para abrir o quadro do vínculo correto (o mesmo cliente e placa podem ter vários contratos ao longo do tempo)."
+      );
+      return;
+    }
     if (isCpfComEdicaoLancamentoBloqueada(cpf)) {
       window.alert("CPF com edição bloqueada. Você pode cadastrar novos lançamentos, mas não editar o histórico.");
       return;
     }
     void runLancamentoAluguelHistoricoDialog(cpf, placa, {
+      numeroContrato: ncQuadro,
       onAfterSim: () => renderLancamentoAluguelResumo(),
     });
   });
@@ -9639,6 +11055,7 @@ if (lancamentoAluguelForm) {
       .trim()
       .toUpperCase();
     const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
+    const numeroContratoNorm = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
     const diaPagamento = String(lancAluguelDiaPagamentoInput?.value || "").trim().toUpperCase();
     const valorPagoRaw = String(lancAluguelValorPagoInput?.value || "").trim();
     const valorPago = parseCurrencyBR(valorPagoRaw);
@@ -9647,6 +11064,22 @@ if (lancamentoAluguelForm) {
     if (!placa || cpf.length !== 11 || !diaPagamento || !semanaInicio || !semanaFim || valorPago <= 0) {
       if (lancamentoAluguelErro) {
         lancamentoAluguelErro.textContent = "PREENCHA TODOS OS CAMPOS OBRIGATORIOS E INFORME O VALOR PAGO.";
+        lancamentoAluguelErro.classList.remove("hidden");
+      }
+      return;
+    }
+    if (!numeroContratoNorm) {
+      if (lancamentoAluguelErro) {
+        lancamentoAluguelErro.textContent =
+          "INFORME O NUMERO DO CONTRATO — ELE IDENTIFICA O VINCULO (MESMO CLIENTE E PLACA PODEM TER CONTRATOS DIFERENTES NO TEMPO).";
+        lancamentoAluguelErro.classList.remove("hidden");
+      }
+      return;
+    }
+    if (!findContratoForLancamentoResumo(cpf, placa, numeroContratoNorm)) {
+      if (lancamentoAluguelErro) {
+        lancamentoAluguelErro.textContent =
+          "NAO HA LOCACAO CADASTRADA COM ESSE CPF, PLACA E NUMERO DE CONTRATO. CONFIRA O CADASTRO DE LOCACAO.";
         lancamentoAluguelErro.classList.remove("hidden");
       }
       return;
@@ -9670,9 +11103,12 @@ if (lancamentoAluguelForm) {
       return;
     }
     const historicoOk = await askLancamentoAluguelHistoricoUpdated(cpf, placa, {
+      cpfDigits: cpf,
+      placa,
       valorPago,
       semanaInicio,
       semanaFim,
+      numeroContrato: numeroContratoNorm,
     });
     if (!historicoOk) return;
 
@@ -9686,6 +11122,7 @@ if (lancamentoAluguelForm) {
       valorPago,
       semanaInicio,
       semanaFim,
+      numeroContrato: numeroContratoNorm,
     });
     if (!confirmado) return;
 
@@ -9707,6 +11144,7 @@ if (lancamentoAluguelForm) {
       codigoLancamento,
       placa,
       cpf,
+      numeroContrato: numeroContratoNorm,
       diaPagamento,
       valorPago,
       semanaInicio,
@@ -9735,10 +11173,15 @@ if (lancamentoAluguelForm) {
     lancamentos.push(novo);
     saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, lancamentos);
     processPendingLancamentosAluguelBaixa();
-    addAuditLog("cadastrar_lancamento_aluguel", "lancamento_aluguel", `${codigoLancamento} - ${placa}`);
+    addAuditLog(
+      "cadastrar_lancamento_aluguel",
+      "lancamento_aluguel",
+      `${codigoLancamento} - ${placa} - contrato ${numeroContratoNorm}`
+    );
     ultimoLancamentoAluguelSalvoId = id;
     const savedCpf = cpf;
     const savedPlaca = placa;
+    const savedNc = numeroContratoNorm;
     window.alert("LANCAMENTO SALVO COM SUCESSO");
     if (fpSalvar) {
       setComprovanteFeedback(
@@ -9755,6 +11198,7 @@ if (lancamentoAluguelForm) {
     if (lancAluguelPlacaInput) lancAluguelPlacaInput.value = String(savedPlaca || "")
       .trim()
       .toUpperCase();
+    if (lancAluguelNumeroContratoInput) lancAluguelNumeroContratoInput.value = savedNc;
     if (lancAluguelSemanaInicioInput) lancAluguelSemanaInicioInput.dataset.autoSuggested = "0";
     if (lancAluguelValorPagoInput) lancAluguelValorPagoInput.dataset.autoSuggested = "0";
     if (lancamentoAluguelErro) {
@@ -9807,6 +11251,18 @@ if (lancAluguelPlacaInput) {
   lancAluguelPlacaInput.addEventListener("blur", () => {
     lancAluguelPlacaInput.value = String(lancAluguelPlacaInput.value || "").trim().toUpperCase();
     autoFillLancamentoFromPlaca(lancAluguelPlacaInput.value);
+    suggestValorPagoFromContrato();
+    renderLancamentoAluguelResumo();
+  });
+}
+
+if (lancAluguelNumeroContratoInput) {
+  lancAluguelNumeroContratoInput.addEventListener("input", () => {
+    lancAluguelNumeroContratoInput.value = String(lancAluguelNumeroContratoInput.value || "").toUpperCase();
+    renderLancamentoAluguelResumo();
+  });
+  lancAluguelNumeroContratoInput.addEventListener("blur", () => {
+    lancAluguelNumeroContratoInput.value = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput.value || "");
     suggestValorPagoFromContrato();
     renderLancamentoAluguelResumo();
   });
@@ -9931,17 +11387,55 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     .trim()
     .toUpperCase();
   const inicio = String(document.getElementById("cadLocacaoInicio").value || "").trim();
-  const fim = String(document.getElementById("cadLocacaoFim").value || "").trim();
-  const valorSemanal = String(document.getElementById("cadLocacaoValor").value || "").trim();
-  const placaSelect = document.getElementById("cadLocacaoPlaca");
-  const placaSelecionadaTexto =
-    placaSelect && placaSelect.selectedIndex >= 0
-      ? String(placaSelect.options[placaSelect.selectedIndex].textContent || "")
-      : "";
-  const modeloSelecionado = placaSelecionadaTexto.includes(" - ")
-    ? placaSelecionadaTexto.split(" - ").slice(1).join(" - ").trim()
-    : "";
+  let fim = String(document.getElementById("cadLocacaoFim").value || "").trim();
+  const valorLocacaoRaw = String(document.getElementById("cadLocacaoValor").value || "").trim();
+  const valorInvestimentoRaw = String(document.getElementById("cadLocacaoInvestimento")?.value || "").trim();
+  const plano = getLocacaoPlanoSelecionado();
+  const numeroContratoRaw = String(
+    document.getElementById("cadLocacaoContrato")?.value || ""
+  ).trim();
+  const numeroContratoNorm = normalizeNumeroContratoKey(numeroContratoRaw);
+  const valorLocacaoNum = parseCurrencyBR(valorLocacaoRaw);
+  const valorInvestimentoNum = plano === "DK MINHA MOTO" ? parseCurrencyBR(valorInvestimentoRaw) : 0;
+  const valorSemanalNum = valorLocacaoNum + valorInvestimentoNum;
+  const valorSemanal = valorSemanalNum > 0 ? currencyBRL(valorSemanalNum) : "";
+  const snapshot = buildOperationalSnapshot();
+  const veiculoEscolhido = snapshot.availableVehicles.find(
+    (v) => normalizePlate(v.placa) === normalizePlate(placa)
+  );
+  const modeloSelecionado = String(veiculoEscolhido?.modelo || "").trim();
   if (!cpf || !placa || !inicio) return;
+  if (!valorLocacaoNum || (plano === "DK MINHA MOTO" && !valorInvestimentoNum)) {
+    window.alert(
+      plano === "DK MINHA MOTO"
+        ? "No plano DK MINHA MOTO, informe valor da locação e valor do investimento."
+        : "Informe o valor da locação."
+    );
+    return;
+  }
+  const inicioDate = parseBrDate(inicio);
+  if (!inicioDate) {
+    window.alert("Informe a data de início no formato DD/MM/AAAA.");
+    return;
+  }
+  const fimCalculado =
+    plano === "DK MINHA MOTO"
+      ? addCalendarDays(inicioDate, 150 * 7)
+      : addCalendarMonths(inicioDate, 1);
+  if (fimCalculado) {
+    fim = formatDataDmaBr(fimCalculado);
+    if (cadLocacaoFimInput) cadLocacaoFimInput.value = fim;
+  }
+  if (!numeroContratoNorm) {
+    window.alert("O número do contrato é obrigatório e deve ser único no sistema.");
+    return;
+  }
+  if (contratoNumeroJaExisteNaBase(numeroContratoNorm, null)) {
+    window.alert(
+      "Este número de contrato já está cadastrado. Cada contrato (período cliente + veículo) deve ter um código diferente."
+    );
+    return;
+  }
 
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const cliente = clientes.find((c) => onlyDigits(String(c.cpf || "")) === cpf);
@@ -9964,10 +11458,14 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
   const confirmado = await askLocacaoCadastroConfirmation({
     cpf,
     clienteNome: String(cliente?.nome || "").trim(),
+    numeroContrato: numeroContratoNorm,
     placa,
     modelo: modeloSelecionado,
     inicio,
     fim,
+    plano,
+    valorLocacao: currencyBRL(valorLocacaoNum),
+    valorInvestimento: currencyBRL(valorInvestimentoNum),
     valorSemanal,
   });
   if (!confirmado) return;
@@ -9981,10 +11479,18 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     placa,
     inicio,
     fim,
+    plano,
+    valorLocacao: currencyBRL(valorLocacaoNum),
+    valorInvestimento: currencyBRL(valorInvestimentoNum),
     valorSemanal,
+    numeroContrato: numeroContratoNorm,
   });
   saveCadastro(CAD_LOCACOES_KEY, locacoes);
-  addAuditLog("cadastrar_locacao", "locacao", `${cpf} - ${placa}`);
+  addAuditLog(
+    "cadastrar_locacao",
+    "locacao",
+    `${cpf} - ${placa} - contrato ${numeroContratoNorm}`
+  );
   window.alert("LOCAÇÃO CADASTRADA COM SUCESSO");
   locacaoCadastroForm.reset();
   ensureLocacaoInicioDefault();
@@ -9995,18 +11501,65 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
 
 cadLocacaoCpfInput.addEventListener("blur", validateLocacaoCpfBlock);
 cadLocacaoCpfInput.addEventListener("input", () => {
-  if (cadLocacaoCpfInput.value.trim().length < 11) {
+  const cpf = onlyDigits(String(cadLocacaoCpfInput.value || ""));
+  cadLocacaoCpfInput.value = formatCpf(cpf);
+  if (cpf.length < 11) {
     locacaoImpedimentoAlertShown = false;
     setLocacaoFormBlocked(false);
     return;
   }
+  applyLocacaoClienteByCpf(cpf);
   validateLocacaoCpfBlock();
 });
+
+if (cadLocacaoValorInput) {
+  cadLocacaoValorInput.addEventListener("blur", () => {
+    formatLocacaoCurrencyInput(cadLocacaoValorInput);
+  });
+}
+
+if (cadLocacaoInvestimentoInput) {
+  cadLocacaoInvestimentoInput.addEventListener("blur", () => {
+    formatLocacaoCurrencyInput(cadLocacaoInvestimentoInput);
+  });
+}
+
+if (cadLocacaoInicioInput) {
+  cadLocacaoInicioInput.addEventListener("blur", () => {
+    recomputeLocacaoFimByPlano();
+  });
+}
+
+cadLocacaoPlanoInputs.forEach((inp) => {
+  inp.addEventListener("change", () => {
+    applyLocacaoPlanoRules();
+  });
+});
+
+if (cadLocacaoClienteNomeInput) {
+  cadLocacaoClienteNomeInput.addEventListener("input", () => {
+    applyLocacaoClienteByNome(cadLocacaoClienteNomeInput.value);
+  });
+  cadLocacaoClienteNomeInput.addEventListener("blur", () => {
+    applyLocacaoClienteByNome(cadLocacaoClienteNomeInput.value);
+  });
+}
+
+if (cadLocacaoPlacaInput) {
+  cadLocacaoPlacaInput.addEventListener("input", () => {
+    cadLocacaoPlacaInput.value = String(cadLocacaoPlacaInput.value || "").toUpperCase();
+  });
+  cadLocacaoPlacaInput.addEventListener("blur", () => {
+    cadLocacaoPlacaInput.value = String(cadLocacaoPlacaInput.value || "").trim().toUpperCase();
+  });
+}
 
 cadLocacaoClearBtn.addEventListener("click", () => {
   locacaoCadastroForm.reset();
   refreshLocacaoPlacaOptions();
+  refreshLocacaoClienteSugestoes();
   ensureLocacaoInicioDefault();
+  applyLocacaoPlanoRules();
   setLocacaoFormBlocked(false);
   locacaoImpedimentoAlertShown = false;
 });
@@ -10130,7 +11683,7 @@ function handleReportAreaClick(event) {
   if (target.dataset.adminBack === "true") {
     renderAdminResult(
       "Selecione uma consulta por grupo",
-      "<p>Use os botoes em Clientes Ativos, Clientes Inativos ou Todos os clientes.</p>"
+      "<p>Use os botoes em Contratos Ativos, Contratos Inativos ou Todos os contratos.</p>"
     );
     return;
   }
@@ -10286,7 +11839,7 @@ function handleReportAreaClick(event) {
     .slice(0, 150)
     .map(
       (r) =>
-        `<p><strong>${r.placa}</strong> - ${r.nome} (${currentScopeLabel})</p>`
+        `<p><strong>${r.placa}</strong> - ${r.nome || "Sem vínculo de cliente"} (${currentScopeLabel})</p>`
     )
     .join("");
 
@@ -10430,6 +11983,7 @@ normalizeClienteCodigos();
 removeClientesByCodigo([287, 288]);
 removeClientesByCpf(["444.444.444-44", "555.555.555-55"]);
 clearAllLocacoesOnce();
+resetLocacaoStackForSiteEntryOnce();
 importLocacoesFromPlanilhaOnce();
 fixKnownRentalValueOverrides();
 cadManutencaoDataInput.value = todayBrDate();
@@ -10438,10 +11992,20 @@ ensureLocacaoInicioDefault();
 setHomeLayoutToolbarState();
 bootstrapHomeLayoutFromStorage();
 bindHomeLayoutEditorEvents();
+refreshClienteAreaQrCode();
+setClienteLayoutToolbarState();
+bootstrapClienteLayoutFromStorage();
+bindClienteLayoutEditorEvents();
+setClienteEnderecoConfirmado(false);
 setFuncionarioLayoutToolbarState();
 bootstrapFuncionarioLayoutFromStorage();
 bindFuncionarioLayoutEditorEvents();
 requireLoggedArea();
+applyDeepLinkCadastroIaFromHash();
+bindCadastroIaWizards();
+window.addEventListener("hashchange", () => {
+  applyDeepLinkCadastroIaFromHash();
+});
 setInterval(() => {
   enforceMaintenanceAndDailyRoutines();
 }, 60 * 1000);
