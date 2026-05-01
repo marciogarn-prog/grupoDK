@@ -51,30 +51,59 @@
     </footer>
   </div>
 
-  <div id="view-locadora" class="view" role="region" aria-label="DK Locadora" aria-hidden="true">
-    <div class="subpage">
+  <div id="view-unit" class="view" role="region" aria-labelledby="unit-page-title" aria-hidden="true">
+    <div class="subpage subpage--wide">
       <button type="button" class="btn-back" data-back>← Voltar ao início</button>
-      <h1>DK Locadora</h1>
-      <p class="subpage__lead">Conteúdo em preparação. Em breve: canais de atendimento e áreas reservadas.</p>
-      <p class="subpage__note">Site: <strong>grupodkempreendimentos.com.br</strong></p>
-    </div>
-  </div>
+      <h1 id="unit-page-title">Unidade</h1>
+      <p class="subpage__lead" id="unit-page-lead">Escolha o tipo de acesso e informe CPF e senha. Senha inicial: <strong>123456</strong> (troca obrigatória no primeiro login).</p>
 
-  <div id="view-centro" class="view" role="region" aria-label="DK Centro Automotivo" aria-hidden="true">
-    <div class="subpage">
-      <button type="button" class="btn-back" data-back>← Voltar ao início</button>
-      <h1>DK Centro Automotivo</h1>
-      <p class="subpage__lead">Conteúdo em preparação. Em breve: serviços, localização e redes sociais.</p>
-      <p class="subpage__note">Site: <strong>grupodkempreendimentos.com.br</strong></p>
-    </div>
-  </div>
+      <div class="role-picker" role="tablist" aria-label="Tipo de acesso">
+        <button type="button" class="role-picker__btn" data-role="cliente" role="tab" aria-selected="false">Cliente</button>
+        <button type="button" class="role-picker__btn" data-role="colaborador" role="tab" aria-selected="false">Colaborador</button>
+        <button type="button" class="role-picker__btn" data-role="administrador" role="tab" aria-selected="false">Administrador</button>
+      </div>
 
-  <div id="view-construtora" class="view" role="region" aria-label="DK Construtora" aria-hidden="true">
-    <div class="subpage">
-      <button type="button" class="btn-back" data-back>← Voltar ao início</button>
-      <h1>DK Construtora</h1>
-      <p class="subpage__lead">Conteúdo em preparação. Em breve: obras, empreendimentos e contato comercial.</p>
-      <p class="subpage__note">Site: <strong>grupodkempreendimentos.com.br</strong></p>
+      <section id="panel-login" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title" id="login-panel-title">Entrar</h2>
+        <form id="form-login" class="portal-form" novalidate>
+          <input type="hidden" id="login-unit" name="unit" value="">
+          <input type="hidden" id="login-role" name="role" value="">
+          <label class="portal-field">
+            <span>CPF</span>
+            <input type="text" id="login-cpf" name="cpf" inputmode="numeric" autocomplete="username" maxlength="14" required placeholder="000.000.000-00">
+          </label>
+          <label class="portal-field">
+            <span>Senha</span>
+            <input type="password" id="login-senha" name="senha" autocomplete="current-password" required placeholder="Senha">
+          </label>
+          <p id="login-feedback" class="portal-feedback" role="status"></p>
+          <button type="submit" class="btn-primary">Entrar</button>
+        </form>
+      </section>
+
+      <section id="panel-senha" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Definir nova senha</h2>
+        <p class="subtext">Por segurança, altere a senha inicial antes de continuar.</p>
+        <form id="form-nova-senha" class="portal-form" novalidate>
+          <label class="portal-field">
+            <span>Nova senha</span>
+            <input type="password" id="nova-senha" autocomplete="new-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+          </label>
+          <label class="portal-field">
+            <span>Confirmar nova senha</span>
+            <input type="password" id="nova-senha-2" autocomplete="new-password" required minlength="6" placeholder="Repita a senha">
+          </label>
+          <p id="senha-feedback" class="portal-feedback" role="status"></p>
+          <button type="submit" class="btn-primary">Salvar e continuar</button>
+        </form>
+      </section>
+
+      <section id="panel-logado" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title" id="logado-titulo">Área logada</h2>
+        <p id="logado-texto" class="subpage__lead"></p>
+        <p class="subtext">Conteúdo da unidade em preparação.</p>
+        <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
+      </section>
     </div>
   </div>
 
