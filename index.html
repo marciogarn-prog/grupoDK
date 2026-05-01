@@ -1,494 +1,83 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#111111">
-  <meta name="description" content="DK Centro Automotivo e DK Locadora em Petrolina-PE. Oficina automotiva, carros e motos.">
-  <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
-  <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
-  <meta property="og:title" content="Grupo DK | Centro Automotivo e Locadora">
-  <meta property="og:description" content="DK Centro Automotivo e DK Locadora em Petrolina-PE. Oficina, locação de veículos e motos.">
+  <meta name="theme-color" content="#0c0f14">
+  <meta name="description" content="Grupo DK Empreendimentos — DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
+  <meta property="og:title" content="Grupo DK Empreendimentos">
+  <meta property="og:description" content="Escolha DK Locadora, DK Centro Automotivo ou DK Construtora.">
   <meta property="og:locale" content="pt_BR">
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
+  <title>Grupo DK Empreendimentos</title>
   <link rel="stylesheet" href="styles.css">
-  <title>DK Centro Automotivo | Área do Cliente</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-  <header class="topbar">
-    <div class="topbar-brand">
-      <h1>Grupo DK</h1>
-      <p>DK Centro Automotivo + DK Locadora · Petrolina&nbsp;-&nbsp;PE</p>
-    </div>
-    <nav class="topbar-nav" aria-label="Acesso à plataforma">
-      <button type="button" id="topbarAcessoCliente" class="topbar-access topbar-access--cliente">Acesso cliente</button>
-      <button type="button" id="topbarAcessoColaborador" class="topbar-access topbar-access--staff">Acesso colaborador</button>
-      <button type="button" id="updateButton" class="update-btn hidden">Buscar atualizações</button>
-      <button id="installButton" class="install-btn hidden">Instalar App</button>
-    </nav>
-  </header>
-
-  <main class="container">
-    <section id="grupoHome" class="landing">
-      <div class="home-layout-toolbar">
-        <button type="button" id="homeLayoutEditToggleBtn" class="secondary">Editar layout</button>
-        <button type="button" id="homeLayoutSaveBtn" class="secondary">Salvar layout</button>
-        <button type="button" id="homeLayoutResetBtn" class="secondary">Resetar layout</button>
+  <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">DK</span>
+        <div class="brand__text">
+          <span class="brand__title">Grupo DK</span>
+          <span class="brand__subtitle">Empreendimentos</span>
+        </div>
       </div>
-      <div class="landing-hero-with-qr">
-      <aside class="landing-qr-aside" aria-label="QR Code cadastro DK Locadora">
-        <p class="landing-qr-aside__title">DK Locadora no celular</p>
-        <img id="landingClienteQrImg" class="landing-qr-aside__img" width="180" height="180" alt="QR Code para cadastro com fotos">
-        <p class="hint landing-qr-aside__hint">Escaneie para abrir o cadastro com IA e fotos dos documentos. No navegador, use <strong>Instalar App</strong> no topo para instalar a PWA.</p>
-        <button type="button" id="landingAbrirCadastroIaBtn" class="secondary landing-qr-aside__btn">Abrir cadastro com IA</button>
-      </aside>
-      <div class="landing-hero" data-home-layout-box="hero">
-        <div class="landing-hero__text">
-          <p class="landing-kicker">Oficina e locação no mesmo endereço</p>
-          <h2 class="landing-title">Serviços automotivos e mobilidade sob medida para você</h2>
-          <p class="landing-lead">
-            Use os botões no topo para abrir sua área de cliente ou de equipe na DK Locadora.
-            Conheça também o Centro Automotivo e acompanhe o dia a dia nas redes.
-          </p>
-          <div class="landing-cta-row">
-            <button type="button" id="landingAcessoCliente" class="landing-cta landing-cta--primary">Sou cliente</button>
-            <button type="button" id="landingAcessoColaborador" class="landing-cta landing-cta--ghost">Sou colaborador</button>
-          </div>
-        </div>
-        <div class="landing-hero__shine" aria-hidden="true"></div>
-      </div>
-      </div>
+      <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
+    </header>
 
-      <div class="landing-panels">
-        <article class="landing-panel landing-panel--centro" data-home-layout-box="centro">
-          <div class="landing-panel__media">
-            <img
-              src="images/home/centro-hero.svg"
-              width="800"
-              height="480"
-              alt=""
-              loading="lazy"
-              decoding="async"
-              class="landing-panel__img"
-            >
-          </div>
-          <div class="landing-panel__body">
-            <h3 class="landing-panel__title">DK Centro Automotivo</h3>
-            <p class="landing-panel__meta">@dk_centroautomotivo · Avenida da Redencao · Petrolina PE</p>
-            <ul class="landing-panel__list">
-              <li>Mecânica em geral, alinhamento, balanceamento e injeção eletrônica</li>
-            </ul>
-            <div class="landing-panel__actions">
-              <a class="landing-link" href="https://instagram.com/dk_centroautomotivo" target="_blank" rel="noopener noreferrer">Instagram</a>
-              <a class="landing-link" href="https://bit.ly/DKCENTROAUTOMOTIVO" target="_blank" rel="noopener noreferrer">Link da bio</a>
-              <button id="openCentroButton" type="button" class="landing-panel__btn">Área institucional</button>
-            </div>
-          </div>
-        </article>
+    <main class="grid-choices" id="main-choices" aria-label="Unidades de negócio">
+      <button type="button" class="choice-card" data-go="locadora">
+        <span class="choice-card__icon" aria-hidden="true">◆</span>
+        <span class="choice-card__label">DK Locadora</span>
+        <span class="choice-card__hint">Mobilidade e locação de veículos</span>
+      </button>
+      <button type="button" class="choice-card" data-go="centro">
+        <span class="choice-card__icon" aria-hidden="true">◇</span>
+        <span class="choice-card__label">DK Centro Automotivo</span>
+        <span class="choice-card__hint">Oficina e serviços automotivos</span>
+      </button>
+      <button type="button" class="choice-card" data-go="construtora">
+        <span class="choice-card__icon" aria-hidden="true">▣</span>
+        <span class="choice-card__label">DK Construtora</span>
+        <span class="choice-card__hint">Obras e empreendimentos</span>
+      </button>
+    </main>
 
-        <article class="landing-panel landing-panel--locadora" data-home-layout-box="locadora">
-          <div class="landing-panel__media">
-            <img
-              src="images/home/locadora-hero.svg"
-              width="800"
-              height="480"
-              alt=""
-              loading="lazy"
-              decoding="async"
-              class="landing-panel__img"
-            >
-          </div>
-          <div class="landing-panel__body">
-            <h3 class="landing-panel__title">DK Locadora</h3>
-            <p class="landing-panel__meta">@dk_locacoesmt · (87) 8182-9389</p>
-            <ul class="landing-panel__list">
-              <li>Aluguel de carros e motos · contratos e consultas pela plataforma</li>
-            </ul>
-            <div class="landing-panel__actions">
-              <a class="landing-link" href="https://instagram.com/dk_locacoesmt" target="_blank" rel="noopener noreferrer">Instagram</a>
-              <a class="landing-link" href="https://wa.me/558781829389" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-              <button id="openLocadoraButton" type="button" class="landing-panel__btn landing-panel__btn--accent">Ir para login DK Locadora</button>
-            </div>
-          </div>
-        </article>
-      </div>
+    <footer class="site-footer">
+      <p>Petrolina — PE · <a href="https://grupodkempreendimentos.com.br/">grupodkempreendimentos.com.br</a></p>
+    </footer>
+  </div>
 
-    </section>
-
-    <section id="centroArea" class="hidden">
-      <section class="card">
-        <div class="dash-header">
-          <h2>DK Centro Automotivo</h2>
-          <button id="backToGroupFromCentro" class="secondary" type="button">Voltar ao Grupo DK</button>
-        </div>
-        <p class="subtext">Servicos automotivos em Petrolina-PE.</p>
-        <article class="vehicle-box">
-          <p>📍 Avenida da Redencao | Antonio Cassimiro | Petrolina PE</p>
-          <p>🔧 Mecanica em geral | Alinhamento | Balanceamento | Injecao eletronica</p>
-          <p>
-            <a href="https://instagram.com/dk_centroautomotivo" target="_blank" rel="noopener noreferrer">
-              Acessar Instagram do Centro Automotivo
-            </a>
-          </p>
-        </article>
-      </section>
-    </section>
-
-    <section id="locadoraArea" class="hidden">
-      <section class="card">
-        <div class="dash-header">
-          <h2>DK Locadora</h2>
-          <button id="backToGroupFromLocadora" class="secondary" type="button">Voltar ao Grupo DK</button>
-        </div>
-        <p class="subtext">Escolha o tipo de acesso para entrar na plataforma.</p>
-      </section>
-
-      <section id="loginArea" class="login-grid">
-        <section id="loginClienteCard" class="card login-card">
-          <h2>Acesso do Cliente</h2>
-          <p class="subtext">Entre para ver apenas os dados do seu contrato.</p>
-          <p id="envWarning" class="warning hidden"></p>
-          <form id="loginClienteForm">
-            <label for="cpfCliente">CPF</label>
-            <input id="cpfCliente" name="cpf" type="text" placeholder="000.000.000-00" required>
-
-            <label for="senhaCliente">Senha</label>
-            <input id="senhaCliente" name="senha" type="password" placeholder="Senha do cliente" required>
-
-            <button type="submit">Entrar como cliente</button>
-          </form>
-          <p id="loginClienteMessage" class="message" aria-live="polite"></p>
-          <p class="hint">Clientes: senha inicial padrao <strong>1234</strong>.</p>
-          <div class="vehicle-box" id="cadastroIaClientePublic">
-            <h3>Cadastro com IA (fotos)</h3>
-            <p class="subtext">Use a chave OpenAI já configurada em lançamentos (comprovante). Permita a localização, tire ou envie as três fotos e clique em processar. Revise o formulário abaixo e confirme o endereço antes de enviar.</p>
-            <div class="cadastro-ia-wizard" data-ia-wizard="public">
-              <div class="cadastro-ia-row">
-                <button type="button" class="cadastro-ia-geo secondary">Capturar localização</button>
-                <span class="cadastro-ia-geo-status hint" aria-live="polite"></span>
-              </div>
-              <label class="cadastro-ia-file-label">Frente da CNH
-                <input type="file" accept="image/*" capture="environment" data-ia-part="cnhFrente">
-              </label>
-              <label class="cadastro-ia-file-label">Verso da CNH
-                <input type="file" accept="image/*" capture="environment" data-ia-part="cnhVerso">
-              </label>
-              <label class="cadastro-ia-file-label">Comprovante de residência
-                <input type="file" accept="image/*" capture="environment" data-ia-part="comprovante">
-              </label>
-              <button type="button" class="cadastro-ia-run">Processar com IA</button>
-              <p class="cadastro-ia-msg message" aria-live="polite"></p>
-            </div>
-          </div>
-          <div class="vehicle-box">
-            <h3>Cadastro para avaliacao</h3>
-            <p class="subtext">Envio disponível para funcionário ou para interessado em se tornar cliente.</p>
-            <form id="clientePublicoCadastroForm" class="inline-form">
-              <input type="text" id="publicCadClienteCpf" placeholder="CPF" inputmode="numeric" maxlength="14" autocomplete="off" required>
-              <input type="text" id="publicCadClienteDataCadastro" placeholder="Data do Cadastro" maxlength="10" inputmode="numeric">
-              <input type="text" id="publicCadClienteNome" placeholder="NOME" maxlength="120" required>
-              <input type="text" id="publicCadClienteCelular" placeholder="Nº do Celular" inputmode="tel" maxlength="20">
-              <input type="text" id="publicCadClienteRecado1" placeholder="Recados 01" maxlength="120">
-              <input type="text" id="publicCadClienteRecado2" placeholder="Recados 02" maxlength="120">
-              <input type="text" id="publicCadClienteCnh" placeholder="Nº da CNH-e" inputmode="numeric" maxlength="20">
-              <input type="text" id="publicCadClienteCategoria" placeholder="Categoria" maxlength="16">
-              <input type="text" id="publicCadClienteVencimento" placeholder="Vencimento" maxlength="10" inputmode="numeric">
-              <select id="publicCadClienteEar">
-                <option value="">EAR?</option>
-                <option value="SIM">SIM</option>
-                <option value="NAO">NAO</option>
-              </select>
-              <input type="text" id="publicCadClienteCep" placeholder="CEP (XXXXX-XXX)" inputmode="numeric" maxlength="9" autocomplete="postal-code">
-              <input type="text" id="publicCadClienteComplemento" placeholder="Número/Casa/AP" maxlength="40">
-              <button type="button" id="publicCadClienteConfirmEnderecoBtn" class="secondary">Confirmar endereço</button>
-              <p id="publicCadClienteCepStatus" class="message hidden"></p>
-              <input type="text" id="publicCadClienteMunicipioUf" placeholder="Município/UF" maxlength="60">
-              <input type="text" id="publicCadClienteEndereco" placeholder="Rua / Bairro" maxlength="120">
-              <button type="submit">Enviar para avaliacao</button>
-            </form>
-            <p id="publicCadClienteErro" class="message error hidden"></p>
-          </div>
-        </section>
-
-        <section id="loginAdminCard" class="card login-card">
-          <h2>Acesso do Funcionário</h2>
-          <p class="subtext">Area de gestao da DK Locadora.</p>
-          <form id="loginAdminForm">
-            <label for="cpfAdmin">CPF do funcionário</label>
-            <input id="cpfAdmin" name="cpf" type="text" placeholder="CPF do funcionário" required>
-
-            <label for="senhaAdmin">Senha</label>
-            <input id="senhaAdmin" name="senha" type="password" placeholder="Senha do administrador" required>
-
-            <button type="submit">Entrar como funcionário</button>
-          </form>
-          <p id="loginAdminMessage" class="message" aria-live="polite"></p>
-        </section>
-      </section>
-
-      <section id="dashboardCard" class="card hidden">
-        <div class="dash-header">
-          <h2>Área do cliente</h2>
-          <button id="logoutButton" class="secondary">Sair</button>
-        </div>
-
-        <article class="vehicle-box">
-          <p id="dashboardClienteMsg" class="subtext"></p>
-          <p class="hint">Nesta versão do sistema não há consulta de contrato, financeiro ou locação — apenas cadastro de clientes e de veículos na área de colaboradores.</p>
-        </article>
-
-        <p class="security-note">
-          Dados de contrato e pagamentos foram removidos da interface.
-        </p>
-        <p>
-          <a href="https://instagram.com/dk_locacoesmt" target="_blank" rel="noopener noreferrer">
-            Acessar Instagram da DK Locadora
-          </a>
-        </p>
-      </section>
-
-      <section id="adminCard" class="card hidden">
-        <div class="dash-header">
-          <h2>Painel do Funcionário</h2>
-          <button id="adminLogoutButton" class="secondary">Sair</button>
-        </div>
-        <p class="subtext">Cadastro de clientes e de veículos (sem locação, contratos ou financeiro nesta versão).</p>
-        <div class="admin-shell">
-          <aside class="admin-sidebar">
-            <button type="button" id="adminNavOperacao" class="secondary">01 - Cadastros</button>
-            <div id="adminOperacaoMenu" class="sidebar-submenu hidden">
-              <button type="button" class="secondary operacao-target-btn" data-target="cliente">Cadastro cliente</button>
-              <button type="button" class="secondary operacao-target-btn" data-target="veiculo">Cadastro veiculo</button>
-            </div>
-            <button type="button" id="adminNavDados" class="secondary">02 - Area do administrador</button>
-            <div id="adminDadosMenu" class="sidebar-submenu">
-              <button type="button" id="adminDadosUsoBtn" class="secondary">Dados de utilizacao</button>
-              <button type="button" id="adminValidacaoCadastroBtn" class="secondary">Validacao de cadastro</button>
-            </div>
-          </aside>
-
-          <div class="admin-content">
-            <div id="adminOperacaoSection" class="admin-section">
-              <section id="operacaoClienteSection" class="admin-group">
-            <h3>Cadastro do Cliente</h3>
-            <div class="vehicle-box" id="cadastroIaClienteStaff">
-              <h4>Cadastro com IA (mesmo fluxo do cliente)</h4>
-              <p class="subtext">Localização + fotos da CNH e comprovante; a IA preenche os campos abaixo. Confirme o endereço antes de enviar para avaliação.</p>
-              <div class="cadastro-ia-wizard" data-ia-wizard="staff">
-                <div class="cadastro-ia-row">
-                  <button type="button" class="cadastro-ia-geo secondary">Capturar localização</button>
-                  <span class="cadastro-ia-geo-status hint" aria-live="polite"></span>
-                </div>
-                <label class="cadastro-ia-file-label">Frente da CNH
-                  <input type="file" accept="image/*" capture="environment" data-ia-part="cnhFrente">
-                </label>
-                <label class="cadastro-ia-file-label">Verso da CNH
-                  <input type="file" accept="image/*" capture="environment" data-ia-part="cnhVerso">
-                </label>
-                <label class="cadastro-ia-file-label">Comprovante de residência
-                  <input type="file" accept="image/*" capture="environment" data-ia-part="comprovante">
-                </label>
-                <button type="button" class="cadastro-ia-run">Processar com IA</button>
-                <p class="cadastro-ia-msg message" aria-live="polite"></p>
-              </div>
-            </div>
-            <form id="clienteCadastroForm" class="inline-form cliente-inline-form">
-              <input type="text" id="cadClienteCpf" placeholder="CPF" inputmode="numeric" maxlength="14" autocomplete="off" required>
-              <input type="text" id="cadClienteCodigo" placeholder="Cód. automático" maxlength="8" readonly>
-              <input type="text" id="cadClienteDataCadastro" placeholder="Data do Cadastro" maxlength="10" inputmode="numeric">
-              <input type="text" id="cadClienteNome" placeholder="NOME" maxlength="120" required>
-              <input type="text" id="cadClienteCelular" placeholder="Nº do Celular" inputmode="tel" maxlength="20">
-              <input type="text" id="cadClienteRecado1" placeholder="Recados 01" maxlength="120">
-              <input type="text" id="cadClienteRecado2" placeholder="Recados 02" maxlength="120">
-              <input type="text" id="cadClienteCnh" placeholder="Nº da CNH-e" inputmode="numeric" maxlength="20">
-              <input type="text" id="cadClienteCategoria" placeholder="Categoria" maxlength="16">
-              <input type="text" id="cadClienteVencimento" placeholder="Vencimento" maxlength="10" inputmode="numeric">
-              <select id="cadClienteEar">
-                <option value="">EAR?</option>
-                <option value="SIM">SIM</option>
-                <option value="NAO">NAO</option>
-              </select>
-              <input type="text" id="cadClienteCep" placeholder="CEP (XXXXX-XXX)" inputmode="numeric" maxlength="9" autocomplete="postal-code">
-              <input type="text" id="cadClienteComplemento" placeholder="Número/Casa/AP" maxlength="40">
-              <button type="button" id="cadClienteConfirmEnderecoBtn" class="secondary">Confirmar endereço</button>
-              <p id="cadClienteCepStatus" class="message hidden"></p>
-              <input type="text" id="cadClienteMunicipioUf" placeholder="Município/UF" maxlength="60">
-              <input type="text" id="cadClienteEndereco" placeholder="Rua / Bairro" maxlength="120">
-              <button type="submit">Enviar para avaliacao</button>
-              <button type="button" id="cadClienteClearBtn" class="secondary">Limpar dados</button>
-              <button type="button" id="cadClienteUpdateBtn" class="secondary hidden">Editar</button>
-              <button type="button" id="cadClienteCancelBtn" class="secondary hidden">Bloquear cliente</button>
-              <button type="button" id="cadClienteUnblockBtn" class="secondary hidden">Desbloquear cliente</button>
-              <button type="button" id="cadClienteDeleteBtn" class="secondary hidden">Excluir cliente</button>
-            </form>
-            <div id="clienteCancelOpcoes" class="report-actions hidden">
-              <button type="button" id="cancelarClienteQuebraBtn" class="secondary">Quebra de contrato</button>
-              <button type="button" id="cancelarClienteNegativadoBtn" class="secondary">Cadastro não aprovado</button>
-            </div>
-            <div id="clienteSenhaWrap" class="report-actions hidden">
-              <input type="password" id="cadClienteAdminSenha" placeholder="Senha do administrador">
-              <button type="button" id="cadClienteSenhaConfirmarBtn" class="secondary">Confirmar senha</button>
-              <button type="button" id="cadClienteSenhaCancelarBtn" class="secondary">Cancelar</button>
-            </div>
-            <div class="report-actions">
-              <button type="button" id="gerarRelatorioClienteBtn" class="secondary">Gerar relatório</button>
-              <div id="relatorioClienteOpcoes" class="report-options hidden">
-                <button type="button" id="relatorioClientePdfBtn">PDF</button>
-                <button type="button" id="relatorioClienteExcelBtn">Excel</button>
-              </div>
-            </div>
-            <p id="clienteCadastroErro" class="message error hidden"></p>
-            <div id="cadastroClienteLista" class="cadastro-lista"></div>
-              </section>
-
-              <section id="operacaoVeiculoSection" class="admin-group hidden">
-            <h3>Cadastro do Veículo</h3>
-            <form id="veiculoCadastroForm" class="inline-form">
-              <select id="cadVeiculoTipo" required>
-                <option value="">Tipo do veículo</option>
-                <option value="CARRO">CARRO</option>
-                <option value="MOTO">MOTO</option>
-              </select>
-              <input type="text" id="cadVeiculoPlaca" placeholder="Placa" required>
-              <input type="text" id="cadVeiculoTagPreview" placeholder="Tag (automática)" readonly>
-              <input type="text" id="cadVeiculoMarca" placeholder="Marca">
-              <input type="text" id="cadVeiculoModelo" placeholder="Modelo" required>
-              <input type="text" id="cadVeiculoValor" placeholder="Valor">
-              <input type="text" id="cadVeiculoCor" placeholder="Cor">
-              <input type="text" id="cadVeiculoChassi" placeholder="Chassi">
-              <input type="text" id="cadVeiculoAnoModelo" placeholder="Ano/Modelo">
-              <input type="text" id="cadVeiculoRenavam" placeholder="Renavam">
-              <input type="text" id="cadVeiculoMotor" placeholder="Motor">
-              <button type="submit">Salvar veículo</button>
-              <button type="button" id="cadVeiculoClearBtn" class="secondary">Limpar dados</button>
-              <button type="button" id="cadVeiculoUpdateBtn" class="secondary hidden">Atualizar</button>
-              <button type="button" id="cadVeiculoCancelBtn" class="secondary hidden">Cancelar veículo</button>
-            </form>
-            <div id="veiculoCancelOpcoes" class="report-actions hidden">
-              <button type="button" id="cancelarPorVendaBtn" class="secondary">Venda</button>
-              <button type="button" id="cancelarPorSinistroBtn" class="secondary">Sinistro</button>
-              <button type="button" id="cancelarPorRouboBtn" class="secondary">Roubo</button>
-            </div>
-            <div id="veiculoSenhaWrap" class="report-actions hidden">
-              <input type="password" id="cadVeiculoAdminSenha" placeholder="Senha do administrador">
-              <button type="button" id="cadVeiculoSenhaConfirmarBtn" class="secondary">Confirmar senha</button>
-              <button type="button" id="cadVeiculoSenhaCancelarBtn" class="secondary">Cancelar</button>
-            </div>
-            <div class="report-actions">
-              <button type="button" id="gerarRelatorioVeiculoBtn" class="secondary">Gerar relatório</button>
-              <div id="relatorioVeiculoOpcoes" class="report-options hidden">
-                <button type="button" id="relatorioVeiculoPdfBtn">PDF</button>
-                <button type="button" id="relatorioVeiculoExcelBtn">Excel</button>
-              </div>
-            </div>
-            <p id="veiculoCadastroErro" class="message error hidden">EQUIPAMENTO JA CADASTRADO</p>
-            <div id="cadastroVeiculoLista" class="cadastro-lista"></div>
-              </section>
-
-              <article class="vehicle-box">
-                <h3 id="adminResultTitle">Cadastros DK</h3>
-                <div id="adminResultBody"><p class="subtext">Relatórios e avisos do sistema aparecem aqui.</p></div>
-              </article>
-            </div>
-
-            <div id="adminDadosSection" class="admin-section hidden">
-              <section id="adminDadosUsoSection" class="admin-group">
-                <h3>Dados de utilização</h3>
-                <p>Gerar histórico temporal de alterações no sistema.</p>
-                <div class="report-actions">
-                  <img id="clienteAreaQrImg" alt="QR Code área do cliente" style="width:140px;height:140px;border-radius:8px;border:1px solid #2f2f34;background:#fff;padding:4px;">
-                  <button type="button" id="enviarQrWhatsappBtn" class="secondary">Enviar QR via WhatsApp</button>
-                </div>
-                <div class="report-actions">
-                  <button type="button" id="gerarDadosUsoPdfBtn" class="secondary">Gerar relatório PDF</button>
-                  <button type="button" id="exportDadosBackupBtn" class="secondary">Exportar backup (JSON)</button>
-                  <button type="button" id="importDadosBackupBtn" class="secondary">Restaurar backup (JSON)</button>
-                  <input id="importDadosBackupInput" type="file" accept="application/json,.json" class="hidden">
-                </div>
-                <div id="dadosUsoSenhaWrap" class="report-actions hidden">
-                  <input type="password" id="dadosUsoAdminSenha" placeholder="Senha do administrador">
-                  <button type="button" id="dadosUsoSenhaConfirmarBtn" class="secondary">Confirmar senha</button>
-                  <button type="button" id="dadosUsoSenhaCancelarBtn" class="secondary">Cancelar</button>
-                </div>
-              </section>
-              <section id="adminValidacaoCadastroSection" class="admin-group hidden">
-                <h3>Validacao de cadastro</h3>
-                <p>Avalie os cadastros enviados na operação e aprove ou reprove.</p>
-                <div id="adminValidacaoCadastroLista" class="cadastro-lista"></div>
-              </section>
-            </div>
-          </div>
-        </div>
-      </section>
-    </section>
-  </main>
-
-  <footer class="footer">
-    <p>DK Centro Automotivo - Petrolina/PE</p>
-  </footer>
-
-  <div id="veiculoConfirmDialog" class="modal-overlay hidden">
-    <div class="modal-card">
-      <h3>Confirmar cadastro de veículo</h3>
-      <p>Confira os dados antes de salvar:</p>
-      <p><strong>TODOS OS DADOS ESTÃO CORRETOS?</strong></p>
-      <div id="veiculoConfirmResumo" class="modal-resumo"></div>
-      <div class="report-actions">
-        <button type="button" id="veiculoConfirmSimBtn">Sim</button>
-        <button type="button" id="veiculoConfirmVoltarBtn" class="secondary">Voltar para edição</button>
-      </div>
+  <div id="view-locadora" class="view" role="region" aria-label="DK Locadora" aria-hidden="true">
+    <div class="subpage">
+      <button type="button" class="btn-back" data-back>← Voltar ao início</button>
+      <h1>DK Locadora</h1>
+      <p class="subpage__lead">Conteúdo em preparação. Em breve: canais de atendimento e áreas reservadas.</p>
+      <p class="subpage__note">Site: <strong>grupodkempreendimentos.com.br</strong></p>
     </div>
   </div>
 
-  <div id="clienteConfirmDialog" class="modal-overlay hidden">
-    <div class="modal-card">
-      <h3>Confirmar cadastro de cliente</h3>
-      <p>Confira os dados antes de salvar:</p>
-      <p><strong>TODOS OS DADOS ESTÃO CORRETOS?</strong></p>
-      <div id="clienteConfirmResumo" class="modal-resumo"></div>
-      <div class="report-actions">
-        <button type="button" id="clienteConfirmSimBtn">Sim</button>
-        <button type="button" id="clienteConfirmVoltarBtn" class="secondary">Voltar para edição</button>
-      </div>
+  <div id="view-centro" class="view" role="region" aria-label="DK Centro Automotivo" aria-hidden="true">
+    <div class="subpage">
+      <button type="button" class="btn-back" data-back>← Voltar ao início</button>
+      <h1>DK Centro Automotivo</h1>
+      <p class="subpage__lead">Conteúdo em preparação. Em breve: serviços, localização e redes sociais.</p>
+      <p class="subpage__note">Site: <strong>grupodkempreendimentos.com.br</strong></p>
     </div>
   </div>
 
-  <div id="clienteVidaDialog" class="modal-overlay hidden">
-    <div class="modal-card modal-card-wide">
-      <div class="report-actions" style="justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0;">Cliente na DK</h3>
-        <div class="report-actions">
-          <button type="button" id="clienteVidaExportExcelBtn" class="secondary">Exportar Excel</button>
-          <button type="button" id="clienteVidaExportPdfBtn" class="secondary">Exportar PDF</button>
-          <button type="button" id="clienteVidaImprimirBtn" class="secondary">Imprimir</button>
-          <button type="button" id="clienteVidaFecharBtn" class="secondary">Fechar</button>
-        </div>
-      </div>
-      <div id="clienteVidaBody" class="modal-resumo"></div>
+  <div id="view-construtora" class="view" role="region" aria-label="DK Construtora" aria-hidden="true">
+    <div class="subpage">
+      <button type="button" class="btn-back" data-back>← Voltar ao início</button>
+      <h1>DK Construtora</h1>
+      <p class="subpage__lead">Conteúdo em preparação. Em breve: obras, empreendimentos e contato comercial.</p>
+      <p class="subpage__note">Site: <strong>grupodkempreendimentos.com.br</strong></p>
     </div>
   </div>
 
-  <div id="placaHistoricoDialog" class="modal-overlay hidden">
-    <div class="modal-card modal-card-wide">
-      <div class="report-actions" style="justify-content: space-between; align-items: center;">
-        <h3 style="margin: 0;">Histórico da placa</h3>
-        <div class="report-actions">
-          <button type="button" id="placaHistoricoExportExcelBtn" class="secondary">Exportar Excel</button>
-          <button type="button" id="placaHistoricoExportPdfBtn" class="secondary">Exportar PDF</button>
-          <button type="button" id="placaHistoricoImprimirBtn" class="secondary">Imprimir</button>
-          <button type="button" id="placaHistoricoFecharBtn" class="secondary">Fechar</button>
-        </div>
-      </div>
-      <div id="placaHistoricoBody" class="modal-resumo"></div>
-    </div>
-  </div>
-
-  <script src="veiculos-seed.js"></script>
-  <script src="clientes-seed.js"></script>
-  <script src="cadastro-ia-cliente.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
