@@ -800,6 +800,51 @@ button.install-btn {
   align-items: stretch;
 }
 
+.locacao-placa-field-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.locacao-placa-input-wrap {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.locacao-placa-input-wrap input {
+  width: 100%;
+}
+
+.locacao-disponiveis-badge {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(225, 6, 0, 0.45);
+  border-radius: 6px;
+  background: rgba(42, 17, 17, 0.55);
+  font-size: 0.72rem;
+  line-height: 1.25;
+  max-width: 155px;
+  text-align: center;
+}
+
+.locacao-disponiveis-badge strong {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
+.locacao-disponiveis-badge span {
+  color: rgba(255, 255, 255, 0.78);
+}
+
 .funcionario-inline-form {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
@@ -866,6 +911,25 @@ button.install-btn {
 }
 
 .funcionario-inline-form.func-custom-layout.layout-edit-mode > [data-func-layout-box] {
+  border-color: #e10600;
+  box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.25);
+}
+
+#locacaoCadastroForm.loc-custom-layout {
+  display: block;
+  position: relative;
+}
+
+#locacaoCadastroForm.loc-custom-layout > [data-loc-layout-box] {
+  position: absolute;
+  margin: 0;
+  resize: both;
+  overflow: auto;
+  min-width: 180px;
+  min-height: 42px;
+}
+
+#locacaoCadastroForm.loc-custom-layout.layout-edit-mode > [data-loc-layout-box] {
   border-color: #e10600;
   box-shadow: 0 0 0 1px rgba(225, 6, 0, 0.25);
 }
@@ -1346,6 +1410,23 @@ button.install-btn {
   gap: 0.5rem;
 }
 
+/* No cadastro de locacao, a faixa "Tela/Excel/PDF" foi desativada. */
+#relatorioLocacaoFormatos {
+  display: none !important;
+}
+
+#relatorioLocadosBtn {
+  background: #0b5ed7;
+  border-color: #0a58ca;
+  color: #fff;
+}
+
+#relatorioDisponiveisBtn {
+  background: #198754;
+  border-color: #157347;
+  color: #fff;
+}
+
 .cadastro-lista {
   display: block;
 }
@@ -1543,6 +1624,20 @@ button.install-btn {
 .relatorio-table.relatorio-compacto td {
   padding: 0.32rem 0.4rem;
   line-height: 1.15;
+}
+
+.relatorio-table.relatorio-locacao-por-protocolo th.relatorio-locacao-protocolo-col,
+.relatorio-table.relatorio-locacao-por-protocolo td.relatorio-locacao-protocolo-cell {
+  min-width: 10rem;
+  font-size: 1.06rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: #0a0a0a;
+}
+
+.relatorio-table.relatorio-locacao-por-protocolo th.relatorio-locacao-protocolo-col {
+  font-size: 0.95rem;
+  color: #c50500;
 }
 
 .saldo-devedor-cell {

@@ -42,15 +42,7 @@ const mockClientes = [
 ];
 
 const FUNCIONARIOS_ACCESS_KEY = "dk_funcionarios_access";
-const OPERACAO_ACCESS_TARGETS = [
-  "cliente",
-  "veiculo",
-  "locacao",
-  "manutencao",
-  "lancamentoAluguel",
-  "lancamentoDespesa",
-  "funcionario",
-];
+const OPERACAO_ACCESS_TARGETS = ["cliente", "veiculo"];
 const funcionariosAccess = [
   {
     cpf: "03037897430",
@@ -217,16 +209,31 @@ const locacaoCadastroForm = document.getElementById("locacaoCadastroForm");
 const cadLocacaoCpfInput = document.getElementById("cadLocacaoCpf");
 const cadLocacaoPlacaInput = document.getElementById("cadLocacaoPlaca");
 const cadLocacaoPlacaSugestoes = document.getElementById("cadLocacaoPlacaSugestoes");
+const cadLocacaoMotosDisponiveisCountEl = document.getElementById(
+  "cadLocacaoMotosDisponiveisCount"
+);
 const cadLocacaoClienteNomeInput = document.getElementById("cadLocacaoClienteNome");
 const cadLocacaoCpfSugestoes = document.getElementById("cadLocacaoCpfSugestoes");
 const cadLocacaoClienteNomeSugestoes = document.getElementById("cadLocacaoClienteNomeSugestoes");
 const cadLocacaoInicioInput = document.getElementById("cadLocacaoInicio");
 const cadLocacaoFimInput = document.getElementById("cadLocacaoFim");
+const cadLocacaoKmInput = document.getElementById("cadLocacaoKm");
 const cadLocacaoValorInput = document.getElementById("cadLocacaoValor");
 const cadLocacaoInvestimentoInput = document.getElementById("cadLocacaoInvestimento");
 const cadLocacaoPlanoInputs = document.querySelectorAll('input[name="cadLocacaoPlano"]');
 const cadLocacaoContratoInput = document.getElementById("cadLocacaoContrato");
-const locacaoSubmitButton = locacaoCadastroForm.querySelector('button[type="submit"]');
+const cadLocacaoStatusInput = document.getElementById("cadLocacaoStatus");
+const cadLocacaoDiaPagtoInput = document.getElementById("cadLocacaoDiaPagto");
+const cadLocacaoPeriodoLocacaoInput = document.getElementById("cadLocacaoPeriodoLocacao");
+const cadLocacaoModalidadeInput = document.getElementById("cadLocacaoModalidade");
+const cadLocacaoMarcaModeloInput = document.getElementById("cadLocacaoMarcaModelo");
+const cadLocacaoOpcaoContratoInput = document.getElementById("cadLocacaoOpcaoContrato");
+const cadLocacaoPeriodoContratoInput = document.getElementById("cadLocacaoPeriodoContrato");
+const cadLocacaoConfigPrecoKmInput = document.getElementById("cadLocacaoConfigPrecoKm");
+const cadLocacaoTabelaInput = document.getElementById("cadLocacaoTabela");
+const cadLocacaoValorParcelaInput = document.getElementById("cadLocacaoValorParcela");
+const cadLocacaoClienteCodigoInput = document.getElementById("cadLocacaoClienteCodigo");
+const locacaoSubmitButton = locacaoCadastroForm?.querySelector('button[type="submit"]') ?? null;
 const cadLocacaoClearBtn = document.getElementById("cadLocacaoClearBtn");
 const lancamentoAluguelForm = document.getElementById("lancamentoAluguelForm");
 const lancAluguelClienteNomeInput = document.getElementById("lancAluguelClienteNome");
@@ -283,7 +290,7 @@ const cadVeiculoTagPreviewInput = document.getElementById("cadVeiculoTagPreview"
 const cadVeiculoChassiInput = document.getElementById("cadVeiculoChassi");
 const cadVeiculoRenavamInput = document.getElementById("cadVeiculoRenavam");
 const cadVeiculoMotorInput = document.getElementById("cadVeiculoMotor");
-const veiculoSubmitButton = veiculoCadastroForm.querySelector('button[type="submit"]');
+const veiculoSubmitButton = veiculoCadastroForm?.querySelector('button[type="submit"]') ?? null;
 const cadVeiculoClearBtn = document.getElementById("cadVeiculoClearBtn");
 const cadVeiculoUpdateBtn = document.getElementById("cadVeiculoUpdateBtn");
 const cadVeiculoCancelBtn = document.getElementById("cadVeiculoCancelBtn");
@@ -318,18 +325,29 @@ const relatorioLocacaoOpcoes = document.getElementById("relatorioLocacaoOpcoes")
 const relatorioLocacaoFormatos = document.getElementById("relatorioLocacaoFormatos");
 const relatorioLocadosBtn = document.getElementById("relatorioLocadosBtn");
 const relatorioDisponiveisBtn = document.getElementById("relatorioDisponiveisBtn");
+const relatorioCompletoProtocoloBtn = document.getElementById("relatorioCompletoProtocoloBtn");
 const relatorioLocacaoTelaBtn = document.getElementById("relatorioLocacaoTelaBtn");
 const relatorioLocacaoPdfBtn = document.getElementById("relatorioLocacaoPdfBtn");
 const relatorioLocacaoExcelBtn = document.getElementById("relatorioLocacaoExcelBtn");
+const relatorioLocacaoLimparBtn = document.getElementById("relatorioLocacaoLimparBtn");
+const locLayoutEditToggleBtn = document.getElementById("locLayoutEditToggleBtn");
+const locLayoutSaveBtn = document.getElementById("locLayoutSaveBtn");
+const locLayoutResetBtn = document.getElementById("locLayoutResetBtn");
 const locacaoReportBox = document.getElementById("locacaoReportBox");
 const locacaoReportTitle = document.getElementById("locacaoReportTitle");
 const locacaoReportBody = document.getElementById("locacaoReportBody");
 const clienteVidaDialog = document.getElementById("clienteVidaDialog");
 const clienteVidaBody = document.getElementById("clienteVidaBody");
 const clienteVidaFecharBtn = document.getElementById("clienteVidaFecharBtn");
+const clienteVidaExportExcelBtn = document.getElementById("clienteVidaExportExcelBtn");
+const clienteVidaExportPdfBtn = document.getElementById("clienteVidaExportPdfBtn");
+const clienteVidaImprimirBtn = document.getElementById("clienteVidaImprimirBtn");
 const placaHistoricoDialog = document.getElementById("placaHistoricoDialog");
 const placaHistoricoBody = document.getElementById("placaHistoricoBody");
 const placaHistoricoFecharBtn = document.getElementById("placaHistoricoFecharBtn");
+const placaHistoricoExportExcelBtn = document.getElementById("placaHistoricoExportExcelBtn");
+const placaHistoricoExportPdfBtn = document.getElementById("placaHistoricoExportPdfBtn");
+const placaHistoricoImprimirBtn = document.getElementById("placaHistoricoImprimirBtn");
 const veiculoConfirmDialog = document.getElementById("veiculoConfirmDialog");
 const veiculoConfirmResumo = document.getElementById("veiculoConfirmResumo");
 const veiculoConfirmSimBtn = document.getElementById("veiculoConfirmSimBtn");
@@ -372,6 +390,7 @@ const comprovanteModalNomePagador = document.getElementById("comprovanteModalNom
 const comprovanteModalTerceiro = document.getElementById("comprovanteModalTerceiro");
 const comprovanteLocacaoWrap = document.getElementById("comprovanteLocacaoWrap");
 const comprovanteLocacaoSelect = document.getElementById("comprovanteLocacaoSelect");
+
 const comprovanteAplicarBtn = document.getElementById("comprovanteAplicarBtn");
 const comprovanteModalCancelBtn = document.getElementById("comprovanteModalCancelBtn");
 const installButton = document.getElementById("installButton");
@@ -444,6 +463,11 @@ const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
 /** Migração única: zera toda a pilha operacional de locação/lançamentos; mantém clientes e veículos. */
 const RESET_LOCACAO_STACK_SITE_V2_KEY = "dk_reset_locacao_stack_site_v2";
+/**
+ * Reset completo do projeto no navegador: mantém apenas dk_clientes_cadastro e dk_veiculos_cadastro.
+ * Não altera funcionários nem chave OpenAI.
+ */
+const RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY = "dk_reset_projeto_somente_cadastros_v3";
 const LEGACY_LANCAMENTO_KEYS = [
   "dk_lancamento_aluguel",
   "dk_lancamentos_aluguel_cadastro",
@@ -478,6 +502,8 @@ const PLACAS_LOCADAS_MANUAIS = [
 ];
 let relatorioLocacaoTipoSelecionado = "";
 let relatorioLocacaoCache = null;
+let locacoesXlsxApiCache = null;
+let locacoesXlsxApiPromise = null;
 let dadosUsoAcaoPendente = "";
 let ultimoLancamentoAluguelSalvoId = null;
 let homeLayoutEditMode = false;
@@ -488,6 +514,10 @@ let funcLayoutEditMode = false;
 let funcLayoutDragState = null;
 let funcLayoutResizeObserver = null;
 const FUNC_LAYOUT_KEY = "dk_funcionario_form_layout_v1";
+let locLayoutEditMode = false;
+let locLayoutDragState = null;
+let locLayoutResizeObserver = null;
+const LOC_LAYOUT_KEY = "dk_locacao_form_layout_v1";
 let clienteLayoutEditMode = false;
 let clienteLayoutDragState = null;
 let clienteLayoutResizeObserver = null;
@@ -537,6 +567,39 @@ function openLocadoraLoginTarget(target) {
 
 function getHomeLayoutBoxesArray() {
   return Array.from(homeLayoutBoxes || []);
+}
+
+function canEditLayoutsByProfile() {
+  return false;
+}
+
+function setLayoutEditorsAccessByProfile() {
+  const allow = canEditLayoutsByProfile();
+  const controls = [
+    homeLayoutEditToggleBtn,
+    homeLayoutSaveBtn,
+    homeLayoutResetBtn,
+    clienteLayoutEditToggleBtn,
+    clienteLayoutSaveBtn,
+    clienteLayoutResetBtn,
+    funcLayoutEditToggleBtn,
+    funcLayoutSaveBtn,
+    funcLayoutResetBtn,
+    locLayoutEditToggleBtn,
+    locLayoutSaveBtn,
+    locLayoutResetBtn,
+  ];
+  controls.forEach((btn) => {
+    if (!btn) return;
+    btn.classList.toggle("hidden", !allow);
+    btn.disabled = !allow;
+  });
+  if (!allow) {
+    stopHomeLayoutEdit();
+    stopClienteLayoutEdit();
+    stopFuncionarioLayoutEdit();
+    stopLocacaoLayoutEdit();
+  }
 }
 
 function setHomeLayoutToolbarState() {
@@ -626,6 +689,7 @@ function bootstrapHomeLayoutFromStorage() {
 }
 
 function startHomeLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
   if (!grupoHome) return;
   if (!grupoHome.classList.contains("landing-custom-layout")) {
     const snapshot = collectCurrentHomeLayout();
@@ -811,6 +875,7 @@ function persistFuncionarioLayoutFromScreen() {
 }
 
 function startFuncionarioLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
   if (!funcionarioCadastroForm) return;
   ensureFuncionarioLayoutBoxAttributes();
   if (!funcionarioCadastroForm.classList.contains("func-custom-layout")) {
@@ -994,6 +1059,7 @@ function persistClienteLayoutFromScreen() {
 }
 
 function startClienteLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
   if (!clienteCadastroForm) return;
   ensureClienteLayoutBoxAttributes();
   if (!clienteCadastroForm.classList.contains("cliente-custom-layout")) {
@@ -1074,15 +1140,199 @@ function bindClienteLayoutEditorEvents() {
   clienteCadastroForm.addEventListener("pointercancel", finish);
 }
 
+function getLocacaoLayoutBoxesArray() {
+  if (!locacaoCadastroForm) return [];
+  return Array.from(locacaoCadastroForm.querySelectorAll("[data-loc-layout-box]"));
+}
+
+function ensureLocacaoLayoutBoxAttributes() {
+  if (!locacaoCadastroForm) return;
+  Array.from(locacaoCadastroForm.children).forEach((el, idx) => {
+    if (!(el instanceof HTMLElement)) return;
+    const tag = el.tagName;
+    if (!["INPUT", "SELECT", "DIV", "P", "BUTTON"].includes(tag)) return;
+    if (tag === "INPUT" && el.type === "checkbox") return;
+    if (!el.dataset.locLayoutBox) {
+      el.dataset.locLayoutBox = el.id || `locacaoItem${idx + 1}`;
+    }
+  });
+}
+
+function setLocacaoLayoutToolbarState() {
+  if (!locLayoutEditToggleBtn) return;
+  locLayoutEditToggleBtn.textContent = locLayoutEditMode ? "Sair edição" : "Editar caixas";
+}
+
+function collectLocacaoLayout() {
+  if (!locacaoCadastroForm) return {};
+  const boxes = getLocacaoLayoutBoxesArray();
+  const formRect = locacaoCadastroForm.getBoundingClientRect();
+  const layout = {};
+  boxes.forEach((el) => {
+    const key = String(el.dataset.locLayoutBox || "");
+    if (!key) return;
+    const rect = el.getBoundingClientRect();
+    layout[key] = {
+      left: Math.max(0, Math.round(rect.left - formRect.left)),
+      top: Math.max(0, Math.round(rect.top - formRect.top)),
+      width: Math.max(160, Math.round(rect.width)),
+      height: Math.max(42, Math.round(rect.height)),
+    };
+  });
+  return layout;
+}
+
+function computeLocacaoLayoutMinHeight(layout) {
+  let maxBottom = 0;
+  Object.values(layout || {}).forEach((item) => {
+    if (!item) return;
+    const bottom = Number(item.top || 0) + Number(item.height || 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  return Math.max(320, Math.ceil(maxBottom + 16));
+}
+
+function applyLocacaoLayout(layoutInput) {
+  if (!locacaoCadastroForm) return;
+  ensureLocacaoLayoutBoxAttributes();
+  const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+  const boxes = getLocacaoLayoutBoxesArray();
+  locacaoCadastroForm.classList.add("loc-custom-layout");
+  boxes.forEach((el) => {
+    const key = String(el.dataset.locLayoutBox || "");
+    const box = layout[key];
+    if (!box) return;
+    el.style.left = `${Math.max(0, Number(box.left || 0))}px`;
+    el.style.top = `${Math.max(0, Number(box.top || 0))}px`;
+    el.style.width = `${Math.max(160, Number(box.width || 160))}px`;
+    el.style.height = `${Math.max(42, Number(box.height || 42))}px`;
+  });
+  locacaoCadastroForm.style.minHeight = `${computeLocacaoLayoutMinHeight(layout)}px`;
+}
+
+function clearLocacaoLayoutInlineStyles() {
+  if (!locacaoCadastroForm) return;
+  const boxes = getLocacaoLayoutBoxesArray();
+  boxes.forEach((el) => {
+    el.style.left = "";
+    el.style.top = "";
+    el.style.width = "";
+    el.style.height = "";
+  });
+  locacaoCadastroForm.classList.remove("loc-custom-layout", "layout-edit-mode");
+  locacaoCadastroForm.style.minHeight = "";
+}
+
+function bootstrapLocacaoLayoutFromStorage() {
+  if (!locacaoCadastroForm) return;
+  const raw = localStorage.getItem(LOC_LAYOUT_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    applyLocacaoLayout(parsed);
+  } catch {
+    // Ignora layout inválido no storage.
+  }
+}
+
+function persistLocacaoLayoutFromScreen() {
+  const layout = collectLocacaoLayout();
+  localStorage.setItem(LOC_LAYOUT_KEY, JSON.stringify(layout));
+  applyLocacaoLayout(layout);
+}
+
+function startLocacaoLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
+  if (!locacaoCadastroForm) return;
+  ensureLocacaoLayoutBoxAttributes();
+  if (!locacaoCadastroForm.classList.contains("loc-custom-layout")) {
+    applyLocacaoLayout(collectLocacaoLayout());
+  }
+  locLayoutEditMode = true;
+  locacaoCadastroForm.classList.add("layout-edit-mode");
+  setLocacaoLayoutToolbarState();
+}
+
+function stopLocacaoLayoutEdit() {
+  locLayoutEditMode = false;
+  locLayoutDragState = null;
+  locacaoCadastroForm?.classList.remove("layout-edit-mode");
+  setLocacaoLayoutToolbarState();
+}
+
+function bindLocacaoLayoutEditorEvents() {
+  if (!locacaoCadastroForm || locLayoutResizeObserver) return;
+  ensureLocacaoLayoutBoxAttributes();
+
+  locLayoutResizeObserver = new ResizeObserver(() => {
+    if (!locLayoutEditMode || !locacaoCadastroForm) return;
+    const layout = collectLocacaoLayout();
+    locacaoCadastroForm.style.minHeight = `${computeLocacaoLayoutMinHeight(layout)}px`;
+  });
+  getLocacaoLayoutBoxesArray().forEach((el) => locLayoutResizeObserver.observe(el));
+
+  locacaoCadastroForm.addEventListener("pointerdown", (event) => {
+    if (!locLayoutEditMode || (!event.altKey && !event.shiftKey)) return;
+    const node = event.target instanceof Element ? event.target : null;
+    const box = node?.closest("[data-loc-layout-box]");
+    if (!box || !(box instanceof HTMLElement)) return;
+    const rect = box.getBoundingClientRect();
+    const mode = event.shiftKey ? "resize" : "move";
+    locLayoutDragState = {
+      mode,
+      box,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: parseFloat(box.style.left || "0") || 0,
+      originTop: parseFloat(box.style.top || "0") || 0,
+      boxWidth: rect.width,
+      boxHeight: rect.height,
+    };
+    box.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  locacaoCadastroForm.addEventListener("pointermove", (event) => {
+    if (!locLayoutDragState || locLayoutDragState.pointerId !== event.pointerId || !locacaoCadastroForm) return;
+    const dx = event.clientX - locLayoutDragState.startX;
+    const dy = event.clientY - locLayoutDragState.startY;
+    if (locLayoutDragState.mode === "resize") {
+      const maxWidth = Math.max(160, locacaoCadastroForm.clientWidth - locLayoutDragState.originLeft);
+      const nextWidth = Math.max(160, Math.min(maxWidth, locLayoutDragState.boxWidth + dx));
+      const nextHeight = Math.max(42, locLayoutDragState.boxHeight + dy);
+      locLayoutDragState.box.style.width = `${Math.round(nextWidth)}px`;
+      locLayoutDragState.box.style.height = `${Math.round(nextHeight)}px`;
+    } else {
+      const maxLeft = Math.max(0, locacaoCadastroForm.clientWidth - locLayoutDragState.boxWidth);
+      const nextLeft = Math.max(0, Math.min(maxLeft, locLayoutDragState.originLeft + dx));
+      const nextTop = Math.max(0, locLayoutDragState.originTop + dy);
+      locLayoutDragState.box.style.left = `${Math.round(nextLeft)}px`;
+      locLayoutDragState.box.style.top = `${Math.round(nextTop)}px`;
+    }
+    const layout = collectLocacaoLayout();
+    locacaoCadastroForm.style.minHeight = `${computeLocacaoLayoutMinHeight(layout)}px`;
+  });
+
+  const finish = (event) => {
+    if (!locLayoutDragState) return;
+    if (event && locLayoutDragState.pointerId !== event.pointerId) return;
+    locLayoutDragState = null;
+  };
+  locacaoCadastroForm.addEventListener("pointerup", finish);
+  locacaoCadastroForm.addEventListener("pointercancel", finish);
+}
+
 function buildFullOperacaoAccess() {
   return {
     cliente: true,
     veiculo: true,
-    locacao: true,
-    manutencao: true,
-    lancamentoAluguel: true,
-    lancamentoDespesa: true,
-    funcionario: true,
+    locacao: false,
+    manutencao: false,
+    lancamentoAluguel: false,
+    lancamentoDespesa: false,
+    funcionario: false,
   };
 }
 
@@ -1357,6 +1607,7 @@ function ensureLocacaoInicioDefault() {
   if (!String(cadLocacaoInicioInput.value || "").trim()) {
     cadLocacaoInicioInput.value = todayBrDate();
   }
+  preencherProtocoloLocacaoSeCampoVazio();
 }
 
 function formatCpf(value) {
@@ -1483,9 +1734,9 @@ function setAdminSection(section) {
   const isOperacao = section === "operacao";
   const isInformacao = isOwner && section === "informacao";
   const isDados = isOwner && section === "dados";
-  adminOperacaoSection.classList.toggle("hidden", !isOperacao);
-  adminInformacaoSection.classList.toggle("hidden", !isInformacao);
-  adminDadosSection.classList.toggle("hidden", !isDados);
+  adminOperacaoSection?.classList.toggle("hidden", !isOperacao);
+  adminInformacaoSection?.classList.toggle("hidden", !isInformacao);
+  adminDadosSection?.classList.toggle("hidden", !isDados);
   if (adminOperacaoMenu) adminOperacaoMenu.classList.toggle("hidden", !isOperacao);
   if (adminInformacaoMenu) adminInformacaoMenu.classList.toggle("hidden", !isInformacao);
   if (adminNavOperacao) adminNavOperacao.classList.toggle("active", isOperacao);
@@ -1522,11 +1773,9 @@ function toggleAdminSection(section) {
 
 function setOperacaoSubsection(target) {
   const targetSafe = target || "cliente";
-  if (!canAccessOperacaoTarget(targetSafe)) {
-    operacaoAbaAtual = "cliente";
-  } else {
-    operacaoAbaAtual = targetSafe;
-  }
+  const permitido =
+    OPERACAO_ACCESS_TARGETS.includes(targetSafe) && canAccessOperacaoTarget(targetSafe);
+  operacaoAbaAtual = permitido ? targetSafe : "cliente";
   if (operacaoClienteSection) operacaoClienteSection.classList.toggle("hidden", operacaoAbaAtual !== "cliente");
   if (operacaoVeiculoSection) operacaoVeiculoSection.classList.toggle("hidden", operacaoAbaAtual !== "veiculo");
   if (operacaoLocacaoSection) operacaoLocacaoSection.classList.toggle("hidden", operacaoAbaAtual !== "locacao");
@@ -1539,6 +1788,10 @@ function setOperacaoSubsection(target) {
   }
   if (operacaoFuncionarioSection) {
     operacaoFuncionarioSection.classList.toggle("hidden", operacaoAbaAtual !== "funcionario");
+  }
+  if (operacaoAbaAtual === "locacao") {
+    ensureLocacaoInicioDefault();
+    applyLocacaoPlanoRules();
   }
   operacaoTargetButtons.forEach((button) => {
     const buttonTarget = String(button.dataset.target || "");
@@ -1788,6 +2041,31 @@ function resetLocacaoStackForSiteEntryOnce() {
   }
 
   localStorage.setItem(RESET_LOCACAO_STACK_SITE_V2_KEY, "done");
+}
+
+function resetProjetoSomenteCadastrosV3Once() {
+  if (localStorage.getItem(RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY) === "done") return;
+
+  saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, []);
+  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(LOCACAO_DATABASE_KEY, []);
+  saveCadastro(CAD_MANUTENCOES_KEY, []);
+  saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, []);
+  saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, []);
+  saveComprovantesBancoMap({});
+  localStorage.removeItem(AUDIT_LOG_KEY);
+  localStorage.removeItem(DAILY_RECON_KEY);
+  LEGACY_LANCAMENTO_KEYS.forEach((k) => localStorage.removeItem(k));
+  localStorage.removeItem("dk_sessao_cliente");
+  localStorage.removeItem(HOME_LAYOUT_KEY);
+  localStorage.removeItem(FUNC_LAYOUT_KEY);
+  localStorage.removeItem(LOC_LAYOUT_KEY);
+  localStorage.removeItem(CLIENTE_LAYOUT_KEY);
+  localStorage.removeItem(CLEAR_LOCACOES_ONCE_KEY);
+  localStorage.removeItem(RESET_LOCACAO_STACK_SITE_V2_KEY);
+  localStorage.removeItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY);
+
+  localStorage.setItem(RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY, "done");
 }
 
 function getCurrentUserLabel() {
@@ -2154,15 +2432,33 @@ function clienteTemVinculoComLocacao(cpfDigits) {
 }
 
 function setLocacaoFormBlocked(blocked) {
+  if (!cadLocacaoPlacaInput) return;
   cadLocacaoPlacaInput.disabled = blocked;
-  cadLocacaoInicioInput.disabled = blocked;
-  cadLocacaoFimInput.disabled = blocked;
-  cadLocacaoValorInput.disabled = blocked;
+  if (cadLocacaoInicioInput) cadLocacaoInicioInput.disabled = blocked;
+  if (cadLocacaoFimInput) cadLocacaoFimInput.disabled = blocked;
+  if (cadLocacaoValorInput) cadLocacaoValorInput.disabled = blocked;
   if (cadLocacaoInvestimentoInput) cadLocacaoInvestimentoInput.disabled = blocked;
-  cadLocacaoPlanoInputs.forEach((inp) => {
-    inp.disabled = blocked;
-  });
+  if (cadLocacaoPlanoInputs && cadLocacaoPlanoInputs.length) {
+    cadLocacaoPlanoInputs.forEach((inp) => {
+      inp.disabled = blocked;
+    });
+  }
   if (cadLocacaoContratoInput) cadLocacaoContratoInput.disabled = blocked;
+  [
+    cadLocacaoStatusInput,
+    cadLocacaoDiaPagtoInput,
+    cadLocacaoPeriodoLocacaoInput,
+    cadLocacaoModalidadeInput,
+    cadLocacaoMarcaModeloInput,
+    cadLocacaoOpcaoContratoInput,
+    cadLocacaoPeriodoContratoInput,
+    cadLocacaoConfigPrecoKmInput,
+    cadLocacaoTabelaInput,
+    cadLocacaoValorParcelaInput,
+    cadLocacaoClienteCodigoInput,
+  ].forEach((el) => {
+    if (el) el.disabled = blocked;
+  });
   if (locacaoSubmitButton) locacaoSubmitButton.disabled = blocked;
   if (!blocked) {
     applyLocacaoPlanoRules();
@@ -2213,10 +2509,50 @@ function applyLocacaoPlanoRules() {
       cadLocacaoInvestimentoInput.value = currencyBRL(0);
     }
   }
+  if (cadLocacaoOpcaoContratoInput) {
+    const v = String(cadLocacaoOpcaoContratoInput.value || "").trim();
+    if (!v) {
+      cadLocacaoOpcaoContratoInput.value =
+        plano === "DK MEU TRANSPORTE" ? "DK MEU TRANSPORTE" : "DK MINHA MOTO";
+    }
+  }
+  if (cadLocacaoPeriodoContratoInput) {
+    const v = String(cadLocacaoPeriodoContratoInput.value || "").trim();
+    if (!v) {
+      cadLocacaoPeriodoContratoInput.value = plano === "DK MINHA MOTO" ? "150 SEMANAS" : "1 SEMANA";
+    }
+  }
   recomputeLocacaoFimByPlano();
 }
 
+function syncCadLocacaoClienteCodigoFromCpf() {
+  if (!cadLocacaoClienteCodigoInput) return;
+  const v = String(cadLocacaoClienteCodigoInput.value || "").trim();
+  if (v) return;
+  const cpf = onlyDigits(String(cadLocacaoCpfInput?.value || ""));
+  if (cpf.length !== 11) return;
+  const c = findClienteByCpfCadastro(cpf);
+  const cod = String(c?.codigo || "").trim();
+  if (cod) cadLocacaoClienteCodigoInput.value = cod;
+}
+
+function suggestCadLocacaoFromVeiculoPlaca() {
+  if (!cadLocacaoPlacaInput) return;
+  const placaKey = normalizePlate(String(cadLocacaoPlacaInput.value || ""));
+  if (!placaKey) return;
+  const v = getVehicleMapByPlate().get(placaKey);
+  if (!v) return;
+  if (cadLocacaoModalidadeInput && !String(cadLocacaoModalidadeInput.value || "").trim()) {
+    cadLocacaoModalidadeInput.value = normalizeKey(v.tipo).includes("CARRO") ? "CARRO" : "MOTO";
+  }
+  if (cadLocacaoMarcaModeloInput && !String(cadLocacaoMarcaModeloInput.value || "").trim()) {
+    const mm = [String(v.marca || "").trim(), String(v.modelo || "").trim()].filter(Boolean).join(" / ");
+    if (mm) cadLocacaoMarcaModeloInput.value = mm;
+  }
+}
+
 function validateLocacaoCpfBlock() {
+  if (!cadLocacaoCpfInput) return true;
   const cpf = onlyDigits(String(cadLocacaoCpfInput.value || ""));
   cadLocacaoCpfInput.value = formatCpf(cpf);
   const blocked = isClienteBloqueadoByCpf(cpf);
@@ -2235,8 +2571,7 @@ function validateLocacaoCpfBlock() {
 
 function refreshLocacaoPlacaOptions() {
   if (!cadLocacaoPlacaInput || !cadLocacaoPlacaSugestoes) return;
-  const snapshot = buildOperationalSnapshot();
-  const options = snapshot.availableVehicles
+  const options = getVeiculosSemProtocoloAtivo()
     .map((v) => {
       const placa = String(v.placa || "").trim().toUpperCase();
       const modelo = String(v.modelo || "").trim() || "Modelo nao informado";
@@ -2248,6 +2583,41 @@ function refreshLocacaoPlacaOptions() {
     .map((v) => `<option value="${v.placa}" label="${escapeHtml(v.modelo)}"></option>`)
     .join("");
   cadLocacaoPlacaInput.value = previousValue;
+  if (cadLocacaoMotosDisponiveisCountEl) {
+    cadLocacaoMotosDisponiveisCountEl.textContent = String(options.length);
+  }
+}
+
+/**
+ * Regra da locação: placa disponível só se não houver contrato aberto
+ * (cadastro local sem data fim OU linha vigente em receita2026 / planilha sem data fim).
+ */
+function getVeiculosSemProtocoloAtivo() {
+  const allVeiculos = loadCadastro(CAD_VEICULOS_KEY);
+  const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+  const placasEmManutencao = new Set(
+    manutencoes
+      .filter((m) => !String(m.dataRealSaida || "").trim())
+      .map((m) => normalizePlate(m.placa))
+      .filter(Boolean)
+  );
+  const placasComProtocoloAtivo = getActivePlatesSet();
+  return allVeiculos
+    .filter((v) => {
+      const plate = normalizePlate(v.placa);
+      const indisponivel = normalizeKey(v.status).includes("INDISPONIVEL POR");
+      return (
+        plate &&
+        !indisponivel &&
+        !placasEmManutencao.has(plate) &&
+        !placasComProtocoloAtivo.has(plate)
+      );
+    })
+    .sort((a, b) => {
+      const byModelo = String(a.modelo || "").localeCompare(String(b.modelo || ""), "pt-BR");
+      if (byModelo !== 0) return byModelo;
+      return normalizePlate(a.placa).localeCompare(normalizePlate(b.placa));
+    });
 }
 
 function refreshLocacaoClienteSugestoes() {
@@ -2288,6 +2658,14 @@ function applyLocacaoClienteByNome(nomeRaw) {
 
 function normalizeKey(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+/** Na locação, INATIVO equivale a FINALIZADO (contrato encerrado). */
+function normalizeStatusLocacaoExibicao(value) {
+  const t = String(value || "").trim();
+  if (!t) return "";
+  if (normalizeKey(t) === "INATIVO") return "FINALIZADO";
+  return t;
 }
 
 function normalizePlate(value) {
@@ -2613,14 +2991,27 @@ function askLocacaoCadastroConfirmation(payload) {
   locacaoConfirmResumo.innerHTML = `
     <p><strong>CPF:</strong> ${formatCpf(payload.cpf || "") || "-"}</p>
     <p><strong>Cliente:</strong> ${payload.clienteNome || "-"}</p>
+    <p><strong>Cód. cliente:</strong> ${escapeHtml(String(payload.clienteCodigo || "").trim() || "—")}</p>
     <p><strong>Nº contrato:</strong> ${escapeHtml(String(payload.numeroContrato || "").trim() || "—")}</p>
+    <p><strong>Status:</strong> ${escapeHtml(
+      normalizeStatusLocacaoExibicao(String(payload.statusLocacao || "").trim()) || "—"
+    )}</p>
     <p><strong>Plano:</strong> ${escapeHtml(String(payload.plano || "-"))}</p>
     <p><strong>Placa:</strong> ${payload.placa || "-"}</p>
-    <p><strong>Modelo:</strong> ${payload.modelo || "-"}</p>
+    <p><strong>Modalidade:</strong> ${escapeHtml(String(payload.modalidade || "").trim() || "—")}</p>
+    <p><strong>Marca/Modelo:</strong> ${escapeHtml(String(payload.marcaModelo || "").trim() || "—")}</p>
+    <p><strong>Opção de contrato:</strong> ${escapeHtml(String(payload.opcaoContrato || "").trim() || "—")}</p>
+    <p><strong>Período de contrato:</strong> ${escapeHtml(String(payload.periodoContrato || "").trim() || "—")}</p>
     <p><strong>Início:</strong> ${payload.inicio || "-"}</p>
+    <p><strong>Dia de pagto:</strong> ${escapeHtml(String(payload.diaPagto || "").trim() || "—")}</p>
     <p><strong>Fim:</strong> ${payload.fim || "-"}</p>
+    <p><strong>Período (locação):</strong> ${escapeHtml(String(payload.periodoLocacao || "").trim() || "—")}</p>
+    <p><strong>Km retirada:</strong> ${escapeHtml(String(payload.kmInicial || "").trim() || "—")}</p>
+    <p><strong>Config. preço/km:</strong> ${escapeHtml(String(payload.configPrecoKm || "").trim() || "—")}</p>
+    <p><strong>Tabela:</strong> ${escapeHtml(String(payload.tabela || "").trim() || "—")}</p>
     <p><strong>Caixa 01 (locação):</strong> ${payload.valorLocacao || "-"}</p>
     <p><strong>Caixa 02 (investimento):</strong> ${payload.valorInvestimento || "-"}</p>
+    <p><strong>Valor da parcela:</strong> ${payload.valorParcela || "-"}</p>
     <p><strong>Valor semanal:</strong> ${payload.valorSemanal || "-"}</p>
   `;
   locacaoConfirmDialog.classList.remove("hidden");
@@ -4032,6 +4423,101 @@ function normalizeNumeroContratoKey(value) {
     .replace(/\s+/g, " ");
 }
 
+/** Prefixo de data AAAAMMDD (calendário do navegador). */
+function protocoloLocacaoDatePrefix(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}${m}${d}`;
+}
+
+/**
+ * Protocolo único por locação: AAAAMMDD + sequência do dia (001, 002, …).
+ * Une cliente (CPF) e veículo (placa) no mesmo registro; gravado em numeroContrato.
+ */
+function proximoProtocoloLocacaoNumero(date = new Date()) {
+  const prefix = protocoloLocacaoDatePrefix(date);
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  let maxSeq = 0;
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nc.startsWith(prefix)) return;
+    const rest = nc.slice(prefix.length);
+    if (!/^\d+$/.test(rest)) return;
+    maxSeq = Math.max(maxSeq, Number(rest));
+  });
+  const next = maxSeq + 1;
+  const pad = next <= 999 ? 3 : String(next).length;
+  return `${prefix}${String(next).padStart(pad, "0")}`;
+}
+
+function parseLocacaoProtocolDateCandidate(locacao) {
+  const inicioDate = parseBrDate(locacao?.inicio);
+  if (inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())) return inicioDate;
+  const created = Number(locacao?.createdAt || locacao?.id || 0);
+  if (Number.isFinite(created) && created > 0) {
+    const d = new Date(created);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+/**
+ * Garante protocolo em todas as locações existentes (migração para bases antigas/importadas).
+ * Regra: AAAAMMDD + sequência do dia, sem duplicidade.
+ */
+function ensureNumeroContratoForLocacoes() {
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  if (!locs.length) return;
+
+  const used = new Set();
+  const maxSeqByPrefix = new Map();
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nc) return;
+    used.add(nc);
+    const m = nc.match(/^(\d{8})(\d+)$/);
+    if (!m) return;
+    const prefix = m[1];
+    const seq = Number(m[2]);
+    if (!Number.isFinite(seq)) return;
+    maxSeqByPrefix.set(prefix, Math.max(Number(maxSeqByPrefix.get(prefix) || 0), seq));
+  });
+
+  let changed = false;
+  const updated = locs.map((l) => {
+    const current = normalizeNumeroContratoKey(l.numeroContrato || "");
+    if (current) return l;
+    const prefix = protocoloLocacaoDatePrefix(parseLocacaoProtocolDateCandidate(l));
+    let seq = Number(maxSeqByPrefix.get(prefix) || 0) + 1;
+    let protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    while (used.has(protocolo)) {
+      seq += 1;
+      protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    }
+    used.add(protocolo);
+    maxSeqByPrefix.set(prefix, seq);
+    changed = true;
+    return {
+      ...l,
+      numeroContrato: protocolo,
+    };
+  });
+
+  if (changed) saveCadastro(CAD_LOCACOES_KEY, updated);
+}
+
+function preencherProtocoloLocacaoSeCampoVazio() {
+  if (!cadLocacaoContratoInput) return;
+  if (String(cadLocacaoContratoInput.value || "").trim()) return;
+  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero();
+}
+
+function aplicarNovoProtocoloLocacaoNoFormulario() {
+  if (!cadLocacaoContratoInput) return;
+  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero();
+}
+
 /** Verifica se já existe outra locação com o mesmo número de contrato. */
 function contratoNumeroJaExisteNaBase(numeroNorm, excludeLocacaoId) {
   if (!numeroNorm) return false;
@@ -5403,7 +5889,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function downloadStyledExcel(fileName, headers, rows, metaLines = []) {
+function downloadStyledExcel(fileName, headers, rows, metaLines = [], excelOptions = {}) {
+  const textColArr = excelOptions.textColumns;
+  const textColumns =
+    textColArr instanceof Set
+      ? textColArr
+      : new Set(Array.isArray(textColArr) ? textColArr : []);
   const metaHtml = metaLines.length
     ? `<table>${metaLines
         .map(
@@ -5414,7 +5905,17 @@ function downloadStyledExcel(fileName, headers, rows, metaLines = []) {
     : "";
   const headerHtml = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
   const bodyHtml = rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+    .map(
+      (row) =>
+        `<tr>${row
+          .map((cell, ci) => {
+            const raw = cell == null ? "" : String(cell);
+            const forceText = textColumns.has(ci);
+            const tdAttr = forceText ? ' style="mso-number-format:\\@;"' : "";
+            return `<td${tdAttr}>${escapeHtml(raw)}</td>`;
+          })
+          .join("")}</tr>`
+    )
     .join("");
 
   const html = `
@@ -5700,21 +6201,33 @@ function exportClientesPdf() {
   win.print();
 }
 
-function formatLocacaoClienteExportCell(row, col) {
+function formatLocacaoClienteExportCell(row, col, options = {}) {
+  const forPdf = Boolean(options.forPdf);
+  if (col.key === "protocolo") {
+    const p = String(row[col.key] ?? "").trim();
+    const fallback = "Nao informado";
+    if (forPdf) {
+      return p
+        ? `<strong>${escapeHtml(p)}</strong>`
+        : `<strong>${escapeHtml(fallback)}</strong>`;
+    }
+    return p || fallback;
+  }
   if (col.key !== "cliente") return String(row[col.key] ?? "Nao informado");
-  const nome = String(row.cliente ?? "").trim();
-  const tl = String(row.pagamentosTimeline ?? "").trim();
-  if (nome && tl) return `${nome} — ${tl}`;
-  return nome || "Nao informado";
+  return String(row.cliente ?? "").trim() || "Nao informado";
 }
 
 function exportRelatorioPdfFromCache(cache) {
   if (!cache || !Array.isArray(cache.columns) || !Array.isArray(cache.rows)) return;
+  const protocoloPrincipal = cache.columns[0]?.key === "protocolo";
   const rowsHtml = cache.rows
     .map(
       (row) =>
         `<tr>${cache.columns
-          .map((col) => `<td>${formatLocacaoClienteExportCell(row, col)}</td>`)
+          .map(
+            (col) =>
+              `<td>${formatLocacaoClienteExportCell(row, col, { forPdf: true })}</td>`
+          )
           .join("")}</tr>`
     )
     .join("");
@@ -5732,6 +6245,11 @@ function exportRelatorioPdfFromCache(cache) {
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
           th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
           th { background: #f2f2f2; }
+          ${
+            protocoloPrincipal
+              ? "th:first-child, td:first-child { font-size: 13px; font-weight: 700; }"
+              : ""
+          }
         </style>
       </head>
       <body>
@@ -5757,10 +6275,17 @@ function exportRelatorioExcelFromCache(cache, fileName) {
   const rows = cache.rows.map((row) =>
     cache.columns.map((c) => formatLocacaoClienteExportCell(row, c))
   );
-  downloadStyledExcel(fileName.replace(/\.csv$/i, ".xls"), headers, rows, [
-    ["Relatorio", cache.title],
-    ["Total", String(cache.rows.length)],
-  ]);
+  const protocolIdx = cache.columns.findIndex((c) => c.key === "protocolo");
+  downloadStyledExcel(
+    fileName.replace(/\.csv$/i, ".xls"),
+    headers,
+    rows,
+    [
+      ["Relatorio", cache.title],
+      ["Total", String(cache.rows.length)],
+    ],
+    protocolIdx >= 0 ? { textColumns: new Set([protocolIdx]) } : {}
+  );
 }
 
 function computeSaldoFromRecords(records) {
@@ -5871,6 +6396,35 @@ function exportGenericReportPdf(container, title) {
   popup.print();
 }
 
+function printReportContainer(container, title) {
+  if (!container) return;
+  const printable = container.cloneNode(true);
+  printable.querySelectorAll(".report-actions").forEach((node) => node.remove());
+  const popup = window.open("", "_blank", "width=1100,height=800");
+  if (!popup) return;
+  popup.document.write(`
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #111; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th, td { border: 1px solid #bbb; padding: 6px; font-size: 12px; text-align: left; vertical-align: top; }
+          h1,h2,h3,h4 { margin: 0 0 8px; }
+          p { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <h2>${title}</h2>
+        ${printable.innerHTML}
+      </body>
+    </html>
+  `);
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
 function exportAuditLogPdf() {
   const logs = loadAuditLog().sort(
     (a, b) => new Date(a.timestampIso || 0) - new Date(b.timestampIso || 0)
@@ -5925,20 +6479,46 @@ function exportAuditLogPdf() {
   win.print();
 }
 
+function isTelefonePlaceholder(value) {
+  const t = normalizeKey(String(value || "").trim());
+  if (!t) return true;
+  if (t === "XXXXX" || t.includes("XXXXX")) return true;
+  if (/^X{3,}$/.test(t)) return true;
+  return false;
+}
+
+function telefonePartsFromCliente(cliente) {
+  if (!cliente) return [];
+  const candidatos = [
+    cliente.celular,
+    cliente.telefone,
+    cliente.tel,
+    cliente.fone,
+    cliente.recado1,
+    cliente.recado2,
+  ];
+  const out = [];
+  const seen = new Set();
+  candidatos.forEach((raw) => {
+    const s = String(raw || "").trim();
+    if (isTelefonePlaceholder(s)) return;
+    const dedupKey = onlyDigits(s) || normalizeKey(s);
+    if (!dedupKey || seen.has(dedupKey)) return;
+    seen.add(dedupKey);
+    out.push(s);
+  });
+  return out;
+}
+
 function getTelefoneByCpf(cpf) {
   const normalized = onlyDigits(String(cpf || ""));
   const clientes = [...loadCadastro(CAD_CLIENTES_KEY), ...clientesSeedData];
-  if (!normalized) return "Nao informado";
+  if (!normalized || normalized.length !== 11) return "Nao informado";
   const cliente = clientes.find(
     (c) => onlyDigits(String(c.cpf || "")) === normalized
   );
-  if (!cliente) return "Nao informado";
-  const contatos = [
-    String(cliente.celular || "").trim(),
-    String(cliente.recado1 || "").trim(),
-    String(cliente.recado2 || "").trim(),
-  ].filter(Boolean);
-  return contatos.length ? contatos.join(" / ") : "Nao informado";
+  const parts = telefonePartsFromCliente(cliente);
+  return parts.length ? parts.join(" / ") : "Nao informado";
 }
 
 function normalizeName(value) {
@@ -5960,12 +6540,8 @@ function getContatoByCpfOrNome(cpf, nome) {
     (c) => normalizeName(c.nome) === normalizedNome
   );
   if (!cliente) return "Nao informado";
-  const contatos = [
-    String(cliente.celular || "").trim(),
-    String(cliente.recado1 || "").trim(),
-    String(cliente.recado2 || "").trim(),
-  ].filter(Boolean);
-  return contatos.length ? contatos.join(" / ") : "Nao informado";
+  const parts = telefonePartsFromCliente(cliente);
+  return parts.length ? parts.join(" / ") : "Nao informado";
 }
 
 function splitTelefones(contatoStr) {
@@ -6102,7 +6678,7 @@ function buildLocacaoDatabaseRowsFromReceita2026() {
     const statusLocacao =
       (!String(r.fim || "").trim() || (activeSet.has(placaNormalizada) && isLatestByPlate))
         ? "ATIVO"
-        : "INATIVO";
+        : "FINALIZADO";
 
     return {
       id: idx + 1,
@@ -6181,46 +6757,249 @@ function exportQuadroGeralPdf(rows) {
   win.print();
 }
 
-function renderRelatorioLocacao(tipo) {
+async function renderRelatorioLocacao(tipo) {
   const snapshot = buildOperationalSnapshot();
   const veiculoByPlaca = getVehicleMapByPlate();
+  const protocoloSeqByPrefix = new Map();
+  const protocoloUsados = new Set();
+  const nextFallbackProtocolo = (record) => {
+    const inicioDate = parseBrDate(record?.inicio);
+    let baseDate = inicioDate;
+    if (!(baseDate instanceof Date) || Number.isNaN(baseDate.getTime())) {
+      const ts = Number(record?.createdAt || record?.id || record?.cadastroCriadoTs || 0);
+      baseDate = ts > 0 ? new Date(ts) : new Date();
+    }
+    const prefix = protocoloLocacaoDatePrefix(baseDate);
+    let seq = Number(protocoloSeqByPrefix.get(prefix) || 0) + 1;
+    let protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    while (protocoloUsados.has(protocolo)) {
+      seq += 1;
+      protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    }
+    protocoloSeqByPrefix.set(prefix, seq);
+    protocoloUsados.add(protocolo);
+    return protocolo;
+  };
+  const resolveReportProtocolo = (record) => {
+    const atual = normalizeNumeroContratoKey(record?.numeroContrato || "");
+    if (atual) {
+      protocoloUsados.add(atual);
+      return atual;
+    }
+    return nextFallbackProtocolo(record);
+  };
 
-  if (tipo === "locados") {
-    const rows = snapshot.activeRecords
-      .map((r) => {
-        const placaKey = normalizePlate(r.placa);
-        const cad = veiculoByPlaca.get(placaKey);
-        const contato = getContatoByCpfOrNome(r.cpf, r.nome);
-        const telefones = splitTelefones(contato);
-        const inicioDate = excelSerialToDate(r.inicioSerial) || parseBrDate(r.inicio);
-        const nomeCli = r.nome || "Nao informado";
-        const cpfDig = onlyDigits(String(r.cpf || ""));
-        const pagamentosTimeline =
-          cpfDig.length === 11 ? buildClientePagamentosTimelineTexto(cpfDig) : "";
+  if (tipo === "completo") {
+    const xlsxByPlate = buildXlsxProtocolsByPlateMap(await loadLocacoesXlsxApiRows());
+    const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+    const clientes = loadCadastro(CAD_CLIENTES_KEY);
+    const clienteByCpf = new Map(
+      clientes
+        .map((c) => [onlyDigits(String(c.cpf || "")), c])
+        .filter(([cpf]) => cpf.length === 11)
+    );
+    const sourceRows = locacoes.length
+      ? locacoes
+      : [...snapshot.activeRecords, ...snapshot.inactiveRecords];
+
+    const rows = sourceRows
+      .map((l) => {
+        const cpfDigits = onlyDigits(String(l.cpf || ""));
+        const cliente = clienteByCpf.get(cpfDigits);
+        const placa = normalizePlate(String(l.placa || ""));
+        const veiculo = veiculoByPlaca.get(placa);
+        const protocolo = resolveReportProtocolo(l);
+        const inicioRaw = String(l.inicio || l.dataInicio || "").trim();
+        const fimRaw = String(l.fim || l.dataFim || "").trim();
+        const inicioDate = parseBrDate(inicioRaw);
+        const fimDate = parseBrDate(fimRaw);
+        const hasFim = fimRaw.length > 0;
+        const diaPagto =
+          inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())
+            ? inicioDate.toLocaleDateString("pt-BR", { weekday: "long" })
+            : "Nao informado";
+        const periodoDias =
+          inicioDate instanceof Date &&
+          !Number.isNaN(inicioDate.getTime()) &&
+          fimDate instanceof Date &&
+          !Number.isNaN(fimDate.getTime())
+            ? `${Math.max(1, Math.round((toDateOnly(fimDate) - toDateOnly(inicioDate)) / 86400000) + 1)} dia(s)`
+            : "...";
+        const plano = String(l.plano || "").trim() || toPlanName(l);
+        const periodoContrato = normalizeKey(plano).includes("MINHA MOTO") ? "150 SEMANAS" : "1 SEMANA";
+        const valorLocacaoNum = parseCurrencyBR(l.valorLocacao || l.valorSemanal);
+        const valorInvestNum = parseCurrencyBR(l.valorInvestimento);
+        const valorParcelaNum = valorLocacaoNum + valorInvestNum;
         return {
-          placa: r.placa || "",
-          modelo: cad?.modelo || findModeloByPlaca(r.placa),
-          cliente: nomeCli,
-          cpfDigits: cpfDig,
-          pagamentosTimeline,
-          valorLocacao: r.valorSemanal || "",
-          inicioLocacao: r.inicio || "",
-          cadastroCriadoTs: Number(r.cadastroCriadoTs || 0),
-          inicioTs: inicioDate?.getTime?.() || 0,
-          ...telefones,
+          protocolo,
+          placa,
+          cpf: cpfDigits ? formatCpf(cpfDigits) : "Nao informado",
+          status:
+            normalizeStatusLocacaoExibicao(String(l.status || l.statusLocacao || "").trim()) ||
+            (hasFim ? "FINALIZADO" : "ATIVO"),
+          dataInicio: inicioRaw || "Nao informado",
+          diaPagto,
+          dataFim: hasFim ? fimRaw : "...",
+          periodoLocacao: periodoDias,
+          modalidade: normalizeKey(veiculo?.tipo).includes("CARRO") ? "CARRO" : "MOTO",
+          marcaModelo: [String(veiculo?.marca || "").trim(), String(veiculo?.modelo || "").trim()]
+            .filter(Boolean)
+            .join(" / ") || String(l.modelo || l.modeloVeiculo || "").trim() || "Nao informado",
+          opcaoContrato: plano,
+          periodoContrato,
+          kmRetirada: String(l.kmInicial || "").trim() || "Nao informado",
+          tabela: "Nao informado",
+          locacao: currencyBRL(valorLocacaoNum),
+          investimento: currencyBRL(valorInvestNum),
+          valorParcela: currencyBRL(valorParcelaNum),
+          codCliente: String(cliente?.codigo || "").trim() || "Nao informado",
+          cliente: String(cliente?.nome || "").trim() || "Nao informado",
+          createdAt: Number(l.createdAt || l.id || 0),
         };
       })
-      .filter((r) => normalizePlate(r.placa));
+      .filter((r) => r.protocolo)
+      .sort((a, b) => {
+        const byProt = String(b.protocolo || "").localeCompare(String(a.protocolo || ""), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        if (byProt !== 0) return byProt;
+        return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+      })
+      .filter((r) => rowPermitidoPelaPlanilhaLocacao(r.placa, r.protocolo, xlsxByPlate));
+
+    relatorioLocacaoCache = {
+      title: "Relatório | Completo por protocolo",
+      columns: [
+        { key: "protocolo", label: "PROTOCOLO" },
+        { key: "placa", label: "PLACA" },
+        { key: "cpf", label: "CPF" },
+        { key: "status", label: "STATUS" },
+        { key: "dataInicio", label: "DATA INÍCIO" },
+        { key: "diaPagto", label: "DIA DE PAGTO" },
+        { key: "dataFim", label: "DATA FIM" },
+        { key: "periodoLocacao", label: "PERÍODO (LOCAÇÃO)" },
+        { key: "modalidade", label: "MODALIDADE" },
+        { key: "marcaModelo", label: "MARCA/MODELO" },
+        { key: "opcaoContrato", label: "OPÇÃO DE CONTRATO" },
+        { key: "periodoContrato", label: "PERÍODO DE CONTRATO" },
+        { key: "kmRetirada", label: "KM DE RETIRADA" },
+        { key: "tabela", label: "TABELA" },
+        { key: "locacao", label: "LOCAÇÃO" },
+        { key: "investimento", label: "INVESTIMENTO" },
+        { key: "valorParcela", label: "VALOR DA PARCELA" },
+        { key: "codCliente", label: "CÓD. CLIENTE" },
+        { key: "cliente", label: "CLIENTE" },
+      ],
+      rows,
+    };
+
+    const html = rows.length
+      ? `
+        <p><strong>Total de protocolos:</strong> ${rows.length}</p>
+        <p class="hint">Relatório consolidado em uma linha por protocolo usando os dados da base local da aplicação.</p>
+        <div class="report-actions">
+          <button type="button" class="secondary" data-report-export="pdf">Exportar para PDF</button>
+          <button type="button" class="secondary" data-report-export="excel">Exportar para Excel</button>
+        </div>
+        <div class="report-actions">
+          <input
+            type="search"
+            id="locacaoFiltroInput"
+            class="input"
+            style="max-width: 460px;"
+            placeholder="Filtrar por protocolo, placa, CPF, cliente ou status"
+            aria-label="Filtrar relatório completo por protocolo"
+          />
+        </div>
+        <div class="table-wrap">
+          <table class="relatorio-table relatorio-locacao-por-protocolo">
+            <thead>
+              <tr>
+                ${relatorioLocacaoCache.columns.map((c) => `<th>${c.label}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map((item) => {
+                  const searchBlob = [item.protocolo, item.placa, item.cpf, item.status, item.cliente]
+                    .map((v) => normalizeKey(v))
+                    .join(" ");
+                  return `<tr data-locacao-search="${escapeHtml(searchBlob)}">
+                    ${relatorioLocacaoCache.columns
+                      .map((c) => `<td>${formatMissingInfoCell(item[c.key])}</td>`)
+                      .join("")}
+                  </tr>`;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      `
+      : "<p>Nenhum protocolo encontrado na base de locações.</p>";
+
+    setAdminSection("operacao");
+    renderLocacaoReport("Relatório | Completo por protocolo", html, {
+      totalLabel: "Total de protocolos",
+      totalValue: rows.length,
+    });
+    return;
+  }
+
+  if (tipo === "locados") {
+    const usePlanilhaEmbarcada =
+      typeof LOCACOES_PLANILHA_DATA !== "undefined" &&
+      Array.isArray(LOCACOES_PLANILHA_DATA) &&
+      LOCACOES_PLANILHA_DATA.length > 0;
+
+    let rows;
+    if (usePlanilhaEmbarcada) {
+      const planilhaRows = await loadLocacoesXlsxApiRows();
+      rows = buildLocadosRowsFromPlanilhaEmbarcada(planilhaRows, veiculoByPlaca).filter((r) =>
+        normalizePlate(r.placa)
+      );
+    } else {
+      rows = snapshot.activeRecords
+        .map((r) => {
+          const placaKey = normalizePlate(r.placa);
+          const cad = veiculoByPlaca.get(placaKey);
+          const contato = getContatoByCpfOrNome(r.cpf, r.nome);
+          const telefones = splitTelefones(contato);
+          const inicioDate = excelSerialToDate(r.inicioSerial) || parseBrDate(r.inicio);
+          const nomeCli = r.nome || "Nao informado";
+          const cpfDig = onlyDigits(String(r.cpf || ""));
+          const protocolo = resolveReportProtocolo(r);
+          return {
+            protocolo,
+            placa: r.placa || "",
+            modelo: cad?.modelo || findModeloByPlaca(r.placa),
+            cliente: nomeCli,
+            cpfDigits: cpfDig,
+            valorLocacao: r.valorSemanal || "",
+            inicioLocacao: r.inicio || "",
+            cadastroCriadoTs: Number(r.cadastroCriadoTs || 0),
+            inicioTs: inicioDate?.getTime?.() || 0,
+            ...telefones,
+          };
+        })
+        .filter((r) => normalizePlate(r.placa));
+    }
 
     rows.sort((a, b) => {
+      const pa = String(a.protocolo || "").trim();
+      const pb = String(b.protocolo || "").trim();
+      if (pa !== pb) {
+        return pb.localeCompare(pa, undefined, { numeric: true, sensitivity: "base" });
+      }
       const byCadastro = Number(b.cadastroCriadoTs || 0) - Number(a.cadastroCriadoTs || 0);
       if (byCadastro !== 0) return byCadastro;
       return Number(b.inicioTs || 0) - Number(a.inicioTs || 0);
     });
 
     relatorioLocacaoCache = {
-      title: "Relatório | Veículos locados",
+      title: "Relatório | Locações ativas (ordenado por protocolo)",
       columns: [
+        { key: "protocolo", label: "PROTOCOLO" },
         { key: "placa", label: "PLACA" },
         { key: "modelo", label: "MODELO" },
         { key: "cliente", label: "CLIENTE" },
@@ -6236,6 +7015,7 @@ function renderRelatorioLocacao(tipo) {
     const html = rows.length
       ? `
         <p><strong>Total de veículos locados:</strong> ${rows.length}</p>
+        <p class="hint"><strong>Protocolo:</strong> número único que liga um veículo (placa) a um cliente (CPF) na locação. <strong>Lista:</strong> contratos com status <strong>ATIVO</strong> na base embarcada (<code>locacoes-planilha-data.js</code>), uma linha por placa (maior protocolo se houver mais de um ativo). Sem essa base, usa-se receita 2026 + cadastro local. <strong>Telefones:</strong> cadastro de clientes.</p>
         <div class="report-actions">
           <button type="button" class="secondary" data-report-export="pdf">Exportar para PDF</button>
           <button type="button" class="secondary" data-report-export="excel">Exportar para Excel</button>
@@ -6246,14 +7026,15 @@ function renderRelatorioLocacao(tipo) {
             id="locacaoFiltroInput"
             class="input"
             style="max-width: 460px;"
-            placeholder="Filtrar por placa, moto/modelo, CPF ou nome"
+            placeholder="Filtrar por protocolo, placa, modelo, CPF ou nome"
             aria-label="Filtrar relatório de locação"
           />
         </div>
         <div class="table-wrap">
-          <table class="relatorio-table">
+          <table class="relatorio-table relatorio-locacao-por-protocolo">
             <thead>
               <tr>
+                <th scope="col" class="relatorio-locacao-protocolo-col">PROTOCOLO</th>
                 <th>PLACA</th>
                 <th>MODELO</th>
                 <th>CLIENTE</th>
@@ -6269,6 +7050,7 @@ function renderRelatorioLocacao(tipo) {
                 .map(
                   (item) => {
                     const hasMissing =
+                      isMissingInfoValue(item.protocolo) ||
                       isMissingInfoValue(item.placa) ||
                       isMissingInfoValue(item.modelo) ||
                       isMissingInfoValue(item.cliente) ||
@@ -6277,14 +7059,8 @@ function renderRelatorioLocacao(tipo) {
                       isMissingInfoValue(item.telefone1) ||
                       isMissingInfoValue(item.telefone2) ||
                       isMissingInfoValue(item.telefone3);
-                    const titlePag =
-                      item.pagamentosTimeline &&
-                      item.cpfDigits &&
-                      item.cpfDigits.length === 11 &&
-                      !isMissingInfoValue(item.cliente)
-                        ? `Pagamentos (RECEITA fev/25–dez/25; RECEITA 2026 jan/26–hoje; datas pelo início do contrato): ${item.pagamentosTimeline}`
-                        : "";
                     const searchBlob = [
+                      item.protocolo,
                       item.placa,
                       item.modelo,
                       item.cliente,
@@ -6296,6 +7072,9 @@ function renderRelatorioLocacao(tipo) {
                     return `<tr class="${hasMissing ? "missing-row" : ""}" data-locacao-search="${escapeHtml(
                       searchBlob
                     )}">
+                    <td class="relatorio-locacao-protocolo-cell">${formatMissingInfoCell(
+                      item.protocolo
+                    )}</td>
                     <td>${
                       !isMissingInfoValue(item.placa)
                         ? `<a href="#" class="placa-historico-link" data-placa="${escapeHtml(
@@ -6306,15 +7085,9 @@ function renderRelatorioLocacao(tipo) {
                     <td>${formatMissingInfoCell(item.modelo)}</td>
                     <td>${
                       item.cpfDigits && item.cpfDigits.length === 11 && !isMissingInfoValue(item.cliente)
-                        ? `<a href="#" class="cliente-vida-link" data-cpf="${item.cpfDigits}"${
-                            titlePag ? ` title="${escapeHtml(titlePag)}"` : ""
-                          }>${escapeHtml(item.cliente)}${
-                            item.pagamentosTimeline
-                              ? ` <span class="cliente-pagamentos-timeline">${escapeHtml(
-                                  item.pagamentosTimeline
-                                )}</span>`
-                              : ""
-                          }</a>`
+                        ? `<a href="#" class="cliente-vida-link" data-cpf="${item.cpfDigits}">${escapeHtml(
+                            item.cliente
+                          )}</a>`
                         : formatMissingInfoCell(item.cliente)
                     }</td>
                     <td>${formatMissingInfoCell(item.inicioLocacao)}</td>
@@ -6337,7 +7110,7 @@ function renderRelatorioLocacao(tipo) {
       0
     );
     setAdminSection("operacao");
-    renderLocacaoReport("Relatório | Veículos locados", html, {
+    renderLocacaoReport("Relatório | Locações ativas — protocolo em primeiro lugar", html, {
       totalLabel: "Total de locação semanal",
       totalValue: totalSemanalLocados,
     });
@@ -6862,44 +7635,44 @@ function renderCadastros() {
       : "<p>Nenhum cadastro pendente de validação.</p>";
   }
 
-  cadastroVeiculoLista.innerHTML = veiculos.length
-    ? veiculos
-        .slice(-10)
-        .reverse()
-        .map(
-          (v) =>
-            `<p><strong>${v.placa}</strong> | ${v.modelo} | Tag: ${v.tag}${
-              v.marca ? ` | Marca: ${v.marca}` : ""
-            }</p>`
-        )
-        .join("")
-    : "<p>Nenhum veículo cadastrado.</p>";
+  if (cadastroVeiculoLista) {
+    cadastroVeiculoLista.innerHTML = "";
+    cadastroVeiculoLista.classList.add("hidden");
+  }
 
-  cadastroLocacaoLista.innerHTML = locacoes.length
-    ? locacoes
-        .slice(-10)
-        .reverse()
-        .map(
-          (l) =>
-            `<p><strong>CPF:</strong> ${formatCpf(l.cpf)} | <strong>Placa:</strong> ${l.placa}${
-              l.numeroContrato ? ` | <strong>Contrato:</strong> ${escapeHtml(String(l.numeroContrato))}` : ""
-            } | <strong>Inicio:</strong> ${l.inicio}${l.fim ? ` | <strong>Fim:</strong> ${l.fim}` : ""}${
-              l.valorSemanal ? ` | <strong>Valor:</strong> ${l.valorSemanal}` : ""
-            }</p>`
-        )
-        .join("")
-    : "<p>Nenhuma locação cadastrada.</p>";
+  if (cadastroLocacaoLista) {
+    cadastroLocacaoLista.innerHTML = locacoes.length
+      ? locacoes
+          .slice(-10)
+          .reverse()
+          .map(
+            (l) =>
+              `<p><strong>Protocolo:</strong> ${escapeHtml(String(l.numeroContrato || "").trim() || "—")} | <strong>Placa:</strong> ${l.placa} | <strong>CPF:</strong> ${formatCpf(l.cpf)}${
+                l.statusLocacao
+                  ? ` | <strong>Status:</strong> ${escapeHtml(
+                      normalizeStatusLocacaoExibicao(String(l.statusLocacao))
+                    )}`
+                  : ""
+              } | <strong>Inicio:</strong> ${l.inicio}${l.fim ? ` | <strong>Fim:</strong> ${l.fim}` : ""}${
+                l.valorSemanal ? ` | <strong>Valor semanal:</strong> ${l.valorSemanal}` : ""
+              }</p>`
+          )
+          .join("")
+      : "<p>Nenhuma locação cadastrada.</p>";
+  }
 
-  cadastroManutencaoLista.innerHTML = manutencoes.length
-    ? manutencoes
-        .slice(-10)
-        .reverse()
-        .map(
-          (m) =>
-            `<p><strong>Placa:</strong> ${m.placa} | <strong>Data entrada:</strong> ${m.data || "Nao informado"} | <strong>Serviço:</strong> ${m.servico} | <strong>Prev. saída:</strong> ${m.dataPrevistaSaida || "Nao informado"}${m.dataRealSaida ? ` | <strong>Saída real:</strong> ${m.dataRealSaida}` : ""}${m.valor ? ` | <strong>Valor:</strong> ${m.valor}` : ""}</p>`
-        )
-        .join("")
-    : "<p>Nenhuma manutenção cadastrada.</p>";
+  if (cadastroManutencaoLista) {
+    cadastroManutencaoLista.innerHTML = manutencoes.length
+      ? manutencoes
+          .slice(-10)
+          .reverse()
+          .map(
+            (m) =>
+              `<p><strong>Placa:</strong> ${m.placa} | <strong>Data entrada:</strong> ${m.data || "Nao informado"} | <strong>Serviço:</strong> ${m.servico} | <strong>Prev. saída:</strong> ${m.dataPrevistaSaida || "Nao informado"}${m.dataRealSaida ? ` | <strong>Saída real:</strong> ${m.dataRealSaida}` : ""}${m.valor ? ` | <strong>Valor:</strong> ${m.valor}` : ""}</p>`
+          )
+          .join("")
+      : "<p>Nenhuma manutenção cadastrada.</p>";
+  }
 
   if (cadastroLancamentoAluguelLista) {
     cadastroLancamentoAluguelLista.innerHTML = lancamentosAluguel.length
@@ -7038,12 +7811,35 @@ function isAtivoByFim(reg) {
   return !String(reg.fim || "").trim();
 }
 
+/** Última linha por placa em RECEITA_2026_DATA (espelho da planilha «dados de locação»). */
+function buildLatestReceita2026RowByPlateMap() {
+  const latestByPlate = new Map();
+  if (!receita2026Data.length) return latestByPlate;
+  receita2026Data.forEach((row) => {
+    const plate = getCorrectedPlate(row.placa);
+    if (!plate) return;
+    const inicio = Number(row.inicioSerial || 0);
+    const prev = latestByPlate.get(plate);
+    if (!prev || inicio >= prev.inicioSerial) {
+      latestByPlate.set(plate, { row, inicioSerial: inicio });
+    }
+  });
+  return latestByPlate;
+}
+
 function getActivePlatesSet() {
-  const locacoesAtivas = loadCadastro(CAD_LOCACOES_KEY)
+  const fromCadastro = loadCadastro(CAD_LOCACOES_KEY)
     .filter((l) => !String(l.fim || "").trim())
     .map((l) => normalizePlate(l.placa))
     .filter(Boolean);
-  return new Set(locacoesAtivas);
+  const plates = new Set(fromCadastro);
+
+  const latestByPlate = buildLatestReceita2026RowByPlateMap();
+  latestByPlate.forEach(({ row }, plate) => {
+    if (!String(row.fim || "").trim()) plates.add(plate);
+  });
+
+  return plates;
 }
 
 function getVehicleMapByPlate() {
@@ -7077,6 +7873,29 @@ function getLatestCadastroLocacaoByPlate(plateKey) {
   return byPlate[0] || null;
 }
 
+function getBestCadastroLocacaoForSnapshot(plateKey, sourceRecord) {
+  const locacoes = loadCadastro(CAD_LOCACOES_KEY)
+    .filter((l) => normalizePlate(l.placa) === plateKey)
+    .sort((a, b) => {
+      const byCreated = Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0);
+      if (byCreated !== 0) return byCreated;
+      const da = parseBrDate(a.inicio);
+      const db = parseBrDate(b.inicio);
+      return (db?.getTime() || 0) - (da?.getTime() || 0);
+    });
+  if (!locacoes.length) return null;
+
+  const cpfSource = onlyDigits(String(sourceRecord?.cpf || ""));
+  const ativas = locacoes.filter((l) => !String(l.fim || "").trim());
+  const base = ativas.length ? ativas : locacoes;
+
+  if (cpfSource.length === 11) {
+    const byCpf = base.find((l) => onlyDigits(String(l.cpf || "")) === cpfSource);
+    if (byCpf) return byCpf;
+  }
+  return base[0] || null;
+}
+
 function buildOperationalSnapshot() {
   const baseRecords = getAdminDataset();
   const activeSet = getActivePlatesSet();
@@ -7090,14 +7909,46 @@ function buildOperationalSnapshot() {
       .filter(Boolean)
   );
 
+  const latestReceitaByPlate = buildLatestReceita2026RowByPlateMap();
+
   const activeRecords = Array.from(activeSet).map((plateKey) => {
-    const source = pickBestRecordByPlate(baseRecords, plateKey) || {};
+    let source = pickBestRecordByPlate(baseRecords, plateKey) || {};
+    const r = latestReceitaByPlate.get(plateKey)?.row;
+    if (r) {
+      const cpfR = onlyDigits(String(r.cpf || ""));
+      const semSrc = Array.isArray(source.semanas) ? source.semanas : [];
+      const semR = Array.isArray(r.semanas) ? r.semanas : [];
+      source = {
+        ...source,
+        cpf: source.cpf || cpfR,
+        nome: source.nome || r.nome,
+        placa: source.placa || plateKey,
+        inicio: source.inicio || r.inicio,
+        inicioSerial:
+          source.inicioSerial != null && source.inicioSerial !== ""
+            ? source.inicioSerial
+            : r.inicioSerial,
+        fim: source.fim || r.fim,
+        valorSemanal: source.valorSemanal || r.valorSemanal,
+        devidoHoje: source.devidoHoje || r.devidoHoje,
+        pago: source.pago || r.pago,
+        dias: source.dias || r.dias,
+        q: source.q || r.q,
+        semanas: semSrc.length ? semSrc : semR,
+        semanasCompletas: source.semanasCompletas || r.semanasCompletas,
+      };
+    }
     const vehicle = vehicleMap.get(plateKey) || {};
-    const cadastroLocacao = getLatestCadastroLocacaoByPlate(plateKey);
-    const clienteCadastro = cadastroLocacao
-      ? findClienteByCpfCadastro(cadastroLocacao.cpf)
-      : null;
+    const cadastroLocacao = getBestCadastroLocacaoForSnapshot(plateKey, source);
+    const cpfResolved = onlyDigits(
+      String(cadastroLocacao?.cpf || source.cpf || "")
+    );
+    const clienteCadastro =
+      cpfResolved.length === 11 ? findClienteByCpfCadastro(cpfResolved) : null;
     const plateRaw = vehicle.placa || source.placa || plateKey;
+    const numeroContrato = String(
+      cadastroLocacao?.numeroContrato || source.numeroContrato || ""
+    ).trim();
     return withDynamicFinancialFields({
       cpf: cadastroLocacao?.cpf || source.cpf || "",
       nome:
@@ -7105,6 +7956,7 @@ function buildOperationalSnapshot() {
         source.nome ||
         "Nao informado",
       placa: plateRaw,
+      numeroContrato,
       inicio: cadastroLocacao?.inicio || source.inicio || "",
       inicioSerial: cadastroLocacao?.inicio ? null : source.inicioSerial ?? null,
       cadastroCriadoTs: Number(cadastroLocacao?.createdAt || cadastroLocacao?.id || 0),
@@ -7224,35 +8076,18 @@ function renderDashboard(cliente) {
   if (enforceMaintenanceAndDailyRoutines()) return;
   showLocadoraArea();
   adminCard.classList.add("hidden");
-  document.getElementById("clienteNome").textContent = cliente.nome;
-  document.getElementById("contratoNumero").textContent = cliente.contrato.numero;
-  document.getElementById("veiculoModelo").textContent = cliente.contrato.veiculo.modelo;
-  document.getElementById("veiculoCategoria").textContent = cliente.contrato.veiculo.categoria;
-  document.getElementById("veiculoPlaca").textContent = cliente.contrato.veiculo.placa;
-  document.getElementById("contratoInicio").textContent = cliente.contrato.inicio;
-  document.getElementById("contratoFim").textContent = cliente.contrato.fim;
-  document.getElementById("contratoStatus").textContent = `${cliente.contrato.status} | ${currencyBRL(cliente.contrato.valorLocacao)}`;
-  document.getElementById("valorSemanal").textContent = currencyBRL(cliente.contrato.valorLocacao);
-  document.getElementById("quantidadeDias").textContent = String(cliente.contrato.dias);
-  document.getElementById("valorDevidoHoje").textContent = currencyBRL(cliente.contrato.valorDevidoHoje);
-  const cpfDash = onlyDigits(String(cliente.cpf || ""));
-  const placaDash = String(cliente.contrato?.veiculo?.placa || "").trim();
-  const pagoDash =
-    cpfDash.length === 11
-      ? totalPagoBarComLancamentosApp(cpfDash, placaDash, cliente.contrato.valorPago)
-      : parseCurrencyBR(cliente.contrato.valorPago);
-  document.getElementById("valorPago").textContent = currencyBRL(pagoDash);
-  document.getElementById("situacaoFinanceira").textContent = getSituacaoFinanceira(cliente.contrato, {
-    cpf: cliente.cpf,
-    placa: cliente.contrato?.veiculo?.placa,
-  });
+  const msg = document.getElementById("dashboardClienteMsg");
+  if (msg) {
+    msg.textContent = `Olá, ${String(cliente?.nome || "cliente").trim() || "cliente"}.`;
+  }
 
   loginArea.classList.add("hidden");
   dashboardCard.classList.remove("hidden");
 }
 
 function renderAdminResult(title, htmlContent, options = {}) {
-  adminResultTitle.textContent = title;
+  if (adminResultTitle) adminResultTitle.textContent = title;
+  if (!adminResultBody) return;
   adminResultBody.innerHTML = `
     <div class="report-actions">
       <button type="button" class="secondary" data-report-export="excel" data-report-target="admin">Exportar Excel</button>
@@ -7826,14 +8661,207 @@ function buildContractMatchKey(placa, cpf, inicio, fim) {
   ].join("|");
 }
 
+function buildContractUniqueSignature(contract) {
+  const nc = normalizeNumeroContratoKey(contract?.numeroContrato || contract?.protocolo || "");
+  if (nc) return `NC|${nc}`;
+  return buildContractMatchKey(contract?.placa, contract?.cpf, contract?.inicio, contract?.fim);
+}
+
+function getRowValueByNormKey(row, candidates) {
+  if (!row || typeof row !== "object") return "";
+  const entries = Object.entries(row);
+  for (const wanted of candidates) {
+    const hit = entries.find(([k]) => normalizeKey(k) === normalizeKey(wanted));
+    if (hit) return String(hit[1] ?? "").trim();
+  }
+  return "";
+}
+
+/** Mapa placa → conjunto de protocolos existentes na planilha (API). */
+function buildXlsxProtocolsByPlateMap(xlsxRows) {
+  const map = new Map();
+  if (!Array.isArray(xlsxRows)) return map;
+  for (const row of xlsxRows) {
+    const pl = normalizePlate(getRowValueByNormKey(row, ["placa", "Placa"]));
+    if (!pl) continue;
+    const nc = normalizeNumeroContratoKey(
+      getRowValueByNormKey(row, ["protocolo", "Protocol", "Protocolo"])
+    );
+    if (!nc) continue;
+    if (!map.has(pl)) map.set(pl, new Set());
+    map.get(pl).add(nc);
+  }
+  return map;
+}
+
+function getXlsxProtocolSetForPlate(xlsxRows, plateRaw) {
+  const pl = normalizePlate(plateRaw);
+  if (!pl || !Array.isArray(xlsxRows)) return new Set();
+  return buildXlsxProtocolsByPlateMap(xlsxRows).get(pl) || new Set();
+}
+
+function getXlsxProtocolSetForCpf(xlsxRows, cpfDigits) {
+  const key = onlyDigits(String(cpfDigits || ""));
+  const set = new Set();
+  if (key.length !== 11 || !Array.isArray(xlsxRows)) return set;
+  for (const row of xlsxRows) {
+    if (onlyDigits(getRowValueByNormKey(row, ["cpf", "CPF"])) !== key) continue;
+    const nc = normalizeNumeroContratoKey(
+      getRowValueByNormKey(row, ["protocolo", "Protocol", "Protocolo"])
+    );
+    if (nc) set.add(nc);
+  }
+  return set;
+}
+
+/**
+ * Quando a planilha lista protocolos para a placa (ou CPF), descarta linhas só da base local
+ * cujo protocolo não existe na planilha (ex.: fallback AAAAMMDD gerado em relatório).
+ */
+function filterContratosPorPlanilhaSeDisponivel(contratos, xlsxProtocolSet) {
+  if (!Array.isArray(contratos) || !contratos.length) return contratos;
+  if (!(xlsxProtocolSet instanceof Set) || xlsxProtocolSet.size === 0) return contratos;
+  return contratos.filter((c) => {
+    const nc = normalizeNumeroContratoKey(c.numeroContrato || "");
+    return nc && xlsxProtocolSet.has(nc);
+  });
+}
+
+/** Se a placa existe na planilha com protocolos, o registro precisa bater com um deles. */
+function rowPermitidoPelaPlanilhaLocacao(placa, protocolo, xlsxByPlate) {
+  if (!(xlsxByPlate instanceof Map)) return true;
+  const pl = normalizePlate(placa);
+  const nc = normalizeNumeroContratoKey(protocolo || "");
+  const set = xlsxByPlate.get(pl);
+  if (!set || set.size === 0) return true;
+  return Boolean(nc && set.has(nc));
+}
+
+async function loadLocacoesXlsxApiRows() {
+  if (Array.isArray(locacoesXlsxApiCache)) return locacoesXlsxApiCache;
+  if (
+    typeof LOCACOES_PLANILHA_DATA !== "undefined" &&
+    Array.isArray(LOCACOES_PLANILHA_DATA) &&
+    LOCACOES_PLANILHA_DATA.length
+  ) {
+    locacoesXlsxApiCache = LOCACOES_PLANILHA_DATA;
+    return locacoesXlsxApiCache;
+  }
+  if (locacoesXlsxApiPromise) return locacoesXlsxApiPromise;
+  locacoesXlsxApiPromise = fetch("/api/locacoes-xlsx", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then((payload) => {
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      locacoesXlsxApiCache = rows;
+      return rows;
+    })
+    .catch(() => {
+      locacoesXlsxApiCache = [];
+      return [];
+    })
+    .finally(() => {
+      locacoesXlsxApiPromise = null;
+    });
+  return locacoesXlsxApiPromise;
+}
+
+/**
+ * Relatório «Veículos locados»: uma linha por placa com contrato ATIVO na planilha embarcada.
+ * Se vários ATIVOs na mesma placa (inconsistência), mantém o de maior número de protocolo.
+ */
+function buildLocadosRowsFromPlanilhaEmbarcada(planilhaRows, veiculoByPlaca) {
+  if (!Array.isArray(planilhaRows) || !planilhaRows.length) return [];
+  const ativos = planilhaRows.filter((r) => {
+    const st = normalizeKey(String(r.Status ?? r.status ?? "").trim());
+    return st === "ATIVO";
+  });
+  if (!ativos.length) return [];
+  const byPlate = new Map();
+  ativos.forEach((r) => {
+    const placa = normalizePlate(String(r.Placa ?? r.placa ?? ""));
+    if (!placa) return;
+    const prot = normalizeNumeroContratoKey(String(r.Protocolo ?? r.protocolo ?? "").trim());
+    const cur = byPlate.get(placa);
+    if (!cur) {
+      byPlate.set(placa, r);
+      return;
+    }
+    const curProt = normalizeNumeroContratoKey(String(cur.Protocolo ?? "").trim());
+    if (prot && (!curProt || prot.localeCompare(curProt, undefined, { numeric: true }) > 0)) {
+      byPlate.set(placa, r);
+    }
+  });
+  const rows = [];
+  byPlate.forEach((r, placaKey) => {
+    const cpfRaw = getRowValueByNormKey(r, ["cpf", "CPF"]);
+    const cpfDig = onlyDigits(cpfRaw);
+    const nomeCli =
+      String(getRowValueByNormKey(r, ["Cliente", "cliente"]) || "").trim() || "Nao informado";
+    const contato = getContatoByCpfOrNome(cpfRaw, nomeCli);
+    const telefones = splitTelefones(contato);
+    const cad = veiculoByPlaca.get(placaKey);
+    const inicioRaw = String(
+      getRowValueByNormKey(r, ["Data Inicio", "Inicio", "Início"]) || ""
+    ).trim();
+    const inicioTail = inicioRaw.includes(",") ? inicioRaw.split(",").pop().trim() : inicioRaw;
+    const inicioDate = parseBrDate(inicioTail) || parseBrDate(inicioRaw);
+    const valorRaw =
+      String(
+        getRowValueByNormKey(r, ["Locação", "Locacao", "Valor da Parcela"]) || ""
+      ).trim() || "";
+    const protocolo =
+      normalizeNumeroContratoKey(String(r.Protocolo ?? r.protocolo ?? "").trim()) || "-";
+    rows.push({
+      protocolo,
+      placa: placaKey,
+      modelo: cad?.modelo || findModeloByPlaca(placaKey),
+      cliente: nomeCli,
+      cpfDigits: cpfDig,
+      valorLocacao: valorRaw,
+      inicioLocacao: inicioRaw || "",
+      cadastroCriadoTs: 0,
+      inicioTs: inicioDate?.getTime?.() || 0,
+      ...telefones,
+    });
+  });
+  return rows;
+}
+
 function mergeContractsForPlaca(placaRaw) {
   const plateKey = normalizePlate(placaRaw);
   if (!plateKey) return [];
+  const fromCache = Array.isArray(relatorioLocacaoCache?.rows)
+    ? relatorioLocacaoCache.rows
+        .filter((r) => normalizePlate(String(r?.placa || "")) === plateKey)
+        .map((r) => ({
+          cpf: onlyDigits(String(r.cpf || "")),
+          nome: String(r.cliente || "").trim(),
+          placa: plateKey,
+          numeroContrato: normalizeNumeroContratoKey(r.protocolo || r.numeroContrato || ""),
+          inicio: String(r.inicioLocacao || r.dataInicio || "").trim(),
+          inicioSerial: null,
+          fim:
+            String(r.dataFim || "").trim() && String(r.dataFim || "").trim() !== "..."
+              ? String(r.dataFim || "").trim()
+              : "",
+          fimSerial: null,
+          valorSemanal: String(r.valorLocacao || "").trim(),
+          pago: "",
+          devidoHoje: "",
+          q: "",
+          semanas: [],
+          semanasCompletas: [],
+        }))
+    : [];
+  const snapshot = buildOperationalSnapshot();
+  const fromSnapshot = [...snapshot.activeRecords, ...snapshot.inactiveRecords].filter(
+    (r) => normalizePlate(r.placa) === plateKey
+  );
   const fromAdmin = getAdminDataset().filter(
     (r) => normalizePlate(r.placa) === plateKey
   );
   const adminByKey = new Map();
-  fromAdmin.forEach((r) => {
+  [...fromSnapshot, ...fromAdmin].forEach((r) => {
     adminByKey.set(buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim), r);
   });
   const locs = loadCadastro(CAD_LOCACOES_KEY).filter(
@@ -7863,15 +8891,25 @@ function mergeContractsForPlaca(placaRaw) {
     };
   });
 
-  const merged = [...fromAdmin, ...extra];
-  const seen = new Set();
-  const out = [];
+  const merged = [...fromCache, ...fromSnapshot, ...fromAdmin, ...extra];
+  const byBase = new Map();
   merged.forEach((r) => {
-    const sig = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
-    if (seen.has(sig)) return;
-    seen.add(sig);
-    out.push(r);
+    const baseKey = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
+    const currentNc = normalizeNumeroContratoKey(r.numeroContrato || r.protocolo || "");
+    if (!byBase.has(baseKey)) {
+      byBase.set(baseKey, { ...r, numeroContrato: currentNc || String(r.numeroContrato || "") });
+      return;
+    }
+    const prev = byBase.get(baseKey);
+    const prevNc = normalizeNumeroContratoKey(prev.numeroContrato || prev.protocolo || "");
+    const mergedRow = {
+      ...prev,
+      ...r,
+      numeroContrato: prevNc || currentNc || String(prev.numeroContrato || r.numeroContrato || ""),
+    };
+    byBase.set(baseKey, mergedRow);
   });
+  const out = Array.from(byBase.values());
 
   return out.sort((a, b) => {
     const da = parseRecordStartDate(a)?.getTime() || 0;
@@ -7890,13 +8928,108 @@ function calcContratoDias(contrato) {
   return Math.max(1, diffDays(ini, fimDate));
 }
 
-function openPlacaHistoricoDialog(placaRaw) {
+async function openPlacaHistoricoDialog(placaRaw) {
   if (!placaHistoricoDialog || !placaHistoricoBody) return;
   const plate = normalizePlate(placaRaw);
   if (!plate) return;
+  const xlsxRows = await loadLocacoesXlsxApiRows();
+  const fromXlsx = xlsxRows
+    .filter((row) => normalizePlate(getRowValueByNormKey(row, ["placa", "Placa"])) === plate)
+    .map((row) => ({
+      cpf: onlyDigits(getRowValueByNormKey(row, ["cpf", "CPF"])),
+      nome: getRowValueByNormKey(row, ["cliente", "Cliente"]),
+      placa: plate,
+      numeroContrato: normalizeNumeroContratoKey(getRowValueByNormKey(row, ["protocolo", "Protocol", "Protocolo"])),
+      inicio: getRowValueByNormKey(row, ["Data Inicio", "Inicio", "Início"]),
+      inicioSerial: null,
+      fim: (() => {
+        const v = getRowValueByNormKey(row, ["Data Fim", "Fim"]);
+        if (v === "..." || normalizeKey(v) === "ATIVO") return "";
+        return v;
+      })(),
+      fimSerial: null,
+      valorSemanal:
+        getRowValueByNormKey(row, ["Valor da Parcela"]) ||
+        getRowValueByNormKey(row, ["Locacao", "Locação"]) ||
+        "",
+      statusLocacao: normalizeStatusLocacaoExibicao(getRowValueByNormKey(row, ["Status"])),
+      pago: "",
+      devidoHoje: "",
+      q: "",
+      semanas: [],
+      semanasCompletas: [],
+    }));
 
-  const contratos = mergeContractsForPlaca(plate);
+  const contratosRaw = [...fromXlsx, ...mergeContractsForPlaca(plate)];
+  const canonicalInicioKey = (c) => {
+    const d = inferStartDateForContrato(c);
+    if (d) return formatDataDmaBr(d);
+    return normalizeKey(String(c?.inicio || ""));
+  };
+  const contratoByBase = new Map();
+  contratosRaw.forEach((c) => {
+    const baseKey = [
+      normalizePlate(c.placa),
+      onlyDigits(String(c.cpf || "")),
+      canonicalInicioKey(c),
+    ].join("|");
+    const current = contratoByBase.get(baseKey);
+    const currNc = normalizeNumeroContratoKey(c.numeroContrato || "");
+    if (!current) {
+      contratoByBase.set(baseKey, c);
+      return;
+    }
+    const prevNc = normalizeNumeroContratoKey(current.numeroContrato || "");
+    // Para mesma base (placa+cpf+inicio), mantém o registro com protocolo válido.
+    if (!prevNc && currNc) {
+      contratoByBase.set(baseKey, c);
+      return;
+    }
+    // Se ambos têm (ou ambos não têm) protocolo, mantém o mais completo.
+    const prevScore = Number(Boolean(current.fim)) + Number(Boolean(current.valorSemanal));
+    const currScore = Number(Boolean(c.fim)) + Number(Boolean(c.valorSemanal));
+    if (currScore > prevScore) {
+      contratoByBase.set(baseKey, c);
+    }
+  });
+  let contratos = Array.from(contratoByBase.values());
+  const ativosComProtocoloKeys = new Set(
+    contratos
+      .filter((c) => !String(c.fim || "").trim() && normalizeNumeroContratoKey(c.numeroContrato || ""))
+      .map((c) => `${normalizePlate(c.placa)}|${onlyDigits(String(c.cpf || ""))}`)
+  );
+  contratos = contratos.filter((c) => {
+    const nc = normalizeNumeroContratoKey(c.numeroContrato || "");
+    if (nc) return true;
+    if (String(c.fim || "").trim()) return true;
+    const keyCpfPlaca = `${normalizePlate(c.placa)}|${onlyDigits(String(c.cpf || ""))}`;
+    return !ativosComProtocoloKeys.has(keyCpfPlaca);
+  });
+  const xlsxProtoSetPlaca = getXlsxProtocolSetForPlate(xlsxRows, plate);
+  contratos = filterContratosPorPlanilhaSeDisponivel(contratos, xlsxProtoSetPlaca);
   const modelo = findModeloByPlaca(plate);
+  const protocolosUnicos = new Set(
+    contratos
+      .map((c) => normalizeNumeroContratoKey(c.numeroContrato || ""))
+      .filter(Boolean)
+  );
+  const contratoAtivo = contratos.find((c) => !String(c.fim || "").trim());
+  const protocoloAtivoContrato = normalizeNumeroContratoKey(contratoAtivo?.numeroContrato || "");
+  const ativosCachePlaca = Array.isArray(relatorioLocacaoCache?.rows)
+    ? relatorioLocacaoCache.rows
+        .filter(
+          (r) =>
+            normalizePlate(String(r?.placa || "")) === plate &&
+            normalizeKey(String(r?.status || "")).includes("ATIVO")
+        )
+        .map((r) => normalizeNumeroContratoKey(r.protocolo || r.numeroContrato || ""))
+        .filter(Boolean)
+    : [];
+  const protocoloAtivoCache = ativosCachePlaca.length
+    ? ativosCachePlaca.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]
+    : "";
+  const protocoloAtivoDisplay = protocoloAtivoContrato || protocoloAtivoCache || "";
+  const protocolosCountDisplay = protocolosUnicos.size || (protocoloAtivoDisplay ? 1 : 0);
   if (!contratos.length) {
     placaHistoricoBody.innerHTML = `<p><strong>Placa:</strong> ${escapeHtml(
       plate
@@ -7907,7 +9040,30 @@ function openPlacaHistoricoDialog(placaRaw) {
     return;
   }
 
+  // Regra operacional: apenas 1 protocolo ativo por placa.
+  const fallbackAtivo = contratos
+    .slice()
+    .sort((a, b) => {
+      const da = parseRecordStartDate(a)?.getTime() || 0;
+      const db = parseRecordStartDate(b)?.getTime() || 0;
+      return db - da;
+    })
+    .find((c) => normalizeNumeroContratoKey(c.numeroContrato || ""));
+  const protocoloAtivoFinal = protocoloAtivoDisplay || normalizeNumeroContratoKey(fallbackAtivo?.numeroContrato || "");
+
   const rows = contratos
+    .slice()
+    .sort((a, b) => {
+      const pa = normalizeNumeroContratoKey(a.numeroContrato || "");
+      const pb = normalizeNumeroContratoKey(b.numeroContrato || "");
+      if (protocoloAtivoFinal) {
+        if (pa === protocoloAtivoFinal && pb !== protocoloAtivoFinal) return -1;
+        if (pb === protocoloAtivoFinal && pa !== protocoloAtivoFinal) return 1;
+      }
+      const da = parseRecordStartDate(a)?.getTime() || 0;
+      const db = parseRecordStartDate(b)?.getTime() || 0;
+      return db - da;
+    })
     .map((c, idx) => {
       const cpf = onlyDigits(String(c.cpf || ""));
       const nome =
@@ -7918,8 +9074,15 @@ function openPlacaHistoricoDialog(placaRaw) {
       const fim = formatContratoFimClienteVida(c);
       const dias = calcContratoDias(c);
       const diasTxt = dias == null ? "-" : `${dias} dia${dias === 1 ? "" : "s"}`;
+      const protocolo = normalizeNumeroContratoKey(c.numeroContrato || "") || "-";
+      const statusLinha =
+        protocoloAtivoFinal && protocolo === protocoloAtivoFinal
+          ? "ATIVO"
+          : "FINALIZADO";
       return `<tr>
         <td>${idx + 1}o</td>
+        <td>${escapeHtml(protocolo)}</td>
+        <td>${escapeHtml(statusLinha)}</td>
         <td>${escapeHtml(nome)}</td>
         <td>${escapeHtml(inicio)}</td>
         <td>${escapeHtml(fim)}</td>
@@ -7931,11 +9094,23 @@ function openPlacaHistoricoDialog(placaRaw) {
   placaHistoricoBody.innerHTML = `
     <p><strong>Placa:</strong> ${escapeHtml(plate)}</p>
     <p><strong>Modelo:</strong> ${escapeHtml(modelo)}</p>
+    <p><strong>Protocolos desta placa:</strong> ${protocolosCountDisplay} | <strong>Registros:</strong> ${contratos.length}${
+      protocoloAtivoFinal ? ` | <strong>Protocolo ativo:</strong> ${escapeHtml(protocoloAtivoFinal)}` : ""
+    }</p>
+    ${
+      protocolosCountDisplay === 1 && protocoloAtivoFinal
+        ? `<p class="hint">Esta placa tem apenas 1 protocolo até a presente data: <strong>${escapeHtml(
+            protocoloAtivoFinal
+          )}</strong>.</p>`
+        : ""
+    }
     <div class="table-wrap">
       <table class="relatorio-table cliente-vida-table">
         <thead>
           <tr>
             <th>Ordem</th>
+            <th>Protocolo</th>
+            <th>Status</th>
             <th>Cliente</th>
             <th>Inicio</th>
             <th>Fim</th>
@@ -7952,9 +9127,36 @@ function openPlacaHistoricoDialog(placaRaw) {
 function mergeContractsForCliente(cpfDigits) {
   const key = onlyDigits(String(cpfDigits || ""));
   if (key.length !== 11) return [];
+  const fromCache = Array.isArray(relatorioLocacaoCache?.rows)
+    ? relatorioLocacaoCache.rows
+        .filter((r) => onlyDigits(String(r?.cpf || "")) === key)
+        .map((r) => ({
+          cpf: key,
+          nome: String(r.cliente || "").trim(),
+          placa: normalizePlate(String(r.placa || "")),
+          numeroContrato: normalizeNumeroContratoKey(r.protocolo || r.numeroContrato || ""),
+          inicio: String(r.inicioLocacao || r.dataInicio || "").trim(),
+          inicioSerial: null,
+          fim:
+            String(r.dataFim || "").trim() && String(r.dataFim || "").trim() !== "..."
+              ? String(r.dataFim || "").trim()
+              : "",
+          fimSerial: null,
+          valorSemanal: String(r.valorLocacao || "").trim(),
+          pago: "",
+          devidoHoje: "",
+          q: "",
+          semanas: [],
+          semanasCompletas: [],
+        }))
+    : [];
+  const snapshot = buildOperationalSnapshot();
+  const fromSnapshot = [...snapshot.activeRecords, ...snapshot.inactiveRecords].filter(
+    (r) => onlyDigits(String(r.cpf || "")) === key
+  );
   const fromAdmin = getAdminDataset().filter((r) => onlyDigits(String(r.cpf || "")) === key);
   const adminByKey = new Map();
-  fromAdmin.forEach((r) => {
+  [...fromSnapshot, ...fromAdmin].forEach((r) => {
     adminByKey.set(buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim), r);
   });
   const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === key);
@@ -7978,15 +9180,25 @@ function mergeContractsForCliente(cpfDigits) {
       semanasCompletas: [],
     };
   });
-  const merged = [...fromAdmin, ...extra];
-  const seen = new Set();
-  const out = [];
+  const merged = [...fromCache, ...fromSnapshot, ...fromAdmin, ...extra];
+  const byBase = new Map();
   merged.forEach((r) => {
-    const sig = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
-    if (seen.has(sig)) return;
-    seen.add(sig);
-    out.push(r);
+    const baseKey = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
+    const currentNc = normalizeNumeroContratoKey(r.numeroContrato || r.protocolo || "");
+    if (!byBase.has(baseKey)) {
+      byBase.set(baseKey, { ...r, numeroContrato: currentNc || String(r.numeroContrato || "") });
+      return;
+    }
+    const prev = byBase.get(baseKey);
+    const prevNc = normalizeNumeroContratoKey(prev.numeroContrato || prev.protocolo || "");
+    const mergedRow = {
+      ...prev,
+      ...r,
+      numeroContrato: prevNc || currentNc || String(prev.numeroContrato || r.numeroContrato || ""),
+    };
+    byBase.set(baseKey, mergedRow);
   });
+  const out = Array.from(byBase.values());
   return out.sort((a, b) => {
     const da = parseRecordStartDate(a)?.getTime() || 0;
     const db = parseRecordStartDate(b)?.getTime() || 0;
@@ -8197,11 +9409,19 @@ function avaliarRegularidadeCliente(contratos) {
   return { texto: "NAO REGULAR: valor pago abaixo do devido até a data de referência.", ok: false };
 }
 
-function openClienteVidaDialog(cpfDigits) {
+async function openClienteVidaDialog(cpfDigits) {
   if (!clienteVidaDialog || !clienteVidaBody) return;
   const key = onlyDigits(String(cpfDigits || ""));
   if (key.length !== 11) return;
-  const contratos = mergeContractsForCliente(key);
+  let contratos = mergeContractsForCliente(key);
+  const xlsxRowsCliente = await loadLocacoesXlsxApiRows();
+  const xlsxProtoSetCpf = getXlsxProtocolSetForCpf(xlsxRowsCliente, key);
+  contratos = filterContratosPorPlanilhaSeDisponivel(contratos, xlsxProtoSetCpf);
+  const protocolosUnicos = new Set(
+    contratos
+      .map((c) => normalizeNumeroContratoKey(c.numeroContrato || ""))
+      .filter(Boolean)
+  );
   if (!contratos.length) {
     clienteVidaBody.innerHTML = `<p>Nenhum contrato encontrado para o CPF <strong>${formatCpf(
       key
@@ -8269,6 +9489,7 @@ function openClienteVidaDialog(cpfDigits) {
   </section>`;
   clienteVidaBody.innerHTML = `
     <p><strong>${escapeHtml(nome)}</strong> — CPF <strong>${formatCpf(key)}</strong></p>
+    <p><strong>Protocolos deste cliente:</strong> ${protocolosUnicos.size} | <strong>Registros:</strong> ${contratos.length}</p>
     <p><strong>Avaliação de pagamentos:</strong> ${escapeHtml(aval.texto)}</p>
     <p class="cliente-vida-datas-nota">Datas em <strong>dia/mês/ano</strong> (DD/MM/AAAA) para facilitar a leitura na virada do ano.</p>
     ${ativoHtml}
@@ -8897,21 +10118,21 @@ function renderAdminDashboard() {
   dashboardCard.classList.add("hidden");
   loginArea.classList.add("hidden");
   adminCard.classList.remove("hidden");
-  adminNavInformacao.classList.toggle("hidden", !isOwner);
+  if (adminNavInformacao) adminNavInformacao.classList.toggle("hidden", !isOwner);
   adminNavDados.classList.toggle("hidden", !isOwner);
   if (adminDadosMenu) adminDadosMenu.classList.toggle("hidden", !isOwner);
   operacaoTargetButtons.forEach((button) => {
     const buttonTarget = String(button.dataset.target || "");
     button.classList.toggle("hidden", !canAccessOperacaoTarget(buttonTarget));
   });
+  setLayoutEditorsAccessByProfile();
   setAdminSection("operacao");
   setOperacaoSubsection(operacaoAbaAtual || "cliente");
-  setInformacaoScope("todos");
   currentAdminReportSaldo = getGlobalSaldoTotal();
   renderCadastros();
   renderAdminResult(
-    "Selecione uma consulta por grupo",
-    "<p>Abra Informação no menu lateral e escolha Contratos Ativos ou Contratos Inativos.</p>"
+    "Cadastros",
+    "<p>Use <strong>Cadastro cliente</strong> ou <strong>Cadastro veículo</strong> no menu. Locação, contratos e financeiro não estão disponíveis nesta versão.</p>"
   );
 }
 
@@ -8945,6 +10166,75 @@ function fileToBase64Cliente(file) {
     reader.onerror = () => reject(new Error("Arquivo inválido."));
     reader.readAsDataURL(file);
   });
+}
+
+/** Reduz fotos do celular (muitos MP) para não estourar limite da API e evitar travamentos. */
+function loadImageElementFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível abrir a imagem."));
+    };
+    img.src = url;
+  });
+}
+
+async function prepareImageForCadastroIa(file) {
+  const MAX_LONG_EDGE = 1600;
+  const JPEG_QUALITY = 0.82;
+  if (!file || !String(file.type || "").startsWith("image/")) {
+    return fileToBase64Cliente(file);
+  }
+  try {
+    const img = await loadImageElementFromFile(file);
+    const w0 = img.naturalWidth || img.width;
+    const h0 = img.naturalHeight || img.height;
+    if (!w0 || !h0) return fileToBase64Cliente(file);
+    const scale = Math.min(1, MAX_LONG_EDGE / Math.max(w0, h0));
+    const tw = Math.max(1, Math.round(w0 * scale));
+    const th = Math.max(1, Math.round(h0 * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fileToBase64Cliente(file);
+    ctx.drawImage(img, 0, 0, tw, th);
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob((b) => resolve(b), "image/jpeg", JPEG_QUALITY);
+    });
+    if (!blob) return fileToBase64Cliente(file);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = String(reader.result || "");
+        const m = res.match(/^data:([^;]+);base64,(.+)$/);
+        if (!m) {
+          reject(new Error("Compressão da foto falhou."));
+          return;
+        }
+        resolve({ mime: "image/jpeg", base64: m[2] });
+      };
+      reader.onerror = () => reject(new Error("Leitura da foto comprimida falhou."));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return fileToBase64Cliente(file);
+  }
+}
+
+function humanizeCadastroIaCatch(err) {
+  const msg = String(err?.message || err || "");
+  if (!msg || msg === "[object Object]") return "Erro ao processar. Tente de novo.";
+  if (/Failed to fetch|NetworkError|Load failed|fetch/i.test(msg)) {
+    return "Sem conexão estável ou requisição bloqueada. Use Wi‑Fi, confira os dados móveis ou tente outro navegador.";
+  }
+  return msg.length > 380 ? `${msg.slice(0, 380)}…` : msg;
 }
 
 function mergeObservacoesAdmCadastroIa(parsed) {
@@ -9120,13 +10410,14 @@ function bindCadastroIaWizards() {
         const key = getStoredOpenAIKey();
         if (!key) {
           setMsg(
-            "Configure a chave OpenAI na área de lançamento de aluguel (comprovante com IA).",
+            "Neste aparelho ainda não há chave OpenAI salva. Entre como funcionário → Lançamento de aluguel → salve a chave em Comprovante (IA). Cada celular precisa salvar a chave uma vez.",
             "error"
           );
           return;
         }
         try {
           const blobs = {};
+          setMsg("Preparando fotos no aparelho (reduzindo tamanho)…", "");
           for (const k of ["cnhFrente", "cnhVerso", "comprovante"]) {
             const inp = inputs[k];
             const f = inp?.files?.[0];
@@ -9134,9 +10425,9 @@ function bindCadastroIaWizards() {
               setMsg("Selecione as três fotos (frente CNH, verso CNH, comprovante).", "error");
               return;
             }
-            blobs[k] = await fileToBase64Cliente(f);
+            blobs[k] = await prepareImageForCadastroIa(f);
           }
-          setMsg("Processando com IA…", "");
+          setMsg("Enviando para a IA… pode levar até 1–2 min no 4G.", "");
           runBtn.disabled = true;
           const parsed = await window.dkExtrairCadastroClienteDocumentos(key, {
             cnhFrente: blobs.cnhFrente,
@@ -9151,7 +10442,7 @@ function bindCadastroIaWizards() {
             "success"
           );
         } catch (e) {
-          setMsg(String(e?.message || e || "Erro ao processar."), "error");
+          setMsg(humanizeCadastroIaCatch(e), "error");
         } finally {
           runBtn.disabled = false;
         }
@@ -9561,6 +10852,7 @@ function requireLoggedArea() {
     renderAdminDashboard();
     return;
   }
+  setLayoutEditorsAccessByProfile();
   if (session && session.contrato) {
     renderDashboard(session);
     return;
@@ -9678,6 +10970,7 @@ openLocadoraButton.addEventListener("click", () => {
 
 if (homeLayoutEditToggleBtn) {
   homeLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     if (homeLayoutEditMode) {
       stopHomeLayoutEdit();
       return;
@@ -9688,6 +10981,7 @@ if (homeLayoutEditToggleBtn) {
 }
 if (homeLayoutSaveBtn) {
   homeLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     persistHomeLayoutFromScreen();
     stopHomeLayoutEdit();
     window.alert("Layout salvo com sucesso.");
@@ -9695,6 +10989,7 @@ if (homeLayoutSaveBtn) {
 }
 if (homeLayoutResetBtn) {
   homeLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     localStorage.removeItem(HOME_LAYOUT_KEY);
     stopHomeLayoutEdit();
     clearHomeLayoutInlineStyles();
@@ -9704,6 +10999,7 @@ if (homeLayoutResetBtn) {
 
 if (funcLayoutEditToggleBtn) {
   funcLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     if (funcLayoutEditMode) {
       stopFuncionarioLayoutEdit();
       return;
@@ -9715,6 +11011,7 @@ if (funcLayoutEditToggleBtn) {
 }
 if (funcLayoutSaveBtn) {
   funcLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     persistFuncionarioLayoutFromScreen();
     stopFuncionarioLayoutEdit();
     window.alert("Layout do cadastro de funcionário salvo.");
@@ -9722,6 +11019,7 @@ if (funcLayoutSaveBtn) {
 }
 if (funcLayoutResetBtn) {
   funcLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     localStorage.removeItem(FUNC_LAYOUT_KEY);
     stopFuncionarioLayoutEdit();
     clearFuncionarioLayoutInlineStyles();
@@ -9730,6 +11028,7 @@ if (funcLayoutResetBtn) {
 }
 if (clienteLayoutEditToggleBtn) {
   clienteLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     if (clienteLayoutEditMode) {
       stopClienteLayoutEdit();
       return;
@@ -9741,6 +11040,7 @@ if (clienteLayoutEditToggleBtn) {
 }
 if (clienteLayoutSaveBtn) {
   clienteLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     persistClienteLayoutFromScreen();
     stopClienteLayoutEdit();
     window.alert("Layout do cadastro de cliente salvo.");
@@ -9748,10 +11048,40 @@ if (clienteLayoutSaveBtn) {
 }
 if (clienteLayoutResetBtn) {
   clienteLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     localStorage.removeItem(CLIENTE_LAYOUT_KEY);
     stopClienteLayoutEdit();
     clearClienteLayoutInlineStyles();
     window.alert("Layout do cadastro de cliente resetado.");
+  });
+}
+if (locLayoutEditToggleBtn) {
+  locLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    if (locLayoutEditMode) {
+      stopLocacaoLayoutEdit();
+      return;
+    }
+    startLocacaoLayoutEdit();
+    bindLocacaoLayoutEditorEvents();
+    window.alert("Modo edição ativo. Use ALT + arrastar para mover e SHIFT + arrastar para redimensionar.");
+  });
+}
+if (locLayoutSaveBtn) {
+  locLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    persistLocacaoLayoutFromScreen();
+    stopLocacaoLayoutEdit();
+    window.alert("Layout do cadastro de locação salvo.");
+  });
+}
+if (locLayoutResetBtn) {
+  locLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    localStorage.removeItem(LOC_LAYOUT_KEY);
+    stopLocacaoLayoutEdit();
+    clearLocacaoLayoutInlineStyles();
+    window.alert("Layout do cadastro de locação resetado.");
   });
 }
 
@@ -9803,16 +11133,18 @@ adminNavOperacao.addEventListener("click", () => {
   setOperacaoSubsection(operacaoAbaAtual || "cliente");
 });
 
-adminNavInformacao.addEventListener("click", () => {
-  const session = getSession();
-  if (session?.role !== "owner") {
-    setAdminSection("operacao");
-    return;
-  }
-  const opened = toggleAdminSection("informacao");
-  if (!opened) return;
-  if (!informacaoEscopoAtual) setInformacaoScope("todos");
-});
+if (adminNavInformacao) {
+  adminNavInformacao.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.role !== "owner") {
+      setAdminSection("operacao");
+      return;
+    }
+    const opened = toggleAdminSection("informacao");
+    if (!opened) return;
+    if (!informacaoEscopoAtual) setInformacaoScope("todos");
+  });
+}
 
 adminNavDados.addEventListener("click", () => {
   const session = getSession();
@@ -10870,52 +12202,62 @@ relatorioVeiculoExcelBtn.addEventListener("click", () => {
   exportVeiculosExcel();
 });
 
-gerarRelatorioLocacaoBtn.addEventListener("click", () => {
-  relatorioLocacaoOpcoes.classList.toggle("hidden");
-  if (relatorioLocacaoOpcoes.classList.contains("hidden")) {
-    relatorioLocacaoFormatos.classList.add("hidden");
+if (gerarRelatorioLocacaoBtn && relatorioLocacaoOpcoes && relatorioLocacaoFormatos) {
+  gerarRelatorioLocacaoBtn.addEventListener("click", () => {
+    relatorioLocacaoOpcoes.classList.toggle("hidden");
+    if (relatorioLocacaoOpcoes.classList.contains("hidden")) {
+      relatorioLocacaoFormatos.classList.add("hidden");
+      relatorioLocacaoTipoSelecionado = "";
+      return;
+    }
+    if (!relatorioLocacaoTipoSelecionado) {
+      relatorioLocacaoFormatos.classList.add("hidden");
+    }
+  });
+}
+
+if (relatorioLocadosBtn && relatorioLocacaoFormatos) {
+  relatorioLocadosBtn.addEventListener("click", () => {
+    relatorioLocacaoTipoSelecionado = "locados";
+    void renderRelatorioLocacao("locados");
+    relatorioLocacaoFormatos.classList.remove("hidden");
+  });
+}
+
+if (relatorioDisponiveisBtn && relatorioLocacaoFormatos) {
+  relatorioDisponiveisBtn.addEventListener("click", () => {
+    relatorioLocacaoTipoSelecionado = "disponiveis";
+    void renderRelatorioLocacao("disponiveis");
+    relatorioLocacaoFormatos.classList.remove("hidden");
+  });
+}
+
+if (relatorioCompletoProtocoloBtn) {
+  relatorioCompletoProtocoloBtn.addEventListener("click", () => {
+    relatorioLocacaoTipoSelecionado = "completo";
+    void renderRelatorioLocacao("completo");
+    relatorioLocacaoFormatos.classList.remove("hidden");
+  });
+}
+
+if (relatorioLocacaoTelaBtn) {
+  relatorioLocacaoTelaBtn.addEventListener("click", () => {
+    if (!relatorioLocacaoTipoSelecionado) return;
+    void renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
+  });
+}
+
+if (relatorioLocacaoLimparBtn) {
+  relatorioLocacaoLimparBtn.addEventListener("click", () => {
+    relatorioLocacaoCache = null;
     relatorioLocacaoTipoSelecionado = "";
-    return;
-  }
-  if (!relatorioLocacaoTipoSelecionado) {
-    relatorioLocacaoFormatos.classList.add("hidden");
-  }
-});
-
-relatorioLocadosBtn.addEventListener("click", () => {
-  relatorioLocacaoTipoSelecionado = "locados";
-  renderRelatorioLocacao("locados");
-  relatorioLocacaoFormatos.classList.remove("hidden");
-});
-
-relatorioDisponiveisBtn.addEventListener("click", () => {
-  relatorioLocacaoTipoSelecionado = "disponiveis";
-  renderRelatorioLocacao("disponiveis");
-  relatorioLocacaoFormatos.classList.remove("hidden");
-});
-
-relatorioLocacaoTelaBtn.addEventListener("click", () => {
-  if (!relatorioLocacaoTipoSelecionado) return;
-  renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
-});
-
-relatorioLocacaoPdfBtn.addEventListener("click", () => {
-  if (!relatorioLocacaoCache && relatorioLocacaoTipoSelecionado) {
-    renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
-  }
-  exportRelatorioPdfFromCache(relatorioLocacaoCache);
-});
-
-relatorioLocacaoExcelBtn.addEventListener("click", () => {
-  if (!relatorioLocacaoCache && relatorioLocacaoTipoSelecionado) {
-    renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
-  }
-  const file =
-    relatorioLocacaoTipoSelecionado === "locados"
-      ? "relatorio-veiculos-locados.csv"
-      : "relatorio-veiculos-disponiveis.csv";
-  exportRelatorioExcelFromCache(relatorioLocacaoCache, file);
-});
+    if (locacaoReportTitle) locacaoReportTitle.textContent = "Relatório de locação";
+    if (locacaoReportBody) locacaoReportBody.innerHTML = "";
+    if (locacaoReportBox) locacaoReportBox.classList.add("hidden");
+    if (relatorioLocacaoFormatos) relatorioLocacaoFormatos.classList.add("hidden");
+    if (relatorioLocacaoOpcoes) relatorioLocacaoOpcoes.classList.add("hidden");
+  });
+}
 
 gerarDadosUsoPdfBtn.addEventListener("click", () => {
   dadosUsoAcaoPendente = "pdf";
@@ -11379,7 +12721,8 @@ if (cadastroLancamentoAluguelLista) {
   });
 }
 
-locacaoCadastroForm.addEventListener("submit", async (event) => {
+if (locacaoCadastroForm) {
+  locacaoCadastroForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!validateLocacaoCpfBlock()) return;
   const cpf = onlyDigits(String(document.getElementById("cadLocacaoCpf").value || ""));
@@ -11388,19 +12731,23 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     .toUpperCase();
   const inicio = String(document.getElementById("cadLocacaoInicio").value || "").trim();
   let fim = String(document.getElementById("cadLocacaoFim").value || "").trim();
+  const kmInicial = String(document.getElementById("cadLocacaoKm")?.value || "")
+    .replace(/[^\d]/g, "")
+    .trim();
   const valorLocacaoRaw = String(document.getElementById("cadLocacaoValor").value || "").trim();
   const valorInvestimentoRaw = String(document.getElementById("cadLocacaoInvestimento")?.value || "").trim();
   const plano = getLocacaoPlanoSelecionado();
-  const numeroContratoRaw = String(
-    document.getElementById("cadLocacaoContrato")?.value || ""
-  ).trim();
+  if (!String(cadLocacaoContratoInput?.value || "").trim()) {
+    aplicarNovoProtocoloLocacaoNoFormulario();
+  }
+  const numeroContratoRaw = String(cadLocacaoContratoInput?.value || "").trim();
   const numeroContratoNorm = normalizeNumeroContratoKey(numeroContratoRaw);
   const valorLocacaoNum = parseCurrencyBR(valorLocacaoRaw);
   const valorInvestimentoNum = plano === "DK MINHA MOTO" ? parseCurrencyBR(valorInvestimentoRaw) : 0;
   const valorSemanalNum = valorLocacaoNum + valorInvestimentoNum;
   const valorSemanal = valorSemanalNum > 0 ? currencyBRL(valorSemanalNum) : "";
-  const snapshot = buildOperationalSnapshot();
-  const veiculoEscolhido = snapshot.availableVehicles.find(
+  const veiculosDisponiveis = getVeiculosSemProtocoloAtivo();
+  const veiculoEscolhido = veiculosDisponiveis.find(
     (v) => normalizePlate(v.placa) === normalizePlate(placa)
   );
   const modeloSelecionado = String(veiculoEscolhido?.modelo || "").trim();
@@ -11426,6 +12773,58 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     fim = formatDataDmaBr(fimCalculado);
     if (cadLocacaoFimInput) cadLocacaoFimInput.value = fim;
   }
+
+  const fimDate = parseBrDate(fim);
+  const statusField = String(cadLocacaoStatusInput?.value || "").trim();
+  const statusLocacao =
+    normalizeStatusLocacaoExibicao(statusField) ||
+    (String(fim || "").trim() ? "FINALIZADO" : "ATIVO");
+
+  let diaPagto = String(cadLocacaoDiaPagtoInput?.value || "").trim();
+  if (!diaPagto && inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())) {
+    diaPagto = inicioDate.toLocaleDateString("pt-BR", { weekday: "long" });
+  }
+
+  let periodoLocacao = String(cadLocacaoPeriodoLocacaoInput?.value || "").trim();
+  if (
+    !periodoLocacao &&
+    inicioDate instanceof Date &&
+    !Number.isNaN(inicioDate.getTime()) &&
+    fimDate instanceof Date &&
+    !Number.isNaN(fimDate.getTime())
+  ) {
+    const dias = Math.max(
+      1,
+      Math.round((toDateOnly(fimDate) - toDateOnly(inicioDate)) / 86400000) + 1
+    );
+    periodoLocacao = `${dias} dia(s)`;
+  }
+
+  let modalidade = String(cadLocacaoModalidadeInput?.value || "").trim();
+  if (!modalidade) {
+    const tipoV = String(veiculoEscolhido?.tipo || "").trim();
+    modalidade = normalizeKey(tipoV).includes("CARRO") ? "CARRO" : "MOTO";
+  }
+
+  let marcaModelo = String(cadLocacaoMarcaModeloInput?.value || "").trim();
+  if (!marcaModelo) {
+    marcaModelo = [String(veiculoEscolhido?.marca || "").trim(), modeloSelecionado]
+      .filter(Boolean)
+      .join(" / ");
+  }
+
+  const opcaoContrato = String(cadLocacaoOpcaoContratoInput?.value || "").trim();
+  const periodoContrato = String(cadLocacaoPeriodoContratoInput?.value || "").trim();
+  const configPrecoKm = String(cadLocacaoConfigPrecoKmInput?.value || "").trim();
+  const tabela = String(cadLocacaoTabelaInput?.value || "").trim();
+
+  let valorParcelaRaw = String(cadLocacaoValorParcelaInput?.value || "").trim();
+  if (!valorParcelaRaw) {
+    valorParcelaRaw = valorSemanal;
+    if (cadLocacaoValorParcelaInput) cadLocacaoValorParcelaInput.value = valorParcelaRaw;
+  }
+  const valorParcelaNum = parseCurrencyBR(valorParcelaRaw);
+
   if (!numeroContratoNorm) {
     window.alert("O número do contrato é obrigatório e deve ser único no sistema.");
     return;
@@ -11433,6 +12832,12 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
   if (contratoNumeroJaExisteNaBase(numeroContratoNorm, null)) {
     window.alert(
       "Este número de contrato já está cadastrado. Cada contrato (período cliente + veículo) deve ter um código diferente."
+    );
+    return;
+  }
+  if (!veiculoEscolhido) {
+    window.alert(
+      "Esta placa já está vinculada a protocolo ativo (sem data fim) ou está indisponível. Encerre a locação ativa para reutilizar a placa."
     );
     return;
   }
@@ -11455,17 +12860,36 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     );
     return;
   }
+
+  let clienteCodigo = String(cadLocacaoClienteCodigoInput?.value || "").trim();
+  if (!clienteCodigo) {
+    clienteCodigo = String(cliente?.codigo || "").trim();
+    if (cadLocacaoClienteCodigoInput && clienteCodigo) cadLocacaoClienteCodigoInput.value = clienteCodigo;
+  }
+
   const confirmado = await askLocacaoCadastroConfirmation({
     cpf,
     clienteNome: String(cliente?.nome || "").trim(),
+    clienteCodigo,
     numeroContrato: numeroContratoNorm,
     placa,
     modelo: modeloSelecionado,
     inicio,
     fim,
     plano,
+    kmInicial,
+    statusLocacao,
+    diaPagto,
+    periodoLocacao,
+    modalidade,
+    marcaModelo,
+    opcaoContrato,
+    periodoContrato,
+    configPrecoKm,
+    tabela,
     valorLocacao: currencyBRL(valorLocacaoNum),
     valorInvestimento: currencyBRL(valorInvestimentoNum),
+    valorParcela: currencyBRL(valorParcelaNum),
     valorSemanal,
   });
   if (!confirmado) return;
@@ -11484,6 +12908,18 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     valorInvestimento: currencyBRL(valorInvestimentoNum),
     valorSemanal,
     numeroContrato: numeroContratoNorm,
+    statusLocacao,
+    diaPagto,
+    periodoLocacao,
+    modalidade,
+    marcaModelo,
+    opcaoContrato,
+    periodoContrato,
+    kmInicial,
+    configPrecoKm,
+    tabela,
+    valorParcela: currencyBRL(valorParcelaNum),
+    clienteCodigo,
   });
   saveCadastro(CAD_LOCACOES_KEY, locacoes);
   addAuditLog(
@@ -11494,27 +12930,38 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
   window.alert("LOCAÇÃO CADASTRADA COM SUCESSO");
   locacaoCadastroForm.reset();
   ensureLocacaoInicioDefault();
+  aplicarNovoProtocoloLocacaoNoFormulario();
   setLocacaoFormBlocked(false);
   locacaoImpedimentoAlertShown = false;
   renderCadastros();
-});
+  });
+}
 
-cadLocacaoCpfInput.addEventListener("blur", validateLocacaoCpfBlock);
-cadLocacaoCpfInput.addEventListener("input", () => {
-  const cpf = onlyDigits(String(cadLocacaoCpfInput.value || ""));
-  cadLocacaoCpfInput.value = formatCpf(cpf);
-  if (cpf.length < 11) {
-    locacaoImpedimentoAlertShown = false;
-    setLocacaoFormBlocked(false);
-    return;
-  }
-  applyLocacaoClienteByCpf(cpf);
-  validateLocacaoCpfBlock();
-});
+if (cadLocacaoCpfInput) {
+  cadLocacaoCpfInput.addEventListener("blur", validateLocacaoCpfBlock);
+  cadLocacaoCpfInput.addEventListener("input", () => {
+    const cpf = onlyDigits(String(cadLocacaoCpfInput.value || ""));
+    cadLocacaoCpfInput.value = formatCpf(cpf);
+    if (cpf.length < 11) {
+      locacaoImpedimentoAlertShown = false;
+      setLocacaoFormBlocked(false);
+      return;
+    }
+    applyLocacaoClienteByCpf(cpf);
+    syncCadLocacaoClienteCodigoFromCpf();
+    validateLocacaoCpfBlock();
+  });
+}
 
 if (cadLocacaoValorInput) {
   cadLocacaoValorInput.addEventListener("blur", () => {
     formatLocacaoCurrencyInput(cadLocacaoValorInput);
+  });
+}
+
+if (cadLocacaoValorParcelaInput) {
+  cadLocacaoValorParcelaInput.addEventListener("blur", () => {
+    formatLocacaoCurrencyInput(cadLocacaoValorParcelaInput);
   });
 }
 
@@ -11530,11 +12977,13 @@ if (cadLocacaoInicioInput) {
   });
 }
 
-cadLocacaoPlanoInputs.forEach((inp) => {
-  inp.addEventListener("change", () => {
-    applyLocacaoPlanoRules();
+if (cadLocacaoPlanoInputs && cadLocacaoPlanoInputs.length) {
+  cadLocacaoPlanoInputs.forEach((inp) => {
+    inp.addEventListener("change", () => {
+      applyLocacaoPlanoRules();
+    });
   });
-});
+}
 
 if (cadLocacaoClienteNomeInput) {
   cadLocacaoClienteNomeInput.addEventListener("input", () => {
@@ -11551,20 +13000,57 @@ if (cadLocacaoPlacaInput) {
   });
   cadLocacaoPlacaInput.addEventListener("blur", () => {
     cadLocacaoPlacaInput.value = String(cadLocacaoPlacaInput.value || "").trim().toUpperCase();
+    suggestCadLocacaoFromVeiculoPlaca();
   });
 }
 
-cadLocacaoClearBtn.addEventListener("click", () => {
-  locacaoCadastroForm.reset();
-  refreshLocacaoPlacaOptions();
-  refreshLocacaoClienteSugestoes();
-  ensureLocacaoInicioDefault();
-  applyLocacaoPlanoRules();
-  setLocacaoFormBlocked(false);
-  locacaoImpedimentoAlertShown = false;
-});
+if (cadLocacaoClearBtn) {
+  cadLocacaoClearBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
 
-manutencaoCadastroForm.addEventListener("submit", (event) => {
+    // Limpeza principal via reset do form.
+    if (locacaoCadastroForm) locacaoCadastroForm.reset();
+
+    // Fallback explícito para garantir limpeza visual imediata.
+    if (cadLocacaoPlacaInput) cadLocacaoPlacaInput.value = "";
+    if (cadLocacaoCpfInput) cadLocacaoCpfInput.value = "";
+    if (cadLocacaoClienteNomeInput) cadLocacaoClienteNomeInput.value = "";
+    if (cadLocacaoInicioInput) cadLocacaoInicioInput.value = "";
+    if (cadLocacaoFimInput) cadLocacaoFimInput.value = "";
+    if (cadLocacaoKmInput) cadLocacaoKmInput.value = "";
+    if (cadLocacaoValorInput) cadLocacaoValorInput.value = "";
+    if (cadLocacaoInvestimentoInput) cadLocacaoInvestimentoInput.value = "";
+    if (cadLocacaoStatusInput) cadLocacaoStatusInput.value = "";
+    if (cadLocacaoDiaPagtoInput) cadLocacaoDiaPagtoInput.value = "";
+    if (cadLocacaoPeriodoLocacaoInput) cadLocacaoPeriodoLocacaoInput.value = "";
+    if (cadLocacaoModalidadeInput) cadLocacaoModalidadeInput.value = "";
+    if (cadLocacaoMarcaModeloInput) cadLocacaoMarcaModeloInput.value = "";
+    if (cadLocacaoOpcaoContratoInput) cadLocacaoOpcaoContratoInput.value = "";
+    if (cadLocacaoPeriodoContratoInput) cadLocacaoPeriodoContratoInput.value = "";
+    if (cadLocacaoConfigPrecoKmInput) cadLocacaoConfigPrecoKmInput.value = "";
+    if (cadLocacaoTabelaInput) cadLocacaoTabelaInput.value = "";
+    if (cadLocacaoValorParcelaInput) cadLocacaoValorParcelaInput.value = "";
+    if (cadLocacaoClienteCodigoInput) cadLocacaoClienteCodigoInput.value = "";
+
+    // Reaplica padrão operacional após limpar.
+    try {
+      refreshLocacaoPlacaOptions();
+      refreshLocacaoClienteSugestoes();
+      ensureLocacaoInicioDefault();
+      aplicarNovoProtocoloLocacaoNoFormulario();
+      applyLocacaoPlanoRules();
+      setLocacaoFormBlocked(false);
+      locacaoImpedimentoAlertShown = false;
+    } catch (err) {
+      // Mantém operação de limpar funcional mesmo com falha auxiliar.
+      console.error("Falha ao finalizar limpeza do cadastro de locação:", err);
+    }
+  });
+}
+
+if (manutencaoCadastroForm) {
+  manutencaoCadastroForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const placa = String(document.getElementById("cadManutencaoPlaca").value || "")
     .trim()
@@ -11608,17 +13094,22 @@ manutencaoCadastroForm.addEventListener("submit", (event) => {
   saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
   addAuditLog("cadastrar_manutencao", "manutencao", `${placa} - ${servico}`);
   manutencaoCadastroForm.reset();
-  cadManutencaoDataInput.value = todayBrDate();
+  if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
   renderCadastros();
-});
+  });
+}
 
-gerarRelatorioManutencaoBtn.addEventListener("click", () => {
-  renderManutencaoReport();
-});
+if (gerarRelatorioManutencaoBtn) {
+  gerarRelatorioManutencaoBtn.addEventListener("click", () => {
+    renderManutencaoReport();
+  });
+}
 
-manutencaoTipoToggleBtn.addEventListener("click", () => {
-  manutencaoTipoPanel.classList.toggle("hidden");
-});
+if (manutencaoTipoToggleBtn && manutencaoTipoPanel) {
+  manutencaoTipoToggleBtn.addEventListener("click", () => {
+    manutencaoTipoPanel.classList.toggle("hidden");
+  });
+}
 
 adminButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -11649,6 +13140,38 @@ if (placaHistoricoFecharBtn && placaHistoricoDialog) {
       placaHistoricoDialog.classList.add("hidden");
       if (placaHistoricoBody) placaHistoricoBody.innerHTML = "";
     }
+  });
+}
+
+if (clienteVidaExportExcelBtn) {
+  clienteVidaExportExcelBtn.addEventListener("click", () => {
+    exportGenericReportExcel(clienteVidaBody, "cliente-protocolos.csv");
+  });
+}
+if (clienteVidaExportPdfBtn) {
+  clienteVidaExportPdfBtn.addEventListener("click", () => {
+    exportGenericReportPdf(clienteVidaBody, "Cliente - protocolos");
+  });
+}
+if (clienteVidaImprimirBtn) {
+  clienteVidaImprimirBtn.addEventListener("click", () => {
+    printReportContainer(clienteVidaBody, "Cliente - protocolos");
+  });
+}
+
+if (placaHistoricoExportExcelBtn) {
+  placaHistoricoExportExcelBtn.addEventListener("click", () => {
+    exportGenericReportExcel(placaHistoricoBody, "placa-protocolos.csv");
+  });
+}
+if (placaHistoricoExportPdfBtn) {
+  placaHistoricoExportPdfBtn.addEventListener("click", () => {
+    exportGenericReportPdf(placaHistoricoBody, "Placa - protocolos");
+  });
+}
+if (placaHistoricoImprimirBtn) {
+  placaHistoricoImprimirBtn.addEventListener("click", () => {
+    printReportContainer(placaHistoricoBody, "Placa - protocolos");
   });
 }
 
@@ -11690,6 +13213,9 @@ function handleReportAreaClick(event) {
 
   if (target.dataset.reportExport === "pdf") {
     const reportTarget = String(target.dataset.reportTarget || "");
+    const isLocacaoContext =
+      event.currentTarget === locacaoReportBody ||
+      (locacaoReportBody instanceof HTMLElement && locacaoReportBody.contains(target));
     if (reportTarget === "admin") {
       exportGenericReportPdf(adminResultBody, String(adminResultTitle.textContent || "Relatorio"));
       return;
@@ -11698,7 +13224,7 @@ function handleReportAreaClick(event) {
       exportGenericReportPdf(manutencaoReportBody, String(manutencaoReportTitle.textContent || "Relatorio manutencao"));
       return;
     }
-    if (reportTarget === "locacao" && relatorioLocacaoCache) {
+    if ((reportTarget === "locacao" || (isLocacaoContext && !reportTarget)) && relatorioLocacaoCache) {
       exportRelatorioPdfFromCache(relatorioLocacaoCache);
       return;
     }
@@ -11708,6 +13234,9 @@ function handleReportAreaClick(event) {
 
   if (target.dataset.reportExport === "excel") {
     const reportTarget = String(target.dataset.reportTarget || "");
+    const isLocacaoContext =
+      event.currentTarget === locacaoReportBody ||
+      (locacaoReportBody instanceof HTMLElement && locacaoReportBody.contains(target));
     if (reportTarget === "admin") {
       exportGenericReportExcel(adminResultBody, "relatorio-admin.csv");
       return;
@@ -11716,10 +13245,12 @@ function handleReportAreaClick(event) {
       exportGenericReportExcel(manutencaoReportBody, "relatorio-manutencao.csv");
       return;
     }
-    if (reportTarget === "locacao" && relatorioLocacaoCache) {
+    if ((reportTarget === "locacao" || (isLocacaoContext && !reportTarget)) && relatorioLocacaoCache) {
       const file =
         relatorioLocacaoTipoSelecionado === "locados"
           ? "relatorio-veiculos-locados.csv"
+          : relatorioLocacaoTipoSelecionado === "completo"
+            ? "relatorio-completo-protocolos.csv"
           : "relatorio-veiculos-disponiveis.csv";
       exportRelatorioExcelFromCache(relatorioLocacaoCache, file);
       return;
@@ -11974,19 +13505,19 @@ if (window.location.protocol === "file:") {
   if (updateButton) updateButton.classList.add("hidden");
 }
 
+resetProjetoSomenteCadastrosV3Once();
 seedVeiculosDatabaseIfNeeded();
 seedClientesDatabaseIfNeeded();
 migratePlacaInLocalStorage();
 sanitizeVeiculosDatabase();
 applyClienteCpfFixes();
 normalizeClienteCodigos();
-removeClientesByCodigo([287, 288]);
-removeClientesByCpf(["444.444.444-44", "555.555.555-55"]);
 clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
 importLocacoesFromPlanilhaOnce();
+ensureNumeroContratoForLocacoes();
 fixKnownRentalValueOverrides();
-cadManutencaoDataInput.value = todayBrDate();
+if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();
 ensureLocacaoInicioDefault();
 setHomeLayoutToolbarState();
@@ -12000,6 +13531,10 @@ setClienteEnderecoConfirmado(false);
 setFuncionarioLayoutToolbarState();
 bootstrapFuncionarioLayoutFromStorage();
 bindFuncionarioLayoutEditorEvents();
+setLocacaoLayoutToolbarState();
+bootstrapLocacaoLayoutFromStorage();
+bindLocacaoLayoutEditorEvents();
+setLayoutEditorsAccessByProfile();
 requireLoggedArea();
 applyDeepLinkCadastroIaFromHash();
 bindCadastroIaWizards();
