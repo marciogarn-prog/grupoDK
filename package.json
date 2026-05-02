@@ -1,0 +1,8 @@
+{
+  "name": "cursor-dk-tools",
+  "private": true,
+  "description": "Scripts auxiliares (export Excel, planilhas)",
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}

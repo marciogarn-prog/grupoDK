@@ -41,16 +41,9 @@ const mockClientes = [
   },
 ];
 
+const SESSION_UNLOCK_SALVAR_CLIENTE_KEY = "dk_unlock_salvar_cliente_v1";
 const FUNCIONARIOS_ACCESS_KEY = "dk_funcionarios_access";
-const OPERACAO_ACCESS_TARGETS = [
-  "cliente",
-  "veiculo",
-  "locacao",
-  "manutencao",
-  "lancamentoAluguel",
-  "lancamentoDespesa",
-  "funcionario",
-];
+const OPERACAO_ACCESS_TARGETS = ["cliente", "veiculo", "funcionario"];
 const funcionariosAccess = [
   {
     cpf: "03037897430",
@@ -133,6 +126,24 @@ const loginClienteForm = document.getElementById("loginClienteForm");
 const loginAdminForm = document.getElementById("loginAdminForm");
 const loginClienteMessage = document.getElementById("loginClienteMessage");
 const loginAdminMessage = document.getElementById("loginAdminMessage");
+const clientePublicoCadastroForm = document.getElementById("clientePublicoCadastroForm");
+const publicCadClienteCpf = document.getElementById("publicCadClienteCpf");
+const publicCadClienteDataCadastro = document.getElementById("publicCadClienteDataCadastro");
+const publicCadClienteNome = document.getElementById("publicCadClienteNome");
+const publicCadClienteCelular = document.getElementById("publicCadClienteCelular");
+const publicCadClienteRecado1 = document.getElementById("publicCadClienteRecado1");
+const publicCadClienteRecado2 = document.getElementById("publicCadClienteRecado2");
+const publicCadClienteCnh = document.getElementById("publicCadClienteCnh");
+const publicCadClienteCategoria = document.getElementById("publicCadClienteCategoria");
+const publicCadClienteVencimento = document.getElementById("publicCadClienteVencimento");
+const publicCadClienteEar = document.getElementById("publicCadClienteEar");
+const publicCadClienteCep = document.getElementById("publicCadClienteCep");
+const publicCadClienteComplemento = document.getElementById("publicCadClienteComplemento");
+const publicCadClienteMunicipioUf = document.getElementById("publicCadClienteMunicipioUf");
+const publicCadClienteEndereco = document.getElementById("publicCadClienteEndereco");
+const publicCadClienteConfirmEnderecoBtn = document.getElementById("publicCadClienteConfirmEnderecoBtn");
+const publicCadClienteCepStatus = document.getElementById("publicCadClienteCepStatus");
+const publicCadClienteErro = document.getElementById("publicCadClienteErro");
 const dashboardCard = document.getElementById("dashboardCard");
 const logoutButton = document.getElementById("logoutButton");
 const adminCard = document.getElementById("adminCard");
@@ -145,9 +156,15 @@ const adminNavInformacao = document.getElementById("adminNavInformacao");
 const adminNavDados = document.getElementById("adminNavDados");
 const adminOperacaoMenu = document.getElementById("adminOperacaoMenu");
 const adminInformacaoMenu = document.getElementById("adminInformacaoMenu");
+const adminDadosMenu = document.getElementById("adminDadosMenu");
+const adminDadosUsoBtn = document.getElementById("adminDadosUsoBtn");
+const adminValidacaoCadastroBtn = document.getElementById("adminValidacaoCadastroBtn");
 const adminOperacaoSection = document.getElementById("adminOperacaoSection");
 const adminInformacaoSection = document.getElementById("adminInformacaoSection");
 const adminDadosSection = document.getElementById("adminDadosSection");
+const adminDadosUsoSection = document.getElementById("adminDadosUsoSection");
+const adminValidacaoCadastroSection = document.getElementById("adminValidacaoCadastroSection");
+const adminValidacaoCadastroLista = document.getElementById("adminValidacaoCadastroLista");
 const operacaoTargetButtons = document.querySelectorAll(".operacao-target-btn");
 const operacaoClienteSection = document.getElementById("operacaoClienteSection");
 const operacaoVeiculoSection = document.getElementById("operacaoVeiculoSection");
@@ -165,6 +182,16 @@ const informacaoInativosActions = document.getElementById("informacaoInativosAct
 const informacaoTodosActions = document.getElementById("informacaoTodosActions");
 const clienteCadastroForm = document.getElementById("clienteCadastroForm");
 const cadClienteCpfInput = document.getElementById("cadClienteCpf");
+const cadClienteCnhInput = document.getElementById("cadClienteCnh");
+const cadClienteCepInput = document.getElementById("cadClienteCep");
+const cadClienteMunicipioUfInput = document.getElementById("cadClienteMunicipioUf");
+const cadClienteEnderecoInput = document.getElementById("cadClienteEndereco");
+const cadClienteComplementoInput = document.getElementById("cadClienteComplemento");
+const cadClienteCepStatus = document.getElementById("cadClienteCepStatus");
+const cadClienteConfirmEnderecoBtn = document.getElementById("cadClienteConfirmEnderecoBtn");
+const clienteLayoutEditToggleBtn = document.getElementById("clienteLayoutEditToggleBtn");
+const clienteLayoutSaveBtn = document.getElementById("clienteLayoutSaveBtn");
+const clienteLayoutResetBtn = document.getElementById("clienteLayoutResetBtn");
 const cadClienteClearBtn = document.getElementById("cadClienteClearBtn");
 const cadClienteUpdateBtn = document.getElementById("cadClienteUpdateBtn");
 const cadClienteCancelBtn = document.getElementById("cadClienteCancelBtn");
@@ -174,6 +201,7 @@ const clienteCancelOpcoes = document.getElementById("clienteCancelOpcoes");
 const cancelarClienteQuebraBtn = document.getElementById("cancelarClienteQuebraBtn");
 const cancelarClienteNegativadoBtn = document.getElementById("cancelarClienteNegativadoBtn");
 const clienteSenhaWrap = document.getElementById("clienteSenhaWrap");
+const clienteSenhaInstrucao = document.getElementById("clienteSenhaInstrucao");
 const cadClienteAdminSenha = document.getElementById("cadClienteAdminSenha");
 const cadClienteSenhaConfirmarBtn = document.getElementById("cadClienteSenhaConfirmarBtn");
 const cadClienteSenhaCancelarBtn = document.getElementById("cadClienteSenhaCancelarBtn");
@@ -182,16 +210,39 @@ const veiculoCadastroForm = document.getElementById("veiculoCadastroForm");
 const locacaoCadastroForm = document.getElementById("locacaoCadastroForm");
 const cadLocacaoCpfInput = document.getElementById("cadLocacaoCpf");
 const cadLocacaoPlacaInput = document.getElementById("cadLocacaoPlaca");
+const cadLocacaoPlacaSugestoes = document.getElementById("cadLocacaoPlacaSugestoes");
+const cadLocacaoMotosDisponiveisCountEl = document.getElementById(
+  "cadLocacaoMotosDisponiveisCount"
+);
+const cadLocacaoClienteNomeInput = document.getElementById("cadLocacaoClienteNome");
+const cadLocacaoCpfSugestoes = document.getElementById("cadLocacaoCpfSugestoes");
+const cadLocacaoClienteNomeSugestoes = document.getElementById("cadLocacaoClienteNomeSugestoes");
 const cadLocacaoInicioInput = document.getElementById("cadLocacaoInicio");
 const cadLocacaoFimInput = document.getElementById("cadLocacaoFim");
+const cadLocacaoKmInput = document.getElementById("cadLocacaoKm");
 const cadLocacaoValorInput = document.getElementById("cadLocacaoValor");
-const locacaoSubmitButton = locacaoCadastroForm.querySelector('button[type="submit"]');
+const cadLocacaoInvestimentoInput = document.getElementById("cadLocacaoInvestimento");
+const cadLocacaoPlanoInputs = document.querySelectorAll('input[name="cadLocacaoPlano"]');
+const cadLocacaoContratoInput = document.getElementById("cadLocacaoContrato");
+const cadLocacaoStatusInput = document.getElementById("cadLocacaoStatus");
+const cadLocacaoDiaPagtoInput = document.getElementById("cadLocacaoDiaPagto");
+const cadLocacaoPeriodoLocacaoInput = document.getElementById("cadLocacaoPeriodoLocacao");
+const cadLocacaoModalidadeInput = document.getElementById("cadLocacaoModalidade");
+const cadLocacaoMarcaModeloInput = document.getElementById("cadLocacaoMarcaModelo");
+const cadLocacaoOpcaoContratoInput = document.getElementById("cadLocacaoOpcaoContrato");
+const cadLocacaoPeriodoContratoInput = document.getElementById("cadLocacaoPeriodoContrato");
+const cadLocacaoConfigPrecoKmInput = document.getElementById("cadLocacaoConfigPrecoKm");
+const cadLocacaoTabelaInput = document.getElementById("cadLocacaoTabela");
+const cadLocacaoValorParcelaInput = document.getElementById("cadLocacaoValorParcela");
+const cadLocacaoClienteCodigoInput = document.getElementById("cadLocacaoClienteCodigo");
+const locacaoSubmitButton = locacaoCadastroForm?.querySelector('button[type="submit"]') ?? null;
 const cadLocacaoClearBtn = document.getElementById("cadLocacaoClearBtn");
 const lancamentoAluguelForm = document.getElementById("lancamentoAluguelForm");
 const lancAluguelClienteNomeInput = document.getElementById("lancAluguelClienteNome");
 const lancAluguelClienteSugestoes = document.getElementById("lancAluguelClienteSugestoes");
 const lancAluguelPlacaInput = document.getElementById("lancAluguelPlaca");
 const lancAluguelCpfInput = document.getElementById("lancAluguelCpf");
+const lancAluguelNumeroContratoInput = document.getElementById("lancAluguelNumeroContrato");
 const lancAluguelDiaPagamentoInput = document.getElementById("lancAluguelDiaPagamento");
 const lancAluguelValorPagoInput = document.getElementById("lancAluguelValorPago");
 const lancAluguelSemanaInicioInput = document.getElementById("lancAluguelSemanaInicio");
@@ -241,7 +292,7 @@ const cadVeiculoTagPreviewInput = document.getElementById("cadVeiculoTagPreview"
 const cadVeiculoChassiInput = document.getElementById("cadVeiculoChassi");
 const cadVeiculoRenavamInput = document.getElementById("cadVeiculoRenavam");
 const cadVeiculoMotorInput = document.getElementById("cadVeiculoMotor");
-const veiculoSubmitButton = veiculoCadastroForm.querySelector('button[type="submit"]');
+const veiculoSubmitButton = veiculoCadastroForm?.querySelector('button[type="submit"]') ?? null;
 const cadVeiculoClearBtn = document.getElementById("cadVeiculoClearBtn");
 const cadVeiculoUpdateBtn = document.getElementById("cadVeiculoUpdateBtn");
 const cadVeiculoCancelBtn = document.getElementById("cadVeiculoCancelBtn");
@@ -261,6 +312,8 @@ const dadosUsoSenhaWrap = document.getElementById("dadosUsoSenhaWrap");
 const dadosUsoAdminSenha = document.getElementById("dadosUsoAdminSenha");
 const dadosUsoSenhaConfirmarBtn = document.getElementById("dadosUsoSenhaConfirmarBtn");
 const dadosUsoSenhaCancelarBtn = document.getElementById("dadosUsoSenhaCancelarBtn");
+const clienteAreaQrImg = document.getElementById("clienteAreaQrImg");
+const enviarQrWhatsappBtn = document.getElementById("enviarQrWhatsappBtn");
 const gerarRelatorioClienteBtn = document.getElementById("gerarRelatorioClienteBtn");
 const relatorioClienteOpcoes = document.getElementById("relatorioClienteOpcoes");
 const relatorioClientePdfBtn = document.getElementById("relatorioClientePdfBtn");
@@ -274,18 +327,29 @@ const relatorioLocacaoOpcoes = document.getElementById("relatorioLocacaoOpcoes")
 const relatorioLocacaoFormatos = document.getElementById("relatorioLocacaoFormatos");
 const relatorioLocadosBtn = document.getElementById("relatorioLocadosBtn");
 const relatorioDisponiveisBtn = document.getElementById("relatorioDisponiveisBtn");
+const relatorioCompletoProtocoloBtn = document.getElementById("relatorioCompletoProtocoloBtn");
 const relatorioLocacaoTelaBtn = document.getElementById("relatorioLocacaoTelaBtn");
 const relatorioLocacaoPdfBtn = document.getElementById("relatorioLocacaoPdfBtn");
 const relatorioLocacaoExcelBtn = document.getElementById("relatorioLocacaoExcelBtn");
+const relatorioLocacaoLimparBtn = document.getElementById("relatorioLocacaoLimparBtn");
+const locLayoutEditToggleBtn = document.getElementById("locLayoutEditToggleBtn");
+const locLayoutSaveBtn = document.getElementById("locLayoutSaveBtn");
+const locLayoutResetBtn = document.getElementById("locLayoutResetBtn");
 const locacaoReportBox = document.getElementById("locacaoReportBox");
 const locacaoReportTitle = document.getElementById("locacaoReportTitle");
 const locacaoReportBody = document.getElementById("locacaoReportBody");
 const clienteVidaDialog = document.getElementById("clienteVidaDialog");
 const clienteVidaBody = document.getElementById("clienteVidaBody");
 const clienteVidaFecharBtn = document.getElementById("clienteVidaFecharBtn");
+const clienteVidaExportExcelBtn = document.getElementById("clienteVidaExportExcelBtn");
+const clienteVidaExportPdfBtn = document.getElementById("clienteVidaExportPdfBtn");
+const clienteVidaImprimirBtn = document.getElementById("clienteVidaImprimirBtn");
 const placaHistoricoDialog = document.getElementById("placaHistoricoDialog");
 const placaHistoricoBody = document.getElementById("placaHistoricoBody");
 const placaHistoricoFecharBtn = document.getElementById("placaHistoricoFecharBtn");
+const placaHistoricoExportExcelBtn = document.getElementById("placaHistoricoExportExcelBtn");
+const placaHistoricoExportPdfBtn = document.getElementById("placaHistoricoExportPdfBtn");
+const placaHistoricoImprimirBtn = document.getElementById("placaHistoricoImprimirBtn");
 const veiculoConfirmDialog = document.getElementById("veiculoConfirmDialog");
 const veiculoConfirmResumo = document.getElementById("veiculoConfirmResumo");
 const veiculoConfirmSimBtn = document.getElementById("veiculoConfirmSimBtn");
@@ -306,7 +370,33 @@ const lancamentoAluguelHistoricoDialog = document.getElementById("lancamentoAlug
 const lancamentoAluguelHistoricoQuadro = document.getElementById("lancamentoAluguelHistoricoQuadro");
 const lancamentoAluguelHistoricoSimBtn = document.getElementById("lancamentoAluguelHistoricoSimBtn");
 const lancamentoAluguelHistoricoEditarBtn = document.getElementById("lancamentoAluguelHistoricoEditarBtn");
+const lancamentoAluguelHistoricoCancelarBtn = document.getElementById(
+  "lancamentoAluguelHistoricoCancelarBtn"
+);
+const comprovantePasteZone = document.getElementById("comprovantePasteZone");
+const comprovantePreview = document.getElementById("comprovantePreview");
+const comprovanteFileInput = document.getElementById("comprovanteFileInput");
+const comprovanteTextoFallback = document.getElementById("comprovanteTextoFallback");
+const comprovanteApiKeyInput = document.getElementById("comprovanteApiKeyInput");
+const comprovanteApiKeySaveBtn = document.getElementById("comprovanteApiKeySaveBtn");
+const comprovanteApiStatus = document.getElementById("comprovanteApiStatus");
+const comprovanteExtrairBtn = document.getElementById("comprovanteExtrairBtn");
+const comprovanteLimparBtn = document.getElementById("comprovanteLimparBtn");
+const comprovanteIADialog = document.getElementById("comprovanteIADialog");
+const comprovanteModalNome = document.getElementById("comprovanteModalNome");
+const comprovanteModalCpf = document.getElementById("comprovanteModalCpf");
+const comprovanteModalPlaca = document.getElementById("comprovanteModalPlaca");
+const comprovanteModalData = document.getElementById("comprovanteModalData");
+const comprovanteModalValor = document.getElementById("comprovanteModalValor");
+const comprovanteModalNomePagador = document.getElementById("comprovanteModalNomePagador");
+const comprovanteModalTerceiro = document.getElementById("comprovanteModalTerceiro");
+const comprovanteLocacaoWrap = document.getElementById("comprovanteLocacaoWrap");
+const comprovanteLocacaoSelect = document.getElementById("comprovanteLocacaoSelect");
+
+const comprovanteAplicarBtn = document.getElementById("comprovanteAplicarBtn");
+const comprovanteModalCancelBtn = document.getElementById("comprovanteModalCancelBtn");
 const installButton = document.getElementById("installButton");
+const updateButton = document.getElementById("updateButton");
 const envWarning = document.getElementById("envWarning");
 const dateInputIds = [
   "cadClienteDataCadastro",
@@ -321,6 +411,8 @@ const dateInputIds = [
 ];
 
 let deferredPrompt = null;
+let swRegistration = null;
+let updateReloadPending = false;
 let currentModelGroups = {};
 let currentScopeLabel = "";
 let currentFinanceiroEmDia = [];
@@ -336,12 +428,14 @@ let clienteAcaoSenhaPendente = "";
 let clienteCancelMotivoPendente = "";
 let locacaoImpedimentoAlertShown = false;
 let operacaoAbaAtual = "cliente";
+let adminDadosAbaAtual = "dadosUso";
 /** CPF em edicao na tela de funcionario (null = modo cadastro novo). */
 let funcionarioEdicaoCpf = null;
 let informacaoEscopoAtual = "";
 let currentAdminReportSaldo = null;
 let currentQuadroGeralRows = [];
 const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
+const CAD_CLIENTES_VALIDACAO_KEY = "dk_clientes_validacao_pendente";
 const CAD_VEICULOS_KEY = "dk_veiculos_cadastro";
 const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
@@ -349,20 +443,38 @@ const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
 const CAD_LANCAMENTOS_ALUGUEL_KEY = "dk_lancamentos_aluguel";
 /** Sobrescritas manuais do quadro RECEITA por célula SEM (persistido no backup). */
 const CAD_QUADRO_RECEITA_OVERRIDES_KEY = "dk_quadro_receita_overrides";
+/** CPF(s) com histórico bloqueado para edição/apagamento de lançamentos já existentes. */
+const CPF_LANCAMENTO_EDICAO_BLOQUEADA = new Set(["11498953492", "11377276406"]);
+/** Banco local de imagem/texto do comprovante por fingerprint (localStorage). */
+const CAD_COMPROVANTES_BANCO_KEY = "dk_comprovantes_banco";
 const AUDIT_LOG_KEY = "dk_audit_log";
 const BACKUP_KEYS = [
   CAD_CLIENTES_KEY,
+  CAD_CLIENTES_VALIDACAO_KEY,
   CAD_VEICULOS_KEY,
   CAD_LOCACOES_KEY,
   LOCACAO_DATABASE_KEY,
   CAD_MANUTENCOES_KEY,
   CAD_LANCAMENTOS_ALUGUEL_KEY,
   CAD_QUADRO_RECEITA_OVERRIDES_KEY,
+  CAD_COMPROVANTES_BANCO_KEY,
   AUDIT_LOG_KEY,
 ];
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
 const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
+/** Migração única: zera toda a pilha operacional de locação/lançamentos; mantém clientes e veículos. */
+const RESET_LOCACAO_STACK_SITE_V2_KEY = "dk_reset_locacao_stack_site_v2";
+/**
+ * Reset completo do projeto no navegador: mantém apenas dk_clientes_cadastro e dk_veiculos_cadastro.
+ * Não altera funcionários nem chave OpenAI.
+ */
+const RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY = "dk_reset_projeto_somente_cadastros_v3";
+const LEGACY_LANCAMENTO_KEYS = [
+  "dk_lancamento_aluguel",
+  "dk_lancamentos_aluguel_cadastro",
+  "dk_lancamento_aluguel_cadastro",
+];
 const SENHA_INICIAL_OPERACAO = "123456";
 const EMPRESA_RELATORIO = "DK Locadora";
 const CNPJ_RELATORIO = "59.665.734/0001-32";
@@ -392,6 +504,8 @@ const PLACAS_LOCADAS_MANUAIS = [
 ];
 let relatorioLocacaoTipoSelecionado = "";
 let relatorioLocacaoCache = null;
+let locacoesXlsxApiCache = null;
+let locacoesXlsxApiPromise = null;
 let dadosUsoAcaoPendente = "";
 let ultimoLancamentoAluguelSalvoId = null;
 let homeLayoutEditMode = false;
@@ -402,6 +516,14 @@ let funcLayoutEditMode = false;
 let funcLayoutDragState = null;
 let funcLayoutResizeObserver = null;
 const FUNC_LAYOUT_KEY = "dk_funcionario_form_layout_v1";
+let locLayoutEditMode = false;
+let locLayoutDragState = null;
+let locLayoutResizeObserver = null;
+const LOC_LAYOUT_KEY = "dk_locacao_form_layout_v1";
+let clienteLayoutEditMode = false;
+let clienteLayoutDragState = null;
+let clienteLayoutResizeObserver = null;
+const CLIENTE_LAYOUT_KEY = "dk_cliente_form_layout_v2";
 
 function showGroupHome() {
   grupoHome.classList.remove("hidden");
@@ -447,6 +569,39 @@ function openLocadoraLoginTarget(target) {
 
 function getHomeLayoutBoxesArray() {
   return Array.from(homeLayoutBoxes || []);
+}
+
+function canEditLayoutsByProfile() {
+  return false;
+}
+
+function setLayoutEditorsAccessByProfile() {
+  const allow = canEditLayoutsByProfile();
+  const controls = [
+    homeLayoutEditToggleBtn,
+    homeLayoutSaveBtn,
+    homeLayoutResetBtn,
+    clienteLayoutEditToggleBtn,
+    clienteLayoutSaveBtn,
+    clienteLayoutResetBtn,
+    funcLayoutEditToggleBtn,
+    funcLayoutSaveBtn,
+    funcLayoutResetBtn,
+    locLayoutEditToggleBtn,
+    locLayoutSaveBtn,
+    locLayoutResetBtn,
+  ];
+  controls.forEach((btn) => {
+    if (!btn) return;
+    btn.classList.toggle("hidden", !allow);
+    btn.disabled = !allow;
+  });
+  if (!allow) {
+    stopHomeLayoutEdit();
+    stopClienteLayoutEdit();
+    stopFuncionarioLayoutEdit();
+    stopLocacaoLayoutEdit();
+  }
 }
 
 function setHomeLayoutToolbarState() {
@@ -536,6 +691,7 @@ function bootstrapHomeLayoutFromStorage() {
 }
 
 function startHomeLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
   if (!grupoHome) return;
   if (!grupoHome.classList.contains("landing-custom-layout")) {
     const snapshot = collectCurrentHomeLayout();
@@ -721,6 +877,7 @@ function persistFuncionarioLayoutFromScreen() {
 }
 
 function startFuncionarioLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
   if (!funcionarioCadastroForm) return;
   ensureFuncionarioLayoutBoxAttributes();
   if (!funcionarioCadastroForm.classList.contains("func-custom-layout")) {
@@ -801,15 +958,388 @@ function bindFuncionarioLayoutEditorEvents() {
   funcionarioCadastroForm.addEventListener("pointercancel", finish);
 }
 
+function getClienteLayoutBoxesArray() {
+  if (!clienteCadastroForm) return [];
+  return Array.from(clienteCadastroForm.querySelectorAll("[data-cliente-layout-box]"));
+}
+
+function ensureClienteLayoutBoxAttributes() {
+  if (!clienteCadastroForm) return;
+  Array.from(clienteCadastroForm.children).forEach((el, idx) => {
+    if (!(el instanceof HTMLElement)) return;
+    const tag = el.tagName;
+    if (!["INPUT", "SELECT", "DIV", "P", "BUTTON", "LABEL"].includes(tag)) return;
+    if (tag === "INPUT" && el.type === "checkbox") return;
+    let boxId = el.id;
+    if (tag === "LABEL") {
+      const ctl = el.querySelector("input, select, textarea");
+      boxId = (ctl && ctl.id) || el.id || "";
+    }
+    if (!el.dataset.clienteLayoutBox) {
+      el.dataset.clienteLayoutBox = boxId || `clienteItem${idx + 1}`;
+    }
+  });
+}
+
+function setClienteLayoutToolbarState() {
+  if (!clienteLayoutEditToggleBtn) return;
+  clienteLayoutEditToggleBtn.textContent = clienteLayoutEditMode ? "Sair edição" : "Editar caixas";
+}
+
+function collectClienteLayout() {
+  if (!clienteCadastroForm) return {};
+  const boxes = getClienteLayoutBoxesArray();
+  const formRect = clienteCadastroForm.getBoundingClientRect();
+  const layout = {};
+  boxes.forEach((el) => {
+    const key = String(el.dataset.clienteLayoutBox || "");
+    if (!key) return;
+    const rect = el.getBoundingClientRect();
+    layout[key] = {
+      left: Math.max(0, Math.round(rect.left - formRect.left)),
+      top: Math.max(0, Math.round(rect.top - formRect.top)),
+      width: Math.max(160, Math.round(rect.width)),
+      height: Math.max(42, Math.round(rect.height)),
+    };
+  });
+  return layout;
+}
+
+function computeClienteLayoutMinHeight(layout) {
+  let maxBottom = 0;
+  Object.values(layout || {}).forEach((item) => {
+    if (!item) return;
+    const bottom = Number(item.top || 0) + Number(item.height || 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  return Math.max(320, Math.ceil(maxBottom + 16));
+}
+
+function applyClienteLayout(layoutInput) {
+  if (!clienteCadastroForm) return;
+  ensureClienteLayoutBoxAttributes();
+  const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+  const boxes = getClienteLayoutBoxesArray();
+  clienteCadastroForm.classList.add("cliente-custom-layout");
+  boxes.forEach((el) => {
+    const key = String(el.dataset.clienteLayoutBox || "");
+    const box = layout[key];
+    if (!box) return;
+    el.style.left = `${Math.max(0, Number(box.left || 0))}px`;
+    el.style.top = `${Math.max(0, Number(box.top || 0))}px`;
+    el.style.width = `${Math.max(160, Number(box.width || 160))}px`;
+    el.style.height = `${Math.max(42, Number(box.height || 42))}px`;
+  });
+  clienteCadastroForm.style.minHeight = `${computeClienteLayoutMinHeight(layout)}px`;
+}
+
+function clearClienteLayoutInlineStyles() {
+  if (!clienteCadastroForm) return;
+  const boxes = getClienteLayoutBoxesArray();
+  boxes.forEach((el) => {
+    el.style.left = "";
+    el.style.top = "";
+    el.style.width = "";
+    el.style.height = "";
+  });
+  clienteCadastroForm.classList.remove("cliente-custom-layout", "layout-edit-mode");
+  clienteCadastroForm.style.minHeight = "";
+}
+
+function bootstrapClienteLayoutFromStorage() {
+  if (!clienteCadastroForm) return;
+  const raw = localStorage.getItem(CLIENTE_LAYOUT_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    applyClienteLayout(parsed);
+  } catch {
+    // Ignora layout inválido no storage.
+  }
+}
+
+function persistClienteLayoutFromScreen() {
+  const layout = collectClienteLayout();
+  localStorage.setItem(CLIENTE_LAYOUT_KEY, JSON.stringify(layout));
+  applyClienteLayout(layout);
+}
+
+function startClienteLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
+  if (!clienteCadastroForm) return;
+  ensureClienteLayoutBoxAttributes();
+  if (!clienteCadastroForm.classList.contains("cliente-custom-layout")) {
+    applyClienteLayout(collectClienteLayout());
+  }
+  clienteLayoutEditMode = true;
+  clienteCadastroForm.classList.add("layout-edit-mode");
+  setClienteLayoutToolbarState();
+}
+
+function stopClienteLayoutEdit() {
+  clienteLayoutEditMode = false;
+  clienteLayoutDragState = null;
+  clienteCadastroForm?.classList.remove("layout-edit-mode");
+  setClienteLayoutToolbarState();
+}
+
+function bindClienteLayoutEditorEvents() {
+  if (!clienteCadastroForm || clienteLayoutResizeObserver) return;
+  ensureClienteLayoutBoxAttributes();
+
+  clienteLayoutResizeObserver = new ResizeObserver(() => {
+    if (!clienteLayoutEditMode || !clienteCadastroForm) return;
+    const layout = collectClienteLayout();
+    clienteCadastroForm.style.minHeight = `${computeClienteLayoutMinHeight(layout)}px`;
+  });
+  getClienteLayoutBoxesArray().forEach((el) => clienteLayoutResizeObserver.observe(el));
+
+  clienteCadastroForm.addEventListener("pointerdown", (event) => {
+    if (!clienteLayoutEditMode || (!event.altKey && !event.shiftKey)) return;
+    const node = event.target instanceof Element ? event.target : null;
+    const box = node?.closest("[data-cliente-layout-box]");
+    if (!box || !(box instanceof HTMLElement)) return;
+    const rect = box.getBoundingClientRect();
+    const mode = event.shiftKey ? "resize" : "move";
+    clienteLayoutDragState = {
+      mode,
+      box,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: parseFloat(box.style.left || "0") || 0,
+      originTop: parseFloat(box.style.top || "0") || 0,
+      boxWidth: rect.width,
+      boxHeight: rect.height,
+    };
+    box.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  clienteCadastroForm.addEventListener("pointermove", (event) => {
+    if (!clienteLayoutDragState || clienteLayoutDragState.pointerId !== event.pointerId || !clienteCadastroForm) return;
+    const dx = event.clientX - clienteLayoutDragState.startX;
+    const dy = event.clientY - clienteLayoutDragState.startY;
+    if (clienteLayoutDragState.mode === "resize") {
+      const maxWidth = Math.max(160, clienteCadastroForm.clientWidth - clienteLayoutDragState.originLeft);
+      const nextWidth = Math.max(160, Math.min(maxWidth, clienteLayoutDragState.boxWidth + dx));
+      const nextHeight = Math.max(42, clienteLayoutDragState.boxHeight + dy);
+      clienteLayoutDragState.box.style.width = `${Math.round(nextWidth)}px`;
+      clienteLayoutDragState.box.style.height = `${Math.round(nextHeight)}px`;
+    } else {
+      const maxLeft = Math.max(0, clienteCadastroForm.clientWidth - clienteLayoutDragState.boxWidth);
+      const nextLeft = Math.max(0, Math.min(maxLeft, clienteLayoutDragState.originLeft + dx));
+      const nextTop = Math.max(0, clienteLayoutDragState.originTop + dy);
+      clienteLayoutDragState.box.style.left = `${Math.round(nextLeft)}px`;
+      clienteLayoutDragState.box.style.top = `${Math.round(nextTop)}px`;
+    }
+    const layout = collectClienteLayout();
+    clienteCadastroForm.style.minHeight = `${computeClienteLayoutMinHeight(layout)}px`;
+  });
+
+  const finish = (event) => {
+    if (!clienteLayoutDragState) return;
+    if (event && clienteLayoutDragState.pointerId !== event.pointerId) return;
+    clienteLayoutDragState = null;
+  };
+  clienteCadastroForm.addEventListener("pointerup", finish);
+  clienteCadastroForm.addEventListener("pointercancel", finish);
+}
+
+function getLocacaoLayoutBoxesArray() {
+  if (!locacaoCadastroForm) return [];
+  return Array.from(locacaoCadastroForm.querySelectorAll("[data-loc-layout-box]"));
+}
+
+function ensureLocacaoLayoutBoxAttributes() {
+  if (!locacaoCadastroForm) return;
+  Array.from(locacaoCadastroForm.children).forEach((el, idx) => {
+    if (!(el instanceof HTMLElement)) return;
+    const tag = el.tagName;
+    if (!["INPUT", "SELECT", "DIV", "P", "BUTTON"].includes(tag)) return;
+    if (tag === "INPUT" && el.type === "checkbox") return;
+    if (!el.dataset.locLayoutBox) {
+      el.dataset.locLayoutBox = el.id || `locacaoItem${idx + 1}`;
+    }
+  });
+}
+
+function setLocacaoLayoutToolbarState() {
+  if (!locLayoutEditToggleBtn) return;
+  locLayoutEditToggleBtn.textContent = locLayoutEditMode ? "Sair edição" : "Editar caixas";
+}
+
+function collectLocacaoLayout() {
+  if (!locacaoCadastroForm) return {};
+  const boxes = getLocacaoLayoutBoxesArray();
+  const formRect = locacaoCadastroForm.getBoundingClientRect();
+  const layout = {};
+  boxes.forEach((el) => {
+    const key = String(el.dataset.locLayoutBox || "");
+    if (!key) return;
+    const rect = el.getBoundingClientRect();
+    layout[key] = {
+      left: Math.max(0, Math.round(rect.left - formRect.left)),
+      top: Math.max(0, Math.round(rect.top - formRect.top)),
+      width: Math.max(160, Math.round(rect.width)),
+      height: Math.max(42, Math.round(rect.height)),
+    };
+  });
+  return layout;
+}
+
+function computeLocacaoLayoutMinHeight(layout) {
+  let maxBottom = 0;
+  Object.values(layout || {}).forEach((item) => {
+    if (!item) return;
+    const bottom = Number(item.top || 0) + Number(item.height || 0);
+    if (bottom > maxBottom) maxBottom = bottom;
+  });
+  return Math.max(320, Math.ceil(maxBottom + 16));
+}
+
+function applyLocacaoLayout(layoutInput) {
+  if (!locacaoCadastroForm) return;
+  ensureLocacaoLayoutBoxAttributes();
+  const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+  const boxes = getLocacaoLayoutBoxesArray();
+  locacaoCadastroForm.classList.add("loc-custom-layout");
+  boxes.forEach((el) => {
+    const key = String(el.dataset.locLayoutBox || "");
+    const box = layout[key];
+    if (!box) return;
+    el.style.left = `${Math.max(0, Number(box.left || 0))}px`;
+    el.style.top = `${Math.max(0, Number(box.top || 0))}px`;
+    el.style.width = `${Math.max(160, Number(box.width || 160))}px`;
+    el.style.height = `${Math.max(42, Number(box.height || 42))}px`;
+  });
+  locacaoCadastroForm.style.minHeight = `${computeLocacaoLayoutMinHeight(layout)}px`;
+}
+
+function clearLocacaoLayoutInlineStyles() {
+  if (!locacaoCadastroForm) return;
+  const boxes = getLocacaoLayoutBoxesArray();
+  boxes.forEach((el) => {
+    el.style.left = "";
+    el.style.top = "";
+    el.style.width = "";
+    el.style.height = "";
+  });
+  locacaoCadastroForm.classList.remove("loc-custom-layout", "layout-edit-mode");
+  locacaoCadastroForm.style.minHeight = "";
+}
+
+function bootstrapLocacaoLayoutFromStorage() {
+  if (!locacaoCadastroForm) return;
+  const raw = localStorage.getItem(LOC_LAYOUT_KEY);
+  if (!raw) return;
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return;
+    applyLocacaoLayout(parsed);
+  } catch {
+    // Ignora layout inválido no storage.
+  }
+}
+
+function persistLocacaoLayoutFromScreen() {
+  const layout = collectLocacaoLayout();
+  localStorage.setItem(LOC_LAYOUT_KEY, JSON.stringify(layout));
+  applyLocacaoLayout(layout);
+}
+
+function startLocacaoLayoutEdit() {
+  if (!canEditLayoutsByProfile()) return;
+  if (!locacaoCadastroForm) return;
+  ensureLocacaoLayoutBoxAttributes();
+  if (!locacaoCadastroForm.classList.contains("loc-custom-layout")) {
+    applyLocacaoLayout(collectLocacaoLayout());
+  }
+  locLayoutEditMode = true;
+  locacaoCadastroForm.classList.add("layout-edit-mode");
+  setLocacaoLayoutToolbarState();
+}
+
+function stopLocacaoLayoutEdit() {
+  locLayoutEditMode = false;
+  locLayoutDragState = null;
+  locacaoCadastroForm?.classList.remove("layout-edit-mode");
+  setLocacaoLayoutToolbarState();
+}
+
+function bindLocacaoLayoutEditorEvents() {
+  if (!locacaoCadastroForm || locLayoutResizeObserver) return;
+  ensureLocacaoLayoutBoxAttributes();
+
+  locLayoutResizeObserver = new ResizeObserver(() => {
+    if (!locLayoutEditMode || !locacaoCadastroForm) return;
+    const layout = collectLocacaoLayout();
+    locacaoCadastroForm.style.minHeight = `${computeLocacaoLayoutMinHeight(layout)}px`;
+  });
+  getLocacaoLayoutBoxesArray().forEach((el) => locLayoutResizeObserver.observe(el));
+
+  locacaoCadastroForm.addEventListener("pointerdown", (event) => {
+    if (!locLayoutEditMode || (!event.altKey && !event.shiftKey)) return;
+    const node = event.target instanceof Element ? event.target : null;
+    const box = node?.closest("[data-loc-layout-box]");
+    if (!box || !(box instanceof HTMLElement)) return;
+    const rect = box.getBoundingClientRect();
+    const mode = event.shiftKey ? "resize" : "move";
+    locLayoutDragState = {
+      mode,
+      box,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originLeft: parseFloat(box.style.left || "0") || 0,
+      originTop: parseFloat(box.style.top || "0") || 0,
+      boxWidth: rect.width,
+      boxHeight: rect.height,
+    };
+    box.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  locacaoCadastroForm.addEventListener("pointermove", (event) => {
+    if (!locLayoutDragState || locLayoutDragState.pointerId !== event.pointerId || !locacaoCadastroForm) return;
+    const dx = event.clientX - locLayoutDragState.startX;
+    const dy = event.clientY - locLayoutDragState.startY;
+    if (locLayoutDragState.mode === "resize") {
+      const maxWidth = Math.max(160, locacaoCadastroForm.clientWidth - locLayoutDragState.originLeft);
+      const nextWidth = Math.max(160, Math.min(maxWidth, locLayoutDragState.boxWidth + dx));
+      const nextHeight = Math.max(42, locLayoutDragState.boxHeight + dy);
+      locLayoutDragState.box.style.width = `${Math.round(nextWidth)}px`;
+      locLayoutDragState.box.style.height = `${Math.round(nextHeight)}px`;
+    } else {
+      const maxLeft = Math.max(0, locacaoCadastroForm.clientWidth - locLayoutDragState.boxWidth);
+      const nextLeft = Math.max(0, Math.min(maxLeft, locLayoutDragState.originLeft + dx));
+      const nextTop = Math.max(0, locLayoutDragState.originTop + dy);
+      locLayoutDragState.box.style.left = `${Math.round(nextLeft)}px`;
+      locLayoutDragState.box.style.top = `${Math.round(nextTop)}px`;
+    }
+    const layout = collectLocacaoLayout();
+    locacaoCadastroForm.style.minHeight = `${computeLocacaoLayoutMinHeight(layout)}px`;
+  });
+
+  const finish = (event) => {
+    if (!locLayoutDragState) return;
+    if (event && locLayoutDragState.pointerId !== event.pointerId) return;
+    locLayoutDragState = null;
+  };
+  locacaoCadastroForm.addEventListener("pointerup", finish);
+  locacaoCadastroForm.addEventListener("pointercancel", finish);
+}
+
 function buildFullOperacaoAccess() {
   return {
     cliente: true,
     veiculo: true,
-    locacao: true,
-    manutencao: true,
-    lancamentoAluguel: true,
-    lancamentoDespesa: true,
-    funcionario: true,
+    locacao: false,
+    manutencao: false,
+    lancamentoAluguel: false,
+    lancamentoDespesa: false,
+    funcionario: false,
   };
 }
 
@@ -974,6 +1504,8 @@ function getFuncionarioBySession() {
 }
 
 function canAccessOperacaoTarget(target) {
+  const session = getSession();
+  if (session?.tipo === "admin" && session?.role === "owner") return true;
   const funcionario = getFuncionarioBySession();
   if (!funcionario) return false;
   if (funcionario.role === "owner") return true;
@@ -1084,6 +1616,7 @@ function ensureLocacaoInicioDefault() {
   if (!String(cadLocacaoInicioInput.value || "").trim()) {
     cadLocacaoInicioInput.value = todayBrDate();
   }
+  preencherProtocoloLocacaoSeCampoVazio();
 }
 
 function formatCpf(value) {
@@ -1129,6 +1662,34 @@ function getSession() {
 
 function clearSession() {
   localStorage.removeItem("dk_sessao_cliente");
+  try {
+    sessionStorage.removeItem(SESSION_UNLOCK_SALVAR_CLIENTE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function isSalvarClienteUnlockedThisSession() {
+  try {
+    return sessionStorage.getItem(SESSION_UNLOCK_SALVAR_CLIENTE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setSalvarClienteUnlockedThisSession() {
+  try {
+    sessionStorage.setItem(SESSION_UNLOCK_SALVAR_CLIENTE_KEY, "1");
+  } catch {
+    // ignore
+  }
+}
+
+function hideClienteSenhaInstrucaoText() {
+  if (clienteSenhaInstrucao) {
+    clienteSenhaInstrucao.textContent = "";
+    clienteSenhaInstrucao.classList.add("hidden");
+  }
 }
 
 function showMessage(target, message, type) {
@@ -1210,20 +1771,48 @@ function setAdminSection(section) {
   const isOperacao = section === "operacao";
   const isInformacao = isOwner && section === "informacao";
   const isDados = isOwner && section === "dados";
-  adminOperacaoSection.classList.toggle("hidden", !isOperacao);
-  adminInformacaoSection.classList.toggle("hidden", !isInformacao);
-  adminDadosSection.classList.toggle("hidden", !isDados);
+  adminOperacaoSection?.classList.toggle("hidden", !isOperacao);
+  adminInformacaoSection?.classList.toggle("hidden", !isInformacao);
+  adminDadosSection?.classList.toggle("hidden", !isDados);
   if (adminOperacaoMenu) adminOperacaoMenu.classList.toggle("hidden", !isOperacao);
   if (adminInformacaoMenu) adminInformacaoMenu.classList.toggle("hidden", !isInformacao);
+  if (adminNavOperacao) adminNavOperacao.classList.toggle("active", isOperacao);
+  if (adminNavInformacao) adminNavInformacao.classList.toggle("active", isInformacao);
+  if (adminNavDados) adminNavDados.classList.toggle("active", isDados);
+  if (!isDados) {
+    if (adminDadosUsoBtn) adminDadosUsoBtn.classList.remove("active");
+    if (adminValidacaoCadastroBtn) adminValidacaoCadastroBtn.classList.remove("active");
+  } else {
+    setAdminDadosSubsection(adminDadosAbaAtual || "dadosUso");
+  }
+}
+
+function toggleAdminSection(section) {
+  const isOperacaoOpen =
+    section === "operacao" &&
+    adminOperacaoSection &&
+    !adminOperacaoSection.classList.contains("hidden");
+  const isInformacaoOpen =
+    section === "informacao" &&
+    adminInformacaoSection &&
+    !adminInformacaoSection.classList.contains("hidden");
+  const isDadosOpen =
+    section === "dados" &&
+    adminDadosSection &&
+    !adminDadosSection.classList.contains("hidden");
+  if (isOperacaoOpen || isInformacaoOpen || isDadosOpen) {
+    setAdminSection("");
+    return false;
+  }
+  setAdminSection(section);
+  return true;
 }
 
 function setOperacaoSubsection(target) {
   const targetSafe = target || "cliente";
-  if (!canAccessOperacaoTarget(targetSafe)) {
-    operacaoAbaAtual = "cliente";
-  } else {
-    operacaoAbaAtual = targetSafe;
-  }
+  const permitido =
+    OPERACAO_ACCESS_TARGETS.includes(targetSafe) && canAccessOperacaoTarget(targetSafe);
+  operacaoAbaAtual = permitido ? targetSafe : "cliente";
   if (operacaoClienteSection) operacaoClienteSection.classList.toggle("hidden", operacaoAbaAtual !== "cliente");
   if (operacaoVeiculoSection) operacaoVeiculoSection.classList.toggle("hidden", operacaoAbaAtual !== "veiculo");
   if (operacaoLocacaoSection) operacaoLocacaoSection.classList.toggle("hidden", operacaoAbaAtual !== "locacao");
@@ -1236,6 +1825,10 @@ function setOperacaoSubsection(target) {
   }
   if (operacaoFuncionarioSection) {
     operacaoFuncionarioSection.classList.toggle("hidden", operacaoAbaAtual !== "funcionario");
+  }
+  if (operacaoAbaAtual === "locacao") {
+    ensureLocacaoInicioDefault();
+    applyLocacaoPlanoRules();
   }
   operacaoTargetButtons.forEach((button) => {
     const buttonTarget = String(button.dataset.target || "");
@@ -1286,6 +1879,18 @@ function setInformacaoScope(scope) {
   }
 }
 
+function setAdminDadosSubsection(target) {
+  adminDadosAbaAtual = target === "validacaoCadastro" ? "validacaoCadastro" : "dadosUso";
+  if (adminDadosUsoSection) adminDadosUsoSection.classList.toggle("hidden", adminDadosAbaAtual !== "dadosUso");
+  if (adminValidacaoCadastroSection) {
+    adminValidacaoCadastroSection.classList.toggle("hidden", adminDadosAbaAtual !== "validacaoCadastro");
+  }
+  if (adminDadosUsoBtn) adminDadosUsoBtn.classList.toggle("active", adminDadosAbaAtual === "dadosUso");
+  if (adminValidacaoCadastroBtn) {
+    adminValidacaoCadastroBtn.classList.toggle("active", adminDadosAbaAtual === "validacaoCadastro");
+  }
+}
+
 function loadCadastro(key) {
   const raw = localStorage.getItem(key);
   if (!raw) return [];
@@ -1330,6 +1935,16 @@ function quadroOverrideCalendarKey(cpfDigits, placaRaw, ymKey, slotIdx) {
   return `${onlyDigits(String(cpfDigits || ""))}_${normalizePlate(placaRaw || "")}_CAL_${ymKey}_${slotIdx}`;
 }
 
+/** Regra de negócio: último valor salvo com senha de administrador é soberano (inclusive zero). */
+function hasQuadroReceitaOverrideKey(key) {
+  const store = loadQuadroReceitaOverridesMap();
+  return Object.prototype.hasOwnProperty.call(store, String(key || ""));
+}
+
+function isCpfComEdicaoLancamentoBloqueada(cpfDigits) {
+  return CPF_LANCAMENTO_EDICAO_BLOQUEADA.has(onlyDigits(String(cpfDigits || "")));
+}
+
 function applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, block, mesAbbr, six) {
   const store = loadQuadroReceitaOverridesMap();
   six.forEach((m, i) => {
@@ -1338,6 +1953,7 @@ function applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, block, mesAbbr, si
     const v = store[k];
     if (!Number.isFinite(v)) return;
     six[i] = {
+      ...six[i],
       raw: String(v),
       val: v,
       empty: Math.abs(v) < 1e-9,
@@ -1346,6 +1962,7 @@ function applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, block, mesAbbr, si
   });
 }
 
+/** Sobrescreve totais calculados pelo que o administrador gravou no quadro CAL (prioridade máxima). */
 function applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ymKey, slots) {
   const store = loadQuadroReceitaOverridesMap();
   slots.forEach((s, i) => {
@@ -1357,14 +1974,22 @@ function applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ymKey, slots) 
   });
 }
 
-/** Pago vindo do registro (planilha) + soma dos lançamentos de aluguel do app (mesmo CPF/placa). */
-function totalPagoBarComLancamentosApp(cpfDigits, placaRaw, pagoRegistro) {
+/** Pago vindo do registro (planilha) + soma dos lançamentos de aluguel do app (CPF/placa e, se informado, nº do contrato). */
+function totalPagoBarComLancamentosApp(cpfDigits, placaRaw, pagoRegistro, numeroContratoOpt) {
   const base = parseCurrencyBR(pagoRegistro || 0);
-  const appSum = collectLancamentosFilteredQuadro(onlyDigits(cpfDigits), placaRaw).reduce(
-    (a, l) => a + getLancamentoAluguelValor(l),
-    0
-  );
+  const appSum = collectLancamentosFilteredQuadro(
+    onlyDigits(cpfDigits),
+    placaRaw,
+    numeroContratoOpt
+  ).reduce((a, l) => a + getLancamentoAluguelValor(l), 0);
   return base + appSum;
+}
+
+/** Pago da planilha + lançamentos do app — mesmo critério do quadro/resumo (por CPF/placa). */
+function pagoHarmonizadoRegistro(r) {
+  const cpf = onlyDigits(String(r?.cpf || ""));
+  if (cpf.length !== 11) return parseCurrencyBR(r?.pago);
+  return totalPagoBarComLancamentosApp(cpf, String(r?.placa || "").trim(), r?.pago);
 }
 
 function backupFileName() {
@@ -1425,6 +2050,61 @@ function clearAllLocacoesOnce() {
   localStorage.setItem(CLEAR_LOCACOES_ONCE_KEY, "done");
 }
 
+/**
+ * Zera cadastro de locações, quadro geral, lançamentos de aluguel e dados ligados.
+ * Não altera dk_clientes_cadastro nem dk_veiculos_cadastro.
+ * Impede reimportação automática da planilha (locacoes-seed) neste navegador.
+ */
+function resetLocacaoStackForSiteEntryOnce() {
+  if (localStorage.getItem(RESET_LOCACAO_STACK_SITE_V2_KEY) === "done") return;
+
+  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(LOCACAO_DATABASE_KEY, []);
+  saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, []);
+  saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, []);
+  saveComprovantesBancoMap({});
+  localStorage.removeItem(DAILY_RECON_KEY);
+  LEGACY_LANCAMENTO_KEYS.forEach((k) => localStorage.removeItem(k));
+  localStorage.setItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY, "done");
+
+  try {
+    addAuditLog(
+      "reset_stack",
+      "locacao",
+      "Migracao site v2: base de locacao e lancamentos zerada; cadastrar locacoes e lancamentos pelo site."
+    );
+  } catch {
+    // ignorar se auditoria indisponivel no bootstrap
+  }
+
+  localStorage.setItem(RESET_LOCACAO_STACK_SITE_V2_KEY, "done");
+}
+
+function resetProjetoSomenteCadastrosV3Once() {
+  if (localStorage.getItem(RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY) === "done") return;
+
+  saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, []);
+  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(LOCACAO_DATABASE_KEY, []);
+  saveCadastro(CAD_MANUTENCOES_KEY, []);
+  saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, []);
+  saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, []);
+  saveComprovantesBancoMap({});
+  localStorage.removeItem(AUDIT_LOG_KEY);
+  localStorage.removeItem(DAILY_RECON_KEY);
+  LEGACY_LANCAMENTO_KEYS.forEach((k) => localStorage.removeItem(k));
+  localStorage.removeItem("dk_sessao_cliente");
+  localStorage.removeItem(HOME_LAYOUT_KEY);
+  localStorage.removeItem(FUNC_LAYOUT_KEY);
+  localStorage.removeItem(LOC_LAYOUT_KEY);
+  localStorage.removeItem(CLIENTE_LAYOUT_KEY);
+  localStorage.removeItem(CLEAR_LOCACOES_ONCE_KEY);
+  localStorage.removeItem(RESET_LOCACAO_STACK_SITE_V2_KEY);
+  localStorage.removeItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY);
+
+  localStorage.setItem(RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY, "done");
+}
+
 function getCurrentUserLabel() {
   const session = getSession();
   if (!session) return "Sistema";
@@ -1482,7 +2162,338 @@ function findClienteByCpfCadastro(cpf) {
   return clientes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
 }
 
+function findClientePendenteValidacaoByCpf(cpf) {
+  const normalized = onlyDigits(String(cpf || ""));
+  if (!normalized) return null;
+  const pendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
+  return pendentes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
+}
+
+function enqueueClienteParaValidacao(payload, sourceLabel) {
+  const cpf = onlyDigits(String(payload?.cpf || ""));
+  const nome = String(payload?.nome || "").trim();
+  if (cpf.length !== 11 || !nome) {
+    return { ok: false, message: "PREENCHA NOME E CPF VALIDOS PARA ENVIAR PARA AVALIACAO." };
+  }
+  if (findClienteByCpfCadastro(cpf)) {
+    return { ok: false, message: "CPF JA CADASTRADO NA BASE PRINCIPAL." };
+  }
+  if (findClientePendenteValidacaoByCpf(cpf)) {
+    return { ok: false, message: "ESTE CPF JA ESTA PENDENTE NA VALIDACAO DE CADASTRO." };
+  }
+  const pendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
+  const novoPendente = {
+    ...payload,
+    id: Date.now(),
+    createdAt: Date.now(),
+    cpf,
+    nome,
+    status: "PENDENTE_VALIDACAO",
+  };
+  pendentes.push(novoPendente);
+  saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, pendentes);
+  addAuditLog(
+    "enviar_cliente_validacao",
+    "cliente_validacao",
+    `${nome} - CPF ${formatCpf(cpf)}${sourceLabel ? ` - origem ${sourceLabel}` : ""}`
+  );
+  return { ok: true };
+}
+
+function upsertClienteCadastroByCpf(payload, status) {
+  const cpf = onlyDigits(String(payload?.cpf || ""));
+  if (cpf.length !== 11) return false;
+  const clientes = loadCadastro(CAD_CLIENTES_KEY);
+  const idx = clientes.findIndex((c) => onlyDigits(String(c.cpf || "")) === cpf);
+  const base = {
+    ...payload,
+    cpf,
+    status: status || payload?.status || "ATIVO",
+  };
+  if (idx >= 0) clientes[idx] = { ...clientes[idx], ...base };
+  else clientes.push({ ...base, id: Number(payload?.id || Date.now()) });
+  saveCadastro(CAD_CLIENTES_KEY, clientes);
+  return true;
+}
+
+/**
+ * Importa uma vez clientes embebidos: prioridade CLIENTES_DK_FINANCEIRO_2026 (folha CADASTRO CLIENTES do Excel);
+ * se não existir, usa CLIENTES_PLANILHA_50.
+ */
+function bootstrapCadastroFromBundledSheets() {
+  try {
+    if (
+      typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" &&
+      Array.isArray(CLIENTES_DK_FINANCEIRO_2026) &&
+      CLIENTES_DK_FINANCEIRO_2026.length
+    ) {
+      if (localStorage.getItem("dk_financeiro_2026_imported_v1")) return;
+      CLIENTES_DK_FINANCEIRO_2026.forEach((row, i) => {
+        const cpf = onlyDigits(String(row.cpf || ""));
+        if (cpf.length !== 11) return;
+        upsertClienteCadastroByCpf(
+          {
+            ...row,
+            cpf,
+            id: row.id != null ? Number(row.id) : 1765000000 + i,
+          },
+          "ATIVO"
+        );
+      });
+      localStorage.setItem("dk_financeiro_2026_imported_v1", "1");
+      return;
+    }
+    if (typeof CLIENTES_PLANILHA_50 === "undefined" || !Array.isArray(CLIENTES_PLANILHA_50)) return;
+    if (localStorage.getItem("dk_planilha_50_merged_v1")) return;
+    CLIENTES_PLANILHA_50.forEach((row, i) => {
+      const cpf = onlyDigits(String(row.cpf || ""));
+      if (cpf.length !== 11) return;
+      const codNum = parseInt(String(row.codigo || "0"), 10) || i + 1;
+      upsertClienteCadastroByCpf(
+        {
+          ...row,
+          cpf,
+          id: 175670400000 + codNum,
+        },
+        "ATIVO"
+      );
+    });
+    localStorage.setItem("dk_planilha_50_merged_v1", "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Importa uma vez veículos embebidos da folha CADASTRO VEÍCULOS (VEICULOS_DK_FINANCEIRO_2026).
+ * Corre depois do seed em veiculos-seed.js para a planilha prevalecer por placa.
+ */
+function bootstrapVeiculosFromFinanceiro2026() {
+  try {
+    if (
+      typeof VEICULOS_DK_FINANCEIRO_2026 === "undefined" ||
+      !Array.isArray(VEICULOS_DK_FINANCEIRO_2026) ||
+      !VEICULOS_DK_FINANCEIRO_2026.length
+    ) {
+      return;
+    }
+    if (localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1")) return;
+
+    const current = loadCadastro(CAD_VEICULOS_KEY);
+    const placaToIndex = new Map();
+    current.forEach((v, idx) => {
+      const p = normalizePlate(v.placa);
+      if (p) placaToIndex.set(p, idx);
+    });
+    const merged = [...current];
+
+    VEICULOS_DK_FINANCEIRO_2026.forEach((row, i) => {
+      const placa = normalizePlate(row.placa || "");
+      if (!placa || isHeaderLikePlate(normalizeKey(placa))) return;
+      const modelo = String(row.modelo || "").trim();
+      if (!modelo) return;
+
+      const tipoFinal = String(row.tipo || "").trim() || inferTipoFromSeed(row);
+      const normalizedRecord = {
+        tipo: tipoFinal,
+        tag: String(row.tag || "")
+          .trim()
+          .replace(/\s*-\s*/g, ""),
+        placa: String(row.placa || "")
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+          .slice(0, 7),
+        marca: String(row.marca || "").trim(),
+        modelo,
+        valor: String(row.valor || "").trim(),
+        cor: String(row.cor || "").trim(),
+        chassi: String(row.chassi || "").trim(),
+        anoModelo: String(row.anoModelo || "").trim(),
+        renavam: String(row.renavam || "").trim(),
+        motor: String(row.motor || "").trim(),
+        codigo: String(row.codigo || "").trim(),
+        proprietario: String(row.proprietario || "").trim(),
+        local: String(row.local || "").trim(),
+        numLinha: String(row.numLinha || "").trim(),
+        status: String(row.status || "").trim() || "DISPONIVEL",
+      };
+
+      const existingIdx = placaToIndex.has(placa) ? placaToIndex.get(placa) : undefined;
+      if (existingIdx !== undefined) {
+        merged[existingIdx] = {
+          ...merged[existingIdx],
+          ...normalizedRecord,
+          id: merged[existingIdx].id,
+        };
+      } else {
+        merged.push({
+          id: row.id != null ? Number(row.id) : 1780000000 + i,
+          ...normalizedRecord,
+        });
+        placaToIndex.set(placa, merged.length - 1);
+      }
+    });
+
+    saveCadastro(CAD_VEICULOS_KEY, merged);
+    localStorage.setItem("dk_financeiro_2026_veiculos_imported_v1", "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+let clienteCepLookupSeq = 0;
+
+function formatCepMask(value) {
+  const digits = onlyDigits(String(value || "")).slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+}
+
+function setCadClienteCepStatus(message, type = "") {
+  if (!cadClienteCepStatus) return;
+  cadClienteCepStatus.textContent = String(message || "");
+  cadClienteCepStatus.classList.remove("hidden", "error", "success");
+  if (!message) {
+    cadClienteCepStatus.classList.add("hidden");
+    return;
+  }
+  if (type === "error") cadClienteCepStatus.classList.add("error");
+  if (type === "success") cadClienteCepStatus.classList.add("success");
+}
+
+function setPublicCadCepStatus(message, type = "") {
+  if (!publicCadClienteCepStatus) return;
+  publicCadClienteCepStatus.textContent = String(message || "");
+  publicCadClienteCepStatus.classList.remove("hidden", "error", "success");
+  if (!message) {
+    publicCadClienteCepStatus.classList.add("hidden");
+    return;
+  }
+  if (type === "error") publicCadClienteCepStatus.classList.add("error");
+  if (type === "success") publicCadClienteCepStatus.classList.add("success");
+}
+
+function setClienteEnderecoConfirmado(confirmed) {
+  if (!clienteCadastroForm) return;
+  clienteCadastroForm.dataset.enderecoConfirmado = confirmed ? "1" : "0";
+  if (cadClienteConfirmEnderecoBtn) {
+    cadClienteConfirmEnderecoBtn.classList.toggle("active", confirmed);
+  }
+}
+
+function invalidateClienteEnderecoConfirmacao() {
+  setClienteEnderecoConfirmado(false);
+}
+
+function setPublicClienteEnderecoConfirmado(confirmed) {
+  if (!clientePublicoCadastroForm) return;
+  clientePublicoCadastroForm.dataset.enderecoConfirmado = confirmed ? "1" : "0";
+  if (publicCadClienteConfirmEnderecoBtn) {
+    publicCadClienteConfirmEnderecoBtn.classList.toggle("active", confirmed);
+  }
+}
+
+async function buscarEnderecoPublicoPorCep(force = false) {
+  if (!publicCadClienteCep || !publicCadClienteMunicipioUf || !publicCadClienteEndereco) return;
+  const cepDigits = onlyDigits(String(publicCadClienteCep.value || ""));
+  publicCadClienteCep.value = formatCepMask(cepDigits);
+  if (cepDigits.length !== 8) {
+    setPublicCadCepStatus("");
+    return;
+  }
+  if (!force && publicCadClienteCep.dataset.lastLookupCep === cepDigits) return;
+  publicCadClienteCep.dataset.lastLookupCep = cepDigits;
+  setPublicCadCepStatus("🔎 Buscando CEP...", "");
+  try {
+    const resp = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+    if (!resp.ok) throw new Error("CEP lookup HTTP error");
+    const data = await resp.json();
+    if (data?.erro) {
+      setPublicCadCepStatus("⚠️ CEP não encontrado. Preencha manualmente.", "error");
+      return;
+    }
+    const cidade = String(data.localidade || "").trim();
+    const uf = String(data.uf || "").trim();
+    const logradouro = String(data.logradouro || "").trim();
+    const bairro = String(data.bairro || "").trim();
+    if (cidade && uf) publicCadClienteMunicipioUf.value = `${cidade}/${uf}`;
+    const prefixo = [logradouro, bairro].filter(Boolean).join(" - ").trim();
+    if (prefixo) publicCadClienteEndereco.value = prefixo;
+    setPublicCadCepStatus("✅ CEP encontrado. Confira e complete número/complemento.", "success");
+    setPublicClienteEnderecoConfirmado(false);
+  } catch {
+    setPublicCadCepStatus("⚠️ Não foi possível consultar o CEP agora.", "error");
+  }
+}
+
+async function buscarEnderecoClientePorCep(force = false) {
+  if (!cadClienteCepInput || !cadClienteMunicipioUfInput || !cadClienteEnderecoInput) return;
+  const cepDigits = onlyDigits(String(cadClienteCepInput.value || ""));
+  cadClienteCepInput.value = formatCepMask(cepDigits);
+  if (cepDigits.length !== 8) {
+    setCadClienteCepStatus("");
+    return;
+  }
+  if (!force && cadClienteCepInput.dataset.lastLookupCep === cepDigits) return;
+  const lookupSeq = ++clienteCepLookupSeq;
+  cadClienteCepInput.dataset.lastLookupCep = cepDigits;
+  setCadClienteCepStatus("🔎 Buscando CEP...", "");
+  const originalMunicipio = String(cadClienteMunicipioUfInput.value || "").trim();
+  const originalEndereco = String(cadClienteEnderecoInput.value || "").trim();
+  try {
+    const resp = await fetch(`https://viacep.com.br/ws/${cepDigits}/json/`);
+    if (!resp.ok) throw new Error("CEP lookup HTTP error");
+    const data = await resp.json();
+    if (lookupSeq !== clienteCepLookupSeq) return;
+    if (data?.erro) {
+      setCadClienteCepStatus(
+        "⚠️ CEP não encontrado. Preencha endereço, cidade e estado manualmente.",
+        "error"
+      );
+      return;
+    }
+    const cidade = String(data.localidade || "").trim();
+    const uf = String(data.uf || "").trim();
+    const logradouro = String(data.logradouro || "").trim();
+    const bairro = String(data.bairro || "").trim();
+    if (cidade && uf) {
+      cadClienteMunicipioUfInput.value = `${cidade}/${uf}`;
+    } else if (!originalMunicipio && cidade) {
+      cadClienteMunicipioUfInput.value = cidade;
+    }
+    const prefixo = [logradouro, bairro].filter(Boolean).join(" - ").trim();
+    if (prefixo) {
+      if (!originalEndereco || originalEndereco === cadClienteEnderecoInput.dataset.autoEnderecoBase) {
+        cadClienteEnderecoInput.value = prefixo;
+      }
+      cadClienteEnderecoInput.dataset.autoEnderecoBase = prefixo;
+    }
+    setCadClienteCepStatus(
+      "✅ CEP encontrado. Confira e complete número/complemento no endereço.",
+      "success"
+    );
+    invalidateClienteEnderecoConfirmacao();
+  } catch {
+    // Falha de rede/serviço: mantém preenchimento manual sem bloquear o cadastro.
+    setCadClienteCepStatus(
+      "⚠️ Não foi possível consultar o CEP agora. Você pode preencher manualmente.",
+      "error"
+    );
+  }
+}
+
 function preencherFormCliente(cliente) {
+  const enderecoRaw = String(cliente.endereco || "").trim();
+  const enderecoBase =
+    String(cliente.enderecoBase || "").trim() || enderecoRaw.split(",")[0]?.trim() || "";
+  const complemento =
+    String(cliente.complemento || "").trim() ||
+    enderecoRaw
+      .split(",")
+      .slice(1)
+      .join(",")
+      .trim();
   document.getElementById("cadClienteCodigo").value = cliente.codigo || "";
   document.getElementById("cadClienteDataCadastro").value = cliente.dataCadastro || "";
   document.getElementById("cadClienteCpf").value = formatCpf(cliente.cpf || "");
@@ -1494,9 +2505,18 @@ function preencherFormCliente(cliente) {
   document.getElementById("cadClienteCategoria").value = cliente.categoria || "";
   document.getElementById("cadClienteVencimento").value = cliente.vencimento || "";
   document.getElementById("cadClienteEar").value = cliente.ear || "";
-  document.getElementById("cadClienteCep").value = cliente.cep || "";
+  document.getElementById("cadClienteCep").value = formatCepMask(cliente.cep || "");
   document.getElementById("cadClienteMunicipioUf").value = cliente.municipioUf || "";
-  document.getElementById("cadClienteEndereco").value = cliente.endereco || "";
+  document.getElementById("cadClienteEndereco").value = enderecoBase;
+  if (cadClienteComplementoInput) cadClienteComplementoInput.value = complemento;
+  if (cadClienteCepInput) {
+    cadClienteCepInput.dataset.lastLookupCep = onlyDigits(String(cliente.cep || ""));
+  }
+  if (cadClienteEnderecoInput) {
+    cadClienteEnderecoInput.dataset.autoEnderecoBase = "";
+  }
+  setCadClienteCepStatus("");
+  setClienteEnderecoConfirmado(true);
 }
 
 function entrarModoAtualizacaoCliente(cliente) {
@@ -1575,14 +2595,127 @@ function clienteTemVinculoComLocacao(cpfDigits) {
 }
 
 function setLocacaoFormBlocked(blocked) {
+  if (!cadLocacaoPlacaInput) return;
   cadLocacaoPlacaInput.disabled = blocked;
-  cadLocacaoInicioInput.disabled = blocked;
-  cadLocacaoFimInput.disabled = blocked;
-  cadLocacaoValorInput.disabled = blocked;
+  if (cadLocacaoInicioInput) cadLocacaoInicioInput.disabled = blocked;
+  if (cadLocacaoFimInput) cadLocacaoFimInput.disabled = blocked;
+  if (cadLocacaoValorInput) cadLocacaoValorInput.disabled = blocked;
+  if (cadLocacaoInvestimentoInput) cadLocacaoInvestimentoInput.disabled = blocked;
+  if (cadLocacaoPlanoInputs && cadLocacaoPlanoInputs.length) {
+    cadLocacaoPlanoInputs.forEach((inp) => {
+      inp.disabled = blocked;
+    });
+  }
+  if (cadLocacaoContratoInput) cadLocacaoContratoInput.disabled = blocked;
+  [
+    cadLocacaoStatusInput,
+    cadLocacaoDiaPagtoInput,
+    cadLocacaoPeriodoLocacaoInput,
+    cadLocacaoModalidadeInput,
+    cadLocacaoMarcaModeloInput,
+    cadLocacaoOpcaoContratoInput,
+    cadLocacaoPeriodoContratoInput,
+    cadLocacaoConfigPrecoKmInput,
+    cadLocacaoTabelaInput,
+    cadLocacaoValorParcelaInput,
+    cadLocacaoClienteCodigoInput,
+  ].forEach((el) => {
+    if (el) el.disabled = blocked;
+  });
   if (locacaoSubmitButton) locacaoSubmitButton.disabled = blocked;
+  if (!blocked) {
+    applyLocacaoPlanoRules();
+  }
+}
+
+function getLocacaoPlanoSelecionado() {
+  const checked = Array.from(cadLocacaoPlanoInputs).find((inp) => inp.checked);
+  const plano = String(checked?.value || "").trim().toUpperCase();
+  return plano === "DK MEU TRANSPORTE" ? "DK MEU TRANSPORTE" : "DK MINHA MOTO";
+}
+
+function addCalendarMonths(date, months) {
+  const d = toDateOnly(date);
+  if (!d) return null;
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const originalDay = x.getDate();
+  x.setDate(1);
+  x.setMonth(x.getMonth() + months);
+  const lastDay = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+  x.setDate(Math.min(originalDay, lastDay));
+  return x;
+}
+
+function formatLocacaoCurrencyInput(inputEl) {
+  if (!inputEl) return;
+  const n = parseCurrencyBR(String(inputEl.value || ""));
+  inputEl.value = n > 0 ? currencyBRL(n) : "";
+}
+
+function recomputeLocacaoFimByPlano() {
+  if (!cadLocacaoInicioInput || !cadLocacaoFimInput) return;
+  const inicio = parseBrDate(String(cadLocacaoInicioInput.value || "").trim());
+  if (!inicio) return;
+  const plano = getLocacaoPlanoSelecionado();
+  const fim =
+    plano === "DK MINHA MOTO" ? addCalendarDays(inicio, 150 * 7) : addCalendarMonths(inicio, 1);
+  if (fim) cadLocacaoFimInput.value = formatDataDmaBr(fim);
+}
+
+function applyLocacaoPlanoRules() {
+  const plano = getLocacaoPlanoSelecionado();
+  if (cadLocacaoInvestimentoInput) {
+    const bloquearInvestimento = plano === "DK MEU TRANSPORTE";
+    const formBloqueado = Boolean(locacaoSubmitButton?.disabled);
+    cadLocacaoInvestimentoInput.disabled = formBloqueado || bloquearInvestimento;
+    if (bloquearInvestimento) {
+      cadLocacaoInvestimentoInput.value = currencyBRL(0);
+    }
+  }
+  if (cadLocacaoOpcaoContratoInput) {
+    const v = String(cadLocacaoOpcaoContratoInput.value || "").trim();
+    if (!v) {
+      cadLocacaoOpcaoContratoInput.value =
+        plano === "DK MEU TRANSPORTE" ? "DK MEU TRANSPORTE" : "DK MINHA MOTO";
+    }
+  }
+  if (cadLocacaoPeriodoContratoInput) {
+    const v = String(cadLocacaoPeriodoContratoInput.value || "").trim();
+    if (!v) {
+      cadLocacaoPeriodoContratoInput.value = plano === "DK MINHA MOTO" ? "150 SEMANAS" : "1 SEMANA";
+    }
+  }
+  recomputeLocacaoFimByPlano();
+}
+
+function syncCadLocacaoClienteCodigoFromCpf() {
+  if (!cadLocacaoClienteCodigoInput) return;
+  const v = String(cadLocacaoClienteCodigoInput.value || "").trim();
+  if (v) return;
+  const cpf = onlyDigits(String(cadLocacaoCpfInput?.value || ""));
+  if (cpf.length !== 11) return;
+  const c = findClienteByCpfCadastro(cpf);
+  const cod = String(c?.codigo || "").trim();
+  if (cod) cadLocacaoClienteCodigoInput.value = cod;
+}
+
+function suggestCadLocacaoFromVeiculoPlaca() {
+  if (!cadLocacaoPlacaInput) return;
+  const placaKey = normalizePlate(String(cadLocacaoPlacaInput.value || ""));
+  if (!placaKey) return;
+  const v = getVehicleMapByPlate().get(placaKey);
+  if (!v) return;
+  if (cadLocacaoModalidadeInput && !String(cadLocacaoModalidadeInput.value || "").trim()) {
+    cadLocacaoModalidadeInput.value = normalizeKey(v.tipo).includes("CARRO") ? "CARRO" : "MOTO";
+  }
+  if (cadLocacaoMarcaModeloInput && !String(cadLocacaoMarcaModeloInput.value || "").trim()) {
+    const mm = [String(v.marca || "").trim(), String(v.modelo || "").trim()].filter(Boolean).join(" / ");
+    if (mm) cadLocacaoMarcaModeloInput.value = mm;
+  }
 }
 
 function validateLocacaoCpfBlock() {
+  if (!cadLocacaoCpfInput) return true;
   const cpf = onlyDigits(String(cadLocacaoCpfInput.value || ""));
   cadLocacaoCpfInput.value = formatCpf(cpf);
   const blocked = isClienteBloqueadoByCpf(cpf);
@@ -1600,9 +2733,8 @@ function validateLocacaoCpfBlock() {
 }
 
 function refreshLocacaoPlacaOptions() {
-  if (!cadLocacaoPlacaInput) return;
-  const snapshot = buildOperationalSnapshot();
-  const options = snapshot.availableVehicles
+  if (!cadLocacaoPlacaInput || !cadLocacaoPlacaSugestoes) return;
+  const options = getVeiculosSemProtocoloAtivo()
     .map((v) => {
       const placa = String(v.placa || "").trim().toUpperCase();
       const modelo = String(v.modelo || "").trim() || "Modelo nao informado";
@@ -1610,20 +2742,93 @@ function refreshLocacaoPlacaOptions() {
     })
     .filter((v) => v.placa);
   const previousValue = String(cadLocacaoPlacaInput.value || "").trim().toUpperCase();
-  cadLocacaoPlacaInput.innerHTML = `
-    <option value="">Placa do veículo (disponíveis)</option>
-    ${options
-      .map((v) => `<option value="${v.placa}">${v.placa} - ${v.modelo}</option>`)
-      .join("")}
-  `;
-  const exists = options.some((v) => v.placa === previousValue);
-  if (exists) {
-    cadLocacaoPlacaInput.value = previousValue;
+  cadLocacaoPlacaSugestoes.innerHTML = options
+    .map((v) => `<option value="${v.placa}" label="${escapeHtml(v.modelo)}"></option>`)
+    .join("");
+  cadLocacaoPlacaInput.value = previousValue;
+  if (cadLocacaoMotosDisponiveisCountEl) {
+    cadLocacaoMotosDisponiveisCountEl.textContent = String(options.length);
   }
+}
+
+/**
+ * Regra da locação: placa disponível só se não houver contrato aberto
+ * (cadastro local sem data fim OU linha vigente em receita2026 / planilha sem data fim).
+ */
+function getVeiculosSemProtocoloAtivo() {
+  const allVeiculos = loadCadastro(CAD_VEICULOS_KEY);
+  const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+  const placasEmManutencao = new Set(
+    manutencoes
+      .filter((m) => !String(m.dataRealSaida || "").trim())
+      .map((m) => normalizePlate(m.placa))
+      .filter(Boolean)
+  );
+  const placasComProtocoloAtivo = getActivePlatesSet();
+  return allVeiculos
+    .filter((v) => {
+      const plate = normalizePlate(v.placa);
+      const indisponivel = normalizeKey(v.status).includes("INDISPONIVEL POR");
+      return (
+        plate &&
+        !indisponivel &&
+        !placasEmManutencao.has(plate) &&
+        !placasComProtocoloAtivo.has(plate)
+      );
+    })
+    .sort((a, b) => {
+      const byModelo = String(a.modelo || "").localeCompare(String(b.modelo || ""), "pt-BR");
+      if (byModelo !== 0) return byModelo;
+      return normalizePlate(a.placa).localeCompare(normalizePlate(b.placa));
+    });
+}
+
+function refreshLocacaoClienteSugestoes() {
+  const candidatos = getLancamentoClienteCandidates().slice(0, 200);
+  if (cadLocacaoCpfSugestoes) {
+    cadLocacaoCpfSugestoes.innerHTML = candidatos
+      .map(
+        (c) =>
+          `<option value="${formatCpf(c.cpf)}" label="${escapeHtml(String(c.nome || "").trim())}"></option>`
+      )
+      .join("");
+  }
+  if (cadLocacaoClienteNomeSugestoes) {
+    cadLocacaoClienteNomeSugestoes.innerHTML = candidatos
+      .map((c) => `<option value="${escapeHtml(String(c.nome || "").trim())}" label="${formatCpf(c.cpf)}"></option>`)
+      .join("");
+  }
+}
+
+function applyLocacaoClienteByCpf(cpfRaw) {
+  const cpf = onlyDigits(String(cpfRaw || ""));
+  if (cpf.length !== 11) return;
+  const cli = findClienteByCpfCadastro(cpf);
+  if (!cli || !cadLocacaoClienteNomeInput) return;
+  cadLocacaoClienteNomeInput.value = String(cli.nome || "").trim();
+}
+
+function applyLocacaoClienteByNome(nomeRaw) {
+  const nome = normalizeName(String(nomeRaw || ""));
+  if (!nome) return;
+  const match = getLancamentoClienteCandidates().find(
+    (c) => normalizeName(String(c.nome || "")) === nome
+  );
+  if (!match) return;
+  if (cadLocacaoCpfInput) cadLocacaoCpfInput.value = formatCpf(match.cpf);
+  validateLocacaoCpfBlock();
 }
 
 function normalizeKey(value) {
   return String(value || "").trim().toUpperCase();
+}
+
+/** Na locação, INATIVO equivale a FINALIZADO (contrato encerrado). */
+function normalizeStatusLocacaoExibicao(value) {
+  const t = String(value || "").trim();
+  if (!t) return "";
+  if (normalizeKey(t) === "INATIVO") return "FINALIZADO";
+  return t;
 }
 
 function normalizePlate(value) {
@@ -1919,6 +3124,7 @@ function askClienteCadastroConfirmation(payload) {
     <p><strong>EAR:</strong> ${payload.ear || "-"}</p>
     <p><strong>CEP:</strong> ${payload.cep || "-"}</p>
     <p><strong>Município/UF:</strong> ${payload.municipioUf || "-"}</p>
+    <p><strong>Complemento:</strong> ${payload.complemento || "-"}</p>
     <p><strong>Endereço:</strong> ${payload.endereco || "-"}</p>
   `;
   clienteConfirmDialog.classList.remove("hidden");
@@ -1948,10 +3154,27 @@ function askLocacaoCadastroConfirmation(payload) {
   locacaoConfirmResumo.innerHTML = `
     <p><strong>CPF:</strong> ${formatCpf(payload.cpf || "") || "-"}</p>
     <p><strong>Cliente:</strong> ${payload.clienteNome || "-"}</p>
+    <p><strong>Cód. cliente:</strong> ${escapeHtml(String(payload.clienteCodigo || "").trim() || "—")}</p>
+    <p><strong>Nº contrato:</strong> ${escapeHtml(String(payload.numeroContrato || "").trim() || "—")}</p>
+    <p><strong>Status:</strong> ${escapeHtml(
+      normalizeStatusLocacaoExibicao(String(payload.statusLocacao || "").trim()) || "—"
+    )}</p>
+    <p><strong>Plano:</strong> ${escapeHtml(String(payload.plano || "-"))}</p>
     <p><strong>Placa:</strong> ${payload.placa || "-"}</p>
-    <p><strong>Modelo:</strong> ${payload.modelo || "-"}</p>
+    <p><strong>Modalidade:</strong> ${escapeHtml(String(payload.modalidade || "").trim() || "—")}</p>
+    <p><strong>Marca/Modelo:</strong> ${escapeHtml(String(payload.marcaModelo || "").trim() || "—")}</p>
+    <p><strong>Opção de contrato:</strong> ${escapeHtml(String(payload.opcaoContrato || "").trim() || "—")}</p>
+    <p><strong>Período de contrato:</strong> ${escapeHtml(String(payload.periodoContrato || "").trim() || "—")}</p>
     <p><strong>Início:</strong> ${payload.inicio || "-"}</p>
+    <p><strong>Dia de pagto:</strong> ${escapeHtml(String(payload.diaPagto || "").trim() || "—")}</p>
     <p><strong>Fim:</strong> ${payload.fim || "-"}</p>
+    <p><strong>Período (locação):</strong> ${escapeHtml(String(payload.periodoLocacao || "").trim() || "—")}</p>
+    <p><strong>Km retirada:</strong> ${escapeHtml(String(payload.kmInicial || "").trim() || "—")}</p>
+    <p><strong>Config. preço/km:</strong> ${escapeHtml(String(payload.configPrecoKm || "").trim() || "—")}</p>
+    <p><strong>Tabela:</strong> ${escapeHtml(String(payload.tabela || "").trim() || "—")}</p>
+    <p><strong>Caixa 01 (locação):</strong> ${payload.valorLocacao || "-"}</p>
+    <p><strong>Caixa 02 (investimento):</strong> ${payload.valorInvestimento || "-"}</p>
+    <p><strong>Valor da parcela:</strong> ${payload.valorParcela || "-"}</p>
     <p><strong>Valor semanal:</strong> ${payload.valorSemanal || "-"}</p>
   `;
   locacaoConfirmDialog.classList.remove("hidden");
@@ -1978,8 +3201,10 @@ function askLancamentoAluguelConfirmation(payload) {
   ) {
     return Promise.resolve(true);
   }
+  const ncConf = normalizeNumeroContratoKey(payload.numeroContrato || "");
   lancamentoAluguelConfirmResumo.innerHTML = `
     <p><strong>Código:</strong> ${payload.codigoLancamento || "-"}</p>
+    <p><strong>Nº contrato:</strong> ${ncConf ? escapeHtml(ncConf) : "-"}</p>
     <p><strong>Placa:</strong> ${payload.placa || "-"}</p>
     <p><strong>CPF:</strong> ${formatCpf(payload.cpf || "") || "-"}</p>
     <p><strong>Dia de pagamento:</strong> ${payload.diaPagamento || "-"}</p>
@@ -2212,38 +3437,60 @@ function prefillLancamentoAluguelByCpf(cpfDigits) {
   }
 }
 
-function findBestContratoForLancamentoByCpf(cpfDigits) {
+function findBestContratoForLancamentoByCpf(cpfDigits, numeroContratoOpt) {
   const cpf = onlyDigits(String(cpfDigits || ""));
+  const nc = normalizeNumeroContratoKey(numeroContratoOpt || "");
   if (cpf.length !== 11) return null;
   const adminMatches = getAdminDataset().filter((r) => onlyDigits(String(r.cpf || "")) === cpf);
-  if (adminMatches.length) {
+  if (adminMatches.length && !nc) {
     const ativo = adminMatches.find((r) => !String(r.fim || "").trim());
     if (ativo) return ativo;
     return adminMatches
       .slice()
       .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
   }
-  const locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
+  let locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
+  if (nc) {
+    const porNc = locMatches.filter((l) => normalizeNumeroContratoKey(l.numeroContrato) === nc);
+    if (porNc.length) locMatches = porNc;
+    else return null;
+  }
   if (!locMatches.length) return null;
   const ativoLoc = locMatches.find((l) => !String(l.fim || "").trim());
   return ativoLoc || locMatches[locMatches.length - 1];
 }
 
-function findBestContratoForLancamentoByPlaca(placaRaw) {
+function findBestContratoForLancamentoByPlaca(placaRaw, numeroContratoOpt) {
   const placa = normalizePlate(placaRaw);
+  const nc = normalizeNumeroContratoKey(numeroContratoOpt || "");
   if (!placa) return null;
   const adminMatches = getAdminDataset().filter((r) => normalizePlate(r.placa) === placa);
-  if (adminMatches.length) {
+  if (adminMatches.length && !nc) {
     const ativo = adminMatches.find((r) => !String(r.fim || "").trim());
     if (ativo) return ativo;
     return adminMatches
       .slice()
       .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
   }
-  const locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => normalizePlate(l.placa) === placa);
+  let locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => normalizePlate(l.placa) === placa);
+  if (nc) {
+    const porNc = locMatches.filter((l) => normalizeNumeroContratoKey(l.numeroContrato) === nc);
+    if (porNc.length) locMatches = porNc;
+    else return null;
+  }
   if (!locMatches.length) return null;
   const ativoLoc = locMatches.find((l) => !String(l.fim || "").trim());
   return ativoLoc || locMatches[locMatches.length - 1];
+}
+
+/** Vários registros receita no mesmo CPF: preferir **ativo** (sem fim de contrato), senão o de início mais recente. */
+function pickActiveOrLatestLocacaoRow(rows) {
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const ativo = rows.find((r) => !String(r.fim || "").trim());
+  if (ativo) return ativo;
+  return rows
+    .slice()
+    .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
 }
 
 function normalizeDiaPagamentoSugestao(value) {
@@ -2275,16 +3522,25 @@ function getDiaPagamentoFromSources(cpfDigits, placaRaw) {
   );
 }
 
+function maybeAutofillNumeroContratoFromContrato(contrato) {
+  if (!lancAluguelNumeroContratoInput || !contrato) return;
+  if (normalizeNumeroContratoKey(lancAluguelNumeroContratoInput.value || "")) return;
+  const nc = normalizeNumeroContratoKey(contrato.numeroContrato || "");
+  if (nc) lancAluguelNumeroContratoInput.value = nc;
+}
+
 function autoFillLancamentoFromCpf(cpfDigits) {
   const cpf = onlyDigits(String(cpfDigits || ""));
   if (cpf.length !== 11) return;
-  const contrato = findBestContratoForLancamentoByCpf(cpf);
+  const ncField = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+  const contrato = findBestContratoForLancamentoByCpf(cpf, ncField || undefined);
   if (!contrato) return;
   const placaAtual = normalizePlate(String(lancAluguelPlacaInput?.value || ""));
   const placaContrato = normalizePlate(String(contrato.placa || ""));
   if (placaContrato && placaAtual !== placaContrato && lancAluguelPlacaInput) {
     lancAluguelPlacaInput.value = placaContrato;
   }
+  maybeAutofillNumeroContratoFromContrato(contrato);
   if (lancAluguelDiaPagamentoInput) {
     const diaContrato =
       normalizeDiaPagamentoSugestao(contrato.diaPagamento) ||
@@ -2298,7 +3554,8 @@ function autoFillLancamentoFromCpf(cpfDigits) {
 function autoFillLancamentoFromPlaca(placaRaw) {
   const placa = normalizePlate(placaRaw);
   if (!placa) return;
-  const contrato = findBestContratoForLancamentoByPlaca(placa);
+  const ncField = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+  const contrato = findBestContratoForLancamentoByPlaca(placa, ncField || undefined);
   if (!contrato) return;
   const cpfAtual = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const cpfContrato = onlyDigits(String(contrato.cpf || ""));
@@ -2306,6 +3563,7 @@ function autoFillLancamentoFromPlaca(placaRaw) {
     lancAluguelCpfInput.value = formatCpf(cpfContrato);
     prefillLancamentoAluguelByCpf(cpfContrato);
   }
+  maybeAutofillNumeroContratoFromContrato(contrato);
   if (lancAluguelDiaPagamentoInput) {
     const diaContrato =
       normalizeDiaPagamentoSugestao(contrato.diaPagamento) ||
@@ -2327,15 +3585,33 @@ function getLancamentoClienteCandidates() {
       placa: "",
     });
   });
+  const adminByCpf = new Map();
   getAdminDataset().forEach((r) => {
     const cpf = onlyDigits(String(r.cpf || ""));
     if (cpf.length !== 11) return;
+    if (!adminByCpf.has(cpf)) adminByCpf.set(cpf, []);
+    adminByCpf.get(cpf).push(r);
+  });
+  adminByCpf.forEach((rows, cpf) => {
     const prev = byCpf.get(cpf) || { nome: "", cpf, placa: "" };
+    const best = pickActiveOrLatestLocacaoRow(rows);
+    if (!best) return;
+    const nomeFromReceita = rows.map((x) => String(x.nome || "").trim()).find((n) => n);
     byCpf.set(cpf, {
-      nome: String(prev.nome || r.nome || "").trim(),
+      nome: String(prev.nome || nomeFromReceita || best.nome || "").trim(),
       cpf,
-      placa: normalizePlate(prev.placa || r.placa || ""),
+      placa: normalizePlate(best.placa || ""),
     });
+  });
+  loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+    const cpf = onlyDigits(String(l.cpf || ""));
+    if (cpf.length !== 11) return;
+    if (!String(l.fim || "").trim()) {
+      const prev = byCpf.get(cpf);
+      if (prev && !prev.placa) {
+        byCpf.set(cpf, { ...prev, placa: normalizePlate(l.placa || prev.placa || "") });
+      }
+    }
   });
   return Array.from(byCpf.values()).filter((x) => x.nome && x.cpf);
 }
@@ -2380,6 +3656,753 @@ function autoFillLancamentoByNome(nomeRaw) {
   renderLancamentoAluguelResumo();
 }
 
+const OPENAI_KEY_STORAGE = "dk_openai_api_key";
+let comprovanteImagemPendente = { base64: null, mime: null };
+/** SHA-256 hex do último comprovante lido (imagem ou texto); uso único por lançamento salvo. */
+let comprovanteFpPendente = null;
+/** Snapshot do arquivo/texto ao aplicar comprovante ao formulário (gravado ao salvar o lançamento). */
+let pendingComprovanteSnapshot = null;
+
+function loadComprovantesBancoMap() {
+  try {
+    const raw = localStorage.getItem(CAD_COMPROVANTES_BANCO_KEY);
+    if (!raw) return {};
+    const o = JSON.parse(raw);
+    return typeof o === "object" && o !== null && !Array.isArray(o) ? o : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveComprovantesBancoMap(map) {
+  localStorage.setItem(CAD_COMPROVANTES_BANCO_KEY, JSON.stringify(map));
+}
+
+function getComprovanteBanco(fp) {
+  if (!fp) return null;
+  return loadComprovantesBancoMap()[fp] || null;
+}
+
+function upsertComprovanteBanco(fp, row) {
+  if (!fp) return;
+  const all = loadComprovantesBancoMap();
+  const prev = all[fp] || {};
+  all[fp] = {
+    ...prev,
+    ...row,
+    fp,
+    atualizadoEm: Date.now(),
+  };
+  saveComprovantesBancoMap(all);
+}
+
+/**
+ * Na hora de salvar o lançamento: usa o que ainda está na área do comprovante e,
+ * se faltar, o snapshot de quando clicou em Aplicar (mesmo fingerprint).
+ */
+function coletarPayloadComprovanteParaSalvar(fpSalvar) {
+  if (!fpSalvar) return { base64: undefined, mime: undefined, texto: "" };
+  const snap =
+    pendingComprovanteSnapshot && pendingComprovanteSnapshot.fp === fpSalvar ? pendingComprovanteSnapshot : null;
+  let base64;
+  let mime;
+  if (comprovanteImagemPendente?.base64 && comprovanteImagemPendente?.mime) {
+    base64 = comprovanteImagemPendente.base64;
+    mime = comprovanteImagemPendente.mime;
+  } else if (snap?.base64 && snap?.mime) {
+    base64 = snap.base64;
+    mime = snap.mime;
+  }
+  const textoLive = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "";
+  const texto = textoLive || (snap?.texto ? String(snap.texto).trim() : "");
+  return { base64, mime, texto };
+}
+
+/** Fallback quando não há Web Crypto (ex.: página em HTTP não-local) ou falha do digest. */
+function fingerprintComprovanteSync(str) {
+  let h = 2166136261 >>> 0;
+  const s = String(str);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return `fnv|${(h >>> 0).toString(16)}|${s.length}`;
+}
+
+async function sha256HexPreferencial(str) {
+  const s = String(str);
+  if (!globalThis.crypto?.subtle) {
+    return fingerprintComprovanteSync(s);
+  }
+  try {
+    const enc = new TextEncoder().encode(s);
+    const max = 9 * 1024 * 1024;
+    if (enc.byteLength > max) {
+      const head = s.slice(0, 8000);
+      const tail = s.slice(-8000);
+      return fingerprintComprovanteSync(`large|${s.length}|${head}|${tail}`);
+    }
+    const buf = await crypto.subtle.digest("SHA-256", enc);
+    return Array.from(new Uint8Array(buf))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  } catch {
+    return fingerprintComprovanteSync(s);
+  }
+}
+
+function setComprovanteFeedback(message, kind) {
+  if (!comprovanteApiStatus) return;
+  comprovanteApiStatus.textContent = message || "";
+  comprovanteApiStatus.classList.remove("comprovante-api-status--erro", "comprovante-api-status--ok");
+  if (!message) return;
+  if (kind === "erro") comprovanteApiStatus.classList.add("comprovante-api-status--erro");
+  if (kind === "ok") comprovanteApiStatus.classList.add("comprovante-api-status--ok");
+  try {
+    comprovanteApiStatus.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Identifica o arquivo colado (imagem tem prioridade). Mesmo comprovante = mesmo hash.
+ */
+async function computeComprovanteFingerprintFromPending() {
+  const img = comprovanteImagemPendente;
+  const text = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "";
+  if (img.base64 && img.mime) {
+    return sha256HexPreferencial(`img|${img.mime}|${img.base64}`);
+  }
+  if (text) {
+    const norm = text.replace(/\s+/g, " ").trim();
+    return sha256HexPreferencial(`txt|${norm}`);
+  }
+  return null;
+}
+
+function isComprovanteFpJaUtilizado(fp) {
+  if (!fp || typeof fp !== "string") return false;
+  return getLancamentosAluguel().some((l) => l && typeof l === "object" && String(l.comprovanteFp || "") === fp);
+}
+
+function getStoredOpenAIKey() {
+  return String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
+}
+
+function setDiaPagamentoFromDataBr(dataStr) {
+  if (!lancAluguelDiaPagamentoInput) return;
+  const d = parseBrDate(String(dataStr || "").trim());
+  if (!d || Number.isNaN(d.getTime())) return;
+  const map = { 1: "SEG", 2: "TER", 3: "QUA", 4: "QUI", 5: "SEX", 6: "SAB", 0: "SAB" };
+  lancAluguelDiaPagamentoInput.value = map[d.getDay()] || "SEG";
+}
+
+function extrairComprovanteHeuristica(texto) {
+  const t = String(texto || "");
+  const out = {
+    nomeClienteOuBeneficiario: null,
+    nomePagador: null,
+    cpf: null,
+    placaVeiculo: null,
+    dataPagamento: null,
+    valor: null,
+    pagamentoPorTerceiro: false,
+    origem: "heuristica",
+  };
+  const cpfM = t.match(/(\d{3})[.\s]?(\d{3})[.\s]?(\d{3})[-\s]?(\d{2})/);
+  if (cpfM) out.cpf = `${cpfM[1]}${cpfM[2]}${cpfM[3]}${cpfM[4]}`;
+  const placaM = t.match(/\b([A-Za-z]{3}\d[A-Za-z0-9]\d{2})\b/);
+  if (placaM) {
+    out.placaVeiculo = placaM[1].toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+  const dataM = t.match(/\b(\d{2})\/(\d{2})\/(\d{4})\b/);
+  if (dataM) out.dataPagamento = `${dataM[1]}/${dataM[2]}/${dataM[3]}`;
+  const valM = t.match(/R\$\s*([\d./]+)/i) || t.match(/(\d{1,3}(?:\.\d{3})*,\d{2})/);
+  if (valM) {
+    const n = valM[0].includes("R$") ? parseCurrencyBR(valM[0]) : parseCurrencyBR(valM[1]);
+    if (Number.isFinite(n) && n > 0) out.valor = n;
+  }
+  return out;
+}
+
+function buildLocacoesAtivasParaComprovante() {
+  const seen = new Set();
+  const out = [];
+  getAdminDataset()
+    .filter((r) => !String(r.fim || "").trim())
+    .forEach((r) => {
+      const cpf = onlyDigits(String(r.cpf || ""));
+      const placa = normalizePlate(r.placa);
+      if (cpf.length !== 11 || !placa) return;
+      const k = `${cpf}|${placa}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      const nome = String(r.nome || findClienteByCpfCadastro(cpf)?.nome || "").trim() || "Cliente";
+      out.push({ cpf, placa, nome, label: `${nome} — ${placa} — ${formatCpf(cpf)}` });
+    });
+  loadCadastro(CAD_LOCACOES_KEY)
+    .filter((l) => !String(l.fim || "").trim())
+    .forEach((l) => {
+      const cpf = onlyDigits(String(l.cpf || ""));
+      const placa = normalizePlate(l.placa);
+      if (cpf.length !== 11 || !placa) return;
+      const nc = normalizeNumeroContratoKey(l.numeroContrato || "");
+      const k = nc ? `CT:${nc}` : `${cpf}|${placa}|${l.id || ""}`;
+      if (seen.has(k)) return;
+      seen.add(k);
+      const nome = String(findClienteByCpfCadastro(cpf)?.nome || "").trim() || "Cliente";
+      const base = `${nome} — ${placa} — ${formatCpf(cpf)}`;
+      out.push({
+        cpf,
+        placa,
+        nome,
+        numeroContrato: nc,
+        label: nc ? `${base} — Contrato ${nc}` : base,
+      });
+    });
+  return out.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+}
+
+function comprovanteLocacaoOptionValue(cpf, placa, numeroContratoRaw) {
+  const cpfD = onlyDigits(String(cpf || ""));
+  const placaN = normalizePlate(placa);
+  const nc = normalizeNumeroContratoKey(numeroContratoRaw || "");
+  return `${cpfD}|||${placaN}|||${encodeURIComponent(nc)}`;
+}
+
+function comprovanteNomesDiferentesTerceiro(nomeLocatario, nomePagador) {
+  const a = normalizeName(String(nomeLocatario || ""));
+  const b = normalizeName(String(nomePagador || ""));
+  if (!a || !b) return false;
+  if (a === b) return false;
+  if (a.length >= 4 && b.includes(a.slice(0, 4))) return false;
+  if (b.length >= 4 && a.includes(b.slice(0, 4))) return false;
+  return true;
+}
+
+function tokenizarNomeParaMatch(value) {
+  return normalizeName(value)
+    .split(/\s+/)
+    .map((t) => t.replace(/[^A-Z0-9]/g, ""))
+    .filter((t) => t.length >= 2);
+}
+
+/**
+ * Compara nome do pagador (PIX) com nome do locatário no cadastro para sugerir CPF/placa/locação.
+ */
+function scoreNomePagadorVsLocatario(nomePagador, nomeLocatario) {
+  const a = normalizeName(nomePagador);
+  const b = normalizeName(nomeLocatario);
+  if (!a || !b) return 0;
+  if (a === b) return 1000;
+  const ta = tokenizarNomeParaMatch(nomePagador);
+  const tb = tokenizarNomeParaMatch(nomeLocatario);
+  if (!ta.length || !tb.length) return 0;
+  let score = 0;
+  if (ta[0] === tb[0]) score += 380;
+  const ua = ta[ta.length - 1];
+  const ub = tb[tb.length - 1];
+  if (ua && ub && ua === ub && ua.length > 2) score += 360;
+  tb.forEach((tok) => {
+    if (ta.some((x) => x === tok)) score += 130;
+    else if (ta.some((x) => x.includes(tok) || tok.includes(x))) score += 55;
+  });
+  return score;
+}
+
+function encontrarMelhorLocacaoPorNomePagador(nomePagadorRaw) {
+  const nomePagador = String(nomePagadorRaw || "").trim();
+  if (!nomePagador || nomePagador === "—") return null;
+  const rows = buildLocacoesAtivasParaComprovante();
+  let best = null;
+  let bestScore = 0;
+  rows.forEach((row) => {
+    const s = scoreNomePagadorVsLocatario(nomePagador, row.nome);
+    if (s > bestScore) {
+      bestScore = s;
+      best = row;
+    }
+  });
+  const MIN_SCORE = 420;
+  if (!best || bestScore < MIN_SCORE) return null;
+  return best;
+}
+
+/** Preenche nome do locatário, CPF, placa e select de locação a partir do nome no comprovante (pagador). */
+function aplicarSugestaoLocacaoPorNomePagador() {
+  if (!comprovanteModalNomePagador) return;
+  const nomePag = String(comprovanteModalNomePagador.value || "").trim();
+  if (!nomePag || nomePag === "—") return;
+  const best = encontrarMelhorLocacaoPorNomePagador(nomePag);
+  if (!best) return;
+  if (comprovanteModalNome) comprovanteModalNome.value = best.nome;
+  if (comprovanteModalCpf) comprovanteModalCpf.value = formatCpf(best.cpf);
+  if (comprovanteModalPlaca) comprovanteModalPlaca.value = best.placa;
+  const wrapVis = comprovanteLocacaoWrap && !comprovanteLocacaoWrap.classList.contains("hidden");
+  if (wrapVis && comprovanteLocacaoSelect) {
+    const want = comprovanteLocacaoOptionValue(best.cpf, best.placa, best.numeroContrato);
+    const opt = Array.from(comprovanteLocacaoSelect.options).find((o) => o.value === want);
+    if (opt) comprovanteLocacaoSelect.value = want;
+  }
+}
+
+function popularComprovanteLocacaoSelect() {
+  if (!comprovanteLocacaoSelect) return;
+  comprovanteLocacaoSelect.innerHTML =
+    '<option value="">Selecione a locação (contrato, cliente e placa)</option>';
+  buildLocacoesAtivasParaComprovante().forEach((row) => {
+    const o = document.createElement("option");
+    o.value = comprovanteLocacaoOptionValue(row.cpf, row.placa, row.numeroContrato);
+    o.textContent = row.label;
+    o.dataset.nome = row.nome;
+    o.dataset.cpf = row.cpf;
+    o.dataset.placa = row.placa;
+    o.dataset.numeroContrato = normalizeNumeroContratoKey(row.numeroContrato || "");
+    comprovanteLocacaoSelect.appendChild(o);
+  });
+}
+
+function atualizarComprovanteLocacaoUI() {
+  if (!comprovanteLocacaoWrap || !comprovanteModalTerceiro) return;
+  const nomePag = String(comprovanteModalNomePagador?.value || "").trim();
+  const pagOk = nomePag && nomePag !== "—";
+  const on =
+    comprovanteModalTerceiro.checked ||
+    (pagOk && comprovanteNomesDiferentesTerceiro(comprovanteModalNome?.value, nomePag));
+  comprovanteLocacaoWrap.classList.toggle("hidden", !on);
+  if (on) popularComprovanteLocacaoSelect();
+  aplicarSugestaoLocacaoPorNomePagador();
+}
+
+async function chamarOpenAIComprovante() {
+  const key = getStoredOpenAIKey();
+  const textExtra = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "";
+  if (!comprovanteImagemPendente.base64 && !textExtra) {
+    throw new Error("Cole uma imagem do comprovante (Ctrl+V) e/ou o texto abaixo.");
+  }
+  if (!key) {
+    throw new Error("Salve a chave da API OpenAI (é necessária para leitura com IA).");
+  }
+  const schema =
+    '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"pagamentoPorTerceiro":boolean}';
+  const instr = `Você é leitor de comprovante de pagamento (PIX, TED, boleto) em português. Responda APENAS com JSON válido: ${schema}. CPF com 11 dígitos, sem formatação. placa no padrão Mercosul maiúsculo. data no formato dd/mm/aaaa. Se o nome do pagador/PIX for diferente do beneficiário, pagamentoPorTerceiro: true.`;
+  const content = [];
+  content.push({ type: "text", text: instr });
+  if (comprovanteImagemPendente.base64 && comprovanteImagemPendente.mime) {
+    content.push({
+      type: "image_url",
+      image_url: { url: `data:${comprovanteImagemPendente.mime};base64,${comprovanteImagemPendente.base64}` },
+    });
+  }
+  if (textExtra) {
+    content.push({ type: "text", text: `Texto do comprovante (ou OCR do usuário):\n${textExtra}` });
+  }
+  const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content }],
+      response_format: { type: "json_object" },
+      max_tokens: 1000,
+    }),
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(t.slice(0, 280) || res.status);
+  }
+  const data = await res.json();
+  let raw = data.choices?.[0]?.message?.content;
+  if (!raw) throw new Error("Resposta vazia da API.");
+  raw = String(raw).trim();
+  const fence = raw.match(/^```(?:json)?\s*([\s\S]*?)```$/im);
+  if (fence) raw = fence[1].trim();
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("A IA não retornou JSON válido. Tente outra imagem ou cole o texto do comprovante.");
+  }
+  parsed.origem = "openai";
+  return parsed;
+}
+
+function abrirComprovanteModal(extr) {
+  if (!comprovanteIADialog) return;
+  if (comprovanteModalNome) comprovanteModalNome.value = String(extr.nomeClienteOuBeneficiario || "").trim();
+  if (comprovanteModalCpf) {
+    const d = onlyDigits(String(extr.cpf || ""));
+    comprovanteModalCpf.value = d.length === 11 ? formatCpf(d) : "";
+  }
+  if (comprovanteModalPlaca) {
+    comprovanteModalPlaca.value = String(extr.placaVeiculo || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+  if (comprovanteModalData) {
+    comprovanteModalData.value = String(extr.dataPagamento || "").trim();
+  }
+  if (comprovanteModalValor) {
+    const vNum = parseValorComprovanteApi(extr.valor);
+    comprovanteModalValor.value = vNum > 0 ? currencyBRL(vNum) : "";
+  }
+  if (comprovanteModalNomePagador) {
+    comprovanteModalNomePagador.value = String(extr.nomePagador || extr.nomePagadorPix || "").trim() || "—";
+  }
+  if (comprovanteModalTerceiro) {
+    comprovanteModalTerceiro.checked = Boolean(
+      extr.pagamentoPorTerceiro || comprovanteNomesDiferentesTerceiro(extr.nomeClienteOuBeneficiario, extr.nomePagador)
+    );
+  }
+  atualizarComprovanteLocacaoUI();
+  comprovanteIADialog.classList.remove("hidden");
+  try {
+    comprovanteIADialog.scrollIntoView({ block: "center", behavior: "smooth" });
+  } catch {
+    /* ignore */
+  }
+}
+
+function fecharComprovanteModal() {
+  if (comprovanteIADialog) comprovanteIADialog.classList.add("hidden");
+}
+
+/** Aceita número ou string da API (evita modal quebrado quando valor vem como texto). */
+function parseValorComprovanteApi(v) {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number" && Number.isFinite(v)) return v > 0 ? v : 0;
+  const n = parseCurrencyBR(String(v).trim());
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+async function aplicarComprovanteAoFormulario() {
+  if (!comprovanteModalCpf) return;
+  let fp = comprovanteFpPendente || (await computeComprovanteFingerprintFromPending());
+  if (!fp) {
+    window.alert(
+      "Não foi possível identificar este comprovante (sem imagem nem texto na área). Cole novamente antes de aplicar — cada comprovante só pode ser lançado uma vez."
+    );
+    return;
+  }
+  if (isComprovanteFpJaUtilizado(fp)) {
+    window.alert(
+      "Este comprovante já foi utilizado em um lançamento salvo. Não é possível duplicar. Se foi erro, apague o lançamento correspondente no cadastro ou use outro comprovante."
+    );
+    return;
+  }
+  const precisaEscolherLocacao =
+    comprovanteLocacaoWrap && !comprovanteLocacaoWrap.classList.contains("hidden");
+  if (precisaEscolherLocacao && (!comprovanteLocacaoSelect || !comprovanteLocacaoSelect.value)) {
+    window.alert("Selecione a locação para a qual o comprovante será aplicado.");
+    return;
+  }
+  let cpf;
+  let placa;
+  let nome;
+  if (precisaEscolherLocacao && comprovanteLocacaoSelect?.value) {
+    const opt = comprovanteLocacaoSelect.selectedOptions[0];
+    cpf = onlyDigits(String(opt?.dataset.cpf || ""));
+    placa = normalizePlate(String(opt?.dataset.placa || ""));
+    nome = String(opt?.dataset.nome || "").trim();
+    const ncSel = normalizeNumeroContratoKey(opt?.dataset?.numeroContrato || "");
+    if (lancAluguelNumeroContratoInput && ncSel) lancAluguelNumeroContratoInput.value = ncSel;
+  } else {
+    nome = String(comprovanteModalNome?.value || "").trim();
+    cpf = onlyDigits(String(comprovanteModalCpf.value || ""));
+    placa = normalizePlate(String(comprovanteModalPlaca.value || ""));
+  }
+  if (lancAluguelClienteNomeInput) lancAluguelClienteNomeInput.value = nome;
+  if (lancAluguelCpfInput) lancAluguelCpfInput.value = cpf.length === 11 ? formatCpf(cpf) : "";
+  if (lancAluguelPlacaInput) lancAluguelPlacaInput.value = placa;
+  const dataP = String(comprovanteModalData.value || "").trim();
+  if (lancAluguelSemanaInicioInput) {
+    lancAluguelSemanaInicioInput.value = dataP;
+    lancAluguelSemanaInicioInput.dataset.autoSuggested = "1";
+  }
+  if (lancAluguelSemanaFimInput) {
+    const d0 = parseBrDate(dataP);
+    if (d0) {
+      const f = addCalendarDays(d0, 7);
+      if (f) lancAluguelSemanaFimInput.value = formatDataDmaBr(f);
+    }
+  }
+  setDiaPagamentoFromDataBr(dataP);
+  const v = comprovanteModalValor ? parseCurrencyBR(String(comprovanteModalValor.value || "")) : 0;
+  if (lancAluguelValorPagoInput && v > 0) {
+    lancAluguelValorPagoInput.value = currencyBRL(v);
+    lancAluguelValorPagoInput.dataset.autoSuggested = "0";
+  }
+  autoFillLancamentoFromCpf(cpf);
+  prefillLancamentoAluguelByCpf(cpf);
+  if (placa) autoFillLancamentoFromPlaca(placa);
+  suggestValorPagoFromContrato();
+  renderLancamentoAluguelResumo();
+  if (lancamentoAluguelForm) {
+    lancamentoAluguelForm.dataset.comprovanteFp = fp;
+  }
+  pendingComprovanteSnapshot = {
+    fp,
+    base64: comprovanteImagemPendente.base64 || null,
+    mime: comprovanteImagemPendente.mime || null,
+    texto: comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "").trim() : "",
+  };
+  comprovanteFpPendente = null;
+  fecharComprovanteModal();
+  if (lancamentoAluguelErro) lancamentoAluguelErro.classList.add("hidden");
+}
+
+function fileToComprovantePendente(file) {
+  if (!file || !file.type.startsWith("image/")) {
+    setComprovanteFeedback("Use uma imagem (PNG, JPEG, etc.).", "erro");
+    return;
+  }
+  const fr = new FileReader();
+  fr.onload = () => {
+    const res = String(fr.result || "");
+    const m = res.match(/^data:([^;]+);base64,(.+)$/);
+    if (m) {
+      comprovanteImagemPendente = { base64: m[2], mime: m[1] };
+      if (comprovantePreview) {
+        comprovantePreview.src = res;
+        comprovantePreview.classList.remove("hidden");
+      }
+      setComprovanteFeedback("Imagem pronta. Clique em Extrair dados com IA.", "ok");
+    }
+  };
+  fr.readAsDataURL(file);
+}
+
+if (comprovanteApiKeyInput && getStoredOpenAIKey()) {
+  comprovanteApiKeyInput.placeholder = "Chave OpenAI (já salva localmente — digite para alterar)";
+}
+
+if (comprovanteApiKeySaveBtn && comprovanteApiKeyInput) {
+  comprovanteApiKeySaveBtn.addEventListener("click", () => {
+    const k = String(comprovanteApiKeyInput.value || "").trim();
+    if (!k) {
+      localStorage.removeItem(OPENAI_KEY_STORAGE);
+      setComprovanteFeedback("Chave removida do navegador.", "ok");
+      return;
+    }
+    localStorage.setItem(OPENAI_KEY_STORAGE, k);
+    comprovanteApiKeyInput.value = "";
+    setComprovanteFeedback("Chave salva neste aparelho (localStorage). Clique em Extrair dados com IA.", "ok");
+  });
+}
+
+if (comprovantePasteZone) {
+  comprovantePasteZone.addEventListener("paste", (e) => {
+    const item = e.clipboardData?.files?.[0];
+    if (item && item.type.startsWith("image/")) {
+      e.preventDefault();
+      fileToComprovantePendente(item);
+    }
+  });
+  comprovantePasteZone.addEventListener("click", () => {
+    comprovanteFileInput?.click();
+  });
+}
+
+if (comprovanteFileInput) {
+  comprovanteFileInput.addEventListener("change", () => {
+    const f = comprovanteFileInput.files?.[0];
+    if (f) fileToComprovantePendente(f);
+    comprovanteFileInput.value = "";
+  });
+}
+
+if (comprovanteLimparBtn) {
+  comprovanteLimparBtn.addEventListener("click", () => {
+    comprovanteImagemPendente = { base64: null, mime: null };
+    comprovanteFpPendente = null;
+    fecharComprovanteModal();
+    if (comprovantePreview) {
+      comprovantePreview.src = "";
+      comprovantePreview.classList.add("hidden");
+    }
+    if (comprovanteTextoFallback) comprovanteTextoFallback.value = "";
+    pendingComprovanteSnapshot = null;
+    setComprovanteFeedback("", null);
+  });
+}
+
+if (comprovanteModalTerceiro) {
+  comprovanteModalTerceiro.addEventListener("change", atualizarComprovanteLocacaoUI);
+}
+if (comprovanteModalNome) {
+  comprovanteModalNome.addEventListener("input", () => {
+    atualizarComprovanteLocacaoUI();
+  });
+}
+if (comprovanteModalNomePagador) {
+  comprovanteModalNomePagador.addEventListener("input", () => {
+    atualizarComprovanteLocacaoUI();
+  });
+}
+
+if (comprovanteExtrairBtn) {
+  comprovanteExtrairBtn.addEventListener("click", async () => {
+    setComprovanteFeedback("Lendo… aguarde.", "ok");
+    comprovanteExtrairBtn.disabled = true;
+    try {
+      const textoLivre = comprovanteTextoFallback ? String(comprovanteTextoFallback.value || "") : "";
+      const temImg = Boolean(comprovanteImagemPendente.base64);
+      const kDigitada = comprovanteApiKeyInput ? String(comprovanteApiKeyInput.value || "").trim() : "";
+      if (kDigitada) {
+        localStorage.setItem(OPENAI_KEY_STORAGE, kDigitada);
+        comprovanteApiKeyInput.value = "";
+      }
+      const temChave = Boolean(getStoredOpenAIKey());
+      if (!temImg && !textoLivre.trim()) {
+        throw new Error(
+          "Cole antes uma imagem na área tracejada (Ctrl+V ou clique para arquivo) e/ou o texto do PIX na caixa ao lado."
+        );
+      }
+      comprovanteFpPendente = await computeComprovanteFingerprintFromPending();
+      if (!comprovanteFpPendente) {
+        throw new Error("Não foi possível registrar o comprovante para controle de uso único.");
+      }
+      if (isComprovanteFpJaUtilizado(comprovanteFpPendente)) {
+        comprovanteFpPendente = null;
+        throw new Error(
+          "Este comprovante já foi utilizado em um lançamento salvo. Apague o lançamento no cadastro se precisar reutilizar, ou use outro comprovante."
+        );
+      }
+      if (temChave && (temImg || textoLivre.trim())) {
+        const d = await chamarOpenAIComprovante();
+        abrirComprovanteModal(d);
+        setComprovanteFeedback("Dados extraídos. Confira o modal acima da página.", "ok");
+        return;
+      }
+      if (!temImg && textoLivre.trim()) {
+        const h = extrairComprovanteHeuristica(textoLivre);
+        const temAlgo = h.cpf || h.placaVeiculo || h.dataPagamento || (h.valor != null && h.valor > 0);
+        if (!temAlgo) {
+          comprovanteFpPendente = null;
+          throw new Error(
+            "Nada identificado no texto. Cole uma chave OpenAI acima para analisar imagem ou texto com IA."
+          );
+        }
+        setComprovanteFeedback(
+          "Sem IA: regras simples no texto. Salve a chave OpenAI para leitura completa (imagem).",
+          "ok"
+        );
+        abrirComprovanteModal(h);
+        return;
+      }
+      throw new Error(
+        "Para ler imagem é necessária a chave da API OpenAI (clique em Salvar chave local). Ou cole só texto e use extração sem IA."
+      );
+    } catch (err) {
+      comprovanteFpPendente = null;
+      const msg = err?.message || "Falha na leitura.";
+      console.error("[comprovante]", err);
+      setComprovanteFeedback(msg, "erro");
+    } finally {
+      comprovanteExtrairBtn.disabled = false;
+    }
+  });
+}
+
+if (comprovanteAplicarBtn) {
+  comprovanteAplicarBtn.addEventListener("click", async () => {
+    await aplicarComprovanteAoFormulario();
+  });
+}
+if (comprovanteModalCancelBtn) {
+  comprovanteModalCancelBtn.addEventListener("click", fecharComprovanteModal);
+}
+
+function openComprovanteViewerDialog(fp) {
+  const dialog = document.getElementById("comprovanteViewerDialog");
+  const body = document.getElementById("comprovanteViewerBody");
+  if (!dialog || !body) return;
+  const data = getComprovanteBanco(fp);
+  if (!data) {
+    body.innerHTML =
+      "<p>Comprovante não encontrado no armazenamento local (outro aparelho ou limpeza de dados do navegador).</p>";
+    dialog.classList.remove("hidden");
+    return;
+  }
+  const bits = [
+    data.codigoLancamento && `Cód. ${escapeHtml(String(data.codigoLancamento))}`,
+    data.cpf && escapeHtml(formatCpf(onlyDigits(String(data.cpf)))),
+    data.placa && escapeHtml(String(data.placa).toUpperCase()),
+    data.semanaInicio && escapeHtml(String(data.semanaInicio)),
+  ].filter(Boolean);
+  let html = bits.length ? `<p class="subtext comprovante-viewer-meta">${bits.join(" · ")}</p>` : "";
+  if (data.base64 && data.mime && String(data.mime).startsWith("image/")) {
+    html += `<div class="comprovante-viewer-img-wrap"><img src="data:${String(
+      data.mime
+    )};base64,${String(data.base64)}" alt="Comprovante" class="comprovante-viewer-img"/></div>`;
+  } else if (String(data.texto || "").trim()) {
+    html += `<pre class="comprovante-viewer-texto">${escapeHtml(String(data.texto))}</pre>`;
+  } else {
+    html +=
+      "<p><em>Imagem ou texto não foi armazenado (salve o lançamento logo após &quot;Aplicar ao formulário&quot; com o comprovante ainda na área).</em></p>";
+  }
+  body.innerHTML = html;
+  dialog.classList.remove("hidden");
+}
+
+function openComprovanteMultiChooser(fps) {
+  const dialog = document.getElementById("comprovanteViewerDialog");
+  const body = document.getElementById("comprovanteViewerBody");
+  if (!dialog || !body) return;
+  const list = (fps || []).filter(Boolean);
+  if (!list.length) return;
+  if (list.length === 1) {
+    openComprovanteViewerDialog(list[0]);
+    return;
+  }
+  body.innerHTML = `<p class="subtext">Vários pagamentos com comprovante nesta célula. Escolha:</p><div class="comprovante-multi-btns">${list
+    .map(
+      (fp, i) =>
+        `<button type="button" class="secondary comprovante-abrir-fp-btn" data-comprovante-fp="${escapeHtml(
+          fp
+        )}">Comprovante ${i + 1}</button>`
+    )
+    .join(" ")}</div>`;
+  dialog.classList.remove("hidden");
+  body.querySelectorAll(".comprovante-abrir-fp-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const f = btn.getAttribute("data-comprovante-fp");
+      if (f) openComprovanteViewerDialog(f);
+    });
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const one = e.target.closest(".quadro-valor-comprovante-btn");
+  if (one) {
+    e.preventDefault();
+    const fp = one.getAttribute("data-comprovante-fp");
+    if (fp) openComprovanteViewerDialog(fp);
+    return;
+  }
+  const multi = e.target.closest(".quadro-valor-comprovante-multi");
+  if (multi) {
+    e.preventDefault();
+    try {
+      const raw = multi.getAttribute("data-comprovante-fps-json");
+      const fps = raw ? JSON.parse(raw) : [];
+      openComprovanteMultiChooser(fps);
+    } catch {
+      /* ignore */
+    }
+  }
+});
+
+const comprovanteViewerDialogEl = document.getElementById("comprovanteViewerDialog");
+const comprovanteViewerFecharBtn = document.getElementById("comprovanteViewerFechar");
+if (comprovanteViewerFecharBtn && comprovanteViewerDialogEl) {
+  comprovanteViewerFecharBtn.addEventListener("click", () => {
+    comprovanteViewerDialogEl.classList.add("hidden");
+  });
+  comprovanteViewerDialogEl.addEventListener("click", (ev) => {
+    if (ev.target === comprovanteViewerDialogEl) comprovanteViewerDialogEl.classList.add("hidden");
+  });
+}
+
 function autoFillSemanaFimFromInicio() {
   if (!lancAluguelSemanaInicioInput || !lancAluguelSemanaFimInput) return;
   const inicioRaw = String(lancAluguelSemanaInicioInput.value || "").trim();
@@ -2413,11 +4436,16 @@ function suggestSemanaInicioFromDiaPagamento() {
 function getSuggestedContratoForLancamento() {
   const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const placa = normalizePlate(String(lancAluguelPlacaInput?.value || ""));
+  const nc = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
   if (cpf.length === 11 && placa) {
-    return findContratoForLancamentoResumo(cpf, placa) || findBestContratoForLancamentoByCpf(cpf);
+    return (
+      findContratoForLancamentoResumo(cpf, placa, nc || undefined) ||
+      findBestContratoForLancamentoByCpf(cpf, nc || undefined) ||
+      findBestContratoForLancamentoByPlaca(placa, nc || undefined)
+    );
   }
-  if (placa) return findBestContratoForLancamentoByPlaca(placa);
-  if (cpf.length === 11) return findBestContratoForLancamentoByCpf(cpf);
+  if (placa) return findBestContratoForLancamentoByPlaca(placa, nc || undefined);
+  if (cpf.length === 11) return findBestContratoForLancamentoByCpf(cpf, nc || undefined);
   return null;
 }
 
@@ -2429,6 +4457,8 @@ function suggestValorPagoFromContrato() {
   if (!canOverride) return;
   const contrato = getSuggestedContratoForLancamento();
   if (!contrato) return;
+  const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
+  const placaRaw = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
   const valorSemanal = parseCurrencyBR(contrato.valorSemanal || contrato.valorPlano);
   const dyn = withDynamicFinancialFields({
     ...contrato,
@@ -2436,7 +4466,21 @@ function suggestValorPagoFromContrato() {
     devidoHoje: contrato.devidoHoje || contrato.devido || 0,
   });
   const valorDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido);
-  const valorPagoAcumulado = parseCurrencyBR(contrato.pago || contrato.valorPago);
+  const ncForm = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+  const valorPagoAcumulado =
+    cpf.length === 11
+      ? totalPagoBarComLancamentosApp(
+          cpf,
+          placaRaw,
+          contrato.pago || contrato.valorPago || 0,
+          ncForm || undefined
+        )
+      : parseCurrencyBR(contrato.pago || contrato.valorPago);
+  if (valorPagoAcumulado > valorDevido) {
+    lancAluguelValorPagoInput.value = currencyBRL(0);
+    lancAluguelValorPagoInput.dataset.autoSuggested = "1";
+    return;
+  }
   const valorSugerido = Math.max(0, valorDevido + valorSemanal - valorPagoAcumulado);
   if (valorSugerido > 0) {
     lancAluguelValorPagoInput.value = currencyBRL(valorSugerido);
@@ -2455,27 +4499,36 @@ function formatLancamentoValorPagoInput() {
   lancAluguelValorPagoInput.value = valor > 0 ? currencyBRL(valor) : "";
 }
 
-function findContratoForLancamentoResumo(cpfDigits, placaRaw) {
+function findContratoForLancamentoResumo(cpfDigits, placaRaw, numeroContratoOpt) {
   const cpf = onlyDigits(String(cpfDigits || ""));
   const placa = normalizePlate(placaRaw);
+  const ncWant = normalizeNumeroContratoKey(numeroContratoOpt || "");
   if (cpf.length !== 11) return null;
+
   const adminMatches = getAdminDataset().filter((r) => {
     const cpfOk = onlyDigits(String(r.cpf || "")) === cpf;
     const plateOk = placa ? normalizePlate(r.placa) === placa : true;
     return cpfOk && plateOk;
   });
-  if (adminMatches.length) {
+  if (adminMatches.length && !ncWant) {
     const ativo = adminMatches.find((r) => !String(r.fim || "").trim());
     if (ativo) return ativo;
     return adminMatches
       .slice()
       .sort((a, b) => (parseRecordStartDate(b)?.getTime() || 0) - (parseRecordStartDate(a)?.getTime() || 0))[0];
   }
-  const locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
+
+  let locMatches = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
     const cpfOk = onlyDigits(String(l.cpf || "")) === cpf;
     const plateOk = placa ? normalizePlate(l.placa) === placa : true;
     return cpfOk && plateOk;
   });
+  if (ncWant) {
+    const porContrato = locMatches.filter(
+      (l) => normalizeNumeroContratoKey(l.numeroContrato) === ncWant
+    );
+    if (porContrato.length) locMatches = porContrato;
+  }
   if (!locMatches.length) return null;
   const ativoLoc = locMatches.find((l) => !String(l.fim || "").trim());
   const loc = ativoLoc || locMatches[locMatches.length - 1];
@@ -2487,6 +4540,7 @@ function findContratoForLancamentoResumo(cpfDigits, placaRaw) {
   return {
     ...adminRef,
     ...loc,
+    numeroContrato: loc.numeroContrato || "",
     nome: findClienteByCpfCadastro(cpf)?.nome || "",
     valorSemanal: loc.valorSemanal || loc.valorPlano || "",
     pago: loc.pago || "",
@@ -2524,19 +4578,153 @@ function ymKeyToAbrSlash(ymKey) {
   return `${MESES_ABR_PG[mm - 1]}/${String(yy).slice(-2)}`;
 }
 
-function collectLancamentosFilteredQuadro(cpfDigits, placaRaw) {
+/** Normaliza número de contrato para comparação (único no sistema). */
+function normalizeNumeroContratoKey(value) {
+  return String(value ?? "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, " ");
+}
+
+/** Prefixo de data AAAAMMDD (calendário do navegador). */
+function protocoloLocacaoDatePrefix(date = new Date()) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}${m}${d}`;
+}
+
+/**
+ * Protocolo único por locação: AAAAMMDD + sequência do dia (001, 002, …).
+ * Une cliente (CPF) e veículo (placa) no mesmo registro; gravado em numeroContrato.
+ */
+function proximoProtocoloLocacaoNumero(date = new Date()) {
+  const prefix = protocoloLocacaoDatePrefix(date);
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  let maxSeq = 0;
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nc.startsWith(prefix)) return;
+    const rest = nc.slice(prefix.length);
+    if (!/^\d+$/.test(rest)) return;
+    maxSeq = Math.max(maxSeq, Number(rest));
+  });
+  const next = maxSeq + 1;
+  const pad = next <= 999 ? 3 : String(next).length;
+  return `${prefix}${String(next).padStart(pad, "0")}`;
+}
+
+function parseLocacaoProtocolDateCandidate(locacao) {
+  const inicioDate = parseBrDate(locacao?.inicio);
+  if (inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())) return inicioDate;
+  const created = Number(locacao?.createdAt || locacao?.id || 0);
+  if (Number.isFinite(created) && created > 0) {
+    const d = new Date(created);
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  return new Date();
+}
+
+/**
+ * Garante protocolo em todas as locações existentes (migração para bases antigas/importadas).
+ * Regra: AAAAMMDD + sequência do dia, sem duplicidade.
+ */
+function ensureNumeroContratoForLocacoes() {
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  if (!locs.length) return;
+
+  const used = new Set();
+  const maxSeqByPrefix = new Map();
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nc) return;
+    used.add(nc);
+    const m = nc.match(/^(\d{8})(\d+)$/);
+    if (!m) return;
+    const prefix = m[1];
+    const seq = Number(m[2]);
+    if (!Number.isFinite(seq)) return;
+    maxSeqByPrefix.set(prefix, Math.max(Number(maxSeqByPrefix.get(prefix) || 0), seq));
+  });
+
+  let changed = false;
+  const updated = locs.map((l) => {
+    const current = normalizeNumeroContratoKey(l.numeroContrato || "");
+    if (current) return l;
+    const prefix = protocoloLocacaoDatePrefix(parseLocacaoProtocolDateCandidate(l));
+    let seq = Number(maxSeqByPrefix.get(prefix) || 0) + 1;
+    let protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    while (used.has(protocolo)) {
+      seq += 1;
+      protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    }
+    used.add(protocolo);
+    maxSeqByPrefix.set(prefix, seq);
+    changed = true;
+    return {
+      ...l,
+      numeroContrato: protocolo,
+    };
+  });
+
+  if (changed) saveCadastro(CAD_LOCACOES_KEY, updated);
+}
+
+function preencherProtocoloLocacaoSeCampoVazio() {
+  if (!cadLocacaoContratoInput) return;
+  if (String(cadLocacaoContratoInput.value || "").trim()) return;
+  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero();
+}
+
+function aplicarNovoProtocoloLocacaoNoFormulario() {
+  if (!cadLocacaoContratoInput) return;
+  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero();
+}
+
+/** Verifica se já existe outra locação com o mesmo número de contrato. */
+function contratoNumeroJaExisteNaBase(numeroNorm, excludeLocacaoId) {
+  if (!numeroNorm) return false;
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  return locs.some((l) => {
+    if (excludeLocacaoId != null && Number(l.id) === Number(excludeLocacaoId)) return false;
+    return normalizeNumeroContratoKey(l.numeroContrato) === numeroNorm;
+  });
+}
+
+/**
+ * Lançamentos antigos podem não ter numeroContrato; se só existir uma locação na base
+ * para aquele CPF+placa, esses lançamentos são tratados como dessa locação.
+ */
+function legacyLancamentoSemContratoCabeNesteContrato(l, cpfDigits, placaN, ncFilter) {
+  if (normalizeNumeroContratoKey(l.numeroContrato)) return false;
+  const locs = loadCadastro(CAD_LOCACOES_KEY).filter((x) => {
+    return (
+      onlyDigits(String(x.cpf || "")) === cpfDigits &&
+      normalizePlate(String(x.placa || "")) === placaN
+    );
+  });
+  if (locs.length !== 1) return false;
+  return normalizeNumeroContratoKey(locs[0].numeroContrato) === ncFilter;
+}
+
+function collectLancamentosFilteredQuadro(cpfDigits, placaRaw, numeroContratoOpt) {
   const placaN = normalizePlate(placaRaw);
+  const ncFilter = normalizeNumeroContratoKey(numeroContratoOpt || "");
   return getLancamentosAluguel().filter((l) => {
     if (onlyDigits(String(l.cpf || "")) !== cpfDigits) return false;
     if (!placaN) return true;
-    return normalizePlate(l.placa) === placaN;
+    if (normalizePlate(l.placa) !== placaN) return false;
+    if (!ncFilter) return true;
+    const lNc = normalizeNumeroContratoKey(l.numeroContrato || "");
+    if (lNc && lNc === ncFilter) return true;
+    return legacyLancamentoSemContratoCabeNesteContrato(l, cpfDigits, placaN, ncFilter);
   });
 }
 
 function mergePreviewLancamento(items, preview) {
   const next = items.slice();
   if (!preview || !preview.semanaInicio || !(parseCurrencyBR(preview.valorPago) > 0)) return next;
-  next.push({
+  const row = {
     id: "__preview__",
     cpf: preview.cpfDigits,
     placa: preview.placa,
@@ -2544,7 +4732,10 @@ function mergePreviewLancamento(items, preview) {
     semanaFim: preview.semanaFim || preview.semanaInicio,
     valorPago: preview.valorPago,
     createdAt: 0,
-  });
+  };
+  const ncP = normalizeNumeroContratoKey(preview.numeroContrato || "");
+  if (ncP) row.numeroContrato = ncP;
+  next.push(row);
   return next;
 }
 
@@ -2593,6 +4784,108 @@ function ymFromReceitaDefMes(mesAbbr, year) {
   return year * 100 + m;
 }
 
+function mergeUniqueSortedMonthKeys(rangeKeys, extraKeys) {
+  const set = new Set(Array.isArray(rangeKeys) ? rangeKeys : []);
+  (extraKeys || []).forEach((k) => set.add(k));
+  return Array.from(set).sort((a, b) => String(a).localeCompare(String(b)));
+}
+
+/**
+ * SEM-01…SEM-06 no quadro **calendário civil**: cada semana é uma **linha** da grade mensal
+ * (domingo→sábado). Primeira/semana inicial pode ser incompleta (ex.: abril começa na quarta).
+ * Ex.: abril/2026 — dia 23 cai na 4ª linha → índice 3 (SEM-04).
+ * Base: data de referência do lançamento (`semanaInicio`).
+ */
+function calendarMonthGridWeekSlotIndex(dateObj) {
+  const d = toDateOnly(dateObj);
+  if (!d || Number.isNaN(d.getTime())) return 0;
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const day = d.getDate();
+  const first = new Date(y, m, 1);
+  const wdFirst = first.getDay();
+  const position = wdFirst + (day - 1);
+  const row = Math.floor(position / 7);
+  return Math.min(Math.max(0, row), 5);
+}
+
+/**
+ * Ano civil da linha do quadro RECEITA (MONTHLY_DATA): bloco 26 = 2026;
+ * bloco 25 = 2025 exceto JAN final da aba RECEITA (cols 84–88) = janeiro 2026.
+ */
+function receitaRowCalendarYear(block, mesAbbr) {
+  const u = String(mesAbbr || "").toUpperCase();
+  if (block === "26") return 2026;
+  if (block === "25") {
+    if (u === "JAN") return 2026;
+    return 2025;
+  }
+  return 2025;
+}
+
+/**
+ * SEM do quadro RECEITA alinhada à **grade mensal dom–sáb** (mesma ideia da planilha visual).
+ * Evita depender só da trilha por semanas do contrato quando o DK_DATA não espelha a célula.
+ */
+function calendarSlotIntoReceitaWeek(semanaInicioStr, block, mesAbbr) {
+  const d = parseBrDate(semanaInicioStr);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  const mapAbbr = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  const abbr = mapAbbr[d.getMonth()];
+  if (String(mesAbbr || "").toUpperCase() !== abbr) return null;
+  const wantY = receitaRowCalendarYear(block, mesAbbr);
+  if (d.getFullYear() !== wantY) return null;
+  /** Janeiro/2026: só em RECEITA 2026 (bloco 26); a linha JAN no final da RECEITA 2025 não recebe o mesmo lançamento. */
+  if (abbr === "JAN" && wantY === 2026 && block === "25") return null;
+  const slotIdx = calendarMonthGridWeekSlotIndex(d);
+  return { block, mes: String(mesAbbr || ""), slotIdx };
+}
+
+/** Mês civil (abbr planilha) da data de início do lançamento — evita duplicar o mesmo pagamento em dois meses do quadro. */
+function mesAbbrCivilFromSemanaInicio(semanaInicioStr) {
+  const d = parseBrDate(semanaInicioStr);
+  if (!d || Number.isNaN(d.getTime())) return "";
+  const mapAbbr = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  return mapAbbr[d.getMonth()] || "";
+}
+
+/**
+ * Um lançamento só entra na linha do mês civil correspondente à sua semanaInicio.
+ * Prioridade: grade calendário RECEITA; senão trilha DK_DATA no mesmo mês (nunca trail noutro mês).
+ */
+function resolveReceitaSlotForLancamentoInMonth(record, it, block, mesAbbr, monthMetaLen) {
+  const mesU = String(mesAbbr || "").toUpperCase();
+  const mesPag = mesAbbrCivilFromSemanaInicio(it.semanaInicio);
+  if (mesPag && mesU !== mesPag) return null;
+
+  const slotCal = calendarSlotIntoReceitaWeek(it.semanaInicio, block, mesAbbr);
+  if (
+    slotCal &&
+    slotCal.block === block &&
+    String(slotCal.mes || "").toUpperCase() === mesU &&
+    slotCal.slotIdx >= 0 &&
+    slotCal.slotIdx < monthMetaLen
+  ) {
+    return slotCal;
+  }
+
+  const slotTrail = findQuadroSlotForLancamentoSemana(
+    record,
+    it.semanaInicio,
+    it.semanaFim || it.semanaInicio
+  );
+  if (
+    slotTrail &&
+    slotTrail.block === block &&
+    String(slotTrail.mes || "").toUpperCase() === mesU &&
+    slotTrail.slotIdx >= 0 &&
+    slotTrail.slotIdx < monthMetaLen
+  ) {
+    return slotTrail;
+  }
+  return null;
+}
+
 function receitaQuadroTrailHasCells(record) {
   const hist = normalizeWeekArray(record?.semanasHistorico);
   const t26 = receita2026TrailForRecord(record);
@@ -2634,16 +4927,53 @@ function packSixSlotMetas(monthMetas) {
   return out;
 }
 
+function packSixComprovanteSlots(compRows) {
+  if (!compRows || !compRows.length) {
+    return Array.from({ length: 6 }, () => []);
+  }
+  if (compRows.length <= 6) {
+    const out = compRows.map((r) => [...r]);
+    while (out.length < 6) out.push([]);
+    return out.slice(0, 6).map((r) => dedupeComprovantesPorSlot(r));
+  }
+  const out = compRows.slice(0, 5).map((r) => [...r]);
+  const merged = [];
+  for (let i = 5; i < compRows.length; i += 1) merged.push(...compRows[i]);
+  out.push(merged);
+  return out.map((r) => dedupeComprovantesPorSlot(r));
+}
+
+function collectComprovantesByReceitaMonthSlot(record, cpf, placa, block, mesAbbr, colCount) {
+  const rows = Array.from({ length: colCount }, () => []);
+  collectLancamentosFilteredQuadro(cpf, placa).forEach((it) => {
+    const fp = String(it.comprovanteFp || "").trim();
+    if (!fp) return;
+    const slot = resolveReceitaSlotForLancamentoInMonth(record, it, block, mesAbbr, colCount);
+    if (!slot) return;
+    rows[slot.slotIdx].push({
+      fp,
+      id: it.id,
+      valor: getLancamentoAluguelValor(it),
+    });
+  });
+  return rows;
+}
+
+/**
+ * Mantém todas as linhas desde o início da grade RECEITA até o último mês com dado,
+ * incluindo meses anteriores vazios (para o administrador editar OUT/NOV igual à planilha).
+ * Só remove linhas **vazias no final** do período.
+ */
 function trimQuadroReceitaRows(rows) {
   const isEmptyRow = (r) => {
     if (Math.abs(r.rowSum) >= 1e-9) return false;
     return !r.six.some((m) => !m.empty || Math.abs(m.val) >= 1e-9);
   };
-  const start = rows.findIndex((r) => !isEmptyRow(r));
-  if (start < 0) return [];
+  if (!rows.length) return [];
   let end = rows.length - 1;
-  while (end > start && isEmptyRow(rows[end])) end -= 1;
-  return rows.slice(start, end + 1);
+  while (end >= 0 && isEmptyRow(rows[end])) end -= 1;
+  if (end < 0) return [];
+  return rows.slice(0, end + 1);
 }
 
 function trailQuadroFindStartIdx(trailArr) {
@@ -2787,13 +5117,8 @@ function findQuadroSlotForLancamentoSemana(record, semanaInicioStr, semanaFimStr
 
 function mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, block, mesAbbr, monthMetas) {
   collectLancamentosFilteredQuadro(cpfDigits, placaRaw).forEach((it) => {
-    const slot = findQuadroSlotForLancamentoSemana(
-      record,
-      it.semanaInicio,
-      it.semanaFim || it.semanaInicio
-    );
-    if (!slot || slot.block !== block || slot.mes !== mesAbbr) return;
-    if (slot.slotIdx < 0 || slot.slotIdx >= monthMetas.length) return;
+    const slot = resolveReceitaSlotForLancamentoInMonth(record, it, block, mesAbbr, monthMetas.length);
+    if (!slot) return;
     const add = getLancamentoAluguelValor(it);
     const cur = monthMetas[slot.slotIdx];
     const nextVal = cur.val + add;
@@ -2829,13 +5154,19 @@ function formatQuadroMonthSlotTd(meta, cellOpts, editableCtx) {
       editableCtx.slotIdx
     );
     const displayVal = formatQuadroInputDisplay(meta.val);
+    const hasSavedOverride = hasQuadroReceitaOverrideKey(key);
+    const hadValue =
+      hasSavedOverride ||
+      String(meta.raw ?? "").trim() !== "" ||
+      Math.abs(Number(meta.val) || 0) >= 1e-9 ||
+      !meta.empty;
     const isNeg = meta.val < -1e-9;
     let inpCls = "quadro-cell-input";
     if (highlightNovo) inpCls += " quadro-cell-input--novo";
     if (isNeg) inpCls += " quadro-cell-input--neg";
     return `<td class="quadro-cell quadro-cell--editable-wrap"><input type="text" class="${inpCls}" data-q-kind="sem" data-q-key="${escapeHtml(
       key
-    )}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
+    )}" data-q-original="${escapeHtml(displayVal)}" data-q-had-value="${hadValue ? "1" : "0"}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
   }
   if (meta.empty && Math.abs(meta.val) < 1e-9) {
     return `<td class="quadro-cell quadro-cell--empty">—</td>`;
@@ -2845,7 +5176,8 @@ function formatQuadroMonthSlotTd(meta, cellOpts, editableCtx) {
   if (highlightPreview) cls = "quadro-cell quadro-cell--preview";
   else if (highlightNovo) cls = "quadro-cell quadro-cell--novo";
   else if (isNeg) cls += " quadro-cell--negativo";
-  return `<td class="${cls}">${currencyBRL(meta.val)}</td>`;
+  const inner = formatQuadroValorCellHtml(meta.val, meta.comprovantes || []);
+  return `<td class="${cls}">${inner}</td>`;
 }
 
 function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId) {
@@ -2891,6 +5223,14 @@ function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlig
   const colBase26 = defs26.length ? Number(defs26[0].colInicio) : NaN;
   tryDefs(defs25, colBase25, normalizeWeekArray(record.semanasHistorico), "25", 2025);
   tryDefs(defs26, colBase26, receita2026TrailForRecord(record), "26", 2026);
+  defs25.forEach((d) => {
+    const cal = calendarSlotIntoReceitaWeek(item.semanaInicio, "25", String(d.mes || ""));
+    if (cal) keys.add(`${cal.block}|${cal.mes}|${Math.min(cal.slotIdx, 5)}`);
+  });
+  defs26.forEach((d) => {
+    const cal = calendarSlotIntoReceitaWeek(item.semanaInicio, "26", String(d.mes || ""));
+    if (cal) keys.add(`${cal.block}|${cal.mes}|${Math.min(cal.slotIdx, 5)}`);
+  });
   const slotByDate = findQuadroSlotForLancamentoSemana(
     record,
     item.semanaInicio,
@@ -2905,8 +5245,10 @@ function buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlig
 function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, options = {}) {
   const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
+  const ncOpt = options.numeroContrato || "";
   const highlightKeys = buildHighlightKeysForReceitaQuadro(record, cpfDigits, placaRaw, highlightId);
-  const rowForTotals = record || findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  const rowForTotals =
+    record || findContratoForLancamentoResumo(cpfDigits, placaRaw, ncOpt || undefined);
   let totalDevido = 0;
   let totalPagoContrato = 0;
   if (rowForTotals) {
@@ -2919,7 +5261,8 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     totalPagoContrato = totalPagoBarComLancamentosApp(
       cpfDigits,
       placaRaw,
-      rowForTotals.pago || rowForTotals.valorPago || 0
+      rowForTotals.pago || rowForTotals.valorPago || 0,
+      ncOpt || undefined
     );
   }
 
@@ -2937,15 +5280,25 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     for (let col = d.colInicio; col <= d.colFim; col += 1) {
       monthMetas.push(slotMetaFromTrailAtCol(hist, colBase25, col));
     }
+    const compRows = collectComprovantesByReceitaMonthSlot(
+      record,
+      cpfDigits,
+      placaRaw,
+      "25",
+      String(d.mes || ""),
+      monthMetas.length
+    );
     mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "25", String(d.mes || ""), monthMetas);
     const six = packSixSlotMetas(monthMetas);
-    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "25", String(d.mes || ""), six);
-    const rowSum = six.reduce((acc, m) => acc + m.val, 0);
+    const sixComp = packSixComprovanteSlots(compRows);
+    const sixMerged = six.map((m, i) => ({ ...m, comprovantes: sixComp[i] || [] }));
+    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "25", String(d.mes || ""), sixMerged);
+    const rowSum = sixMerged.reduce((acc, m) => acc + m.val, 0);
     rawRows.push({
       label: mesAbbrToLabelGrade(d.mes, "2025"),
       block: "25",
       mes: String(d.mes || ""),
-      six,
+      six: sixMerged,
       rowSum,
     });
   });
@@ -2955,20 +5308,37 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     for (let col = d.colInicio; col <= d.colFim; col += 1) {
       monthMetas.push(slotMetaFromTrailAtCol(trail26, colBase26, col));
     }
+    const compRows = collectComprovantesByReceitaMonthSlot(
+      record,
+      cpfDigits,
+      placaRaw,
+      "26",
+      String(d.mes || ""),
+      monthMetas.length
+    );
     mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, "26", String(d.mes || ""), monthMetas);
     const six = packSixSlotMetas(monthMetas);
-    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "26", String(d.mes || ""), six);
-    const rowSum = six.reduce((acc, m) => acc + m.val, 0);
+    const sixComp = packSixComprovanteSlots(compRows);
+    const sixMerged = six.map((m, i) => ({ ...m, comprovantes: sixComp[i] || [] }));
+    applyQuadroOverridesToPackedSix(cpfDigits, placaRaw, "26", String(d.mes || ""), sixMerged);
+    const rowSum = sixMerged.reduce((acc, m) => acc + m.val, 0);
     rawRows.push({
       label: mesAbbrToLabelGrade(d.mes, "2026"),
       block: "26",
       mes: String(d.mes || ""),
-      six,
+      six: sixMerged,
       rowSum,
     });
   });
 
   const trimmed = trimQuadroReceitaRows(rawRows);
+  const somaQuadroPago = trimmed.reduce((acc, r) => acc + r.rowSum, 0);
+  const tituloTotalPagoQuadro =
+    Math.abs(somaQuadroPago - totalPagoContrato) > 0.02
+      ? `Soma das células deste quadro (= barra verde). Cadastro/planilha + lançamentos app (barra acima no resumo): ${currencyBRL(
+          totalPagoContrato
+        )}. Se divergirem, confira meses em branco, reimporte DK_DATA ou ajuste as células no modo edição.`
+      : "Soma das linhas “TOTAL” deste quadro (RECEITA + lançamentos no app), alinhada ao pago do cadastro.";
   let rowsHtml = "";
   trimmed.forEach((r) => {
     const slotsHtml = r.six
@@ -3013,8 +5383,8 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
   });
 
   return `
-    <div class="quadro-pagamento-scroll">
-      <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês (RECEITA / RECEITA 2026)">
+    <div class="quadro-pagamento-scroll" data-quadro-soma-pago="${escapeHtml(String(somaQuadroPago))}">
+      <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês (RECEITA / RECEITA 2026)" title="Valores das células vêm do DK_DATA (semanas/semanasHistorico). Lançamentos do app somam na semana pela grade do mês (dom a sáb) quando a data cai nesse mês. Modo edição: valores do administrador prevalecem. Se faltar célula no export, reimporte a planilha.">
         <thead>
           <tr class="quadro-summary-row quadro-summary-devido">
             <td colspan="2">TOTAL DEVIDO</td>
@@ -3022,8 +5392,8 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
           </tr>
           <tr class="quadro-summary-row quadro-summary-pago">
             <td colspan="2">TOTAL PAGO</td>
-            <td colspan="6" class="quadro-moeda quadro-bg-pago" title="Pago no cadastro/planilha, mais a soma dos lancamentos de aluguel salvos no app.">${currencyBRL(
-              totalPagoContrato
+            <td colspan="6" class="quadro-moeda quadro-bg-pago" title="${escapeHtml(tituloTotalPagoQuadro)}">${currencyBRL(
+              somaQuadroPago
             )}</td>
           </tr>
         <tr>
@@ -3039,24 +5409,57 @@ function buildQuadroPagamentoHistoricoFromReceita(cpfDigits, placaRaw, record, o
     </div>`;
 }
 
+function dedupeComprovantesPorSlot(items) {
+  const seen = new Set();
+  const out = [];
+  (items || []).forEach((x) => {
+    const fp = String(x?.fp || "").trim();
+    if (!fp || seen.has(fp)) return;
+    seen.add(fp);
+    out.push({ fp, id: x.id, valor: x.valor });
+  });
+  return out;
+}
+
+/** Valor com controle para abrir o comprovante salvo no navegador (fingerprint). */
+function formatQuadroValorCellHtml(totalVal, comprovantes) {
+  const valorText = currencyBRL(totalVal);
+  const list = dedupeComprovantesPorSlot(comprovantes).filter((c) => getComprovanteBanco(c.fp));
+  if (!list.length) {
+    return `<span class="quadro-cell-valor">${valorText}</span>`;
+  }
+  if (list.length === 1) {
+    return `<button type="button" class="quadro-valor-comprovante-btn" data-comprovante-fp="${escapeHtml(
+      list[0].fp
+    )}" title="Ver comprovante deste pagamento">${valorText}</button>`;
+  }
+  return `<span class="quadro-cell-valor">${valorText}</span> <button type="button" class="quadro-valor-comprovante-multi secondary" data-comprovante-fps-json="${escapeHtml(
+    JSON.stringify(list.map((x) => x.fp))
+  )}" title="Vários comprovantes nesta célula">${list.length} comprovantes</button>`;
+}
+
 function formatCalendarMonthSlotTd(s, editableCtx, ymKey, slotIdx) {
   if (editableCtx?.enabled) {
     const key = quadroOverrideCalendarKey(editableCtx.cpf, editableCtx.placa, ymKey, slotIdx);
     const displayVal = formatQuadroInputDisplay(s.total);
+    const hasSavedOverride = hasQuadroReceitaOverrideKey(key);
+    const hadValue = hasSavedOverride || Math.abs(Number(s.total) || 0) >= 1e-9;
     let inpCls = "quadro-cell-input";
     if (s.hasPreview) inpCls += " quadro-cell-input--preview";
     else if (s.hasNovo) inpCls += " quadro-cell-input--novo";
     return `<td class="quadro-cell quadro-cell--editable-wrap"><input type="text" class="${inpCls}" data-q-kind="sem" data-q-key="${escapeHtml(
       key
-    )}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
+    )}" data-q-original="${escapeHtml(displayVal)}" data-q-had-value="${hadValue ? "1" : "0"}" value="${escapeHtml(displayVal)}" inputmode="decimal" autocomplete="off" aria-label="Valor da semana" /></td>`;
   }
   if (s.total <= 0) return `<td class="quadro-cell quadro-cell--empty">—</td>`;
   let cls = "quadro-cell quadro-cell--valor";
   if (s.hasPreview) cls = "quadro-cell quadro-cell--preview";
   else if (s.hasNovo) cls = "quadro-cell quadro-cell--novo";
-  return `<td class="${cls}">${currencyBRL(s.total)}</td>`;
+  const inner = formatQuadroValorCellHtml(s.total, s.comprovantes);
+  return `<td class="${cls}">${inner}</td>`;
 }
 
+/** Quadro mensal tipo calendário: semanas = linhas dom–sáb (não usa trilha RECEITA). */
 function computeMonthSlotsSixSemanas(monthItems, highlightId) {
   const sorted = monthItems
     .filter((it) => parseBrDate(it.semanaInicio))
@@ -3069,12 +5472,22 @@ function computeMonthSlotsSixSemanas(monthItems, highlightId) {
     total: 0,
     hasNovo: false,
     hasPreview: false,
+    comprovantes: [],
   }));
-  sorted.forEach((it, idx) => {
-    const slot = Math.min(idx, 5);
-    slots[slot].total += getLancamentoAluguelValor(it);
-    if (String(it.id) === "__preview__") slots[slot].hasPreview = true;
-    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slot].hasNovo = true;
+  sorted.forEach((it) => {
+    const dRef = parseBrDate(it.semanaInicio);
+    const slotIdx = calendarMonthGridWeekSlotIndex(dRef);
+    const val = getLancamentoAluguelValor(it);
+    slots[slotIdx].total += val;
+    if (String(it.id) === "__preview__") slots[slotIdx].hasPreview = true;
+    else if (highlightId != null && Number(it.id) === Number(highlightId)) slots[slotIdx].hasNovo = true;
+    const fp = String(it.comprovanteFp || "").trim();
+    if (fp) {
+      slots[slotIdx].comprovantes.push({ fp, id: it.id, valor: val });
+    }
+  });
+  slots.forEach((s) => {
+    s.comprovantes = dedupeComprovantesPorSlot(s.comprovantes);
   });
   return slots;
 }
@@ -3083,11 +5496,12 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
   const editableDialog = Boolean(options.editableDialog);
   const highlightId = options.highlightId;
   const preview = options.preview;
-  let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw);
+  const ncOpt = options.numeroContrato || "";
+  let items = collectLancamentosFilteredQuadro(cpfDigits, placaRaw, ncOpt);
   if (preview && preview.valorPago != null && preview.semanaInicio) {
     items = mergePreviewLancamento(items, preview);
   }
-  const contrato = findContratoForLancamentoResumo(cpfDigits, placaRaw);
+  const contrato = findContratoForLancamentoResumo(cpfDigits, placaRaw, ncOpt || undefined);
   let totalDevido = 0;
   let totalPagoContrato = 0;
   if (contrato) {
@@ -3100,27 +5514,28 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
     totalPagoContrato = totalPagoBarComLancamentosApp(
       cpfDigits,
       placaRaw,
-      contrato.pago || contrato.valorPago || 0
+      contrato.pago || contrato.valorPago || 0,
+      ncOpt || undefined
     );
   }
-  const mesesKeys = getQuadroMesesRange(contrato, items);
+  const rangeKeys = getQuadroMesesRange(contrato, items);
   const byMonth = {};
-  mesesKeys.forEach((ym) => {
-    byMonth[ym] = [];
-  });
   items.forEach((it) => {
     const d = parseBrDate(it.semanaInicio);
     if (!d) return;
-    const ym = monthKey(toDateOnly(d));
-    if (!byMonth[ym]) byMonth[ym] = [];
-    byMonth[ym].push(it);
+    const ymKey = monthKey(toDateOnly(d));
+    if (!byMonth[ymKey]) byMonth[ymKey] = [];
+    byMonth[ymKey].push(it);
   });
+  const mesesKeys = mergeUniqueSortedMonthKeys(rangeKeys, Object.keys(byMonth));
   let rowsHtml = "";
+  let somaQuadroPago = 0;
   mesesKeys.forEach((ym) => {
     const monthItems = byMonth[ym] || [];
     const slots = computeMonthSlotsSixSemanas(monthItems, highlightId);
     applyQuadroOverridesToCalendarSlots(cpfDigits, placaRaw, ym, slots);
     const rowSum = slots.reduce((acc, s) => acc + s.total, 0);
+    somaQuadroPago += rowSum;
     const rowKeyCal = `CAL|${ym}`;
     const editableCtx = editableDialog
       ? { enabled: true, cpf: cpfDigits, placa: placaRaw }
@@ -3145,7 +5560,7 @@ function buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, o
       </tr>`;
   });
   return `
-    <div class="quadro-pagamento-scroll">
+    <div class="quadro-pagamento-scroll" data-quadro-soma-pago="${escapeHtml(String(somaQuadroPago))}">
       <table class="quadro-pagamento-table" aria-label="Quadro resumo de pagamentos por mês">
         <thead>
           <tr class="quadro-summary-row quadro-summary-devido">
@@ -3187,6 +5602,9 @@ function fillMonthSlotsSixSemanas(monthItems, highlightId) {
 function buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, options = {}) {
   const preview = options.preview;
   if (preview && preview.semanaInicio && parseCurrencyBR(preview.valorPago) > 0) {
+    return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
+  }
+  if (options.numeroContrato) {
     return buildQuadroPagamentoHistoricoFromLancamentosOnly(cpfDigits, placaRaw, options);
   }
   const rec = findReceitaRecordForQuadro(cpfDigits, placaRaw);
@@ -3248,13 +5666,22 @@ function persistQuadroHistoricoOverridesFromInputs(container) {
     const k = inp.getAttribute("data-q-key");
     if (!k) return;
     const raw = String(inp.value || "").trim();
+    const hadValue = String(inp.getAttribute("data-q-had-value") || "") === "1";
     if (raw === "") {
-      delete map[k];
+      // Se havia valor originalmente e o admin apagou, persistir zero para não "voltar" ao valor de base.
+      if (hadValue) map[k] = 0;
+      else delete map[k];
     } else {
       map[k] = parseCurrencyBR(inp.value);
     }
   });
   saveQuadroReceitaOverridesMap(map);
+}
+
+function extractQuadroSomaPagoFromHtml(html) {
+  const m = String(html || "").match(/data-quadro-soma-pago="([^"]+)"/i);
+  if (!m) return NaN;
+  return Number(String(m[1]).replace(",", "."));
 }
 
 /**
@@ -3265,24 +5692,37 @@ function persistQuadroHistoricoOverridesFromInputs(container) {
 function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
   const preview = opts?.preview;
   const onAfterSim = opts?.onAfterSim;
+  const numeroContratoOpt = normalizeNumeroContratoKey(
+    opts?.numeroContrato || preview?.numeroContrato || ""
+  );
+  const edicaoBloqueadaCpf = isCpfComEdicaoLancamentoBloqueada(cpfDigits);
   if (
     !lancamentoAluguelHistoricoDialog ||
     !lancamentoAluguelHistoricoQuadro ||
     !lancamentoAluguelHistoricoSimBtn ||
-    !lancamentoAluguelHistoricoEditarBtn
+    !lancamentoAluguelHistoricoEditarBtn ||
+    !lancamentoAluguelHistoricoCancelarBtn
   ) {
     return Promise.resolve(true);
   }
   const html = buildQuadroPagamentoHistoricoHtml(cpfDigits, placaRaw, {
     highlightId: null,
     preview,
-    editableDialog: true,
+    editableDialog: !edicaoBloqueadaCpf,
+    numeroContrato: numeroContratoOpt || undefined,
   });
   lancamentoAluguelHistoricoQuadro.innerHTML = html;
+  lancamentoAluguelHistoricoEditarBtn.classList.toggle("hidden", edicaoBloqueadaCpf);
+  lancamentoAluguelHistoricoEditarBtn.disabled = edicaoBloqueadaCpf;
+  lancamentoAluguelHistoricoEditarBtn.title = edicaoBloqueadaCpf
+    ? "Edição do histórico bloqueada para este CPF."
+    : "";
   const unwireInputs = wireQuadroHistoricoEditableInputs(lancamentoAluguelHistoricoQuadro);
   const initialSnap = quadroEditableSnapshotSerialize(lancamentoAluguelHistoricoQuadro);
   lancamentoAluguelHistoricoDialog.classList.remove("hidden");
   return new Promise((resolve) => {
+    const senhaAdminValida = (senhaInformada) =>
+      isSenhaFuncionarioAtualValida(senhaInformada) || isSenhaOwnerValida(senhaInformada);
     const cleanup = () => {
       unwireInputs();
     };
@@ -3297,7 +5737,7 @@ function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
           "Alteracao no quadro detectada. Digite a senha do administrador para salvar as celulas editadas:"
         );
         if (senha === null) return;
-        if (!isSenhaOwnerValida(senha)) {
+        if (!senhaAdminValida(senha)) {
           window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
           return;
         }
@@ -3312,13 +5752,18 @@ function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      lancamentoAluguelHistoricoCancelarBtn.removeEventListener("click", onCancelar);
       onAfterSim?.();
       resolve(true);
     };
     const onEditar = () => {
+      if (edicaoBloqueadaCpf) {
+        window.alert("CPF com edição de histórico bloqueada. Apenas novos lançamentos são permitidos.");
+        return;
+      }
       const senha = window.prompt("Digite a senha do administrador para editar o histórico na lista:");
       if (senha === null) return;
-      if (!isSenhaOwnerValida(senha)) {
+      if (!senhaAdminValida(senha)) {
         window.alert("SENHA DE ADMINISTRADOR INVALIDA.");
         return;
       }
@@ -3326,32 +5771,67 @@ function runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, opts) {
       close();
       lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
       lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      lancamentoAluguelHistoricoCancelarBtn.removeEventListener("click", onCancelar);
       if (cadastroLancamentoAluguelLista) {
         cadastroLancamentoAluguelLista.scrollIntoView({ behavior: "smooth", block: "start" });
       }
       resolve(false);
     };
+    const onCancelar = () => {
+      cleanup();
+      close();
+      lancamentoAluguelHistoricoSimBtn.removeEventListener("click", onSim);
+      lancamentoAluguelHistoricoEditarBtn.removeEventListener("click", onEditar);
+      lancamentoAluguelHistoricoCancelarBtn.removeEventListener("click", onCancelar);
+      resolve(false);
+    };
     lancamentoAluguelHistoricoSimBtn.addEventListener("click", onSim);
     lancamentoAluguelHistoricoEditarBtn.addEventListener("click", onEditar);
+    lancamentoAluguelHistoricoCancelarBtn.addEventListener("click", onCancelar);
   });
 }
 
 function askLancamentoAluguelHistoricoUpdated(cpfDigits, placaRaw, preview) {
-  return runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, { preview });
+  const mergedPreview =
+    preview && typeof preview === "object"
+      ? {
+          ...preview,
+          cpfDigits: preview.cpfDigits ?? cpfDigits,
+          placa: preview.placa ?? placaRaw,
+        }
+      : preview;
+  const nc = normalizeNumeroContratoKey(preview?.numeroContrato || "");
+  return runLancamentoAluguelHistoricoDialog(cpfDigits, placaRaw, {
+    preview: mergedPreview,
+    numeroContrato: nc || undefined,
+  });
 }
 
 function renderLancamentoAluguelResumo() {
   if (!lancamentoAluguelResumo) return;
+  lancamentoAluguelResumo.classList.remove(
+    "resumo-status-moto-positivo",
+    "resumo-status-transporte-positivo",
+    "resumo-status-carro",
+    "resumo-status-debito"
+  );
   const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
   const placaRaw = String(lancAluguelPlacaInput?.value || "").trim().toUpperCase();
+  const ncResumo = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
   if (cpf.length !== 11) {
     lancamentoAluguelResumo.innerHTML =
-      "<p>Informe CPF (e opcionalmente placa) para visualizar o resumo do lançamento.</p>";
+      "<p>Informe CPF, placa e número do contrato para visualizar o resumo do lançamento.</p>";
     return;
   }
-  const contrato = findContratoForLancamentoResumo(cpf, placaRaw);
+  if (!ncResumo) {
+    lancamentoAluguelResumo.innerHTML =
+      "<p>Informe o <strong>número do contrato</strong> (único no sistema) para identificar qual vínculo cliente + veículo + período usar.</p>";
+    return;
+  }
+  const contrato = findContratoForLancamentoResumo(cpf, placaRaw, ncResumo);
   if (!contrato) {
-    lancamentoAluguelResumo.innerHTML = "<p>Nenhum contrato localizado para esse CPF/placa.</p>";
+    lancamentoAluguelResumo.innerHTML =
+      "<p>Nenhum contrato localizado para esse CPF, placa e número de contrato. Confira o cadastro de locação.</p>";
     return;
   }
   const nome = String(contrato.nome || findClienteByCpfCadastro(cpf)?.nome || "Nao informado");
@@ -3365,28 +5845,36 @@ function renderLancamentoAluguelResumo() {
     devidoHoje: contrato.devidoHoje || contrato.devido || 0,
   });
   const valorDevido = parseCurrencyBR(dyn.devidoHoje || contrato.devidoHoje || contrato.devido);
-  const valorPagoAcumulado = parseCurrencyBR(contrato.pago || contrato.valorPago);
-  const totalLancamentosAluguel = getLancamentosAluguel()
-    .filter((l) => {
-      const cpfOk = onlyDigits(String(l.cpf || "")) === cpf;
-      const plateOk = placa ? normalizePlate(l.placa) === placa : true;
-      return cpfOk && plateOk;
-    })
-    .reduce((acc, l) => acc + getLancamentoAluguelValor(l), 0);
+  const pagoRegistro = parseCurrencyBR(contrato.pago || contrato.valorPago);
+  const totalLancamentosAluguel = collectLancamentosFilteredQuadro(cpf, placaRaw, ncResumo).reduce(
+    (acc, l) => acc + getLancamentoAluguelValor(l),
+    0
+  );
+  /** Mesma base do quadro: pago (planilha) + soma dos lançamentos de aluguel no app. */
+  const valorPagoAcumulado = totalPagoBarComLancamentosApp(
+    cpf,
+    placaRaw,
+    contrato.pago || contrato.valorPago || 0,
+    ncResumo
+  );
   const valorPagoDigitado = parseCurrencyBR(String(lancAluguelValorPagoInput?.value || ""));
-  const valorLancamento = valorPagoDigitado > 0 ? valorPagoDigitado : totalLancamentosAluguel;
-  const saldoPagar = Math.max(0, valorDevido + totalLancamentosAluguel - valorPagoAcumulado);
+  const valorLancamentoSugestao =
+    valorPagoDigitado > 0 ? valorPagoDigitado : totalLancamentosAluguel;
+  const quadroHtml = buildQuadroPagamentoHistoricoHtml(cpf, placaRaw, {
+    highlightId: ultimoLancamentoAluguelSalvoId,
+    numeroContrato: ncResumo,
+  });
+  const somaQuadroPago = extractQuadroSomaPagoFromHtml(quadroHtml);
+  const valorPagoAcumuladoEfetivo = Number.isFinite(somaQuadroPago) ? somaQuadroPago : valorPagoAcumulado;
+  /** Pago em dia ou crédito: nada a pagar neste lançamento; sugestão zero. */
+  const valorLancamento =
+    valorPagoAcumuladoEfetivo > valorDevido ? 0 : valorLancamentoSugestao;
+  const saldoPagar = Math.max(0, valorDevido - valorPagoAcumuladoEfetivo);
   const plano = getPlanoLancamentoResumo(contrato);
   const planoKey = normalizeKey(plano);
-  const saldoPositivo = valorPagoAcumulado > valorDevido;
-  const emDebito = valorPagoAcumulado < valorDevido;
+  const saldoPositivo = valorPagoAcumuladoEfetivo > valorDevido;
+  const emDebito = valorPagoAcumuladoEfetivo < valorDevido;
   const isCarro = isCarroLancamentoResumo(placa, contrato);
-  lancamentoAluguelResumo.classList.remove(
-    "resumo-status-moto-positivo",
-    "resumo-status-transporte-positivo",
-    "resumo-status-carro",
-    "resumo-status-debito"
-  );
   if (emDebito) {
     lancamentoAluguelResumo.classList.add("resumo-status-debito");
   } else if (isCarro) {
@@ -3396,22 +5884,24 @@ function renderLancamentoAluguelResumo() {
   } else if (saldoPositivo && planoKey.includes("MEU TRANSPORTE")) {
     lancamentoAluguelResumo.classList.add("resumo-status-transporte-positivo");
   }
-  const quadroHtml = buildQuadroPagamentoHistoricoHtml(cpf, placaRaw, {
-    highlightId: ultimoLancamentoAluguelSalvoId,
-  });
   lancamentoAluguelResumo.innerHTML = `
+    <p><strong>Nº contrato:</strong> ${escapeHtml(ncResumo)}</p>
     <p><strong>${escapeHtml(nome)}</strong> - ${escapeHtml(modelo)} - data de inicio da locacao <strong>${escapeHtml(
     inicio || "-"
   )}</strong></p>
     <p><strong>Plano:</strong> ${escapeHtml(plano)}</p>
     <p><strong>Valor semanal:</strong> ${currencyBRL(valorSemanal)} | <strong>Valor devido:</strong> ${currencyBRL(
     valorDevido
-  )} | <strong>Valor pago acumulado:</strong> ${currencyBRL(valorPagoAcumulado)}</p>
-    <p><strong>Lançamentos de aluguel:</strong> ${currencyBRL(
+  )} | <strong>Valor pago acumulado:</strong> <span title="Pago do cadastro (${currencyBRL(
+    pagoRegistro
+  )}) mais soma dos lançamentos no app. Quando houver edição manual no quadro, este campo reflete a soma atual da barra TOTAL PAGO do quadro.">${currencyBRL(
+    valorPagoAcumuladoEfetivo
+  )}</span></p>
+    <p><strong>Lançamentos de aluguel (app, já somados acima):</strong> ${currencyBRL(
       totalLancamentosAluguel
-    )} | <strong>Pagamento deste lancamento (sugestao):</strong> ${currencyBRL(
+    )} | <strong>Pagamento deste lançamento (sugestão):</strong> ${currencyBRL(
       valorLancamento
-    )} | <strong>Saldo a pagar:</strong> ${currencyBRL(saldoPagar)}</p>
+    )} | <strong>Saldo a pagar (devido − pago acum.):</strong> ${currencyBRL(saldoPagar)}</p>
     <h4 style="margin:1rem 0 0.45rem;font-size:0.95rem;">Quadro resumo (histórico por mês — até 6 semanas)</h4>
     <p class="subtext" style="margin:0.35rem 0 0.5rem">
       <button type="button" class="secondary" id="lancamentoAluguelAbrirQuadroEdit">Abrir quadro em modo edição (valores e senha)</button>
@@ -3562,7 +6052,12 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
-function downloadStyledExcel(fileName, headers, rows, metaLines = []) {
+function downloadStyledExcel(fileName, headers, rows, metaLines = [], excelOptions = {}) {
+  const textColArr = excelOptions.textColumns;
+  const textColumns =
+    textColArr instanceof Set
+      ? textColArr
+      : new Set(Array.isArray(textColArr) ? textColArr : []);
   const metaHtml = metaLines.length
     ? `<table>${metaLines
         .map(
@@ -3573,7 +6068,17 @@ function downloadStyledExcel(fileName, headers, rows, metaLines = []) {
     : "";
   const headerHtml = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
   const bodyHtml = rows
-    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`)
+    .map(
+      (row) =>
+        `<tr>${row
+          .map((cell, ci) => {
+            const raw = cell == null ? "" : String(cell);
+            const forceText = textColumns.has(ci);
+            const tdAttr = forceText ? ' style="mso-number-format:\\@;"' : "";
+            return `<td${tdAttr}>${escapeHtml(raw)}</td>`;
+          })
+          .join("")}</tr>`
+    )
     .join("");
 
   const html = `
@@ -3766,20 +6271,20 @@ function exportVeiculosPdf() {
 function exportClientesExcel() {
   const clientes = getClientesReportData();
   const headers = [
-    "Codigo",
-    "Data do cadastro",
+    "Cód.",
+    "Data do Cadastro",
     "CPF",
-    "Nome",
-    "Celular",
-    "Recado 1",
-    "Recado 2",
-    "CNH",
+    "NOME",
+    "Nº do Celular",
+    "Recados 01",
+    "Recados 02",
+    "Nº da CNH-e",
     "Categoria",
     "Vencimento",
-    "EAR",
+    "EAR?",
     "CEP",
-    "Municipio/UF",
-    "Endereco",
+    "Município/UF",
+    "Endereço",
     "Status",
   ];
   const rows = clientes.map((c) => [
@@ -3859,21 +6364,33 @@ function exportClientesPdf() {
   win.print();
 }
 
-function formatLocacaoClienteExportCell(row, col) {
+function formatLocacaoClienteExportCell(row, col, options = {}) {
+  const forPdf = Boolean(options.forPdf);
+  if (col.key === "protocolo") {
+    const p = String(row[col.key] ?? "").trim();
+    const fallback = "Nao informado";
+    if (forPdf) {
+      return p
+        ? `<strong>${escapeHtml(p)}</strong>`
+        : `<strong>${escapeHtml(fallback)}</strong>`;
+    }
+    return p || fallback;
+  }
   if (col.key !== "cliente") return String(row[col.key] ?? "Nao informado");
-  const nome = String(row.cliente ?? "").trim();
-  const tl = String(row.pagamentosTimeline ?? "").trim();
-  if (nome && tl) return `${nome} — ${tl}`;
-  return nome || "Nao informado";
+  return String(row.cliente ?? "").trim() || "Nao informado";
 }
 
 function exportRelatorioPdfFromCache(cache) {
   if (!cache || !Array.isArray(cache.columns) || !Array.isArray(cache.rows)) return;
+  const protocoloPrincipal = cache.columns[0]?.key === "protocolo";
   const rowsHtml = cache.rows
     .map(
       (row) =>
         `<tr>${cache.columns
-          .map((col) => `<td>${formatLocacaoClienteExportCell(row, col)}</td>`)
+          .map(
+            (col) =>
+              `<td>${formatLocacaoClienteExportCell(row, col, { forPdf: true })}</td>`
+          )
           .join("")}</tr>`
     )
     .join("");
@@ -3891,6 +6408,11 @@ function exportRelatorioPdfFromCache(cache) {
           table { width: 100%; border-collapse: collapse; font-size: 12px; }
           th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
           th { background: #f2f2f2; }
+          ${
+            protocoloPrincipal
+              ? "th:first-child, td:first-child { font-size: 13px; font-weight: 700; }"
+              : ""
+          }
         </style>
       </head>
       <body>
@@ -3916,17 +6438,24 @@ function exportRelatorioExcelFromCache(cache, fileName) {
   const rows = cache.rows.map((row) =>
     cache.columns.map((c) => formatLocacaoClienteExportCell(row, c))
   );
-  downloadStyledExcel(fileName.replace(/\.csv$/i, ".xls"), headers, rows, [
-    ["Relatorio", cache.title],
-    ["Total", String(cache.rows.length)],
-  ]);
+  const protocolIdx = cache.columns.findIndex((c) => c.key === "protocolo");
+  downloadStyledExcel(
+    fileName.replace(/\.csv$/i, ".xls"),
+    headers,
+    rows,
+    [
+      ["Relatorio", cache.title],
+      ["Total", String(cache.rows.length)],
+    ],
+    protocolIdx >= 0 ? { textColumns: new Set([protocolIdx]) } : {}
+  );
 }
 
 function computeSaldoFromRecords(records) {
   if (!Array.isArray(records) || !records.length) return 0;
   return records.reduce((acc, r) => {
     const devido = parseCurrencyBR(r?.devidoHoje);
-    const pago = parseCurrencyBR(r?.pago);
+    const pago = pagoHarmonizadoRegistro(r);
     return acc + (devido - pago);
   }, 0);
 }
@@ -4030,6 +6559,35 @@ function exportGenericReportPdf(container, title) {
   popup.print();
 }
 
+function printReportContainer(container, title) {
+  if (!container) return;
+  const printable = container.cloneNode(true);
+  printable.querySelectorAll(".report-actions").forEach((node) => node.remove());
+  const popup = window.open("", "_blank", "width=1100,height=800");
+  if (!popup) return;
+  popup.document.write(`
+    <html>
+      <head>
+        <title>${title}</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; color: #111; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th, td { border: 1px solid #bbb; padding: 6px; font-size: 12px; text-align: left; vertical-align: top; }
+          h1,h2,h3,h4 { margin: 0 0 8px; }
+          p { margin: 6px 0; }
+        </style>
+      </head>
+      <body>
+        <h2>${title}</h2>
+        ${printable.innerHTML}
+      </body>
+    </html>
+  `);
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
 function exportAuditLogPdf() {
   const logs = loadAuditLog().sort(
     (a, b) => new Date(a.timestampIso || 0) - new Date(b.timestampIso || 0)
@@ -4084,20 +6642,46 @@ function exportAuditLogPdf() {
   win.print();
 }
 
+function isTelefonePlaceholder(value) {
+  const t = normalizeKey(String(value || "").trim());
+  if (!t) return true;
+  if (t === "XXXXX" || t.includes("XXXXX")) return true;
+  if (/^X{3,}$/.test(t)) return true;
+  return false;
+}
+
+function telefonePartsFromCliente(cliente) {
+  if (!cliente) return [];
+  const candidatos = [
+    cliente.celular,
+    cliente.telefone,
+    cliente.tel,
+    cliente.fone,
+    cliente.recado1,
+    cliente.recado2,
+  ];
+  const out = [];
+  const seen = new Set();
+  candidatos.forEach((raw) => {
+    const s = String(raw || "").trim();
+    if (isTelefonePlaceholder(s)) return;
+    const dedupKey = onlyDigits(s) || normalizeKey(s);
+    if (!dedupKey || seen.has(dedupKey)) return;
+    seen.add(dedupKey);
+    out.push(s);
+  });
+  return out;
+}
+
 function getTelefoneByCpf(cpf) {
   const normalized = onlyDigits(String(cpf || ""));
   const clientes = [...loadCadastro(CAD_CLIENTES_KEY), ...clientesSeedData];
-  if (!normalized) return "Nao informado";
+  if (!normalized || normalized.length !== 11) return "Nao informado";
   const cliente = clientes.find(
     (c) => onlyDigits(String(c.cpf || "")) === normalized
   );
-  if (!cliente) return "Nao informado";
-  const contatos = [
-    String(cliente.celular || "").trim(),
-    String(cliente.recado1 || "").trim(),
-    String(cliente.recado2 || "").trim(),
-  ].filter(Boolean);
-  return contatos.length ? contatos.join(" / ") : "Nao informado";
+  const parts = telefonePartsFromCliente(cliente);
+  return parts.length ? parts.join(" / ") : "Nao informado";
 }
 
 function normalizeName(value) {
@@ -4119,12 +6703,8 @@ function getContatoByCpfOrNome(cpf, nome) {
     (c) => normalizeName(c.nome) === normalizedNome
   );
   if (!cliente) return "Nao informado";
-  const contatos = [
-    String(cliente.celular || "").trim(),
-    String(cliente.recado1 || "").trim(),
-    String(cliente.recado2 || "").trim(),
-  ].filter(Boolean);
-  return contatos.length ? contatos.join(" / ") : "Nao informado";
+  const parts = telefonePartsFromCliente(cliente);
+  return parts.length ? parts.join(" / ") : "Nao informado";
 }
 
 function splitTelefones(contatoStr) {
@@ -4254,14 +6834,14 @@ function buildLocacaoDatabaseRowsFromReceita2026() {
     const valorQNum = parseCurrencyBR(r.q);
     const investimento = valorQNum - valorSemanalNum;
     const plano = investimento > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE";
-    const pagoNum = parseCurrencyBR(r.pago);
+    const pagoNum = pagoHarmonizadoRegistro({ cpf, placa: placaNormalizada, pago: r.pago });
     const devidoNum = parseCurrencyBR(financeiro.devidoHoje);
     const saldoNum = pagoNum - devidoNum;
     const isLatestByPlate = latestIndexByPlate.get(placaNormalizada)?.index === idx;
     const statusLocacao =
       (!String(r.fim || "").trim() || (activeSet.has(placaNormalizada) && isLatestByPlate))
         ? "ATIVO"
-        : "INATIVO";
+        : "FINALIZADO";
 
     return {
       id: idx + 1,
@@ -4289,7 +6869,7 @@ function buildLocacaoDatabaseRowsFromReceita2026() {
       plano,
       valorInvestimento: currencyBRL(investimento),
       valorDevidoHoje: financeiro.devidoHoje || "",
-      valorPagoHoje: r.pago || "",
+      valorPagoHoje: currencyBRL(pagoNum),
       saldo: `${saldoNum >= 0 ? "+" : "-"} ${currencyBRL(Math.abs(saldoNum))}`,
       saldoNumerico: saldoNum,
     };
@@ -4340,46 +6920,249 @@ function exportQuadroGeralPdf(rows) {
   win.print();
 }
 
-function renderRelatorioLocacao(tipo) {
+async function renderRelatorioLocacao(tipo) {
   const snapshot = buildOperationalSnapshot();
   const veiculoByPlaca = getVehicleMapByPlate();
+  const protocoloSeqByPrefix = new Map();
+  const protocoloUsados = new Set();
+  const nextFallbackProtocolo = (record) => {
+    const inicioDate = parseBrDate(record?.inicio);
+    let baseDate = inicioDate;
+    if (!(baseDate instanceof Date) || Number.isNaN(baseDate.getTime())) {
+      const ts = Number(record?.createdAt || record?.id || record?.cadastroCriadoTs || 0);
+      baseDate = ts > 0 ? new Date(ts) : new Date();
+    }
+    const prefix = protocoloLocacaoDatePrefix(baseDate);
+    let seq = Number(protocoloSeqByPrefix.get(prefix) || 0) + 1;
+    let protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    while (protocoloUsados.has(protocolo)) {
+      seq += 1;
+      protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    }
+    protocoloSeqByPrefix.set(prefix, seq);
+    protocoloUsados.add(protocolo);
+    return protocolo;
+  };
+  const resolveReportProtocolo = (record) => {
+    const atual = normalizeNumeroContratoKey(record?.numeroContrato || "");
+    if (atual) {
+      protocoloUsados.add(atual);
+      return atual;
+    }
+    return nextFallbackProtocolo(record);
+  };
 
-  if (tipo === "locados") {
-    const rows = snapshot.activeRecords
-      .map((r) => {
-        const placaKey = normalizePlate(r.placa);
-        const cad = veiculoByPlaca.get(placaKey);
-        const contato = getContatoByCpfOrNome(r.cpf, r.nome);
-        const telefones = splitTelefones(contato);
-        const inicioDate = excelSerialToDate(r.inicioSerial) || parseBrDate(r.inicio);
-        const nomeCli = r.nome || "Nao informado";
-        const cpfDig = onlyDigits(String(r.cpf || ""));
-        const pagamentosTimeline =
-          cpfDig.length === 11 ? buildClientePagamentosTimelineTexto(cpfDig) : "";
+  if (tipo === "completo") {
+    const xlsxByPlate = buildXlsxProtocolsByPlateMap(await loadLocacoesXlsxApiRows());
+    const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+    const clientes = loadCadastro(CAD_CLIENTES_KEY);
+    const clienteByCpf = new Map(
+      clientes
+        .map((c) => [onlyDigits(String(c.cpf || "")), c])
+        .filter(([cpf]) => cpf.length === 11)
+    );
+    const sourceRows = locacoes.length
+      ? locacoes
+      : [...snapshot.activeRecords, ...snapshot.inactiveRecords];
+
+    const rows = sourceRows
+      .map((l) => {
+        const cpfDigits = onlyDigits(String(l.cpf || ""));
+        const cliente = clienteByCpf.get(cpfDigits);
+        const placa = normalizePlate(String(l.placa || ""));
+        const veiculo = veiculoByPlaca.get(placa);
+        const protocolo = resolveReportProtocolo(l);
+        const inicioRaw = String(l.inicio || l.dataInicio || "").trim();
+        const fimRaw = String(l.fim || l.dataFim || "").trim();
+        const inicioDate = parseBrDate(inicioRaw);
+        const fimDate = parseBrDate(fimRaw);
+        const hasFim = fimRaw.length > 0;
+        const diaPagto =
+          inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())
+            ? inicioDate.toLocaleDateString("pt-BR", { weekday: "long" })
+            : "Nao informado";
+        const periodoDias =
+          inicioDate instanceof Date &&
+          !Number.isNaN(inicioDate.getTime()) &&
+          fimDate instanceof Date &&
+          !Number.isNaN(fimDate.getTime())
+            ? `${Math.max(1, Math.round((toDateOnly(fimDate) - toDateOnly(inicioDate)) / 86400000) + 1)} dia(s)`
+            : "...";
+        const plano = String(l.plano || "").trim() || toPlanName(l);
+        const periodoContrato = normalizeKey(plano).includes("MINHA MOTO") ? "150 SEMANAS" : "1 SEMANA";
+        const valorLocacaoNum = parseCurrencyBR(l.valorLocacao || l.valorSemanal);
+        const valorInvestNum = parseCurrencyBR(l.valorInvestimento);
+        const valorParcelaNum = valorLocacaoNum + valorInvestNum;
         return {
-          placa: r.placa || "",
-          modelo: cad?.modelo || findModeloByPlaca(r.placa),
-          cliente: nomeCli,
-          cpfDigits: cpfDig,
-          pagamentosTimeline,
-          valorLocacao: r.valorSemanal || "",
-          inicioLocacao: r.inicio || "",
-          cadastroCriadoTs: Number(r.cadastroCriadoTs || 0),
-          inicioTs: inicioDate?.getTime?.() || 0,
-          ...telefones,
+          protocolo,
+          placa,
+          cpf: cpfDigits ? formatCpf(cpfDigits) : "Nao informado",
+          status:
+            normalizeStatusLocacaoExibicao(String(l.status || l.statusLocacao || "").trim()) ||
+            (hasFim ? "FINALIZADO" : "ATIVO"),
+          dataInicio: inicioRaw || "Nao informado",
+          diaPagto,
+          dataFim: hasFim ? fimRaw : "...",
+          periodoLocacao: periodoDias,
+          modalidade: normalizeKey(veiculo?.tipo).includes("CARRO") ? "CARRO" : "MOTO",
+          marcaModelo: [String(veiculo?.marca || "").trim(), String(veiculo?.modelo || "").trim()]
+            .filter(Boolean)
+            .join(" / ") || String(l.modelo || l.modeloVeiculo || "").trim() || "Nao informado",
+          opcaoContrato: plano,
+          periodoContrato,
+          kmRetirada: String(l.kmInicial || "").trim() || "Nao informado",
+          tabela: "Nao informado",
+          locacao: currencyBRL(valorLocacaoNum),
+          investimento: currencyBRL(valorInvestNum),
+          valorParcela: currencyBRL(valorParcelaNum),
+          codCliente: String(cliente?.codigo || "").trim() || "Nao informado",
+          cliente: String(cliente?.nome || "").trim() || "Nao informado",
+          createdAt: Number(l.createdAt || l.id || 0),
         };
       })
-      .filter((r) => normalizePlate(r.placa));
+      .filter((r) => r.protocolo)
+      .sort((a, b) => {
+        const byProt = String(b.protocolo || "").localeCompare(String(a.protocolo || ""), undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        if (byProt !== 0) return byProt;
+        return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+      })
+      .filter((r) => rowPermitidoPelaPlanilhaLocacao(r.placa, r.protocolo, xlsxByPlate));
+
+    relatorioLocacaoCache = {
+      title: "Relatório | Completo por protocolo",
+      columns: [
+        { key: "protocolo", label: "PROTOCOLO" },
+        { key: "placa", label: "PLACA" },
+        { key: "cpf", label: "CPF" },
+        { key: "status", label: "STATUS" },
+        { key: "dataInicio", label: "DATA INÍCIO" },
+        { key: "diaPagto", label: "DIA DE PAGTO" },
+        { key: "dataFim", label: "DATA FIM" },
+        { key: "periodoLocacao", label: "PERÍODO (LOCAÇÃO)" },
+        { key: "modalidade", label: "MODALIDADE" },
+        { key: "marcaModelo", label: "MARCA/MODELO" },
+        { key: "opcaoContrato", label: "OPÇÃO DE CONTRATO" },
+        { key: "periodoContrato", label: "PERÍODO DE CONTRATO" },
+        { key: "kmRetirada", label: "KM DE RETIRADA" },
+        { key: "tabela", label: "TABELA" },
+        { key: "locacao", label: "LOCAÇÃO" },
+        { key: "investimento", label: "INVESTIMENTO" },
+        { key: "valorParcela", label: "VALOR DA PARCELA" },
+        { key: "codCliente", label: "CÓD. CLIENTE" },
+        { key: "cliente", label: "CLIENTE" },
+      ],
+      rows,
+    };
+
+    const html = rows.length
+      ? `
+        <p><strong>Total de protocolos:</strong> ${rows.length}</p>
+        <p class="hint">Relatório consolidado em uma linha por protocolo usando os dados da base local da aplicação.</p>
+        <div class="report-actions">
+          <button type="button" class="secondary" data-report-export="pdf">Exportar para PDF</button>
+          <button type="button" class="secondary" data-report-export="excel">Exportar para Excel</button>
+        </div>
+        <div class="report-actions">
+          <input
+            type="search"
+            id="locacaoFiltroInput"
+            class="input"
+            style="max-width: 460px;"
+            placeholder="Filtrar por protocolo, placa, CPF, cliente ou status"
+            aria-label="Filtrar relatório completo por protocolo"
+          />
+        </div>
+        <div class="table-wrap">
+          <table class="relatorio-table relatorio-locacao-por-protocolo">
+            <thead>
+              <tr>
+                ${relatorioLocacaoCache.columns.map((c) => `<th>${c.label}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows
+                .map((item) => {
+                  const searchBlob = [item.protocolo, item.placa, item.cpf, item.status, item.cliente]
+                    .map((v) => normalizeKey(v))
+                    .join(" ");
+                  return `<tr data-locacao-search="${escapeHtml(searchBlob)}">
+                    ${relatorioLocacaoCache.columns
+                      .map((c) => `<td>${formatMissingInfoCell(item[c.key])}</td>`)
+                      .join("")}
+                  </tr>`;
+                })
+                .join("")}
+            </tbody>
+          </table>
+        </div>
+      `
+      : "<p>Nenhum protocolo encontrado na base de locações.</p>";
+
+    setAdminSection("operacao");
+    renderLocacaoReport("Relatório | Completo por protocolo", html, {
+      totalLabel: "Total de protocolos",
+      totalValue: rows.length,
+    });
+    return;
+  }
+
+  if (tipo === "locados") {
+    const usePlanilhaEmbarcada =
+      typeof LOCACOES_PLANILHA_DATA !== "undefined" &&
+      Array.isArray(LOCACOES_PLANILHA_DATA) &&
+      LOCACOES_PLANILHA_DATA.length > 0;
+
+    let rows;
+    if (usePlanilhaEmbarcada) {
+      const planilhaRows = await loadLocacoesXlsxApiRows();
+      rows = buildLocadosRowsFromPlanilhaEmbarcada(planilhaRows, veiculoByPlaca).filter((r) =>
+        normalizePlate(r.placa)
+      );
+    } else {
+      rows = snapshot.activeRecords
+        .map((r) => {
+          const placaKey = normalizePlate(r.placa);
+          const cad = veiculoByPlaca.get(placaKey);
+          const contato = getContatoByCpfOrNome(r.cpf, r.nome);
+          const telefones = splitTelefones(contato);
+          const inicioDate = excelSerialToDate(r.inicioSerial) || parseBrDate(r.inicio);
+          const nomeCli = r.nome || "Nao informado";
+          const cpfDig = onlyDigits(String(r.cpf || ""));
+          const protocolo = resolveReportProtocolo(r);
+          return {
+            protocolo,
+            placa: r.placa || "",
+            modelo: cad?.modelo || findModeloByPlaca(r.placa),
+            cliente: nomeCli,
+            cpfDigits: cpfDig,
+            valorLocacao: r.valorSemanal || "",
+            inicioLocacao: r.inicio || "",
+            cadastroCriadoTs: Number(r.cadastroCriadoTs || 0),
+            inicioTs: inicioDate?.getTime?.() || 0,
+            ...telefones,
+          };
+        })
+        .filter((r) => normalizePlate(r.placa));
+    }
 
     rows.sort((a, b) => {
+      const pa = String(a.protocolo || "").trim();
+      const pb = String(b.protocolo || "").trim();
+      if (pa !== pb) {
+        return pb.localeCompare(pa, undefined, { numeric: true, sensitivity: "base" });
+      }
       const byCadastro = Number(b.cadastroCriadoTs || 0) - Number(a.cadastroCriadoTs || 0);
       if (byCadastro !== 0) return byCadastro;
       return Number(b.inicioTs || 0) - Number(a.inicioTs || 0);
     });
 
     relatorioLocacaoCache = {
-      title: "Relatório | Veículos locados",
+      title: "Relatório | Locações ativas (ordenado por protocolo)",
       columns: [
+        { key: "protocolo", label: "PROTOCOLO" },
         { key: "placa", label: "PLACA" },
         { key: "modelo", label: "MODELO" },
         { key: "cliente", label: "CLIENTE" },
@@ -4395,6 +7178,7 @@ function renderRelatorioLocacao(tipo) {
     const html = rows.length
       ? `
         <p><strong>Total de veículos locados:</strong> ${rows.length}</p>
+        <p class="hint"><strong>Protocolo:</strong> número único que liga um veículo (placa) a um cliente (CPF) na locação. <strong>Lista:</strong> contratos com status <strong>ATIVO</strong> na base embarcada (<code>locacoes-planilha-data.js</code>), uma linha por placa (maior protocolo se houver mais de um ativo). Sem essa base, usa-se receita 2026 + cadastro local. <strong>Telefones:</strong> cadastro de clientes.</p>
         <div class="report-actions">
           <button type="button" class="secondary" data-report-export="pdf">Exportar para PDF</button>
           <button type="button" class="secondary" data-report-export="excel">Exportar para Excel</button>
@@ -4405,14 +7189,15 @@ function renderRelatorioLocacao(tipo) {
             id="locacaoFiltroInput"
             class="input"
             style="max-width: 460px;"
-            placeholder="Filtrar por placa, moto/modelo, CPF ou nome"
+            placeholder="Filtrar por protocolo, placa, modelo, CPF ou nome"
             aria-label="Filtrar relatório de locação"
           />
         </div>
         <div class="table-wrap">
-          <table class="relatorio-table">
+          <table class="relatorio-table relatorio-locacao-por-protocolo">
             <thead>
               <tr>
+                <th scope="col" class="relatorio-locacao-protocolo-col">PROTOCOLO</th>
                 <th>PLACA</th>
                 <th>MODELO</th>
                 <th>CLIENTE</th>
@@ -4428,6 +7213,7 @@ function renderRelatorioLocacao(tipo) {
                 .map(
                   (item) => {
                     const hasMissing =
+                      isMissingInfoValue(item.protocolo) ||
                       isMissingInfoValue(item.placa) ||
                       isMissingInfoValue(item.modelo) ||
                       isMissingInfoValue(item.cliente) ||
@@ -4436,14 +7222,8 @@ function renderRelatorioLocacao(tipo) {
                       isMissingInfoValue(item.telefone1) ||
                       isMissingInfoValue(item.telefone2) ||
                       isMissingInfoValue(item.telefone3);
-                    const titlePag =
-                      item.pagamentosTimeline &&
-                      item.cpfDigits &&
-                      item.cpfDigits.length === 11 &&
-                      !isMissingInfoValue(item.cliente)
-                        ? `Pagamentos (RECEITA fev/25–dez/25; RECEITA 2026 jan/26–hoje; datas pelo início do contrato): ${item.pagamentosTimeline}`
-                        : "";
                     const searchBlob = [
+                      item.protocolo,
                       item.placa,
                       item.modelo,
                       item.cliente,
@@ -4455,6 +7235,9 @@ function renderRelatorioLocacao(tipo) {
                     return `<tr class="${hasMissing ? "missing-row" : ""}" data-locacao-search="${escapeHtml(
                       searchBlob
                     )}">
+                    <td class="relatorio-locacao-protocolo-cell">${formatMissingInfoCell(
+                      item.protocolo
+                    )}</td>
                     <td>${
                       !isMissingInfoValue(item.placa)
                         ? `<a href="#" class="placa-historico-link" data-placa="${escapeHtml(
@@ -4465,15 +7248,9 @@ function renderRelatorioLocacao(tipo) {
                     <td>${formatMissingInfoCell(item.modelo)}</td>
                     <td>${
                       item.cpfDigits && item.cpfDigits.length === 11 && !isMissingInfoValue(item.cliente)
-                        ? `<a href="#" class="cliente-vida-link" data-cpf="${item.cpfDigits}"${
-                            titlePag ? ` title="${escapeHtml(titlePag)}"` : ""
-                          }>${escapeHtml(item.cliente)}${
-                            item.pagamentosTimeline
-                              ? ` <span class="cliente-pagamentos-timeline">${escapeHtml(
-                                  item.pagamentosTimeline
-                                )}</span>`
-                              : ""
-                          }</a>`
+                        ? `<a href="#" class="cliente-vida-link" data-cpf="${item.cpfDigits}">${escapeHtml(
+                            item.cliente
+                          )}</a>`
                         : formatMissingInfoCell(item.cliente)
                     }</td>
                     <td>${formatMissingInfoCell(item.inicioLocacao)}</td>
@@ -4496,7 +7273,7 @@ function renderRelatorioLocacao(tipo) {
       0
     );
     setAdminSection("operacao");
-    renderLocacaoReport("Relatório | Veículos locados", html, {
+    renderLocacaoReport("Relatório | Locações ativas — protocolo em primeiro lugar", html, {
       totalLabel: "Total de locação semanal",
       totalValue: totalSemanalLocados,
     });
@@ -4978,55 +7755,87 @@ function renderCadastros() {
   const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
   const lancamentosAluguel = getLancamentosAluguel();
   const funcionarios = funcionariosAccess.slice();
+  const validacoesPendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
   refreshLocacaoPlacaOptions();
+  refreshLocacaoClienteSugestoes();
+  applyLocacaoPlanoRules();
 
-  cadastroClienteLista.innerHTML = clientes.length
-    ? clientes
-        .slice(-10)
-        .reverse()
-        .map(
-          (c) =>
-            `<p><strong>${c.nome}</strong> | CPF: ${formatCpf(c.cpf)}${
-              c.celular ? ` | Cel: ${c.celular}` : ""
-            }${c.municipioUf ? ` | ${c.municipioUf}` : ""}</p>`
-        )
-        .join("")
-    : "<p>Nenhum cliente cadastrado.</p>";
+  if (cadastroClienteLista) {
+    cadastroClienteLista.innerHTML = "";
+    cadastroClienteLista.classList.add("hidden");
+  }
 
-  cadastroVeiculoLista.innerHTML = veiculos.length
-    ? veiculos
-        .slice(-10)
-        .reverse()
-        .map(
-          (v) =>
-            `<p><strong>${v.placa}</strong> | ${v.modelo} | Tag: ${v.tag}${
-              v.marca ? ` | Marca: ${v.marca}` : ""
-            }</p>`
-        )
-        .join("")
-    : "<p>Nenhum veículo cadastrado.</p>";
+  if (adminValidacaoCadastroLista) {
+    const pendentesOrdenados = validacoesPendentes
+      .slice()
+      .sort((a, b) => Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0));
+    adminValidacaoCadastroLista.innerHTML = pendentesOrdenados.length
+      ? pendentesOrdenados
+          .map((c) => {
+            const id = Number(c.id || 0);
+            const obsTxt = String(c.observacaoAdm || "").trim();
+            const obsHtml = obsTxt
+              ? `<br><span class="hint">${escapeHtml(obsTxt)}</span>`
+              : "";
+            const ia = c.cadastroIa && typeof c.cadastroIa === "object" ? c.cadastroIa : null;
+            let iaHtml = "";
+            if (ia?.autenticidade) {
+              const a = ia.autenticidade;
+              const frente = a.cnhFrente?.pareceAutentico !== false ? "frente OK" : "frente revisar";
+              const verso = a.cnhVerso?.pareceAutentico !== false ? "verso OK" : "verso revisar";
+              const comp = a.comprovanteResidencia?.pareceAutentico !== false ? "comp. OK" : "comp. revisar";
+              iaHtml = `<br><span class="hint">IA (autenticidade heurística): ${escapeHtml(
+                `${frente}; ${verso}; ${comp}`
+              )}${ia.geo ? " · Geo capturada" : ""}</span>`;
+            }
+            return `<p><strong>${escapeHtml(String(c.nome || "Sem nome"))}</strong> | CPF: ${formatCpf(
+              c.cpf || ""
+            )} | CEP: ${escapeHtml(String(c.cep || "-"))} | Endereço: ${escapeHtml(
+              String(c.endereco || "-")
+            )}${obsHtml}${iaHtml}<br><button type="button" class="secondary" data-validacao-aprovar="${id}">Aprovar</button> <button type="button" class="secondary" data-validacao-reprovar="${id}">Reprovar</button></p>`;
+          })
+          .join("")
+      : "<p>Nenhum cadastro pendente de validação.</p>";
+  }
 
-  cadastroLocacaoLista.innerHTML = locacoes.length
-    ? locacoes
-        .slice(-10)
-        .reverse()
-        .map(
-          (l) =>
-            `<p><strong>CPF:</strong> ${formatCpf(l.cpf)} | <strong>Placa:</strong> ${l.placa} | <strong>Inicio:</strong> ${l.inicio}${l.fim ? ` | <strong>Fim:</strong> ${l.fim}` : ""}${l.valorSemanal ? ` | <strong>Valor:</strong> ${l.valorSemanal}` : ""}</p>`
-        )
-        .join("")
-    : "<p>Nenhuma locação cadastrada.</p>";
+  if (cadastroVeiculoLista) {
+    cadastroVeiculoLista.innerHTML = "";
+    cadastroVeiculoLista.classList.add("hidden");
+  }
 
-  cadastroManutencaoLista.innerHTML = manutencoes.length
-    ? manutencoes
-        .slice(-10)
-        .reverse()
-        .map(
-          (m) =>
-            `<p><strong>Placa:</strong> ${m.placa} | <strong>Data entrada:</strong> ${m.data || "Nao informado"} | <strong>Serviço:</strong> ${m.servico} | <strong>Prev. saída:</strong> ${m.dataPrevistaSaida || "Nao informado"}${m.dataRealSaida ? ` | <strong>Saída real:</strong> ${m.dataRealSaida}` : ""}${m.valor ? ` | <strong>Valor:</strong> ${m.valor}` : ""}</p>`
-        )
-        .join("")
-    : "<p>Nenhuma manutenção cadastrada.</p>";
+  if (cadastroLocacaoLista) {
+    cadastroLocacaoLista.innerHTML = locacoes.length
+      ? locacoes
+          .slice(-10)
+          .reverse()
+          .map(
+            (l) =>
+              `<p><strong>Protocolo:</strong> ${escapeHtml(String(l.numeroContrato || "").trim() || "—")} | <strong>Placa:</strong> ${l.placa} | <strong>CPF:</strong> ${formatCpf(l.cpf)}${
+                l.statusLocacao
+                  ? ` | <strong>Status:</strong> ${escapeHtml(
+                      normalizeStatusLocacaoExibicao(String(l.statusLocacao))
+                    )}`
+                  : ""
+              } | <strong>Inicio:</strong> ${l.inicio}${l.fim ? ` | <strong>Fim:</strong> ${l.fim}` : ""}${
+                l.valorSemanal ? ` | <strong>Valor semanal:</strong> ${l.valorSemanal}` : ""
+              }</p>`
+          )
+          .join("")
+      : "<p>Nenhuma locação cadastrada.</p>";
+  }
+
+  if (cadastroManutencaoLista) {
+    cadastroManutencaoLista.innerHTML = manutencoes.length
+      ? manutencoes
+          .slice(-10)
+          .reverse()
+          .map(
+            (m) =>
+              `<p><strong>Placa:</strong> ${m.placa} | <strong>Data entrada:</strong> ${m.data || "Nao informado"} | <strong>Serviço:</strong> ${m.servico} | <strong>Prev. saída:</strong> ${m.dataPrevistaSaida || "Nao informado"}${m.dataRealSaida ? ` | <strong>Saída real:</strong> ${m.dataRealSaida}` : ""}${m.valor ? ` | <strong>Valor:</strong> ${m.valor}` : ""}</p>`
+          )
+          .join("")
+      : "<p>Nenhuma manutenção cadastrada.</p>";
+  }
 
   if (cadastroLancamentoAluguelLista) {
     cadastroLancamentoAluguelLista.innerHTML = lancamentosAluguel.length
@@ -5081,13 +7890,17 @@ function currencyBRL(value) {
   });
 }
 
-function getSituacaoFinanceira(contrato) {
-  if (Number(contrato.valorPago) > Number(contrato.valorDevidoHoje)) {
-    return "Regular";
-  }
-  if (Number(contrato.valorPago) === Number(contrato.valorDevidoHoje)) {
-    return "Em dia";
-  }
+function getSituacaoFinanceira(contrato, opts = {}) {
+  const devido = parseCurrencyBR(contrato.valorDevidoHoje ?? contrato.devidoHoje);
+  const cpf = onlyDigits(String(opts.cpf ?? contrato.cpf ?? ""));
+  const placa = String(opts.placa ?? contrato.placa ?? contrato?.veiculo?.placa ?? "").trim();
+  const pagoBase = contrato.valorPago ?? contrato.pago;
+  const pago =
+    cpf.length === 11
+      ? totalPagoBarComLancamentosApp(cpf, placa, pagoBase)
+      : parseCurrencyBR(pagoBase);
+  if (pago > devido) return "Regular";
+  if (pago === devido) return "Em dia";
   return "Em atraso";
 }
 
@@ -5103,7 +7916,7 @@ function parseCurrencyBR(value) {
 }
 
 function getSituacaoFinanceiraAdmin(reg) {
-  const pago = parseCurrencyBR(reg.pago);
+  const pago = pagoHarmonizadoRegistro(reg);
   const devido = parseCurrencyBR(reg.devidoHoje);
   if (pago > devido) return "Regular";
   if (pago === devido) return "Em dia";
@@ -5161,12 +7974,35 @@ function isAtivoByFim(reg) {
   return !String(reg.fim || "").trim();
 }
 
+/** Última linha por placa em RECEITA_2026_DATA (espelho da planilha «dados de locação»). */
+function buildLatestReceita2026RowByPlateMap() {
+  const latestByPlate = new Map();
+  if (!receita2026Data.length) return latestByPlate;
+  receita2026Data.forEach((row) => {
+    const plate = getCorrectedPlate(row.placa);
+    if (!plate) return;
+    const inicio = Number(row.inicioSerial || 0);
+    const prev = latestByPlate.get(plate);
+    if (!prev || inicio >= prev.inicioSerial) {
+      latestByPlate.set(plate, { row, inicioSerial: inicio });
+    }
+  });
+  return latestByPlate;
+}
+
 function getActivePlatesSet() {
-  const locacoesAtivas = loadCadastro(CAD_LOCACOES_KEY)
+  const fromCadastro = loadCadastro(CAD_LOCACOES_KEY)
     .filter((l) => !String(l.fim || "").trim())
     .map((l) => normalizePlate(l.placa))
     .filter(Boolean);
-  return new Set(locacoesAtivas);
+  const plates = new Set(fromCadastro);
+
+  const latestByPlate = buildLatestReceita2026RowByPlateMap();
+  latestByPlate.forEach(({ row }, plate) => {
+    if (!String(row.fim || "").trim()) plates.add(plate);
+  });
+
+  return plates;
 }
 
 function getVehicleMapByPlate() {
@@ -5200,6 +8036,29 @@ function getLatestCadastroLocacaoByPlate(plateKey) {
   return byPlate[0] || null;
 }
 
+function getBestCadastroLocacaoForSnapshot(plateKey, sourceRecord) {
+  const locacoes = loadCadastro(CAD_LOCACOES_KEY)
+    .filter((l) => normalizePlate(l.placa) === plateKey)
+    .sort((a, b) => {
+      const byCreated = Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0);
+      if (byCreated !== 0) return byCreated;
+      const da = parseBrDate(a.inicio);
+      const db = parseBrDate(b.inicio);
+      return (db?.getTime() || 0) - (da?.getTime() || 0);
+    });
+  if (!locacoes.length) return null;
+
+  const cpfSource = onlyDigits(String(sourceRecord?.cpf || ""));
+  const ativas = locacoes.filter((l) => !String(l.fim || "").trim());
+  const base = ativas.length ? ativas : locacoes;
+
+  if (cpfSource.length === 11) {
+    const byCpf = base.find((l) => onlyDigits(String(l.cpf || "")) === cpfSource);
+    if (byCpf) return byCpf;
+  }
+  return base[0] || null;
+}
+
 function buildOperationalSnapshot() {
   const baseRecords = getAdminDataset();
   const activeSet = getActivePlatesSet();
@@ -5213,14 +8072,46 @@ function buildOperationalSnapshot() {
       .filter(Boolean)
   );
 
+  const latestReceitaByPlate = buildLatestReceita2026RowByPlateMap();
+
   const activeRecords = Array.from(activeSet).map((plateKey) => {
-    const source = pickBestRecordByPlate(baseRecords, plateKey) || {};
+    let source = pickBestRecordByPlate(baseRecords, plateKey) || {};
+    const r = latestReceitaByPlate.get(plateKey)?.row;
+    if (r) {
+      const cpfR = onlyDigits(String(r.cpf || ""));
+      const semSrc = Array.isArray(source.semanas) ? source.semanas : [];
+      const semR = Array.isArray(r.semanas) ? r.semanas : [];
+      source = {
+        ...source,
+        cpf: source.cpf || cpfR,
+        nome: source.nome || r.nome,
+        placa: source.placa || plateKey,
+        inicio: source.inicio || r.inicio,
+        inicioSerial:
+          source.inicioSerial != null && source.inicioSerial !== ""
+            ? source.inicioSerial
+            : r.inicioSerial,
+        fim: source.fim || r.fim,
+        valorSemanal: source.valorSemanal || r.valorSemanal,
+        devidoHoje: source.devidoHoje || r.devidoHoje,
+        pago: source.pago || r.pago,
+        dias: source.dias || r.dias,
+        q: source.q || r.q,
+        semanas: semSrc.length ? semSrc : semR,
+        semanasCompletas: source.semanasCompletas || r.semanasCompletas,
+      };
+    }
     const vehicle = vehicleMap.get(plateKey) || {};
-    const cadastroLocacao = getLatestCadastroLocacaoByPlate(plateKey);
-    const clienteCadastro = cadastroLocacao
-      ? findClienteByCpfCadastro(cadastroLocacao.cpf)
-      : null;
+    const cadastroLocacao = getBestCadastroLocacaoForSnapshot(plateKey, source);
+    const cpfResolved = onlyDigits(
+      String(cadastroLocacao?.cpf || source.cpf || "")
+    );
+    const clienteCadastro =
+      cpfResolved.length === 11 ? findClienteByCpfCadastro(cpfResolved) : null;
     const plateRaw = vehicle.placa || source.placa || plateKey;
+    const numeroContrato = String(
+      cadastroLocacao?.numeroContrato || source.numeroContrato || ""
+    ).trim();
     return withDynamicFinancialFields({
       cpf: cadastroLocacao?.cpf || source.cpf || "",
       nome:
@@ -5228,6 +8119,7 @@ function buildOperationalSnapshot() {
         source.nome ||
         "Nao informado",
       placa: plateRaw,
+      numeroContrato,
       inicio: cadastroLocacao?.inicio || source.inicio || "",
       inicioSerial: cadastroLocacao?.inicio ? null : source.inicioSerial ?? null,
       cadastroCriadoTs: Number(cadastroLocacao?.createdAt || cadastroLocacao?.id || 0),
@@ -5283,21 +8175,33 @@ function buildOperationalSnapshot() {
 }
 
 function getAdminDataset() {
-  if (!adminData.length) {
-    return mockClientes.map((c) => ({
-      nome: c.nome,
-      placa: c.contrato.veiculo.placa,
-      inicio: c.contrato.inicio,
-      fim: c.contrato.fim,
-      valorSemanal: c.contrato.valorLocacao,
-      devidoHoje: c.contrato.valorDevidoHoje,
-      pago: c.contrato.valorPago,
-      dias: c.contrato.dias,
+  const clientes = loadCadastro(CAD_CLIENTES_KEY);
+  const nomeByCpf = new Map(
+    clientes
+      .map((c) => [onlyDigits(String(c.cpf || "")), String(c.nome || "").trim()])
+      .filter(([cpf]) => cpf.length === 11)
+  );
+  const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+  return locacoes.map((l) =>
+    withDynamicFinancialFields({
+      cpf: onlyDigits(String(l.cpf || "")),
+      nome: nomeByCpf.get(onlyDigits(String(l.cpf || ""))) || "Nao informado",
+      placa: normalizePlate(String(l.placa || "")),
+      inicio: String(l.inicio || "").trim(),
+      fim: String(l.fim || "").trim(),
+      valorSemanal: String(l.valorSemanal || "").trim(),
+      devidoHoje: "",
+      pago: 0,
+      dias: "",
       q: 0,
       cor: 0,
-    }));
-  }
-  return adminData;
+      inicioSerial: null,
+      fimSerial: null,
+      semanas: [],
+      semanasCompletas: [],
+      numeroContrato: String(l.numeroContrato || "").trim(),
+    })
+  );
 }
 
 function getRecordsByScope(scope) {
@@ -5335,26 +8239,18 @@ function renderDashboard(cliente) {
   if (enforceMaintenanceAndDailyRoutines()) return;
   showLocadoraArea();
   adminCard.classList.add("hidden");
-  document.getElementById("clienteNome").textContent = cliente.nome;
-  document.getElementById("contratoNumero").textContent = cliente.contrato.numero;
-  document.getElementById("veiculoModelo").textContent = cliente.contrato.veiculo.modelo;
-  document.getElementById("veiculoCategoria").textContent = cliente.contrato.veiculo.categoria;
-  document.getElementById("veiculoPlaca").textContent = cliente.contrato.veiculo.placa;
-  document.getElementById("contratoInicio").textContent = cliente.contrato.inicio;
-  document.getElementById("contratoFim").textContent = cliente.contrato.fim;
-  document.getElementById("contratoStatus").textContent = `${cliente.contrato.status} | ${currencyBRL(cliente.contrato.valorLocacao)}`;
-  document.getElementById("valorSemanal").textContent = currencyBRL(cliente.contrato.valorLocacao);
-  document.getElementById("quantidadeDias").textContent = String(cliente.contrato.dias);
-  document.getElementById("valorDevidoHoje").textContent = currencyBRL(cliente.contrato.valorDevidoHoje);
-  document.getElementById("valorPago").textContent = currencyBRL(cliente.contrato.valorPago);
-  document.getElementById("situacaoFinanceira").textContent = getSituacaoFinanceira(cliente.contrato);
+  const msg = document.getElementById("dashboardClienteMsg");
+  if (msg) {
+    msg.textContent = `Olá, ${String(cliente?.nome || "cliente").trim() || "cliente"}.`;
+  }
 
   loginArea.classList.add("hidden");
   dashboardCard.classList.remove("hidden");
 }
 
 function renderAdminResult(title, htmlContent, options = {}) {
-  adminResultTitle.textContent = title;
+  if (adminResultTitle) adminResultTitle.textContent = title;
+  if (!adminResultBody) return;
   adminResultBody.innerHTML = `
     <div class="report-actions">
       <button type="button" class="secondary" data-report-export="excel" data-report-target="admin">Exportar Excel</button>
@@ -5928,14 +8824,207 @@ function buildContractMatchKey(placa, cpf, inicio, fim) {
   ].join("|");
 }
 
+function buildContractUniqueSignature(contract) {
+  const nc = normalizeNumeroContratoKey(contract?.numeroContrato || contract?.protocolo || "");
+  if (nc) return `NC|${nc}`;
+  return buildContractMatchKey(contract?.placa, contract?.cpf, contract?.inicio, contract?.fim);
+}
+
+function getRowValueByNormKey(row, candidates) {
+  if (!row || typeof row !== "object") return "";
+  const entries = Object.entries(row);
+  for (const wanted of candidates) {
+    const hit = entries.find(([k]) => normalizeKey(k) === normalizeKey(wanted));
+    if (hit) return String(hit[1] ?? "").trim();
+  }
+  return "";
+}
+
+/** Mapa placa → conjunto de protocolos existentes na planilha (API). */
+function buildXlsxProtocolsByPlateMap(xlsxRows) {
+  const map = new Map();
+  if (!Array.isArray(xlsxRows)) return map;
+  for (const row of xlsxRows) {
+    const pl = normalizePlate(getRowValueByNormKey(row, ["placa", "Placa"]));
+    if (!pl) continue;
+    const nc = normalizeNumeroContratoKey(
+      getRowValueByNormKey(row, ["protocolo", "Protocol", "Protocolo"])
+    );
+    if (!nc) continue;
+    if (!map.has(pl)) map.set(pl, new Set());
+    map.get(pl).add(nc);
+  }
+  return map;
+}
+
+function getXlsxProtocolSetForPlate(xlsxRows, plateRaw) {
+  const pl = normalizePlate(plateRaw);
+  if (!pl || !Array.isArray(xlsxRows)) return new Set();
+  return buildXlsxProtocolsByPlateMap(xlsxRows).get(pl) || new Set();
+}
+
+function getXlsxProtocolSetForCpf(xlsxRows, cpfDigits) {
+  const key = onlyDigits(String(cpfDigits || ""));
+  const set = new Set();
+  if (key.length !== 11 || !Array.isArray(xlsxRows)) return set;
+  for (const row of xlsxRows) {
+    if (onlyDigits(getRowValueByNormKey(row, ["cpf", "CPF"])) !== key) continue;
+    const nc = normalizeNumeroContratoKey(
+      getRowValueByNormKey(row, ["protocolo", "Protocol", "Protocolo"])
+    );
+    if (nc) set.add(nc);
+  }
+  return set;
+}
+
+/**
+ * Quando a planilha lista protocolos para a placa (ou CPF), descarta linhas só da base local
+ * cujo protocolo não existe na planilha (ex.: fallback AAAAMMDD gerado em relatório).
+ */
+function filterContratosPorPlanilhaSeDisponivel(contratos, xlsxProtocolSet) {
+  if (!Array.isArray(contratos) || !contratos.length) return contratos;
+  if (!(xlsxProtocolSet instanceof Set) || xlsxProtocolSet.size === 0) return contratos;
+  return contratos.filter((c) => {
+    const nc = normalizeNumeroContratoKey(c.numeroContrato || "");
+    return nc && xlsxProtocolSet.has(nc);
+  });
+}
+
+/** Se a placa existe na planilha com protocolos, o registro precisa bater com um deles. */
+function rowPermitidoPelaPlanilhaLocacao(placa, protocolo, xlsxByPlate) {
+  if (!(xlsxByPlate instanceof Map)) return true;
+  const pl = normalizePlate(placa);
+  const nc = normalizeNumeroContratoKey(protocolo || "");
+  const set = xlsxByPlate.get(pl);
+  if (!set || set.size === 0) return true;
+  return Boolean(nc && set.has(nc));
+}
+
+async function loadLocacoesXlsxApiRows() {
+  if (Array.isArray(locacoesXlsxApiCache)) return locacoesXlsxApiCache;
+  if (
+    typeof LOCACOES_PLANILHA_DATA !== "undefined" &&
+    Array.isArray(LOCACOES_PLANILHA_DATA) &&
+    LOCACOES_PLANILHA_DATA.length
+  ) {
+    locacoesXlsxApiCache = LOCACOES_PLANILHA_DATA;
+    return locacoesXlsxApiCache;
+  }
+  if (locacoesXlsxApiPromise) return locacoesXlsxApiPromise;
+  locacoesXlsxApiPromise = fetch("/api/locacoes-xlsx", { cache: "no-store" })
+    .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`))))
+    .then((payload) => {
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      locacoesXlsxApiCache = rows;
+      return rows;
+    })
+    .catch(() => {
+      locacoesXlsxApiCache = [];
+      return [];
+    })
+    .finally(() => {
+      locacoesXlsxApiPromise = null;
+    });
+  return locacoesXlsxApiPromise;
+}
+
+/**
+ * Relatório «Veículos locados»: uma linha por placa com contrato ATIVO na planilha embarcada.
+ * Se vários ATIVOs na mesma placa (inconsistência), mantém o de maior número de protocolo.
+ */
+function buildLocadosRowsFromPlanilhaEmbarcada(planilhaRows, veiculoByPlaca) {
+  if (!Array.isArray(planilhaRows) || !planilhaRows.length) return [];
+  const ativos = planilhaRows.filter((r) => {
+    const st = normalizeKey(String(r.Status ?? r.status ?? "").trim());
+    return st === "ATIVO";
+  });
+  if (!ativos.length) return [];
+  const byPlate = new Map();
+  ativos.forEach((r) => {
+    const placa = normalizePlate(String(r.Placa ?? r.placa ?? ""));
+    if (!placa) return;
+    const prot = normalizeNumeroContratoKey(String(r.Protocolo ?? r.protocolo ?? "").trim());
+    const cur = byPlate.get(placa);
+    if (!cur) {
+      byPlate.set(placa, r);
+      return;
+    }
+    const curProt = normalizeNumeroContratoKey(String(cur.Protocolo ?? "").trim());
+    if (prot && (!curProt || prot.localeCompare(curProt, undefined, { numeric: true }) > 0)) {
+      byPlate.set(placa, r);
+    }
+  });
+  const rows = [];
+  byPlate.forEach((r, placaKey) => {
+    const cpfRaw = getRowValueByNormKey(r, ["cpf", "CPF"]);
+    const cpfDig = onlyDigits(cpfRaw);
+    const nomeCli =
+      String(getRowValueByNormKey(r, ["Cliente", "cliente"]) || "").trim() || "Nao informado";
+    const contato = getContatoByCpfOrNome(cpfRaw, nomeCli);
+    const telefones = splitTelefones(contato);
+    const cad = veiculoByPlaca.get(placaKey);
+    const inicioRaw = String(
+      getRowValueByNormKey(r, ["Data Inicio", "Inicio", "Início"]) || ""
+    ).trim();
+    const inicioTail = inicioRaw.includes(",") ? inicioRaw.split(",").pop().trim() : inicioRaw;
+    const inicioDate = parseBrDate(inicioTail) || parseBrDate(inicioRaw);
+    const valorRaw =
+      String(
+        getRowValueByNormKey(r, ["Locação", "Locacao", "Valor da Parcela"]) || ""
+      ).trim() || "";
+    const protocolo =
+      normalizeNumeroContratoKey(String(r.Protocolo ?? r.protocolo ?? "").trim()) || "-";
+    rows.push({
+      protocolo,
+      placa: placaKey,
+      modelo: cad?.modelo || findModeloByPlaca(placaKey),
+      cliente: nomeCli,
+      cpfDigits: cpfDig,
+      valorLocacao: valorRaw,
+      inicioLocacao: inicioRaw || "",
+      cadastroCriadoTs: 0,
+      inicioTs: inicioDate?.getTime?.() || 0,
+      ...telefones,
+    });
+  });
+  return rows;
+}
+
 function mergeContractsForPlaca(placaRaw) {
   const plateKey = normalizePlate(placaRaw);
   if (!plateKey) return [];
+  const fromCache = Array.isArray(relatorioLocacaoCache?.rows)
+    ? relatorioLocacaoCache.rows
+        .filter((r) => normalizePlate(String(r?.placa || "")) === plateKey)
+        .map((r) => ({
+          cpf: onlyDigits(String(r.cpf || "")),
+          nome: String(r.cliente || "").trim(),
+          placa: plateKey,
+          numeroContrato: normalizeNumeroContratoKey(r.protocolo || r.numeroContrato || ""),
+          inicio: String(r.inicioLocacao || r.dataInicio || "").trim(),
+          inicioSerial: null,
+          fim:
+            String(r.dataFim || "").trim() && String(r.dataFim || "").trim() !== "..."
+              ? String(r.dataFim || "").trim()
+              : "",
+          fimSerial: null,
+          valorSemanal: String(r.valorLocacao || "").trim(),
+          pago: "",
+          devidoHoje: "",
+          q: "",
+          semanas: [],
+          semanasCompletas: [],
+        }))
+    : [];
+  const snapshot = buildOperationalSnapshot();
+  const fromSnapshot = [...snapshot.activeRecords, ...snapshot.inactiveRecords].filter(
+    (r) => normalizePlate(r.placa) === plateKey
+  );
   const fromAdmin = getAdminDataset().filter(
     (r) => normalizePlate(r.placa) === plateKey
   );
   const adminByKey = new Map();
-  fromAdmin.forEach((r) => {
+  [...fromSnapshot, ...fromAdmin].forEach((r) => {
     adminByKey.set(buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim), r);
   });
   const locs = loadCadastro(CAD_LOCACOES_KEY).filter(
@@ -5951,6 +9040,7 @@ function mergeContractsForPlaca(placaRaw) {
       cpf: cpfLoc || l.cpf || "",
       nome: String(cli?.nome || "").trim(),
       placa: l.placa || plateKey,
+      numeroContrato: String(l.numeroContrato || "").trim(),
       inicio: l.inicio || "",
       inicioSerial: matched?.inicioSerial ?? null,
       fim: l.fim || "",
@@ -5964,15 +9054,25 @@ function mergeContractsForPlaca(placaRaw) {
     };
   });
 
-  const merged = [...fromAdmin, ...extra];
-  const seen = new Set();
-  const out = [];
+  const merged = [...fromCache, ...fromSnapshot, ...fromAdmin, ...extra];
+  const byBase = new Map();
   merged.forEach((r) => {
-    const sig = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
-    if (seen.has(sig)) return;
-    seen.add(sig);
-    out.push(r);
+    const baseKey = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
+    const currentNc = normalizeNumeroContratoKey(r.numeroContrato || r.protocolo || "");
+    if (!byBase.has(baseKey)) {
+      byBase.set(baseKey, { ...r, numeroContrato: currentNc || String(r.numeroContrato || "") });
+      return;
+    }
+    const prev = byBase.get(baseKey);
+    const prevNc = normalizeNumeroContratoKey(prev.numeroContrato || prev.protocolo || "");
+    const mergedRow = {
+      ...prev,
+      ...r,
+      numeroContrato: prevNc || currentNc || String(prev.numeroContrato || r.numeroContrato || ""),
+    };
+    byBase.set(baseKey, mergedRow);
   });
+  const out = Array.from(byBase.values());
 
   return out.sort((a, b) => {
     const da = parseRecordStartDate(a)?.getTime() || 0;
@@ -5991,13 +9091,108 @@ function calcContratoDias(contrato) {
   return Math.max(1, diffDays(ini, fimDate));
 }
 
-function openPlacaHistoricoDialog(placaRaw) {
+async function openPlacaHistoricoDialog(placaRaw) {
   if (!placaHistoricoDialog || !placaHistoricoBody) return;
   const plate = normalizePlate(placaRaw);
   if (!plate) return;
+  const xlsxRows = await loadLocacoesXlsxApiRows();
+  const fromXlsx = xlsxRows
+    .filter((row) => normalizePlate(getRowValueByNormKey(row, ["placa", "Placa"])) === plate)
+    .map((row) => ({
+      cpf: onlyDigits(getRowValueByNormKey(row, ["cpf", "CPF"])),
+      nome: getRowValueByNormKey(row, ["cliente", "Cliente"]),
+      placa: plate,
+      numeroContrato: normalizeNumeroContratoKey(getRowValueByNormKey(row, ["protocolo", "Protocol", "Protocolo"])),
+      inicio: getRowValueByNormKey(row, ["Data Inicio", "Inicio", "Início"]),
+      inicioSerial: null,
+      fim: (() => {
+        const v = getRowValueByNormKey(row, ["Data Fim", "Fim"]);
+        if (v === "..." || normalizeKey(v) === "ATIVO") return "";
+        return v;
+      })(),
+      fimSerial: null,
+      valorSemanal:
+        getRowValueByNormKey(row, ["Valor da Parcela"]) ||
+        getRowValueByNormKey(row, ["Locacao", "Locação"]) ||
+        "",
+      statusLocacao: normalizeStatusLocacaoExibicao(getRowValueByNormKey(row, ["Status"])),
+      pago: "",
+      devidoHoje: "",
+      q: "",
+      semanas: [],
+      semanasCompletas: [],
+    }));
 
-  const contratos = mergeContractsForPlaca(plate);
+  const contratosRaw = [...fromXlsx, ...mergeContractsForPlaca(plate)];
+  const canonicalInicioKey = (c) => {
+    const d = inferStartDateForContrato(c);
+    if (d) return formatDataDmaBr(d);
+    return normalizeKey(String(c?.inicio || ""));
+  };
+  const contratoByBase = new Map();
+  contratosRaw.forEach((c) => {
+    const baseKey = [
+      normalizePlate(c.placa),
+      onlyDigits(String(c.cpf || "")),
+      canonicalInicioKey(c),
+    ].join("|");
+    const current = contratoByBase.get(baseKey);
+    const currNc = normalizeNumeroContratoKey(c.numeroContrato || "");
+    if (!current) {
+      contratoByBase.set(baseKey, c);
+      return;
+    }
+    const prevNc = normalizeNumeroContratoKey(current.numeroContrato || "");
+    // Para mesma base (placa+cpf+inicio), mantém o registro com protocolo válido.
+    if (!prevNc && currNc) {
+      contratoByBase.set(baseKey, c);
+      return;
+    }
+    // Se ambos têm (ou ambos não têm) protocolo, mantém o mais completo.
+    const prevScore = Number(Boolean(current.fim)) + Number(Boolean(current.valorSemanal));
+    const currScore = Number(Boolean(c.fim)) + Number(Boolean(c.valorSemanal));
+    if (currScore > prevScore) {
+      contratoByBase.set(baseKey, c);
+    }
+  });
+  let contratos = Array.from(contratoByBase.values());
+  const ativosComProtocoloKeys = new Set(
+    contratos
+      .filter((c) => !String(c.fim || "").trim() && normalizeNumeroContratoKey(c.numeroContrato || ""))
+      .map((c) => `${normalizePlate(c.placa)}|${onlyDigits(String(c.cpf || ""))}`)
+  );
+  contratos = contratos.filter((c) => {
+    const nc = normalizeNumeroContratoKey(c.numeroContrato || "");
+    if (nc) return true;
+    if (String(c.fim || "").trim()) return true;
+    const keyCpfPlaca = `${normalizePlate(c.placa)}|${onlyDigits(String(c.cpf || ""))}`;
+    return !ativosComProtocoloKeys.has(keyCpfPlaca);
+  });
+  const xlsxProtoSetPlaca = getXlsxProtocolSetForPlate(xlsxRows, plate);
+  contratos = filterContratosPorPlanilhaSeDisponivel(contratos, xlsxProtoSetPlaca);
   const modelo = findModeloByPlaca(plate);
+  const protocolosUnicos = new Set(
+    contratos
+      .map((c) => normalizeNumeroContratoKey(c.numeroContrato || ""))
+      .filter(Boolean)
+  );
+  const contratoAtivo = contratos.find((c) => !String(c.fim || "").trim());
+  const protocoloAtivoContrato = normalizeNumeroContratoKey(contratoAtivo?.numeroContrato || "");
+  const ativosCachePlaca = Array.isArray(relatorioLocacaoCache?.rows)
+    ? relatorioLocacaoCache.rows
+        .filter(
+          (r) =>
+            normalizePlate(String(r?.placa || "")) === plate &&
+            normalizeKey(String(r?.status || "")).includes("ATIVO")
+        )
+        .map((r) => normalizeNumeroContratoKey(r.protocolo || r.numeroContrato || ""))
+        .filter(Boolean)
+    : [];
+  const protocoloAtivoCache = ativosCachePlaca.length
+    ? ativosCachePlaca.sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))[0]
+    : "";
+  const protocoloAtivoDisplay = protocoloAtivoContrato || protocoloAtivoCache || "";
+  const protocolosCountDisplay = protocolosUnicos.size || (protocoloAtivoDisplay ? 1 : 0);
   if (!contratos.length) {
     placaHistoricoBody.innerHTML = `<p><strong>Placa:</strong> ${escapeHtml(
       plate
@@ -6008,7 +9203,30 @@ function openPlacaHistoricoDialog(placaRaw) {
     return;
   }
 
+  // Regra operacional: apenas 1 protocolo ativo por placa.
+  const fallbackAtivo = contratos
+    .slice()
+    .sort((a, b) => {
+      const da = parseRecordStartDate(a)?.getTime() || 0;
+      const db = parseRecordStartDate(b)?.getTime() || 0;
+      return db - da;
+    })
+    .find((c) => normalizeNumeroContratoKey(c.numeroContrato || ""));
+  const protocoloAtivoFinal = protocoloAtivoDisplay || normalizeNumeroContratoKey(fallbackAtivo?.numeroContrato || "");
+
   const rows = contratos
+    .slice()
+    .sort((a, b) => {
+      const pa = normalizeNumeroContratoKey(a.numeroContrato || "");
+      const pb = normalizeNumeroContratoKey(b.numeroContrato || "");
+      if (protocoloAtivoFinal) {
+        if (pa === protocoloAtivoFinal && pb !== protocoloAtivoFinal) return -1;
+        if (pb === protocoloAtivoFinal && pa !== protocoloAtivoFinal) return 1;
+      }
+      const da = parseRecordStartDate(a)?.getTime() || 0;
+      const db = parseRecordStartDate(b)?.getTime() || 0;
+      return db - da;
+    })
     .map((c, idx) => {
       const cpf = onlyDigits(String(c.cpf || ""));
       const nome =
@@ -6019,8 +9237,15 @@ function openPlacaHistoricoDialog(placaRaw) {
       const fim = formatContratoFimClienteVida(c);
       const dias = calcContratoDias(c);
       const diasTxt = dias == null ? "-" : `${dias} dia${dias === 1 ? "" : "s"}`;
+      const protocolo = normalizeNumeroContratoKey(c.numeroContrato || "") || "-";
+      const statusLinha =
+        protocoloAtivoFinal && protocolo === protocoloAtivoFinal
+          ? "ATIVO"
+          : "FINALIZADO";
       return `<tr>
         <td>${idx + 1}o</td>
+        <td>${escapeHtml(protocolo)}</td>
+        <td>${escapeHtml(statusLinha)}</td>
         <td>${escapeHtml(nome)}</td>
         <td>${escapeHtml(inicio)}</td>
         <td>${escapeHtml(fim)}</td>
@@ -6032,11 +9257,23 @@ function openPlacaHistoricoDialog(placaRaw) {
   placaHistoricoBody.innerHTML = `
     <p><strong>Placa:</strong> ${escapeHtml(plate)}</p>
     <p><strong>Modelo:</strong> ${escapeHtml(modelo)}</p>
+    <p><strong>Protocolos desta placa:</strong> ${protocolosCountDisplay} | <strong>Registros:</strong> ${contratos.length}${
+      protocoloAtivoFinal ? ` | <strong>Protocolo ativo:</strong> ${escapeHtml(protocoloAtivoFinal)}` : ""
+    }</p>
+    ${
+      protocolosCountDisplay === 1 && protocoloAtivoFinal
+        ? `<p class="hint">Esta placa tem apenas 1 protocolo até a presente data: <strong>${escapeHtml(
+            protocoloAtivoFinal
+          )}</strong>.</p>`
+        : ""
+    }
     <div class="table-wrap">
       <table class="relatorio-table cliente-vida-table">
         <thead>
           <tr>
             <th>Ordem</th>
+            <th>Protocolo</th>
+            <th>Status</th>
             <th>Cliente</th>
             <th>Inicio</th>
             <th>Fim</th>
@@ -6053,9 +9290,36 @@ function openPlacaHistoricoDialog(placaRaw) {
 function mergeContractsForCliente(cpfDigits) {
   const key = onlyDigits(String(cpfDigits || ""));
   if (key.length !== 11) return [];
+  const fromCache = Array.isArray(relatorioLocacaoCache?.rows)
+    ? relatorioLocacaoCache.rows
+        .filter((r) => onlyDigits(String(r?.cpf || "")) === key)
+        .map((r) => ({
+          cpf: key,
+          nome: String(r.cliente || "").trim(),
+          placa: normalizePlate(String(r.placa || "")),
+          numeroContrato: normalizeNumeroContratoKey(r.protocolo || r.numeroContrato || ""),
+          inicio: String(r.inicioLocacao || r.dataInicio || "").trim(),
+          inicioSerial: null,
+          fim:
+            String(r.dataFim || "").trim() && String(r.dataFim || "").trim() !== "..."
+              ? String(r.dataFim || "").trim()
+              : "",
+          fimSerial: null,
+          valorSemanal: String(r.valorLocacao || "").trim(),
+          pago: "",
+          devidoHoje: "",
+          q: "",
+          semanas: [],
+          semanasCompletas: [],
+        }))
+    : [];
+  const snapshot = buildOperationalSnapshot();
+  const fromSnapshot = [...snapshot.activeRecords, ...snapshot.inactiveRecords].filter(
+    (r) => onlyDigits(String(r.cpf || "")) === key
+  );
   const fromAdmin = getAdminDataset().filter((r) => onlyDigits(String(r.cpf || "")) === key);
   const adminByKey = new Map();
-  fromAdmin.forEach((r) => {
+  [...fromSnapshot, ...fromAdmin].forEach((r) => {
     adminByKey.set(buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim), r);
   });
   const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === key);
@@ -6066,6 +9330,7 @@ function mergeContractsForCliente(cpfDigits) {
       cpf: l.cpf,
       nome: String(cli?.nome || "").trim(),
       placa: l.placa,
+      numeroContrato: String(l.numeroContrato || "").trim(),
       inicio: l.inicio,
       inicioSerial: matched?.inicioSerial ?? null,
       fim: l.fim || "",
@@ -6078,15 +9343,25 @@ function mergeContractsForCliente(cpfDigits) {
       semanasCompletas: [],
     };
   });
-  const merged = [...fromAdmin, ...extra];
-  const seen = new Set();
-  const out = [];
+  const merged = [...fromCache, ...fromSnapshot, ...fromAdmin, ...extra];
+  const byBase = new Map();
   merged.forEach((r) => {
-    const sig = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
-    if (seen.has(sig)) return;
-    seen.add(sig);
-    out.push(r);
+    const baseKey = buildContractMatchKey(r.placa, r.cpf, r.inicio, r.fim);
+    const currentNc = normalizeNumeroContratoKey(r.numeroContrato || r.protocolo || "");
+    if (!byBase.has(baseKey)) {
+      byBase.set(baseKey, { ...r, numeroContrato: currentNc || String(r.numeroContrato || "") });
+      return;
+    }
+    const prev = byBase.get(baseKey);
+    const prevNc = normalizeNumeroContratoKey(prev.numeroContrato || prev.protocolo || "");
+    const mergedRow = {
+      ...prev,
+      ...r,
+      numeroContrato: prevNc || currentNc || String(prev.numeroContrato || r.numeroContrato || ""),
+    };
+    byBase.set(baseKey, mergedRow);
   });
+  const out = Array.from(byBase.values());
   return out.sort((a, b) => {
     const da = parseRecordStartDate(a)?.getTime() || 0;
     const db = parseRecordStartDate(b)?.getTime() || 0;
@@ -6287,7 +9562,7 @@ function avaliarRegularidadeCliente(contratos) {
   }
   const dyn = withDynamicFinancialFields(ref);
   const devido = parseCurrencyBR(dyn.devidoHoje);
-  const pago = parseCurrencyBR(ref.pago);
+  const pago = pagoHarmonizadoRegistro(ref);
   if (!(devido > 0)) {
     return { texto: "Regular (sem valor devido calculado na base).", ok: true };
   }
@@ -6297,11 +9572,19 @@ function avaliarRegularidadeCliente(contratos) {
   return { texto: "NAO REGULAR: valor pago abaixo do devido até a data de referência.", ok: false };
 }
 
-function openClienteVidaDialog(cpfDigits) {
+async function openClienteVidaDialog(cpfDigits) {
   if (!clienteVidaDialog || !clienteVidaBody) return;
   const key = onlyDigits(String(cpfDigits || ""));
   if (key.length !== 11) return;
-  const contratos = mergeContractsForCliente(key);
+  let contratos = mergeContractsForCliente(key);
+  const xlsxRowsCliente = await loadLocacoesXlsxApiRows();
+  const xlsxProtoSetCpf = getXlsxProtocolSetForCpf(xlsxRowsCliente, key);
+  contratos = filterContratosPorPlanilhaSeDisponivel(contratos, xlsxProtoSetCpf);
+  const protocolosUnicos = new Set(
+    contratos
+      .map((c) => normalizeNumeroContratoKey(c.numeroContrato || ""))
+      .filter(Boolean)
+  );
   if (!contratos.length) {
     clienteVidaBody.innerHTML = `<p>Nenhum contrato encontrado para o CPF <strong>${formatCpf(
       key
@@ -6326,7 +9609,7 @@ function openClienteVidaDialog(cpfDigits) {
       const modelo = findModeloByPlaca(placa);
       const ini = formatContratoInicioClienteVida(c);
       const fim = formatContratoFimClienteVida(c);
-      const pago = parseCurrencyBR(c.pago);
+      const pago = pagoHarmonizadoRegistro(c);
       const vs = parseCurrencyBR(c.valorSemanal);
       const dyn = withDynamicFinancialFields(c);
       const dev = parseCurrencyBR(dyn.devidoHoje);
@@ -6369,6 +9652,7 @@ function openClienteVidaDialog(cpfDigits) {
   </section>`;
   clienteVidaBody.innerHTML = `
     <p><strong>${escapeHtml(nome)}</strong> — CPF <strong>${formatCpf(key)}</strong></p>
+    <p><strong>Protocolos deste cliente:</strong> ${protocolosUnicos.size} | <strong>Registros:</strong> ${contratos.length}</p>
     <p><strong>Avaliação de pagamentos:</strong> ${escapeHtml(aval.texto)}</p>
     <p class="cliente-vida-datas-nota">Datas em <strong>dia/mês/ano</strong> (DD/MM/AAAA) para facilitar a leitura na virada do ano.</p>
     ${ativoHtml}
@@ -6415,7 +9699,7 @@ function buildGroupedFinanceRows(records, mode) {
     }
     const group = groups.get(key);
     group.due += parseCurrencyBR(r.devidoHoje);
-    group.paid += parseCurrencyBR(r.pago);
+    group.paid += pagoHarmonizadoRegistro(r);
     group.contracts.push(r);
   });
 
@@ -6989,6 +10273,35 @@ function renderReceitaBarLineChartFromSeries(targetId, series) {
   `;
 }
 
+/** Abre cadastro cliente/veículo quando o portal (ou link) envia #operacao-cliente | #operacao-veiculo. */
+function readPendingOperacaoTab() {
+  const raw = window.location.hash.slice(1);
+  if (raw === "operacao-cliente") {
+    try {
+      sessionStorage.removeItem("dk_operacao_open");
+    } catch {
+      /* ignore */
+    }
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    return "cliente";
+  }
+  if (raw === "operacao-veiculo") {
+    try {
+      sessionStorage.removeItem("dk_operacao_open");
+    } catch {
+      /* ignore */
+    }
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    return "veiculo";
+  }
+  const tab = sessionStorage.getItem("dk_operacao_open");
+  if (tab === "cliente" || tab === "veiculo") {
+    sessionStorage.removeItem("dk_operacao_open");
+    return tab;
+  }
+  return null;
+}
+
 function renderAdminDashboard() {
   if (enforceMaintenanceAndDailyRoutines()) return;
   const session = getSession();
@@ -6997,21 +10310,350 @@ function renderAdminDashboard() {
   dashboardCard.classList.add("hidden");
   loginArea.classList.add("hidden");
   adminCard.classList.remove("hidden");
-  adminNavInformacao.classList.toggle("hidden", !isOwner);
+  if (adminNavInformacao) adminNavInformacao.classList.toggle("hidden", !isOwner);
   adminNavDados.classList.toggle("hidden", !isOwner);
+  if (adminDadosMenu) adminDadosMenu.classList.toggle("hidden", !isOwner);
   operacaoTargetButtons.forEach((button) => {
     const buttonTarget = String(button.dataset.target || "");
     button.classList.toggle("hidden", !canAccessOperacaoTarget(buttonTarget));
   });
+  setLayoutEditorsAccessByProfile();
   setAdminSection("operacao");
-  setOperacaoSubsection(operacaoAbaAtual || "cliente");
-  setInformacaoScope("todos");
+  const deepTab = readPendingOperacaoTab();
+  setOperacaoSubsection(deepTab || operacaoAbaAtual || "cliente");
   currentAdminReportSaldo = getGlobalSaldoTotal();
   renderCadastros();
   renderAdminResult(
-    "Selecione uma consulta por grupo",
-    "<p>Abra Informação no menu lateral e escolha Clientes Ativos ou Clientes Inativos.</p>"
+    "Cadastros",
+    "<p>Use <strong>Cadastro cliente</strong> ou <strong>Cadastro veículo</strong> no menu. Locação, contratos e financeiro não estão disponíveis nesta versão.</p>"
   );
+}
+
+function getClienteAreaPublicUrl() {
+  const url = new URL(window.location.href);
+  url.hash = "cadastro-ia";
+  return url.toString();
+}
+
+function refreshClienteAreaQrCode() {
+  const targetUrl = getClienteAreaPublicUrl();
+  const mkSrc = (size) =>
+    `https://api.qrserver.com/v1/create-qr-code/?size=${size}&data=${encodeURIComponent(targetUrl)}`;
+  if (clienteAreaQrImg) clienteAreaQrImg.src = mkSrc("280x280");
+  const landingQr = document.getElementById("landingClienteQrImg");
+  if (landingQr) landingQr.src = mkSrc("220x220");
+}
+
+function fileToBase64Cliente(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = String(reader.result || "");
+      const m = res.match(/^data:([^;]+);base64,(.+)$/);
+      if (!m) {
+        reject(new Error("Leitura da imagem falhou."));
+        return;
+      }
+      resolve({ mime: m[1], base64: m[2] });
+    };
+    reader.onerror = () => reject(new Error("Arquivo inválido."));
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Reduz fotos do celular (muitos MP) para não estourar limite da API e evitar travamentos. */
+function loadImageElementFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível abrir a imagem."));
+    };
+    img.src = url;
+  });
+}
+
+async function prepareImageForCadastroIa(file) {
+  const MAX_LONG_EDGE = 1600;
+  const JPEG_QUALITY = 0.82;
+  if (!file || !String(file.type || "").startsWith("image/")) {
+    return fileToBase64Cliente(file);
+  }
+  try {
+    const img = await loadImageElementFromFile(file);
+    const w0 = img.naturalWidth || img.width;
+    const h0 = img.naturalHeight || img.height;
+    if (!w0 || !h0) return fileToBase64Cliente(file);
+    const scale = Math.min(1, MAX_LONG_EDGE / Math.max(w0, h0));
+    const tw = Math.max(1, Math.round(w0 * scale));
+    const th = Math.max(1, Math.round(h0 * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = tw;
+    canvas.height = th;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return fileToBase64Cliente(file);
+    ctx.drawImage(img, 0, 0, tw, th);
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob((b) => resolve(b), "image/jpeg", JPEG_QUALITY);
+    });
+    if (!blob) return fileToBase64Cliente(file);
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const res = String(reader.result || "");
+        const m = res.match(/^data:([^;]+);base64,(.+)$/);
+        if (!m) {
+          reject(new Error("Compressão da foto falhou."));
+          return;
+        }
+        resolve({ mime: "image/jpeg", base64: m[2] });
+      };
+      reader.onerror = () => reject(new Error("Leitura da foto comprimida falhou."));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return fileToBase64Cliente(file);
+  }
+}
+
+function humanizeCadastroIaCatch(err) {
+  const msg = String(err?.message || err || "");
+  if (!msg || msg === "[object Object]") return "Erro ao processar. Tente de novo.";
+  if (/Failed to fetch|NetworkError|Load failed|fetch/i.test(msg)) {
+    return "Sem conexão estável ou requisição bloqueada. Use Wi‑Fi, confira os dados móveis ou tente outro navegador.";
+  }
+  return msg.length > 380 ? `${msg.slice(0, 380)}…` : msg;
+}
+
+function mergeObservacoesAdmCadastroIa(parsed) {
+  const padraoTitular = "TITULAR DO COMPROVANTE DE RESIDENCIA DIFERENTE DO TITULAR DA HABILITAÇAO";
+  const lines = [];
+  if (parsed && Array.isArray(parsed.observacoesAdm)) {
+    parsed.observacoesAdm.forEach((x) => {
+      const s = String(x || "").trim();
+      if (s) lines.push(s);
+    });
+  }
+  if (parsed && parsed.titularComprovanteDiferenteDaCnh) {
+    const has = lines.some(
+      (l) =>
+        l.toUpperCase().includes("COMPROVANTE") && l.toUpperCase().includes("HABILITA")
+    );
+    if (!has) lines.push(padraoTitular);
+  }
+  return lines.filter(Boolean).join(" | ");
+}
+
+function buildCadastroIaMeta(parsed, geo) {
+  return {
+    geo: geo || null,
+    processadoEm: Date.now(),
+    autenticidade: parsed?.autenticidade || null,
+    titularComprovanteDiferenteDaCnh: Boolean(parsed?.titularComprovanteDiferenteDaCnh),
+    nomeTitularComprovante: String(parsed?.nomeTitularComprovanteResidencia || "").trim() || null,
+  };
+}
+
+function applyCadastroIaResultToPublicForm(parsed, geo) {
+  const obs = mergeObservacoesAdmCadastroIa(parsed);
+  if (clientePublicoCadastroForm) {
+    clientePublicoCadastroForm.dataset.cadastroIaMeta = JSON.stringify({
+      ...buildCadastroIaMeta(parsed, geo),
+      observacaoAdm: obs || "",
+      resultadoBruto: parsed,
+    });
+  }
+  const cpf = onlyDigits(String(parsed?.cpf || ""));
+  if (publicCadClienteCpf) publicCadClienteCpf.value = cpf.length === 11 ? formatCpf(cpf) : "";
+  if (publicCadClienteNome) publicCadClienteNome.value = String(parsed?.nomeCompletoCnh || "").trim();
+  if (publicCadClienteCnh) publicCadClienteCnh.value = onlyDigits(String(parsed?.numeroRegistroCnh || "")).slice(0, 20);
+  if (publicCadClienteCategoria) publicCadClienteCategoria.value = String(parsed?.categoriaCnh || "").trim().slice(0, 16);
+  if (publicCadClienteVencimento) publicCadClienteVencimento.value = String(parsed?.validadeCnh || "").trim().slice(0, 10);
+  if (publicCadClienteDataCadastro) publicCadClienteDataCadastro.value = todayBrDate();
+  const cepDigits = onlyDigits(String(parsed?.cep || ""));
+  if (publicCadClienteCep && cepDigits.length === 8) {
+    publicCadClienteCep.value = formatCepMask(cepDigits);
+    void buscarEnderecoPublicoPorCep(true);
+  }
+  const endL = String(parsed?.enderecoLinha1 || "").trim();
+  if (endL && publicCadClienteEndereco && !String(publicCadClienteEndereco.value || "").trim()) {
+    publicCadClienteEndereco.value = endL.slice(0, 120);
+  }
+  const cidadeUf = String(parsed?.cidadeUf || "").trim();
+  if (cidadeUf && publicCadClienteMunicipioUf && !String(publicCadClienteMunicipioUf.value || "").trim()) {
+    publicCadClienteMunicipioUf.value = cidadeUf.slice(0, 60);
+  }
+  setPublicClienteEnderecoConfirmado(false);
+}
+
+function applyCadastroIaResultToStaffForm(parsed, geo) {
+  const obs = mergeObservacoesAdmCadastroIa(parsed);
+  if (clienteCadastroForm) {
+    clienteCadastroForm.dataset.cadastroIaMeta = JSON.stringify({
+      ...buildCadastroIaMeta(parsed, geo),
+      observacaoAdm: obs || "",
+      resultadoBruto: parsed,
+    });
+  }
+  const cpf = onlyDigits(String(parsed?.cpf || ""));
+  if (cadClienteCpfInput) cadClienteCpfInput.value = cpf.length === 11 ? formatCpf(cpf) : "";
+  const nomeEl = document.getElementById("cadClienteNome");
+  if (nomeEl) nomeEl.value = String(parsed?.nomeCompletoCnh || "").trim();
+  if (cadClienteCnhInput) cadClienteCnhInput.value = onlyDigits(String(parsed?.numeroRegistroCnh || "")).slice(0, 20);
+  const catEl = document.getElementById("cadClienteCategoria");
+  if (catEl) catEl.value = String(parsed?.categoriaCnh || "").trim().slice(0, 16);
+  const venEl = document.getElementById("cadClienteVencimento");
+  if (venEl) venEl.value = String(parsed?.validadeCnh || "").trim().slice(0, 10);
+  const dataCadEl = document.getElementById("cadClienteDataCadastro");
+  if (dataCadEl) dataCadEl.value = todayBrDate();
+  const cepDigits = onlyDigits(String(parsed?.cep || ""));
+  if (cadClienteCepInput && cepDigits.length === 8) {
+    cadClienteCepInput.value = formatCepMask(cepDigits);
+    void buscarEnderecoClientePorCep(true);
+  }
+  const endL = String(parsed?.enderecoLinha1 || "").trim();
+  if (endL && cadClienteEnderecoInput && !String(cadClienteEnderecoInput.value || "").trim()) {
+    cadClienteEnderecoInput.value = endL.slice(0, 120);
+  }
+  const cidadeUf = String(parsed?.cidadeUf || "").trim();
+  if (cidadeUf && cadClienteMunicipioUfInput && !String(cadClienteMunicipioUfInput.value || "").trim()) {
+    cadClienteMunicipioUfInput.value = cidadeUf.slice(0, 60);
+  }
+  invalidateClienteEnderecoConfirmacao();
+  const cpfOnly = onlyDigits(String(cadClienteCpfInput?.value || ""));
+  if (cpfOnly.length === 11) refreshClienteCodigoByCpf(cpfOnly);
+}
+
+function parseCadastroIaPayloadFromForm(formEl) {
+  if (!formEl) return { observacaoAdm: "", cadastroIa: null };
+  try {
+    const raw = formEl.dataset.cadastroIaMeta;
+    if (!raw) return { observacaoAdm: "", cadastroIa: null };
+    const o = JSON.parse(raw);
+    return {
+      observacaoAdm: String(o.observacaoAdm || "").trim(),
+      cadastroIa: {
+        geo: o.geo || null,
+        processadoEm: o.processadoEm,
+        autenticidade: o.autenticidade || null,
+        titularComprovanteDiferenteDaCnh: Boolean(o.titularComprovanteDiferenteDaCnh),
+        nomeTitularComprovante: o.nomeTitularComprovante || null,
+      },
+    };
+  } catch {
+    return { observacaoAdm: "", cadastroIa: null };
+  }
+}
+
+function bindCadastroIaWizards() {
+  if (typeof window.dkExtrairCadastroClienteDocumentos !== "function") return;
+  document.querySelectorAll("[data-ia-wizard]").forEach((root) => {
+    const mode = String(root.getAttribute("data-ia-wizard") || "");
+    const geoBtn = root.querySelector(".cadastro-ia-geo");
+    const geoStatus = root.querySelector(".cadastro-ia-geo-status");
+    const runBtn = root.querySelector(".cadastro-ia-run");
+    const msgEl = root.querySelector(".cadastro-ia-msg");
+    let geo = null;
+    const inputs = {
+      cnhFrente: root.querySelector('[data-ia-part="cnhFrente"]'),
+      cnhVerso: root.querySelector('[data-ia-part="cnhVerso"]'),
+      comprovante: root.querySelector('[data-ia-part="comprovante"]'),
+    };
+    function setMsg(text, kind) {
+      if (!msgEl) return;
+      msgEl.textContent = text || "";
+      msgEl.classList.remove("error", "success");
+      if (kind === "error") msgEl.classList.add("error");
+      if (kind === "success") msgEl.classList.add("success");
+    }
+    if (geoBtn) {
+      geoBtn.addEventListener("click", () => {
+        if (!navigator.geolocation) {
+          if (geoStatus) geoStatus.textContent = "Geolocalização não disponível neste aparelho.";
+          return;
+        }
+        if (geoStatus) geoStatus.textContent = "Obtendo localização…";
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            geo = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              ts: Date.now(),
+            };
+            if (geoStatus)
+              geoStatus.textContent = `Localização obtida (±${Math.round(pos.coords.accuracy)} m).`;
+          },
+          () => {
+            if (geoStatus)
+              geoStatus.textContent =
+                "Permissão negada ou indisponível. Você pode continuar sem localização.";
+          },
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+      });
+    }
+    if (runBtn) {
+      runBtn.addEventListener("click", async () => {
+        const key = getStoredOpenAIKey();
+        if (!key) {
+          setMsg(
+            "Neste aparelho ainda não há chave OpenAI salva. Entre como funcionário → Lançamento de aluguel → salve a chave em Comprovante (IA). Cada celular precisa salvar a chave uma vez.",
+            "error"
+          );
+          return;
+        }
+        try {
+          const blobs = {};
+          setMsg("Preparando fotos no aparelho (reduzindo tamanho)…", "");
+          for (const k of ["cnhFrente", "cnhVerso", "comprovante"]) {
+            const inp = inputs[k];
+            const f = inp?.files?.[0];
+            if (!f) {
+              setMsg("Selecione as três fotos (frente CNH, verso CNH, comprovante).", "error");
+              return;
+            }
+            blobs[k] = await prepareImageForCadastroIa(f);
+          }
+          setMsg("Enviando para a IA… pode levar até 1–2 min no 4G.", "");
+          runBtn.disabled = true;
+          const parsed = await window.dkExtrairCadastroClienteDocumentos(key, {
+            cnhFrente: blobs.cnhFrente,
+            cnhVerso: blobs.cnhVerso,
+            comprovante: blobs.comprovante,
+            geo,
+          });
+          if (mode === "public") applyCadastroIaResultToPublicForm(parsed, geo);
+          else applyCadastroIaResultToStaffForm(parsed, geo);
+          setMsg(
+            "Formulário preenchido com a IA. Confira os dados e confirme o endereço antes de enviar.",
+            "success"
+          );
+        } catch (e) {
+          setMsg(humanizeCadastroIaCatch(e), "error");
+        } finally {
+          runBtn.disabled = false;
+        }
+      });
+    }
+  });
+}
+
+function applyDeepLinkCadastroIaFromHash() {
+  if ((window.location.hash || "").toLowerCase() !== "#cadastro-ia") return;
+  if (getSession()) return;
+  showLocadoraArea();
+  loginArea.classList.remove("hidden");
+  dashboardCard.classList.add("hidden");
+  adminCard.classList.add("hidden");
+  requestAnimationFrame(() => {
+    document.getElementById("cadastroIaClientePublic")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 function runAdminAction(action, scope) {
@@ -7021,10 +10663,10 @@ function runAdminAction(action, scope) {
   const previewLimit = 120;
   const scopeLabel =
     scope === "ativos"
-      ? "Clientes Ativos"
+      ? "Contratos Ativos"
       : scope === "inativos"
-        ? "Clientes Inativos"
-        : "Todos os clientes";
+        ? "Contratos Inativos"
+        : "Todos os contratos";
   currentScopeLabel = scopeLabel;
   const consistencyHtml = `<p class="hint">Base única: Ativos ${snapshot.checks.ativos} | Disponíveis ${snapshot.checks.disponiveis} | Em manutenção ${snapshot.checks.manutencao} | Frota ${snapshot.checks.frotaTotal}</p>`;
 
@@ -7046,9 +10688,46 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "modelo") {
+    const veiculosCadastro = loadCadastro(CAD_VEICULOS_KEY);
+    const veiculosBase = veiculosCadastro.length ? veiculosCadastro : frotaData;
+    const activePlates = new Set(
+      snapshot.activeRecords.map((r) => normalizePlate(r.placa)).filter(Boolean)
+    );
+    const inactivePlates = new Set(
+      snapshot.inactiveRecords.map((r) => normalizePlate(r.placa)).filter(Boolean)
+    );
+    let sourceRows = veiculosBase
+      .map((v) => {
+        const placa = normalizePlate(v.placa || "");
+        if (!placa) return null;
+        return {
+          placa,
+          nome: "Sem vínculo de cliente",
+          modeloVeiculo: String(v.modelo || "").trim(),
+        };
+      })
+      .filter(Boolean);
+    if (scope === "ativos") {
+      sourceRows = sourceRows.filter((r) => activePlates.has(r.placa));
+    } else if (scope === "inativos") {
+      sourceRows = sourceRows.filter((r) => inactivePlates.has(r.placa));
+    }
+    if (!sourceRows.length && veiculosBase.length) {
+      sourceRows = veiculosBase
+        .map((v) => {
+          const placa = normalizePlate(v.placa || "");
+          if (!placa) return null;
+          return {
+            placa,
+            nome: "Sem vínculo de cliente",
+            modeloVeiculo: String(v.modelo || "").trim(),
+          };
+        })
+        .filter(Boolean);
+    }
     const grouped = {};
-    records.forEach((r) => {
-      const modelo = findModeloByPlaca(r.placa);
+    sourceRows.forEach((r) => {
+      const modelo = r.modeloVeiculo || findModeloByPlaca(r.placa);
       if (!grouped[modelo]) grouped[modelo] = [];
       grouped[modelo].push(r);
     });
@@ -7128,7 +10807,7 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "receita") {
-    const baseReceita2026 = receita2026Data.length ? receita2026Data : records;
+    const baseReceita2026 = records;
     const previsaoSemanalRows = baseReceita2026.filter(
       (r) => !String(r.fim || "").trim()
     );
@@ -7136,7 +10815,7 @@ function runAdminAction(action, scope) {
       (acc, r) => acc + parseCurrencyBR(r.valorSemanal),
       0
     );
-    const totalPago = records.reduce((acc, r) => acc + parseCurrencyBR(r.pago), 0);
+    const totalPago = records.reduce((acc, r) => acc + pagoHarmonizadoRegistro(r), 0);
     const html = `<p><strong>Receita semanal total (I):</strong> ${currencyBRL(totalSemanal)}</p>
       <p class="subtext">Previsão semanal: soma da coluna I da aba RECEITA 2026 somente nas linhas sem data de fim (coluna L vazia).</p>
       <p><strong>Total pago pelos clientes (P):</strong> ${currencyBRL(totalPago)}</p>
@@ -7183,27 +10862,12 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "financeiro") {
-    const financeiroBase =
-      scope === "inativos" && receita2026Data.length
-        ? receita2026Data.filter((r) => String(r.fim || "").trim())
-        : records;
+    const financeiroBase = records;
     const emDia = [];
     const atraso = [];
     financeiroBase.forEach((r) => {
       const devido = parseCurrencyBR(r.devidoHoje);
-      const pago = parseCurrencyBR(r.pago);
-      const isDebtorColor = Number(r.cor || 0) === 255;
-      if (scope === "inativos" && receita2026Data.length) {
-        if (isDebtorColor || pago < devido) {
-          atraso.push({
-            ...r,
-            valorAtraso: Math.max(0, devido - pago),
-          });
-          return;
-        }
-        emDia.push(r);
-        return;
-      }
+      const pago = pagoHarmonizadoRegistro(r);
       if (pago >= devido) {
         emDia.push(r);
       } else {
@@ -7268,14 +10932,28 @@ function runAdminAction(action, scope) {
   }
 
   if (action === "quadrogeral") {
-    const rows = syncLocacaoDatabaseFromReceita2026();
-    currentQuadroGeralRows = rows;
-    const filtered =
-      scope === "ativos"
-        ? rows.filter((r) => r.statusLocacao === "ATIVO")
-        : scope === "inativos"
-          ? rows.filter((r) => r.statusLocacao === "INATIVO")
-          : rows;
+    const filtered = records.map((r, idx) => {
+      const cpf = onlyDigits(String(r.cpf || ""));
+      const placa = normalizePlate(String(r.placa || ""));
+      const pagoNum = pagoHarmonizadoRegistro({ ...r, cpf, placa });
+      const devidoNum = parseCurrencyBR(r.devidoHoje);
+      const saldoNum = pagoNum - devidoNum;
+      return {
+        id: idx + 1,
+        clienteNome: String(r.nome || "Nao informado").trim(),
+        cpf,
+        placa,
+        modeloVeiculo: findModeloByPlaca(placa),
+        dataInicio: String(r.inicio || "").trim(),
+        dataFim: String(r.fim || "").trim(),
+        plano: toPlanName(r),
+        valorDevidoHoje: currencyBRL(devidoNum),
+        valorPagoHoje: currencyBRL(pagoNum),
+        saldo: `${saldoNum >= 0 ? "+" : "-"} ${currencyBRL(Math.abs(saldoNum))}`,
+        saldoNumerico: saldoNum,
+      };
+    });
+    currentQuadroGeralRows = filtered;
     const preview = filtered.slice(0, 200);
     const table = buildStructuredTable(
       ["CLIENTE", "CPF", "PLACA", "MODELO", "INICIO", "FIM", "PLANO", "DEVIDO", "PAGO", "SALDO"],
@@ -7367,6 +11045,7 @@ function requireLoggedArea() {
     renderAdminDashboard();
     return;
   }
+  setLayoutEditorsAccessByProfile();
   if (session && session.contrato) {
     renderDashboard(session);
     return;
@@ -7484,6 +11163,7 @@ openLocadoraButton.addEventListener("click", () => {
 
 if (homeLayoutEditToggleBtn) {
   homeLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     if (homeLayoutEditMode) {
       stopHomeLayoutEdit();
       return;
@@ -7494,6 +11174,7 @@ if (homeLayoutEditToggleBtn) {
 }
 if (homeLayoutSaveBtn) {
   homeLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     persistHomeLayoutFromScreen();
     stopHomeLayoutEdit();
     window.alert("Layout salvo com sucesso.");
@@ -7501,6 +11182,7 @@ if (homeLayoutSaveBtn) {
 }
 if (homeLayoutResetBtn) {
   homeLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     localStorage.removeItem(HOME_LAYOUT_KEY);
     stopHomeLayoutEdit();
     clearHomeLayoutInlineStyles();
@@ -7510,6 +11192,7 @@ if (homeLayoutResetBtn) {
 
 if (funcLayoutEditToggleBtn) {
   funcLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     if (funcLayoutEditMode) {
       stopFuncionarioLayoutEdit();
       return;
@@ -7521,6 +11204,7 @@ if (funcLayoutEditToggleBtn) {
 }
 if (funcLayoutSaveBtn) {
   funcLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     persistFuncionarioLayoutFromScreen();
     stopFuncionarioLayoutEdit();
     window.alert("Layout do cadastro de funcionário salvo.");
@@ -7528,10 +11212,69 @@ if (funcLayoutSaveBtn) {
 }
 if (funcLayoutResetBtn) {
   funcLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
     localStorage.removeItem(FUNC_LAYOUT_KEY);
     stopFuncionarioLayoutEdit();
     clearFuncionarioLayoutInlineStyles();
     window.alert("Layout do cadastro de funcionário resetado.");
+  });
+}
+if (clienteLayoutEditToggleBtn) {
+  clienteLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    if (clienteLayoutEditMode) {
+      stopClienteLayoutEdit();
+      return;
+    }
+    startClienteLayoutEdit();
+    bindClienteLayoutEditorEvents();
+    window.alert("Modo edição ativo. Use ALT + arrastar para mover e SHIFT + arrastar para redimensionar.");
+  });
+}
+if (clienteLayoutSaveBtn) {
+  clienteLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    persistClienteLayoutFromScreen();
+    stopClienteLayoutEdit();
+    window.alert("Layout do cadastro de cliente salvo.");
+  });
+}
+if (clienteLayoutResetBtn) {
+  clienteLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    localStorage.removeItem(CLIENTE_LAYOUT_KEY);
+    stopClienteLayoutEdit();
+    clearClienteLayoutInlineStyles();
+    window.alert("Layout do cadastro de cliente resetado.");
+  });
+}
+if (locLayoutEditToggleBtn) {
+  locLayoutEditToggleBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    if (locLayoutEditMode) {
+      stopLocacaoLayoutEdit();
+      return;
+    }
+    startLocacaoLayoutEdit();
+    bindLocacaoLayoutEditorEvents();
+    window.alert("Modo edição ativo. Use ALT + arrastar para mover e SHIFT + arrastar para redimensionar.");
+  });
+}
+if (locLayoutSaveBtn) {
+  locLayoutSaveBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    persistLocacaoLayoutFromScreen();
+    stopLocacaoLayoutEdit();
+    window.alert("Layout do cadastro de locação salvo.");
+  });
+}
+if (locLayoutResetBtn) {
+  locLayoutResetBtn.addEventListener("click", () => {
+    if (!canEditLayoutsByProfile()) return;
+    localStorage.removeItem(LOC_LAYOUT_KEY);
+    stopLocacaoLayoutEdit();
+    clearLocacaoLayoutInlineStyles();
+    window.alert("Layout do cadastro de locação resetado.");
   });
 }
 
@@ -7546,6 +11289,15 @@ if (landingAcessoCliente) {
 }
 if (landingAcessoColaborador) {
   landingAcessoColaborador.addEventListener("click", () => openLocadoraLoginTarget("colaborador"));
+}
+{
+  const landingIaBtn = document.getElementById("landingAbrirCadastroIaBtn");
+  if (landingIaBtn) {
+    landingIaBtn.addEventListener("click", () => {
+      window.location.hash = "cadastro-ia";
+      applyDeepLinkCadastroIaFromHash();
+    });
+  }
 }
 
 openCentroButton.addEventListener("click", () => {
@@ -7569,19 +11321,23 @@ backToGroupFromCentro.addEventListener("click", () => {
 });
 
 adminNavOperacao.addEventListener("click", () => {
-  setAdminSection("operacao");
+  const opened = toggleAdminSection("operacao");
+  if (!opened) return;
   setOperacaoSubsection(operacaoAbaAtual || "cliente");
 });
 
-adminNavInformacao.addEventListener("click", () => {
-  const session = getSession();
-  if (session?.role !== "owner") {
-    setAdminSection("operacao");
-    return;
-  }
-  setAdminSection("informacao");
-  if (!informacaoEscopoAtual) setInformacaoScope("todos");
-});
+if (adminNavInformacao) {
+  adminNavInformacao.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.role !== "owner") {
+      setAdminSection("operacao");
+      return;
+    }
+    const opened = toggleAdminSection("informacao");
+    if (!opened) return;
+    if (!informacaoEscopoAtual) setInformacaoScope("todos");
+  });
+}
 
 adminNavDados.addEventListener("click", () => {
   const session = getSession();
@@ -7589,8 +11345,31 @@ adminNavDados.addEventListener("click", () => {
     setAdminSection("operacao");
     return;
   }
-  setAdminSection("dados");
+  toggleAdminSection("dados");
 });
+
+if (adminDadosUsoBtn) {
+  adminDadosUsoBtn.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.role !== "owner") {
+      setAdminSection("operacao");
+      return;
+    }
+    setAdminSection("dados");
+    setAdminDadosSubsection("dadosUso");
+  });
+}
+if (adminValidacaoCadastroBtn) {
+  adminValidacaoCadastroBtn.addEventListener("click", () => {
+    const session = getSession();
+    if (session?.role !== "owner") {
+      setAdminSection("operacao");
+      return;
+    }
+    setAdminSection("dados");
+    setAdminDadosSubsection("validacaoCadastro");
+  });
+}
 
 operacaoTargetButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -7866,10 +11645,17 @@ clienteCadastroForm.addEventListener("submit", async (event) => {
   const categoria = String(document.getElementById("cadClienteCategoria").value || "").trim();
   const vencimento = String(document.getElementById("cadClienteVencimento").value || "").trim();
   const ear = String(document.getElementById("cadClienteEar").value || "").trim();
-  const cep = String(document.getElementById("cadClienteCep").value || "").trim();
-  const municipioUf = String(document.getElementById("cadClienteMunicipioUf").value || "").trim();
-  const endereco = String(document.getElementById("cadClienteEndereco").value || "").trim();
+  const cep = formatCepMask(String(cadClienteCepInput?.value || "").trim());
+  const municipioUf = String(cadClienteMunicipioUfInput?.value || "").trim();
+  const enderecoBase = String(cadClienteEnderecoInput?.value || "").trim();
+  const complemento = String(cadClienteComplementoInput?.value || "").trim();
+  const endereco = [enderecoBase, complemento].filter(Boolean).join(", ");
   if (!nome || !cpf) return;
+  if (String(clienteCadastroForm?.dataset?.enderecoConfirmado || "0") !== "1") {
+    clienteCadastroErro.textContent = "CONFIRME O ENDERECO NO BOTAO 'CONFIRMAR ENDERECO' ANTES DE SALVAR.";
+    clienteCadastroErro.classList.remove("hidden");
+    return;
+  }
 
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const duplicado = clientes.find(
@@ -7877,6 +11663,18 @@ clienteCadastroForm.addEventListener("submit", async (event) => {
   );
   if (duplicado) {
     entrarModoAtualizacaoCliente(duplicado);
+    return;
+  }
+  if (!isSalvarClienteUnlockedThisSession()) {
+    clienteAcaoSenhaPendente = "salvar_novo";
+    if (clienteSenhaInstrucao) {
+      clienteSenhaInstrucao.textContent =
+        "Digite a senha do administrador (a mesma do login do titular ou a sua senha de funcionário). Após confirmar uma vez nesta sessão, poderá salvar outros cadastros sem digitar a senha de novo até sair do painel.";
+      clienteSenhaInstrucao.classList.remove("hidden");
+    }
+    clienteSenhaWrap.classList.remove("hidden");
+    cadClienteAdminSenha.value = "";
+    cadClienteAdminSenha.focus();
     return;
   }
   const confirmado = await askClienteCadastroConfirmation({
@@ -7891,30 +11689,42 @@ clienteCadastroForm.addEventListener("submit", async (event) => {
     ear,
     cep,
     municipioUf,
+    complemento,
     endereco,
   });
   if (!confirmado) return;
-  clientes.push({
-    id: Date.now(),
-    codigo,
-    dataCadastro,
-    cpf,
-    nome,
-    celular,
-    recado1,
-    recado2,
-    cnh,
-    categoria,
-    vencimento,
-    ear,
-    cep,
-    municipioUf,
-    endereco,
-  });
-  saveCadastro(CAD_CLIENTES_KEY, clientes);
-  addAuditLog("cadastrar_cliente", "cliente", `${nome} - CPF ${formatCpf(cpf)}`);
-  window.alert("CLIENTE CADASTRADO COM SUCESSO");
+  const iaExtra = parseCadastroIaPayloadFromForm(clienteCadastroForm);
+  const envio = enqueueClienteParaValidacao(
+    {
+      codigo,
+      dataCadastro,
+      cpf,
+      nome,
+      celular,
+      recado1,
+      recado2,
+      cnh,
+      categoria,
+      vencimento,
+      ear,
+      cep,
+      municipioUf,
+      enderecoBase,
+      complemento,
+      endereco,
+      ...iaExtra,
+    },
+    "operacao"
+  );
+  if (!envio.ok) {
+    clienteCadastroErro.textContent = envio.message || "NAO FOI POSSIVEL ENVIAR PARA AVALIACAO.";
+    clienteCadastroErro.classList.remove("hidden");
+    return;
+  }
+  window.alert("CADASTRO ENVIADO PARA AVALIACAO DO ADMINISTRADOR");
   clienteCadastroForm.reset();
+  delete clienteCadastroForm.dataset.cadastroIaMeta;
+  setClienteEnderecoConfirmado(false);
   sairModoAtualizacaoCliente();
   renderCadastros();
 });
@@ -7946,10 +11756,56 @@ cadClienteCpfInput.addEventListener("input", () => {
   }
 });
 
+if (cadClienteCepInput) {
+  cadClienteCepInput.addEventListener("input", () => {
+    cadClienteCepInput.value = formatCepMask(cadClienteCepInput.value);
+    invalidateClienteEnderecoConfirmacao();
+    if (onlyDigits(String(cadClienteCepInput.value || "")).length === 8) {
+      void buscarEnderecoClientePorCep();
+    }
+  });
+  cadClienteCepInput.addEventListener("blur", () => {
+    cadClienteCepInput.value = formatCepMask(cadClienteCepInput.value);
+    void buscarEnderecoClientePorCep(true);
+  });
+}
+
+if (cadClienteCnhInput) {
+  cadClienteCnhInput.addEventListener("input", () => {
+    cadClienteCnhInput.value = onlyDigits(String(cadClienteCnhInput.value || "")).slice(0, 20);
+  });
+}
+
+[cadClienteMunicipioUfInput, cadClienteEnderecoInput, cadClienteComplementoInput].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("input", () => {
+    invalidateClienteEnderecoConfirmacao();
+  });
+});
+
+if (cadClienteConfirmEnderecoBtn) {
+  cadClienteConfirmEnderecoBtn.addEventListener("click", () => {
+    const cep = formatCepMask(String(cadClienteCepInput?.value || "").trim());
+    const municipioUf = String(cadClienteMunicipioUfInput?.value || "").trim();
+    const enderecoBase = String(cadClienteEnderecoInput?.value || "").trim();
+    const complemento = String(cadClienteComplementoInput?.value || "").trim();
+    if (!cep || !municipioUf || !enderecoBase || !complemento) {
+      setCadClienteCepStatus(
+        "⚠️ Para confirmar o endereço, preencha CEP, Município/UF, Rua/Bairro e Número/Casa/AP.",
+        "error"
+      );
+      return;
+    }
+    setClienteEnderecoConfirmado(true);
+    setCadClienteCepStatus("✅ Endereço confirmado para o cadastro.", "success");
+  });
+}
+
 cadClienteUpdateBtn.addEventListener("click", () => {
   if (clienteEmEdicaoId === null) return;
   if (!clienteEdicaoAutorizada) {
     clienteAcaoSenhaPendente = "editar";
+    hideClienteSenhaInstrucaoText();
     clienteSenhaWrap.classList.remove("hidden");
     cadClienteAdminSenha.value = "";
     cadClienteAdminSenha.focus();
@@ -7967,10 +11823,17 @@ cadClienteUpdateBtn.addEventListener("click", () => {
   const categoria = String(document.getElementById("cadClienteCategoria").value || "").trim();
   const vencimento = String(document.getElementById("cadClienteVencimento").value || "").trim();
   const ear = String(document.getElementById("cadClienteEar").value || "").trim();
-  const cep = String(document.getElementById("cadClienteCep").value || "").trim();
-  const municipioUf = String(document.getElementById("cadClienteMunicipioUf").value || "").trim();
-  const endereco = String(document.getElementById("cadClienteEndereco").value || "").trim();
+  const cep = formatCepMask(String(cadClienteCepInput?.value || "").trim());
+  const municipioUf = String(cadClienteMunicipioUfInput?.value || "").trim();
+  const enderecoBase = String(cadClienteEnderecoInput?.value || "").trim();
+  const complemento = String(cadClienteComplementoInput?.value || "").trim();
+  const endereco = [enderecoBase, complemento].filter(Boolean).join(", ");
   if (!nome || !cpf) return;
+  if (String(clienteCadastroForm?.dataset?.enderecoConfirmado || "0") !== "1") {
+    clienteCadastroErro.textContent = "CONFIRME O ENDERECO NO BOTAO 'CONFIRMAR ENDERECO' ANTES DE ATUALIZAR.";
+    clienteCadastroErro.classList.remove("hidden");
+    return;
+  }
 
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const cpfDuplicado = clientes.find(
@@ -7998,11 +11861,14 @@ cadClienteUpdateBtn.addEventListener("click", () => {
     ear,
     cep,
     municipioUf,
+    enderecoBase,
+    complemento,
     endereco,
   };
   saveCadastro(CAD_CLIENTES_KEY, clientes);
   addAuditLog("atualizar_cliente", "cliente", `${nome} - CPF ${formatCpf(cpf)}`);
   clienteCadastroForm.reset();
+  setClienteEnderecoConfirmado(false);
   sairModoAtualizacaoCliente();
   renderCadastros();
 });
@@ -8016,6 +11882,7 @@ function iniciarCancelamentoCliente(motivo) {
   if (clienteEmEdicaoId === null) return;
   clienteCancelMotivoPendente = motivo;
   clienteAcaoSenhaPendente = "cancelar";
+  hideClienteSenhaInstrucaoText();
   clienteSenhaWrap.classList.remove("hidden");
   cadClienteAdminSenha.value = "";
   cadClienteAdminSenha.focus();
@@ -8037,6 +11904,7 @@ function iniciarExclusaoCliente() {
   );
   if (!confirmado) return;
   clienteAcaoSenhaPendente = "excluir";
+  hideClienteSenhaInstrucaoText();
   clienteSenhaWrap.classList.remove("hidden");
   cadClienteAdminSenha.value = "";
   cadClienteAdminSenha.focus();
@@ -8050,6 +11918,23 @@ cancelarClienteNegativadoBtn.addEventListener("click", () =>
 );
 
 cadClienteSenhaConfirmarBtn.addEventListener("click", () => {
+  if (clienteAcaoSenhaPendente === "salvar_novo") {
+    const senha = String(cadClienteAdminSenha.value || "").trim();
+    const senhaValida =
+      isSenhaFuncionarioAtualValida(senha) || isSenhaOwnerValida(senha);
+    if (!senhaValida) {
+      clienteCadastroErro.textContent = "SENHA DE ADMINISTRADOR INVALIDA";
+      clienteCadastroErro.classList.remove("hidden");
+      return;
+    }
+    setSalvarClienteUnlockedThisSession();
+    clienteSenhaWrap.classList.add("hidden");
+    cadClienteAdminSenha.value = "";
+    clienteAcaoSenhaPendente = "";
+    hideClienteSenhaInstrucaoText();
+    clienteCadastroForm.requestSubmit();
+    return;
+  }
   if (clienteEmEdicaoId === null) return;
   const senha = String(cadClienteAdminSenha.value || "").trim();
   const exigeSenhaOwner =
@@ -8143,16 +12028,154 @@ cadClienteSenhaCancelarBtn.addEventListener("click", () => {
   cadClienteAdminSenha.value = "";
   clienteAcaoSenhaPendente = "";
   clienteCancelMotivoPendente = "";
+  hideClienteSenhaInstrucaoText();
 });
 
 cadClienteClearBtn.addEventListener("click", () => {
   clienteCadastroForm.reset();
+  if (cadClienteCepInput) {
+    cadClienteCepInput.dataset.lastLookupCep = "";
+  }
+  if (cadClienteEnderecoInput) {
+    cadClienteEnderecoInput.dataset.autoEnderecoBase = "";
+  }
+  setCadClienteCepStatus("");
+  setClienteEnderecoConfirmado(false);
   sairModoAtualizacaoCliente();
 });
+
+const cadClienteVoltarBtn = document.getElementById("cadClienteVoltarBtn");
+const cadClienteToolbarLimparBtn = document.getElementById("cadClienteToolbarLimparBtn");
+if (cadClienteToolbarLimparBtn && cadClienteClearBtn) {
+  cadClienteToolbarLimparBtn.addEventListener("click", () => {
+    cadClienteClearBtn.click();
+  });
+}
+if (cadClienteVoltarBtn) {
+  cadClienteVoltarBtn.addEventListener("click", () => {
+    const menu = document.getElementById("adminOperacaoMenu");
+    const nav = document.getElementById("adminNavOperacao");
+    if (menu) {
+      menu.classList.remove("hidden");
+      menu.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+    nav?.focus?.();
+  });
+}
+
+if (publicCadClienteCpf) {
+  publicCadClienteCpf.addEventListener("input", () => {
+    publicCadClienteCpf.value = formatCpf(onlyDigits(String(publicCadClienteCpf.value || "")));
+  });
+}
+if (publicCadClienteCnh) {
+  publicCadClienteCnh.addEventListener("input", () => {
+    publicCadClienteCnh.value = onlyDigits(String(publicCadClienteCnh.value || "")).slice(0, 20);
+  });
+}
+if (publicCadClienteCep) {
+  publicCadClienteCep.addEventListener("input", () => {
+    publicCadClienteCep.value = formatCepMask(publicCadClienteCep.value);
+    setPublicClienteEnderecoConfirmado(false);
+    if (onlyDigits(String(publicCadClienteCep.value || "")).length === 8) {
+      void buscarEnderecoPublicoPorCep();
+    }
+  });
+  publicCadClienteCep.addEventListener("blur", () => {
+    publicCadClienteCep.value = formatCepMask(publicCadClienteCep.value);
+    void buscarEnderecoPublicoPorCep(true);
+  });
+}
+[publicCadClienteMunicipioUf, publicCadClienteEndereco, publicCadClienteComplemento].forEach((el) => {
+  if (!el) return;
+  el.addEventListener("input", () => setPublicClienteEnderecoConfirmado(false));
+});
+if (publicCadClienteConfirmEnderecoBtn) {
+  publicCadClienteConfirmEnderecoBtn.addEventListener("click", () => {
+    const cep = formatCepMask(String(publicCadClienteCep?.value || "").trim());
+    const municipioUf = String(publicCadClienteMunicipioUf?.value || "").trim();
+    const enderecoBase = String(publicCadClienteEndereco?.value || "").trim();
+    const complemento = String(publicCadClienteComplemento?.value || "").trim();
+    if (!cep || !municipioUf || !enderecoBase || !complemento) {
+      setPublicCadCepStatus("⚠️ Preencha CEP, Município/UF, Rua/Bairro e Número/Casa/AP.", "error");
+      return;
+    }
+    setPublicClienteEnderecoConfirmado(true);
+    setPublicCadCepStatus("✅ Endereço confirmado para envio.", "success");
+  });
+}
+if (clientePublicoCadastroForm) {
+  clientePublicoCadastroForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const cpf = onlyDigits(String(publicCadClienteCpf?.value || ""));
+    const nome = String(publicCadClienteNome?.value || "").trim();
+    const dataCadastro = String(publicCadClienteDataCadastro?.value || "").trim();
+    const celular = String(publicCadClienteCelular?.value || "").trim();
+    const recado1 = String(publicCadClienteRecado1?.value || "").trim();
+    const recado2 = String(publicCadClienteRecado2?.value || "").trim();
+    const cnh = String(publicCadClienteCnh?.value || "").trim();
+    const categoria = String(publicCadClienteCategoria?.value || "").trim();
+    const vencimento = String(publicCadClienteVencimento?.value || "").trim();
+    const ear = String(publicCadClienteEar?.value || "").trim();
+    const cep = formatCepMask(String(publicCadClienteCep?.value || "").trim());
+    const municipioUf = String(publicCadClienteMunicipioUf?.value || "").trim();
+    const enderecoBase = String(publicCadClienteEndereco?.value || "").trim();
+    const complemento = String(publicCadClienteComplemento?.value || "").trim();
+    const endereco = [enderecoBase, complemento].filter(Boolean).join(", ");
+    if (String(clientePublicoCadastroForm.dataset.enderecoConfirmado || "0") !== "1") {
+      if (publicCadClienteErro) {
+        publicCadClienteErro.textContent = "CONFIRME O ENDERECO ANTES DE ENVIAR PARA AVALIACAO.";
+        publicCadClienteErro.classList.remove("hidden");
+      }
+      return;
+    }
+    const iaExtra = parseCadastroIaPayloadFromForm(clientePublicoCadastroForm);
+    const envio = enqueueClienteParaValidacao(
+      {
+        codigo: nextClienteCodigo(),
+        dataCadastro,
+        cpf,
+        nome,
+        celular,
+        recado1,
+        recado2,
+        cnh,
+        categoria,
+        vencimento,
+        ear,
+        cep,
+        municipioUf,
+        enderecoBase,
+        complemento,
+        endereco,
+        ...iaExtra,
+      },
+      "area_cliente"
+    );
+    if (!envio.ok) {
+      if (publicCadClienteErro) {
+        publicCadClienteErro.textContent = envio.message || "NAO FOI POSSIVEL ENVIAR.";
+        publicCadClienteErro.classList.remove("hidden");
+      }
+      return;
+    }
+    if (publicCadClienteErro) {
+      publicCadClienteErro.textContent = "";
+      publicCadClienteErro.classList.add("hidden");
+    }
+    window.alert("CADASTRO ENVIADO PARA AVALIACAO DO ADMINISTRADOR.");
+    clientePublicoCadastroForm.reset();
+    delete clientePublicoCadastroForm.dataset.cadastroIaMeta;
+    setPublicCadCepStatus("");
+    setPublicClienteEnderecoConfirmado(false);
+    renderCadastros();
+  });
+}
 
 cadClienteUnblockBtn.addEventListener("click", () => {
   if (clienteEmEdicaoId === null) return;
   clienteAcaoSenhaPendente = "desbloquear";
+  hideClienteSenhaInstrucaoText();
   clienteSenhaWrap.classList.remove("hidden");
   cadClienteAdminSenha.value = "";
   cadClienteAdminSenha.focus();
@@ -8164,6 +12187,54 @@ cadClienteUnblockBtn.addEventListener("click", () => {
 cadClienteDeleteBtn.addEventListener("click", () => {
   iniciarExclusaoCliente();
 });
+
+if (adminValidacaoCadastroLista) {
+  adminValidacaoCadastroLista.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const idAprovar = Number(target.dataset.validacaoAprovar || 0);
+    const idReprovar = Number(target.dataset.validacaoReprovar || 0);
+    const id = idAprovar || idReprovar;
+    if (!id) return;
+    const pendentes = loadCadastro(CAD_CLIENTES_VALIDACAO_KEY);
+    const idx = pendentes.findIndex((x) => Number(x.id || 0) === id);
+    if (idx < 0) return;
+    const item = pendentes[idx];
+    if (idAprovar) {
+      const ok = window.confirm(
+        `Aprovar cadastro de ${item.nome || "cliente"} (${formatCpf(item.cpf || "")})?`
+      );
+      if (!ok) return;
+      upsertClienteCadastroByCpf(item, "ATIVO");
+      addAuditLog(
+        "aprovar_cliente_validacao",
+        "cliente_validacao",
+        `${item.nome || "-"} - CPF ${formatCpf(item.cpf || "")}`
+      );
+      pendentes.splice(idx, 1);
+      saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, pendentes);
+      window.alert("CADASTRO APROVADO COM SUCESSO.");
+      renderCadastros();
+      return;
+    }
+    if (idReprovar) {
+      const ok = window.confirm(
+        `Reprovar cadastro de ${item.nome || "cliente"} (${formatCpf(item.cpf || "")})?`
+      );
+      if (!ok) return;
+      upsertClienteCadastroByCpf(item, "CADASTRO NAO APROVADO");
+      addAuditLog(
+        "reprovar_cliente_validacao",
+        "cliente_validacao",
+        `${item.nome || "-"} - CPF ${formatCpf(item.cpf || "")}`
+      );
+      pendentes.splice(idx, 1);
+      saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, pendentes);
+      window.alert("CADASTRO REPROVADO.");
+      renderCadastros();
+    }
+  });
+}
 
 veiculoCadastroForm.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -8377,52 +12448,62 @@ relatorioVeiculoExcelBtn.addEventListener("click", () => {
   exportVeiculosExcel();
 });
 
-gerarRelatorioLocacaoBtn.addEventListener("click", () => {
-  relatorioLocacaoOpcoes.classList.toggle("hidden");
-  if (relatorioLocacaoOpcoes.classList.contains("hidden")) {
-    relatorioLocacaoFormatos.classList.add("hidden");
+if (gerarRelatorioLocacaoBtn && relatorioLocacaoOpcoes && relatorioLocacaoFormatos) {
+  gerarRelatorioLocacaoBtn.addEventListener("click", () => {
+    relatorioLocacaoOpcoes.classList.toggle("hidden");
+    if (relatorioLocacaoOpcoes.classList.contains("hidden")) {
+      relatorioLocacaoFormatos.classList.add("hidden");
+      relatorioLocacaoTipoSelecionado = "";
+      return;
+    }
+    if (!relatorioLocacaoTipoSelecionado) {
+      relatorioLocacaoFormatos.classList.add("hidden");
+    }
+  });
+}
+
+if (relatorioLocadosBtn && relatorioLocacaoFormatos) {
+  relatorioLocadosBtn.addEventListener("click", () => {
+    relatorioLocacaoTipoSelecionado = "locados";
+    void renderRelatorioLocacao("locados");
+    relatorioLocacaoFormatos.classList.remove("hidden");
+  });
+}
+
+if (relatorioDisponiveisBtn && relatorioLocacaoFormatos) {
+  relatorioDisponiveisBtn.addEventListener("click", () => {
+    relatorioLocacaoTipoSelecionado = "disponiveis";
+    void renderRelatorioLocacao("disponiveis");
+    relatorioLocacaoFormatos.classList.remove("hidden");
+  });
+}
+
+if (relatorioCompletoProtocoloBtn) {
+  relatorioCompletoProtocoloBtn.addEventListener("click", () => {
+    relatorioLocacaoTipoSelecionado = "completo";
+    void renderRelatorioLocacao("completo");
+    relatorioLocacaoFormatos.classList.remove("hidden");
+  });
+}
+
+if (relatorioLocacaoTelaBtn) {
+  relatorioLocacaoTelaBtn.addEventListener("click", () => {
+    if (!relatorioLocacaoTipoSelecionado) return;
+    void renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
+  });
+}
+
+if (relatorioLocacaoLimparBtn) {
+  relatorioLocacaoLimparBtn.addEventListener("click", () => {
+    relatorioLocacaoCache = null;
     relatorioLocacaoTipoSelecionado = "";
-    return;
-  }
-  if (!relatorioLocacaoTipoSelecionado) {
-    relatorioLocacaoFormatos.classList.add("hidden");
-  }
-});
-
-relatorioLocadosBtn.addEventListener("click", () => {
-  relatorioLocacaoTipoSelecionado = "locados";
-  renderRelatorioLocacao("locados");
-  relatorioLocacaoFormatos.classList.remove("hidden");
-});
-
-relatorioDisponiveisBtn.addEventListener("click", () => {
-  relatorioLocacaoTipoSelecionado = "disponiveis";
-  renderRelatorioLocacao("disponiveis");
-  relatorioLocacaoFormatos.classList.remove("hidden");
-});
-
-relatorioLocacaoTelaBtn.addEventListener("click", () => {
-  if (!relatorioLocacaoTipoSelecionado) return;
-  renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
-});
-
-relatorioLocacaoPdfBtn.addEventListener("click", () => {
-  if (!relatorioLocacaoCache && relatorioLocacaoTipoSelecionado) {
-    renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
-  }
-  exportRelatorioPdfFromCache(relatorioLocacaoCache);
-});
-
-relatorioLocacaoExcelBtn.addEventListener("click", () => {
-  if (!relatorioLocacaoCache && relatorioLocacaoTipoSelecionado) {
-    renderRelatorioLocacao(relatorioLocacaoTipoSelecionado);
-  }
-  const file =
-    relatorioLocacaoTipoSelecionado === "locados"
-      ? "relatorio-veiculos-locados.csv"
-      : "relatorio-veiculos-disponiveis.csv";
-  exportRelatorioExcelFromCache(relatorioLocacaoCache, file);
-});
+    if (locacaoReportTitle) locacaoReportTitle.textContent = "Relatório de locação";
+    if (locacaoReportBody) locacaoReportBody.innerHTML = "";
+    if (locacaoReportBox) locacaoReportBox.classList.add("hidden");
+    if (relatorioLocacaoFormatos) relatorioLocacaoFormatos.classList.add("hidden");
+    if (relatorioLocacaoOpcoes) relatorioLocacaoOpcoes.classList.add("hidden");
+  });
+}
 
 gerarDadosUsoPdfBtn.addEventListener("click", () => {
   dadosUsoAcaoPendente = "pdf";
@@ -8430,6 +12511,16 @@ gerarDadosUsoPdfBtn.addEventListener("click", () => {
   dadosUsoAdminSenha.value = "";
   dadosUsoAdminSenha.focus();
 });
+
+if (enviarQrWhatsappBtn) {
+  enviarQrWhatsappBtn.addEventListener("click", () => {
+    const targetUrl = getClienteAreaPublicUrl();
+    const mensagem =
+      "Olá! Use este link para instalar/acessar o app DK Locadora (Área do Cliente): " + targetUrl;
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(mensagem)}`;
+    window.open(waUrl, "_blank", "noopener");
+  });
+}
 
 if (exportDadosBackupBtn) {
   exportDadosBackupBtn.addEventListener("click", () => {
@@ -8527,7 +12618,19 @@ if (lancamentoAluguelResumo && !lancamentoAluguelResumo.dataset.quadroEditBound)
       window.alert("Informe um CPF valido (11 digitos) no lancamento.");
       return;
     }
+    const ncQuadro = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
+    if (!ncQuadro) {
+      window.alert(
+        "Informe o número do contrato no lançamento para abrir o quadro do vínculo correto (o mesmo cliente e placa podem ter vários contratos ao longo do tempo)."
+      );
+      return;
+    }
+    if (isCpfComEdicaoLancamentoBloqueada(cpf)) {
+      window.alert("CPF com edição bloqueada. Você pode cadastrar novos lançamentos, mas não editar o histórico.");
+      return;
+    }
     void runLancamentoAluguelHistoricoDialog(cpf, placa, {
+      numeroContrato: ncQuadro,
       onAfterSim: () => renderLancamentoAluguelResumo(),
     });
   });
@@ -8540,6 +12643,7 @@ if (lancamentoAluguelForm) {
       .trim()
       .toUpperCase();
     const cpf = onlyDigits(String(lancAluguelCpfInput?.value || ""));
+    const numeroContratoNorm = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput?.value || "");
     const diaPagamento = String(lancAluguelDiaPagamentoInput?.value || "").trim().toUpperCase();
     const valorPagoRaw = String(lancAluguelValorPagoInput?.value || "").trim();
     const valorPago = parseCurrencyBR(valorPagoRaw);
@@ -8548,6 +12652,22 @@ if (lancamentoAluguelForm) {
     if (!placa || cpf.length !== 11 || !diaPagamento || !semanaInicio || !semanaFim || valorPago <= 0) {
       if (lancamentoAluguelErro) {
         lancamentoAluguelErro.textContent = "PREENCHA TODOS OS CAMPOS OBRIGATORIOS E INFORME O VALOR PAGO.";
+        lancamentoAluguelErro.classList.remove("hidden");
+      }
+      return;
+    }
+    if (!numeroContratoNorm) {
+      if (lancamentoAluguelErro) {
+        lancamentoAluguelErro.textContent =
+          "INFORME O NUMERO DO CONTRATO — ELE IDENTIFICA O VINCULO (MESMO CLIENTE E PLACA PODEM TER CONTRATOS DIFERENTES NO TEMPO).";
+        lancamentoAluguelErro.classList.remove("hidden");
+      }
+      return;
+    }
+    if (!findContratoForLancamentoResumo(cpf, placa, numeroContratoNorm)) {
+      if (lancamentoAluguelErro) {
+        lancamentoAluguelErro.textContent =
+          "NAO HA LOCACAO CADASTRADA COM ESSE CPF, PLACA E NUMERO DE CONTRATO. CONFIRA O CADASTRO DE LOCACAO.";
         lancamentoAluguelErro.classList.remove("hidden");
       }
       return;
@@ -8571,9 +12691,12 @@ if (lancamentoAluguelForm) {
       return;
     }
     const historicoOk = await askLancamentoAluguelHistoricoUpdated(cpf, placa, {
+      cpfDigits: cpf,
+      placa,
       valorPago,
       semanaInicio,
       semanaFim,
+      numeroContrato: numeroContratoNorm,
     });
     if (!historicoOk) return;
 
@@ -8587,34 +12710,83 @@ if (lancamentoAluguelForm) {
       valorPago,
       semanaInicio,
       semanaFim,
+      numeroContrato: numeroContratoNorm,
     });
     if (!confirmado) return;
 
+    const fpSalvar = lancamentoAluguelForm?.dataset?.comprovanteFp
+      ? String(lancamentoAluguelForm.dataset.comprovanteFp).trim()
+      : "";
+    if (fpSalvar && isComprovanteFpJaUtilizado(fpSalvar)) {
+      if (lancamentoAluguelErro) {
+        lancamentoAluguelErro.textContent =
+          "Este comprovante já foi utilizado em outro lançamento. Não é possível salvar em duplicidade.";
+        lancamentoAluguelErro.classList.remove("hidden");
+      }
+      return;
+    }
     const id = Date.now();
-    lancamentos.push({
+    const novo = {
       id,
       createdAt: id,
       codigoLancamento,
       placa,
       cpf,
+      numeroContrato: numeroContratoNorm,
       diaPagamento,
       valorPago,
       semanaInicio,
       semanaFim,
       status: "ATIVO",
-    });
+    };
+    if (fpSalvar) novo.comprovanteFp = fpSalvar;
+    if (fpSalvar) {
+      const pay = coletarPayloadComprovanteParaSalvar(fpSalvar);
+      const row = {
+        lancamentoId: id,
+        codigoLancamento,
+        valorPago,
+        semanaInicio,
+        semanaFim,
+        cpf,
+        placa,
+      };
+      if (pay.base64 && pay.mime) {
+        row.base64 = pay.base64;
+        row.mime = pay.mime;
+      }
+      if (pay.texto) row.texto = pay.texto;
+      upsertComprovanteBanco(fpSalvar, row);
+    }
+    lancamentos.push(novo);
     saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, lancamentos);
     processPendingLancamentosAluguelBaixa();
-    addAuditLog("cadastrar_lancamento_aluguel", "lancamento_aluguel", `${codigoLancamento} - ${placa}`);
+    addAuditLog(
+      "cadastrar_lancamento_aluguel",
+      "lancamento_aluguel",
+      `${codigoLancamento} - ${placa} - contrato ${numeroContratoNorm}`
+    );
     ultimoLancamentoAluguelSalvoId = id;
     const savedCpf = cpf;
     const savedPlaca = placa;
+    const savedNc = numeroContratoNorm;
     window.alert("LANCAMENTO SALVO COM SUCESSO");
+    if (fpSalvar) {
+      setComprovanteFeedback(
+        "Comprovante gravado neste aparelho com o pagamento. Pode clicar em Limpar comprovante; o arquivo continua no histórico.",
+        "ok"
+      );
+    }
+    if (lancamentoAluguelForm && lancamentoAluguelForm.dataset.comprovanteFp) {
+      delete lancamentoAluguelForm.dataset.comprovanteFp;
+    }
+    pendingComprovanteSnapshot = null;
     lancamentoAluguelForm.reset();
     if (lancAluguelCpfInput) lancAluguelCpfInput.value = formatCpf(savedCpf);
     if (lancAluguelPlacaInput) lancAluguelPlacaInput.value = String(savedPlaca || "")
       .trim()
       .toUpperCase();
+    if (lancAluguelNumeroContratoInput) lancAluguelNumeroContratoInput.value = savedNc;
     if (lancAluguelSemanaInicioInput) lancAluguelSemanaInicioInput.dataset.autoSuggested = "0";
     if (lancAluguelValorPagoInput) lancAluguelValorPagoInput.dataset.autoSuggested = "0";
     if (lancamentoAluguelErro) {
@@ -8672,6 +12844,18 @@ if (lancAluguelPlacaInput) {
   });
 }
 
+if (lancAluguelNumeroContratoInput) {
+  lancAluguelNumeroContratoInput.addEventListener("input", () => {
+    lancAluguelNumeroContratoInput.value = String(lancAluguelNumeroContratoInput.value || "").toUpperCase();
+    renderLancamentoAluguelResumo();
+  });
+  lancAluguelNumeroContratoInput.addEventListener("blur", () => {
+    lancAluguelNumeroContratoInput.value = normalizeNumeroContratoKey(lancAluguelNumeroContratoInput.value || "");
+    suggestValorPagoFromContrato();
+    renderLancamentoAluguelResumo();
+  });
+}
+
 if (lancAluguelValorPagoInput) {
   lancAluguelValorPagoInput.addEventListener("input", () => {
     lancAluguelValorPagoInput.dataset.autoSuggested = "0";
@@ -8714,6 +12898,10 @@ if (lancAluguelDiaPagamentoInput) {
 if (lancAluguelClearBtn) {
   lancAluguelClearBtn.addEventListener("click", () => {
     ultimoLancamentoAluguelSalvoId = null;
+    if (lancamentoAluguelForm && lancamentoAluguelForm.dataset.comprovanteFp) {
+      delete lancamentoAluguelForm.dataset.comprovanteFp;
+    }
+    pendingComprovanteSnapshot = null;
     if (lancamentoAluguelForm) lancamentoAluguelForm.reset();
     if (lancAluguelClienteSugestoes) lancAluguelClienteSugestoes.innerHTML = "";
     if (lancAluguelSemanaInicioInput) lancAluguelSemanaInicioInput.dataset.autoSuggested = "0";
@@ -8759,6 +12947,10 @@ if (cadastroLancamentoAluguelLista) {
     const idx = lancamentos.findIndex((l) => Number(l.id || 0) === id);
     if (idx < 0) return;
     const item = lancamentos[idx];
+    if (isCpfComEdicaoLancamentoBloqueada(item.cpf)) {
+      window.alert("CPF com edição bloqueada. Não é permitido apagar lançamentos já existentes.");
+      return;
+    }
     const ok = window.confirm(
       `Confirma apagar o lançamento ${item.codigoLancamento || "-"} (${item.placa || "-"})?`
     );
@@ -8775,7 +12967,8 @@ if (cadastroLancamentoAluguelLista) {
   });
 }
 
-locacaoCadastroForm.addEventListener("submit", async (event) => {
+if (locacaoCadastroForm) {
+  locacaoCadastroForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!validateLocacaoCpfBlock()) return;
   const cpf = onlyDigits(String(document.getElementById("cadLocacaoCpf").value || ""));
@@ -8783,17 +12976,117 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     .trim()
     .toUpperCase();
   const inicio = String(document.getElementById("cadLocacaoInicio").value || "").trim();
-  const fim = String(document.getElementById("cadLocacaoFim").value || "").trim();
-  const valorSemanal = String(document.getElementById("cadLocacaoValor").value || "").trim();
-  const placaSelect = document.getElementById("cadLocacaoPlaca");
-  const placaSelecionadaTexto =
-    placaSelect && placaSelect.selectedIndex >= 0
-      ? String(placaSelect.options[placaSelect.selectedIndex].textContent || "")
-      : "";
-  const modeloSelecionado = placaSelecionadaTexto.includes(" - ")
-    ? placaSelecionadaTexto.split(" - ").slice(1).join(" - ").trim()
-    : "";
+  let fim = String(document.getElementById("cadLocacaoFim").value || "").trim();
+  const kmInicial = String(document.getElementById("cadLocacaoKm")?.value || "")
+    .replace(/[^\d]/g, "")
+    .trim();
+  const valorLocacaoRaw = String(document.getElementById("cadLocacaoValor").value || "").trim();
+  const valorInvestimentoRaw = String(document.getElementById("cadLocacaoInvestimento")?.value || "").trim();
+  const plano = getLocacaoPlanoSelecionado();
+  if (!String(cadLocacaoContratoInput?.value || "").trim()) {
+    aplicarNovoProtocoloLocacaoNoFormulario();
+  }
+  const numeroContratoRaw = String(cadLocacaoContratoInput?.value || "").trim();
+  const numeroContratoNorm = normalizeNumeroContratoKey(numeroContratoRaw);
+  const valorLocacaoNum = parseCurrencyBR(valorLocacaoRaw);
+  const valorInvestimentoNum = plano === "DK MINHA MOTO" ? parseCurrencyBR(valorInvestimentoRaw) : 0;
+  const valorSemanalNum = valorLocacaoNum + valorInvestimentoNum;
+  const valorSemanal = valorSemanalNum > 0 ? currencyBRL(valorSemanalNum) : "";
+  const veiculosDisponiveis = getVeiculosSemProtocoloAtivo();
+  const veiculoEscolhido = veiculosDisponiveis.find(
+    (v) => normalizePlate(v.placa) === normalizePlate(placa)
+  );
+  const modeloSelecionado = String(veiculoEscolhido?.modelo || "").trim();
   if (!cpf || !placa || !inicio) return;
+  if (!valorLocacaoNum || (plano === "DK MINHA MOTO" && !valorInvestimentoNum)) {
+    window.alert(
+      plano === "DK MINHA MOTO"
+        ? "No plano DK MINHA MOTO, informe valor da locação e valor do investimento."
+        : "Informe o valor da locação."
+    );
+    return;
+  }
+  const inicioDate = parseBrDate(inicio);
+  if (!inicioDate) {
+    window.alert("Informe a data de início no formato DD/MM/AAAA.");
+    return;
+  }
+  const fimCalculado =
+    plano === "DK MINHA MOTO"
+      ? addCalendarDays(inicioDate, 150 * 7)
+      : addCalendarMonths(inicioDate, 1);
+  if (fimCalculado) {
+    fim = formatDataDmaBr(fimCalculado);
+    if (cadLocacaoFimInput) cadLocacaoFimInput.value = fim;
+  }
+
+  const fimDate = parseBrDate(fim);
+  const statusField = String(cadLocacaoStatusInput?.value || "").trim();
+  const statusLocacao =
+    normalizeStatusLocacaoExibicao(statusField) ||
+    (String(fim || "").trim() ? "FINALIZADO" : "ATIVO");
+
+  let diaPagto = String(cadLocacaoDiaPagtoInput?.value || "").trim();
+  if (!diaPagto && inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())) {
+    diaPagto = inicioDate.toLocaleDateString("pt-BR", { weekday: "long" });
+  }
+
+  let periodoLocacao = String(cadLocacaoPeriodoLocacaoInput?.value || "").trim();
+  if (
+    !periodoLocacao &&
+    inicioDate instanceof Date &&
+    !Number.isNaN(inicioDate.getTime()) &&
+    fimDate instanceof Date &&
+    !Number.isNaN(fimDate.getTime())
+  ) {
+    const dias = Math.max(
+      1,
+      Math.round((toDateOnly(fimDate) - toDateOnly(inicioDate)) / 86400000) + 1
+    );
+    periodoLocacao = `${dias} dia(s)`;
+  }
+
+  let modalidade = String(cadLocacaoModalidadeInput?.value || "").trim();
+  if (!modalidade) {
+    const tipoV = String(veiculoEscolhido?.tipo || "").trim();
+    modalidade = normalizeKey(tipoV).includes("CARRO") ? "CARRO" : "MOTO";
+  }
+
+  let marcaModelo = String(cadLocacaoMarcaModeloInput?.value || "").trim();
+  if (!marcaModelo) {
+    marcaModelo = [String(veiculoEscolhido?.marca || "").trim(), modeloSelecionado]
+      .filter(Boolean)
+      .join(" / ");
+  }
+
+  const opcaoContrato = String(cadLocacaoOpcaoContratoInput?.value || "").trim();
+  const periodoContrato = String(cadLocacaoPeriodoContratoInput?.value || "").trim();
+  const configPrecoKm = String(cadLocacaoConfigPrecoKmInput?.value || "").trim();
+  const tabela = String(cadLocacaoTabelaInput?.value || "").trim();
+
+  let valorParcelaRaw = String(cadLocacaoValorParcelaInput?.value || "").trim();
+  if (!valorParcelaRaw) {
+    valorParcelaRaw = valorSemanal;
+    if (cadLocacaoValorParcelaInput) cadLocacaoValorParcelaInput.value = valorParcelaRaw;
+  }
+  const valorParcelaNum = parseCurrencyBR(valorParcelaRaw);
+
+  if (!numeroContratoNorm) {
+    window.alert("O número do contrato é obrigatório e deve ser único no sistema.");
+    return;
+  }
+  if (contratoNumeroJaExisteNaBase(numeroContratoNorm, null)) {
+    window.alert(
+      "Este número de contrato já está cadastrado. Cada contrato (período cliente + veículo) deve ter um código diferente."
+    );
+    return;
+  }
+  if (!veiculoEscolhido) {
+    window.alert(
+      "Esta placa já está vinculada a protocolo ativo (sem data fim) ou está indisponível. Encerre a locação ativa para reutilizar a placa."
+    );
+    return;
+  }
 
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const cliente = clientes.find((c) => onlyDigits(String(c.cpf || "")) === cpf);
@@ -8813,13 +13106,36 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     );
     return;
   }
+
+  let clienteCodigo = String(cadLocacaoClienteCodigoInput?.value || "").trim();
+  if (!clienteCodigo) {
+    clienteCodigo = String(cliente?.codigo || "").trim();
+    if (cadLocacaoClienteCodigoInput && clienteCodigo) cadLocacaoClienteCodigoInput.value = clienteCodigo;
+  }
+
   const confirmado = await askLocacaoCadastroConfirmation({
     cpf,
     clienteNome: String(cliente?.nome || "").trim(),
+    clienteCodigo,
+    numeroContrato: numeroContratoNorm,
     placa,
     modelo: modeloSelecionado,
     inicio,
     fim,
+    plano,
+    kmInicial,
+    statusLocacao,
+    diaPagto,
+    periodoLocacao,
+    modalidade,
+    marcaModelo,
+    opcaoContrato,
+    periodoContrato,
+    configPrecoKm,
+    tabela,
+    valorLocacao: currencyBRL(valorLocacaoNum),
+    valorInvestimento: currencyBRL(valorInvestimentoNum),
+    valorParcela: currencyBRL(valorParcelaNum),
     valorSemanal,
   });
   if (!confirmado) return;
@@ -8833,37 +13149,154 @@ locacaoCadastroForm.addEventListener("submit", async (event) => {
     placa,
     inicio,
     fim,
+    plano,
+    valorLocacao: currencyBRL(valorLocacaoNum),
+    valorInvestimento: currencyBRL(valorInvestimentoNum),
     valorSemanal,
+    numeroContrato: numeroContratoNorm,
+    statusLocacao,
+    diaPagto,
+    periodoLocacao,
+    modalidade,
+    marcaModelo,
+    opcaoContrato,
+    periodoContrato,
+    kmInicial,
+    configPrecoKm,
+    tabela,
+    valorParcela: currencyBRL(valorParcelaNum),
+    clienteCodigo,
   });
   saveCadastro(CAD_LOCACOES_KEY, locacoes);
-  addAuditLog("cadastrar_locacao", "locacao", `${cpf} - ${placa}`);
+  addAuditLog(
+    "cadastrar_locacao",
+    "locacao",
+    `${cpf} - ${placa} - contrato ${numeroContratoNorm}`
+  );
   window.alert("LOCAÇÃO CADASTRADA COM SUCESSO");
   locacaoCadastroForm.reset();
   ensureLocacaoInicioDefault();
+  aplicarNovoProtocoloLocacaoNoFormulario();
   setLocacaoFormBlocked(false);
   locacaoImpedimentoAlertShown = false;
   renderCadastros();
-});
+  });
+}
 
-cadLocacaoCpfInput.addEventListener("blur", validateLocacaoCpfBlock);
-cadLocacaoCpfInput.addEventListener("input", () => {
-  if (cadLocacaoCpfInput.value.trim().length < 11) {
-    locacaoImpedimentoAlertShown = false;
-    setLocacaoFormBlocked(false);
-    return;
-  }
-  validateLocacaoCpfBlock();
-});
+if (cadLocacaoCpfInput) {
+  cadLocacaoCpfInput.addEventListener("blur", validateLocacaoCpfBlock);
+  cadLocacaoCpfInput.addEventListener("input", () => {
+    const cpf = onlyDigits(String(cadLocacaoCpfInput.value || ""));
+    cadLocacaoCpfInput.value = formatCpf(cpf);
+    if (cpf.length < 11) {
+      locacaoImpedimentoAlertShown = false;
+      setLocacaoFormBlocked(false);
+      return;
+    }
+    applyLocacaoClienteByCpf(cpf);
+    syncCadLocacaoClienteCodigoFromCpf();
+    validateLocacaoCpfBlock();
+  });
+}
 
-cadLocacaoClearBtn.addEventListener("click", () => {
-  locacaoCadastroForm.reset();
-  refreshLocacaoPlacaOptions();
-  ensureLocacaoInicioDefault();
-  setLocacaoFormBlocked(false);
-  locacaoImpedimentoAlertShown = false;
-});
+if (cadLocacaoValorInput) {
+  cadLocacaoValorInput.addEventListener("blur", () => {
+    formatLocacaoCurrencyInput(cadLocacaoValorInput);
+  });
+}
 
-manutencaoCadastroForm.addEventListener("submit", (event) => {
+if (cadLocacaoValorParcelaInput) {
+  cadLocacaoValorParcelaInput.addEventListener("blur", () => {
+    formatLocacaoCurrencyInput(cadLocacaoValorParcelaInput);
+  });
+}
+
+if (cadLocacaoInvestimentoInput) {
+  cadLocacaoInvestimentoInput.addEventListener("blur", () => {
+    formatLocacaoCurrencyInput(cadLocacaoInvestimentoInput);
+  });
+}
+
+if (cadLocacaoInicioInput) {
+  cadLocacaoInicioInput.addEventListener("blur", () => {
+    recomputeLocacaoFimByPlano();
+  });
+}
+
+if (cadLocacaoPlanoInputs && cadLocacaoPlanoInputs.length) {
+  cadLocacaoPlanoInputs.forEach((inp) => {
+    inp.addEventListener("change", () => {
+      applyLocacaoPlanoRules();
+    });
+  });
+}
+
+if (cadLocacaoClienteNomeInput) {
+  cadLocacaoClienteNomeInput.addEventListener("input", () => {
+    applyLocacaoClienteByNome(cadLocacaoClienteNomeInput.value);
+  });
+  cadLocacaoClienteNomeInput.addEventListener("blur", () => {
+    applyLocacaoClienteByNome(cadLocacaoClienteNomeInput.value);
+  });
+}
+
+if (cadLocacaoPlacaInput) {
+  cadLocacaoPlacaInput.addEventListener("input", () => {
+    cadLocacaoPlacaInput.value = String(cadLocacaoPlacaInput.value || "").toUpperCase();
+  });
+  cadLocacaoPlacaInput.addEventListener("blur", () => {
+    cadLocacaoPlacaInput.value = String(cadLocacaoPlacaInput.value || "").trim().toUpperCase();
+    suggestCadLocacaoFromVeiculoPlaca();
+  });
+}
+
+if (cadLocacaoClearBtn) {
+  cadLocacaoClearBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // Limpeza principal via reset do form.
+    if (locacaoCadastroForm) locacaoCadastroForm.reset();
+
+    // Fallback explícito para garantir limpeza visual imediata.
+    if (cadLocacaoPlacaInput) cadLocacaoPlacaInput.value = "";
+    if (cadLocacaoCpfInput) cadLocacaoCpfInput.value = "";
+    if (cadLocacaoClienteNomeInput) cadLocacaoClienteNomeInput.value = "";
+    if (cadLocacaoInicioInput) cadLocacaoInicioInput.value = "";
+    if (cadLocacaoFimInput) cadLocacaoFimInput.value = "";
+    if (cadLocacaoKmInput) cadLocacaoKmInput.value = "";
+    if (cadLocacaoValorInput) cadLocacaoValorInput.value = "";
+    if (cadLocacaoInvestimentoInput) cadLocacaoInvestimentoInput.value = "";
+    if (cadLocacaoStatusInput) cadLocacaoStatusInput.value = "";
+    if (cadLocacaoDiaPagtoInput) cadLocacaoDiaPagtoInput.value = "";
+    if (cadLocacaoPeriodoLocacaoInput) cadLocacaoPeriodoLocacaoInput.value = "";
+    if (cadLocacaoModalidadeInput) cadLocacaoModalidadeInput.value = "";
+    if (cadLocacaoMarcaModeloInput) cadLocacaoMarcaModeloInput.value = "";
+    if (cadLocacaoOpcaoContratoInput) cadLocacaoOpcaoContratoInput.value = "";
+    if (cadLocacaoPeriodoContratoInput) cadLocacaoPeriodoContratoInput.value = "";
+    if (cadLocacaoConfigPrecoKmInput) cadLocacaoConfigPrecoKmInput.value = "";
+    if (cadLocacaoTabelaInput) cadLocacaoTabelaInput.value = "";
+    if (cadLocacaoValorParcelaInput) cadLocacaoValorParcelaInput.value = "";
+    if (cadLocacaoClienteCodigoInput) cadLocacaoClienteCodigoInput.value = "";
+
+    // Reaplica padrão operacional após limpar.
+    try {
+      refreshLocacaoPlacaOptions();
+      refreshLocacaoClienteSugestoes();
+      ensureLocacaoInicioDefault();
+      aplicarNovoProtocoloLocacaoNoFormulario();
+      applyLocacaoPlanoRules();
+      setLocacaoFormBlocked(false);
+      locacaoImpedimentoAlertShown = false;
+    } catch (err) {
+      // Mantém operação de limpar funcional mesmo com falha auxiliar.
+      console.error("Falha ao finalizar limpeza do cadastro de locação:", err);
+    }
+  });
+}
+
+if (manutencaoCadastroForm) {
+  manutencaoCadastroForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const placa = String(document.getElementById("cadManutencaoPlaca").value || "")
     .trim()
@@ -8907,17 +13340,22 @@ manutencaoCadastroForm.addEventListener("submit", (event) => {
   saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
   addAuditLog("cadastrar_manutencao", "manutencao", `${placa} - ${servico}`);
   manutencaoCadastroForm.reset();
-  cadManutencaoDataInput.value = todayBrDate();
+  if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
   renderCadastros();
-});
+  });
+}
 
-gerarRelatorioManutencaoBtn.addEventListener("click", () => {
-  renderManutencaoReport();
-});
+if (gerarRelatorioManutencaoBtn) {
+  gerarRelatorioManutencaoBtn.addEventListener("click", () => {
+    renderManutencaoReport();
+  });
+}
 
-manutencaoTipoToggleBtn.addEventListener("click", () => {
-  manutencaoTipoPanel.classList.toggle("hidden");
-});
+if (manutencaoTipoToggleBtn && manutencaoTipoPanel) {
+  manutencaoTipoToggleBtn.addEventListener("click", () => {
+    manutencaoTipoPanel.classList.toggle("hidden");
+  });
+}
 
 adminButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -8948,6 +13386,38 @@ if (placaHistoricoFecharBtn && placaHistoricoDialog) {
       placaHistoricoDialog.classList.add("hidden");
       if (placaHistoricoBody) placaHistoricoBody.innerHTML = "";
     }
+  });
+}
+
+if (clienteVidaExportExcelBtn) {
+  clienteVidaExportExcelBtn.addEventListener("click", () => {
+    exportGenericReportExcel(clienteVidaBody, "cliente-protocolos.csv");
+  });
+}
+if (clienteVidaExportPdfBtn) {
+  clienteVidaExportPdfBtn.addEventListener("click", () => {
+    exportGenericReportPdf(clienteVidaBody, "Cliente - protocolos");
+  });
+}
+if (clienteVidaImprimirBtn) {
+  clienteVidaImprimirBtn.addEventListener("click", () => {
+    printReportContainer(clienteVidaBody, "Cliente - protocolos");
+  });
+}
+
+if (placaHistoricoExportExcelBtn) {
+  placaHistoricoExportExcelBtn.addEventListener("click", () => {
+    exportGenericReportExcel(placaHistoricoBody, "placa-protocolos.csv");
+  });
+}
+if (placaHistoricoExportPdfBtn) {
+  placaHistoricoExportPdfBtn.addEventListener("click", () => {
+    exportGenericReportPdf(placaHistoricoBody, "Placa - protocolos");
+  });
+}
+if (placaHistoricoImprimirBtn) {
+  placaHistoricoImprimirBtn.addEventListener("click", () => {
+    printReportContainer(placaHistoricoBody, "Placa - protocolos");
   });
 }
 
@@ -8982,13 +13452,16 @@ function handleReportAreaClick(event) {
   if (target.dataset.adminBack === "true") {
     renderAdminResult(
       "Selecione uma consulta por grupo",
-      "<p>Use os botoes em Clientes Ativos, Clientes Inativos ou Todos os clientes.</p>"
+      "<p>Use os botoes em Contratos Ativos, Contratos Inativos ou Todos os contratos.</p>"
     );
     return;
   }
 
   if (target.dataset.reportExport === "pdf") {
     const reportTarget = String(target.dataset.reportTarget || "");
+    const isLocacaoContext =
+      event.currentTarget === locacaoReportBody ||
+      (locacaoReportBody instanceof HTMLElement && locacaoReportBody.contains(target));
     if (reportTarget === "admin") {
       exportGenericReportPdf(adminResultBody, String(adminResultTitle.textContent || "Relatorio"));
       return;
@@ -8997,7 +13470,7 @@ function handleReportAreaClick(event) {
       exportGenericReportPdf(manutencaoReportBody, String(manutencaoReportTitle.textContent || "Relatorio manutencao"));
       return;
     }
-    if (reportTarget === "locacao" && relatorioLocacaoCache) {
+    if ((reportTarget === "locacao" || (isLocacaoContext && !reportTarget)) && relatorioLocacaoCache) {
       exportRelatorioPdfFromCache(relatorioLocacaoCache);
       return;
     }
@@ -9007,6 +13480,9 @@ function handleReportAreaClick(event) {
 
   if (target.dataset.reportExport === "excel") {
     const reportTarget = String(target.dataset.reportTarget || "");
+    const isLocacaoContext =
+      event.currentTarget === locacaoReportBody ||
+      (locacaoReportBody instanceof HTMLElement && locacaoReportBody.contains(target));
     if (reportTarget === "admin") {
       exportGenericReportExcel(adminResultBody, "relatorio-admin.csv");
       return;
@@ -9015,10 +13491,12 @@ function handleReportAreaClick(event) {
       exportGenericReportExcel(manutencaoReportBody, "relatorio-manutencao.csv");
       return;
     }
-    if (reportTarget === "locacao" && relatorioLocacaoCache) {
+    if ((reportTarget === "locacao" || (isLocacaoContext && !reportTarget)) && relatorioLocacaoCache) {
       const file =
         relatorioLocacaoTipoSelecionado === "locados"
           ? "relatorio-veiculos-locados.csv"
+          : relatorioLocacaoTipoSelecionado === "completo"
+            ? "relatorio-completo-protocolos.csv"
           : "relatorio-veiculos-disponiveis.csv";
       exportRelatorioExcelFromCache(relatorioLocacaoCache, file);
       return;
@@ -9033,7 +13511,7 @@ function handleReportAreaClick(event) {
 
     if (target.dataset.finance === "emdia") {
       const totalSaldoEmDia = currentFinanceiroEmDia.reduce(
-        (acc, r) => acc + Math.max(0, parseCurrencyBR(r.pago) - parseCurrencyBR(r.devidoHoje)),
+        (acc, r) => acc + Math.max(0, pagoHarmonizadoRegistro(r) - parseCurrencyBR(r.devidoHoje)),
         0
       );
       const emDiaRows =
@@ -9043,7 +13521,7 @@ function handleReportAreaClick(event) {
               .slice(0, 200)
               .map((r) => {
                 const devido = parseCurrencyBR(r.devidoHoje);
-                const pago = parseCurrencyBR(r.pago);
+                const pago = pagoHarmonizadoRegistro(r);
                 const saldoSobrando = Math.max(0, pago - devido);
                 return [
                   r.nome || "Nao informado",
@@ -9079,7 +13557,7 @@ function handleReportAreaClick(event) {
         return;
       }
       const totalSaldoAtraso = currentFinanceiroAtraso.reduce(
-        (acc, r) => acc + Math.max(0, parseCurrencyBR(r.devidoHoje) - parseCurrencyBR(r.pago)),
+        (acc, r) => acc + Math.max(0, parseCurrencyBR(r.devidoHoje) - pagoHarmonizadoRegistro(r)),
         0
       );
       const atrasoRows =
@@ -9090,7 +13568,7 @@ function handleReportAreaClick(event) {
               .map(
                 (r) => {
                   const devido = parseCurrencyBR(r.devidoHoje);
-                  const pago = parseCurrencyBR(r.pago);
+                  const pago = pagoHarmonizadoRegistro(r);
                   const saldoDevedor = Math.max(0, devido - pago);
                   return [
                     r.nome || "Nao informado",
@@ -9138,7 +13616,7 @@ function handleReportAreaClick(event) {
     .slice(0, 150)
     .map(
       (r) =>
-        `<p><strong>${r.placa}</strong> - ${r.nome} (${currentScopeLabel})</p>`
+        `<p><strong>${r.placa}</strong> - ${r.nome || "Sem vínculo de cliente"} (${currentScopeLabel})</p>`
     )
     .join("");
 
@@ -9186,10 +13664,83 @@ installButton.addEventListener("click", async () => {
   installButton.classList.add("hidden");
 });
 
+function setUpdateButtonState(label, disabled) {
+  if (!updateButton) return;
+  updateButton.textContent = label;
+  updateButton.disabled = Boolean(disabled);
+}
+
+function revealUpdateButton(label) {
+  if (!updateButton) return;
+  updateButton.classList.remove("hidden");
+  setUpdateButtonState(label || "Buscar atualizações", false);
+}
+
+function wireServiceWorkerUpdateSignals(registration) {
+  if (!registration || updateReloadPending) return;
+
+  if (registration.waiting) {
+    revealUpdateButton("Atualização pronta - aplicar");
+    return;
+  }
+
+  registration.addEventListener("updatefound", () => {
+    const newWorker = registration.installing;
+    if (!newWorker) return;
+
+    newWorker.addEventListener("statechange", () => {
+      if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+        revealUpdateButton("Atualização pronta - aplicar");
+      }
+    });
+  });
+}
+
+async function checkForAppUpdate(manualTrigger) {
+  if (!swRegistration) return;
+  if (manualTrigger) setUpdateButtonState("Verificando...", true);
+
+  try {
+    await swRegistration.update();
+    if (swRegistration.waiting) {
+      setUpdateButtonState("Aplicando atualização...", true);
+      swRegistration.waiting.postMessage({ type: "SKIP_WAITING" });
+      updateReloadPending = true;
+      return;
+    }
+
+    if (manualTrigger) {
+      setUpdateButtonState("App já atualizado", true);
+      setTimeout(() => setUpdateButtonState("Buscar atualizações", false), 1800);
+    }
+  } catch (error) {
+    if (manualTrigger) {
+      setUpdateButtonState("Falha ao verificar", true);
+      setTimeout(() => setUpdateButtonState("Buscar atualizações", false), 2200);
+    }
+  }
+}
+
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./service-worker.js");
+    navigator.serviceWorker
+      .register("./service-worker.js")
+      .then((registration) => {
+        swRegistration = registration;
+        revealUpdateButton("Buscar atualizações");
+        wireServiceWorkerUpdateSignals(registration);
+      });
   });
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (updateReloadPending) window.location.reload();
+  });
+
+  if (updateButton) {
+    updateButton.addEventListener("click", () => {
+      checkForAppUpdate(true);
+    });
+  }
 }
 
 if (window.location.protocol === "file:") {
@@ -9197,29 +13748,47 @@ if (window.location.protocol === "file:") {
     "Voce abriu por arquivo local. Para funcionar como app instalavel, rode com servidor local (http://localhost).";
   envWarning.classList.remove("hidden");
   installButton.classList.add("hidden");
+  if (updateButton) updateButton.classList.add("hidden");
 }
 
+resetProjetoSomenteCadastrosV3Once();
 seedVeiculosDatabaseIfNeeded();
 seedClientesDatabaseIfNeeded();
 migratePlacaInLocalStorage();
 sanitizeVeiculosDatabase();
 applyClienteCpfFixes();
 normalizeClienteCodigos();
-removeClientesByCodigo([287, 288]);
-removeClientesByCpf(["444.444.444-44", "555.555.555-55"]);
 clearAllLocacoesOnce();
+resetLocacaoStackForSiteEntryOnce();
 importLocacoesFromPlanilhaOnce();
+ensureNumeroContratoForLocacoes();
 fixKnownRentalValueOverrides();
-cadManutencaoDataInput.value = todayBrDate();
+if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();
 ensureLocacaoInicioDefault();
 setHomeLayoutToolbarState();
 bootstrapHomeLayoutFromStorage();
 bindHomeLayoutEditorEvents();
+refreshClienteAreaQrCode();
+setClienteLayoutToolbarState();
+bootstrapClienteLayoutFromStorage();
+bindClienteLayoutEditorEvents();
+setClienteEnderecoConfirmado(false);
 setFuncionarioLayoutToolbarState();
 bootstrapFuncionarioLayoutFromStorage();
 bindFuncionarioLayoutEditorEvents();
+setLocacaoLayoutToolbarState();
+bootstrapLocacaoLayoutFromStorage();
+bindLocacaoLayoutEditorEvents();
+setLayoutEditorsAccessByProfile();
+bootstrapCadastroFromBundledSheets();
+bootstrapVeiculosFromFinanceiro2026();
 requireLoggedArea();
+applyDeepLinkCadastroIaFromHash();
+bindCadastroIaWizards();
+window.addEventListener("hashchange", () => {
+  applyDeepLinkCadastroIaFromHash();
+});
 setInterval(() => {
   enforceMaintenanceAndDailyRoutines();
 }, 60 * 1000);
