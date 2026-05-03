@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0c0f14">
+  <!-- URL absoluto do index.html do sistema DK (só no deploy onde portal e DK não ficam em pastas pai/filho). Deixe vazio para usar ../index.html no mesmo projeto. -->
+  <meta name="dk-sistema-cadastros-url" content="">
   <meta name="description" content="Grupo DK Empreendimentos — DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
@@ -102,11 +104,218 @@
         <h2 class="portal-panel__title" id="logado-titulo">Área logada</h2>
         <p id="logado-texto" class="subpage__lead"></p>
         <p class="subtext">Conteúdo da unidade em preparação.</p>
-        <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
+        <div class="logado-actions">
+          <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
+        </div>
+      </section>
+
+      <section id="panel-operacao-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Operação</h2>
+        <p class="subpage__lead">Acesse os cadastros do sistema DK Locadora.</p>
+        <p class="subtext">Em <strong>Cadastro de cliente</strong> e <strong>Cadastro de veículo</strong> os campos abrem aqui mesmo (teste e rascunho). O painel completo do funcionário continua disponível pelo link no final de cada formulário.</p>
+        <div class="operacao-comandos">
+          <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
+            <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
+            <span class="btn-operacao-cmd__hint">Abre os 14 campos da planilha (código, datas, CPF, nome, etc.)</span>
+          </button>
+          <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
+            <span class="btn-operacao-cmd__title">Cadastro de veículo</span>
+            <span class="btn-operacao-cmd__hint">Abre os 14 campos da planilha (tag, placa, código, marca, etc.)</span>
+          </button>
+        </div>
+
+        <div id="operacaoInlineCliente" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-cliente-title">
+          <h3 id="operacao-inline-cliente-title" class="operacao-inline-form__title">Dados do cliente</h3>
+          <p class="subtext operacao-inline-form__lead">Preencha abaixo. Em ambiente de teste os dados ficam só neste navegador (rascunho).</p>
+          <form id="formOperacaoClienteInline" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>Cód.</span>
+              <input type="text" id="operacaoClienteCodigo" name="codigo" maxlength="8" readonly placeholder="Automático" aria-label="Código">
+            </label>
+            <label class="portal-field">
+              <span>Data do Cadastro</span>
+              <input type="text" id="operacaoClienteDataCadastro" name="dataCadastro" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data do Cadastro">
+            </label>
+            <label class="portal-field">
+              <span>CPF</span>
+              <input type="text" id="operacaoClienteCpf" name="cpf" list="operacaoClienteCpfSugestoes" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="000.000.000-00" aria-label="CPF" aria-autocomplete="list">
+              <datalist id="operacaoClienteCpfSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>NOME</span>
+              <input type="text" id="operacaoClienteNome" name="nome" list="operacaoClienteNomeSugestoes" autocomplete="off" maxlength="120" required placeholder="Nome completo" aria-label="Nome" aria-autocomplete="list">
+              <datalist id="operacaoClienteNomeSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>Nº do Celular</span>
+              <input type="tel" id="operacaoClienteCelular" name="celular" inputmode="tel" maxlength="20" placeholder="Celular" aria-label="Número do celular">
+            </label>
+            <label class="portal-field">
+              <span>Recados 01</span>
+              <input type="text" id="operacaoClienteRecado1" name="recado1" maxlength="120" placeholder="Recado" aria-label="Recados 01">
+            </label>
+            <label class="portal-field">
+              <span>Recados 02</span>
+              <input type="text" id="operacaoClienteRecado2" name="recado2" maxlength="120" placeholder="Recado" aria-label="Recados 02">
+            </label>
+            <label class="portal-field">
+              <span>Nº da CNH-e</span>
+              <input type="text" id="operacaoClienteCnh" name="cnh" inputmode="numeric" maxlength="20" placeholder="CNH" aria-label="Número da CNH-e">
+            </label>
+            <label class="portal-field">
+              <span>Categoria</span>
+              <input type="text" id="operacaoClienteCategoria" name="categoria" maxlength="16" placeholder="Categoria" aria-label="Categoria">
+            </label>
+            <label class="portal-field">
+              <span>Vencimento</span>
+              <input type="text" id="operacaoClienteVencimento" name="vencimento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Vencimento">
+            </label>
+            <label class="portal-field">
+              <span>EAR?</span>
+              <select id="operacaoClienteEar" name="ear" aria-label="EAR">
+                <option value="">Selecione</option>
+                <option value="SIM">SIM</option>
+                <option value="NAO">NAO</option>
+              </select>
+            </label>
+            <label class="portal-field">
+              <span>CEP</span>
+              <input type="text" id="operacaoClienteCep" name="cep" inputmode="numeric" maxlength="9" autocomplete="postal-code" placeholder="00000-000" aria-label="CEP">
+            </label>
+            <label class="portal-field">
+              <span>Município/UF</span>
+              <input type="text" id="operacaoClienteMunicipioUf" name="municipioUf" maxlength="60" placeholder="Cidade / UF" aria-label="Município e UF">
+            </label>
+            <label class="portal-field portal-field--wide">
+              <span>Endereço</span>
+              <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
+            </label>
+            <div class="operacao-inline-form__actions">
+              <button type="submit" class="btn-primary">Guardar rascunho</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteLimparBtn">Limpar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteVoltarBtn">Voltar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteGerarRelatorioBtn">Gerar relatório</button>
+            </div>
+          </form>
+          <p id="operacaoClienteCadastroDetectMsg" class="portal-feedback portal-feedback--cadastro-detect" role="status" aria-live="polite"></p>
+          <p id="operacaoClienteInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+          <p class="operacao-inline-form__footnote">
+            <button type="button" class="link-like" id="operacaoClienteAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
+          </p>
+        </div>
+
+        <div id="operacaoInlineVeiculo" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-veiculo-title">
+          <h3 id="operacao-inline-veiculo-title" class="operacao-inline-form__title">Dados do veículo</h3>
+          <p class="subtext operacao-inline-form__lead">Preencha os 14 campos alinhados à planilha. Os dados ficam neste navegador e são mesclados em <code>dk_veiculos_cadastro</code> para os relatórios.</p>
+          <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>Nº</span>
+              <input type="text" id="operacaoVeiculoNum" name="numLinha" maxlength="12" inputmode="numeric" placeholder="Opcional" aria-label="Número da linha">
+            </label>
+            <label class="portal-field">
+              <span>Tag</span>
+              <input type="text" id="operacaoVeiculoTag" name="tag" maxlength="32" placeholder="Ex.: DKCR100" aria-label="Tag">
+            </label>
+            <label class="portal-field">
+              <span>Placa</span>
+              <input type="text" id="operacaoVeiculoPlaca" name="placa" list="operacaoVeiculoPlacaSugestoes" maxlength="10" required placeholder="ABC1D23" aria-label="Placa" autocomplete="off" aria-autocomplete="list">
+              <datalist id="operacaoVeiculoPlacaSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>Código</span>
+              <input type="text" id="operacaoVeiculoCodigo" name="codigo" list="operacaoVeiculoCodigoSugestoes" maxlength="24" placeholder="Código interno" aria-label="Código" autocomplete="off" aria-autocomplete="list">
+              <datalist id="operacaoVeiculoCodigoSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>Marca</span>
+              <input type="text" id="operacaoVeiculoMarca" name="marca" maxlength="60" placeholder="Marca" aria-label="Marca">
+            </label>
+            <label class="portal-field">
+              <span>Modelo</span>
+              <input type="text" id="operacaoVeiculoModelo" name="modelo" maxlength="80" required placeholder="Modelo" aria-label="Modelo">
+            </label>
+            <label class="portal-field">
+              <span>Valor</span>
+              <input type="text" id="operacaoVeiculoValor" name="valor" maxlength="32" inputmode="decimal" placeholder="Valor" aria-label="Valor">
+            </label>
+            <label class="portal-field">
+              <span>Cor</span>
+              <input type="text" id="operacaoVeiculoCor" name="cor" maxlength="32" placeholder="Cor" aria-label="Cor">
+            </label>
+            <label class="portal-field">
+              <span>Chassi</span>
+              <input type="text" id="operacaoVeiculoChassi" name="chassi" maxlength="24" placeholder="Chassi" aria-label="Chassi">
+            </label>
+            <label class="portal-field">
+              <span>Ano/Modelo</span>
+              <input type="text" id="operacaoVeiculoAnoModelo" name="anoModelo" maxlength="16" placeholder="Ex.: 2023/2024" aria-label="Ano e modelo">
+            </label>
+            <label class="portal-field">
+              <span>Renavam</span>
+              <input type="text" id="operacaoVeiculoRenavam" name="renavam" maxlength="20" inputmode="numeric" placeholder="Renavam" aria-label="Renavam">
+            </label>
+            <label class="portal-field">
+              <span>Motor</span>
+              <input type="text" id="operacaoVeiculoMotor" name="motor" maxlength="32" placeholder="Motor" aria-label="Motor">
+            </label>
+            <label class="portal-field">
+              <span>Proprietário</span>
+              <input type="text" id="operacaoVeiculoProprietario" name="proprietario" maxlength="120" placeholder="Nome do proprietário" aria-label="Proprietário">
+            </label>
+            <label class="portal-field portal-field--wide">
+              <span>Local</span>
+              <input type="text" id="operacaoVeiculoLocal" name="local" maxlength="120" placeholder="Local / garagem / filial" aria-label="Local">
+            </label>
+            <div class="operacao-inline-form__actions">
+              <button type="submit" class="btn-primary">Guardar rascunho</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoLimparBtn">Limpar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoVoltarBtn">Voltar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoGerarRelatorioBtn">Gerar relatório</button>
+            </div>
+          </form>
+          <p id="operacaoVeiculoCadastroDetectMsg" class="portal-feedback portal-feedback--cadastro-detect" role="status" aria-live="polite"></p>
+          <p id="operacaoVeiculoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+          <p class="operacao-inline-form__footnote">
+            <button type="button" class="link-like" id="operacaoVeiculoAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
+          </p>
+        </div>
+
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-operacao-locadora">Voltar</button>
+        </div>
       </section>
     </div>
   </div>
 
+  <div id="portalRelatorioPdfViewer" class="portal-pdf-viewer hidden" aria-hidden="true">
+    <div class="portal-pdf-viewer__toolbar">
+      <span class="portal-pdf-viewer__hint">Pré-visualização do relatório — use o botão para imprimir ou guardar como PDF.</span>
+      <div class="portal-pdf-viewer__toolbar-btns">
+        <button type="button" class="btn-primary" id="portalPdfImprimirBtn">Imprimir ou guardar PDF</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfFecharViewerBtn">Fechar relatório</button>
+      </div>
+    </div>
+    <iframe id="portalPdfIframe" class="portal-pdf-viewer__iframe" title="Relatório"></iframe>
+  </div>
+
+  <div id="portalRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalRelatorioTitulo">
+    <div class="portal-modal__backdrop" data-close-relatorio></div>
+    <div class="portal-modal__card">
+      <h3 id="portalRelatorioTitulo" class="portal-modal__title">Relatório</h3>
+      <p id="portalRelatorioResumo" class="portal-modal__text subtext"></p>
+      <p id="portalRelatorioFonteData" class="subtext">Os dados vêm do cadastro DK neste navegador (<code>dk_clientes_cadastro</code>), o mesmo do painel completo.</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalRelatorioPdfBtn">Relatório PDF</button>
+        <button type="button" class="btn-primary" id="portalRelatorioExcelBtn">Relatório Excel (CSV)</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalRelatorioFecharBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
+  <script src="clientes-dk-financeiro-2026.js"></script>
+  <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="app.js" defer></script>
 </body>
 </html>
