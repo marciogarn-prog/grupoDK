@@ -113,7 +113,7 @@
       <section id="panel-operacao-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Operação</h2>
         <p class="subpage__lead">Acesse os cadastros do sistema DK Locadora.</p>
-        <p class="subtext">Em <strong>Cadastro de cliente</strong> e <strong>Cadastro de veículo</strong> os campos abrem aqui mesmo (teste e rascunho). O painel completo do funcionário continua disponível pelo link no final de cada formulário.</p>
+        <p class="subtext">Em <strong>Cadastro de cliente</strong>, <strong>veículo</strong> e <strong>locação</strong> os campos abrem aqui. O protocolo da locação é gerado automaticamente e só passa ao seguinte depois de cadastrar. O painel completo DK continua disponível pelo link em cada bloco.</p>
         <div class="operacao-comandos">
           <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
             <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
@@ -122,6 +122,10 @@
           <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
             <span class="btn-operacao-cmd__title">Cadastro de veículo</span>
             <span class="btn-operacao-cmd__hint">Abre os 14 campos da planilha (tag, placa, código, marca, etc.)</span>
+          </button>
+          <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-locacao" aria-expanded="false" aria-controls="operacaoInlineLocacao">
+            <span class="btn-operacao-cmd__title">Cadastro de locação</span>
+            <span class="btn-operacao-cmd__hint">Protocolo automático (Receita 2026), CPF, placa, plano, valores e datas</span>
           </button>
         </div>
 
@@ -192,7 +196,7 @@
               <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
             </label>
             <div class="operacao-inline-form__actions">
-              <button type="submit" class="btn-primary">Guardar rascunho</button>
+              <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteGerarRelatorioBtn">Gerar relatório</button>
@@ -268,7 +272,7 @@
               <input type="text" id="operacaoVeiculoLocal" name="local" maxlength="120" placeholder="Local / garagem / filial" aria-label="Local">
             </label>
             <div class="operacao-inline-form__actions">
-              <button type="submit" class="btn-primary">Guardar rascunho</button>
+              <button type="submit" class="btn-primary">Guardar veículo</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoGerarRelatorioBtn">Gerar relatório</button>
@@ -278,6 +282,206 @@
           <p id="operacaoVeiculoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
             <button type="button" class="link-like" id="operacaoVeiculoAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
+          </p>
+        </div>
+
+        <div id="operacaoInlineLocacao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-locacao-title">
+          <h3 id="operacao-inline-locacao-title" class="operacao-inline-form__title">Cadastro de locação</h3>
+          <p class="subtext operacao-inline-form__lead">É necessário <strong>cliente</strong> e <strong>veículo</strong> já cadastrados neste navegador. Mesmas colunas da folha <strong>Receita 2026</strong>. Ao digitar <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>, aparecem sugestões da base — a lista afina-se enquanto escreve. Placas mostradas são veículos disponíveis para nova locação (sem contrato ativo). O protocolo só avança depois de <strong>Cadastrar locação</strong>.</p>
+          <form id="formOperacaoLocacaoInline" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>PROTOCOLO</span>
+              <input type="text" id="operacaoLocacaoProtocolo" name="protocolo" maxlength="24" readonly autocomplete="off" aria-label="PROTOCOLO (gerado automaticamente)">
+            </label>
+            <label class="portal-field">
+              <span>CPF</span>
+              <input type="text" id="operacaoLocacaoCpf" name="cpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF" list="operacaoLocacaoCpfSugestoes" aria-autocomplete="list">
+            </label>
+            <label class="portal-field">
+              <span>CLIENTE</span>
+              <input type="text" id="operacaoLocacaoCliente" name="cliente" maxlength="120" placeholder="Nome do cliente" aria-label="CLIENTE" list="operacaoLocacaoClienteSugestoes" aria-autocomplete="list">
+            </label>
+            <label class="portal-field portal-field--combobox">
+              <span>PLACA</span>
+              <div class="portal-combobox" id="operacaoLocacaoPlacaCombo">
+                <input
+                  type="text"
+                  id="operacaoLocacaoPlaca"
+                  name="placa"
+                  maxlength="10"
+                  required
+                  placeholder="ABC1D23"
+                  aria-label="PLACA"
+                  autocomplete="off"
+                  list="operacaoLocacaoPlacaSugestoes"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  aria-controls="operacaoLocacaoPlacaLista"
+                >
+                <div
+                  id="operacaoLocacaoPlacaLista"
+                  class="portal-placa-dropdown hidden"
+                  role="listbox"
+                  aria-label="Placas disponíveis para locação"
+                  hidden
+                ></div>
+              </div>
+            </label>
+            <label class="portal-field">
+              <span>MODELO</span>
+              <input type="text" id="operacaoLocacaoModelo" name="modelo" maxlength="80" placeholder="Modelo do veículo" aria-label="MODELO">
+            </label>
+            <label class="portal-field">
+              <span>DATA INICIO</span>
+              <input type="text" id="operacaoLocacaoDataInicio" name="dataInicio" inputmode="numeric" maxlength="10" autocomplete="off" required placeholder="DD/MM/AAAA" aria-label="DATA INICIO">
+            </label>
+            <label class="portal-field">
+              <span>DIA DE PAGAMENTO</span>
+              <input type="text" id="operacaoLocacaoDiaPagamento" name="diaPagamento" maxlength="40" placeholder="Ex.: segunda-feira" aria-label="DIA DE PAGAMENTO">
+            </label>
+            <label class="portal-field">
+              <span>DATA FIM</span>
+              <input type="text" id="operacaoLocacaoDataFim" name="dataFim" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA FIM">
+            </label>
+            <label class="portal-field">
+              <span>TEMPO EM DIAS DO CONTRATO</span>
+              <input
+                type="text"
+                id="operacaoLocacaoTempoDias"
+                name="tempoDias"
+                maxlength="8"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="0"
+                aria-label="TEMPO EM DIAS DO CONTRATO (da data de início até hoje)"
+                title="Calculado em dias corridos: desde a data de início até a data de hoje"
+              >
+            </label>
+            <label class="portal-field">
+              <span>QUANTO CUSTA O DIA</span>
+              <input
+                type="text"
+                id="operacaoLocacaoCustoDia"
+                name="custoDia"
+                maxlength="36"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="R$ 0,00"
+                aria-label="QUANTO CUSTA O DIA (valor do plano dividido por 7)"
+                title="Calculado: valor do plano ÷ 7, em reais (R$)"
+              >
+            </label>
+            <label class="portal-field">
+              <span>VALOR DO ALUGUEL</span>
+              <input type="text" id="operacaoLocacaoValorAluguel" name="valorAluguel" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
+            </label>
+            <label class="portal-field">
+              <span>VALOR INVESTIMENTO</span>
+              <input type="text" id="operacaoLocacaoValorInvestimento" name="valorInvestimento" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR INVESTIMENTO">
+            </label>
+            <label class="portal-field">
+              <span>VALOR DO PLANO</span>
+              <input
+                type="text"
+                id="operacaoLocacaoValorPlano"
+                name="valorPlano"
+                maxlength="32"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="0,00"
+                aria-label="VALOR DO PLANO (soma automática: locação + investimento)"
+                title="Calculado: valor do aluguel (locação) + valor de investimento"
+              >
+            </label>
+            <label class="portal-field">
+              <span>VALOR DEVIDO DO PLANO</span>
+              <input
+                type="text"
+                id="operacaoLocacaoValorDevidoPlano"
+                name="valorDevidoPlano"
+                maxlength="40"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="R$ 0,00"
+                aria-label="VALOR DEVIDO DO PLANO (tempo em dias × custo do dia)"
+                title="Calculado: tempo em dias do contrato × quanto custa o dia (valor do plano ÷ 7)"
+              >
+            </label>
+            <label class="portal-field">
+              <span>TOTAL PAGO</span>
+              <input type="text" id="operacaoLocacaoTotalPago" name="totalPago" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="TOTAL PAGO">
+            </label>
+            <label class="portal-field">
+              <span>TIPO DE PLANO</span>
+              <input
+                type="text"
+                id="operacaoLocacaoTipoPlano"
+                name="tipoPlano"
+                maxlength="80"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="DK MEU TRANSPORTE"
+                aria-label="TIPO DE PLANO (automático conforme investimento)"
+                title="Com valor de investimento: DK MINHA MOTO. Sem investimento: DK MEU TRANSPORTE"
+              >
+            </label>
+            <label class="portal-field">
+              <span>VALOR DEVIDO DO ALUGUEL</span>
+              <input type="text" id="operacaoLocacaoValorDevidoAluguel" name="valorDevidoAluguel" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DEVIDO DO ALUGUEL">
+            </label>
+            <label class="portal-field">
+              <span>INVESTIMENTO ACUMULADO</span>
+              <input type="text" id="operacaoLocacaoInvestimentoAcumulado" name="investimentoAcumulado" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="INVESTIMENTO ACUMULADO">
+            </label>
+            <label class="portal-field portal-field--wide">
+              <span>TOTAL PAGO NO ANO DE 2025</span>
+              <input type="text" id="operacaoLocacaoTotalPagoAno2025" name="totalPagoAno2025" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="TOTAL PAGO NO ANO DE 2025">
+            </label>
+            <datalist id="operacaoLocacaoPlacaSugestoes"></datalist>
+            <datalist id="operacaoLocacaoCpfSugestoes"></datalist>
+            <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
+
+            <div class="operacao-inline-form__actions">
+              <button type="submit" class="btn-primary">Cadastrar locação</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoLimparBtn">Limpar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoVoltarBtn">Voltar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoGerarRelatorioBtn">Gerar relatório</button>
+            </div>
+          </form>
+          <div
+            id="operacaoLocacaoRelatorioPanel"
+            class="portal-relatorio-locacao hidden"
+            role="group"
+            aria-label="Relatório de locações de motos"
+          >
+            <p class="portal-relatorio-locacao__title">Escolha o tipo de locação</p>
+            <div class="portal-relatorio-locacao__row">
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoRelAtivasBtn">
+                Locações ativas
+              </button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoRelFinalizadasBtn">
+                Locações finalizadas
+              </button>
+            </div>
+            <div id="operacaoLocacaoRelatorioFormatos" class="portal-relatorio-locacao__row portal-relatorio-locacao__formatos hidden">
+              <span class="portal-relatorio-locacao__label">Formato</span>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoRelPdfBtn">PDF</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoRelExcelBtn">Excel</button>
+            </div>
+          </div>
+          <p id="operacaoLocacaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+          <p class="operacao-inline-form__footnote">
+            <button type="button" class="link-like" id="operacaoLocacaoAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
           </p>
         </div>
 
@@ -316,6 +520,8 @@
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="clientes-dk-financeiro-2026.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
+  <script src="locacoes-receita-2026-import.js"></script>
   <script src="app.js" defer></script>
+  <script src="portal-locadora-ui.js" defer></script>
 </body>
 </html>

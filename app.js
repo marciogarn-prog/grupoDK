@@ -43,7 +43,7 @@ const mockClientes = [
 
 const SESSION_UNLOCK_SALVAR_CLIENTE_KEY = "dk_unlock_salvar_cliente_v1";
 const FUNCIONARIOS_ACCESS_KEY = "dk_funcionarios_access";
-const OPERACAO_ACCESS_TARGETS = ["cliente", "veiculo", "funcionario"];
+const OPERACAO_ACCESS_TARGETS = ["cliente", "veiculo", "locacao", "funcionario"];
 const funcionariosAccess = [
   {
     cpf: "03037897430",
@@ -103,6 +103,9 @@ const receita2026Data =
   typeof RECEITA_2026_DATA !== "undefined" && Array.isArray(RECEITA_2026_DATA)
     ? RECEITA_2026_DATA
     : [];
+
+/** Página do portal `grupodkempreendimentos/index.html` (sem #grupoHome / #loginClienteForm). O restante do app.js fica inerte; use `portal-locadora-ui.js`. */
+window.DK_PORTAL_LOCADORA_PAGE = Boolean(document.getElementById("view-home"));
 
 const grupoHome = document.getElementById("grupoHome");
 const locadoraArea = document.getElementById("locadoraArea");
@@ -463,6 +466,8 @@ const BACKUP_KEYS = [
 const DAILY_RECON_KEY = "dk_daily_reconciliation_status";
 const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
+/** Importação única das 378 locações do bundle RECEITA 2026 (locacoes-receita-2026-import.js). */
+const BOOTSTRAP_LOCACOES_RECEITA2026_KEY = "dk_bootstrap_locacoes_receita2026_v1";
 /** Migração única: zera toda a pilha operacional de locação/lançamentos; mantém clientes e veículos. */
 const RESET_LOCACAO_STACK_SITE_V2_KEY = "dk_reset_locacao_stack_site_v2";
 /**
@@ -486,7 +491,7 @@ const PLACA_CORRECOES = [
   { old: "SPA7A73", next: "SPB7A73" },
 ];
 const PLACAS_LOCADAS_MANUAIS = [
-  "JQD4H51","KLP9J27","OYN5604","PDG5F83","PEI2202","PES5J25","PES7D79","PET4A64","PET6I93","PGZ0J54",
+  "JQD4H51","KLP9J27","OYN5604","PDG5F83","PEI2C02","PES5J25","PES7D79","PET4A64","PET6I93","PGZ0J54",
   "PLP2G62","QYP3E99","QYU5H13","QYW8I91","RCY4F05","RDL3I24","RDO7E19","RQH1D27","RZH5I01",
   "RZJ3D92","RZJ5C24","RZN2G33","RZP5E86","RZP6J73","RZS4G95","RZW5D99","SBL7A18","SJR1B50","SOQ1J79",
   "SOQ2D39","SOQ3B79","SOR1I03","SOT1I98","SOU2I56","SOU4H09","SOU5A29","SOU5C59","SOU5E29","SOW0B92",
@@ -526,9 +531,10 @@ let clienteLayoutResizeObserver = null;
 const CLIENTE_LAYOUT_KEY = "dk_cliente_form_layout_v2";
 
 function showGroupHome() {
+  if (!grupoHome) return;
   grupoHome.classList.remove("hidden");
-  locadoraArea.classList.add("hidden");
-  centroArea.classList.add("hidden");
+  if (locadoraArea) locadoraArea.classList.add("hidden");
+  if (centroArea) centroArea.classList.add("hidden");
 }
 
 function todayBrDate() {
@@ -540,20 +546,23 @@ function todayBrDate() {
 }
 
 function showLocadoraArea() {
+  if (!grupoHome || !locadoraArea) return;
   grupoHome.classList.add("hidden");
   locadoraArea.classList.remove("hidden");
-  centroArea.classList.add("hidden");
+  if (centroArea) centroArea.classList.add("hidden");
 }
 
 function showCentroArea() {
+  if (!grupoHome || !centroArea) return;
   grupoHome.classList.add("hidden");
-  locadoraArea.classList.add("hidden");
+  if (locadoraArea) locadoraArea.classList.add("hidden");
   centroArea.classList.remove("hidden");
 }
 
 function openLocadoraLoginTarget(target) {
   const colaborador = target === "colaborador";
   showLocadoraArea();
+  if (!loginArea) return;
   loginArea.classList.remove("hidden");
   dashboardCard.classList.add("hidden");
   adminCard.classList.add("hidden");
@@ -2101,6 +2110,7 @@ function resetProjetoSomenteCadastrosV3Once() {
   localStorage.removeItem(CLEAR_LOCACOES_ONCE_KEY);
   localStorage.removeItem(RESET_LOCACAO_STACK_SITE_V2_KEY);
   localStorage.removeItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY);
+  localStorage.removeItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY);
 
   localStorage.setItem(RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY, "done");
 }
@@ -2337,6 +2347,79 @@ function bootstrapVeiculosFromFinanceiro2026() {
 
     saveCadastro(CAD_VEICULOS_KEY, merged);
     localStorage.setItem("dk_financeiro_2026_veiculos_imported_v1", "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Retificação Mercosul / placas antigas já gravadas em localStorage (o bundle JS não reescreve o browser sozinho). */
+const MERCOSUL_PLACA_RENAMES = [["PEI2202", "PEI2C02"]];
+
+function dedupeVeiculosByNormalizedPlate(veiculos) {
+  const seen = new Map();
+  const out = [];
+  veiculos.forEach((v) => {
+    const p = normalizePlate(v.placa);
+    if (!p) {
+      out.push(v);
+      return;
+    }
+    if (!seen.has(p)) {
+      seen.set(p, out.length);
+      out.push({ ...v });
+      return;
+    }
+    const idx = seen.get(p);
+    out[idx] = { ...out[idx], ...v, placa: out[idx].placa || v.placa };
+  });
+  return out;
+}
+
+function migrateKnownMercosulPlateRenames() {
+  try {
+    function novoPlaca(raw) {
+      const p = normalizePlate(raw);
+      const pair = MERCOSUL_PLACA_RENAMES.find(([from]) => normalizePlate(from) === p);
+      return pair ? String(pair[1] || "").trim().toUpperCase() : "";
+    }
+
+    const veh = loadCadastro(CAD_VEICULOS_KEY);
+    if (veh.length) {
+      let ch = false;
+      const next = veh.map((v) => {
+        const np = novoPlaca(v.placa);
+        if (!np) return v;
+        ch = true;
+        return { ...v, placa: np };
+      });
+      if (ch) {
+        saveCadastro(CAD_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(next));
+      }
+    }
+
+    const loc = loadCadastro(CAD_LOCACOES_KEY);
+    if (loc.length) {
+      let ch = false;
+      const next = loc.map((l) => {
+        const np = novoPlaca(l.placa);
+        if (!np) return l;
+        ch = true;
+        return { ...l, placa: np };
+      });
+      if (ch) saveCadastro(CAD_LOCACOES_KEY, next);
+    }
+
+    const man = loadCadastro(CAD_MANUTENCOES_KEY);
+    if (man.length) {
+      let ch = false;
+      const next = man.map((m) => {
+        const np = novoPlaca(m.placa);
+        if (!np) return m;
+        ch = true;
+        return { ...m, placa: np };
+      });
+      if (ch) saveCadastro(CAD_MANUTENCOES_KEY, next);
+    }
   } catch {
     /* ignore */
   }
@@ -2752,8 +2835,9 @@ function refreshLocacaoPlacaOptions() {
 }
 
 /**
- * Regra da locação: placa disponível só se não houver contrato aberto
- * (cadastro local sem data fim OU linha vigente em receita2026 / planilha sem data fim).
+ * Veículos elegíveis para **nova** locação: placa sem protocolo ativo (contrato sem data fim).
+ * Não limita por CPF — o cliente pode já ter outra locação ativa noutra placa.
+ * Fonte de placas ocupadas: cadastro local + Receita 2026 (`getActivePlatesSet`).
  */
 function getVeiculosSemProtocoloAtivo() {
   const allVeiculos = loadCadastro(CAD_VEICULOS_KEY);
@@ -3574,6 +3658,7 @@ function autoFillLancamentoFromPlaca(placaRaw) {
   suggestSemanaInicioFromDiaPagamento();
 }
 
+/** Candidatos a nome/CPF para lançamentos; `placa` é apenas referência (ex.: uma vigência), não implica «só uma locação por cliente». */
 function getLancamentoClienteCandidates() {
   const byCpf = new Map();
   loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
@@ -4595,8 +4680,9 @@ function protocoloLocacaoDatePrefix(date = new Date()) {
 }
 
 /**
- * Protocolo único por locação: AAAAMMDD + sequência do dia (001, 002, …).
- * Une cliente (CPF) e veículo (placa) no mesmo registro; gravado em numeroContrato.
+ * Número de protocolo único por **registro** de locação: AAAAMMDD + sequência do dia (001, 002, …).
+ * Gravado em `numeroContrato`. O mesmo CPF pode ter vários protocolos ativos (veículos diferentes).
+ * Uma mesma placa só pode ter um contrato sem data fim — ver `getActivePlatesSet` / `getVeiculosSemProtocoloAtivo`.
  */
 function proximoProtocoloLocacaoNumero(date = new Date()) {
   const prefix = protocoloLocacaoDatePrefix(date);
@@ -7178,7 +7264,7 @@ async function renderRelatorioLocacao(tipo) {
     const html = rows.length
       ? `
         <p><strong>Total de veículos locados:</strong> ${rows.length}</p>
-        <p class="hint"><strong>Protocolo:</strong> número único que liga um veículo (placa) a um cliente (CPF) na locação. <strong>Lista:</strong> contratos com status <strong>ATIVO</strong> na base embarcada (<code>locacoes-planilha-data.js</code>), uma linha por placa (maior protocolo se houver mais de um ativo). Sem essa base, usa-se receita 2026 + cadastro local. <strong>Telefones:</strong> cadastro de clientes.</p>
+        <p class="hint"><strong>Protocolo:</strong> número único por contrato (CPF + placa no registro). O mesmo cliente pode ter <strong>vários protocolos ativos</strong> em placas diferentes; cada placa só pode ter <strong>um</strong> protocolo ativo. <strong>Lista:</strong> contratos ATIVO na base embarcada (<code>locacoes-planilha-data.js</code>), uma linha por placa quando aplicável; senão receita 2026 + cadastro local. <strong>Telefones:</strong> cadastro de clientes.</p>
         <div class="report-actions">
           <button type="button" class="secondary" data-report-export="pdf">Exportar para PDF</button>
           <button type="button" class="secondary" data-report-export="excel">Exportar para Excel</button>
@@ -7626,6 +7712,61 @@ function importLocacoesFromPlanilhaOnce() {
   localStorage.setItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY, "done");
 }
 
+/**
+ * Carrega `LOCACOES_RECEITA_2026_IMPORT` (planilha RECEITA 2026, linhas 9–386) em `dk_locacoes_cadastro`
+ * uma vez por navegador, só se o cadastro de locações estiver vazio.
+ * Regra operacional: esse conjunto é a base inicial única; novas locações entram só pela área Operação → Cadastro locação.
+ */
+function bootstrapLocacoesReceita2026Bundled() {
+  if (localStorage.getItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY) === "done") return;
+  const rows =
+    typeof LOCACOES_RECEITA_2026_IMPORT !== "undefined" && Array.isArray(LOCACOES_RECEITA_2026_IMPORT)
+      ? LOCACOES_RECEITA_2026_IMPORT
+      : [];
+  if (!rows.length) return;
+  const existing = loadCadastro(CAD_LOCACOES_KEY);
+  if (existing.length > 0) return;
+
+  const baseNow = Date.now();
+  const mapped = rows
+    .map((item, idx) => {
+      const cpf = onlyDigits(String(item.cpf || ""));
+      const placa = normalizePlate(String(item.placa || ""));
+      const nc = normalizeNumeroContratoKey(String(item.numeroContrato || ""));
+      if (cpf.length !== 11 || !placa || !nc) return null;
+      return {
+        id: baseNow + idx,
+        createdAt: baseNow + idx,
+        cpf,
+        placa,
+        inicio: String(item.inicio || "").trim(),
+        fim: String(item.fim || "").trim(),
+        plano: String(item.plano || "").trim(),
+        valorLocacao: String(item.valorLocacao || "").trim(),
+        valorInvestimento: String(item.valorInvestimento || "").trim(),
+        valorSemanal: String(item.valorSemanal || "").trim(),
+        valorParcela: String(item.valorParcela || "").trim(),
+        numeroContrato: nc,
+        statusLocacao: String(item.statusLocacao || "ATIVO").trim(),
+        diaPagto: String(item.diaPagto || "").trim(),
+        periodoLocacao: String(item.periodoLocacao || "").trim(),
+        modalidade: String(item.modalidade || "").trim(),
+        marcaModelo: String(item.marcaModelo || "").trim(),
+        opcaoContrato: String(item.opcaoContrato || "").trim(),
+        periodoContrato: String(item.periodoContrato || "").trim(),
+        kmInicial: String(item.kmInicial || "").trim(),
+        configPrecoKm: String(item.configPrecoKm || "").trim(),
+        tabela: String(item.tabela || "").trim(),
+        clienteCodigo: String(item.clienteCodigo || "").trim(),
+      };
+    })
+    .filter(Boolean);
+
+  if (!mapped.length) return;
+  saveCadastro(CAD_LOCACOES_KEY, mapped);
+  localStorage.setItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY, "done");
+}
+
 function applyClienteCpfFixes() {
   const cpfFixes = [
     { nome: "JEFERSON VINÍCIUS FREIRE MAGALHÃES", cpf: "11111111111" },
@@ -7990,6 +8131,13 @@ function buildLatestReceita2026RowByPlateMap() {
   return latestByPlate;
 }
 
+/**
+ * Placas com pelo menos uma locação «em curso» (sem data fim no cadastro ou na Receita 2026).
+ *
+ * Regras de negócio:
+ * - **Um mesmo CPF pode ter vários protocolos ativos em paralelo** (placas diferentes).
+ * - **Cada placa só pode ter um protocolo ativo** — nova locação na mesma placa só após encerrar (data fim) a anterior.
+ */
 function getActivePlatesSet() {
   const fromCadastro = loadCadastro(CAD_LOCACOES_KEY)
     .filter((l) => !String(l.fim || "").trim())
@@ -8237,8 +8385,9 @@ function findModeloByPlaca(placa) {
 
 function renderDashboard(cliente) {
   if (enforceMaintenanceAndDailyRoutines()) return;
+  if (!dashboardCard || !loginArea) return;
   showLocadoraArea();
-  adminCard.classList.add("hidden");
+  if (adminCard) adminCard.classList.add("hidden");
   const msg = document.getElementById("dashboardClienteMsg");
   if (msg) {
     msg.textContent = `Olá, ${String(cliente?.nome || "cliente").trim() || "cliente"}.`;
@@ -10294,8 +10443,17 @@ function readPendingOperacaoTab() {
     history.replaceState(null, "", window.location.pathname + window.location.search);
     return "veiculo";
   }
+  if (raw === "operacao-locacao") {
+    try {
+      sessionStorage.removeItem("dk_operacao_open");
+    } catch {
+      /* ignore */
+    }
+    history.replaceState(null, "", window.location.pathname + window.location.search);
+    return "locacao";
+  }
   const tab = sessionStorage.getItem("dk_operacao_open");
-  if (tab === "cliente" || tab === "veiculo") {
+  if (tab === "cliente" || tab === "veiculo" || tab === "locacao") {
     sessionStorage.removeItem("dk_operacao_open");
     return tab;
   }
@@ -10304,6 +10462,7 @@ function readPendingOperacaoTab() {
 
 function renderAdminDashboard() {
   if (enforceMaintenanceAndDailyRoutines()) return;
+  if (!adminCard || !dashboardCard || !loginArea) return;
   const session = getSession();
   const isOwner = session?.tipo === "admin" && session?.role === "owner";
   showLocadoraArea();
@@ -10647,6 +10806,7 @@ function bindCadastroIaWizards() {
 function applyDeepLinkCadastroIaFromHash() {
   if ((window.location.hash || "").toLowerCase() !== "#cadastro-ia") return;
   if (getSession()) return;
+  if (!locadoraArea) return;
   showLocadoraArea();
   loginArea.classList.remove("hidden");
   dashboardCard.classList.add("hidden");
@@ -10654,6 +10814,29 @@ function applyDeepLinkCadastroIaFromHash() {
   requestAnimationFrame(() => {
     document.getElementById("cadastroIaClientePublic")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
+}
+
+/** Abre área DK Locadora (login) com `#locadora`, `#locadora/cliente` ou `#locadora/colaborador` (sem sessão). */
+function applyDeepLinkLocadoraFromHash() {
+  if (window.DK_PORTAL_LOCADORA_PAGE) return;
+  const full = window.location.hash || "";
+  const lower = full.toLowerCase();
+  if (!lower.startsWith("#locadora")) return;
+  if (getSession()) return;
+  const raw = full.slice(1).toLowerCase();
+  const rest = raw.replace(/^locadora\/?/, "").trim();
+  if (rest === "colaborador") {
+    openLocadoraLoginTarget("colaborador");
+    return;
+  }
+  if (rest === "cliente") {
+    openLocadoraLoginTarget("cliente");
+    return;
+  }
+  showLocadoraArea();
+  loginArea.classList.remove("hidden");
+  dashboardCard.classList.add("hidden");
+  adminCard.classList.add("hidden");
 }
 
 function runAdminAction(action, scope) {
@@ -11053,7 +11236,7 @@ function requireLoggedArea() {
   showGroupHome();
 }
 
-loginClienteForm.addEventListener("submit", (event) => {
+if (!window.DK_PORTAL_LOCADORA_PAGE && loginClienteForm) loginClienteForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (enforceMaintenanceAndDailyRoutines()) return;
   const formData = new FormData(loginClienteForm);
@@ -11071,6 +11254,7 @@ loginClienteForm.addEventListener("submit", (event) => {
   renderDashboard(cliente);
 });
 
+if (!window.DK_PORTAL_LOCADORA_PAGE) {
 loginAdminForm.addEventListener("submit", (event) => {
   event.preventDefault();
   if (enforceMaintenanceAndDailyRoutines()) return;
@@ -11155,6 +11339,13 @@ adminLogoutButton.addEventListener("click", () => {
 });
 
 openLocadoraButton.addEventListener("click", () => {
+  if (!getSession()) {
+    try {
+      window.location.hash = "locadora";
+    } catch {
+      /* ignore */
+    }
+  }
   showLocadoraArea();
   loginArea.classList.remove("hidden");
   dashboardCard.classList.add("hidden");
@@ -13083,7 +13274,7 @@ if (locacaoCadastroForm) {
   }
   if (!veiculoEscolhido) {
     window.alert(
-      "Esta placa já está vinculada a protocolo ativo (sem data fim) ou está indisponível. Encerre a locação ativa para reutilizar a placa."
+      "Regra: cada placa só pode ter um protocolo ativo (contrato sem data fim). Esta placa já está locada ou indisponível — finalize a locação para voltar a usar. O mesmo cliente pode ter outro protocolo ativo noutra placa."
     );
     return;
   }
@@ -13649,19 +13840,20 @@ adminResultBody.addEventListener("click", handleReportAreaClick);
 locacaoReportBody.addEventListener("click", handleReportAreaClick);
 locacaoReportBody.addEventListener("input", handleReportAreaInput);
 manutencaoReportBody.addEventListener("click", handleReportAreaClick);
+}
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredPrompt = event;
-  installButton.classList.remove("hidden");
+  installButton?.classList.remove("hidden");
 });
 
-installButton.addEventListener("click", async () => {
+installButton?.addEventListener("click", async () => {
   if (!deferredPrompt) return;
   deferredPrompt.prompt();
   await deferredPrompt.userChoice;
   deferredPrompt = null;
-  installButton.classList.add("hidden");
+  installButton?.classList.add("hidden");
 });
 
 function setUpdateButtonState(label, disabled) {
@@ -13744,10 +13936,12 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
 }
 
 if (window.location.protocol === "file:") {
-  envWarning.textContent =
-    "Voce abriu por arquivo local. Para funcionar como app instalavel, rode com servidor local (http://localhost).";
-  envWarning.classList.remove("hidden");
-  installButton.classList.add("hidden");
+  if (envWarning) {
+    envWarning.textContent =
+      "Voce abriu por arquivo local. Para funcionar como app instalavel, rode com servidor local (http://localhost).";
+    envWarning.classList.remove("hidden");
+  }
+  if (installButton) installButton.classList.add("hidden");
   if (updateButton) updateButton.classList.add("hidden");
 }
 
@@ -13761,6 +13955,7 @@ normalizeClienteCodigos();
 clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
 importLocacoesFromPlanilhaOnce();
+bootstrapLocacoesReceita2026Bundled();
 ensureNumeroContratoForLocacoes();
 fixKnownRentalValueOverrides();
 if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
@@ -13782,12 +13977,15 @@ bootstrapLocacaoLayoutFromStorage();
 bindLocacaoLayoutEditorEvents();
 setLayoutEditorsAccessByProfile();
 bootstrapCadastroFromBundledSheets();
+migrateKnownMercosulPlateRenames();
 bootstrapVeiculosFromFinanceiro2026();
 requireLoggedArea();
 applyDeepLinkCadastroIaFromHash();
+applyDeepLinkLocadoraFromHash();
 bindCadastroIaWizards();
 window.addEventListener("hashchange", () => {
   applyDeepLinkCadastroIaFromHash();
+  applyDeepLinkLocadoraFromHash();
 });
 setInterval(() => {
   enforceMaintenanceAndDailyRoutines();

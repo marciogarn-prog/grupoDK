@@ -306,6 +306,7 @@
             <div id="adminOperacaoMenu" class="sidebar-submenu hidden">
               <button type="button" class="secondary operacao-target-btn" data-target="cliente">Cadastro cliente</button>
               <button type="button" class="secondary operacao-target-btn" data-target="veiculo">Cadastro veiculo</button>
+              <button type="button" class="secondary operacao-target-btn" data-target="locacao">Cadastro locação</button>
               <button type="button" class="secondary operacao-target-btn" data-target="funcionario">Administradores</button>
             </div>
             <button type="button" id="adminNavDados" class="secondary">02 - Area do administrador</button>
@@ -491,6 +492,15 @@
             <div id="cadastroVeiculoLista" class="cadastro-lista"></div>
               </section>
 
+              <section id="operacaoLocacaoSection" class="admin-group hidden">
+                <h3>Cadastro de locação</h3>
+                <p class="subtext">
+                  O formulário completo (19 colunas alinhadas à Receita 2026, protocolo automático) está no
+                  <strong>portal Grupo DK</strong>: login Locadora → Operação → Cadastro de locação.
+                  Os registos ficam em <code>dk_locacoes_cadastro</code> neste navegador.
+                </p>
+              </section>
+
               <section id="operacaoFuncionarioSection" class="admin-group hidden">
                 <h3>Administradores e funcionários</h3>
                 <p class="subtext">Somente perfil <strong>Administrador (titular)</strong> pode cadastrar, editar ou bloquear. Operacional usa senha inicial de 6 dígitos e define senha própria no primeiro acesso.</p>
@@ -624,6 +634,7 @@
   <script src="clientes-planilha-50.js"></script>
   <script src="clientes-dk-financeiro-2026.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
+  <script src="locacoes-receita-2026-import.js"></script>
   <script src="cadastro-ia-cliente.js"></script>
   <script src="app.js"></script>
 </body>

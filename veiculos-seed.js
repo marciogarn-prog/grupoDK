@@ -85,7 +85,7 @@
     },
     {
         "tag":  "DKCR - 007",
-        "placa":  "PEI2202",
+        "placa":  "PEI2C02",
         "situacao":  "",
         "codigo":  "DKCA  004",
         "marca":  "CARRO",
