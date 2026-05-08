@@ -1,0 +1,7 @@
+{
+  "name": "grupodk-empreendimentos-portal",
+  "private": true,
+  "dependencies": {
+    "@upstash/redis": "^1.34.3"
+  }
+}

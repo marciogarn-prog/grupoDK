@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#0c0f14">
   <!-- URL absoluto do index.html do sistema DK (só no deploy onde portal e DK não ficam em pastas pai/filho). Deixe vazio para usar ../index.html no mesmo projeto. -->
   <meta name="dk-sistema-cadastros-url" content="">
+  <!-- Sincronização localhost ↔ site: crie Redis na Upstash; na Vercel defina UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN; faça redeploy. Sem isso o cadastro extra fica só no navegador. -->
+  <meta name="dk-cadastro-sync-origin" content="https://grupodkempreendimentos.com.br">
   <meta name="description" content="Grupo DK Empreendimentos — DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
@@ -149,6 +151,12 @@
               <input type="text" id="operacaoClienteCpf" name="cpf" list="operacaoClienteCpfSugestoes" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="000.000.000-00" aria-label="CPF" aria-autocomplete="list">
               <datalist id="operacaoClienteCpfSugestoes"></datalist>
             </label>
+            <div
+              id="operacaoClienteNomeListaPrefixo"
+              class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden"
+              role="region"
+              aria-label="Sugestões de nome pelo CPF digitado"
+            ></div>
             <label class="portal-field">
               <span>NOME</span>
               <input type="text" id="operacaoClienteNome" name="nome" list="operacaoClienteNomeSugestoes" autocomplete="off" maxlength="120" required placeholder="Nome completo" aria-label="Nome" aria-autocomplete="list">

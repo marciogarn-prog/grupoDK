@@ -386,12 +386,112 @@
       btnAtualizar.classList.toggle("hidden", !known);
     }
 
+    /** Base oficial + cadastro local + candidatos do painel; não depende só de getLancamentoClienteCandidates. */
     function getByCpfPrefix(prefixDigits) {
-      if (!prefixDigits || typeof getLancamentoClienteCandidates !== "function") return [];
-      return getLancamentoClienteCandidates()
-        .filter((c) => String(c.cpf || "").startsWith(prefixDigits))
-        .slice(0, 40);
+      if (!prefixDigits) return [];
+      const byCpf = new Map();
+      const addRow = (c) => {
+        const cpf =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        if (cpf.length !== 11 || !cpf.startsWith(prefixDigits)) return;
+        const nome = String(c.nome || "").trim();
+        const prev = byCpf.get(cpf);
+        if (!prev) {
+          byCpf.set(cpf, { nome, cpf, placa: String(c.placa || "").trim() });
+          return;
+        }
+        byCpf.set(cpf, {
+          nome: nome || prev.nome,
+          cpf,
+          placa: String(c.placa || prev.placa || "").trim(),
+        });
+      };
+      try {
+        if (typeof getLancamentoClienteCandidates === "function") {
+          getLancamentoClienteCandidates().forEach(addRow);
+        }
+      } catch (err) {
+        console.warn("[DK portal] getLancamentoClienteCandidates:", err);
+      }
+      getPortalClientesOfficialBase().forEach(addRow);
+      if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+        loadCadastro(CAD_CLIENTES_KEY).forEach(addRow);
+      }
+      const raw = Array.from(byCpf.values());
+      raw.sort((a, b) => {
+        const aOf = getPortalOfficialClienteByCpf(a.cpf) ? 1 : 0;
+        const bOf = getPortalOfficialClienteByCpf(b.cpf) ? 1 : 0;
+        if (aOf !== bOf) return aOf - bOf;
+        const an = String(a.nome || "").trim();
+        const bn = String(b.nome || "").trim();
+        if (an && !bn) return -1;
+        if (!an && bn) return 1;
+        return an.localeCompare(bn, "pt-BR");
+      });
+      return raw.slice(0, 80);
     }
+
+    function renderOperacaoClienteNomeListaPrefixo(prefixDigits, candidatos) {
+      const nomeListaPanel = document.getElementById("operacaoClienteNomeListaPrefixo");
+      if (!nomeListaPanel) return;
+      if (!prefixDigits) {
+        nomeListaPanel.classList.add("hidden");
+        nomeListaPanel.innerHTML = "";
+        return;
+      }
+      if (!candidatos.length) {
+        nomeListaPanel.classList.remove("hidden");
+        nomeListaPanel.innerHTML = `<p class="portal-cliente-prefix-list__title">Nenhum cliente com CPF começando por <strong>${portalEscapeHtml(
+          prefixDigits
+        )}</strong> neste navegador (base + cadastro local). Cadastre de novo ou abra o relatório para confirmar se o CPF foi guardado.</p>`;
+        return;
+      }
+      const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
+      nomeListaPanel.classList.remove("hidden");
+      nomeListaPanel.innerHTML = `<p class="portal-cliente-prefix-list__title">Quem tem CPF começando por <strong>${portalEscapeHtml(
+        prefixDigits
+      )}</strong> (${candidatos.length}) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${candidatos
+        .map((c) => {
+          const cpf = String(c.cpf || "").replace(/\D/g, "");
+          const nome = String(c.nome || "").trim() || "(sem nome no cadastro — pode editar)";
+          return `<li><button type="button" class="portal-cliente-prefix-list__btn" data-cpf-digits="${cpf}">${portalEscapeHtml(
+            nome
+          )} · ${portalEscapeHtml(fmt(cpf))}</button></li>`;
+        })
+        .join("")}</ul>`;
+    }
+
+    form?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-cliente-prefix-list__btn");
+      if (!btn || !form?.contains(btn)) return;
+      const d = String(btn.getAttribute("data-cpf-digits") || "").replace(/\D/g, "");
+      if (d.length !== 11) return;
+      if (typeof formatCpf === "function") inpCpf.value = formatCpf(d);
+      else inpCpf.value = d;
+      const cliente = getClienteByCpfAny(d);
+      if (cliente) {
+        fillOperacaoClienteFormFromRecord(cliente);
+        const dataPreferida =
+          formatPortalCadastroDateLabel(cliente.dataCadastro || cliente.createdAt || cliente.id || "") ||
+          getPrimeiraLocacaoDateLabelByCpf(d);
+        if (inpDataCadastro && !String(inpDataCadastro.value || "").trim() && dataPreferida) {
+          inpDataCadastro.value = dataPreferida;
+        }
+        setAtualizarButtonByCpf(d);
+        lockImmutableClienteFields(true, {
+          codigo: getPortalCanonicalClienteCodeByCpf(d) || String(cliente.codigo || "").trim(),
+          cpf: d,
+          nome: String(cliente.nome || "").trim(),
+          dataCadastro: dataPreferida || String(inpDataCadastro?.value || "").trim(),
+        });
+        if (msg) msg.textContent = dataPreferida ? `Cliente já cadastrado em ${dataPreferida}.` : "Cliente já cadastrado.";
+      }
+      const panel = document.getElementById("operacaoClienteNomeListaPrefixo");
+      if (panel) {
+        panel.classList.add("hidden");
+        panel.innerHTML = "";
+      }
+    });
 
     function lockImmutableClienteFields(known, fixed = {}) {
       const markImmutableInput = (id, on) => {
@@ -479,6 +579,7 @@
       if (!digits) {
         if (dlCpf) dlCpf.innerHTML = "";
         dlNome.innerHTML = "";
+        renderOperacaoClienteNomeListaPrefixo("", []);
         if (msg) msg.textContent = "";
         lastAlertedCpf = "";
         setAtualizarButtonByCpf("");
@@ -487,6 +588,7 @@
         return;
       }
       const candidatos = getByCpfPrefix(digits);
+      renderOperacaoClienteNomeListaPrefixo(digits, candidatos);
       const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
       if (dlCpf) {
         dlCpf.innerHTML = candidatos
@@ -686,6 +788,7 @@
       });
       if (dlCpf) dlCpf.innerHTML = "";
       dlNome.innerHTML = "";
+      renderOperacaoClienteNomeListaPrefixo("", []);
       lastAlertedCpf = "";
       setAtualizarButtonByCpf("");
       lockImmutableClienteFields(false);
@@ -1860,6 +1963,109 @@
       el.value = v;
     });
   }
+
+  /** Sincroniza `dk_clientes_cadastro` entre localhost e produção via API na Vercel (Upstash Redis). */
+  (function dkPortalCadastroCloudSync() {
+    if (!window.DK_PORTAL_LOCADORA_PAGE) return;
+    if (typeof saveCadastro !== "function" || typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
+      return;
+    }
+
+    let dkPortalCadastroSyncSuppressPush = false;
+    let dkPortalCadastroPushTimer = null;
+
+    function dkPortalSyncApiUrl() {
+      const meta = document
+        .querySelector('meta[name="dk-cadastro-sync-origin"]')
+        ?.getAttribute("content")
+        ?.trim()
+        .replace(/\/$/, "");
+      const h = window.location.hostname;
+      const isLocal = h === "localhost" || h === "127.0.0.1";
+      const origin = isLocal && meta ? meta : window.location.origin;
+      return `${origin}/api/cadastro-clientes`;
+    }
+
+    function dkPortalMergeClientesArrays(local, remote) {
+      const byCpf = new Map();
+      const dig = (cpf) =>
+        typeof onlyDigits === "function" ? onlyDigits(String(cpf || "")) : String(cpf || "").replace(/\D/g, "");
+      const score = (c) => Number(c.createdAt || c.id || 0);
+      const add = (c) => {
+        const cpf = dig(c.cpf);
+        if (cpf.length !== 11) return;
+        const prev = byCpf.get(cpf);
+        const merged = prev ? { ...prev, ...c, cpf } : { ...c, cpf };
+        if (!prev) {
+          byCpf.set(cpf, merged);
+          return;
+        }
+        if (score(c) > score(prev)) {
+          byCpf.set(cpf, merged);
+          return;
+        }
+        if (score(c) === score(prev) && JSON.stringify(c).length >= JSON.stringify(prev).length) {
+          byCpf.set(cpf, merged);
+        }
+      };
+      (local || []).forEach(add);
+      (remote || []).forEach(add);
+      return Array.from(byCpf.values());
+    }
+
+    async function dkPortalPushClientes(list) {
+      try {
+        const r = await fetch(dkPortalSyncApiUrl(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: list }),
+        });
+        if (!r.ok) {
+          console.warn("[DK portal] sync push HTTP", r.status);
+        }
+      } catch (e) {
+        console.warn("[DK portal] sync push", e);
+      }
+    }
+
+    function dkPortalSchedulePush(list) {
+      clearTimeout(dkPortalCadastroPushTimer);
+      dkPortalCadastroPushTimer = setTimeout(() => {
+        if (dkPortalCadastroSyncSuppressPush) return;
+        dkPortalPushClientes(list);
+      }, 1500);
+    }
+
+    const origSave = saveCadastro;
+    window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
+      origSave(key, list);
+      if (key !== CAD_CLIENTES_KEY || !Array.isArray(list)) return;
+      if (dkPortalCadastroSyncSuppressPush) return;
+      dkPortalSchedulePush(list);
+    };
+
+    async function dkPortalPullAndMerge() {
+      try {
+        const r = await fetch(dkPortalSyncApiUrl(), { method: "GET" });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || !j.ok || !Array.isArray(j.data) || !j.data.length) return;
+        const local = loadCadastro(CAD_CLIENTES_KEY);
+        const merged = dkPortalMergeClientesArrays(local, j.data);
+        if (JSON.stringify(merged) === JSON.stringify(local)) return;
+        dkPortalCadastroSyncSuppressPush = true;
+        origSave(CAD_CLIENTES_KEY, merged);
+        dkPortalCadastroSyncSuppressPush = false;
+        dkPortalSchedulePush(merged);
+      } catch (e) {
+        console.warn("[DK portal] sync pull", e);
+      }
+    }
+
+    setTimeout(dkPortalPullAndMerge, 800);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") dkPortalPullAndMerge();
+    });
+  })();
 
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
