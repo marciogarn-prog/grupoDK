@@ -7766,26 +7766,17 @@ function bootstrapLocacoesReceita2026Bundled() {
 }
 
 function applyClienteCpfFixes() {
-  const cpfFixes = [
-    { nome: "JEFERSON VINÍCIUS FREIRE MAGALHÃES", cpf: "11111111111" },
-    { nome: "MARCIO (AMIGO DE BALA)", cpf: "22222222222" },
-    { nome: "NEJAIN LIMA DE SOUZA NETO", cpf: "33333333333" },
-  ];
+  // Migração defensiva: remove CPFs placeholders legados que contaminavam os novos códigos 309+.
+  // Regra atual do sistema: CPF real e imutável por cliente.
+  const legacyPlaceholderCpfs = new Set(["11111111111", "22222222222", "33333333333"]);
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
-  let changed = false;
-  const updated = clientes.map((c) => {
-    const fix = cpfFixes.find((f) => normalizeName(f.nome) === normalizeName(c.nome || ""));
-    if (!fix) return c;
-    const currentCpf = onlyDigits(String(c.cpf || ""));
-    if (currentCpf === fix.cpf) return c;
-    changed = true;
-    return {
-      ...c,
-      cpf: formatCpf(fix.cpf),
-    };
+  if (!clientes.length) return;
+  const cleaned = clientes.filter((c) => {
+    const cpf = onlyDigits(String(c.cpf || ""));
+    return !legacyPlaceholderCpfs.has(cpf);
   });
-  if (changed) {
-    saveCadastro(CAD_CLIENTES_KEY, updated);
+  if (cleaned.length !== clientes.length) {
+    saveCadastro(CAD_CLIENTES_KEY, cleaned);
   }
 }
 
