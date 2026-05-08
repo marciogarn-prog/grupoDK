@@ -17,6 +17,7 @@
   const panelLogado = document.getElementById("panel-logado");
   const panelOperacao = document.getElementById("panel-operacao-locadora");
   const formLogin = document.getElementById("form-login");
+  const btnBypassTeste = document.getElementById("login-bypass-teste-btn");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
   const logadoTexto = document.getElementById("logado-texto");
@@ -101,8 +102,30 @@
               ? "Entrar como colaborador"
               : "Entrar como administrador";
       }
+      const showBypass =
+        currentUnit === "locadora" && (role === "colaborador" || role === "administrador");
+      btnBypassTeste?.classList.toggle("hidden", !showBypass);
       if (loginFeedback) loginFeedback.textContent = "";
     });
+  });
+
+  btnBypassTeste?.addEventListener("click", () => {
+    if (currentUnit !== "locadora") return;
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({
+        tipo: "admin",
+        cpf: "00000000000",
+        nome: "Modo Teste",
+        role: "operacao",
+      })
+    );
+    hideAllPanels();
+    panelLogado?.classList.remove("hidden");
+    if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
+    if (logadoTexto) logadoTexto.textContent = "Modo Teste · operacao";
+    btnOperacao?.classList.remove("hidden");
+    if (loginFeedback) loginFeedback.textContent = "";
   });
 
   formLogin?.addEventListener("submit", (e) => {
@@ -200,6 +223,477 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function formatPortalCadastroDateLabel(raw) {
+    const txt = String(raw || "").trim();
+    if (!txt) return "";
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(txt)) return txt;
+    const brParsed = typeof parseBrDate === "function" ? parseBrDate(txt) : null;
+    if (brParsed instanceof Date && !Number.isNaN(brParsed.getTime())) {
+      return brParsed.toLocaleDateString("pt-BR");
+    }
+    const isoParsed = new Date(txt);
+    if (isoParsed instanceof Date && !Number.isNaN(isoParsed.getTime())) {
+      return isoParsed.toLocaleDateString("pt-BR");
+    }
+    return txt;
+  }
+
+  function getPortalClientesOfficialBase() {
+    if (typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026)) {
+      return CLIENTES_DK_FINANCEIRO_2026;
+    }
+    if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
+      return clientesSeedData;
+    }
+    return [];
+  }
+
+  function getPortalOfficialClienteByCpf(cpfDigits) {
+    if (!cpfDigits) return null;
+    const base = getPortalClientesOfficialBase();
+    return (
+      base.find((c) => {
+        const cpf =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        return cpf === cpfDigits;
+      }) || null
+    );
+  }
+
+  function getPortalOfficialClienteCodeByCpf(cpfDigits) {
+    const hit = getPortalOfficialClienteByCpf(cpfDigits);
+    if (!hit) return "";
+    const codeNum =
+      Number(
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(hit.codigo || ""))
+          : String(hit.codigo || "").replace(/\D/g, "")
+      ) || 0;
+    if (codeNum > 0) return `CLIENTE ${codeNum}`;
+    const base = getPortalClientesOfficialBase();
+    const idx = base.indexOf(hit);
+    return idx >= 0 ? `CLIENTE ${idx + 1}` : "";
+  }
+
+  function getPortalLocalExtraClientesOrdered() {
+    if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return [];
+    const oficialCpfs = new Set(
+      getPortalClientesOfficialBase()
+        .map((c) =>
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "")
+        )
+        .filter((cpf) => cpf.length === 11)
+    );
+    const local = loadCadastro(CAD_CLIENTES_KEY)
+      .filter((c) => {
+        const cpf =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        return cpf.length === 11 && !oficialCpfs.has(cpf);
+      })
+      .slice()
+      .sort((a, b) => Number(a.createdAt || a.id || 0) - Number(b.createdAt || b.id || 0));
+    const byCpf = new Map();
+    local.forEach((c) => {
+      const cpf =
+        typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+      if (!byCpf.has(cpf)) byCpf.set(cpf, c);
+    });
+    return Array.from(byCpf.values());
+  }
+
+  function getPortalCanonicalClienteCodeByCpf(cpfDigits) {
+    const off = getPortalOfficialClienteCodeByCpf(cpfDigits);
+    if (off) return off;
+    const extras = getPortalLocalExtraClientesOrdered();
+    const idx = extras.findIndex((c) => {
+      const cpf =
+        typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+      return cpf === cpfDigits;
+    });
+    if (idx < 0) return "";
+    return `CLIENTE ${308 + idx + 1}`;
+  }
+
+  function getPortalNextClienteCode() {
+    const extras = getPortalLocalExtraClientesOrdered();
+    return `CLIENTE ${308 + extras.length + 1}`;
+  }
+
+  /** Índices 0,1,… para CPFs que não estão na base oficial — deve coincidir com o mapa já unido do relatório. */
+  function buildPortalExtraClienteIndexByCpf(mergedByCpf) {
+    const oficialSet = new Set(
+      getPortalClientesOfficialBase()
+        .map((c) =>
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "")
+        )
+        .filter((cpf) => cpf.length === 11)
+    );
+    const extraCpfs = Array.from(mergedByCpf.keys())
+      .filter((cpf) => !oficialSet.has(cpf))
+      .sort((cpa, cpb) => {
+        const a = mergedByCpf.get(cpa);
+        const b = mergedByCpf.get(cpb);
+        return Number(a?.createdAt || a?.id || 0) - Number(b?.createdAt || b?.id || 0);
+      });
+    const m = new Map();
+    extraCpfs.forEach((cpf, i) => m.set(cpf, i));
+    return m;
+  }
+
+  function resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf) {
+    const off = getPortalOfficialClienteCodeByCpf(cpfDigits);
+    if (off) return off;
+    const xi = extraIdxByCpf.get(cpfDigits);
+    if (xi === undefined) return "";
+    return `CLIENTE ${308 + xi + 1}`;
+  }
+
+  function bindOperacaoClienteCpfAssist() {
+    const form = document.getElementById("formOperacaoClienteInline");
+    const inpCpf = document.getElementById("operacaoClienteCpf");
+    const inpNome = document.getElementById("operacaoClienteNome");
+    const inpDataCadastro = document.getElementById("operacaoClienteDataCadastro");
+    const dlCpf = document.getElementById("operacaoClienteCpfSugestoes");
+    const dlNome = document.getElementById("operacaoClienteNomeSugestoes");
+    const btnAtualizar = document.getElementById("operacaoClienteAtualizarBtn");
+    const msg = document.getElementById("operacaoClienteCadastroDetectMsg");
+    if (!inpCpf || !inpNome || !dlNome) return;
+
+    /** Evita repetir popup para o mesmo CPF em sequência. */
+    let lastAlertedCpf = "";
+
+    function getClienteByCpfAny(cpfDigits) {
+      if (!cpfDigits) return null;
+      const local = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpfDigits) : null;
+      if (local) return local;
+      const oficial = getPortalOfficialClienteByCpf(cpfDigits);
+      if (oficial) return oficial;
+      if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
+        const hit = clientesSeedData.find((c) => {
+          const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+          return cpf === cpfDigits;
+        });
+        if (hit) return hit;
+      }
+      return null;
+    }
+
+    function setAtualizarButtonByCpf(cpfDigits) {
+      if (!btnAtualizar) return;
+      const known = Boolean(getClienteByCpfAny(cpfDigits));
+      btnAtualizar.classList.toggle("hidden", !known);
+    }
+
+    function getByCpfPrefix(prefixDigits) {
+      if (!prefixDigits || typeof getLancamentoClienteCandidates !== "function") return [];
+      return getLancamentoClienteCandidates()
+        .filter((c) => String(c.cpf || "").startsWith(prefixDigits))
+        .slice(0, 40);
+    }
+
+    function lockImmutableClienteFields(known, fixed = {}) {
+      const markImmutableInput = (id, on) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.toggle("portal-input-immutable", Boolean(on));
+      };
+      const codigo = document.getElementById("operacaoClienteCodigo");
+      if (codigo) {
+        codigo.readOnly = true;
+        if (fixed.codigo) codigo.value = fixed.codigo;
+      }
+      if (inpCpf) {
+        inpCpf.readOnly = Boolean(known);
+      }
+      if (inpNome) {
+        inpNome.readOnly = Boolean(known);
+        if (known && fixed.nome) inpNome.value = fixed.nome;
+      }
+      if (inpDataCadastro) {
+        inpDataCadastro.readOnly = Boolean(known);
+        if (known && fixed.dataCadastro) inpDataCadastro.value = fixed.dataCadastro;
+      }
+      if (inpCpf && known && fixed.cpf && typeof formatCpf === "function") {
+        inpCpf.value = formatCpf(fixed.cpf);
+      }
+      markImmutableInput("operacaoClienteCodigo", known);
+      markImmutableInput("operacaoClienteNome", known);
+      markImmutableInput("operacaoClienteDataCadastro", known);
+    }
+
+    function fillOperacaoClienteFormFromRecord(cliente) {
+      if (!cliente) return;
+      const get = (id) => document.getElementById(id);
+      const cpfDigits = typeof onlyDigits === "function" ? onlyDigits(String(cliente.cpf || "")) : String(cliente.cpf || "").replace(/\D/g, "");
+      if (inpCpf && cpfDigits.length === 11 && typeof formatCpf === "function") inpCpf.value = formatCpf(cpfDigits);
+      if (inpNome) inpNome.value = String(cliente.nome || "").trim();
+      const dataPreferida =
+        formatPortalCadastroDateLabel(cliente.dataCadastro || cliente.createdAt || cliente.id || "") ||
+        getPrimeiraLocacaoDateLabelByCpf(cpfDigits);
+      if (inpDataCadastro && dataPreferida) inpDataCadastro.value = dataPreferida;
+      const assign = (id, value) => {
+        const el = get(id);
+        if (!el) return;
+        el.value = String(value || "").trim();
+      };
+      const codigoOficial = getPortalCanonicalClienteCodeByCpf(cpfDigits);
+      assign("operacaoClienteCodigo", codigoOficial || cliente.codigo);
+      assign("operacaoClienteCelular", cliente.celular);
+      assign("operacaoClienteRecado1", cliente.recado1);
+      assign("operacaoClienteRecado2", cliente.recado2);
+      assign("operacaoClienteCnh", cliente.cnh);
+      assign("operacaoClienteCategoria", cliente.categoria);
+      assign("operacaoClienteVencimento", cliente.vencimento);
+      assign("operacaoClienteCep", cliente.cep);
+      assign("operacaoClienteMunicipioUf", cliente.municipioUf);
+      assign("operacaoClienteEndereco", cliente.endereco);
+      const ear = get("operacaoClienteEar");
+      if (ear) ear.value = String(cliente.ear || "").trim();
+    }
+
+    function getPrimeiraLocacaoDateLabelByCpf(cpfDigits) {
+      if (!cpfDigits || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return "";
+      const locs = loadCadastro(CAD_LOCACOES_KEY)
+        .filter((l) => {
+          const cpf = typeof onlyDigits === "function" ? onlyDigits(String(l.cpf || "")) : String(l.cpf || "").replace(/\D/g, "");
+          return cpf === cpfDigits;
+        })
+        .slice();
+      if (!locs.length) return "";
+      locs.sort((a, b) => {
+        const da = typeof parseBrDate === "function" ? parseBrDate(String(a.inicio || "").trim()) : null;
+        const db = typeof parseBrDate === "function" ? parseBrDate(String(b.inicio || "").trim()) : null;
+        const ta = da instanceof Date && !Number.isNaN(da.getTime()) ? da.getTime() : Number(a.createdAt || a.id || Number.MAX_SAFE_INTEGER);
+        const tb = db instanceof Date && !Number.isNaN(db.getTime()) ? db.getTime() : Number(b.createdAt || b.id || Number.MAX_SAFE_INTEGER);
+        return ta - tb;
+      });
+      const first = locs[0] || {};
+      return formatPortalCadastroDateLabel(first.inicio || first.createdAt || first.id || "");
+    }
+
+    inpCpf.addEventListener("input", () => {
+      const digits = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+      const codigoEl = document.getElementById("operacaoClienteCodigo");
+      if (!digits) {
+        if (dlCpf) dlCpf.innerHTML = "";
+        dlNome.innerHTML = "";
+        if (msg) msg.textContent = "";
+        lastAlertedCpf = "";
+        setAtualizarButtonByCpf("");
+        lockImmutableClienteFields(false);
+        if (codigoEl) codigoEl.value = "";
+        return;
+      }
+      const candidatos = getByCpfPrefix(digits);
+      const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
+      if (dlCpf) {
+        dlCpf.innerHTML = candidatos
+          .map(
+            (c) => `<option value="${fmt(c.cpf)}" label="${portalEscapeHtml(String(c.nome || "").trim())}"></option>`
+          )
+          .join("");
+      }
+      dlNome.innerHTML = candidatos
+        .map(
+          (c) => `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
+        )
+        .join("");
+      // Quando há múltiplos CPFs com o mesmo prefixo, mantém o nome em branco para o operador escolher na lista.
+      if (candidatos.length > 1 && inpNome) {
+        inpNome.value = "";
+      }
+      if (candidatos.length === 1 && String(inpNome.value || "").trim() === "") {
+        inpNome.value = String(candidatos[0].nome || "").trim();
+      }
+      setAtualizarButtonByCpf(digits);
+      if (digits.length === 11 && typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
+      const known = Boolean(getClienteByCpfAny(digits));
+      if (!known) {
+        lockImmutableClienteFields(false);
+        if (codigoEl) codigoEl.value = getPortalNextClienteCode();
+      }
+    });
+
+    inpCpf.addEventListener("blur", () => {
+      const digits = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) return;
+      const cliente = getClienteByCpfAny(digits);
+      if (!cliente) {
+        lockImmutableClienteFields(false);
+        return;
+      }
+      fillOperacaoClienteFormFromRecord(cliente);
+      const dataPreferida =
+        formatPortalCadastroDateLabel(cliente.dataCadastro || cliente.createdAt || cliente.id || "") ||
+        getPrimeiraLocacaoDateLabelByCpf(digits);
+      if (inpDataCadastro && !String(inpDataCadastro.value || "").trim()) {
+        if (dataPreferida) inpDataCadastro.value = dataPreferida;
+      }
+      setAtualizarButtonByCpf(digits);
+      lockImmutableClienteFields(true, {
+        codigo: getPortalCanonicalClienteCodeByCpf(digits) || String(cliente.codigo || "").trim(),
+        cpf: digits,
+        nome: String(cliente.nome || "").trim(),
+        dataCadastro: dataPreferida || String(inpDataCadastro?.value || "").trim(),
+      });
+      const dataLabel = dataPreferida;
+      if (msg) msg.textContent = dataLabel ? `Cliente já cadastrado em ${dataLabel}.` : "Cliente já cadastrado.";
+      if (lastAlertedCpf !== digits) {
+        window.alert(dataLabel ? `Cliente cadastrado em ${dataLabel}.` : "Cliente já cadastrado.");
+        lastAlertedCpf = digits;
+      }
+    });
+
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const digits =
+        typeof onlyDigits === "function" ? onlyDigits(String(inpCpf.value || "")) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) return;
+      const known = getClienteByCpfAny(digits);
+      if (known) {
+        setAtualizarButtonByCpf(digits);
+        lockImmutableClienteFields(true, {
+          codigo: getPortalCanonicalClienteCodeByCpf(digits) || String(known.codigo || "").trim(),
+          cpf: digits,
+          nome: String(known.nome || "").trim(),
+          dataCadastro:
+            formatPortalCadastroDateLabel(known.dataCadastro || known.createdAt || known.id || "") ||
+            getPrimeiraLocacaoDateLabelByCpf(digits),
+        });
+        if (msg) {
+          msg.textContent =
+            "CPF já cadastrado. Não é permitido recadastrar este cliente; use o botão 'Atualizar dados do cliente'.";
+        }
+        return;
+      }
+
+      if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
+        if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
+        return;
+      }
+
+      const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+      const nextCode = getPortalNextClienteCode();
+      const dataCadastro = getVal("operacaoClienteDataCadastro") || new Date().toLocaleDateString("pt-BR");
+      const novo = {
+        id: Date.now(),
+        createdAt: Date.now(),
+        codigo: nextCode,
+        dataCadastro,
+        cpf: digits,
+        nome: getVal("operacaoClienteNome"),
+        celular: getVal("operacaoClienteCelular"),
+        recado1: getVal("operacaoClienteRecado1"),
+        recado2: getVal("operacaoClienteRecado2"),
+        cnh: getVal("operacaoClienteCnh"),
+        categoria: getVal("operacaoClienteCategoria"),
+        vencimento: getVal("operacaoClienteVencimento"),
+        ear: getVal("operacaoClienteEar"),
+        cep: getVal("operacaoClienteCep"),
+        municipioUf: getVal("operacaoClienteMunicipioUf"),
+        endereco: getVal("operacaoClienteEndereco"),
+      };
+      const clientes = loadCadastro(CAD_CLIENTES_KEY);
+      clientes.push(novo);
+      try {
+        saveCadastro(CAD_CLIENTES_KEY, clientes);
+      } catch (err) {
+        clientes.pop();
+        if (msg) msg.textContent = `Não foi possível guardar no navegador: ${err && err.message ? err.message : err}.`;
+        console.error(err);
+        return;
+      }
+      const codigoEl = document.getElementById("operacaoClienteCodigo");
+      if (codigoEl) codigoEl.value = nextCode;
+      if (msg) {
+        msg.textContent = `Cliente ${nextCode} cadastrado com sucesso.`;
+      }
+      const modalRel = document.getElementById("portalRelatorioModal");
+      const resumoEl = document.getElementById("portalRelatorioResumo");
+      if (
+        modalRel &&
+        resumoEl &&
+        !modalRel.classList.contains("hidden") &&
+        portalRelatorioAtual &&
+        portalRelatorioAtual.fileSlug === "clientes"
+      ) {
+        const ctx = getPortalRelatorioClienteContext();
+        portalRelatorioAtual = ctx;
+        resumoEl.textContent = `${ctx.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+      }
+    });
+
+    btnAtualizar?.addEventListener("click", () => {
+      const digits = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) {
+        if (msg) msg.textContent = "Informe um CPF completo para atualizar.";
+        return;
+      }
+      const existente = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+      if (!existente) {
+        if (msg) msg.textContent = "CPF não encontrado no cadastro local para atualização.";
+        return;
+      }
+      if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
+        if (msg) msg.textContent = "Atualização indisponível neste ambiente.";
+        return;
+      }
+      const clientes = loadCadastro(CAD_CLIENTES_KEY);
+      const idx = clientes.findIndex((c) => {
+        const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        return cpf === digits;
+      });
+      if (idx === -1) {
+        if (msg) msg.textContent = "CPF conhecido, mas não há registo local para atualizar.";
+        return;
+      }
+      const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+      const canonCode = getPortalCanonicalClienteCodeByCpf(digits) || String(existente.codigo || "").trim();
+      const canonNome = String(existente.nome || "").trim();
+      const canonData =
+        formatPortalCadastroDateLabel(existente.dataCadastro || existente.createdAt || existente.id || "") ||
+        getPrimeiraLocacaoDateLabelByCpf(digits) ||
+        getVal("operacaoClienteDataCadastro");
+      clientes[idx] = {
+        ...clientes[idx],
+        codigo: canonCode,
+        dataCadastro: canonData,
+        cpf: digits,
+        nome: canonNome,
+        celular: getVal("operacaoClienteCelular"),
+        recado1: getVal("operacaoClienteRecado1"),
+        recado2: getVal("operacaoClienteRecado2"),
+        cnh: getVal("operacaoClienteCnh"),
+        categoria: getVal("operacaoClienteCategoria"),
+        vencimento: getVal("operacaoClienteVencimento"),
+        ear: getVal("operacaoClienteEar"),
+        cep: getVal("operacaoClienteCep"),
+        municipioUf: getVal("operacaoClienteMunicipioUf"),
+        endereco: getVal("operacaoClienteEndereco"),
+      };
+      saveCadastro(CAD_CLIENTES_KEY, clientes);
+      if (msg) msg.textContent = "Dados do cliente atualizados com sucesso.";
+      window.alert("Os dados que você alterou foram salvos.");
+    });
+
+    document.getElementById("operacaoClienteLimparBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      form?.reset();
+      form?.querySelectorAll("input").forEach((inp) => {
+        inp.value = "";
+      });
+      if (dlCpf) dlCpf.innerHTML = "";
+      dlNome.innerHTML = "";
+      lastAlertedCpf = "";
+      setAtualizarButtonByCpf("");
+      lockImmutableClienteFields(false);
+      const codigo = document.getElementById("operacaoClienteCodigo");
+      if (codigo) codigo.value = "";
+      if (msg) msg.textContent = "";
+      inpCpf.focus();
+    });
   }
 
   /** Cache da última refresco: placas livres (mesma regra que `getVeiculosSemProtocoloAtivo`). */
@@ -389,6 +883,214 @@
     });
   }
 
+  /** Contexto do relatório aberto no modal (cliente/veículo/locação). */
+  let portalRelatorioAtual = null;
+
+  function openPortalRelatorioModal(context) {
+    const modal = document.getElementById("portalRelatorioModal");
+    const titulo = document.getElementById("portalRelatorioTitulo");
+    const resumo = document.getElementById("portalRelatorioResumo");
+    if (!modal || !titulo || !resumo) return;
+    portalRelatorioAtual = context;
+    titulo.textContent = context.title;
+    resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closePortalRelatorioModal() {
+    const modal = document.getElementById("portalRelatorioModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function buildPortalRelatorioHtml(title, headers, rows) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
+    const bodyCells = rows.map((row) => `<tr>${row.map((c) => `<td>${eh(c)}</td>`).join("")}</tr>`).join("");
+    const quando = new Date().toLocaleString("pt-BR");
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      h1{font-size:1.05rem;margin:0 0 0.35rem}
+      .meta{color:#444;margin:0 0 0.75rem;font-size:11px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+      th{background:#eee;font-weight:600}
+    </style></head><body>
+      <h1>${eh(title)}</h1>
+      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registo(s)</p>
+      <table><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
+        "Nenhum registo."
+      )}</td></tr>`}</tbody></table>
+    </body></html>`;
+  }
+
+  function emitPortalRelatorioPdf(context) {
+    const iframe = document.getElementById("portalPdfIframe");
+    const viewer = document.getElementById("portalRelatorioPdfViewer");
+    if (!iframe || !viewer) return;
+    const html = buildPortalRelatorioHtml(context.title, context.headers, context.rows);
+    hideRelatorioLocacaoPdfViewer();
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
+    iframe.src = portalLocacaoRelatorioPdfBlobUrl;
+    viewer.classList.remove("hidden");
+    viewer.setAttribute("aria-hidden", "false");
+  }
+
+  function emitPortalRelatorioExcel(context) {
+    if (typeof downloadStyledExcel !== "function") return;
+    const d = new Date();
+    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const metaLines = [
+      ["Relatório", context.title],
+      ["Emitido em", d.toLocaleString("pt-BR")],
+      ["Registos", String(context.rows.length)],
+    ];
+    downloadStyledExcel(`relatorio-${context.fileSlug}-${stamp}`, context.headers, context.rows, metaLines, {
+      textColumns: context.textColumns || [],
+    });
+  }
+
+  function getPortalRelatorioClienteContext() {
+    // Uma só visão: base oficial (CLIENTE 1 … 308 no bundle) + tudo o que está em dk_clientes_cadastro (cadastros diários).
+    const baseOficialBundle = getPortalClientesOfficialBase();
+    const baseOficialSeed =
+      typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData) ? clientesSeedData : [];
+    const baseOficial =
+      baseOficialBundle.length > 0
+        ? baseOficialBundle
+        : baseOficialSeed.length > 0
+          ? baseOficialSeed
+          : [];
+    const baseLocal =
+      typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined" ? loadCadastro(CAD_CLIENTES_KEY) : [];
+
+    const byCpf = new Map();
+    const scoreClienteRow = (x) =>
+      [
+        x.codigo,
+        x.dataCadastro,
+        x.nome,
+        x.celular,
+        x.cnh,
+        x.categoria,
+        x.vencimento,
+        x.municipioUf,
+      ].filter((v) => String(v || "").trim()).length;
+
+    const mergeOne = (c, preferOnTie) => {
+      const cpfDigits =
+        typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+      if (cpfDigits.length !== 11) return;
+      const prev = byCpf.get(cpfDigits);
+      if (!prev) {
+        byCpf.set(cpfDigits, c);
+        return;
+      }
+      const sPrev = scoreClienteRow(prev);
+      const sNew = scoreClienteRow(c);
+      if (sNew > sPrev || (preferOnTie && sNew === sPrev)) byCpf.set(cpfDigits, c);
+    };
+
+    baseOficial.forEach((c) => mergeOne(c, false));
+    baseLocal.forEach((c) => mergeOne(c, true));
+
+    const extraIdxByCpf = buildPortalExtraClienteIndexByCpf(byCpf);
+
+    const clienteCodigoSortKey = (rec) => {
+      const cpfDigits =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(rec.cpf || ""))
+          : String(rec.cpf || "").replace(/\D/g, "");
+      const canon = resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf);
+      const n =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(canon || ""))
+          : String(canon || "").replace(/\D/g, "");
+      let num = Number(n) || 0;
+      if (!num) {
+        num =
+          Number(
+            typeof onlyDigits === "function"
+              ? onlyDigits(String(rec.codigo || ""))
+              : String(rec.codigo || "").replace(/\D/g, "")
+          ) || 0;
+      }
+      return num;
+    };
+
+    const rowsRaw = Array.from(byCpf.values()).sort((a, b) => {
+      const ka = clienteCodigoSortKey(a);
+      const kb = clienteCodigoSortKey(b);
+      if (ka !== kb) return ka - kb;
+      return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
+    });
+    const headers = ["Cód.", "Data Cadastro", "CPF", "Nome", "Celular", "CNH", "Categoria", "Vencimento", "Município/UF"];
+    const fmtCpf = typeof formatCpf === "function" ? formatCpf : (v) => String(v || "");
+    const rows = rowsRaw.map((c) => {
+      const cpfDigits =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(c.cpf || ""))
+          : String(c.cpf || "").replace(/\D/g, "");
+      const codigoOficial = resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf);
+      return [
+        codigoOficial || String(c.codigo || "").trim() || "—",
+        String(c.dataCadastro || "").trim() || "—",
+        cpfDigits.length === 11 ? fmtCpf(cpfDigits) : String(c.cpf || "").trim() || "—",
+        String(c.nome || "").trim() || "—",
+        String(c.celular || "").trim() || "—",
+        String(c.cnh || "").trim() || "—",
+        String(c.categoria || "").trim() || "—",
+        String(c.vencimento || "").trim() || "—",
+        String(c.municipioUf || "").trim() || "—",
+      ];
+    });
+    return {
+      title: "Relatório de clientes — base oficial + cadastros",
+      headers,
+      rows,
+      fileSlug: "clientes",
+      textColumns: [0, 2],
+    };
+  }
+
+  function getPortalRelatorioVeiculoContext() {
+    const rowsRaw =
+      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined" ? loadCadastro(CAD_VEICULOS_KEY) : [];
+    const headers = ["Tag", "Placa", "Código", "Marca", "Modelo", "Tipo", "Ano/Modelo", "Valor", "Cor"];
+    const rows = rowsRaw.map((v) => [
+      String(v.tag || "").trim() || "—",
+      String(v.placa || "").trim() || "—",
+      String(v.codigo || "").trim() || "—",
+      String(v.marca || "").trim() || "—",
+      String(v.modelo || "").trim() || "—",
+      String(v.tipo || "").trim() || "—",
+      String(v.anoModelo || "").trim() || "—",
+      String(v.valor || "").trim() || "—",
+      String(v.cor || "").trim() || "—",
+    ]);
+    return { title: "Relatório de veículos cadastrados", headers, rows, fileSlug: "veiculos", textColumns: [0, 1, 2] };
+  }
+
+  function getPortalRelatorioLocacaoContext() {
+    const rowsRaw =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : [];
+    const headers = ["Protocolo", "CPF", "Cliente", "Placa", "Modelo", "Início", "Fim", "Plano", "Status"];
+    const rows = rowsRaw.map((l) => rowPortalRelatorioLocacao(l).slice(0, 9));
+    return { title: "Relatório de locações cadastradas", headers, rows, fileSlug: "locacoes", textColumns: [0, 1, 3] };
+  }
+
+  /** Sempre relê o cadastro no navegador — evita PDF/Excel com dados antigos se o operador guardou algo depois de abrir o modal. */
+  function getPortalRelatorioContextFresh(anchor) {
+    const slug = anchor && anchor.fileSlug;
+    if (slug === "clientes") return getPortalRelatorioClienteContext();
+    if (slug === "veiculos") return getPortalRelatorioVeiculoContext();
+    if (slug === "locacoes") return getPortalRelatorioLocacaoContext();
+    return anchor;
+  }
+
   function emitPortalRelatorioLocacaoPdf(escopo) {
     const titulo =
       escopo === "ativas" ? "Locações de motos — ativas" : "Locações de motos — finalizadas";
@@ -477,23 +1179,19 @@
     if (msg) msg.textContent = rows.length ? `Excel gerado (${rows.length} linha(s)).` : "Excel gerado — nenhum registo neste filtro.";
   }
 
+  document.getElementById("operacaoClienteGerarRelatorioBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openPortalRelatorioModal(getPortalRelatorioClienteContext());
+  });
+
+  document.getElementById("operacaoVeiculoGerarRelatorioBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    openPortalRelatorioModal(getPortalRelatorioVeiculoContext());
+  });
+
   document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    const panel = document.getElementById("operacaoLocacaoRelatorioPanel");
-    const formatos = document.getElementById("operacaoLocacaoRelatorioFormatos");
-    if (!panel) return;
-    const abrir = panel.classList.contains("hidden");
-    if (abrir) {
-      panel.classList.remove("hidden");
-      formatos?.classList.add("hidden");
-      portalLocacaoRelatorioModo = null;
-      clearRelatorioLocacaoSelectionClasses();
-    } else {
-      panel.classList.add("hidden");
-      formatos?.classList.add("hidden");
-      portalLocacaoRelatorioModo = null;
-      clearRelatorioLocacaoSelectionClasses();
-    }
+    openPortalRelatorioModal(getPortalRelatorioLocacaoContext());
   });
 
   document.getElementById("operacaoLocacaoRelAtivasBtn")?.addEventListener("click", (e) => {
@@ -530,6 +1228,25 @@
       return;
     }
     emitPortalRelatorioLocacaoExcel(portalLocacaoRelatorioModo);
+  });
+
+  document.getElementById("portalRelatorioFecharBtn")?.addEventListener("click", () => closePortalRelatorioModal());
+  document.querySelectorAll("[data-close-relatorio]").forEach((el) => {
+    el.addEventListener("click", () => closePortalRelatorioModal());
+  });
+  document.getElementById("portalRelatorioPdfBtn")?.addEventListener("click", () => {
+    if (!portalRelatorioAtual) return;
+    const ctx = getPortalRelatorioContextFresh(portalRelatorioAtual);
+    portalRelatorioAtual = ctx;
+    closePortalRelatorioModal();
+    emitPortalRelatorioPdf(ctx);
+  });
+  document.getElementById("portalRelatorioExcelBtn")?.addEventListener("click", () => {
+    if (!portalRelatorioAtual) return;
+    const ctx = getPortalRelatorioContextFresh(portalRelatorioAtual);
+    portalRelatorioAtual = ctx;
+    closePortalRelatorioModal();
+    emitPortalRelatorioExcel(ctx);
   });
 
   document.getElementById("portalPdfFecharViewerBtn")?.addEventListener("click", () => hideRelatorioLocacaoPdfViewer());
@@ -848,6 +1565,37 @@
       if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
     });
 
+    inpCpf?.addEventListener("input", () => {
+      if (!inpCpf) return;
+      const digits =
+        typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+      const dlNome = document.getElementById("operacaoLocacaoClienteSugestoes");
+      const candidatos =
+        typeof getLancamentoClienteCandidates === "function" && digits.length
+          ? getLancamentoClienteCandidates()
+          .filter((c) => String(c.cpf || "").startsWith(digits))
+          .slice(0, 30)
+          : [];
+      if (dlNome && candidatos.length) {
+        const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
+        dlNome.innerHTML = candidatos
+          .map(
+            (c) =>
+              `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
+          )
+          .join("");
+      } else if (dlNome && !digits.length) {
+        refreshOperacaoLocacaoDatalists();
+      }
+      if (digits.length === 11 && typeof findClienteByCpfCadastro === "function" && inpNome) {
+        const cli = findClienteByCpfCadastro(digits);
+        if (cli) inpNome.value = String(cli.nome || "").trim();
+      } else if (inpNome && candidatos.length === 1) {
+        // Sugestão direta enquanto o CPF ainda está incompleto.
+        inpNome.value = String(candidatos[0].nome || "").trim();
+      }
+    });
+
     inpNome?.addEventListener("change", () => syncPortalLocacaoCpfFromNomeField());
     inpNome?.addEventListener("blur", () => syncPortalLocacaoCpfFromNomeField());
 
@@ -929,6 +1677,18 @@
 
   bindOperacaoLocacaoAutofill();
   bindOperacaoLocacaoValorPlanoComputed();
+  bindOperacaoClienteCpfAssist();
+  const formOperacaoLocacaoInline = document.getElementById("formOperacaoLocacaoInline");
+  formOperacaoLocacaoInline?.addEventListener("submit", () => {
+    // Garante campos derivados preenchidos mesmo quando o utilizador submete sem disparar blur/input finais.
+    syncOperacaoLocacaoFromDataInicio();
+    syncOperacaoLocacaoValorPlano();
+  });
+  // Também recalcula após hidratação inicial dos campos pela querystring do navegador.
+  requestAnimationFrame(() => {
+    syncOperacaoLocacaoFromDataInicio();
+    syncOperacaoLocacaoValorPlano();
+  });
 
   function clearOperacaoLocacaoInlineForm() {
     const form = document.getElementById("formOperacaoLocacaoInline");
@@ -1068,6 +1828,46 @@
     (id) => bindEnterAdvancesToNextField(document.getElementById(id))
   );
 
-  requestAnimationFrame(() => requestAnimationFrame(syncPortalIfSession));
+  function hydrateOperacaoLocacaoFromQueryParams() {
+    const params = new URLSearchParams(window.location.search || "");
+    if (!params.toString()) return;
+    const map = {
+      protocolo: "operacaoLocacaoProtocolo",
+      cpf: "operacaoLocacaoCpf",
+      cliente: "operacaoLocacaoCliente",
+      placa: "operacaoLocacaoPlaca",
+      modelo: "operacaoLocacaoModelo",
+      dataInicio: "operacaoLocacaoDataInicio",
+      diaPagamento: "operacaoLocacaoDiaPagamento",
+      dataFim: "operacaoLocacaoDataFim",
+      tempoDias: "operacaoLocacaoTempoDias",
+      custoDia: "operacaoLocacaoCustoDia",
+      valorAluguel: "operacaoLocacaoValorAluguel",
+      valorInvestimento: "operacaoLocacaoValorInvestimento",
+      valorPlano: "operacaoLocacaoValorPlano",
+      valorDevidoPlano: "operacaoLocacaoValorDevidoPlano",
+      totalPago: "operacaoLocacaoTotalPago",
+      tipoPlano: "operacaoLocacaoTipoPlano",
+      valorDevidoAluguel: "operacaoLocacaoValorDevidoAluguel",
+      investimentoAcumulado: "operacaoLocacaoInvestimentoAcumulado",
+      totalPagoAno2025: "operacaoLocacaoTotalPagoAno2025",
+    };
+    Object.entries(map).forEach(([param, id]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const v = params.get(param);
+      if (v == null) return;
+      el.value = v;
+    });
+  }
+
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      hydrateOperacaoLocacaoFromQueryParams();
+      syncOperacaoLocacaoFromDataInicio();
+      syncOperacaoLocacaoValorPlano();
+      syncPortalIfSession();
+    })
+  );
 })();
 

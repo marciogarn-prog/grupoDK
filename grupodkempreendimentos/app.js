@@ -103,6 +103,8 @@ const receita2026Data =
   typeof RECEITA_2026_DATA !== "undefined" && Array.isArray(RECEITA_2026_DATA)
     ? RECEITA_2026_DATA
     : [];
+// Base oficial atual: último cliente consolidado é 308.
+const CLIENTE_BASE_LAST_CODE = 308;
 
 /** Página do portal `grupodkempreendimentos/index.html` (sem #grupoHome / #loginClienteForm). O restante do app.js fica inerte; use `portal-locadora-ui.js`. */
 window.DK_PORTAL_LOCADORA_PAGE = Boolean(document.getElementById("view-home"));
@@ -1578,7 +1580,7 @@ function hydrateFuncionariosAccess() {
 }
 
 function onlyDigits(value) {
-  return value.replace(/\D/g, "");
+  return String(value ?? "").replace(/\D/g, "");
 }
 
 hydrateFuncionariosAccess();
@@ -3661,13 +3663,28 @@ function autoFillLancamentoFromPlaca(placaRaw) {
 /** Candidatos a nome/CPF para lançamentos; `placa` é apenas referência (ex.: uma vigência), não implica «só uma locação por cliente». */
 function getLancamentoClienteCandidates() {
   const byCpf = new Map();
+  const baseOficialBundle =
+    typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026) && CLIENTES_DK_FINANCEIRO_2026.length
+      ? CLIENTES_DK_FINANCEIRO_2026
+      : [];
+  const baseOficial = baseOficialBundle.length ? baseOficialBundle : clientesSeedData;
+  baseOficial.forEach((c) => {
+    const cpf = onlyDigits(String(c.cpf || ""));
+    if (cpf.length !== 11) return;
+    const nome = String(c.nome || "").trim();
+    if (!byCpf.has(cpf)) {
+      byCpf.set(cpf, { nome, cpf, placa: "" });
+    }
+  });
   loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
     const cpf = onlyDigits(String(c.cpf || ""));
     if (cpf.length !== 11) return;
+    const nome = String(c.nome || "").trim();
+    const prev = byCpf.get(cpf) || { nome: "", cpf, placa: "" };
     byCpf.set(cpf, {
-      nome: String(c.nome || "").trim(),
+      nome: nome || prev.nome,
       cpf,
-      placa: "",
+      placa: prev.placa || "",
     });
   });
   const adminByCpf = new Map();
@@ -6006,32 +6023,13 @@ function inferTipoFromSeed(seedItem) {
 
 function nextClienteCodigo() {
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
-
-  const seedCpfs = new Set(
-    clientesSeedData
-      .map((c) => onlyDigits(String(c.cpf || "")))
-      .filter((cpf) => cpf.length === 11)
-  );
-  const baseCount = seedCpfs.size;
-
-  const novosCpfs = new Set();
-  clientes.forEach((c) => {
-    const cpf = onlyDigits(String(c.cpf || ""));
-    if (cpf.length !== 11) return;
-    if (!seedCpfs.has(cpf)) {
-      novosCpfs.add(cpf);
-    }
-  });
-
-  const usedCodes = new Set(
-    clientes
-      .map((c) => Number(onlyDigits(String(c.codigo || ""))))
-      .filter((n) => Number.isFinite(n) && n > 0)
-  );
-  let next = baseCount + novosCpfs.size + 1;
-  while (usedCodes.has(next)) {
-    next += 1;
-  }
+  const usedCodes = clientes
+    .map((c) => Number(onlyDigits(String(c.codigo || ""))))
+    .filter((n) => Number.isFinite(n) && n > 0);
+  const maxUsed = usedCodes.length ? Math.max(...usedCodes) : 0;
+  let next = Math.max(CLIENTE_BASE_LAST_CODE, maxUsed) + 1;
+  const usedSet = new Set(usedCodes);
+  while (usedSet.has(next)) next += 1;
   return `CLIENTE ${next}`;
 }
 
@@ -7794,19 +7792,13 @@ function applyClienteCpfFixes() {
 function normalizeClienteCodigos() {
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   if (!clientes.length) return;
-  const seedCpfs = new Set(
-    clientesSeedData
-      .map((c) => onlyDigits(String(c.cpf || "")))
-      .filter((cpf) => cpf.length === 11)
-  );
-  const baseCount = seedCpfs.size;
 
   const newClients = [];
   const byCode = new Map();
   const result = clientes.map((c) => ({ ...c }));
   result.forEach((c, idx) => {
     const cpf = onlyDigits(String(c.cpf || ""));
-    if (cpf.length !== 11 || seedCpfs.has(cpf)) return;
+    if (cpf.length !== 11) return;
     newClients.push({ idx, cpf });
     const codeNum = Number(onlyDigits(String(c.codigo || "")));
     if (Number.isFinite(codeNum) && codeNum > 0 && !byCode.has(codeNum)) {
@@ -7827,9 +7819,17 @@ function normalizeClienteCodigos() {
     }
   });
 
-  let seq = baseCount + 1;
+  const maxUsed = used.size ? Math.max(...Array.from(used)) : 0;
+  let seq = Math.max(CLIENTE_BASE_LAST_CODE, maxUsed) + 1;
   newClients.forEach(({ idx }) => {
     const current = Number(onlyDigits(String(result[idx].codigo || "")));
+    // Cadastros novos do portal usam CLIENTE 309, 310, … — não reatribuir a cada F5.
+    if (Number.isFinite(current) && current > CLIENTE_BASE_LAST_CODE) {
+      const dupIdx = byCode.get(current);
+      if (dupIdx && dupIdx.length === 1 && dupIdx[0] === idx) {
+        return;
+      }
+    }
     if (Number.isFinite(current) && current > 0 && !used.has(current)) {
       used.add(current);
       return;
