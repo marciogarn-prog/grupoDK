@@ -2016,6 +2016,7 @@
 
     async function dkPortalPushClientes(list) {
       const urls = dkPortalSyncApiUrls();
+      let anyOk = false;
       for (let i = 0; i < urls.length; i += 1) {
         const url = urls[i];
         try {
@@ -2024,8 +2025,9 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: list }),
         });
-          if (r.ok) return true;
-          if (i === urls.length - 1) {
+          if (r.ok) {
+            anyOk = true;
+          } else if (i === urls.length - 1) {
             console.warn("[DK portal] sync push HTTP", r.status, "url:", url);
           }
         } catch (e) {
@@ -2034,7 +2036,7 @@
           }
         }
       }
-      return false;
+      return anyOk;
     }
 
     function dkPortalSchedulePush(list) {
