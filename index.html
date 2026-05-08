@@ -15,6 +15,18 @@
   <link rel="icon" href="icons/icon-192.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    (function redirectRootToPortal() {
+      var p = window.location.pathname || "/";
+      if (p.indexOf("/grupodkempreendimentos") === 0) return;
+      var target = "/grupodkempreendimentos/" + (window.location.search || "") + (window.location.hash || "");
+      try {
+        window.location.replace(target);
+      } catch (e) {
+        window.location.href = target;
+      }
+    })();
+  </script>
   <title>DK Centro Automotivo | Área do Cliente</title>
 </head>
 <body>
