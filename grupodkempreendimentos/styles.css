@@ -539,6 +539,61 @@ body {
   min-width: 0;
 }
 
+.operacao-inline-form__grid > .portal-cliente-prefix-list--grid {
+  grid-column: 1 / -1;
+}
+
+.portal-cliente-prefix-list {
+  position: relative;
+  z-index: 2;
+  margin: -0.35rem 0 0.15rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  background: rgba(12, 15, 20, 0.92);
+  font-size: 0.86rem;
+}
+
+.portal-cliente-prefix-list.hidden {
+  display: none;
+}
+
+.portal-cliente-prefix-list__title {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted, #a8b0bc);
+  font-weight: 500;
+}
+
+.portal-cliente-prefix-list__ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.portal-cliente-prefix-list__btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: rgba(201, 162, 39, 0.1);
+  color: var(--text, #e8eaed);
+  font: inherit;
+  cursor: pointer;
+}
+
+.portal-cliente-prefix-list__btn:hover,
+.portal-cliente-prefix-list__btn:focus-visible {
+  background: rgba(201, 162, 39, 0.22);
+  outline: none;
+}
+
 @media (min-width: 520px) {
   .operacao-inline-form__grid {
     grid-template-columns: 1fr 1fr;

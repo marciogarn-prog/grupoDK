@@ -1974,7 +1974,7 @@
     let dkPortalCadastroSyncSuppressPush = false;
     let dkPortalCadastroPushTimer = null;
 
-    function dkPortalSyncApiUrl() {
+    function dkPortalSyncApiUrls() {
       const meta = document
         .querySelector('meta[name="dk-cadastro-sync-origin"]')
         ?.getAttribute("content")
@@ -1982,8 +1982,9 @@
         .replace(/\/$/, "");
       const h = window.location.hostname;
       const isLocal = h === "localhost" || h === "127.0.0.1";
-      const origin = isLocal && meta ? meta : window.location.origin;
-      return `${origin}/api/cadastro-clientes`;
+      const localUrl = `${window.location.origin}/api/cadastro-clientes`;
+      if (isLocal && meta) return [localUrl, `${meta}/api/cadastro-clientes`];
+      return [localUrl];
     }
 
     function dkPortalMergeClientesArrays(local, remote) {
@@ -2014,18 +2015,26 @@
     }
 
     async function dkPortalPushClientes(list) {
-      try {
-        const r = await fetch(dkPortalSyncApiUrl(), {
+      const urls = dkPortalSyncApiUrls();
+      for (let i = 0; i < urls.length; i += 1) {
+        const url = urls[i];
+        try {
+          const r = await fetch(url, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ data: list }),
         });
-        if (!r.ok) {
-          console.warn("[DK portal] sync push HTTP", r.status);
+          if (r.ok) return true;
+          if (i === urls.length - 1) {
+            console.warn("[DK portal] sync push HTTP", r.status, "url:", url);
+          }
+        } catch (e) {
+          if (i === urls.length - 1) {
+            console.warn("[DK portal] sync push", e);
+          }
         }
-      } catch (e) {
-        console.warn("[DK portal] sync push", e);
       }
+      return false;
     }
 
     function dkPortalSchedulePush(list) {
@@ -2045,19 +2054,31 @@
     };
 
     async function dkPortalPullAndMerge() {
-      try {
-        const r = await fetch(dkPortalSyncApiUrl(), { method: "GET" });
-        const j = await r.json().catch(() => ({}));
-        if (!r.ok || !j.ok || !Array.isArray(j.data) || !j.data.length) return;
-        const local = loadCadastro(CAD_CLIENTES_KEY);
-        const merged = dkPortalMergeClientesArrays(local, j.data);
-        if (JSON.stringify(merged) === JSON.stringify(local)) return;
-        dkPortalCadastroSyncSuppressPush = true;
-        origSave(CAD_CLIENTES_KEY, merged);
-        dkPortalCadastroSyncSuppressPush = false;
-        dkPortalSchedulePush(merged);
-      } catch (e) {
-        console.warn("[DK portal] sync pull", e);
+      const urls = dkPortalSyncApiUrls();
+      for (let i = 0; i < urls.length; i += 1) {
+        const url = urls[i];
+        try {
+          const r = await fetch(url, { method: "GET" });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || !j.ok || !Array.isArray(j.data)) continue;
+          const local = loadCadastro(CAD_CLIENTES_KEY);
+          // Primeira sincronização: se servidor está vazio e este navegador já tem dados, publica a base local.
+          if (!j.data.length && Array.isArray(local) && local.length) {
+            dkPortalSchedulePush(local);
+            return;
+          }
+          const merged = dkPortalMergeClientesArrays(local, j.data);
+          if (JSON.stringify(merged) === JSON.stringify(local)) return;
+          dkPortalCadastroSyncSuppressPush = true;
+          origSave(CAD_CLIENTES_KEY, merged);
+          dkPortalCadastroSyncSuppressPush = false;
+          dkPortalSchedulePush(merged);
+          return;
+        } catch (e) {
+          if (i === urls.length - 1) {
+            console.warn("[DK portal] sync pull", e);
+          }
+        }
       }
     }
 

@@ -3715,7 +3715,7 @@ function getLancamentoClienteCandidates() {
       }
     }
   });
-  return Array.from(byCpf.values()).filter((x) => x.nome && x.cpf);
+  return Array.from(byCpf.values()).filter((x) => onlyDigits(String(x.cpf || "")).length === 11);
 }
 
 function renderLancamentoClienteSugestoes(queryRaw) {

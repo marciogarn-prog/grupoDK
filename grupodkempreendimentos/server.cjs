@@ -10,6 +10,7 @@ const path = require("path");
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
+const LOCAL_CLIENTES_SYNC_FILE = path.join(ROOT, ".dk-clientes-sync.json");
 
 const MIME = {
   ".html": "text/html; charset=utf-8",
@@ -36,14 +37,87 @@ function toPathname(rawUrl) {
   }
 }
 
+function readJsonBody(req, cb) {
+  let body = "";
+  req.on("data", (chunk) => {
+    body += String(chunk || "");
+    if (body.length > 8 * 1024 * 1024) {
+      cb(new Error("payload_too_large"));
+      req.destroy();
+    }
+  });
+  req.on("end", () => {
+    if (!body.trim()) return cb(null, {});
+    try {
+      cb(null, JSON.parse(body));
+    } catch {
+      cb(new Error("invalid_json"));
+    }
+  });
+}
+
+function readLocalClientesSync() {
+  try {
+    const raw = fs.readFileSync(LOCAL_CLIENTES_SYNC_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalClientesSync(list) {
+  const safe = Array.isArray(list) ? list : [];
+  fs.writeFileSync(LOCAL_CLIENTES_SYNC_FILE, JSON.stringify(safe), "utf8");
+}
+
 const server = http.createServer((req, res) => {
+  const pathname = toPathname(req.url);
+
+  // API local de sincronização: unifica cadastro entre navegadores no localhost.
+  if (pathname === "/api/cadastro-clientes") {
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    if (req.method === "GET") {
+      const data = readLocalClientesSync();
+      res.writeHead(200);
+      res.end(JSON.stringify({ ok: true, data }));
+      return;
+    }
+    if (req.method === "POST") {
+      readJsonBody(req, (err, body) => {
+        if (err) {
+          const code = String(err.message || "") === "payload_too_large" ? 413 : 400;
+          res.writeHead(code);
+          res.end(JSON.stringify({ ok: false, error: String(err.message || "invalid_request") }));
+          return;
+        }
+        const list = Array.isArray(body?.data) ? body.data : [];
+        writeLocalClientesSync(list);
+        res.writeHead(200);
+        res.end(JSON.stringify({ ok: true, count: list.length }));
+      });
+      return;
+    }
+    res.writeHead(405);
+    res.end(JSON.stringify({ ok: false, error: "method_not_allowed" }));
+    return;
+  }
+
   if (req.method !== "GET") {
     res.writeHead(405);
     res.end();
     return;
   }
 
-  const pathname = toPathname(req.url);
   const wantedPath = pathname === "/" ? "/index.html" : pathname;
   let filePath = safeJoin(ROOT, wantedPath);
   if (!filePath) {
