@@ -103,8 +103,6 @@ const receita2026Data =
   typeof RECEITA_2026_DATA !== "undefined" && Array.isArray(RECEITA_2026_DATA)
     ? RECEITA_2026_DATA
     : [];
-// Base oficial atual: último cliente consolidado é 308.
-const CLIENTE_BASE_LAST_CODE = 308;
 
 /** Página do portal `grupodkempreendimentos/index.html` (sem #grupoHome / #loginClienteForm). O restante do app.js fica inerte; use `portal-locadora-ui.js`. */
 window.DK_PORTAL_LOCADORA_PAGE = Boolean(document.getElementById("view-home"));
@@ -1581,6 +1579,32 @@ function hydrateFuncionariosAccess() {
 
 function onlyDigits(value) {
   return String(value ?? "").replace(/\D/g, "");
+}
+
+/** Maior número em `codigo` (ex.: CLIENTE 412 → 412) nos dados dos bundles JS (financeiro, seed, extra-sync). */
+function getMaxClienteCodigoFromBundledSnapshots() {
+  let max = 0;
+  const bump = (c) => {
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (Number.isFinite(n) && n > max) max = n;
+  };
+  const walk = (arr) => {
+    if (Array.isArray(arr)) arr.forEach(bump);
+  };
+  walk(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  walk(clientesSeedData);
+  walk(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  return max;
+}
+
+/** Maior código entre bundles e cadastro local (`dk_clientes_cadastro`). */
+function getMaxClienteCodigoNumericoGlobal() {
+  let max = getMaxClienteCodigoFromBundledSnapshots();
+  loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (Number.isFinite(n) && n > max) max = n;
+  });
+  return max;
 }
 
 hydrateFuncionariosAccess();
@@ -3663,12 +3687,17 @@ function autoFillLancamentoFromPlaca(placaRaw) {
 /** Candidatos a nome/CPF para lançamentos; `placa` é apenas referência (ex.: uma vigência), não implica «só uma locação por cliente». */
 function getLancamentoClienteCandidates() {
   const byCpf = new Map();
-  const baseOficialBundle =
+  const bundledFinanceiro =
     typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026) && CLIENTES_DK_FINANCEIRO_2026.length
       ? CLIENTES_DK_FINANCEIRO_2026
       : [];
-  const baseOficial = baseOficialBundle.length ? baseOficialBundle : clientesSeedData;
-  baseOficial.forEach((c) => {
+  const bundledPrincipal = bundledFinanceiro.length ? bundledFinanceiro : clientesSeedData;
+  const bundledExtras =
+    typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
+      ? CLIENTES_EXTRA_SYNC_DATA
+      : [];
+  const baseComposta = [...bundledPrincipal, ...bundledExtras];
+  baseComposta.forEach((c) => {
     const cpf = onlyDigits(String(c.cpf || ""));
     if (cpf.length !== 11) return;
     const nome = String(c.nome || "").trim();
@@ -6026,9 +6055,8 @@ function nextClienteCodigo() {
   const usedCodes = clientes
     .map((c) => Number(onlyDigits(String(c.codigo || ""))))
     .filter((n) => Number.isFinite(n) && n > 0);
-  const maxUsed = usedCodes.length ? Math.max(...usedCodes) : 0;
-  let next = Math.max(CLIENTE_BASE_LAST_CODE, maxUsed) + 1;
   const usedSet = new Set(usedCodes);
+  let next = getMaxClienteCodigoNumericoGlobal() + 1;
   while (usedSet.has(next)) next += 1;
   return `CLIENTE ${next}`;
 }
@@ -7811,11 +7839,12 @@ function normalizeClienteCodigos() {
   });
 
   const maxUsed = used.size ? Math.max(...Array.from(used)) : 0;
-  let seq = Math.max(CLIENTE_BASE_LAST_CODE, maxUsed) + 1;
+  const anchorBundled = getMaxClienteCodigoFromBundledSnapshots();
+  let seq = Math.max(anchorBundled, maxUsed) + 1;
   newClients.forEach(({ idx }) => {
     const current = Number(onlyDigits(String(result[idx].codigo || "")));
-    // Cadastros novos do portal usam CLIENTE 309, 310, … — não reatribuir a cada F5.
-    if (Number.isFinite(current) && current > CLIENTE_BASE_LAST_CODE) {
+    // Cadastros atribuídos acima do último código nos bundles — não reatribuir a cada F5.
+    if (Number.isFinite(current) && current > anchorBundled) {
       const dupIdx = byCode.get(current);
       if (dupIdx && dupIdx.length === 1 && dupIdx[0] === idx) {
         return;

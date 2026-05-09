@@ -240,19 +240,31 @@
     return txt;
   }
 
-  function getPortalClientesOfficialBase() {
+  function getPortalClientesBundledSnapshot() {
+    const extras =
+      typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
+        ? CLIENTES_EXTRA_SYNC_DATA
+        : [];
     if (typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026)) {
-      return CLIENTES_DK_FINANCEIRO_2026;
+      return [...CLIENTES_DK_FINANCEIRO_2026, ...extras];
     }
     if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
-      return clientesSeedData;
+      return [...clientesSeedData, ...extras];
     }
-    return [];
+    return extras;
   }
 
-  function getPortalOfficialClienteByCpf(cpfDigits) {
+  /** Último número de cliente presente nos bundles (evita tecto fixo tipo 308). */
+  function portalBundledClienteMaxNum() {
+    if (typeof getMaxClienteCodigoFromBundledSnapshots === "function") {
+      return getMaxClienteCodigoFromBundledSnapshots();
+    }
+    return 0;
+  }
+
+  function getPortalBundledClienteByCpf(cpfDigits) {
     if (!cpfDigits) return null;
-    const base = getPortalClientesOfficialBase();
+    const base = getPortalClientesBundledSnapshot();
     return (
       base.find((c) => {
         const cpf =
@@ -262,8 +274,8 @@
     );
   }
 
-  function getPortalOfficialClienteCodeByCpf(cpfDigits) {
-    const hit = getPortalOfficialClienteByCpf(cpfDigits);
+  function getPortalBundledClienteCodeByCpf(cpfDigits) {
+    const hit = getPortalBundledClienteByCpf(cpfDigits);
     if (!hit) return "";
     const codeNum =
       Number(
@@ -272,15 +284,15 @@
           : String(hit.codigo || "").replace(/\D/g, "")
       ) || 0;
     if (codeNum > 0) return `CLIENTE ${codeNum}`;
-    const base = getPortalClientesOfficialBase();
+    const base = getPortalClientesBundledSnapshot();
     const idx = base.indexOf(hit);
     return idx >= 0 ? `CLIENTE ${idx + 1}` : "";
   }
 
   function getPortalLocalExtraClientesOrdered() {
     if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return [];
-    const oficialCpfs = new Set(
-      getPortalClientesOfficialBase()
+    const snapshotCpfs = new Set(
+      getPortalClientesBundledSnapshot()
         .map((c) =>
           typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "")
         )
@@ -290,7 +302,7 @@
       .filter((c) => {
         const cpf =
           typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-        return cpf.length === 11 && !oficialCpfs.has(cpf);
+        return cpf.length === 11 && !snapshotCpfs.has(cpf);
       })
       .slice()
       .sort((a, b) => Number(a.createdAt || a.id || 0) - Number(b.createdAt || b.id || 0));
@@ -304,7 +316,7 @@
   }
 
   function getPortalCanonicalClienteCodeByCpf(cpfDigits) {
-    const off = getPortalOfficialClienteCodeByCpf(cpfDigits);
+    const off = getPortalBundledClienteCodeByCpf(cpfDigits);
     if (off) return off;
     const extras = getPortalLocalExtraClientesOrdered();
     const idx = extras.findIndex((c) => {
@@ -313,25 +325,28 @@
       return cpf === cpfDigits;
     });
     if (idx < 0) return "";
-    return `CLIENTE ${308 + idx + 1}`;
+    const anchor = portalBundledClienteMaxNum();
+    return `CLIENTE ${anchor + idx + 1}`;
   }
 
   function getPortalNextClienteCode() {
+    if (typeof nextClienteCodigo === "function") return nextClienteCodigo();
+    const anchor = portalBundledClienteMaxNum();
     const extras = getPortalLocalExtraClientesOrdered();
-    return `CLIENTE ${308 + extras.length + 1}`;
+    return `CLIENTE ${anchor + extras.length + 1}`;
   }
 
-  /** Índices 0,1,… para CPFs que não estão na base oficial — deve coincidir com o mapa já unido do relatório. */
+  /** Índices 0,1,… para CPFs só no navegador (fora dos bundles) — alinhado ao relatório unificado. */
   function buildPortalExtraClienteIndexByCpf(mergedByCpf) {
-    const oficialSet = new Set(
-      getPortalClientesOfficialBase()
+    const snapshotCpfSet = new Set(
+      getPortalClientesBundledSnapshot()
         .map((c) =>
           typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "")
         )
         .filter((cpf) => cpf.length === 11)
     );
     const extraCpfs = Array.from(mergedByCpf.keys())
-      .filter((cpf) => !oficialSet.has(cpf))
+      .filter((cpf) => !snapshotCpfSet.has(cpf))
       .sort((cpa, cpb) => {
         const a = mergedByCpf.get(cpa);
         const b = mergedByCpf.get(cpb);
@@ -343,11 +358,12 @@
   }
 
   function resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf) {
-    const off = getPortalOfficialClienteCodeByCpf(cpfDigits);
+    const off = getPortalBundledClienteCodeByCpf(cpfDigits);
     if (off) return off;
     const xi = extraIdxByCpf.get(cpfDigits);
     if (xi === undefined) return "";
-    return `CLIENTE ${308 + xi + 1}`;
+    const anchor = portalBundledClienteMaxNum();
+    return `CLIENTE ${anchor + xi + 1}`;
   }
 
   function bindOperacaoClienteCpfAssist() {
@@ -368,8 +384,8 @@
       if (!cpfDigits) return null;
       const local = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpfDigits) : null;
       if (local) return local;
-      const oficial = getPortalOfficialClienteByCpf(cpfDigits);
-      if (oficial) return oficial;
+      const bundled = getPortalBundledClienteByCpf(cpfDigits);
+      if (bundled) return bundled;
       if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
         const hit = clientesSeedData.find((c) => {
           const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
@@ -386,7 +402,7 @@
       btnAtualizar.classList.toggle("hidden", !known);
     }
 
-    /** Base oficial + cadastro local + candidatos do painel; não depende só de getLancamentoClienteCandidates. */
+    /** Snapshot em JS + cadastro local + candidatos do painel; não depende só de getLancamentoClienteCandidates. */
     function getByCpfPrefix(prefixDigits) {
       if (!prefixDigits) return [];
       const byCpf = new Map();
@@ -413,15 +429,15 @@
       } catch (err) {
         console.warn("[DK portal] getLancamentoClienteCandidates:", err);
       }
-      getPortalClientesOfficialBase().forEach(addRow);
+      getPortalClientesBundledSnapshot().forEach(addRow);
       if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
         loadCadastro(CAD_CLIENTES_KEY).forEach(addRow);
       }
       const raw = Array.from(byCpf.values());
       raw.sort((a, b) => {
-        const aOf = getPortalOfficialClienteByCpf(a.cpf) ? 1 : 0;
-        const bOf = getPortalOfficialClienteByCpf(b.cpf) ? 1 : 0;
-        if (aOf !== bOf) return aOf - bOf;
+        const aSnap = getPortalBundledClienteByCpf(a.cpf) ? 1 : 0;
+        const bSnap = getPortalBundledClienteByCpf(b.cpf) ? 1 : 0;
+        if (aSnap !== bSnap) return aSnap - bSnap;
         const an = String(a.nome || "").trim();
         const bn = String(b.nome || "").trim();
         if (an && !bn) return -1;
@@ -538,8 +554,8 @@
         if (!el) return;
         el.value = String(value || "").trim();
       };
-      const codigoOficial = getPortalCanonicalClienteCodeByCpf(cpfDigits);
-      assign("operacaoClienteCodigo", codigoOficial || cliente.codigo);
+      const codigoCanon = getPortalCanonicalClienteCodeByCpf(cpfDigits);
+      assign("operacaoClienteCodigo", codigoCanon || cliente.codigo);
       assign("operacaoClienteCelular", cliente.celular);
       assign("operacaoClienteRecado1", cliente.recado1);
       assign("operacaoClienteRecado2", cliente.recado2);
@@ -1057,17 +1073,17 @@
   }
 
   function getPortalRelatorioClienteContext() {
-    // Uma só visão: base oficial (CLIENTE 1 … 308 no bundle) + tudo o que está em dk_clientes_cadastro (cadastros diários).
-    const baseOficialBundle = getPortalClientesOfficialBase();
-    const baseOficialSeed =
+    // Lista única: dados dos bundles (cresce a cada export/sync para o site) fundidos com dk_clientes_cadastro deste navegador.
+    const bundledSnapshot = getPortalClientesBundledSnapshot();
+    const bundledFallbackSeed =
       typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData) ? clientesSeedData : [];
-    const baseOficial =
-      baseOficialBundle.length > 0
-        ? baseOficialBundle
-        : baseOficialSeed.length > 0
-          ? baseOficialSeed
+    const bundledRows =
+      bundledSnapshot.length > 0
+        ? bundledSnapshot
+        : bundledFallbackSeed.length > 0
+          ? bundledFallbackSeed
           : [];
-    const baseLocal =
+    const cadastroLocal =
       typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined" ? loadCadastro(CAD_CLIENTES_KEY) : [];
 
     const byCpf = new Map();
@@ -1097,8 +1113,8 @@
       if (sNew > sPrev || (preferOnTie && sNew === sPrev)) byCpf.set(cpfDigits, c);
     };
 
-    baseOficial.forEach((c) => mergeOne(c, false));
-    baseLocal.forEach((c) => mergeOne(c, true));
+    bundledRows.forEach((c) => mergeOne(c, false));
+    cadastroLocal.forEach((c) => mergeOne(c, true));
 
     const extraIdxByCpf = buildPortalExtraClienteIndexByCpf(byCpf);
 
@@ -1137,9 +1153,9 @@
         typeof onlyDigits === "function"
           ? onlyDigits(String(c.cpf || ""))
           : String(c.cpf || "").replace(/\D/g, "");
-      const codigoOficial = resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf);
+      const codigoRel = resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf);
       return [
-        codigoOficial || String(c.codigo || "").trim() || "—",
+        codigoRel || String(c.codigo || "").trim() || "—",
         String(c.dataCadastro || "").trim() || "—",
         cpfDigits.length === 11 ? fmtCpf(cpfDigits) : String(c.cpf || "").trim() || "—",
         String(c.nome || "").trim() || "—",
@@ -1151,7 +1167,7 @@
       ];
     });
     return {
-      title: "Relatório de clientes — base oficial + cadastros",
+      title: "Relatório de clientes — lista unificada",
       headers,
       rows,
       fileSlug: "clientes",

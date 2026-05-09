@@ -520,7 +520,7 @@
     <div class="portal-modal__card">
       <h3 id="portalRelatorioTitulo" class="portal-modal__title">Relatório</h3>
       <p id="portalRelatorioResumo" class="portal-modal__text subtext"></p>
-      <p id="portalRelatorioFonteData" class="subtext">Lista única: base fixa no programa (CLIENTE 1 a CLIENTE 308) mais todos os clientes guardados neste navegador (<code>dk_clientes_cadastro</code>) — incluídos no mesmo PDF/Excel.</p>
+      <p id="portalRelatorioFonteData" class="subtext">Lista única: clientes presentes nos ficheiros do site (atualizados quando exportam a base) mais o cadastro guardado neste navegador (<code>dk_clientes_cadastro</code>) — tudo no mesmo PDF/Excel, sem tecto fixo de número.</p>
       <div class="portal-modal__actions">
         <button type="button" class="btn-primary" id="portalRelatorioPdfBtn">Relatório PDF</button>
         <button type="button" class="btn-primary" id="portalRelatorioExcelBtn">Relatório Excel (CSV)</button>
@@ -531,9 +531,10 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="clientes-dk-financeiro-2026.js"></script>
+  <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260507c" defer></script>
-  <script src="portal-locadora-ui.js?v=20260507c" defer></script>
+  <script src="app.js?v=20260509a" defer></script>
+  <script src="portal-locadora-ui.js?v=20260509a" defer></script>
 </body>
 </html>
