@@ -16,7 +16,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260509c">
+  <link rel="stylesheet" href="styles.css?v=20260509d">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -55,16 +55,23 @@
     </footer>
   </div>
 
-  <div id="view-unit" class="view" role="region" aria-labelledby="unit-page-title" aria-hidden="true">
+  <div id="view-unit" class="view view--unit" role="region" aria-labelledby="unit-page-title" aria-hidden="true">
     <div class="subpage subpage--wide">
-      <button type="button" class="btn-back" data-back>← Voltar ao início</button>
-      <h1 id="unit-page-title">Unidade</h1>
-      <p class="subpage__lead" id="unit-page-lead">Escolha o tipo de acesso e informe CPF e senha. Senha inicial: <strong>123456</strong> (troca obrigatória no primeiro login).</p>
+      <header class="portal-unit-bar" aria-label="Navegação da unidade">
+        <div class="portal-unit-bar__left">
+          <span class="portal-unit-bar__label">Tipo de acesso</span>
+          <div class="role-picker role-picker--bar" role="tablist" aria-label="Tipo de acesso">
+            <button type="button" class="role-picker__btn" data-role="cliente" role="tab" aria-selected="false">Cliente</button>
+            <button type="button" class="role-picker__btn" data-role="colaborador" role="tab" aria-selected="false">Colaborador</button>
+            <button type="button" class="role-picker__btn" data-role="administrador" role="tab" aria-selected="false">Administrador</button>
+          </div>
+        </div>
+        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-back>← Voltar ao início</button>
+      </header>
 
-      <div class="role-picker" role="tablist" aria-label="Tipo de acesso">
-        <button type="button" class="role-picker__btn" data-role="cliente" role="tab" aria-selected="false">Cliente</button>
-        <button type="button" class="role-picker__btn" data-role="colaborador" role="tab" aria-selected="false">Colaborador</button>
-        <button type="button" class="role-picker__btn" data-role="administrador" role="tab" aria-selected="false">Administrador</button>
+      <div class="portal-unit-heading">
+        <h1 id="unit-page-title">Unidade</h1>
+        <p class="subpage__lead portal-unit-heading__lead" id="unit-page-lead">Escolha o tipo de acesso e informe CPF e senha. Senha inicial: <strong>123456</strong> (troca obrigatória no primeiro login).</p>
       </div>
 
       <section id="panel-login" class="portal-panel hidden" aria-live="polite">
