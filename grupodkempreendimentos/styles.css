@@ -454,6 +454,63 @@ body {
   margin-top: 0;
 }
 
+.portal-operacao-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 1.25rem 1.75rem;
+  align-items: start;
+  margin: 0.5rem 0 0;
+}
+
+.portal-operacao-layout__sidebar .operacao-comandos {
+  margin-top: 1rem;
+  margin-bottom: 0;
+}
+
+.portal-operacao-layout__sidebar {
+  position: sticky;
+  top: 0.75rem;
+}
+
+.portal-operacao-layout__main {
+  min-width: 0;
+}
+
+.operacao-form-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 14rem;
+  margin: 0 0 1rem;
+  padding: 1.75rem 1.25rem;
+  text-align: center;
+  border: 1px dashed rgba(201, 162, 39, 0.4);
+  border-radius: 12px;
+  background: rgba(10, 12, 18, 0.55);
+  color: var(--muted);
+}
+
+.operacao-form-placeholder.hidden {
+  display: none;
+}
+
+.operacao-form-placeholder__text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  max-width: 22rem;
+}
+
+@media (max-width: 900px) {
+  .portal-operacao-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .portal-operacao-layout__sidebar {
+    position: static;
+  }
+}
+
 .operacao-comandos {
   display: flex;
   flex-direction: column;

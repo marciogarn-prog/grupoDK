@@ -1380,12 +1380,35 @@
     }
   });
 
-  function hideInlineForms() {
+  function hideOperacaoInlineFormsCore() {
     hideOperacaoLocacaoPlacaDropdown();
     resetOperacaoLocacaoRelatorioPanel();
     document.getElementById("operacaoInlineCliente")?.classList.add("hidden");
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
+  }
+
+  function setOperacaoFormPlaceholderVisible(visible) {
+    const el = document.getElementById("operacaoFormPlaceholder");
+    if (!el) return;
+    el.classList.toggle("hidden", !visible);
+    el.setAttribute("aria-hidden", visible ? "false" : "true");
+  }
+
+  function syncOperacaoCadastroButtons(activeButtonId) {
+    ["btn-operacao-cadastro-cliente", "btn-operacao-cadastro-veiculo", "btn-operacao-cadastro-locacao"].forEach((id) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      const on = Boolean(activeButtonId && id === activeButtonId);
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+  }
+
+  function hideInlineForms() {
+    hideOperacaoInlineFormsCore();
+    setOperacaoFormPlaceholderVisible(true);
+    syncOperacaoCadastroButtons(null);
   }
 
   /**
@@ -1833,16 +1856,22 @@
   });
 
   document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", () => {
-    hideInlineForms();
+    hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
   });
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
-    hideInlineForms();
+    hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-cadastro-veiculo");
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
-    hideInlineForms();
+    hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLocacao")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-cadastro-locacao");
     refreshOperacaoLocacaoDatalists();
     suggestOperacaoLocacaoDataInicioComoHoje();
     syncOperacaoLocacaoFromDataInicio();
