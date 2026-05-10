@@ -2965,6 +2965,24 @@ function normalizeStatusLocacaoExibicao(value) {
   return t;
 }
 
+/** Texto da coluna Status nos relatórios do portal: verdadeiro → fundo verde; caso contrário → amarelo. */
+function isPortalRelatorioStatusCellAtivo(value) {
+  const s = String(value ?? "").trim();
+  if (!s || s === "—" || s === "-") return false;
+  const nk = normalizeKey(s);
+  if (
+    nk.includes("INATIV") ||
+    nk.includes("FINAL") ||
+    nk.includes("CANCEL") ||
+    nk.includes("ENCERR") ||
+    nk.includes("ENCER")
+  ) {
+    return false;
+  }
+  if (nk.includes("ATIV")) return true;
+  return false;
+}
+
 function normalizePlate(value) {
   return normalizeKey(value).replace(/[^A-Z0-9]/g, "");
 }
@@ -6242,6 +6260,11 @@ function downloadStyledExcel(fileName, headers, rows, metaLines = [], excelOptio
         .join("")}</table><br>`
     : "";
   const headerHtml = `<tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
+  const statusColIdx = excelOptions.statusColumnIndex;
+  const statusFn =
+    typeof statusColIdx === "number" && typeof isPortalRelatorioStatusCellAtivo === "function"
+      ? isPortalRelatorioStatusCellAtivo
+      : null;
   const bodyHtml = rows
     .map(
       (row) =>
@@ -6249,7 +6272,12 @@ function downloadStyledExcel(fileName, headers, rows, metaLines = [], excelOptio
           .map((cell, ci) => {
             const raw = cell == null ? "" : String(cell);
             const forceText = textColumns.has(ci);
-            const tdAttr = forceText ? ' style="mso-number-format:\\@;"' : "";
+            const styleParts = [];
+            if (forceText) styleParts.push("mso-number-format:\\@");
+            if (statusFn && statusColIdx === ci) {
+              styleParts.push(statusFn(raw) ? "background-color:#c8e6c9" : "background-color:#fff9c4");
+            }
+            const tdAttr = styleParts.length ? ` style="${styleParts.join(";")};"` : "";
             return `<td${tdAttr}>${escapeHtml(raw)}</td>`;
           })
           .join("")}</tr>`

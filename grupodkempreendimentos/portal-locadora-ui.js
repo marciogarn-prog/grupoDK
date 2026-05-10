@@ -1179,10 +1179,28 @@
     modal.setAttribute("aria-hidden", "true");
   }
 
-  function buildPortalRelatorioHtml(title, headers, rows) {
+  function buildPortalRelatorioHtml(title, headers, rows, reportOptions = {}) {
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const statusIdx = reportOptions.statusColumnIndex;
+    const statusFn =
+      typeof statusIdx === "number" && typeof isPortalRelatorioStatusCellAtivo === "function"
+        ? isPortalRelatorioStatusCellAtivo
+        : null;
     const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
-    const bodyCells = rows.map((row) => `<tr>${row.map((c) => `<td>${eh(c)}</td>`).join("")}</tr>`).join("");
+    const bodyCells = rows
+      .map((row) => {
+        const tds = row
+          .map((c, ci) => {
+            let tdExtra = "";
+            if (statusFn && statusIdx === ci) {
+              tdExtra = statusFn(String(c ?? "")) ? ' class="portal-rel-status-ativo"' : ' class="portal-rel-status-inativo"';
+            }
+            return `<td${tdExtra}>${eh(c)}</td>`;
+          })
+          .join("");
+        return `<tr>${tds}</tr>`;
+      })
+      .join("");
     const quando = new Date().toLocaleString("pt-BR");
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
       body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
@@ -1191,6 +1209,8 @@
       table{width:100%;border-collapse:collapse}
       th,td{border:1px solid #333;padding:5px 7px;text-align:left}
       th{background:#eee;font-weight:600}
+      .portal-rel-status-ativo{background:#c8e6c9}
+      .portal-rel-status-inativo{background:#fff9c4}
     </style></head><body>
       <h1>${eh(title)}</h1>
       <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registo(s)</p>
@@ -1204,7 +1224,9 @@
     const iframe = document.getElementById("portalPdfIframe");
     const viewer = document.getElementById("portalRelatorioPdfViewer");
     if (!iframe || !viewer) return;
-    const html = buildPortalRelatorioHtml(context.title, context.headers, context.rows);
+    const html = buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
+      statusColumnIndex: context.statusColumnIndex,
+    });
     hideRelatorioLocacaoPdfViewer();
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
@@ -1224,6 +1246,7 @@
     ];
     downloadStyledExcel(`relatorio-${context.fileSlug}-${stamp}`, context.headers, context.rows, metaLines, {
       textColumns: context.textColumns || [],
+      statusColumnIndex: context.statusColumnIndex,
     });
   }
 
@@ -1345,7 +1368,14 @@
     );
     const headers = ["Protocolo", "CPF", "Cliente", "Placa", "Modelo", "Início", "Fim", "Plano", "Status"];
     const rows = rowsRaw.map((l) => rowPortalRelatorioLocacao(l).slice(0, 9));
-    return { title: "Relatório de locações cadastradas", headers, rows, fileSlug: "locacoes", textColumns: [0, 1, 3] };
+    return {
+      title: "Relatório de locações cadastradas",
+      headers,
+      rows,
+      fileSlug: "locacoes",
+      textColumns: [0, 1, 3],
+      statusColumnIndex: 8,
+    };
   }
 
   /** Sempre relê o cadastro no navegador — evita PDF/Excel com dados antigos se o operador guardou algo depois de abrir o modal. */
@@ -1375,9 +1405,23 @@
       "Modalidade",
     ];
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const statusIdx = 8;
+    const statusFn =
+      typeof isPortalRelatorioStatusCellAtivo === "function" ? isPortalRelatorioStatusCellAtivo : null;
     const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
     const bodyCells = rows
-      .map((row) => `<tr>${row.map((c) => `<td>${eh(c)}</td>`).join("")}</tr>`)
+      .map((row) => {
+        const tds = row
+          .map((c, ci) => {
+            let tdExtra = "";
+            if (statusFn && statusIdx === ci) {
+              tdExtra = statusFn(String(c ?? "")) ? ' class="portal-rel-status-ativo"' : ' class="portal-rel-status-inativo"';
+            }
+            return `<td${tdExtra}>${eh(c)}</td>`;
+          })
+          .join("");
+        return `<tr>${tds}</tr>`;
+      })
       .join("");
     const quando = new Date().toLocaleString("pt-BR");
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(
@@ -1389,6 +1433,8 @@
       table{width:100%;border-collapse:collapse}
       th,td{border:1px solid #333;padding:5px 7px;text-align:left}
       th{background:#eee;font-weight:600}
+      .portal-rel-status-ativo{background:#c8e6c9}
+      .portal-rel-status-inativo{background:#fff9c4}
     </style></head><body>
       <h1>${eh(titulo)}</h1>
       <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registo(s)</p>
@@ -1440,6 +1486,7 @@
     ];
     downloadStyledExcel(`relatorio-locacao-${fileSlug}-${stamp}`, headers, rows, metaLines, {
       textColumns: [0, 1, 3],
+      statusColumnIndex: 8,
     });
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (msg) msg.textContent = rows.length ? `Excel gerado (${rows.length} linha(s)).` : "Excel gerado — nenhum registo neste filtro.";
