@@ -106,6 +106,10 @@
 
   /** Esconde botões da operação para os quais o colaborador não tem permissão em `acessos`. */
   function refreshPortalOperacaoNavPorAcessos() {
+    if (!isPortalTitularAdministrador()) {
+      document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
+    }
+
     const f = getPortalSessaoEquipaFuncionario();
     const role = f ? String(f.role || "").trim() : "";
     const isOwner = role === "owner";
@@ -375,6 +379,9 @@
   });
 
   btnOperacao?.addEventListener("click", () => {
+    hideOperacaoInlineFormsCore();
+    setOperacaoFormPlaceholderVisible(true);
+    syncOperacaoCadastroButtons(null);
     hideAllPanels();
     panelOperacao?.classList.remove("hidden");
     refreshPortalOperacaoNavPorAcessos();
