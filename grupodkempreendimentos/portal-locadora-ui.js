@@ -2761,6 +2761,42 @@
       .join("");
   }
 
+  /**
+   * Sugestões de CPF para Relatório 2 (e futuros campos «CPF cliente»): cadastro local + locações.
+   * Filtra pelo prefixo já digitado (comportamento igual ao lançamento de aluguel).
+   */
+  function refreshPortalRelClienteCpfDatalist() {
+    const dl = document.getElementById("portalRelClienteCpfSugestoes");
+    const inpCpf = document.getElementById("portalRelClienteCpf");
+    if (!dl || typeof loadCadastro !== "function") return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const prefix = inpCpf ? dig(String(inpCpf.value || "")).slice(0, 11) : "";
+    const seen = new Set();
+    if (typeof CAD_CLIENTES_KEY !== "undefined") {
+      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+        const d = dig(String(c.cpf || ""));
+        if (d.length !== 11) return;
+        if (prefix.length && !d.startsWith(prefix)) return;
+        seen.add(d);
+      });
+    }
+    if (typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        const d = dig(String(l.cpf || ""));
+        if (d.length !== 11) return;
+        if (prefix.length && !d.startsWith(prefix)) return;
+        seen.add(d);
+      });
+    }
+    dl.innerHTML = Array.from(seen)
+      .sort()
+      .slice(0, 200)
+      .map((d) => `<option value="${portalEscapeHtml(fmt(d))}"></option>`)
+      .join("");
+  }
+
   function clearOperacaoLancamentoAluguelCamposDerivados() {
     [
       "operacaoLancAluguelPlaca",
@@ -3136,6 +3172,7 @@
     ).slice(0, 11);
     if (typeof formatCpf === "function") inpCpf.value = formatCpf(d);
     refreshOperacaoLancamentoAluguelCpfDatalist();
+    refreshPortalRelClienteCpfDatalist();
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
   }
 
@@ -3158,6 +3195,7 @@
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelCpfDatalist();
+    refreshPortalRelClienteCpfDatalist();
     refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
@@ -3437,6 +3475,7 @@
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
     refreshOperacaoLancamentoAluguelCpfDatalist();
+    refreshPortalRelClienteCpfDatalist();
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
   });
@@ -3455,7 +3494,27 @@
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelCpfDatalist();
+    refreshPortalRelClienteCpfDatalist();
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
+  });
+
+  /** Máscara 000.000.000-00 + datalist enquanto digita (padrão portal CPF cliente). */
+  document.getElementById("portalRelClienteCpf")?.addEventListener("blur", () => {
+    const inp = document.getElementById("portalRelClienteCpf");
+    if (!inp || typeof formatCpf !== "function") return;
+    const digits = (
+      typeof onlyDigits === "function" ? onlyDigits(inp.value) : String(inp.value || "").replace(/\D/g, "")
+    ).slice(0, 11);
+    if (digits.length === 11) inp.value = formatCpf(digits);
+  });
+  document.getElementById("portalRelClienteCpf")?.addEventListener("input", () => {
+    const inp = document.getElementById("portalRelClienteCpf");
+    if (!inp) return;
+    const digits = (
+      typeof onlyDigits === "function" ? onlyDigits(inp.value) : String(inp.value || "").replace(/\D/g, "")
+    ).slice(0, 11);
+    if (typeof formatCpf === "function") inp.value = formatCpf(digits);
+    refreshPortalRelClienteCpfDatalist();
   });
   document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -4031,6 +4090,7 @@
       syncOperacaoLocacaoFromDataInicio();
       syncOperacaoLocacaoValorPlano();
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      refreshPortalRelClienteCpfDatalist();
       syncPortalIfSession();
     })
   );
