@@ -1115,13 +1115,43 @@
     ];
   }
 
-  function sortPortalRelatorioRows(rows) {
-    return rows.slice().sort((a, b) => {
-      const pa = String(a[3] || "");
-      const pb = String(b[3] || "");
-      const c = pa.localeCompare(pb, "pt-BR");
-      if (c !== 0) return c;
-      return String(a[5] || "").localeCompare(String(b[5] || ""), "pt-BR");
+  /**
+   * Chave temporal para ordenar relatórios: mais recentes primeiro.
+   * Usa createdAt, id (timestamp), número de contrato AAAAMMDD…, ou datas em texto (dataCadastro / início / fim).
+   */
+  function portalRegistroRecencyMs(rec) {
+    if (!rec || typeof rec !== "object") return 0;
+    const ca = Number(rec.createdAt ?? 0);
+    if (Number.isFinite(ca) && ca > 0) return ca;
+    const idn = Number(rec.id ?? 0);
+    if (Number.isFinite(idn) && idn > 1e12) return idn;
+    const nc = String(rec.numeroContrato ?? "").replace(/\s+/g, "");
+    if (/^\d{8,}$/.test(nc)) return Number(nc);
+    const tryParse = (raw) => {
+      const s = String(raw || "").trim();
+      if (!s) return 0;
+      if (typeof parseBrDate === "function") {
+        const d = parseBrDate(s);
+        if (d && !Number.isNaN(d.getTime())) return d.getTime();
+      }
+      return 0;
+    };
+    for (const k of ["dataCadastro", "inicio", "fim"]) {
+      const t = tryParse(rec[k]);
+      if (t) return t;
+    }
+    if (Number.isFinite(idn) && idn > 0) return idn;
+    return 0;
+  }
+
+  function sortPortalRelatorioByRecencyDesc(records) {
+    return records.slice().sort((a, b) => {
+      const da = portalRegistroRecencyMs(a);
+      const db = portalRegistroRecencyMs(b);
+      if (db !== da) return db - da;
+      const ta = String(a.numeroContrato || a.tag || a.placa || a.cpf || "");
+      const tb = String(b.numeroContrato || b.tag || b.placa || b.cpf || "");
+      return tb.localeCompare(ta, "en");
     });
   }
 
@@ -1253,32 +1283,10 @@
 
     const extraIdxByCpf = buildPortalExtraClienteIndexByCpf(byCpf);
 
-    const clienteCodigoSortKey = (rec) => {
-      const cpfDigits =
-        typeof onlyDigits === "function"
-          ? onlyDigits(String(rec.cpf || ""))
-          : String(rec.cpf || "").replace(/\D/g, "");
-      const canon = resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf);
-      const n =
-        typeof onlyDigits === "function"
-          ? onlyDigits(String(canon || ""))
-          : String(canon || "").replace(/\D/g, "");
-      let num = Number(n) || 0;
-      if (!num) {
-        num =
-          Number(
-            typeof onlyDigits === "function"
-              ? onlyDigits(String(rec.codigo || ""))
-              : String(rec.codigo || "").replace(/\D/g, "")
-          ) || 0;
-      }
-      return num;
-    };
-
     const rowsRaw = Array.from(byCpf.values()).sort((a, b) => {
-      const ka = clienteCodigoSortKey(a);
-      const kb = clienteCodigoSortKey(b);
-      if (ka !== kb) return ka - kb;
+      const da = portalRegistroRecencyMs(a);
+      const db = portalRegistroRecencyMs(b);
+      if (db !== da) return db - da;
       return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
     });
     const headers = ["Cód.", "Data Cadastro", "CPF", "Nome", "Celular", "CNH", "Categoria", "Vencimento", "Município/UF"];
@@ -1311,8 +1319,9 @@
   }
 
   function getPortalRelatorioVeiculoContext() {
-    const rowsRaw =
-      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined" ? loadCadastro(CAD_VEICULOS_KEY) : [];
+    const rowsRaw = sortPortalRelatorioByRecencyDesc(
+      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined" ? loadCadastro(CAD_VEICULOS_KEY) : []
+    );
     const headers = ["Tag", "Placa", "Código", "Marca", "Modelo", "Tipo", "Ano/Modelo", "Valor", "Cor"];
     const rows = rowsRaw.map((v) => [
       String(v.tag || "").trim() || "—",
@@ -1329,8 +1338,9 @@
   }
 
   function getPortalRelatorioLocacaoContext() {
-    const rowsRaw =
-      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : [];
+    const rowsRaw = sortPortalRelatorioByRecencyDesc(
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : []
+    );
     const headers = ["Protocolo", "CPF", "Cliente", "Placa", "Modelo", "Início", "Fim", "Plano", "Status"];
     const rows = rowsRaw.map((l) => rowPortalRelatorioLocacao(l).slice(0, 9));
     return { title: "Relatório de locações cadastradas", headers, rows, fileSlug: "locacoes", textColumns: [0, 1, 3] };
@@ -1348,8 +1358,8 @@
   function emitPortalRelatorioLocacaoPdf(escopo) {
     const titulo =
       escopo === "ativas" ? "Locações de motos — ativas" : "Locações de motos — finalizadas";
-    const raw = getPortalMotosLocacaoDataset(escopo);
-    const rows = sortPortalRelatorioRows(raw.map(rowPortalRelatorioLocacao));
+    const raw = sortPortalRelatorioByRecencyDesc(getPortalMotosLocacaoDataset(escopo));
+    const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
       "CPF",
@@ -1404,8 +1414,8 @@
       return;
     }
     const label = escopo === "ativas" ? "Locações ativas (motos)" : "Locações finalizadas (motos)";
-    const raw = getPortalMotosLocacaoDataset(escopo);
-    const rows = sortPortalRelatorioRows(raw.map(rowPortalRelatorioLocacao));
+    const raw = sortPortalRelatorioByRecencyDesc(getPortalMotosLocacaoDataset(escopo));
+    const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
       "CPF",
