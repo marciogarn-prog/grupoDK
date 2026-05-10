@@ -2717,6 +2717,17 @@ function clienteTemVinculoComLocacao(cpfDigits, nomeCliente, codigoCliente) {
   return false;
 }
 
+/** Qualquer locação em `dk_locacoes_cadastro` com esta placa — impede apagar veículo sem perder histórico. */
+function veiculoTemVinculoComLocacao(placaRaw) {
+  const p = normalizePlate(String(placaRaw || ""));
+  if (!p) return false;
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  for (const l of locs) {
+    if (normalizePlate(String(l.placa || "")) === p) return true;
+  }
+  return false;
+}
+
 function setLocacaoFormBlocked(blocked) {
   if (!cadLocacaoPlacaInput) return;
   cadLocacaoPlacaInput.disabled = blocked;
@@ -7572,6 +7583,7 @@ function sanitizeVeiculosDatabase() {
 function removeVeiculoFromDatabase(plate) {
   const plateKey = normalizePlate(plate);
   if (!plateKey) return;
+  if (veiculoTemVinculoComLocacao(plateKey)) return;
   const veiculos = loadCadastro(CAD_VEICULOS_KEY);
   const filtered = veiculos.filter((v) => normalizePlate(v.placa) !== plateKey);
   if (filtered.length !== veiculos.length) {
@@ -7604,7 +7616,11 @@ function removeVeiculosByTag(tags) {
   );
   if (!targets.size) return;
   const veiculos = loadCadastro(CAD_VEICULOS_KEY);
-  const filtered = veiculos.filter((v) => !targets.has(normalizeKey(v.tag)));
+  const filtered = veiculos.filter((v) => {
+    if (!targets.has(normalizeKey(v.tag))) return true;
+    if (veiculoTemVinculoComLocacao(v.placa)) return true;
+    return false;
+  });
   if (filtered.length !== veiculos.length) {
     saveCadastro(CAD_VEICULOS_KEY, filtered);
   }

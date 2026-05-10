@@ -440,7 +440,13 @@
         typeof findClienteByCpfCadastro === "function" && digits.length === 11
           ? findClienteByCpfCadastro(digits)
           : null;
-      btn.classList.toggle("hidden", !(isOwner && localOnly));
+      let show = Boolean(isOwner && localOnly);
+      if (show && typeof clienteTemVinculoComLocacao === "function") {
+        const nome = String(localOnly?.nome || inpNome?.value || "").trim();
+        const codigo = String(document.getElementById("operacaoClienteCodigo")?.value || localOnly?.codigo || "").trim();
+        if (clienteTemVinculoComLocacao(digits, nome, codigo)) show = false;
+      }
+      btn.classList.toggle("hidden", !show);
     }
 
     function setAtualizarButtonByCpf(cpfDigits) {
@@ -697,19 +703,25 @@
       if (inpDataCadastro && !String(inpDataCadastro.value || "").trim()) {
         if (dataPreferida) inpDataCadastro.value = dataPreferida;
       }
-      setAtualizarButtonByCpf(digits);
       lockImmutableClienteFields(true, {
         codigo: getPortalCanonicalClienteCodeByCpf(digits) || String(cliente.codigo || "").trim(),
         cpf: digits,
         nome: String(cliente.nome || "").trim(),
         dataCadastro: dataPreferida || String(inpDataCadastro?.value || "").trim(),
       });
+      setAtualizarButtonByCpf(digits);
       const dataLabel = dataPreferida;
       if (msg) msg.textContent = dataLabel ? `Cliente já cadastrado em ${dataLabel}.` : "Cliente já cadastrado.";
       if (lastAlertedCpf !== digits) {
         window.alert(dataLabel ? `Cliente cadastrado em ${dataLabel}.` : "Cliente já cadastrado.");
         lastAlertedCpf = digits;
       }
+    });
+
+    inpNome?.addEventListener("input", () => {
+      const digits =
+        typeof onlyDigits === "function" ? onlyDigits(String(inpCpf.value || "")) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length === 11) refreshOperacaoClienteApagarBtn(digits);
     });
 
     form?.addEventListener("submit", (e) => {
