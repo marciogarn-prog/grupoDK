@@ -1117,16 +1117,10 @@
 
   /**
    * Chave temporal para ordenar relatórios: mais recentes primeiro.
-   * Usa createdAt, id (timestamp), número de contrato AAAAMMDD…, ou datas em texto (dataCadastro / início / fim).
+   * Locações: prioriza a data da coluna **Início**; depois createdAt, protocolo, etc.
    */
   function portalRegistroRecencyMs(rec) {
     if (!rec || typeof rec !== "object") return 0;
-    const ca = Number(rec.createdAt ?? 0);
-    if (Number.isFinite(ca) && ca > 0) return ca;
-    const idn = Number(rec.id ?? 0);
-    if (Number.isFinite(idn) && idn > 1e12) return idn;
-    const nc = String(rec.numeroContrato ?? "").replace(/\s+/g, "");
-    if (/^\d{8,}$/.test(nc)) return Number(nc);
     const tryParse = (raw) => {
       const s = String(raw || "").trim();
       if (!s) return 0;
@@ -1136,7 +1130,15 @@
       }
       return 0;
     };
-    for (const k of ["dataCadastro", "inicio", "fim"]) {
+    const inicioMs = tryParse(rec.inicio);
+    if (inicioMs) return inicioMs;
+    const ca = Number(rec.createdAt ?? 0);
+    if (Number.isFinite(ca) && ca > 0) return ca;
+    const idn = Number(rec.id ?? 0);
+    if (Number.isFinite(idn) && idn > 1e12) return idn;
+    const nc = String(rec.numeroContrato ?? "").replace(/\s+/g, "");
+    if (/^\d{8,}$/.test(nc)) return Number(nc);
+    for (const k of ["dataCadastro", "fim"]) {
       const t = tryParse(rec[k]);
       if (t) return t;
     }
