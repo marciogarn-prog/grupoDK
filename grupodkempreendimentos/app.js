@@ -1597,26 +1597,6 @@ function getMaxClienteCodigoFromBundledSnapshots() {
   return max;
 }
 
-/** Conjunto de todos os números de código já usados (base embarcada + cadastro local). */
-function getAllUsedClienteCodigoNumbers() {
-  const used = new Set();
-  const addFromArr = (arr) => {
-    if (!Array.isArray(arr)) return;
-    for (const c of arr) {
-      const n = Number(onlyDigits(String(c.codigo || "")));
-      if (Number.isFinite(n) && n > 0) used.add(n);
-    }
-  };
-  addFromArr(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
-  addFromArr(clientesSeedData);
-  addFromArr(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
-  loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
-    const n = Number(onlyDigits(String(c.codigo || "")));
-    if (Number.isFinite(n) && n > 0) used.add(n);
-  });
-  return used;
-}
-
 hydrateFuncionariosAccess();
 const adminSecundario = funcionariosAccess.find((f) => f.cpf === "06523244440");
 if (adminSecundario) {
@@ -6061,10 +6041,28 @@ function inferTipoFromSeed(seedItem) {
 }
 
 function nextClienteCodigo() {
-  const reportMax = getMaxClienteCodigoFromReportData();
+  const rows = getClientesReportData();
+  const used = new Set();
+  let reportMax = 0;
+  for (const c of rows) {
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (!Number.isFinite(n) || n <= 0) continue;
+    used.add(n);
+    if (n > reportMax) reportMax = n;
+  }
+  const addBundledCodesToUsed = (arr) => {
+    if (!Array.isArray(arr)) return;
+    for (const c of arr) {
+      const n = Number(onlyDigits(String(c.codigo || "")));
+      if (Number.isFinite(n) && n > 0) used.add(n);
+    }
+  };
+  addBundledCodesToUsed(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  addBundledCodesToUsed(clientesSeedData);
+  addBundledCodesToUsed(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+
   const bundledMax = getMaxClienteCodigoFromBundledSnapshots();
   const floor = Math.max(reportMax, bundledMax);
-  const used = getAllUsedClienteCodigoNumbers();
   let next = floor + 1;
   while (used.has(next)) next += 1;
   return `CLIENTE ${next}`;
@@ -6156,17 +6154,6 @@ function getClientesReportData() {
     }
     return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
   });
-}
-
-/** Maior número de código já presente na mesma lista usada no relatório de clientes (base + local após seed). */
-function getMaxClienteCodigoFromReportData() {
-  const rows = getClientesReportData();
-  let max = 0;
-  for (const c of rows) {
-    const n = Number(onlyDigits(String(c.codigo || "")));
-    if (Number.isFinite(n) && n > max) max = n;
-  }
-  return max;
 }
 
 function escapeCsvCell(value) {
