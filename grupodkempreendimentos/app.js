@@ -2680,17 +2680,40 @@ function isClienteBloqueadoByCpf(cpf) {
   );
 }
 
-function clienteTemVinculoComLocacao(cpfDigits) {
-  const key = onlyDigits(String(cpfDigits || ""));
-  if (key.length !== 11) return false;
-  const fromAdmin = getAdminDataset().some(
-    (r) => onlyDigits(String(r.cpf || "")) === key && normalizePlate(r.placa)
-  );
-  if (fromAdmin) return true;
-  const fromLocacoes = loadCadastro(CAD_LOCACOES_KEY).some(
-    (l) => onlyDigits(String(l.cpf || "")) === key && normalizePlate(l.placa)
-  );
-  return fromLocacoes;
+/**
+ * Há locação (cadastro local) ligada ao cliente: mesmo CPF, ou mesmo nome nos campos da locação,
+ * ou mesmo código de cliente — não exige placa preenchida.
+ */
+function clienteTemVinculoComLocacao(cpfDigits, nomeCliente, codigoCliente) {
+  const cpf = onlyDigits(String(cpfDigits || ""));
+  const nomeN = normalizeName(String(nomeCliente || "").trim());
+  const codStr = String(codigoCliente || "").trim();
+  const codKey = codStr ? normalizeKey(codStr) : "";
+
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  for (const l of locs) {
+    const lCpf = onlyDigits(String(l.cpf || ""));
+    if (cpf.length === 11 && lCpf === cpf) return true;
+
+    if (nomeN.length >= 3) {
+      const candidatos = [l.cliente, l.nomeCliente, l.nome, l.clienteNome];
+      for (const raw of candidatos) {
+        const nn = normalizeName(String(raw || "").trim());
+        if (nn && nn === nomeN) return true;
+      }
+    }
+
+    if (codKey && String(l.clienteCodigo || "").trim()) {
+      if (normalizeKey(String(l.clienteCodigo || "").trim()) === codKey) return true;
+    }
+  }
+
+  if (nomeN.length >= 3) {
+    for (const r of getAdminDataset()) {
+      if (normalizeName(String(r.nome || "").trim()) === nomeN) return true;
+    }
+  }
+  return false;
 }
 
 function setLocacaoFormBlocked(blocked) {
@@ -12132,10 +12155,11 @@ function iniciarExclusaoCliente() {
   if (clienteEmEdicaoId === null) return;
   const cpf = onlyDigits(String(document.getElementById("cadClienteCpf").value || ""));
   const nome = String(document.getElementById("cadClienteNome").value || "").trim();
+  const codigo = String(document.getElementById("cadClienteCodigo").value || "").trim();
   if (cpf.length !== 11) return;
-  if (clienteTemVinculoComLocacao(cpf)) {
+  if (clienteTemVinculoComLocacao(cpf, nome, codigo)) {
     clienteCadastroErro.textContent =
-      "NAO E POSSIVEL EXCLUIR: CLIENTE POSSUI VINCULO COM LOCACAO (ATUAL OU HISTORICA).";
+      "NAO E POSSIVEL EXCLUIR: EXISTE LOCACAO COM ESTE CPF, NOME OU CODIGO DE CLIENTE.";
     clienteCadastroErro.classList.remove("hidden");
     return;
   }
@@ -12179,7 +12203,8 @@ cadClienteSenhaConfirmarBtn.addEventListener("click", () => {
   const senha = String(cadClienteAdminSenha.value || "").trim();
   const exigeSenhaOwner =
     clienteAcaoSenhaPendente === "cancelar" ||
-    clienteAcaoSenhaPendente === "desbloquear";
+    clienteAcaoSenhaPendente === "desbloquear" ||
+    clienteAcaoSenhaPendente === "excluir";
   const senhaValida = exigeSenhaOwner
     ? isSenhaOwnerValida(senha)
     : isSenhaFuncionarioAtualValida(senha);
@@ -12241,9 +12266,9 @@ cadClienteSenhaConfirmarBtn.addEventListener("click", () => {
     if (idx === -1) return;
     const alvo = clientes[idx];
     const cpfAlvo = onlyDigits(String(alvo.cpf || ""));
-    if (clienteTemVinculoComLocacao(cpfAlvo)) {
+    if (clienteTemVinculoComLocacao(cpfAlvo, alvo.nome, alvo.codigo)) {
       clienteCadastroErro.textContent =
-        "NAO E POSSIVEL EXCLUIR: CLIENTE POSSUI VINCULO COM LOCACAO (ATUAL OU HISTORICA).";
+        "NAO E POSSIVEL EXCLUIR: EXISTE LOCACAO COM ESTE CPF, NOME OU CODIGO DE CLIENTE.";
       clienteCadastroErro.classList.remove("hidden");
       return;
     }

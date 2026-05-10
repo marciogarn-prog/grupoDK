@@ -336,6 +336,28 @@
     return `CLIENTE ${anchor + extras.length + 1}`;
   }
 
+  /** Cliente reconhecido no portal: cadastro local, bundle do site ou seed. */
+  function getPortalClienteKnownRecord(cpfDigits) {
+    if (!cpfDigits || cpfDigits.length !== 11) return null;
+    if (typeof findClienteByCpfCadastro === "function") {
+      const local = findClienteByCpfCadastro(cpfDigits);
+      if (local) return local;
+    }
+    if (typeof getPortalBundledClienteByCpf === "function") {
+      const bundled = getPortalBundledClienteByCpf(cpfDigits);
+      if (bundled) return bundled;
+    }
+    if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
+      const hit = clientesSeedData.find((c) => {
+        const cpf =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        return cpf === cpfDigits;
+      });
+      if (hit) return hit;
+    }
+    return null;
+  }
+
   /** Índices 0,1,… para CPFs só no navegador (fora dos bundles) — alinhado ao relatório unificado. */
   function buildPortalExtraClienteIndexByCpf(mergedByCpf) {
     const snapshotCpfSet = new Set(
@@ -396,10 +418,36 @@
       return null;
     }
 
+    function getPortalSessaoAdminRole() {
+      try {
+        const raw = localStorage.getItem("dk_sessao_cliente");
+        if (!raw) return "";
+        const s = JSON.parse(raw);
+        if (s?.tipo !== "admin") return "";
+        return String(s.role || "").trim();
+      } catch {
+        return "";
+      }
+    }
+
+    function refreshOperacaoClienteApagarBtn(cpfDigits) {
+      const btn = document.getElementById("operacaoClienteApagarBtn");
+      if (!btn) return;
+      const role = getPortalSessaoAdminRole();
+      const isOwner = role === "owner";
+      const digits = String(cpfDigits || "").replace(/\D/g, "");
+      const localOnly =
+        typeof findClienteByCpfCadastro === "function" && digits.length === 11
+          ? findClienteByCpfCadastro(digits)
+          : null;
+      btn.classList.toggle("hidden", !(isOwner && localOnly));
+    }
+
     function setAtualizarButtonByCpf(cpfDigits) {
       if (!btnAtualizar) return;
       const known = Boolean(getClienteByCpfAny(cpfDigits));
       btnAtualizar.classList.toggle("hidden", !known);
+      refreshOperacaoClienteApagarBtn(cpfDigits);
     }
 
     /** Snapshot em JS + cadastro local + candidatos do painel; não depende só de getLancamentoClienteCandidates. */
@@ -812,6 +860,69 @@
       if (codigo) codigo.value = "";
       if (msg) msg.textContent = "";
       inpCpf.focus();
+    });
+
+    document.getElementById("operacaoClienteApagarBtn")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      if (getPortalSessaoAdminRole() !== "owner") {
+        window.alert("Apenas o administrador (titular) pode apagar clientes.");
+        return;
+      }
+      const digits =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(inpCpf.value || ""))
+          : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) {
+        if (msg) msg.textContent = "Informe o CPF completo do cliente a apagar.";
+        return;
+      }
+      const existente = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+      if (!existente) {
+        window.alert(
+          "Só é possível apagar clientes guardados neste navegador. Quem está só na base embarcada do site não pode ser removido aqui."
+        );
+        return;
+      }
+      const nome = String(inpNome?.value || existente.nome || "").trim();
+      const codigo = String(document.getElementById("operacaoClienteCodigo")?.value || existente.codigo || "").trim();
+      if (typeof clienteTemVinculoComLocacao === "function" && clienteTemVinculoComLocacao(digits, nome, codigo)) {
+        window.alert(
+          "Não é possível apagar: existe registo de locação com este CPF, nome ou código de cliente."
+        );
+        return;
+      }
+      const cpfTxt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
+      if (
+        !window.confirm(
+          `Confirma apagar definitivamente o cliente ${nome || "(sem nome)"} (${cpfTxt}) deste navegador? O código poderá ser reutilizado num novo cadastro.`
+        )
+      ) {
+        return;
+      }
+      const senha = window.prompt("Digite a senha do administrador (titular) para confirmar:");
+      if (senha == null) return;
+      if (typeof isSenhaOwnerValida !== "function" || !isSenhaOwnerValida(String(senha).trim())) {
+        window.alert("Senha inválida.");
+        return;
+      }
+      const clientes = loadCadastro(CAD_CLIENTES_KEY);
+      const idx = clientes.findIndex((c) => {
+        const p =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        return p === digits;
+      });
+      if (idx === -1) {
+        window.alert("Registo não encontrado.");
+        return;
+      }
+      const alvo = clientes[idx];
+      clientes.splice(idx, 1);
+      saveCadastro(CAD_CLIENTES_KEY, clientes);
+      if (typeof addAuditLog === "function") {
+        addAuditLog("excluir_cliente", "cliente", `${alvo.nome || "Nao informado"} - CPF ${cpfTxt} - portal`);
+      }
+      document.getElementById("operacaoClienteLimparBtn")?.click();
+      window.alert("Cliente apagado.");
     });
   }
 
@@ -1533,6 +1644,7 @@
     if (!resolved) return;
     if (digits.length === 11 && digits !== resolved) return;
     inpCpf.value = formatCpf(resolved);
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
   }
 
   function formatPortalDataBr(date = new Date()) {
@@ -1647,6 +1759,201 @@
     inp.value = formatPortalDataBr(new Date());
   }
 
+  const PORTAL_PROTO_NOVO = "__PORTAL_PROTO_NOVO__";
+  let portalLocacaoProtocoloPickerCpf = "";
+
+  function collectPortalLocacoesByCpf(cpfDigits) {
+    if (!cpfDigits || cpfDigits.length !== 11) return [];
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    return loadCadastro(CAD_LOCACOES_KEY).filter((l) => dig(String(l.cpf || "")) === cpfDigits);
+  }
+
+  /** Próximo protocolo AAAAMMDDXX (XX = sequência do dia, 2 dígitos até 99). */
+  function proximoProtocoloPortalAaaammddXX(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const prefix = `${y}${m}${d}`;
+    const locs =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : [];
+    const norm = (v) =>
+      typeof normalizeNumeroContratoKey === "function"
+        ? String(normalizeNumeroContratoKey(v || "")).replace(/\s+/g, "")
+        : String(v || "")
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, "");
+    let maxSeq = 0;
+    locs.forEach((l) => {
+      const nc = norm(l.numeroContrato || "");
+      if (!nc.startsWith(prefix)) return;
+      const rest = nc.slice(prefix.length);
+      if (!/^\d+$/.test(rest)) return;
+      maxSeq = Math.max(maxSeq, Number(rest));
+    });
+    const next = maxSeq + 1;
+    const width = next <= 99 ? 2 : String(next).length;
+    return `${prefix}${String(next).padStart(width, "0")}`;
+  }
+
+  function applyPortalLocacaoRowFromRecord(loc) {
+    const placaEl = document.getElementById("operacaoLocacaoPlaca");
+    const modeloEl = document.getElementById("operacaoLocacaoModelo");
+    const diEl = document.getElementById("operacaoLocacaoDataInicio");
+    const dfEl = document.getElementById("operacaoLocacaoDataFim");
+    const diaPagEl = document.getElementById("operacaoLocacaoDiaPagamento");
+    const valLocEl = document.getElementById("operacaoLocacaoValorAluguel");
+    const valInvEl = document.getElementById("operacaoLocacaoValorInvestimento");
+    const tipoPlanoEl = document.getElementById("operacaoLocacaoTipoPlano");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const nc =
+      typeof normalizeNumeroContratoKey === "function"
+        ? normalizeNumeroContratoKey(loc.numeroContrato || "")
+        : String(loc.numeroContrato || "").trim();
+    if (hid) hid.value = nc;
+    if (placaEl && typeof normalizePlate === "function") {
+      const p = normalizePlate(String(loc.placa || ""));
+      if (p) placaEl.value = p;
+    }
+    if (modeloEl) modeloEl.value = String(loc.marcaModelo || loc.modelo || "").trim();
+    const fmtDate = (raw) => {
+      const s = String(raw || "").trim();
+      if (!s) return "";
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+      if (/^\d{2}\/\d{2}\/\d{2}$/.test(s)) {
+        const [dd, mm, yy] = s.split("/");
+        const yFull = Number(yy) < 50 ? 2000 + Number(yy) : 1900 + Number(yy);
+        return `${dd}/${mm}/${yFull}`;
+      }
+      if (typeof parseBrDate === "function") {
+        const dt = parseBrDate(s);
+        if (dt && !Number.isNaN(dt.getTime())) return formatPortalDataBr(dt);
+      }
+      return s;
+    };
+    if (diEl) diEl.value = fmtDate(loc.inicio);
+    if (dfEl) dfEl.value = fmtDate(loc.fim);
+    if (diaPagEl) diaPagEl.value = String(loc.diaPagto || loc.diaPagamento || "").trim();
+    const fmtValor = (raw) => {
+      if (typeof parseCurrencyBR === "function") {
+        const n = parseCurrencyBR(String(raw || ""));
+        return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      return String(raw || "")
+        .replace(/R\$\s?/gi, "")
+        .trim();
+    };
+    if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
+    if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
+    if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
+    syncOperacaoLocacaoFromDataInicio();
+    syncOperacaoLocacaoValorPlano();
+  }
+
+  function clearPortalLocacaoCamposParaNovoContrato() {
+    ["operacaoLocacaoPlaca", "operacaoLocacaoModelo", "operacaoLocacaoDataFim"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    suggestOperacaoLocacaoDataInicioComoHoje();
+    syncOperacaoLocacaoFromDataInicio();
+    syncOperacaoLocacaoValorPlano();
+  }
+
+  function refreshOperacaoLocacaoProtocoloPicker(opts = {}) {
+    const force = Boolean(opts.force);
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const inpCpf = document.getElementById("operacaoLocacaoCpf");
+    if (!sel || !hid || !inpCpf) return;
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+    const known = digits.length === 11 && Boolean(getPortalClienteKnownRecord(digits));
+    if (!known) {
+      portalLocacaoProtocoloPickerCpf = "";
+      sel.disabled = true;
+      sel.replaceChildren();
+      const o = document.createElement("option");
+      o.value = "";
+      o.textContent = "Informe um CPF cadastrado";
+      sel.appendChild(o);
+      hid.value = "";
+      return;
+    }
+    if (!force && digits === portalLocacaoProtocoloPickerCpf) return;
+    portalLocacaoProtocoloPickerCpf = digits;
+    const preserve = String(hid.value || "").trim();
+    sel.disabled = false;
+    const norm = (v) =>
+      typeof normalizeNumeroContratoKey === "function"
+        ? normalizeNumeroContratoKey(v || "")
+        : String(v || "").trim();
+    const locs = collectPortalLocacoesByCpf(digits);
+    const byNc = new Map();
+    locs.forEach((l) => {
+      const nc = norm(l.numeroContrato || "");
+      if (nc) byNc.set(nc, l);
+    });
+    const sorted = Array.from(byNc.keys()).sort((a, b) => a.localeCompare(b, "en"));
+    sel.replaceChildren();
+    sorted.forEach((nc) => {
+      const l = byNc.get(nc);
+      const opt = document.createElement("option");
+      opt.value = nc;
+      const placa =
+        typeof normalizePlate === "function" ? normalizePlate(String(l.placa || "")) : String(l.placa || "").trim();
+      const ini = String(l.inicio || "").trim();
+      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
+      sel.appendChild(opt);
+    });
+    const optNovo = document.createElement("option");
+    optNovo.value = PORTAL_PROTO_NOVO;
+    optNovo.textContent = `NOVO — ${proximoProtocoloPortalAaaammddXX()}`;
+    sel.appendChild(optNovo);
+    const pNorm = preserve ? norm(preserve) : "";
+    if (pNorm && sorted.includes(pNorm)) {
+      sel.value = pNorm;
+      hid.value = pNorm;
+    } else if (pNorm) {
+      sel.value = PORTAL_PROTO_NOVO;
+      hid.value = pNorm;
+    } else {
+      sel.value = PORTAL_PROTO_NOVO;
+      hid.value = proximoProtocoloPortalAaaammddXX();
+    }
+  }
+
+  function onOperacaoLocacaoProtocoloSelectChange() {
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    if (!sel || !hid || sel.disabled) return;
+    const v = sel.value;
+    if (!v) {
+      hid.value = "";
+      return;
+    }
+    const norm = (x) =>
+      typeof normalizeNumeroContratoKey === "function"
+        ? normalizeNumeroContratoKey(x || "")
+        : String(x || "").trim();
+    if (v === PORTAL_PROTO_NOVO) {
+      hid.value = proximoProtocoloPortalAaaammddXX();
+      clearPortalLocacaoCamposParaNovoContrato();
+      return;
+    }
+    const digits =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(document.getElementById("operacaoLocacaoCpf")?.value || ""))
+        : String(document.getElementById("operacaoLocacaoCpf")?.value || "").replace(/\D/g, "");
+    hid.value = norm(v);
+    const loc = collectPortalLocacoesByCpf(digits).find((l) => norm(l.numeroContrato || "") === hid.value);
+    if (loc) applyPortalLocacaoRowFromRecord(loc);
+  }
+
   function bindOperacaoLocacaoAutofill() {
     const inpCpf = document.getElementById("operacaoLocacaoCpf");
     const inpNome = document.getElementById("operacaoLocacaoCliente");
@@ -1654,6 +1961,8 @@
     const inpModelo = document.getElementById("operacaoLocacaoModelo");
     const panelPlaca = document.getElementById("operacaoLocacaoPlacaLista");
     const comboPlaca = document.getElementById("operacaoLocacaoPlacaCombo");
+
+    document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", onOperacaoLocacaoProtocoloSelectChange);
 
     [inpCpf, inpNome].filter(Boolean).forEach((el) => {
       el.addEventListener("focus", () => refreshOperacaoLocacaoDatalists(), { passive: true });
@@ -1714,9 +2023,11 @@
       const digits =
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
       if (typeof formatCpf === "function" && digits.length === 11) inpCpf.value = formatCpf(digits);
-      if (digits.length !== 11 || typeof findClienteByCpfCadastro !== "function") return;
-      const cli = findClienteByCpfCadastro(digits);
-      if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
+      if (digits.length === 11 && typeof findClienteByCpfCadastro === "function") {
+        const cli = findClienteByCpfCadastro(digits);
+        if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
+      }
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
     });
 
     inpCpf?.addEventListener("input", () => {
@@ -1748,6 +2059,7 @@
         // Sugestão direta enquanto o CPF ainda está incompleto.
         inpNome.value = String(candidatos[0].nome || "").trim();
       }
+      refreshOperacaoLocacaoProtocoloPicker();
     });
 
     inpNome?.addEventListener("change", () => syncPortalLocacaoCpfFromNomeField());
@@ -1830,6 +2142,7 @@
   }
 
   bindOperacaoLocacaoAutofill();
+  refreshOperacaoLocacaoProtocoloPicker({ force: true });
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
   const formOperacaoLocacaoInline = document.getElementById("formOperacaoLocacaoInline");
@@ -1859,6 +2172,8 @@
     resetOperacaoLocacaoRelatorioPanel();
     syncOperacaoLocacaoValorPlano();
     syncOperacaoLocacaoFromDataInicio();
+    portalLocacaoProtocoloPickerCpf = "";
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
   }
 
   document.getElementById("operacaoLocacaoLimparBtn")?.addEventListener("click", (e) => {
@@ -1888,6 +2203,7 @@
     suggestOperacaoLocacaoDataInicioComoHoje();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
   });
 
   ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn"].forEach((id) => {
@@ -2152,6 +2468,7 @@
       hydrateOperacaoLocacaoFromQueryParams();
       syncOperacaoLocacaoFromDataInicio();
       syncOperacaoLocacaoValorPlano();
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
       syncPortalIfSession();
     })
   );

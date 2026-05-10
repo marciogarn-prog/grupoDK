@@ -223,6 +223,7 @@
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary hidden" id="operacaoClienteAtualizarBtn">Atualizar dados do cliente</button>
+              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoClienteApagarBtn" title="Só administrador; bloqueado se houver locação com este CPF, nome ou código">Apagar cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteGerarRelatorioBtn">Gerar relatório</button>
@@ -317,7 +318,12 @@
           <form id="formOperacaoLocacaoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>PROTOCOLO</span>
-              <input type="text" id="operacaoLocacaoProtocolo" name="protocolo" maxlength="24" readonly autocomplete="off" aria-label="PROTOCOLO (gerado automaticamente)">
+              <input type="hidden" id="operacaoLocacaoProtocolo" name="protocolo" value="" autocomplete="off">
+              <select
+                id="operacaoLocacaoProtocoloSelect"
+                autocomplete="off"
+                aria-label="PROTOCOLO: contratos deste CPF ou NOVO"
+              ></select>
             </label>
             <label class="portal-field">
               <span>CPF</span>
@@ -551,7 +557,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260513a" defer></script>
-  <script src="portal-locadora-ui.js?v=20260513a" defer></script>
+  <script src="app.js?v=20260514a" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510b" defer></script>
 </body>
 </html>
