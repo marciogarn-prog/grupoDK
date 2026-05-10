@@ -2,3 +2,4 @@ backups/
 *.zip
 node_modules/
 .cursor/
+.vercel-portal-dist/

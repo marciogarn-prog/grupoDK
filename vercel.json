@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node scripts/copy-portal-for-vercel.cjs",
+  "outputDirectory": ".vercel-portal-dist",
+  "installCommand": "npm install"
+}
