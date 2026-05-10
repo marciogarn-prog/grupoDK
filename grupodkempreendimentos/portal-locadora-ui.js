@@ -1443,10 +1443,10 @@
       return {
         title: "Relatório 1 — Pagamentos por período",
         headerSubtitleLines: ["Informe data de início e fim válidas (DD/MM/AAAA)."],
-        headers: ["CPF", "Cliente", "Placa", "Protocolo", "Valor pago"],
+        headers: ["CPF", "Cliente", "Placa", "Protocolo", "Data do pagamento", "Valor pago"],
         rows: [],
         fileSlug: "pagamentos-periodo",
-        textColumns: [0, 3],
+        textColumns: [0, 3, 4],
         periodoInicioBr: sIn,
         periodoFimBr: sFi,
         totalRecebido: 0,
@@ -1489,11 +1489,13 @@
         const cpfExib = cpfDigits.length === 11 ? fmtCpf(cpfDigits) : String(loc.cpf || "").trim() || "—";
         const proto = String(loc.numeroContrato || "").trim() || "—";
         const valor = Number(lan.valor || 0);
+        const dataPagamentoBr = String(lan.data || "").trim() || "—";
         collected.push({
           cpfExib,
           nome: nome || "—",
           placa: plateExib(loc.placa),
           proto,
+          dataPagamentoBr,
           valor,
           payMs,
           createdAt: Number(lan.createdAt || 0),
@@ -1513,6 +1515,7 @@
       r.nome,
       r.placa,
       r.proto,
+      r.dataPagamentoBr,
       fmtBrl(r.valor),
     ]);
     return {
@@ -1521,10 +1524,10 @@
         `Período: ${inicioFmt} a ${fimFmt}`,
         `Total recebido no período: ${fmtBrl(totalRecebido)}`,
       ],
-      headers: ["CPF", "Cliente", "Placa", "Protocolo", "Valor pago"],
+      headers: ["CPF", "Cliente", "Placa", "Protocolo", "Data do pagamento", "Valor pago"],
       rows,
       fileSlug: "pagamentos-periodo",
-      textColumns: [0, 3],
+      textColumns: [0, 3, 4],
       periodoInicioBr: sIn,
       periodoFimBr: sFi,
       totalRecebido,
