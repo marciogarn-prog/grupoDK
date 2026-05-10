@@ -1179,7 +1179,10 @@
         currency: "BRL",
       });
       resumo.textContent = `${context.rows.length} pagamento(s) no período · Total: ${tot}. Exportar em PDF ou Excel.`;
-    } else if (context.fileSlug === "relatorio-cliente-protocolos" && context.stats) {
+    } else if (
+      (context.fileSlug === "relatorio-cliente-protocolos" || context.fileSlug === "relatorio-placa-protocolos") &&
+      context.stats
+    ) {
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
     } else {
       resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
@@ -1566,6 +1569,9 @@
       rows: [],
       buildPdfHtml: () =>
         buildPortalRelatorioClienteProtocolosPdfHtml({
+          tituloRelatorio: "Relatório 2 — Por cliente",
+          mensagemVazio: "Nenhuma locação com protocolo encontrada para este CPF.",
+          linhasMetaCabecalho: [`CPF: ${cpfExib}`, `Cliente: ${nome || "—"}`],
           cpfLabel: cpfExib,
           nomeCliente: nome || "—",
           sections: [],
@@ -1573,8 +1579,12 @@
         }),
       buildExcelHtml: () =>
         buildPortalRelatorioClienteProtocolosExcelHtml({
-          cpfLabel: cpfExib,
-          nomeCliente: nome || "—",
+          tituloRelatorio: "Relatório 2 — Por cliente",
+          mensagemVazio: "Nenhuma locação com protocolo encontrada para este CPF.",
+          cabecalhoPares: [
+            ["CPF", cpfExib],
+            ["Cliente", nome || "—"],
+          ],
           sections: [],
         }),
     });
@@ -1626,6 +1636,9 @@
       ],
       buildPdfHtml: () =>
         buildPortalRelatorioClienteProtocolosPdfHtml({
+          tituloRelatorio: "Relatório 2 — Por cliente",
+          mensagemVazio: "Nenhuma locação com protocolo encontrada para este CPF.",
+          linhasMetaCabecalho: [`CPF: ${cpfExib}`, `Cliente: ${nome || "—"}`],
           cpfLabel: cpfExib,
           nomeCliente: nome || "—",
           sections,
@@ -1633,8 +1646,111 @@
         }),
       buildExcelHtml: () =>
         buildPortalRelatorioClienteProtocolosExcelHtml({
-          cpfLabel: cpfExib,
-          nomeCliente: nome || "—",
+          tituloRelatorio: "Relatório 2 — Por cliente",
+          mensagemVazio: "Nenhuma locação com protocolo encontrada para este CPF.",
+          cabecalhoPares: [
+            ["CPF", cpfExib],
+            ["Cliente", nome || "—"],
+          ],
+          sections,
+        }),
+    };
+  }
+
+  function collectPortalLocacoesComProtocoloByPlaca(plateNorm) {
+    const np =
+      typeof normalizePlate === "function"
+        ? (x) => normalizePlate(String(x || ""))
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const want = String(plateNorm || "").trim();
+    if (!want) return [];
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
+    return loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
+      if (!normPortalNumeroContrato(l.numeroContrato)) return false;
+      return np(l.placa) === want;
+    });
+  }
+
+  /** Relatório 3: por placa normalizada; mesma estrutura que «por cliente» (protocolos + pagamentos + resumo). */
+  function getPortalRelatorioPlacaProtocolosContext(plateNormRaw) {
+    const np =
+      typeof normalizePlate === "function"
+        ? (x) => normalizePlate(String(x || ""))
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const norm = np(String(plateNormRaw || ""));
+    const quando = new Date().toLocaleString("pt-BR");
+    const plateExibFn = (p) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(p || "")) || "—"
+        : String(p || "").trim() || "—";
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+
+    if (!norm) {
+      return {
+        title: "Relatório 3 — Por placa",
+        fileSlug: "relatorio-placa-protocolos",
+        relatorioPlacaNorm: "",
+        stats: { protocolos: 0, pagamentos: 0 },
+        headerSubtitleLines: ["Informe a placa do veículo."],
+        headers: ["Data do pagamento", "Valor"],
+        rows: [],
+        buildPdfHtml: () =>
+          `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório 3</title></head><body style="font-family:system-ui,sans-serif;padding:1rem"><h1>Relatório 3 — Por placa</h1><p>Informe a placa do veículo.</p></body></html>`,
+        buildExcelHtml: () =>
+          `<html><head><meta charset="utf-8"></head><body><p>Informe a placa do veículo.</p></body></html>`,
+      };
+    }
+
+    const locs = collectPortalLocacoesComProtocoloByPlaca(norm);
+    locs.sort((a, b) => String(a.numeroContrato || "").localeCompare(String(b.numeroContrato || ""), "pt-BR"));
+    const sections = locs.map((loc) => {
+      const proto = String(loc.numeroContrato || "").trim() || "—";
+      const lancsRaw = getPortalLancamentosAluguelDoContrato(loc);
+      const lancs = lancsRaw.slice().sort((a, b) => {
+        const da = parseD(String(a.data || ""));
+        const db = parseD(String(b.data || ""));
+        const ta = da && !Number.isNaN(da.getTime()) ? da.getTime() : 0;
+        const tb = db && !Number.isNaN(db.getTime()) ? db.getTime() : 0;
+        if (ta !== tb) return ta - tb;
+        return Number(a.createdAt || 0) - Number(b.createdAt || 0);
+      });
+      return {
+        loc,
+        proto,
+        placa: plateExibFn(loc.placa),
+        lancs,
+        resumo: computePortalProtocoloResumoFromLoc(loc),
+      };
+    });
+    const totalPagamentos = sections.reduce((acc, s) => acc + s.lancs.length, 0);
+    return {
+      title: "Relatório 3 — Por placa",
+      fileSlug: "relatorio-placa-protocolos",
+      relatorioPlacaNorm: norm,
+      stats: { protocolos: sections.length, pagamentos: totalPagamentos },
+      headerSubtitleLines: [`Placa: ${norm}`],
+      headers: ["Data do pagamento", "Valor"],
+      rows: [],
+      excelMetaPairs: [
+        ["Placa", norm],
+        ["Protocolos", String(sections.length)],
+        ["Pagamentos listados", String(totalPagamentos)],
+      ],
+      buildPdfHtml: () =>
+        buildPortalRelatorioClienteProtocolosPdfHtml({
+          tituloRelatorio: "Relatório 3 — Por placa",
+          mensagemVazio: "Nenhuma locação com protocolo encontrada para esta placa.",
+          linhasMetaCabecalho: [`Placa: ${norm}`],
+          cpfLabel: "—",
+          nomeCliente: "—",
+          sections,
+          quando,
+        }),
+      buildExcelHtml: () =>
+        buildPortalRelatorioClienteProtocolosExcelHtml({
+          tituloRelatorio: "Relatório 3 — Por placa",
+          mensagemVazio: "Nenhuma locação com protocolo encontrada para esta placa.",
+          cabecalhoPares: [["Placa", norm]],
           sections,
         }),
     };
@@ -1651,6 +1767,9 @@
     }
     if (slug === "relatorio-cliente-protocolos") {
       return getPortalRelatorioClienteProtocolosContext(anchor.relatorioClienteCpfDigits);
+    }
+    if (slug === "relatorio-placa-protocolos") {
+      return getPortalRelatorioPlacaProtocolosContext(anchor.relatorioPlacaNorm);
     }
     return anchor;
   }
@@ -1792,6 +1911,31 @@
       msg.textContent = ctx.stats.pagamentos
         ? `Relatório 2: ${ctx.stats.protocolos} protocolo(s), ${ctx.stats.pagamentos} pagamento(s).`
         : "Relatório 2: nenhuma locação com protocolo para este CPF.";
+    }
+    openPortalRelatorioModal(ctx);
+  });
+
+  document.getElementById("portalRelPlacaGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const inp = document.getElementById("portalRelPlaca");
+    const raw = String(inp?.value || "").trim();
+    const norm =
+      typeof normalizePlate === "function"
+        ? normalizePlate(raw)
+        : String(raw || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!norm) {
+      if (msg) msg.textContent = "Informe a placa do veículo para o relatório por placa.";
+      openPortalRelatorioModal(getPortalRelatorioPlacaProtocolosContext(""));
+      return;
+    }
+    const ctx = getPortalRelatorioPlacaProtocolosContext(norm);
+    if (msg) {
+      msg.textContent = ctx.stats.pagamentos
+        ? `Relatório 3: ${ctx.stats.protocolos} protocolo(s), ${ctx.stats.pagamentos} pagamento(s).`
+        : "Relatório 3: nenhuma locação com protocolo para esta placa.";
     }
     openPortalRelatorioModal(ctx);
   });
@@ -2585,11 +2729,27 @@
 
   function buildPortalRelatorioClienteProtocolosPdfHtml(opts) {
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
-    const { cpfLabel, nomeCliente, sections, quando } = opts;
-    const title = "Relatório 2 — Por cliente";
+    const {
+      cpfLabel = "—",
+      nomeCliente = "—",
+      sections,
+      quando,
+      tituloRelatorio = "Relatório 2 — Por cliente",
+      mensagemVazio,
+      linhasMetaCabecalho,
+    } = opts;
+    const title = tituloRelatorio;
+    const msgVazio =
+      mensagemVazio || "Nenhuma locação com protocolo encontrada para este CPF.";
+    let cabecalhoHtml = "";
+    if (Array.isArray(linhasMetaCabecalho) && linhasMetaCabecalho.length) {
+      cabecalhoHtml = linhasMetaCabecalho.map((line) => `<p class="meta">${eh(line)}</p>`).join("");
+    } else {
+      cabecalhoHtml = `<p class="meta">${eh(`CPF: ${cpfLabel}`)} · ${eh(`Cliente: ${nomeCliente}`)}</p>`;
+    }
     let body = "";
     if (!sections.length) {
-      body = `<p class="meta">${eh("Nenhuma locação com protocolo encontrada para este CPF.")}</p>`;
+      body = `<p class="meta">${eh(msgVazio)}</p>`;
     }
     for (const sec of sections) {
       const { proto, placa, lancs, resumo } = sec;
@@ -2654,7 +2814,7 @@
       hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
     </style></head><body>
       <h1>${eh(title)}</h1>
-      <p class="meta">${eh(`CPF: ${cpfLabel}`)} · ${eh(`Cliente: ${nomeCliente}`)}</p>
+      ${cabecalhoHtml}
       <p class="meta">${eh(`Emitido em ${quando}`)}</p>
       ${body}
     </body></html>`;
@@ -2662,14 +2822,32 @@
 
   function buildPortalRelatorioClienteProtocolosExcelHtml(opts) {
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
-    const { cpfLabel, nomeCliente, sections } = opts;
+    const {
+      cpfLabel = "—",
+      nomeCliente = "—",
+      sections,
+      tituloRelatorio = "Relatório 2 — Por cliente",
+      mensagemVazio,
+      cabecalhoPares,
+    } = opts;
+    const msgVazio =
+      mensagemVazio || "Nenhuma locação com protocolo encontrada para este CPF.";
     const d = new Date().toLocaleString("pt-BR");
-    let blocks = `<table><tr><td class="meta-key">${eh("Relatório")}</td><td>${eh("Relatório 2 — Por cliente")}</td></tr>
-      <tr><td class="meta-key">${eh("CPF")}</td><td>${eh(cpfLabel)}</td></tr>
-      <tr><td class="meta-key">${eh("Cliente")}</td><td>${eh(nomeCliente)}</td></tr>
-      <tr><td class="meta-key">${eh("Emitido em")}</td><td>${eh(d)}</td></tr></table><br>`;
+    const pares =
+      Array.isArray(cabecalhoPares) && cabecalhoPares.length
+        ? cabecalhoPares
+        : [
+            ["CPF", cpfLabel],
+            ["Cliente", nomeCliente],
+          ];
+    let blocks = `<table>`;
+    blocks += `<tr><td class="meta-key">${eh("Relatório")}</td><td>${eh(tituloRelatorio)}</td></tr>`;
+    for (const [k, v] of pares) {
+      blocks += `<tr><td class="meta-key">${eh(k)}</td><td>${eh(v)}</td></tr>`;
+    }
+    blocks += `<tr><td class="meta-key">${eh("Emitido em")}</td><td>${eh(d)}</td></tr></table><br>`;
     if (!sections.length) {
-      blocks += `<p>${eh("Nenhuma locação com protocolo encontrada para este CPF.")}</p>`;
+      blocks += `<p>${eh(msgVazio)}</p>`;
     }
     for (const sec of sections) {
       const { proto, placa, lancs, resumo } = sec;
@@ -2797,6 +2975,41 @@
       .sort()
       .slice(0, 200)
       .map((d) => `<option value="${portalEscapeHtml(fmt(d))}"></option>`)
+      .join("");
+  }
+
+  /** Placas normalizadas para Relatório 3 — locações com protocolo e veículos cadastrados; filtra por prefixo. */
+  function refreshPortalRelPlacaDatalist() {
+    const dl = document.getElementById("portalRelPlacaSugestoes");
+    const inp = document.getElementById("portalRelPlaca");
+    if (!dl || typeof loadCadastro !== "function") return;
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const prefix = inp ? np(String(inp.value || "")) : "";
+    const seen = new Set();
+    if (typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        if (!normPortalNumeroContrato(l.numeroContrato)) return;
+        const p = np(String(l.placa || ""));
+        if (!p) return;
+        if (prefix.length && !p.startsWith(prefix)) return;
+        seen.add(p);
+      });
+    }
+    if (typeof CAD_VEICULOS_KEY !== "undefined") {
+      loadCadastro(CAD_VEICULOS_KEY).forEach((v) => {
+        const p = np(String(v.placa || ""));
+        if (!p) return;
+        if (prefix.length && !p.startsWith(prefix)) return;
+        seen.add(p);
+      });
+    }
+    dl.innerHTML = Array.from(seen)
+      .sort()
+      .slice(0, 200)
+      .map((p) => `<option value="${portalEscapeHtml(p)}"></option>`)
       .join("");
   }
 
@@ -3176,6 +3389,7 @@
     if (typeof formatCpf === "function") inpCpf.value = formatCpf(d);
     refreshOperacaoLancamentoAluguelCpfDatalist();
     refreshPortalRelClienteCpfDatalist();
+    refreshPortalRelPlacaDatalist();
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
   }
 
@@ -3199,6 +3413,7 @@
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelCpfDatalist();
     refreshPortalRelClienteCpfDatalist();
+    refreshPortalRelPlacaDatalist();
     refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
@@ -3479,6 +3694,7 @@
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
     refreshOperacaoLancamentoAluguelCpfDatalist();
     refreshPortalRelClienteCpfDatalist();
+    refreshPortalRelPlacaDatalist();
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
   });
@@ -3498,6 +3714,7 @@
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelCpfDatalist();
     refreshPortalRelClienteCpfDatalist();
+    refreshPortalRelPlacaDatalist();
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
   });
 
@@ -3518,7 +3735,22 @@
     ).slice(0, 11);
     if (typeof formatCpf === "function") inp.value = formatCpf(digits);
     refreshPortalRelClienteCpfDatalist();
+    refreshPortalRelPlacaDatalist();
   });
+
+  document.getElementById("portalRelPlaca")?.addEventListener("input", () => {
+    const inp = document.getElementById("portalRelPlaca");
+    if (!inp) return;
+    if (typeof normalizePlate === "function") {
+      inp.value = normalizePlate(inp.value);
+    } else {
+      inp.value = String(inp.value || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    }
+    refreshPortalRelPlacaDatalist();
+  });
+
   document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     clearOperacaoLancamentoAluguelForm();
@@ -4094,6 +4326,7 @@
       syncOperacaoLocacaoValorPlano();
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshPortalRelClienteCpfDatalist();
+      refreshPortalRelPlacaDatalist();
       syncPortalIfSession();
     })
   );
