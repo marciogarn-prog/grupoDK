@@ -481,7 +481,19 @@
             </label>
             <label class="portal-field portal-field--wide">
               <span>TOTAL PAGO NO ANO DE 2025</span>
-              <input type="text" id="operacaoLocacaoTotalPagoAno2025" name="totalPagoAno2025" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="TOTAL PAGO NO ANO DE 2025">
+              <input
+                type="text"
+                id="operacaoLocacaoTotalPagoAno2025"
+                name="totalPagoAno2025"
+                maxlength="32"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="0,00"
+                aria-label="TOTAL PAGO NO ANO DE 2025 (preenchido pelos lançamentos de aluguel)"
+                title="Acumulado guardado na locação; altere apenas em «Lançamento de aluguel»."
+              >
             </label>
             <datalist id="operacaoLocacaoPlacaSugestoes"></datalist>
             <datalist id="operacaoLocacaoCpfSugestoes"></datalist>
@@ -523,7 +535,7 @@
 
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
           <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lançamento de aluguel</h3>
-          <p class="subtext operacao-inline-form__lead">Utilize um <strong>CPF</strong> que já tenha <strong>locação cadastrada</strong> neste navegador (com protocolo). Os campos abaixo preenchem-se a partir desse cadastro. Em seguida poderemos ligar o registo a pagamentos ou histórico.</p>
+          <p class="subtext operacao-inline-form__lead">Utilize um <strong>CPF</strong> que já tenha <strong>locação cadastrada</strong> neste navegador (com protocolo). Os dados do contrato carregam automaticamente. Informe <strong>valor pago</strong> e <strong>data do pagamento</strong> e use <strong>Confirmar pagamento</strong> — o total acumulado em <strong>TOTAL PAGO NO ANO DE 2025</strong> no cadastro de locação é atualizado na base local.</p>
           <form id="formOperacaoLancamentoAluguelInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>CPF</span>
@@ -561,14 +573,23 @@
               <input type="text" id="operacaoLancAluguelDataFim" name="dataFim" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA FIM">
             </label>
             <label class="portal-field">
-              <span>VALOR DO ALUGUEL</span>
-              <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
+              <span>VALOR DO ALUGUEL (contrato)</span>
+              <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
             </label>
             <label class="portal-field">
-              <span>VALOR DO INVESTIMENTO</span>
-              <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DO INVESTIMENTO">
+              <span>VALOR DO INVESTIMENTO (contrato)</span>
+              <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO INVESTIMENTO">
+            </label>
+            <label class="portal-field">
+              <span>VALOR PAGO (lançamento)</span>
+              <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR PAGO">
+            </label>
+            <label class="portal-field">
+              <span>DATA DO PAGAMENTO</span>
+              <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
             </label>
             <div class="operacao-inline-form__actions">
+              <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
             </div>
@@ -600,6 +621,18 @@
     <iframe id="portalPdfIframe" class="portal-pdf-viewer__iframe" title="Relatório"></iframe>
   </div>
 
+  <div id="portalLancAluguelConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelConfirmTitulo">
+    <div class="portal-modal__backdrop" data-close-lanc-aluguel-confirm></div>
+    <div class="portal-modal__card">
+      <h3 id="portalLancAluguelConfirmTitulo" class="portal-modal__title">Confirmar pagamento</h3>
+      <p id="portalLancAluguelConfirmTexto" class="portal-modal__text"></p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalLancAluguelConfirmSimBtn">Confirmar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalLancAluguelConfirmNaoBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-relatorio></div>
     <div class="portal-modal__card">
@@ -619,7 +652,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260510h" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510h" defer></script>
+  <script src="app.js?v=20260510i" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510i" defer></script>
 </body>
 </html>

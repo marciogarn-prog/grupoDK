@@ -1948,6 +1948,14 @@
     if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
     if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
+    const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
+    if (tp2025) {
+      const rawT = loc.totalPagoAno2025;
+      tp2025.value =
+        rawT != null && String(rawT).trim() !== ""
+          ? fmtValor(rawT)
+          : formatOperacaoLocacaoValorNumDisplay(0);
+    }
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
   }
@@ -1957,6 +1965,8 @@
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
+    if (tp2025) tp2025.value = formatOperacaoLocacaoValorNumDisplay(0);
     suggestOperacaoLocacaoDataInicioComoHoje();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
@@ -2081,7 +2091,15 @@
   }
 
   function clearOperacaoLancamentoAluguelCamposDerivados() {
-    ["operacaoLancAluguelPlaca", "operacaoLancAluguelDataInicio", "operacaoLancAluguelDataFim", "operacaoLancAluguelValorAluguel", "operacaoLancAluguelValorInvestimento"].forEach((id) => {
+    [
+      "operacaoLancAluguelPlaca",
+      "operacaoLancAluguelDataInicio",
+      "operacaoLancAluguelDataFim",
+      "operacaoLancAluguelValorAluguel",
+      "operacaoLancAluguelValorInvestimento",
+      "operacaoLancAluguelValorPago",
+      "operacaoLancAluguelDataPagamento",
+    ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
@@ -2128,6 +2146,98 @@
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
+  let portalLancAluguelConfirmCallback = null;
+
+  function openPortalLancAluguelConfirmModal(texto, onConfirm) {
+    const modal = document.getElementById("portalLancAluguelConfirmModal");
+    const p = document.getElementById("portalLancAluguelConfirmTexto");
+    if (!modal || !p) {
+      if (typeof onConfirm === "function" && window.confirm(texto)) onConfirm();
+      return;
+    }
+    portalLancAluguelConfirmCallback = typeof onConfirm === "function" ? onConfirm : null;
+    p.textContent = texto;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closePortalLancAluguelConfirmModal() {
+    const modal = document.getElementById("portalLancAluguelConfirmModal");
+    portalLancAluguelConfirmCallback = null;
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function refreshOperacaoLocacaoTotalPagoAno2025Ui(cpfDigits, ncNorm) {
+    const el = document.getElementById("operacaoLocacaoTotalPagoAno2025");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const inpCpf = document.getElementById("operacaoLocacaoCpf");
+    if (!el || !hid || !inpCpf) return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const d = dig(String(inpCpf.value || ""));
+    if (d !== cpfDigits || normPortalNumeroContrato(hid.value) !== ncNorm) return;
+    const loc = collectPortalLocacoesByCpf(cpfDigits).find((l) => normPortalNumeroContrato(l.numeroContrato) === ncNorm);
+    if (!loc) return;
+    const rawT = loc.totalPagoAno2025;
+    if (rawT != null && String(rawT).trim() !== "") {
+      if (typeof parseCurrencyBR === "function") {
+        const n = parseCurrencyBR(String(rawT));
+        el.value = Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      } else {
+        el.value = String(rawT).trim();
+      }
+    } else {
+      el.value = formatOperacaoLocacaoValorNumDisplay(0);
+    }
+  }
+
+  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const nc = normPortalNumeroContrato(numeroContratoNorm);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (idx === -1) return false;
+    const parse =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const loc = locs[idx];
+    const atual = parse(String(loc.totalPagoAno2025 ?? "0"));
+    const soma = atual + valorNum;
+    loc.totalPagoAno2025 = Number(soma || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    loc.ultimoLancamentoAluguelData = String(dataPagamentoBr || "").trim();
+    loc.ultimoLancamentoAluguelValor = Number(valorNum || 0).toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    try {
+      saveCadastro(CAD_LOCACOES_KEY, locs);
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+    refreshOperacaoLocacaoTotalPagoAno2025Ui(cpfDigits, nc);
+    return true;
+  }
 
   function refreshOperacaoLancamentoAluguelProtocoloSelect(opts = {}) {
     const force = Boolean(opts.force);
@@ -2219,7 +2329,7 @@
 
   function clearOperacaoLancamentoAluguelForm() {
     const form = document.getElementById("formOperacaoLancamentoAluguelInline");
-    form?.querySelectorAll("input:not([readonly])").forEach((inp) => {
+    form?.querySelectorAll("input").forEach((inp) => {
       inp.value = "";
     });
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
@@ -2515,6 +2625,75 @@
   document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     clearOperacaoLancamentoAluguelForm();
+  });
+
+  document.getElementById("portalLancAluguelConfirmSimBtn")?.addEventListener("click", () => {
+    const fn = portalLancAluguelConfirmCallback;
+    closePortalLancAluguelConfirmModal();
+    if (typeof fn === "function") fn();
+  });
+  document.getElementById("portalLancAluguelConfirmNaoBtn")?.addEventListener("click", () => closePortalLancAluguelConfirmModal());
+  document.querySelectorAll("[data-close-lanc-aluguel-confirm]").forEach((el) => {
+    el.addEventListener("click", () => closePortalLancAluguelConfirmModal());
+  });
+
+  document.getElementById("operacaoLancAluguelConfirmarPagamentoBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const inpValor = document.getElementById("operacaoLancAluguelValorPago");
+    const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf?.value || "") : String(inpCpf?.value || "").replace(/\D/g, "");
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const valorNum = Number(parseVal(String(inpValor?.value || "")));
+    const dataStr = String(inpData?.value || "").trim();
+    if (digits.length !== 11 || !proto) {
+      if (msg) msg.textContent = "Informe CPF e protocolo com locação.";
+      return;
+    }
+    if (!Number.isFinite(valorNum) || valorNum <= 0) {
+      if (msg) msg.textContent = "Informe um valor pago válido.";
+      return;
+    }
+    const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
+    if (!dataStr || !dtp || Number.isNaN(dtp.getTime())) {
+      if (msg) msg.textContent = "Informe a data do pagamento (DD/MM/AAAA).";
+      return;
+    }
+    if (msg) msg.textContent = "";
+    const nome =
+      typeof findClienteByCpfCadastro === "function"
+        ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
+        : "";
+    const nomeExibir = nome || "—";
+    const cpfFmt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
+    const valorFmt = Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const texto = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
+    openPortalLancAluguelConfirmModal(texto, () => {
+      const ok = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr);
+      if (ok) {
+        if (msg) msg.textContent = "Pagamento registado. O total em «Cadastro de locação» foi atualizado.";
+        if (inpValor) inpValor.value = "";
+        if (inpData) inpData.value = "";
+        const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
+          (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+        );
+        if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
+      } else if (msg) msg.textContent = "Não foi possível guardar o pagamento.";
+    });
   });
 
   ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn"].forEach((id) => {
