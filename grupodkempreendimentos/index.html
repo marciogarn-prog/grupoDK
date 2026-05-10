@@ -16,7 +16,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260519a">
+  <link rel="stylesheet" href="styles.css?v=20260520a">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -673,6 +673,37 @@
               </button>
             </div>
           </div>
+          <div
+            class="portal-relatorio-pagamentos-periodo portal-relatorio-cliente-protocolos"
+            role="region"
+            aria-labelledby="portal-relatorio-cliente-titulo"
+          >
+            <p id="portal-relatorio-cliente-titulo" class="portal-relatorio-pagamentos-periodo__title">
+              Relatório 2 — Por cliente
+            </p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Informe o <strong>CPF</strong>. O relatório agrupa por <strong>protocolo</strong>: em cada um aparecem as datas de pagamento com o valor, seguido do <strong>resumo do protocolo</strong> (custos, totais e tipo de plano).
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field">
+                <span>CPF do cliente</span>
+                <input
+                  type="text"
+                  id="portalRelClienteCpf"
+                  inputmode="numeric"
+                  maxlength="14"
+                  autocomplete="off"
+                  placeholder="000.000.000-00"
+                  aria-label="CPF para relatório por cliente"
+                >
+              </label>
+            </div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary btn-secondary-outline" id="portalRelClienteGerarBtn">
+                Gerar relatório
+              </button>
+            </div>
+          </div>
           <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo"></div>
           <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
             Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
@@ -757,7 +788,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260519a" defer></script>
-  <script src="portal-locadora-ui.js?v=20260519a" defer></script>
+  <script src="app.js?v=20260520a" defer></script>
+  <script src="portal-locadora-ui.js?v=20260520a" defer></script>
 </body>
 </html>

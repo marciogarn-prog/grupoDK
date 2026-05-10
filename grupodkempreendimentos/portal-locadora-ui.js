@@ -1179,6 +1179,8 @@
         currency: "BRL",
       });
       resumo.textContent = `${context.rows.length} pagamento(s) no período · Total: ${tot}. Exportar em PDF ou Excel.`;
+    } else if (context.fileSlug === "relatorio-cliente-protocolos" && context.stats) {
+      resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
     } else {
       resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
     }
@@ -1243,10 +1245,13 @@
     const iframe = document.getElementById("portalPdfIframe");
     const viewer = document.getElementById("portalRelatorioPdfViewer");
     if (!iframe || !viewer) return;
-    const html = buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
-      statusColumnIndex: context.statusColumnIndex,
-      headerSubtitleLines: context.headerSubtitleLines,
-    });
+    const html =
+      typeof context.buildPdfHtml === "function"
+        ? context.buildPdfHtml()
+        : buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
+            statusColumnIndex: context.statusColumnIndex,
+            headerSubtitleLines: context.headerSubtitleLines,
+          });
     hideRelatorioLocacaoPdfViewer();
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
@@ -1256,6 +1261,21 @@
   }
 
   function emitPortalRelatorioExcel(context) {
+    if (typeof context.buildExcelHtml === "function") {
+      const html = `\uFEFF${context.buildExcelHtml()}`;
+      const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const d = new Date();
+      const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      a.href = url;
+      a.download = `relatorio-${context.fileSlug}-${stamp}.xls`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return;
+    }
     if (typeof downloadStyledExcel !== "function") return;
     const d = new Date();
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -1515,6 +1535,108 @@
     };
   }
 
+  /** Relatório 2: por CPF, agrupa por protocolo — lista de pagamentos e resumo do protocolo (aligned ao cadastro locação). */
+  function getPortalRelatorioClienteProtocolosContext(cpfDigitsRaw) {
+    const digFn =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const dig = digFn(String(cpfDigitsRaw || ""));
+    const fmtCpf = typeof formatCpf === "function" ? formatCpf : (v) => String(v || "");
+    const nome =
+      dig.length === 11 && typeof findClienteByCpfCadastro === "function"
+        ? String(findClienteByCpfCadastro(dig)?.nome || "").trim()
+        : "";
+    const cpfExib = dig.length === 11 ? fmtCpf(dig) : dig || "—";
+    const quando = new Date().toLocaleString("pt-BR");
+    const plateExib = (p) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(p || "")) || "—"
+        : String(p || "").trim() || "—";
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+
+    const buildEmpty = (subtitle) => ({
+      title: "Relatório 2 — Por cliente",
+      fileSlug: "relatorio-cliente-protocolos",
+      relatorioClienteCpfDigits: dig,
+      stats: { protocolos: 0, pagamentos: 0 },
+      headerSubtitleLines: subtitle ? [subtitle] : [],
+      headers: ["Data do pagamento", "Valor"],
+      rows: [],
+      buildPdfHtml: () =>
+        buildPortalRelatorioClienteProtocolosPdfHtml({
+          cpfLabel: cpfExib,
+          nomeCliente: nome || "—",
+          sections: [],
+          quando,
+        }),
+      buildExcelHtml: () =>
+        buildPortalRelatorioClienteProtocolosExcelHtml({
+          cpfLabel: cpfExib,
+          nomeCliente: nome || "—",
+          sections: [],
+        }),
+    });
+
+    if (dig.length !== 11) {
+      const ctx = buildEmpty("Informe um CPF válido (11 dígitos).");
+      ctx.buildPdfHtml = () =>
+        `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório 2</title></head><body style="font-family:system-ui,sans-serif;padding:1rem"><h1>Relatório 2 — Por cliente</h1><p>Informe um CPF válido (11 dígitos).</p></body></html>`;
+      ctx.buildExcelHtml = () =>
+        `<html><head><meta charset="utf-8"></head><body><p>Informe um CPF válido (11 dígitos).</p></body></html>`;
+      return ctx;
+    }
+
+    const locs = collectPortalLocacoesComProtocoloByCpf(dig);
+    locs.sort((a, b) => String(a.numeroContrato || "").localeCompare(String(b.numeroContrato || ""), "pt-BR"));
+    const sections = locs.map((loc) => {
+      const proto = String(loc.numeroContrato || "").trim() || "—";
+      const lancsRaw = getPortalLancamentosAluguelDoContrato(loc);
+      const lancs = lancsRaw.slice().sort((a, b) => {
+        const da = parseD(String(a.data || ""));
+        const db = parseD(String(b.data || ""));
+        const ta = da && !Number.isNaN(da.getTime()) ? da.getTime() : 0;
+        const tb = db && !Number.isNaN(db.getTime()) ? db.getTime() : 0;
+        if (ta !== tb) return ta - tb;
+        return Number(a.createdAt || 0) - Number(b.createdAt || 0);
+      });
+      return {
+        loc,
+        proto,
+        placa: plateExib(loc.placa),
+        lancs,
+        resumo: computePortalProtocoloResumoFromLoc(loc),
+      };
+    });
+    const totalPagamentos = sections.reduce((acc, s) => acc + s.lancs.length, 0);
+    return {
+      title: "Relatório 2 — Por cliente",
+      fileSlug: "relatorio-cliente-protocolos",
+      relatorioClienteCpfDigits: dig,
+      stats: { protocolos: sections.length, pagamentos: totalPagamentos },
+      headerSubtitleLines: [`CPF: ${cpfExib}`, nome ? `Cliente: ${nome}` : ""].filter(Boolean),
+      headers: ["Data do pagamento", "Valor"],
+      rows: [],
+      excelMetaPairs: [
+        ["CPF", cpfExib],
+        ["Cliente", nome || "—"],
+        ["Protocolos", String(sections.length)],
+        ["Pagamentos listados", String(totalPagamentos)],
+      ],
+      buildPdfHtml: () =>
+        buildPortalRelatorioClienteProtocolosPdfHtml({
+          cpfLabel: cpfExib,
+          nomeCliente: nome || "—",
+          sections,
+          quando,
+        }),
+      buildExcelHtml: () =>
+        buildPortalRelatorioClienteProtocolosExcelHtml({
+          cpfLabel: cpfExib,
+          nomeCliente: nome || "—",
+          sections,
+        }),
+    };
+  }
+
   /** Sempre relê o cadastro no navegador — evita PDF/Excel com dados antigos se o operador guardou algo depois de abrir o modal. */
   function getPortalRelatorioContextFresh(anchor) {
     const slug = anchor && anchor.fileSlug;
@@ -1523,6 +1645,9 @@
     if (slug === "locacoes") return getPortalRelatorioLocacaoContext();
     if (slug === "pagamentos-periodo") {
       return getPortalRelatorioPagamentosPeriodoContext(anchor.periodoInicioBr, anchor.periodoFimBr);
+    }
+    if (slug === "relatorio-cliente-protocolos") {
+      return getPortalRelatorioClienteProtocolosContext(anchor.relatorioClienteCpfDigits);
     }
     return anchor;
   }
@@ -1645,6 +1770,27 @@
   document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     openPortalRelatorioModal(getPortalRelatorioLocacaoContext());
+  });
+
+  document.getElementById("portalRelClienteGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const inp = document.getElementById("portalRelClienteCpf");
+    const raw = String(inp?.value || "").trim();
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(raw) : String(raw || "").replace(/\D/g, "");
+    if (digits.length !== 11) {
+      if (msg) msg.textContent = "Informe um CPF completo (11 dígitos) para o relatório por cliente.";
+      openPortalRelatorioModal(getPortalRelatorioClienteProtocolosContext(raw));
+      return;
+    }
+    const ctx = getPortalRelatorioClienteProtocolosContext(digits);
+    if (msg) {
+      msg.textContent = ctx.stats.pagamentos
+        ? `Relatório 2: ${ctx.stats.protocolos} protocolo(s), ${ctx.stats.pagamentos} pagamento(s).`
+        : "Relatório 2: nenhuma locação com protocolo para este CPF.";
+    }
+    openPortalRelatorioModal(ctx);
   });
 
   document.getElementById("portalRelPagamentosGerarBtn")?.addEventListener("click", (e) => {
@@ -2370,6 +2516,201 @@
       s += Number(x.valor || 0);
     }
     return s;
+  }
+
+  /** Dias do contrato (mesma lógica que o formulário de locação no portal). */
+  function computePortalTempoDiasLoc(loc) {
+    const rawInicio = String(loc?.inicio || "").trim();
+    if (!rawInicio) return 0;
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+    const inicio = parseD(rawInicio);
+    if (!inicio || Number.isNaN(inicio.getTime())) return 0;
+    const rawFim = String(loc?.fim || "").trim();
+    if (rawFim) {
+      const fim = parseD(rawFim);
+      if (fim && !Number.isNaN(fim.getTime())) {
+        const t0 = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate()).getTime();
+        const t1 = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()).getTime();
+        return Math.max(1, Math.round((t1 - t0) / 86400000));
+      }
+    }
+    const start = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffMs = today.getTime() - start.getTime();
+    return Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
+  }
+
+  /** Valores do bloco «resumo» do protocolo (alinhado ao painel Cadastro de locação). */
+  function computePortalProtocoloResumoFromLoc(loc) {
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? (v) => Number(parseCurrencyBR(String(v ?? "")))
+        : (v) => Number(parsePortalLancamentoValorRaw(v));
+    const valLoc = parseCur(loc?.valorLocacao ?? "0");
+    const valInv = parseCur(loc?.valorInvestimento ?? "0");
+    const plano = valLoc + valInv;
+    const tempo = computePortalTempoDiasLoc(loc);
+    const custoDiaNum = plano / 7;
+    const valorDevidoPlanoNum = tempo * (plano / 7);
+    const valorDevidoAluguelNum = tempo * (valLoc / 7);
+    const lancs = getPortalLancamentosAluguelDoContrato(loc);
+    const totalPagoNum = sumPortalLancamentosAluguelTotal(lancs);
+    const investimentoAcumuladoNum = totalPagoNum - valorDevidoAluguelNum;
+    const tipoPlanoStr =
+      String(loc?.plano || loc?.opcaoContrato || "").trim() ||
+      (valInv > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE");
+    const fmtN = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtBrl = (n) =>
+      typeof currencyBRL === "function"
+        ? currencyBRL(n)
+        : Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    return {
+      custoDia: fmtBrl(custoDiaNum),
+      valorAluguel: fmtN(valLoc),
+      valorInvestimento: fmtN(valInv),
+      valorPlano: fmtN(plano),
+      valorDevidoPlano: fmtBrl(valorDevidoPlanoNum),
+      totalPago: fmtN(totalPagoNum),
+      tipoPlano: tipoPlanoStr,
+      valorDevidoAluguel: fmtBrl(valorDevidoAluguelNum),
+      investimentoAcumulado: formatPortalLancamentoSumBrl(investimentoAcumuladoNum),
+      investimentoAcumuladoNeg: investimentoAcumuladoNum < 0,
+    };
+  }
+
+  function buildPortalRelatorioClienteProtocolosPdfHtml(opts) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const { cpfLabel, nomeCliente, sections, quando } = opts;
+    const title = "Relatório 2 — Por cliente";
+    let body = "";
+    if (!sections.length) {
+      body = `<p class="meta">${eh("Nenhuma locação com protocolo encontrada para este CPF.")}</p>`;
+    }
+    for (const sec of sections) {
+      const { proto, placa, lancs, resumo } = sec;
+      body += `<h2>${eh(`Protocolo ${proto} · Placa ${placa}`)}</h2>`;
+      body += `<p class="meta">${eh("Pagamentos")}</p>`;
+      body += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
+      if (!lancs.length) {
+        body += `<tr><td colspan="2">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
+      } else {
+        for (const lan of lancs) {
+          const vf =
+            typeof currencyBRL === "function"
+              ? currencyBRL(lan.valor)
+              : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          body += `<tr><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td></tr>`;
+        }
+      }
+      body += `</tbody></table>`;
+      body += `<p class="sum-title">${eh("Resumo do protocolo")}</p>`;
+      body += `<table class="resumo"><tbody>`;
+      const rows3 = [
+        [
+          ["QUANTO CUSTA O DIA", resumo.custoDia],
+          ["VALOR DO ALUGUEL", resumo.valorAluguel],
+          ["VALOR INVESTIMENTO", resumo.valorInvestimento],
+        ],
+        [
+          ["VALOR DO PLANO", resumo.valorPlano],
+          ["VALOR DEVIDO DO PLANO", resumo.valorDevidoPlano],
+          ["TOTAL PAGO", resumo.totalPago],
+        ],
+        [
+          ["TIPO DE PLANO", resumo.tipoPlano],
+          ["VALOR DEVIDO DO ALUGUEL", resumo.valorDevidoAluguel],
+          ["INVESTIMENTO ACUMULADO", resumo.investimentoAcumulado],
+        ],
+      ];
+      for (const row of rows3) {
+        body += `<tr>`;
+        for (const [lbl, val] of row) {
+          const neg =
+            lbl === "INVESTIMENTO ACUMULADO" && resumo.investimentoAcumuladoNeg ? ' class="neg"' : "";
+          body += `<td><span class="lbl">${eh(lbl)}</span><br /><span class="val"${neg}>${eh(val)}</span></td>`;
+        }
+        body += `</tr>`;
+      }
+      body += `</tbody></table><hr />`;
+    }
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      h1{font-size:1.1rem;margin:0 0 0.35rem}
+      h2{font-size:1rem;margin:1rem 0 0.35rem}
+      .meta{color:#444;margin:0.25rem 0;font-size:11px}
+      .sum-title{font-weight:700;margin:0.65rem 0 0.35rem;font-size:12px}
+      table{width:100%;border-collapse:collapse;margin-bottom:0.5rem}
+      th,td{border:1px solid #333;padding:6px 8px;text-align:left}
+      th{background:#eee;font-weight:600}
+      table.resumo td{width:33%;vertical-align:top}
+      table.resumo .lbl{font-size:10px;color:#555;display:block;margin-bottom:3px}
+      table.resumo .val{font-size:12px;font-weight:600}
+      table.resumo .val.neg{color:#b71c1c}
+      hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
+    </style></head><body>
+      <h1>${eh(title)}</h1>
+      <p class="meta">${eh(`CPF: ${cpfLabel}`)} · ${eh(`Cliente: ${nomeCliente}`)}</p>
+      <p class="meta">${eh(`Emitido em ${quando}`)}</p>
+      ${body}
+    </body></html>`;
+  }
+
+  function buildPortalRelatorioClienteProtocolosExcelHtml(opts) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const { cpfLabel, nomeCliente, sections } = opts;
+    const d = new Date().toLocaleString("pt-BR");
+    let blocks = `<table><tr><td class="meta-key">${eh("Relatório")}</td><td>${eh("Relatório 2 — Por cliente")}</td></tr>
+      <tr><td class="meta-key">${eh("CPF")}</td><td>${eh(cpfLabel)}</td></tr>
+      <tr><td class="meta-key">${eh("Cliente")}</td><td>${eh(nomeCliente)}</td></tr>
+      <tr><td class="meta-key">${eh("Emitido em")}</td><td>${eh(d)}</td></tr></table><br>`;
+    if (!sections.length) {
+      blocks += `<p>${eh("Nenhuma locação com protocolo encontrada para este CPF.")}</p>`;
+    }
+    for (const sec of sections) {
+      const { proto, placa, lancs, resumo } = sec;
+      blocks += `<h3>${eh(`Protocolo ${proto} · Placa ${placa}`)}</h3>`;
+      blocks += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
+      if (!lancs.length) {
+        blocks += `<tr><td colspan="2">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
+      } else {
+        for (const lan of lancs) {
+          const vf =
+            typeof currencyBRL === "function"
+              ? currencyBRL(lan.valor)
+              : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+          blocks += `<tr><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td></tr>`;
+        }
+      }
+      blocks += `</tbody></table>`;
+      blocks += `<p><strong>${eh("Resumo do protocolo")}</strong></p>`;
+      blocks += `<table><tbody>`;
+      const pairs = [
+        ["QUANTO CUSTA O DIA", resumo.custoDia],
+        ["VALOR DO ALUGUEL", resumo.valorAluguel],
+        ["VALOR INVESTIMENTO", resumo.valorInvestimento],
+        ["VALOR DO PLANO", resumo.valorPlano],
+        ["VALOR DEVIDO DO PLANO", resumo.valorDevidoPlano],
+        ["TOTAL PAGO", resumo.totalPago],
+        ["TIPO DE PLANO", resumo.tipoPlano],
+        ["VALOR DEVIDO DO ALUGUEL", resumo.valorDevidoAluguel],
+        ["INVESTIMENTO ACUMULADO", resumo.investimentoAcumulado],
+      ];
+      for (const [k, v] of pairs) {
+        const st =
+          k === "INVESTIMENTO ACUMULADO" && resumo.investimentoAcumuladoNeg ? ' style="color:#b71c1c;font-weight:700"' : "";
+        blocks += `<tr><td class="meta-key">${eh(k)}</td><td${st}>${eh(v)}</td></tr>`;
+      }
+      blocks += `</tbody></table><br><br>`;
+    }
+    return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>
+      table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;margin-bottom:8px}
+      th,td{border:1px solid #cfcfcf;padding:6px;text-align:left}
+      th{font-weight:700;background:#efefef}
+      .meta-key{font-weight:700;background:#efefef}
+      h3{font-size:14px;margin:12px 0 6px}
+    </style></head><body>${blocks}</body></html>`;
   }
 
   function fillOperacaoLocacaoTotaisLancamentoPortal(loc) {
