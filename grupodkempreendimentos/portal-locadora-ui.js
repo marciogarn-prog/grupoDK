@@ -51,6 +51,116 @@
     return getPortalSessaoAdminRole() === "owner";
   }
 
+  const LOCADORA_LEAD_SEM_SESSAO =
+    "Escolha o tipo de acesso e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável).";
+
+  /** Funcionário em `funcionariosAccess` correspondente à sessão equipa (admin no portal). */
+  function getPortalSessaoEquipaFuncionario() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return null;
+      const dig = onlyDigits(String(s.cpf || "")).slice(0, 11);
+      if (dig.length !== 11 || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) return null;
+      return funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === dig) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Texto destacado sob o título «DK Locadora»: boas-vindas se já existir sessão. */
+  function refreshPortalUnitLeadForSession() {
+    if (!unitLead || currentUnit !== "locadora") return;
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) {
+        unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
+        return;
+      }
+      const s = JSON.parse(raw);
+      if (s?.tipo === "admin") {
+        const nome = String(s.nome || "").trim();
+        unitLead.textContent = nome ? `Seja bem vindo ${nome}` : "Seja bem vindo.";
+        return;
+      }
+      if (s?.tipo === "cliente") {
+        const nome = String(s.nome || "").trim();
+        unitLead.textContent = nome ? `Olá, ${nome}.` : "Olá.";
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
+  }
+
+  /** Mapa `acessos` para colaborador operacional (fallback se registo antigo não tiver objeto). */
+  function getPortalOperacaoAcessosEfetivos(f) {
+    if (!f || String(f.role || "").trim() !== "operacao") return null;
+    if (f.acessos && typeof f.acessos === "object") return f.acessos;
+    return typeof normalizeOperacaoAccess === "function"
+      ? normalizeOperacaoAccess(null, "operacao")
+      : { cliente: true, veiculo: true, locacao: true, lancamentoAluguel: true, manutencao: false, lancamentoDespesa: false, funcionario: false };
+  }
+
+  /** Esconde botões da operação para os quais o colaborador não tem permissão em `acessos`. */
+  function refreshPortalOperacaoNavPorAcessos() {
+    const f = getPortalSessaoEquipaFuncionario();
+    const role = f ? String(f.role || "").trim() : "";
+    const isOwner = role === "owner";
+    const acessosOp = getPortalOperacaoAcessosEfetivos(f);
+
+    const triples = [
+      ["btn-operacao-cadastro-cliente", "operacaoInlineCliente", "cliente"],
+      ["btn-operacao-cadastro-veiculo", "operacaoInlineVeiculo", "veiculo"],
+      ["btn-operacao-cadastro-locacao", "operacaoInlineLocacao", "locacao"],
+      ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
+    ];
+
+    if (!isOwner && role === "operacao" && acessosOp) {
+      for (const [, panelId, key] of triples) {
+        const panel = document.getElementById(panelId);
+        if (panel && !panel.classList.contains("hidden") && !acessosOp[key]) {
+          hideOperacaoInlineFormsCore();
+          setOperacaoFormPlaceholderVisible(true);
+          syncOperacaoCadastroButtons(null);
+          break;
+        }
+      }
+    }
+
+    for (const [btnId, , key] of triples) {
+      const b = document.getElementById(btnId);
+      if (!b) continue;
+      const allow = isOwner || (role === "operacao" && acessosOp && Boolean(acessosOp[key]));
+      b.classList.toggle("hidden", !allow);
+      b.setAttribute("aria-hidden", allow ? "false" : "true");
+      b.toggleAttribute("disabled", !allow);
+    }
+
+    const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
+    if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
+  }
+
+  /** Se só existir um cadastro permitido, abre-o automaticamente (painel ainda no placeholder). */
+  function portalOperacaoAutoAbrirSeUnicoPermitido() {
+    const ids = [
+      "btn-operacao-cadastro-cliente",
+      "btn-operacao-cadastro-veiculo",
+      "btn-operacao-cadastro-locacao",
+      "btn-operacao-lancamento-aluguel",
+    ];
+    const visiveis = ids.filter((id) => {
+      const el = document.getElementById(id);
+      return el && !el.classList.contains("hidden");
+    });
+    if (visiveis.length !== 1) return;
+    const ph = document.getElementById("operacaoFormPlaceholder");
+    if (!ph || ph.classList.contains("hidden")) return;
+    document.getElementById(visiveis[0])?.dispatchEvent(new Event("click", { bubbles: true }));
+  }
+
   function finalizarLoginEquipaPortal(funcionario) {
     localStorage.setItem(
       "dk_sessao_cliente",
@@ -69,6 +179,8 @@
     }
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
+    refreshPortalUnitLeadForSession();
+    refreshPortalOperacaoNavPorAcessos();
   }
 
   function showView(which) {
@@ -99,10 +211,12 @@
         go === "locadora" ? "DK Locadora" : go === "centro" ? "DK Centro Automotivo" : "DK Construtora";
     }
     if (unitLead) {
-      unitLead.textContent =
-        go === "locadora"
-          ? "Escolha o tipo de acesso e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável)."
-          : "Conteúdo em preparação. Use o painel completo DK se precisar de cadastros aqui.";
+      if (go === "locadora") {
+        refreshPortalUnitLeadForSession();
+      } else {
+        unitLead.textContent =
+          "Conteúdo em preparação. Use o painel completo DK se precisar de cadastros aqui.";
+      }
     }
     hideAllPanels();
     if (panelLogin) panelLogin.classList.add("hidden");
@@ -170,6 +284,8 @@
     if (logadoTexto) logadoTexto.textContent = "Modo Teste · operacao";
     btnOperacao?.classList.remove("hidden");
     if (loginFeedback) loginFeedback.textContent = "";
+    refreshPortalUnitLeadForSession();
+    refreshPortalOperacaoNavPorAcessos();
   });
 
   formLogin?.addEventListener("submit", (e) => {
@@ -198,6 +314,7 @@
       if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
       if (logadoTexto) logadoTexto.textContent = `Olá, ${String(cliente?.nome || "").trim() || "cliente"}.`;
       btnOperacao?.classList.add("hidden");
+      refreshPortalUnitLeadForSession();
       return;
     }
 
@@ -260,8 +377,8 @@
   btnOperacao?.addEventListener("click", () => {
     hideAllPanels();
     panelOperacao?.classList.remove("hidden");
-    const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
-    if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
+    refreshPortalOperacaoNavPorAcessos();
+    portalOperacaoAutoAbrirSeUnicoPermitido();
   });
 
   function findFuncionarioOperacaoPortalPorCpf(digits11) {
@@ -515,6 +632,7 @@
     f.acessos = acessos;
     saveFuncionariosAccess();
     aplicarPortalColaboradorDoFuncionario(f);
+    refreshPortalOperacaoNavPorAcessos();
     if (fb) fb.textContent = "Alterações guardadas.";
   });
 
@@ -562,6 +680,7 @@
     panelLogin?.classList.remove("hidden");
     if (loginFeedback) loginFeedback.textContent = "";
     btnOperacao?.classList.add("hidden");
+    refreshPortalUnitLeadForSession();
     try {
       history.replaceState(null, "", window.location.pathname + window.location.search);
     } catch {
@@ -4445,6 +4564,8 @@
       if (logadoTexto) logadoTexto.textContent = `Olá, ${String(session.nome || "").trim() || "cliente"}.`;
       btnOperacao?.classList.add("hidden");
     }
+    refreshPortalUnitLeadForSession();
+    refreshPortalOperacaoNavPorAcessos();
     refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
