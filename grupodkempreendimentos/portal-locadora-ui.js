@@ -1992,10 +1992,19 @@
       return {
         title: "Relatório 1 — Pagamentos por período",
         headerSubtitleLines: ["Informe data de início e fim válidas (DD/MM/AAAA)."],
-        headers: ["CPF", "Cliente", "Placa", "Protocolo", "Data do pagamento", "Valor pago"],
+        headers: [
+          "CPF",
+          "Cliente",
+          "Placa",
+          "Protocolo",
+          "Cód. utilizador",
+          "Hora do lançamento",
+          "Data do pagamento",
+          "Valor pago",
+        ],
         rows: [],
         fileSlug: "pagamentos-periodo",
-        textColumns: [0, 3, 4],
+        textColumns: [0, 3, 4, 6],
         periodoInicioBr: sIn,
         periodoFimBr: sFi,
         totalRecebido: 0,
@@ -2039,6 +2048,8 @@
         const proto = String(loc.numeroContrato || "").trim() || "—";
         const valor = Number(lan.valor || 0);
         const dataPagamentoBr = String(lan.data || "").trim() || "—";
+        const ca =
+          typeof lan.createdAt === "number" && Number.isFinite(lan.createdAt) ? lan.createdAt : 0;
         collected.push({
           cpfExib,
           nome: nome || "—",
@@ -2047,7 +2058,9 @@
           dataPagamentoBr,
           valor,
           payMs,
-          createdAt: Number(lan.createdAt || 0),
+          codigoUsuario:
+            portalCodigoUsuarioRegistroLancamento(lan.registradoPorCpf, lan.registradoPorNome) || "—",
+          horaLancamento: formatPortalHoraLancamentoMs(ca),
         });
       }
     }
@@ -2064,6 +2077,8 @@
       r.nome,
       r.placa,
       r.proto,
+      r.codigoUsuario,
+      r.horaLancamento,
       r.dataPagamentoBr,
       fmtBrl(r.valor),
     ]);
@@ -2073,10 +2088,19 @@
         `Período: ${inicioFmt} a ${fimFmt}`,
         `Total recebido no período: ${fmtBrl(totalRecebido)}`,
       ],
-      headers: ["CPF", "Cliente", "Placa", "Protocolo", "Data do pagamento", "Valor pago"],
+      headers: [
+        "CPF",
+        "Cliente",
+        "Placa",
+        "Protocolo",
+        "Cód. utilizador",
+        "Hora do lançamento",
+        "Data do pagamento",
+        "Valor pago",
+      ],
       rows,
       fileSlug: "pagamentos-periodo",
-      textColumns: [0, 3, 4],
+      textColumns: [0, 3, 4, 6],
       periodoInicioBr: sIn,
       periodoFimBr: sFi,
       totalRecebido,
@@ -3208,7 +3232,53 @@
       typeof x.valor === "number" && Number.isFinite(x.valor) ? x.valor : Number(parsePortalLancamentoValorRaw(x.valor ?? ""));
     const data = String(x.data || "").trim();
     if (!Number.isFinite(valor) || valor <= 0 || !data) return null;
-    return { data, valor, createdAt: x.createdAt };
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const registradoPorCpf = dig(String(x.registradoPorCpf ?? x.registradoPor ?? "")).slice(0, 11);
+    const registradoPorNome = String(x.registradoPorNome ?? "").trim();
+    const createdAt =
+      typeof x.createdAt === "number" && Number.isFinite(x.createdAt) ? x.createdAt : undefined;
+    return { data, valor, createdAt, registradoPorCpf, registradoPorNome };
+  }
+
+  /** Sessão equipa no momento do lançamento (para relatório / auditoria). */
+  function getPortalSessaoParaRegistroLancamentoAluguel() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return null;
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (x) => String(x ?? "").replace(/\D/g, "");
+      const cpf = dig(String(s.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11) return null;
+      return { cpf, nome: String(s.nome || "").trim() };
+    } catch {
+      return null;
+    }
+  }
+
+  /** CPF (3 dígitos) + 2 letras do primeiro nome — ex.: 12345678901 + «teste 1» → 123TE. */
+  function portalCodigoUsuarioRegistroLancamento(cpfDigits11, nomeCompleto) {
+    const dig = String(cpfDigits11 || "").replace(/\D/g, "").slice(0, 11);
+    if (dig.length < 3) return "";
+    const primeiroToken = String(nomeCompleto || "").trim().split(/\s+/)[0] || "";
+    const letras = primeiroToken
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z]/g, "")
+      .toUpperCase()
+      .slice(0, 2);
+    return `${dig.slice(0, 3)}${letras}`;
+  }
+
+  function formatPortalHoraLancamentoMs(ms) {
+    if (typeof ms !== "number" || !Number.isFinite(ms) || ms <= 0) return "—";
+    try {
+      return new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return "—";
+    }
   }
 
   /** Lançamentos do portal amarrados ao registo da locação (por protocolo). Migra total legado se ainda não houver lista. */
@@ -3703,6 +3773,8 @@
       data: String(v.data || "").trim(),
       valor: Number(v.valor),
       createdAt: typeof v.createdAt === "number" && Number.isFinite(v.createdAt) ? v.createdAt : Date.now(),
+      registradoPorCpf: String(v.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+      registradoPorNome: String(v.registradoPorNome || "").trim(),
     }));
     return loc.portalLancamentosAluguel;
   }
@@ -3713,6 +3785,8 @@
       data: x.data,
       valor: x.valor,
       createdAt: typeof x.createdAt === "number" && Number.isFinite(x.createdAt) ? x.createdAt : Date.now(),
+      registradoPorCpf: String(x.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+      registradoPorNome: String(x.registradoPorNome || "").trim(),
     }));
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
       sumPortalLancamentosAluguelNoAno(normArr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
@@ -3752,7 +3826,14 @@
     const loc = locs[idx];
     const dataStr = String(dataPagamentoBr || "").trim();
     materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
-    loc.portalLancamentosAluguel.push({ data: dataStr, valor: valorNum, createdAt: Date.now() });
+    const reg = getPortalSessaoParaRegistroLancamentoAluguel();
+    loc.portalLancamentosAluguel.push({
+      data: dataStr,
+      valor: valorNum,
+      createdAt: Date.now(),
+      registradoPorCpf: reg?.cpf || "",
+      registradoPorNome: reg?.nome || "",
+    });
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
@@ -3802,6 +3883,8 @@
       data: merged.data,
       valor: merged.valor,
       createdAt: typeof prev?.createdAt === "number" && Number.isFinite(prev.createdAt) ? prev.createdAt : Date.now(),
+      registradoPorCpf: String(prev?.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+      registradoPorNome: String(prev?.registradoPorNome || "").trim(),
     };
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
