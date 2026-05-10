@@ -30,6 +30,8 @@
   let currentUnit = "";
   /** Referência ao funcionário em `funcionariosAccess` à espera de troca de senha (1.º acesso colaborador). */
   let portalColaboradorSenhaPendente = null;
+  /** Comprimento anterior do CPF (só dígitos) para limpar campos ao sair de 11 dígitos. */
+  let portalColabCpfPrevLen = 0;
 
   /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
   function getPortalSessaoAdminRole() {
@@ -294,6 +296,84 @@
     btn.textContent = f.blocked ? "Desbloquear colaborador" : "Bloquear colaborador";
   }
 
+  function limparPortalColaboradorCamposParaNovo() {
+    const nome = document.getElementById("portalColabNome");
+    const funcao = document.getElementById("portalColabFuncao");
+    const ingresso = document.getElementById("portalColabIngresso");
+    if (nome) nome.value = "";
+    if (funcao) funcao.value = "";
+    if (ingresso) ingresso.value = "";
+    const c1 = document.getElementById("portalColabAceCliente");
+    const c2 = document.getElementById("portalColabAceVeiculo");
+    const c3 = document.getElementById("portalColabAceLocacao");
+    const c4 = document.getElementById("portalColabAceLancAluguel");
+    if (c1) c1.checked = true;
+    if (c2) c2.checked = true;
+    if (c3) c3.checked = true;
+    if (c4) c4.checked = true;
+  }
+
+  function aplicarPortalColaboradorDoFuncionario(f) {
+    if (!f) return;
+    const nome = document.getElementById("portalColabNome");
+    const funcao = document.getElementById("portalColabFuncao");
+    const ingresso = document.getElementById("portalColabIngresso");
+    if (nome) nome.value = String(f.nome || "").trim();
+    if (funcao) funcao.value = String(f.funcao || "").trim();
+    if (ingresso) {
+      const raw = String(f.dataIngresso || "").trim();
+      const di = onlyDigits(raw).slice(0, 8);
+      ingresso.value =
+        typeof formatDateMask === "function" && di.length ? formatDateMask(di) : raw;
+    }
+    const a = f.acessos || {};
+    const c1 = document.getElementById("portalColabAceCliente");
+    const c2 = document.getElementById("portalColabAceVeiculo");
+    const c3 = document.getElementById("portalColabAceLocacao");
+    const c4 = document.getElementById("portalColabAceLancAluguel");
+    if (c1) c1.checked = Boolean(a.cliente);
+    if (c2) c2.checked = Boolean(a.veiculo);
+    if (c3) c3.checked = Boolean(a.locacao);
+    if (c4) c4.checked = Boolean(a.lancamentoAluguel);
+  }
+
+  function setPortalColaboradorModoCadastroOuEdicao(modoCadastroNovo) {
+    const btnC = document.getElementById("portalColabBtnCadastrar");
+    const btnS = document.getElementById("portalColabBtnSalvarAlteracoes");
+    if (btnC) {
+      btnC.classList.toggle("hidden", !modoCadastroNovo);
+      btnC.disabled = !modoCadastroNovo;
+    }
+    if (btnS) btnS.classList.toggle("hidden", modoCadastroNovo);
+  }
+
+  function syncPortalColaboradorFormFromCpf() {
+    const inp = document.getElementById("portalColabCpf");
+    const dig = onlyDigits(String(inp?.value || "")).slice(0, 11);
+    const len = dig.length;
+
+    if (len < 11 && portalColabCpfPrevLen === 11) {
+      limparPortalColaboradorCamposParaNovo();
+    }
+    portalColabCpfPrevLen = len;
+
+    if (len < 11) {
+      setPortalColaboradorModoCadastroOuEdicao(true);
+      refreshPortalColaboradorBloqueioUi();
+      return;
+    }
+
+    const f = findFuncionarioOperacaoPortalPorCpf(dig);
+    if (f) {
+      aplicarPortalColaboradorDoFuncionario(f);
+      setPortalColaboradorModoCadastroOuEdicao(false);
+    } else {
+      limparPortalColaboradorCamposParaNovo();
+      setPortalColaboradorModoCadastroOuEdicao(true);
+    }
+    refreshPortalColaboradorBloqueioUi();
+  }
+
   formPortalCadastroColaborador?.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
@@ -364,11 +444,78 @@
     });
     saveFuncionariosAccess();
     formPortalCadastroColaborador.reset();
-    refreshPortalColaboradorBloqueioUi();
+    portalColabCpfPrevLen = 0;
+    syncPortalColaboradorFormFromCpf();
     if (fb) {
       fb.textContent =
         "Colaborador cadastrado. Senha inicial 123456 — no primeiro login será pedida a nova senha (6 números).";
     }
+  });
+
+  document.getElementById("portalColabBtnSalvarAlteracoes")?.addEventListener("click", () => {
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (!isPortalTitularAdministrador()) {
+      if (fb) fb.textContent = "Apenas o administrador titular pode alterar colaboradores.";
+      return;
+    }
+    if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess) || typeof saveFuncionariosAccess !== "function") {
+      if (fb) fb.textContent = "Cadastro indisponível neste ambiente.";
+      return;
+    }
+    const cpfRaw = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const nome = String(document.getElementById("portalColabNome")?.value || "").trim();
+    const funcao = String(document.getElementById("portalColabFuncao")?.value || "").trim();
+    const dataIngresso = String(document.getElementById("portalColabIngresso")?.value || "").trim();
+    if (cpfRaw.length !== 11) {
+      if (fb) fb.textContent = "Informe um CPF válido (11 dígitos).";
+      return;
+    }
+    const f = findFuncionarioOperacaoPortalPorCpf(cpfRaw);
+    if (!f) {
+      if (fb) fb.textContent = "Não há colaborador com este CPF para atualizar.";
+      return;
+    }
+    if (!nome) {
+      if (fb) fb.textContent = "Informe o nome completo.";
+      return;
+    }
+    const aceCliente = Boolean(document.getElementById("portalColabAceCliente")?.checked);
+    const aceVeiculo = Boolean(document.getElementById("portalColabAceVeiculo")?.checked);
+    const aceLocacao = Boolean(document.getElementById("portalColabAceLocacao")?.checked);
+    const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
+    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc) {
+      if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
+      return;
+    }
+    const acessos =
+      typeof normalizeOperacaoAccess === "function"
+        ? normalizeOperacaoAccess(
+            {
+              cliente: aceCliente,
+              veiculo: aceVeiculo,
+              locacao: aceLocacao,
+              manutencao: false,
+              lancamentoAluguel: aceLanc,
+              lancamentoDespesa: false,
+            },
+            "operacao"
+          )
+        : {
+            cliente: aceCliente,
+            veiculo: aceVeiculo,
+            locacao: aceLocacao,
+            manutencao: false,
+            lancamentoAluguel: aceLanc,
+            lancamentoDespesa: false,
+            funcionario: false,
+          };
+    f.nome = nome;
+    f.funcao = funcao;
+    f.dataIngresso = dataIngresso;
+    f.acessos = acessos;
+    saveFuncionariosAccess();
+    aplicarPortalColaboradorDoFuncionario(f);
+    if (fb) fb.textContent = "Alterações guardadas.";
   });
 
   document.getElementById("portalColabBloqueioBtn")?.addEventListener("click", () => {
@@ -383,7 +530,7 @@
     }
     f.blocked = !f.blocked;
     saveFuncionariosAccess();
-    refreshPortalColaboradorBloqueioUi();
+    syncPortalColaboradorFormFromCpf();
     if (fb) {
       fb.textContent = f.blocked
         ? "Colaborador bloqueado — não pode entrar no sistema."
@@ -392,7 +539,7 @@
   });
 
   document.getElementById("portalColabCpf")?.addEventListener("input", () => {
-    refreshPortalColaboradorBloqueioUi();
+    syncPortalColaboradorFormFromCpf();
   });
 
   document.getElementById("portalColabCpf")?.addEventListener("blur", () => {
@@ -400,7 +547,7 @@
     if (!inp || typeof formatCpf !== "function") return;
     const dig = onlyDigits(String(inp.value || "")).slice(0, 11);
     if (dig.length === 11) inp.value = formatCpf(dig);
-    refreshPortalColaboradorBloqueioUi();
+    syncPortalColaboradorFormFromCpf();
   });
 
   btnVoltarOp?.addEventListener("click", () => {
@@ -4006,7 +4153,7 @@
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-colaborador");
-    refreshPortalColaboradorBloqueioUi();
+    syncPortalColaboradorFormFromCpf();
   });
 
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>

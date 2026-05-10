@@ -1222,6 +1222,13 @@ body {
   gap: 1rem;
 }
 
+.portal-colab-primary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .portal-colab-bloqueio-wrap {
   flex: 1;
   min-width: 12rem;
