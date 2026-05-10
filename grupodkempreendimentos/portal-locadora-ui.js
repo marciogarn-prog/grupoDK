@@ -2672,7 +2672,7 @@
       if (!inpCpf) return;
       const digits =
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
-      if (typeof formatCpf === "function" && digits.length === 11) inpCpf.value = formatCpf(digits);
+      if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
       if (digits.length === 11 && typeof findClienteByCpfCadastro === "function") {
         const cli = findClienteByCpfCadastro(digits);
         if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
@@ -2682,8 +2682,10 @@
 
     inpCpf?.addEventListener("input", () => {
       if (!inpCpf) return;
-      const digits =
-        typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+      const digits = (
+        typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "")
+      ).slice(0, 11);
+      if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
       const dlNome = document.getElementById("operacaoLocacaoClienteSugestoes");
       const candidatos =
         typeof getLancamentoClienteCandidates === "function" && digits.length
@@ -3343,6 +3345,14 @@
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
       hydrateOperacaoLocacaoFromQueryParams();
+      const locCpfHydrate = document.getElementById("operacaoLocacaoCpf");
+      if (locCpfHydrate && typeof formatCpf === "function") {
+        const dh =
+          typeof onlyDigits === "function"
+            ? onlyDigits(String(locCpfHydrate.value || ""))
+            : String(locCpfHydrate.value || "").replace(/\D/g, "");
+        if (dh) locCpfHydrate.value = formatCpf(dh.slice(0, 11));
+      }
       syncOperacaoLocacaoFromDataInicio();
       syncOperacaoLocacaoValorPlano();
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
