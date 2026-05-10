@@ -141,6 +141,10 @@
                 <span class="btn-operacao-cmd__title">Cadastro de locação</span>
                 <span class="btn-operacao-cmd__hint">Protocolo automático (Receita 2026), CPF, placa, plano, valores e datas</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoInlineLancamentoAluguel">
+                <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
+                <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de locação; dados carregados do protocolo</span>
+              </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main" id="operacaoPainelDireito">
@@ -517,6 +521,64 @@
           </p>
         </div>
 
+        <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
+          <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lançamento de aluguel</h3>
+          <p class="subtext operacao-inline-form__lead">Utilize um <strong>CPF</strong> que já tenha <strong>locação cadastrada</strong> neste navegador (com protocolo). Os campos abaixo preenchem-se a partir desse cadastro. Em seguida poderemos ligar o registo a pagamentos ou histórico.</p>
+          <form id="formOperacaoLancamentoAluguelInline" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>CPF</span>
+              <input
+                type="text"
+                id="operacaoLancAluguelCpf"
+                name="cpf"
+                inputmode="numeric"
+                maxlength="14"
+                autocomplete="off"
+                required
+                placeholder="000.000.000-00"
+                aria-label="CPF"
+                list="operacaoLancAluguelCpfSugestoes"
+                aria-autocomplete="list"
+              >
+              <datalist id="operacaoLancAluguelCpfSugestoes"></datalist>
+            </label>
+            <label class="portal-field">
+              <span>PROTOCOLO</span>
+              <select id="operacaoLancAluguelProtocoloSelect" autocomplete="off" aria-label="PROTOCOLO" disabled>
+                <option value="">Informe um CPF com locação</option>
+              </select>
+            </label>
+            <label class="portal-field">
+              <span>PLACA</span>
+              <input type="text" id="operacaoLancAluguelPlaca" name="placa" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="PLACA">
+            </label>
+            <label class="portal-field">
+              <span>DATA INÍCIO</span>
+              <input type="text" id="operacaoLancAluguelDataInicio" name="dataInicio" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA INÍCIO">
+            </label>
+            <label class="portal-field">
+              <span>DATA FIM</span>
+              <input type="text" id="operacaoLancAluguelDataFim" name="dataFim" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA FIM">
+            </label>
+            <label class="portal-field">
+              <span>VALOR DO ALUGUEL</span>
+              <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
+            </label>
+            <label class="portal-field">
+              <span>VALOR DO INVESTIMENTO</span>
+              <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DO INVESTIMENTO">
+            </label>
+            <div class="operacao-inline-form__actions">
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
+            </div>
+          </form>
+          <p id="operacaoLancAluguelInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+          <p class="operacao-inline-form__footnote">
+            <button type="button" class="link-like" id="operacaoLancAluguelAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
+          </p>
+        </div>
+
           </div>
         </div>
 
@@ -557,7 +619,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260510g" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510g" defer></script>
+  <script src="app.js?v=20260510h" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510h" defer></script>
 </body>
 </html>

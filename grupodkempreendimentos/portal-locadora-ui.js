@@ -1580,6 +1580,7 @@
     document.getElementById("operacaoInlineCliente")?.classList.add("hidden");
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
+    document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
   }
 
   function setOperacaoFormPlaceholderVisible(visible) {
@@ -1590,7 +1591,12 @@
   }
 
   function syncOperacaoCadastroButtons(activeButtonId) {
-    ["btn-operacao-cadastro-cliente", "btn-operacao-cadastro-veiculo", "btn-operacao-cadastro-locacao"].forEach((id) => {
+    [
+      "btn-operacao-cadastro-cliente",
+      "btn-operacao-cadastro-veiculo",
+      "btn-operacao-cadastro-locacao",
+      "btn-operacao-lancamento-aluguel",
+    ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
       const on = Boolean(activeButtonId && id === activeButtonId);
@@ -2046,6 +2052,192 @@
     if (loc) applyPortalLocacaoRowFromRecord(loc);
   }
 
+  function normPortalNumeroContrato(x) {
+    return typeof normalizeNumeroContratoKey === "function"
+      ? normalizeNumeroContratoKey(x || "")
+      : String(x || "").trim();
+  }
+
+  function collectPortalLocacoesComProtocoloByCpf(cpfDigits) {
+    return collectPortalLocacoesByCpf(cpfDigits).filter((l) => Boolean(normPortalNumeroContrato(l.numeroContrato)));
+  }
+
+  function refreshOperacaoLancamentoAluguelCpfDatalist() {
+    const dl = document.getElementById("operacaoLancAluguelCpfSugestoes");
+    if (!dl || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const seen = new Set();
+    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+      if (!normPortalNumeroContrato(l.numeroContrato)) return;
+      const d = dig(String(l.cpf || ""));
+      if (d.length === 11) seen.add(d);
+    });
+    dl.innerHTML = Array.from(seen)
+      .sort()
+      .map((d) => `<option value="${portalEscapeHtml(fmt(d))}"></option>`)
+      .join("");
+  }
+
+  function clearOperacaoLancamentoAluguelCamposDerivados() {
+    ["operacaoLancAluguelPlaca", "operacaoLancAluguelDataInicio", "operacaoLancAluguelDataFim", "operacaoLancAluguelValorAluguel", "operacaoLancAluguelValorInvestimento"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+  }
+
+  function applyOperacaoLancamentoAluguelFromLoc(loc) {
+    const placaEl = document.getElementById("operacaoLancAluguelPlaca");
+    const diEl = document.getElementById("operacaoLancAluguelDataInicio");
+    const dfEl = document.getElementById("operacaoLancAluguelDataFim");
+    const valLocEl = document.getElementById("operacaoLancAluguelValorAluguel");
+    const valInvEl = document.getElementById("operacaoLancAluguelValorInvestimento");
+    const fmtDate = (raw) => {
+      const s = String(raw || "").trim();
+      if (!s) return "";
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+      if (/^\d{2}\/\d{2}\/\d{2}$/.test(s)) {
+        const [dd, mm, yy] = s.split("/");
+        const yFull = Number(yy) < 50 ? 2000 + Number(yy) : 1900 + Number(yy);
+        return `${dd}/${mm}/${yFull}`;
+      }
+      if (typeof parseBrDate === "function") {
+        const dt = parseBrDate(s);
+        if (dt && !Number.isNaN(dt.getTime())) return formatPortalDataBr(dt);
+      }
+      return s;
+    };
+    const fmtValor = (raw) => {
+      if (typeof parseCurrencyBR === "function") {
+        const n = parseCurrencyBR(String(raw || ""));
+        return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      return String(raw || "")
+        .replace(/R\$\s?/gi, "")
+        .trim();
+    };
+    if (placaEl && typeof normalizePlate === "function") {
+      const p = normalizePlate(String(loc.placa || ""));
+      placaEl.value = p || "—";
+    } else if (placaEl) placaEl.value = String(loc.placa || "").trim() || "—";
+    if (diEl) diEl.value = fmtDate(loc.inicio);
+    if (dfEl) dfEl.value = fmtDate(loc.fim);
+    if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
+    if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
+  }
+
+  let portalLancAluguelProtocoloSyncCpf = "";
+
+  function refreshOperacaoLancamentoAluguelProtocoloSelect(opts = {}) {
+    const force = Boolean(opts.force);
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!sel || !inpCpf) return;
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+    if (digits.length !== 11) {
+      portalLancAluguelProtocoloSyncCpf = "";
+      sel.disabled = true;
+      sel.replaceChildren();
+      const o = document.createElement("option");
+      o.value = "";
+      o.textContent = "Informe um CPF com locação";
+      sel.appendChild(o);
+      clearOperacaoLancamentoAluguelCamposDerivados();
+      return;
+    }
+    const locs = collectPortalLocacoesComProtocoloByCpf(digits);
+    if (locs.length === 0) {
+      portalLancAluguelProtocoloSyncCpf = "";
+      sel.disabled = true;
+      sel.replaceChildren();
+      const o = document.createElement("option");
+      o.value = "";
+      o.textContent = "Nenhum protocolo para este CPF";
+      sel.appendChild(o);
+      clearOperacaoLancamentoAluguelCamposDerivados();
+      if (msg) msg.textContent = "Este CPF não tem locação com protocolo neste navegador. Cadastre a locação primeiro.";
+      return;
+    }
+    if (msg) msg.textContent = "";
+    if (!force && digits === portalLancAluguelProtocoloSyncCpf && sel.options.length > 1) return;
+    portalLancAluguelProtocoloSyncCpf = digits;
+    const byNc = new Map();
+    locs.forEach((l) => {
+      const nc = normPortalNumeroContrato(l.numeroContrato || "");
+      if (nc) byNc.set(nc, l);
+    });
+    const sorted = Array.from(byNc.keys()).sort((a, b) => a.localeCompare(b, "en"));
+    const preserve = String(opts.preserveNc || sel.value || "").trim();
+    sel.replaceChildren();
+    sorted.forEach((nc) => {
+      const l = byNc.get(nc);
+      const opt = document.createElement("option");
+      opt.value = nc;
+      const placa =
+        typeof normalizePlate === "function" ? normalizePlate(String(l.placa || "")) : String(l.placa || "").trim();
+      const ini = String(l.inicio || "").trim();
+      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
+      sel.appendChild(opt);
+    });
+    sel.disabled = false;
+    const pNorm = preserve ? normPortalNumeroContrato(preserve) : "";
+    if (pNorm && sorted.includes(pNorm)) sel.value = pNorm;
+    else sel.value = sorted[0];
+    const chosen = byNc.get(sel.value);
+    if (chosen) applyOperacaoLancamentoAluguelFromLoc(chosen);
+  }
+
+  function onOperacaoLancamentoAluguelProtocoloSelectChange() {
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    if (!sel || sel.disabled || !inpCpf) return;
+    const v = String(sel.value || "").trim();
+    if (!v) {
+      clearOperacaoLancamentoAluguelCamposDerivados();
+      return;
+    }
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+    const want = normPortalNumeroContrato(v);
+    const loc = collectPortalLocacoesComProtocoloByCpf(digits).find((l) => normPortalNumeroContrato(l.numeroContrato) === want);
+    if (loc) applyOperacaoLancamentoAluguelFromLoc(loc);
+  }
+
+  function syncOperacaoLancamentoAluguelAfterCpfEdit() {
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!inpCpf) return;
+    if (typeof formatCpf === "function") {
+      const d = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (d.length === 11) inpCpf.value = formatCpf(d);
+    }
+    refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
+  }
+
+  function clearOperacaoLancamentoAluguelForm() {
+    const form = document.getElementById("formOperacaoLancamentoAluguelInline");
+    form?.querySelectorAll("input:not([readonly])").forEach((inp) => {
+      inp.value = "";
+    });
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    if (sel) {
+      sel.replaceChildren();
+      const o = document.createElement("option");
+      o.value = "";
+      o.textContent = "Informe um CPF com locação";
+      sel.appendChild(o);
+      sel.disabled = true;
+    }
+    clearOperacaoLancamentoAluguelCamposDerivados();
+    portalLancAluguelProtocoloSyncCpf = "";
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
+    refreshOperacaoLancamentoAluguelCpfDatalist();
+  }
+
   function bindOperacaoLocacaoAutofill() {
     const inpCpf = document.getElementById("operacaoLocacaoCpf");
     const inpNome = document.getElementById("operacaoLocacaoCliente");
@@ -2302,7 +2494,30 @@
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
   });
 
-  ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn"].forEach((id) => {
+  document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
+    hideOperacaoInlineFormsCore();
+    document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
+    refreshOperacaoLancamentoAluguelCpfDatalist();
+    syncOperacaoLancamentoAluguelAfterCpfEdit();
+  });
+
+  document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>
+    onOperacaoLancamentoAluguelProtocoloSelectChange()
+  );
+  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => syncOperacaoLancamentoAluguelAfterCpfEdit());
+  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
+    refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
+  });
+  document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    clearOperacaoLancamentoAluguelForm();
+  });
+
+  ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       hideInlineForms();
     });
@@ -2396,9 +2611,14 @@
     );
   }
 
-  ["form-login", "form-nova-senha", "formOperacaoClienteInline", "formOperacaoVeiculoInline", "formOperacaoLocacaoInline"].forEach(
-    (id) => bindEnterAdvancesToNextField(document.getElementById(id))
-  );
+  [
+    "form-login",
+    "form-nova-senha",
+    "formOperacaoClienteInline",
+    "formOperacaoVeiculoInline",
+    "formOperacaoLocacaoInline",
+    "formOperacaoLancamentoAluguelInline",
+  ].forEach((id) => bindEnterAdvancesToNextField(document.getElementById(id)));
 
   function hydrateOperacaoLocacaoFromQueryParams() {
     const params = new URLSearchParams(window.location.search || "");
