@@ -1684,6 +1684,9 @@
         ? normalizePlate(String(p || "")) || "—"
         : String(p || "").trim() || "—";
     const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+    const digFn =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const fmtCpfFn = typeof formatCpf === "function" ? formatCpf : (v) => String(v || "");
 
     if (!norm) {
       return {
@@ -1714,10 +1717,21 @@
         if (ta !== tb) return ta - tb;
         return Number(a.createdAt || 0) - Number(b.createdAt || 0);
       });
+      const cpfDigits = digFn(String(loc.cpf || ""));
+      const cpfExib =
+        cpfDigits.length === 11 ? fmtCpfFn(cpfDigits) : cpfDigits ? cpfDigits : "—";
+      let nomeClienteSec = "";
+      if (cpfDigits.length === 11 && typeof findClienteByCpfCadastro === "function") {
+        nomeClienteSec = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
+      }
+      if (!nomeClienteSec) nomeClienteSec = String(loc.cliente || "").trim();
+      if (!nomeClienteSec) nomeClienteSec = "—";
       return {
         loc,
         proto,
         placa: plateExibFn(loc.placa),
+        cpfExib,
+        nomeClienteSec,
         lancs,
         resumo: computePortalProtocoloResumoFromLoc(loc),
       };
@@ -1745,6 +1759,8 @@
           nomeCliente: "—",
           sections,
           quando,
+          tituloProtocoloSecao: (sec) =>
+            `Protocolo ${sec.proto} · CPF ${sec.cpfExib} · ${sec.nomeClienteSec}`,
         }),
       buildExcelHtml: () =>
         buildPortalRelatorioClienteProtocolosExcelHtml({
@@ -1752,6 +1768,8 @@
           mensagemVazio: "Nenhuma locação com protocolo encontrada para esta placa.",
           cabecalhoPares: [["Placa", norm]],
           sections,
+          tituloProtocoloSecao: (sec) =>
+            `Protocolo ${sec.proto} · CPF ${sec.cpfExib} · ${sec.nomeClienteSec}`,
         }),
     };
   }
@@ -2737,13 +2755,16 @@
       tituloRelatorio = "Relatório 2 — Por cliente",
       mensagemVazio,
       linhasMetaCabecalho,
+      tituloProtocoloSecao,
     } = opts;
     const title = tituloRelatorio;
     const msgVazio =
       mensagemVazio || "Nenhuma locação com protocolo encontrada para este CPF.";
     let cabecalhoHtml = "";
-    if (Array.isArray(linhasMetaCabecalho) && linhasMetaCabecalho.length) {
-      cabecalhoHtml = linhasMetaCabecalho.map((line) => `<p class="meta">${eh(line)}</p>`).join("");
+    if (Array.isArray(linhasMetaCabecalho)) {
+      if (linhasMetaCabecalho.length) {
+        cabecalhoHtml = linhasMetaCabecalho.map((line) => `<p class="meta">${eh(line)}</p>`).join("");
+      }
     } else {
       cabecalhoHtml = `<p class="meta">${eh(`CPF: ${cpfLabel}`)} · ${eh(`Cliente: ${nomeCliente}`)}</p>`;
     }
@@ -2751,9 +2772,14 @@
     if (!sections.length) {
       body = `<p class="meta">${eh(msgVazio)}</p>`;
     }
+    const fnSecTitulo =
+      typeof tituloProtocoloSecao === "function" ? tituloProtocoloSecao : null;
     for (const sec of sections) {
       const { proto, placa, lancs, resumo } = sec;
-      body += `<h2>${eh(`Protocolo ${proto} · Placa ${placa}`)}</h2>`;
+      const tituloBloco = fnSecTitulo
+        ? fnSecTitulo(sec)
+        : `Protocolo ${proto} · Placa ${placa}`;
+      body += `<h2>${eh(tituloBloco)}</h2>`;
       body += `<p class="meta">${eh("Pagamentos")}</p>`;
       body += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
       if (!lancs.length) {
@@ -2829,6 +2855,7 @@
       tituloRelatorio = "Relatório 2 — Por cliente",
       mensagemVazio,
       cabecalhoPares,
+      tituloProtocoloSecao,
     } = opts;
     const msgVazio =
       mensagemVazio || "Nenhuma locação com protocolo encontrada para este CPF.";
@@ -2849,9 +2876,14 @@
     if (!sections.length) {
       blocks += `<p>${eh(msgVazio)}</p>`;
     }
+    const fnSecTitulo =
+      typeof tituloProtocoloSecao === "function" ? tituloProtocoloSecao : null;
     for (const sec of sections) {
       const { proto, placa, lancs, resumo } = sec;
-      blocks += `<h3>${eh(`Protocolo ${proto} · Placa ${placa}`)}</h3>`;
+      const tituloBloco = fnSecTitulo
+        ? fnSecTitulo(sec)
+        : `Protocolo ${proto} · Placa ${placa}`;
+      blocks += `<h3>${eh(tituloBloco)}</h3>`;
       blocks += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
       if (!lancs.length) {
         blocks += `<tr><td colspan="2">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
