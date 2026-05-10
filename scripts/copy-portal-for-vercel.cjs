@@ -1,7 +1,12 @@
 /**
- * Build step para Vercel quando o repositório é a raiz do Git mas o site é `grupodkempreendimentos/`.
- * Copia o portal para outputDirectory. Remove `api/` da cópia para as rotas serverless
- * virem só de `api/` na raiz do repositório (evita servir .js como arquivo estático).
+ * Build step para Vercel: o ÚNICO site público deste projeto é o portal DK Locadora
+ * em `grupodkempreendimentos/` (Operação, cadastros, relatórios). Esse diretório é
+ * copiado integralmente para outputDirectory; o restante do repositório não vira HTML/CSS/JS
+ * no deploy (há outros ficheiros na raiz só para desenvolvimento ou ferramentas locais).
+ *
+ * Rotas serverless `/api/*` vêm da pasta `api/` na raiz do repo (sincronização Redis), não do
+ * `grupodkempreendimentos/api/` — por isso removemos `api/` da cópia do portal (evita servir .js
+ * como estático em duplicado).
  */
 const fs = require("fs");
 const path = require("path");

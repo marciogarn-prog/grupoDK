@@ -1,0 +1,10 @@
+# Apenas o portal em grupodkempreendimentos/ é publicado (build: scripts/copy-portal-for-vercel.cjs).
+# Isto reduz o upload para a Vercel; não altera o output do site.
+docs/
+*.xlsx
+*.pdf
+*.docx
+*.csv
+Backblaze-B2-orientacoes-Grupo-DK.docx
+DK-FINANCEIRO*
+registro-perguntas.txt
