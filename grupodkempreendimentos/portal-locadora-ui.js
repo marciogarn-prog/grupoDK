@@ -1653,7 +1653,14 @@
       dlNome &&
       typeof getLancamentoClienteCandidates === "function"
     ) {
-      const candidatos = getLancamentoClienteCandidates().slice(0, 200);
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const prefix = dig(prevCpf).slice(0, 11);
+      let candidatos = getLancamentoClienteCandidates();
+      if (prefix.length) {
+        candidatos = candidatos.filter((c) => dig(String(c.cpf || "")).startsWith(prefix));
+      }
+      candidatos = candidatos.slice(0, 200);
       const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
       dlCpf.innerHTML = candidatos
         .map(
@@ -2686,22 +2693,33 @@
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "")
       ).slice(0, 11);
       if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
+      const dlCpf = document.getElementById("operacaoLocacaoCpfSugestoes");
       const dlNome = document.getElementById("operacaoLocacaoClienteSugestoes");
+      const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
       const candidatos =
         typeof getLancamentoClienteCandidates === "function" && digits.length
           ? getLancamentoClienteCandidates()
-          .filter((c) => String(c.cpf || "").startsWith(digits))
-          .slice(0, 30)
+              .filter((c) => dig(String(c.cpf || "")).startsWith(digits))
+              .slice(0, 50)
           : [];
-      if (dlNome && candidatos.length) {
-        const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
-        dlNome.innerHTML = candidatos
+      const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
+      if (digits.length) {
+        const opts = candidatos
           .map(
             (c) =>
-              `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
+              `<option value="${fmt(c.cpf)}" label="${portalEscapeHtml(String(c.nome || "").trim())}"></option>`
           )
           .join("");
-      } else if (dlNome && !digits.length) {
+        if (dlCpf) dlCpf.innerHTML = opts;
+        if (dlNome) {
+          dlNome.innerHTML = candidatos
+            .map(
+              (c) =>
+                `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
+            )
+            .join("");
+        }
+      } else if (!digits.length) {
         refreshOperacaoLocacaoDatalists();
       }
       if (digits.length === 11 && typeof findClienteByCpfCadastro === "function" && inpNome) {
