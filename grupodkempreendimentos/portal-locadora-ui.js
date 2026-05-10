@@ -4360,11 +4360,21 @@
       return anyOk;
     }
 
-    function dkPortalSchedulePushApi(apiFile, list) {
-      clearTimeout(dkPortalCadastroPushTimers[apiFile]);
-      dkPortalCadastroPushTimers[apiFile] = setTimeout(() => {
+    /** Após qualquer guardar em clientes/veículos/locações, envia snapshot completo (3 listas) para o Redis — mesmo estado na nuvem para todos os PCs. */
+    const DK_PORTAL_SNAPSHOT_TIMER_KEY = "__full_snapshot__";
+
+    function dkPortalScheduleFullCadastroSnapshotPush() {
+      clearTimeout(dkPortalCadastroPushTimers[DK_PORTAL_SNAPSHOT_TIMER_KEY]);
+      dkPortalCadastroPushTimers[DK_PORTAL_SNAPSHOT_TIMER_KEY] = setTimeout(async () => {
         if (dkPortalCadastroSyncSuppressPush) return;
-        dkPortalPushToApi(apiFile, list);
+        const clientes = loadCadastro(CAD_CLIENTES_KEY);
+        const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+        const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+        await Promise.all([
+          dkPortalPushToApi("cadastro-clientes", Array.isArray(clientes) ? clientes : []),
+          dkPortalPushToApi("cadastro-veiculos", Array.isArray(veiculos) ? veiculos : []),
+          dkPortalPushToApi("cadastro-locacoes", Array.isArray(locacoes) ? locacoes : []),
+        ]);
       }, 1500);
     }
 
@@ -4372,9 +4382,9 @@
     window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
       origSave(key, list);
       if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush) return;
-      if (key === CAD_CLIENTES_KEY) dkPortalSchedulePushApi("cadastro-clientes", list);
-      else if (key === CAD_VEICULOS_KEY) dkPortalSchedulePushApi("cadastro-veiculos", list);
-      else if (key === CAD_LOCACOES_KEY) dkPortalSchedulePushApi("cadastro-locacoes", list);
+      if (key === CAD_CLIENTES_KEY || key === CAD_VEICULOS_KEY || key === CAD_LOCACOES_KEY) {
+        dkPortalScheduleFullCadastroSnapshotPush();
+      }
     };
 
     async function dkPortalPullOne(apiFile, storageKey, mergeFn) {
@@ -4387,7 +4397,7 @@
           if (!r.ok || !j.ok || !Array.isArray(j.data)) continue;
           const local = loadCadastro(storageKey);
           if (!j.data.length && Array.isArray(local) && local.length) {
-            dkPortalSchedulePushApi(apiFile, local);
+            dkPortalScheduleFullCadastroSnapshotPush();
             return;
           }
           const merged = mergeFn(local, j.data);
@@ -4395,7 +4405,7 @@
           dkPortalCadastroSyncSuppressPush = true;
           origSave(storageKey, merged);
           dkPortalCadastroSyncSuppressPush = false;
-          dkPortalSchedulePushApi(apiFile, merged);
+          dkPortalScheduleFullCadastroSnapshotPush();
           return;
         } catch (e) {
           if (i === urls.length - 1) {
