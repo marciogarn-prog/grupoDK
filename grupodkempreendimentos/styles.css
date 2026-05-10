@@ -1189,3 +1189,9 @@ body {
   color: #7dd3fc;
   font-weight: 600;
 }
+
+.portal-cad-colaborador {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}

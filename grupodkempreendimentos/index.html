@@ -16,7 +16,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260522a">
+  <link rel="stylesheet" href="styles.css?v=20260522e">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -97,15 +97,15 @@
 
       <section id="panel-senha" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Definir nova senha</h2>
-        <p class="subtext">Por segurança, altere a senha inicial antes de continuar.</p>
+        <p class="subtext">Colaborador: use <strong>exatamente 6 números</strong>, diferentes da senha inicial <strong>123456</strong>.</p>
         <form id="form-nova-senha" class="portal-form" novalidate>
           <label class="portal-field">
             <span>Nova senha</span>
-            <input type="password" id="nova-senha" autocomplete="new-password" required minlength="6" placeholder="Mínimo 6 caracteres">
+            <input type="password" id="nova-senha" autocomplete="new-password" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="6 números">
           </label>
           <label class="portal-field">
             <span>Confirmar nova senha</span>
-            <input type="password" id="nova-senha-2" autocomplete="new-password" required minlength="6" placeholder="Repita a senha">
+            <input type="password" id="nova-senha-2" autocomplete="new-password" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="Repita os 6 números">
           </label>
           <p id="senha-feedback" class="portal-feedback" role="status"></p>
           <button type="submit" class="btn-primary">Salvar e continuar</button>
@@ -145,6 +145,30 @@
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
                 <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de locação; dados carregados do protocolo</span>
               </button>
+            </div>
+            <div id="portalCadastroColaboradorWrap" class="portal-cad-colaborador hidden" role="region" aria-labelledby="portalCadastroColaboradorTitulo">
+              <h3 id="portalCadastroColaboradorTitulo" class="operacao-inline-form__title">Cadastro de colaborador</h3>
+              <p class="subtext">Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).</p>
+              <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
+                <label class="portal-field">
+                  <span>CPF</span>
+                  <input type="text" id="portalColabCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do colaborador">
+                </label>
+                <label class="portal-field">
+                  <span>Nome completo</span>
+                  <input type="text" id="portalColabNome" maxlength="120" required autocomplete="name" aria-label="Nome do colaborador">
+                </label>
+                <label class="portal-field">
+                  <span>Função</span>
+                  <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="Função">
+                </label>
+                <label class="portal-field">
+                  <span>Data de ingresso</span>
+                  <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
+                </label>
+                <button type="submit" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
+              </form>
+              <p id="portalCadastroColaboradorFeedback" class="portal-feedback" role="status"></p>
             </div>
           </aside>
           <div class="portal-operacao-layout__main" id="operacaoPainelDireito">
@@ -824,7 +848,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260522a" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522d" defer></script>
+  <script src="app.js?v=20260522e" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522e" defer></script>
 </body>
 </html>

@@ -24,8 +24,13 @@
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnSair = document.getElementById("btn-sair");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
+  const formNovaSenha = document.getElementById("form-nova-senha");
+  const portalCadastroColaboradorWrap = document.getElementById("portalCadastroColaboradorWrap");
+  const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
   let currentUnit = "";
+  /** Referência ao funcionário em `funcionariosAccess` à espera de troca de senha (1.º acesso colaborador). */
+  let portalColaboradorSenhaPendente = null;
 
   /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
   function getPortalSessaoAdminRole() {
@@ -43,6 +48,26 @@
   /** Administrador titular (`owner`) — pode editar ou apagar lançamentos já registados; colaboradores (`operacao`) só lançam novos. */
   function isPortalTitularAdministrador() {
     return getPortalSessaoAdminRole() === "owner";
+  }
+
+  function finalizarLoginEquipaPortal(funcionario) {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({
+        tipo: "admin",
+        cpf: funcionario.cpf,
+        nome: funcionario.nome,
+        role: funcionario.role,
+      })
+    );
+    hideAllPanels();
+    panelLogado?.classList.remove("hidden");
+    if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
+    if (logadoTexto) {
+      logadoTexto.textContent = `${funcionario.nome} · ${funcionario.role === "owner" ? "Administrador" : funcionario.role}`;
+    }
+    const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
+    btnOperacao?.classList.toggle("hidden", !allowOp);
   }
 
   function showView(which) {
@@ -186,34 +211,132 @@
         return;
       }
       if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
-        loginFeedback.textContent =
-          "Primeiro acesso (troca de senha): abra o index principal do sistema DK e faça login como funcionário para definir a nova senha.";
+        portalColaboradorSenhaPendente = funcionario;
+        hideAllPanels();
+        panelSenha?.classList.remove("hidden");
+        const n1 = document.getElementById("nova-senha");
+        const n2 = document.getElementById("nova-senha-2");
+        const sf = document.getElementById("senha-feedback");
+        if (n1) n1.value = "";
+        if (n2) n2.value = "";
+        if (sf) sf.textContent = "";
         return;
       }
-      localStorage.setItem(
-        "dk_sessao_cliente",
-        JSON.stringify({
-          tipo: "admin",
-          cpf: funcionario.cpf,
-          nome: funcionario.nome,
-          role: funcionario.role,
-        })
-      );
-      hideAllPanels();
-      panelLogado?.classList.remove("hidden");
-      if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
-      if (logadoTexto) {
-        logadoTexto.textContent = `${funcionario.nome} · ${funcionario.role === "owner" ? "Administrador" : funcionario.role}`;
-      }
-      const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
-      btnOperacao?.classList.toggle("hidden", !allowOp);
+      finalizarLoginEquipaPortal(funcionario);
       return;
     }
+  });
+
+  formNovaSenha?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const sf = document.getElementById("senha-feedback");
+    const f = portalColaboradorSenhaPendente;
+    if (!f || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) {
+      if (sf) sf.textContent = "Sessão inválida. Volte ao login.";
+      return;
+    }
+    const nova = String(document.getElementById("nova-senha")?.value || "").trim();
+    const conf = String(document.getElementById("nova-senha-2")?.value || "").trim();
+    const okPass =
+      typeof isOperacaoPasswordValid === "function"
+        ? isOperacaoPasswordValid(nova)
+        : /^\d{6}$/.test(nova);
+    if (!okPass || nova === "123456") {
+      if (sf) sf.textContent = "Use exatamente 6 números, diferentes da senha inicial 123456.";
+      return;
+    }
+    if (nova !== conf) {
+      if (sf) sf.textContent = "A confirmação não coincide com a nova senha.";
+      return;
+    }
+    f.senha = nova;
+    f.mustChangePassword = false;
+    if (typeof saveFuncionariosAccess === "function") saveFuncionariosAccess();
+    portalColaboradorSenhaPendente = null;
+    finalizarLoginEquipaPortal(f);
   });
 
   btnOperacao?.addEventListener("click", () => {
     hideAllPanels();
     panelOperacao?.classList.remove("hidden");
+    if (portalCadastroColaboradorWrap) {
+      portalCadastroColaboradorWrap.classList.toggle("hidden", !isPortalTitularAdministrador());
+    }
+  });
+
+  formPortalCadastroColaborador?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (!isPortalTitularAdministrador()) {
+      if (fb) fb.textContent = "Apenas o administrador titular pode cadastrar colaboradores.";
+      return;
+    }
+    if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess) || typeof saveFuncionariosAccess !== "function") {
+      if (fb) fb.textContent = "Cadastro indisponível neste ambiente.";
+      return;
+    }
+    const cpfRaw = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const nome = String(document.getElementById("portalColabNome")?.value || "").trim();
+    const funcao = String(document.getElementById("portalColabFuncao")?.value || "").trim();
+    const dataIngresso = String(document.getElementById("portalColabIngresso")?.value || "").trim();
+    if (cpfRaw.length !== 11) {
+      if (fb) fb.textContent = "Informe um CPF válido (11 dígitos).";
+      return;
+    }
+    if (!nome) {
+      if (fb) fb.textContent = "Informe o nome completo.";
+      return;
+    }
+    if (funcionariosAccess.some((x) => onlyDigits(String(x.cpf || "")) === cpfRaw)) {
+      if (fb) fb.textContent = "Já existe cadastro com este CPF.";
+      return;
+    }
+    const acessos =
+      typeof normalizeOperacaoAccess === "function"
+        ? normalizeOperacaoAccess(
+            {
+              cliente: true,
+              veiculo: true,
+              locacao: true,
+              manutencao: false,
+              lancamentoAluguel: true,
+              lancamentoDespesa: false,
+            },
+            "operacao"
+          )
+        : {
+            cliente: true,
+            veiculo: true,
+            locacao: true,
+            manutencao: false,
+            lancamentoAluguel: true,
+            lancamentoDespesa: false,
+            funcionario: false,
+          };
+    funcionariosAccess.push({
+      cpf: cpfRaw,
+      senha: "123456",
+      nome,
+      role: "operacao",
+      blocked: false,
+      mustChangePassword: true,
+      funcao,
+      dataIngresso,
+      acessos,
+    });
+    saveFuncionariosAccess();
+    formPortalCadastroColaborador.reset();
+    if (fb) {
+      fb.textContent =
+        "Colaborador cadastrado. Senha inicial 123456 — no primeiro login será pedida a nova senha (6 números).";
+    }
+  });
+
+  document.getElementById("portalColabCpf")?.addEventListener("blur", () => {
+    const inp = document.getElementById("portalColabCpf");
+    if (!inp || typeof formatCpf !== "function") return;
+    const dig = onlyDigits(String(inp.value || "")).slice(0, 11);
+    if (dig.length === 11) inp.value = formatCpf(dig);
   });
 
   btnVoltarOp?.addEventListener("click", () => {
@@ -222,6 +345,7 @@
   });
 
   btnSair?.addEventListener("click", () => {
+    portalColaboradorSenhaPendente = null;
     clearSession();
     hideAllPanels();
     panelLogin?.classList.remove("hidden");
@@ -2315,6 +2439,7 @@
     "portalLancAluguelEditData",
     "portalRelPagamentosInicio",
     "portalRelPagamentosFim",
+    "portalColabIngresso",
   ];
 
   function bindPortalDateDdMmYyyyInputs() {

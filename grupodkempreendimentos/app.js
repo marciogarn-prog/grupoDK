@@ -1564,6 +1564,8 @@ function hydrateFuncionariosAccess() {
         role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
         blocked: Boolean(f?.blocked),
         mustChangePassword: Boolean(f?.mustChangePassword),
+        funcao: String(f?.funcao || "").trim(),
+        dataIngresso: String(f?.dataIngresso || "").trim(),
         acessos: normalizeOperacaoAccess(
           f?.acessos || null,
           String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
