@@ -27,6 +27,24 @@
 
   let currentUnit = "";
 
+  /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
+  function getPortalSessaoAdminRole() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return "";
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return "";
+      return String(s.role || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  /** Administrador titular — único perfil que pode anular/corrigir pagamentos já registados. */
+  function isPortalTitularAdministrador() {
+    return getPortalSessaoAdminRole() === "owner";
+  }
+
   function showView(which) {
     if (which === "home") {
       viewHome.classList.add("view--active");
@@ -416,18 +434,6 @@
         if (hit) return hit;
       }
       return null;
-    }
-
-    function getPortalSessaoAdminRole() {
-      try {
-        const raw = localStorage.getItem("dk_sessao_cliente");
-        if (!raw) return "";
-        const s = JSON.parse(raw);
-        if (s?.tipo !== "admin") return "";
-        return String(s.role || "").trim();
-      } catch {
-        return "";
-      }
     }
 
     function refreshOperacaoClienteApagarBtn(cpfDigits) {
@@ -2201,6 +2207,7 @@
     if (dfEl) dfEl.value = fmtDate(loc.fim);
     if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
+    refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
@@ -2242,6 +2249,7 @@
   }
 
   function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr) {
+    if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
     }
@@ -2271,6 +2279,84 @@
       return false;
     }
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, nc);
+    refreshOperacaoLancAluguelAdminControlsVisibility();
+    return true;
+  }
+
+  function refreshOperacaoLancAluguelAdminControlsVisibility() {
+    const aviso = document.getElementById("operacaoLancAluguelTravaAviso");
+    const btnRm = document.getElementById("operacaoLancAluguelRemoverUltimoPagamentoBtn");
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const owner = isPortalTitularAdministrador();
+    if (aviso) {
+      aviso.classList.toggle("hidden", owner);
+    }
+    let n = 0;
+    if (inpCpf && sel && !sel.disabled && owner) {
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const digits = dig(String(inpCpf.value || ""));
+      const proto = normPortalNumeroContrato(sel.value || "");
+      if (digits.length === 11 && proto) {
+        const loc = collectPortalLocacoesComProtocoloByCpf(digits).find(
+          (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+        );
+        if (loc) n = getPortalLancamentosAluguelDoContrato(loc).length;
+      }
+    }
+    if (btnRm) {
+      const show = owner && n > 0;
+      btnRm.classList.toggle("hidden", !show);
+      btnRm.disabled = !show;
+    }
+  }
+
+  function removerUltimoPortalLancamentoAluguelDoContrato(cpfDigits, ncNorm) {
+    if (!isPortalTitularAdministrador()) return false;
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === ncNorm
+    );
+    if (idx === -1) return false;
+    const loc = locs[idx];
+    let arr = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel.slice() : [];
+    if (arr.length === 0) {
+      const virt = getPortalLancamentosAluguelDoContrato(loc);
+      if (virt.length === 0) return false;
+      arr = virt.map((v) => ({
+        data: v.data,
+        valor: v.valor,
+        createdAt: v.createdAt || Date.now(),
+      }));
+    }
+    arr.pop();
+    loc.portalLancamentosAluguel = arr;
+    const normArr = arr.map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
+    loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
+      sumPortalLancamentosAluguelNoAno(normArr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
+    );
+    if (normArr.length) {
+      const last = normArr[normArr.length - 1];
+      loc.ultimoLancamentoAluguelData = last.data;
+      loc.ultimoLancamentoAluguelValor = formatPortalLancamentoSumBrl(last.valor);
+    } else {
+      loc.ultimoLancamentoAluguelData = "";
+      loc.ultimoLancamentoAluguelValor = "";
+    }
+    try {
+      saveCadastro(CAD_LOCACOES_KEY, locs);
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+    refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
+    refreshOperacaoLancAluguelAdminControlsVisibility();
     return true;
   }
 
@@ -2291,6 +2377,7 @@
       o.textContent = "Informe um CPF com locação";
       sel.appendChild(o);
       clearOperacaoLancamentoAluguelCamposDerivados();
+      refreshOperacaoLancAluguelAdminControlsVisibility();
       return;
     }
     const locs = collectPortalLocacoesComProtocoloByCpf(digits);
@@ -2304,10 +2391,14 @@
       sel.appendChild(o);
       clearOperacaoLancamentoAluguelCamposDerivados();
       if (msg) msg.textContent = "Este CPF não tem locação com protocolo neste navegador. Cadastre a locação primeiro.";
+      refreshOperacaoLancAluguelAdminControlsVisibility();
       return;
     }
     if (msg) msg.textContent = "";
-    if (!force && digits === portalLancAluguelProtocoloSyncCpf && sel.options.length > 1) return;
+    if (!force && digits === portalLancAluguelProtocoloSyncCpf && sel.options.length > 1) {
+      refreshOperacaoLancAluguelAdminControlsVisibility();
+      return;
+    }
     portalLancAluguelProtocoloSyncCpf = digits;
     const byNc = new Map();
     locs.forEach((l) => {
@@ -2342,6 +2433,7 @@
     const v = String(sel.value || "").trim();
     if (!v) {
       clearOperacaoLancamentoAluguelCamposDerivados();
+      refreshOperacaoLancAluguelAdminControlsVisibility();
       return;
     }
     const digits =
@@ -2381,6 +2473,7 @@
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelCpfDatalist();
+    refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
   function bindOperacaoLocacaoAutofill() {
@@ -2646,6 +2739,7 @@
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
     refreshOperacaoLancamentoAluguelCpfDatalist();
     syncOperacaoLancamentoAluguelAfterCpfEdit();
+    refreshOperacaoLancAluguelAdminControlsVisibility();
   });
 
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>
@@ -2679,6 +2773,10 @@
     const inpValor = document.getElementById("operacaoLancAluguelValorPago");
     const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!getPortalSessaoAdminRole()) {
+      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar pagamentos.";
+      return;
+    }
     const digits =
       typeof onlyDigits === "function" ? onlyDigits(inpCpf?.value || "") : String(inpCpf?.value || "").replace(/\D/g, "");
     const proto = normPortalNumeroContrato(sel?.value || "");
@@ -2727,8 +2825,55 @@
           (l) => normPortalNumeroContrato(l.numeroContrato) === proto
         );
         if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
-      } else if (msg) msg.textContent = "Não foi possível guardar o pagamento.";
+      } else if (msg) {
+        msg.textContent = !getPortalSessaoAdminRole()
+          ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
+          : "Não foi possível guardar o pagamento.";
+      }
     });
+  });
+
+  document.getElementById("operacaoLancAluguelRemoverUltimoPagamentoBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!isPortalTitularAdministrador()) {
+      window.alert("Apenas o administrador titular pode anular ou corrigir pagamentos já registados.");
+      return;
+    }
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const digits = dig(String(inpCpf?.value || ""));
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    if (digits.length !== 11 || !proto) {
+      if (msg) msg.textContent = "Informe CPF e protocolo.";
+      return;
+    }
+    const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    );
+    const arr = locAtual ? getPortalLancamentosAluguelDoContrato(locAtual) : [];
+    if (!arr.length) {
+      if (msg) msg.textContent = "Não há pagamentos registados para remover.";
+      refreshOperacaoLancAluguelAdminControlsVisibility();
+      return;
+    }
+    const last = arr[arr.length - 1];
+    if (
+      !window.confirm(
+        `Remover o último pagamento registado neste protocolo (${last.data} · ${formatPortalLancamentoSumBrl(last.valor)})? Só o administrador titular pode fazer esta operação.`
+      )
+    ) {
+      return;
+    }
+    if (removerUltimoPortalLancamentoAluguelDoContrato(digits, proto)) {
+      const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+      );
+      if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
+      if (msg) msg.textContent = "Último pagamento removido. Totais atualizados.";
+    } else if (msg) msg.textContent = "Não foi possível remover o pagamento.";
   });
 
   ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn"].forEach((id) => {
@@ -2771,6 +2916,7 @@
       if (logadoTexto) logadoTexto.textContent = `Olá, ${String(session.nome || "").trim() || "cliente"}.`;
       btnOperacao?.classList.add("hidden");
     }
+    refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
   /**

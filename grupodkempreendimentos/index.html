@@ -602,10 +602,16 @@
             </label>
             <div class="operacao-inline-form__actions">
               <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
+              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoLancAluguelRemoverUltimoPagamentoBtn" disabled>
+                Remover último pagamento (administrador)
+              </button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
             </div>
           </form>
+          <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
+            Pagamentos já registados neste protocolo só podem ser anulados pelo <strong>administrador titular</strong> (botão acima, quando visível). Colaboradores podem continuar a lançar <strong>novos</strong> pagamentos.
+          </p>
           <p id="operacaoLancAluguelInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
             <button type="button" class="link-like" id="operacaoLancAluguelAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
@@ -664,7 +670,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260510j" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510j" defer></script>
+  <script src="app.js?v=20260510k" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510k" defer></script>
 </body>
 </html>
