@@ -3284,17 +3284,23 @@
     });
   }
 
-  /** Sincroniza `dk_clientes_cadastro` entre localhost e produção via API na Vercel (Upstash Redis). */
+  /** Sincroniza cadastros (clientes, veículos, locações) entre localhost e produção via API Vercel + Upstash Redis. */
   (function dkPortalCadastroCloudSync() {
     if (!window.DK_PORTAL_LOCADORA_PAGE) return;
-    if (typeof saveCadastro !== "function" || typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
+    if (
+      typeof saveCadastro !== "function" ||
+      typeof loadCadastro !== "function" ||
+      typeof CAD_CLIENTES_KEY === "undefined" ||
+      typeof CAD_VEICULOS_KEY === "undefined" ||
+      typeof CAD_LOCACOES_KEY === "undefined"
+    ) {
       return;
     }
 
     let dkPortalCadastroSyncSuppressPush = false;
-    let dkPortalCadastroPushTimer = null;
+    const dkPortalCadastroPushTimers = Object.create(null);
 
-    function dkPortalSyncApiUrls() {
+    function dkPortalSyncApiUrlsFor(apiFile) {
       const meta = document
         .querySelector('meta[name="dk-cadastro-sync-origin"]')
         ?.getAttribute("content")
@@ -3302,8 +3308,8 @@
         .replace(/\/$/, "");
       const h = window.location.hostname;
       const isLocal = h === "localhost" || h === "127.0.0.1";
-      const localUrl = `${window.location.origin}/api/cadastro-clientes`;
-      if (isLocal && meta) return [localUrl, `${meta}/api/cadastro-clientes`];
+      const localUrl = `${window.location.origin}/api/${apiFile}`;
+      if (isLocal && meta) return [localUrl, `${meta}/api/${apiFile}`];
       return [localUrl];
     }
 
@@ -3334,17 +3340,101 @@
       return Array.from(byCpf.values());
     }
 
-    async function dkPortalPushClientes(list) {
-      const urls = dkPortalSyncApiUrls();
+    function dkPortalMergeVeiculosArrays(local, remote) {
+      const plateNorm = (p) =>
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(p || ""))
+          : String(p || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      const keyOf = (v) => {
+        const pl = plateNorm(v.placa);
+        if (pl) return pl;
+        const idn = Number(v.id || v.createdAt || 0);
+        return idn ? `id:${idn}` : "";
+      };
+      const byKey = new Map();
+      const score = (v) => Number(v.updatedAt || v.createdAt || v.id || 0);
+      const add = (v) => {
+        const k = keyOf(v);
+        if (!k) return;
+        const prev = byKey.get(k);
+        const merged = prev ? { ...prev, ...v } : { ...v };
+        if (!prev) {
+          byKey.set(k, merged);
+          return;
+        }
+        if (score(v) > score(prev)) {
+          byKey.set(k, merged);
+          return;
+        }
+        if (score(v) === score(prev) && JSON.stringify(v).length >= JSON.stringify(prev).length) {
+          byKey.set(k, merged);
+        }
+      };
+      (local || []).forEach(add);
+      (remote || []).forEach(add);
+      return Array.from(byKey.values());
+    }
+
+    function dkPortalMergeLocacoesArrays(local, remote) {
+      const dig = (cpf) =>
+        typeof onlyDigits === "function" ? onlyDigits(String(cpf || "")) : String(cpf || "").replace(/\D/g, "");
+      const plateNorm = (p) =>
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(p || ""))
+          : String(p || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      const ncNorm = (v) =>
+        typeof normalizeNumeroContratoKey === "function"
+          ? String(normalizeNumeroContratoKey(v || "")).replace(/\s+/g, "")
+          : String(v ?? "")
+              .trim()
+              .toUpperCase()
+              .replace(/\s+/g, "");
+      const keyOf = (l) => {
+        const cpf = dig(l.cpf);
+        const pl = plateNorm(l.placa);
+        const nc = ncNorm(l.numeroContrato);
+        if (cpf.length === 11 && pl && nc) return `${cpf}|${pl}|${nc}`;
+        const idn = Number(l.id || l.createdAt || 0);
+        return `${cpf}|${pl}|id:${idn}`;
+      };
+      const byKey = new Map();
+      const score = (l) => Number(l.updatedAt || l.createdAt || l.id || 0);
+      const add = (l) => {
+        const k = keyOf(l);
+        const prev = byKey.get(k);
+        const merged = prev ? { ...prev, ...l } : { ...l };
+        if (!prev) {
+          byKey.set(k, merged);
+          return;
+        }
+        if (score(l) > score(prev)) {
+          byKey.set(k, merged);
+          return;
+        }
+        if (score(l) === score(prev) && JSON.stringify(l).length >= JSON.stringify(prev).length) {
+          byKey.set(k, merged);
+        }
+      };
+      (local || []).forEach(add);
+      (remote || []).forEach(add);
+      return Array.from(byKey.values());
+    }
+
+    async function dkPortalPushToApi(apiFile, list) {
+      const urls = dkPortalSyncApiUrlsFor(apiFile);
       let anyOk = false;
       for (let i = 0; i < urls.length; i += 1) {
         const url = urls[i];
         try {
           const r = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: list }),
-        });
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ data: list }),
+          });
           if (r.ok) {
             anyOk = true;
           } else if (i === urls.length - 1) {
@@ -3359,54 +3449,62 @@
       return anyOk;
     }
 
-    function dkPortalSchedulePush(list) {
-      clearTimeout(dkPortalCadastroPushTimer);
-      dkPortalCadastroPushTimer = setTimeout(() => {
+    function dkPortalSchedulePushApi(apiFile, list) {
+      clearTimeout(dkPortalCadastroPushTimers[apiFile]);
+      dkPortalCadastroPushTimers[apiFile] = setTimeout(() => {
         if (dkPortalCadastroSyncSuppressPush) return;
-        dkPortalPushClientes(list);
+        dkPortalPushToApi(apiFile, list);
       }, 1500);
     }
 
     const origSave = saveCadastro;
     window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
       origSave(key, list);
-      if (key !== CAD_CLIENTES_KEY || !Array.isArray(list)) return;
-      if (dkPortalCadastroSyncSuppressPush) return;
-      dkPortalSchedulePush(list);
+      if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush) return;
+      if (key === CAD_CLIENTES_KEY) dkPortalSchedulePushApi("cadastro-clientes", list);
+      else if (key === CAD_VEICULOS_KEY) dkPortalSchedulePushApi("cadastro-veiculos", list);
+      else if (key === CAD_LOCACOES_KEY) dkPortalSchedulePushApi("cadastro-locacoes", list);
     };
 
-    async function dkPortalPullAndMerge() {
-      const urls = dkPortalSyncApiUrls();
+    async function dkPortalPullOne(apiFile, storageKey, mergeFn) {
+      const urls = dkPortalSyncApiUrlsFor(apiFile);
       for (let i = 0; i < urls.length; i += 1) {
         const url = urls[i];
         try {
           const r = await fetch(url, { method: "GET" });
           const j = await r.json().catch(() => ({}));
           if (!r.ok || !j.ok || !Array.isArray(j.data)) continue;
-          const local = loadCadastro(CAD_CLIENTES_KEY);
-          // Primeira sincronização: se servidor está vazio e este navegador já tem dados, publica a base local.
+          const local = loadCadastro(storageKey);
           if (!j.data.length && Array.isArray(local) && local.length) {
-            dkPortalSchedulePush(local);
+            dkPortalSchedulePushApi(apiFile, local);
             return;
           }
-          const merged = dkPortalMergeClientesArrays(local, j.data);
+          const merged = mergeFn(local, j.data);
           if (JSON.stringify(merged) === JSON.stringify(local)) return;
           dkPortalCadastroSyncSuppressPush = true;
-          origSave(CAD_CLIENTES_KEY, merged);
+          origSave(storageKey, merged);
           dkPortalCadastroSyncSuppressPush = false;
-          dkPortalSchedulePush(merged);
+          dkPortalSchedulePushApi(apiFile, merged);
           return;
         } catch (e) {
           if (i === urls.length - 1) {
-            console.warn("[DK portal] sync pull", e);
+            console.warn("[DK portal] sync pull", apiFile, e);
           }
         }
       }
     }
 
-    setTimeout(dkPortalPullAndMerge, 800);
+    async function dkPortalPullAndMergeAll() {
+      await Promise.all([
+        dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
+        dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),
+        dkPortalPullOne("cadastro-locacoes", CAD_LOCACOES_KEY, dkPortalMergeLocacoesArrays),
+      ]);
+    }
+
+    setTimeout(dkPortalPullAndMergeAll, 800);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") dkPortalPullAndMerge();
+      if (document.visibilityState === "visible") dkPortalPullAndMergeAll();
     });
   })();
 
