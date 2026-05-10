@@ -1666,22 +1666,43 @@
     inpDiaPagamento.value = d.toLocaleDateString("pt-BR", { weekday: "long" });
   }
 
-  /** Dias corridos da data de início do contrato até hoje (calendário local). */
+  /**
+   * Dias do contrato: com data fim → diferença em dias corridos entre fim e início (alinhado à Receita 2026, ex. 57 para 22/04→18/06).
+   * Sem data fim → dias desde o início até hoje (contrato em curso no formulário).
+   */
   function syncOperacaoLocacaoTempoDiasContrato() {
     const inpDataInicio = document.getElementById("operacaoLocacaoDataInicio");
+    const inpDataFim = document.getElementById("operacaoLocacaoDataFim");
     const inpTempo = document.getElementById("operacaoLocacaoTempoDias");
     if (!inpDataInicio || !inpTempo) return;
-    const raw = String(inpDataInicio.value || "").trim();
-    if (!raw) {
+    const rawInicio = String(inpDataInicio.value || "").trim();
+    if (!rawInicio) {
       inpTempo.value = "";
       return;
     }
-    const d = typeof parseBrDate === "function" ? parseBrDate(raw) : null;
-    if (!d || Number.isNaN(d.getTime())) {
+    const inicio = typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
+    if (!inicio || Number.isNaN(inicio.getTime())) {
       inpTempo.value = "";
       return;
     }
-    const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const rawFim = String(inpDataFim?.value || "").trim();
+    if (rawFim) {
+      const fim = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
+      if (fim && !Number.isNaN(fim.getTime())) {
+        const t0 =
+          typeof toDateOnly === "function"
+            ? toDateOnly(inicio).getTime()
+            : new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate()).getTime();
+        const t1 =
+          typeof toDateOnly === "function"
+            ? toDateOnly(fim).getTime()
+            : new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()).getTime();
+        const dias = Math.max(1, Math.round((t1 - t0) / 86400000));
+        inpTempo.value = String(dias);
+        return;
+      }
+    }
+    const start = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const diffMs = today.getTime() - start.getTime();
@@ -2085,6 +2106,10 @@
     inpDataInicio?.addEventListener("blur", syncOperacaoLocacaoFromDataInicio);
     inpDataInicio?.addEventListener("change", syncOperacaoLocacaoFromDataInicio);
     inpDataInicio?.addEventListener("input", syncOperacaoLocacaoFromDataInicio);
+    const inpDataFim = document.getElementById("operacaoLocacaoDataFim");
+    inpDataFim?.addEventListener("blur", syncOperacaoLocacaoFromDataInicio);
+    inpDataFim?.addEventListener("change", syncOperacaoLocacaoFromDataInicio);
+    inpDataFim?.addEventListener("input", syncOperacaoLocacaoFromDataInicio);
   }
 
   function formatOperacaoLocacaoValorNumDisplay(num) {
