@@ -1745,6 +1745,44 @@
     return `${day}/${month}/${y}`;
   }
 
+  /** Durante a digitação: só dígitos (até 8) → barras automáticas DD/MM/AAAA. */
+  function formatPortalInputDateDdMmYyyy(raw) {
+    const dig = String(raw ?? "").replace(/\D/g, "").slice(0, 8);
+    if (dig.length <= 2) return dig;
+    if (dig.length <= 4) return `${dig.slice(0, 2)}/${dig.slice(2)}`;
+    return `${dig.slice(0, 2)}/${dig.slice(2, 4)}/${dig.slice(4)}`;
+  }
+
+  const PORTAL_DATE_DDMMYYYY_INPUT_IDS = [
+    "operacaoClienteDataCadastro",
+    "operacaoClienteVencimento",
+    "operacaoLocacaoDataInicio",
+    "operacaoLocacaoDataFim",
+    "operacaoLancAluguelDataPagamento",
+    "portalLancAluguelEditData",
+  ];
+
+  function bindPortalDateDdMmYyyyInputs() {
+    PORTAL_DATE_DDMMYYYY_INPUT_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.readOnly || el.disabled) return;
+      const apply = () => {
+        el.value = formatPortalInputDateDdMmYyyy(el.value);
+      };
+      el.addEventListener("input", apply);
+      el.addEventListener("blur", apply);
+    });
+  }
+
+  function normalizePortalDateInputsExistingValues() {
+    PORTAL_DATE_DDMMYYYY_INPUT_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.readOnly || el.disabled) return;
+      const v = String(el.value || "").trim();
+      if (v) el.value = formatPortalInputDateDdMmYyyy(v);
+    });
+  }
+
   function syncOperacaoLocacaoDiaPagamentoFromDataInicio() {
     const inpDataInicio = document.getElementById("operacaoLocacaoDataInicio");
     const inpDiaPagamento = document.getElementById("operacaoLocacaoDiaPagamento");
@@ -3383,6 +3421,8 @@
             : String(locCpfHydrate.value || "").replace(/\D/g, "");
         if (dh) locCpfHydrate.value = formatCpf(dh.slice(0, 11));
       }
+      normalizePortalDateInputsExistingValues();
+      bindPortalDateDdMmYyyyInputs();
       syncOperacaoLocacaoFromDataInicio();
       syncOperacaoLocacaoValorPlano();
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
