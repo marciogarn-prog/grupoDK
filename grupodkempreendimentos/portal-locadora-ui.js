@@ -1083,8 +1083,20 @@
         : bundledFallbackSeed.length > 0
           ? bundledFallbackSeed
           : [];
-    const cadastroLocal =
+    const cadastroLocalRaw =
       typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined" ? loadCadastro(CAD_CLIENTES_KEY) : [];
+    const bundledCpfSet = new Set(
+      bundledRows.map((c) =>
+        typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "")
+      ).filter((p) => p.length === 11)
+    );
+    const cadastroLocal = cadastroLocalRaw.filter((c) => {
+      const cpfDigits =
+        typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+      if (cpfDigits.length !== 11) return false;
+      if (bundledCpfSet.has(cpfDigits)) return true;
+      return String(c.nome || "").trim().length >= 3;
+    });
 
     const byCpf = new Map();
     const scoreClienteRow = (x) =>

@@ -6040,30 +6040,52 @@ function inferTipoFromSeed(seedItem) {
   return marca === "CARRO" ? "CARRO" : "MOTO";
 }
 
+/** CPFs 11 dígitos presentes na base embarcada (financeiro + seed + extra-sync). */
+function getBundledClienteCpfSet() {
+  const s = new Set();
+  const addArr = (arr) => {
+    if (!Array.isArray(arr)) return;
+    for (const c of arr) {
+      const p = onlyDigits(String(c.cpf || ""));
+      if (p.length === 11) s.add(p);
+    }
+  };
+  addArr(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  addArr(clientesSeedData);
+  addArr(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  return s;
+}
+
+/**
+ * Próximo CLIENTE N: teto da base embarcada + extras locais com nome (≥3 chars), ignorando fantasmas no
+ * localStorage sem nome (menos de 3 letras) — evita CLIENTE 700+ com fantasmas no storage.
+ */
 function nextClienteCodigo() {
-  const rows = getClientesReportData();
+  const bundledMax = getMaxClienteCodigoFromBundledSnapshots();
+  const snapshotCpfs = getBundledClienteCpfSet();
   const used = new Set();
-  let reportMax = 0;
-  for (const c of rows) {
-    const n = Number(onlyDigits(String(c.codigo || "")));
-    if (!Number.isFinite(n) || n <= 0) continue;
-    used.add(n);
-    if (n > reportMax) reportMax = n;
-  }
-  const addBundledCodesToUsed = (arr) => {
+  const addBundledCodes = (arr) => {
     if (!Array.isArray(arr)) return;
     for (const c of arr) {
       const n = Number(onlyDigits(String(c.codigo || "")));
       if (Number.isFinite(n) && n > 0) used.add(n);
     }
   };
-  addBundledCodesToUsed(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
-  addBundledCodesToUsed(clientesSeedData);
-  addBundledCodesToUsed(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  addBundledCodes(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  addBundledCodes(clientesSeedData);
+  addBundledCodes(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
 
-  const bundledMax = getMaxClienteCodigoFromBundledSnapshots();
-  const floor = Math.max(reportMax, bundledMax);
-  let next = floor + 1;
+  let extrasComNome = 0;
+  loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+    const cpf = onlyDigits(String(c.cpf || ""));
+    if (cpf.length !== 11 || snapshotCpfs.has(cpf)) return;
+    if (String(c.nome || "").trim().length < 3) return;
+    extrasComNome += 1;
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (Number.isFinite(n) && n > 0) used.add(n);
+  });
+
+  let next = bundledMax + extrasComNome + 1;
   while (used.has(next)) next += 1;
   return `CLIENTE ${next}`;
 }
