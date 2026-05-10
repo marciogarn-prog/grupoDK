@@ -1581,6 +1581,43 @@ function onlyDigits(value) {
   return value.replace(/\D/g, "");
 }
 
+/** Maior número em `codigo` nos bundles (financeiro, seed, extra-sync, planilha-50). */
+function getMaxClienteCodigoFromBundledSnapshots() {
+  let max = 0;
+  const bump = (c) => {
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (Number.isFinite(n) && n > max) max = n;
+  };
+  const walk = (arr) => {
+    if (Array.isArray(arr)) arr.forEach(bump);
+  };
+  walk(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  walk(clientesSeedData);
+  walk(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  walk(typeof CLIENTES_PLANILHA_50 !== "undefined" ? CLIENTES_PLANILHA_50 : []);
+  return max;
+}
+
+function getAllUsedClienteCodigoNumbers() {
+  const used = new Set();
+  const addFromArr = (arr) => {
+    if (!Array.isArray(arr)) return;
+    for (const c of arr) {
+      const n = Number(onlyDigits(String(c.codigo || "")));
+      if (Number.isFinite(n) && n > 0) used.add(n);
+    }
+  };
+  addFromArr(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  addFromArr(clientesSeedData);
+  addFromArr(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
+  addFromArr(typeof CLIENTES_PLANILHA_50 !== "undefined" ? CLIENTES_PLANILHA_50 : []);
+  loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (Number.isFinite(n) && n > 0) used.add(n);
+  });
+  return used;
+}
+
 hydrateFuncionariosAccess();
 const adminSecundario = funcionariosAccess.find((f) => f.cpf === "06523244440");
 if (adminSecundario) {
@@ -6005,33 +6042,10 @@ function inferTipoFromSeed(seedItem) {
 }
 
 function nextClienteCodigo() {
-  const clientes = loadCadastro(CAD_CLIENTES_KEY);
-
-  const seedCpfs = new Set(
-    clientesSeedData
-      .map((c) => onlyDigits(String(c.cpf || "")))
-      .filter((cpf) => cpf.length === 11)
-  );
-  const baseCount = seedCpfs.size;
-
-  const novosCpfs = new Set();
-  clientes.forEach((c) => {
-    const cpf = onlyDigits(String(c.cpf || ""));
-    if (cpf.length !== 11) return;
-    if (!seedCpfs.has(cpf)) {
-      novosCpfs.add(cpf);
-    }
-  });
-
-  const usedCodes = new Set(
-    clientes
-      .map((c) => Number(onlyDigits(String(c.codigo || ""))))
-      .filter((n) => Number.isFinite(n) && n > 0)
-  );
-  let next = baseCount + novosCpfs.size + 1;
-  while (usedCodes.has(next)) {
-    next += 1;
-  }
+  const officialMax = getMaxClienteCodigoFromBundledSnapshots();
+  const used = getAllUsedClienteCodigoNumbers();
+  let next = officialMax + 1;
+  while (used.has(next)) next += 1;
   return `CLIENTE ${next}`;
 }
 
@@ -7794,19 +7808,13 @@ function applyClienteCpfFixes() {
 function normalizeClienteCodigos() {
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   if (!clientes.length) return;
-  const seedCpfs = new Set(
-    clientesSeedData
-      .map((c) => onlyDigits(String(c.cpf || "")))
-      .filter((cpf) => cpf.length === 11)
-  );
-  const baseCount = seedCpfs.size;
 
   const newClients = [];
   const byCode = new Map();
   const result = clientes.map((c) => ({ ...c }));
   result.forEach((c, idx) => {
     const cpf = onlyDigits(String(c.cpf || ""));
-    if (cpf.length !== 11 || seedCpfs.has(cpf)) return;
+    if (cpf.length !== 11) return;
     newClients.push({ idx, cpf });
     const codeNum = Number(onlyDigits(String(c.codigo || "")));
     if (Number.isFinite(codeNum) && codeNum > 0 && !byCode.has(codeNum)) {
@@ -7827,9 +7835,17 @@ function normalizeClienteCodigos() {
     }
   });
 
-  let seq = baseCount + 1;
+  const maxUsed = used.size ? Math.max(...Array.from(used)) : 0;
+  const anchorBundled = getMaxClienteCodigoFromBundledSnapshots();
+  let seq = Math.max(anchorBundled, maxUsed) + 1;
   newClients.forEach(({ idx }) => {
     const current = Number(onlyDigits(String(result[idx].codigo || "")));
+    if (Number.isFinite(current) && current > anchorBundled) {
+      const dupIdx = byCode.get(current);
+      if (dupIdx && dupIdx.length === 1 && dupIdx[0] === idx) {
+        return;
+      }
+    }
     if (Number.isFinite(current) && current > 0 && !used.has(current)) {
       used.add(current);
       return;

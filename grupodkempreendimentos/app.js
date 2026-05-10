@@ -1597,14 +1597,24 @@ function getMaxClienteCodigoFromBundledSnapshots() {
   return max;
 }
 
-/** Maior código entre bundles e cadastro local (`dk_clientes_cadastro`). */
-function getMaxClienteCodigoNumericoGlobal() {
-  let max = getMaxClienteCodigoFromBundledSnapshots();
+/** Conjunto de todos os números de código já usados (base embarcada + cadastro local). */
+function getAllUsedClienteCodigoNumbers() {
+  const used = new Set();
+  const addFromArr = (arr) => {
+    if (!Array.isArray(arr)) return;
+    for (const c of arr) {
+      const n = Number(onlyDigits(String(c.codigo || "")));
+      if (Number.isFinite(n) && n > 0) used.add(n);
+    }
+  };
+  addFromArr(typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" ? CLIENTES_DK_FINANCEIRO_2026 : []);
+  addFromArr(clientesSeedData);
+  addFromArr(typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" ? CLIENTES_EXTRA_SYNC_DATA : []);
   loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
     const n = Number(onlyDigits(String(c.codigo || "")));
-    if (Number.isFinite(n) && n > max) max = n;
+    if (Number.isFinite(n) && n > 0) used.add(n);
   });
-  return max;
+  return used;
 }
 
 hydrateFuncionariosAccess();
@@ -6051,13 +6061,10 @@ function inferTipoFromSeed(seedItem) {
 }
 
 function nextClienteCodigo() {
-  const clientes = loadCadastro(CAD_CLIENTES_KEY);
-  const usedCodes = clientes
-    .map((c) => Number(onlyDigits(String(c.codigo || ""))))
-    .filter((n) => Number.isFinite(n) && n > 0);
-  const usedSet = new Set(usedCodes);
-  let next = getMaxClienteCodigoNumericoGlobal() + 1;
-  while (usedSet.has(next)) next += 1;
+  const officialMax = getMaxClienteCodigoFromBundledSnapshots();
+  const used = getAllUsedClienteCodigoNumbers();
+  let next = officialMax + 1;
+  while (used.has(next)) next += 1;
   return `CLIENTE ${next}`;
 }
 
