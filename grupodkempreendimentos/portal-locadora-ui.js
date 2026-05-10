@@ -2170,7 +2170,7 @@
     syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
   }
 
-  /** Investimento acumulado = total pago − valor devido do aluguel. Se negativo, o texto de «valor devido do aluguel» fica vermelho. */
+  /** Investimento acumulado = total pago − valor devido do aluguel. Cor no próprio campo: vermelho se negativo, azul se positivo, padrão se zero. */
   function syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido() {
     const inpTp = document.getElementById("operacaoLocacaoTotalPago");
     const inpDevido = document.getElementById("operacaoLocacaoValorDevidoAluguel");
@@ -2180,9 +2180,10 @@
     const devidoAlug = Number(parsePortalLancamentoValorRaw(inpDevido?.value ?? ""));
     const acum = totalPago - devidoAlug;
     inpAcum.value = formatPortalLancamentoSumBrl(acum);
-    if (inpDevido) {
-      inpDevido.classList.toggle("portal-valor-devido-aluguel--negativo", acum < 0);
-    }
+    if (inpDevido) inpDevido.classList.remove("portal-valor-devido-aluguel--negativo");
+    inpAcum.classList.remove("portal-investimento-acumulado--negativo", "portal-investimento-acumulado--positivo");
+    if (acum < 0) inpAcum.classList.add("portal-investimento-acumulado--negativo");
+    else if (acum > 0) inpAcum.classList.add("portal-investimento-acumulado--positivo");
   }
 
   function refreshOperacaoLancamentoAluguelCpfDatalist() {

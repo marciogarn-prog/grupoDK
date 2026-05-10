@@ -1148,8 +1148,13 @@ body {
   margin-top: 0.75rem;
 }
 
-/* Quando total pago < valor devido do aluguel, o próprio valor devido passa a vermelho (regra investimento acumulado negativo). */
-#operacaoLocacaoValorDevidoAluguel.portal-valor-devido-aluguel--negativo {
+/* Investimento acumulado: saldo negativo (vermelho) ou positivo (azul); zero usa cor padrão do formulário. */
+#operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--negativo {
   color: #f87171;
+  font-weight: 600;
+}
+
+#operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--positivo {
+  color: #7dd3fc;
   font-weight: 600;
 }
