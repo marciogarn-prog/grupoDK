@@ -40,7 +40,7 @@
     }
   }
 
-  /** Administrador titular — único perfil que pode anular/corrigir pagamentos já registados. */
+  /** Administrador titular (`owner`) — pode editar ou apagar lançamentos já registados; colaboradores (`operacao`) só lançam novos. */
   function isPortalTitularAdministrador() {
     return getPortalSessaoAdminRole() === "owner";
   }
@@ -2248,96 +2248,24 @@
     fillOperacaoLocacaoTotaisLancamentoPortal(loc);
   }
 
-  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr) {
-    if (!getPortalSessaoAdminRole()) return false;
-    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
-      return false;
-    }
-    const locs = loadCadastro(CAD_LOCACOES_KEY);
-    const nc = normPortalNumeroContrato(numeroContratoNorm);
-    const dig =
-      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const idx = locs.findIndex(
-      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
-    );
-    if (idx === -1) return false;
-    const loc = locs[idx];
-    const dataStr = String(dataPagamentoBr || "").trim();
-    const arr = getPortalLancamentosAluguelDoContrato(loc).slice();
-    arr.push({ data: dataStr, valor: valorNum, createdAt: Date.now() });
-    loc.portalLancamentosAluguel = arr;
-    loc.ultimoLancamentoAluguelData = dataStr;
-    loc.ultimoLancamentoAluguelValor = Number(valorNum || 0).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelNoAno(arr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO));
-    try {
-      saveCadastro(CAD_LOCACOES_KEY, locs);
-    } catch (err) {
-      console.error(err);
-      return false;
-    }
-    refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, nc);
-    refreshOperacaoLancAluguelAdminControlsVisibility();
-    return true;
+  function materializarPortalLancamentosAluguelMutaveisNoLoc(loc) {
+    if (!loc || typeof loc !== "object") return null;
+    const virt = getPortalLancamentosAluguelDoContrato(loc);
+    loc.portalLancamentosAluguel = virt.map((v) => ({
+      data: String(v.data || "").trim(),
+      valor: Number(v.valor),
+      createdAt: typeof v.createdAt === "number" && Number.isFinite(v.createdAt) ? v.createdAt : Date.now(),
+    }));
+    return loc.portalLancamentosAluguel;
   }
 
-  function refreshOperacaoLancAluguelAdminControlsVisibility() {
-    const aviso = document.getElementById("operacaoLancAluguelTravaAviso");
-    const btnRm = document.getElementById("operacaoLancAluguelRemoverUltimoPagamentoBtn");
-    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
-    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
-    const owner = isPortalTitularAdministrador();
-    if (aviso) {
-      aviso.classList.toggle("hidden", owner);
-    }
-    let n = 0;
-    if (inpCpf && sel && !sel.disabled && owner) {
-      const dig =
-        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-      const digits = dig(String(inpCpf.value || ""));
-      const proto = normPortalNumeroContrato(sel.value || "");
-      if (digits.length === 11 && proto) {
-        const loc = collectPortalLocacoesComProtocoloByCpf(digits).find(
-          (l) => normPortalNumeroContrato(l.numeroContrato) === proto
-        );
-        if (loc) n = getPortalLancamentosAluguelDoContrato(loc).length;
-      }
-    }
-    if (btnRm) {
-      const show = owner && n > 0;
-      btnRm.classList.toggle("hidden", !show);
-      btnRm.disabled = !show;
-    }
-  }
-
-  function removerUltimoPortalLancamentoAluguelDoContrato(cpfDigits, ncNorm) {
-    if (!isPortalTitularAdministrador()) return false;
-    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
-      return false;
-    }
-    const locs = loadCadastro(CAD_LOCACOES_KEY);
-    const dig =
-      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const idx = locs.findIndex(
-      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === ncNorm
-    );
-    if (idx === -1) return false;
-    const loc = locs[idx];
-    let arr = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel.slice() : [];
-    if (arr.length === 0) {
-      const virt = getPortalLancamentosAluguelDoContrato(loc);
-      if (virt.length === 0) return false;
-      arr = virt.map((v) => ({
-        data: v.data,
-        valor: v.valor,
-        createdAt: v.createdAt || Date.now(),
-      }));
-    }
-    arr.pop();
-    loc.portalLancamentosAluguel = arr;
-    const normArr = arr.map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
+  function finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, ncNorm) {
+    const normArr = (loc.portalLancamentosAluguel || []).map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
+    loc.portalLancamentosAluguel = normArr.map((x) => ({
+      data: x.data,
+      valor: x.valor,
+      createdAt: typeof x.createdAt === "number" && Number.isFinite(x.createdAt) ? x.createdAt : Date.now(),
+    }));
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
       sumPortalLancamentosAluguelNoAno(normArr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
     );
@@ -2358,6 +2286,156 @@
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLancAluguelAdminControlsVisibility();
     return true;
+  }
+
+  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr) {
+    if (!getPortalSessaoAdminRole()) return false;
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const nc = normPortalNumeroContrato(numeroContratoNorm);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (idx === -1) return false;
+    const loc = locs[idx];
+    const dataStr = String(dataPagamentoBr || "").trim();
+    materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+    loc.portalLancamentosAluguel.push({ data: dataStr, valor: valorNum, createdAt: Date.now() });
+    return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+  }
+
+  function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
+    if (!isPortalTitularAdministrador()) return false;
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const nc = normPortalNumeroContrato(ncNorm);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (idx === -1) return false;
+    const loc = locs[idx];
+    const arr = materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+    if (!arr || indice < 0 || indice >= arr.length) return false;
+    arr.splice(indice, 1);
+    return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+  }
+
+  function atualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr) {
+    if (!isPortalTitularAdministrador()) return false;
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const nc = normPortalNumeroContrato(ncNorm);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (idx === -1) return false;
+    const loc = locs[idx];
+    const arr = materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+    if (!arr || indice < 0 || indice >= arr.length) return false;
+    const merged = normalizePortalLancamentoAluguelEntry({
+      data: String(dataPagamentoBr || "").trim(),
+      valor: valorNum,
+    });
+    if (!merged) return false;
+    const prev = arr[indice];
+    arr[indice] = {
+      data: merged.data,
+      valor: merged.valor,
+      createdAt: typeof prev?.createdAt === "number" && Number.isFinite(prev.createdAt) ? prev.createdAt : Date.now(),
+    };
+    return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+  }
+
+  function renderOperacaoLancAluguelHistorico() {
+    const wrap = document.getElementById("operacaoLancAluguelHistorico");
+    if (!wrap) return;
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const digits = dig(String(inpCpf?.value || ""));
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    const owner = isPortalTitularAdministrador();
+    if (digits.length !== 11 || !proto || !sel || sel.disabled) {
+      wrap.classList.add("hidden");
+      wrap.replaceChildren();
+      return;
+    }
+    wrap.classList.remove("hidden");
+    const loc = collectPortalLocacoesComProtocoloByCpf(digits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    );
+    const arr = loc ? getPortalLancamentosAluguelDoContrato(loc) : [];
+    if (!arr.length) {
+      wrap.innerHTML =
+        '<p class="subtext">Nenhum pagamento registado neste protocolo.</p>';
+      return;
+    }
+    const thead = owner
+      ? "<thead><tr><th>Data</th><th>Valor (R$)</th><th>Ações</th></tr></thead>"
+      : "<thead><tr><th>Data</th><th>Valor (R$)</th></tr></thead>";
+    const rows = arr
+      .map((x, i) => {
+        const v = formatPortalLancamentoSumBrl(x.valor);
+        const d = portalEscapeHtml(String(x.data || ""));
+        const vv = portalEscapeHtml(v);
+        if (owner) {
+          return `<tr><td>${d}</td><td>${vv}</td><td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-edit="${i}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-del="${i}">Apagar</button></td></tr>`;
+        }
+        return `<tr><td>${d}</td><td>${vv}</td></tr>`;
+      })
+      .join("");
+    wrap.innerHTML = `<p class="subtext operacao-inline-form__lead" style="margin-bottom:0.5rem"><strong>Pagamentos registados</strong></p><table class="portal-lanc-hist" aria-label="Histórico de pagamentos do protocolo">${thead}<tbody>${rows}</tbody></table>`;
+  }
+
+  function refreshOperacaoLancAluguelAdminControlsVisibility() {
+    const aviso = document.getElementById("operacaoLancAluguelTravaAviso");
+    const owner = isPortalTitularAdministrador();
+    if (aviso) {
+      aviso.classList.toggle("hidden", owner);
+    }
+    renderOperacaoLancAluguelHistorico();
+  }
+
+  let portalLancAluguelEditIndice = -1;
+
+  function openPortalLancAluguelEditModal(indice, valorNum, dataStr) {
+    portalLancAluguelEditIndice = indice;
+    const modal = document.getElementById("portalLancAluguelEditModal");
+    const inpV = document.getElementById("portalLancAluguelEditValor");
+    const inpD = document.getElementById("portalLancAluguelEditData");
+    if (inpV) {
+      inpV.value = Number(valorNum || 0).toLocaleString("pt-BR", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+    if (inpD) inpD.value = String(dataStr || "").trim();
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
+    }
+  }
+
+  function closePortalLancAluguelEditModal() {
+    portalLancAluguelEditIndice = -1;
+    const modal = document.getElementById("portalLancAluguelEditModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
   }
 
   function refreshOperacaoLancamentoAluguelProtocoloSelect(opts = {}) {
@@ -2766,6 +2844,121 @@
     el.addEventListener("click", () => closePortalLancAluguelConfirmModal());
   });
 
+  document.getElementById("portalLancAluguelEditCancelarBtn")?.addEventListener("click", () => closePortalLancAluguelEditModal());
+  document.querySelectorAll("[data-close-lanc-aluguel-edit]").forEach((el) => {
+    el.addEventListener("click", () => closePortalLancAluguelEditModal());
+  });
+
+  document.getElementById("portalLancAluguelEditSalvarBtn")?.addEventListener("click", () => {
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!isPortalTitularAdministrador()) {
+      window.alert("Apenas o administrador pode alterar pagamentos já registados.");
+      closePortalLancAluguelEditModal();
+      return;
+    }
+    const indice = portalLancAluguelEditIndice;
+    if (indice < 0) {
+      closePortalLancAluguelEditModal();
+      return;
+    }
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const inpV = document.getElementById("portalLancAluguelEditValor");
+    const inpD = document.getElementById("portalLancAluguelEditData");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const digits = dig(String(inpCpf?.value || ""));
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const valorNum = Number(parseVal(String(inpV?.value || "")));
+    const dataStr = String(inpD?.value || "").trim();
+    if (digits.length !== 11 || !proto) {
+      if (msg) msg.textContent = "Informe CPF e protocolo.";
+      return;
+    }
+    if (!Number.isFinite(valorNum) || valorNum <= 0) {
+      if (msg) msg.textContent = "Informe um valor pago válido.";
+      return;
+    }
+    const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
+    if (!dataStr || !dtp || Number.isNaN(dtp.getTime())) {
+      if (msg) msg.textContent = "Informe a data do pagamento (DD/MM/AAAA).";
+      return;
+    }
+    if (msg) msg.textContent = "";
+    if (atualizarPortalLancamentoAluguelPorIndice(digits, proto, indice, valorNum, dataStr)) {
+      closePortalLancAluguelEditModal();
+      const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+      );
+      if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
+      if (msg) msg.textContent = "Pagamento atualizado. Totais recalculados.";
+    } else if (msg) {
+      msg.textContent = "Não foi possível guardar a alteração.";
+    }
+  });
+
+  document.getElementById("operacaoInlineLancamentoAluguel")?.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    const editEl = t.closest("[data-portal-lanc-edit]");
+    const delEl = t.closest("[data-portal-lanc-del]");
+    if (!editEl && !delEl) return;
+    e.preventDefault();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!isPortalTitularAdministrador()) {
+      window.alert("Apenas o administrador pode alterar ou apagar pagamentos já registados.");
+      return;
+    }
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const digits = dig(String(inpCpf?.value || ""));
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    if (digits.length !== 11 || !proto) {
+      if (msg) msg.textContent = "Informe CPF e protocolo.";
+      return;
+    }
+    const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    );
+    const arr = locAtual ? getPortalLancamentosAluguelDoContrato(locAtual) : [];
+    const rawIdx = editEl ? editEl.getAttribute("data-portal-lanc-edit") : delEl?.getAttribute("data-portal-lanc-del");
+    const indice = rawIdx != null ? Number(rawIdx) : NaN;
+    if (!Number.isInteger(indice) || indice < 0 || indice >= arr.length) return;
+    if (editEl) {
+      const row = arr[indice];
+      openPortalLancAluguelEditModal(indice, row.valor, row.data);
+      return;
+    }
+    const row = arr[indice];
+    if (
+      !window.confirm(
+        `Apagar o pagamento de ${formatPortalLancamentoSumBrl(row.valor)} em ${row.data}? Só o administrador pode fazer esta operação.`
+      )
+    ) {
+      return;
+    }
+    if (apagarPortalLancamentoAluguelPorIndice(digits, proto, indice)) {
+      const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+      );
+      if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
+      if (msg) msg.textContent = "Pagamento removido. Totais atualizados.";
+    } else if (msg) msg.textContent = "Não foi possível apagar o pagamento.";
+  });
+
   document.getElementById("operacaoLancAluguelConfirmarPagamentoBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
@@ -2831,49 +3024,6 @@
           : "Não foi possível guardar o pagamento.";
       }
     });
-  });
-
-  document.getElementById("operacaoLancAluguelRemoverUltimoPagamentoBtn")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
-    if (!isPortalTitularAdministrador()) {
-      window.alert("Apenas o administrador titular pode anular ou corrigir pagamentos já registados.");
-      return;
-    }
-    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
-    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
-    const dig =
-      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const digits = dig(String(inpCpf?.value || ""));
-    const proto = normPortalNumeroContrato(sel?.value || "");
-    if (digits.length !== 11 || !proto) {
-      if (msg) msg.textContent = "Informe CPF e protocolo.";
-      return;
-    }
-    const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
-      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
-    );
-    const arr = locAtual ? getPortalLancamentosAluguelDoContrato(locAtual) : [];
-    if (!arr.length) {
-      if (msg) msg.textContent = "Não há pagamentos registados para remover.";
-      refreshOperacaoLancAluguelAdminControlsVisibility();
-      return;
-    }
-    const last = arr[arr.length - 1];
-    if (
-      !window.confirm(
-        `Remover o último pagamento registado neste protocolo (${last.data} · ${formatPortalLancamentoSumBrl(last.valor)})? Só o administrador titular pode fazer esta operação.`
-      )
-    ) {
-      return;
-    }
-    if (removerUltimoPortalLancamentoAluguelDoContrato(digits, proto)) {
-      const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
-        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
-      );
-      if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
-      if (msg) msg.textContent = "Último pagamento removido. Totais atualizados.";
-    } else if (msg) msg.textContent = "Não foi possível remover o pagamento.";
   });
 
   ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn"].forEach((id) => {

@@ -1109,3 +1109,41 @@ body {
   border: 0;
   background: #fff;
 }
+
+.operacao-lanc-historico {
+  margin-top: 1rem;
+}
+
+.portal-lanc-hist {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+}
+
+.portal-lanc-hist th,
+.portal-lanc-hist td {
+  border: 1px solid var(--border);
+  padding: 0.4rem 0.55rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.portal-lanc-hist th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.portal-lanc-hist__actions {
+  white-space: normal;
+}
+
+.portal-lanc-hist__actions .btn-primary {
+  margin: 0.2rem 0.35rem 0.2rem 0;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.portal-lanc-edit-fields {
+  margin-top: 0.75rem;
+}

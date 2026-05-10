@@ -602,15 +602,13 @@
             </label>
             <div class="operacao-inline-form__actions">
               <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
-              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoLancAluguelRemoverUltimoPagamentoBtn" disabled>
-                Remover último pagamento (administrador)
-              </button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
             </div>
           </form>
+          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo"></div>
           <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
-            Pagamentos já registados neste protocolo só podem ser anulados pelo <strong>administrador titular</strong> (botão acima, quando visível). Colaboradores podem continuar a lançar <strong>novos</strong> pagamentos.
+            Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
           </p>
           <p id="operacaoLancAluguelInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
@@ -651,6 +649,28 @@
     </div>
   </div>
 
+  <div id="portalLancAluguelEditModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelEditTitulo">
+    <div class="portal-modal__backdrop" data-close-lanc-aluguel-edit></div>
+    <div class="portal-modal__card">
+      <h3 id="portalLancAluguelEditTitulo" class="portal-modal__title">Editar pagamento</h3>
+      <p class="portal-modal__text subtext">Altere o valor ou a data do pagamento selecionado.</p>
+      <div class="operacao-inline-form__grid portal-lanc-edit-fields">
+        <label class="portal-field">
+          <span>Valor pago</span>
+          <input type="text" id="portalLancAluguelEditValor" inputmode="decimal" maxlength="32" autocomplete="off" aria-label="Valor pago">
+        </label>
+        <label class="portal-field">
+          <span>Data do pagamento</span>
+          <input type="text" id="portalLancAluguelEditData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data do pagamento">
+        </label>
+      </div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalLancAluguelEditSalvarBtn">Guardar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalLancAluguelEditCancelarBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-relatorio></div>
     <div class="portal-modal__card">
@@ -670,7 +690,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260510k" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510k" defer></script>
+  <script src="app.js?v=20260510m" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510m" defer></script>
 </body>
 </html>
