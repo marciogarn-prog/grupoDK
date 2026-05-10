@@ -262,6 +262,38 @@
     if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
   });
 
+  function findFuncionarioOperacaoPortalPorCpf(digits11) {
+    const dig = String(digits11 || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
+    if (dig.length !== 11 || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) return null;
+    return (
+      funcionariosAccess.find(
+        (f) =>
+          onlyDigits(String(f.cpf || "")) === dig && String(f.role || "").trim() === "operacao"
+      ) || null
+    );
+  }
+
+  function refreshPortalColaboradorBloqueioUi() {
+    const wrap = document.getElementById("portalColabBloqueioWrap");
+    const btn = document.getElementById("portalColabBloqueioBtn");
+    if (!wrap || !btn) return;
+    if (!isPortalTitularAdministrador()) {
+      wrap.classList.add("hidden");
+      return;
+    }
+    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+    if (!f) {
+      wrap.classList.add("hidden");
+      btn.textContent = "Bloquear colaborador";
+      return;
+    }
+    wrap.classList.remove("hidden");
+    btn.textContent = f.blocked ? "Desbloquear colaborador" : "Bloquear colaborador";
+  }
+
   formPortalCadastroColaborador?.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
@@ -332,10 +364,35 @@
     });
     saveFuncionariosAccess();
     formPortalCadastroColaborador.reset();
+    refreshPortalColaboradorBloqueioUi();
     if (fb) {
       fb.textContent =
         "Colaborador cadastrado. Senha inicial 123456 — no primeiro login será pedida a nova senha (6 números).";
     }
+  });
+
+  document.getElementById("portalColabBloqueioBtn")?.addEventListener("click", () => {
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (!isPortalTitularAdministrador()) return;
+    if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
+    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+    if (!f) {
+      if (fb) fb.textContent = "CPF não corresponde a um colaborador cadastrado.";
+      return;
+    }
+    f.blocked = !f.blocked;
+    saveFuncionariosAccess();
+    refreshPortalColaboradorBloqueioUi();
+    if (fb) {
+      fb.textContent = f.blocked
+        ? "Colaborador bloqueado — não pode entrar no sistema."
+        : "Colaborador desbloqueado — pode voltar a aceder.";
+    }
+  });
+
+  document.getElementById("portalColabCpf")?.addEventListener("input", () => {
+    refreshPortalColaboradorBloqueioUi();
   });
 
   document.getElementById("portalColabCpf")?.addEventListener("blur", () => {
@@ -343,6 +400,7 @@
     if (!inp || typeof formatCpf !== "function") return;
     const dig = onlyDigits(String(inp.value || "")).slice(0, 11);
     if (dig.length === 11) inp.value = formatCpf(dig);
+    refreshPortalColaboradorBloqueioUi();
   });
 
   btnVoltarOp?.addEventListener("click", () => {
@@ -3948,6 +4006,7 @@
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-colaborador");
+    refreshPortalColaboradorBloqueioUi();
   });
 
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>

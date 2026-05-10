@@ -16,7 +16,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260522f">
+  <link rel="stylesheet" href="styles.css?v=20260522g">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -784,8 +784,13 @@
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locação</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
             </div>
-            <div class="operacao-inline-form__actions">
+            <div class="operacao-inline-form__actions portal-colab-actions-row">
               <button type="submit" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
+              <div id="portalColabBloqueioWrap" class="portal-colab-bloqueio-wrap hidden" aria-live="polite">
+                <button type="button" id="portalColabBloqueioBtn" class="btn-primary btn-secondary-outline portal-colab-bloqueio-btn">
+                  Bloquear colaborador
+                </button>
+              </div>
             </div>
           </form>
           <p id="portalCadastroColaboradorFeedback" class="portal-feedback" role="status"></p>
@@ -865,7 +870,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260522f" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522f" defer></script>
+  <script src="app.js?v=20260522g" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522h" defer></script>
 </body>
 </html>
