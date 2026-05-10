@@ -25,7 +25,6 @@
   const btnSair = document.getElementById("btn-sair");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
-  const portalCadastroColaboradorWrap = document.getElementById("portalCadastroColaboradorWrap");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
   let currentUnit = "";
@@ -259,9 +258,8 @@
   btnOperacao?.addEventListener("click", () => {
     hideAllPanels();
     panelOperacao?.classList.remove("hidden");
-    if (portalCadastroColaboradorWrap) {
-      portalCadastroColaboradorWrap.classList.toggle("hidden", !isPortalTitularAdministrador());
-    }
+    const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
+    if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
   });
 
   formPortalCadastroColaborador?.addEventListener("submit", (ev) => {
@@ -291,25 +289,33 @@
       if (fb) fb.textContent = "Já existe cadastro com este CPF.";
       return;
     }
+    const aceCliente = Boolean(document.getElementById("portalColabAceCliente")?.checked);
+    const aceVeiculo = Boolean(document.getElementById("portalColabAceVeiculo")?.checked);
+    const aceLocacao = Boolean(document.getElementById("portalColabAceLocacao")?.checked);
+    const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
+    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc) {
+      if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
+      return;
+    }
     const acessos =
       typeof normalizeOperacaoAccess === "function"
         ? normalizeOperacaoAccess(
             {
-              cliente: true,
-              veiculo: true,
-              locacao: true,
+              cliente: aceCliente,
+              veiculo: aceVeiculo,
+              locacao: aceLocacao,
               manutencao: false,
-              lancamentoAluguel: true,
+              lancamentoAluguel: aceLanc,
               lancamentoDespesa: false,
             },
             "operacao"
           )
         : {
-            cliente: true,
-            veiculo: true,
-            locacao: true,
+            cliente: aceCliente,
+            veiculo: aceVeiculo,
+            locacao: aceLocacao,
             manutencao: false,
-            lancamentoAluguel: true,
+            lancamentoAluguel: aceLanc,
             lancamentoDespesa: false,
             funcionario: false,
           };
@@ -2264,6 +2270,7 @@
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
+    document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
   }
 
   function setOperacaoFormPlaceholderVisible(visible) {
@@ -2279,6 +2286,7 @@
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
+      "btn-operacao-cadastro-colaborador",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -3932,6 +3940,14 @@
     refreshPortalRelPlacaDatalist();
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
+  });
+
+  document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
+    if (!isPortalTitularAdministrador()) return;
+    hideOperacaoInlineFormsCore();
+    document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-cadastro-colaborador");
   });
 
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>

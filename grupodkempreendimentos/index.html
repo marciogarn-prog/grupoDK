@@ -16,7 +16,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260522e">
+  <link rel="stylesheet" href="styles.css?v=20260522f">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -145,30 +145,10 @@
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
                 <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de locação; dados carregados do protocolo</span>
               </button>
-            </div>
-            <div id="portalCadastroColaboradorWrap" class="portal-cad-colaborador hidden" role="region" aria-labelledby="portalCadastroColaboradorTitulo">
-              <h3 id="portalCadastroColaboradorTitulo" class="operacao-inline-form__title">Cadastro de colaborador</h3>
-              <p class="subtext">Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).</p>
-              <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
-                <label class="portal-field">
-                  <span>CPF</span>
-                  <input type="text" id="portalColabCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do colaborador">
-                </label>
-                <label class="portal-field">
-                  <span>Nome completo</span>
-                  <input type="text" id="portalColabNome" maxlength="120" required autocomplete="name" aria-label="Nome do colaborador">
-                </label>
-                <label class="portal-field">
-                  <span>Função</span>
-                  <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="Função">
-                </label>
-                <label class="portal-field">
-                  <span>Data de ingresso</span>
-                  <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
-                </label>
-                <button type="submit" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
-              </form>
-              <p id="portalCadastroColaboradorFeedback" class="portal-feedback" role="status"></p>
+              <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
+                <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
+                <span class="btn-operacao-cmd__hint">CPF, função, permissões — formulário à direita (só administrador)</span>
+              </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main" id="operacaoPainelDireito">
@@ -774,6 +754,43 @@
           </p>
         </div>
 
+        <div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
+          <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
+          <p class="subtext operacao-inline-form__lead">
+            Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
+            Marque quais operações este utilizador poderá aceder.
+          </p>
+          <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>CPF</span>
+              <input type="text" id="portalColabCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do colaborador">
+            </label>
+            <label class="portal-field">
+              <span>Nome completo</span>
+              <input type="text" id="portalColabNome" maxlength="120" required autocomplete="name" aria-label="Nome do colaborador">
+            </label>
+            <label class="portal-field">
+              <span>Função</span>
+              <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="Função">
+            </label>
+            <label class="portal-field">
+              <span>Data de ingresso</span>
+              <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
+            </label>
+            <div class="portal-field portal-field--stack portal-colab-acessos" role="group" aria-labelledby="portal-colab-acessos-legend">
+              <span id="portal-colab-acessos-legend" class="portal-field__label">Operações permitidas</span>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceCliente" checked> Cadastro de cliente</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceVeiculo" checked> Cadastro de veículo</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locação</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
+            </div>
+            <div class="operacao-inline-form__actions">
+              <button type="submit" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
+            </div>
+          </form>
+          <p id="portalCadastroColaboradorFeedback" class="portal-feedback" role="status"></p>
+        </div>
+
           </div>
         </div>
 
@@ -848,7 +865,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260522e" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522e" defer></script>
+  <script src="app.js?v=20260522f" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522f" defer></script>
 </body>
 </html>
