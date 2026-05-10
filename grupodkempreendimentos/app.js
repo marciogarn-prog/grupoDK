@@ -6061,9 +6061,11 @@ function inferTipoFromSeed(seedItem) {
 }
 
 function nextClienteCodigo() {
-  const officialMax = getMaxClienteCodigoFromBundledSnapshots();
+  const reportMax = getMaxClienteCodigoFromReportData();
+  const bundledMax = getMaxClienteCodigoFromBundledSnapshots();
+  const floor = Math.max(reportMax, bundledMax);
   const used = getAllUsedClienteCodigoNumbers();
-  let next = officialMax + 1;
+  let next = floor + 1;
   while (used.has(next)) next += 1;
   return `CLIENTE ${next}`;
 }
@@ -6154,6 +6156,17 @@ function getClientesReportData() {
     }
     return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
   });
+}
+
+/** Maior número de código já presente na mesma lista usada no relatório de clientes (base + local após seed). */
+function getMaxClienteCodigoFromReportData() {
+  const rows = getClientesReportData();
+  let max = 0;
+  for (const c of rows) {
+    const n = Number(onlyDigits(String(c.codigo || "")));
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max;
 }
 
 function escapeCsvCell(value) {
