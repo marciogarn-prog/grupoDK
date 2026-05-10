@@ -1244,17 +1244,89 @@
     </body></html>`;
   }
 
+  /** Nome de ficheiro sem extensão: remove caracteres inválidos no Windows e limita o tamanho. */
+  function sanitizePortalPdfFilenameBase(raw) {
+    let s = String(raw || "").trim();
+    if (!s) return "relatorio";
+    s = s.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "").replace(/\s+/g, " ");
+    if (s.length > 180) s = s.slice(0, 180).trim();
+    return s || "relatorio";
+  }
+
+  /** Converte data DD/MM/AAAA (ou similares) para dd-mm-aaaa no nome do ficheiro. */
+  function portalBrDateToFilenameSegment(br) {
+    const t = String(br || "").trim();
+    const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      return `${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}-${m[3]}`;
+    }
+    return t.replace(/\//g, "-");
+  }
+
+  /** Placa normalizada (7 alfanum.) → ABC-1A23 (estilo comum para exibição / ficheiro). */
+  function formatPlateForPortalExportFilename(normRaw) {
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(normRaw || ""))
+        : String(normRaw || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!np) return "";
+    if (np.length >= 3) return `${np.slice(0, 3)}-${np.slice(3)}`;
+    return np;
+  }
+
+  /**
+   * Título do documento para impressão / «Guardar como PDF» (navegador usa o &lt;title&gt;).
+   * Relatórios 1–3: padrão pedido (período, CPF, placa).
+   */
+  function getPortalRelatorioPdfSaveSuggestedBaseName(context) {
+    if (!context) return "relatorio";
+    const slug = context.fileSlug;
+    if (slug === "pagamentos-periodo") {
+      const a = portalBrDateToFilenameSegment(context.periodoInicioBr);
+      const b = portalBrDateToFilenameSegment(context.periodoFimBr);
+      if (a && b) {
+        return sanitizePortalPdfFilenameBase(`relatorio por periodo ${a} até ${b}`);
+      }
+      return sanitizePortalPdfFilenameBase("relatorio por periodo");
+    }
+    if (slug === "relatorio-cliente-protocolos") {
+      const dig = String(context.relatorioClienteCpfDigits || "").replace(/\D/g, "").slice(0, 11);
+      const fmtCpf = typeof formatCpf === "function" ? formatCpf : (d) => d;
+      const cpf = dig.length === 11 ? fmtCpf(dig) : "—";
+      return sanitizePortalPdfFilenameBase(`relatorio por cliente cpf ${cpf}`);
+    }
+    if (slug === "relatorio-placa-protocolos") {
+      const norm = String(context.relatorioPlacaNorm || "").trim();
+      const plate = formatPlateForPortalExportFilename(norm);
+      if (plate) return sanitizePortalPdfFilenameBase(`relatorio placa ${plate}`);
+      return sanitizePortalPdfFilenameBase("relatorio placa");
+    }
+    if (context.title) return sanitizePortalPdfFilenameBase(String(context.title));
+    if (slug) return sanitizePortalPdfFilenameBase(`relatorio ${slug}`);
+    return "relatorio";
+  }
+
+  function applyPortalPdfDocumentTitle(html, suggestedBase) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const base = sanitizePortalPdfFilenameBase(suggestedBase);
+    if (!html || !String(html).includes("<title")) return html;
+    return String(html).replace(/<title>[\s\S]*?<\/title>/i, `<title>${eh(base)}</title>`);
+  }
+
   function emitPortalRelatorioPdf(context) {
     const iframe = document.getElementById("portalPdfIframe");
     const viewer = document.getElementById("portalRelatorioPdfViewer");
     if (!iframe || !viewer) return;
-    const html =
+    let html =
       typeof context.buildPdfHtml === "function"
         ? context.buildPdfHtml()
         : buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
             statusColumnIndex: context.statusColumnIndex,
             headerSubtitleLines: context.headerSubtitleLines,
           });
+    html = applyPortalPdfDocumentTitle(html, getPortalRelatorioPdfSaveSuggestedBaseName(context));
     hideRelatorioLocacaoPdfViewer();
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
@@ -1264,15 +1336,14 @@
   }
 
   function emitPortalRelatorioExcel(context) {
+    const exportBase = getPortalRelatorioPdfSaveSuggestedBaseName(context);
     if (typeof context.buildExcelHtml === "function") {
       const html = `\uFEFF${context.buildExcelHtml()}`;
       const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const d = new Date();
-      const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       a.href = url;
-      a.download = `relatorio-${context.fileSlug}-${stamp}.xls`;
+      a.download = `${exportBase}.xls`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1281,14 +1352,13 @@
     }
     if (typeof downloadStyledExcel !== "function") return;
     const d = new Date();
-    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const metaLines = [
       ["Relatório", context.title],
       ...(Array.isArray(context.excelMetaPairs) ? context.excelMetaPairs : []),
       ["Emitido em", d.toLocaleString("pt-BR")],
       ["Registos", String(context.rows.length)],
     ];
-    downloadStyledExcel(`relatorio-${context.fileSlug}-${stamp}`, context.headers, context.rows, metaLines, {
+    downloadStyledExcel(exportBase, context.headers, context.rows, metaLines, {
       textColumns: context.textColumns || [],
       statusColumnIndex: context.statusColumnIndex,
     });
@@ -1829,7 +1899,7 @@
       })
       .join("");
     const quando = new Date().toLocaleString("pt-BR");
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(
+    let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(
       titulo
     )}</title><style>
       body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
@@ -1847,6 +1917,12 @@
         "Nenhum registo neste filtro."
       )}</td></tr>`}</tbody></table>
     </body></html>`;
+
+    const locTituloBase =
+      escopo === "ativas"
+        ? "relatorio locacoes motos ativas"
+        : "relatorio locacoes motos finalizadas";
+    html = applyPortalPdfDocumentTitle(html, locTituloBase);
 
     const iframe = document.getElementById("portalPdfIframe");
     const viewer = document.getElementById("portalRelatorioPdfViewer");
@@ -1882,14 +1958,16 @@
       "Modalidade",
     ];
     const d = new Date();
-    const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    const fileSlug = escopo === "ativas" ? "motos-ativas" : "motos-finalizadas";
+    const fileBase =
+      escopo === "ativas"
+        ? sanitizePortalPdfFilenameBase("relatorio locacoes motos ativas")
+        : sanitizePortalPdfFilenameBase("relatorio locacoes motos finalizadas");
     const metaLines = [
       ["Relatório", label],
       ["Emitido em", d.toLocaleString("pt-BR")],
       ["Registos", String(rows.length)],
     ];
-    downloadStyledExcel(`relatorio-locacao-${fileSlug}-${stamp}`, headers, rows, metaLines, {
+    downloadStyledExcel(fileBase, headers, rows, metaLines, {
       textColumns: [0, 1, 3],
       statusColumnIndex: 8,
     });
