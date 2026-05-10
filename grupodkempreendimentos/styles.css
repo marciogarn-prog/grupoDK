@@ -1005,6 +1005,37 @@ body {
   background: var(--accent-dim);
 }
 
+.portal-relatorio-pagamentos-periodo {
+  margin: 0.85rem 0 0;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 12px;
+  background: rgba(10, 12, 18, 0.85);
+}
+
+.portal-relatorio-pagamentos-periodo__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.portal-relatorio-pagamentos-periodo__hint {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+}
+
+.portal-relatorio-pagamentos-periodo__grid {
+  margin-bottom: 0.65rem;
+}
+
+.portal-relatorio-pagamentos-periodo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+}
+
 .portal-modal {
   position: fixed;
   inset: 0;

@@ -630,6 +630,49 @@
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
             </div>
           </form>
+          <div
+            class="portal-relatorio-pagamentos-periodo"
+            role="region"
+            aria-labelledby="portal-relatorio-pagamentos-titulo"
+          >
+            <p id="portal-relatorio-pagamentos-titulo" class="portal-relatorio-pagamentos-periodo__title">
+              Relatório 1 — Pagamentos por período
+            </p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Lista todos os lançamentos confirmados cuja <strong>data do pagamento</strong> está entre as datas abaixo (inclusive).
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field">
+                <span>Data início (relatório)</span>
+                <input
+                  type="text"
+                  id="portalRelPagamentosInicio"
+                  inputmode="numeric"
+                  maxlength="10"
+                  autocomplete="off"
+                  placeholder="DD/MM/AAAA"
+                  aria-label="Data início do período do relatório"
+                >
+              </label>
+              <label class="portal-field">
+                <span>Data fim (relatório)</span>
+                <input
+                  type="text"
+                  id="portalRelPagamentosFim"
+                  inputmode="numeric"
+                  maxlength="10"
+                  autocomplete="off"
+                  placeholder="DD/MM/AAAA"
+                  aria-label="Data fim do período do relatório"
+                >
+              </label>
+            </div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary btn-secondary-outline" id="portalRelPagamentosGerarBtn">
+                Gerar relatório
+              </button>
+            </div>
+          </div>
           <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo"></div>
           <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
             Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
@@ -714,7 +757,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260518a" defer></script>
-  <script src="portal-locadora-ui.js?v=20260518a" defer></script>
+  <script src="app.js?v=20260519a" defer></script>
+  <script src="portal-locadora-ui.js?v=20260519a" defer></script>
 </body>
 </html>

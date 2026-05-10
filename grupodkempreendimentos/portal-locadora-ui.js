@@ -1173,7 +1173,15 @@
     if (!modal || !titulo || !resumo) return;
     portalRelatorioAtual = context;
     titulo.textContent = context.title;
-    resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+    if (context.fileSlug === "pagamentos-periodo" && typeof context.totalRecebido === "number") {
+      const tot = Number(context.totalRecebido || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+      resumo.textContent = `${context.rows.length} pagamento(s) no período · Total: ${tot}. Exportar em PDF ou Excel.`;
+    } else {
+      resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+    }
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
   }
@@ -1208,10 +1216,14 @@
       })
       .join("");
     const quando = new Date().toLocaleString("pt-BR");
+    const extraMeta = (reportOptions.headerSubtitleLines || [])
+      .filter((line) => String(line || "").trim())
+      .map((line) => `<p class="meta"><strong>${eh(String(line))}</strong></p>`)
+      .join("");
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
       body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
       h1{font-size:1.05rem;margin:0 0 0.35rem}
-      .meta{color:#444;margin:0 0 0.75rem;font-size:11px}
+      .meta{color:#444;margin:0.2rem 0;font-size:11px}
       table{width:100%;border-collapse:collapse}
       th,td{border:1px solid #333;padding:5px 7px;text-align:left}
       th{background:#eee;font-weight:600}
@@ -1219,6 +1231,7 @@
       .portal-rel-status-inativo{background:#fff9c4}
     </style></head><body>
       <h1>${eh(title)}</h1>
+      ${extraMeta}
       <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registo(s)</p>
       <table><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
         "Nenhum registo."
@@ -1232,6 +1245,7 @@
     if (!iframe || !viewer) return;
     const html = buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
       statusColumnIndex: context.statusColumnIndex,
+      headerSubtitleLines: context.headerSubtitleLines,
     });
     hideRelatorioLocacaoPdfViewer();
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
@@ -1247,6 +1261,7 @@
     const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
     const metaLines = [
       ["Relatório", context.title],
+      ...(Array.isArray(context.excelMetaPairs) ? context.excelMetaPairs : []),
       ["Emitido em", d.toLocaleString("pt-BR")],
       ["Registos", String(context.rows.length)],
     ];
@@ -1384,12 +1399,131 @@
     };
   }
 
+  /**
+   * Relatório 1: todos os lançamentos de aluguel (portal) cuja data do pagamento cai no intervalo [início, fim], inclusive.
+   * `inicioBr` / `fimBr`: strings DD/MM/AAAA (mesmo formato dos restantes campos do portal).
+   */
+  function getPortalRelatorioPagamentosPeriodoContext(inicioBr, fimBr) {
+    const parse = typeof parseBrDate === "function" ? parseBrDate : null;
+    const sIn = String(inicioBr || "").trim();
+    const sFi = String(fimBr || "").trim();
+    const d0 = parse ? parse(sIn) : null;
+    const d1 = parse ? parse(sFi) : null;
+    const invalid =
+      !parse ||
+      !d0 ||
+      !d1 ||
+      Number.isNaN(d0.getTime()) ||
+      Number.isNaN(d1.getTime()) ||
+      !sIn ||
+      !sFi;
+    const fmtBrl = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (invalid) {
+      return {
+        title: "Relatório 1 — Pagamentos por período",
+        headerSubtitleLines: ["Informe data de início e fim válidas (DD/MM/AAAA)."],
+        headers: ["CPF", "Cliente", "Placa", "Protocolo", "Valor pago"],
+        rows: [],
+        fileSlug: "pagamentos-periodo",
+        textColumns: [0, 3],
+        periodoInicioBr: sIn,
+        periodoFimBr: sFi,
+        totalRecebido: 0,
+        excelMetaPairs: [
+          ["Período", sIn && sFi ? `${sIn} a ${sFi}` : "—"],
+          ["Total recebido no período", fmtBrl(0)],
+        ],
+      };
+    }
+    let startMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
+    let endMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate(), 23, 59, 59, 999).getTime();
+    if (startMs > endMs) {
+      const t = startMs;
+      startMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate()).getTime();
+      endMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), 23, 59, 59, 999).getTime();
+    }
+    const locs =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : [];
+    const dig =
+      typeof onlyDigits === "function" ? (x) => onlyDigits(String(x || "")) : (x) => String(x || "").replace(/\D/g, "");
+    const fmtCpf = typeof formatCpf === "function" ? formatCpf : (v) => String(v || "");
+    const plateExib = (p) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(p || "")) || "—"
+        : String(p || "").trim() || "—";
+
+    const collected = [];
+    for (const loc of locs || []) {
+      const lancs = getPortalLancamentosAluguelDoContrato(loc);
+      for (const lan of lancs) {
+        const dp = parse(String(lan.data || "").trim());
+        if (!dp || Number.isNaN(dp.getTime())) continue;
+        const payMs = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate()).getTime();
+        if (payMs < startMs || payMs > endMs) continue;
+        const cpfDigits = dig(loc.cpf);
+        let nome = "";
+        if (cpfDigits.length === 11 && typeof findClienteByCpfCadastro === "function") {
+          nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
+        }
+        const cpfExib = cpfDigits.length === 11 ? fmtCpf(cpfDigits) : String(loc.cpf || "").trim() || "—";
+        const proto = String(loc.numeroContrato || "").trim() || "—";
+        const valor = Number(lan.valor || 0);
+        collected.push({
+          cpfExib,
+          nome: nome || "—",
+          placa: plateExib(loc.placa),
+          proto,
+          valor,
+          payMs,
+          createdAt: Number(lan.createdAt || 0),
+        });
+      }
+    }
+    collected.sort((a, b) => {
+      if (a.payMs !== b.payMs) return a.payMs - b.payMs;
+      if (a.proto !== b.proto) return a.proto.localeCompare(b.proto, "pt-BR");
+      return a.cpfExib.localeCompare(b.cpfExib, "pt-BR");
+    });
+    const totalRecebido = collected.reduce((acc, r) => acc + r.valor, 0);
+    const inicioFmt = formatPortalDataBr(new Date(startMs));
+    const fimFmt = formatPortalDataBr(new Date(endMs));
+    const rows = collected.map((r) => [
+      r.cpfExib,
+      r.nome,
+      r.placa,
+      r.proto,
+      fmtBrl(r.valor),
+    ]);
+    return {
+      title: "Relatório 1 — Pagamentos por período",
+      headerSubtitleLines: [
+        `Período: ${inicioFmt} a ${fimFmt}`,
+        `Total recebido no período: ${fmtBrl(totalRecebido)}`,
+      ],
+      headers: ["CPF", "Cliente", "Placa", "Protocolo", "Valor pago"],
+      rows,
+      fileSlug: "pagamentos-periodo",
+      textColumns: [0, 3],
+      periodoInicioBr: sIn,
+      periodoFimBr: sFi,
+      totalRecebido,
+      excelMetaPairs: [
+        ["Período", `${inicioFmt} a ${fimFmt}`],
+        ["Total recebido no período", fmtBrl(totalRecebido)],
+      ],
+    };
+  }
+
   /** Sempre relê o cadastro no navegador — evita PDF/Excel com dados antigos se o operador guardou algo depois de abrir o modal. */
   function getPortalRelatorioContextFresh(anchor) {
     const slug = anchor && anchor.fileSlug;
     if (slug === "clientes") return getPortalRelatorioClienteContext();
     if (slug === "veiculos") return getPortalRelatorioVeiculoContext();
     if (slug === "locacoes") return getPortalRelatorioLocacaoContext();
+    if (slug === "pagamentos-periodo") {
+      return getPortalRelatorioPagamentosPeriodoContext(anchor.periodoInicioBr, anchor.periodoFimBr);
+    }
     return anchor;
   }
 
@@ -1511,6 +1645,36 @@
   document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     openPortalRelatorioModal(getPortalRelatorioLocacaoContext());
+  });
+
+  document.getElementById("portalRelPagamentosGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    const inicio = String(document.getElementById("portalRelPagamentosInicio")?.value || "").trim();
+    const fim = String(document.getElementById("portalRelPagamentosFim")?.value || "").trim();
+    if (!inicio || !fim) {
+      if (msg) msg.textContent = "Informe a data de início e a data de fim do relatório (DD/MM/AAAA).";
+      return;
+    }
+    const ctx = getPortalRelatorioPagamentosPeriodoContext(inicio, fim);
+    const parse = typeof parseBrDate === "function" ? parseBrDate : null;
+    const ok =
+      parse &&
+      parse(inicio) &&
+      parse(fim) &&
+      !Number.isNaN(parse(inicio).getTime()) &&
+      !Number.isNaN(parse(fim).getTime());
+    if (!ok) {
+      if (msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
+      openPortalRelatorioModal(ctx);
+      return;
+    }
+    if (msg) {
+      msg.textContent = ctx.rows.length
+        ? `Relatório: ${ctx.rows.length} pagamento(s) no período.`
+        : "Nenhum pagamento registado nesse período (datas de pagamento dos lançamentos).";
+    }
+    openPortalRelatorioModal(ctx);
   });
 
   document.getElementById("operacaoLocacaoRelAtivasBtn")?.addEventListener("click", (e) => {
@@ -1760,6 +1924,8 @@
     "operacaoLocacaoDataFim",
     "operacaoLancAluguelDataPagamento",
     "portalLancAluguelEditData",
+    "portalRelPagamentosInicio",
+    "portalRelPagamentosFim",
   ];
 
   function bindPortalDateDdMmYyyyInputs() {
