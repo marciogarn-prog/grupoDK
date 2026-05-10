@@ -1884,6 +1884,7 @@
         currency: "BRL",
       });
     }
+    syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
   }
 
   /** Se a data de início estiver vazia, sugere a data de hoje (sincronização no botão Cadastro de locação). */
@@ -1986,9 +1987,9 @@
     if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
     if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
-    fillOperacaoLocacaoTotaisLancamentoPortal(loc);
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
+    fillOperacaoLocacaoTotaisLancamentoPortal(loc);
   }
 
   function clearPortalLocacaoCamposParaNovoContrato() {
@@ -2166,6 +2167,22 @@
     const tp25 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
     if (tp) tp.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelTotal(arr));
     if (tp25) tp25.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelNoAno(arr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO));
+    syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
+  }
+
+  /** Investimento acumulado = total pago − valor devido do aluguel. Se negativo, o texto de «valor devido do aluguel» fica vermelho. */
+  function syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido() {
+    const inpTp = document.getElementById("operacaoLocacaoTotalPago");
+    const inpDevido = document.getElementById("operacaoLocacaoValorDevidoAluguel");
+    const inpAcum = document.getElementById("operacaoLocacaoInvestimentoAcumulado");
+    if (!inpAcum) return;
+    const totalPago = Number(parsePortalLancamentoValorRaw(inpTp?.value ?? ""));
+    const devidoAlug = Number(parsePortalLancamentoValorRaw(inpDevido?.value ?? ""));
+    const acum = totalPago - devidoAlug;
+    inpAcum.value = formatPortalLancamentoSumBrl(acum);
+    if (inpDevido) {
+      inpDevido.classList.toggle("portal-valor-devido-aluguel--negativo", acum < 0);
+    }
   }
 
   function refreshOperacaoLancamentoAluguelCpfDatalist() {

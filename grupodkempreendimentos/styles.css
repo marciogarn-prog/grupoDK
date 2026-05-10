@@ -1147,3 +1147,9 @@ body {
 .portal-lanc-edit-fields {
   margin-top: 0.75rem;
 }
+
+/* Quando total pago < valor devido do aluguel, o próprio valor devido passa a vermelho (regra investimento acumulado negativo). */
+#operacaoLocacaoValorDevidoAluguel.portal-valor-devido-aluguel--negativo {
+  color: #f87171;
+  font-weight: 600;
+}
