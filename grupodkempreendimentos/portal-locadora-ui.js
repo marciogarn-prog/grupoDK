@@ -234,9 +234,24 @@
     });
   });
 
+  function resetPortalLoginFormularioETipoAcesso() {
+    const cpfIn = document.getElementById("login-cpf");
+    const senhaIn = document.getElementById("login-senha");
+    if (cpfIn) cpfIn.value = "";
+    if (senhaIn) senhaIn.value = "";
+    if (loginFeedback) loginFeedback.textContent = "";
+    if (loginRole) loginRole.value = "";
+    document.querySelectorAll(".role-picker__btn").forEach((b) => b.setAttribute("aria-selected", "false"));
+  }
+
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      portalColaboradorSenhaPendente = null;
+      if (typeof clearSession === "function") clearSession();
+      resetPortalLoginFormularioETipoAcesso();
       hideAllPanels();
+      btnOperacao?.classList.add("hidden");
+      refreshPortalUnitLeadForSession();
       showView("home");
       try {
         const path = window.location.pathname + window.location.search;
@@ -683,9 +698,9 @@
   btnSair?.addEventListener("click", () => {
     portalColaboradorSenhaPendente = null;
     clearSession();
+    resetPortalLoginFormularioETipoAcesso();
     hideAllPanels();
     panelLogin?.classList.remove("hidden");
-    if (loginFeedback) loginFeedback.textContent = "";
     btnOperacao?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     try {
