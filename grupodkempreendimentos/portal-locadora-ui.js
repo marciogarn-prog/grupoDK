@@ -2195,18 +2195,23 @@
 
   function refreshOperacaoLancamentoAluguelCpfDatalist() {
     const dl = document.getElementById("operacaoLancAluguelCpfSugestoes");
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
     if (!dl || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const prefix = inpCpf ? dig(String(inpCpf.value || "")).slice(0, 11) : "";
     const seen = new Set();
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
       if (!normPortalNumeroContrato(l.numeroContrato)) return;
       const d = dig(String(l.cpf || ""));
-      if (d.length === 11) seen.add(d);
+      if (d.length !== 11) return;
+      if (prefix.length && !d.startsWith(prefix)) return;
+      seen.add(d);
     });
     dl.innerHTML = Array.from(seen)
       .sort()
+      .slice(0, 200)
       .map((d) => `<option value="${portalEscapeHtml(fmt(d))}"></option>`)
       .join("");
   }
@@ -2580,12 +2585,12 @@
 
   function syncOperacaoLancamentoAluguelAfterCpfEdit() {
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
-    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (!inpCpf) return;
-    if (typeof formatCpf === "function") {
-      const d = typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
-      if (d.length === 11) inpCpf.value = formatCpf(d);
-    }
+    const d = (
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "")
+    ).slice(0, 11);
+    if (typeof formatCpf === "function") inpCpf.value = formatCpf(d);
+    refreshOperacaoLancamentoAluguelCpfDatalist();
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
   }
 
@@ -2896,8 +2901,15 @@
   );
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => syncOperacaoLancamentoAluguelAfterCpfEdit());
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
+    const inp = document.getElementById("operacaoLancAluguelCpf");
+    if (!inp) return;
+    const digits = (
+      typeof onlyDigits === "function" ? onlyDigits(inp.value) : String(inp.value || "").replace(/\D/g, "")
+    ).slice(0, 11);
+    if (typeof formatCpf === "function") inp.value = formatCpf(digits);
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
+    refreshOperacaoLancamentoAluguelCpfDatalist();
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true });
   });
   document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
