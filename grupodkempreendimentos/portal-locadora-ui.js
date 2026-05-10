@@ -1797,6 +1797,7 @@
     syncOperacaoLocacaoDiaPagamentoFromDataInicio();
     syncOperacaoLocacaoTempoDiasContrato();
     syncOperacaoLocacaoValorDevidoPlano();
+    syncOperacaoLocacaoValorDevidoAluguel();
   }
 
   /** Com investimento > 0: DK MINHA MOTO; caso contrário: DK MEU TRANSPORTE (mesma regra do painel DK). */
@@ -1844,6 +1845,37 @@
     const tempo = tempoStr === "" ? 0 : Math.max(0, Number.parseInt(tempoStr, 10) || 0);
     const custoDia = plano / 7;
     const devido = tempo * custoDia;
+    if (typeof currencyBRL === "function") {
+      inpDevido.value = currencyBRL(devido);
+    } else {
+      inpDevido.value = Number(devido || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+    }
+  }
+
+  /** Valor devido do aluguel = (valor do aluguel ÷ 7) × tempo em dias do contrato. Campo só leitura. */
+  function syncOperacaoLocacaoValorDevidoAluguel() {
+    const inpDevido = document.getElementById("operacaoLocacaoValorDevidoAluguel");
+    const inpTempo = document.getElementById("operacaoLocacaoTempoDias");
+    const inpLoc = document.getElementById("operacaoLocacaoValorAluguel");
+    if (!inpDevido) return;
+    const parse =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const loc = Number(parse(inpLoc?.value ?? ""));
+    const tempoStr = String(inpTempo?.value ?? "").trim();
+    const tempo = tempoStr === "" ? 0 : Math.max(0, Number.parseInt(tempoStr, 10) || 0);
+    const devido = tempo * (loc / 7);
     if (typeof currencyBRL === "function") {
       inpDevido.value = currencyBRL(devido);
     } else {
@@ -2732,6 +2764,7 @@
     }
     syncOperacaoLocacaoTipoPlano();
     syncOperacaoLocacaoValorDevidoPlano();
+    syncOperacaoLocacaoValorDevidoAluguel();
   }
 
   function bindOperacaoLocacaoValorPlanoComputed() {

@@ -485,7 +485,19 @@
             </label>
             <label class="portal-field">
               <span>VALOR DEVIDO DO ALUGUEL</span>
-              <input type="text" id="operacaoLocacaoValorDevidoAluguel" name="valorDevidoAluguel" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DEVIDO DO ALUGUEL">
+              <input
+                type="text"
+                id="operacaoLocacaoValorDevidoAluguel"
+                name="valorDevidoAluguel"
+                maxlength="40"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="R$ 0,00"
+                aria-label="VALOR DEVIDO DO ALUGUEL (calculado: valor do aluguel ÷ 7 × tempo em dias)"
+                title="Calculado automaticamente: (valor do aluguel ÷ 7) × tempo em dias do contrato. Não editável."
+              >
             </label>
             <label class="portal-field">
               <span>INVESTIMENTO ACUMULADO</span>
@@ -690,7 +702,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260510m" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510m" defer></script>
+  <script src="app.js?v=20260513b" defer></script>
+  <script src="portal-locadora-ui.js?v=20260513b" defer></script>
 </body>
 </html>
