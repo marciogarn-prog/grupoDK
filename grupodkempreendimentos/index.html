@@ -453,7 +453,19 @@
             </label>
             <label class="portal-field">
               <span>TOTAL PAGO</span>
-              <input type="text" id="operacaoLocacaoTotalPago" name="totalPago" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="TOTAL PAGO">
+              <input
+                type="text"
+                id="operacaoLocacaoTotalPago"
+                name="totalPago"
+                maxlength="32"
+                readonly
+                tabindex="-1"
+                inputmode="none"
+                autocomplete="off"
+                placeholder="0,00"
+                aria-label="TOTAL PAGO (soma dos lançamentos de aluguel deste protocolo)"
+                title="Soma de todos os pagamentos registados em «Lançamento de aluguel» para este protocolo."
+              >
             </label>
             <label class="portal-field">
               <span>TIPO DE PLANO</span>
@@ -491,8 +503,8 @@
                 inputmode="none"
                 autocomplete="off"
                 placeholder="0,00"
-                aria-label="TOTAL PAGO NO ANO DE 2025 (preenchido pelos lançamentos de aluguel)"
-                title="Acumulado guardado na locação; altere apenas em «Lançamento de aluguel»."
+                aria-label="TOTAL PAGO NO ANO DE 2025 (lançamentos com data neste ano)"
+                title="Soma dos lançamentos de aluguel deste protocolo cuja data do pagamento cai em 2025."
               >
             </label>
             <datalist id="operacaoLocacaoPlacaSugestoes"></datalist>
@@ -535,7 +547,7 @@
 
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
           <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lançamento de aluguel</h3>
-          <p class="subtext operacao-inline-form__lead">Utilize um <strong>CPF</strong> que já tenha <strong>locação cadastrada</strong> neste navegador (com protocolo). Os dados do contrato carregam automaticamente. Informe <strong>valor pago</strong> e <strong>data do pagamento</strong> e use <strong>Confirmar pagamento</strong> — o total acumulado em <strong>TOTAL PAGO NO ANO DE 2025</strong> no cadastro de locação é atualizado na base local.</p>
+          <p class="subtext operacao-inline-form__lead">Cada pagamento fica guardado no <strong>protocolo</strong> escolhido. Em <strong>Cadastro de locação</strong>, <strong>TOTAL PAGO</strong> mostra a soma de todos os lançamentos desse protocolo; <strong>TOTAL PAGO NO ANO DE 2025</strong> mostra só os lançamentos cuja <strong>data do pagamento</strong> cai em 2025.</p>
           <form id="formOperacaoLancamentoAluguelInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>CPF</span>
@@ -652,7 +664,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
-  <script src="app.js?v=20260510i" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510i" defer></script>
+  <script src="app.js?v=20260510j" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510j" defer></script>
 </body>
 </html>

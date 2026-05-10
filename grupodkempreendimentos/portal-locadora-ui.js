@@ -1948,14 +1948,7 @@
     if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
     if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
-    const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
-    if (tp2025) {
-      const rawT = loc.totalPagoAno2025;
-      tp2025.value =
-        rawT != null && String(rawT).trim() !== ""
-          ? fmtValor(rawT)
-          : formatOperacaoLocacaoValorNumDisplay(0);
-    }
+    fillOperacaoLocacaoTotaisLancamentoPortal(loc);
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
   }
@@ -1965,7 +1958,9 @@
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    const tp = document.getElementById("operacaoLocacaoTotalPago");
     const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
+    if (tp) tp.value = formatOperacaoLocacaoValorNumDisplay(0);
     if (tp2025) tp2025.value = formatOperacaoLocacaoValorNumDisplay(0);
     suggestOperacaoLocacaoDataInicioComoHoje();
     syncOperacaoLocacaoFromDataInicio();
@@ -2072,6 +2067,69 @@
     return collectPortalLocacoesByCpf(cpfDigits).filter((l) => Boolean(normPortalNumeroContrato(l.numeroContrato)));
   }
 
+  /** Ano da coluna «TOTAL PAGO NO ANO DE 2025» (soma das datas de pagamento neste ano). */
+  const PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO = 2025;
+
+  function formatPortalLancamentoSumBrl(n) {
+    return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function parsePortalLancamentoValorRaw(v) {
+    if (typeof parseCurrencyBR === "function") return parseCurrencyBR(String(v ?? ""));
+    const cleaned = String(v ?? "")
+      .replace(/[R$\s]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function normalizePortalLancamentoAluguelEntry(x) {
+    if (!x || typeof x !== "object") return null;
+    const valor =
+      typeof x.valor === "number" && Number.isFinite(x.valor) ? x.valor : Number(parsePortalLancamentoValorRaw(x.valor ?? ""));
+    const data = String(x.data || "").trim();
+    if (!Number.isFinite(valor) || valor <= 0 || !data) return null;
+    return { data, valor, createdAt: x.createdAt };
+  }
+
+  /** Lançamentos do portal amarrados ao registo da locação (por protocolo). Migra total legado se ainda não houver lista. */
+  function getPortalLancamentosAluguelDoContrato(loc) {
+    if (!loc || typeof loc !== "object") return [];
+    if (Array.isArray(loc.portalLancamentosAluguel) && loc.portalLancamentosAluguel.length > 0) {
+      return loc.portalLancamentosAluguel.map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
+    }
+    const legado = Number(parsePortalLancamentoValorRaw(loc.totalPagoAno2025 ?? "0"));
+    if (legado > 0) {
+      const data = String(loc.ultimoLancamentoAluguelData || "").trim() || "01/01/2025";
+      return [{ data, valor: legado }];
+    }
+    return [];
+  }
+
+  function sumPortalLancamentosAluguelTotal(arr) {
+    return (arr || []).reduce((a, x) => a + Number(x.valor || 0), 0);
+  }
+
+  function sumPortalLancamentosAluguelNoAno(arr, year) {
+    let s = 0;
+    for (const x of arr || []) {
+      const d = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
+      if (!d || Number.isNaN(d.getTime())) continue;
+      if (d.getFullYear() !== year) continue;
+      s += Number(x.valor || 0);
+    }
+    return s;
+  }
+
+  function fillOperacaoLocacaoTotaisLancamentoPortal(loc) {
+    const arr = getPortalLancamentosAluguelDoContrato(loc);
+    const tp = document.getElementById("operacaoLocacaoTotalPago");
+    const tp25 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
+    if (tp) tp.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelTotal(arr));
+    if (tp25) tp25.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelNoAno(arr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO));
+  }
+
   function refreshOperacaoLancamentoAluguelCpfDatalist() {
     const dl = document.getElementById("operacaoLancAluguelCpfSugestoes");
     if (!dl || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
@@ -2170,28 +2228,17 @@
     }
   }
 
-  function refreshOperacaoLocacaoTotalPagoAno2025Ui(cpfDigits, ncNorm) {
-    const el = document.getElementById("operacaoLocacaoTotalPagoAno2025");
+  function refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm) {
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const inpCpf = document.getElementById("operacaoLocacaoCpf");
-    if (!el || !hid || !inpCpf) return;
+    if (!hid || !inpCpf) return;
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const d = dig(String(inpCpf.value || ""));
     if (d !== cpfDigits || normPortalNumeroContrato(hid.value) !== ncNorm) return;
     const loc = collectPortalLocacoesByCpf(cpfDigits).find((l) => normPortalNumeroContrato(l.numeroContrato) === ncNorm);
     if (!loc) return;
-    const rawT = loc.totalPagoAno2025;
-    if (rawT != null && String(rawT).trim() !== "") {
-      if (typeof parseCurrencyBR === "function") {
-        const n = parseCurrencyBR(String(rawT));
-        el.value = Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      } else {
-        el.value = String(rawT).trim();
-      }
-    } else {
-      el.value = formatOperacaoLocacaoValorNumDisplay(0);
-    }
+    fillOperacaoLocacaoTotaisLancamentoPortal(loc);
   }
 
   function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr) {
@@ -2206,36 +2253,24 @@
       (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
     );
     if (idx === -1) return false;
-    const parse =
-      typeof parseCurrencyBR === "function"
-        ? parseCurrencyBR
-        : (v) => {
-            const cleaned = String(v ?? "")
-              .replace(/[R$\s]/g, "")
-              .replace(/\./g, "")
-              .replace(",", ".");
-            const n = Number(cleaned);
-            return Number.isFinite(n) ? n : 0;
-          };
     const loc = locs[idx];
-    const atual = parse(String(loc.totalPagoAno2025 ?? "0"));
-    const soma = atual + valorNum;
-    loc.totalPagoAno2025 = Number(soma || 0).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    });
-    loc.ultimoLancamentoAluguelData = String(dataPagamentoBr || "").trim();
+    const dataStr = String(dataPagamentoBr || "").trim();
+    const arr = getPortalLancamentosAluguelDoContrato(loc).slice();
+    arr.push({ data: dataStr, valor: valorNum, createdAt: Date.now() });
+    loc.portalLancamentosAluguel = arr;
+    loc.ultimoLancamentoAluguelData = dataStr;
     loc.ultimoLancamentoAluguelValor = Number(valorNum || 0).toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
+    loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelNoAno(arr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO));
     try {
       saveCadastro(CAD_LOCACOES_KEY, locs);
     } catch (err) {
       console.error(err);
       return false;
     }
-    refreshOperacaoLocacaoTotalPagoAno2025Ui(cpfDigits, nc);
+    refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, nc);
     return true;
   }
 
