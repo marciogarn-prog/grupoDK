@@ -879,13 +879,35 @@
                 <button type="button" class="btn-primary" id="btnPortalChecklistAbrir">Check-list</button>
               </div>
               <div class="portal-checklist-placa-bar portal-checklist-no-print">
-                <label class="portal-checklist-placa-label">
+                <label class="portal-checklist-placa-label portal-field--combobox">
                   Placa da moto
-                  <input type="text" id="portalChecklistPlacaInput" class="portal-checklist-placa-input" maxlength="10" autocomplete="off" placeholder="Ex.: ABC1D23" inputmode="text">
+                  <div class="portal-combobox" id="portalChecklistPlacaCombo">
+                    <input
+                      type="text"
+                      id="portalChecklistPlacaInput"
+                      class="portal-checklist-placa-input"
+                      maxlength="10"
+                      autocomplete="off"
+                      placeholder="Digite ou escolha na lista"
+                      inputmode="text"
+                      list="portalChecklistPlacaSugestoes"
+                      aria-autocomplete="list"
+                      aria-expanded="false"
+                      aria-controls="portalChecklistPlacaLista"
+                    >
+                    <div
+                      id="portalChecklistPlacaLista"
+                      class="portal-placa-dropdown hidden"
+                      role="listbox"
+                      aria-label="Placas em operação (locação ativa)"
+                      hidden
+                    ></div>
+                  </div>
                 </label>
                 <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn">Carregar dados</button>
                 <p id="portalChecklistLoadMsg" class="portal-feedback portal-checklist-load-msg" role="status"></p>
               </div>
+              <datalist id="portalChecklistPlacaSugestoes"></datalist>
               <div id="portalChecklistMount" class="portal-checklist-mount hidden" aria-live="polite"></div>
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
@@ -991,7 +1013,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260510checklist-v1" defer></script>
+  <script src="portal-locadora-ui.js?v=20260511checklist-placas-ativas" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>

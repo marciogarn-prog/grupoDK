@@ -504,6 +504,146 @@
 
   let portalChecklistUiBuilt = false;
 
+  /** Placas com locação ativa — mesma regra que `getActivePlatesSet()` em app.js. */
+  let portalChecklistPlacasAtivasCache = [];
+
+  function refreshPortalChecklistPlacasAtivasCache() {
+    portalChecklistPlacasAtivasCache = [];
+    if (typeof getActivePlatesSet !== "function") return;
+    const activeSet = getActivePlatesSet();
+    const vmap = typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+    activeSet.forEach((plateKey) => {
+      const v = vmap?.get(plateKey);
+      const modelo =
+        String(v?.marcaModelo || v?.modelo || "").trim() || "Modelo não informado";
+      portalChecklistPlacasAtivasCache.push({ placa: plateKey, modelo });
+    });
+    portalChecklistPlacasAtivasCache.sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
+    const dl = document.getElementById("portalChecklistPlacaSugestoes");
+    if (dl) {
+      dl.innerHTML = portalChecklistPlacasAtivasCache
+        .map(
+          (x) =>
+            `<option value="${portalEscapeHtml(x.placa)}" label="${portalEscapeHtml(x.modelo)}"></option>`
+        )
+        .join("");
+    }
+  }
+
+  function hidePortalChecklistPlacaDropdown() {
+    const panel = document.getElementById("portalChecklistPlacaLista");
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function filterPlacasAtivasChecklistDropdown(queryRaw) {
+    if (!portalChecklistPlacasAtivasCache.length) return [];
+    const trim = String(queryRaw || "").trim();
+    if (!trim) return portalChecklistPlacasAtivasCache.slice();
+    const qPlate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(trim)
+        : trim.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const qNome =
+      typeof normalizeName === "function" ? normalizeName(trim) : trim.toLowerCase();
+    return portalChecklistPlacasAtivasCache.filter((v) => {
+      if (qPlate && v.placa.includes(qPlate)) return true;
+      const modeloKey =
+        typeof normalizeName === "function"
+          ? normalizeName(v.modelo)
+          : String(v.modelo || "").toLowerCase();
+      return modeloKey.includes(qNome);
+    });
+  }
+
+  function renderPortalChecklistPlacaDropdown(queryRaw) {
+    const panel = document.getElementById("portalChecklistPlacaLista");
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    if (!panel || !inp) return;
+    const items = filterPlacasAtivasChecklistDropdown(queryRaw);
+    if (!items.length) {
+      panel.innerHTML = `<div class="portal-placa-dropdown__empty">Nenhuma placa em operação (sem locação ativa no cadastro ou na Receita 2026).</div>`;
+    } else {
+      panel.innerHTML = items
+        .map(
+          (v) =>
+            `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${v.placa}">
+              <span class="portal-placa-dropdown__plate">${v.placa}</span>
+              <span class="portal-placa-dropdown__model">${portalEscapeHtml(v.modelo)}</span>
+            </button>`
+        )
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function bindPortalChecklistPlacaComboboxOnce() {
+    if (window.__dkPortalChecklistPlacaBound) return;
+    window.__dkPortalChecklistPlacaBound = true;
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    const panel = document.getElementById("portalChecklistPlacaLista");
+    const combo = document.getElementById("portalChecklistPlacaCombo");
+    if (!inp || !panel || !combo) return;
+
+    inp.addEventListener("focus", () => {
+      refreshPortalChecklistPlacasAtivasCache();
+      renderPortalChecklistPlacaDropdown(String(inp.value || ""));
+    });
+
+    inp.addEventListener("input", () => {
+      inp.value = String(inp.value || "").toUpperCase();
+      if (!portalChecklistPlacasAtivasCache.length) refreshPortalChecklistPlacasAtivasCache();
+      renderPortalChecklistPlacaDropdown(inp.value);
+    });
+
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hidePortalChecklistPlacaDropdown();
+    });
+
+    panel.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
+    });
+
+    panel.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-placa-dropdown__opt");
+      if (!btn || !inp) return;
+      const placa = String(btn.getAttribute("data-placa") || "").trim();
+      if (!placa) return;
+      inp.value = placa;
+      hidePortalChecklistPlacaDropdown();
+      inp.focus();
+    });
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (!combo || panel.classList.contains("hidden")) return;
+        if (combo.contains(e.target)) return;
+        hidePortalChecklistPlacaDropdown();
+      },
+      true
+    );
+
+    inp.addEventListener("focusout", (e) => {
+      const rt = e.relatedTarget;
+      if (rt && combo.contains(rt)) return;
+      window.setTimeout(() => {
+        if (!document.activeElement || !combo.contains(document.activeElement)) {
+          hidePortalChecklistPlacaDropdown();
+        }
+      }, 180);
+    });
+  }
+
+  bindPortalChecklistPlacaComboboxOnce();
+
   function portalPopulateColaboradoresChecklistSelects() {
     const selM = document.getElementById("portalChecklistMecanico");
     const selS = document.getElementById("portalChecklistSupervisor");
@@ -868,11 +1008,15 @@ ${printable.innerHTML}
 
   document.getElementById("btnPortalChecklistAbrir")?.addEventListener("click", () => {
     portalEnsureChecklistUiBuilt();
-    document.getElementById("portalChecklistPlacaInput")?.focus();
+    refreshPortalChecklistPlacasAtivasCache();
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    inp?.focus();
+    if (inp) renderPortalChecklistPlacaDropdown(String(inp.value || ""));
   });
 
   document.getElementById("portalChecklistCarregarBtn")?.addEventListener("click", () => {
     portalEnsureChecklistUiBuilt();
+    refreshPortalChecklistPlacasAtivasCache();
     const raw = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
     const msgEl = document.getElementById("portalChecklistLoadMsg");
     const mount = document.getElementById("portalChecklistMount");
@@ -912,7 +1056,10 @@ ${printable.innerHTML}
       setManutencaoFormPlaceholderVisible(false);
       document.getElementById(panel)?.classList.remove("hidden");
       syncManutencaoSidebarButtons(btn);
-      if (panel === "manutencaoInlineEmOperacao") portalEnsureChecklistUiBuilt();
+      if (panel === "manutencaoInlineEmOperacao") {
+        portalEnsureChecklistUiBuilt();
+        refreshPortalChecklistPlacasAtivasCache();
+      }
     });
   });
 
