@@ -52,13 +52,34 @@
     return payload;
   }
 
+  const DK_IMMUTABLE_CADASTRO_KEYS = new Set([
+    "dk_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_locacoes_cadastro",
+  ]);
+
   function applyPayloadToLocalStorage(payload) {
     if (!payload || typeof payload !== "object") return;
     for (const k of DK_STORAGE_KEYS) {
       if (!Object.prototype.hasOwnProperty.call(payload, k)) continue;
       const v = payload[k];
       if (v === undefined || v === null) {
+        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k)) continue;
         localStorage.removeItem(k);
+        continue;
+      }
+      if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && typeof saveCadastro === "function") {
+        let arr = [];
+        if (Array.isArray(v)) arr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            arr = Array.isArray(p) ? p : [];
+          } catch {
+            arr = [];
+          }
+        }
+        saveCadastro(k, arr);
         continue;
       }
       if (typeof v === "string") {

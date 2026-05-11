@@ -218,7 +218,7 @@
       if (go === "locadora") {
         refreshPortalUnitLeadForSession();
       } else {
-        unitLead.textContent =
+      unitLead.textContent =
           "Conteúdo em preparação. Use o painel completo DK se precisar de cadastros aqui.";
       }
     }
@@ -1358,65 +1358,9 @@
 
     document.getElementById("operacaoClienteApagarBtn")?.addEventListener("click", (ev) => {
       ev.preventDefault();
-      if (getPortalSessaoAdminRole() !== "owner") {
-        window.alert("Apenas o administrador (titular) pode apagar clientes.");
-        return;
-      }
-      const digits =
-        typeof onlyDigits === "function"
-          ? onlyDigits(String(inpCpf.value || ""))
-          : String(inpCpf.value || "").replace(/\D/g, "");
-      if (digits.length !== 11) {
-        if (msg) msg.textContent = "Informe o CPF completo do cliente a apagar.";
-        return;
-      }
-      const existente = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
-      if (!existente) {
-        window.alert(
-          "Só é possível apagar clientes guardados neste navegador. Quem está só na base embarcada do site não pode ser removido aqui."
-        );
-        return;
-      }
-      const nome = String(inpNome?.value || existente.nome || "").trim();
-      const codigo = String(document.getElementById("operacaoClienteCodigo")?.value || existente.codigo || "").trim();
-      if (typeof clienteTemVinculoComLocacao === "function" && clienteTemVinculoComLocacao(digits, nome, codigo)) {
-        window.alert(
-          "Não é possível apagar: existe registo de locação com este CPF, nome ou código de cliente."
-        );
-        return;
-      }
-      const cpfTxt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
-      if (
-        !window.confirm(
-          `Confirma apagar definitivamente o cliente ${nome || "(sem nome)"} (${cpfTxt}) deste navegador? O código poderá ser reutilizado num novo cadastro.`
-        )
-      ) {
-        return;
-      }
-      const senha = window.prompt("Digite a senha do administrador (titular) para confirmar:");
-      if (senha == null) return;
-      if (typeof isSenhaOwnerValida !== "function" || !isSenhaOwnerValida(String(senha).trim())) {
-        window.alert("Senha inválida.");
-        return;
-      }
-      const clientes = loadCadastro(CAD_CLIENTES_KEY);
-      const idx = clientes.findIndex((c) => {
-        const p =
-          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-        return p === digits;
-      });
-      if (idx === -1) {
-        window.alert("Registo não encontrado.");
-        return;
-      }
-      const alvo = clientes[idx];
-      clientes.splice(idx, 1);
-      saveCadastro(CAD_CLIENTES_KEY, clientes);
-      if (typeof addAuditLog === "function") {
-        addAuditLog("excluir_cliente", "cliente", `${alvo.nome || "Nao informado"} - CPF ${cpfTxt} - portal`);
-      }
-      document.getElementById("operacaoClienteLimparBtn")?.click();
-      window.alert("Cliente apagado.");
+      window.alert(
+        "Política do sistema: cadastros de cliente, veículo e locação não podem ser apagados. Use cancelamento ou alteração de dados no sistema completo, se disponível."
+      );
     });
   }
 
@@ -1661,7 +1605,7 @@
     ) {
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
     } else {
-      resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+    resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
     }
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -4159,8 +4103,8 @@
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
       if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
       if (digits.length === 11 && typeof findClienteByCpfCadastro === "function") {
-        const cli = findClienteByCpfCadastro(digits);
-        if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
+      const cli = findClienteByCpfCadastro(digits);
+      if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
       }
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
     });
@@ -4180,7 +4124,7 @@
               .filter((c) => dig(String(c.cpf || "")).startsWith(digits))
               .slice(0, 50)
           : [];
-      const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
+        const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
       if (digits.length) {
         const opts = candidatos
           .map(
@@ -4190,12 +4134,12 @@
           .join("");
         if (dlCpf) dlCpf.innerHTML = opts;
         if (dlNome) {
-          dlNome.innerHTML = candidatos
-            .map(
-              (c) =>
-                `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
-            )
-            .join("");
+        dlNome.innerHTML = candidatos
+          .map(
+            (c) =>
+              `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
+          )
+          .join("");
         }
       } else if (!digits.length) {
         refreshOperacaoLocacaoDatalists();
@@ -4915,10 +4859,10 @@
         const url = urls[i];
         try {
           const r = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ data: list }),
-          });
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: list }),
+        });
           if (r.ok) {
             anyOk = true;
           } else if (i === urls.length - 1) {

@@ -3,8 +3,23 @@
  * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
  */
 const { Redis } = require("@upstash/redis");
+const { mergeVeiculosCadastro } = require("./dk-append-only-merge");
 
 const STORAGE_KEY = "dk:portal:veiculos_cadastro:v1";
+
+function parseRedisArray(raw) {
+  if (raw == null) return [];
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw);
+      return Array.isArray(p) ? p : [];
+    } catch {
+      return [];
+    }
+  }
+  if (Array.isArray(raw)) return raw;
+  return [];
+}
 
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -24,18 +39,7 @@ module.exports = async function handler(req, res) {
   try {
     if (req.method === "GET") {
       const raw = await redis.get(STORAGE_KEY);
-      let data = [];
-      if (raw == null) data = [];
-      else if (typeof raw === "string") {
-        try {
-          const p = JSON.parse(raw);
-          data = Array.isArray(p) ? p : [];
-        } catch {
-          data = [];
-        }
-      } else if (Array.isArray(raw)) {
-        data = raw;
-      }
+      const data = parseRedisArray(raw);
       return res.status(200).json({ ok: true, data });
     }
 
@@ -48,9 +52,12 @@ module.exports = async function handler(req, res) {
           body = {};
         }
       }
-      const data = Array.isArray(body?.data) ? body.data : [];
-      await redis.set(STORAGE_KEY, JSON.stringify(data));
-      return res.status(200).json({ ok: true, count: data.length });
+      const incoming = Array.isArray(body?.data) ? body.data : [];
+      const existingRaw = await redis.get(STORAGE_KEY);
+      const existing = parseRedisArray(existingRaw);
+      const merged = mergeVeiculosCadastro(existing, incoming);
+      await redis.set(STORAGE_KEY, JSON.stringify(merged));
+      return res.status(200).json({ ok: true, count: merged.length });
     }
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e && e.message ? e.message : e) });

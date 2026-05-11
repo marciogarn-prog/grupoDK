@@ -1929,8 +1929,127 @@ function loadCadastro(key) {
   }
 }
 
-function saveCadastro(key, list) {
-  localStorage.setItem(key, JSON.stringify(list));
+/**
+ * Regra de negócio: clientes, veículos e locações cadastrados não são removidos
+ * do armazenamento — apenas novos registos ou atualizações (mesma chave natural).
+ * `bypassImmutabilidadeCadastro` em saveCadastro() só para migrações internas pontuais.
+ */
+function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
+  const prev = Array.isArray(previousList) ? previousList : [];
+  const incoming = Array.isArray(incomingList) ? incomingList : [];
+
+  if (key === CAD_CLIENTES_KEY) {
+    const byCpf = new Map();
+    const dig = (cpf) => onlyDigits(String(cpf || ""));
+    const score = (c) => Number(c.createdAt || c.id || 0);
+    const add = (c) => {
+      const cpf = dig(c.cpf);
+      if (cpf.length !== 11) return;
+      const ex = byCpf.get(cpf);
+      const merged = ex ? { ...ex, ...c, cpf } : { ...c, cpf };
+      if (!ex) {
+        byCpf.set(cpf, merged);
+        return;
+      }
+      if (score(c) > score(ex)) {
+        byCpf.set(cpf, merged);
+        return;
+      }
+      if (score(c) === score(ex) && JSON.stringify(c).length >= JSON.stringify(ex).length) {
+        byCpf.set(cpf, merged);
+      }
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    return Array.from(byCpf.values());
+  }
+
+  if (key === CAD_VEICULOS_KEY) {
+    const plateNorm = (p) => normalizePlate(String(p || ""));
+    const keyOf = (v) => {
+      const pl = plateNorm(v.placa);
+      if (pl) return pl;
+      const idn = Number(v.id || v.createdAt || 0);
+      return idn ? `id:${idn}` : "";
+    };
+    const byK = new Map();
+    const score = (v) => Number(v.updatedAt || v.createdAt || v.id || 0);
+    const add = (v) => {
+      const k = keyOf(v);
+      if (!k) return;
+      const ex = byK.get(k);
+      const merged = ex ? { ...ex, ...v } : { ...v };
+      if (!ex) {
+        byK.set(k, merged);
+        return;
+      }
+      if (score(v) > score(ex)) {
+        byK.set(k, merged);
+        return;
+      }
+      if (score(v) === score(ex) && JSON.stringify(v).length >= JSON.stringify(ex).length) {
+        byK.set(k, merged);
+      }
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    return Array.from(byK.values());
+  }
+
+  if (key === CAD_LOCACOES_KEY) {
+    const dig = (cpf) => onlyDigits(String(cpf || ""));
+    const plateNorm = (p) => normalizePlate(String(p || ""));
+    const ncNorm = (v) =>
+      String(normalizeNumeroContratoKey(v || ""))
+        .trim()
+        .replace(/\s+/g, "");
+    const keyOf = (l) => {
+      const cpf = dig(l.cpf);
+      const pl = plateNorm(l.placa);
+      const nc = ncNorm(l.numeroContrato);
+      if (cpf.length === 11 && pl && nc) return `${cpf}|${pl}|${nc}`;
+      const idn = Number(l.id || l.createdAt || 0);
+      return `${cpf}|${pl}|id:${idn}`;
+    };
+    const byK = new Map();
+    const score = (l) => Number(l.updatedAt || l.createdAt || l.id || 0);
+    const add = (l) => {
+      const k = keyOf(l);
+      const ex = byK.get(k);
+      const merged = ex ? { ...ex, ...l } : { ...l };
+      if (!ex) {
+        byK.set(k, merged);
+        return;
+      }
+      if (score(l) > score(ex)) {
+        byK.set(k, merged);
+        return;
+      }
+      if (score(l) === score(ex) && JSON.stringify(l).length >= JSON.stringify(ex).length) {
+        byK.set(k, merged);
+      }
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    return Array.from(byK.values());
+  }
+
+  return incoming;
+}
+
+function saveCadastro(key, list, opts) {
+  const bypass =
+    opts && typeof opts === "object" && opts.bypassImmutabilidadeCadastro === true;
+  const next = Array.isArray(list) ? list : [];
+  let toStore = next;
+  if (
+    !bypass &&
+    (key === CAD_CLIENTES_KEY || key === CAD_VEICULOS_KEY || key === CAD_LOCACOES_KEY)
+  ) {
+    const prev = loadCadastro(key);
+    toStore = mergeCadastroHistoricoImutavel(key, prev, next);
+  }
+  localStorage.setItem(key, JSON.stringify(toStore));
 }
 
 function loadQuadroReceitaOverridesMap() {
@@ -2066,13 +2185,23 @@ function applyOperationalBackupPayload(payload) {
   BACKUP_KEYS.forEach((key) => {
     const incoming = payload.data[key];
     const normalized = Array.isArray(incoming) ? incoming : [];
-    localStorage.setItem(key, JSON.stringify(normalized));
+    if (
+      key === CAD_CLIENTES_KEY ||
+      key === CAD_VEICULOS_KEY ||
+      key === CAD_LOCACOES_KEY
+    ) {
+      const prev = loadCadastro(key);
+      const merged = mergeCadastroHistoricoImutavel(key, prev, normalized);
+      localStorage.setItem(key, JSON.stringify(merged));
+    } else {
+      localStorage.setItem(key, JSON.stringify(normalized));
+    }
   });
 }
 
 function clearAllLocacoesOnce() {
   if (localStorage.getItem(CLEAR_LOCACOES_ONCE_KEY) === "done") return;
-  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(CAD_LOCACOES_KEY, [], { bypassImmutabilidadeCadastro: true });
   saveCadastro(LOCACAO_DATABASE_KEY, []);
   localStorage.setItem(CLEAR_LOCACOES_ONCE_KEY, "done");
 }
@@ -2085,7 +2214,7 @@ function clearAllLocacoesOnce() {
 function resetLocacaoStackForSiteEntryOnce() {
   if (localStorage.getItem(RESET_LOCACAO_STACK_SITE_V2_KEY) === "done") return;
 
-  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(CAD_LOCACOES_KEY, [], { bypassImmutabilidadeCadastro: true });
   saveCadastro(LOCACAO_DATABASE_KEY, []);
   saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, []);
   saveCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY, []);
@@ -2111,7 +2240,7 @@ function resetProjetoSomenteCadastrosV3Once() {
   if (localStorage.getItem(RESET_PROJETO_SOMENTE_CADASTROS_V3_KEY) === "done") return;
 
   saveCadastro(CAD_CLIENTES_VALIDACAO_KEY, []);
-  saveCadastro(CAD_LOCACOES_KEY, []);
+  saveCadastro(CAD_LOCACOES_KEY, [], { bypassImmutabilidadeCadastro: true });
   saveCadastro(LOCACAO_DATABASE_KEY, []);
   saveCadastro(CAD_MANUTENCOES_KEY, []);
   saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, []);
@@ -12199,25 +12328,9 @@ function iniciarCancelamentoCliente(motivo) {
 
 function iniciarExclusaoCliente() {
   if (clienteEmEdicaoId === null) return;
-  const cpf = onlyDigits(String(document.getElementById("cadClienteCpf").value || ""));
-  const nome = String(document.getElementById("cadClienteNome").value || "").trim();
-  const codigo = String(document.getElementById("cadClienteCodigo").value || "").trim();
-  if (cpf.length !== 11) return;
-  if (clienteTemVinculoComLocacao(cpf, nome, codigo)) {
-    clienteCadastroErro.textContent =
-      "NAO E POSSIVEL EXCLUIR: EXISTE LOCACAO COM ESTE CPF, NOME OU CODIGO DE CLIENTE.";
-    clienteCadastroErro.classList.remove("hidden");
-    return;
-  }
-  const confirmado = window.confirm(
-    `Confirma excluir definitivamente o cliente ${nome || "selecionado"} (${formatCpf(cpf)})?`
+  window.alert(
+    "Política do sistema: cadastros de cliente, veículo e locação não podem ser apagados. Use cancelamento ou alteração de dados para manter o histórico."
   );
-  if (!confirmado) return;
-  clienteAcaoSenhaPendente = "excluir";
-  hideClienteSenhaInstrucaoText();
-  clienteSenhaWrap.classList.remove("hidden");
-  cadClienteAdminSenha.value = "";
-  cadClienteAdminSenha.focus();
 }
 
 cancelarClienteQuebraBtn.addEventListener("click", () =>
@@ -12248,9 +12361,7 @@ cadClienteSenhaConfirmarBtn.addEventListener("click", () => {
   if (clienteEmEdicaoId === null) return;
   const senha = String(cadClienteAdminSenha.value || "").trim();
   const exigeSenhaOwner =
-    clienteAcaoSenhaPendente === "cancelar" ||
-    clienteAcaoSenhaPendente === "desbloquear" ||
-    clienteAcaoSenhaPendente === "excluir";
+    clienteAcaoSenhaPendente === "cancelar" || clienteAcaoSenhaPendente === "desbloquear";
   const senhaValida = exigeSenhaOwner
     ? isSenhaOwnerValida(senha)
     : isSenhaFuncionarioAtualValida(senha);
@@ -12299,31 +12410,6 @@ cadClienteSenhaConfirmarBtn.addEventListener("click", () => {
       "desbloquear_cliente",
       "cliente",
       `${clientes[idx].nome} - CPF ${formatCpf(clientes[idx].cpf)}`
-    );
-    clienteCadastroForm.reset();
-    sairModoAtualizacaoCliente();
-    renderCadastros();
-    return;
-  }
-
-  if (clienteAcaoSenhaPendente === "excluir") {
-    const clientes = loadCadastro(CAD_CLIENTES_KEY);
-    const idx = clientes.findIndex((c) => c.id === clienteEmEdicaoId);
-    if (idx === -1) return;
-    const alvo = clientes[idx];
-    const cpfAlvo = onlyDigits(String(alvo.cpf || ""));
-    if (clienteTemVinculoComLocacao(cpfAlvo, alvo.nome, alvo.codigo)) {
-      clienteCadastroErro.textContent =
-        "NAO E POSSIVEL EXCLUIR: EXISTE LOCACAO COM ESTE CPF, NOME OU CODIGO DE CLIENTE.";
-      clienteCadastroErro.classList.remove("hidden");
-      return;
-    }
-    clientes.splice(idx, 1);
-    saveCadastro(CAD_CLIENTES_KEY, clientes);
-    addAuditLog(
-      "excluir_cliente",
-      "cliente",
-      `${alvo.nome || "Nao informado"} - CPF ${formatCpf(cpfAlvo)}`
     );
     clienteCadastroForm.reset();
     sairModoAtualizacaoCliente();
