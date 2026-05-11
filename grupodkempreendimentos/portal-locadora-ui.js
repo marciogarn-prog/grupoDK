@@ -2114,6 +2114,7 @@
           dataPagamentoBr,
           valor,
           payMs,
+          lancMs: ca,
           codigoUsuario:
             portalCodigoUsuarioRegistroLancamento(lan.registradoPorCpf, lan.registradoPorNome) || "—",
           horaLancamento: formatPortalDataHoraLancamentoMs(ca),
@@ -2121,7 +2122,10 @@
       }
     }
     collected.sort((a, b) => {
-      if (a.payMs !== b.payMs) return a.payMs - b.payMs;
+      const la = Number(a.lancMs || 0);
+      const lb = Number(b.lancMs || 0);
+      if (la !== lb) return lb - la;
+      if (a.payMs !== b.payMs) return b.payMs - a.payMs;
       if (a.proto !== b.proto) return a.proto.localeCompare(b.proto, "pt-BR");
       return a.cpfExib.localeCompare(b.cpfExib, "pt-BR");
     });
