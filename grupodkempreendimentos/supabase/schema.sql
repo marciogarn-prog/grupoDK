@@ -15,9 +15,17 @@ create table public.dk_cloud_snapshots (
 
 comment on table public.dk_cloud_snapshots is 'Snapshot dos cadastros DK (JSON por chave localStorage).';
 
--- Sem RLS por agora: qualquer cliente com anon key pode ler/escrever esta tabela.
--- Em produção com utilizadores reais: enable RLS + policies + Auth (não deixe dados sensíveis só protegidos pela anon key).
-alter table public.dk_cloud_snapshots disable row level security;
+-- RLS ligado com política explícita: o PostgREST (chave anon/publishable) usa os roles anon/authenticated.
+-- Isto evita o erro "violates row-level security policy" quando o Supabase liga RLS por defeito.
+alter table public.dk_cloud_snapshots enable row level security;
+
+drop policy if exists "dk_cloud_snapshots_portal_access" on public.dk_cloud_snapshots;
+create policy "dk_cloud_snapshots_portal_access"
+  on public.dk_cloud_snapshots
+  for all
+  to anon, authenticated
+  using (true)
+  with check (true);
 
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on table public.dk_cloud_snapshots to anon, authenticated;
