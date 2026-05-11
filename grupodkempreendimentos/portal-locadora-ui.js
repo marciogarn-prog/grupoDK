@@ -583,6 +583,7 @@
       acessos,
     });
     saveFuncionariosAccess();
+    portalPushCloudSnapshotAfterPersist();
     formPortalCadastroColaborador.reset();
     portalColabCpfPrevLen = 0;
     syncPortalColaboradorFormFromCpf();
@@ -654,6 +655,7 @@
     f.dataIngresso = dataIngresso;
     f.acessos = acessos;
     saveFuncionariosAccess();
+    portalPushCloudSnapshotAfterPersist();
     aplicarPortalColaboradorDoFuncionario(f);
     refreshPortalOperacaoNavPorAcessos();
     if (fb) fb.textContent = "Alterações guardadas.";
@@ -671,6 +673,7 @@
     }
     f.blocked = !f.blocked;
     saveFuncionariosAccess();
+    portalPushCloudSnapshotAfterPersist();
     syncPortalColaboradorFormFromCpf();
     if (fb) {
       fb.textContent = f.blocked
@@ -1266,11 +1269,7 @@
         console.error(err);
         return;
       }
-      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        window.__DK_pushCloudSnapshotNow().catch((err) => {
-          console.warn("[DK portal] nuvem após guardar cliente", err);
-        });
-      }
+      portalPushCloudSnapshotAfterPersist();
       const codigoEl = document.getElementById("operacaoClienteCodigo");
       if (codigoEl) codigoEl.value = nextCode;
       if (msg) {
@@ -1340,11 +1339,7 @@
         endereco: getVal("operacaoClienteEndereco"),
       };
       saveCadastro(CAD_CLIENTES_KEY, clientes);
-      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        window.__DK_pushCloudSnapshotNow().catch((err) => {
-          console.warn("[DK portal] nuvem após atualizar cliente", err);
-        });
-      }
+      portalPushCloudSnapshotAfterPersist();
       if (msg) msg.textContent = "Dados do cliente atualizados com sucesso.";
       window.alert("Os dados que você alterou foram salvos.");
     });
@@ -2722,15 +2717,38 @@
     });
   }
 
-  /** Mescla clientes/veículos/locações a partir da API (Redis) antes de mostrar outro formulário — ex.: sair de locação e abrir veículo. */
+  function portalPushCloudSnapshotAfterPersist() {
+    if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
+    window.__DK_pushCloudSnapshotNow().catch((err) => {
+      console.warn("[DK portal] enviar snapshot nuvem", err);
+    });
+  }
+
+  function portalRefreshOperacaoDadosAposNuvem() {
+    try {
+      refreshOperacaoLocacaoDatalists();
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      refreshPortalRelClienteCpfDatalist();
+      refreshPortalRelPlacaDatalist();
+      refreshOperacaoLancamentoAluguelCpfDatalist();
+    } catch (e) {
+      console.warn("[DK portal] refresh após nuvem", e);
+    }
+  }
+
+  /** Redis/API + snapshot Supabase (merge) antes de mostrar outro formulário. */
   async function portalOperacaoAwaitCloudCadastroPull() {
     try {
       if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
         await window.__DK_portalPullCadastroFromCloud();
       }
+      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+        await window.__DK_pullCloudSnapshotSilentMerge();
+      }
     } catch (e) {
       console.warn("[DK portal] cadastro pull ao mudar tela", e);
     }
+    portalRefreshOperacaoDadosAposNuvem();
   }
 
   function hideInlineForms() {
@@ -3368,6 +3386,7 @@
       if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
       return;
     }
+    portalPushCloudSnapshotAfterPersist();
     if (typeof addAuditLog === "function") {
       try {
         addAuditLog("finalizar_locacao_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · fim ${fimBr}`);
@@ -3380,6 +3399,88 @@
     applyPortalLocacaoRowFromRecord(locs[idx]);
     refreshOperacaoLocacaoDatalists();
     refreshOperacaoLocacaoFinalizarBtn();
+  }
+
+  /** Cadastro de veículo no portal (Receita 2026) — envia snapshot à nuvem após guardar. */
+  function persistPortalOperacaoVeiculoInlineSubmit(ev) {
+    ev.preventDefault();
+    const msg = document.getElementById("operacaoVeiculoInlineMsg");
+    if (
+      typeof loadCadastro !== "function" ||
+      typeof saveCadastro !== "function" ||
+      typeof CAD_VEICULOS_KEY === "undefined"
+    ) {
+      if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
+      return;
+    }
+    if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
+    const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+    const plateRaw = getVal("operacaoVeiculoPlaca");
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(plateRaw)
+        : String(plateRaw || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    const modelo = getVal("operacaoVeiculoModelo");
+    if (!plate || !modelo) {
+      if (msg) msg.textContent = "Informe placa e modelo.";
+      return;
+    }
+    const marca = getVal("operacaoVeiculoMarca");
+    const valor = getVal("operacaoVeiculoValor");
+    const cor = getVal("operacaoVeiculoCor");
+    const chassi = getVal("operacaoVeiculoChassi");
+    const anoModelo = getVal("operacaoVeiculoAnoModelo");
+    const renavam = getVal("operacaoVeiculoRenavam");
+    const motor = getVal("operacaoVeiculoMotor");
+    const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+    if (typeof hasEquipamentoDuplicado === "function" && hasEquipamentoDuplicado(veiculos, plate, chassi, renavam, motor)) {
+      if (msg) msg.textContent = "Placa, chassi, renavam ou motor já cadastrado.";
+      return;
+    }
+    const tipo = portalInferTipoVeiculoLocacao({ placa: plate });
+    let tag = getVal("operacaoVeiculoTag");
+    if (!tag && typeof nextTagByTipo === "function") {
+      tag = nextTagByTipo(tipo, veiculos);
+    }
+    if (!tag) {
+      if (msg) msg.textContent = "Informe a tag do veículo.";
+      return;
+    }
+    const novo = {
+      id: Date.now(),
+      createdAt: Date.now(),
+      tipo,
+      tag,
+      placa: plate,
+      codigo: getVal("operacaoVeiculoCodigo"),
+      numLinha: getVal("operacaoVeiculoNum"),
+      marca,
+      modelo,
+      valor,
+      cor,
+      chassi,
+      anoModelo,
+      renavam,
+      motor,
+      proprietario: getVal("operacaoVeiculoProprietario"),
+      local: getVal("operacaoVeiculoLocal"),
+      status: "DISPONIVEL",
+    };
+    veiculos.push(novo);
+    try {
+      saveCadastro(CAD_VEICULOS_KEY, veiculos);
+    } catch (err) {
+      veiculos.pop();
+      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+      console.error(err);
+      return;
+    }
+    portalPushCloudSnapshotAfterPersist();
+    if (msg) msg.textContent = "Veículo cadastrado com sucesso.";
+    const form = document.getElementById("formOperacaoVeiculoInline");
+    if (form && typeof form.reset === "function") form.reset();
   }
 
   /** Cadastro / atualização de locação pelo formulário do portal — grava também quem executou (000AA + instante). */
@@ -3609,6 +3710,7 @@
       if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
       return;
     }
+    portalPushCloudSnapshotAfterPersist();
 
     if (typeof addAuditLog === "function") {
       try {
@@ -4320,6 +4422,7 @@
       console.error(err);
       return false;
     }
+    portalPushCloudSnapshotAfterPersist();
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLancAluguelAdminControlsVisibility();
     return true;
@@ -4813,6 +4916,7 @@
   refreshOperacaoLocacaoProtocoloPicker({ force: true });
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
+  document.getElementById("formOperacaoVeiculoInline")?.addEventListener("submit", persistPortalOperacaoVeiculoInlineSubmit);
   const formOperacaoLocacaoInline = document.getElementById("formOperacaoLocacaoInline");
   formOperacaoLocacaoInline?.addEventListener("submit", persistPortalOperacaoLocacaoInlineSubmit);
   // Também recalcula após hidratação inicial dos campos pela querystring do navegador.

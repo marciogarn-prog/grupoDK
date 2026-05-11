@@ -7,6 +7,7 @@
  * - Após guardar qualquer dado DK (chaves listadas): envia snapshot para a nuvem
  *   (debounce; sem mensagem a cada tecla).
  * - `window.__DK_pushCloudSnapshotNow()` — envio imediato (ex.: após «Guardar cliente»).
+ * - `window.__DK_pullCloudSnapshotSilentMerge()` — merge do snapshot sem recarregar (mudança de ecrã).
  */
 (function portalSupabaseSync() {
   const DK_SNAPSHOT_LABEL = "default";
@@ -209,6 +210,43 @@
 
   try {
     window.__DK_pushCloudSnapshotNow = pushCloudSnapshotNow;
+  } catch {
+    /* ignore */
+  }
+
+  /**
+   * Lê o snapshot na nuvem e aplica ao localStorage (merge nos cadastros imutáveis) sem recarregar a página.
+   * Usado ao mudar de ecrã na Operação; não substitui «Carregar da nuvem» (que pede confirmação e dá F5).
+   */
+  async function pullCloudSnapshotSilentMerge() {
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return { ok: false, skipped: true };
+    const { data, error } = await client
+      .from("dk_cloud_snapshots")
+      .select("payload")
+      .eq("label", DK_SNAPSHOT_LABEL)
+      .maybeSingle();
+    if (error) {
+      console.warn("[DK cloud] pull silencioso", error);
+      return { ok: false, error };
+    }
+    if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
+      return { ok: false, skipped: true };
+    }
+    if (!cloudPullWouldChangeAnything(data.payload)) {
+      return { ok: true, unchanged: true };
+    }
+    suppressCloudHook = true;
+    try {
+      applyPayloadToLocalStorage(data.payload);
+    } finally {
+      suppressCloudHook = false;
+    }
+    return { ok: true, applied: true };
+  }
+
+  try {
+    window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
   } catch {
     /* ignore */
   }
