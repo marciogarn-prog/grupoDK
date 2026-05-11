@@ -963,6 +963,131 @@
     return el && el.value === "sim";
   }
 
+  function portalBrDatePlusDays(days) {
+    const d = new Date();
+    d.setDate(d.getDate() + Number(days || 0));
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  }
+
+  function portalGetPlacaChecklistAtual() {
+    const a = String(document.getElementById("portalChecklistFieldPlaca")?.value || "").trim();
+    const b = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
+    return a || b;
+  }
+
+  function portalNkPlate(p) {
+    if (typeof normalizePlate === "function") return normalizePlate(String(p || ""));
+    return String(p || "")
+      .replace(/\s+/g, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function portalEnviarChecklistParaManutencao() {
+    const placaRaw = portalGetPlacaChecklistAtual();
+    if (!placaRaw) return { ok: false, message: "Placa em falta." };
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return { ok: false, message: "Cadastro indisponível neste ambiente." };
+    }
+    const placaKey = portalNkPlate(placaRaw);
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+    const jaEmManutencao = manutencoes.some(
+      (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
+    );
+    if (jaEmManutencao) {
+      return { ok: false, message: "Esta placa já está em manutenção ativa." };
+    }
+    const data = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
+    const dataPrevistaSaida = portalBrDatePlusDays(7);
+    const servicosSelecionados = ["PORTAL_CHECKLIST"];
+    const servico = "Portal check-list — enviado para manutenção";
+    manutencoes.push({
+      id: Date.now(),
+      placa: String(placaRaw).trim().toUpperCase(),
+      servicos: servicosSelecionados,
+      servico,
+      data,
+      dataPrevistaSaida,
+      dataRealSaida: "",
+      valor: "",
+      origemPortalChecklist: true,
+    });
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_checklist_envio_manutencao", "manutencao", placaKey);
+    }
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      try {
+        portalPushCloudSnapshotAfterPersist();
+      } catch {
+        /* ignore */
+      }
+    }
+    return { ok: true };
+  }
+
+  function portalRegistarDevolvidoAoCliente() {
+    const placaRaw = portalGetPlacaChecklistAtual();
+    const placaKey = portalNkPlate(placaRaw);
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_checklist_devolvido_cliente", "manutencao", placaKey || "sem_placa");
+    }
+    return { ok: true };
+  }
+
+  function portalRefreshManutencaoVeiculosLista() {
+    const container = document.getElementById("portalManutencaoListaCards");
+    const dl = document.getElementById("portalManutencaoPlacaSugestoes");
+    const msg = document.getElementById("portalManutencaoListaMsg");
+    if (!container || typeof loadCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") return;
+    let rows = loadCadastro(CAD_MANUTENCOES_KEY).filter((m) => !String(m.dataRealSaida || "").trim());
+    rows = rows.slice().sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+    const filtroRaw = String(document.getElementById("portalManutencaoPlacaFiltro")?.value || "").trim();
+    const filtro = portalNkPlate(filtroRaw);
+    if (filtro) {
+      rows = rows.filter((m) => portalNkPlate(m.placa).includes(filtro));
+    }
+    const placasOpts = [...new Set(loadCadastro(CAD_MANUTENCOES_KEY).filter((m) => !String(m.dataRealSaida || "").trim()).map((m) => portalNkPlate(m.placa)))].filter(Boolean).sort();
+    if (dl) {
+      dl.innerHTML = placasOpts.map((p) => `<option value="${p}"></option>`).join("");
+    }
+    if (!rows.length) {
+      container.innerHTML = `<p class="portal-manutencao-empty">Nenhum veículo em manutenção ativa${filtro ? " para esta busca" : ""}.</p>`;
+      if (msg) msg.textContent = "";
+      return;
+    }
+    container.innerHTML = rows
+      .map((m) => {
+        const pl = portalNkPlate(m.placa);
+        const srv = portalEscapeHtml(String(m.servico || "").trim() || "—");
+        const dt = portalEscapeHtml(String(m.data || "").trim() || "—");
+        const prev = portalEscapeHtml(String(m.dataPrevistaSaida || "").trim() || "—");
+        return `<article class="portal-manutencao-card" role="listitem">
+          <strong class="portal-manutencao-card__plate">${portalEscapeHtml(pl)}</strong>
+          <span class="portal-manutencao-card__meta">Serviço: ${srv}</span>
+          <span class="portal-manutencao-card__meta">Entrada: ${dt}</span>
+          <span class="portal-manutencao-card__meta">Prev. saída: ${prev}</span>
+        </article>`;
+      })
+      .join("");
+    if (msg) msg.textContent = `${rows.length} veículo(s) listado(s).`;
+  }
+
+  function portalBindManutencaoListaOnce() {
+    if (window.__dkPortalManutencaoListaBound) return;
+    window.__dkPortalManutencaoListaBound = true;
+    const inp = document.getElementById("portalManutencaoPlacaFiltro");
+    inp?.addEventListener("input", () => {
+      inp.value = String(inp.value || "").toUpperCase();
+      portalRefreshManutencaoVeiculosLista();
+    });
+  }
+
+  portalBindManutencaoListaOnce();
+
   function portalValidateChecklistCompleto() {
     const hint = document.getElementById("portalChecklistExportHint");
     const req = [];
@@ -996,14 +1121,18 @@
     const ok = req.length === 0;
     if (hint) {
       hint.textContent = ok
-        ? "Todos os campos obrigatórios estão preenchidos. Pode imprimir ou guardar em PDF."
+        ? "Todos os campos obrigatórios estão preenchidos. Pode imprimir, guardar PDF e escolher o destino do veículo em baixo."
         : `Complete para ativar os botões: ${req.join("; ")}.`;
     }
 
     const b1 = document.getElementById("portalChecklistBtnImprimir");
     const b2 = document.getElementById("portalChecklistBtnPdf");
+    const b3 = document.getElementById("portalChecklistBtnDevolvido");
+    const b4 = document.getElementById("portalChecklistBtnManutencao");
     if (b1) b1.disabled = !ok;
     if (b2) b2.disabled = !ok;
+    if (b3) b3.disabled = !ok;
+    if (b4) b4.disabled = !ok;
     return ok;
   }
 
@@ -1011,7 +1140,8 @@
     const root = document.getElementById("portalChecklistPrintArea");
     if (!root) return;
     const printable = root.cloneNode(true);
-    printable.querySelectorAll(".portal-checklist-export-actions").forEach((node) => node.remove());
+    printable.querySelectorAll(".portal-checklist-export-footer").forEach((node) => node.remove());
+    printable.querySelectorAll(".portal-checklist-disposition-msg").forEach((node) => node.remove());
     const title = "Check-list manutenção";
     const popup = window.open("", "_blank", "width=1100,height=800");
     if (!popup) return;
@@ -1064,6 +1194,31 @@ ${printable.innerHTML}
     document.getElementById("portalChecklistBtnPdf")?.addEventListener("click", () => {
       if (!portalValidateChecklistCompleto()) return;
       portalExportChecklistPdf();
+    });
+
+    document.getElementById("portalChecklistBtnDevolvido")?.addEventListener("click", () => {
+      if (!portalValidateChecklistCompleto()) return;
+      const msg = document.getElementById("portalChecklistDispositionMsg");
+      portalRegistarDevolvidoAoCliente();
+      if (msg) {
+        msg.textContent =
+          "Registado: veículo permanece em «Veículos em operação» (contrato ativo inalterado neste passo).";
+      }
+    });
+
+    document.getElementById("portalChecklistBtnManutencao")?.addEventListener("click", () => {
+      if (!portalValidateChecklistCompleto()) return;
+      const msg = document.getElementById("portalChecklistDispositionMsg");
+      const r = portalEnviarChecklistParaManutencao();
+      if (!r.ok) {
+        if (msg) msg.textContent = r.message || "Não foi possível registar.";
+        return;
+      }
+      if (msg) {
+        msg.textContent =
+          "Veículo registado em manutenção. Consulte a lista em «Veículos em manutenção» à esquerda.";
+      }
+      portalRefreshManutencaoVeiculosLista();
     });
   }
 
@@ -1150,10 +1305,17 @@ ${printable.innerHTML}
           </label>
         </div>
         <p id="portalChecklistExportHint" class="portal-checklist-export-hint"></p>
-        <div class="portal-checklist-export-actions">
-          <button type="button" class="btn-primary" id="portalChecklistBtnImprimir" disabled>Imprimir</button>
-          <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnPdf" disabled>Guardar PDF</button>
+        <div class="portal-checklist-export-footer">
+          <div class="portal-checklist-export-actions">
+            <button type="button" class="btn-primary" id="portalChecklistBtnImprimir" disabled>Imprimir</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnPdf" disabled>Guardar PDF</button>
+          </div>
+          <div class="portal-checklist-disposition-actions">
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnDevolvido" disabled>DEVOLVIDO AO CLIENTE</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnManutencao" disabled>ENVIADO PARA MANUTENÇÃO</button>
+          </div>
         </div>
+        <p id="portalChecklistDispositionMsg" class="portal-checklist-disposition-msg" role="status"></p>
       </div>
     `;
 
@@ -1220,6 +1382,9 @@ ${printable.innerHTML}
       if (panel === "manutencaoInlineEmOperacao") {
         portalEnsureChecklistUiBuilt();
         refreshPortalChecklistPlacasAtivasCache();
+      }
+      if (panel === "manutencaoInlineEmManutencao") {
+        portalRefreshManutencaoVeiculosLista();
       }
     });
   });

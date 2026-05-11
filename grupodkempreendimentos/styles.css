@@ -1599,3 +1599,79 @@ body {
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+.portal-checklist-export-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin-top: 0.35rem;
+}
+
+.portal-checklist-disposition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.portal-checklist-disposition-actions .btn-primary {
+  font-size: 0.78rem;
+  padding: 0.48rem 0.7rem;
+  max-width: 12rem;
+  line-height: 1.25;
+}
+
+.portal-checklist-disposition-msg {
+  font-size: 0.88rem;
+  margin: 0.5rem 0 0;
+  color: #fca5a5;
+}
+
+.portal-manutencao-busca {
+  margin-bottom: 1rem;
+}
+
+.portal-manutencao-busca__field {
+  max-width: 18rem;
+}
+
+.portal-manutencao-busca input {
+  padding: 0.5rem 0.55rem;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.portal-manutencao-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.portal-manutencao-card {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.portal-manutencao-card__plate {
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+}
+
+.portal-manutencao-card__meta {
+  font-size: 0.88rem;
+  color: var(--muted);
+}
+
+.portal-manutencao-empty {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--muted);
+}

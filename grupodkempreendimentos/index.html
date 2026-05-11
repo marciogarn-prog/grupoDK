@@ -922,8 +922,24 @@
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
               <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Veículos em manutenção</h3>
-              <p class="subtext operacao-inline-form__lead">Área para veículos em oficina ou fora de serviço.</p>
-              <p class="portal-feedback" role="status">Conteúdo em preparação — será ligado aos dados da frota.</p>
+              <p class="subtext operacao-inline-form__lead">Veículos inoperantes com manutenção aberta (sem data de saída no cadastro).</p>
+              <div class="portal-manutencao-busca">
+                <label class="portal-field portal-manutencao-busca__field">
+                  <span>Filtrar por placa</span>
+                  <input
+                    type="text"
+                    id="portalManutencaoPlacaFiltro"
+                    maxlength="10"
+                    autocomplete="off"
+                    placeholder="Digite para filtrar"
+                    list="portalManutencaoPlacaSugestoes"
+                    aria-label="Filtrar lista por placa"
+                  >
+                </label>
+                <datalist id="portalManutencaoPlacaSugestoes"></datalist>
+              </div>
+              <div id="portalManutencaoListaCards" class="portal-manutencao-cards" role="list" aria-live="polite"></div>
+              <p id="portalManutencaoListaMsg" class="portal-feedback" role="status"></p>
             </div>
             <div id="manutencaoInlineReserva" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-reserva">
               <h3 id="manutencao-title-reserva" class="operacao-inline-form__title">Veículos reserva</h3>
@@ -1023,7 +1039,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511checklist-fotos-final" defer></script>
+  <script src="portal-locadora-ui.js?v=20260512checklist-disposicao-manut" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>
