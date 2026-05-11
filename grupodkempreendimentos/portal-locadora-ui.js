@@ -1583,6 +1583,40 @@
     });
   }
 
+  /** DD/MM/AAAA → ms; inválido → 0. */
+  function parsePortalLocacaoDataMs(raw) {
+    const s = String(raw ?? "").trim();
+    if (!s || s === "—" || s === "-") return 0;
+    if (typeof parseBrDate !== "function") return 0;
+    const d = parseBrDate(s);
+    return d && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
+  }
+
+  /**
+   * Para ordenar locações: usa a **mais recente** entre data de início e data de fim
+   * (cadastro novo ou finalização recente sobem no relatório). Sem datas válidas → fallback genérico.
+   */
+  function portalLocacaoUltimaAtividadeMs(rec) {
+    if (!rec || typeof rec !== "object") return 0;
+    const ini = parsePortalLocacaoDataMs(rec.inicio);
+    const fim = parsePortalLocacaoDataMs(rec.fim);
+    const mx = Math.max(ini || 0, fim || 0);
+    if (mx > 0) return mx;
+    return portalRegistroRecencyMs(rec);
+  }
+
+  function sortPortalLocacoesPorUltimaDataDesc(records) {
+    if (!Array.isArray(records)) return [];
+    return records.slice().sort((a, b) => {
+      const da = portalLocacaoUltimaAtividadeMs(a);
+      const db = portalLocacaoUltimaAtividadeMs(b);
+      if (db !== da) return db - da;
+      const ta = String(a.numeroContrato || a.placa || a.cpf || "");
+      const tb = String(b.numeroContrato || b.placa || b.cpf || "");
+      return tb.localeCompare(ta, "en");
+    });
+  }
+
   /** Contexto do relatório aberto no modal (cliente/veículo/locação). */
   let portalRelatorioAtual = null;
 
@@ -1912,7 +1946,7 @@
   }
 
   function getPortalRelatorioLocacaoContext() {
-    const rowsRaw = sortPortalRelatorioByRecencyDesc(
+    const rowsRaw = sortPortalLocacoesPorUltimaDataDesc(
       typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : []
     );
     const headers = ["Protocolo", "CPF", "Cliente", "Placa", "Modelo", "Início", "Fim", "Plano", "Status"];
@@ -2324,7 +2358,7 @@
   function emitPortalRelatorioLocacaoPdf(escopo) {
     const titulo =
       escopo === "ativas" ? "Locações de motos — ativas" : "Locações de motos — finalizadas";
-    const raw = sortPortalRelatorioByRecencyDesc(getPortalMotosLocacaoDataset(escopo));
+    const raw = sortPortalLocacoesPorUltimaDataDesc(getPortalMotosLocacaoDataset(escopo));
     const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
@@ -2409,7 +2443,7 @@
       return;
     }
     const label = escopo === "ativas" ? "Locações ativas (motos)" : "Locações finalizadas (motos)";
-    const raw = sortPortalRelatorioByRecencyDesc(getPortalMotosLocacaoDataset(escopo));
+    const raw = sortPortalLocacoesPorUltimaDataDesc(getPortalMotosLocacaoDataset(escopo));
     const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
