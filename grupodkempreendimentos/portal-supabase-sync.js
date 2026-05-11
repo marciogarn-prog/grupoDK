@@ -6,6 +6,7 @@
  *   navegador, aplica e recarrega a página uma vez.
  * - Após guardar qualquer dado DK (chaves listadas): envia snapshot para a nuvem
  *   (debounce; sem mensagem a cada tecla).
+ * - `window.__DK_pushCloudSnapshotNow()` — envio imediato (ex.: após «Guardar cliente»).
  */
 (function portalSupabaseSync() {
   const DK_SNAPSHOT_LABEL = "default";
@@ -197,6 +198,19 @@
       setMsg("Nuvem atualizada em segundo plano.", "muted");
     }
     return r;
+  }
+
+  /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
+  async function pushCloudSnapshotNow() {
+    clearTimeout(cloudPushTimer);
+    cloudPushTimer = null;
+    return pushSnapshotQuiet();
+  }
+
+  try {
+    window.__DK_pushCloudSnapshotNow = pushCloudSnapshotNow;
+  } catch {
+    /* ignore */
   }
 
   async function pushSnapshot() {

@@ -1266,6 +1266,11 @@
         console.error(err);
         return;
       }
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        window.__DK_pushCloudSnapshotNow().catch((err) => {
+          console.warn("[DK portal] nuvem após guardar cliente", err);
+        });
+      }
       const codigoEl = document.getElementById("operacaoClienteCodigo");
       if (codigoEl) codigoEl.value = nextCode;
       if (msg) {
@@ -1335,6 +1340,11 @@
         endereco: getVal("operacaoClienteEndereco"),
       };
       saveCadastro(CAD_CLIENTES_KEY, clientes);
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        window.__DK_pushCloudSnapshotNow().catch((err) => {
+          console.warn("[DK portal] nuvem após atualizar cliente", err);
+        });
+      }
       if (msg) msg.textContent = "Dados do cliente atualizados com sucesso.";
       window.alert("Os dados que você alterou foram salvos.");
     });
