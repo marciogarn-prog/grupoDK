@@ -43,18 +43,27 @@ if (fs.existsSync(indexHtml)) {
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
     "https://ppxtwqvzgujllfzarpuz.supabase.co";
-  const anonEnv = process.env.SUPABASE_ANON_KEY || "";
+  const anonEnv =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.SUPABASE_PUBLISHABLE_KEY ||
+    "";
   let html = fs.readFileSync(indexHtml, "utf8");
   html = html.replace(
     /<meta\s+name="dk-supabase-url"\s+content="[^"]*"\s*>/i,
     `<meta name="dk-supabase-url" content="${escHtmlAttrValue(urlEnv)}">`
   );
-  html = html.replace(
-    /<meta\s+name="dk-supabase-anon-key"\s+content="[^"]*"\s*>/i,
-    `<meta name="dk-supabase-anon-key" content="${escHtmlAttrValue(anonEnv)}">`
-  );
+  if (anonEnv) {
+    html = html.replace(
+      /<meta\s+name="dk-supabase-anon-key"\s+content="[^"]*"\s*>/i,
+      `<meta name="dk-supabase-anon-key" content="${escHtmlAttrValue(anonEnv)}">`
+    );
+  }
   fs.writeFileSync(indexHtml, html);
-  console.log("copy-portal-for-vercel: Supabase meta injetadas (anon:", anonEnv ? "sim" : "vazio", ")");
+  console.log(
+    "copy-portal-for-vercel: Supabase meta injetadas (chave:",
+    anonEnv ? "env" : "mantida-do-index",
+    ")"
+  );
 }
 
 console.log("copy-portal-for-vercel: ok →", outDir);
