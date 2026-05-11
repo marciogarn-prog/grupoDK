@@ -469,6 +469,438 @@
     panelLogado?.classList.remove("hidden");
   });
 
+  /** Itens 1–29 — inspeção (A/R). */
+  const PORTAL_CHECKLIST_ITENS = [
+    "Kit de transmissão",
+    "Disco de freio traseiro",
+    "Pastilhas de freio traseiro",
+    "Lonas / sapatas traseiras",
+    "Disco de freio dianteiro",
+    "Pastilhas de freio dianteiro",
+    "Pneu dianteiro",
+    "Pneu traseiro",
+    "Câmara de ar dianteira",
+    "Câmara de ar traseira",
+    "Coluna de direção",
+    "Sistema elétrico",
+    "Placa",
+    "Suporte da placa",
+    "Luz de freio",
+    "Acelerador",
+    "Cabo do acelerador",
+    "Cabo da embreagem",
+    "Cabo do velocímetro",
+    "Capa do banco / banco",
+    "Banco",
+    "Vela",
+    "Ignição",
+    "Painel",
+    "Rolamentos roda dianteira",
+    "Rolamentos roda traseira",
+    "Buzina",
+    "Kit de embreagem",
+    "Junta do motor",
+  ];
+
+  let portalChecklistUiBuilt = false;
+
+  function portalPopulateColaboradoresChecklistSelects() {
+    const selM = document.getElementById("portalChecklistMecanico");
+    const selS = document.getElementById("portalChecklistSupervisor");
+    if (!selM || !selS || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) return;
+    const list = funcionariosAccess
+      .filter((f) => !f.blocked)
+      .slice()
+      .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"));
+    const opts =
+      '<option value="">— Selecione —</option>' +
+      list
+        .map((f) => {
+          const cpf = String(f.cpf || "");
+          const nome = portalEscapeHtml(String(f.nome || "").trim());
+          return `<option value="${portalEscapeHtml(cpf)}">${nome}</option>`;
+        })
+        .join("");
+    selM.innerHTML = opts;
+    selS.innerHTML = opts;
+  }
+
+  function portalResolveChecklistLocacaoPorPlaca(plateRaw) {
+    const nk =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (p) =>
+            String(p || "")
+              .replace(/\s+/g, "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+    const plateKey = nk(String(plateRaw || ""));
+    if (!plateKey) return null;
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return null;
+    const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+    if (typeof pickBestRecordByPlate === "function") return pickBestRecordByPlate(locacoes, plateKey);
+    return null;
+  }
+
+  function portalFillChecklistFromCadastro(plateDisplay) {
+    const loc = portalResolveChecklistLocacaoPorPlaca(plateDisplay);
+    const nk =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (p) =>
+            String(p || "")
+              .replace(/\s+/g, "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+    const plateKey = nk(String(plateDisplay || ""));
+    let veiculo = null;
+    if (typeof getVehicleMapByPlate === "function") {
+      veiculo = getVehicleMapByPlate().get(plateKey) || null;
+    } else if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      veiculo =
+        loadCadastro(CAD_VEICULOS_KEY).find((v) => nk(String(v.placa || "")) === plateKey) || null;
+    }
+
+    const assign = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val != null ? String(val) : "";
+    };
+
+    assign("portalChecklistFieldPlaca", plateDisplay || "");
+
+    if (!loc) {
+      assign("portalChecklistFieldPlano", "");
+      assign("portalChecklistFieldInicioContrato", "");
+      assign("portalChecklistFieldProtocolo", "");
+      assign("portalChecklistFieldCliente", "");
+      assign("portalChecklistFieldAnoModelo", veiculo?.anoModelo || "");
+      assign("portalChecklistFieldCor", veiculo?.cor || "");
+      assign("portalChecklistFieldMarcaModelo", String(veiculo?.marcaModelo || veiculo?.modelo || "").trim());
+      assign("portalChecklistFieldCelular", "");
+      return {
+        ok: false,
+        message:
+          "Nenhuma locação encontrada para esta placa. Dados do veículo foram aplicados quando existentes; complete o restante manualmente.",
+      };
+    }
+
+    const cpf = onlyDigits(String(loc.cpf || ""));
+    const cliente =
+      cpf.length === 11 && typeof findClienteByCpfCadastro === "function"
+        ? findClienteByCpfCadastro(cpf)
+        : null;
+    let codigo =
+      typeof getPortalCanonicalClienteCodeByCpf === "function"
+        ? getPortalCanonicalClienteCodeByCpf(cpf)
+        : String(cliente?.codigo || "").trim();
+    if (!codigo) codigo = String(cliente?.codigo || "").trim();
+    const nomeCliente = String(cliente?.nome || loc.nome || "").trim();
+    const clienteLinha = [codigo, nomeCliente].filter(Boolean).join(" — ");
+
+    const plano = String(loc.plano || loc.opcaoContrato || "").trim();
+    const inicio =
+      typeof formatPortalCadastroDateLabel === "function"
+        ? formatPortalCadastroDateLabel(loc.inicio)
+        : String(loc.inicio || "").trim();
+    const proto = String(loc.numeroContrato || "").trim();
+
+    assign("portalChecklistFieldPlano", plano);
+    assign("portalChecklistFieldInicioContrato", inicio);
+    assign("portalChecklistFieldProtocolo", proto);
+    assign("portalChecklistFieldCliente", clienteLinha);
+    assign("portalChecklistFieldAnoModelo", veiculo?.anoModelo || "");
+    assign("portalChecklistFieldCor", veiculo?.cor || "");
+    assign(
+      "portalChecklistFieldMarcaModelo",
+      String(veiculo?.marcaModelo || veiculo?.modelo || loc.marcaModelo || loc.modelo || "").trim()
+    );
+    assign("portalChecklistFieldCelular", String(cliente?.celular || "").trim());
+
+    return { ok: true, message: "Dados carregados a partir do cadastro." };
+  }
+
+  function portalClearChecklistInspection() {
+    for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
+      document.querySelectorAll(`input[name="portalChecklistItem${n}"]`).forEach((r) => {
+        r.checked = false;
+      });
+      const o = document.getElementById(`portalChecklistObs${n}`);
+      if (o) o.value = "";
+    }
+    document.querySelectorAll('input[name="portalChecklistOleo"]').forEach((r) => {
+      r.checked = false;
+    });
+    document.querySelectorAll('input[name="portalChecklistPagou"]').forEach((r) => {
+      r.checked = false;
+    });
+    ["portalChecklistEntradaData", "portalChecklistEntradaHora", "portalChecklistSaidaData", "portalChecklistSaidaHora"].forEach(
+      (id) => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      }
+    );
+    const od = document.getElementById("portalChecklistOdometro");
+    if (od) od.value = "";
+    const px = document.getElementById("portalChecklistProximaTroca");
+    if (px) px.value = "";
+    const m = document.getElementById("portalChecklistMecanico");
+    const s = document.getElementById("portalChecklistSupervisor");
+    if (m) m.value = "";
+    if (s) s.value = "";
+  }
+
+  function portalUpdateProximaTrocaKm() {
+    const od = document.getElementById("portalChecklistOdometro");
+    const px = document.getElementById("portalChecklistProximaTroca");
+    if (!od || !px) return;
+    const n = parseInt(String(od.value || "").replace(/\D/g, ""), 10);
+    if (!Number.isFinite(n) || n < 0) {
+      px.value = "";
+      return;
+    }
+    px.value = String(n + 1000);
+  }
+
+  function portalChecklistOleoSim() {
+    const el = document.querySelector('input[name="portalChecklistOleo"]:checked');
+    return el && el.value === "sim";
+  }
+
+  function portalValidateChecklistCompleto() {
+    const hint = document.getElementById("portalChecklistExportHint");
+    const req = [];
+
+    const ed = document.getElementById("portalChecklistEntradaData")?.value;
+    const eh = document.getElementById("portalChecklistEntradaHora")?.value;
+    const sd = document.getElementById("portalChecklistSaidaData")?.value;
+    const sh = document.getElementById("portalChecklistSaidaHora")?.value;
+    if (!ed || !eh) req.push("entrada (data e hora)");
+    if (!sd || !sh) req.push("saída (data e hora)");
+
+    if (!document.querySelector('input[name="portalChecklistOleo"]:checked')) req.push("troca de óleo (Sim/Não)");
+    if (!document.querySelector('input[name="portalChecklistPagou"]:checked')) req.push("Pagou (S/N/N/A)");
+
+    if (portalChecklistOleoSim()) {
+      const odVal = document.getElementById("portalChecklistOdometro")?.value;
+      const n = parseInt(String(odVal || "").replace(/\D/g, ""), 10);
+      if (!Number.isFinite(n) || n < 0) req.push("odômetro (obrigatório se troca de óleo = Sim)");
+    }
+
+    for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
+      if (!document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)) {
+        req.push(`itens 1–29 (falta item ${n}: A ou R)`);
+        break;
+      }
+    }
+
+    if (!document.getElementById("portalChecklistMecanico")?.value) req.push("mecânico");
+    if (!document.getElementById("portalChecklistSupervisor")?.value) req.push("supervisor");
+
+    const ok = req.length === 0;
+    if (hint) {
+      hint.textContent = ok
+        ? "Todos os campos obrigatórios estão preenchidos. Pode imprimir ou guardar em PDF."
+        : `Complete para ativar os botões: ${req.join("; ")}.`;
+    }
+
+    const b1 = document.getElementById("portalChecklistBtnImprimir");
+    const b2 = document.getElementById("portalChecklistBtnPdf");
+    if (b1) b1.disabled = !ok;
+    if (b2) b2.disabled = !ok;
+    return ok;
+  }
+
+  function portalExportChecklistPdf() {
+    const root = document.getElementById("portalChecklistPrintArea");
+    if (!root) return;
+    const printable = root.cloneNode(true);
+    printable.querySelectorAll(".portal-checklist-export-actions").forEach((node) => node.remove());
+    const title = "Check-list manutenção";
+    const popup = window.open("", "_blank", "width=1100,height=800");
+    if (!popup) return;
+    popup.document.write(`<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>${title}</title>
+<style>
+  body { font-family: Arial, Helvetica, sans-serif; padding: 16px; color: #111; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+  th, td { border: 1px solid #bbb; padding: 5px 6px; vertical-align: middle; }
+  th { background: #f3f3f3; }
+  h2, h4 { margin: 0 0 10px; }
+  .portal-checklist-meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .portal-checklist-meta-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+  .portal-checklist-meta-grid input { padding: 4px; font-size: 12px; }
+  .portal-checklist-dates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .portal-checklist-dates label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
+  .portal-checklist-inline-row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; margin-bottom: 12px; }
+  .portal-checklist-toggle-options label { margin-right: 8px; }
+  input, select { border: 1px solid #999; }
+</style>
+</head>
+<body>
+<h2>${title}</h2>
+${printable.innerHTML}
+</body>
+</html>`);
+    popup.document.close();
+    popup.focus();
+    popup.print();
+  }
+
+  function portalBindInnerChecklistEvents() {
+    const od = document.getElementById("portalChecklistOdometro");
+    od?.addEventListener("input", () => {
+      portalUpdateProximaTrocaKm();
+      portalValidateChecklistCompleto();
+    });
+
+    const root = document.getElementById("portalChecklistPrintArea");
+    root?.addEventListener("change", () => portalValidateChecklistCompleto());
+    root?.addEventListener("input", () => portalValidateChecklistCompleto());
+
+    document.getElementById("portalChecklistBtnImprimir")?.addEventListener("click", () => {
+      if (!portalValidateChecklistCompleto()) return;
+      portalExportChecklistPdf();
+    });
+    document.getElementById("portalChecklistBtnPdf")?.addEventListener("click", () => {
+      if (!portalValidateChecklistCompleto()) return;
+      portalExportChecklistPdf();
+    });
+  }
+
+  function portalEnsureChecklistUiBuilt() {
+    if (portalChecklistUiBuilt) {
+      portalPopulateColaboradoresChecklistSelects();
+      return;
+    }
+    const mount = document.getElementById("portalChecklistMount");
+    if (!mount) return;
+
+    const rowsHtml = PORTAL_CHECKLIST_ITENS.map((label, idx) => {
+      const n = idx + 1;
+      return `<tr class="portal-checklist-inspection-row">
+        <td class="portal-checklist-num">${n}</td>
+        <td class="portal-checklist-desc">${portalEscapeHtml(label)}</td>
+        <td class="portal-checklist-ar"><label><input type="radio" name="portalChecklistItem${n}" value="A" autocomplete="off"></label></td>
+        <td class="portal-checklist-ar"><label><input type="radio" name="portalChecklistItem${n}" value="R" autocomplete="off"></label></td>
+        <td class="portal-checklist-obs"><input type="text" class="portal-checklist-obs-input" id="portalChecklistObs${n}" maxlength="160" autocomplete="off"></td>
+      </tr>`;
+    }).join("");
+
+    mount.innerHTML = `
+      <div id="portalChecklistPrintArea" class="portal-checklist-print-root">
+        <h4>CHECK LIST — MANUTENÇÃO / REPARAÇÕES</h4>
+        <div class="portal-checklist-meta-grid">
+          <label>Plano <input type="text" id="portalChecklistFieldPlano" autocomplete="off"></label>
+          <label>Início do contrato (oficial) <input type="text" id="portalChecklistFieldInicioContrato" autocomplete="off"></label>
+          <label>Protocolo <input type="text" id="portalChecklistFieldProtocolo" autocomplete="off"></label>
+          <label>Código do cliente + nome <input type="text" id="portalChecklistFieldCliente" autocomplete="off"></label>
+          <label>Ano / modelo <input type="text" id="portalChecklistFieldAnoModelo" autocomplete="off"></label>
+          <label>Cor <input type="text" id="portalChecklistFieldCor" autocomplete="off"></label>
+          <label>Marca / modelo <input type="text" id="portalChecklistFieldMarcaModelo" autocomplete="off"></label>
+          <label>Celular do cliente <input type="text" id="portalChecklistFieldCelular" autocomplete="off"></label>
+          <label>Placa <input type="text" id="portalChecklistFieldPlaca" readonly tabindex="-1"></label>
+        </div>
+        <div class="portal-checklist-dates">
+          <label>Entrada (data) <input type="date" id="portalChecklistEntradaData"></label>
+          <label>Entrada (hora) <input type="time" id="portalChecklistEntradaHora"></label>
+          <label>Saída (data) <input type="date" id="portalChecklistSaidaData"></label>
+          <label>Saída (hora) <input type="time" id="portalChecklistSaidaHora"></label>
+        </div>
+        <div class="portal-checklist-inline-row">
+          <div class="portal-checklist-toggle-group">
+            <span>Troca de óleo</span>
+            <div class="portal-checklist-toggle-options" role="group" aria-label="Troca de óleo">
+              <label><input type="radio" name="portalChecklistOleo" value="sim"> Sim</label>
+              <label><input type="radio" name="portalChecklistOleo" value="nao"> Não</label>
+            </div>
+          </div>
+          <div class="portal-checklist-inline-field">
+            <label>Odômetro (km) <input type="number" inputmode="numeric" min="0" step="1" id="portalChecklistOdometro" placeholder="km"></label>
+          </div>
+          <div class="portal-checklist-inline-field">
+            <label>Próxima troca (km) <input type="text" id="portalChecklistProximaTroca" readonly tabindex="-1"></label>
+          </div>
+          <div class="portal-checklist-toggle-group">
+            <span>Pagou</span>
+            <div class="portal-checklist-toggle-options" role="group" aria-label="Pagou">
+              <label><input type="radio" name="portalChecklistPagou" value="S"> S</label>
+              <label><input type="radio" name="portalChecklistPagou" value="N"> N</label>
+              <label><input type="radio" name="portalChecklistPagou" value="NA"> N/A</label>
+            </div>
+          </div>
+        </div>
+        <table class="portal-checklist-inspection" aria-label="Itens de inspeção">
+          <thead>
+            <tr>
+              <th class="portal-checklist-num">#</th>
+              <th class="portal-checklist-desc">Item</th>
+              <th class="portal-checklist-ar">A</th>
+              <th class="portal-checklist-ar">R</th>
+              <th class="portal-checklist-obs">Obs.</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+        <div class="portal-checklist-staff-row">
+          <label>Mecânico
+            <select id="portalChecklistMecanico"><option value="">— Selecione —</option></select>
+          </label>
+          <label>Supervisor
+            <select id="portalChecklistSupervisor"><option value="">— Selecione —</option></select>
+          </label>
+        </div>
+        <p id="portalChecklistExportHint" class="portal-checklist-export-hint"></p>
+        <div class="portal-checklist-export-actions">
+          <button type="button" class="btn-primary" id="portalChecklistBtnImprimir" disabled>Imprimir</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnPdf" disabled>Guardar PDF</button>
+        </div>
+      </div>
+    `;
+
+    portalPopulateColaboradoresChecklistSelects();
+    portalBindInnerChecklistEvents();
+    portalValidateChecklistCompleto();
+    portalChecklistUiBuilt = true;
+  }
+
+  document.getElementById("btnPortalChecklistAbrir")?.addEventListener("click", () => {
+    portalEnsureChecklistUiBuilt();
+    document.getElementById("portalChecklistPlacaInput")?.focus();
+  });
+
+  document.getElementById("portalChecklistCarregarBtn")?.addEventListener("click", () => {
+    portalEnsureChecklistUiBuilt();
+    const raw = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
+    const msgEl = document.getElementById("portalChecklistLoadMsg");
+    const mount = document.getElementById("portalChecklistMount");
+    if (!raw) {
+      if (msgEl) msgEl.textContent = "Informe a placa.";
+      return;
+    }
+    const plateFmt =
+      typeof normalizePlate === "function"
+        ? normalizePlate(raw)
+        : String(raw)
+            .replace(/\s+/g, "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!plateFmt) {
+      if (msgEl) msgEl.textContent = "Placa inválida.";
+      return;
+    }
+    if (document.getElementById("portalChecklistPlacaInput")) {
+      document.getElementById("portalChecklistPlacaInput").value = plateFmt;
+    }
+    portalClearChecklistInspection();
+    const res = portalFillChecklistFromCadastro(plateFmt);
+    if (msgEl) msgEl.textContent = res.message;
+    mount?.classList.remove("hidden");
+    portalValidateChecklistCompleto();
+  });
+
   [
     { btn: "btn-manutencao-em-operacao", panel: "manutencaoInlineEmOperacao" },
     { btn: "btn-manutencao-em-manutencao", panel: "manutencaoInlineEmManutencao" },
@@ -480,6 +912,7 @@
       setManutencaoFormPlaceholderVisible(false);
       document.getElementById(panel)?.classList.remove("hidden");
       syncManutencaoSidebarButtons(btn);
+      if (panel === "manutencaoInlineEmOperacao") portalEnsureChecklistUiBuilt();
     });
   });
 

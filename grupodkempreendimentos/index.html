@@ -874,8 +874,19 @@
             </div>
             <div id="manutencaoInlineEmOperacao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-operacao">
               <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Veículos em operação</h3>
-              <p class="subtext operacao-inline-form__lead">Área para listar e gerir veículos atualmente em operação.</p>
-              <p class="portal-feedback" role="status">Conteúdo em preparação — será ligado aos dados da frota.</p>
+              <p class="subtext operacao-inline-form__lead">Check-list de manutenção / reparações para veículos em operação (tablet).</p>
+              <div class="portal-checklist-toolbar portal-checklist-no-print">
+                <button type="button" class="btn-primary" id="btnPortalChecklistAbrir">Check-list</button>
+              </div>
+              <div class="portal-checklist-placa-bar portal-checklist-no-print">
+                <label class="portal-checklist-placa-label">
+                  Placa da moto
+                  <input type="text" id="portalChecklistPlacaInput" class="portal-checklist-placa-input" maxlength="10" autocomplete="off" placeholder="Ex.: ABC1D23" inputmode="text">
+                </label>
+                <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn">Carregar dados</button>
+                <p id="portalChecklistLoadMsg" class="portal-feedback portal-checklist-load-msg" role="status"></p>
+              </div>
+              <div id="portalChecklistMount" class="portal-checklist-mount hidden" aria-live="polite"></div>
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
               <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Veículos em manutenção</h3>
@@ -980,7 +991,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511manutencao-area" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510checklist-v1" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>
