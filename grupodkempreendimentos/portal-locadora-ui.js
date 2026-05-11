@@ -2456,6 +2456,11 @@
     openPortalRelatorioModal(getPortalRelatorioLocacaoContext());
   });
 
+  document.getElementById("operacaoLocacaoFinalizarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    persistPortalLocacaoFinalizar();
+  });
+
   document.getElementById("portalRelClienteGerarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
@@ -2867,6 +2872,31 @@
     syncOperacaoLocacaoTempoDiasContrato();
     syncOperacaoLocacaoValorDevidoPlano();
     syncOperacaoLocacaoValorDevidoAluguel();
+    refreshOperacaoLocacaoFinalizarBtn();
+  }
+
+  /** Habilita «Finalizar locação» com data fim válida e protocolo já existente (não NOVO). */
+  function refreshOperacaoLocacaoFinalizarBtn() {
+    const btn = document.getElementById("operacaoLocacaoFinalizarBtn");
+    const inp = document.getElementById("operacaoLocacaoDataFim");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!btn || !inp) return;
+    const raw = String(inp.value || "").trim();
+    let okDate = false;
+    if (raw.length >= 8 && typeof parseBrDate === "function") {
+      const d = parseBrDate(raw);
+      okDate = Boolean(d && !Number.isNaN(d.getTime()));
+    }
+    const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
+    const can = okDate && !isNovo;
+    btn.disabled = !can;
+    if (!can) {
+      btn.title = isNovo
+        ? "Selecione um protocolo já cadastrado (não «NOVO»)."
+        : "Informe a data fim completa (DD/MM/AAAA).";
+    } else {
+      btn.title = "Gravar data fim e marcar a locação como finalizada.";
+    }
   }
 
   /** Com investimento > 0: DK MINHA MOTO; caso contrário: DK MEU TRANSPORTE (mesma regra do painel DK). */
@@ -3169,6 +3199,84 @@
     return typeof normalizeNumeroContratoKey === "function"
       ? normalizeNumeroContratoKey(x || "")
       : String(x || "").trim();
+  }
+
+  function persistPortalLocacaoFinalizar() {
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (
+      typeof loadCadastro !== "function" ||
+      typeof saveCadastro !== "function" ||
+      typeof CAD_LOCACOES_KEY === "undefined"
+    ) {
+      if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
+      return;
+    }
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!sel || String(sel.value || "") === "__PORTAL_PROTO_NOVO__") {
+      if (msg) msg.textContent = "Selecione um protocolo já cadastrado para finalizar.";
+      return;
+    }
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const ncNorm = normPortalNumeroContrato(String(hid?.value || ""));
+    if (!ncNorm) {
+      if (msg) msg.textContent = "Protocolo inválido.";
+      return;
+    }
+    const inpCpf = document.getElementById("operacaoLocacaoCpf");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = dig(String(inpCpf?.value || ""));
+    if (cpfDigits.length !== 11) {
+      if (msg) msg.textContent = "Informe um CPF cadastrado (11 dígitos).";
+      return;
+    }
+    const rawFim = String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim();
+    const fimDt = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
+    if (!fimDt || Number.isNaN(fimDt.getTime())) {
+      if (msg) msg.textContent = "Informe a data fim válida (DD/MM/AAAA).";
+      return;
+    }
+    const fimBr = formatPortalDataBr(fimDt);
+
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === ncNorm
+    );
+    if (idx === -1) {
+      if (msg) msg.textContent = "Locação não encontrada na base deste navegador.";
+      return;
+    }
+    if (
+      !window.confirm(`Finalizar a locação ${ncNorm} com data fim ${fimBr}? O estado será marcado como finalizado.`)
+    ) {
+      return;
+    }
+
+    const prev = locs[idx];
+    locs[idx] = {
+      ...prev,
+      fim: fimBr,
+      statusLocacao: "FINALIZADO",
+    };
+    try {
+      saveCadastro(CAD_LOCACOES_KEY, locs);
+    } catch (err) {
+      console.error(err);
+      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+      return;
+    }
+    if (typeof addAuditLog === "function") {
+      try {
+        addAuditLog("finalizar_locacao_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · fim ${fimBr}`);
+      } catch {
+        /* ignore */
+      }
+    }
+    if (msg) msg.textContent = "Locação finalizada e guardada.";
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    applyPortalLocacaoRowFromRecord(locs[idx]);
+    refreshOperacaoLocacaoDatalists();
+    refreshOperacaoLocacaoFinalizarBtn();
   }
 
   function collectPortalLocacoesComProtocoloByCpf(cpfDigits) {
