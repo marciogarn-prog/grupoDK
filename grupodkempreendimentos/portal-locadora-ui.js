@@ -10,6 +10,7 @@
 
   const unitTitle = document.getElementById("unit-page-title");
   const unitLead = document.getElementById("unit-page-lead");
+  const portalUnitDadosAtualizados = document.getElementById("portal-unit-dados-atualizados");
   const loginUnit = document.getElementById("login-unit");
   const loginRole = document.getElementById("login-role");
   const panelLogin = document.getElementById("panel-login");
@@ -76,6 +77,7 @@
       const raw = localStorage.getItem("dk_sessao_cliente");
       if (!raw) {
         unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
+        clearPortalUnitDadosAtualizados();
         return;
       }
       const s = JSON.parse(raw);
@@ -93,6 +95,21 @@
       /* ignore */
     }
     unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
+    clearPortalUnitDadosAtualizados();
+  }
+
+  function setPortalUnitDadosAtualizadosAgora() {
+    if (!portalUnitDadosAtualizados || currentUnit !== "locadora") return;
+    const d = new Date();
+    const p2 = (n) => String(n).padStart(2, "0");
+    portalUnitDadosAtualizados.textContent = `Atualizado dia ${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} às ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
+    portalUnitDadosAtualizados.hidden = false;
+  }
+
+  function clearPortalUnitDadosAtualizados() {
+    if (!portalUnitDadosAtualizados) return;
+    portalUnitDadosAtualizados.textContent = "";
+    portalUnitDadosAtualizados.hidden = true;
   }
 
   /** Mapa `acessos` para colaborador operacional (fallback se registo antigo não tiver objeto). */
@@ -183,6 +200,7 @@
     }
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
+    clearPortalUnitDadosAtualizados();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
   }
@@ -252,6 +270,7 @@
       hideAllPanels();
       btnOperacao?.classList.add("hidden");
       refreshPortalUnitLeadForSession();
+      clearPortalUnitDadosAtualizados();
       showView("home");
       try {
         const path = window.location.pathname + window.location.search;
@@ -303,6 +322,7 @@
     if (logadoTexto) logadoTexto.textContent = "Modo Teste · operacao";
     btnOperacao?.classList.remove("hidden");
     if (loginFeedback) loginFeedback.textContent = "";
+    clearPortalUnitDadosAtualizados();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
   });
@@ -333,6 +353,7 @@
       if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
       if (logadoTexto) logadoTexto.textContent = `Olá, ${String(cliente?.nome || "").trim() || "cliente"}.`;
       btnOperacao?.classList.add("hidden");
+      clearPortalUnitDadosAtualizados();
       refreshPortalUnitLeadForSession();
       return;
     }
@@ -2749,6 +2770,7 @@
       console.warn("[DK portal] cadastro pull ao mudar tela", e);
     }
     portalRefreshOperacaoDadosAposNuvem();
+    setPortalUnitDadosAtualizadosAgora();
   }
 
   function hideInlineForms() {
