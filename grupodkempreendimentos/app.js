@@ -1972,6 +1972,85 @@ try {
 }
 
 /**
+ * Funde campos de contrato / portal que importam para o relatório (fim, finalização, execução)
+ * quando dois registos da mesma locação vêm de máquinas diferentes — evita perder a finalização na nuvem
+ * só porque o `score` favoreceu o outro lado sem estes campos.
+ */
+function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
+  const out = {};
+  if (!ex || typeof ex !== "object" || !l || typeof l !== "object") return out;
+  const parseD = (raw) => {
+    const s = String(raw || "").trim();
+    if (!s) return null;
+    const d = typeof parseBrDate === "function" ? parseBrDate(s) : null;
+    return d && !Number.isNaN(d.getTime()) ? d : null;
+  };
+  const fimA = String(ex.fim || "").trim();
+  const fimB = String(l.fim || "").trim();
+  const dA = parseD(fimA);
+  const dB = parseD(fimB);
+  let fimPick = "";
+  if (dA && dB) fimPick = dA.getTime() >= dB.getTime() ? fimA : fimB;
+  else fimPick = (dB ? fimB : "") || (dA ? fimA : "");
+  if (fimPick) out.fim = fimPick;
+
+  const nk = (s) =>
+    typeof normalizeKey === "function"
+      ? normalizeKey(String(s || ""))
+      : String(s || "")
+          .trim()
+          .toUpperCase();
+  const isFin = (row) => {
+    const f = String(row?.fim || "").trim();
+    if (f) return true;
+    const st = nk(row?.statusLocacao || row?.status || "");
+    return st.includes("FINAL") || st.includes("INATIV");
+  };
+  if (isFin(ex) || isFin(l) || fimPick) out.statusLocacao = "FINALIZADO";
+
+  const dig = (s) => onlyDigits(String(s || ""));
+  const finMsA = Number(ex.portalLocacaoFinalizadoEmMs || 0);
+  const finMsB = Number(l.portalLocacaoFinalizadoEmMs || 0);
+  const finHasA = finMsA > 0 || dig(String(ex.portalLocacaoFinalizadoPorCpf || "")).length >= 3;
+  const finHasB = finMsB > 0 || dig(String(l.portalLocacaoFinalizadoPorCpf || "")).length >= 3;
+  let finSrc = null;
+  if (finHasB && finHasA) finSrc = finMsB >= finMsA ? l : ex;
+  else if (finHasB) finSrc = l;
+  else if (finHasA) finSrc = ex;
+  if (finSrc) {
+    const cpfF = dig(String(finSrc.portalLocacaoFinalizadoPorCpf || "")).slice(0, 11);
+    if (cpfF.length >= 3) out.portalLocacaoFinalizadoPorCpf = cpfF;
+    out.portalLocacaoFinalizadoPorNome = String(finSrc.portalLocacaoFinalizadoPorNome || "").trim();
+    const em = Number(finSrc.portalLocacaoFinalizadoEmMs || 0);
+    if (em > 0) out.portalLocacaoFinalizadoEmMs = em;
+  }
+
+  const exMsA = Number(ex.portalLocacaoExecutadoEmMs || 0);
+  const exMsB = Number(l.portalLocacaoExecutadoEmMs || 0);
+  const exHasA = exMsA > 0 || dig(String(ex.portalLocacaoExecutadoPorCpf || "")).length >= 3;
+  const exHasB = exMsB > 0 || dig(String(l.portalLocacaoExecutadoPorCpf || "")).length >= 3;
+  let exSrc = null;
+  if (exHasB && exHasA) exSrc = exMsB >= exMsA ? l : ex;
+  else if (exHasB) exSrc = l;
+  else if (exHasA) exSrc = ex;
+  if (exSrc) {
+    const cpfE = dig(String(exSrc.portalLocacaoExecutadoPorCpf || "")).slice(0, 11);
+    if (cpfE.length >= 3) out.portalLocacaoExecutadoPorCpf = cpfE;
+    out.portalLocacaoExecutadoPorNome = String(exSrc.portalLocacaoExecutadoPorNome || "").trim();
+    const emx = Number(exSrc.portalLocacaoExecutadoEmMs || 0);
+    if (emx > 0) out.portalLocacaoExecutadoEmMs = emx;
+  }
+
+  return out;
+}
+
+try {
+  window.__DK_mergeLocacaoCamposSincronizacaoPortal = mergeLocacaoCamposSincronizacaoPortal;
+} catch {
+  /* ignore */
+}
+
+/**
  * Regra de negócio: clientes, veículos e locações cadastrados não são removidos
  * do armazenamento — apenas novos registos ou atualizações (mesma chave natural).
  * `bypassImmutabilidadeCadastro` em saveCadastro() só para migrações internas pontuais.
@@ -2067,6 +2146,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       }
       const merged = { ...ex, ...l };
       if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+      Object.assign(merged, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       if (score(l) > score(ex)) {
         byK.set(k, merged);
         return;
@@ -2077,6 +2157,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       }
       const stay = { ...ex };
       if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+      Object.assign(stay, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       byK.set(k, stay);
     };
     prev.forEach(add);

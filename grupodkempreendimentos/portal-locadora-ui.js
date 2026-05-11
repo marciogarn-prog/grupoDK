@@ -3329,13 +3329,15 @@
     const prev = locs[idx];
     const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
     const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
+    const finNow = Date.now();
     locs[idx] = {
       ...prev,
       fim: fimBr,
       statusLocacao: "FINALIZADO",
       portalLocacaoFinalizadoPorCpf: finCpf,
       portalLocacaoFinalizadoPorNome: String(regFin?.nome || "").trim(),
-      portalLocacaoFinalizadoEmMs: Date.now(),
+      portalLocacaoFinalizadoEmMs: finNow,
+      updatedAt: finNow,
     };
     try {
       saveCadastro(CAD_LOCACOES_KEY, locs);
@@ -3561,6 +3563,10 @@
         portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
         portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
         portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
+        portalLocacaoFinalizadoPorCpf: prev.portalLocacaoFinalizadoPorCpf,
+        portalLocacaoFinalizadoPorNome: prev.portalLocacaoFinalizadoPorNome,
+        portalLocacaoFinalizadoEmMs: prev.portalLocacaoFinalizadoEmMs,
+        updatedAt: nowMs,
       };
     } else {
       locs.push({
@@ -3570,6 +3576,7 @@
         portalLocacaoExecutadoPorCpf: execCpf,
         portalLocacaoExecutadoPorNome: execNome,
         portalLocacaoExecutadoEmMs: nowMs,
+        updatedAt: nowMs,
       });
     }
 
@@ -5388,6 +5395,11 @@
         }
         const merged = { ...prev, ...l };
         if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+        const syncLoc =
+          typeof window.__DK_mergeLocacaoCamposSincronizacaoPortal === "function"
+            ? window.__DK_mergeLocacaoCamposSincronizacaoPortal(prev, l)
+            : {};
+        Object.assign(merged, syncLoc);
         if (score(l) > score(prev)) {
           byKey.set(k, merged);
           return;
@@ -5398,6 +5410,7 @@
         }
         const stay = { ...prev };
         if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+        Object.assign(stay, syncLoc);
         byKey.set(k, stay);
       };
       (local || []).forEach(add);
