@@ -19,7 +19,6 @@
   const panelOperacao = document.getElementById("panel-operacao-locadora");
   const panelManutencao = document.getElementById("panel-manutencao-locadora");
   const formLogin = document.getElementById("form-login");
-  const btnBypassTeste = document.getElementById("login-bypass-teste-btn");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
   const logadoTexto = document.getElementById("logado-texto");
@@ -303,34 +302,8 @@
               ? "Entrar como colaborador"
               : "Entrar como administrador";
       }
-      const showBypass =
-        currentUnit === "locadora" && (role === "colaborador" || role === "administrador");
-      btnBypassTeste?.classList.toggle("hidden", !showBypass);
       if (loginFeedback) loginFeedback.textContent = "";
     });
-  });
-
-  btnBypassTeste?.addEventListener("click", () => {
-    if (currentUnit !== "locadora") return;
-    localStorage.setItem(
-      "dk_sessao_cliente",
-      JSON.stringify({
-        tipo: "admin",
-        cpf: "00000000000",
-        nome: "Modo Teste",
-        role: "operacao",
-      })
-    );
-    hideAllPanels();
-    panelLogado?.classList.remove("hidden");
-    if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
-    if (logadoTexto) logadoTexto.textContent = "Modo Teste · operacao";
-    btnOperacao?.classList.remove("hidden");
-    btnManutencao?.classList.remove("hidden");
-    if (loginFeedback) loginFeedback.textContent = "";
-    clearPortalUnitDadosAtualizados();
-    refreshPortalUnitLeadForSession();
-    refreshPortalOperacaoNavPorAcessos();
   });
 
   formLogin?.addEventListener("submit", (e) => {
