@@ -1618,6 +1618,16 @@
     modal.setAttribute("aria-hidden", "true");
   }
 
+  function countPortalRelatorioRowsStatusAtivos(rows, statusIdx, statusFn) {
+    if (typeof statusIdx !== "number" || typeof statusFn !== "function" || !Array.isArray(rows)) return 0;
+    let n = 0;
+    for (const row of rows) {
+      if (!Array.isArray(row) || statusIdx < 0 || statusIdx >= row.length) continue;
+      if (statusFn(String(row[statusIdx] ?? ""))) n += 1;
+    }
+    return n;
+  }
+
   function buildPortalRelatorioHtml(title, headers, rows, reportOptions = {}) {
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
     const statusIdx = reportOptions.statusColumnIndex;
@@ -1641,6 +1651,11 @@
       })
       .join("");
     const quando = new Date().toLocaleString("pt-BR");
+    const ativosCount = statusFn ? countPortalRelatorioRowsStatusAtivos(rows, statusIdx, statusFn) : 0;
+    const metaAtivosSuffix =
+      statusFn && typeof statusIdx === "number"
+        ? ` sendo ${eh(String(ativosCount))} registros ativos.`
+        : "";
     const extraMeta = (reportOptions.headerSubtitleLines || [])
       .filter((line) => String(line || "").trim())
       .map((line) => `<p class="meta"><strong>${eh(String(line))}</strong></p>`)
@@ -1657,7 +1672,7 @@
     </style></head><body>
       <h1>${eh(title)}</h1>
       ${extraMeta}
-      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registo(s)</p>
+      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registro(s)${metaAtivosSuffix}</p>
       <table><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
         "Nenhum registo."
       )}</td></tr>`}</tbody></table>
@@ -2343,6 +2358,13 @@
       })
       .join("");
     const quando = new Date().toLocaleString("pt-BR");
+    const ativosMotos = statusFn
+      ? countPortalRelatorioRowsStatusAtivos(rows, statusIdx, statusFn)
+      : 0;
+    const metaAtivosMotos =
+      statusFn && typeof statusIdx === "number"
+        ? ` sendo ${eh(String(ativosMotos))} registros ativos.`
+        : "";
     let html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(
       titulo
     )}</title><style>
@@ -2356,7 +2378,7 @@
       .portal-rel-status-inativo{background:#fff9c4}
     </style></head><body>
       <h1>${eh(titulo)}</h1>
-      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registo(s)</p>
+      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registro(s)${metaAtivosMotos}</p>
       <table><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
         "Nenhum registo neste filtro."
       )}</td></tr>`}</tbody></table>
