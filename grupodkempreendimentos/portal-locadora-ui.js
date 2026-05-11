@@ -3788,17 +3788,39 @@
 
   function normalizePortalLancamentoAluguelEntry(x) {
     if (!x || typeof x !== "object") return null;
-    const valor =
-      typeof x.valor === "number" && Number.isFinite(x.valor) ? x.valor : Number(parsePortalLancamentoValorRaw(x.valor ?? ""));
     const data = String(x.data || "").trim();
-    if (!Number.isFinite(valor) || valor <= 0 || !data) return null;
+    if (!data) return null;
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const registradoPorCpf = dig(String(x.registradoPorCpf ?? x.registradoPor ?? "")).slice(0, 11);
     const registradoPorNome = String(x.registradoPorNome ?? "").trim();
     const createdAt =
       typeof x.createdAt === "number" && Number.isFinite(x.createdAt) ? x.createdAt : undefined;
-    return { data, valor, createdAt, registradoPorCpf, registradoPorNome };
+    const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+    const anyMeiosKeys = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x, k));
+    let valor;
+    let valorEspecie;
+    let valorPix;
+    let valorCartao;
+    if (anyMeiosKeys) {
+      valorEspecie = Number(parsePortalLancamentoValorRaw(x.valorEspecie ?? 0));
+      valorPix = Number(parsePortalLancamentoValorRaw(x.valorPix ?? 0));
+      valorCartao = Number(parsePortalLancamentoValorRaw(x.valorCartao ?? 0));
+      if (![valorEspecie, valorPix, valorCartao].every((n) => Number.isFinite(n) && n >= 0)) return null;
+      valor = valorEspecie + valorPix + valorCartao;
+      if (!Number.isFinite(valor) || valor <= 0) return null;
+    } else {
+      valor =
+        typeof x.valor === "number" && Number.isFinite(x.valor) ? x.valor : Number(parsePortalLancamentoValorRaw(x.valor ?? ""));
+      if (!Number.isFinite(valor) || valor <= 0) return null;
+    }
+    const out = { data, valor, createdAt, registradoPorCpf, registradoPorNome };
+    if (anyMeiosKeys) {
+      out.valorEspecie = valorEspecie;
+      out.valorPix = valorPix;
+      out.valorCartao = valorCartao;
+    }
+    return out;
   }
 
   /** Sessão equipa no momento do lançamento (para relatório / auditoria). */
@@ -4328,6 +4350,17 @@
       .join("");
   }
 
+  function syncOperacaoLancAluguelValorPagoFromMeios() {
+    const sum = ["operacaoLancAluguelValorEspecie", "operacaoLancAluguelValorPix", "operacaoLancAluguelValorCartao"].reduce(
+      (acc, id) => acc + Number(parsePortalLancamentoValorRaw(document.getElementById(id)?.value ?? "")),
+      0
+    );
+    const out = document.getElementById("operacaoLancAluguelValorPago");
+    if (!out) return;
+    if (sum > 0) out.value = formatPortalLancamentoSumBrl(sum);
+    else out.value = "";
+  }
+
   function clearOperacaoLancamentoAluguelCamposDerivados() {
     [
       "operacaoLancAluguelPlaca",
@@ -4337,10 +4370,14 @@
       "operacaoLancAluguelValorInvestimento",
       "operacaoLancAluguelValorPago",
       "operacaoLancAluguelDataPagamento",
+      "operacaoLancAluguelValorEspecie",
+      "operacaoLancAluguelValorPix",
+      "operacaoLancAluguelValorCartao",
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    syncOperacaoLancAluguelValorPagoFromMeios();
   }
 
   function applyOperacaoLancamentoAluguelFromLoc(loc) {
@@ -4381,6 +4418,11 @@
     if (dfEl) dfEl.value = fmtDate(loc.fim);
     if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
+    ["operacaoLancAluguelValorEspecie", "operacaoLancAluguelValorPix", "operacaoLancAluguelValorCartao", "operacaoLancAluguelValorPago", "operacaoLancAluguelDataPagamento"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    syncOperacaoLancAluguelValorPagoFromMeios();
     refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
@@ -4425,25 +4467,41 @@
   function materializarPortalLancamentosAluguelMutaveisNoLoc(loc) {
     if (!loc || typeof loc !== "object") return null;
     const virt = getPortalLancamentosAluguelDoContrato(loc);
-    loc.portalLancamentosAluguel = virt.map((v) => ({
-      data: String(v.data || "").trim(),
-      valor: Number(v.valor),
-      createdAt: typeof v.createdAt === "number" && Number.isFinite(v.createdAt) ? v.createdAt : Date.now(),
-      registradoPorCpf: String(v.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
-      registradoPorNome: String(v.registradoPorNome || "").trim(),
-    }));
+    loc.portalLancamentosAluguel = virt.map((v) => {
+      const base = {
+        data: String(v.data || "").trim(),
+        valor: Number(v.valor),
+        createdAt: typeof v.createdAt === "number" && Number.isFinite(v.createdAt) ? v.createdAt : Date.now(),
+        registradoPorCpf: String(v.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+        registradoPorNome: String(v.registradoPorNome || "").trim(),
+      };
+      if (["valorEspecie", "valorPix", "valorCartao"].some((k) => Object.prototype.hasOwnProperty.call(v, k))) {
+        base.valorEspecie = Number(parsePortalLancamentoValorRaw(v.valorEspecie ?? 0));
+        base.valorPix = Number(parsePortalLancamentoValorRaw(v.valorPix ?? 0));
+        base.valorCartao = Number(parsePortalLancamentoValorRaw(v.valorCartao ?? 0));
+      }
+      return base;
+    });
     return loc.portalLancamentosAluguel;
   }
 
   function finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, ncNorm) {
     const normArr = (loc.portalLancamentosAluguel || []).map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
-    loc.portalLancamentosAluguel = normArr.map((x) => ({
-      data: x.data,
-      valor: x.valor,
-      createdAt: typeof x.createdAt === "number" && Number.isFinite(x.createdAt) ? x.createdAt : Date.now(),
-      registradoPorCpf: String(x.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
-      registradoPorNome: String(x.registradoPorNome || "").trim(),
-    }));
+    loc.portalLancamentosAluguel = normArr.map((x) => {
+      const row = {
+        data: x.data,
+        valor: x.valor,
+        createdAt: typeof x.createdAt === "number" && Number.isFinite(x.createdAt) ? x.createdAt : Date.now(),
+        registradoPorCpf: String(x.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+        registradoPorNome: String(x.registradoPorNome || "").trim(),
+      };
+      if (Object.prototype.hasOwnProperty.call(x, "valorEspecie")) {
+        row.valorEspecie = Number(x.valorEspecie) || 0;
+        row.valorPix = Number(x.valorPix) || 0;
+        row.valorCartao = Number(x.valorCartao) || 0;
+      }
+      return row;
+    });
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
       sumPortalLancamentosAluguelNoAno(normArr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
     );
@@ -4467,7 +4525,7 @@
     return true;
   }
 
-  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr) {
+  function persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, valorNum, dataPagamentoBr, meios) {
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -4484,13 +4542,20 @@
     const dataStr = String(dataPagamentoBr || "").trim();
     materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     const reg = getPortalSessaoParaRegistroLancamentoAluguel();
-    loc.portalLancamentosAluguel.push({
+    const ve = Number(parsePortalLancamentoValorRaw(meios?.valorEspecie ?? 0));
+    const vp = Number(parsePortalLancamentoValorRaw(meios?.valorPix ?? 0));
+    const vc = Number(parsePortalLancamentoValorRaw(meios?.valorCartao ?? 0));
+    const entry = {
       data: dataStr,
       valor: valorNum,
       createdAt: Date.now(),
       registradoPorCpf: reg?.cpf || "",
       registradoPorNome: reg?.nome || "",
-    });
+      valorEspecie: Number.isFinite(ve) && ve >= 0 ? ve : 0,
+      valorPix: Number.isFinite(vp) && vp >= 0 ? vp : 0,
+      valorCartao: Number.isFinite(vc) && vc >= 0 ? vc : 0,
+    };
+    loc.portalLancamentosAluguel.push(entry);
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
@@ -4533,6 +4598,9 @@
     const merged = normalizePortalLancamentoAluguelEntry({
       data: String(dataPagamentoBr || "").trim(),
       valor: valorNum,
+      valorEspecie: valorNum,
+      valorPix: 0,
+      valorCartao: 0,
     });
     if (!merged) return false;
     const prev = arr[indice];
@@ -4542,6 +4610,13 @@
       createdAt: typeof prev?.createdAt === "number" && Number.isFinite(prev.createdAt) ? prev.createdAt : Date.now(),
       registradoPorCpf: String(prev?.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
       registradoPorNome: String(prev?.registradoPorNome || "").trim(),
+      ...(Object.prototype.hasOwnProperty.call(merged, "valorEspecie")
+        ? {
+            valorEspecie: merged.valorEspecie,
+            valorPix: merged.valorPix,
+            valorCartao: merged.valorCartao,
+          }
+        : {}),
     };
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
@@ -5042,6 +5117,12 @@
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>
     onOperacaoLancamentoAluguelProtocoloSelectChange()
   );
+  ["operacaoLancAluguelValorEspecie", "operacaoLancAluguelValorPix", "operacaoLancAluguelValorCartao"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener("input", () => syncOperacaoLancAluguelValorPagoFromMeios());
+    el.addEventListener("blur", () => syncOperacaoLancAluguelValorPagoFromMeios());
+  });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => syncOperacaoLancamentoAluguelAfterCpfEdit());
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
     const inp = document.getElementById("operacaoLancAluguelCpf");
@@ -5226,6 +5307,9 @@
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
     const inpValor = document.getElementById("operacaoLancAluguelValorPago");
+    const inpEsp = document.getElementById("operacaoLancAluguelValorEspecie");
+    const inpPix = document.getElementById("operacaoLancAluguelValorPix");
+    const inpCart = document.getElementById("operacaoLancAluguelValorCartao");
     const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (!getPortalSessaoAdminRole()) {
@@ -5246,14 +5330,18 @@
             const n = Number(cleaned);
             return Number.isFinite(n) ? n : 0;
           };
-    const valorNum = Number(parseVal(String(inpValor?.value || "")));
+    syncOperacaoLancAluguelValorPagoFromMeios();
+    const ve = Number(parseVal(String(inpEsp?.value || "")));
+    const vp = Number(parseVal(String(inpPix?.value || "")));
+    const vc = Number(parseVal(String(inpCart?.value || "")));
+    const valorNum = ve + vp + vc;
     const dataStr = String(inpData?.value || "").trim();
     if (digits.length !== 11 || !proto) {
       if (msg) msg.textContent = "Informe CPF e protocolo com locação.";
       return;
     }
     if (!Number.isFinite(valorNum) || valorNum <= 0) {
-      if (msg) msg.textContent = "Informe um valor pago válido.";
+      if (msg) msg.textContent = "Informe valores em espécie, Pix e/ou cartão (a soma é o valor pago).";
       return;
     }
     const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
@@ -5271,9 +5359,16 @@
     const valorFmt = Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const texto = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
-      const ok = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr);
+      const ok = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
+        valorEspecie: ve,
+        valorPix: vp,
+        valorCartao: vc,
+      });
       if (ok) {
         if (msg) msg.textContent = "Pagamento registado. O total em «Cadastro de locação» foi atualizado.";
+        if (inpEsp) inpEsp.value = "";
+        if (inpPix) inpPix.value = "";
+        if (inpCart) inpCart.value = "";
         if (inpValor) inpValor.value = "";
         if (inpData) inpData.value = "";
         const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
@@ -5697,6 +5792,7 @@
       }
       normalizePortalDateInputsExistingValues();
       bindPortalDateDdMmYyyyInputs();
+      syncOperacaoLancAluguelValorPagoFromMeios();
       syncOperacaoLocacaoFromDataInicio();
       syncOperacaoLocacaoValorPlano();
       refreshOperacaoLocacaoProtocoloPicker({ force: true });

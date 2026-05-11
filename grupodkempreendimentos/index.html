@@ -645,11 +645,23 @@
             </label>
             <label class="portal-field">
               <span>VALOR PAGO (lançamento)</span>
-              <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR PAGO">
+              <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="0,00" aria-label="VALOR PAGO (soma espécie + Pix + cartão)">
             </label>
             <label class="portal-field">
               <span>DATA DO PAGAMENTO</span>
               <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
+            </label>
+            <label class="portal-field">
+              <span>Pagamento em espécie</span>
+              <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em espécie">
+            </label>
+            <label class="portal-field">
+              <span>Pagamento em Pix</span>
+              <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em Pix">
+            </label>
+            <label class="portal-field">
+              <span>Pagamento em cartão</span>
+              <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em cartão">
             </label>
             <div class="operacao-inline-form__actions">
               <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
@@ -898,7 +910,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511syncfinal" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511rel-sort-lanc" defer></script>
+  <script src="portal-locadora-ui.js?v=20260510lanc-meios-pagamento" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>
