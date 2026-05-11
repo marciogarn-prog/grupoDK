@@ -393,7 +393,8 @@
     finalizarLoginEquipaPortal(f);
   });
 
-  btnOperacao?.addEventListener("click", () => {
+  btnOperacao?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     setOperacaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
@@ -2711,6 +2712,17 @@
     });
   }
 
+  /** Mescla clientes/veículos/locações a partir da API (Redis) antes de mostrar outro formulário — ex.: sair de locação e abrir veículo. */
+  async function portalOperacaoAwaitCloudCadastroPull() {
+    try {
+      if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
+        await window.__DK_portalPullCadastroFromCloud();
+      }
+    } catch (e) {
+      console.warn("[DK portal] cadastro pull ao mudar tela", e);
+    }
+  }
+
   function hideInlineForms() {
     hideOperacaoInlineFormsCore();
     setOperacaoFormPlaceholderVisible(true);
@@ -4824,19 +4836,22 @@
     clearOperacaoLocacaoInlineForm();
   });
 
-  document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", () => {
+  document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
   });
-  document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
+  document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-veiculo");
   });
-  document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
+  document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLocacao")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -4848,7 +4863,8 @@
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
   });
 
-  document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
+  document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -4860,8 +4876,9 @@
     refreshOperacaoLancAluguelAdminControlsVisibility();
   });
 
-  document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
+  document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", async () => {
     if (!isPortalTitularAdministrador()) return;
+    await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -5505,6 +5522,8 @@
         dkPortalPullOne("cadastro-locacoes", CAD_LOCACOES_KEY, dkPortalMergeLocacoesArrays),
       ]);
     }
+
+    window.__DK_portalPullCadastroFromCloud = dkPortalPullAndMergeAll;
 
     setTimeout(dkPortalPullAndMergeAll, 800);
     document.addEventListener("visibilitychange", () => {
