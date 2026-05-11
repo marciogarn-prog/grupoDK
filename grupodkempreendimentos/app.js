@@ -2052,6 +2052,47 @@ function saveCadastro(key, list, opts) {
   localStorage.setItem(key, JSON.stringify(toStore));
 }
 
+/**
+ * Para auto-pull na nuvem: há alteração real só se algum campo do payload
+ * mudaria o localStorage (inclui merge append-only dos 3 cadastros).
+ * Evita loop infinito de reload quando o snapshot não traz todas as chaves
+ * ou o JSON normalizado difere do merge local.
+ */
+function cloudSnapshotWouldMutateLocal(cloudPayload) {
+  if (!cloudPayload || typeof cloudPayload !== "object") return false;
+  const mergeKeys = new Set([CAD_CLIENTES_KEY, CAD_VEICULOS_KEY, CAD_LOCACOES_KEY]);
+  for (const k of Object.keys(cloudPayload)) {
+    const v = cloudPayload[k];
+    if (v === undefined) continue;
+    if (mergeKeys.has(k)) {
+      const prev = loadCadastro(k);
+      const inc = Array.isArray(v) ? v : [];
+      const merged = mergeCadastroHistoricoImutavel(k, prev, inc);
+      if (JSON.stringify(merged) !== JSON.stringify(prev)) return true;
+      continue;
+    }
+    if (v === null) {
+      if (localStorage.getItem(k) != null) return true;
+      continue;
+    }
+    let nextSerialized;
+    try {
+      nextSerialized = typeof v === "string" ? v : JSON.stringify(v);
+    } catch {
+      continue;
+    }
+    const cur = localStorage.getItem(k);
+    if (cur !== nextSerialized) return true;
+  }
+  return false;
+}
+
+try {
+  window.__DK_cloudSnapshotWouldMutateLocal = cloudSnapshotWouldMutateLocal;
+} catch {
+  /* ignore */
+}
+
 function loadQuadroReceitaOverridesMap() {
   const arr = loadCadastro(CAD_QUADRO_RECEITA_OVERRIDES_KEY);
   const out = {};

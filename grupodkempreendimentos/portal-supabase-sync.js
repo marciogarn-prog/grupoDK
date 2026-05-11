@@ -25,6 +25,7 @@
   ];
 
   const DK_CLOUD_KEYS = new Set(DK_STORAGE_KEYS);
+  const DK_CLOUD_RELOAD_GUARD_KEY = "dkCloudAutopullReloadCount";
 
   const CLOUD_PUSH_DEBOUNCE_MS = 1200;
 
@@ -149,15 +150,15 @@
     );
   }
 
-  function cloudPayloadDiffersFromLocal(cloudPayload) {
+  function cloudPullWouldChangeAnything(cloudPayload) {
+    if (typeof window.__DK_cloudSnapshotWouldMutateLocal === "function") {
+      return window.__DK_cloudSnapshotWouldMutateLocal(cloudPayload);
+    }
     const localObj = collectPayloadFromLocalStorage();
-    for (const k of DK_STORAGE_KEYS) {
-      const a = Object.prototype.hasOwnProperty.call(cloudPayload, k)
-        ? cloudPayload[k]
-        : undefined;
-      const b = Object.prototype.hasOwnProperty.call(localObj, k)
-        ? localObj[k]
-        : undefined;
+    for (const k of Object.keys(cloudPayload)) {
+      if (!DK_CLOUD_KEYS.has(k)) continue;
+      const a = cloudPayload[k];
+      const b = Object.prototype.hasOwnProperty.call(localObj, k) ? localObj[k] : undefined;
       if (JSON.stringify(a) !== JSON.stringify(b)) return true;
     }
     return false;
@@ -249,6 +250,11 @@
     } finally {
       suppressCloudHook = false;
     }
+    try {
+      sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+    } catch {
+      /* ignore */
+    }
     setMsg("Dados carregados. A página vai recarregar.", "ok");
     try {
       window.location.reload();
@@ -274,10 +280,42 @@
         return;
       }
       if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
+        try {
+          sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+        } catch {
+          /* ignore */
+        }
         return;
       }
-      if (!cloudPayloadDiffersFromLocal(data.payload)) {
+      if (!cloudPullWouldChangeAnything(data.payload)) {
+        try {
+          sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+        } catch {
+          /* ignore */
+        }
         return;
+      }
+
+      let reloadCount = 0;
+      try {
+        reloadCount = parseInt(sessionStorage.getItem(DK_CLOUD_RELOAD_GUARD_KEY) || "0", 10) || 0;
+      } catch {
+        reloadCount = 0;
+      }
+      if (reloadCount >= 2) {
+        console.warn(
+          "[DK cloud] Auto-pull: limite de recarregamentos seguros atingido. Use «Carregar da nuvem» se precisar sincronizar."
+        );
+        setMsg(
+          "Sincronização automática em pausa (evitar loop). Recarregue com F5 ou use «Carregar da nuvem».",
+          "muted"
+        );
+        return;
+      }
+      try {
+        sessionStorage.setItem(DK_CLOUD_RELOAD_GUARD_KEY, String(reloadCount + 1));
+      } catch {
+        /* ignore */
       }
 
       applyPayloadToLocalStorage(data.payload);
