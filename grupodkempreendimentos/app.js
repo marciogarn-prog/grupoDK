@@ -1932,35 +1932,64 @@ function loadCadastro(key) {
 /**
  * Une `portalLancamentosAluguel` de duas fontes (ex.: local vs nuvem) sem perder linhas:
  * um `[]` ou registo mais recente sem lista não pode apagar pagamentos já gravados no outro lado.
+ * Preserva `valorEspecie` / `valorPix` / `valorCartao` quando existirem (discriminação no relatório e nuvem).
  */
 function mergePortalLancamentosAluguelEmbutidos(arrays) {
-  const seen = new Set();
-  const out = [];
+  const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+  const rawHasMeios = (o) =>
+    o && typeof o === "object" && MEIOS.some((k) => Object.prototype.hasOwnProperty.call(o, k));
   const dig = (s) => onlyDigits(String(s || ""));
+  const byKey = new Map();
+
+  function rowFromRaw(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const data = String(raw.data || "").trim();
+    if (!data) return null;
+    let valor =
+      typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
+        ? raw.valor
+        : parseCurrencyBR(raw.valor ?? raw.valorPago ?? "");
+    const ca = Number(raw.createdAt || raw.id || 0);
+    const rp = dig(String(raw.registradoPorCpf || "")).slice(0, 11);
+    const row = {
+      data,
+      valor,
+      createdAt: ca || Date.now(),
+      registradoPorCpf: rp,
+      registradoPorNome: String(raw.registradoPorNome || "").trim(),
+    };
+    if (rawHasMeios(raw)) {
+      const ve = Number(parseCurrencyBR(raw.valorEspecie ?? 0));
+      const vp = Number(parseCurrencyBR(raw.valorPix ?? 0));
+      const vc = Number(parseCurrencyBR(raw.valorCartao ?? 0));
+      row.valorEspecie = Number.isFinite(ve) && ve >= 0 ? ve : 0;
+      row.valorPix = Number.isFinite(vp) && vp >= 0 ? vp : 0;
+      row.valorCartao = Number.isFinite(vc) && vc >= 0 ? vc : 0;
+      const sum = row.valorEspecie + row.valorPix + row.valorCartao;
+      if (sum > 0) row.valor = sum;
+    }
+    if (!Number.isFinite(row.valor) || row.valor <= 0) return null;
+    const key = `${row.data}|${row.valor}|${ca}|${rp}`;
+    return { key, row };
+  }
+
   for (const arr of arrays || []) {
     if (!Array.isArray(arr)) continue;
     for (const raw of arr) {
-      if (!raw || typeof raw !== "object") continue;
-      const data = String(raw.data || "").trim();
-      const valor =
-        typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
-          ? raw.valor
-          : parseCurrencyBR(raw.valor ?? raw.valorPago ?? "");
-      if (!data || !Number.isFinite(valor) || valor <= 0) continue;
-      const ca = Number(raw.createdAt || raw.id || 0);
-      const rp = dig(String(raw.registradoPorCpf || "")).slice(0, 11);
-      const key = `${data}|${valor}|${ca}|${rp}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({
-        data,
-        valor,
-        createdAt: ca || Date.now(),
-        registradoPorCpf: rp,
-        registradoPorNome: String(raw.registradoPorNome || "").trim(),
-      });
+      const built = rowFromRaw(raw);
+      if (!built) continue;
+      const { key, row } = built;
+      const prev = byKey.get(key);
+      if (!prev) {
+        byKey.set(key, row);
+        continue;
+      }
+      const prevRich = rawHasMeios(prev);
+      const newRich = rawHasMeios(row);
+      if (newRich && !prevRich) byKey.set(key, row);
     }
   }
+  const out = Array.from(byKey.values());
   out.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
   return out;
 }

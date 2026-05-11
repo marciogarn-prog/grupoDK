@@ -2038,9 +2038,9 @@
       const vp = parseV(lan.valorPix ?? 0);
       const vc = parseV(lan.valorCartao ?? 0);
       const partes = [];
-      if (ve > 0) partes.push({ valor: ve, tipo: "Espécie", tipoOrder: 0 });
-      if (vp > 0) partes.push({ valor: vp, tipo: "Pix", tipoOrder: 1 });
-      if (vc > 0) partes.push({ valor: vc, tipo: "Cartão", tipoOrder: 2 });
+      if (ve > 0) partes.push({ valor: ve, tipo: "espécie", tipoOrder: 0 });
+      if (vp > 0) partes.push({ valor: vp, tipo: "pix", tipoOrder: 1 });
+      if (vc > 0) partes.push({ valor: vc, tipo: "cartão", tipoOrder: 2 });
       if (partes.length) return partes;
       const vFallback = Number(lan.valor || 0);
       if (Number.isFinite(vFallback) && vFallback > 0) return [{ valor: vFallback, tipo: "—", tipoOrder: 0 }];
