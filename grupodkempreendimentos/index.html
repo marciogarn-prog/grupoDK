@@ -8,6 +8,9 @@
   <meta name="dk-sistema-cadastros-url" content="">
   <!-- Sincronização localhost ↔ site: crie Redis na Upstash; na Vercel defina UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN; faça redeploy. Sem isso o cadastro extra fica só no navegador. -->
   <meta name="dk-cadastro-sync-origin" content="https://grupodkempreendimentos.com.br">
+  <!-- Supabase: Project URL e anon public key (Settings → API). Deixe vazio para usar só localStorage. -->
+  <meta name="dk-supabase-url" content="">
+  <meta name="dk-supabase-anon-key" content="">
   <meta name="description" content="Grupo DK Empreendimentos — DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
@@ -873,6 +876,7 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js"></script>
+  <script type="module" src="supabase-init.js?v=1"></script>
   <script src="app.js?v=20260522g" defer></script>
   <script src="portal-locadora-ui.js?v=20260522m" defer></script>
 </body>
