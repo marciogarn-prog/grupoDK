@@ -1675,3 +1675,91 @@ body {
   font-size: 0.92rem;
   color: var(--muted);
 }
+
+/* Operação — WhatsApp clientes ativos */
+.portal-whatsapp-linha-dk {
+  margin: 0.35rem 0 0.75rem;
+}
+
+.portal-whatsapp-busca {
+  display: grid;
+  gap: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .portal-whatsapp-busca {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.portal-whatsapp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.portal-whatsapp-selected-hint {
+  margin: 0.35rem 0;
+}
+
+#portalWaTodosModal.portal-modal {
+  z-index: 4100;
+}
+
+.portal-modal__card--wa-todos {
+  max-width: min(42rem, 96vw);
+}
+
+.portal-wa-todos-body {
+  max-height: min(28rem, 70vh);
+  overflow: auto;
+  margin: 0.25rem 0 0.75rem;
+  padding-right: 0.25rem;
+}
+
+.portal-wa-todos-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.portal-wa-todos-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.portal-wa-todos-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.portal-wa-todos-item__main strong {
+  font-weight: 600;
+}
+
+.portal-wa-todos-link {
+  flex-shrink: 0;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+
+.portal-wa-todos-sem-num {
+  font-size: 0.85rem;
+  color: var(--muted);
+}

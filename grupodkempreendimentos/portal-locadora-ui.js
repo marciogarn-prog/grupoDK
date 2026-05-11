@@ -135,6 +135,7 @@
     const acessosOp = getPortalOperacaoAcessosEfetivos(f);
 
     const triples = [
+      ["btn-operacao-falar-cliente", "operacaoInlineWhatsApp", "cliente"],
       ["btn-operacao-cadastro-cliente", "operacaoInlineCliente", "cliente"],
       ["btn-operacao-cadastro-veiculo", "operacaoInlineVeiculo", "veiculo"],
       ["btn-operacao-cadastro-locacao", "operacaoInlineLocacao", "locacao"],
@@ -164,6 +165,9 @@
 
     const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
     if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
+
+    const btnWaTodos = document.getElementById("portalWaBtnTodosAtivos");
+    if (btnWaTodos) btnWaTodos.classList.toggle("hidden", !isPortalTitularAdministrador());
   }
 
   /** Se só existir um cadastro permitido, abre-o automaticamente (painel ainda no placeholder). */
@@ -3941,7 +3945,9 @@ ${printable.innerHTML}
 
   function hideOperacaoInlineFormsCore() {
     hideOperacaoLocacaoPlacaDropdown();
+    portalWaHideAllDropdowns();
     resetOperacaoLocacaoRelatorioPanel();
+    document.getElementById("operacaoInlineWhatsApp")?.classList.add("hidden");
     document.getElementById("operacaoInlineCliente")?.classList.add("hidden");
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
@@ -3958,6 +3964,7 @@ ${printable.innerHTML}
 
   function syncOperacaoCadastroButtons(activeButtonId) {
     [
+      "btn-operacao-falar-cliente",
       "btn-operacao-cadastro-cliente",
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
@@ -3986,6 +3993,10 @@ ${printable.innerHTML}
       refreshPortalRelClienteCpfDatalist();
       refreshPortalRelPlacaDatalist();
       refreshOperacaoLancamentoAluguelCpfDatalist();
+      const waPanel = document.getElementById("operacaoInlineWhatsApp");
+      if (waPanel && !waPanel.classList.contains("hidden")) {
+        portalWaRebuildDatasetCache();
+      }
     } catch (e) {
       console.warn("[DK portal] refresh após nuvem", e);
     }
@@ -6292,6 +6303,328 @@ ${printable.innerHTML}
     e.preventDefault();
     e.stopPropagation();
     clearOperacaoLocacaoInlineForm();
+  });
+
+  /** Locações ativas → WhatsApp (número do cadastro do cliente). */
+  let portalWaDatasetCache = [];
+  /** @type {Array<{ cpf: string, placa: string, nome: string, celularRaw: string, celularWa: string }>} */
+  let portalWaPendingPickRows = [];
+  /** @type {{ cpf: string, placa: string, nome: string, celularRaw: string, celularWa: string } | null} */
+  let portalWaSelectedClienteRow = null;
+
+  function portalWaDig(s) {
+    return typeof onlyDigits === "function" ? onlyDigits(s) : String(s ?? "").replace(/\D/g, "");
+  }
+
+  function portalWaNormalizePlate(p) {
+    return typeof normalizePlate === "function"
+      ? normalizePlate(String(p || ""))
+      : String(p || "")
+          .replace(/\s+/g, "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function portalWaDigitsForWaMe(raw) {
+    let d = portalWaDig(raw);
+    if (!d) return "";
+    while (d.startsWith("0")) d = d.slice(1);
+    if (d.startsWith("55") && d.length >= 12 && d.length <= 13) return d;
+    if (d.length === 11) return `55${d}`;
+    if (d.length === 10) return `55${d}`;
+    if (d.startsWith("55")) return d;
+    return d.length >= 12 ? d : "";
+  }
+
+  function portalWaBuildClienteDataset() {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => !String(l.fim || "").trim());
+    const seen = new Set();
+    const out = [];
+    locs.forEach((loc) => {
+      const cpf = portalWaDig(loc.cpf || "");
+      if (cpf.length !== 11) return;
+      const placa = portalWaNormalizePlate(loc.placa || "");
+      if (!placa) return;
+      const key = `${cpf}|${placa}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      const cli =
+        typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpf) : null;
+      const nome = String(cli?.nome || loc.cliente || "").trim() || "—";
+      const celularRaw = String(cli?.celular || "").trim();
+      const celularWa = portalWaDigitsForWaMe(celularRaw);
+      out.push({ cpf, placa, nome, celularRaw, celularWa });
+    });
+    out.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    return out;
+  }
+
+  function portalWaRebuildDatasetCache() {
+    portalWaDatasetCache = portalWaBuildClienteDataset();
+  }
+
+  function portalWaHideAllDropdowns() {
+    ["portalWaListaCpf", "portalWaListaNome", "portalWaListaPlaca"].forEach((pid) => {
+      const panel = document.getElementById(pid);
+      if (panel) {
+        panel.classList.add("hidden");
+        panel.hidden = true;
+        panel.innerHTML = "";
+      }
+    });
+    ["portalWaInputCpf", "portalWaInputNome", "portalWaInputPlaca"].forEach((iid) => {
+      document.getElementById(iid)?.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function portalWaFilterRows(kind, queryRaw) {
+    const data = portalWaDatasetCache;
+    const q = String(queryRaw || "").trim();
+    if (!q) return data.slice();
+    if (kind === "cpf") {
+      const digits = portalWaDig(q).slice(0, 11);
+      if (!digits) return data.slice();
+      return data.filter((r) => r.cpf.startsWith(digits));
+    }
+    if (kind === "placa") {
+      const pq = portalWaNormalizePlate(q);
+      if (!pq) return data.slice();
+      return data.filter((r) => r.placa.includes(pq));
+    }
+    const nn = typeof normalizeName === "function" ? normalizeName(q) : q.toLowerCase();
+    return data.filter((r) => {
+      const nk =
+        typeof normalizeName === "function"
+          ? normalizeName(r.nome)
+          : String(r.nome || "").toLowerCase();
+      return nk.includes(nn);
+    });
+  }
+
+  const PORTAL_WA_KIND = {
+    cpf: { input: "portalWaInputCpf", panel: "portalWaListaCpf", combo: "portalWaComboCpf" },
+    nome: { input: "portalWaInputNome", panel: "portalWaListaNome", combo: "portalWaComboNome" },
+    placa: { input: "portalWaInputPlaca", panel: "portalWaListaPlaca", combo: "portalWaComboPlaca" },
+  };
+
+  function portalWaRenderDropdown(kind, queryRaw) {
+    const cfg = PORTAL_WA_KIND[kind];
+    if (!cfg) return;
+    const panel = document.getElementById(cfg.panel);
+    const inp = document.getElementById(cfg.input);
+    if (!panel || !inp) return;
+    const rows = portalWaFilterRows(kind, queryRaw).slice(0, 80);
+    portalWaPendingPickRows = rows;
+    if (!rows.length) {
+      panel.innerHTML = `<div class="portal-placa-dropdown__empty">Nenhum resultado.</div>`;
+    } else {
+      panel.innerHTML = rows
+        .map((r, i) => {
+          const cpfEx = typeof formatCpf === "function" ? formatCpf(r.cpf) : r.cpf;
+          return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-wa-i="${i}">
+              <span class="portal-placa-dropdown__plate">${portalEscapeHtml(r.placa)}</span>
+              <span class="portal-placa-dropdown__model">${portalEscapeHtml(r.nome)} · ${portalEscapeHtml(cpfEx)}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function portalWaApplyPick(idx) {
+    const row = portalWaPendingPickRows[idx];
+    if (!row) return;
+    const inpCpf = document.getElementById("portalWaInputCpf");
+    const inpNome = document.getElementById("portalWaInputNome");
+    const inpPlaca = document.getElementById("portalWaInputPlaca");
+    const hint = document.getElementById("portalWaSelectedHint");
+    const msg = document.getElementById("portalWaMsg");
+    if (inpCpf) inpCpf.value = typeof formatCpf === "function" ? formatCpf(row.cpf) : row.cpf;
+    if (inpNome) inpNome.value = row.nome;
+    if (inpPlaca) inpPlaca.value = row.placa;
+    if (hint) {
+      hint.textContent = `Selecionado: ${row.nome} · Placa ${row.placa} · Celular no cadastro: ${row.celularRaw || "(vazio)"}`;
+    }
+    if (msg) msg.textContent = "";
+    portalWaSelectedClienteRow = row;
+    portalWaHideAllDropdowns();
+  }
+
+  function portalWaClearForm() {
+    portalWaSelectedClienteRow = null;
+    ["portalWaInputCpf", "portalWaInputNome", "portalWaInputPlaca"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    const hint = document.getElementById("portalWaSelectedHint");
+    if (hint) hint.textContent = "";
+    const msg = document.getElementById("portalWaMsg");
+    if (msg) msg.textContent = "";
+  }
+
+  function portalWaOpenTodosModal() {
+    const modal = document.getElementById("portalWaTodosModal");
+    const body = document.getElementById("portalWaTodosModalBody");
+    if (!modal || !body) return;
+    portalWaRebuildDatasetCache();
+    const rows = portalWaDatasetCache.slice();
+    if (!rows.length) {
+      body.innerHTML = `<p class="subtext">Nenhuma locação ativa (sem data de fim) no cadastro.</p>`;
+    } else {
+      body.innerHTML = `<ul class="portal-wa-todos-list">${rows
+        .map((r) => {
+          const cpfEx = typeof formatCpf === "function" ? formatCpf(r.cpf) : r.cpf;
+          const waUrl = r.celularWa ? `https://wa.me/${r.celularWa}` : "";
+          const link = waUrl
+            ? `<a class="btn-primary btn-secondary-outline portal-wa-todos-link" href="${waUrl}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`
+            : `<span class="portal-wa-todos-sem-num">Sem celular no cadastro</span>`;
+          return `<li class="portal-wa-todos-item">
+            <div class="portal-wa-todos-item__main">
+              <strong>${portalEscapeHtml(r.nome)}</strong>
+              <span class="subtext">${portalEscapeHtml(cpfEx)} · ${portalEscapeHtml(r.placa)}</span>
+            </div>
+            ${link}
+          </li>`;
+        })
+        .join("")}</ul>`;
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function portalWaCloseTodosModal() {
+    const modal = document.getElementById("portalWaTodosModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function bindPortalWhatsAppOperacaoOnce() {
+    if (window.__dkPortalWaBound) return;
+    window.__dkPortalWaBound = true;
+
+    document.getElementById("portalWaBtnAbrir")?.addEventListener("click", () => {
+      const msg = document.getElementById("portalWaMsg");
+      const row = portalWaSelectedClienteRow;
+      if (!row) {
+        if (msg) msg.textContent = "Selecione um cliente na lista (CPF, nome ou placa).";
+        return;
+      }
+      if (!row.celularWa || row.celularWa.length < 12) {
+        if (msg) {
+          msg.textContent =
+            "Este cliente não tem celular válido no cadastro. Complete o campo no cadastro de cliente.";
+        }
+        return;
+      }
+      window.open(`https://wa.me/${row.celularWa}`, "_blank", "noopener,noreferrer");
+      if (msg) msg.textContent = "";
+    });
+
+    document.getElementById("portalWaBtnTodosAtivos")?.addEventListener("click", () => {
+      if (!isPortalTitularAdministrador()) return;
+      portalWaOpenTodosModal();
+    });
+
+    document.getElementById("portalWaTodosModal")?.addEventListener("click", (e) => {
+      if (e.target.closest("[data-close-wa-todos]")) portalWaCloseTodosModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      const modal = document.getElementById("portalWaTodosModal");
+      if (modal && !modal.classList.contains("hidden")) portalWaCloseTodosModal();
+    });
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        const open =
+          !document.getElementById("portalWaListaCpf")?.classList.contains("hidden") ||
+          !document.getElementById("portalWaListaNome")?.classList.contains("hidden") ||
+          !document.getElementById("portalWaListaPlaca")?.classList.contains("hidden");
+        if (!open) return;
+        const t = e.target;
+        if (
+          document.getElementById("portalWaComboCpf")?.contains(t) ||
+          document.getElementById("portalWaComboNome")?.contains(t) ||
+          document.getElementById("portalWaComboPlaca")?.contains(t)
+        ) {
+          return;
+        }
+        portalWaHideAllDropdowns();
+      },
+      true
+    );
+
+    Object.keys(PORTAL_WA_KIND).forEach((kind) => {
+      const cfg = PORTAL_WA_KIND[kind];
+      const inp = document.getElementById(cfg.input);
+      const panel = document.getElementById(cfg.panel);
+      const combo = document.getElementById(cfg.combo);
+      if (!inp || !panel || !combo) return;
+
+      inp.addEventListener("focus", () => {
+        portalWaRenderDropdown(kind, inp.value);
+      });
+
+      inp.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") portalWaHideAllDropdowns();
+      });
+
+      if (kind === "cpf") {
+        inp.addEventListener("input", () => {
+          const d = portalWaDig(inp.value).slice(0, 11);
+          if (typeof formatCpf === "function") inp.value = formatCpf(d);
+          portalWaRenderDropdown("cpf", d);
+        });
+      } else if (kind === "placa") {
+        inp.addEventListener("input", () => {
+          inp.value = String(inp.value || "").toUpperCase();
+          portalWaRenderDropdown("placa", inp.value);
+        });
+      } else {
+        inp.addEventListener("input", () => {
+          portalWaRenderDropdown("nome", inp.value);
+        });
+      }
+
+      panel.addEventListener("mousedown", (e) => {
+        if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
+      });
+      panel.addEventListener("click", (e) => {
+        const btn = e.target.closest(".portal-placa-dropdown__opt");
+        if (!btn) return;
+        const i = Number(btn.getAttribute("data-wa-i"));
+        if (!Number.isFinite(i)) return;
+        portalWaApplyPick(i);
+        inp.focus();
+      });
+
+      inp.addEventListener("focusout", (e) => {
+        const rt = e.relatedTarget;
+        if (rt && combo.contains(rt)) return;
+        window.setTimeout(() => {
+          if (!combo.contains(document.activeElement)) portalWaHideAllDropdowns();
+        }, 180);
+      });
+    });
+  }
+
+  bindPortalWhatsAppOperacaoOnce();
+
+  document.getElementById("btn-operacao-falar-cliente")?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
+    hideOperacaoInlineFormsCore();
+    portalWaRebuildDatasetCache();
+    portalWaClearForm();
+    portalWaHideAllDropdowns();
+    document.getElementById("operacaoInlineWhatsApp")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-falar-cliente");
   });
 
   document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", async () => {

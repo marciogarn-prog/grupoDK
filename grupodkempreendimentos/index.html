@@ -19,7 +19,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260511recibo-modal">
+  <link rel="stylesheet" href="styles.css?v=20260514whatsapp-cliente">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -141,6 +141,10 @@
             <p class="subpage__lead">Acesse os cadastros do sistema DK Locadora.</p>
             <p class="subtext">Os botões à esquerda escolhem o tipo de cadastro; <strong>os campos para digitar ficam no painel à direita</strong>. O protocolo da locação é gerado automaticamente e só passa ao seguinte depois de cadastrar. O painel completo DK continua disponível pelo link em cada formulário.</p>
             <div class="operacao-comandos">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-falar-cliente" aria-expanded="false" aria-controls="operacaoInlineWhatsApp">
+                <span class="btn-operacao-cmd__title">Falar com o cliente</span>
+                <span class="btn-operacao-cmd__hint">WhatsApp — pesquisa por CPF, nome ou placa</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
                 <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
                 <span class="btn-operacao-cmd__hint">14 campos da planilha (código, datas, CPF, nome, etc.) à direita</span>
@@ -167,6 +171,45 @@
             <div id="operacaoFormPlaceholder" class="operacao-form-placeholder" role="status">
               <p class="operacao-form-placeholder__text">Escolha um cadastro à esquerda. Os dados serão preenchidos neste painel.</p>
             </div>
+
+        <div id="operacaoInlineWhatsApp" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-whatsapp-title">
+          <h3 id="operacao-inline-whatsapp-title" class="operacao-inline-form__title">Falar com o cliente (WhatsApp)</h3>
+          <p class="subtext operacao-inline-form__lead">
+            Contratos ativos (locação sem data de fim no cadastro). Escolha por <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>; o convite abre o WhatsApp com o <strong>número de celular do cadastro do cliente</strong>.
+          </p>
+          <p class="subtext portal-whatsapp-linha-dk">
+            Linha DK Locadora (referência / teste): <strong>+5581989037417</strong>
+          </p>
+          <div class="portal-whatsapp-busca">
+            <label class="portal-field portal-field--combobox">
+              <span>CPF</span>
+              <div class="portal-combobox" id="portalWaComboCpf">
+                <input type="text" id="portalWaInputCpf" autocomplete="off" maxlength="14" inputmode="numeric" placeholder="Filtrar por CPF" aria-expanded="false" aria-controls="portalWaListaCpf" aria-autocomplete="list">
+                <div id="portalWaListaCpf" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugestões por CPF" hidden></div>
+              </div>
+            </label>
+            <label class="portal-field portal-field--combobox">
+              <span>Nome do cliente</span>
+              <div class="portal-combobox" id="portalWaComboNome">
+                <input type="text" id="portalWaInputNome" autocomplete="off" maxlength="120" placeholder="Filtrar por nome" aria-expanded="false" aria-controls="portalWaListaNome" aria-autocomplete="list">
+                <div id="portalWaListaNome" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugestões por nome" hidden></div>
+              </div>
+            </label>
+            <label class="portal-field portal-field--combobox">
+              <span>Placa</span>
+              <div class="portal-combobox" id="portalWaComboPlaca">
+                <input type="text" id="portalWaInputPlaca" autocomplete="off" maxlength="10" placeholder="Filtrar por placa" aria-expanded="false" aria-controls="portalWaListaPlaca" aria-autocomplete="list">
+                <div id="portalWaListaPlaca" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugestões por placa" hidden></div>
+              </div>
+            </label>
+          </div>
+          <p id="portalWaSelectedHint" class="portal-feedback portal-whatsapp-selected-hint" role="status"></p>
+          <div class="portal-whatsapp-actions">
+            <button type="button" class="btn-primary" id="portalWaBtnAbrir">Abrir WhatsApp do cliente</button>
+            <button type="button" class="btn-primary btn-secondary-outline hidden" id="portalWaBtnTodosAtivos">Falar com todos os clientes ativos</button>
+          </div>
+          <p id="portalWaMsg" class="portal-feedback" role="status"></p>
+        </div>
 
         <div id="operacaoInlineCliente" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-cliente-title">
           <h3 id="operacao-inline-cliente-title" class="operacao-inline-form__title">Dados do cliente</h3>
@@ -957,6 +1000,18 @@
     </div>
   </div>
 
+  <div id="portalWaTodosModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalWaTodosTitulo">
+    <div class="portal-modal__backdrop" data-close-wa-todos></div>
+    <div class="portal-modal__card portal-modal__card--wa-todos">
+      <h3 id="portalWaTodosTitulo" class="portal-modal__title">Clientes ativos — WhatsApp</h3>
+      <p class="portal-modal__text subtext">Administrador: um chat por cliente (número do cadastro). Linha DK referência: +5581989037417</p>
+      <div id="portalWaTodosModalBody" class="portal-wa-todos-body"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary btn-secondary-outline" data-close-wa-todos>Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalReciboModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalReciboTitulo">
     <div class="portal-modal__backdrop" data-close-recibo></div>
     <div class="portal-modal__card portal-recibo-modal__card">
@@ -1036,7 +1091,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260513sem-modo-teste-login" defer></script>
+  <script src="portal-locadora-ui.js?v=20260514whatsapp-cliente" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>
