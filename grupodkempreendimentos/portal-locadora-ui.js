@@ -644,6 +644,116 @@
 
   bindPortalChecklistPlacaComboboxOnce();
 
+  /** Fotos do check-list guardadas neste navegador (IndexedDB). */
+  const PORTAL_CHECKLIST_FOTOS_DB = "dk_portal_checklist_fotos";
+  const PORTAL_CHECKLIST_FOTOS_STORE = "fotos";
+
+  function portalChecklistFotosOpenDb() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(PORTAL_CHECKLIST_FOTOS_DB, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(PORTAL_CHECKLIST_FOTOS_STORE)) {
+          db.createObjectStore(PORTAL_CHECKLIST_FOTOS_STORE, { keyPath: "id", autoIncrement: true });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function portalChecklistArquivarFoto(blob, mime, slot, placaRaw) {
+    const nk =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (p) =>
+            String(p || "")
+              .replace(/\s+/g, "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+    const placaNormalized = nk(String(placaRaw || "").trim());
+    const db = await portalChecklistFotosOpenDb();
+    const record = {
+      placaNormalized,
+      slot,
+      mimeType: mime || blob.type || "image/jpeg",
+      blob,
+      createdAt: Date.now(),
+    };
+    try {
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(PORTAL_CHECKLIST_FOTOS_STORE, "readwrite");
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.objectStore(PORTAL_CHECKLIST_FOTOS_STORE).add(record);
+      });
+    } finally {
+      try {
+        db.close();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof addAuditLog === "function") {
+      addAuditLog("checklist_foto_arquivo", "manutencao", `${placaNormalized || "sem_placa"} — ${slot}`);
+    }
+  }
+
+  let portalChecklistFotoSlotAlvo = "";
+
+  function bindPortalChecklistFotoArquivoOnce() {
+    if (window.__dkPortalChecklistFotoBound) return;
+    window.__dkPortalChecklistFotoBound = true;
+    const fileInp = document.getElementById("portalChecklistFotoFile");
+    const msgEl = document.getElementById("portalChecklistFotoMsg");
+    if (!fileInp) return;
+
+    const botoes = [
+      ["portalChecklistFotoBtnDireita", "direita"],
+      ["portalChecklistFotoBtnFrente", "frente"],
+      ["portalChecklistFotoBtnEsquerda", "esquerda"],
+      ["portalChecklistFotoBtnTraseira", "traseira"],
+    ];
+    botoes.forEach(([id, slot]) => {
+      document.getElementById(id)?.addEventListener("click", () => {
+        portalChecklistFotoSlotAlvo = slot;
+        fileInp.click();
+      });
+    });
+
+    fileInp.addEventListener("change", () => {
+      const run = async () => {
+        const f = fileInp.files?.[0];
+        const slot = portalChecklistFotoSlotAlvo;
+        portalChecklistFotoSlotAlvo = "";
+        fileInp.value = "";
+        if (!f || !slot) return;
+        const placa = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
+        try {
+          await portalChecklistArquivarFoto(f, f.type, slot, placa);
+          const nomes = {
+            direita: "direita",
+            frente: "frente",
+            esquerda: "esquerda",
+            traseira: "traseira",
+          };
+          const rotulo = nomes[slot] || slot;
+          if (msgEl) {
+            msgEl.textContent = placa
+              ? `Foto (${rotulo}) guardada no arquivo deste dispositivo. Placa: ${placa}.`
+              : `Foto (${rotulo}) guardada. Informe a placa acima para associar ao veículo no arquivo.`;
+          }
+        } catch (err) {
+          console.warn("[DK portal] arquivo foto check-list", err);
+          if (msgEl) msgEl.textContent = "Não foi possível guardar a foto neste dispositivo.";
+        }
+      };
+      void run();
+    });
+  }
+
+  bindPortalChecklistFotoArquivoOnce();
+
   function portalPopulateColaboradoresChecklistSelects() {
     const selM = document.getElementById("portalChecklistMecanico");
     const selS = document.getElementById("portalChecklistSupervisor");

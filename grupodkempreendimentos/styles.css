@@ -1321,6 +1321,28 @@ body {
 /* Check-list manutenção — Veículos em operação (tablet / SPen) */
 .portal-checklist-toolbar {
   margin: 0.75rem 0 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.portal-checklist-toolbar__fotos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.btn-checklist-foto {
+  font-size: 0.82rem;
+  padding: 0.42rem 0.65rem;
+  white-space: nowrap;
+}
+
+.portal-checklist-foto-msg {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.88rem;
 }
 
 .portal-checklist-placa-bar {
