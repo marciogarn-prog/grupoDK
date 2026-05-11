@@ -1510,6 +1510,28 @@
     return motos.filter(isPortalLocacaoFinalizada);
   }
 
+  /** Coluna «quem executou» / «quem finalizou»: código 000AA + hora (mesmo padrão dos lançamentos). */
+  function portalRelatorioLocacaoExecucaoCell(loc) {
+    const cod = portalCodigoUsuarioRegistroLancamento(loc.portalLocacaoExecutadoPorCpf, loc.portalLocacaoExecutadoPorNome);
+    const ms =
+      Number(loc.portalLocacaoExecutadoEmMs || 0) ||
+      Number(loc.createdAt || loc.id || 0);
+    const hora = formatPortalHoraLancamentoMs(Number.isFinite(ms) && ms > 0 ? ms : 0);
+    if (cod && hora !== "—") return `${cod} · ${hora}`;
+    if (hora !== "—") return cod ? `${cod} · ${hora}` : `— · ${hora}`;
+    return "—";
+  }
+
+  function portalRelatorioLocacaoFinalizacaoCell(loc) {
+    if (!String(loc.fim || "").trim()) return "—";
+    const cod = portalCodigoUsuarioRegistroLancamento(loc.portalLocacaoFinalizadoPorCpf, loc.portalLocacaoFinalizadoPorNome);
+    const ms = Number(loc.portalLocacaoFinalizadoEmMs || 0);
+    const hora = formatPortalHoraLancamentoMs(Number.isFinite(ms) && ms > 0 ? ms : 0);
+    if (cod && hora !== "—") return `${cod} · ${hora}`;
+    if (hora !== "—") return cod ? `${cod} · ${hora}` : `— · ${hora}`;
+    return "—";
+  }
+
   function rowPortalRelatorioLocacao(locacao) {
     const cpfDigits =
       typeof onlyDigits === "function" ? onlyDigits(String(locacao.cpf || "")) : String(locacao.cpf || "").replace(/\D/g, "");
@@ -1534,7 +1556,9 @@
         : String(locacao.placa || "").trim() || "—",
       String(locacao.marcaModelo || "").trim() || "—",
       String(locacao.inicio || "").trim() || "—",
+      portalRelatorioLocacaoExecucaoCell(locacao),
       String(locacao.fim || "").trim() || "—",
+      portalRelatorioLocacaoFinalizacaoCell(locacao),
       String(locacao.plano || "").trim() || "—",
       statusRaw || "—",
       String(locacao.modalidade || "").trim() || "—",
@@ -1949,15 +1973,27 @@
     const rowsRaw = sortPortalLocacoesPorUltimaDataDesc(
       typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : []
     );
-    const headers = ["Protocolo", "CPF", "Cliente", "Placa", "Modelo", "Início", "Fim", "Plano", "Status"];
-    const rows = rowsRaw.map((l) => rowPortalRelatorioLocacao(l).slice(0, 9));
+    const headers = [
+      "Protocolo",
+      "CPF",
+      "Cliente",
+      "Placa",
+      "Modelo",
+      "Início",
+      "Execução",
+      "Fim",
+      "Finalização",
+      "Plano",
+      "Status",
+    ];
+    const rows = rowsRaw.map((l) => rowPortalRelatorioLocacao(l).slice(0, 11));
     return {
       title: "Relatório de locações cadastradas",
       headers,
       rows,
       fileSlug: "locacoes",
       textColumns: [0, 1, 3],
-      statusColumnIndex: 8,
+      statusColumnIndex: 10,
     };
   }
 
@@ -2367,13 +2403,15 @@
       "Placa",
       "Modelo",
       "Início",
+      "Execução",
       "Fim",
+      "Finalização",
       "Plano",
       "Status",
       "Modalidade",
     ];
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
-    const statusIdx = 8;
+    const statusIdx = 10;
     const statusFn =
       typeof isPortalRelatorioStatusCellAtivo === "function" ? isPortalRelatorioStatusCellAtivo : null;
     const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
@@ -2452,7 +2490,9 @@
       "Placa",
       "Modelo",
       "Início",
+      "Execução",
       "Fim",
+      "Finalização",
       "Plano",
       "Status",
       "Modalidade",
@@ -2469,7 +2509,7 @@
     ];
     downloadStyledExcel(fileBase, headers, rows, metaLines, {
       textColumns: [0, 1, 3],
-      statusColumnIndex: 8,
+      statusColumnIndex: 10,
     });
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (msg) msg.textContent = rows.length ? `Excel gerado (${rows.length} linha(s)).` : "Excel gerado — nenhum registo neste filtro.";
@@ -3287,10 +3327,15 @@
     }
 
     const prev = locs[idx];
+    const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
+    const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
     locs[idx] = {
       ...prev,
       fim: fimBr,
       statusLocacao: "FINALIZADO",
+      portalLocacaoFinalizadoPorCpf: finCpf,
+      portalLocacaoFinalizadoPorNome: String(regFin?.nome || "").trim(),
+      portalLocacaoFinalizadoEmMs: Date.now(),
     };
     try {
       saveCadastro(CAD_LOCACOES_KEY, locs);
@@ -3309,6 +3354,256 @@
     if (msg) msg.textContent = "Locação finalizada e guardada.";
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
     applyPortalLocacaoRowFromRecord(locs[idx]);
+    refreshOperacaoLocacaoDatalists();
+    refreshOperacaoLocacaoFinalizarBtn();
+  }
+
+  /** Cadastro / atualização de locação pelo formulário do portal — grava também quem executou (000AA + instante). */
+  function persistPortalOperacaoLocacaoInlineSubmit(ev) {
+    ev.preventDefault();
+    syncOperacaoLocacaoFromDataInicio();
+    syncOperacaoLocacaoValorPlano();
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (
+      typeof loadCadastro !== "function" ||
+      typeof saveCadastro !== "function" ||
+      typeof CAD_LOCACOES_KEY === "undefined"
+    ) {
+      if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
+      return;
+    }
+    const reg = getPortalSessaoParaRegistroLancamentoAluguel();
+    if (!reg) {
+      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para cadastrar ou alterar locação.";
+      return;
+    }
+    const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = dig(String(document.getElementById("operacaoLocacaoCpf")?.value || ""));
+    if (cpfDigits.length !== 11) {
+      if (msg) msg.textContent = "Informe um CPF válido (11 dígitos).";
+      return;
+    }
+    const plateRaw = document.getElementById("operacaoLocacaoPlaca")?.value || "";
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(plateRaw || ""))
+        : String(plateRaw || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!plate) {
+      if (msg) msg.textContent = "Informe a placa.";
+      return;
+    }
+    const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    const inicioDt = typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
+    if (!rawInicio || !inicioDt || Number.isNaN(inicioDt.getTime())) {
+      if (msg) msg.textContent = "Informe a data de início (DD/MM/AAAA).";
+      return;
+    }
+    const inicioBr =
+      typeof formatPortalDataBr === "function" ? formatPortalDataBr(inicioDt) : rawInicio;
+    const rawFim = String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim();
+    let fimBr = "";
+    if (rawFim) {
+      const fimDt = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
+      if (!fimDt || Number.isNaN(fimDt.getTime())) {
+        if (msg) msg.textContent = "Data fim inválida (DD/MM/AAAA).";
+        return;
+      }
+      fimBr = typeof formatPortalDataBr === "function" ? formatPortalDataBr(fimDt) : rawFim;
+    }
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const isNovo = sel && String(sel.value || "") === PORTAL_PROTO_NOVO;
+    const nc = normPortalNumeroContrato(String(hid?.value || ""));
+    if (!nc) {
+      if (msg) msg.textContent = "Protocolo inválido. Escolha «NOVO» ou um contrato existente.";
+      return;
+    }
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const valorLocNum = Number(parseVal(String(document.getElementById("operacaoLocacaoValorAluguel")?.value || "")));
+    const valorInvNum = Number(parseVal(String(document.getElementById("operacaoLocacaoValorInvestimento")?.value || "")));
+    const tipoPlanoStr = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
+    const planoNome =
+      tipoPlanoStr ||
+      (valorInvNum > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE");
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const planoMinha = nk(planoNome).includes("MINHA MOTO");
+    if (!valorLocNum || (planoMinha && !valorInvNum)) {
+      if (msg) {
+        msg.textContent = planoMinha
+          ? "No plano DK MINHA MOTO informe valor da locação e do investimento."
+          : "Informe o valor da locação.";
+      }
+      return;
+    }
+    const valorSemanalNum = valorLocNum + valorInvNum;
+    const cb =
+      typeof currencyBRL === "function"
+        ? currencyBRL
+        : (n) =>
+            Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const valorSemanal = cb(valorSemanalNum);
+    const diaPagto = String(document.getElementById("operacaoLocacaoDiaPagamento")?.value || "").trim();
+    const tempoStr = String(document.getElementById("operacaoLocacaoTempoDias")?.value || "").trim();
+    const tempoN = tempoStr === "" ? 0 : Math.max(0, Number.parseInt(tempoStr, 10) || 0);
+    const periodoLocacao = tempoN ? `${tempoN} dia(s)` : "";
+    const marcaModelo = String(document.getElementById("operacaoLocacaoModelo")?.value || "").trim();
+    const modalidade = portalInferTipoVeiculoLocacao({ placa: plate, modalidade: "" });
+    const statusLocacao = fimBr ? "FINALIZADO" : "ATIVO";
+
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idxAll = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    const prev = idxAll >= 0 ? locs[idxAll] : null;
+    if (!prev && !isNovo) {
+      if (msg) msg.textContent = "Contrato não encontrado para atualizar. Use «NOVO» para criar um protocolo.";
+      return;
+    }
+    if (prev && isNovo) {
+      if (msg) msg.textContent = "Remova «NOVO» do protocolo para atualizar um contrato já existente.";
+      return;
+    }
+
+    const ncKey =
+      typeof normalizeNumeroContratoKey === "function" ? normalizeNumeroContratoKey(nc) : nc;
+    const excludeId = prev?.id != null ? prev.id : null;
+    if (typeof contratoNumeroJaExisteNaBase === "function" && contratoNumeroJaExisteNaBase(ncKey, excludeId)) {
+      if (msg) msg.textContent = "Este número de protocolo já está cadastrado.";
+      return;
+    }
+
+    const livres =
+      typeof getVeiculosSemProtocoloAtivo === "function" ? getVeiculosSemProtocoloAtivo() : [];
+    const plateFree = livres.some((v) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(v.placa || "")) === plate
+        : String(v.placa || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "") === plate
+    );
+    const prevPlate =
+      prev && typeof normalizePlate === "function"
+        ? normalizePlate(String(prev.placa || ""))
+        : prev
+          ? String(prev.placa || "")
+              .trim()
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "")
+          : "";
+    const mesmoContratoPlaca = prev && prevPlate === plate;
+    if (!plateFree && !mesmoContratoPlaca) {
+      if (msg)
+        msg.textContent =
+          "Esta placa não está disponível (já existe contrato ativo). Finalize a locação anterior ou escolha outra placa.";
+      return;
+    }
+
+    const clientes = typeof loadCadastro === "function" ? loadCadastro(CAD_CLIENTES_KEY) : [];
+    const cliente = clientes.find((c) => dig(String(c.cpf || "")) === cpfDigits);
+    if (cliente && nk(String(cliente.status || "")).includes("QUEBRA DE CONTRATO")) {
+      window.alert("IMPEDITIVO DE LOCAÇÃO: cliente com quebra de contrato.");
+      return;
+    }
+    if (cliente && nk(String(cliente.status || "")).includes("CADASTRO NAO APROVADO")) {
+      window.alert("IMPEDITIVO DE LOCAÇÃO: cadastro não aprovado.");
+      return;
+    }
+    const clienteCodigo = String(cliente?.codigo || "").trim();
+
+    const nowMs = Date.now();
+    const execCpf = String(reg.cpf || "").replace(/\D/g, "").slice(0, 11);
+    const execNome = String(reg.nome || "").trim();
+
+    const baseRecord = {
+      cpf: cpfDigits,
+      placa: plate,
+      inicio: inicioBr,
+      fim: fimBr,
+      plano: planoNome,
+      valorLocacao: cb(valorLocNum),
+      valorInvestimento: cb(valorInvNum),
+      valorSemanal,
+      numeroContrato: nc,
+      statusLocacao,
+      diaPagto,
+      periodoLocacao,
+      modalidade,
+      marcaModelo,
+      opcaoContrato: tipoPlanoStr,
+      periodoContrato: "",
+      kmInicial: "",
+      configPrecoKm: "",
+      tabela: "",
+      valorParcela: valorSemanal,
+      clienteCodigo,
+    };
+
+    if (prev) {
+      locs[idxAll] = {
+        ...prev,
+        ...baseRecord,
+        portalLancamentosAluguel: prev.portalLancamentosAluguel,
+        portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
+        portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
+        portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
+      };
+    } else {
+      locs.push({
+        id: nowMs,
+        createdAt: nowMs,
+        ...baseRecord,
+        portalLocacaoExecutadoPorCpf: execCpf,
+        portalLocacaoExecutadoPorNome: execNome,
+        portalLocacaoExecutadoEmMs: nowMs,
+      });
+    }
+
+    try {
+      saveCadastro(CAD_LOCACOES_KEY, locs);
+    } catch (err) {
+      console.error(err);
+      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+      return;
+    }
+
+    if (typeof addAuditLog === "function") {
+      try {
+        addAuditLog(
+          prev ? "atualizar_locacao_portal" : "cadastrar_locacao_portal",
+          "locacao",
+          `${nc} · CPF ${cpfDigits} · ${plate}`
+        );
+      } catch {
+        /* ignore */
+      }
+    }
+    if (msg) msg.textContent = prev ? "Locação atualizada." : "Locação cadastrada.";
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    const selAfter = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hidAfter = document.getElementById("operacaoLocacaoProtocolo");
+    if (selAfter && hidAfter) {
+      selAfter.value = nc;
+      hidAfter.value = nc;
+    }
+    const saved = locs.find(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (saved) applyPortalLocacaoRowFromRecord(saved);
     refreshOperacaoLocacaoDatalists();
     refreshOperacaoLocacaoFinalizarBtn();
   }
@@ -3389,18 +3684,101 @@
     }
   }
 
+  /** Lançamentos em `dk_lancamentos_aluguel` (quadro DK) para o mesmo CPF + placa + protocolo — usado quando o array embutido na locação veio vazio após merge/nuvem. */
+  function portalLancamentosAluguelFromCadastroGlobal(loc) {
+    if (typeof getLancamentosAluguel !== "function") return [];
+    const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfD = dig(String(loc.cpf || ""));
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(loc.placa || ""))
+        : String(loc.placa || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    const nc =
+      typeof normalizeNumeroContratoKey === "function"
+        ? String(normalizeNumeroContratoKey(loc.numeroContrato || "")).replace(/\s+/g, "")
+        : String(loc.numeroContrato || "")
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, "");
+    if (cpfD.length !== 11 || !plate || !nc) return [];
+    const out = [];
+    for (const item of getLancamentosAluguel()) {
+      if (!item || typeof item !== "object") continue;
+      if (dig(String(item.cpf || "")) !== cpfD) continue;
+      const pIt =
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(item.placa || ""))
+          : String(item.placa || "")
+              .trim()
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      if (pIt !== plate) continue;
+      const ncIt =
+        typeof normalizeNumeroContratoKey === "function"
+          ? String(normalizeNumeroContratoKey(item.numeroContrato || "")).replace(/\s+/g, "")
+          : String(item.numeroContrato || "")
+              .trim()
+              .toUpperCase()
+              .replace(/\s+/g, "");
+      if (ncIt !== nc) continue;
+      const data = String(item.dataPagamento || item.semanaInicio || "").trim();
+      const valor =
+        typeof getLancamentoAluguelValor === "function"
+          ? getLancamentoAluguelValor(item)
+          : Number(parsePortalLancamentoValorRaw(item.valorPago ?? item.valor ?? 0));
+      if (!data || !Number.isFinite(valor) || valor <= 0) continue;
+      const createdAt = Number(item.createdAt || item.id || 0);
+      out.push({
+        data,
+        valor,
+        createdAt: createdAt || Date.now(),
+        registradoPorCpf: dig(String(item.registradoPorCpf || "")).slice(0, 11),
+        registradoPorNome: String(item.registradoPorNome || "").trim(),
+      });
+    }
+    out.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    return out;
+  }
+
   /** Lançamentos do portal amarrados ao registo da locação (por protocolo). Migra total legado se ainda não houver lista. */
   function getPortalLancamentosAluguelDoContrato(loc) {
     if (!loc || typeof loc !== "object") return [];
+    const mergePl =
+      typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function"
+        ? window.__DK_mergePortalLancamentosAluguelEmbutidos
+        : (arrays) => {
+            const flat = [];
+            for (const a of arrays || []) {
+              if (!Array.isArray(a)) continue;
+              for (const x of a) {
+                if (x && typeof x === "object") flat.push(x);
+              }
+            }
+            return flat;
+          };
+    const chunks = [];
     if (Array.isArray(loc.portalLancamentosAluguel) && loc.portalLancamentosAluguel.length > 0) {
-      return loc.portalLancamentosAluguel.map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
+      const n = loc.portalLancamentosAluguel.map(normalizePortalLancamentoAluguelEntry).filter(Boolean);
+      if (n.length) chunks.push(n);
     }
     const legado = Number(parsePortalLancamentoValorRaw(loc.totalPagoAno2025 ?? "0"));
-    if (legado > 0) {
+    if (legado > 0 && chunks.length === 0) {
       const data = String(loc.ultimoLancamentoAluguelData || "").trim() || "01/01/2025";
-      return [{ data, valor: legado }];
+      chunks.push([
+        {
+          data,
+          valor: legado,
+          createdAt: Number(loc.createdAt || loc.id || 0) || Date.now(),
+        },
+      ]);
     }
-    return [];
+    const globalRows = portalLancamentosAluguelFromCadastroGlobal(loc);
+    if (globalRows.length) chunks.push(globalRows);
+    const merged = mergePl(chunks);
+    return Array.isArray(merged) ? merged : [];
   }
 
   function sumPortalLancamentosAluguelTotal(arr) {
@@ -4407,11 +4785,7 @@
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
   const formOperacaoLocacaoInline = document.getElementById("formOperacaoLocacaoInline");
-  formOperacaoLocacaoInline?.addEventListener("submit", () => {
-    // Garante campos derivados preenchidos mesmo quando o utilizador submete sem disparar blur/input finais.
-    syncOperacaoLocacaoFromDataInicio();
-    syncOperacaoLocacaoValorPlano();
-  });
+  formOperacaoLocacaoInline?.addEventListener("submit", persistPortalOperacaoLocacaoInlineSubmit);
   // Também recalcula após hidratação inicial dos campos pela querystring do navegador.
   requestAnimationFrame(() => {
     syncOperacaoLocacaoFromDataInicio();
@@ -4970,6 +5344,13 @@
     }
 
     function dkPortalMergeLocacoesArrays(local, remote) {
+      const mergePlEmb =
+        typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function"
+          ? window.__DK_mergePortalLancamentosAluguelEmbutidos
+          : (arrays) => {
+              const flat = (arrays || []).flat().filter((x) => Array.isArray(x));
+              return flat.flat();
+            };
       const dig = (cpf) =>
         typeof onlyDigits === "function" ? onlyDigits(String(cpf || "")) : String(cpf || "").replace(/\D/g, "");
       const plateNorm = (p) =>
@@ -4998,18 +5379,26 @@
       const add = (l) => {
         const k = keyOf(l);
         const prev = byKey.get(k);
-        const merged = prev ? { ...prev, ...l } : { ...l };
+        const mergedPl = mergePlEmb([prev?.portalLancamentosAluguel, l?.portalLancamentosAluguel]);
         if (!prev) {
+          const merged = { ...l };
+          if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
           byKey.set(k, merged);
           return;
         }
+        const merged = { ...prev, ...l };
+        if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
         if (score(l) > score(prev)) {
           byKey.set(k, merged);
           return;
         }
         if (score(l) === score(prev) && JSON.stringify(l).length >= JSON.stringify(prev).length) {
           byKey.set(k, merged);
+          return;
         }
+        const stay = { ...prev };
+        if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+        byKey.set(k, stay);
       };
       (local || []).forEach(add);
       (remote || []).forEach(add);

@@ -1930,6 +1930,48 @@ function loadCadastro(key) {
 }
 
 /**
+ * Une `portalLancamentosAluguel` de duas fontes (ex.: local vs nuvem) sem perder linhas:
+ * um `[]` ou registo mais recente sem lista não pode apagar pagamentos já gravados no outro lado.
+ */
+function mergePortalLancamentosAluguelEmbutidos(arrays) {
+  const seen = new Set();
+  const out = [];
+  const dig = (s) => onlyDigits(String(s || ""));
+  for (const arr of arrays || []) {
+    if (!Array.isArray(arr)) continue;
+    for (const raw of arr) {
+      if (!raw || typeof raw !== "object") continue;
+      const data = String(raw.data || "").trim();
+      const valor =
+        typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
+          ? raw.valor
+          : parseCurrencyBR(raw.valor ?? raw.valorPago ?? "");
+      if (!data || !Number.isFinite(valor) || valor <= 0) continue;
+      const ca = Number(raw.createdAt || raw.id || 0);
+      const rp = dig(String(raw.registradoPorCpf || "")).slice(0, 11);
+      const key = `${data}|${valor}|${ca}|${rp}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        data,
+        valor,
+        createdAt: ca || Date.now(),
+        registradoPorCpf: rp,
+        registradoPorNome: String(raw.registradoPorNome || "").trim(),
+      });
+    }
+  }
+  out.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  return out;
+}
+
+try {
+  window.__DK_mergePortalLancamentosAluguelEmbutidos = mergePortalLancamentosAluguelEmbutidos;
+} catch {
+  /* ignore */
+}
+
+/**
  * Regra de negócio: clientes, veículos e locações cadastrados não são removidos
  * do armazenamento — apenas novos registos ou atualizações (mesma chave natural).
  * `bypassImmutabilidadeCadastro` em saveCadastro() só para migrações internas pontuais.
@@ -2016,18 +2058,26 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     const add = (l) => {
       const k = keyOf(l);
       const ex = byK.get(k);
-      const merged = ex ? { ...ex, ...l } : { ...l };
+      const mergedPl = mergePortalLancamentosAluguelEmbutidos([ex?.portalLancamentosAluguel, l?.portalLancamentosAluguel]);
       if (!ex) {
+        const merged = { ...l };
+        if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
         byK.set(k, merged);
         return;
       }
+      const merged = { ...ex, ...l };
+      if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
       if (score(l) > score(ex)) {
         byK.set(k, merged);
         return;
       }
       if (score(l) === score(ex) && JSON.stringify(l).length >= JSON.stringify(ex).length) {
         byK.set(k, merged);
+        return;
       }
+      const stay = { ...ex };
+      if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+      byK.set(k, stay);
     };
     prev.forEach(add);
     incoming.forEach(add);
