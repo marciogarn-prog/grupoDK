@@ -1250,3 +1250,19 @@ body {
 .portal-colab-bloqueio-wrap .portal-colab-bloqueio-btn:hover {
   background: rgba(34, 197, 94, 0.18);
 }
+
+.portal-cloud-sync-bar {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.portal-cloud-sync-bar__lead {
+  margin-bottom: 0.65rem;
+}
+
+.portal-cloud-sync-bar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}

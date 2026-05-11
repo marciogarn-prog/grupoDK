@@ -1,20 +1,23 @@
--- Execute no SQL Editor do Supabase (projeto → SQL → New query).
--- Passo inicial: uma linha por “organização” ou utilizador, payload JSON espelha os cadastros locais.
--- Ajuste políticas RLS quando ligar Auth (email/CPF + senha ou magic link).
+-- Projeto Supabase → SQL Editor → New query → Run (uma vez; se já existir tabela antiga, ver nota no fim).
+-- Tabela única com snapshot JSON dos dados DK do navegador (substitui trabalhar só em localStorage entre dispositivos).
 
 create extension if not exists "pgcrypto";
 
-create table if not exists public.dk_cloud_snapshots (
+-- Versão simples: uma linha por etiqueta (label); upsert pela coluna label.
+drop table if exists public.dk_cloud_snapshots cascade;
+
+create table public.dk_cloud_snapshots (
   id uuid primary key default gen_random_uuid(),
-  owner_user_id uuid references auth.users (id) on delete cascade,
-  label text default 'default',
+  label text not null unique default 'default',
   payload jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
-create index if not exists dk_cloud_snapshots_owner_idx on public.dk_cloud_snapshots (owner_user_id);
+comment on table public.dk_cloud_snapshots is 'Snapshot dos cadastros DK (JSON por chave localStorage).';
 
--- RLS: ative no painel (Authentication → Policies) ou aqui quando ligar Supabase Auth.
--- Sem políticas, não exponha dados sensíveis. Em produção: enable row level security + policies por auth.uid().
+-- Sem RLS por agora: qualquer cliente com anon key pode ler/escrever esta tabela.
+-- Em produção com utilizadores reais: enable RLS + policies + Auth (não deixe dados sensíveis só protegidos pela anon key).
+alter table public.dk_cloud_snapshots disable row level security;
 
-comment on table public.dk_cloud_snapshots is 'Sincronização futura dos dados DK (alternativa ao só localStorage).';
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on table public.dk_cloud_snapshots to anon, authenticated;

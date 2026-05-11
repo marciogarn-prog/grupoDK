@@ -25,3 +25,9 @@ window.__DK_SUPABASE_CLIENT__ =
     : null;
 
 window.__DK_SUPABASE_CONFIGURED__ = Boolean(window.__DK_SUPABASE_CLIENT__);
+
+try {
+  window.dispatchEvent(new CustomEvent("dk-supabase-ready"));
+} catch {
+  /* ignore */
+}
