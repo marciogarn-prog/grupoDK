@@ -21,3 +21,6 @@ alter table public.dk_cloud_snapshots disable row level security;
 
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on table public.dk_cloud_snapshots to anon, authenticated;
+
+-- Atualiza o cache da API REST (evita "Could not find the table ... in the schema cache").
+notify pgrst, 'reload schema';
