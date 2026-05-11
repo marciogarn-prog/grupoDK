@@ -2025,6 +2025,33 @@
   }
 
   /**
+   * Para o Relatório 1: um lançamento com espécie/Pix/cartão vira até três linhas (valor por meio), mesmo instante de registo.
+   * Lançamentos antigos sem discriminação: uma linha com tipo «—».
+   */
+  function portalLancamentoAluguelPartesRelatorioPeriodo(lan) {
+    if (!lan || typeof lan !== "object") return [];
+    const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+    const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(lan, k));
+    const parseV = (raw) => Number(parsePortalLancamentoValorRaw(raw ?? ""));
+    if (hasMeios) {
+      const ve = parseV(lan.valorEspecie ?? 0);
+      const vp = parseV(lan.valorPix ?? 0);
+      const vc = parseV(lan.valorCartao ?? 0);
+      const partes = [];
+      if (ve > 0) partes.push({ valor: ve, tipo: "Espécie", tipoOrder: 0 });
+      if (vp > 0) partes.push({ valor: vp, tipo: "Pix", tipoOrder: 1 });
+      if (vc > 0) partes.push({ valor: vc, tipo: "Cartão", tipoOrder: 2 });
+      if (partes.length) return partes;
+      const vFallback = Number(lan.valor || 0);
+      if (Number.isFinite(vFallback) && vFallback > 0) return [{ valor: vFallback, tipo: "—", tipoOrder: 0 }];
+      return [];
+    }
+    const v = Number(lan.valor || 0);
+    if (!Number.isFinite(v) || v <= 0) return [];
+    return [{ valor: v, tipo: "—", tipoOrder: 0 }];
+  }
+
+  /**
    * Relatório 1: todos os lançamentos de aluguel (portal) cuja data do pagamento cai no intervalo [início, fim], inclusive.
    * `inicioBr` / `fimBr`: strings DD/MM/AAAA (mesmo formato dos restantes campos do portal).
    */
@@ -2056,11 +2083,12 @@
           "Cód. utilizador",
           "Data e hora do lançamento",
           "Data do pagamento",
+          "Tipo",
           "Valor pago",
         ],
         rows: [],
         fileSlug: "pagamentos-periodo",
-        textColumns: [0, 3, 4, 5, 6],
+        textColumns: [0, 3, 4, 5, 6, 7],
         periodoInicioBr: sIn,
         periodoFimBr: sFi,
         totalRecebido: 0,
@@ -2102,23 +2130,29 @@
         }
         const cpfExib = cpfDigits.length === 11 ? fmtCpf(cpfDigits) : String(loc.cpf || "").trim() || "—";
         const proto = String(loc.numeroContrato || "").trim() || "—";
-        const valor = Number(lan.valor || 0);
         const dataPagamentoBr = String(lan.data || "").trim() || "—";
         const ca =
           typeof lan.createdAt === "number" && Number.isFinite(lan.createdAt) ? lan.createdAt : 0;
-        collected.push({
-          cpfExib,
-          nome: nome || "—",
-          placa: plateExib(loc.placa),
-          proto,
-          dataPagamentoBr,
-          valor,
-          payMs,
-          lancMs: ca,
-          codigoUsuario:
-            portalCodigoUsuarioRegistroLancamento(lan.registradoPorCpf, lan.registradoPorNome) || "—",
-          horaLancamento: formatPortalDataHoraLancamentoMs(ca),
-        });
+        const codigoUsuario =
+          portalCodigoUsuarioRegistroLancamento(lan.registradoPorCpf, lan.registradoPorNome) || "—";
+        const horaLancamento = formatPortalDataHoraLancamentoMs(ca);
+        const partes = portalLancamentoAluguelPartesRelatorioPeriodo(lan);
+        for (const parte of partes) {
+          collected.push({
+            cpfExib,
+            nome: nome || "—",
+            placa: plateExib(loc.placa),
+            proto,
+            dataPagamentoBr,
+            valor: parte.valor,
+            tipo: parte.tipo,
+            tipoOrder: parte.tipoOrder,
+            payMs,
+            lancMs: ca,
+            codigoUsuario,
+            horaLancamento,
+          });
+        }
       }
     }
     collected.sort((a, b) => {
@@ -2127,7 +2161,8 @@
       if (la !== lb) return lb - la;
       if (a.payMs !== b.payMs) return b.payMs - a.payMs;
       if (a.proto !== b.proto) return a.proto.localeCompare(b.proto, "pt-BR");
-      return a.cpfExib.localeCompare(b.cpfExib, "pt-BR");
+      if (a.cpfExib !== b.cpfExib) return a.cpfExib.localeCompare(b.cpfExib, "pt-BR");
+      return (a.tipoOrder || 0) - (b.tipoOrder || 0);
     });
     const totalRecebido = collected.reduce((acc, r) => acc + r.valor, 0);
     const inicioFmt = formatPortalDataBr(new Date(startMs));
@@ -2140,6 +2175,7 @@
       r.codigoUsuario,
       r.horaLancamento,
       r.dataPagamentoBr,
+      r.tipo,
       fmtBrl(r.valor),
     ]);
     return {
@@ -2156,11 +2192,12 @@
         "Cód. utilizador",
         "Data e hora do lançamento",
         "Data do pagamento",
+        "Tipo",
         "Valor pago",
       ],
       rows,
       fileSlug: "pagamentos-periodo",
-      textColumns: [0, 3, 4, 5, 6],
+      textColumns: [0, 3, 4, 5, 6, 7],
       periodoInicioBr: sIn,
       periodoFimBr: sFi,
       totalRecebido,
