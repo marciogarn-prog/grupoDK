@@ -1266,3 +1266,11 @@ body {
   flex-wrap: wrap;
   gap: 0.65rem;
 }
+
+#portal-cloud-sync-msg.portal-feedback--cloud-ok {
+  color: #86efac;
+}
+
+#portal-cloud-sync-msg.portal-feedback--cloud-muted {
+  color: var(--muted);
+}
