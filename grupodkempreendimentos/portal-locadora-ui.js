@@ -2054,13 +2054,13 @@
           "Placa",
           "Protocolo",
           "Cód. utilizador",
-          "Hora do lançamento",
+          "Data e hora do lançamento",
           "Data do pagamento",
           "Valor pago",
         ],
         rows: [],
         fileSlug: "pagamentos-periodo",
-        textColumns: [0, 3, 4, 6],
+        textColumns: [0, 3, 4, 5, 6],
         periodoInicioBr: sIn,
         periodoFimBr: sFi,
         totalRecebido: 0,
@@ -2116,7 +2116,7 @@
           payMs,
           codigoUsuario:
             portalCodigoUsuarioRegistroLancamento(lan.registradoPorCpf, lan.registradoPorNome) || "—",
-          horaLancamento: formatPortalHoraLancamentoMs(ca),
+          horaLancamento: formatPortalDataHoraLancamentoMs(ca),
         });
       }
     }
@@ -2150,13 +2150,13 @@
         "Placa",
         "Protocolo",
         "Cód. utilizador",
-        "Hora do lançamento",
+        "Data e hora do lançamento",
         "Data do pagamento",
         "Valor pago",
       ],
       rows,
       fileSlug: "pagamentos-periodo",
-      textColumns: [0, 3, 4, 6],
+      textColumns: [0, 3, 4, 5, 6],
       periodoInicioBr: sIn,
       periodoFimBr: sFi,
       totalRecebido,
@@ -3832,6 +3832,19 @@
     if (typeof ms !== "number" || !Number.isFinite(ms) || ms <= 0) return "—";
     try {
       return new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    } catch {
+      return "—";
+    }
+  }
+
+  /** Relatório 1: instante em que o operador registou o lançamento (mesmo fuso do navegador). */
+  function formatPortalDataHoraLancamentoMs(ms) {
+    if (typeof ms !== "number" || !Number.isFinite(ms) || ms <= 0) return "—";
+    try {
+      const d = new Date(ms);
+      if (Number.isNaN(d.getTime())) return "—";
+      const p2 = (n) => String(n).padStart(2, "0");
+      return `${formatPortalDataBr(d)} às ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
     } catch {
       return "—";
     }
