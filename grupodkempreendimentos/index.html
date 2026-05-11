@@ -122,6 +122,7 @@
         <p class="subtext">Conteúdo da unidade em preparação.</p>
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
@@ -841,6 +842,62 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-operacao-locadora">Voltar</button>
         </div>
       </section>
+
+      <section id="panel-manutencao-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Manutenção</h2>
+        <div class="portal-operacao-layout">
+          <aside class="portal-operacao-layout__sidebar" aria-label="Áreas de manutenção">
+            <p class="subpage__lead">Gestão da frota por estado.</p>
+            <p class="subtext">Escolha uma categoria à esquerda; o detalhe aparece à direita.</p>
+            <div class="operacao-comandos">
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-operacao" aria-expanded="false" aria-controls="manutencaoInlineEmOperacao">
+                <span class="btn-operacao-cmd__title">Veículos em operação</span>
+                <span class="btn-operacao-cmd__hint">Em uso ou com locação ativa</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-manutencao" aria-expanded="false" aria-controls="manutencaoInlineEmManutencao">
+                <span class="btn-operacao-cmd__title">Veículos em manutenção</span>
+                <span class="btn-operacao-cmd__hint">Oficina ou indisponíveis</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-reserva" aria-expanded="false" aria-controls="manutencaoInlineReserva">
+                <span class="btn-operacao-cmd__title">Veículos reserva</span>
+                <span class="btn-operacao-cmd__hint">Reserva da frota</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-operacionais" aria-expanded="false" aria-controls="manutencaoInlineOperacionais">
+                <span class="btn-operacao-cmd__title">Veículos operacionais</span>
+                <span class="btn-operacao-cmd__hint">Prontos para operação</span>
+              </button>
+            </div>
+          </aside>
+          <div class="portal-operacao-layout__main" id="manutencaoPainelDireito">
+            <div id="manutencaoFormPlaceholder" class="operacao-form-placeholder" role="status">
+              <p class="operacao-form-placeholder__text">Escolha uma área à esquerda.</p>
+            </div>
+            <div id="manutencaoInlineEmOperacao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-operacao">
+              <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Veículos em operação</h3>
+              <p class="subtext operacao-inline-form__lead">Área para listar e gerir veículos atualmente em operação.</p>
+              <p class="portal-feedback" role="status">Conteúdo em preparação — será ligado aos dados da frota.</p>
+            </div>
+            <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
+              <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Veículos em manutenção</h3>
+              <p class="subtext operacao-inline-form__lead">Área para veículos em oficina ou fora de serviço.</p>
+              <p class="portal-feedback" role="status">Conteúdo em preparação — será ligado aos dados da frota.</p>
+            </div>
+            <div id="manutencaoInlineReserva" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-reserva">
+              <h3 id="manutencao-title-reserva" class="operacao-inline-form__title">Veículos reserva</h3>
+              <p class="subtext operacao-inline-form__lead">Área para veículos de reserva.</p>
+              <p class="portal-feedback" role="status">Conteúdo em preparação — será ligado aos dados da frota.</p>
+            </div>
+            <div id="manutencaoInlineOperacionais" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-operacionais">
+              <h3 id="manutencao-title-operacionais" class="operacao-inline-form__title">Veículos operacionais</h3>
+              <p class="subtext operacao-inline-form__lead">Área para frota considerada operacional.</p>
+              <p class="portal-feedback" role="status">Conteúdo em preparação — será ligado aos dados da frota.</p>
+            </div>
+          </div>
+        </div>
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-manutencao-locadora">Voltar</button>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -923,7 +980,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511recibo-modal-sem-popup" defer></script>
+  <script src="portal-locadora-ui.js?v=20260511manutencao-area" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>

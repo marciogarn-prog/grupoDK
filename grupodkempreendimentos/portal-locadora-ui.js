@@ -17,14 +17,17 @@
   const panelSenha = document.getElementById("panel-senha");
   const panelLogado = document.getElementById("panel-logado");
   const panelOperacao = document.getElementById("panel-operacao-locadora");
+  const panelManutencao = document.getElementById("panel-manutencao-locadora");
   const formLogin = document.getElementById("form-login");
   const btnBypassTeste = document.getElementById("login-bypass-teste-btn");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
   const logadoTexto = document.getElementById("logado-texto");
   const btnOperacao = document.getElementById("btn-locadora-operacao");
+  const btnManutencao = document.getElementById("btn-locadora-manutencao");
   const btnSair = document.getElementById("btn-sair");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
+  const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
@@ -200,6 +203,7 @@
     }
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
+    btnManutencao?.classList.toggle("hidden", !allowOp);
     clearPortalUnitDadosAtualizados();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
@@ -220,7 +224,7 @@
   }
 
   function hideAllPanels() {
-    [panelLogin, panelSenha, panelLogado, panelOperacao].forEach((p) => {
+    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao].forEach((p) => {
       if (p) p.classList.add("hidden");
     });
   }
@@ -269,6 +273,7 @@
       resetPortalLoginFormularioETipoAcesso();
       hideAllPanels();
       btnOperacao?.classList.add("hidden");
+      btnManutencao?.classList.add("hidden");
       refreshPortalUnitLeadForSession();
       clearPortalUnitDadosAtualizados();
       showView("home");
@@ -321,6 +326,7 @@
     if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
     if (logadoTexto) logadoTexto.textContent = "Modo Teste · operacao";
     btnOperacao?.classList.remove("hidden");
+    btnManutencao?.classList.remove("hidden");
     if (loginFeedback) loginFeedback.textContent = "";
     clearPortalUnitDadosAtualizados();
     refreshPortalUnitLeadForSession();
@@ -353,6 +359,7 @@
       if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
       if (logadoTexto) logadoTexto.textContent = `Olá, ${String(cliente?.nome || "").trim() || "cliente"}.`;
       btnOperacao?.classList.add("hidden");
+      btnManutencao?.classList.add("hidden");
       clearPortalUnitDadosAtualizados();
       refreshPortalUnitLeadForSession();
       return;
@@ -423,6 +430,57 @@
     panelOperacao?.classList.remove("hidden");
     refreshPortalOperacaoNavPorAcessos();
     portalOperacaoAutoAbrirSeUnicoPermitido();
+  });
+
+  function hideManutencaoInlineFormsCore() {
+    ["manutencaoInlineEmOperacao", "manutencaoInlineEmManutencao", "manutencaoInlineReserva", "manutencaoInlineOperacionais"].forEach((id) => {
+      document.getElementById(id)?.classList.add("hidden");
+    });
+  }
+
+  function setManutencaoFormPlaceholderVisible(visible) {
+    const el = document.getElementById("manutencaoFormPlaceholder");
+    if (!el) return;
+    el.classList.toggle("hidden", !visible);
+    el.setAttribute("aria-hidden", visible ? "false" : "true");
+  }
+
+  function syncManutencaoSidebarButtons(activeButtonId) {
+    ["btn-manutencao-em-operacao", "btn-manutencao-em-manutencao", "btn-manutencao-reserva", "btn-manutencao-operacionais"].forEach((id) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      const on = Boolean(activeButtonId && id === activeButtonId);
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+  }
+
+  btnManutencao?.addEventListener("click", async () => {
+    await portalOperacaoAwaitCloudCadastroPull();
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(true);
+    syncManutencaoSidebarButtons(null);
+    hideAllPanels();
+    panelManutencao?.classList.remove("hidden");
+  });
+
+  btnVoltarManutencao?.addEventListener("click", () => {
+    panelManutencao?.classList.add("hidden");
+    panelLogado?.classList.remove("hidden");
+  });
+
+  [
+    { btn: "btn-manutencao-em-operacao", panel: "manutencaoInlineEmOperacao" },
+    { btn: "btn-manutencao-em-manutencao", panel: "manutencaoInlineEmManutencao" },
+    { btn: "btn-manutencao-reserva", panel: "manutencaoInlineReserva" },
+    { btn: "btn-manutencao-operacionais", panel: "manutencaoInlineOperacionais" },
+  ].forEach(({ btn, panel }) => {
+    document.getElementById(btn)?.addEventListener("click", () => {
+      hideManutencaoInlineFormsCore();
+      setManutencaoFormPlaceholderVisible(false);
+      document.getElementById(panel)?.classList.remove("hidden");
+      syncManutencaoSidebarButtons(btn);
+    });
   });
 
   function findFuncionarioOperacaoPortalPorCpf(digits11) {
@@ -727,6 +785,7 @@
     hideAllPanels();
     panelLogin?.classList.remove("hidden");
     btnOperacao?.classList.add("hidden");
+    btnManutencao?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     try {
       history.replaceState(null, "", window.location.pathname + window.location.search);
@@ -5710,10 +5769,12 @@
       const allowOp =
         session.role === "operacao" || session.role === "owner";
       btnOperacao?.classList.toggle("hidden", !allowOp);
+      btnManutencao?.classList.toggle("hidden", !allowOp);
     } else {
       if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
       if (logadoTexto) logadoTexto.textContent = `Olá, ${String(session.nome || "").trim() || "cliente"}.`;
       btnOperacao?.classList.add("hidden");
+      btnManutencao?.classList.add("hidden");
     }
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
