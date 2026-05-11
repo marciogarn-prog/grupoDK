@@ -2051,6 +2051,167 @@
     return [{ valor: v, tipo: "—", tipoOrder: 0 }];
   }
 
+  /** DD/MM/AAAA → DD-MM-AAAA (texto do recibo). */
+  function portalDataPagamentoBrParaReciboDdMmAa(br) {
+    const s = String(br || "").trim();
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return s.replace(/\//g, "-") || "—";
+    return `${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}-${m[3]}`;
+  }
+
+  function portalExtensoAte999Br(n) {
+    const num = Math.floor(Math.max(0, Math.min(999, Number(n))));
+    if (num === 0) return "";
+    if (num === 100) return "cem";
+    const u = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove"];
+    const d10 = ["dez", "onze", "doze", "treze", "quatorze", "quinze", "dezesseis", "dezessete", "dezoito", "dezenove"];
+    const d20 = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+    const c100 = ["", "cento", "duzentos", "trezentos", "quatrocentos", "quinhentos", "seiscentos", "setecentos", "oitocentos", "novecentos"];
+    const c = Math.floor(num / 100);
+    const r = num % 100;
+    let head = "";
+    if (c === 1) head = r === 0 ? "cem" : "cento";
+    else if (c > 1) head = c100[c];
+    let tail = "";
+    if (r > 0) {
+      if (r < 10) tail = u[r];
+      else if (r < 20) tail = d10[r - 10];
+      else {
+        const dc = Math.floor(r / 10);
+        const ru = r % 10;
+        tail = d20[dc] + (ru ? " e " + u[ru] : "");
+      }
+    }
+    if (!head) return tail;
+    if (!tail) return head;
+    return head + " e " + tail;
+  }
+
+  function portalInteiroPorExtensoBr(n) {
+    let num = Math.floor(Math.max(0, Math.min(999999, Number(n))));
+    if (num === 0) return "zero";
+    const mil = Math.floor(num / 1000);
+    const rem = num % 1000;
+    if (mil > 0 && rem > 0) {
+      if (mil === 1) return "mil e " + portalExtensoAte999Br(rem);
+      return portalExtensoAte999Br(mil) + " mil e " + portalExtensoAte999Br(rem);
+    }
+    if (mil > 0) return mil === 1 ? "mil" : portalExtensoAte999Br(mil) + " mil";
+    return portalExtensoAte999Br(rem);
+  }
+
+  function portalValorReaisPorExtensoBr(val) {
+    const v = Number(val);
+    if (!Number.isFinite(v)) return "";
+    const inteiro = Math.floor(v + 1e-9);
+    let centavos = Math.round((v - inteiro) * 100);
+    if (centavos === 100) {
+      centavos = 0;
+    }
+    let s = portalInteiroPorExtensoBr(inteiro);
+    s += inteiro === 1 ? " real" : " reais";
+    if (centavos > 0) {
+      s += " e " + portalInteiroPorExtensoBr(centavos);
+      s += centavos === 1 ? " centavo" : " centavos";
+    }
+    return s;
+  }
+
+  /** Monta o parágrafo do recibo (composição só com 2+ meios discriminados). */
+  function portalMontarTextoReciboPagamentoAluguel(p) {
+    const nome = String(p.nome || "").trim();
+    const cpf = String(p.cpfExib || "").trim();
+    const dia = portalDataPagamentoBrParaReciboDdMmAa(p.dataPagamentoBr);
+    const total = Number(p.totalNum || 0);
+    const fmtMoney = (x) =>
+      Number(x || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const extTotal = portalValorReaisPorExtensoBr(total);
+    const partes = Array.isArray(p.partes) ? p.partes : [];
+    const comValor = partes.filter((x) => Number(x.valor) > 0);
+    const discriminadas = comValor.filter((x) => x.tipo && String(x.tipo) !== "—");
+    let texto = `Recebemos de "${nome}" CPF "${cpf}" a importância de "${fmtMoney(total)} (${extTotal})" no dia "${dia}"`;
+    if (discriminadas.length >= 2) {
+      const ord = [...discriminadas].sort((a, b) => (a.tipoOrder ?? 0) - (b.tipoOrder ?? 0));
+      const frag = ord.map((seg) => {
+        const ex = portalValorReaisPorExtensoBr(Number(seg.valor));
+        return `${fmtMoney(seg.valor)} (${ex}) em ${seg.tipo}`;
+      });
+      let comp;
+      if (frag.length === 2) comp = `${frag[0]} e ${frag[1]}`;
+      else comp = frag.slice(0, -1).join(", ") + " e " + frag[frag.length - 1];
+      texto += ` sendo esse valor composto por: ${comp}.`;
+    } else if (discriminadas.length === 1) {
+      const seg = discriminadas[0];
+      const ex = portalValorReaisPorExtensoBr(Number(seg.valor));
+      texto += ` pago integralmente ${fmtMoney(seg.valor)} (${ex}) em ${seg.tipo}.`;
+    } else {
+      texto += ".";
+    }
+    return texto;
+  }
+
+  function portalBuildHtmlDocumentoReciboPagamento(textoPlano) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const t = eh(textoPlano);
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recibo</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.5rem;max-width:40rem;color:#111;line-height:1.5}
+      h1{font-size:1.15rem;margin:0 0 1rem}
+      .corpo{font-size:14px;text-align:justify}
+      .acoes{margin-top:1.25rem;display:flex;flex-wrap:wrap;gap:0.5rem}
+      .acoes button{font:inherit;padding:0.45rem 0.85rem;cursor:pointer;border:1px solid #333;border-radius:6px;background:#f5f5f5}
+      .acoes button:hover{background:#eee}
+      @media print{.acoes{display:none}}
+    </style></head><body>
+      <h1>Recibo de pagamento</h1>
+      <p id="dk-recibo-corpo" class="corpo">${t}</p>
+      <div class="acoes">
+        <button type="button" id="dk-recibo-print">Imprimir / Guardar PDF</button>
+        <button type="button" id="dk-recibo-share">Partilhar ou copiar texto</button>
+      </div>
+      <script>
+        (function(){
+          var corpo = document.getElementById("dk-recibo-corpo").innerText;
+          document.getElementById("dk-recibo-print").onclick = function(){ window.print(); };
+          document.getElementById("dk-recibo-share").onclick = function(){
+            if (navigator.share) {
+              navigator.share({ title: "Recibo", text: corpo }).catch(function(){
+                copyFallback();
+              });
+            } else copyFallback();
+            function copyFallback(){
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(corpo).then(function(){ alert("Texto do recibo copiado."); }).catch(function(){ prompt("Copie o texto:", corpo); });
+              } else prompt("Copie o texto:", corpo);
+            }
+          };
+        })();
+      <\/script>
+    </body></html>`;
+  }
+
+  function portalOpenReciboPagamentoWindow(payload) {
+    if (!payload || typeof payload !== "object") return;
+    const texto = portalMontarTextoReciboPagamentoAluguel(payload);
+    const html = portalBuildHtmlDocumentoReciboPagamento(texto);
+    const w = window.open("", "_blank", "noopener,noreferrer");
+    if (!w) {
+      window.alert("Permita janelas emergentes para ver o recibo.");
+      return;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  if (!window.__dkPortalReciboMsgBound) {
+    window.__dkPortalReciboMsgBound = true;
+    window.addEventListener("message", function (ev) {
+      const d = ev.data;
+      if (!d || d.type !== "dk-recibo-open" || !d.payload) return;
+      portalOpenReciboPagamentoWindow(d.payload);
+    });
+  }
+
   /**
    * Relatório 1: todos os lançamentos de aluguel (portal) cuja data do pagamento cai no intervalo [início, fim], inclusive.
    * `inicioBr` / `fimBr`: strings DD/MM/AAAA (mesmo formato dos restantes campos do portal).
@@ -2167,6 +2328,35 @@
     const totalRecebido = collected.reduce((acc, r) => acc + r.valor, 0);
     const inicioFmt = formatPortalDataBr(new Date(startMs));
     const fimFmt = formatPortalDataBr(new Date(endMs));
+
+    const groupKeyToReciboId = new Map();
+    const reciboPayloadById = {};
+    let nextRecId = 0;
+    for (const r of collected) {
+      const gkey = `${r.lancMs}|${r.cpfExib}|${r.proto}|${r.dataPagamentoBr}`;
+      if (!groupKeyToReciboId.has(gkey)) {
+        const id = String(nextRecId++);
+        groupKeyToReciboId.set(gkey, id);
+        reciboPayloadById[id] = {
+          nome: r.nome,
+          cpfExib: r.cpfExib,
+          dataPagamentoBr: r.dataPagamentoBr,
+          partes: [],
+          totalNum: 0,
+        };
+      }
+      const rid = groupKeyToReciboId.get(gkey);
+      reciboPayloadById[rid].partes.push({
+        tipo: r.tipo,
+        valor: r.valor,
+        tipoOrder: r.tipoOrder,
+      });
+    }
+    Object.keys(reciboPayloadById).forEach((id) => {
+      const p = reciboPayloadById[id];
+      p.totalNum = p.partes.reduce((s, x) => s + Number(x.valor || 0), 0);
+    });
+
     const rows = collected.map((r) => [
       r.cpfExib,
       r.nome,
@@ -2205,6 +2395,67 @@
         ["Período", `${inicioFmt} a ${fimFmt}`],
         ["Total recebido no período", fmtBrl(totalRecebido)],
       ],
+      buildPdfHtml: () => {
+        const quando = new Date().toLocaleString("pt-BR");
+        const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+        const titulo = "Relatório 1 — Pagamentos por período";
+        const headersPdf = [
+          "CPF",
+          "Cliente",
+          "Placa",
+          "Protocolo",
+          "Cód. utilizador",
+          "Data e hora do lançamento",
+          "Data do pagamento",
+          "Tipo",
+          "Valor pago",
+        ];
+        const rowsPdf = collected.map((r) => {
+          const gkey = `${r.lancMs}|${r.cpfExib}|${r.proto}|${r.dataPagamentoBr}`;
+          const rid = groupKeyToReciboId.get(gkey) ?? "";
+          const link = `<a href="#" class="portal-recibo-link" data-recibo-id="${eh(rid)}">${eh(r.horaLancamento)}</a>`;
+          return [r.cpfExib, r.nome, r.placa, r.proto, r.codigoUsuario, link, r.dataPagamentoBr, eh(String(r.tipo)), fmtBrl(r.valor)];
+        });
+        const extraMeta = [`Período: ${inicioFmt} a ${fimFmt}`, `Total recebido no período: ${fmtBrl(totalRecebido)}`]
+          .map((line) => `<p class="meta"><strong>${eh(line)}</strong></p>`)
+          .join("");
+        const headCells = headersPdf.map((h) => `<th>${eh(h)}</th>`).join("");
+        const bodyCells = rowsPdf
+          .map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`)
+          .join("");
+        const jsonEsc = JSON.stringify(reciboPayloadById).replace(/</g, "\\u003c");
+        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(titulo)}</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      h1{font-size:1.05rem;margin:0 0 0.35rem}
+      .meta{color:#444;margin:0.2rem 0;font-size:11px}
+      table{width:100%;border-collapse:collapse}
+      th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+      th{background:#eee;font-weight:600}
+      .portal-recibo-link{color:#0d47a1;text-decoration:underline;cursor:pointer;font-weight:600}
+    </style></head><body>
+      <h1>${eh(titulo)}</h1>
+      ${extraMeta}
+      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rowsPdf.length))} registro(s) · Clique na <strong>data e hora do lançamento</strong> para gerar o recibo.</p>
+      <table><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="9">${eh("Nenhum registo.")}</td></tr>`}</tbody></table>
+      <script type="application/json" id="dk-recibos-json">${jsonEsc}</script>
+      <script>
+      (function(){
+        document.body.addEventListener("click", function(e){
+          var a = e.target && e.target.closest && e.target.closest("a.portal-recibo-link");
+          if(!a) return;
+          e.preventDefault();
+          try {
+            var raw = document.getElementById("dk-recibos-json").textContent;
+            var all = JSON.parse(raw);
+            var id = a.getAttribute("data-recibo-id");
+            var payload = all[id];
+            if(payload && window.parent) window.parent.postMessage({ type: "dk-recibo-open", payload: payload }, "*");
+          } catch(err) {}
+        });
+      })();
+      <\/script>
+    </body></html>`;
+      },
     };
   }
 
