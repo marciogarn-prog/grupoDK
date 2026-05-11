@@ -1098,6 +1098,46 @@ body {
   justify-content: center;
 }
 
+/* Recibo (Relatório 1): acima da pré-visualização PDF (z-index 3000). */
+#portalReciboModal.portal-modal {
+  z-index: 4000;
+}
+
+.portal-recibo-modal__card {
+  max-width: min(36rem, 96vw);
+}
+
+.portal-recibo-modal__corpo {
+  text-align: justify;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #portalReciboModal:not(.hidden),
+  #portalReciboModal:not(.hidden) * {
+    visibility: visible !important;
+  }
+  #portalReciboModal:not(.hidden) {
+    position: absolute !important;
+    inset: 0 !important;
+    display: flex !important;
+    align-items: flex-start !important;
+    justify-content: center !important;
+    padding: 1.25rem !important;
+    background: #fff !important;
+  }
+  #portalReciboModal:not(.hidden) .portal-modal__backdrop {
+    display: none !important;
+  }
+  #portalReciboModal:not(.hidden) .portal-modal__actions {
+    display: none !important;
+  }
+}
+
 .portal-pdf-viewer {
   position: fixed;
   inset: 0;

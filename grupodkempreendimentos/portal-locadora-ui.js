@@ -2150,57 +2150,61 @@
     return texto;
   }
 
-  function portalBuildHtmlDocumentoReciboPagamento(textoPlano) {
-    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
-    const t = eh(textoPlano);
-    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Recibo</title><style>
-      body{font-family:system-ui,-apple-system,sans-serif;margin:1.5rem;max-width:40rem;color:#111;line-height:1.5}
-      h1{font-size:1.15rem;margin:0 0 1rem}
-      .corpo{font-size:14px;text-align:justify}
-      .acoes{margin-top:1.25rem;display:flex;flex-wrap:wrap;gap:0.5rem}
-      .acoes button{font:inherit;padding:0.45rem 0.85rem;cursor:pointer;border:1px solid #333;border-radius:6px;background:#f5f5f5}
-      .acoes button:hover{background:#eee}
-      @media print{.acoes{display:none}}
-    </style></head><body>
-      <h1>Recibo de pagamento</h1>
-      <p id="dk-recibo-corpo" class="corpo">${t}</p>
-      <div class="acoes">
-        <button type="button" id="dk-recibo-print">Imprimir / Guardar PDF</button>
-        <button type="button" id="dk-recibo-share">Partilhar ou copiar texto</button>
-      </div>
-      <script>
-        (function(){
-          var corpo = document.getElementById("dk-recibo-corpo").innerText;
-          document.getElementById("dk-recibo-print").onclick = function(){ window.print(); };
-          document.getElementById("dk-recibo-share").onclick = function(){
-            if (navigator.share) {
-              navigator.share({ title: "Recibo", text: corpo }).catch(function(){
-                copyFallback();
-              });
-            } else copyFallback();
-            function copyFallback(){
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(corpo).then(function(){ alert("Texto do recibo copiado."); }).catch(function(){ prompt("Copie o texto:", corpo); });
-              } else prompt("Copie o texto:", corpo);
-            }
-          };
-        })();
-      <\/script>
-    </body></html>`;
+  function closePortalReciboModal() {
+    const modal = document.getElementById("portalReciboModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
   }
 
+  function portalInitReciboModalOnce() {
+    if (window.__dkPortalReciboModalInit) return;
+    window.__dkPortalReciboModalInit = true;
+    document.getElementById("portalReciboFecharBtn")?.addEventListener("click", () => closePortalReciboModal());
+    document.querySelectorAll("[data-close-recibo]").forEach((el) => {
+      el.addEventListener("click", () => closePortalReciboModal());
+    });
+    document.getElementById("portalReciboPrintBtn")?.addEventListener("click", () => {
+      window.print();
+    });
+    document.getElementById("portalReciboShareBtn")?.addEventListener("click", async () => {
+      const corpo = document.getElementById("portalReciboCorpo");
+      const texto = corpo ? String(corpo.innerText || "").trim() : "";
+      if (!texto) return;
+      try {
+        if (typeof navigator.share === "function") {
+          await navigator.share({ title: "Recibo de pagamento", text: texto });
+          return;
+        }
+      } catch {
+        /* utilizador cancelou ou share indisponível */
+      }
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(texto);
+          window.alert("Texto do recibo copiado.");
+          return;
+        }
+      } catch {
+        /* ignore */
+      }
+      window.prompt("Copie o texto do recibo:", texto);
+    });
+  }
+
+  /** Abre o recibo no mesmo separador (modal), sem nova janela — evita bloqueio de pop-ups após postMessage do iframe do relatório. */
   function portalOpenReciboPagamentoWindow(payload) {
     if (!payload || typeof payload !== "object") return;
+    portalInitReciboModalOnce();
     const texto = portalMontarTextoReciboPagamentoAluguel(payload);
-    const html = portalBuildHtmlDocumentoReciboPagamento(texto);
-    const w = window.open("", "_blank", "noopener,noreferrer");
-    if (!w) {
-      window.alert("Permita janelas emergentes para ver o recibo.");
-      return;
+    const corpo = document.getElementById("portalReciboCorpo");
+    const modal = document.getElementById("portalReciboModal");
+    if (corpo) corpo.textContent = texto;
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.setAttribute("aria-hidden", "false");
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
   }
 
   if (!window.__dkPortalReciboMsgBound) {

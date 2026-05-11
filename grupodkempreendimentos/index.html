@@ -19,7 +19,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260511stickybar">
+  <link rel="stylesheet" href="styles.css?v=20260511recibo-modal">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -844,6 +844,19 @@
     </div>
   </div>
 
+  <div id="portalReciboModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalReciboTitulo">
+    <div class="portal-modal__backdrop" data-close-recibo></div>
+    <div class="portal-modal__card portal-recibo-modal__card">
+      <h3 id="portalReciboTitulo" class="portal-modal__title">Recibo de pagamento</h3>
+      <p id="portalReciboCorpo" class="portal-modal__text portal-recibo-modal__corpo"></p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalReciboPrintBtn">Imprimir / Guardar PDF</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalReciboShareBtn">Partilhar ou copiar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalReciboFecharBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalRelatorioPdfViewer" class="portal-pdf-viewer hidden" aria-hidden="true">
     <div class="portal-pdf-viewer__toolbar">
       <span class="portal-pdf-viewer__hint">Pré-visualização do relatório — use o botão para imprimir ou guardar como PDF.</span>
@@ -910,7 +923,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511rel1-recibo-link" defer></script>
+  <script src="portal-locadora-ui.js?v=20260511recibo-modal-sem-popup" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>
