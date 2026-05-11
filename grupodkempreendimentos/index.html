@@ -877,15 +877,7 @@
               <p class="subtext operacao-inline-form__lead">Check-list de manutenção / reparações para veículos em operação (tablet).</p>
               <div class="portal-checklist-toolbar portal-checklist-no-print">
                 <button type="button" class="btn-primary" id="btnPortalChecklistAbrir">Check-list</button>
-                <div class="portal-checklist-toolbar__fotos" role="group" aria-label="Fotos do veículo">
-                  <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnDireita">Foto direita</button>
-                  <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnFrente">Foto frente</button>
-                  <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnEsquerda">Foto esquerda</button>
-                  <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnTraseira">Foto traseira</button>
-                </div>
-                <input type="file" id="portalChecklistFotoFile" class="hidden" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
               </div>
-              <p id="portalChecklistFotoMsg" class="portal-feedback portal-checklist-foto-msg portal-checklist-no-print" role="status"></p>
               <div class="portal-checklist-placa-bar portal-checklist-no-print">
                 <label class="portal-checklist-placa-label portal-field--combobox">
                   Placa da moto
@@ -912,8 +904,18 @@
                     ></div>
                   </div>
                 </label>
-                <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn">Carregar dados</button>
+                <div class="portal-checklist-placa-actions-row">
+                  <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn">Carregar dados</button>
+                  <div id="portalChecklistFotosGrid" class="portal-checklist-fotos-grid hidden" role="group" aria-label="Fotos do veículo (após carregar dados)">
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnDireita">Foto direita</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnFrente">Foto frente</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnEsquerda">Foto esquerda</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnTraseira">Foto traseira</button>
+                  </div>
+                  <input type="file" id="portalChecklistFotoFile" class="hidden" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
+                </div>
                 <p id="portalChecklistLoadMsg" class="portal-feedback portal-checklist-load-msg" role="status"></p>
+                <p id="portalChecklistFotoMsg" class="portal-feedback portal-checklist-foto-msg" role="status"></p>
               </div>
               <datalist id="portalChecklistPlacaSugestoes"></datalist>
               <div id="portalChecklistMount" class="portal-checklist-mount hidden" aria-live="polite"></div>
@@ -1021,7 +1023,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511checklist-fotos-cam" defer></script>
+  <script src="portal-locadora-ui.js?v=20260511checklist-fotos-final" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>

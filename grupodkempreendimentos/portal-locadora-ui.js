@@ -436,6 +436,7 @@
     ["manutencaoInlineEmOperacao", "manutencaoInlineEmManutencao", "manutencaoInlineReserva", "manutencaoInlineOperacionais"].forEach((id) => {
       document.getElementById(id)?.classList.add("hidden");
     });
+    document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
   }
 
   function setManutencaoFormPlaceholderVisible(visible) {
@@ -662,7 +663,38 @@
     });
   }
 
-  async function portalChecklistArquivarFoto(blob, mime, slot, placaRaw) {
+  /** Nome base: `d`+placa minúscula + `-` + odômetro em 5 dígitos (ex.: `djqd4h51-01234`). */
+  function portalChecklistFotoNomeBase(slot, placaRaw, odometroRaw) {
+    const letters = { direita: "d", frente: "f", esquerda: "e", traseira: "t" };
+    const L = letters[slot] || "x";
+    let plate = "";
+    if (typeof normalizePlate === "function") {
+      plate = normalizePlate(String(placaRaw || "").trim()).toLowerCase();
+    } else {
+      plate = String(placaRaw || "")
+        .replace(/\s+/g, "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .toLowerCase();
+    }
+    if (!plate) plate = "semplaca";
+    const odDigits = String(odometroRaw ?? "").replace(/\D/g, "");
+    let odPadded = "00000";
+    if (odDigits.length) {
+      const n = parseInt(odDigits, 10);
+      odPadded = Number.isFinite(n) ? String(Math.max(0, n)).padStart(5, "0") : "00000";
+    }
+    return `${L}${plate}-${odPadded}`;
+  }
+
+  function portalChecklistFotoExtensao(mime) {
+    const m = String(mime || "").toLowerCase();
+    if (m.includes("png")) return "png";
+    if (m.includes("webp")) return "webp";
+    return "jpg";
+  }
+
+  async function portalChecklistArquivarFoto(blob, mime, slot, placaRaw, odometroRaw) {
     const nk =
       typeof normalizePlate === "function"
         ? normalizePlate
@@ -672,6 +704,9 @@
               .toUpperCase()
               .replace(/[^A-Z0-9]/g, "");
     const placaNormalized = nk(String(placaRaw || "").trim());
+    const baseNome = portalChecklistFotoNomeBase(slot, placaRaw, odometroRaw);
+    const ext = portalChecklistFotoExtensao(mime || blob.type);
+    const fileName = `${baseNome}.${ext}`;
     const db = await portalChecklistFotosOpenDb();
     const record = {
       placaNormalized,
@@ -679,6 +714,9 @@
       mimeType: mime || blob.type || "image/jpeg",
       blob,
       createdAt: Date.now(),
+      fileBaseName: baseNome,
+      fileName,
+      odometroArquivo: String(odometroRaw ?? "").replace(/\D/g, "") || null,
     };
     try {
       await new Promise((resolve, reject) => {
@@ -695,7 +733,7 @@
       }
     }
     if (typeof addAuditLog === "function") {
-      addAuditLog("checklist_foto_arquivo", "manutencao", `${placaNormalized || "sem_placa"} — ${slot}`);
+      addAuditLog("checklist_foto_arquivo", "manutencao", `${fileName}`);
     }
   }
 
@@ -716,6 +754,20 @@
     ];
     botoes.forEach(([id, slot]) => {
       document.getElementById(id)?.addEventListener("click", () => {
+        const grid = document.getElementById("portalChecklistFotosGrid");
+        const mount = document.getElementById("portalChecklistMount");
+        if (
+          !grid ||
+          grid.classList.contains("hidden") ||
+          !mount ||
+          mount.classList.contains("hidden")
+        ) {
+          if (msgEl) {
+            msgEl.textContent =
+              "Carregue os dados da placa (botão «Carregar dados») antes de tirar fotos.";
+          }
+          return;
+        }
         portalChecklistFotoSlotAlvo = slot;
         fileInp.click();
       });
@@ -729,19 +781,14 @@
         fileInp.value = "";
         if (!f || !slot) return;
         const placa = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
+        const odoRaw = String(document.getElementById("portalChecklistOdometro")?.value || "").trim();
         try {
-          await portalChecklistArquivarFoto(f, f.type, slot, placa);
-          const nomes = {
-            direita: "direita",
-            frente: "frente",
-            esquerda: "esquerda",
-            traseira: "traseira",
-          };
-          const rotulo = nomes[slot] || slot;
+          await portalChecklistArquivarFoto(f, f.type, slot, placa, odoRaw);
+          const base = portalChecklistFotoNomeBase(slot, placa, odoRaw);
+          const ext = portalChecklistFotoExtensao(f.type);
+          const nomeArq = `${base}.${ext}`;
           if (msgEl) {
-            msgEl.textContent = placa
-              ? `Foto (${rotulo}) guardada no arquivo deste dispositivo. Placa: ${placa}.`
-              : `Foto (${rotulo}) guardada. Informe a placa acima para associar ao veículo no arquivo.`;
+            msgEl.textContent = `Foto guardada como ${nomeArq} (placa + odômetro do check-list).`;
           }
         } catch (err) {
           console.warn("[DK portal] arquivo foto check-list", err);
@@ -1130,7 +1177,9 @@ ${printable.innerHTML}
     const raw = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
     const msgEl = document.getElementById("portalChecklistLoadMsg");
     const mount = document.getElementById("portalChecklistMount");
+    const fotosGrid = document.getElementById("portalChecklistFotosGrid");
     if (!raw) {
+      fotosGrid?.classList.add("hidden");
       if (msgEl) msgEl.textContent = "Informe a placa.";
       return;
     }
@@ -1142,6 +1191,7 @@ ${printable.innerHTML}
             .toUpperCase()
             .replace(/[^A-Z0-9]/g, "");
     if (!plateFmt) {
+      fotosGrid?.classList.add("hidden");
       if (msgEl) msgEl.textContent = "Placa inválida.";
       return;
     }
@@ -1152,6 +1202,7 @@ ${printable.innerHTML}
     const res = portalFillChecklistFromCadastro(plateFmt);
     if (msgEl) msgEl.textContent = res.message;
     mount?.classList.remove("hidden");
+    fotosGrid?.classList.remove("hidden");
     portalValidateChecklistCompleto();
   });
 
