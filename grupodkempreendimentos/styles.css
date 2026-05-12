@@ -1763,3 +1763,8 @@ body {
   font-size: 0.85rem;
   color: var(--muted);
 }
+
+.portal-wa-dd-primary {
+  letter-spacing: 0.02em;
+  text-transform: none;
+}

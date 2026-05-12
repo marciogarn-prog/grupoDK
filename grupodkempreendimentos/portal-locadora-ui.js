@@ -6362,6 +6362,78 @@ ${printable.innerHTML}
     return d.length >= 12 ? d : "";
   }
 
+  let portalWaMergedSearchRowsCache = null;
+
+  function portalWaClienteRecordForCpf(cpfDigits) {
+    const dig = portalWaDig(cpfDigits);
+    if (dig.length !== 11) return null;
+    let cli = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(dig) : null;
+    if (!cli && typeof getPortalBundledClienteByCpf === "function") cli = getPortalBundledClienteByCpf(dig);
+    return cli;
+  }
+
+  function portalWaNomeFromLocacoes(cpfDigits) {
+    const dig = portalWaDig(cpfDigits);
+    if (dig.length !== 11 || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return "";
+    const loc = loadCadastro(CAD_LOCACOES_KEY).find((l) => portalWaDig(l.cpf || "") === dig);
+    return String(loc?.cliente || "").trim();
+  }
+
+  /** Com locação ativa: placa da locação ativa mais recente (início); senão última locação finalizada (fim / início). */
+  function portalWaResolvePlacaPreferida(cpfDigits) {
+    const dig = portalWaDig(cpfDigits);
+    if (dig.length !== 11 || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return "";
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => portalWaDig(l.cpf || "") === dig);
+    if (!locs.length) return "";
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+    const timeOr0 = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.getTime() : 0);
+    const ativas = locs.filter((l) => !String(l.fim || "").trim());
+    if (ativas.length) {
+      ativas.sort((a, b) => {
+        const ta = timeOr0(parseD(String(a.inicio || "").trim()));
+        const tb = timeOr0(parseD(String(b.inicio || "").trim()));
+        if (ta !== tb) return tb - ta;
+        return Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0);
+      });
+      return portalWaNormalizePlate(ativas[0].placa || "");
+    }
+    locs.sort((a, b) => {
+      const ta = timeOr0(parseD(String(a.fim || "").trim())) || timeOr0(parseD(String(a.inicio || "").trim()));
+      const tb = timeOr0(parseD(String(b.fim || "").trim())) || timeOr0(parseD(String(b.inicio || "").trim()));
+      if (ta !== tb) return tb - ta;
+      return Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0);
+    });
+    return portalWaNormalizePlate(locs[0].placa || "");
+  }
+
+  function portalWaMakeRowForCpf(cpfDigits) {
+    const dig = portalWaDig(cpfDigits);
+    if (dig.length !== 11) return null;
+    const cli = portalWaClienteRecordForCpf(dig);
+    const nome = String(cli?.nome || "").trim() || portalWaNomeFromLocacoes(dig) || "—";
+    const placa = portalWaResolvePlacaPreferida(dig);
+    const celularRaw = String(cli?.celular || "").trim();
+    const celularWa = portalWaDigitsForWaMe(celularRaw);
+    return { cpf: dig, placa, nome, celularRaw, celularWa };
+  }
+
+  function portalWaGetMergedSearchRows() {
+    if (portalWaMergedSearchRowsCache) return portalWaMergedSearchRowsCache;
+    if (!portalWaDatasetCache.length) portalWaDatasetCache = portalWaBuildClienteDataset();
+    const byCpf = new Map();
+    portalWaDatasetCache.forEach((r) => byCpf.set(r.cpf, { ...r }));
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+        const cpf = portalWaDig(c.cpf || "");
+        if (cpf.length !== 11 || byCpf.has(cpf)) return;
+        const row = portalWaMakeRowForCpf(cpf);
+        if (row) byCpf.set(cpf, row);
+      });
+    }
+    portalWaMergedSearchRowsCache = Array.from(byCpf.values()).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    return portalWaMergedSearchRowsCache;
+  }
+
   function portalWaBuildClienteDataset() {
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
     const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => !String(l.fim || "").trim());
@@ -6387,6 +6459,7 @@ ${printable.innerHTML}
   }
 
   function portalWaRebuildDatasetCache() {
+    portalWaMergedSearchRowsCache = null;
     portalWaDatasetCache = portalWaBuildClienteDataset();
   }
 
@@ -6405,7 +6478,7 @@ ${printable.innerHTML}
   }
 
   function portalWaFilterRows(kind, queryRaw) {
-    const data = portalWaDatasetCache;
+    const data = portalWaGetMergedSearchRows();
     const q = String(queryRaw || "").trim();
     if (!q) return data.slice();
     if (kind === "cpf") {
@@ -6448,6 +6521,12 @@ ${printable.innerHTML}
       panel.innerHTML = rows
         .map((r, i) => {
           const cpfEx = typeof formatCpf === "function" ? formatCpf(r.cpf) : r.cpf;
+          if (kind === "nome") {
+            return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-wa-i="${i}">
+              <span class="portal-placa-dropdown__plate portal-wa-dd-primary">${portalEscapeHtml(r.nome)}</span>
+              <span class="portal-placa-dropdown__model">Placa ${portalEscapeHtml(r.placa || "—")} · ${portalEscapeHtml(cpfEx)}</span>
+            </button>`;
+          }
           return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-wa-i="${i}">
               <span class="portal-placa-dropdown__plate">${portalEscapeHtml(r.placa)}</span>
               <span class="portal-placa-dropdown__model">${portalEscapeHtml(r.nome)} · ${portalEscapeHtml(cpfEx)}</span>
@@ -6463,6 +6542,13 @@ ${printable.innerHTML}
   function portalWaApplyPick(idx) {
     const row = portalWaPendingPickRows[idx];
     if (!row) return;
+    portalWaFillScreenFromRow(row);
+    portalWaHideAllDropdowns();
+  }
+
+  function portalWaFillScreenFromRow(row, opts = {}) {
+    if (!row) return;
+    const silent = Boolean(opts.silent);
     const inpCpf = document.getElementById("portalWaInputCpf");
     const inpNome = document.getElementById("portalWaInputNome");
     const inpPlaca = document.getElementById("portalWaInputPlaca");
@@ -6470,12 +6556,60 @@ ${printable.innerHTML}
     const msg = document.getElementById("portalWaMsg");
     if (inpCpf) inpCpf.value = typeof formatCpf === "function" ? formatCpf(row.cpf) : row.cpf;
     if (inpNome) inpNome.value = row.nome;
-    if (inpPlaca) inpPlaca.value = row.placa;
+    if (inpPlaca) inpPlaca.value = row.placa || "";
     if (hint) {
-      hint.textContent = `Selecionado: ${row.nome} · Placa ${row.placa} · Celular no cadastro: ${row.celularRaw || "(vazio)"}`;
+      hint.textContent = `Selecionado: ${row.nome} · Placa ${row.placa || "—"} · Celular no cadastro: ${row.celularRaw || "(vazio)"}`;
     }
-    if (msg) msg.textContent = "";
+    if (msg && !silent) msg.textContent = "";
     portalWaSelectedClienteRow = row;
+  }
+
+  function portalWaSyncFromCpf11(digits) {
+    const dig = portalWaDig(digits);
+    if (dig.length !== 11) return;
+    const hasCli = Boolean(portalWaClienteRecordForCpf(dig));
+    const locs =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY).filter((l) => portalWaDig(l.cpf || "") === dig)
+        : [];
+    if (!hasCli && !locs.length) return;
+    const row = portalWaMakeRowForCpf(dig);
+    if (!row) return;
+    portalWaFillScreenFromRow(row, { silent: true });
+    const msg = document.getElementById("portalWaMsg");
+    if (msg) msg.textContent = "";
+  }
+
+  function portalWaTrySyncNomeExact() {
+    const inpNome = document.getElementById("portalWaInputNome");
+    if (!inpNome) return;
+    const q = String(inpNome.value || "").trim();
+    if (q.length < 2) return;
+    const nn = typeof normalizeName === "function" ? normalizeName(q) : q.toLowerCase();
+    const pool = portalWaFilterRows("nome", q);
+    const exact = pool.filter((r) => {
+      const nk = typeof normalizeName === "function" ? normalizeName(r.nome) : String(r.nome || "").toLowerCase();
+      return nk === nn;
+    });
+    if (exact.length === 1) {
+      portalWaFillScreenFromRow(exact[0]);
+      portalWaHideAllDropdowns();
+      return;
+    }
+    if (pool.length === 1 && q.length >= 3) {
+      portalWaFillScreenFromRow(pool[0]);
+      portalWaHideAllDropdowns();
+    }
+  }
+
+  function portalWaTrySyncPlacaUnique() {
+    const inpPlaca = document.getElementById("portalWaInputPlaca");
+    if (!inpPlaca) return;
+    const pq = portalWaNormalizePlate(inpPlaca.value);
+    if (!pq || pq.length < 5) return;
+    const rows = portalWaFilterRows("placa", inpPlaca.value);
+    if (rows.length !== 1) return;
+    portalWaFillScreenFromRow(rows[0]);
     portalWaHideAllDropdowns();
   }
 
@@ -6606,15 +6740,29 @@ ${printable.innerHTML}
           const d = portalWaDig(inp.value).slice(0, 11);
           if (typeof formatCpf === "function") inp.value = formatCpf(d);
           portalWaRenderDropdown("cpf", d);
+          if (d.length === 11) {
+            portalWaSyncFromCpf11(d);
+            portalWaHideAllDropdowns();
+          }
+        });
+        inp.addEventListener("blur", () => {
+          const d = portalWaDig(inp.value).slice(0, 11);
+          if (d.length === 11) portalWaSyncFromCpf11(d);
         });
       } else if (kind === "placa") {
         inp.addEventListener("input", () => {
           inp.value = String(inp.value || "").toUpperCase();
           portalWaRenderDropdown("placa", inp.value);
         });
+        inp.addEventListener("blur", () => {
+          portalWaTrySyncPlacaUnique();
+        });
       } else {
         inp.addEventListener("input", () => {
           portalWaRenderDropdown("nome", inp.value);
+        });
+        inp.addEventListener("blur", () => {
+          portalWaTrySyncNomeExact();
         });
       }
 
