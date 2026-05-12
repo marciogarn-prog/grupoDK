@@ -1701,6 +1701,27 @@ ${printable.innerHTML}
     return txt;
   }
 
+  /** Data de cadastro exibível: nunca usar `id` numérico como data (evita valores tipo «1900000310»). */
+  function portalClienteDataLabelPreferido(cliente, cpfDigits, getPrimeiraLocacaoDateLabel) {
+    if (!cliente) return "";
+    const fromDc = formatPortalCadastroDateLabel(String(cliente.dataCadastro || "").trim());
+    if (fromDc) return fromDc;
+    const ca = cliente.createdAt;
+    if (typeof ca === "number" && !Number.isNaN(ca) && ca > 946684800000) {
+      const fromTs = formatPortalCadastroDateLabel(new Date(ca).toISOString());
+      if (fromTs) return fromTs;
+    }
+    if (typeof ca === "string" && String(ca).trim()) {
+      const fromStr = formatPortalCadastroDateLabel(String(ca).trim());
+      if (fromStr) return fromStr;
+    }
+    if (typeof getPrimeiraLocacaoDateLabel === "function") {
+      const fromLoc = String(getPrimeiraLocacaoDateLabel(cpfDigits) || "").trim();
+      if (fromLoc) return fromLoc;
+    }
+    return "";
+  }
+
   function getPortalClientesBundledSnapshot() {
     const extras =
       typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
@@ -1990,9 +2011,7 @@ ${printable.innerHTML}
       const cliente = getClienteByCpfAny(d);
       if (cliente) {
         fillOperacaoClienteFormFromRecord(cliente);
-        const dataPreferida =
-          formatPortalCadastroDateLabel(cliente.dataCadastro || cliente.createdAt || cliente.id || "") ||
-          getPrimeiraLocacaoDateLabelByCpf(d);
+        const dataPreferida = portalClienteDataLabelPreferido(cliente, d, getPrimeiraLocacaoDateLabelByCpf);
         if (inpDataCadastro && !String(inpDataCadastro.value || "").trim() && dataPreferida) {
           inpDataCadastro.value = dataPreferida;
         }
@@ -2031,7 +2050,7 @@ ${printable.innerHTML}
         if (known && fixed.nome) inpNome.value = fixed.nome;
       }
       if (inpDataCadastro) {
-        inpDataCadastro.readOnly = Boolean(known);
+        inpDataCadastro.readOnly = false;
         if (known && fixed.dataCadastro) inpDataCadastro.value = fixed.dataCadastro;
       }
       if (inpCpf && known && fixed.cpf && typeof formatCpf === "function") {
@@ -2039,7 +2058,7 @@ ${printable.innerHTML}
       }
       markImmutableInput("operacaoClienteCodigo", known);
       markImmutableInput("operacaoClienteNome", known);
-      markImmutableInput("operacaoClienteDataCadastro", known);
+      markImmutableInput("operacaoClienteDataCadastro", false);
     }
 
     function fillOperacaoClienteFormFromRecord(cliente) {
@@ -2048,9 +2067,7 @@ ${printable.innerHTML}
       const cpfDigits = typeof onlyDigits === "function" ? onlyDigits(String(cliente.cpf || "")) : String(cliente.cpf || "").replace(/\D/g, "");
       if (inpCpf && cpfDigits.length === 11 && typeof formatCpf === "function") inpCpf.value = formatCpf(cpfDigits);
       if (inpNome) inpNome.value = String(cliente.nome || "").trim();
-      const dataPreferida =
-        formatPortalCadastroDateLabel(cliente.dataCadastro || cliente.createdAt || cliente.id || "") ||
-        getPrimeiraLocacaoDateLabelByCpf(cpfDigits);
+      const dataPreferida = portalClienteDataLabelPreferido(cliente, cpfDigits, getPrimeiraLocacaoDateLabelByCpf);
       if (inpDataCadastro && dataPreferida) inpDataCadastro.value = dataPreferida;
       const assign = (id, value) => {
         const el = get(id);
@@ -2146,9 +2163,7 @@ ${printable.innerHTML}
         return;
       }
       fillOperacaoClienteFormFromRecord(cliente);
-      const dataPreferida =
-        formatPortalCadastroDateLabel(cliente.dataCadastro || cliente.createdAt || cliente.id || "") ||
-        getPrimeiraLocacaoDateLabelByCpf(digits);
+      const dataPreferida = portalClienteDataLabelPreferido(cliente, digits, getPrimeiraLocacaoDateLabelByCpf);
       if (inpDataCadastro && !String(inpDataCadastro.value || "").trim()) {
         if (dataPreferida) inpDataCadastro.value = dataPreferida;
       }
@@ -2180,18 +2195,22 @@ ${printable.innerHTML}
       if (digits.length !== 11) return;
       const known = getClienteByCpfAny(digits);
       if (known) {
+        const localOnly = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+        const dataLock =
+          portalClienteDataLabelPreferido(known, digits, getPrimeiraLocacaoDateLabelByCpf) ||
+          String(inpDataCadastro?.value || "").trim() ||
+          (!localOnly ? "08/05/2026" : "");
         setAtualizarButtonByCpf(digits);
         lockImmutableClienteFields(true, {
           codigo: getPortalCanonicalClienteCodeByCpf(digits) || String(known.codigo || "").trim(),
           cpf: digits,
           nome: String(known.nome || "").trim(),
-          dataCadastro:
-            formatPortalCadastroDateLabel(known.dataCadastro || known.createdAt || known.id || "") ||
-            getPrimeiraLocacaoDateLabelByCpf(digits),
+          dataCadastro: dataLock || String(inpDataCadastro?.value || "").trim() || "08/05/2026",
         });
         if (msg) {
-          msg.textContent =
-            "CPF já cadastrado. Não é permitido recadastrar este cliente; use o botão 'Atualizar dados do cliente'.";
+          msg.textContent = localOnly
+            ? "CPF já cadastrado. Não é permitido recadastrar este cliente; use o botão 'Atualizar dados do cliente'."
+            : "Este CPF consta na base DK (folha embutida ou outro equipamento), mas ainda não está guardado neste navegador. Use «Atualizar dados do cliente» para gravar no cadastro local.";
         }
         return;
       }
@@ -2259,37 +2278,30 @@ ${printable.innerHTML}
         if (msg) msg.textContent = "Informe um CPF completo para atualizar.";
         return;
       }
-      const existente = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
-      if (!existente) {
-        if (msg) msg.textContent = "CPF não encontrado no cadastro local para atualização.";
+      const fonte = getClienteByCpfAny(digits);
+      if (!fonte) {
+        if (msg) msg.textContent = "CPF não encontrado na base (cadastro local + folha DK).";
         return;
       }
       if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
         if (msg) msg.textContent = "Atualização indisponível neste ambiente.";
         return;
       }
-      const clientes = loadCadastro(CAD_CLIENTES_KEY);
-      const idx = clientes.findIndex((c) => {
-        const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-        return cpf === digits;
-      });
-      if (idx === -1) {
-        if (msg) msg.textContent = "CPF conhecido, mas não há registo local para atualizar.";
-        return;
-      }
       const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
-      const canonCode = getPortalCanonicalClienteCodeByCpf(digits) || String(existente.codigo || "").trim();
-      const canonNome = String(existente.nome || "").trim();
-      const canonData =
-        formatPortalCadastroDateLabel(existente.dataCadastro || existente.createdAt || existente.id || "") ||
-        getPrimeiraLocacaoDateLabelByCpf(digits) ||
-        getVal("operacaoClienteDataCadastro");
-      clientes[idx] = {
-        ...clientes[idx],
+      const nomeFinal = getVal("operacaoClienteNome") || String(fonte.nome || "").trim();
+      const dataVal = getVal("operacaoClienteDataCadastro");
+      const dataCadastroFinal = /^\d{2}\/\d{2}\/\d{4}$/.test(dataVal)
+        ? dataVal
+        : portalClienteDataLabelPreferido(fonte, digits, getPrimeiraLocacaoDateLabelByCpf) || "08/05/2026";
+      const canonCode = getPortalCanonicalClienteCodeByCpf(digits) || String(fonte.codigo || "").trim();
+      const existenteLocal = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+      const payload = {
+        id: existenteLocal?.id ?? Date.now(),
+        createdAt: existenteLocal?.createdAt ?? Date.now(),
         codigo: canonCode,
-        dataCadastro: canonData,
+        dataCadastro: dataCadastroFinal,
         cpf: digits,
-        nome: canonNome,
+        nome: nomeFinal,
         celular: getVal("operacaoClienteCelular"),
         recado1: getVal("operacaoClienteRecado1"),
         recado2: getVal("operacaoClienteRecado2"),
@@ -2301,7 +2313,21 @@ ${printable.innerHTML}
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
       };
-      saveCadastro(CAD_CLIENTES_KEY, clientes);
+      if (typeof upsertClienteCadastroByCpf === "function") {
+        upsertClienteCadastroByCpf(payload, existenteLocal?.status || fonte.status || "ATIVO");
+      } else {
+        const clientes = loadCadastro(CAD_CLIENTES_KEY);
+        const idx = clientes.findIndex((c) => {
+          const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+          return cpf === digits;
+        });
+        if (idx === -1) {
+          clientes.push({ ...payload, id: Number(payload.id) || Date.now() });
+        } else {
+          clientes[idx] = { ...clientes[idx], ...payload };
+        }
+        saveCadastro(CAD_CLIENTES_KEY, clientes);
+      }
       portalPushCloudSnapshotAfterPersist();
       if (msg) msg.textContent = "Dados do cliente atualizados com sucesso.";
       window.alert("Os dados que você alterou foram salvos.");
