@@ -4032,8 +4032,7 @@ ${printable.innerHTML}
       refreshPortalRelClienteCpfDatalist();
       refreshPortalRelPlacaDatalist();
       refreshOperacaoLancamentoAluguelCpfDatalist();
-      const waPanel = document.getElementById("operacaoInlineWhatsApp");
-      if (waPanel && !waPanel.classList.contains("hidden")) {
+      if (typeof portalWaRebuildDatasetCache === "function") {
         portalWaRebuildDatasetCache();
       }
     } catch (e) {
@@ -7592,7 +7591,47 @@ ${printable.innerHTML}
 
     setTimeout(dkPortalPullAndMergeAll, 800);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") dkPortalPullAndMergeAll();
+      if (document.visibilityState !== "visible") return;
+      dkPortalPullAndMergeAll()
+        .then(() => {
+          try {
+            portalRefreshOperacaoDadosAposNuvem();
+          } catch (e) {
+            console.warn("[DK portal] refresh após visibility", e);
+          }
+        })
+        .catch(() => {});
+    });
+
+    /** Outro separador do mesmo site alterou `localStorage` — atualiza listas e formulários da Operação. */
+    window.addEventListener("storage", (ev) => {
+      if (!ev.key) return;
+      if (ev.key !== CAD_CLIENTES_KEY && ev.key !== CAD_VEICULOS_KEY && ev.key !== CAD_LOCACOES_KEY) return;
+      dkPortalPullAndMergeAll()
+        .then(() => {
+          try {
+            portalRefreshOperacaoDadosAposNuvem();
+          } catch (e) {
+            console.warn("[DK portal] refresh após storage", e);
+          }
+        })
+        .catch(() => {});
+    });
+
+    let dkPortalPullOnFocusLast = 0;
+    window.addEventListener("focus", () => {
+      const now = Date.now();
+      if (now - dkPortalPullOnFocusLast < 8000) return;
+      dkPortalPullOnFocusLast = now;
+      dkPortalPullAndMergeAll()
+        .then(() => {
+          try {
+            portalRefreshOperacaoDadosAposNuvem();
+          } catch (e) {
+            console.warn("[DK portal] refresh após focus", e);
+          }
+        })
+        .catch(() => {});
     });
   })();
 
