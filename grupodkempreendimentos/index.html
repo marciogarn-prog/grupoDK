@@ -11,6 +11,7 @@
   <!-- Supabase (Settings → API). Na Vercel defina SUPABASE_ANON_KEY; o build injeta a chave. -->
   <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
   <meta name="dk-supabase-anon-key" content="sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3">
+  <meta name="dk-whatsapp-send-secret" content="">
   <meta name="description" content="Grupo DK Empreendimentos — DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
@@ -19,7 +20,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260511whatsapp-autofill">
+  <link rel="stylesheet" href="styles.css?v=20260511whatsapp-cloud-send">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -143,7 +144,7 @@
             <div class="operacao-comandos">
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-falar-cliente" aria-expanded="false" aria-controls="operacaoInlineWhatsApp">
                 <span class="btn-operacao-cmd__title">Falar com o cliente</span>
-                <span class="btn-operacao-cmd__hint">WhatsApp — pesquisa por CPF, nome ou placa</span>
+                <span class="btn-operacao-cmd__hint">Mensagem pela linha comercial — pesquisa CPF, nome ou placa</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
                 <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
@@ -175,10 +176,10 @@
         <div id="operacaoInlineWhatsApp" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-whatsapp-title">
           <h3 id="operacao-inline-whatsapp-title" class="operacao-inline-form__title">Falar com o cliente (WhatsApp)</h3>
           <p class="subtext operacao-inline-form__lead">
-            Contratos ativos (locação sem data de fim no cadastro). Escolha por <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>; o convite abre o WhatsApp com o <strong>número de celular do cadastro do cliente</strong>.
+            Contratos ativos (locação sem data de fim no cadastro). Escolha por <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>. A mensagem é enviada pelo WhatsApp comercial <strong>+5581989037417</strong> para o <strong>celular cadastrado</strong> do cliente (sem abrir o WhatsApp do seu PC).
           </p>
           <p class="subtext portal-whatsapp-linha-dk">
-            Linha DK Locadora (referência / teste): <strong>+5581989037417</strong>
+            Linha DK Locadora (envio / teste): <strong>+5581989037417</strong>
           </p>
           <div class="portal-whatsapp-busca">
             <label class="portal-field portal-field--combobox">
@@ -204,8 +205,25 @@
             </label>
           </div>
           <p id="portalWaSelectedHint" class="portal-feedback portal-whatsapp-selected-hint" role="status"></p>
+          <div class="portal-whatsapp-compose">
+            <label class="portal-field" for="portalWaMensagemTexto">
+              <span>Mensagem ao cliente</span>
+              <textarea
+                id="portalWaMensagemTexto"
+                class="portal-whatsapp-compose__textarea"
+                rows="4"
+                maxlength="3900"
+                placeholder="Escreva a mensagem…"
+                aria-describedby="portalWaComposeHint"
+              ></textarea>
+            </label>
+            <p id="portalWaComposeHint" class="subtext portal-whatsapp-compose__hint">
+              Envio <strong>one-way</strong> pela linha comercial (não há resposta no portal). Ao enviar, acrescenta-se automaticamente <strong>NÃO RESPONDER</strong> no fim do texto. Na Vercel configure
+              <code>WHATSAPP_ACCESS_TOKEN</code>, <code>WHATSAPP_PHONE_NUMBER_ID</code> e <code>DK_WHATSAPP_SEND_SECRET</code> (a mesma chave é injetada no deploy).
+            </p>
+          </div>
           <div class="portal-whatsapp-actions">
-            <button type="button" class="btn-primary" id="portalWaBtnAbrir">Abrir WhatsApp do cliente</button>
+            <button type="button" class="btn-primary" id="portalWaBtnEnviar">Enviar mensagem</button>
             <button type="button" class="btn-primary btn-secondary-outline hidden" id="portalWaBtnTodosAtivos">Falar com todos os clientes ativos</button>
           </div>
           <p id="portalWaMsg" class="portal-feedback" role="status"></p>
@@ -1004,7 +1022,7 @@
     <div class="portal-modal__backdrop" data-close-wa-todos></div>
     <div class="portal-modal__card portal-modal__card--wa-todos">
       <h3 id="portalWaTodosTitulo" class="portal-modal__title">Clientes ativos — WhatsApp</h3>
-      <p class="portal-modal__text subtext">Administrador: um chat por cliente (número do cadastro). Linha DK referência: +5581989037417</p>
+      <p class="portal-modal__text subtext">Administrador: escolha o cliente para preencher o envio no painel principal. Linha DK: +5581989037417</p>
       <div id="portalWaTodosModalBody" class="portal-wa-todos-body"></div>
       <div class="portal-modal__actions">
         <button type="button" class="btn-primary btn-secondary-outline" data-close-wa-todos>Fechar</button>
@@ -1091,7 +1109,7 @@
   <script src="locacoes-receita-2026-import.js"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260511merge-meios-lanc" defer></script>
-  <script src="portal-locadora-ui.js?v=20260511whatsapp-autofill" defer></script>
+  <script src="portal-locadora-ui.js?v=20260511whatsapp-cloud-send" defer></script>
   <script src="portal-supabase-sync.js?v=6" defer></script>
 </body>
 </html>

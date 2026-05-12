@@ -6619,10 +6619,84 @@ ${printable.innerHTML}
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
+    const ta = document.getElementById("portalWaMensagemTexto");
+    if (ta) ta.value = "";
     const hint = document.getElementById("portalWaSelectedHint");
     if (hint) hint.textContent = "";
     const msg = document.getElementById("portalWaMsg");
     if (msg) msg.textContent = "";
+  }
+
+  function portalWaGetSendSecret() {
+    return String(document.querySelector('meta[name="dk-whatsapp-send-secret"]')?.getAttribute("content") || "").trim();
+  }
+
+  const PORTAL_WA_SEND_API = "/api/whatsapp-send";
+
+  async function portalWaSendComposedMessage() {
+    const msgEl = document.getElementById("portalWaMsg");
+    const ta = document.getElementById("portalWaMensagemTexto");
+    const row = portalWaSelectedClienteRow;
+    const text = String(ta?.value || "").trim();
+    if (!row) {
+      if (msgEl) msgEl.textContent = "Selecione um cliente (CPF, nome ou placa).";
+      return;
+    }
+    if (!row.celularWa || row.celularWa.length < 12) {
+      if (msgEl) msgEl.textContent = "Celular do cadastro inválido ou vazio.";
+      return;
+    }
+    if (!text) {
+      if (msgEl) msgEl.textContent = "Escreva a mensagem.";
+      return;
+    }
+    const secret = portalWaGetSendSecret();
+    if (!secret) {
+      if (msgEl) {
+        msgEl.textContent =
+          "Envio não configurado: na Vercel defina WHATSAPP_ACCESS_TOKEN, WHATSAPP_PHONE_NUMBER_ID e DK_WHATSAPP_SEND_SECRET (redeploy para injetar a chave).";
+      }
+      return;
+    }
+    const btn = document.getElementById("portalWaBtnEnviar");
+    if (btn) btn.disabled = true;
+    if (msgEl) msgEl.textContent = "A enviar…";
+    try {
+      const r = await fetch(PORTAL_WA_SEND_API, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-dk-whatsapp-secret": secret,
+        },
+        body: JSON.stringify({ to: row.celularWa, text }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) {
+        const graphMsg = j.graph?.error?.message || j.graph?.error?.error_user_msg;
+        const detail = graphMsg || j.error || j.reason || `HTTP ${r.status}`;
+        if (msgEl) {
+          msgEl.textContent = `Envio recusado: ${detail}. Confirme o token Meta, o Phone Number ID e a política de templates / janela de 24h.`;
+        }
+        return;
+      }
+      if (msgEl) msgEl.textContent = "Mensagem enviada (com « NÃO RESPONDER » no fim).";
+      if (ta) ta.value = "";
+    } catch (e) {
+      if (msgEl) msgEl.textContent = `Erro de rede: ${e && e.message ? e.message : e}`;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  function portalWaPickClienteFromModalCpf(cpfDigits) {
+    const d = portalWaDig(cpfDigits);
+    if (d.length !== 11) return;
+    const fromCache = portalWaDatasetCache.find((x) => x.cpf === d);
+    const row = fromCache || portalWaMakeRowForCpf(d);
+    if (!row) return;
+    portalWaFillScreenFromRow(row);
+    portalWaCloseTodosModal();
+    document.getElementById("portalWaMensagemTexto")?.focus();
   }
 
   function portalWaOpenTodosModal() {
@@ -6637,16 +6711,15 @@ ${printable.innerHTML}
       body.innerHTML = `<ul class="portal-wa-todos-list">${rows
         .map((r) => {
           const cpfEx = typeof formatCpf === "function" ? formatCpf(r.cpf) : r.cpf;
-          const waUrl = r.celularWa ? `https://wa.me/${r.celularWa}` : "";
-          const link = waUrl
-            ? `<a class="btn-primary btn-secondary-outline portal-wa-todos-link" href="${waUrl}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`
+          const pick = r.celularWa
+            ? `<button type="button" class="btn-primary btn-secondary-outline portal-wa-todos-pick" data-portal-wa-pick data-wa-cpf="${portalEscapeHtml(r.cpf)}">Usar no envio</button>`
             : `<span class="portal-wa-todos-sem-num">Sem celular no cadastro</span>`;
           return `<li class="portal-wa-todos-item">
             <div class="portal-wa-todos-item__main">
               <strong>${portalEscapeHtml(r.nome)}</strong>
               <span class="subtext">${portalEscapeHtml(cpfEx)} · ${portalEscapeHtml(r.placa)}</span>
             </div>
-            ${link}
+            ${pick}
           </li>`;
         })
         .join("")}</ul>`;
@@ -6666,22 +6739,8 @@ ${printable.innerHTML}
     if (window.__dkPortalWaBound) return;
     window.__dkPortalWaBound = true;
 
-    document.getElementById("portalWaBtnAbrir")?.addEventListener("click", () => {
-      const msg = document.getElementById("portalWaMsg");
-      const row = portalWaSelectedClienteRow;
-      if (!row) {
-        if (msg) msg.textContent = "Selecione um cliente na lista (CPF, nome ou placa).";
-        return;
-      }
-      if (!row.celularWa || row.celularWa.length < 12) {
-        if (msg) {
-          msg.textContent =
-            "Este cliente não tem celular válido no cadastro. Complete o campo no cadastro de cliente.";
-        }
-        return;
-      }
-      window.open(`https://wa.me/${row.celularWa}`, "_blank", "noopener,noreferrer");
-      if (msg) msg.textContent = "";
+    document.getElementById("portalWaBtnEnviar")?.addEventListener("click", () => {
+      portalWaSendComposedMessage();
     });
 
     document.getElementById("portalWaBtnTodosAtivos")?.addEventListener("click", () => {
@@ -6691,6 +6750,11 @@ ${printable.innerHTML}
 
     document.getElementById("portalWaTodosModal")?.addEventListener("click", (e) => {
       if (e.target.closest("[data-close-wa-todos]")) portalWaCloseTodosModal();
+      const pick = e.target.closest("[data-portal-wa-pick]");
+      if (pick) {
+        const cpf = String(pick.getAttribute("data-wa-cpf") || "").replace(/\D/g, "");
+        portalWaPickClienteFromModalCpf(cpf);
+      }
     });
 
     document.addEventListener("keydown", (e) => {

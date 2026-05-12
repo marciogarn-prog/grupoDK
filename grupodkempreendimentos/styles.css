@@ -1768,3 +1768,40 @@ body {
   letter-spacing: 0.02em;
   text-transform: none;
 }
+
+.portal-whatsapp-compose {
+  margin: 0.65rem 0 0.75rem;
+}
+
+.portal-whatsapp-compose__textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  resize: vertical;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+}
+
+.portal-whatsapp-compose__textarea::placeholder {
+  color: var(--muted);
+}
+
+.portal-whatsapp-compose__hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.portal-whatsapp-compose__hint code {
+  font-size: 0.78rem;
+}
+
+.portal-wa-todos-pick {
+  flex-shrink: 0;
+  font-size: 0.9rem;
+}

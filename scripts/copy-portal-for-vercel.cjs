@@ -58,11 +58,19 @@ if (fs.existsSync(indexHtml)) {
       `<meta name="dk-supabase-anon-key" content="${escHtmlAttrValue(anonEnv)}">`
     );
   }
+  const waSecret = process.env.DK_WHATSAPP_SEND_SECRET || "";
+  if (waSecret) {
+    html = html.replace(
+      /<meta\s+name="dk-whatsapp-send-secret"\s+content="[^"]*"\s*>/i,
+      `<meta name="dk-whatsapp-send-secret" content="${escHtmlAttrValue(waSecret)}">`
+    );
+  }
   fs.writeFileSync(indexHtml, html);
   console.log(
     "copy-portal-for-vercel: Supabase meta injetadas (chave:",
     anonEnv ? "env" : "mantida-do-index",
-    ")"
+    "); WhatsApp send:",
+    waSecret ? "secret injetado" : "sem DK_WHATSAPP_SEND_SECRET"
   );
 }
 
