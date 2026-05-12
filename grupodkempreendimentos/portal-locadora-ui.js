@@ -8,6 +8,9 @@
   const viewUnit = document.getElementById("view-unit");
   if (!viewHome || !viewUnit) return;
 
+  /** `true` = mostrar e usar «Falar com o cliente» (WhatsApp). `false` = botão oculto e clique sem efeito. */
+  const DK_PORTAL_WA_CLIENTE_ATIVO = false;
+
   const unitTitle = document.getElementById("unit-page-title");
   const unitLead = document.getElementById("unit-page-lead");
   const portalUnitDadosAtualizados = document.getElementById("portal-unit-dados-atualizados");
@@ -135,7 +138,7 @@
     const acessosOp = getPortalOperacaoAcessosEfetivos(f);
 
     const triples = [
-      ["btn-operacao-falar-cliente", "operacaoInlineWhatsApp", "cliente"],
+      ...(DK_PORTAL_WA_CLIENTE_ATIVO ? [["btn-operacao-falar-cliente", "operacaoInlineWhatsApp", "cliente"]] : []),
       ["btn-operacao-cadastro-cliente", "operacaoInlineCliente", "cliente"],
       ["btn-operacao-cadastro-veiculo", "operacaoInlineVeiculo", "veiculo"],
       ["btn-operacao-cadastro-locacao", "operacaoInlineLocacao", "locacao"],
@@ -163,11 +166,21 @@
       b.toggleAttribute("disabled", !allow);
     }
 
+    if (!DK_PORTAL_WA_CLIENTE_ATIVO) {
+      const bWa = document.getElementById("btn-operacao-falar-cliente");
+      if (bWa) {
+        bWa.classList.add("hidden");
+        bWa.setAttribute("aria-hidden", "true");
+        bWa.toggleAttribute("disabled", true);
+      }
+      document.getElementById("operacaoInlineWhatsApp")?.classList.add("hidden");
+    }
+
     const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
     if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
 
     const btnWaTodos = document.getElementById("portalWaBtnTodosAtivos");
-    if (btnWaTodos) btnWaTodos.classList.toggle("hidden", !isPortalTitularAdministrador());
+    if (btnWaTodos) btnWaTodos.classList.toggle("hidden", !isPortalTitularAdministrador() || !DK_PORTAL_WA_CLIENTE_ATIVO);
   }
 
   /** Se só existir um cadastro permitido, abre-o automaticamente (painel ainda no placeholder). */
@@ -3990,7 +4003,7 @@ ${printable.innerHTML}
 
   function syncOperacaoCadastroButtons(activeButtonId) {
     [
-      "btn-operacao-falar-cliente",
+      ...(DK_PORTAL_WA_CLIENTE_ATIVO ? ["btn-operacao-falar-cliente"] : []),
       "btn-operacao-cadastro-cliente",
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
@@ -6855,6 +6868,7 @@ ${printable.innerHTML}
   bindPortalWhatsAppOperacaoOnce();
 
   document.getElementById("btn-operacao-falar-cliente")?.addEventListener("click", async () => {
+    if (!DK_PORTAL_WA_CLIENTE_ATIVO) return;
     await portalOperacaoAwaitCloudCadastroPull();
     hideOperacaoInlineFormsCore();
     portalWaRebuildDatasetCache();
