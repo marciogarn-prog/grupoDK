@@ -1769,6 +1769,27 @@ ${printable.innerHTML}
     );
   }
 
+  function portalHasClienteCadastroValue(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return false;
+    if (/^x+$/i.test(text.replace(/\s/g, ""))) return false;
+    return true;
+  }
+
+  function portalMergeClienteCadastroWithBundled(record, cpfDigits) {
+    if (!record || !cpfDigits) return record;
+    const bundled = getPortalBundledClienteByCpf(cpfDigits);
+    if (!bundled) return record;
+    const pick = (primary, fallback) =>
+      portalHasClienteCadastroValue(primary) ? String(primary).trim() : String(fallback || "").trim();
+    return {
+      ...record,
+      cep: pick(record.cep, bundled.cep),
+      municipioUf: pick(record.municipioUf, bundled.municipioUf),
+      endereco: pick(record.endereco, bundled.endereco),
+    };
+  }
+
   function getPortalBundledClienteCodeByCpf(cpfDigits) {
     const hit = getPortalBundledClienteByCpf(cpfDigits);
     if (!hit) return "";
@@ -1900,7 +1921,7 @@ ${printable.innerHTML}
     function getClienteByCpfAny(cpfDigits) {
       if (!cpfDigits) return null;
       const local = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpfDigits) : null;
-      if (local) return local;
+      if (local) return portalMergeClienteCadastroWithBundled(local, cpfDigits);
       const bundled = getPortalBundledClienteByCpf(cpfDigits);
       if (bundled) return bundled;
       if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
@@ -1908,7 +1929,7 @@ ${printable.innerHTML}
           const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
           return cpf === cpfDigits;
         });
-        if (hit) return hit;
+        if (hit) return portalMergeClienteCadastroWithBundled(hit, cpfDigits);
       }
       return null;
     }
