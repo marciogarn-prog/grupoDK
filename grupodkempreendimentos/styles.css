@@ -1018,6 +1018,12 @@ body {
   min-width: 0;
 }
 
+@media (min-width: 1024px) {
+  .portal-lanc-aluguel-referencia__grid > .portal-lanc-ref-total-pago {
+    grid-column: 3;
+  }
+}
+
 .portal-lanc-ref-row-top {
   grid-column: 1 / -1;
   display: grid;
@@ -1045,11 +1051,6 @@ body {
   }
 }
 
-@media (min-width: 1024px) {
-  .portal-lanc-aluguel-referencia__grid > .portal-lanc-aluguel-totais-stack {
-    grid-column: 3;
-  }
-}
 
 .link-like {
   background: none;
