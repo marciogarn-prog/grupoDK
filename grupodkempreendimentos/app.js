@@ -2004,6 +2004,63 @@ try {
   /* ignore */
 }
 
+/** Une `portalMultasTransito` (multas de trânsito) entre local e nuvem sem perder registos. */
+function mergePortalMultasTransitoEmbutidos(arrays) {
+  const dig = (s) => onlyDigits(String(s || ""));
+  const byKey = new Map();
+
+  function rowFromRaw(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    const dataMulta = String(raw.dataMulta || "").trim();
+    const codMulta = String(raw.codMulta || "").trim();
+    const descricao = String(raw.descricao || "").trim();
+    const dataPrimeiraParcela = String(raw.dataPrimeiraParcela || "").trim();
+    if (!dataMulta || !codMulta || !descricao || !dataPrimeiraParcela) return null;
+    let valorMulta =
+      typeof raw.valorMulta === "number" && Number.isFinite(raw.valorMulta) ?
+        raw.valorMulta
+      : parseCurrencyBR(raw.valorMulta ?? "");
+    if (!Number.isFinite(valorMulta) || valorMulta <= 0) return null;
+    const quantidadeParcelas = Math.min(10, Math.max(1, Math.round(Number(raw.quantidadeParcelas) || 1)));
+    const ca = Number(raw.createdAt || 0);
+    const rp = dig(String(raw.registradoPorCpf || "")).slice(0, 11);
+    const row = {
+      dataMulta,
+      codMulta,
+      descricao,
+      valorMulta,
+      quantidadeParcelas,
+      dataPrimeiraParcela,
+      dataUltimaParcela: String(raw.dataUltimaParcela || "").trim(),
+      parcelas: Array.isArray(raw.parcelas) ? raw.parcelas : [],
+      createdAt: ca || Date.now(),
+      registradoPorCpf: rp,
+      registradoPorNome: String(raw.registradoPorNome || "").trim(),
+    };
+    const key = `${dataMulta}|${codMulta}|${valorMulta}|${ca}|${rp}`;
+    return { key, row };
+  }
+
+  for (const arr of arrays || []) {
+    if (!Array.isArray(arr)) continue;
+    for (const raw of arr) {
+      const built = rowFromRaw(raw);
+      if (!built) continue;
+      const { key, row } = built;
+      if (!byKey.has(key)) byKey.set(key, row);
+    }
+  }
+  const out = Array.from(byKey.values());
+  out.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  return out;
+}
+
+try {
+  window.__DK_mergePortalMultasTransitoEmbutidos = mergePortalMultasTransitoEmbutidos;
+} catch {
+  /* ignore */
+}
+
 /**
  * Funde campos de contrato / portal que importam para o relatório (fim, finalização, execução)
  * quando dois registos da mesma locação vêm de máquinas diferentes — evita perder a finalização na nuvem
@@ -2175,6 +2232,10 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         ex?.portalLancamentosMultas,
         l?.portalLancamentosMultas,
       ]);
+      const mergedMultasTransito = mergePortalMultasTransitoEmbutidos([
+        ex?.portalMultasTransito,
+        l?.portalMultasTransito,
+      ]);
       const mergedPlManut = mergePortalLancamentosAluguelEmbutidos([
         ex?.portalLancamentosManutencao,
         l?.portalLancamentosManutencao,
@@ -2183,6 +2244,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         const merged = { ...l };
         if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
         if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
+        if (mergedMultasTransito.length) merged.portalMultasTransito = mergedMultasTransito;
         if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
         byK.set(k, merged);
         return;
@@ -2190,6 +2252,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       const merged = { ...ex, ...l };
       if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
       if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
+      if (mergedMultasTransito.length) merged.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
       Object.assign(merged, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       if (score(l) > score(ex)) {
@@ -2203,6 +2266,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       const stay = { ...ex };
       if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
       if (mergedPlMultas.length) stay.portalLancamentosMultas = mergedPlMultas;
+      if (mergedMultasTransito.length) stay.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) stay.portalLancamentosManutencao = mergedPlManut;
       Object.assign(stay, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       byK.set(k, stay);

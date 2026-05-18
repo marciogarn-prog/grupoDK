@@ -913,7 +913,7 @@
         
         <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
           <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
-          <p class="subtext operacao-inline-form__lead">Registe pagamentos de <strong>multas</strong> no protocolo. O <strong>total pago em multas</strong> é a soma dos lançamentos confirmados neste ecrã.</p>
+          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. As parcelas são a cada <strong>7 dias</strong>; a <strong>data da última parcela</strong> é calculada automaticamente.</p>
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
@@ -955,21 +955,58 @@
                 </div>
                 <label class="portal-field"><span>DATA INÍCIO</span><input type="text" id="operacaoLancMultasDataInicio" readonly tabindex="-1"></label>
                 <label class="portal-field"><span>DATA FIM</span><input type="text" id="operacaoLancMultasDataFim" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>VALOR DEVIDO DE MULTAS</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>TOTAL PAGO EM MULTAS</span><input type="text" id="operacaoLancMultasTotalPago" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>TOTAL EM MULTAS (protocolo)</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1" title="Soma do valor das multas de trânsito registadas"></label>
               </div>
             </section>
-            <section id="operacaoLancMultasPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden>
-              <h4 class="portal-lanc-aluguel-section__title">Lançamento do pagamento</h4>
+            <section id="operacaoLancMultasLancamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden aria-labelledby="portal-lanc-multas-lancamento-title">
+              <h4 id="portal-lanc-multas-lancamento-title" class="portal-lanc-aluguel-section__title">Dados da multa de trânsito</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Intervalo entre parcelas: <strong>7 dias</strong>. Última parcela = 1.ª parcela + (quantidade − 1) × 7 dias.</p>
               <div class="operacao-inline-form__grid">
-                <label class="portal-field"><span>VALOR PAGO</span><input type="text" id="operacaoLancMultasValorPago" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>DATA DO PAGAMENTO</span><input type="text" id="operacaoLancMultasDataPagamento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"></label>
-                <label class="portal-field"><span>Pagamento em espécie</span><input type="text" id="operacaoLancMultasValorEspecie" inputmode="decimal" placeholder="0,00"></label>
-                <label class="portal-field"><span>Pagamento em Pix</span><input type="text" id="operacaoLancMultasValorPix" inputmode="decimal" placeholder="0,00"></label>
-                <label class="portal-field"><span>Pagamento em cartão</span><input type="text" id="operacaoLancMultasValorCartao" inputmode="decimal" placeholder="0,00"></label>
+                <label class="portal-field">
+                  <span>DATA DA MULTA</span>
+                  <input type="text" id="operacaoLancMultasDataMulta" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
+                </label>
+                <label class="portal-field">
+                  <span>COD. DA MULTA</span>
+                  <input type="text" id="operacaoLancMultasCodMulta" maxlength="40" autocomplete="off" placeholder="Código da autuação" required>
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>DESCRIÇÃO DA MULTA</span>
+                  <input type="text" id="operacaoLancMultasDescricao" maxlength="200" autocomplete="off" placeholder="Ex.: excesso de velocidade" required>
+                </label>
+                <label class="portal-field">
+                  <span>VALOR DA MULTA</span>
+                  <input type="text" id="operacaoLancMultasValorMulta" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+                </label>
+                <label class="portal-field">
+                  <span>QUANTIDADE DE PARCELAS</span>
+                  <select id="operacaoLancMultasQtdParcelas" aria-label="Quantidade de parcelas de 1 a 10">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                  </select>
+                </label>
+                <label class="portal-field">
+                  <span>DATA DA PRIMEIRA PARCELA</span>
+                  <input type="text" id="operacaoLancMultasDataPrimeiraParcela" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
+                </label>
+                <label class="portal-field">
+                  <span>DATA DA ÚLTIMA PARCELA</span>
+                  <input type="text" id="operacaoLancMultasDataUltimaParcela" readonly tabindex="-1" placeholder="Calculada automaticamente" title="Calculada: 1.ª parcela + (N−1)×7 dias">
+                </label>
+                <div class="portal-field portal-field--wide">
+                  <p id="operacaoLancMultasCronogramaPreview" class="subtext portal-multas-cronograma-preview" role="status"></p>
+                </div>
                 <div class="operacao-inline-form__actions">
-                  <button type="button" class="btn-primary" id="operacaoLancMultasConfirmarPagamentoBtn">Confirmar pagamento</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparBtn">Limpar</button>
+                  <button type="button" class="btn-primary" id="operacaoLancMultasCadastrarBtn">Cadastrar multa</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparLancamentoBtn">Limpar formulário</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasVoltarBtn">Voltar</button>
                 </div>
               </div>

@@ -9,9 +9,9 @@
       btnId: "btn-operacao-lancamento-multas",
       panelId: "operacaoInlineLancamentoMultas",
       prefix: "operacaoLancMultas",
-      arrayField: "portalLancamentosMultas",
-      tituloPagamento: "multa",
-      devidoResumoKey: "valorDevidoMultas",
+      arrayField: "portalMultasTransito",
+      multasTransito: true,
+      detalhePanelSuffix: "LancamentoPanel",
     },
     {
       key: "lancamentoManutencao",
@@ -25,6 +25,7 @@
   ];
 
   const state = new Map();
+  const MULTAS_INTERVALO_DIAS = 7;
 
   function dig(s) {
     return typeof onlyDigits === "function" ? onlyDigits(s) : String(s ?? "").replace(/\D/g, "");
@@ -137,11 +138,146 @@
     }
   }
 
+  function detalhePanelSuffix(cfg) {
+    return cfg.detalhePanelSuffix || "PagamentoPanel";
+  }
+
+  function parseBrDateLocal(s) {
+    if (typeof parseBrDate === "function") return parseBrDate(s);
+    const raw = String(s || "").trim();
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return null;
+    const [day, month, year] = raw.split("/").map(Number);
+    if (!day || !month || !year) return null;
+    return new Date(year, month - 1, day);
+  }
+
+  function formatBrFromDate(d) {
+    if (!d || Number.isNaN(d.getTime())) return "";
+    return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+
+  function addDaysBr(dateStr, days) {
+    const d = parseBrDateLocal(dateStr);
+    if (!d) return "";
+    d.setDate(d.getDate() + days);
+    return formatBrFromDate(d);
+  }
+
+  function clampParcelas(n) {
+    const v = Math.round(Number(n));
+    if (!Number.isFinite(v)) return 1;
+    return Math.min(10, Math.max(1, v));
+  }
+
+  function calcDataUltimaParcela(dataPrimeira, qtdParcelas) {
+    const q = clampParcelas(qtdParcelas);
+    if (q <= 1) return String(dataPrimeira || "").trim();
+    return addDaysBr(dataPrimeira, (q - 1) * MULTAS_INTERVALO_DIAS);
+  }
+
+  function buildCronogramaParcelas(dataPrimeira, qtdParcelas, valorTotal) {
+    const q = clampParcelas(qtdParcelas);
+    const valorParcela = q > 0 ? valorTotal / q : valorTotal;
+    const parcelas = [];
+    for (let i = 0; i < q; i++) {
+      parcelas.push({
+        numero: i + 1,
+        data: addDaysBr(dataPrimeira, i * MULTAS_INTERVALO_DIAS),
+        valor: valorParcela,
+      });
+    }
+    return parcelas;
+  }
+
+  function normalizeMultaTransito(x) {
+    if (!x || typeof x !== "object") return null;
+    const dataMulta = String(x.dataMulta || "").trim();
+    const codMulta = String(x.codMulta || "").trim();
+    const descricao = String(x.descricao || "").trim();
+    const dataPrimeiraParcela = String(x.dataPrimeiraParcela || "").trim();
+    const dataUltimaParcela = String(x.dataUltimaParcela || "").trim();
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataMulta)) return null;
+    if (!codMulta) return null;
+    if (!descricao) return null;
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataPrimeiraParcela)) return null;
+    let valorMulta =
+      typeof x.valorMulta === "number" && Number.isFinite(x.valorMulta) ? x.valorMulta : parseVal(x.valorMulta);
+    if (!Number.isFinite(valorMulta) || valorMulta <= 0) return null;
+    const quantidadeParcelas = clampParcelas(x.quantidadeParcelas);
+    const ultima =
+      /^\d{2}\/\d{2}\/\d{4}$/.test(dataUltimaParcela) ?
+        dataUltimaParcela
+      : calcDataUltimaParcela(dataPrimeiraParcela, quantidadeParcelas);
+    let parcelas = Array.isArray(x.parcelas) ? x.parcelas : [];
+    if (!parcelas.length) parcelas = buildCronogramaParcelas(dataPrimeiraParcela, quantidadeParcelas, valorMulta);
+    return {
+      dataMulta,
+      codMulta,
+      descricao,
+      valorMulta,
+      quantidadeParcelas,
+      dataPrimeiraParcela,
+      dataUltimaParcela: ultima,
+      parcelas: parcelas.map((p, i) => ({
+        numero: Number(p.numero) || i + 1,
+        data: String(p.data || "").trim(),
+        valor: typeof p.valor === "number" && Number.isFinite(p.valor) ? p.valor : parseVal(p.valor),
+      })),
+      createdAt: Number(x.createdAt) || Date.now(),
+      registradoPorCpf: dig(x.registradoPorCpf).slice(0, 11),
+      registradoPorNome: String(x.registradoPorNome || "").trim(),
+    };
+  }
+
+  function getMultasTransito(loc) {
+    const arr = Array.isArray(loc?.portalMultasTransito) ? loc.portalMultasTransito : [];
+    return arr.map(normalizeMultaTransito).filter(Boolean);
+  }
+
+  function sumMultasTransito(arr) {
+    let s = 0;
+    for (const x of arr || []) s += Number(x.valorMulta || 0);
+    return s;
+  }
+
+  function syncMultasParcelasUI(cfg) {
+    const qtd = clampParcelas($(cfg, "QtdParcelas")?.value || 1);
+    const primeira = String($(cfg, "DataPrimeiraParcela")?.value || "").trim();
+    const ultimaInp = $(cfg, "DataUltimaParcela");
+    const preview = $(cfg, "CronogramaPreview");
+    if (ultimaInp) {
+      ultimaInp.value =
+        primeira && /^\d{2}\/\d{2}\/\d{4}$/.test(primeira) ? calcDataUltimaParcela(primeira, qtd) : "";
+    }
+    if (!preview) return;
+    if (!primeira || !/^\d{2}\/\d{2}\/\d{4}$/.test(primeira)) {
+      preview.textContent = "";
+      return;
+    }
+    const valor = parseVal($(cfg, "ValorMulta")?.value);
+    const parcelas = buildCronogramaParcelas(primeira, qtd, valor > 0 ? valor : 0);
+    const linhas = parcelas.map((p) => {
+      const v = valor > 0 ? fmtBrlNum(p.valor) : "—";
+      return `${p.numero}ª: ${p.data} · R$ ${v}`;
+    });
+    preview.textContent = linhas.length ? `Cronograma: ${linhas.join(" · ")}` : "";
+  }
+
+  function clearMultasLancamentoForm(cfg) {
+    ["DataMulta", "CodMulta", "Descricao", "ValorMulta", "DataPrimeiraParcela", "DataUltimaParcela"].forEach((s) => {
+      const el = $(cfg, s);
+      if (el) el.value = "";
+    });
+    const sel = $(cfg, "QtdParcelas");
+    if (sel) sel.value = "1";
+    syncMultasParcelasUI(cfg);
+  }
+
   function hideDetalhe(cfg) {
     $(cfg, "ReferenciaPanel")?.classList.add("hidden");
     $(cfg, "ReferenciaPanel")?.setAttribute("hidden", "");
-    $(cfg, "PagamentoPanel")?.classList.add("hidden");
-    $(cfg, "PagamentoPanel")?.setAttribute("hidden", "");
+    $(cfg, detalhePanelSuffix(cfg))?.classList.add("hidden");
+    $(cfg, detalhePanelSuffix(cfg))?.setAttribute("hidden", "");
     const hist = $(cfg, "Historico");
     if (hist) {
       hist.classList.add("hidden");
@@ -152,8 +288,8 @@
   function showDetalhe(cfg) {
     $(cfg, "ReferenciaPanel")?.classList.remove("hidden");
     $(cfg, "ReferenciaPanel")?.removeAttribute("hidden");
-    $(cfg, "PagamentoPanel")?.classList.remove("hidden");
-    $(cfg, "PagamentoPanel")?.removeAttribute("hidden");
+    $(cfg, detalhePanelSuffix(cfg))?.classList.remove("hidden");
+    $(cfg, detalhePanelSuffix(cfg))?.removeAttribute("hidden");
   }
 
   function syncValorPagoFromMeios(cfg) {
@@ -178,15 +314,22 @@
   }
 
   function applyLocToForm(cfg, loc) {
-    const resumo =
-      typeof window.__DK_computePortalProtocoloResumoFromLoc === "function"
-        ? window.__DK_computePortalProtocoloResumoFromLoc(loc)
-        : null;
     const placa =
       typeof normalizePlate === "function" ? normalizePlate(loc.placa) : String(loc.placa || "").trim();
     if ($(cfg, "Placa")) $(cfg, "Placa").value = placa || "—";
     if ($(cfg, "DataInicio")) $(cfg, "DataInicio").value = fmtDateLoc(loc.inicio);
     if ($(cfg, "DataFim")) $(cfg, "DataFim").value = fmtDateLoc(loc.fim);
+    if (cfg.multasTransito) {
+      const multas = getMultasTransito(loc);
+      if ($(cfg, "ValorDevido")) $(cfg, "ValorDevido").value = fmtBrlNum(sumMultasTransito(multas));
+      clearMultasLancamentoForm(cfg);
+      renderHistorico(cfg, loc);
+      return;
+    }
+    const resumo =
+      typeof window.__DK_computePortalProtocoloResumoFromLoc === "function"
+        ? window.__DK_computePortalProtocoloResumoFromLoc(loc)
+        : null;
     const lancs = getLancamentos(loc, cfg.arrayField);
     if ($(cfg, "ValorDevido") && resumo) {
       $(cfg, "ValorDevido").value = String(resumo[cfg.devidoResumoKey] || "").trim();
@@ -203,19 +346,43 @@
   function renderHistorico(cfg, loc) {
     const wrap = $(cfg, "Historico");
     if (!wrap) return;
-    const arr = getLancamentos(loc, cfg.arrayField);
     const owner = typeof window.__DK_isPortalTitularAdministrador === "function" && window.__DK_isPortalTitularAdministrador();
+    const esc = (s) =>
+      String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    if (cfg.multasTransito) {
+      const arr = getMultasTransito(loc);
+      if (!arr.length) {
+        wrap.classList.remove("hidden");
+        wrap.innerHTML = "<p class=\"subtext\">Nenhuma multa de trânsito registada neste protocolo.</p>";
+        return;
+      }
+      wrap.classList.remove("hidden");
+      const thead = owner
+        ? "<thead><tr><th>Data multa</th><th>Cód.</th><th>Descrição</th><th>Valor</th><th>Parcelas</th><th>1.ª / última</th><th>Ações</th></tr></thead>"
+        : "<thead><tr><th>Data multa</th><th>Cód.</th><th>Descrição</th><th>Valor</th><th>Parcelas</th><th>1.ª / última</th></tr></thead>";
+      const rows = arr
+        .map((x, i) => {
+          const v = fmtBrlNum(x.valorMulta);
+          const parc = `${x.quantidadeParcelas}× · ${esc(x.dataPrimeiraParcela)} → ${esc(x.dataUltimaParcela)}`;
+          if (owner) {
+            return `<tr><td>${esc(x.dataMulta)}</td><td>${esc(x.codMulta)}</td><td>${esc(x.descricao)}</td><td>${v}</td><td>${x.quantidadeParcelas}</td><td>${parc}</td><td><button type="button" class="btn-primary btn-secondary-outline" data-lanc-extra-del="${cfg.key}" data-idx="${i}">Apagar</button></td></tr>`;
+          }
+          return `<tr><td>${esc(x.dataMulta)}</td><td>${esc(x.codMulta)}</td><td>${esc(x.descricao)}</td><td>${v}</td><td>${x.quantidadeParcelas}</td><td>${parc}</td></tr>`;
+        })
+        .join("");
+      wrap.innerHTML = `<p class="subtext"><strong>Multas de trânsito registadas</strong></p><table class="portal-lanc-hist portal-lanc-hist--multas">${thead}<tbody>${rows}</tbody></table>`;
+      return;
+    }
+    const arr = getLancamentos(loc, cfg.arrayField);
     if (!arr.length) {
       wrap.classList.remove("hidden");
       wrap.innerHTML = "<p class=\"subtext\">Nenhum pagamento registado neste protocolo.</p>";
       return;
     }
     wrap.classList.remove("hidden");
-    const esc = (s) =>
-      String(s ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
     const thead = owner
       ? "<thead><tr><th>Data</th><th>Valor (R$)</th><th>Ações</th></tr></thead>"
       : "<thead><tr><th>Data</th><th>Valor (R$)</th></tr></thead>";
@@ -304,8 +471,15 @@
   }
 
   function persistLancamentos(cfg, locs, loc, cpfDigits, nc) {
-    const normArr = getLancamentos(loc, cfg.arrayField);
-    loc[cfg.arrayField] = normArr.map((x) => ({ ...x }));
+    if (cfg.multasTransito) {
+      const normArr = getMultasTransito(loc);
+      loc[cfg.arrayField] = normArr.map((x) => ({ ...x }));
+      const total = sumMultasTransito(normArr);
+      loc.valorDevidoMultas = fmtBrlNum(total);
+    } else {
+      const normArr = getLancamentos(loc, cfg.arrayField);
+      loc[cfg.arrayField] = normArr.map((x) => ({ ...x }));
+    }
     try {
       saveCadastro(CAD_LOCACOES_KEY, locs);
     } catch (e) {
@@ -316,6 +490,26 @@
       window.__DK_pushCloudSnapshotNow().catch(() => {});
     }
     return true;
+  }
+
+  function persistMultaTransito(cfg, cpfDigits, nc, entry) {
+    if (typeof loadCadastro !== "function") return false;
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idx = locs.findIndex((l) => dig(l.cpf) === cpfDigits && normNc(l.numeroContrato) === nc);
+    if (idx < 0) return false;
+    const loc = locs[idx];
+    if (!Array.isArray(loc[cfg.arrayField])) loc[cfg.arrayField] = [];
+    const reg =
+      typeof window.__DK_getPortalSessaoParaRegistroLancamento === "function"
+        ? window.__DK_getPortalSessaoParaRegistroLancamento()
+        : { cpf: "", nome: "" };
+    loc[cfg.arrayField].push({
+      ...entry,
+      createdAt: Date.now(),
+      registradoPorCpf: reg.cpf || "",
+      registradoPorNome: reg.nome || "",
+    });
+    return persistLancamentos(cfg, locs, loc, cpfDigits, nc);
   }
 
   function persistPagamento(cfg, cpfDigits, nc, valorNum, dataStr, meios) {
@@ -454,10 +648,90 @@
       if (loc) applyLocToForm(cfg, loc);
     });
 
-    ["ValorEspecie", "ValorPix", "ValorCartao"].forEach((s) => {
-      $(cfg, s)?.addEventListener("input", () => syncValorPagoFromMeios(cfg));
-      $(cfg, s)?.addEventListener("blur", () => syncValorPagoFromMeios(cfg));
-    });
+    if (cfg.multasTransito) {
+      ["QtdParcelas", "DataPrimeiraParcela", "ValorMulta"].forEach((s) => {
+        $(cfg, s)?.addEventListener("input", () => syncMultasParcelasUI(cfg));
+        $(cfg, s)?.addEventListener("change", () => syncMultasParcelasUI(cfg));
+        $(cfg, s)?.addEventListener("blur", () => syncMultasParcelasUI(cfg));
+      });
+
+      $(cfg, "CadastrarBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        const msg = $(cfg, "InlineMsg");
+        const admin =
+          typeof window.__DK_getPortalSessaoAdminRole === "function" && window.__DK_getPortalSessaoAdminRole();
+        if (!admin) {
+          if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador.";
+          return;
+        }
+        const digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
+        const nc = normNc($(cfg, "ProtocoloSelect")?.value);
+        const dataMulta = String($(cfg, "DataMulta")?.value || "").trim();
+        const codMulta = String($(cfg, "CodMulta")?.value || "").trim();
+        const descricao = String($(cfg, "Descricao")?.value || "").trim();
+        const valorMulta = parseVal($(cfg, "ValorMulta")?.value);
+        const quantidadeParcelas = clampParcelas($(cfg, "QtdParcelas")?.value);
+        const dataPrimeiraParcela = String($(cfg, "DataPrimeiraParcela")?.value || "").trim();
+        if (digits.length !== 11 || !nc) {
+          if (msg) msg.textContent = "Informe CPF e protocolo.";
+          return;
+        }
+        if (!parseBrDateLocal(dataMulta)) {
+          if (msg) msg.textContent = "Informe a data da multa (DD/MM/AAAA).";
+          return;
+        }
+        if (!codMulta) {
+          if (msg) msg.textContent = "Informe o código da multa.";
+          return;
+        }
+        if (!descricao) {
+          if (msg) msg.textContent = "Informe a descrição da multa.";
+          return;
+        }
+        if (valorMulta <= 0) {
+          if (msg) msg.textContent = "Informe o valor da multa.";
+          return;
+        }
+        if (!parseBrDateLocal(dataPrimeiraParcela)) {
+          if (msg) msg.textContent = "Informe a data da primeira parcela (DD/MM/AAAA).";
+          return;
+        }
+        const dataUltimaParcela = calcDataUltimaParcela(dataPrimeiraParcela, quantidadeParcelas);
+        const parcelas = buildCronogramaParcelas(dataPrimeiraParcela, quantidadeParcelas, valorMulta);
+        const entry = {
+          dataMulta,
+          codMulta,
+          descricao,
+          valorMulta,
+          quantidadeParcelas,
+          dataPrimeiraParcela,
+          dataUltimaParcela,
+          parcelas,
+        };
+        const texto = `Cadastrar multa ${codMulta} (${descricao}) no valor de ${fmtBrlNum(valorMulta)} em ${quantidadeParcelas} parcela(s) (protocolo ${nc})?`;
+        const go = () => {
+          const ok = persistMultaTransito(cfg, digits, nc, entry);
+          if (ok) {
+            if (msg) msg.textContent = "Multa registada.";
+            const loc = collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
+            if (loc) applyLocToForm(cfg, loc);
+          } else if (msg) msg.textContent = "Não foi possível guardar.";
+        };
+        if (typeof window.__DK_openPortalLancConfirmModal === "function") {
+          window.__DK_openPortalLancConfirmModal(texto, go);
+        } else if (window.confirm(texto)) go();
+      });
+
+      $(cfg, "LimparLancamentoBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        clearMultasLancamentoForm(cfg);
+      });
+    } else {
+      ["ValorEspecie", "ValorPix", "ValorCartao"].forEach((s) => {
+        $(cfg, s)?.addEventListener("input", () => syncValorPagoFromMeios(cfg));
+        $(cfg, s)?.addEventListener("blur", () => syncValorPagoFromMeios(cfg));
+      });
+    }
 
     $(cfg, "Cpf")?.addEventListener("blur", () => {
       const d = dig($(cfg, "Cpf")?.value).slice(0, 11);
@@ -465,7 +739,15 @@
       refreshDatalists(cfg);
     });
 
+    if (cfg.multasTransito) {
+      $(cfg, "VoltarBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (typeof window.__DK_hideOperacaoInlineForms === "function") window.__DK_hideOperacaoInlineForms();
+      });
+    }
+
     $(cfg, "ConfirmarPagamentoBtn")?.addEventListener("click", (e) => {
+      if (cfg.multasTransito) return;
       e.preventDefault();
       const msg = $(cfg, "InlineMsg");
       const admin =
@@ -513,18 +795,20 @@
       } else if (window.confirm(texto)) go();
     });
 
-    $(cfg, "LimparBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      ["ValorEspecie", "ValorPix", "ValorCartao", "ValorPago", "DataPagamento"].forEach((s) => {
-        const el = $(cfg, s);
-        if (el) el.value = "";
+    if (!cfg.multasTransito) {
+      $(cfg, "LimparBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        ["ValorEspecie", "ValorPix", "ValorCartao", "ValorPago", "DataPagamento"].forEach((s) => {
+          const el = $(cfg, s);
+          if (el) el.value = "";
+        });
       });
-    });
 
-    $(cfg, "VoltarBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      if (typeof window.__DK_hideOperacaoInlineForms === "function") window.__DK_hideOperacaoInlineForms();
-    });
+      $(cfg, "VoltarBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        if (typeof window.__DK_hideOperacaoInlineForms === "function") window.__DK_hideOperacaoInlineForms();
+      });
+    }
 
     $(cfg, "Historico")?.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-lanc-extra-del]");
@@ -537,14 +821,16 @@
       const li = locs.findIndex((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
       if (li < 0) return;
       const loc = locs[li];
-      const arr = loc[cfg.arrayField];
-      if (!Array.isArray(arr) || idx < 0 || idx >= arr.length) return;
-      if (!window.confirm("Apagar este pagamento?")) return;
+      const arr = cfg.multasTransito ? getMultasTransito(loc) : getLancamentos(loc, cfg.arrayField);
+      if (idx < 0 || idx >= arr.length) return;
+      const confirmTxt = cfg.multasTransito ? "Apagar esta multa de trânsito?" : "Apagar este pagamento?";
+      if (!window.confirm(confirmTxt)) return;
       arr.splice(idx, 1);
+      loc[cfg.arrayField] = arr.map((x) => ({ ...x }));
       if (persistLancamentos(cfg, locs, loc, digits, nc)) {
         applyLocToForm(cfg, loc);
         const msg = $(cfg, "InlineMsg");
-        if (msg) msg.textContent = "Pagamento removido.";
+        if (msg) msg.textContent = cfg.multasTransito ? "Multa removida." : "Pagamento removido.";
       }
     });
   }
