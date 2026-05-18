@@ -149,19 +149,6 @@ function dedupeLocacoesList(locs) {
     for (let i = 1; i < group.length; i++) drop.add(Number(group[i].id));
   });
 
-  const byNc = new Map();
-  list.filter((l) => !drop.has(Number(l.id))).forEach((loc) => {
-    const nc = ncNorm(loc.numeroContrato);
-    if (!nc) return;
-    if (!byNc.has(nc)) byNc.set(nc, []);
-    byNc.get(nc).push(loc);
-  });
-  byNc.forEach((group) => {
-    if (group.length <= 1) return;
-    group.sort((a, b) => scoreLocacao(b) - scoreLocacao(a));
-    for (let i = 1; i < group.length; i++) drop.add(Number(group[i].id));
-  });
-
   return list.filter((l) => !drop.has(Number(l.id)));
 }
 

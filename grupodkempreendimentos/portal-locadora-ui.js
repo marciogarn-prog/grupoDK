@@ -4461,16 +4461,26 @@ ${printable.innerHTML}
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     if (!hid) return;
     const inicioBr = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
-    if (!inicioBr) return;
+    const inicioDt =
+      inicioBr && typeof parseBrDate === "function" ? parseBrDate(inicioBr) : null;
+    const inicioOk = inicioDt && !Number.isNaN(inicioDt.getTime());
+    if (!inicioOk) {
+      if (sel && String(sel.value || "") === PORTAL_PROTO_NOVO) {
+        const optNovo = Array.from(sel.options).find((o) => o.value === PORTAL_PROTO_NOVO);
+        if (optNovo) optNovo.textContent = "NOVO — (informe data de início)";
+      }
+      return;
+    }
     const nc = normPortalNumeroContrato(hid.value);
     const aligned =
       typeof isProtocoloAlignedWithLocacaoInicio === "function"
         ? isProtocoloAlignedWithLocacaoInicio(nc, { inicio: inicioBr })
         : true;
     if (nc && aligned) return;
-    const novo = proximoProtocoloPortalAaaammddXX(getPortalProtocoloDateFromInicio());
+    if (sel && String(sel.value || "") !== PORTAL_PROTO_NOVO) return;
+    const novo = proximoProtocoloPortalAaaammddXX(inicioDt);
     hid.value = novo;
-    if (sel && String(sel.value || "") === PORTAL_PROTO_NOVO) {
+    if (sel) {
       const optNovo = Array.from(sel.options).find((o) => o.value === PORTAL_PROTO_NOVO);
       if (optNovo) optNovo.textContent = `NOVO — ${novo}`;
     }
@@ -4623,8 +4633,12 @@ ${printable.innerHTML}
     });
     const optNovo = document.createElement("option");
     optNovo.value = PORTAL_PROTO_NOVO;
-    const protoNovo = proximoProtocoloPortalAaaammddXX(getPortalProtocoloDateFromInicio());
-    optNovo.textContent = `NOVO — ${protoNovo}`;
+    const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    const inicioDt =
+      rawInicio && typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
+    const inicioOk = inicioDt && !Number.isNaN(inicioDt.getTime());
+    const protoNovo = inicioOk ? proximoProtocoloPortalAaaammddXX(inicioDt) : "";
+    optNovo.textContent = protoNovo ? `NOVO — ${protoNovo}` : "NOVO — (informe data de início)";
     sel.appendChild(optNovo);
     const pNorm = preserve ? norm(preserve) : "";
     if (pNorm && sorted.includes(pNorm)) {
@@ -4653,8 +4667,15 @@ ${printable.innerHTML}
         ? normalizeNumeroContratoKey(x || "")
         : String(x || "").trim();
     if (v === PORTAL_PROTO_NOVO) {
-      hid.value = proximoProtocoloPortalAaaammddXX(getPortalProtocoloDateFromInicio());
+      const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+      const inicioDt =
+        rawInicio && typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
+      hid.value =
+        inicioDt && !Number.isNaN(inicioDt.getTime())
+          ? proximoProtocoloPortalAaaammddXX(inicioDt)
+          : "";
       clearPortalLocacaoCamposParaNovoContrato();
+      syncOperacaoLocacaoProtocoloComDataInicio();
       return;
     }
     const digits =

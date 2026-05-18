@@ -95,11 +95,19 @@
   }
 
   function runLocacoesSanitizeAfterCloudApply() {
-    if (typeof window.__DK_sanitizeLocacoesCadastro !== "function") return;
-    try {
-      window.__DK_sanitizeLocacoesCadastro({ pushCloud: false });
-    } catch (e) {
-      console.warn("[DK cloud] sanitize locações", e);
+    if (typeof window.__DK_reconcileLocacoesCadastro === "function") {
+      try {
+        window.__DK_reconcileLocacoesCadastro();
+      } catch (e) {
+        console.warn("[DK cloud] reconcile locações", e);
+      }
+    }
+    if (typeof window.__DK_sanitizeLocacoesCadastro === "function") {
+      try {
+        window.__DK_sanitizeLocacoesCadastro({ pushCloud: false });
+      } catch (e) {
+        console.warn("[DK cloud] sanitize locações", e);
+      }
     }
   }
 

@@ -2191,10 +2191,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     };
     prev.forEach(add);
     incoming.forEach(add);
-    let merged = Array.from(byK.values());
-    merged = deduplicateLocacoesCadastro(merged).locs;
-    merged = repairProtocolosLocacaoDesalinhados(merged).locs;
-    return merged;
+    return deduplicateLocacoesCadastro(Array.from(byK.values())).locs;
   }
 
   return incoming;
@@ -5216,8 +5213,8 @@ function mergePortalLancamentosNoKeeper(keeper, dup, keeperNc) {
 }
 
 /**
- * Remove duplicatas (mesmo CPF+placa+início ou mesmo número de protocolo).
- * Mantém o registo canónico e remapeia lançamentos do descartado.
+ * Remove apenas cópias do mesmo vínculo (CPF + placa + data de início).
+ * Contratos com datas de início diferentes permanecem (ex.: 28/08/2025 e 16/01/2026).
  */
 function deduplicateLocacoesCadastro(locs) {
   const remap = new Map();
@@ -5236,7 +5233,7 @@ function deduplicateLocacoesCadastro(locs) {
     if (group.length <= 1) return;
     group.sort((a, b) => scoreLocacaoCanonica(b) - scoreLocacaoCanonica(a));
     let keeper = { ...group[0] };
-    let keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
+    const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
     for (let i = 1; i < group.length; i++) {
       const dup = group[i];
       dropIds.add(Number(dup.id));
@@ -5249,40 +5246,32 @@ function deduplicateLocacoesCadastro(locs) {
   });
 
   list = list.filter((l) => !dropIds.has(Number(l.id)));
-
-  const byNc = new Map();
-  list.forEach((loc) => {
-    const nc = String(normalizeNumeroContratoKey(loc.numeroContrato || "")).replace(/\s+/g, "");
-    if (!nc) return;
-    if (!byNc.has(nc)) byNc.set(nc, []);
-    byNc.get(nc).push(loc);
-  });
-
-  dropIds.clear();
-  byNc.forEach((group) => {
-    if (group.length <= 1) return;
-    group.sort((a, b) => scoreLocacaoCanonica(b) - scoreLocacaoCanonica(a));
-    let keeper = { ...group[0] };
-    const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
-    for (let i = 1; i < group.length; i++) {
-      const dup = group[i];
-      dropIds.add(Number(dup.id));
-      keeper = mergePortalLancamentosNoKeeper(keeper, dup, keeperNc);
-    }
-    const ki = list.findIndex((x) => Number(x.id) === Number(keeper.id));
-    if (ki >= 0) list[ki] = keeper;
-  });
-
-  list = list.filter((l) => !dropIds.has(Number(l.id)));
   return { locs: list, remap };
 }
 
+/**
+ * Fantasma = protocolo desalinhado com a data de início, mas já existe contrato correto
+ * para o mesmo CPF+placa+início → apaga o fantasma (ex. 2026082801 duplicando 2026011601).
+ * Caso contrário, renomeia para AAAAMMDDXX livre (sem colidir com outro contrato).
+ */
 function repairProtocolosLocacaoDesalinhados(locs) {
+  const list = locs.map((l) => ({ ...l }));
+  const remap = new Map();
+  const dropIds = new Set();
+
+  const alignedByNatural = new Map();
+  list.forEach((l) => {
+    const nk = locacaoContratoNaturalKey(l);
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nk || !nc || !isProtocoloAlignedWithLocacaoInicio(nc, l)) return;
+    const cur = alignedByNatural.get(nk);
+    if (!cur || scoreLocacaoCanonica(l) > scoreLocacaoCanonica(cur)) alignedByNatural.set(nk, l);
+  });
+
   const used = new Set();
   const maxSeqByPrefix = new Map();
-  const remap = new Map();
-
-  locs.forEach((l) => {
+  list.forEach((l) => {
+    if (dropIds.has(Number(l.id))) return;
     const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
     if (!nc || !isProtocoloAlignedWithLocacaoInicio(nc, l)) return;
     used.add(nc);
@@ -5292,29 +5281,112 @@ function repairProtocolosLocacaoDesalinhados(locs) {
     }
   });
 
-  const updated = locs.map((l) => {
+  list.forEach((l, idx) => {
     const oldNc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
-    if (!oldNc || isProtocoloAlignedWithLocacaoInicio(oldNc, l)) return l;
+    if (!oldNc || isProtocoloAlignedWithLocacaoInicio(oldNc, l)) return;
+
+    const nk = locacaoContratoNaturalKey(l);
+    const keeper = nk ? alignedByNatural.get(nk) : null;
+    if (keeper && Number(keeper.id) !== Number(l.id)) {
+      const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
+      dropIds.add(Number(l.id));
+      if (oldNc !== keeperNc) remap.set(oldNc, keeperNc);
+      const ki = list.findIndex((x) => Number(x.id) === Number(keeper.id));
+      if (ki >= 0) list[ki] = mergePortalLancamentosNoKeeper(list[ki], l, keeperNc);
+      return;
+    }
+
     const prefix = protocoloPrefixFromLocacaoInicio(l);
-    if (!prefix) return l;
-    const newNc = allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix);
-    if (newNc === oldNc) return l;
+    if (!prefix) return;
+
+    let newNc = allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix);
+    while (list.some((x) => {
+      if (Number(x.id) === Number(l.id) || dropIds.has(Number(x.id))) return false;
+      return (
+        String(normalizeNumeroContratoKey(x.numeroContrato || "")).replace(/\s+/g, "") === newNc
+      );
+    })) {
+      let seq = Number(maxSeqByPrefix.get(prefix) || 0) + 1;
+      const pad = seq <= 99 ? 2 : seq <= 999 ? 3 : String(seq).length;
+      newNc = `${prefix}${String(seq).padStart(pad, "0")}`;
+      used.add(newNc);
+      maxSeqByPrefix.set(prefix, seq);
+    }
+
+    if (newNc === oldNc) return;
     remap.set(oldNc, newNc);
     let next = { ...l, numeroContrato: newNc };
     if (Array.isArray(next.portalLancamentosAluguel)) {
       next = {
         ...next,
-        portalLancamentosAluguel: next.portalLancamentosAluguel.map((p) => {
-          const pNc = String(normalizeNumeroContratoKey(p.numeroContrato || "")).replace(/\s+/g, "");
-          const neu = remap.get(pNc) || newNc;
-          return neu ? { ...p, numeroContrato: neu } : p;
-        }),
+        portalLancamentosAluguel: next.portalLancamentosAluguel.map((p) => ({
+          ...p,
+          numeroContrato: newNc,
+        })),
       };
     }
-    return next;
+    list[idx] = next;
   });
 
-  return { locs: updated, remap };
+  return { locs: list.filter((l) => !dropIds.has(Number(l.id))), remap };
+}
+
+/** Repõe locações oficiais do bundle RECEITA 2026 que faltem (por número de protocolo). */
+function reconcileLocacoesWithReceita2026Bundle() {
+  const rows =
+    typeof LOCACOES_RECEITA_2026_IMPORT !== "undefined" && Array.isArray(LOCACOES_RECEITA_2026_IMPORT)
+      ? LOCACOES_RECEITA_2026_IMPORT
+      : [];
+  if (!rows.length) return { added: 0 };
+
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  const byNc = new Map();
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (nc) byNc.set(nc, l);
+  });
+
+  let added = 0;
+  const baseNow = Date.now();
+  rows.forEach((item, idx) => {
+    const nc = String(normalizeNumeroContratoKey(item.numeroContrato || "")).replace(/\s+/g, "");
+    const cpf = onlyDigits(String(item.cpf || ""));
+    const placa = normalizePlate(String(item.placa || ""));
+    if (cpf.length !== 11 || !placa || !nc) return;
+    if (byNc.has(nc)) return;
+    const id = baseNow + idx + added;
+    byNc.set(nc, {
+      id,
+      createdAt: id,
+      cpf,
+      placa,
+      inicio: String(item.inicio || "").trim(),
+      fim: String(item.fim || "").trim(),
+      plano: String(item.plano || "").trim(),
+      valorLocacao: String(item.valorLocacao || "").trim(),
+      valorInvestimento: String(item.valorInvestimento || "").trim(),
+      valorSemanal: String(item.valorSemanal || "").trim(),
+      valorParcela: String(item.valorParcela || "").trim(),
+      numeroContrato: nc,
+      statusLocacao: String(item.statusLocacao || "ATIVO").trim(),
+      diaPagto: String(item.diaPagto || "").trim(),
+      periodoLocacao: String(item.periodoLocacao || "").trim(),
+      modalidade: String(item.modalidade || "").trim(),
+      marcaModelo: String(item.marcaModelo || "").trim(),
+      opcaoContrato: String(item.opcaoContrato || "").trim(),
+      periodoContrato: String(item.periodoContrato || "").trim(),
+      kmInicial: String(item.kmInicial || "").trim(),
+      configPrecoKm: String(item.configPrecoKm || "").trim(),
+      tabela: String(item.tabela || "").trim(),
+      clienteCodigo: String(item.clienteCodigo || "").trim(),
+    });
+    added += 1;
+  });
+
+  if (added > 0) {
+    saveCadastro(CAD_LOCACOES_KEY, Array.from(byNc.values()), { bypassImmutabilidadeCadastro: true });
+  }
+  return { added };
 }
 
 function findLocacaoPorChaveNatural(cpf, placa, inicio, excludeLocacaoId) {
@@ -5400,13 +5472,23 @@ function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
   };
 }
 
-/** Sempre que houver problemas; a nuvem não pode reintroduzir duplicatas sem novo sanitize. */
+/** Repõe bundle oficial, remove fantasmas e alinha protocolos — sem sobrescrever a nuvem automaticamente. */
 function repairProtocolosLocacaoPorDataInicioOnce() {
-  sanitizeLocacoesProtocolosAndDedupe({ pushCloud: true });
+  const restored = reconcileLocacoesWithReceita2026Bundle();
+  const san = sanitizeLocacoesProtocolosAndDedupe({ pushCloud: false });
+  if (restored.added || san.changed) {
+    console.info(
+      `[DK] Locações: ${restored.added} reposta(s) do bundle RECEITA 2026; ${san.removed} fantasma(s) removido(s); ${san.remapped} protocolo(s) remapeado(s).`
+    );
+  }
 }
 
 try {
   window.__DK_sanitizeLocacoesCadastro = (opts) => sanitizeLocacoesProtocolosAndDedupe(opts);
+  window.__DK_reconcileLocacoesCadastro = () => {
+    const restored = reconcileLocacoesWithReceita2026Bundle();
+    return restored;
+  };
 } catch {
   /* ignore */
 }
