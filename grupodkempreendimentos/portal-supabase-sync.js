@@ -95,6 +95,13 @@
   }
 
   function runLocacoesSanitizeAfterCloudApply() {
+    if (typeof window.__DK_forceLocacoesFromExcelReceita2026 === "function") {
+      try {
+        window.__DK_forceLocacoesFromExcelReceita2026();
+      } catch (e) {
+        console.warn("[DK cloud] force Excel locações", e);
+      }
+    }
     if (typeof window.__DK_reconcileLocacoesCadastro === "function") {
       try {
         window.__DK_reconcileLocacoesCadastro();

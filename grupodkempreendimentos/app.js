@@ -2191,7 +2191,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     };
     prev.forEach(add);
     incoming.forEach(add);
-    return deduplicateLocacoesCadastro(Array.from(byK.values())).locs;
+    return Array.from(byK.values());
   }
 
   return incoming;
@@ -5331,13 +5331,138 @@ function repairProtocolosLocacaoDesalinhados(locs) {
   return { locs: list.filter((l) => !dropIds.has(Number(l.id))), remap };
 }
 
-/** Repõe locações oficiais do bundle RECEITA 2026 que faltem (por número de protocolo). */
-function reconcileLocacoesWithReceita2026Bundle() {
+/** Converte `LOCACOES_RECEITA_2026_IMPORT` (planilha RECEITA 2026) em registos de locação. */
+function buildLocacoesArrayFromReceita2026Import() {
   const rows =
     typeof LOCACOES_RECEITA_2026_IMPORT !== "undefined" && Array.isArray(LOCACOES_RECEITA_2026_IMPORT)
       ? LOCACOES_RECEITA_2026_IMPORT
       : [];
-  if (!rows.length) return { added: 0 };
+  if (!rows.length) return [];
+  const baseNow = Date.now();
+  return rows
+    .map((item, idx) => {
+      const cpf = onlyDigits(String(item.cpf || ""));
+      const placa = normalizePlate(String(item.placa || ""));
+      const nc = String(normalizeNumeroContratoKey(item.numeroContrato || "")).replace(/\s+/g, "");
+      if (cpf.length !== 11 || !placa || !nc) return null;
+      return {
+        id: baseNow + idx,
+        createdAt: baseNow + idx,
+        cpf,
+        placa,
+        inicio: String(item.inicio || "").trim(),
+        fim: String(item.fim || "").trim(),
+        plano: String(item.plano || "").trim(),
+        valorLocacao: String(item.valorLocacao || "").trim(),
+        valorInvestimento: String(item.valorInvestimento || "").trim(),
+        valorSemanal: String(item.valorSemanal || "").trim(),
+        valorParcela: String(item.valorParcela || "").trim(),
+        numeroContrato: nc,
+        statusLocacao: String(item.statusLocacao || "ATIVO").trim(),
+        diaPagto: String(item.diaPagto || "").trim(),
+        periodoLocacao: String(item.periodoLocacao || "").trim(),
+        modalidade: String(item.modalidade || "").trim(),
+        marcaModelo: String(item.marcaModelo || "").trim(),
+        opcaoContrato: String(item.opcaoContrato || "").trim(),
+        periodoContrato: String(item.periodoContrato || "").trim(),
+        kmInicial: String(item.kmInicial || "").trim(),
+        configPrecoKm: String(item.configPrecoKm || "").trim(),
+        tabela: String(item.tabela || "").trim(),
+        clienteCodigo: String(item.clienteCodigo || "").trim(),
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * Base oficial RECEITA 2026 (378 protocolos do Excel) + lançamentos locais + contratos novos.
+ * Descarta fantasmas (mesmo CPF+placa+início com protocolo fora da planilha).
+ */
+function enforceReceita2026OfficialLocacoesBase() {
+  const official = buildLocacoesArrayFromReceita2026Import();
+  if (!official.length) return { changed: false, count: 0 };
+
+  const existing = loadCadastro(CAD_LOCACOES_KEY);
+  const ncNorm = (v) =>
+    String(normalizeNumeroContratoKey(v || ""))
+      .trim()
+      .replace(/\s+/g, "");
+
+  const resultByNc = new Map();
+  const officialNaturalToNc = new Map();
+
+  official.forEach((o) => {
+    const nc = ncNorm(o.numeroContrato);
+    if (!nc) return;
+    resultByNc.set(nc, { ...o });
+    const nk = locacaoContratoNaturalKey(o);
+    if (nk) officialNaturalToNc.set(nk, nc);
+  });
+
+  const mergeExistingIntoOfficial = (target, loc) => {
+    const mergedPl = mergePortalLancamentosAluguelEmbutidos([
+      target.portalLancamentosAluguel,
+      loc.portalLancamentosAluguel,
+    ]);
+    const merged = { ...target, ...loc };
+    Object.assign(merged, mergeLocacaoCamposSincronizacaoPortal(target, loc));
+    merged.numeroContrato = target.numeroContrato;
+    merged.cpf = target.cpf;
+    merged.placa = target.placa;
+    merged.inicio = target.inicio;
+    merged.fim = target.fim;
+    if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+    return merged;
+  };
+
+  existing.forEach((loc) => {
+    const nc = ncNorm(loc.numeroContrato);
+    const nk = locacaoContratoNaturalKey(loc);
+    if (nc && resultByNc.has(nc)) {
+      resultByNc.set(nc, mergeExistingIntoOfficial(resultByNc.get(nc), loc));
+      return;
+    }
+    if (nk && officialNaturalToNc.has(nk)) {
+      const offNc = officialNaturalToNc.get(nk);
+      const target = resultByNc.get(offNc);
+      if (target) resultByNc.set(offNc, mergeExistingIntoOfficial(target, loc));
+      return;
+    }
+    if (nc && !resultByNc.has(nc)) {
+      resultByNc.set(nc, { ...loc });
+    }
+  });
+
+  const next = Array.from(resultByNc.values());
+  const changed =
+    next.length !== existing.length ||
+    JSON.stringify(next) !== JSON.stringify(existing);
+  if (changed) {
+    saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
+  }
+  return { changed, count: next.length };
+}
+
+/**
+ * Uma vez por navegador: substitui `dk_locacoes_cadastro` pelos 378 registos da planilha RECEITA 2026
+ * (fonte: DK-FINANCEIRO 2026 — aba RECEITA 2026). Garante fidelidade ao Excel oficial.
+ */
+function forceReplaceLocacoesFromExcelReceita2026Once() {
+  const FORCE_KEY = "dk_force_locacoes_excel_receita2026_v8";
+  if (localStorage.getItem(FORCE_KEY) === "done") return { replaced: false, count: 0 };
+
+  const mapped = buildLocacoesArrayFromReceita2026Import();
+  if (!mapped.length) return { replaced: false, count: 0 };
+
+  saveCadastro(CAD_LOCACOES_KEY, mapped, { bypassImmutabilidadeCadastro: true });
+  localStorage.setItem(FORCE_KEY, "done");
+  return { replaced: true, count: mapped.length };
+}
+
+/** Repõe locações oficiais do bundle RECEITA 2026 que faltem (por número de protocolo). */
+function reconcileLocacoesWithReceita2026Bundle() {
+  const bundle = buildLocacoesArrayFromReceita2026Import();
+  if (!bundle.length) return { added: 0 };
 
   const locs = loadCadastro(CAD_LOCACOES_KEY);
   const byNc = new Map();
@@ -5347,39 +5472,10 @@ function reconcileLocacoesWithReceita2026Bundle() {
   });
 
   let added = 0;
-  const baseNow = Date.now();
-  rows.forEach((item, idx) => {
-    const nc = String(normalizeNumeroContratoKey(item.numeroContrato || "")).replace(/\s+/g, "");
-    const cpf = onlyDigits(String(item.cpf || ""));
-    const placa = normalizePlate(String(item.placa || ""));
-    if (cpf.length !== 11 || !placa || !nc) return;
-    if (byNc.has(nc)) return;
-    const id = baseNow + idx + added;
-    byNc.set(nc, {
-      id,
-      createdAt: id,
-      cpf,
-      placa,
-      inicio: String(item.inicio || "").trim(),
-      fim: String(item.fim || "").trim(),
-      plano: String(item.plano || "").trim(),
-      valorLocacao: String(item.valorLocacao || "").trim(),
-      valorInvestimento: String(item.valorInvestimento || "").trim(),
-      valorSemanal: String(item.valorSemanal || "").trim(),
-      valorParcela: String(item.valorParcela || "").trim(),
-      numeroContrato: nc,
-      statusLocacao: String(item.statusLocacao || "ATIVO").trim(),
-      diaPagto: String(item.diaPagto || "").trim(),
-      periodoLocacao: String(item.periodoLocacao || "").trim(),
-      modalidade: String(item.modalidade || "").trim(),
-      marcaModelo: String(item.marcaModelo || "").trim(),
-      opcaoContrato: String(item.opcaoContrato || "").trim(),
-      periodoContrato: String(item.periodoContrato || "").trim(),
-      kmInicial: String(item.kmInicial || "").trim(),
-      configPrecoKm: String(item.configPrecoKm || "").trim(),
-      tabela: String(item.tabela || "").trim(),
-      clienteCodigo: String(item.clienteCodigo || "").trim(),
-    });
+  bundle.forEach((item) => {
+    const nc = String(item.numeroContrato || "").replace(/\s+/g, "");
+    if (!nc || byNc.has(nc)) return;
+    byNc.set(nc, item);
     added += 1;
   });
 
@@ -5400,7 +5496,7 @@ function findLocacaoPorChaveNatural(cpf, placa, inicio, excludeLocacaoId) {
   );
 }
 
-/** Conta duplicatas e protocolos desalinhados (AAAAMMDD ≠ data de início). */
+/** Conta apenas duplicatas (protocolo repetido ou mesmo CPF+placa+início). */
 function countLocacoesSanitizeProblems(locs) {
   if (!Array.isArray(locs) || !locs.length) return 0;
   let problems = 0;
@@ -5411,7 +5507,6 @@ function countLocacoesSanitizeProblems(locs) {
     if (nc) {
       if (seenNc.has(nc)) problems += 1;
       else seenNc.add(nc);
-      if (!isProtocoloAlignedWithLocacaoInicio(nc, l)) problems += 1;
     }
     const nk = locacaoContratoNaturalKey(l);
     if (nk) {
@@ -5422,12 +5517,8 @@ function countLocacoesSanitizeProblems(locs) {
   return problems;
 }
 
-/**
- * Remove duplicatas, alinha protocolos à data de início e grava (substitui a lista, sem merge).
- * @returns {{ changed: boolean, removed: number, remapped: number, problemsAfter: number }}
- */
+/** Remove só cópias do mesmo vínculo (não altera números de protocolo da planilha). */
 function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
-  const pushCloud = opts.pushCloud !== false;
   let locs = loadCadastro(CAD_LOCACOES_KEY);
   if (!locs.length) {
     return { changed: false, removed: 0, remapped: 0, problemsAfter: 0 };
@@ -5439,56 +5530,50 @@ function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
   }
 
   const before = locs.length;
-  const combinedRemap = new Map();
-
   const deduped = deduplicateLocacoesCadastro(locs);
   locs = deduped.locs;
-  deduped.remap.forEach((v, k) => combinedRemap.set(k, v));
-
-  const repaired = repairProtocolosLocacaoDesalinhados(locs);
-  locs = repaired.locs;
-  repaired.remap.forEach((v, k) => combinedRemap.set(k, v));
-
   const removed = before - locs.length;
   const problemsAfter = countLocacoesSanitizeProblems(locs);
-  const changed = Boolean(combinedRemap.size || removed > 0 || problemsBefore !== problemsAfter);
+  const changed = Boolean(deduped.remap.size || removed > 0);
 
   if (changed) {
-    remapReferenciasNumeroContrato(combinedRemap);
+    remapReferenciasNumeroContrato(deduped.remap);
     saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
     console.info(
-      `[DK] Locações sanitizadas: ${removed} duplicata(s) removida(s), ${combinedRemap.size} protocolo(s) remapeado(s), problemas restantes: ${problemsAfter}.`
+      `[DK] Locações: ${removed} duplicata(s) removida(s); ${deduped.remap.size} lançamento(s) remapeado(s).`
     );
-    if (pushCloud && typeof window.__DK_pushCloudSnapshotNow === "function") {
-      window.__DK_pushCloudSnapshotNow().catch((e) => console.warn("[DK] push nuvem pós-sanitize", e));
-    }
   }
 
   return {
     changed,
     removed,
-    remapped: combinedRemap.size,
+    remapped: deduped.remap.size,
     problemsAfter,
   };
 }
 
-/** Repõe bundle oficial, remove fantasmas e alinha protocolos — sem sobrescrever a nuvem automaticamente. */
+/** Sincroniza com a planilha RECEITA 2026 (Excel oficial) — sem renumerar protocolos. */
 function repairProtocolosLocacaoPorDataInicioOnce() {
-  const restored = reconcileLocacoesWithReceita2026Bundle();
+  const forced = forceReplaceLocacoesFromExcelReceita2026Once();
+  const enforced = enforceReceita2026OfficialLocacoesBase();
+  if (forced.replaced) {
+    console.info(`[DK] Base de locações = planilha RECEITA 2026 (${forced.count} registos).`);
+    return;
+  }
+  if (enforced.changed) {
+    console.info(`[DK] Locações alinhadas ao Excel RECEITA 2026 (${enforced.count} registos).`);
+  }
   const san = sanitizeLocacoesProtocolosAndDedupe({ pushCloud: false });
-  if (restored.added || san.changed) {
-    console.info(
-      `[DK] Locações: ${restored.added} reposta(s) do bundle RECEITA 2026; ${san.removed} fantasma(s) removido(s); ${san.remapped} protocolo(s) remapeado(s).`
-    );
+  if (san.changed) {
+    console.info(`[DK] Locações: ${san.removed} duplicata(s) removida(s).`);
   }
 }
 
 try {
   window.__DK_sanitizeLocacoesCadastro = (opts) => sanitizeLocacoesProtocolosAndDedupe(opts);
-  window.__DK_reconcileLocacoesCadastro = () => {
-    const restored = reconcileLocacoesWithReceita2026Bundle();
-    return restored;
-  };
+  window.__DK_reconcileLocacoesCadastro = () => reconcileLocacoesWithReceita2026Bundle();
+  window.__DK_forceLocacoesFromExcelReceita2026 = () => enforceReceita2026OfficialLocacoesBase();
+  window.__DK_enforceReceita2026LocacoesBase = () => enforceReceita2026OfficialLocacoesBase();
 } catch {
   /* ignore */
 }
@@ -8564,41 +8649,7 @@ function bootstrapLocacoesReceita2026Bundled() {
   const existing = loadCadastro(CAD_LOCACOES_KEY);
   if (existing.length > 0) return;
 
-  const baseNow = Date.now();
-  const mapped = rows
-    .map((item, idx) => {
-      const cpf = onlyDigits(String(item.cpf || ""));
-      const placa = normalizePlate(String(item.placa || ""));
-      const nc = normalizeNumeroContratoKey(String(item.numeroContrato || ""));
-      if (cpf.length !== 11 || !placa || !nc) return null;
-      return {
-        id: baseNow + idx,
-        createdAt: baseNow + idx,
-        cpf,
-        placa,
-        inicio: String(item.inicio || "").trim(),
-        fim: String(item.fim || "").trim(),
-        plano: String(item.plano || "").trim(),
-        valorLocacao: String(item.valorLocacao || "").trim(),
-        valorInvestimento: String(item.valorInvestimento || "").trim(),
-        valorSemanal: String(item.valorSemanal || "").trim(),
-        valorParcela: String(item.valorParcela || "").trim(),
-        numeroContrato: nc,
-        statusLocacao: String(item.statusLocacao || "ATIVO").trim(),
-        diaPagto: String(item.diaPagto || "").trim(),
-        periodoLocacao: String(item.periodoLocacao || "").trim(),
-        modalidade: String(item.modalidade || "").trim(),
-        marcaModelo: String(item.marcaModelo || "").trim(),
-        opcaoContrato: String(item.opcaoContrato || "").trim(),
-        periodoContrato: String(item.periodoContrato || "").trim(),
-        kmInicial: String(item.kmInicial || "").trim(),
-        configPrecoKm: String(item.configPrecoKm || "").trim(),
-        tabela: String(item.tabela || "").trim(),
-        clienteCodigo: String(item.clienteCodigo || "").trim(),
-      };
-    })
-    .filter(Boolean);
-
+  const mapped = buildLocacoesArrayFromReceita2026Import();
   if (!mapped.length) return;
   saveCadastro(CAD_LOCACOES_KEY, mapped);
   localStorage.setItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY, "done");
