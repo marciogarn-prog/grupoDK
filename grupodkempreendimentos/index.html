@@ -726,14 +726,16 @@
                   <span>VALOR DEVIDO DE MULTAS</span>
                   <input type="text" id="operacaoLancAluguelValorDevidoMultas" name="valorDevidoMultas" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DE MULTAS">
                 </label>
-                <label class="portal-field">
-                  <span>TOTAL PAGO (protocolo)</span>
-                  <input type="text" id="operacaoLancAluguelTotalPagoContrato" name="totalPagoContrato" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="TOTAL PAGO no protocolo">
-                </label>
-                <label class="portal-field">
-                  <span>INVESTIMENTO ACUMULADO</span>
-                  <input type="text" id="operacaoLancAluguelInvestimentoAcumulado" name="investimentoAcumulado" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="INVESTIMENTO ACUMULADO">
-                </label>
+                <div class="portal-lanc-aluguel-totais-stack">
+                  <label class="portal-field">
+                    <span>TOTAL PAGO (protocolo)</span>
+                    <input type="text" id="operacaoLancAluguelTotalPagoContrato" name="totalPagoContrato" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="TOTAL PAGO no protocolo">
+                  </label>
+                  <label class="portal-field">
+                    <span>INVESTIMENTO ACUMULADO</span>
+                    <input type="text" id="operacaoLancAluguelInvestimentoAcumulado" name="investimentoAcumulado" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="INVESTIMENTO ACUMULADO">
+                  </label>
+                </div>
               </div>
             </section>
             <section id="operacaoLancAluguelContratoPanel" class="portal-lanc-aluguel-contrato hidden" aria-labelledby="portal-lanc-aluguel-contrato-title" hidden>

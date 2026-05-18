@@ -1011,6 +1011,19 @@ body {
   display: none;
 }
 
+.portal-lanc-aluguel-totais-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .portal-lanc-aluguel-referencia .operacao-inline-form__grid > .portal-lanc-aluguel-totais-stack {
+    grid-column: 3;
+  }
+}
+
 .link-like {
   background: none;
   border: none;
