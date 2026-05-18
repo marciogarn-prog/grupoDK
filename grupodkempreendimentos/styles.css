@@ -904,6 +904,26 @@ body {
   outline: none;
 }
 
+.portal-lanc-pesquisa-linha--azul {
+  color: #5eb8ff;
+}
+
+.portal-lanc-pesquisa-linha--verde {
+  color: #6ee7a0;
+}
+
+.portal-lanc-pesquisa-linha--amarelo {
+  color: #f5d76e;
+}
+
+.portal-lanc-pesquisa-linha--vermelho {
+  color: #ff6b6b;
+}
+
+.portal-lanc-pesquisa-linha--branco {
+  color: #ffffff;
+}
+
 @media (min-width: 520px) {
   .operacao-inline-form__grid {
     grid-template-columns: 1fr 1fr;

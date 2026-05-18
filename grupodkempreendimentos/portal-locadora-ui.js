@@ -5716,6 +5716,33 @@ ${printable.innerHTML}
     return "";
   }
 
+  /** Cor da linha na pesquisa de lançamento (moto/carro, ativo/inativo, plano, investimento). */
+  function getPortalLancPesquisaLinhaCorClasse(loc) {
+    if (!loc) return "portal-lanc-pesquisa-linha--branco";
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const ativo = isPortalLocacaoAtiva(loc);
+    const tipo = portalInferTipoVeiculoLocacao(loc);
+    const isCarro = tipo === "CARRO";
+    const isMoto = tipo === "MOTO";
+    const resumo = computePortalProtocoloResumoFromLoc(loc);
+    const planoKey = nk(resumo.tipoPlano || "");
+
+    if (!ativo && (isMoto || isCarro) && resumo.investimentoAcumuladoNeg) {
+      return "portal-lanc-pesquisa-linha--vermelho";
+    }
+    if (ativo && isMoto) {
+      if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) {
+        return "portal-lanc-pesquisa-linha--azul";
+      }
+      if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) {
+        return "portal-lanc-pesquisa-linha--verde";
+      }
+    }
+    if (ativo && isCarro) return "portal-lanc-pesquisa-linha--amarelo";
+    return "portal-lanc-pesquisa-linha--branco";
+  }
+
   function collectOperacaoLancAluguelPesquisaLinhas() {
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
     const dig =
@@ -5737,6 +5764,7 @@ ${printable.innerHTML}
         nome: nome || "(sem nome)",
         proto,
         placa: np(String(l.placa || "")),
+        corClasse: getPortalLancPesquisaLinhaCorClasse(l),
       });
     });
     return linhas;
@@ -5773,7 +5801,8 @@ ${printable.innerHTML}
     panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === linhas.length ? slice.length : `${slice.length} de ${linhas.length}`} contrato(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
       .map((row) => {
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
-        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl}</button></li>`;
+        const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl}</button></li>`;
       })
       .join("")}</ul>`;
   }
