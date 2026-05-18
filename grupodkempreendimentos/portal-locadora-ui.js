@@ -5997,8 +5997,6 @@ ${printable.innerHTML}
       "operacaoLancAluguelInvestimentoAcumulado",
       "operacaoLancAluguelValorAluguel",
       "operacaoLancAluguelValorInvestimento",
-      "operacaoLancAluguelGastosManutencao",
-      "operacaoLancAluguelGastosMulta",
       "operacaoLancAluguelValorPago",
       "operacaoLancAluguelDataPagamento",
       "operacaoLancAluguelValorEspecie",
@@ -6061,10 +6059,6 @@ ${printable.innerHTML}
     assign("operacaoLancAluguelValorDevidoMultas", resumo.valorDevidoMultas);
     assign("operacaoLancAluguelTotalPagoContrato", resumo.totalPago);
     assign("operacaoLancAluguelInvestimentoAcumulado", resumo.investimentoAcumulado);
-    const gastosMan = loc.gastosManutencao ?? loc.gastoManutencao ?? loc.custoManutencao ?? "0";
-    const gastosMulta = loc.gastosMulta ?? loc.gastoMulta ?? loc.custoMulta ?? "0";
-    assign("operacaoLancAluguelGastosManutencao", fmtValor(gastosMan) || "0,00");
-    assign("operacaoLancAluguelGastosMulta", fmtValor(gastosMulta) || "0,00");
     const invEl = document.getElementById("operacaoLancAluguelInvestimentoAcumulado");
     if (invEl) {
       invEl.classList.remove("portal-investimento-acumulado--negativo", "portal-investimento-acumulado--positivo");
