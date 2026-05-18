@@ -4970,6 +4970,21 @@ ${printable.innerHTML}
     const ncKey =
       typeof normalizeNumeroContratoKey === "function" ? normalizeNumeroContratoKey(nc) : nc;
     const excludeId = prev?.id != null ? prev.id : null;
+    if (
+      typeof findLocacaoPorChaveNatural === "function" &&
+      !prev &&
+      findLocacaoPorChaveNatural(cpfDigits, plate, inicioBr, null)
+    ) {
+      const dup = findLocacaoPorChaveNatural(cpfDigits, plate, inicioBr, null);
+      const dupNc =
+        typeof normalizeNumeroContratoKey === "function"
+          ? normalizeNumeroContratoKey(dup.numeroContrato || "")
+          : String(dup.numeroContrato || "");
+      if (msg) {
+        msg.textContent = `Já existe locação para este CPF, placa e início (protocolo ${dupNc}). Remova a duplicata ou use o protocolo existente.`;
+      }
+      return;
+    }
     if (typeof contratoNumeroJaExisteNaBase === "function" && contratoNumeroJaExisteNaBase(ncKey, excludeId)) {
       if (msg) msg.textContent = "Este número de protocolo já está cadastrado.";
       return;

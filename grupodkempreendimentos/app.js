@@ -5173,27 +5173,108 @@ function remapReferenciasNumeroContrato(remap) {
   const lancsNext = lancs.map((l) => {
     const old = normNc(l.numeroContrato);
     const neu = remap.get(old);
-    if (!neu) return l;
+    if (!neu || neu === old) return l;
     lancChanged = true;
     return { ...l, numeroContrato: neu };
   });
   if (lancChanged) saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, lancsNext);
 }
 
+/** Chave natural do contrato: mesmo CPF + placa + data de início = mesmo vínculo. */
+function locacaoContratoNaturalKey(loc) {
+  const cpf = onlyDigits(String(loc?.cpf || ""));
+  const placa = normalizePlate(String(loc?.placa || ""));
+  const inicio = String(loc?.inicio || "").trim();
+  if (cpf.length !== 11 || !placa) return "";
+  return `${cpf}|${placa}|${inicio}`;
+}
+
+function scoreLocacaoCanonica(loc) {
+  const nc = String(normalizeNumeroContratoKey(loc?.numeroContrato || "")).replace(/\s+/g, "");
+  let score = 0;
+  if (isProtocoloAlignedWithLocacaoInicio(nc, loc)) score += 100000;
+  if (Array.isArray(loc.portalLancamentosAluguel)) score += loc.portalLancamentosAluguel.length * 1000;
+  score += Math.min(Number(loc.createdAt || loc.id || 0), 1e15) / 1e10;
+  return score;
+}
+
+function mergePortalLancamentosNoKeeper(keeper, dup, keeperNc) {
+  const base = Array.isArray(keeper.portalLancamentosAluguel) ? keeper.portalLancamentosAluguel : [];
+  const extra = Array.isArray(dup.portalLancamentosAluguel) ? dup.portalLancamentosAluguel : [];
+  if (!extra.length) return keeper;
+  const merged = [
+    ...base,
+    ...extra.map((p) => ({
+      ...p,
+      numeroContrato: keeperNc,
+    })),
+  ];
+  return { ...keeper, portalLancamentosAluguel: merged };
+}
+
 /**
- * Corrige protocolos cujo prefixo AAAAMMDD não coincide com a data de início (DD/MM/AAAA).
- * Atualiza lançamentos de aluguel vinculados. Executa uma vez por navegador.
+ * Remove duplicatas (mesmo CPF+placa+início ou mesmo número de protocolo).
+ * Mantém o registo canónico e remapeia lançamentos do descartado.
  */
-function repairProtocolosLocacaoPorDataInicioOnce() {
-  const REPAIR_KEY = "dk_repair_protocolo_inicio_v2";
-  if (localStorage.getItem(REPAIR_KEY) === "done") return;
+function deduplicateLocacoesCadastro(locs) {
+  const remap = new Map();
+  let list = locs.map((l) => ({ ...l }));
 
-  const locs = loadCadastro(CAD_LOCACOES_KEY);
-  if (!locs.length) {
-    localStorage.setItem(REPAIR_KEY, "done");
-    return;
-  }
+  const byNatural = new Map();
+  list.forEach((loc) => {
+    const key = locacaoContratoNaturalKey(loc);
+    if (!key) return;
+    if (!byNatural.has(key)) byNatural.set(key, []);
+    byNatural.get(key).push(loc);
+  });
 
+  const dropIds = new Set();
+  byNatural.forEach((group) => {
+    if (group.length <= 1) return;
+    group.sort((a, b) => scoreLocacaoCanonica(b) - scoreLocacaoCanonica(a));
+    let keeper = { ...group[0] };
+    let keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
+    for (let i = 1; i < group.length; i++) {
+      const dup = group[i];
+      dropIds.add(Number(dup.id));
+      const dupNc = String(normalizeNumeroContratoKey(dup.numeroContrato || "")).replace(/\s+/g, "");
+      if (dupNc && keeperNc && dupNc !== keeperNc) remap.set(dupNc, keeperNc);
+      keeper = mergePortalLancamentosNoKeeper(keeper, dup, keeperNc);
+    }
+    const ki = list.findIndex((x) => Number(x.id) === Number(keeper.id));
+    if (ki >= 0) list[ki] = keeper;
+  });
+
+  list = list.filter((l) => !dropIds.has(Number(l.id)));
+
+  const byNc = new Map();
+  list.forEach((loc) => {
+    const nc = String(normalizeNumeroContratoKey(loc.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nc) return;
+    if (!byNc.has(nc)) byNc.set(nc, []);
+    byNc.get(nc).push(loc);
+  });
+
+  dropIds.clear();
+  byNc.forEach((group) => {
+    if (group.length <= 1) return;
+    group.sort((a, b) => scoreLocacaoCanonica(b) - scoreLocacaoCanonica(a));
+    let keeper = { ...group[0] };
+    const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
+    for (let i = 1; i < group.length; i++) {
+      const dup = group[i];
+      dropIds.add(Number(dup.id));
+      keeper = mergePortalLancamentosNoKeeper(keeper, dup, keeperNc);
+    }
+    const ki = list.findIndex((x) => Number(x.id) === Number(keeper.id));
+    if (ki >= 0) list[ki] = keeper;
+  });
+
+  list = list.filter((l) => !dropIds.has(Number(l.id)));
+  return { locs: list, remap };
+}
+
+function repairProtocolosLocacaoDesalinhados(locs) {
   const used = new Set();
   const maxSeqByPrefix = new Map();
   const remap = new Map();
@@ -5222,7 +5303,7 @@ function repairProtocolosLocacaoPorDataInicioOnce() {
         ...next,
         portalLancamentosAluguel: next.portalLancamentosAluguel.map((p) => {
           const pNc = String(normalizeNumeroContratoKey(p.numeroContrato || "")).replace(/\s+/g, "");
-          const neu = remap.get(pNc);
+          const neu = remap.get(pNc) || newNc;
           return neu ? { ...p, numeroContrato: neu } : p;
         }),
       };
@@ -5230,15 +5311,55 @@ function repairProtocolosLocacaoPorDataInicioOnce() {
     return next;
   });
 
-  if (!remap.size) {
+  return { locs: updated, remap };
+}
+
+function findLocacaoPorChaveNatural(cpf, placa, inicio, excludeLocacaoId) {
+  const key = locacaoContratoNaturalKey({ cpf, placa, inicio });
+  if (!key) return null;
+  return (
+    loadCadastro(CAD_LOCACOES_KEY).find((l) => {
+      if (excludeLocacaoId != null && Number(l.id) === Number(excludeLocacaoId)) return false;
+      return locacaoContratoNaturalKey(l) === key;
+    }) || null
+  );
+}
+
+/**
+ * Deduplica locações, remove protocolos impossíveis/duplicados e alinha AAAAMMDD à data de início.
+ * Executa uma vez por navegador (v3).
+ */
+function repairProtocolosLocacaoPorDataInicioOnce() {
+  const REPAIR_KEY = "dk_repair_protocolo_inicio_v3";
+  if (localStorage.getItem(REPAIR_KEY) === "done") return;
+
+  let locs = loadCadastro(CAD_LOCACOES_KEY);
+  if (!locs.length) {
     localStorage.setItem(REPAIR_KEY, "done");
     return;
   }
 
-  remapReferenciasNumeroContrato(remap);
-  saveCadastro(CAD_LOCACOES_KEY, updated);
+  const combinedRemap = new Map();
+  const before = locs.length;
+
+  const deduped = deduplicateLocacoesCadastro(locs);
+  locs = deduped.locs;
+  deduped.remap.forEach((v, k) => combinedRemap.set(k, v));
+
+  const repaired = repairProtocolosLocacaoDesalinhados(locs);
+  locs = repaired.locs;
+  repaired.remap.forEach((v, k) => combinedRemap.set(k, v));
+
+  const removed = before - locs.length;
+  if (combinedRemap.size || removed > 0) {
+    remapReferenciasNumeroContrato(combinedRemap);
+    saveCadastro(CAD_LOCACOES_KEY, locs);
+    console.info(
+      `[DK] Locações sanitizadas: ${removed} duplicata(s) removida(s), ${combinedRemap.size} protocolo(s) remapeado(s).`
+    );
+  }
+
   localStorage.setItem(REPAIR_KEY, "done");
-  console.info(`[DK] Protocolos alinhados à data de início: ${remap.size} contrato(s).`);
 }
 
 function parseLocacaoProtocolDateCandidate(locacao) {
@@ -13807,6 +13928,16 @@ if (locacaoCadastroForm) {
 
   if (!numeroContratoNorm) {
     window.alert("O número do contrato é obrigatório e deve ser único no sistema.");
+    return;
+  }
+  const dupMesmoVinculo = findLocacaoPorChaveNatural(cpf, placa, inicio, null);
+  if (
+    dupMesmoVinculo &&
+    normalizeNumeroContratoKey(dupMesmoVinculo.numeroContrato) !== numeroContratoNorm
+  ) {
+    window.alert(
+      `Já existe locação para este CPF, placa e data de início (protocolo ${normalizeNumeroContratoKey(dupMesmoVinculo.numeroContrato)}). Não é permitido duplicar o vínculo.`
+    );
     return;
   }
   if (contratoNumeroJaExisteNaBase(numeroContratoNorm, null)) {
