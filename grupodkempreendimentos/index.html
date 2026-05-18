@@ -658,75 +658,125 @@
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
           <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lançamento de aluguel</h3>
           <p class="subtext operacao-inline-form__lead">Cada pagamento fica guardado no <strong>protocolo</strong> escolhido. Em <strong>Cadastro de locação</strong>, <strong>TOTAL PAGO</strong> mostra a soma de todos os lançamentos desse protocolo; <strong>TOTAL PAGO NO ANO DE 2025</strong> mostra só os lançamentos cuja <strong>data do pagamento</strong> cai em 2025.</p>
-          <form id="formOperacaoLancamentoAluguelInline" class="operacao-inline-form__grid" novalidate>
-            <label class="portal-field">
-              <span>CPF</span>
-              <input
-                type="text"
-                id="operacaoLancAluguelCpf"
-                name="cpf"
-                inputmode="numeric"
-                maxlength="14"
-                autocomplete="off"
-                required
-                placeholder="000.000.000-00"
-                aria-label="CPF"
-                list="operacaoLancAluguelCpfSugestoes"
-                aria-autocomplete="list"
-              >
-              <datalist id="operacaoLancAluguelCpfSugestoes"></datalist>
-            </label>
-            <label class="portal-field">
-              <span>PROTOCOLO</span>
-              <select id="operacaoLancAluguelProtocoloSelect" autocomplete="off" aria-label="PROTOCOLO" disabled>
-                <option value="">Informe um CPF com locação</option>
-              </select>
-            </label>
-            <label class="portal-field">
-              <span>PLACA</span>
-              <input type="text" id="operacaoLancAluguelPlaca" name="placa" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="PLACA">
-            </label>
-            <label class="portal-field">
-              <span>DATA INÍCIO</span>
-              <input type="text" id="operacaoLancAluguelDataInicio" name="dataInicio" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA INÍCIO">
-            </label>
-            <label class="portal-field">
-              <span>DATA FIM</span>
-              <input type="text" id="operacaoLancAluguelDataFim" name="dataFim" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA FIM">
-            </label>
-            <label class="portal-field">
-              <span>VALOR DO ALUGUEL (contrato)</span>
-              <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
-            </label>
-            <label class="portal-field">
-              <span>VALOR DO INVESTIMENTO (contrato)</span>
-              <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO INVESTIMENTO">
-            </label>
-            <label class="portal-field">
-              <span>VALOR PAGO (lançamento)</span>
-              <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="0,00" aria-label="VALOR PAGO (soma espécie + Pix + cartão)">
-            </label>
-            <label class="portal-field">
-              <span>DATA DO PAGAMENTO</span>
-              <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
-            </label>
-            <label class="portal-field">
-              <span>Pagamento em espécie</span>
-              <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em espécie">
-            </label>
-            <label class="portal-field">
-              <span>Pagamento em Pix</span>
-              <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em Pix">
-            </label>
-            <label class="portal-field">
-              <span>Pagamento em cartão</span>
-              <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em cartão">
-            </label>
-            <div class="operacao-inline-form__actions">
-              <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
-            </div>
+          <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
+            <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-aluguel-pesquisa-title">
+              <h4 id="portal-lanc-aluguel-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>número do protocolo</strong> e confirme para carregar os dados do contrato.</p>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
+                <label class="portal-field portal-field--wide">
+                  <span>Nome do cliente</span>
+                  <input type="text" id="operacaoLancAluguelNomeBusca" name="nomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" aria-label="Nome do cliente" list="operacaoLancAluguelNomeSugestoes" aria-autocomplete="list">
+                  <datalist id="operacaoLancAluguelNomeSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>CPF</span>
+                  <input type="text" id="operacaoLancAluguelCpf" name="cpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" aria-label="CPF" list="operacaoLancAluguelCpfSugestoes" aria-autocomplete="list">
+                  <datalist id="operacaoLancAluguelCpfSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Nº do protocolo</span>
+                  <input type="text" id="operacaoLancAluguelProtocoloBusca" name="protocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026-001" aria-label="Número do protocolo" list="operacaoLancAluguelProtocoloSugestoes" aria-autocomplete="list">
+                  <datalist id="operacaoLancAluguelProtocoloSugestoes"></datalist>
+                </label>
+                <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPesquisaBtn">Confirmar pesquisa</button>
+                </div>
+              </div>
+            </section>
+            <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
+              <h4 id="portal-lanc-aluguel-referencia-title" class="portal-lanc-aluguel-section__title">Dados de referência e valores devidos</h4>
+              <div class="operacao-inline-form__grid">
+                <label class="portal-field portal-field--wide">
+                  <span>PROTOCOLO (contrato ativo)</span>
+                  <select id="operacaoLancAluguelProtocoloSelect" autocomplete="off" aria-label="PROTOCOLO" disabled>
+                    <option value="">—</option>
+                  </select>
+                </label>
+                <label class="portal-field">
+                  <span>PLACA</span>
+                  <input type="text" id="operacaoLancAluguelPlaca" name="placa" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="PLACA">
+                </label>
+                <label class="portal-field">
+                  <span>DATA INÍCIO</span>
+                  <input type="text" id="operacaoLancAluguelDataInicio" name="dataInicio" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA INÍCIO">
+                </label>
+                <label class="portal-field">
+                  <span>DATA FIM</span>
+                  <input type="text" id="operacaoLancAluguelDataFim" name="dataFim" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA FIM">
+                </label>
+                <label class="portal-field">
+                  <span>TIPO DE PLANO</span>
+                  <input type="text" id="operacaoLancAluguelTipoPlano" name="tipoPlano" maxlength="80" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="TIPO DE PLANO">
+                </label>
+                <label class="portal-field">
+                  <span>VALOR DEVIDO DO PLANO</span>
+                  <input type="text" id="operacaoLancAluguelValorDevidoPlano" name="valorDevidoPlano" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DO PLANO">
+                </label>
+                <label class="portal-field">
+                  <span>VALOR DEVIDO DO ALUGUEL</span>
+                  <input type="text" id="operacaoLancAluguelValorDevidoAluguel" name="valorDevidoAluguel" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DO ALUGUEL">
+                </label>
+                <label class="portal-field">
+                  <span>TOTAL PAGO (protocolo)</span>
+                  <input type="text" id="operacaoLancAluguelTotalPagoContrato" name="totalPagoContrato" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="TOTAL PAGO no protocolo">
+                </label>
+                <label class="portal-field">
+                  <span>INVESTIMENTO ACUMULADO</span>
+                  <input type="text" id="operacaoLancAluguelInvestimentoAcumulado" name="investimentoAcumulado" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="INVESTIMENTO ACUMULADO">
+                </label>
+              </div>
+            </section>
+            <section id="operacaoLancAluguelContratoPanel" class="portal-lanc-aluguel-contrato hidden" aria-labelledby="portal-lanc-aluguel-contrato-title" hidden>
+              <h4 id="portal-lanc-aluguel-contrato-title" class="portal-lanc-aluguel-section__title">Valores do contrato</h4>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-contrato__grid">
+                <label class="portal-field">
+                  <span>VALOR DO ALUGUEL (contrato)</span>
+                  <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
+                </label>
+                <label class="portal-field">
+                  <span>VALOR DO INVESTIMENTO (contrato)</span>
+                  <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO INVESTIMENTO">
+                </label>
+                <label class="portal-field">
+                  <span>Gastos com manutenção</span>
+                  <input type="text" id="operacaoLancAluguelGastosManutencao" name="gastosManutencao" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="Gastos com manutenção">
+                </label>
+                <label class="portal-field">
+                  <span>Gastos com multa</span>
+                  <input type="text" id="operacaoLancAluguelGastosMulta" name="gastosMulta" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="Gastos com multa">
+                </label>
+              </div>
+            </section>
+            <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" aria-labelledby="portal-lanc-aluguel-pagamento-title" hidden>
+              <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Lançamento do pagamento</h4>
+              <div class="operacao-inline-form__grid">
+                <label class="portal-field">
+                  <span>VALOR PAGO (lançamento)</span>
+                  <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="0,00" aria-label="VALOR PAGO (soma espécie + Pix + cartão)">
+                </label>
+                <label class="portal-field">
+                  <span>DATA DO PAGAMENTO</span>
+                  <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
+                </label>
+                <label class="portal-field">
+                  <span>Pagamento em espécie</span>
+                  <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em espécie">
+                </label>
+                <label class="portal-field">
+                  <span>Pagamento em Pix</span>
+                  <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em Pix">
+                </label>
+                <label class="portal-field">
+                  <span>Pagamento em cartão</span>
+                  <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em cartão">
+                </label>
+                <div class="operacao-inline-form__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar</button>
+                </div>
+              </div>
+            </section>
           </form>
           <div
             class="portal-relatorio-pagamentos-periodo"

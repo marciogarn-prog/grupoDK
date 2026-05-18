@@ -953,6 +953,60 @@ body {
   font-size: 0.88rem;
 }
 
+.portal-lanc-aluguel-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.portal-lanc-aluguel-section__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+
+.portal-lanc-aluguel-section__hint {
+  margin: 0 0 0.75rem;
+}
+
+.portal-lanc-aluguel-pesquisa {
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  background: rgba(8, 10, 14, 0.6);
+}
+
+.portal-lanc-aluguel-pesquisa__actions {
+  margin-top: 0.15rem;
+}
+
+.portal-lanc-aluguel-referencia,
+.portal-lanc-aluguel-contrato,
+.portal-lanc-aluguel-pagamento {
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(201, 162, 39, 0.28);
+  background: rgba(12, 14, 20, 0.75);
+}
+
+.portal-lanc-aluguel-contrato {
+  border-color: rgba(100, 149, 237, 0.35);
+  background: rgba(10, 14, 28, 0.55);
+}
+
+.portal-lanc-aluguel-pagamento {
+  border-color: rgba(76, 175, 80, 0.35);
+  background: rgba(8, 18, 12, 0.5);
+}
+
+.portal-lanc-aluguel-referencia.hidden,
+.portal-lanc-aluguel-contrato.hidden,
+.portal-lanc-aluguel-pagamento.hidden {
+  display: none;
+}
+
 .link-like {
   background: none;
   border: none;
