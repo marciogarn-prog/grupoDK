@@ -1926,3 +1926,166 @@ body {
   flex-shrink: 0;
   font-size: 0.9rem;
 }
+
+.portal-multas-relatorio-actions {
+  margin-top: 0.75rem;
+}
+
+.portal-multas-relatorio-modal__card {
+  max-width: min(96vw, 1100px);
+  width: 100%;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.portal-multas-relatorio-print-root {
+  margin: 0.75rem 0 1rem;
+  overflow-x: auto;
+  background: #fff;
+  color: #111;
+  border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.portal-multas-rel {
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  font-size: 11pt;
+  min-width: 720px;
+}
+
+.portal-multas-rel__titulo {
+  margin: 0 0 0.35rem;
+  font-size: 16pt;
+  font-weight: 700;
+}
+
+.portal-multas-rel__meta {
+  margin: 0 0 0.75rem;
+  font-size: 10pt;
+}
+
+.portal-multas-rel__top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.portal-multas-rel__dia-pag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  font-size: 10pt;
+}
+
+.portal-multas-rel__dia-pag-val {
+  display: inline-block;
+  min-width: 2.5rem;
+  padding: 0.15rem 0.5rem;
+  background: #bdd7ee;
+  border: 1px solid #5b9bd5;
+  text-align: center;
+}
+
+.portal-multas-rel__dia-pag-hint {
+  color: #444;
+  font-size: 9pt;
+}
+
+.portal-multas-rel__total-geral {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 10pt;
+}
+
+.portal-multas-rel__total-geral strong {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  background: #fff2cc;
+  border: 1px solid #bf9000;
+  font-size: 12pt;
+}
+
+.portal-multas-rel__sec {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 11pt;
+  font-weight: 700;
+}
+
+.portal-multas-rel__table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+  font-size: 9.5pt;
+}
+
+.portal-multas-rel__table th,
+.portal-multas-rel__table td {
+  border: 1px solid #333;
+  padding: 0.2rem 0.35rem;
+  text-align: left;
+}
+
+.portal-multas-rel__table--resumo th {
+  background: #f2f2f2;
+  font-weight: 700;
+}
+
+.portal-multas-rel__table--detalhe .portal-multas-rel__data-h,
+.portal-multas-rel__table--detalhe .portal-multas-rel__data {
+  background: #bdd7ee;
+  font-weight: 600;
+}
+
+.portal-multas-rel__money {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.portal-multas-rel__total-h,
+.portal-multas-rel__total-linha {
+  background: #f2f2f2;
+  font-weight: 700;
+}
+
+.portal-multas-rel__foot {
+  margin: 0.5rem 0 0;
+  font-size: 8.5pt;
+  color: #444;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  #portalMultasRelatorioModal:not(.hidden),
+  #portalMultasRelatorioModal:not(.hidden) * {
+    visibility: visible !important;
+  }
+  #portalMultasRelatorioModal:not(.hidden) {
+    position: absolute !important;
+    inset: 0 !important;
+    display: block !important;
+    padding: 0 !important;
+    background: #fff !important;
+    overflow: visible !important;
+  }
+  #portalMultasRelatorioModal:not(.hidden) .portal-modal__backdrop,
+  #portalMultasRelatorioModal:not(.hidden) .portal-modal__actions {
+    display: none !important;
+  }
+  #portalMultasRelatorioModal:not(.hidden) .portal-modal__card {
+    max-width: none !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    margin: 0 !important;
+    padding: 0.5rem !important;
+  }
+  .portal-multas-relatorio-print-root {
+    overflow: visible !important;
+  }
+}

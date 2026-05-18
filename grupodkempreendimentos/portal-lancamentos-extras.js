@@ -240,8 +240,29 @@
     return s;
   }
 
+  function getCurrentLocForCfg(cfg) {
+    const digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
+    const nc = normNc($(cfg, "ProtocoloSelect")?.value);
+    if (digits.length !== 11 || !nc) return null;
+    return collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc) || null;
+  }
+
   function syncMultasParcelasUI(cfg) {
     const qtd = clampParcelas($(cfg, "QtdParcelas")?.value || 1);
+    const dataMulta = String($(cfg, "DataMulta")?.value || "").trim();
+    const loc = getCurrentLocForCfg(cfg);
+    if (
+      loc &&
+      /^\d{2}\/\d{2}\/\d{4}$/.test(dataMulta) &&
+      typeof window.__DK_primeiraParcelaMultaAposMulta === "function"
+    ) {
+      const dia =
+        typeof window.__DK_normDiaPagamentoMultas === "function"
+          ? window.__DK_normDiaPagamentoMultas(loc.diaPagamento || loc.diaPagto)
+          : "";
+      const auto = window.__DK_primeiraParcelaMultaAposMulta(dataMulta, dia || "SEG");
+      if (auto && $(cfg, "DataPrimeiraParcela")) $(cfg, "DataPrimeiraParcela").value = auto;
+    }
     const primeira = String($(cfg, "DataPrimeiraParcela")?.value || "").trim();
     const ultimaInp = $(cfg, "DataUltimaParcela");
     const preview = $(cfg, "CronogramaPreview");
@@ -273,6 +294,20 @@
     syncMultasParcelasUI(cfg);
   }
 
+  function updateMultasRelatorioActions(cfg, loc) {
+    if (!cfg.multasTransito) return;
+    const wrap = document.getElementById("operacaoLancMultasRelatorioActions");
+    if (!wrap) return;
+    const multas = loc ? getMultasTransito(loc) : [];
+    if (multas.length) {
+      wrap.classList.remove("hidden");
+      wrap.removeAttribute("hidden");
+    } else {
+      wrap.classList.add("hidden");
+      wrap.setAttribute("hidden", "");
+    }
+  }
+
   function hideDetalhe(cfg) {
     $(cfg, "ReferenciaPanel")?.classList.add("hidden");
     $(cfg, "ReferenciaPanel")?.setAttribute("hidden", "");
@@ -283,6 +318,7 @@
       hist.classList.add("hidden");
       hist.replaceChildren();
     }
+    if (cfg.multasTransito) updateMultasRelatorioActions(cfg, null);
   }
 
   function showDetalhe(cfg) {
@@ -324,6 +360,7 @@
       if ($(cfg, "ValorDevido")) $(cfg, "ValorDevido").value = fmtBrlNum(sumMultasTransito(multas));
       clearMultasLancamentoForm(cfg);
       renderHistorico(cfg, loc);
+      updateMultasRelatorioActions(cfg, loc);
       return;
     }
     const resumo =
@@ -967,10 +1004,31 @@
     });
 
     if (cfg.multasTransito) {
-      ["QtdParcelas", "DataPrimeiraParcela", "ValorMulta"].forEach((s) => {
+      ["QtdParcelas", "DataPrimeiraParcela", "ValorMulta", "DataMulta"].forEach((s) => {
         $(cfg, s)?.addEventListener("input", () => syncMultasParcelasUI(cfg));
         $(cfg, s)?.addEventListener("change", () => syncMultasParcelasUI(cfg));
         $(cfg, s)?.addEventListener("blur", () => syncMultasParcelasUI(cfg));
+      });
+
+      document.getElementById("operacaoLancMultasGerarRelatorioBtn")?.addEventListener("click", (e) => {
+        e.preventDefault();
+        const msg = $(cfg, "InlineMsg");
+        const digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
+        const nc = normNc($(cfg, "ProtocoloSelect")?.value);
+        const loc = getCurrentLocForCfg(cfg);
+        if (!loc || digits.length !== 11 || !nc) {
+          if (msg) msg.textContent = "Confirme a pesquisa e selecione um protocolo com multas.";
+          return;
+        }
+        const multas = getMultasTransito(loc);
+        if (!multas.length) {
+          if (msg) msg.textContent = "Não há multas registadas para gerar o relatório.";
+          return;
+        }
+        if (msg) msg.textContent = "";
+        if (typeof window.__DK_openRelatorioMultas === "function") {
+          window.__DK_openRelatorioMultas({ loc, multas, protocolo: nc });
+        }
       });
 
       $(cfg, "CadastrarBtn")?.addEventListener("click", (e) => {
@@ -1014,15 +1072,30 @@
           if (msg) msg.textContent = "Informe a data da primeira parcela (DD/MM/AAAA).";
           return;
         }
-        const dataUltimaParcela = calcDataUltimaParcela(dataPrimeiraParcela, quantidadeParcelas);
-        const parcelas = buildCronogramaParcelas(dataPrimeiraParcela, quantidadeParcelas, valorMulta);
+        const locAtual = getCurrentLocForCfg(cfg);
+        const diaPag =
+          locAtual && typeof window.__DK_normDiaPagamentoMultas === "function"
+            ? window.__DK_normDiaPagamentoMultas(locAtual.diaPagamento || locAtual.diaPagto)
+            : "";
+        let dataPrimeiraFinal = dataPrimeiraParcela;
+        let parcelas = buildCronogramaParcelas(dataPrimeiraFinal, quantidadeParcelas, valorMulta);
+        if (typeof window.__DK_buildCronogramaMultaRelatorio === "function") {
+          const cron = window.__DK_buildCronogramaMultaRelatorio(
+            { dataMulta, valorMulta, quantidadeParcelas, dataPrimeiraParcela },
+            diaPag || "SEG"
+          );
+          dataPrimeiraFinal = cron.primeira;
+          parcelas = cron.parcelas;
+        }
+        const dataUltimaParcela =
+          parcelas.length ? parcelas[parcelas.length - 1].data : calcDataUltimaParcela(dataPrimeiraFinal, quantidadeParcelas);
         const entry = {
           dataMulta,
           codMulta,
           descricao,
           valorMulta,
           quantidadeParcelas,
-          dataPrimeiraParcela,
+          dataPrimeiraParcela: dataPrimeiraFinal,
           dataUltimaParcela,
           parcelas,
         };
