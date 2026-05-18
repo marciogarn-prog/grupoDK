@@ -5324,6 +5324,19 @@ ${printable.innerHTML}
     const custoDiaNum = plano / 7;
     const valorDevidoPlanoNum = tempo * (plano / 7);
     const valorDevidoAluguelNum = tempo * (valLoc / 7);
+    const valorDevidoManutencaoNum = parseCur(
+      loc?.valorDevidoManutencao ?? loc?.devidoManutencao ?? loc?.gastosManutencao ?? loc?.gastoManutencao ?? loc?.custoManutencao ?? 0
+    );
+    const valorDevidoMultasNum = parseCur(
+      loc?.valorDevidoMulta ??
+        loc?.valorDevidoMultas ??
+        loc?.devidoMulta ??
+        loc?.devidoMultas ??
+        loc?.gastosMulta ??
+        loc?.gastoMulta ??
+        loc?.custoMulta ??
+        0
+    );
     const lancs = getPortalLancamentosAluguelDoContrato(loc);
     const totalPagoNum = sumPortalLancamentosAluguelTotal(lancs);
     const investimentoAcumuladoNum = totalPagoNum - valorDevidoAluguelNum;
@@ -5345,6 +5358,8 @@ ${printable.innerHTML}
       totalPago: fmtN(totalPagoNum),
       tipoPlano: tipoPlanoStr,
       valorDevidoAluguel: fmtBrl(valorDevidoAluguelNum),
+      valorDevidoManutencao: fmtBrl(valorDevidoManutencaoNum),
+      valorDevidoMultas: fmtBrl(valorDevidoMultasNum),
       investimentoAcumulado: formatPortalLancamentoSumBrl(investimentoAcumuladoNum),
       investimentoAcumuladoNeg: investimentoAcumuladoNum < 0,
     };
@@ -5948,6 +5963,8 @@ ${printable.innerHTML}
       "operacaoLancAluguelTipoPlano",
       "operacaoLancAluguelValorDevidoPlano",
       "operacaoLancAluguelValorDevidoAluguel",
+      "operacaoLancAluguelValorDevidoManutencao",
+      "operacaoLancAluguelValorDevidoMultas",
       "operacaoLancAluguelTotalPagoContrato",
       "operacaoLancAluguelInvestimentoAcumulado",
       "operacaoLancAluguelValorAluguel",
@@ -6012,6 +6029,8 @@ ${printable.innerHTML}
     assign("operacaoLancAluguelTipoPlano", resumo.tipoPlano);
     assign("operacaoLancAluguelValorDevidoPlano", resumo.valorDevidoPlano);
     assign("operacaoLancAluguelValorDevidoAluguel", resumo.valorDevidoAluguel);
+    assign("operacaoLancAluguelValorDevidoManutencao", resumo.valorDevidoManutencao);
+    assign("operacaoLancAluguelValorDevidoMultas", resumo.valorDevidoMultas);
     assign("operacaoLancAluguelTotalPagoContrato", resumo.totalPago);
     assign("operacaoLancAluguelInvestimentoAcumulado", resumo.investimentoAcumulado);
     const gastosMan = loc.gastosManutencao ?? loc.gastoManutencao ?? loc.custoManutencao ?? "0";
