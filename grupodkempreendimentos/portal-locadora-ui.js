@@ -6449,10 +6449,11 @@ ${printable.innerHTML}
     portalLancAluguelProtocoloSyncCpf = "";
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
-    refreshOperacaoLancamentoAluguelCpfDatalist();
+    refreshOperacaoLancAluguelPesquisaDatalists();
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     refreshOperacaoLancAluguelAdminControlsVisibility();
+    document.getElementById("operacaoLancAluguelNomeBusca")?.focus();
   }
 
   function bindOperacaoLocacaoAutofill() {
@@ -7310,6 +7311,10 @@ ${printable.innerHTML}
   document.getElementById("operacaoLancAluguelConfirmarPesquisaBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     confirmarOperacaoLancAluguelPesquisa();
+  });
+  document.getElementById("operacaoLancAluguelLimparPesquisaBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    clearOperacaoLancamentoAluguelForm();
   });
   document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
