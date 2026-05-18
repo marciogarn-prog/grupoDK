@@ -5557,26 +5557,7 @@ ${printable.innerHTML}
   }
 
   function refreshOperacaoLancamentoAluguelCpfDatalist() {
-    const dl = document.getElementById("operacaoLancAluguelCpfSugestoes");
-    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
-    if (!dl || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
-    const dig =
-      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
-    const prefix = inpCpf ? dig(String(inpCpf.value || "")).slice(0, 11) : "";
-    const seen = new Set();
-    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
-      if (!normPortalNumeroContrato(l.numeroContrato)) return;
-      const d = dig(String(l.cpf || ""));
-      if (d.length !== 11) return;
-      if (prefix.length && !d.startsWith(prefix)) return;
-      seen.add(d);
-    });
-    dl.innerHTML = Array.from(seen)
-      .sort()
-      .slice(0, 200)
-      .map((d) => `<option value="${portalEscapeHtml(fmt(d))}"></option>`)
-      .join("");
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf" });
   }
 
   /**
@@ -5677,53 +5658,217 @@ ${printable.innerHTML}
     setOperacaoLancAluguelDetalhePanelsVisible(false);
   }
 
-  function refreshOperacaoLancAluguelNomeDatalist() {
-    const dl = document.getElementById("operacaoLancAluguelNomeSugestoes");
-    const inp = document.getElementById("operacaoLancAluguelNomeBusca");
-    if (!dl || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
+  function resolveOperacaoLancAluguelNomePorCpf(cpfDigits) {
+    if (!cpfDigits || cpfDigits.length !== 11) return "";
+    if (typeof findClienteByCpfCadastro === "function") {
+      const n = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
+      if (n) return n;
+    }
+    if (typeof getLancamentoClienteCandidates === "function") {
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const hit = getLancamentoClienteCandidates().find((c) => dig(String(c.cpf || "")) === cpfDigits);
+      if (hit) return String(hit.nome || "").trim();
+    }
+    return "";
+  }
+
+  function collectOperacaoLancAluguelPesquisaLinhas() {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const normNome =
-      typeof normalizeName === "function" ? normalizeName : (s) => String(s || "").trim().toLowerCase();
-    const q = normNome(String(inp?.value || ""));
-    const seen = new Map();
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const linhas = [];
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
-      if (!normPortalNumeroContrato(l.numeroContrato)) return;
+      const proto = normPortalNumeroContrato(l.numeroContrato || "");
+      if (!proto) return;
       const cpf = dig(String(l.cpf || ""));
       if (cpf.length !== 11) return;
       let nome = String(l.nome || l.cliente || "").trim();
-      if (!nome && typeof findClienteByCpfCadastro === "function") {
-        nome = String(findClienteByCpfCadastro(cpf)?.nome || "").trim();
-      }
-      if (!nome) return;
-      const key = normNome(nome);
-      if (q && !key.includes(q)) return;
-      if (!seen.has(key)) seen.set(key, nome);
+      if (!nome) nome = resolveOperacaoLancAluguelNomePorCpf(cpf);
+      linhas.push({
+        cpf,
+        nome: nome || "(sem nome)",
+        proto,
+        placa: np(String(l.placa || "")),
+      });
     });
-    dl.innerHTML = Array.from(seen.values())
-      .sort((a, b) => a.localeCompare(b, "pt-BR"))
+    return linhas;
+  }
+
+  function filterOperacaoLancAluguelPesquisaLinhas(linhas, filtros) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfPrefix = dig(String(filtros.cpfRaw || "")).slice(0, 11);
+    const nomeKey = portalNomeChaveBusca(filtros.nomeRaw || "");
+    const protoQ = normPortalNumeroContrato(String(filtros.protoRaw || "").trim());
+    return linhas.filter((row) => {
+      if (cpfPrefix.length && !row.cpf.startsWith(cpfPrefix)) return false;
+      if (nomeKey.length >= 2 && !portalNomeChaveBusca(row.nome).includes(nomeKey)) return false;
+      if (protoQ.length && !row.proto.includes(protoQ)) return false;
+      return true;
+    });
+  }
+
+  function renderOperacaoLancAluguelPesquisaLista(linhas) {
+    const panel = document.getElementById("operacaoLancAluguelPesquisaLista");
+    if (!panel) return;
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    if (!linhas.length) {
+      panel.classList.add("hidden");
+      panel.setAttribute("hidden", "");
+      panel.innerHTML = "";
+      return;
+    }
+    const max = 40;
+    const slice = linhas.slice(0, max);
+    panel.classList.remove("hidden");
+    panel.removeAttribute("hidden");
+    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${slice.length === linhas.length ? slice.length : `${slice.length} de ${linhas.length}`} contrato(s) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${slice
+      .map((row) => {
+        const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl}</button></li>`;
+      })
+      .join("")}</ul>`;
+  }
+
+  /**
+   * Atualiza datalists de nome, CPF e protocolo com filtro cruzado em tempo real.
+   * @param {{ source?: 'cpf'|'nome'|'proto' }} opts — campo que o utilizador está a editar (evita sobrescrever esse campo).
+   */
+  function refreshOperacaoLancAluguelPesquisaDatalists(opts = {}) {
+    const source = String(opts.source || "");
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
+    const inpProto = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    const dlCpf = document.getElementById("operacaoLancAluguelCpfSugestoes");
+    const dlNome = document.getElementById("operacaoLancAluguelNomeSugestoes");
+    const dlProto = document.getElementById("operacaoLancAluguelProtocoloSugestoes");
+    if (!dlCpf || !dlNome || !dlProto) return;
+
+    const prevCpf = String(inpCpf?.value || "").trim();
+    const prevNome = String(inpNome?.value || "").trim();
+    const prevProto = String(inpProto?.value || "").trim();
+
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+
+    const todas = collectOperacaoLancAluguelPesquisaLinhas();
+    const filtradas = filterOperacaoLancAluguelPesquisaLinhas(todas, {
+      cpfRaw: prevCpf,
+      nomeRaw: prevNome,
+      protoRaw: prevProto,
+    });
+
+    const cpfsMap = new Map();
+    const nomesMap = new Map();
+    const protosSet = new Map();
+    filtradas.forEach((row) => {
+      if (!cpfsMap.has(row.cpf)) cpfsMap.set(row.cpf, row.nome);
+      const nk = portalNomeChaveBusca(row.nome);
+      if (!nomesMap.has(nk)) nomesMap.set(nk, { nome: row.nome, cpf: row.cpf });
+      if (!protosSet.has(row.proto)) protosSet.set(row.proto, { cpf: row.cpf, nome: row.nome, placa: row.placa });
+    });
+
+    dlCpf.innerHTML = Array.from(cpfsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
       .slice(0, 120)
-      .map((n) => `<option value="${portalEscapeHtml(n)}"></option>`)
+      .map(
+        ([cpf, nome]) =>
+          `<option value="${portalEscapeHtml(fmt(cpf))}" label="${portalEscapeHtml(nome)}"></option>`
+      )
       .join("");
+
+    dlNome.innerHTML = Array.from(nomesMap.values())
+      .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"))
+      .slice(0, 120)
+      .map(
+        (row) =>
+          `<option value="${portalEscapeHtml(row.nome)}" label="${portalEscapeHtml(fmt(row.cpf))}"></option>`
+      )
+      .join("");
+
+    dlProto.innerHTML = Array.from(protosSet.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(0, 120)
+      .map(([proto, meta]) => {
+        const lbl = `${fmt(meta.cpf)} · ${meta.nome}${meta.placa ? ` · ${meta.placa}` : ""}`;
+        return `<option value="${portalEscapeHtml(proto)}" label="${portalEscapeHtml(lbl)}"></option>`;
+      })
+      .join("");
+
+    renderOperacaoLancAluguelPesquisaLista(filtradas);
+
+    const cpfsUnicos = [...cpfsMap.keys()];
+    const nomesUnicos = [...nomesMap.values()];
+
+    if (source !== "nome" && inpNome) {
+      if (cpfsUnicos.length === 1) {
+        const nomeCanon = cpfsMap.get(cpfsUnicos[0]) || "";
+        if (nomeCanon && nomeCanon !== "(sem nome)") inpNome.value = nomeCanon;
+      } else if (source === "cpf") {
+        const cpfDig = dig(prevCpf);
+        if (cpfDig.length === 11) {
+          const nomeCanon = cpfsMap.get(cpfDig) || resolveOperacaoLancAluguelNomePorCpf(cpfDig);
+          if (nomeCanon) inpNome.value = nomeCanon;
+        } else if (filtradas.length === 1) {
+          inpNome.value = filtradas[0].nome === "(sem nome)" ? "" : filtradas[0].nome;
+        }
+      }
+    }
+
+    if (source !== "cpf" && inpCpf) {
+      if (nomesUnicos.length === 1) {
+        inpCpf.value = fmt(nomesUnicos[0].cpf);
+      } else if (source === "nome" && nomesUnicos.length > 1) {
+        const key = portalNomeChaveBusca(prevNome);
+        const exato = nomesUnicos.filter((r) => portalNomeChaveBusca(r.nome) === key);
+        if (exato.length === 1) inpCpf.value = fmt(exato[0].cpf);
+      } else if (source === "proto" && filtradas.length === 1) {
+        inpCpf.value = fmt(filtradas[0].cpf);
+      }
+    }
+
+    if (source !== "proto" && inpProto && filtradas.length === 1) {
+      inpProto.value = filtradas[0].proto;
+    } else if (source === "cpf" && inpProto) {
+      const cpfDig = dig(prevCpf);
+      const protosDoCpf = filtradas.filter((r) => r.cpf === cpfDig).map((r) => r.proto);
+      if (protosDoCpf.length === 1) inpProto.value = protosDoCpf[0];
+    }
+
+    if (inpCpf && source === "cpf" && typeof formatCpf === "function") {
+      const d = dig(inpCpf.value).slice(0, 11);
+      inpCpf.value = formatCpf(d);
+    }
+  }
+
+  function refreshOperacaoLancAluguelNomeDatalist() {
+    refreshOperacaoLancAluguelPesquisaDatalists();
   }
 
   function refreshOperacaoLancAluguelProtocoloBuscaDatalist() {
-    const dl = document.getElementById("operacaoLancAluguelProtocoloSugestoes");
-    const inp = document.getElementById("operacaoLancAluguelProtocoloBusca");
-    if (!dl || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
-    const q = normPortalNumeroContrato(String(inp?.value || "").trim());
-    const seen = new Set();
-    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
-      const nc = normPortalNumeroContrato(l.numeroContrato || "");
-      if (!nc) return;
-      if (q && !nc.includes(q)) return;
-      seen.add(nc);
-    });
-    dl.innerHTML = Array.from(seen)
-      .sort()
-      .slice(0, 120)
-      .map((nc) => `<option value="${portalEscapeHtml(nc)}"></option>`)
-      .join("");
+    refreshOperacaoLancAluguelPesquisaDatalists();
+  }
+
+  function aplicarOperacaoLancAluguelPesquisaLinha(cpf, nome, proto) {
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
+    const inpProto = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = dig(String(cpf || ""));
+    if (inpCpf && cpfDigits.length === 11 && typeof formatCpf === "function") {
+      inpCpf.value = formatCpf(cpfDigits);
+    }
+    if (inpNome && nome && nome !== "(sem nome)") inpNome.value = String(nome).trim();
+    if (inpProto && proto) inpProto.value = String(proto).trim();
+    refreshOperacaoLancAluguelPesquisaDatalists();
+    hideOperacaoLancAluguelDetalhePanels();
   }
 
   function resolveOperacaoLancAluguelLocacaoFromPesquisa() {
@@ -5784,10 +5929,11 @@ ${printable.innerHTML}
       if (msg) msg.textContent = "Informe nome, CPF ou protocolo válido com locação cadastrada.";
       return;
     }
-    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
-    if (inpCpf && typeof formatCpf === "function") inpCpf.value = formatCpf(hit.cpfDigits);
-    const inpProto = document.getElementById("operacaoLancAluguelProtocoloBusca");
-    if (inpProto && hit.proto) inpProto.value = hit.proto;
+    aplicarOperacaoLancAluguelPesquisaLinha(
+      hit.cpfDigits,
+      resolveOperacaoLancAluguelNomePorCpf(hit.cpfDigits) || String(hit.loc?.nome || hit.loc?.cliente || "").trim(),
+      hit.proto
+    );
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true, preserveNc: hit.proto });
     setOperacaoLancAluguelDetalhePanelsVisible(true);
@@ -6254,8 +6400,7 @@ ${printable.innerHTML}
     ).slice(0, 11);
     if (typeof formatCpf === "function") inpCpf.value = formatCpf(d);
     refreshOperacaoLancamentoAluguelCpfDatalist();
-    refreshOperacaoLancAluguelNomeDatalist();
-    refreshOperacaoLancAluguelProtocoloBuscaDatalist();
+    refreshOperacaoLancAluguelPesquisaDatalists();
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
   }
@@ -6266,6 +6411,12 @@ ${printable.innerHTML}
       inp.value = "";
     });
     hideOperacaoLancAluguelDetalhePanels();
+    const lista = document.getElementById("operacaoLancAluguelPesquisaLista");
+    if (lista) {
+      lista.classList.add("hidden");
+      lista.setAttribute("hidden", "");
+      lista.innerHTML = "";
+    }
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
     if (sel) {
       sel.replaceChildren();
@@ -7097,8 +7248,7 @@ ${printable.innerHTML}
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
     refreshOperacaoLancamentoAluguelCpfDatalist();
-    refreshOperacaoLancAluguelNomeDatalist();
-    refreshOperacaoLancAluguelProtocoloBuscaDatalist();
+    refreshOperacaoLancAluguelPesquisaDatalists();
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     hideOperacaoLancAluguelDetalhePanels();
@@ -7125,19 +7275,14 @@ ${printable.innerHTML}
     el.addEventListener("input", () => syncOperacaoLancAluguelValorPagoFromMeios());
     el.addEventListener("blur", () => syncOperacaoLancAluguelValorPagoFromMeios());
   });
-  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => syncOperacaoLancamentoAluguelAfterCpfEdit());
+  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => {
+    syncOperacaoLancamentoAluguelAfterCpfEdit();
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf" });
+  });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
-    const inp = document.getElementById("operacaoLancAluguelCpf");
-    if (!inp) return;
-    const digits = (
-      typeof onlyDigits === "function" ? onlyDigits(inp.value) : String(inp.value || "").replace(/\D/g, "")
-    ).slice(0, 11);
-    if (typeof formatCpf === "function") inp.value = formatCpf(digits);
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
-    refreshOperacaoLancamentoAluguelCpfDatalist();
-    refreshOperacaoLancAluguelNomeDatalist();
-    refreshOperacaoLancAluguelProtocoloBuscaDatalist();
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf" });
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     hideOperacaoLancAluguelDetalhePanels();
@@ -7148,12 +7293,33 @@ ${printable.innerHTML}
     confirmarOperacaoLancAluguelPesquisa();
   });
   document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("input", () => {
-    refreshOperacaoLancAluguelNomeDatalist();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "nome" });
     hideOperacaoLancAluguelDetalhePanels();
   });
+  document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("change", () => {
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "nome" });
+  });
   document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("input", () => {
-    refreshOperacaoLancAluguelProtocoloBuscaDatalist();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "proto" });
     hideOperacaoLancAluguelDetalhePanels();
+  });
+  document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("change", () => {
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "proto" });
+  });
+
+  document.getElementById("formOperacaoLancamentoAluguelInline")?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".portal-lanc-pesquisa-linha");
+    if (!btn) return;
+    e.preventDefault();
+    aplicarOperacaoLancAluguelPesquisaLinha(
+      btn.getAttribute("data-cpf"),
+      btn.getAttribute("data-nome"),
+      btn.getAttribute("data-proto")
+    );
   });
 
   /** Máscara 000.000.000-00 + datalist enquanto digita (padrão portal CPF cliente). */

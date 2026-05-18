@@ -982,6 +982,10 @@ body {
   margin-top: 0.15rem;
 }
 
+.portal-lanc-aluguel-pesquisa__grid > #operacaoLancAluguelPesquisaLista {
+  grid-column: 1 / -1;
+}
+
 .portal-lanc-aluguel-referencia,
 .portal-lanc-aluguel-contrato,
 .portal-lanc-aluguel-pagamento {
