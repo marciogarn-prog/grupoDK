@@ -5181,12 +5181,23 @@ function remapReferenciasNumeroContrato(remap) {
 }
 
 /** Chave natural do contrato: mesmo CPF + placa + data de início = mesmo vínculo. */
-function locacaoContratoNaturalKey(loc) {
+/** CPF + placa + data de início (mesmo vínculo de contrato). */
+function locacaoContratoVinculoKey(loc) {
   const cpf = onlyDigits(String(loc?.cpf || ""));
   const placa = normalizePlate(String(loc?.placa || ""));
   const inicio = String(loc?.inicio || "").trim();
   if (cpf.length !== 11 || !placa) return "";
-  return `${cpf}|${placa}|${inicio}`;
+  return inicio ? `${cpf}|${placa}|${inicio}` : "";
+}
+
+/** Chave única por contrato: protocolo quando existir; senão vínculo. */
+function locacaoContratoNaturalKey(loc) {
+  const cpf = onlyDigits(String(loc?.cpf || ""));
+  const placa = normalizePlate(String(loc?.placa || ""));
+  const nc = String(normalizeNumeroContratoKey(loc?.numeroContrato || "")).replace(/\s+/g, "");
+  if (cpf.length !== 11 || !placa) return "";
+  if (nc) return `${cpf}|${placa}|${nc}`;
+  return locacaoContratoVinculoKey(loc);
 }
 
 function scoreLocacaoCanonica(loc) {
@@ -5261,7 +5272,7 @@ function repairProtocolosLocacaoDesalinhados(locs) {
 
   const alignedByNatural = new Map();
   list.forEach((l) => {
-    const nk = locacaoContratoNaturalKey(l);
+    const nk = locacaoContratoVinculoKey(l);
     const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
     if (!nk || !nc || !isProtocoloAlignedWithLocacaoInicio(nc, l)) return;
     const cur = alignedByNatural.get(nk);
@@ -5285,7 +5296,7 @@ function repairProtocolosLocacaoDesalinhados(locs) {
     const oldNc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
     if (!oldNc || isProtocoloAlignedWithLocacaoInicio(oldNc, l)) return;
 
-    const nk = locacaoContratoNaturalKey(l);
+    const nk = locacaoContratoVinculoKey(l);
     const keeper = nk ? alignedByNatural.get(nk) : null;
     if (keeper && Number(keeper.id) !== Number(l.id)) {
       const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
@@ -5395,7 +5406,7 @@ function enforceReceita2026OfficialLocacoesBase() {
     const nc = ncNorm(o.numeroContrato);
     if (!nc) return;
     resultByNc.set(nc, { ...o });
-    const nk = locacaoContratoNaturalKey(o);
+    const nk = locacaoContratoVinculoKey(o);
     if (nk) officialNaturalToNc.set(nk, nc);
   });
 
@@ -5417,7 +5428,7 @@ function enforceReceita2026OfficialLocacoesBase() {
 
   existing.forEach((loc) => {
     const nc = ncNorm(loc.numeroContrato);
-    const nk = locacaoContratoNaturalKey(loc);
+    const nk = locacaoContratoVinculoKey(loc);
     if (nc && resultByNc.has(nc)) {
       resultByNc.set(nc, mergeExistingIntoOfficial(resultByNc.get(nc), loc));
       return;
@@ -5448,7 +5459,7 @@ function enforceReceita2026OfficialLocacoesBase() {
  * (fonte: DK-FINANCEIRO 2026 — aba RECEITA 2026). Garante fidelidade ao Excel oficial.
  */
 function forceReplaceLocacoesFromExcelReceita2026Once() {
-  const FORCE_KEY = "dk_force_locacoes_excel_receita2026_v8";
+  const FORCE_KEY = "dk_force_locacoes_excel_receita2026_v9";
   if (localStorage.getItem(FORCE_KEY) === "done") return { replaced: false, count: 0 };
 
   const mapped = buildLocacoesArrayFromReceita2026Import();
@@ -5486,12 +5497,12 @@ function reconcileLocacoesWithReceita2026Bundle() {
 }
 
 function findLocacaoPorChaveNatural(cpf, placa, inicio, excludeLocacaoId) {
-  const key = locacaoContratoNaturalKey({ cpf, placa, inicio });
+  const key = locacaoContratoVinculoKey({ cpf, placa, inicio });
   if (!key) return null;
   return (
     loadCadastro(CAD_LOCACOES_KEY).find((l) => {
       if (excludeLocacaoId != null && Number(l.id) === Number(excludeLocacaoId)) return false;
-      return locacaoContratoNaturalKey(l) === key;
+      return locacaoContratoVinculoKey(l) === key;
     }) || null
   );
 }

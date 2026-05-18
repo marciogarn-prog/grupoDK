@@ -1,0 +1,779 @@
+{
+  "changedCount": 86,
+  "changes": [
+    {
+      "row": 15,
+      "protocolo": "2025082104",
+      "inicioAntes": "22/08/2025",
+      "inicioDepois": "21/08/2025",
+      "fimAntes": "09/10/2025",
+      "fimDepois": "08/10/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 20,
+      "protocolo": "2025091901",
+      "inicioAntes": "20/09/2025",
+      "inicioDepois": "19/09/2025",
+      "fimAntes": "13/12/2025",
+      "fimDepois": "12/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 22,
+      "protocolo": "2025092907",
+      "inicioAntes": "30/09/2025",
+      "inicioDepois": "29/09/2025",
+      "fimAntes": "22/12/2025",
+      "fimDepois": "21/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 23,
+      "protocolo": "2025100301",
+      "inicioAntes": "04/10/2025",
+      "inicioDepois": "03/10/2025",
+      "fimAntes": "23/10/2025",
+      "fimDepois": "22/10/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 26,
+      "protocolo": "2025100801",
+      "inicioAntes": "04/11/2025",
+      "inicioDepois": "08/10/2025",
+      "fimAntes": "14/11/2025",
+      "fimDepois": "18/10/2025",
+      "deltaDias": -27
+    },
+    {
+      "row": 32,
+      "protocolo": "2025121202",
+      "inicioAntes": "13/12/2025",
+      "inicioDepois": "12/12/2025",
+      "fimAntes": "20/02/2026",
+      "fimDepois": "19/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 33,
+      "protocolo": "2025112401",
+      "inicioAntes": "06/01/2026",
+      "inicioDepois": "24/11/2025",
+      "fimAntes": "21/01/2026",
+      "fimDepois": "09/12/2025",
+      "deltaDias": -43
+    },
+    {
+      "row": 35,
+      "protocolo": "2025112101",
+      "inicioAntes": "14/01/2026",
+      "inicioDepois": "21/11/2025",
+      "fimAntes": "03/02/2026",
+      "fimDepois": "11/12/2025",
+      "deltaDias": -54
+    },
+    {
+      "row": 39,
+      "protocolo": "2026011405",
+      "inicioAntes": "15/01/2026",
+      "inicioDepois": "14/01/2026",
+      "fimAntes": "11/03/2026",
+      "fimDepois": "10/03/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 40,
+      "protocolo": "2025012701",
+      "inicioAntes": "27/01/2026",
+      "inicioDepois": "27/01/2025",
+      "fimAntes": "01/03/2026",
+      "fimDepois": "01/03/2025",
+      "deltaDias": -365
+    },
+    {
+      "row": 47,
+      "protocolo": "2025031901",
+      "inicioAntes": "19/03/2026",
+      "inicioDepois": "19/03/2025",
+      "fimAntes": "08/04/2026",
+      "fimDepois": "08/04/2025",
+      "deltaDias": -365
+    },
+    {
+      "row": 55,
+      "protocolo": "2025050901",
+      "inicioAntes": "12/05/2025",
+      "inicioDepois": "09/05/2025",
+      "fimAntes": "25/08/2025",
+      "fimDepois": "22/08/2025",
+      "deltaDias": -3
+    },
+    {
+      "row": 61,
+      "protocolo": "2025072103",
+      "inicioAntes": "22/07/2025",
+      "inicioDepois": "21/07/2025",
+      "fimAntes": "28/07/2025",
+      "fimDepois": "27/07/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 69,
+      "protocolo": "2025080802",
+      "inicioAntes": "09/08/2025",
+      "inicioDepois": "08/08/2025",
+      "fimAntes": "08/09/2025",
+      "fimDepois": "07/09/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 70,
+      "protocolo": "2025081201",
+      "inicioAntes": "11/08/2025",
+      "inicioDepois": "12/08/2025",
+      "fimAntes": "25/08/2025",
+      "fimDepois": "26/08/2025",
+      "deltaDias": 1
+    },
+    {
+      "row": 72,
+      "protocolo": "2025081802",
+      "inicioAntes": "13/08/2025",
+      "inicioDepois": "18/08/2025",
+      "fimAntes": "18/09/2025",
+      "fimDepois": "23/09/2025",
+      "deltaDias": 5
+    },
+    {
+      "row": 85,
+      "protocolo": "2025082203",
+      "inicioAntes": "23/08/2025",
+      "inicioDepois": "22/08/2025",
+      "fimAntes": "02/09/2025",
+      "fimDepois": "01/09/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 92,
+      "protocolo": "2025082602",
+      "inicioAntes": "27/08/2025",
+      "inicioDepois": "26/08/2025",
+      "fimAntes": "11/09/2025",
+      "fimDepois": "10/09/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 99,
+      "protocolo": "2025090101",
+      "inicioAntes": "02/09/2025",
+      "inicioDepois": "01/09/2025",
+      "fimAntes": "16/09/2025",
+      "fimDepois": "15/09/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 110,
+      "protocolo": "2025091902",
+      "inicioAntes": "20/09/2025",
+      "inicioDepois": "19/09/2025",
+      "fimAntes": "10/02/2026",
+      "fimDepois": "09/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 112,
+      "protocolo": "2025092301",
+      "inicioAntes": "24/09/2025",
+      "inicioDepois": "23/09/2025",
+      "fimAntes": "01/10/2025",
+      "fimDepois": "30/09/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 114,
+      "protocolo": "2025092402",
+      "inicioAntes": "25/09/2025",
+      "inicioDepois": "24/09/2025",
+      "fimAntes": "02/10/2025",
+      "fimDepois": "01/10/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 117,
+      "protocolo": "2025092603",
+      "inicioAntes": "27/09/2025",
+      "inicioDepois": "26/09/2025",
+      "fimAntes": "06/12/2025",
+      "fimDepois": "05/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 122,
+      "protocolo": "2025092905",
+      "inicioAntes": "30/09/2025",
+      "inicioDepois": "29/09/2025",
+      "fimAntes": "05/12/2025",
+      "fimDepois": "04/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 124,
+      "protocolo": "2025100101",
+      "inicioAntes": "02/10/2025",
+      "inicioDepois": "01/10/2025",
+      "fimAntes": "30/10/2025",
+      "fimDepois": "29/10/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 127,
+      "protocolo": "2025100102",
+      "inicioAntes": "02/10/2025",
+      "inicioDepois": "01/10/2025",
+      "fimAntes": "19/02/2026",
+      "fimDepois": "18/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 128,
+      "protocolo": "2025100204",
+      "inicioAntes": "03/10/2025",
+      "inicioDepois": "02/10/2025",
+      "fimAntes": "17/10/2025",
+      "fimDepois": "16/10/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 129,
+      "protocolo": "2025100303",
+      "inicioAntes": "04/10/2025",
+      "inicioDepois": "03/10/2025",
+      "fimAntes": "24/02/2026",
+      "fimDepois": "23/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 133,
+      "protocolo": "2025100802",
+      "inicioAntes": "09/10/2025",
+      "inicioDepois": "08/10/2025",
+      "fimAntes": "04/11/2025",
+      "fimDepois": "03/11/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 137,
+      "protocolo": "2025101703",
+      "inicioAntes": "18/10/2025",
+      "inicioDepois": "17/10/2025",
+      "fimAntes": "12/01/2026",
+      "fimDepois": "11/01/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 149,
+      "protocolo": "2025103001",
+      "inicioAntes": "31/10/2025",
+      "inicioDepois": "30/10/2025",
+      "fimAntes": "10/02/2026",
+      "fimDepois": "09/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 168,
+      "protocolo": "2025110801",
+      "inicioAntes": "08/12/2025",
+      "inicioDepois": "08/11/2025",
+      "fimAntes": "22/12/2025",
+      "fimDepois": "22/11/2025",
+      "deltaDias": -30
+    },
+    {
+      "row": 169,
+      "protocolo": "2025120901",
+      "inicioAntes": "10/12/2025",
+      "inicioDepois": "09/12/2025",
+      "fimAntes": "08/01/2026",
+      "fimDepois": "07/01/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 170,
+      "protocolo": "2025121201",
+      "inicioAntes": "13/12/2025",
+      "inicioDepois": "12/12/2025",
+      "fimAntes": "23/12/2025",
+      "fimDepois": "22/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 171,
+      "protocolo": "2025121501",
+      "inicioAntes": "16/12/2025",
+      "inicioDepois": "15/12/2025",
+      "fimAntes": "30/12/2025",
+      "fimDepois": "29/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 172,
+      "protocolo": "2025121701",
+      "inicioAntes": "18/12/2025",
+      "inicioDepois": "17/12/2025",
+      "fimAntes": "27/01/2026",
+      "fimDepois": "26/01/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 174,
+      "protocolo": "2025121902",
+      "inicioAntes": "20/12/2025",
+      "inicioDepois": "19/12/2025",
+      "fimAntes": "30/12/2025",
+      "fimDepois": "29/12/2025",
+      "deltaDias": -1
+    },
+    {
+      "row": 176,
+      "protocolo": "2025103003",
+      "inicioAntes": "30/12/2025",
+      "inicioDepois": "30/10/2025",
+      "fimAntes": "13/01/2026",
+      "fimDepois": "13/11/2025",
+      "deltaDias": -61
+    },
+    {
+      "row": 179,
+      "protocolo": "2026010902",
+      "inicioAntes": "10/01/2026",
+      "inicioDepois": "09/01/2026",
+      "fimAntes": "06/02/2026",
+      "fimDepois": "05/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 182,
+      "protocolo": "2026011502",
+      "inicioAntes": "16/01/2026",
+      "inicioDepois": "15/01/2026",
+      "fimAntes": "15/02/2026",
+      "fimDepois": "14/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 186,
+      "protocolo": "2026012702",
+      "inicioAntes": "28/01/2026",
+      "inicioDepois": "27/01/2026",
+      "fimAntes": "18/02/2026",
+      "fimDepois": "17/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 189,
+      "protocolo": "2026020501",
+      "inicioAntes": "06/02/2026",
+      "inicioDepois": "05/02/2026",
+      "fimAntes": "12/02/2026",
+      "fimDepois": "11/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 191,
+      "protocolo": "2026021303",
+      "inicioAntes": "14/02/2026",
+      "inicioDepois": "13/02/2026",
+      "fimAntes": "24/02/2026",
+      "fimDepois": "23/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 197,
+      "protocolo": "2026021001",
+      "inicioAntes": "11/02/2026",
+      "inicioDepois": "10/02/2026",
+      "fimAntes": "25/02/2026",
+      "fimDepois": "24/02/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 198,
+      "protocolo": "2026022101",
+      "inicioAntes": "20/02/2026",
+      "inicioDepois": "21/02/2026",
+      "fimAntes": "27/02/2026",
+      "fimDepois": "28/02/2026",
+      "deltaDias": 1
+    },
+    {
+      "row": 208,
+      "protocolo": "2025092403",
+      "inicioAntes": "25/09/2025",
+      "inicioDepois": "24/09/2025",
+      "fimAntes": "12/03/2026",
+      "fimDepois": "11/03/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 218,
+      "protocolo": "2025111803",
+      "inicioAntes": "09/03/2026",
+      "inicioDepois": "18/11/2025",
+      "fimAntes": "23/03/2026",
+      "fimDepois": "02/12/2025",
+      "deltaDias": -111
+    },
+    {
+      "row": 223,
+      "protocolo": "2025082802",
+      "inicioAntes": "01/09/2025",
+      "inicioDepois": "28/08/2025",
+      "fimAntes": "02/04/2026",
+      "fimDepois": "29/03/2026",
+      "deltaDias": -4
+    },
+    {
+      "row": 228,
+      "protocolo": "2026033102",
+      "inicioAntes": "01/04/2026",
+      "inicioDepois": "31/03/2026",
+      "fimAntes": "08/04/2026",
+      "fimDepois": "07/04/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 230,
+      "protocolo": "2026030203",
+      "inicioAntes": "03/03/2026",
+      "inicioDepois": "02/03/2026",
+      "fimAntes": "21/04/2026",
+      "fimDepois": "20/04/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 232,
+      "protocolo": "2025112801",
+      "inicioAntes": "29/11/2025",
+      "inicioDepois": "28/11/2025",
+      "fimAntes": "16/04/2026",
+      "fimDepois": "15/04/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 233,
+      "protocolo": "2026032403",
+      "inicioAntes": "25/03/2026",
+      "inicioDepois": "24/03/2026",
+      "fimAntes": "14/04/2026",
+      "fimDepois": "13/04/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 235,
+      "protocolo": "2025122302",
+      "inicioAntes": "12/12/2025",
+      "inicioDepois": "23/12/2025",
+      "fimAntes": "24/04/2026",
+      "fimDepois": "05/05/2026",
+      "deltaDias": 11
+    },
+    {
+      "row": 239,
+      "protocolo": "2025121002",
+      "inicioAntes": "11/12/2025",
+      "inicioDepois": "10/12/2025",
+      "fimAntes": "27/04/2026",
+      "fimDepois": "26/04/2026",
+      "deltaDias": -1
+    },
+    {
+      "row": 248,
+      "protocolo": "2026031705",
+      "inicioAntes": "18/03/2026",
+      "inicioDepois": "17/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 250,
+      "protocolo": "2026042701",
+      "inicioAntes": "28/04/2026",
+      "inicioDepois": "27/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 251,
+      "protocolo": "2025061303",
+      "inicioAntes": "16/06/2025",
+      "inicioDepois": "13/06/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -3
+    },
+    {
+      "row": 252,
+      "protocolo": "2025061302",
+      "inicioAntes": "16/06/2025",
+      "inicioDepois": "13/06/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -3
+    },
+    {
+      "row": 269,
+      "protocolo": "2026040101",
+      "inicioAntes": "02/04/2026",
+      "inicioDepois": "01/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 279,
+      "protocolo": "2026021901",
+      "inicioAntes": "20/02/2026",
+      "inicioDepois": "19/02/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 283,
+      "protocolo": "2025092903",
+      "inicioAntes": "30/09/2025",
+      "inicioDepois": "29/09/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 284,
+      "protocolo": "2025092904",
+      "inicioAntes": "30/09/2025",
+      "inicioDepois": "29/09/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 285,
+      "protocolo": "2025092906",
+      "inicioAntes": "30/09/2025",
+      "inicioDepois": "29/09/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 286,
+      "protocolo": "2025100205",
+      "inicioAntes": "03/10/2025",
+      "inicioDepois": "02/10/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 287,
+      "protocolo": "2025100203",
+      "inicioAntes": "03/10/2025",
+      "inicioDepois": "02/10/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 310,
+      "protocolo": "2025100902",
+      "inicioAntes": "10/10/2025",
+      "inicioDepois": "09/10/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 311,
+      "protocolo": "2026011203",
+      "inicioAntes": "13/01/2026",
+      "inicioDepois": "12/01/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 312,
+      "protocolo": "2026011204",
+      "inicioAntes": "13/01/2026",
+      "inicioDepois": "12/01/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 313,
+      "protocolo": "2026020602",
+      "inicioAntes": "07/02/2026",
+      "inicioDepois": "06/02/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 314,
+      "protocolo": "2026011903",
+      "inicioAntes": "20/01/2026",
+      "inicioDepois": "19/01/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 315,
+      "protocolo": "2026010903",
+      "inicioAntes": "10/01/2026",
+      "inicioDepois": "09/01/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 319,
+      "protocolo": "2026032006",
+      "inicioAntes": "21/03/2026",
+      "inicioDepois": "20/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 322,
+      "protocolo": "2025092602",
+      "inicioAntes": "27/09/2025",
+      "inicioDepois": "26/09/2025",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 323,
+      "protocolo": "2026020601",
+      "inicioAntes": "07/02/2026",
+      "inicioDepois": "06/02/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 341,
+      "protocolo": "2026031602",
+      "inicioAntes": "17/03/2026",
+      "inicioDepois": "16/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 346,
+      "protocolo": "2026031706",
+      "inicioAntes": "18/03/2026",
+      "inicioDepois": "17/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 354,
+      "protocolo": "2026032008",
+      "inicioAntes": "21/03/2026",
+      "inicioDepois": "20/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 355,
+      "protocolo": "2026032007",
+      "inicioAntes": "21/03/2026",
+      "inicioDepois": "20/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 358,
+      "protocolo": "2026032402",
+      "inicioAntes": "25/03/2026",
+      "inicioDepois": "24/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 359,
+      "protocolo": "2026032404",
+      "inicioAntes": "25/03/2026",
+      "inicioDepois": "24/03/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 368,
+      "protocolo": "2026040902",
+      "inicioAntes": "10/04/2026",
+      "inicioDepois": "09/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 371,
+      "protocolo": "2026041501",
+      "inicioAntes": "16/04/2026",
+      "inicioDepois": "15/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 374,
+      "protocolo": "2026042201",
+      "inicioAntes": "23/04/2026",
+      "inicioDepois": "22/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 375,
+      "protocolo": "2026042202",
+      "inicioAntes": "23/04/2026",
+      "inicioDepois": "22/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 378,
+      "protocolo": "2026042403",
+      "inicioAntes": "25/04/2026",
+      "inicioDepois": "24/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    },
+    {
+      "row": 379,
+      "protocolo": "2026042404",
+      "inicioAntes": "25/04/2026",
+      "inicioDepois": "24/04/2026",
+      "fimAntes": "",
+      "fimDepois": "",
+      "deltaDias": -1
+    }
+  ]
+}
