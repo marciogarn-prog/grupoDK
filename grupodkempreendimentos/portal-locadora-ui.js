@@ -5673,6 +5673,34 @@ ${printable.innerHTML}
     setOperacaoLancAluguelDetalhePanelsVisible(false);
   }
 
+  /** Volta o foco e a rolagem para a área «Pesquisar contrato» (após Limpar dados). */
+  function voltarParaPesquisaLancAluguel() {
+    hideOperacaoLancAluguelDetalhePanels();
+    const hist = document.getElementById("operacaoLancAluguelHistorico");
+    if (hist) {
+      hist.classList.add("hidden");
+      hist.replaceChildren();
+    }
+    const pesquisa =
+      document.querySelector(".portal-lanc-aluguel-pesquisa") ||
+      document.getElementById("portal-lanc-aluguel-pesquisa-title");
+    const painel = document.getElementById("operacaoPainelDireito");
+    if (painel && pesquisa) {
+      const painelRect = painel.getBoundingClientRect();
+      const alvoRect = pesquisa.getBoundingClientRect();
+      const delta = alvoRect.top - painelRect.top + painel.scrollTop - 16;
+      painel.scrollTo({ top: Math.max(0, delta), behavior: "smooth" });
+    } else if (pesquisa) {
+      pesquisa.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    const foco =
+      document.getElementById("operacaoLancAluguelNomeBusca") ||
+      document.getElementById("operacaoLancAluguelCpf");
+    window.requestAnimationFrame(() => {
+      foco?.focus({ preventScroll: true });
+    });
+  }
+
   function resolveOperacaoLancAluguelNomePorCpf(cpfDigits) {
     if (!cpfDigits || cpfDigits.length !== 11) return "";
     if (typeof findClienteByCpfCadastro === "function") {
@@ -6424,12 +6452,18 @@ ${printable.innerHTML}
     refreshPortalRelPlacaDatalist();
   }
 
-  function clearOperacaoLancamentoAluguelForm() {
+  function clearOperacaoLancamentoAluguelForm(opts = {}) {
+    const voltarPesquisa = opts.voltarPesquisa !== false;
+    hideOperacaoLancAluguelDetalhePanels();
+    const hist = document.getElementById("operacaoLancAluguelHistorico");
+    if (hist) {
+      hist.classList.add("hidden");
+      hist.replaceChildren();
+    }
     const form = document.getElementById("formOperacaoLancamentoAluguelInline");
     form?.querySelectorAll("input").forEach((inp) => {
       inp.value = "";
     });
-    hideOperacaoLancAluguelDetalhePanels();
     const lista = document.getElementById("operacaoLancAluguelPesquisaLista");
     if (lista) {
       lista.classList.add("hidden");
@@ -6441,7 +6475,7 @@ ${printable.innerHTML}
       sel.replaceChildren();
       const o = document.createElement("option");
       o.value = "";
-      o.textContent = "Informe um CPF com locação";
+      o.textContent = "—";
       sel.appendChild(o);
       sel.disabled = true;
     }
@@ -6453,7 +6487,7 @@ ${printable.innerHTML}
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     refreshOperacaoLancAluguelAdminControlsVisibility();
-    document.getElementById("operacaoLancAluguelNomeBusca")?.focus();
+    if (voltarPesquisa) voltarParaPesquisaLancAluguel();
   }
 
   function bindOperacaoLocacaoAutofill() {
@@ -7314,7 +7348,7 @@ ${printable.innerHTML}
   });
   document.getElementById("operacaoLancAluguelLimparPesquisaBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    clearOperacaoLancamentoAluguelForm();
+    clearOperacaoLancamentoAluguelForm({ voltarPesquisa: true });
   });
   document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
@@ -7381,7 +7415,7 @@ ${printable.innerHTML}
 
   document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    clearOperacaoLancamentoAluguelForm();
+    clearOperacaoLancamentoAluguelForm({ voltarPesquisa: true });
   });
 
   document.getElementById("portalLancAluguelConfirmSimBtn")?.addEventListener("click", () => {
