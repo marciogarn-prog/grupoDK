@@ -91,6 +91,16 @@
         localStorage.setItem(k, JSON.stringify(v));
       }
     }
+    runLocacoesSanitizeAfterCloudApply();
+  }
+
+  function runLocacoesSanitizeAfterCloudApply() {
+    if (typeof window.__DK_sanitizeLocacoesCadastro !== "function") return;
+    try {
+      window.__DK_sanitizeLocacoesCadastro({ pushCloud: false });
+    } catch (e) {
+      console.warn("[DK cloud] sanitize locações", e);
+    }
   }
 
   function setMsg(text, tone) {
@@ -315,9 +325,20 @@
     }
   }
 
+  async function waitForLocacoesSanitizeReady(maxMs = 8000) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < maxMs) {
+      if (typeof window.__DK_sanitizeLocacoesCadastro === "function") return true;
+      await new Promise((r) => setTimeout(r, 40));
+    }
+    return typeof window.__DK_sanitizeLocacoesCadastro === "function";
+  }
+
   async function autoPullFromCloudOnStartup() {
     const client = window.__DK_SUPABASE_CLIENT__;
     if (!client) return;
+
+    await waitForLocacoesSanitizeReady();
 
     suppressCloudHook = true;
     try {

@@ -88,6 +88,83 @@ function mergeVeiculosCadastro(previousList, incomingList) {
   return Array.from(byK.values());
 }
 
+function parseBrDate(s) {
+  const m = String(s || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function protocoloPrefixFromInicio(inicio) {
+  const d = parseBrDate(inicio);
+  if (!d) return "";
+  return (
+    d.getFullYear() +
+    String(d.getMonth() + 1).padStart(2, "0") +
+    String(d.getDate()).padStart(2, "0")
+  );
+}
+
+function isProtocoloAligned(nc, loc) {
+  const exp = protocoloPrefixFromInicio(loc.inicio);
+  if (!exp) return true;
+  const clean = ncNorm(nc);
+  const m = clean.match(/^(\d{8})(\d+)$/);
+  if (!m) return false;
+  return m[1] === exp;
+}
+
+function locacaoNaturalKey(l) {
+  const cpf = onlyDigits(l.cpf);
+  const pl = normalizePlate(l.placa);
+  const inicio = String(l.inicio || "").trim();
+  if (cpf.length !== 11 || !pl || !inicio) return "";
+  return `${cpf}|${pl}|${inicio}`;
+}
+
+function scoreLocacao(l) {
+  const nc = ncNorm(l.numeroContrato);
+  let s = Number(l.updatedAt || l.createdAt || l.id || 0);
+  if (isProtocoloAligned(nc, l)) s += 1e15;
+  if (Array.isArray(l.portalLancamentosAluguel)) s += l.portalLancamentosAluguel.length * 1e9;
+  return s;
+}
+
+function dedupeLocacoesList(locs) {
+  const list = Array.isArray(locs) ? locs.map((l) => ({ ...l })) : [];
+  const drop = new Set();
+
+  const byNatural = new Map();
+  list.forEach((loc) => {
+    const nk = locacaoNaturalKey(loc);
+    if (!nk) return;
+    if (!byNatural.has(nk)) byNatural.set(nk, []);
+    byNatural.get(nk).push(loc);
+  });
+  byNatural.forEach((group) => {
+    if (group.length <= 1) return;
+    group.sort((a, b) => scoreLocacao(b) - scoreLocacao(a));
+    for (let i = 1; i < group.length; i++) drop.add(Number(group[i].id));
+  });
+
+  const byNc = new Map();
+  list.filter((l) => !drop.has(Number(l.id))).forEach((loc) => {
+    const nc = ncNorm(loc.numeroContrato);
+    if (!nc) return;
+    if (!byNc.has(nc)) byNc.set(nc, []);
+    byNc.get(nc).push(loc);
+  });
+  byNc.forEach((group) => {
+    if (group.length <= 1) return;
+    group.sort((a, b) => scoreLocacao(b) - scoreLocacao(a));
+    for (let i = 1; i < group.length; i++) drop.add(Number(group[i].id));
+  });
+
+  return list.filter((l) => !drop.has(Number(l.id)));
+}
+
 function mergeLocacoesCadastro(previousList, incomingList) {
   const prev = Array.isArray(previousList) ? previousList : [];
   const incoming = Array.isArray(incomingList) ? incomingList : [];
@@ -120,7 +197,7 @@ function mergeLocacoesCadastro(previousList, incomingList) {
   };
   prev.forEach(add);
   incoming.forEach(add);
-  return Array.from(byK.values());
+  return dedupeLocacoesList(Array.from(byK.values()));
 }
 
 module.exports = {

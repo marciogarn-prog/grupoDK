@@ -2191,7 +2191,10 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     };
     prev.forEach(add);
     incoming.forEach(add);
-    return Array.from(byK.values());
+    let merged = Array.from(byK.values());
+    merged = deduplicateLocacoesCadastro(merged).locs;
+    merged = repairProtocolosLocacaoDesalinhados(merged).locs;
+    return merged;
   }
 
   return incoming;
@@ -5325,22 +5328,46 @@ function findLocacaoPorChaveNatural(cpf, placa, inicio, excludeLocacaoId) {
   );
 }
 
-/**
- * Deduplica locações, remove protocolos impossíveis/duplicados e alinha AAAAMMDD à data de início.
- * Executa uma vez por navegador (v3).
- */
-function repairProtocolosLocacaoPorDataInicioOnce() {
-  const REPAIR_KEY = "dk_repair_protocolo_inicio_v3";
-  if (localStorage.getItem(REPAIR_KEY) === "done") return;
+/** Conta duplicatas e protocolos desalinhados (AAAAMMDD ≠ data de início). */
+function countLocacoesSanitizeProblems(locs) {
+  if (!Array.isArray(locs) || !locs.length) return 0;
+  let problems = 0;
+  const seenNc = new Set();
+  const seenNatural = new Set();
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (nc) {
+      if (seenNc.has(nc)) problems += 1;
+      else seenNc.add(nc);
+      if (!isProtocoloAlignedWithLocacaoInicio(nc, l)) problems += 1;
+    }
+    const nk = locacaoContratoNaturalKey(l);
+    if (nk) {
+      if (seenNatural.has(nk)) problems += 1;
+      else seenNatural.add(nk);
+    }
+  });
+  return problems;
+}
 
+/**
+ * Remove duplicatas, alinha protocolos à data de início e grava (substitui a lista, sem merge).
+ * @returns {{ changed: boolean, removed: number, remapped: number, problemsAfter: number }}
+ */
+function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
+  const pushCloud = opts.pushCloud !== false;
   let locs = loadCadastro(CAD_LOCACOES_KEY);
   if (!locs.length) {
-    localStorage.setItem(REPAIR_KEY, "done");
-    return;
+    return { changed: false, removed: 0, remapped: 0, problemsAfter: 0 };
   }
 
-  const combinedRemap = new Map();
+  const problemsBefore = countLocacoesSanitizeProblems(locs);
+  if (!problemsBefore && !opts.force) {
+    return { changed: false, removed: 0, remapped: 0, problemsAfter: 0 };
+  }
+
   const before = locs.length;
+  const combinedRemap = new Map();
 
   const deduped = deduplicateLocacoesCadastro(locs);
   locs = deduped.locs;
@@ -5351,15 +5378,37 @@ function repairProtocolosLocacaoPorDataInicioOnce() {
   repaired.remap.forEach((v, k) => combinedRemap.set(k, v));
 
   const removed = before - locs.length;
-  if (combinedRemap.size || removed > 0) {
+  const problemsAfter = countLocacoesSanitizeProblems(locs);
+  const changed = Boolean(combinedRemap.size || removed > 0 || problemsBefore !== problemsAfter);
+
+  if (changed) {
     remapReferenciasNumeroContrato(combinedRemap);
-    saveCadastro(CAD_LOCACOES_KEY, locs);
+    saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
     console.info(
-      `[DK] Locações sanitizadas: ${removed} duplicata(s) removida(s), ${combinedRemap.size} protocolo(s) remapeado(s).`
+      `[DK] Locações sanitizadas: ${removed} duplicata(s) removida(s), ${combinedRemap.size} protocolo(s) remapeado(s), problemas restantes: ${problemsAfter}.`
     );
+    if (pushCloud && typeof window.__DK_pushCloudSnapshotNow === "function") {
+      window.__DK_pushCloudSnapshotNow().catch((e) => console.warn("[DK] push nuvem pós-sanitize", e));
+    }
   }
 
-  localStorage.setItem(REPAIR_KEY, "done");
+  return {
+    changed,
+    removed,
+    remapped: combinedRemap.size,
+    problemsAfter,
+  };
+}
+
+/** Sempre que houver problemas; a nuvem não pode reintroduzir duplicatas sem novo sanitize. */
+function repairProtocolosLocacaoPorDataInicioOnce() {
+  sanitizeLocacoesProtocolosAndDedupe({ pushCloud: true });
+}
+
+try {
+  window.__DK_sanitizeLocacoesCadastro = (opts) => sanitizeLocacoesProtocolosAndDedupe(opts);
+} catch {
+  /* ignore */
 }
 
 function parseLocacaoProtocolDateCandidate(locacao) {
