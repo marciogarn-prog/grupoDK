@@ -1002,7 +1002,9 @@ body {
   margin-top: 0.15rem;
 }
 
-.portal-lanc-aluguel-pesquisa__grid > #operacaoLancAluguelPesquisaLista {
+.portal-lanc-aluguel-pesquisa__grid > #operacaoLancAluguelPesquisaLista,
+.portal-lanc-aluguel-pesquisa__grid > #operacaoLancMultasPesquisaLista,
+.portal-lanc-aluguel-pesquisa__grid > #operacaoLancManutencaoPesquisaLista {
   grid-column: 1 / -1;
 }
 

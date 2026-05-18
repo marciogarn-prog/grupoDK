@@ -917,7 +917,7 @@
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Ao digitar o <strong>CPF</strong>, o nome é sugerido. Com CPF ou nome concluído, aparecem os <strong>protocolos ativos e inativos</strong> desse cliente.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> — as sugestões cruzam-se. Com qualquer um concluído, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
@@ -933,6 +933,11 @@
                   <span>Nº do protocolo</span>
                   <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancMultasProtocoloSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Placa da moto</span>
+                  <input type="text" id="operacaoLancMultasPlacaBusca" autocomplete="off" maxlength="8" placeholder="Ex.: ABC1D23" list="operacaoLancMultasPlacaSugestoes" aria-autocomplete="list" autocapitalize="characters">
+                  <datalist id="operacaoLancMultasPlacaSugestoes"></datalist>
                 </label>
                 <div id="operacaoLancMultasPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Protocolos do cliente" hidden></div>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
@@ -1023,7 +1028,7 @@
           <form id="formOperacaoLancamentoManutencaoInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-manutencao-pesquisa-title">
               <h4 id="portal-lanc-manutencao-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Ao digitar o <strong>CPF</strong>, o nome é sugerido. Com CPF ou nome concluído, aparecem os <strong>protocolos ativos e inativos</strong> desse cliente.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> — as sugestões cruzam-se. Com qualquer um concluído, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
@@ -1039,6 +1044,11 @@
                   <span>Nº do protocolo</span>
                   <input type="text" id="operacaoLancManutencaoProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancManutencaoProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancManutencaoProtocoloSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Placa da moto</span>
+                  <input type="text" id="operacaoLancManutencaoPlacaBusca" autocomplete="off" maxlength="8" placeholder="Ex.: ABC1D23" list="operacaoLancManutencaoPlacaSugestoes" aria-autocomplete="list" autocapitalize="characters">
+                  <datalist id="operacaoLancManutencaoPlacaSugestoes"></datalist>
                 </label>
                 <div id="operacaoLancManutencaoPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Protocolos do cliente" hidden></div>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">

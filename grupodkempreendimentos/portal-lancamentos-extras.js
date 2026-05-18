@@ -469,6 +469,14 @@
       const pick = matches[0];
       return { loc: pick, cpfDigits: dig(pick.cpf), proto: normNc(pick.numeroContrato) };
     }
+    const placaQ = normPlate($(cfg, "PlacaBusca")?.value);
+    if (placaQ.length >= 3) {
+      const matches = locs.filter((l) => normPlate(l.placa).includes(placaQ));
+      if (!matches.length) return null;
+      const pick =
+        protoWant ? matches.find((l) => normNc(l.numeroContrato) === protoWant) || matches[0] : matches[0];
+      return { loc: pick, cpfDigits: dig(pick.cpf), proto: normNc(pick.numeroContrato) };
+    }
     return null;
   }
 
@@ -546,6 +554,13 @@
       .replace(/"/g, "&quot;");
   }
 
+  function normPlate(raw) {
+    if (typeof normalizePlate === "function") return normalizePlate(String(raw || ""));
+    return String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
   function nomeChave(raw) {
     if (typeof window.__DK_portalNomeChaveBusca === "function") return window.__DK_portalNomeChaveBusca(raw);
     return String(raw || "")
@@ -596,17 +611,24 @@
     const cpfPrefix = dig(String(filtros.cpfRaw || "")).slice(0, 11);
     const nomeKey = nomeChave(filtros.nomeRaw || "");
     const protoQ = normNc(String(filtros.protoRaw || "").trim());
+    const placaQ = normPlate(filtros.placaRaw || "");
     return linhas.filter((row) => {
       if (cpfPrefix.length && !row.cpf.startsWith(cpfPrefix)) return false;
       if (nomeKey.length >= 2 && !nomeChave(row.nome).includes(nomeKey)) return false;
       if (protoQ.length && !row.proto.includes(protoQ)) return false;
+      if (placaQ.length >= 3 && !(row.placa || "").includes(placaQ)) return false;
       return true;
     });
   }
 
-  function linhasProtocolosDoCliente(filtradas, cpfRaw, nomeRaw) {
+  function linhasProtocolosParaLista(filtradas, { cpfRaw, nomeRaw, placaRaw }) {
     const cpfDig = dig(String(cpfRaw || "")).slice(0, 11);
     if (cpfDig.length === 11) return filtradas.filter((r) => r.cpf === cpfDig);
+    const placaQ = normPlate(placaRaw || "");
+    if (placaQ.length >= 3) {
+      const porPlaca = filtradas.filter((r) => (r.placa || "").includes(placaQ));
+      if (porPlaca.length) return porPlaca;
+    }
     const nomeKey = nomeChave(nomeRaw || "");
     if (nomeKey.length < 2) return [];
     const cpfs = [...new Set(filtradas.map((r) => r.cpf))];
@@ -615,6 +637,17 @@
     const cpfsEx = [...new Set(exatos.map((r) => r.cpf))];
     if (cpfsEx.length === 1) return exatos.filter((r) => r.cpf === cpfsEx[0]);
     return [];
+  }
+
+  function preencherCamposDeLinha(cfg, row, source) {
+    if (!row) return;
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    if (source !== "cpf" && $(cfg, "Cpf")) $(cfg, "Cpf").value = fmt(row.cpf);
+    if (source !== "nome" && $(cfg, "NomeBusca") && row.nome && row.nome !== "(sem nome)") {
+      $(cfg, "NomeBusca").value = String(row.nome).trim();
+    }
+    if (source !== "placa" && $(cfg, "PlacaBusca") && row.placa) $(cfg, "PlacaBusca").value = row.placa;
+    if (source !== "proto" && $(cfg, "ProtocoloBusca") && row.proto) $(cfg, "ProtocoloBusca").value = row.proto;
   }
 
   function renderPesquisaLista(cfg, linhas) {
@@ -636,18 +669,19 @@
         const placaLbl = row.placa ? ` · ${escHtml(row.placa)}` : "";
         const status = row.ativo ? "ativo" : "inativo";
         const corCls = escHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
-        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-lanc-pesquisa-key="${cfg.key}" data-cpf="${escHtml(row.cpf)}" data-nome="${escHtml(row.nome)}" data-proto="${escHtml(row.proto)}">${escHtml(row.nome)} · ${escHtml(fmt(row.cpf))} · ${escHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-lanc-pesquisa-key="${cfg.key}" data-cpf="${escHtml(row.cpf)}" data-nome="${escHtml(row.nome)}" data-proto="${escHtml(row.proto)}" data-placa="${escHtml(row.placa || "")}">${escHtml(row.nome)} · ${escHtml(fmt(row.cpf))} · ${escHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
       })
       .join("")}</ul>`;
   }
 
-  function aplicarPesquisaLinha(cfg, cpf, nome, proto) {
+  function aplicarPesquisaLinha(cfg, cpf, nome, proto, placa) {
     const cpfDigits = dig(String(cpf || "")).slice(0, 11);
     if ($(cfg, "Cpf") && cpfDigits.length === 11 && typeof formatCpf === "function") {
       $(cfg, "Cpf").value = formatCpf(cpfDigits);
     }
     if ($(cfg, "NomeBusca") && nome && nome !== "(sem nome)") $(cfg, "NomeBusca").value = String(nome).trim();
     if ($(cfg, "ProtocoloBusca") && proto) $(cfg, "ProtocoloBusca").value = String(proto).trim();
+    if ($(cfg, "PlacaBusca") && placa) $(cfg, "PlacaBusca").value = normPlate(placa);
     refreshPesquisaAvancada(cfg);
     hideDetalhe(cfg);
   }
@@ -657,14 +691,17 @@
     const inpCpf = $(cfg, "Cpf");
     const inpNome = $(cfg, "NomeBusca");
     const inpProto = $(cfg, "ProtocoloBusca");
+    const inpPlaca = $(cfg, "PlacaBusca");
     const dlCpf = document.getElementById(`${cfg.prefix}CpfSugestoes`);
     const dlNome = document.getElementById(`${cfg.prefix}NomeSugestoes`);
     const dlProto = document.getElementById(`${cfg.prefix}ProtocoloSugestoes`);
+    const dlPlaca = document.getElementById(`${cfg.prefix}PlacaSugestoes`);
     if (!dlCpf || !dlNome || !dlProto) return;
 
     const prevCpf = String(inpCpf?.value || "").trim();
     const prevNome = String(inpNome?.value || "").trim();
     const prevProto = String(inpProto?.value || "").trim();
+    const prevPlaca = String(inpPlaca?.value || "").trim();
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
 
     const todas = collectPesquisaLinhas();
@@ -672,17 +709,31 @@
       cpfRaw: prevCpf,
       nomeRaw: prevNome,
       protoRaw: prevProto,
+      placaRaw: prevPlaca,
     });
 
     const cpfsMap = new Map();
     const nomesMap = new Map();
     const protosSet = new Map();
+    const placasMap = new Map();
     filtradas.forEach((row) => {
       if (!cpfsMap.has(row.cpf)) cpfsMap.set(row.cpf, row.nome);
       const nk = nomeChave(row.nome);
       if (!nomesMap.has(nk)) nomesMap.set(nk, { nome: row.nome, cpf: row.cpf });
       if (!protosSet.has(row.proto)) protosSet.set(row.proto, { cpf: row.cpf, nome: row.nome, placa: row.placa, ativo: row.ativo });
+      if (row.placa && !placasMap.has(row.placa)) placasMap.set(row.placa, { cpf: row.cpf, nome: row.nome });
     });
+
+    if (dlPlaca) {
+      dlPlaca.innerHTML = Array.from(placasMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .slice(0, 120)
+        .map(([placa, meta]) => {
+          const lbl = `${fmt(meta.cpf)} · ${meta.nome}`;
+          return `<option value="${escHtml(placa)}" label="${escHtml(lbl)}"></option>`;
+        })
+        .join("");
+    }
 
     dlCpf.innerHTML = Array.from(cpfsMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
@@ -697,8 +748,11 @@
       .join("");
 
     const cpfDig = dig(prevCpf).slice(0, 11);
-    const protosParaDatalist =
-      cpfDig.length === 11 ? filtradas.filter((r) => r.cpf === cpfDig) : linhasProtocolosDoCliente(filtradas, prevCpf, prevNome);
+    const protosParaDatalist = linhasProtocolosParaLista(filtradas, {
+      cpfRaw: prevCpf,
+      nomeRaw: prevNome,
+      placaRaw: prevPlaca,
+    });
 
     dlProto.innerHTML = protosParaDatalist
       .sort((a, b) => a.proto.localeCompare(b.proto, "en"))
@@ -726,6 +780,9 @@
         } else if (filtradas.length === 1) {
           inpNome.value = filtradas[0].nome === "(sem nome)" ? "" : filtradas[0].nome;
         }
+      } else if (source === "placa" && protosParaDatalist.length === 1) {
+        const nomeCanon = protosParaDatalist[0].nome;
+        if (nomeCanon && nomeCanon !== "(sem nome)") inpNome.value = nomeCanon;
       }
     }
 
@@ -738,6 +795,21 @@
         if (exato.length === 1) inpCpf.value = fmt(exato[0].cpf);
       } else if (source === "proto" && filtradas.length === 1) {
         inpCpf.value = fmt(filtradas[0].cpf);
+      } else if (source === "placa" && protosParaDatalist.length === 1) {
+        inpCpf.value = fmt(protosParaDatalist[0].cpf);
+      }
+    }
+
+    if (source !== "placa" && inpPlaca) {
+      if (filtradas.length === 1 && filtradas[0].placa) {
+        inpPlaca.value = filtradas[0].placa;
+      } else if (source === "cpf" && cpfDig.length === 11) {
+        const placasDoCpf = [...new Set(filtradas.filter((r) => r.cpf === cpfDig).map((r) => r.placa).filter(Boolean))];
+        if (placasDoCpf.length === 1) inpPlaca.value = placasDoCpf[0];
+      } else if (source === "proto" && prevProto) {
+        const protoNorm = normNc(prevProto);
+        const hit = filtradas.find((r) => r.proto === protoNorm);
+        if (hit?.placa) inpPlaca.value = hit.placa;
       }
     }
 
@@ -746,11 +818,30 @@
     } else if (source === "cpf" && inpProto && cpfDig.length === 11) {
       const protosDoCpf = filtradas.filter((r) => r.cpf === cpfDig).map((r) => r.proto);
       if (protosDoCpf.length === 1) inpProto.value = protosDoCpf[0];
+    } else if (source === "placa" && inpPlaca) {
+      const placaQ = normPlate(prevPlaca);
+      const protosDaPlaca = filtradas.filter((r) => (r.placa || "").includes(placaQ)).map((r) => r.proto);
+      if (protosDaPlaca.length === 1) inpProto.value = protosDaPlaca[0];
     }
 
     if (inpCpf && source === "cpf" && typeof formatCpf === "function") {
       const d = dig(inpCpf.value).slice(0, 11);
       inpCpf.value = formatCpf(d);
+    }
+
+    if (inpPlaca && source === "placa") {
+      inpPlaca.value = normPlate(inpPlaca.value);
+    }
+
+    const protoNorm = normNc(prevProto);
+    if (protoNorm) {
+      const hitProto = filtradas.find((r) => r.proto === protoNorm);
+      if (hitProto) preencherCamposDeLinha(cfg, hitProto, "proto");
+    } else if (source === "placa") {
+      const placaQ = normPlate(prevPlaca);
+      if (placaQ.length >= 7 && protosParaDatalist.length === 1) {
+        preencherCamposDeLinha(cfg, protosParaDatalist[0], "placa");
+      }
     }
   }
 
@@ -779,11 +870,13 @@
       const hit = resolvePesquisa(cfg);
       if (!hit || hit.cpfDigits.length !== 11) {
         hideDetalhe(cfg);
-        if (msg) msg.textContent = "Informe nome, CPF ou protocolo válido com locação cadastrada.";
+        if (msg) msg.textContent = "Informe nome, CPF, placa ou protocolo válido com locação cadastrada.";
         return;
       }
       if (typeof formatCpf === "function") $(cfg, "Cpf").value = formatCpf(hit.cpfDigits);
       if ($(cfg, "ProtocoloBusca")) $(cfg, "ProtocoloBusca").value = hit.proto;
+      const placaHit = normPlate(hit.loc?.placa);
+      if ($(cfg, "PlacaBusca") && placaHit) $(cfg, "PlacaBusca").value = placaHit;
       if (msg) msg.textContent = "";
       refreshProtocoloSelect(cfg, { preserveNc: hit.proto });
       showDetalhe(cfg);
@@ -823,7 +916,13 @@
       const btn = e.target.closest("[data-lanc-pesquisa-key]");
       if (!btn || btn.getAttribute("data-lanc-pesquisa-key") !== cfg.key) return;
       e.preventDefault();
-      aplicarPesquisaLinha(cfg, btn.getAttribute("data-cpf"), btn.getAttribute("data-nome"), btn.getAttribute("data-proto"));
+      aplicarPesquisaLinha(
+        cfg,
+        btn.getAttribute("data-cpf"),
+        btn.getAttribute("data-nome"),
+        btn.getAttribute("data-proto"),
+        btn.getAttribute("data-placa")
+      );
     });
 
     $(cfg, "Cpf")?.addEventListener("input", () => {
@@ -849,6 +948,15 @@
       hideDetalhe(cfg);
     });
     $(cfg, "ProtocoloBusca")?.addEventListener("change", () => refreshPesquisaAvancada(cfg, { source: "proto" }));
+
+    $(cfg, "PlacaBusca")?.addEventListener("input", () => {
+      const msg = $(cfg, "InlineMsg");
+      if (msg) msg.textContent = "";
+      refreshPesquisaAvancada(cfg, { source: "placa" });
+      hideDetalhe(cfg);
+    });
+    $(cfg, "PlacaBusca")?.addEventListener("change", () => refreshPesquisaAvancada(cfg, { source: "placa" }));
+    $(cfg, "PlacaBusca")?.addEventListener("blur", () => refreshPesquisaAvancada(cfg, { source: "placa" }));
 
     $(cfg, "ProtocoloSelect")?.addEventListener("change", () => {
       const sel = $(cfg, "ProtocoloSelect");

@@ -5885,13 +5885,19 @@ ${printable.innerHTML}
   function filterOperacaoLancAluguelPesquisaLinhas(linhas, filtros) {
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const cpfPrefix = dig(String(filtros.cpfRaw || "")).slice(0, 11);
     const nomeKey = portalNomeChaveBusca(filtros.nomeRaw || "");
     const protoQ = normPortalNumeroContrato(String(filtros.protoRaw || "").trim());
+    const placaQ = np(String(filtros.placaRaw || "").trim());
     return linhas.filter((row) => {
       if (cpfPrefix.length && !row.cpf.startsWith(cpfPrefix)) return false;
       if (nomeKey.length >= 2 && !portalNomeChaveBusca(row.nome).includes(nomeKey)) return false;
       if (protoQ.length && !row.proto.includes(protoQ)) return false;
+      if (placaQ.length >= 3 && !(row.placa || "").includes(placaQ)) return false;
       return true;
     });
   }
