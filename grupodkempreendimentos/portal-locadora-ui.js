@@ -123,7 +123,17 @@
     if (f.acessos && typeof f.acessos === "object") return f.acessos;
     return typeof normalizeOperacaoAccess === "function"
       ? normalizeOperacaoAccess(null, "operacao")
-      : { cliente: true, veiculo: true, locacao: true, lancamentoAluguel: true, manutencao: false, lancamentoDespesa: false, funcionario: false };
+      : {
+          cliente: true,
+          veiculo: true,
+          locacao: true,
+          lancamentoAluguel: true,
+          lancamentoMultas: true,
+          lancamentoManutencao: true,
+          manutencao: false,
+          lancamentoDespesa: false,
+          funcionario: false,
+        };
   }
 
   /** Esconde botões da operação para os quais o colaborador não tem permissão em `acessos`. */
@@ -143,6 +153,8 @@
       ["btn-operacao-cadastro-veiculo", "operacaoInlineVeiculo", "veiculo"],
       ["btn-operacao-cadastro-locacao", "operacaoInlineLocacao", "locacao"],
       ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
+      ["btn-operacao-lancamento-multas", "operacaoInlineLancamentoMultas", "lancamentoMultas"],
+      ["btn-operacao-lancamento-manutencao", "operacaoInlineLancamentoManutencao", "lancamentoManutencao"],
     ];
 
     if (!isOwner && role === "operacao" && acessosOp) {
@@ -190,6 +202,8 @@
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
+      "btn-operacao-lancamento-multas",
+      "btn-operacao-lancamento-manutencao",
     ];
     const visiveis = ids.filter((id) => {
       const el = document.getElementById(id);
@@ -1422,10 +1436,14 @@ ${printable.innerHTML}
     const c2 = document.getElementById("portalColabAceVeiculo");
     const c3 = document.getElementById("portalColabAceLocacao");
     const c4 = document.getElementById("portalColabAceLancAluguel");
+    const c5 = document.getElementById("portalColabAceLancMultas");
+    const c6 = document.getElementById("portalColabAceLancManutencao");
     if (c1) c1.checked = true;
     if (c2) c2.checked = true;
     if (c3) c3.checked = true;
     if (c4) c4.checked = true;
+    if (c5) c5.checked = true;
+    if (c6) c6.checked = true;
   }
 
   function aplicarPortalColaboradorDoFuncionario(f) {
@@ -1446,10 +1464,14 @@ ${printable.innerHTML}
     const c2 = document.getElementById("portalColabAceVeiculo");
     const c3 = document.getElementById("portalColabAceLocacao");
     const c4 = document.getElementById("portalColabAceLancAluguel");
+    const c5 = document.getElementById("portalColabAceLancMultas");
+    const c6 = document.getElementById("portalColabAceLancManutencao");
     if (c1) c1.checked = Boolean(a.cliente);
     if (c2) c2.checked = Boolean(a.veiculo);
     if (c3) c3.checked = Boolean(a.locacao);
     if (c4) c4.checked = Boolean(a.lancamentoAluguel);
+    if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
+    if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
   }
 
   function setPortalColaboradorModoCadastroOuEdicao(modoCadastroNovo) {
@@ -1520,7 +1542,9 @@ ${printable.innerHTML}
     const aceVeiculo = Boolean(document.getElementById("portalColabAceVeiculo")?.checked);
     const aceLocacao = Boolean(document.getElementById("portalColabAceLocacao")?.checked);
     const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
-    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc) {
+    const aceMultas = Boolean(document.getElementById("portalColabAceLancMultas")?.checked);
+    const aceManut = Boolean(document.getElementById("portalColabAceLancManutencao")?.checked);
+    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut) {
       if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
       return;
     }
@@ -1533,6 +1557,8 @@ ${printable.innerHTML}
               locacao: aceLocacao,
               manutencao: false,
               lancamentoAluguel: aceLanc,
+              lancamentoMultas: aceMultas,
+              lancamentoManutencao: aceManut,
               lancamentoDespesa: false,
             },
             "operacao"
@@ -1543,6 +1569,8 @@ ${printable.innerHTML}
             locacao: aceLocacao,
             manutencao: false,
             lancamentoAluguel: aceLanc,
+            lancamentoMultas: aceMultas,
+            lancamentoManutencao: aceManut,
             lancamentoDespesa: false,
             funcionario: false,
           };
@@ -1599,7 +1627,9 @@ ${printable.innerHTML}
     const aceVeiculo = Boolean(document.getElementById("portalColabAceVeiculo")?.checked);
     const aceLocacao = Boolean(document.getElementById("portalColabAceLocacao")?.checked);
     const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
-    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc) {
+    const aceMultas = Boolean(document.getElementById("portalColabAceLancMultas")?.checked);
+    const aceManut = Boolean(document.getElementById("portalColabAceLancManutencao")?.checked);
+    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut) {
       if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
       return;
     }
@@ -1612,6 +1642,8 @@ ${printable.innerHTML}
               locacao: aceLocacao,
               manutencao: false,
               lancamentoAluguel: aceLanc,
+              lancamentoMultas: aceMultas,
+              lancamentoManutencao: aceManut,
               lancamentoDespesa: false,
             },
             "operacao"
@@ -1622,6 +1654,8 @@ ${printable.innerHTML}
             locacao: aceLocacao,
             manutencao: false,
             lancamentoAluguel: aceLanc,
+            lancamentoMultas: aceMultas,
+            lancamentoManutencao: aceManut,
             lancamentoDespesa: false,
             funcionario: false,
           };
@@ -4012,6 +4046,8 @@ ${printable.innerHTML}
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
+    document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
+    document.getElementById("operacaoInlineLancamentoManutencao")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
   }
 
@@ -4029,6 +4065,8 @@ ${printable.innerHTML}
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
+      "btn-operacao-lancamento-multas",
+      "btn-operacao-lancamento-manutencao",
       "btn-operacao-cadastro-colaborador",
     ].forEach((id) => {
       const b = document.getElementById(id);
@@ -7721,7 +7759,7 @@ ${printable.innerHTML}
     });
   });
 
-  ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn"].forEach((id) => {
+  ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn", "operacaoLancMultasVoltarBtn", "operacaoLancManutencaoVoltarBtn"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       hideInlineForms();
     });
@@ -8158,6 +8196,14 @@ ${printable.innerHTML}
         .catch(() => {});
     });
   })();
+
+  window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
+  window.__DK_hideOperacaoInlineForms = hideInlineForms;
+  window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
+  window.__DK_openPortalLancConfirmModal = openPortalLancAluguelConfirmModal;
+  window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
+  window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_getPortalSessaoParaRegistroLancamento = getPortalSessaoParaRegistroLancamentoAluguel;
 
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {

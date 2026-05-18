@@ -162,6 +162,14 @@
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
                 <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de locação; dados carregados do protocolo</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
+                <span class="btn-operacao-cmd__title">Lançamento de multas</span>
+                <span class="btn-operacao-cmd__hint">Multas do protocolo — pesquisa por CPF, nome ou nº do protocolo</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
+                <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
+                <span class="btn-operacao-cmd__hint">Custos de manutenção do protocolo — pesquisa por CPF, nome ou protocolo</span>
+              </button>
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
                 <span class="btn-operacao-cmd__hint">CPF, função, permissões — formulário à direita (só administrador)</span>
@@ -902,7 +910,144 @@
           </p>
         </div>
 
-        <div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
+        
+        <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
+          <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
+          <p class="subtext operacao-inline-form__lead">Registe pagamentos de <strong>multas</strong> no protocolo. O <strong>total pago em multas</strong> é a soma dos lançamentos confirmados neste ecrã.</p>
+          <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
+            <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
+              <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>número do protocolo</strong> e confirme.</p>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
+                <label class="portal-field portal-field--wide">
+                  <span>Nome do cliente</span>
+                  <input type="text" id="operacaoLancMultasNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes">
+                  <datalist id="operacaoLancMultasNomeSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>CPF</span>
+                  <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancMultasCpfSugestoes">
+                  <datalist id="operacaoLancMultasCpfSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Nº do protocolo</span>
+                  <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes">
+                  <datalist id="operacaoLancMultasProtocoloSugestoes"></datalist>
+                </label>
+                <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancMultasConfirmarPesquisaBtn">Confirmar pesquisa</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparPesquisaBtn">Limpar dados</button>
+                </div>
+              </div>
+            </section>
+            <section id="operacaoLancMultasReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
+              <h4 class="portal-lanc-aluguel-section__title">Dados do protocolo</h4>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
+                <div class="portal-lanc-ref-row-top">
+                  <label class="portal-field portal-lanc-ref-proto">
+                    <span>PROTOCOLO</span>
+                    <select id="operacaoLancMultasProtocoloSelect" disabled><option value="">—</option></select>
+                  </label>
+                  <label class="portal-field portal-lanc-ref-placa">
+                    <span>PLACA</span>
+                    <input type="text" id="operacaoLancMultasPlaca" readonly tabindex="-1">
+                  </label>
+                </div>
+                <label class="portal-field"><span>DATA INÍCIO</span><input type="text" id="operacaoLancMultasDataInicio" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>DATA FIM</span><input type="text" id="operacaoLancMultasDataFim" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>VALOR DEVIDO DE MULTAS</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>TOTAL PAGO EM MULTAS</span><input type="text" id="operacaoLancMultasTotalPago" readonly tabindex="-1"></label>
+              </div>
+            </section>
+            <section id="operacaoLancMultasPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden>
+              <h4 class="portal-lanc-aluguel-section__title">Lançamento do pagamento</h4>
+              <div class="operacao-inline-form__grid">
+                <label class="portal-field"><span>VALOR PAGO</span><input type="text" id="operacaoLancMultasValorPago" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>DATA DO PAGAMENTO</span><input type="text" id="operacaoLancMultasDataPagamento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"></label>
+                <label class="portal-field"><span>Pagamento em espécie</span><input type="text" id="operacaoLancMultasValorEspecie" inputmode="decimal" placeholder="0,00"></label>
+                <label class="portal-field"><span>Pagamento em Pix</span><input type="text" id="operacaoLancMultasValorPix" inputmode="decimal" placeholder="0,00"></label>
+                <label class="portal-field"><span>Pagamento em cartão</span><input type="text" id="operacaoLancMultasValorCartao" inputmode="decimal" placeholder="0,00"></label>
+                <div class="operacao-inline-form__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancMultasConfirmarPagamentoBtn">Confirmar pagamento</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparBtn">Limpar</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasVoltarBtn">Voltar</button>
+                </div>
+              </div>
+            </section>
+          </form>
+          <div id="operacaoLancMultasHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de multas do protocolo"></div>
+          <p id="operacaoLancMultasInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+        </div>
+
+        <div id="operacaoInlineLancamentoManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-manutencao-title">
+          <h3 id="operacao-inline-lanc-manutencao-title" class="operacao-inline-form__title">Lançamento de manutenção</h3>
+          <p class="subtext operacao-inline-form__lead">Registe pagamentos de <strong>manutenção</strong> no protocolo. O <strong>total pago em manutenção</strong> é a soma dos lançamentos confirmados neste ecrã.</p>
+          <form id="formOperacaoLancamentoManutencaoInline" class="portal-lanc-aluguel-form" novalidate>
+            <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-manutencao-pesquisa-title">
+              <h4 id="portal-lanc-manutencao-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>número do protocolo</strong> e confirme.</p>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
+                <label class="portal-field portal-field--wide">
+                  <span>Nome do cliente</span>
+                  <input type="text" id="operacaoLancManutencaoNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancManutencaoNomeSugestoes">
+                  <datalist id="operacaoLancManutencaoNomeSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>CPF</span>
+                  <input type="text" id="operacaoLancManutencaoCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancManutencaoCpfSugestoes">
+                  <datalist id="operacaoLancManutencaoCpfSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Nº do protocolo</span>
+                  <input type="text" id="operacaoLancManutencaoProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancManutencaoProtocoloSugestoes">
+                  <datalist id="operacaoLancManutencaoProtocoloSugestoes"></datalist>
+                </label>
+                <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancManutencaoConfirmarPesquisaBtn">Confirmar pesquisa</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparPesquisaBtn">Limpar dados</button>
+                </div>
+              </div>
+            </section>
+            <section id="operacaoLancManutencaoReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
+              <h4 class="portal-lanc-aluguel-section__title">Dados do protocolo</h4>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
+                <div class="portal-lanc-ref-row-top">
+                  <label class="portal-field portal-lanc-ref-proto">
+                    <span>PROTOCOLO</span>
+                    <select id="operacaoLancManutencaoProtocoloSelect" disabled><option value="">—</option></select>
+                  </label>
+                  <label class="portal-field portal-lanc-ref-placa">
+                    <span>PLACA</span>
+                    <input type="text" id="operacaoLancManutencaoPlaca" readonly tabindex="-1">
+                  </label>
+                </div>
+                <label class="portal-field"><span>DATA INÍCIO</span><input type="text" id="operacaoLancManutencaoDataInicio" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>DATA FIM</span><input type="text" id="operacaoLancManutencaoDataFim" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>VALOR DEVIDO DE MANUTENÇÃO</span><input type="text" id="operacaoLancManutencaoValorDevido" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>TOTAL PAGO EM MANUTENÇÃO</span><input type="text" id="operacaoLancManutencaoTotalPago" readonly tabindex="-1"></label>
+              </div>
+            </section>
+            <section id="operacaoLancManutencaoPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden>
+              <h4 class="portal-lanc-aluguel-section__title">Lançamento do pagamento</h4>
+              <div class="operacao-inline-form__grid">
+                <label class="portal-field"><span>VALOR PAGO</span><input type="text" id="operacaoLancManutencaoValorPago" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>DATA DO PAGAMENTO</span><input type="text" id="operacaoLancManutencaoDataPagamento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"></label>
+                <label class="portal-field"><span>Pagamento em espécie</span><input type="text" id="operacaoLancManutencaoValorEspecie" inputmode="decimal" placeholder="0,00"></label>
+                <label class="portal-field"><span>Pagamento em Pix</span><input type="text" id="operacaoLancManutencaoValorPix" inputmode="decimal" placeholder="0,00"></label>
+                <label class="portal-field"><span>Pagamento em cartão</span><input type="text" id="operacaoLancManutencaoValorCartao" inputmode="decimal" placeholder="0,00"></label>
+                <div class="operacao-inline-form__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancManutencaoConfirmarPagamentoBtn">Confirmar pagamento</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparBtn">Limpar</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoVoltarBtn">Voltar</button>
+                </div>
+              </div>
+            </section>
+          </form>
+          <div id="operacaoLancManutencaoHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de manutenção do protocolo"></div>
+          <p id="operacaoLancManutencaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
+        </div>
+
+<div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
           <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
           <p class="subtext operacao-inline-form__lead">
             Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
@@ -931,6 +1076,8 @@
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceVeiculo" checked> Cadastro de veículo</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locação</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lançamento de multas</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lançamento de manutenção</label>
             </div>
             <div class="operacao-inline-form__actions portal-colab-actions-row">
               <div class="portal-colab-primary-actions">
@@ -1163,7 +1310,8 @@
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260518datas-protocolo" defer></script>
-  <script src="portal-locadora-ui.js?v=20260518excel-receita2026-base" defer></script>
+  <script src="portal-locadora-ui.js?v=20260518lanc-multas-manut" defer></script>
+  <script src="portal-lancamentos-extras.js?v=1" defer></script>
   <script src="portal-supabase-sync.js?v=9" defer></script>
 </body>
 </html>

@@ -1347,6 +1347,8 @@ function buildFullOperacaoAccess() {
     locacao: false,
     manutencao: false,
     lancamentoAluguel: false,
+    lancamentoMultas: false,
+    lancamentoManutencao: false,
     lancamentoDespesa: false,
     funcionario: false,
   };
@@ -1361,6 +1363,8 @@ function normalizeOperacaoAccess(acessos, role) {
     locacao: acessos?.locacao ?? fallback.locacao,
     manutencao: acessos?.manutencao ?? fallback.manutencao,
     lancamentoAluguel: acessos?.lancamentoAluguel ?? fallback.lancamentoAluguel,
+    lancamentoMultas: acessos?.lancamentoMultas ?? fallback.lancamentoMultas,
+    lancamentoManutencao: acessos?.lancamentoManutencao ?? fallback.lancamentoManutencao,
     lancamentoDespesa: acessos?.lancamentoDespesa ?? fallback.lancamentoDespesa,
     funcionario: false,
   };
@@ -2167,14 +2171,26 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       const k = keyOf(l);
       const ex = byK.get(k);
       const mergedPl = mergePortalLancamentosAluguelEmbutidos([ex?.portalLancamentosAluguel, l?.portalLancamentosAluguel]);
+      const mergedPlMultas = mergePortalLancamentosAluguelEmbutidos([
+        ex?.portalLancamentosMultas,
+        l?.portalLancamentosMultas,
+      ]);
+      const mergedPlManut = mergePortalLancamentosAluguelEmbutidos([
+        ex?.portalLancamentosManutencao,
+        l?.portalLancamentosManutencao,
+      ]);
       if (!ex) {
         const merged = { ...l };
         if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+        if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
+        if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
         byK.set(k, merged);
         return;
       }
       const merged = { ...ex, ...l };
       if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+      if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
+      if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
       Object.assign(merged, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       if (score(l) > score(ex)) {
         byK.set(k, merged);
@@ -2186,6 +2202,8 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       }
       const stay = { ...ex };
       if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+      if (mergedPlMultas.length) stay.portalLancamentosMultas = mergedPlMultas;
+      if (mergedPlManut.length) stay.portalLancamentosManutencao = mergedPlManut;
       Object.assign(stay, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       byK.set(k, stay);
     };
