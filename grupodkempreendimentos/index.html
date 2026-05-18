@@ -917,23 +917,24 @@
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>número do protocolo</strong> e confirme.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Ao digitar o <strong>CPF</strong>, o nome é sugerido. Com CPF ou nome concluído, aparecem os <strong>protocolos ativos e inativos</strong> desse cliente.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
-                  <input type="text" id="operacaoLancMultasNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes">
+                  <input type="text" id="operacaoLancMultasNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancMultasNomeSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
                   <span>CPF</span>
-                  <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancMultasCpfSugestoes">
+                  <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancMultasCpfSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancMultasCpfSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
                   <span>Nº do protocolo</span>
-                  <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes">
+                  <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancMultasProtocoloSugestoes"></datalist>
                 </label>
+                <div id="operacaoLancMultasPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Protocolos do cliente" hidden></div>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
                   <button type="button" class="btn-primary" id="operacaoLancMultasConfirmarPesquisaBtn">Confirmar pesquisa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparPesquisaBtn">Limpar dados</button>
@@ -1022,23 +1023,24 @@
           <form id="formOperacaoLancamentoManutencaoInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-manutencao-pesquisa-title">
               <h4 id="portal-lanc-manutencao-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>número do protocolo</strong> e confirme.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Ao digitar o <strong>CPF</strong>, o nome é sugerido. Com CPF ou nome concluído, aparecem os <strong>protocolos ativos e inativos</strong> desse cliente.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
-                  <input type="text" id="operacaoLancManutencaoNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancManutencaoNomeSugestoes">
+                  <input type="text" id="operacaoLancManutencaoNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancManutencaoNomeSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancManutencaoNomeSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
                   <span>CPF</span>
-                  <input type="text" id="operacaoLancManutencaoCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancManutencaoCpfSugestoes">
+                  <input type="text" id="operacaoLancManutencaoCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancManutencaoCpfSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancManutencaoCpfSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
                   <span>Nº do protocolo</span>
-                  <input type="text" id="operacaoLancManutencaoProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancManutencaoProtocoloSugestoes">
+                  <input type="text" id="operacaoLancManutencaoProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancManutencaoProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancManutencaoProtocoloSugestoes"></datalist>
                 </label>
+                <div id="operacaoLancManutencaoPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Protocolos do cliente" hidden></div>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
                   <button type="button" class="btn-primary" id="operacaoLancManutencaoConfirmarPesquisaBtn">Confirmar pesquisa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparPesquisaBtn">Limpar dados</button>

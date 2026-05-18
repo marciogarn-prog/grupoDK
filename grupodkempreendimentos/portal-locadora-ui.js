@@ -8204,6 +8204,12 @@ ${printable.innerHTML}
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_getPortalSessaoParaRegistroLancamento = getPortalSessaoParaRegistroLancamentoAluguel;
+  window.__DK_collectLancPesquisaLinhas = collectOperacaoLancAluguelPesquisaLinhas;
+  window.__DK_filterLancPesquisaLinhas = filterOperacaoLancAluguelPesquisaLinhas;
+  window.__DK_resolveLancNomePorCpf = resolveOperacaoLancAluguelNomePorCpf;
+  window.__DK_getPortalLancPesquisaLinhaCorClasse = getPortalLancPesquisaLinhaCorClasse;
+  window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
+  window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
 
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {
