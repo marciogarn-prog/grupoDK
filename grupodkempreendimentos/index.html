@@ -687,17 +687,19 @@
             </section>
             <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
               <h4 id="portal-lanc-aluguel-referencia-title" class="portal-lanc-aluguel-section__title">Dados de referência e valores devidos</h4>
-              <div class="operacao-inline-form__grid">
-                <label class="portal-field portal-field--wide">
-                  <span>PROTOCOLO (contrato ativo)</span>
-                  <select id="operacaoLancAluguelProtocoloSelect" autocomplete="off" aria-label="PROTOCOLO" disabled>
-                    <option value="">—</option>
-                  </select>
-                </label>
-                <label class="portal-field">
-                  <span>PLACA</span>
-                  <input type="text" id="operacaoLancAluguelPlaca" name="placa" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="PLACA">
-                </label>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
+                <div class="portal-lanc-ref-row-top">
+                  <label class="portal-field portal-lanc-ref-proto">
+                    <span>PROTOCOLO (contrato ativo)</span>
+                    <select id="operacaoLancAluguelProtocoloSelect" autocomplete="off" aria-label="PROTOCOLO" disabled>
+                      <option value="">—</option>
+                    </select>
+                  </label>
+                  <label class="portal-field portal-lanc-ref-placa">
+                    <span>PLACA</span>
+                    <input type="text" id="operacaoLancAluguelPlaca" name="placa" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="PLACA">
+                  </label>
+                </div>
                 <label class="portal-field">
                   <span>DATA INÍCIO</span>
                   <input type="text" id="operacaoLancAluguelDataInicio" name="dataInicio" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA INÍCIO">
@@ -706,7 +708,7 @@
                   <span>DATA FIM</span>
                   <input type="text" id="operacaoLancAluguelDataFim" name="dataFim" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA FIM">
                 </label>
-                <label class="portal-field">
+                <label class="portal-field portal-lanc-ref-tipo-plano">
                   <span>TIPO DE PLANO</span>
                   <input type="text" id="operacaoLancAluguelTipoPlano" name="tipoPlano" maxlength="80" readonly tabindex="-1" autocomplete="off" placeholder="—" aria-label="TIPO DE PLANO">
                 </label>
