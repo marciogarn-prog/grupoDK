@@ -5099,6 +5099,50 @@ function protocoloLocacaoDatePrefix(date = new Date()) {
   return `${y}${m}${d}`;
 }
 
+function parseProtocoloNumeroContrato(ncRaw) {
+  const nc = String(normalizeNumeroContratoKey(ncRaw || "")).replace(/\s+/g, "");
+  const m = nc.match(/^(\d{8})(\d+)$/);
+  if (!m) return null;
+  const seq = Number(m[2]);
+  if (!Number.isFinite(seq)) return null;
+  return { prefix: m[1], seq, full: nc };
+}
+
+/** Prefixo AAAAMMDD a partir da data de início do contrato (fonte de verdade). */
+function protocoloPrefixFromLocacaoInicio(loc) {
+  const inicioDate = parseBrDate(String(loc?.inicio || "").trim());
+  if (!(inicioDate instanceof Date) || Number.isNaN(inicioDate.getTime())) return "";
+  return protocoloLocacaoDatePrefix(inicioDate);
+}
+
+function isProtocoloAlignedWithLocacaoInicio(ncRaw, loc) {
+  const expected = protocoloPrefixFromLocacaoInicio(loc);
+  if (!expected) return true;
+  const parts = parseProtocoloNumeroContrato(ncRaw);
+  if (!parts) return false;
+  return parts.prefix === expected;
+}
+
+function getProtocoloDateForCadastroLocacao() {
+  const inicioDate = parseBrDate(String(cadLocacaoInicioInput?.value || "").trim());
+  if (inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())) return inicioDate;
+  return new Date();
+}
+
+function allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix) {
+  let seq = Number(maxSeqByPrefix.get(prefix) || 0) + 1;
+  let pad = seq <= 999 ? 2 : String(seq).length;
+  let protocolo = `${prefix}${String(seq).padStart(pad, "0")}`;
+  while (used.has(protocolo)) {
+    seq += 1;
+    pad = seq <= 999 ? 2 : String(seq).length;
+    protocolo = `${prefix}${String(seq).padStart(pad, "0")}`;
+  }
+  used.add(protocolo);
+  maxSeqByPrefix.set(prefix, seq);
+  return protocolo;
+}
+
 /**
  * Número de protocolo único por **registro** de locação: AAAAMMDD + sequência do dia (001, 002, …).
  * Gravado em `numeroContrato`. O mesmo CPF pode ter vários protocolos ativos (veículos diferentes).
@@ -5116,8 +5160,85 @@ function proximoProtocoloLocacaoNumero(date = new Date()) {
     maxSeq = Math.max(maxSeq, Number(rest));
   });
   const next = maxSeq + 1;
-  const pad = next <= 999 ? 3 : String(next).length;
+  const pad = next <= 99 ? 2 : next <= 999 ? 3 : String(next).length;
   return `${prefix}${String(next).padStart(pad, "0")}`;
+}
+
+function remapReferenciasNumeroContrato(remap) {
+  if (!remap || !remap.size) return;
+  const normNc = (v) => String(normalizeNumeroContratoKey(v || "")).replace(/\s+/g, "");
+
+  const lancs = loadCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY);
+  let lancChanged = false;
+  const lancsNext = lancs.map((l) => {
+    const old = normNc(l.numeroContrato);
+    const neu = remap.get(old);
+    if (!neu) return l;
+    lancChanged = true;
+    return { ...l, numeroContrato: neu };
+  });
+  if (lancChanged) saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, lancsNext);
+}
+
+/**
+ * Corrige protocolos cujo prefixo AAAAMMDD não coincide com a data de início (DD/MM/AAAA).
+ * Atualiza lançamentos de aluguel vinculados. Executa uma vez por navegador.
+ */
+function repairProtocolosLocacaoPorDataInicioOnce() {
+  const REPAIR_KEY = "dk_repair_protocolo_inicio_v2";
+  if (localStorage.getItem(REPAIR_KEY) === "done") return;
+
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  if (!locs.length) {
+    localStorage.setItem(REPAIR_KEY, "done");
+    return;
+  }
+
+  const used = new Set();
+  const maxSeqByPrefix = new Map();
+  const remap = new Map();
+
+  locs.forEach((l) => {
+    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!nc || !isProtocoloAlignedWithLocacaoInicio(nc, l)) return;
+    used.add(nc);
+    const parts = parseProtocoloNumeroContrato(nc);
+    if (parts) {
+      maxSeqByPrefix.set(parts.prefix, Math.max(Number(maxSeqByPrefix.get(parts.prefix) || 0), parts.seq));
+    }
+  });
+
+  const updated = locs.map((l) => {
+    const oldNc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!oldNc || isProtocoloAlignedWithLocacaoInicio(oldNc, l)) return l;
+    const prefix = protocoloPrefixFromLocacaoInicio(l);
+    if (!prefix) return l;
+    const newNc = allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix);
+    if (newNc === oldNc) return l;
+    remap.set(oldNc, newNc);
+    let next = { ...l, numeroContrato: newNc };
+    if (Array.isArray(next.portalLancamentosAluguel)) {
+      next = {
+        ...next,
+        portalLancamentosAluguel: next.portalLancamentosAluguel.map((p) => {
+          const pNc = String(normalizeNumeroContratoKey(p.numeroContrato || "")).replace(/\s+/g, "");
+          const neu = remap.get(pNc);
+          return neu ? { ...p, numeroContrato: neu } : p;
+        }),
+      };
+    }
+    return next;
+  });
+
+  if (!remap.size) {
+    localStorage.setItem(REPAIR_KEY, "done");
+    return;
+  }
+
+  remapReferenciasNumeroContrato(remap);
+  saveCadastro(CAD_LOCACOES_KEY, updated);
+  localStorage.setItem(REPAIR_KEY, "done");
+  console.info(`[DK] Protocolos alinhados à data de início: ${remap.size} contrato(s).`);
 }
 
 function parseLocacaoProtocolDateCandidate(locacao) {
@@ -5176,15 +5297,25 @@ function ensureNumeroContratoForLocacoes() {
   if (changed) saveCadastro(CAD_LOCACOES_KEY, updated);
 }
 
+function syncCadLocacaoProtocoloComDataInicio() {
+  if (!cadLocacaoContratoInput || !cadLocacaoInicioInput) return;
+  const inicio = String(cadLocacaoInicioInput.value || "").trim();
+  if (!inicio) return;
+  const nc = String(normalizeNumeroContratoKey(cadLocacaoContratoInput.value || "")).replace(/\s+/g, "");
+  if (!nc || !isProtocoloAlignedWithLocacaoInicio(nc, { inicio })) {
+    cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
+  }
+}
+
 function preencherProtocoloLocacaoSeCampoVazio() {
   if (!cadLocacaoContratoInput) return;
   if (String(cadLocacaoContratoInput.value || "").trim()) return;
-  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero();
+  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
 }
 
 function aplicarNovoProtocoloLocacaoNoFormulario() {
   if (!cadLocacaoContratoInput) return;
-  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero();
+  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
 }
 
 /** Verifica se já existe outra locação com o mesmo número de contrato. */
@@ -13584,8 +13715,8 @@ if (locacaoCadastroForm) {
   if (!String(cadLocacaoContratoInput?.value || "").trim()) {
     aplicarNovoProtocoloLocacaoNoFormulario();
   }
-  const numeroContratoRaw = String(cadLocacaoContratoInput?.value || "").trim();
-  const numeroContratoNorm = normalizeNumeroContratoKey(numeroContratoRaw);
+  let numeroContratoRaw = String(cadLocacaoContratoInput?.value || "").trim();
+  let numeroContratoNorm = normalizeNumeroContratoKey(numeroContratoRaw);
   const valorLocacaoNum = parseCurrencyBR(valorLocacaoRaw);
   const valorInvestimentoNum = plano === "DK MINHA MOTO" ? parseCurrencyBR(valorInvestimentoRaw) : 0;
   const valorSemanalNum = valorLocacaoNum + valorInvestimentoNum;
@@ -13608,6 +13739,11 @@ if (locacaoCadastroForm) {
   if (!inicioDate) {
     window.alert("Informe a data de início no formato DD/MM/AAAA.");
     return;
+  }
+  if (!isProtocoloAlignedWithLocacaoInicio(numeroContratoNorm, { inicio })) {
+    numeroContratoNorm = normalizeNumeroContratoKey(proximoProtocoloLocacaoNumero(inicioDate));
+    numeroContratoRaw = numeroContratoNorm;
+    if (cadLocacaoContratoInput) cadLocacaoContratoInput.value = numeroContratoNorm;
   }
   const fimCalculado =
     plano === "DK MINHA MOTO"
@@ -13818,6 +13954,7 @@ if (cadLocacaoInvestimentoInput) {
 if (cadLocacaoInicioInput) {
   cadLocacaoInicioInput.addEventListener("blur", () => {
     recomputeLocacaoFimByPlano();
+    syncCadLocacaoProtocoloComDataInicio();
   });
 }
 
@@ -14364,6 +14501,7 @@ resetLocacaoStackForSiteEntryOnce();
 importLocacoesFromPlanilhaOnce();
 bootstrapLocacoesReceita2026Bundled();
 ensureNumeroContratoForLocacoes();
+repairProtocolosLocacaoPorDataInicioOnce();
 fixKnownRentalValueOverrides();
 if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();

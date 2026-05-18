@@ -4312,6 +4312,7 @@ ${printable.innerHTML}
     syncOperacaoLocacaoTempoDiasContrato();
     syncOperacaoLocacaoValorDevidoPlano();
     syncOperacaoLocacaoValorDevidoAluguel();
+    syncOperacaoLocacaoProtocoloComDataInicio();
     refreshOperacaoLocacaoFinalizarBtn();
   }
 
@@ -4444,6 +4445,35 @@ ${printable.innerHTML}
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     return loadCadastro(CAD_LOCACOES_KEY).filter((l) => dig(String(l.cpf || "")) === cpfDigits);
+  }
+
+  function getPortalProtocoloDateFromInicio() {
+    const raw = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    if (typeof parseBrDate === "function") {
+      const d = parseBrDate(raw);
+      if (d && !Number.isNaN(d.getTime())) return d;
+    }
+    return new Date();
+  }
+
+  function syncOperacaoLocacaoProtocoloComDataInicio() {
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!hid) return;
+    const inicioBr = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    if (!inicioBr) return;
+    const nc = normPortalNumeroContrato(hid.value);
+    const aligned =
+      typeof isProtocoloAlignedWithLocacaoInicio === "function"
+        ? isProtocoloAlignedWithLocacaoInicio(nc, { inicio: inicioBr })
+        : true;
+    if (nc && aligned) return;
+    const novo = proximoProtocoloPortalAaaammddXX(getPortalProtocoloDateFromInicio());
+    hid.value = novo;
+    if (sel && String(sel.value || "") === PORTAL_PROTO_NOVO) {
+      const optNovo = Array.from(sel.options).find((o) => o.value === PORTAL_PROTO_NOVO);
+      if (optNovo) optNovo.textContent = `NOVO — ${novo}`;
+    }
   }
 
   /** Próximo protocolo AAAAMMDDXX (XX = sequência do dia, 2 dígitos até 99). */
@@ -4593,7 +4623,8 @@ ${printable.innerHTML}
     });
     const optNovo = document.createElement("option");
     optNovo.value = PORTAL_PROTO_NOVO;
-    optNovo.textContent = `NOVO — ${proximoProtocoloPortalAaaammddXX()}`;
+    const protoNovo = proximoProtocoloPortalAaaammddXX(getPortalProtocoloDateFromInicio());
+    optNovo.textContent = `NOVO — ${protoNovo}`;
     sel.appendChild(optNovo);
     const pNorm = preserve ? norm(preserve) : "";
     if (pNorm && sorted.includes(pNorm)) {
@@ -4604,7 +4635,7 @@ ${printable.innerHTML}
       hid.value = pNorm;
     } else {
       sel.value = PORTAL_PROTO_NOVO;
-      hid.value = proximoProtocoloPortalAaaammddXX();
+      hid.value = protoNovo;
     }
   }
 
@@ -4622,7 +4653,7 @@ ${printable.innerHTML}
         ? normalizeNumeroContratoKey(x || "")
         : String(x || "").trim();
     if (v === PORTAL_PROTO_NOVO) {
-      hid.value = proximoProtocoloPortalAaaammddXX();
+      hid.value = proximoProtocoloPortalAaaammddXX(getPortalProtocoloDateFromInicio());
       clearPortalLocacaoCamposParaNovoContrato();
       return;
     }
@@ -4867,10 +4898,17 @@ ${printable.innerHTML}
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const isNovo = sel && String(sel.value || "") === PORTAL_PROTO_NOVO;
-    const nc = normPortalNumeroContrato(String(hid?.value || ""));
+    let nc = normPortalNumeroContrato(String(hid?.value || ""));
     if (!nc) {
       if (msg) msg.textContent = "Protocolo inválido. Escolha «NOVO» ou um contrato existente.";
       return;
+    }
+    if (
+      typeof isProtocoloAlignedWithLocacaoInicio === "function" &&
+      !isProtocoloAlignedWithLocacaoInicio(nc, { inicio: inicioBr })
+    ) {
+      nc = normPortalNumeroContrato(proximoProtocoloPortalAaaammddXX(inicioDt));
+      if (hid) hid.value = nc;
     }
     const parseVal =
       typeof parseCurrencyBR === "function"
