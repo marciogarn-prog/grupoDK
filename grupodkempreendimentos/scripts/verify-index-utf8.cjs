@@ -1,35 +1,33 @@
 /**
  * Falha (exit 1) se index.html tiver padrões de encoding quebrado.
- * Uso: node scripts/verify-index-utf8.cjs
  */
 const fs = require("fs");
 const path = require("path");
 
 const file = path.join(__dirname, "..", "index.html");
 const buf = fs.readFileSync(file);
-const bad = [
-  "??? Voltar",
-  "Opera??o",
-  "Manuten??o",
-  "InÃ­cio",
-  "locaÃ§Ã£o",
-];
-const missing = [
-  ["Operação", Buffer.from("Operação", "utf8")],
-  ["&larr; Voltar", Buffer.from("&larr; Voltar", "utf8")],
-  ["&#9670;", Buffer.from("&#9670;", "utf8")],
+const text = buf.toString("utf8");
+
+const badPatterns = ["??? Voltar", "Opera??o", "?? pesquisa", "\uFFFD", "MANUTEN??O", "NO RESPONDER"];
+const required = [
+  ["Operação", "Operação"],
+  ["&larr; Voltar", "&larr; Voltar"],
+  ["&#9670;", "&#9670;"],
+  ["NÃO RESPONDER", "NÃO RESPONDER"],
+  ["MANUTENÇÃO", "MANUTENÇÃO"],
+  ["&mdash;", "&mdash; (travessão)"],
 ];
 
 let failed = false;
-for (const s of bad) {
-  if (buf.includes(Buffer.from(s, "utf8"))) {
-    console.error("ERRO: encontrado padrão corrompido:", s);
+for (const s of badPatterns) {
+  if (text.includes(s)) {
+    console.error("ERRO: padrão corrompido:", s);
     failed = true;
   }
 }
-for (const [label, needle] of missing) {
-  if (!buf.includes(needle)) {
-    console.error("ERRO: ausente no index.html:", label);
+for (const [needle, label] of required) {
+  if (!text.includes(needle)) {
+    console.error("ERRO: ausente:", label);
     failed = true;
   }
 }
