@@ -2493,6 +2493,207 @@ ${printable.innerHTML}
     inp.setAttribute("aria-expanded", "true");
   }
 
+  /** Placas já cadastradas (cadastro local) — lista ao digitar no formulário de veículo. */
+  let portalVeiculoPlacasCache = [];
+
+  function hideOperacaoVeiculoPlacaDropdown() {
+    const panel = document.getElementById("operacaoVeiculoPlacaLista");
+    const inp = document.getElementById("operacaoVeiculoPlaca");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function refreshOperacaoVeiculoPlacasCache() {
+    if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
+    const byPlate = new Map();
+    const add = (v) => {
+      if (!v) return;
+      const placa =
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(v.placa || ""))
+          : String(v.placa || "")
+              .trim()
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      if (!placa) return;
+      const modelo = String(v.modelo || "").trim() || "Modelo não informado";
+      const tag = String(v.tag || "").trim();
+      const marca = String(v.marca || "").trim();
+      if (!byPlate.has(placa)) {
+        byPlate.set(placa, { placa, modelo, tag, marca, record: v });
+      }
+    };
+    if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      loadCadastro(CAD_VEICULOS_KEY).forEach(add);
+    }
+    portalVeiculoPlacasCache = Array.from(byPlate.values()).sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
+    const dl = document.getElementById("operacaoVeiculoPlacaSugestoes");
+    if (dl) {
+      dl.innerHTML = portalVeiculoPlacasCache
+        .map(
+          (v) =>
+            `<option value="${v.placa}" label="${portalEscapeHtml(v.modelo)}${v.tag ? ` · ${portalEscapeHtml(v.tag)}` : ""}"></option>`
+        )
+        .join("");
+    }
+  }
+
+  function filterPlacasVeiculoForDropdown(queryRaw) {
+    if (!portalVeiculoPlacasCache.length) return [];
+    const trim = String(queryRaw || "").trim();
+    if (!trim) return portalVeiculoPlacasCache.slice(0, 80);
+    const qPlate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(trim)
+        : trim.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const qNome =
+      typeof normalizeName === "function" ? normalizeName(trim) : trim.toLowerCase();
+    return portalVeiculoPlacasCache
+      .filter((v) => {
+        if (qPlate && v.placa.includes(qPlate)) return true;
+        const modeloKey =
+          typeof normalizeName === "function"
+            ? normalizeName(v.modelo)
+            : String(v.modelo || "").toLowerCase();
+        const tagKey = String(v.tag || "").toLowerCase();
+        return modeloKey.includes(qNome) || tagKey.includes(qNome);
+      })
+      .slice(0, 80);
+  }
+
+  function portalInferTipoVeiculoFromRecord(v) {
+    const t = String(v?.tipo || "")
+      .trim()
+      .toUpperCase();
+    if (t.includes("CARRO")) return "CARRO";
+    if (t.includes("MOTO")) return "MOTO";
+    const tag = String(v?.tag || "")
+      .trim()
+      .toUpperCase();
+    if (tag.includes("DKCR")) return "CARRO";
+    if (tag.includes("DKMT")) return "MOTO";
+    return "";
+  }
+
+  function fillOperacaoVeiculoFormFromRecord(veiculo) {
+    if (!veiculo) return;
+    const getVal = (id) => document.getElementById(id);
+    const set = (id, val) => {
+      const el = getVal(id);
+      if (el) el.value = String(val ?? "").trim();
+    };
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(veiculo.placa || ""))
+        : String(veiculo.placa || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    set("operacaoVeiculoPlaca", plate);
+    const tipo = portalInferTipoVeiculoFromRecord(veiculo);
+    const tipoEl = document.getElementById("operacaoVeiculoTipo");
+    if (tipoEl) tipoEl.value = tipo;
+    set("operacaoVeiculoTag", veiculo.tag);
+    set("operacaoVeiculoCodigo", veiculo.codigo);
+    set("operacaoVeiculoMarca", veiculo.marca);
+    set("operacaoVeiculoModelo", veiculo.modelo);
+    set("operacaoVeiculoValor", veiculo.valor);
+    set("operacaoVeiculoCor", veiculo.cor);
+    set("operacaoVeiculoChassi", veiculo.chassi);
+    set("operacaoVeiculoAnoModelo", veiculo.anoModelo);
+    set("operacaoVeiculoRenavam", veiculo.renavam);
+    set("operacaoVeiculoMotor", veiculo.motor);
+    set("operacaoVeiculoProprietario", veiculo.proprietario);
+    set("operacaoVeiculoLocal", veiculo.local);
+    const msg = document.getElementById("operacaoVeiculoInlineMsg");
+    if (msg) msg.textContent = plate ? `Dados do veículo ${plate} carregados.` : "";
+  }
+
+  function renderOperacaoVeiculoPlacaDropdown(queryRaw) {
+    const panel = document.getElementById("operacaoVeiculoPlacaLista");
+    const inp = document.getElementById("operacaoVeiculoPlaca");
+    if (!panel || !inp) return;
+    const items = filterPlacasVeiculoForDropdown(queryRaw);
+    if (!items.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhuma placa cadastrada com esse texto. Continue a digitar para cadastrar uma placa nova.</div>';
+    } else {
+      panel.innerHTML = items
+        .map((v) => {
+          const extra = [v.tag, v.marca].filter(Boolean).join(" · ");
+          return `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${v.placa}">
+              <span class="portal-placa-dropdown__plate">${v.placa}</span>
+              <span class="portal-placa-dropdown__model">${portalEscapeHtml(v.modelo)}${extra ? ` · ${portalEscapeHtml(extra)}` : ""}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function bindOperacaoVeiculoPlacaAssist() {
+    const inpPlaca = document.getElementById("operacaoVeiculoPlaca");
+    const panelPlaca = document.getElementById("operacaoVeiculoPlacaLista");
+    const comboPlaca = document.getElementById("operacaoVeiculoPlacaCombo");
+    if (!inpPlaca || !panelPlaca) return;
+
+    inpPlaca.addEventListener("focus", () => {
+      refreshOperacaoVeiculoPlacasCache();
+      renderOperacaoVeiculoPlacaDropdown(String(inpPlaca.value || ""));
+    });
+
+    inpPlaca.addEventListener("input", () => {
+      inpPlaca.value = String(inpPlaca.value || "").toUpperCase();
+      renderOperacaoVeiculoPlacaDropdown(inpPlaca.value);
+    });
+
+    inpPlaca.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideOperacaoVeiculoPlacaDropdown();
+    });
+
+    panelPlaca.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
+    });
+
+    panelPlaca.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-placa-dropdown__opt");
+      if (!btn) return;
+      const placa = String(btn.getAttribute("data-placa") || "").trim();
+      if (!placa) return;
+      inpPlaca.value = placa;
+      const hit = portalVeiculoPlacasCache.find((x) => x.placa === placa);
+      if (hit?.record) fillOperacaoVeiculoFormFromRecord(hit.record);
+      hideOperacaoVeiculoPlacaDropdown();
+      inpPlaca.focus();
+    });
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (!comboPlaca || panelPlaca.classList.contains("hidden")) return;
+        if (comboPlaca.contains(e.target)) return;
+        hideOperacaoVeiculoPlacaDropdown();
+      },
+      true
+    );
+
+    inpPlaca.addEventListener("focusout", (e) => {
+      const rt = e.relatedTarget;
+      if (rt && comboPlaca && comboPlaca.contains(rt)) return;
+      window.setTimeout(() => {
+        if (!comboPlaca || !document.activeElement || !comboPlaca.contains(document.activeElement)) {
+          hideOperacaoVeiculoPlacaDropdown();
+        }
+      }, 180);
+    });
+  }
+
   /** @type {string} */
   let portalLocacaoRelatorioPdfBlobUrl = "";
 
@@ -4047,6 +4248,7 @@ ${printable.innerHTML}
 
   function hideOperacaoInlineFormsCore() {
     hideOperacaoLocacaoPlacaDropdown();
+    hideOperacaoVeiculoPlacaDropdown();
     portalWaHideAllDropdowns();
     resetOperacaoLocacaoRelatorioPanel();
     document.getElementById("operacaoInlineWhatsApp")?.classList.add("hidden");
@@ -6880,12 +7082,14 @@ ${printable.innerHTML}
   refreshOperacaoLocacaoProtocoloPicker({ force: true });
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
+  bindOperacaoVeiculoPlacaAssist();
   document.getElementById("formOperacaoVeiculoInline")?.addEventListener("submit", persistPortalOperacaoVeiculoInlineSubmit);
   document.getElementById("operacaoVeiculoTipo")?.addEventListener("change", refreshOperacaoVeiculoTagPreview);
   document.getElementById("operacaoVeiculoLimparBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const form = document.getElementById("formOperacaoVeiculoInline");
     if (form && typeof form.reset === "function") form.reset();
+    hideOperacaoVeiculoPlacaDropdown();
     refreshOperacaoVeiculoTagPreview();
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (msg) msg.textContent = "";
@@ -7471,6 +7675,7 @@ ${printable.innerHTML}
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-veiculo");
+    refreshOperacaoVeiculoPlacasCache();
     refreshOperacaoVeiculoTagPreview();
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", async () => {

@@ -341,9 +341,31 @@
               <span>Tag</span>
               <input type="text" id="operacaoVeiculoTag" name="tag" maxlength="32" placeholder="Gerada automaticamente" aria-label="Tag" readonly tabindex="-1">
             </label>
-            <label class="portal-field">
+            <label class="portal-field portal-field--combobox">
               <span>Placa</span>
-              <input type="text" id="operacaoVeiculoPlaca" name="placa" list="operacaoVeiculoPlacaSugestoes" maxlength="10" required placeholder="ABC1D23" aria-label="Placa" autocomplete="off" aria-autocomplete="list">
+              <div class="portal-combobox" id="operacaoVeiculoPlacaCombo">
+                <input
+                  type="text"
+                  id="operacaoVeiculoPlaca"
+                  name="placa"
+                  maxlength="10"
+                  required
+                  placeholder="ABC1D23"
+                  aria-label="Placa"
+                  autocomplete="off"
+                  list="operacaoVeiculoPlacaSugestoes"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  aria-controls="operacaoVeiculoPlacaLista"
+                >
+                <div
+                  id="operacaoVeiculoPlacaLista"
+                  class="portal-placa-dropdown hidden"
+                  role="listbox"
+                  aria-label="Placas cadastradas"
+                  hidden
+                ></div>
+              </div>
               <datalist id="operacaoVeiculoPlacaSugestoes"></datalist>
             </label>
             <label class="portal-field">
@@ -1378,7 +1400,7 @@
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260518veiculo-tag-auto" defer></script>
-  <script src="portal-locadora-ui.js?v=20260518cliente-nome" defer></script>
+  <script src="portal-locadora-ui.js?v=20260518veiculo-placa-lista" defer></script>
   <script src="portal-multas-relatorio.js?v=20260518multas-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260518multas-relatorio" defer></script>
   <script src="portal-supabase-sync.js?v=9" defer></script>
