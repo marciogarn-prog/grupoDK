@@ -30,8 +30,16 @@
 
   const DK_CLOUD_KEYS = new Set(DK_STORAGE_KEYS);
   const DK_CLOUD_RELOAD_GUARD_KEY = "dkCloudAutopullReloadCount";
+  /** Após importar backup: não sobrescrever local com nuvem/Redis antigos (ms desde epoch). */
+  const DK_LOCAL_AUTHORITY_KEY = "dkLocalDataAuthorityUntil";
+  const DK_LOCAL_AUTHORITY_MS = 45 * 60 * 1000;
+  const DK_CLOUD_LAST_PUSH_AT_KEY = "dkCloudLastPushedAt";
 
   const CLOUD_PUSH_DEBOUNCE_MS = 1200;
+  const SCREEN_PULL_MIN_INTERVAL_MS = 4000;
+
+  let screenPullInFlight = null;
+  let screenPullLastAt = 0;
 
   let cloudPushTimer = null;
   let suppressCloudHook = false;
@@ -41,6 +49,47 @@
     if (autoPullFromCloudRan) return;
     autoPullFromCloudRan = true;
     return autoPullFromCloudOnStartup();
+  }
+
+  function markLocalDataAuthority(ms = DK_LOCAL_AUTHORITY_MS) {
+    try {
+      sessionStorage.setItem(DK_LOCAL_AUTHORITY_KEY, String(Date.now() + ms));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function isLocalDataAuthorityActive() {
+    try {
+      const until = parseInt(sessionStorage.getItem(DK_LOCAL_AUTHORITY_KEY) || "0", 10) || 0;
+      return until > Date.now();
+    } catch {
+      return false;
+    }
+  }
+
+  function noteCloudPushTimestamp(iso) {
+    try {
+      localStorage.setItem(DK_CLOUD_LAST_PUSH_AT_KEY, iso || new Date().toISOString());
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function readCloudPushTimestamp() {
+    try {
+      return String(localStorage.getItem(DK_CLOUD_LAST_PUSH_AT_KEY) || "").trim();
+    } catch {
+      return "";
+    }
+  }
+
+  function isCloudSnapshotNewerThanLocal(cloudUpdatedAt) {
+    const cloudTs = Date.parse(String(cloudUpdatedAt || ""));
+    const localTs = Date.parse(readCloudPushTimestamp());
+    if (!Number.isFinite(cloudTs)) return true;
+    if (!Number.isFinite(localTs)) return true;
+    return cloudTs > localTs + 500;
   }
 
   function collectPayloadFromLocalStorage() {
@@ -66,6 +115,7 @@
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
     const replace = Boolean(opts && opts.replace);
+    const lightSanitize = Boolean(opts && opts.lightSanitize);
 
     for (const k of DK_STORAGE_KEYS) {
       if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
@@ -103,10 +153,21 @@
         localStorage.setItem(k, JSON.stringify(v));
       }
     }
-    runLocacoesSanitizeAfterCloudApply();
+    runLocacoesSanitizeAfterCloudApply({ light: lightSanitize });
   }
 
-  function runLocacoesSanitizeAfterCloudApply() {
+  function runLocacoesSanitizeAfterCloudApply(opts) {
+    const light = Boolean(opts && opts.light);
+    if (light) {
+      if (typeof window.__DK_sanitizeLocacoesCadastro === "function") {
+        try {
+          window.__DK_sanitizeLocacoesCadastro({ pushCloud: false });
+        } catch (e) {
+          console.warn("[DK cloud] sanitize locações", e);
+        }
+      }
+      return;
+    }
     if (typeof window.__DK_forceLocacoesFromExcelReceita2026 === "function") {
       try {
         window.__DK_forceLocacoesFromExcelReceita2026();
@@ -233,6 +294,7 @@
   async function pushSnapshotQuiet() {
     const r = await upsertSnapshotRow(false);
     if (r.ok) {
+      noteCloudPushTimestamp(row.updated_at);
       setMsg("Nuvem atualizada em segundo plano.", "muted");
     }
     return r;
@@ -256,11 +318,14 @@
    * Usado ao mudar de ecrã na Operação; não substitui «Carregar da nuvem» (que pede confirmação e dá F5).
    */
   async function pullCloudSnapshotSilentMerge() {
+    if (isLocalDataAuthorityActive()) {
+      return { ok: true, skipped: true, reason: "local_authority" };
+    }
     const client = window.__DK_SUPABASE_CLIENT__;
     if (!client || !window.__DK_SUPABASE_CONFIGURED__) return { ok: false, skipped: true };
     const { data, error } = await client
       .from("dk_cloud_snapshots")
-      .select("payload")
+      .select("payload, updated_at")
       .eq("label", DK_SNAPSHOT_LABEL)
       .maybeSingle();
     if (error) {
@@ -270,19 +335,25 @@
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
       return { ok: false, skipped: true };
     }
+    if (!isCloudSnapshotNewerThanLocal(data.updated_at)) {
+      return { ok: true, skipped: true, reason: "cloud_not_newer" };
+    }
     if (!cloudPullWouldChangeAnything(data.payload)) {
       return { ok: true, unchanged: true };
     }
     suppressCloudHook = true;
     try {
-      applyPayloadToLocalStorage(data.payload, { replace: true });
+      applyPayloadToLocalStorage(data.payload, { replace: false, lightSanitize: true });
     } finally {
       suppressCloudHook = false;
     }
     return { ok: true, applied: true };
   }
 
-  async function pullFromCloudOnScreenChange() {
+  async function pullFromCloudOnScreenChangeCore() {
+    if (isLocalDataAuthorityActive()) {
+      return { ok: true, skipped: true, reason: "local_authority" };
+    }
     if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
       try {
         await window.__DK_portalPullCadastroFromCloud();
@@ -293,6 +364,24 @@
     return pullCloudSnapshotSilentMerge();
   }
 
+  async function pullFromCloudOnScreenChange() {
+    const now = Date.now();
+    if (now - screenPullLastAt < SCREEN_PULL_MIN_INTERVAL_MS) {
+      return screenPullInFlight || { ok: true, skipped: true, reason: "throttled" };
+    }
+    if (screenPullInFlight) return screenPullInFlight;
+    screenPullLastAt = now;
+    screenPullInFlight = pullFromCloudOnScreenChangeCore()
+      .catch((e) => {
+        console.warn("[DK cloud] pull ao mudar ecrã", e);
+        return { ok: false, error: e };
+      })
+      .finally(() => {
+        screenPullInFlight = null;
+      });
+    return screenPullInFlight;
+  }
+
   function pushToCloudAfterSave() {
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") return Promise.resolve();
     return window.__DK_pushCloudSnapshotNow().catch((e) => {
@@ -300,10 +389,25 @@
     });
   }
 
+  async function pushLocalSnapshotAfterImport() {
+    if (typeof window.__DK_portalPushCadastroToCloud === "function") {
+      try {
+        await window.__DK_portalPushCadastroToCloud();
+      } catch (e) {
+        console.warn("[DK cloud] push Redis após import", e);
+      }
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      await window.__DK_pushCloudSnapshotNow();
+    }
+  }
+
   try {
     window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
+    window.__DK_markLocalDataAuthority = markLocalDataAuthority;
+    window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
   } catch {
     /* ignore */
   }
@@ -319,6 +423,7 @@
     setMsg("A guardar na nuvem…", "muted");
     const { ok, error } = await upsertSnapshotRow(true);
     if (!ok) return;
+    noteCloudPushTimestamp(new Date().toISOString());
     setMsg(
       "Dados guardados na nuvem. Noutro aparelho abra o site para sincronizar automaticamente.",
       "ok"
@@ -417,6 +522,18 @@
       } finally {
         suppressCloudHook = false;
       }
+      markLocalDataAuthority();
+      setMsg("Backup importado. A guardar na nuvem…", "muted");
+      try {
+        await pushLocalSnapshotAfterImport();
+        noteCloudPushTimestamp(new Date().toISOString());
+      } catch (e) {
+        console.warn("[DK cloud] push após import", e);
+        setMsg(
+          "Backup importado localmente, mas falhou guardar na nuvem. Use «Guardar na nuvem» antes de mudar de ecrã.",
+          null
+        );
+      }
       try {
         sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
       } catch {
@@ -427,7 +544,7 @@
           ? String(parsed.exportedAtBr).slice(0, 10)
           : "";
       setMsg(
-        `Backup importado (${nKeys} blocos de dados${src ? `, de ${src}` : ""}). Pagamentos e outros dados que não estavam no ficheiro foram removidos deste navegador. A página vai recarregar.`,
+        `Backup importado (${nKeys} blocos${src ? `, de ${src}` : ""}) e enviado à nuvem. A página vai recarregar.`,
         "ok"
       );
       setTimeout(() => {
@@ -436,7 +553,7 @@
         } catch {
           /* ignore */
         }
-      }, 600);
+      }, 800);
     } catch (e) {
       console.error(e);
       const msg = String(e?.message || e);
@@ -554,6 +671,7 @@
   async function autoPullFromCloudOnStartup() {
     const client = window.__DK_SUPABASE_CLIENT__;
     if (!client) return;
+    if (isLocalDataAuthorityActive()) return;
 
     await waitForLocacoesSanitizeReady();
 
@@ -561,12 +679,20 @@
     try {
       const { data, error } = await client
         .from("dk_cloud_snapshots")
-        .select("payload")
+        .select("payload, updated_at")
         .eq("label", DK_SNAPSHOT_LABEL)
         .maybeSingle();
 
       if (error) {
         console.warn("[DK cloud] arranque: leitura", error);
+        return;
+      }
+      if (!isCloudSnapshotNewerThanLocal(data?.updated_at)) {
+        try {
+          sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+        } catch {
+          /* ignore */
+        }
         return;
       }
       if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {

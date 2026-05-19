@@ -4326,14 +4326,21 @@ ${printable.innerHTML}
     }
   }
 
-  /** Redis/API + snapshot Supabase (merge) antes de mostrar outro formulário. */
+  /** Nuvem (merge, com limite de frequência) antes de mostrar outro formulário. */
   async function portalOperacaoAwaitCloudCadastroPull() {
     try {
-      if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
-        await window.__DK_portalPullCadastroFromCloud();
+      if (
+        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+        window.__DK_isLocalDataAuthorityActive()
+      ) {
+        portalRefreshOperacaoDadosAposNuvem();
+        setPortalUnitDadosAtualizadosAgora();
+        return;
       }
-      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-        await window.__DK_pullCloudSnapshotSilentMerge();
+      if (typeof window.__DK_pullFromCloudOnScreenChange === "function") {
+        await window.__DK_pullFromCloudOnScreenChange();
+      } else if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
+        await window.__DK_portalPullCadastroFromCloud();
       }
     } catch (e) {
       console.warn("[DK portal] cadastro pull ao mudar tela", e);
@@ -8332,6 +8339,10 @@ ${printable.innerHTML}
               const flat = (arrays || []).flat().filter((x) => Array.isArray(x));
               return flat.flat();
             };
+      const mergeMultasTransitoEmb =
+        typeof window.__DK_mergePortalMultasTransitoEmbutidos === "function"
+          ? window.__DK_mergePortalMultasTransitoEmbutidos
+          : mergePlEmb;
       const dig = (cpf) =>
         typeof onlyDigits === "function" ? onlyDigits(String(cpf || "")) : String(cpf || "").replace(/\D/g, "");
       const plateNorm = (p) =>
@@ -8361,14 +8372,27 @@ ${printable.innerHTML}
         const k = keyOf(l);
         const prev = byKey.get(k);
         const mergedPl = mergePlEmb([prev?.portalLancamentosAluguel, l?.portalLancamentosAluguel]);
+        const mergedPlMultas = mergePlEmb([prev?.portalLancamentosMultas, l?.portalLancamentosMultas]);
+        const mergedMultasTransito = mergeMultasTransitoEmb([
+          prev?.portalMultasTransito,
+          l?.portalMultasTransito,
+        ]);
+        const mergedPlManut = mergePlEmb([
+          prev?.portalLancamentosManutencao,
+          l?.portalLancamentosManutencao,
+        ]);
+        const attachEmb = (row) => {
+          if (mergedPl.length) row.portalLancamentosAluguel = mergedPl;
+          if (mergedPlMultas.length) row.portalLancamentosMultas = mergedPlMultas;
+          if (mergedMultasTransito.length) row.portalMultasTransito = mergedMultasTransito;
+          if (mergedPlManut.length) row.portalLancamentosManutencao = mergedPlManut;
+          return row;
+        };
         if (!prev) {
-          const merged = { ...l };
-          if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
-          byKey.set(k, merged);
+          byKey.set(k, attachEmb({ ...l }));
           return;
         }
-        const merged = { ...prev, ...l };
-        if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+        const merged = attachEmb({ ...prev, ...l });
         const syncLoc =
           typeof window.__DK_mergeLocacaoCamposSincronizacaoPortal === "function"
             ? window.__DK_mergeLocacaoCamposSincronizacaoPortal(prev, l)
@@ -8382,8 +8406,7 @@ ${printable.innerHTML}
           byKey.set(k, merged);
           return;
         }
-        const stay = { ...prev };
-        if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+        const stay = attachEmb({ ...prev });
         Object.assign(stay, syncLoc);
         byKey.set(k, stay);
       };
@@ -8420,21 +8443,25 @@ ${printable.innerHTML}
     /** Após qualquer guardar em clientes/veículos/locações, envia snapshot completo (3 listas) para o Redis — mesmo estado na nuvem para todos os PCs. */
     const DK_PORTAL_SNAPSHOT_TIMER_KEY = "__full_snapshot__";
 
+    async function dkPortalPushCadastroSnapshotNow() {
+      if (dkPortalCadastroSyncSuppressPush) return;
+      const clientes = loadCadastro(CAD_CLIENTES_KEY);
+      const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+      const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+      await Promise.all([
+        dkPortalPushToApi("cadastro-clientes", Array.isArray(clientes) ? clientes : []),
+        dkPortalPushToApi("cadastro-veiculos", Array.isArray(veiculos) ? veiculos : []),
+        dkPortalPushToApi("cadastro-locacoes", Array.isArray(locacoes) ? locacoes : []),
+      ]);
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        await window.__DK_pushCloudSnapshotNow();
+      }
+    }
+
     function dkPortalScheduleFullCadastroSnapshotPush() {
       clearTimeout(dkPortalCadastroPushTimers[DK_PORTAL_SNAPSHOT_TIMER_KEY]);
-      dkPortalCadastroPushTimers[DK_PORTAL_SNAPSHOT_TIMER_KEY] = setTimeout(async () => {
-        if (dkPortalCadastroSyncSuppressPush) return;
-        const clientes = loadCadastro(CAD_CLIENTES_KEY);
-        const veiculos = loadCadastro(CAD_VEICULOS_KEY);
-        const locacoes = loadCadastro(CAD_LOCACOES_KEY);
-        await Promise.all([
-          dkPortalPushToApi("cadastro-clientes", Array.isArray(clientes) ? clientes : []),
-          dkPortalPushToApi("cadastro-veiculos", Array.isArray(veiculos) ? veiculos : []),
-          dkPortalPushToApi("cadastro-locacoes", Array.isArray(locacoes) ? locacoes : []),
-        ]);
-        if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-          await window.__DK_pushCloudSnapshotNow();
-        }
+      dkPortalCadastroPushTimers[DK_PORTAL_SNAPSHOT_TIMER_KEY] = setTimeout(() => {
+        dkPortalPushCadastroSnapshotNow().catch((e) => console.warn("[DK portal] push snapshot", e));
       }, 1500);
     }
 
@@ -8490,6 +8517,12 @@ ${printable.innerHTML}
     }
 
     async function dkPortalPullAndMergeAll() {
+      if (
+        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+        window.__DK_isLocalDataAuthorityActive()
+      ) {
+        return;
+      }
       await Promise.all([
         dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
         dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),
@@ -8498,10 +8531,19 @@ ${printable.innerHTML}
     }
 
     window.__DK_portalPullCadastroFromCloud = dkPortalPullAndMergeAll;
+    window.__DK_portalPushCadastroToCloud = dkPortalPushCadastroSnapshotNow;
 
-    setTimeout(dkPortalPullAndMergeAll, 800);
+    setTimeout(() => {
+      dkPortalPullAndMergeAll().catch(() => {});
+    }, 800);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") return;
+      if (
+        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+        window.__DK_isLocalDataAuthorityActive()
+      ) {
+        return;
+      }
       dkPortalPullAndMergeAll()
         .then(() => {
           try {
@@ -8530,6 +8572,12 @@ ${printable.innerHTML}
 
     let dkPortalPullOnFocusLast = 0;
     window.addEventListener("focus", () => {
+      if (
+        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+        window.__DK_isLocalDataAuthorityActive()
+      ) {
+        return;
+      }
       const now = Date.now();
       if (now - dkPortalPullOnFocusLast < 8000) return;
       dkPortalPullOnFocusLast = now;
