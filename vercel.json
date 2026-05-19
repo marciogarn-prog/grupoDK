@@ -11,10 +11,7 @@
     "DK_BACKUP_EMAIL_FROM": "Grupo DK Backup <marciogarn@gmail.com>",
     "SUPABASE_URL": "https://ppxtwqvzgujllfzarpuz.supabase.co",
     "SUPABASE_ANON_KEY": "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3",
-    "SMTP_USER": "marciogarn@gmail.com",
-    "SMTP_PASS": "1234",
-    "SMTP_HOST": "smtp.gmail.com",
-    "SMTP_PORT": "465"
+    "SMTP_USER": "marciogarn@gmail.com"
   },
   "crons": [
     {
