@@ -2477,8 +2477,36 @@ ${printable.innerHTML}
     const inp = document.getElementById("operacaoLocacaoPlaca");
     if (!panel || !inp) return;
     const items = filterPlacasLivresForDropdown(queryRaw);
+    const totalLivre = portalLocacaoPlacasLivresCache.length;
+    const qPlate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(queryRaw || ""))
+        : String(queryRaw || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
     if (!items.length) {
-      panel.innerHTML = `<div class="portal-placa-dropdown__empty">Nenhum veículo livre: sem contrato ativo nesta placa (sem protocolo em curso no cadastro ou na Receita 2026). Cadastre o veículo ou finalize a locação aberta.</div>`;
+      let msg;
+      if (totalLivre === 0) {
+        if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
+        const nCad =
+          typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+            ? loadCadastro(CAD_VEICULOS_KEY).filter((v) => {
+                const pl =
+                  typeof normalizePlate === "function"
+                    ? normalizePlate(v.placa)
+                    : String(v.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+                return pl.length >= 7;
+              }).length
+            : 0;
+        msg = !nCad
+          ? "Não há veículos neste navegador. Use Cadastro de veículo ou Carregar da nuvem / importar backup."
+          : `Há ${nCad} veículo(s) cadastrado(s), mas nenhum está livre (locação ativa ou manutenção). Finalize a locação aberta na placa.`;
+      } else if (qPlate.length >= 3) {
+        msg = `A placa ${qPlate} não está entre as ${totalLivre} livre(s). Apague o campo e clique de novo para ver a lista.`;
+      } else {
+        msg = `${totalLivre} veículo(s) livre(s): apague o filtro e abra a lista novamente.`;
+      }
+      panel.innerHTML = `<div class="portal-placa-dropdown__empty">${msg}</div>`;
     } else {
       panel.innerHTML = items
         .map(
@@ -7016,6 +7044,10 @@ ${printable.innerHTML}
 
     inpPlaca?.addEventListener("focus", () => {
       refreshOperacaoLocacaoDatalists();
+      const val = String(inpPlaca.value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (val === "ABC1D23" && !portalLocacaoPlacasLivresCache.some((x) => x.placa === val)) {
+        inpPlaca.value = "";
+      }
       renderOperacaoLocacaoPlacaDropdown(String(inpPlaca.value || ""));
     });
 
@@ -7810,7 +7842,7 @@ ${printable.innerHTML}
     updateOperacaoLocacaoDataInicioPlaceholder();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
-    portalRefreshOperacaoDeferred(["locacao"]);
+    refreshOperacaoLocacaoDatalists();
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
