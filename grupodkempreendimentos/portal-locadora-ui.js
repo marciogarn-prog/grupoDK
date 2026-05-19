@@ -1818,6 +1818,7 @@ ${printable.innerHTML}
       portalHasClienteCadastroValue(primary) ? String(primary).trim() : String(fallback || "").trim();
     return {
       ...record,
+      nome: pick(record.nome, bundled.nome),
       cep: pick(record.cep, bundled.cep),
       municipioUf: pick(record.municipioUf, bundled.municipioUf),
       endereco: pick(record.endereco, bundled.endereco),
@@ -2114,8 +2115,9 @@ ${printable.innerHTML}
         inpCpf.readOnly = Boolean(known);
       }
       if (inpNome) {
-        inpNome.readOnly = Boolean(known);
-        if (known && fixed.nome) inpNome.value = fixed.nome;
+        const nomeFix = String(fixed.nome || "").trim();
+        inpNome.readOnly = Boolean(known && nomeFix);
+        if (known && nomeFix) inpNome.value = nomeFix;
       }
       if (inpDataCadastro) {
         inpDataCadastro.readOnly = false;
@@ -2356,7 +2358,13 @@ ${printable.innerHTML}
         return;
       }
       const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
-      const nomeFinal = getVal("operacaoClienteNome") || String(fonte.nome || "").trim();
+      const nomeDigitado = getVal("operacaoClienteNome");
+      const nomeFinal = nomeDigitado || String(fonte.nome || "").trim();
+      if (!nomeFinal) {
+        if (msg) msg.textContent = "Informe o nome do cliente no campo NOME antes de atualizar.";
+        inpNome?.focus();
+        return;
+      }
       const dataVal = getVal("operacaoClienteDataCadastro");
       const dataCadastroFinal = /^\d{2}\/\d{2}\/\d{4}$/.test(dataVal)
         ? dataVal
