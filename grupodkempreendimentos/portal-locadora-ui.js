@@ -4351,6 +4351,11 @@ ${printable.innerHTML}
     syncOperacaoLocacaoValorDevidoPlano();
     syncOperacaoLocacaoValorDevidoAluguel();
     syncOperacaoLocacaoProtocoloComDataInicio();
+    const cpfDigits =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(document.getElementById("operacaoLocacaoCpf")?.value || ""))
+        : String(document.getElementById("operacaoLocacaoCpf")?.value || "").replace(/\D/g, "");
+    if (cpfDigits.length === 11) refreshOperacaoLocacaoProtocoloPicker({ force: true });
     refreshOperacaoLocacaoFinalizarBtn();
   }
 
@@ -4465,13 +4470,17 @@ ${printable.innerHTML}
     syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
   }
 
-  /** Se a data de início estiver vazia, sugere a data de hoje (sincronização no botão Cadastro de locação). */
-  function suggestOperacaoLocacaoDataInicioComoHoje() {
+  /** Placeholder da data de início (não preenche automaticamente — protocolo usa a data informada). */
+  function updateOperacaoLocacaoDataInicioPlaceholder() {
     const inp = document.getElementById("operacaoLocacaoDataInicio");
     if (!inp) return;
     inp.placeholder = `Ex.: ${formatPortalDataBr(new Date())}`;
-    if (String(inp.value || "").trim()) return;
-    inp.value = formatPortalDataBr(new Date());
+  }
+
+  function isPortalProtocoloAlignedWithInicioForm(ncRaw) {
+    const inicioBr = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    if (!inicioBr || typeof isProtocoloAlignedWithLocacaoInicio !== "function") return true;
+    return isProtocoloAlignedWithLocacaoInicio(ncRaw, { inicio: inicioBr });
   }
 
   const PORTAL_PROTO_NOVO = "__PORTAL_PROTO_NOVO__";
@@ -4498,30 +4507,28 @@ ${printable.innerHTML}
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     if (!hid) return;
+    const isNovo = sel && String(sel.value || "") === PORTAL_PROTO_NOVO;
     const inicioBr = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
     const inicioDt =
       inicioBr && typeof parseBrDate === "function" ? parseBrDate(inicioBr) : null;
     const inicioOk = inicioDt && !Number.isNaN(inicioDt.getTime());
     if (!inicioOk) {
-      if (sel && String(sel.value || "") === PORTAL_PROTO_NOVO) {
-        const optNovo = Array.from(sel.options).find((o) => o.value === PORTAL_PROTO_NOVO);
+      if (isNovo) {
+        hid.value = "";
+        const optNovo = Array.from(sel?.options || []).find((o) => o.value === PORTAL_PROTO_NOVO);
         if (optNovo) optNovo.textContent = "NOVO — (informe data de início)";
       }
       return;
     }
-    const nc = normPortalNumeroContrato(hid.value);
-    const aligned =
-      typeof isProtocoloAlignedWithLocacaoInicio === "function"
-        ? isProtocoloAlignedWithLocacaoInicio(nc, { inicio: inicioBr })
-        : true;
-    if (nc && aligned) return;
-    if (sel && String(sel.value || "") !== PORTAL_PROTO_NOVO) return;
     const novo = proximoProtocoloPortalAaaammddXX(inicioDt);
-    hid.value = novo;
-    if (sel) {
-      const optNovo = Array.from(sel.options).find((o) => o.value === PORTAL_PROTO_NOVO);
+    if (isNovo) {
+      hid.value = novo;
+      const optNovo = Array.from(sel.options || []).find((o) => o.value === PORTAL_PROTO_NOVO);
       if (optNovo) optNovo.textContent = `NOVO — ${novo}`;
+      return;
     }
+    const nc = normPortalNumeroContrato(hid.value);
+    if (nc && isPortalProtocoloAlignedWithInicioForm(nc)) return;
   }
 
   /** Próximo protocolo AAAAMMDDXX (XX = sequência do dia, 2 dígitos até 99). */
@@ -4618,7 +4625,7 @@ ${printable.innerHTML}
     const tp2025 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
     if (tp) tp.value = formatOperacaoLocacaoValorNumDisplay(0);
     if (tp2025) tp2025.value = formatOperacaoLocacaoValorNumDisplay(0);
-    suggestOperacaoLocacaoDataInicioComoHoje();
+    updateOperacaoLocacaoDataInicioPlaceholder();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
   }
@@ -4682,12 +4689,10 @@ ${printable.innerHTML}
     if (pNorm && sorted.includes(pNorm)) {
       sel.value = pNorm;
       hid.value = pNorm;
-    } else if (pNorm) {
-      sel.value = PORTAL_PROTO_NOVO;
-      hid.value = pNorm;
     } else {
       sel.value = PORTAL_PROTO_NOVO;
-      hid.value = protoNovo;
+      hid.value =
+        protoNovo || (pNorm && isPortalProtocoloAlignedWithInicioForm(pNorm) ? pNorm : "");
     }
   }
 
@@ -4983,11 +4988,13 @@ ${printable.innerHTML}
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const isNovo = sel && String(sel.value || "") === PORTAL_PROTO_NOVO;
     let nc = normPortalNumeroContrato(String(hid?.value || ""));
-    if (!nc) {
+    if (isNovo) {
+      nc = normPortalNumeroContrato(proximoProtocoloPortalAaaammddXX(inicioDt));
+      if (hid) hid.value = nc;
+    } else if (!nc) {
       if (msg) msg.textContent = "Protocolo inválido. Escolha «NOVO» ou um contrato existente.";
       return;
-    }
-    if (
+    } else if (
       typeof isProtocoloAlignedWithLocacaoInicio === "function" &&
       !isProtocoloAlignedWithLocacaoInicio(nc, { inicio: inicioBr })
     ) {
@@ -7465,7 +7472,7 @@ ${printable.innerHTML}
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-locacao");
     refreshOperacaoLocacaoDatalists();
-    suggestOperacaoLocacaoDataInicioComoHoje();
+    updateOperacaoLocacaoDataInicioPlaceholder();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
