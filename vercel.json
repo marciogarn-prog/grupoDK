@@ -5,6 +5,12 @@
   "installCommand": "npm install",
   "cleanUrls": true,
   "trailingSlash": false,
+  "crons": [
+    {
+      "path": "/api/cron-daily-backup",
+      "schedule": "0 5 * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",
