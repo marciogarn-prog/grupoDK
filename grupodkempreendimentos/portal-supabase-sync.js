@@ -9,7 +9,7 @@
  * - `window.__DK_pushCloudSnapshotNow()` — envio imediato (ex.: após «Guardar cliente»).
  * - `window.__DK_pushToCloudAfterSave()` — alias para push após qualquer gravação.
  * - `window.__DK_pullCloudSnapshotSilentMerge()` — merge do snapshot sem recarregar.
- * - `window.__DK_pullFromCloudOnScreenChange()` — pull completo ao mudar de ecrã (portal-locadora-ui reforça).
+ * - `window.__DK_pullFromCloudOnScreenChange()` — no-op (UI usa dados locais; ver «Carregar da nuvem»).
  */
 (function portalSupabaseSync() {
   const DK_SNAPSHOT_LABEL = "default";
@@ -35,11 +35,11 @@
   const DK_LOCAL_AUTHORITY_MS = 45 * 60 * 1000;
   const DK_CLOUD_LAST_PUSH_AT_KEY = "dkCloudLastPushedAt";
 
-  const CLOUD_PUSH_DEBOUNCE_MS = 1200;
-  const SCREEN_PULL_MIN_INTERVAL_MS = 4000;
+  const CLOUD_PUSH_DEBOUNCE_MS = 2500;
+  const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
-  let screenPullInFlight = null;
-  let screenPullLastAt = 0;
+  let backgroundPullLastAt = 0;
+  let backgroundPullInFlight = null;
 
   let cloudPushTimer = null;
   let suppressCloudHook = false;
@@ -350,36 +350,31 @@
     return { ok: true, applied: true };
   }
 
-  async function pullFromCloudOnScreenChangeCore() {
+  /** Não bloqueia a UI — mudança de ecrã usa só localStorage. */
+  function pullFromCloudOnScreenChange() {
+    return Promise.resolve({ ok: true, skipped: true, reason: "instant_local_ui" });
+  }
+
+  /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
+  async function scheduleBackgroundCloudPullIfStale() {
     if (isLocalDataAuthorityActive()) {
       return { ok: true, skipped: true, reason: "local_authority" };
     }
-    if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
-      try {
-        await window.__DK_portalPullCadastroFromCloud();
-      } catch (e) {
-        console.warn("[DK cloud] pull cadastro API", e);
-      }
-    }
-    return pullCloudSnapshotSilentMerge();
-  }
-
-  async function pullFromCloudOnScreenChange() {
     const now = Date.now();
-    if (now - screenPullLastAt < SCREEN_PULL_MIN_INTERVAL_MS) {
-      return screenPullInFlight || { ok: true, skipped: true, reason: "throttled" };
+    if (now - backgroundPullLastAt < BACKGROUND_PULL_MIN_INTERVAL_MS) {
+      return backgroundPullInFlight || { ok: true, skipped: true, reason: "throttled" };
     }
-    if (screenPullInFlight) return screenPullInFlight;
-    screenPullLastAt = now;
-    screenPullInFlight = pullFromCloudOnScreenChangeCore()
+    if (backgroundPullInFlight) return backgroundPullInFlight;
+    backgroundPullLastAt = now;
+    backgroundPullInFlight = pullCloudSnapshotSilentMerge()
       .catch((e) => {
-        console.warn("[DK cloud] pull ao mudar ecrã", e);
+        console.warn("[DK cloud] pull em segundo plano", e);
         return { ok: false, error: e };
       })
       .finally(() => {
-        screenPullInFlight = null;
+        backgroundPullInFlight = null;
       });
-    return screenPullInFlight;
+    return backgroundPullInFlight;
   }
 
   function pushToCloudAfterSave() {
@@ -405,6 +400,7 @@
   try {
     window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
+    window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
     window.__DK_markLocalDataAuthority = markLocalDataAuthority;
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
@@ -659,87 +655,23 @@
     }
   }
 
-  async function waitForLocacoesSanitizeReady(maxMs = 8000) {
-    const t0 = Date.now();
-    while (Date.now() - t0 < maxMs) {
-      if (typeof window.__DK_sanitizeLocacoesCadastro === "function") return true;
-      await new Promise((r) => setTimeout(r, 40));
-    }
-    return typeof window.__DK_sanitizeLocacoesCadastro === "function";
-  }
-
-  async function autoPullFromCloudOnStartup() {
+  function autoPullFromCloudOnStartup() {
     const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client) return;
-    if (isLocalDataAuthorityActive()) return;
-
-    await waitForLocacoesSanitizeReady();
-
-    suppressCloudHook = true;
+    if (!client || isLocalDataAuthorityActive()) return;
     try {
-      const { data, error } = await client
-        .from("dk_cloud_snapshots")
-        .select("payload, updated_at")
-        .eq("label", DK_SNAPSHOT_LABEL)
-        .maybeSingle();
-
-      if (error) {
-        console.warn("[DK cloud] arranque: leitura", error);
-        return;
-      }
-      if (!isCloudSnapshotNewerThanLocal(data?.updated_at)) {
-        try {
-          sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
-      if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
-        try {
-          sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
-      if (!cloudPullWouldChangeAnything(data.payload)) {
-        try {
-          sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
-        } catch {
-          /* ignore */
-        }
-        return;
-      }
-
-      let reloadCount = 0;
-      try {
-        reloadCount = parseInt(sessionStorage.getItem(DK_CLOUD_RELOAD_GUARD_KEY) || "0", 10) || 0;
-      } catch {
-        reloadCount = 0;
-      }
-      if (reloadCount >= 2) {
-        console.warn(
-          "[DK cloud] Auto-pull: limite de recarregamentos seguros atingido. Use «Carregar da nuvem» se precisar sincronizar."
-        );
-        setMsg(
-          "Sincronização automática em pausa (evitar loop). Recarregue com F5 ou use «Carregar da nuvem».",
-          "muted"
-        );
-        return;
-      }
-      try {
-        sessionStorage.setItem(DK_CLOUD_RELOAD_GUARD_KEY, String(reloadCount + 1));
-      } catch {
-        /* ignore */
-      }
-
-      applyPayloadToLocalStorage(data.payload, { replace: true });
-      setMsg("A sincronizar com a nuvem…", "muted");
-      window.location.reload();
-    } finally {
-      suppressCloudHook = false;
+      sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+    } catch {
+      /* ignore */
     }
+    window.setTimeout(() => {
+      scheduleBackgroundCloudPullIfStale()
+        .then((r) => {
+          if (r && r.applied && typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+            window.__DK_portalRefreshOperacaoLocal();
+          }
+        })
+        .catch((e) => console.warn("[DK cloud] arranque pull", e));
+    }, 6000);
   }
 
   function bind() {

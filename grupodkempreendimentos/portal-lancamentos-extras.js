@@ -1020,11 +1020,9 @@
     if (state.get(cfg.key)) return;
     state.set(cfg.key, true);
 
-    document.getElementById(cfg.btnId)?.addEventListener("click", async () => {
-      if (typeof window.__DK_pullFromCloudOnScreenChange === "function") {
-        await window.__DK_pullFromCloudOnScreenChange();
-      } else if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
-        await window.__DK_portalPullCadastroFromCloud();
+    document.getElementById(cfg.btnId)?.addEventListener("click", () => {
+      if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+        window.__DK_portalRefreshOperacaoLocal();
       }
       showPanel(cfg);
       hideDetalhe(cfg);

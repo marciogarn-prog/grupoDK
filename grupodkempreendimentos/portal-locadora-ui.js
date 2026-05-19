@@ -425,8 +425,9 @@
     finalizarLoginEquipaPortal(f);
   });
 
-  btnOperacao?.addEventListener("click", async () => {
-    await portalOperacaoAwaitCloudCadastroPull();
+  btnOperacao?.addEventListener("click", () => {
+    portalRefreshOperacaoLocal();
+    portalScheduleBackgroundCloudPullOnce();
     hideOperacaoInlineFormsCore();
     setOperacaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
@@ -460,8 +461,8 @@
     });
   }
 
-  btnManutencao?.addEventListener("click", async () => {
-    await portalOperacaoAwaitCloudCadastroPull();
+  btnManutencao?.addEventListener("click", () => {
+    portalRefreshOperacaoLocal();
     hideManutencaoInlineFormsCore();
     setManutencaoFormPlaceholderVisible(true);
     syncManutencaoSidebarButtons(null);
@@ -1379,7 +1380,7 @@ ${printable.innerHTML}
     { btn: "btn-manutencao-operacionais", panel: "manutencaoInlineOperacionais" },
   ].forEach(({ btn, panel }) => {
     document.getElementById(btn)?.addEventListener("click", async () => {
-      await portalOperacaoAwaitCloudCadastroPull();
+      portalRefreshOperacaoLocal();
       hideManutencaoInlineFormsCore();
       setManutencaoFormPlaceholderVisible(false);
       document.getElementById(panel)?.classList.remove("hidden");
@@ -4326,31 +4327,32 @@ ${printable.innerHTML}
     }
   }
 
-  /** Nuvem (merge, com limite de frequência) antes de mostrar outro formulário. */
-  async function portalOperacaoAwaitCloudCadastroPull() {
-    try {
-      if (
-        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
-        window.__DK_isLocalDataAuthorityActive()
-      ) {
-        portalRefreshOperacaoDadosAposNuvem();
-        setPortalUnitDadosAtualizadosAgora();
-        return;
-      }
-      if (typeof window.__DK_pullFromCloudOnScreenChange === "function") {
-        await window.__DK_pullFromCloudOnScreenChange();
-      } else if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
-        await window.__DK_portalPullCadastroFromCloud();
-      }
-    } catch (e) {
-      console.warn("[DK portal] cadastro pull ao mudar tela", e);
-    }
-    portalRefreshOperacaoDadosAposNuvem();
+  /** Atualiza listas/formulários a partir do localStorage (sem rede — painel abre já, listas no frame seguinte). */
+  function portalRefreshOperacaoLocal() {
     setPortalUnitDadosAtualizadosAgora();
+    requestAnimationFrame(() => {
+      try {
+        portalRefreshOperacaoDadosAposNuvem();
+      } catch (e) {
+        console.warn("[DK portal] refresh local", e);
+      }
+    });
+  }
+
+  let portalBackgroundCloudPullStarted = false;
+  function portalScheduleBackgroundCloudPullOnce() {
+    if (portalBackgroundCloudPullStarted) return;
+    portalBackgroundCloudPullStarted = true;
+    if (typeof window.__DK_scheduleBackgroundCloudPull !== "function") return;
+    window.__DK_scheduleBackgroundCloudPull()
+      .then((r) => {
+        if (r && r.applied) portalRefreshOperacaoLocal();
+      })
+      .catch(() => {});
   }
 
   try {
-    window.__DK_pullFromCloudOnScreenChange = portalOperacaoAwaitCloudCadastroPull;
+    window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
   } catch {
     /* ignore */
   }
@@ -7729,7 +7731,7 @@ ${printable.innerHTML}
 
   document.getElementById("btn-operacao-falar-cliente")?.addEventListener("click", async () => {
     if (!DK_PORTAL_WA_CLIENTE_ATIVO) return;
-    await portalOperacaoAwaitCloudCadastroPull();
+    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     portalWaRebuildDatasetCache();
     portalWaClearForm();
@@ -7740,14 +7742,14 @@ ${printable.innerHTML}
   });
 
   document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", async () => {
-    await portalOperacaoAwaitCloudCadastroPull();
+    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
   });
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", async () => {
-    await portalOperacaoAwaitCloudCadastroPull();
+    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -7756,7 +7758,7 @@ ${printable.innerHTML}
     refreshOperacaoVeiculoTagPreview();
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", async () => {
-    await portalOperacaoAwaitCloudCadastroPull();
+    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLocacao")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -7769,7 +7771,7 @@ ${printable.innerHTML}
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", async () => {
-    await portalOperacaoAwaitCloudCadastroPull();
+    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -7785,7 +7787,7 @@ ${printable.innerHTML}
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", async () => {
     if (!isPortalTitularAdministrador()) return;
-    await portalOperacaoAwaitCloudCadastroPull();
+    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -8533,63 +8535,15 @@ ${printable.innerHTML}
     window.__DK_portalPullCadastroFromCloud = dkPortalPullAndMergeAll;
     window.__DK_portalPushCadastroToCloud = dkPortalPushCadastroSnapshotNow;
 
-    setTimeout(() => {
-      dkPortalPullAndMergeAll().catch(() => {});
-    }, 800);
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState !== "visible") return;
-      if (
-        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
-        window.__DK_isLocalDataAuthorityActive()
-      ) {
-        return;
-      }
-      dkPortalPullAndMergeAll()
-        .then(() => {
-          try {
-            portalRefreshOperacaoDadosAposNuvem();
-          } catch (e) {
-            console.warn("[DK portal] refresh após visibility", e);
-          }
-        })
-        .catch(() => {});
-    });
-
-    /** Outro separador do mesmo site alterou `localStorage` — atualiza listas e formulários da Operação. */
+    /** Outro separador do mesmo site alterou `localStorage` — só atualiza UI (sem rede). */
     window.addEventListener("storage", (ev) => {
       if (!ev.key) return;
       if (ev.key !== CAD_CLIENTES_KEY && ev.key !== CAD_VEICULOS_KEY && ev.key !== CAD_LOCACOES_KEY) return;
-      dkPortalPullAndMergeAll()
-        .then(() => {
-          try {
-            portalRefreshOperacaoDadosAposNuvem();
-          } catch (e) {
-            console.warn("[DK portal] refresh após storage", e);
-          }
-        })
-        .catch(() => {});
-    });
-
-    let dkPortalPullOnFocusLast = 0;
-    window.addEventListener("focus", () => {
-      if (
-        typeof window.__DK_isLocalDataAuthorityActive === "function" &&
-        window.__DK_isLocalDataAuthorityActive()
-      ) {
-        return;
+      try {
+        portalRefreshOperacaoLocal();
+      } catch (e) {
+        console.warn("[DK portal] refresh após storage", e);
       }
-      const now = Date.now();
-      if (now - dkPortalPullOnFocusLast < 8000) return;
-      dkPortalPullOnFocusLast = now;
-      dkPortalPullAndMergeAll()
-        .then(() => {
-          try {
-            portalRefreshOperacaoDadosAposNuvem();
-          } catch (e) {
-            console.warn("[DK portal] refresh após focus", e);
-          }
-        })
-        .catch(() => {});
     });
   })();
 
