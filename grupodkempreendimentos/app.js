@@ -7095,9 +7095,11 @@ function isHeaderLikePlate(value) {
 /** Garante frota no cadastro (seed + planilha embutida se o storage estiver vazio). */
 function ensureVeiculosCadastroPopulated() {
   seedVeiculosDatabaseIfNeeded();
+  invalidateCadastroParseCache(CAD_VEICULOS_KEY);
   let list = loadCadastro(CAD_VEICULOS_KEY);
   if (!list.length) {
     bootstrapVeiculosFromFinanceiro2026({ force: true });
+    invalidateCadastroParseCache(CAD_VEICULOS_KEY);
     list = loadCadastro(CAD_VEICULOS_KEY);
   }
   return list;

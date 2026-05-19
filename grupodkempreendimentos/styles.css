@@ -1237,6 +1237,21 @@ body {
   color: var(--text-muted, #aaa);
 }
 
+.portal-relatorio-veiculos-grupo {
+  margin-bottom: 0.75rem;
+}
+
+.portal-relatorio-veiculos-grupo h3 {
+  color: var(--accent);
+}
+
+.portal-relatorio-veiculos-grupo h4 {
+  margin: 0.45rem 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted, #bbb);
+}
+
 .portal-relatorio-veiculos-bloco table {
   width: 100%;
   border-collapse: collapse;
