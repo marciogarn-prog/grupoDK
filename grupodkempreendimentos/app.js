@@ -1922,14 +1922,31 @@ function setAdminDadosSubsection(target) {
   }
 }
 
+const __dkCadastroParseCache = Object.create(null);
+
 function loadCadastro(key) {
   const raw = localStorage.getItem(key);
-  if (!raw) return [];
+  if (!raw) {
+    __dkCadastroParseCache[key] = { raw: null, arr: [] };
+    return [];
+  }
+  const hit = __dkCadastroParseCache[key];
+  if (hit && hit.raw === raw) return hit.arr;
+  let arr = [];
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    arr = Array.isArray(parsed) ? parsed : [];
   } catch {
-    return [];
+    arr = [];
+  }
+  __dkCadastroParseCache[key] = { raw, arr };
+  return arr;
+}
+
+function invalidateCadastroParseCache(key) {
+  if (key) delete __dkCadastroParseCache[key];
+  else {
+    Object.keys(__dkCadastroParseCache).forEach((k) => delete __dkCadastroParseCache[k]);
   }
 }
 
@@ -2291,7 +2308,18 @@ function saveCadastro(key, list, opts) {
     const prev = loadCadastro(key);
     toStore = mergeCadastroHistoricoImutavel(key, prev, next);
   }
-  localStorage.setItem(key, JSON.stringify(toStore));
+  const json = JSON.stringify(toStore);
+  localStorage.setItem(key, json);
+  __dkCadastroParseCache[key] = { raw: json, arr: toStore };
+  if (key === CAD_LOCACOES_KEY || key === CAD_CLIENTES_KEY) {
+    try {
+      if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+        window.__DK_invalidatePesquisaLinhasCache();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /**
@@ -5661,6 +5689,12 @@ function repairProtocolosLocacaoPorDataInicioOnce() {
   if (san.changed) {
     console.info(`[DK] Locações: ${san.removed} duplicata(s) removida(s).`);
   }
+}
+
+try {
+  window.__DK_invalidateCadastroParseCache = invalidateCadastroParseCache;
+} catch {
+  /* ignore */
 }
 
 try {

@@ -154,6 +154,20 @@
       }
     }
     runLocacoesSanitizeAfterCloudApply({ light: lightSanitize });
+    if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+      try {
+        window.__DK_invalidatePesquisaLinhasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_invalidateCadastroParseCache === "function") {
+      try {
+        window.__DK_invalidateCadastroParseCache();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   function runLocacoesSanitizeAfterCloudApply(opts) {

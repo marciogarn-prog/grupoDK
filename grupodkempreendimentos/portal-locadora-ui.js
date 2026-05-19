@@ -4327,16 +4327,35 @@ ${printable.innerHTML}
     }
   }
 
-  /** Atualiza listas/formulários a partir do localStorage (sem rede — painel abre já, listas no frame seguinte). */
+  /** Marca hora de uso — não reconstrói listas (evita travar ao mudar de menu). */
   function portalRefreshOperacaoLocal() {
     setPortalUnitDadosAtualizadosAgora();
-    requestAnimationFrame(() => {
+  }
+
+  function portalRefreshOperacaoDeferred(keys) {
+    const run = () => {
       try {
-        portalRefreshOperacaoDadosAposNuvem();
+        if (!keys || keys.includes("locacao")) {
+          refreshOperacaoLocacaoDatalists();
+          refreshOperacaoLocacaoProtocoloPicker();
+        }
+        if (!keys || keys.includes("aluguel")) {
+          refreshOperacaoLancamentoAluguelCpfDatalist();
+          refreshOperacaoLancAluguelPesquisaDatalists();
+        }
+        if (!keys || keys.includes("rel")) {
+          refreshPortalRelClienteCpfDatalist();
+          refreshPortalRelPlacaDatalist();
+        }
       } catch (e) {
-        console.warn("[DK portal] refresh local", e);
+        console.warn("[DK portal] refresh diferido", e);
       }
-    });
+    };
+    if (typeof requestIdleCallback === "function") {
+      requestIdleCallback(run, { timeout: 800 });
+    } else {
+      setTimeout(run, 0);
+    }
   }
 
   let portalBackgroundCloudPullStarted = false;
@@ -4353,6 +4372,8 @@ ${printable.innerHTML}
 
   try {
     window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
+    window.__DK_portalRefreshOperacaoDeferred = portalRefreshOperacaoDeferred;
+    window.__DK_invalidatePesquisaLinhasCache = invalidatePesquisaLinhasCache;
   } catch {
     /* ignore */
   }
@@ -6149,34 +6170,58 @@ ${printable.innerHTML}
     return "";
   }
 
-  /** Cor da linha na pesquisa de lançamento (moto/carro, ativo/inativo, plano, investimento). */
-  function getPortalLancPesquisaLinhaCorClasse(loc) {
+  /** Cor na lista de pesquisa — versão leve (sem recalcular totais do protocolo). */
+  function getPortalLancPesquisaLinhaCorClasseFast(loc, vehicleMap) {
     if (!loc) return "portal-lanc-pesquisa-linha--branco";
     const nk =
       typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
     const ativo = isPortalLocacaoAtiva(loc);
-    const tipo = portalInferTipoVeiculoLocacao(loc);
-    const isCarro = tipo === "CARRO";
-    const isMoto = tipo === "MOTO";
-    const resumo = computePortalProtocoloResumoFromLoc(loc);
-    const planoKey = nk(resumo.tipoPlano || "");
-
-    if (!ativo && (isMoto || isCarro) && resumo.investimentoAcumuladoNeg) {
-      return "portal-lanc-pesquisa-linha--vermelho";
+    let isCarro = false;
+    let isMoto = false;
+    const mod = nk(String(loc.modalidade || ""));
+    if (mod.includes("CARRO")) isCarro = true;
+    else if (mod.includes("MOTO")) isMoto = true;
+    else if (vehicleMap) {
+      const plate =
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(loc.placa || ""))
+          : nk(String(loc.placa || "")).replace(/[^A-Z0-9]/g, "");
+      const v = plate ? vehicleMap.get(plate) : null;
+      if (v) {
+        const tipo = nk(String(v.tipo || ""));
+        const tag = nk(String(v.tag || ""));
+        isCarro = tipo.includes("CARRO") || tag.includes("DKCR");
+        isMoto = !isCarro;
+      } else {
+        isMoto = true;
+      }
+    } else {
+      const tipo = portalInferTipoVeiculoLocacao(loc);
+      isCarro = tipo === "CARRO";
+      isMoto = tipo === "MOTO";
     }
+    const planoKey = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    if (!ativo && (isMoto || isCarro)) return "portal-lanc-pesquisa-linha--vermelho";
     if (ativo && isMoto) {
-      if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) {
-        return "portal-lanc-pesquisa-linha--azul";
-      }
-      if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) {
-        return "portal-lanc-pesquisa-linha--verde";
-      }
+      if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) return "portal-lanc-pesquisa-linha--azul";
+      if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) return "portal-lanc-pesquisa-linha--verde";
     }
     if (ativo && isCarro) return "portal-lanc-pesquisa-linha--amarelo";
     return "portal-lanc-pesquisa-linha--branco";
   }
 
+  function getPortalLancPesquisaLinhaCorClasse(loc) {
+    return getPortalLancPesquisaLinhaCorClasseFast(loc, null);
+  }
+
+  let portalPesquisaLinhasCache = null;
+
+  function invalidatePesquisaLinhasCache() {
+    portalPesquisaLinhasCache = null;
+  }
+
   function collectOperacaoLancAluguelPesquisaLinhas() {
+    if (portalPesquisaLinhasCache) return portalPesquisaLinhasCache;
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
@@ -6184,6 +6229,8 @@ ${printable.innerHTML}
       typeof normalizePlate === "function"
         ? normalizePlate
         : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const vehicleMap =
+      typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
     const linhas = [];
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
       const proto = normPortalNumeroContrato(l.numeroContrato || "");
@@ -6197,10 +6244,11 @@ ${printable.innerHTML}
         nome: nome || "(sem nome)",
         proto,
         placa: np(String(l.placa || "")),
-        corClasse: getPortalLancPesquisaLinhaCorClasse(l),
+        corClasse: getPortalLancPesquisaLinhaCorClasseFast(l, vehicleMap),
         ativo: isPortalLocacaoAtiva(l),
       });
     });
+    portalPesquisaLinhasCache = linhas;
     return linhas;
   }
 
@@ -7729,9 +7777,8 @@ ${printable.innerHTML}
 
   bindPortalWhatsAppOperacaoOnce();
 
-  document.getElementById("btn-operacao-falar-cliente")?.addEventListener("click", async () => {
+  document.getElementById("btn-operacao-falar-cliente")?.addEventListener("click", () => {
     if (!DK_PORTAL_WA_CLIENTE_ATIVO) return;
-    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     portalWaRebuildDatasetCache();
     portalWaClearForm();
@@ -7741,15 +7788,13 @@ ${printable.innerHTML}
     syncOperacaoCadastroButtons("btn-operacao-falar-cliente");
   });
 
-  document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", async () => {
-    portalRefreshOperacaoLocal();
+  document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
   });
-  document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", async () => {
-    portalRefreshOperacaoLocal();
+  document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -7757,37 +7802,30 @@ ${printable.innerHTML}
     refreshOperacaoVeiculoPlacasCache();
     refreshOperacaoVeiculoTagPreview();
   });
-  document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", async () => {
-    portalRefreshOperacaoLocal();
+  document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLocacao")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-locacao");
-    refreshOperacaoLocacaoDatalists();
     updateOperacaoLocacaoDataInicioPlaceholder();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
-    refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    portalRefreshOperacaoDeferred(["locacao"]);
   });
 
-  document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", async () => {
-    portalRefreshOperacaoLocal();
+  document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
-    refreshOperacaoLancamentoAluguelCpfDatalist();
-    refreshOperacaoLancAluguelPesquisaDatalists();
-    refreshPortalRelClienteCpfDatalist();
-    refreshPortalRelPlacaDatalist();
     hideOperacaoLancAluguelDetalhePanels();
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
+    portalRefreshOperacaoDeferred(["aluguel", "rel"]);
   });
 
-  document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", async () => {
+  document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
     if (!isPortalTitularAdministrador()) return;
-    portalRefreshOperacaoLocal();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);

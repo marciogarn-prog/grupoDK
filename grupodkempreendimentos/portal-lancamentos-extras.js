@@ -1016,17 +1016,26 @@
     refreshPesquisaAvancada(cfg);
   }
 
+  function bindPesquisaLazyRefresh(cfg) {
+    if (cfg._pesquisaLazyBound) return;
+    cfg._pesquisaLazyBound = true;
+    ["Cpf", "NomeBusca", "ProtocoloBusca", "PlacaBusca"].forEach((suffix) => {
+      $(cfg, suffix)?.addEventListener(
+        "focus",
+        () => refreshPesquisaAvancada(cfg),
+        { passive: true }
+      );
+    });
+  }
+
   function bindTipo(cfg) {
     if (state.get(cfg.key)) return;
     state.set(cfg.key, true);
 
     document.getElementById(cfg.btnId)?.addEventListener("click", () => {
-      if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
-        window.__DK_portalRefreshOperacaoLocal();
-      }
       showPanel(cfg);
       hideDetalhe(cfg);
-      refreshDatalists(cfg);
+      bindPesquisaLazyRefresh(cfg);
       const msg = $(cfg, "InlineMsg");
       if (msg) msg.textContent = "";
     });
