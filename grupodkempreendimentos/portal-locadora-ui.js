@@ -2762,12 +2762,24 @@ ${printable.innerHTML}
     return portalInferTipoVeiculoLocacao(locacao) === "MOTO";
   }
 
+  function portalLocacaoTemDataFim(locacao) {
+    const fim = String(locacao?.fim || "").trim();
+    if (!fim || fim === "—" || fim === "-") return false;
+    if (typeof parseBrDate === "function") {
+      const dt = parseBrDate(fim);
+      if (dt && !Number.isNaN(dt.getTime())) return true;
+    }
+    return /^\d{2}\/\d{2}\/\d{4}$/.test(fim);
+  }
+
   function isPortalLocacaoFinalizada(locacao) {
     const nk =
       typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
-    if (String(locacao.fim || "").trim()) return true;
+    if (portalLocacaoTemDataFim(locacao)) return true;
     const s = nk(String(locacao.statusLocacao || locacao.status || ""));
-    return s.includes("FINAL") || s.includes("INATIV");
+    if (!s) return false;
+    if (s === "ATIVO" || s === "ATIVA") return false;
+    return s.includes("FINALIZ") || s.includes("INATIVO") || s === "INATIVA";
   }
 
   function isPortalLocacaoAtiva(locacao) {
@@ -6119,6 +6131,7 @@ ${printable.innerHTML}
         proto,
         placa: np(String(l.placa || "")),
         corClasse: getPortalLancPesquisaLinhaCorClasse(l),
+        ativo: isPortalLocacaoAtiva(l),
       });
     });
     return linhas;
@@ -6162,7 +6175,8 @@ ${printable.innerHTML}
       .map((row) => {
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
         const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
-        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl}</button></li>`;
+        const status = row.ativo ? "ativo" : "inativo";
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
       })
       .join("")}</ul>`;
   }
