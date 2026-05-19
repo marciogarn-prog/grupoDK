@@ -12,6 +12,7 @@
   <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
   <meta name="dk-supabase-anon-key" content="sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3">
   <meta name="dk-whatsapp-send-secret" content="">
+  <meta name="dk-backup-send-secret" content="">
   <meta name="description" content="Grupo DK Empreendimentos &mdash; DK Locadora, DK Centro Automotivo e DK Construtora. Petrolina-PE.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://grupodkempreendimentos.com.br/">
@@ -126,10 +127,12 @@
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
           <p class="subtext portal-cloud-sync-bar__lead">
             Nuvem Supabase: guardar ou carregar os cadastros deste navegador (mesmos dados em PC e telemóvel).
+            O backup por e-mail envia um ficheiro JSON para <strong>marciogarn@gmail.com</strong>.
           </p>
           <div class="portal-cloud-sync-bar__actions">
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-pull">Carregar da nuvem</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-email">Gerar backup</button>
           </div>
           <p id="portal-cloud-sync-msg" class="portal-feedback" role="status"></p>
         </div>
@@ -1436,6 +1439,6 @@
   <script src="portal-locadora-ui.js?v=20260519investimento-acumulado" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260520manutencao-parcelado" defer></script>
-  <script src="portal-supabase-sync.js?v=9" defer></script>
+  <script src="portal-supabase-sync.js?v=10" defer></script>
 </body>
 </html>

@@ -65,12 +65,21 @@ if (fs.existsSync(indexHtml)) {
       `<meta name="dk-whatsapp-send-secret" content="${escHtmlAttrValue(waSecret)}">`
     );
   }
+  const backupSecret = process.env.DK_BACKUP_SEND_SECRET || process.env.CRON_SECRET || "";
+  if (backupSecret) {
+    html = html.replace(
+      /<meta\s+name="dk-backup-send-secret"\s+content="[^"]*"\s*>/i,
+      `<meta name="dk-backup-send-secret" content="${escHtmlAttrValue(backupSecret)}">`
+    );
+  }
   fs.writeFileSync(indexHtml, html);
   console.log(
     "copy-portal-for-vercel: Supabase meta injetadas (chave:",
     anonEnv ? "env" : "mantida-do-index",
     "); WhatsApp send:",
-    waSecret ? "secret injetado" : "sem DK_WHATSAPP_SEND_SECRET"
+    waSecret ? "secret injetado" : "sem DK_WHATSAPP_SEND_SECRET",
+    "; Backup send:",
+    backupSecret ? "secret injetado" : "sem DK_BACKUP_SEND_SECRET/CRON_SECRET"
   );
 }
 

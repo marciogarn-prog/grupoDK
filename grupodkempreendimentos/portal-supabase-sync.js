@@ -293,6 +293,61 @@
     );
   }
 
+  function readBackupSendSecret() {
+    return String(document.querySelector('meta[name="dk-backup-send-secret"]')?.getAttribute("content") || "").trim();
+  }
+
+  function resolveBackupEmailApiUrl() {
+    const origin = String(window.location.origin || "").replace(/\/$/, "");
+    if (origin && origin !== "null") return `${origin}/api/dk-backup-email`;
+    return "/api/dk-backup-email";
+  }
+
+  async function sendBackupEmailFromBrowser() {
+    const secret = readBackupSendSecret();
+    if (!secret) {
+      setMsg(
+        "Backup por e-mail não configurado: na Vercel defina DK_BACKUP_SEND_SECRET (ou CRON_SECRET) e faça redeploy.",
+        null
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        "Gerar backup dos dados deste navegador e enviar por e-mail para marciogarn@gmail.com?"
+      )
+    ) {
+      return;
+    }
+    const btn = document.getElementById("btn-dk-backup-email");
+    if (btn) btn.disabled = true;
+    setMsg("A gerar backup e a enviar por e-mail…", "muted");
+    try {
+      const browserData = collectPayloadFromLocalStorage();
+      const res = await fetch(resolveBackupEmailApiUrl(), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-dk-backup-secret": secret,
+        },
+        body: JSON.stringify({ browserData }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        const detail = data.reason || data.error || res.statusText || "erro";
+        setMsg(`Não foi possível enviar o backup: ${detail}`, null);
+        return;
+      }
+      const toList = Array.isArray(data.to) ? data.to.join(", ") : data.to || "marciogarn@gmail.com";
+      setMsg(`Backup enviado por e-mail para ${toList}.`, "ok");
+    } catch (e) {
+      console.error(e);
+      setMsg(`Erro ao enviar backup: ${String(e?.message || e)}`, null);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function pullSnapshot() {
     const client = window.__DK_SUPABASE_CLIENT__;
     if (!client) {
@@ -425,6 +480,12 @@
     });
     document.getElementById("btn-dk-cloud-pull")?.addEventListener("click", () => {
       pullSnapshot().catch((e) => {
+        console.error(e);
+        setMsg(String(e?.message || e));
+      });
+    });
+    document.getElementById("btn-dk-backup-email")?.addEventListener("click", () => {
+      sendBackupEmailFromBrowser().catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e));
       });

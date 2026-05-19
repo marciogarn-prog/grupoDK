@@ -40,7 +40,13 @@ O sistema envia automaticamente um ficheiro JSON com todos os cadastros da nuvem
 
 O cron na Vercel usa **UTC**. `0 5 * * *` = **05:00 UTC** = **02:00** em `America/Sao_Paulo` (sem horário de verão).
 
-## Teste manual
+## Backup manual no portal
+
+Na área logada (ao lado de **Carregar da nuvem**), o botão **Gerar backup** envia por e-mail os dados **deste navegador** (mesmas chaves da nuvem) para o destino configurado em `DK_BACKUP_EMAIL_TO` (padrão: marciogarn@gmail.com).
+
+Na Vercel, defina `DK_BACKUP_SEND_SECRET` (ou reutilize `CRON_SECRET` — o build injeta em `meta name="dk-backup-send-secret"`). É necessário **SMTP_*** ou **RESEND_*** para o envio funcionar.
+
+## Teste manual (cron / API)
 
 Substitua `SEU_CRON_SECRET` pelo valor definido em `CRON_SECRET`:
 
