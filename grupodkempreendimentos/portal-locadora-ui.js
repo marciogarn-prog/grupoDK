@@ -2960,8 +2960,11 @@ ${printable.innerHTML}
 
   function openPortalRelatorioModal(context) {
     const modal = document.getElementById("portalRelatorioModal");
+    const card = modal?.querySelector(".portal-modal__card");
     const titulo = document.getElementById("portalRelatorioTitulo");
     const resumo = document.getElementById("portalRelatorioResumo");
+    const preview = document.getElementById("portalRelatorioPreview");
+    const fonteData = document.getElementById("portalRelatorioFonteData");
     if (!modal || !titulo || !resumo) return;
     portalRelatorioAtual = context;
     titulo.textContent = context.title;
@@ -2976,8 +2979,23 @@ ${printable.innerHTML}
       context.stats
     ) {
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
+    } else if (context.fileSlug === "veiculos" && context.stats) {
+      resumo.textContent = `Inativos: ${context.stats.inativos} · Locados: ${context.stats.ativos}. Lista abaixo; exportar em PDF ou Excel.`;
     } else {
-    resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+      resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
+    }
+    if (preview) {
+      if (context.previewHtml) {
+        preview.innerHTML = context.previewHtml;
+        preview.classList.remove("hidden");
+        card?.classList.add("portal-modal__card--relatorio-preview");
+        if (fonteData) fonteData.classList.add("hidden");
+      } else {
+        preview.innerHTML = "";
+        preview.classList.add("hidden");
+        card?.classList.remove("portal-modal__card--relatorio-preview");
+        if (fonteData) fonteData.classList.remove("hidden");
+      }
     }
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
@@ -2985,9 +3003,18 @@ ${printable.innerHTML}
 
   function closePortalRelatorioModal() {
     const modal = document.getElementById("portalRelatorioModal");
+    const preview = document.getElementById("portalRelatorioPreview");
+    const card = modal?.querySelector(".portal-modal__card");
+    const fonteData = document.getElementById("portalRelatorioFonteData");
     if (!modal) return;
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
+    if (preview) {
+      preview.innerHTML = "";
+      preview.classList.add("hidden");
+    }
+    card?.classList.remove("portal-modal__card--relatorio-preview");
+    if (fonteData) fonteData.classList.remove("hidden");
   }
 
   function countPortalRelatorioRowsStatusAtivos(rows, statusIdx, statusFn) {
@@ -3264,23 +3291,270 @@ ${printable.innerHTML}
     };
   }
 
-  function getPortalRelatorioVeiculoContext() {
-    const rowsRaw = sortPortalRelatorioByRecencyDesc(
-      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined" ? loadCadastro(CAD_VEICULOS_KEY) : []
-    );
-    const headers = ["Tag", "Placa", "Código", "Marca", "Modelo", "Tipo", "Ano/Modelo", "Valor", "Cor"];
-    const rows = rowsRaw.map((v) => [
+  function portalVeiculoGrupoCarroMoto(v) {
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (x) => String(x || "").trim().toUpperCase();
+    const tipo = nk(String(v?.tipo || ""));
+    const tag = nk(String(v?.tag || ""));
+    if (tipo.includes("CARRO") || tag.includes("DKCR")) return "carro";
+    if (tipo.includes("MOTO") || tag.includes("DKMT")) return "moto";
+    return "outro";
+  }
+
+  function portalVeiculoTagSortKey(tagRaw) {
+    const t = String(tagRaw || "").trim().toUpperCase();
+    const m = t.match(/^(DKCR|DKMT)(\d+)$/);
+    if (m) return { grupo: m[1] === "DKCR" ? 0 : 1, num: parseInt(m[2], 10) || 0, raw: t };
+    return { grupo: 2, num: 0, raw: t };
+  }
+
+  function portalCompareVeiculoPorTag(a, b) {
+    const ka = portalVeiculoTagSortKey(a.tag);
+    const kb = portalVeiculoTagSortKey(b.tag);
+    if (ka.grupo !== kb.grupo) return ka.grupo - kb.grupo;
+    if (ka.num !== kb.num) return ka.num - kb.num;
+    return ka.raw.localeCompare(kb.raw, "pt-BR");
+  }
+
+  function portalSortVeiculosCarrosDepoisMotos(list) {
+    const carros = [];
+    const motos = [];
+    const outros = [];
+    (list || []).forEach((v) => {
+      const g = portalVeiculoGrupoCarroMoto(v);
+      if (g === "carro") carros.push(v);
+      else if (g === "moto") motos.push(v);
+      else outros.push(v);
+    });
+    carros.sort(portalCompareVeiculoPorTag);
+    motos.sort(portalCompareVeiculoPorTag);
+    outros.sort(portalCompareVeiculoPorTag);
+    return { carros, motos, outros };
+  }
+
+  function getPortalProtocoloAtivoPorPlaca(plateKey) {
+    if (!plateKey) return "";
+    const ncNorm = (v) =>
+      typeof normalizeNumeroContratoKey === "function"
+        ? String(normalizeNumeroContratoKey(v || "")).replace(/\s+/g, "")
+        : String(v ?? "")
+            .trim()
+            .toUpperCase()
+            .replace(/\s+/g, "");
+    let found = "";
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        const pl =
+          typeof normalizePlate === "function"
+            ? normalizePlate(l.placa)
+            : String(l.placa || "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        if (pl !== plateKey || String(l.fim || "").trim()) return;
+        const nc = ncNorm(l.numeroContrato);
+        if (nc) found = nc;
+      });
+    }
+    if (found) return found;
+    if (typeof buildLatestReceita2026RowByPlateMap === "function") {
+      const hit = buildLatestReceita2026RowByPlateMap().get(plateKey);
+      if (hit?.row && !String(hit.row.fim || "").trim()) {
+        const nc = ncNorm(hit.row.numeroContrato || hit.row.protocolo);
+        if (nc) return nc;
+      }
+    }
+    return found;
+  }
+
+  function portalVeiculoRowRelatorio(v, opts = {}) {
+    const ativo = Boolean(opts.ativo);
+    const placa =
+      typeof normalizePlate === "function"
+        ? normalizePlate(v.placa)
+        : String(v.placa || "")
+            .trim()
+            .toUpperCase();
+    const protocolo = ativo ? getPortalProtocoloAtivoPorPlaca(placa) || "—" : "—";
+    return [
       String(v.tag || "").trim() || "—",
-      String(v.placa || "").trim() || "—",
-      String(v.codigo || "").trim() || "—",
+      placa || "—",
+      String(v.tipo || "").trim() || portalVeiculoGrupoCarroMoto(v).toUpperCase(),
       String(v.marca || "").trim() || "—",
       String(v.modelo || "").trim() || "—",
-      String(v.tipo || "").trim() || "—",
+      protocolo,
       String(v.anoModelo || "").trim() || "—",
-      String(v.valor || "").trim() || "—",
       String(v.cor || "").trim() || "—",
-    ]);
-    return { title: "Relatório de veículos cadastrados", headers, rows, fileSlug: "veiculos", textColumns: [0, 1, 2] };
+    ];
+  }
+
+  function buildPortalRelatorioVeiculoFrotaSections() {
+    if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
+    const veiculos =
+      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+        ? loadCadastro(CAD_VEICULOS_KEY)
+        : [];
+    const activePlates =
+      typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    const inativos = [];
+    const ativos = [];
+    veiculos.forEach((v) => {
+      const pl =
+        typeof normalizePlate === "function"
+          ? normalizePlate(v.placa)
+          : String(v.placa || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      if (!pl) return;
+      if (activePlates.has(pl)) ativos.push(v);
+      else inativos.push(v);
+    });
+    return {
+      inativos: portalSortVeiculosCarrosDepoisMotos(inativos),
+      ativos: portalSortVeiculosCarrosDepoisMotos(ativos),
+    };
+  }
+
+  function buildPortalRelatorioVeiculosTableHtml(headers, veiculos, rowClass) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    if (!veiculos.length) {
+      return `<p class="portal-relatorio-veiculos-vazio">Nenhum veículo neste grupo.</p>`;
+    }
+    const head = headers.map((h) => `<th>${eh(h)}</th>`).join("");
+    const body = veiculos
+      .map((v) => {
+        const cells = portalVeiculoRowRelatorio(v, { ativo: rowClass === "portal-rel-veic-ativo" })
+          .map((c) => `<td>${eh(c)}</td>`)
+          .join("");
+        return `<tr class="${rowClass}">${cells}</tr>`;
+      })
+      .join("");
+    return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+  }
+
+  function buildPortalRelatorioVeiculosBlocoHtml(tituloBloco, grupos, headers, rowClass) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const carros = grupos.carros || [];
+    const motos = grupos.motos || [];
+    const outros = grupos.outros || [];
+    let html = `<section class="portal-relatorio-veiculos-bloco"><h2>${eh(tituloBloco)}</h2>`;
+    html += `<h3>Carros</h3>${buildPortalRelatorioVeiculosTableHtml(headers, carros, rowClass)}`;
+    html += `<h3>Motos</h3>${buildPortalRelatorioVeiculosTableHtml(headers, motos, rowClass)}`;
+    if (outros.length) {
+      html += `<h3>Outros</h3>${buildPortalRelatorioVeiculosTableHtml(headers, outros, rowClass)}`;
+    }
+    html += `</section>`;
+    return html;
+  }
+
+  function buildPortalRelatorioVeiculosFrotaDocumentInner(headers, sections) {
+    const inativos = sections.inativos;
+    const ativos = sections.ativos;
+    const nInativos =
+      (inativos.carros?.length || 0) + (inativos.motos?.length || 0) + (inativos.outros?.length || 0);
+    const nAtivos = (ativos.carros?.length || 0) + (ativos.motos?.length || 0) + (ativos.outros?.length || 0);
+    return (
+      buildPortalRelatorioVeiculosBlocoHtml(
+        "Veículos inativos (sem protocolo ativo)",
+        inativos,
+        headers,
+        "portal-rel-veic-inativo"
+      ) +
+      '<hr class="portal-relatorio-veiculos-spacer" />' +
+      buildPortalRelatorioVeiculosBlocoHtml(
+        "Veículos locados (com protocolo ativo)",
+        ativos,
+        headers,
+        "portal-rel-veic-ativo"
+      )
+    );
+  }
+
+  function getPortalRelatorioVeiculoContext() {
+    const headers = ["Tag", "Placa", "Tipo", "Marca", "Modelo", "Protocolo", "Ano/Modelo", "Cor"];
+    const sections = buildPortalRelatorioVeiculoFrotaSections();
+    const nInativos =
+      (sections.inativos.carros?.length || 0) +
+      (sections.inativos.motos?.length || 0) +
+      (sections.inativos.outros?.length || 0);
+    const nAtivos =
+      (sections.ativos.carros?.length || 0) +
+      (sections.ativos.motos?.length || 0) +
+      (sections.ativos.outros?.length || 0);
+    const allRows = [];
+    ["carros", "motos", "outros"].forEach((k) => {
+      sections.inativos[k]?.forEach((v) => allRows.push(portalVeiculoRowRelatorio(v, { ativo: false })));
+    });
+    ["carros", "motos", "outros"].forEach((k) => {
+      sections.ativos[k]?.forEach((v) => allRows.push(portalVeiculoRowRelatorio(v, { ativo: true })));
+    });
+    const previewHtml = `<div class="portal-relatorio-veiculos-bloco">${buildPortalRelatorioVeiculosFrotaDocumentInner(
+      headers,
+      sections
+    )}</div>`;
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const quando = new Date().toLocaleString("pt-BR");
+    return {
+      title: "Relatório da frota — inativos e locados",
+      headers,
+      rows: allRows,
+      fileSlug: "veiculos",
+      textColumns: [0, 1, 5],
+      stats: { inativos: nInativos, ativos: nAtivos },
+      previewHtml,
+      buildPdfHtml: () => {
+        const inner = buildPortalRelatorioVeiculosFrotaDocumentInner(headers, sections);
+        return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório frota veículos</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      h1{font-size:1.05rem;margin:0 0 0.35rem}
+      .meta{color:#444;margin:0 0 0.75rem;font-size:11px}
+      h2{font-size:0.95rem;margin:0.85rem 0 0.4rem;color:#333}
+      h3{font-size:0.82rem;margin:0.55rem 0 0.3rem;color:#555}
+      table{width:100%;border-collapse:collapse;margin-bottom:0.35rem}
+      th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+      th{background:#eee;font-weight:600}
+      .portal-relatorio-veiculos-spacer{border:0;border-top:2px dashed #888;margin:1.25rem 0;height:0}
+      tr.portal-rel-veic-inativo td{background:#fff9c4}
+      tr.portal-rel-veic-ativo td{background:#c8e6c9}
+      .portal-relatorio-veiculos-vazio{font-style:italic;color:#666}
+    </style></head><body>
+      <h1>Relatório da frota — veículos por tag</h1>
+      <p class="meta">Emitido em ${eh(quando)} · Inativos: ${eh(String(nInativos))} · Locados: ${eh(String(nAtivos))}</p>
+      ${inner}
+    </body></html>`;
+      },
+      buildExcelHtml: () => {
+        const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+        const rowToTr = (v, ativo) => {
+          const cells = portalVeiculoRowRelatorio(v, { ativo })
+            .map((c) => `<td>${eh(c)}</td>`)
+            .join("");
+          return `<tr>${cells}</tr>`;
+        };
+        const blockRows = (grupos, ativo) => {
+          let out = "";
+          ["carros", "motos", "outros"].forEach((k) => {
+            const list = grupos[k] || [];
+            if (!list.length) return;
+            const label = k === "carros" ? "Carros" : k === "motos" ? "Motos" : "Outros";
+            out += `<tr><td colspan="${headers.length}" style="font-weight:bold;background:#f0f0f0">${eh(label)}</td></tr>`;
+            list.forEach((v) => {
+              out += rowToTr(v, ativo);
+            });
+          });
+          return out;
+        };
+        const head = headers.map((h) => `<th>${eh(h)}</th>`).join("");
+        return `<table border="1">
+          <tr><td colspan="${headers.length}" style="font-weight:bold;font-size:14px">Veículos inativos (sem protocolo ativo)</td></tr>
+          <tr>${head}</tr>
+          ${blockRows(sections.inativos, false)}
+          <tr><td colspan="${headers.length}"></td></tr>
+          <tr><td colspan="${headers.length}" style="font-weight:bold;font-size:14px">Veículos locados (protocolo ativo)</td></tr>
+          <tr>${head}</tr>
+          ${blockRows(sections.ativos, true)}
+        </table>`;
+      },
+    };
   }
 
   function getPortalRelatorioLocacaoContext() {

@@ -1192,6 +1192,83 @@ body {
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
 }
 
+.portal-modal__card--relatorio-preview {
+  max-width: min(920px, 96vw);
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.portal-relatorio-preview {
+  margin: 0.75rem 0 0;
+  max-height: min(55vh, 520px);
+  overflow: auto;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.8rem;
+}
+
+.portal-relatorio-preview.hidden {
+  display: none;
+}
+
+.portal-relatorio-veiculos-spacer {
+  height: 1.25rem;
+  margin: 1rem 0;
+  border: 0;
+  border-top: 2px dashed rgba(201, 162, 39, 0.45);
+}
+
+.portal-relatorio-veiculos-bloco h2 {
+  margin: 0.85rem 0 0.45rem;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+
+.portal-relatorio-veiculos-bloco h2:first-child {
+  margin-top: 0;
+}
+
+.portal-relatorio-veiculos-bloco h3 {
+  margin: 0.65rem 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted, #aaa);
+}
+
+.portal-relatorio-veiculos-bloco table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.35rem;
+}
+
+.portal-relatorio-veiculos-bloco th,
+.portal-relatorio-veiculos-bloco td {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.portal-relatorio-veiculos-bloco th {
+  background: rgba(201, 162, 39, 0.15);
+  font-weight: 600;
+}
+
+.portal-relatorio-veiculos-bloco tr.portal-rel-veic-inativo td {
+  background: rgba(255, 249, 196, 0.08);
+}
+
+.portal-relatorio-veiculos-bloco tr.portal-rel-veic-ativo td {
+  background: rgba(200, 230, 201, 0.1);
+}
+
+.portal-relatorio-veiculos-vazio {
+  margin: 0.25rem 0 0.5rem;
+  color: var(--text-muted, #999);
+  font-style: italic;
+}
+
 .portal-modal__title {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;

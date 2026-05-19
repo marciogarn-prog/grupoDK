@@ -21,7 +21,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260519investimento-acumulado">
+  <link rel="stylesheet" href="styles.css?v=20260519relatorio-veiculos">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -1423,6 +1423,7 @@
     <div class="portal-modal__card">
       <h3 id="portalRelatorioTitulo" class="portal-modal__title">Relatório</h3>
       <p id="portalRelatorioResumo" class="portal-modal__text subtext"></p>
+      <div id="portalRelatorioPreview" class="portal-relatorio-preview hidden" aria-live="polite"></div>
       <p id="portalRelatorioFonteData" class="subtext">O conteúdo depende do relatório: clientes (lista unificada com bundles + <code>dk_clientes_cadastro</code>), veículos, locações ou pagamentos por período &mdash; sempre a partir dos dados neste navegador.</p>
       <div class="portal-modal__actions">
         <button type="button" class="btn-primary" id="portalRelatorioPdfBtn">Relatório PDF</button>
@@ -1439,7 +1440,7 @@
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260519perf" defer></script>
-  <script src="portal-locadora-ui.js?v=20260519locacao-placa" defer></script>
+  <script src="portal-locadora-ui.js?v=20260519relatorio-veiculos" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=16" defer></script>
