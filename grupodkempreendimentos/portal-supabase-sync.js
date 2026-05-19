@@ -63,13 +63,19 @@
     "dk_locacoes_cadastro",
   ]);
 
-  function applyPayloadToLocalStorage(payload) {
+  function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
+    const replace = Boolean(opts && opts.replace);
+
     for (const k of DK_STORAGE_KEYS) {
+      if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
+        localStorage.removeItem(k);
+        continue;
+      }
       if (!Object.prototype.hasOwnProperty.call(payload, k)) continue;
       const v = payload[k];
       if (v === undefined || v === null) {
-        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k)) continue;
+        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !replace) continue;
         localStorage.removeItem(k);
         continue;
       }
@@ -84,7 +90,11 @@
             arr = [];
           }
         }
-        saveCadastro(k, arr);
+        if (replace) {
+          saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true });
+        } else {
+          saveCadastro(k, arr);
+        }
         continue;
       }
       if (typeof v === "string") {
@@ -265,7 +275,7 @@
     }
     suppressCloudHook = true;
     try {
-      applyPayloadToLocalStorage(data.payload);
+      applyPayloadToLocalStorage(data.payload, { replace: true });
     } finally {
       suppressCloudHook = false;
     }
@@ -403,7 +413,7 @@
       const nKeys = countBackupPayloadKeys(payload);
       suppressCloudHook = true;
       try {
-        applyPayloadToLocalStorage(payload);
+        applyPayloadToLocalStorage(payload, { replace: true });
       } finally {
         suppressCloudHook = false;
       }
@@ -417,7 +427,7 @@
           ? String(parsed.exportedAtBr).slice(0, 10)
           : "";
       setMsg(
-        `Backup importado (${nKeys} blocos de dados${src ? `, de ${src}` : ""}). A página vai recarregar. Depois use «Guardar na nuvem» se quiser sincronizar.`,
+        `Backup importado (${nKeys} blocos de dados${src ? `, de ${src}` : ""}). Pagamentos e outros dados que não estavam no ficheiro foram removidos deste navegador. A página vai recarregar.`,
         "ok"
       );
       setTimeout(() => {
@@ -515,7 +525,7 @@
     }
     suppressCloudHook = true;
     try {
-      applyPayloadToLocalStorage(data.payload);
+      applyPayloadToLocalStorage(data.payload, { replace: true });
     } finally {
       suppressCloudHook = false;
     }
@@ -524,7 +534,7 @@
     } catch {
       /* ignore */
     }
-    setMsg("Dados carregados. A página vai recarregar.", "ok");
+    setMsg("Dados carregados (substituição total). A página vai recarregar.", "ok");
     try {
       window.location.reload();
     } catch {
@@ -598,7 +608,7 @@
         /* ignore */
       }
 
-      applyPayloadToLocalStorage(data.payload);
+      applyPayloadToLocalStorage(data.payload, { replace: true });
       setMsg("A sincronizar com a nuvem…", "muted");
       window.location.reload();
     } finally {
