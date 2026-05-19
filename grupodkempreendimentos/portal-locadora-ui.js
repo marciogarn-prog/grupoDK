@@ -5677,6 +5677,29 @@ ${printable.innerHTML}
     return Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
   }
 
+  /** Investimento acumulado = devido aluguel + devido multas + devido manutenção − total pago. */
+  function computePortalInvestimentoAcumuladoNum(devidoAluguel, devidoMultas, devidoManutencao, totalPago) {
+    return (
+      Number(devidoAluguel || 0) +
+      Number(devidoMultas || 0) +
+      Number(devidoManutencao || 0) -
+      Number(totalPago || 0)
+    );
+  }
+
+  function getPortalLocacaoDoFormularioLocacao() {
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    if (!hid) return null;
+    const nc = normPortalNumeroContrato(hid.value);
+    if (!nc) return null;
+    const digits =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(document.getElementById("operacaoLocacaoCpf")?.value || ""))
+        : String(document.getElementById("operacaoLocacaoCpf")?.value || "").replace(/\D/g, "");
+    if (!digits) return null;
+    return collectPortalLocacoesByCpf(digits).find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) || null;
+  }
+
   /** Valores do bloco «resumo» do protocolo (alinhado ao painel Cadastro de locação). */
   function computePortalProtocoloResumoFromLoc(loc) {
     const parseCur =
@@ -5705,7 +5728,12 @@ ${printable.innerHTML}
     );
     const lancs = getPortalLancamentosAluguelDoContrato(loc);
     const totalPagoNum = sumPortalLancamentosAluguelTotal(lancs);
-    const investimentoAcumuladoNum = totalPagoNum - valorDevidoAluguelNum;
+    const investimentoAcumuladoNum = computePortalInvestimentoAcumuladoNum(
+      valorDevidoAluguelNum,
+      valorDevidoMultasNum,
+      valorDevidoManutencaoNum,
+      totalPagoNum
+    );
     const tipoPlanoStr =
       String(loc?.plano || loc?.opcaoContrato || "").trim() ||
       (valInv > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE");
@@ -5921,15 +5949,24 @@ ${printable.innerHTML}
     syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
   }
 
-  /** Investimento acumulado = total pago − valor devido do aluguel. Cor no próprio campo: vermelho se negativo, azul se positivo, padrão se zero. */
+  /** Investimento acumulado = devido aluguel + multas + manutenção − total pago. Cor: vermelho se negativo, azul se positivo. */
   function syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido() {
     const inpTp = document.getElementById("operacaoLocacaoTotalPago");
     const inpDevido = document.getElementById("operacaoLocacaoValorDevidoAluguel");
     const inpAcum = document.getElementById("operacaoLocacaoInvestimentoAcumulado");
     if (!inpAcum) return;
-    const totalPago = Number(parsePortalLancamentoValorRaw(inpTp?.value ?? ""));
-    const devidoAlug = Number(parsePortalLancamentoValorRaw(inpDevido?.value ?? ""));
-    const acum = totalPago - devidoAlug;
+    const parseVal = (v) => Number(parsePortalLancamentoValorRaw(v ?? ""));
+    const totalPago = parseVal(inpTp?.value);
+    const devidoAlug = parseVal(inpDevido?.value);
+    let devidoMultas = 0;
+    let devidoManut = 0;
+    const loc = getPortalLocacaoDoFormularioLocacao();
+    if (loc) {
+      const resumo = computePortalProtocoloResumoFromLoc(loc);
+      devidoMultas = parseVal(resumo.valorDevidoMultas);
+      devidoManut = parseVal(resumo.valorDevidoManutencao);
+    }
+    const acum = computePortalInvestimentoAcumuladoNum(devidoAlug, devidoMultas, devidoManut, totalPago);
     inpAcum.value = formatPortalLancamentoSumBrl(acum);
     if (inpDevido) inpDevido.classList.remove("portal-valor-devido-aluguel--negativo");
     inpAcum.classList.remove("portal-investimento-acumulado--negativo", "portal-investimento-acumulado--positivo");
