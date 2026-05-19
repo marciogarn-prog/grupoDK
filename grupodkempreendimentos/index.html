@@ -128,12 +128,15 @@
           <p class="subtext portal-cloud-sync-bar__lead">
             Nuvem Supabase: guardar ou carregar os cadastros deste navegador (mesmos dados em PC e telemóvel).
             O backup por e-mail envia um ficheiro JSON para <strong>marciogarn@gmail.com</strong>.
+            Use <strong>Importar backup</strong> para restaurar um ficheiro recebido por e-mail (.json ou .json.gz).
           </p>
           <div class="portal-cloud-sync-bar__actions">
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-pull">Carregar da nuvem</button>
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-email">Gerar backup</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-import">Importar backup</button>
           </div>
+          <input type="file" id="dk-backup-import-input" class="hidden" accept=".json,.gz,application/json,application/gzip" tabindex="-1" aria-hidden="true">
           <p id="portal-cloud-sync-msg" class="portal-feedback" role="status"></p>
         </div>
       </section>
@@ -1439,6 +1442,6 @@
   <script src="portal-locadora-ui.js?v=20260519investimento-acumulado" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260520manutencao-parcelado" defer></script>
-  <script src="portal-supabase-sync.js?v=10" defer></script>
+  <script src="portal-supabase-sync.js?v=11" defer></script>
 </body>
 </html>

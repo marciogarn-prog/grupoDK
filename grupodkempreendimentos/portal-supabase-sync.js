@@ -303,6 +303,121 @@
     return "/api/dk-backup-email";
   }
 
+  function normalizeBackupFileToCloudPayload(parsed) {
+    if (!parsed || typeof parsed !== "object") return null;
+    let data = null;
+    if (parsed.data && typeof parsed.data === "object" && !Array.isArray(parsed.data)) {
+      data = parsed.data;
+    } else if (Object.keys(parsed).some((k) => DK_CLOUD_KEYS.has(k))) {
+      data = parsed;
+    }
+    if (!data) return null;
+    const out = {};
+    for (const k of DK_STORAGE_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(data, k)) continue;
+      out[k] = data[k];
+    }
+    for (const k of Object.keys(data)) {
+      if (k.startsWith("dk_") && !Object.prototype.hasOwnProperty.call(out, k)) {
+        out[k] = data[k];
+      }
+    }
+    return Object.keys(out).length ? out : null;
+  }
+
+  function countBackupPayloadKeys(payload) {
+    if (!payload) return 0;
+    return DK_STORAGE_KEYS.filter((k) => Object.prototype.hasOwnProperty.call(payload, k)).length;
+  }
+
+  async function readBackupJsonFile(file) {
+    const name = String(file?.name || "").toLowerCase();
+    if (name.endsWith(".gz")) {
+      if (typeof DecompressionStream === "undefined") {
+        throw new Error(
+          "Este navegador não abre .json.gz. Extraia o ficheiro no PC ou use o .json sem compactar."
+        );
+      }
+      const stream = file.stream().pipeThrough(new DecompressionStream("gzip"));
+      const text = await new Response(stream).text();
+      return JSON.parse(text);
+    }
+    const text = await file.text();
+    return JSON.parse(text);
+  }
+
+  function promptImportBackupFile() {
+    const input = document.getElementById("dk-backup-import-input");
+    if (!input) {
+      setMsg("Importação não disponível (input em falta).", null);
+      return;
+    }
+    input.value = "";
+    input.click();
+  }
+
+  async function applyImportedBackupFile(file) {
+    if (!file) return;
+    if (
+      !window.confirm(
+        "Isto substitui os dados deste navegador pelo conteúdo do ficheiro de backup. Continuar?"
+      )
+    ) {
+      return;
+    }
+    const btn = document.getElementById("btn-dk-backup-import");
+    if (btn) btn.disabled = true;
+    setMsg("A importar backup…", "muted");
+    try {
+      const parsed = await readBackupJsonFile(file);
+      const payload = normalizeBackupFileToCloudPayload(parsed);
+      if (!payload) {
+        setMsg(
+          "Ficheiro inválido. Use o JSON anexo do e-mail «DK Backup» (ou exportado por «Gerar backup»).",
+          null
+        );
+        return;
+      }
+      const nKeys = countBackupPayloadKeys(payload);
+      suppressCloudHook = true;
+      try {
+        applyPayloadToLocalStorage(payload);
+      } finally {
+        suppressCloudHook = false;
+      }
+      try {
+        sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+      } catch {
+        /* ignore */
+      }
+      const src =
+        parsed && typeof parsed === "object" && parsed.exportedAtBr
+          ? String(parsed.exportedAtBr).slice(0, 10)
+          : "";
+      setMsg(
+        `Backup importado (${nKeys} blocos de dados${src ? `, de ${src}` : ""}). A página vai recarregar. Depois use «Guardar na nuvem» se quiser sincronizar.`,
+        "ok"
+      );
+      setTimeout(() => {
+        try {
+          window.location.reload();
+        } catch {
+          /* ignore */
+        }
+      }, 600);
+    } catch (e) {
+      console.error(e);
+      const msg = String(e?.message || e);
+      if (msg.includes("JSON")) {
+        setMsg("Ficheiro JSON inválido. Confirme que é o anexo do e-mail de backup.", null);
+      } else {
+        setMsg(`Erro ao importar: ${msg}`, null);
+      }
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function sendBackupEmailFromBrowser() {
     const secret = readBackupSendSecret();
     if (!secret) {
@@ -486,6 +601,16 @@
     });
     document.getElementById("btn-dk-backup-email")?.addEventListener("click", () => {
       sendBackupEmailFromBrowser().catch((e) => {
+        console.error(e);
+        setMsg(String(e?.message || e));
+      });
+    });
+    document.getElementById("btn-dk-backup-import")?.addEventListener("click", () => {
+      promptImportBackupFile();
+    });
+    document.getElementById("dk-backup-import-input")?.addEventListener("change", (ev) => {
+      const file = ev.target?.files?.[0];
+      applyImportedBackupFile(file).catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e));
       });
