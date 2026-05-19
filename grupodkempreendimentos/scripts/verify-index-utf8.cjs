@@ -13,8 +13,8 @@ const required = [
   ["Operação", "Operação"],
   ["&larr; Voltar", "&larr; Voltar"],
   ["&#9670;", "&#9670;"],
-  ["NÃO RESPONDER", "NÃO RESPONDER"],
-  ["MANUTENÇÃO", "MANUTENÇÃO"],
+  ["N&Atilde;O RESPONDER", "N&Atilde;O RESPONDER"],
+  ["MANUTEN&Ccedil;&Atilde;O", "MANUTEN&Ccedil;&Atilde;O"],
   ["&mdash;", "&mdash; (travessão)"],
 ];
 
