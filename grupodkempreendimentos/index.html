@@ -330,12 +330,16 @@
           <p class="subtext operacao-inline-form__lead">Preencha os 14 campos alinhados à planilha. Os dados ficam neste navegador e são mesclados em <code>dk_veiculos_cadastro</code> para os relatórios.</p>
           <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
-              <span>Nº</span>
-              <input type="text" id="operacaoVeiculoNum" name="numLinha" maxlength="12" inputmode="numeric" placeholder="Opcional" aria-label="Número da linha">
+              <span>Tipo</span>
+              <select id="operacaoVeiculoTipo" name="tipo" required aria-label="Tipo de veículo">
+                <option value="">Selecione…</option>
+                <option value="CARRO">CARRO</option>
+                <option value="MOTO">MOTO</option>
+              </select>
             </label>
             <label class="portal-field">
               <span>Tag</span>
-              <input type="text" id="operacaoVeiculoTag" name="tag" maxlength="32" placeholder="Ex.: DKCR100" aria-label="Tag">
+              <input type="text" id="operacaoVeiculoTag" name="tag" maxlength="32" placeholder="Gerada automaticamente" aria-label="Tag" readonly tabindex="-1">
             </label>
             <label class="portal-field">
               <span>Placa</span>
@@ -1373,8 +1377,8 @@
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260518datas-protocolo" defer></script>
-  <script src="portal-locadora-ui.js?v=20260518lanc-multas-manut" defer></script>
+  <script src="app.js?v=20260518veiculo-tag-auto" defer></script>
+  <script src="portal-locadora-ui.js?v=20260518veiculo-tag-auto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260518multas-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260518multas-relatorio" defer></script>
   <script src="portal-supabase-sync.js?v=9" defer></script>

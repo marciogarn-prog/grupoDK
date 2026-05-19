@@ -4817,6 +4817,26 @@ ${printable.innerHTML}
     refreshOperacaoLocacaoFinalizarBtn();
   }
 
+  /** Atualiza a tag sugerida (DKCR/DKMT + sequência) conforme CARRO ou MOTO. */
+  function refreshOperacaoVeiculoTagPreview() {
+    const tipoEl = document.getElementById("operacaoVeiculoTipo");
+    const tagEl = document.getElementById("operacaoVeiculoTag");
+    if (!tipoEl || !tagEl) return;
+    const tipo = String(tipoEl.value || "").trim();
+    if (tipo !== "CARRO" && tipo !== "MOTO") {
+      tagEl.value = "";
+      return;
+    }
+    if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
+    const veiculos =
+      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+        ? loadCadastro(CAD_VEICULOS_KEY)
+        : [];
+    if (typeof nextTagByTipo === "function") {
+      tagEl.value = nextTagByTipo(tipo, veiculos);
+    }
+  }
+
   /** Cadastro de veículo no portal (Receita 2026) — envia snapshot à nuvem após guardar. */
   function persistPortalOperacaoVeiculoInlineSubmit(ev) {
     ev.preventDefault();
@@ -4855,13 +4875,17 @@ ${printable.innerHTML}
       if (msg) msg.textContent = "Placa, chassi, renavam ou motor já cadastrado.";
       return;
     }
-    const tipo = portalInferTipoVeiculoLocacao({ placa: plate });
+    const tipo = getVal("operacaoVeiculoTipo");
+    if (tipo !== "CARRO" && tipo !== "MOTO") {
+      if (msg) msg.textContent = "Selecione CARRO ou MOTO.";
+      return;
+    }
     let tag = getVal("operacaoVeiculoTag");
     if (!tag && typeof nextTagByTipo === "function") {
       tag = nextTagByTipo(tipo, veiculos);
     }
     if (!tag) {
-      if (msg) msg.textContent = "Informe a tag do veículo.";
+      if (msg) msg.textContent = "Não foi possível gerar a tag. Selecione o tipo novamente.";
       return;
     }
     const novo = {
@@ -4871,7 +4895,7 @@ ${printable.innerHTML}
       tag,
       placa: plate,
       codigo: getVal("operacaoVeiculoCodigo"),
-      numLinha: getVal("operacaoVeiculoNum"),
+      numLinha: "",
       marca,
       modelo,
       valor,
@@ -4897,6 +4921,7 @@ ${printable.innerHTML}
     if (msg) msg.textContent = "Veículo cadastrado com sucesso.";
     const form = document.getElementById("formOperacaoVeiculoInline");
     if (form && typeof form.reset === "function") form.reset();
+    refreshOperacaoVeiculoTagPreview();
   }
 
   /** Cadastro / atualização de locação pelo formulário do portal — grava também quem executou (000AA + instante). */
@@ -6841,6 +6866,15 @@ ${printable.innerHTML}
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
   document.getElementById("formOperacaoVeiculoInline")?.addEventListener("submit", persistPortalOperacaoVeiculoInlineSubmit);
+  document.getElementById("operacaoVeiculoTipo")?.addEventListener("change", refreshOperacaoVeiculoTagPreview);
+  document.getElementById("operacaoVeiculoLimparBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const form = document.getElementById("formOperacaoVeiculoInline");
+    if (form && typeof form.reset === "function") form.reset();
+    refreshOperacaoVeiculoTagPreview();
+    const msg = document.getElementById("operacaoVeiculoInlineMsg");
+    if (msg) msg.textContent = "";
+  });
   const formOperacaoLocacaoInline = document.getElementById("formOperacaoLocacaoInline");
   formOperacaoLocacaoInline?.addEventListener("submit", persistPortalOperacaoLocacaoInlineSubmit);
   // Também recalcula após hidratação inicial dos campos pela querystring do navegador.
@@ -7422,6 +7456,7 @@ ${printable.innerHTML}
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-veiculo");
+    refreshOperacaoVeiculoTagPreview();
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", async () => {
     await portalOperacaoAwaitCloudCadastroPull();

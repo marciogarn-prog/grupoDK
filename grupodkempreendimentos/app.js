@@ -3404,15 +3404,16 @@ function normalizePlate(value) {
 function nextTagByTipo(tipo, veiculos) {
   const prefix = tipo === "CARRO" ? "DKCR" : "DKMT";
   let maxNum = 0;
+  let pad = 3;
   veiculos.forEach((v) => {
     const tag = normalizeKey(v.tag);
-    if (!tag.includes(prefix)) return;
-    const m = tag.match(/(\d+)$/);
+    const m = tag.match(new RegExp(`^${prefix}(\\d+)$`));
     if (!m) return;
+    pad = Math.max(pad, m[1].length);
     const n = Number(m[1]);
     if (Number.isFinite(n) && n > maxNum) maxNum = n;
   });
-  return `${prefix}${maxNum + 1}`;
+  return `${prefix}${String(maxNum + 1).padStart(pad, "0")}`;
 }
 
 function refreshTagPreview() {
