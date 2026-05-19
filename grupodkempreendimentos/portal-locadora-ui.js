@@ -2980,7 +2980,10 @@ ${printable.innerHTML}
     ) {
       resumo.textContent = `${context.stats.protocolos} protocolo(s), ${context.stats.pagamentos} pagamento(s). Exportar em PDF ou Excel.`;
     } else if (context.fileSlug === "veiculos" && context.stats) {
-      resumo.textContent = `Inativos: ${context.stats.inativos} · Locados: ${context.stats.ativos}. Lista abaixo; exportar em PDF ou Excel.`;
+      const tot = (context.stats.inativos || 0) + (context.stats.ativos || 0);
+      resumo.textContent = tot
+        ? `Inativos: ${context.stats.inativos} · Locados: ${context.stats.ativos}. Lista abaixo; exportar em PDF ou Excel.`
+        : "Nenhum veículo neste navegador. Use Guardar veículo, Carregar da nuvem ou importar backup JSON.";
     } else {
       resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
     }
@@ -3302,7 +3305,10 @@ ${printable.innerHTML}
   }
 
   function portalVeiculoTagSortKey(tagRaw) {
-    const t = String(tagRaw || "").trim().toUpperCase();
+    const t = String(tagRaw || "")
+      .trim()
+      .toUpperCase()
+      .replace(/\s*-\s*/g, "");
     const m = t.match(/^(DKCR|DKMT)(\d+)$/);
     if (m) return { grupo: m[1] === "DKCR" ? 0 : 1, num: parseInt(m[2], 10) || 0, raw: t };
     return { grupo: 2, num: 0, raw: t };
@@ -3387,12 +3393,21 @@ ${printable.innerHTML}
     ];
   }
 
-  function buildPortalRelatorioVeiculoFrotaSections() {
+  function portalLoadVeiculosFrotaCadastro() {
+    if (typeof window.__DK_ensureVeiculosCadastroPopulated === "function") {
+      return window.__DK_ensureVeiculosCadastroPopulated();
+    }
     if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
-    const veiculos =
-      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
-        ? loadCadastro(CAD_VEICULOS_KEY)
-        : [];
+    if (typeof bootstrapVeiculosFromFinanceiro2026 === "function") {
+      bootstrapVeiculosFromFinanceiro2026();
+    }
+    return typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+      ? loadCadastro(CAD_VEICULOS_KEY)
+      : [];
+  }
+
+  function buildPortalRelatorioVeiculoFrotaSections() {
+    const veiculos = portalLoadVeiculosFrotaCadastro();
     const activePlates =
       typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
     const inativos = [];
@@ -3404,8 +3419,9 @@ ${printable.innerHTML}
           : String(v.placa || "")
               .toUpperCase()
               .replace(/[^A-Z0-9]/g, "");
-      if (!pl) return;
-      if (activePlates.has(pl)) ativos.push(v);
+      const tag = String(v.tag || "").trim();
+      if (!pl && !tag) return;
+      if (pl && activePlates.has(pl)) ativos.push(v);
       else inativos.push(v);
     });
     return {

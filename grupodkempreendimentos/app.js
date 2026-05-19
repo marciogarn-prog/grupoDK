@@ -2736,7 +2736,8 @@ function bootstrapCadastroFromBundledSheets() {
  * Importa uma vez veículos embebidos da folha CADASTRO VEÍCULOS (VEICULOS_DK_FINANCEIRO_2026).
  * Corre depois do seed em veiculos-seed.js para a planilha prevalecer por placa.
  */
-function bootstrapVeiculosFromFinanceiro2026() {
+function bootstrapVeiculosFromFinanceiro2026(options) {
+  const opts = options && typeof options === "object" ? options : {};
   try {
     if (
       typeof VEICULOS_DK_FINANCEIRO_2026 === "undefined" ||
@@ -2745,9 +2746,10 @@ function bootstrapVeiculosFromFinanceiro2026() {
     ) {
       return;
     }
-    if (localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1")) return;
 
     const current = loadCadastro(CAD_VEICULOS_KEY);
+    const importedFlag = localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1");
+    if (importedFlag && !opts.force && current.length > 0) return;
     const placaToIndex = new Map();
     current.forEach((v, idx) => {
       const p = normalizePlate(v.placa);
@@ -7090,9 +7092,25 @@ function isHeaderLikePlate(value) {
   return normalizeKey(String(value || "")) === "PLACA";
 }
 
-function getVeiculosReportData() {
+/** Garante frota no cadastro (seed + planilha embutida se o storage estiver vazio). */
+function ensureVeiculosCadastroPopulated() {
   seedVeiculosDatabaseIfNeeded();
-  return loadCadastro(CAD_VEICULOS_KEY);
+  let list = loadCadastro(CAD_VEICULOS_KEY);
+  if (!list.length) {
+    bootstrapVeiculosFromFinanceiro2026({ force: true });
+    list = loadCadastro(CAD_VEICULOS_KEY);
+  }
+  return list;
+}
+
+function getVeiculosReportData() {
+  return ensureVeiculosCadastroPopulated();
+}
+
+try {
+  window.__DK_ensureVeiculosCadastroPopulated = ensureVeiculosCadastroPopulated;
+} catch {
+  /* ignore */
 }
 
 function getClientesReportData() {
