@@ -7,7 +7,9 @@
  * - Após guardar qualquer dado DK (chaves listadas): envia snapshot para a nuvem
  *   (debounce; sem mensagem a cada tecla).
  * - `window.__DK_pushCloudSnapshotNow()` — envio imediato (ex.: após «Guardar cliente»).
- * - `window.__DK_pullCloudSnapshotSilentMerge()` — merge do snapshot sem recarregar (mudança de ecrã).
+ * - `window.__DK_pushToCloudAfterSave()` — alias para push após qualquer gravação.
+ * - `window.__DK_pullCloudSnapshotSilentMerge()` — merge do snapshot sem recarregar.
+ * - `window.__DK_pullFromCloudOnScreenChange()` — pull completo ao mudar de ecrã (portal-locadora-ui reforça).
  */
 (function portalSupabaseSync() {
   const DK_SNAPSHOT_LABEL = "default";
@@ -270,8 +272,28 @@
     return { ok: true, applied: true };
   }
 
+  async function pullFromCloudOnScreenChange() {
+    if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
+      try {
+        await window.__DK_portalPullCadastroFromCloud();
+      } catch (e) {
+        console.warn("[DK cloud] pull cadastro API", e);
+      }
+    }
+    return pullCloudSnapshotSilentMerge();
+  }
+
+  function pushToCloudAfterSave() {
+    if (typeof window.__DK_pushCloudSnapshotNow !== "function") return Promise.resolve();
+    return window.__DK_pushCloudSnapshotNow().catch((e) => {
+      console.warn("[DK cloud] push após guardar", e);
+    });
+  }
+
   try {
     window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
+    window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
+    window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
   } catch {
     /* ignore */
   }

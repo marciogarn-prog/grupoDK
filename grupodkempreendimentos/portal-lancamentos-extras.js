@@ -661,7 +661,9 @@
       console.error(e);
       return false;
     }
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+    if (typeof window.__DK_pushToCloudAfterSave === "function") {
+      window.__DK_pushToCloudAfterSave();
+    } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       window.__DK_pushCloudSnapshotNow().catch(() => {});
     }
     return true;
@@ -1019,7 +1021,9 @@
     state.set(cfg.key, true);
 
     document.getElementById(cfg.btnId)?.addEventListener("click", async () => {
-      if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
+      if (typeof window.__DK_pullFromCloudOnScreenChange === "function") {
+        await window.__DK_pullFromCloudOnScreenChange();
+      } else if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
         await window.__DK_portalPullCadastroFromCloud();
       }
       showPanel(cfg);

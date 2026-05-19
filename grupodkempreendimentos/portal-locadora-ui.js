@@ -1378,7 +1378,8 @@ ${printable.innerHTML}
     { btn: "btn-manutencao-reserva", panel: "manutencaoInlineReserva" },
     { btn: "btn-manutencao-operacionais", panel: "manutencaoInlineOperacionais" },
   ].forEach(({ btn, panel }) => {
-    document.getElementById(btn)?.addEventListener("click", () => {
+    document.getElementById(btn)?.addEventListener("click", async () => {
+      await portalOperacaoAwaitCloudCadastroPull();
       hideManutencaoInlineFormsCore();
       setManutencaoFormPlaceholderVisible(false);
       document.getElementById(panel)?.classList.remove("hidden");
@@ -4300,6 +4301,10 @@ ${printable.innerHTML}
   }
 
   function portalPushCloudSnapshotAfterPersist() {
+    if (typeof window.__DK_pushToCloudAfterSave === "function") {
+      window.__DK_pushToCloudAfterSave();
+      return;
+    }
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
     window.__DK_pushCloudSnapshotNow().catch((err) => {
       console.warn("[DK portal] enviar snapshot nuvem", err);
@@ -4335,6 +4340,12 @@ ${printable.innerHTML}
     }
     portalRefreshOperacaoDadosAposNuvem();
     setPortalUnitDadosAtualizadosAgora();
+  }
+
+  try {
+    window.__DK_pullFromCloudOnScreenChange = portalOperacaoAwaitCloudCadastroPull;
+  } catch {
+    /* ignore */
   }
 
   function hideInlineForms() {
@@ -8421,17 +8432,34 @@ ${printable.innerHTML}
           dkPortalPushToApi("cadastro-veiculos", Array.isArray(veiculos) ? veiculos : []),
           dkPortalPushToApi("cadastro-locacoes", Array.isArray(locacoes) ? locacoes : []),
         ]);
+        if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+          await window.__DK_pushCloudSnapshotNow();
+        }
       }, 1500);
     }
 
     const origSave = saveCadastro;
+    const origSaveFuncionarios =
+      typeof saveFuncionariosAccess === "function" ? saveFuncionariosAccess : null;
     window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
       origSave(key, list);
       if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush) return;
       if (key === CAD_CLIENTES_KEY || key === CAD_VEICULOS_KEY || key === CAD_LOCACOES_KEY) {
         dkPortalScheduleFullCadastroSnapshotPush();
       }
+      if (typeof window.__DK_pushToCloudAfterSave === "function") {
+        window.__DK_pushToCloudAfterSave();
+      }
     };
+    if (origSaveFuncionarios) {
+      window.saveFuncionariosAccess = function dkPortalSaveFuncionariosAccessWrapped() {
+        origSaveFuncionarios();
+        if (dkPortalCadastroSyncSuppressPush) return;
+        if (typeof window.__DK_pushToCloudAfterSave === "function") {
+          window.__DK_pushToCloudAfterSave();
+        }
+      };
+    }
 
     async function dkPortalPullOne(apiFile, storageKey, mergeFn) {
       const urls = dkPortalSyncApiUrlsFor(apiFile);
