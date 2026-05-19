@@ -133,6 +133,9 @@ const pairs = [
   [`cadastro ${R} esquerda`, "cadastro à esquerda"],
   [`Petrolina — PE ${R} `, "Petrolina — PE · "],
   ["seráo", "serão"],
+  ["?? necessário", "&Eacute; necess&aacute;rio"],
+  ["DESCRI????O DA MULTA", "DESCRI&Ccedil;&Atilde;O DA MULTA"],
+  ["DATA DA ??LTIMA PARCELA", "DATA DA &Uacute;LTIMA PARCELA"],
 ];
 
 for (const [from, to] of pairs) {
