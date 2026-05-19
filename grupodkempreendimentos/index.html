@@ -21,7 +21,7 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="stylesheet" href="styles.css?v=20260519portal-db-v1">
+  <link rel="stylesheet" href="styles.css?v=20260519banco-unificado">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -333,7 +333,7 @@
 
         <div id="operacaoInlineVeiculo" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-veiculo-title">
           <h3 id="operacao-inline-veiculo-title" class="operacao-inline-form__title">Dados do veículo</h3>
-          <p class="subtext operacao-inline-form__lead">Preencha os 14 campos alinhados à planilha. Os dados ficam neste navegador e são mesclados em <code>dk_veiculos_cadastro</code> para os relatórios.</p>
+          <p class="subtext operacao-inline-form__lead">Preencha os 14 campos do veículo. Tudo fica no banco único <code>dk_veiculos_cadastro</code> (planilha importada + cadastros novos do portal, num só arquivo).</p>
           <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Tipo</span>
@@ -1434,13 +1434,12 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="clientes-dk-financeiro-2026.js"></script>
+  <script src="data/dk-banco-cadastro.js?v=20260519banco-unificado"></script>
   <script src="clientes-extra-sync.js"></script>
-  <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260519portal-db-v1" defer></script>
-  <script src="portal-locadora-ui.js?v=20260519portal-db-v1" defer></script>
+  <script src="app.js?v=20260519banco-unificado" defer></script>
+  <script src="portal-locadora-ui.js?v=20260519banco-unificado" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=16" defer></script>

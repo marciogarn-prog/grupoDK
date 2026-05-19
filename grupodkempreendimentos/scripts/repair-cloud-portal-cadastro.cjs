@@ -1,5 +1,5 @@
 /**
- * Repõe na nuvem (dk_cloud_snapshots) o cadastro do portal separado da planilha.
+ * Repõe cadastros de teste na nuvem e grava no banco único (dk_*_cadastro).
  * Uso: node scripts/repair-cloud-portal-cadastro.cjs
  */
 const SUPABASE_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
@@ -21,17 +21,43 @@ const PORTAL_VEICULOS = [
 function onlyDigits(s) {
   return String(s ?? "").replace(/\D/g, "");
 }
-
 function normalizePlate(p) {
   return String(p || "")
     .toUpperCase()
     .replace(/[^A-Z0-9]/g, "");
 }
-
 function normalizeNumeroContratoKey(v) {
   return String(v || "")
     .trim()
     .replace(/\s+/g, "");
+}
+function mergeCliente(ex, inc) {
+  const fields = ["nome", "celular", "categoria", "dataCadastro", "codigo", "status"];
+  const out = { ...ex, ...inc, cpf: onlyDigits(inc.cpf || ex.cpf) };
+  fields.forEach((f) => {
+    const a = String(ex?.[f] ?? "").trim();
+    const b = String(inc?.[f] ?? "").trim();
+    if (inc?.origemPortal && b) out[f] = inc[f];
+    else if (a && !b) out[f] = ex[f];
+    else if (b) out[f] = inc[f];
+  });
+  if (inc?.origemPortal || ex?.origemPortal) out.origemPortal = true;
+  if (inc?.origemPlanilha || ex?.origemPlanilha) out.origemPlanilha = true;
+  return out;
+}
+function mergeVeiculo(ex, inc) {
+  const fields = ["tipo", "tag", "marca", "modelo", "cor", "status"];
+  const out = { ...ex, ...inc, placa: normalizePlate(inc.placa || ex.placa) };
+  fields.forEach((f) => {
+    const a = String(ex?.[f] ?? "").trim();
+    const b = String(inc?.[f] ?? "").trim();
+    if (inc?.origemPortal && b) out[f] = inc[f];
+    else if (a && !b) out[f] = ex[f];
+    else if (b) out[f] = inc[f];
+  });
+  if (inc?.origemPortal || ex?.origemPortal) out.origemPortal = true;
+  if (inc?.origemPlanilha || ex?.origemPlanilha) out.origemPlanilha = true;
+  return out;
 }
 
 async function supabaseFetch(path, opts = {}) {
@@ -51,82 +77,61 @@ async function supabaseFetch(path, opts = {}) {
   } catch {
     data = text;
   }
-  if (!res.ok) {
-    const err = new Error(typeof data === "object" && data?.message ? data.message : text || res.statusText);
-    err.status = res.status;
-    throw err;
-  }
+  if (!res.ok) throw new Error(typeof data === "object" && data?.message ? data.message : text);
   return data;
-}
-
-function mergeCliente(ex, inc) {
-  const fields = ["nome", "celular", "categoria", "dataCadastro", "codigo", "status"];
-  const out = { ...ex, ...inc, cpf: onlyDigits(inc.cpf || ex.cpf) };
-  fields.forEach((f) => {
-    const a = String(ex?.[f] ?? "").trim();
-    const b = String(inc?.[f] ?? "").trim();
-    if (a && !b) out[f] = ex[f];
-    else if (b) out[f] = inc[f];
-  });
-  out.origemPortal = true;
-  return out;
-}
-
-function mergeVeiculo(ex, inc) {
-  const fields = ["tipo", "tag", "marca", "modelo", "cor", "status"];
-  const out = { ...ex, ...inc, placa: normalizePlate(inc.placa || ex.placa) };
-  fields.forEach((f) => {
-    const a = String(ex?.[f] ?? "").trim();
-    const b = String(inc?.[f] ?? "").trim();
-    if (a && !b) out[f] = ex[f];
-    else if (b) out[f] = inc[f];
-  });
-  out.origemPortal = true;
-  return out;
 }
 
 async function main() {
   const rows = await supabaseFetch(
-    `dk_cloud_snapshots?label=eq.${encodeURIComponent(LABEL)}&select=id,payload,updated_at`
+    `dk_cloud_snapshots?label=eq.${encodeURIComponent(LABEL)}&select=payload`
   );
-  const row = Array.isArray(rows) ? rows[0] : null;
-  if (!row?.payload) {
+  const payload = rows[0]?.payload;
+  if (!payload) {
     console.error("Snapshot não encontrado.");
     process.exit(1);
   }
 
-  const payload = row.payload;
   const now = Date.now();
-
   const clientesByCpf = new Map();
-  (Array.isArray(payload.dk_portal_clientes_cadastro) ? payload.dk_portal_clientes_cadastro : []).forEach((c) => {
-    const cpf = onlyDigits(c.cpf);
-    if (cpf.length === 11) clientesByCpf.set(cpf, c);
-  });
+  const addC = (list) => {
+    (list || []).forEach((c) => {
+      const cpf = onlyDigits(c.cpf);
+      if (cpf.length !== 11) return;
+      const ex = clientesByCpf.get(cpf);
+      clientesByCpf.set(cpf, mergeCliente(ex, c));
+    });
+  };
+  addC(payload.dk_clientes_cadastro);
+  addC(payload.dk_portal_clientes_cadastro);
   PORTAL_CLIENTES.forEach((c, i) => {
     const cpf = onlyDigits(c.cpf);
     const ex = clientesByCpf.get(cpf);
-    clientesByCpf.set(
-      cpf,
-      mergeCliente(ex, { ...c, id: ex?.id ?? now + i, createdAt: ex?.createdAt ?? now, updatedAt: now })
-    );
+    clientesByCpf.set(cpf, mergeCliente(ex, { ...c, id: ex?.id ?? now + i, updatedAt: now }));
   });
-  payload.dk_portal_clientes_cadastro = Array.from(clientesByCpf.values());
 
   const veiculosByPlaca = new Map();
-  (Array.isArray(payload.dk_portal_veiculos_cadastro) ? payload.dk_portal_veiculos_cadastro : []).forEach((v) => {
-    const pl = normalizePlate(v.placa);
-    if (pl) veiculosByPlaca.set(pl, v);
-  });
+  const addV = (list) => {
+    (list || []).forEach((v) => {
+      const pl = normalizePlate(v.placa);
+      if (!pl) return;
+      const ex = veiculosByPlaca.get(pl);
+      veiculosByPlaca.set(pl, mergeVeiculo(ex, v));
+    });
+  };
+  addV(payload.dk_veiculos_cadastro);
+  addV(payload.dk_veiculos_frota_planilha);
+  addV(payload.dk_portal_veiculos_cadastro);
   PORTAL_VEICULOS.forEach((v, i) => {
     const pl = normalizePlate(v.placa);
     const ex = veiculosByPlaca.get(pl);
-    veiculosByPlaca.set(
-      pl,
-      mergeVeiculo(ex, { ...v, id: ex?.id ?? now + 1000 + i, createdAt: ex?.createdAt ?? now, updatedAt: now })
-    );
+    veiculosByPlaca.set(pl, mergeVeiculo(ex, { ...v, id: ex?.id ?? now + 1000 + i, updatedAt: now }));
   });
-  payload.dk_portal_veiculos_cadastro = Array.from(veiculosByPlaca.values());
+
+  payload.dk_clientes_cadastro = Array.from(clientesByCpf.values());
+  payload.dk_veiculos_cadastro = Array.from(veiculosByPlaca.values());
+  delete payload.dk_portal_clientes_cadastro;
+  delete payload.dk_portal_veiculos_cadastro;
+  delete payload.dk_veiculos_frota_planilha;
 
   const locHints = {
     "2025010101": { nome: "TESTE-001", marcaModelo: "FERRARI" },
@@ -148,20 +153,15 @@ async function main() {
     });
   }
 
-  if (!Array.isArray(payload.dk_veiculos_frota_planilha) && Array.isArray(payload.dk_veiculos_cadastro)) {
-    payload.dk_veiculos_frota_planilha = payload.dk_veiculos_cadastro.filter((v) => !v?.origemPortal);
-  }
-
-  const updated_at = new Date().toISOString();
   await supabaseFetch(`dk_cloud_snapshots?label=eq.${encodeURIComponent(LABEL)}`, {
     method: "PATCH",
-    headers: { Prefer: "return=representation" },
-    body: JSON.stringify({ payload, updated_at }),
+    headers: { Prefer: "return=minimal" },
+    body: JSON.stringify({ payload, updated_at: new Date().toISOString() }),
   });
 
-  console.log("OK: nuvem atualizada com portal clientes/veículos e locações corrigidas.");
-  console.log("  portal clientes:", payload.dk_portal_clientes_cadastro.length);
-  console.log("  portal veículos:", payload.dk_portal_veiculos_cadastro.length);
+  console.log("OK: banco único na nuvem.");
+  console.log("  clientes:", payload.dk_clientes_cadastro.length);
+  console.log("  veículos:", payload.dk_veiculos_cadastro.length);
 }
 
 main().catch((e) => {

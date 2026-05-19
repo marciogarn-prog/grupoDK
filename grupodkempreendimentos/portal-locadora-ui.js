@@ -1776,6 +1776,14 @@ ${printable.innerHTML}
       typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
         ? CLIENTES_EXTRA_SYNC_DATA
         : [];
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      const planilha = loadCadastro(CAD_CLIENTES_KEY).filter((c) => c?.origemPlanilha && !c?.origemPortal);
+      if (planilha.length) return [...planilha, ...extras];
+    }
+    if (typeof window !== "undefined" && Array.isArray(window.DK_BANCO_CADASTRO?.clientes)) {
+      const planilha = window.DK_BANCO_CADASTRO.clientes.filter((c) => !c?.origemPortal);
+      return [...planilha, ...extras];
+    }
     if (typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026)) {
       return [...CLIENTES_DK_FINANCEIRO_2026, ...extras];
     }
@@ -2589,10 +2597,10 @@ ${printable.innerHTML}
         byPlate.set(placa, { placa, modelo, tag, marca, record: v });
       }
     };
-    if (typeof loadPortalVeiculosCadastro === "function") {
-      loadPortalVeiculosCadastro().forEach(add);
-    } else if (typeof loadCadastro === "function" && typeof PORTAL_VEICULOS_KEY !== "undefined") {
-      loadCadastro(PORTAL_VEICULOS_KEY).forEach(add);
+    if (typeof loadAllVeiculosCadastro === "function") {
+      loadAllVeiculosCadastro().forEach(add);
+    } else if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      loadCadastro(CAD_VEICULOS_KEY).forEach(add);
     }
     portalVeiculoPlacasCache = Array.from(byPlate.values()).sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
     const dl = document.getElementById("operacaoVeiculoPlacaSugestoes");
@@ -3430,13 +3438,15 @@ ${printable.innerHTML}
   function portalLoadVeiculosFrotaCadastro() {
     if (
       typeof window.__DK_invalidateCadastroParseCache === "function" &&
-      typeof PORTAL_VEICULOS_KEY !== "undefined"
+      typeof CAD_VEICULOS_KEY !== "undefined"
     ) {
-      window.__DK_invalidateCadastroParseCache(PORTAL_VEICULOS_KEY);
+      window.__DK_invalidateCadastroParseCache(CAD_VEICULOS_KEY);
     }
     if (typeof loadPortalVeiculosCadastro === "function") return loadPortalVeiculosCadastro();
-    if (typeof loadCadastro === "function" && typeof PORTAL_VEICULOS_KEY !== "undefined") {
-      return loadCadastro(PORTAL_VEICULOS_KEY);
+    if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      return loadCadastro(CAD_VEICULOS_KEY).filter(
+        (v) => v?.origemPortal || v?.portalManual
+      );
     }
     return [];
   }
@@ -3470,17 +3480,9 @@ ${printable.innerHTML}
     return set;
   }
 
-  function portalVeiculoEhCadastroPortal(v, bundledPlates) {
+  function portalVeiculoEhCadastroPortal(v) {
     if (!v || typeof v !== "object") return false;
-    if (v.origemPortal || v.portalManual) return true;
-    const pl =
-      typeof normalizePlate === "function"
-        ? normalizePlate(v.placa)
-        : String(v.placa || "")
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "");
-    if (pl) return !bundledPlates.has(pl);
-    return Boolean(String(v.tag || "").trim());
+    return Boolean(v.origemPortal || v.portalManual);
   }
 
   function portalSplitVeiculosPortalVsFrota(list) {
@@ -8963,14 +8965,8 @@ ${printable.innerHTML}
 
     async function dkPortalPushCadastroSnapshotNow() {
       if (dkPortalCadastroSyncSuppressPush) return;
-      const clientes =
-        typeof loadPortalClientesCadastro === "function"
-          ? loadPortalClientesCadastro()
-          : loadCadastro(typeof PORTAL_CLIENTES_KEY !== "undefined" ? PORTAL_CLIENTES_KEY : CAD_CLIENTES_KEY);
-      const veiculos =
-        typeof loadPortalVeiculosCadastro === "function"
-          ? loadPortalVeiculosCadastro()
-          : loadCadastro(typeof PORTAL_VEICULOS_KEY !== "undefined" ? PORTAL_VEICULOS_KEY : CAD_VEICULOS_KEY);
+      const clientes = loadCadastro(CAD_CLIENTES_KEY);
+      const veiculos = loadCadastro(CAD_VEICULOS_KEY);
       const locacoes = loadCadastro(CAD_LOCACOES_KEY);
       await Promise.all([
         dkPortalPushToApi("cadastro-clientes", Array.isArray(clientes) ? clientes : []),
@@ -9053,13 +9049,9 @@ ${printable.innerHTML}
       ) {
         return;
       }
-      const portalClientesKey =
-        typeof PORTAL_CLIENTES_KEY !== "undefined" ? PORTAL_CLIENTES_KEY : CAD_CLIENTES_KEY;
-      const portalVeiculosKey =
-        typeof PORTAL_VEICULOS_KEY !== "undefined" ? PORTAL_VEICULOS_KEY : CAD_VEICULOS_KEY;
       await Promise.all([
-        dkPortalPullOne("cadastro-clientes", portalClientesKey, dkPortalMergeClientesArrays),
-        dkPortalPullOne("cadastro-veiculos", portalVeiculosKey, dkPortalMergeVeiculosArrays),
+        dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
+        dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),
         dkPortalPullOne("cadastro-locacoes", CAD_LOCACOES_KEY, dkPortalMergeLocacoesArrays),
       ]);
     }

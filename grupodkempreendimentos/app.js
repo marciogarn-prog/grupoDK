@@ -440,11 +440,11 @@ let currentQuadroGeralRows = [];
 const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
 const CAD_CLIENTES_VALIDACAO_KEY = "dk_clientes_validacao_pendente";
 const CAD_VEICULOS_KEY = "dk_veiculos_cadastro";
-/** Cadastro exclusivo do portal (não é sobrescrito pela planilha embutida). */
+/** Chaves legadas (migração v1) — após unificação v2 só existem CAD_* no localStorage. */
 const PORTAL_CLIENTES_KEY = "dk_portal_clientes_cadastro";
 const PORTAL_VEICULOS_KEY = "dk_portal_veiculos_cadastro";
-/** Frota importada da planilha Excel — só para relatório «Frota da planilha». */
 const FROTA_VEICULOS_KEY = "dk_veiculos_frota_planilha";
+const DK_BANCO_UNIFICADO_FLAG = "dk_banco_cadastro_unificado_v2";
 const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
 const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
@@ -2718,50 +2718,60 @@ function addAuditLog(action, entity, details) {
   localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify(logs));
 }
 
+function veiculoEhCadastroPortal(v) {
+  return Boolean(v?.origemPortal || v?.portalManual);
+}
+
+function veiculoEhFrotaPlanilha(v) {
+  if (!v) return false;
+  if (veiculoEhCadastroPortal(v)) return false;
+  return Boolean(v?.origemPlanilha) || true;
+}
+
 function findPortalClienteByCpf(cpf) {
   const normalized = onlyDigits(String(cpf || ""));
   if (normalized.length !== 11) return null;
-  const clientes = loadCadastro(PORTAL_CLIENTES_KEY);
-  return clientes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
+  const hit = loadCadastro(CAD_CLIENTES_KEY).find(
+    (c) => onlyDigits(String(c.cpf || "")) === normalized && (c.origemPortal || c.portalManual)
+  );
+  return hit || null;
 }
 
 function findClienteByCpfCadastro(cpf) {
-  const portal = findPortalClienteByCpf(cpf);
-  if (portal) return portal;
   const normalized = onlyDigits(String(cpf || ""));
-  if (!normalized) return null;
-  const clientes = loadCadastro(CAD_CLIENTES_KEY);
-  return clientes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
+  if (normalized.length !== 11) return null;
+  return loadCadastro(CAD_CLIENTES_KEY).find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
 }
 
 function findPortalVeiculoByPlaca(placa) {
   const pl = normalizePlate(String(placa || ""));
   if (!pl) return null;
-  const veiculos = loadCadastro(PORTAL_VEICULOS_KEY);
-  return veiculos.find((v) => normalizePlate(v.placa) === pl) || null;
+  return (
+    loadCadastro(CAD_VEICULOS_KEY).find((v) => normalizePlate(v.placa) === pl && veiculoEhCadastroPortal(v)) ||
+    null
+  );
+}
+
+function loadAllVeiculosCadastro() {
+  return ensureVeiculosCadastroPopulated();
 }
 
 function loadPortalVeiculosCadastro() {
-  return loadCadastro(PORTAL_VEICULOS_KEY);
+  return loadAllVeiculosCadastro().filter(veiculoEhCadastroPortal);
 }
 
 function loadPortalClientesCadastro() {
-  return loadCadastro(PORTAL_CLIENTES_KEY);
+  return loadCadastro(CAD_CLIENTES_KEY).filter((c) => c?.origemPortal || c?.portalManual);
 }
 
 function loadFrotaVeiculosPlanilha() {
-  let frota = loadCadastro(FROTA_VEICULOS_KEY);
-  if (!frota.length && typeof VEICULOS_DK_FINANCEIRO_2026 !== "undefined") {
-    bootstrapVeiculosFromFinanceiro2026({ force: true });
-    frota = loadCadastro(FROTA_VEICULOS_KEY);
-  }
-  return frota;
+  return loadAllVeiculosCadastro().filter(veiculoEhFrotaPlanilha);
 }
 
 function upsertPortalClienteByCpf(payload, status) {
   const cpf = onlyDigits(String(payload?.cpf || ""));
   if (cpf.length !== 11) return false;
-  const clientes = loadCadastro(PORTAL_CLIENTES_KEY);
+  const clientes = loadCadastro(CAD_CLIENTES_KEY);
   const idx = clientes.findIndex((c) => onlyDigits(String(c.cpf || "")) === cpf);
   const base = {
     ...payload,
@@ -2772,14 +2782,14 @@ function upsertPortalClienteByCpf(payload, status) {
   };
   if (idx >= 0) clientes[idx] = mergeCadastroClienteHistorico(clientes[idx], base);
   else clientes.push({ ...base, id: Number(payload?.id || Date.now()), createdAt: Date.now() });
-  saveCadastro(PORTAL_CLIENTES_KEY, clientes);
+  saveCadastro(CAD_CLIENTES_KEY, clientes);
   return true;
 }
 
 function upsertPortalVeiculoByPlaca(payload) {
   const placa = normalizePlate(String(payload?.placa || ""));
   if (!placa) return false;
-  const veiculos = loadCadastro(PORTAL_VEICULOS_KEY);
+  const veiculos = loadCadastro(CAD_VEICULOS_KEY);
   const idx = veiculos.findIndex((v) => normalizePlate(v.placa) === placa);
   const base = {
     ...payload,
@@ -2794,7 +2804,7 @@ function upsertPortalVeiculoByPlaca(payload) {
       id: Number(payload?.id || Date.now()),
       createdAt: Date.now(),
     });
-  saveCadastro(PORTAL_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(veiculos));
+  saveCadastro(CAD_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(veiculos));
   return true;
 }
 
@@ -2857,15 +2867,40 @@ function upsertClienteCadastroByCpf(payload, status) {
  * Importa uma vez clientes embebidos: prioridade CLIENTES_DK_FINANCEIRO_2026 (folha CADASTRO CLIENTES do Excel);
  * se não existir, usa CLIENTES_PLANILHA_50.
  */
+function getPlanilhaClientesEmbutidos() {
+  if (typeof window !== "undefined" && Array.isArray(window.DK_BANCO_CADASTRO?.clientes)) {
+    return window.DK_BANCO_CADASTRO.clientes.filter((c) => !c?.origemPortal);
+  }
+  if (
+    typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" &&
+    Array.isArray(CLIENTES_DK_FINANCEIRO_2026) &&
+    CLIENTES_DK_FINANCEIRO_2026.length
+  ) {
+    return CLIENTES_DK_FINANCEIRO_2026;
+  }
+  return [];
+}
+
+function getPlanilhaVeiculosEmbutidos() {
+  if (typeof window !== "undefined" && Array.isArray(window.DK_BANCO_CADASTRO?.veiculos)) {
+    return window.DK_BANCO_CADASTRO.veiculos.filter((v) => !v?.origemPortal);
+  }
+  if (
+    typeof VEICULOS_DK_FINANCEIRO_2026 !== "undefined" &&
+    Array.isArray(VEICULOS_DK_FINANCEIRO_2026) &&
+    VEICULOS_DK_FINANCEIRO_2026.length
+  ) {
+    return VEICULOS_DK_FINANCEIRO_2026;
+  }
+  return [];
+}
+
 function bootstrapCadastroFromBundledSheets() {
   try {
-    if (
-      typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" &&
-      Array.isArray(CLIENTES_DK_FINANCEIRO_2026) &&
-      CLIENTES_DK_FINANCEIRO_2026.length
-    ) {
+    const planilhaClientes = getPlanilhaClientesEmbutidos();
+    if (planilhaClientes.length) {
       if (localStorage.getItem("dk_financeiro_2026_imported_v1")) return;
-      CLIENTES_DK_FINANCEIRO_2026.forEach((row, i) => {
+      planilhaClientes.forEach((row, i) => {
         const cpf = onlyDigits(String(row.cpf || ""));
         if (cpf.length !== 11) return;
         upsertClienteCadastroByCpf(
@@ -2908,15 +2943,10 @@ function bootstrapCadastroFromBundledSheets() {
 function bootstrapVeiculosFromFinanceiro2026(options) {
   const opts = options && typeof options === "object" ? options : {};
   try {
-    if (
-      typeof VEICULOS_DK_FINANCEIRO_2026 === "undefined" ||
-      !Array.isArray(VEICULOS_DK_FINANCEIRO_2026) ||
-      !VEICULOS_DK_FINANCEIRO_2026.length
-    ) {
-      return;
-    }
+    const planilhaVeiculos = getPlanilhaVeiculosEmbutidos();
+    if (!planilhaVeiculos.length) return;
 
-    const current = loadCadastro(FROTA_VEICULOS_KEY);
+    const current = loadCadastro(CAD_VEICULOS_KEY);
     const importedFlag = localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1");
     if (importedFlag && !opts.force && current.length > 0) return;
     const placaToIndex = new Map();
@@ -2926,7 +2956,7 @@ function bootstrapVeiculosFromFinanceiro2026(options) {
     });
     const merged = [...current];
 
-    VEICULOS_DK_FINANCEIRO_2026.forEach((row, i) => {
+    planilhaVeiculos.forEach((row, i) => {
       const placa = normalizePlate(row.placa || "");
       if (!placa || isHeaderLikePlate(normalizeKey(placa))) return;
       const modelo = String(row.modelo || "").trim();
@@ -2934,6 +2964,7 @@ function bootstrapVeiculosFromFinanceiro2026(options) {
 
       const tipoFinal = String(row.tipo || "").trim() || inferTipoFromSeed(row);
       const normalizedRecord = {
+        origemPlanilha: true,
         tipo: tipoFinal,
         tag: String(row.tag || "")
           .trim()
@@ -2973,7 +3004,7 @@ function bootstrapVeiculosFromFinanceiro2026(options) {
       }
     });
 
-    saveCadastro(FROTA_VEICULOS_KEY, merged);
+    saveCadastro(CAD_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(merged));
     localStorage.setItem("dk_financeiro_2026_veiculos_imported_v1", "1");
   } catch {
     /* ignore */
@@ -3061,13 +3092,39 @@ const PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK = {
   },
 };
 
-/**
- * Separa frota da planilha do cadastro do portal, recupera registos perdidos
- * (nuvem só tinha locações) e grava no banco exclusivo do portal.
- */
-function migrateAndRepairPortalCadastroDatabaseOnce() {
+/** Importa o banco único embutido (data/dk-banco-cadastro.js) se o cadastro estiver vazio. */
+function bootstrapFromDkBancoCadastroOnce() {
   try {
-    if (localStorage.getItem("dk_portal_cadastro_db_v1")) return;
+    if (localStorage.getItem("dk_banco_cadastro_embedded_v1")) return;
+    const banco =
+      typeof window !== "undefined" && window.DK_BANCO_CADASTRO && typeof window.DK_BANCO_CADASTRO === "object"
+        ? window.DK_BANCO_CADASTRO
+        : null;
+    if (!banco) return;
+    const veiculos = Array.isArray(banco.veiculos) ? banco.veiculos : [];
+    const clientes = Array.isArray(banco.clientes) ? banco.clientes : [];
+    if (!veiculos.length && !clientes.length) return;
+    if (!loadCadastro(CAD_VEICULOS_KEY).length && veiculos.length) {
+      saveCadastro(CAD_VEICULOS_KEY, veiculos, { bypassImmutabilidadeCadastro: true });
+    }
+    if (!loadCadastro(CAD_CLIENTES_KEY).length && clientes.length) {
+      saveCadastro(CAD_CLIENTES_KEY, clientes, { bypassImmutabilidadeCadastro: true });
+    }
+    localStorage.setItem("dk_banco_cadastro_embedded_v1", "1");
+    localStorage.setItem("dk_financeiro_2026_veiculos_imported_v1", "1");
+    localStorage.setItem("dk_financeiro_2026_imported_v1", "1");
+  } catch (e) {
+    console.warn("[DK] bootstrapFromDkBancoCadastroOnce", e);
+  }
+}
+
+/**
+ * Unifica planilha + portal + chaves legadas num único banco (dk_*_cadastro).
+ * Cadastros do portal (origemPortal) prevalecem sobre a planilha na mesma placa/CPF.
+ */
+function unifyCadastroSingleDatabaseOnce() {
+  try {
+    if (localStorage.getItem(DK_BANCO_UNIFICADO_FLAG)) return;
 
     const plateNorm = (p) => normalizePlate(String(p || ""));
     const dig = (cpf) => onlyDigits(String(cpf || ""));
@@ -3076,55 +3133,80 @@ function migrateAndRepairPortalCadastroDatabaseOnce() {
         .trim()
         .replace(/\s+/g, "");
 
-    let portalClientes = loadCadastro(PORTAL_CLIENTES_KEY);
-    let portalVeiculos = loadCadastro(PORTAL_VEICULOS_KEY);
-    let frotaVeiculos = loadCadastro(FROTA_VEICULOS_KEY);
-    const legadoVeiculos = loadCadastro(CAD_VEICULOS_KEY);
+    bootstrapFromDkBancoCadastroOnce();
+    if (!loadCadastro(CAD_VEICULOS_KEY).length) {
+      bootstrapVeiculosFromFinanceiro2026({ force: true });
+    }
+    if (!loadCadastro(CAD_CLIENTES_KEY).length) {
+      bootstrapCadastroFromBundledSheets();
+    }
 
-    legadoVeiculos.forEach((v) => {
-      const pl = plateNorm(v.placa);
-      if (!pl) return;
-      if (v.origemPortal || v.portalManual) {
-        const idx = portalVeiculos.findIndex((x) => plateNorm(x.placa) === pl);
-        if (idx >= 0) portalVeiculos[idx] = mergeCadastroVeiculoHistorico(portalVeiculos[idx], v);
-        else portalVeiculos.push({ ...v, origemPortal: true });
-      } else if (!frotaVeiculos.some((x) => plateNorm(x.placa) === pl)) {
-        frotaVeiculos.push(v);
-      }
-    });
+    const mergeVeiculoList = (list, targetByPlaca) => {
+      (list || []).forEach((v) => {
+        const pl = plateNorm(v.placa);
+        if (!pl) return;
+        const ex = targetByPlaca.get(pl);
+        targetByPlaca.set(pl, ex ? mergeCadastroVeiculoHistorico(ex, v) : { ...v, placa: pl });
+      });
+    };
+    const mergeClienteList = (list, targetByCpf) => {
+      (list || []).forEach((c) => {
+        const cpf = dig(c.cpf);
+        if (cpf.length !== 11) return;
+        const ex = targetByCpf.get(cpf);
+        targetByCpf.set(cpf, ex ? mergeCadastroClienteHistorico(ex, c) : { ...c, cpf });
+      });
+    };
 
-    loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
-      if (!c?.origemPortal && !c?.portalManual) return;
-      const cpf = dig(c.cpf);
-      if (cpf.length !== 11) return;
-      const idx = portalClientes.findIndex((x) => dig(x.cpf) === cpf);
-      if (idx >= 0) portalClientes[idx] = mergeCadastroClienteHistorico(portalClientes[idx], c);
-      else portalClientes.push({ ...c, origemPortal: true });
-    });
-
-    PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.clientes.forEach((row) => {
-      upsertPortalClienteByCpf(
-        {
-          ...row,
-          cpf: row.cpf,
-          codigo: `CLIENTE ${row.cpf.slice(-2)}`,
-          status: "ATIVO",
-        },
-        "ATIVO"
+    const veiculosByPlaca = new Map();
+    mergeVeiculoList(loadCadastro(CAD_VEICULOS_KEY), veiculosByPlaca);
+    mergeVeiculoList(loadCadastro(FROTA_VEICULOS_KEY), veiculosByPlaca);
+    mergeVeiculoList(loadCadastro(PORTAL_VEICULOS_KEY), veiculosByPlaca);
+    if (typeof window !== "undefined" && window.DK_BANCO_CADASTRO?.veiculos) {
+      mergeVeiculoList(window.DK_BANCO_CADASTRO.veiculos, veiculosByPlaca);
+    }
+    PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.veiculos.forEach((row) => {
+      const pl = plateNorm(row.placa);
+      const ex = veiculosByPlaca.get(pl);
+      veiculosByPlaca.set(
+        pl,
+        mergeCadastroVeiculoHistorico(ex, { ...row, origemPortal: true, status: "DISPONIVEL" })
       );
     });
-    portalClientes = loadCadastro(PORTAL_CLIENTES_KEY);
 
-    PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.veiculos.forEach((row) => {
-      upsertPortalVeiculoByPlaca({
-        ...row,
-        status: "DISPONIVEL",
-      });
+    const clientesByCpf = new Map();
+    mergeClienteList(loadCadastro(CAD_CLIENTES_KEY), clientesByCpf);
+    mergeClienteList(loadCadastro(PORTAL_CLIENTES_KEY), clientesByCpf);
+    if (typeof window !== "undefined" && window.DK_BANCO_CADASTRO?.clientes) {
+      mergeClienteList(window.DK_BANCO_CADASTRO.clientes, clientesByCpf);
+    }
+    PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.clientes.forEach((row) => {
+      const cpf = dig(row.cpf);
+      const ex = clientesByCpf.get(cpf);
+      clientesByCpf.set(
+        cpf,
+        mergeCadastroClienteHistorico(ex, {
+          ...row,
+          cpf,
+          codigo: `CLIENTE ${String(row.cpf).slice(-2)}`,
+          origemPortal: true,
+          status: "ATIVO",
+        })
+      );
     });
-    portalVeiculos = loadCadastro(PORTAL_VEICULOS_KEY);
+
+    saveCadastro(
+      CAD_VEICULOS_KEY,
+      dedupeVeiculosByNormalizedPlate(Array.from(veiculosByPlaca.values())),
+      { bypassImmutabilidadeCadastro: true }
+    );
+    saveCadastro(CAD_CLIENTES_KEY, Array.from(clientesByCpf.values()), {
+      bypassImmutabilidadeCadastro: true,
+    });
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
     let locsChanged = false;
+    const clientes = loadCadastro(CAD_CLIENTES_KEY);
     const locsNext = locs.map((loc) => {
       const nc = ncNorm(loc.numeroContrato);
       const hint = PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.locProtocolo[nc];
@@ -3142,7 +3224,7 @@ function migrateAndRepairPortalCadastroDatabaseOnce() {
         if (pl === "CCC0C00" && letter === "C") marcaModelo = "PORSCHE";
       }
       if (cpf.length === 11 && !nome) {
-        const cli = portalClientes.find((c) => dig(c.cpf) === cpf);
+        const cli = clientes.find((c) => dig(c.cpf) === cpf);
         if (cli?.nome) nome = String(cli.nome).trim();
       }
       if (
@@ -3154,24 +3236,29 @@ function migrateAndRepairPortalCadastroDatabaseOnce() {
       locsChanged = true;
       return { ...loc, nome, marcaModelo, modalidade: loc.modalidade || "CARRO" };
     });
-
-    saveCadastro(PORTAL_CLIENTES_KEY, portalClientes);
-    saveCadastro(PORTAL_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(portalVeiculos));
-    if (frotaVeiculos.length) saveCadastro(FROTA_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(frotaVeiculos));
-    saveCadastro(CAD_VEICULOS_KEY, []);
     if (locsChanged) saveCadastro(CAD_LOCACOES_KEY, locsNext);
 
-    localStorage.setItem("dk_portal_cadastro_db_v1", "1");
-    if (!localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1")) {
-      bootstrapVeiculosFromFinanceiro2026({ force: true });
+    try {
+      localStorage.removeItem(PORTAL_VEICULOS_KEY);
+      localStorage.removeItem(PORTAL_CLIENTES_KEY);
+      localStorage.removeItem(FROTA_VEICULOS_KEY);
+    } catch {
+      /* ignore */
     }
+
+    localStorage.setItem(DK_BANCO_UNIFICADO_FLAG, "1");
+    localStorage.setItem("dk_portal_cadastro_db_v1", "1");
   } catch (e) {
-    console.warn("[DK] migrateAndRepairPortalCadastroDatabaseOnce", e);
+    console.warn("[DK] unifyCadastroSingleDatabaseOnce", e);
   }
 }
 
+function migrateAndRepairPortalCadastroDatabaseOnce() {
+  unifyCadastroSingleDatabaseOnce();
+}
+
 function repairCadastroPortalFromLocacoesOnce() {
-  migrateAndRepairPortalCadastroDatabaseOnce();
+  unifyCadastroSingleDatabaseOnce();
 }
 
 function migrateKnownMercosulPlateRenames() {
@@ -7431,23 +7518,22 @@ function isHeaderLikePlate(value) {
   return normalizeKey(String(value || "")) === "PLACA";
 }
 
-/** Frota da planilha (relatórios legados) — não mistura com cadastro do portal. */
+/** Banco único de veículos (planilha + portal). */
 function ensureVeiculosCadastroPopulated() {
-  return loadFrotaVeiculosPlanilha();
+  unifyCadastroSingleDatabaseOnce();
+  invalidateCadastroParseCache(CAD_VEICULOS_KEY);
+  let list = loadCadastro(CAD_VEICULOS_KEY);
+  if (!list.length) {
+    bootstrapFromDkBancoCadastroOnce();
+    bootstrapVeiculosFromFinanceiro2026({ force: true });
+    invalidateCadastroParseCache(CAD_VEICULOS_KEY);
+    list = loadCadastro(CAD_VEICULOS_KEY);
+  }
+  return list;
 }
 
 function loadVeiculosPortalEFrotaUnificado() {
-  const byPlate = new Map();
-  const add = (v) => {
-    const pl = normalizePlate(v?.placa);
-    if (!pl) return;
-    const ex = byPlate.get(pl);
-    byPlate.set(pl, ex ? mergeCadastroVeiculoHistorico(ex, v) : { ...v, placa: pl });
-  };
-  loadPortalVeiculosCadastro().forEach(add);
-  loadFrotaVeiculosPlanilha().forEach(add);
-  loadCadastro(CAD_VEICULOS_KEY).forEach(add);
-  return Array.from(byPlate.values());
+  return ensureVeiculosCadastroPopulated();
 }
 
 function getVeiculosReportData() {
@@ -7459,6 +7545,8 @@ try {
   window.__DK_loadPortalVeiculosCadastro = loadPortalVeiculosCadastro;
   window.__DK_loadPortalClientesCadastro = loadPortalClientesCadastro;
   window.__DK_loadFrotaVeiculosPlanilha = loadFrotaVeiculosPlanilha;
+  window.__DK_loadAllVeiculosCadastro = loadAllVeiculosCadastro;
+  window.__DK_unifyCadastroSingleDatabaseOnce = unifyCadastroSingleDatabaseOnce;
   window.__DK_upsertPortalClienteByCpf = upsertPortalClienteByCpf;
   window.__DK_upsertPortalVeiculoByPlaca = upsertPortalVeiculoByPlaca;
   window.__DK_findPortalClienteByCpf = findPortalClienteByCpf;
@@ -15338,10 +15426,8 @@ setLocacaoLayoutToolbarState();
 bootstrapLocacaoLayoutFromStorage();
 bindLocacaoLayoutEditorEvents();
 setLayoutEditorsAccessByProfile();
-bootstrapCadastroFromBundledSheets();
 migrateKnownMercosulPlateRenames();
-bootstrapVeiculosFromFinanceiro2026();
-migrateAndRepairPortalCadastroDatabaseOnce();
+unifyCadastroSingleDatabaseOnce();
 requireLoggedArea();
 applyDeepLinkCadastroIaFromHash();
 applyDeepLinkLocadoraFromHash();
