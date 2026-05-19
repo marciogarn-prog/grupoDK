@@ -1343,14 +1343,16 @@ body {
   margin-top: 0.75rem;
 }
 
-/* Investimento acumulado: saldo negativo (vermelho) ou positivo (azul); zero usa cor padrão do formulário. */
-#operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--negativo {
+/* Investimento acumulado: negativo (vermelho) ou positivo (verde); zero usa cor padrão do formulário. */
+#operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--negativo,
+#operacaoLancAluguelInvestimentoAcumulado.portal-investimento-acumulado--negativo {
   color: #f87171;
   font-weight: 600;
 }
 
-#operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--positivo {
-  color: #7dd3fc;
+#operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--positivo,
+#operacaoLancAluguelInvestimentoAcumulado.portal-investimento-acumulado--positivo {
+  color: #4ade80;
   font-weight: 600;
 }
 

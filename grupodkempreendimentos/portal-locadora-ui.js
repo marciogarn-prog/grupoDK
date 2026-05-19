@@ -5677,13 +5677,11 @@ ${printable.innerHTML}
     return Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
   }
 
-  /** Investimento acumulado = devido aluguel + devido multas + devido manutenção − total pago. */
+  /** Investimento acumulado = total pago − (devido aluguel + devido multas + devido manutenção). */
   function computePortalInvestimentoAcumuladoNum(devidoAluguel, devidoMultas, devidoManutencao, totalPago) {
     return (
-      Number(devidoAluguel || 0) +
-      Number(devidoMultas || 0) +
-      Number(devidoManutencao || 0) -
-      Number(totalPago || 0)
+      Number(totalPago || 0) -
+      (Number(devidoAluguel || 0) + Number(devidoMultas || 0) + Number(devidoManutencao || 0))
     );
   }
 
@@ -5767,6 +5765,7 @@ ${printable.innerHTML}
       valorDevidoMultas: fmtBrl(valorDevidoMultasNum),
       investimentoAcumulado: formatPortalLancamentoSumBrl(investimentoAcumuladoNum),
       investimentoAcumuladoNeg: investimentoAcumuladoNum < 0,
+      investimentoAcumuladoPos: investimentoAcumuladoNum > 0,
     };
   }
 
@@ -5960,7 +5959,7 @@ ${printable.innerHTML}
     syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
   }
 
-  /** Investimento acumulado = devido aluguel + multas + manutenção − total pago. Cor: vermelho se negativo, azul se positivo. */
+  /** Investimento acumulado = total pago − (devido aluguel + multas + manutenção). Cor: vermelho se negativo, verde se positivo. */
   function syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido() {
     const inpTp = document.getElementById("operacaoLocacaoTotalPago");
     const inpDevido = document.getElementById("operacaoLocacaoValorDevidoAluguel");
@@ -6514,9 +6513,7 @@ ${printable.innerHTML}
     if (invEl) {
       invEl.classList.remove("portal-investimento-acumulado--negativo", "portal-investimento-acumulado--positivo");
       if (resumo.investimentoAcumuladoNeg) invEl.classList.add("portal-investimento-acumulado--negativo");
-      else if (String(resumo.investimentoAcumulado || "").replace(/\D/g, "")) {
-        invEl.classList.add("portal-investimento-acumulado--positivo");
-      }
+      else if (resumo.investimentoAcumuladoPos) invEl.classList.add("portal-investimento-acumulado--positivo");
     }
     ["operacaoLancAluguelValorEspecie", "operacaoLancAluguelValorPix", "operacaoLancAluguelValorCartao", "operacaoLancAluguelValorPago", "operacaoLancAluguelDataPagamento"].forEach((id) => {
       const el = document.getElementById(id);
