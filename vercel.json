@@ -6,12 +6,10 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "env": {
-    "CRON_SECRET": "1234",
     "DK_BACKUP_EMAIL_TO": "marciogarn@gmail.com",
     "DK_BACKUP_EMAIL_FROM": "Grupo DK Backup <marciogarn@gmail.com>",
     "SUPABASE_URL": "https://ppxtwqvzgujllfzarpuz.supabase.co",
-    "SUPABASE_ANON_KEY": "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3",
-    "SMTP_USER": "marciogarn@gmail.com"
+    "SUPABASE_ANON_KEY": "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3"
   },
   "crons": [
     {
