@@ -5713,9 +5713,20 @@ ${printable.innerHTML}
     const custoDiaNum = plano / 7;
     const valorDevidoPlanoNum = tempo * (plano / 7);
     const valorDevidoAluguelNum = tempo * (valLoc / 7);
-    const valorDevidoManutencaoNum = parseCur(
-      loc?.valorDevidoManutencao ?? loc?.devidoManutencao ?? loc?.gastosManutencao ?? loc?.gastoManutencao ?? loc?.custoManutencao ?? 0
-    );
+    const valorDevidoManutencaoNum = (() => {
+      const arrManut = Array.isArray(loc?.portalManutencoesRegistro) ? loc.portalManutencoesRegistro : [];
+      if (arrManut.length) {
+        let s = 0;
+        for (const m of arrManut) {
+          const v = parseCur(m?.valorManutencao ?? m?.valorMulta ?? m?.valor ?? 0);
+          if (Number.isFinite(v)) s += v;
+        }
+        return s;
+      }
+      return parseCur(
+        loc?.valorDevidoManutencao ?? loc?.devidoManutencao ?? loc?.gastosManutencao ?? loc?.gastoManutencao ?? loc?.custoManutencao ?? 0
+      );
+    })();
     const valorDevidoMultasNum = parseCur(
       loc?.valorDevidoMulta ??
         loc?.valorDevidoMultas ??

@@ -79,12 +79,24 @@
     return "";
   }
 
+  function regData(m) {
+    return String(m.dataManutencao || m.dataMulta || "").trim();
+  }
+
+  function regCod(m) {
+    return String(m.codManutencao || m.codMulta || "").trim();
+  }
+
+  function regValor(m) {
+    return Number(m.valorManutencao ?? m.valorMulta) || 0;
+  }
+
   function buildCronogramaMulta(multa, diaPag) {
     const q = Math.min(10, Math.max(1, Math.round(Number(multa.quantidadeParcelas) || 1)));
-    const valorTotal = Number(multa.valorMulta) || 0;
+    const valorTotal = regValor(multa);
     const valorParcela = q > 0 ? valorTotal / q : valorTotal;
     const primeira =
-      primeiraParcelaAposMulta(multa.dataMulta, diaPag) || String(multa.dataPrimeiraParcela || "").trim();
+      primeiraParcelaAposMulta(regData(multa), diaPag) || String(multa.dataPrimeiraParcela || "").trim();
     const parcelas = [];
     for (let i = 0; i < q; i++) {
       parcelas.push({
@@ -124,7 +136,12 @@
 
   function buildRelatorioMultasModel(opts) {
     const loc = opts?.loc || {};
-    const multasIn = Array.isArray(opts?.multas) ? opts.multas : [];
+    const tipo = opts?.tipo === "manutencao" ? "manutencao" : "multa";
+    const multasIn = Array.isArray(opts?.manutencoes)
+      ? opts.manutencoes
+      : Array.isArray(opts?.multas)
+        ? opts.multas
+        : [];
     const diaPag = normDiaPagamento(loc.diaPagamento || loc.diaPagto) || "SEG";
     const protocolo = String(opts?.protocolo || loc.numeroContrato || "").trim();
     const placa =
@@ -134,12 +151,12 @@
       const cron = buildCronogramaMulta(m, diaPag);
       return {
         numero: idx + 1,
-        cod: String(m.codMulta || "").trim(),
+        cod: regCod(m),
         descricao: String(m.descricao || "").trim(),
-        valor: Number(m.valorMulta) || 0,
+        valor: regValor(m),
         parcelas: cron.parcelas.length,
         valorParcela: cron.valorParcela,
-        dataMulta: String(m.dataMulta || "").trim(),
+        dataMulta: regData(m),
         dataPrimeiraParcela: cron.primeira,
         cor: CORES_MULTA[idx % CORES_MULTA.length],
         cronograma: cron.parcelas,
@@ -173,8 +190,15 @@
       return { data, celulas, total: linhaTotal };
     });
 
+    const isManut = tipo === "manutencao";
     return {
-      titulo: "RELATÓRIO DE MULTAS",
+      tipo,
+      titulo: isManut ? "RELATÓRIO DE MANUTENÇÃO" : "RELATÓRIO DE MULTAS",
+      colRegistro: isManut ? "MANUTENÇÃO" : "MULTA",
+      totalLabel: isManut ? "TOTAL DE MANUTENÇÕES" : "TOTAL DE MULTAS",
+      colDataRegistro: isManut ? "DATA DA MANUTENÇÃO" : "DATA DA MULTA",
+      totalDetalheCol: isManut ? "TOTAL DE MANUTENÇÕES" : "TOTAL DE MULTAS",
+      rodapeExtra: isManut ? "manutenção" : "multa",
       clienteNome: resolveClienteNome(loc),
       protocolo,
       placa: placa || "—",
@@ -204,7 +228,7 @@
     const multaHeaders = model.items
       .map(
         (it) =>
-          `<th class="portal-multas-rel__col-multa" style="background:#ed7d31;color:#fff">MULTA ${it.numero}</th>`
+          `<th class="portal-multas-rel__col-multa" style="background:#ed7d31;color:#fff">${esc(model.colRegistro)} ${it.numero}</th>`
       )
       .join("");
 
@@ -236,7 +260,7 @@
           <span class="portal-multas-rel__dia-pag-hint">(${esc(model.diaPagLabel)})</span>
         </div>
         <div class="portal-multas-rel__total-geral">
-          <span>TOTAL DE MULTAS</span>
+          <span>${esc(model.totalLabel)}</span>
           <strong>${esc(fmtBrl(model.total))}</strong>
         </div>
       </div>
@@ -249,7 +273,7 @@
             <th>VALOR</th>
             <th>PARCELAS</th>
             <th>VALOR DA PARCELA</th>
-            <th>DATA DA MULTA</th>
+            <th>${esc(model.colDataRegistro)}</th>
           </tr>
         </thead>
         <tbody>${resumoRows}</tbody>
@@ -260,12 +284,12 @@
           <tr>
             <th class="portal-multas-rel__data-h">DATA</th>
             ${multaHeaders}
-            <th class="portal-multas-rel__total-h">TOTAL DE MULTAS</th>
+            <th class="portal-multas-rel__total-h">${esc(model.totalDetalheCol)}</th>
           </tr>
         </thead>
         <tbody>${detalheRows || `<tr><td colspan="${model.items.length + 2}" class="portal-multas-rel__vazio">Sem parcelas calculadas.</td></tr>`}</tbody>
       </table>
-      <p class="portal-multas-rel__foot">Gerado em ${esc(model.geradoEm)} · Parcelas a cada 7 dias · 1.ª parcela = primeiro ${esc(model.diaPagLabel)} após a data da multa.</p>
+      <p class="portal-multas-rel__foot">Gerado em ${esc(model.geradoEm)} · Parcelas a cada 7 dias · 1.ª parcela = primeiro ${esc(model.diaPagLabel)} após a data da ${esc(model.rodapeExtra)}.</p>
     </div>`;
   }
 
@@ -293,10 +317,25 @@
     initModalOnce();
     const root = document.getElementById("portalMultasRelatorioPrintRoot");
     const modal = document.getElementById("portalMultasRelatorioModal");
+    const titulo = document.getElementById("portalMultasRelatorioTitulo");
     if (!root || !modal) return;
+    if (titulo) titulo.textContent = model.titulo || "Relatório";
     root.innerHTML = renderRelatorioMultasHtml(model);
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+  }
+
+  function openRelatorioParcelado(opts, tipo) {
+    const model = buildRelatorioMultasModel({ ...opts, tipo });
+    if (!model.items.length) {
+      const msg =
+        tipo === "manutencao"
+          ? "Não há manutenções registadas neste protocolo para gerar o relatório."
+          : "Não há multas registadas neste protocolo para gerar o relatório.";
+      window.alert(msg);
+      return;
+    }
+    openRelatorioMultasModal(model);
   }
 
   window.__DK_buildRelatorioMultasModel = buildRelatorioMultasModel;
@@ -304,11 +343,9 @@
   window.__DK_normDiaPagamentoMultas = normDiaPagamento;
   window.__DK_buildCronogramaMultaRelatorio = buildCronogramaMulta;
   window.__DK_openRelatorioMultas = function (opts) {
-    const model = buildRelatorioMultasModel(opts);
-    if (!model.items.length) {
-      window.alert("Não há multas registadas neste protocolo para gerar o relatório.");
-      return;
-    }
-    openRelatorioMultasModal(model);
+    openRelatorioParcelado(opts, "multa");
+  };
+  window.__DK_openRelatorioManutencao = function (opts) {
+    openRelatorioParcelado(opts, "manutencao");
   };
 })();

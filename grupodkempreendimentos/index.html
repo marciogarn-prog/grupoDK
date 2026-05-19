@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#0c0f14">
-  <!-- URL absoluto do index.html do sistema DK (s√≥ no deploy onde portal e DK n√£o ficam em pastas pai/filho). Deixe vazio para usar ../index.html no mesmo projeto. -->
+  <!-- URL absoluto do index.html do sistema DK (sÛ no deploy onde portal e DK n„o ficam em pastas pai/filho). Deixe vazio para usar ../index.html no mesmo projeto. -->
   <meta name="dk-sistema-cadastros-url" content="">
-  <!-- Sincroniza√ß√£o localhost &mdash; site: crie Redis na Upstash; na Vercel defina UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN; fa√ßa redeploy. Sem isso o cadastro extra fica s√≥ no navegador. -->
+  <!-- SincronizaÁ„o localhost &mdash; site: crie Redis na Upstash; na Vercel defina UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN; faÁa redeploy. Sem isso o cadastro extra fica sÛ no navegador. -->
   <meta name="dk-cadastro-sync-origin" content="https://grupodkempreendimentos.com.br">
   <!-- Supabase (Settings &mdash; API). Na Vercel defina SUPABASE_ANON_KEY; o build injeta a chave. -->
   <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
@@ -24,7 +24,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-  <div id="view-home" class="view view--active" role="region" aria-label="In√≠cio" aria-hidden="false">
+  <div id="view-home" class="view view--active" role="region" aria-label="InÌcio" aria-hidden="false">
     <header class="site-header">
       <div class="brand">
         <span class="brand__mark" aria-hidden="true">DK</span>
@@ -33,19 +33,19 @@
           <span class="brand__subtitle">Empreendimentos</span>
         </div>
       </div>
-      <p class="header-lead">Escolha uma unidade de neg√≥cio para continuar.</p>
+      <p class="header-lead">Escolha uma unidade de negÛcio para continuar.</p>
     </header>
 
-    <main class="grid-choices" id="main-choices" aria-label="Unidades de neg√≥cio">
+    <main class="grid-choices" id="main-choices" aria-label="Unidades de negÛcio">
       <button type="button" class="choice-card" data-go="locadora">
         <span class="choice-card__icon" aria-hidden="true">&#9670;</span>
         <span class="choice-card__label">DK Locadora</span>
-        <span class="choice-card__hint">Mobilidade e loca√ß√£o de ve√≠culos</span>
+        <span class="choice-card__hint">Mobilidade e locaÁ„o de veÌculos</span>
       </button>
       <button type="button" class="choice-card" data-go="centro">
         <span class="choice-card__icon" aria-hidden="true">&#9671;</span>
         <span class="choice-card__label">DK Centro Automotivo</span>
-        <span class="choice-card__hint">Oficina e servi√ßos automotivos</span>
+        <span class="choice-card__hint">Oficina e serviÁos automotivos</span>
       </button>
       <button type="button" class="choice-card" data-go="construtora">
         <span class="choice-card__icon" aria-hidden="true">&#9635;</span>
@@ -55,13 +55,13 @@
     </main>
 
     <footer class="site-footer">
-      <p>Petrolina ‚Äî PE ¬∑ <a href="https://grupodkempreendimentos.com.br/">grupodkempreendimentos.com.br</a></p>
+      <p>Petrolina ??? PE ∑ <a href="https://grupodkempreendimentos.com.br/">grupodkempreendimentos.com.br</a></p>
     </footer>
   </div>
 
   <div id="view-unit" class="view view--unit" role="region" aria-labelledby="unit-page-title" aria-hidden="true">
     <div class="subpage subpage--wide">
-      <header class="portal-unit-bar" aria-label="Navega√ß√£o da unidade">
+      <header class="portal-unit-bar" aria-label="NavegaÁ„o da unidade">
         <div class="portal-unit-bar__left">
           <span class="portal-unit-bar__label">Tipo de acesso</span>
           <div class="role-picker role-picker--bar" role="tablist" aria-label="Tipo de acesso">
@@ -70,12 +70,12 @@
             <button type="button" class="role-picker__btn" data-role="administrador" role="tab" aria-selected="false">Administrador</button>
           </div>
         </div>
-        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-back>&larr; Voltar ao in√≠cio</button>
+        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-back>&larr; Voltar ao inÌcio</button>
       </header>
 
       <div class="portal-unit-heading">
         <h1 id="unit-page-title">Unidade</h1>
-        <p class="subpage__lead portal-unit-heading__lead" id="unit-page-lead">Escolha o tipo de acesso e informe CPF e senha. Senha inicial: <strong>123456</strong> (troca obrigat√≥ria no primeiro login).</p>
+        <p class="subpage__lead portal-unit-heading__lead" id="unit-page-lead">Escolha o tipo de acesso e informe CPF e senha. Senha inicial: <strong>123456</strong> (troca obrigatÛria no primeiro login).</p>
         <p class="subtext portal-unit-heading__atualizado" id="portal-unit-dados-atualizados" role="status" aria-live="polite" hidden></p>
       </div>
 
@@ -99,15 +99,15 @@
 
       <section id="panel-senha" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Definir nova senha</h2>
-        <p class="subtext">Colaborador: use <strong>exatamente 6 n√∫meros</strong>, diferentes da senha inicial <strong>123456</strong>.</p>
+        <p class="subtext">Colaborador: use <strong>exatamente 6 n˙meros</strong>, diferentes da senha inicial <strong>123456</strong>.</p>
         <form id="form-nova-senha" class="portal-form" novalidate>
           <label class="portal-field">
             <span>Nova senha</span>
-            <input type="password" id="nova-senha" autocomplete="new-password" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="6 n√∫meros">
+            <input type="password" id="nova-senha" autocomplete="new-password" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="6 n˙meros">
           </label>
           <label class="portal-field">
             <span>Confirmar nova senha</span>
-            <input type="password" id="nova-senha-2" autocomplete="new-password" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="Repita os 6 n√∫meros">
+            <input type="password" id="nova-senha-2" autocomplete="new-password" required minlength="6" maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="Repita os 6 n˙meros">
           </label>
           <p id="senha-feedback" class="portal-feedback" role="status"></p>
           <button type="submit" class="btn-primary">Salvar e continuar</button>
@@ -115,17 +115,17 @@
       </section>
 
       <section id="panel-logado" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title" id="logado-titulo">√Årea logada</h2>
+        <h2 class="portal-panel__title" id="logado-titulo">¡rea logada</h2>
         <p id="logado-texto" class="subpage__lead"></p>
-        <p class="subtext">Conte√∫do da unidade em prepara√ß√£o.</p>
+        <p class="subtext">Conte˙do da unidade em preparaÁ„o.</p>
         <div class="logado-actions">
-          <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Opera√ß√£o</button>
-          <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manuten√ß√£o</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">OperaÁ„o</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">ManutenÁ„o</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
           <p class="subtext portal-cloud-sync-bar__lead">
-            Nuvem Supabase: guardar ou carregar os cadastros deste navegador (mesmos dados em PC e telem√≥vel).
+            Nuvem Supabase: guardar ou carregar os cadastros deste navegador (mesmos dados em PC e telemÛvel).
           </p>
           <div class="portal-cloud-sync-bar__actions">
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
@@ -136,11 +136,11 @@
       </section>
 
       <section id="panel-operacao-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Opera√ß√£o</h2>
+        <h2 class="portal-panel__title">OperaÁ„o</h2>
         <div class="portal-operacao-layout">
           <aside class="portal-operacao-layout__sidebar" aria-label="Tipos de cadastro">
             <p class="subpage__lead">Acesse os cadastros do sistema DK Locadora.</p>
-            <p class="subtext">Os bot√µes √† esquerda escolhem o tipo de cadastro; <strong>os campos para digitar ficam no painel √† direita</strong>. O protocolo da loca√ß√£o √© gerado automaticamente e s√≥ passa ao seguinte depois de cadastrar. O painel completo DK continua dispon√≠vel pelo link em cada formul√°rio.</p>
+            <p class="subtext">Os botıes ‡ esquerda escolhem o tipo de cadastro; <strong>os campos para digitar ficam no painel ‡ direita</strong>. O protocolo da locaÁ„o È gerado automaticamente e sÛ passa ao seguinte depois de cadastrar. O painel completo DK continua disponÌvel pelo link em cada formul·rio.</p>
             <div class="operacao-comandos">
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-falar-cliente" aria-expanded="false" aria-controls="operacaoInlineWhatsApp">
                 <span class="btn-operacao-cmd__title">Falar com o cliente</span>
@@ -148,43 +148,43 @@
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
                 <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
-                <span class="btn-operacao-cmd__hint">14 campos da planilha (c√≥digo, datas, CPF, nome, etc.) √† direita</span>
+                <span class="btn-operacao-cmd__hint">14 campos da planilha (cÛdigo, datas, CPF, nome, etc.) ‡ direita</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
-                <span class="btn-operacao-cmd__title">Cadastro de ve√≠culo</span>
-                <span class="btn-operacao-cmd__hint">14 campos (tag, placa, c√≥digo, marca, etc.) √† direita</span>
+                <span class="btn-operacao-cmd__title">Cadastro de veÌculo</span>
+                <span class="btn-operacao-cmd__hint">14 campos (tag, placa, cÛdigo, marca, etc.) ‡ direita</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-locacao" aria-expanded="false" aria-controls="operacaoInlineLocacao">
-                <span class="btn-operacao-cmd__title">Cadastro de loca√ß√£o</span>
-                <span class="btn-operacao-cmd__hint">Protocolo autom√°tico (Receita 2026), CPF, placa, plano, valores e datas</span>
+                <span class="btn-operacao-cmd__title">Cadastro de locaÁ„o</span>
+                <span class="btn-operacao-cmd__hint">Protocolo autom·tico (Receita 2026), CPF, placa, plano, valores e datas</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoInlineLancamentoAluguel">
-                <span class="btn-operacao-cmd__title">Lan√ßamento de aluguel</span>
-                <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de loca√ß√£o; dados carregados do protocolo</span>
+                <span class="btn-operacao-cmd__title">LanÁamento de aluguel</span>
+                <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de locaÁ„o; dados carregados do protocolo</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
-                <span class="btn-operacao-cmd__title">Lan√ßamento de multas</span>
-                <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou n¬∫ do protocolo</span>
+                <span class="btn-operacao-cmd__title">LanÁamento de multas</span>
+                <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou n∫ do protocolo</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
-                <span class="btn-operacao-cmd__title">Lan√ßamento de manuten√ß√£o</span>
-                <span class="btn-operacao-cmd__hint">Custos de manuten√ß√£o do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
+                <span class="btn-operacao-cmd__title">LanÁamento de manutenÁ„o</span>
+                <span class="btn-operacao-cmd__hint">Custos de manutenÁ„o do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
               </button>
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
-                <span class="btn-operacao-cmd__hint">CPF, fun√ß√£o, permiss√µes &mdash; formul√°rio √† direita (s√≥ administrador)</span>
+                <span class="btn-operacao-cmd__hint">CPF, funÁ„o, permissıes &mdash; formul·rio ‡ direita (sÛ administrador)</span>
               </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main" id="operacaoPainelDireito">
             <div id="operacaoFormPlaceholder" class="operacao-form-placeholder" role="status">
-              <p class="operacao-form-placeholder__text">Escolha um cadastro √† esquerda. Os dados ser√£o preenchidos neste painel.</p>
+              <p class="operacao-form-placeholder__text">Escolha um cadastro ‡ esquerda. Os dados ser„o preenchidos neste painel.</p>
             </div>
 
         <div id="operacaoInlineWhatsApp" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-whatsapp-title">
           <h3 id="operacao-inline-whatsapp-title" class="operacao-inline-form__title">Falar com o cliente (WhatsApp)</h3>
           <p class="subtext operacao-inline-form__lead">
-            Contratos ativos (loca√ß√£o sem data de fim no cadastro). Escolha por <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>. A mensagem √© enviada pelo WhatsApp comercial <strong>+5581989037417</strong> para o <strong>celular cadastrado</strong> do cliente (sem abrir o WhatsApp do seu PC).
+            Contratos ativos (locaÁ„o sem data de fim no cadastro). Escolha por <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>. A mensagem È enviada pelo WhatsApp comercial <strong>+5581989037417</strong> para o <strong>celular cadastrado</strong> do cliente (sem abrir o WhatsApp do seu PC).
           </p>
           <p class="subtext portal-whatsapp-linha-dk">
             Linha DK Locadora (envio / teste): <strong>+5581989037417</strong>
@@ -194,21 +194,21 @@
               <span>CPF</span>
               <div class="portal-combobox" id="portalWaComboCpf">
                 <input type="text" id="portalWaInputCpf" autocomplete="off" maxlength="14" inputmode="numeric" placeholder="Filtrar por CPF" aria-expanded="false" aria-controls="portalWaListaCpf" aria-autocomplete="list">
-                <div id="portalWaListaCpf" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugest√µes por CPF" hidden></div>
+                <div id="portalWaListaCpf" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugestıes por CPF" hidden></div>
               </div>
             </label>
             <label class="portal-field portal-field--combobox">
               <span>Nome do cliente</span>
               <div class="portal-combobox" id="portalWaComboNome">
                 <input type="text" id="portalWaInputNome" autocomplete="off" maxlength="120" placeholder="Filtrar por nome" aria-expanded="false" aria-controls="portalWaListaNome" aria-autocomplete="list">
-                <div id="portalWaListaNome" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugest√µes por nome" hidden></div>
+                <div id="portalWaListaNome" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugestıes por nome" hidden></div>
               </div>
             </label>
             <label class="portal-field portal-field--combobox">
               <span>Placa</span>
               <div class="portal-combobox" id="portalWaComboPlaca">
                 <input type="text" id="portalWaInputPlaca" autocomplete="off" maxlength="10" placeholder="Filtrar por placa" aria-expanded="false" aria-controls="portalWaListaPlaca" aria-autocomplete="list">
-                <div id="portalWaListaPlaca" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugest√µes por placa" hidden></div>
+                <div id="portalWaListaPlaca" class="portal-placa-dropdown hidden" role="listbox" aria-label="Sugestıes por placa" hidden></div>
               </div>
             </label>
           </div>
@@ -226,8 +226,8 @@
               ></textarea>
             </label>
             <p id="portalWaComposeHint" class="subtext portal-whatsapp-compose__hint">
-              Envio <strong>one-way</strong> pela linha comercial (n√£o h√° resposta no portal). Ao enviar, acrescenta-se automaticamente <strong>N√ÉO RESPONDER</strong> no fim do texto. Na Vercel configure
-              <code>WHATSAPP_ACCESS_TOKEN</code>, <code>WHATSAPP_PHONE_NUMBER_ID</code> e <code>DK_WHATSAPP_SEND_SECRET</code> (a mesma chave √© injetada no deploy).
+              Envio <strong>one-way</strong> pela linha comercial (n„o h· resposta no portal). Ao enviar, acrescenta-se automaticamente <strong>N??O RESPONDER</strong> no fim do texto. Na Vercel configure
+              <code>WHATSAPP_ACCESS_TOKEN</code>, <code>WHATSAPP_PHONE_NUMBER_ID</code> e <code>DK_WHATSAPP_SEND_SECRET</code> (a mesma chave È injetada no deploy).
             </p>
           </div>
           <div class="portal-whatsapp-actions">
@@ -239,11 +239,11 @@
 
         <div id="operacaoInlineCliente" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-cliente-title">
           <h3 id="operacao-inline-cliente-title" class="operacao-inline-form__title">Dados do cliente</h3>
-          <p class="subtext operacao-inline-form__lead">Preencha abaixo. Em ambiente de teste os dados ficam s√≥ neste navegador (rascunho).</p>
+          <p class="subtext operacao-inline-form__lead">Preencha abaixo. Em ambiente de teste os dados ficam sÛ neste navegador (rascunho).</p>
           <form id="formOperacaoClienteInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
-              <span>C√≥d.</span>
-              <input type="text" id="operacaoClienteCodigo" name="codigo" maxlength="32" readonly placeholder="Autom√°tico" aria-label="C√≥digo">
+              <span>CÛd.</span>
+              <input type="text" id="operacaoClienteCodigo" name="codigo" maxlength="32" readonly placeholder="Autom·tico" aria-label="CÛdigo">
             </label>
             <label class="portal-field">
               <span>Data do Cadastro</span>
@@ -258,7 +258,7 @@
               id="operacaoClienteNomeListaPrefixo"
               class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden"
               role="region"
-              aria-label="Sugest√µes de nome pelo CPF digitado"
+              aria-label="Sugestıes de nome pelo CPF digitado"
             ></div>
             <label class="portal-field">
               <span>NOME</span>
@@ -266,8 +266,8 @@
               <datalist id="operacaoClienteNomeSugestoes"></datalist>
             </label>
             <label class="portal-field">
-              <span>N¬∫ do Celular</span>
-              <input type="tel" id="operacaoClienteCelular" name="celular" inputmode="tel" maxlength="20" placeholder="Celular" aria-label="N√∫mero do celular">
+              <span>N∫ do Celular</span>
+              <input type="tel" id="operacaoClienteCelular" name="celular" inputmode="tel" maxlength="20" placeholder="Celular" aria-label="N˙mero do celular">
             </label>
             <label class="portal-field">
               <span>Recados 01</span>
@@ -278,8 +278,8 @@
               <input type="text" id="operacaoClienteRecado2" name="recado2" maxlength="120" placeholder="Recado" aria-label="Recados 02">
             </label>
             <label class="portal-field">
-              <span>N¬∫ da CNH-e</span>
-              <input type="text" id="operacaoClienteCnh" name="cnh" inputmode="numeric" maxlength="20" placeholder="CNH" aria-label="N√∫mero da CNH-e">
+              <span>N∫ da CNH-e</span>
+              <input type="text" id="operacaoClienteCnh" name="cnh" inputmode="numeric" maxlength="20" placeholder="CNH" aria-label="N˙mero da CNH-e">
             </label>
             <label class="portal-field">
               <span>Categoria</span>
@@ -302,36 +302,36 @@
               <input type="text" id="operacaoClienteCep" name="cep" inputmode="numeric" maxlength="9" autocomplete="postal-code" placeholder="00000-000" aria-label="CEP">
             </label>
             <label class="portal-field">
-              <span>Munic√≠pio/UF</span>
-              <input type="text" id="operacaoClienteMunicipioUf" name="municipioUf" maxlength="60" placeholder="Cidade / UF" aria-label="Munic√≠pio e UF">
+              <span>MunicÌpio/UF</span>
+              <input type="text" id="operacaoClienteMunicipioUf" name="municipioUf" maxlength="60" placeholder="Cidade / UF" aria-label="MunicÌpio e UF">
             </label>
             <label class="portal-field portal-field--wide">
-              <span>Endere√ßo</span>
-              <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endere√ßo">
+              <span>EndereÁo</span>
+              <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="EndereÁo">
             </label>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary hidden" id="operacaoClienteAtualizarBtn">Atualizar dados do cliente</button>
-              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoClienteApagarBtn" title="S√≥ administrador (titular), s√≥ cadastro local e sem hist√≥rico de loca√ß√£o &mdash; o bot√£o fica oculto se existir loca√ß√£o com este cliente">Apagar cliente</button>
+              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoClienteApagarBtn" title="SÛ administrador (titular), sÛ cadastro local e sem histÛrico de locaÁ„o &mdash; o bot„o fica oculto se existir locaÁ„o com este cliente">Apagar cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteVoltarBtn">Voltar</button>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteGerarRelatorioBtn">Gerar relat√≥rio</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteGerarRelatorioBtn">Gerar relatÛrio</button>
             </div>
           </form>
           <p id="operacaoClienteCadastroDetectMsg" class="portal-feedback portal-feedback--cadastro-detect" role="status" aria-live="polite"></p>
           <p id="operacaoClienteInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
-            <button type="button" class="link-like" id="operacaoClienteAbrirSistemaBtn">Abrir painel completo DK (login funcion√°rio)</button>
+            <button type="button" class="link-like" id="operacaoClienteAbrirSistemaBtn">Abrir painel completo DK (login funcion·rio)</button>
           </p>
         </div>
 
         <div id="operacaoInlineVeiculo" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-veiculo-title">
-          <h3 id="operacao-inline-veiculo-title" class="operacao-inline-form__title">Dados do ve√≠culo</h3>
-          <p class="subtext operacao-inline-form__lead">Preencha os 14 campos alinhados √† planilha. Os dados ficam neste navegador e s√£o mesclados em <code>dk_veiculos_cadastro</code> para os relat√≥rios.</p>
+          <h3 id="operacao-inline-veiculo-title" class="operacao-inline-form__title">Dados do veÌculo</h3>
+          <p class="subtext operacao-inline-form__lead">Preencha os 14 campos alinhados ‡ planilha. Os dados ficam neste navegador e s„o mesclados em <code>dk_veiculos_cadastro</code> para os relatÛrios.</p>
           <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Tipo</span>
-              <select id="operacaoVeiculoTipo" name="tipo" required aria-label="Tipo de ve√≠culo">
+              <select id="operacaoVeiculoTipo" name="tipo" required aria-label="Tipo de veÌculo">
                 <option value="">Selecione&hellip;</option>
                 <option value="CARRO">CARRO</option>
                 <option value="MOTO">MOTO</option>
@@ -369,8 +369,8 @@
               <datalist id="operacaoVeiculoPlacaSugestoes"></datalist>
             </label>
             <label class="portal-field">
-              <span>C√≥digo</span>
-              <input type="text" id="operacaoVeiculoCodigo" name="codigo" list="operacaoVeiculoCodigoSugestoes" maxlength="24" placeholder="C√≥digo interno" aria-label="C√≥digo" autocomplete="off" aria-autocomplete="list">
+              <span>CÛdigo</span>
+              <input type="text" id="operacaoVeiculoCodigo" name="codigo" list="operacaoVeiculoCodigoSugestoes" maxlength="24" placeholder="CÛdigo interno" aria-label="CÛdigo" autocomplete="off" aria-autocomplete="list">
               <datalist id="operacaoVeiculoCodigoSugestoes"></datalist>
             </label>
             <label class="portal-field">
@@ -406,30 +406,30 @@
               <input type="text" id="operacaoVeiculoMotor" name="motor" maxlength="32" placeholder="Motor" aria-label="Motor">
             </label>
             <label class="portal-field">
-              <span>Propriet√°rio</span>
-              <input type="text" id="operacaoVeiculoProprietario" name="proprietario" maxlength="120" placeholder="Nome do propriet√°rio" aria-label="Propriet√°rio">
+              <span>Propriet·rio</span>
+              <input type="text" id="operacaoVeiculoProprietario" name="proprietario" maxlength="120" placeholder="Nome do propriet·rio" aria-label="Propriet·rio">
             </label>
             <label class="portal-field portal-field--wide">
               <span>Local</span>
               <input type="text" id="operacaoVeiculoLocal" name="local" maxlength="120" placeholder="Local / garagem / filial" aria-label="Local">
             </label>
             <div class="operacao-inline-form__actions">
-              <button type="submit" class="btn-primary">Guardar ve√≠culo</button>
+              <button type="submit" class="btn-primary">Guardar veÌculo</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoVoltarBtn">Voltar</button>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoGerarRelatorioBtn">Gerar relat√≥rio</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoGerarRelatorioBtn">Gerar relatÛrio</button>
             </div>
           </form>
           <p id="operacaoVeiculoCadastroDetectMsg" class="portal-feedback portal-feedback--cadastro-detect" role="status" aria-live="polite"></p>
           <p id="operacaoVeiculoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
-            <button type="button" class="link-like" id="operacaoVeiculoAbrirSistemaBtn">Abrir painel completo DK (login funcion√°rio)</button>
+            <button type="button" class="link-like" id="operacaoVeiculoAbrirSistemaBtn">Abrir painel completo DK (login funcion·rio)</button>
           </p>
         </div>
 
         <div id="operacaoInlineLocacao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-locacao-title">
-          <h3 id="operacao-inline-locacao-title" class="operacao-inline-form__title">Cadastro de loca√ß√£o</h3>
-          <p class="subtext operacao-inline-form__lead">√â necess√°rio <strong>cliente</strong> e <strong>ve√≠culo</strong> j√° cadastrados neste navegador. Mesmas colunas da folha <strong>Receita 2026</strong>. Ao digitar <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>, aparecem sugest√µes da base &mdash; a lista afina-se enquanto escreve. Placas mostradas s√£o ve√≠culos dispon√≠veis para nova loca√ß√£o (sem contrato ativo). O protocolo s√≥ avan√ßa depois de <strong>Cadastrar loca√ß√£o</strong>.</p>
+          <h3 id="operacao-inline-locacao-title" class="operacao-inline-form__title">Cadastro de locaÁ„o</h3>
+          <p class="subtext operacao-inline-form__lead">?? necess·rio <strong>cliente</strong> e <strong>veÌculo</strong> j· cadastrados neste navegador. Mesmas colunas da folha <strong>Receita 2026</strong>. Ao digitar <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>, aparecem sugestıes da base &mdash; a lista afina-se enquanto escreve. Placas mostradas s„o veÌculos disponÌveis para nova locaÁ„o (sem contrato ativo). O protocolo sÛ avanÁa depois de <strong>Cadastrar locaÁ„o</strong>.</p>
           <form id="formOperacaoLocacaoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>PROTOCOLO</span>
@@ -469,14 +469,14 @@
                   id="operacaoLocacaoPlacaLista"
                   class="portal-placa-dropdown hidden"
                   role="listbox"
-                  aria-label="Placas dispon√≠veis para loca√ß√£o"
+                  aria-label="Placas disponÌveis para locaÁ„o"
                   hidden
                 ></div>
               </div>
             </label>
             <label class="portal-field">
               <span>MODELO</span>
-              <input type="text" id="operacaoLocacaoModelo" name="modelo" maxlength="80" placeholder="Modelo do ve√≠culo" aria-label="MODELO">
+              <input type="text" id="operacaoLocacaoModelo" name="modelo" maxlength="80" placeholder="Modelo do veÌculo" aria-label="MODELO">
             </label>
             <label class="portal-field">
               <span>DATA INICIO</span>
@@ -502,8 +502,8 @@
                 inputmode="none"
                 autocomplete="off"
                 placeholder="0"
-                aria-label="TEMPO EM DIAS DO CONTRATO (data fim menos data in√≠cio; sem data fim, dias desde o in√≠cio at√© hoje)"
-                title="Com data fim: dias corridos entre in√≠cio e fim. Sem data fim: dias desde o in√≠cio at√© hoje."
+                aria-label="TEMPO EM DIAS DO CONTRATO (data fim menos data inÌcio; sem data fim, dias desde o inÌcio atÈ hoje)"
+                title="Com data fim: dias corridos entre inÌcio e fim. Sem data fim: dias desde o inÌcio atÈ hoje."
               >
             </label>
             <label class="portal-field">
@@ -519,7 +519,7 @@
                 autocomplete="off"
                 placeholder="R$ 0,00"
                 aria-label="QUANTO CUSTA O DIA (valor do plano dividido por 7)"
-                title="Calculado: valor do plano √∑ 7, em reais (R$)"
+                title="Calculado: valor do plano ˜ 7, em reais (R$)"
               >
             </label>
             <label class="portal-field">
@@ -542,8 +542,8 @@
                 inputmode="none"
                 autocomplete="off"
                 placeholder="0,00"
-                aria-label="VALOR DO PLANO (soma autom√°tica: loca√ß√£o + investimento)"
-                title="Calculado: valor do aluguel (loca√ß√£o) + valor de investimento"
+                aria-label="VALOR DO PLANO (soma autom·tica: locaÁ„o + investimento)"
+                title="Calculado: valor do aluguel (locaÁ„o) + valor de investimento"
               >
             </label>
             <label class="portal-field">
@@ -559,7 +559,7 @@
                 autocomplete="off"
                 placeholder="R$ 0,00"
                 aria-label="VALOR DEVIDO DO PLANO (tempo em dias &times; custo do dia)"
-                title="Calculado: tempo em dias do contrato &times; quanto custa o dia (valor do plano √∑ 7)"
+                title="Calculado: tempo em dias do contrato &times; quanto custa o dia (valor do plano ˜ 7)"
               >
             </label>
             <label class="portal-field">
@@ -574,8 +574,8 @@
                 inputmode="none"
                 autocomplete="off"
                 placeholder="0,00"
-                aria-label="TOTAL PAGO (soma dos lan√ßamentos de aluguel deste protocolo)"
-                title="Soma de todos os pagamentos registados em ¬´Lan√ßamento de aluguel¬ª para este protocolo."
+                aria-label="TOTAL PAGO (soma dos lanÁamentos de aluguel deste protocolo)"
+                title="Soma de todos os pagamentos registados em ´LanÁamento de aluguelª para este protocolo."
               >
             </label>
             <label class="portal-field">
@@ -590,7 +590,7 @@
                 inputmode="none"
                 autocomplete="off"
                 placeholder="DK MEU TRANSPORTE"
-                aria-label="TIPO DE PLANO (autom√°tico conforme investimento)"
+                aria-label="TIPO DE PLANO (autom·tico conforme investimento)"
                 title="Com valor de investimento: DK MINHA MOTO. Sem investimento: DK MEU TRANSPORTE"
               >
             </label>
@@ -607,7 +607,7 @@
                 autocomplete="off"
                 placeholder="R$ 0,00"
                 aria-label="VALOR DEVIDO DO ALUGUEL (calculado: valor do aluguel &divide; 7 &times; tempo em dias)"
-                title="Calculado automaticamente: (valor do aluguel &divide; 7) &times; tempo em dias do contrato. N√£o edit√°vel."
+                title="Calculado automaticamente: (valor do aluguel &divide; 7) &times; tempo em dias do contrato. N„o edit·vel."
               >
             </label>
             <label class="portal-field">
@@ -638,8 +638,8 @@
                 inputmode="none"
                 autocomplete="off"
                 placeholder="0,00"
-                aria-label="TOTAL PAGO NO ANO DE 2025 (lan√ßamentos com data neste ano)"
-                title="Soma dos lan√ßamentos de aluguel deste protocolo cuja data do pagamento cai em 2025."
+                aria-label="TOTAL PAGO NO ANO DE 2025 (lanÁamentos com data neste ano)"
+                title="Soma dos lanÁamentos de aluguel deste protocolo cuja data do pagamento cai em 2025."
               >
             </label>
             <datalist id="operacaoLocacaoPlacaSugestoes"></datalist>
@@ -647,18 +647,18 @@
             <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
 
             <div class="operacao-inline-form__actions">
-              <button type="submit" class="btn-primary">Cadastrar loca√ß√£o</button>
+              <button type="submit" class="btn-primary">Cadastrar locaÁ„o</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoVoltarBtn">Voltar</button>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoGerarRelatorioBtn">Gerar relat√≥rio</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoGerarRelatorioBtn">Gerar relatÛrio</button>
               <button
                 type="button"
                 class="btn-primary btn-secondary-outline"
                 id="operacaoLocacaoFinalizarBtn"
                 disabled
-                title="Informe a data fim (DD/MM/AAAA) e um protocolo j√° cadastrado."
+                title="Informe a data fim (DD/MM/AAAA) e um protocolo j· cadastrado."
               >
-                Finalizar loca√ß√£o
+                Finalizar locaÁ„o
               </button>
             </div>
           </form>
@@ -666,15 +666,15 @@
             id="operacaoLocacaoRelatorioPanel"
             class="portal-relatorio-locacao hidden"
             role="group"
-            aria-label="Relat√≥rio de loca√ß√µes de motos"
+            aria-label="RelatÛrio de locaÁıes de motos"
           >
-            <p class="portal-relatorio-locacao__title">Escolha o tipo de loca√ß√£o</p>
+            <p class="portal-relatorio-locacao__title">Escolha o tipo de locaÁ„o</p>
             <div class="portal-relatorio-locacao__row">
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoRelAtivasBtn">
-                Loca√ß√µes ativas
+                LocaÁıes ativas
               </button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoRelFinalizadasBtn">
-                Loca√ß√µes finalizadas
+                LocaÁıes finalizadas
               </button>
             </div>
             <div id="operacaoLocacaoRelatorioFormatos" class="portal-relatorio-locacao__row portal-relatorio-locacao__formatos hidden">
@@ -685,17 +685,17 @@
           </div>
           <p id="operacaoLocacaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
-            <button type="button" class="link-like" id="operacaoLocacaoAbrirSistemaBtn">Abrir painel completo DK (login funcion√°rio)</button>
+            <button type="button" class="link-like" id="operacaoLocacaoAbrirSistemaBtn">Abrir painel completo DK (login funcion·rio)</button>
           </p>
         </div>
 
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
-          <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lan√ßamento de aluguel</h3>
-          <p class="subtext operacao-inline-form__lead">Cada pagamento fica guardado no <strong>protocolo</strong> escolhido. Em <strong>Cadastro de loca√ß√£o</strong>, <strong>TOTAL PAGO</strong> mostra a soma de todos os lan√ßamentos desse protocolo; <strong>TOTAL PAGO NO ANO DE 2025</strong> mostra s√≥ os lan√ßamentos cuja <strong>data do pagamento</strong> cai em 2025.</p>
+          <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">LanÁamento de aluguel</h3>
+          <p class="subtext operacao-inline-form__lead">Cada pagamento fica guardado no <strong>protocolo</strong> escolhido. Em <strong>Cadastro de locaÁ„o</strong>, <strong>TOTAL PAGO</strong> mostra a soma de todos os lanÁamentos desse protocolo; <strong>TOTAL PAGO NO ANO DE 2025</strong> mostra sÛ os lanÁamentos cuja <strong>data do pagamento</strong> cai em 2025.</p>
           <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-aluguel-pesquisa-title">
               <h4 id="portal-lanc-aluguel-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>n√∫mero do protocolo</strong> e confirme para carregar os dados do contrato.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>n˙mero do protocolo</strong> e confirme para carregar os dados do contrato.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
@@ -708,11 +708,11 @@
                   <datalist id="operacaoLancAluguelCpfSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
-                  <span>N¬∫ do protocolo</span>
-                  <input type="text" id="operacaoLancAluguelProtocoloBusca" name="protocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026-001" aria-label="N√∫mero do protocolo" list="operacaoLancAluguelProtocoloSugestoes" aria-autocomplete="list">
+                  <span>N∫ do protocolo</span>
+                  <input type="text" id="operacaoLancAluguelProtocoloBusca" name="protocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026-001" aria-label="N˙mero do protocolo" list="operacaoLancAluguelProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancAluguelProtocoloSugestoes"></datalist>
                 </label>
-                <div id="operacaoLancAluguelPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugest√µes filtradas de contrato" hidden></div>
+                <div id="operacaoLancAluguelPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestıes filtradas de contrato" hidden></div>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
                   <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPesquisaBtn">Confirmar pesquisa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparPesquisaBtn">Limpar dados</button>
@@ -720,7 +720,7 @@
               </div>
             </section>
             <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
-              <h4 id="portal-lanc-aluguel-referencia-title" class="portal-lanc-aluguel-section__title">Dados de refer√™ncia e valores devidos</h4>
+              <h4 id="portal-lanc-aluguel-referencia-title" class="portal-lanc-aluguel-section__title">Dados de referÍncia e valores devidos</h4>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
                 <div class="portal-lanc-ref-row-top">
                   <label class="portal-field portal-lanc-ref-proto">
@@ -735,8 +735,8 @@
                   </label>
                 </div>
                 <label class="portal-field">
-                  <span>DATA IN√çCIO</span>
-                  <input type="text" id="operacaoLancAluguelDataInicio" name="dataInicio" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA IN√çCIO">
+                  <span>DATA INÕCIO</span>
+                  <input type="text" id="operacaoLancAluguelDataInicio" name="dataInicio" maxlength="10" readonly tabindex="-1" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA INÕCIO">
                 </label>
                 <label class="portal-field">
                   <span>DATA FIM</span>
@@ -763,8 +763,8 @@
                   <input type="text" id="operacaoLancAluguelValorDevidoMultas" name="valorDevidoMultas" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DE MULTAS">
                 </label>
                 <label class="portal-field">
-                  <span>VALOR DEVIDO DE MANUTEN√á√ÉO</span>
-                  <input type="text" id="operacaoLancAluguelValorDevidoManutencao" name="valorDevidoManutencao" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DE MANUTEN√á√ÉO">
+                  <span>VALOR DEVIDO DE MANUTEN????O</span>
+                  <input type="text" id="operacaoLancAluguelValorDevidoManutencao" name="valorDevidoManutencao" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DE MANUTEN????O">
                 </label>
                 <label class="portal-field portal-lanc-ref-total-pago">
                   <span>TOTAL PAGO (protocolo)</span>
@@ -786,27 +786,27 @@
               </div>
             </section>
             <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" aria-labelledby="portal-lanc-aluguel-pagamento-title" hidden>
-              <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Lan√ßamento do pagamento</h4>
+              <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">LanÁamento do pagamento</h4>
               <div class="operacao-inline-form__grid">
                 <label class="portal-field">
-                  <span>VALOR PAGO (lan√ßamento)</span>
-                  <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="0,00" aria-label="VALOR PAGO (soma esp√©cie + Pix + cart√£o)">
+                  <span>VALOR PAGO (lanÁamento)</span>
+                  <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="0,00" aria-label="VALOR PAGO (soma espÈcie + Pix + cart„o)">
                 </label>
                 <label class="portal-field">
                   <span>DATA DO PAGAMENTO</span>
                   <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
                 </label>
                 <label class="portal-field">
-                  <span>Pagamento em esp√©cie</span>
-                  <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em esp√©cie">
+                  <span>Pagamento em espÈcie</span>
+                  <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em espÈcie">
                 </label>
                 <label class="portal-field">
                   <span>Pagamento em Pix</span>
                   <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em Pix">
                 </label>
                 <label class="portal-field">
-                  <span>Pagamento em cart√£o</span>
-                  <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em cart√£o">
+                  <span>Pagamento em cart„o</span>
+                  <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em cart„o">
                 </label>
                 <div class="operacao-inline-form__actions">
                   <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
@@ -822,14 +822,14 @@
             aria-labelledby="portal-relatorio-pagamentos-titulo"
           >
             <p id="portal-relatorio-pagamentos-titulo" class="portal-relatorio-pagamentos-periodo__title">
-              Relat√≥rio 1 &mdash; Pagamentos por per√≠odo
+              RelatÛrio 1 &mdash; Pagamentos por perÌodo
             </p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
-              Lista todos os lan√ßamentos confirmados cuja <strong>data do pagamento</strong> est√° entre as datas abaixo (inclusive).
+              Lista todos os lanÁamentos confirmados cuja <strong>data do pagamento</strong> est· entre as datas abaixo (inclusive).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field">
-                <span>Data in√≠cio (relat√≥rio)</span>
+                <span>Data inÌcio (relatÛrio)</span>
                 <input
                   type="text"
                   id="portalRelPagamentosInicio"
@@ -837,11 +837,11 @@
                   maxlength="10"
                   autocomplete="off"
                   placeholder="DD/MM/AAAA"
-                  aria-label="Data in√≠cio do per√≠odo do relat√≥rio"
+                  aria-label="Data inÌcio do perÌodo do relatÛrio"
                 >
               </label>
               <label class="portal-field">
-                <span>Data fim (relat√≥rio)</span>
+                <span>Data fim (relatÛrio)</span>
                 <input
                   type="text"
                   id="portalRelPagamentosFim"
@@ -849,13 +849,13 @@
                   maxlength="10"
                   autocomplete="off"
                   placeholder="DD/MM/AAAA"
-                  aria-label="Data fim do per√≠odo do relat√≥rio"
+                  aria-label="Data fim do perÌodo do relatÛrio"
                 >
               </label>
             </div>
             <div class="portal-relatorio-pagamentos-periodo__actions">
               <button type="button" class="btn-primary btn-secondary-outline" id="portalRelPagamentosGerarBtn">
-                Gerar relat√≥rio
+                Gerar relatÛrio
               </button>
             </div>
           </div>
@@ -865,10 +865,10 @@
             aria-labelledby="portal-relatorio-cliente-titulo"
           >
             <p id="portal-relatorio-cliente-titulo" class="portal-relatorio-pagamentos-periodo__title">
-              Relat√≥rio 2 &mdash; Por cliente
+              RelatÛrio 2 &mdash; Por cliente
             </p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
-              Informe o <strong>CPF</strong>. O relat√≥rio agrupa por <strong>protocolo</strong>: em cada um aparecem as datas de pagamento com o valor, seguido do <strong>resumo do protocolo</strong> (custos, totais e tipo de plano).
+              Informe o <strong>CPF</strong>. O relatÛrio agrupa por <strong>protocolo</strong>: em cada um aparecem as datas de pagamento com o valor, seguido do <strong>resumo do protocolo</strong> (custos, totais e tipo de plano).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field">
@@ -880,7 +880,7 @@
                   maxlength="14"
                   autocomplete="off"
                   placeholder="000.000.000-00"
-                  aria-label="CPF para relat√≥rio por cliente"
+                  aria-label="CPF para relatÛrio por cliente"
                   list="portalRelClienteCpfSugestoes"
                   aria-autocomplete="list"
                 >
@@ -889,7 +889,7 @@
             </div>
             <div class="portal-relatorio-pagamentos-periodo__actions">
               <button type="button" class="btn-primary btn-secondary-outline" id="portalRelClienteGerarBtn">
-                Gerar relat√≥rio
+                Gerar relatÛrio
               </button>
             </div>
           </div>
@@ -899,21 +899,21 @@
             aria-labelledby="portal-relatorio-placa-titulo"
           >
             <p id="portal-relatorio-placa-titulo" class="portal-relatorio-pagamentos-periodo__title">
-              Relat√≥rio 3 &mdash; Por placa
+              RelatÛrio 3 &mdash; Por placa
             </p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
-              Informe a <strong>placa do ve√≠culo</strong>. O relat√≥rio agrupa por <strong>protocolo</strong>, como no relat√≥rio por cliente: em cada um aparecem as datas de pagamento com o valor, seguido do <strong>resumo do protocolo</strong>.
+              Informe a <strong>placa do veÌculo</strong>. O relatÛrio agrupa por <strong>protocolo</strong>, como no relatÛrio por cliente: em cada um aparecem as datas de pagamento com o valor, seguido do <strong>resumo do protocolo</strong>.
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field">
-                <span>Placa do ve√≠culo</span>
+                <span>Placa do veÌculo</span>
                 <input
                   type="text"
                   id="portalRelPlaca"
                   maxlength="10"
                   autocomplete="off"
                   placeholder="Ex.: ABC1D23"
-                  aria-label="Placa para relat√≥rio por placa"
+                  aria-label="Placa para relatÛrio por placa"
                   list="portalRelPlacaSugestoes"
                   aria-autocomplete="list"
                 >
@@ -922,28 +922,28 @@
             </div>
             <div class="portal-relatorio-pagamentos-periodo__actions">
               <button type="button" class="btn-primary btn-secondary-outline" id="portalRelPlacaGerarBtn">
-                Gerar relat√≥rio
+                Gerar relatÛrio
               </button>
             </div>
           </div>
-          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Hist√≥rico de pagamentos do protocolo"></div>
+          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="HistÛrico de pagamentos do protocolo"></div>
           <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
-            Colaboradores podem lan√ßar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lan√ßamento j√° registado na tabela abaixo.
+            Colaboradores podem lanÁar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lanÁamento j· registado na tabela abaixo.
           </p>
           <p id="operacaoLancAluguelInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
-            <button type="button" class="link-like" id="operacaoLancAluguelAbrirSistemaBtn">Abrir painel completo DK (login funcion√°rio)</button>
+            <button type="button" class="link-like" id="operacaoLancAluguelAbrirSistemaBtn">Abrir painel completo DK (login funcion·rio)</button>
           </p>
         </div>
 
         
         <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
-          <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lan√ßamento de multas</h3>
-          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de tr√¢nsito</strong> do cliente no protocolo. As parcelas s√£o a cada <strong>7 dias</strong>; a <strong>data da √∫ltima parcela</strong> √© calculada automaticamente.</p>
+          <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">LanÁamento de multas</h3>
+          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de tr‚nsito</strong> do cliente no protocolo. As parcelas s„o a cada <strong>7 dias</strong>; a <strong>data da ˙ltima parcela</strong> È calculada automaticamente.</p>
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> &mdash; as sugest√µes cruzam-se. Com qualquer um conclu√≠do, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> &mdash; as sugestıes cruzam-se. Com qualquer um concluÌdo, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
@@ -956,7 +956,7 @@
                   <datalist id="operacaoLancMultasCpfSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
-                  <span>N¬∫ do protocolo</span>
+                  <span>N∫ do protocolo</span>
                   <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancMultasProtocoloSugestoes"></datalist>
                 </label>
@@ -985,14 +985,14 @@
                     <input type="text" id="operacaoLancMultasPlaca" readonly tabindex="-1">
                   </label>
                 </div>
-                <label class="portal-field"><span>DATA IN√çCIO</span><input type="text" id="operacaoLancMultasDataInicio" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>DATA INÕCIO</span><input type="text" id="operacaoLancMultasDataInicio" readonly tabindex="-1"></label>
                 <label class="portal-field"><span>DATA FIM</span><input type="text" id="operacaoLancMultasDataFim" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>TOTAL EM MULTAS (protocolo)</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1" title="Soma do valor das multas de tr√¢nsito registadas"></label>
+                <label class="portal-field"><span>TOTAL EM MULTAS (protocolo)</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1" title="Soma do valor das multas de tr‚nsito registadas"></label>
               </div>
             </section>
             <section id="operacaoLancMultasLancamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden aria-labelledby="portal-lanc-multas-lancamento-title">
-              <h4 id="portal-lanc-multas-lancamento-title" class="portal-lanc-aluguel-section__title">Dados da multa de tr√¢nsito</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Intervalo entre parcelas: <strong>7 dias</strong>. √öltima parcela = 1.¬™ parcela + (quantidade &mdash; 1) &times; 7 dias.</p>
+              <h4 id="portal-lanc-multas-lancamento-title" class="portal-lanc-aluguel-section__title">Dados da multa de tr‚nsito</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Intervalo entre parcelas: <strong>7 dias</strong>. ??ltima parcela = 1.™ parcela + (quantidade &mdash; 1) &times; 7 dias.</p>
               <div class="operacao-inline-form__grid">
                 <label class="portal-field">
                   <span>DATA DA MULTA</span>
@@ -1000,10 +1000,10 @@
                 </label>
                 <label class="portal-field">
                   <span>COD. DA MULTA</span>
-                  <input type="text" id="operacaoLancMultasCodMulta" maxlength="40" autocomplete="off" placeholder="C√≥digo da autua√ß√£o" required>
+                  <input type="text" id="operacaoLancMultasCodMulta" maxlength="40" autocomplete="off" placeholder="CÛdigo da autuaÁ„o" required>
                 </label>
                 <label class="portal-field portal-field--wide">
-                  <span>DESCRI√á√ÉO DA MULTA</span>
+                  <span>DESCRI????O DA MULTA</span>
                   <input type="text" id="operacaoLancMultasDescricao" maxlength="200" autocomplete="off" placeholder="Ex.: excesso de velocidade" required>
                 </label>
                 <label class="portal-field">
@@ -1030,34 +1030,34 @@
                   <input type="text" id="operacaoLancMultasDataPrimeiraParcela" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
                 </label>
                 <label class="portal-field">
-                  <span>DATA DA √öLTIMA PARCELA</span>
-                  <input type="text" id="operacaoLancMultasDataUltimaParcela" readonly tabindex="-1" placeholder="Calculada automaticamente" title="Calculada: 1.¬™ parcela + (N&minus;1)&times;7 dias">
+                  <span>DATA DA ??LTIMA PARCELA</span>
+                  <input type="text" id="operacaoLancMultasDataUltimaParcela" readonly tabindex="-1" placeholder="Calculada automaticamente" title="Calculada: 1.™ parcela + (N&minus;1)&times;7 dias">
                 </label>
                 <div class="portal-field portal-field--wide">
                   <p id="operacaoLancMultasCronogramaPreview" class="subtext portal-multas-cronograma-preview" role="status"></p>
                 </div>
                 <div class="operacao-inline-form__actions">
                   <button type="button" class="btn-primary" id="operacaoLancMultasCadastrarBtn">Cadastrar multa</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparLancamentoBtn">Limpar formul√°rio</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparLancamentoBtn">Limpar formul·rio</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasVoltarBtn">Voltar</button>
                 </div>
               </div>
             </section>
           </form>
-          <div id="operacaoLancMultasHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Hist√≥rico de multas do protocolo"></div>
+          <div id="operacaoLancMultasHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="HistÛrico de multas do protocolo"></div>
           <div id="operacaoLancMultasRelatorioActions" class="operacao-inline-form__actions portal-multas-relatorio-actions hidden" hidden>
-            <button type="button" class="btn-primary" id="operacaoLancMultasGerarRelatorioBtn">Relat√≥rio de multas (imprimir / PDF)</button>
+            <button type="button" class="btn-primary" id="operacaoLancMultasGerarRelatorioBtn">RelatÛrio de multas (imprimir / PDF)</button>
           </div>
           <p id="operacaoLancMultasInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
 
         <div id="operacaoInlineLancamentoManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-manutencao-title">
-          <h3 id="operacao-inline-lanc-manutencao-title" class="operacao-inline-form__title">Lan√ßamento de manuten√ß√£o</h3>
-          <p class="subtext operacao-inline-form__lead">Registe pagamentos de <strong>manuten√ß√£o</strong> no protocolo. O <strong>total pago em manuten√ß√£o</strong> √© a soma dos lan√ßamentos confirmados neste ecr√£.</p>
+          <h3 id="operacao-inline-lanc-manutencao-title" class="operacao-inline-form__title">LanÁamento de manutenÁ„o</h3>
+          <p class="subtext operacao-inline-form__lead">Registe pagamentos de <strong>manutenÁ„o</strong> no protocolo. O <strong>total pago em manutenÁ„o</strong> È a soma dos lanÁamentos confirmados neste ecr„.</p>
           <form id="formOperacaoLancamentoManutencaoInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-manutencao-pesquisa-title">
               <h4 id="portal-lanc-manutencao-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
-              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> &mdash; as sugest√µes cruzam-se. Com qualquer um conclu√≠do, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
+              <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong> &mdash; as sugestıes cruzam-se. Com qualquer um concluÌdo, aparecem os protocolos <strong>ativos e inativos</strong>.</p>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
                 <label class="portal-field portal-field--wide">
                   <span>Nome do cliente</span>
@@ -1070,7 +1070,7 @@
                   <datalist id="operacaoLancManutencaoCpfSugestoes"></datalist>
                 </label>
                 <label class="portal-field">
-                  <span>N¬∫ do protocolo</span>
+                  <span>N∫ do protocolo</span>
                   <input type="text" id="operacaoLancManutencaoProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancManutencaoProtocoloSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancManutencaoProtocoloSugestoes"></datalist>
                 </label>
@@ -1086,7 +1086,7 @@
                 </div>
               </div>
             </section>
-            <section id="operacaoLancManutencaoReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
+                        <section id="operacaoLancManutencaoReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
               <h4 class="portal-lanc-aluguel-section__title">Dados do protocolo</h4>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
                 <div class="portal-lanc-ref-row-top">
@@ -1099,37 +1099,70 @@
                     <input type="text" id="operacaoLancManutencaoPlaca" readonly tabindex="-1">
                   </label>
                 </div>
-                <label class="portal-field"><span>DATA IN√çCIO</span><input type="text" id="operacaoLancManutencaoDataInicio" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>DATA IN&Iacute;CIO</span><input type="text" id="operacaoLancManutencaoDataInicio" readonly tabindex="-1"></label>
                 <label class="portal-field"><span>DATA FIM</span><input type="text" id="operacaoLancManutencaoDataFim" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>VALOR DEVIDO DE MANUTEN√á√ÉO</span><input type="text" id="operacaoLancManutencaoValorDevido" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>TOTAL PAGO EM MANUTEN√á√ÉO</span><input type="text" id="operacaoLancManutencaoTotalPago" readonly tabindex="-1"></label>
+                <label class="portal-field"><span>TOTAL EM MANUTEN&Ccedil;&Atilde;O (protocolo)</span><input type="text" id="operacaoLancManutencaoValorDevido" readonly tabindex="-1" title="Soma das manuten&ccedil;&otilde;es registadas"></label>
               </div>
             </section>
-            <section id="operacaoLancManutencaoPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden>
-              <h4 class="portal-lanc-aluguel-section__title">Lan√ßamento do pagamento</h4>
+            <section id="operacaoLancManutencaoLancamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden aria-labelledby="portal-lanc-manutencao-lancamento-title">
+              <h4 id="portal-lanc-manutencao-lancamento-title" class="portal-lanc-aluguel-section__title">Dados da manuten&ccedil;&atilde;o</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Intervalo entre parcelas: <strong>7 dias</strong>. &Uacute;ltima parcela = 1.&ordf; parcela + (quantidade &minus; 1) &times; 7 dias.</p>
               <div class="operacao-inline-form__grid">
-                <label class="portal-field"><span>VALOR PAGO</span><input type="text" id="operacaoLancManutencaoValorPago" readonly tabindex="-1"></label>
-                <label class="portal-field"><span>DATA DO PAGAMENTO</span><input type="text" id="operacaoLancManutencaoDataPagamento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"></label>
-                <label class="portal-field"><span>Pagamento em esp√©cie</span><input type="text" id="operacaoLancManutencaoValorEspecie" inputmode="decimal" placeholder="0,00"></label>
-                <label class="portal-field"><span>Pagamento em Pix</span><input type="text" id="operacaoLancManutencaoValorPix" inputmode="decimal" placeholder="0,00"></label>
-                <label class="portal-field"><span>Pagamento em cart√£o</span><input type="text" id="operacaoLancManutencaoValorCartao" inputmode="decimal" placeholder="0,00"></label>
+                <label class="portal-field">
+                  <span>DATA DA MANUTEN&Ccedil;&Atilde;O</span>
+                  <input type="text" id="operacaoLancManutencaoDataManutencao" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
+                </label>
+                <label class="portal-field">
+                  <span>COD. DA MANUTEN&Ccedil;&Atilde;O</span>
+                  <input type="text" id="operacaoLancManutencaoCodManutencao" maxlength="40" autocomplete="off" placeholder="C&oacute;digo do servi&ccedil;o" required>
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>DESCRI&Ccedil;&Atilde;O DA MANUTEN&Ccedil;&Atilde;O</span>
+                  <input type="text" id="operacaoLancManutencaoDescricao" maxlength="200" autocomplete="off" placeholder="Ex.: troca de &oacute;leo" required>
+                </label>
+                <label class="portal-field">
+                  <span>VALOR DA MANUTEN&Ccedil;&Atilde;O</span>
+                  <input type="text" id="operacaoLancManutencaoValorManutencao" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+                </label>
+                <label class="portal-field">
+                  <span>QUANTIDADE DE PARCELAS</span>
+                  <select id="operacaoLancManutencaoQtdParcelas" aria-label="Quantidade de parcelas de 1 a 10">
+                    <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option>
+                    <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+                    <option value="9">9</option><option value="10">10</option>
+                  </select>
+                </label>
+                <label class="portal-field">
+                  <span>DATA DA PRIMEIRA PARCELA</span>
+                  <input type="text" id="operacaoLancManutencaoDataPrimeiraParcela" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" required>
+                </label>
+                <label class="portal-field">
+                  <span>DATA DA &Uacute;LTIMA PARCELA</span>
+                  <input type="text" id="operacaoLancManutencaoDataUltimaParcela" readonly tabindex="-1" placeholder="Calculada automaticamente">
+                </label>
+                <div class="portal-field portal-field--wide">
+                  <p id="operacaoLancManutencaoCronogramaPreview" class="subtext portal-multas-cronograma-preview" role="status"></p>
+                </div>
                 <div class="operacao-inline-form__actions">
-                  <button type="button" class="btn-primary" id="operacaoLancManutencaoConfirmarPagamentoBtn">Confirmar pagamento</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparBtn">Limpar</button>
+                  <button type="button" class="btn-primary" id="operacaoLancManutencaoCadastrarBtn">Cadastrar manuten&ccedil;&atilde;o</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparLancamentoBtn">Limpar formul&aacute;rio</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoVoltarBtn">Voltar</button>
                 </div>
               </div>
             </section>
-          </form>
-          <div id="operacaoLancManutencaoHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Hist√≥rico de manuten√ß√£o do protocolo"></div>
+          
+          id="operacaoLancManutencaoRelatorioActions" class="operacao-inline-form__actions portal-multas-relatorio-actions hidden" hidden>
+            <button type="button" class="btn-primary" id="operacaoLancManutencaoGerarRelatorioBtn">Relat&oacute;rio de manuten&ccedil;&otilde;es (imprimir / PDF)</button>
+          </div>
+          <div id="operacaoLancManutencaoHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="HistÛrico de manutenÁ„o do protocolo"></div>
           <p id="operacaoLancManutencaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
 
 <div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
           <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
           <p class="subtext operacao-inline-form__lead">
-            Vis√≠vel apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 n√∫meros).
-            Marque quais opera√ß√µes este utilizador poder√° aceder.
+            VisÌvel apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 n˙meros).
+            Marque quais operaÁıes este utilizador poder· aceder.
           </p>
           <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
@@ -1141,26 +1174,26 @@
               <input type="text" id="portalColabNome" maxlength="120" required autocomplete="name" aria-label="Nome do colaborador">
             </label>
             <label class="portal-field">
-              <span>Fun√ß√£o</span>
-              <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="Fun√ß√£o">
+              <span>FunÁ„o</span>
+              <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="FunÁ„o">
             </label>
             <label class="portal-field">
               <span>Data de ingresso</span>
               <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
             </label>
             <div class="portal-field portal-field--stack portal-colab-acessos" role="group" aria-labelledby="portal-colab-acessos-legend">
-              <span id="portal-colab-acessos-legend" class="portal-field__label">Opera√ß√µes permitidas</span>
+              <span id="portal-colab-acessos-legend" class="portal-field__label">OperaÁıes permitidas</span>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceCliente" checked> Cadastro de cliente</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceVeiculo" checked> Cadastro de ve√≠culo</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de loca√ß√£o</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lan√ßamento de aluguel</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lan√ßamento de multas</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lan√ßamento de manuten√ß√£o</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceVeiculo" checked> Cadastro de veÌculo</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locaÁ„o</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> LanÁamento de aluguel</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> LanÁamento de multas</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> LanÁamento de manutenÁ„o</label>
             </div>
             <div class="operacao-inline-form__actions portal-colab-actions-row">
               <div class="portal-colab-primary-actions">
                 <button type="submit" id="portalColabBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
-                <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary btn-secondary-outline hidden">Salvar altera√ß√µes</button>
+                <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary btn-secondary-outline hidden">Salvar alteraÁıes</button>
               </div>
               <div id="portalColabBloqueioWrap" class="portal-colab-bloqueio-wrap hidden" aria-live="polite">
                 <button type="button" id="portalColabBloqueioBtn" class="btn-primary btn-secondary-outline portal-colab-bloqueio-btn">
@@ -1181,37 +1214,37 @@
       </section>
 
       <section id="panel-manutencao-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Manuten√ß√£o</h2>
+        <h2 class="portal-panel__title">ManutenÁ„o</h2>
         <div class="portal-operacao-layout">
-          <aside class="portal-operacao-layout__sidebar" aria-label="√Åreas de manuten√ß√£o">
-            <p class="subpage__lead">Gest√£o da frota por estado.</p>
-            <p class="subtext">Escolha uma categoria √† esquerda; o detalhe aparece √† direita.</p>
+          <aside class="portal-operacao-layout__sidebar" aria-label="¡reas de manutenÁ„o">
+            <p class="subpage__lead">Gest„o da frota por estado.</p>
+            <p class="subtext">Escolha uma categoria ‡ esquerda; o detalhe aparece ‡ direita.</p>
             <div class="operacao-comandos">
               <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-operacao" aria-expanded="false" aria-controls="manutencaoInlineEmOperacao">
-                <span class="btn-operacao-cmd__title">Ve√≠culos em opera√ß√£o</span>
-                <span class="btn-operacao-cmd__hint">Em uso ou com loca√ß√£o ativa</span>
+                <span class="btn-operacao-cmd__title">VeÌculos em operaÁ„o</span>
+                <span class="btn-operacao-cmd__hint">Em uso ou com locaÁ„o ativa</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-manutencao" aria-expanded="false" aria-controls="manutencaoInlineEmManutencao">
-                <span class="btn-operacao-cmd__title">Ve√≠culos em manuten√ß√£o</span>
-                <span class="btn-operacao-cmd__hint">Oficina ou indispon√≠veis</span>
+                <span class="btn-operacao-cmd__title">VeÌculos em manutenÁ„o</span>
+                <span class="btn-operacao-cmd__hint">Oficina ou indisponÌveis</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-manutencao-reserva" aria-expanded="false" aria-controls="manutencaoInlineReserva">
-                <span class="btn-operacao-cmd__title">Ve√≠culos reserva</span>
+                <span class="btn-operacao-cmd__title">VeÌculos reserva</span>
                 <span class="btn-operacao-cmd__hint">Reserva da frota</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-manutencao-operacionais" aria-expanded="false" aria-controls="manutencaoInlineOperacionais">
-                <span class="btn-operacao-cmd__title">Ve√≠culos operacionais</span>
-                <span class="btn-operacao-cmd__hint">Prontos para opera√ß√£o</span>
+                <span class="btn-operacao-cmd__title">VeÌculos operacionais</span>
+                <span class="btn-operacao-cmd__hint">Prontos para operaÁ„o</span>
               </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main" id="manutencaoPainelDireito">
             <div id="manutencaoFormPlaceholder" class="operacao-form-placeholder" role="status">
-              <p class="operacao-form-placeholder__text">Escolha uma √°rea √† esquerda.</p>
+              <p class="operacao-form-placeholder__text">Escolha uma ·rea ‡ esquerda.</p>
             </div>
             <div id="manutencaoInlineEmOperacao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-operacao">
-              <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Ve√≠culos em opera√ß√£o</h3>
-              <p class="subtext operacao-inline-form__lead">Check-list de manuten√ß√£o / repara√ß√µes para ve√≠culos em opera√ß√£o (tablet).</p>
+              <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">VeÌculos em operaÁ„o</h3>
+              <p class="subtext operacao-inline-form__lead">Check-list de manutenÁ„o / reparaÁıes para veÌculos em operaÁ„o (tablet).</p>
               <div class="portal-checklist-toolbar portal-checklist-no-print">
                 <button type="button" class="btn-primary" id="btnPortalChecklistAbrir">Check-list</button>
               </div>
@@ -1236,14 +1269,14 @@
                       id="portalChecklistPlacaLista"
                       class="portal-placa-dropdown hidden"
                       role="listbox"
-                      aria-label="Placas em opera√ß√£o (loca√ß√£o ativa)"
+                      aria-label="Placas em operaÁ„o (locaÁ„o ativa)"
                       hidden
                     ></div>
                   </div>
                 </label>
                 <div class="portal-checklist-placa-actions-row">
                   <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn">Carregar dados</button>
-                  <div id="portalChecklistFotosGrid" class="portal-checklist-fotos-grid hidden" role="group" aria-label="Fotos do ve√≠culo (ap√≥s carregar dados)">
+                  <div id="portalChecklistFotosGrid" class="portal-checklist-fotos-grid hidden" role="group" aria-label="Fotos do veÌculo (apÛs carregar dados)">
                     <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnDireita">Foto direita</button>
                     <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnFrente">Foto frente</button>
                     <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnEsquerda">Foto esquerda</button>
@@ -1258,8 +1291,8 @@
               <div id="portalChecklistMount" class="portal-checklist-mount hidden" aria-live="polite"></div>
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
-              <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Ve√≠culos em manuten√ß√£o</h3>
-              <p class="subtext operacao-inline-form__lead">Ve√≠culos inoperantes com manuten√ß√£o aberta (sem data de sa√≠da no cadastro).</p>
+              <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">VeÌculos em manutenÁ„o</h3>
+              <p class="subtext operacao-inline-form__lead">VeÌculos inoperantes com manutenÁ„o aberta (sem data de saÌda no cadastro).</p>
               <div class="portal-manutencao-busca">
                 <label class="portal-field portal-manutencao-busca__field">
                   <span>Filtrar por placa</span>
@@ -1279,14 +1312,14 @@
               <p id="portalManutencaoListaMsg" class="portal-feedback" role="status"></p>
             </div>
             <div id="manutencaoInlineReserva" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-reserva">
-              <h3 id="manutencao-title-reserva" class="operacao-inline-form__title">Ve√≠culos reserva</h3>
-              <p class="subtext operacao-inline-form__lead">√Årea para ve√≠culos de reserva.</p>
-              <p class="portal-feedback" role="status">Conte√∫do em prepara√ß√£o &mdash; ser√° ligado aos dados da frota.</p>
+              <h3 id="manutencao-title-reserva" class="operacao-inline-form__title">VeÌculos reserva</h3>
+              <p class="subtext operacao-inline-form__lead">¡rea para veÌculos de reserva.</p>
+              <p class="portal-feedback" role="status">Conte˙do em preparaÁ„o &mdash; ser· ligado aos dados da frota.</p>
             </div>
             <div id="manutencaoInlineOperacionais" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-operacionais">
-              <h3 id="manutencao-title-operacionais" class="operacao-inline-form__title">Ve√≠culos operacionais</h3>
-              <p class="subtext operacao-inline-form__lead">√Årea para frota considerada operacional.</p>
-              <p class="portal-feedback" role="status">Conte√∫do em prepara√ß√£o &mdash; ser√° ligado aos dados da frota.</p>
+              <h3 id="manutencao-title-operacionais" class="operacao-inline-form__title">VeÌculos operacionais</h3>
+              <p class="subtext operacao-inline-form__lead">¡rea para frota considerada operacional.</p>
+              <p class="portal-feedback" role="status">Conte˙do em preparaÁ„o &mdash; ser· ligado aos dados da frota.</p>
             </div>
           </div>
         </div>
@@ -1324,13 +1357,13 @@
 
   <div id="portalRelatorioPdfViewer" class="portal-pdf-viewer hidden" aria-hidden="true">
     <div class="portal-pdf-viewer__toolbar">
-      <span class="portal-pdf-viewer__hint">Pr√©-visualiza√ß√£o do relat√≥rio &mdash; use o bot√£o para imprimir ou guardar como PDF.</span>
+      <span class="portal-pdf-viewer__hint">PrÈ-visualizaÁ„o do relatÛrio &mdash; use o bot„o para imprimir ou guardar como PDF.</span>
       <div class="portal-pdf-viewer__toolbar-btns">
         <button type="button" class="btn-primary" id="portalPdfImprimirBtn">Imprimir ou guardar PDF</button>
-        <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfFecharViewerBtn">Fechar relat√≥rio</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfFecharViewerBtn">Fechar relatÛrio</button>
       </div>
     </div>
-    <iframe id="portalPdfIframe" class="portal-pdf-viewer__iframe" title="Relat√≥rio"></iframe>
+    <iframe id="portalPdfIframe" class="portal-pdf-viewer__iframe" title="RelatÛrio"></iframe>
   </div>
 
   <div id="portalLancAluguelConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelConfirmTitulo">
@@ -1349,7 +1382,7 @@
   <div id="portalMultasRelatorioModal" class="portal-modal portal-multas-relatorio-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMultasRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-multas-relatorio></div>
     <div class="portal-modal__card portal-multas-relatorio-modal__card">
-      <h3 id="portalMultasRelatorioTitulo" class="portal-modal__title">Relat√≥rio de multas</h3>
+      <h3 id="portalMultasRelatorioTitulo" class="portal-modal__title">RelatÛrio de multas</h3>
       <div id="portalMultasRelatorioPrintRoot" class="portal-multas-relatorio-print-root"></div>
       <div class="portal-modal__actions">
         <button type="button" class="btn-primary" id="portalMultasRelatorioPrintBtn">Imprimir / Guardar PDF</button>
@@ -1382,27 +1415,27 @@
   <div id="portalRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-relatorio></div>
     <div class="portal-modal__card">
-      <h3 id="portalRelatorioTitulo" class="portal-modal__title">Relat√≥rio</h3>
+      <h3 id="portalRelatorioTitulo" class="portal-modal__title">RelatÛrio</h3>
       <p id="portalRelatorioResumo" class="portal-modal__text subtext"></p>
-      <p id="portalRelatorioFonteData" class="subtext">O conte√∫do depende do relat√≥rio: clientes (lista unificada com bundles + <code>dk_clientes_cadastro</code>), ve√≠culos, loca√ß√µes ou pagamentos por per√≠odo &mdash; sempre a partir dos dados neste navegador.</p>
+      <p id="portalRelatorioFonteData" class="subtext">O conte˙do depende do relatÛrio: clientes (lista unificada com bundles + <code>dk_clientes_cadastro</code>), veÌculos, locaÁıes ou pagamentos por perÌodo &mdash; sempre a partir dos dados neste navegador.</p>
       <div class="portal-modal__actions">
-        <button type="button" class="btn-primary" id="portalRelatorioPdfBtn">Relat√≥rio PDF</button>
-        <button type="button" class="btn-primary" id="portalRelatorioExcelBtn">Relat√≥rio Excel (CSV)</button>
+        <button type="button" class="btn-primary" id="portalRelatorioPdfBtn">RelatÛrio PDF</button>
+        <button type="button" class="btn-primary" id="portalRelatorioExcelBtn">RelatÛrio Excel (CSV)</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="portalRelatorioFecharBtn">Fechar</button>
       </div>
     </div>
   </div>
 
-  <!-- Bundles na mesma pasta: funcionam com servidor s√≥ em grupodkempreendimentos (ex.: npx serve .). Ap√≥s regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
+  <!-- Bundles na mesma pasta: funcionam com servidor sÛ em grupodkempreendimentos (ex.: npx serve .). ApÛs regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="clientes-dk-financeiro-2026.js"></script>
   <script src="clientes-extra-sync.js"></script>
   <script src="veiculos-dk-financeiro-2026.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260518veiculo-tag-auto" defer></script>
-  <script src="portal-locadora-ui.js?v=20260519investimento-acumulado" defer></script>
-  <script src="portal-multas-relatorio.js?v=20260518multas-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260518multas-relatorio" defer></script>
+  <script src="portal-locadora-ui.js?v=20260520manutencao-parcelado" defer></script>
+  <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260520manutencao-parcelado" defer></script>
   <script src="portal-supabase-sync.js?v=9" defer></script>
 </body>
 </html>

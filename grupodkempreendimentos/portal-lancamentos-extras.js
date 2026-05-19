@@ -10,22 +10,129 @@
       panelId: "operacaoInlineLancamentoMultas",
       prefix: "operacaoLancMultas",
       arrayField: "portalMultasTransito",
+      modoParcelado: true,
+      parceladoTipo: "multa",
       multasTransito: true,
       detalhePanelSuffix: "LancamentoPanel",
+      relatorioActionsElId: "operacaoLancMultasRelatorioActions",
+      relatorioBtnElId: "operacaoLancMultasGerarRelatorioBtn",
+      openRelatorioFn: "__DK_openRelatorioMultas",
     },
     {
       key: "lancamentoManutencao",
       btnId: "btn-operacao-lancamento-manutencao",
       panelId: "operacaoInlineLancamentoManutencao",
       prefix: "operacaoLancManutencao",
-      arrayField: "portalLancamentosManutencao",
-      tituloPagamento: "manutenção",
+      arrayField: "portalManutencoesRegistro",
+      modoParcelado: true,
+      parceladoTipo: "manutencao",
+      detalhePanelSuffix: "LancamentoPanel",
       devidoResumoKey: "valorDevidoManutencao",
+      devidoLocField: "valorDevidoManutencao",
+      relatorioActionsElId: "operacaoLancManutencaoRelatorioActions",
+      relatorioBtnElId: "operacaoLancManutencaoGerarRelatorioBtn",
+      openRelatorioFn: "__DK_openRelatorioManutencao",
     },
   ];
 
+  const PARCELADO_STORE = {
+    multa: { data: "dataMulta", cod: "codMulta", valor: "valorMulta" },
+    manutencao: { data: "dataManutencao", cod: "codManutencao", valor: "valorManutencao" },
+  };
+
+  const PARCELADO_FIELDS = {
+    multa: {
+      data: "DataMulta",
+      cod: "CodMulta",
+      descricao: "Descricao",
+      valor: "ValorMulta",
+      qtd: "QtdParcelas",
+      primeira: "DataPrimeiraParcela",
+      ultima: "DataUltimaParcela",
+      preview: "CronogramaPreview",
+    },
+    manutencao: {
+      data: "DataManutencao",
+      cod: "CodManutencao",
+      descricao: "Descricao",
+      valor: "ValorManutencao",
+      qtd: "QtdParcelas",
+      primeira: "DataPrimeiraParcela",
+      ultima: "DataUltimaParcela",
+      preview: "CronogramaPreview",
+    },
+  };
+
   const state = new Map();
   const MULTAS_INTERVALO_DIAS = 7;
+
+  function isParcelado(cfg) {
+    return Boolean(cfg?.modoParcelado || cfg?.multasTransito);
+  }
+
+  function parceladoTipo(cfg) {
+    return cfg?.parceladoTipo || "multa";
+  }
+
+  function pStore(cfg) {
+    return PARCELADO_STORE[parceladoTipo(cfg)] || PARCELADO_STORE.multa;
+  }
+
+  function pField(cfg) {
+    return PARCELADO_FIELDS[parceladoTipo(cfg)] || PARCELADO_FIELDS.multa;
+  }
+
+  function pLabels(cfg) {
+    const t = parceladoTipo(cfg);
+    if (t === "manutencao") {
+      return {
+        registro: "manutenção",
+        registros: "manutenções",
+        tituloSecao: "Dados da manutenção",
+        data: "DATA DA MANUTENÇÃO",
+        cod: "COD. DA MANUTENÇÃO",
+        descricao: "DESCRIÇÃO DA MANUTENÇÃO",
+        valor: "VALOR DA MANUTENÇÃO",
+        totalProtocolo: "TOTAL EM MANUTENÇÃO (protocolo)",
+        cadastrar: "Cadastrar manutenção",
+        cadastrarConfirm: "manutenção",
+        historicoVazio: "Nenhuma manutenção registada neste protocolo.",
+        historicoTitulo: "Manutenções registadas",
+        colData: "Data manut.",
+        apagar: "Apagar esta manutenção?",
+        removido: "Manutenção removida.",
+        registado: "Manutenção registada.",
+        relatorioVazio: "Não há manutenções registadas para gerar o relatório.",
+        codObrigatorio: "Informe o código da manutenção.",
+        descObrigatoria: "Informe a descrição da manutenção.",
+        valorObrigatorio: "Informe o valor da manutenção.",
+        dataObrigatoria: "Informe a data da manutenção (DD/MM/AAAA).",
+      };
+    }
+    return {
+      registro: "multa",
+      registros: "multas",
+      tituloSecao: "Dados da multa de trânsito",
+      data: "DATA DA MULTA",
+      cod: "COD. DA MULTA",
+      descricao: "DESCRIÇÃO DA MULTA",
+      valor: "VALOR DA MULTA",
+      totalProtocolo: "TOTAL EM MULTAS (protocolo)",
+      cadastrar: "Cadastrar multa",
+      cadastrarConfirm: "multa",
+      historicoVazio: "Nenhuma multa de trânsito registada neste protocolo.",
+      historicoTitulo: "Multas de trânsito registadas",
+      colData: "Data multa",
+      apagar: "Apagar esta multa de trânsito?",
+      removido: "Multa removida.",
+      registado: "Multa registada.",
+      relatorioVazio: "Não há multas registadas para gerar o relatório.",
+      codObrigatorio: "Informe o código da multa.",
+      descObrigatoria: "Informe a descrição da multa.",
+      valorObrigatorio: "Informe o valor da multa.",
+      dataObrigatoria: "Informe a data da multa (DD/MM/AAAA).",
+    };
+  }
 
   function dig(s) {
     return typeof onlyDigits === "function" ? onlyDigits(s) : String(s ?? "").replace(/\D/g, "");
@@ -189,32 +296,32 @@
     return parcelas;
   }
 
-  function normalizeMultaTransito(x) {
+  function normalizeRegistroParcelado(cfg, x) {
     if (!x || typeof x !== "object") return null;
-    const dataMulta = String(x.dataMulta || "").trim();
-    const codMulta = String(x.codMulta || "").trim();
+    const sk = pStore(cfg);
+    const dataReg = String(x[sk.data] || x.dataMulta || x.dataManutencao || "").trim();
+    const codReg = String(x[sk.cod] || x.codMulta || x.codManutencao || "").trim();
     const descricao = String(x.descricao || "").trim();
     const dataPrimeiraParcela = String(x.dataPrimeiraParcela || "").trim();
     const dataUltimaParcela = String(x.dataUltimaParcela || "").trim();
-    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataMulta)) return null;
-    if (!codMulta) return null;
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataReg)) return null;
+    if (!codReg) return null;
     if (!descricao) return null;
     if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dataPrimeiraParcela)) return null;
-    let valorMulta =
-      typeof x.valorMulta === "number" && Number.isFinite(x.valorMulta) ? x.valorMulta : parseVal(x.valorMulta);
-    if (!Number.isFinite(valorMulta) || valorMulta <= 0) return null;
+    let valorReg =
+      typeof x[sk.valor] === "number" && Number.isFinite(x[sk.valor])
+        ? x[sk.valor]
+        : parseVal(x[sk.valor] ?? x.valorMulta ?? x.valorManutencao);
+    if (!Number.isFinite(valorReg) || valorReg <= 0) return null;
     const quantidadeParcelas = clampParcelas(x.quantidadeParcelas);
     const ultima =
       /^\d{2}\/\d{2}\/\d{4}$/.test(dataUltimaParcela) ?
         dataUltimaParcela
       : calcDataUltimaParcela(dataPrimeiraParcela, quantidadeParcelas);
     let parcelas = Array.isArray(x.parcelas) ? x.parcelas : [];
-    if (!parcelas.length) parcelas = buildCronogramaParcelas(dataPrimeiraParcela, quantidadeParcelas, valorMulta);
-    return {
-      dataMulta,
-      codMulta,
+    if (!parcelas.length) parcelas = buildCronogramaParcelas(dataPrimeiraParcela, quantidadeParcelas, valorReg);
+    const row = {
       descricao,
-      valorMulta,
       quantidadeParcelas,
       dataPrimeiraParcela,
       dataUltimaParcela: ultima,
@@ -227,17 +334,30 @@
       registradoPorCpf: dig(x.registradoPorCpf).slice(0, 11),
       registradoPorNome: String(x.registradoPorNome || "").trim(),
     };
+    row[sk.data] = dataReg;
+    row[sk.cod] = codReg;
+    row[sk.valor] = valorReg;
+    return row;
+  }
+
+  function getRegistrosParcelados(loc, cfg) {
+    const arr = Array.isArray(loc?.[cfg.arrayField]) ? loc[cfg.arrayField] : [];
+    return arr.map((x) => normalizeRegistroParcelado(cfg, x)).filter(Boolean);
+  }
+
+  function sumRegistrosParcelados(cfg, arr) {
+    const sk = pStore(cfg);
+    let s = 0;
+    for (const x of arr || []) s += Number(x[sk.valor] || 0);
+    return s;
   }
 
   function getMultasTransito(loc) {
-    const arr = Array.isArray(loc?.portalMultasTransito) ? loc.portalMultasTransito : [];
-    return arr.map(normalizeMultaTransito).filter(Boolean);
+    return getRegistrosParcelados(loc, TIPOS[0]);
   }
 
   function sumMultasTransito(arr) {
-    let s = 0;
-    for (const x of arr || []) s += Number(x.valorMulta || 0);
-    return s;
+    return sumRegistrosParcelados(TIPOS[0], arr);
   }
 
   function getCurrentLocForCfg(cfg) {
@@ -247,25 +367,26 @@
     return collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc) || null;
   }
 
-  function syncMultasParcelasUI(cfg) {
-    const qtd = clampParcelas($(cfg, "QtdParcelas")?.value || 1);
-    const dataMulta = String($(cfg, "DataMulta")?.value || "").trim();
+  function syncParcelasUI(cfg) {
+    const f = pField(cfg);
+    const qtd = clampParcelas($(cfg, f.qtd)?.value || 1);
+    const dataReg = String($(cfg, f.data)?.value || "").trim();
     const loc = getCurrentLocForCfg(cfg);
     if (
       loc &&
-      /^\d{2}\/\d{2}\/\d{4}$/.test(dataMulta) &&
+      /^\d{2}\/\d{2}\/\d{4}$/.test(dataReg) &&
       typeof window.__DK_primeiraParcelaMultaAposMulta === "function"
     ) {
       const dia =
         typeof window.__DK_normDiaPagamentoMultas === "function"
           ? window.__DK_normDiaPagamentoMultas(loc.diaPagamento || loc.diaPagto)
           : "";
-      const auto = window.__DK_primeiraParcelaMultaAposMulta(dataMulta, dia || "SEG");
-      if (auto && $(cfg, "DataPrimeiraParcela")) $(cfg, "DataPrimeiraParcela").value = auto;
+      const auto = window.__DK_primeiraParcelaMultaAposMulta(dataReg, dia || "SEG");
+      if (auto && $(cfg, f.primeira)) $(cfg, f.primeira).value = auto;
     }
-    const primeira = String($(cfg, "DataPrimeiraParcela")?.value || "").trim();
-    const ultimaInp = $(cfg, "DataUltimaParcela");
-    const preview = $(cfg, "CronogramaPreview");
+    const primeira = String($(cfg, f.primeira)?.value || "").trim();
+    const ultimaInp = $(cfg, f.ultima);
+    const preview = $(cfg, f.preview);
     if (ultimaInp) {
       ultimaInp.value =
         primeira && /^\d{2}\/\d{2}\/\d{4}$/.test(primeira) ? calcDataUltimaParcela(primeira, qtd) : "";
@@ -275,7 +396,7 @@
       preview.textContent = "";
       return;
     }
-    const valor = parseVal($(cfg, "ValorMulta")?.value);
+    const valor = parseVal($(cfg, f.valor)?.value);
     const parcelas = buildCronogramaParcelas(primeira, qtd, valor > 0 ? valor : 0);
     const linhas = parcelas.map((p) => {
       const v = valor > 0 ? fmtBrlNum(p.valor) : "—";
@@ -284,22 +405,23 @@
     preview.textContent = linhas.length ? `Cronograma: ${linhas.join(" · ")}` : "";
   }
 
-  function clearMultasLancamentoForm(cfg) {
-    ["DataMulta", "CodMulta", "Descricao", "ValorMulta", "DataPrimeiraParcela", "DataUltimaParcela"].forEach((s) => {
+  function clearParceladoLancamentoForm(cfg) {
+    const f = pField(cfg);
+    [f.data, f.cod, f.descricao, f.valor, f.primeira, f.ultima].forEach((s) => {
       const el = $(cfg, s);
       if (el) el.value = "";
     });
-    const sel = $(cfg, "QtdParcelas");
+    const sel = $(cfg, f.qtd);
     if (sel) sel.value = "1";
-    syncMultasParcelasUI(cfg);
+    syncParcelasUI(cfg);
   }
 
-  function updateMultasRelatorioActions(cfg, loc) {
-    if (!cfg.multasTransito) return;
-    const wrap = document.getElementById("operacaoLancMultasRelatorioActions");
+  function updateRelatorioParceladoActions(cfg, loc) {
+    if (!isParcelado(cfg)) return;
+    const wrap = document.getElementById(cfg.relatorioActionsElId);
     if (!wrap) return;
-    const multas = loc ? getMultasTransito(loc) : [];
-    if (multas.length) {
+    const regs = loc ? getRegistrosParcelados(loc, cfg) : [];
+    if (regs.length) {
       wrap.classList.remove("hidden");
       wrap.removeAttribute("hidden");
     } else {
@@ -318,7 +440,7 @@
       hist.classList.add("hidden");
       hist.replaceChildren();
     }
-    if (cfg.multasTransito) updateMultasRelatorioActions(cfg, null);
+    if (isParcelado(cfg)) updateRelatorioParceladoActions(cfg, null);
   }
 
   function showDetalhe(cfg) {
@@ -355,12 +477,12 @@
     if ($(cfg, "Placa")) $(cfg, "Placa").value = placa || "—";
     if ($(cfg, "DataInicio")) $(cfg, "DataInicio").value = fmtDateLoc(loc.inicio);
     if ($(cfg, "DataFim")) $(cfg, "DataFim").value = fmtDateLoc(loc.fim);
-    if (cfg.multasTransito) {
-      const multas = getMultasTransito(loc);
-      if ($(cfg, "ValorDevido")) $(cfg, "ValorDevido").value = fmtBrlNum(sumMultasTransito(multas));
-      clearMultasLancamentoForm(cfg);
+    if (isParcelado(cfg)) {
+      const regs = getRegistrosParcelados(loc, cfg);
+      if ($(cfg, "ValorDevido")) $(cfg, "ValorDevido").value = fmtBrlNum(sumRegistrosParcelados(cfg, regs));
+      clearParceladoLancamentoForm(cfg);
       renderHistorico(cfg, loc);
-      updateMultasRelatorioActions(cfg, loc);
+      updateRelatorioParceladoActions(cfg, loc);
       return;
     }
     const resumo =
@@ -389,28 +511,30 @@
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;");
-    if (cfg.multasTransito) {
-      const arr = getMultasTransito(loc);
+    if (isParcelado(cfg)) {
+      const sk = pStore(cfg);
+      const lbl = pLabels(cfg);
+      const arr = getRegistrosParcelados(loc, cfg);
       if (!arr.length) {
         wrap.classList.remove("hidden");
-        wrap.innerHTML = "<p class=\"subtext\">Nenhuma multa de trânsito registada neste protocolo.</p>";
+        wrap.innerHTML = `<p class="subtext">${esc(lbl.historicoVazio)}</p>`;
         return;
       }
       wrap.classList.remove("hidden");
       const thead = owner
-        ? "<thead><tr><th>Data multa</th><th>Cód.</th><th>Descrição</th><th>Valor</th><th>Parcelas</th><th>1.ª / última</th><th>Ações</th></tr></thead>"
-        : "<thead><tr><th>Data multa</th><th>Cód.</th><th>Descrição</th><th>Valor</th><th>Parcelas</th><th>1.ª / última</th></tr></thead>";
+        ? `<thead><tr><th>${lbl.colData}</th><th>Cód.</th><th>Descrição</th><th>Valor</th><th>Parcelas</th><th>1.ª / última</th><th>Ações</th></tr></thead>`
+        : `<thead><tr><th>${lbl.colData}</th><th>Cód.</th><th>Descrição</th><th>Valor</th><th>Parcelas</th><th>1.ª / última</th></tr></thead>`;
       const rows = arr
         .map((x, i) => {
-          const v = fmtBrlNum(x.valorMulta);
+          const v = fmtBrlNum(x[sk.valor]);
           const parc = `${x.quantidadeParcelas}× · ${esc(x.dataPrimeiraParcela)} → ${esc(x.dataUltimaParcela)}`;
           if (owner) {
-            return `<tr><td>${esc(x.dataMulta)}</td><td>${esc(x.codMulta)}</td><td>${esc(x.descricao)}</td><td>${v}</td><td>${x.quantidadeParcelas}</td><td>${parc}</td><td><button type="button" class="btn-primary btn-secondary-outline" data-lanc-extra-del="${cfg.key}" data-idx="${i}">Apagar</button></td></tr>`;
+            return `<tr><td>${esc(x[sk.data])}</td><td>${esc(x[sk.cod])}</td><td>${esc(x.descricao)}</td><td>${v}</td><td>${x.quantidadeParcelas}</td><td>${parc}</td><td><button type="button" class="btn-primary btn-secondary-outline" data-lanc-extra-del="${cfg.key}" data-idx="${i}">Apagar</button></td></tr>`;
           }
-          return `<tr><td>${esc(x.dataMulta)}</td><td>${esc(x.codMulta)}</td><td>${esc(x.descricao)}</td><td>${v}</td><td>${x.quantidadeParcelas}</td><td>${parc}</td></tr>`;
+          return `<tr><td>${esc(x[sk.data])}</td><td>${esc(x[sk.cod])}</td><td>${esc(x.descricao)}</td><td>${v}</td><td>${x.quantidadeParcelas}</td><td>${parc}</td></tr>`;
         })
         .join("");
-      wrap.innerHTML = `<p class="subtext"><strong>Multas de trânsito registadas</strong></p><table class="portal-lanc-hist portal-lanc-hist--multas">${thead}<tbody>${rows}</tbody></table>`;
+      wrap.innerHTML = `<p class="subtext"><strong>${esc(lbl.historicoTitulo)}</strong></p><table class="portal-lanc-hist portal-lanc-hist--multas">${thead}<tbody>${rows}</tbody></table>`;
       return;
     }
     const arr = getLancamentos(loc, cfg.arrayField);
@@ -518,11 +642,15 @@
   }
 
   function persistLancamentos(cfg, locs, loc, cpfDigits, nc) {
-    if (cfg.multasTransito) {
-      const normArr = getMultasTransito(loc);
+    if (isParcelado(cfg)) {
+      const normArr = getRegistrosParcelados(loc, cfg);
       loc[cfg.arrayField] = normArr.map((x) => ({ ...x }));
-      const total = sumMultasTransito(normArr);
-      loc.valorDevidoMultas = fmtBrlNum(total);
+      const total = sumRegistrosParcelados(cfg, normArr);
+      if (cfg.devidoLocField === "valorDevidoManutencao") {
+        loc.valorDevidoManutencao = fmtBrlNum(total);
+      } else {
+        loc.valorDevidoMultas = fmtBrlNum(total);
+      }
     } else {
       const normArr = getLancamentos(loc, cfg.arrayField);
       loc[cfg.arrayField] = normArr.map((x) => ({ ...x }));
@@ -943,7 +1071,7 @@
       }
       const msg = $(cfg, "InlineMsg");
       if (msg) msg.textContent = "";
-      if (cfg.multasTransito) clearMultasLancamentoForm(cfg);
+      if (isParcelado(cfg)) clearParceladoLancamentoForm(cfg);
       refreshPesquisaAvancada(cfg);
     });
 
@@ -1003,31 +1131,38 @@
       if (loc) applyLocToForm(cfg, loc);
     });
 
-    if (cfg.multasTransito) {
-      ["QtdParcelas", "DataPrimeiraParcela", "ValorMulta", "DataMulta"].forEach((s) => {
-        $(cfg, s)?.addEventListener("input", () => syncMultasParcelasUI(cfg));
-        $(cfg, s)?.addEventListener("change", () => syncMultasParcelasUI(cfg));
-        $(cfg, s)?.addEventListener("blur", () => syncMultasParcelasUI(cfg));
+    if (isParcelado(cfg)) {
+      const f = pField(cfg);
+      const lbl = pLabels(cfg);
+      const sk = pStore(cfg);
+      [f.qtd, f.primeira, f.valor, f.data].forEach((s) => {
+        $(cfg, s)?.addEventListener("input", () => syncParcelasUI(cfg));
+        $(cfg, s)?.addEventListener("change", () => syncParcelasUI(cfg));
+        $(cfg, s)?.addEventListener("blur", () => syncParcelasUI(cfg));
       });
 
-      document.getElementById("operacaoLancMultasGerarRelatorioBtn")?.addEventListener("click", (e) => {
+      document.getElementById(cfg.relatorioBtnElId)?.addEventListener("click", (e) => {
         e.preventDefault();
         const msg = $(cfg, "InlineMsg");
         const digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
         const nc = normNc($(cfg, "ProtocoloSelect")?.value);
         const loc = getCurrentLocForCfg(cfg);
         if (!loc || digits.length !== 11 || !nc) {
-          if (msg) msg.textContent = "Confirme a pesquisa e selecione um protocolo com multas.";
+          if (msg) msg.textContent = `Confirme a pesquisa e selecione um protocolo com ${lbl.registros}.`;
           return;
         }
-        const multas = getMultasTransito(loc);
-        if (!multas.length) {
-          if (msg) msg.textContent = "Não há multas registadas para gerar o relatório.";
+        const regs = getRegistrosParcelados(loc, cfg);
+        if (!regs.length) {
+          if (msg) msg.textContent = lbl.relatorioVazio;
           return;
         }
         if (msg) msg.textContent = "";
-        if (typeof window.__DK_openRelatorioMultas === "function") {
-          window.__DK_openRelatorioMultas({ loc, multas, protocolo: nc });
+        const fn = window[cfg.openRelatorioFn];
+        if (typeof fn === "function") {
+          const payload = { loc, protocolo: nc };
+          if (parceladoTipo(cfg) === "manutencao") payload.manutencoes = regs;
+          else payload.multas = regs;
+          fn(payload);
         }
       });
 
@@ -1042,30 +1177,30 @@
         }
         const digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
         const nc = normNc($(cfg, "ProtocoloSelect")?.value);
-        const dataMulta = String($(cfg, "DataMulta")?.value || "").trim();
-        const codMulta = String($(cfg, "CodMulta")?.value || "").trim();
-        const descricao = String($(cfg, "Descricao")?.value || "").trim();
-        const valorMulta = parseVal($(cfg, "ValorMulta")?.value);
-        const quantidadeParcelas = clampParcelas($(cfg, "QtdParcelas")?.value);
-        const dataPrimeiraParcela = String($(cfg, "DataPrimeiraParcela")?.value || "").trim();
+        const dataReg = String($(cfg, f.data)?.value || "").trim();
+        const codReg = String($(cfg, f.cod)?.value || "").trim();
+        const descricao = String($(cfg, f.descricao)?.value || "").trim();
+        const valorReg = parseVal($(cfg, f.valor)?.value);
+        const quantidadeParcelas = clampParcelas($(cfg, f.qtd)?.value);
+        const dataPrimeiraParcela = String($(cfg, f.primeira)?.value || "").trim();
         if (digits.length !== 11 || !nc) {
           if (msg) msg.textContent = "Informe CPF e protocolo.";
           return;
         }
-        if (!parseBrDateLocal(dataMulta)) {
-          if (msg) msg.textContent = "Informe a data da multa (DD/MM/AAAA).";
+        if (!parseBrDateLocal(dataReg)) {
+          if (msg) msg.textContent = lbl.dataObrigatoria;
           return;
         }
-        if (!codMulta) {
-          if (msg) msg.textContent = "Informe o código da multa.";
+        if (!codReg) {
+          if (msg) msg.textContent = lbl.codObrigatorio;
           return;
         }
         if (!descricao) {
-          if (msg) msg.textContent = "Informe a descrição da multa.";
+          if (msg) msg.textContent = lbl.descObrigatoria;
           return;
         }
-        if (valorMulta <= 0) {
-          if (msg) msg.textContent = "Informe o valor da multa.";
+        if (valorReg <= 0) {
+          if (msg) msg.textContent = lbl.valorObrigatorio;
           return;
         }
         if (!parseBrDateLocal(dataPrimeiraParcela)) {
@@ -1078,32 +1213,32 @@
             ? window.__DK_normDiaPagamentoMultas(locAtual.diaPagamento || locAtual.diaPagto)
             : "";
         let dataPrimeiraFinal = dataPrimeiraParcela;
-        let parcelas = buildCronogramaParcelas(dataPrimeiraFinal, quantidadeParcelas, valorMulta);
+        let parcelas = buildCronogramaParcelas(dataPrimeiraFinal, quantidadeParcelas, valorReg);
         if (typeof window.__DK_buildCronogramaMultaRelatorio === "function") {
-          const cron = window.__DK_buildCronogramaMultaRelatorio(
-            { dataMulta, valorMulta, quantidadeParcelas, dataPrimeiraParcela },
-            diaPag || "SEG"
-          );
+          const cronInput = { quantidadeParcelas, dataPrimeiraParcela, valorMulta: valorReg, dataMulta: dataReg };
+          cronInput[sk.data] = dataReg;
+          cronInput[sk.valor] = valorReg;
+          const cron = window.__DK_buildCronogramaMultaRelatorio(cronInput, diaPag || "SEG");
           dataPrimeiraFinal = cron.primeira;
           parcelas = cron.parcelas;
         }
         const dataUltimaParcela =
           parcelas.length ? parcelas[parcelas.length - 1].data : calcDataUltimaParcela(dataPrimeiraFinal, quantidadeParcelas);
         const entry = {
-          dataMulta,
-          codMulta,
           descricao,
-          valorMulta,
           quantidadeParcelas,
           dataPrimeiraParcela: dataPrimeiraFinal,
           dataUltimaParcela,
           parcelas,
         };
-        const texto = `Cadastrar multa ${codMulta} (${descricao}) no valor de ${fmtBrlNum(valorMulta)} em ${quantidadeParcelas} parcela(s) (protocolo ${nc})?`;
+        entry[sk.data] = dataReg;
+        entry[sk.cod] = codReg;
+        entry[sk.valor] = valorReg;
+        const texto = `Cadastrar ${lbl.registro} ${codReg} (${descricao}) no valor de ${fmtBrlNum(valorReg)} em ${quantidadeParcelas} parcela(s) (protocolo ${nc})?`;
         const go = () => {
           const ok = persistMultaTransito(cfg, digits, nc, entry);
           if (ok) {
-            if (msg) msg.textContent = "Multa registada.";
+            if (msg) msg.textContent = lbl.registado;
             const loc = collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
             if (loc) applyLocToForm(cfg, loc);
           } else if (msg) msg.textContent = "Não foi possível guardar.";
@@ -1115,16 +1250,16 @@
 
       $(cfg, "LimparLancamentoBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
-        clearMultasLancamentoForm(cfg);
+        clearParceladoLancamentoForm(cfg);
       });
-    } else {
+    } else if (!isParcelado(cfg)) {
       ["ValorEspecie", "ValorPix", "ValorCartao"].forEach((s) => {
         $(cfg, s)?.addEventListener("input", () => syncValorPagoFromMeios(cfg));
         $(cfg, s)?.addEventListener("blur", () => syncValorPagoFromMeios(cfg));
       });
     }
 
-    if (cfg.multasTransito) {
+    if (isParcelado(cfg)) {
       $(cfg, "VoltarBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
         if (typeof window.__DK_hideOperacaoInlineForms === "function") window.__DK_hideOperacaoInlineForms();
@@ -1132,7 +1267,7 @@
     }
 
     $(cfg, "ConfirmarPagamentoBtn")?.addEventListener("click", (e) => {
-      if (cfg.multasTransito) return;
+      if (isParcelado(cfg)) return;
       e.preventDefault();
       const msg = $(cfg, "InlineMsg");
       const admin =
@@ -1180,7 +1315,7 @@
       } else if (window.confirm(texto)) go();
     });
 
-    if (!cfg.multasTransito) {
+    if (!isParcelado(cfg)) {
       $(cfg, "LimparBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
         ["ValorEspecie", "ValorPix", "ValorCartao", "ValorPago", "DataPagamento"].forEach((s) => {
@@ -1206,16 +1341,16 @@
       const li = locs.findIndex((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
       if (li < 0) return;
       const loc = locs[li];
-      const arr = cfg.multasTransito ? getMultasTransito(loc) : getLancamentos(loc, cfg.arrayField);
+      const arr = isParcelado(cfg) ? getRegistrosParcelados(loc, cfg) : getLancamentos(loc, cfg.arrayField);
       if (idx < 0 || idx >= arr.length) return;
-      const confirmTxt = cfg.multasTransito ? "Apagar esta multa de trânsito?" : "Apagar este pagamento?";
+      const confirmTxt = isParcelado(cfg) ? pLabels(cfg).apagar : "Apagar este pagamento?";
       if (!window.confirm(confirmTxt)) return;
       arr.splice(idx, 1);
       loc[cfg.arrayField] = arr.map((x) => ({ ...x }));
       if (persistLancamentos(cfg, locs, loc, digits, nc)) {
         applyLocToForm(cfg, loc);
         const msg = $(cfg, "InlineMsg");
-        if (msg) msg.textContent = cfg.multasTransito ? "Multa removida." : "Pagamento removido.";
+        if (msg) msg.textContent = isParcelado(cfg) ? pLabels(cfg).removido : "Pagamento removido.";
       }
     });
   }
