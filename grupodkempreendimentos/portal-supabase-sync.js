@@ -18,6 +18,9 @@
     "dk_clientes_cadastro",
     "dk_clientes_validacao_pendente",
     "dk_veiculos_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
     "dk_locacoes_cadastro",
     "dk_locacoes_quadro_geral",
     "dk_manutencoes_cadastro",
@@ -108,7 +111,10 @@
 
   const DK_IMMUTABLE_CADASTRO_KEYS = new Set([
     "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
     "dk_veiculos_cadastro",
+    "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
     "dk_locacoes_cadastro",
   ]);
 

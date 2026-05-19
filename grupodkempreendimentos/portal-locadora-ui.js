@@ -1892,6 +1892,10 @@ ${printable.innerHTML}
   /** Cliente reconhecido no portal: cadastro local, bundle do site ou seed. */
   function getPortalClienteKnownRecord(cpfDigits) {
     if (!cpfDigits || cpfDigits.length !== 11) return null;
+    if (typeof findPortalClienteByCpf === "function") {
+      const portal = findPortalClienteByCpf(cpfDigits);
+      if (portal) return portal;
+    }
     if (typeof findClienteByCpfCadastro === "function") {
       const local = findClienteByCpfCadastro(cpfDigits);
       if (local) return local;
@@ -1957,6 +1961,9 @@ ${printable.innerHTML}
 
     function getClienteByCpfAny(cpfDigits) {
       if (!cpfDigits) return null;
+      const portalOnly =
+        typeof findPortalClienteByCpf === "function" ? findPortalClienteByCpf(cpfDigits) : null;
+      if (portalOnly) return portalMergeClienteCadastroWithBundled(portalOnly, cpfDigits);
       const local = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpfDigits) : null;
       if (local) return portalMergeClienteCadastroWithBundled(local, cpfDigits);
       const bundled = getPortalBundledClienteByCpf(cpfDigits);
@@ -2267,7 +2274,12 @@ ${printable.innerHTML}
       if (digits.length !== 11) return;
       const known = getClienteByCpfAny(digits);
       if (known) {
-        const localOnly = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+        const localOnly =
+          typeof findPortalClienteByCpf === "function"
+            ? findPortalClienteByCpf(digits)
+            : typeof findClienteByCpfCadastro === "function"
+              ? findClienteByCpfCadastro(digits)
+              : null;
         const dataLock =
           portalClienteDataLabelPreferido(known, digits, getPrimeiraLocacaoDateLabelByCpf) ||
           String(inpDataCadastro?.value || "").trim() ||
@@ -2298,6 +2310,8 @@ ${printable.innerHTML}
       const novo = {
         id: Date.now(),
         createdAt: Date.now(),
+        updatedAt: Date.now(),
+        origemPortal: true,
         codigo: nextCode,
         dataCadastro,
         cpf: digits,
@@ -2313,15 +2327,25 @@ ${printable.innerHTML}
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
       };
-      const clientes = loadCadastro(CAD_CLIENTES_KEY);
-      clientes.push(novo);
-      try {
-        saveCadastro(CAD_CLIENTES_KEY, clientes);
-      } catch (err) {
-        clientes.pop();
-        if (msg) msg.textContent = `Não foi possível guardar no navegador: ${err && err.message ? err.message : err}.`;
-        console.error(err);
-        return;
+      if (typeof upsertPortalClienteByCpf === "function") {
+        try {
+          upsertPortalClienteByCpf(novo, "ATIVO");
+        } catch (err) {
+          if (msg) msg.textContent = `Não foi possível guardar no navegador: ${err && err.message ? err.message : err}.`;
+          console.error(err);
+          return;
+        }
+      } else {
+        const clientes = loadCadastro(CAD_CLIENTES_KEY);
+        clientes.push(novo);
+        try {
+          saveCadastro(CAD_CLIENTES_KEY, clientes);
+        } catch (err) {
+          clientes.pop();
+          if (msg) msg.textContent = `Não foi possível guardar no navegador: ${err && err.message ? err.message : err}.`;
+          console.error(err);
+          return;
+        }
       }
       portalPushCloudSnapshotAfterPersist();
       const codigoEl = document.getElementById("operacaoClienteCodigo");
@@ -2372,7 +2396,12 @@ ${printable.innerHTML}
         ? dataVal
         : portalClienteDataLabelPreferido(fonte, digits, getPrimeiraLocacaoDateLabelByCpf) || "08/05/2026";
       const canonCode = getPortalCanonicalClienteCodeByCpf(digits) || String(fonte.codigo || "").trim();
-      const existenteLocal = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+      const existenteLocal =
+        typeof findPortalClienteByCpf === "function"
+          ? findPortalClienteByCpf(digits)
+          : typeof findClienteByCpfCadastro === "function"
+            ? findClienteByCpfCadastro(digits)
+            : null;
       const payload = {
         id: existenteLocal?.id ?? Date.now(),
         createdAt: existenteLocal?.createdAt ?? Date.now(),
@@ -2391,8 +2420,11 @@ ${printable.innerHTML}
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
       };
-      if (typeof upsertClienteCadastroByCpf === "function") {
-        upsertClienteCadastroByCpf(payload, existenteLocal?.status || fonte.status || "ATIVO");
+      const payloadPortal = { ...payload, origemPortal: true, updatedAt: Date.now() };
+      if (typeof upsertPortalClienteByCpf === "function") {
+        upsertPortalClienteByCpf(payloadPortal, existenteLocal?.status || fonte.status || "ATIVO");
+      } else if (typeof upsertClienteCadastroByCpf === "function") {
+        upsertClienteCadastroByCpf(payloadPortal, existenteLocal?.status || fonte.status || "ATIVO");
       } else {
         const clientes = loadCadastro(CAD_CLIENTES_KEY);
         const idx = clientes.findIndex((c) => {
@@ -2557,8 +2589,10 @@ ${printable.innerHTML}
         byPlate.set(placa, { placa, modelo, tag, marca, record: v });
       }
     };
-    if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
-      loadCadastro(CAD_VEICULOS_KEY).forEach(add);
+    if (typeof loadPortalVeiculosCadastro === "function") {
+      loadPortalVeiculosCadastro().forEach(add);
+    } else if (typeof loadCadastro === "function" && typeof PORTAL_VEICULOS_KEY !== "undefined") {
+      loadCadastro(PORTAL_VEICULOS_KEY).forEach(add);
     }
     portalVeiculoPlacasCache = Array.from(byPlate.values()).sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
     const dl = document.getElementById("operacaoVeiculoPlacaSugestoes");
@@ -3396,51 +3430,26 @@ ${printable.innerHTML}
   function portalLoadVeiculosFrotaCadastro() {
     if (
       typeof window.__DK_invalidateCadastroParseCache === "function" &&
-      typeof CAD_VEICULOS_KEY !== "undefined"
+      typeof PORTAL_VEICULOS_KEY !== "undefined"
     ) {
-      window.__DK_invalidateCadastroParseCache(CAD_VEICULOS_KEY);
+      window.__DK_invalidateCadastroParseCache(PORTAL_VEICULOS_KEY);
     }
-    let veiculos = [];
+    if (typeof loadPortalVeiculosCadastro === "function") return loadPortalVeiculosCadastro();
+    if (typeof loadCadastro === "function" && typeof PORTAL_VEICULOS_KEY !== "undefined") {
+      return loadCadastro(PORTAL_VEICULOS_KEY);
+    }
+    return [];
+  }
+
+  function portalLoadFrotaPlanilhaVeiculos() {
+    if (typeof loadFrotaVeiculosPlanilha === "function") return loadFrotaVeiculosPlanilha();
+    if (typeof window.__DK_loadFrotaVeiculosPlanilha === "function") {
+      return window.__DK_loadFrotaVeiculosPlanilha();
+    }
     if (typeof window.__DK_ensureVeiculosCadastroPopulated === "function") {
-      veiculos = window.__DK_ensureVeiculosCadastroPopulated();
-    } else if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
-      if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
-      if (typeof bootstrapVeiculosFromFinanceiro2026 === "function") {
-        bootstrapVeiculosFromFinanceiro2026();
-      }
-      veiculos = loadCadastro(CAD_VEICULOS_KEY);
+      return window.__DK_ensureVeiculosCadastroPopulated();
     }
-    const plateNorm = (p) =>
-      typeof normalizePlate === "function"
-        ? normalizePlate(p)
-        : String(p || "")
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "");
-    const seen = new Set();
-    veiculos.forEach((v) => {
-      const pl = plateNorm(v.placa);
-      if (pl) seen.add(pl);
-    });
-    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
-      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
-        const pl = plateNorm(l.placa);
-        if (!pl || seen.has(pl)) return;
-        seen.add(pl);
-        veiculos.push({
-          id: Date.now() + veiculos.length,
-          createdAt: Date.now(),
-          origemPortal: true,
-          tipo: String(l.tipo || "").trim() || "MOTO",
-          tag: "—",
-          placa: pl,
-          modelo: String(l.modelo || l.modeloVeiculo || "").trim() || "—",
-          marca: "—",
-          cor: "—",
-          anoModelo: "—",
-        });
-      });
-    }
-    return veiculos;
+    return [];
   }
 
   function portalBundledFinanceiroPlateSet() {
@@ -3475,13 +3484,8 @@ ${printable.innerHTML}
   }
 
   function portalSplitVeiculosPortalVsFrota(list) {
-    const bundled = portalBundledFinanceiroPlateSet();
-    const portal = [];
-    const frota = [];
-    (list || []).forEach((v) => {
-      if (portalVeiculoEhCadastroPortal(v, bundled)) portal.push(v);
-      else frota.push(v);
-    });
+    const portal = Array.isArray(list) ? [...list] : portalLoadVeiculosFrotaCadastro();
+    const frota = portalLoadFrotaPlanilhaVeiculos();
     return { portal, frota };
   }
 
@@ -4750,6 +4754,13 @@ ${printable.innerHTML}
   }
 
   function portalPushCloudSnapshotAfterPersist() {
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      try {
+        window.__DK_markLocalDataAuthority();
+      } catch {
+        /* ignore */
+      }
+    }
     if (typeof window.__DK_pushToCloudAfterSave === "function") {
       window.__DK_pushToCloudAfterSave();
       return;
@@ -5586,7 +5597,12 @@ ${printable.innerHTML}
     const anoModelo = getVal("operacaoVeiculoAnoModelo");
     const renavam = getVal("operacaoVeiculoRenavam");
     const motor = getVal("operacaoVeiculoMotor");
-    const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+    const veiculos =
+      typeof loadPortalVeiculosCadastro === "function"
+        ? loadPortalVeiculosCadastro()
+        : typeof PORTAL_VEICULOS_KEY !== "undefined"
+          ? loadCadastro(PORTAL_VEICULOS_KEY)
+          : [];
     if (typeof hasEquipamentoDuplicado === "function" && hasEquipamentoDuplicado(veiculos, plate, chassi, renavam, motor)) {
       if (msg) msg.textContent = "Placa, chassi, renavam ou motor já cadastrado.";
       return;
@@ -5626,11 +5642,17 @@ ${printable.innerHTML}
       local: getVal("operacaoVeiculoLocal"),
       status: "DISPONIVEL",
     };
-    veiculos.push(novo);
     try {
-      saveCadastro(CAD_VEICULOS_KEY, veiculos);
+      if (typeof upsertPortalVeiculoByPlaca === "function") {
+        upsertPortalVeiculoByPlaca(novo);
+      } else if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
+        veiculos.push(novo);
+        saveCadastro(PORTAL_VEICULOS_KEY, veiculos);
+      } else {
+        veiculos.push(novo);
+        saveCadastro(CAD_VEICULOS_KEY, veiculos);
+      }
     } catch (err) {
-      veiculos.pop();
       if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
       console.error(err);
       return;
@@ -5754,7 +5776,24 @@ ${printable.innerHTML}
     const tempoN = tempoStr === "" ? 0 : Math.max(0, Number.parseInt(tempoStr, 10) || 0);
     const periodoLocacao = tempoN ? `${tempoN} dia(s)` : "";
     const marcaModelo = String(document.getElementById("operacaoLocacaoModelo")?.value || "").trim();
-    const modalidade = portalInferTipoVeiculoLocacao({ placa: plate, modalidade: "" });
+    const clientes =
+      typeof loadPortalClientesCadastro === "function"
+        ? loadPortalClientesCadastro()
+        : typeof loadCadastro === "function" && typeof PORTAL_CLIENTES_KEY !== "undefined"
+          ? loadCadastro(PORTAL_CLIENTES_KEY)
+          : [];
+    const cliente = clientes.find((c) => dig(String(c.cpf || "")) === cpfDigits);
+    const nomeCliente =
+      String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim() ||
+      String(cliente?.nome || "").trim() ||
+      (typeof getPortalClienteKnownRecord === "function" ? String(getPortalClienteKnownRecord(cpfDigits)?.nome || "").trim() : "");
+    const veiculoCad =
+      typeof findPortalVeiculoByPlaca === "function"
+        ? findPortalVeiculoByPlaca(plate)
+        : null;
+    const modalidade = veiculoCad?.tipo
+      ? String(veiculoCad.tipo).trim()
+      : portalInferTipoVeiculoLocacao({ placa: plate, modalidade: "" });
     const statusLocacao = fimBr ? "FINALIZADO" : "ATIVO";
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
@@ -5821,8 +5860,6 @@ ${printable.innerHTML}
       return;
     }
 
-    const clientes = typeof loadCadastro === "function" ? loadCadastro(CAD_CLIENTES_KEY) : [];
-    const cliente = clientes.find((c) => dig(String(c.cpf || "")) === cpfDigits);
     if (cliente && nk(String(cliente.status || "")).includes("QUEBRA DE CONTRATO")) {
       window.alert("IMPEDITIVO DE LOCAÇÃO: cliente com quebra de contrato.");
       return;
@@ -5839,6 +5876,7 @@ ${printable.innerHTML}
 
     const baseRecord = {
       cpf: cpfDigits,
+      nome: nomeCliente,
       placa: plate,
       inicio: inicioBr,
       fim: fimBr,
@@ -6607,9 +6645,17 @@ ${printable.innerHTML}
 
   function resolveOperacaoLancAluguelNomePorCpf(cpfDigits) {
     if (!cpfDigits || cpfDigits.length !== 11) return "";
-    if (typeof findClienteByCpfCadastro === "function") {
-      const n = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
+    const known = getPortalClienteKnownRecord(cpfDigits);
+    if (known) {
+      const n = String(known.nome || "").trim();
       if (n) return n;
+    }
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const hit = loadCadastro(CAD_LOCACOES_KEY).find((l) => dig(String(l.cpf || "")) === cpfDigits);
+      const nLoc = String(hit?.nome || hit?.cliente || "").trim();
+      if (nLoc) return nLoc;
     }
     if (typeof getLancamentoClienteCandidates === "function") {
       const dig =
@@ -8762,26 +8808,15 @@ ${printable.innerHTML}
     }
 
     function dkPortalMergeClientesArrays(local, remote) {
+      const mergeFn = window.__DK_mergeCadastroClienteHistorico;
       const byCpf = new Map();
       const dig = (cpf) =>
         typeof onlyDigits === "function" ? onlyDigits(String(cpf || "")) : String(cpf || "").replace(/\D/g, "");
-      const score = (c) => Number(c.createdAt || c.id || 0);
       const add = (c) => {
         const cpf = dig(c.cpf);
         if (cpf.length !== 11) return;
         const prev = byCpf.get(cpf);
-        const merged = prev ? { ...prev, ...c, cpf } : { ...c, cpf };
-        if (!prev) {
-          byCpf.set(cpf, merged);
-          return;
-        }
-        if (score(c) > score(prev)) {
-          byCpf.set(cpf, merged);
-          return;
-        }
-        if (score(c) === score(prev) && JSON.stringify(c).length >= JSON.stringify(prev).length) {
-          byCpf.set(cpf, merged);
-        }
+        byCpf.set(cpf, prev && typeof mergeFn === "function" ? mergeFn(prev, { ...c, cpf }) : { ...c, cpf });
       };
       (local || []).forEach(add);
       (remote || []).forEach(add);
@@ -8789,6 +8824,7 @@ ${printable.innerHTML}
     }
 
     function dkPortalMergeVeiculosArrays(local, remote) {
+      const mergeFn = window.__DK_mergeCadastroVeiculoHistorico;
       const plateNorm = (p) =>
         typeof normalizePlate === "function"
           ? normalizePlate(String(p || ""))
@@ -8802,23 +8838,11 @@ ${printable.innerHTML}
         return idn ? `id:${idn}` : "";
       };
       const byKey = new Map();
-      const score = (v) => Number(v.updatedAt || v.createdAt || v.id || 0);
       const add = (v) => {
         const k = keyOf(v);
         if (!k) return;
         const prev = byKey.get(k);
-        const merged = prev ? { ...prev, ...v } : { ...v };
-        if (!prev) {
-          byKey.set(k, merged);
-          return;
-        }
-        if (score(v) > score(prev)) {
-          byKey.set(k, merged);
-          return;
-        }
-        if (score(v) === score(prev) && JSON.stringify(v).length >= JSON.stringify(prev).length) {
-          byKey.set(k, merged);
-        }
+        byKey.set(k, prev && typeof mergeFn === "function" ? mergeFn(prev, v) : { ...v });
       };
       (local || []).forEach(add);
       (remote || []).forEach(add);
@@ -8939,8 +8963,14 @@ ${printable.innerHTML}
 
     async function dkPortalPushCadastroSnapshotNow() {
       if (dkPortalCadastroSyncSuppressPush) return;
-      const clientes = loadCadastro(CAD_CLIENTES_KEY);
-      const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+      const clientes =
+        typeof loadPortalClientesCadastro === "function"
+          ? loadPortalClientesCadastro()
+          : loadCadastro(typeof PORTAL_CLIENTES_KEY !== "undefined" ? PORTAL_CLIENTES_KEY : CAD_CLIENTES_KEY);
+      const veiculos =
+        typeof loadPortalVeiculosCadastro === "function"
+          ? loadPortalVeiculosCadastro()
+          : loadCadastro(typeof PORTAL_VEICULOS_KEY !== "undefined" ? PORTAL_VEICULOS_KEY : CAD_VEICULOS_KEY);
       const locacoes = loadCadastro(CAD_LOCACOES_KEY);
       await Promise.all([
         dkPortalPushToApi("cadastro-clientes", Array.isArray(clientes) ? clientes : []),
@@ -8965,7 +8995,13 @@ ${printable.innerHTML}
     window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
       origSave(key, list);
       if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush) return;
-      if (key === CAD_CLIENTES_KEY || key === CAD_VEICULOS_KEY || key === CAD_LOCACOES_KEY) {
+      if (
+        key === CAD_CLIENTES_KEY ||
+        key === PORTAL_CLIENTES_KEY ||
+        key === CAD_VEICULOS_KEY ||
+        key === PORTAL_VEICULOS_KEY ||
+        key === CAD_LOCACOES_KEY
+      ) {
         dkPortalScheduleFullCadastroSnapshotPush();
       }
       if (typeof window.__DK_pushToCloudAfterSave === "function") {
@@ -9017,9 +9053,13 @@ ${printable.innerHTML}
       ) {
         return;
       }
+      const portalClientesKey =
+        typeof PORTAL_CLIENTES_KEY !== "undefined" ? PORTAL_CLIENTES_KEY : CAD_CLIENTES_KEY;
+      const portalVeiculosKey =
+        typeof PORTAL_VEICULOS_KEY !== "undefined" ? PORTAL_VEICULOS_KEY : CAD_VEICULOS_KEY;
       await Promise.all([
-        dkPortalPullOne("cadastro-clientes", CAD_CLIENTES_KEY, dkPortalMergeClientesArrays),
-        dkPortalPullOne("cadastro-veiculos", CAD_VEICULOS_KEY, dkPortalMergeVeiculosArrays),
+        dkPortalPullOne("cadastro-clientes", portalClientesKey, dkPortalMergeClientesArrays),
+        dkPortalPullOne("cadastro-veiculos", portalVeiculosKey, dkPortalMergeVeiculosArrays),
         dkPortalPullOne("cadastro-locacoes", CAD_LOCACOES_KEY, dkPortalMergeLocacoesArrays),
       ]);
     }
@@ -9030,7 +9070,15 @@ ${printable.innerHTML}
     /** Outro separador do mesmo site alterou `localStorage` — só atualiza UI (sem rede). */
     window.addEventListener("storage", (ev) => {
       if (!ev.key) return;
-      if (ev.key !== CAD_CLIENTES_KEY && ev.key !== CAD_VEICULOS_KEY && ev.key !== CAD_LOCACOES_KEY) return;
+      if (
+        ev.key !== CAD_CLIENTES_KEY &&
+        ev.key !== PORTAL_CLIENTES_KEY &&
+        ev.key !== CAD_VEICULOS_KEY &&
+        ev.key !== PORTAL_VEICULOS_KEY &&
+        ev.key !== CAD_LOCACOES_KEY
+      ) {
+        return;
+      }
       try {
         portalRefreshOperacaoLocal();
       } catch (e) {

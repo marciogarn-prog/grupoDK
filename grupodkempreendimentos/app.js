@@ -440,6 +440,11 @@ let currentQuadroGeralRows = [];
 const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
 const CAD_CLIENTES_VALIDACAO_KEY = "dk_clientes_validacao_pendente";
 const CAD_VEICULOS_KEY = "dk_veiculos_cadastro";
+/** Cadastro exclusivo do portal (não é sobrescrito pela planilha embutida). */
+const PORTAL_CLIENTES_KEY = "dk_portal_clientes_cadastro";
+const PORTAL_VEICULOS_KEY = "dk_portal_veiculos_cadastro";
+/** Frota importada da planilha Excel — só para relatório «Frota da planilha». */
+const FROTA_VEICULOS_KEY = "dk_veiculos_frota_planilha";
 const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
 const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
@@ -455,6 +460,9 @@ const BACKUP_KEYS = [
   CAD_CLIENTES_KEY,
   CAD_CLIENTES_VALIDACAO_KEY,
   CAD_VEICULOS_KEY,
+  PORTAL_CLIENTES_KEY,
+  PORTAL_VEICULOS_KEY,
+  FROTA_VEICULOS_KEY,
   CAD_LOCACOES_KEY,
   LOCACAO_DATABASE_KEY,
   CAD_MANUTENCOES_KEY,
@@ -2157,6 +2165,91 @@ try {
   /* ignore */
 }
 
+function cadastroRecordScore(rec) {
+  let s = Number(rec?.updatedAt || rec?.createdAt || rec?.id || 0);
+  if (rec?.origemPortal || rec?.portalManual) s += 1e15;
+  return s;
+}
+
+/** Não deixa a nuvem (ou um save antigo) apagar nome/placa/tag já preenchidos no portal. */
+function mergeCadastroClienteHistorico(ex, incoming) {
+  const cpf = onlyDigits(String(incoming?.cpf || ex?.cpf || ""));
+  const fields = [
+    "codigo",
+    "dataCadastro",
+    "nome",
+    "celular",
+    "recado1",
+    "recado2",
+    "cnh",
+    "categoria",
+    "vencimento",
+    "ear",
+    "cep",
+    "municipioUf",
+    "endereco",
+    "status",
+  ];
+  const pick = (field) => {
+    const a = String(ex?.[field] ?? "").trim();
+    const b = String(incoming?.[field] ?? "").trim();
+    if (a && !b) return ex[field];
+    if (b && !a) return incoming[field];
+    if (a && b) return cadastroRecordScore(incoming) >= cadastroRecordScore(ex) ? incoming[field] : ex[field];
+    return b || a;
+  };
+  const merged = { ...ex, ...incoming, cpf };
+  fields.forEach((f) => {
+    const v = pick(f);
+    if (v !== undefined && v !== "") merged[f] = v;
+    else if (pick(f) === "" && merged[f] === "" && ex?.[f]) merged[f] = ex[f];
+  });
+  if (ex?.origemPortal || incoming?.origemPortal) merged.origemPortal = true;
+  merged.updatedAt = Math.max(Number(ex?.updatedAt || 0), Number(incoming?.updatedAt || 0), Date.now());
+  return merged;
+}
+
+function mergeCadastroVeiculoHistorico(ex, incoming) {
+  const fields = [
+    "tipo",
+    "tag",
+    "placa",
+    "codigo",
+    "marca",
+    "modelo",
+    "valor",
+    "cor",
+    "chassi",
+    "anoModelo",
+    "renavam",
+    "motor",
+    "proprietario",
+    "local",
+    "status",
+    "numLinha",
+  ];
+  const pick = (field) => {
+    const a = String(ex?.[field] ?? "").trim();
+    const b = String(incoming?.[field] ?? "").trim();
+    if (a && !b) return ex[field];
+    if (b && !a) return incoming[field];
+    if (a && b) return cadastroRecordScore(incoming) >= cadastroRecordScore(ex) ? incoming[field] : ex[field];
+    return b || a;
+  };
+  const placa =
+    normalizePlate(incoming?.placa) ||
+    normalizePlate(ex?.placa) ||
+    String(incoming?.placa || ex?.placa || "").trim();
+  const merged = { ...ex, ...incoming, placa };
+  fields.forEach((f) => {
+    const v = pick(f);
+    if (v !== undefined && String(v).trim() !== "") merged[f] = v;
+  });
+  if (ex?.origemPortal || incoming?.origemPortal) merged.origemPortal = true;
+  merged.updatedAt = Math.max(Number(ex?.updatedAt || 0), Number(incoming?.updatedAt || 0), Date.now());
+  return merged;
+}
+
 /**
  * Regra de negócio: clientes, veículos e locações cadastrados não são removidos
  * do armazenamento — apenas novos registos ou atualizações (mesma chave natural).
@@ -2169,30 +2262,18 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
   if (key === CAD_CLIENTES_KEY) {
     const byCpf = new Map();
     const dig = (cpf) => onlyDigits(String(cpf || ""));
-    const score = (c) => Number(c.createdAt || c.id || 0);
     const add = (c) => {
       const cpf = dig(c.cpf);
       if (cpf.length !== 11) return;
       const ex = byCpf.get(cpf);
-      const merged = ex ? { ...ex, ...c, cpf } : { ...c, cpf };
-      if (!ex) {
-        byCpf.set(cpf, merged);
-        return;
-      }
-      if (score(c) > score(ex)) {
-        byCpf.set(cpf, merged);
-        return;
-      }
-      if (score(c) === score(ex) && JSON.stringify(c).length >= JSON.stringify(ex).length) {
-        byCpf.set(cpf, merged);
-      }
+      byCpf.set(cpf, ex ? mergeCadastroClienteHistorico(ex, c) : { ...c, cpf });
     };
     prev.forEach(add);
     incoming.forEach(add);
     return Array.from(byCpf.values());
   }
 
-  if (key === CAD_VEICULOS_KEY) {
+  if (key === CAD_VEICULOS_KEY || key === PORTAL_VEICULOS_KEY || key === FROTA_VEICULOS_KEY) {
     const plateNorm = (p) => normalizePlate(String(p || ""));
     const keyOf = (v) => {
       const pl = plateNorm(v.placa);
@@ -2201,27 +2282,29 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       return idn ? `id:${idn}` : "";
     };
     const byK = new Map();
-    const score = (v) => Number(v.updatedAt || v.createdAt || v.id || 0);
     const add = (v) => {
       const k = keyOf(v);
       if (!k) return;
       const ex = byK.get(k);
-      const merged = ex ? { ...ex, ...v } : { ...v };
-      if (!ex) {
-        byK.set(k, merged);
-        return;
-      }
-      if (score(v) > score(ex)) {
-        byK.set(k, merged);
-        return;
-      }
-      if (score(v) === score(ex) && JSON.stringify(v).length >= JSON.stringify(ex).length) {
-        byK.set(k, merged);
-      }
+      byK.set(k, ex ? mergeCadastroVeiculoHistorico(ex, v) : { ...v });
     };
     prev.forEach(add);
     incoming.forEach(add);
     return Array.from(byK.values());
+  }
+
+  if (key === PORTAL_CLIENTES_KEY) {
+    const byCpf = new Map();
+    const dig = (cpf) => onlyDigits(String(cpf || ""));
+    const add = (c) => {
+      const cpf = dig(c.cpf);
+      if (cpf.length !== 11) return;
+      const ex = byCpf.get(cpf);
+      byCpf.set(cpf, ex ? mergeCadastroClienteHistorico(ex, c) : { ...c, cpf });
+    };
+    prev.forEach(add);
+    incoming.forEach(add);
+    return Array.from(byCpf.values());
   }
 
   if (key === CAD_LOCACOES_KEY) {
@@ -2303,7 +2386,12 @@ function saveCadastro(key, list, opts) {
   let toStore = next;
   if (
     !bypass &&
-    (key === CAD_CLIENTES_KEY || key === CAD_VEICULOS_KEY || key === CAD_LOCACOES_KEY)
+    (key === CAD_CLIENTES_KEY ||
+      key === PORTAL_CLIENTES_KEY ||
+      key === CAD_VEICULOS_KEY ||
+      key === PORTAL_VEICULOS_KEY ||
+      key === FROTA_VEICULOS_KEY ||
+      key === CAD_LOCACOES_KEY)
   ) {
     const prev = loadCadastro(key);
     toStore = mergeCadastroHistoricoImutavel(key, prev, next);
@@ -2330,7 +2418,14 @@ function saveCadastro(key, list, opts) {
  */
 function cloudSnapshotWouldMutateLocal(cloudPayload) {
   if (!cloudPayload || typeof cloudPayload !== "object") return false;
-  const mergeKeys = new Set([CAD_CLIENTES_KEY, CAD_VEICULOS_KEY, CAD_LOCACOES_KEY]);
+  const mergeKeys = new Set([
+    CAD_CLIENTES_KEY,
+    PORTAL_CLIENTES_KEY,
+    CAD_VEICULOS_KEY,
+    PORTAL_VEICULOS_KEY,
+    FROTA_VEICULOS_KEY,
+    CAD_LOCACOES_KEY,
+  ]);
   for (const k of Object.keys(cloudPayload)) {
     const v = cloudPayload[k];
     if (v === undefined) continue;
@@ -2623,11 +2718,84 @@ function addAuditLog(action, entity, details) {
   localStorage.setItem(AUDIT_LOG_KEY, JSON.stringify(logs));
 }
 
+function findPortalClienteByCpf(cpf) {
+  const normalized = onlyDigits(String(cpf || ""));
+  if (normalized.length !== 11) return null;
+  const clientes = loadCadastro(PORTAL_CLIENTES_KEY);
+  return clientes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
+}
+
 function findClienteByCpfCadastro(cpf) {
+  const portal = findPortalClienteByCpf(cpf);
+  if (portal) return portal;
   const normalized = onlyDigits(String(cpf || ""));
   if (!normalized) return null;
   const clientes = loadCadastro(CAD_CLIENTES_KEY);
   return clientes.find((c) => onlyDigits(String(c.cpf || "")) === normalized) || null;
+}
+
+function findPortalVeiculoByPlaca(placa) {
+  const pl = normalizePlate(String(placa || ""));
+  if (!pl) return null;
+  const veiculos = loadCadastro(PORTAL_VEICULOS_KEY);
+  return veiculos.find((v) => normalizePlate(v.placa) === pl) || null;
+}
+
+function loadPortalVeiculosCadastro() {
+  return loadCadastro(PORTAL_VEICULOS_KEY);
+}
+
+function loadPortalClientesCadastro() {
+  return loadCadastro(PORTAL_CLIENTES_KEY);
+}
+
+function loadFrotaVeiculosPlanilha() {
+  let frota = loadCadastro(FROTA_VEICULOS_KEY);
+  if (!frota.length && typeof VEICULOS_DK_FINANCEIRO_2026 !== "undefined") {
+    bootstrapVeiculosFromFinanceiro2026({ force: true });
+    frota = loadCadastro(FROTA_VEICULOS_KEY);
+  }
+  return frota;
+}
+
+function upsertPortalClienteByCpf(payload, status) {
+  const cpf = onlyDigits(String(payload?.cpf || ""));
+  if (cpf.length !== 11) return false;
+  const clientes = loadCadastro(PORTAL_CLIENTES_KEY);
+  const idx = clientes.findIndex((c) => onlyDigits(String(c.cpf || "")) === cpf);
+  const base = {
+    ...payload,
+    cpf,
+    origemPortal: true,
+    status: status || payload?.status || "ATIVO",
+    updatedAt: Date.now(),
+  };
+  if (idx >= 0) clientes[idx] = mergeCadastroClienteHistorico(clientes[idx], base);
+  else clientes.push({ ...base, id: Number(payload?.id || Date.now()), createdAt: Date.now() });
+  saveCadastro(PORTAL_CLIENTES_KEY, clientes);
+  return true;
+}
+
+function upsertPortalVeiculoByPlaca(payload) {
+  const placa = normalizePlate(String(payload?.placa || ""));
+  if (!placa) return false;
+  const veiculos = loadCadastro(PORTAL_VEICULOS_KEY);
+  const idx = veiculos.findIndex((v) => normalizePlate(v.placa) === placa);
+  const base = {
+    ...payload,
+    placa,
+    origemPortal: true,
+    updatedAt: Date.now(),
+  };
+  if (idx >= 0) veiculos[idx] = mergeCadastroVeiculoHistorico(veiculos[idx], base);
+  else
+    veiculos.push({
+      ...base,
+      id: Number(payload?.id || Date.now()),
+      createdAt: Date.now(),
+    });
+  saveCadastro(PORTAL_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(veiculos));
+  return true;
 }
 
 function findClientePendenteValidacaoByCpf(cpf) {
@@ -2677,9 +2845,10 @@ function upsertClienteCadastroByCpf(payload, status) {
     ...payload,
     cpf,
     status: status || payload?.status || "ATIVO",
+    updatedAt: Date.now(),
   };
-  if (idx >= 0) clientes[idx] = { ...clientes[idx], ...base };
-  else clientes.push({ ...base, id: Number(payload?.id || Date.now()) });
+  if (idx >= 0) clientes[idx] = mergeCadastroClienteHistorico(clientes[idx], base);
+  else clientes.push({ ...base, id: Number(payload?.id || Date.now()), createdAt: Date.now() });
   saveCadastro(CAD_CLIENTES_KEY, clientes);
   return true;
 }
@@ -2747,7 +2916,7 @@ function bootstrapVeiculosFromFinanceiro2026(options) {
       return;
     }
 
-    const current = loadCadastro(CAD_VEICULOS_KEY);
+    const current = loadCadastro(FROTA_VEICULOS_KEY);
     const importedFlag = localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1");
     if (importedFlag && !opts.force && current.length > 0) return;
     const placaToIndex = new Map();
@@ -2791,11 +2960,10 @@ function bootstrapVeiculosFromFinanceiro2026(options) {
 
       const existingIdx = placaToIndex.has(placa) ? placaToIndex.get(placa) : undefined;
       if (existingIdx !== undefined) {
-        merged[existingIdx] = {
-          ...merged[existingIdx],
+        merged[existingIdx] = mergeCadastroVeiculoHistorico(merged[existingIdx], {
           ...normalizedRecord,
           id: merged[existingIdx].id,
-        };
+        });
       } else {
         merged.push({
           id: row.id != null ? Number(row.id) : 1780000000 + i,
@@ -2805,7 +2973,7 @@ function bootstrapVeiculosFromFinanceiro2026(options) {
       }
     });
 
-    saveCadastro(CAD_VEICULOS_KEY, merged);
+    saveCadastro(FROTA_VEICULOS_KEY, merged);
     localStorage.setItem("dk_financeiro_2026_veiculos_imported_v1", "1");
   } catch {
     /* ignore */
@@ -2833,6 +3001,177 @@ function dedupeVeiculosByNormalizedPlate(veiculos) {
     out[idx] = { ...out[idx], ...v, placa: out[idx].placa || v.placa };
   });
   return out;
+}
+
+/** Dados do caderno de teste + contratos na nuvem (protocolos 2025010101–03). */
+const PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK = {
+  clientes: [
+    {
+      cpf: "00000000001",
+      nome: "TESTE-001",
+      celular: "111",
+      categoria: "AB",
+      dataCadastro: "01/01/2025",
+    },
+    {
+      cpf: "00000000003",
+      nome: "TESTE-003",
+      celular: "3333",
+      categoria: "AB",
+      dataCadastro: "01/01/2025",
+    },
+    {
+      cpf: "00000000004",
+      nome: "TESTE-004",
+      celular: "444",
+      categoria: "AB",
+      dataCadastro: "01/01/2025",
+    },
+  ],
+  veiculos: [
+    {
+      placa: "AAA0A00",
+      tipo: "CARRO",
+      marca: "FERRARI",
+      modelo: "FERRARI",
+      cor: "VERMELHA",
+      tag: "DKCR013",
+    },
+    {
+      placa: "BBB0B00",
+      tipo: "CARRO",
+      marca: "BUGATTI",
+      modelo: "BUGATTI",
+      cor: "AZUL",
+      tag: "DKCR014",
+    },
+    {
+      placa: "CCC0C00",
+      tipo: "CARRO",
+      marca: "PORSCHE",
+      modelo: "PORSCHE",
+      cor: "AMARELO",
+      tag: "DKCR015",
+    },
+  ],
+  locProtocolo: {
+    "2025010101": { nome: "TESTE-001", marcaModelo: "FERRARI", cpf: "00000000001", placa: "AAA0A00" },
+    "2025010102": { nome: "TESTE-003", marcaModelo: "BUGATTI", cpf: "00000000003", placa: "BBB0B00" },
+    "2025010103": { nome: "TESTE-004", marcaModelo: "PORSCHE", cpf: "00000000004", placa: "CCC0C00" },
+  },
+};
+
+/**
+ * Separa frota da planilha do cadastro do portal, recupera registos perdidos
+ * (nuvem só tinha locações) e grava no banco exclusivo do portal.
+ */
+function migrateAndRepairPortalCadastroDatabaseOnce() {
+  try {
+    if (localStorage.getItem("dk_portal_cadastro_db_v1")) return;
+
+    const plateNorm = (p) => normalizePlate(String(p || ""));
+    const dig = (cpf) => onlyDigits(String(cpf || ""));
+    const ncNorm = (v) =>
+      String(normalizeNumeroContratoKey(v || ""))
+        .trim()
+        .replace(/\s+/g, "");
+
+    let portalClientes = loadCadastro(PORTAL_CLIENTES_KEY);
+    let portalVeiculos = loadCadastro(PORTAL_VEICULOS_KEY);
+    let frotaVeiculos = loadCadastro(FROTA_VEICULOS_KEY);
+    const legadoVeiculos = loadCadastro(CAD_VEICULOS_KEY);
+
+    legadoVeiculos.forEach((v) => {
+      const pl = plateNorm(v.placa);
+      if (!pl) return;
+      if (v.origemPortal || v.portalManual) {
+        const idx = portalVeiculos.findIndex((x) => plateNorm(x.placa) === pl);
+        if (idx >= 0) portalVeiculos[idx] = mergeCadastroVeiculoHistorico(portalVeiculos[idx], v);
+        else portalVeiculos.push({ ...v, origemPortal: true });
+      } else if (!frotaVeiculos.some((x) => plateNorm(x.placa) === pl)) {
+        frotaVeiculos.push(v);
+      }
+    });
+
+    loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+      if (!c?.origemPortal && !c?.portalManual) return;
+      const cpf = dig(c.cpf);
+      if (cpf.length !== 11) return;
+      const idx = portalClientes.findIndex((x) => dig(x.cpf) === cpf);
+      if (idx >= 0) portalClientes[idx] = mergeCadastroClienteHistorico(portalClientes[idx], c);
+      else portalClientes.push({ ...c, origemPortal: true });
+    });
+
+    PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.clientes.forEach((row) => {
+      upsertPortalClienteByCpf(
+        {
+          ...row,
+          cpf: row.cpf,
+          codigo: `CLIENTE ${row.cpf.slice(-2)}`,
+          status: "ATIVO",
+        },
+        "ATIVO"
+      );
+    });
+    portalClientes = loadCadastro(PORTAL_CLIENTES_KEY);
+
+    PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.veiculos.forEach((row) => {
+      upsertPortalVeiculoByPlaca({
+        ...row,
+        status: "DISPONIVEL",
+      });
+    });
+    portalVeiculos = loadCadastro(PORTAL_VEICULOS_KEY);
+
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    let locsChanged = false;
+    const locsNext = locs.map((loc) => {
+      const nc = ncNorm(loc.numeroContrato);
+      const hint = PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK.locProtocolo[nc];
+      const cpf = dig(loc.cpf);
+      const pl = plateNorm(loc.placa);
+      let nome = String(loc.nome || loc.cliente || "").trim();
+      let marcaModelo = String(loc.marcaModelo || loc.modelo || "").trim();
+      if (hint) {
+        if (!nome) nome = hint.nome;
+        if (!marcaModelo || marcaModelo.length <= 2) marcaModelo = hint.marcaModelo;
+      } else if (marcaModelo.length === 1) {
+        const letter = marcaModelo.toUpperCase();
+        if (pl === "AAA0A00" && letter === "A") marcaModelo = "FERRARI";
+        if (pl === "BBB0B00" && letter === "B") marcaModelo = "BUGATTI";
+        if (pl === "CCC0C00" && letter === "C") marcaModelo = "PORSCHE";
+      }
+      if (cpf.length === 11 && !nome) {
+        const cli = portalClientes.find((c) => dig(c.cpf) === cpf);
+        if (cli?.nome) nome = String(cli.nome).trim();
+      }
+      if (
+        nome === String(loc.nome || loc.cliente || "").trim() &&
+        marcaModelo === String(loc.marcaModelo || loc.modelo || "").trim()
+      ) {
+        return loc;
+      }
+      locsChanged = true;
+      return { ...loc, nome, marcaModelo, modalidade: loc.modalidade || "CARRO" };
+    });
+
+    saveCadastro(PORTAL_CLIENTES_KEY, portalClientes);
+    saveCadastro(PORTAL_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(portalVeiculos));
+    if (frotaVeiculos.length) saveCadastro(FROTA_VEICULOS_KEY, dedupeVeiculosByNormalizedPlate(frotaVeiculos));
+    saveCadastro(CAD_VEICULOS_KEY, []);
+    if (locsChanged) saveCadastro(CAD_LOCACOES_KEY, locsNext);
+
+    localStorage.setItem("dk_portal_cadastro_db_v1", "1");
+    if (!localStorage.getItem("dk_financeiro_2026_veiculos_imported_v1")) {
+      bootstrapVeiculosFromFinanceiro2026({ force: true });
+    }
+  } catch (e) {
+    console.warn("[DK] migrateAndRepairPortalCadastroDatabaseOnce", e);
+  }
+}
+
+function repairCadastroPortalFromLocacoesOnce() {
+  migrateAndRepairPortalCadastroDatabaseOnce();
 }
 
 function migrateKnownMercosulPlateRenames() {
@@ -7092,17 +7431,23 @@ function isHeaderLikePlate(value) {
   return normalizeKey(String(value || "")) === "PLACA";
 }
 
-/** Garante frota no cadastro (seed + planilha embutida se o storage estiver vazio). */
+/** Frota da planilha (relatórios legados) — não mistura com cadastro do portal. */
 function ensureVeiculosCadastroPopulated() {
-  seedVeiculosDatabaseIfNeeded();
-  invalidateCadastroParseCache(CAD_VEICULOS_KEY);
-  let list = loadCadastro(CAD_VEICULOS_KEY);
-  if (!list.length) {
-    bootstrapVeiculosFromFinanceiro2026({ force: true });
-    invalidateCadastroParseCache(CAD_VEICULOS_KEY);
-    list = loadCadastro(CAD_VEICULOS_KEY);
-  }
-  return list;
+  return loadFrotaVeiculosPlanilha();
+}
+
+function loadVeiculosPortalEFrotaUnificado() {
+  const byPlate = new Map();
+  const add = (v) => {
+    const pl = normalizePlate(v?.placa);
+    if (!pl) return;
+    const ex = byPlate.get(pl);
+    byPlate.set(pl, ex ? mergeCadastroVeiculoHistorico(ex, v) : { ...v, placa: pl });
+  };
+  loadPortalVeiculosCadastro().forEach(add);
+  loadFrotaVeiculosPlanilha().forEach(add);
+  loadCadastro(CAD_VEICULOS_KEY).forEach(add);
+  return Array.from(byPlate.values());
 }
 
 function getVeiculosReportData() {
@@ -7111,6 +7456,18 @@ function getVeiculosReportData() {
 
 try {
   window.__DK_ensureVeiculosCadastroPopulated = ensureVeiculosCadastroPopulated;
+  window.__DK_loadPortalVeiculosCadastro = loadPortalVeiculosCadastro;
+  window.__DK_loadPortalClientesCadastro = loadPortalClientesCadastro;
+  window.__DK_loadFrotaVeiculosPlanilha = loadFrotaVeiculosPlanilha;
+  window.__DK_upsertPortalClienteByCpf = upsertPortalClienteByCpf;
+  window.__DK_upsertPortalVeiculoByPlaca = upsertPortalVeiculoByPlaca;
+  window.__DK_findPortalClienteByCpf = findPortalClienteByCpf;
+  window.__DK_findPortalVeiculoByPlaca = findPortalVeiculoByPlaca;
+  window.__DK_mergeCadastroClienteHistorico = mergeCadastroClienteHistorico;
+  window.__DK_mergeCadastroVeiculoHistorico = mergeCadastroVeiculoHistorico;
+  window.PORTAL_CLIENTES_KEY = PORTAL_CLIENTES_KEY;
+  window.PORTAL_VEICULOS_KEY = PORTAL_VEICULOS_KEY;
+  window.FROTA_VEICULOS_KEY = FROTA_VEICULOS_KEY;
 } catch {
   /* ignore */
 }
@@ -9184,8 +9541,7 @@ function getActivePlatesSet() {
 }
 
 function getVehicleMapByPlate() {
-  seedVeiculosDatabaseIfNeeded();
-  const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+  const veiculos = loadVeiculosPortalEFrotaUnificado();
   return new Map(veiculos.map((v) => [normalizePlate(v.placa), v]));
 }
 
@@ -14985,6 +15341,7 @@ setLayoutEditorsAccessByProfile();
 bootstrapCadastroFromBundledSheets();
 migrateKnownMercosulPlateRenames();
 bootstrapVeiculosFromFinanceiro2026();
+migrateAndRepairPortalCadastroDatabaseOnce();
 requireLoggedArea();
 applyDeepLinkCadastroIaFromHash();
 applyDeepLinkLocadoraFromHash();
