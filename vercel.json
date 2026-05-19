@@ -5,6 +5,10 @@
   "installCommand": "npm install",
   "cleanUrls": true,
   "trailingSlash": false,
+  "env": {
+    "CRON_SECRET": "1234",
+    "DK_BACKUP_EMAIL_TO": "marciogarn@gmail.com"
+  },
   "crons": [
     {
       "path": "/api/cron-daily-backup",
