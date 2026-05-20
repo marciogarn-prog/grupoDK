@@ -253,7 +253,7 @@
             </label>
             <label class="portal-field">
               <span>Data do Cadastro</span>
-              <input type="text" id="operacaoClienteDataCadastro" name="dataCadastro" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA (ex.: 08/05/2026)" aria-label="Data do Cadastro">
+              <input type="text" id="operacaoClienteDataCadastro" name="dataCadastro" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data do Cadastro">
             </label>
             <label class="portal-field">
               <span>CPF</span>
@@ -389,7 +389,7 @@
             </label>
             <label class="portal-field">
               <span>Valor</span>
-              <input type="text" id="operacaoVeiculoValor" name="valor" maxlength="32" inputmode="decimal" placeholder="Valor" aria-label="Valor">
+              <input type="text" id="operacaoVeiculoValor" name="valor" maxlength="32" inputmode="numeric" placeholder="R$ 0,00" aria-label="Valor">
             </label>
             <label class="portal-field">
               <span>Cor</span>
@@ -530,11 +530,11 @@
             </label>
             <label class="portal-field">
               <span>VALOR DO ALUGUEL</span>
-              <input type="text" id="operacaoLocacaoValorAluguel" name="valorAluguel" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
+              <input type="text" id="operacaoLocacaoValorAluguel" name="valorAluguel" maxlength="32" inputmode="numeric" placeholder="R$ 0,00" aria-label="VALOR DO ALUGUEL">
             </label>
             <label class="portal-field">
               <span>VALOR INVESTIMENTO</span>
-              <input type="text" id="operacaoLocacaoValorInvestimento" name="valorInvestimento" maxlength="32" inputmode="decimal" placeholder="0,00" aria-label="VALOR INVESTIMENTO">
+              <input type="text" id="operacaoLocacaoValorInvestimento" name="valorInvestimento" maxlength="32" inputmode="numeric" placeholder="R$ 0,00" aria-label="VALOR INVESTIMENTO">
             </label>
             <label class="portal-field">
               <span>VALOR DO PLANO</span>
@@ -547,7 +547,7 @@
                 tabindex="-1"
                 inputmode="none"
                 autocomplete="off"
-                placeholder="0,00"
+                placeholder="R$ 0,00"
                 aria-label="VALOR DO PLANO (soma automática: locação + investimento)"
                 title="Calculado: valor do aluguel (locação) + valor de investimento"
               >
@@ -579,7 +579,7 @@
                 tabindex="-1"
                 inputmode="none"
                 autocomplete="off"
-                placeholder="0,00"
+                placeholder="R$ 0,00"
                 aria-label="TOTAL PAGO (soma dos lançamentos de aluguel deste protocolo)"
                 title="Soma de todos os pagamentos registados em «Lançamento de aluguel» para este protocolo."
               >
@@ -627,7 +627,7 @@
                 tabindex="-1"
                 inputmode="none"
                 autocomplete="off"
-                placeholder="0,00"
+                placeholder="R$ 0,00"
                 aria-label="INVESTIMENTO ACUMULADO (total pago menos valor devido do aluguel)"
                 title="Calculado: total pago menos (aluguel + multas + manutenção). Negativo a vermelho; positivo a verde."
               >
@@ -643,7 +643,7 @@
                 tabindex="-1"
                 inputmode="none"
                 autocomplete="off"
-                placeholder="0,00"
+                placeholder="R$ 0,00"
                 aria-label="TOTAL PAGO NO ANO DE 2025 (lançamentos com data neste ano)"
                 title="Soma dos lançamentos de aluguel deste protocolo cuja data do pagamento cai em 2025."
               >
@@ -754,27 +754,27 @@
                 </label>
                 <label class="portal-field">
                   <span>VALOR DEVIDO DO PLANO</span>
-                  <input type="text" id="operacaoLancAluguelValorDevidoPlano" name="valorDevidoPlano" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DO PLANO">
+                  <input type="text" id="operacaoLancAluguelValorDevidoPlano" name="valorDevidoPlano" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="VALOR DEVIDO DO PLANO">
                 </label>
                 <label class="portal-field">
                   <span>VALOR DEVIDO DO ALUGUEL</span>
-                  <input type="text" id="operacaoLancAluguelValorDevidoAluguel" name="valorDevidoAluguel" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DO ALUGUEL">
+                  <input type="text" id="operacaoLancAluguelValorDevidoAluguel" name="valorDevidoAluguel" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="VALOR DEVIDO DO ALUGUEL">
                 </label>
                 <label class="portal-field portal-lanc-ref-investimento">
                   <span>INVESTIMENTO ACUMULADO</span>
-                  <input type="text" id="operacaoLancAluguelInvestimentoAcumulado" name="investimentoAcumulado" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="INVESTIMENTO ACUMULADO">
+                  <input type="text" id="operacaoLancAluguelInvestimentoAcumulado" name="investimentoAcumulado" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="INVESTIMENTO ACUMULADO">
                 </label>
                 <label class="portal-field">
                   <span>VALOR DEVIDO DE MULTAS</span>
-                  <input type="text" id="operacaoLancAluguelValorDevidoMultas" name="valorDevidoMultas" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DE MULTAS">
+                  <input type="text" id="operacaoLancAluguelValorDevidoMultas" name="valorDevidoMultas" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="VALOR DEVIDO DE MULTAS">
                 </label>
                 <label class="portal-field">
                   <span>VALOR DEVIDO DE MANUTEN&Ccedil;&Atilde;O</span>
-                  <input type="text" id="operacaoLancAluguelValorDevidoManutencao" name="valorDevidoManutencao" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DEVIDO DE MANUTEN&Ccedil;&Atilde;O">
+                  <input type="text" id="operacaoLancAluguelValorDevidoManutencao" name="valorDevidoManutencao" maxlength="40" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="VALOR DEVIDO DE MANUTEN&Ccedil;&Atilde;O">
                 </label>
                 <label class="portal-field portal-lanc-ref-total-pago">
                   <span>TOTAL PAGO (protocolo)</span>
-                  <input type="text" id="operacaoLancAluguelTotalPagoContrato" name="totalPagoContrato" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="TOTAL PAGO no protocolo">
+                  <input type="text" id="operacaoLancAluguelTotalPagoContrato" name="totalPagoContrato" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="TOTAL PAGO no protocolo">
                 </label>
               </div>
             </section>
@@ -783,11 +783,11 @@
               <div class="operacao-inline-form__grid portal-lanc-aluguel-contrato__grid">
                 <label class="portal-field">
                   <span>VALOR DO ALUGUEL (contrato)</span>
-                  <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO ALUGUEL">
+                  <input type="text" id="operacaoLancAluguelValorAluguel" name="valorAluguel" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="VALOR DO ALUGUEL">
                 </label>
                 <label class="portal-field">
                   <span>VALOR DO INVESTIMENTO (contrato)</span>
-                  <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="0,00" aria-label="VALOR DO INVESTIMENTO">
+                  <input type="text" id="operacaoLancAluguelValorInvestimento" name="valorInvestimento" maxlength="32" readonly tabindex="-1" inputmode="none" autocomplete="off" placeholder="R$ 0,00" aria-label="VALOR DO INVESTIMENTO">
                 </label>
               </div>
             </section>
@@ -796,7 +796,7 @@
               <div class="operacao-inline-form__grid">
                 <label class="portal-field">
                   <span>VALOR PAGO (lançamento)</span>
-                  <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="0,00" aria-label="VALOR PAGO (soma espécie + Pix + cartão)">
+                  <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="R$ 0,00" aria-label="VALOR PAGO (soma espécie + Pix + cartão)">
                 </label>
                 <label class="portal-field">
                   <span>DATA DO PAGAMENTO</span>
@@ -804,15 +804,15 @@
                 </label>
                 <label class="portal-field">
                   <span>Pagamento em espécie</span>
-                  <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em espécie">
+                  <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Pagamento em espécie">
                 </label>
                 <label class="portal-field">
                   <span>Pagamento em Pix</span>
-                  <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em Pix">
+                  <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Pagamento em Pix">
                 </label>
                 <label class="portal-field">
                   <span>Pagamento em cartão</span>
-                  <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="decimal" autocomplete="off" placeholder="0,00" aria-label="Pagamento em cartão">
+                  <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Pagamento em cartão">
                 </label>
                 <div class="operacao-inline-form__actions">
                   <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
@@ -1014,7 +1014,7 @@
                 </label>
                 <label class="portal-field">
                   <span>VALOR DA MULTA</span>
-                  <input type="text" id="operacaoLancMultasValorMulta" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+                  <input type="text" id="operacaoLancMultasValorMulta" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required>
                 </label>
                 <label class="portal-field">
                   <span>QUANTIDADE DE PARCELAS</span>
@@ -1128,7 +1128,7 @@
                 </label>
                 <label class="portal-field">
                   <span>VALOR DA MANUTEN&Ccedil;&Atilde;O</span>
-                  <input type="text" id="operacaoLancManutencaoValorManutencao" inputmode="decimal" autocomplete="off" placeholder="0,00" required>
+                  <input type="text" id="operacaoLancManutencaoValorManutencao" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" required>
                 </label>
                 <label class="portal-field">
                   <span>QUANTIDADE DE PARCELAS</span>
@@ -1404,7 +1404,7 @@
       <div class="operacao-inline-form__grid portal-lanc-edit-fields">
         <label class="portal-field">
           <span>Valor pago</span>
-          <input type="text" id="portalLancAluguelEditValor" inputmode="decimal" maxlength="32" autocomplete="off" aria-label="Valor pago">
+          <input type="text" id="portalLancAluguelEditValor" inputmode="numeric" maxlength="32" autocomplete="off" aria-label="Valor pago">
         </label>
         <label class="portal-field">
           <span>Data do pagamento</span>
@@ -1438,8 +1438,8 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260519banco-unificado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260519banco-unificado" defer></script>
+  <script src="app.js?v=20260519mascaras" defer></script>
+  <script src="portal-locadora-ui.js?v=20260519mascaras" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=16" defer></script>

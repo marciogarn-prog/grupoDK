@@ -404,6 +404,8 @@ const envWarning = document.getElementById("envWarning");
 const dateInputIds = [
   "cadClienteDataCadastro",
   "cadClienteVencimento",
+  "publicCadClienteDataCadastro",
+  "publicCadClienteVencimento",
   "cadLocacaoInicio",
   "cadLocacaoFim",
   "lancAluguelSemanaInicio",
@@ -411,6 +413,40 @@ const dateInputIds = [
   "cadManutencaoData",
   "cadManutencaoPrevistaSaida",
   "cadManutencaoRealSaida",
+  "comprovanteModalData",
+  "operacaoClienteDataCadastro",
+  "operacaoClienteVencimento",
+  "operacaoLocacaoDataInicio",
+  "operacaoLocacaoDataFim",
+  "operacaoLancAluguelDataPagamento",
+  "operacaoLancMultasDataMulta",
+  "operacaoLancMultasDataPrimeiraParcela",
+  "operacaoLancManutencaoDataManutencao",
+  "operacaoLancManutencaoDataPrimeiraParcela",
+  "portalLancAluguelEditData",
+  "portalRelPagamentosInicio",
+  "portalRelPagamentosFim",
+  "portalColabIngresso",
+  "portalChecklistEntradaData",
+  "portalChecklistSaidaData",
+];
+
+const currencyInputIds = [
+  "cadVeiculoValor",
+  "cadLocacaoValor",
+  "cadLocacaoInvestimento",
+  "cadLocacaoValorParcela",
+  "lancAluguelValorPago",
+  "comprovanteModalValor",
+  "operacaoVeiculoValor",
+  "operacaoLocacaoValorAluguel",
+  "operacaoLocacaoValorInvestimento",
+  "operacaoLancAluguelValorEspecie",
+  "operacaoLancAluguelValorPix",
+  "operacaoLancAluguelValorCartao",
+  "operacaoLancMultasValorMulta",
+  "operacaoLancManutencaoValorManutencao",
+  "portalLancAluguelEditValor",
 ];
 
 let deferredPrompt = null;
@@ -1637,17 +1673,69 @@ function formatDateMask(value) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
-function setupDateMasks() {
-  dateInputIds.forEach((id) => {
-    const input = document.getElementById(id);
-    if (!input) return;
-    input.addEventListener("input", () => {
-      input.value = formatDateMask(input.value);
-    });
-    input.addEventListener("blur", () => {
-      input.value = formatDateMask(input.value);
-    });
+function bindDateMaskInput(input) {
+  if (!input || input.readOnly || input.disabled) return;
+  if (input.dataset.dkDateMask === "1") return;
+  input.dataset.dkDateMask = "1";
+  if (!input.getAttribute("placeholder")) input.setAttribute("placeholder", "DD/MM/AAAA");
+  if (!input.getAttribute("maxlength")) input.setAttribute("maxlength", "10");
+  const apply = () => {
+    input.value = formatDateMask(input.value);
+  };
+  input.addEventListener("input", apply);
+  input.addEventListener("blur", apply);
+}
+
+function normalizeDateMaskValues(ids) {
+  (ids || dateInputIds).forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = String(el.value || "").trim();
+    if (v) el.value = formatDateMask(v);
   });
+}
+
+function setupDateMasks() {
+  dateInputIds.forEach((id) => bindDateMaskInput(document.getElementById(id)));
+  document.querySelectorAll('[data-dk-mask="date"]').forEach((el) => bindDateMaskInput(el));
+}
+
+/** Máscara monetária: só dígitos → centavos → R$ xxx,xx (barras/símbolos automáticos). */
+function formatCurrencyMask(value) {
+  const digits = onlyDigits(String(value ?? "")).slice(0, 14);
+  if (!digits) return "";
+  return currencyBRL(Number(digits) / 100);
+}
+
+function formatCurrencyInputBlur(inputEl) {
+  if (!inputEl) return;
+  const n = parseCurrencyBR(String(inputEl.value || ""));
+  inputEl.value = n > 0 ? currencyBRL(n) : "";
+}
+
+function bindCurrencyMaskInput(input) {
+  if (!input || input.readOnly || input.disabled) return;
+  if (input.dataset.dkCurrencyMask === "1") return;
+  input.dataset.dkCurrencyMask = "1";
+  if (!input.getAttribute("placeholder")) input.setAttribute("placeholder", "R$ 0,00");
+  input.addEventListener("input", () => {
+    input.value = formatCurrencyMask(input.value);
+  });
+  input.addEventListener("blur", () => formatCurrencyInputBlur(input));
+}
+
+function normalizeCurrencyMaskValues(ids) {
+  (ids || currencyInputIds).forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el || el.readOnly || el.disabled) return;
+    const n = parseCurrencyBR(String(el.value || ""));
+    el.value = n > 0 ? currencyBRL(n) : "";
+  });
+}
+
+function setupCurrencyMasks() {
+  currencyInputIds.forEach((id) => bindCurrencyMaskInput(document.getElementById(id)));
+  document.querySelectorAll('[data-dk-mask="currency"]').forEach((el) => bindCurrencyMaskInput(el));
 }
 
 function ensureLocacaoInicioDefault() {
@@ -3650,9 +3738,7 @@ function addCalendarMonths(date, months) {
 }
 
 function formatLocacaoCurrencyInput(inputEl) {
-  if (!inputEl) return;
-  const n = parseCurrencyBR(String(inputEl.value || ""));
-  inputEl.value = n > 0 ? currencyBRL(n) : "";
+  formatCurrencyInputBlur(inputEl);
 }
 
 function recomputeLocacaoFimByPlano() {
@@ -6669,7 +6755,7 @@ function mergeLocalLancamentosIntoMonthMetas(record, cpfDigits, placaRaw, block,
 function formatQuadroInputDisplay(val) {
   const n = Number(val);
   if (!Number.isFinite(n) || Math.abs(n) < 1e-9) return "";
-  return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return currencyBRL(n);
 }
 
 function formatQuadroMonthSlotTd(meta, cellOpts, editableCtx) {
@@ -7168,11 +7254,23 @@ function wireQuadroHistoricoEditableInputs(container) {
   const onInp = (e) => {
     const t = e.target;
     if (!t || !t.matches || !t.matches("input.quadro-cell-input")) return;
+    t.value = formatCurrencyMask(t.value);
+    const tr = t.closest("tr");
+    updateQuadroRowTotalFromInputs(tr);
+  };
+  const onBlur = (e) => {
+    const t = e.target;
+    if (!t || !t.matches || !t.matches("input.quadro-cell-input")) return;
+    formatCurrencyInputBlur(t);
     const tr = t.closest("tr");
     updateQuadroRowTotalFromInputs(tr);
   };
   container.addEventListener("input", onInp);
-  return () => container.removeEventListener("input", onInp);
+  container.addEventListener("blur", onBlur, true);
+  return () => {
+    container.removeEventListener("input", onInp);
+    container.removeEventListener("blur", onBlur, true);
+  };
 }
 
 function quadroEditableSnapshotSerialize(container) {
@@ -11446,6 +11544,23 @@ function parseBrDate(dateStr) {
     return new Date(year, month - 1, day);
   }
 
+  const digitsOnly = onlyDigits(raw);
+  if (digitsOnly.length === 8) {
+    const day = Number(digitsOnly.slice(0, 2));
+    const month = Number(digitsOnly.slice(2, 4));
+    const year = Number(digitsOnly.slice(4, 8));
+    if (day >= 1 && month >= 1 && year >= 1900) {
+      const d = new Date(year, month - 1, day);
+      if (
+        d.getFullYear() === year &&
+        d.getMonth() === month - 1 &&
+        d.getDate() === day
+      ) {
+        return d;
+      }
+    }
+  }
+
   const numeric = Number(raw.replace(",", "."));
   if (Number.isFinite(numeric) && numeric > 20000) {
     const excelEpoch = new Date(1899, 11, 30);
@@ -15410,6 +15525,17 @@ repairProtocolosLocacaoPorDataInicioOnce();
 fixKnownRentalValueOverrides();
 if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();
+setupCurrencyMasks();
+normalizeDateMaskValues();
+normalizeCurrencyMaskValues();
+
+window.formatDateMask = formatDateMask;
+window.formatCurrencyMask = formatCurrencyMask;
+window.formatCurrencyInputBlur = formatCurrencyInputBlur;
+window.normalizeDateMaskValues = normalizeDateMaskValues;
+window.normalizeCurrencyMaskValues = normalizeCurrencyMaskValues;
+window.bindDateMaskInput = bindDateMaskInput;
+window.bindCurrencyMaskInput = bindCurrencyMaskInput;
 ensureLocacaoInicioDefault();
 setHomeLayoutToolbarState();
 bootstrapHomeLayoutFromStorage();

@@ -19,18 +19,19 @@ async function main() {
   try {
     await page.goto(URL, { waitUntil: "networkidle", timeout: 60000 });
 
-    record(
-      "HTML com cache banco-unificado",
-      (await page.content()).includes("banco-unificado"),
-      "scripts"
-    );
+    const html = await page.content();
+    record("HTML com cache banco-unificado", html.includes("banco-unificado"), "scripts");
+    record("HTML com cache mascaras", html.includes("mascaras"), "app.js + portal-locadora-ui.js");
 
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",
       banco: Boolean(window.DK_BANCO_CADASTRO?.veiculos?.length),
       upsert: typeof window.__DK_upsertPortalClienteByCpf === "function",
+      dateMask: typeof window.formatDateMask === "function",
+      currencyMask: typeof window.formatCurrencyMask === "function",
     }));
     record("app.js banco unificado", hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.banco);
+    record("mascaras globais carregadas", hasPortalFns.dateMask && hasPortalFns.currencyMask);
 
     await page.click("text=DK Locadora", { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(800);
@@ -110,6 +111,29 @@ async function main() {
         await page.waitForTimeout(600);
         const nomeVal = await page.locator("#operacaoClienteNome").inputValue().catch(() => "");
         record("form cliente preenche nome ao digitar CPF", /teste-001/i.test(nomeVal), nomeVal || "(vazio)");
+      }
+    }
+
+    const locacaoBtn = page.locator("text=Cadastro de locação").first();
+    if (await locacaoBtn.isVisible().catch(() => false)) {
+      await locacaoBtn.click();
+      await page.waitForTimeout(800);
+      const dataInicio = page.locator("#operacaoLocacaoDataInicio");
+      if (await dataInicio.isVisible().catch(() => false)) {
+        await dataInicio.fill("");
+        await dataInicio.type("19052026", { delay: 30 });
+        await page.waitForTimeout(300);
+        const dataVal = await dataInicio.inputValue();
+        record("mascara data DD/MM/AAAA", dataVal === "19/05/2026", dataVal);
+      }
+      const valAluguel = page.locator("#operacaoLocacaoValorAluguel");
+      if (await valAluguel.isVisible().catch(() => false)) {
+        await valAluguel.fill("");
+        await valAluguel.type("12345", { delay: 30 });
+        await page.waitForTimeout(300);
+        const valRaw = await valAluguel.inputValue();
+        const okVal = /R\$\s*123,45/.test(valRaw);
+        record("mascara valor R$ xxx,xx", okVal, valRaw);
       }
     }
 

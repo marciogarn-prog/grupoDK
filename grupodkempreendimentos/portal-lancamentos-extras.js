@@ -162,7 +162,7 @@
   }
 
   function fmtBrlNum(n) {
-    return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return fmtBrl(n);
   }
 
   function normalizeEntry(x) {

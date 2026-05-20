@@ -1261,9 +1261,9 @@ ${printable.innerHTML}
           <label>Placa <input type="text" id="portalChecklistFieldPlaca" readonly tabindex="-1"></label>
         </div>
         <div class="portal-checklist-dates">
-          <label>Entrada (data) <input type="date" id="portalChecklistEntradaData"></label>
+          <label>Entrada (data) <input type="text" id="portalChecklistEntradaData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
           <label>Entrada (hora) <input type="time" id="portalChecklistEntradaHora"></label>
-          <label>Saída (data) <input type="date" id="portalChecklistSaidaData"></label>
+          <label>Saída (data) <input type="text" id="portalChecklistSaidaData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
           <label>Saída (hora) <input type="time" id="portalChecklistSaidaHora"></label>
         </div>
         <div class="portal-checklist-inline-row">
@@ -2174,6 +2174,7 @@ ${printable.innerHTML}
       assign("operacaoClienteEndereco", cliente.endereco);
       const ear = get("operacaoClienteEar");
       if (ear) ear.value = String(cliente.ear || "").trim();
+      normalizePortalMaskedFieldValues();
     }
 
     function getPrimeiraLocacaoDateLabelByCpf(cpfDigits) {
@@ -4973,44 +4974,52 @@ ${printable.innerHTML}
     return `${day}/${month}/${y}`;
   }
 
-  /** Durante a digitação: só dígitos (até 8) → barras automáticas DD/MM/AAAA. */
-  function formatPortalInputDateDdMmYyyy(raw) {
-    const dig = String(raw ?? "").replace(/\D/g, "").slice(0, 8);
-    if (dig.length <= 2) return dig;
-    if (dig.length <= 4) return `${dig.slice(0, 2)}/${dig.slice(2)}`;
-    return `${dig.slice(0, 2)}/${dig.slice(2, 4)}/${dig.slice(4)}`;
-  }
-
   const PORTAL_DATE_DDMMYYYY_INPUT_IDS = [
     "operacaoClienteDataCadastro",
     "operacaoClienteVencimento",
     "operacaoLocacaoDataInicio",
     "operacaoLocacaoDataFim",
     "operacaoLancAluguelDataPagamento",
+    "operacaoLancMultasDataMulta",
+    "operacaoLancMultasDataPrimeiraParcela",
+    "operacaoLancManutencaoDataManutencao",
+    "operacaoLancManutencaoDataPrimeiraParcela",
     "portalLancAluguelEditData",
     "portalRelPagamentosInicio",
     "portalRelPagamentosFim",
     "portalColabIngresso",
+    "portalChecklistEntradaData",
+    "portalChecklistSaidaData",
   ];
 
-  function bindPortalDateDdMmYyyyInputs() {
-    PORTAL_DATE_DDMMYYYY_INPUT_IDS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el || el.readOnly || el.disabled) return;
-      const apply = () => {
-        el.value = formatPortalInputDateDdMmYyyy(el.value);
-      };
-      el.addEventListener("input", apply);
-      el.addEventListener("blur", apply);
-    });
-  }
+  const PORTAL_CURRENCY_INPUT_IDS = [
+    "operacaoVeiculoValor",
+    "operacaoLocacaoValorAluguel",
+    "operacaoLocacaoValorInvestimento",
+    "operacaoLancAluguelValorEspecie",
+    "operacaoLancAluguelValorPix",
+    "operacaoLancAluguelValorCartao",
+    "operacaoLancMultasValorMulta",
+    "operacaoLancManutencaoValorManutencao",
+    "portalLancAluguelEditValor",
+  ];
 
-  function normalizePortalDateInputsExistingValues() {
+  function normalizePortalMaskedFieldValues() {
+    if (typeof normalizeDateMaskValues === "function") {
+      normalizeDateMaskValues(PORTAL_DATE_DDMMYYYY_INPUT_IDS);
+    }
+    if (typeof normalizeCurrencyMaskValues === "function") {
+      normalizeCurrencyMaskValues(PORTAL_CURRENCY_INPUT_IDS);
+    }
+    PORTAL_CURRENCY_INPUT_IDS.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el || el.readOnly || el.disabled) return;
+      if (typeof bindCurrencyMaskInput === "function") bindCurrencyMaskInput(el);
+    });
     PORTAL_DATE_DDMMYYYY_INPUT_IDS.forEach((id) => {
       const el = document.getElementById(id);
       if (!el || el.readOnly || el.disabled) return;
-      const v = String(el.value || "").trim();
-      if (v) el.value = formatPortalInputDateDdMmYyyy(v);
+      if (typeof bindDateMaskInput === "function") bindDateMaskInput(el);
     });
   }
 
@@ -5198,7 +5207,7 @@ ${printable.innerHTML}
   function updateOperacaoLocacaoDataInicioPlaceholder() {
     const inp = document.getElementById("operacaoLocacaoDataInicio");
     if (!inp) return;
-    inp.placeholder = `Ex.: ${formatPortalDataBr(new Date())}`;
+    inp.placeholder = "DD/MM/AAAA";
   }
 
   function isPortalProtocoloAlignedWithInicioForm(ncRaw) {
@@ -5324,6 +5333,9 @@ ${printable.innerHTML}
     if (dfEl) dfEl.value = fmtDate(loc.fim);
     if (diaPagEl) diaPagEl.value = String(loc.diaPagto || loc.diaPagamento || "").trim();
     const fmtValor = (raw) => {
+      if (typeof parseCurrencyBR === "function" && typeof currencyBRL === "function") {
+        return currencyBRL(parseCurrencyBR(String(raw || "")));
+      }
       if (typeof parseCurrencyBR === "function") {
         const n = parseCurrencyBR(String(raw || ""));
         return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -5970,7 +5982,11 @@ ${printable.innerHTML}
   const PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO = 2025;
 
   function formatPortalLancamentoSumBrl(n) {
-    return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (typeof currencyBRL === "function") return currencyBRL(Number(n || 0));
+    return Number(n || 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
   }
 
   function parsePortalLancamentoValorRaw(v) {
@@ -6277,19 +6293,17 @@ ${printable.innerHTML}
     const tipoPlanoStr =
       String(loc?.plano || loc?.opcaoContrato || "").trim() ||
       (valInv > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE");
-    const fmtN = (n) =>
-      Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const fmtBrl = (n) =>
       typeof currencyBRL === "function"
         ? currencyBRL(n)
         : Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     return {
       custoDia: fmtBrl(custoDiaNum),
-      valorAluguel: fmtN(valLoc),
-      valorInvestimento: fmtN(valInv),
-      valorPlano: fmtN(plano),
+      valorAluguel: fmtBrl(valLoc),
+      valorInvestimento: fmtBrl(valInv),
+      valorPlano: fmtBrl(plano),
       valorDevidoPlano: fmtBrl(valorDevidoPlanoNum),
-      totalPago: fmtN(totalPagoNum),
+      totalPago: fmtBrl(totalPagoNum),
       tipoPlano: tipoPlanoStr,
       valorDevidoAluguel: fmtBrl(valorDevidoAluguelNum),
       valorDevidoManutencao: fmtBrl(valorDevidoManutencaoNum),
@@ -7047,6 +7061,9 @@ ${printable.innerHTML}
       return s;
     };
     const fmtValor = (raw) => {
+      if (typeof parseCurrencyBR === "function" && typeof currencyBRL === "function") {
+        return currencyBRL(parseCurrencyBR(String(raw || "")));
+      }
       if (typeof parseCurrencyBR === "function") {
         const n = parseCurrencyBR(String(raw || ""));
         return Number(n || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -7343,12 +7360,20 @@ ${printable.innerHTML}
     const inpV = document.getElementById("portalLancAluguelEditValor");
     const inpD = document.getElementById("portalLancAluguelEditData");
     if (inpV) {
-      inpV.value = Number(valorNum || 0).toLocaleString("pt-BR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+      inpV.value =
+        typeof currencyBRL === "function"
+          ? currencyBRL(Number(valorNum || 0))
+          : Number(valorNum || 0).toLocaleString("pt-BR", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            });
     }
-    if (inpD) inpD.value = String(dataStr || "").trim();
+    if (inpD) {
+      const rawD = String(dataStr || "").trim();
+      inpD.value =
+        typeof formatDateMask === "function" ? formatDateMask(rawD) : rawD;
+    }
+    if (typeof normalizePortalMaskedFieldValues === "function") normalizePortalMaskedFieldValues();
     if (modal) {
       modal.classList.remove("hidden");
       modal.setAttribute("aria-hidden", "false");
@@ -7653,9 +7678,10 @@ ${printable.innerHTML}
   }
 
   function formatOperacaoLocacaoValorNumDisplay(num) {
+    if (typeof currencyBRL === "function") return currencyBRL(Number(num || 0));
     return Number(num || 0).toLocaleString("pt-BR", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
+      style: "currency",
+      currency: "BRL",
     });
   }
 
@@ -8612,7 +8638,10 @@ ${printable.innerHTML}
         : "";
     const nomeExibir = nome || "—";
     const cpfFmt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
-    const valorFmt = Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const valorFmt =
+      typeof currencyBRL === "function"
+        ? currencyBRL(valorNum)
+        : Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const texto = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       const ok = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
@@ -9104,8 +9133,7 @@ ${printable.innerHTML}
             : String(locCpfHydrate.value || "").replace(/\D/g, "");
         if (dh) locCpfHydrate.value = formatCpf(dh.slice(0, 11));
       }
-      normalizePortalDateInputsExistingValues();
-      bindPortalDateDdMmYyyyInputs();
+      normalizePortalMaskedFieldValues();
       syncOperacaoLancAluguelValorPagoFromMeios();
       syncOperacaoLocacaoFromDataInicio();
       syncOperacaoLocacaoValorPlano();
