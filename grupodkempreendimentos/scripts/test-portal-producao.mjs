@@ -153,7 +153,14 @@ async function main() {
     record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Corporativo"));
 
     await page.goto(new URL("cliente.html", BASE_URL).href, { waitUntil: "networkidle", timeout: 60000 });
-    record("cliente.html carrega", (await page.content()).includes("Partilhar comprovante"));
+    const clienteGateRedirect =
+      page.url().includes("locadora/cliente") ||
+      (await page.content()).includes("Baixar / instalar app");
+    record(
+      "cliente.html exige gate (redireciona para área cliente)",
+      clienteGateRedirect,
+      page.url()
+    );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
     if (await clienteBtn.isVisible().catch(() => false)) {
