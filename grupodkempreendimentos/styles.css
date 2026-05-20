@@ -2217,3 +2217,22 @@ body {
 #view-locadora-cliente .subpage__title {
   margin-top: 0;
 }
+
+.portal-admin-alteracao-corpo {
+  max-height: min(50vh, 22rem);
+  overflow: auto;
+  margin: 0.75rem 0 1rem;
+}
+
+.portal-alteracao-list {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.portal-alteracao-list li {
+  margin-bottom: 0.45rem;
+}
+
+.portal-alteracao-list li strong {
+  color: var(--accent);
+}

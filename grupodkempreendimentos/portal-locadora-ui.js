@@ -67,6 +67,180 @@
     return getPortalSessaoAdminRole() === "owner";
   }
 
+  const PORTAL_CLIENTE_DIFF_LABELS = {
+    codigo: "Código",
+    dataCadastro: "Data cadastro",
+    cpf: "CPF",
+    nome: "Nome",
+    celular: "Celular",
+    recado1: "Recado 1",
+    recado2: "Recado 2",
+    cnh: "CNH",
+    categoria: "Categoria",
+    vencimento: "Vencimento",
+    ear: "EAR",
+    cep: "CEP",
+    municipioUf: "Município/UF",
+    endereco: "Endereço",
+  };
+
+  const PORTAL_VEICULO_DIFF_LABELS = {
+    tipo: "Tipo",
+    tag: "Tag",
+    placa: "Placa",
+    codigo: "Código",
+    marca: "Marca",
+    modelo: "Modelo",
+    valor: "Valor",
+    cor: "Cor",
+    chassi: "Chassi",
+    anoModelo: "Ano/modelo",
+    renavam: "Renavam",
+    motor: "Motor",
+    proprietario: "Proprietário",
+    local: "Local",
+  };
+
+  const PORTAL_LOCACAO_DIFF_LABELS = {
+    numeroContrato: "Protocolo",
+    placa: "Placa",
+    inicio: "Início",
+    fim: "Fim",
+    plano: "Plano",
+    valorLocacao: "Valor locação",
+    valorInvestimento: "Valor investimento",
+    valorSemanal: "Valor semanal",
+    statusLocacao: "Status",
+    diaPagto: "Dia pagamento",
+    periodoLocacao: "Período",
+    marcaModelo: "Marca/modelo",
+    modalidade: "Modalidade",
+  };
+
+  let portalAdminAlteracaoConfirmCallback = null;
+
+  function portalNormDiffVal(v) {
+    return String(v ?? "").trim();
+  }
+
+  function portalFormatCpfDiff(digits) {
+    const d = onlyDigits(String(digits || "")).slice(0, 11);
+    return typeof formatCpf === "function" && d.length === 11 ? formatCpf(d) : d || "—";
+  }
+
+  function portalBuildAlteracoesLista(antes, depois, labels) {
+    const changes = [];
+    Object.keys(labels).forEach((key) => {
+      const a = portalNormDiffVal(antes?.[key]);
+      const b = portalNormDiffVal(depois?.[key]);
+      if (a !== b) changes.push({ label: labels[key], antes: a || "—", depois: b || "—" });
+    });
+    return changes;
+  }
+
+  function portalEscAlteracaoHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function portalFormatAlteracoesHtml(changes) {
+    if (!changes.length) {
+      return '<p class="subtext">Nenhuma alteração detectada nos campos comparados.</p>';
+    }
+    return `<ul class="portal-alteracao-list">${changes
+      .map(
+        (c) =>
+          `<li><strong>${portalEscAlteracaoHtml(c.label)}:</strong> ${portalEscAlteracaoHtml(c.antes)} → ${portalEscAlteracaoHtml(c.depois)}</li>`
+      )
+      .join("")}</ul>`;
+  }
+
+  function openPortalAdminAlteracaoConfirmModal(titulo, htmlCorpo, onConfirm) {
+    const modal = document.getElementById("portalAdminAlteracaoConfirmModal");
+    const tituloEl = document.getElementById("portalAdminAlteracaoConfirmTitulo");
+    const corpo = document.getElementById("portalAdminAlteracaoConfirmCorpo");
+    if (!modal || !corpo) {
+      if (typeof onConfirm === "function" && window.confirm(String(titulo || "Confirmar alteração?"))) onConfirm();
+      return;
+    }
+    portalAdminAlteracaoConfirmCallback = typeof onConfirm === "function" ? onConfirm : null;
+    if (tituloEl) tituloEl.textContent = String(titulo || "Confirmar alteração");
+    corpo.innerHTML = htmlCorpo || "";
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closePortalAdminAlteracaoConfirmModal() {
+    const modal = document.getElementById("portalAdminAlteracaoConfirmModal");
+    portalAdminAlteracaoConfirmCallback = null;
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  /** Só para administrador titular: confirma quando há diferenças em registo já existente. */
+  function portalConfirmarAlteracaoAdministrador(opts, onConfirm) {
+    if (!isPortalTitularAdministrador()) {
+      if (typeof onConfirm === "function") onConfirm();
+      return;
+    }
+    const changes = Array.isArray(opts?.changes) ? opts.changes : [];
+    if (!changes.length) {
+      if (typeof onConfirm === "function") onConfirm();
+      return;
+    }
+    openPortalAdminAlteracaoConfirmModal(
+      opts.titulo || "Confirmar alteração",
+      portalFormatAlteracoesHtml(changes),
+      onConfirm
+    );
+  }
+
+  function portalSnapshotClienteRecord(rec, cpfDigits) {
+    const d = onlyDigits(String(rec?.cpf || cpfDigits || "")).slice(0, 11);
+    return {
+      codigo: portalNormDiffVal(rec?.codigo),
+      dataCadastro: portalNormDiffVal(rec?.dataCadastro),
+      cpf: portalFormatCpfDiff(d),
+      nome: portalNormDiffVal(rec?.nome),
+      celular: portalNormDiffVal(rec?.celular),
+      recado1: portalNormDiffVal(rec?.recado1),
+      recado2: portalNormDiffVal(rec?.recado2),
+      cnh: portalNormDiffVal(rec?.cnh),
+      categoria: portalNormDiffVal(rec?.categoria),
+      vencimento: portalNormDiffVal(rec?.vencimento),
+      ear: portalNormDiffVal(rec?.ear),
+      cep: portalNormDiffVal(rec?.cep),
+      municipioUf: portalNormDiffVal(rec?.municipioUf),
+      endereco: portalNormDiffVal(rec?.endereco),
+    };
+  }
+
+  function portalCollectClienteFormPayload(cpfDigits) {
+    const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+    const dataVal = getVal("operacaoClienteDataCadastro");
+    return {
+      codigo: getVal("operacaoClienteCodigo"),
+      dataCadastro: dataVal,
+      cpf: portalFormatCpfDiff(cpfDigits),
+      nome: getVal("operacaoClienteNome"),
+      celular: getVal("operacaoClienteCelular"),
+      recado1: getVal("operacaoClienteRecado1"),
+      recado2: getVal("operacaoClienteRecado2"),
+      cnh: getVal("operacaoClienteCnh"),
+      categoria: getVal("operacaoClienteCategoria"),
+      vencimento: getVal("operacaoClienteVencimento"),
+      ear: getVal("operacaoClienteEar"),
+      cep: getVal("operacaoClienteCep"),
+      municipioUf: getVal("operacaoClienteMunicipioUf"),
+      endereco: getVal("operacaoClienteEndereco"),
+    };
+  }
+
   const LOCADORA_LEAD_SEM_SESSAO =
     "Área da empresa: escolha Colaborador ou Administrador e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável).";
 
@@ -124,7 +298,31 @@
 
   /** Mapa `acessos` para colaborador operacional (fallback se registo antigo não tiver objeto). */
   function getPortalOperacaoAcessosEfetivos(f) {
-    if (!f || String(f.role || "").trim() !== "operacao") return null;
+    if (!f) return null;
+    if (String(f.role || "").trim() === "owner") {
+      return typeof buildFullOperacaoAccess === "function"
+        ? {
+            ...buildFullOperacaoAccess(),
+            locacao: true,
+            manutencao: true,
+            lancamentoAluguel: true,
+            lancamentoMultas: true,
+            lancamentoManutencao: true,
+            funcionario: true,
+          }
+        : {
+            cliente: true,
+            veiculo: true,
+            locacao: true,
+            manutencao: true,
+            lancamentoAluguel: true,
+            lancamentoMultas: true,
+            lancamentoManutencao: true,
+            lancamentoDespesa: true,
+            funcionario: true,
+          };
+    }
+    if (String(f.role || "").trim() !== "operacao") return null;
     if (f.acessos && typeof f.acessos === "object") return f.acessos;
     return typeof normalizeOperacaoAccess === "function"
       ? normalizeOperacaoAccess(null, "operacao")
@@ -1843,15 +2041,57 @@ ${printable.innerHTML}
             lancamentoDespesa: false,
             funcionario: false,
           };
-    f.nome = nome;
-    f.funcao = funcao;
-    f.dataIngresso = dataIngresso;
-    f.acessos = acessos;
-    saveFuncionariosAccess();
-    portalPushCloudSnapshotAfterPersist();
-    aplicarPortalColaboradorDoFuncionario(f);
-    refreshPortalOperacaoNavPorAcessos();
-    if (fb) fb.textContent = "Alterações guardadas.";
+    const antesColab = {
+      nome: portalNormDiffVal(f.nome),
+      funcao: portalNormDiffVal(f.funcao),
+      dataIngresso: portalNormDiffVal(f.dataIngresso),
+      cliente: portalNormDiffVal(f.acessos?.cliente ? "sim" : "não"),
+      veiculo: portalNormDiffVal(f.acessos?.veiculo ? "sim" : "não"),
+      locacao: portalNormDiffVal(f.acessos?.locacao ? "sim" : "não"),
+      lancamentoAluguel: portalNormDiffVal(f.acessos?.lancamentoAluguel ? "sim" : "não"),
+      lancamentoMultas: portalNormDiffVal(f.acessos?.lancamentoMultas ? "sim" : "não"),
+      lancamentoManutencao: portalNormDiffVal(f.acessos?.lancamentoManutencao ? "sim" : "não"),
+    };
+    const depoisColab = {
+      nome,
+      funcao,
+      dataIngresso,
+      cliente: aceCliente ? "sim" : "não",
+      veiculo: aceVeiculo ? "sim" : "não",
+      locacao: aceLocacao ? "sim" : "não",
+      lancamentoAluguel: aceLanc ? "sim" : "não",
+      lancamentoMultas: aceMultas ? "sim" : "não",
+      lancamentoManutencao: aceManut ? "sim" : "não",
+    };
+    const COLAB_LABELS = {
+      nome: "Nome",
+      funcao: "Função",
+      dataIngresso: "Data ingresso",
+      cliente: "Cadastro cliente",
+      veiculo: "Cadastro veículo",
+      locacao: "Cadastro locação",
+      lancamentoAluguel: "Lanç. aluguel",
+      lancamentoMultas: "Lanç. multas",
+      lancamentoManutencao: "Lanç. manutenção",
+    };
+    const doSaveColab = () => {
+      f.nome = nome;
+      f.funcao = funcao;
+      f.dataIngresso = dataIngresso;
+      f.acessos = acessos;
+      saveFuncionariosAccess();
+      portalPushCloudSnapshotAfterPersist();
+      aplicarPortalColaboradorDoFuncionario(f);
+      refreshPortalOperacaoNavPorAcessos();
+      if (fb) fb.textContent = "Alterações guardadas.";
+    };
+    portalConfirmarAlteracaoAdministrador(
+      {
+        titulo: "Confirmar alteração — colaborador",
+        changes: portalBuildAlteracoesLista(antesColab, depoisColab, COLAB_LABELS),
+      },
+      doSaveColab
+    );
   });
 
   document.getElementById("portalColabBloqueioBtn")?.addEventListener("click", () => {
@@ -2188,10 +2428,73 @@ ${printable.innerHTML}
     }
 
     function setAtualizarButtonByCpf(cpfDigits) {
-      if (!btnAtualizar) return;
       const known = Boolean(getClienteByCpfAny(cpfDigits));
-      btnAtualizar.classList.toggle("hidden", !known);
+      const admin = isPortalTitularAdministrador();
+      if (btnAtualizar) btnAtualizar.classList.toggle("hidden", !known || admin);
+      const submitBtn = form?.querySelector('button[type="submit"]');
+      if (submitBtn) {
+        submitBtn.textContent =
+          known && admin ? "Guardar alterações do cliente" : known && !admin ? "Guardar cliente" : "Guardar cliente";
+      }
       refreshOperacaoClienteApagarBtn(cpfDigits);
+    }
+
+    function persistOperacaoClienteAtualizacao(cpfDigits, fonte) {
+      const msg = document.getElementById("operacaoClienteInlineMsg");
+      const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+      const nomeDigitado = getVal("operacaoClienteNome");
+      const nomeFinal = nomeDigitado || String(fonte?.nome || "").trim();
+      if (!nomeFinal) {
+        if (msg) msg.textContent = "Informe o nome do cliente no campo NOME antes de guardar.";
+        inpNome?.focus();
+        return false;
+      }
+      const dataVal = getVal("operacaoClienteDataCadastro");
+      const dataCadastroFinal = /^\d{2}\/\d{2}\/\d{4}$/.test(dataVal)
+        ? dataVal
+        : portalClienteDataLabelPreferido(fonte, cpfDigits, getPrimeiraLocacaoDateLabelByCpf) ||
+          dataVal ||
+          "08/05/2026";
+      const canonCode = getPortalCanonicalClienteCodeByCpf(cpfDigits) || String(fonte?.codigo || "").trim();
+      const existenteLocal =
+        typeof findPortalClienteByCpf === "function"
+          ? findPortalClienteByCpf(cpfDigits)
+          : typeof findClienteByCpfCadastro === "function"
+            ? findClienteByCpfCadastro(cpfDigits)
+            : null;
+      const payload = {
+        id: existenteLocal?.id ?? Date.now(),
+        createdAt: existenteLocal?.createdAt ?? Date.now(),
+        codigo: canonCode,
+        dataCadastro: dataCadastroFinal,
+        cpf: cpfDigits,
+        nome: nomeFinal,
+        celular: getVal("operacaoClienteCelular"),
+        recado1: getVal("operacaoClienteRecado1"),
+        recado2: getVal("operacaoClienteRecado2"),
+        cnh: getVal("operacaoClienteCnh"),
+        categoria: getVal("operacaoClienteCategoria"),
+        vencimento: getVal("operacaoClienteVencimento"),
+        ear: getVal("operacaoClienteEar"),
+        cep: getVal("operacaoClienteCep"),
+        municipioUf: getVal("operacaoClienteMunicipioUf"),
+        endereco: getVal("operacaoClienteEndereco"),
+      };
+      const payloadPortal = { ...payload, origemPortal: true, updatedAt: Date.now() };
+      if (typeof upsertPortalClienteByCpf === "function") {
+        upsertPortalClienteByCpf(payloadPortal, existenteLocal?.status || fonte?.status || "ATIVO");
+      } else if (typeof upsertClienteCadastroByCpf === "function") {
+        upsertClienteCadastroByCpf(payloadPortal, existenteLocal?.status || fonte?.status || "ATIVO");
+      } else {
+        const clientes = loadCadastro(CAD_CLIENTES_KEY);
+        const idx = clientes.findIndex((c) => onlyDigits(String(c.cpf || "")) === cpfDigits);
+        if (idx === -1) clientes.push({ ...payload, id: Number(payload.id) || Date.now() });
+        else clientes[idx] = { ...clientes[idx], ...payload };
+        saveCadastro(CAD_CLIENTES_KEY, clientes);
+      }
+      portalPushCloudSnapshotAfterPersist();
+      if (msg) msg.textContent = "Dados do cliente guardados com sucesso.";
+      return true;
     }
 
     /** Snapshot em JS + cadastro local + candidatos do painel; não depende só de getLancamentoClienteCandidates. */
@@ -2305,6 +2608,18 @@ ${printable.innerHTML}
         if (!el) return;
         el.classList.toggle("portal-input-immutable", Boolean(on));
       };
+      if (isPortalTitularAdministrador()) {
+        ["operacaoClienteCodigo", "operacaoClienteCpf", "operacaoClienteNome", "operacaoClienteDataCadastro"].forEach(
+          (id) => {
+            const el = document.getElementById(id);
+            if (el) {
+              el.readOnly = false;
+              el.classList.remove("portal-input-immutable");
+            }
+          }
+        );
+        return;
+      }
       const codigo = document.getElementById("operacaoClienteCodigo");
       if (codigo) {
         codigo.readOnly = true;
@@ -2446,7 +2761,7 @@ ${printable.innerHTML}
       setAtualizarButtonByCpf(digits);
       const dataLabel = dataPreferida;
       if (msg) msg.textContent = dataLabel ? `Cliente já cadastrado em ${dataLabel}.` : "Cliente já cadastrado.";
-      if (lastAlertedCpf !== digits) {
+      if (!isPortalTitularAdministrador() && lastAlertedCpf !== digits) {
         window.alert(dataLabel ? `Cliente cadastrado em ${dataLabel}.` : "Cliente já cadastrado.");
         lastAlertedCpf = digits;
       }
@@ -2465,6 +2780,18 @@ ${printable.innerHTML}
       if (digits.length !== 11) return;
       const known = getClienteByCpfAny(digits);
       if (known) {
+        if (isPortalTitularAdministrador()) {
+          const changes = portalBuildAlteracoesLista(
+            portalSnapshotClienteRecord(known, digits),
+            portalCollectClienteFormPayload(digits),
+            PORTAL_CLIENTE_DIFF_LABELS
+          );
+          portalConfirmarAlteracaoAdministrador(
+            { titulo: "Confirmar alteração — cliente", changes },
+            () => persistOperacaoClienteAtualizacao(digits, known)
+          );
+          return;
+        }
         const localOnly =
           typeof findPortalClienteByCpf === "function"
             ? findPortalClienteByCpf(digits)
@@ -2574,64 +2901,17 @@ ${printable.innerHTML}
         if (msg) msg.textContent = "Atualização indisponível neste ambiente.";
         return;
       }
-      const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
-      const nomeDigitado = getVal("operacaoClienteNome");
-      const nomeFinal = nomeDigitado || String(fonte.nome || "").trim();
-      if (!nomeFinal) {
-        if (msg) msg.textContent = "Informe o nome do cliente no campo NOME antes de atualizar.";
-        inpNome?.focus();
-        return;
-      }
-      const dataVal = getVal("operacaoClienteDataCadastro");
-      const dataCadastroFinal = /^\d{2}\/\d{2}\/\d{4}$/.test(dataVal)
-        ? dataVal
-        : portalClienteDataLabelPreferido(fonte, digits, getPrimeiraLocacaoDateLabelByCpf) || "08/05/2026";
-      const canonCode = getPortalCanonicalClienteCodeByCpf(digits) || String(fonte.codigo || "").trim();
-      const existenteLocal =
-        typeof findPortalClienteByCpf === "function"
-          ? findPortalClienteByCpf(digits)
-          : typeof findClienteByCpfCadastro === "function"
-            ? findClienteByCpfCadastro(digits)
-            : null;
-      const payload = {
-        id: existenteLocal?.id ?? Date.now(),
-        createdAt: existenteLocal?.createdAt ?? Date.now(),
-        codigo: canonCode,
-        dataCadastro: dataCadastroFinal,
-        cpf: digits,
-        nome: nomeFinal,
-        celular: getVal("operacaoClienteCelular"),
-        recado1: getVal("operacaoClienteRecado1"),
-        recado2: getVal("operacaoClienteRecado2"),
-        cnh: getVal("operacaoClienteCnh"),
-        categoria: getVal("operacaoClienteCategoria"),
-        vencimento: getVal("operacaoClienteVencimento"),
-        ear: getVal("operacaoClienteEar"),
-        cep: getVal("operacaoClienteCep"),
-        municipioUf: getVal("operacaoClienteMunicipioUf"),
-        endereco: getVal("operacaoClienteEndereco"),
-      };
-      const payloadPortal = { ...payload, origemPortal: true, updatedAt: Date.now() };
-      if (typeof upsertPortalClienteByCpf === "function") {
-        upsertPortalClienteByCpf(payloadPortal, existenteLocal?.status || fonte.status || "ATIVO");
-      } else if (typeof upsertClienteCadastroByCpf === "function") {
-        upsertClienteCadastroByCpf(payloadPortal, existenteLocal?.status || fonte.status || "ATIVO");
-      } else {
-        const clientes = loadCadastro(CAD_CLIENTES_KEY);
-        const idx = clientes.findIndex((c) => {
-          const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-          return cpf === digits;
-        });
-        if (idx === -1) {
-          clientes.push({ ...payload, id: Number(payload.id) || Date.now() });
-        } else {
-          clientes[idx] = { ...clientes[idx], ...payload };
+      const doSave = () => {
+        if (persistOperacaoClienteAtualizacao(digits, fonte)) {
+          window.alert("Os dados que você alterou foram guardados.");
         }
-        saveCadastro(CAD_CLIENTES_KEY, clientes);
-      }
-      portalPushCloudSnapshotAfterPersist();
-      if (msg) msg.textContent = "Dados do cliente atualizados com sucesso.";
-      window.alert("Os dados que você alterou foram salvos.");
+      };
+      const changes = portalBuildAlteracoesLista(
+        portalSnapshotClienteRecord(fonte, digits),
+        portalCollectClienteFormPayload(digits),
+        PORTAL_CLIENTE_DIFF_LABELS
+      );
+      portalConfirmarAlteracaoAdministrador({ titulo: "Confirmar alteração — cliente", changes }, doSave);
     });
 
     document.getElementById("operacaoClienteLimparBtn")?.addEventListener("click", (e) => {
@@ -5683,45 +5963,56 @@ ${printable.innerHTML}
       if (msg) msg.textContent = "Locação não encontrada na base deste navegador.";
       return;
     }
-    if (
-      !window.confirm(`Finalizar a locação ${ncNorm} com data fim ${fimBr}? O estado será marcado como finalizado.`)
-    ) {
-      return;
-    }
-
     const prev = locs[idx];
-    const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
-    const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
-    const finNow = Date.now();
-    locs[idx] = {
-      ...prev,
-      fim: fimBr,
-      statusLocacao: "FINALIZADO",
-      portalLocacaoFinalizadoPorCpf: finCpf,
-      portalLocacaoFinalizadoPorNome: String(regFin?.nome || "").trim(),
-      portalLocacaoFinalizadoEmMs: finNow,
-      updatedAt: finNow,
+    const finalizarLocacao = () => {
+      const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
+      const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      const finNow = Date.now();
+      locs[idx] = {
+        ...prev,
+        fim: fimBr,
+        statusLocacao: "FINALIZADO",
+        portalLocacaoFinalizadoPorCpf: finCpf,
+        portalLocacaoFinalizadoPorNome: String(regFin?.nome || "").trim(),
+        portalLocacaoFinalizadoEmMs: finNow,
+        updatedAt: finNow,
+      };
+      try {
+        saveCadastro(CAD_LOCACOES_KEY, locs);
+      } catch (err) {
+        console.error(err);
+        if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+        return;
+      }
+      portalPushCloudSnapshotAfterPersist();
+      if (typeof addAuditLog === "function") {
+        try {
+          addAuditLog("finalizar_locacao_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · fim ${fimBr}`);
+        } catch {
+          /* ignore */
+        }
+      }
+      if (msg) msg.textContent = "Locação finalizada e guardada.";
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      applyPortalLocacaoRowFromRecord(locs[idx]);
+      refreshOperacaoLocacaoDatalists();
+      refreshOperacaoLocacaoFinalizarBtn();
     };
-    try {
-      saveCadastro(CAD_LOCACOES_KEY, locs);
-    } catch (err) {
-      console.error(err);
-      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+    const changesFim = portalBuildAlteracoesLista(
+      { fim: portalNormDiffVal(prev.fim), status: portalNormDiffVal(prev.statusLocacao) },
+      { fim: fimBr, status: "FINALIZADO" },
+      { fim: "Data fim", status: "Status" }
+    );
+    if (isPortalTitularAdministrador()) {
+      portalConfirmarAlteracaoAdministrador(
+        { titulo: `Confirmar finalização — locação ${ncNorm}`, changes: changesFim },
+        finalizarLocacao
+      );
       return;
     }
-    portalPushCloudSnapshotAfterPersist();
-    if (typeof addAuditLog === "function") {
-      try {
-        addAuditLog("finalizar_locacao_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · fim ${fimBr}`);
-      } catch {
-        /* ignore */
-      }
+    if (window.confirm(`Finalizar a locação ${ncNorm} com data fim ${fimBr}? O estado será marcado como finalizado.`)) {
+      finalizarLocacao();
     }
-    if (msg) msg.textContent = "Locação finalizada e guardada.";
-    refreshOperacaoLocacaoProtocoloPicker({ force: true });
-    applyPortalLocacaoRowFromRecord(locs[idx]);
-    refreshOperacaoLocacaoDatalists();
-    refreshOperacaoLocacaoFinalizarBtn();
   }
 
   /** Atualiza a tag sugerida (DKCR/DKMT + sequência) conforme CARRO ou MOTO. */
@@ -5783,7 +6074,20 @@ ${printable.innerHTML}
         : typeof PORTAL_VEICULOS_KEY !== "undefined"
           ? loadCadastro(PORTAL_VEICULOS_KEY)
           : [];
-    if (typeof hasEquipamentoDuplicado === "function" && hasEquipamentoDuplicado(veiculos, plate, chassi, renavam, motor)) {
+    const existenteVeiculoPre =
+      typeof findPortalVeiculoByPlaca === "function" ? findPortalVeiculoByPlaca(plate) : null;
+    if (
+      typeof hasEquipamentoDuplicado === "function" &&
+      hasEquipamentoDuplicado(veiculos, plate, chassi, renavam, motor) &&
+      !(
+        existenteVeiculoPre &&
+        (typeof normalizePlate === "function"
+          ? normalizePlate(String(existenteVeiculoPre.placa || "")) === plate
+          : String(existenteVeiculoPre.placa || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "") === plate)
+      )
+    ) {
       if (msg) msg.textContent = "Placa, chassi, renavam ou motor já cadastrado.";
       return;
     }
@@ -5800,16 +6104,17 @@ ${printable.innerHTML}
       if (msg) msg.textContent = "Não foi possível gerar a tag. Selecione o tipo novamente.";
       return;
     }
+    const existenteVeiculo = existenteVeiculoPre;
     const novo = {
-      id: Date.now(),
-      createdAt: Date.now(),
+      id: existenteVeiculo?.id ?? Date.now(),
+      createdAt: existenteVeiculo?.createdAt ?? Date.now(),
       updatedAt: Date.now(),
       origemPortal: true,
       tipo,
       tag,
       placa: plate,
       codigo: getVal("operacaoVeiculoCodigo"),
-      numLinha: "",
+      numLinha: String(existenteVeiculo?.numLinha || "").trim(),
       marca,
       modelo,
       valor,
@@ -5820,28 +6125,68 @@ ${printable.innerHTML}
       motor,
       proprietario: getVal("operacaoVeiculoProprietario"),
       local: getVal("operacaoVeiculoLocal"),
-      status: "DISPONIVEL",
+      status: String(existenteVeiculo?.status || "DISPONIVEL").trim() || "DISPONIVEL",
     };
-    try {
-      if (typeof upsertPortalVeiculoByPlaca === "function") {
-        upsertPortalVeiculoByPlaca(novo);
-      } else if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
-        veiculos.push(novo);
-        saveCadastro(PORTAL_VEICULOS_KEY, veiculos);
-      } else {
-        veiculos.push(novo);
-        saveCadastro(CAD_VEICULOS_KEY, veiculos);
+    const snapshotVeiculo = (v) => ({
+      tipo: portalNormDiffVal(v?.tipo),
+      tag: portalNormDiffVal(v?.tag),
+      placa: portalNormDiffVal(v?.placa),
+      codigo: portalNormDiffVal(v?.codigo),
+      marca: portalNormDiffVal(v?.marca),
+      modelo: portalNormDiffVal(v?.modelo),
+      valor: portalNormDiffVal(v?.valor),
+      cor: portalNormDiffVal(v?.cor),
+      chassi: portalNormDiffVal(v?.chassi),
+      anoModelo: portalNormDiffVal(v?.anoModelo),
+      renavam: portalNormDiffVal(v?.renavam),
+      motor: portalNormDiffVal(v?.motor),
+      proprietario: portalNormDiffVal(v?.proprietario),
+      local: portalNormDiffVal(v?.local),
+    });
+    const doSaveVeiculo = () => {
+      try {
+        if (typeof upsertPortalVeiculoByPlaca === "function") {
+          upsertPortalVeiculoByPlaca(novo);
+        } else if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
+          const idx = veiculos.findIndex((v) => {
+            const p =
+              typeof normalizePlate === "function"
+                ? normalizePlate(String(v.placa || ""))
+                : String(v.placa || "")
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, "");
+            return p === plate;
+          });
+          if (idx >= 0) veiculos[idx] = { ...veiculos[idx], ...novo };
+          else veiculos.push(novo);
+          saveCadastro(PORTAL_VEICULOS_KEY, veiculos);
+        } else {
+          veiculos.push(novo);
+          saveCadastro(CAD_VEICULOS_KEY, veiculos);
+        }
+      } catch (err) {
+        if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+        console.error(err);
+        return;
       }
-    } catch (err) {
-      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
-      console.error(err);
+      portalPushCloudSnapshotAfterPersist();
+      if (msg) {
+        msg.textContent = existenteVeiculo ? "Veículo atualizado com sucesso." : "Veículo cadastrado com sucesso.";
+      }
+      const form = document.getElementById("formOperacaoVeiculoInline");
+      if (form && typeof form.reset === "function") form.reset();
+      refreshOperacaoVeiculoTagPreview();
+    };
+    if (existenteVeiculo && isPortalTitularAdministrador()) {
+      const changes = portalBuildAlteracoesLista(
+        snapshotVeiculo(existenteVeiculo),
+        snapshotVeiculo(novo),
+        PORTAL_VEICULO_DIFF_LABELS
+      );
+      portalConfirmarAlteracaoAdministrador({ titulo: "Confirmar alteração — veículo", changes }, doSaveVeiculo);
       return;
     }
-    portalPushCloudSnapshotAfterPersist();
-    if (msg) msg.textContent = "Veículo cadastrado com sucesso.";
-    const form = document.getElementById("formOperacaoVeiculoInline");
-    if (form && typeof form.reset === "function") form.reset();
-    refreshOperacaoVeiculoTagPreview();
+    doSaveVeiculo();
   }
 
   /** Cadastro / atualização de locação pelo formulário do portal — grava também quem executou (000AA + instante). */
@@ -6104,40 +6449,63 @@ ${printable.innerHTML}
       });
     }
 
-    try {
-      saveCadastro(CAD_LOCACOES_KEY, locs);
-    } catch (err) {
-      console.error(err);
-      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+    const snapshotLoc = (rec) => ({
+      numeroContrato: portalNormDiffVal(rec?.numeroContrato),
+      placa: portalNormDiffVal(rec?.placa),
+      inicio: portalNormDiffVal(rec?.inicio),
+      fim: portalNormDiffVal(rec?.fim),
+      plano: portalNormDiffVal(rec?.plano),
+      valorLocacao: portalNormDiffVal(rec?.valorLocacao),
+      valorInvestimento: portalNormDiffVal(rec?.valorInvestimento),
+      valorSemanal: portalNormDiffVal(rec?.valorSemanal),
+      statusLocacao: portalNormDiffVal(rec?.statusLocacao),
+      diaPagto: portalNormDiffVal(rec?.diaPagto),
+      periodoLocacao: portalNormDiffVal(rec?.periodoLocacao),
+      marcaModelo: portalNormDiffVal(rec?.marcaModelo),
+      modalidade: portalNormDiffVal(rec?.modalidade),
+    });
+    const registroNovo = snapshotLoc({ ...baseRecord, numeroContrato: nc });
+    const doSaveLocacao = () => {
+      try {
+        saveCadastro(CAD_LOCACOES_KEY, locs);
+      } catch (err) {
+        console.error(err);
+        if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+        return;
+      }
+      portalPushCloudSnapshotAfterPersist();
+      if (typeof addAuditLog === "function") {
+        try {
+          addAuditLog(
+            prev ? "atualizar_locacao_portal" : "cadastrar_locacao_portal",
+            "locacao",
+            `${nc} · CPF ${cpfDigits} · ${plate}`
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      if (msg) msg.textContent = prev ? "Locação atualizada." : "Locação cadastrada.";
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      const selAfter = document.getElementById("operacaoLocacaoProtocoloSelect");
+      const hidAfter = document.getElementById("operacaoLocacaoProtocolo");
+      if (selAfter && hidAfter) {
+        selAfter.value = nc;
+        hidAfter.value = nc;
+      }
+      const saved = locs.find(
+        (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+      );
+      if (saved) applyPortalLocacaoRowFromRecord(saved);
+      refreshOperacaoLocacaoDatalists();
+      refreshOperacaoLocacaoFinalizarBtn();
+    };
+    if (prev && isPortalTitularAdministrador()) {
+      const changes = portalBuildAlteracoesLista(snapshotLoc(prev), registroNovo, PORTAL_LOCACAO_DIFF_LABELS);
+      portalConfirmarAlteracaoAdministrador({ titulo: "Confirmar alteração — locação", changes }, doSaveLocacao);
       return;
     }
-    portalPushCloudSnapshotAfterPersist();
-
-    if (typeof addAuditLog === "function") {
-      try {
-        addAuditLog(
-          prev ? "atualizar_locacao_portal" : "cadastrar_locacao_portal",
-          "locacao",
-          `${nc} · CPF ${cpfDigits} · ${plate}`
-        );
-      } catch {
-        /* ignore */
-      }
-    }
-    if (msg) msg.textContent = prev ? "Locação atualizada." : "Locação cadastrada.";
-    refreshOperacaoLocacaoProtocoloPicker({ force: true });
-    const selAfter = document.getElementById("operacaoLocacaoProtocoloSelect");
-    const hidAfter = document.getElementById("operacaoLocacaoProtocolo");
-    if (selAfter && hidAfter) {
-      selAfter.value = nc;
-      hidAfter.value = nc;
-    }
-    const saved = locs.find(
-      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
-    );
-    if (saved) applyPortalLocacaoRowFromRecord(saved);
-    refreshOperacaoLocacaoDatalists();
-    refreshOperacaoLocacaoFinalizarBtn();
+    doSaveLocacao();
   }
 
   function collectPortalLocacoesComProtocoloByCpf(cpfDigits) {
@@ -8625,6 +8993,18 @@ ${printable.innerHTML}
     clearOperacaoLancamentoAluguelForm({ voltarPesquisa: true });
   });
 
+  document.getElementById("portalAdminAlteracaoConfirmSimBtn")?.addEventListener("click", () => {
+    const fn = portalAdminAlteracaoConfirmCallback;
+    closePortalAdminAlteracaoConfirmModal();
+    if (typeof fn === "function") fn();
+  });
+  document.getElementById("portalAdminAlteracaoConfirmNaoBtn")?.addEventListener("click", () =>
+    closePortalAdminAlteracaoConfirmModal()
+  );
+  document.querySelectorAll("[data-close-admin-alteracao-confirm]").forEach((el) => {
+    el.addEventListener("click", () => closePortalAdminAlteracaoConfirmModal());
+  });
+
   document.getElementById("portalLancAluguelConfirmSimBtn")?.addEventListener("click", () => {
     const fn = portalLancAluguelConfirmCallback;
     closePortalLancAluguelConfirmModal();
@@ -8687,15 +9067,41 @@ ${printable.innerHTML}
       return;
     }
     if (msg) msg.textContent = "";
-    if (atualizarPortalLancamentoAluguelPorIndice(digits, proto, indice, valorNum, dataStr)) {
-      closePortalLancAluguelEditModal();
-      const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
-        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    const locAtualEdit = collectPortalLocacoesComProtocoloByCpf(digits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    );
+    const arrEdit = locAtualEdit ? getPortalLancamentosAluguelDoContrato(locAtualEdit) : [];
+    const rowPrev = arrEdit[indice];
+    const doSaveLancEdit = () => {
+      if (atualizarPortalLancamentoAluguelPorIndice(digits, proto, indice, valorNum, dataStr)) {
+        closePortalLancAluguelEditModal();
+        const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
+          (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+        );
+        if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
+        if (msg) msg.textContent = "Pagamento atualizado. Totais recalculados.";
+      } else if (msg) {
+        msg.textContent = "Não foi possível guardar a alteração.";
+      }
+    };
+    if (rowPrev) {
+      const changes = portalBuildAlteracoesLista(
+        {
+          valor: formatPortalLancamentoSumBrl(rowPrev.valor),
+          data: portalNormDiffVal(rowPrev.data),
+        },
+        {
+          valor: formatPortalLancamentoSumBrl(valorNum),
+          data: portalNormDiffVal(dataStr),
+        },
+        { valor: "Valor pago", data: "Data do pagamento" }
       );
-      if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
-      if (msg) msg.textContent = "Pagamento atualizado. Totais recalculados.";
-    } else if (msg) {
-      msg.textContent = "Não foi possível guardar a alteração.";
+      portalConfirmarAlteracaoAdministrador(
+        { titulo: "Confirmar alteração — pagamento de aluguel", changes },
+        doSaveLancEdit
+      );
+    } else {
+      doSaveLancEdit();
     }
   });
 
@@ -9263,6 +9669,7 @@ ${printable.innerHTML}
   window.__DK_hideOperacaoInlineForms = hideInlineForms;
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
   window.__DK_openPortalLancConfirmModal = openPortalLancAluguelConfirmModal;
+  window.__DK_portalConfirmarAlteracaoAdministrador = portalConfirmarAlteracaoAdministrador;
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_getPortalSessaoParaRegistroLancamento = getPortalSessaoParaRegistroLancamentoAluguel;
