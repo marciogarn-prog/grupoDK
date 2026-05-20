@@ -8884,6 +8884,9 @@ ${printable.innerHTML}
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
     portalRefreshOperacaoDeferred(["aluguel", "rel"]);
+    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+      window.__DK_refreshComprovantesClienteLista();
+    }
   });
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
@@ -9679,6 +9682,23 @@ ${printable.innerHTML}
   window.__DK_getPortalLancPesquisaLinhaCorClasse = getPortalLancPesquisaLinhaCorClasse;
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
+  window.__DK_getPortalLancamentosAluguelDoContrato = getPortalLancamentosAluguelDoContrato;
+
+  window.__DK_refreshOperacaoLancAluguelFromComprovante = function refreshOperacaoLancAluguelFromComprovante(rec) {
+    if (!rec) return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits(String(rec.cpf || "")) : String(rec.cpf || "").replace(/\D/g, "");
+    const proto = normPortalNumeroContrato(rec.protocolo);
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const inpProto = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    if (inpCpf && dig.length === 11) {
+      inpCpf.value = typeof formatCpf === "function" ? formatCpf(dig) : dig;
+      inpCpf.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    if (inpProto && proto) inpProto.value = proto;
+    document.getElementById("operacaoLancAluguelConfirmarPesquisaBtn")?.click();
+    renderOperacaoLancAluguelHistorico();
+  };
 
   requestAnimationFrame(() =>
     requestAnimationFrame(() => {

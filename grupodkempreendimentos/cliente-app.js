@@ -124,7 +124,14 @@
         const data = String(x.data || x.dataPagamento || "").trim();
         let valor = typeof x.valor === "number" ? x.valor : parseCurrencyBR(x.valor ?? x.valorPago);
         if (!Number.isFinite(valor) || valor <= 0) return;
-        out.push({ data, valor, tipo, protocolo: normNc(loc.numeroContrato) });
+        out.push({
+          data,
+          valor,
+          tipo,
+          protocolo: normNc(loc.numeroContrato),
+          confirmadoViaAppCliente: Boolean(x.confirmadoViaAppCliente),
+          origemComprovanteClienteId: String(x.origemComprovanteClienteId || "").trim(),
+        });
       });
     };
     push(loc.lancamentosAluguel, "Aluguel");
@@ -239,19 +246,34 @@
         lista.innerHTML = dados.locacoes
           .map((loc) => {
             const nc = normNc(loc.numeroContrato);
-            const pagos = dados.pagamentos.filter((p) => p.protocolo === nc);
+            const pagos = dados.pagamentos.filter(
+              (p) => p.protocolo === nc && !p.confirmadoViaAppCliente
+            );
+            const envios = listComprovantesCliente(cpf).filter((e) => normNc(e.protocolo) === nc);
+            const enviosHtml = envios.length
+              ? envios
+                  .map(
+                    (e) =>
+                      `<div class="cliente-pagamento-row cliente-pagamento-row--envio"><span>${escapeHtml(e.dataPagamento)} · ${escapeHtml(statusComprovanteLabel(e.status))}</span><span>${currencyBRL(e.valor)}</span></div>`
+                  )
+                  .join("")
+              : "";
             const pagosHtml = pagos.length
               ? pagos
                   .map(
                     (p) =>
-                      `<div class="cliente-pagamento-row"><span>${escapeHtml(p.data)}</span><span>${currencyBRL(p.valor)}</span></div>`
+                      `<div class="cliente-pagamento-row"><span>${escapeHtml(p.data)} · Confirmado</span><span>${currencyBRL(p.valor)}</span></div>`
                   )
                   .join("")
-              : '<p class="subtext">Sem pagamentos registados neste protocolo.</p>';
+              : "";
+            const corpoPag =
+              enviosHtml || pagosHtml
+                ? `${enviosHtml}${pagosHtml}`
+                : '<p class="subtext">Sem pagamentos registados neste protocolo.</p>';
             return `<article class="cliente-protocolo">
               <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}</div>
               <p class="cliente-protocolo__meta">Placa ${escapeHtml(loc.placa || "—")} · Início ${escapeHtml(String(loc.inicio || "—"))}${loc.fim ? ` · Fim ${escapeHtml(String(loc.fim))}` : " · Em curso"}</p>
-              ${pagosHtml}
+              ${corpoPag}
             </article>`;
           })
           .join("");
@@ -296,13 +318,34 @@
     preview.classList.add("is-visible");
   }
 
-  async function shareComprovante() {
+  function statusComprovanteLabel(st) {
+    if (st === "confirmado") return "Pagamento confirmado pela DK";
+    if (st === "ia_validado") return "Em análise pela equipa";
+    if (st === "rejeitado") return "Não aceite — contacte a locadora";
+    return "Enviado — aguarda validação";
+  }
+
+  function listComprovantesCliente(cpf) {
+    if (typeof window.__DK_comprovantesClienteListByCpf === "function") {
+      return window.__DK_comprovantesClienteListByCpf(cpf);
+    }
+    try {
+      const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
+      const all = raw ? JSON.parse(raw) : [];
+      return Array.isArray(all) ? all.filter((r) => onlyDigits(r.cpf) === cpf) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function enviarComprovanteParaNuvem() {
     const sessao = getSessao();
     if (!sessao) return;
     const proto = normNc($("comp-protocolo")?.value);
     const data = String($("comp-data")?.value || "").trim();
     const valor = parseCurrencyBR($("comp-valor")?.value);
     const msg = $("comp-msg");
+    const btn = $("btn-share-comprovante");
     if (!proto) {
       if (msg) msg.textContent = "Selecione o protocolo.";
       return;
@@ -320,11 +363,37 @@
       return;
     }
 
-    const texto = `Comprovante DK Locadora\nCliente: ${sessao.nome}\nCPF: ${formatCpf(sessao.cpf)}\nProtocolo: ${proto}\nData pagamento: ${data}\nValor: ${currencyBRL(valor)}`;
+    if (btn) btn.disabled = true;
+    if (msg) msg.textContent = "A enviar comprovante para a nuvem…";
+
+    const addFn = typeof window.__DK_comprovantesClienteAdd === "function" ? window.__DK_comprovantesClienteAdd : null;
+    let res = { ok: false, msg: "Módulo de comprovantes indisponível." };
+    if (addFn) {
+      try {
+        res = await addFn({
+          cpf: sessao.cpf,
+          nomeCliente: sessao.nome,
+          protocolo: proto,
+          dataPagamento: data,
+          valor,
+          file: comprovanteFile,
+          nomeArquivo: comprovanteFile.name,
+          mimeType: comprovanteFile.type,
+        });
+      } catch (err) {
+        res = { ok: false, msg: err?.message || "Falha ao enviar." };
+      }
+    }
+
+    if (!res.ok) {
+      if (msg) msg.textContent = res.msg || "Não foi possível enviar.";
+      if (btn) btn.disabled = false;
+      return;
+    }
 
     const hist = loadJson(COMPROVANTES_KEY, []);
     hist.unshift({
-      id: Date.now(),
+      id: res.id || Date.now(),
       cpf: sessao.cpf,
       protocolo: proto,
       data,
@@ -334,6 +403,14 @@
     });
     saveJson(COMPROVANTES_KEY, hist.slice(0, 50));
 
+    if (msg) {
+      msg.textContent =
+        "Comprovante enviado para a DK. A equipa irá validar e confirmar o pagamento. Use «Atualizar da nuvem» para ver quando estiver confirmado.";
+    }
+    if (btn) btn.disabled = false;
+    renderApp(sessao);
+
+    const texto = `Comprovante DK Locadora\nCliente: ${sessao.nome}\nCPF: ${formatCpf(sessao.cpf)}\nProtocolo: ${proto}\nData: ${data}\nValor: ${currencyBRL(valor)}`;
     try {
       if (navigator.share) {
         const payload = { title: "Comprovante DK Locadora", text: texto };
@@ -341,26 +418,10 @@
           payload.files = [comprovanteFile];
         }
         await navigator.share(payload);
-        if (msg) msg.textContent = "Comprovante partilhado. Escolha WhatsApp, e-mail ou outro app.";
-        return;
-      }
-    } catch (err) {
-      if (err?.name === "AbortError") {
-        if (msg) msg.textContent = "Partilha cancelada.";
-        return;
-      }
-    }
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(texto);
-        if (msg) msg.textContent = "Texto copiado. Envie o ficheiro do comprovante manualmente.";
-        return;
       }
     } catch {
-      /* ignore */
+      /* partilha opcional */
     }
-    window.prompt("Copie e envie o comprovante:", texto);
   }
 
   function wireInstall() {
@@ -428,7 +489,7 @@
     });
     $("btn-sync")?.addEventListener("click", () => pullNuvem());
     $("comp-arquivo")?.addEventListener("change", onComprovanteFileChange);
-    $("btn-share-comprovante")?.addEventListener("click", () => shareComprovante());
+    $("btn-share-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
 
     const cpfIn = $("login-cpf");
     cpfIn?.addEventListener("input", () => {

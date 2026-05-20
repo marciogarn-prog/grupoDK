@@ -31,6 +31,11 @@ async function main() {
       "views hub locadora no HTML",
       html.includes("view-locadora-hub") && html.includes("view-locadora-cliente")
     );
+    record(
+      "secção comprovantes cliente no portal",
+      html.includes("portalComprovanteClienteLista") &&
+        html.includes("Confirmação de lançamento feito por cliente")
+    );
 
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",

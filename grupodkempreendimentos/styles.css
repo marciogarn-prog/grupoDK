@@ -2236,3 +2236,62 @@ body {
 .portal-alteracao-list li strong {
   color: var(--accent);
 }
+
+.portal-modal__card--wide {
+  max-width: min(96vw, 42rem);
+  width: 100%;
+}
+
+.portal-lanc-cliente-comprovacao {
+  margin: 1rem 0 1.25rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(201, 162, 39, 0.06);
+}
+
+.portal-lanc-cliente-comprovacao__toolbar {
+  margin-bottom: 0.75rem;
+}
+
+.portal-comprovante-cliente-lista {
+  overflow-x: auto;
+}
+
+.portal-comprovante-cliente-table {
+  width: 100%;
+  font-size: 0.88rem;
+}
+
+.portal-cc-viewer-body {
+  min-height: 12rem;
+  max-height: min(70vh, 28rem);
+  overflow: auto;
+  text-align: center;
+}
+
+.portal-cc-viewer-img {
+  max-width: 100%;
+  max-height: min(65vh, 26rem);
+  border-radius: 8px;
+}
+
+.portal-cc-viewer-frame {
+  width: 100%;
+  min-height: 18rem;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.portal-cc-ia-resumo {
+  margin-top: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.cliente-pagamento-row--envio span:first-child {
+  font-size: 0.82rem;
+}

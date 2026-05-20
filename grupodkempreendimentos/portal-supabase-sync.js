@@ -27,6 +27,7 @@
     "dk_lancamentos_aluguel",
     "dk_quadro_receita_overrides",
     "dk_comprovantes_banco",
+    "dk_comprovantes_cliente_pendentes",
     "dk_audit_log",
     "dk_funcionarios_access",
   ];
