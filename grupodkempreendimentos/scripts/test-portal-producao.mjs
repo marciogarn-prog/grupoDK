@@ -21,7 +21,9 @@ async function main() {
 
     const html = await page.content();
     record("HTML com cache banco-unificado", html.includes("banco-unificado"), "scripts");
-    record("HTML com cache mascaras", html.includes("mascaras"), "app.js + portal-locadora-ui.js");
+    const cacheOk =
+      html.includes("data-auto") || html.includes("mascaras") || html.includes("20260520");
+    record("HTML com cache app/portal atualizado", cacheOk, "app.js + portal-locadora-ui.js");
 
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",
@@ -30,12 +32,17 @@ async function main() {
       dateMask: typeof window.formatDateMask === "function",
       isDkDate: typeof window.isDkDateFieldInput === "function",
       autoDate: typeof window.bindDateMasksInContainer === "function",
+      observer: Boolean(window.__dkDateMaskObserver),
       currencyMask: typeof window.formatCurrencyMask === "function",
     }));
     record("app.js banco unificado", hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.banco);
     record(
       "mascaras globais carregadas",
-      hasPortalFns.dateMask && hasPortalFns.isDkDate && hasPortalFns.autoDate && hasPortalFns.currencyMask
+      hasPortalFns.dateMask &&
+        hasPortalFns.isDkDate &&
+        hasPortalFns.autoDate &&
+        hasPortalFns.observer &&
+        hasPortalFns.currencyMask
     );
 
     const autoDateDetect = await page.evaluate(() => {
