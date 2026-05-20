@@ -4974,24 +4974,6 @@ ${printable.innerHTML}
     return `${day}/${month}/${y}`;
   }
 
-  const PORTAL_DATE_DDMMYYYY_INPUT_IDS = [
-    "operacaoClienteDataCadastro",
-    "operacaoClienteVencimento",
-    "operacaoLocacaoDataInicio",
-    "operacaoLocacaoDataFim",
-    "operacaoLancAluguelDataPagamento",
-    "operacaoLancMultasDataMulta",
-    "operacaoLancMultasDataPrimeiraParcela",
-    "operacaoLancManutencaoDataManutencao",
-    "operacaoLancManutencaoDataPrimeiraParcela",
-    "portalLancAluguelEditData",
-    "portalRelPagamentosInicio",
-    "portalRelPagamentosFim",
-    "portalColabIngresso",
-    "portalChecklistEntradaData",
-    "portalChecklistSaidaData",
-  ];
-
   const PORTAL_CURRENCY_INPUT_IDS = [
     "operacaoVeiculoValor",
     "operacaoLocacaoValorAluguel",
@@ -5004,10 +4986,12 @@ ${printable.innerHTML}
     "portalLancAluguelEditValor",
   ];
 
+  /** Reaplica máscaras após preencher formulários (datas por convenção de nome — app.js). */
   function normalizePortalMaskedFieldValues() {
-    if (typeof normalizeDateMaskValues === "function") {
-      normalizeDateMaskValues(PORTAL_DATE_DDMMYYYY_INPUT_IDS);
-    }
+    const root = document.getElementById("operacaoPainelDireito") || document;
+    if (typeof bindDateMasksInContainer === "function") bindDateMasksInContainer(root);
+    else if (typeof setupDateMasks === "function") setupDateMasks();
+    if (typeof normalizeDateMaskValues === "function") normalizeDateMaskValues(root);
     if (typeof normalizeCurrencyMaskValues === "function") {
       normalizeCurrencyMaskValues(PORTAL_CURRENCY_INPUT_IDS);
     }
@@ -5015,11 +4999,6 @@ ${printable.innerHTML}
       const el = document.getElementById(id);
       if (!el || el.readOnly || el.disabled) return;
       if (typeof bindCurrencyMaskInput === "function") bindCurrencyMaskInput(el);
-    });
-    PORTAL_DATE_DDMMYYYY_INPUT_IDS.forEach((id) => {
-      const el = document.getElementById(id);
-      if (!el || el.readOnly || el.disabled) return;
-      if (typeof bindDateMaskInput === "function") bindDateMaskInput(el);
     });
   }
 

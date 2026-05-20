@@ -401,34 +401,22 @@ const comprovanteModalCancelBtn = document.getElementById("comprovanteModalCance
 const installButton = document.getElementById("installButton");
 const updateButton = document.getElementById("updateButton");
 const envWarning = document.getElementById("envWarning");
-const dateInputIds = [
-  "cadClienteDataCadastro",
+/**
+ * Campos de data sem "Data" no id/name (legado). Novos campos: use id com `Data`
+ * (ex.: operacaoFooDataInicio), name `dataInicio` ou `data-dk-mask="date"`.
+ */
+const dateInputIdsLegacy = [
   "cadClienteVencimento",
-  "publicCadClienteDataCadastro",
   "publicCadClienteVencimento",
   "cadLocacaoInicio",
   "cadLocacaoFim",
   "lancAluguelSemanaInicio",
   "lancAluguelSemanaFim",
-  "cadManutencaoData",
   "cadManutencaoPrevistaSaida",
   "cadManutencaoRealSaida",
-  "comprovanteModalData",
-  "operacaoClienteDataCadastro",
-  "operacaoClienteVencimento",
-  "operacaoLocacaoDataInicio",
-  "operacaoLocacaoDataFim",
-  "operacaoLancAluguelDataPagamento",
-  "operacaoLancMultasDataMulta",
-  "operacaoLancMultasDataPrimeiraParcela",
-  "operacaoLancManutencaoDataManutencao",
-  "operacaoLancManutencaoDataPrimeiraParcela",
-  "portalLancAluguelEditData",
   "portalRelPagamentosInicio",
   "portalRelPagamentosFim",
   "portalColabIngresso",
-  "portalChecklistEntradaData",
-  "portalChecklistSaidaData",
 ];
 
 const currencyInputIds = [
@@ -1673,12 +1661,60 @@ function formatDateMask(value) {
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
+/** Indica se o input deve receber máscara DD/MM/AAAA (convenção DK — ver .cursor/rules). */
+function isDkDateFieldInput(el) {
+  if (!el || el.tagName !== "INPUT") return false;
+  if (el.dataset.dkSkipMask === "1") return false;
+  const type = String(el.type || "text").toLowerCase();
+  if (!["text", "search", "tel", ""].includes(type)) return false;
+  if (el.getAttribute("data-dk-mask") === "date") return true;
+  if (el.getAttribute("data-dk-mask") === "currency") return false;
+
+  const id = String(el.id || "");
+  const name = String(el.name || "");
+  if (dateInputIdsLegacy.includes(id)) return true;
+
+  const ph = String(el.placeholder || "");
+  if (/DD\s*\/?\s*MM/i.test(ph)) return true;
+
+  const blob = `${id} ${name}`;
+  if (/\bdata\b/i.test(blob) || /Data/.test(id + name)) return true;
+  if (
+    /(Vencimento|Ingresso|PrevistaSaida|RealSaida|SemanaInicio|SemanaFim|PagamentosInicio|PagamentosFim)$/i.test(
+      id
+    )
+  ) {
+    return true;
+  }
+  if (/^(inicio|fim|vencimento|dataCadastro|dataInicio|dataFim|dataPagamento)$/i.test(name)) {
+    return true;
+  }
+  return false;
+}
+
+function collectDateMaskInputs(root = document) {
+  const found = new Set();
+  const scope = root && root.querySelectorAll ? root : document;
+  if (root && root.tagName === "INPUT" && isDkDateFieldInput(root)) found.add(root);
+  scope.querySelectorAll?.('input[data-dk-mask="date"]').forEach((el) => found.add(el));
+  scope.querySelectorAll?.("input").forEach((el) => {
+    if (isDkDateFieldInput(el)) found.add(el);
+  });
+  dateInputIdsLegacy.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) found.add(el);
+  });
+  return [...found];
+}
+
 function bindDateMaskInput(input) {
   if (!input || input.readOnly || input.disabled) return;
   if (input.dataset.dkDateMask === "1") return;
+  if (!isDkDateFieldInput(input) && input.getAttribute("data-dk-mask") !== "date") return;
   input.dataset.dkDateMask = "1";
   if (!input.getAttribute("placeholder")) input.setAttribute("placeholder", "DD/MM/AAAA");
   if (!input.getAttribute("maxlength")) input.setAttribute("maxlength", "10");
+  if (!input.getAttribute("inputmode")) input.setAttribute("inputmode", "numeric");
   const apply = () => {
     input.value = formatDateMask(input.value);
   };
@@ -1686,18 +1722,50 @@ function bindDateMaskInput(input) {
   input.addEventListener("blur", apply);
 }
 
-function normalizeDateMaskValues(ids) {
-  (ids || dateInputIds).forEach((id) => {
-    const el = document.getElementById(id);
-    if (!el) return;
+function bindDateMasksInContainer(root) {
+  collectDateMaskInputs(root).forEach((el) => bindDateMaskInput(el));
+}
+
+function normalizeDateMaskValues(rootOrIds) {
+  if (rootOrIds && typeof rootOrIds === "object" && rootOrIds.querySelectorAll) {
+    collectDateMaskInputs(rootOrIds).forEach((el) => {
+      const v = String(el.value || "").trim();
+      if (v) el.value = formatDateMask(v);
+    });
+    return;
+  }
+  const ids = Array.isArray(rootOrIds) ? rootOrIds : null;
+  if (ids) {
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const v = String(el.value || "").trim();
+      if (v) el.value = formatDateMask(v);
+    });
+    return;
+  }
+  collectDateMaskInputs().forEach((el) => {
     const v = String(el.value || "").trim();
     if (v) el.value = formatDateMask(v);
   });
 }
 
 function setupDateMasks() {
-  dateInputIds.forEach((id) => bindDateMaskInput(document.getElementById(id)));
-  document.querySelectorAll('[data-dk-mask="date"]').forEach((el) => bindDateMaskInput(el));
+  bindDateMasksInContainer(document);
+}
+
+function observeDkDateMaskFields() {
+  if (typeof MutationObserver === "undefined" || window.__dkDateMaskObserver) return;
+  const obs = new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      for (const node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        bindDateMasksInContainer(node);
+      }
+    }
+  });
+  obs.observe(document.documentElement, { childList: true, subtree: true });
+  window.__dkDateMaskObserver = obs;
 }
 
 /** Máscara monetária: só dígitos → centavos → R$ xxx,xx (barras/símbolos automáticos). */
@@ -15525,16 +15593,20 @@ repairProtocolosLocacaoPorDataInicioOnce();
 fixKnownRentalValueOverrides();
 if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();
+observeDkDateMaskFields();
 setupCurrencyMasks();
 normalizeDateMaskValues();
 normalizeCurrencyMaskValues();
 
 window.formatDateMask = formatDateMask;
+window.isDkDateFieldInput = isDkDateFieldInput;
 window.formatCurrencyMask = formatCurrencyMask;
 window.formatCurrencyInputBlur = formatCurrencyInputBlur;
 window.normalizeDateMaskValues = normalizeDateMaskValues;
 window.normalizeCurrencyMaskValues = normalizeCurrencyMaskValues;
 window.bindDateMaskInput = bindDateMaskInput;
+window.bindDateMasksInContainer = bindDateMasksInContainer;
+window.setupDateMasks = setupDateMasks;
 window.bindCurrencyMaskInput = bindCurrencyMaskInput;
 ensureLocacaoInicioDefault();
 setHomeLayoutToolbarState();

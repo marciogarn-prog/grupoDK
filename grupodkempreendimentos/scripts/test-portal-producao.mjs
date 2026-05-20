@@ -28,10 +28,33 @@ async function main() {
       banco: Boolean(window.DK_BANCO_CADASTRO?.veiculos?.length),
       upsert: typeof window.__DK_upsertPortalClienteByCpf === "function",
       dateMask: typeof window.formatDateMask === "function",
+      isDkDate: typeof window.isDkDateFieldInput === "function",
+      autoDate: typeof window.bindDateMasksInContainer === "function",
       currencyMask: typeof window.formatCurrencyMask === "function",
     }));
     record("app.js banco unificado", hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.banco);
-    record("mascaras globais carregadas", hasPortalFns.dateMask && hasPortalFns.currencyMask);
+    record(
+      "mascaras globais carregadas",
+      hasPortalFns.dateMask && hasPortalFns.isDkDate && hasPortalFns.autoDate && hasPortalFns.currencyMask
+    );
+
+    const autoDateDetect = await page.evaluate(() => {
+      const el = document.createElement("input");
+      el.type = "text";
+      el.id = "testeAutoDataCampoNovo";
+      document.body.appendChild(el);
+      const detected = typeof window.isDkDateFieldInput === "function" && window.isDkDateFieldInput(el);
+      if (typeof window.bindDateMaskInput === "function") window.bindDateMaskInput(el);
+      el.value = "";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.value = "01012030";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      const masked = el.value;
+      el.remove();
+      return { detected, masked };
+    });
+    record("auto-detect id com Data", autoDateDetect.detected, "testeAutoDataCampoNovo");
+    record("auto-mascara campo novo", autoDateDetect.masked === "01/01/2030", autoDateDetect.masked);
 
     await page.click("text=DK Locadora", { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(800);
