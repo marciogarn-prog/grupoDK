@@ -130,6 +130,12 @@ async function main() {
     record("Ferrari no banco único", /ferrari/i.test(storage.ferrari) && /DKCR013/.test(storage.ferrari), storage.ferrari);
     record("frota+portal no mesmo arquivo", storage.frota >= 100 && storage.portal >= 3, `frota=${storage.frota} portal=${storage.portal}`);
 
+    const appsHtml = await page.evaluate(() => fetch("./apps.html").then((r) => r.text()));
+    record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Corporativo"));
+
+    await page.goto(new URL("cliente.html", URL).href, { waitUntil: "networkidle", timeout: 60000 });
+    record("cliente.html carrega", (await page.content()).includes("Partilhar comprovante"));
+
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
     if (await clienteBtn.isVisible().catch(() => false)) {
       await clienteBtn.click();

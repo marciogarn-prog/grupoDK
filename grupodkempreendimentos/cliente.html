@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#c9a227">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DK Cliente">
+  <meta name="description" content="DK Locadora — área do cliente: contratos, pagamentos e envio de comprovantes.">
+  <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
+  <meta name="dk-supabase-anon-key" content="sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3">
+  <link rel="manifest" href="manifest-cliente.webmanifest">
+  <link rel="icon" href="icons/icon-cliente-192.svg">
+  <title>DK Locadora — App Cliente</title>
+  <link rel="stylesheet" href="styles.css?v=20260520apps">
+  <link rel="stylesheet" href="cliente-app.css?v=20260520apps">
+</head>
+<body class="cliente-app-body">
+  <section id="view-login" class="cliente-app-card" aria-label="Entrar">
+    <header class="cliente-app-header">
+      <div class="cliente-app-brand">
+        <span class="cliente-app-brand__mark" aria-hidden="true">DK</span>
+        <div>
+          <div class="cliente-app-brand__title">Área do Cliente</div>
+          <div class="cliente-app-brand__sub">DK Locadora</div>
+        </div>
+      </div>
+      <a href="apps.html" class="btn-primary btn-secondary-outline" style="font-size:0.8rem;padding:0.4rem 0.65rem">Apps</a>
+    </header>
+    <p class="subtext">Informe seu CPF e senha. Senha inicial costuma ser <strong>123456</strong> (definida no cadastro).</p>
+    <form id="form-login" class="portal-form" novalidate>
+      <label class="portal-field">
+        <span>CPF</span>
+        <input type="text" id="login-cpf" inputmode="numeric" maxlength="14" autocomplete="username" placeholder="000.000.000-00" required>
+      </label>
+      <label class="portal-field">
+        <span>Senha</span>
+        <input type="password" id="login-senha" autocomplete="current-password" placeholder="Senha" required>
+      </label>
+      <p id="login-feedback" class="portal-feedback" role="status"></p>
+      <button type="submit" class="btn-primary">Entrar</button>
+    </form>
+    <p class="cliente-install-hint">Para instalar: use <a href="apps.html">Baixar aplicativos</a> ou «Adicionar ao ecrã inicial» no telemóvel.</p>
+    <button type="button" id="btn-install-cliente" class="btn-primary btn-secondary-outline hidden" style="width:100%;margin-top:0.5rem">Instalar app</button>
+  </section>
+
+  <section id="view-app" class="hidden" aria-label="Área logada">
+    <header class="cliente-app-header">
+      <div class="cliente-app-brand">
+        <span class="cliente-app-brand__mark" aria-hidden="true">DK</span>
+        <div>
+          <div class="cliente-app-brand__title" id="cliente-nome">Cliente</div>
+          <div class="cliente-app-brand__sub" id="cliente-cpf-label">CPF</div>
+        </div>
+      </div>
+      <button type="button" id="btn-logout" class="btn-primary btn-secondary-outline" style="font-size:0.8rem;padding:0.4rem 0.65rem">Sair</button>
+    </header>
+
+    <div class="cliente-app-card">
+      <button type="button" id="btn-sync" class="btn-primary btn-secondary-outline" style="width:100%">Atualizar da nuvem</button>
+      <p id="sync-msg" class="portal-feedback" role="status"></p>
+      <div id="cliente-resumo" class="subtext"></div>
+    </div>
+
+    <div class="cliente-app-card">
+      <h2>Meus contratos e pagamentos</h2>
+      <div id="cliente-contratos"></div>
+    </div>
+
+    <div class="cliente-app-card">
+      <h2>Enviar comprovante de pagamento</h2>
+      <p class="subtext">Após pagar, anexe o comprovante e use <strong>Partilhar</strong> para enviar pelo WhatsApp, e-mail ou outro app instalado no telemóvel.</p>
+      <form class="portal-form" novalidate onsubmit="return false">
+        <label class="portal-field">
+          <span>Protocolo</span>
+          <select id="comp-protocolo" required></select>
+        </label>
+        <label class="portal-field">
+          <span>Data do pagamento</span>
+          <input type="text" id="comp-data" name="dataPagamento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
+        </label>
+        <label class="portal-field">
+          <span>Valor pago</span>
+          <input type="text" id="comp-valor" name="valorPago" inputmode="numeric" placeholder="R$ 0,00" autocomplete="off">
+        </label>
+        <label class="portal-field">
+          <span>Arquivo do comprovante (imagem ou PDF)</span>
+          <input type="file" id="comp-arquivo" accept="image/*,application/pdf" capture="environment">
+        </label>
+        <img id="comp-preview" class="cliente-comprovante-preview" alt="Pré-visualização do comprovante">
+        <p id="comp-msg" class="portal-feedback" role="status"></p>
+        <button type="button" id="btn-share-comprovante" class="btn-primary" style="width:100%">Partilhar comprovante</button>
+      </form>
+    </div>
+
+    <p class="subtext" style="text-align:center;margin-top:1rem">
+      <a href="apps.html">Outros aplicativos DK</a> ·
+      <a href="index.html">Portal completo</a>
+    </p>
+  </section>
+
+  <script type="module" src="supabase-init.js?v=20260520apps"></script>
+  <script src="portal-supabase-sync.js?v=20260520apps" defer></script>
+  <script src="cliente-app.js?v=20260520apps" defer></script>
+</body>
+</html>

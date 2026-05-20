@@ -361,7 +361,10 @@
       hideAllPanels();
       panelLogado?.classList.remove("hidden");
       if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
-      if (logadoTexto) logadoTexto.textContent = `Olá, ${String(cliente?.nome || "").trim() || "cliente"}.`;
+      const nomeCli = String(cliente?.nome || "").trim() || "cliente";
+      if (logadoTexto) {
+        logadoTexto.innerHTML = `Olá, ${portalEscapeHtml(nomeCli)}. Para consultar contratos e enviar comprovantes, use o <a href="cliente.html"><strong>App Cliente</strong></a> (<a href="apps.html">instalar</a>).`;
+      }
       btnOperacao?.classList.add("hidden");
       btnManutencao?.classList.add("hidden");
       clearPortalUnitDadosAtualizados();
@@ -3888,7 +3891,12 @@ ${printable.innerHTML}
       if (!texto) return;
       try {
         if (typeof navigator.share === "function") {
-          await navigator.share({ title: "Recibo de pagamento", text: texto });
+          const payload = { title: "Recibo de pagamento", text: texto };
+          const file = window.__dkUltimoComprovanteShareFile;
+          if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+            payload.files = [file];
+          }
+          await navigator.share(payload);
           return;
         }
       } catch {

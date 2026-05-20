@@ -1,0 +1,149 @@
+.cliente-app-body {
+  margin: 0;
+  min-height: 100vh;
+  max-width: 28rem;
+  margin-inline: auto;
+}
+
+.cliente-app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.cliente-app-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.cliente-app-brand__mark {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+}
+
+.cliente-app-brand__title {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.cliente-app-brand__sub {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.cliente-app-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.cliente-app-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.cliente-protocolo {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin-bottom: 0.65rem;
+}
+
+.cliente-protocolo__head {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.cliente-protocolo__meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0.15rem 0;
+}
+
+.cliente-pagamento-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.cliente-pagamento-row:first-of-type {
+  border-top: none;
+}
+
+.cliente-comprovante-preview {
+  max-width: 100%;
+  max-height: 12rem;
+  border-radius: 8px;
+  margin-top: 0.5rem;
+  display: none;
+}
+
+.cliente-comprovante-preview.is-visible {
+  display: block;
+}
+
+.cliente-install-hint {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 0.5rem;
+}
+
+.apps-grid {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+@media (min-width: 640px) {
+  .apps-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.apps-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s;
+}
+
+.apps-card:hover,
+.apps-card:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.apps-card__icon {
+  font-size: 2rem;
+}
+
+.apps-card__title {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.apps-card--cliente .apps-card__title {
+  color: var(--accent);
+}

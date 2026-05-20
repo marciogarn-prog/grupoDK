@@ -1824,7 +1824,20 @@ function formatCpf(value) {
 }
 
 function findCliente(cpf, senha) {
-  return mockClientes.find((c) => c.cpf === cpf && c.senha === senha) || null;
+  const digits = onlyDigits(String(cpf || ""));
+  const pass = String(senha || "").trim();
+  const mock = mockClientes.find((c) => c.cpf === digits && c.senha === pass);
+  if (mock) return mock;
+  const row = findClienteByCpfCadastro(digits);
+  if (!row) return null;
+  const cadPass = String(row.senha || "123456").trim();
+  if (cadPass !== pass) return null;
+  return {
+    cpf: digits,
+    senha: cadPass,
+    nome: String(row.nome || "").trim() || "Cliente",
+    contrato: null,
+  };
 }
 
 function saveSession(cliente) {
@@ -15548,7 +15561,7 @@ async function checkForAppUpdate(manualTrigger) {
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("./service-worker.js")
+      .register("./service-worker-corporativo.js")
       .then((registration) => {
         swRegistration = registration;
         revealUpdateButton("Buscar atualizações");

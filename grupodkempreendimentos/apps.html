@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#c9a227">
+  <meta name="description" content="Baixe o app DK Cliente ou o app DK Corporativo (portal de operação).">
+  <link rel="canonical" href="https://grupodkempreendimentos.com.br/apps.html">
+  <title>Baixar aplicativos — Grupo DK</title>
+  <link rel="stylesheet" href="styles.css?v=20260520apps">
+  <link rel="stylesheet" href="cliente-app.css?v=20260520apps">
+</head>
+<body>
+  <div class="view view--active" style="max-width:720px">
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">DK</span>
+        <div class="brand__text">
+          <span class="brand__title">Grupo DK</span>
+          <span class="brand__subtitle">Aplicativos</span>
+        </div>
+      </div>
+      <p class="header-lead">Instale no telemóvel ou tablet — funciona como app (PWA), sem loja de apps.</p>
+    </header>
+
+    <main>
+      <div class="apps-grid">
+        <a class="apps-card apps-card--cliente" href="cliente.html">
+          <span class="apps-card__icon" aria-hidden="true">&#9670;</span>
+          <span class="apps-card__title">App Cliente</span>
+          <span class="subtext">CPF e senha · só os seus contratos e pagamentos · partilhar comprovante após pagar (WhatsApp, etc.).</span>
+          <span class="btn-primary" style="margin-top:auto;text-align:center">Abrir / instalar App Cliente</span>
+        </a>
+        <a class="apps-card" href="index.html">
+          <span class="apps-card__icon" aria-hidden="true">&#9635;</span>
+          <span class="apps-card__title">App Corporativo</span>
+          <span class="subtext">Operação completa: cadastros, locações, lançamentos, relatórios e nuvem (colaborador/administrador).</span>
+          <span class="btn-primary btn-secondary-outline" style="margin-top:auto;text-align:center">Abrir / instalar Portal Corporativo</span>
+        </a>
+      </div>
+
+      <div class="cliente-app-card">
+        <h2>Como instalar no telemóvel</h2>
+        <ol class="subtext" style="padding-left:1.2rem">
+          <li>Abra o link do app desejado acima no <strong>Chrome</strong> ou <strong>Safari</strong>.</li>
+          <li><strong>Android:</strong> menu &#8942; → «Instalar app» ou «Adicionar ao ecrã inicial».</li>
+          <li><strong>iPhone:</strong> partilhar &#8593; → «Adicionar à Tela de Início».</li>
+          <li>O ícone DK aparece no ecrã inicial como um aplicativo.</li>
+        </ol>
+        <p class="subtext">Comprovantes: no <strong>App Cliente</strong>, após anexar o ficheiro, toque em <strong>Partilhar comprovante</strong> e escolha WhatsApp ou outro app.</p>
+      </div>
+
+      <p style="text-align:center">
+        <a href="./" class="btn-primary btn-secondary-outline">&larr; Voltar ao site</a>
+      </p>
+    </main>
+
+    <footer class="site-footer">
+      <p>Petrolina — PE · <a href="https://grupodkempreendimentos.com.br/">grupodkempreendimentos.com.br</a></p>
+    </footer>
+  </div>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./service-worker-corporativo.js").catch(function () {});
+    }
+  </script>
+</body>
+</html>
