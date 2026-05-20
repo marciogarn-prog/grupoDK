@@ -22,8 +22,15 @@ async function main() {
     const html = await page.content();
     record("HTML com cache banco-unificado", html.includes("banco-unificado"), "scripts");
     const cacheOk =
-      html.includes("data-auto") || html.includes("mascaras") || html.includes("20260520");
+      html.includes("locadora-hub") ||
+      html.includes("data-auto") ||
+      html.includes("mascaras") ||
+      html.includes("20260520");
     record("HTML com cache app/portal atualizado", cacheOk, "app.js + portal-locadora-ui.js");
+    record(
+      "views hub locadora no HTML",
+      html.includes("view-locadora-hub") && html.includes("view-locadora-cliente")
+    );
 
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",
@@ -66,7 +73,19 @@ async function main() {
     await page.click("text=DK Locadora", { timeout: 15000 }).catch(() => {});
     await page.waitForTimeout(800);
 
-    const colab = page.locator("text=Colaborador").first();
+    const hubCliente = page.locator("text=Área do Cliente").first();
+    const hubEmpresa = page.locator("text=Área da Empresa").first();
+    record(
+      "hub DK Locadora (cliente + empresa)",
+      (await hubCliente.isVisible().catch(() => false)) && (await hubEmpresa.isVisible().catch(() => false))
+    );
+
+    if (await hubEmpresa.isVisible().catch(() => false)) {
+      await hubEmpresa.click();
+      await page.waitForTimeout(500);
+    }
+
+    const colab = page.locator(".role-picker__btn:has-text('Colaborador'), text=Colaborador").first();
     if (await colab.isVisible().catch(() => false)) await colab.click();
     await page.waitForTimeout(400);
 

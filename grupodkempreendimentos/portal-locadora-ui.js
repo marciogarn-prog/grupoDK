@@ -6,7 +6,13 @@
 (function portalLocadoraUi() {
   const viewHome = document.getElementById("view-home");
   const viewUnit = document.getElementById("view-unit");
+  const viewLocadoraHub = document.getElementById("view-locadora-hub");
+  const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
   if (!viewHome || !viewUnit) return;
+
+  /** Único CPF com acesso «Administrador» no portal DK Locadora. */
+  const DK_LOCADORA_ADMIN_CPF = "03037897430";
+  const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
 
   /** `true` = mostrar e usar «Falar com o cliente» (WhatsApp). `false` = botão oculto e clique sem efeito. */
   const DK_PORTAL_WA_CLIENTE_ATIVO = false;
@@ -28,6 +34,10 @@
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
   const btnSair = document.getElementById("btn-sair");
+  const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
+  const logadoSubtextPreparacao = document.getElementById("logado-subtext-preparacao");
+  const formLocadoraAppDownload = document.getElementById("form-locadora-app-download");
+  const locadoraAppFeedback = document.getElementById("locadora-app-feedback");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
@@ -58,7 +68,7 @@
   }
 
   const LOCADORA_LEAD_SEM_SESSAO =
-    "Escolha o tipo de acesso e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável).";
+    "Área da empresa: escolha Colaborador ou Administrador e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável).";
 
   /** Funcionário em `funcionariosAccess` correspondente à sessão equipa (admin no portal). */
   function getPortalSessaoEquipaFuncionario() {
@@ -89,11 +99,6 @@
       if (s?.tipo === "admin") {
         const nome = String(s.nome || "").trim();
         unitLead.textContent = nome ? `Seja bem vindo ${nome}` : "Seja bem vindo.";
-        return;
-      }
-      if (s?.tipo === "cliente") {
-        const nome = String(s.nome || "").trim();
-        unitLead.textContent = nome ? `Olá, ${nome}.` : "Olá.";
         return;
       }
     } catch {
@@ -234,23 +239,123 @@
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
     btnManutencao?.classList.toggle("hidden", !allowOp);
+    if (logadoSubtextPreparacao) {
+      logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
+    }
     clearPortalUnitDadosAtualizados();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
   }
 
+  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
+
   function showView(which) {
-    if (which === "home") {
-      viewHome.classList.add("view--active");
-      viewHome.setAttribute("aria-hidden", "false");
-      viewUnit.classList.remove("view--active");
-      viewUnit.setAttribute("aria-hidden", "true");
-    } else {
-      viewHome.classList.remove("view--active");
-      viewHome.setAttribute("aria-hidden", "true");
-      viewUnit.classList.add("view--active");
-      viewUnit.setAttribute("aria-hidden", "false");
+    const map = {
+      home: viewHome,
+      unit: viewUnit,
+      hub: viewLocadoraHub,
+      cliente: viewLocadoraCliente,
+    };
+    portalViews.forEach((v) => {
+      v.classList.remove("view--active");
+      v.setAttribute("aria-hidden", "true");
+    });
+    const target = map[which] || viewHome;
+    target.classList.add("view--active");
+    target.setAttribute("aria-hidden", "false");
+  }
+
+  function setPortalHash(fragment) {
+    try {
+      const path = window.location.pathname + window.location.search;
+      history.replaceState(null, "", fragment ? `${path}#${fragment}` : path);
+    } catch {
+      /* ignore */
     }
+  }
+
+  function normProtoClienteGate(x) {
+    return typeof normalizeNumeroContratoKey === "function"
+      ? normalizeNumeroContratoKey(x || "")
+      : String(x || "")
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+  }
+
+  /** Cliente cadastrado com locação cujo protocolo coincide — requisito para instalar o app. */
+  function validateClienteProtocoloParaApp(cpfDigits, protoRaw) {
+    const cpf = onlyDigits(String(cpfDigits || "")).slice(0, 11);
+    if (cpf.length !== 11) return { ok: false, msg: "Informe um CPF válido (11 dígitos)." };
+    const proto = normProtoClienteGate(protoRaw);
+    if (!proto) return { ok: false, msg: "Informe o protocolo da locação." };
+    const cliente =
+      typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpf) : null;
+    if (!cliente) return { ok: false, msg: "Cliente não cadastrado. Contacte a DK Locadora." };
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return { ok: false, msg: "Cadastro indisponível. Tente novamente mais tarde." };
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
+    const hit = locs.find((l) => normProtoClienteGate(l.numeroContrato) === proto);
+    if (!hit) {
+      return {
+        ok: false,
+        msg: "Protocolo não encontrado para este CPF. Verifique os dados ou contacte a locadora.",
+      };
+    }
+    return { ok: true, cliente, loc: hit, proto };
+  }
+
+  function setPortalRolePickerLocadoraEmpresa() {
+    document.querySelectorAll(".role-picker__btn--cliente-portal").forEach((b) => {
+      b.classList.add("hidden");
+      b.hidden = true;
+    });
+    if (portalUnitBackBtn) portalUnitBackBtn.textContent = "← Voltar";
+  }
+
+  function setPortalRolePickerOutrasUnidades() {
+    document.querySelectorAll(".role-picker__btn--cliente-portal").forEach((b) => {
+      b.classList.remove("hidden");
+      b.hidden = false;
+    });
+    if (portalUnitBackBtn) portalUnitBackBtn.textContent = "← Voltar ao início";
+  }
+
+  function openLocadoraHub() {
+    currentUnit = "locadora";
+    portalColaboradorSenhaPendente = null;
+    if (typeof clearSession === "function") clearSession();
+    resetPortalLoginFormularioETipoAcesso();
+    hideAllPanels();
+    btnOperacao?.classList.add("hidden");
+    btnManutencao?.classList.add("hidden");
+    showView("hub");
+    setPortalHash("locadora");
+  }
+
+  function openLocadoraClienteArea() {
+    currentUnit = "locadora";
+    if (typeof clearSession === "function") clearSession();
+    showView("cliente");
+    setPortalHash("locadora/cliente");
+    if (locadoraAppFeedback) locadoraAppFeedback.textContent = "";
+  }
+
+  function openLocadoraEmpresa() {
+    currentUnit = "locadora";
+    portalColaboradorSenhaPendente = null;
+    if (typeof clearSession === "function") clearSession();
+    if (loginUnit) loginUnit.value = "locadora";
+    if (unitTitle) unitTitle.textContent = "DK Locadora — Área da empresa";
+    if (unitLead) unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
+    clearPortalUnitDadosAtualizados();
+    resetPortalLoginFormularioETipoAcesso();
+    hideAllPanels();
+    if (panelLogin) panelLogin.classList.add("hidden");
+    setPortalRolePickerLocadoraEmpresa();
+    showView("unit");
+    setPortalHash("locadora/empresa");
   }
 
   function hideAllPanels() {
@@ -260,23 +365,26 @@
   }
 
   function openUnit(go) {
+    if (go === "locadora") {
+      openLocadoraHub();
+      return;
+    }
     currentUnit = go;
+    portalColaboradorSenhaPendente = null;
+    if (typeof clearSession === "function") clearSession();
     if (loginUnit) loginUnit.value = go;
     if (unitTitle) {
-      unitTitle.textContent =
-        go === "locadora" ? "DK Locadora" : go === "centro" ? "DK Centro Automotivo" : "DK Construtora";
+      unitTitle.textContent = go === "centro" ? "DK Centro Automotivo" : "DK Construtora";
     }
     if (unitLead) {
-      if (go === "locadora") {
-        refreshPortalUnitLeadForSession();
-      } else {
       unitLead.textContent =
-          "Conteúdo em preparação. Use o painel completo DK se precisar de cadastros aqui.";
-      }
+        "Conteúdo em preparação. Use o painel completo DK se precisar de cadastros aqui.";
     }
+    setPortalRolePickerOutrasUnidades();
     hideAllPanels();
     if (panelLogin) panelLogin.classList.add("hidden");
     showView("unit");
+    setPortalHash("");
   }
 
   document.querySelectorAll("[data-go]").forEach((btn) => {
@@ -285,6 +393,37 @@
       openUnit(go);
     });
   });
+
+  document.querySelectorAll("[data-locadora-go]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dest = btn.getAttribute("data-locadora-go") || "";
+      if (dest === "cliente") openLocadoraClienteArea();
+      else if (dest === "empresa") openLocadoraEmpresa();
+    });
+  });
+
+  function portalVoltarInicio() {
+    portalColaboradorSenhaPendente = null;
+    if (typeof clearSession === "function") clearSession();
+    resetPortalLoginFormularioETipoAcesso();
+    hideAllPanels();
+    btnOperacao?.classList.add("hidden");
+    btnManutencao?.classList.add("hidden");
+    refreshPortalUnitLeadForSession();
+    clearPortalUnitDadosAtualizados();
+    showView("home");
+    setPortalHash("");
+  }
+
+  function portalVoltarLocadoraHub() {
+    portalColaboradorSenhaPendente = null;
+    if (typeof clearSession === "function") clearSession();
+    resetPortalLoginFormularioETipoAcesso();
+    hideAllPanels();
+    btnOperacao?.classList.add("hidden");
+    btnManutencao?.classList.add("hidden");
+    openLocadoraHub();
+  }
 
   function resetPortalLoginFormularioETipoAcesso() {
     const cpfIn = document.getElementById("login-cpf");
@@ -298,22 +437,61 @@
 
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      portalColaboradorSenhaPendente = null;
-      if (typeof clearSession === "function") clearSession();
-      resetPortalLoginFormularioETipoAcesso();
-      hideAllPanels();
-      btnOperacao?.classList.add("hidden");
-      btnManutencao?.classList.add("hidden");
-      refreshPortalUnitLeadForSession();
-      clearPortalUnitDadosAtualizados();
-      showView("home");
-      try {
-        const path = window.location.pathname + window.location.search;
-        history.replaceState(null, "", path);
-      } catch {
-        /* ignore */
+      if (viewLocadoraHub?.classList.contains("view--active")) {
+        portalVoltarInicio();
+        return;
       }
+      if (currentUnit === "locadora" && viewUnit?.classList.contains("view--active")) {
+        portalVoltarLocadoraHub();
+        return;
+      }
+      portalVoltarInicio();
     });
+  });
+
+  document.querySelectorAll("[data-locadora-back]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dest = btn.getAttribute("data-locadora-back") || "";
+      if (dest === "hub") portalVoltarLocadoraHub();
+    });
+  });
+
+  formLocadoraAppDownload?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const cpfIn = document.getElementById("locadora-app-cpf");
+    const protoIn = document.getElementById("locadora-app-protocolo");
+    const cpf = onlyDigits(String(cpfIn?.value || "")).slice(0, 11);
+    const proto = String(protoIn?.value || "").trim();
+    if (locadoraAppFeedback) locadoraAppFeedback.textContent = "";
+    const v = validateClienteProtocoloParaApp(cpf, proto);
+    if (!v.ok) {
+      if (locadoraAppFeedback) locadoraAppFeedback.textContent = v.msg;
+      return;
+    }
+    try {
+      sessionStorage.setItem(
+        CLIENTE_APP_GATE_KEY,
+        JSON.stringify({
+          cpf,
+          proto: v.proto,
+          nome: String(v.cliente?.nome || "").trim(),
+          at: Date.now(),
+        })
+      );
+    } catch {
+      if (locadoraAppFeedback) {
+        locadoraAppFeedback.textContent = "Não foi possível autorizar o download neste navegador.";
+      }
+      return;
+    }
+    window.location.href = "cliente.html";
+  });
+
+  document.getElementById("locadora-app-cpf")?.addEventListener("blur", () => {
+    const inp = document.getElementById("locadora-app-cpf");
+    if (!inp || typeof formatCpf !== "function") return;
+    const dig = onlyDigits(String(inp.value || "")).slice(0, 11);
+    if (dig.length === 11) inp.value = formatCpf(dig);
   });
 
   document.querySelectorAll(".role-picker__btn").forEach((btn) => {
@@ -347,35 +525,36 @@
     if (loginFeedback) loginFeedback.textContent = "";
 
     if (!role) {
-      loginFeedback.textContent = "Selecione Cliente, Colaborador ou Administrador acima.";
+      loginFeedback.textContent = "Selecione Colaborador ou Administrador acima.";
       return;
     }
 
     if (role === "cliente") {
-      const cliente = findCliente(cpf, senha);
-      if (!cliente) {
-        loginFeedback.textContent = "CPF ou senha inválidos.";
-        return;
-      }
-      saveSession(cliente);
-      hideAllPanels();
-      panelLogado?.classList.remove("hidden");
-      if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
-      const nomeCli = String(cliente?.nome || "").trim() || "cliente";
-      if (logadoTexto) {
-        logadoTexto.innerHTML = `Olá, ${portalEscapeHtml(nomeCli)}. Para consultar contratos e enviar comprovantes, use o <a href="cliente.html"><strong>App Cliente</strong></a> (<a href="apps.html">instalar</a>).`;
-      }
-      btnOperacao?.classList.add("hidden");
-      btnManutencao?.classList.add("hidden");
-      clearPortalUnitDadosAtualizados();
-      refreshPortalUnitLeadForSession();
+      loginFeedback.textContent =
+        "Acesso de cliente pelo portal foi descontinuado. Use «Área do Cliente» na página anterior.";
       return;
     }
 
     if (role === "colaborador" || role === "administrador") {
+      if (role === "administrador" && cpf !== DK_LOCADORA_ADMIN_CPF) {
+        loginFeedback.textContent = "Acesso de administrador restrito ao titular autorizado.";
+        return;
+      }
       const funcionario = funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === cpf && f.senha === senha);
       if (!funcionario) {
         loginFeedback.textContent = "CPF ou senha inválidos.";
+        return;
+      }
+      if (role === "administrador") {
+        if (funcionario.role !== "owner") {
+          loginFeedback.textContent = "Este CPF não tem perfil de administrador.";
+          return;
+        }
+      } else if (funcionario.role === "owner") {
+        loginFeedback.textContent = "Administrador: use a opção Administrador acima.";
+        return;
+      } else if (funcionario.role !== "operacao") {
+        loginFeedback.textContent = "Perfil sem permissão de colaborador.";
         return;
       }
       if (funcionario.blocked) {
@@ -1718,15 +1897,15 @@ ${printable.innerHTML}
     clearSession();
     resetPortalLoginFormularioETipoAcesso();
     hideAllPanels();
-    panelLogin?.classList.remove("hidden");
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
-    try {
-      history.replaceState(null, "", window.location.pathname + window.location.search);
-    } catch {
-      /* ignore */
+    if (currentUnit === "locadora") {
+      openLocadoraEmpresa();
+      return;
     }
+    panelLogin?.classList.remove("hidden");
+    setPortalHash("");
   });
 
   function portalEscapeHtml(s) {
@@ -8664,43 +8843,28 @@ ${printable.innerHTML}
   function applyPortalLocadoraHash() {
     const h = (window.location.hash || "").toLowerCase();
     if (!h.startsWith("#locadora")) return;
-    openUnit("locadora");
     const rest = h.replace(/^#locadora\/?/, "").trim();
-    if (rest === "cliente") {
-      document.querySelector('.role-picker__btn[data-role="cliente"]')?.dispatchEvent(new Event("click", { bubbles: true }));
-    } else if (rest === "colaborador") {
-      document.querySelector('.role-picker__btn[data-role="colaborador"]')?.dispatchEvent(new Event("click", { bubbles: true }));
+    if (!rest || rest === "hub") {
+      openLocadoraHub();
+      return;
+    }
+    if (rest === "cliente" || rest.startsWith("cliente/")) {
+      openLocadoraClienteArea();
+      return;
+    }
+    if (rest === "empresa" || rest.startsWith("empresa/")) {
+      openLocadoraEmpresa();
+      const sub = rest.replace(/^empresa\/?/, "").trim();
+      if (sub === "colaborador" || sub === "administrador") {
+        document
+          .querySelector(`.role-picker__btn[data-role="${sub === "administrador" ? "administrador" : "colaborador"}"]`)
+          ?.dispatchEvent(new Event("click", { bubbles: true }));
+      }
     }
   }
 
   applyPortalLocadoraHash();
   window.addEventListener("hashchange", applyPortalLocadoraHash);
-
-  /** Se já existir sessão (DK no mesmo navegador), reflectir no portal sem voltar a pedir login. */
-  function syncPortalIfSession() {
-    const session = typeof getSession === "function" ? getSession() : null;
-    if (!session) return;
-    openUnit("locadora");
-    hideAllPanels();
-    panelLogado?.classList.remove("hidden");
-    if (session.tipo === "admin") {
-      if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
-      if (logadoTexto)
-        logadoTexto.textContent = `${session.nome || ""} · ${session.role === "owner" ? "Administrador" : session.role || ""}`;
-      const allowOp =
-        session.role === "operacao" || session.role === "owner";
-      btnOperacao?.classList.toggle("hidden", !allowOp);
-      btnManutencao?.classList.toggle("hidden", !allowOp);
-    } else {
-      if (logadoTitulo) logadoTitulo.textContent = "Área do cliente";
-      if (logadoTexto) logadoTexto.textContent = `Olá, ${String(session.nome || "").trim() || "cliente"}.`;
-      btnOperacao?.classList.add("hidden");
-      btnManutencao?.classList.add("hidden");
-    }
-    refreshPortalUnitLeadForSession();
-    refreshPortalOperacaoNavPorAcessos();
-    refreshOperacaoLancAluguelAdminControlsVisibility();
-  }
 
   /**
    * Enter no teclado avança para o próximo campo editável; no último campo submete o formulário.
@@ -9127,7 +9291,6 @@ ${printable.innerHTML}
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshPortalRelClienteCpfDatalist();
       refreshPortalRelPlacaDatalist();
-      syncPortalIfSession();
     })
   );
 })();

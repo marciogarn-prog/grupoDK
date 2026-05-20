@@ -2183,3 +2183,37 @@ body {
     overflow: visible !important;
   }
 }
+
+.view--locadora-sub.view--active {
+  justify-content: space-between;
+}
+
+.site-header--sub {
+  padding-top: clamp(0.5rem, 2vh, 1.5rem);
+}
+
+.portal-unit-bar--simple {
+  justify-content: flex-start;
+  margin-bottom: 1rem;
+}
+
+.locadora-propaganda-placeholder {
+  margin-top: 1rem;
+  padding: 2.5rem 1.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+  color: var(--muted);
+  background: var(--bg-elevated);
+}
+
+.locadora-propaganda-placeholder p {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#view-locadora-cliente .subpage__title {
+  margin-top: 0;
+}

@@ -4,6 +4,7 @@
  */
 (function dkClienteApp() {
   const SESSAO_KEY = "dk_sessao_cliente_app";
+  const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
   const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
   const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
@@ -382,7 +383,25 @@
     });
   }
 
+  function hasClienteAppDownloadGate() {
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY);
+      if (!raw) return false;
+      const g = JSON.parse(raw);
+      const cpf = onlyDigits(String(g?.cpf || "")).slice(0, 11);
+      const proto = String(g?.proto || "").trim();
+      return cpf.length === 11 && Boolean(proto);
+    } catch {
+      return false;
+    }
+  }
+
   function init() {
+    if (!hasClienteAppDownloadGate()) {
+      window.location.replace("index.html#locadora/cliente");
+      return;
+    }
+
     $("form-login")?.addEventListener("submit", (e) => {
       e.preventDefault();
       const cpf = onlyDigits($("login-cpf")?.value).slice(0, 11);

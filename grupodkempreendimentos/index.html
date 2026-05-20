@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260520apps">
+  <link rel="stylesheet" href="styles.css?v=20260520locadora-hub">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -60,10 +60,70 @@
 
     <footer class="site-footer">
       <p>Petrolina — PE · <a href="https://grupodkempreendimentos.com.br/">grupodkempreendimentos.com.br</a></p>
-      <p class="subtext" style="margin-top:0.75rem">
-        <a href="apps.html"><strong>Baixar aplicativos</strong></a> — App Cliente e App Corporativo (instalar no telemóvel)
-      </p>
     </footer>
+  </div>
+
+  <div id="view-locadora-hub" class="view view--locadora-sub" role="region" aria-labelledby="locadora-hub-title" aria-hidden="true">
+    <header class="site-header site-header--sub">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">DK</span>
+        <div class="brand__text">
+          <span class="brand__title">DK Locadora</span>
+          <span class="brand__subtitle">Grupo DK</span>
+        </div>
+      </div>
+      <p class="header-lead">Escolha como deseja continuar.</p>
+    </header>
+    <main class="grid-choices" aria-label="Área do cliente ou da empresa">
+      <button type="button" class="choice-card" data-locadora-go="cliente">
+        <span class="choice-card__icon" aria-hidden="true">&#9670;</span>
+        <span class="choice-card__label">Área do Cliente</span>
+        <span class="choice-card__hint">Propagandas e download do app (CPF + protocolo)</span>
+      </button>
+      <button type="button" class="choice-card" data-locadora-go="empresa">
+        <span class="choice-card__icon" aria-hidden="true">&#9671;</span>
+        <span class="choice-card__label">Área da Empresa</span>
+        <span class="choice-card__hint">Colaborador ou administrador (CPF e senha)</span>
+      </button>
+    </main>
+    <footer class="site-footer">
+      <button type="button" class="btn-back" data-back>&larr; Voltar ao início</button>
+    </footer>
+  </div>
+
+  <div id="view-locadora-cliente" class="view view--locadora-sub" role="region" aria-labelledby="locadora-cliente-title" aria-hidden="true">
+    <div class="subpage">
+      <header class="portal-unit-bar portal-unit-bar--simple" aria-label="Navegação">
+        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-locadora-back="hub">&larr; Voltar</button>
+      </header>
+      <h1 id="locadora-cliente-title" class="subpage__title">Área do Cliente</h1>
+      <p class="subpage__lead">Consulte novidades e instale o app DK Cliente no telemóvel (apenas clientes cadastrados com protocolo válido).</p>
+
+      <section class="portal-panel locadora-cliente-propaganda" aria-labelledby="locadora-propaganda-title">
+        <h2 id="locadora-propaganda-title" class="portal-panel__title">Produtos e novidades</h2>
+        <p class="subtext">Este espaço será atualizado em breve com planos, promoções e informações da DK Locadora.</p>
+        <div class="locadora-propaganda-placeholder" role="status" aria-label="Conteúdo em preparação">
+          <p>Em breve</p>
+        </div>
+      </section>
+
+      <section class="portal-panel" aria-labelledby="locadora-app-title">
+        <h2 id="locadora-app-title" class="portal-panel__title">Baixar o app DK Cliente</h2>
+        <p class="subtext">Informe o CPF e o número do protocolo da sua locação. Só clientes cadastrados com contrato correspondente podem instalar.</p>
+        <form id="form-locadora-app-download" class="portal-form" novalidate>
+          <label class="portal-field">
+            <span>CPF</span>
+            <input type="text" id="locadora-app-cpf" name="cpf" inputmode="numeric" autocomplete="username" maxlength="14" required placeholder="000.000.000-00">
+          </label>
+          <label class="portal-field">
+            <span>Protocolo</span>
+            <input type="text" id="locadora-app-protocolo" name="protocolo" required placeholder="Número do protocolo / contrato" autocomplete="off">
+          </label>
+          <p id="locadora-app-feedback" class="portal-feedback" role="status"></p>
+          <button type="submit" class="btn-primary" id="btn-locadora-app-download">Baixar / instalar app</button>
+        </form>
+      </section>
+    </div>
   </div>
 
   <div id="view-unit" class="view view--unit" role="region" aria-labelledby="unit-page-title" aria-hidden="true">
@@ -71,13 +131,13 @@
       <header class="portal-unit-bar" aria-label="Navegação da unidade">
         <div class="portal-unit-bar__left">
           <span class="portal-unit-bar__label">Tipo de acesso</span>
-          <div class="role-picker role-picker--bar" role="tablist" aria-label="Tipo de acesso">
-            <button type="button" class="role-picker__btn" data-role="cliente" role="tab" aria-selected="false">Cliente</button>
+          <div class="role-picker role-picker--bar" id="portal-role-picker-bar" role="tablist" aria-label="Tipo de acesso">
+            <button type="button" class="role-picker__btn role-picker__btn--cliente-portal hidden" data-role="cliente" role="tab" aria-selected="false" hidden>Cliente</button>
             <button type="button" class="role-picker__btn" data-role="colaborador" role="tab" aria-selected="false">Colaborador</button>
             <button type="button" class="role-picker__btn" data-role="administrador" role="tab" aria-selected="false">Administrador</button>
           </div>
         </div>
-        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-back>&larr; Voltar ao início</button>
+        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="portal-unit-back-btn" data-back>&larr; Voltar</button>
       </header>
 
       <div class="portal-unit-heading">
@@ -124,7 +184,7 @@
       <section id="panel-logado" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title" id="logado-titulo">área logada</h2>
         <p id="logado-texto" class="subpage__lead"></p>
-        <p class="subtext">Conteúdo da unidade em preparação.</p>
+        <p class="subtext hidden" id="logado-subtext-preparacao">Conteúdo da unidade em preparação.</p>
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
@@ -1444,8 +1504,8 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260520apps" defer></script>
-  <script src="portal-locadora-ui.js?v=20260520apps" defer></script>
+  <script src="app.js?v=20260520locadora-hub" defer></script>
+  <script src="portal-locadora-ui.js?v=20260520locadora-hub" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=16" defer></script>
