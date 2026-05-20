@@ -4,7 +4,7 @@
  */
 import { chromium } from "playwright";
 
-const URL = "https://grupodkempreendimentos.com.br/";
+const BASE_URL = "https://grupodkempreendimentos.com.br/";
 const results = [];
 
 function record(name, ok, detail = "") {
@@ -17,7 +17,7 @@ async function main() {
   const page = await browser.newPage();
 
   try {
-    await page.goto(URL, { waitUntil: "networkidle", timeout: 60000 });
+    await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const html = await page.content();
     record("HTML com cache banco-unificado", html.includes("banco-unificado"), "scripts");
@@ -133,7 +133,7 @@ async function main() {
     const appsHtml = await page.evaluate(() => fetch("./apps.html").then((r) => r.text()));
     record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Corporativo"));
 
-    await page.goto(new URL("cliente.html", URL).href, { waitUntil: "networkidle", timeout: 60000 });
+    await page.goto(new URL("cliente.html", BASE_URL).href, { waitUntil: "networkidle", timeout: 60000 });
     record("cliente.html carrega", (await page.content()).includes("Partilhar comprovante"));
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
