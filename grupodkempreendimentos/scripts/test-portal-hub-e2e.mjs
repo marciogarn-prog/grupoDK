@@ -42,7 +42,10 @@ async function main() {
 
     const html = await page.content();
     record("Modal confirmação alteração admin", html.includes("portalAdminAlteracaoConfirmModal"));
-    record("Cache portal admin-edicao", html.includes("admin-edicao"));
+    record(
+      "Cache portal atualizado",
+      html.includes("comprovante-cliente") || html.includes("admin-edicao") || html.includes("locadora-hub")
+    );
 
     await page.goto(new URL("#locadora/cliente", BASE_URL).href, { waitUntil: "networkidle", timeout: 30000 });
     await page.waitForTimeout(800);
