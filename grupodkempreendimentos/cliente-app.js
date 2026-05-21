@@ -3,6 +3,7 @@
  * Login por CPF; exibe só dados do cliente; partilha comprovante via sistema (Web Share).
  */
 (function dkClienteApp() {
+  window.__DK_CLIENTE_APP = true;
   const SESSAO_KEY = "dk_sessao_cliente_app";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const GATE_PERSIST_KEY = "dk_cliente_gate_persist";
@@ -900,13 +901,19 @@
     await checkAtualizacaoPrograma();
     try {
       if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-        await window.__DK_pullCloudSnapshotSilentMerge();
+        const pull = window.__DK_pullCloudSnapshotSilentMerge();
+        const timeout = new Promise((_, reject) => {
+          window.setTimeout(() => reject(new Error("Nuvem demorou — a usar dados locais.")), 14000);
+        });
+        await Promise.race([pull, timeout]);
         if (msg) msg.textContent = "Programa e dados atualizados.";
       } else if (msg && !silent) {
         msg.textContent = "Nuvem indisponível — dados só neste dispositivo.";
       }
     } catch (e) {
-      if (msg) msg.textContent = String(e?.message || "Falha ao atualizar da nuvem.");
+      if (msg) {
+        msg.textContent = String(e?.message || "Falha ao atualizar da nuvem.");
+      }
     }
     if (sessao) resolveAppViewAfterData(sessao);
   }
@@ -1022,51 +1029,11 @@
 
   async function gerarPdfBlobRelatorio(html, titulo) {
     const pack = textoRelatorioParaPdf(html, titulo);
-    if (pack && (window.jspdf?.jsPDF || window.jsPDF)) {
+    if (!pack) throw new Error("Relatório vazio.");
+    if (window.jspdf?.jsPDF || window.jsPDF) {
       return gerarPdfTextoFallback(pack.texto, pack.titulo);
     }
-    if (typeof window.html2pdf !== "function") {
-      throw new Error("Gerador PDF indisponível. Atualize a página do app.");
-    }
-    const iframe = await carregarIframeRelatorioHtml(html);
-    try {
-      const body = iframe.contentDocument?.body;
-      if (!body) throw new Error("Relatório vazio.");
-      const host = document.createElement("div");
-      host.className = "cliente-relatorio-pdf-host";
-      host.appendChild(prepararCloneParaPdf(body));
-      document.body.appendChild(host);
-      try {
-        return await Promise.race([
-          window
-            .html2pdf()
-            .set({
-              margin: [10, 8, 10, 8],
-              pagebreak: { mode: ["css", "legacy"] },
-              image: { type: "jpeg", quality: 0.88 },
-              html2canvas: {
-                scale: 1.25,
-                logging: false,
-                useCORS: false,
-                backgroundColor: "#ffffff",
-                scrollY: 0,
-                windowWidth: 800,
-                foreignObjectRendering: false,
-              },
-              jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-            })
-            .from(host)
-            .output("blob"),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("PDF demorou demais. Tente de novo.")), 45000)
-          ),
-        ]);
-      } finally {
-        host.remove();
-      }
-    } finally {
-      iframe.remove();
-    }
+    throw new Error("Gerador PDF indisponível. Atualize a página do app.");
   }
 
   function transferirPdfParaDownload(pdfBlob, nomeArquivo) {
@@ -1483,6 +1450,7 @@
   }
 
   async function init() {
+    fecharModalRelatorio();
     restoreGateToSession();
     persistGateFromSession();
     wireLaunchQueueShare();
@@ -1491,7 +1459,13 @@
       document.documentElement.dataset.dkClientePagBound = "1";
       document.addEventListener("click", onClientePagamentosClick);
     }
-    await registerClienteServiceWorker();
+    if (!document.documentElement.dataset.dkClienteEscBound) {
+      document.documentElement.dataset.dkClienteEscBound = "1";
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") fecharModalRelatorio();
+      });
+    }
+    void registerClienteServiceWorker();
 
     if (!canOpenAppWithoutPortalRedirect()) {
       window.location.replace("/#locadora/cliente");

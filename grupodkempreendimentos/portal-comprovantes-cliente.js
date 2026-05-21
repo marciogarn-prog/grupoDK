@@ -17,6 +17,19 @@
   const OPERADOR_AUTO = { cpf: "", nome: "Sistema DK (automático)", role: "sistema" };
 
   let filaAutoEmCurso = false;
+  let _ccNormalizing = false;
+  let _ccLoadAllCache = null;
+  let _ccPushDeferredTimer = null;
+
+  function isClienteAppContext() {
+    if (window.__DK_CLIENTE_APP === true) return true;
+    try {
+      const p = String(location.pathname || "").toLowerCase();
+      return p === "/cliente" || p.endsWith("/cliente") || p.endsWith("/cliente.html");
+    } catch {
+      return false;
+    }
+  }
 
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
@@ -230,7 +243,8 @@
   }
 
   /** Preserva confirmados; corrige centavos; reabre recusas indevidas; arquiva reenvios excedentes. */
-  function normalizarHistoricoComprovantes(arr) {
+  function normalizarHistoricoComprovantes(arr, opts) {
+    const silencioso = Boolean(opts?.silencioso);
     let list = arr.map((r) => ({ ...r }));
     let changed = false;
 
@@ -269,7 +283,9 @@
           const idx = list.findIndex((x) => x.id === r.id);
           if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
           list[idx] = rejeitarDuplicataMesmaImagem(list[idx], idRef);
-          notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+          if (!silencioso) {
+            notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+          }
           changed = true;
         }
         continue;
@@ -287,7 +303,9 @@
         const idx = list.findIndex((x) => x.id === ex.id);
         if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
         list[idx] = rejeitarDuplicataMesmaImagem(list[idx], manter.id);
-        notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        if (!silencioso) {
+          notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        }
         changed = true;
       }
     }
@@ -311,7 +329,9 @@
           const idx = list.findIndex((x) => x.id === r.id);
           if (idx >= 0 && list[idx].status !== STATUS.REJEITADO) {
             list[idx] = rejeitarEnvioExcedente(list[idx], idRef);
-            notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+            if (!silencioso) {
+              notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+            }
             changed = true;
           }
         }
@@ -332,18 +352,22 @@
         const idx = list.findIndex((x) => x.id === ex.id);
         if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
         list[idx] = rejeitarEnvioExcedente(list[idx], manter.id);
-        notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        if (!silencioso) {
+          notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        }
         changed = true;
       }
     }
 
-    list = list.map((r) => {
-      if (r.migracaoHistoricoV === MIG_HISTORICO_V) return r;
-      changed = true;
-      return { ...r, migracaoHistoricoV: MIG_HISTORICO_V };
-    });
-
     return { list, changed };
+  }
+
+  function agendarPushNuvemAdiado() {
+    if (_ccPushDeferredTimer) clearTimeout(_ccPushDeferredTimer);
+    _ccPushDeferredTimer = setTimeout(() => {
+      _ccPushDeferredTimer = null;
+      pushNuvem();
+    }, 2500);
   }
 
   async function garantirFingerprintsComprovantes(arr) {
@@ -360,30 +384,45 @@
     return { list, changed };
   }
 
-  async function repararHistoricoComprovantesNuvem() {
+  async function repararHistoricoComprovantesNuvem(opts) {
+    const leve = Boolean(opts?.leve) || isClienteAppContext();
     let raw = loadAllRaw();
-    const fpPack = await garantirFingerprintsComprovantes(raw);
-    raw = fpPack.list;
-    let changed = fpPack.changed;
-    const { list, changed: normChanged } = normalizarHistoricoComprovantes(raw);
+    let changed = false;
+    if (!leve) {
+      const fpPack = await garantirFingerprintsComprovantes(raw);
+      raw = fpPack.list;
+      changed = fpPack.changed;
+    }
+    const { list, changed: normChanged } = normalizarHistoricoComprovantes(raw, { silencioso: leve });
     changed = changed || normChanged;
     if (changed) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
-      pushNuvem();
+      _ccLoadAllCache = list;
+      if (leve) agendarPushNuvemAdiado();
+      else pushNuvem();
     }
     const aguardam = list.filter((r) => r.status === STATUS.IA_OK).length;
     const confirmados = list.filter((r) => r.status === STATUS.CONFIRMADO).length;
     return { ok: true, changed, aguardam, confirmados, total: list.length };
   }
 
-  function loadAll() {
-    const raw = loadAllRaw();
-    const { list, changed } = normalizarHistoricoComprovantes(raw);
-    if (changed) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
-      pushNuvem();
+  function loadAll(opts) {
+    if (_ccNormalizing) return _ccLoadAllCache || loadAllRaw();
+    const leitura = Boolean(opts?.leitura) || isClienteAppContext();
+    _ccNormalizing = true;
+    try {
+      const raw = loadAllRaw();
+      const { list, changed } = normalizarHistoricoComprovantes(raw, { silencioso: leitura });
+      _ccLoadAllCache = list;
+      if (changed) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
+        if (leitura) agendarPushNuvemAdiado();
+        else pushNuvem();
+      }
+      return list;
+    } finally {
+      _ccNormalizing = false;
     }
-    return list;
   }
 
   function saveAll(arr) {
@@ -949,6 +988,9 @@
 
   function listarPorCliente(cpfDigits) {
     const cpf = onlyDigits(cpfDigits).slice(0, 11);
+    if (isClienteAppContext()) {
+      return loadAllRaw().filter((r) => onlyDigits(r.cpf) === cpf);
+    }
     return loadAll().filter((r) => onlyDigits(r.cpf) === cpf);
   }
 

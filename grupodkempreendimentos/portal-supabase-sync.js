@@ -404,10 +404,27 @@
     } finally {
       suppressCloudHook = false;
     }
+    const clienteAppPage = (() => {
+      try {
+        const p = String(location.pathname || "").toLowerCase();
+        return p === "/cliente" || p.endsWith("/cliente") || p.endsWith("/cliente.html");
+      } catch {
+        return false;
+      }
+    })();
     if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
-      void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
+      if (clienteAppPage) {
+        window.setTimeout(() => {
+          void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico({ leve: true }));
+        }, 1200);
+      } else {
+        void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
+      }
     }
-    if (typeof window.__DK_comprovantesClienteProcessarFilaAutomatica === "function") {
+    if (
+      !clienteAppPage &&
+      typeof window.__DK_comprovantesClienteProcessarFilaAutomatica === "function"
+    ) {
       void window.__DK_comprovantesClienteProcessarFilaAutomatica().then(() => {
         if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
           void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
