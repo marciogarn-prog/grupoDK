@@ -988,10 +988,11 @@
 
   function listarPorCliente(cpfDigits) {
     const cpf = onlyDigits(cpfDigits).slice(0, 11);
-    if (isClienteAppContext()) {
-      return loadAllRaw().filter((r) => onlyDigits(r.cpf) === cpf);
-    }
-    return loadAll().filter((r) => onlyDigits(r.cpf) === cpf);
+    return loadAll({ leitura: true }).filter((r) => onlyDigits(r.cpf) === cpf);
+  }
+
+  function invalidateComprovantesCache() {
+    _ccLoadAllCache = null;
   }
 
   /** Cliente reconhece recusa da DK — deixa de aparecer na lista de pagamentos do app. */
@@ -2633,6 +2634,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteProcessarFilaAutomatica = processarFilaComprovantesAutomaticos;
   window.__DK_comprovantesClienteListRecusados72h = listarRecusadosUltimas72h;
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
+  window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     const rep = await repararHistoricoComprovantesNuvem();

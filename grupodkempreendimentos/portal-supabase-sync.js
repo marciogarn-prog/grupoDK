@@ -185,6 +185,36 @@
         }
         continue;
       }
+      if (k === "dk_comprovantes_cliente_pendentes") {
+        const localArr = readLocalJsonArray(k);
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        localStorage.setItem(k, JSON.stringify(mergeComprovantesClientePendentes(localArr, cloudArr)));
+        continue;
+      }
+      if (k === "dk_cliente_notificacoes") {
+        const localArr = readLocalJsonArray(k);
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        localStorage.setItem(k, JSON.stringify(mergeClienteNotificacoes(localArr, cloudArr)));
+        continue;
+      }
       if (typeof v === "string") {
         localStorage.setItem(k, v);
       } else {
@@ -316,9 +346,136 @@
       if (!DK_CLOUD_KEYS.has(k)) continue;
       const a = cloudPayload[k];
       const b = Object.prototype.hasOwnProperty.call(localObj, k) ? localObj[k] : undefined;
+      if (k === "dk_comprovantes_cliente_pendentes") {
+        const merged = mergeComprovantesClientePendentes(b, a);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
+      if (k === "dk_cliente_notificacoes") {
+        const merged = mergeClienteNotificacoes(b, a);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
       if (JSON.stringify(a) !== JSON.stringify(b)) return true;
     }
     return false;
+  }
+
+  const CC_STATUS_RANK = { confirmado: 40, ia_validado: 30, pendente: 20, rejeitado: 10 };
+
+  function comprovanteClienteRank(rec) {
+    const st = String(rec?.status || "").trim();
+    const base = CC_STATUS_RANK[st] || 0;
+    const ts =
+      Date.parse(
+        rec?.confirmadoEm ||
+          rec?.rejeitadoEm ||
+          rec?.reabertoParaOperadorEm ||
+          rec?.iaValidacao?.validadoEm ||
+          rec?.enviadoEm ||
+          0
+      ) || 0;
+    return base * 1e15 + ts;
+  }
+
+  function mergeComprovantesClientePendentes(localArr, cloudArr) {
+    const byId = new Map();
+    const push = (rec) => {
+      if (!rec || typeof rec !== "object" || !rec.id) return;
+      const prev = byId.get(rec.id);
+      if (!prev || comprovanteClienteRank(rec) >= comprovanteClienteRank(prev)) {
+        byId.set(rec.id, rec);
+      }
+    };
+    (Array.isArray(localArr) ? localArr : []).forEach(push);
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(push);
+    return Array.from(byId.values())
+      .sort((a, b) => (Date.parse(b.enviadoEm || 0) || 0) - (Date.parse(a.enviadoEm || 0) || 0))
+      .slice(0, 200);
+  }
+
+  function mergeClienteNotificacoes(localArr, cloudArr) {
+    const byId = new Map();
+    const push = (n) => {
+      if (!n || typeof n !== "object" || !n.id) return;
+      const prev = byId.get(n.id);
+      const ts = Date.parse(n.criadoEm || n.lidaEm || 0) || 0;
+      const prevTs = prev ? Date.parse(prev.criadoEm || prev.lidaEm || 0) || 0 : 0;
+      if (!prev || ts >= prevTs) byId.set(n.id, n);
+    };
+    (Array.isArray(localArr) ? localArr : []).forEach(push);
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(push);
+    return Array.from(byId.values())
+      .sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0))
+      .slice(0, 500);
+  }
+
+  function readLocalJsonArray(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      const p = raw ? JSON.parse(raw) : [];
+      return Array.isArray(p) ? p : [];
+    } catch {
+      return [];
+    }
+  }
+
+  async function fetchCloudSnapshotPayload() {
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return null;
+    const { data, error } = await client
+      .from("dk_cloud_snapshots")
+      .select("payload, updated_at")
+      .eq("label", DK_SNAPSHOT_LABEL)
+      .maybeSingle();
+    if (error || !data?.payload) return null;
+    return data;
+  }
+
+  function mergePayloadWithCloudBeforePush(localPayload, cloudPayload) {
+    const out = { ...localPayload };
+    if (!cloudPayload || typeof cloudPayload !== "object") return out;
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_comprovantes_cliente_pendentes")) {
+      out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
+        localPayload.dk_comprovantes_cliente_pendentes,
+        cloudPayload.dk_comprovantes_cliente_pendentes
+      );
+    }
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_cliente_notificacoes")) {
+      out.dk_cliente_notificacoes = mergeClienteNotificacoes(
+        localPayload.dk_cliente_notificacoes,
+        cloudPayload.dk_cliente_notificacoes
+      );
+    }
+    return out;
+  }
+
+  function persistMergedPayloadToLocal(mergedPayload) {
+    suppressCloudHook = true;
+    try {
+      if (mergedPayload.dk_comprovantes_cliente_pendentes) {
+        localStorage.setItem(
+          "dk_comprovantes_cliente_pendentes",
+          JSON.stringify(mergedPayload.dk_comprovantes_cliente_pendentes)
+        );
+      }
+      if (mergedPayload.dk_cliente_notificacoes) {
+        localStorage.setItem(
+          "dk_cliente_notificacoes",
+          JSON.stringify(mergedPayload.dk_cliente_notificacoes)
+        );
+      }
+    } finally {
+      suppressCloudHook = false;
+    }
+    if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+      window.__DK_comprovantesClienteInvalidateCache();
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-comprovantes-synced"));
+    } catch {
+      /* ignore */
+    }
   }
 
   async function upsertSnapshotRow(showUserMessages) {
@@ -329,11 +486,17 @@
       }
       return { ok: false, error: new Error("no client") };
     }
-    const payload = collectPayloadFromLocalStorage();
+    let payload = collectPayloadFromLocalStorage();
+    const cloudRow = await fetchCloudSnapshotPayload();
+    if (cloudRow?.payload) {
+      payload = mergePayloadWithCloudBeforePush(payload, cloudRow.payload);
+      persistMergedPayloadToLocal(payload);
+    }
+    const updatedAt = new Date().toISOString();
     const row = {
       label: DK_SNAPSHOT_LABEL,
       payload,
-      updated_at: new Date().toISOString(),
+      updated_at: updatedAt,
     };
     const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
       onConflict: "label",
@@ -345,13 +508,13 @@
       }
       return { ok: false, error };
     }
-    return { ok: true };
+    noteCloudPushTimestamp(updatedAt);
+    return { ok: true, updatedAt };
   }
 
   async function pushSnapshotQuiet() {
     const r = await upsertSnapshotRow(false);
     if (r.ok) {
-      noteCloudPushTimestamp(row.updated_at);
       setMsg("Nuvem atualizada em segundo plano.", "muted");
     }
     return r;
@@ -392,10 +555,11 @@
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
       return { ok: false, skipped: true };
     }
-    if (!isCloudSnapshotNewerThanLocal(data.updated_at)) {
+    const mergeNeeded = cloudPullWouldChangeAnything(data.payload);
+    if (!isCloudSnapshotNewerThanLocal(data.updated_at) && !mergeNeeded) {
       return { ok: true, skipped: true, reason: "cloud_not_newer" };
     }
-    if (!cloudPullWouldChangeAnything(data.payload)) {
+    if (!mergeNeeded) {
       return { ok: true, unchanged: true };
     }
     suppressCloudHook = true;
@@ -403,6 +567,14 @@
       applyPayloadToLocalStorage(data.payload, { replace: false, lightSanitize: true });
     } finally {
       suppressCloudHook = false;
+    }
+    if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+      window.__DK_comprovantesClienteInvalidateCache();
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-comprovantes-synced"));
+    } catch {
+      /* ignore */
     }
     const clienteAppPage = (() => {
       try {

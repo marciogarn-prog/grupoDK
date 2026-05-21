@@ -608,6 +608,32 @@
     </article>`;
   }
 
+  async function sincronizarDadosCliente(sessao, opts) {
+    const silent = Boolean(opts?.silent);
+    const msg = $("sync-msg");
+    if (msg && !silent) msg.textContent = "A sincronizar com a nuvem…";
+    try {
+      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+        await Promise.race([
+          window.__DK_pullCloudSnapshotSilentMerge(),
+          new Promise((_, reject) => {
+            window.setTimeout(() => reject(new Error("timeout")), 12000);
+          }),
+        ]);
+      }
+      if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
+        await window.__DK_comprovantesClienteRepararHistorico({ leve: true });
+      }
+      if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+        window.__DK_comprovantesClienteInvalidateCache();
+      }
+      if (msg && !silent) msg.textContent = "Dados sincronizados.";
+    } catch {
+      if (msg && !silent) msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
+    }
+    if (sessao) resolveAppViewAfterData(sessao);
+  }
+
   function renderApp(sessao) {
     const cpf = sessao.cpf;
     const dados = loadDadosCliente(cpf);
@@ -895,27 +921,8 @@
   }
 
   async function atualizarProgramaEDados(sessao, opts) {
-    const msg = $("sync-msg");
-    const silent = Boolean(opts?.silent);
-    if (msg && !silent) msg.textContent = "A atualizar programa e dados da nuvem…";
     await checkAtualizacaoPrograma();
-    try {
-      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-        const pull = window.__DK_pullCloudSnapshotSilentMerge();
-        const timeout = new Promise((_, reject) => {
-          window.setTimeout(() => reject(new Error("Nuvem demorou — a usar dados locais.")), 14000);
-        });
-        await Promise.race([pull, timeout]);
-        if (msg) msg.textContent = "Programa e dados atualizados.";
-      } else if (msg && !silent) {
-        msg.textContent = "Nuvem indisponível — dados só neste dispositivo.";
-      }
-    } catch (e) {
-      if (msg) {
-        msg.textContent = String(e?.message || "Falha ao atualizar da nuvem.");
-      }
-    }
-    if (sessao) resolveAppViewAfterData(sessao);
+    await sincronizarDadosCliente(sessao, opts);
   }
 
   async function pullNuvem() {
@@ -1463,6 +1470,18 @@
       document.documentElement.dataset.dkClienteEscBound = "1";
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") fecharModalRelatorio();
+      });
+    }
+    if (!document.documentElement.dataset.dkClienteSyncBound) {
+      document.documentElement.dataset.dkClienteSyncBound = "1";
+      window.addEventListener("dk-comprovantes-synced", () => {
+        const sessao = getSessao();
+        if (sessao?.cpf) renderApp(sessao);
+      });
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState !== "visible") return;
+        const sessao = getSessao();
+        if (sessao?.cpf) void sincronizarDadosCliente(sessao, { silent: true });
       });
     }
     void registerClienteServiceWorker();
