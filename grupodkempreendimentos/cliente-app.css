@@ -189,6 +189,14 @@ button.lnk-comprovante {
   display: none;
 }
 
+html.dk-cliente-install-flow .cliente-install-panel {
+  display: block;
+}
+
+html.dk-cliente-install-flow .cliente-install-panel.hidden {
+  display: block;
+}
+
 .cliente-install-manual {
   margin-top: 0.75rem;
   font-size: 0.88rem;

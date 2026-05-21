@@ -14,12 +14,32 @@
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
   <title>DK Locadora — App Cliente</title>
   <script>
-    if ("serviceWorker" in navigator && location.protocol !== "file:") {
-      navigator.serviceWorker.register("/service-worker-cliente.js", { scope: "/" }).catch(function () {});
-    }
+    (function () {
+      if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+      (async function () {
+        try {
+          var regs = await navigator.serviceWorker.getRegistrations();
+          for (var i = 0; i < regs.length; i++) {
+            var u =
+              (regs[i].active && regs[i].active.scriptURL) ||
+              (regs[i].installing && regs[i].installing.scriptURL) ||
+              "";
+            if (u.indexOf("corporativo") !== -1) await regs[i].unregister();
+          }
+        } catch (e) {}
+        try {
+          await navigator.serviceWorker.register("/service-worker-cliente.js", { scope: "/" });
+        } catch (e) {}
+      })();
+      try {
+        if (/[?&]instalar=1/.test(location.search)) {
+          document.documentElement.classList.add("dk-cliente-install-flow");
+        }
+      } catch (e) {}
+    })();
   </script>
   <link rel="stylesheet" href="styles.css?v=20260522share">
-  <link rel="stylesheet" href="cliente-app.css?v=20260524install">
+  <link rel="stylesheet" href="cliente-app.css?v=20260525gate">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -192,6 +212,6 @@
   <script src="cliente-contrato-resumo.js?v=20260520cliente-v3" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260523comprovante-viewer" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260523comprovante-viewer" defer></script>
-  <script src="cliente-app.js?v=20260524install" defer></script>
+  <script src="cliente-app.js?v=20260525gate" defer></script>
 </body>
 </html>

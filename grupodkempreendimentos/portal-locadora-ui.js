@@ -481,6 +481,36 @@
           .replace(/[^A-Z0-9]/g, "");
   }
 
+  async function validateClienteProtocoloParaAppRemote(cpfDigits, protoRaw) {
+    const cpf = onlyDigits(String(cpfDigits || "")).slice(0, 11);
+    const proto = normProtoClienteGate(protoRaw);
+    if (cpf.length !== 11) return { ok: false, msg: "Informe um CPF válido (11 dígitos)." };
+    if (!proto) return { ok: false, msg: "Informe o protocolo da locação." };
+    try {
+      const q = new URLSearchParams({ cpf, protocolo: String(protoRaw || "").trim() });
+      const res = await fetch(`/api/cliente-app-gate?${q.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        return {
+          ok: false,
+          msg:
+            data.msg ||
+            "Não foi possível validar CPF e protocolo. Verifique os dados ou tente mais tarde.",
+        };
+      }
+      return {
+        ok: true,
+        cliente: { nome: String(data.nome || "").trim() },
+        proto: String(data.proto || proto),
+      };
+    } catch {
+      return {
+        ok: false,
+        msg: "Sem ligação à internet. Ligue o Wi-Fi/dados e tente novamente.",
+      };
+    }
+  }
+
   /** Cliente cadastrado com locação cujo protocolo coincide — requisito para instalar o app. */
   function validateClienteProtocoloParaApp(cpfDigits, protoRaw) {
     const cpf = onlyDigits(String(cpfDigits || "")).slice(0, 11);
@@ -654,42 +684,64 @@
     });
   });
 
-  formLocadoraAppDownload?.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const cpfIn = document.getElementById("locadora-app-cpf");
-    const protoIn = document.getElementById("locadora-app-protocolo");
-    const cpf = onlyDigits(String(cpfIn?.value || "")).slice(0, 11);
-    const proto = String(protoIn?.value || "").trim();
-    if (locadoraAppFeedback) locadoraAppFeedback.textContent = "";
-    const v = validateClienteProtocoloParaApp(cpf, proto);
-    if (!v.ok) {
-      if (locadoraAppFeedback) locadoraAppFeedback.textContent = v.msg;
-      return;
-    }
+  function redirectParaInstalarAppCliente(cpf, v) {
+    const gatePayload = JSON.stringify({
+      cpf,
+      proto: v.proto,
+      nome: String(v.cliente?.nome || "").trim(),
+      at: Date.now(),
+    });
+    sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
     try {
-      const gatePayload = JSON.stringify({
-        cpf,
-        proto: v.proto,
-        nome: String(v.cliente?.nome || "").trim(),
-        at: Date.now(),
-      });
-      sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
-      try {
-        localStorage.setItem("dk_cliente_gate_persist", gatePayload);
-      } catch {
-        /* ignore */
-      }
+      localStorage.setItem("dk_cliente_gate_persist", gatePayload);
     } catch {
-      if (locadoraAppFeedback) {
-        locadoraAppFeedback.textContent = "Não foi possível autorizar o download neste navegador.";
-      }
-      return;
+      /* ignore */
     }
+    const q = new URLSearchParams({
+      instalar: "1",
+      cpf,
+      proto: v.proto,
+    });
     if (locadoraAppFeedback) {
       locadoraAppFeedback.textContent =
         "CPF e protocolo validados. A abrir instalação do app DK Cliente…";
     }
-    window.location.href = "/cliente?instalar=1";
+    window.location.assign(`/cliente?${q.toString()}`);
+  }
+
+  formLocadoraAppDownload?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const cpfIn = document.getElementById("locadora-app-cpf");
+    const protoIn = document.getElementById("locadora-app-protocolo");
+    const btnDl = document.getElementById("btn-locadora-app-download");
+    const cpf = onlyDigits(String(cpfIn?.value || "")).slice(0, 11);
+    const proto = String(protoIn?.value || "").trim();
+    if (locadoraAppFeedback) {
+      locadoraAppFeedback.textContent = "";
+      locadoraAppFeedback.classList.remove("portal-feedback--error");
+    }
+    let v = validateClienteProtocoloParaApp(cpf, proto);
+    if (!v.ok) {
+      if (locadoraAppFeedback) locadoraAppFeedback.textContent = "A validar na DK…";
+      if (btnDl) btnDl.disabled = true;
+      v = await validateClienteProtocoloParaAppRemote(cpf, proto);
+      if (btnDl) btnDl.disabled = false;
+    }
+    if (!v.ok) {
+      if (locadoraAppFeedback) {
+        locadoraAppFeedback.textContent = v.msg;
+        locadoraAppFeedback.classList.add("portal-feedback--error");
+      }
+      return;
+    }
+    try {
+      redirectParaInstalarAppCliente(cpf, v);
+    } catch {
+      if (locadoraAppFeedback) {
+        locadoraAppFeedback.textContent = "Não foi possível autorizar o download neste navegador.";
+        locadoraAppFeedback.classList.add("portal-feedback--error");
+      }
+    }
   });
 
   document.getElementById("locadora-app-cpf")?.addEventListener("blur", () => {

@@ -204,8 +204,35 @@
     }
   }
 
+  function normProtoGate(value) {
+    if (typeof normalizeNumeroContratoKey === "function") {
+      return String(normalizeNumeroContratoKey(value || ""))
+        .trim()
+        .replace(/\s+/g, "");
+    }
+    return String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function persistGateFromQuery() {
+    try {
+      const q = new URLSearchParams(location.search);
+      const cpf = onlyDigits(q.get("cpf") || "").slice(0, 11);
+      const proto = normProtoGate(q.get("proto") || q.get("protocolo") || "");
+      if (cpf.length !== 11 || !proto) return;
+      const gatePayload = JSON.stringify({ cpf, proto, at: Date.now() });
+      sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
+      localStorage.setItem(GATE_PERSIST_KEY, gatePayload);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function restoreGateToSession() {
     try {
+      persistGateFromQuery();
       if (sessionStorage.getItem(CLIENTE_APP_GATE_KEY)) return;
       const p = localStorage.getItem(GATE_PERSIST_KEY);
       if (p) sessionStorage.setItem(CLIENTE_APP_GATE_KEY, p);
@@ -599,8 +626,25 @@
     }
   }
 
+  async function unregisterCorporativoServiceWorkers() {
+    if (!("serviceWorker" in navigator)) return;
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        regs.map(async (reg) => {
+          const url =
+            reg.active?.scriptURL || reg.installing?.scriptURL || reg.waiting?.scriptURL || "";
+          if (url.includes("corporativo")) await reg.unregister();
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
   async function registerClienteServiceWorker() {
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
+    await unregisterCorporativoServiceWorkers();
     try {
       return await navigator.serviceWorker.register("/service-worker-cliente.js", {
         scope: "/",

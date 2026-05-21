@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260524install";
+const CACHE_NAME = "dk-cliente-v20260525gate";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",

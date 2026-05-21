@@ -15559,7 +15559,12 @@ async function checkForAppUpdate(manualTrigger) {
 }
 
 if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
+  const __dkPath =
+    (window.location.pathname || "/").replace(/\/$/, "") || "/";
+  const __dkIsClienteApp =
+    __dkPath === "/cliente" || __dkPath.startsWith("/cliente/");
   window.addEventListener("load", () => {
+    if (__dkIsClienteApp) return;
     navigator.serviceWorker
       .register("./service-worker-corporativo.js")
       .then((registration) => {
