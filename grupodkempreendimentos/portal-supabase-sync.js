@@ -404,6 +404,13 @@
     } finally {
       suppressCloudHook = false;
     }
+    if (typeof window.__DK_comprovantesClienteProcessarFilaAutomatica === "function") {
+      void window.__DK_comprovantesClienteProcessarFilaAutomatica().then(() => {
+        if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+          void window.__DK_refreshComprovantesClienteLista();
+        }
+      });
+    }
     return { ok: true, applied: true };
   }
 

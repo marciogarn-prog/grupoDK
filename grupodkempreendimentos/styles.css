@@ -2302,6 +2302,10 @@ body {
 }
 
 .portal-lanc-cliente-comprovacao__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
@@ -2312,6 +2316,29 @@ body {
 .portal-comprovante-cliente-table {
   width: 100%;
   font-size: 0.88rem;
+}
+
+.portal-cc-motivo-recusa {
+  max-width: 16rem;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.portal-cc-painel-recusados {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #2a3140);
+}
+
+.portal-cc-sublista-titulo {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.portal-cc-badge-processando {
+  font-size: 0.8rem;
+  color: var(--accent, #c9a227);
+  margin-left: 0.35rem;
 }
 
 .portal-modal__card--cc-viewer {

@@ -1,6 +1,6 @@
 /**
- * Comprovantes enviados pelo App Cliente → nuvem → conferência pelo operador cadastrado (Lançamento de aluguel).
- * A validação com IA é executada pelo funcionário em sessão, não de forma automática.
+ * Comprovantes enviados pelo App Cliente → nuvem → conferência automática (IA) e confirmação manual pelo operador.
+ * Duplicata (mesma imagem) e valor divergente são recusados automaticamente; os restantes ficam aguardando confirmação.
  */
 (function portalComprovantesCliente() {
   const STORAGE_KEY = "dk_comprovantes_cliente_pendentes";
@@ -12,6 +12,11 @@
     CONFIRMADO: "confirmado",
     REJEITADO: "rejeitado",
   };
+
+  const HORAS_RECUSADOS_OPERADOR = 72;
+  const OPERADOR_AUTO = { cpf: "", nome: "Sistema DK (automático)", role: "sistema" };
+
+  let filaAutoEmCurso = false;
 
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
@@ -442,11 +447,15 @@
     all[idx].rejeitadoMotivoCliente = msgCliente;
     all[idx].rejeitadoMotivo = String(opts?.motivoInterno || msgCliente).trim();
     all[idx].rejeitadoPorCpf = operador?.cpf || "";
-    all[idx].rejeitadoPorNome = operador?.nome
-      ? opts?.manual
-        ? operador.nome
-        : `${operador.nome} (IA)`
-      : "Sistema DK";
+    const nomeOp = String(operador?.nome || "").trim();
+    all[idx].rejeitadoPorNome =
+      nomeOp && operador?.role === "sistema"
+        ? nomeOp
+        : nomeOp && opts?.manual
+          ? nomeOp
+          : nomeOp
+            ? `${nomeOp} (IA)`
+            : "Sistema DK";
     all[idx].rejeitadoEm = new Date().toISOString();
     all[idx].rejeitadoAutomatico = !opts?.manual;
     all[idx].iaValidacao = {
@@ -559,6 +568,7 @@
     const all = loadAll();
     all.unshift(rec);
     saveAll(all);
+    void processarComprovanteAutomatico(rec.id);
     return { ok: true, id: rec.id, rec };
   }
 
@@ -568,8 +578,30 @@
     return all.filter((r) => r.status === statusFilter);
   }
 
+  /** Aguardam confirmação manual do operador (passaram na IA automática). */
+  function listarAguardandoConfirmacaoOperador() {
+    return loadAll()
+      .filter((r) => r.status === STATUS.IA_OK)
+      .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));
+  }
+
   function listarPendentesOperador() {
-    return loadAll().filter((r) => r.status === STATUS.PENDENTE || r.status === STATUS.IA_OK);
+    return listarAguardandoConfirmacaoOperador();
+  }
+
+  function listarRecusadosUltimas72h() {
+    const limite = Date.now() - HORAS_RECUSADOS_OPERADOR * 60 * 60 * 1000;
+    return loadAll()
+      .filter((r) => {
+        if (r.status !== STATUS.REJEITADO) return false;
+        const t = Date.parse(r.rejeitadoEm || r.enviadoEm || 0);
+        return t >= limite;
+      })
+      .sort((a, b) => Date.parse(b.rejeitadoEm || 0) - Date.parse(a.rejeitadoEm || 0));
+  }
+
+  function contarPendentesAutoProcessamento() {
+    return loadAll().filter((r) => r.status === STATUS.PENDENTE && !r.autoProcessadoEm).length;
   }
 
   function listarPorCliente(cpfDigits) {
@@ -806,6 +838,45 @@
     return Number(rec.valor);
   }
 
+  async function processarComprovanteAutomatico(id) {
+    const rid = String(id || "").trim();
+    if (!rid) return { ok: false, msg: "ID inválido." };
+    const rec = getById(rid);
+    if (!rec || rec.status !== STATUS.PENDENTE) return { ok: false, skipped: true };
+    if (rec.autoProcessadoEm) return { ok: false, skipped: true };
+
+    const res = await validarComprovanteComIA(rid, { automatico: true });
+    const concluiu = Boolean(res.ok || res.rejeitado);
+    if (concluiu) {
+      const all = loadAll();
+      const idx = all.findIndex((r) => r.id === rid);
+      if (idx >= 0) {
+        all[idx].autoProcessadoEm = new Date().toISOString();
+        saveAll(all);
+      }
+      if (typeof window.__DK_pushToCloudAfterSave === "function") {
+        window.__DK_pushToCloudAfterSave();
+      }
+    }
+    return res;
+  }
+
+  async function processarFilaComprovantesAutomaticos() {
+    if (filaAutoEmCurso) return { ok: true, emCurso: true };
+    filaAutoEmCurso = true;
+    try {
+      const ids = loadAll()
+        .filter((r) => r.status === STATUS.PENDENTE && !r.autoProcessadoEm)
+        .map((r) => r.id);
+      for (const id of ids) {
+        await processarComprovanteAutomatico(id);
+      }
+      return { ok: true, processados: ids.length };
+    } finally {
+      filaAutoEmCurso = false;
+    }
+  }
+
   function refreshAdminSenhaUi(rec) {
     const wrap = document.getElementById("portalComprovanteAdminSenhaWrap");
     const inp = document.getElementById("portalComprovanteAdminSenha");
@@ -817,8 +888,11 @@
     }
   }
 
-  async function validarComprovanteComIA(id) {
-    const gate = exigirOperadorConferencia();
+  async function validarComprovanteComIA(id, opts) {
+    const automatico = Boolean(opts?.automatico);
+    const gate = automatico
+      ? { ok: true, operador: OPERADOR_AUTO }
+      : exigirOperadorConferencia();
     if (!gate.ok) return { ok: false, msg: gate.msg };
     const operador = gate.operador;
 
@@ -826,6 +900,15 @@
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
     if (rec.status === STATUS.CONFIRMADO) {
       return { ok: false, msg: "Pagamento já confirmado." };
+    }
+    if (rec.status === STATUS.REJEITADO) {
+      return { ok: false, msg: "Comprovante já recusado." };
+    }
+    if (!automatico && rec.status !== STATUS.PENDENTE && rec.status !== STATUS.IA_OK) {
+      return { ok: false, msg: "Estado inválido para conferência." };
+    }
+    if (automatico && rec.status !== STATUS.PENDENTE) {
+      return { ok: false, skipped: true, msg: "Já processado automaticamente." };
     }
     if (!rec.comprovanteFp && rec.arquivoBase64) {
       rec.comprovanteFp = await computeComprovanteFingerprint(rec.arquivoBase64, rec.mimeType);
@@ -987,9 +1070,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       );
       ia.protocoloAntiDuplicata = "mesma_imagem_hash_v4";
 
-      ia.conferidoPorCpf = operador.cpf;
-      ia.conferidoPorNome = operador.nome;
-      ia.conferidoPorRole = operador.role;
+      ia.conferidoPorCpf = operador.cpf || "";
+      ia.conferidoPorNome = operador.nome || OPERADOR_AUTO.nome;
+      ia.conferidoPorRole = operador.role || "";
+      ia.processamentoAutomatico = automatico;
 
       const all = loadAll();
       const idx = all.findIndex((r) => r.id === id);
@@ -1483,14 +1567,14 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
 
   function statusLabel(st) {
     if (st === STATUS.CONFIRMADO) return "Confirmado pelo operador";
-    if (st === STATUS.IA_OK) return "Conferido (IA) — aguarda confirmação";
-    if (st === STATUS.REJEITADO) return "Rejeitado pelo operador";
-    return "Aguarda conferência do operador";
+    if (st === STATUS.IA_OK) return "Validado (IA) — aguarda confirmação";
+    if (st === STATUS.REJEITADO) return "Recusado";
+    return "A processar (IA automática)";
   }
 
   function statusLabelComRec(r) {
-    if (r?.status === STATUS.REJEITADO && r?.rejeitadoAutomatico) {
-      return "Rejeitado (duplicata — já registado)";
+    if (r?.status === STATUS.REJEITADO) {
+      return r.rejeitadoAutomatico ? "Recusado (automático)" : "Recusado pelo operador";
     }
     return statusLabel(r?.status);
   }
@@ -1504,33 +1588,94 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         "Conferência e validação com IA: só com sessão de colaborador ou administrador cadastrado, com permissão de lançamento de aluguel.";
       return;
     }
-    el.textContent = `Operador em conferência: ${gate.operador.nome} (CPF ${gate.operador.cpf}). A IA é executada por este funcionário ao conferir o comprovante.`;
+    el.textContent = `Operador em conferência: ${gate.operador.nome} (CPF ${gate.operador.cpf}). A IA corre automaticamente ao receber o comprovante; confirme aqui os que passaram na validação.`;
   }
 
-  function renderListaOperador() {
-    const wrap = document.getElementById("portalComprovanteClienteLista");
-    if (!wrap) return;
-    const rows = listarPendentesOperador();
+  function renderTabelaComprovantes(rows, opts) {
+    const abrirAttr = opts?.listaRecusados ? "data-cc-abrir-recusado" : "data-cc-abrir";
     if (!rows.length) {
-      wrap.innerHTML =
-        '<p class="subtext">Nenhum comprovante enviado pelo app do cliente neste navegador. Peça ao cliente usar <strong>Enviar comprovante</strong> no telemóvel (os dados sincronizam pela nuvem).</p>';
-      return;
+      return `<p class="subtext">${escapeHtml(opts?.vazio || "Nenhum registo.")}</p>`;
     }
-    wrap.innerHTML = `<table class="portal-lanc-hist portal-comprovante-cliente-table" aria-label="Comprovantes do cliente">
-      <thead><tr><th>Data envio</th><th>Cliente</th><th>Protocolo</th><th>Valor</th><th>Estado</th><th></th></tr></thead>
+    const colMotivo = opts?.listaRecusados
+      ? "<th>Motivo</th>"
+      : "";
+    return `<table class="portal-lanc-hist portal-comprovante-cliente-table" aria-label="${escapeHtml(opts?.ariaLabel || "Comprovantes")}">
+      <thead><tr><th>Data envio</th><th>Cliente</th><th>Protocolo</th><th>Valor</th><th>Estado</th>${colMotivo}<th></th></tr></thead>
       <tbody>${rows
         .map((r) => {
           const env = r.enviadoEm ? new Date(r.enviadoEm).toLocaleString("pt-BR") : "—";
+          const motivoTd = opts?.listaRecusados
+            ? `<td class="portal-cc-motivo-recusa">${escapeHtml(r.rejeitadoMotivoCliente || r.rejeitadoMotivo || "—")}</td>`
+            : "";
+          const valorUi =
+            r.iaValidacao && Number.isFinite(Number(r.iaValidacao.valor))
+              ? `${escapeHtml(currencyBRL(r.valor))} <span class="subtext">(IA: ${escapeHtml(currencyBRL(r.iaValidacao.valor))})</span>`
+              : escapeHtml(currencyBRL(r.valor));
           return `<tr>
             <td>${escapeHtml(env)}</td>
             <td>${escapeHtml(r.nomeCliente || r.cpf)}</td>
             <td>${escapeHtml(r.protocolo)}</td>
-            <td>${escapeHtml(currencyBRL(r.valor))}</td>
+            <td>${valorUi}</td>
             <td>${escapeHtml(statusLabelComRec(r))}</td>
-            <td><button type="button" class="btn-primary btn-secondary-outline" data-cc-abrir="${escapeHtml(r.id)}">Abrir</button></td>
+            ${motivoTd}
+            <td><button type="button" class="btn-primary btn-secondary-outline" ${abrirAttr}="${escapeHtml(r.id)}">Abrir</button></td>
           </tr>`;
         })
         .join("")}</tbody></table>`;
+  }
+
+  function renderListaOperador() {
+    const wrap = document.getElementById("portalComprovanteClienteLista");
+    const badge = document.getElementById("portalComprovanteClienteBadgeProcessando");
+    if (!wrap) return;
+    const nProc = contarPendentesAutoProcessamento();
+    if (badge) {
+      badge.textContent = nProc ? `${nProc} a processar pela IA…` : "";
+      badge.classList.toggle("hidden", !nProc);
+    }
+    const rows = listarAguardandoConfirmacaoOperador();
+    const aguardaIa = loadAll()
+      .filter((r) => r.status === STATUS.PENDENTE)
+      .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));
+    let html = "";
+    if (rows.length) {
+      html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam confirmação manual</h4>${renderTabelaComprovantes(rows, {
+        ariaLabel: "Comprovantes aguardando confirmação",
+        vazio: "Nenhum comprovante aguarda confirmação.",
+      })}`;
+    } else {
+      html += nProc
+        ? '<p class="subtext">Comprovantes recebidos — a IA está a validar automaticamente. Os aprovados aparecem aqui para confirmação manual.</p>'
+        : '<p class="subtext">Nenhum comprovante aguarda confirmação. Duplicata (mesma imagem) e valor incorreto são recusados automaticamente.</p>';
+    }
+    if (aguardaIa.length) {
+      html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam validação IA</h4>${renderTabelaComprovantes(aguardaIa, {
+        ariaLabel: "Comprovantes aguardando IA automática",
+        vazio: "",
+      })}`;
+    }
+    wrap.innerHTML = html;
+  }
+
+  function renderListaRecusados72h() {
+    const wrap = document.getElementById("portalComprovanteClienteListaRecusados");
+    if (!wrap) return;
+    const rows = listarRecusadosUltimas72h();
+    wrap.innerHTML = renderTabelaComprovantes(rows, {
+      listaRecusados: true,
+      ariaLabel: "Pagamentos recusados últimas 72 horas",
+      vazio: "Nenhum pagamento recusado nas últimas 72 horas.",
+    });
+  }
+
+  function togglePainelRecusados72h() {
+    const painel = document.getElementById("portalComprovanteClientePainelRecusados");
+    const btn = document.getElementById("portalComprovanteClienteBtnRecusados72h");
+    if (!painel) return;
+    const vaiMostrar = painel.classList.contains("hidden");
+    painel.classList.toggle("hidden", !vaiMostrar);
+    if (btn) btn.setAttribute("aria-expanded", vaiMostrar ? "true" : "false");
+    if (vaiMostrar) renderListaRecusados72h();
   }
 
   function fillDetalheModal(rec) {
@@ -1555,9 +1700,13 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         : ia && ia.riscoColagemOuEdicao === "medio"
           ? `<p class="comprovante-api-status"><strong>Autenticidade</strong> — risco médio. ${escapeHtml(ia.observacoesAutenticidade || "")}</p>`
           : "";
+    const recusadoHtml =
+      rec.status === STATUS.REJEITADO
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>Recusado</strong> — ${escapeHtml(rec.rejeitadoMotivoCliente || rec.rejeitadoMotivo || "Sem motivo registado.")}${rec.rejeitadoEm ? ` <span class="subtext">(${escapeHtml(new Date(rec.rejeitadoEm).toLocaleString("pt-BR"))})</span>` : ""}</p>`
+        : "";
     const iaHtml = ia
       ? `<div class="portal-cc-ia-resumo">
-          <p><strong>Conferência com IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})</p>
+          <p><strong>Conferência com IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})${ia.processamentoAutomatico ? " · automática" : ""}</p>
           ${jaProc}
           ${autentHtml}
           ${conferidoPor}
@@ -1568,9 +1717,12 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
           <p>CPF lido: ${escapeHtml(ia.cpf || "—")} ${ia.confereCpf ? "✓" : "⚠"}</p>
           <p class="subtext">${escapeHtml(ia.observacoes || "")}</p>
         </div>`
-      : '<p class="subtext">Ainda não conferido. O operador cadastrado deve executar a conferência com IA.</p>';
+      : rec.status === STATUS.PENDENTE
+        ? '<p class="subtext">Aguarda validação automática pela IA (duplicata e valor). Atualize a lista ou aguarde alguns segundos.</p>'
+        : '<p class="subtext">Sem conferência IA registada.</p>';
 
     el.innerHTML = `
+      ${recusadoHtml}
       <p><strong>Cliente:</strong> ${escapeHtml(rec.nomeCliente)} · CPF ${escapeHtml(rec.cpf)}</p>
       <p><strong>Protocolo:</strong> ${escapeHtml(rec.protocolo)}</p>
       <p><strong>Data pagamento (cliente):</strong> ${escapeHtml(rec.dataPagamento)}</p>
@@ -1590,11 +1742,15 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const bloqueadoDup = dupUi.duplicado || Boolean(rec.iaValidacao?.jaProcessado);
     const bloqueadoAutent =
       ia && (ia.riscoColagemOuEdicao === "alto" || ia.comprovanteAutentico === false);
-    if (btnIa) btnIa.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir || bloqueadoDup;
-    if (btnConf) {
-      btnConf.disabled = rec.status !== STATUS.IA_OK || !podeConferir || bloqueadoDup || bloqueadoAutent;
+    const soLeitura = rec.status === STATUS.REJEITADO;
+    if (btnIa) {
+      btnIa.disabled = soLeitura || rec.status === STATUS.CONFIRMADO || !podeConferir || bloqueadoDup;
     }
-    if (btnRej) btnRej.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
+    if (btnConf) {
+      btnConf.disabled =
+        soLeitura || rec.status !== STATUS.IA_OK || !podeConferir || bloqueadoDup || bloqueadoAutent;
+    }
+    if (btnRej) btnRej.disabled = soLeitura || rec.status === STATUS.CONFIRMADO || !podeConferir;
     if (btnVer) btnVer.disabled = !rec.arquivoBase64;
     refreshAdminSenhaUi(rec);
     initReceitaTiposUi(rec);
@@ -1895,10 +2051,26 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   function bindOperadorUi() {
-    document.getElementById("portalComprovanteClienteLista")?.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-cc-abrir]");
+    const abrirHandler = (e) => {
+      const btn =
+        e.target.closest("[data-cc-abrir]") || e.target.closest("[data-cc-abrir-recusado]");
       if (!btn) return;
-      openDetalhe(btn.getAttribute("data-cc-abrir"));
+      openDetalhe(btn.getAttribute("data-cc-abrir") || btn.getAttribute("data-cc-abrir-recusado"));
+    };
+    document.getElementById("portalComprovanteClienteLista")?.addEventListener("click", abrirHandler);
+    document.getElementById("portalComprovanteClienteListaRecusados")?.addEventListener("click", abrirHandler);
+
+    document.getElementById("portalComprovanteClienteBtnRecusados72h")?.addEventListener("click", () => {
+      togglePainelRecusados72h();
+    });
+
+    document.getElementById("portalComprovanteClienteBtnProcessarIa")?.addEventListener("click", async () => {
+      const fb = document.getElementById("portalComprovanteClienteListaMsg");
+      if (fb) fb.textContent = "A processar fila com IA…";
+      await processarFilaComprovantesAutomaticos();
+      renderListaOperador();
+      renderListaRecusados72h();
+      if (fb) fb.textContent = "Processamento automático concluído.";
     });
 
     document.getElementById("portalComprovanteClienteBtnVerArquivo")?.addEventListener("click", () => openViewer());
@@ -1916,6 +2088,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (res.ok || res.rejeitado) {
         fillDetalheModal(getById(comprovanteClienteUiIdAtual));
         renderListaOperador();
+        renderListaRecusados72h();
       }
     });
 
@@ -1931,6 +2104,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (fb) fb.textContent = res.ok ? "Pagamento confirmado e registado no protocolo." : res.msg || "Erro.";
       if (res.ok) {
         renderListaOperador();
+        renderListaRecusados72h();
         closeModal("portalComprovanteClienteDetalheModal");
         if (typeof window.__DK_refreshOperacaoLancAluguelFromComprovante === "function") {
           window.__DK_refreshOperacaoLancAluguelFromComprovante(res.rec);
@@ -1948,6 +2122,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (fb) fb.textContent = res.ok ? "Comprovante rejeitado." : res.msg;
       if (res.ok) {
         renderListaOperador();
+        renderListaRecusados72h();
         closeModal("portalComprovanteClienteDetalheModal");
       }
     });
@@ -1966,7 +2141,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       } catch {
         /* ignore */
       }
+      if (fb) fb.textContent = "A processar comprovantes com IA automática…";
+      await processarFilaComprovantesAutomaticos();
       renderListaOperador();
+      renderListaRecusados72h();
       if (fb) fb.textContent = "Lista atualizada.";
     });
   }
@@ -1984,13 +2162,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     bindViewerCloseButtons();
   }
 
-  function initOperadorUi() {
+  async function initOperadorUi() {
     bindOperadorUi();
     initViewerUiShared();
     bindOpenAIKeyUi();
     refreshOperadorConferenciaHint();
     renderListaOperador();
+    renderListaRecusados72h();
     probeOpenAIServer();
+    await processarFilaComprovantesAutomaticos();
+    renderListaOperador();
+    renderListaRecusados72h();
   }
 
   window.__DK_comprovantesClienteAdd = adicionarComprovanteCliente;
@@ -2003,9 +2185,14 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteValidateIA = validarComprovanteComIA;
   window.__DK_comprovantesClienteConfirmar = confirmarComprovanteCliente;
   window.__DK_comprovantesClienteDeAcordo = marcarClienteDeAcordoComRecusa;
-  window.__DK_refreshComprovantesClienteLista = function refreshComprovantesClienteLista() {
+  window.__DK_comprovantesClienteProcessarAutomatico = processarComprovanteAutomatico;
+  window.__DK_comprovantesClienteProcessarFilaAutomatica = processarFilaComprovantesAutomaticos;
+  window.__DK_comprovantesClienteListRecusados72h = listarRecusadosUltimas72h;
+  window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
+    await processarFilaComprovantesAutomaticos();
     renderListaOperador();
+    renderListaRecusados72h();
   };
 
   if (document.readyState === "loading") {
