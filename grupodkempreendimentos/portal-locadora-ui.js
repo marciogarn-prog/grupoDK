@@ -685,7 +685,11 @@
       }
       return;
     }
-    window.location.href = "/cliente";
+    if (locadoraAppFeedback) {
+      locadoraAppFeedback.textContent =
+        "CPF e protocolo validados. A abrir instalação do app DK Cliente…";
+    }
+    window.location.href = "/cliente?instalar=1";
   });
 
   document.getElementById("locadora-app-cpf")?.addEventListener("blur", () => {

@@ -171,6 +171,35 @@ button.lnk-comprovante {
   background: #fff;
 }
 
+.cliente-install-panel {
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: rgba(201, 162, 39, 0.08);
+}
+
+.cliente-install-panel__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.cliente-install-panel.hidden {
+  display: none;
+}
+
+.cliente-install-manual {
+  margin-top: 0.75rem;
+  font-size: 0.88rem;
+}
+
+.cliente-install-manual summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .cliente-install-hint {
   font-size: 0.82rem;
   color: var(--muted);

@@ -10,11 +10,16 @@
   <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
   <meta name="dk-supabase-anon-key" content="sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3">
   <link rel="manifest" href="/manifest-cliente.webmanifest">
-  <link rel="icon" href="/icons/icon-cliente-192.svg">
-  <link rel="apple-touch-icon" href="/icons/icon-cliente-192.svg">
+  <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
   <title>DK Locadora — App Cliente</title>
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      navigator.serviceWorker.register("/service-worker-cliente.js", { scope: "/" }).catch(function () {});
+    }
+  </script>
   <link rel="stylesheet" href="styles.css?v=20260522share">
-  <link rel="stylesheet" href="cliente-app.css?v=20260522share">
+  <link rel="stylesheet" href="cliente-app.css?v=20260524install">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -28,6 +33,17 @@
       </div>
       <a href="apps.html" class="btn-primary btn-secondary-outline" style="font-size:0.8rem;padding:0.4rem 0.65rem">Apps</a>
     </header>
+    <div id="cliente-install-panel" class="cliente-install-panel hidden" aria-live="polite">
+      <h2 class="cliente-install-panel__title">Instalar DK Cliente no telemóvel</h2>
+      <p id="cliente-install-status" class="subtext">Toque no botão abaixo para instalar. Depois use o ícone DK no ecrã inicial.</p>
+      <button type="button" id="btn-install-cliente" class="btn-primary" style="width:100%">Instalar app DK Cliente</button>
+      <details class="cliente-install-manual">
+        <summary>Instalação manual (se o botão não aparecer)</summary>
+        <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → «Instalar app» ou «Adicionar ao ecrã inicial».</p>
+        <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → «Adicionar à Tela de Início».</p>
+        <p class="subtext">Use o <strong>Chrome</strong> ou <strong>Safari</strong> (não o browser dentro do WhatsApp).</p>
+      </details>
+    </div>
     <p class="subtext">Informe seu CPF e senha. Senha inicial costuma ser <strong>123456</strong> (definida no cadastro).</p>
     <form id="form-login" class="portal-form" novalidate>
       <label class="portal-field">
@@ -41,9 +57,7 @@
       <p id="login-feedback" class="portal-feedback" role="status"></p>
       <button type="submit" class="btn-primary">Entrar</button>
     </form>
-    <p class="cliente-install-hint">Para <strong>partilhar comprovantes do banco</strong> para a DK: instale o app no ecrã inicial (Android: Chrome → menu → «Instalar app»). Depois, no banco, use <strong>Partilhar</strong> e escolha <strong>DK Cliente</strong>.</p>
-    <p class="cliente-install-hint">Instalar: <a href="/apps.html">Baixar aplicativos</a> ou «Adicionar ao ecrã inicial».</p>
-    <button type="button" id="btn-install-cliente" class="btn-primary btn-secondary-outline hidden" style="width:100%;margin-top:0.5rem">Instalar app</button>
+    <p class="cliente-install-hint">Com o app instalado, pode <strong>partilhar comprovantes do banco</strong> para a DK (menu Partilhar → DK Cliente).</p>
   </section>
 
   <section id="view-propaganda" class="hidden cliente-app-card" aria-label="Novidades DK">
@@ -178,6 +192,6 @@
   <script src="cliente-contrato-resumo.js?v=20260520cliente-v3" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260523comprovante-viewer" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260523comprovante-viewer" defer></script>
-  <script src="cliente-app.js?v=20260523share-api" defer></script>
+  <script src="cliente-app.js?v=20260524install" defer></script>
 </body>
 </html>

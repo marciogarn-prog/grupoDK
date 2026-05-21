@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260523share-api";
+const CACHE_NAME = "dk-cliente-v20260524install";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -13,6 +13,8 @@ const ASSETS = [
   "./portal-supabase-sync.js",
   "./styles.css",
   "./manifest-cliente.webmanifest",
+  "./icons/icon-cliente-192.png",
+  "./icons/icon-cliente-512.png",
   "./icons/icon-cliente-192.svg",
   "./icons/icon-cliente-512.svg",
 ];

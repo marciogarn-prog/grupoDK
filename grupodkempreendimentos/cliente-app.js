@@ -227,6 +227,11 @@
     if (getSessao()?.cpf) return true;
     if (hasClienteAppDownloadGate()) return true;
     try {
+      if (new URLSearchParams(location.search).get("instalar") === "1") return true;
+    } catch {
+      /* ignore */
+    }
+    try {
       return Boolean(localStorage.getItem(GATE_PERSIST_KEY));
     } catch {
       return false;
@@ -815,24 +820,98 @@
     }
   }
 
+  let deferredInstallPrompt = null;
+
+  function wantsInstallFlow() {
+    if (isStandaloneDisplay()) return false;
+    try {
+      if (new URLSearchParams(location.search).get("instalar") === "1") return true;
+    } catch {
+      /* ignore */
+    }
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      if (raw) {
+        const g = JSON.parse(raw);
+        if (Date.now() - Number(g.at || 0) < 15 * 60 * 1000) return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return false;
+  }
+
+  function updateInstallPanelUi(message) {
+    const panel = $("cliente-install-panel");
+    const status = $("cliente-install-status");
+    if (status && message) status.textContent = message;
+    if (!panel) return;
+    if (isStandaloneDisplay()) {
+      panel.classList.add("hidden");
+      return;
+    }
+    if (wantsInstallFlow()) panel.classList.remove("hidden");
+  }
+
   function wireInstall() {
     const btn = $("btn-install-cliente");
-    let deferred = null;
+    const panel = $("cliente-install-panel");
+
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
-      deferred = e;
-      btn?.classList.remove("hidden");
+      deferredInstallPrompt = e;
+      updateInstallPanelUi(
+        "O sistema está pronto. Toque em «Instalar app DK Cliente» (pode demorar 1–2 segundos a aparecer)."
+      );
+      panel?.classList.remove("hidden");
     });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      try {
+        localStorage.setItem("dk_cliente_pwa_installed", "1");
+      } catch {
+        /* ignore */
+      }
+      updateInstallPanelUi("App instalado com sucesso. Abra pelo ícone DK no ecrã inicial.");
+      panel?.classList.add("hidden");
+      const fb = $("login-feedback");
+      if (fb) fb.textContent = "App instalado. Entre com CPF e senha.";
+    });
+
     btn?.addEventListener("click", async () => {
-      if (!deferred) {
-        window.alert("No telemóvel: menu do browser → «Adicionar ao ecrã inicial» / «Instalar app».");
+      if (deferredInstallPrompt) {
+        try {
+          deferredInstallPrompt.prompt();
+          const choice = await deferredInstallPrompt.userChoice;
+          deferredInstallPrompt = null;
+          if (choice?.outcome === "accepted") {
+            updateInstallPanelUi("Instalação em curso…");
+            return;
+          }
+          updateInstallPanelUi(
+            "Instalação cancelada. Use as instruções manuais abaixo ou o menu do browser."
+          );
+        } catch {
+          updateInstallPanelUi("Use o menu do browser: Instalar app / Adicionar ao ecrã inicial.");
+        }
         return;
       }
-      deferred.prompt();
-      await deferred.userChoice;
-      deferred = null;
-      btn?.classList.add("hidden");
+      const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent || "");
+      const msg = isIos
+        ? "iPhone: no Safari, toque em partilhar (↑) → «Adicionar à Tela de Início»."
+        : "Android: no Chrome, menu (⋮) → «Instalar app» ou «Adicionar ao ecrã inicial».";
+      updateInstallPanelUi(msg);
+      panel?.classList.remove("hidden");
+      $("cliente-install-manual")?.setAttribute("open", "open");
     });
+
+    if (wantsInstallFlow()) {
+      updateInstallPanelUi(
+        "Aguarde o carregamento e toque em «Instalar app DK Cliente». Se não aparecer, abra as instruções manuais."
+      );
+      panel?.classList.remove("hidden");
+    }
   }
 
   function hasClienteAppDownloadGate() {
@@ -981,6 +1060,7 @@
 
     wireInstall();
     bindCompMasks();
+    updateInstallPanelUi();
   }
 
   if (document.readyState === "loading") {
