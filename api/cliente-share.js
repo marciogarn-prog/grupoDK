@@ -43,13 +43,17 @@ module.exports = async function handler(req, res) {
     let fileName = "comprovante";
     let mime = "application/octet-stream";
 
-    busboy.on("file", (_field, stream, info) => {
+    busboy.on("file", (field, stream, info) => {
       const chunks = [];
       if (info.filename) fileName = info.filename;
       if (info.mimeType) mime = info.mimeType;
       stream.on("data", (chunk) => chunks.push(chunk));
       stream.on("end", () => {
-        if (chunks.length) fileBuffer = Buffer.concat(chunks);
+        if (!chunks.length) return;
+        const buf = Buffer.concat(chunks);
+        if (!fileBuffer || buf.length > fileBuffer.length) {
+          fileBuffer = buf;
+        }
       });
     });
 

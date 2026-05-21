@@ -309,6 +309,21 @@
         /* ignore */
       }
     }
+    if (comprovanteFile || pendingShareFocus) {
+      showView("app");
+      renderApp(sessao);
+      if (comprovanteFile) {
+        attachFileToComprovanteInput(comprovanteFile);
+        preselectProtocoloComprovante();
+        const msg = $("comp-msg");
+        if (msg) {
+          msg.textContent =
+            "Comprovante anexado — informe data e valor e toque em Enviar comprovante.";
+        }
+        focusComprovanteSection();
+      }
+      return;
+    }
     if (!clienteTemLocacaoAtiva(sessao.cpf)) {
       renderPropaganda(sessao, locs.length ? "encerrado" : "sem_cadastro");
       showView("propaganda");
@@ -539,36 +554,30 @@
   }
 
   async function applySharedFileToComprovante(file) {
-    if (!file || !file.size) return;
-    const sessao = getSessao();
-    if (sessao?.cpf && !clienteTemLocacaoAtiva(sessao.cpf)) {
-      const msg = $("sync-msg-prop");
-      if (msg) {
-        msg.textContent =
-          "Locação finalizada — não é possível enviar comprovante. Consulte as novidades DK acima.";
-      }
-      return;
-    }
-
+    if (!file || !file.size) return false;
     attachFileToComprovanteInput(file);
 
     const msgApp = $("comp-msg");
     const msgLogin = $("login-feedback");
     const hint =
-      "Comprovante do banco recebido — escolha o protocolo, informe data e valor e toque em Enviar comprovante.";
+      "Comprovante anexado — escolha o protocolo, informe data e valor e toque em Enviar comprovante.";
+    pendingShareFocus = true;
 
-    if (sessao?.cpf && clienteTemLocacaoAtiva(sessao.cpf)) {
+    const sessao = getSessao();
+    if (sessao?.cpf) {
+      showView("app");
+      renderApp(sessao);
       if (msgApp) msgApp.textContent = hint;
       preselectProtocoloComprovante();
-      pendingShareFocus = true;
       focusComprovanteSection();
-    } else if (sessao?.cpf) {
-      showView("propaganda");
-      if (msgApp) msgApp.textContent = hint;
     } else {
-      if (msgLogin) msgLogin.textContent = "Comprovante recebido — entre com CPF e senha; depois confira data, valor e envie.";
-      pendingShareFocus = true;
+      showView("login");
+      if (msgLogin) {
+        msgLogin.textContent =
+          "Comprovante recebido — entre com CPF e senha; o ficheiro já está no anexo.";
+      }
     }
+    return true;
   }
 
   function consumePendingShareFromSessionStorage() {
@@ -1009,17 +1018,21 @@
         /* ignore */
       }
     }
+    if (!comprovanteFile) {
+      await processIncomingShare();
+    }
     await atualizarProgramaEDados(sess, { silent: false });
     if (comprovanteFile) {
+      showView("app");
+      renderApp(sess);
       attachFileToComprovanteInput(comprovanteFile);
       preselectProtocoloComprovante();
-      if (clienteTemLocacaoAtiva(sess.cpf)) {
-        $("comp-msg").textContent =
-          "Comprovante recebido — confira protocolo, data, valor e toque em Enviar comprovante.";
-        focusComprovanteSection();
+      const msg = $("comp-msg");
+      if (msg) {
+        msg.textContent =
+          "Comprovante anexado — informe data e valor e toque em Enviar comprovante.";
       }
-    } else {
-      await processIncomingShare();
+      focusComprovanteSection();
     }
   }
 
@@ -1123,12 +1136,13 @@
       /* ignore */
     }
 
+    await processIncomingShare();
+
     const sessao = getSessao();
     if (sessao?.cpf) {
       await afterLogin(sessao);
     } else {
       showView("login");
-      await processIncomingShare();
     }
 
     wireInstall();

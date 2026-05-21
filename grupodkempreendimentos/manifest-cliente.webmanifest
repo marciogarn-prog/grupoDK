@@ -37,7 +37,7 @@
     }
   ],
   "share_target": {
-    "action": "/api/cliente-share",
+    "action": "/cliente",
     "method": "POST",
     "enctype": "multipart/form-data",
     "params": {
