@@ -2198,19 +2198,35 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
   });
   const seenOid = new Set();
   const seenFp = new Set();
+  const seenIdTx = new Set();
   const seenDataValor = new Set();
   const deduped = [];
+  const normIdTxMerge = (raw) => {
+    const s0 = String(raw ?? "").trim();
+    if (!s0) return "";
+    const e2e = s0.match(/\b(E[0-9A-Z]{31,35})\b/i);
+    if (e2e) return e2e[1].toUpperCase();
+    const cleaned = s0.replace(/\s+/g, "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+    return cleaned.length >= 10 && cleaned.length <= 64 ? cleaned : "";
+  };
+  const roundCentMerge = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? Math.round(n * 100 + Number.EPSILON) / 100 : NaN;
+  };
   for (const row of out) {
     const oid = String(row.origemComprovanteClienteId || "").trim();
     const fp = String(row.comprovanteFp || "").trim();
+    const idTx = normIdTxMerge(row.idTransacaoComprovante || row.idTransacao || "");
     const data = String(row.data || "").trim();
-    const valor = Number(row.valor);
+    const valor = roundCentMerge(row.valor);
     const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
     if (oid && seenOid.has(oid)) continue;
     if (fp && seenFp.has(fp)) continue;
+    if (idTx && seenIdTx.has(idTx)) continue;
     if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
     if (oid) seenOid.add(oid);
     if (fp) seenFp.add(fp);
+    if (idTx) seenIdTx.add(idTx);
     if (data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
     deduped.push(row);
   }

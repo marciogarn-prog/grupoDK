@@ -183,8 +183,43 @@
     }
   }
 
-  function chavePagamentoLogica(cpf, proto, dataBr, valor) {
-    return `${onlyDigits(cpf).slice(0, 11)}|${normProto(proto)}|${normDataPagamentoBr(dataBr)}|${Number(valor).toFixed(2)}`;
+  function roundCentavos(v) {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return NaN;
+    return Math.round(n * 100 + Number.EPSILON) / 100;
+  }
+
+  /** ID Pix (E2E), autenticação ou código único do comprovante. */
+  function normIdTransacao(raw) {
+    const s0 = String(raw ?? "").trim();
+    if (!s0) return "";
+    const e2e = s0.match(/\b(E[0-9A-Z]{31,35})\b/i);
+    if (e2e) return e2e[1].toUpperCase();
+    const cleaned = s0.replace(/\s+/g, "").toUpperCase().replace(/[^0-9A-Z]/g, "");
+    if (cleaned.length >= 10 && cleaned.length <= 64) return cleaned;
+    return "";
+  }
+
+  function idTransacaoDoRec(r) {
+    if (!r || typeof r !== "object") return "";
+    const ia = r.iaValidacao;
+    return normIdTransacao(r.idTransacao || ia?.idTransacao || "");
+  }
+
+  function idTransacaoDoPagamento(p) {
+    if (!p || typeof p !== "object") return "";
+    return normIdTransacao(p.idTransacaoComprovante || p.idTransacao || p.comprovanteIdTransacao || "");
+  }
+
+  function chavePagamentoLogica(cpf, proto, dataBr, valor, idTx) {
+    const v = roundCentavos(valor);
+    const base = `${onlyDigits(cpf).slice(0, 11)}|${normProto(proto)}|${normDataPagamentoBr(dataBr)}|${Number.isFinite(v) ? v.toFixed(2) : ""}`;
+    const tid = normIdTransacao(idTx);
+    return tid ? `${base}|${tid}` : base;
+  }
+
+  function duplicataPorDataValorCentavos(rData, rValor, data, valor) {
+    return rData === data && valoresIguaisCentavos(rValor, valor);
   }
 
   /** Histórico de comprovantes/pagamentos já tratados neste CPF+protocolo (protocolo anti-duplicata). */
@@ -197,23 +232,25 @@
       if (onlyDigits(r.cpf) !== cpfDig || normProto(r.protocolo) !== nc) continue;
       if (r.status === STATUS.REJEITADO) continue;
       if (r.status === STATUS.CONFIRMADO || r.status === STATUS.IA_OK) {
+        const tid = idTransacaoDoRec(r);
         linhas.push(
-          `- ${normDataPagamentoBr(r.dataPagamento)} · ${currencyBRL(r.valor)} | envio ${formatIsoPt(r.enviadoEm)} | ${statusLabel(r.status)}${r.confirmadoEm ? ` | confirmação ${formatIsoPt(r.confirmadoEm)}` : ""}`
+          `- ${normDataPagamentoBr(r.dataPagamento)} · ${currencyBRL(r.valor)}${tid ? ` · ID ${tid}` : ""} | envio ${formatIsoPt(r.enviadoEm)} | ${statusLabel(r.status)}${r.confirmadoEm ? ` | confirmação ${formatIsoPt(r.confirmadoEm)}` : ""}`
         );
       }
     }
     for (const p of pagamentosProtocoloComComprovante(cpfDig, nc)) {
       const oid = String(p.origemComprovanteClienteId || "").trim();
       if (excludeId && oid === excludeId) continue;
+      const tid = idTransacaoDoPagamento(p);
       linhas.push(
-        `- ${normDataPagamentoBr(p.data)} · ${currencyBRL(p.valor)} | pagamento registado no protocolo${p.comprovanteClienteConfirmadoEm ? ` (${formatIsoPt(p.comprovanteClienteConfirmadoEm)})` : ""}`
+        `- ${normDataPagamentoBr(p.data)} · ${currencyBRL(p.valor)}${tid ? ` · ID ${tid}` : ""} | pagamento registado no protocolo${p.comprovanteClienteConfirmadoEm ? ` (${formatIsoPt(p.comprovanteClienteConfirmadoEm)})` : ""}`
       );
     }
     return linhas.length ? linhas.join("\n") : "(nenhum pagamento processado anteriormente neste protocolo)";
   }
 
   /**
-   * Conferência DK (IA/operador): mesma data + mesmo valor ao centavo no protocolo.
+   * Conferência DK (IA/operador): ID de transação do comprovante (prioritário) ou data + valor ao centavo.
    * O app cliente não bloqueia envio — a validação final é na DK.
    */
   function detectarDuplicidadeLogica(opts) {
@@ -221,23 +258,54 @@
     const proto = normProto(opts?.protocolo);
     const excludeId = String(opts?.excludeId || "").trim();
     const data = normDataPagamentoBr(opts?.dataPagamento);
-    const valor = Number(opts?.valor);
-    if (cpf.length !== 11 || !proto || !data || !Number.isFinite(valor) || valor <= 0) {
-      return { duplicado: false };
+    const valor = roundCentavos(opts?.valor);
+    const idTx = normIdTransacao(opts?.idTransacao);
+    if (cpf.length !== 11 || !proto) return { duplicado: false };
+
+    const msgId = (ref) =>
+      `Transação duplicada: ID ${idTx} já consta neste protocolo${ref ? ` (${ref})` : ""}.`;
+
+    if (idTx) {
+      for (const r of loadAll()) {
+        if (excludeId && r.id === excludeId) continue;
+        if (onlyDigits(r.cpf) !== cpf || normProto(r.protocolo) !== proto) continue;
+        if (r.status === STATUS.REJEITADO) continue;
+        const rId = idTransacaoDoRec(r);
+        if (!rId || rId !== idTx) continue;
+        const ref = `envio ${formatIsoPt(r.enviadoEm)} · ${statusLabel(r.status)}`;
+        return { duplicado: true, motivo: "mesmo_id_transacao_comprovante", msg: msgId(ref), rec: r };
+      }
+      for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
+        const pId = idTransacaoDoPagamento(p);
+        if (!pId || pId !== idTx) continue;
+        const oid = String(p.origemComprovanteClienteId || "").trim();
+        if (excludeId && oid === excludeId) continue;
+        return {
+          duplicado: true,
+          motivo: "mesmo_id_transacao_protocolo",
+          msg: msgId(`pagamento ${normDataPagamentoBr(p.data)} · ${currencyBRL(p.valor)}`),
+          pagamento: p,
+        };
+      }
     }
+
+    if (!data || !Number.isFinite(valor) || valor <= 0) return { duplicado: false };
 
     for (const r of loadAll()) {
       if (excludeId && r.id === excludeId) continue;
       if (onlyDigits(r.cpf) !== cpf || normProto(r.protocolo) !== proto) continue;
       if (r.status === STATUS.REJEITADO) continue;
+      const rId = idTransacaoDoRec(r);
+      if (idTx && rId && rId !== idTx) continue;
       const rData = normDataPagamentoBr(r.dataPagamento);
-      const rValor = Number(r.valor);
-      if (rData !== data || !valoresIguaisCentavos(rValor, valor)) continue;
+      const rValor = roundCentavos(r.valor);
+      if (!duplicataPorDataValorCentavos(rData, rValor, data, valor)) continue;
       if (r.status === STATUS.CONFIRMADO || r.status === STATUS.IA_OK) {
+        const idTxt = rId ? ` · ID ${rId}` : "";
         return {
           duplicado: true,
           motivo: "mesma_data_valor_comprovante",
-          msg: `Pagamento duplicado: ${data} · ${currencyBRL(valor)} já consta neste protocolo (envio ${formatIsoPt(r.enviadoEm)}${r.confirmadoEm ? `, confirmado ${formatIsoPt(r.confirmadoEm)}` : `, estado ${statusLabel(r.status)}`}). A IA não deve validar de novo.`,
+          msg: `Pagamento duplicado: ${data} · ${currencyBRL(valor)}${idTxt} já consta neste protocolo (envio ${formatIsoPt(r.enviadoEm)}${r.confirmadoEm ? `, confirmado ${formatIsoPt(r.confirmadoEm)}` : `, estado ${statusLabel(r.status)}`}).`,
           rec: r,
         };
       }
@@ -252,15 +320,18 @@
     }
 
     for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
+      const pId = idTransacaoDoPagamento(p);
+      if (idTx && pId && pId !== idTx) continue;
       const pData = normDataPagamentoBr(p.data);
-      const pValor = Number(parseCurrencyBR(p.valor));
-      if (pData !== data || !valoresIguaisCentavos(pValor, valor)) continue;
+      const pValor = roundCentavos(parseCurrencyBR(p.valor));
+      if (!duplicataPorDataValorCentavos(pData, pValor, data, valor)) continue;
       const oid = String(p.origemComprovanteClienteId || "").trim();
       if (excludeId && oid === excludeId) continue;
+      const idTxt = pId ? ` · ID ${pId}` : "";
       return {
         duplicado: true,
         motivo: "mesma_data_valor_protocolo",
-        msg: `Pagamento duplicado: ${data} · ${currencyBRL(valor)} já está registado no protocolo${p.comprovanteClienteConfirmadoEm ? ` (confirmação ${formatIsoPt(p.comprovanteClienteConfirmadoEm)})` : ""}.`,
+        msg: `Pagamento duplicado: ${data} · ${currencyBRL(valor)}${idTxt} já está registado no protocolo${p.comprovanteClienteConfirmadoEm ? ` (confirmação ${formatIsoPt(p.comprovanteClienteConfirmadoEm)})` : ""}.`,
         pagamento: p,
       };
     }
@@ -289,6 +360,7 @@
       protocolo: proto,
       dataPagamento: opts?.dataPagamento,
       valor: opts?.valor,
+      idTransacao: opts?.idTransacao,
       excludeId,
     });
     if (logDup.duplicado) return logDup;
@@ -566,10 +638,10 @@
 
   /** Duplicata de pagamento: valor tem de ser igual ao centavo (0,05 ≠ 0,06). */
   function valoresIguaisCentavos(a, b) {
-    const x = Number(a);
-    const y = Number(b);
+    const x = roundCentavos(a);
+    const y = roundCentavos(b);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
-    return Math.abs(x - y) < 0.001;
+    return x === y;
   }
 
   function valorInformadoDivergeDaIA(rec) {
@@ -654,6 +726,7 @@
       protocolo: rec.protocolo,
       dataPagamento: rec.dataPagamento,
       valor: rec.valor,
+      idTransacao: idTransacaoDoRec(rec),
       comprovanteFp: rec.comprovanteFp,
       arquivoBase64: rec.arquivoBase64,
       excludeId: rec.id,
@@ -663,10 +736,12 @@
     }
     const historicoTxt = buildHistoricoAntiDuplicataTexto(rec.cpf, rec.protocolo, rec.id);
     const schema =
-      '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"pagamentoPorTerceiro":boolean,"duplicataProvavel":boolean}';
-    const instr = `Leitor de comprovante PIX/TED/boleto em português. Responda APENAS JSON: ${schema}. CPF 11 dígitos. data dd/mm/aaaa.
+      '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"idTransacao":string|null,"pagamentoPorTerceiro":boolean,"duplicataProvavel":boolean}';
+    const instr = `Leitor de comprovante PIX/TED/boleto em português. Responda APENAS JSON: ${schema}. CPF 11 dígitos. data dd/mm/aaaa. valor com 2 casas decimais exatas (ex.: 0.06).
 
-PROTOCOLO ANTI-DUPLICATA (obrigatório): não aceite o mesmo pagamento duas vezes. Compare data civil (dd/mm/aaaa) e valor em R$ lidos na imagem com o HISTÓRICO abaixo. Se data E valor já constarem como processados, defina duplicataProvavel:true e não trate como novo pagamento.
+idTransacao: copie o identificador único do comprovante — Pix End-to-End (começa com E e ~32 caracteres), "ID da transação", "Identificador", código de autenticação ou NSU. null se não existir.
+
+PROTOCOLO ANTI-DUPLICATA: duplicataProvavel:true se o MESMO idTransacao já aparecer no histórico OU (sem id no histórico) mesma data E mesmo valor ao centavo já processados.
 
 HISTÓRICO já processado neste protocolo:
 ${historicoTxt}
@@ -691,8 +766,9 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
       const oai = await chamarOpenAIComprovante(content);
       if (!oai.ok) return { ok: false, msg: oai.msg };
       const extr = oai.parsed;
-      const valorIa = parseCurrencyBR(extr.valor);
+      const valorIa = roundCentavos(parseCurrencyBR(extr.valor));
       const cpfIa = onlyDigits(extr.cpf).slice(0, 11);
+      const idTxIa = normIdTransacao(extr.idTransacao);
       const ia = {
         validadoEm: new Date().toISOString(),
         nomeClienteOuBeneficiario: String(extr.nomeClienteOuBeneficiario || "").trim(),
@@ -701,8 +777,9 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
         placaVeiculo: String(extr.placaVeiculo || "").trim(),
         dataPagamento: String(extr.dataPagamento || "").trim(),
         valor: valorIa,
+        idTransacao: idTxIa,
         pagamentoPorTerceiro: Boolean(extr.pagamentoPorTerceiro),
-        confereValor: valoresProximos(valorIa, rec.valor),
+        confereValor: valoresIguaisCentavos(valorIa, rec.valor),
         confereData:
           !extr.dataPagamento ||
           String(extr.dataPagamento).trim() === rec.dataPagamento ||
@@ -710,25 +787,32 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
         confereCpf: !cpfIa || cpfIa === rec.cpf,
         observacoes: "",
       };
-      if (!ia.confereValor) ia.observacoes += "Valor do comprovante difere do informado pelo cliente. ";
+      if (!ia.confereValor) {
+        ia.observacoes += `Valor do comprovante (${currencyBRL(valorIa)}) difere do informado (${currencyBRL(rec.valor)}). `;
+      }
       if (!ia.confereData) ia.observacoes += "Data difere. ";
       if (!ia.confereCpf) ia.observacoes += "CPF no comprovante difere. ";
+      if (!idTxIa) ia.observacoes += "ID da transação não identificado no comprovante — conferência manual recomendada. ";
       if (!ia.observacoes.trim()) ia.observacoes = "Conferência IA: dados coerentes com o pedido do cliente.";
 
       const dataRef = normDataPagamentoBr(ia.dataPagamento || rec.dataPagamento);
-      const valorRef = valoresProximos(valorIa, rec.valor) && valorIa > 0 ? valorIa : Number(rec.valor);
+      const valorRef =
+        valoresIguaisCentavos(valorIa, rec.valor) && valorIa > 0 ? valorIa : roundCentavos(rec.valor);
       const dupPos = detectarDuplicidadeLogica({
         cpf: rec.cpf,
         protocolo: rec.protocolo,
         dataPagamento: dataRef,
         valor: valorRef,
+        idTransacao: idTxIa,
         excludeId: rec.id,
       });
       const iaMarcaDup = Boolean(extr.duplicataProvavel);
       if (dupPos.duplicado || iaMarcaDup) {
         const msgDup = dupPos.duplicado
           ? dupPos.msg
-          : `IA: pagamento com data ${dataRef} e valor ${currencyBRL(valorRef)} coincide com histórico já processado neste protocolo.`;
+          : idTxIa
+            ? `IA: transação ID ${idTxIa} já consta no histórico deste protocolo.`
+            : `IA: pagamento com data ${dataRef} e valor ${currencyBRL(valorRef)} coincide com histórico já processado neste protocolo.`;
         return {
           ok: false,
           duplicata: true,
@@ -738,8 +822,8 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
       }
 
       ia.jaProcessado = false;
-      ia.chavePagamentoLogica = chavePagamentoLogica(rec.cpf, rec.protocolo, dataRef, valorRef);
-      ia.protocoloAntiDuplicata = "data_valor_protocolo_v1";
+      ia.chavePagamentoLogica = chavePagamentoLogica(rec.cpf, rec.protocolo, dataRef, valorRef, idTxIa);
+      ia.protocoloAntiDuplicata = "centavos_id_transacao_v1";
 
       ia.conferidoPorCpf = operador.cpf;
       ia.conferidoPorNome = operador.nome;
@@ -749,6 +833,7 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
       const idx = all.findIndex((r) => r.id === id);
       if (idx === -1) return { ok: false, msg: "Registo removido." };
       all[idx].iaValidacao = ia;
+      if (idTxIa) all[idx].idTransacao = idTxIa;
       all[idx].status = STATUS.IA_OK;
       saveAll(all);
       return { ok: true, ia, rec: all[idx] };
@@ -916,12 +1001,14 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
   function pagamentoJaRegistadoParaComprovante(loc, rec) {
     const id = String(rec.id || "").trim();
     const fp = String(rec.comprovanteFp || "").trim();
+    const idTx = idTransacaoDoRec(rec);
     const fields = ["portalLancamentosAluguel", "portalMultasTransito", "portalManutencoesRegistro"];
     for (const f of fields) {
       const arr = Array.isArray(loc[f]) ? loc[f] : [];
       for (const p of arr) {
         if (!p || typeof p !== "object") continue;
         if (id && String(p.origemComprovanteClienteId || "") === id) return p;
+        if (idTx && idTransacaoDoPagamento(p) === idTx) return p;
         if (fp && String(p.comprovanteFp || "") === fp && !id) return p;
       }
     }
@@ -944,8 +1031,9 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
       comprovanteClienteConfirmadoEm: new Date().toISOString(),
       comprovanteValidadoPorNome: regNome,
       comprovanteValidadoPorCpf: regCpf,
-      valorInformadoCliente: Number(rec.valor),
-      valorLidoIA: rec.iaValidacao ? Number(rec.iaValidacao.valor) : undefined,
+      valorInformadoCliente: roundCentavos(rec.valor),
+      valorLidoIA: rec.iaValidacao ? roundCentavos(rec.iaValidacao.valor) : undefined,
+      idTransacaoComprovante: idTransacaoDoRec(rec),
       registroComValorComprovanteIA: valorInformadoDivergeDaIA(rec),
     };
   }
@@ -1163,14 +1251,15 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
     const ia = rec.iaValidacao;
     const dataConf = normDataPagamentoBr(ia?.dataPagamento || rec.dataPagamento);
     const valorConf =
-      ia && valoresProximos(Number(ia.valor), rec.valor) && Number(ia.valor) > 0
-        ? Number(ia.valor)
-        : Number(rec.valor);
+      ia && valoresIguaisCentavos(ia.valor, rec.valor) && Number(ia.valor) > 0
+        ? roundCentavos(ia.valor)
+        : roundCentavos(rec.valor);
     const dupConf = await detectarComprovanteDuplicado({
       cpf: rec.cpf,
       protocolo: rec.protocolo,
       dataPagamento: dataConf,
       valor: valorConf,
+      idTransacao: idTransacaoDoRec(rec),
       comprovanteFp: rec.comprovanteFp,
       arquivoBase64: rec.arquivoBase64,
       excludeId: rec.id,
@@ -1302,19 +1391,22 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
       protocolo: rec.protocolo,
       dataPagamento: rec.dataPagamento,
       valor: rec.valor,
+      idTransacao: idTransacaoDoRec(rec),
       excludeId: rec.id,
     });
     const jaProc =
       ia?.jaProcessado || dupUi.duplicado
         ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Pagamento duplicado</strong> — ${escapeHtml(dupUi.msg || ia?.observacoes || "mesma data e valor já processados neste protocolo.")}</p>`
         : "";
-    const historicoHtml = `<div class="portal-cc-historico-dup subtext"><p><strong>Histórico anti-duplicata</strong> (mesmo protocolo — data + valor):</p><pre class="portal-cc-historico-pre">${escapeHtml(buildHistoricoAntiDuplicataTexto(rec.cpf, rec.protocolo, rec.id))}</pre></div>`;
+    const historicoHtml = `<div class="portal-cc-historico-dup subtext"><p><strong>Histórico anti-duplicata</strong> (ID transação ou data + valor ao centavo):</p><pre class="portal-cc-historico-pre">${escapeHtml(buildHistoricoAntiDuplicataTexto(rec.cpf, rec.protocolo, rec.id))}</pre></div>`;
+    const idTxUi = idTransacaoDoRec(rec);
     const iaHtml = ia
       ? `<div class="portal-cc-ia-resumo">
           <p><strong>Conferência com IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})</p>
           ${jaProc}
           ${conferidoPor}
-          <p>Valor lido: ${escapeHtml(currencyBRL(ia.valor))} ${ia.confereValor ? "✓" : "⚠"}</p>
+          <p>Valor lido: ${escapeHtml(currencyBRL(ia.valor))} ${ia.confereValor ? "✓" : "⚠"} (centavos exatos)</p>
+          <p>ID transação: ${escapeHtml(ia.idTransacao || "—")}</p>
           <p>Data lida: ${escapeHtml(ia.dataPagamento || "—")} ${ia.confereData ? "✓" : "⚠"}</p>
           <p>CPF lido: ${escapeHtml(ia.cpf || "—")} ${ia.confereCpf ? "✓" : "⚠"}</p>
           <p class="subtext">${escapeHtml(ia.observacoes || "")}</p>
@@ -1326,6 +1418,7 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
       <p><strong>Protocolo:</strong> ${escapeHtml(rec.protocolo)}</p>
       <p><strong>Data pagamento (cliente):</strong> ${escapeHtml(rec.dataPagamento)}</p>
       <p><strong>Valor (cliente):</strong> ${escapeHtml(currencyBRL(rec.valor))}</p>
+      <p><strong>ID transação:</strong> ${escapeHtml(idTxUi || "— (será lido na conferência IA)")}</p>
       <p><strong>Ficheiro:</strong> ${escapeHtml(rec.nomeArquivo)}</p>
       <p><strong>Enviado em:</strong> ${escapeHtml(rec.enviadoEm ? new Date(rec.enviadoEm).toLocaleString("pt-BR") : "—")}</p>
       ${iaHtml}
