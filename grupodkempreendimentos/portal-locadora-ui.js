@@ -481,34 +481,95 @@
           .replace(/[^A-Z0-9]/g, "");
   }
 
+  function matchClienteProtocoloEmListas(cpf, proto, clientes, locs) {
+    const cliente = (clientes || []).find((c) => onlyDigits(String(c.cpf || "")) === cpf) || null;
+    if (!cliente) {
+      return { ok: false, msg: "Cliente não cadastrado. Contacte a DK Locadora." };
+    }
+    const hit = (locs || []).find(
+      (l) =>
+        onlyDigits(String(l.cpf || "")) === cpf &&
+        normProtoClienteGate(l.numeroContrato) === proto
+    );
+    if (!hit) {
+      return {
+        ok: false,
+        msg: "Protocolo não encontrado para este CPF. Verifique os dados ou contacte a locadora.",
+      };
+    }
+    return { ok: true, cliente, loc: hit, proto };
+  }
+
+  async function validateClienteProtocoloViaSupabase(cpfDigits, protoRaw) {
+    const cpf = onlyDigits(String(cpfDigits || "")).slice(0, 11);
+    const proto = normProtoClienteGate(protoRaw);
+    if (cpf.length !== 11) return { ok: false, msg: "Informe um CPF válido (11 dígitos)." };
+    if (!proto) return { ok: false, msg: "Informe o protocolo da locação." };
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__) {
+      return { ok: false, msg: "Nuvem DK indisponível neste momento." };
+    }
+    try {
+      const { data, error } = await client
+        .from("dk_cloud_snapshots")
+        .select("payload")
+        .eq("label", "default")
+        .maybeSingle();
+      if (error || !data?.payload) {
+        return {
+          ok: false,
+          msg: "Não foi possível consultar a nuvem DK. Tente novamente.",
+        };
+      }
+      const p = data.payload;
+      return matchClienteProtocoloEmListas(
+        cpf,
+        proto,
+        p.dk_clientes_cadastro,
+        p.dk_locacoes_cadastro
+      );
+    } catch {
+      return {
+        ok: false,
+        msg: "Erro ao consultar a nuvem DK. Verifique a internet.",
+      };
+    }
+  }
+
   async function validateClienteProtocoloParaAppRemote(cpfDigits, protoRaw) {
     const cpf = onlyDigits(String(cpfDigits || "")).slice(0, 11);
     const proto = normProtoClienteGate(protoRaw);
     if (cpf.length !== 11) return { ok: false, msg: "Informe um CPF válido (11 dígitos)." };
     if (!proto) return { ok: false, msg: "Informe o protocolo da locação." };
+
+    const supa = await validateClienteProtocoloViaSupabase(cpfDigits, protoRaw);
+    if (supa.ok) return supa;
+
     try {
-      const q = new URLSearchParams({ cpf, protocolo: String(protoRaw || "").trim() });
-      const res = await fetch(`/api/cliente-app-gate?${q.toString()}`);
+      const q = new URLSearchParams({
+        gate: "1",
+        cpf,
+        protocolo: String(protoRaw || "").trim(),
+      });
+      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
+      if (res.ok && data.ok) {
         return {
-          ok: false,
-          msg:
-            data.msg ||
-            "Não foi possível validar CPF e protocolo. Verifique os dados ou tente mais tarde.",
+          ok: true,
+          cliente: { nome: String(data.nome || "").trim() },
+          proto: String(data.proto || proto),
         };
       }
-      return {
-        ok: true,
-        cliente: { nome: String(data.nome || "").trim() },
-        proto: String(data.proto || proto),
-      };
+      if (!supa.ok && data.msg) return { ok: false, msg: data.msg };
     } catch {
-      return {
-        ok: false,
-        msg: "Sem ligação à internet. Ligue o Wi-Fi/dados e tente novamente.",
-      };
+      /* ignore */
     }
+
+    if (!supa.ok) return supa;
+    return {
+      ok: false,
+      msg: "Sem ligação à internet. Ligue o Wi-Fi/dados e tente novamente.",
+    };
   }
 
   /** Cliente cadastrado com locação cujo protocolo coincide — requisito para instalar o app. */
@@ -704,9 +765,9 @@
     });
     if (locadoraAppFeedback) {
       locadoraAppFeedback.textContent =
-        "CPF e protocolo validados. A abrir instalação do app DK Cliente…";
+        "CPF e protocolo validados. A abrir página de instalação…";
     }
-    window.location.assign(`/cliente?${q.toString()}`);
+    window.location.assign(`/instalar?${q.toString()}`);
   }
 
   formLocadoraAppDownload?.addEventListener("submit", async (e) => {
@@ -721,6 +782,17 @@
       locadoraAppFeedback.classList.remove("portal-feedback--error");
     }
     let v = validateClienteProtocoloParaApp(cpf, proto);
+    if (!v.ok && typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      if (locadoraAppFeedback) locadoraAppFeedback.textContent = "A sincronizar dados DK…";
+      if (btnDl) btnDl.disabled = true;
+      try {
+        await window.__DK_pullCloudSnapshotSilentMerge();
+      } catch {
+        /* ignore */
+      }
+      if (btnDl) btnDl.disabled = false;
+      v = validateClienteProtocoloParaApp(cpf, proto);
+    }
     if (!v.ok) {
       if (locadoraAppFeedback) locadoraAppFeedback.textContent = "A validar na DK…";
       if (btnDl) btnDl.disabled = true;

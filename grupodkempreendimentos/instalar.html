@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#c9a227">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="DK Cliente">
+  <meta name="description" content="Instale o app DK Cliente no telemóvel.">
+  <link rel="manifest" href="/manifest-cliente.webmanifest">
+  <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
+  <title>Instalar DK Cliente</title>
+  <link rel="stylesheet" href="styles.css?v=20260526instalar">
+  <link rel="stylesheet" href="cliente-app.css?v=20260526instalar">
+  <script>
+    (function () {
+      if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+      (async function () {
+        try {
+          var regs = await navigator.serviceWorker.getRegistrations();
+          for (var i = 0; i < regs.length; i++) {
+            var u =
+              (regs[i].active && regs[i].active.scriptURL) ||
+              (regs[i].installing && regs[i].installing.scriptURL) ||
+              "";
+            if (u.indexOf("corporativo") !== -1) await regs[i].unregister();
+          }
+        } catch (e) {}
+        try {
+          await navigator.serviceWorker.register("/service-worker-cliente.js", { scope: "/" });
+        } catch (e) {}
+      })();
+    })();
+  </script>
+</head>
+<body class="cliente-app-body">
+  <section class="cliente-app-card" aria-label="Instalar app DK Cliente">
+    <header class="cliente-app-header">
+      <div class="cliente-app-brand">
+        <span class="cliente-app-brand__mark" aria-hidden="true">DK</span>
+        <div>
+          <div class="cliente-app-brand__title">Instalar DK Cliente</div>
+          <div class="cliente-app-brand__sub">DK Locadora</div>
+        </div>
+      </div>
+    </header>
+
+    <div id="cliente-install-panel" class="cliente-install-panel">
+      <h2 class="cliente-install-panel__title">Passo final: instalar no telemóvel</h2>
+      <p id="install-status" class="subtext">Use o Chrome (Android) ou Safari (iPhone). Aguarde o botão abaixo.</p>
+      <button type="button" id="btn-install-cliente" class="btn-primary" style="width:100%;margin-top:0.5rem">
+        Instalar app DK Cliente
+      </button>
+      <details id="install-manual" class="cliente-install-manual" open>
+        <summary>Instruções manuais (se o botão não instalar)</summary>
+        <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → «Instalar app» ou «Adicionar ao ecrã inicial».</p>
+        <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → «Adicionar à Tela de Início».</p>
+        <p class="subtext">Não use o browser dentro do <strong>WhatsApp</strong> — abra no Chrome ou Safari.</p>
+      </details>
+    </div>
+
+    <p class="subtext" style="margin-top:1rem">
+      Depois de instalar, abra pelo ícone <strong>DK</strong> no ecrã inicial e entre com CPF e senha.
+    </p>
+    <p style="text-align:center;margin-top:1rem">
+      <a href="/cliente" class="btn-primary btn-secondary-outline" id="link-abrir-cliente">Já instalou? Abrir app</a>
+    </p>
+    <p style="text-align:center;margin-top:0.75rem">
+      <a href="/#locadora/cliente" class="subtext">Voltar ao portal</a>
+    </p>
+  </section>
+  <script src="instalar-cliente.js?v=20260526instalar"></script>
+</body>
+</html>

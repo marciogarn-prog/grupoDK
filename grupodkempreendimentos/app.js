@@ -15562,7 +15562,10 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
   const __dkPath =
     (window.location.pathname || "/").replace(/\/$/, "") || "/";
   const __dkIsClienteApp =
-    __dkPath === "/cliente" || __dkPath.startsWith("/cliente/");
+    __dkPath === "/cliente" ||
+    __dkPath === "/instalar" ||
+    __dkPath.startsWith("/cliente/") ||
+    __dkPath.startsWith("/instalar/");
   window.addEventListener("load", () => {
     if (__dkIsClienteApp) return;
     navigator.serviceWorker

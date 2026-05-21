@@ -3,7 +3,7 @@
   "short_name": "DK Cliente",
   "description": "Consulte seus contratos e envie comprovantes de pagamento à DK Locadora.",
   "id": "/cliente",
-  "start_url": "/cliente",
+  "start_url": "/cliente?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0c0f14",

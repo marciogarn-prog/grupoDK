@@ -44,6 +44,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   if (event.request.mode === "navigate") {
+    const navPath = url.pathname.replace(/\/$/, "") || "/";
+    const isClienteAppNav =
+      navPath === "/cliente" ||
+      navPath === "/instalar" ||
+      navPath.startsWith("/cliente/") ||
+      navPath.startsWith("/instalar/");
     event.respondWith(
       fetch(event.request)
         .then((r) => {
@@ -51,7 +57,20 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
           return r;
         })
-        .catch(() => caches.match(event.request).then((c) => c || caches.match("./index.html")))
+        .catch(async () => {
+          const cached = await caches.match(event.request);
+          if (cached) return cached;
+          if (isClienteAppNav) {
+            return (
+              (await caches.match("/cliente")) ||
+              (await caches.match("./cliente.html")) ||
+              (await caches.match("/instalar")) ||
+              (await caches.match("./instalar.html")) ||
+              fetch(event.request)
+            );
+          }
+          return caches.match("./index.html");
+        })
     );
     return;
   }
