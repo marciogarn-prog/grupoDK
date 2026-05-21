@@ -160,6 +160,22 @@
     };
   }
 
+  function rejeitarDuplicataMesmaImagem(rec, idMantido) {
+    const eventos = Array.isArray(rec.historicoEventos) ? rec.historicoEventos.slice() : [];
+    eventos.push({ tipo: "imagem_duplicada", em: new Date().toISOString(), referencia: idMantido });
+    return {
+      ...rec,
+      status: STATUS.REJEITADO,
+      rejeitadoAutomatico: true,
+      rejeitadoMotivoCliente: MSG_DUP_IMAGEM_CLIENTE,
+      rejeitadoMotivo: `Comprovante duplicado — mesma imagem (mantido ${idMantido}).`,
+      rejeitadoPorNome: OPERADOR_AUTO.nome,
+      rejeitadoEm: new Date().toISOString(),
+      historicoEventos: eventos,
+      migracaoHistoricoV: MIG_HISTORICO_V,
+    };
+  }
+
   function rejeitarEnvioExcedente(rec, idMantido) {
     const eventos = Array.isArray(rec.historicoEventos) ? rec.historicoEventos.slice() : [];
     eventos.push({ tipo: "excedente_arquivado", em: new Date().toISOString(), referencia: idMantido });
@@ -194,6 +210,46 @@
       changed = true;
       return reabrirComprovanteParaOperador(r);
     });
+
+    const porImagem = new Map();
+    for (const r of list) {
+      const fp = String(r.comprovanteFp || "").trim();
+      if (!fp) continue;
+      if (!porImagem.has(fp)) porImagem.set(fp, []);
+      porImagem.get(fp).push(r);
+    }
+    for (const grupo of porImagem.values()) {
+      if (grupo.length <= 1) continue;
+      const confirmados = grupo.filter((r) => r.status === STATUS.CONFIRMADO);
+      if (confirmados.length) {
+        const idRef = confirmados[0].id;
+        for (const r of grupo) {
+          if (r.status === STATUS.CONFIRMADO) continue;
+          const idx = list.findIndex((x) => x.id === r.id);
+          if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
+          list[idx] = rejeitarDuplicataMesmaImagem(list[idx], idRef);
+          notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+          changed = true;
+        }
+        continue;
+      }
+      const fila = grupo.filter((r) => r.status === STATUS.IA_OK || r.status === STATUS.PENDENTE);
+      if (fila.length <= 1) continue;
+      fila.sort((a, b) => {
+        if (a.status === STATUS.IA_OK && b.status !== STATUS.IA_OK) return -1;
+        if (b.status === STATUS.IA_OK && a.status !== STATUS.IA_OK) return 1;
+        return Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0);
+      });
+      const manter = fila[0];
+      for (let i = 1; i < fila.length; i++) {
+        const ex = fila[i];
+        const idx = list.findIndex((x) => x.id === ex.id);
+        if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
+        list[idx] = rejeitarDuplicataMesmaImagem(list[idx], manter.id);
+        notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        changed = true;
+      }
+    }
 
     const grupos = new Map();
     for (const r of list) {
@@ -249,9 +305,27 @@
     return { list, changed };
   }
 
-  function repararHistoricoComprovantesNuvem() {
-    const raw = loadAllRaw();
-    const { list, changed } = normalizarHistoricoComprovantes(raw);
+  async function garantirFingerprintsComprovantes(arr) {
+    let changed = false;
+    const list = [];
+    for (const r of arr) {
+      let rec = { ...r };
+      if (!String(rec.comprovanteFp || "").trim() && rec.arquivoBase64) {
+        rec.comprovanteFp = await computeComprovanteFingerprint(rec.arquivoBase64, rec.mimeType);
+        changed = true;
+      }
+      list.push(rec);
+    }
+    return { list, changed };
+  }
+
+  async function repararHistoricoComprovantesNuvem() {
+    let raw = loadAllRaw();
+    const fpPack = await garantirFingerprintsComprovantes(raw);
+    raw = fpPack.list;
+    let changed = fpPack.changed;
+    const { list, changed: normChanged } = normalizarHistoricoComprovantes(raw);
+    changed = changed || normChanged;
     if (changed) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
       pushNuvem();
@@ -678,9 +752,8 @@
     const hash = String(fp || "").trim();
     if (!hash) return { duplicado: false, semFingerprint: true };
 
-    for (const r of loadAll()) {
+    for (const r of loadAllRaw()) {
       if (excludeId && r.id === excludeId) continue;
-      if (r.status === STATUS.REJEITADO) continue;
       if (String(r.comprovanteFp || "") !== hash) continue;
       const st = statusLabel(r.status);
       return {
@@ -750,6 +823,19 @@
     if (!arquivoBase64) return { ok: false, msg: "Anexe o comprovante (imagem ou PDF)." };
 
     const comprovanteFp = await computeComprovanteFingerprint(arquivoBase64, mimeType);
+
+    const dupEntrada = await detectarComprovanteDuplicado({
+      comprovanteFp,
+      arquivoBase64,
+      mimeType,
+    });
+    if (dupEntrada.duplicado && dupEntrada.reprovar) {
+      return {
+        ok: false,
+        duplicata: true,
+        msg: dupEntrada.msgCliente || MSG_DUP_IMAGEM_CLIENTE,
+      };
+    }
 
     const rec = {
       id: newId(),
@@ -1799,6 +1885,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       return "Reaberto — aguarda confirmação";
     }
     if (r?.status === STATUS.REJEITADO) {
+      if (String(r.rejeitadoMotivo || "").toLowerCase().includes("mesma imagem")) {
+        return "Arquivado (mesma imagem)";
+      }
       if (String(r.rejeitadoMotivo || "").includes("duplicidade")) return "Arquivado (envio duplicado)";
       return r.rejeitadoAutomatico ? "Recusado (automático)" : "Recusado pelo operador";
     }
@@ -2394,7 +2483,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     initViewerUiShared();
     bindOpenAIKeyUi();
     refreshOperadorConferenciaHint();
-    const rep = repararHistoricoComprovantesNuvem();
+    const rep = await repararHistoricoComprovantesNuvem();
     const fb = document.getElementById("portalComprovanteClienteListaMsg");
     if (fb && rep.changed) {
       fb.textContent = `Histórico reparado: ${rep.aguardam} aguardam confirmação · ${rep.confirmados} já confirmados.`;
@@ -2403,7 +2492,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     renderListaRecusados72h();
     probeOpenAIServer();
     await processarFilaComprovantesAutomaticos();
-    repararHistoricoComprovantesNuvem();
+    await repararHistoricoComprovantesNuvem();
     renderListaOperador();
     renderListaRecusados72h();
   }
@@ -2424,13 +2513,13 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
-    const rep = repararHistoricoComprovantesNuvem();
+    const rep = await repararHistoricoComprovantesNuvem();
     const fb = document.getElementById("portalComprovanteClienteListaMsg");
     if (fb && rep.changed) {
       fb.textContent = `Histórico reparado: ${rep.aguardam} aguardam confirmação · ${rep.confirmados} confirmados.`;
     }
     await processarFilaComprovantesAutomaticos();
-    repararHistoricoComprovantesNuvem();
+    await repararHistoricoComprovantesNuvem();
     renderListaOperador();
     renderListaRecusados72h();
   };

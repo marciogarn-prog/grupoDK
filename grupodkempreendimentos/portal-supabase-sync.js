@@ -405,12 +405,12 @@
       suppressCloudHook = false;
     }
     if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
-      window.__DK_comprovantesClienteRepararHistorico();
+      void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
     }
     if (typeof window.__DK_comprovantesClienteProcessarFilaAutomatica === "function") {
       void window.__DK_comprovantesClienteProcessarFilaAutomatica().then(() => {
         if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
-          window.__DK_comprovantesClienteRepararHistorico();
+          void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
         }
         if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
           void window.__DK_refreshComprovantesClienteLista();
