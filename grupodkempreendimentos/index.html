@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260521protocolo-anti-dup">
+  <link rel="stylesheet" href="styles.css?v=20260521modal-scroll">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -1458,8 +1458,9 @@
 
   <div id="portalComprovanteClienteDetalheModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalComprovanteClienteDetalheTitulo">
     <div class="portal-modal__backdrop" data-close-cc-detalhe></div>
-    <div class="portal-modal__card portal-modal__card--wide">
+    <div class="portal-modal__card portal-modal__card--wide portal-modal__card--cc-detalhe">
       <h3 id="portalComprovanteClienteDetalheTitulo" class="portal-modal__title">Conferência — comprovante do cliente</h3>
+      <div class="portal-cc-detalhe-scroll">
       <div id="portalComprovanteClienteDetalheCorpo" class="portal-modal__text"></div>
       <div id="portalComprovanteOpenAISetup" class="portal-cc-openai-setup">
         <p id="portalComprovanteOpenAIStatus" class="subtext portal-cc-openai-status" role="status"></p>
@@ -1500,7 +1501,8 @@
         <p id="portalComprovanteReceitaSomaMsg" class="subtext portal-cc-receita-soma" role="status"></p>
       </div>
       <p id="portalComprovanteClienteDetalheFeedback" class="portal-feedback" role="status"></p>
-      <div class="portal-modal__actions portal-modal__actions--wrap">
+      </div>
+      <div class="portal-modal__actions portal-modal__actions--wrap portal-cc-detalhe-actions">
         <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnVerArquivo">Visualizar comprovante</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnIA">Conferir comprovante (IA)</button>
         <button type="button" class="btn-primary" id="portalComprovanteClienteBtnConfirmar">Confirmar pagamento</button>

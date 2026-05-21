@@ -2247,6 +2247,52 @@ body {
   width: 100%;
 }
 
+/* Modal conferência comprovante: corpo com scroll; botões sempre visíveis */
+#portalComprovanteClienteDetalheModal.portal-modal {
+  align-items: center;
+  padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
+    max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+}
+
+.portal-modal__card--cc-detalhe {
+  max-width: min(96vw, 42rem);
+  width: 100%;
+  max-height: min(92vh, 52rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.portal-modal__card--cc-detalhe .portal-modal__title {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 1rem 1.25rem 0.65rem;
+}
+
+.portal-cc-detalhe-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 1.25rem 0.75rem;
+}
+
+.portal-modal__card--cc-detalhe .portal-cc-detalhe-actions {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.75rem 1.25rem 1rem;
+  border-top: 1px solid rgba(201, 162, 39, 0.28);
+  background: var(--bg-elevated);
+  box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.portal-modal__card--cc-detalhe .portal-cc-historico-pre {
+  max-height: 6.5rem;
+}
+
 .portal-lanc-cliente-comprovacao {
   margin: 1rem 0 1.25rem;
   padding: 1rem;
