@@ -135,6 +135,26 @@
       </form>
     </div>
 
+    <div id="clienteComprovanteViewerModal" class="cliente-modal hidden" role="dialog" aria-modal="true" aria-labelledby="clienteComprovanteViewerTitulo">
+      <div class="cliente-modal__card portal-modal__card portal-modal__card--cc-viewer">
+        <header class="cliente-modal__head">
+          <h2 id="clienteComprovanteViewerTitulo">Comprovante</h2>
+          <button type="button" class="btn-primary btn-secondary-outline" data-close-cc-viewer aria-label="Fechar">Fechar</button>
+        </header>
+        <p class="subtext portal-cc-viewer-hint">Use <strong>+</strong> / <strong>−</strong> ou <strong>Ampliar para ler</strong>. Duplo toque na imagem amplia.</p>
+        <div class="portal-cc-viewer-toolbar" role="toolbar" aria-label="Zoom do comprovante">
+          <button type="button" class="btn-primary portal-cc-zoom-btn" data-cc-zoom="readable">Ampliar para ler</button>
+          <button type="button" class="btn-primary btn-secondary-outline portal-cc-zoom-btn" data-cc-zoom="out" aria-label="Reduzir">−</button>
+          <span id="clienteComprovanteViewerZoomLbl" class="portal-cc-zoom-label">100%</span>
+          <button type="button" class="btn-primary btn-secondary-outline portal-cc-zoom-btn" data-cc-zoom="in" aria-label="Aumentar">+</button>
+          <button type="button" class="btn-primary btn-secondary-outline" data-cc-zoom="fit">Ajustar largura</button>
+        </div>
+        <div id="clienteComprovanteViewerScroll" class="portal-cc-viewer-scroll">
+          <div id="clienteComprovanteViewerStage" class="portal-cc-viewer-stage"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="cliente-modal-relatorio" class="cliente-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cliente-relatorio-title">
       <div class="cliente-modal__card">
         <header class="cliente-modal__head">
@@ -156,8 +176,8 @@
   <script src="portal-supabase-sync.js?v=20260520cliente-v3" defer></script>
   <script src="cliente-notificacoes.js?v=20260520cliente-v3" defer></script>
   <script src="cliente-contrato-resumo.js?v=20260520cliente-v3" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260521ver-comprovante" defer></script>
-  <script src="cliente-relatorio-pagamentos.js?v=20260521ver-comprovante" defer></script>
-  <script src="cliente-app.js?v=20260522share" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260523comprovante-viewer" defer></script>
+  <script src="cliente-relatorio-pagamentos.js?v=20260523comprovante-viewer" defer></script>
+  <script src="cliente-app.js?v=20260523comprovante-viewer" defer></script>
 </body>
 </html>

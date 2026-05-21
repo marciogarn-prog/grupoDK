@@ -779,10 +779,27 @@
     await consumeShareFromServiceWorkerCache();
   }
 
+  function wireComprovanteLinkDelegation() {
+    document.addEventListener(
+      "click",
+      (e) => {
+        const a = e.target.closest?.(".lnk-comprovante[data-dk-comprovante-id]");
+        if (!a) return;
+        e.preventDefault();
+        const id = a.getAttribute("data-dk-comprovante-id");
+        if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {
+          window.__DK_openComprovanteClienteViewerById(id);
+        }
+      },
+      true
+    );
+  }
+
   async function init() {
     restoreGateToSession();
     persistGateFromSession();
     wireLaunchQueueShare();
+    wireComprovanteLinkDelegation();
     await registerClienteServiceWorker();
 
     if (!canOpenAppWithoutPortalRedirect()) {

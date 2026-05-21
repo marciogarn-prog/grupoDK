@@ -339,7 +339,7 @@
       let valorCell = eh(vf);
       const compId = String(v.comprovanteId || "").trim();
       if (compId) {
-        valorCell = `<a href="#" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
+        valorCell = `<button type="button" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</button>`;
       }
       html += `<tr>
         <td>${eh(formatIso(v.enviadoEm))}</td>
@@ -431,7 +431,7 @@
       table.resumo .val{font-size:12px;font-weight:600}
       table.resumo .val.neg{color:#b71c1c}
       table.validados-app{margin-top:0.75rem}
-      table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline}
+      table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font:inherit}
       .portal-validados-vazio{margin-top:0.75rem}
       hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
     </style></head><body>

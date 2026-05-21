@@ -113,6 +113,30 @@
   display: none;
 }
 
+#clienteComprovanteViewerModal .cliente-modal__card {
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#clienteComprovanteViewerModal .portal-cc-viewer-scroll {
+  flex: 1;
+  min-height: 40vh;
+  max-height: 60vh;
+}
+
+button.lnk-comprovante {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: #1565c0;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  text-align: left;
+}
+
 .cliente-modal__card {
   background: var(--bg-elevated);
   border: 1px solid var(--border);

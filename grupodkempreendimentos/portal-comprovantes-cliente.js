@@ -697,22 +697,74 @@
   const CC_VIEWER_ZOOM_STEP = 0.25;
   const CC_VIEWER_FRAME_BASE_W = 900;
   let ccViewerZoom = 1;
+  let ccViewerBlobUrl = null;
+
+  function revokeViewerBlobUrl() {
+    if (ccViewerBlobUrl) {
+      try {
+        URL.revokeObjectURL(ccViewerBlobUrl);
+      } catch {
+        /* ignore */
+      }
+      ccViewerBlobUrl = null;
+    }
+  }
+
+  function arquivoBase64ToBlobUrl(arquivoBase64, mimeType) {
+    const raw = String(arquivoBase64 || "").trim();
+    if (!raw) return null;
+    if (raw.startsWith("blob:")) return raw;
+    const p = parseDataUrl(raw);
+    if (!p.base64) return null;
+    const mime = String(mimeType || p.mime || "application/octet-stream").trim() || "application/octet-stream";
+    try {
+      const bin = atob(p.base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return URL.createObjectURL(new Blob([bytes], { type: mime }));
+    } catch {
+      return null;
+    }
+  }
+
+  function getViewerModalEl() {
+    return (
+      document.getElementById("portalComprovanteClienteViewerModal") ||
+      document.getElementById("clienteComprovanteViewerModal")
+    );
+  }
 
   function getViewerStage() {
-    return document.getElementById("portalComprovanteClienteViewerStage");
+    return (
+      document.getElementById("portalComprovanteClienteViewerStage") ||
+      document.getElementById("clienteComprovanteViewerStage")
+    );
   }
 
   function getViewerScroll() {
-    return document.getElementById("portalComprovanteClienteViewerScroll");
+    return (
+      document.getElementById("portalComprovanteClienteViewerScroll") ||
+      document.getElementById("clienteComprovanteViewerScroll")
+    );
   }
 
   function getViewerCard() {
-    return document.querySelector("#portalComprovanteClienteViewerModal .portal-modal__card--cc-viewer");
+    return (
+      document.querySelector("#portalComprovanteClienteViewerModal .portal-modal__card--cc-viewer") ||
+      document.querySelector("#clienteComprovanteViewerModal .portal-modal__card--cc-viewer")
+    );
+  }
+
+  function getViewerZoomLbl() {
+    return (
+      document.getElementById("portalComprovanteClienteViewerZoomLbl") ||
+      document.getElementById("clienteComprovanteViewerZoomLbl")
+    );
   }
 
   function applyViewerZoom() {
     const stage = getViewerStage();
-    const lbl = document.getElementById("portalComprovanteClienteViewerZoomLbl");
+    const lbl = getViewerZoomLbl();
     if (!stage) return;
     stage.style.transform = "";
     const img = stage.querySelector("img");
@@ -784,7 +836,7 @@
   }
 
   function bindViewerZoomUi() {
-    const modal = document.getElementById("portalComprovanteClienteViewerModal");
+    const modal = getViewerModalEl();
     if (!modal || modal.dataset.ccZoomBound === "1") return;
     modal.dataset.ccZoomBound = "1";
 
@@ -822,31 +874,15 @@
   function openComprovanteViewerById(id) {
     const rec = getById(id);
     if (!rec) {
-      window.alert("Comprovante não encontrado. Use «Atualizar da nuvem» no lançamento de aluguel.");
+      window.alert("Comprovante não encontrado. Toque em «Atualizar da nuvem» e tente de novo.");
       return;
     }
     if (!rec.arquivoBase64) {
       window.alert("Este registo não tem ficheiro de comprovante guardado.");
       return;
     }
-    if (!document.getElementById("portalComprovanteClienteViewerModal")) {
-      const url = String(rec.arquivoBase64);
-      const w = window.open("", "_blank", "noopener");
-      if (!w) {
-        window.alert("Permita pop-ups para ver o comprovante.");
-        return;
-      }
-      const title = escapeHtml(rec.nomeArquivo || "Comprovante DK");
-      if (String(rec.mimeType || "").includes("pdf")) {
-        w.document.write(
-          `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title></head><body style="margin:0"><iframe src="${url.replace(/"/g, "&quot;")}" style="width:100%;height:100vh;border:0" title="Comprovante"></iframe></body></html>`
-        );
-      } else {
-        w.document.write(
-          `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title></head><body style="margin:0;display:flex;justify-content:center;background:#111"><img src="${url.replace(/"/g, "&quot;")}" alt="Comprovante" style="max-width:100%;height:auto"></body></html>`
-        );
-      }
-      w.document.close();
+    if (!getViewerModalEl()) {
+      window.alert("Visualizador de comprovante indisponível nesta página.");
       return;
     }
     comprovanteClienteUiIdAtual = rec.id;
@@ -857,31 +893,31 @@
     const rec = getById(comprovanteClienteUiIdAtual);
     const stage = getViewerStage();
     const linkAbrir = document.getElementById("portalComprovanteClienteViewerAbrir");
-    if (!rec || !stage) return;
-    const url = rec.arquivoBase64;
+    const modalEl = getViewerModalEl();
+    if (!rec || !stage || !modalEl) return;
+
+    revokeViewerBlobUrl();
+    const blobUrl = arquivoBase64ToBlobUrl(rec.arquivoBase64, rec.mimeType);
+    if (!blobUrl) {
+      stage.innerHTML = '<p class="subtext">Não foi possível abrir o comprovante neste dispositivo.</p>';
+      modalEl.classList.remove("hidden");
+      modalEl.setAttribute("aria-hidden", "false");
+      return;
+    }
+    ccViewerBlobUrl = blobUrl;
+    const safeUrl = blobUrl.replace(/"/g, "&quot;");
+    const isPdf =
+      String(rec.mimeType || "").includes("pdf") || String(rec.arquivoBase64 || "").includes("application/pdf");
+
     getViewerCard()?.classList.remove("is-cc-viewer-fullscreen");
     ccViewerZoom = 1;
     applyViewerZoom();
 
-    if (!url) {
-      stage.innerHTML = '<p class="subtext">Sem ficheiro.</p>';
-      if (linkAbrir) {
-        linkAbrir.href = "#";
-        linkAbrir.classList.add("hidden");
-      }
-    } else if (String(rec.mimeType || "").includes("pdf")) {
-      stage.innerHTML = `<div class="portal-cc-viewer-frame-wrap"><iframe src="${url}" class="portal-cc-viewer-frame" title="Comprovante PDF"></iframe></div>`;
-      if (linkAbrir) {
-        linkAbrir.href = url;
-        linkAbrir.classList.remove("hidden");
-      }
+    if (isPdf) {
+      stage.innerHTML = `<div class="portal-cc-viewer-frame-wrap"><iframe src="${safeUrl}" class="portal-cc-viewer-frame" title="Comprovante PDF"></iframe></div>`;
       window.setTimeout(() => fitViewerReadable(), 120);
     } else {
-      stage.innerHTML = `<img src="${url}" alt="Comprovante" class="portal-cc-viewer-img">`;
-      if (linkAbrir) {
-        linkAbrir.href = url;
-        linkAbrir.classList.remove("hidden");
-      }
+      stage.innerHTML = `<img src="${safeUrl}" alt="Comprovante" class="portal-cc-viewer-img">`;
       const img = stage.querySelector("img");
       const onReady = () => {
         fitViewerReadable();
@@ -892,8 +928,31 @@
         else img.addEventListener("load", onReady, { once: true });
       }
     }
-    openModal("portalComprovanteClienteViewerModal");
+
+    if (linkAbrir) {
+      linkAbrir.href = "#";
+      linkAbrir.classList.remove("hidden");
+      if (linkAbrir.dataset.dkAbrirBound !== "1") {
+        linkAbrir.dataset.dkAbrirBound = "1";
+        linkAbrir.addEventListener("click", (ev) => {
+          ev.preventDefault();
+          if (ccViewerBlobUrl) window.open(ccViewerBlobUrl, "_blank", "noopener,noreferrer");
+        });
+      }
+    }
+
+    modalEl.classList.remove("hidden");
+    modalEl.setAttribute("aria-hidden", "false");
     window.setTimeout(() => fitViewerReadable(), 200);
+  }
+
+  function closeViewerModal() {
+    const modalEl = getViewerModalEl();
+    if (modalEl) {
+      modalEl.classList.add("hidden");
+      modalEl.setAttribute("aria-hidden", "true");
+    }
+    revokeViewerBlobUrl();
   }
 
   function scrollComprovanteAoCentro() {
@@ -951,9 +1010,7 @@
     document.querySelectorAll("[data-close-cc-detalhe]").forEach((el) => {
       el.addEventListener("click", () => closeModal("portalComprovanteClienteDetalheModal"));
     });
-    document.querySelectorAll("[data-close-cc-viewer]").forEach((el) => {
-      el.addEventListener("click", () => closeModal("portalComprovanteClienteViewerModal"));
-    });
+    bindViewerCloseButtons();
     document.getElementById("portalComprovanteClienteBtnAtualizarLista")?.addEventListener("click", async () => {
       const fb = document.getElementById("portalComprovanteClienteListaMsg");
       if (fb) fb.textContent = "A carregar da nuvem…";
@@ -969,9 +1026,22 @@
     });
   }
 
+  function bindViewerCloseButtons() {
+    document.querySelectorAll("[data-close-cc-viewer]").forEach((el) => {
+      if (el.dataset.dkCcCloseBound === "1") return;
+      el.dataset.dkCcCloseBound = "1";
+      el.addEventListener("click", () => closeViewerModal());
+    });
+  }
+
+  function initViewerUiShared() {
+    bindViewerZoomUi();
+    bindViewerCloseButtons();
+  }
+
   function initOperadorUi() {
     bindOperadorUi();
-    bindViewerZoomUi();
+    initViewerUiShared();
     bindOpenAIKeyUi();
     refreshOperadorConferenciaHint();
     renderListaOperador();
@@ -991,8 +1061,12 @@
   };
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initOperadorUi);
+    document.addEventListener("DOMContentLoaded", () => {
+      if (document.getElementById("portalComprovanteClienteLista")) initOperadorUi();
+      else if (getViewerModalEl()) initViewerUiShared();
+    });
   } else {
-    initOperadorUi();
+    if (document.getElementById("portalComprovanteClienteLista")) initOperadorUi();
+    else if (getViewerModalEl()) initViewerUiShared();
   }
 })();

@@ -4761,7 +4761,7 @@ ${printable.innerHTML}
       let valorCell = eh(vf);
       const compId = String(v.comprovanteId || "").trim();
       if (compId) {
-        valorCell = `<a href="#" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
+        valorCell = `<button type="button" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</button>`;
       }
       html += `<tr>
         <td>${eh(portalFormatIsoRelatorio(v.enviadoEm))}</td>
