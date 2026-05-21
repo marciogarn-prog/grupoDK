@@ -163,6 +163,8 @@
     };
     pushArr(loc.portalLancamentosAluguel);
     pushArr(loc.lancamentosAluguel);
+    pushArr(loc.portalMultasTransito);
+    pushArr(loc.portalManutencoesRegistro);
     return rows;
   }
 
@@ -606,6 +608,302 @@
     }
   }
 
+  const RECEITA_TIPOS = [
+    { key: "aluguel", label: "Aluguel", checkId: "portalCcRecAluguel", valorId: "portalCcRecValorAluguel" },
+    { key: "manutencao", label: "Manutenção", checkId: "portalCcRecManutencao", valorId: "portalCcRecValorManutencao" },
+    { key: "multas", label: "Multas", checkId: "portalCcRecMultas", valorId: "portalCcRecValorMultas" },
+    { key: "outros", label: "Outros", checkId: "portalCcRecOutros", valorId: "portalCcRecValorOutros" },
+  ];
+
+  let receitaTiposBound = false;
+  let receitaTiposRecId = "";
+
+  function getValorTotalComprovanteRec(rec) {
+    return Number(valorParaRegistoPagamento(rec));
+  }
+
+  function tiposReceitaSelecionados() {
+    return RECEITA_TIPOS.filter((t) => document.getElementById(t.checkId)?.checked);
+  }
+
+  function renderReceitaValorInputs(rec) {
+    const wrap = document.getElementById("portalCcRecValoresWrap");
+    if (!wrap) return;
+    const sel = tiposReceitaSelecionados();
+    const total = getValorTotalComprovanteRec(rec);
+    const unico = sel.length === 1;
+    wrap.innerHTML = sel
+      .map((t) => {
+        const autoVal = unico ? currencyBRL(total) : "";
+        const ro = unico ? "readonly" : "";
+        return `<label class="portal-field portal-field--wide portal-cc-receita-valor-lbl" data-rec-tipo="${t.key}">
+          <span>Valor — ${escapeHtml(t.label)}</span>
+          <input type="text" id="${t.valorId}" inputmode="numeric" maxlength="32" autocomplete="off" value="${escapeHtml(autoVal)}" ${ro} placeholder="R$ 0,00">
+        </label>`;
+      })
+      .join("");
+    atualizarReceitaSomaMsg(rec);
+  }
+
+  function atualizarReceitaSomaMsg(rec) {
+    const msg = document.getElementById("portalComprovanteReceitaSomaMsg");
+    if (!msg) return;
+    const total = getValorTotalComprovanteRec(rec);
+    const sel = tiposReceitaSelecionados();
+    if (!sel.length) {
+      msg.textContent = "Marque pelo menos um tipo de receita.";
+      msg.className = "subtext portal-cc-receita-soma portal-cc-receita-soma--erro";
+      return;
+    }
+    let soma = 0;
+    for (const t of sel) {
+      soma += parseCurrencyBR(document.getElementById(t.valorId)?.value);
+    }
+    const ok = valoresProximos(soma, total);
+    msg.textContent = ok
+      ? `Soma ${currencyBRL(soma)} = total do comprovante ${currencyBRL(total)}.`
+      : `Soma ${currencyBRL(soma)} — falta ${currencyBRL(Math.max(0, total - soma))} para fechar ${currencyBRL(total)}.`;
+    msg.className = `subtext portal-cc-receita-soma ${ok ? "portal-cc-receita-soma--ok" : "portal-cc-receita-soma--erro"}`;
+  }
+
+  function syncReceitaOutrosDescVisibility() {
+    const outrosOn = document.getElementById("portalCcRecOutros")?.checked;
+    const wrap = document.getElementById("portalCcRecOutrosDescWrap");
+    if (wrap) wrap.classList.toggle("hidden", !outrosOn);
+    const inp = document.getElementById("portalCcRecOutrosDesc");
+    if (inp) inp.required = Boolean(outrosOn);
+  }
+
+  function initReceitaTiposUi(rec) {
+    const box = document.getElementById("portalComprovanteReceitaWrap");
+    const totalLbl = document.getElementById("portalComprovanteReceitaTotalLbl");
+    if (!box) return;
+    const podeConfirmar = rec.status === STATUS.IA_OK;
+    box.classList.toggle("hidden", !podeConfirmar);
+    if (!podeConfirmar) return;
+
+    const total = getValorTotalComprovanteRec(rec);
+    if (totalLbl) {
+      totalLbl.textContent = `Total do comprovante (a distribuir): ${currencyBRL(total)}`;
+    }
+
+    const aluguelCb = document.getElementById("portalCcRecAluguel");
+    if (aluguelCb && receitaTiposRecId !== rec.id) {
+      aluguelCb.checked = true;
+      ["portalCcRecManutencao", "portalCcRecMultas", "portalCcRecOutros"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+      const desc = document.getElementById("portalCcRecOutrosDesc");
+      if (desc) desc.value = "";
+    }
+    receitaTiposRecId = rec.id;
+    syncReceitaOutrosDescVisibility();
+    renderReceitaValorInputs(rec);
+
+    if (!receitaTiposBound) {
+      receitaTiposBound = true;
+      const onChange = () => {
+        const r = getById(comprovanteClienteUiIdAtual);
+        if (!r) return;
+        syncReceitaOutrosDescVisibility();
+        renderReceitaValorInputs(r);
+      };
+      RECEITA_TIPOS.forEach((t) => {
+        document.getElementById(t.checkId)?.addEventListener("change", onChange);
+      });
+      document.getElementById("portalCcRecValoresWrap")?.addEventListener("input", (e) => {
+        if (!e.target?.id?.startsWith("portalCcRecValor")) return;
+        const r = getById(comprovanteClienteUiIdAtual);
+        if (r) atualizarReceitaSomaMsg(r);
+      });
+    }
+  }
+
+  function coletarDirecionamentoReceita(rec) {
+    const sel = tiposReceitaSelecionados();
+    if (!sel.length) {
+      return { ok: false, msg: "Marque pelo menos um tipo de receita (aluguel, manutenção, multas ou outros)." };
+    }
+    const total = getValorTotalComprovanteRec(rec);
+    const split = { aluguel: 0, manutencao: 0, multas: 0, outros: 0 };
+    let soma = 0;
+    for (const t of sel) {
+      const v = parseCurrencyBR(document.getElementById(t.valorId)?.value);
+      if (v <= 0) {
+        return { ok: false, msg: `Informe o valor para ${t.label}.` };
+      }
+      split[t.key] = v;
+      soma += v;
+    }
+    if (!valoresProximos(soma, total)) {
+      return {
+        ok: false,
+        msg: `A soma dos valores (${currencyBRL(soma)}) deve ser igual ao total do comprovante (${currencyBRL(total)}).`,
+      };
+    }
+    if (split.outros > 0) {
+      const desc = String(document.getElementById("portalCcRecOutrosDesc")?.value || "").trim();
+      if (!desc) {
+        return { ok: false, msg: "Informe a descrição para receita «outros»." };
+      }
+      return { ok: true, split, descricaoOutros: desc };
+    }
+    return { ok: true, split, descricaoOutros: "" };
+  }
+
+  function materializarArraysLoc(loc) {
+    if (!Array.isArray(loc.portalLancamentosAluguel)) {
+      const virt =
+        typeof window.__DK_getPortalLancamentosAluguelDoContrato === "function"
+          ? window.__DK_getPortalLancamentosAluguelDoContrato(loc)
+          : [];
+      loc.portalLancamentosAluguel = virt.map((v) => ({ ...v }));
+    }
+    if (!Array.isArray(loc.portalMultasTransito)) loc.portalMultasTransito = [];
+    if (!Array.isArray(loc.portalManutencoesRegistro)) loc.portalManutencoesRegistro = [];
+  }
+
+  function pagamentoJaRegistadoParaComprovante(loc, rec) {
+    const id = String(rec.id || "").trim();
+    const fp = String(rec.comprovanteFp || "").trim();
+    const fields = ["portalLancamentosAluguel", "portalMultasTransito", "portalManutencoesRegistro"];
+    for (const f of fields) {
+      const arr = Array.isArray(loc[f]) ? loc[f] : [];
+      for (const p of arr) {
+        if (!p || typeof p !== "object") continue;
+        if (id && String(p.origemComprovanteClienteId || "") === id) return p;
+        if (fp && String(p.comprovanteFp || "") === fp && !id) return p;
+      }
+    }
+    return null;
+  }
+
+  function baseMetaPagamentoComprovante(rec, regCpf, regNome) {
+    return {
+      data: rec.dataPagamento,
+      createdAt: Date.now(),
+      registradoPorCpf: regCpf,
+      registradoPorNome: regNome,
+      valorEspecie: 0,
+      valorPix: 0,
+      valorCartao: 0,
+      origemComprovanteClienteId: rec.id,
+      comprovanteFp: String(rec.comprovanteFp || "").trim(),
+      confirmadoViaAppCliente: true,
+      comprovanteClienteEnviadoEm: rec.enviadoEm || "",
+      comprovanteClienteConfirmadoEm: new Date().toISOString(),
+      comprovanteValidadoPorNome: regNome,
+      comprovanteValidadoPorCpf: regCpf,
+      valorInformadoCliente: Number(rec.valor),
+      valorLidoIA: rec.iaValidacao ? Number(rec.iaValidacao.valor) : undefined,
+      registroComValorComprovanteIA: valorInformadoDivergeDaIA(rec),
+    };
+  }
+
+  function criarRegistroParceladoComprovante(tipo, valor, rec, descricao, regCpf, regNome) {
+    const cod = `CC${String(rec.id || "").replace(/\D/g, "").slice(-8) || Date.now()}`;
+    const desc =
+      String(descricao || "").trim() ||
+      `Pagamento via comprovante app cliente (${rec.protocolo})`;
+    const meta = baseMetaPagamentoComprovante(rec, regCpf, regNome);
+    if (tipo === "multas") {
+      return {
+        ...meta,
+        dataMulta: rec.dataPagamento,
+        codMulta: cod,
+        descricao: desc,
+        valorMulta: valor,
+        quantidadeParcelas: 1,
+        dataPrimeiraParcela: rec.dataPagamento,
+        dataUltimaParcela: rec.dataPagamento,
+        parcelas: [{ numero: 1, data: rec.dataPagamento, valor }],
+      };
+    }
+    return {
+      ...meta,
+      dataManutencao: rec.dataPagamento,
+      codManutencao: cod,
+      descricao: desc,
+      valorManutencao: valor,
+      quantidadeParcelas: 1,
+      dataPrimeiraParcela: rec.dataPagamento,
+      dataUltimaParcela: rec.dataPagamento,
+      parcelas: [{ numero: 1, data: rec.dataPagamento, valor }],
+    };
+  }
+
+  function persistirPagamentosDirecionados(rec, direcionamento, regCpf, regNome) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false, msg: "Cadastro indisponível." };
+    }
+    const CAD_LOC = typeof CAD_LOCACOES_KEY !== "undefined" ? CAD_LOCACOES_KEY : "dk_locacoes_cadastro";
+    const cpf = onlyDigits(rec.cpf);
+    const nc = normProto(rec.protocolo);
+    const locs = loadCadastro(CAD_LOC);
+    const idx = locs.findIndex((l) => onlyDigits(l.cpf) === cpf && normProto(l.numeroContrato) === nc);
+    if (idx === -1) return { ok: false, msg: "Locação não encontrada para este CPF e protocolo." };
+
+    const loc = locs[idx];
+    materializarArraysLoc(loc);
+
+    const ja = pagamentoJaRegistadoParaComprovante(loc, rec);
+    if (ja) {
+      return {
+        ok: false,
+        msg: `Pagamento já registado neste protocolo (${String(ja.data || "")} · ${currencyBRL(ja.valor)}).`,
+      };
+    }
+
+    const { split, descricaoOutros } = direcionamento;
+    const meta = baseMetaPagamentoComprovante(rec, regCpf, regNome);
+
+    if (split.aluguel > 0) {
+      loc.portalLancamentosAluguel.push({
+        ...meta,
+        valor: split.aluguel,
+        valorPix: split.aluguel,
+        tipoReceitaComprovante: "aluguel",
+      });
+    }
+    if (split.outros > 0) {
+      loc.portalLancamentosAluguel.push({
+        ...meta,
+        valor: split.outros,
+        valorPix: split.outros,
+        tipoReceitaComprovante: "outros",
+        descricaoReceitaOutros: descricaoOutros,
+      });
+    }
+    if (split.multas > 0) {
+      loc.portalMultasTransito.push(
+        criarRegistroParceladoComprovante("multas", split.multas, rec, descricaoOutros || "Multas — comprovante cliente", regCpf, regNome)
+      );
+    }
+    if (split.manutencao > 0) {
+      loc.portalManutencoesRegistro.push(
+        criarRegistroParceladoComprovante(
+          "manutencao",
+          split.manutencao,
+          rec,
+          descricaoOutros || "Manutenção — comprovante cliente",
+          regCpf,
+          regNome
+        )
+      );
+    }
+
+    loc.updatedAt = Date.now();
+    locs[idx] = loc;
+    try {
+      saveCadastro(CAD_LOC, locs);
+    } catch (err) {
+      return { ok: false, msg: err?.message || "Erro ao guardar locação." };
+    }
+    if (typeof window.__DK_pushToCloudAfterSave === "function") window.__DK_pushToCloudAfterSave();
+    return { ok: true };
+  }
+
   function persistirPagamentoNaLocacao(rec, valorRegisto) {
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
       return { ok: false, msg: "Cadastro indisponível." };
@@ -729,11 +1027,14 @@
       };
     }
 
-    const valorRegisto = valorParaRegistoPagamento(rec);
+    const dir = coletarDirecionamentoReceita(rec);
+    if (!dir.ok) return { ok: false, msg: dir.msg };
+
+    const valorRegisto = getValorTotalComprovanteRec(rec);
     confirmarComprovanteEmCurso = true;
     let saveLoc;
     try {
-      saveLoc = persistirPagamentoNaLocacao(rec, valorRegisto);
+      saveLoc = persistirPagamentosDirecionados(rec, dir, gate.operador.cpf, gate.operador.nome);
     } finally {
       confirmarComprovanteEmCurso = false;
     }
@@ -749,6 +1050,8 @@
       all[idx].confirmadoPorNome = regNome;
       all[idx].confirmadoEm = new Date().toISOString();
       all[idx].valorRegistadoProtocolo = valorRegisto;
+      all[idx].direcionamentoReceita = dir.split;
+      all[idx].descricaoReceitaOutros = dir.descricaoOutros || "";
       saveAll(all);
       if (typeof window.__DK_clienteNotificacaoPagamentoConfirmado === "function") {
         window.__DK_clienteNotificacaoPagamentoConfirmado({
@@ -875,6 +1178,7 @@
     if (btnRej) btnRej.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
     if (btnVer) btnVer.disabled = !rec.arquivoBase64;
     refreshAdminSenhaUi(rec);
+    initReceitaTiposUi(rec);
   }
 
   function openModal(id) {

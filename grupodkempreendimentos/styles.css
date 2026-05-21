@@ -2426,6 +2426,54 @@ table.validados-app .lnk-comprovante {
   color: var(--accent);
 }
 
+.portal-cc-receita-tipos {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.portal-cc-receita-total {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.portal-cc-receita-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1.25rem;
+  margin-bottom: 0.65rem;
+}
+
+.portal-cc-receita-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.portal-cc-receita-valores {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.portal-cc-receita-valores .portal-field {
+  margin: 0;
+}
+
+.portal-cc-receita-soma--ok {
+  color: #6bcf7f;
+}
+
+.portal-cc-receita-soma--erro {
+  color: #f08080;
+}
+
 .cliente-pagamento-row--envio span:first-child {
   font-size: 0.82rem;
 }

@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260520openai-auto">
+  <link rel="stylesheet" href="styles.css?v=20260521receita-tipos">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -1483,6 +1483,22 @@
           <input type="password" id="portalComprovanteAdminSenha" autocomplete="off" placeholder="Senha do titular (administrador)">
         </label>
       </div>
+      <div id="portalComprovanteReceitaWrap" class="portal-cc-receita-tipos hidden">
+        <p class="subtext portal-cc-receita-lead"><strong>Direcionar receita</strong> — marque o(s) tipo(s) antes de confirmar. A soma dos valores deve ser igual ao total do comprovante.</p>
+        <p id="portalComprovanteReceitaTotalLbl" class="portal-cc-receita-total"></p>
+        <div class="portal-cc-receita-checks" role="group" aria-label="Tipos de receita">
+          <label class="portal-cc-receita-check"><input type="checkbox" id="portalCcRecAluguel" checked> Aluguel</label>
+          <label class="portal-cc-receita-check"><input type="checkbox" id="portalCcRecManutencao"> Manutenção</label>
+          <label class="portal-cc-receita-check"><input type="checkbox" id="portalCcRecMultas"> Multas</label>
+          <label class="portal-cc-receita-check"><input type="checkbox" id="portalCcRecOutros"> Outros</label>
+        </div>
+        <div id="portalCcRecValoresWrap" class="portal-cc-receita-valores"></div>
+        <label id="portalCcRecOutrosDescWrap" class="portal-field portal-field--wide hidden">
+          <span>Descrição (outros)</span>
+          <input type="text" id="portalCcRecOutrosDesc" maxlength="200" placeholder="Ex.: taxa, reembolso, acerto">
+        </label>
+        <p id="portalComprovanteReceitaSomaMsg" class="subtext portal-cc-receita-soma" role="status"></p>
+      </div>
       <p id="portalComprovanteClienteDetalheFeedback" class="portal-feedback" role="status"></p>
       <div class="portal-modal__actions portal-modal__actions--wrap">
         <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnVerArquivo">Visualizar comprovante</button>
@@ -1599,7 +1615,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260521antiduplicata" defer></script>
   <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260521antiduplicata" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260521receita-tipos" defer></script>
   <script src="portal-locadora-ui.js?v=20260521antiduplicata" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
