@@ -295,6 +295,7 @@
         valor: Number(r.valorRegistadoProtocolo ?? r.valor ?? 0),
         arquivoUrl: String(r.arquivoBase64 || "").trim(),
         nomeArquivo: String(r.nomeArquivo || "").trim(),
+        comprovanteId: id,
       });
     }
 
@@ -313,6 +314,7 @@
         valor: Number(lan.valor ?? ex?.valorRegistadoProtocolo ?? ex?.valor ?? 0),
         arquivoUrl: ex?.arquivoBase64 ? String(ex.arquivoBase64) : "",
         nomeArquivo: String(ex?.nomeArquivo || "").trim(),
+        comprovanteId: id,
       });
     }
 
@@ -335,9 +337,9 @@
     for (const v of validados) {
       const vf = currencyBRL(v.valor);
       let valorCell = eh(vf);
-      if (v.arquivoUrl) {
-        const href = String(v.arquivoUrl).replace(/"/g, "&quot;");
-        valorCell = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="lnk-comprovante" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
+      const compId = String(v.comprovanteId || "").trim();
+      if (compId) {
+        valorCell = `<a href="#" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
       }
       html += `<tr>
         <td>${eh(formatIso(v.enviadoEm))}</td>
@@ -438,6 +440,26 @@
       <p class="meta">${eh(`Cliente: ${nome || "—"}`)}</p>
       <p class="meta">${eh(`Emitido em ${quando}`)}</p>
       ${body}
+      <script>
+      (function () {
+        document.addEventListener("click", function (e) {
+          var el = e.target.closest && e.target.closest(".lnk-comprovante[data-dk-comprovante-id]");
+          if (!el) return;
+          e.preventDefault();
+          var id = el.getAttribute("data-dk-comprovante-id");
+          if (!id) return;
+          try {
+            if (window.parent && window.parent !== window && window.parent.__DK_openComprovanteClienteViewerById) {
+              window.parent.__DK_openComprovanteClienteViewerById(id);
+              return;
+            }
+          } catch (err) { /* ignore */ }
+          if (typeof window.__DK_openComprovanteClienteViewerById === "function") {
+            window.__DK_openComprovanteClienteViewerById(id);
+          }
+        });
+      })();
+      </script>
     </body></html>`;
   }
 

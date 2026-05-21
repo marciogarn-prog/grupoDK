@@ -3676,6 +3676,24 @@ ${printable.innerHTML}
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
     iframe.src = portalLocacaoRelatorioPdfBlobUrl;
+    iframe.onload = function wireRelatorioPdfComprovanteLinks() {
+      iframe.onload = null;
+      try {
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+        doc.querySelectorAll(".lnk-comprovante[data-dk-comprovante-id]").forEach((el) => {
+          el.addEventListener("click", (ev) => {
+            ev.preventDefault();
+            const id = el.getAttribute("data-dk-comprovante-id");
+            if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {
+              window.__DK_openComprovanteClienteViewerById(id);
+            }
+          });
+        });
+      } catch {
+        /* blob iframe — script inline no HTML trata o clique */
+      }
+    };
     viewer.classList.remove("hidden");
     viewer.setAttribute("aria-hidden", "false");
   }
@@ -4741,9 +4759,9 @@ ${printable.innerHTML}
           ? currencyBRL(v.valor)
           : Number(v.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       let valorCell = eh(vf);
-      if (v.arquivoUrl) {
-        const href = String(v.arquivoUrl).replace(/"/g, "&quot;");
-        valorCell = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="lnk-comprovante" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
+      const compId = String(v.comprovanteId || "").trim();
+      if (compId) {
+        valorCell = `<a href="#" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
       }
       html += `<tr>
         <td>${eh(portalFormatIsoRelatorio(v.enviadoEm))}</td>
@@ -7077,6 +7095,26 @@ ${printable.innerHTML}
       ${cabecalhoHtml}
       <p class="meta">${eh(`Emitido em ${quando}`)}</p>
       ${body}
+      <script>
+      (function () {
+        document.addEventListener("click", function (e) {
+          var el = e.target.closest && e.target.closest(".lnk-comprovante[data-dk-comprovante-id]");
+          if (!el) return;
+          e.preventDefault();
+          var id = el.getAttribute("data-dk-comprovante-id");
+          if (!id) return;
+          try {
+            if (window.parent && window.parent !== window && window.parent.__DK_openComprovanteClienteViewerById) {
+              window.parent.__DK_openComprovanteClienteViewerById(id);
+              return;
+            }
+          } catch (err) { /* ignore */ }
+          if (typeof window.__DK_openComprovanteClienteViewerById === "function") {
+            window.__DK_openComprovanteClienteViewerById(id);
+          }
+        });
+      })();
+      </script>
     </body></html>`;
   }
 

@@ -819,6 +819,40 @@
     });
   }
 
+  function openComprovanteViewerById(id) {
+    const rec = getById(id);
+    if (!rec) {
+      window.alert("Comprovante não encontrado. Use «Atualizar da nuvem» no lançamento de aluguel.");
+      return;
+    }
+    if (!rec.arquivoBase64) {
+      window.alert("Este registo não tem ficheiro de comprovante guardado.");
+      return;
+    }
+    if (!document.getElementById("portalComprovanteClienteViewerModal")) {
+      const url = String(rec.arquivoBase64);
+      const w = window.open("", "_blank", "noopener");
+      if (!w) {
+        window.alert("Permita pop-ups para ver o comprovante.");
+        return;
+      }
+      const title = escapeHtml(rec.nomeArquivo || "Comprovante DK");
+      if (String(rec.mimeType || "").includes("pdf")) {
+        w.document.write(
+          `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title></head><body style="margin:0"><iframe src="${url.replace(/"/g, "&quot;")}" style="width:100%;height:100vh;border:0" title="Comprovante"></iframe></body></html>`
+        );
+      } else {
+        w.document.write(
+          `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${title}</title></head><body style="margin:0;display:flex;justify-content:center;background:#111"><img src="${url.replace(/"/g, "&quot;")}" alt="Comprovante" style="max-width:100%;height:auto"></body></html>`
+        );
+      }
+      w.document.close();
+      return;
+    }
+    comprovanteClienteUiIdAtual = rec.id;
+    openViewer();
+  }
+
   function openViewer() {
     const rec = getById(comprovanteClienteUiIdAtual);
     const stage = getViewerStage();
@@ -948,6 +982,7 @@
   window.__DK_comprovantesClienteListPendentes = listarPendentesOperador;
   window.__DK_comprovantesClienteListByCpf = listarPorCliente;
   window.__DK_comprovantesClienteGet = getById;
+  window.__DK_openComprovanteClienteViewerById = openComprovanteViewerById;
   window.__DK_comprovantesClienteValidateIA = validarComprovanteComIA;
   window.__DK_comprovantesClienteConfirmar = confirmarComprovanteCliente;
   window.__DK_refreshComprovantesClienteLista = function refreshComprovantesClienteLista() {

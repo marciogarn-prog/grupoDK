@@ -527,11 +527,13 @@
         try {
           const doc = frame.contentDocument;
           if (!doc) return;
-          doc.querySelectorAll("a[href^='data:']").forEach((a) => {
+          doc.querySelectorAll(".lnk-comprovante[data-dk-comprovante-id]").forEach((a) => {
             a.addEventListener("click", (ev) => {
               ev.preventDefault();
-              const href = a.getAttribute("href");
-              if (href) window.open(href, "_blank", "noopener");
+              const id = a.getAttribute("data-dk-comprovante-id");
+              if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {
+                window.__DK_openComprovanteClienteViewerById(id);
+              }
             });
           });
         } catch {
