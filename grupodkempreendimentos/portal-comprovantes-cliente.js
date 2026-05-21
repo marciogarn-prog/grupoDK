@@ -264,14 +264,24 @@
   }
 
   function assinaturaDupDePagamento(p, proto) {
+    const horaP = String(p?.horaPagamentoComprovante || "").trim();
     return buildAssinaturaDup({
       protocolo: proto,
       dataPagamento: p?.data,
-      horaPagamento: null,
+      horaPagamento: horaP || null,
       enviadoEm: p?.comprovanteClienteEnviadoEm || p?.comprovanteClienteConfirmadoEm,
       valor: p?.valor,
       idTransacao: idTransacaoDoPagamento(p),
     });
+  }
+
+  /** Mesmo Pix no protocolo: protocolo + data + valor (centavo) + ID transação (reenvio pelo cliente). */
+  function pixPagamentoIguais(a, b) {
+    if (!a?.protocolo || !b?.protocolo || a.protocolo !== b.protocolo) return false;
+    if (!a.data || !b.data || a.data !== b.data) return false;
+    if (!valoresIguaisCentavos(a.valor, b.valor)) return false;
+    if (!a.idTransacao || !b.idTransacao || a.idTransacao !== b.idTransacao) return false;
+    return true;
   }
 
   /** Duplicata só se protocolo, data, hora, valor (centavo) e ID transação forem todos iguais. */
@@ -329,9 +339,31 @@
       : "(nenhum pagamento com protocolo+data+hora+valor+ID completo neste contrato)";
   }
 
+  function compararDuplicataComReferencia(sigNovo, sigRef, refLabel, extra) {
+    if (assinaturasPagamentoIguais(sigNovo, sigRef)) {
+      return {
+        duplicado: true,
+        reprovar: true,
+        motivo: "assinatura_completa_igual",
+        msg: `Comprovante duplicado — pagamento já registado (${refLabel}): ${textoAssinaturaDup(sigRef)}.`,
+        ...extra,
+      };
+    }
+    if (pixPagamentoIguais(sigNovo, sigRef)) {
+      return {
+        duplicado: true,
+        reprovar: true,
+        motivo: "pix_ja_registado",
+        msg: `Comprovante duplicado — mesmo Pix no protocolo ${sigNovo.protocolo} (${sigNovo.data} · ${currencyBRL(sigNovo.valor)} · ID ${sigNovo.idTransacao}) já consta ${refLabel}.`,
+        ...extra,
+      };
+    }
+    return null;
+  }
+
   /**
-   * Conferência DK: duplicata apenas com os 5 campos iguais (protocolo, data, hora, valor, ID).
-   * Sem ID ou hora legíveis → não marca duplicata (operador confirma manualmente).
+   * Conferência DK: duplicata = mesmo Pix (protocolo+data+valor+ID) ou assinatura completa (inclui hora).
+   * Reenvio pelo cliente do mesmo comprovante deve ser reprovado.
    */
   function detectarDuplicidadeLogica(opts) {
     const cpf = onlyDigits(opts?.cpf).slice(0, 11);
@@ -348,7 +380,7 @@
       idTransacao: opts?.idTransacao,
     });
 
-    if (!sigNovo.idTransacao || !sigNovo.hora || !sigNovo.data || !Number.isFinite(sigNovo.valor) || sigNovo.valor <= 0) {
+    if (!sigNovo.data || !Number.isFinite(sigNovo.valor) || sigNovo.valor <= 0) {
       return { duplicado: false, incompleto: true };
     }
 
@@ -356,30 +388,52 @@
       if (excludeId && r.id === excludeId) continue;
       if (onlyDigits(r.cpf) !== cpf || normProto(r.protocolo) !== proto) continue;
       if (r.status === STATUS.REJEITADO) continue;
+      if (r.status !== STATUS.CONFIRMADO && r.status !== STATUS.IA_OK && r.status !== STATUS.PENDENTE) continue;
       const sigRef = assinaturaDupDeRec(r);
-      if (!assinaturasPagamentoIguais(sigNovo, sigRef)) continue;
-      return {
-        duplicado: true,
-        motivo: "assinatura_completa_igual",
-        msg: `Pagamento duplicado (protocolo, data, hora, valor e ID iguais): ${textoAssinaturaDup(sigRef)}.`,
-        rec: r,
-      };
+      const hit = compararDuplicataComReferencia(
+        sigNovo,
+        sigRef,
+        `no envio de ${formatIsoPt(r.enviadoEm)} (${statusLabel(r.status)})`,
+        { rec: r }
+      );
+      if (hit) return hit;
     }
 
     for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
       const oid = String(p.origemComprovanteClienteId || "").trim();
       if (excludeId && oid === excludeId) continue;
       const sigRef = assinaturaDupDePagamento(p, proto);
-      if (!assinaturasPagamentoIguais(sigNovo, sigRef)) continue;
-      return {
-        duplicado: true,
-        motivo: "assinatura_completa_protocolo",
-        msg: `Pagamento duplicado (protocolo, data, hora, valor e ID iguais): ${textoAssinaturaDup(sigRef)}.`,
-        pagamento: p,
-      };
+      const hit = compararDuplicataComReferencia(
+        sigNovo,
+        sigRef,
+        `no pagamento confirmado (${normDataPagamentoBr(p.data)} · ${currencyBRL(p.valor)})`,
+        { pagamento: p }
+      );
+      if (hit) return hit;
     }
 
     return { duplicado: false };
+  }
+
+  function aplicarRejeicaoDuplicataAutomatica(id, msg, operador, iaExtra) {
+    const all = loadAll();
+    const idx = all.findIndex((r) => r.id === id);
+    if (idx < 0) return null;
+    const prevIa = all[idx].iaValidacao && typeof all[idx].iaValidacao === "object" ? all[idx].iaValidacao : {};
+    all[idx].status = STATUS.REJEITADO;
+    all[idx].rejeitadoMotivo = String(msg || "").trim();
+    all[idx].rejeitadoPorCpf = operador?.cpf || "";
+    all[idx].rejeitadoPorNome = operador?.nome ? `${operador.nome} (IA)` : "Sistema DK (duplicata)";
+    all[idx].rejeitadoEm = new Date().toISOString();
+    all[idx].rejeitadoAutomatico = true;
+    all[idx].iaValidacao = {
+      ...prevIa,
+      ...(iaExtra || {}),
+      jaProcessado: true,
+      observacoes: String(msg || "").trim(),
+    };
+    saveAll(all);
+    return all[idx];
   }
 
   /**
@@ -414,13 +468,16 @@
       if (excludeId && r.id === excludeId) continue;
       if (r.status === STATUS.REJEITADO) continue;
       if (fp && String(r.comprovanteFp || "") === fp) {
-        const st = statusLabel(r.status);
-        return {
-          duplicado: true,
-          msg: `Este comprovante (mesmo ficheiro) já foi enviado em ${formatIsoPt(r.enviadoEm)} (${st}). Não é possível processar de novo.`,
-          rec: r,
-          motivo: "mesmo_arquivo",
-        };
+        if (r.status === STATUS.CONFIRMADO || r.status === STATUS.IA_OK) {
+          const st = statusLabel(r.status);
+          return {
+            duplicado: true,
+            reprovar: true,
+            msg: `Comprovante duplicado — mesmo ficheiro já processado em ${formatIsoPt(r.enviadoEm)} (${st}).`,
+            rec: r,
+            motivo: "mesmo_arquivo",
+          };
+        }
       }
     }
 
@@ -784,9 +841,10 @@ AUTENTICIDADE (análise visual — colagem, montagem, fontes diferentes, bordas 
 - riscoColagemOuEdicao: baixo | medio | alto
 - observacoesAutenticidade: descreva sinais se houver risco
 
-ANTI-DUPLICATA (só referência; o sistema decide no código):
-- duplicataProvavel: true APENAS se no HISTÓRICO existir linha com os CINCO iguais: mesmo protocolo, mesma data, mesma hora, mesmo valor ao centavo, mesmo idTransacao
-- Se o histórico tiver outro valor (ex. 0,05 vs 0,06), outra hora ou outro ID → duplicataProvavel:false
+ANTI-DUPLICATA (o sistema reprova automaticamente no código):
+- duplicataProvavel: true se no HISTÓRICO já existir o MESMO Pix (protocolo ${rec.protocolo}, mesma data, mesmo valor ao centavo, mesmo idTransacao) OU os cinco campos iguais (inclui hora do comprovante)
+- Reenvio pelo cliente do mesmo comprovante de 0,05 já confirmado → duplicataProvavel:true
+- Valor diferente (0,05 vs 0,06) ou ID diferente → duplicataProvavel:false
 
 HISTÓRICO (pagamentos já processados neste protocolo):
 ${historicoTxt}`;
@@ -855,7 +913,7 @@ ${historicoTxt}`;
       const valorRef =
         valoresIguaisCentavos(valorIa, rec.valor) && valorIa > 0 ? valorIa : roundCentavos(rec.valor);
       const horaRef = horaIa || null;
-      const dupPos = detectarDuplicidadeLogica({
+      const dupPos = await detectarComprovanteDuplicado({
         cpf: rec.cpf,
         protocolo: rec.protocolo,
         dataPagamento: dataRef,
@@ -863,14 +921,28 @@ ${historicoTxt}`;
         idTransacao: idTxIa,
         horaPagamento: horaRef,
         enviadoEm: rec.enviadoEm,
+        comprovanteFp: rec.comprovanteFp,
+        arquivoBase64: rec.arquivoBase64,
         excludeId: rec.id,
       });
       if (dupPos.duplicado) {
+        const msgDup = dupPos.msg || "Comprovante duplicado — pagamento já registado neste protocolo.";
+        if (dupPos.reprovar) {
+          const rej = aplicarRejeicaoDuplicataAutomatica(id, msgDup, operador, ia);
+          return {
+            ok: false,
+            duplicata: true,
+            rejeitado: true,
+            msg: `Comprovante rejeitado automaticamente: ${msgDup}`,
+            ia: rej?.iaValidacao || { ...ia, jaProcessado: true, observacoes: msgDup },
+            rec: rej,
+          };
+        }
         return {
           ok: false,
           duplicata: true,
-          msg: dupPos.msg,
-          ia: { ...ia, jaProcessado: true, observacoes: dupPos.msg },
+          msg: msgDup,
+          ia: { ...ia, jaProcessado: true, observacoes: msgDup },
         };
       }
 
@@ -1406,6 +1478,13 @@ ${historicoTxt}`;
     return "Aguarda conferência do operador";
   }
 
+  function statusLabelComRec(r) {
+    if (r?.status === STATUS.REJEITADO && r?.rejeitadoAutomatico) {
+      return "Rejeitado (duplicata — já registado)";
+    }
+    return statusLabel(r?.status);
+  }
+
   function refreshOperadorConferenciaHint() {
     const el = document.getElementById("portalComprovanteClienteOperadorHint");
     if (!el) return;
@@ -1437,7 +1516,7 @@ ${historicoTxt}`;
             <td>${escapeHtml(r.nomeCliente || r.cpf)}</td>
             <td>${escapeHtml(r.protocolo)}</td>
             <td>${escapeHtml(currencyBRL(r.valor))}</td>
-            <td>${escapeHtml(statusLabel(r.status))}</td>
+            <td>${escapeHtml(statusLabelComRec(r))}</td>
             <td><button type="button" class="btn-primary btn-secondary-outline" data-cc-abrir="${escapeHtml(r.id)}">Abrir</button></td>
           </tr>`;
         })
@@ -1831,9 +1910,9 @@ ${historicoTxt}`;
         fb.textContent = res.ok
           ? "Conferência com IA registada pelo operador."
           : res.msg || "Falha.";
-        if (res.duplicata) fb.classList.add("comprovante-api-status--erro");
+        fb.classList.toggle("comprovante-api-status--erro", Boolean(res.duplicata || res.rejeitado));
       }
-      if (res.ok) {
+      if (res.ok || res.rejeitado) {
         fillDetalheModal(getById(comprovanteClienteUiIdAtual));
         renderListaOperador();
       }
