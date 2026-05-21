@@ -4644,6 +4644,115 @@ ${printable.innerHTML}
     };
   }
 
+  function portalNormProtoRelatorio(nc) {
+    return String(nc || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function portalFormatIsoRelatorio(iso) {
+    const raw = String(iso || "").trim();
+    if (!raw) return "—";
+    try {
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return "—";
+      return d.toLocaleString("pt-BR");
+    } catch {
+      return "—";
+    }
+  }
+
+  function loadComprovantesClienteParaRelatorio() {
+    try {
+      const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Pagamentos confirmados via app cliente (comprovante + validação DK). */
+  function collectPagamentosValidadosAppClientePorProtocolo(cpfDig, protoRaw, lancs) {
+    const digFn =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = digFn(cpfDig).slice(0, 11);
+    const proto = portalNormProtoRelatorio(protoRaw);
+    const map = new Map();
+
+    for (const r of loadComprovantesClienteParaRelatorio()) {
+      if (digFn(r.cpf) !== cpf) continue;
+      if (portalNormProtoRelatorio(r.protocolo) !== proto) continue;
+      if (String(r.status || "") !== "confirmado") continue;
+      const id = String(r.id || "").trim();
+      map.set(id || `cc_${r.confirmadoEm}`, {
+        enviadoEm: r.enviadoEm,
+        confirmadoEm: r.confirmadoEm,
+        validadoPorNome: String(r.confirmadoPorNome || "").trim() || "—",
+        valor: Number(r.valorRegistadoProtocolo ?? r.valor ?? 0),
+        arquivoUrl: String(r.arquivoBase64 || "").trim(),
+        nomeArquivo: String(r.nomeArquivo || "comprovante").trim(),
+        comprovanteId: id,
+      });
+    }
+
+    for (const lan of lancs || []) {
+      if (!lan?.confirmadoViaAppCliente) continue;
+      const id = String(lan.origemComprovanteClienteId || "").trim();
+      if (id && map.has(id)) continue;
+      const ex = id ? loadComprovantesClienteParaRelatorio().find((x) => x.id === id) : null;
+      const key = id || `lan_${lan.createdAt || lan.data}`;
+      map.set(key, {
+        enviadoEm: lan.comprovanteClienteEnviadoEm || ex?.enviadoEm || "",
+        confirmadoEm: lan.comprovanteClienteConfirmadoEm || ex?.confirmadoEm || "",
+        validadoPorNome:
+          String(lan.comprovanteValidadoPorNome || lan.registradoPorNome || ex?.confirmadoPorNome || "").trim() ||
+          "—",
+        valor: Number(lan.valor ?? ex?.valorRegistadoProtocolo ?? ex?.valor ?? 0),
+        arquivoUrl: ex?.arquivoBase64 ? String(ex.arquivoBase64).trim() : "",
+        nomeArquivo: String(ex?.nomeArquivo || "").trim(),
+        comprovanteId: id,
+      });
+    }
+
+    return Array.from(map.values())
+      .filter((x) => Number.isFinite(x.valor) && x.valor > 0)
+      .sort((a, b) => Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0));
+  }
+
+  function buildPortalRelatorioValidadosAppClienteHtml(validados, eh) {
+    if (!validados.length) {
+      return `<p class="meta portal-validados-vazio">${eh("Nenhum pagamento validado pelo app cliente neste protocolo.")}</p>`;
+    }
+    let html = `<p class="sum-title">${eh("Pagamentos validados (app cliente)")}</p>`;
+    html += `<table class="validados-app"><thead><tr>
+      <th>${eh("Envio pelo cliente")}</th>
+      <th>${eh("Validação DK")}</th>
+      <th>${eh("Funcionário DK")}</th>
+      <th>${eh("Valor pago")}</th>
+    </tr></thead><tbody>`;
+    for (const v of validados) {
+      const vf =
+        typeof currencyBRL === "function"
+          ? currencyBRL(v.valor)
+          : Number(v.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+      let valorCell = eh(vf);
+      if (v.arquivoUrl) {
+        const href = String(v.arquivoUrl).replace(/"/g, "&quot;");
+        valorCell = `<a href="${href}" target="_blank" rel="noopener noreferrer" class="lnk-comprovante" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</a>`;
+      }
+      html += `<tr>
+        <td>${eh(portalFormatIsoRelatorio(v.enviadoEm))}</td>
+        <td>${eh(portalFormatIsoRelatorio(v.confirmadoEm))}</td>
+        <td>${eh(v.validadoPorNome)}</td>
+        <td>${valorCell}</td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    return html;
+  }
+
   /** Relatório 2: por CPF, agrupa por protocolo — lista de pagamentos e resumo do protocolo (aligned ao cadastro locação). */
   function getPortalRelatorioClienteProtocolosContext(cpfDigitsRaw) {
     const digFn =
@@ -4720,6 +4829,7 @@ ${printable.innerHTML}
         placa: plateExib(loc.placa),
         lancs,
         resumo: computePortalProtocoloResumoFromLoc(loc),
+        validados: collectPagamentosValidadosAppClientePorProtocolo(dig, proto, lancs),
       };
     });
     const totalPagamentos = sections.reduce((acc, s) => acc + s.lancs.length, 0);
@@ -6891,7 +7001,7 @@ ${printable.innerHTML}
     const fnSecTitulo =
       typeof tituloProtocoloSecao === "function" ? tituloProtocoloSecao : null;
     for (const sec of sections) {
-      const { proto, placa, lancs, resumo } = sec;
+      const { proto, placa, lancs, resumo, validados } = sec;
       const tituloBloco = fnSecTitulo
         ? fnSecTitulo(sec)
         : `Protocolo ${proto} · Placa ${placa}`;
@@ -6938,7 +7048,9 @@ ${printable.innerHTML}
         }
         body += `</tr>`;
       }
-      body += `</tbody></table><hr />`;
+      body += `</tbody></table>`;
+      body += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh);
+      body += `<hr />`;
     }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
       body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
@@ -6953,6 +7065,9 @@ ${printable.innerHTML}
       table.resumo .lbl{font-size:10px;color:#555;display:block;margin-bottom:3px}
       table.resumo .val{font-size:12px;font-weight:600}
       table.resumo .val.neg{color:#b71c1c}
+      table.validados-app{margin-top:0.75rem}
+      table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline}
+      .portal-validados-vazio{margin-top:0.75rem}
       hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
     </style></head><body>
       <h1>${eh(title)}</h1>
@@ -6995,7 +7110,7 @@ ${printable.innerHTML}
     const fnSecTitulo =
       typeof tituloProtocoloSecao === "function" ? tituloProtocoloSecao : null;
     for (const sec of sections) {
-      const { proto, placa, lancs, resumo } = sec;
+      const { proto, placa, lancs, resumo, validados } = sec;
       const tituloBloco = fnSecTitulo
         ? fnSecTitulo(sec)
         : `Protocolo ${proto} · Placa ${placa}`;
@@ -7031,7 +7146,9 @@ ${printable.innerHTML}
           k === "INVESTIMENTO ACUMULADO" && resumo.investimentoAcumuladoNeg ? ' style="color:#b71c1c;font-weight:700"' : "";
         blocks += `<tr><td class="meta-key">${eh(k)}</td><td${st}>${eh(v)}</td></tr>`;
       }
-      blocks += `</tbody></table><br><br>`;
+      blocks += `</tbody></table>`;
+      blocks += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh);
+      blocks += `<br><br>`;
     }
     return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>
       table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;margin-bottom:8px}
