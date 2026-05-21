@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260521rel-pdf";
+const CACHE_NAME = "dk-cliente-v20260521rel-pdf-fix";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -11,6 +11,7 @@ const ASSETS = [
   "./cliente-notificacoes.js",
   "./cliente-contrato-resumo.js",
   "./cliente-relatorio-pagamentos.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
   "/cliente-relatorio-pagamentos.js",
   "./portal-comprovantes-cliente.js",

@@ -897,35 +897,128 @@
 
   let comprovanteFile = null;
   let lastRelatorioHtml = "";
+  let relatorioPdfRunId = 0;
+  let relatorioShareActive = false;
 
   function setRelatorioShareMsg(text) {
     const el = $("cliente-relatorio-share-msg");
     if (el) el.textContent = String(text || "").trim();
   }
 
-  async function gerarPdfBlobRelatorio(sourceBody) {
+  function fecharModalRelatorio() {
+    relatorioPdfRunId += 1;
+    relatorioShareActive = false;
+    const btn = $("btn-relatorio-compartilhar");
+    if (btn) btn.disabled = false;
+    setRelatorioShareMsg("");
+    $("cliente-modal-relatorio")?.classList.add("hidden");
+  }
+
+  function htmlRelatorioSemScripts(html) {
+    return String(html || "").replace(/<script[\s\S]*?<\/script>/gi, "");
+  }
+
+  function prepararCloneParaPdf(sourceBody) {
+    const clone = sourceBody.cloneNode(true);
+    clone.querySelectorAll("script, img, picture, svg, canvas, video, iframe, object").forEach((n) => n.remove());
+    clone.querySelectorAll("button, .lnk-comprovante").forEach((btn) => {
+      const span = document.createElement("span");
+      span.textContent = String(btn.textContent || "").trim() || "—";
+      btn.replaceWith(span);
+    });
+    return clone;
+  }
+
+  function carregarIframeRelatorioHtml(html) {
+    const clean = htmlRelatorioSemScripts(html);
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText =
+      "position:fixed;left:-9999px;top:0;width:800px;height:10px;border:0;opacity:0;pointer-events:none";
+    document.body.appendChild(iframe);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        iframe.remove();
+        reject(new Error("Tempo esgotado ao preparar o relatório."));
+      }, 20000);
+      iframe.onload = () => {
+        clearTimeout(timer);
+        resolve(iframe);
+      };
+      iframe.onerror = () => {
+        clearTimeout(timer);
+        iframe.remove();
+        reject(new Error("Não foi possível carregar o relatório."));
+      };
+      iframe.srcdoc = clean;
+    });
+  }
+
+  function gerarPdfTextoFallback(texto, titulo) {
+    const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+    if (!JsPDF) throw new Error("Gerador PDF indisponível.");
+    const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    const margin = 10;
+    const maxW = 190;
+    let y = margin;
+    doc.setFontSize(14);
+    doc.text(String(titulo || "Relatório DK"), margin, y);
+    y += 8;
+    doc.setFontSize(9);
+    const lines = doc.splitTextToSize(String(texto || "").trim() || "—", maxW);
+    for (let i = 0; i < lines.length; i++) {
+      if (y > 285) {
+        doc.addPage();
+        y = margin;
+      }
+      doc.text(lines[i], margin, y);
+      y += 4.5;
+    }
+    return doc.output("blob");
+  }
+
+  async function gerarPdfBlobRelatorio(html) {
     if (typeof window.html2pdf !== "function") {
       throw new Error("Gerador PDF indisponível. Atualize a página do app.");
     }
-    const host = document.createElement("div");
-    host.className = "cliente-relatorio-pdf-host";
-    const clone = sourceBody.cloneNode(true);
-    clone.querySelectorAll("script").forEach((s) => s.remove());
-    host.appendChild(clone);
-    document.body.appendChild(host);
+    const iframe = await carregarIframeRelatorioHtml(html);
     try {
-      return await window
-        .html2pdf()
-        .set({
-          margin: [10, 8, 10, 8],
-          pagebreak: { mode: ["css", "legacy"] },
-          html2canvas: { scale: 2, logging: false, useCORS: true, scrollY: 0 },
-          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        })
-        .from(host)
-        .output("blob");
+      const body = iframe.contentDocument?.body;
+      if (!body) throw new Error("Relatório vazio.");
+      const host = document.createElement("div");
+      host.className = "cliente-relatorio-pdf-host";
+      host.appendChild(prepararCloneParaPdf(body));
+      document.body.appendChild(host);
+      try {
+        return await Promise.race([
+          window
+            .html2pdf()
+            .set({
+              margin: [10, 8, 10, 8],
+              pagebreak: { mode: ["css", "legacy"] },
+              image: { type: "jpeg", quality: 0.92 },
+              html2canvas: {
+                scale: 1.5,
+                logging: false,
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                scrollY: 0,
+                windowWidth: 800,
+                foreignObjectRendering: false,
+              },
+              jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+            })
+            .from(host)
+            .output("blob"),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("PDF demorou demais. Tente de novo.")), 90000)
+          ),
+        ]);
+      } finally {
+        host.remove();
+      }
     } finally {
-      host.remove();
+      iframe.remove();
     }
   }
 
@@ -942,13 +1035,12 @@
   }
 
   async function compartilharRelatorioPagamentos() {
+    if (relatorioShareActive) return;
     const sessao = getSessao();
     if (!sessao?.cpf) return;
-    const frame = $("cliente-relatorio-frame");
-    const doc = frame?.contentDocument;
-    const body = doc?.body;
-    if (!body || !String(lastRelatorioHtml || frame?.srcdoc || "").trim()) {
-      window.alert("Gere o relatório antes de compartilhar.");
+    const html = String(lastRelatorioHtml || $("cliente-relatorio-frame")?.srcdoc || "").trim();
+    if (!html) {
+      setRelatorioShareMsg("Gere o relatório antes de compartilhar.");
       return;
     }
 
@@ -957,40 +1049,55 @@
     const nomePdf = `Relatorio-DK-${cpfDig || "cliente"}.pdf`;
     const titulo = `Relatório DK — ${sessao.nome || "Cliente"}`;
     const texto = `Relatório de pagamentos DK Locadora · ${sessao.nome || ""} · CPF ${formatCpf(sessao.cpf)}`;
+    const runId = ++relatorioPdfRunId;
 
+    relatorioShareActive = true;
     if (btn) btn.disabled = true;
     setRelatorioShareMsg("A gerar PDF… aguarde.");
 
     let pdfBlob;
     try {
-      pdfBlob = await gerarPdfBlobRelatorio(body);
-    } catch (err) {
-      setRelatorioShareMsg("");
-      if (btn) btn.disabled = false;
-      window.alert(err?.message || "Não foi possível gerar o PDF.");
-      return;
-    }
-
-    const pdfFile = new File([pdfBlob], nomePdf, { type: "application/pdf" });
-
-    if (navigator.share) {
       try {
-        await navigator.share({ title: titulo, text: texto, files: [pdfFile] });
-        setRelatorioShareMsg("Escolha WhatsApp, e-mail ou outra app na lista.");
-        if (btn) btn.disabled = false;
-        return;
-      } catch (err) {
-        if (err?.name === "AbortError") {
-          setRelatorioShareMsg("Partilha cancelada.");
-          if (btn) btn.disabled = false;
+        pdfBlob = await gerarPdfBlobRelatorio(html);
+      } catch (errPrim) {
+        const frame = $("cliente-relatorio-frame");
+        const textoRel = frame?.contentDocument?.body?.innerText || "";
+        if (!textoRel.trim()) throw errPrim;
+        setRelatorioShareMsg("Modo simplificado (sem imagens)…");
+        pdfBlob = gerarPdfTextoFallback(textoRel, titulo);
+      }
+      if (runId !== relatorioPdfRunId) return;
+
+      const pdfFile = new File([pdfBlob], nomePdf, { type: "application/pdf" });
+
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: titulo, text: texto, files: [pdfFile] });
+          if (runId === relatorioPdfRunId) {
+            setRelatorioShareMsg("Escolha WhatsApp, e-mail ou outra app na lista.");
+          }
           return;
+        } catch (err) {
+          if (err?.name === "AbortError") {
+            if (runId === relatorioPdfRunId) setRelatorioShareMsg("Partilha cancelada.");
+            return;
+          }
         }
       }
-    }
 
-    transferirPdfParaDownload(pdfBlob, nomePdf);
-    setRelatorioShareMsg("PDF transferido. Abra Downloads e partilhe por WhatsApp ou e-mail.");
-    if (btn) btn.disabled = false;
+      if (runId !== relatorioPdfRunId) return;
+      transferirPdfParaDownload(pdfBlob, nomePdf);
+      setRelatorioShareMsg("PDF guardado. Abra Downloads e partilhe por WhatsApp ou e-mail.");
+    } catch (err) {
+      if (runId === relatorioPdfRunId) {
+        setRelatorioShareMsg(err?.message || "Não foi possível gerar o PDF.");
+      }
+    } finally {
+      if (runId === relatorioPdfRunId) {
+        relatorioShareActive = false;
+        if (btn) btn.disabled = false;
+      }
+    }
   }
 
   function onComprovanteFileChange() {
@@ -1391,7 +1498,7 @@
     $("comp-arquivo")?.addEventListener("change", onComprovanteFileChange);
     $("btn-enviar-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
     $("btn-relatorio-pagamentos")?.addEventListener("click", () => openRelatorioPagamentos());
-    $("btn-relatorio-fechar")?.addEventListener("click", () => $("cliente-modal-relatorio")?.classList.add("hidden"));
+    $("btn-relatorio-fechar")?.addEventListener("click", () => fecharModalRelatorio());
     $("btn-relatorio-compartilhar")?.addEventListener("click", () => compartilharRelatorioPagamentos());
 
     const cpfIn = $("login-cpf");
