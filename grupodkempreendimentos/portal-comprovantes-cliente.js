@@ -1,9 +1,10 @@
 /**
  * Comprovantes enviados pelo App Cliente → nuvem → conferência automática (IA) e confirmação manual pelo operador.
- * Duplicata (mesma imagem) e valor divergente são recusados automaticamente; os restantes ficam aguardando confirmação.
+ * Duplicata: mesma imagem (hash) ou mesma assinatura lógica (protocolo+data+hora+valor+ID lidos na imagem).
  */
 (function portalComprovantesCliente() {
   const STORAGE_KEY = "dk_comprovantes_cliente_pendentes";
+  const BANCO_ASSINATURAS_KEY = "dk_comprovantes_banco_assinaturas";
   const STORAGE_MAX_COMPROVANTES = 500;
   const OPENAI_KEY_STORAGE = "dk_openai_api_key";
 
@@ -97,7 +98,7 @@
     return new Date(year, month - 1, day);
   }
 
-  const MIG_HISTORICO_V = "20260522hist-v3";
+  const MIG_HISTORICO_V = "20260522hist-v4-banco";
 
   function loadAllRaw() {
     try {
@@ -227,6 +228,29 @@
     };
   }
 
+  function rejeitarDuplicataAssinaturaLogica(rec, idMantido, sig) {
+    const eventos = Array.isArray(rec.historicoEventos) ? rec.historicoEventos.slice() : [];
+    eventos.push({
+      tipo: "assinatura_logica_duplicada",
+      em: new Date().toISOString(),
+      referencia: idMantido,
+      chave: chaveBancoAssinatura(sig),
+    });
+    const msgCliente = motivoDuplicataCliente(sig);
+    return {
+      ...rec,
+      status: STATUS.REJEITADO,
+      rejeitadoAutomatico: true,
+      rejeitadoMotivoCliente: msgCliente,
+      rejeitadoMotivo: `Comprovante duplicado — ${textoAssinaturaDup(sig)} (mantido ${idMantido}).`,
+      rejeitadoPorNome: OPERADOR_AUTO.nome,
+      rejeitadoEm: new Date().toISOString(),
+      assinaturaDupChave: chaveBancoAssinatura(sig),
+      historicoEventos: eventos,
+      migracaoHistoricoV: MIG_HISTORICO_V,
+    };
+  }
+
   function rejeitarEnvioExcedente(rec, idMantido) {
     const eventos = Array.isArray(rec.historicoEventos) ? rec.historicoEventos.slice() : [];
     eventos.push({ tipo: "excedente_arquivado", em: new Date().toISOString(), referencia: idMantido });
@@ -348,6 +372,52 @@
       }
     }
 
+    const porAssinatura = new Map();
+    for (const r of list) {
+      const sig = assinaturaDupDeRec(r);
+      const k = chaveBancoAssinatura(sig);
+      if (!k) continue;
+      if (!porAssinatura.has(k)) porAssinatura.set(k, []);
+      porAssinatura.get(k).push(r);
+    }
+    for (const grupo of porAssinatura.values()) {
+      if (grupo.length <= 1) continue;
+      const confirmados = grupo.filter((r) => r.status === STATUS.CONFIRMADO);
+      const sigRef = assinaturaDupDeRec(grupo[0]);
+      if (confirmados.length) {
+        const idRef = confirmados[0].id;
+        for (const r of grupo) {
+          if (r.status === STATUS.CONFIRMADO) continue;
+          const idx = list.findIndex((x) => x.id === r.id);
+          if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
+          list[idx] = rejeitarDuplicataAssinaturaLogica(list[idx], idRef, sigRef);
+          if (!silencioso) {
+            notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+          }
+          changed = true;
+        }
+        continue;
+      }
+      const fila = grupo.filter((r) => r.status === STATUS.IA_OK || r.status === STATUS.PENDENTE);
+      if (fila.length <= 1) continue;
+      fila.sort((a, b) => {
+        if (a.status === STATUS.IA_OK && b.status !== STATUS.IA_OK) return -1;
+        if (b.status === STATUS.IA_OK && a.status !== STATUS.IA_OK) return 1;
+        return Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0);
+      });
+      const manter = fila[0];
+      for (let i = 1; i < fila.length; i++) {
+        const ex = fila[i];
+        const idx = list.findIndex((x) => x.id === ex.id);
+        if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
+        list[idx] = rejeitarDuplicataAssinaturaLogica(list[idx], manter.id, sigRef);
+        if (!silencioso) {
+          notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        }
+        changed = true;
+      }
+    }
+
     const grupos = new Map();
     for (const r of list) {
       const k = chaveAgrupamentoEnvioCliente(r);
@@ -439,6 +509,7 @@
       if (leve) agendarPushNuvemAdiado();
       else pushNuvem();
     }
+    sincronizarBancoAssinaturas();
     const aguardam = list.filter((r) => r.status === STATUS.IA_OK).length;
     const confirmados = list.filter((r) => r.status === STATUS.CONFIRMADO).length;
     return { ok: true, changed, aguardam, confirmados, total: list.length };
@@ -467,6 +538,7 @@
     const { list, changed } = normalizarHistoricoComprovantes(arr);
     const final = changed ? list : arr;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(final)));
+    sincronizarBancoAssinaturas();
     pushNuvem();
   }
 
@@ -780,6 +852,121 @@
     return `protocolo ${sig.protocolo} | data ${sig.data || "—"} | hora ${horaTxt} | ${currencyBRL(sig.valor)} | ID ${sig.idTransacao || "—"}`;
   }
 
+  /** Chave única no banco: protocolo + data + hora + valor + ID (todos lidos na imagem). */
+  function chaveBancoAssinatura(sig) {
+    if (!sig?.protocolo || !sig.data || !sig.hora || !sig.idTransacao) return "";
+    if (!Number.isFinite(sig.valor) || sig.valor <= 0) return "";
+    return `${sig.protocolo}|${sig.data}|${sig.hora}|${sig.valor.toFixed(2)}|${sig.idTransacao}`;
+  }
+
+  function loadBancoAssinaturasRaw() {
+    try {
+      const raw = localStorage.getItem(BANCO_ASSINATURAS_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveBancoAssinaturasRaw(arr) {
+    try {
+      localStorage.setItem(BANCO_ASSINATURAS_KEY, JSON.stringify(Array.isArray(arr) ? arr.slice(0, 2000) : []));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function pagamentosDoProtocoloGlobal(proto) {
+    const nc = normProto(proto);
+    if (!nc) return [];
+    const rows = [];
+    const pushArr = (arr, loc) => {
+      if (!Array.isArray(arr)) return;
+      arr.forEach((p) => {
+        if (!p || typeof p !== "object") return;
+        if (!p.confirmadoViaAppCliente && !p.origemComprovanteClienteId && !p.idTransacaoComprovante) return;
+        rows.push({ pagamento: p, protocolo: nc, cpfLocacao: onlyDigits(loc.cpf).slice(0, 11) });
+      });
+    };
+    for (const loc of loadLocacoesCadastro()) {
+      if (normProto(loc.numeroContrato) !== nc) continue;
+      pushArr(loc.portalLancamentosAluguel, loc);
+      pushArr(loc.portalMultasTransito, loc);
+      pushArr(loc.portalManutencoesRegistro, loc);
+    }
+    return rows;
+  }
+
+  function coletarEntradasBancoAssinaturas() {
+    const porChave = new Map();
+    const add = (chave, meta) => {
+      if (!chave) return;
+      if (!porChave.has(chave)) porChave.set(chave, meta);
+    };
+
+    for (const r of loadAllRaw()) {
+      if (r.status === STATUS.REJEITADO) continue;
+      const sig = assinaturaDupDeRec(r);
+      const chave = chaveBancoAssinatura(sig);
+      if (!chave) continue;
+      if (r.status !== STATUS.CONFIRMADO && r.status !== STATUS.IA_OK) continue;
+      add(chave, {
+        chave,
+        protocolo: sig.protocolo,
+        cpf: onlyDigits(r.cpf).slice(0, 11),
+        comprovanteId: String(r.id || "").trim(),
+        status: r.status,
+        enviadoEm: r.enviadoEm || "",
+        fonte: "comprovante",
+      });
+    }
+
+    for (const loc of loadLocacoesCadastro()) {
+      const nc = normProto(loc.numeroContrato);
+      const cpfLoc = onlyDigits(loc.cpf).slice(0, 11);
+      const scan = (arr) => {
+        if (!Array.isArray(arr)) return;
+        for (const p of arr) {
+          const sig = assinaturaDupDePagamento(p, nc);
+          const chave = chaveBancoAssinatura(sig);
+          if (!chave) continue;
+          add(chave, {
+            chave,
+            protocolo: nc,
+            cpf: cpfLoc,
+            comprovanteId: String(p.origemComprovanteClienteId || "").trim(),
+            status: "pagamento_protocolo",
+            enviadoEm: p.comprovanteClienteEnviadoEm || "",
+            fonte: "pagamento",
+          });
+        }
+      };
+      scan(loc.portalLancamentosAluguel);
+      scan(loc.portalMultasTransito);
+      scan(loc.portalManutencoesRegistro);
+    }
+
+    return Array.from(porChave.values());
+  }
+
+  function sincronizarBancoAssinaturas() {
+    const entradas = coletarEntradasBancoAssinaturas();
+    saveBancoAssinaturasRaw(entradas);
+    return entradas;
+  }
+
+  function indiceBancoAssinaturas() {
+    const entradas = coletarEntradasBancoAssinaturas();
+    const porChave = new Map();
+    for (const e of entradas) {
+      if (!e.chave) continue;
+      if (!porChave.has(e.chave)) porChave.set(e.chave, []);
+      porChave.get(e.chave).push(e);
+    }
+    return porChave;
+  }
+
   function chavePagamentoLogica(cpf, proto, dataBr, valor, idTx, horaPagamento, enviadoEm) {
     const sig = buildAssinaturaDup({
       protocolo: proto,
@@ -838,20 +1025,39 @@
   }
 
   /**
-   * Duplicata: protocolo + data + hora + valor + ID todos lidos no comprovante e iguais a registo no sistema.
+   * Duplicata: protocolo + data + hora + valor + ID (lidos na imagem) já existem no banco / histórico.
    */
   function detectarDuplicidadeLogica(opts) {
-    const cpf = onlyDigits(opts?.cpf).slice(0, 11);
     const proto = normProto(opts?.protocolo);
     const excludeId = String(opts?.excludeId || "").trim();
-    if (cpf.length !== 11 || !proto) return { duplicado: false };
+    if (!proto) return { duplicado: false };
 
     const sigNovo = opts.assinaturaComprovante || null;
     if (!sigNovo) return { duplicado: false, incompleto: true };
 
+    const chave = chaveBancoAssinatura(sigNovo);
+    if (chave) {
+      const idx = indiceBancoAssinaturas();
+      const hits = (idx.get(chave) || []).filter(
+        (e) => !excludeId || String(e.comprovanteId || "") !== excludeId
+      );
+      if (hits.length) {
+        const ref = hits[0];
+        const sigRef = { ...sigNovo };
+        return {
+          duplicado: true,
+          reprovar: true,
+          motivo: "comprovante_igual_no_sistema",
+          msgCliente: motivoDuplicataCliente(sigNovo),
+          msg: `Comprovante duplicado (protocolo+data+hora+valor+ID): ${textoAssinaturaDup(sigRef)} — ${ref.fonte === "pagamento" ? "pagamento no protocolo" : "comprovante " + formatIsoPt(ref.enviadoEm)}.`,
+          banco: ref,
+        };
+      }
+    }
+
     for (const r of loadAll()) {
       if (excludeId && r.id === excludeId) continue;
-      if (onlyDigits(r.cpf) !== cpf || normProto(r.protocolo) !== proto) continue;
+      if (normProto(r.protocolo) !== proto) continue;
       if (r.status === STATUS.REJEITADO) continue;
       if (r.status !== STATUS.CONFIRMADO && r.status !== STATUS.IA_OK) continue;
       const sigRef = assinaturaDupDeRec(r);
@@ -861,7 +1067,8 @@
       if (hit) return hit;
     }
 
-    for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
+    for (const row of pagamentosDoProtocoloGlobal(proto)) {
+      const p = row.pagamento;
       const oid = String(p.origemComprovanteClienteId || "").trim();
       if (excludeId && oid === excludeId) continue;
       const sigRef = assinaturaDupDePagamento(p, proto);
@@ -1496,7 +1703,7 @@ LEITURA NA IMAGEM:
 AUTENTICIDADE (visual — colagem, edição, fontes, cortes):
 - comprovanteAutentico, riscoColagemOuEdicao, observacoesAutenticidade
 
-DUPLICATA: o sistema compara o ficheiro/imagem (hash), não texto da imagem. Sempre duplicataProvavel: false.
+DUPLICATA: o sistema compara também protocolo+data+hora+valor+ID da imagem com o banco de comprovantes. Sempre duplicataProvavel: false.
 
 O sistema rejeita automaticamente se o valor lido na imagem for diferente do valor declarado (${currencyBRL(rec.valor)}).`;
 
@@ -1603,6 +1810,36 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         };
       }
 
+      const sigNovo = assinaturaDupDoComprovanteIa(ia, rec.protocolo);
+      const dupLog = detectarDuplicidadeLogica({
+        cpf: rec.cpf,
+        protocolo: rec.protocolo,
+        excludeId: rec.id,
+        assinaturaComprovante: sigNovo,
+      });
+      if (dupLog.duplicado && dupLog.reprovar) {
+        ia.jaProcessado = true;
+        ia.protocoloAntiDuplicata = "protocolo_data_hora_valor_id_v5";
+        const rej = aplicarRejeicaoComprovanteCliente(id, dupLog.msgCliente, operador, ia, {
+          motivoInterno: dupLog.msg,
+          duplicata: true,
+        });
+        if (sigNovo) {
+          const allDup = loadAll();
+          const iDup = allDup.findIndex((r) => r.id === id);
+          if (iDup >= 0) allDup[iDup].assinaturaDupChave = chaveBancoAssinatura(sigNovo);
+          saveAll(allDup);
+        }
+        return {
+          ok: false,
+          duplicata: true,
+          rejeitado: true,
+          msg: dupLog.msgCliente,
+          ia: rej?.iaValidacao,
+          rec: rej,
+        };
+      }
+
       ia.jaProcessado = false;
       ia.confereValor = true;
       ia.confereData = Boolean(
@@ -1622,7 +1859,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         horaIa,
         null
       );
-      ia.protocoloAntiDuplicata = "mesma_imagem_hash_v4";
+      ia.protocoloAntiDuplicata = "protocolo_data_hora_valor_id_v5";
 
       ia.conferidoPorCpf = operador.cpf || "";
       ia.conferidoPorNome = operador.nome || OPERADOR_AUTO.nome;
@@ -1635,6 +1872,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       all[idx].iaValidacao = ia;
       if (idTxIa) all[idx].idTransacao = idTxIa;
       if (horaIa) all[idx].horaPagamentoLida = horaIa;
+      if (sigNovo) all[idx].assinaturaDupChave = chaveBancoAssinatura(sigNovo);
       all[idx].status = STATUS.IA_OK;
       saveAll(all);
       return { ok: true, ia, rec: all[idx] };
@@ -2018,6 +2256,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       comprovanteValidadoPorCpf: regCpf,
       valorInformadoCliente: Number(rec.valor),
       valorLidoIA: rec.iaValidacao ? Number(rec.iaValidacao.valor) : undefined,
+      idTransacaoComprovante: idTransacaoDoRec(rec),
+      horaPagamentoComprovante:
+        String(rec?.iaValidacao?.horaPagamento || rec?.horaPagamentoLida || "").trim() ||
+        normInstantePagamento(rec.enviadoEm, rec.dataPagamento, null).replace(/^\d{2}\/\d{2}\/\d{4}\s/, ""),
       registroComValorComprovanteIA: valorInformadoDivergeDaIA(rec),
     };
     loc.portalLancamentosAluguel.push(entry);
@@ -2082,6 +2324,21 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       return {
         ok: false,
         msg: dupConf.msgCliente || dupConf.msg,
+        duplicata: true,
+      };
+    }
+
+    const sigConf = assinaturaDupDeRec(rec);
+    const dupLogConf = detectarDuplicidadeLogica({
+      cpf: rec.cpf,
+      protocolo: rec.protocolo,
+      excludeId: rec.id,
+      assinaturaComprovante: sigConf,
+    });
+    if (dupLogConf.duplicado && dupLogConf.reprovar) {
+      return {
+        ok: false,
+        msg: dupLogConf.msgCliente || dupLogConf.msg,
         duplicata: true,
       };
     }
@@ -2766,6 +3023,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteAdd = adicionarComprovanteCliente;
   window.__DK_computeComprovanteFingerprintFromBase64 = computeComprovanteFingerprint;
   window.__DK_comprovantesClienteDetectarDuplicado = detectarComprovanteDuplicado;
+  window.__DK_comprovantesClienteDetectarDuplicidadeLogica = detectarDuplicidadeLogica;
+  window.__DK_comprovantesClienteSincronizarBancoAssinaturas = sincronizarBancoAssinaturas;
   window.__DK_comprovantesClienteListPendentes = listarPendentesOperador;
   window.__DK_comprovantesClienteListByCpf = listarPorCliente;
   window.__DK_comprovantesClienteGet = getById;
