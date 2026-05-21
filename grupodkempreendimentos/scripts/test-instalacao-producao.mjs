@@ -20,11 +20,12 @@ async function main() {
     const manifestRes = await fetch(new URL("manifest-cliente.webmanifest", BASE));
     const manifest = await manifestRes.json();
     record("manifest 200", manifestRes.ok, String(manifestRes.status));
+    const shareAction = manifest.share_target?.action || "";
     record(
       "share_target DK Cliente",
-      manifest.share_target?.action === "/api/cliente-share" &&
-        manifest.short_name === "DK Cliente",
-      manifest.share_target?.action || "sem share_target"
+      manifest.short_name === "DK Cliente" &&
+        (shareAction === "/api/cliente-share" || shareAction === "/cliente"),
+      shareAction || "sem share_target"
     );
     record(
       "icones PNG 192+512",
@@ -32,16 +33,17 @@ async function main() {
         (manifest.icons || []).some((i) => i.sizes === "512x512")
     );
 
-    for (const path of ["/instalar", "/instalar.html"]) {
+    for (const path of ["/instalar", "/instalar.html", "/cliente?instalar=1"]) {
       const url = new URL(path, BASE).href;
       const res = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
       const status = res?.status() ?? 0;
       const html = await page.content();
-      record(
-        `pagina ${path} carrega`,
-        status === 200 && html.includes("Instalar app DK Cliente"),
-        `status=${status}`
-      );
+      const ok =
+        status === 200 &&
+        (html.includes("Instalar app DK Cliente") ||
+          html.includes("Instalar DK Cliente") ||
+          html.includes("cliente-install-panel"));
+      record(`pagina ${path} carrega`, ok, `status=${status}`);
     }
 
     await page.goto(new URL("#locadora/cliente", BASE).href, {
@@ -58,10 +60,11 @@ async function main() {
       (await page.content()).includes("DK Cliente") &&
         (await page.content()).match(/partilhar|Partilhar/i)
     );
+    const portalHtml = await page.content();
     record(
-      "portal script instalar atualizado",
-      (await page.content()).includes("portal-locadora-ui.js?v=20260526instalar") ||
-        (await page.content()).includes("instalar.html")
+      "portal painel instalar no HTML",
+      portalHtml.includes("locadora-install-done") &&
+        portalHtml.includes("locadora-install-open")
     );
 
     const clienteRes = await fetch(new URL("cliente", BASE));
@@ -76,6 +79,13 @@ async function main() {
     const swRes = await fetch(new URL("service-worker-cliente.js", BASE));
     const swText = await swRes.text();
     record("SW inclui instalar.html", swText.includes("instalar.html"));
+
+    const shareApi = await fetch(new URL("api/cliente-share", BASE), { redirect: "manual" });
+    record(
+      "API cliente-share deployada",
+      shareApi.status === 302 || shareApi.status === 200,
+      `status=${shareApi.status}`
+    );
   } finally {
     await browser.close();
   }

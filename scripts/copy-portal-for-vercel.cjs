@@ -4,8 +4,8 @@
  * copiado integralmente para outputDirectory; o restante do repositório não vira HTML/CSS/JS
  * no deploy (há outros ficheiros na raiz só para desenvolvimento ou ferramentas locais).
  *
- * Rotas serverless `/api/*` vêm da pasta `api/` na raiz do repo (Redis, OpenAI comprovantes, etc.),
- * não de `grupodkempreendimentos/api/` — por isso removemos `api/` da cópia do portal.
+ * Rotas serverless `/api/*` na Vercel vêm de `grupodkempreendimentos/api/` (Root Directory do projeto).
+ * Removemos `api/` da cópia estática para não duplicar ficheiros no output.
  */
 const fs = require("fs");
 const path = require("path");
