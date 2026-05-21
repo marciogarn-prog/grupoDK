@@ -162,6 +162,23 @@ button.lnk-comprovante {
   font-size: 1rem;
 }
 
+.cliente-relatorio-share-msg {
+  margin: 0.35rem 0 0;
+  min-height: 1.2em;
+  text-align: center;
+}
+
+.cliente-relatorio-pdf-host {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  width: 210mm;
+  background: #fff;
+  color: #111;
+  pointer-events: none;
+  z-index: -1;
+}
+
 .cliente-relatorio-frame {
   width: 100%;
   flex: 1;

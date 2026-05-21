@@ -39,7 +39,7 @@
     })();
   </script>
   <link rel="stylesheet" href="styles.css?v=20260522share">
-  <link rel="stylesheet" href="cliente-app.css?v=20260521motivo-rejeicao">
+  <link rel="stylesheet" href="cliente-app.css?v=20260521rel-pdf-share">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -196,7 +196,8 @@
           <button type="button" id="btn-relatorio-fechar" class="btn-primary btn-secondary-outline" aria-label="Fechar">Fechar</button>
         </header>
         <iframe id="cliente-relatorio-frame" class="cliente-relatorio-frame" title="Pré-visualização do relatório"></iframe>
-        <button type="button" id="btn-relatorio-compartilhar" class="btn-primary" style="width:100%;margin-top:0.5rem">Compartilhar</button>
+        <p id="cliente-relatorio-share-msg" class="cliente-relatorio-share-msg subtext" role="status"></p>
+        <button type="button" id="btn-relatorio-compartilhar" class="btn-primary" style="width:100%;margin-top:0.5rem">Compartilhar PDF</button>
       </div>
     </div>
 
@@ -212,6 +213,7 @@
   <script src="cliente-contrato-resumo.js?v=20260521dedupe-pag" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260521auto-ia" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260521dedupe-pag" defer></script>
-  <script src="cliente-app.js?v=20260521rel-compartilhar" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+  <script src="cliente-app.js?v=20260521rel-pdf-share" defer></script>
 </body>
 </html>

@@ -898,46 +898,99 @@
   let comprovanteFile = null;
   let lastRelatorioHtml = "";
 
+  function setRelatorioShareMsg(text) {
+    const el = $("cliente-relatorio-share-msg");
+    if (el) el.textContent = String(text || "").trim();
+  }
+
+  async function gerarPdfBlobRelatorio(sourceBody) {
+    if (typeof window.html2pdf !== "function") {
+      throw new Error("Gerador PDF indisponível. Atualize a página do app.");
+    }
+    const host = document.createElement("div");
+    host.className = "cliente-relatorio-pdf-host";
+    const clone = sourceBody.cloneNode(true);
+    clone.querySelectorAll("script").forEach((s) => s.remove());
+    host.appendChild(clone);
+    document.body.appendChild(host);
+    try {
+      return await window
+        .html2pdf()
+        .set({
+          margin: [10, 8, 10, 8],
+          pagebreak: { mode: ["css", "legacy"] },
+          html2canvas: { scale: 2, logging: false, useCORS: true, scrollY: 0 },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(host)
+        .output("blob");
+    } finally {
+      host.remove();
+    }
+  }
+
+  function transferirPdfParaDownload(pdfBlob, nomeArquivo) {
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nomeArquivo;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+
   async function compartilharRelatorioPagamentos() {
     const sessao = getSessao();
     if (!sessao?.cpf) return;
-    const html = String(lastRelatorioHtml || $("cliente-relatorio-frame")?.srcdoc || "").trim();
-    if (!html) {
+    const frame = $("cliente-relatorio-frame");
+    const doc = frame?.contentDocument;
+    const body = doc?.body;
+    if (!body || !String(lastRelatorioHtml || frame?.srcdoc || "").trim()) {
       window.alert("Gere o relatório antes de compartilhar.");
       return;
     }
+
+    const btn = $("btn-relatorio-compartilhar");
+    const cpfDig = onlyDigits(sessao.cpf).slice(0, 11);
+    const nomePdf = `Relatorio-DK-${cpfDig || "cliente"}.pdf`;
     const titulo = `Relatório DK — ${sessao.nome || "Cliente"}`;
-    const texto = [
-      "Relatório de pagamentos — DK Locadora",
-      `Cliente: ${sessao.nome || "—"}`,
-      `CPF: ${formatCpf(sessao.cpf)}`,
-      `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
-    ].join("\n");
-    const nomeArquivo = `Relatorio-DK-${onlyDigits(sessao.cpf).slice(0, 11)}.html`;
-    const file = new File([html], nomeArquivo, { type: "text/html;charset=utf-8" });
+    const texto = `Relatório de pagamentos DK Locadora · ${sessao.nome || ""} · CPF ${formatCpf(sessao.cpf)}`;
+
+    if (btn) btn.disabled = true;
+    setRelatorioShareMsg("A gerar PDF… aguarde.");
+
+    let pdfBlob;
+    try {
+      pdfBlob = await gerarPdfBlobRelatorio(body);
+    } catch (err) {
+      setRelatorioShareMsg("");
+      if (btn) btn.disabled = false;
+      window.alert(err?.message || "Não foi possível gerar o PDF.");
+      return;
+    }
+
+    const pdfFile = new File([pdfBlob], nomePdf, { type: "application/pdf" });
 
     if (navigator.share) {
       try {
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          await navigator.share({ title: titulo, text: texto, files: [file] });
-          return;
-        }
-        await navigator.share({ title: titulo, text: texto });
+        await navigator.share({ title: titulo, text: texto, files: [pdfFile] });
+        setRelatorioShareMsg("Escolha WhatsApp, e-mail ou outra app na lista.");
+        if (btn) btn.disabled = false;
         return;
       } catch (err) {
-        if (err?.name === "AbortError") return;
+        if (err?.name === "AbortError") {
+          setRelatorioShareMsg("Partilha cancelada.");
+          if (btn) btn.disabled = false;
+          return;
+        }
       }
     }
 
-    const waText = encodeURIComponent(texto);
-    const abrir = window.confirm(
-      "Partilha nativa indisponível neste dispositivo.\n\nOK = abrir WhatsApp com o resumo\nCancelar = abrir e-mail"
-    );
-    if (abrir) {
-      window.open(`https://wa.me/?text=${waText}`, "_blank", "noopener,noreferrer");
-    } else {
-      window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(texto)}`;
-    }
+    transferirPdfParaDownload(pdfBlob, nomePdf);
+    setRelatorioShareMsg("PDF transferido. Abra Downloads e partilhe por WhatsApp ou e-mail.");
+    if (btn) btn.disabled = false;
   }
 
   function onComprovanteFileChange() {

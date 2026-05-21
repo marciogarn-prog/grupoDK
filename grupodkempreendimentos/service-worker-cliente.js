@@ -11,6 +11,7 @@ const ASSETS = [
   "./cliente-notificacoes.js",
   "./cliente-contrato-resumo.js",
   "./cliente-relatorio-pagamentos.js",
+  "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
   "/cliente-relatorio-pagamentos.js",
   "./portal-comprovantes-cliente.js",
   "./portal-supabase-sync.js",
