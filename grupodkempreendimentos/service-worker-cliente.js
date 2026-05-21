@@ -1,8 +1,12 @@
-const CACHE_NAME = "dk-cliente-v1";
+const CACHE_NAME = "dk-cliente-v20260520";
 const ASSETS = [
   "./cliente.html",
   "./cliente-app.js",
   "./cliente-app.css",
+  "./cliente-notificacoes.js",
+  "./cliente-contrato-resumo.js",
+  "./portal-comprovantes-cliente.js",
+  "./portal-supabase-sync.js",
   "./styles.css",
   "./manifest-cliente.webmanifest",
   "./icons/icon-cliente-192.svg",
@@ -28,6 +32,22 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) {
     event.respondWith(fetch(event.request));
+    return;
+  }
+  const isAppAsset =
+    url.pathname.endsWith(".js") ||
+    url.pathname.endsWith(".css") ||
+    url.pathname.endsWith(".html");
+  if (isAppAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then((r) => {
+          const clone = r.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+          return r;
+        })
+        .catch(() => caches.match(event.request).then((c) => c || caches.match("./cliente.html")))
+    );
     return;
   }
   if (event.request.mode === "navigate") {

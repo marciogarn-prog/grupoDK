@@ -223,60 +223,116 @@
     });
   }
 
+  function renderNotificacoes(cpf) {
+    const wrap = $("cliente-notificacoes-wrap");
+    const box = $("cliente-notificacoes");
+    const listFn = typeof window.__DK_clienteNotificacoesList === "function" ? window.__DK_clienteNotificacoesList : null;
+    if (!wrap || !box || !listFn) return;
+    const rows = listFn(cpf, { incluirLidas: false });
+    if (!rows.length) {
+      wrap.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    wrap.classList.remove("hidden");
+    box.innerHTML = rows
+      .map(
+        (n) =>
+          `<div class="cliente-notificacao" role="status"><p class="cliente-notificacao__msg">${escapeHtml(n.mensagem)}</p><p class="cliente-notificacao__meta">Protocolo ${escapeHtml(n.protocolo || "—")} · ${escapeHtml(n.criadoEm ? new Date(n.criadoEm).toLocaleString("pt-BR") : "")}</p></div>`
+      )
+      .join("");
+  }
+
+  function renderLinhaPagamento(label, data, valor, extraClass) {
+    return `<div class="cliente-pagamento-row${extraClass ? ` ${extraClass}` : ""}"><span>${escapeHtml(label)} · ${escapeHtml(data)}</span><span>${escapeHtml(currencyBRL(valor))}</span></div>`;
+  }
+
+  function renderContratoCard(loc, cpf, resumoFn) {
+    const nc = normNc(loc.numeroContrato);
+    const resumo = resumoFn ? resumoFn(loc) : null;
+    const envios = listComprovantesCliente(cpf).filter((e) => normNc(e.protocolo) === nc);
+    const lancs = resumo?.lancamentos || [];
+    const pagosHtml = lancs.length
+      ? lancs
+          .map((p) => {
+            const origem = p.confirmadoViaAppCliente
+              ? "Confirmado (envio seu)"
+              : p.registradoPorNome
+                ? `DK — ${p.registradoPorNome}`
+                : "Confirmado pela DK";
+            return renderLinhaPagamento(origem, p.data, p.valor, p.confirmadoViaAppCliente ? "cliente-pagamento-row--envio" : "");
+          })
+          .join("")
+      : "";
+    const enviosHtml = envios
+      .filter((e) => e.status !== "confirmado")
+      .map((e) =>
+        renderLinhaPagamento(statusComprovanteLabel(e.status), e.dataPagamento, e.valor, "cliente-pagamento-row--pendente")
+      )
+      .join("");
+    const servicosHtml =
+      resumo && Array.isArray(resumo.ultimaRevisaoServicos) && resumo.ultimaRevisaoServicos.length
+        ? `<ul class="cliente-revisao-servicos">${resumo.ultimaRevisaoServicos.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`
+        : '<p class="subtext cliente-em-breve">Lista de serviços da última revisão — em breve</p>';
+
+    const detalhes = resumo
+      ? `<dl class="cliente-contrato-dl">
+          <div><dt>Data de início</dt><dd>${escapeHtml(resumo.inicio || "—")}</dd></div>
+          <div><dt>Placa</dt><dd>${escapeHtml(resumo.placa || "—")}</dd></div>
+          <div><dt>Valor devido (estimado)</dt><dd>${escapeHtml(resumo.valorDevidoTexto)}</dd></div>
+          <div><dt>Total pago</dt><dd>${escapeHtml(resumo.totalPago)}</dd></div>
+          <div><dt>Tempo de locação</dt><dd>${escapeHtml(resumo.tempoLocacaoTexto)}</dd></div>
+          <div><dt>Gasto com manutenção</dt><dd>${escapeHtml(resumo.gastoManutencao)}</dd></div>
+          <div><dt>Multas registradas</dt><dd>${escapeHtml(resumo.multasRegistradas)}</dd></div>
+          <div><dt>Multas pagas e validadas pela DK</dt><dd class="cliente-em-breve">${escapeHtml(resumo.multasPagasValidadas)}</dd></div>
+          <div><dt>Tempo para concluir o plano</dt><dd>${escapeHtml(resumo.tempoRestantePlano)}</dd></div>
+          <div><dt>Data da última revisão</dt><dd class="cliente-em-breve">${escapeHtml(resumo.ultimaRevisaoData)}</dd></div>
+          <div><dt>Km da última revisão</dt><dd class="cliente-em-breve">${escapeHtml(resumo.ultimaRevisaoKm)}</dd></div>
+        </dl>
+        <h3 class="cliente-subsecao">Última revisão — serviços</h3>
+        ${servicosHtml}`
+      : `<p class="subtext">Resumo do contrato indisponível neste dispositivo.</p>`;
+
+    const corpoPag =
+      pagosHtml || enviosHtml
+        ? `<h3 class="cliente-subsecao">Pagamentos</h3>${pagosHtml}${enviosHtml}`
+        : '<p class="subtext">Sem pagamentos registados neste protocolo.</p>';
+
+    return `<article class="cliente-protocolo">
+      <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${resumo?.ativo ? ' <span class="cliente-badge-ativo">Ativo</span>' : ""}</div>
+      ${detalhes}
+      ${corpoPag}
+    </article>`;
+  }
+
   function renderApp(sessao) {
     const cpf = sessao.cpf;
     const dados = loadDadosCliente(cpf);
     $("cliente-nome").textContent = sessao.nome;
     $("cliente-cpf-label").textContent = formatCpf(cpf);
 
+    const resumoFn =
+      typeof window.__DK_clienteComputeResumoContrato === "function"
+        ? window.__DK_clienteComputeResumoContrato
+        : null;
+
     const resumo = $("cliente-resumo");
     if (resumo) {
       const nLoc = dados.locacoes.length;
       const nPag = dados.pagamentos.length;
       const total = dados.pagamentos.reduce((s, p) => s + p.valor, 0);
-      resumo.innerHTML = `<p><strong>${nLoc}</strong> contrato(s) · <strong>${nPag}</strong> pagamento(s) registado(s) · total <strong>${currencyBRL(total)}</strong></p>`;
+      resumo.innerHTML = `<p><strong>${nLoc}</strong> contrato(s) · <strong>${nPag}</strong> pagamento(s) · total pago <strong>${currencyBRL(total)}</strong></p>`;
     }
+
+    renderNotificacoes(cpf);
 
     const lista = $("cliente-contratos");
     if (lista) {
       if (!dados.locacoes.length) {
         lista.innerHTML =
-          '<p class="subtext">Nenhuma locação encontrada para este CPF neste dispositivo. Use <strong>Atualizar da nuvem</strong> se acabou de pagar.</p>';
+          '<p class="subtext">Nenhuma locação para este CPF. Ao abrir o app os dados são atualizados da nuvem; se acabou de contratar, aguarde alguns minutos e toque em <strong>Atualizar da nuvem</strong>.</p>';
       } else {
-        lista.innerHTML = dados.locacoes
-          .map((loc) => {
-            const nc = normNc(loc.numeroContrato);
-            const pagos = dados.pagamentos.filter(
-              (p) => p.protocolo === nc && !p.confirmadoViaAppCliente
-            );
-            const envios = listComprovantesCliente(cpf).filter((e) => normNc(e.protocolo) === nc);
-            const enviosHtml = envios.length
-              ? envios
-                  .map(
-                    (e) =>
-                      `<div class="cliente-pagamento-row cliente-pagamento-row--envio"><span>${escapeHtml(e.dataPagamento)} · ${escapeHtml(statusComprovanteLabel(e.status))}</span><span>${currencyBRL(e.valor)}</span></div>`
-                  )
-                  .join("")
-              : "";
-            const pagosHtml = pagos.length
-              ? pagos
-                  .map(
-                    (p) =>
-                      `<div class="cliente-pagamento-row"><span>${escapeHtml(p.data)} · Confirmado</span><span>${currencyBRL(p.valor)}</span></div>`
-                  )
-                  .join("")
-              : "";
-            const corpoPag =
-              enviosHtml || pagosHtml
-                ? `${enviosHtml}${pagosHtml}`
-                : '<p class="subtext">Sem pagamentos registados neste protocolo.</p>';
-            return `<article class="cliente-protocolo">
-              <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}</div>
-              <p class="cliente-protocolo__meta">Placa ${escapeHtml(loc.placa || "—")} · Início ${escapeHtml(String(loc.inicio || "—"))}${loc.fim ? ` · Fim ${escapeHtml(String(loc.fim))}` : " · Em curso"}</p>
-              ${corpoPag}
-            </article>`;
-          })
-          .join("");
+        lista.innerHTML = dados.locacoes.map((loc) => renderContratoCard(loc, cpf, resumoFn)).join("");
       }
     }
 
@@ -284,21 +340,37 @@
     bindCompMasks();
   }
 
-  async function pullNuvem() {
+  async function checkAtualizacaoPrograma() {
+    if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) await reg.update();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function atualizarProgramaEDados(sessao, opts) {
     const msg = $("sync-msg");
-    if (msg) msg.textContent = "A sincronizar…";
+    const silent = Boolean(opts?.silent);
+    if (msg && !silent) msg.textContent = "A atualizar programa e dados da nuvem…";
+    await checkAtualizacaoPrograma();
     try {
       if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
         await window.__DK_pullCloudSnapshotSilentMerge();
-        if (msg) msg.textContent = "Dados atualizados da nuvem.";
-      } else {
-        if (msg) msg.textContent = "Nuvem indisponível neste dispositivo.";
+        if (msg) msg.textContent = "Programa e dados atualizados.";
+      } else if (msg && !silent) {
+        msg.textContent = "Nuvem indisponível — dados só neste dispositivo.";
       }
     } catch (e) {
-      if (msg) msg.textContent = String(e?.message || "Falha ao carregar da nuvem.");
+      if (msg) msg.textContent = String(e?.message || "Falha ao atualizar da nuvem.");
     }
-    const sessao = getSessao();
     if (sessao) renderApp(sessao);
+  }
+
+  async function pullNuvem() {
+    const sessao = getSessao();
+    await atualizarProgramaEDados(sessao, { silent: false });
   }
 
   let comprovanteFile = null;
@@ -320,9 +392,9 @@
 
   function statusComprovanteLabel(st) {
     if (st === "confirmado") return "Pagamento confirmado pela DK";
-    if (st === "ia_validado") return "Em análise pela equipa";
+    if (st === "ia_validado") return "Conferido — aguarda confirmação final";
     if (st === "rejeitado") return "Não aceite — contacte a locadora";
-    return "Enviado — aguarda validação";
+    return "Enviado — aguarda conferência do operador";
   }
 
   function listComprovantesCliente(cpf) {
@@ -405,10 +477,10 @@
 
     if (msg) {
       msg.textContent =
-        "Comprovante enviado para a DK. A equipa irá validar e confirmar o pagamento. Use «Atualizar da nuvem» para ver quando estiver confirmado.";
+        "Comprovante enviado para a DK. Um operador irá conferir e confirmar; ao abrir o app verá o aviso de pagamento confirmado.";
     }
     if (btn) btn.disabled = false;
-    renderApp(sessao);
+    await atualizarProgramaEDados(sessao, { silent: true });
 
     const texto = `Comprovante DK Locadora\nCliente: ${sessao.nome}\nCPF: ${formatCpf(sessao.cpf)}\nProtocolo: ${proto}\nData: ${data}\nValor: ${currencyBRL(valor)}`;
     try {
@@ -477,10 +549,11 @@
         if (fb) fb.textContent = "CPF ou senha inválidos.";
         return;
       }
-      setSessao({ cpf, nome: hit.nome, loginEm: new Date().toISOString() });
+      const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
+      setSessao(sess);
       if (fb) fb.textContent = "";
       showView("app");
-      renderApp({ cpf, nome: hit.nome });
+      atualizarProgramaEDados(sess, { silent: false });
     });
 
     $("btn-logout")?.addEventListener("click", () => {
@@ -488,6 +561,14 @@
       showView("login");
     });
     $("btn-sync")?.addEventListener("click", () => pullNuvem());
+    $("btn-notif-lidas")?.addEventListener("click", () => {
+      const sessao = getSessao();
+      if (!sessao) return;
+      if (typeof window.__DK_clienteNotificacoesMarcarLidas === "function") {
+        window.__DK_clienteNotificacoesMarcarLidas(sessao.cpf);
+      }
+      renderNotificacoes(sessao.cpf);
+    });
     $("comp-arquivo")?.addEventListener("change", onComprovanteFileChange);
     $("btn-share-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
 
@@ -500,7 +581,7 @@
     const sessao = getSessao();
     if (sessao?.cpf) {
       showView("app");
-      renderApp(sessao);
+      atualizarProgramaEDados(sessao, { silent: false });
     } else {
       showView("login");
     }

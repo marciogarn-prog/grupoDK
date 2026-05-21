@@ -28,6 +28,7 @@
     "dk_quadro_receita_overrides",
     "dk_comprovantes_banco",
     "dk_comprovantes_cliente_pendentes",
+    "dk_cliente_notificacoes",
     "dk_audit_log",
     "dk_funcionarios_access",
   ];

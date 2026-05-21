@@ -1,5 +1,6 @@
 /**
- * Comprovantes enviados pelo App Cliente → nuvem → validação pelo operador (Lançamento de aluguel).
+ * Comprovantes enviados pelo App Cliente → nuvem → conferência pelo operador cadastrado (Lançamento de aluguel).
+ * A validação com IA é executada pelo funcionário em sessão, não de forma automática.
  */
 (function portalComprovantesCliente() {
   const STORAGE_KEY = "dk_comprovantes_cliente_pendentes";
@@ -165,6 +166,33 @@
     return String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
   }
 
+  function exigirOperadorConferencia() {
+    if (typeof window.__DK_portalOperadorPodeConferirComprovanteCliente === "function") {
+      return window.__DK_portalOperadorPodeConferirComprovanteCliente();
+    }
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) {
+        return {
+          ok: false,
+          msg: "Inicie sessão na Área da Empresa com colaborador ou administrador cadastrado.",
+        };
+      }
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") {
+        return { ok: false, msg: "A conferência só pode ser feita por funcionário com sessão ativa." };
+      }
+      const cpf = onlyDigits(s.cpf).slice(0, 11);
+      const nome = String(s.nome || "").trim();
+      if (cpf.length !== 11 || !nome) {
+        return { ok: false, msg: "Sessão do operador inválida. Entre novamente." };
+      }
+      return { ok: true, operador: { cpf, nome, role: String(s.role || "operacao").trim() } };
+    } catch {
+      return { ok: false, msg: "Sessão não encontrada." };
+    }
+  }
+
   function valoresProximos(a, b, tol = 0.02) {
     const x = Number(a);
     const y = Number(b);
@@ -173,13 +201,20 @@
   }
 
   async function validarComprovanteComIA(id) {
+    const gate = exigirOperadorConferencia();
+    if (!gate.ok) return { ok: false, msg: gate.msg };
+    const operador = gate.operador;
+
     const rec = getById(id);
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
+    if (rec.status === STATUS.CONFIRMADO) {
+      return { ok: false, msg: "Pagamento já confirmado." };
+    }
     const key = getStoredOpenAIKey();
     if (!key) {
       return {
         ok: false,
-        msg: "Configure a chave OpenAI no painel DK (cadastro de lançamentos) ou em Operação → defina dk_openai_api_key no navegador.",
+        msg: "Configure a chave OpenAI neste navegador (localStorage: dk_openai_api_key) para a conferência com IA.",
       };
     }
 
@@ -243,7 +278,11 @@
       if (!ia.confereValor) ia.observacoes += "Valor do comprovante difere do informado pelo cliente. ";
       if (!ia.confereData) ia.observacoes += "Data difere. ";
       if (!ia.confereCpf) ia.observacoes += "CPF no comprovante difere. ";
-      if (!ia.observacoes.trim()) ia.observacoes = "IA: dados coerentes com o pedido do cliente.";
+      if (!ia.observacoes.trim()) ia.observacoes = "Conferência IA: dados coerentes com o pedido do cliente.";
+
+      ia.conferidoPorCpf = operador.cpf;
+      ia.conferidoPorNome = operador.nome;
+      ia.conferidoPorRole = operador.role;
 
       const all = loadAll();
       const idx = all.findIndex((r) => r.id === id);
@@ -312,24 +351,23 @@
   }
 
   function confirmarComprovanteCliente(id) {
+    const gate = exigirOperadorConferencia();
+    if (!gate.ok) return { ok: false, msg: gate.msg };
+
     const rec = getById(id);
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
     if (rec.status === STATUS.CONFIRMADO) return { ok: false, msg: "Já confirmado." };
     if (rec.status !== STATUS.IA_OK) {
-      return { ok: false, msg: "Valide o comprovante com IA antes de confirmar o pagamento." };
+      return {
+        ok: false,
+        msg: "Faça a conferência do comprovante (IA) antes de confirmar o pagamento no protocolo.",
+      };
     }
     const saveLoc = persistirPagamentoNaLocacao(rec);
     if (!saveLoc.ok) return saveLoc;
 
-    let regCpf = "";
-    let regNome = "";
-    try {
-      const s = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "{}");
-      regCpf = onlyDigits(s.cpf).slice(0, 11);
-      regNome = String(s.nome || "").trim();
-    } catch {
-      /* ignore */
-    }
+    const regCpf = gate.operador.cpf;
+    const regNome = gate.operador.nome;
     const all = loadAll();
     const idx = all.findIndex((r) => r.id === id);
     if (idx >= 0) {
@@ -338,16 +376,31 @@
       all[idx].confirmadoPorNome = regNome;
       all[idx].confirmadoEm = new Date().toISOString();
       saveAll(all);
+      if (typeof window.__DK_clienteNotificacaoPagamentoConfirmado === "function") {
+        window.__DK_clienteNotificacaoPagamentoConfirmado({
+          cpf: all[idx].cpf,
+          protocolo: all[idx].protocolo,
+          valor: all[idx].valor,
+          dataPagamento: all[idx].dataPagamento,
+          comprovanteId: all[idx].id,
+        });
+      }
     }
     return { ok: true, rec: all[idx] };
   }
 
   function rejeitarComprovanteCliente(id, motivo) {
+    const gate = exigirOperadorConferencia();
+    if (!gate.ok) return { ok: false, msg: gate.msg };
+
     const all = loadAll();
     const idx = all.findIndex((r) => r.id === id);
     if (idx === -1) return { ok: false, msg: "Não encontrado." };
     all[idx].status = STATUS.REJEITADO;
     all[idx].rejeitadoMotivo = String(motivo || "").trim();
+    all[idx].rejeitadoPorCpf = gate.operador.cpf;
+    all[idx].rejeitadoPorNome = gate.operador.nome;
+    all[idx].rejeitadoEm = new Date().toISOString();
     saveAll(all);
     return { ok: true };
   }
@@ -356,10 +409,22 @@
   let comprovanteClienteUiIdAtual = "";
 
   function statusLabel(st) {
-    if (st === STATUS.CONFIRMADO) return "Confirmado";
-    if (st === STATUS.IA_OK) return "IA validado — aguarda confirmação";
-    if (st === STATUS.REJEITADO) return "Rejeitado";
-    return "Pendente";
+    if (st === STATUS.CONFIRMADO) return "Confirmado pelo operador";
+    if (st === STATUS.IA_OK) return "Conferido (IA) — aguarda confirmação";
+    if (st === STATUS.REJEITADO) return "Rejeitado pelo operador";
+    return "Aguarda conferência do operador";
+  }
+
+  function refreshOperadorConferenciaHint() {
+    const el = document.getElementById("portalComprovanteClienteOperadorHint");
+    if (!el) return;
+    const gate = exigirOperadorConferencia();
+    if (!gate.ok) {
+      el.textContent =
+        "Conferência e validação com IA: só com sessão de colaborador ou administrador cadastrado, com permissão de lançamento de aluguel.";
+      return;
+    }
+    el.textContent = `Operador em conferência: ${gate.operador.nome} (CPF ${gate.operador.cpf}). A IA é executada por este funcionário ao conferir o comprovante.`;
   }
 
   function renderListaOperador() {
@@ -393,15 +458,20 @@
     const el = document.getElementById("portalComprovanteClienteDetalheCorpo");
     if (!el) return;
     const ia = rec.iaValidacao;
+    const conferidoPor =
+      ia && ia.conferidoPorNome
+        ? `<p><strong>Conferido por:</strong> ${escapeHtml(ia.conferidoPorNome)}${ia.conferidoPorCpf ? ` · CPF ${escapeHtml(ia.conferidoPorCpf)}` : ""}</p>`
+        : "";
     const iaHtml = ia
       ? `<div class="portal-cc-ia-resumo">
-          <p><strong>Validação IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})</p>
-          <p>Valor IA: ${escapeHtml(currencyBRL(ia.valor))} ${ia.confereValor ? "✓" : "⚠"}</p>
-          <p>Data IA: ${escapeHtml(ia.dataPagamento || "—")} ${ia.confereData ? "✓" : "⚠"}</p>
-          <p>CPF IA: ${escapeHtml(ia.cpf || "—")} ${ia.confereCpf ? "✓" : "⚠"}</p>
+          <p><strong>Conferência com IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})</p>
+          ${conferidoPor}
+          <p>Valor lido: ${escapeHtml(currencyBRL(ia.valor))} ${ia.confereValor ? "✓" : "⚠"}</p>
+          <p>Data lida: ${escapeHtml(ia.dataPagamento || "—")} ${ia.confereData ? "✓" : "⚠"}</p>
+          <p>CPF lido: ${escapeHtml(ia.cpf || "—")} ${ia.confereCpf ? "✓" : "⚠"}</p>
           <p class="subtext">${escapeHtml(ia.observacoes || "")}</p>
         </div>`
-      : '<p class="subtext">IA ainda não executada neste comprovante.</p>';
+      : '<p class="subtext">Ainda não conferido. O operador cadastrado deve executar a conferência com IA.</p>';
 
     el.innerHTML = `
       <p><strong>Cliente:</strong> ${escapeHtml(rec.nomeCliente)} · CPF ${escapeHtml(rec.cpf)}</p>
@@ -415,9 +485,12 @@
 
     const btnIa = document.getElementById("portalComprovanteClienteBtnIA");
     const btnConf = document.getElementById("portalComprovanteClienteBtnConfirmar");
+    const btnRej = document.getElementById("portalComprovanteClienteBtnRejeitar");
     const btnVer = document.getElementById("portalComprovanteClienteBtnVerArquivo");
-    if (btnIa) btnIa.disabled = rec.status === STATUS.CONFIRMADO;
-    if (btnConf) btnConf.disabled = rec.status !== STATUS.IA_OK;
+    const podeConferir = exigirOperadorConferencia().ok;
+    if (btnIa) btnIa.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
+    if (btnConf) btnConf.disabled = rec.status !== STATUS.IA_OK || !podeConferir;
+    if (btnRej) btnRej.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
     if (btnVer) btnVer.disabled = !rec.arquivoBase64;
   }
 
@@ -470,9 +543,9 @@
 
     document.getElementById("portalComprovanteClienteBtnIA")?.addEventListener("click", async () => {
       const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
-      if (fb) fb.textContent = "A validar com IA…";
+      if (fb) fb.textContent = "A conferir comprovante com IA…";
       const res = await validarComprovanteComIA(comprovanteClienteUiIdAtual);
-      if (fb) fb.textContent = res.ok ? "Validação IA concluída." : res.msg || "Falha.";
+      if (fb) fb.textContent = res.ok ? "Conferência com IA registada pelo operador." : res.msg || "Falha.";
       if (res.ok) {
         fillDetalheModal(getById(comprovanteClienteUiIdAtual));
         renderListaOperador();
@@ -526,6 +599,7 @@
 
   function initOperadorUi() {
     bindOperadorUi();
+    refreshOperadorConferenciaHint();
     renderListaOperador();
   }
 
@@ -535,7 +609,10 @@
   window.__DK_comprovantesClienteGet = getById;
   window.__DK_comprovantesClienteValidateIA = validarComprovanteComIA;
   window.__DK_comprovantesClienteConfirmar = confirmarComprovanteCliente;
-  window.__DK_refreshComprovantesClienteLista = renderListaOperador;
+  window.__DK_refreshComprovantesClienteLista = function refreshComprovantesClienteLista() {
+    refreshOperadorConferenciaHint();
+    renderListaOperador();
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initOperadorUi);

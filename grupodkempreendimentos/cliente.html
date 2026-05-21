@@ -12,8 +12,8 @@
   <link rel="manifest" href="manifest-cliente.webmanifest">
   <link rel="icon" href="icons/icon-cliente-192.svg">
   <title>DK Locadora — App Cliente</title>
-  <link rel="stylesheet" href="styles.css?v=20260520apps">
-  <link rel="stylesheet" href="cliente-app.css?v=20260520apps">
+  <link rel="stylesheet" href="styles.css?v=20260520cliente-v2">
+  <link rel="stylesheet" href="cliente-app.css?v=20260520cliente-v2">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -62,8 +62,15 @@
       <div id="cliente-resumo" class="subtext"></div>
     </div>
 
+    <div id="cliente-notificacoes-wrap" class="cliente-app-card hidden" aria-live="polite">
+      <h2>Avisos DK</h2>
+      <div id="cliente-notificacoes"></div>
+      <button type="button" id="btn-notif-lidas" class="btn-primary btn-secondary-outline" style="width:100%;margin-top:0.5rem">Marcar avisos como lidos</button>
+    </div>
+
     <div class="cliente-app-card">
-      <h2>Meus contratos e pagamentos</h2>
+      <h2>Meus contratos</h2>
+      <p class="subtext">Dados do protocolo, pagamentos confirmados pela DK e envios feitos por si no app.</p>
       <div id="cliente-contratos"></div>
     </div>
 
@@ -99,9 +106,11 @@
     </p>
   </section>
 
-  <script type="module" src="supabase-init.js?v=20260520apps"></script>
-  <script src="portal-supabase-sync.js?v=20260520apps" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260520comprovante-cliente" defer></script>
-  <script src="cliente-app.js?v=20260520comprovante-cliente" defer></script>
+  <script type="module" src="supabase-init.js?v=20260520cliente-v2"></script>
+  <script src="portal-supabase-sync.js?v=20260520cliente-v2" defer></script>
+  <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
+  <script src="cliente-contrato-resumo.js?v=20260520cliente-v2" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260520cliente-v2" defer></script>
+  <script src="cliente-app.js?v=20260520cliente-v2" defer></script>
 </body>
 </html>

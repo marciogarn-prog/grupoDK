@@ -9673,8 +9673,50 @@ ${printable.innerHTML}
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
   window.__DK_openPortalLancConfirmModal = openPortalLancAluguelConfirmModal;
   window.__DK_portalConfirmarAlteracaoAdministrador = portalConfirmarAlteracaoAdministrador;
+  function getPortalOperadorConferenciaSessao() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return null;
+      const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
+      const nome = String(s.nome || "").trim();
+      if (cpf.length !== 11 || !nome) return null;
+      return { cpf, nome, role: String(s.role || "operacao").trim() };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Conferência de comprovantes do app cliente: só colaborador/admin cadastrado com lançamento de aluguel. */
+  function portalOperadorPodeConferirComprovanteCliente() {
+    const role = getPortalSessaoAdminRole();
+    if (!role) {
+      return {
+        ok: false,
+        msg: "Inicie sessão na Área da Empresa com colaborador ou administrador cadastrado.",
+      };
+    }
+    const operador = getPortalOperadorConferenciaSessao();
+    if (!operador) {
+      return { ok: false, msg: "Sessão do operador inválida. Entre novamente." };
+    }
+    if (role === "owner") return { ok: true, operador };
+    const f = getPortalSessaoEquipaFuncionario();
+    const acessos = getPortalOperacaoAcessosEfetivos(f);
+    if (!acessos?.lancamentoAluguel) {
+      return {
+        ok: false,
+        msg: "O seu cadastro não tem permissão de lançamento de aluguel para conferir comprovantes.",
+      };
+    }
+    return { ok: true, operador };
+  }
+
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
+  window.__DK_portalOperadorPodeConferirComprovanteCliente = portalOperadorPodeConferirComprovanteCliente;
   window.__DK_getPortalSessaoParaRegistroLancamento = getPortalSessaoParaRegistroLancamentoAluguel;
   window.__DK_collectLancPesquisaLinhas = collectOperacaoLancAluguelPesquisaLinhas;
   window.__DK_filterLancPesquisaLinhas = filterOperacaoLancAluguelPesquisaLinhas;

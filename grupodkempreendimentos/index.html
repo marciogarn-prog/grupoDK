@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260520comprovante-cliente">
+  <link rel="stylesheet" href="styles.css?v=20260520cliente-v2">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -766,7 +766,8 @@
           <p class="subtext operacao-inline-form__lead">Cada pagamento fica guardado no <strong>protocolo</strong> escolhido. Em <strong>Cadastro de locação</strong>, <strong>TOTAL PAGO</strong> mostra a soma de todos os lançamentos desse protocolo; <strong>TOTAL PAGO NO ANO DE 2025</strong> mostra só os lançamentos cuja <strong>data do pagamento</strong> cai em 2025.</p>
           <section id="operacaoLancClienteComprovacaoSection" class="portal-lanc-cliente-comprovacao" aria-labelledby="portal-lanc-cliente-comprovacao-title">
             <h4 id="portal-lanc-cliente-comprovacao-title" class="portal-lanc-aluguel-section__title">Confirmação de lançamento feito por cliente</h4>
-            <p class="subtext">Pagamentos enviados pelo <strong>App Cliente</strong> (comprovante em imagem ou PDF). Abra cada item, visualize o comprovante, valide com <strong>IA</strong> e confirme para registar no protocolo. O cliente vê o estado no telemóvel após sincronizar a nuvem.</p>
+            <p class="subtext">Pagamentos enviados pelo <strong>App Cliente</strong> (imagem ou PDF). O <strong>funcionário cadastrado</strong> com permissão de lançamento de aluguel abre cada item, visualiza o comprovante, faz a <strong>conferência com IA</strong> e confirma para registar no protocolo. O cliente vê o estado no telemóvel após sincronizar a nuvem.</p>
+            <p id="portalComprovanteClienteOperadorHint" class="subtext portal-comprovante-operador-hint" role="status"></p>
             <div class="portal-lanc-cliente-comprovacao__toolbar">
               <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnAtualizarLista">Atualizar da nuvem</button>
             </div>
@@ -1450,12 +1451,12 @@
   <div id="portalComprovanteClienteDetalheModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalComprovanteClienteDetalheTitulo">
     <div class="portal-modal__backdrop" data-close-cc-detalhe></div>
     <div class="portal-modal__card portal-modal__card--wide">
-      <h3 id="portalComprovanteClienteDetalheTitulo" class="portal-modal__title">Comprovante do cliente</h3>
+      <h3 id="portalComprovanteClienteDetalheTitulo" class="portal-modal__title">Conferência — comprovante do cliente</h3>
       <div id="portalComprovanteClienteDetalheCorpo" class="portal-modal__text"></div>
       <p id="portalComprovanteClienteDetalheFeedback" class="portal-feedback" role="status"></p>
       <div class="portal-modal__actions portal-modal__actions--wrap">
         <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnVerArquivo">Visualizar comprovante</button>
-        <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnIA">Validar comprovante com IA</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnIA">Conferir comprovante (IA)</button>
         <button type="button" class="btn-primary" id="portalComprovanteClienteBtnConfirmar">Confirmar pagamento</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnRejeitar">Rejeitar</button>
         <button type="button" class="btn-primary btn-secondary-outline" data-close-cc-detalhe>Fechar</button>
@@ -1554,8 +1555,9 @@
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260520locadora-hub" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260520comprovante-cliente" defer></script>
-  <script src="portal-locadora-ui.js?v=20260520comprovante-cliente" defer></script>
+  <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260520cliente-v2" defer></script>
+  <script src="portal-locadora-ui.js?v=20260520cliente-v2" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=16" defer></script>

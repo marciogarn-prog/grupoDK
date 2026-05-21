@@ -36,6 +36,10 @@ async function main() {
       html.includes("portalComprovanteClienteLista") &&
         html.includes("Confirmação de lançamento feito por cliente")
     );
+    record(
+      "portal conferência operador (texto)",
+      html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
+    );
 
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",
@@ -165,6 +169,20 @@ async function main() {
       "cliente.html exige gate (redireciona para área cliente)",
       clienteGateRedirect,
       page.url()
+    );
+
+    const clienteHtml = await page.evaluate(() => fetch("./cliente.html").then((r) => r.text()));
+    record(
+      "app cliente auto-sync e notificações",
+      clienteHtml.includes("atualizarProgramaEDados") === false &&
+        clienteHtml.includes("cliente-notificacoes.js") &&
+        clienteHtml.includes("cliente-contrato-resumo.js") &&
+        clienteHtml.includes("cliente-notificacoes-wrap"),
+      "scripts v20260520cliente-v2"
+    );
+    record(
+      "app cliente resumo contrato no HTML",
+      clienteHtml.includes("cliente-contrato-dl") && clienteHtml.includes("Meus contratos")
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
