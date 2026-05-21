@@ -166,6 +166,125 @@
     return String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
   }
 
+  let openaiServerDisponivel = null;
+
+  async function probeOpenAIServer() {
+    try {
+      const res = await fetch("/api/openai-comprovante", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ping: true }),
+      });
+      const data = await res.json();
+      openaiServerDisponivel = Boolean(data?.ok && data?.mode === "server");
+      return openaiServerDisponivel;
+    } catch {
+      openaiServerDisponivel = false;
+      return false;
+    }
+  }
+
+  async function refreshOpenAIStatusUi() {
+    const el = document.getElementById("portalComprovanteOpenAIStatus");
+    if (!el) return;
+    el.textContent = "A verificar configuração da IA…";
+    const server = await probeOpenAIServer();
+    const local = getStoredOpenAIKey();
+    if (server) {
+      el.innerHTML =
+        "✓ <strong>IA automática</strong> — chave no servidor (Vercel). Pode usar <strong>Conferir comprovante (IA)</strong>.";
+      return;
+    }
+    if (local) {
+      el.textContent =
+        "✓ Chave guardada neste navegador. Pode usar Conferir comprovante (IA). (Para todos os PCs: configure OPENAI_API_KEY na Vercel.)";
+      return;
+    }
+    el.innerHTML =
+      'IA ainda não configurada. Na <strong>Vercel</strong> → Environment Variables → <code>OPENAI_API_KEY</code> → <strong>Redeploy</strong>. Ou expanda «Chave OpenAI só neste navegador» abaixo.';
+  }
+
+  function bindOpenAIKeyUi() {
+    const saveBtn = document.getElementById("portalComprovanteOpenAIKeySave");
+    const clearBtn = document.getElementById("portalComprovanteOpenAIKeyClear");
+    const input = document.getElementById("portalComprovanteOpenAIKey");
+    if (!saveBtn || saveBtn.dataset.bound === "1") return;
+    saveBtn.dataset.bound = "1";
+
+    saveBtn.addEventListener("click", () => {
+      const k = String(input?.value || "").trim();
+      if (!k) {
+        refreshOpenAIStatusUi();
+        return;
+      }
+      localStorage.setItem(OPENAI_KEY_STORAGE, k);
+      if (input) input.value = "";
+      refreshOpenAIStatusUi();
+      const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
+      if (fb) fb.textContent = "Chave OpenAI guardada neste navegador.";
+    });
+
+    clearBtn?.addEventListener("click", () => {
+      localStorage.removeItem(OPENAI_KEY_STORAGE);
+      if (input) input.value = "";
+      refreshOpenAIStatusUi();
+      const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
+      if (fb) fb.textContent = "Chave removida deste navegador.";
+    });
+  }
+
+  async function chamarOpenAIComprovante(content) {
+    try {
+      const res = await fetch("/api/openai-comprovante", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok && data.parsed) {
+        return { ok: true, parsed: data.parsed, via: "server" };
+      }
+      if (data?.reason !== "openai_not_configured" && !res.ok) {
+        const errMsg = String(data?.error || data?.reason || res.status);
+        return { ok: false, msg: `Servidor IA: ${errMsg}` };
+      }
+    } catch (err) {
+      /* tenta chave local */
+    }
+
+    const key = getStoredOpenAIKey();
+    if (!key) {
+      return {
+        ok: false,
+        msg: "IA não configurada. Defina OPENAI_API_KEY na Vercel (redeploy) ou guarde a chave no bloco «Chave OpenAI só neste navegador».",
+      };
+    }
+
+    try {
+      const res = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [{ role: "user", content }],
+          response_format: { type: "json_object" },
+          max_tokens: 900,
+        }),
+      });
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(t.slice(0, 200) || String(res.status));
+      }
+      const data = await res.json();
+      let raw = String(data.choices?.[0]?.message?.content || "").trim();
+      const fence = raw.match(/^```(?:json)?\s*([\s\S]*?)```$/im);
+      if (fence) raw = fence[1].trim();
+      return { ok: true, parsed: JSON.parse(raw), via: "browser" };
+    } catch (err) {
+      return { ok: false, msg: err?.message || "Falha na chamada OpenAI." };
+    }
+  }
+
   function exigirOperadorConferencia() {
     if (typeof window.__DK_portalOperadorPodeConferirComprovanteCliente === "function") {
       return window.__DK_portalOperadorPodeConferirComprovanteCliente();
@@ -210,14 +329,6 @@
     if (rec.status === STATUS.CONFIRMADO) {
       return { ok: false, msg: "Pagamento já confirmado." };
     }
-    const key = getStoredOpenAIKey();
-    if (!key) {
-      return {
-        ok: false,
-        msg: "Configure a chave OpenAI neste navegador (localStorage: dk_openai_api_key) para a conferência com IA.",
-      };
-    }
-
     const schema =
       '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"pagamentoPorTerceiro":boolean}';
     const instr = `Leitor de comprovante PIX/TED/boleto em português. Responda APENAS JSON: ${schema}. CPF 11 dígitos. data dd/mm/aaaa. Compare com dados declarados pelo cliente: CPF ${rec.cpf}, protocolo ${rec.protocolo}, data ${rec.dataPagamento}, valor ${rec.valor}.`;
@@ -237,25 +348,9 @@
     }
 
     try {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [{ role: "user", content }],
-          response_format: { type: "json_object" },
-          max_tokens: 900,
-        }),
-      });
-      if (!res.ok) {
-        const t = await res.text();
-        throw new Error(t.slice(0, 200) || String(res.status));
-      }
-      const data = await res.json();
-      let raw = String(data.choices?.[0]?.message?.content || "").trim();
-      const fence = raw.match(/^```(?:json)?\s*([\s\S]*?)```$/im);
-      if (fence) raw = fence[1].trim();
-      const extr = JSON.parse(raw);
+      const oai = await chamarOpenAIComprovante(content);
+      if (!oai.ok) return { ok: false, msg: oai.msg };
+      const extr = oai.parsed;
       const valorIa = parseCurrencyBR(extr.valor);
       const cpfIa = onlyDigits(extr.cpf).slice(0, 11);
       const ia = {
@@ -514,6 +609,7 @@
     const rec = getById(id);
     if (!rec) return;
     fillDetalheModal(rec);
+    refreshOpenAIStatusUi();
     openModal("portalComprovanteClienteDetalheModal");
   }
 
@@ -762,8 +858,10 @@
   function initOperadorUi() {
     bindOperadorUi();
     bindViewerZoomUi();
+    bindOpenAIKeyUi();
     refreshOperadorConferenciaHint();
     renderListaOperador();
+    probeOpenAIServer();
   }
 
   window.__DK_comprovantesClienteAdd = adicionarComprovanteCliente;

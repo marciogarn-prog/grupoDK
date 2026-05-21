@@ -2364,6 +2364,37 @@ body {
   border: 1px solid var(--border);
 }
 
+.portal-cc-openai-setup {
+  margin: 0.65rem 0 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.portal-cc-openai-status {
+  margin: 0 0 0.5rem;
+}
+
+.portal-cc-openai-details summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  color: var(--accent);
+}
+
+.portal-cc-openai-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: flex-end;
+  margin-top: 0.5rem;
+}
+
+.portal-cc-openai-row .portal-field {
+  flex: 1 1 14rem;
+  margin: 0;
+}
+
 .cliente-pagamento-row--envio span:first-child {
   font-size: 0.82rem;
 }
