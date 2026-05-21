@@ -904,11 +904,73 @@
     if (!preview) return;
     if (!file) {
       preview.classList.remove("is-visible");
+      if (preview.src && preview.src.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(preview.src);
+        } catch {
+          /* ignore */
+        }
+      }
       preview.removeAttribute("src");
       return;
     }
+    if (preview.src && preview.src.startsWith("blob:")) {
+      try {
+        URL.revokeObjectURL(preview.src);
+      } catch {
+        /* ignore */
+      }
+    }
     preview.src = URL.createObjectURL(file);
     preview.classList.add("is-visible");
+  }
+
+  /** Limpa o formulário após envio bem-sucedido para um novo pagamento. */
+  function limparFormularioComprovante() {
+    const sel = $("comp-protocolo");
+    const dataInp = $("comp-data");
+    const valorInp = $("comp-valor");
+    const fileInp = $("comp-arquivo");
+    const preview = $("comp-preview");
+    if (sel) sel.value = "";
+    if (dataInp) dataInp.value = "";
+    if (valorInp) valorInp.value = "";
+    comprovanteFile = null;
+    if (fileInp) fileInp.value = "";
+    if (preview) {
+      if (preview.src && preview.src.startsWith("blob:")) {
+        try {
+          URL.revokeObjectURL(preview.src);
+        } catch {
+          /* ignore */
+        }
+      }
+      preview.classList.remove("is-visible");
+      preview.removeAttribute("src");
+    }
+  }
+
+  /** Limpa o formulário após envio bem-sucedido para novo pagamento. */
+  function limparFormularioComprovante() {
+    const sel = $("comp-protocolo");
+    const dataInp = $("comp-data");
+    const valorInp = $("comp-valor");
+    const fileInp = $("comp-arquivo");
+    const preview = $("comp-preview");
+    if (sel) sel.value = "";
+    if (dataInp) dataInp.value = "";
+    if (valorInp) valorInp.value = "";
+    if (fileInp) fileInp.value = "";
+    comprovanteFile = null;
+    if (preview) {
+      try {
+        if (preview.src && preview.src.startsWith("blob:")) URL.revokeObjectURL(preview.src);
+      } catch {
+        /* ignore */
+      }
+      preview.classList.remove("is-visible");
+      preview.removeAttribute("src");
+    }
   }
 
   function statusComprovanteLabel(st) {
@@ -996,25 +1058,28 @@
     });
     saveJson(COMPROVANTES_KEY, hist.slice(0, 50));
 
-    if (msg) {
-      msg.textContent =
-        "Comprovante enviado para a DK. Um operador irá conferir e confirmar; ao abrir o app verá o aviso de pagamento confirmado.";
-    }
-    if (btn) btn.disabled = false;
-    await atualizarProgramaEDados(sessao, { silent: true });
-
     const texto = `Comprovante DK Locadora\nCliente: ${sessao.nome}\nCPF: ${formatCpf(sessao.cpf)}\nProtocolo: ${proto}\nData: ${data}\nValor: ${currencyBRL(valor)}`;
+    const filePartilha = comprovanteFile;
     try {
-      if (navigator.share) {
+      if (navigator.share && filePartilha) {
         const payload = { title: "Comprovante DK Locadora", text: texto };
-        if (navigator.canShare && navigator.canShare({ files: [comprovanteFile] })) {
-          payload.files = [comprovanteFile];
+        if (navigator.canShare && navigator.canShare({ files: [filePartilha] })) {
+          payload.files = [filePartilha];
         }
         await navigator.share(payload);
       }
     } catch {
       /* partilha opcional */
     }
+
+    limparFormularioComprovante();
+    if (msg) {
+      msg.textContent =
+        "Comprovante enviado. A DK valida automaticamente; pode registar outro pagamento abaixo.";
+    }
+    if (btn) btn.disabled = false;
+    await atualizarProgramaEDados(sessao, { silent: true });
+    $("comp-protocolo")?.focus();
   }
 
   let deferredInstallPrompt = null;
