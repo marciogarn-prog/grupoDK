@@ -163,8 +163,7 @@
     };
     pushArr(loc.portalLancamentosAluguel);
     pushArr(loc.lancamentosAluguel);
-    pushArr(loc.portalMultasTransito);
-    pushArr(loc.portalManutencoesRegistro);
+    pushArr(loc.lancamentos);
     return rows;
   }
 
@@ -214,8 +213,8 @@
   }
 
   /**
-   * Protocolo: mesma data (dd/mm/aaaa) + mesmo valor (R$) no CPF+protocolo = duplicata,
-   * mesmo que o ficheiro (screenshot) seja outro.
+   * Conferência DK (IA/operador): mesma data + mesmo valor ao centavo no protocolo.
+   * O app cliente não bloqueia envio — a validação final é na DK.
    */
   function detectarDuplicidadeLogica(opts) {
     const cpf = onlyDigits(opts?.cpf).slice(0, 11);
@@ -233,7 +232,7 @@
       if (r.status === STATUS.REJEITADO) continue;
       const rData = normDataPagamentoBr(r.dataPagamento);
       const rValor = Number(r.valor);
-      if (rData !== data || !valoresProximos(rValor, valor)) continue;
+      if (rData !== data || !valoresIguaisCentavos(rValor, valor)) continue;
       if (r.status === STATUS.CONFIRMADO || r.status === STATUS.IA_OK) {
         return {
           duplicado: true,
@@ -255,7 +254,7 @@
     for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
       const pData = normDataPagamentoBr(p.data);
       const pValor = Number(parseCurrencyBR(p.valor));
-      if (pData !== data || !valoresProximos(pValor, valor)) continue;
+      if (pData !== data || !valoresIguaisCentavos(pValor, valor)) continue;
       const oid = String(p.origemComprovanteClienteId || "").trim();
       if (excludeId && oid === excludeId) continue;
       return {
@@ -350,16 +349,6 @@
     if (!arquivoBase64) return { ok: false, msg: "Anexe o comprovante (imagem ou PDF)." };
 
     const comprovanteFp = await computeComprovanteFingerprint(arquivoBase64, mimeType);
-    const dup = await detectarComprovanteDuplicado({
-      cpf,
-      protocolo: proto,
-      dataPagamento: data,
-      valor,
-      arquivoBase64,
-      mimeType,
-      comprovanteFp,
-    });
-    if (dup.duplicado) return { ok: false, msg: dup.msg, duplicata: true };
 
     const rec = {
       id: newId(),
@@ -573,6 +562,14 @@
     const y = Number(b);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
     return Math.abs(x - y) <= Math.max(tol, y * 0.01);
+  }
+
+  /** Duplicata de pagamento: valor tem de ser igual ao centavo (0,05 ≠ 0,06). */
+  function valoresIguaisCentavos(a, b) {
+    const x = Number(a);
+    const y = Number(b);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+    return Math.abs(x - y) < 0.001;
   }
 
   function valorInformadoDivergeDaIA(rec) {

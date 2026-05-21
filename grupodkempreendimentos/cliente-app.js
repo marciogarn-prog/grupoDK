@@ -952,23 +952,6 @@
     if (btn) btn.disabled = true;
     if (msg) msg.textContent = "A enviar comprovante para a nuvem…";
 
-    if (typeof window.__DK_comprovantesClienteDetectarDuplicado === "function") {
-      try {
-        const dup = await window.__DK_comprovantesClienteDetectarDuplicado({
-          cpf: sessao.cpf,
-          protocolo: proto,
-          file: comprovanteFile,
-        });
-        if (dup?.duplicado) {
-          if (msg) msg.textContent = dup.msg || "Este comprovante já foi enviado ou processado.";
-          if (btn) btn.disabled = false;
-          return;
-        }
-      } catch {
-        /* segue para adicionarComprovanteCliente (validação interna) */
-      }
-    }
-
     const addFn = typeof window.__DK_comprovantesClienteAdd === "function" ? window.__DK_comprovantesClienteAdd : null;
     let res = { ok: false, msg: "Módulo de comprovantes indisponível." };
     if (addFn) {
