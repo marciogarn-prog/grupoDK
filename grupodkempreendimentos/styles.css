@@ -2555,6 +2555,24 @@ table.validados-app .lnk-comprovante {
   background: rgba(0, 0, 0, 0.25);
 }
 
+.portal-cc-banco-assinatura {
+  margin: 0.65rem 0;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(100, 180, 255, 0.35);
+  background: rgba(30, 60, 90, 0.35);
+}
+
+.portal-cc-banco-assinatura__texto {
+  margin: 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.portal-cc-banco-assinatura__chave code {
+  font-size: 0.75rem;
+  word-break: break-all;
+}
+
 .portal-cc-historico-pre {
   margin: 0.35rem 0 0;
   padding: 0.5rem;

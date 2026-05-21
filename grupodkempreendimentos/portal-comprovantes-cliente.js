@@ -2516,6 +2516,40 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     if (vaiMostrar) renderListaRecusados72h();
   }
 
+  function renderAssinaturaBancoUi(rec) {
+    const sig = assinaturaDupDeRec(rec);
+    const chave = String(rec.assinaturaDupChave || "").trim() || chaveBancoAssinatura(sig);
+    const texto = textoAssinaturaDup(sig);
+    const dupLog =
+      sig && chave
+        ? detectarDuplicidadeLogica({
+            cpf: rec.cpf,
+            protocolo: rec.protocolo,
+            excludeId: rec.id,
+            assinaturaComprovante: sig,
+          })
+        : { duplicado: false, incompleto: true };
+
+    if (!chave) {
+      return `<div class="portal-cc-banco-assinatura subtext" role="status">
+        <p><strong>Assinatura no banco</strong> — incompleta. A chave única exige protocolo, data, hora, valor e ID da transação lidos na imagem pela IA.</p>
+        ${texto ? `<p>${escapeHtml(texto)}</p>` : ""}
+      </div>`;
+    }
+
+    const dupHit = Boolean(dupLog.duplicado);
+    const alerta = dupHit
+      ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Duplicata no banco</strong> — ${escapeHtml(dupLog.msgCliente || dupLog.msg || motivoDuplicataCliente(sig))}</p>`
+      : `<p class="subtext"><strong>Assinatura única</strong> — não há outro comprovante nem pagamento no protocolo com a mesma chave.</p>`;
+
+    return `<div class="portal-cc-banco-assinatura" role="status">
+      <p><strong>Assinatura no banco</strong></p>
+      <p class="portal-cc-banco-assinatura__texto">${escapeHtml(texto)}</p>
+      <p class="subtext portal-cc-banco-assinatura__chave"><code>${escapeHtml(chave)}</code></p>
+      ${alerta}
+    </div>`;
+  }
+
   function fillDetalheModal(rec) {
     comprovanteClienteUiIdAtual = rec.id;
     const el = document.getElementById("portalComprovanteClienteDetalheCorpo");
@@ -2526,11 +2560,26 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         ? `<p><strong>Conferido por:</strong> ${escapeHtml(ia.conferidoPorNome)}${ia.conferidoPorCpf ? ` · CPF ${escapeHtml(ia.conferidoPorCpf)}` : ""}</p>`
         : "";
     const dupUi = detectarImagemComprovanteDuplicada(rec.comprovanteFp, rec.id, { paraEnvio: false });
+    const sigUi = assinaturaDupDeRec(rec);
+    const dupLogUi =
+      sigUi && chaveBancoAssinatura(sigUi)
+        ? detectarDuplicidadeLogica({
+            cpf: rec.cpf,
+            protocolo: rec.protocolo,
+            excludeId: rec.id,
+            assinaturaComprovante: sigUi,
+          })
+        : { duplicado: false };
+    const dupLogicaHtml =
+      dupLogUi.duplicado && dupLogUi.reprovar
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Duplicata (banco)</strong> — ${escapeHtml(dupLogUi.msgCliente || dupLogUi.msg || "")}</p>`
+        : "";
     const jaProc =
       ia?.jaProcessado || dupUi.duplicado
         ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Imagem duplicada</strong> — ${escapeHtml(dupUi.msgCliente || dupUi.msg || MSG_DUP_IMAGEM_CLIENTE)}</p>`
         : "";
-    const historicoHtml = `<div class="portal-cc-historico-dup subtext"><p><strong>Anti-duplicata</strong> — o sistema reprova se a <em>mesma imagem/ficheiro</em> já tiver sido enviada ou lançada (hash do ficheiro). A IA confere o valor lido na imagem com o valor declarado pelo cliente.</p></div>`;
+    const assinaturaBancoHtml = renderAssinaturaBancoUi(rec);
+    const historicoHtml = `<div class="portal-cc-historico-dup subtext"><p><strong>Anti-duplicata</strong> — mesma <em>imagem</em> (hash) ou mesma <em>assinatura</em> (protocolo + data + hora + valor + ID lidos na imagem). A IA confere o valor lido com o valor declarado pelo cliente.</p></div>`;
     const idTxUi = idTransacaoDoRec(rec);
     const autentHtml =
       ia && (ia.riscoColagemOuEdicao === "alto" || ia.comprovanteAutentico === false)
@@ -2546,6 +2595,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       ? `<div class="portal-cc-ia-resumo">
           <p><strong>Conferência com IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})${ia.processamentoAutomatico ? " · automática" : ""}</p>
           ${jaProc}
+          ${dupLogicaHtml}
           ${autentHtml}
           ${conferidoPor}
           <p>Valor na imagem: ${escapeHtml(currencyBRL(ia.valorBruto ?? ia.valor))} ${ia.confereValor ? "✓" : "⚠"} (cliente: ${escapeHtml(currencyBRL(rec.valor))})</p>
@@ -2570,6 +2620,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       <p><strong>Ficheiro:</strong> ${escapeHtml(rec.nomeArquivo)}</p>
       <p><strong>Enviado em:</strong> ${escapeHtml(rec.enviadoEm ? new Date(rec.enviadoEm).toLocaleString("pt-BR") : "—")}</p>
       ${iaHtml}
+      ${assinaturaBancoHtml}
       ${historicoHtml}
     `;
 
@@ -2578,7 +2629,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const btnRej = document.getElementById("portalComprovanteClienteBtnRejeitar");
     const btnVer = document.getElementById("portalComprovanteClienteBtnVerArquivo");
     const podeConferir = exigirOperadorConferencia().ok;
-    const bloqueadoDup = dupUi.duplicado || Boolean(rec.iaValidacao?.jaProcessado);
+    const bloqueadoDup =
+      dupUi.duplicado || dupLogUi.duplicado || Boolean(rec.iaValidacao?.jaProcessado);
     const bloqueadoAutent =
       ia && (ia.riscoColagemOuEdicao === "alto" || ia.comprovanteAutentico === false);
     const soLeitura = rec.status === STATUS.REJEITADO;
