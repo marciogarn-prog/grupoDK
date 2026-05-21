@@ -44,12 +44,33 @@
   }
 
   function parseCurrencyBR(v) {
-    if (typeof window.parseCurrencyBR === "function") return window.parseCurrencyBR(v);
-    const cleaned = String(v || "")
-      .replace(/[R$\s]/g, "")
-      .replace(/\./g, "")
-      .replace(",", ".");
-    const n = Number(cleaned);
+    if (typeof window.parseCurrencyBR === "function" && window.parseCurrencyBR !== parseCurrencyBR) {
+      return window.parseCurrencyBR(v);
+    }
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    let s = String(v ?? "").trim();
+    if (!s) return 0;
+    s = s.replace(/[R$\s\u00A0]/gi, "");
+    const hasComma = s.includes(",");
+    const hasDot = s.includes(".");
+    if (hasComma && hasDot) {
+      const lastComma = s.lastIndexOf(",");
+      const lastDot = s.lastIndexOf(".");
+      if (lastComma > lastDot) {
+        s = s.replace(/\./g, "").replace(",", ".");
+      } else {
+        s = s.replace(/,/g, "");
+      }
+    } else if (hasComma) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else if (hasDot) {
+      const parts = s.split(".");
+      const dec = parts[parts.length - 1];
+      if (!(parts.length === 2 && dec.length > 0 && dec.length <= 2)) {
+        s = s.replace(/\./g, "");
+      }
+    }
+    const n = Number(s.replace(/[^\d.-]/g, ""));
     return Number.isFinite(n) ? n : 0;
   }
 
@@ -527,9 +548,13 @@
   async function adicionarComprovanteCliente(payload) {
     const cpf = onlyDigits(payload.cpf).slice(0, 11);
     const proto = normProto(payload.protocolo);
-    const valor = Number(payload.valor);
+    const valor = roundCentavos(
+      typeof payload.valor === "number" && Number.isFinite(payload.valor)
+        ? payload.valor
+        : parseCurrencyBR(payload.valor)
+    );
     const data = String(payload.dataPagamento || "").trim();
-    if (cpf.length !== 11 || !proto || valor <= 0 || !parseBrDate(data)) {
+    if (cpf.length !== 11 || !proto || !Number.isFinite(valor) || valor <= 0 || !parseBrDate(data)) {
       return { ok: false, msg: "Dados inválidos (CPF, protocolo, data ou valor)." };
     }
     let arquivoBase64 = "";
@@ -783,6 +808,18 @@
     return Math.abs(x - y) <= Math.max(tol, y * 0.01);
   }
 
+  /** IA às vezes devolve 9 em vez de 0.09 quando o pagamento é em centavos. */
+  function normalizarValorLidoIa(valorIa, valorDeclarado) {
+    const ia = roundCentavos(parseCurrencyBR(valorIa));
+    const decl = roundCentavos(valorDeclarado);
+    if (!(ia > 0) || !(decl > 0)) return ia;
+    if (valoresIguaisCentavos(ia, decl)) return ia;
+    if (decl < 1 && ia >= 1 && valoresIguaisCentavos(ia / 100, decl)) {
+      return roundCentavos(ia / 100);
+    }
+    return ia;
+  }
+
   /** Duplicata de pagamento: valor tem de ser igual ao centavo (0,05 ≠ 0,06). */
   function valoresIguaisCentavos(a, b) {
     const x = roundCentavos(a);
@@ -946,10 +983,11 @@
       '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"horaPagamento":string|null,"valor":number|null,"idTransacao":string|null,"pagamentoPorTerceiro":boolean,"comprovanteAutentico":boolean,"riscoColagemOuEdicao":"baixo"|"medio"|"alto","observacoesAutenticidade":string|null,"duplicataProvavel":boolean}';
     const instr = `Leitor de comprovante PIX/TED/boleto (português). Analise APENAS a imagem. Responda APENAS JSON: ${schema}.
 
-Valor declarado pelo cliente no app (para conferência): ${currencyBRL(rec.valor)}. Protocolo ${rec.protocolo}.
+Valor declarado pelo cliente no app (NÃO reinterpretar): ${roundCentavos(rec.valor).toFixed(2)} reais (${currencyBRL(rec.valor)}). Protocolo ${rec.protocolo}.
+CRÍTICO centavos: 0.09 = nove centavos; 9.00 = nove reais. Compare a imagem com ${roundCentavos(rec.valor).toFixed(2)}.
 
 LEITURA NA IMAGEM:
-- valor: número com 2 decimais exatas na imagem (0.05 ≠ 0.06) — obrigatório para conferência
+- valor: número JSON com 2 decimais (0.09 para nove centavos, NÃO use 9 para 0,09)
 - dataPagamento, horaPagamento, idTransacao: copie o que aparecer; null se não existir
 
 AUTENTICIDADE (visual — colagem, edição, fontes, cortes):
@@ -977,7 +1015,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       const oai = await chamarOpenAIComprovante(content);
       if (!oai.ok) return { ok: false, msg: oai.msg };
       const extr = oai.parsed;
-      const valorIa = roundCentavos(parseCurrencyBR(extr.valor));
+      const valorIa = normalizarValorLidoIa(extr.valor, rec.valor);
       const cpfIa = onlyDigits(extr.cpf).slice(0, 11);
       const idTxIa = normIdTransacao(extr.idTransacao);
       const horaIa = String(extr.horaPagamento || "").trim();

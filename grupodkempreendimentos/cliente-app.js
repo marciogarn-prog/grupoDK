@@ -57,12 +57,33 @@
   }
 
   function parseCurrencyBR(v) {
-    if (typeof window.parseCurrencyBR === "function") return window.parseCurrencyBR(v);
-    const cleaned = String(v || "")
-      .replace(/[R$\s]/g, "")
-      .replace(/\./g, "")
-      .replace(",", ".");
-    const num = Number(cleaned);
+    if (typeof window.parseCurrencyBR === "function" && window.parseCurrencyBR !== parseCurrencyBR) {
+      return window.parseCurrencyBR(v);
+    }
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    let s = String(v ?? "").trim();
+    if (!s) return 0;
+    s = s.replace(/[R$\s\u00A0]/gi, "");
+    const hasComma = s.includes(",");
+    const hasDot = s.includes(".");
+    if (hasComma && hasDot) {
+      const lastComma = s.lastIndexOf(",");
+      const lastDot = s.lastIndexOf(".");
+      if (lastComma > lastDot) {
+        s = s.replace(/\./g, "").replace(",", ".");
+      } else {
+        s = s.replace(/,/g, "");
+      }
+    } else if (hasComma) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else if (hasDot) {
+      const parts = s.split(".");
+      const dec = parts[parts.length - 1];
+      if (!(parts.length === 2 && dec.length > 0 && dec.length <= 2)) {
+        s = s.replace(/\./g, "");
+      }
+    }
+    const num = Number(s.replace(/[^\d.-]/g, ""));
     return Number.isFinite(num) ? num : 0;
   }
 
@@ -1202,7 +1223,7 @@
     if (!sessao) return;
     const proto = normNc($("comp-protocolo")?.value);
     const data = String($("comp-data")?.value || "").trim();
-    const valor = parseCurrencyBR($("comp-valor")?.value);
+    const valor = Math.round(parseCurrencyBR($("comp-valor")?.value) * 100 + Number.EPSILON) / 100;
     const msg = $("comp-msg");
     const btn = $("btn-enviar-comprovante");
     if (!proto) {

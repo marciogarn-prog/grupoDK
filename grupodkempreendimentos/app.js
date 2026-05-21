@@ -9757,13 +9757,32 @@ function getSituacaoFinanceira(contrato, opts = {}) {
 }
 
 function parseCurrencyBR(value) {
-  if (typeof value === "number") return value;
-  const cleaned = String(value || "")
-    .replace(/[R$\s]/g, "")
-    .replace(/\./g, "")
-    .replace(",", ".")
-    .replace(/[^\d.-]/g, "");
-  const num = Number(cleaned);
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  let s = String(value ?? "").trim();
+  if (!s) return 0;
+  s = s.replace(/[R$\s\u00A0]/gi, "");
+  const hasComma = s.includes(",");
+  const hasDot = s.includes(".");
+  if (hasComma && hasDot) {
+    const lastComma = s.lastIndexOf(",");
+    const lastDot = s.lastIndexOf(".");
+    if (lastComma > lastDot) {
+      s = s.replace(/\./g, "").replace(",", ".");
+    } else {
+      s = s.replace(/,/g, "");
+    }
+  } else if (hasComma) {
+    s = s.replace(/\./g, "").replace(",", ".");
+  } else if (hasDot) {
+    const parts = s.split(".");
+    const dec = parts[parts.length - 1];
+    if (parts.length === 2 && dec.length > 0 && dec.length <= 2) {
+      /* 0.09 ou 9.50 — ponto decimal */
+    } else {
+      s = s.replace(/\./g, "");
+    }
+  }
+  const num = Number(s.replace(/[^\d.-]/g, ""));
   return Number.isFinite(num) ? num : 0;
 }
 
