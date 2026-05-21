@@ -517,19 +517,181 @@
     openModal("portalComprovanteClienteDetalheModal");
   }
 
+  const CC_VIEWER_ZOOM_MIN = 0.5;
+  const CC_VIEWER_ZOOM_MAX = 5;
+  const CC_VIEWER_ZOOM_STEP = 0.25;
+  const CC_VIEWER_FRAME_BASE_W = 900;
+  let ccViewerZoom = 1;
+
+  function getViewerStage() {
+    return document.getElementById("portalComprovanteClienteViewerStage");
+  }
+
+  function getViewerScroll() {
+    return document.getElementById("portalComprovanteClienteViewerScroll");
+  }
+
+  function getViewerCard() {
+    return document.querySelector("#portalComprovanteClienteViewerModal .portal-modal__card--cc-viewer");
+  }
+
+  function applyViewerZoom() {
+    const stage = getViewerStage();
+    const lbl = document.getElementById("portalComprovanteClienteViewerZoomLbl");
+    if (!stage) return;
+    stage.style.transform = "";
+    const img = stage.querySelector("img");
+    const frameWrap = stage.querySelector(".portal-cc-viewer-frame-wrap");
+    if (img && img.naturalWidth > 0) {
+      img.style.width = `${Math.round(img.naturalWidth * ccViewerZoom)}px`;
+      img.style.height = "auto";
+    } else if (frameWrap) {
+      const w = Math.round(CC_VIEWER_FRAME_BASE_W * ccViewerZoom);
+      frameWrap.style.width = `${w}px`;
+      const frame = frameWrap.querySelector("iframe");
+      if (frame) {
+        frame.style.width = "100%";
+        frame.style.height = `${Math.round(640 * ccViewerZoom)}px`;
+      }
+    }
+    if (lbl) lbl.textContent = `${Math.round(ccViewerZoom * 100)}%`;
+  }
+
+  function setViewerZoom(z) {
+    ccViewerZoom = Math.min(CC_VIEWER_ZOOM_MAX, Math.max(CC_VIEWER_ZOOM_MIN, z));
+    applyViewerZoom();
+  }
+
+  function fitViewerToScrollWidth() {
+    const scroll = getViewerScroll();
+    const stage = getViewerStage();
+    if (!scroll || !stage) return;
+    const img = stage.querySelector("img");
+    const pad = 24;
+    const avail = Math.max(240, scroll.clientWidth - pad);
+    if (img && img.naturalWidth > 0) {
+      setViewerZoom(Math.min(CC_VIEWER_ZOOM_MAX, Math.max(CC_VIEWER_ZOOM_MIN, avail / img.naturalWidth)));
+      return;
+    }
+    setViewerZoom(Math.min(CC_VIEWER_ZOOM_MAX, Math.max(1, avail / CC_VIEWER_FRAME_BASE_W)));
+  }
+
+  /** Abertura legível: preenche altura em capturas verticais (telemóvel) ou largura em paisagem. */
+  function fitViewerReadable() {
+    const scroll = getViewerScroll();
+    const stage = getViewerStage();
+    if (!scroll || !stage) return;
+    const img = stage.querySelector("img");
+    if (!img || !img.naturalWidth || !img.naturalHeight) {
+      fitViewerToScrollWidth();
+      return;
+    }
+    const pad = 24;
+    const availW = Math.max(240, scroll.clientWidth - pad);
+    const availH = Math.max(320, scroll.clientHeight - pad);
+    const byW = availW / img.naturalWidth;
+    const byH = availH / img.naturalHeight;
+    const portrait = img.naturalHeight > img.naturalWidth * 1.15;
+    let z = portrait ? Math.max(byH, byW) : Math.max(byW, byH);
+    z = Math.min(CC_VIEWER_ZOOM_MAX, Math.max(1, z));
+    setViewerZoom(z);
+  }
+
+  function toggleViewerFullscreen() {
+    const card = getViewerCard();
+    if (!card) return;
+    const on = !card.classList.contains("is-cc-viewer-fullscreen");
+    card.classList.toggle("is-cc-viewer-fullscreen", on);
+    window.setTimeout(() => {
+      if (on) fitViewerReadable();
+      else fitViewerToScrollWidth();
+    }, 80);
+  }
+
+  function bindViewerZoomUi() {
+    const modal = document.getElementById("portalComprovanteClienteViewerModal");
+    if (!modal || modal.dataset.ccZoomBound === "1") return;
+    modal.dataset.ccZoomBound = "1";
+
+    modal.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-cc-zoom]");
+      if (!btn) return;
+      const act = btn.getAttribute("data-cc-zoom");
+      if (act === "in") setViewerZoom(ccViewerZoom + CC_VIEWER_ZOOM_STEP);
+      else if (act === "out") setViewerZoom(ccViewerZoom - CC_VIEWER_ZOOM_STEP);
+      else if (act === "reset") setViewerZoom(1);
+      else if (act === "fit") fitViewerToScrollWidth();
+      else if (act === "readable") fitViewerReadable();
+      else if (act === "fullscreen") toggleViewerFullscreen();
+    });
+
+    const scroll = getViewerScroll();
+    scroll?.addEventListener(
+      "wheel",
+      (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        e.preventDefault();
+        setViewerZoom(ccViewerZoom + (e.deltaY < 0 ? CC_VIEWER_ZOOM_STEP : -CC_VIEWER_ZOOM_STEP));
+      },
+      { passive: false }
+    );
+
+    scroll?.addEventListener("dblclick", (e) => {
+      const img = e.target.closest(".portal-cc-viewer-img");
+      if (!img) return;
+      if (ccViewerZoom < 1.75) fitViewerReadable();
+      else setViewerZoom(1);
+    });
+  }
+
   function openViewer() {
     const rec = getById(comprovanteClienteUiIdAtual);
-    const body = document.getElementById("portalComprovanteClienteViewerBody");
-    if (!rec || !body) return;
+    const stage = getViewerStage();
+    const linkAbrir = document.getElementById("portalComprovanteClienteViewerAbrir");
+    if (!rec || !stage) return;
     const url = rec.arquivoBase64;
+    getViewerCard()?.classList.remove("is-cc-viewer-fullscreen");
+    ccViewerZoom = 1;
+    applyViewerZoom();
+
     if (!url) {
-      body.innerHTML = '<p class="subtext">Sem ficheiro.</p>';
+      stage.innerHTML = '<p class="subtext">Sem ficheiro.</p>';
+      if (linkAbrir) {
+        linkAbrir.href = "#";
+        linkAbrir.classList.add("hidden");
+      }
     } else if (String(rec.mimeType || "").includes("pdf")) {
-      body.innerHTML = `<iframe src="${url}" class="portal-cc-viewer-frame" title="Comprovante PDF"></iframe>`;
+      stage.innerHTML = `<div class="portal-cc-viewer-frame-wrap"><iframe src="${url}" class="portal-cc-viewer-frame" title="Comprovante PDF"></iframe></div>`;
+      if (linkAbrir) {
+        linkAbrir.href = url;
+        linkAbrir.classList.remove("hidden");
+      }
+      window.setTimeout(() => fitViewerReadable(), 120);
     } else {
-      body.innerHTML = `<img src="${url}" alt="Comprovante" class="portal-cc-viewer-img">`;
+      stage.innerHTML = `<img src="${url}" alt="Comprovante" class="portal-cc-viewer-img">`;
+      if (linkAbrir) {
+        linkAbrir.href = url;
+        linkAbrir.classList.remove("hidden");
+      }
+      const img = stage.querySelector("img");
+      const onReady = () => {
+        fitViewerReadable();
+        scrollComprovanteAoCentro();
+      };
+      if (img) {
+        if (img.complete && img.naturalWidth) onReady();
+        else img.addEventListener("load", onReady, { once: true });
+      }
     }
     openModal("portalComprovanteClienteViewerModal");
+    window.setTimeout(() => fitViewerReadable(), 200);
+  }
+
+  function scrollComprovanteAoCentro() {
+    const scroll = getViewerScroll();
+    if (!scroll) return;
+    scroll.scrollTop = Math.max(0, (scroll.scrollHeight - scroll.clientHeight) / 2);
+    scroll.scrollLeft = Math.max(0, (scroll.scrollWidth - scroll.clientWidth) / 2);
   }
 
   function bindOperadorUi() {
@@ -599,6 +761,7 @@
 
   function initOperadorUi() {
     bindOperadorUi();
+    bindViewerZoomUi();
     refreshOperadorConferenciaHint();
     renderListaOperador();
   }

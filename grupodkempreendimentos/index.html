@@ -1466,9 +1466,22 @@
 
   <div id="portalComprovanteClienteViewerModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalComprovanteClienteViewerTitulo">
     <div class="portal-modal__backdrop" data-close-cc-viewer></div>
-    <div class="portal-modal__card portal-modal__card--wide">
+    <div class="portal-modal__card portal-modal__card--cc-viewer">
       <h3 id="portalComprovanteClienteViewerTitulo" class="portal-modal__title">Comprovante (visualização)</h3>
-      <div id="portalComprovanteClienteViewerBody" class="portal-cc-viewer-body"></div>
+      <p class="subtext portal-cc-viewer-hint">Use <strong>+</strong> / <strong>−</strong>, <strong>Ampliar para ler</strong> ou <strong>Ecrã inteiro</strong>. Duplo clique na imagem alterna zoom. <strong>Ctrl + roda</strong> também amplia.</p>
+      <div class="portal-cc-viewer-toolbar" role="toolbar" aria-label="Zoom do comprovante">
+        <button type="button" class="btn-primary portal-cc-zoom-btn" data-cc-zoom="readable">Ampliar para ler</button>
+        <button type="button" class="btn-primary btn-secondary-outline portal-cc-zoom-btn" data-cc-zoom="out" aria-label="Reduzir zoom">−</button>
+        <span id="portalComprovanteClienteViewerZoomLbl" class="portal-cc-zoom-label">100%</span>
+        <button type="button" class="btn-primary btn-secondary-outline portal-cc-zoom-btn" data-cc-zoom="in" aria-label="Aumentar zoom">+</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-cc-zoom="fullscreen">Ecrã inteiro</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-cc-zoom="reset">Tamanho original</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-cc-zoom="fit">Ajustar à largura</button>
+        <a id="portalComprovanteClienteViewerAbrir" class="btn-primary btn-secondary-outline" href="#" target="_blank" rel="noopener noreferrer">Abrir em nova janela</a>
+      </div>
+      <div id="portalComprovanteClienteViewerScroll" class="portal-cc-viewer-scroll">
+        <div id="portalComprovanteClienteViewerStage" class="portal-cc-viewer-stage"></div>
+      </div>
       <div class="portal-modal__actions">
         <button type="button" class="btn-primary btn-secondary-outline" data-close-cc-viewer>Fechar</button>
       </div>
@@ -1556,7 +1569,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260520locadora-hub" defer></script>
   <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260520cliente-v2" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260520comprovante-zoom" defer></script>
   <script src="portal-locadora-ui.js?v=20260520cliente-v2" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>

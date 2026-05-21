@@ -2263,22 +2263,94 @@ body {
   font-size: 0.88rem;
 }
 
-.portal-cc-viewer-body {
-  min-height: 12rem;
-  max-height: min(70vh, 28rem);
+.portal-modal__card--cc-viewer {
+  width: min(96vw, 56rem);
+  max-width: 96vw;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-modal__card--cc-viewer.is-cc-viewer-fullscreen {
+  width: 98vw;
+  max-width: 98vw;
+  max-height: 96vh;
+}
+
+.portal-cc-viewer-hint {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.portal-cc-viewer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.55rem;
+  margin-bottom: 0.65rem;
+}
+
+.portal-cc-zoom-btn {
+  min-width: 2.25rem;
+  padding: 0.35rem 0.55rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.portal-cc-zoom-label {
+  min-width: 3.25rem;
+  text-align: center;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.portal-cc-viewer-scroll {
+  flex: 1;
+  min-height: 55vh;
+  max-height: calc(92vh - 11rem);
   overflow: auto;
   text-align: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.75rem;
+  -webkit-overflow-scrolling: touch;
+}
+
+.portal-modal__card--cc-viewer.is-cc-viewer-fullscreen .portal-cc-viewer-scroll {
+  min-height: 72vh;
+  max-height: calc(96vh - 9rem);
+}
+
+.portal-cc-viewer-stage {
+  display: inline-block;
+  transform-origin: top center;
+  transition: transform 0.12s ease-out;
 }
 
 .portal-cc-viewer-img {
-  max-width: 100%;
-  max-height: min(65vh, 26rem);
+  display: block;
+  max-width: none;
+  width: auto;
+  height: auto;
+  max-height: none;
+  margin: 0 auto;
   border-radius: 8px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  cursor: zoom-in;
+  image-rendering: auto;
+}
+
+.portal-cc-viewer-frame-wrap {
+  display: inline-block;
+  transform-origin: top center;
 }
 
 .portal-cc-viewer-frame {
-  width: 100%;
-  min-height: 18rem;
+  width: 52rem;
+  max-width: none;
+  min-height: 36rem;
+  height: 70vh;
   border: 0;
   border-radius: 8px;
   background: #fff;
