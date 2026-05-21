@@ -103,6 +103,120 @@
     return { mime: m[1], base64: m[2] };
   }
 
+  function fingerprintComprovanteSync(str) {
+    let h = 2166136261 >>> 0;
+    const s = String(str);
+    for (let i = 0; i < s.length; i += 1) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return `fnv|${(h >>> 0).toString(16)}|${s.length}`;
+  }
+
+  async function sha256ComprovantePayload(str) {
+    const s = String(str);
+    if (!globalThis.crypto?.subtle) return fingerprintComprovanteSync(s);
+    try {
+      const enc = new TextEncoder().encode(s);
+      const max = 9 * 1024 * 1024;
+      if (enc.byteLength > max) {
+        return fingerprintComprovanteSync(`large|${s.length}|${s.slice(0, 8000)}|${s.slice(-8000)}`);
+      }
+      const buf = await crypto.subtle.digest("SHA-256", enc);
+      return Array.from(new Uint8Array(buf))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+    } catch {
+      return fingerprintComprovanteSync(s);
+    }
+  }
+
+  async function computeComprovanteFingerprint(arquivoBase64, mimeType) {
+    const raw = String(arquivoBase64 || "").trim();
+    if (!raw) return "";
+    const p = parseDataUrl(raw);
+    if (p.base64) return sha256ComprovantePayload(`img|${p.mime || mimeType || "octet"}|${p.base64}`);
+    return sha256ComprovantePayload(`raw|${raw}`);
+  }
+
+  function loadLocacoesCadastro() {
+    if (typeof loadCadastro !== "function") return [];
+    const CAD_LOC =
+      typeof CAD_LOCACOES_KEY !== "undefined" ? CAD_LOCACOES_KEY : "dk_locacoes_cadastro";
+    return loadCadastro(CAD_LOC);
+  }
+
+  function pagamentosProtocoloComComprovante(cpf, proto) {
+    const cpfDig = onlyDigits(cpf).slice(0, 11);
+    const nc = normProto(proto);
+    const loc = loadLocacoesCadastro().find(
+      (l) => onlyDigits(l.cpf) === cpfDig && normProto(l.numeroContrato) === nc
+    );
+    if (!loc) return [];
+    const rows = [];
+    const pushArr = (arr) => {
+      if (!Array.isArray(arr)) return;
+      arr.forEach((p) => {
+        if (!p || typeof p !== "object") return;
+        rows.push(p);
+      });
+    };
+    pushArr(loc.portalLancamentosAluguel);
+    pushArr(loc.lancamentosAluguel);
+    return rows;
+  }
+
+  /**
+   * Mesmo ficheiro (hash), mesmo envio pendente/confirmado, ou pagamento já ligado ao protocolo.
+   */
+  async function detectarComprovanteDuplicado(opts) {
+    const cpf = onlyDigits(opts?.cpf).slice(0, 11);
+    const proto = normProto(opts?.protocolo);
+    const excludeId = String(opts?.excludeId || "").trim();
+    let fp = String(opts?.comprovanteFp || "").trim();
+    if (!fp && opts?.arquivoBase64) {
+      fp = await computeComprovanteFingerprint(opts.arquivoBase64, opts?.mimeType);
+    }
+    if (!fp && opts?.file) {
+      const dataUrl = await fileToBase64(opts.file);
+      fp = await computeComprovanteFingerprint(dataUrl, opts.file.type);
+    }
+
+    for (const r of loadAll()) {
+      if (excludeId && r.id === excludeId) continue;
+      if (r.status === STATUS.REJEITADO) continue;
+      if (fp && String(r.comprovanteFp || "") === fp) {
+        const st = statusLabel(r.status);
+        return {
+          duplicado: true,
+          msg: `Este comprovante (mesmo ficheiro) já foi enviado em ${r.enviadoEm ? new Date(r.enviadoEm).toLocaleString("pt-BR") : "data anterior"} (${st}). Não é possível processar de novo.`,
+          rec: r,
+          motivo: "mesmo_arquivo",
+        };
+      }
+    }
+
+    for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
+      if (fp && String(p.comprovanteFp || "") === fp) {
+        return {
+          duplicado: true,
+          msg: `Este comprovante já está registado como pagamento no protocolo (${String(p.data || "")} · ${currencyBRL(p.valor)}).`,
+          motivo: "pagamento_mesmo_arquivo",
+        };
+      }
+      const oid = String(p.origemComprovanteClienteId || "").trim();
+      if (excludeId && oid === excludeId) {
+        return {
+          duplicado: true,
+          msg: "Este comprovante já foi confirmado e o pagamento já existe neste protocolo.",
+          motivo: "pagamento_ja_confirmado",
+        };
+      }
+    }
+
+    return { duplicado: false };
+  }
+
   async function adicionarComprovanteCliente(payload) {
     const cpf = onlyDigits(payload.cpf).slice(0, 11);
     const proto = normProto(payload.protocolo);
@@ -123,6 +237,16 @@
     }
     if (!arquivoBase64) return { ok: false, msg: "Anexe o comprovante (imagem ou PDF)." };
 
+    const comprovanteFp = await computeComprovanteFingerprint(arquivoBase64, mimeType);
+    const dup = await detectarComprovanteDuplicado({
+      cpf,
+      protocolo: proto,
+      arquivoBase64,
+      mimeType,
+      comprovanteFp,
+    });
+    if (dup.duplicado) return { ok: false, msg: dup.msg };
+
     const rec = {
       id: newId(),
       status: STATUS.PENDENTE,
@@ -134,6 +258,7 @@
       nomeArquivo: String(payload.nomeArquivo || "comprovante"),
       mimeType,
       arquivoBase64,
+      comprovanteFp,
       enviadoEm: new Date().toISOString(),
       iaValidacao: null,
       confirmadoPorCpf: "",
@@ -387,6 +512,25 @@
     if (rec.status === STATUS.CONFIRMADO) {
       return { ok: false, msg: "Pagamento já confirmado." };
     }
+    if (!rec.comprovanteFp && rec.arquivoBase64) {
+      rec.comprovanteFp = await computeComprovanteFingerprint(rec.arquivoBase64, rec.mimeType);
+      const all0 = loadAll();
+      const i0 = all0.findIndex((r) => r.id === id);
+      if (i0 >= 0) {
+        all0[i0].comprovanteFp = rec.comprovanteFp;
+        saveAll(all0);
+      }
+    }
+    const dupPre = await detectarComprovanteDuplicado({
+      cpf: rec.cpf,
+      protocolo: rec.protocolo,
+      comprovanteFp: rec.comprovanteFp,
+      arquivoBase64: rec.arquivoBase64,
+      excludeId: rec.id,
+    });
+    if (dupPre.duplicado) {
+      return { ok: false, msg: dupPre.msg };
+    }
     const schema =
       '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"pagamentoPorTerceiro":boolean}';
     const instr = `Leitor de comprovante PIX/TED/boleto em português. Responda APENAS JSON: ${schema}. CPF 11 dígitos. data dd/mm/aaaa. Compare com dados declarados pelo cliente: CPF ${rec.cpf}, protocolo ${rec.protocolo}, data ${rec.dataPagamento}, valor ${rec.valor}.`;
@@ -433,6 +577,19 @@
       if (!ia.confereCpf) ia.observacoes += "CPF no comprovante difere. ";
       if (!ia.observacoes.trim()) ia.observacoes = "Conferência IA: dados coerentes com o pedido do cliente.";
 
+      const dupPos = await detectarComprovanteDuplicado({
+        cpf: rec.cpf,
+        protocolo: rec.protocolo,
+        comprovanteFp: rec.comprovanteFp,
+        excludeId: rec.id,
+      });
+      if (dupPos.duplicado) {
+        ia.jaProcessado = true;
+        ia.observacoes = `${dupPos.msg} ${ia.observacoes}`.trim();
+      } else {
+        ia.jaProcessado = false;
+      }
+
       ia.conferidoPorCpf = operador.cpf;
       ia.conferidoPorNome = operador.nome;
       ia.conferidoPorRole = operador.role;
@@ -468,6 +625,19 @@
           : [];
       loc.portalLancamentosAluguel = virt.map((v) => ({ ...v }));
     }
+    const fpRec = String(rec.comprovanteFp || "").trim();
+    const jaNoProtocolo = loc.portalLancamentosAluguel.find((p) => {
+      if (!p || typeof p !== "object") return false;
+      if (String(p.origemComprovanteClienteId || "") === rec.id) return true;
+      if (fpRec && String(p.comprovanteFp || "") === fpRec) return true;
+      return false;
+    });
+    if (jaNoProtocolo) {
+      return {
+        ok: false,
+        msg: `Pagamento já registado neste protocolo (${String(jaNoProtocolo.data || "")} · ${currencyBRL(jaNoProtocolo.valor)}).`,
+      };
+    }
     let regCpf = "";
     let regNome = "Operador";
     try {
@@ -493,6 +663,7 @@
       valorPix: valorNum,
       valorCartao: 0,
       origemComprovanteClienteId: rec.id,
+      comprovanteFp: fpRec,
       confirmadoViaAppCliente: true,
       comprovanteClienteEnviadoEm: rec.enviadoEm || "",
       comprovanteClienteConfirmadoEm: new Date().toISOString(),
@@ -514,7 +685,12 @@
     return { ok: true };
   }
 
-  function confirmarComprovanteCliente(id, opts) {
+  let confirmarComprovanteEmCurso = false;
+
+  async function confirmarComprovanteCliente(id, opts) {
+    if (confirmarComprovanteEmCurso) {
+      return { ok: false, msg: "Confirmação em curso. Aguarde." };
+    }
     const gate = exigirOperadorConferencia();
     if (!gate.ok) return { ok: false, msg: gate.msg };
 
@@ -534,8 +710,33 @@
     const authDiv = autorizarConfirmacaoComDivergencia(rec, adminSenha);
     if (!authDiv.ok) return authDiv;
 
+    if (!rec.comprovanteFp && rec.arquivoBase64) {
+      rec.comprovanteFp = await computeComprovanteFingerprint(rec.arquivoBase64, rec.mimeType);
+    }
+    const dupConf = await detectarComprovanteDuplicado({
+      cpf: rec.cpf,
+      protocolo: rec.protocolo,
+      comprovanteFp: rec.comprovanteFp,
+      arquivoBase64: rec.arquivoBase64,
+      excludeId: rec.id,
+    });
+    if (dupConf.duplicado) return { ok: false, msg: dupConf.msg };
+
+    if (rec.iaValidacao?.jaProcessado) {
+      return {
+        ok: false,
+        msg: "A IA identificou que este comprovante já foi processado. Não é possível registar pagamento em duplicidade.",
+      };
+    }
+
     const valorRegisto = valorParaRegistoPagamento(rec);
-    const saveLoc = persistirPagamentoNaLocacao(rec, valorRegisto);
+    confirmarComprovanteEmCurso = true;
+    let saveLoc;
+    try {
+      saveLoc = persistirPagamentoNaLocacao(rec, valorRegisto);
+    } finally {
+      confirmarComprovanteEmCurso = false;
+    }
     if (!saveLoc.ok) return saveLoc;
 
     const regCpf = gate.operador.cpf;
@@ -635,9 +836,14 @@
       ia && ia.conferidoPorNome
         ? `<p><strong>Conferido por:</strong> ${escapeHtml(ia.conferidoPorNome)}${ia.conferidoPorCpf ? ` · CPF ${escapeHtml(ia.conferidoPorCpf)}` : ""}</p>`
         : "";
+    const jaProc =
+      ia?.jaProcessado
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Comprovante já processado</strong> — não confirme pagamento em duplicidade.</p>`
+        : "";
     const iaHtml = ia
       ? `<div class="portal-cc-ia-resumo">
           <p><strong>Conferência com IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})</p>
+          ${jaProc}
           ${conferidoPor}
           <p>Valor lido: ${escapeHtml(currencyBRL(ia.valor))} ${ia.confereValor ? "✓" : "⚠"}</p>
           <p>Data lida: ${escapeHtml(ia.dataPagamento || "—")} ${ia.confereData ? "✓" : "⚠"}</p>
@@ -662,7 +868,10 @@
     const btnVer = document.getElementById("portalComprovanteClienteBtnVerArquivo");
     const podeConferir = exigirOperadorConferencia().ok;
     if (btnIa) btnIa.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
-    if (btnConf) btnConf.disabled = rec.status !== STATUS.IA_OK || !podeConferir;
+    if (btnConf) {
+      btnConf.disabled =
+        rec.status !== STATUS.IA_OK || !podeConferir || Boolean(rec.iaValidacao?.jaProcessado);
+    }
     if (btnRej) btnRej.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
     if (btnVer) btnVer.disabled = !rec.arquivoBase64;
     refreshAdminSenhaUi(rec);
@@ -982,10 +1191,15 @@
       }
     });
 
-    document.getElementById("portalComprovanteClienteBtnConfirmar")?.addEventListener("click", () => {
+    document.getElementById("portalComprovanteClienteBtnConfirmar")?.addEventListener("click", async () => {
       const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
+      const btnConf = document.getElementById("portalComprovanteClienteBtnConfirmar");
+      if (btnConf?.disabled) return;
+      if (btnConf) btnConf.disabled = true;
       const adminSenha = String(document.getElementById("portalComprovanteAdminSenha")?.value || "").trim();
-      const res = confirmarComprovanteCliente(comprovanteClienteUiIdAtual, { adminSenha });
+      if (fb) fb.textContent = "A confirmar pagamento…";
+      const res = await confirmarComprovanteCliente(comprovanteClienteUiIdAtual, { adminSenha });
+      if (btnConf) btnConf.disabled = false;
       if (fb) fb.textContent = res.ok ? "Pagamento confirmado e registado no protocolo." : res.msg || "Erro.";
       if (res.ok) {
         renderListaOperador();
@@ -993,6 +1207,9 @@
         if (typeof window.__DK_refreshOperacaoLancAluguelFromComprovante === "function") {
           window.__DK_refreshOperacaoLancAluguelFromComprovante(res.rec);
         }
+      } else {
+        const recNow = getById(comprovanteClienteUiIdAtual);
+        if (recNow) fillDetalheModal(recNow);
       }
     });
 
@@ -1049,6 +1266,8 @@
   }
 
   window.__DK_comprovantesClienteAdd = adicionarComprovanteCliente;
+  window.__DK_computeComprovanteFingerprintFromBase64 = computeComprovanteFingerprint;
+  window.__DK_comprovantesClienteDetectarDuplicado = detectarComprovanteDuplicado;
   window.__DK_comprovantesClienteListPendentes = listarPendentesOperador;
   window.__DK_comprovantesClienteListByCpf = listarPorCliente;
   window.__DK_comprovantesClienteGet = getById;

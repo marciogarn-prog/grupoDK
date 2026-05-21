@@ -745,6 +745,31 @@
     });
   });
 
+  function buildClienteInstalarUrl(cpf, proto) {
+    const q = new URLSearchParams({ instalar: "1", cpf, proto });
+    return `/cliente?${q.toString()}`;
+  }
+
+  function showPortalInstallPanel(cpf, v) {
+    const panel = document.getElementById("locadora-install-done");
+    const msg = document.getElementById("locadora-install-msg");
+    const link = document.getElementById("locadora-install-open");
+    const nome = String(v.cliente?.nome || "").trim();
+    const url = buildClienteInstalarUrl(cpf, v.proto);
+    if (msg) {
+      msg.textContent = nome
+        ? `${nome}: toque no botão abaixo para instalar o app DK Cliente.`
+        : "Toque no botão abaixo para instalar o app DK Cliente.";
+    }
+    if (link) link.href = url;
+    panel?.classList.remove("hidden");
+    panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (locadoraAppFeedback) {
+      locadoraAppFeedback.textContent = "Validado. Use o botão «Abrir instalação do app» abaixo.";
+      locadoraAppFeedback.classList.remove("portal-feedback--error");
+    }
+  }
+
   function redirectParaInstalarAppCliente(cpf, v) {
     const gatePayload = JSON.stringify({
       cpf,
@@ -758,16 +783,15 @@
     } catch {
       /* ignore */
     }
-    const q = new URLSearchParams({
-      instalar: "1",
-      cpf,
-      proto: v.proto,
-    });
+    showPortalInstallPanel(cpf, v);
+    const url = buildClienteInstalarUrl(cpf, v.proto);
     if (locadoraAppFeedback) {
       locadoraAppFeedback.textContent =
-        "CPF e protocolo validados. A abrir página de instalação…";
+        "CPF e protocolo validados. A abrir instalação em 2 segundos… (ou use o botão abaixo).";
     }
-    window.location.assign(`/instalar.html?${q.toString()}`);
+    window.setTimeout(() => {
+      window.location.assign(url);
+    }, 2000);
   }
 
   formLocadoraAppDownload?.addEventListener("submit", async (e) => {
@@ -6839,6 +6863,11 @@ ${printable.innerHTML}
       out.valorPix = valorPix;
       out.valorCartao = valorCartao;
     }
+    const oid = String(x.origemComprovanteClienteId || "").trim();
+    const fp = String(x.comprovanteFp || "").trim();
+    if (oid) out.origemComprovanteClienteId = oid;
+    if (fp) out.comprovanteFp = fp;
+    if (x.confirmadoViaAppCliente) out.confirmadoViaAppCliente = true;
     return out;
   }
 

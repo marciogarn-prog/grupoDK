@@ -2155,6 +2155,9 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       createdAt: ca || Date.now(),
       registradoPorCpf: rp,
       registradoPorNome: String(raw.registradoPorNome || "").trim(),
+      origemComprovanteClienteId: String(raw.origemComprovanteClienteId || "").trim(),
+      comprovanteFp: String(raw.comprovanteFp || "").trim(),
+      confirmadoViaAppCliente: Boolean(raw.confirmadoViaAppCliente),
     };
     if (rawHasMeios(raw)) {
       const ve = Number(parseCurrencyBR(raw.valorEspecie ?? 0));
@@ -2189,7 +2192,19 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
   }
   const out = Array.from(byKey.values());
   out.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
-  return out;
+  const seenOid = new Set();
+  const seenFp = new Set();
+  const deduped = [];
+  for (const row of out) {
+    const oid = String(row.origemComprovanteClienteId || "").trim();
+    const fp = String(row.comprovanteFp || "").trim();
+    if (oid && seenOid.has(oid)) continue;
+    if (fp && seenFp.has(fp)) continue;
+    if (oid) seenOid.add(oid);
+    if (fp) seenFp.add(fp);
+    deduped.push(row);
+  }
+  return deduped;
 }
 
 try {
