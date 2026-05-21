@@ -10,6 +10,8 @@
   const PENDING_SHARE_SESSION_KEY = "dk_cliente_share_pending";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
   let pendingShareFocus = false;
+  /** Protocolos com lista de pagamentos expandida (ver todos). */
+  const pagamentosExpandidos = new Set();
   const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
   const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 
@@ -416,33 +418,135 @@
       .join("");
   }
 
-  function renderLinhaPagamento(label, data, valor, extraClass) {
-    return `<div class="cliente-pagamento-row${extraClass ? ` ${extraClass}` : ""}"><span>${escapeHtml(label)} · ${escapeHtml(data)}</span><span>${escapeHtml(currencyBRL(valor))}</span></div>`;
+  function pagamentoSortKey(data, extraTs) {
+    const d = parseBrDate(data);
+    const t = d && !Number.isNaN(d.getTime()) ? d.getTime() : 0;
+    const extra = Number(extraTs) || 0;
+    return Math.max(t, extra);
+  }
+
+  function buildLinhasPagamentoContrato(loc, cpf, resumo) {
+    const nc = normNc(loc.numeroContrato);
+    const linhas = [];
+    (resumo?.lancamentos || []).forEach((p) => {
+      linhas.push({
+        kind: "pago",
+        sort: pagamentoSortKey(p.data, p.createdAt),
+        label: p.confirmadoViaAppCliente
+          ? "Confirmado (envio seu)"
+          : p.registradoPorNome
+            ? `DK — ${p.registradoPorNome}`
+            : "Confirmado pela DK",
+        data: p.data,
+        valor: p.valor,
+        extraClass: p.confirmadoViaAppCliente ? "cliente-pagamento-row--envio" : "",
+      });
+    });
+    listComprovantesCliente(cpf)
+      .filter((e) => normNc(e.protocolo) === nc && e.status !== "confirmado")
+      .filter((e) => !(e.status === "rejeitado" && e.clienteDeAcordoEm))
+      .forEach((e) => {
+        const extra = Date.parse(e.rejeitadoEm || e.enviadoEm || e.iaValidadoEm || "") || 0;
+        linhas.push({
+          kind: "envio",
+          sort: pagamentoSortKey(e.dataPagamento, extra),
+          label: statusComprovanteLabel(e.status),
+          data: e.dataPagamento,
+          valor: e.valor,
+          status: e.status,
+          id: e.id,
+          extraClass: "cliente-pagamento-row--pendente",
+        });
+      });
+    linhas.sort((a, b) => b.sort - a.sort);
+    return linhas;
+  }
+
+  function renderLinhaPagamentoItem(linha) {
+    const baseClass = `cliente-pagamento-row${linha.extraClass ? ` ${linha.extraClass}` : ""}`;
+    if (linha.kind === "envio" && linha.status === "rejeitado" && linha.id) {
+      return `<div class="${baseClass} cliente-pagamento-row--rejeitado">
+        <span class="cliente-pagamento-row__label">${escapeHtml(linha.label)} · ${escapeHtml(linha.data)}</span>
+        <div class="cliente-pagamento-row__tail">
+          <button type="button" class="cliente-btn-de-acordo" data-cc-de-acordo="${escapeHtml(linha.id)}">De acordo</button>
+          <span class="cliente-pagamento-row__valor">${escapeHtml(currencyBRL(linha.valor))}</span>
+        </div>
+      </div>`;
+    }
+    return `<div class="${baseClass}"><span>${escapeHtml(linha.label)} · ${escapeHtml(linha.data)}</span><span>${escapeHtml(currencyBRL(linha.valor))}</span></div>`;
+  }
+
+  function renderSecaoPagamentos(linhas, nc) {
+    if (!linhas.length) {
+      return '<p class="subtext">Sem pagamentos registados neste protocolo.</p>';
+    }
+    const expanded = pagamentosExpandidos.has(nc);
+    const visiveis = expanded ? linhas : linhas.slice(0, 5);
+    const rowsHtml = visiveis.map((l) => renderLinhaPagamentoItem(l)).join("");
+    let toggleHtml = "";
+    if (linhas.length > 5) {
+      if (expanded) {
+        toggleHtml = `<button type="button" class="cliente-pagamentos-toggle" data-pag-collapse="${escapeHtml(nc)}" aria-label="Mostrar últimos 5 pagamentos">▲</button>`;
+      } else {
+        toggleHtml = `<button type="button" class="cliente-pagamentos-toggle" data-pag-expand="${escapeHtml(nc)}" aria-label="Ver todos os pagamentos (${linhas.length})">▼</button>`;
+      }
+    }
+    return `<h3 class="cliente-subsecao">Pagamentos</h3><div class="cliente-pagamentos-list">${rowsHtml}</div>${toggleHtml}`;
+  }
+
+  function marcarComprovanteDeAcordo(id) {
+    if (typeof window.__DK_comprovantesClienteDeAcordo === "function") {
+      return window.__DK_comprovantesClienteDeAcordo(id);
+    }
+    try {
+      const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
+      const all = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(all)) return { ok: false, msg: "Dados indisponíveis." };
+      const idx = all.findIndex((r) => r.id === id);
+      if (idx < 0) return { ok: false, msg: "Comprovante não encontrado." };
+      if (all[idx].status !== "rejeitado") return { ok: false, msg: "Estado inválido." };
+      all[idx].clienteDeAcordoEm = new Date().toISOString();
+      localStorage.setItem("dk_comprovantes_cliente_pendentes", JSON.stringify(all.slice(0, 200)));
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        window.__DK_pushCloudSnapshotNow().catch(() => {});
+      }
+      return { ok: true };
+    } catch {
+      return { ok: false, msg: "Não foi possível guardar." };
+    }
+  }
+
+  function onClientePagamentosClick(e) {
+    const expandBtn = e.target.closest?.("[data-pag-expand]");
+    if (expandBtn) {
+      e.preventDefault();
+      pagamentosExpandidos.add(String(expandBtn.getAttribute("data-pag-expand") || "").trim());
+      const sessao = getSessao();
+      if (sessao) renderApp(sessao);
+      return;
+    }
+    const collapseBtn = e.target.closest?.("[data-pag-collapse]");
+    if (collapseBtn) {
+      e.preventDefault();
+      pagamentosExpandidos.delete(String(collapseBtn.getAttribute("data-pag-collapse") || "").trim());
+      const sessao = getSessao();
+      if (sessao) renderApp(sessao);
+      return;
+    }
+    const deAcordoBtn = e.target.closest?.("[data-cc-de-acordo]");
+    if (deAcordoBtn) {
+      e.preventDefault();
+      const id = deAcordoBtn.getAttribute("data-cc-de-acordo");
+      marcarComprovanteDeAcordo(id);
+      const sessao = getSessao();
+      if (sessao) renderApp(sessao);
+    }
   }
 
   function renderContratoCard(loc, cpf, resumoFn) {
     const nc = normNc(loc.numeroContrato);
     const resumo = resumoFn ? resumoFn(loc) : null;
-    const envios = listComprovantesCliente(cpf).filter((e) => normNc(e.protocolo) === nc);
-    const lancs = resumo?.lancamentos || [];
-    const pagosHtml = lancs.length
-      ? lancs
-          .map((p) => {
-            const origem = p.confirmadoViaAppCliente
-              ? "Confirmado (envio seu)"
-              : p.registradoPorNome
-                ? `DK — ${p.registradoPorNome}`
-                : "Confirmado pela DK";
-            return renderLinhaPagamento(origem, p.data, p.valor, p.confirmadoViaAppCliente ? "cliente-pagamento-row--envio" : "");
-          })
-          .join("")
-      : "";
-    const enviosHtml = envios
-      .filter((e) => e.status !== "confirmado")
-      .map((e) =>
-        renderLinhaPagamento(statusComprovanteLabel(e.status), e.dataPagamento, e.valor, "cliente-pagamento-row--pendente")
-      )
-      .join("");
+    const linhasPag = buildLinhasPagamentoContrato(loc, cpf, resumo);
     const servicosHtml =
       resumo && Array.isArray(resumo.ultimaRevisaoServicos) && resumo.ultimaRevisaoServicos.length
         ? `<ul class="cliente-revisao-servicos">${resumo.ultimaRevisaoServicos.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`
@@ -466,10 +570,7 @@
         ${servicosHtml}`
       : `<p class="subtext">Resumo do contrato indisponível neste dispositivo.</p>`;
 
-    const corpoPag =
-      pagosHtml || enviosHtml
-        ? `<h3 class="cliente-subsecao">Pagamentos</h3>${pagosHtml}${enviosHtml}`
-        : '<p class="subtext">Sem pagamentos registados neste protocolo.</p>';
+    const corpoPag = renderSecaoPagamentos(linhasPag, nc);
 
     return `<article class="cliente-protocolo">
       <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${resumo?.ativo ? ' <span class="cliente-badge-ativo">Ativo</span>' : ""}</div>
@@ -1081,6 +1182,10 @@
     persistGateFromSession();
     wireLaunchQueueShare();
     wireComprovanteLinkDelegation();
+    if (!document.documentElement.dataset.dkClientePagBound) {
+      document.documentElement.dataset.dkClientePagBound = "1";
+      document.addEventListener("click", onClientePagamentosClick);
+    }
     await registerClienteServiceWorker();
 
     if (!canOpenAppWithoutPortalRedirect()) {

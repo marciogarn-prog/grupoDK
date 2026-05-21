@@ -401,6 +401,23 @@
     return loadAll().filter((r) => onlyDigits(r.cpf) === cpf);
   }
 
+  /** Cliente reconhece recusa da DK — deixa de aparecer na lista de pagamentos do app. */
+  function marcarClienteDeAcordoComRecusa(id) {
+    const rid = String(id || "").trim();
+    if (!rid) return { ok: false, msg: "Registo inválido." };
+    const all = loadAll();
+    const idx = all.findIndex((r) => r.id === rid);
+    if (idx < 0) return { ok: false, msg: "Comprovante não encontrado." };
+    const rec = all[idx];
+    if (rec.status !== STATUS.REJEITADO) {
+      return { ok: false, msg: "Apenas comprovantes recusados podem ser marcados como de acordo." };
+    }
+    if (rec.clienteDeAcordoEm) return { ok: true, msg: "Já registado." };
+    all[idx] = { ...rec, clienteDeAcordoEm: new Date().toISOString() };
+    saveAll(all);
+    return { ok: true };
+  }
+
   function getStoredOpenAIKey() {
     return String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
   }
@@ -1736,6 +1753,7 @@ Dados declarados pelo cliente neste envio: CPF ${rec.cpf}, protocolo ${rec.proto
   window.__DK_openComprovanteClienteViewerById = openComprovanteViewerById;
   window.__DK_comprovantesClienteValidateIA = validarComprovanteComIA;
   window.__DK_comprovantesClienteConfirmar = confirmarComprovanteCliente;
+  window.__DK_comprovantesClienteDeAcordo = marcarClienteDeAcordoComRecusa;
   window.__DK_refreshComprovantesClienteLista = function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     renderListaOperador();
