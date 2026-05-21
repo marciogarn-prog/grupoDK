@@ -1468,6 +1468,13 @@
           </div>
         </details>
       </div>
+      <div id="portalComprovanteAdminSenhaWrap" class="portal-cc-admin-senha hidden">
+        <p class="subtext portal-cc-divergencia-aviso">O valor informado pelo cliente <strong>diferente</strong> do comprovante (IA). Para registar o pagamento, informe a <strong>senha do administrador</strong>. Será registado o <strong>valor lido no comprovante</strong>.</p>
+        <label class="portal-field portal-field--wide">
+          <span>Senha do administrador</span>
+          <input type="password" id="portalComprovanteAdminSenha" autocomplete="off" placeholder="Senha do titular (administrador)">
+        </label>
+      </div>
       <p id="portalComprovanteClienteDetalheFeedback" class="portal-feedback" role="status"></p>
       <div class="portal-modal__actions portal-modal__actions--wrap">
         <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnVerArquivo">Visualizar comprovante</button>
@@ -1584,8 +1591,8 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260520locadora-hub" defer></script>
   <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260520openai-auto" defer></script>
-  <script src="portal-locadora-ui.js?v=20260520cliente-v2" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260520valor-ia-admin" defer></script>
+  <script src="portal-locadora-ui.js?v=20260520valor-ia-admin" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=16" defer></script>

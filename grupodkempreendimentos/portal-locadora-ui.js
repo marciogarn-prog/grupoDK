@@ -6524,11 +6524,24 @@ ${printable.innerHTML}
   }
 
   function parsePortalLancamentoValorRaw(v) {
-    if (typeof parseCurrencyBR === "function") return parseCurrencyBR(String(v ?? ""));
-    const cleaned = String(v ?? "")
-      .replace(/[R$\s]/g, "")
-      .replace(/\./g, "")
-      .replace(",", ".");
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+    const s = String(v ?? "").trim();
+    if (!s) return 0;
+    if (s.includes(",")) {
+      const cleaned = s
+        .replace(/[R$\s]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : 0;
+    }
+    const plain = s.replace(/[R$\s]/g, "");
+    if (/^\d+(\.\d{1,2})?$/.test(plain)) {
+      const n = Number(plain);
+      return Number.isFinite(n) ? n : 0;
+    }
+    if (typeof parseCurrencyBR === "function") return parseCurrencyBR(s);
+    const cleaned = plain.replace(/\./g, "").replace(",", ".");
     const n = Number(cleaned);
     return Number.isFinite(n) ? n : 0;
   }

@@ -2395,6 +2395,19 @@ body {
   margin: 0;
 }
 
+.portal-cc-admin-senha {
+  margin: 0.65rem 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: rgba(201, 162, 39, 0.1);
+}
+
+.portal-cc-divergencia-aviso {
+  margin: 0 0 0.5rem;
+  color: var(--accent);
+}
+
 .cliente-pagamento-row--envio span:first-child {
   font-size: 0.82rem;
 }

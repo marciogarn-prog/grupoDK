@@ -319,6 +319,64 @@
     return Math.abs(x - y) <= Math.max(tol, y * 0.01);
   }
 
+  function valorInformadoDivergeDaIA(rec) {
+    const ia = rec?.iaValidacao;
+    return Boolean(ia && ia.confereValor === false);
+  }
+
+  function operadorEhAdministradorTitular() {
+    return (
+      typeof window.__DK_isPortalTitularAdministrador === "function" &&
+      window.__DK_isPortalTitularAdministrador()
+    );
+  }
+
+  function validarSenhaAdministradorPortal(senha) {
+    if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) {
+      return false;
+    }
+    const s = String(senha || "").trim();
+    if (!s) return false;
+    return funcionariosAccess.some(
+      (f) => String(f.role || "").trim() === "owner" && String(f.senha || "").trim() === s
+    );
+  }
+
+  function autorizarConfirmacaoComDivergencia(rec, adminSenha) {
+    if (!valorInformadoDivergeDaIA(rec)) return { ok: true };
+    if (operadorEhAdministradorTitular()) return { ok: true };
+    if (validarSenhaAdministradorPortal(adminSenha)) return { ok: true };
+    return {
+      ok: false,
+      msg: "Valor do cliente difere do comprovante (IA). Informe a senha do administrador para registar o pagamento com o valor lido na imagem.",
+    };
+  }
+
+  /** Valor que entra no protocolo: se divergiu e foi autorizado, usa o lido pela IA. */
+  function valorParaRegistoPagamento(rec) {
+    const ia = rec?.iaValidacao;
+    if (
+      valorInformadoDivergeDaIA(rec) &&
+      ia &&
+      Number.isFinite(Number(ia.valor)) &&
+      Number(ia.valor) > 0
+    ) {
+      return Number(ia.valor);
+    }
+    return Number(rec.valor);
+  }
+
+  function refreshAdminSenhaUi(rec) {
+    const wrap = document.getElementById("portalComprovanteAdminSenhaWrap");
+    const inp = document.getElementById("portalComprovanteAdminSenha");
+    const diverge = valorInformadoDivergeDaIA(rec);
+    if (wrap) wrap.classList.toggle("hidden", !diverge);
+    if (inp) {
+      if (!diverge) inp.value = "";
+      inp.required = diverge && !operadorEhAdministradorTitular();
+    }
+  }
+
   async function validarComprovanteComIA(id) {
     const gate = exigirOperadorConferencia();
     if (!gate.ok) return { ok: false, msg: gate.msg };
@@ -391,7 +449,7 @@
     }
   }
 
-  function persistirPagamentoNaLocacao(rec) {
+  function persistirPagamentoNaLocacao(rec, valorRegisto) {
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
       return { ok: false, msg: "Cadastro indisponível." };
     }
@@ -421,17 +479,24 @@
     } catch {
       /* ignore */
     }
+    const valorNum = Number(valorRegisto ?? valorParaRegistoPagamento(rec));
+    if (!Number.isFinite(valorNum) || valorNum <= 0) {
+      return { ok: false, msg: "Valor do pagamento inválido." };
+    }
     const entry = {
       data: rec.dataPagamento,
-      valor: Number(rec.valor),
+      valor: valorNum,
       createdAt: Date.now(),
       registradoPorCpf: regCpf,
       registradoPorNome: regNome,
       valorEspecie: 0,
-      valorPix: Number(rec.valor),
+      valorPix: valorNum,
       valorCartao: 0,
       origemComprovanteClienteId: rec.id,
       confirmadoViaAppCliente: true,
+      valorInformadoCliente: Number(rec.valor),
+      valorLidoIA: rec.iaValidacao ? Number(rec.iaValidacao.valor) : undefined,
+      registroComValorComprovanteIA: valorInformadoDivergeDaIA(rec),
     };
     loc.portalLancamentosAluguel.push(entry);
     loc.updatedAt = Date.now();
@@ -445,7 +510,7 @@
     return { ok: true };
   }
 
-  function confirmarComprovanteCliente(id) {
+  function confirmarComprovanteCliente(id, opts) {
     const gate = exigirOperadorConferencia();
     if (!gate.ok) return { ok: false, msg: gate.msg };
 
@@ -458,7 +523,15 @@
         msg: "Faça a conferência do comprovante (IA) antes de confirmar o pagamento no protocolo.",
       };
     }
-    const saveLoc = persistirPagamentoNaLocacao(rec);
+
+    const adminSenha =
+      opts?.adminSenha ??
+      String(document.getElementById("portalComprovanteAdminSenha")?.value || "").trim();
+    const authDiv = autorizarConfirmacaoComDivergencia(rec, adminSenha);
+    if (!authDiv.ok) return authDiv;
+
+    const valorRegisto = valorParaRegistoPagamento(rec);
+    const saveLoc = persistirPagamentoNaLocacao(rec, valorRegisto);
     if (!saveLoc.ok) return saveLoc;
 
     const regCpf = gate.operador.cpf;
@@ -470,18 +543,19 @@
       all[idx].confirmadoPorCpf = regCpf;
       all[idx].confirmadoPorNome = regNome;
       all[idx].confirmadoEm = new Date().toISOString();
+      all[idx].valorRegistadoProtocolo = valorRegisto;
       saveAll(all);
       if (typeof window.__DK_clienteNotificacaoPagamentoConfirmado === "function") {
         window.__DK_clienteNotificacaoPagamentoConfirmado({
           cpf: all[idx].cpf,
           protocolo: all[idx].protocolo,
-          valor: all[idx].valor,
+          valor: valorRegisto,
           dataPagamento: all[idx].dataPagamento,
           comprovanteId: all[idx].id,
         });
       }
     }
-    return { ok: true, rec: all[idx] };
+    return { ok: true, rec: all[idx], valorRegistado: valorRegisto };
   }
 
   function rejeitarComprovanteCliente(id, motivo) {
@@ -587,6 +661,7 @@
     if (btnConf) btnConf.disabled = rec.status !== STATUS.IA_OK || !podeConferir;
     if (btnRej) btnRej.disabled = rec.status === STATUS.CONFIRMADO || !podeConferir;
     if (btnVer) btnVer.disabled = !rec.arquivoBase64;
+    refreshAdminSenhaUi(rec);
   }
 
   function openModal(id) {
@@ -812,7 +887,8 @@
 
     document.getElementById("portalComprovanteClienteBtnConfirmar")?.addEventListener("click", () => {
       const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
-      const res = confirmarComprovanteCliente(comprovanteClienteUiIdAtual);
+      const adminSenha = String(document.getElementById("portalComprovanteAdminSenha")?.value || "").trim();
+      const res = confirmarComprovanteCliente(comprovanteClienteUiIdAtual, { adminSenha });
       if (fb) fb.textContent = res.ok ? "Pagamento confirmado e registado no protocolo." : res.msg || "Erro.";
       if (res.ok) {
         renderListaOperador();
