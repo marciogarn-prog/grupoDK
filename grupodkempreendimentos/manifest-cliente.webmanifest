@@ -12,16 +12,28 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "icons/icon-cliente-192.svg",
+      "src": "/icons/icon-cliente-192.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "icons/icon-cliente-512.svg",
+      "src": "/icons/icon-cliente-512.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-cliente-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-cliente-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
   ],
   "share_target": {
@@ -35,7 +47,21 @@
       "files": [
         {
           "name": "file",
-          "accept": ["image/*", "application/pdf", ".pdf"]
+          "accept": [
+            "image/*",
+            "image/jpeg",
+            "image/png",
+            "image/webp",
+            "application/pdf",
+            ".pdf",
+            ".jpg",
+            ".jpeg",
+            ".png"
+          ]
+        },
+        {
+          "name": "files",
+          "accept": ["image/*", "application/pdf"]
         }
       ]
     }

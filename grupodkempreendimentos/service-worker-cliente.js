@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260521links";
+const CACHE_NAME = "dk-cliente-v20260522share";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -66,10 +66,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  const isClienteHtml =
-    url.pathname.endsWith("/cliente.html") || url.pathname.endsWith("cliente.html");
+  const path = url.pathname.replace(/\/$/, "") || "/";
+  const isClienteShareTarget =
+    path === "/cliente" || path.endsWith("/cliente") || path.endsWith("/cliente.html");
 
-  if (event.request.method === "POST" && isClienteHtml) {
+  if (event.request.method === "POST" && isClienteShareTarget) {
     event.respondWith(
       (async () => {
         try {

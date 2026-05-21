@@ -476,8 +476,6 @@
 
   async function consumeShareFromServiceWorkerCache() {
     if (!("caches" in window)) return false;
-    const sessao = getSessao();
-    if (!sessao?.cpf) return false;
     try {
       const cache = await caches.open("dk-cliente-share-v1");
       const res = await cache.match(SHARE_CACHE_KEY);
@@ -495,10 +493,39 @@
 
   function wireLaunchQueueShare() {
     if (!("launchQueue" in window)) return;
-    window.launchQueue.setConsumer(async (launchParams) => {
-      const files = launchParams.files;
-      if (files?.length) await applySharedFileToComprovante(files[0]);
-    });
+    try {
+      window.launchQueue.setConsumer(async (launchParams) => {
+        if (launchParams.files?.length) {
+          await applySharedFileToComprovante(launchParams.files[0]);
+          return;
+        }
+        if (launchParams.targetURL) {
+          const u = new URL(launchParams.targetURL, location.origin);
+          if (u.searchParams.get("dkShare") === "file") {
+            pendingShareFocus = true;
+            await consumeShareFromServiceWorkerCache();
+          }
+        }
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function registerClienteServiceWorker() {
+    if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
+    try {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js", {
+        scope: "/",
+        updateViaCache: "none",
+      });
+    } catch {
+      try {
+        return await navigator.serviceWorker.register("./service-worker-cliente.js", { scope: "/" });
+      } catch {
+        return null;
+      }
+    }
   }
 
   function parseShareFromUrl() {
@@ -752,16 +779,16 @@
     await consumeShareFromServiceWorkerCache();
   }
 
-  function init() {
+  async function init() {
     restoreGateToSession();
     persistGateFromSession();
+    wireLaunchQueueShare();
+    await registerClienteServiceWorker();
 
     if (!canOpenAppWithoutPortalRedirect()) {
       window.location.replace("/#locadora/cliente");
       return;
     }
-
-    wireLaunchQueueShare();
 
     $("form-login")?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -847,14 +874,17 @@
     wireInstall();
     bindCompMasks();
 
-    if ("serviceWorker" in navigator && location.protocol !== "file:") {
-      navigator.serviceWorker.register("./service-worker-cliente.js").catch(() => {});
+    if (parseShareFromUrl()?.type === "file" || new URLSearchParams(location.search).get("dkShare") === "file") {
+      pendingShareFocus = true;
+      await consumeShareFromServiceWorkerCache();
     }
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
+    document.addEventListener("DOMContentLoaded", () => {
+      init().catch(() => {});
+    });
   } else {
-    init();
+    init().catch(() => {});
   }
 })();

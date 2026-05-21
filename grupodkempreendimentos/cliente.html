@@ -9,11 +9,12 @@
   <meta name="description" content="DK Locadora — área do cliente: contratos, pagamentos e envio de comprovantes.">
   <meta name="dk-supabase-url" content="https://ppxtwqvzgujllfzarpuz.supabase.co">
   <meta name="dk-supabase-anon-key" content="sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3">
-  <link rel="manifest" href="manifest-cliente.webmanifest">
-  <link rel="icon" href="icons/icon-cliente-192.svg">
+  <link rel="manifest" href="/manifest-cliente.webmanifest">
+  <link rel="icon" href="/icons/icon-cliente-192.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-cliente-192.svg">
   <title>DK Locadora — App Cliente</title>
-  <link rel="stylesheet" href="styles.css?v=20260520cliente-v3">
-  <link rel="stylesheet" href="cliente-app.css?v=20260520cliente-v3">
+  <link rel="stylesheet" href="styles.css?v=20260522share">
+  <link rel="stylesheet" href="cliente-app.css?v=20260522share">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -40,7 +41,8 @@
       <p id="login-feedback" class="portal-feedback" role="status"></p>
       <button type="submit" class="btn-primary">Entrar</button>
     </form>
-    <p class="cliente-install-hint">Para instalar: use <a href="apps.html">Baixar aplicativos</a> ou «Adicionar ao ecrã inicial» no telemóvel.</p>
+    <p class="cliente-install-hint">Para <strong>partilhar comprovantes do banco</strong> para a DK: instale o app no ecrã inicial (Android: Chrome → menu → «Instalar app»). Depois, no banco, use <strong>Partilhar</strong> e escolha <strong>DK Cliente</strong>.</p>
+    <p class="cliente-install-hint">Instalar: <a href="/apps.html">Baixar aplicativos</a> ou «Adicionar ao ecrã inicial».</p>
     <button type="button" id="btn-install-cliente" class="btn-primary btn-secondary-outline hidden" style="width:100%;margin-top:0.5rem">Instalar app</button>
   </section>
 
@@ -156,6 +158,6 @@
   <script src="cliente-contrato-resumo.js?v=20260520cliente-v3" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260521ver-comprovante" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260521ver-comprovante" defer></script>
-  <script src="cliente-app.js?v=20260521ver-comprovante" defer></script>
+  <script src="cliente-app.js?v=20260522share" defer></script>
 </body>
 </html>
