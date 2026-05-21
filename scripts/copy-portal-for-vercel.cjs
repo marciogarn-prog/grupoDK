@@ -4,9 +4,8 @@
  * copiado integralmente para outputDirectory; o restante do repositório não vira HTML/CSS/JS
  * no deploy (há outros ficheiros na raiz só para desenvolvimento ou ferramentas locais).
  *
- * Rotas serverless `/api/*` vêm da pasta `api/` na raiz do repo (sincronização Redis), não do
- * `grupodkempreendimentos/api/` — por isso removemos `api/` da cópia do portal (evita servir .js
- * como estático em duplicado).
+ * Rotas serverless `/api/*` vêm da pasta `api/` na raiz do repo (Redis, OpenAI comprovantes, etc.),
+ * não de `grupodkempreendimentos/api/` — por isso removemos `api/` da cópia do portal.
  */
 const fs = require("fs");
 const path = require("path");
