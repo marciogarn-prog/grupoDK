@@ -2269,28 +2269,20 @@ function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
     const d = typeof parseBrDate === "function" ? parseBrDate(s) : null;
     return d && !Number.isNaN(d.getTime()) ? d : null;
   };
-  const fimA = String(ex.fim || "").trim();
-  const fimB = String(l.fim || "").trim();
+  const fimA = String(ex.fim || ex.dataFim || "").trim();
+  const fimB = String(l.fim || l.dataFim || "").trim();
   const dA = parseD(fimA);
   const dB = parseD(fimB);
   let fimPick = "";
   if (dA && dB) fimPick = dA.getTime() >= dB.getTime() ? fimA : fimB;
   else fimPick = (dB ? fimB : "") || (dA ? fimA : "");
-  if (fimPick) out.fim = fimPick;
-
-  const nk = (s) =>
-    typeof normalizeKey === "function"
-      ? normalizeKey(String(s || ""))
-      : String(s || "")
-          .trim()
-          .toUpperCase();
-  const isFin = (row) => {
-    const f = String(row?.fim || "").trim();
-    if (f) return true;
-    const st = nk(row?.statusLocacao || row?.status || "");
-    return st.includes("FINAL") || st.includes("INATIV");
-  };
-  if (isFin(ex) || isFin(l) || fimPick) out.statusLocacao = "FINALIZADO";
+  if (fimPick && fimPick !== "...") {
+    out.fim = fimPick;
+    out.statusLocacao = "FINALIZADO";
+  } else {
+    out.fim = "";
+    out.statusLocacao = "ATIVO";
+  }
 
   const dig = (s) => onlyDigits(String(s || ""));
   const finMsA = Number(ex.portalLocacaoFinalizadoEmMs || 0);
@@ -6234,9 +6226,31 @@ function countLocacoesSanitizeProblems(locs) {
   return problems;
 }
 
+/** Sem data fim → ATIVO (corrige status FINALIZADO fantasma após sync). */
+function normalizeLocacoesContratoAtivoList(locs) {
+  if (!Array.isArray(locs)) return [];
+  return locs.map((loc) => {
+    if (!loc || typeof loc !== "object") return loc;
+    const fim = String(loc.fim || loc.dataFim || "").trim();
+    if (!fim || fim === "...") {
+      return { ...loc, fim: "", statusLocacao: "ATIVO" };
+    }
+    return { ...loc, statusLocacao: "FINALIZADO", fim };
+  });
+}
+
+function normalizeLocacoesContratoAtivoStore() {
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  const next = normalizeLocacoesContratoAtivoList(locs);
+  if (JSON.stringify(next) !== JSON.stringify(locs)) {
+    saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
+  }
+  return next;
+}
+
 /** Remove só cópias do mesmo vínculo (não altera números de protocolo da planilha). */
 function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
-  let locs = loadCadastro(CAD_LOCACOES_KEY);
+  let locs = normalizeLocacoesContratoAtivoList(loadCadastro(CAD_LOCACOES_KEY));
   if (!locs.length) {
     return { changed: false, removed: 0, remapped: 0, problemsAfter: 0 };
   }
@@ -6294,6 +6308,7 @@ try {
 
 try {
   window.__DK_sanitizeLocacoesCadastro = (opts) => sanitizeLocacoesProtocolosAndDedupe(opts);
+  window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
   window.__DK_reconcileLocacoesCadastro = () => reconcileLocacoesWithReceita2026Bundle();
   window.__DK_forceLocacoesFromExcelReceita2026 = () => enforceReceita2026OfficialLocacoesBase();
   window.__DK_enforceReceita2026LocacoesBase = () => enforceReceita2026OfficialLocacoesBase();

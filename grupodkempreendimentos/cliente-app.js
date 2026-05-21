@@ -176,11 +176,16 @@
       .replace(/[\u0300-\u036f]/g, "");
   }
 
+  /** Alinhado ao portal: contrato ativo = sem data fim (status sozinho não encerra). */
+  function locacaoTemDataFim(loc) {
+    if (!loc || typeof loc !== "object") return false;
+    const fim = String(loc.fim || loc.dataFim || "").trim();
+    return Boolean(fim && fim !== "...");
+  }
+
   function isLocacaoFinalizada(loc) {
     if (!loc || typeof loc !== "object") return true;
-    const st = normStatusLoc(loc.statusLocacao || loc.status || "");
-    if (st === "FINALIZADO" || st === "INATIVO") return true;
-    return Boolean(String(loc.fim || "").trim());
+    return locacaoTemDataFim(loc);
   }
 
   function filterLocacoesAtivas(locacoes) {
@@ -271,8 +276,24 @@
     $("view-propaganda")?.classList.toggle("hidden", name !== "propaganda");
   }
 
-  function renderPropaganda(sessao) {
+  function renderPropaganda(sessao, motivo) {
     $("propaganda-cliente-nome").textContent = sessao.nome || "Cliente";
+    const sub = document.querySelector("#view-propaganda .cliente-app-brand__sub");
+    const msg = document.getElementById("propaganda-motivo-msg");
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === sessao.cpf);
+    const reason = motivo || (locs.length ? "encerrado" : "sem_cadastro");
+    if (sub) {
+      sub.textContent = reason === "sem_cadastro" ? "Sem contrato na nuvem" : "Locação encerrada";
+    }
+    if (msg) {
+      if (reason === "sem_cadastro") {
+        msg.textContent =
+          "Não encontrámos o seu contrato neste telemóvel. Toque em «Atualizar da nuvem». Se o problema continuar, a DK deve guardar os dados na nuvem no portal.";
+      } else {
+        msg.textContent =
+          "Não há locação ativa (contrato com data de fim registada). Pode consultar novidades abaixo. Se o contrato ainda está em curso, toque em «Atualizar da nuvem».";
+      }
+    }
   }
 
   function resolveAppViewAfterData(sessao) {
@@ -280,8 +301,16 @@
       showView("login");
       return;
     }
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === sessao.cpf);
+    if (typeof window.__DK_normalizeLocacoesContratoAtivoStore === "function") {
+      try {
+        window.__DK_normalizeLocacoesContratoAtivoStore();
+      } catch {
+        /* ignore */
+      }
+    }
     if (!clienteTemLocacaoAtiva(sessao.cpf)) {
-      renderPropaganda(sessao);
+      renderPropaganda(sessao, locs.length ? "encerrado" : "sem_cadastro");
       showView("propaganda");
       return;
     }

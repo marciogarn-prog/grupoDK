@@ -123,6 +123,13 @@
           <p id="locadora-app-feedback" class="portal-feedback" role="status"></p>
           <button type="submit" class="btn-primary" id="btn-locadora-app-download">Baixar / instalar app</button>
         </form>
+        <section id="locadora-install-done" class="portal-panel cliente-install-panel hidden" style="margin-top:1rem" aria-live="polite">
+          <h3 class="cliente-install-panel__title">Instalar DK Cliente no telemóvel</h3>
+          <p id="locadora-install-msg" class="subtext">CPF e protocolo validados.</p>
+          <a id="locadora-install-open" class="btn-primary" style="display:block;text-align:center;margin:0.5rem 0" href="/cliente">Abrir instalação do app</a>
+          <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → «Instalar app». Depois, ao partilhar comprovante do banco, escolha <strong>DK Cliente</strong>.</p>
+          <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → «Adicionar à Tela de Início».</p>
+        </section>
       </section>
     </div>
   </div>
@@ -1593,9 +1600,9 @@
   <script src="app.js?v=20260520locadora-hub" defer></script>
   <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260523comprovante-viewer" defer></script>
-  <script src="portal-locadora-ui.js?v=20260527deploy" defer></script>
+  <script src="portal-locadora-ui.js?v=20260527portal-install" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
-  <script src="portal-supabase-sync.js?v=16" defer></script>
+  <script src="portal-supabase-sync.js?v=20260521loc-ativo" defer></script>
 </body>
 </html>

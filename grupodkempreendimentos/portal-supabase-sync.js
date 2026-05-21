@@ -120,6 +120,33 @@
     "dk_locacoes_cadastro",
   ]);
 
+  function normalizeLocacoesContratoAtivoList(arr) {
+    if (!Array.isArray(arr)) return [];
+    return arr.map((loc) => {
+      if (!loc || typeof loc !== "object") return loc;
+      const fim = String(loc.fim || loc.dataFim || "").trim();
+      if (!fim || fim === "...") {
+        return { ...loc, fim: "", statusLocacao: "ATIVO" };
+      }
+      return { ...loc, statusLocacao: "FINALIZADO", fim };
+    });
+  }
+
+  function normalizeLocacoesContratoAtivoStore() {
+    try {
+      const raw = localStorage.getItem("dk_locacoes_cadastro");
+      if (!raw) return;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return;
+      const next = normalizeLocacoesContratoAtivoList(arr);
+      if (JSON.stringify(next) !== JSON.stringify(arr)) {
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(next));
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
     const replace = Boolean(opts && opts.replace);
@@ -148,6 +175,9 @@
             arr = [];
           }
         }
+        if (k === "dk_locacoes_cadastro") {
+          arr = normalizeLocacoesContratoAtivoList(arr);
+        }
         if (replace) {
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true });
         } else {
@@ -158,9 +188,14 @@
       if (typeof v === "string") {
         localStorage.setItem(k, v);
       } else {
-        localStorage.setItem(k, JSON.stringify(v));
+        let stored = v;
+        if (k === "dk_locacoes_cadastro" && Array.isArray(v)) {
+          stored = normalizeLocacoesContratoAtivoList(v);
+        }
+        localStorage.setItem(k, JSON.stringify(stored));
       }
     }
+    normalizeLocacoesContratoAtivoStore();
     runLocacoesSanitizeAfterCloudApply({ light: lightSanitize });
     if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
       try {
@@ -426,6 +461,7 @@
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
     window.__DK_markLocalDataAuthority = markLocalDataAuthority;
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
+    window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
   } catch {
     /* ignore */
   }

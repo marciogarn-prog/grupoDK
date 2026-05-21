@@ -211,13 +211,8 @@
         : null,
       lancamentos: lancs,
       ativo: (() => {
-        const st = String(loc?.statusLocacao || loc?.status || "")
-          .trim()
-          .toUpperCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "");
-        if (st === "FINALIZADO" || st === "INATIVO") return false;
-        return !String(loc?.fim || "").trim();
+        const fim = String(loc?.fim || loc?.dataFim || "").trim();
+        return !fim || fim === "...";
       })(),
     };
   }
