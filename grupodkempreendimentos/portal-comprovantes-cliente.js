@@ -83,7 +83,9 @@
     return new Date(year, month - 1, day);
   }
 
-  function loadAll() {
+  const MIG_HISTORICO_V = "20260522hist-v2";
+
+  function loadAllRaw() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const arr = raw ? JSON.parse(raw) : [];
@@ -93,8 +95,186 @@
     }
   }
 
+  function chaveAgrupamentoEnvioCliente(rec) {
+    const cpf = onlyDigits(rec?.cpf).slice(0, 11);
+    const proto = normProto(rec?.protocolo);
+    const data = normDataPagamentoBr(rec?.dataPagamento);
+    const valor = roundCentavos(rec?.valor);
+    if (!cpf || !proto || !data || !Number.isFinite(valor) || valor <= 0) return "";
+    return `${cpf}|${proto}|${data}|${valor.toFixed(2)}`;
+  }
+
+  function corrigirValorCentavosGravado(rec) {
+    if (!rec || rec.status === STATUS.CONFIRMADO) return rec;
+    let v = roundCentavos(rec.valor);
+    const ia = rec.iaValidacao;
+    if (!(v >= 1 && v < 100)) return rec;
+    const candidato = roundCentavos(v / 100);
+    if (candidato <= 0 || candidato >= 1) return rec;
+    if (ia && Number.isFinite(Number(ia.valor))) {
+      const valorIa = normalizarValorLidoIa(ia.valor, candidato);
+      if (valoresIguaisCentavos(valorIa, candidato)) {
+        return { ...rec, valor: candidato, valorCorrigidoSistemaEm: new Date().toISOString() };
+      }
+    }
+    if (candidato <= 0.99) {
+      return { ...rec, valor: candidato, valorCorrigidoSistemaEm: new Date().toISOString() };
+    }
+    return rec;
+  }
+
+  function eraRejeicaoValorIndevida(rec) {
+    if (rec.status !== STATUS.REJEITADO || !rec.rejeitadoAutomatico) return false;
+    const mot = String(rec.rejeitadoMotivo || rec.rejeitadoMotivoCliente || "").toLowerCase();
+    if (!mot.includes("valor")) return false;
+    const valorDecl = roundCentavos(rec.valor);
+    const ia = rec.iaValidacao;
+    if (!ia || !(valorDecl > 0)) return false;
+    const valorIa = normalizarValorLidoIa(ia.valor, valorDecl);
+    return valorIa > 0 && valoresIguaisCentavos(valorIa, valorDecl);
+  }
+
+  function reabrirComprovanteParaOperador(rec) {
+    const ia = rec.iaValidacao && typeof rec.iaValidacao === "object" ? { ...rec.iaValidacao } : {};
+    ia.confereValor = true;
+    ia.observacoes = String(ia.observacoes || "").trim()
+      ? `${ia.observacoes} Reaberto para confirmação do operador (correção de histórico).`
+      : "Reaberto para confirmação do operador (correção de histórico).";
+    ia.processamentoAutomatico = true;
+    const eventos = Array.isArray(rec.historicoEventos) ? rec.historicoEventos.slice() : [];
+    eventos.push({
+      tipo: "reabertura_operador",
+      em: new Date().toISOString(),
+      motivoAnterior: rec.rejeitadoMotivoCliente || rec.rejeitadoMotivo || "",
+    });
+    return {
+      ...rec,
+      status: STATUS.IA_OK,
+      reabertoParaOperadorEm: new Date().toISOString(),
+      iaValidacao: ia,
+      rejeitadoMotivoCliente: "",
+      rejeitadoMotivo: "",
+      rejeitadoAutomatico: false,
+      historicoEventos: eventos,
+      migracaoHistoricoV: MIG_HISTORICO_V,
+    };
+  }
+
+  function rejeitarEnvioExcedente(rec, idMantido) {
+    const eventos = Array.isArray(rec.historicoEventos) ? rec.historicoEventos.slice() : [];
+    eventos.push({ tipo: "excedente_arquivado", em: new Date().toISOString(), referencia: idMantido });
+    const msgCliente =
+      "Já existe outro comprovante seu deste pagamento em análise. Este envio em duplicidade foi arquivado — utilize apenas o comprovante que permanece na fila.";
+    return {
+      ...rec,
+      status: STATUS.REJEITADO,
+      rejeitadoAutomatico: true,
+      rejeitadoMotivoCliente: msgCliente,
+      rejeitadoMotivo: `Envio em duplicidade — mantido comprovante ${idMantido}.`,
+      rejeitadoPorNome: OPERADOR_AUTO.nome,
+      rejeitadoEm: new Date().toISOString(),
+      historicoEventos: eventos,
+      migracaoHistoricoV: MIG_HISTORICO_V,
+    };
+  }
+
+  /** Preserva confirmados; corrige centavos; reabre recusas indevidas; arquiva reenvios excedentes. */
+  function normalizarHistoricoComprovantes(arr) {
+    let list = arr.map((r) => ({ ...r }));
+    let changed = false;
+
+    list = list.map((r) => {
+      const c = corrigirValorCentavosGravado(r);
+      if (c.valor !== r.valor || c.valorCorrigidoSistemaEm) changed = true;
+      return c;
+    });
+
+    list = list.map((r) => {
+      if (!eraRejeicaoValorIndevida(r)) return r;
+      changed = true;
+      return reabrirComprovanteParaOperador(r);
+    });
+
+    const grupos = new Map();
+    for (const r of list) {
+      const k = chaveAgrupamentoEnvioCliente(r);
+      if (!k) continue;
+      if (!grupos.has(k)) grupos.set(k, []);
+      grupos.get(k).push(r);
+    }
+
+    for (const grupo of grupos.values()) {
+      if (grupo.length <= 1) continue;
+      const confirmados = grupo.filter((r) => r.status === STATUS.CONFIRMADO);
+      if (confirmados.length) {
+        for (const r of grupo) {
+          if (r.status === STATUS.CONFIRMADO) continue;
+          if (r.status === STATUS.REJEITADO && String(r.rejeitadoMotivo || "").includes("duplicidade")) continue;
+          const idRef = confirmados[0].id;
+          const idx = list.findIndex((x) => x.id === r.id);
+          if (idx >= 0 && list[idx].status !== STATUS.REJEITADO) {
+            list[idx] = rejeitarEnvioExcedente(list[idx], idRef);
+            notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+            changed = true;
+          }
+        }
+        continue;
+      }
+
+      const ativos = grupo.filter((r) => r.status === STATUS.IA_OK || r.status === STATUS.PENDENTE);
+      if (ativos.length <= 1) continue;
+
+      ativos.sort((a, b) => {
+        if (a.status === STATUS.IA_OK && b.status !== STATUS.IA_OK) return -1;
+        if (b.status === STATUS.IA_OK && a.status !== STATUS.IA_OK) return 1;
+        return Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0);
+      });
+      const manter = ativos[0];
+      for (let i = 1; i < ativos.length; i++) {
+        const ex = ativos[i];
+        const idx = list.findIndex((x) => x.id === ex.id);
+        if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
+        list[idx] = rejeitarEnvioExcedente(list[idx], manter.id);
+        notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        changed = true;
+      }
+    }
+
+    list = list.map((r) => {
+      if (r.migracaoHistoricoV === MIG_HISTORICO_V) return r;
+      changed = true;
+      return { ...r, migracaoHistoricoV: MIG_HISTORICO_V };
+    });
+
+    return { list, changed };
+  }
+
+  function repararHistoricoComprovantesNuvem() {
+    const raw = loadAllRaw();
+    const { list, changed } = normalizarHistoricoComprovantes(raw);
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
+      pushNuvem();
+    }
+    const aguardam = list.filter((r) => r.status === STATUS.IA_OK).length;
+    const confirmados = list.filter((r) => r.status === STATUS.CONFIRMADO).length;
+    return { ok: true, changed, aguardam, confirmados, total: list.length };
+  }
+
+  function loadAll() {
+    const raw = loadAllRaw();
+    const { list, changed } = normalizarHistoricoComprovantes(raw);
+    if (changed) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
+      pushNuvem();
+    }
+    return list;
+  }
+
   function saveAll(arr) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(0, 200)));
+    const { list, changed } = normalizarHistoricoComprovantes(arr);
+    const final = changed ? list : arr;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(final.slice(0, 200)));
     pushNuvem();
   }
 
@@ -607,7 +787,11 @@
   function listarAguardandoConfirmacaoOperador() {
     return loadAll()
       .filter((r) => r.status === STATUS.IA_OK)
-      .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));
+      .sort((a, b) => {
+        if (a.reabertoParaOperadorEm && !b.reabertoParaOperadorEm) return -1;
+        if (b.reabertoParaOperadorEm && !a.reabertoParaOperadorEm) return 1;
+        return Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0);
+      });
   }
 
   function listarPendentesOperador() {
@@ -1611,7 +1795,11 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   function statusLabelComRec(r) {
+    if (r?.status === STATUS.IA_OK && r.reabertoParaOperadorEm) {
+      return "Reaberto — aguarda confirmação";
+    }
     if (r?.status === STATUS.REJEITADO) {
+      if (String(r.rejeitadoMotivo || "").includes("duplicidade")) return "Arquivado (envio duplicado)";
       return r.rejeitadoAutomatico ? "Recusado (automático)" : "Recusado pelo operador";
     }
     return statusLabel(r?.status);
@@ -1672,19 +1860,20 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       badge.classList.toggle("hidden", !nProc);
     }
     const rows = listarAguardandoConfirmacaoOperador();
+    const nConfirmados = loadAll().filter((r) => r.status === STATUS.CONFIRMADO).length;
     const aguardaIa = loadAll()
       .filter((r) => r.status === STATUS.PENDENTE)
       .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));
-    let html = "";
+    let html = `<p class="subtext portal-cc-hist-resumo"><strong>${nConfirmados}</strong> pagamento(s) já confirmados pelo operador (histórico preservado na nuvem).</p>`;
     if (rows.length) {
-      html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam confirmação manual</h4>${renderTabelaComprovantes(rows, {
+      html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam confirmação manual (IA aprovou)</h4>${renderTabelaComprovantes(rows, {
         ariaLabel: "Comprovantes aguardando confirmação",
         vazio: "Nenhum comprovante aguarda confirmação.",
       })}`;
     } else {
       html += nProc
         ? '<p class="subtext">Comprovantes recebidos — a IA está a validar automaticamente. Os aprovados aparecem aqui para confirmação manual.</p>'
-        : '<p class="subtext">Nenhum comprovante aguarda confirmação. Duplicata (mesma imagem) e valor incorreto são recusados automaticamente.</p>';
+        : '<p class="subtext">Nenhum comprovante aguarda confirmação. Recusas indevidas por erro de centavos são reabertas automaticamente.</p>';
     }
     if (aguardaIa.length) {
       html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam validação IA</h4>${renderTabelaComprovantes(aguardaIa, {
@@ -2205,10 +2394,16 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     initViewerUiShared();
     bindOpenAIKeyUi();
     refreshOperadorConferenciaHint();
+    const rep = repararHistoricoComprovantesNuvem();
+    const fb = document.getElementById("portalComprovanteClienteListaMsg");
+    if (fb && rep.changed) {
+      fb.textContent = `Histórico reparado: ${rep.aguardam} aguardam confirmação · ${rep.confirmados} já confirmados.`;
+    }
     renderListaOperador();
     renderListaRecusados72h();
     probeOpenAIServer();
     await processarFilaComprovantesAutomaticos();
+    repararHistoricoComprovantesNuvem();
     renderListaOperador();
     renderListaRecusados72h();
   }
@@ -2226,9 +2421,16 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteProcessarAutomatico = processarComprovanteAutomatico;
   window.__DK_comprovantesClienteProcessarFilaAutomatica = processarFilaComprovantesAutomaticos;
   window.__DK_comprovantesClienteListRecusados72h = listarRecusadosUltimas72h;
+  window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
+    const rep = repararHistoricoComprovantesNuvem();
+    const fb = document.getElementById("portalComprovanteClienteListaMsg");
+    if (fb && rep.changed) {
+      fb.textContent = `Histórico reparado: ${rep.aguardam} aguardam confirmação · ${rep.confirmados} confirmados.`;
+    }
     await processarFilaComprovantesAutomaticos();
+    repararHistoricoComprovantesNuvem();
     renderListaOperador();
     renderListaRecusados72h();
   };
