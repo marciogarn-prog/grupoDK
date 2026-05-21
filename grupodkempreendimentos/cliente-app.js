@@ -5,7 +5,10 @@
 (function dkClienteApp() {
   const SESSAO_KEY = "dk_sessao_cliente_app";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
+  const GATE_PERSIST_KEY = "dk_cliente_gate_persist";
+  const SHARE_CACHE_KEY = "dk-shared-comprovante";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
+  let pendingShareFocus = false;
   const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
   const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 
@@ -164,9 +167,94 @@
       .replace(/>/g, "&gt;");
   }
 
+  function normStatusLoc(s) {
+    return String(s || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function isLocacaoFinalizada(loc) {
+    if (!loc || typeof loc !== "object") return true;
+    const st = normStatusLoc(loc.statusLocacao || loc.status || "");
+    if (st === "FINALIZADO" || st === "INATIVO") return true;
+    return Boolean(String(loc.fim || "").trim());
+  }
+
+  function filterLocacoesAtivas(locacoes) {
+    return (locacoes || []).filter((l) => !isLocacaoFinalizada(l));
+  }
+
+  function clienteTemLocacaoAtiva(cpfDigits) {
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpfDigits);
+    return filterLocacoesAtivas(locs).length > 0;
+  }
+
+  function isStandaloneDisplay() {
+    try {
+      return (
+        window.matchMedia("(display-mode: standalone)").matches ||
+        window.matchMedia("(display-mode: fullscreen)").matches ||
+        window.navigator.standalone === true
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  function restoreGateToSession() {
+    try {
+      if (sessionStorage.getItem(CLIENTE_APP_GATE_KEY)) return;
+      const p = localStorage.getItem(GATE_PERSIST_KEY);
+      if (p) sessionStorage.setItem(CLIENTE_APP_GATE_KEY, p);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function persistGateFromSession() {
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY);
+      if (raw) localStorage.setItem(GATE_PERSIST_KEY, raw);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function canOpenAppWithoutPortalRedirect() {
+    if (getSessao()?.cpf) return true;
+    if (hasClienteAppDownloadGate()) return true;
+    try {
+      return Boolean(localStorage.getItem(GATE_PERSIST_KEY));
+    } catch {
+      return false;
+    }
+  }
+
   function showView(name) {
     $("view-login")?.classList.toggle("hidden", name !== "login");
     $("view-app")?.classList.toggle("hidden", name !== "app");
+    $("view-propaganda")?.classList.toggle("hidden", name !== "propaganda");
+  }
+
+  function renderPropaganda(sessao) {
+    $("propaganda-cliente-nome").textContent = sessao.nome || "Cliente";
+  }
+
+  function resolveAppViewAfterData(sessao) {
+    if (!sessao?.cpf) {
+      showView("login");
+      return;
+    }
+    if (!clienteTemLocacaoAtiva(sessao.cpf)) {
+      renderPropaganda(sessao);
+      showView("propaganda");
+      return;
+    }
+    showView("app");
+    renderApp(sessao);
+    if (pendingShareFocus) focusComprovanteSection();
   }
 
   function formatDateMask(value) {
@@ -208,12 +296,13 @@
   function fillProtocoloSelect(locacoes) {
     const sel = $("comp-protocolo");
     if (!sel) return;
+    const ativas = filterLocacoesAtivas(locacoes);
     sel.replaceChildren();
     const opt0 = document.createElement("option");
     opt0.value = "";
     opt0.textContent = "Selecione o protocolo";
     sel.appendChild(opt0);
-    locacoes.forEach((loc) => {
+    ativas.forEach((loc) => {
       const nc = normNc(loc.numeroContrato);
       if (!nc) return;
       const o = document.createElement("option");
@@ -308,6 +397,7 @@
   function renderApp(sessao) {
     const cpf = sessao.cpf;
     const dados = loadDadosCliente(cpf);
+    const locAtivas = filterLocacoesAtivas(dados.locacoes);
     $("cliente-nome").textContent = sessao.nome;
     $("cliente-cpf-label").textContent = formatCpf(cpf);
 
@@ -318,26 +408,144 @@
 
     const resumo = $("cliente-resumo");
     if (resumo) {
-      const nLoc = dados.locacoes.length;
-      const nPag = dados.pagamentos.length;
-      const total = dados.pagamentos.reduce((s, p) => s + p.valor, 0);
-      resumo.innerHTML = `<p><strong>${nLoc}</strong> contrato(s) · <strong>${nPag}</strong> pagamento(s) · total pago <strong>${currencyBRL(total)}</strong></p>`;
+      const pagAtivos = [];
+      locAtivas.forEach((loc) => {
+        getLancamentosFromLoc(loc).forEach((p) => pagAtivos.push(p));
+      });
+      const total = pagAtivos.reduce((s, p) => s + p.valor, 0);
+      resumo.innerHTML = `<p><strong>${locAtivas.length}</strong> contrato(s) ativo(s) · <strong>${pagAtivos.length}</strong> pagamento(s) · total pago <strong>${currencyBRL(total)}</strong></p>`;
     }
 
     renderNotificacoes(cpf);
 
     const lista = $("cliente-contratos");
     if (lista) {
-      if (!dados.locacoes.length) {
+      if (!locAtivas.length) {
         lista.innerHTML =
-          '<p class="subtext">Nenhuma locação para este CPF. Ao abrir o app os dados são atualizados da nuvem; se acabou de contratar, aguarde alguns minutos e toque em <strong>Atualizar da nuvem</strong>.</p>';
+          '<p class="subtext">Nenhum protocolo ativo. Se a locação acabou de ser finalizada, atualize da nuvem — verá apenas novidades DK.</p>';
       } else {
-        lista.innerHTML = dados.locacoes.map((loc) => renderContratoCard(loc, cpf, resumoFn)).join("");
+        lista.innerHTML = locAtivas.map((loc) => renderContratoCard(loc, cpf, resumoFn)).join("");
       }
     }
 
     fillProtocoloSelect(dados.locacoes);
     bindCompMasks();
+  }
+
+  function focusComprovanteSection() {
+    const el = $("cliente-sec-comprovante");
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+    $("comp-valor")?.focus();
+    pendingShareFocus = false;
+  }
+
+  async function applySharedFileToComprovante(file) {
+    if (!file || !file.size) return;
+    const sessao = getSessao();
+    if (sessao?.cpf && !clienteTemLocacaoAtiva(sessao.cpf)) {
+      const msg = $("sync-msg-prop");
+      if (msg) {
+        msg.textContent =
+          "Locação finalizada — não é possível enviar comprovante. Consulte as novidades DK acima.";
+      }
+      return;
+    }
+    comprovanteFile = file;
+    const input = $("comp-arquivo");
+    if (input && typeof DataTransfer !== "undefined") {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+      } catch {
+        /* preview only */
+      }
+    }
+    const preview = $("comp-preview");
+    if (preview) {
+      preview.src = URL.createObjectURL(file);
+      preview.classList.add("is-visible");
+    }
+    const msg = $("comp-msg");
+    if (msg) msg.textContent = "Comprovante recebido — confira protocolo, data, valor e toque em Enviar comprovante.";
+    pendingShareFocus = true;
+    const s2 = getSessao();
+    if (s2 && clienteTemLocacaoAtiva(s2.cpf)) focusComprovanteSection();
+  }
+
+  async function consumeShareFromServiceWorkerCache() {
+    if (!("caches" in window)) return false;
+    const sessao = getSessao();
+    if (!sessao?.cpf) return false;
+    try {
+      const cache = await caches.open("dk-cliente-share-v1");
+      const res = await cache.match(SHARE_CACHE_KEY);
+      if (!res) return false;
+      const name = decodeURIComponent(res.headers.get("X-DK-Filename") || "comprovante");
+      const blob = await res.blob();
+      const file = new File([blob], name, { type: blob.type || "application/octet-stream" });
+      await applySharedFileToComprovante(file);
+      await cache.delete(SHARE_CACHE_KEY);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function wireLaunchQueueShare() {
+    if (!("launchQueue" in window)) return;
+    window.launchQueue.setConsumer(async (launchParams) => {
+      const files = launchParams.files;
+      if (files?.length) await applySharedFileToComprovante(files[0]);
+    });
+  }
+
+  function parseShareFromUrl() {
+    const q = new URLSearchParams(location.search);
+    if (q.get("dkShare") === "file") return { type: "file" };
+    const text = [q.get("title"), q.get("text"), q.get("url")].filter(Boolean).join(" ");
+    if (text.trim()) return { type: "text", text };
+    return null;
+  }
+
+  function openRelatorioPagamentos() {
+    const sessao = getSessao();
+    if (!sessao?.cpf) return;
+    const build = window.__DK_clienteBuildRelatorioPagamentosHtml;
+    if (typeof build !== "function") {
+      window.alert("Relatório indisponível neste dispositivo.");
+      return;
+    }
+    const html = build(sessao.cpf, sessao.nome);
+    const modal = $("cliente-modal-relatorio");
+    const frame = $("cliente-relatorio-frame");
+    if (modal && frame) {
+      frame.srcdoc = html;
+      modal.classList.remove("hidden");
+      frame.onload = () => {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc) return;
+          doc.querySelectorAll("a[href^='data:']").forEach((a) => {
+            a.addEventListener("click", (ev) => {
+              ev.preventDefault();
+              const href = a.getAttribute("href");
+              if (href) window.open(href, "_blank", "noopener");
+            });
+          });
+        } catch {
+          /* ignore */
+        }
+      };
+      return;
+    }
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
+    }
   }
 
   async function checkAtualizacaoPrograma() {
@@ -365,7 +573,7 @@
     } catch (e) {
       if (msg) msg.textContent = String(e?.message || "Falha ao atualizar da nuvem.");
     }
-    if (sessao) renderApp(sessao);
+    if (sessao) resolveAppViewAfterData(sessao);
   }
 
   async function pullNuvem() {
@@ -417,7 +625,7 @@
     const data = String($("comp-data")?.value || "").trim();
     const valor = parseCurrencyBR($("comp-valor")?.value);
     const msg = $("comp-msg");
-    const btn = $("btn-share-comprovante");
+    const btn = $("btn-enviar-comprovante");
     if (!proto) {
       if (msg) msg.textContent = "Selecione o protocolo.";
       return;
@@ -529,11 +737,29 @@
     }
   }
 
+  async function afterLogin(sess) {
+    persistGateFromSession();
+    if (isStandaloneDisplay()) {
+      try {
+        localStorage.setItem("dk_cliente_pwa_installed", "1");
+      } catch {
+        /* ignore */
+      }
+    }
+    await atualizarProgramaEDados(sess, { silent: false });
+    await consumeShareFromServiceWorkerCache();
+  }
+
   function init() {
-    if (!hasClienteAppDownloadGate()) {
-      window.location.replace("index.html#locadora/cliente");
+    restoreGateToSession();
+    persistGateFromSession();
+
+    if (!canOpenAppWithoutPortalRedirect()) {
+      window.location.replace("/#locadora/cliente");
       return;
     }
+
+    wireLaunchQueueShare();
 
     $("form-login")?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -552,15 +778,24 @@
       const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
       setSessao(sess);
       if (fb) fb.textContent = "";
-      showView("app");
-      atualizarProgramaEDados(sess, { silent: false });
+      afterLogin(sess);
     });
 
-    $("btn-logout")?.addEventListener("click", () => {
+    const doLogout = () => {
       clearSessao();
       showView("login");
-    });
+    };
+    $("btn-logout")?.addEventListener("click", doLogout);
+    $("btn-logout-prop")?.addEventListener("click", doLogout);
     $("btn-sync")?.addEventListener("click", () => pullNuvem());
+    $("btn-sync-prop")?.addEventListener("click", async () => {
+      const sessao = getSessao();
+      const msg = $("sync-msg-prop");
+      if (msg) msg.textContent = "A atualizar…";
+      await atualizarProgramaEDados(sessao, { silent: true });
+      if (msg) msg.textContent = "Dados atualizados.";
+      if (sessao) resolveAppViewAfterData(sessao);
+    });
     $("btn-notif-lidas")?.addEventListener("click", () => {
       const sessao = getSessao();
       if (!sessao) return;
@@ -570,7 +805,17 @@
       renderNotificacoes(sessao.cpf);
     });
     $("comp-arquivo")?.addEventListener("change", onComprovanteFileChange);
-    $("btn-share-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
+    $("btn-enviar-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
+    $("btn-relatorio-pagamentos")?.addEventListener("click", () => openRelatorioPagamentos());
+    $("btn-relatorio-fechar")?.addEventListener("click", () => $("cliente-modal-relatorio")?.classList.add("hidden"));
+    $("btn-relatorio-imprimir")?.addEventListener("click", () => {
+      const frame = $("cliente-relatorio-frame");
+      try {
+        frame?.contentWindow?.print();
+      } catch {
+        window.print();
+      }
+    });
 
     const cpfIn = $("login-cpf");
     cpfIn?.addEventListener("input", () => {
@@ -578,12 +823,23 @@
       cpfIn.value = formatCpf(d);
     });
 
+    const gateRaw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+    let gateCpf = "";
+    try {
+      const g = gateRaw ? JSON.parse(gateRaw) : null;
+      gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
+      if (gateCpf && cpfIn && !cpfIn.value) cpfIn.value = formatCpf(gateCpf);
+    } catch {
+      /* ignore */
+    }
+
     const sessao = getSessao();
     if (sessao?.cpf) {
-      showView("app");
-      atualizarProgramaEDados(sessao, { silent: false });
+      afterLogin(sessao);
     } else {
       showView("login");
+      if (parseShareFromUrl()?.type === "file") pendingShareFocus = true;
+      consumeShareFromServiceWorkerCache();
     }
 
     wireInstall();

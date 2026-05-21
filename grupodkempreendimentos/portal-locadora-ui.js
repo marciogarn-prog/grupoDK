@@ -667,22 +667,25 @@
       return;
     }
     try {
-      sessionStorage.setItem(
-        CLIENTE_APP_GATE_KEY,
-        JSON.stringify({
-          cpf,
-          proto: v.proto,
-          nome: String(v.cliente?.nome || "").trim(),
-          at: Date.now(),
-        })
-      );
+      const gatePayload = JSON.stringify({
+        cpf,
+        proto: v.proto,
+        nome: String(v.cliente?.nome || "").trim(),
+        at: Date.now(),
+      });
+      sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
+      try {
+        localStorage.setItem("dk_cliente_gate_persist", gatePayload);
+      } catch {
+        /* ignore */
+      }
     } catch {
       if (locadoraAppFeedback) {
         locadoraAppFeedback.textContent = "Não foi possível autorizar o download neste navegador.";
       }
       return;
     }
-    window.location.href = "cliente.html";
+    window.location.href = "/cliente";
   });
 
   document.getElementById("locadora-app-cpf")?.addEventListener("blur", () => {

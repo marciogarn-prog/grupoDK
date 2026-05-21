@@ -2,8 +2,9 @@
   "name": "DK Locadora — Área do Cliente",
   "short_name": "DK Cliente",
   "description": "Consulte seus contratos e envie comprovantes de pagamento à DK Locadora.",
-  "start_url": "./cliente.html",
-  "scope": "./",
+  "id": "/cliente",
+  "start_url": "/cliente",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0c0f14",
   "theme_color": "#c9a227",
@@ -22,5 +23,25 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/cliente",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "file",
+          "accept": ["image/*", "application/pdf", ".pdf"]
+        }
+      ]
+    }
+  },
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  }
 }

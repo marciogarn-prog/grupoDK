@@ -98,6 +98,55 @@
   display: block;
 }
 
+.cliente-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+.cliente-modal.hidden {
+  display: none;
+}
+
+.cliente-modal__card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%;
+  max-width: 28rem;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0.75rem;
+}
+
+.cliente-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.cliente-modal__head h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.cliente-relatorio-frame {
+  width: 100%;
+  flex: 1;
+  min-height: 50vh;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
 .cliente-install-hint {
   font-size: 0.82rem;
   color: var(--muted);

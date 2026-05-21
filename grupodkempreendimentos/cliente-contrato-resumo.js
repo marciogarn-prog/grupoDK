@@ -210,7 +210,15 @@
         ? revisaoServicos.map(String)
         : null,
       lancamentos: lancs,
-      ativo: !String(loc?.fim || "").trim(),
+      ativo: (() => {
+        const st = String(loc?.statusLocacao || loc?.status || "")
+          .trim()
+          .toUpperCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        if (st === "FINALIZADO" || st === "INATIVO") return false;
+        return !String(loc?.fim || "").trim();
+      })(),
     };
   }
 

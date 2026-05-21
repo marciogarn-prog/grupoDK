@@ -12,8 +12,8 @@
   <link rel="manifest" href="manifest-cliente.webmanifest">
   <link rel="icon" href="icons/icon-cliente-192.svg">
   <title>DK Locadora — App Cliente</title>
-  <link rel="stylesheet" href="styles.css?v=20260520cliente-v2">
-  <link rel="stylesheet" href="cliente-app.css?v=20260520cliente-v2">
+  <link rel="stylesheet" href="styles.css?v=20260520cliente-v3">
+  <link rel="stylesheet" href="cliente-app.css?v=20260520cliente-v3">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -44,6 +44,33 @@
     <button type="button" id="btn-install-cliente" class="btn-primary btn-secondary-outline hidden" style="width:100%;margin-top:0.5rem">Instalar app</button>
   </section>
 
+  <section id="view-propaganda" class="hidden cliente-app-card" aria-label="Novidades DK">
+    <header class="cliente-app-header">
+      <div class="cliente-app-brand">
+        <span class="cliente-app-brand__mark" aria-hidden="true">DK</span>
+        <div>
+          <div class="cliente-app-brand__title" id="propaganda-cliente-nome">Cliente</div>
+          <div class="cliente-app-brand__sub">Locação encerrada</div>
+        </div>
+      </div>
+      <button type="button" id="btn-logout-prop" class="btn-primary btn-secondary-outline" style="font-size:0.8rem;padding:0.4rem 0.65rem">Sair</button>
+    </header>
+    <p class="subtext">O seu protocolo foi finalizado pela DK Locadora. Aqui pode consultar produtos e novidades.</p>
+    <section class="portal-panel locadora-cliente-propaganda" aria-labelledby="cliente-propaganda-title">
+      <h2 id="cliente-propaganda-title" class="portal-panel__title">Produtos e novidades</h2>
+      <p class="subtext">Este espaço será atualizado em breve com planos, promoções e informações da DK Locadora.</p>
+      <div class="locadora-propaganda-placeholder" role="status" aria-label="Conteúdo em preparação">
+        <p>Em breve</p>
+      </div>
+    </section>
+    <button type="button" id="btn-sync-prop" class="btn-primary btn-secondary-outline" style="width:100%;margin-top:0.75rem">Atualizar da nuvem</button>
+    <p id="sync-msg-prop" class="portal-feedback" role="status"></p>
+    <p class="subtext" style="text-align:center;margin-top:1rem">
+      <a href="apps.html">Outros aplicativos DK</a> ·
+      <a href="/">Portal completo</a>
+    </p>
+  </section>
+
   <section id="view-app" class="hidden" aria-label="Área logada">
     <header class="cliente-app-header">
       <div class="cliente-app-brand">
@@ -69,14 +96,20 @@
     </div>
 
     <div class="cliente-app-card">
+      <h2>Relatório de pagamentos</h2>
+      <p class="subtext">O mesmo relatório que a equipa DK vê no portal (pagamentos, resumo do protocolo e comprovantes validados).</p>
+      <button type="button" id="btn-relatorio-pagamentos" class="btn-primary" style="width:100%">Gerar relatório de pagamentos</button>
+    </div>
+
+    <div class="cliente-app-card">
       <h2>Meus contratos</h2>
       <p class="subtext">Dados do protocolo, pagamentos confirmados pela DK e envios feitos por si no app.</p>
       <div id="cliente-contratos"></div>
     </div>
 
-    <div class="cliente-app-card">
+    <div id="cliente-sec-comprovante" class="cliente-app-card">
       <h2>Enviar comprovante de pagamento</h2>
-      <p class="subtext">Após pagar, anexe o comprovante (imagem ou PDF) e toque em <strong>Enviar comprovante</strong>. Os dados vão para a nuvem DK; a equipa valida e confirma o pagamento. Pode também partilhar pelo WhatsApp depois do envio.</p>
+      <p class="subtext">Após pagar no banco, pode <strong>partilhar o comprovante</strong> para o app DK Cliente (como WhatsApp ou e-mail) ou anexar aqui. Toque em <strong>Enviar comprovante</strong> para enviar à nuvem DK.</p>
       <form class="portal-form" novalidate onsubmit="return false">
         <label class="portal-field">
           <span>Protocolo</span>
@@ -96,21 +129,33 @@
         </label>
         <img id="comp-preview" class="cliente-comprovante-preview" alt="Pré-visualização do comprovante">
         <p id="comp-msg" class="portal-feedback" role="status"></p>
-        <button type="button" id="btn-share-comprovante" class="btn-primary" style="width:100%">Partilhar comprovante</button>
+        <button type="button" id="btn-enviar-comprovante" class="btn-primary" style="width:100%">Enviar comprovante</button>
       </form>
+    </div>
+
+    <div id="cliente-modal-relatorio" class="cliente-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cliente-relatorio-title">
+      <div class="cliente-modal__card">
+        <header class="cliente-modal__head">
+          <h2 id="cliente-relatorio-title">Relatório de pagamentos</h2>
+          <button type="button" id="btn-relatorio-fechar" class="btn-primary btn-secondary-outline" aria-label="Fechar">Fechar</button>
+        </header>
+        <iframe id="cliente-relatorio-frame" class="cliente-relatorio-frame" title="Pré-visualização do relatório"></iframe>
+        <button type="button" id="btn-relatorio-imprimir" class="btn-primary" style="width:100%;margin-top:0.5rem">Imprimir / guardar PDF</button>
+      </div>
     </div>
 
     <p class="subtext" style="text-align:center;margin-top:1rem">
       <a href="apps.html">Outros aplicativos DK</a> ·
-      <a href="index.html">Portal completo</a>
+      <a href="/">Portal completo</a>
     </p>
   </section>
 
-  <script type="module" src="supabase-init.js?v=20260520cliente-v2"></script>
-  <script src="portal-supabase-sync.js?v=20260520cliente-v2" defer></script>
-  <script src="cliente-notificacoes.js?v=20260520cliente-v2" defer></script>
-  <script src="cliente-contrato-resumo.js?v=20260520cliente-v2" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260520cliente-v2" defer></script>
-  <script src="cliente-app.js?v=20260520cliente-v2" defer></script>
+  <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
+  <script src="portal-supabase-sync.js?v=20260520cliente-v3" defer></script>
+  <script src="cliente-notificacoes.js?v=20260520cliente-v3" defer></script>
+  <script src="cliente-contrato-resumo.js?v=20260520cliente-v3" defer></script>
+  <script src="cliente-relatorio-pagamentos.js?v=20260520cliente-v3" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260520cliente-v3" defer></script>
+  <script src="cliente-app.js?v=20260520cliente-v3" defer></script>
 </body>
 </html>
