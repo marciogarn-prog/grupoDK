@@ -26,6 +26,17 @@ if (!fs.existsSync(portalDir)) {
   process.exit(1);
 }
 
+/* Garante que novas rotas /api/* na raiz do repo também existem no portal (Root Directory Vercel). */
+const repoApiDir = path.join(repoRoot, "api");
+const portalApiDir = path.join(portalDir, "api");
+if (fs.existsSync(repoApiDir)) {
+  fs.mkdirSync(portalApiDir, { recursive: true });
+  for (const name of fs.readdirSync(repoApiDir)) {
+    if (!name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(repoApiDir, name), path.join(portalApiDir, name));
+  }
+}
+
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
 fs.cpSync(portalDir, outDir, { recursive: true });
