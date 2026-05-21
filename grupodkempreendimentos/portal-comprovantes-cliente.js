@@ -4,6 +4,7 @@
  */
 (function portalComprovantesCliente() {
   const STORAGE_KEY = "dk_comprovantes_cliente_pendentes";
+  const STORAGE_MAX_COMPROVANTES = 500;
   const OPENAI_KEY_STORAGE = "dk_openai_api_key";
 
   const STATUS = {
@@ -138,6 +139,8 @@
 
   function eraRejeicaoValorIndevida(rec) {
     if (rec.status !== STATUS.REJEITADO || !rec.rejeitadoAutomatico) return false;
+    const idxPag = indicePagamentosProtocoloPorComprovante();
+    if (comprovanteRegistadoNoProtocolo(rec, idxPag)) return false;
     if (rec.valorCorrigidoSistemaEm) return true;
     const mot = String(rec.rejeitadoMotivo || rec.rejeitadoMotivoCliente || "").toLowerCase();
     if (!mot.includes("valor")) return false;
@@ -247,6 +250,17 @@
     const silencioso = Boolean(opts?.silencioso);
     let list = arr.map((r) => ({ ...r }));
     let changed = false;
+    const idxPag = indicePagamentosProtocoloPorComprovante();
+
+    list = list.map((r) => {
+      const pag = comprovanteRegistadoNoProtocolo(r, idxPag);
+      if (!pag) return r;
+      if (r.status === STATUS.CONFIRMADO && roundCentavos(r.valorRegistadoProtocolo ?? r.valor) === roundCentavos(pag.valor)) {
+        return r;
+      }
+      changed = true;
+      return alinharComprovanteConfirmadoComProtocolo(r, pag);
+    });
 
     list = list.map((r) => {
       const c = corrigirValorCentavosGravado(r);
@@ -265,6 +279,30 @@
       if (c !== r) changed = true;
       return c;
     });
+
+    const porImagemPosSync = new Map();
+    for (const r of list) {
+      const fp = String(r.comprovanteFp || "").trim();
+      if (!fp) continue;
+      if (!porImagemPosSync.has(fp)) porImagemPosSync.set(fp, []);
+      porImagemPosSync.get(fp).push(r);
+    }
+    for (const grupo of porImagemPosSync.values()) {
+      if (grupo.length <= 1) continue;
+      const confirmados = grupo.filter((r) => r.status === STATUS.CONFIRMADO);
+      if (!confirmados.length) continue;
+      const idRef = confirmados[0].id;
+      for (const r of grupo) {
+        if (r.status === STATUS.CONFIRMADO) continue;
+        const idx = list.findIndex((x) => x.id === r.id);
+        if (idx < 0 || list[idx].status === STATUS.REJEITADO) continue;
+        list[idx] = rejeitarDuplicataMesmaImagem(list[idx], idRef);
+        if (!silencioso) {
+          notificarClienteComprovanteRejeitado(list[idx], list[idx].rejeitadoMotivoCliente);
+        }
+        changed = true;
+      }
+    }
 
     const porImagem = new Map();
     for (const r of list) {
@@ -396,7 +434,7 @@
     const { list, changed: normChanged } = normalizarHistoricoComprovantes(raw, { silencioso: leve });
     changed = changed || normChanged;
     if (changed) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(list)));
       _ccLoadAllCache = list;
       if (leve) agendarPushNuvemAdiado();
       else pushNuvem();
@@ -415,7 +453,7 @@
       const { list, changed } = normalizarHistoricoComprovantes(raw, { silencioso: leitura });
       _ccLoadAllCache = list;
       if (changed) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(list.slice(0, 200)));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(list)));
         if (leitura) agendarPushNuvemAdiado();
         else pushNuvem();
       }
@@ -428,7 +466,7 @@
   function saveAll(arr) {
     const { list, changed } = normalizarHistoricoComprovantes(arr);
     const final = changed ? list : arr;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(final.slice(0, 200)));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(final)));
     pushNuvem();
   }
 
@@ -504,6 +542,68 @@
     const CAD_LOC =
       typeof CAD_LOCACOES_KEY !== "undefined" ? CAD_LOCACOES_KEY : "dk_locacoes_cadastro";
     return loadCadastro(CAD_LOC);
+  }
+
+  function sliceComprovantesPreservandoConfirmados(arr) {
+    const list = Array.isArray(arr) ? arr : [];
+    const confirmados = list.filter((r) => r.status === STATUS.CONFIRMADO);
+    const rest = list.filter((r) => r.status !== STATUS.CONFIRMADO);
+    return [...confirmados, ...rest].slice(0, STORAGE_MAX_COMPROVANTES);
+  }
+
+  /** Índice de pagamentos já lançados no protocolo (fonte do relatório «validados»). */
+  function indicePagamentosProtocoloPorComprovante() {
+    const porId = new Map();
+    const porFp = new Map();
+    for (const loc of loadLocacoesCadastro()) {
+      const push = (p) => {
+        if (!p || typeof p !== "object" || !p.confirmadoViaAppCliente) return;
+        const oid = String(p.origemComprovanteClienteId || "").trim();
+        if (oid && !porId.has(oid)) porId.set(oid, p);
+        const fp = String(p.comprovanteFp || "").trim();
+        if (fp && !porFp.has(fp)) porFp.set(fp, p);
+      };
+      (loc.portalLancamentosAluguel || []).forEach(push);
+      (loc.portalMultasTransito || []).forEach(push);
+      (loc.portalManutencoesRegistro || []).forEach(push);
+    }
+    return { porId, porFp };
+  }
+
+  function comprovanteRegistadoNoProtocolo(rec, idx) {
+    if (!rec) return null;
+    const id = String(rec.id || "").trim();
+    if (id && idx.porId.has(id)) return idx.porId.get(id);
+    const fp = String(rec.comprovanteFp || "").trim();
+    if (fp && idx.porFp.has(fp)) return idx.porFp.get(fp);
+    return null;
+  }
+
+  function alinharComprovanteConfirmadoComProtocolo(rec, pag) {
+    const valorPag = roundCentavos(pag?.valor ?? rec.valorRegistadoProtocolo ?? rec.valor);
+    return {
+      ...rec,
+      status: STATUS.CONFIRMADO,
+      confirmadoEm:
+        rec.confirmadoEm || pag?.comprovanteClienteConfirmadoEm || new Date().toISOString(),
+      confirmadoPorNome:
+        String(rec.confirmadoPorNome || pag?.comprovanteValidadoPorNome || pag?.registradoPorNome || "").trim() ||
+        rec.confirmadoPorNome,
+      confirmadoPorCpf:
+        String(rec.confirmadoPorCpf || pag?.comprovanteValidadoPorCpf || pag?.registradoPorCpf || "").trim() ||
+        rec.confirmadoPorCpf,
+      valorRegistadoProtocolo: valorPag,
+      rejeitadoMotivoCliente: "",
+      rejeitadoMotivo: "",
+      reabertoParaOperadorEm: "",
+      sincronizadoComProtocoloEm: new Date().toISOString(),
+    };
+  }
+
+  function comprovanteElegivelFilaOperador(rec, idxPag) {
+    if (!rec || rec.status !== STATUS.IA_OK) return false;
+    if (comprovanteRegistadoNoProtocolo(rec, idxPag)) return false;
+    return true;
   }
 
   function pagamentosProtocoloComComprovante(cpf, proto) {
@@ -910,6 +1010,7 @@
 
     const comprovanteFp = await computeComprovanteFingerprint(arquivoBase64, mimeType);
 
+    const idxPagEntrada = indicePagamentosProtocoloPorComprovante();
     const dupEntrada = await detectarComprovanteDuplicado({
       comprovanteFp,
       arquivoBase64,
@@ -921,6 +1022,13 @@
         ok: false,
         duplicata: true,
         msg: dupEntrada.msgCliente || MSG_DUP_IMAGEM_CLIENTE,
+      };
+    }
+    if (comprovanteFp && idxPagEntrada.porFp.has(comprovanteFp)) {
+      return {
+        ok: false,
+        duplicata: true,
+        msg: MSG_DUP_IMAGEM_CLIENTE,
       };
     }
 
@@ -958,8 +1066,9 @@
 
   /** Aguardam confirmação manual do operador (passaram na IA automática). */
   function listarAguardandoConfirmacaoOperador() {
+    const idxPag = indicePagamentosProtocoloPorComprovante();
     return loadAll()
-      .filter((r) => r.status === STATUS.IA_OK)
+      .filter((r) => comprovanteElegivelFilaOperador(r, idxPag))
       .sort((a, b) => {
         if (a.reabertoParaOperadorEm && !b.reabertoParaOperadorEm) return -1;
         if (b.reabertoParaOperadorEm && !a.reabertoParaOperadorEm) return 1;
@@ -1313,6 +1422,21 @@
 
     const rec = getById(id);
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
+    const idxPag = indicePagamentosProtocoloPorComprovante();
+    const pagProto = comprovanteRegistadoNoProtocolo(rec, idxPag);
+    if (pagProto) {
+      const all = loadAll();
+      const iSync = all.findIndex((r) => r.id === id);
+      if (iSync >= 0) {
+        all[iSync] = alinharComprovanteConfirmadoComProtocolo(all[iSync], pagProto);
+        saveAll(all);
+      }
+      return {
+        ok: false,
+        skipped: true,
+        msg: "Pagamento já registado no protocolo (relatório). Comprovante alinhado — não fica na fila do operador.",
+      };
+    }
     if (rec.status === STATUS.CONFIRMADO) {
       return { ok: false, msg: "Pagamento já confirmado." };
     }
@@ -1447,7 +1571,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (!(valorIa > 0)) {
         ia.observacoes += "Valor não identificado na imagem — conferência manual do valor. ";
       } else if (!ia.confereValor && !ia.revisaoValorManual) {
-        const msgCliente = `O valor no comprovante (${currencyBRL(valorIaRaw)}) é diferente do valor que você indicou (${currencyBRL(rec.valor)}). Corrija o valor no app ou envie o comprovante correto.`;
+        const msgCliente = `O valor no comprovante (${currencyBRL(valorIaRaw)}) é diferente do valor que você indicou (${currencyBRL(rec.valor)}). Corrija o valor no app ou envie o comprovante correto. Consulte «Pagamentos recusados (72 h)» no portal se a DK já analisou.`;
         const rej = aplicarRejeicaoComprovanteCliente(id, msgCliente, operador, ia, {
           motivoInterno: `Valor comprovante ${currencyBRL(valorIaRaw)} ≠ declarado ${currencyBRL(rec.valor)}.`,
         });
@@ -1766,9 +1890,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
 
     const ja = pagamentoJaRegistadoParaComprovante(loc, rec);
     if (ja) {
+      const all = loadAll();
+      const iCc = all.findIndex((r) => r.id === rec.id);
+      if (iCc >= 0) {
+        all[iCc] = alinharComprovanteConfirmadoComProtocolo(all[iCc], ja);
+        saveAll(all);
+      }
       return {
-        ok: false,
-        msg: `Pagamento já registado neste protocolo (${String(ja.data || "")} · ${currencyBRL(ja.valor)}).`,
+        ok: true,
+        jaRegistadoNoProtocolo: true,
+        rec: iCc >= 0 ? all[iCc] : rec,
+        valorRegistado: roundCentavos(ja.valor),
       };
     }
 
@@ -1912,6 +2044,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const rec = getById(id);
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
     if (rec.status === STATUS.CONFIRMADO) return { ok: false, msg: "Já confirmado." };
+    const idxPag = indicePagamentosProtocoloPorComprovante();
+    const pagProto = comprovanteRegistadoNoProtocolo(rec, idxPag);
+    if (pagProto) {
+      const all = loadAll();
+      const idx = all.findIndex((r) => r.id === id);
+      if (idx >= 0) {
+        all[idx] = alinharComprovanteConfirmadoComProtocolo(all[idx], pagProto);
+        saveAll(all);
+        return { ok: true, rec: all[idx], jaRegistadoNoProtocolo: true };
+      }
+    }
     if (rec.status !== STATUS.IA_OK) {
       return {
         ok: false,

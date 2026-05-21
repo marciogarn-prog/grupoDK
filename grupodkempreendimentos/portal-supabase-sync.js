@@ -389,9 +389,39 @@
     };
     (Array.isArray(localArr) ? localArr : []).forEach(push);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(push);
-    return Array.from(byId.values())
+    let list = Array.from(byId.values());
+    const porFp = new Map();
+    for (const r of list) {
+      const fp = String(r.comprovanteFp || "").trim();
+      if (!fp) continue;
+      if (!porFp.has(fp)) porFp.set(fp, []);
+      porFp.get(fp).push(r);
+    }
+    for (const grupo of porFp.values()) {
+      if (grupo.length <= 1) continue;
+      grupo.sort((a, b) => comprovanteClienteRank(b) - comprovanteClienteRank(a));
+      const winner = grupo[0];
+      for (let i = 1; i < grupo.length; i++) {
+        const loser = grupo[i];
+        if (comprovanteClienteRank(loser) >= comprovanteClienteRank(winner)) continue;
+        const idx = list.findIndex((x) => x.id === loser.id);
+        if (idx < 0) continue;
+        list[idx] = {
+          ...list[idx],
+          status: "rejeitado",
+          rejeitadoAutomatico: true,
+          rejeitadoMotivoCliente:
+            "Esta imagem de comprovante já foi enviada ao sistema. Envie outra captura ou comprovante diferente.",
+          rejeitadoMotivo: `Comprovante duplicado — mesma imagem (mantido ${winner.id}).`,
+          rejeitadoEm: new Date().toISOString(),
+        };
+      }
+    }
+    const confirmados = list.filter((r) => String(r.status) === "confirmado");
+    const rest = list.filter((r) => String(r.status) !== "confirmado");
+    return [...confirmados, ...rest]
       .sort((a, b) => (Date.parse(b.enviadoEm || 0) || 0) - (Date.parse(a.enviadoEm || 0) || 0))
-      .slice(0, 200);
+      .slice(0, 500);
   }
 
   function mergeClienteNotificacoes(localArr, cloudArr) {

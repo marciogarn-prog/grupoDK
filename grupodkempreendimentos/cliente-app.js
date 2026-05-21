@@ -535,7 +535,7 @@
       if (idx < 0) return { ok: false, msg: "Comprovante não encontrado." };
       if (all[idx].status !== "rejeitado") return { ok: false, msg: "Estado inválido." };
       all[idx].clienteDeAcordoEm = new Date().toISOString();
-      localStorage.setItem("dk_comprovantes_cliente_pendentes", JSON.stringify(all.slice(0, 200)));
+      localStorage.setItem("dk_comprovantes_cliente_pendentes", JSON.stringify(all.slice(0, 500)));
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
         window.__DK_pushCloudSnapshotNow().catch(() => {});
       }
