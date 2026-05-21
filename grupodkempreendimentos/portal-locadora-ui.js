@@ -767,7 +767,7 @@
       locadoraAppFeedback.textContent =
         "CPF e protocolo validados. A abrir página de instalação…";
     }
-    window.location.assign(`/instalar?${q.toString()}`);
+    window.location.assign(`/instalar.html?${q.toString()}`);
   }
 
   formLocadoraAppDownload?.addEventListener("submit", async (e) => {
