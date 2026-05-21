@@ -121,8 +121,6 @@
 
   function getLancamentosFromLoc(loc) {
     const out = [];
-    const seenOid = new Set();
-    const seenFp = new Set();
     const push = (arr, tipo) => {
       if (!Array.isArray(arr)) return;
       arr.forEach((x) => {
@@ -130,27 +128,27 @@
         const data = String(x.data || x.dataPagamento || "").trim();
         let valor = typeof x.valor === "number" ? x.valor : parseCurrencyBR(x.valor ?? x.valorPago);
         if (!Number.isFinite(valor) || valor <= 0) return;
-        const oid = String(x.origemComprovanteClienteId || "").trim();
-        const fp = String(x.comprovanteFp || "").trim();
-        if (oid && seenOid.has(oid)) return;
-        if (fp && seenFp.has(fp)) return;
-        if (oid) seenOid.add(oid);
-        if (fp) seenFp.add(fp);
         out.push({
           data,
           valor,
           tipo,
           protocolo: normNc(loc.numeroContrato),
+          createdAt: Number(x.createdAt || x.id || 0),
           confirmadoViaAppCliente: Boolean(x.confirmadoViaAppCliente),
-          origemComprovanteClienteId: oid,
-          comprovanteFp: fp,
+          origemComprovanteClienteId: String(x.origemComprovanteClienteId || "").trim(),
+          comprovanteFp: String(x.comprovanteFp || "").trim(),
+          registradoPorNome: String(x.registradoPorNome || "").trim(),
         });
       });
     };
     push(loc.portalLancamentosAluguel, "Aluguel");
     push(loc.lancamentosAluguel, "Aluguel");
     push(loc.lancamentos, "Aluguel");
-    return out;
+    const dedupe =
+      typeof window.__DK_dedupeLancamentosPagamento === "function"
+        ? window.__DK_dedupeLancamentosPagamento
+        : null;
+    return dedupe ? dedupe(out) : out;
   }
 
   function loadDadosCliente(cpfDigits) {

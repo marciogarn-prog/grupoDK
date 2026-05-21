@@ -69,6 +69,41 @@
     return m ? Number(m[1]) : 0;
   }
 
+  /** Evita duas linhas iguais (mesma data + valor) vindas de portal + legado + global. */
+  function dedupeLancamentosPagamento(rows) {
+    const sorted = [...(rows || [])].sort((a, b) => {
+      if (a.confirmadoViaAppCliente && !b.confirmadoViaAppCliente) return -1;
+      if (!a.confirmadoViaAppCliente && b.confirmadoViaAppCliente) return 1;
+      if (a.registradoPorNome && !b.registradoPorNome) return -1;
+      if (!a.registradoPorNome && b.registradoPorNome) return 1;
+      return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+    });
+    const seenOid = new Set();
+    const seenFp = new Set();
+    const seenDataValor = new Set();
+    const out = [];
+    for (const row of sorted) {
+      const oid = String(row.origemComprovanteClienteId || "").trim();
+      const fp = String(row.comprovanteFp || "").trim();
+      const data = String(row.data || "").trim();
+      const valor = Number(row.valor);
+      const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
+      if (oid && seenOid.has(oid)) continue;
+      if (fp && seenFp.has(fp)) continue;
+      if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
+      if (oid) seenOid.add(oid);
+      if (fp) seenFp.add(fp);
+      if (data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
+      out.push(row);
+    }
+    out.sort((a, b) => {
+      const da = parseBrDate(a.data)?.getTime() || 0;
+      const db = parseBrDate(b.data)?.getTime() || 0;
+      return db - da;
+    });
+    return out;
+  }
+
   function getLancamentosAluguelContrato(loc) {
     const out = [];
     const push = (arr, origem) => {
@@ -82,8 +117,10 @@
           data,
           valor,
           origem,
+          createdAt: Number(x.createdAt || x.id || 0),
           confirmadoViaAppCliente: Boolean(x.confirmadoViaAppCliente),
           origemComprovanteClienteId: String(x.origemComprovanteClienteId || "").trim(),
+          comprovanteFp: String(x.comprovanteFp || "").trim(),
           registradoPorNome: String(x.registradoPorNome || "").trim(),
         });
       });
@@ -125,7 +162,7 @@
     } catch {
       /* ignore */
     }
-    return out;
+    return dedupeLancamentosPagamento(out);
   }
 
   function sumMultasRegistradas(loc) {
@@ -218,4 +255,5 @@
   }
 
   window.__DK_clienteComputeResumoContrato = computeResumoContrato;
+  window.__DK_dedupeLancamentosPagamento = dedupeLancamentosPagamento;
 })();

@@ -138,6 +138,9 @@
       if (da !== db) return da - db;
       return Number(a.createdAt || 0) - Number(b.createdAt || 0);
     });
+    if (typeof window.__DK_dedupeLancamentosPagamento === "function") {
+      return window.__DK_dedupeLancamentosPagamento(flat);
+    }
     return flat;
   }
 

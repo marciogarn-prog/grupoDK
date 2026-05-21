@@ -2191,19 +2191,30 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     }
   }
   const out = Array.from(byKey.values());
-  out.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+  out.sort((a, b) => {
+    if (a.confirmadoViaAppCliente && !b.confirmadoViaAppCliente) return -1;
+    if (!a.confirmadoViaAppCliente && b.confirmadoViaAppCliente) return 1;
+    return Number(b.createdAt || 0) - Number(a.createdAt || 0);
+  });
   const seenOid = new Set();
   const seenFp = new Set();
+  const seenDataValor = new Set();
   const deduped = [];
   for (const row of out) {
     const oid = String(row.origemComprovanteClienteId || "").trim();
     const fp = String(row.comprovanteFp || "").trim();
+    const data = String(row.data || "").trim();
+    const valor = Number(row.valor);
+    const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
     if (oid && seenOid.has(oid)) continue;
     if (fp && seenFp.has(fp)) continue;
+    if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
     if (oid) seenOid.add(oid);
     if (fp) seenFp.add(fp);
+    if (data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
     deduped.push(row);
   }
+  deduped.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
   return deduped;
 }
 
