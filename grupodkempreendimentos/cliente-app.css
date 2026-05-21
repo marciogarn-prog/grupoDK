@@ -266,7 +266,19 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 }
 
 .cliente-pagamento-row--rejeitado {
-  align-items: center;
+  align-items: flex-start;
+}
+
+.cliente-pagamento-row__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cliente-pagamento-row__motivo {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--text-muted, #8a9199);
 }
 
 .cliente-pagamento-row__tail {

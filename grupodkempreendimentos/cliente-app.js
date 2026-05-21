@@ -451,6 +451,7 @@
           kind: "envio",
           sort: pagamentoSortKey(e.dataPagamento, extra),
           label: statusComprovanteLabel(e.status),
+          motivoRejeicao: String(e.rejeitadoMotivoCliente || "").trim(),
           data: e.dataPagamento,
           valor: e.valor,
           status: e.status,
@@ -465,8 +466,14 @@
   function renderLinhaPagamentoItem(linha) {
     const baseClass = `cliente-pagamento-row${linha.extraClass ? ` ${linha.extraClass}` : ""}`;
     if (linha.kind === "envio" && linha.status === "rejeitado" && linha.id) {
+      const motivoHtml = linha.motivoRejeicao
+        ? `<p class="cliente-pagamento-row__motivo">${escapeHtml(linha.motivoRejeicao)}</p>`
+        : "";
       return `<div class="${baseClass} cliente-pagamento-row--rejeitado">
-        <span class="cliente-pagamento-row__label">${escapeHtml(linha.label)} · ${escapeHtml(linha.data)}</span>
+        <div class="cliente-pagamento-row__main">
+          <span class="cliente-pagamento-row__label">${escapeHtml(linha.label)} · ${escapeHtml(linha.data)}</span>
+          ${motivoHtml}
+        </div>
         <div class="cliente-pagamento-row__tail">
           <button type="button" class="cliente-btn-de-acordo" data-cc-de-acordo="${escapeHtml(linha.id)}">De acordo</button>
           <span class="cliente-pagamento-row__valor">${escapeHtml(currencyBRL(linha.valor))}</span>
@@ -907,7 +914,7 @@
   function statusComprovanteLabel(st) {
     if (st === "confirmado") return "Pagamento confirmado pela DK";
     if (st === "ia_validado") return "Conferido — aguarda confirmação final";
-    if (st === "rejeitado") return "Não aceite — contacte a locadora";
+    if (st === "rejeitado") return "Comprovante não aceite";
     return "Enviado — aguarda conferência do operador";
   }
 

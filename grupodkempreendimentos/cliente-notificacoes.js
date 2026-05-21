@@ -37,6 +37,29 @@
     return `Pagamento de ${currencyBRL(valor)} realizado em ${data} confirmado.`;
   }
 
+  function adicionarNotificacaoComprovanteRejeitado(payload) {
+    const cpf = onlyDigits(payload.cpf).slice(0, 11);
+    if (cpf.length !== 11) return { ok: false, msg: "CPF inválido." };
+    const mensagem = String(payload.mensagem || "").trim();
+    if (!mensagem) return { ok: false, msg: "Mensagem obrigatória." };
+    const rec = {
+      id: `cn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      tipo: "comprovante_rejeitado",
+      cpf,
+      protocolo: String(payload.protocolo || "").trim(),
+      valor: Number(payload.valor) || 0,
+      dataPagamento: String(payload.dataPagamento || "").trim(),
+      mensagem,
+      comprovanteId: String(payload.comprovanteId || "").trim(),
+      criadoEm: new Date().toISOString(),
+      lido: false,
+    };
+    const all = loadAll();
+    all.unshift(rec);
+    saveAll(all);
+    return { ok: true, rec };
+  }
+
   function adicionarNotificacaoPagamentoConfirmado(payload) {
     const cpf = onlyDigits(payload.cpf).slice(0, 11);
     if (cpf.length !== 11) return { ok: false, msg: "CPF inválido." };
@@ -88,6 +111,7 @@
   }
 
   window.__DK_clienteNotificacaoPagamentoConfirmado = adicionarNotificacaoPagamentoConfirmado;
+  window.__DK_clienteNotificacaoComprovanteRejeitado = adicionarNotificacaoComprovanteRejeitado;
   window.__DK_clienteNotificacoesList = listarPorCpf;
   window.__DK_clienteNotificacoesMarcarLidas = marcarLidasPorCpf;
   window.__DK_clienteMensagemPagamentoConfirmado = mensagemPagamentoConfirmado;
