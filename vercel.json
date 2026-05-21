@@ -11,6 +11,13 @@
     "SUPABASE_URL": "https://ppxtwqvzgujllfzarpuz.supabase.co",
     "SUPABASE_ANON_KEY": "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3"
   },
+  "rewrites": [
+    {
+      "source": "/cliente",
+      "destination": "/api/cliente-share",
+      "methods": ["POST"]
+    }
+  ],
   "crons": [
     {
       "path": "/api/cron-daily-backup",

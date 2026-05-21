@@ -7,6 +7,7 @@
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const GATE_PERSIST_KEY = "dk_cliente_gate_persist";
   const SHARE_CACHE_KEY = "dk-shared-comprovante";
+  const PENDING_SHARE_SESSION_KEY = "dk_cliente_share_pending";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
   let pendingShareFocus = false;
   const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
@@ -436,8 +437,44 @@
     const el = $("cliente-sec-comprovante");
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
-    $("comp-valor")?.focus();
     pendingShareFocus = false;
+    window.setTimeout(() => $("comp-data")?.focus(), 300);
+  }
+
+  function preselectProtocoloComprovante() {
+    const sel = $("comp-protocolo");
+    if (!sel || sel.value) return;
+    for (let i = 1; i < sel.options.length; i++) {
+      if (sel.options[i].value) {
+        sel.selectedIndex = i;
+        break;
+      }
+    }
+  }
+
+  function attachFileToComprovanteInput(file) {
+    comprovanteFile = file;
+    const input = $("comp-arquivo");
+    if (input && typeof DataTransfer !== "undefined") {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      } catch {
+        /* preview only */
+      }
+    }
+    const preview = $("comp-preview");
+    if (preview) {
+      try {
+        if (preview.src && preview.src.startsWith("blob:")) URL.revokeObjectURL(preview.src);
+      } catch {
+        /* ignore */
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.classList.add("is-visible");
+    }
   }
 
   async function applySharedFileToComprovante(file) {
@@ -451,27 +488,72 @@
       }
       return;
     }
-    comprovanteFile = file;
-    const input = $("comp-arquivo");
-    if (input && typeof DataTransfer !== "undefined") {
-      try {
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        input.files = dt.files;
-      } catch {
-        /* preview only */
-      }
+
+    attachFileToComprovanteInput(file);
+
+    const msgApp = $("comp-msg");
+    const msgLogin = $("login-feedback");
+    const hint =
+      "Comprovante do banco recebido — escolha o protocolo, informe data e valor e toque em Enviar comprovante.";
+
+    if (sessao?.cpf && clienteTemLocacaoAtiva(sessao.cpf)) {
+      if (msgApp) msgApp.textContent = hint;
+      preselectProtocoloComprovante();
+      pendingShareFocus = true;
+      focusComprovanteSection();
+    } else if (sessao?.cpf) {
+      showView("propaganda");
+      if (msgApp) msgApp.textContent = hint;
+    } else {
+      if (msgLogin) msgLogin.textContent = "Comprovante recebido — entre com CPF e senha; depois confira data, valor e envie.";
+      pendingShareFocus = true;
     }
-    const preview = $("comp-preview");
-    if (preview) {
-      preview.src = URL.createObjectURL(file);
-      preview.classList.add("is-visible");
+  }
+
+  function consumePendingShareFromSessionStorage() {
+    let raw = null;
+    try {
+      raw = sessionStorage.getItem(PENDING_SHARE_SESSION_KEY) || localStorage.getItem(PENDING_SHARE_SESSION_KEY);
+    } catch {
+      return false;
     }
-    const msg = $("comp-msg");
-    if (msg) msg.textContent = "Comprovante recebido — confira protocolo, data, valor e toque em Enviar comprovante.";
-    pendingShareFocus = true;
-    const s2 = getSessao();
-    if (s2 && clienteTemLocacaoAtiva(s2.cpf)) focusComprovanteSection();
+    if (!raw) return false;
+    try {
+      sessionStorage.removeItem(PENDING_SHARE_SESSION_KEY);
+      localStorage.removeItem(PENDING_SHARE_SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    try {
+      const o = JSON.parse(raw);
+      if (!o?.b64) return false;
+      const bin = atob(o.b64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const mime = String(o.mime || "application/octet-stream");
+      const name = String(o.name || "comprovante");
+      const file = new File([bytes], name, { type: mime });
+      applySharedFileToComprovante(file);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function processIncomingShare() {
+    const q = new URLSearchParams(location.search);
+    if (q.get("dkShare") === "large") {
+      const fb = $("login-feedback") || $("comp-msg");
+      if (fb) fb.textContent = "Comprovante muito grande. Use uma captura de ecrã ou anexe manualmente no app.";
+      return;
+    }
+    if (q.get("dkShare") === "empty" || q.get("dkShare") === "error") {
+      const fb = $("login-feedback") || $("comp-msg");
+      if (fb) fb.textContent = "Não foi possível receber o ficheiro. Anexe o comprovante manualmente abaixo.";
+      return;
+    }
+    if (consumePendingShareFromSessionStorage()) return;
+    if (await consumeShareFromServiceWorkerCache()) return;
   }
 
   async function consumeShareFromServiceWorkerCache() {
@@ -776,7 +858,17 @@
       }
     }
     await atualizarProgramaEDados(sess, { silent: false });
-    await consumeShareFromServiceWorkerCache();
+    if (comprovanteFile) {
+      attachFileToComprovanteInput(comprovanteFile);
+      preselectProtocoloComprovante();
+      if (clienteTemLocacaoAtiva(sess.cpf)) {
+        $("comp-msg").textContent =
+          "Comprovante recebido — confira protocolo, data, valor e toque em Enviar comprovante.";
+        focusComprovanteSection();
+      }
+    } else {
+      await processIncomingShare();
+    }
   }
 
   function wireComprovanteLinkDelegation() {
@@ -881,20 +973,14 @@
 
     const sessao = getSessao();
     if (sessao?.cpf) {
-      afterLogin(sessao);
+      await afterLogin(sessao);
     } else {
       showView("login");
-      if (parseShareFromUrl()?.type === "file") pendingShareFocus = true;
-      consumeShareFromServiceWorkerCache();
+      await processIncomingShare();
     }
 
     wireInstall();
     bindCompMasks();
-
-    if (parseShareFromUrl()?.type === "file" || new URLSearchParams(location.search).get("dkShare") === "file") {
-      pendingShareFocus = true;
-      await consumeShareFromServiceWorkerCache();
-    }
   }
 
   if (document.readyState === "loading") {
