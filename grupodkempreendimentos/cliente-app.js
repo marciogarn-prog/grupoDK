@@ -829,6 +829,7 @@
       return;
     }
     const html = build(sessao.cpf, sessao.nome);
+    lastRelatorioHtml = html;
     const modal = $("cliente-modal-relatorio");
     const frame = $("cliente-relatorio-frame");
     if (modal && frame) {
@@ -895,6 +896,49 @@
   }
 
   let comprovanteFile = null;
+  let lastRelatorioHtml = "";
+
+  async function compartilharRelatorioPagamentos() {
+    const sessao = getSessao();
+    if (!sessao?.cpf) return;
+    const html = String(lastRelatorioHtml || $("cliente-relatorio-frame")?.srcdoc || "").trim();
+    if (!html) {
+      window.alert("Gere o relatório antes de compartilhar.");
+      return;
+    }
+    const titulo = `Relatório DK — ${sessao.nome || "Cliente"}`;
+    const texto = [
+      "Relatório de pagamentos — DK Locadora",
+      `Cliente: ${sessao.nome || "—"}`,
+      `CPF: ${formatCpf(sessao.cpf)}`,
+      `Gerado em: ${new Date().toLocaleString("pt-BR")}`,
+    ].join("\n");
+    const nomeArquivo = `Relatorio-DK-${onlyDigits(sessao.cpf).slice(0, 11)}.html`;
+    const file = new File([html], nomeArquivo, { type: "text/html;charset=utf-8" });
+
+    if (navigator.share) {
+      try {
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: titulo, text: texto, files: [file] });
+          return;
+        }
+        await navigator.share({ title: titulo, text: texto });
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+      }
+    }
+
+    const waText = encodeURIComponent(texto);
+    const abrir = window.confirm(
+      "Partilha nativa indisponível neste dispositivo.\n\nOK = abrir WhatsApp com o resumo\nCancelar = abrir e-mail"
+    );
+    if (abrir) {
+      window.open(`https://wa.me/?text=${waText}`, "_blank", "noopener,noreferrer");
+    } else {
+      window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(texto)}`;
+    }
+  }
 
   function onComprovanteFileChange() {
     const input = $("comp-arquivo");
@@ -1295,14 +1339,7 @@
     $("btn-enviar-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
     $("btn-relatorio-pagamentos")?.addEventListener("click", () => openRelatorioPagamentos());
     $("btn-relatorio-fechar")?.addEventListener("click", () => $("cliente-modal-relatorio")?.classList.add("hidden"));
-    $("btn-relatorio-imprimir")?.addEventListener("click", () => {
-      const frame = $("cliente-relatorio-frame");
-      try {
-        frame?.contentWindow?.print();
-      } catch {
-        window.print();
-      }
-    });
+    $("btn-relatorio-compartilhar")?.addEventListener("click", () => compartilharRelatorioPagamentos());
 
     const cpfIn = $("login-cpf");
     cpfIn?.addEventListener("input", () => {
