@@ -171,7 +171,8 @@ async function main() {
       page.url()
     );
 
-    const clienteHtml = await page.evaluate(() => fetch("./cliente.html").then((r) => r.text()));
+    const clienteHtmlUrl = new URL("cliente.html", BASE_URL).href;
+    const clienteHtml = await fetch(clienteHtmlUrl).then((r) => r.text());
     record(
       "app cliente auto-sync e notificações",
       clienteHtml.includes("atualizarProgramaEDados") === false &&
@@ -182,7 +183,7 @@ async function main() {
     );
     record(
       "app cliente resumo contrato no HTML",
-      clienteHtml.includes("cliente-contrato-dl") && clienteHtml.includes("Meus contratos")
+      clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
