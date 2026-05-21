@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260521rel-pdf-fix";
+const CACHE_NAME = "dk-cliente-v20260522seguro";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -6,16 +6,9 @@ const ASSETS = [
   "/instalar",
   "./instalar.html",
   "./instalar-cliente.js",
-  "./cliente-app.js",
   "./cliente-app.css",
   "./cliente-notificacoes.js",
   "./cliente-contrato-resumo.js",
-  "./cliente-relatorio-pagamentos.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js",
-  "/cliente-relatorio-pagamentos.js",
-  "./portal-comprovantes-cliente.js",
-  "./portal-supabase-sync.js",
   "./styles.css",
   "./manifest-cliente.webmanifest",
   "./icons/icon-cliente-192.png",
@@ -64,6 +57,18 @@ async function storeSharedComprovanteFromPost(request) {
   return true;
 }
 
+function networkFirst(request) {
+  return fetch(request)
+    .then((r) => {
+      if (r && r.ok) {
+        const clone = r.clone();
+        caches.open(CACHE_NAME).then((c) => c.put(request, clone));
+      }
+      return r;
+    })
+    .catch(() => caches.match(request));
+}
+
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) {
@@ -98,47 +103,28 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.method !== "GET") return;
 
-  const isAppAsset =
+  const isScriptOrStyle =
     url.pathname.endsWith(".js") ||
     url.pathname.endsWith(".css") ||
-    url.pathname.endsWith(".html");
+    url.search.includes("v=20");
+  if (isScriptOrStyle) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  const isAppAsset =
+    url.pathname.endsWith(".html") || url.pathname.endsWith(".webmanifest");
   if (isAppAsset) {
-    event.respondWith(
-      fetch(event.request)
-        .then((r) => {
-          const clone = r.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-          return r;
-        })
-        .catch(() =>
-          caches.match(event.request).then((c) => c || caches.match("/cliente") || caches.match("./cliente.html"))
-        )
-    );
+    event.respondWith(networkFirst(event.request));
     return;
   }
   if (event.request.mode === "navigate") {
-    event.respondWith(
-      fetch(event.request)
-        .then((r) => {
-          const clone = r.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-          return r;
-        })
-        .catch(() =>
-          caches.match(event.request).then((c) => c || caches.match("/cliente") || caches.match("./cliente.html"))
-        )
-    );
+    event.respondWith(networkFirst(event.request));
     return;
   }
   event.respondWith(
     caches.match(event.request).then((cached) => {
-      const net = fetch(event.request)
-        .then((r) => {
-          const clone = r.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-          return r;
-        })
-        .catch(() => cached);
+      const net = networkFirst(event.request);
       return cached || net;
     })
   );

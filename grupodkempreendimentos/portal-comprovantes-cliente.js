@@ -83,7 +83,7 @@
     return new Date(year, month - 1, day);
   }
 
-  const MIG_HISTORICO_V = "20260522hist-v2";
+  const MIG_HISTORICO_V = "20260522hist-v3";
 
   function loadAllRaw() {
     try {
@@ -125,18 +125,53 @@
 
   function eraRejeicaoValorIndevida(rec) {
     if (rec.status !== STATUS.REJEITADO || !rec.rejeitadoAutomatico) return false;
+    if (rec.valorCorrigidoSistemaEm) return true;
     const mot = String(rec.rejeitadoMotivo || rec.rejeitadoMotivoCliente || "").toLowerCase();
     if (!mot.includes("valor")) return false;
     const valorDecl = roundCentavos(rec.valor);
     const ia = rec.iaValidacao;
     if (!ia || !(valorDecl > 0)) return false;
-    const valorIa = normalizarValorLidoIa(ia.valor, valorDecl);
-    return valorIa > 0 && valoresIguaisCentavos(valorIa, valorDecl);
+    const valorIaRaw = roundCentavos(parseCurrencyBR(ia.valorBruto ?? ia.valor));
+    const valorIaNorm = normalizarValorLidoIa(ia.valor, valorDecl);
+    if (!(valorDecl < 1 && valorIaRaw >= 1 && valorIaRaw < 100)) return false;
+    return (
+      valorIaNorm > 0 &&
+      valoresIguaisCentavos(valorIaNorm, valorDecl) &&
+      !valoresIguaisCentavos(valorIaRaw, valorDecl)
+    );
+  }
+
+  function corrigirReaberturaConfereValor(rec) {
+    if (rec.status !== STATUS.IA_OK || !rec.reabertoParaOperadorEm) return rec;
+    const ia = rec.iaValidacao;
+    if (!ia || typeof ia !== "object") return rec;
+    const decl = roundCentavos(rec.valor);
+    const raw = roundCentavos(parseCurrencyBR(ia.valorBruto ?? ia.valor));
+    const norm = normalizarValorLidoIa(ia.valor, decl);
+    const confere = valoresIguaisCentavos(norm, decl) || valoresIguaisCentavos(raw, decl);
+    if (ia.confereValor === confere) return rec;
+    return {
+      ...rec,
+      iaValidacao: {
+        ...ia,
+        confereValor: confere,
+        valor: norm,
+        valorBruto: Number.isFinite(raw) ? raw : ia.valorBruto,
+        observacoes: String(ia.observacoes || "").trim()
+          ? `${ia.observacoes} Valor: rever imagem antes de confirmar.`
+          : "Valor: rever imagem do comprovante antes de confirmar.",
+      },
+    };
   }
 
   function reabrirComprovanteParaOperador(rec) {
     const ia = rec.iaValidacao && typeof rec.iaValidacao === "object" ? { ...rec.iaValidacao } : {};
-    ia.confereValor = true;
+    const decl = roundCentavos(rec.valor);
+    const norm = normalizarValorLidoIa(ia.valor, decl);
+    const raw = roundCentavos(parseCurrencyBR(ia.valorBruto ?? ia.valor));
+    ia.valor = norm;
+    ia.valorBruto = Number.isFinite(raw) ? raw : ia.valorBruto;
+    ia.confereValor = valoresIguaisCentavos(norm, decl) || valoresIguaisCentavos(raw, decl);
     ia.observacoes = String(ia.observacoes || "").trim()
       ? `${ia.observacoes} Reaberto para confirmação do operador (correção de histórico).`
       : "Reaberto para confirmação do operador (correção de histórico).";
@@ -209,6 +244,12 @@
       if (!eraRejeicaoValorIndevida(r)) return r;
       changed = true;
       return reabrirComprovanteParaOperador(r);
+    });
+
+    list = list.map((r) => {
+      const c = corrigirReaberturaConfereValor(r);
+      if (c !== r) changed = true;
+      return c;
     });
 
     const porImagem = new Map();
@@ -748,12 +789,18 @@
     "Esta imagem de comprovante já foi enviada ao sistema. Envie outra captura ou comprovante diferente.";
 
   /** Duplicata = mesma imagem/ficheiro (hash) já existente no sistema — não compara data/hora/ID. */
-  function detectarImagemComprovanteDuplicada(fp, excludeId) {
+  function detectarImagemComprovanteDuplicada(fp, excludeId, opts) {
     const hash = String(fp || "").trim();
     if (!hash) return { duplicado: false, semFingerprint: true };
+    const paraEnvio = Boolean(opts?.paraEnvio);
 
     for (const r of loadAllRaw()) {
       if (excludeId && r.id === excludeId) continue;
+      if (!paraEnvio && r.status === STATUS.REJEITADO) continue;
+      if (paraEnvio && r.status === STATUS.REJEITADO) {
+        const mot = String(r.rejeitadoMotivo || r.rejeitadoMotivoCliente || "").toLowerCase();
+        if (mot.includes("mesma imagem")) continue;
+      }
       if (String(r.comprovanteFp || "") !== hash) continue;
       const st = statusLabel(r.status);
       return {
@@ -795,7 +842,7 @@
       const dataUrl = await fileToBase64(opts.file);
       fp = await computeComprovanteFingerprint(dataUrl, opts.file.type);
     }
-    return detectarImagemComprovanteDuplicada(fp, excludeId);
+    return detectarImagemComprovanteDuplicada(fp, excludeId, opts);
   }
 
   async function adicionarComprovanteCliente(payload) {
@@ -828,6 +875,7 @@
       comprovanteFp,
       arquivoBase64,
       mimeType,
+      paraEnvio: true,
     });
     if (dupEntrada.duplicado && dupEntrada.reprovar) {
       return {
@@ -1098,9 +1146,29 @@
     return x === y;
   }
 
+  function valorIaBrutoRec(rec) {
+    const ia = rec?.iaValidacao;
+    if (!ia) return 0;
+    return roundCentavos(parseCurrencyBR(ia.valorBruto ?? ia.valor));
+  }
+
+  function valorIaEfetivoRec(rec) {
+    const ia = rec?.iaValidacao;
+    if (!ia) return 0;
+    return normalizarValorLidoIa(ia.valor, rec.valor);
+  }
+
   function valorInformadoDivergeDaIA(rec) {
     const ia = rec?.iaValidacao;
-    return Boolean(ia && ia.confereValor === false);
+    if (!ia) return false;
+    if (ia.confereValor === false) return true;
+    const decl = roundCentavos(rec.valor);
+    const norm = valorIaEfetivoRec(rec);
+    const raw = valorIaBrutoRec(rec);
+    return !(
+      valoresIguaisCentavos(norm, decl) ||
+      valoresIguaisCentavos(raw, decl)
+    );
   }
 
   function operadorEhAdministradorTitular() {
@@ -1131,17 +1199,14 @@
     };
   }
 
-  /** Valor que entra no protocolo: se divergiu e foi autorizado, usa o lido pela IA. */
+  /** Valor que entra no protocolo: se divergiu e foi autorizado, usa o lido na imagem (valor bruto IA). */
   function valorParaRegistoPagamento(rec) {
     const ia = rec?.iaValidacao;
-    if (
-      valorInformadoDivergeDaIA(rec) &&
-      ia &&
-      Number.isFinite(Number(ia.valor)) &&
-      Number(ia.valor) > 0
-    ) {
-      return Number(ia.valor);
-    }
+    if (!valorInformadoDivergeDaIA(rec) || !ia) return Number(rec.valor);
+    const raw = valorIaBrutoRec(rec);
+    if (raw > 0) return raw;
+    const norm = valorIaEfetivoRec(rec);
+    if (norm > 0) return norm;
     return Number(rec.valor);
   }
 
@@ -1232,6 +1297,7 @@
       arquivoBase64: rec.arquivoBase64,
       mimeType: rec.mimeType,
       excludeId: rec.id,
+      paraEnvio: false,
     });
     if (dupAntesIa.duplicado && dupAntesIa.reprovar) {
       const msgCliente = dupAntesIa.msgCliente || MSG_DUP_IMAGEM_CLIENTE;
@@ -1285,6 +1351,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       const oai = await chamarOpenAIComprovante(content);
       if (!oai.ok) return { ok: false, msg: oai.msg };
       const extr = oai.parsed;
+      const valorIaRaw = roundCentavos(parseCurrencyBR(extr.valor));
       const valorIa = normalizarValorLidoIa(extr.valor, rec.valor);
       const cpfIa = onlyDigits(extr.cpf).slice(0, 11);
       const idTxIa = normIdTransacao(extr.idTransacao);
@@ -1300,12 +1367,20 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         dataPagamento: String(extr.dataPagamento || "").trim(),
         horaPagamento: horaIa,
         valor: valorIa,
+        valorBruto: valorIaRaw,
         idTransacao: idTxIa,
         pagamentoPorTerceiro: Boolean(extr.pagamentoPorTerceiro),
         comprovanteAutentico: autentico,
         riscoColagemOuEdicao: riscoEd === "medio" || riscoEd === "alto" ? riscoEd : "baixo",
         observacoesAutenticidade: String(extr.observacoesAutenticidade || "").trim(),
-        confereValor: valoresIguaisCentavos(valorIa, rec.valor),
+        confereValor:
+          valoresIguaisCentavos(valorIa, rec.valor) || valoresIguaisCentavos(valorIaRaw, rec.valor),
+        revisaoValorManual:
+          !valoresIguaisCentavos(valorIaRaw, rec.valor) &&
+          rec.valor < 1 &&
+          valorIaRaw >= 1 &&
+          valorIaRaw < 100 &&
+          valoresIguaisCentavos(valorIaRaw / 100, rec.valor),
         confereData:
           !extr.dataPagamento ||
           String(extr.dataPagamento).trim() === rec.dataPagamento ||
@@ -1328,10 +1403,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
 
       if (!(valorIa > 0)) {
         ia.observacoes += "Valor não identificado na imagem — conferência manual do valor. ";
-      } else if (!valoresIguaisCentavos(valorIa, rec.valor)) {
-        const msgCliente = `O valor no comprovante (${currencyBRL(valorIa)}) é diferente do valor que você indicou (${currencyBRL(rec.valor)}). Corrija o valor no app ou envie o comprovante correto.`;
+      } else if (!ia.confereValor && !ia.revisaoValorManual) {
+        const msgCliente = `O valor no comprovante (${currencyBRL(valorIaRaw)}) é diferente do valor que você indicou (${currencyBRL(rec.valor)}). Corrija o valor no app ou envie o comprovante correto.`;
         const rej = aplicarRejeicaoComprovanteCliente(id, msgCliente, operador, ia, {
-          motivoInterno: `Valor comprovante ${currencyBRL(valorIa)} ≠ declarado ${currencyBRL(rec.valor)}.`,
+          motivoInterno: `Valor comprovante ${currencyBRL(valorIaRaw)} ≠ declarado ${currencyBRL(rec.valor)}.`,
         });
         return {
           ok: false,
@@ -1340,6 +1415,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
           ia: rej?.iaValidacao,
           rec: rej,
         };
+      }
+      if (ia.revisaoValorManual) {
+        ia.confereValor = false;
+        ia.observacoes += `Valor ambíguo: imagem sugere ${currencyBRL(valorIaRaw)} e o cliente indicou ${currencyBRL(rec.valor)} — confirmação manual. `;
       }
 
       if (!autentico || riscoEd === "alto") {
@@ -1811,6 +1890,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       arquivoBase64: rec.arquivoBase64,
       mimeType: rec.mimeType,
       excludeId: rec.id,
+      paraEnvio: false,
     });
     if (dupConf.duplicado) {
       return {
@@ -1922,10 +2002,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
           const motivoTd = opts?.listaRecusados
             ? `<td class="portal-cc-motivo-recusa">${escapeHtml(r.rejeitadoMotivoCliente || r.rejeitadoMotivo || "—")}</td>`
             : "";
-          const valorUi =
-            r.iaValidacao && Number.isFinite(Number(r.iaValidacao.valor))
-              ? `${escapeHtml(currencyBRL(r.valor))} <span class="subtext">(IA: ${escapeHtml(currencyBRL(r.iaValidacao.valor))})</span>`
-              : escapeHtml(currencyBRL(r.valor));
+          const valorUi = valorInformadoDivergeDaIA(r)
+            ? `${escapeHtml(currencyBRL(r.valor))} <span class="subtext">(imagem: ${escapeHtml(currencyBRL(valorIaBrutoRec(r) || valorIaEfetivoRec(r)))})</span>`
+            : escapeHtml(currencyBRL(r.valor));
           return `<tr>
             <td>${escapeHtml(env)}</td>
             <td>${escapeHtml(r.nomeCliente || r.cpf)}</td>
@@ -2003,7 +2082,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       ia && ia.conferidoPorNome
         ? `<p><strong>Conferido por:</strong> ${escapeHtml(ia.conferidoPorNome)}${ia.conferidoPorCpf ? ` · CPF ${escapeHtml(ia.conferidoPorCpf)}` : ""}</p>`
         : "";
-    const dupUi = detectarImagemComprovanteDuplicada(rec.comprovanteFp, rec.id);
+    const dupUi = detectarImagemComprovanteDuplicada(rec.comprovanteFp, rec.id, { paraEnvio: false });
     const jaProc =
       ia?.jaProcessado || dupUi.duplicado
         ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Imagem duplicada</strong> — ${escapeHtml(dupUi.msgCliente || dupUi.msg || MSG_DUP_IMAGEM_CLIENTE)}</p>`
@@ -2026,7 +2105,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
           ${jaProc}
           ${autentHtml}
           ${conferidoPor}
-          <p>Valor lido: ${escapeHtml(currencyBRL(ia.valor))} ${ia.confereValor ? "✓" : "⚠"} (centavos exatos)</p>
+          <p>Valor na imagem: ${escapeHtml(currencyBRL(ia.valorBruto ?? ia.valor))} ${ia.confereValor ? "✓" : "⚠"} (cliente: ${escapeHtml(currencyBRL(rec.valor))})</p>
+          ${ia.revisaoValorManual ? '<p class="comprovante-api-status"><strong>Rever valor</strong> — confirme o que está no comprovante antes de validar.</p>' : ""}
           <p>Data lida: ${escapeHtml(ia.dataPagamento || "—")} ${ia.confereData ? "✓" : "⚠"}</p>
           <p>Hora lida (comprovante): ${escapeHtml(ia.horaPagamento || "—")}</p>
           <p>ID transação: ${escapeHtml(ia.idTransacao || "—")}</p>

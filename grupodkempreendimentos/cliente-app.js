@@ -932,6 +932,15 @@
     const btn = $("btn-relatorio-compartilhar");
     if (btn) btn.disabled = false;
     setRelatorioShareMsg("");
+    const frame = $("cliente-relatorio-frame");
+    if (frame) {
+      try {
+        frame.srcdoc = "";
+        frame.removeAttribute("srcdoc");
+      } catch {
+        /* ignore */
+      }
+    }
     $("cliente-modal-relatorio")?.classList.add("hidden");
   }
 
@@ -998,7 +1007,24 @@
     return doc.output("blob");
   }
 
-  async function gerarPdfBlobRelatorio(html) {
+  function textoRelatorioParaPdf(html, titulo) {
+    const frame = $("cliente-relatorio-frame");
+    const doFrame = String(frame?.contentDocument?.body?.innerText || "").trim();
+    if (doFrame.length > 40) return { texto: doFrame, titulo };
+    const clean = htmlRelatorioSemScripts(html);
+    const tmp = document.createElement("div");
+    tmp.innerHTML = clean;
+    tmp.querySelectorAll("script, style").forEach((n) => n.remove());
+    const texto = String(tmp.innerText || tmp.textContent || "").trim();
+    if (texto.length > 40) return { texto, titulo };
+    return null;
+  }
+
+  async function gerarPdfBlobRelatorio(html, titulo) {
+    const pack = textoRelatorioParaPdf(html, titulo);
+    if (pack && (window.jspdf?.jsPDF || window.jsPDF)) {
+      return gerarPdfTextoFallback(pack.texto, pack.titulo);
+    }
     if (typeof window.html2pdf !== "function") {
       throw new Error("Gerador PDF indisponível. Atualize a página do app.");
     }
@@ -1017,11 +1043,11 @@
             .set({
               margin: [10, 8, 10, 8],
               pagebreak: { mode: ["css", "legacy"] },
-              image: { type: "jpeg", quality: 0.92 },
+              image: { type: "jpeg", quality: 0.88 },
               html2canvas: {
-                scale: 1.5,
+                scale: 1.25,
                 logging: false,
-                useCORS: true,
+                useCORS: false,
                 backgroundColor: "#ffffff",
                 scrollY: 0,
                 windowWidth: 800,
@@ -1032,7 +1058,7 @@
             .from(host)
             .output("blob"),
           new Promise((_, reject) =>
-            setTimeout(() => reject(new Error("PDF demorou demais. Tente de novo.")), 90000)
+            setTimeout(() => reject(new Error("PDF demorou demais. Tente de novo.")), 45000)
           ),
         ]);
       } finally {
@@ -1079,13 +1105,12 @@
     let pdfBlob;
     try {
       try {
-        pdfBlob = await gerarPdfBlobRelatorio(html);
+        pdfBlob = await gerarPdfBlobRelatorio(html, titulo);
       } catch (errPrim) {
-        const frame = $("cliente-relatorio-frame");
-        const textoRel = frame?.contentDocument?.body?.innerText || "";
-        if (!textoRel.trim()) throw errPrim;
-        setRelatorioShareMsg("Modo simplificado (sem imagens)…");
-        pdfBlob = gerarPdfTextoFallback(textoRel, titulo);
+        const pack = textoRelatorioParaPdf(html, titulo);
+        if (!pack) throw errPrim;
+        setRelatorioShareMsg("Modo simplificado (texto)…");
+        pdfBlob = gerarPdfTextoFallback(pack.texto, pack.titulo);
       }
       if (runId !== relatorioPdfRunId) return;
 

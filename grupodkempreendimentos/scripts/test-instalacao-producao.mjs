@@ -79,6 +79,10 @@ async function main() {
     const swRes = await fetch(new URL("service-worker-cliente.js", BASE));
     const swText = await swRes.text();
     record("SW inclui instalar.html", swText.includes("instalar.html"));
+    record(
+      "SW cache cliente seguro",
+      swText.includes("dk-cliente-v20260522seguro") && swText.includes("networkFirst")
+    );
 
     const shareApi = await fetch(new URL("api/cliente-share", BASE), { redirect: "manual" });
     record(
