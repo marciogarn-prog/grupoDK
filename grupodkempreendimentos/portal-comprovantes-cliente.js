@@ -460,12 +460,49 @@
     return all[idx];
   }
 
-  /**
-   * Mesmo ficheiro (hash) OU mesma data+valor no protocolo (protocolo de conferência).
-   */
+  const MSG_DUP_IMAGEM_CLIENTE =
+    "Esta imagem de comprovante já foi enviada ao sistema. Envie outra captura ou comprovante diferente.";
+
+  /** Duplicata = mesma imagem/ficheiro (hash) já existente no sistema — não compara data/hora/ID. */
+  function detectarImagemComprovanteDuplicada(fp, excludeId) {
+    const hash = String(fp || "").trim();
+    if (!hash) return { duplicado: false, semFingerprint: true };
+
+    for (const r of loadAll()) {
+      if (excludeId && r.id === excludeId) continue;
+      if (r.status === STATUS.REJEITADO) continue;
+      if (String(r.comprovanteFp || "") !== hash) continue;
+      const st = statusLabel(r.status);
+      return {
+        duplicado: true,
+        reprovar: true,
+        msgCliente: MSG_DUP_IMAGEM_CLIENTE,
+        msg: `Comprovante duplicado — mesma imagem já enviada em ${formatIsoPt(r.enviadoEm)} (${st}).`,
+        rec: r,
+        motivo: "mesma_imagem",
+      };
+    }
+
+    for (const loc of loadLocacoesCadastro()) {
+      for (const p of loc.portalLancamentosAluguel || []) {
+        if (String(p.comprovanteFp || "") !== hash) continue;
+        const oid = String(p.origemComprovanteClienteId || "").trim();
+        if (excludeId && oid === excludeId) continue;
+        return {
+          duplicado: true,
+          reprovar: true,
+          msgCliente: MSG_DUP_IMAGEM_CLIENTE,
+          msg: `Mesma imagem já registada como pagamento (${String(p.data || "")} · ${currencyBRL(p.valor)} · protocolo ${normProto(loc.numeroContrato)}).`,
+          motivo: "mesma_imagem_pagamento",
+          pagamento: p,
+        };
+      }
+    }
+
+    return { duplicado: false };
+  }
+
   async function detectarComprovanteDuplicado(opts) {
-    const cpf = onlyDigits(opts?.cpf).slice(0, 11);
-    const proto = normProto(opts?.protocolo);
     const excludeId = String(opts?.excludeId || "").trim();
     let fp = String(opts?.comprovanteFp || "").trim();
     if (!fp && opts?.arquivoBase64) {
@@ -475,59 +512,7 @@
       const dataUrl = await fileToBase64(opts.file);
       fp = await computeComprovanteFingerprint(dataUrl, opts.file.type);
     }
-
-    if (opts.assinaturaComprovante) {
-      const logDup = detectarDuplicidadeLogica({
-        cpf,
-        protocolo: proto,
-        assinaturaComprovante: opts.assinaturaComprovante,
-        excludeId,
-      });
-      if (logDup.duplicado) return logDup;
-    }
-
-    for (const r of loadAll()) {
-      if (excludeId && r.id === excludeId) continue;
-      if (r.status === STATUS.REJEITADO) continue;
-      if (fp && String(r.comprovanteFp || "") === fp) {
-        if (r.status === STATUS.CONFIRMADO || r.status === STATUS.IA_OK) {
-          const st = statusLabel(r.status);
-          const msgCliente =
-            "Este ficheiro de comprovante já foi enviado e processado. Não é necessário enviar o mesmo ficheiro outra vez.";
-          return {
-            duplicado: true,
-            reprovar: true,
-            msgCliente,
-            msg: `Comprovante duplicado — mesmo ficheiro já processado em ${formatIsoPt(r.enviadoEm)} (${st}).`,
-            rec: r,
-            motivo: "mesmo_arquivo",
-          };
-        }
-      }
-    }
-
-    for (const p of pagamentosProtocoloComComprovante(cpf, proto)) {
-      if (fp && String(p.comprovanteFp || "") === fp) {
-        return {
-          duplicado: true,
-          reprovar: true,
-          msgCliente:
-            "Este comprovante já foi registado como pagamento neste protocolo. Não envie o mesmo ficheiro outra vez.",
-          msg: `Este comprovante já está registado como pagamento no protocolo (${String(p.data || "")} · ${currencyBRL(p.valor)}).`,
-          motivo: "pagamento_mesmo_arquivo",
-        };
-      }
-      const oid = String(p.origemComprovanteClienteId || "").trim();
-      if (excludeId && oid === excludeId) {
-        return {
-          duplicado: true,
-          msg: "Este comprovante já foi confirmado e o pagamento já existe neste protocolo.",
-          motivo: "pagamento_ja_confirmado",
-        };
-      }
-    }
-
-    return { duplicado: false };
+    return detectarImagemComprovanteDuplicada(fp, excludeId);
   }
 
   async function adicionarComprovanteCliente(payload) {
@@ -851,31 +836,45 @@
         saveAll(all0);
       }
     }
-    const historicoTxt = buildHistoricoAntiDuplicataTexto(rec.cpf, rec.protocolo, rec.id);
+
+    const dupAntesIa = await detectarComprovanteDuplicado({
+      comprovanteFp: rec.comprovanteFp,
+      arquivoBase64: rec.arquivoBase64,
+      mimeType: rec.mimeType,
+      excludeId: rec.id,
+    });
+    if (dupAntesIa.duplicado && dupAntesIa.reprovar) {
+      const msgCliente = dupAntesIa.msgCliente || MSG_DUP_IMAGEM_CLIENTE;
+      const rej = aplicarRejeicaoComprovanteCliente(id, msgCliente, operador, rec.iaValidacao, {
+        motivoInterno: dupAntesIa.msg,
+        duplicata: true,
+      });
+      return {
+        ok: false,
+        duplicata: true,
+        rejeitado: true,
+        msg: msgCliente,
+        ia: rej?.iaValidacao,
+        rec: rej,
+      };
+    }
+
     const schema =
       '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"horaPagamento":string|null,"valor":number|null,"idTransacao":string|null,"pagamentoPorTerceiro":boolean,"comprovanteAutentico":boolean,"riscoColagemOuEdicao":"baixo"|"medio"|"alto","observacoesAutenticidade":string|null,"duplicataProvavel":boolean}';
-    const instr = `Leitor e perito de comprovante PIX/TED/boleto (português). Responda APENAS JSON: ${schema}.
+    const instr = `Leitor de comprovante PIX/TED/boleto (português). Analise APENAS a imagem. Responda APENAS JSON: ${schema}.
 
-DADOS DO ENVIO (cliente): protocolo ${rec.protocolo}, CPF ${rec.cpf}, data declarada ${rec.dataPagamento}, valor declarado ${rec.valor}, envio app ${formatIsoPt(rec.enviadoEm)}.
+Valor declarado pelo cliente no app (para conferência): ${currencyBRL(rec.valor)}. Protocolo ${rec.protocolo}.
 
-CAMPOS OBRIGATÓRIOS NA LEITURA:
-- dataPagamento: dd/mm/aaaa na imagem
-- horaPagamento: hora na imagem (HH:MM ou HH:MM:SS) — não invente; use o que estiver no comprovante
-- valor: número com 2 decimais exatas (0.05 ≠ 0.06)
-- idTransacao: Pix End-to-End (E + ~32 chars) ou "ID da transação" / autenticação — copie exato; null só se não existir na imagem
+LEITURA NA IMAGEM:
+- valor: número com 2 decimais exatas na imagem (0.05 ≠ 0.06) — obrigatório para conferência
+- dataPagamento, horaPagamento, idTransacao: copie o que aparecer; null se não existir
 
-AUTENTICIDADE (análise visual — colagem, montagem, fontes diferentes, bordas cortadas, borrões suspeitos):
-- comprovanteAutentico: true se parecer captura original do banco/app
-- riscoColagemOuEdicao: baixo | medio | alto
-- observacoesAutenticidade: descreva sinais se houver risco
+AUTENTICIDADE (visual — colagem, edição, fontes, cortes):
+- comprovanteAutentico, riscoColagemOuEdicao, observacoesAutenticidade
 
-REGRAS (o sistema decide no código, não use dados declarados pelo cliente):
-- Duplicata: compare só data, hora, valor e idTransacao LIDOS NA IMAGEM com o HISTÓRICO
-- Valor na imagem diferente do valor declarado pelo cliente → será rejeitado
-- duplicataProvavel: true só se os quatro campos do comprovante coincidirem com linha do histórico
+DUPLICATA: o sistema compara o ficheiro/imagem (hash), não texto da imagem. Sempre duplicataProvavel: false.
 
-HISTÓRICO (dados lidos de comprovantes já processados — não use declaração do cliente):
-${historicoTxt}`;
+O sistema rejeita automaticamente se o valor lido na imagem for diferente do valor declarado (${currencyBRL(rec.valor)}).`;
 
     const content = [{ type: "text", text: instr }];
     const { mime, base64 } = parseDataUrl(rec.arquivoBase64);
@@ -936,23 +935,9 @@ ${historicoTxt}`;
         ia.observacoes += `Rever autenticidade do comprovante (${ia.observacoesAutenticidade || "sinais moderados"}). `;
       }
 
-      const sigComprovante = assinaturaDupDoComprovanteIa(ia, rec.protocolo);
-      if (!sigComprovante) {
-        const msgCliente =
-          "Não foi possível ler data, hora, valor e ID da transação no comprovante. Envie uma foto nítida do comprovante completo.";
-        const rej = aplicarRejeicaoComprovanteCliente(id, msgCliente, operador, ia, {
-          motivoInterno: "Comprovante ilegível ou incompleto na leitura IA.",
-        });
-        return {
-          ok: false,
-          rejeitado: true,
-          msg: msgCliente,
-          ia: rej?.iaValidacao,
-          rec: rej,
-        };
-      }
-
-      if (valorIa > 0 && !valoresIguaisCentavos(valorIa, rec.valor)) {
+      if (!(valorIa > 0)) {
+        ia.observacoes += "Valor não identificado na imagem — conferência manual do valor. ";
+      } else if (!valoresIguaisCentavos(valorIa, rec.valor)) {
         const msgCliente = `O valor no comprovante (${currencyBRL(valorIa)}) é diferente do valor que você indicou (${currencyBRL(rec.valor)}). Corrija o valor no app ou envie o comprovante correto.`;
         const rej = aplicarRejeicaoComprovanteCliente(id, msgCliente, operador, ia, {
           motivoInterno: `Valor comprovante ${currencyBRL(valorIa)} ≠ declarado ${currencyBRL(rec.valor)}.`,
@@ -981,30 +966,6 @@ ${historicoTxt}`;
         };
       }
 
-      const dupPos = await detectarComprovanteDuplicado({
-        cpf: rec.cpf,
-        protocolo: rec.protocolo,
-        assinaturaComprovante: sigComprovante,
-        comprovanteFp: rec.comprovanteFp,
-        arquivoBase64: rec.arquivoBase64,
-        excludeId: rec.id,
-      });
-      if (dupPos.duplicado && dupPos.reprovar) {
-        const msgCliente = dupPos.msgCliente || motivoDuplicataCliente(sigComprovante);
-        const rej = aplicarRejeicaoComprovanteCliente(id, msgCliente, operador, ia, {
-          motivoInterno: dupPos.msg,
-          duplicata: true,
-        });
-        return {
-          ok: false,
-          duplicata: true,
-          rejeitado: true,
-          msg: msgCliente,
-          ia: rej?.iaValidacao,
-          rec: rej,
-        };
-      }
-
       ia.jaProcessado = false;
       ia.confereValor = true;
       ia.confereData = Boolean(
@@ -1024,7 +985,7 @@ ${historicoTxt}`;
         horaIa,
         null
       );
-      ia.protocoloAntiDuplicata = "comprovante_data_hora_valor_id_v3";
+      ia.protocoloAntiDuplicata = "mesma_imagem_hash_v4";
 
       ia.conferidoPorCpf = operador.cpf;
       ia.conferidoPorNome = operador.nome;
@@ -1453,25 +1414,17 @@ ${historicoTxt}`;
     if (!rec.comprovanteFp && rec.arquivoBase64) {
       rec.comprovanteFp = await computeComprovanteFingerprint(rec.arquivoBase64, rec.mimeType);
     }
-    const ia = rec.iaValidacao;
-    const sigConf = ia ? assinaturaDupDoComprovanteIa(ia, rec.protocolo) : null;
-    const dupConf = sigConf
-      ? await detectarComprovanteDuplicado({
-          cpf: rec.cpf,
-          protocolo: rec.protocolo,
-          assinaturaComprovante: sigConf,
-          comprovanteFp: rec.comprovanteFp,
-          arquivoBase64: rec.arquivoBase64,
-          excludeId: rec.id,
-        })
-      : { duplicado: false };
-    if (dupConf.duplicado) return { ok: false, msg: dupConf.msg, duplicata: true };
-
-    if (rec.iaValidacao?.jaProcessado) {
+    const dupConf = await detectarComprovanteDuplicado({
+      comprovanteFp: rec.comprovanteFp,
+      arquivoBase64: rec.arquivoBase64,
+      mimeType: rec.mimeType,
+      excludeId: rec.id,
+    });
+    if (dupConf.duplicado) {
       return {
         ok: false,
+        msg: dupConf.msgCliente || dupConf.msg,
         duplicata: true,
-        msg: "Este pagamento já foi processado (mesma data e valor). Não é possível confirmar em duplicidade.",
       };
     }
 
@@ -1589,20 +1542,12 @@ ${historicoTxt}`;
       ia && ia.conferidoPorNome
         ? `<p><strong>Conferido por:</strong> ${escapeHtml(ia.conferidoPorNome)}${ia.conferidoPorCpf ? ` · CPF ${escapeHtml(ia.conferidoPorCpf)}` : ""}</p>`
         : "";
-    const sigUi = ia ? assinaturaDupDoComprovanteIa(ia, rec.protocolo) : null;
-    const dupUi = sigUi
-      ? detectarDuplicidadeLogica({
-          cpf: rec.cpf,
-          protocolo: rec.protocolo,
-          assinaturaComprovante: sigUi,
-          excludeId: rec.id,
-        })
-      : { duplicado: false };
+    const dupUi = detectarImagemComprovanteDuplicada(rec.comprovanteFp, rec.id);
     const jaProc =
       ia?.jaProcessado || dupUi.duplicado
-        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Pagamento duplicado</strong> — ${escapeHtml(dupUi.msg || ia?.observacoes || "mesma data e valor já processados neste protocolo.")}</p>`
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>⚠ Imagem duplicada</strong> — ${escapeHtml(dupUi.msgCliente || dupUi.msg || MSG_DUP_IMAGEM_CLIENTE)}</p>`
         : "";
-    const historicoHtml = `<div class="portal-cc-historico-dup subtext"><p><strong>Histórico anti-duplicata</strong> — duplicata só se protocolo, data, hora, valor e ID forem <em>todos</em> iguais:</p><pre class="portal-cc-historico-pre">${escapeHtml(buildHistoricoAntiDuplicataTexto(rec.cpf, rec.protocolo, rec.id))}</pre></div>`;
+    const historicoHtml = `<div class="portal-cc-historico-dup subtext"><p><strong>Anti-duplicata</strong> — o sistema reprova se a <em>mesma imagem/ficheiro</em> já tiver sido enviada ou lançada (hash do ficheiro). A IA confere o valor lido na imagem com o valor declarado pelo cliente.</p></div>`;
     const idTxUi = idTransacaoDoRec(rec);
     const autentHtml =
       ia && (ia.riscoColagemOuEdicao === "alto" || ia.comprovanteAutentico === false)
