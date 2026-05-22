@@ -214,7 +214,15 @@
     }
     const global = lancamentosFromGlobal(loc);
     if (global.length) chunks.push(global);
-    return mergeLancamentos(chunks);
+    return mergeLancamentos(chunks).filter((lan) => {
+      if (lan?.pagamentoInvalidado) return false;
+      const oid = String(lan.origemComprovanteClienteId || "").trim();
+      if (oid) {
+        const ex = loadComprovantes().find((x) => String(x.id || "") === oid);
+        if (ex?.pagamentoInvalidado) return false;
+      }
+      return true;
+    });
   }
 
   function computeTempoDiasLoc(loc) {
@@ -311,6 +319,7 @@
       if (onlyDigits(r.cpf) !== cpfD) continue;
       if (normProto(r.protocolo) !== pNorm) continue;
       if (r.status !== "confirmado") continue;
+      if (r.pagamentoInvalidado) continue;
       const id = String(r.id || "").trim();
       map.set(id || `c_${r.confirmadoEm}`, {
         enviadoEm: r.enviadoEm,

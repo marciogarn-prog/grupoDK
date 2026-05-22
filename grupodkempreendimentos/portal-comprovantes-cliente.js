@@ -2855,7 +2855,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       badge.classList.toggle("hidden", !nProc);
     }
     const rows = listarAguardandoConfirmacaoOperador();
-    const nConfirmados = loadAll().filter((r) => r.status === STATUS.CONFIRMADO).length;
+    const nConfirmados = loadAll().filter(
+      (r) => r.status === STATUS.CONFIRMADO && !r.pagamentoInvalidado
+    ).length;
     const aguardaIa = loadAll()
       .filter((r) => r.status === STATUS.PENDENTE)
       .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));

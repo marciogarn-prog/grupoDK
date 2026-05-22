@@ -2441,6 +2441,21 @@ body {
 }
 
 button.lnk-comprovante,
+table.validados-app .btn-invalidate-pagamento {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #c62828;
+  color: #c62828;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+table.validados-app .btn-invalidate-pagamento:hover {
+  background: rgba(198, 40, 40, 0.08);
+}
+
 table.validados-app .lnk-comprovante {
   background: none;
   border: none;

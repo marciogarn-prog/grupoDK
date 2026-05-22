@@ -3856,15 +3856,36 @@ ${printable.innerHTML}
       try {
         const doc = iframe.contentDocument;
         if (!doc) return;
-        doc.querySelectorAll(".lnk-comprovante[data-dk-comprovante-id]").forEach((el) => {
-          el.addEventListener("click", (ev) => {
+        const wireRelatorioPdfClick = (ev) => {
+          const inv = ev.target.closest?.(".btn-invalidate-pagamento[data-dk-inv-pagamento-id]");
+          if (inv) {
             ev.preventDefault();
-            const id = el.getAttribute("data-dk-comprovante-id");
-            if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {
-              window.__DK_openComprovanteClienteViewerById(id);
-            }
-          });
-        });
+            const cid = inv.getAttribute("data-dk-inv-pagamento-id");
+            if (!cid) return;
+            if (!window.confirm("Invalidar este pagamento? Deixa de contar no protocolo e no relatório.")) return;
+            inv.disabled = true;
+            Promise.resolve(invalidarPagamentoAppClientePorComprovanteId(cid))
+              .then((r) => {
+                if (r?.ok) refreshPortalRelatorioAberto();
+                else {
+                  window.alert(r?.msg || "Não foi possível invalidar.");
+                  inv.disabled = false;
+                }
+              })
+              .catch(() => {
+                inv.disabled = false;
+              });
+            return;
+          }
+          const el = ev.target.closest?.(".lnk-comprovante[data-dk-comprovante-id]");
+          if (!el) return;
+          ev.preventDefault();
+          const id = el.getAttribute("data-dk-comprovante-id");
+          if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {
+            window.__DK_openComprovanteClienteViewerById(id);
+          }
+        };
+        doc.addEventListener("click", wireRelatorioPdfClick);
       } catch {
         /* blob iframe — script inline no HTML trata o clique */
       }
@@ -4869,6 +4890,37 @@ ${printable.innerHTML}
     }
   }
 
+  function salvarComprovantesClienteParaRelatorio(arr) {
+    try {
+      localStorage.setItem("dk_comprovantes_cliente_pendentes", JSON.stringify(arr));
+      if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+        window.__DK_comprovantesClienteInvalidateCache();
+      }
+    } catch (e) {
+      console.warn("[DK portal] salvar comprovantes relatório", e);
+    }
+  }
+
+  function comprovantePagamentoInvalidadoPorId(comprovanteId) {
+    const id = String(comprovanteId || "").trim();
+    if (!id) return false;
+    const hit = loadComprovantesClienteParaRelatorio().find((r) => String(r.id || "").trim() === id);
+    return Boolean(hit?.pagamentoInvalidado);
+  }
+
+  function isLancamentoAluguelContabilizavel(lan) {
+    if (!lan || typeof lan !== "object") return false;
+    if (lan.pagamentoInvalidado) return false;
+    const oid = String(lan.origemComprovanteClienteId || "").trim();
+    if (oid && comprovantePagamentoInvalidadoPorId(oid)) return false;
+    return true;
+  }
+
+  /** Lançamentos que entram em totais, resumo e tabela «Pagamentos» do relatório. */
+  function getPortalLancamentosAluguelContabilizaveisDoContrato(loc) {
+    return getPortalLancamentosAluguelDoContrato(loc).filter(isLancamentoAluguelContabilizavel);
+  }
+
   /** Pagamentos confirmados via app cliente (comprovante + validação DK). */
   function collectPagamentosValidadosAppClientePorProtocolo(cpfDig, protoRaw, lancs) {
     const digFn =
@@ -4881,6 +4933,7 @@ ${printable.innerHTML}
       if (digFn(r.cpf) !== cpf) continue;
       if (portalNormProtoRelatorio(r.protocolo) !== proto) continue;
       if (String(r.status || "") !== "confirmado") continue;
+      if (r.pagamentoInvalidado) continue;
       const id = String(r.id || "").trim();
       map.set(id || `cc_${r.confirmadoEm}`, {
         enviadoEm: r.enviadoEm,
@@ -4895,6 +4948,7 @@ ${printable.innerHTML}
 
     for (const lan of lancs || []) {
       if (!lan?.confirmadoViaAppCliente) continue;
+      if (!isLancamentoAluguelContabilizavel(lan)) continue;
       const id = String(lan.origemComprovanteClienteId || "").trim();
       if (id && map.has(id)) continue;
       const ex = id ? loadComprovantesClienteParaRelatorio().find((x) => x.id === id) : null;
@@ -4917,17 +4971,19 @@ ${printable.innerHTML}
       .sort((a, b) => Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0));
   }
 
-  function buildPortalRelatorioValidadosAppClienteHtml(validados, eh) {
+  function buildPortalRelatorioValidadosAppClienteHtml(validados, eh, opts) {
     if (!validados.length) {
       return `<p class="meta portal-validados-vazio">${eh("Nenhum pagamento validado pelo app cliente neste protocolo.")}</p>`;
     }
+    const showInvalidate = Boolean(opts && opts.showInvalidateBtn);
     let html = `<p class="sum-title">${eh("Pagamentos validados (app cliente)")}</p>`;
     html += `<table class="validados-app"><thead><tr>
       <th>${eh("Envio pelo cliente")}</th>
       <th>${eh("Validação DK")}</th>
       <th>${eh("Funcionário DK")}</th>
-      <th>${eh("Valor pago")}</th>
-    </tr></thead><tbody>`;
+      <th>${eh("Valor pago")}</th>`;
+    if (showInvalidate) html += `<th>${eh("Ações")}</th>`;
+    html += `</tr></thead><tbody>`;
     for (const v of validados) {
       const vf =
         typeof currencyBRL === "function"
@@ -4942,11 +4998,96 @@ ${printable.innerHTML}
         <td>${eh(portalFormatIsoRelatorio(v.enviadoEm))}</td>
         <td>${eh(portalFormatIsoRelatorio(v.confirmadoEm))}</td>
         <td>${eh(v.validadoPorNome)}</td>
-        <td>${valorCell}</td>
-      </tr>`;
+        <td>${valorCell}</td>`;
+      if (showInvalidate) {
+        const invBtn = compId
+          ? `<button type="button" class="btn-invalidate-pagamento" data-dk-inv-pagamento-id="${eh(compId)}">Invalidar pagamento</button>`
+          : `<span class="meta">—</span>`;
+        html += `<td>${invBtn}</td>`;
+      }
+      html += `</tr>`;
     }
     html += "</tbody></table>";
     return html;
+  }
+
+  async function invalidarPagamentoAppClientePorComprovanteId(comprovanteId) {
+    if (!isPortalTitularAdministrador()) {
+      return { ok: false, msg: "Apenas o administrador titular pode invalidar pagamentos." };
+    }
+    const id = String(comprovanteId || "").trim();
+    if (!id) return { ok: false, msg: "Pagamento sem identificador." };
+
+    const arr = loadComprovantesClienteParaRelatorio();
+    const ci = arr.findIndex((r) => String(r.id || "").trim() === id);
+    if (ci < 0) return { ok: false, msg: "Comprovante não encontrado." };
+    const rec = arr[ci];
+    const digFn =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = digFn(rec.cpf).slice(0, 11);
+    const proto = portalNormProtoRelatorio(rec.protocolo);
+    let sessNome = "Administrador";
+    try {
+      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
+      if (sess?.nome) sessNome = String(sess.nome).trim();
+    } catch {
+      /* ignore */
+    }
+
+    arr[ci] = {
+      ...rec,
+      pagamentoInvalidado: true,
+      pagamentoInvalidadoEm: new Date().toISOString(),
+      pagamentoInvalidadoPor: sessNome,
+    };
+    salvarComprovantesClienteParaRelatorio(arr);
+
+    if (
+      cpfDigits.length === 11 &&
+      proto &&
+      typeof loadCadastro === "function" &&
+      typeof saveCadastro === "function" &&
+      typeof CAD_LOCACOES_KEY !== "undefined"
+    ) {
+      const locs = loadCadastro(CAD_LOCACOES_KEY);
+      const lidx = locs.findIndex(
+        (l) =>
+          digFn(l.cpf).slice(0, 11) === cpfDigits && portalNormProtoRelatorio(l.numeroContrato) === proto
+      );
+      if (lidx >= 0) {
+        const loc = locs[lidx];
+        materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+        loc.portalLancamentosAluguel = (loc.portalLancamentosAluguel || []).filter(
+          (lan) => String(lan.origemComprovanteClienteId || "").trim() !== id
+        );
+        finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, proto);
+      }
+    }
+
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      try {
+        await window.__DK_pushCloudSnapshotNow();
+      } catch (e) {
+        console.warn("[DK portal] nuvem após invalidar pagamento", e);
+      }
+    }
+    return { ok: true, comprovanteId: id, protocolo: proto };
+  }
+
+  function refreshPortalRelatorioAberto() {
+    if (!portalRelatorioAtual) return;
+    const slug = portalRelatorioAtual.fileSlug;
+    if (slug === "relatorio-cliente-protocolos" && portalRelatorioAtual.relatorioClienteCpfDigits) {
+      const ctx = getPortalRelatorioClienteProtocolosContext(portalRelatorioAtual.relatorioClienteCpfDigits);
+      portalRelatorioAtual = ctx;
+      emitPortalRelatorioPdf(ctx);
+      return;
+    }
+    if (slug === "relatorio-placa-protocolos" && portalRelatorioAtual.relatorioPlacaNorm) {
+      const ctx = getPortalRelatorioPlacaProtocolosContext(portalRelatorioAtual.relatorioPlacaNorm);
+      portalRelatorioAtual = ctx;
+      emitPortalRelatorioPdf(ctx);
+    }
   }
 
   /** Relatório 2: por CPF, agrupa por protocolo — lista de pagamentos e resumo do protocolo (aligned ao cadastro locação). */
@@ -5010,8 +5151,9 @@ ${printable.innerHTML}
     locs.sort((a, b) => String(a.numeroContrato || "").localeCompare(String(b.numeroContrato || ""), "pt-BR"));
     const sections = locs.map((loc) => {
       const proto = String(loc.numeroContrato || "").trim() || "—";
-      const lancsRaw = getPortalLancamentosAluguelDoContrato(loc);
-      const lancs = lancsRaw.slice().sort((a, b) => {
+      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc)
+        .slice()
+        .sort((a, b) => {
         const da = parseD(String(a.data || ""));
         const db = parseD(String(b.data || ""));
         const ta = da && !Number.isNaN(da.getTime()) ? da.getTime() : 0;
@@ -5117,8 +5259,7 @@ ${printable.innerHTML}
     locs.sort((a, b) => String(a.numeroContrato || "").localeCompare(String(b.numeroContrato || ""), "pt-BR"));
     const sections = locs.map((loc) => {
       const proto = String(loc.numeroContrato || "").trim() || "—";
-      const lancsRaw = getPortalLancamentosAluguelDoContrato(loc);
-      const lancs = lancsRaw.slice().sort((a, b) => {
+      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc).slice().sort((a, b) => {
         const da = parseD(String(a.data || ""));
         const db = parseD(String(b.data || ""));
         const ta = da && !Number.isNaN(da.getTime()) ? da.getTime() : 0;
@@ -7140,7 +7281,7 @@ ${printable.innerHTML}
         loc?.custoMulta ??
         0
     );
-    const lancs = getPortalLancamentosAluguelDoContrato(loc);
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
     const totalPagoNum = sumPortalLancamentosAluguelTotal(lancs);
     const investimentoAcumuladoNum = computePortalInvestimentoAcumuladoNum(
       valorDevidoAluguelNum,
@@ -7250,7 +7391,9 @@ ${printable.innerHTML}
         body += `</tr>`;
       }
       body += `</tbody></table>`;
-      body += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh);
+      body += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh, {
+        showInvalidateBtn: isPortalTitularAdministrador(),
+      });
       body += `<hr />`;
     }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
@@ -7267,7 +7410,9 @@ ${printable.innerHTML}
       table.resumo .val{font-size:12px;font-weight:600}
       table.resumo .val.neg{color:#b71c1c}
       table.validados-app{margin-top:0.75rem}
-      table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline}
+      table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font:inherit}
+      table.validados-app .btn-invalidate-pagamento{font-size:11px;padding:4px 8px;border:1px solid #b71c1c;color:#b71c1c;background:#fff;border-radius:4px;cursor:pointer;white-space:nowrap}
+      table.validados-app .btn-invalidate-pagamento:hover{background:#ffebee}
       .portal-validados-vazio{margin-top:0.75rem}
       hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
     </style></head><body>
@@ -7277,21 +7422,49 @@ ${printable.innerHTML}
       ${body}
       <script>
       (function () {
+        function parentApi(name) {
+          try {
+            if (window.parent && window.parent !== window && typeof window.parent[name] === "function") {
+              return window.parent[name];
+            }
+          } catch (err) { /* ignore */ }
+          if (typeof window[name] === "function") return window[name];
+          return null;
+        }
         document.addEventListener("click", function (e) {
+          var inv = e.target.closest && e.target.closest(".btn-invalidate-pagamento[data-dk-inv-pagamento-id]");
+          if (inv) {
+            e.preventDefault();
+            var cid = inv.getAttribute("data-dk-inv-pagamento-id");
+            if (!cid) return;
+            if (!window.confirm("Invalidar este pagamento? Deixa de contar no protocolo e no relatório.")) return;
+            inv.disabled = true;
+            var fnInv = parentApi("__DK_invalidarPagamentoAppCliente");
+            var fnRefresh = parentApi("__DK_refreshPortalRelatorioAberto");
+            if (!fnInv) {
+              window.alert("Função indisponível. Atualize a página do portal (Ctrl+F5).");
+              inv.disabled = false;
+              return;
+            }
+            Promise.resolve(fnInv(cid)).then(function (r) {
+              if (r && r.ok) {
+                if (fnRefresh) fnRefresh();
+              } else {
+                window.alert((r && r.msg) || "Não foi possível invalidar.");
+                inv.disabled = false;
+              }
+            }).catch(function () {
+              inv.disabled = false;
+            });
+            return;
+          }
           var el = e.target.closest && e.target.closest(".lnk-comprovante[data-dk-comprovante-id]");
           if (!el) return;
           e.preventDefault();
           var id = el.getAttribute("data-dk-comprovante-id");
           if (!id) return;
-          try {
-            if (window.parent && window.parent !== window && window.parent.__DK_openComprovanteClienteViewerById) {
-              window.parent.__DK_openComprovanteClienteViewerById(id);
-              return;
-            }
-          } catch (err) { /* ignore */ }
-          if (typeof window.__DK_openComprovanteClienteViewerById === "function") {
-            window.__DK_openComprovanteClienteViewerById(id);
-          }
+          var fnView = parentApi("__DK_openComprovanteClienteViewerById");
+          if (fnView) fnView(id);
         });
       })();
       </script>
@@ -7368,7 +7541,9 @@ ${printable.innerHTML}
         blocks += `<tr><td class="meta-key">${eh(k)}</td><td${st}>${eh(v)}</td></tr>`;
       }
       blocks += `</tbody></table>`;
-      blocks += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh);
+      blocks += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh, {
+        showInvalidateBtn: isPortalTitularAdministrador(),
+      });
       blocks += `<br><br>`;
     }
     return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"><style>
@@ -10020,6 +10195,9 @@ ${printable.innerHTML}
   })();
 
   window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
+  window.__DK_invalidarPagamentoAppCliente = invalidarPagamentoAppClientePorComprovanteId;
+  window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
+  window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_hideOperacaoInlineForms = hideInlineForms;
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
   window.__DK_openPortalLancConfirmModal = openPortalLancAluguelConfirmModal;
