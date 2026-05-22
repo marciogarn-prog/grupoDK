@@ -225,7 +225,19 @@
 
   function clienteTemLocacaoAtiva(cpfDigits) {
     const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpfDigits);
-    return filterLocacoesAtivas(locs).length > 0;
+    if (filterLocacoesAtivas(locs).length > 0) return true;
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      const g = raw ? JSON.parse(raw) : null;
+      const protoGate = normProtoGate(g?.proto);
+      if (protoGate && onlyDigits(g?.cpf).slice(0, 11) === cpfDigits) {
+        const hit = locs.find((l) => normProtoGate(l.numeroContrato) === protoGate);
+        if (hit && !isLocacaoFinalizada(hit)) return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return false;
   }
 
   function isStandaloneDisplay() {
@@ -654,9 +666,6 @@
       }
       if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
         window.__DK_comprovantesClienteInvalidateCache();
-      }
-      if (typeof window.__DK_comprovantesClientePushNuvem === "function") {
-        await window.__DK_comprovantesClientePushNuvem();
       }
       if (msg && !silent) {
         const pend =

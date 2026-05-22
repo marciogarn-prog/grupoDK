@@ -52,6 +52,7 @@ const LOCACAO = {
   lancamentosAluguel: [],
   portalManutencoesRegistro: [],
   portalMultasTransito: [],
+  origemPortal: true,
 };
 
 function onlyDigits(s) {

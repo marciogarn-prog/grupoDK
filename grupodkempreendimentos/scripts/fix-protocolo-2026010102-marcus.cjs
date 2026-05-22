@@ -54,6 +54,7 @@ const LOC_MARCUS = {
   lancamentosAluguel: [],
   portalManutencoesRegistro: [],
   portalMultasTransito: [],
+  origemPortal: true,
 };
 
 function onlyDigits(s) {
