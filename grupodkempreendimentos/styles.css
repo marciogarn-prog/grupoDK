@@ -821,6 +821,68 @@ body {
   box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.45);
 }
 
+/* Multas / manutenção + grelha 2×2 dos lançamentos de aluguel (modelo verde) */
+.operacao-lancamentos-grupo {
+  display: grid;
+  grid-template-columns: 1fr minmax(0, 1.15fr);
+  gap: 0.65rem;
+  align-items: stretch;
+}
+
+.operacao-lancamentos-grupo__multas {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.operacao-lancamentos-grupo__manut {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.operacao-lanc-aluguel-subgrid {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  align-content: start;
+}
+
+.btn-operacao-cmd--sub {
+  padding: 0.65rem 0.55rem;
+  min-height: 4.25rem;
+}
+
+.btn-operacao-cmd--sub .btn-operacao-cmd__title {
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.btn-operacao-cmd--sub .btn-operacao-cmd__hint {
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.btn-operacao-cmd--sub.is-active {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.operacao-lanc-aluguel-pane.hidden {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .operacao-lancamentos-grupo {
+    grid-template-columns: 1fr;
+  }
+
+  .operacao-lanc-aluguel-subgrid {
+    grid-column: 1;
+    grid-row: auto;
+  }
+}
+
 .operacao-inline-form {
   margin: 0 0 1.25rem;
   padding: 1rem 1.15rem;

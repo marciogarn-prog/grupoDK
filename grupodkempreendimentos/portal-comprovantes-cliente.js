@@ -3193,6 +3193,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const btn = document.getElementById("portalComprovanteClienteBtnValidados");
     if (!painel) return;
     const vaiMostrar = painel.classList.contains("hidden");
+    if (!vaiMostrar) {
+      renderListaValidados();
+      return;
+    }
     painel.classList.toggle("hidden", !vaiMostrar);
     if (btn) btn.setAttribute("aria-expanded", vaiMostrar ? "true" : "false");
     if (vaiMostrar) renderListaValidados();

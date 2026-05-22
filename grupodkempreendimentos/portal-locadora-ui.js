@@ -5664,6 +5664,88 @@ ${printable.innerHTML}
     }
   });
 
+  const OPERACAO_LANC_ALUGUEL_SUB_IDS = {
+    avulso: "operacaoLancAluguelPaneAvulso",
+    comprovante: "operacaoLancAluguelPaneComprovante",
+    validacao: "operacaoLancAluguelPaneValidacao",
+    relatorios: "operacaoLancAluguelPaneRelatorios",
+  };
+
+  const OPERACAO_LANC_ALUGUEL_SUB_LEADS = {
+    avulso:
+      "Lançamentos do operador (avulso): pesquise o contrato e registe pagamento em espécie, Pix ou cartão.",
+    comprovante:
+      "Lançamentos operados com comprovante: pagamentos do app já confirmados pelo operador.",
+    validacao:
+      "Validação de lançamentos do App Cliente (IA + comprovante): fila, recusas e processamento automático.",
+    relatorios: "Relatórios por período, por cliente (CPF) ou por placa.",
+  };
+
+  let operacaoLancAluguelSubAtivo = "avulso";
+
+  function syncOperacaoLancAluguelSubButtons(activeSub) {
+    const sub = OPERACAO_LANC_ALUGUEL_SUB_IDS[activeSub] ? activeSub : "avulso";
+    operacaoLancAluguelSubAtivo = sub;
+    [
+      "btn-lanc-aluguel-avulso",
+      "btn-lanc-aluguel-comprovante",
+      "btn-lanc-aluguel-validacao",
+      "btn-lanc-aluguel-relatorios",
+    ].forEach((id) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      const on = b.getAttribute("data-lanc-aluguel-sub") === sub;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+    const main = document.getElementById("btn-operacao-lancamento-aluguel");
+    if (main) {
+      const aluguelAberto = !document
+        .getElementById("operacaoInlineLancamentoAluguel")
+        ?.classList.contains("hidden");
+      main.classList.toggle("is-active", aluguelAberto);
+      main.setAttribute("aria-expanded", aluguelAberto ? "true" : "false");
+    }
+  }
+
+  function showOperacaoLancAluguelSub(subRaw) {
+    const sub = OPERACAO_LANC_ALUGUEL_SUB_IDS[subRaw] ? subRaw : "avulso";
+    for (const [key, paneId] of Object.entries(OPERACAO_LANC_ALUGUEL_SUB_IDS)) {
+      const pane = document.getElementById(paneId);
+      if (pane) pane.classList.toggle("hidden", key !== sub);
+    }
+    const lead = document.getElementById("operacao-lanc-aluguel-subtitulo");
+    if (lead) lead.textContent = OPERACAO_LANC_ALUGUEL_SUB_LEADS[sub] || OPERACAO_LANC_ALUGUEL_SUB_LEADS.avulso;
+    syncOperacaoLancAluguelSubButtons(sub);
+    if (sub === "validacao" || sub === "comprovante") {
+      if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+        window.__DK_refreshComprovantesClienteLista();
+      }
+    }
+    if (sub === "comprovante") {
+      const painel = document.getElementById("portalComprovanteClientePainelValidados");
+      if (painel) painel.classList.remove("hidden");
+    }
+  }
+
+  function openOperacaoLancamentoAluguel(subRaw) {
+    const sub =
+      subRaw ||
+      document
+        .getElementById("btn-operacao-lancamento-aluguel")
+        ?.getAttribute("data-lanc-aluguel-sub") ||
+      "avulso";
+    hideOperacaoInlineFormsCore();
+    document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    showOperacaoLancAluguelSub(sub);
+    syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
+    hideOperacaoLancAluguelDetalhePanels();
+    syncOperacaoLancamentoAluguelAfterCpfEdit();
+    refreshOperacaoLancAluguelAdminControlsVisibility();
+    portalRefreshOperacaoDeferred(["aluguel", "rel"]);
+  }
+
   function hideOperacaoInlineFormsCore() {
     hideOperacaoLocacaoPlacaDropdown();
     hideOperacaoVeiculoPlacaDropdown();
@@ -5677,6 +5759,7 @@ ${printable.innerHTML}
     document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoManutencao")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
+    syncOperacaoLancAluguelSubButtons(null);
   }
 
   function setOperacaoFormPlaceholderVisible(visible) {
@@ -9441,17 +9524,23 @@ ${printable.innerHTML}
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
-    hideOperacaoInlineFormsCore();
-    document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
-    setOperacaoFormPlaceholderVisible(false);
-    syncOperacaoCadastroButtons("btn-operacao-lancamento-aluguel");
-    hideOperacaoLancAluguelDetalhePanels();
-    syncOperacaoLancamentoAluguelAfterCpfEdit();
-    refreshOperacaoLancAluguelAdminControlsVisibility();
-    portalRefreshOperacaoDeferred(["aluguel", "rel"]);
-    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
-      window.__DK_refreshComprovantesClienteLista();
-    }
+    const sub =
+      document.getElementById("btn-operacao-lancamento-aluguel")?.getAttribute("data-lanc-aluguel-sub") ||
+      operacaoLancAluguelSubAtivo ||
+      "avulso";
+    openOperacaoLancamentoAluguel(sub);
+  });
+
+  [
+    "btn-lanc-aluguel-avulso",
+    "btn-lanc-aluguel-comprovante",
+    "btn-lanc-aluguel-validacao",
+    "btn-lanc-aluguel-relatorios",
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", () => {
+      const sub = document.getElementById(id)?.getAttribute("data-lanc-aluguel-sub") || "avulso";
+      openOperacaoLancamentoAluguel(sub);
+    });
   });
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {

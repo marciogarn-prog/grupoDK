@@ -26,7 +26,13 @@ function runScript(script) {
     const p = spawn(process.execPath, [path.join(__dirname, script)], {
       cwd: ROOT,
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, DK_EXPECT_BUNDLE: "20260522jose-040-fix" },
+      env: {
+        ...process.env,
+        DK_EXPECT_BUNDLE:
+          script === "test-invalidar-pagamento-producao.mjs"
+            ? "20260522lanc-subdiv"
+            : process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix",
+      },
     });
     let out = "";
     p.stdout.on("data", (d) => {

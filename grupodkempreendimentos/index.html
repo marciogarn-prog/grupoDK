@@ -237,18 +237,38 @@
                 <span class="btn-operacao-cmd__title">Cadastro de locação</span>
                 <span class="btn-operacao-cmd__hint">Protocolo automático (Receita 2026), CPF, placa, plano, valores e datas</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoInlineLancamentoAluguel">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoInlineLancamentoAluguel" data-lanc-aluguel-sub="avulso">
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
-                <span class="btn-operacao-cmd__hint">CPF com contrato em cadastro de locação; dados carregados do protocolo</span>
+                <span class="btn-operacao-cmd__hint">Quatro tipos à direita: avulso, com comprovante, validação app ou relatórios</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
-                <span class="btn-operacao-cmd__title">Lançamento de multas</span>
-                <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou nº do protocolo</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
-                <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
-                <span class="btn-operacao-cmd__hint">Custos de manutenção do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
-              </button>
+              <div class="operacao-lancamentos-grupo" role="group" aria-label="Multas, manutenção e tipos de lançamento de aluguel">
+                <button type="button" class="btn-operacao-cmd operacao-lancamentos-grupo__multas" id="btn-operacao-lancamento-multas" aria-expanded="false" aria-controls="operacaoInlineLancamentoMultas">
+                  <span class="btn-operacao-cmd__title">Lançamento de multas</span>
+                  <span class="btn-operacao-cmd__hint">Multas do protocolo</span>
+                </button>
+                <button type="button" class="btn-operacao-cmd operacao-lancamentos-grupo__manut" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
+                  <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
+                  <span class="btn-operacao-cmd__hint">Custos de manutenção</span>
+                </button>
+                <div class="operacao-lanc-aluguel-subgrid" aria-label="Subdivisões do lançamento de aluguel">
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-avulso" data-lanc-aluguel-sub="avulso" aria-controls="operacaoLancAluguelPaneAvulso">
+                    <span class="btn-operacao-cmd__title">Operador avulso</span>
+                    <span class="btn-operacao-cmd__hint">Pagamento direto no protocolo</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-comprovante" data-lanc-aluguel-sub="comprovante" aria-controls="operacaoLancAluguelPaneComprovante">
+                    <span class="btn-operacao-cmd__title">Com comprovante</span>
+                    <span class="btn-operacao-cmd__hint">Pagamentos validados</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-validacao" data-lanc-aluguel-sub="validacao" aria-controls="operacaoLancAluguelPaneValidacao">
+                    <span class="btn-operacao-cmd__title">Validação app (IA)</span>
+                    <span class="btn-operacao-cmd__hint">Fila do cliente + comprovante</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-relatorios" data-lanc-aluguel-sub="relatorios" aria-controls="operacaoLancAluguelPaneRelatorios">
+                    <span class="btn-operacao-cmd__title">Relatórios</span>
+                    <span class="btn-operacao-cmd__hint">Período, cliente ou placa</span>
+                  </button>
+                </div>
+              </div>
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
                 <span class="btn-operacao-cmd__hint">CPF, função, permissóes &mdash; formulário à direita (só administrador)</span>
@@ -770,7 +790,9 @@
 
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
           <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lançamento de aluguel</h3>
-          <p class="subtext operacao-inline-form__lead">Cada pagamento fica guardado no <strong>protocolo</strong> escolhido. Em <strong>Cadastro de locação</strong>, <strong>TOTAL PAGO</strong> mostra a soma de todos os lançamentos desse protocolo; <strong>TOTAL PAGO NO ANO DE 2025</strong> mostra só os lançamentos cuja <strong>data do pagamento</strong> cai em 2025.</p>
+          <p id="operacao-lanc-aluguel-subtitulo" class="subtext operacao-inline-form__lead">Registe pagamentos no <strong>protocolo</strong>. Em <strong>Cadastro de locação</strong>, <strong>TOTAL PAGO</strong> soma todos os lançamentos confirmados.</p>
+
+          <div id="operacaoLancAluguelPaneValidacao" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Validação de lançamentos do app cliente">
           <section id="operacaoLancClienteComprovacaoSection" class="portal-lanc-cliente-comprovacao" aria-labelledby="portal-lanc-cliente-comprovacao-title">
             <h4 id="portal-lanc-cliente-comprovacao-title" class="portal-lanc-aluguel-section__title">Confirmação de lançamento feito por cliente</h4>
             <p class="subtext">Pagamentos do <strong>App Cliente</strong> (histórico na nuvem). <strong>Confirmados pelo operador não são alterados.</strong> A IA valida ao receber; recusas erradas (ex.: centavos) são <strong>reabertas</strong> para confirmação. Reenvios duplicados do mesmo pagamento são arquivados — fica um na fila.</p>
@@ -794,15 +816,23 @@
               <p class="subtext">Recusas automáticas (imagem duplicada ou valor divergente) e recusas manuais do operador. O cliente vê o motivo no app após sincronizar.</p>
               <div id="portalComprovanteClienteListaRecusados" class="portal-comprovante-cliente-lista"></div>
             </div>
+          </section>
+          </div>
+
+          <div id="operacaoLancAluguelPaneComprovante" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamentos operados com comprovante">
+            <h4 class="portal-lanc-aluguel-section__title">Lançamentos operados com comprovante</h4>
+            <p class="subtext">Pagamentos do App Cliente já <strong>confirmados pelo operador</strong> e contabilizados no protocolo. O administrador pode invalidar um pagamento (deixa de entrar nos totais).</p>
             <div class="portal-cc-validados-toolbar">
-              <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnValidados" aria-expanded="false" aria-controls="portalComprovanteClientePainelValidados">Pagamentos validados</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnValidados" aria-expanded="true" aria-controls="portalComprovanteClientePainelValidados">Atualizar lista</button>
             </div>
-            <div id="portalComprovanteClientePainelValidados" class="portal-cc-painel-validados hidden" role="region" aria-label="Pagamentos validados app cliente">
-              <h4 class="portal-lanc-aluguel-section__title">Pagamentos validados (app cliente)</h4>
-              <p class="subtext">Confirmados pelo operador. <strong>Verde</strong> = contabiliza no protocolo. <strong>Vermelho</strong> = invalidado pelo administrador (não entra nos totais; o cliente vê no app após sincronizar).</p>
+            <div id="portalComprovanteClientePainelValidados" class="portal-cc-painel-validados" role="region" aria-label="Pagamentos validados app cliente">
               <div id="portalComprovanteClienteListaValidados" class="portal-comprovante-cliente-lista"></div>
             </div>
-          </section>
+          </div>
+
+          <div id="operacaoLancAluguelPaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamentos operador avulso">
+            <h4 class="portal-lanc-aluguel-section__title">Lançamentos operador avulso</h4>
+            <p class="subtext">Pesquise o contrato e registe o pagamento (espécie, Pix ou cartão). Cada lançamento fica no <strong>protocolo</strong> escolhido.</p>
           <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-aluguel-pesquisa-title">
               <h4 id="portal-lanc-aluguel-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
@@ -927,6 +957,15 @@
               </div>
             </section>
           </form>
+          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo"></div>
+          <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
+            Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
+          </p>
+          </div>
+
+          <div id="operacaoLancAluguelPaneRelatorios" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatórios de pagamentos">
+            <h4 class="portal-lanc-aluguel-section__title">Relatórios</h4>
+            <p class="subtext">Exporte em PDF ou Excel a partir dos lançamentos confirmados neste navegador.</p>
           <div
             class="portal-relatorio-pagamentos-periodo"
             role="region"
@@ -1037,10 +1076,7 @@
               </button>
             </div>
           </div>
-          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo"></div>
-          <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
-            Colaboradores podem lanºar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
-          </p>
+          </div>
           <p id="operacaoLancAluguelInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
           <p class="operacao-inline-form__footnote">
             <button type="button" class="link-like" id="operacaoLancAluguelAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
@@ -1638,10 +1674,10 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522rel-protocolo-asc" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522lanc-subdiv" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=20260522notif-lidas" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260522lanc-subdiv" defer></script>
 </body>
 </html>

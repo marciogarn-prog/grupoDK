@@ -6,7 +6,7 @@
 import { chromium } from "playwright";
 
 const BASE = (process.env.DK_TEST_BASE || "https://grupodkempreendimentos.com.br/").replace(/\/?$/, "/");
-const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix";
+const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522lanc-subdiv";
 const OWNER_CPF = "03037897430";
 const OWNER_SENHA = process.env.DK_OWNER_SENHA || "110499@Gb";
 const TEST_ID = "cc_e2e_invalidar_fix";

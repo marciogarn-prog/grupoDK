@@ -42,6 +42,12 @@ async function main() {
         html.includes("portalComprovanteClientePainelValidados")
     );
     record(
+      "submenu lançamento aluguel (4 painéis)",
+      html.includes("btn-lanc-aluguel-avulso") &&
+        html.includes("operacaoLancAluguelPaneValidacao") &&
+        html.includes("operacaoLancAluguelPaneRelatorios")
+    );
+    record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );
