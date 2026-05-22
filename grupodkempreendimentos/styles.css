@@ -821,36 +821,23 @@ body {
   box-shadow: inset 0 0 0 1px rgba(201, 162, 39, 0.45);
 }
 
-/* Multas / manutenção + grelha 2×2 dos lançamentos de aluguel (modelo verde) */
-.operacao-lancamentos-grupo {
-  display: grid;
-  grid-template-columns: 1fr minmax(0, 1.15fr);
-  gap: 0.65rem;
-  align-items: stretch;
+/* Submenu de lançamento de aluguel (abaixo do botão principal, oculto até abrir) */
+.operacao-lanc-aluguel-subnav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0.5rem 0.65rem;
+  padding-left: 0.45rem;
+  border-left: 2px solid rgba(201, 162, 39, 0.35);
 }
 
-.operacao-lancamentos-grupo__multas {
-  grid-column: 1;
-  grid-row: 1;
-}
-
-.operacao-lancamentos-grupo__manut {
-  grid-column: 1;
-  grid-row: 2;
-}
-
-.operacao-lanc-aluguel-subgrid {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  align-content: start;
+.operacao-lanc-aluguel-subnav.hidden {
+  display: none;
 }
 
 .btn-operacao-cmd--sub {
-  padding: 0.65rem 0.55rem;
-  min-height: 4.25rem;
+  padding: 0.55rem 0.5rem;
+  min-height: 3.5rem;
 }
 
 .btn-operacao-cmd--sub .btn-operacao-cmd__title {
@@ -872,15 +859,27 @@ body {
   display: none;
 }
 
-@media (max-width: 520px) {
-  .operacao-lancamentos-grupo {
-    grid-template-columns: 1fr;
-  }
+.operacao-lanc-aluguel-bloco-pesquisa.hidden {
+  display: none;
+}
 
-  .operacao-lanc-aluguel-subgrid {
-    grid-column: 1;
-    grid-row: auto;
-  }
+.portal-operador-comprovante-paste {
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border: 2px dashed rgba(201, 162, 39, 0.45);
+  border-radius: 10px;
+  background: rgba(10, 12, 18, 0.6);
+  cursor: pointer;
+  outline: none;
+}
+
+.portal-operador-comprovante-paste:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+
+.portal-operador-comprovante-paste__lead {
+  margin: 0 0 0.35rem;
 }
 
 .operacao-inline-form {

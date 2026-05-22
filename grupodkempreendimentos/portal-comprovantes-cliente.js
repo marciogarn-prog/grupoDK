@@ -1135,6 +1135,10 @@
     };
   }
 
+  function isComprovanteOrigemAppCliente(rec) {
+    return String(rec?.origem || "app_cliente") !== "portal_operador";
+  }
+
   function comprovanteElegivelFilaOperador(rec, idxPag) {
     if (!rec || rec.status !== STATUS.IA_OK) return false;
     if (rec.rejeitadoAutomatico === false && String(rec.rejeitadoEm || "").trim()) return false;
@@ -1665,12 +1669,20 @@
   async function adicionarComprovanteCliente(payload) {
     const cpf = onlyDigits(payload.cpf).slice(0, 11);
     const proto = normProto(payload.protocolo);
-    const valor = roundCentavos(
+    const origemEntrada = String(payload.origem || "app_cliente").trim() || "app_cliente";
+    let valor = roundCentavos(
       typeof payload.valor === "number" && Number.isFinite(payload.valor)
         ? payload.valor
         : parseCurrencyBR(payload.valor)
     );
-    const data = String(payload.dataPagamento || "").trim();
+    let data = String(payload.dataPagamento || "").trim();
+    if (origemEntrada === "portal_operador") {
+      if (!parseBrDate(data)) {
+        const hoje = new Date();
+        data = `${String(hoje.getDate()).padStart(2, "0")}/${String(hoje.getMonth() + 1).padStart(2, "0")}/${hoje.getFullYear()}`;
+      }
+      if (!Number.isFinite(valor) || valor <= 0) valor = 1;
+    }
     if (cpf.length !== 11 || !proto || !Number.isFinite(valor) || valor <= 0 || !parseBrDate(data)) {
       return { ok: false, msg: "Dados inválidos (CPF, protocolo, data ou valor)." };
     }
@@ -1739,7 +1751,7 @@
       confirmadoPorCpf: "",
       confirmadoPorNome: "",
       confirmadoEm: "",
-      origem: "app_cliente",
+      origem: String(payload.origem || "app_cliente").trim() || "app_cliente",
       syncNuvem: "pendente",
       syncNuvemEm: null,
     };
@@ -3091,12 +3103,13 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       badge.textContent = nProc ? `${nProc} a processar pela IA…` : "";
       badge.classList.toggle("hidden", !nProc);
     }
-    const rows = listarAguardandoConfirmacaoOperador();
+    const rows = listarAguardandoConfirmacaoOperador().filter(isComprovanteOrigemAppCliente);
     const nConfirmados = loadAll().filter(
-      (r) => r.status === STATUS.CONFIRMADO && !r.pagamentoInvalidado
+      (r) =>
+        r.status === STATUS.CONFIRMADO && !r.pagamentoInvalidado && isComprovanteOrigemAppCliente(r)
     ).length;
     const aguardaIa = loadAll()
-      .filter((r) => r.status === STATUS.PENDENTE)
+      .filter((r) => r.status === STATUS.PENDENTE && isComprovanteOrigemAppCliente(r))
       .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));
     let html = `<p class="subtext portal-cc-hist-resumo"><strong>${nConfirmados}</strong> pagamento(s) já confirmados pelo operador (histórico preservado na nuvem).</p>`;
     if (rows.length) {
@@ -3116,6 +3129,170 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       })}`;
     }
     wrap.innerHTML = html;
+  }
+
+  function listarFilaOperadorPortal() {
+    const idxPag = indicePagamentosProtocoloPorComprovante();
+    return loadAll()
+      .filter((r) => String(r.origem || "") === "portal_operador")
+      .filter(
+        (r) =>
+          r.status === STATUS.PENDENTE ||
+          r.status === STATUS.IA_OK ||
+          comprovanteElegivelFilaOperador(r, idxPag)
+      )
+      .sort((a, b) => Date.parse(b.enviadoEm || 0) - Date.parse(a.enviadoEm || 0));
+  }
+
+  function renderListaOperadorPortal() {
+    const wrap = document.getElementById("portalOperadorComprovanteLista");
+    if (!wrap) return;
+    const rowsConfirm = listarFilaOperadorPortal().filter((r) => r.status === STATUS.IA_OK);
+    const rowsIa = listarFilaOperadorPortal().filter((r) => r.status === STATUS.PENDENTE);
+    let html = "";
+    if (rowsConfirm.length) {
+      html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam validação do operador (IA aprovou)</h4>${renderTabelaComprovantes(rowsConfirm, {
+        ariaLabel: "Comprovantes operador aguardando confirmação",
+        vazio: "",
+      })}`;
+    }
+    if (rowsIa.length) {
+      html += `<h4 class="portal-lanc-aluguel-section__title portal-cc-sublista-titulo">Aguardam validação IA</h4>${renderTabelaComprovantes(rowsIa, {
+        ariaLabel: "Comprovantes operador aguardando IA",
+        vazio: "",
+      })}`;
+    }
+    if (!html) {
+      html =
+        '<p class="subtext">Nenhum comprovante do operador nesta fila. Confirme o protocolo acima, cole o comprovante e envie para a IA.</p>';
+    }
+    wrap.innerHTML = html;
+  }
+
+  let operadorPortalArquivo = null;
+
+  function limparOperadorPortalComprovanteForm() {
+    operadorPortalArquivo = null;
+    const lbl = document.getElementById("portalOperadorComprovanteArquivoLbl");
+    const fileInp = document.getElementById("portalOperadorComprovanteFile");
+    if (lbl) lbl.textContent = "";
+    if (fileInp) fileInp.value = "";
+    const dataInp = document.getElementById("portalOperadorComprovanteData");
+    const valInp = document.getElementById("portalOperadorComprovanteValor");
+    if (dataInp) dataInp.value = "";
+    if (valInp) valInp.value = "";
+  }
+
+  async function definirArquivoOperadorPortal(fileOrDataUrl, nomeArquivo) {
+    if (!fileOrDataUrl) return;
+    let arquivoBase64 = "";
+    let mimeType = "";
+    let nome = String(nomeArquivo || "comprovante").trim();
+    if (typeof fileOrDataUrl === "string") {
+      arquivoBase64 = fileOrDataUrl;
+      const p = parseDataUrl(arquivoBase64);
+      mimeType = p.mime || "image/png";
+    } else {
+      const dataUrl = await fileToBase64(fileOrDataUrl);
+      const p = parseDataUrl(dataUrl);
+      arquivoBase64 = dataUrl;
+      mimeType = p.mime || fileOrDataUrl.type || "";
+      nome = fileOrDataUrl.name || nome;
+    }
+    operadorPortalArquivo = { arquivoBase64, mimeType, nomeArquivo: nome };
+    const lbl = document.getElementById("portalOperadorComprovanteArquivoLbl");
+    if (lbl) lbl.textContent = `Ficheiro: ${nome}`;
+  }
+
+  async function enviarComprovanteOperadorPortal() {
+    const fb = document.getElementById("portalOperadorComprovanteMsg");
+    const ctx =
+      typeof window.__DK_operacaoLancAluguelProtocoloAtual === "function"
+        ? window.__DK_operacaoLancAluguelProtocoloAtual()
+        : { nc: "", cpf: "" };
+    if (!ctx.nc || ctx.cpf.length !== 11) {
+      if (fb) fb.textContent = "Confirme o protocolo na pesquisa acima antes de enviar o comprovante.";
+      return;
+    }
+    if (!operadorPortalArquivo?.arquivoBase64) {
+      if (fb) fb.textContent = "Cole ou escolha o comprovante (imagem ou PDF).";
+      return;
+    }
+    const dataManual = String(document.getElementById("portalOperadorComprovanteData")?.value || "").trim();
+    const valorManual = String(document.getElementById("portalOperadorComprovanteValor")?.value || "").trim();
+    const nomeCli =
+      typeof window.__DK_resolveLancNomePorCpf === "function"
+        ? window.__DK_resolveLancNomePorCpf(ctx.cpf)
+        : "";
+    if (fb) fb.textContent = "A enviar comprovante e processar IA…";
+    const res = await adicionarComprovanteCliente({
+      cpf: ctx.cpf,
+      protocolo: ctx.nc,
+      nomeCliente: nomeCli,
+      dataPagamento: dataManual || undefined,
+      valor: valorManual || 0,
+      arquivoBase64: operadorPortalArquivo.arquivoBase64,
+      mimeType: operadorPortalArquivo.mimeType,
+      nomeArquivo: operadorPortalArquivo.nomeArquivo,
+      origem: "portal_operador",
+    });
+    if (!res?.ok) {
+      if (fb) {
+        fb.textContent = res?.msg || "Não foi possível enviar o comprovante.";
+        fb.classList.toggle("portal-feedback--erro", true);
+      }
+      return;
+    }
+    limparOperadorPortalComprovanteForm();
+    if (fb) {
+      fb.textContent = "Comprovante enviado. A IA está a validar — confira a fila abaixo.";
+      fb.classList.remove("portal-feedback--erro");
+    }
+    renderListaOperadorPortal();
+    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+      await window.__DK_refreshComprovantesClienteLista();
+    }
+  }
+
+  function bindOperadorPortalComprovanteUi() {
+    if (document.documentElement.dataset.dkCcOperadorPortalBound === "1") return;
+    document.documentElement.dataset.dkCcOperadorPortalBound = "1";
+
+    const zone = document.getElementById("portalOperadorComprovantePasteZone");
+    const fileInp = document.getElementById("portalOperadorComprovanteFile");
+
+    zone?.addEventListener("paste", (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of items) {
+        if (item.kind !== "file") continue;
+        const f = item.getAsFile();
+        if (!f) continue;
+        e.preventDefault();
+        void definirArquivoOperadorPortal(f, f.name);
+        break;
+      }
+    });
+
+    fileInp?.addEventListener("change", () => {
+      const f = fileInp.files?.[0];
+      if (f) void definirArquivoOperadorPortal(f, f.name);
+    });
+
+    document.getElementById("portalOperadorComprovanteEnviarBtn")?.addEventListener("click", () => {
+      void enviarComprovanteOperadorPortal();
+    });
+    document.getElementById("portalOperadorComprovanteLimparBtn")?.addEventListener("click", () => {
+      limparOperadorPortalComprovanteForm();
+      const fb = document.getElementById("portalOperadorComprovanteMsg");
+      if (fb) fb.textContent = "";
+    });
+
+    document.getElementById("portalOperadorComprovanteLista")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-cc-abrir]");
+      if (!btn) return;
+      openDetalhe(btn.getAttribute("data-cc-abrir"));
+    });
   }
 
   function renderListaRecusados72h() {
@@ -3779,6 +3956,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       openDetalhe(btn.getAttribute("data-cc-abrir") || btn.getAttribute("data-cc-abrir-recusado"));
     };
     document.getElementById("portalComprovanteClienteLista")?.addEventListener("click", abrirHandler);
+    bindOperadorPortalComprovanteUi();
     document.getElementById("portalComprovanteClienteListaRecusados")?.addEventListener("click", abrirHandler);
 
     document.getElementById("portalComprovanteClienteListaValidados")?.addEventListener("click", async (e) => {
@@ -4218,6 +4396,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_executarAutoPurgeClientesTeste = async function executarAutoPurgeClientesTesteDesativado() {
     return null;
   };
+  window.__DK_refreshComprovantesOperadorLista = function refreshComprovantesOperadorLista() {
+    renderListaOperadorPortal();
+  };
+
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     if (
@@ -4228,6 +4410,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       renderListaOperador();
       renderListaRecusados72h();
       renderListaValidados();
+      renderListaOperadorPortal();
       return;
     }
     const rep = await repararHistoricoComprovantesNuvem();
@@ -4240,10 +4423,12 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     renderListaOperador();
     renderListaRecusados72h();
     renderListaValidados();
+    renderListaOperadorPortal();
   };
 
   async function bootstrapPortalComprovantesCliente() {
     if (document.getElementById("portalComprovanteClienteLista")) await initOperadorUi();
+    else if (document.getElementById("portalOperadorComprovantePasteZone")) bindOperadorPortalComprovanteUi();
     else if (getViewerModalEl()) initViewerUiShared();
   }
 
