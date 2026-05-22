@@ -1596,6 +1596,20 @@
       /* ignore */
     }
 
+    try {
+      if (
+        new URLSearchParams(window.location.search).get("purge") === "1" &&
+        typeof window.__DK_purgeClientesTestePadrao === "function"
+      ) {
+        await window.__DK_purgeClientesTestePadrao();
+        const u = new URL(window.location.href);
+        u.searchParams.delete("purge");
+        history.replaceState(null, "", u.pathname + u.search + u.hash);
+      }
+    } catch (e) {
+      console.warn("[DK cliente] purge teste", e);
+    }
+
     await processIncomingShare();
 
     const sessao = getSessao();
@@ -1609,6 +1623,19 @@
     bindCompMasks();
     updateInstallPanelUi();
   }
+
+  window.__DK_clienteAppRecarregar = async function clienteAppRecarregar() {
+    if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+      window.__DK_comprovantesClienteInvalidateCache();
+    }
+    const sessao = getSessao();
+    if (sessao?.cpf) {
+      await sincronizarDadosCliente(sessao, { silent: true });
+      resolveAppViewAfterData(sessao);
+    } else {
+      showView("login");
+    }
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

@@ -102,7 +102,11 @@ function purgePayload(payload, cpfSet) {
     stats.notificacoesRemovidas = antes - payload.dk_cliente_notificacoes.length;
   }
 
-  const bancoKeys = ["dk_comprovantes_banco_assinaturas", "dk_comprovantes_banco"];
+  const bancoKeys = [
+    "dk_comprovantes_banco_assinaturas",
+    "dk_comprovantes_banco",
+    "dk_cliente_comprovantes_enviados",
+  ];
   for (const bk of bancoKeys) {
     if (!Array.isArray(payload[bk])) continue;
     const antes = payload[bk].length;

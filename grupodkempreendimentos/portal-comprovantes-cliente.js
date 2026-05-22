@@ -3624,14 +3624,49 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     return loadAll({ leitura: true }).some((r) => r.syncNuvem === "pendente");
   };
 
-  /** Remove comprovantes, notificações, locações e lançamentos dos CPFs (teste / reinício). */
+  async function limparComprovantesIdbCompleto() {
+    try {
+      const db = await openComprovantesArquivosDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(CC_ARQUIVOS_STORE, "readwrite");
+        tx.objectStore(CC_ARQUIVOS_STORE).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+      ccArquivoMemoria.clear();
+      return true;
+    } catch (e) {
+      console.warn("[DK comprovantes] limpar IndexedDB", e);
+      return false;
+    }
+  }
+
+  function filterLsArrayByCpf(key, cpfSet, cpfField = "cpf") {
+    const report = { key, removed: 0 };
+    let arr = [];
+    try {
+      const raw = localStorage.getItem(key);
+      arr = raw ? JSON.parse(raw) : [];
+    } catch {
+      arr = [];
+    }
+    if (!Array.isArray(arr)) return report;
+    const antes = arr.length;
+    const kept = arr.filter((r) => !cpfSet.has(onlyDigits(r[cpfField]).slice(0, 11)));
+    localStorage.setItem(key, JSON.stringify(kept));
+    report.removed = antes - kept.length;
+    return report;
+  }
+
+  /** Remove comprovantes, notificações, locações e lançamentos dos CPFs (teste / reinício). Portal + app cliente. */
   async function purgeClientesPorCpf(cpfs) {
     const set = new Set(
       (Array.isArray(cpfs) ? cpfs : String(cpfs || "").split(/[,;]/))
         .map((c) => onlyDigits(c).slice(0, 11))
         .filter((c) => c.length === 11)
     );
-    const report = { cpfs: [...set], removed: {} };
+    const report = { cpfs: [...set], removed: {}, idbLimpo: false };
     if (!set.size) return { ok: false, msg: "Informe CPF(s) com 11 dígitos." };
 
     const allCc = loadAllRaw();
@@ -3639,26 +3674,34 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (!set.has(onlyDigits(r.cpf).slice(0, 11))) continue;
       if (r.id) await removerArquivoComprovanteIdb(r.id);
     }
+    report.idbLimpo = await limparComprovantesIdbCompleto();
 
-    const filterLsArray = (key, cpfField = "cpf") => {
-      let arr = [];
-      try {
-        const raw = localStorage.getItem(key);
-        arr = raw ? JSON.parse(raw) : [];
-      } catch {
-        arr = [];
+    const keysFixas = [
+      STORAGE_KEY,
+      "dk_cliente_notificacoes",
+      BANCO_ASSINATURAS_KEY,
+      "dk_comprovantes_banco",
+      "dk_cliente_comprovantes_enviados",
+      "dk_lancamentos_aluguel",
+      "dk_lancamentos_aluguel_cadastro",
+      "dk_clientes_validacao_pendente",
+    ];
+    for (const k of keysFixas) {
+      const r = filterLsArrayByCpf(k, set);
+      if (r.removed) report.removed[k] = r.removed;
+    }
+
+    try {
+      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente_app") || "null");
+      if (sess && set.has(onlyDigits(sess.cpf).slice(0, 11))) {
+        localStorage.removeItem("dk_sessao_cliente_app");
+        report.removed.dk_sessao_cliente_app = 1;
       }
-      if (!Array.isArray(arr)) return;
-      const antes = arr.length;
-      const kept = arr.filter((r) => !set.has(onlyDigits(r[cpfField]).slice(0, 11)));
-      localStorage.setItem(key, JSON.stringify(kept));
-      report.removed[key] = antes - kept.length;
-    };
-
-    filterLsArray(STORAGE_KEY);
-    filterLsArray("dk_cliente_notificacoes");
-    filterLsArray(BANCO_ASSINATURAS_KEY);
-    filterLsArray("dk_cliente_comprovantes_enviados");
+    } catch {
+      /* ignore */
+    }
+    localStorage.removeItem("dk_cliente_comprovantes_enviados");
+    localStorage.removeItem("dkCloudLastPushedAt");
 
     const cadLocKey =
       typeof CAD_LOCACOES_KEY !== "undefined" ? CAD_LOCACOES_KEY : "dk_locacoes_cadastro";
@@ -3668,13 +3711,30 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       locs = locs.filter((l) => !set.has(onlyDigits(l.cpf).slice(0, 11)));
       saveCadastro(cadLocKey, locs, { bypassImmutabilidadeCadastro: true });
       report.removed.dk_locacoes_cadastro = antes - locs.length;
+      const portalKey = "dk_portal_clientes_cadastro";
+      if (portalKey !== cadLocKey) {
+        let plocs = loadCadastro(portalKey);
+        const a2 = plocs.length;
+        plocs = plocs.filter((l) => !set.has(onlyDigits(l.cpf).slice(0, 11)));
+        saveCadastro(portalKey, plocs, { bypassImmutabilidadeCadastro: true });
+        report.removed[portalKey] = a2 - plocs.length;
+      }
     }
 
-    const lancKey =
-      typeof CAD_LANCAMENTOS_ALUGUEL_KEY !== "undefined"
-        ? CAD_LANCAMENTOS_ALUGUEL_KEY
-        : "dk_lancamentos_aluguel";
-    filterLsArray(lancKey, "cpf");
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith("dk_")) continue;
+      if (keysFixas.includes(key)) continue;
+      try {
+        const raw = localStorage.getItem(key);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (!Array.isArray(parsed)) continue;
+        const r = filterLsArrayByCpf(key, set);
+        if (r.removed) report.removed[key] = (report.removed[key] || 0) + r.removed;
+      } catch {
+        /* ignore */
+      }
+    }
 
     invalidateComprovantesCache();
     if (typeof window.__DK_markLocalDataAuthority === "function") {
@@ -3685,14 +3745,20 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
     if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
       await window.__DK_refreshComprovantesClienteLista();
-    } else {
+    } else if (document.getElementById("portalComprovanteClienteLista")) {
       renderListaOperador();
       renderListaRecusados72h();
+    }
+    if (window.__DK_CLIENTE_APP && typeof window.__DK_clienteAppRecarregar === "function") {
+      window.__DK_clienteAppRecarregar();
     }
     return { ok: true, report };
   }
 
   window.__DK_purgeClientesPorCpf = purgeClientesPorCpf;
+  window.__DK_purgeClientesTestePadrao = function purgeClientesTestePadrao() {
+    return purgeClientesPorCpf(["19174403400", "06523244440"]);
+  };
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     const rep = await repararHistoricoComprovantesNuvem();
