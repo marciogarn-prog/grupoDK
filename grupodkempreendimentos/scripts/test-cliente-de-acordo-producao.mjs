@@ -8,7 +8,7 @@ const BASE = (process.env.DK_TEST_BASE || "https://grupodkempreendimentos.com.br
   /\/?$/,
   "/"
 );
-const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522de-acordo-fix2";
+const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix";
 
 const JOSE_CPF = "19174403400";
 const PROTO = "2026010101";
