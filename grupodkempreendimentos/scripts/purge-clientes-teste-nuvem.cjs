@@ -1,11 +1,13 @@
 /**
- * Remove da nuvem (Supabase + Redis) todos os dados operacionais de clientes teste.
- * Mantém cadastro de cliente/veículo; remove locações, comprovantes, notificações, lançamentos, assinaturas.
+ * Remove só comprovantes e registos de pagamento dos CPFs teste na nuvem.
+ * Mantém cadastro (cliente/veículo), locação/protocolo; zera listas de pagamento na locação.
  *
  * Uso:
  *   node grupodkempreendimentos/scripts/purge-clientes-teste-nuvem.cjs
  *   node grupodkempreendimentos/scripts/purge-clientes-teste-nuvem.cjs --cpf=19174403400,06523244440
  */
+const { purgePagamentosComprovantesPayload } = require("../lib/dk-purge-pagamentos-only.cjs");
+
 const SUPABASE_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3";
 const LABEL = "default";
@@ -15,13 +17,6 @@ const DEFAULT_CPFS = ["19174403400", "06523244440"];
 
 function onlyDigits(s) {
   return String(s ?? "").replace(/\D/g, "");
-}
-
-function normProto(v) {
-  return String(v ?? "")
-    .trim()
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
 }
 
 function parseArgs() {
@@ -61,100 +56,6 @@ async function supabaseFetch(path, opts = {}) {
   return data;
 }
 
-function countByCpf(arr, cpfKey = "cpf") {
-  const map = new Map();
-  for (const r of arr || []) {
-    const c = onlyDigits(r?.[cpfKey]).slice(0, 11);
-    if (!c) continue;
-    map.set(c, (map.get(c) || 0) + 1);
-  }
-  return map;
-}
-
-function purgePayload(payload, cpfSet) {
-  const stats = {
-    comprovantesAntes: 0,
-    comprovantesDepois: 0,
-    notificacoesRemovidas: 0,
-    locacoesRemovidas: 0,
-    lancamentosRemovidos: 0,
-    assinaturasRemovidas: 0,
-    validacaoRemovida: 0,
-    protocolosRemovidos: new Set(),
-  };
-
-  const matchCpf = (r, key = "cpf") => cpfSet.has(onlyDigits(r?.[key]).slice(0, 11));
-
-  if (Array.isArray(payload.dk_comprovantes_cliente_pendentes)) {
-    stats.comprovantesAntes = payload.dk_comprovantes_cliente_pendentes.length;
-    for (const r of payload.dk_comprovantes_cliente_pendentes) {
-      if (matchCpf(r)) stats.protocolosRemovidos.add(normProto(r.protocolo));
-    }
-    payload.dk_comprovantes_cliente_pendentes = payload.dk_comprovantes_cliente_pendentes.filter(
-      (r) => !matchCpf(r)
-    );
-    stats.comprovantesDepois = payload.dk_comprovantes_cliente_pendentes.length;
-  }
-
-  if (Array.isArray(payload.dk_cliente_notificacoes)) {
-    const antes = payload.dk_cliente_notificacoes.length;
-    payload.dk_cliente_notificacoes = payload.dk_cliente_notificacoes.filter((n) => !matchCpf(n));
-    stats.notificacoesRemovidas = antes - payload.dk_cliente_notificacoes.length;
-  }
-
-  const bancoKeys = [
-    "dk_comprovantes_banco_assinaturas",
-    "dk_comprovantes_banco",
-    "dk_cliente_comprovantes_enviados",
-  ];
-  for (const bk of bancoKeys) {
-    if (!Array.isArray(payload[bk])) continue;
-    const antes = payload[bk].length;
-    payload[bk] = payload[bk].filter((sig) => {
-      const proto = normProto(sig?.protocolo);
-      if (stats.protocolosRemovidos.has(proto)) return false;
-      return true;
-    });
-    stats.assinaturasRemovidas += antes - payload[bk].length;
-  }
-
-  if (Array.isArray(payload.dk_locacoes_cadastro)) {
-    const antes = payload.dk_locacoes_cadastro.length;
-    for (const loc of payload.dk_locacoes_cadastro) {
-      if (matchCpf(loc)) stats.protocolosRemovidos.add(normProto(loc.numeroContrato));
-    }
-    payload.dk_locacoes_cadastro = payload.dk_locacoes_cadastro.filter((loc) => {
-      if (!matchCpf(loc)) return true;
-      stats.locacoesRemovidas += 1;
-      return false;
-    });
-    void antes;
-  }
-
-  const lancKeys = ["dk_lancamentos_aluguel", "dk_lancamentos_aluguel_cadastro"];
-  for (const lk of lancKeys) {
-    if (!Array.isArray(payload[lk])) continue;
-    const antes = payload[lk].length;
-    payload[lk] = payload[lk].filter((row) => {
-      if (matchCpf(row)) return false;
-      const proto = normProto(row?.numeroContrato || row?.protocolo);
-      if (proto && stats.protocolosRemovidos.has(proto)) return false;
-      return true;
-    });
-    stats.lancamentosRemovidos += antes - payload[lk].length;
-  }
-
-  if (Array.isArray(payload.dk_clientes_validacao_pendente)) {
-    const antes = payload.dk_clientes_validacao_pendente.length;
-    payload.dk_clientes_validacao_pendente = payload.dk_clientes_validacao_pendente.filter(
-      (r) => !matchCpf(r)
-    );
-    stats.validacaoRemovida = antes - payload.dk_clientes_validacao_pendente.length;
-  }
-
-  return stats;
-}
-
 async function pushRedis(payload) {
   const res = await fetch(REDIS_SNAPSHOT_URL, {
     method: "POST",
@@ -171,7 +72,10 @@ async function pushRedis(payload) {
 async function main() {
   const { cpfs } = parseArgs();
   const cpfSet = new Set(cpfs);
-  console.log("CPFs alvo:", [...cpfSet].map((c) => `${c.slice(0, 3)}.${c.slice(3, 6)}.${c.slice(6, 9)}-${c.slice(9)}`).join(", "));
+  console.log(
+    "CPFs alvo (só pagamentos/comprovantes):",
+    [...cpfSet].map((c) => `${c.slice(0, 3)}.${c.slice(3, 6)}.${c.slice(6, 9)}-${c.slice(9)}`).join(", ")
+  );
 
   let payload;
   let source = "supabase";
@@ -195,7 +99,7 @@ async function main() {
     source = "redis";
   }
 
-  const stats = purgePayload(payload, cpfSet);
+  const stats = purgePagamentosComprovantesPayload(payload, cpfSet);
   const updatedAt = new Date().toISOString();
 
   let supaOk = false;
@@ -218,15 +122,15 @@ async function main() {
     console.warn("Redis POST:", e.message || e);
   }
 
-  console.log("\n--- Limpeza concluída ---");
+  console.log("\n--- Limpeza (só pagamentos/comprovantes) ---");
   console.log("Fonte lida:", source);
   console.log("Comprovantes:", stats.comprovantesAntes, "→", stats.comprovantesDepois);
   console.log("Notificações removidas:", stats.notificacoesRemovidas);
-  console.log("Locações removidas:", stats.locacoesRemovidas);
-  console.log("Lançamentos removidos:", stats.lancamentosRemovidos);
+  console.log("Locações com pagamentos zerados:", stats.pagamentosZeradosEmLocacoes);
+  console.log("Lançamentos globais removidos:", stats.lancamentosGlobaisRemovidos);
   console.log("Assinaturas removidas:", stats.assinaturasRemovidas);
   console.log("Validação pendente removida:", stats.validacaoRemovida);
-  console.log("Protocolos:", [...stats.protocolosRemovidos].join(", ") || "—");
+  console.log("Protocolos (comprovantes):", [...stats.protocolosAfetados].join(", ") || "—");
   console.log("Gravado Supabase:", supaOk ? "sim" : "não");
   console.log("Gravado Redis:", redisOk ? "sim" : "não");
 
@@ -234,11 +138,8 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\nNo PC/telemóvel: abra o portal e o app cliente, Ctrl+F5, depois «Carregar da nuvem».");
-  console.log("Ou no consola do browser (portal):");
-  console.log(
-    `  (${[...cpfSet].map((c) => `'${c}'`).join(",")}).forEach(c=>{['dk_comprovantes_cliente_pendentes','dk_cliente_notificacoes','dk_comprovantes_banco_assinaturas'].forEach(k=>{const a=JSON.parse(localStorage.getItem(k)||'[]');localStorage.setItem(k,JSON.stringify(a.filter(x=>String(x.cpf||'').replace(/\\D/g,'').slice(0,11)!==c)))});});location.reload();`
-  );
+  console.log("\nCadastro, veículo e protocolo de locação são mantidos.");
+  console.log("No PC/telemóvel: Ctrl+F5 no portal e no app → Carregar da nuvem.");
 }
 
 main().catch((e) => {

@@ -1596,14 +1596,6 @@
       /* ignore */
     }
 
-    if (typeof window.__DK_executarAutoPurgeClientesTeste === "function") {
-      try {
-        await window.__DK_executarAutoPurgeClientesTeste();
-      } catch (e) {
-        console.warn("[DK cliente] limpeza automática teste", e);
-      }
-    }
-
     await processIncomingShare();
 
     const sessao = getSessao();

@@ -3659,22 +3659,44 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     return report;
   }
 
-  /** Remove comprovantes, notificações, locações e lançamentos dos CPFs (teste / reinício). Portal + app cliente. */
+  const PURGE_LS_PROTECTED = new Set([
+    "dk_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_locacoes_cadastro",
+  ]);
+  const PURGE_PAYMENT_KEYS_ON_LOC = [
+    "portalLancamentosAluguel",
+    "lancamentosAluguel",
+    "portalManutencoesRegistro",
+    "portalMultasTransito",
+  ];
+
+  function zerarPagamentosNaLocacaoLocal(loc) {
+    const next = { ...loc };
+    for (const k of PURGE_PAYMENT_KEYS_ON_LOC) {
+      if (Array.isArray(next[k]) && next[k].length) next[k] = [];
+    }
+    return next;
+  }
+
+  /** Remove só comprovantes e pagamentos dos CPFs; mantém cliente, veículo e protocolo. */
   async function purgeClientesPorCpf(cpfs) {
     const set = new Set(
       (Array.isArray(cpfs) ? cpfs : String(cpfs || "").split(/[,;]/))
         .map((c) => onlyDigits(c).slice(0, 11))
         .filter((c) => c.length === 11)
     );
-    const report = { cpfs: [...set], removed: {}, idbLimpo: false };
+    const report = { cpfs: [...set], removed: {}, pagamentosZerados: 0 };
     if (!set.size) return { ok: false, msg: "Informe CPF(s) com 11 dígitos." };
 
+    const protocolosAfetados = new Set();
     const allCc = loadAllRaw();
     for (const r of allCc) {
       if (!set.has(onlyDigits(r.cpf).slice(0, 11))) continue;
+      if (r.protocolo) protocolosAfetados.add(normProto(r.protocolo));
       if (r.id) await removerArquivoComprovanteIdb(r.id);
     }
-    report.idbLimpo = await limparComprovantesIdbCompleto();
 
     const keysFixas = [
       STORAGE_KEY,
@@ -3692,39 +3714,54 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
 
     try {
-      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente_app") || "null");
-      if (sess && set.has(onlyDigits(sess.cpf).slice(0, 11))) {
-        localStorage.removeItem("dk_sessao_cliente_app");
-        report.removed.dk_sessao_cliente_app = 1;
+      const rawBanco = localStorage.getItem(BANCO_ASSINATURAS_KEY);
+      const banco = rawBanco ? JSON.parse(rawBanco) : [];
+      if (Array.isArray(banco)) {
+        const antes = banco.length;
+        const kept = banco.filter((sig) => {
+          const proto = normProto(sig?.protocolo);
+          if (proto && protocolosAfetados.has(proto)) return false;
+          return !set.has(onlyDigits(sig?.cpf).slice(0, 11));
+        });
+        if (kept.length !== antes) {
+          localStorage.setItem(BANCO_ASSINATURAS_KEY, JSON.stringify(kept));
+          report.removed[BANCO_ASSINATURAS_KEY] = (report.removed[BANCO_ASSINATURAS_KEY] || 0) + (antes - kept.length);
+        }
       }
     } catch {
       /* ignore */
     }
+
     localStorage.removeItem("dk_cliente_comprovantes_enviados");
-    localStorage.removeItem("dkCloudLastPushedAt");
 
     const cadLocKey =
       typeof CAD_LOCACOES_KEY !== "undefined" ? CAD_LOCACOES_KEY : "dk_locacoes_cadastro";
     if (typeof loadCadastro === "function" && typeof saveCadastro === "function") {
       let locs = loadCadastro(cadLocKey);
-      const antes = locs.length;
-      locs = locs.filter((l) => !set.has(onlyDigits(l.cpf).slice(0, 11)));
-      saveCadastro(cadLocKey, locs, { bypassImmutabilidadeCadastro: true });
-      report.removed.dk_locacoes_cadastro = antes - locs.length;
-      const portalKey = "dk_portal_clientes_cadastro";
-      if (portalKey !== cadLocKey) {
-        let plocs = loadCadastro(portalKey);
-        const a2 = plocs.length;
-        plocs = plocs.filter((l) => !set.has(onlyDigits(l.cpf).slice(0, 11)));
-        saveCadastro(portalKey, plocs, { bypassImmutabilidadeCadastro: true });
-        report.removed[portalKey] = a2 - plocs.length;
-      }
+      let changed = false;
+      locs = locs.map((l) => {
+        if (!set.has(onlyDigits(l.cpf).slice(0, 11))) return l;
+        const had = PURGE_PAYMENT_KEYS_ON_LOC.some((k) => Array.isArray(l[k]) && l[k].length);
+        if (had) {
+          report.pagamentosZerados += 1;
+          changed = true;
+        }
+        return zerarPagamentosNaLocacaoLocal(l);
+      });
+      if (changed) saveCadastro(cadLocKey, locs, { bypassImmutabilidadeCadastro: true });
+    }
+
+    const keysPagamentoGlobais = ["dk_lancamentos_aluguel", "dk_lancamentos_aluguel_cadastro"];
+    for (const k of keysPagamentoGlobais) {
+      if (keysFixas.includes(k)) continue;
+      const r = filterLsArrayByCpf(k, set);
+      if (r.removed) report.removed[k] = (report.removed[k] || 0) + r.removed;
     }
 
     for (let i = 0; i < localStorage.length; i += 1) {
       const key = localStorage.key(i);
       if (!key || !key.startsWith("dk_")) continue;
-      if (keysFixas.includes(key)) continue;
+      if (keysFixas.includes(key) || PURGE_LS_PROTECTED.has(key)) continue;
       try {
         const raw = localStorage.getItem(key);
         const parsed = raw ? JSON.parse(raw) : null;
@@ -3760,24 +3797,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     return purgeClientesPorCpf(["19174403400", "06523244440"]);
   };
 
-  const DK_AUTO_PURGE_TESTE_FLAG = "dk_auto_purge_clientes_teste_v3";
-
-  async function executarAutoPurgeClientesTesteSeNecessario() {
-    try {
-      if (localStorage.getItem(DK_AUTO_PURGE_TESTE_FLAG) === "done") return null;
-    } catch {
-      return null;
-    }
-    const r = await purgeClientesPorCpf(["19174403400", "06523244440"]);
-    try {
-      localStorage.setItem(DK_AUTO_PURGE_TESTE_FLAG, "done");
-    } catch {
-      /* ignore */
-    }
-    return r;
-  }
-
-  window.__DK_executarAutoPurgeClientesTeste = executarAutoPurgeClientesTesteSeNecessario;
+  /** Auto-limpeza desativada (apagava cadastro/locação por engano). Use __DK_purgeClientesTestePadrao manualmente. */
+  window.__DK_executarAutoPurgeClientesTeste = async function executarAutoPurgeClientesTesteDesativado() {
+    return null;
+  };
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     const rep = await repararHistoricoComprovantesNuvem();
@@ -3792,7 +3815,6 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   };
 
   async function bootstrapPortalComprovantesCliente() {
-    await executarAutoPurgeClientesTesteSeNecessario();
     if (document.getElementById("portalComprovanteClienteLista")) await initOperadorUi();
     else if (getViewerModalEl()) initViewerUiShared();
   }
