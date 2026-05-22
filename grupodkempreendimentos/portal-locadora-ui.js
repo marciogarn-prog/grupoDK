@@ -5768,6 +5768,9 @@ ${printable.innerHTML}
       }
     }
     if (sub === "comprovante") {
+      if (typeof window.__DK_bindOperadorPortalComprovanteUi === "function") {
+        window.__DK_bindOperadorPortalComprovanteUi();
+      }
       if (typeof window.__DK_refreshComprovantesOperadorLista === "function") {
         window.__DK_refreshComprovantesOperadorLista();
       }

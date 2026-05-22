@@ -3181,6 +3181,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const valInp = document.getElementById("portalOperadorComprovanteValor");
     if (dataInp) dataInp.value = "";
     if (valInp) valInp.value = "";
+    document
+      .getElementById("portalOperadorComprovantePasteZone")
+      ?.classList.remove("portal-operador-comprovante-paste--ativo");
   }
 
   async function definirArquivoOperadorPortal(fileOrDataUrl, nomeArquivo) {
@@ -3202,6 +3205,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     operadorPortalArquivo = { arquivoBase64, mimeType, nomeArquivo: nome };
     const lbl = document.getElementById("portalOperadorComprovanteArquivoLbl");
     if (lbl) lbl.textContent = `Ficheiro: ${nome}`;
+    document
+      .getElementById("portalOperadorComprovantePasteZone")
+      ?.classList.add("portal-operador-comprovante-paste--ativo");
   }
 
   async function enviarComprovanteOperadorPortal() {
@@ -3254,24 +3260,95 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
   }
 
+  function operadorPortalComprovantePaneVisivel() {
+    const pane = document.getElementById("operacaoLancAluguelPaneComprovante");
+    const sec = document.getElementById("portalOperadorComprovanteSection");
+    return (
+      pane &&
+      !pane.classList.contains("hidden") &&
+      sec &&
+      !sec.classList.contains("hidden")
+    );
+  }
+
+  /** Imagem/PDF da área de transferência (print, WhatsApp, ficheiro). */
+  function extrairArquivoClipboard(clipboardData) {
+    if (!clipboardData) return null;
+    const files = clipboardData.files;
+    if (files?.length) {
+      for (let i = 0; i < files.length; i += 1) {
+        const f = files[i];
+        if (!f) continue;
+        const t = String(f.type || "").toLowerCase();
+        if (t.startsWith("image/") || t === "application/pdf") return f;
+      }
+      if (files[0]) return files[0];
+    }
+    const items = clipboardData.items;
+    if (!items?.length) return null;
+    for (let i = 0; i < items.length; i += 1) {
+      const item = items[i];
+      if (!item || item.kind !== "file") continue;
+      const f = item.getAsFile();
+      if (!f) continue;
+      const t = String(f.type || item.type || "").toLowerCase();
+      if (!t || t.startsWith("image/") || t === "application/pdf") return f;
+    }
+    return null;
+  }
+
+  function colarComprovanteOperadorPortal(e) {
+    if (e?.defaultPrevented) return false;
+    const f = extrairArquivoClipboard(e?.clipboardData);
+    if (!f) return false;
+    e.preventDefault();
+    e.stopPropagation();
+    const nome =
+      f.name ||
+      (String(f.type || "").includes("pdf") ? "comprovante.pdf" : "comprovante-colado.png");
+    void definirArquivoOperadorPortal(f, nome);
+    const fb = document.getElementById("portalOperadorComprovanteMsg");
+    if (fb) {
+      fb.textContent = `Comprovante colado: ${nome}`;
+      fb.classList.remove("portal-feedback--erro");
+    }
+    return true;
+  }
+
   function bindOperadorPortalComprovanteUi() {
     if (document.documentElement.dataset.dkCcOperadorPortalBound === "1") return;
     document.documentElement.dataset.dkCcOperadorPortalBound = "1";
 
     const zone = document.getElementById("portalOperadorComprovantePasteZone");
     const fileInp = document.getElementById("portalOperadorComprovanteFile");
+    const sec = document.getElementById("portalOperadorComprovanteSection");
 
-    zone?.addEventListener("paste", (e) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of items) {
-        if (item.kind !== "file") continue;
-        const f = item.getAsFile();
-        if (!f) continue;
-        e.preventDefault();
-        void definirArquivoOperadorPortal(f, f.name);
-        break;
+    const onPaste = (e) => {
+      if (!operadorPortalComprovantePaneVisivel()) return;
+      const alvo = e.target;
+      if (
+        alvo?.closest?.("#operacaoLancAluguelBlocoPesquisaRef") &&
+        !alvo?.closest?.("#portalOperadorComprovanteSection")
+      ) {
+        return;
       }
+      if (
+        alvo?.tagName === "INPUT" &&
+        alvo?.id !== "portalOperadorComprovanteFile" &&
+        alvo?.closest?.("#portalOperadorComprovanteSection") &&
+        !extrairArquivoClipboard(e.clipboardData)
+      ) {
+        return;
+      }
+      colarComprovanteOperadorPortal(e);
+    };
+
+    zone?.addEventListener("paste", onPaste);
+    document.addEventListener("paste", onPaste, true);
+
+    zone?.addEventListener("click", (e) => {
+      if (fileInp && (e.target === fileInp || fileInp.contains(e.target))) return;
+      zone.focus({ preventScroll: true });
     });
 
     fileInp?.addEventListener("change", () => {

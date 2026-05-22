@@ -878,6 +878,11 @@ body {
   box-shadow: 0 0 0 2px var(--accent-dim);
 }
 
+.portal-operador-comprovante-paste.portal-operador-comprovante-paste--ativo {
+  border-color: var(--accent);
+  background: rgba(201, 162, 39, 0.08);
+}
+
 .portal-operador-comprovante-paste__lead {
   margin: 0 0 0.35rem;
 }
