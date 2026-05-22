@@ -2706,6 +2706,15 @@ ${printable.innerHTML}
       if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
         loadCadastro(CAD_CLIENTES_KEY).forEach(addRow);
       }
+      if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+        loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+          addRow({
+            cpf: l.cpf,
+            nome: l.nome,
+            placa: l.placa,
+          });
+        });
+      }
       const raw = Array.from(byCpf.values());
       raw.sort((a, b) => {
         const aSnap = getPortalBundledClienteByCpf(a.cpf) ? 1 : 0;

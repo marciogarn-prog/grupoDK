@@ -4851,12 +4851,13 @@ function getLancamentoClienteCandidates() {
   loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
     const cpf = onlyDigits(String(l.cpf || ""));
     if (cpf.length !== 11) return;
-    if (!String(l.fim || "").trim()) {
-      const prev = byCpf.get(cpf);
-      if (prev && !prev.placa) {
-        byCpf.set(cpf, { ...prev, placa: normalizePlate(l.placa || prev.placa || "") });
-      }
-    }
+    const nomeLoc = String(l.nome || "").trim();
+    const prev = byCpf.get(cpf) || { nome: "", cpf, placa: "" };
+    byCpf.set(cpf, {
+      nome: nomeLoc || prev.nome,
+      cpf,
+      placa: normalizePlate(String(l.placa || prev.placa || "").trim()) || prev.placa,
+    });
   });
   return Array.from(byCpf.values()).filter((x) => onlyDigits(String(x.cpf || "")).length === 11);
 }

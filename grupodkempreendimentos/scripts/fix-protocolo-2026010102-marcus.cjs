@@ -1,20 +1,22 @@
 /**
- * Restaura cadastro + locação 2026010101 (José Cândido) na nuvem.
- * O protocolo 2026010102 é do Marcus (06523244440) — use fix-protocolo-2026010102-marcus.cjs
+ * Corrige na nuvem: protocolo 2026010102 → CPF 06523244440 (Marcus), não José.
+ * 2026010101 permanece com José (19174403400).
  *
- *   node grupodkempreendimentos/scripts/restore-cliente-jose-teste-nuvem.cjs
+ *   node grupodkempreendimentos/scripts/fix-protocolo-2026010102-marcus.cjs
  */
 const SUPABASE_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3";
 const LABEL = "default";
 const REDIS_SNAPSHOT_URL = "https://grupodkempreendimentos.com.br/api/dk-cloud-snapshot";
 
-const CPF = "19174403400";
-const PROTO = "2026010101";
+const CPF_MARCUS = "06523244440";
+const CPF_JOSE = "19174403400";
+const PROTO_MARCUS = "2026010102";
+const PROTO_JOSE = "2026010101";
 
-const CLIENTE = {
-  cpf: CPF,
-  nome: "JOSÉ CANDIDO DOS SANTOS",
+const CLIENTE_MARCUS = {
+  cpf: CPF_MARCUS,
+  nome: "MARCUS VINICIUS SIQUEIRA DOS SANTOS",
   celular: "",
   categoria: "AB",
   dataCadastro: "01/01/2026",
@@ -23,14 +25,14 @@ const CLIENTE = {
   status: "ATIVO",
 };
 
-const LOCACAO = {
-  id: 2026010101001,
+const LOC_MARCUS = {
+  id: 2026010102001,
   createdAt: 1735689600000,
-  cpf: CPF,
-  nome: CLIENTE.nome,
-  numeroContrato: PROTO,
-  placa: "AAA0A00",
-  marcaModelo: "FERRARI",
+  cpf: CPF_MARCUS,
+  nome: CLIENTE_MARCUS.nome,
+  numeroContrato: PROTO_MARCUS,
+  placa: "",
+  marcaModelo: "",
   inicio: "01/01/2026",
   fim: "",
   statusLocacao: "ATIVO",
@@ -111,61 +113,70 @@ async function pushRedis(payload) {
   if (!res.ok || !data?.ok) throw new Error(data?.error || data?.reason || "Redis POST falhou");
 }
 
-function mergeRestore(payload) {
-  const report = { clienteAdicionado: false, locacaoAdicionada: false, locacaoAtualizada: false };
+function fixPayload(payload) {
+  const report = {
+    clienteMarcusAdicionado: false,
+    loc2026010102RemovidaDeJose: 0,
+    loc2026010102Marcus: false,
+    loc2026010101Jose: false,
+  };
   if (!Array.isArray(payload.dk_clientes_cadastro)) payload.dk_clientes_cadastro = [];
   if (!Array.isArray(payload.dk_locacoes_cadastro)) payload.dk_locacoes_cadastro = [];
 
-  const idxCli = payload.dk_clientes_cadastro.findIndex(
-    (c) => onlyDigits(c.cpf).slice(0, 11) === CPF
+  const hasMarcus = payload.dk_clientes_cadastro.some(
+    (c) => onlyDigits(c.cpf).slice(0, 11) === CPF_MARCUS
   );
-  if (idxCli < 0) {
-    payload.dk_clientes_cadastro.push({ ...CLIENTE });
-    report.clienteAdicionado = true;
-  } else {
-    payload.dk_clientes_cadastro[idxCli] = {
-      ...payload.dk_clientes_cadastro[idxCli],
-      ...CLIENTE,
-      cpf: CPF,
-      nome: payload.dk_clientes_cadastro[idxCli].nome || CLIENTE.nome,
-      senha: CLIENTE.senha,
-    };
+  if (!hasMarcus) {
+    payload.dk_clientes_cadastro.push({ ...CLIENTE_MARCUS });
+    report.clienteMarcusAdicionado = true;
   }
 
-  const protoN = normProto(PROTO);
-  const idx = payload.dk_locacoes_cadastro.findIndex(
-    (l) =>
-      onlyDigits(l.cpf).slice(0, 11) === CPF && normProto(l.numeroContrato) === protoN
+  const protoM = normProto(PROTO_MARCUS);
+  const protoJ = normProto(PROTO_JOSE);
+
+  payload.dk_locacoes_cadastro = payload.dk_locacoes_cadastro.filter((l) => {
+    const p = normProto(l.numeroContrato);
+    const cpf = onlyDigits(l.cpf).slice(0, 11);
+    if (p === protoM && cpf === CPF_JOSE) {
+      report.loc2026010102RemovidaDeJose += 1;
+      return false;
+    }
+    return true;
+  });
+
+  const idxM = payload.dk_locacoes_cadastro.findIndex(
+    (l) => normProto(l.numeroContrato) === protoM && onlyDigits(l.cpf).slice(0, 11) === CPF_MARCUS
   );
-  if (idx < 0) {
-    payload.dk_locacoes_cadastro.push({ ...LOCACAO });
-    report.locacaoAdicionada = true;
+  if (idxM < 0) {
+    payload.dk_locacoes_cadastro.push({ ...LOC_MARCUS });
+    report.loc2026010102Marcus = true;
   } else {
-    const cur = payload.dk_locacoes_cadastro[idx];
-    payload.dk_locacoes_cadastro[idx] = {
-      ...LOCACAO,
+    const cur = payload.dk_locacoes_cadastro[idxM];
+    payload.dk_locacoes_cadastro[idxM] = {
+      ...LOC_MARCUS,
       ...cur,
-      numeroContrato: PROTO,
-      cpf: CPF,
-      placa: cur.placa || LOCACAO.placa,
-      marcaModelo: cur.marcaModelo || LOCACAO.marcaModelo,
-      nome: cur.nome || LOCACAO.nome,
+      cpf: CPF_MARCUS,
+      nome: cur.nome || LOC_MARCUS.nome,
+      numeroContrato: PROTO_MARCUS,
+      placa: cur.placa || LOC_MARCUS.placa,
+      marcaModelo: cur.marcaModelo || LOC_MARCUS.marcaModelo,
       fim: "",
       statusLocacao: "ATIVO",
-      portalLancamentosAluguel: [],
-      lancamentosAluguel: [],
-      portalManutencoesRegistro: [],
-      portalMultasTransito: [],
     };
-    report.locacaoAtualizada = true;
+    report.loc2026010102Marcus = true;
   }
+
+  report.loc2026010101Jose = payload.dk_locacoes_cadastro.some(
+    (l) =>
+      normProto(l.numeroContrato) === protoJ && onlyDigits(l.cpf).slice(0, 11) === CPF_JOSE
+  );
 
   return report;
 }
 
 async function main() {
   const { payload, source } = await readPayload();
-  const report = mergeRestore(payload);
+  const report = fixPayload(payload);
   const updatedAt = new Date().toISOString();
 
   let supaOk = false;
@@ -183,9 +194,12 @@ async function main() {
   await pushRedis(payload);
 
   console.log("Fonte:", source);
-  console.log("Restauro José:", report);
+  console.log("Correção:", report);
+  console.log("\nProtocolo 2026010102 → CPF", CPF_MARCUS, "(Marcus Vinicius Siqueira dos Santos)");
+  console.log("Protocolo 2026010101 → CPF", CPF_JOSE, "(José Cândido)");
   console.log("Gravado Supabase:", supaOk ? "sim" : "não");
   console.log("Gravado Redis: sim");
+  console.log("\nPortal: Ctrl+F5 → Carregar da nuvem.");
 }
 
 main().catch((e) => {
