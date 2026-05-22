@@ -648,6 +648,15 @@
     </article>`;
   }
 
+  function isClienteAppPage() {
+    try {
+      const p = String(location.pathname || "").toLowerCase();
+      return p === "/cliente" || p.endsWith("/cliente") || p.endsWith("/cliente.html");
+    } catch {
+      return false;
+    }
+  }
+
   async function sincronizarDadosCliente(sessao, opts) {
     const silent = Boolean(opts?.silent);
     const msg = $("sync-msg");
@@ -661,8 +670,16 @@
           }),
         ]);
       }
-      if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
-        await window.__DK_comprovantesClienteRepararHistorico({ leve: true });
+      if (
+        !isClienteAppPage() &&
+        typeof window.__DK_comprovantesClienteRepararHistorico === "function"
+      ) {
+        await Promise.race([
+          window.__DK_comprovantesClienteRepararHistorico({ leve: true }),
+          new Promise((resolve) => {
+            window.setTimeout(resolve, 8000);
+          }),
+        ]);
       }
       if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
         window.__DK_comprovantesClienteInvalidateCache();
@@ -844,7 +861,12 @@
   async function consumeShareFromServiceWorkerCache() {
     if (!("caches" in window)) return false;
     try {
-      const cache = await caches.open("dk-cliente-share-v1");
+      const cache = await Promise.race([
+        caches.open("dk-cliente-share-v1"),
+        new Promise((_, reject) => {
+          window.setTimeout(() => reject(new Error("share-cache-timeout")), 4000);
+        }),
+      ]);
       const res = await cache.match(SHARE_CACHE_KEY);
       if (!res) return false;
       const name = decodeURIComponent(res.headers.get("X-DK-Filename") || "comprovante");
@@ -1582,8 +1604,16 @@
       }
       const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
       setSessao(sess);
-      if (fb) fb.textContent = "";
-      afterLogin(sess);
+      if (fb) fb.textContent = "A sincronizar…";
+      resolveAppViewAfterData(sess);
+      void (async () => {
+        try {
+          await afterLogin(sess);
+        } catch {
+          resolveAppViewAfterData(sess);
+        }
+        if (fb) fb.textContent = "";
+      })();
     });
 
     const doLogout = () => {

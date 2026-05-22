@@ -97,14 +97,9 @@ async function testPortalMarcus(page) {
   record("portal: CPF Marcus completo reconhecido", /cadastrado|Marcus/i.test(known.msg + known.nome), known.msg);
 }
 
-async function testClienteAppJose(page) {
-  const ctx = page.context();
-  await ctx.clearCookies();
-  await page.goto("about:blank");
-  await page.evaluate(() => {
-    localStorage.clear();
-    sessionStorage.clear();
-  });
+async function testClienteAppJose(browser) {
+  const ctx = await browser.newContext();
+  const page = await ctx.newPage();
 
   await page.goto(
     `${BASE}cliente?instalar=1&cpf=${JOSE_CPF}&proto=${PROTO_JOSE}`,
@@ -147,19 +142,47 @@ async function testClienteAppJose(page) {
   await page.locator("#login-cpf").fill(JOSE_CPF);
   await page.locator("#login-senha").fill(CLIENTE_SENHA);
   await page.locator("#form-login button[type=submit]").click();
-  await page.waitForTimeout(6000);
+  await page.waitForTimeout(8000);
 
   const after = await page.evaluate(() => {
     const loginFb = document.getElementById("login-feedback")?.textContent || "";
     const loginHidden = document.getElementById("view-login")?.classList.contains("hidden");
     const appHidden = document.getElementById("view-app")?.classList.contains("hidden");
     const propHidden = document.getElementById("view-propaganda")?.classList.contains("hidden");
-    const propText = document.getElementById("view-propaganda")?.innerText?.slice(0, 200) || "";
-    return { loginFb, loginHidden, appHidden, propHidden, propText };
+    const appNome = document.getElementById("cliente-nome")?.textContent || "";
+    return { loginFb, loginHidden, appHidden, propHidden, appNome };
   });
 
+  const locDebug = await page.evaluate(({ jose, proto }) => {
+    const dig = (s) => String(s ?? "").replace(/\D/g, "").slice(0, 11);
+    const norm = (s) => String(s ?? "").replace(/\W/g, "").toUpperCase();
+    let locs = [];
+    try {
+      locs = JSON.parse(localStorage.getItem("dk_locacoes_cadastro") || "[]");
+    } catch {
+      /* ignore */
+    }
+    const mine = locs.filter((l) => dig(l.cpf) === jose);
+    const gate = localStorage.getItem("dk_cliente_gate_persist") || "";
+    return {
+      mine: mine.map((l) => ({
+        nc: l.numeroContrato,
+        fim: l.fim,
+        status: l.statusLocacao,
+        gateMatch: norm(l.numeroContrato) === proto,
+      })),
+      gate: gate.slice(0, 80),
+    };
+  }, { jose: JOSE_CPF, proto: PROTO_JOSE });
+
   record("app José: login sem erro CPF/senha", !/inválid/i.test(after.loginFb), after.loginFb);
-  record("app José: entrou na app (não propaganda)", after.loginHidden && !after.appHidden, after.propText.slice(0, 80));
+  record(
+    "app José: entrou na app (não propaganda)",
+    after.loginHidden && !after.appHidden && after.propHidden,
+    `app=${after.appNome.slice(0, 40)}` +
+      (locDebug.mine.length ? ` | locs=${JSON.stringify(locDebug.mine)}` : "")
+  );
+  await ctx.close();
 }
 
 async function main() {
@@ -170,7 +193,7 @@ async function main() {
   try {
     await loginOwner(page);
     await testPortalMarcus(page);
-    await testClienteAppJose(page);
+    await testClienteAppJose(browser);
   } catch (e) {
     record("E2E exceção", false, e.message || String(e));
   } finally {
