@@ -39,7 +39,7 @@
     })();
   </script>
   <link rel="stylesheet" href="styles.css?v=20260522share">
-  <link rel="stylesheet" href="cliente-app.css?v=20260521rel-pdf-share">
+  <link rel="stylesheet" href="cliente-app.css?v=20260521sync-cores">
 </head>
 <body class="cliente-app-body">
   <section id="view-login" class="cliente-app-card" aria-label="Entrar">
@@ -140,6 +140,10 @@
     <div class="cliente-app-card">
       <h2>Meus contratos</h2>
       <p class="subtext">Dados do protocolo, pagamentos confirmados pela DK e envios feitos por si no app.</p>
+      <p class="cliente-sync-legenda subtext" aria-label="Legenda de sincronização">
+        <span class="cliente-sync-nuvem--ok">Azul</span>: enviado à nuvem DK.
+        <span class="cliente-sync-nuvem--pendente">Vermelho</span>: registado no telemóvel, ainda não na nuvem.
+      </p>
       <div id="cliente-contratos"></div>
     </div>
 
@@ -208,10 +212,10 @@
   </section>
 
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
-  <script src="portal-supabase-sync.js?v=20260522redundant" defer></script>
+  <script src="portal-supabase-sync.js?v=20260521redis-light" defer></script>
   <script src="cliente-notificacoes.js?v=20260522unico" defer></script>
   <script src="cliente-contrato-resumo.js?v=20260522unico" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260522bancoui" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260521sync-cores" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260522unico" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="cliente-app.js?v=20260522unico" defer></script>

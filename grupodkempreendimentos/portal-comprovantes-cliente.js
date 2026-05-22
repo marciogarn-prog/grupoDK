@@ -467,8 +467,56 @@
       }
     }
 
+    list = list.map((r) => {
+      const sn = String(r.syncNuvem || "").trim();
+      if (sn === "ok" || sn === "pendente") return r;
+      changed = true;
+      const inferred = r.status === STATUS.CONFIRMADO ? "ok" : "pendente";
+      return {
+        ...r,
+        syncNuvem: inferred,
+        syncNuvemEm:
+          inferred === "ok" ? String(r.syncNuvemEm || r.confirmadoEm || r.enviadoEm || "").trim() || null : null,
+      };
+    });
+
     return { list, changed };
   }
+
+  function writeComprovantesLocal(arr, opts) {
+    const skipPush = Boolean(opts?.skipPush);
+    const { list, changed } = normalizarHistoricoComprovantes(arr);
+    const final = changed ? list : arr;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(final)));
+    _ccLoadAllCache = final;
+    sincronizarBancoAssinaturas();
+    if (!skipPush) pushNuvem();
+    return final;
+  }
+
+  function marcarComprovantesSyncNuvemOk(updatedAt) {
+    const raw = loadAllRaw();
+    const ts = String(updatedAt || new Date().toISOString());
+    let changed = false;
+    const next = raw.map((r) => {
+      if (r.syncNuvem === "ok") return r;
+      if (r.syncNuvem !== "pendente") return r;
+      changed = true;
+      return { ...r, syncNuvem: "ok", syncNuvemEm: ts };
+    });
+    if (!changed) return false;
+    writeComprovantesLocal(next, { skipPush: true });
+    try {
+      window.dispatchEvent(
+        new CustomEvent("dk-comprovantes-sync-nuvem", { detail: { ok: true, updatedAt: ts } })
+      );
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+
+  let _ccPushInFlight = null;
 
   function agendarPushNuvemAdiado() {
     if (_ccPushDeferredTimer) clearTimeout(_ccPushDeferredTimer);
@@ -535,19 +583,38 @@
   }
 
   function saveAll(arr) {
-    const { list, changed } = normalizarHistoricoComprovantes(arr);
-    const final = changed ? list : arr;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(final)));
-    sincronizarBancoAssinaturas();
-    pushNuvem();
+    writeComprovantesLocal(arr);
   }
 
-  function pushNuvem() {
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      window.__DK_pushCloudSnapshotNow().catch(() => {});
-    } else if (typeof window.__DK_pushToCloudAfterSave === "function") {
-      window.__DK_pushToCloudAfterSave();
-    }
+  async function pushNuvem() {
+    if (_ccPushInFlight) return _ccPushInFlight;
+    _ccPushInFlight = (async () => {
+      try {
+        if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+          const r = await window.__DK_pushCloudSnapshotNow();
+          if (r?.ok) marcarComprovantesSyncNuvemOk(r.updatedAt);
+          else {
+            try {
+              window.dispatchEvent(
+                new CustomEvent("dk-comprovantes-sync-nuvem", {
+                  detail: { ok: false, error: r?.error || r },
+                })
+              );
+            } catch {
+              /* ignore */
+            }
+          }
+          return r;
+        }
+        if (typeof window.__DK_pushToCloudAfterSave === "function") {
+          window.__DK_pushToCloudAfterSave();
+        }
+        return { ok: false };
+      } finally {
+        _ccPushInFlight = null;
+      }
+    })();
+    return _ccPushInFlight;
   }
 
   function newId() {
@@ -1257,6 +1324,8 @@
       confirmadoPorNome: "",
       confirmadoEm: "",
       origem: "app_cliente",
+      syncNuvem: "pendente",
+      syncNuvemEm: null,
     };
     const all = loadAll();
     all.unshift(rec);
@@ -3179,6 +3248,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteListRecusados72h = listarRecusadosUltimas72h;
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
+  window.__DK_comprovantesClientePushNuvem = pushNuvem;
+  window.__DK_comprovantesClienteTemPendentesNuvem = function temPendentesNuvem() {
+    return loadAll({ leitura: true }).some((r) => r.syncNuvem === "pendente");
+  };
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     const rep = await repararHistoricoComprovantesNuvem();

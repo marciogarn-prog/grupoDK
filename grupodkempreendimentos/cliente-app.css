@@ -86,6 +86,35 @@
   border-top: none;
 }
 
+/* Envios do app: azul = na nuvem; vermelho = só no telemóvel */
+.cliente-sync-nuvem--ok,
+.cliente-sync-nuvem--ok span {
+  color: #5eb3ff;
+}
+
+.cliente-sync-nuvem--pendente,
+.cliente-sync-nuvem--pendente span {
+  color: #f87171;
+}
+
+.cliente-sync-legenda {
+  margin: 0.35rem 0 0.75rem;
+  line-height: 1.45;
+}
+
+.cliente-sync-legenda .cliente-sync-nuvem--ok,
+.cliente-sync-legenda .cliente-sync-nuvem--pendente {
+  font-weight: 600;
+}
+
+#comp-msg.cliente-comp-msg--nuvem-ok {
+  color: #5eb3ff;
+}
+
+#comp-msg.cliente-comp-msg--nuvem-pendente {
+  color: #f87171;
+}
+
 .cliente-comprovante-preview {
   max-width: 100%;
   max-height: 12rem;

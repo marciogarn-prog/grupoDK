@@ -478,6 +478,7 @@
           valor: e.valor,
           status: e.status,
           id: e.id,
+          syncNuvem: String(e.syncNuvem || "").trim() === "ok" ? "ok" : "pendente",
           extraClass: "cliente-pagamento-row--pendente",
         });
       });
@@ -485,8 +486,14 @@
     return linhas;
   }
 
+  function syncNuvemRowClass(linha) {
+    if (linha.kind !== "envio") return "";
+    return linha.syncNuvem === "ok" ? "cliente-sync-nuvem--ok" : "cliente-sync-nuvem--pendente";
+  }
+
   function renderLinhaPagamentoItem(linha) {
-    const baseClass = `cliente-pagamento-row${linha.extraClass ? ` ${linha.extraClass}` : ""}`;
+    const syncCls = syncNuvemRowClass(linha);
+    const baseClass = `cliente-pagamento-row${linha.extraClass ? ` ${linha.extraClass}` : ""}${syncCls ? ` ${syncCls}` : ""}`;
     if (linha.kind === "envio" && linha.status === "rejeitado" && linha.id) {
       const motivoHtml = linha.motivoRejeicao
         ? `<p class="cliente-pagamento-row__motivo">${escapeHtml(linha.motivoRejeicao)}</p>`
@@ -627,7 +634,17 @@
       if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
         window.__DK_comprovantesClienteInvalidateCache();
       }
-      if (msg && !silent) msg.textContent = "Dados sincronizados.";
+      if (typeof window.__DK_comprovantesClientePushNuvem === "function") {
+        await window.__DK_comprovantesClientePushNuvem();
+      }
+      if (msg && !silent) {
+        const pend =
+          typeof window.__DK_comprovantesClienteTemPendentesNuvem === "function" &&
+          window.__DK_comprovantesClienteTemPendentesNuvem();
+        msg.textContent = pend
+          ? "Dados atualizados. Alguns envios ainda só neste telemóvel (vermelho) — repita quando tiver internet."
+          : "Dados sincronizados com a nuvem.";
+      }
     } catch {
       if (msg && !silent) msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
     }
@@ -1265,10 +1282,23 @@
     }
 
     if (!res.ok) {
-      if (msg) msg.textContent = res.msg || "Não foi possível enviar.";
+      if (msg) {
+        msg.textContent = res.msg || "Não foi possível enviar.";
+        msg.classList.remove("cliente-comp-msg--nuvem-ok", "cliente-comp-msg--nuvem-pendente");
+      }
       if (btn) btn.disabled = false;
       return;
     }
+
+    let pushRes = null;
+    if (typeof window.__DK_comprovantesClientePushNuvem === "function") {
+      try {
+        pushRes = await window.__DK_comprovantesClientePushNuvem();
+      } catch {
+        pushRes = { ok: false };
+      }
+    }
+    const naNuvem = Boolean(pushRes?.ok);
 
     const hist = loadJson(COMPROVANTES_KEY, []);
     hist.unshift({
@@ -1298,8 +1328,16 @@
 
     limparFormularioComprovante();
     if (msg) {
-      msg.textContent =
-        "Comprovante enviado. A DK valida automaticamente; pode registar outro pagamento abaixo.";
+      msg.classList.remove("cliente-comp-msg--nuvem-ok", "cliente-comp-msg--nuvem-pendente");
+      if (naNuvem) {
+        msg.classList.add("cliente-comp-msg--nuvem-ok");
+        msg.textContent =
+          "Comprovante guardado e enviado à nuvem (azul na lista). A DK valida automaticamente.";
+      } else {
+        msg.classList.add("cliente-comp-msg--nuvem-pendente");
+        msg.textContent =
+          "Comprovante guardado neste telemóvel (vermelho na lista). Ainda não chegou à nuvem — use «Atualizar da nuvem» com internet.";
+      }
     }
     if (btn) btn.disabled = false;
     await atualizarProgramaEDados(sessao, { silent: true });
@@ -1474,10 +1512,12 @@
     }
     if (!document.documentElement.dataset.dkClienteSyncBound) {
       document.documentElement.dataset.dkClienteSyncBound = "1";
-      window.addEventListener("dk-comprovantes-synced", () => {
+      const refreshClienteApp = () => {
         const sessao = getSessao();
         if (sessao?.cpf) renderApp(sessao);
-      });
+      };
+      window.addEventListener("dk-comprovantes-synced", refreshClienteApp);
+      window.addEventListener("dk-comprovantes-sync-nuvem", refreshClienteApp);
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
         const sessao = getSessao();
