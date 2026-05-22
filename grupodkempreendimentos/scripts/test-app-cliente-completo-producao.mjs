@@ -11,6 +11,7 @@ const ROOT = path.join(__dirname, "..", "..");
 
 const SUITES = [
   { name: "Portal geral", script: "test-portal-producao.mjs" },
+  { name: "Lançamento aluguel 4 painéis", script: "test-lancamento-aluguel-subdiv-producao.mjs" },
   { name: "Valor devido × tempo", script: "test-valor-devido-tempo-producao.mjs" },
   { name: "CPF Marcus + login José", script: "test-clientes-cpf-app-producao.mjs" },
   { name: "Protocolo 2026010102", script: "test-protocolo-2026010102-producao.mjs" },
@@ -29,7 +30,8 @@ function runScript(script) {
       env: {
         ...process.env,
         DK_EXPECT_BUNDLE:
-          script === "test-invalidar-pagamento-producao.mjs"
+          script === "test-invalidar-pagamento-producao.mjs" ||
+          script === "test-lancamento-aluguel-subdiv-producao.mjs"
             ? "20260522lanc-subdiv"
             : process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix",
       },
