@@ -215,6 +215,17 @@
     document.querySelectorAll("#operacaoPainelDireito > .operacao-inline-form").forEach((el) => {
       el.classList.add("hidden");
     });
+    const subnav = document.getElementById("operacaoLancAluguelSubnav");
+    if (subnav) {
+      subnav.classList.add("hidden");
+      subnav.setAttribute("hidden", "");
+    }
+    document
+      .querySelectorAll(".btn-operacao-cmd--sub[data-lanc-aluguel-sub]")
+      .forEach((b) => {
+        b.classList.remove("is-active");
+        b.setAttribute("aria-expanded", "false");
+      });
     const ph = document.getElementById("operacaoFormPlaceholder");
     if (ph) {
       ph.classList.remove("hidden");

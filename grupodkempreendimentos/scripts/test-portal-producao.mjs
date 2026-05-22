@@ -32,14 +32,14 @@ async function main() {
       html.includes("view-locadora-hub") && html.includes("view-locadora-cliente")
     );
     record(
-      "secção comprovantes cliente no portal",
+      "secção comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
-        html.includes("Confirmação de lançamento feito por cliente")
+        (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
     );
     record(
-      "botão pagamentos validados na operação",
-      html.includes("portalComprovanteClienteBtnValidados") &&
-        html.includes("portalComprovanteClientePainelValidados")
+      "lançamento com comprovante operador (colar)",
+      html.includes("portalOperadorComprovantePasteZone") &&
+        html.includes("portalOperadorComprovanteEnviarBtn")
     );
     record(
       "submenu lançamento aluguel (4 painéis)",
