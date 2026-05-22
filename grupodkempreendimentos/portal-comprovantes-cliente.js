@@ -1005,6 +1005,7 @@
   }
 
   function alinharComprovanteConfirmadoComProtocolo(rec, pag) {
+    if (rec?.pagamentoInvalidado) return rec;
     const valorPag = roundCentavos(pag?.valor ?? rec.valorRegistadoProtocolo ?? rec.valor);
     return {
       ...rec,
@@ -2024,10 +2025,10 @@
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
     const idxPag = indicePagamentosProtocoloPorComprovante();
     const pagProto = comprovanteRegistadoNoProtocolo(rec, idxPag);
-    if (pagProto) {
+    if (pagProto && !rec.pagamentoInvalidado) {
       const all = loadAll();
       const iSync = all.findIndex((r) => r.id === id);
-      if (iSync >= 0) {
+      if (iSync >= 0 && !all[iSync].pagamentoInvalidado) {
         all[iSync] = alinharComprovanteConfirmadoComProtocolo(all[iSync], pagProto);
         saveAll(all);
       }
@@ -2520,10 +2521,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     materializarArraysLoc(loc);
 
     const ja = pagamentoJaRegistadoParaComprovante(loc, rec);
-    if (ja) {
+    if (ja && !rec.pagamentoInvalidado) {
       const all = loadAll();
       const iCc = all.findIndex((r) => r.id === rec.id);
-      if (iCc >= 0) {
+      if (iCc >= 0 && !all[iCc].pagamentoInvalidado) {
         all[iCc] = alinharComprovanteConfirmadoComProtocolo(all[iCc], ja);
         saveAll(all);
       }
@@ -2681,10 +2682,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     if (rec.status === STATUS.CONFIRMADO) return { ok: false, msg: "Já confirmado." };
     const idxPag = indicePagamentosProtocoloPorComprovante();
     const pagProto = comprovanteRegistadoNoProtocolo(rec, idxPag);
-    if (pagProto) {
+    if (pagProto && !rec.pagamentoInvalidado) {
       const all = loadAll();
       const idx = all.findIndex((r) => r.id === id);
-      if (idx >= 0) {
+      if (idx >= 0 && !all[idx].pagamentoInvalidado) {
         all[idx] = alinharComprovanteConfirmadoComProtocolo(all[idx], pagProto);
         saveAll(all);
         return { ok: true, rec: all[idx], jaRegistadoNoProtocolo: true };
@@ -2835,22 +2836,22 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       rejeitadoMotivoCliente: msgCliente,
     };
 
+    try {
+      if (typeof window.__DK_markLocalDataAuthority === "function") {
+        window.__DK_markLocalDataAuthority(30 * 60 * 1000);
+      }
+      await writeComprovantesLocal(all, { skipNormalize: true, skipPush: true });
+    } catch (e) {
+      console.error("[DK comprovantes] invalidar pagamento", e);
+      return { ok: false, msg: "Erro ao guardar (armazenamento local)." };
+    }
+
     if (typeof window.__DK_portalRemoverLancamentoComprovanteClienteId === "function") {
       try {
         await window.__DK_portalRemoverLancamentoComprovanteClienteId(id, all[idx]);
       } catch (e) {
         console.warn("[DK comprovantes] remover lançamento protocolo", e);
       }
-    }
-
-    try {
-      if (typeof window.__DK_markLocalDataAuthority === "function") {
-        window.__DK_markLocalDataAuthority(20 * 60 * 1000);
-      }
-      await writeComprovantesLocal(all, { skipNormalize: true });
-    } catch (e) {
-      console.error("[DK comprovantes] invalidar pagamento", e);
-      return { ok: false, msg: "Erro ao guardar (armazenamento local)." };
     }
 
     notificarClienteComprovanteRejeitado(all[idx], msgCliente);
@@ -2865,11 +2866,16 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
 
     try {
-      await pushNuvem();
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        await window.__DK_pushCloudSnapshotNow();
+      } else {
+        await pushNuvem();
+      }
     } catch (e) {
       console.warn("[DK comprovantes] push nuvem após invalidar", e);
     }
 
+    invalidateComprovantesCache();
     return { ok: true, comprovanteId: id, protocolo: normProto(rec.protocolo) };
   }
 
@@ -3852,6 +3858,21 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteRenderListaValidados = renderListaValidados;
   window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao = abrirPainelRecusadosPosInvalidacao;
   window.__DK_invalidarPagamentoAppCliente = invalidarPagamentoConfirmadoAdmin;
+
+  window.addEventListener("dk-comprovantes-synced", () => {
+    if (
+      typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+      window.__DK_isLocalDataAuthorityActive()
+    ) {
+      return;
+    }
+    invalidateComprovantesCache();
+    if (document.getElementById("portalComprovanteClienteListaValidados")) {
+      renderListaOperador();
+      renderListaRecusados72h();
+      renderListaValidados();
+    }
+  });
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
   window.__DK_comprovantesClientePushNuvem = pushNuvem;

@@ -137,10 +137,33 @@
   function mergeComprovanteClienteRecords(prev, rec) {
     if (!prev) return rec;
     if (!rec) return prev;
+    let winner;
+    let loser;
     if (comprovanteClienteRank(rec) >= comprovanteClienteRank(prev)) {
-      return attachComprovanteMediaFromSecondary(rec, prev);
+      winner = rec;
+      loser = prev;
+    } else {
+      winner = prev;
+      loser = rec;
     }
-    return attachComprovanteMediaFromSecondary(prev, rec);
+    let out = attachComprovanteMediaFromSecondary(winner, loser);
+    const inv = prev?.pagamentoInvalidado ? prev : rec?.pagamentoInvalidado ? rec : null;
+    if (inv) {
+      out = {
+        ...out,
+        pagamentoInvalidado: true,
+        pagamentoInvalidadoEm: inv.pagamentoInvalidadoEm || inv.rejeitadoEm,
+        pagamentoInvalidadoPor: inv.pagamentoInvalidadoPor || inv.rejeitadoPorNome,
+        status: "rejeitado",
+        rejeitadoEm: inv.rejeitadoEm || inv.pagamentoInvalidadoEm,
+        rejeitadoAutomatico: false,
+        rejeitadoMotivo: inv.rejeitadoMotivo,
+        rejeitadoMotivoCliente: inv.rejeitadoMotivoCliente,
+        rejeitadoPorNome: inv.rejeitadoPorNome,
+        rejeitadoPorCpf: inv.rejeitadoPorCpf,
+      };
+    }
+    return out;
   }
 
   const DK_IMMUTABLE_CADASTRO_KEYS = new Set([
@@ -469,21 +492,27 @@
 
   function applyCloudComprovantesIfNewer(localPayload, cloudMeta) {
     if (!cloudMeta?.payload) return localPayload;
+    if (isLocalDataAuthorityActive()) {
+      return mergePayloadWithCloudBeforePush(localPayload, cloudMeta.payload);
+    }
     if (!cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
       return mergePayloadWithCloudBeforePush(localPayload, cloudMeta.payload);
     }
     const out = { ...localPayload };
     if (Object.prototype.hasOwnProperty.call(cloudMeta.payload, "dk_comprovantes_cliente_pendentes")) {
-      out.dk_comprovantes_cliente_pendentes = Array.isArray(
-        cloudMeta.payload.dk_comprovantes_cliente_pendentes
-      )
+      const localArr = Array.isArray(localPayload.dk_comprovantes_cliente_pendentes)
+        ? localPayload.dk_comprovantes_cliente_pendentes
+        : [];
+      const cloudArr = Array.isArray(cloudMeta.payload.dk_comprovantes_cliente_pendentes)
         ? cloudMeta.payload.dk_comprovantes_cliente_pendentes
         : [];
+      out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(localArr, cloudArr);
     }
     if (Object.prototype.hasOwnProperty.call(cloudMeta.payload, "dk_cliente_notificacoes")) {
-      out.dk_cliente_notificacoes = Array.isArray(cloudMeta.payload.dk_cliente_notificacoes)
-        ? cloudMeta.payload.dk_cliente_notificacoes
-        : [];
+      out.dk_cliente_notificacoes = mergeClienteNotificacoes(
+        localPayload.dk_cliente_notificacoes,
+        cloudMeta.payload.dk_cliente_notificacoes
+      );
     }
     return out;
   }
@@ -745,10 +774,14 @@
     ]);
     const cloudMeta = pickNewestCloudPayloadWithMeta(supaRow, redisRow);
     if (cloudMeta?.payload && !forceReplace) {
+      const localComprovantes = payload.dk_comprovantes_cliente_pendentes;
       if (cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
         payload = applyCloudComprovantesIfNewer(payload, cloudMeta);
       } else {
         payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
+      }
+      if (isLocalDataAuthorityActive() && Array.isArray(localComprovantes)) {
+        payload.dk_comprovantes_cliente_pendentes = localComprovantes;
       }
       persistMergedPayloadToLocal(payload);
     }
