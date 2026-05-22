@@ -840,11 +840,32 @@
       typeof window.__DK_isLocalDataAuthorityActive === "function" &&
       window.__DK_isLocalDataAuthorityActive()
     ) {
-      const rawAuth = loadAllRaw();
-      _ccLoadAllCache = rawAuth;
+      let rawAuth = loadAllRaw();
+      const normAuth = normalizarHistoricoComprovantes(rawAuth, { silencioso: true });
+      rawAuth = normAuth.list;
+      let changedAuth = normAuth.changed;
+      if (changedAuth) {
+        try {
+          const stored = await prepareListaParaArmazenamento(rawAuth);
+          if (safeSetComprovantesJson(stored)) {
+            _ccLoadAllCache = stored;
+            agendarPushNuvemAdiado();
+          }
+        } catch (e) {
+          console.warn("[DK comprovantes] reparar authority persist", e);
+        }
+      } else {
+        _ccLoadAllCache = rawAuth;
+      }
       const aguardamAuth = rawAuth.filter((r) => r.status === STATUS.IA_OK).length;
       const confirmadosAuth = rawAuth.filter((r) => r.status === STATUS.CONFIRMADO).length;
-      return { ok: true, changed: false, aguardam: aguardamAuth, confirmados: confirmadosAuth, total: rawAuth.length };
+      return {
+        ok: true,
+        changed: changedAuth,
+        aguardam: aguardamAuth,
+        confirmados: confirmadosAuth,
+        total: rawAuth.length,
+      };
     }
     if (!leve) invalidateComprovantesCache();
     await migrarArquivosInlineParaIdbSeNecessario();

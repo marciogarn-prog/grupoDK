@@ -8,7 +8,7 @@ const BASE = (process.env.DK_TEST_BASE || "https://grupodkempreendimentos.com.br
   /\/?$/,
   "/"
 );
-const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522valor-040";
+const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522valor-040b";
 
 const JOSE_CPF = "19174403400";
 const PROTO = "2026010101";
@@ -77,9 +77,6 @@ async function main() {
         },
       });
       localStorage.setItem("dk_comprovantes_cliente_pendentes", JSON.stringify(all.slice(0, 500)));
-      if (typeof window.__DK_markLocalDataAuthority === "function") {
-        window.__DK_markLocalDataAuthority(10 * 60 * 1000);
-      }
       if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
         window.__DK_comprovantesClienteInvalidateCache();
       }
