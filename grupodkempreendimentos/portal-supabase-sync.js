@@ -1,18 +1,13 @@
 /**
- * Sincronização do localStorage DK ↔ Supabase (tabela dk_cloud_snapshots).
- * Requer window.__DK_SUPABASE_CLIENT__ (supabase-init.js) e schema.sql aplicado.
+ * Sincronização localStorage DK ↔ nuvem redundante:
+ * 1) Supabase (dk_cloud_snapshots) — primário
+ * 2) Redis Upstash via /api/dk-cloud-snapshot — cópia de segurança (Vercel)
  *
- * - Ao abrir o site: tenta carregar o snapshot da nuvem; se for diferente do
- *   navegador, aplica e recarrega a página uma vez.
- * - Após guardar qualquer dado DK (chaves listadas): envia snapshot para a nuvem
- *   (debounce; sem mensagem a cada tecla).
- * - `window.__DK_pushCloudSnapshotNow()` — envio imediato (ex.: após «Guardar cliente»).
- * - `window.__DK_pushToCloudAfterSave()` — alias para push após qualquer gravação.
- * - `window.__DK_pullCloudSnapshotSilentMerge()` — merge do snapshot sem recarregar.
- * - `window.__DK_pullFromCloudOnScreenChange()` — no-op (UI usa dados locais; ver «Carregar da nuvem»).
+ * Se um falhar, o portal tenta o outro no pull/push.
  */
 (function portalSupabaseSync() {
   const DK_SNAPSHOT_LABEL = "default";
+  const REDUNDANT_SNAPSHOT_API = "dk-cloud-snapshot";
 
   const DK_STORAGE_KEYS = [
     "dk_clientes_cadastro",
@@ -290,13 +285,129 @@
   function refreshCloudBarVisibility() {
     const bar = document.getElementById("portal-cloud-sync-bar");
     if (!bar) return;
-    const ok = Boolean(window.__DK_SUPABASE_CONFIGURED__);
-    bar.classList.toggle("hidden", !ok);
+    bar.classList.remove("hidden");
+  }
+
+  function resolveRedundantSnapshotApiUrls() {
+    const meta = document
+      .querySelector('meta[name="dk-cadastro-sync-origin"]')
+      ?.getAttribute("content")
+      ?.trim()
+      .replace(/\/$/, "");
+    const h = window.location.hostname;
+    const isLocal = h === "localhost" || h === "127.0.0.1";
+    const localUrl = `${window.location.origin}/api/${REDUNDANT_SNAPSHOT_API}`;
+    if (isLocal && meta) return [localUrl, `${meta}/api/${REDUNDANT_SNAPSHOT_API}`];
+    return [localUrl];
+  }
+
+  async function fetchRedundantSnapshotPayload() {
+    const urls = resolveRedundantSnapshotApiUrls();
+    for (let i = 0; i < urls.length; i += 1) {
+      try {
+        const res = await fetch(urls[i], { method: "GET" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data?.ok) continue;
+        if (!data.payload || typeof data.payload !== "object") return null;
+        return {
+          payload: data.payload,
+          updated_at: data.updated_at || null,
+          source: "redis",
+        };
+      } catch (e) {
+        if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot GET", e);
+      }
+    }
+    return null;
+  }
+
+  async function pushRedundantSnapshotPayload(payload, updatedAt) {
+    const urls = resolveRedundantSnapshotApiUrls();
+    let anyOk = false;
+    let lastErr = null;
+    for (let i = 0; i < urls.length; i += 1) {
+      try {
+        const res = await fetch(urls[i], {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ payload, updated_at: updatedAt }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data?.ok) {
+          anyOk = true;
+        } else {
+          lastErr = data?.reason || data?.error || res.statusText;
+        }
+      } catch (e) {
+        lastErr = e;
+        if (i === urls.length - 1) console.warn("[DK cloud] Redis snapshot POST", e);
+      }
+    }
+    return { ok: anyOk, error: lastErr };
+  }
+
+  function pickNewestCloudRow(rows) {
+    const list = (rows || []).filter((r) => r?.payload && typeof r.payload === "object");
+    if (!list.length) return null;
+    list.sort((a, b) => {
+      const ta = Date.parse(a.updated_at || "") || 0;
+      const tb = Date.parse(b.updated_at || "") || 0;
+      return tb - ta;
+    });
+    return list[0];
+  }
+
+  async function fetchSupabaseSnapshotPayload() {
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return null;
+    const { data, error } = await client
+      .from("dk_cloud_snapshots")
+      .select("payload, updated_at")
+      .eq("label", DK_SNAPSHOT_LABEL)
+      .maybeSingle();
+    if (error || !data?.payload) return null;
+    return { ...data, source: "supabase" };
+  }
+
+  async function fetchCloudSnapshotPayload() {
+    const supa = await fetchSupabaseSnapshotPayload();
+    const redis = await fetchRedundantSnapshotPayload();
+    return pickNewestCloudRow([supa, redis]);
+  }
+
+  function mergeRemoteSnapshotsBeforePush(supa, redis) {
+    let cloudMerged = null;
+    if (supa?.payload) cloudMerged = supa.payload;
+    if (redis?.payload) {
+      cloudMerged = cloudMerged
+        ? mergePayloadWithCloudBeforePush(cloudMerged, redis.payload)
+        : redis.payload;
+    }
+    return cloudMerged;
+  }
+
+  function formatPushResultMessage(supaOk, redisOk, supaErr, redisErr) {
+    if (supaOk && redisOk) {
+      return { text: "Dados guardados na nuvem (Supabase + cópia Redis).", tone: "ok" };
+    }
+    if (supaOk && !redisOk) {
+      return {
+        text: `Guardado no Supabase. Cópia Redis indisponível${redisErr ? `: ${redisErr}` : ""}.`,
+        tone: "muted",
+      };
+    }
+    if (!supaOk && redisOk) {
+      return {
+        text: `Supabase indisponível — dados guardados na cópia Redis${supaErr ? ` (${supaErr})` : ""}.`,
+        tone: "ok",
+      };
+    }
+    const detail = String(supaErr || redisErr || "ambos falharam");
+    return { text: `Erro ao guardar na nuvem: ${detail}`, tone: null };
   }
 
   function scheduleCloudPushDebounced() {
     if (suppressCloudHook) return;
-    if (!window.__DK_SUPABASE_CONFIGURED__) return;
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
@@ -450,18 +561,6 @@
     }
   }
 
-  async function fetchCloudSnapshotPayload() {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return null;
-    const { data, error } = await client
-      .from("dk_cloud_snapshots")
-      .select("payload, updated_at")
-      .eq("label", DK_SNAPSHOT_LABEL)
-      .maybeSingle();
-    if (error || !data?.payload) return null;
-    return data;
-  }
-
   function mergePayloadWithCloudBeforePush(localPayload, cloudPayload) {
     const out = { ...localPayload };
     if (!cloudPayload || typeof cloudPayload !== "object") return out;
@@ -509,43 +608,70 @@
   }
 
   async function upsertSnapshotRow(showUserMessages) {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client) {
-      if (showUserMessages) {
-        setMsg("Nuvem não configurada (URL/chave anon em falta).");
-      }
-      return { ok: false, error: new Error("no client") };
-    }
     let payload = collectPayloadFromLocalStorage();
-    const cloudRow = await fetchCloudSnapshotPayload();
-    if (cloudRow?.payload) {
-      payload = mergePayloadWithCloudBeforePush(payload, cloudRow.payload);
+    const [supaRow, redisRow] = await Promise.all([
+      fetchSupabaseSnapshotPayload(),
+      fetchRedundantSnapshotPayload(),
+    ]);
+    const cloudMerged = mergeRemoteSnapshotsBeforePush(supaRow, redisRow);
+    if (cloudMerged) {
+      payload = mergePayloadWithCloudBeforePush(payload, cloudMerged);
       persistMergedPayloadToLocal(payload);
     }
     const updatedAt = new Date().toISOString();
-    const row = {
-      label: DK_SNAPSHOT_LABEL,
-      payload,
-      updated_at: updatedAt,
-    };
-    const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
-      onConflict: "label",
-    });
-    if (error) {
-      console.error(error);
-      if (showUserMessages) {
-        setMsg(`Erro ao guardar: ${error.message || error}`);
+    let supaOk = false;
+    let redisOk = false;
+    let supaErr = "";
+    let redisErr = "";
+
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (client && window.__DK_SUPABASE_CONFIGURED__) {
+      const row = { label: DK_SNAPSHOT_LABEL, payload, updated_at: updatedAt };
+      const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
+        onConflict: "label",
+      });
+      if (error) {
+        supaErr = error.message || String(error);
+        console.error("[DK cloud] Supabase push", error);
+      } else {
+        supaOk = true;
       }
-      return { ok: false, error };
+    } else {
+      supaErr = "Supabase não configurado";
     }
+
+    const red = await pushRedundantSnapshotPayload(payload, updatedAt);
+    redisOk = red.ok;
+    if (!redisOk) redisErr = String(red.error || "Redis indisponível");
+
+    if (!supaOk && !redisOk) {
+      const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
+      if (showUserMessages) setMsg(msg.text, msg.tone);
+      return { ok: false, error: new Error(msg.text), supaOk, redisOk };
+    }
+
     noteCloudPushTimestamp(updatedAt);
-    return { ok: true, updatedAt };
+    const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
+    if (showUserMessages) setMsg(msg.text, msg.tone);
+    return {
+      ok: true,
+      updatedAt,
+      supaOk,
+      redisOk,
+      source: supaOk && redisOk ? "both" : supaOk ? "supabase" : "redis",
+    };
   }
 
   async function pushSnapshotQuiet() {
     const r = await upsertSnapshotRow(false);
     if (r.ok) {
-      setMsg("Nuvem atualizada em segundo plano.", "muted");
+      const src =
+        r.source === "both"
+          ? "Supabase + Redis"
+          : r.source === "redis"
+            ? "cópia Redis (Supabase em falha)"
+            : "Supabase";
+      setMsg(`Nuvem atualizada (${src}).`, "muted");
     }
     return r;
   }
@@ -571,19 +697,9 @@
     if (isLocalDataAuthorityActive()) {
       return { ok: true, skipped: true, reason: "local_authority" };
     }
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return { ok: false, skipped: true };
-    const { data, error } = await client
-      .from("dk_cloud_snapshots")
-      .select("payload, updated_at")
-      .eq("label", DK_SNAPSHOT_LABEL)
-      .maybeSingle();
-    if (error) {
-      console.warn("[DK cloud] pull silencioso", error);
-      return { ok: false, error };
-    }
+    const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
-      return { ok: false, skipped: true };
+      return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
     }
     const mergeNeeded = cloudPullWouldChangeAnything(data.payload);
     if (!isCloudSnapshotNewerThanLocal(data.updated_at) && !mergeNeeded) {
@@ -636,7 +752,7 @@
         }
       });
     }
-    return { ok: true, applied: true };
+    return { ok: true, applied: true, source: data.source || "cloud" };
   }
 
   /** Não bloqueia a UI — mudança de ecrã usa só localStorage. */
@@ -694,6 +810,7 @@
     window.__DK_markLocalDataAuthority = markLocalDataAuthority;
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
+    window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
   } catch {
     /* ignore */
   }
@@ -701,17 +818,11 @@
   async function pushSnapshot() {
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client) {
-      setMsg("Nuvem não configurada (URL/chave anon em falta).");
-      return;
-    }
-    setMsg("A guardar na nuvem…", "muted");
-    const { ok, error } = await upsertSnapshotRow(true);
-    if (!ok) return;
-    noteCloudPushTimestamp(new Date().toISOString());
+    setMsg("A guardar na nuvem (Supabase + cópia Redis)…", "muted");
+    const r = await upsertSnapshotRow(true);
+    if (!r.ok) return;
     setMsg(
-      "Dados guardados na nuvem. Noutro aparelho abra o site para sincronizar automaticamente.",
+      "Dados guardados. Noutro aparelho abra o site ou use «Carregar da nuvem» — se o Supabase falhar, a cópia Redis atende.",
       "ok"
     );
   }
@@ -899,11 +1010,6 @@
   }
 
   async function pullSnapshot() {
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client) {
-      setMsg("Nuvem não configurada (URL/chave anon em falta).");
-      return;
-    }
     if (
       !window.confirm(
         "Isto substitui os dados deste navegador pelos dados guardados na nuvem. Continuar?"
@@ -911,19 +1017,13 @@
     ) {
       return;
     }
-    setMsg("A carregar da nuvem…", "muted");
-    const { data, error } = await client
-      .from("dk_cloud_snapshots")
-      .select("payload")
-      .eq("label", DK_SNAPSHOT_LABEL)
-      .maybeSingle();
-    if (error) {
-      console.error(error);
-      setMsg(`Erro ao ler: ${error.message || error}`);
-      return;
-    }
+    setMsg("A carregar da nuvem (Supabase ou cópia Redis)…", "muted");
+    const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload) {
-      setMsg("Ainda não há dados na nuvem. Use primeiro «Guardar na nuvem» neste ou noutro PC.");
+      setMsg(
+        "Ainda não há dados na nuvem (Supabase e Redis vazios ou indisponíveis). Use «Guardar na nuvem» neste ou noutro PC.",
+        null
+      );
       return;
     }
     suppressCloudHook = true;

@@ -200,9 +200,8 @@
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
           <p class="subtext portal-cloud-sync-bar__lead">
-            Nuvem Supabase: ao <strong>guardar</strong>, os dados enviam-se automaticamente. Para trazer de outro PC use <strong>Carregar da nuvem</strong> (a troca de menu é instantânea, só lê este navegador).
-            O backup por e-mail envia um ficheiro JSON para <strong>marciogarn@gmail.com</strong>.
-            Use <strong>Importar backup</strong> para restaurar um ficheiro recebido por e-mail (.json ou .json.gz).
+            Nuvem <strong>redundante</strong>: cada guardar grava em <strong>Supabase</strong> e numa <strong>cópia Redis</strong> (Vercel). Se um falhar, o outro atende no carregar.
+            Use <strong>Carregar da nuvem</strong> noutro PC. Backup por e-mail → <strong>marciogarn@gmail.com</strong>; <strong>Importar backup</strong> restaura .json/.json.gz.
           </p>
           <div class="portal-cloud-sync-bar__actions">
             <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
@@ -1635,6 +1634,6 @@
   <script src="portal-locadora-ui.js?v=20260521antiduplicata" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
-  <script src="portal-supabase-sync.js?v=20260522unico" defer></script>
+  <script src="portal-supabase-sync.js?v=20260522redundant" defer></script>
 </body>
 </html>
