@@ -391,6 +391,7 @@
 
   async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
     const replace = Boolean(opts && opts.replace);
+    const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     const urls = resolveRedundantSnapshotApiUrls();
     let anyOk = false;
     let lastErr = null;
@@ -406,6 +407,8 @@
         "dk_comprovantes_banco",
         "dk_cliente_comprovantes_enviados",
       ];
+    } else if (fullReplaceComprovantes) {
+      bodyPayload._dkFullReplaceKeys = ["dk_comprovantes_cliente_pendentes"];
     }
     for (let i = 0; i < urls.length; i += 1) {
       try {
@@ -755,6 +758,7 @@
 
   async function upsertSnapshotRow(showUserMessages, opts) {
     const forceReplace = Boolean(opts && opts.replace);
+    const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     let payload = collectPayloadFromLocalStorage();
     if (
       typeof window.__DK_comprovantesClientePayloadParaNuvem === "function" &&
@@ -773,17 +777,22 @@
       fetchRedundantSnapshotPayload(),
     ]);
     const cloudMeta = pickNewestCloudPayloadWithMeta(supaRow, redisRow);
+    const localComprovantesBeforeMerge = Array.isArray(payload.dk_comprovantes_cliente_pendentes)
+      ? payload.dk_comprovantes_cliente_pendentes
+      : readLocalJsonArray("dk_comprovantes_cliente_pendentes");
     if (cloudMeta?.payload && !forceReplace) {
-      const localComprovantes = payload.dk_comprovantes_cliente_pendentes;
-      if (cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
+      const localComprovantes = localComprovantesBeforeMerge;
+      if (fullReplaceComprovantes || isLocalDataAuthorityActive()) {
+        payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
+        payload.dk_comprovantes_cliente_pendentes = localComprovantes;
+      } else if (cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
         payload = applyCloudComprovantesIfNewer(payload, cloudMeta);
       } else {
         payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
       }
-      if (isLocalDataAuthorityActive() && Array.isArray(localComprovantes)) {
-        payload.dk_comprovantes_cliente_pendentes = localComprovantes;
+      if (!isLocalDataAuthorityActive() && !fullReplaceComprovantes) {
+        persistMergedPayloadToLocal(payload);
       }
-      persistMergedPayloadToLocal(payload);
     }
     const updatedAt = new Date().toISOString();
     let supaOk = false;
@@ -807,7 +816,10 @@
       supaErr = "Supabase não configurado";
     }
 
-    const red = await pushRedundantSnapshotPayload(payload, updatedAt, { replace: forceReplace });
+    const red = await pushRedundantSnapshotPayload(payload, updatedAt, {
+      replace: forceReplace,
+      fullReplaceComprovantes,
+    });
     redisOk = red.ok;
     if (!redisOk) redisErr = String(red.error || "Redis indisponível");
 

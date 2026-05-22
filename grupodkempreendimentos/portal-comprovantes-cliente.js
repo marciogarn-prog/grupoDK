@@ -802,6 +802,17 @@
 
   async function repararHistoricoComprovantesNuvem(opts) {
     const leve = Boolean(opts?.leve) || isClienteAppContext();
+    if (
+      !leve &&
+      typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+      window.__DK_isLocalDataAuthorityActive()
+    ) {
+      const rawAuth = loadAllRaw();
+      _ccLoadAllCache = rawAuth;
+      const aguardamAuth = rawAuth.filter((r) => r.status === STATUS.IA_OK).length;
+      const confirmadosAuth = rawAuth.filter((r) => r.status === STATUS.CONFIRMADO).length;
+      return { ok: true, changed: false, aguardam: aguardamAuth, confirmados: confirmadosAuth, total: rawAuth.length };
+    }
     if (!leve) invalidateComprovantesCache();
     await migrarArquivosInlineParaIdbSeNecessario();
     let raw = loadAllRaw();
@@ -971,9 +982,12 @@
 
   function sliceComprovantesPreservandoConfirmados(arr) {
     const list = Array.isArray(arr) ? arr : [];
-    const confirmados = list.filter((r) => r.status === STATUS.CONFIRMADO);
-    const rest = list.filter((r) => r.status !== STATUS.CONFIRMADO);
-    return [...confirmados, ...rest].slice(0, STORAGE_MAX_COMPROVANTES);
+    const invalidados = list.filter((r) => r.pagamentoInvalidado);
+    const confirmados = list.filter((r) => r.status === STATUS.CONFIRMADO && !r.pagamentoInvalidado);
+    const rest = list.filter(
+      (r) => r.status !== STATUS.CONFIRMADO && !r.pagamentoInvalidado
+    );
+    return [...invalidados, ...confirmados, ...rest].slice(0, STORAGE_MAX_COMPROVANTES);
   }
 
   /** Índice de pagamentos já lançados no protocolo (fonte do relatório «validados»). */
@@ -2798,7 +2812,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const id = String(comprovanteId || "").trim();
     if (!id) return { ok: false, msg: "Pagamento sem identificador." };
 
-    const all = loadAll({ forceReload: true });
+    invalidateComprovantesCache();
+    const all = loadAllRaw().map((r) => ({ ...r }));
     const idx = all.findIndex((r) => String(r.id || "").trim() === id);
     if (idx < 0) return { ok: false, msg: "Comprovante não encontrado." };
     const rec = all[idx];
@@ -2867,7 +2882,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
 
     try {
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-        await window.__DK_pushCloudSnapshotNow();
+        await window.__DK_pushCloudSnapshotNow({ fullReplaceComprovantes: true });
       } else {
         await pushNuvem();
       }
@@ -4089,6 +4104,16 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   };
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
+    if (
+      typeof window.__DK_isLocalDataAuthorityActive === "function" &&
+      window.__DK_isLocalDataAuthorityActive()
+    ) {
+      invalidateComprovantesCache();
+      renderListaOperador();
+      renderListaRecusados72h();
+      renderListaValidados();
+      return;
+    }
     const rep = await repararHistoricoComprovantesNuvem();
     const fb = document.getElementById("portalComprovanteClienteListaMsg");
     if (fb && rep.changed) {
