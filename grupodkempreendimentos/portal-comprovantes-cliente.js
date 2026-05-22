@@ -2516,6 +2516,92 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     if (vaiMostrar) renderListaRecusados72h();
   }
 
+  /** Lista todas as assinaturas (comprovantes + banco + pagamentos no protocolo). */
+  function listarAssinaturasComprovantesSistema() {
+    sincronizarBancoAssinaturas();
+    const rows = [];
+    const seen = new Set();
+
+    const push = (row) => {
+      const k = String(row.assinatura || "").trim();
+      if (!k || k === "(incompleta)" || k === "(aguarda IA)") return;
+      if (seen.has(k)) return;
+      seen.add(k);
+      rows.push(row);
+    };
+
+    for (const r of loadAllRaw()) {
+      if (r.status === STATUS.REJEITADO) continue;
+      const sig = assinaturaDupDeRec(r);
+      const chave = chaveBancoAssinatura(sig);
+      if (!chave && !r.iaValidacao) continue;
+      push({
+        fonte: "comprovante",
+        status: statusLabel(r.status),
+        protocolo: r.protocolo,
+        cliente: String(r.nomeCliente || "").trim(),
+        cpf: r.cpf,
+        enviado: r.enviadoEm ? new Date(r.enviadoEm).toLocaleString("pt-BR") : "—",
+        resumo: textoAssinaturaDup(sig) || "—",
+        assinatura: chave || "(incompleta)",
+      });
+    }
+
+    for (const e of coletarEntradasBancoAssinaturas()) {
+      push({
+        fonte: e.fonte === "pagamento" ? "pagamento" : "banco",
+        status: e.status === "pagamento_protocolo" ? "no protocolo" : statusLabel(e.status),
+        protocolo: e.protocolo,
+        cliente: "",
+        cpf: e.cpf,
+        enviado: e.enviadoEm ? new Date(e.enviadoEm).toLocaleString("pt-BR") : "—",
+        resumo: e.chave.replace(/\|/g, " · "),
+        assinatura: e.chave,
+      });
+    }
+
+    return rows.sort((a, b) => String(b.enviado).localeCompare(String(a.enviado)));
+  }
+
+  function renderListaAssinaturasBanco() {
+    const wrap = document.getElementById("portalComprovanteClienteListaAssinaturas");
+    if (!wrap) return;
+    const rows = listarAssinaturasComprovantesSistema();
+    if (!rows.length) {
+      wrap.innerHTML =
+        '<p class="subtext">Nenhuma assinatura completa no banco neste navegador. Atualize da nuvem ou aguarde a IA validar comprovantes (protocolo + data + hora + valor + ID na imagem).</p>';
+      return;
+    }
+    wrap.innerHTML = `<p class="subtext"><strong>${rows.length}</strong> assinatura(s) única(s).</p>
+      <table class="portal-lanc-hist portal-comprovante-cliente-table" aria-label="Assinaturas no banco">
+        <thead><tr><th>#</th><th>Fonte</th><th>Estado</th><th>Protocolo</th><th>Cliente / CPF</th><th>Resumo (IA)</th><th>Chave no banco</th></tr></thead>
+        <tbody>${rows
+          .map((r, i) => {
+            const who = r.cliente ? `${escapeHtml(r.cliente)} · ${escapeHtml(r.cpf)}` : escapeHtml(r.cpf || "—");
+            return `<tr>
+              <td>${i + 1}</td>
+              <td>${escapeHtml(r.fonte)}</td>
+              <td>${escapeHtml(r.status)}</td>
+              <td>${escapeHtml(r.protocolo)}</td>
+              <td>${who}</td>
+              <td class="portal-cc-assinatura-resumo">${escapeHtml(r.resumo)}</td>
+              <td class="portal-cc-banco-assinatura__chave"><code>${escapeHtml(r.assinatura)}</code></td>
+            </tr>`;
+          })
+          .join("")}</tbody>
+      </table>`;
+  }
+
+  function togglePainelAssinaturasBanco() {
+    const painel = document.getElementById("portalComprovanteClientePainelAssinaturas");
+    const btn = document.getElementById("portalComprovanteClienteBtnListarAssinaturas");
+    if (!painel) return;
+    const vaiMostrar = painel.classList.contains("hidden");
+    painel.classList.toggle("hidden", !vaiMostrar);
+    if (btn) btn.setAttribute("aria-expanded", vaiMostrar ? "true" : "false");
+    if (vaiMostrar) renderListaAssinaturasBanco();
+  }
+
   function renderAssinaturaBancoUi(rec) {
     const sig = assinaturaDupDeRec(rec);
     const chave = String(rec.assinaturaDupChave || "").trim() || chaveBancoAssinatura(sig);
@@ -2954,6 +3040,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     document.getElementById("portalComprovanteClienteBtnRecusados72h")?.addEventListener("click", () => {
       togglePainelRecusados72h();
     });
+    document.getElementById("portalComprovanteClienteBtnListarAssinaturas")?.addEventListener("click", () => {
+      togglePainelAssinaturasBanco();
+    });
 
     document.getElementById("portalComprovanteClienteBtnProcessarIa")?.addEventListener("click", async () => {
       const fb = document.getElementById("portalComprovanteClienteListaMsg");
@@ -3077,6 +3166,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteDetectarDuplicado = detectarComprovanteDuplicado;
   window.__DK_comprovantesClienteDetectarDuplicidadeLogica = detectarDuplicidadeLogica;
   window.__DK_comprovantesClienteSincronizarBancoAssinaturas = sincronizarBancoAssinaturas;
+  window.__DK_listarAssinaturasComprovantes = listarAssinaturasComprovantesSistema;
   window.__DK_comprovantesClienteListPendentes = listarPendentesOperador;
   window.__DK_comprovantesClienteListByCpf = listarPorCliente;
   window.__DK_comprovantesClienteGet = getById;

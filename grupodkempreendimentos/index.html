@@ -780,10 +780,16 @@
               <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnAtualizarLista">Atualizar da nuvem</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnProcessarIa">Processar IA agora</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnRecusados72h" aria-expanded="false" aria-controls="portalComprovanteClientePainelRecusados">Pagamentos recusados (72 h)</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnListarAssinaturas" aria-expanded="false" aria-controls="portalComprovanteClientePainelAssinaturas">Assinaturas no banco (IA)</button>
               <span id="portalComprovanteClienteBadgeProcessando" class="portal-cc-badge-processando hidden" role="status"></span>
             </div>
             <p id="portalComprovanteClienteListaMsg" class="portal-feedback" role="status"></p>
             <div id="portalComprovanteClienteLista" class="portal-comprovante-cliente-lista"></div>
+            <div id="portalComprovanteClientePainelAssinaturas" class="portal-cc-painel-recusados hidden" role="region" aria-label="Assinaturas protocolo data hora valor ID">
+              <h4 class="portal-lanc-aluguel-section__title">Assinaturas no banco (dados lidos pela IA)</h4>
+              <p class="subtext">Chave única por comprovante: <strong>protocolo + data + hora + valor + ID</strong> da imagem. Inclui comprovantes na fila, confirmados e entradas já lançadas no protocolo.</p>
+              <div id="portalComprovanteClienteListaAssinaturas" class="portal-comprovante-cliente-lista"></div>
+            </div>
             <div id="portalComprovanteClientePainelRecusados" class="portal-cc-painel-recusados hidden" role="region" aria-label="Pagamentos recusados últimas 72 horas">
               <h4 class="portal-lanc-aluguel-section__title">Pagamentos recusados — últimas 72 horas</h4>
               <p class="subtext">Recusas automáticas (imagem duplicada ou valor divergente) e recusas manuais do operador. O cliente vê o motivo no app após sincronizar.</p>
@@ -1625,7 +1631,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260521id-centavos" defer></script>
   <script src="cliente-notificacoes.js?v=20260520cliente-v3" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260522bancoui" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260522lista-ass" defer></script>
   <script src="portal-locadora-ui.js?v=20260521antiduplicata" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
