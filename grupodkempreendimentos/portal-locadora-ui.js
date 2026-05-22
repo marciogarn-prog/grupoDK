@@ -8771,6 +8771,10 @@ ${printable.innerHTML}
       hist.classList.add("hidden");
       hist.replaceChildren();
     }
+    const blocoPesquisa = document.getElementById("operacaoLancAluguelBlocoPesquisaRef");
+    blocoPesquisa?.querySelectorAll("input").forEach((inp) => {
+      inp.value = "";
+    });
     const form = document.getElementById("formOperacaoLancamentoAluguelInline");
     form?.querySelectorAll("input").forEach((inp) => {
       inp.value = "";
