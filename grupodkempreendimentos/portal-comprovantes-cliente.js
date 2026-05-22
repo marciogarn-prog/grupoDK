@@ -503,6 +503,7 @@
     list = list.map((r) => {
       if (!eraRejeicaoValorIndevida(r)) return r;
       if (r.clienteDeAcordoEm) return r;
+      if (silencioso && isClienteAppContext()) return r;
       changed = true;
       return reabrirComprovanteParaOperador(r);
     });
@@ -1724,7 +1725,7 @@
   function marcarClienteDeAcordoComRecusa(id) {
     const rid = String(id || "").trim();
     if (!rid) return { ok: false, msg: "Registo inválido." };
-    const all = loadAll();
+    const all = loadAllRaw();
     const idx = all.findIndex((r) => r.id === rid);
     if (idx < 0) return { ok: false, msg: "Comprovante não encontrado." };
     const rec = all[idx];

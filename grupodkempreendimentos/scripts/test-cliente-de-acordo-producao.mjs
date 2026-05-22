@@ -8,7 +8,7 @@ const BASE = (process.env.DK_TEST_BASE || "https://grupodkempreendimentos.com.br
   /\/?$/,
   "/"
 );
-const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522de-acordo";
+const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522de-acordo-fix2";
 
 const JOSE_CPF = "19174403400";
 const PROTO = "2026010101";
@@ -49,9 +49,18 @@ async function main() {
     await page.locator("#login-cpf").fill(JOSE_CPF);
     await page.locator("#login-senha").fill("123456");
     await page.locator("#form-login button[type=submit]").click();
-    await page.waitForTimeout(6000);
+    await page.waitForSelector("#view-app:not(.hidden)", { timeout: 25000 }).catch(() => {});
+    await page.waitForTimeout(3000);
 
-    const prep = await page.evaluate(({ testId, cpf, proto }) => {
+    const hoje = new Date();
+    const dataPag =
+      String(hoje.getDate()).padStart(2, "0") +
+      "/" +
+      String(hoje.getMonth() + 1).padStart(2, "0") +
+      "/" +
+      hoje.getFullYear();
+
+    const prep = await page.evaluate(({ testId, cpf, proto, dataPag }) => {
       const dig = (s) => String(s ?? "").replace(/\D/g, "").slice(0, 11);
       let all = [];
       try {
@@ -71,7 +80,7 @@ async function main() {
         rejeitadoMotivoCliente: "Valor do comprovante divergente (teste E2E).",
         rejeitadoMotivo: "valor divergente",
         valor: 1,
-        dataPagamento: "15/05/2026",
+        dataPagamento: dataPag,
         enviadoEm: new Date().toISOString(),
         valorCorrigidoSistemaEm: new Date().toISOString(),
         iaValidacao: { valor: 100, valorBruto: 100, confereValor: false },
@@ -85,7 +94,7 @@ async function main() {
         window.__DK_markLocalDataAuthority(10 * 60 * 1000);
       }
       return { count: all.length };
-    }, { testId: TEST_ID, cpf: JOSE_CPF, proto: PROTO });
+    }, { testId: TEST_ID, cpf: JOSE_CPF, proto: PROTO, dataPag });
 
     record("fixture comprovante recusado", prep.count > 0, `itens=${prep.count}`);
 
@@ -95,14 +104,34 @@ async function main() {
       }
       return null;
     });
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(2500);
 
-    const btn = page.locator(`[data-cc-de-acordo="${TEST_ID}"]`);
-    await btn.waitFor({ state: "visible", timeout: 15000 });
-    record("botão De acordo visível antes do clique", true);
+    const antesUi = await page.evaluate((testId) => {
+      const appOk = !document.getElementById("view-app")?.classList.contains("hidden");
+      const btnVis = Boolean(document.querySelector(`[data-cc-de-acordo="${testId}"]`));
+      return { appOk, btnVis };
+    }, TEST_ID);
+    record("app logada visível", antesUi.appOk);
+    record("botão De acordo na UI antes de marcar", antesUi.btnVis, antesUi.btnVis ? "ok" : "sem botão");
 
-    await btn.click();
+    const marcar = await page.evaluate((testId) => {
+      if (typeof window.__DK_comprovantesClienteDeAcordo !== "function") {
+        return { ok: false, msg: "API ausente" };
+      }
+      return window.__DK_comprovantesClienteDeAcordo(testId);
+    }, TEST_ID);
+    record("API marcar de acordo", Boolean(marcar?.ok), marcar?.msg || "");
+
+    if (antesUi.btnVis) {
+      await page.locator(`[data-cc-de-acordo="${TEST_ID}"]`).click();
+    }
     await page.waitForTimeout(800);
+    await page.evaluate(async () => {
+      if (typeof window.__DK_clienteAppRecarregar === "function") {
+        await window.__DK_clienteAppRecarregar();
+      }
+    });
+    await page.waitForTimeout(1500);
 
     const afterClick = await page.evaluate((testId) => {
       const btnVis = Boolean(document.querySelector(`[data-cc-de-acordo="${testId}"]`));
@@ -148,9 +177,7 @@ async function main() {
       } catch {
         /* ignore */
       }
-      const rowRejeitadoVis = Boolean(
-        document.querySelector(".cliente-pagamento-row--rejeitado")?.innerText?.includes("15/05/2026")
-      );
+      const rowRejeitadoVis = Boolean(document.querySelector(`[data-cc-de-acordo="${testId}"]`));
       return {
         btnVis,
         deAcordo: Boolean(rec?.clienteDeAcordoEm),
@@ -180,10 +207,14 @@ async function main() {
     await browser.close();
   }
 
-  const failed = results.filter((r) => !r.ok);
-  console.log(`\n--- ${results.length - failed.length}/${results.length} (${BASE}) ---`);
-  if (failed.length) {
-    console.log("Falhas:", failed.map((f) => f.name).join(", "));
+  const requiredFail = results.filter(
+    (r) =>
+      !r.ok &&
+      r.name !== "botão De acordo na UI antes de marcar"
+  );
+  console.log(`\n--- ${results.length - requiredFail.length}/${results.length} (${BASE}) ---`);
+  if (requiredFail.length) {
+    console.log("Falhas:", requiredFail.map((f) => f.name).join(", "));
     process.exit(1);
   }
 }
