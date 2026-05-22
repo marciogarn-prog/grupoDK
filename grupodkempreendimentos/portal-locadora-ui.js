@@ -714,6 +714,19 @@
     openLocadoraHub();
   }
 
+  /** Da Operação/Manutenção → Área da equipa (escolher Operação ou Manutenção). */
+  function portalVoltarEquipaLocadora() {
+    hideInlineForms();
+    hideManutencaoInlineFormsCore();
+    setOperacaoFormPlaceholderVisible(true);
+    setManutencaoFormPlaceholderVisible(true);
+    syncOperacaoCadastroButtons(null);
+    syncManutencaoSidebarButtons(null);
+    panelOperacao?.classList.add("hidden");
+    panelManutencao?.classList.add("hidden");
+    panelLogado?.classList.remove("hidden");
+  }
+
   function resetPortalLoginFormularioETipoAcesso() {
     const cpfIn = document.getElementById("login-cpf");
     const senhaIn = document.getElementById("login-senha");
@@ -726,11 +739,22 @@
 
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
+      const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
+      const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
+      if (emOperacao || emManutencao) {
+        portalVoltarEquipaLocadora();
+        return;
+      }
       if (viewLocadoraHub?.classList.contains("view--active")) {
         portalVoltarInicio();
         return;
       }
       if (currentUnit === "locadora" && viewUnit?.classList.contains("view--active")) {
+        const emEquipa = panelLogado && !panelLogado.classList.contains("hidden");
+        if (emEquipa) {
+          portalVoltarLocadoraHub();
+          return;
+        }
         portalVoltarLocadoraHub();
         return;
       }
@@ -2283,8 +2307,7 @@ ${printable.innerHTML}
   });
 
   btnVoltarOp?.addEventListener("click", () => {
-    panelOperacao?.classList.add("hidden");
-    panelLogado?.classList.remove("hidden");
+    portalVoltarEquipaLocadora();
   });
 
   btnSair?.addEventListener("click", () => {

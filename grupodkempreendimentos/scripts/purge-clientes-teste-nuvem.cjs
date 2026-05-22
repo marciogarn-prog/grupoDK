@@ -5,8 +5,9 @@
  * Uso:
  *   node grupodkempreendimentos/scripts/purge-clientes-teste-nuvem.cjs
  *   node grupodkempreendimentos/scripts/purge-clientes-teste-nuvem.cjs --cpf=19174403400,06523244440
+ *   node grupodkempreendimentos/scripts/purge-clientes-teste-nuvem.cjs --proto=2026010101,2026010102
  */
-const { purgePagamentosComprovantesPayload } = require("../lib/dk-purge-pagamentos-only.cjs");
+const { purgePagamentosComprovantesPayload, normProto } = require("../lib/dk-purge-pagamentos-only.cjs");
 
 const SUPABASE_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3";
@@ -20,14 +21,21 @@ function onlyDigits(s) {
 }
 
 function parseArgs() {
-  const out = { cpfs: [...DEFAULT_CPFS] };
+  const out = { cpfs: [...DEFAULT_CPFS], protos: ["2026010101", "2026010102"] };
   for (const a of process.argv.slice(2)) {
-    const m = a.match(/^--cpf=(.+)$/);
-    if (m) {
-      out.cpfs = m[1]
+    const mCpf = a.match(/^--cpf=(.+)$/);
+    if (mCpf) {
+      out.cpfs = mCpf[1]
         .split(/[,;]/)
         .map((x) => onlyDigits(x).slice(0, 11))
         .filter((x) => x.length === 11);
+    }
+    const mProto = a.match(/^--proto=(.+)$/);
+    if (mProto) {
+      out.protos = mProto[1]
+        .split(/[,;]/)
+        .map((x) => normProto(x))
+        .filter(Boolean);
     }
   }
   return out;
@@ -81,12 +89,14 @@ async function pushRedis(payload) {
 }
 
 async function main() {
-  const { cpfs } = parseArgs();
+  const { cpfs, protos } = parseArgs();
   const cpfSet = new Set(cpfs);
+  const protoSet = new Set(protos);
   console.log(
     "CPFs alvo (só pagamentos/comprovantes):",
     [...cpfSet].map((c) => `${c.slice(0, 3)}.${c.slice(3, 6)}.${c.slice(6, 9)}-${c.slice(9)}`).join(", ")
   );
+  console.log("Protocolos alvo:", [...protoSet].join(", ") || "—");
 
   let payload;
   let source = "supabase";
@@ -110,7 +120,7 @@ async function main() {
     source = "redis";
   }
 
-  const stats = purgePagamentosComprovantesPayload(payload, cpfSet);
+  const stats = purgePagamentosComprovantesPayload(payload, cpfSet, protoSet);
   const updatedAt = new Date().toISOString();
 
   let supaOk = false;

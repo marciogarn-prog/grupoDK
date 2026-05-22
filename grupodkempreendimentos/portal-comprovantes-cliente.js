@@ -3659,6 +3659,31 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     return report;
   }
 
+  const PURGE_PROTOS_PADRAO = ["2026010101", "2026010102"];
+
+  function matchPurgeAlvoRecord(r, cpfSet, protoSet, cpfField = "cpf") {
+    if (cpfSet.has(onlyDigits(r?.[cpfField]).slice(0, 11))) return true;
+    const p = normProto(r?.protocolo || r?.numeroContrato);
+    return Boolean(p && protoSet.has(p));
+  }
+
+  function filterLsArrayByPurgeAlvo(key, cpfSet, protoSet, cpfField = "cpf") {
+    const report = { key, removed: 0 };
+    let arr = [];
+    try {
+      const raw = localStorage.getItem(key);
+      arr = raw ? JSON.parse(raw) : [];
+    } catch {
+      arr = [];
+    }
+    if (!Array.isArray(arr)) return report;
+    const antes = arr.length;
+    const kept = arr.filter((r) => !matchPurgeAlvoRecord(r, cpfSet, protoSet, cpfField));
+    localStorage.setItem(key, JSON.stringify(kept));
+    report.removed = antes - kept.length;
+    return report;
+  }
+
   const PURGE_LS_PROTECTED = new Set([
     "dk_clientes_cadastro",
     "dk_veiculos_cadastro",
@@ -3680,20 +3705,27 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     return next;
   }
 
-  /** Remove só comprovantes e pagamentos dos CPFs; mantém cliente, veículo e protocolo. */
-  async function purgeClientesPorCpf(cpfs) {
+  /** Remove só comprovantes e pagamentos (CPF e/ou protocolos); mantém cliente, veículo e linha de locação. */
+  async function purgeClientesPorCpf(cpfs, protos) {
     const set = new Set(
       (Array.isArray(cpfs) ? cpfs : String(cpfs || "").split(/[,;]/))
         .map((c) => onlyDigits(c).slice(0, 11))
         .filter((c) => c.length === 11)
     );
-    const report = { cpfs: [...set], removed: {}, pagamentosZerados: 0 };
-    if (!set.size) return { ok: false, msg: "Informe CPF(s) com 11 dígitos." };
+    const protoSet = new Set(
+      (Array.isArray(protos) ? protos : protos ? String(protos).split(/[,;]/) : PURGE_PROTOS_PADRAO)
+        .map((p) => normProto(p))
+        .filter(Boolean)
+    );
+    const report = { cpfs: [...set], protocolos: [...protoSet], removed: {}, pagamentosZerados: 0 };
+    if (!set.size && !protoSet.size) {
+      return { ok: false, msg: "Informe CPF(s) ou protocolo(s)." };
+    }
 
-    const protocolosAfetados = new Set();
+    const protocolosAfetados = new Set(protoSet);
     const allCc = loadAllRaw();
     for (const r of allCc) {
-      if (!set.has(onlyDigits(r.cpf).slice(0, 11))) continue;
+      if (!matchPurgeAlvoRecord(r, set, protoSet)) continue;
       if (r.protocolo) protocolosAfetados.add(normProto(r.protocolo));
       if (r.id) await removerArquivoComprovanteIdb(r.id);
     }
@@ -3709,7 +3741,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       "dk_clientes_validacao_pendente",
     ];
     for (const k of keysFixas) {
-      const r = filterLsArrayByCpf(k, set);
+      const r = filterLsArrayByPurgeAlvo(k, set, protoSet);
       if (r.removed) report.removed[k] = r.removed;
     }
 
@@ -3718,11 +3750,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       const banco = rawBanco ? JSON.parse(rawBanco) : [];
       if (Array.isArray(banco)) {
         const antes = banco.length;
-        const kept = banco.filter((sig) => {
-          const proto = normProto(sig?.protocolo);
-          if (proto && protocolosAfetados.has(proto)) return false;
-          return !set.has(onlyDigits(sig?.cpf).slice(0, 11));
-        });
+        const kept = banco.filter((sig) => !matchPurgeAlvoRecord(sig, set, protoSet));
         if (kept.length !== antes) {
           localStorage.setItem(BANCO_ASSINATURAS_KEY, JSON.stringify(kept));
           report.removed[BANCO_ASSINATURAS_KEY] = (report.removed[BANCO_ASSINATURAS_KEY] || 0) + (antes - kept.length);
@@ -3740,7 +3768,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       let locs = loadCadastro(cadLocKey);
       let changed = false;
       locs = locs.map((l) => {
-        if (!set.has(onlyDigits(l.cpf).slice(0, 11))) return l;
+        const cpfOk = set.has(onlyDigits(l.cpf).slice(0, 11));
+        const protoOk = protoSet.has(normProto(l.numeroContrato));
+        if (!cpfOk && !protoOk) return l;
         const had = PURGE_PAYMENT_KEYS_ON_LOC.some((k) => Array.isArray(l[k]) && l[k].length);
         if (had) {
           report.pagamentosZerados += 1;
@@ -3754,7 +3784,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const keysPagamentoGlobais = ["dk_lancamentos_aluguel", "dk_lancamentos_aluguel_cadastro"];
     for (const k of keysPagamentoGlobais) {
       if (keysFixas.includes(k)) continue;
-      const r = filterLsArrayByCpf(k, set);
+      const r = filterLsArrayByPurgeAlvo(k, set, protoSet);
       if (r.removed) report.removed[k] = (report.removed[k] || 0) + r.removed;
     }
 
@@ -3766,7 +3796,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         const raw = localStorage.getItem(key);
         const parsed = raw ? JSON.parse(raw) : null;
         if (!Array.isArray(parsed)) continue;
-        const r = filterLsArrayByCpf(key, set);
+        const r = filterLsArrayByPurgeAlvo(key, set, protoSet);
         if (r.removed) report.removed[key] = (report.removed[key] || 0) + r.removed;
       } catch {
         /* ignore */
@@ -3791,7 +3821,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
 
   window.__DK_purgeClientesPorCpf = purgeClientesPorCpf;
   window.__DK_purgeClientesTestePadrao = function purgeClientesTestePadrao() {
-    return purgeClientesPorCpf(["19174403400", "06523244440"]);
+    return purgeClientesPorCpf(["19174403400", "06523244440"], PURGE_PROTOS_PADRAO);
   };
 
   /** Auto-limpeza desativada (apagava cadastro/locação por engano). Use __DK_purgeClientesTestePadrao manualmente. */

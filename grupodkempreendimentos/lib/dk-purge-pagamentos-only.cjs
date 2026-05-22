@@ -37,6 +37,20 @@ function matchCpf(r, cpfSet, key = "cpf") {
   return cpfSet.has(onlyDigits(r?.[key]).slice(0, 11));
 }
 
+function matchProto(r, protoSet, keys = ["protocolo", "numeroContrato"]) {
+  if (!protoSet.size) return false;
+  for (const k of keys) {
+    const p = normProto(r?.[k]);
+    if (p && protoSet.has(p)) return true;
+  }
+  return false;
+}
+
+function matchAlvo(r, cpfSet, protoSet, cpfKey = "cpf") {
+  if (cpfSet.size && matchCpf(r, cpfSet, cpfKey)) return true;
+  return matchProto(r, protoSet);
+}
+
 function zerarPagamentosNaLocacao(loc) {
   const next = { ...loc };
   for (const k of PAYMENT_ARRAY_KEYS_ON_LOC) {
@@ -48,8 +62,9 @@ function zerarPagamentosNaLocacao(loc) {
 /**
  * @param {object} payload
  * @param {Set<string>} cpfSet — 11 dígitos
+ * @param {Set<string>} [protoSet] — protocolos normalizados (ex. 2026010101)
  */
-function purgePagamentosComprovantesPayload(payload, cpfSet) {
+function purgePagamentosComprovantesPayload(payload, cpfSet, protoSet = new Set()) {
   const stats = {
     comprovantesAntes: 0,
     comprovantesDepois: 0,
@@ -64,17 +79,19 @@ function purgePagamentosComprovantesPayload(payload, cpfSet) {
   if (Array.isArray(payload.dk_comprovantes_cliente_pendentes)) {
     stats.comprovantesAntes = payload.dk_comprovantes_cliente_pendentes.length;
     for (const r of payload.dk_comprovantes_cliente_pendentes) {
-      if (matchCpf(r, cpfSet)) stats.protocolosAfetados.add(normProto(r.protocolo));
+      if (matchAlvo(r, cpfSet, protoSet)) stats.protocolosAfetados.add(normProto(r.protocolo));
     }
     payload.dk_comprovantes_cliente_pendentes = payload.dk_comprovantes_cliente_pendentes.filter(
-      (r) => !matchCpf(r, cpfSet)
+      (r) => !matchAlvo(r, cpfSet, protoSet)
     );
     stats.comprovantesDepois = payload.dk_comprovantes_cliente_pendentes.length;
   }
 
   if (Array.isArray(payload.dk_cliente_notificacoes)) {
     const antes = payload.dk_cliente_notificacoes.length;
-    payload.dk_cliente_notificacoes = payload.dk_cliente_notificacoes.filter((n) => !matchCpf(n, cpfSet));
+    payload.dk_cliente_notificacoes = payload.dk_cliente_notificacoes.filter(
+      (n) => !matchAlvo(n, cpfSet, protoSet)
+    );
     stats.notificacoesRemovidas = antes - payload.dk_cliente_notificacoes.length;
   }
 
@@ -84,7 +101,7 @@ function purgePagamentosComprovantesPayload(payload, cpfSet) {
     payload[bk] = payload[bk].filter((sig) => {
       const proto = normProto(sig?.protocolo);
       if (proto && stats.protocolosAfetados.has(proto)) return false;
-      if (matchCpf(sig, cpfSet)) return false;
+      if (matchAlvo(sig, cpfSet, protoSet)) return false;
       return true;
     });
     stats.assinaturasRemovidas += antes - payload[bk].length;
@@ -92,7 +109,7 @@ function purgePagamentosComprovantesPayload(payload, cpfSet) {
 
   if (Array.isArray(payload.dk_locacoes_cadastro)) {
     payload.dk_locacoes_cadastro = payload.dk_locacoes_cadastro.map((loc) => {
-      if (!matchCpf(loc, cpfSet)) return loc;
+      if (!matchAlvo(loc, cpfSet, protoSet)) return loc;
       stats.protocolosAfetados.add(normProto(loc.numeroContrato));
       const hadPay = PAYMENT_ARRAY_KEYS_ON_LOC.some((k) => Array.isArray(loc[k]) && loc[k].length);
       if (hadPay) stats.pagamentosZeradosEmLocacoes += 1;
@@ -105,7 +122,7 @@ function purgePagamentosComprovantesPayload(payload, cpfSet) {
     if (!Array.isArray(payload[lk])) continue;
     const antes = payload[lk].length;
     payload[lk] = payload[lk].filter((row) => {
-      if (matchCpf(row, cpfSet)) return false;
+      if (matchAlvo(row, cpfSet, protoSet)) return false;
       const proto = normProto(row?.numeroContrato || row?.protocolo);
       if (proto && stats.protocolosAfetados.has(proto)) return false;
       return true;
@@ -116,7 +133,7 @@ function purgePagamentosComprovantesPayload(payload, cpfSet) {
   if (Array.isArray(payload.dk_clientes_validacao_pendente)) {
     const antes = payload.dk_clientes_validacao_pendente.length;
     payload.dk_clientes_validacao_pendente = payload.dk_clientes_validacao_pendente.filter(
-      (r) => !matchCpf(r, cpfSet)
+      (r) => !matchAlvo(r, cpfSet, protoSet)
     );
     stats.validacaoRemovida = antes - payload.dk_clientes_validacao_pendente.length;
   }
