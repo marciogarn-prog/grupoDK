@@ -3647,6 +3647,25 @@ ${printable.innerHTML}
     });
   }
 
+  /** Ordem crescente do número de protocolo (relatórios PDF/Excel de locações). */
+  function comparePortalProtocoloAsc(a, b) {
+    const pa = String(a?.numeroContrato ?? a?.protocolo ?? "").replace(/\W/g, "");
+    const pb = String(b?.numeroContrato ?? b?.protocolo ?? "").replace(/\W/g, "");
+    const na = /^\d+$/.test(pa) ? Number(pa) : NaN;
+    const nb = /^\d+$/.test(pb) ? Number(pb) : NaN;
+    if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+    if (Number.isFinite(na) && !Number.isFinite(nb)) return -1;
+    if (!Number.isFinite(na) && Number.isFinite(nb)) return 1;
+    const cmp = pa.localeCompare(pb, "pt-BR", { numeric: true, sensitivity: "base" });
+    if (cmp !== 0) return cmp;
+    return String(a?.placa || "").localeCompare(String(b?.placa || ""), "pt-BR");
+  }
+
+  function sortPortalLocacoesPorProtocoloAsc(records) {
+    if (!Array.isArray(records)) return [];
+    return records.slice().sort(comparePortalProtocoloAsc);
+  }
+
   /** Contexto do relatório aberto no modal (cliente/veículo/locação). */
   let portalRelatorioAtual = null;
 
@@ -4399,7 +4418,7 @@ ${printable.innerHTML}
   }
 
   function getPortalRelatorioLocacaoContext() {
-    const rowsRaw = sortPortalLocacoesPorUltimaDataDesc(
+    const rowsRaw = sortPortalLocacoesPorProtocoloAsc(
       typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : []
     );
     const headers = [
@@ -5165,8 +5184,7 @@ ${printable.innerHTML}
       return ctx;
     }
 
-    const locs = collectPortalLocacoesComProtocoloByCpf(dig);
-    locs.sort((a, b) => String(a.numeroContrato || "").localeCompare(String(b.numeroContrato || ""), "pt-BR"));
+    const locs = sortPortalLocacoesPorProtocoloAsc(collectPortalLocacoesComProtocoloByCpf(dig));
     const sections = locs.map((loc) => {
       const proto = String(loc.numeroContrato || "").trim() || "—";
       const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc)
@@ -5273,8 +5291,7 @@ ${printable.innerHTML}
       };
     }
 
-    const locs = collectPortalLocacoesComProtocoloByPlaca(norm);
-    locs.sort((a, b) => String(a.numeroContrato || "").localeCompare(String(b.numeroContrato || ""), "pt-BR"));
+    const locs = sortPortalLocacoesPorProtocoloAsc(collectPortalLocacoesComProtocoloByPlaca(norm));
     const sections = locs.map((loc) => {
       const proto = String(loc.numeroContrato || "").trim() || "—";
       const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc).slice().sort((a, b) => {
@@ -5363,7 +5380,7 @@ ${printable.innerHTML}
   function emitPortalRelatorioLocacaoPdf(escopo) {
     const titulo =
       escopo === "ativas" ? "Locações de motos — ativas" : "Locações de motos — finalizadas";
-    const raw = sortPortalLocacoesPorUltimaDataDesc(getPortalMotosLocacaoDataset(escopo));
+    const raw = sortPortalLocacoesPorProtocoloAsc(getPortalMotosLocacaoDataset(escopo));
     const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
@@ -5450,7 +5467,7 @@ ${printable.innerHTML}
       return;
     }
     const label = escopo === "ativas" ? "Locações ativas (motos)" : "Locações finalizadas (motos)";
-    const raw = sortPortalLocacoesPorUltimaDataDesc(getPortalMotosLocacaoDataset(escopo));
+    const raw = sortPortalLocacoesPorProtocoloAsc(getPortalMotosLocacaoDataset(escopo));
     const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
