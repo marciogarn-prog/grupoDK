@@ -5029,133 +5029,58 @@ ${printable.innerHTML}
     return html;
   }
 
-  async function invalidarPagamentoAppClientePorComprovanteId(comprovanteId) {
-    if (!isPortalTitularAdministrador()) {
-      return { ok: false, msg: "Apenas o administrador titular pode invalidar pagamentos." };
-    }
+  async function portalRemoverLancamentoComprovanteClienteId(comprovanteId, recOpt) {
     const id = String(comprovanteId || "").trim();
-    if (!id) return { ok: false, msg: "Pagamento sem identificador." };
-
-    const arr = loadComprovantesClienteParaRelatorio();
-    const ci = arr.findIndex((r) => String(r.id || "").trim() === id);
-    if (ci < 0) return { ok: false, msg: "Comprovante não encontrado." };
-    const rec = arr[ci];
+    if (!id) return { ok: false };
     const digFn =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    let rec = recOpt;
+    if (!rec) {
+      try {
+        const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
+        const arr = raw ? JSON.parse(raw) : [];
+        rec = (Array.isArray(arr) ? arr : []).find((r) => String(r.id || "").trim() === id);
+      } catch {
+        rec = null;
+      }
+    }
+    if (!rec) return { ok: false, msg: "Comprovante não encontrado." };
     const cpfDigits = digFn(rec.cpf).slice(0, 11);
     const proto = portalNormProtoRelatorio(rec.protocolo);
-    let sessNome = "Administrador";
-    try {
-      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
-      if (sess?.nome) sessNome = String(sess.nome).trim();
-    } catch {
-      /* ignore */
-    }
-
-    const agora = new Date().toISOString();
-    const valorExib =
-      typeof currencyBRL === "function"
-        ? currencyBRL(rec.valorRegistadoProtocolo ?? rec.valor ?? 0)
-        : String(rec.valorRegistadoProtocolo ?? rec.valor ?? 0);
-    const dataPag = String(rec.dataPagamento || "").trim() || "—";
-    const msgCliente = `O pagamento de ${valorExib} (${dataPag}) foi invalidado pela DK e não conta nos totais.`;
-    const msgInterno = `Pagamento invalidado pelo administrador (${sessNome}). Não contabiliza no protocolo.`;
-    let sessCpf = "";
-    try {
-      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
-      sessCpf = String(sess?.cpf || "").replace(/\D/g, "").slice(0, 11);
-    } catch {
-      /* ignore */
-    }
-
-    arr[ci] = {
-      ...rec,
-      pagamentoInvalidado: true,
-      pagamentoInvalidadoEm: agora,
-      pagamentoInvalidadoPor: sessNome,
-      status: "rejeitado",
-      rejeitadoEm: agora,
-      rejeitadoAutomatico: false,
-      rejeitadoPorCpf: sessCpf,
-      rejeitadoPorNome: sessNome,
-      rejeitadoMotivo: msgInterno,
-      rejeitadoMotivoCliente: msgCliente,
-    };
-    salvarComprovantesClienteParaRelatorio(arr);
-
-    if (typeof window.__DK_clienteNotificacaoComprovanteRejeitado === "function") {
-      try {
-        window.__DK_clienteNotificacaoComprovanteRejeitado({
-          cpf: cpfDigits,
-          protocolo: proto,
-          valor: Number(rec.valorRegistadoProtocolo ?? rec.valor ?? 0),
-          dataPagamento: dataPag,
-          comprovanteId: id,
-          mensagem: msgCliente,
-        });
-      } catch (e) {
-        console.warn("[DK portal] notificação recusa após invalidar", e);
-      }
-    }
-
     if (
-      cpfDigits.length === 11 &&
-      proto &&
-      typeof loadCadastro === "function" &&
-      typeof saveCadastro === "function" &&
-      typeof CAD_LOCACOES_KEY !== "undefined"
+      cpfDigits.length !== 11 ||
+      !proto ||
+      typeof loadCadastro !== "function" ||
+      typeof saveCadastro !== "function" ||
+      typeof CAD_LOCACOES_KEY === "undefined"
     ) {
-      const locs = loadCadastro(CAD_LOCACOES_KEY);
-      const lidx = locs.findIndex(
-        (l) =>
-          digFn(l.cpf).slice(0, 11) === cpfDigits && portalNormProtoRelatorio(l.numeroContrato) === proto
-      );
-      if (lidx >= 0) {
-        const loc = locs[lidx];
-        materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
-        loc.portalLancamentosAluguel = (loc.portalLancamentosAluguel || []).filter(
-          (lan) => String(lan.origemComprovanteClienteId || "").trim() !== id
-        );
-        finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, proto);
-      }
+      return { ok: false, msg: "Contrato não localizado." };
     }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const lidx = locs.findIndex(
+      (l) =>
+        digFn(l.cpf).slice(0, 11) === cpfDigits && portalNormProtoRelatorio(l.numeroContrato) === proto
+    );
+    if (lidx < 0) return { ok: false, msg: "Locação não encontrada." };
+    const loc = locs[lidx];
+    materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+    loc.portalLancamentosAluguel = (loc.portalLancamentosAluguel || []).filter(
+      (lan) => String(lan.origemComprovanteClienteId || "").trim() !== id
+    );
+    finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, proto);
+    return { ok: true, protocolo: proto };
+  }
 
-    if (typeof window.__DK_clienteNotificacaoPagamentoInvalidado === "function") {
-      try {
-        window.__DK_clienteNotificacaoPagamentoInvalidado({
-          cpf: cpfDigits,
-          protocolo: proto,
-          valor: Number(rec.valorRegistadoProtocolo ?? rec.valor ?? 0),
-          dataPagamento: String(rec.dataPagamento || "").trim(),
-          comprovanteId: id,
-        });
-      } catch (e) {
-        console.warn("[DK portal] notificação invalidar pagamento", e);
+  async function invalidarPagamentoAppClientePorComprovanteId(comprovanteId) {
+    if (typeof window.__DK_invalidarPagamentoAppCliente === "function") {
+      const fn = window.__DK_invalidarPagamentoAppCliente;
+      if (fn !== invalidarPagamentoAppClientePorComprovanteId) {
+        const res = await fn(comprovanteId);
+        refreshPortalRelatorioAberto();
+        return res;
       }
     }
-
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      try {
-        await window.__DK_pushCloudSnapshotNow();
-      } catch (e) {
-        console.warn("[DK portal] nuvem após invalidar pagamento", e);
-      }
-    }
-    if (typeof window.__DK_comprovantesClienteRenderListaValidados === "function") {
-      window.__DK_comprovantesClienteRenderListaValidados();
-    }
-    if (typeof window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao === "function") {
-      window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao();
-    }
-    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
-      try {
-        await window.__DK_refreshComprovantesClienteLista();
-      } catch {
-        /* ignore */
-      }
-    }
-    refreshPortalRelatorioAberto();
-    return { ok: true, comprovanteId: id, protocolo: proto };
+    return { ok: false, msg: "Invalidação indisponível — atualize a página (Ctrl+F5)." };
   }
 
   function refreshPortalRelatorioAberto() {
@@ -10283,7 +10208,7 @@ ${printable.innerHTML}
   })();
 
   window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
-  window.__DK_invalidarPagamentoAppCliente = invalidarPagamentoAppClientePorComprovanteId;
+  window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_hideOperacaoInlineForms = hideInlineForms;

@@ -593,6 +593,9 @@
   }
 
   function comprovanteClienteRank(rec) {
+    if (rec?.pagamentoInvalidado) {
+      return 1e18 + (Date.parse(rec.pagamentoInvalidadoEm || rec.rejeitadoEm || 0) || 0);
+    }
     const st = String(rec?.status || "").trim();
     const ts = comprovanteClienteDecisiveTs(rec);
     if (st === "rejeitado" && rec.rejeitadoAutomatico === false) {

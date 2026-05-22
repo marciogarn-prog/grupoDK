@@ -484,6 +484,7 @@
     const idxPag = indicePagamentosProtocoloPorComprovante();
 
     list = list.map((r) => {
+      if (r.pagamentoInvalidado) return r;
       const pag = comprovanteRegistadoNoProtocolo(r, idxPag);
       if (!pag) return r;
       if (r.status === STATUS.CONFIRMADO && roundCentavos(r.valorRegistadoProtocolo ?? r.valor) === roundCentavos(pag.valor)) {
@@ -2785,6 +2786,93 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     return { ok: true };
   }
 
+  /** Invalida pagamento já confirmado (só administrador titular). Grava local + nuvem e remove lançamento do protocolo. */
+  async function invalidarPagamentoConfirmadoAdmin(comprovanteId) {
+    const isAdmin =
+      typeof window.__DK_isPortalTitularAdministrador === "function" &&
+      window.__DK_isPortalTitularAdministrador();
+    if (!isAdmin) {
+      return { ok: false, msg: "Apenas o administrador titular pode invalidar pagamentos." };
+    }
+    const id = String(comprovanteId || "").trim();
+    if (!id) return { ok: false, msg: "Pagamento sem identificador." };
+
+    const all = loadAll({ forceReload: true });
+    const idx = all.findIndex((r) => String(r.id || "").trim() === id);
+    if (idx < 0) return { ok: false, msg: "Comprovante não encontrado." };
+    const rec = all[idx];
+    if (rec.pagamentoInvalidado) {
+      return { ok: true, msg: "Pagamento já estava invalidado.", comprovanteId: id };
+    }
+
+    let sessNome = "Administrador";
+    let sessCpf = "";
+    try {
+      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
+      if (sess?.nome) sessNome = String(sess.nome).trim();
+      sessCpf = onlyDigits(sess?.cpf).slice(0, 11);
+    } catch {
+      /* ignore */
+    }
+
+    const agora = new Date().toISOString();
+    const valorNum = Number(rec.valorRegistadoProtocolo ?? rec.valor ?? 0);
+    const dataPag = String(rec.dataPagamento || "").trim() || "—";
+    const msgCliente = `O pagamento de ${currencyBRL(valorNum)} (${dataPag}) foi invalidado pela DK e não conta nos totais.`;
+    const msgInterno = `Pagamento invalidado pelo administrador (${sessNome}). Não contabiliza no protocolo.`;
+
+    all[idx] = {
+      ...rec,
+      pagamentoInvalidado: true,
+      pagamentoInvalidadoEm: agora,
+      pagamentoInvalidadoPor: sessNome,
+      status: STATUS.REJEITADO,
+      rejeitadoEm: agora,
+      rejeitadoAutomatico: false,
+      rejeitadoPorCpf: sessCpf,
+      rejeitadoPorNome: sessNome,
+      rejeitadoMotivo: msgInterno,
+      rejeitadoMotivoCliente: msgCliente,
+    };
+
+    if (typeof window.__DK_portalRemoverLancamentoComprovanteClienteId === "function") {
+      try {
+        await window.__DK_portalRemoverLancamentoComprovanteClienteId(id, all[idx]);
+      } catch (e) {
+        console.warn("[DK comprovantes] remover lançamento protocolo", e);
+      }
+    }
+
+    try {
+      if (typeof window.__DK_markLocalDataAuthority === "function") {
+        window.__DK_markLocalDataAuthority(20 * 60 * 1000);
+      }
+      await writeComprovantesLocal(all, { skipNormalize: true });
+    } catch (e) {
+      console.error("[DK comprovantes] invalidar pagamento", e);
+      return { ok: false, msg: "Erro ao guardar (armazenamento local)." };
+    }
+
+    notificarClienteComprovanteRejeitado(all[idx], msgCliente);
+    if (typeof window.__DK_clienteNotificacaoPagamentoInvalidado === "function") {
+      window.__DK_clienteNotificacaoPagamentoInvalidado({
+        cpf: onlyDigits(rec.cpf).slice(0, 11),
+        protocolo: normProto(rec.protocolo),
+        valor: valorNum,
+        dataPagamento: dataPag,
+        comprovanteId: id,
+      });
+    }
+
+    try {
+      await pushNuvem();
+    } catch (e) {
+      console.warn("[DK comprovantes] push nuvem após invalidar", e);
+    }
+
+    return { ok: true, comprovanteId: id, protocolo: normProto(rec.protocolo) };
+  }
+
   /** UI operador */
   let comprovanteClienteUiIdAtual = "";
 
@@ -3569,21 +3657,34 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
           return;
         }
         const fn = window.__DK_invalidarPagamentoAppCliente;
-        if (typeof fn !== "function") return;
         const fb = document.getElementById("portalComprovanteClienteListaMsg");
+        if (typeof fn !== "function") {
+          const msgFn =
+            "Módulo de invalidação não carregado. Pressione Ctrl+F5 para atualizar a página.";
+          if (fb) fb.textContent = msgFn;
+          window.alert(msgFn);
+          return;
+        }
         if (fb) fb.textContent = "A invalidar pagamento…";
-        const res = await fn(id);
+        let res;
+        try {
+          res = await fn(id);
+        } catch (err) {
+          console.error("[DK comprovantes] invalidar", err);
+          res = { ok: false, msg: String(err?.message || err || "Erro inesperado.") };
+        }
         invalidateComprovantesCache();
         renderListaOperador();
+        renderListaRecusados72h();
         renderListaValidados();
-        if (res.ok) {
+        if (res?.ok) {
           abrirPainelRecusadosPosInvalidacao();
         }
         if (fb) {
-          fb.textContent = res.ok
-            ? "Pagamento invalidado — movido para Pagamentos recusados (72 h)."
-            : res.msg || "Não foi possível invalidar.";
-          fb.classList.toggle("portal-feedback--erro", !res.ok);
+          fb.textContent = res?.ok
+            ? "Pagamento invalidado — removido da lista verde e movido para Pagamentos recusados (72 h)."
+            : res?.msg || "Não foi possível invalidar.";
+          fb.classList.toggle("portal-feedback--erro", !res?.ok);
         }
         return;
       }
@@ -3750,6 +3851,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteListValidados = listarPagamentosValidadosOperador;
   window.__DK_comprovantesClienteRenderListaValidados = renderListaValidados;
   window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao = abrirPainelRecusadosPosInvalidacao;
+  window.__DK_invalidarPagamentoAppCliente = invalidarPagamentoConfirmadoAdmin;
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
   window.__DK_comprovantesClientePushNuvem = pushNuvem;
