@@ -2849,8 +2849,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     if (!raw) return null;
     if (raw.startsWith("blob:")) return raw;
     const p = parseDataUrl(raw);
-    if (!p.base64) return null;
-    const mime = String(mimeType || p.mime || "application/octet-stream").trim() || "application/octet-stream";
+    let b64 = p.base64;
+    let mime = String(mimeType || p.mime || "").trim();
+    if (!b64) {
+      const compact = raw.replace(/\s/g, "");
+      if (/^[A-Za-z0-9+/]+=*$/.test(compact) && compact.length > 80) {
+        b64 = compact;
+        if (!mime) mime = "image/png";
+      }
+    }
+    if (!b64) return null;
+    mime = mime || "application/octet-stream";
     try {
       const bin = atob(p.base64);
       const bytes = new Uint8Array(bin.length);
@@ -3005,14 +3014,30 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     });
   }
 
+  function viewerFeedback(msg, isError) {
+    const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
+    if (fb && msg) {
+      fb.textContent = msg;
+      fb.classList.toggle("comprovante-api-status--erro", Boolean(isError));
+    }
+  }
+
   function openComprovanteViewerById(id) {
-    const rec = getById(id);
+    const rid = String(id || comprovanteClienteUiIdAtual || "").trim();
+    if (!rid) {
+      viewerFeedback("Comprovante não identificado. Feche e abra de novo na lista.", true);
+      return;
+    }
+    const rec = getById(rid);
     if (!rec) {
       window.alert("Comprovante não encontrado. Toque em «Atualizar da nuvem» e tente de novo.");
       return;
     }
-    if (!rec.arquivoBase64) {
-      window.alert("Este registo não tem ficheiro de comprovante guardado.");
+    if (!String(rec.arquivoBase64 || "").trim()) {
+      viewerFeedback(
+        "Imagem não está neste PC (cópia da nuvem sem ficheiro). Atualize da nuvem no telemóvel que enviou ou peça reenvio.",
+        true
+      );
       return;
     }
     if (!getViewerModalEl()) {
@@ -3028,16 +3053,26 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     const stage = getViewerStage();
     const linkAbrir = document.getElementById("portalComprovanteClienteViewerAbrir");
     const modalEl = getViewerModalEl();
-    if (!rec || !stage || !modalEl) return;
+    if (!rec) {
+      viewerFeedback("Comprovante não encontrado para visualizar.", true);
+      return;
+    }
+    if (!stage || !modalEl) {
+      window.alert("Visualizador de comprovante indisponível nesta página.");
+      return;
+    }
 
     revokeViewerBlobUrl();
     const blobUrl = arquivoBase64ToBlobUrl(rec.arquivoBase64, rec.mimeType);
     if (!blobUrl) {
-      stage.innerHTML = '<p class="subtext">Não foi possível abrir o comprovante neste dispositivo.</p>';
+      stage.innerHTML =
+        '<p class="subtext">Não foi possível abrir o comprovante neste dispositivo. Tente «Atualizar da nuvem» ou reenvio pelo cliente.</p>';
       modalEl.classList.remove("hidden");
       modalEl.setAttribute("aria-hidden", "false");
+      viewerFeedback("Não foi possível decodificar a imagem do comprovante.", true);
       return;
     }
+    viewerFeedback("", false);
     ccViewerBlobUrl = blobUrl;
     const safeUrl = blobUrl.replace(/"/g, "&quot;");
     const isPdf =
@@ -3097,6 +3132,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   function bindOperadorUi() {
+    if (document.documentElement.dataset.dkCcOperadorBound === "1") return;
+    document.documentElement.dataset.dkCcOperadorBound = "1";
+
+    document.getElementById("portalComprovanteClienteDetalheModal")?.addEventListener("click", (e) => {
+      const verBtn = e.target.closest("#portalComprovanteClienteBtnVerArquivo");
+      if (!verBtn || verBtn.disabled) return;
+      e.preventDefault();
+      e.stopPropagation();
+      openComprovanteViewerById(comprovanteClienteUiIdAtual);
+    });
+
     const abrirHandler = (e) => {
       const btn =
         e.target.closest("[data-cc-abrir]") || e.target.closest("[data-cc-abrir-recusado]");
@@ -3122,7 +3168,11 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (fb) fb.textContent = "Processamento automático concluído.";
     });
 
-    document.getElementById("portalComprovanteClienteBtnVerArquivo")?.addEventListener("click", () => openViewer());
+    document.getElementById("portalComprovanteClienteBtnVerArquivo")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openComprovanteViewerById(comprovanteClienteUiIdAtual);
+    });
 
     document.getElementById("portalComprovanteClienteBtnIA")?.addEventListener("click", async () => {
       const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");

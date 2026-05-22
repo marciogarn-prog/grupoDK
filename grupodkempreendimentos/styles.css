@@ -2249,9 +2249,15 @@ body {
 
 /* Modal conferência comprovante: corpo com scroll; botões sempre visíveis */
 #portalComprovanteClienteDetalheModal.portal-modal {
+  z-index: 2400;
   align-items: center;
   padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
     max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+}
+
+/* Visualização do ficheiro: acima do modal de conferência */
+#portalComprovanteClienteViewerModal.portal-modal {
+  z-index: 2500;
 }
 
 .portal-modal__card--cc-detalhe {
