@@ -1596,18 +1596,12 @@
       /* ignore */
     }
 
-    try {
-      if (
-        new URLSearchParams(window.location.search).get("purge") === "1" &&
-        typeof window.__DK_purgeClientesTestePadrao === "function"
-      ) {
-        await window.__DK_purgeClientesTestePadrao();
-        const u = new URL(window.location.href);
-        u.searchParams.delete("purge");
-        history.replaceState(null, "", u.pathname + u.search + u.hash);
+    if (typeof window.__DK_executarAutoPurgeClientesTeste === "function") {
+      try {
+        await window.__DK_executarAutoPurgeClientesTeste();
+      } catch (e) {
+        console.warn("[DK cliente] limpeza automática teste", e);
       }
-    } catch (e) {
-      console.warn("[DK cliente] purge teste", e);
     }
 
     await processIncomingShare();

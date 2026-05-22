@@ -3759,6 +3759,25 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_purgeClientesTestePadrao = function purgeClientesTestePadrao() {
     return purgeClientesPorCpf(["19174403400", "06523244440"]);
   };
+
+  const DK_AUTO_PURGE_TESTE_FLAG = "dk_auto_purge_clientes_teste_v3";
+
+  async function executarAutoPurgeClientesTesteSeNecessario() {
+    try {
+      if (localStorage.getItem(DK_AUTO_PURGE_TESTE_FLAG) === "done") return null;
+    } catch {
+      return null;
+    }
+    const r = await purgeClientesPorCpf(["19174403400", "06523244440"]);
+    try {
+      localStorage.setItem(DK_AUTO_PURGE_TESTE_FLAG, "done");
+    } catch {
+      /* ignore */
+    }
+    return r;
+  }
+
+  window.__DK_executarAutoPurgeClientesTeste = executarAutoPurgeClientesTesteSeNecessario;
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     const rep = await repararHistoricoComprovantesNuvem();
@@ -3772,13 +3791,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     renderListaRecusados72h();
   };
 
+  async function bootstrapPortalComprovantesCliente() {
+    await executarAutoPurgeClientesTesteSeNecessario();
+    if (document.getElementById("portalComprovanteClienteLista")) await initOperadorUi();
+    else if (getViewerModalEl()) initViewerUiShared();
+  }
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
-      if (document.getElementById("portalComprovanteClienteLista")) initOperadorUi();
-      else if (getViewerModalEl()) initViewerUiShared();
+      bootstrapPortalComprovantesCliente().catch((e) => console.warn("[DK comprovantes] arranque", e));
     });
   } else {
-    if (document.getElementById("portalComprovanteClienteLista")) initOperadorUi();
-    else if (getViewerModalEl()) initViewerUiShared();
+    bootstrapPortalComprovantesCliente().catch((e) => console.warn("[DK comprovantes] arranque", e));
   }
 })();
