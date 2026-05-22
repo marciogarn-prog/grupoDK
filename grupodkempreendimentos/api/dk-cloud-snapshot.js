@@ -141,7 +141,8 @@ module.exports = async function handler(req, res) {
         }
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
       }
-      const payload = mergePayloads(existingPayload, incoming);
+      const replace = body.replace === true || body.mode === "replace";
+      const payload = replace ? incoming : mergePayloads(existingPayload, incoming);
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       return res.status(200).json({
@@ -149,6 +150,7 @@ module.exports = async function handler(req, res) {
         label: LABEL,
         updated_at: updatedAt,
         source: "redis",
+        replace,
         keys: Object.keys(payload).length,
       });
     }

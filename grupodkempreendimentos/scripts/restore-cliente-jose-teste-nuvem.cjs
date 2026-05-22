@@ -101,7 +101,7 @@ async function pushRedis(payload) {
   const res = await fetch(REDIS_SNAPSHOT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ payload, updated_at: new Date().toISOString() }),
+    body: JSON.stringify({ payload, updated_at: new Date().toISOString(), replace: true }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.ok) throw new Error(data?.error || data?.reason || "Redis POST falhou");
