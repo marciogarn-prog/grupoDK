@@ -2892,6 +2892,79 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     });
   }
 
+  /** Todos os comprovantes confirmados pelo operador (inclui invalidados pelo administrador). */
+  function listarPagamentosValidadosOperador() {
+    return loadAll()
+      .filter((r) => r.status === STATUS.CONFIRMADO)
+      .sort((a, b) => {
+        const ai = a.pagamentoInvalidado ? 1 : 0;
+        const bi = b.pagamentoInvalidado ? 1 : 0;
+        if (ai !== bi) return ai - bi;
+        return Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0);
+      });
+  }
+
+  function renderListaValidados() {
+    const wrap = document.getElementById("portalComprovanteClienteListaValidados");
+    if (!wrap) return;
+    const rows = listarPagamentosValidadosOperador();
+    const isAdmin =
+      typeof window.__DK_isPortalTitularAdministrador === "function" &&
+      window.__DK_isPortalTitularAdministrador();
+    if (!rows.length) {
+      wrap.innerHTML =
+        '<p class="subtext">Nenhum pagamento validado pelo operador neste navegador. Confirme comprovantes na fila acima ou atualize da nuvem.</p>';
+      return;
+    }
+    const nAtivos = rows.filter((r) => !r.pagamentoInvalidado).length;
+    const nInv = rows.length - nAtivos;
+    let html = `<p class="subtext portal-cc-hist-resumo"><strong>${nAtivos}</strong> ativo(s) contabilizados · <strong class="portal-cc-validado-invalidado-label">${nInv}</strong> invalidado(s).</p>`;
+    html += `<table class="portal-lanc-hist portal-comprovante-cliente-table portal-cc-validados-table" aria-label="Pagamentos validados app cliente">
+      <thead><tr>
+        <th>Envio cliente</th><th>Validação DK</th><th>Cliente</th><th>Protocolo</th><th>Funcionário DK</th><th>Valor</th><th>Ações</th>
+      </tr></thead><tbody>`;
+    for (const r of rows) {
+      const inv = Boolean(r.pagamentoInvalidado);
+      const rowCls = inv
+        ? "portal-cc-validado-row portal-cc-validado-row--invalidado"
+        : "portal-cc-validado-row";
+      const env = r.enviadoEm ? new Date(r.enviadoEm).toLocaleString("pt-BR") : "—";
+      const conf = r.confirmadoEm ? new Date(r.confirmadoEm).toLocaleString("pt-BR") : "—";
+      const valor = currencyBRL(r.valorRegistadoProtocolo ?? r.valor ?? 0);
+      const func = escapeHtml(String(r.confirmadoPorNome || "").trim() || "—");
+      let acao = "—";
+      if (inv) {
+        acao = '<span class="portal-cc-validado-invalidado-label">Invalidado</span>';
+      } else if (isAdmin && r.id) {
+        acao = `<button type="button" class="btn-invalidate-pagamento" data-dk-inv-pagamento-id="${escapeHtml(r.id)}">Invalidar pagamento</button>`;
+      }
+      const verBtn = r.id
+        ? ` <button type="button" class="btn-primary btn-secondary-outline portal-cc-btn-ver-comp" data-cc-abrir-validado="${escapeHtml(r.id)}">Ver comprovante</button>`
+        : "";
+      html += `<tr class="${rowCls}">
+        <td>${escapeHtml(env)}</td>
+        <td>${escapeHtml(conf)}</td>
+        <td>${escapeHtml(r.nomeCliente || r.cpf)}</td>
+        <td>${escapeHtml(r.protocolo)}</td>
+        <td>${func}</td>
+        <td>${escapeHtml(valor)}${verBtn}</td>
+        <td>${acao}</td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    wrap.innerHTML = html;
+  }
+
+  function togglePainelValidados() {
+    const painel = document.getElementById("portalComprovanteClientePainelValidados");
+    const btn = document.getElementById("portalComprovanteClienteBtnValidados");
+    if (!painel) return;
+    const vaiMostrar = painel.classList.contains("hidden");
+    painel.classList.toggle("hidden", !vaiMostrar);
+    if (btn) btn.setAttribute("aria-expanded", vaiMostrar ? "true" : "false");
+    if (vaiMostrar) renderListaValidados();
+  }
+
   function togglePainelRecusados72h() {
     const painel = document.getElementById("portalComprovanteClientePainelRecusados");
     const btn = document.getElementById("portalComprovanteClienteBtnRecusados72h");
@@ -3471,8 +3544,41 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     document.getElementById("portalComprovanteClienteLista")?.addEventListener("click", abrirHandler);
     document.getElementById("portalComprovanteClienteListaRecusados")?.addEventListener("click", abrirHandler);
 
+    document.getElementById("portalComprovanteClienteListaValidados")?.addEventListener("click", async (e) => {
+      const btnInv = e.target.closest("[data-dk-inv-pagamento-id]");
+      if (btnInv) {
+        e.preventDefault();
+        const id = btnInv.getAttribute("data-dk-inv-pagamento-id");
+        if (
+          !window.confirm(
+            "Invalidar este pagamento? Deixa de contar nos totais do protocolo e o cliente será notificado no app após sincronizar."
+          )
+        ) {
+          return;
+        }
+        const fn = window.__DK_invalidarPagamentoAppCliente;
+        if (typeof fn !== "function") return;
+        const fb = document.getElementById("portalComprovanteClienteListaMsg");
+        if (fb) fb.textContent = "A invalidar pagamento…";
+        const res = await fn(id);
+        invalidateComprovantesCache();
+        renderListaOperador();
+        renderListaValidados();
+        if (fb) {
+          fb.textContent = res.ok ? "Pagamento invalidado." : res.msg || "Não foi possível invalidar.";
+          fb.classList.toggle("portal-feedback--erro", !res.ok);
+        }
+        return;
+      }
+      const btnAbrir = e.target.closest("[data-cc-abrir-validado]");
+      if (btnAbrir) openDetalhe(btnAbrir.getAttribute("data-cc-abrir-validado"));
+    });
+
     document.getElementById("portalComprovanteClienteBtnRecusados72h")?.addEventListener("click", () => {
       togglePainelRecusados72h();
+    });
+    document.getElementById("portalComprovanteClienteBtnValidados")?.addEventListener("click", () => {
+      togglePainelValidados();
     });
     document.getElementById("portalComprovanteClienteBtnListarAssinaturas")?.addEventListener("click", () => {
       togglePainelAssinaturasBanco();
@@ -3484,6 +3590,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       await processarFilaComprovantesAutomaticos();
       renderListaOperador();
       renderListaRecusados72h();
+      renderListaValidados();
       if (fb) fb.textContent = "Processamento automático concluído.";
     });
 
@@ -3507,6 +3614,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         fillDetalheModal(getById(comprovanteClienteUiIdAtual));
         renderListaOperador();
         renderListaRecusados72h();
+      renderListaValidados();
       }
     });
 
@@ -3523,6 +3631,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (res.ok) {
         renderListaOperador();
         renderListaRecusados72h();
+      renderListaValidados();
         closeModal("portalComprovanteClienteDetalheModal");
         if (typeof window.__DK_refreshOperacaoLancAluguelFromComprovante === "function") {
           window.__DK_refreshOperacaoLancAluguelFromComprovante(res.rec);
@@ -3542,6 +3651,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         invalidateComprovantesCache();
         renderListaOperador();
         renderListaRecusados72h();
+      renderListaValidados();
         closeModal("portalComprovanteClienteDetalheModal");
       }
     });
@@ -3565,6 +3675,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       await processarFilaComprovantesAutomaticos();
       renderListaOperador();
       renderListaRecusados72h();
+      renderListaValidados();
       if (fb) fb.textContent = "Lista atualizada.";
     });
   }
@@ -3594,11 +3705,13 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
     renderListaOperador();
     renderListaRecusados72h();
+    renderListaValidados();
     probeOpenAIServer();
     await processarFilaComprovantesAutomaticos();
     await repararHistoricoComprovantesNuvem();
     renderListaOperador();
     renderListaRecusados72h();
+    renderListaValidados();
   }
 
   window.__DK_comprovantesClienteAdd = adicionarComprovanteCliente;
@@ -3617,6 +3730,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteProcessarAutomatico = processarComprovanteAutomatico;
   window.__DK_comprovantesClienteProcessarFilaAutomatica = processarFilaComprovantesAutomaticos;
   window.__DK_comprovantesClienteListRecusados72h = listarRecusadosUltimas72h;
+  window.__DK_comprovantesClienteListValidados = listarPagamentosValidadosOperador;
+  window.__DK_comprovantesClienteRenderListaValidados = renderListaValidados;
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
   window.__DK_comprovantesClientePushNuvem = pushNuvem;
@@ -3814,6 +3929,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     } else if (document.getElementById("portalComprovanteClienteLista")) {
       renderListaOperador();
       renderListaRecusados72h();
+      renderListaValidados();
     }
     if (window.__DK_CLIENTE_APP && typeof window.__DK_clienteAppRecarregar === "function") {
       window.__DK_clienteAppRecarregar();
@@ -3841,6 +3957,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     await repararHistoricoComprovantesNuvem();
     renderListaOperador();
     renderListaRecusados72h();
+    renderListaValidados();
   };
 
   async function bootstrapPortalComprovantesCliente() {

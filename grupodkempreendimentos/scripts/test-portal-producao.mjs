@@ -37,6 +37,11 @@ async function main() {
         html.includes("Confirmação de lançamento feito por cliente")
     );
     record(
+      "botão pagamentos validados na operação",
+      html.includes("portalComprovanteClienteBtnValidados") &&
+        html.includes("portalComprovanteClientePainelValidados")
+    );
+    record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );

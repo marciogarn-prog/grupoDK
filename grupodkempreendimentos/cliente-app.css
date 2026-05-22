@@ -306,6 +306,17 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
   vertical-align: middle;
 }
 
+.cliente-pagamento-row--confirmado span,
+.cliente-pagamento-row--confirmado .cliente-pagamento-row__label {
+  color: #2e7d32;
+}
+
+.cliente-pagamento-row--invalidado span,
+.cliente-pagamento-row--invalidado .cliente-pagamento-row__label,
+.cliente-pagamento-row--invalidado .cliente-pagamento-row__valor {
+  color: #c62828;
+}
+
 .cliente-pagamento-row--pendente span:first-child,
 .cliente-pagamento-row--rejeitado .cliente-pagamento-row__label {
   color: var(--accent);

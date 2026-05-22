@@ -374,7 +374,9 @@
     </tr></thead><tbody>`;
     for (const v of validados) {
       const inv = Boolean(v.invalidado);
-      const rowCls = inv ? ' class="validados-app-row--invalidado"' : "";
+      const rowCls = inv
+        ? ' class="validados-app-row--invalidado"'
+        : ' class="validados-app-row--ativo"';
       const vf = currencyBRL(v.valor);
       let valorCell = eh(vf);
       const compId = String(v.comprovanteId || "").trim();

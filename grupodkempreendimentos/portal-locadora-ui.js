@@ -4996,7 +4996,9 @@ ${printable.innerHTML}
     html += `</tr></thead><tbody>`;
     for (const v of validados) {
       const inv = Boolean(v.invalidado);
-      const rowCls = inv ? ' class="validados-app-row--invalidado"' : "";
+      const rowCls = inv
+        ? ' class="validados-app-row--invalidado"'
+        : ' class="validados-app-row--ativo"';
       const vf =
         typeof currencyBRL === "function"
           ? currencyBRL(v.valor)
@@ -5080,6 +5082,20 @@ ${printable.innerHTML}
       }
     }
 
+    if (typeof window.__DK_clienteNotificacaoPagamentoInvalidado === "function") {
+      try {
+        window.__DK_clienteNotificacaoPagamentoInvalidado({
+          cpf: cpfDigits,
+          protocolo: proto,
+          valor: Number(rec.valorRegistadoProtocolo ?? rec.valor ?? 0),
+          dataPagamento: String(rec.dataPagamento || "").trim(),
+          comprovanteId: id,
+        });
+      } catch (e) {
+        console.warn("[DK portal] notificação invalidar pagamento", e);
+      }
+    }
+
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       try {
         await window.__DK_pushCloudSnapshotNow();
@@ -5087,6 +5103,17 @@ ${printable.innerHTML}
         console.warn("[DK portal] nuvem após invalidar pagamento", e);
       }
     }
+    if (typeof window.__DK_comprovantesClienteRenderListaValidados === "function") {
+      window.__DK_comprovantesClienteRenderListaValidados();
+    }
+    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+      try {
+        await window.__DK_refreshComprovantesClienteLista();
+      } catch {
+        /* ignore */
+      }
+    }
+    refreshPortalRelatorioAberto();
     return { ok: true, comprovanteId: id, protocolo: proto };
   }
 
@@ -7429,6 +7456,7 @@ ${printable.innerHTML}
       table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font:inherit}
       table.validados-app .btn-invalidate-pagamento{font-size:11px;padding:4px 8px;border:1px solid #b71c1c;color:#b71c1c;background:#fff;border-radius:4px;cursor:pointer;white-space:nowrap}
       table.validados-app .btn-invalidate-pagamento:hover{background:#ffebee}
+      table.validados-app tr.validados-app-row--ativo td{color:#2e7d32}
       table.validados-app tr.validados-app-row--invalidado td{color:#c62828}
       table.validados-app tr.validados-app-row--invalidado .lnk-comprovante{color:#c62828;text-decoration:line-through}
       table.validados-app .validados-app-invalidado-label{color:#c62828;font-weight:600;font-size:11px}

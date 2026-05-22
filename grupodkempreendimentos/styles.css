@@ -2336,6 +2336,55 @@ body {
   border-top: 1px solid var(--border, #2a3140);
 }
 
+.portal-cc-validados-toolbar {
+  margin-top: 1rem;
+}
+
+.portal-cc-painel-validados {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #2a3140);
+}
+
+table.portal-cc-validados-table tr.portal-cc-validado-row td {
+  color: #2e7d32;
+}
+
+table.portal-cc-validados-table tr.portal-cc-validado-row--invalidado td {
+  color: #c62828;
+}
+
+table.portal-cc-validados-table tr.portal-cc-validado-row--invalidado .portal-cc-btn-ver-comp {
+  color: #c62828;
+  border-color: #c62828;
+}
+
+table.portal-cc-validados-table .portal-cc-validado-invalidado-label {
+  color: #c62828;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
+table.portal-cc-validados-table .btn-invalidate-pagamento {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid #c62828;
+  color: #c62828;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+table.portal-cc-validados-table .btn-invalidate-pagamento:hover {
+  background: rgba(198, 40, 40, 0.08);
+}
+
+table.portal-cc-validados-table .portal-cc-btn-ver-comp {
+  margin-left: 0.35rem;
+  font-size: 0.72rem;
+  padding: 0.15rem 0.4rem;
+}
+
 .portal-cc-sublista-titulo {
   margin: 1rem 0 0.5rem;
   font-size: 0.95rem;
@@ -2454,6 +2503,10 @@ table.validados-app .btn-invalidate-pagamento {
 
 table.validados-app .btn-invalidate-pagamento:hover {
   background: rgba(198, 40, 40, 0.08);
+}
+
+table.validados-app tr.validados-app-row--ativo td {
+  color: #2e7d32;
 }
 
 table.validados-app tr.validados-app-row--invalidado td {

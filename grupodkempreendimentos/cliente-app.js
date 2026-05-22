@@ -450,6 +450,11 @@
   function buildLinhasPagamentoContrato(loc, cpf, resumo) {
     const nc = normNc(loc.numeroContrato);
     const linhas = [];
+    const compIdsNoLanc = new Set(
+      (resumo?.lancamentos || [])
+        .map((p) => String(p.origemComprovanteClienteId || "").trim())
+        .filter(Boolean)
+    );
     (resumo?.lancamentos || []).forEach((p) => {
       linhas.push({
         kind: "pago",
@@ -464,6 +469,22 @@
         extraClass: p.confirmadoViaAppCliente ? "cliente-pagamento-row--envio" : "",
       });
     });
+    listComprovantesCliente(cpf)
+      .filter((e) => normNc(e.protocolo) === nc && e.status === "confirmado")
+      .filter((e) => e.pagamentoInvalidado || !compIdsNoLanc.has(String(e.id || "").trim()))
+      .forEach((e) => {
+        const inv = Boolean(e.pagamentoInvalidado);
+        const extra =
+          Date.parse(e.pagamentoInvalidadoEm || e.confirmadoEm || e.enviadoEm || "") || 0;
+        linhas.push({
+          kind: inv ? "invalidado" : "pago",
+          sort: pagamentoSortKey(e.dataPagamento, extra),
+          label: inv ? "Pagamento invalidado pela DK" : "Pagamento confirmado pela DK",
+          data: e.dataPagamento,
+          valor: Number(e.valorRegistadoProtocolo ?? e.valor ?? 0),
+          extraClass: inv ? "cliente-pagamento-row--invalidado" : "cliente-pagamento-row--confirmado",
+        });
+      });
     listComprovantesCliente(cpf)
       .filter((e) => normNc(e.protocolo) === nc && e.status !== "confirmado")
       .filter((e) => !(e.status === "rejeitado" && e.clienteDeAcordoEm))

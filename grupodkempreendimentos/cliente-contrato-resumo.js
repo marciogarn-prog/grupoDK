@@ -35,6 +35,20 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function comprovanteInvalidadoPorId(id) {
+    const cid = String(id || "").trim();
+    if (!cid) return false;
+    try {
+      const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
+      const all = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(all)) return false;
+      const hit = all.find((r) => String(r.id || "").trim() === cid);
+      return Boolean(hit?.pagamentoInvalidado);
+    } catch {
+      return false;
+    }
+  }
+
   function computeTempoDiasLoc(loc) {
     const rawInicio = String(loc?.inicio || "").trim();
     if (!rawInicio) return 0;
@@ -83,7 +97,9 @@
     const seenDataValor = new Set();
     const out = [];
     for (const row of sorted) {
+      if (row.pagamentoInvalidado) continue;
       const oid = String(row.origemComprovanteClienteId || "").trim();
+      if (oid && comprovanteInvalidadoPorId(oid)) continue;
       const fp = String(row.comprovanteFp || "").trim();
       const data = String(row.data || "").trim();
       const valor = Number(row.valor);
@@ -110,6 +126,9 @@
       if (!Array.isArray(arr)) return;
       arr.forEach((x) => {
         if (!x || typeof x !== "object") return;
+        if (x.pagamentoInvalidado) return;
+        const oid = String(x.origemComprovanteClienteId || "").trim();
+        if (oid && comprovanteInvalidadoPorId(oid)) return;
         const data = String(x.data || x.dataPagamento || "").trim();
         let valor = typeof x.valor === "number" ? x.valor : parseCur(x.valor ?? x.valorPago);
         if (!Number.isFinite(valor) || valor <= 0) return;
@@ -119,7 +138,7 @@
           origem,
           createdAt: Number(x.createdAt || x.id || 0),
           confirmadoViaAppCliente: Boolean(x.confirmadoViaAppCliente),
-          origemComprovanteClienteId: String(x.origemComprovanteClienteId || "").trim(),
+          origemComprovanteClienteId: oid,
           comprovanteFp: String(x.comprovanteFp || "").trim(),
           registradoPorNome: String(x.registradoPorNome || "").trim(),
         });

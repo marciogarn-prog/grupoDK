@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260521ver-comprovante">
+  <link rel="stylesheet" href="styles.css?v=20260522validados-operacao">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -793,6 +793,14 @@
               <h4 class="portal-lanc-aluguel-section__title">Pagamentos recusados — últimas 72 horas</h4>
               <p class="subtext">Recusas automáticas (imagem duplicada ou valor divergente) e recusas manuais do operador. O cliente vê o motivo no app após sincronizar.</p>
               <div id="portalComprovanteClienteListaRecusados" class="portal-comprovante-cliente-lista"></div>
+            </div>
+            <div class="portal-cc-validados-toolbar">
+              <button type="button" class="btn-primary btn-secondary-outline" id="portalComprovanteClienteBtnValidados" aria-expanded="false" aria-controls="portalComprovanteClientePainelValidados">Pagamentos validados</button>
+            </div>
+            <div id="portalComprovanteClientePainelValidados" class="portal-cc-painel-validados hidden" role="region" aria-label="Pagamentos validados app cliente">
+              <h4 class="portal-lanc-aluguel-section__title">Pagamentos validados (app cliente)</h4>
+              <p class="subtext">Confirmados pelo operador. <strong>Verde</strong> = contabiliza no protocolo. <strong>Vermelho</strong> = invalidado pelo administrador (não entra nos totais; o cliente vê no app após sincronizar).</p>
+              <div id="portalComprovanteClienteListaValidados" class="portal-comprovante-cliente-lista"></div>
             </div>
           </section>
           <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
@@ -1629,9 +1637,9 @@
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260521id-centavos" defer></script>
-  <script src="cliente-notificacoes.js?v=20260520cliente-v3" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260522purge-proto" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522invalidado-vermelho" defer></script>
+  <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260522validados-operacao" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522validados-operacao" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260519perf" defer></script>
   <script src="portal-supabase-sync.js?v=20260522purge-proto" defer></script>
