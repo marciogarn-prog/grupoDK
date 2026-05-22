@@ -651,6 +651,18 @@
 
   async function upsertSnapshotRow(showUserMessages) {
     let payload = collectPayloadFromLocalStorage();
+    if (
+      typeof window.__DK_comprovantesClientePayloadParaNuvem === "function" &&
+      payload.dk_comprovantes_cliente_pendentes
+    ) {
+      try {
+        payload.dk_comprovantes_cliente_pendentes = await window.__DK_comprovantesClientePayloadParaNuvem(
+          payload.dk_comprovantes_cliente_pendentes
+        );
+      } catch (e) {
+        console.warn("[DK cloud] hydrate comprovantes para nuvem", e);
+      }
+    }
     const [supaRow, redisRow] = await Promise.all([
       fetchSupabaseSnapshotPayload(),
       fetchRedundantSnapshotPayload(),

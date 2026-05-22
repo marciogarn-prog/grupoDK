@@ -99,6 +99,213 @@
   }
 
   const MIG_HISTORICO_V = "20260522hist-v4-banco";
+  const CC_ARQUIVOS_DB = "dk_comprovantes_arquivos_v1";
+  const CC_ARQUIVOS_STORE = "arquivos";
+  /** Cache em memória (sessão) — evita reler IndexedDB a cada IA/visualização. */
+  const ccArquivoMemoria = new Map();
+
+  function isStorageQuotaError(e) {
+    const name = String(e?.name || "");
+    const msg = String(e?.message || e || "");
+    return name === "QuotaExceededError" || /quota/i.test(msg);
+  }
+
+  function openComprovantesArquivosDb() {
+    return new Promise((resolve, reject) => {
+      if (typeof indexedDB === "undefined") {
+        reject(new Error("indexedDB_indisponivel"));
+        return;
+      }
+      const req = indexedDB.open(CC_ARQUIVOS_DB, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(CC_ARQUIVOS_STORE)) {
+          db.createObjectStore(CC_ARQUIVOS_STORE, { keyPath: "id" });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function salvarArquivoComprovanteIdb(id, dataUrl, mimeType) {
+    const rid = String(id || "").trim();
+    if (!rid || !dataUrl) return false;
+    try {
+      const db = await openComprovantesArquivosDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(CC_ARQUIVOS_STORE, "readwrite");
+        tx.objectStore(CC_ARQUIVOS_STORE).put({
+          id: rid,
+          dataUrl: String(dataUrl),
+          mimeType: String(mimeType || "").trim() || "image/jpeg",
+          updatedAt: new Date().toISOString(),
+        });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+      return true;
+    } catch (e) {
+      console.warn("[DK comprovantes] IndexedDB gravar", e);
+      return false;
+    }
+  }
+
+  async function lerArquivoComprovanteIdb(id) {
+    const rid = String(id || "").trim();
+    if (!rid) return null;
+    try {
+      const db = await openComprovantesArquivosDb();
+      const row = await new Promise((resolve, reject) => {
+        const tx = db.transaction(CC_ARQUIVOS_STORE, "readonly");
+        const req = tx.objectStore(CC_ARQUIVOS_STORE).get(rid);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+      db.close();
+      if (!row?.dataUrl) return null;
+      return { dataUrl: String(row.dataUrl), mimeType: String(row.mimeType || "").trim() };
+    } catch (e) {
+      console.warn("[DK comprovantes] IndexedDB ler", e);
+      return null;
+    }
+  }
+
+  async function removerArquivoComprovanteIdb(id) {
+    const rid = String(id || "").trim();
+    if (!rid) return;
+    ccArquivoMemoria.delete(rid);
+    try {
+      const db = await openComprovantesArquivosDb();
+      await new Promise((resolve, reject) => {
+        const tx = db.transaction(CC_ARQUIVOS_STORE, "readwrite");
+        tx.objectStore(CC_ARQUIVOS_STORE).delete(rid);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function comprimirComprovanteDataUrl(dataUrl, mimeType) {
+    const raw = String(dataUrl || "").trim();
+    const mime = String(mimeType || "").toLowerCase();
+    if (!raw || mime.includes("pdf") || raw.includes("application/pdf")) return raw;
+    const p = parseDataUrl(raw);
+    if (!p.base64 || p.base64.length < 350000) return raw;
+    if (typeof document === "undefined") return raw;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxW = 1400;
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          if (!w || !h) {
+            resolve(raw);
+            return;
+          }
+          if (w > maxW) {
+            h = Math.round((h * maxW) / w);
+            w = maxW;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(raw);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        } catch {
+          resolve(raw);
+        }
+      };
+      img.onerror = () => resolve(raw);
+      img.src = raw;
+    });
+  }
+
+  function stripArquivoInline(rec) {
+    if (!rec || typeof rec !== "object") return rec;
+    const { arquivoBase64, ...rest } = rec;
+    return rest;
+  }
+
+  async function prepareRecParaArmazenamento(rec) {
+    if (!rec || typeof rec !== "object") return rec;
+    const id = String(rec.id || "").trim();
+    const podeApagarArquivo =
+      rec.status === STATUS.CONFIRMADO || (rec.status === STATUS.REJEITADO && rec.clienteDeAcordoEm);
+    if (podeApagarArquivo) {
+      if (id) await removerArquivoComprovanteIdb(id);
+      return stripArquivoInline(rec);
+    }
+    const inline = String(rec.arquivoBase64 || "").trim();
+    if (inline && id) {
+      ccArquivoMemoria.set(id, inline);
+      await salvarArquivoComprovanteIdb(id, inline, rec.mimeType);
+      return { ...stripArquivoInline(rec), arquivoArmazenado: "idb" };
+    }
+    if (rec.arquivoArmazenado === "idb" && id) {
+      return stripArquivoInline(rec);
+    }
+    return rec;
+  }
+
+  async function prepareListaParaArmazenamento(list) {
+    const out = [];
+    for (const r of list) {
+      out.push(await prepareRecParaArmazenamento(r));
+    }
+    return out;
+  }
+
+  function safeSetComprovantesJson(list) {
+    let payload = sliceComprovantesPreservandoConfirmados(list);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+      return true;
+    } catch (e) {
+      if (!isStorageQuotaError(e)) throw e;
+      payload = sliceComprovantesPreservandoConfirmados(
+        list.map((r) => {
+          const x = stripArquivoInline(r);
+          delete x.arquivoArmazenado;
+          return x;
+        })
+      ).slice(0, 120);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+        return true;
+      } catch (e2) {
+        console.error("[DK comprovantes] quota localStorage", e2);
+        return false;
+      }
+    }
+  }
+
+  async function getByIdComArquivo(id) {
+    const rec = getById(id);
+    if (!rec) return null;
+    if (String(rec.arquivoBase64 || "").trim()) return rec;
+    const rid = String(rec.id || "").trim();
+    const mem = ccArquivoMemoria.get(rid);
+    if (mem) return { ...rec, arquivoBase64: mem };
+    if (rec.arquivoArmazenado === "idb" && rid) {
+      const arq = await lerArquivoComprovanteIdb(rid);
+      if (arq?.dataUrl) {
+        ccArquivoMemoria.set(rid, arq.dataUrl);
+        return { ...rec, arquivoBase64: arq.dataUrl, mimeType: arq.mimeType || rec.mimeType };
+      }
+    }
+    return rec;
+  }
 
   function loadAllRaw() {
     try {
@@ -483,15 +690,18 @@
     return { list, changed };
   }
 
-  function writeComprovantesLocal(arr, opts) {
+  async function writeComprovantesLocal(arr, opts) {
     const skipPush = Boolean(opts?.skipPush);
     const { list, changed } = normalizarHistoricoComprovantes(arr);
     const final = changed ? list : arr;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(final)));
-    _ccLoadAllCache = final;
+    const stored = await prepareListaParaArmazenamento(final);
+    if (!safeSetComprovantesJson(stored)) {
+      throw new Error("quota_excedida");
+    }
+    _ccLoadAllCache = stored;
     sincronizarBancoAssinaturas();
     if (!skipPush) pushNuvem();
-    return final;
+    return stored;
   }
 
   function marcarComprovantesSyncNuvemOk(updatedAt) {
@@ -540,8 +750,54 @@
     return { list, changed };
   }
 
+  const CC_MIG_IDB_KEY = "dk_cc_arquivos_idb_v1";
+
+  async function migrarArquivosInlineParaIdbSeNecessario() {
+    try {
+      if (localStorage.getItem(CC_MIG_IDB_KEY) === "1") return;
+    } catch {
+      return;
+    }
+    const raw = loadAllRaw();
+    let changed = false;
+    const next = [];
+    for (const r of raw) {
+      if (String(r.arquivoBase64 || "").trim() && r.id) {
+        await salvarArquivoComprovanteIdb(r.id, r.arquivoBase64, r.mimeType);
+        next.push({ ...stripArquivoInline(r), arquivoArmazenado: "idb" });
+        changed = true;
+      } else {
+        next.push(r);
+      }
+    }
+    if (changed) {
+      safeSetComprovantesJson(sliceComprovantesPreservandoConfirmados(next));
+      _ccLoadAllCache = next;
+    }
+    try {
+      localStorage.setItem(CC_MIG_IDB_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function payloadComprovantesParaNuvem(arr) {
+    const base = Array.isArray(arr) ? arr : loadAllRaw();
+    const out = [];
+    for (const r of base) {
+      if (!r?.id) {
+        out.push(r);
+        continue;
+      }
+      const h = await getByIdComArquivo(r.id);
+      out.push(h || r);
+    }
+    return out;
+  }
+
   async function repararHistoricoComprovantesNuvem(opts) {
     const leve = Boolean(opts?.leve) || isClienteAppContext();
+    await migrarArquivosInlineParaIdbSeNecessario();
     let raw = loadAllRaw();
     let changed = false;
     if (!leve) {
@@ -552,10 +808,16 @@
     const { list, changed: normChanged } = normalizarHistoricoComprovantes(raw, { silencioso: leve });
     changed = changed || normChanged;
     if (changed) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(list)));
-      _ccLoadAllCache = list;
-      if (leve) agendarPushNuvemAdiado();
-      else pushNuvem();
+      try {
+        const stored = await prepareListaParaArmazenamento(list);
+        if (safeSetComprovantesJson(stored)) {
+          _ccLoadAllCache = stored;
+          if (leve) agendarPushNuvemAdiado();
+          else pushNuvem();
+        }
+      } catch (e) {
+        console.warn("[DK comprovantes] reparar persist", e);
+      }
     }
     sincronizarBancoAssinaturas();
     const aguardam = list.filter((r) => r.status === STATUS.IA_OK).length;
@@ -572,9 +834,18 @@
       const { list, changed } = normalizarHistoricoComprovantes(raw, { silencioso: leitura });
       _ccLoadAllCache = list;
       if (changed) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sliceComprovantesPreservandoConfirmados(list)));
-        if (leitura) agendarPushNuvemAdiado();
-        else pushNuvem();
+        void (async () => {
+          try {
+            const stored = await prepareListaParaArmazenamento(list);
+            if (safeSetComprovantesJson(stored)) {
+              _ccLoadAllCache = stored;
+              if (leitura) agendarPushNuvemAdiado();
+              else pushNuvem();
+            }
+          } catch (e) {
+            console.warn("[DK comprovantes] loadAll persist", e);
+          }
+        })();
       }
       return list;
     } finally {
@@ -583,7 +854,9 @@
   }
 
   function saveAll(arr) {
-    writeComprovantesLocal(arr);
+    void writeComprovantesLocal(arr).catch((e) => {
+      console.error("[DK comprovantes] saveAll", e);
+    });
   }
 
   async function pushNuvem() {
@@ -1282,6 +1555,14 @@
     }
     if (!arquivoBase64) return { ok: false, msg: "Anexe o comprovante (imagem ou PDF)." };
 
+    try {
+      arquivoBase64 = await comprimirComprovanteDataUrl(arquivoBase64, mimeType);
+      const pComp = parseDataUrl(arquivoBase64);
+      if (pComp.mime) mimeType = pComp.mime;
+    } catch {
+      /* mantém original */
+    }
+
     const comprovanteFp = await computeComprovanteFingerprint(arquivoBase64, mimeType);
 
     const idxPagEntrada = indicePagamentosProtocoloPorComprovante();
@@ -1306,8 +1587,12 @@
       };
     }
 
+    const recId = newId();
+    ccArquivoMemoria.set(recId, arquivoBase64);
+    await salvarArquivoComprovanteIdb(recId, arquivoBase64, mimeType);
+
     const rec = {
-      id: newId(),
+      id: recId,
       status: STATUS.PENDENTE,
       cpf,
       nomeCliente: String(payload.nomeCliente || "").trim(),
@@ -1316,8 +1601,8 @@
       valor,
       nomeArquivo: String(payload.nomeArquivo || "comprovante"),
       mimeType,
-      arquivoBase64,
       comprovanteFp,
+      arquivoArmazenado: "idb",
       enviadoEm: new Date().toISOString(),
       iaValidacao: null,
       confirmadoPorCpf: "",
@@ -1329,9 +1614,19 @@
     };
     const all = loadAll();
     all.unshift(rec);
-    saveAll(all);
+    try {
+      await writeComprovantesLocal(all);
+    } catch (e) {
+      if (isStorageQuotaError(e) || String(e?.message || e) === "quota_excedida") {
+        return {
+          ok: false,
+          msg: "Memória do telemóvel cheia. Feche outros separadores, limpe dados do site DK no browser ou peça à DK para arquivar comprovantes antigos.",
+        };
+      }
+      return { ok: false, msg: e?.message || "Não foi possível guardar no telemóvel." };
+    }
     void processarComprovanteAutomatico(rec.id);
-    return { ok: true, id: rec.id, rec };
+    return { ok: true, id: rec.id, rec: { ...rec, arquivoBase64 } };
   }
 
   function listarPorStatus(statusFilter) {
@@ -1696,7 +1991,7 @@
     if (!gate.ok) return { ok: false, msg: gate.msg };
     const operador = gate.operador;
 
-    const rec = getById(id);
+    const rec = await getByIdComArquivo(id);
     if (!rec) return { ok: false, msg: "Registo não encontrado." };
     const idxPag = indicePagamentosProtocoloPorComprovante();
     const pagProto = comprovanteRegistadoNoProtocolo(rec, idxPag);
@@ -2797,7 +3092,9 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         soLeitura || rec.status !== STATUS.IA_OK || !podeConferir || bloqueadoDup || bloqueadoAutent;
     }
     if (btnRej) btnRej.disabled = soLeitura || rec.status === STATUS.CONFIRMADO || !podeConferir;
-    if (btnVer) btnVer.disabled = !rec.arquivoBase64;
+    if (btnVer) {
+      btnVer.disabled = !(String(rec.arquivoBase64 || "").trim() || rec.arquivoArmazenado === "idb");
+    }
     refreshAdminSenhaUi(rec);
     initReceitaTiposUi(rec);
   }
@@ -3022,13 +3319,13 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
   }
 
-  function openComprovanteViewerById(id) {
+  async function openComprovanteViewerById(id) {
     const rid = String(id || comprovanteClienteUiIdAtual || "").trim();
     if (!rid) {
       viewerFeedback("Comprovante não identificado. Feche e abra de novo na lista.", true);
       return;
     }
-    const rec = getById(rid);
+    const rec = await getByIdComArquivo(rid);
     if (!rec) {
       window.alert("Comprovante não encontrado. Toque em «Atualizar da nuvem» e tente de novo.");
       return;
@@ -3048,8 +3345,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     openViewer();
   }
 
-  function openViewer() {
-    const rec = getById(comprovanteClienteUiIdAtual);
+  async function openViewer() {
+    const rec = await getByIdComArquivo(comprovanteClienteUiIdAtual);
     const stage = getViewerStage();
     const linkAbrir = document.getElementById("portalComprovanteClienteViewerAbrir");
     const modalEl = getViewerModalEl();
@@ -3140,7 +3437,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (!verBtn || verBtn.disabled) return;
       e.preventDefault();
       e.stopPropagation();
-      openComprovanteViewerById(comprovanteClienteUiIdAtual);
+      void openComprovanteViewerById(comprovanteClienteUiIdAtual);
     });
 
     const abrirHandler = (e) => {
@@ -3171,7 +3468,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     document.getElementById("portalComprovanteClienteBtnVerArquivo")?.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      openComprovanteViewerById(comprovanteClienteUiIdAtual);
+      void openComprovanteViewerById(comprovanteClienteUiIdAtual);
     });
 
     document.getElementById("portalComprovanteClienteBtnIA")?.addEventListener("click", async () => {
@@ -3299,6 +3596,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
   window.__DK_comprovantesClientePushNuvem = pushNuvem;
+  window.__DK_comprovantesClientePayloadParaNuvem = payloadComprovantesParaNuvem;
+  window.__DK_comprovantesClienteMigrarStorage = migrarArquivosInlineParaIdbSeNecessario;
   window.__DK_comprovantesClienteTemPendentesNuvem = function temPendentesNuvem() {
     return loadAll({ leitura: true }).some((r) => r.syncNuvem === "pendente");
   };
