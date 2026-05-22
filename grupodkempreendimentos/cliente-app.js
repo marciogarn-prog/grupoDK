@@ -1643,6 +1643,9 @@
       if (typeof window.__DK_clienteNotificacoesMarcarLidas === "function") {
         window.__DK_clienteNotificacoesMarcarLidas(sessao.cpf);
       }
+      if (typeof window.__DK_markLocalDataAuthority === "function") {
+        window.__DK_markLocalDataAuthority(5 * 60 * 1000);
+      }
       renderNotificacoes(sessao.cpf);
     });
     $("comp-arquivo")?.addEventListener("change", onComprovanteFileChange);

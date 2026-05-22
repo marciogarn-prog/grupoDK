@@ -23,8 +23,12 @@
     }
   }
 
-  function saveAll(arr) {
+  function saveAll(arr, opts) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(0, 300)));
+    if (opts?.skipCloud) return;
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      window.__DK_markLocalDataAuthority(5 * 60 * 1000);
+    }
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       window.__DK_pushCloudSnapshotNow().catch(() => {});
     } else if (typeof window.__DK_pushToCloudAfterSave === "function") {
@@ -134,6 +138,7 @@
       if (idSet && !idSet.has(r.id)) return;
       if (!r.lido) {
         r.lido = true;
+        r.lidaEm = new Date().toISOString();
         n += 1;
       }
     });

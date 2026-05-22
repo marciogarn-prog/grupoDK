@@ -691,17 +691,36 @@
       .slice(0, 500);
   }
 
+  function mergeClienteNotificacaoRecord(prev, next) {
+    if (!prev) return next;
+    if (!next) return prev;
+    const lido = Boolean(prev.lido) || Boolean(next.lido);
+    const base = Date.parse(next.criadoEm || 0) >= Date.parse(prev.criadoEm || 0) ? next : prev;
+    const older = base === next ? prev : next;
+    return {
+      ...older,
+      ...base,
+      id: prev.id || next.id,
+      cpf: base.cpf || older.cpf,
+      lido,
+      lidaEm:
+        prev.lidaEm ||
+        next.lidaEm ||
+        (lido ? new Date().toISOString() : ""),
+      criadoEm: prev.criadoEm || next.criadoEm,
+      mensagem: base.mensagem || older.mensagem,
+      protocolo: base.protocolo || older.protocolo,
+    };
+  }
+
   function mergeClienteNotificacoes(localArr, cloudArr) {
     const byId = new Map();
     const push = (n) => {
       if (!n || typeof n !== "object" || !n.id) return;
-      const prev = byId.get(n.id);
-      const ts = Date.parse(n.criadoEm || n.lidaEm || 0) || 0;
-      const prevTs = prev ? Date.parse(prev.criadoEm || prev.lidaEm || 0) || 0 : 0;
-      if (!prev || ts >= prevTs) byId.set(n.id, n);
+      byId.set(n.id, mergeClienteNotificacaoRecord(byId.get(n.id), n));
     };
-    (Array.isArray(localArr) ? localArr : []).forEach(push);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(push);
+    (Array.isArray(localArr) ? localArr : []).forEach(push);
     return Array.from(byId.values())
       .sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0))
       .slice(0, 500);
