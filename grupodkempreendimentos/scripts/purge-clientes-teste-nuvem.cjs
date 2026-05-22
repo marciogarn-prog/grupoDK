@@ -57,6 +57,17 @@ async function supabaseFetch(path, opts = {}) {
 }
 
 async function pushRedis(payload) {
+  payload._dkFullReplaceKeys = [
+    "dk_comprovantes_cliente_pendentes",
+    "dk_cliente_notificacoes",
+    "dk_locacoes_cadastro",
+    "dk_lancamentos_aluguel",
+    "dk_lancamentos_aluguel_cadastro",
+    "dk_comprovantes_banco_assinaturas",
+    "dk_comprovantes_banco",
+    "dk_cliente_comprovantes_enviados",
+    "dk_clientes_validacao_pendente",
+  ];
   const res = await fetch(REDIS_SNAPSHOT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

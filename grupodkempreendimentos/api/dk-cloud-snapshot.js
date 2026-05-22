@@ -62,18 +62,32 @@ function mergeComprovantesClientePendentes(localArr, cloudArr) {
 }
 
 function mergePayloads(existing, incoming) {
-  if (!isObject(existing)) return incoming;
+  if (!isObject(existing)) return stripInternalPayloadKeys(incoming);
   if (!isObject(incoming)) return existing;
+  const fullReplaceKeys = Array.isArray(incoming._dkFullReplaceKeys)
+    ? incoming._dkFullReplaceKeys.filter((k) => typeof k === "string")
+    : [];
   const out = { ...existing, ...incoming };
+  for (const k of fullReplaceKeys) {
+    if (Object.prototype.hasOwnProperty.call(incoming, k)) out[k] = incoming[k];
+  }
   if (
-    Object.prototype.hasOwnProperty.call(incoming, "dk_comprovantes_cliente_pendentes") ||
-    Object.prototype.hasOwnProperty.call(existing, "dk_comprovantes_cliente_pendentes")
+    !fullReplaceKeys.includes("dk_comprovantes_cliente_pendentes") &&
+    (Object.prototype.hasOwnProperty.call(incoming, "dk_comprovantes_cliente_pendentes") ||
+      Object.prototype.hasOwnProperty.call(existing, "dk_comprovantes_cliente_pendentes"))
   ) {
     out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
       existing.dk_comprovantes_cliente_pendentes,
       incoming.dk_comprovantes_cliente_pendentes
     );
   }
+  return stripInternalPayloadKeys(out);
+}
+
+function stripInternalPayloadKeys(payload) {
+  if (!isObject(payload)) return payload;
+  const out = { ...payload };
+  delete out._dkFullReplaceKeys;
   return out;
 }
 
@@ -142,7 +156,9 @@ module.exports = async function handler(req, res) {
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
       }
       const replace = body.replace === true || body.mode === "replace";
-      const payload = replace ? incoming : mergePayloads(existingPayload, incoming);
+      const payload = replace
+        ? stripInternalPayloadKeys(incoming)
+        : mergePayloads(existingPayload, incoming);
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       return res.status(200).json({

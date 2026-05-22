@@ -98,6 +98,7 @@ async function readPayload() {
 }
 
 async function pushRedis(payload) {
+  payload._dkFullReplaceKeys = ["dk_clientes_cadastro", "dk_locacoes_cadastro"];
   const res = await fetch(REDIS_SNAPSHOT_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
