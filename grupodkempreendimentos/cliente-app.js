@@ -607,6 +607,12 @@
       e.preventDefault();
       const id = deAcordoBtn.getAttribute("data-cc-de-acordo");
       marcarComprovanteDeAcordo(id);
+      if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+        window.__DK_comprovantesClienteInvalidateCache();
+      }
+      if (typeof window.__DK_markLocalDataAuthority === "function") {
+        window.__DK_markLocalDataAuthority(5 * 60 * 1000);
+      }
       const sessao = getSessao();
       if (sessao) renderApp(sessao);
     }

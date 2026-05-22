@@ -502,6 +502,7 @@
 
     list = list.map((r) => {
       if (!eraRejeicaoValorIndevida(r)) return r;
+      if (r.clienteDeAcordoEm) return r;
       changed = true;
       return reabrirComprovanteParaOperador(r);
     });
@@ -1732,7 +1733,24 @@
     }
     if (rec.clienteDeAcordoEm) return { ok: true, msg: "Já registado." };
     all[idx] = { ...rec, clienteDeAcordoEm: new Date().toISOString() };
-    saveAll(all);
+    invalidateComprovantesCache();
+    const { list, changed: normChanged } = normalizarHistoricoComprovantes(all, { silencioso: true });
+    const final = normChanged ? list : all;
+    _ccLoadAllCache = final;
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      window.__DK_markLocalDataAuthority(5 * 60 * 1000);
+    }
+    void (async () => {
+      try {
+        const stored = await prepareListaParaArmazenamento(final);
+        if (safeSetComprovantesJson(stored)) {
+          _ccLoadAllCache = stored;
+          await pushNuvem();
+        }
+      } catch (e) {
+        console.warn("[DK comprovantes] de acordo persist", e);
+      }
+    })();
     return { ok: true };
   }
 

@@ -163,6 +163,13 @@
         rejeitadoPorCpf: inv.rejeitadoPorCpf,
       };
     }
+    const deAcordoA = String(prev?.clienteDeAcordoEm || "").trim();
+    const deAcordoB = String(rec?.clienteDeAcordoEm || "").trim();
+    if (deAcordoA || deAcordoB) {
+      const tsA = Date.parse(deAcordoA) || 0;
+      const tsB = Date.parse(deAcordoB) || 0;
+      out = { ...out, clienteDeAcordoEm: tsB >= tsA ? deAcordoB || deAcordoA : deAcordoA || deAcordoB };
+    }
     return out;
   }
 
