@@ -681,6 +681,11 @@
     if (sessao) resolveAppViewAfterData(sessao);
   }
 
+  function onComprovantesSyncedRefreshView() {
+    const sessao = getSessao();
+    if (sessao?.cpf) resolveAppViewAfterData(sessao);
+  }
+
   function renderApp(sessao) {
     const cpf = sessao.cpf;
     const dados = loadDadosCliente(cpf);
@@ -1638,6 +1643,7 @@
     wireInstall();
     bindCompMasks();
     updateInstallPanelUi();
+    window.addEventListener("dk-comprovantes-synced", onComprovantesSyncedRefreshView);
   }
 
   window.__DK_clienteAppRecarregar = async function clienteAppRecarregar() {

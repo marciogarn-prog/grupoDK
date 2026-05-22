@@ -911,9 +911,7 @@
     })();
     if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
       if (clienteAppPage) {
-        window.setTimeout(() => {
-          void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico({ leve: true }));
-        }, 1200);
+        await Promise.resolve(window.__DK_comprovantesClienteRepararHistorico({ leve: true }));
       } else {
         void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
       }
