@@ -499,7 +499,7 @@
       });
     listComprovantesCliente(cpf)
       .filter((e) => normNc(e.protocolo) === nc && e.status !== "confirmado")
-      .filter((e) => !(e.status === "rejeitado" && e.clienteDeAcordoEm))
+      .filter((e) => !e.clienteDeAcordoEm)
       .forEach((e) => {
         const extra = Date.parse(e.rejeitadoEm || e.enviadoEm || e.iaValidadoEm || "") || 0;
         linhas.push({

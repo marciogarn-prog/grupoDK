@@ -492,12 +492,52 @@
     };
   }
 
+  function historicoIndicaValorDeclarado40(rec) {
+    const parts = [];
+    if (Array.isArray(rec?.historicoEventos)) {
+      rec.historicoEventos.forEach((ev) => {
+        parts.push(String(ev?.motivoAnterior || ""));
+      });
+    }
+    parts.push(String(rec?.rejeitadoMotivoCliente || ""));
+    parts.push(String(rec?.iaValidacao?.observacoes || ""));
+    return parts.some((t) => /40[,.]00|R\$\s*40\b/i.test(t));
+  }
+
+  function reverterCentavosIndevidos40para04(rec) {
+    const v = roundCentavos(rec?.valor);
+    if (!(v > 0 && v < 1) || !rec?.valorCorrigidoSistemaEm) return rec;
+    if (!historicoIndicaValorDeclarado40(rec)) return rec;
+    return {
+      ...rec,
+      valor: 40,
+      valorCorrigidoSistemaEm: "",
+    };
+  }
+
   /** Preserva confirmados; corrige centavos; reabre recusas indevidas; arquiva reenvios excedentes. */
   function normalizarHistoricoComprovantes(arr, opts) {
     const silencioso = Boolean(opts?.silencioso);
     let list = arr.map((r) => ({ ...r }));
     let changed = false;
     const idxPag = indicePagamentosProtocoloPorComprovante();
+
+    list = list.map((r) => {
+      if (r.clienteDeAcordoEm && r.status !== STATUS.REJEITADO) {
+        changed = true;
+        return {
+          ...r,
+          status: STATUS.REJEITADO,
+          reabertoParaOperadorEm: "",
+        };
+      }
+      const rev = reverterCentavosIndevidos40para04(r);
+      if (rev !== r) {
+        changed = true;
+        return rev;
+      }
+      return r;
+    });
 
     list = list.map((r) => {
       if (r.pagamentoInvalidado) return r;
@@ -534,6 +574,7 @@
     list = list.map((r) => {
       if (!eraRejeicaoValorIndevida(r)) return r;
       if (r.clienteDeAcordoEm) return r;
+      if (String(r.rejeitadoEm || "").trim() && r.status === STATUS.IA_OK) return r;
       if (silencioso && isClienteAppContext()) return r;
       changed = true;
       return reabrirComprovanteParaOperador(r);
