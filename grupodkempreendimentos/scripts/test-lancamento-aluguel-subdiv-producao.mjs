@@ -149,6 +149,8 @@ async function main() {
     });
     record("multas: fecha aluguel e oculta submenu", multasOk);
 
+    await page.locator("#btn-operacao-lancamento-aluguel").click();
+    await page.waitForTimeout(600);
     await clickSub(page, "btn-lanc-aluguel-validacao");
     await page.waitForTimeout(500);
     const reabre = await page.evaluate(() => {
