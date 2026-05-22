@@ -692,8 +692,12 @@
 
   async function writeComprovantesLocal(arr, opts) {
     const skipPush = Boolean(opts?.skipPush);
-    const { list, changed } = normalizarHistoricoComprovantes(arr);
-    const final = changed ? list : arr;
+    const skipNormalize = Boolean(opts?.skipNormalize);
+    let final = arr;
+    if (!skipNormalize) {
+      const { list, changed } = normalizarHistoricoComprovantes(arr);
+      final = changed ? list : arr;
+    }
     const stored = await prepareListaParaArmazenamento(final);
     if (!safeSetComprovantesJson(stored)) {
       throw new Error("quota_excedida");
@@ -797,6 +801,7 @@
 
   async function repararHistoricoComprovantesNuvem(opts) {
     const leve = Boolean(opts?.leve) || isClienteAppContext();
+    if (!leve) invalidateComprovantesCache();
     await migrarArquivosInlineParaIdbSeNecessario();
     let raw = loadAllRaw();
     let changed = false;
@@ -828,6 +833,10 @@
   function loadAll(opts) {
     if (_ccNormalizing) return _ccLoadAllCache || loadAllRaw();
     const leitura = Boolean(opts?.leitura) || isClienteAppContext();
+    const forceReload = Boolean(opts?.forceReload);
+    if (!forceReload && !leitura && Array.isArray(_ccLoadAllCache)) {
+      return _ccLoadAllCache;
+    }
     _ccNormalizing = true;
     try {
       const raw = loadAllRaw();
@@ -854,7 +863,10 @@
   }
 
   function saveAll(arr) {
-    void writeComprovantesLocal(arr).catch((e) => {
+    const { list, changed } = normalizarHistoricoComprovantes(arr);
+    const final = changed ? list : arr;
+    _ccLoadAllCache = final;
+    void writeComprovantesLocal(final, { skipNormalize: true }).catch((e) => {
       console.error("[DK comprovantes] saveAll", e);
     });
   }
@@ -1014,6 +1026,7 @@
 
   function comprovanteElegivelFilaOperador(rec, idxPag) {
     if (!rec || rec.status !== STATUS.IA_OK) return false;
+    if (rec.rejeitadoAutomatico === false && String(rec.rejeitadoEm || "").trim()) return false;
     if (comprovanteRegistadoNoProtocolo(rec, idxPag)) return false;
     return true;
   }
@@ -1466,7 +1479,14 @@
       jaProcessado: Boolean(opts?.duplicata),
       observacoes: all[idx].rejeitadoMotivo,
     };
+    all[idx].reabertoParaOperadorEm = "";
     saveAll(all);
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      window.__DK_markLocalDataAuthority(15 * 60 * 1000);
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      void window.__DK_pushCloudSnapshotNow();
+    }
     notificarClienteComprovanteRejeitado(all[idx], msgCliente);
     return all[idx];
   }
@@ -3517,6 +3537,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       const fb = document.getElementById("portalComprovanteClienteDetalheFeedback");
       if (fb) fb.textContent = res.ok ? "Comprovante rejeitado." : res.msg;
       if (res.ok) {
+        invalidateComprovantesCache();
         renderListaOperador();
         renderListaRecusados72h();
         closeModal("portalComprovanteClienteDetalheModal");
@@ -3530,6 +3551,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     document.getElementById("portalComprovanteClienteBtnAtualizarLista")?.addEventListener("click", async () => {
       const fb = document.getElementById("portalComprovanteClienteListaMsg");
       if (fb) fb.textContent = "A carregar da nuvem…";
+      invalidateComprovantesCache();
       try {
         if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
           await window.__DK_pullCloudSnapshotSilentMerge();

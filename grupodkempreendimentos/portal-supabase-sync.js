@@ -518,18 +518,28 @@
 
   const CC_STATUS_RANK = { confirmado: 40, ia_validado: 30, pendente: 20, rejeitado: 10 };
 
+  function comprovanteClienteDecisiveTs(rec) {
+    const st = String(rec?.status || "").trim();
+    if (st === "confirmado") return Date.parse(rec.confirmadoEm || 0) || 0;
+    if (st === "rejeitado") return Date.parse(rec.rejeitadoEm || 0) || 0;
+    if (st === "ia_validado") {
+      return (
+        Date.parse(rec.reabertoParaOperadorEm || rec.iaValidacao?.validadoEm || rec.enviadoEm || 0) || 0
+      );
+    }
+    return Date.parse(rec.enviadoEm || 0) || 0;
+  }
+
   function comprovanteClienteRank(rec) {
     const st = String(rec?.status || "").trim();
+    const ts = comprovanteClienteDecisiveTs(rec);
+    if (st === "rejeitado" && rec.rejeitadoAutomatico === false) {
+      return 5e16 + ts;
+    }
+    if (st === "confirmado") {
+      return 4e16 + ts;
+    }
     const base = CC_STATUS_RANK[st] || 0;
-    const ts =
-      Date.parse(
-        rec?.confirmadoEm ||
-          rec?.rejeitadoEm ||
-          rec?.reabertoParaOperadorEm ||
-          rec?.iaValidacao?.validadoEm ||
-          rec?.enviadoEm ||
-          0
-      ) || 0;
     return base * 1e15 + ts;
   }
 
