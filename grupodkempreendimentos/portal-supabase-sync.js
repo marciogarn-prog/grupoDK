@@ -106,6 +106,43 @@
     return payload;
   }
 
+  /** Cópia Redis: sem imagens PDF/JPEG em base64 (limite ~4,5 MB na Vercel). Metadados e assinaturas mantêm-se. */
+  function shrinkPayloadForRedundantCloud(payload) {
+    if (!payload || typeof payload !== "object") return payload;
+    const out = { ...payload };
+    if (Array.isArray(out.dk_comprovantes_cliente_pendentes)) {
+      out.dk_comprovantes_cliente_pendentes = out.dk_comprovantes_cliente_pendentes.map((rec) => {
+        if (!rec || typeof rec !== "object") return rec;
+        if (!rec.arquivoBase64) return rec;
+        const { arquivoBase64, ...rest } = rec;
+        return rest;
+      });
+    }
+    return out;
+  }
+
+  function attachComprovanteMediaFromSecondary(primary, secondary) {
+    const out = { ...primary };
+    if (
+      secondary &&
+      !String(out.arquivoBase64 || "").trim() &&
+      String(secondary.arquivoBase64 || "").trim()
+    ) {
+      out.arquivoBase64 = secondary.arquivoBase64;
+      if (!out.mimeType && secondary.mimeType) out.mimeType = secondary.mimeType;
+    }
+    return out;
+  }
+
+  function mergeComprovanteClienteRecords(prev, rec) {
+    if (!prev) return rec;
+    if (!rec) return prev;
+    if (comprovanteClienteRank(rec) >= comprovanteClienteRank(prev)) {
+      return attachComprovanteMediaFromSecondary(rec, prev);
+    }
+    return attachComprovanteMediaFromSecondary(prev, rec);
+  }
+
   const DK_IMMUTABLE_CADASTRO_KEYS = new Set([
     "dk_clientes_cadastro",
     "dk_portal_clientes_cadastro",
@@ -330,7 +367,10 @@
         const res = await fetch(urls[i], {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ payload, updated_at: updatedAt }),
+          body: JSON.stringify({
+            payload: shrinkPayloadForRedundantCloud(payload),
+            updated_at: updatedAt,
+          }),
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data?.ok) {
@@ -398,11 +438,15 @@
     }
     if (!supaOk && redisOk) {
       return {
-        text: `Supabase indisponível — dados guardados na cópia Redis${supaErr ? ` (${supaErr})` : ""}.`,
+        text:
+          "Supabase indisponível — cadastros e comprovantes (metadados/assinaturas) guardados na cópia Redis. As imagens dos comprovantes ficam neste PC até o Supabase voltar.",
         tone: "ok",
       };
     }
-    const detail = String(supaErr || redisErr || "ambos falharam");
+    const parts = [];
+    if (supaErr) parts.push(`Supabase: ${supaErr}`);
+    if (redisErr) parts.push(`Redis: ${redisErr}`);
+    const detail = parts.length ? parts.join(" · ") : "ambos falharam";
     return { text: `Erro ao guardar na nuvem: ${detail}`, tone: null };
   }
 
@@ -494,9 +538,7 @@
     const push = (rec) => {
       if (!rec || typeof rec !== "object" || !rec.id) return;
       const prev = byId.get(rec.id);
-      if (!prev || comprovanteClienteRank(rec) >= comprovanteClienteRank(prev)) {
-        byId.set(rec.id, rec);
-      }
+      byId.set(rec.id, mergeComprovanteClienteRecords(prev, rec));
     };
     (Array.isArray(localArr) ? localArr : []).forEach(push);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(push);
@@ -821,10 +863,12 @@
     setMsg("A guardar na nuvem (Supabase + cópia Redis)…", "muted");
     const r = await upsertSnapshotRow(true);
     if (!r.ok) return;
-    setMsg(
-      "Dados guardados. Noutro aparelho abra o site ou use «Carregar da nuvem» — se o Supabase falhar, a cópia Redis atende.",
-      "ok"
-    );
+    if (r.supaOk && r.redisOk) {
+      setMsg(
+        "Dados guardados. Noutro aparelho abra o site ou use «Carregar da nuvem» — se o Supabase falhar, a cópia Redis atende.",
+        "ok"
+      );
+    }
   }
 
   function readBackupSendSecret() {
