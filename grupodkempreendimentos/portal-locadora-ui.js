@@ -4933,8 +4933,8 @@ ${printable.innerHTML}
       if (digFn(r.cpf) !== cpf) continue;
       if (portalNormProtoRelatorio(r.protocolo) !== proto) continue;
       if (String(r.status || "") !== "confirmado") continue;
-      if (r.pagamentoInvalidado) continue;
       const id = String(r.id || "").trim();
+      const invalidado = Boolean(r.pagamentoInvalidado);
       map.set(id || `cc_${r.confirmadoEm}`, {
         enviadoEm: r.enviadoEm,
         confirmadoEm: r.confirmadoEm,
@@ -4943,6 +4943,8 @@ ${printable.innerHTML}
         arquivoUrl: String(r.arquivoBase64 || "").trim(),
         nomeArquivo: String(r.nomeArquivo || "comprovante").trim(),
         comprovanteId: id,
+        invalidado,
+        invalidadoPor: String(r.pagamentoInvalidadoPor || "").trim(),
       });
     }
 
@@ -4952,6 +4954,7 @@ ${printable.innerHTML}
       const id = String(lan.origemComprovanteClienteId || "").trim();
       if (id && map.has(id)) continue;
       const ex = id ? loadComprovantesClienteParaRelatorio().find((x) => x.id === id) : null;
+      const invalidado = Boolean(ex?.pagamentoInvalidado || lan.pagamentoInvalidado);
       const key = id || `lan_${lan.createdAt || lan.data}`;
       map.set(key, {
         enviadoEm: lan.comprovanteClienteEnviadoEm || ex?.enviadoEm || "",
@@ -4963,12 +4966,19 @@ ${printable.innerHTML}
         arquivoUrl: ex?.arquivoBase64 ? String(ex.arquivoBase64).trim() : "",
         nomeArquivo: String(ex?.nomeArquivo || "").trim(),
         comprovanteId: id,
+        invalidado,
+        invalidadoPor: String(ex?.pagamentoInvalidadoPor || "").trim(),
       });
     }
 
     return Array.from(map.values())
       .filter((x) => Number.isFinite(x.valor) && x.valor > 0)
-      .sort((a, b) => Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0));
+      .sort((a, b) => {
+        const ai = a.invalidado ? 1 : 0;
+        const bi = b.invalidado ? 1 : 0;
+        if (ai !== bi) return ai - bi;
+        return Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0);
+      });
   }
 
   function buildPortalRelatorioValidadosAppClienteHtml(validados, eh, opts) {
@@ -4985,25 +4995,31 @@ ${printable.innerHTML}
     if (showInvalidate) html += `<th>${eh("Ações")}</th>`;
     html += `</tr></thead><tbody>`;
     for (const v of validados) {
+      const inv = Boolean(v.invalidado);
+      const rowCls = inv ? ' class="validados-app-row--invalidado"' : "";
       const vf =
         typeof currencyBRL === "function"
           ? currencyBRL(v.valor)
           : Number(v.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
       let valorCell = eh(vf);
       const compId = String(v.comprovanteId || "").trim();
+      const lnkCls = inv ? "lnk-comprovante lnk-comprovante--invalidado" : "lnk-comprovante";
       if (compId) {
-        valorCell = `<button type="button" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</button>`;
+        valorCell = `<button type="button" class="${lnkCls}" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</button>`;
       }
-      html += `<tr>
+      html += `<tr${rowCls}>
         <td>${eh(portalFormatIsoRelatorio(v.enviadoEm))}</td>
         <td>${eh(portalFormatIsoRelatorio(v.confirmadoEm))}</td>
         <td>${eh(v.validadoPorNome)}</td>
         <td>${valorCell}</td>`;
       if (showInvalidate) {
-        const invBtn = compId
-          ? `<button type="button" class="btn-invalidate-pagamento" data-dk-inv-pagamento-id="${eh(compId)}">Invalidar pagamento</button>`
-          : `<span class="meta">—</span>`;
-        html += `<td>${invBtn}</td>`;
+        let acaoCell = `<span class="meta">—</span>`;
+        if (inv) {
+          acaoCell = `<span class="validados-app-invalidado-label">Invalidado</span>`;
+        } else if (compId) {
+          acaoCell = `<button type="button" class="btn-invalidate-pagamento" data-dk-inv-pagamento-id="${eh(compId)}">Invalidar pagamento</button>`;
+        }
+        html += `<td>${acaoCell}</td>`;
       }
       html += `</tr>`;
     }
@@ -7413,6 +7429,9 @@ ${printable.innerHTML}
       table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font:inherit}
       table.validados-app .btn-invalidate-pagamento{font-size:11px;padding:4px 8px;border:1px solid #b71c1c;color:#b71c1c;background:#fff;border-radius:4px;cursor:pointer;white-space:nowrap}
       table.validados-app .btn-invalidate-pagamento:hover{background:#ffebee}
+      table.validados-app tr.validados-app-row--invalidado td{color:#c62828}
+      table.validados-app tr.validados-app-row--invalidado .lnk-comprovante{color:#c62828;text-decoration:line-through}
+      table.validados-app .validados-app-invalidado-label{color:#c62828;font-weight:600;font-size:11px}
       .portal-validados-vazio{margin-top:0.75rem}
       hr{border:none;border-top:1px solid #ccc;margin:1rem 0}
     </style></head><body>

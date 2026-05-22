@@ -2456,6 +2456,21 @@ table.validados-app .btn-invalidate-pagamento:hover {
   background: rgba(198, 40, 40, 0.08);
 }
 
+table.validados-app tr.validados-app-row--invalidado td {
+  color: #c62828;
+}
+
+table.validados-app tr.validados-app-row--invalidado .lnk-comprovante {
+  color: #c62828;
+  text-decoration: line-through;
+}
+
+table.validados-app .validados-app-invalidado-label {
+  color: #c62828;
+  font-weight: 600;
+  font-size: 0.78rem;
+}
+
 table.validados-app .lnk-comprovante {
   background: none;
   border: none;

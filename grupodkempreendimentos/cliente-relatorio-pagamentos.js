@@ -319,7 +319,6 @@
       if (onlyDigits(r.cpf) !== cpfD) continue;
       if (normProto(r.protocolo) !== pNorm) continue;
       if (r.status !== "confirmado") continue;
-      if (r.pagamentoInvalidado) continue;
       const id = String(r.id || "").trim();
       map.set(id || `c_${r.confirmadoEm}`, {
         enviadoEm: r.enviadoEm,
@@ -329,6 +328,7 @@
         arquivoUrl: String(r.arquivoBase64 || "").trim(),
         nomeArquivo: String(r.nomeArquivo || "").trim(),
         comprovanteId: id,
+        invalidado: Boolean(r.pagamentoInvalidado),
       });
     }
 
@@ -353,7 +353,12 @@
 
     return Array.from(map.values())
       .filter((x) => x.valor > 0)
-      .sort((a, b) => Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0));
+      .sort((a, b) => {
+        const ai = a.invalidado ? 1 : 0;
+        const bi = b.invalidado ? 1 : 0;
+        if (ai !== bi) return ai - bi;
+        return Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0);
+      });
   }
 
   function buildValidadosHtml(validados, eh) {
@@ -368,13 +373,16 @@
       <th>${eh("Valor pago")}</th>
     </tr></thead><tbody>`;
     for (const v of validados) {
+      const inv = Boolean(v.invalidado);
+      const rowCls = inv ? ' class="validados-app-row--invalidado"' : "";
       const vf = currencyBRL(v.valor);
       let valorCell = eh(vf);
       const compId = String(v.comprovanteId || "").trim();
+      const lnkCls = inv ? "lnk-comprovante lnk-comprovante--invalidado" : "lnk-comprovante";
       if (compId) {
-        valorCell = `<button type="button" class="lnk-comprovante" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</button>`;
+        valorCell = `<button type="button" class="${lnkCls}" data-dk-comprovante-id="${eh(compId)}" title="${eh(v.nomeArquivo || "Comprovante")}">${eh(vf)} — ${eh("Ver comprovante")}</button>`;
       }
-      html += `<tr>
+      html += `<tr${rowCls}>
         <td>${eh(formatIso(v.enviadoEm))}</td>
         <td>${eh(formatIso(v.confirmadoEm))}</td>
         <td>${eh(v.validadoPorNome)}</td>
