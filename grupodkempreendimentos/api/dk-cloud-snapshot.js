@@ -7,7 +7,7 @@
  * GET  /api/dk-cloud-snapshot → { ok, payload, updated_at, source: "redis" }
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
-const { Redis } = require("@upstash/redis");
+const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 
 const REDIS_KEY = "dk:portal:cloud_snapshot:v1";
 const LABEL = "default";
@@ -85,11 +85,11 @@ module.exports = async function handler(req, res) {
     return res.status(204).end();
   }
 
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
 
-  const redis = Redis.fromEnv();
+  const redis = createRedisClient();
 
   try {
     if (req.method === "GET") {

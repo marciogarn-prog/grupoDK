@@ -36,6 +36,15 @@ if (fs.existsSync(repoApiDir)) {
     fs.copyFileSync(path.join(repoApiDir, name), path.join(portalApiDir, name));
   }
 }
+const repoLibDir = path.join(repoRoot, "lib");
+const portalLibDir = path.join(portalDir, "lib");
+if (fs.existsSync(repoLibDir)) {
+  fs.mkdirSync(portalLibDir, { recursive: true });
+  for (const name of fs.readdirSync(repoLibDir)) {
+    if (!name.endsWith(".cjs") && !name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(repoLibDir, name), path.join(portalLibDir, name));
+  }
+}
 
 fs.rmSync(outDir, { recursive: true, force: true });
 fs.mkdirSync(outDir, { recursive: true });
@@ -44,6 +53,25 @@ fs.cpSync(portalDir, outDir, { recursive: true });
 const nestedApi = path.join(outDir, "api");
 if (fs.existsSync(nestedApi)) {
   fs.rmSync(nestedApi, { recursive: true, force: true });
+}
+/* API serverless na Vercel: api/ + lib/ (Redis helper). */
+const outApi = path.join(outDir, "api");
+const srcApi = path.join(portalDir, "api");
+const srcLib = path.join(portalDir, "lib");
+if (fs.existsSync(srcApi)) {
+  fs.mkdirSync(outApi, { recursive: true });
+  for (const name of fs.readdirSync(srcApi)) {
+    if (!name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(srcApi, name), path.join(outApi, name));
+  }
+}
+if (fs.existsSync(srcLib)) {
+  const outLib = path.join(outDir, "lib");
+  fs.mkdirSync(outLib, { recursive: true });
+  for (const name of fs.readdirSync(srcLib)) {
+    if (!name.endsWith(".cjs") && !name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(srcLib, name), path.join(outLib, name));
+  }
 }
 
 /* Injeta credenciais Supabase nas meta tags (variáveis na Vercel: SUPABASE_URL, SUPABASE_ANON_KEY). */

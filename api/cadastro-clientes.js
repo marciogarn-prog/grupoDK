@@ -2,7 +2,7 @@
  * Sincronização do cadastro de clientes (API no root do projeto para Vercel).
  * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
  */
-const { Redis } = require("@upstash/redis");
+const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeClientesCadastro } = require("./dk-append-only-merge");
 
 const STORAGE_KEY = "dk:portal:clientes_cadastro:v1";
@@ -42,11 +42,11 @@ module.exports = async function handler(req, res) {
     return res.status(204).end();
   }
 
-  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+  if (!isRedisKvConfigured()) {
     return res.status(503).json({ ok: false, reason: "kv_not_configured" });
   }
 
-  const redis = Redis.fromEnv();
+  const redis = createRedisClient();
 
   try {
     if (req.method === "GET") {
