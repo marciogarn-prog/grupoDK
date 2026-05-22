@@ -3774,11 +3774,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
 
     invalidateComprovantesCache();
-    if (typeof window.__DK_markLocalDataAuthority === "function") {
-      window.__DK_markLocalDataAuthority(60 * 60 * 1000);
-    }
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      report.cloud = await window.__DK_pushCloudSnapshotNow();
+      report.cloud = await window.__DK_pushCloudSnapshotNow({ replace: true });
     }
     if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
       await window.__DK_refreshComprovantesClienteLista();

@@ -218,7 +218,6 @@
         continue;
       }
       if (k === "dk_comprovantes_cliente_pendentes") {
-        const localArr = readLocalJsonArray(k);
         let cloudArr = [];
         if (Array.isArray(v)) cloudArr = v;
         else if (typeof v === "string") {
@@ -229,11 +228,15 @@
             cloudArr = [];
           }
         }
-        localStorage.setItem(k, JSON.stringify(mergeComprovantesClientePendentes(localArr, cloudArr)));
+        if (replace) {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
+        } else {
+          const localArr = readLocalJsonArray(k);
+          localStorage.setItem(k, JSON.stringify(mergeComprovantesClientePendentes(localArr, cloudArr)));
+        }
         continue;
       }
       if (k === "dk_cliente_notificacoes") {
-        const localArr = readLocalJsonArray(k);
         let cloudArr = [];
         if (Array.isArray(v)) cloudArr = v;
         else if (typeof v === "string") {
@@ -244,7 +247,12 @@
             cloudArr = [];
           }
         }
-        localStorage.setItem(k, JSON.stringify(mergeClienteNotificacoes(localArr, cloudArr)));
+        if (replace) {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
+        } else {
+          const localArr = readLocalJsonArray(k);
+          localStorage.setItem(k, JSON.stringify(mergeClienteNotificacoes(localArr, cloudArr)));
+        }
         continue;
       }
       if (typeof v === "string") {
@@ -358,18 +366,33 @@
     return null;
   }
 
-  async function pushRedundantSnapshotPayload(payload, updatedAt) {
+  async function pushRedundantSnapshotPayload(payload, updatedAt, opts) {
+    const replace = Boolean(opts && opts.replace);
     const urls = resolveRedundantSnapshotApiUrls();
     let anyOk = false;
     let lastErr = null;
+    const bodyPayload = shrinkPayloadForRedundantCloud(payload);
+    if (replace) {
+      bodyPayload._dkFullReplaceKeys = [
+        "dk_comprovantes_cliente_pendentes",
+        "dk_cliente_notificacoes",
+        "dk_locacoes_cadastro",
+        "dk_lancamentos_aluguel",
+        "dk_lancamentos_aluguel_cadastro",
+        "dk_comprovantes_banco_assinaturas",
+        "dk_comprovantes_banco",
+        "dk_cliente_comprovantes_enviados",
+      ];
+    }
     for (let i = 0; i < urls.length; i += 1) {
       try {
         const res = await fetch(urls[i], {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            payload: shrinkPayloadForRedundantCloud(payload),
+            payload: bodyPayload,
             updated_at: updatedAt,
+            replace,
           }),
         });
         const data = await res.json().catch(() => ({}));
@@ -424,6 +447,45 @@
         : redis.payload;
     }
     return cloudMerged;
+  }
+
+  function pickNewestCloudPayloadWithMeta(supa, redis) {
+    const row = pickNewestCloudRow([supa, redis]);
+    if (!row?.payload) return null;
+    return { payload: row.payload, updated_at: row.updated_at || null };
+  }
+
+  function cloudSnapshotIsNewerThanLastPush(cloudUpdatedAt) {
+    const cloudTs = Date.parse(String(cloudUpdatedAt || "")) || 0;
+    if (!cloudTs) return false;
+    let lastPush = 0;
+    try {
+      lastPush = Date.parse(localStorage.getItem(DK_CLOUD_LAST_PUSH_AT_KEY) || "") || 0;
+    } catch {
+      lastPush = 0;
+    }
+    return cloudTs > lastPush + 500;
+  }
+
+  function applyCloudComprovantesIfNewer(localPayload, cloudMeta) {
+    if (!cloudMeta?.payload) return localPayload;
+    if (!cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
+      return mergePayloadWithCloudBeforePush(localPayload, cloudMeta.payload);
+    }
+    const out = { ...localPayload };
+    if (Object.prototype.hasOwnProperty.call(cloudMeta.payload, "dk_comprovantes_cliente_pendentes")) {
+      out.dk_comprovantes_cliente_pendentes = Array.isArray(
+        cloudMeta.payload.dk_comprovantes_cliente_pendentes
+      )
+        ? cloudMeta.payload.dk_comprovantes_cliente_pendentes
+        : [];
+    }
+    if (Object.prototype.hasOwnProperty.call(cloudMeta.payload, "dk_cliente_notificacoes")) {
+      out.dk_cliente_notificacoes = Array.isArray(cloudMeta.payload.dk_cliente_notificacoes)
+        ? cloudMeta.payload.dk_cliente_notificacoes
+        : [];
+    }
+    return out;
   }
 
   function formatPushResultMessage(supaOk, redisOk, supaErr, redisErr) {
@@ -659,7 +721,8 @@
     }
   }
 
-  async function upsertSnapshotRow(showUserMessages) {
+  async function upsertSnapshotRow(showUserMessages, opts) {
+    const forceReplace = Boolean(opts && opts.replace);
     let payload = collectPayloadFromLocalStorage();
     if (
       typeof window.__DK_comprovantesClientePayloadParaNuvem === "function" &&
@@ -677,9 +740,13 @@
       fetchSupabaseSnapshotPayload(),
       fetchRedundantSnapshotPayload(),
     ]);
-    const cloudMerged = mergeRemoteSnapshotsBeforePush(supaRow, redisRow);
-    if (cloudMerged) {
-      payload = mergePayloadWithCloudBeforePush(payload, cloudMerged);
+    const cloudMeta = pickNewestCloudPayloadWithMeta(supaRow, redisRow);
+    if (cloudMeta?.payload && !forceReplace) {
+      if (cloudSnapshotIsNewerThanLastPush(cloudMeta.updated_at)) {
+        payload = applyCloudComprovantesIfNewer(payload, cloudMeta);
+      } else {
+        payload = mergePayloadWithCloudBeforePush(payload, cloudMeta.payload);
+      }
       persistMergedPayloadToLocal(payload);
     }
     const updatedAt = new Date().toISOString();
@@ -704,7 +771,7 @@
       supaErr = "Supabase não configurado";
     }
 
-    const red = await pushRedundantSnapshotPayload(payload, updatedAt);
+    const red = await pushRedundantSnapshotPayload(payload, updatedAt, { replace: forceReplace });
     redisOk = red.ok;
     if (!redisOk) redisErr = String(red.error || "Redis indisponível");
 
@@ -726,8 +793,8 @@
     };
   }
 
-  async function pushSnapshotQuiet() {
-    const r = await upsertSnapshotRow(false);
+  async function pushSnapshotQuiet(opts) {
+    const r = await upsertSnapshotRow(false, opts);
     if (r.ok) {
       const src =
         r.source === "both"
@@ -741,10 +808,10 @@
   }
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
-  async function pushCloudSnapshotNow() {
+  async function pushCloudSnapshotNow(opts) {
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    return pushSnapshotQuiet();
+    return pushSnapshotQuiet(opts);
   }
 
   try {
