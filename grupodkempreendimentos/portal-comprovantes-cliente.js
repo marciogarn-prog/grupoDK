@@ -3623,6 +3623,76 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteTemPendentesNuvem = function temPendentesNuvem() {
     return loadAll({ leitura: true }).some((r) => r.syncNuvem === "pendente");
   };
+
+  /** Remove comprovantes, notificações, locações e lançamentos dos CPFs (teste / reinício). */
+  async function purgeClientesPorCpf(cpfs) {
+    const set = new Set(
+      (Array.isArray(cpfs) ? cpfs : String(cpfs || "").split(/[,;]/))
+        .map((c) => onlyDigits(c).slice(0, 11))
+        .filter((c) => c.length === 11)
+    );
+    const report = { cpfs: [...set], removed: {} };
+    if (!set.size) return { ok: false, msg: "Informe CPF(s) com 11 dígitos." };
+
+    const allCc = loadAllRaw();
+    for (const r of allCc) {
+      if (!set.has(onlyDigits(r.cpf).slice(0, 11))) continue;
+      if (r.id) await removerArquivoComprovanteIdb(r.id);
+    }
+
+    const filterLsArray = (key, cpfField = "cpf") => {
+      let arr = [];
+      try {
+        const raw = localStorage.getItem(key);
+        arr = raw ? JSON.parse(raw) : [];
+      } catch {
+        arr = [];
+      }
+      if (!Array.isArray(arr)) return;
+      const antes = arr.length;
+      const kept = arr.filter((r) => !set.has(onlyDigits(r[cpfField]).slice(0, 11)));
+      localStorage.setItem(key, JSON.stringify(kept));
+      report.removed[key] = antes - kept.length;
+    };
+
+    filterLsArray(STORAGE_KEY);
+    filterLsArray("dk_cliente_notificacoes");
+    filterLsArray(BANCO_ASSINATURAS_KEY);
+    filterLsArray("dk_cliente_comprovantes_enviados");
+
+    const cadLocKey =
+      typeof CAD_LOCACOES_KEY !== "undefined" ? CAD_LOCACOES_KEY : "dk_locacoes_cadastro";
+    if (typeof loadCadastro === "function" && typeof saveCadastro === "function") {
+      let locs = loadCadastro(cadLocKey);
+      const antes = locs.length;
+      locs = locs.filter((l) => !set.has(onlyDigits(l.cpf).slice(0, 11)));
+      saveCadastro(cadLocKey, locs, { bypassImmutabilidadeCadastro: true });
+      report.removed.dk_locacoes_cadastro = antes - locs.length;
+    }
+
+    const lancKey =
+      typeof CAD_LANCAMENTOS_ALUGUEL_KEY !== "undefined"
+        ? CAD_LANCAMENTOS_ALUGUEL_KEY
+        : "dk_lancamentos_aluguel";
+    filterLsArray(lancKey, "cpf");
+
+    invalidateComprovantesCache();
+    if (typeof window.__DK_markLocalDataAuthority === "function") {
+      window.__DK_markLocalDataAuthority(60 * 60 * 1000);
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      report.cloud = await window.__DK_pushCloudSnapshotNow();
+    }
+    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+      await window.__DK_refreshComprovantesClienteLista();
+    } else {
+      renderListaOperador();
+      renderListaRecusados72h();
+    }
+    return { ok: true, report };
+  }
+
+  window.__DK_purgeClientesPorCpf = purgeClientesPorCpf;
   window.__DK_refreshComprovantesClienteLista = async function refreshComprovantesClienteLista() {
     refreshOperadorConferenciaHint();
     const rep = await repararHistoricoComprovantesNuvem();
