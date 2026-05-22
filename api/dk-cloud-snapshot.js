@@ -34,9 +34,23 @@ function isObject(v) {
   return v && typeof v === "object" && !Array.isArray(v);
 }
 
+/** Pontuação de merge: invalidado pelo admin vence «confirmado» antigo na nuvem. */
+function comprovanteClienteMergeScore(r) {
+  if (!r || typeof r !== "object") return 0;
+  if (r.pagamentoInvalidado) {
+    return 1e20 + (Date.parse(r.pagamentoInvalidadoEm || r.rejeitadoEm || 0) || 0);
+  }
+  const st = String(r.status || "").trim();
+  if (st === "rejeitado" && r.rejeitadoAutomatico === false) {
+    return 5e16 + (Date.parse(r.rejeitadoEm || 0) || 0);
+  }
+  const rank = { confirmado: 4, ia_validado: 3, pendente: 2, rejeitado: 1 };
+  const base = rank[st] || 0;
+  return base * 1e15 + (Date.parse(r.enviadoEm || 0) || 0);
+}
+
 /** Merge mínimo de comprovantes (mesma ideia do portal). */
 function mergeComprovantesClientePendentes(localArr, cloudArr) {
-  const rank = { confirmado: 4, ia_validado: 3, pendente: 2, rejeitado: 1 };
   const byId = new Map();
   const push = (r) => {
     if (!r || typeof r !== "object" || !r.id) return;
@@ -45,8 +59,8 @@ function mergeComprovantesClientePendentes(localArr, cloudArr) {
       byId.set(r.id, r);
       return;
     }
-    const rp = rank[r.status] || 0;
-    const pp = rank[prev.status] || 0;
+    const rp = comprovanteClienteMergeScore(r);
+    const pp = comprovanteClienteMergeScore(prev);
     if (rp > pp) byId.set(r.id, r);
     else if (rp === pp) {
       const te = Date.parse(r.enviadoEm || 0) || 0;
