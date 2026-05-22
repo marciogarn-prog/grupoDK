@@ -8,7 +8,8 @@ const BASE = (process.env.DK_TEST_BASE || "https://grupodkempreendimentos.com.br
   /\/?$/,
   "/"
 );
-const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix";
+const EXPECT_BUNDLE_CLIENTE = process.env.DK_EXPECT_BUNDLE_CLIENTE || "20260522jose-040-fix";
+const EXPECT_BUNDLE_PORTAL = process.env.DK_EXPECT_BUNDLE_PORTAL || "20260522lanc-aluguel-menu";
 
 const JOSE_CPF = "19174403400";
 const PROTO = "2026010101";
@@ -35,11 +36,11 @@ async function main() {
 
   try {
     const html0 = await (await fetch(`${BASE}cliente.html`)).text();
-    record(`bundle cliente ${EXPECT_BUNDLE}`, html0.includes(EXPECT_BUNDLE));
+    record(`bundle cliente ${EXPECT_BUNDLE_CLIENTE}`, html0.includes(EXPECT_BUNDLE_CLIENTE));
 
     await loginOwner(page);
     const html = await page.content();
-    record(`bundle portal ${EXPECT_BUNDLE}`, html.includes(EXPECT_BUNDLE));
+    record(`bundle portal ${EXPECT_BUNDLE_PORTAL}`, html.includes(EXPECT_BUNDLE_PORTAL));
 
     await page.evaluate(async () => {
       if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
@@ -67,6 +68,7 @@ async function main() {
         dataPagamento: "20/05/2026",
         enviadoEm: new Date().toISOString(),
         syncNuvem: "ok",
+        origem: "app_cliente",
         iaValidacao: {
           validadoEm: new Date().toISOString(),
           valor: 40,
@@ -125,8 +127,16 @@ async function main() {
 
     await page.locator("text=Operação").first().click();
     await page.waitForTimeout(500);
-    await page.locator("text=Lançamento de aluguel").first().click();
+    await page.locator("#btn-operacao-lancamento-aluguel").click();
+    await page.waitForTimeout(600);
+    await page.locator("#btn-lanc-aluguel-validacao").click();
     await page.waitForTimeout(1200);
+    await page.evaluate(async () => {
+      if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+        await window.__DK_refreshComprovantesClienteLista();
+      }
+    });
+    await page.waitForTimeout(800);
 
     const listaHtml = await page.locator("#portalComprovanteClienteLista").innerText();
     record(

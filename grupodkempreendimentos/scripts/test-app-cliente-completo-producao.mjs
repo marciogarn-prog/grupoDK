@@ -30,10 +30,11 @@ function runScript(script) {
       env: {
         ...process.env,
         DK_EXPECT_BUNDLE:
-          script === "test-invalidar-pagamento-producao.mjs" ||
           script === "test-lancamento-aluguel-subdiv-producao.mjs"
-            ? "20260522lanc-subdiv"
-            : process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix",
+            ? "20260522lanc-aluguel-menu"
+            : script === "test-invalidar-pagamento-producao.mjs"
+              ? process.env.DK_EXPECT_BUNDLE || "20260522lanc-aluguel-menu"
+              : process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix",
       },
     });
     let out = "";
