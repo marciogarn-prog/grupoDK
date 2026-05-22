@@ -5052,13 +5052,51 @@ ${printable.innerHTML}
       /* ignore */
     }
 
+    const agora = new Date().toISOString();
+    const valorExib =
+      typeof currencyBRL === "function"
+        ? currencyBRL(rec.valorRegistadoProtocolo ?? rec.valor ?? 0)
+        : String(rec.valorRegistadoProtocolo ?? rec.valor ?? 0);
+    const dataPag = String(rec.dataPagamento || "").trim() || "—";
+    const msgCliente = `O pagamento de ${valorExib} (${dataPag}) foi invalidado pela DK e não conta nos totais.`;
+    const msgInterno = `Pagamento invalidado pelo administrador (${sessNome}). Não contabiliza no protocolo.`;
+    let sessCpf = "";
+    try {
+      const sess = JSON.parse(localStorage.getItem("dk_sessao_cliente") || "null");
+      sessCpf = String(sess?.cpf || "").replace(/\D/g, "").slice(0, 11);
+    } catch {
+      /* ignore */
+    }
+
     arr[ci] = {
       ...rec,
       pagamentoInvalidado: true,
-      pagamentoInvalidadoEm: new Date().toISOString(),
+      pagamentoInvalidadoEm: agora,
       pagamentoInvalidadoPor: sessNome,
+      status: "rejeitado",
+      rejeitadoEm: agora,
+      rejeitadoAutomatico: false,
+      rejeitadoPorCpf: sessCpf,
+      rejeitadoPorNome: sessNome,
+      rejeitadoMotivo: msgInterno,
+      rejeitadoMotivoCliente: msgCliente,
     };
     salvarComprovantesClienteParaRelatorio(arr);
+
+    if (typeof window.__DK_clienteNotificacaoComprovanteRejeitado === "function") {
+      try {
+        window.__DK_clienteNotificacaoComprovanteRejeitado({
+          cpf: cpfDigits,
+          protocolo: proto,
+          valor: Number(rec.valorRegistadoProtocolo ?? rec.valor ?? 0),
+          dataPagamento: dataPag,
+          comprovanteId: id,
+          mensagem: msgCliente,
+        });
+      } catch (e) {
+        console.warn("[DK portal] notificação recusa após invalidar", e);
+      }
+    }
 
     if (
       cpfDigits.length === 11 &&
@@ -5105,6 +5143,9 @@ ${printable.innerHTML}
     }
     if (typeof window.__DK_comprovantesClienteRenderListaValidados === "function") {
       window.__DK_comprovantesClienteRenderListaValidados();
+    }
+    if (typeof window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao === "function") {
+      window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao();
     }
     if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
       try {

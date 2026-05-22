@@ -1675,11 +1675,19 @@
     const limite = Date.now() - HORAS_RECUSADOS_OPERADOR * 60 * 60 * 1000;
     return loadAll()
       .filter((r) => {
+        if (r.pagamentoInvalidado) {
+          const t = Date.parse(r.pagamentoInvalidadoEm || r.rejeitadoEm || 0);
+          return t >= limite;
+        }
         if (r.status !== STATUS.REJEITADO) return false;
         const t = Date.parse(r.rejeitadoEm || r.enviadoEm || 0);
         return t >= limite;
       })
-      .sort((a, b) => Date.parse(b.rejeitadoEm || 0) - Date.parse(a.rejeitadoEm || 0));
+      .sort((a, b) => {
+        const tb = Date.parse(b.pagamentoInvalidadoEm || b.rejeitadoEm || 0);
+        const ta = Date.parse(a.pagamentoInvalidadoEm || a.rejeitadoEm || 0);
+        return tb - ta;
+      });
   }
 
   function contarPendentesAutoProcessamento() {
@@ -2791,11 +2799,15 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     if (r?.status === STATUS.IA_OK && r.reabertoParaOperadorEm) {
       return "Reaberto — aguarda confirmação";
     }
+    if (r?.pagamentoInvalidado) return "Invalidado pelo administrador";
     if (r?.status === STATUS.REJEITADO) {
       if (String(r.rejeitadoMotivo || "").toLowerCase().includes("mesma imagem")) {
         return "Arquivado (mesma imagem)";
       }
       if (String(r.rejeitadoMotivo || "").includes("duplicidade")) return "Arquivado (envio duplicado)";
+      if (String(r.rejeitadoMotivo || "").toLowerCase().includes("invalidado")) {
+        return "Invalidado pelo administrador";
+      }
       return r.rejeitadoAutomatico ? "Recusado (automático)" : "Recusado pelo operador";
     }
     return statusLabel(r?.status);
@@ -2832,7 +2844,11 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
           const valorUi = valorInformadoDivergeDaIA(r)
             ? `${escapeHtml(currencyBRL(r.valor))} <span class="subtext">(imagem: ${escapeHtml(currencyBRL(valorIaBrutoRec(r) || valorIaEfetivoRec(r)))})</span>`
             : escapeHtml(currencyBRL(r.valor));
-          return `<tr>
+          const rowCls =
+            opts?.listaRecusados && r.pagamentoInvalidado
+              ? ' class="portal-cc-recusado-row--invalidado-admin"'
+              : "";
+          return `<tr${rowCls}>
             <td>${escapeHtml(env)}</td>
             <td>${escapeHtml(r.nomeCliente || r.cpf)}</td>
             <td>${escapeHtml(r.protocolo)}</td>
@@ -2892,16 +2908,11 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     });
   }
 
-  /** Todos os comprovantes confirmados pelo operador (inclui invalidados pelo administrador). */
+  /** Confirmados pelo operador que ainda contabilizam (exclui invalidados → vão para recusados). */
   function listarPagamentosValidadosOperador() {
     return loadAll()
-      .filter((r) => r.status === STATUS.CONFIRMADO)
-      .sort((a, b) => {
-        const ai = a.pagamentoInvalidado ? 1 : 0;
-        const bi = b.pagamentoInvalidado ? 1 : 0;
-        if (ai !== bi) return ai - bi;
-        return Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0);
-      });
+      .filter((r) => r.status === STATUS.CONFIRMADO && !r.pagamentoInvalidado)
+      .sort((a, b) => Date.parse(b.confirmadoEm || 0) - Date.parse(a.confirmadoEm || 0));
   }
 
   function renderListaValidados() {
@@ -2916,26 +2927,19 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         '<p class="subtext">Nenhum pagamento validado pelo operador neste navegador. Confirme comprovantes na fila acima ou atualize da nuvem.</p>';
       return;
     }
-    const nAtivos = rows.filter((r) => !r.pagamentoInvalidado).length;
-    const nInv = rows.length - nAtivos;
-    let html = `<p class="subtext portal-cc-hist-resumo"><strong>${nAtivos}</strong> ativo(s) contabilizados · <strong class="portal-cc-validado-invalidado-label">${nInv}</strong> invalidado(s).</p>`;
+    let html = `<p class="subtext portal-cc-hist-resumo"><strong>${rows.length}</strong> pagamento(s) ativo(s) contabilizados. Invalidados aparecem em <strong>Pagamentos recusados (72 h)</strong>.</p>`;
     html += `<table class="portal-lanc-hist portal-comprovante-cliente-table portal-cc-validados-table" aria-label="Pagamentos validados app cliente">
       <thead><tr>
         <th>Envio cliente</th><th>Validação DK</th><th>Cliente</th><th>Protocolo</th><th>Funcionário DK</th><th>Valor</th><th>Ações</th>
       </tr></thead><tbody>`;
     for (const r of rows) {
-      const inv = Boolean(r.pagamentoInvalidado);
-      const rowCls = inv
-        ? "portal-cc-validado-row portal-cc-validado-row--invalidado"
-        : "portal-cc-validado-row";
+      const rowCls = "portal-cc-validado-row";
       const env = r.enviadoEm ? new Date(r.enviadoEm).toLocaleString("pt-BR") : "—";
       const conf = r.confirmadoEm ? new Date(r.confirmadoEm).toLocaleString("pt-BR") : "—";
       const valor = currencyBRL(r.valorRegistadoProtocolo ?? r.valor ?? 0);
       const func = escapeHtml(String(r.confirmadoPorNome || "").trim() || "—");
       let acao = "—";
-      if (inv) {
-        acao = '<span class="portal-cc-validado-invalidado-label">Invalidado</span>';
-      } else if (isAdmin && r.id) {
+      if (isAdmin && r.id) {
         acao = `<button type="button" class="btn-invalidate-pagamento" data-dk-inv-pagamento-id="${escapeHtml(r.id)}">Invalidar pagamento</button>`;
       }
       const verBtn = r.id
@@ -2953,6 +2957,14 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
     html += "</tbody></table>";
     wrap.innerHTML = html;
+  }
+
+  function abrirPainelRecusadosPosInvalidacao() {
+    const painel = document.getElementById("portalComprovanteClientePainelRecusados");
+    const btn = document.getElementById("portalComprovanteClienteBtnRecusados72h");
+    if (painel) painel.classList.remove("hidden");
+    if (btn) btn.setAttribute("aria-expanded", "true");
+    renderListaRecusados72h();
   }
 
   function togglePainelValidados() {
@@ -3564,8 +3576,13 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         invalidateComprovantesCache();
         renderListaOperador();
         renderListaValidados();
+        if (res.ok) {
+          abrirPainelRecusadosPosInvalidacao();
+        }
         if (fb) {
-          fb.textContent = res.ok ? "Pagamento invalidado." : res.msg || "Não foi possível invalidar.";
+          fb.textContent = res.ok
+            ? "Pagamento invalidado — movido para Pagamentos recusados (72 h)."
+            : res.msg || "Não foi possível invalidar.";
           fb.classList.toggle("portal-feedback--erro", !res.ok);
         }
         return;
@@ -3732,6 +3749,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_comprovantesClienteListRecusados72h = listarRecusadosUltimas72h;
   window.__DK_comprovantesClienteListValidados = listarPagamentosValidadosOperador;
   window.__DK_comprovantesClienteRenderListaValidados = renderListaValidados;
+  window.__DK_comprovantesClienteAbrirPainelRecusadosPosInvalidacao = abrirPainelRecusadosPosInvalidacao;
   window.__DK_comprovantesClienteRepararHistorico = repararHistoricoComprovantesNuvem;
   window.__DK_comprovantesClienteInvalidateCache = invalidateComprovantesCache;
   window.__DK_comprovantesClientePushNuvem = pushNuvem;

@@ -2385,6 +2385,15 @@ table.portal-cc-validados-table .portal-cc-btn-ver-comp {
   padding: 0.15rem 0.4rem;
 }
 
+table.portal-comprovante-cliente-table tr.portal-cc-recusado-row--invalidado-admin td {
+  color: #c62828;
+}
+
+table.portal-comprovante-cliente-table tr.portal-cc-recusado-row--invalidado-admin .portal-cc-motivo-recusa {
+  color: #c62828;
+  font-weight: 600;
+}
+
 .portal-cc-sublista-titulo {
   margin: 1rem 0 0.5rem;
   font-size: 0.95rem;
