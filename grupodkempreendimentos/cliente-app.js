@@ -710,6 +710,9 @@
   }
 
   function renderApp(sessao) {
+    if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+      window.__DK_comprovantesClienteInvalidateCache();
+    }
     const cpf = sessao.cpf;
     const dados = loadDadosCliente(cpf);
     const locAtivas = filterLocacoesAtivas(dados.locacoes);

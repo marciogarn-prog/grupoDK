@@ -328,19 +328,35 @@
 
   function corrigirValorCentavosGravado(rec) {
     if (!rec || rec.status === STATUS.CONFIRMADO) return rec;
-    let v = roundCentavos(rec.valor);
+    const v = roundCentavos(rec.valor);
     const ia = rec.iaValidacao;
-    if (!(v >= 1 && v < 100)) return rec;
-    const candidato = roundCentavos(v / 100);
-    if (candidato <= 0 || candidato >= 1) return rec;
-    if (ia && Number.isFinite(Number(ia.valor))) {
-      const valorIa = normalizarValorLidoIa(ia.valor, candidato);
-      if (valoresIguaisCentavos(valorIa, candidato)) {
-        return { ...rec, valor: candidato, valorCorrigidoSistemaEm: new Date().toISOString() };
+    if (!(v > 0) || !ia) return rec;
+    const iaRaw = roundCentavos(parseCurrencyBR(ia.valorBruto ?? ia.valor));
+    const iaNorm = normalizarValorLidoIa(ia.valor, v);
+
+    if (v > 0 && v < 1 && iaRaw >= 1) {
+      const emReais = roundCentavos(v * 100);
+      if (
+        valoresIguaisCentavos(iaRaw, emReais) ||
+        valoresIguaisCentavos(iaNorm, emReais)
+      ) {
+        return { ...rec, valor: emReais, valorCorrigidoSistemaEm: new Date().toISOString() };
       }
     }
-    if (candidato <= 0.99) {
-      return { ...rec, valor: candidato, valorCorrigidoSistemaEm: new Date().toISOString() };
+
+    if (v >= 1 && v < 100) {
+      const candidato = roundCentavos(v / 100);
+      if (candidato > 0 && candidato < 1) {
+        if (
+          valoresIguaisCentavos(iaRaw / 100, candidato) ||
+          valoresIguaisCentavos(normalizarValorLidoIa(ia.valor, candidato), candidato)
+        ) {
+          return { ...rec, valor: candidato, valorCorrigidoSistemaEm: new Date().toISOString() };
+        }
+        if (valoresIguaisCentavos(iaRaw, v) || valoresIguaisCentavos(iaNorm, v)) {
+          return rec;
+        }
+      }
     }
     return rec;
   }
@@ -487,8 +503,23 @@
       if (r.pagamentoInvalidado) return r;
       const pag = comprovanteRegistadoNoProtocolo(r, idxPag);
       if (!pag) return r;
-      if (r.status === STATUS.CONFIRMADO && roundCentavos(r.valorRegistadoProtocolo ?? r.valor) === roundCentavos(pag.valor)) {
+      if (
+        r.status === STATUS.CONFIRMADO &&
+        roundCentavos(r.valorRegistadoProtocolo ?? r.valor) === roundCentavos(pag.valor)
+      ) {
         return r;
+      }
+      if (
+        r.status === STATUS.IA_OK &&
+        roundCentavos(r.valor) !== roundCentavos(pag.valor) &&
+        roundCentavos(pag.valor) > roundCentavos(r.valor)
+      ) {
+        changed = true;
+        return {
+          ...r,
+          valor: roundCentavos(pag.valor),
+          valorCorrigidoSistemaEm: r.valorCorrigidoSistemaEm || new Date().toISOString(),
+        };
       }
       changed = true;
       return alinharComprovanteConfirmadoComProtocolo(r, pag);
