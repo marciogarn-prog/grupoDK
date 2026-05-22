@@ -11,11 +11,14 @@ const ROOT = path.join(__dirname, "..", "..");
 
 const SUITES = [
   { name: "Portal geral", script: "test-portal-producao.mjs" },
+  { name: "Valor devido × tempo", script: "test-valor-devido-tempo-producao.mjs" },
   { name: "CPF Marcus + login José", script: "test-clientes-cpf-app-producao.mjs" },
+  { name: "Protocolo 2026010102", script: "test-protocolo-2026010102-producao.mjs" },
   { name: "De acordo", script: "test-cliente-de-acordo-producao.mjs" },
   { name: "Avisos lidos", script: "test-cliente-notificacoes-producao.mjs" },
   { name: "Centavos / fila operador", script: "test-comprovante-040-producao.mjs" },
   { name: "José 0,40 real", script: "test-jose-040-app-producao.mjs" },
+  { name: "Invalidar pagamento", script: "test-invalidar-pagamento-producao.mjs" },
 ];
 
 function runScript(script) {

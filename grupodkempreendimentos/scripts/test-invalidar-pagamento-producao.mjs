@@ -6,9 +6,12 @@
 import { chromium } from "playwright";
 
 const BASE = (process.env.DK_TEST_BASE || "https://grupodkempreendimentos.com.br/").replace(/\/?$/, "/");
-const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "invalidar-fix3";
+const EXPECT_BUNDLE = process.env.DK_EXPECT_BUNDLE || "20260522jose-040-fix";
 const OWNER_CPF = "03037897430";
 const OWNER_SENHA = process.env.DK_OWNER_SENHA || "110499@Gb";
+const TEST_ID = "cc_e2e_invalidar_fix";
+const JOSE_CPF = "19174403400";
+const PROTO_JOSE = "2026010101";
 
 const results = [];
 function record(name, ok, detail = "") {
@@ -77,25 +80,82 @@ async function main() {
     await page.locator("#portalComprovanteClienteBtnValidados").click().catch(() => {});
     await page.waitForTimeout(800);
 
-    const prep = await page.evaluate(() => {
+    const hoje = new Date();
+    const dataPag =
+      String(hoje.getDate()).padStart(2, "0") +
+      "/" +
+      String(hoje.getMonth() + 1).padStart(2, "0") +
+      "/" +
+      hoje.getFullYear();
+
+    await page.evaluate(
+      ({ testId, cpf, proto, dataPag }) => {
+        let all = [];
+        try {
+          all = JSON.parse(localStorage.getItem("dk_comprovantes_cliente_pendentes") || "[]");
+        } catch {
+          all = [];
+        }
+        if (!Array.isArray(all)) all = [];
+        const outros = all.filter((r) => r.id !== testId);
+        outros.push({
+          id: testId,
+          cpf,
+          protocolo: proto,
+          numeroContrato: proto,
+          status: "confirmado",
+          confirmadoEm: new Date().toISOString(),
+          enviadoEm: new Date().toISOString(),
+          valor: 100,
+          valorRegistadoProtocolo: 100,
+          dataPagamento: dataPag,
+          pagamentoInvalidado: false,
+          confirmadoViaAppCliente: true,
+          registradoPorNome: "E2E invalidar",
+        });
+        localStorage.setItem("dk_comprovantes_cliente_pendentes", JSON.stringify(outros));
+      },
+      { testId: TEST_ID, cpf: JOSE_CPF, proto: PROTO_JOSE, dataPag }
+    );
+    await page.waitForTimeout(500);
+
+    const prep = await page.evaluate(({ testId }) => {
       const isOwner =
         typeof window.__DK_isPortalTitularAdministrador === "function" &&
         window.__DK_isPortalTitularAdministrador();
+      let raw = [];
+      try {
+        raw = JSON.parse(localStorage.getItem("dk_comprovantes_cliente_pendentes") || "[]");
+      } catch {
+        raw = [];
+      }
+      const fixture = raw.find(
+        (r) => r.id === testId && !r.pagamentoInvalidado && r.status === "confirmado"
+      );
       const listFn = window.__DK_comprovantesClienteListValidados;
       const rows = typeof listFn === "function" ? listFn() : [];
-      const alvo = rows.find((r) => !r.pagamentoInvalidado && r.status === "confirmado" && r.id);
+      const alvo =
+        fixture ||
+        rows.find((r) => !r.pagamentoInvalidado && r.status === "confirmado" && r.id);
       return {
         isOwner,
         hasInvalidateFn: typeof window.__DK_invalidarPagamentoAppCliente === "function",
         totalValidados: rows.length,
+        fixtureNoLs: Boolean(fixture),
         alvoId: alvo?.id || "",
         alvoProto: alvo?.protocolo || "",
+        fixture: testId,
       };
-    });
+    }, { testId: TEST_ID });
 
     record("sessão é administrador titular (owner)", prep.isOwner);
     record("função __DK_invalidarPagamentoAppCliente existe", prep.hasInvalidateFn);
-    record("há pagamento validado para testar", Boolean(prep.alvoId), `id=${prep.alvoId || "—"} n=${prep.totalValidados}`);
+    record("fixture confirmado no LS", prep.fixtureNoLs, prep.fixture);
+    record(
+      "há pagamento validado para testar",
+      Boolean(prep.alvoId),
+      `id=${prep.alvoId || "—"} n=${prep.totalValidados}`
+    );
 
     if (!prep.isOwner) {
       throw new Error("Sessão não é owner — login administrador falhou.");
