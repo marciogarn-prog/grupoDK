@@ -887,6 +887,23 @@ body {
   margin: 0 0 0.35rem;
 }
 
+.portal-operador-comprovante-resumo {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: 10px;
+  background: rgba(10, 12, 18, 0.75);
+}
+
+.portal-operador-comprovante-resumo.hidden {
+  display: none;
+}
+
+.portal-operador-comprovante__actions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .operacao-inline-form {
   margin: 0 0 1.25rem;
   padding: 1rem 1.15rem;

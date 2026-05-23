@@ -37,9 +37,11 @@ async function main() {
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
     );
     record(
-      "lançamento com comprovante operador (colar)",
+      "lançamento com comprovante operador (extrair + confirmar)",
       html.includes("portalOperadorComprovantePasteZone") &&
-        html.includes("portalOperadorComprovanteEnviarBtn")
+        html.includes("portalOperadorComprovanteExtrairIaBtn") &&
+        html.includes("portalOperadorComprovanteConfirmarBtn") &&
+        html.includes("portalOperadorComprovanteResumo")
     );
     record(
       "submenu lançamento aluguel (4 painéis)",

@@ -1768,7 +1768,9 @@
       }
       return { ok: false, msg: e?.message || "Não foi possível guardar no telemóvel." };
     }
-    void processarComprovanteAutomatico(rec.id);
+    if (!payload.semProcessamentoAutomatico) {
+      void processarComprovanteAutomatico(rec.id);
+    }
     return { ok: true, id: rec.id, rec: { ...rec, arquivoBase64 } };
   }
 
@@ -2414,25 +2416,82 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   const RECEITA_TIPOS = [
-    { key: "aluguel", label: "Aluguel", checkId: "portalCcRecAluguel", valorId: "portalCcRecValorAluguel" },
-    { key: "manutencao", label: "Manutenção", checkId: "portalCcRecManutencao", valorId: "portalCcRecValorManutencao" },
-    { key: "multas", label: "Multas", checkId: "portalCcRecMultas", valorId: "portalCcRecValorMultas" },
-    { key: "outros", label: "Outros", checkId: "portalCcRecOutros", valorId: "portalCcRecValorOutros" },
+    {
+      key: "aluguel",
+      label: "Aluguel",
+      checkId: "portalCcRecAluguel",
+      valorId: "portalCcRecValorAluguel",
+      outrosDescId: "portalCcRecOutrosDesc",
+    },
+    {
+      key: "manutencao",
+      label: "Manutenção",
+      checkId: "portalCcRecManutencao",
+      valorId: "portalCcRecValorManutencao",
+      outrosDescId: "portalCcRecOutrosDesc",
+    },
+    {
+      key: "multas",
+      label: "Multas",
+      checkId: "portalCcRecMultas",
+      valorId: "portalCcRecValorMultas",
+      outrosDescId: "portalCcRecOutrosDesc",
+    },
+    {
+      key: "outros",
+      label: "Outros",
+      checkId: "portalCcRecOutros",
+      valorId: "portalCcRecValorOutros",
+      outrosDescId: "portalCcRecOutrosDesc",
+    },
+  ];
+
+  const RECEITA_TIPOS_OPERADOR = [
+    {
+      key: "aluguel",
+      label: "Aluguel",
+      checkId: "portalOpRecAluguel",
+      valorId: "portalOpRecValorAluguel",
+      outrosDescId: "portalOpRecOutrosDesc",
+    },
+    {
+      key: "manutencao",
+      label: "Manutenção",
+      checkId: "portalOpRecManutencao",
+      valorId: "portalOpRecValorManutencao",
+      outrosDescId: "portalOpRecOutrosDesc",
+    },
+    {
+      key: "multas",
+      label: "Multas",
+      checkId: "portalOpRecMultas",
+      valorId: "portalOpRecValorMultas",
+      outrosDescId: "portalOpRecOutrosDesc",
+    },
+    {
+      key: "outros",
+      label: "Outros",
+      checkId: "portalOpRecOutros",
+      valorId: "portalOpRecValorOutros",
+      outrosDescId: "portalOpRecOutrosDesc",
+    },
   ];
 
   let receitaTiposBound = false;
   let receitaTiposRecId = "";
+  let receitaTiposOperadorBound = false;
+  let receitaTiposOperadorRecId = "";
 
   function getValorTotalComprovanteRec(rec) {
     return Number(valorParaRegistoPagamento(rec));
   }
 
-  function tiposReceitaSelecionados() {
-    return RECEITA_TIPOS.filter((t) => document.getElementById(t.checkId)?.checked);
+  function tiposReceitaSelecionados(tipos = RECEITA_TIPOS) {
+    return tipos.filter((t) => document.getElementById(t.checkId)?.checked);
   }
 
-  function renderReceitaValorInputs(rec) {
-    const wrap = document.getElementById("portalCcRecValoresWrap");
+  function renderReceitaValorInputs(rec, tipos = RECEITA_TIPOS, wrapId = "portalCcRecValoresWrap") {
+    const wrap = document.getElementById(wrapId);
     if (!wrap) return;
     const sel = tiposReceitaSelecionados();
     const total = getValorTotalComprovanteRec(rec);
@@ -2447,14 +2506,14 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
         </label>`;
       })
       .join("");
-    atualizarReceitaSomaMsg(rec);
+    atualizarReceitaSomaMsg(rec, tipos, wrapId === "portalOpRecValoresWrap" ? "portalOperadorReceitaSomaMsg" : "portalComprovanteReceitaSomaMsg");
   }
 
-  function atualizarReceitaSomaMsg(rec) {
-    const msg = document.getElementById("portalComprovanteReceitaSomaMsg");
+  function atualizarReceitaSomaMsg(rec, tipos = RECEITA_TIPOS, msgId = "portalComprovanteReceitaSomaMsg") {
+    const msg = document.getElementById(msgId);
     if (!msg) return;
     const total = getValorTotalComprovanteRec(rec);
-    const sel = tiposReceitaSelecionados();
+    const sel = tiposReceitaSelecionados(tipos);
     if (!sel.length) {
       msg.textContent = "Marque pelo menos um tipo de receita.";
       msg.className = "subtext portal-cc-receita-soma portal-cc-receita-soma--erro";
@@ -2471,12 +2530,61 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     msg.className = `subtext portal-cc-receita-soma ${ok ? "portal-cc-receita-soma--ok" : "portal-cc-receita-soma--erro"}`;
   }
 
-  function syncReceitaOutrosDescVisibility() {
-    const outrosOn = document.getElementById("portalCcRecOutros")?.checked;
-    const wrap = document.getElementById("portalCcRecOutrosDescWrap");
+  function syncReceitaOutrosDescVisibility(tipos = RECEITA_TIPOS) {
+    const outros = tipos.find((t) => t.key === "outros");
+    const outrosOn = document.getElementById(outros?.checkId || "portalCcRecOutros")?.checked;
+    const wrapId =
+      tipos === RECEITA_TIPOS_OPERADOR ? "portalOpRecOutrosDescWrap" : "portalCcRecOutrosDescWrap";
+    const wrap = document.getElementById(wrapId);
     if (wrap) wrap.classList.toggle("hidden", !outrosOn);
-    const inp = document.getElementById("portalCcRecOutrosDesc");
+    const inp = document.getElementById(outros?.outrosDescId || "portalCcRecOutrosDesc");
     if (inp) inp.required = Boolean(outrosOn);
+  }
+
+  function initReceitaTiposUiOperador(rec) {
+    const box = document.getElementById("portalOperadorReceitaWrap");
+    const totalLbl = document.getElementById("portalOperadorReceitaTotalLbl");
+    if (!box) return;
+    const podeConfirmar = rec.status === STATUS.IA_OK;
+    box.classList.toggle("hidden", !podeConfirmar);
+    if (!podeConfirmar) return;
+
+    const total = getValorTotalComprovanteRec(rec);
+    if (totalLbl) {
+      totalLbl.textContent = `Total do comprovante (a distribuir): ${currencyBRL(total)}`;
+    }
+
+    const aluguelCb = document.getElementById("portalOpRecAluguel");
+    if (aluguelCb && receitaTiposOperadorRecId !== rec.id) {
+      aluguelCb.checked = true;
+      ["portalOpRecManutencao", "portalOpRecMultas", "portalOpRecOutros"].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+      });
+      const desc = document.getElementById("portalOpRecOutrosDesc");
+      if (desc) desc.value = "";
+    }
+    receitaTiposOperadorRecId = rec.id;
+    syncReceitaOutrosDescVisibility(RECEITA_TIPOS_OPERADOR);
+    renderReceitaValorInputs(rec, RECEITA_TIPOS_OPERADOR, "portalOpRecValoresWrap");
+
+    if (!receitaTiposOperadorBound) {
+      receitaTiposOperadorBound = true;
+      const onChange = () => {
+        const r = getById(operadorPortalRascunhoId);
+        if (!r) return;
+        syncReceitaOutrosDescVisibility(RECEITA_TIPOS_OPERADOR);
+        renderReceitaValorInputs(r, RECEITA_TIPOS_OPERADOR, "portalOpRecValoresWrap");
+      };
+      RECEITA_TIPOS_OPERADOR.forEach((t) => {
+        document.getElementById(t.checkId)?.addEventListener("change", onChange);
+      });
+      document.getElementById("portalOpRecValoresWrap")?.addEventListener("input", (e) => {
+        if (!e.target?.id?.startsWith("portalOpRecValor")) return;
+        const r = getById(operadorPortalRascunhoId);
+        if (r) atualizarReceitaSomaMsg(r, RECEITA_TIPOS_OPERADOR, "portalOperadorReceitaSomaMsg");
+      });
+    }
   }
 
   function initReceitaTiposUi(rec) {
@@ -2525,8 +2633,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     }
   }
 
-  function coletarDirecionamentoReceita(rec) {
-    const sel = tiposReceitaSelecionados();
+  function coletarDirecionamentoReceita(rec, tipos = RECEITA_TIPOS) {
+    const sel = tiposReceitaSelecionados(tipos);
     if (!sel.length) {
       return { ok: false, msg: "Marque pelo menos um tipo de receita (aluguel, manutenção, multas ou outros)." };
     }
@@ -2548,7 +2656,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       };
     }
     if (split.outros > 0) {
-      const desc = String(document.getElementById("portalCcRecOutrosDesc")?.value || "").trim();
+      const outrosTipo = tipos.find((t) => t.key === "outros");
+      const desc = String(document.getElementById(outrosTipo?.outrosDescId || "portalCcRecOutrosDesc")?.value || "").trim();
       if (!desc) {
         return { ok: false, msg: "Informe a descrição para receita «outros»." };
       }
@@ -2875,7 +2984,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       };
     }
 
-    const dir = coletarDirecionamentoReceita(rec);
+    const dir = coletarDirecionamentoReceita(rec, opts?.receitaTipos);
     if (!dir.ok) return { ok: false, msg: dir.msg };
 
     const valorRegisto = getValorTotalComprovanteRec(rec);
@@ -3170,9 +3279,260 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   let operadorPortalArquivo = null;
+  let operadorPortalRascunhoId = "";
+
+  function descartarRascunhoOperadorPortal(id) {
+    const rid = String(id || "").trim();
+    if (!rid) return;
+    const all = loadAll();
+    const rec = all.find((r) => r.id === rid);
+    if (!rec || rec.status === STATUS.CONFIRMADO) return;
+    if (String(rec.origem || "") !== "portal_operador") return;
+    saveAll(all.filter((r) => r.id !== rid));
+    invalidateComprovantesCache();
+    if (operadorPortalRascunhoId === rid) operadorPortalRascunhoId = "";
+  }
+
+  function ocultarOperadorPortalConferencia() {
+    const resumo = document.getElementById("portalOperadorComprovanteResumo");
+    if (resumo) {
+      resumo.classList.add("hidden");
+      resumo.innerHTML = "";
+    }
+    document.getElementById("portalOperadorReceitaWrap")?.classList.add("hidden");
+    const btnConf = document.getElementById("portalOperadorComprovanteConfirmarBtn");
+    const btnVer = document.getElementById("portalOperadorComprovanteVerBtn");
+    if (btnConf) btnConf.disabled = true;
+    if (btnVer) btnVer.disabled = true;
+    receitaTiposOperadorRecId = "";
+  }
+
+  function preencherOperadorPortalCamposIa(rec) {
+    if (!rec) return;
+    const dataInp = document.getElementById("portalOperadorComprovanteData");
+    const valInp = document.getElementById("portalOperadorComprovanteValor");
+    const ia = rec.iaValidacao;
+    if (dataInp && ia?.dataPagamento) dataInp.value = String(ia.dataPagamento).trim();
+    else if (dataInp && rec.dataPagamento) dataInp.value = rec.dataPagamento;
+    const v = valorParaRegistoPagamento(rec);
+    if (valInp && v > 0) valInp.value = currencyBRL(v);
+  }
+
+  function buildComprovanteIaResumoHtml(rec) {
+    const ia = rec.iaValidacao;
+    const dupUi = detectarImagemComprovanteDuplicada(rec.comprovanteFp, rec.id, { paraEnvio: false });
+    const sigUi = assinaturaDupDeRec(rec);
+    const dupLogUi =
+      sigUi && chaveBancoAssinatura(sigUi)
+        ? detectarDuplicidadeLogica({
+            cpf: rec.cpf,
+            protocolo: rec.protocolo,
+            excludeId: rec.id,
+            assinaturaComprovante: sigUi,
+          })
+        : { duplicado: false };
+    const dupLogicaHtml =
+      dupLogUi.duplicado && dupLogUi.reprovar
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>Duplicata (banco)</strong> — ${escapeHtml(dupLogUi.msgCliente || dupLogUi.msg || "")}</p>`
+        : "";
+    const jaProc =
+      ia?.jaProcessado || dupUi.duplicado
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>Imagem duplicada</strong> — ${escapeHtml(dupUi.msgCliente || dupUi.msg || MSG_DUP_IMAGEM_CLIENTE)}</p>`
+        : "";
+    const autentHtml =
+      ia && (ia.riscoColagemOuEdicao === "alto" || ia.comprovanteAutentico === false)
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>Autenticidade</strong> — risco ${escapeHtml(ia.riscoColagemOuEdicao)}. ${escapeHtml(ia.observacoesAutenticidade || "Rever imagem.")}</p>`
+        : ia && ia.riscoColagemOuEdicao === "medio"
+          ? `<p class="comprovante-api-status"><strong>Autenticidade</strong> — risco médio. ${escapeHtml(ia.observacoesAutenticidade || "")}</p>`
+          : "";
+    const recusadoHtml =
+      rec.status === STATUS.REJEITADO
+        ? `<p class="comprovante-api-status comprovante-api-status--erro"><strong>Recusado</strong> — ${escapeHtml(rec.rejeitadoMotivoCliente || rec.rejeitadoMotivo || "Sem motivo.")}</p>`
+        : "";
+    const iaHtml = ia
+      ? `<div class="portal-cc-ia-resumo">
+          <p><strong>Resumo da IA</strong> (${escapeHtml(ia.validadoEm ? new Date(ia.validadoEm).toLocaleString("pt-BR") : "")})</p>
+          ${jaProc}
+          ${dupLogicaHtml}
+          ${autentHtml}
+          <p>Valor na imagem: ${escapeHtml(currencyBRL(ia.valorBruto ?? ia.valor))} ${ia.confereValor ? "✓" : "⚠"}</p>
+          <p>Data lida: ${escapeHtml(ia.dataPagamento || "—")} ${ia.confereData ? "✓" : "⚠"}</p>
+          <p>Hora: ${escapeHtml(ia.horaPagamento || "—")}</p>
+          <p>ID transação: ${escapeHtml(ia.idTransacao || "—")}</p>
+          <p>Beneficiário/pagador: ${escapeHtml(ia.nomeClienteOuBeneficiario || ia.nomePagador || "—")}</p>
+          <p class="subtext">Destino esperado: CNPJ 59.665.734/0001-32 (DK Locadora) ou CPF 030.378.974-30 (Márcio José Siqueira dos Santos).</p>
+          <p class="subtext">${escapeHtml(ia.observacoes || "")}</p>
+        </div>`
+      : rec.status === STATUS.PENDENTE
+        ? '<p class="subtext">Aguarda extração IA.</p>'
+        : '<p class="subtext">Sem dados da IA.</p>';
+    return `
+      ${recusadoHtml}
+      <p><strong>Cliente:</strong> ${escapeHtml(rec.nomeCliente)} · CPF ${escapeHtml(rec.cpf)}</p>
+      <p><strong>Protocolo:</strong> ${escapeHtml(rec.protocolo)}</p>
+      <p><strong>Ficheiro:</strong> ${escapeHtml(rec.nomeArquivo)}</p>
+      ${iaHtml}
+      ${renderAssinaturaBancoUi(rec)}
+    `;
+  }
+
+  function renderOperadorPortalResumo(rec) {
+    const el = document.getElementById("portalOperadorComprovanteResumo");
+    if (!el) return;
+    el.innerHTML = buildComprovanteIaResumoHtml(rec);
+    el.classList.remove("hidden");
+  }
+
+  function syncOperadorPortalBotoesAposIa(rec) {
+    const btnConf = document.getElementById("portalOperadorComprovanteConfirmarBtn");
+    const btnVer = document.getElementById("portalOperadorComprovanteVerBtn");
+    const btnExt = document.getElementById("portalOperadorComprovanteExtrairIaBtn");
+    if (!rec) {
+      ocultarOperadorPortalConferencia();
+      if (btnExt) btnExt.disabled = !operadorPortalArquivo?.arquivoBase64;
+      return;
+    }
+    const dupUi = detectarImagemComprovanteDuplicada(rec.comprovanteFp, rec.id, { paraEnvio: false });
+    const bloqueadoDup = dupUi.duplicado || Boolean(rec.iaValidacao?.jaProcessado);
+    const bloqueadoAutent =
+      rec.iaValidacao &&
+      (rec.iaValidacao.riscoColagemOuEdicao === "alto" || rec.iaValidacao.comprovanteAutentico === false);
+    const podeConfirmar = rec.status === STATUS.IA_OK && !bloqueadoDup && !bloqueadoAutent;
+    if (btnConf) btnConf.disabled = !podeConfirmar;
+    if (btnVer) {
+      btnVer.disabled = !(String(rec.arquivoBase64 || "").trim() || rec.arquivoArmazenado === "idb");
+    }
+    if (btnExt) btnExt.disabled = false;
+    if (podeConfirmar) initReceitaTiposUiOperador(rec);
+    else document.getElementById("portalOperadorReceitaWrap")?.classList.add("hidden");
+  }
+
+  async function extrairOperadorPortalComIA() {
+    const fb = document.getElementById("portalOperadorComprovanteMsg");
+    const ctx =
+      typeof window.__DK_operacaoLancAluguelProtocoloAtual === "function"
+        ? window.__DK_operacaoLancAluguelProtocoloAtual()
+        : { nc: "", cpf: "" };
+    if (!ctx.nc || ctx.cpf.length !== 11) {
+      if (fb) {
+        fb.textContent = "Confirme o protocolo na pesquisa acima antes de extrair com IA.";
+        fb.classList.add("portal-feedback--erro");
+      }
+      return;
+    }
+    if (!operadorPortalArquivo?.arquivoBase64) {
+      if (fb) {
+        fb.textContent = "Cole ou escolha o comprovante (imagem ou PDF).";
+        fb.classList.add("portal-feedback--erro");
+      }
+      return;
+    }
+    if (fb) {
+      fb.textContent = "A extrair dados com IA…";
+      fb.classList.remove("portal-feedback--erro");
+    }
+    document.getElementById("portalOperadorComprovanteExtrairIaBtn")?.setAttribute("disabled", "");
+    if (operadorPortalRascunhoId) descartarRascunhoOperadorPortal(operadorPortalRascunhoId);
+
+    const dataManual = String(document.getElementById("portalOperadorComprovanteData")?.value || "").trim();
+    const valorManual = String(document.getElementById("portalOperadorComprovanteValor")?.value || "").trim();
+    const nomeCli =
+      typeof window.__DK_resolveLancNomePorCpf === "function"
+        ? window.__DK_resolveLancNomePorCpf(ctx.cpf)
+        : "";
+
+    const resAdd = await adicionarComprovanteCliente({
+      cpf: ctx.cpf,
+      protocolo: ctx.nc,
+      nomeCliente: nomeCli,
+      dataPagamento: dataManual || undefined,
+      valor: valorManual || 0,
+      arquivoBase64: operadorPortalArquivo.arquivoBase64,
+      mimeType: operadorPortalArquivo.mimeType,
+      nomeArquivo: operadorPortalArquivo.nomeArquivo,
+      origem: "portal_operador",
+      semProcessamentoAutomatico: true,
+    });
+    if (!resAdd?.ok) {
+      if (fb) {
+        fb.textContent = resAdd?.msg || "Não foi possível preparar o comprovante.";
+        fb.classList.add("portal-feedback--erro");
+      }
+      document.getElementById("portalOperadorComprovanteExtrairIaBtn")?.removeAttribute("disabled");
+      return;
+    }
+    operadorPortalRascunhoId = resAdd.id;
+
+    const resIa = await validarComprovanteComIA(resAdd.id);
+    const rec = (await getByIdComArquivo(resAdd.id)) || getById(resAdd.id);
+    if (!rec) {
+      if (fb) fb.textContent = "Registo não encontrado após IA.";
+      document.getElementById("portalOperadorComprovanteExtrairIaBtn")?.removeAttribute("disabled");
+      return;
+    }
+
+    renderOperadorPortalResumo(rec);
+    preencherOperadorPortalCamposIa(rec);
+    syncOperadorPortalBotoesAposIa(rec);
+    renderListaOperadorPortal();
+
+    if (resIa?.ok && rec.status === STATUS.IA_OK) {
+      if (fb) {
+        fb.textContent =
+          "IA concluída — confira o resumo abaixo, direcione a receita e clique em Confirmar pagamento.";
+        fb.classList.remove("portal-feedback--erro");
+      }
+    } else if (resIa?.rejeitado || rec.status === STATUS.REJEITADO) {
+      if (fb) {
+        fb.textContent = resIa?.msg || rec.rejeitadoMotivoCliente || "Comprovante recusado pela IA.";
+        fb.classList.add("portal-feedback--erro");
+      }
+    } else {
+      if (fb) {
+        fb.textContent = resIa?.msg || "Não foi possível validar com IA. Tente novamente.";
+        fb.classList.add("portal-feedback--erro");
+      }
+    }
+    document.getElementById("portalOperadorComprovanteExtrairIaBtn")?.removeAttribute("disabled");
+  }
+
+  async function confirmarOperadorPortalComprovante() {
+    const fb = document.getElementById("portalOperadorComprovanteMsg");
+    if (!operadorPortalRascunhoId) {
+      if (fb) fb.textContent = "Extraia os dados com IA antes de confirmar.";
+      return;
+    }
+    if (fb) fb.textContent = "A confirmar pagamento no protocolo…";
+    const res = await confirmarComprovanteCliente(operadorPortalRascunhoId, {
+      receitaTipos: RECEITA_TIPOS_OPERADOR,
+    });
+    if (!res?.ok) {
+      if (fb) {
+        fb.textContent = res?.msg || "Não foi possível confirmar.";
+        fb.classList.toggle("portal-feedback--erro", true);
+      }
+      return;
+    }
+    const idOk = operadorPortalRascunhoId;
+    limparOperadorPortalComprovanteForm();
+    operadorPortalRascunhoId = "";
+    if (fb) {
+      fb.textContent = "Pagamento confirmado e registado no protocolo.";
+      fb.classList.remove("portal-feedback--erro");
+    }
+    renderListaOperadorPortal();
+    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
+      await window.__DK_refreshComprovantesClienteLista();
+    }
+    if (typeof window.__DK_refreshOperacaoLancAluguelFromComprovante === "function") {
+      window.__DK_refreshOperacaoLancAluguelFromComprovante(getById(idOk));
+    }
+  }
 
   function limparOperadorPortalComprovanteForm() {
+    if (operadorPortalRascunhoId) descartarRascunhoOperadorPortal(operadorPortalRascunhoId);
     operadorPortalArquivo = null;
+    operadorPortalRascunhoId = "";
     const lbl = document.getElementById("portalOperadorComprovanteArquivoLbl");
     const fileInp = document.getElementById("portalOperadorComprovanteFile");
     if (lbl) lbl.textContent = "";
@@ -3184,6 +3544,12 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     document
       .getElementById("portalOperadorComprovantePasteZone")
       ?.classList.remove("portal-operador-comprovante-paste--ativo");
+    ocultarOperadorPortalConferencia();
+    const fb = document.getElementById("portalOperadorComprovanteMsg");
+    if (fb) {
+      fb.textContent = "";
+      fb.classList.remove("portal-feedback--erro");
+    }
   }
 
   async function definirArquivoOperadorPortal(fileOrDataUrl, nomeArquivo) {
@@ -3202,61 +3568,20 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       mimeType = p.mime || fileOrDataUrl.type || "";
       nome = fileOrDataUrl.name || nome;
     }
+    if (operadorPortalRascunhoId) descartarRascunhoOperadorPortal(operadorPortalRascunhoId);
+    ocultarOperadorPortalConferencia();
     operadorPortalArquivo = { arquivoBase64, mimeType, nomeArquivo: nome };
     const lbl = document.getElementById("portalOperadorComprovanteArquivoLbl");
     if (lbl) lbl.textContent = `Ficheiro: ${nome}`;
     document
       .getElementById("portalOperadorComprovantePasteZone")
       ?.classList.add("portal-operador-comprovante-paste--ativo");
-  }
-
-  async function enviarComprovanteOperadorPortal() {
+    const btnExt = document.getElementById("portalOperadorComprovanteExtrairIaBtn");
+    if (btnExt) btnExt.disabled = false;
     const fb = document.getElementById("portalOperadorComprovanteMsg");
-    const ctx =
-      typeof window.__DK_operacaoLancAluguelProtocoloAtual === "function"
-        ? window.__DK_operacaoLancAluguelProtocoloAtual()
-        : { nc: "", cpf: "" };
-    if (!ctx.nc || ctx.cpf.length !== 11) {
-      if (fb) fb.textContent = "Confirme o protocolo na pesquisa acima antes de enviar o comprovante.";
-      return;
-    }
-    if (!operadorPortalArquivo?.arquivoBase64) {
-      if (fb) fb.textContent = "Cole ou escolha o comprovante (imagem ou PDF).";
-      return;
-    }
-    const dataManual = String(document.getElementById("portalOperadorComprovanteData")?.value || "").trim();
-    const valorManual = String(document.getElementById("portalOperadorComprovanteValor")?.value || "").trim();
-    const nomeCli =
-      typeof window.__DK_resolveLancNomePorCpf === "function"
-        ? window.__DK_resolveLancNomePorCpf(ctx.cpf)
-        : "";
-    if (fb) fb.textContent = "A enviar comprovante e processar IA…";
-    const res = await adicionarComprovanteCliente({
-      cpf: ctx.cpf,
-      protocolo: ctx.nc,
-      nomeCliente: nomeCli,
-      dataPagamento: dataManual || undefined,
-      valor: valorManual || 0,
-      arquivoBase64: operadorPortalArquivo.arquivoBase64,
-      mimeType: operadorPortalArquivo.mimeType,
-      nomeArquivo: operadorPortalArquivo.nomeArquivo,
-      origem: "portal_operador",
-    });
-    if (!res?.ok) {
-      if (fb) {
-        fb.textContent = res?.msg || "Não foi possível enviar o comprovante.";
-        fb.classList.toggle("portal-feedback--erro", true);
-      }
-      return;
-    }
-    limparOperadorPortalComprovanteForm();
     if (fb) {
-      fb.textContent = "Comprovante enviado. A IA está a validar — confira a fila abaixo.";
+      fb.textContent = "Ficheiro pronto — clique em Extrair dados com IA.";
       fb.classList.remove("portal-feedback--erro");
-    }
-    renderListaOperadorPortal();
-    if (typeof window.__DK_refreshComprovantesClienteLista === "function") {
-      await window.__DK_refreshComprovantesClienteLista();
     }
   }
 
@@ -3356,13 +3681,17 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       if (f) void definirArquivoOperadorPortal(f, f.name);
     });
 
-    document.getElementById("portalOperadorComprovanteEnviarBtn")?.addEventListener("click", () => {
-      void enviarComprovanteOperadorPortal();
+    document.getElementById("portalOperadorComprovanteExtrairIaBtn")?.addEventListener("click", () => {
+      void extrairOperadorPortalComIA();
+    });
+    document.getElementById("portalOperadorComprovanteConfirmarBtn")?.addEventListener("click", () => {
+      void confirmarOperadorPortalComprovante();
+    });
+    document.getElementById("portalOperadorComprovanteVerBtn")?.addEventListener("click", () => {
+      if (operadorPortalRascunhoId) void openComprovanteViewerById(operadorPortalRascunhoId);
     });
     document.getElementById("portalOperadorComprovanteLimparBtn")?.addEventListener("click", () => {
       limparOperadorPortalComprovanteForm();
-      const fb = document.getElementById("portalOperadorComprovanteMsg");
-      if (fb) fb.textContent = "";
     });
 
     document.getElementById("portalOperadorComprovanteLista")?.addEventListener("click", (e) => {
@@ -4473,6 +4802,7 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   window.__DK_executarAutoPurgeClientesTeste = async function executarAutoPurgeClientesTesteDesativado() {
     return null;
   };
+  window.__DK_bindOperadorPortalComprovanteUi = bindOperadorPortalComprovanteUi;
   window.__DK_refreshComprovantesOperadorLista = function refreshComprovantesOperadorLista() {
     renderListaOperadorPortal();
   };

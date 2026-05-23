@@ -933,7 +933,7 @@
 
           <div id="operacaoLancAluguelPaneComprovante" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento com comprovante pelo operador">
             <h4 class="portal-lanc-aluguel-section__title">Lançamento com comprovante (operador)</h4>
-            <p class="subtext">Com o protocolo confirmado acima, <strong>cole ou anexe</strong> o comprovante (Ctrl+V na área ou clique para escolher ficheiro). A IA confere se o pagamento é para <strong>CNPJ 59.665.734/0001-32 (DK Locadora)</strong> ou <strong>CPF 030.378.974-30 (Márcio José Siqueira dos Santos)</strong>, lê valor e data; depois valide e confirme.</p>
+            <p class="subtext">Com o protocolo confirmado acima, <strong>cole ou anexe</strong> o comprovante. Clique em <strong>Extrair dados com IA</strong>, confira o resumo e só então <strong>Confirmar pagamento</strong> (direcionar receita: aluguel, manutenção, multas ou outros).</p>
             <section id="portalOperadorComprovanteSection" class="portal-operador-comprovante hidden" aria-labelledby="portal-operador-comprovante-title">
               <h4 id="portal-operador-comprovante-title" class="portal-lanc-aluguel-section__title">Comprovante</h4>
               <div id="portalOperadorComprovantePasteZone" class="portal-operador-comprovante-paste" tabindex="0" role="button" aria-label="Colar comprovante com Ctrl+V">
@@ -950,11 +950,30 @@
                 <span>Valor (se a IA não ler)</span>
                 <input type="text" id="portalOperadorComprovanteValor" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00">
               </label>
-              <div class="operacao-inline-form__actions">
-                <button type="button" class="btn-primary" id="portalOperadorComprovanteEnviarBtn">Enviar comprovante e processar IA</button>
+              <div class="operacao-inline-form__actions portal-operador-comprovante__actions">
+                <button type="button" class="btn-primary" id="portalOperadorComprovanteExtrairIaBtn">Extrair dados com IA</button>
+                <button type="button" class="btn-primary" id="portalOperadorComprovanteConfirmarBtn" disabled>Confirmar pagamento</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="portalOperadorComprovanteVerBtn" disabled>Ver comprovante</button>
                 <button type="button" class="btn-primary btn-secondary-outline" id="portalOperadorComprovanteLimparBtn">Limpar comprovante</button>
               </div>
               <p id="portalOperadorComprovanteMsg" class="portal-feedback" role="status"></p>
+              <div id="portalOperadorComprovanteResumo" class="portal-operador-comprovante-resumo hidden" role="region" aria-live="polite" aria-label="Resumo da conferência IA"></div>
+              <div id="portalOperadorReceitaWrap" class="portal-cc-receita-tipos hidden">
+                <p class="subtext portal-cc-receita-lead"><strong>Direcionar receita</strong> — marque o(s) tipo(s) antes de confirmar. A soma deve ser igual ao total do comprovante.</p>
+                <p id="portalOperadorReceitaTotalLbl" class="portal-cc-receita-total"></p>
+                <div class="portal-cc-receita-checks" role="group" aria-label="Tipos de receita (operador)">
+                  <label class="portal-cc-receita-check"><input type="checkbox" id="portalOpRecAluguel" checked> Aluguel</label>
+                  <label class="portal-cc-receita-check"><input type="checkbox" id="portalOpRecManutencao"> Manutenção</label>
+                  <label class="portal-cc-receita-check"><input type="checkbox" id="portalOpRecMultas"> Multas</label>
+                  <label class="portal-cc-receita-check"><input type="checkbox" id="portalOpRecOutros"> Outros</label>
+                </div>
+                <div id="portalOpRecValoresWrap" class="portal-cc-receita-valores"></div>
+                <label id="portalOpRecOutrosDescWrap" class="portal-field portal-field--wide hidden">
+                  <span>Descrição (outros)</span>
+                  <input type="text" id="portalOpRecOutrosDesc" maxlength="200" placeholder="Ex.: taxa, reembolso, acerto">
+                </label>
+                <p id="portalOperadorReceitaSomaMsg" class="subtext portal-cc-receita-soma" role="status"></p>
+              </div>
               <div id="portalOperadorComprovanteLista" class="portal-comprovante-cliente-lista"></div>
             </section>
           </div>
@@ -1697,10 +1716,10 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522limpar-pesquisa" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522paste-comprovante" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260522notif-lidas" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260522paste-comprovante" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260522extrair-ia-operador" defer></script>
 </body>
 </html>
