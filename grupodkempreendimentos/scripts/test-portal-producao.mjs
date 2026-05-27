@@ -67,8 +67,8 @@ async function main() {
     record(
       "financeiro fila múltiplas imagens",
       html.includes("financeiroPendentesLista") &&
-        html.includes('financeiroExtratoFile"') &&
-        html.includes("multiple")
+        html.includes("id=\"financeiroExtratoFile\"") &&
+        /financeiroExtratoFile[^>]*\smultiple/i.test(html)
     );
     record(
       "portal conferência operador (texto)",
