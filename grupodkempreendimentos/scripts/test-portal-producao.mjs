@@ -65,6 +65,12 @@ async function main() {
         html.includes("quem_pagou")
     );
     record(
+      "financeiro fila múltiplas imagens",
+      html.includes("financeiroPendentesLista") &&
+        html.includes('financeiroExtratoFile"') &&
+        html.includes("multiple")
+    );
+    record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );

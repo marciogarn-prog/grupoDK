@@ -899,6 +899,44 @@ body {
   display: none;
 }
 
+.financeiro-pendentes-lista {
+  margin: 0.5rem 0 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.financeiro-pendentes-lista.hidden {
+  display: none;
+}
+
+.financeiro-pendente-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px dashed rgba(201, 162, 39, 0.35);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.financeiro-pendente-item__nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.financeiro-pendente-item__remover {
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.8rem;
+}
+
 .financeiro-uploads-lista {
   margin: 0.75rem 0 1.25rem;
   display: flex;

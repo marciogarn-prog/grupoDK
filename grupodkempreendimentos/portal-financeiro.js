@@ -34,8 +34,9 @@
   const filtroCategoria = document.getElementById("financeiroFiltroCategoria");
 
   let bancoAtivo = "";
-  let arquivoPendente = null;
-  let arquivoPendenteNome = "";
+  /** Fila antes da IA: { id, file, nome }[] */
+  let arquivosPendentes = [];
+  const pendentesLista = document.getElementById("financeiroPendentesLista");
 
   function escapeHtml(s) {
     return String(s ?? "")
@@ -742,24 +743,78 @@
     });
   }
 
-  function limparArquivoPendente() {
-    arquivoPendente = null;
-    arquivoPendenteNome = "";
-    if (fileInp) fileInp.value = "";
-    if (arquivoLbl) arquivoLbl.textContent = "";
-    if (msgEl) msgEl.textContent = "";
-    pasteZone?.classList.remove("portal-operador-comprovante-paste--ativo");
+  function arquivoExtratoValido(file) {
+    if (!file) return false;
+    const t = String(file.type || "").toLowerCase();
+    return t.startsWith("image/") || t === "application/pdf";
   }
 
-  function definirArquivoPendente(file, nome) {
-    arquivoPendente = file;
-    arquivoPendenteNome = nome || file?.name || "extrato";
-    if (arquivoLbl) arquivoLbl.textContent = `Ficheiro: ${arquivoPendenteNome}`;
-    pasteZone?.classList.add("portal-operador-comprovante-paste--ativo");
-    if (msgEl) {
-      msgEl.textContent = "Pronto para extrair. Clique em «Extrair movimentos com IA».";
-      msgEl.classList.remove("portal-feedback--erro");
+  function renderPendentesLista() {
+    if (!pendentesLista) return;
+    if (!arquivosPendentes.length) {
+      pendentesLista.innerHTML = "";
+      pendentesLista.classList.add("hidden");
+      if (arquivoLbl) arquivoLbl.textContent = "";
+      pasteZone?.classList.remove("portal-operador-comprovante-paste--ativo");
+      return;
     }
+    pendentesLista.classList.remove("hidden");
+    pendentesLista.innerHTML = arquivosPendentes
+      .map(
+        (a, idx) => `<div class="financeiro-pendente-item">
+          <span class="financeiro-pendente-item__nome" title="${escapeHtml(a.nome)}">${idx + 1}. ${escapeHtml(a.nome)}</span>
+          <button type="button" class="btn-primary btn-secondary-outline financeiro-pendente-item__remover" data-fin-pendente-id="${escapeHtml(a.id)}">Remover</button>
+        </div>`
+      )
+      .join("");
+    pendentesLista.querySelectorAll("[data-fin-pendente-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-fin-pendente-id");
+        arquivosPendentes = arquivosPendentes.filter((x) => x.id !== id);
+        renderPendentesLista();
+      });
+    });
+    if (arquivoLbl) {
+      arquivoLbl.textContent = `${arquivosPendentes.length} ficheiro(s) na fila — pode adicionar mais ou clicar em «Extrair movimentos com IA».`;
+    }
+    pasteZone?.classList.add("portal-operador-comprovante-paste--ativo");
+  }
+
+  function adicionarArquivosPendentes(files) {
+    let n = 0;
+    for (const file of files) {
+      if (!arquivoExtratoValido(file)) continue;
+      const dup = arquivosPendentes.some(
+        (p) => p.nome === (file.name || "") && p.file.size === file.size && p.file.lastModified === file.lastModified
+      );
+      if (dup) continue;
+      arquivosPendentes.push({
+        id: newId(),
+        file,
+        nome: file.name || "extrato",
+      });
+      n += 1;
+    }
+    renderPendentesLista();
+    if (msgEl && n > 0) {
+      msgEl.textContent =
+        n === 1 ? "1 ficheiro adicionado à fila." : `${n} ficheiro(s) adicionados à fila.`;
+      msgEl.classList.remove("portal-feedback--erro");
+      msgEl.classList.remove("portal-feedback--ok");
+    }
+    return n;
+  }
+
+  function limparArquivoPendente() {
+    arquivosPendentes = [];
+    if (fileInp) fileInp.value = "";
+    renderPendentesLista();
+    if (msgEl) msgEl.textContent = "";
+  }
+
+  function adicionarArquivoPendente(file, nome) {
+    if (!arquivoExtratoValido(file)) return 0;
+    return adicionarArquivosPendentes([file]);
   }
 
   function fileToBase64(file) {
@@ -983,106 +1038,152 @@ Regras:
     }
   }
 
+  async function processarUmArquivoExtrato(file, nomeArquivo) {
+    let dataUrl = await fileToBase64(file);
+    const { mime } = parseDataUrl(dataUrl);
+    if (mime.startsWith("image/")) {
+      dataUrl = await comprimirImagemDataUrl(dataUrl, 1400);
+    }
+
+    const bancoLabel = BANCOS[bancoAtivo] || bancoAtivo;
+    const content = [{ type: "text", text: montarPromptExtrato(bancoLabel) }];
+    const parsedUrl = parseDataUrl(dataUrl);
+    if (parsedUrl.mime.startsWith("image/") && parsedUrl.base64) {
+      content.push({
+        type: "image_url",
+        image_url: { url: `data:${parsedUrl.mime};base64,${parsedUrl.base64}` },
+      });
+    } else if (parsedUrl.mime === "application/pdf" && parsedUrl.base64) {
+      content.push({
+        type: "image_url",
+        image_url: { url: `data:application/pdf;base64,${parsedUrl.base64}` },
+      });
+      content.push({
+        type: "text",
+        text: `PDF: ${nomeArquivo}. Leia todas as páginas visíveis do extrato mensal ou movimentação diária.`,
+      });
+    } else {
+      content.push({
+        type: "text",
+        text: `Ficheiro ${nomeArquivo} (${parsedUrl.mime}). Extraia movimentações se possível.`,
+      });
+    }
+
+    const oai = await chamarOpenAIExtrato(content);
+    if (!oai.ok) {
+      return { ok: false, erro: oai.msg || "Falha na IA." };
+    }
+
+    const movimentosBrutos = normalizarMovimentos(oai.parsed?.movimentos || oai.parsed?.lancamentos);
+    if (!movimentosBrutos.length) {
+      return {
+        ok: false,
+        erro:
+          String(oai.parsed?.observacoes || "") ||
+          "A IA não encontrou movimentos neste ficheiro.",
+      };
+    }
+
+    const noLote = dedupeListaMovimentos(movimentosBrutos);
+    const { kept: movimentos, ignorados } = filtrarMovimentosNovos(noLote, bancoAtivo);
+
+    if (!movimentos.length) {
+      return {
+        ok: true,
+        vazio: true,
+        ignorados: ignorados || movimentosBrutos.length,
+        observacoes: String(oai.parsed?.observacoes || "").trim(),
+      };
+    }
+
+    const uploads = getUploads(bancoAtivo);
+    uploads.push({
+      id: newId(),
+      nomeArquivo,
+      processadoEm: new Date().toISOString(),
+      movimentos,
+      observacoes: String(oai.parsed?.observacoes || "").trim(),
+    });
+    setUploads(bancoAtivo, uploads);
+
+    return { ok: true, novos: movimentos.length, ignorados, observacoes: String(oai.parsed?.observacoes || "").trim() };
+  }
+
   async function extrairComIA() {
     if (!bancoAtivo) return;
-    if (!arquivoPendente) {
+    if (!arquivosPendentes.length) {
       if (msgEl) {
-        msgEl.textContent = "Escolha ou cole um extrato (imagem ou PDF) primeiro.";
+        msgEl.textContent = "Adicione uma ou mais imagens/PDFs à fila primeiro.";
         msgEl.classList.add("portal-feedback--erro");
       }
       return;
     }
+
+    const fila = [...arquivosPendentes];
     if (extrairBtn) extrairBtn.disabled = true;
-    if (msgEl) {
-      msgEl.textContent = "A IA está a ler o extrato… pode demorar até um minuto em PDFs longos.";
-      msgEl.classList.remove("portal-feedback--erro");
-    }
+    if (limparBtn) limparBtn.disabled = true;
+
+    let okCount = 0;
+    let failCount = 0;
+    let vazioCount = 0;
+    let totalNovos = 0;
+    let totalIgnorados = 0;
 
     try {
-      let dataUrl = await fileToBase64(arquivoPendente);
-      const { mime, base64 } = parseDataUrl(dataUrl);
-      if (mime.startsWith("image/")) {
-        dataUrl = await comprimirImagemDataUrl(dataUrl, 1400);
-      }
-
-      const bancoLabel = BANCOS[bancoAtivo] || bancoAtivo;
-      const content = [{ type: "text", text: montarPromptExtrato(bancoLabel) }];
-      const parsedUrl = parseDataUrl(dataUrl);
-      if (parsedUrl.mime.startsWith("image/") && parsedUrl.base64) {
-        content.push({
-          type: "image_url",
-          image_url: { url: `data:${parsedUrl.mime};base64,${parsedUrl.base64}` },
-        });
-      } else if (parsedUrl.mime === "application/pdf" && parsedUrl.base64) {
-        content.push({
-          type: "image_url",
-          image_url: { url: `data:application/pdf;base64,${parsedUrl.base64}` },
-        });
-        content.push({
-          type: "text",
-          text: `PDF: ${arquivoPendenteNome}. Leia todas as páginas visíveis do extrato mensal ou movimentação diária.`,
-        });
-      } else {
-        content.push({
-          type: "text",
-          text: `Ficheiro ${arquivoPendenteNome} (${parsedUrl.mime}). Extraia movimentações se possível.`,
-        });
-      }
-
-      const oai = await chamarOpenAIExtrato(content);
-      if (!oai.ok) {
+      for (let i = 0; i < fila.length; i += 1) {
+        const item = fila[i];
         if (msgEl) {
-          msgEl.textContent = oai.msg || "Falha na IA.";
-          msgEl.classList.add("portal-feedback--erro");
+          msgEl.textContent = `A processar ${i + 1}/${fila.length}: ${item.nome}… (pode demorar ~1 min por imagem)`;
+          msgEl.classList.remove("portal-feedback--erro");
+          msgEl.classList.remove("portal-feedback--ok");
         }
-        return;
+
+        try {
+          const r = await processarUmArquivoExtrato(item.file, item.nome);
+          if (!r.ok) {
+            failCount += 1;
+            continue;
+          }
+          if (r.vazio) {
+            vazioCount += 1;
+            totalIgnorados += r.ignorados || 0;
+            okCount += 1;
+            continue;
+          }
+          okCount += 1;
+          totalNovos += r.novos || 0;
+          totalIgnorados += r.ignorados || 0;
+        } catch (e) {
+          failCount += 1;
+          if (msgEl && i === fila.length - 1) {
+            msgEl.textContent = String(e?.message || e);
+          }
+        }
       }
 
-      const movimentosBrutos = normalizarMovimentos(oai.parsed?.movimentos || oai.parsed?.lancamentos);
-      if (!movimentosBrutos.length) {
-        if (msgEl) {
-          msgEl.textContent =
-            String(oai.parsed?.observacoes || "") ||
-            "A IA não encontrou movimentos. Tente outra imagem mais nítida ou um PDF.";
-          msgEl.classList.add("portal-feedback--erro");
-        }
-        return;
-      }
-
-      const noLote = dedupeListaMovimentos(movimentosBrutos);
-      const { kept: movimentos, ignorados } = filtrarMovimentosNovos(noLote, bancoAtivo);
-
-      if (!movimentos.length) {
-        if (msgEl) {
-          const dup = ignorados || movimentosBrutos.length;
-          msgEl.textContent =
-            dup > 0
-              ? `${dup} movimento(s) já existiam na base — nada novo adicionado (sem duplicar no relatório).`
-              : "Nenhum movimento novo neste ficheiro.";
-          msgEl.classList.add("portal-feedback--erro");
-        }
-        return;
-      }
-
-      const uploads = getUploads(bancoAtivo);
-      uploads.push({
-        id: newId(),
-        nomeArquivo: arquivoPendenteNome,
-        processadoEm: new Date().toISOString(),
-        movimentos,
-        observacoes: String(oai.parsed?.observacoes || "").trim(),
-      });
-      setUploads(bancoAtivo, uploads);
-      limparArquivoPendente();
+      arquivosPendentes = [];
+      if (fileInp) fileInp.value = "";
+      renderPendentesLista();
       renderUploadsLista();
       atualizarResumoBar();
+
+      const total = todosMovimentosBanco(bancoAtivo).length;
       if (msgEl) {
-        const total = todosMovimentosBanco(bancoAtivo).length;
-        const dupTxt =
-          ignorados > 0 ? ` · ${ignorados} repetido(s) ignorado(s)` : "";
-        msgEl.textContent = `+${movimentos.length} novo(s)${dupTxt} · base: ${total} no relatório. «Ver relatório».`;
-        msgEl.classList.remove("portal-feedback--erro");
-        msgEl.classList.add("portal-feedback--ok");
+        if (failCount === fila.length) {
+          msgEl.textContent = "Nenhum ficheiro foi processado com sucesso. Tente novamente.";
+          msgEl.classList.add("portal-feedback--erro");
+        } else {
+          const partes = [
+            `${okCount}/${fila.length} ficheiro(s) processado(s)`,
+            `+${totalNovos} movimento(s) novo(s)`,
+          ];
+          if (totalIgnorados > 0) partes.push(`${totalIgnorados} repetido(s) ignorado(s)`);
+          if (vazioCount > 0) partes.push(`${vazioCount} sem movimentos novos`);
+          if (failCount > 0) partes.push(`${failCount} com erro`);
+          msgEl.textContent = `${partes.join(" · ")} · base: ${total} no relatório.`;
+          msgEl.classList.remove("portal-feedback--erro");
+          msgEl.classList.add("portal-feedback--ok");
+        }
       }
     } catch (e) {
       if (msgEl) {
@@ -1091,6 +1192,7 @@ Regras:
       }
     } finally {
       if (extrairBtn) extrairBtn.disabled = false;
+      if (limparBtn) limparBtn.disabled = false;
     }
   }
 
@@ -1142,20 +1244,21 @@ Regras:
       if (!f) return;
       e.preventDefault();
       e.stopPropagation();
-      definirArquivoPendente(f, f.name || "extrato-colado.png");
+      adicionarArquivoPendente(f, f.name || "extrato-colado.png");
     };
 
     pasteZone?.addEventListener("paste", onPaste);
     document.addEventListener("paste", onPaste, true);
 
     pasteZone?.addEventListener("click", (e) => {
-      if (e.target === fileInp) return;
+      if (e.target === fileInp || e.target?.closest?.("[data-fin-pendente-id]")) return;
       fileInp?.click();
     });
 
     fileInp?.addEventListener("change", () => {
-      const f = fileInp.files?.[0];
-      if (f) definirArquivoPendente(f, f.name);
+      const list = fileInp.files ? Array.from(fileInp.files) : [];
+      if (list.length) adicionarArquivosPendentes(list);
+      fileInp.value = "";
     });
 
     extrairBtn?.addEventListener("click", () => void extrairComIA());
