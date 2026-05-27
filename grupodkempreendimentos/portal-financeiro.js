@@ -347,15 +347,11 @@
       img.onload = () => {
         let w = img.width;
         let h = img.height;
-        const max = maxPx || 1800;
-        if (w <= max && h <= max) {
-          resolve(dataUrl);
-          return;
-        }
-        if (w > h) {
+        const max = maxPx || 1400;
+        if (w > h && w > max) {
           h = Math.round((h * max) / w);
           w = max;
-        } else {
+        } else if (h > max) {
           w = Math.round((w * max) / h);
           h = max;
         }
@@ -368,11 +364,31 @@
           return;
         }
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.88));
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
+  }
+
+  function formatarErroServidorIa(data, status) {
+    if (!data) {
+      if (status === 413) return "Extrato demasiado grande. Reduza a imagem ou envie captura de ecrã.";
+      return `Resposta inválida (HTTP ${status}).`;
+    }
+    const reason = String(data.reason || "").trim();
+    if (reason === "openai_not_configured") return "";
+    let detail = String(data.error || data.message || "").trim();
+    if (detail.startsWith("{")) {
+      try {
+        const inner = JSON.parse(detail);
+        detail = String(inner?.error?.message || inner?.message || detail);
+      } catch {
+        const m = detail.match(/"message"\s*:\s*"((?:\\.|[^"\\])*)"/);
+        if (m) detail = m[1].replace(/\\"/g, '"');
+      }
+    }
+    return detail || reason || `HTTP ${status}`;
   }
 
   function extrairArquivoClipboard(clipboardData) {
@@ -407,7 +423,7 @@
 
 Extraia TODAS as movimentações visíveis (créditos, débitos, PIX, TED, tarifas, salários, etc.).
 
-Responda APENAS JSON válido: ${schema}
+Responda APENAS um objeto json válido (sem markdown): ${schema}
 
 Regras:
 - data em DD/MM/AAAA; se o extrato só mostrar dia/mês no contexto de um mês, complete com o ano visível no documento
@@ -450,38 +466,55 @@ Regras:
   }
 
   async function chamarOpenAIExtrato(content) {
-    const rotas = ["/api/openai-comprovante", "/api/openai-extrato"];
-    for (const rota of rotas) {
+    const payload = { content, tipo: "extrato", max_tokens: 4096 };
+    const bodyStr = JSON.stringify(payload);
+    if (bodyStr.length > 3_800_000) {
+      return {
+        ok: false,
+        msg: "Extrato demasiado grande para enviar (~4 MB). Comprima a imagem ou use captura de ecrã mais pequena.",
+      };
+    }
+
+    let erroServidor = "";
+    try {
+      const res = await fetch("/api/openai-comprovante", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: bodyStr,
+      });
+      const raw = await res.text();
+      let data = null;
       try {
-        const res = await fetch(rota, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, tipo: "extrato", max_tokens: 4096 }),
-        });
-        let data = null;
-        try {
-          data = await res.json();
-        } catch {
-          if (res.status === 404) continue;
-          return { ok: false, msg: `Servidor IA (${res.status}): resposta inválida.` };
-        }
-        if (res.ok && data?.ok && data?.parsed) {
+        data = JSON.parse(raw);
+      } catch {
+        erroServidor = formatarErroServidorIa(null, res.status);
+      }
+      if (data) {
+        if (res.ok && data.ok && data.parsed) {
           return { ok: true, parsed: data.parsed, via: "server" };
         }
-        if (data?.reason === "openai_not_configured") continue;
-        if (!res.ok && rota === rotas[rotas.length - 1]) {
-          return { ok: false, msg: `Servidor IA: ${String(data?.error || data?.reason || res.status)}` };
-        }
-      } catch {
-        /* tenta próxima rota ou chave local */
+        erroServidor = formatarErroServidorIa(data, res.status);
       }
+    } catch (e) {
+      erroServidor = `Ligação ao servidor: ${String(e?.message || e)}`;
+    }
+
+    if (erroServidor) {
+      const timeout =
+        /timeout|timed out|504|FUNCTION_INVOCATION_TIMEOUT/i.test(erroServidor);
+      return {
+        ok: false,
+        msg: timeout
+          ? "Servidor IA: tempo esgotado (extrato grande). Tente uma foto com menos linhas ou aguarde e repita."
+          : `Servidor IA: ${erroServidor}`,
+      };
     }
 
     const key = String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
     if (!key) {
       return {
         ok: false,
-        msg: "IA não configurada no servidor nem neste navegador. Use a chave OpenAI em Operação → Validação de comprovantes, ou OPENAI_API_KEY na Vercel.",
+        msg: "IA no servidor indisponível e sem chave neste navegador. Guarde a chave em Operação → Validação → «Chave OpenAI só neste navegador».",
       };
     }
 
@@ -529,7 +562,7 @@ Regras:
       let dataUrl = await fileToBase64(arquivoPendente);
       const { mime, base64 } = parseDataUrl(dataUrl);
       if (mime.startsWith("image/")) {
-        dataUrl = await comprimirImagemDataUrl(dataUrl, 1800);
+        dataUrl = await comprimirImagemDataUrl(dataUrl, 1400);
       }
 
       const bancoLabel = BANCOS[bancoAtivo] || bancoAtivo;
