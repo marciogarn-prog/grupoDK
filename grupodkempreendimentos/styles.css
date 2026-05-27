@@ -933,6 +933,61 @@ body {
   white-space: nowrap;
 }
 
+.financeiro-relatorio-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin: 1.25rem 0 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(201, 162, 39, 0.25);
+}
+
+.financeiro-relatorio-acoes .btn-primary {
+  margin-top: 0;
+}
+
+.financeiro-relatorio-filtros {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin: 0.75rem 0 1rem;
+}
+
+.financeiro-relatorio-filtros .portal-field--grow {
+  grid-column: span 2;
+}
+
+@media (max-width: 640px) {
+  .financeiro-relatorio-filtros .portal-field--grow {
+    grid-column: span 1;
+  }
+}
+
+.financeiro-relatorio-conteudo {
+  max-height: min(62vh, 520px);
+  overflow: auto;
+  margin: 0.5rem 0 1rem;
+}
+
+.financeiro-relatorio-periodo-lbl {
+  margin-bottom: 0.5rem;
+}
+
+.financeiro-status-nao-cad {
+  color: #f87171;
+  font-weight: 600;
+}
+
+.financeiro-status-cad {
+  color: #86efac;
+}
+
+.portal-feedback--ok {
+  color: #86efac;
+}
+
 .portal-operador-comprovante__actions {
   flex-wrap: wrap;
   gap: 0.5rem;

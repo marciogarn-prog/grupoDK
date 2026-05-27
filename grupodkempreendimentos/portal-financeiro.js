@@ -23,7 +23,15 @@
   const extrairBtn = document.getElementById("financeiroExtratoExtrairIaBtn");
   const limparBtn = document.getElementById("financeiroExtratoLimparBtn");
   const uploadsLista = document.getElementById("financeiroUploadsLista");
-  const relatorioWrap = document.getElementById("financeiroRelatorioWrap");
+  const resumoDados = document.getElementById("financeiroResumoDados");
+  const verRelatorioBtn = document.getElementById("financeiroVerRelatorioBtn");
+  const relatorioModal = document.getElementById("financeiroRelatorioModal");
+  const relatorioConteudo = document.getElementById("financeiroRelatorioConteudo");
+  const relatorioModalSub = document.getElementById("financeiroRelatorioModalSub");
+  const relatorioPeriodoLbl = document.getElementById("financeiroRelatorioPeriodoLbl");
+  const filtroDe = document.getElementById("financeiroFiltroDe");
+  const filtroAte = document.getElementById("financeiroFiltroAte");
+  const filtroCategoria = document.getElementById("financeiroFiltroCategoria");
 
   let bancoAtivo = "";
   let arquivoPendente = null;
@@ -43,21 +51,171 @@
     return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
+  function normBucket(b) {
+    if (Array.isArray(b)) return { uploads: b };
+    if (b && Array.isArray(b.uploads)) return { uploads: b.uploads };
+    return { uploads: [] };
+  }
+
   function loadStore() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const o = raw ? JSON.parse(raw) : {};
       return {
-        santander: Array.isArray(o.santander?.uploads) ? o.santander.uploads : [],
-        sicredi: Array.isArray(o.sicredi?.uploads) ? o.sicredi.uploads : [],
+        santander: normBucket(o.santander),
+        sicredi: normBucket(o.sicredi),
       };
     } catch {
-      return { santander: [], sicredi: [] };
+      return { santander: { uploads: [] }, sicredi: { uploads: [] } };
     }
   }
 
   function saveStore(store) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  }
+
+  function getUploads(banco) {
+    return loadStore()[banco]?.uploads || [];
+  }
+
+  function setUploads(banco, uploads) {
+    const store = loadStore();
+    store[banco] = { uploads };
+    saveStore(store);
+  }
+
+  function onlyDigits(s) {
+    return String(s ?? "").replace(/\D/g, "");
+  }
+
+  function normNome(s) {
+    return String(s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function extrairCpfsDoTexto(texto) {
+    const out = [];
+    const s = String(texto || "");
+    const re = /\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{11}/g;
+    let m;
+    while ((m = re.exec(s))) {
+      const d = onlyDigits(m[0]);
+      if (d.length === 11) out.push(d);
+    }
+    return [...new Set(out)];
+  }
+
+  function extrairNomePix(descricao) {
+    const d = String(descricao || "");
+    const patterns = [
+      /(?:pix\s+)?recebido\s+de\s+(.+?)(?:\s+[-–]|\s+cpf|\s+cnpj|\s+valor|$)/i,
+      /(?:transfer[eê]ncia|ted)\s+de\s+(.+?)(?:\s+[-–]|\s+cpf|$)/i,
+      /(?:credito|cr[eé]dito)\s+[-–]?\s*(.+?)(?:\s+[-–]|$)/i,
+      /^(.+?)\s+[-–]\s+pix/i,
+    ];
+    for (const re of patterns) {
+      const m = d.match(re);
+      if (m?.[1]) {
+        const n = String(m[1]).trim().replace(/\s+/g, " ");
+        if (n.length >= 3 && n.length <= 120) return n;
+      }
+    }
+    return "";
+  }
+
+  function resolverPagador(mov) {
+    let cpf = onlyDigits(mov.pagadorCpf || mov.cpfPagador || "");
+    let nome = String(mov.pagadorNome || mov.nomePagador || "").trim();
+    const desc = String(mov.descricao || "");
+    if (!cpf) {
+      const cpfs = extrairCpfsDoTexto(desc);
+      if (cpfs.length) cpf = cpfs[0];
+    }
+    if (!nome) nome = extrairNomePix(desc);
+    if (!nome && desc.length >= 3 && desc.length <= 100) nome = desc;
+    return { cpf, nome };
+  }
+
+  function buscarClienteCadastro(cpf, nome) {
+    if (cpf.length === 11 && typeof findClienteByCpfCadastro === "function") {
+      const c = findClienteByCpfCadastro(cpf);
+      if (c) {
+        return {
+          status: "cadastrado",
+          nomeCadastro: String(c.nome || "").trim(),
+          cpf: onlyDigits(c.cpf),
+        };
+      }
+    }
+    const nn = normNome(nome);
+    if (nn.length >= 4) {
+      let clientes = [];
+      try {
+        const raw = localStorage.getItem("dk_clientes_cadastro");
+        clientes = raw ? JSON.parse(raw) : [];
+      } catch {
+        clientes = [];
+      }
+      for (const c of clientes) {
+        const cn = normNome(c.nome);
+        if (!cn) continue;
+        if (cn === nn || cn.includes(nn) || nn.includes(cn)) {
+          return {
+            status: "cadastrado",
+            nomeCadastro: String(c.nome || "").trim(),
+            cpf: onlyDigits(c.cpf),
+          };
+        }
+      }
+    }
+    if (!nome && !cpf) {
+      return { status: "indeterminado", nomeCadastro: "", cpf: "" };
+    }
+    return { status: "nao_cadastrado", nomeCadastro: "", cpf: cpf || "" };
+  }
+
+  function movimentoFingerprint(m) {
+    const { cpf, nome } = resolverPagador(m);
+    return [
+      dateKeyBr(m.data),
+      m.tipo,
+      Number(m.valor).toFixed(2),
+      normNome(m.descricao).slice(0, 60),
+      cpf,
+      normNome(nome).slice(0, 40),
+    ].join("|");
+  }
+
+  function movimentoNoPeriodo(m, deBr, ateBr) {
+    const d = parseBrDate(m.data);
+    if (!d) return false;
+    const de = parseBrDate(deBr);
+    const ate = parseBrDate(ateBr);
+    if (de) {
+      de.setHours(0, 0, 0, 0);
+      if (d < de) return false;
+    }
+    if (ate) {
+      ate.setHours(23, 59, 59, 999);
+      if (d > ate) return false;
+    }
+    return true;
+  }
+
+  function limitesDatasMovimentos(movs) {
+    let min = null;
+    let max = null;
+    for (const m of movs) {
+      const d = parseBrDate(m.data);
+      if (!d) continue;
+      if (!min || d < min) min = d;
+      if (!max || d > max) max = d;
+    }
+    return { min, max };
   }
 
   function newId() {
@@ -151,17 +309,36 @@
         const sinal = String(m.sinal || "").toLowerCase();
         tipo = sinal === "+" || sinal === "c" ? "entrada" : "saida";
       }
-      out.push({ data, descricao, valor: Math.abs(valor), tipo });
+      const pagadorNome = String(m.pagadorNome || m.nomePagador || "").trim();
+      const pagadorCpf = onlyDigits(m.pagadorCpf || m.cpfPagador || "");
+      const categoria = String(m.categoria || "").trim();
+      out.push({
+        data,
+        descricao,
+        valor: Math.abs(valor),
+        tipo,
+        pagadorNome,
+        pagadorCpf,
+        categoria,
+      });
     }
     return out;
   }
 
-  function todosMovimentosBanco(banco) {
-    const store = loadStore();
-    const uploads = store[banco] || [];
+  function todosMovimentosBanco(banco, dedupe) {
+    const uploads = getUploads(banco);
     const movs = [];
+    const seen = new Set();
     for (const u of uploads) {
-      for (const m of u.movimentos || []) movs.push(m);
+      for (const m of u.movimentos || []) {
+        const row = { ...m };
+        if (dedupe !== false) {
+          const fp = movimentoFingerprint(row);
+          if (seen.has(fp)) continue;
+          seen.add(fp);
+        }
+        movs.push(row);
+      }
     }
     return movs;
   }
@@ -227,35 +404,181 @@
       </div>`;
   }
 
-  function renderRelatorio() {
-    if (!relatorioWrap || !bancoAtivo) return;
+  function atualizarResumoBar() {
+    if (!bancoAtivo) return;
+    const uploads = getUploads(bancoAtivo);
     const movs = todosMovimentosBanco(bancoAtivo);
+    const nArq = uploads.length;
+    const nMov = movs.length;
+    if (resumoDados) {
+      resumoDados.textContent =
+        nMov > 0
+          ? `${nMov} movimento(s) de ${nArq} ficheiro(s) — use «Ver relatório» para filtrar por período e tipo.`
+          : nArq > 0
+            ? `${nArq} ficheiro(s) sem movimentos válidos.`
+            : "Nenhum movimento guardado ainda.";
+    }
+    if (verRelatorioBtn) {
+      verRelatorioBtn.disabled = nMov === 0;
+    }
+  }
+
+  function renderTabelaLancamentos(titulo, linhas, cols) {
+    if (!linhas.length) {
+      return `<p class="subtext">${escapeHtml(titulo)}: nada no período.</p>`;
+    }
+    const head = cols.map((c) => `<th>${escapeHtml(c.label)}</th>`).join("");
+    const body = linhas
+      .map((row) => {
+        const tds = cols.map((c) => {
+          const v = c.render ? c.render(row) : row[c.key];
+          return `<td${c.num ? ' class="financeiro-num"' : ""}>${v}</td>`;
+        });
+        return `<tr>${tds.join("")}</tr>`;
+      })
+      .join("");
+    return `
+      <h4 class="financeiro-relatorio__subtitle">${escapeHtml(titulo)}</h4>
+      <div class="portal-lanc-hist-wrap">
+        <table class="portal-lanc-hist financeiro-relatorio-table">
+          <thead><tr>${head}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function renderRelatorioModalConteudo() {
+    if (!relatorioConteudo || !bancoAtivo) return;
+    const de = String(filtroDe?.value || "").trim();
+    const ate = String(filtroAte?.value || "").trim();
+    const cat = String(filtroCategoria?.value || "resumo");
+    const todos = todosMovimentosBanco(bancoAtivo);
+    const movs = todos.filter((m) => movimentoNoPeriodo(m, de, ate));
+
+    if (relatorioPeriodoLbl) {
+      const parteDe = de || "início";
+      const parteAte = ate || "fim";
+      relatorioPeriodoLbl.textContent = `Período: ${parteDe} até ${parteAte} · ${movs.length} de ${todos.length} lançamento(s)`;
+    }
+
     if (!movs.length) {
-      relatorioWrap.innerHTML =
-        '<p class="subtext">Ainda não há movimentos extraídos. Envie um extrato (imagem ou PDF) e use «Extrair movimentos com IA».</p>';
-      relatorioWrap.classList.remove("hidden");
+      relatorioConteudo.innerHTML =
+        "<p class=\"subtext\">Nenhum movimento neste período. Ajuste as datas ou envie mais imagens.</p>";
       return;
     }
-    const porDia = agregar(movs, dateKeyBr, (k) => {
-      const p = k.split("-");
-      return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : k;
-    });
-    const porSemana = agregar(movs, weekKeyFromBr, weekLabel);
-    const porMes = agregar(movs, monthKeyFromBr, monthLabel);
 
-    relatorioWrap.innerHTML = `
-      <h3 class="operacao-inline-form__title">Relatório consolidado — ${escapeHtml(BANCOS[bancoAtivo] || bancoAtivo)}</h3>
-      <p class="subtext operacao-inline-form__lead">${movs.length} lançamento(s) em ${loadStore()[bancoAtivo]?.length || 0} ficheiro(s) processado(s).</p>
-      ${renderTabelaAgg("Por dia", porDia)}
-      ${renderTabelaAgg("Por semana (início segunda-feira)", porSemana)}
-      ${renderTabelaAgg("Por mês", porMes)}
-    `;
-    relatorioWrap.classList.remove("hidden");
+    let html = "";
+
+    if (cat === "resumo") {
+      const porDia = agregar(movs, dateKeyBr, (k) => {
+        const p = k.split("-");
+        return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : k;
+      });
+      const porSemana = agregar(movs, weekKeyFromBr, weekLabel);
+      const porMes = agregar(movs, monthKeyFromBr, monthLabel);
+      html = `${renderTabelaAgg("Por dia", porDia)}${renderTabelaAgg("Por semana (segunda a domingo)", porSemana)}${renderTabelaAgg("Por mês", porMes)}`;
+    } else if (cat === "entradas") {
+      const ent = movs.filter((m) => m.tipo === "entrada");
+      const tot = ent.reduce((s, m) => s + m.valor, 0);
+      html = `<p class="subtext"><strong>Total entradas:</strong> ${currencyBRL(tot)} (${ent.length} lançamento(s))</p>`;
+      html += renderTabelaLancamentos("Detalhe das entradas", ent, [
+        { label: "Data", key: "data" },
+        { label: "Descrição", render: (r) => escapeHtml(r.descricao) },
+        { label: "Valor", render: (r) => currencyBRL(r.valor), num: true },
+      ]);
+    } else if (cat === "saidas") {
+      const sai = movs.filter((m) => m.tipo === "saida");
+      const tot = sai.reduce((s, m) => s + m.valor, 0);
+      html = `<p class="subtext"><strong>Total saídas:</strong> ${currencyBRL(tot)} (${sai.length} lançamento(s))</p>`;
+      html += renderTabelaLancamentos("Detalhe das saídas", sai, [
+        { label: "Data", key: "data" },
+        { label: "Descrição", render: (r) => escapeHtml(r.descricao) },
+        { label: "Valor", render: (r) => currencyBRL(r.valor), num: true },
+      ]);
+    } else if (cat === "clientes_repetidos") {
+      const map = new Map();
+      for (const m of movs.filter((x) => x.tipo === "entrada")) {
+        const { cpf, nome } = resolverPagador(m);
+        const chave = cpf || normNome(nome) || normNome(m.descricao);
+        if (!chave) continue;
+        if (!map.has(chave)) {
+          map.set(chave, { cpf, nome: nome || m.descricao, total: 0, qtd: 0, datas: [] });
+        }
+        const g = map.get(chave);
+        g.total += m.valor;
+        g.qtd += 1;
+        g.datas.push(m.data);
+      }
+      const reps = Array.from(map.values())
+        .filter((g) => g.qtd >= 2)
+        .sort((a, b) => b.total - a.total);
+      html = `<p class="subtext">Pagadores com 2 ou mais entradas no período (${reps.length}).</p>`;
+      html += renderTabelaLancamentos("Clientes repetidos", reps, [
+        { label: "Nome / histórico", render: (r) => escapeHtml(r.nome) },
+        { label: "CPF", render: (r) => (r.cpf ? escapeHtml(r.cpf) : "—") },
+        { label: "Qtd.", key: "qtd" },
+        { label: "Total", render: (r) => currencyBRL(r.total), num: true },
+        { label: "Datas", render: (r) => escapeHtml([...new Set(r.datas)].sort().join(", ")) },
+      ]);
+    } else if (cat === "quem_pagou") {
+      const ent = movs.filter((m) => m.tipo === "entrada");
+      const linhas = ent.map((m) => {
+        const { cpf, nome } = resolverPagador(m);
+        const cad = buscarClienteCadastro(cpf, nome);
+        const statusHtml =
+          cad.status === "cadastrado"
+            ? `<span class="financeiro-status-cad">Cadastrado</span>`
+            : cad.status === "nao_cadastrado"
+              ? `<span class="financeiro-status-nao-cad">Não cadastrado</span>`
+              : "—";
+        return {
+          data: m.data,
+          nomeExib: cad.nomeCadastro || nome || "—",
+          cpf: cpf || cad.cpf || "—",
+          descricao: m.descricao,
+          valor: m.valor,
+          statusHtml,
+        };
+      });
+      const totCad = linhas.filter((l) => l.statusHtml.includes("Cadastrado")).length;
+      const totNao = linhas.filter((l) => l.statusHtml.includes("Não cadastrado")).length;
+      html = `<p class="subtext">${ent.length} entrada(s): <span class="financeiro-status-cad">${totCad} cadastrado(s)</span>, <span class="financeiro-status-nao-cad">${totNao} não cadastrado(s)</span>.</p>`;
+      html += renderTabelaLancamentos("Quem pagou", linhas, [
+        { label: "Data", key: "data" },
+        { label: "Pagador", render: (r) => escapeHtml(r.nomeExib) },
+        { label: "CPF", render: (r) => escapeHtml(r.cpf) },
+        { label: "Valor", render: (r) => currencyBRL(r.valor), num: true },
+        { label: "Cadastro", render: (r) => r.statusHtml },
+        { label: "Histórico", render: (r) => escapeHtml(r.descricao) },
+      ]);
+    }
+
+    relatorioConteudo.innerHTML = html;
+  }
+
+  function abrirRelatorioModal() {
+    if (!bancoAtivo || !relatorioModal) return;
+    const movs = todosMovimentosBanco(bancoAtivo);
+    if (!movs.length) return;
+    const { min, max } = limitesDatasMovimentos(movs);
+    if (filtroDe && min) filtroDe.value = formatBrDate(min);
+    if (filtroAte && max) filtroAte.value = formatBrDate(max);
+    if (relatorioModalSub) {
+      relatorioModalSub.textContent = `${BANCOS[bancoAtivo]} · ${getUploads(bancoAtivo).length} ficheiro(s) · ${movs.length} movimento(s) consolidados`;
+    }
+    const tit = document.getElementById("financeiroRelatorioModalTitulo");
+    if (tit) tit.textContent = `Relatório — ${BANCOS[bancoAtivo]}`;
+    relatorioModal.classList.remove("hidden");
+    renderRelatorioModalConteudo();
+  }
+
+  function fecharRelatorioModal() {
+    relatorioModal?.classList.add("hidden");
   }
 
   function renderUploadsLista() {
     if (!uploadsLista || !bancoAtivo) return;
-    const uploads = loadStore()[bancoAtivo] || [];
+    const uploads = getUploads(bancoAtivo);
     if (!uploads.length) {
       uploadsLista.innerHTML = '<p class="subtext">Nenhum extrato processado neste banco.</p>';
       return;
@@ -279,11 +602,10 @@
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-fin-upload-id");
         if (!id || !bancoAtivo) return;
-        const store = loadStore();
-        store[bancoAtivo] = (store[bancoAtivo] || []).filter((u) => u.id !== id);
-        saveStore(store);
+        const uploads = getUploads(bancoAtivo).filter((u) => u.id !== id);
+        setUploads(bancoAtivo, uploads);
         renderUploadsLista();
-        renderRelatorio();
+        atualizarResumoBar();
       });
     });
   }
@@ -418,7 +740,7 @@
 
   function montarPromptExtrato(bancoLabel) {
     const schema =
-      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida"}],"observacoes":string|null}';
+      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null}';
     return `Leitor de extrato bancário brasileiro (${bancoLabel}). Analise a imagem ou PDF anexo.
 
 Extraia TODAS as movimentações visíveis (créditos, débitos, PIX, TED, tarifas, salários, etc.).
@@ -426,11 +748,13 @@ Extraia TODAS as movimentações visíveis (créditos, débitos, PIX, TED, tarif
 Responda APENAS um objeto json válido (sem markdown): ${schema}
 
 Regras:
-- data em DD/MM/AAAA; se o extrato só mostrar dia/mês no contexto de um mês, complete com o ano visível no documento
+- data em DD/MM/AAAA; se o extrato só mostrar dia/mês, complete com o ano visível no documento
 - valor numérico positivo com até 2 decimais
 - tipo "entrada" para créditos/depósitos/recebimentos; "saida" para débitos/pagamentos/saques
-- descricao: texto curto do histórico
-- banco: use "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}" conforme o documento`;
+- descricao: histórico como no extrato
+- pagadorNome e pagadorCpf: em PIX/TED preencha nome e CPF/CNPJ do pagador ou recebedor quando aparecer
+- categoria: ex. pix, ted, tarifa, salario, boleto — quando identificável
+- banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"`;
   }
 
   async function probeOpenAIServidor() {
@@ -609,22 +933,22 @@ Regras:
         return;
       }
 
-      const store = loadStore();
-      if (!store[bancoAtivo]) store[bancoAtivo] = [];
-      store[bancoAtivo].push({
+      const uploads = getUploads(bancoAtivo);
+      uploads.push({
         id: newId(),
         nomeArquivo: arquivoPendenteNome,
         processadoEm: new Date().toISOString(),
         movimentos,
         observacoes: String(oai.parsed?.observacoes || "").trim(),
       });
-      saveStore(store);
+      setUploads(bancoAtivo, uploads);
       limparArquivoPendente();
       renderUploadsLista();
-      renderRelatorio();
+      atualizarResumoBar();
       if (msgEl) {
-        msgEl.textContent = `${movimentos.length} movimento(s) adicionado(s) ao relatório.`;
+        msgEl.textContent = `${movimentos.length} movimento(s) adicionado(s). Clique em «Ver relatório».`;
         msgEl.classList.remove("portal-feedback--erro");
+        msgEl.classList.add("portal-feedback--ok");
       }
     } catch (e) {
       if (msgEl) {
@@ -645,7 +969,7 @@ Regras:
     if (tituloBanco) tituloBanco.textContent = BANCOS[banco];
     void refreshFinanceiroOpenAIStatus();
     renderUploadsLista();
-    renderRelatorio();
+    atualizarResumoBar();
   }
 
   function resetFinanceiroUi() {
@@ -653,11 +977,10 @@ Regras:
     limparArquivoPendente();
     setFinanceiroPlaceholderVisible(true);
     syncFinanceiroSidebarButtons(null);
-    if (relatorioWrap) {
-      relatorioWrap.innerHTML = "";
-      relatorioWrap.classList.add("hidden");
-    }
+    fecharRelatorioModal();
     if (uploadsLista) uploadsLista.innerHTML = "";
+    if (resumoDados) resumoDados.textContent = "Nenhum movimento guardado ainda.";
+    if (verRelatorioBtn) verRelatorioBtn.disabled = true;
   }
 
   function financeiroPaneVisivel() {
@@ -703,8 +1026,36 @@ Regras:
 
     extrairBtn?.addEventListener("click", () => void extrairComIA());
     limparBtn?.addEventListener("click", () => limparArquivoPendente());
+
+    verRelatorioBtn?.addEventListener("click", () => abrirRelatorioModal());
+    document.getElementById("financeiroRelatorioAtualizarBtn")?.addEventListener("click", () => {
+      renderRelatorioModalConteudo();
+    });
+    relatorioModal?.querySelectorAll("[data-close-fin-relatorio]").forEach((el) => {
+      el.addEventListener("click", () => fecharRelatorioModal());
+    });
+
+    if (filtroDe && typeof bindDateMaskInput === "function") bindDateMaskInput(filtroDe);
+    if (filtroAte && typeof bindDateMaskInput === "function") bindDateMaskInput(filtroAte);
   }
 
+  function migrarStorageLegado() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const o = JSON.parse(raw);
+      if (Array.isArray(o.santander) || Array.isArray(o.sicredi)) {
+        saveStore({
+          santander: normBucket(o.santander),
+          sicredi: normBucket(o.sicredi),
+        });
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  migrarStorageLegado();
   bindUi();
 
   window.__DK_financeiroReset = resetFinanceiroUi;

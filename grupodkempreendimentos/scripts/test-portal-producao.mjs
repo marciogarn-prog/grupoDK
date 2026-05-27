@@ -58,6 +58,13 @@ async function main() {
         html.includes("financeiroExtratoExtrairIaBtn")
     );
     record(
+      "financeiro modal relatório com período",
+      html.includes("financeiroVerRelatorioBtn") &&
+        html.includes("financeiroRelatorioModal") &&
+        html.includes("financeiroFiltroCategoria") &&
+        html.includes("quem_pagou")
+    );
+    record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );

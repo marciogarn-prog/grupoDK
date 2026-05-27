@@ -1556,7 +1556,10 @@
               <p id="financeiroExtratoMsg" class="portal-feedback" role="status"></p>
               <h4 class="portal-lanc-aluguel-section__title">Ficheiros processados</h4>
               <div id="financeiroUploadsLista" class="financeiro-uploads-lista"></div>
-              <div id="financeiroRelatorioWrap" class="financeiro-relatorio hidden" aria-live="polite"></div>
+              <div class="financeiro-relatorio-acoes">
+                <p id="financeiroResumoDados" class="subtext" role="status">Nenhum movimento guardado ainda.</p>
+                <button type="button" class="btn-primary" id="financeiroVerRelatorioBtn" disabled>Ver relatório</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1709,6 +1712,40 @@
   </div>
 
 
+  <div id="financeiroRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="financeiroRelatorioModalTitulo">
+    <div class="portal-modal__backdrop" data-close-fin-relatorio></div>
+    <div class="portal-modal__card portal-modal__card--wide">
+      <h3 id="financeiroRelatorioModalTitulo" class="portal-modal__title">Relatório financeiro</h3>
+      <p id="financeiroRelatorioModalSub" class="subtext portal-modal__text"></p>
+      <div class="financeiro-relatorio-filtros" role="search">
+        <label class="portal-field">
+          <span>De</span>
+          <input type="text" id="financeiroFiltroDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
+        </label>
+        <label class="portal-field">
+          <span>Até</span>
+          <input type="text" id="financeiroFiltroAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
+        </label>
+        <label class="portal-field portal-field--grow">
+          <span>Tipo de relatório</span>
+          <select id="financeiroFiltroCategoria">
+            <option value="resumo">Resumo — entradas e saídas por dia, semana e mês</option>
+            <option value="entradas">Total de entradas no período</option>
+            <option value="saidas">Saídas no período</option>
+            <option value="clientes_repetidos">Clientes repetidos (vários pagamentos)</option>
+            <option value="quem_pagou">Quem pagou — cruzamento com cadastro</option>
+          </select>
+        </label>
+        <button type="button" class="btn-primary" id="financeiroRelatorioAtualizarBtn">Atualizar relatório</button>
+      </div>
+      <p id="financeiroRelatorioPeriodoLbl" class="subtext financeiro-relatorio-periodo-lbl"></p>
+      <div id="financeiroRelatorioConteudo" class="financeiro-relatorio-conteudo" aria-live="polite"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary btn-secondary-outline" data-close-fin-relatorio>Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalMultasRelatorioModal" class="portal-modal portal-multas-relatorio-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMultasRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-multas-relatorio></div>
     <div class="portal-modal__card portal-multas-relatorio-modal__card">
@@ -1765,7 +1802,7 @@
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260522financeiro" defer></script>
-  <script src="portal-financeiro.js?v=20260522financeiro-ia-erro" defer></script>
+  <script src="portal-financeiro.js?v=20260527relatorio-modal" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260522notif-lidas" defer></script>
