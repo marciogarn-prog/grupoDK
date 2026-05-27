@@ -196,6 +196,7 @@
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-financeiro">Financeiro</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
@@ -1516,6 +1517,52 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-manutencao-locadora">Voltar</button>
         </div>
       </section>
+
+      <section id="panel-financeiro-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Financeiro</h2>
+        <div class="portal-operacao-layout">
+          <aside class="portal-operacao-layout__sidebar" aria-label="contas bancárias">
+            <p class="subpage__lead">Extratos e relatórios.</p>
+            <p class="subtext">Envie imagens de movimentação diária ou PDF do mês. A IA extrai lançamentos e consolida entradas e saídas.</p>
+            <div class="operacao-comandos">
+              <button type="button" class="btn-operacao-cmd" id="btn-financeiro-santander" aria-expanded="false" aria-controls="financeiroPaneBanco">
+                <span class="btn-operacao-cmd__title">Santander</span>
+                <span class="btn-operacao-cmd__hint">Conta Santander</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-financeiro-sicredi" aria-expanded="false" aria-controls="financeiroPaneBanco">
+                <span class="btn-operacao-cmd__title">Sicredi</span>
+                <span class="btn-operacao-cmd__hint">Conta Sicredi</span>
+              </button>
+            </div>
+          </aside>
+          <div class="portal-operacao-layout__main" id="financeiroPainelDireito">
+            <div id="financeiroFormPlaceholder" class="operacao-form-placeholder" role="status">
+              <p class="operacao-form-placeholder__text">Escolha Santander ou Sicredi à esquerda.</p>
+            </div>
+            <div id="financeiroPaneBanco" class="operacao-inline-form hidden" role="region" aria-labelledby="financeiroBancoTitulo">
+              <h3 id="financeiroBancoTitulo" class="operacao-inline-form__title">—</h3>
+              <p class="subtext operacao-inline-form__lead">Cole com <strong>Ctrl+V</strong> ou anexe imagem (movimentação do dia) ou PDF (extrato mensal).</p>
+              <div id="financeiroExtratoPasteZone" class="portal-operador-comprovante-paste" tabindex="0" role="button" aria-label="Colar extrato com Ctrl+V">
+                <p class="portal-operador-comprovante-paste__lead">Clique aqui e use <strong>Ctrl+V</strong> para colar imagem ou PDF do extrato.</p>
+                <p class="subtext">Ou escolha um ficheiro:</p>
+                <input type="file" id="financeiroExtratoFile" accept="image/*,application/pdf" class="portal-operador-comprovante-file">
+              </div>
+              <p id="financeiroExtratoArquivoLbl" class="subtext portal-operador-comprovante-arquivo" role="status"></p>
+              <div class="operacao-inline-form__actions">
+                <button type="button" class="btn-primary" id="financeiroExtratoExtrairIaBtn">Extrair movimentos com IA</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroExtratoLimparBtn">Limpar ficheiro</button>
+              </div>
+              <p id="financeiroExtratoMsg" class="portal-feedback" role="status"></p>
+              <h4 class="portal-lanc-aluguel-section__title">Ficheiros processados</h4>
+              <div id="financeiroUploadsLista" class="financeiro-uploads-lista"></div>
+              <div id="financeiroRelatorioWrap" class="financeiro-relatorio hidden" aria-live="polite"></div>
+            </div>
+          </div>
+        </div>
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-financeiro-locadora">Voltar</button>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -1716,7 +1763,8 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522paste-comprovante" defer></script>
+  <script src="portal-locadora-ui.js?v=20260522financeiro" defer></script>
+  <script src="portal-financeiro.js?v=20260522financeiro" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260522notif-lidas" defer></script>

@@ -27,12 +27,14 @@
   const panelLogado = document.getElementById("panel-logado");
   const panelOperacao = document.getElementById("panel-operacao-locadora");
   const panelManutencao = document.getElementById("panel-manutencao-locadora");
+  const panelFinanceiro = document.getElementById("panel-financeiro-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
   const logadoTexto = document.getElementById("logado-texto");
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
+  const btnFinanceiro = document.getElementById("btn-locadora-financeiro");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
   const logadoSubtextPreparacao = document.getElementById("logado-subtext-preparacao");
@@ -40,6 +42,7 @@
   const locadoraAppFeedback = document.getElementById("locadora-app-feedback");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
+  const btnVoltarFinanceiro = document.getElementById("btn-voltar-financeiro-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
@@ -437,6 +440,7 @@
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
     btnManutencao?.classList.toggle("hidden", !allowOp);
+    btnFinanceiro?.classList.toggle("hidden", !allowOp);
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
     }
@@ -619,6 +623,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnFinanceiro?.classList.add("hidden");
     showView("hub");
     setPortalHash("locadora");
   }
@@ -648,7 +653,7 @@
   }
 
   function hideAllPanels() {
-    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao].forEach((p) => {
+    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelFinanceiro].forEach((p) => {
       if (p) p.classList.add("hidden");
     });
   }
@@ -698,6 +703,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnFinanceiro?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     clearPortalUnitDadosAtualizados();
     showView("home");
@@ -711,10 +717,11 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnFinanceiro?.classList.add("hidden");
     openLocadoraHub();
   }
 
-  /** Da Operação/Manutenção → Área da equipa (escolher Operação ou Manutenção). */
+  /** Da Operação/Manutenção/Financeiro → Área da equipa. */
   function portalVoltarEquipaLocadora() {
     hideInlineForms();
     hideManutencaoInlineFormsCore();
@@ -722,8 +729,10 @@
     setManutencaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
     syncManutencaoSidebarButtons(null);
+    if (typeof window.__DK_financeiroReset === "function") window.__DK_financeiroReset();
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
+    panelFinanceiro?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
   }
 
@@ -741,7 +750,8 @@
     btn.addEventListener("click", () => {
       const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
       const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
-      if (emOperacao || emManutencao) {
+      const emFinanceiro = panelFinanceiro && !panelFinanceiro.classList.contains("hidden");
+      if (emOperacao || emManutencao || emFinanceiro) {
         portalVoltarEquipaLocadora();
         return;
       }
@@ -1029,9 +1039,18 @@
     panelManutencao?.classList.remove("hidden");
   });
 
+  btnFinanceiro?.addEventListener("click", () => {
+    hideAllPanels();
+    if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
+    panelFinanceiro?.classList.remove("hidden");
+  });
+
   btnVoltarManutencao?.addEventListener("click", () => {
-    panelManutencao?.classList.add("hidden");
-    panelLogado?.classList.remove("hidden");
+    portalVoltarEquipaLocadora();
+  });
+
+  btnVoltarFinanceiro?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
   });
 
   /** Itens 1–29 — inspeção (A/R). */
@@ -2317,6 +2336,7 @@ ${printable.innerHTML}
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnFinanceiro?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {
       openLocadoraEmpresa();

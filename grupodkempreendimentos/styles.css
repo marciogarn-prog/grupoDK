@@ -899,6 +899,40 @@ body {
   display: none;
 }
 
+.financeiro-uploads-lista {
+  margin: 0.75rem 0 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.financeiro-upload-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid rgba(201, 162, 39, 0.25);
+  border-radius: 8px;
+  background: rgba(10, 12, 18, 0.5);
+}
+
+.financeiro-relatorio {
+  margin-top: 1.25rem;
+}
+
+.financeiro-relatorio__subtitle {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+.financeiro-relatorio-table .financeiro-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
 .portal-operador-comprovante__actions {
   flex-wrap: wrap;
   gap: 0.5rem;

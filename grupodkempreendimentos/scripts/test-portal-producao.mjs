@@ -50,6 +50,14 @@ async function main() {
         html.includes("operacaoLancAluguelPaneRelatorios")
     );
     record(
+      "área financeiro (Santander + Sicredi + IA extrato)",
+      html.includes("btn-locadora-financeiro") &&
+        html.includes("panel-financeiro-locadora") &&
+        html.includes("btn-financeiro-santander") &&
+        html.includes("btn-financeiro-sicredi") &&
+        html.includes("financeiroExtratoExtrairIaBtn")
+    );
+    record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );
