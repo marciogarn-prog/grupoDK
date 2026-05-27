@@ -54,6 +54,13 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ ok: false, reason: "invalid_content" });
   }
 
+  const tipo = String(body?.tipo || "").toLowerCase();
+  const pedido = Number(body?.max_tokens);
+  const maxTokens =
+    tipo === "extrato"
+      ? Math.min(4096, Number.isFinite(pedido) && pedido > 0 ? pedido : 4096)
+      : Math.min(4096, Number.isFinite(pedido) && pedido > 0 ? pedido : 900);
+
   try {
     const oai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -65,7 +72,7 @@ module.exports = async function handler(req, res) {
         model: "gpt-4o-mini",
         messages: [{ role: "user", content }],
         response_format: { type: "json_object" },
-        max_tokens: 900,
+        max_tokens: maxTokens,
       }),
     });
 

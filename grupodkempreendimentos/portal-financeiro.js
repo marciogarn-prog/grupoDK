@@ -417,29 +417,71 @@ Regras:
 - banco: use "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}" conforme o documento`;
   }
 
-  async function chamarOpenAIExtrato(content) {
+  async function probeOpenAIServidor() {
     try {
-      const res = await fetch("/api/openai-extrato", {
+      const res = await fetch("/api/openai-comprovante", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ ping: true }),
       });
       const data = await res.json();
-      if (res.ok && data.ok && data.parsed) {
-        return { ok: true, parsed: data.parsed };
-      }
-      if (data?.reason !== "openai_not_configured" && !res.ok) {
-        return { ok: false, msg: `Servidor IA: ${String(data?.error || data?.reason || res.status)}` };
-      }
+      return Boolean(data?.ok && data?.mode === "server");
     } catch {
-      /* fallback chave local */
+      return false;
+    }
+  }
+
+  async function refreshFinanceiroOpenAIStatus() {
+    const el = document.getElementById("financeiroOpenAIStatus");
+    if (!el) return;
+    el.textContent = "A verificar IA…";
+    const server = await probeOpenAIServidor();
+    const local = String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
+    if (server) {
+      el.innerHTML = "✓ <strong>IA no servidor</strong> (Vercel) — pode extrair movimentos.";
+      return;
+    }
+    if (local) {
+      el.textContent = "✓ Chave OpenAI neste navegador — pode extrair movimentos.";
+      return;
+    }
+    el.innerHTML =
+      'IA não disponível. Configure <code>OPENAI_API_KEY</code> na Vercel (redeploy) ou guarde a chave em Operação → Lançamento de aluguel → Validação → «Chave OpenAI só neste navegador».';
+  }
+
+  async function chamarOpenAIExtrato(content) {
+    const rotas = ["/api/openai-comprovante", "/api/openai-extrato"];
+    for (const rota of rotas) {
+      try {
+        const res = await fetch(rota, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, tipo: "extrato", max_tokens: 4096 }),
+        });
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {
+          if (res.status === 404) continue;
+          return { ok: false, msg: `Servidor IA (${res.status}): resposta inválida.` };
+        }
+        if (res.ok && data?.ok && data?.parsed) {
+          return { ok: true, parsed: data.parsed, via: "server" };
+        }
+        if (data?.reason === "openai_not_configured") continue;
+        if (!res.ok && rota === rotas[rotas.length - 1]) {
+          return { ok: false, msg: `Servidor IA: ${String(data?.error || data?.reason || res.status)}` };
+        }
+      } catch {
+        /* tenta próxima rota ou chave local */
+      }
     }
 
     const key = String(localStorage.getItem(OPENAI_KEY_STORAGE) || "").trim();
     if (!key) {
       return {
         ok: false,
-        msg: "IA não configurada. Defina OPENAI_API_KEY na Vercel ou guarde a chave OpenAI no portal (comprovantes).",
+        msg: "IA não configurada no servidor nem neste navegador. Use a chave OpenAI em Operação → Validação de comprovantes, ou OPENAI_API_KEY na Vercel.",
       };
     }
 
@@ -568,6 +610,7 @@ Regras:
     setFinanceiroPlaceholderVisible(false);
     syncFinanceiroSidebarButtons(btnId);
     if (tituloBanco) tituloBanco.textContent = BANCOS[banco];
+    void refreshFinanceiroOpenAIStatus();
     renderUploadsLista();
     renderRelatorio();
   }
@@ -634,5 +677,6 @@ Regras:
   window.__DK_financeiroReset = resetFinanceiroUi;
   window.__DK_financeiroOnShow = () => {
     resetFinanceiroUi();
+    void refreshFinanceiroOpenAIStatus();
   };
 })();
