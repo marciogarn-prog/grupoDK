@@ -1523,7 +1523,7 @@
         <div class="portal-operacao-layout">
           <aside class="portal-operacao-layout__sidebar" aria-label="contas bancárias">
             <p class="subpage__lead">Extratos e relatórios.</p>
-            <p class="subtext">Envie imagens de movimentação diária ou PDF do mês. A IA extrai lançamentos e consolida entradas e saídas.</p>
+            <p class="subtext">Envie imagens de movimentação diária ou PDF do mês. Os dados <strong>acumulam</strong>: hoje, semana que vem ou mês seguinte — tudo entra na mesma base do banco (Santander ou Sicredi). Use <strong>Guardar na nuvem</strong> na equipa para não perder noutro PC.</p>
             <div class="operacao-comandos">
               <button type="button" class="btn-operacao-cmd" id="btn-financeiro-santander" aria-expanded="false" aria-controls="financeiroPaneBanco">
                 <span class="btn-operacao-cmd__title">Santander</span>
@@ -1541,7 +1541,7 @@
             </div>
             <div id="financeiroPaneBanco" class="operacao-inline-form hidden" role="region" aria-labelledby="financeiroBancoTitulo">
               <h3 id="financeiroBancoTitulo" class="operacao-inline-form__title">—</h3>
-              <p class="subtext operacao-inline-form__lead">Cole com <strong>Ctrl+V</strong> ou anexe imagem (movimentação do dia) ou PDF (extrato mensal).</p>
+              <p class="subtext operacao-inline-form__lead">Cole com <strong>Ctrl+V</strong> ou anexe imagem (movimentação do dia) ou PDF (extrato mensal). Cada ficheiro novo <strong>soma</strong> aos anteriores — não substitui.</p>
               <div id="financeiroExtratoPasteZone" class="portal-operador-comprovante-paste" tabindex="0" role="button" aria-label="Colar extrato com Ctrl+V">
                 <p class="portal-operador-comprovante-paste__lead">Clique aqui e use <strong>Ctrl+V</strong> para colar imagem ou PDF do extrato.</p>
                 <p class="subtext">Ou escolha um ficheiro:</p>
@@ -1802,10 +1802,10 @@
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260522financeiro" defer></script>
-  <script src="portal-financeiro.js?v=20260527relatorio-modal" defer></script>
+  <script src="portal-financeiro.js?v=20260527financeiro-acumulativo" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
-  <script src="portal-supabase-sync.js?v=20260522notif-lidas" defer></script>
+  <script src="portal-supabase-sync.js?v=20260527financeiro-nuvem" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522extrair-ia-operador" defer></script>
 </body>
 </html>

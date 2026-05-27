@@ -82,6 +82,30 @@
     const store = loadStore();
     store[banco] = { uploads };
     saveStore(store);
+    agendarSyncNuvem();
+  }
+
+  function agendarSyncNuvem() {
+    if (typeof window.__DK_pushToCloudAfterSave === "function") {
+      window.__DK_pushToCloudAfterSave();
+    }
+  }
+
+  function periodoAcumuladoTexto(banco) {
+    const movs = todosMovimentosBanco(banco, false);
+    let min = null;
+    let max = null;
+    for (const m of movs) {
+      const d = parseBrDate(m.data);
+      if (!d) continue;
+      if (!min || d < min) min = d;
+      if (!max || d > max) max = d;
+    }
+    if (!min) return "";
+    if (max && formatBrDate(min) !== formatBrDate(max)) {
+      return ` · acumulado de ${formatBrDate(min)} a ${formatBrDate(max)}`;
+    }
+    return ` · desde ${formatBrDate(min)}`;
   }
 
   function onlyDigits(s) {
@@ -325,18 +349,28 @@
     return out;
   }
 
+  /**
+   * Junta todos os ficheiros já enviados (acumulativo).
+   * Dentro do mesmo ficheiro: remove linha duplicada.
+   * Entre ficheiros: remove só repetição exacta (ex.: dia 5 na foto do dia 5 e do dia 6).
+   */
   function todosMovimentosBanco(banco, dedupe) {
     const uploads = getUploads(banco);
     const movs = [];
-    const seen = new Set();
+    const seenGlobal = new Set();
     for (const u of uploads) {
+      const seenUpload = new Set();
       for (const m of u.movimentos || []) {
-        const row = { ...m };
-        if (dedupe !== false) {
-          const fp = movimentoFingerprint(row);
-          if (seen.has(fp)) continue;
-          seen.add(fp);
+        const row = { ...m, _uploadId: u.id, _arquivo: u.nomeArquivo };
+        if (dedupe === false) {
+          movs.push(row);
+          continue;
         }
+        const fp = movimentoFingerprint(row);
+        if (seenUpload.has(fp)) continue;
+        seenUpload.add(fp);
+        if (seenGlobal.has(fp)) continue;
+        seenGlobal.add(fp);
         movs.push(row);
       }
     }
@@ -411,12 +445,13 @@
     const nArq = uploads.length;
     const nMov = movs.length;
     if (resumoDados) {
+      const acum = nMov > 0 ? periodoAcumuladoTexto(bancoAtivo) : "";
       resumoDados.textContent =
         nMov > 0
-          ? `${nMov} movimento(s) de ${nArq} ficheiro(s) — use «Ver relatório» para filtrar por período e tipo.`
+          ? `Base acumulativa: ${nMov} movimento(s) em ${nArq} ficheiro(s)${acum}. Novos envios somam a esta base. Use «Ver relatório».`
           : nArq > 0
             ? `${nArq} ficheiro(s) sem movimentos válidos.`
-            : "Nenhum movimento guardado ainda.";
+            : "Nenhum movimento guardado ainda. Cada extrato que enviar fica guardado e acumula.";
     }
     if (verRelatorioBtn) {
       verRelatorioBtn.disabled = nMov === 0;
@@ -564,7 +599,8 @@
     if (filtroDe && min) filtroDe.value = formatBrDate(min);
     if (filtroAte && max) filtroAte.value = formatBrDate(max);
     if (relatorioModalSub) {
-      relatorioModalSub.textContent = `${BANCOS[bancoAtivo]} · ${getUploads(bancoAtivo).length} ficheiro(s) · ${movs.length} movimento(s) consolidados`;
+      const acum = periodoAcumuladoTexto(bancoAtivo);
+      relatorioModalSub.textContent = `${BANCOS[bancoAtivo]} · ${getUploads(bancoAtivo).length} ficheiro(s) · ${movs.length} movimento(s) acumulados${acum}`;
     }
     const tit = document.getElementById("financeiroRelatorioModalTitulo");
     if (tit) tit.textContent = `Relatório — ${BANCOS[bancoAtivo]}`;
@@ -946,7 +982,8 @@ Regras:
       renderUploadsLista();
       atualizarResumoBar();
       if (msgEl) {
-        msgEl.textContent = `${movimentos.length} movimento(s) adicionado(s). Clique em «Ver relatório».`;
+        const total = todosMovimentosBanco(bancoAtivo).length;
+        msgEl.textContent = `+${movimentos.length} movimento(s) neste ficheiro · base acumulativa: ${total} no total. «Ver relatório».`;
         msgEl.classList.remove("portal-feedback--erro");
         msgEl.classList.add("portal-feedback--ok");
       }
@@ -1062,5 +1099,13 @@ Regras:
   window.__DK_financeiroOnShow = () => {
     resetFinanceiroUi();
     void refreshFinanceiroOpenAIStatus();
+  };
+  window.__DK_financeiroRefreshFromStorage = () => {
+    if (!bancoAtivo) return;
+    renderUploadsLista();
+    atualizarResumoBar();
+    if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
+      renderRelatorioModalConteudo();
+    }
   };
 })();

@@ -24,6 +24,7 @@
     "dk_comprovantes_banco",
     "dk_comprovantes_cliente_pendentes",
     "dk_cliente_notificacoes",
+    "dk_financeiro_extratos_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
   ];
@@ -283,6 +284,28 @@
           const localArr = readLocalJsonArray(k);
           localStorage.setItem(k, JSON.stringify(mergeClienteNotificacoes(localArr, cloudArr)));
         }
+        continue;
+      }
+      if (k === "dk_financeiro_extratos_v1") {
+        let cloudObj = v;
+        if (typeof v === "string") {
+          try {
+            cloudObj = JSON.parse(v);
+          } catch {
+            cloudObj = null;
+          }
+        }
+        let localObj = null;
+        try {
+          const raw = localStorage.getItem(k);
+          localObj = raw ? JSON.parse(raw) : null;
+        } catch {
+          localObj = null;
+        }
+        const merged = replace
+          ? parseFinanceiroStore(cloudObj)
+          : mergeFinanceiroExtratos(localObj, cloudObj);
+        localStorage.setItem(k, JSON.stringify(merged));
         continue;
       }
       if (typeof v === "string") {
@@ -612,6 +635,20 @@
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
+      if (k === "dk_financeiro_extratos_v1") {
+        let localObj = b;
+        if (typeof b === "string") {
+          try {
+            localObj = JSON.parse(b);
+          } catch {
+            localObj = null;
+          }
+        }
+        const merged = mergeFinanceiroExtratos(localObj, a);
+        const prev = parseFinanceiroStore(localObj);
+        if (JSON.stringify(merged) !== JSON.stringify(prev)) return true;
+        continue;
+      }
       if (JSON.stringify(a) !== JSON.stringify(b)) return true;
     }
     return false;
@@ -726,6 +763,91 @@
       .slice(0, 500);
   }
 
+  function normFinanceiroBucket(b) {
+    if (Array.isArray(b)) return { uploads: b };
+    if (b && Array.isArray(b.uploads)) return { uploads: b.uploads };
+    return { uploads: [] };
+  }
+
+  function parseFinanceiroStore(raw) {
+    if (!raw) return { santander: { uploads: [] }, sicredi: { uploads: [] } };
+    let o = raw;
+    if (typeof raw === "string") {
+      try {
+        o = JSON.parse(raw);
+      } catch {
+        return { santander: { uploads: [] }, sicredi: { uploads: [] } };
+      }
+    }
+    if (!o || typeof o !== "object") return { santander: { uploads: [] }, sicredi: { uploads: [] } };
+    return {
+      santander: normFinanceiroBucket(o.santander),
+      sicredi: normFinanceiroBucket(o.sicredi),
+    };
+  }
+
+  function financeiroMovFp(m) {
+    const desc = String(m?.descricao || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    const data = String(m?.data || "").trim();
+    const tipo = String(m?.tipo || "").toLowerCase();
+    const valor = Number(m?.valor);
+    return `${data}|${tipo}|${Number.isFinite(valor) ? valor.toFixed(2) : "0"}|${desc}`;
+  }
+
+  function dedupeMovimentosUpload(movs) {
+    const seen = new Set();
+    const out = [];
+    for (const m of movs || []) {
+      const fp = financeiroMovFp(m);
+      if (seen.has(fp)) continue;
+      seen.add(fp);
+      out.push(m);
+    }
+    return out;
+  }
+
+  function mergeFinanceiroUploadList(localList, cloudList) {
+    const byId = new Map();
+    const push = (u) => {
+      if (!u || typeof u !== "object" || !u.id) return;
+      const prev = byId.get(u.id);
+      if (!prev) {
+        byId.set(u.id, { ...u, movimentos: dedupeMovimentosUpload(u.movimentos) });
+        return;
+      }
+      const movs = [...(prev.movimentos || []), ...(u.movimentos || [])];
+      byId.set(u.id, {
+        ...prev,
+        ...u,
+        movimentos: dedupeMovimentosUpload(movs),
+      });
+    };
+    (Array.isArray(cloudList) ? cloudList : []).forEach(push);
+    (Array.isArray(localList) ? localList : []).forEach(push);
+    return Array.from(byId.values()).sort(
+      (a, b) => (Date.parse(b.processadoEm || 0) || 0) - (Date.parse(a.processadoEm || 0) || 0)
+    );
+  }
+
+  /** Acumula extratos financeiros (Santander/Sicredi) — nunca descarta uploads antigos. */
+  function mergeFinanceiroExtratos(localRaw, cloudRaw) {
+    const local = parseFinanceiroStore(localRaw);
+    const cloud = parseFinanceiroStore(cloudRaw);
+    return {
+      santander: {
+        uploads: mergeFinanceiroUploadList(local.santander.uploads, cloud.santander.uploads),
+      },
+      sicredi: {
+        uploads: mergeFinanceiroUploadList(local.sicredi.uploads, cloud.sicredi.uploads),
+      },
+    };
+  }
+
   function readLocalJsonArray(key) {
     try {
       const raw = localStorage.getItem(key);
@@ -751,6 +873,12 @@
         cloudPayload.dk_cliente_notificacoes
       );
     }
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_financeiro_extratos_v1")) {
+      out.dk_financeiro_extratos_v1 = mergeFinanceiroExtratos(
+        localPayload.dk_financeiro_extratos_v1,
+        cloudPayload.dk_financeiro_extratos_v1
+      );
+    }
     return out;
   }
 
@@ -769,8 +897,21 @@
           JSON.stringify(mergedPayload.dk_cliente_notificacoes)
         );
       }
+      if (mergedPayload.dk_financeiro_extratos_v1) {
+        localStorage.setItem(
+          "dk_financeiro_extratos_v1",
+          JSON.stringify(mergedPayload.dk_financeiro_extratos_v1)
+        );
+      }
     } finally {
       suppressCloudHook = false;
+    }
+    if (typeof window.__DK_financeiroRefreshFromStorage === "function") {
+      try {
+        window.__DK_financeiroRefreshFromStorage();
+      } catch {
+        /* ignore */
+      }
     }
     if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
       window.__DK_comprovantesClienteInvalidateCache();
