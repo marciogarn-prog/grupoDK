@@ -202,16 +202,111 @@
     return { status: "nao_cadastrado", nomeCadastro: "", cpf: cpf || "" };
   }
 
+  /** Histórico normalizado para comparar linhas repetidas (IA pode mudar pontuação). */
+  function normDescricaoParaDedupe(s) {
+    return normNome(s)
+      .replace(/\b(PIX|TED|DOC|TEF|TRANSF)\b/g, " ")
+      .replace(/\d{2}:\d{2}(:\d{2})?/g, " ")
+      .replace(/\bE\d{10,}\b/g, " ")
+      .replace(/\b\d{20,}\b/g, " ")
+      .replace(/[^A-Z0-9 ]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
   function movimentoFingerprint(m) {
     const { cpf, nome } = resolverPagador(m);
     return [
       dateKeyBr(m.data),
       m.tipo,
       Number(m.valor).toFixed(2),
-      normNome(m.descricao).slice(0, 60),
+      normDescricaoParaDedupe(m.descricao).slice(0, 80),
       cpf,
       normNome(nome).slice(0, 40),
     ].join("|");
+  }
+
+  /** Chave mais tolerante: mesmo dia + valor + tipo + CPF ou nome do pagador. */
+  function movimentoFingerprintLoose(m) {
+    const { cpf, nome } = resolverPagador(m);
+    const base = `${dateKeyBr(m.data)}|${m.tipo}|${Number(m.valor).toFixed(2)}`;
+    if (cpf.length === 11) return `${base}|cpf:${cpf}`;
+    const n = normNome(nome);
+    if (n.length >= 4) return `${base}|nome:${n.slice(0, 36)}`;
+    const d = normDescricaoParaDedupe(m.descricao).slice(0, 40);
+    return `${base}|d:${d}`;
+  }
+
+  function descricoesEquivalentes(a, b) {
+    const x = normDescricaoParaDedupe(a);
+    const y = normDescricaoParaDedupe(b);
+    if (!x || !y) return false;
+    if (x === y) return true;
+    if (x.length >= 10 && y.length >= 10 && (x.includes(y) || y.includes(x))) return true;
+    return false;
+  }
+
+  function isMovimentoDuplicado(m, seenExact, seenLoose, existentes) {
+    const ex = movimentoFingerprint(m);
+    const lo = movimentoFingerprintLoose(m);
+    if (seenExact.has(ex) || seenLoose.has(lo)) return true;
+
+    const dk = dateKeyBr(m.data);
+    const v = Number(m.valor).toFixed(2);
+    const { cpf: cpfM, nome: nomeM } = resolverPagador(m);
+
+    for (const e of existentes) {
+      if (dateKeyBr(e.data) !== dk || e.tipo !== m.tipo) continue;
+      if (Number(e.valor).toFixed(2) !== v) continue;
+
+      if (descricoesEquivalentes(m.descricao, e.descricao)) return true;
+
+      const { cpf: cpfE, nome: nomeE } = resolverPagador(e);
+      if (cpfM.length === 11 && cpfM === cpfE) return true;
+
+      const nm = normNome(nomeM);
+      const ne = normNome(nomeE);
+      if (nm.length >= 4 && ne.length >= 4 && (nm === ne || nm.includes(ne) || ne.includes(nm))) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function dedupeListaMovimentos(lista) {
+    const seenExact = new Set();
+    const seenLoose = new Set();
+    const out = [];
+    const existentes = [];
+    for (const m of lista) {
+      if (isMovimentoDuplicado(m, seenExact, seenLoose, existentes)) continue;
+      seenExact.add(movimentoFingerprint(m));
+      seenLoose.add(movimentoFingerprintLoose(m));
+      existentes.push(m);
+      out.push(m);
+    }
+    return out;
+  }
+
+  /** Separa movimentos novos dos que já existem na base acumulativa. */
+  function filtrarMovimentosNovos(novos, banco) {
+    const base = todosMovimentosBanco(banco);
+    const seenExact = new Set(base.map((m) => movimentoFingerprint(m)));
+    const seenLoose = new Set(base.map((m) => movimentoFingerprintLoose(m)));
+    const existentes = [...base];
+    const kept = [];
+    let ignorados = 0;
+    for (const m of novos) {
+      if (isMovimentoDuplicado(m, seenExact, seenLoose, existentes)) {
+        ignorados += 1;
+        continue;
+      }
+      seenExact.add(movimentoFingerprint(m));
+      seenLoose.add(movimentoFingerprintLoose(m));
+      existentes.push(m);
+      kept.push(m);
+    }
+    return { kept, ignorados };
   }
 
   function movimentoNoPeriodo(m, deBr, ateBr) {
@@ -349,32 +444,17 @@
     return out;
   }
 
-  /**
-   * Junta todos os ficheiros já enviados (acumulativo).
-   * Dentro do mesmo ficheiro: remove linha duplicada.
-   * Entre ficheiros: remove só repetição exacta (ex.: dia 5 na foto do dia 5 e do dia 6).
-   */
+  /** Base acumulativa sem duplicar linhas repetidas entre ficheiros/dias. */
   function todosMovimentosBanco(banco, dedupe) {
     const uploads = getUploads(banco);
-    const movs = [];
-    const seenGlobal = new Set();
+    const brutos = [];
     for (const u of uploads) {
-      const seenUpload = new Set();
       for (const m of u.movimentos || []) {
-        const row = { ...m, _uploadId: u.id, _arquivo: u.nomeArquivo };
-        if (dedupe === false) {
-          movs.push(row);
-          continue;
-        }
-        const fp = movimentoFingerprint(row);
-        if (seenUpload.has(fp)) continue;
-        seenUpload.add(fp);
-        if (seenGlobal.has(fp)) continue;
-        seenGlobal.add(fp);
-        movs.push(row);
+        brutos.push({ ...m, _uploadId: u.id, _arquivo: u.nomeArquivo });
       }
     }
-    return movs;
+    if (dedupe === false) return brutos;
+    return dedupeListaMovimentos(brutos);
   }
 
   function agregar(movs, keyFn, labelFn) {
@@ -958,12 +1038,27 @@ Regras:
         return;
       }
 
-      const movimentos = normalizarMovimentos(oai.parsed?.movimentos || oai.parsed?.lancamentos);
-      if (!movimentos.length) {
+      const movimentosBrutos = normalizarMovimentos(oai.parsed?.movimentos || oai.parsed?.lancamentos);
+      if (!movimentosBrutos.length) {
         if (msgEl) {
           msgEl.textContent =
             String(oai.parsed?.observacoes || "") ||
             "A IA não encontrou movimentos. Tente outra imagem mais nítida ou um PDF.";
+          msgEl.classList.add("portal-feedback--erro");
+        }
+        return;
+      }
+
+      const noLote = dedupeListaMovimentos(movimentosBrutos);
+      const { kept: movimentos, ignorados } = filtrarMovimentosNovos(noLote, bancoAtivo);
+
+      if (!movimentos.length) {
+        if (msgEl) {
+          const dup = ignorados || movimentosBrutos.length;
+          msgEl.textContent =
+            dup > 0
+              ? `${dup} movimento(s) já existiam na base — nada novo adicionado (sem duplicar no relatório).`
+              : "Nenhum movimento novo neste ficheiro.";
           msgEl.classList.add("portal-feedback--erro");
         }
         return;
@@ -983,7 +1078,9 @@ Regras:
       atualizarResumoBar();
       if (msgEl) {
         const total = todosMovimentosBanco(bancoAtivo).length;
-        msgEl.textContent = `+${movimentos.length} movimento(s) neste ficheiro · base acumulativa: ${total} no total. «Ver relatório».`;
+        const dupTxt =
+          ignorados > 0 ? ` · ${ignorados} repetido(s) ignorado(s)` : "";
+        msgEl.textContent = `+${movimentos.length} novo(s)${dupTxt} · base: ${total} no relatório. «Ver relatório».`;
         msgEl.classList.remove("portal-feedback--erro");
         msgEl.classList.add("portal-feedback--ok");
       }

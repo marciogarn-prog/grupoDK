@@ -786,26 +786,50 @@
     };
   }
 
-  function financeiroMovFp(m) {
-    const desc = String(m?.descricao || "")
+  function financeiroNormDesc(s) {
+    return String(s || "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toUpperCase()
+      .replace(/\b(PIX|TED|DOC|TEF|TRANSF)\b/g, " ")
+      .replace(/\d{2}:\d{2}(:\d{2})?/g, " ")
+      .replace(/\bE\d{10,}\b/g, " ")
+      .replace(/[^A-Z0-9 ]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  function financeiroMovFp(m) {
+    const desc = financeiroNormDesc(m?.descricao);
     const data = String(m?.data || "").trim();
     const tipo = String(m?.tipo || "").toLowerCase();
     const valor = Number(m?.valor);
-    return `${data}|${tipo}|${Number.isFinite(valor) ? valor.toFixed(2) : "0"}|${desc}`;
+    const cpf = String(m?.pagadorCpf || m?.cpfPagador || "").replace(/\D/g, "");
+    return `${data}|${tipo}|${Number.isFinite(valor) ? valor.toFixed(2) : "0"}|${desc.slice(0, 80)}|${cpf}`;
+  }
+
+  function financeiroMovFpLoose(m) {
+    const data = String(m?.data || "").trim();
+    const tipo = String(m?.tipo || "").toLowerCase();
+    const valor = Number(m?.valor);
+    const base = `${data}|${tipo}|${Number.isFinite(valor) ? valor.toFixed(2) : "0"}`;
+    const cpf = String(m?.pagadorCpf || m?.cpfPagador || "").replace(/\D/g, "");
+    if (cpf.length === 11) return `${base}|cpf:${cpf}`;
+    const nome = financeiroNormDesc(m?.pagadorNome || m?.nomePagador).slice(0, 36);
+    if (nome.length >= 4) return `${base}|nome:${nome}`;
+    return `${base}|d:${financeiroNormDesc(m?.descricao).slice(0, 40)}`;
   }
 
   function dedupeMovimentosUpload(movs) {
-    const seen = new Set();
+    const seenExact = new Set();
+    const seenLoose = new Set();
     const out = [];
     for (const m of movs || []) {
-      const fp = financeiroMovFp(m);
-      if (seen.has(fp)) continue;
-      seen.add(fp);
+      const ex = financeiroMovFp(m);
+      const lo = financeiroMovFpLoose(m);
+      if (seenExact.has(ex) || seenLoose.has(lo)) continue;
+      seenExact.add(ex);
+      seenLoose.add(lo);
       out.push(m);
     }
     return out;
