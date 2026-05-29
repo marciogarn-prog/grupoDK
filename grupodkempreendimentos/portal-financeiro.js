@@ -1251,7 +1251,13 @@ Regras:
     document.addEventListener("paste", onPaste, true);
 
     pasteZone?.addEventListener("click", (e) => {
-      if (e.target === fileInp || e.target?.closest?.("[data-fin-pendente-id]")) return;
+      if (
+        e.target === fileInp ||
+        e.target?.closest?.("#financeiroEscolherMultiplosBtn") ||
+        e.target?.closest?.("[data-fin-pendente-id]")
+      ) {
+        return;
+      }
       fileInp?.click();
     });
 

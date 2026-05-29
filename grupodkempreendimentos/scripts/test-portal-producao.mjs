@@ -68,7 +68,8 @@ async function main() {
       "financeiro fila múltiplas imagens",
       html.includes("financeiroPendentesLista") &&
         html.includes("id=\"financeiroExtratoFile\"") &&
-        /financeiroExtratoFile[^>]*\smultiple/i.test(html)
+        /financeiroExtratoFile[^>]*\smultiple/i.test(html) &&
+        html.includes("financeiroEscolherMultiplosBtn")
     );
     record(
       "portal conferência operador (texto)",

@@ -1542,10 +1542,11 @@
             <div id="financeiroPaneBanco" class="operacao-inline-form hidden" role="region" aria-labelledby="financeiroBancoTitulo">
               <h3 id="financeiroBancoTitulo" class="operacao-inline-form__title">—</h3>
               <p class="subtext operacao-inline-form__lead">Cole com <strong>Ctrl+V</strong> ou anexe imagem (movimentação do dia) ou PDF (extrato mensal). Cada ficheiro <strong>soma</strong> à base; linhas repetidas <strong>não duplicam</strong> no relatório.</p>
-              <div id="financeiroExtratoPasteZone" class="portal-operador-comprovante-paste" tabindex="0" role="button" aria-label="Colar ou escolher extratos">
-                <p class="portal-operador-comprovante-paste__lead">Clique aqui, use <strong>Ctrl+V</strong> ou escolha <strong>várias imagens/PDFs</strong> de uma vez (ex.: dias 1 a 26).</p>
-                <p class="subtext">Pode adicionar mais ficheiros antes de extrair — formam uma fila.</p>
-                <input type="file" id="financeiroExtratoFile" accept="image/*,application/pdf" multiple class="portal-operador-comprovante-file">
+              <div id="financeiroExtratoPasteZone" class="portal-operador-comprovante-paste" tabindex="0" role="region" aria-label="Colar ou escolher extratos">
+                <p class="portal-operador-comprovante-paste__lead">Cole com <strong>Ctrl+V</strong> ou escolha <strong>várias imagens/PDFs de uma só vez</strong>.</p>
+                <p class="subtext">No explorador de ficheiros: segure <strong>Ctrl</strong> e clique em cada imagem, ou <strong>Shift</strong> para um intervalo (ex.: dia 1 ao 26).</p>
+                <label for="financeiroExtratoFile" class="btn-primary financeiro-escolher-multiplos" id="financeiroEscolherMultiplosBtn">Escolher vários ficheiros</label>
+                <input type="file" id="financeiroExtratoFile" accept="image/*,application/pdf" multiple class="financeiro-file-input-hidden" aria-label="Escolher várias imagens ou PDFs de extrato">
               </div>
               <p id="financeiroExtratoArquivoLbl" class="subtext portal-operador-comprovante-arquivo" role="status"></p>
               <div id="financeiroPendentesLista" class="financeiro-pendentes-lista hidden" aria-live="polite"></div>
@@ -1802,8 +1803,8 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260522financeiro" defer></script>
-  <script src="portal-financeiro.js?v=20260527financeiro-multiplas" defer></script>
+  <script src="portal-locadora-ui.js?v=20260527multi-arquivos" defer></script>
+  <script src="portal-financeiro.js?v=20260527multi-arquivos" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260527financeiro-dedupe" defer></script>
