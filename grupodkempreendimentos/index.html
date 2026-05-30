@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260521fin-revisao-ia">
+  <link rel="stylesheet" href="styles.css?v=20260521fin-revisao-erros">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -1553,10 +1553,22 @@
               <div class="operacao-inline-form__actions">
                 <button type="button" class="btn-primary" id="financeiroExtratoExtrairIaBtn">Extrair movimentos com IA</button>
                 <button type="button" class="btn-primary btn-secondary-outline" id="financeiroExtratoRevisarTodosBtn" disabled>Revisar ficheiros com IA</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroVerErrosIaBtn" disabled>Relatório de erros IA</button>
                 <button type="button" class="btn-primary btn-secondary-outline" id="financeiroExtratoLimparBtn">Limpar fila</button>
               </div>
               <p id="financeiroOpenAIStatus" class="subtext financeiro-openai-status" role="status"></p>
+              <details class="financeiro-ia-instrucoes" id="financeiroIaInstrucoesWrap">
+                <summary>Instruções personalizadas para a IA</summary>
+                <p class="subtext">Oriente como a IA deve ler este banco (formato de datas, o que ignorar, nomes de colunas, etc.). Usado na extração e na revisão.</p>
+                <label class="portal-field portal-field--wide">
+                  <span>Instruções</span>
+                  <textarea id="financeiroIaInstrucoes" rows="4" maxlength="2000" placeholder="Ex.: Valores com sinal negativo são saídas. Ignorar linhas de SALDO. PIX: nome antes do CPF."></textarea>
+                </label>
+                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroIaInstrucoesGuardarBtn">Guardar instruções</button>
+              </details>
               <p id="financeiroExtratoMsg" class="portal-feedback" role="status"></p>
+              <input type="file" id="financeiroRevisarArquivoInput" accept="image/*,application/pdf" class="financeiro-file-input-hidden" aria-hidden="true" tabindex="-1">
+              <input type="file" id="financeiroRevisarLoteInput" accept="image/*,application/pdf" multiple class="financeiro-file-input-hidden" aria-hidden="true" tabindex="-1">
               <h4 class="portal-lanc-aluguel-section__title">Ficheiros processados</h4>
               <div id="financeiroUploadsLista" class="financeiro-uploads-lista"></div>
               <div class="financeiro-relatorio-acoes">
@@ -1761,6 +1773,23 @@
     </div>
   </div>
 
+  <div id="financeiroRevisaoErrosModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="financeiroRevisaoErrosTitulo">
+    <div class="portal-modal__backdrop" data-close-fin-erros></div>
+    <div class="portal-modal__card portal-modal__card--wide">
+      <h3 id="financeiroRevisaoErrosTitulo" class="portal-modal__title">Relatório de erros — IA extrato</h3>
+      <p id="financeiroRevisaoErrosSub" class="subtext portal-modal__text"></p>
+      <div id="financeiroRevisaoErrosConteudo" class="financeiro-revisao-erros-conteudo" aria-live="polite"></div>
+      <label class="portal-field portal-field--wide financeiro-revisao-erros-instrucoes">
+        <span>Instruções para a IA (como deve trabalhar neste extrato)</span>
+        <textarea id="financeiroIaInstrucoesModal" rows="5" maxlength="2000" placeholder="Descreva regras específicas para corrigir os erros acima…"></textarea>
+      </label>
+      <div class="portal-modal__actions portal-modal__actions--wrap">
+        <button type="button" class="btn-primary" id="financeiroRevisaoErrosRevisarBtn">Revisar de novo com instruções</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-close-fin-erros>Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalMultasRelatorioModal" class="portal-modal portal-multas-relatorio-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMultasRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-multas-relatorio></div>
     <div class="portal-modal__card portal-multas-relatorio-modal__card">
@@ -1817,7 +1846,7 @@
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260521fin-relatorio-export" defer></script>
-  <script src="portal-financeiro.js?v=20260521fin-revisao-ia" defer></script>
+  <script src="portal-financeiro.js?v=20260521fin-revisao-erros" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260527financeiro-dedupe" defer></script>

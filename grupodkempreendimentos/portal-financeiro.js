@@ -37,8 +37,16 @@
   /** Fila antes da IA: { id, file, nome }[] */
   let arquivosPendentes = [];
   let revisaoEmCurso = false;
+  let revisaoUploadIdPendente = null;
+  let revisaoErrosUploadIdFocus = null;
   const pendentesLista = document.getElementById("financeiroPendentesLista");
   const revisarTodosBtn = document.getElementById("financeiroExtratoRevisarTodosBtn");
+  const verErrosIaBtn = document.getElementById("financeiroVerErrosIaBtn");
+  const revisarArquivoInp = document.getElementById("financeiroRevisarArquivoInput");
+  const revisarLoteInp = document.getElementById("financeiroRevisarLoteInput");
+  const iaInstrucoesEl = document.getElementById("financeiroIaInstrucoes");
+  const revisaoErrosModal = document.getElementById("financeiroRevisaoErrosModal");
+  const INSTRUCOES_IA_KEY = "dk_financeiro_ia_instrucoes_v1";
 
   function escapeHtml(s) {
     return String(s ?? "")
@@ -1017,26 +1025,342 @@
     atualizarBotoesExportRelatorio(false);
   }
 
-  function uploadsComArquivoGuardado() {
-    if (!bancoAtivo) return [];
-    return getUploads(bancoAtivo).filter((u) => Boolean(u.arquivoDataUrl));
+  function loadInstrucoesIaStore() {
+    try {
+      return JSON.parse(localStorage.getItem(INSTRUCOES_IA_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function getInstrucoesIaAtivas() {
+    if (!bancoAtivo) return "";
+    return String(loadInstrucoesIaStore()[bancoAtivo] || "").trim();
+  }
+
+  function saveInstrucoesIaAtivas(texto) {
+    if (!bancoAtivo) return;
+    const o = loadInstrucoesIaStore();
+    o[bancoAtivo] = String(texto || "").trim().slice(0, 2000);
+    localStorage.setItem(INSTRUCOES_IA_KEY, JSON.stringify(o));
+    if (iaInstrucoesEl) iaInstrucoesEl.value = o[bancoAtivo];
+    const modalTa = document.getElementById("financeiroIaInstrucoesModal");
+    if (modalTa && revisaoErrosModal && !revisaoErrosModal.classList.contains("hidden")) {
+      modalTa.value = o[bancoAtivo];
+    }
+  }
+
+  function syncInstrucoesIaUi() {
+    if (iaInstrucoesEl) iaInstrucoesEl.value = getInstrucoesIaAtivas();
+  }
+
+  function blocoInstrucoesIaPrompt(instrucoesExtra) {
+    const base = getInstrucoesIaAtivas();
+    const extra = String(instrucoesExtra || "").trim();
+    const partes = [];
+    if (base) partes.push(base);
+    if (extra && extra !== base) partes.push(extra);
+    if (!partes.length) return "";
+    return `\n\nINSTRUÇÕES DO OPERADOR (obrigatório seguir):\n${partes.join("\n\n")}\n`;
+  }
+
+  function normNomeArquivo(s) {
+    return String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9.]+/g, " ")
+      .trim();
+  }
+
+  function extrairRelatorioErros(parsed, totalExtraidas, instrucoesExtra) {
+    const linhas = [];
+    const raw = parsed?.linhasNaoLidas || parsed?.linhas_ilegiveis || parsed?.errosLeitura || [];
+    if (Array.isArray(raw)) {
+      for (const item of raw) {
+        if (typeof item === "string") {
+          linhas.push({ numeroLinha: null, textoVisivel: item, motivo: "ilegível", campo: null });
+        } else if (item && typeof item === "object") {
+          linhas.push({
+            numeroLinha: item.numeroLinha ?? item.linha ?? null,
+            textoVisivel: String(
+              item.textoVisivel ?? item.texto ?? item.textoParcial ?? item.descricao ?? ""
+            ).trim(),
+            motivo: String(item.motivo ?? item.erro ?? "não lido").trim(),
+            campo: item.campo ? String(item.campo) : null,
+          });
+        }
+      }
+    }
+    const avisos = [];
+    const obs = String(parsed?.observacoes || "").trim();
+    if (obs) avisos.push(obs);
+    if (Array.isArray(parsed?.avisos)) {
+      for (const a of parsed.avisos) {
+        const t = String(a || "").trim();
+        if (t) avisos.push(t);
+      }
+    }
+    const totalVis = Number(parsed?.totalLinhasVisiveis);
+    if (Number.isFinite(totalVis) && totalVis > totalExtraidas) {
+      avisos.push(
+        `Contagem: ${totalVis} linha(s) visível(eis) na imagem, ${totalExtraidas} extraída(s) — verifique linhasNaoLidas.`
+      );
+    }
+    return {
+      linhasNaoLidas: linhas,
+      avisos,
+      totalLinhasVisiveis: Number.isFinite(totalVis) ? totalVis : null,
+      totalExtraidas,
+      instrucoesUsadas: [getInstrucoesIaAtivas(), String(instrucoesExtra || "").trim()]
+        .filter(Boolean)
+        .join("\n\n"),
+      geradoEm: new Date().toISOString(),
+    };
+  }
+
+  function uploadTemErrosIa(u) {
+    const r = u?.relatorioErros;
+    if (!r) return false;
+    return (r.linhasNaoLidas?.length || 0) > 0 || (r.avisos?.length || 0) > 0;
+  }
+
+  function contarErrosUpload(u) {
+    const r = u?.relatorioErros;
+    if (!r) return 0;
+    return (r.linhasNaoLidas?.length || 0) + (r.avisos?.length || 0);
+  }
+
+  function contarUploadsComErrosIa() {
+    if (!bancoAtivo) return 0;
+    return getUploads(bancoAtivo).filter(uploadTemErrosIa).length;
+  }
+
+  function atualizarBotaoErrosIa() {
+    if (!verErrosIaBtn) return;
+    const n = contarUploadsComErrosIa();
+    verErrosIaBtn.disabled = n === 0;
+    verErrosIaBtn.textContent = n ? `Relatório de erros IA (${n})` : "Relatório de erros IA";
+  }
+
+  function guardarArquivoNoUpload(uploadId, dataUrl) {
+    const uploads = getUploads(bancoAtivo);
+    const idx = uploads.findIndex((u) => u.id === uploadId);
+    if (idx < 0) return;
+    uploads[idx].arquivoDataUrl = dataUrl;
+    setUploads(bancoAtivo, uploads);
+  }
+
+  function pedirArquivoRevisao(nomeSugestao) {
+    return new Promise((resolve) => {
+      if (!revisarArquivoInp) {
+        resolve(null);
+        return;
+      }
+      revisarArquivoInp.value = "";
+      const handler = async () => {
+        revisarArquivoInp.removeEventListener("change", handler);
+        const f = revisarArquivoInp.files?.[0];
+        revisarArquivoInp.value = "";
+        if (!f || !arquivoExtratoValido(f)) {
+          resolve(null);
+          return;
+        }
+        try {
+          resolve(await fileToBase64(f));
+        } catch {
+          resolve(null);
+        }
+      };
+      revisarArquivoInp.addEventListener("change", handler);
+      if (msgEl) {
+        msgEl.textContent = `Escolha a imagem/PDF de «${nomeSugestao || "extrato"}» — o registo mantém-se, só associa o ficheiro para revisão.`;
+        msgEl.classList.remove("portal-feedback--erro");
+      }
+      revisarArquivoInp.click();
+    });
+  }
+
+  function pedirArquivosRevisaoLote() {
+    return new Promise((resolve) => {
+      if (!revisarLoteInp) {
+        resolve([]);
+        return;
+      }
+      revisarLoteInp.value = "";
+      const handler = () => {
+        revisarLoteInp.removeEventListener("change", handler);
+        const list = revisarLoteInp.files ? Array.from(revisarLoteInp.files) : [];
+        revisarLoteInp.value = "";
+        resolve(list.filter(arquivoExtratoValido));
+      };
+      revisarLoteInp.addEventListener("change", handler);
+      revisarLoteInp.click();
+    });
+  }
+
+  async function associarImagensUploadsSemArquivo() {
+    const sem = getUploads(bancoAtivo).filter((u) => !u.arquivoDataUrl);
+    if (!sem.length) return true;
+
+    if (msgEl) {
+      msgEl.textContent = `Selecione ${sem.length} imagem(ns)/PDF(s) para associar (nomes: ${sem.map((u) => u.nomeArquivo).join("; ")}).`;
+      msgEl.classList.remove("portal-feedback--erro");
+    }
+
+    const files = await pedirArquivosRevisaoLote();
+    if (!files.length) return false;
+
+    const usados = new Set();
+    for (const upload of sem) {
+      const alvo = normNomeArquivo(upload.nomeArquivo);
+      let fi = -1;
+      for (let i = 0; i < files.length; i += 1) {
+        if (usados.has(i)) continue;
+        if (normNomeArquivo(files[i].name) === alvo) {
+          fi = i;
+          break;
+        }
+      }
+      if (fi < 0) {
+        for (let i = 0; i < files.length; i += 1) {
+          if (usados.has(i)) continue;
+          const fn = normNomeArquivo(files[i].name);
+          if (alvo.length >= 8 && (fn.includes(alvo.slice(0, 24)) || alvo.includes(fn.slice(0, 24)))) {
+            fi = i;
+            break;
+          }
+        }
+      }
+      if (fi < 0 && files.length === sem.length) {
+        const j = sem.indexOf(upload);
+        if (j >= 0 && !usados.has(j) && j < files.length) fi = j;
+      }
+      if (fi < 0) continue;
+      usados.add(fi);
+      try {
+        const raw = await fileToBase64(files[fi]);
+        const guardado = (await dataUrlParaArmazenamento(raw)) || raw;
+        guardarArquivoNoUpload(upload.id, guardado);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    renderUploadsLista();
+    const aindaSem = getUploads(bancoAtivo).filter((u) => !u.arquivoDataUrl).length;
+    if (aindaSem > 0) {
+      return window.confirm(
+        `${aindaSem} ficheiro(s) ainda sem imagem associada.\n\nContinuar revisão apenas dos que têm imagem?`
+      );
+    }
+    return true;
+  }
+
+  async function obterDataUrlParaRevisao(upload) {
+    if (upload.arquivoDataUrl) return upload.arquivoDataUrl;
+    const dataUrl = await pedirArquivoRevisao(upload.nomeArquivo);
+    if (!dataUrl) return null;
+    const guardado = (await dataUrlParaArmazenamento(dataUrl)) || dataUrl;
+    guardarArquivoNoUpload(upload.id, guardado);
+    return guardado;
+  }
+
+  function fecharRelatorioErrosModal() {
+    revisaoErrosModal?.classList.add("hidden");
+    revisaoErrosUploadIdFocus = null;
+  }
+
+  function renderHtmlRelatorioErrosUpload(u) {
+    const r = u.relatorioErros;
+    if (!r) return "";
+    const dt = r.geradoEm ? new Date(r.geradoEm).toLocaleString("pt-BR") : "";
+    let html = `<div class="financeiro-revisao-erros-ficheiro" data-fin-erros-upload="${escapeHtml(u.id)}">`;
+    html += `<h4 class="financeiro-relatorio__subtitle">${escapeHtml(u.nomeArquivo || "extrato")}</h4>`;
+    html += `<p class="subtext">${(u.movimentos || []).length} movimento(s) · ${escapeHtml(dt)}`;
+    if (r.totalLinhasVisiveis != null) {
+      html += ` · ${r.totalLinhasVisiveis} linha(s) visível(eis) na imagem`;
+    }
+    html += "</p>";
+    if (r.instrucoesUsadas) {
+      html += `<p class="subtext"><strong>Instruções usadas:</strong> ${escapeHtml(r.instrucoesUsadas)}</p>`;
+    }
+    if (r.linhasNaoLidas?.length) {
+      html += `<div class="portal-lanc-hist-wrap"><table class="portal-lanc-hist financeiro-relatorio-table">
+        <thead><tr><th>Linha</th><th>Texto visível</th><th>Campo</th><th>Motivo</th></tr></thead><tbody>`;
+      html += r.linhasNaoLidas
+        .map(
+          (ln) =>
+            `<tr><td>${ln.numeroLinha != null ? escapeHtml(String(ln.numeroLinha)) : "—"}</td>` +
+            `<td>${escapeHtml(ln.textoVisivel || "—")}</td>` +
+            `<td>${escapeHtml(ln.campo || "—")}</td>` +
+            `<td>${escapeHtml(ln.motivo || "—")}</td></tr>`
+        )
+        .join("");
+      html += "</tbody></table></div>";
+    }
+    if (r.avisos?.length) {
+      html += `<ul class="subtext">${r.avisos.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>`;
+    }
+    html += `<button type="button" class="btn-primary btn-secondary-outline financeiro-erros-revisar-um" data-fin-erros-revisar="${escapeHtml(u.id)}">Revisar este ficheiro</button>`;
+    html += "</div>";
+    return html;
+  }
+
+  function abrirRelatorioErrosModal(uploadIdFocus) {
+    if (!revisaoErrosModal || !bancoAtivo) return;
+    const uploads = getUploads(bancoAtivo).filter(uploadTemErrosIa);
+    if (!uploads.length) {
+      window.alert("Nenhum relatório de erros da IA. Faça uma revisão primeiro.");
+      return;
+    }
+    revisaoErrosUploadIdFocus = uploadIdFocus || null;
+    const tit = document.getElementById("financeiroRevisaoErrosTitulo");
+    const sub = document.getElementById("financeiroRevisaoErrosSub");
+    const corpo = document.getElementById("financeiroRevisaoErrosConteudo");
+    const modalTa = document.getElementById("financeiroIaInstrucoesModal");
+    const lista = uploadIdFocus ? uploads.filter((u) => u.id === uploadIdFocus) : uploads;
+    if (tit) tit.textContent = uploadIdFocus ? "Erros IA — ficheiro" : "Relatório de erros — IA extrato";
+    if (sub) {
+      sub.textContent =
+        "Linhas que a IA não conseguiu ler ou avisos. Ajuste as instruções abaixo e clique em «Revisar de novo».";
+    }
+    if (corpo) {
+      corpo.innerHTML =
+        lista.map(renderHtmlRelatorioErrosUpload).join("") ||
+        "<p class=\"subtext\">Sem erros registados.</p>";
+      corpo.querySelectorAll("[data-fin-erros-revisar]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.getAttribute("data-fin-erros-revisar");
+          if (id) {
+            fecharRelatorioErrosModal();
+            void revisarUploadComIA(id, { instrucoesExtra: modalTa?.value });
+          }
+        });
+      });
+    }
+    if (modalTa) modalTa.value = getInstrucoesIaAtivas();
+    revisaoErrosModal.classList.remove("hidden");
   }
 
   function atualizarBotaoRevisarTodos() {
     if (!revisarTodosBtn) return;
-    const n = uploadsComArquivoGuardado().length;
-    revisarTodosBtn.disabled = revisaoEmCurso || n === 0;
+    const total = bancoAtivo ? getUploads(bancoAtivo).length : 0;
+    revisarTodosBtn.disabled = revisaoEmCurso || total === 0;
     revisarTodosBtn.title =
-      n === 0
-        ? "Só ficheiros enviados a partir de agora guardam a imagem para revisão. Reenvie os antigos."
-        : `Revisar ${n} ficheiro(s) com IA (leitura linha a linha, modelo avançado)`;
+      total === 0
+        ? "Nenhum ficheiro processado."
+        : `Revisar ${total} ficheiro(s) com IA. Se faltar imagem, pede para escolher o ficheiro (sem remover o registo).`;
   }
 
   function setFinanceiroIaUiBusy(busy) {
     if (extrairBtn) extrairBtn.disabled = busy;
     if (limparBtn) limparBtn.disabled = busy;
-    if (revisarTodosBtn) revisarTodosBtn.disabled = busy || uploadsComArquivoGuardado().length === 0;
+    const total = bancoAtivo ? getUploads(bancoAtivo).length : 0;
+    if (revisarTodosBtn) revisarTodosBtn.disabled = busy || total === 0;
+    if (verErrosIaBtn) verErrosIaBtn.disabled = busy || contarUploadsComErrosIa() === 0;
     uploadsLista?.querySelectorAll("[data-fin-upload-revisar]").forEach((b) => {
+      b.disabled = busy;
+    });
+    uploadsLista?.querySelectorAll("[data-fin-erros-ver]").forEach((b) => {
       b.disabled = busy;
     });
   }
@@ -1047,6 +1371,7 @@
     if (!uploads.length) {
       uploadsLista.innerHTML = '<p class="subtext">Nenhum extrato processado neste banco.</p>';
       atualizarBotaoRevisarTodos();
+      atualizarBotaoErrosIa();
       return;
     }
     uploadsLista.innerHTML = uploads
@@ -1057,18 +1382,24 @@
         const n = (u.movimentos || []).length;
         const temArquivo = Boolean(u.arquivoDataUrl);
         const revisado = u.revisadoEm ? ` · revisado ${new Date(u.revisadoEm).toLocaleString("pt-BR")}` : "";
-        const revisarBtn = temArquivo
-          ? `<button type="button" class="btn-primary btn-secondary-outline financeiro-upload-revisar" data-fin-upload-revisar="${escapeHtml(u.id)}">Revisar com IA</button>`
-          : `<button type="button" class="btn-primary btn-secondary-outline" disabled title="Reenvie este ficheiro para activar revisão">Revisar com IA</button>`;
+        const nErros = contarErrosUpload(u);
+        const errosBtn = nErros
+          ? `<button type="button" class="btn-primary btn-secondary-outline financeiro-erros-ver" data-fin-erros-ver="${escapeHtml(u.id)}">Erros IA (${nErros})</button>`
+          : "";
+        const hintImg = temArquivo
+          ? ""
+          : '<span class="subtext"> · ao revisar, escolha a imagem (registo mantém-se)</span>';
         return `<div class="financeiro-upload-item">
           <div>
             <strong>${escapeHtml(u.nomeArquivo || "extrato")}</strong>
             <span class="subtext"> — ${n} movimento(s) · ${escapeHtml(dt)}${revisado}</span>
             ${u.revisadoEm ? '<span class="financeiro-upload-item__badge">✓ revisado IA</span>' : ""}
-            ${!temArquivo ? '<span class="subtext"> · imagem não guardada (reenvie para revisar)</span>' : ""}
+            ${nErros ? '<span class="financeiro-upload-item__badge financeiro-upload-item__badge--erro">⚠ erros leitura</span>' : ""}
+            ${hintImg}
           </div>
           <div class="financeiro-upload-item__acoes">
-            ${revisarBtn}
+            <button type="button" class="btn-primary btn-secondary-outline financeiro-upload-revisar" data-fin-upload-revisar="${escapeHtml(u.id)}">Revisar com IA</button>
+            ${errosBtn}
             <button type="button" class="btn-primary btn-secondary-outline financeiro-upload-remover" data-fin-upload-id="${escapeHtml(u.id)}">Remover</button>
           </div>
         </div>`;
@@ -1078,8 +1409,8 @@
       btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-fin-upload-id");
         if (!id || !bancoAtivo) return;
-        const uploads = getUploads(bancoAtivo).filter((u) => u.id !== id);
-        setUploads(bancoAtivo, uploads);
+        const ups = getUploads(bancoAtivo).filter((u) => u.id !== id);
+        setUploads(bancoAtivo, ups);
         renderUploadsLista();
         atualizarResumoBar();
       });
@@ -1090,18 +1421,31 @@
         if (id) void revisarUploadComIA(id);
       });
     });
+    uploadsLista.querySelectorAll("[data-fin-erros-ver]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-fin-erros-ver");
+        if (id) abrirRelatorioErrosModal(id);
+      });
+    });
     atualizarBotaoRevisarTodos();
+    atualizarBotaoErrosIa();
   }
 
-  async function revisarUploadComIA(uploadId) {
+  async function revisarUploadComIA(uploadId, opts = {}) {
     if (!bancoAtivo || revisaoEmCurso) return;
     const uploads = getUploads(bancoAtivo);
     const upload = uploads.find((u) => u.id === uploadId);
     if (!upload) return;
-    if (!upload.arquivoDataUrl) {
-      window.alert(
-        "Imagem original não guardada neste navegador.\n\nRemova o registo e envie o ficheiro outra vez — a partir daí poderá usar «Revisar com IA»."
-      );
+
+    const instrucoesExtra = String(opts.instrucoesExtra || "").trim();
+    if (instrucoesExtra) saveInstrucoesIaAtivas(instrucoesExtra);
+
+    const dataUrl = await obterDataUrlParaRevisao(upload);
+    if (!dataUrl) {
+      if (msgEl) {
+        msgEl.textContent = "Revisão cancelada — nenhuma imagem seleccionada.";
+        msgEl.classList.add("portal-feedback--erro");
+      }
       return;
     }
 
@@ -1114,11 +1458,12 @@
     }
 
     try {
-      const r = await processarDataUrlExtrato(upload.arquivoDataUrl, upload.nomeArquivo || "extrato", {
+      const r = await processarDataUrlExtrato(dataUrl, upload.nomeArquivo || "extrato", {
         modoRevisao: true,
         uploadId: upload.id,
         movimentosAnteriores: upload.movimentos || [],
         salvarArquivo: false,
+        instrucoesExtra,
       });
       renderUploadsLista();
       atualizarResumoBar();
@@ -1135,11 +1480,13 @@
       const total = todosMovimentosBanco(bancoAtivo).length;
       const diff = (r.novos || 0) - (r.anterior || 0);
       const diffTxt = diff > 0 ? ` (+${diff} vs anterior)` : diff < 0 ? ` (${diff} vs anterior)` : " (mesma quantidade)";
+      const nErros = (r.relatorioErros?.linhasNaoLidas?.length || 0) + (r.relatorioErros?.avisos?.length || 0);
       if (msgEl) {
-        msgEl.textContent = `Revisão concluída: ${r.novos} movimento(s)${diffTxt} · base total: ${total}.${r.observacoes ? ` ${r.observacoes}` : ""}`;
+        msgEl.textContent = `Revisão concluída: ${r.novos} movimento(s)${diffTxt} · base total: ${total}.${nErros ? ` ${nErros} aviso(s)/erro(s) — veja «Erros IA».` : ""}`;
         msgEl.classList.remove("portal-feedback--erro");
         msgEl.classList.add("portal-feedback--ok");
       }
+      if (nErros > 0) abrirRelatorioErrosModal(upload.id);
     } catch (e) {
       if (msgEl) {
         msgEl.textContent = String(e?.message || e);
@@ -1149,21 +1496,24 @@
       revisaoEmCurso = false;
       setFinanceiroIaUiBusy(false);
       atualizarBotaoRevisarTodos();
+      atualizarBotaoErrosIa();
     }
   }
 
-  async function revisarTodosComIA() {
+  async function revisarTodosComIA(opts = {}) {
     if (!bancoAtivo || revisaoEmCurso) return;
-    const lista = uploadsComArquivoGuardado();
+    const lista = getUploads(bancoAtivo);
     if (!lista.length) {
-      window.alert(
-        "Nenhum ficheiro com imagem guardada para revisão.\n\nFicheiros antigos não têm cópia local — remova e reenvie as imagens."
-      );
+      window.alert("Nenhum ficheiro processado para revisar.");
       return;
     }
+
+    const instrucoesExtra = String(opts.instrucoesExtra || "").trim();
+    if (instrucoesExtra) saveInstrucoesIaAtivas(instrucoesExtra);
+
     if (
       !window.confirm(
-        `Revisar ${lista.length} ficheiro(s) com IA avançada (linha a linha)?\n\nSubstitui os movimentos de cada ficheiro pelos novos resultados.`
+        `Revisar ${lista.length} ficheiro(s) com IA avançada (linha a linha)?\n\nSe faltar imagem, será pedido para escolher o ficheiro — o registo não é removido.`
       )
     ) {
       return;
@@ -1171,14 +1521,23 @@
 
     revisaoEmCurso = true;
     setFinanceiroIaUiBusy(true);
-    let ok = 0;
-    let fail = 0;
 
     try {
-      for (let i = 0; i < lista.length; i += 1) {
-        const u = lista[i];
+      const okAssoc = await associarImagensUploadsSemArquivo();
+      if (!okAssoc) {
+        if (msgEl) msgEl.textContent = "Revisão em lote cancelada.";
+        return;
+      }
+
+      const paraRevisar = getUploads(bancoAtivo).filter((u) => u.arquivoDataUrl);
+      let ok = 0;
+      let fail = 0;
+      let comErros = 0;
+
+      for (let i = 0; i < paraRevisar.length; i += 1) {
+        const u = paraRevisar[i];
         if (msgEl) {
-          msgEl.textContent = `Revisão IA ${i + 1}/${lista.length}: ${u.nomeArquivo || "extrato"}…`;
+          msgEl.textContent = `Revisão IA ${i + 1}/${paraRevisar.length}: ${u.nomeArquivo || "extrato"}…`;
           msgEl.classList.remove("portal-feedback--erro");
           msgEl.classList.remove("portal-feedback--ok");
         }
@@ -1188,13 +1547,17 @@
             uploadId: u.id,
             movimentosAnteriores: u.movimentos || [],
             salvarArquivo: false,
+            instrucoesExtra,
           });
-          if (r.ok) ok += 1;
-          else fail += 1;
+          if (r.ok) {
+            ok += 1;
+            if (uploadTemErrosIa(getUploads(bancoAtivo).find((x) => x.id === u.id))) comErros += 1;
+          } else fail += 1;
         } catch {
           fail += 1;
         }
       }
+
       renderUploadsLista();
       atualizarResumoBar();
       if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
@@ -1202,14 +1565,16 @@
       }
       const total = todosMovimentosBanco(bancoAtivo).length;
       if (msgEl) {
-        msgEl.textContent = `Revisão em lote: ${ok}/${lista.length} ficheiro(s) OK${fail ? ` · ${fail} com erro` : ""} · base: ${total} movimento(s).`;
-        msgEl.classList.toggle("portal-feedback--erro", fail === lista.length);
+        msgEl.textContent = `Revisão em lote: ${ok}/${paraRevisar.length} OK${fail ? ` · ${fail} erro(s)` : ""}${comErros ? ` · ${comErros} com avisos` : ""} · base: ${total}.`;
+        msgEl.classList.toggle("portal-feedback--erro", fail === paraRevisar.length);
         msgEl.classList.toggle("portal-feedback--ok", ok > 0);
       }
+      if (comErros > 0) abrirRelatorioErrosModal(null);
     } finally {
       revisaoEmCurso = false;
       setFinanceiroIaUiBusy(false);
       atualizarBotaoRevisarTodos();
+      atualizarBotaoErrosIa();
     }
   }
 
@@ -1408,12 +1773,14 @@
     return null;
   }
 
-  function montarPromptExtrato(bancoLabel) {
+  function montarPromptExtrato(bancoLabel, instrucoesExtra) {
     const schema =
-      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null}';
+      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"linhasNaoLidas":[{"numeroLinha":number|null,"textoVisivel":"string","motivo":"string","campo":"data|valor|descricao|null"}],"totalLinhasVisiveis":number|null}';
     return `Leitor de extrato bancário brasileiro (${bancoLabel}). Analise a imagem ou PDF anexo.
 
 Extraia TODAS as movimentações visíveis linha a linha (créditos, débitos, PIX, TED, tarifas, salários, estornos, etc.). Não omita linhas.
+
+Para cada linha que NÃO conseguir ler com segurança, registe em linhasNaoLidas (número da linha, texto parcial visível, motivo, campo em falha).
 
 Responda APENAS um objeto json válido (sem markdown): ${schema}
 
@@ -1424,35 +1791,38 @@ Regras:
 - descricao: histórico como no extrato
 - pagadorNome e pagadorCpf: em PIX/TED preencha nome e CPF/CNPJ do pagador ou recebedor quando aparecer
 - categoria: ex. pix, ted, tarifa, salario, boleto — quando identificável
-- banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"`;
+- totalLinhasVisiveis: quantas linhas de movimento contou na imagem
+- banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"${blocoInstrucoesIaPrompt(instrucoesExtra)}`;
   }
 
-  function montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores) {
+  function montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores, instrucoesExtra) {
     const schema =
-      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"totalLinhasVisiveis":number|null}';
+      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"totalLinhasVisiveis":number|null,"linhasNaoLidas":[{"numeroLinha":number|null,"textoVisivel":"string","motivo":"string","campo":"data|valor|descricao|null"}],"avisos":["string"]}';
     const nAnt = Array.isArray(movimentosAnteriores) ? movimentosAnteriores.length : 0;
     const amostraAnt = (movimentosAnteriores || [])
       .slice(0, 8)
       .map((m) => `${m.data} · ${m.descricao} · ${currencyBRL(m.valor)} (${m.tipo})`)
       .join("\n");
-    return `REVISÃO DETALHADA de extrato bancário brasileiro (${bancoLabel}). A leitura anterior extraiu ${nAnt} movimento(s) — pode estar incompleta.
+    return `REVISÃO DETALHADA de extrato bancário brasileiro (${bancoLabel}). A leitura anterior extraiu ${nAnt} movimento(s) — pode estar incompleta ou errada.
 
-Leia a imagem/PDF LINHA A LINHA, da primeira à última movimentação visível. NÃO omita nenhuma linha (PIX, TED, tarifas, estornos, salários, boletos, compras, etc.).
+Leia a imagem/PDF LINHA A LINHA, da primeira à última movimentação visível. NÃO omita nenhuma linha.
 
 ${nAnt > 0 ? `Extração anterior (referência — pode faltar linhas):\n${amostraAnt}\n` : ""}
+
+OBRIGATÓRIO: preencha linhasNaoLidas com TODA linha ilegível, borrada, cortada ou ambígua (numeroLinha, textoVisivel parcial, motivo, campo).
 
 Responda APENAS um objeto json válido (sem markdown): ${schema}
 
 Regras rigorosas:
-- Extraia TODAS as linhas de movimentação visíveis, mesmo valores pequenos ou texto parcial
-- data em DD/MM/AAAA (complete o ano se só houver dia/mês no extrato)
-- valor numérico positivo com até 2 decimais; use o valor da coluna de movimentação
+- Extraia TODAS as linhas legíveis; valores pequenos também entram
+- data em DD/MM/AAAA (complete o ano se só houver dia/mês)
+- valor numérico positivo com até 2 decimais
 - tipo "entrada" para créditos (+); "saida" para débitos (-)
-- descricao: copie o histórico completo como aparece (nome, banco, finalidade)
-- pagadorNome e pagadorCpf: preencha em PIX/TED/transferências quando visível
-- totalLinhasVisiveis: quantas linhas de movimento você contou na imagem
-- observacoes: liste linhas ilegíveis ou dúvidas, se houver
-- banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"`;
+- descricao: histórico completo como no extrato
+- pagadorNome e pagadorCpf quando visível em PIX/TED
+- totalLinhasVisiveis: total de linhas de movimento visíveis na imagem
+- avisos: dúvidas gerais sobre layout ou qualidade da foto
+- banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"${blocoInstrucoesIaPrompt(instrucoesExtra)}`;
   }
 
   async function probeOpenAIServidor() {
@@ -1574,6 +1944,7 @@ Regras rigorosas:
       uploadId = null,
       movimentosAnteriores = [],
       salvarArquivo = true,
+      instrucoesExtra = "",
     } = opts;
     let dataUrl = dataUrlRaw;
     const { mime: mimeRaw } = parseDataUrl(dataUrlRaw);
@@ -1589,8 +1960,8 @@ Regras rigorosas:
 
     const bancoLabel = BANCOS[bancoAtivo] || bancoAtivo;
     const prompt = modoRevisao
-      ? montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores)
-      : montarPromptExtrato(bancoLabel);
+      ? montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores, instrucoesExtra)
+      : montarPromptExtrato(bancoLabel, instrucoesExtra);
     const content = [{ type: "text", text: prompt }];
     const parsedUrl = parseDataUrl(dataUrl);
     if (parsedUrl.mime.startsWith("image/") && parsedUrl.base64) {
@@ -1635,6 +2006,7 @@ Regras rigorosas:
     const movimentos = dedupeListaMovimentos(movimentosBrutos);
     const observacoes = String(oai.parsed?.observacoes || "").trim();
     const totalVisivel = oai.parsed?.totalLinhasVisiveis;
+    const relatorioErros = extrairRelatorioErros(oai.parsed, movimentos.length, instrucoesExtra);
 
     if (uploadId) {
       const uploads = getUploads(bancoAtivo);
@@ -1648,6 +2020,7 @@ Regras rigorosas:
         revisadoEm: new Date().toISOString(),
         observacoes,
         totalLinhasVisiveis: totalVisivel,
+        relatorioErros,
       };
       setUploads(bancoAtivo, uploads);
       return {
@@ -1657,6 +2030,7 @@ Regras rigorosas:
         anterior,
         observacoes,
         totalVisivel,
+        relatorioErros,
       };
     }
 
@@ -1680,10 +2054,11 @@ Regras rigorosas:
       observacoes,
       arquivoDataUrl: arquivoParaGuardar || undefined,
       totalLinhasVisiveis: totalVisivel,
+      relatorioErros,
     });
     setUploads(bancoAtivo, uploads);
 
-    return { ok: true, novos: movimentosNovos.length, ignorados, observacoes };
+    return { ok: true, novos: movimentosNovos.length, ignorados, observacoes, relatorioErros };
   }
 
   async function processarUmArquivoExtrato(file, nomeArquivo, opts = {}) {
@@ -1784,6 +2159,7 @@ Regras rigorosas:
     syncFinanceiroSidebarButtons(btnId);
     if (tituloBanco) tituloBanco.textContent = BANCOS[banco];
     void refreshFinanceiroOpenAIStatus();
+    syncInstrucoesIaUi();
     renderUploadsLista();
     atualizarResumoBar();
   }
@@ -1794,6 +2170,7 @@ Regras rigorosas:
     setFinanceiroPlaceholderVisible(true);
     syncFinanceiroSidebarButtons(null);
     fecharRelatorioModal();
+    fecharRelatorioErrosModal();
     if (uploadsLista) uploadsLista.innerHTML = "";
     if (resumoDados) resumoDados.textContent = "Nenhum movimento guardado ainda.";
     if (verRelatorioBtn) verRelatorioBtn.disabled = true;
@@ -1849,7 +2226,33 @@ Regras rigorosas:
 
     extrairBtn?.addEventListener("click", () => void extrairComIA());
     revisarTodosBtn?.addEventListener("click", () => void revisarTodosComIA());
+    verErrosIaBtn?.addEventListener("click", () => abrirRelatorioErrosModal(null));
     limparBtn?.addEventListener("click", () => limparArquivoPendente());
+
+    document.getElementById("financeiroIaInstrucoesGuardarBtn")?.addEventListener("click", () => {
+      saveInstrucoesIaAtivas(iaInstrucoesEl?.value || "");
+      if (msgEl) {
+        msgEl.textContent = "Instruções guardadas para este banco.";
+        msgEl.classList.remove("portal-feedback--erro");
+        msgEl.classList.add("portal-feedback--ok");
+      }
+    });
+
+    document.getElementById("financeiroRevisaoErrosRevisarBtn")?.addEventListener("click", () => {
+      const modalTa = document.getElementById("financeiroIaInstrucoesModal");
+      const texto = modalTa?.value || "";
+      saveInstrucoesIaAtivas(texto);
+      fecharRelatorioErrosModal();
+      if (revisaoErrosUploadIdFocus) {
+        void revisarUploadComIA(revisaoErrosUploadIdFocus, { instrucoesExtra: texto });
+      } else {
+        void revisarTodosComIA({ instrucoesExtra: texto });
+      }
+    });
+
+    revisaoErrosModal?.querySelectorAll("[data-close-fin-erros]").forEach((el) => {
+      el.addEventListener("click", () => fecharRelatorioErrosModal());
+    });
 
     verRelatorioBtn?.addEventListener("click", () => abrirRelatorioModal());
     document.getElementById("financeiroRelatorioAtualizarBtn")?.addEventListener("click", () => {
@@ -1896,6 +2299,10 @@ Regras rigorosas:
   window.__DK_financeiroReset = resetFinanceiroUi;
   window.__DK_financeiroEscapeBack = () => {
     if (!panel || panel.classList.contains("hidden")) return false;
+    if (revisaoErrosModal && !revisaoErrosModal.classList.contains("hidden")) {
+      fecharRelatorioErrosModal();
+      return true;
+    }
     if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
       fecharRelatorioModal();
       return true;

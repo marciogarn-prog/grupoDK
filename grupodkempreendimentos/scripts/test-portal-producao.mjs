@@ -74,7 +74,10 @@ async function main() {
     );
     record(
       "financeiro revisão IA",
-      html.includes("financeiroExtratoRevisarTodosBtn")
+      html.includes("financeiroExtratoRevisarTodosBtn") &&
+        html.includes("financeiroVerErrosIaBtn") &&
+        html.includes("financeiroRevisaoErrosModal") &&
+        html.includes("financeiroIaInstrucoes")
     );
     record(
       "financeiro fila múltiplas imagens",
