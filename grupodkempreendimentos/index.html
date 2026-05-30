@@ -196,7 +196,6 @@
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
-          <button type="button" class="btn-primary hidden" id="btn-locadora-financeiro">Financeiro</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
@@ -1518,70 +1517,6 @@
         </div>
       </section>
 
-      <section id="panel-financeiro-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Financeiro</h2>
-        <div class="portal-operacao-layout">
-          <aside class="portal-operacao-layout__sidebar" aria-label="contas bancárias">
-            <p class="subpage__lead">Extratos e relatórios.</p>
-            <p class="subtext">Envie imagens de movimentação diária ou PDF do mês. Os dados <strong>acumulam</strong>: hoje, semana que vem ou mês seguinte — tudo entra na mesma base do banco (Santander ou Sicredi). Use <strong>Guardar na nuvem</strong> na equipa para não perder noutro PC.</p>
-            <div class="operacao-comandos">
-              <button type="button" class="btn-operacao-cmd" id="btn-financeiro-santander" aria-expanded="false" aria-controls="financeiroPaneBanco">
-                <span class="btn-operacao-cmd__title">Santander</span>
-                <span class="btn-operacao-cmd__hint">Conta Santander</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-financeiro-sicredi" aria-expanded="false" aria-controls="financeiroPaneBanco">
-                <span class="btn-operacao-cmd__title">Sicredi</span>
-                <span class="btn-operacao-cmd__hint">Conta Sicredi</span>
-              </button>
-            </div>
-          </aside>
-          <div class="portal-operacao-layout__main" id="financeiroPainelDireito">
-            <div id="financeiroFormPlaceholder" class="operacao-form-placeholder" role="status">
-              <p class="operacao-form-placeholder__text">Escolha Santander ou Sicredi à esquerda.</p>
-            </div>
-            <div id="financeiroPaneBanco" class="operacao-inline-form hidden" role="region" aria-labelledby="financeiroBancoTitulo">
-              <h3 id="financeiroBancoTitulo" class="operacao-inline-form__title">—</h3>
-              <p class="subtext operacao-inline-form__lead">Cole com <strong>Ctrl+V</strong> ou anexe imagem (movimentação do dia) ou PDF (extrato mensal). Cada ficheiro <strong>soma</strong> à base; linhas repetidas <strong>não duplicam</strong> no relatório.</p>
-              <div id="financeiroExtratoPasteZone" class="portal-operador-comprovante-paste" tabindex="0" role="region" aria-label="Colar ou escolher extratos">
-                <p class="portal-operador-comprovante-paste__lead">Cole com <strong>Ctrl+V</strong> ou escolha <strong>várias imagens/PDFs de uma só vez</strong>.</p>
-                <p class="subtext">No explorador de ficheiros: segure <strong>Ctrl</strong> e clique em cada imagem, ou <strong>Shift</strong> para um intervalo (ex.: dia 1 ao 26).</p>
-                <label for="financeiroExtratoFile" class="btn-primary financeiro-escolher-multiplos" id="financeiroEscolherMultiplosBtn">Escolher vários ficheiros</label>
-                <input type="file" id="financeiroExtratoFile" accept="image/*,application/pdf" multiple class="financeiro-file-input-hidden" aria-label="Escolher várias imagens ou PDFs de extrato">
-              </div>
-              <p id="financeiroExtratoArquivoLbl" class="subtext portal-operador-comprovante-arquivo" role="status"></p>
-              <div id="financeiroPendentesLista" class="financeiro-pendentes-lista hidden" aria-live="polite"></div>
-              <div class="operacao-inline-form__actions">
-                <button type="button" class="btn-primary" id="financeiroExtratoExtrairIaBtn">Extrair movimentos com IA</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroExtratoRevisarTodosBtn" disabled>Revisar ficheiros com IA</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroVerErrosIaBtn" disabled>Relatório de erros IA</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroExtratoLimparBtn">Limpar fila</button>
-              </div>
-              <p id="financeiroOpenAIStatus" class="subtext financeiro-openai-status" role="status"></p>
-              <details class="financeiro-ia-instrucoes" id="financeiroIaInstrucoesWrap">
-                <summary>Instruções personalizadas para a IA</summary>
-                <p class="subtext">Oriente como a IA deve ler este banco (formato de datas, o que ignorar, nomes de colunas, etc.). Usado na extração e na revisão.</p>
-                <label class="portal-field portal-field--wide">
-                  <span>Instruções</span>
-                  <textarea id="financeiroIaInstrucoes" rows="4" maxlength="2000" placeholder="Ex.: Valores com sinal negativo são saídas. Ignorar linhas de SALDO. PIX: nome antes do CPF."></textarea>
-                </label>
-                <button type="button" class="btn-primary btn-secondary-outline" id="financeiroIaInstrucoesGuardarBtn">Guardar instruções</button>
-              </details>
-              <p id="financeiroExtratoMsg" class="portal-feedback" role="status"></p>
-              <input type="file" id="financeiroRevisarArquivoInput" accept="image/*,application/pdf" class="financeiro-file-input-hidden" aria-hidden="true" tabindex="-1">
-              <input type="file" id="financeiroRevisarLoteInput" accept="image/*,application/pdf" multiple class="financeiro-file-input-hidden" aria-hidden="true" tabindex="-1">
-              <h4 class="portal-lanc-aluguel-section__title">Ficheiros processados</h4>
-              <div id="financeiroUploadsLista" class="financeiro-uploads-lista"></div>
-              <div class="financeiro-relatorio-acoes">
-                <p id="financeiroResumoDados" class="subtext" role="status">Nenhum movimento guardado ainda.</p>
-                <button type="button" class="btn-primary" id="financeiroVerRelatorioBtn" disabled>Ver relatório</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-financeiro-locadora">Voltar</button>
-        </div>
-      </section>
     </div>
   </div>
 
@@ -1734,62 +1669,6 @@
   </div>
 
 
-  <div id="financeiroRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="financeiroRelatorioModalTitulo">
-    <div class="portal-modal__backdrop" data-close-fin-relatorio></div>
-    <div class="portal-modal__card portal-modal__card--wide">
-      <h3 id="financeiroRelatorioModalTitulo" class="portal-modal__title">Relatório financeiro</h3>
-      <p id="financeiroRelatorioModalSub" class="subtext portal-modal__text"></p>
-      <div class="financeiro-relatorio-filtros" role="search">
-        <label class="portal-field">
-          <span>De</span>
-          <input type="text" id="financeiroFiltroDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
-        </label>
-        <label class="portal-field">
-          <span>Até</span>
-          <input type="text" id="financeiroFiltroAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
-        </label>
-        <label class="portal-field portal-field--grow">
-          <span>Tipo de relatório</span>
-          <select id="financeiroFiltroCategoria">
-            <option value="resumo">Resumo — entradas e saídas por dia, semana e mês</option>
-            <option value="entradas">Total de entradas no período</option>
-            <option value="saidas">Saídas no período</option>
-            <option value="clientes_repetidos">Clientes repetidos (vários pagamentos)</option>
-            <option value="quem_pagou">Quem pagou — cruzamento com cadastro</option>
-          </select>
-        </label>
-        <button type="button" class="btn-primary" id="financeiroRelatorioAtualizarBtn">Atualizar relatório</button>
-      </div>
-      <p id="financeiroRelatorioPeriodoLbl" class="subtext financeiro-relatorio-periodo-lbl"></p>
-      <div id="financeiroRelatorioExportAcoes" class="financeiro-relatorio-acoes hidden" aria-hidden="true">
-        <span class="subtext financeiro-relatorio-acoes__lbl">Exportar relatório do período:</span>
-        <button type="button" class="btn-primary" id="financeiroRelatorioPdfBtn">Gerar PDF</button>
-        <button type="button" class="btn-primary btn-secondary-outline" id="financeiroRelatorioExcelBtn">Gerar Excel</button>
-      </div>
-      <div id="financeiroRelatorioConteudo" class="financeiro-relatorio-conteudo" aria-live="polite"></div>
-      <div class="portal-modal__actions">
-        <button type="button" class="btn-primary btn-secondary-outline" data-close-fin-relatorio>Fechar</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="financeiroRevisaoErrosModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="financeiroRevisaoErrosTitulo">
-    <div class="portal-modal__backdrop" data-close-fin-erros></div>
-    <div class="portal-modal__card portal-modal__card--wide">
-      <h3 id="financeiroRevisaoErrosTitulo" class="portal-modal__title">Relatório de erros — IA extrato</h3>
-      <p id="financeiroRevisaoErrosSub" class="subtext portal-modal__text"></p>
-      <div id="financeiroRevisaoErrosConteudo" class="financeiro-revisao-erros-conteudo" aria-live="polite"></div>
-      <label class="portal-field portal-field--wide financeiro-revisao-erros-instrucoes">
-        <span>Instruções para a IA (como deve trabalhar neste extrato)</span>
-        <textarea id="financeiroIaInstrucoesModal" rows="5" maxlength="2000" placeholder="Descreva regras específicas para corrigir os erros acima…"></textarea>
-      </label>
-      <div class="portal-modal__actions portal-modal__actions--wrap">
-        <button type="button" class="btn-primary" id="financeiroRevisaoErrosRevisarBtn">Revisar de novo com instruções</button>
-        <button type="button" class="btn-primary btn-secondary-outline" data-close-fin-erros>Fechar</button>
-      </div>
-    </div>
-  </div>
-
   <div id="portalMultasRelatorioModal" class="portal-modal portal-multas-relatorio-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMultasRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-multas-relatorio></div>
     <div class="portal-modal__card portal-multas-relatorio-modal__card">
@@ -1845,8 +1724,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521fin-relatorio-export" defer></script>
-  <script src="portal-financeiro.js?v=20260521fin-cabecalho-data" defer></script>
+  <script src="portal-locadora-ui.js?v=20260530sem-financeiro" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260527financeiro-dedupe" defer></script>

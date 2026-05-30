@@ -25,7 +25,8 @@ async function main() {
       html.includes("locadora-hub") ||
       html.includes("data-auto") ||
       html.includes("mascaras") ||
-      html.includes("20260520");
+      html.includes("20260520") ||
+      html.includes("20260530");
     record("HTML com cache app/portal atualizado", cacheOk, "app.js + portal-locadora-ui.js");
     record(
       "views hub locadora no HTML",
@@ -50,41 +51,10 @@ async function main() {
         html.includes("operacaoLancAluguelPaneRelatorios")
     );
     record(
-      "área financeiro (Santander + Sicredi + IA extrato)",
-      html.includes("btn-locadora-financeiro") &&
-        html.includes("panel-financeiro-locadora") &&
-        html.includes("btn-financeiro-santander") &&
-        html.includes("btn-financeiro-sicredi") &&
-        html.includes("financeiroExtratoExtrairIaBtn")
-    );
-    record(
-      "financeiro modal relatório com período",
-      html.includes("financeiroVerRelatorioBtn") &&
-        html.includes("financeiroRelatorioModal") &&
-        html.includes("financeiroFiltroCategoria") &&
-        html.includes("financeiroRelatorioPdfBtn") &&
-        html.includes("financeiroRelatorioExcelBtn") &&
-        html.includes("quem_pagou")
-    );
-    record(
-      "financeiro PDF partilhar e-mail WhatsApp",
+      "PDF partilhar e-mail WhatsApp",
       html.includes("portalPdfPartilharBtn") &&
         html.includes("portalPdfPartilharEmailBtn") &&
         html.includes("portalPdfPartilharWhatsAppBtn")
-    );
-    record(
-      "financeiro revisão IA",
-      html.includes("financeiroExtratoRevisarTodosBtn") &&
-        html.includes("financeiroVerErrosIaBtn") &&
-        html.includes("financeiroRevisaoErrosModal") &&
-        html.includes("financeiroIaInstrucoes")
-    );
-    record(
-      "financeiro fila múltiplas imagens",
-      html.includes("financeiroPendentesLista") &&
-        html.includes("id=\"financeiroExtratoFile\"") &&
-        /financeiroExtratoFile[^>]*\smultiple/i.test(html) &&
-        html.includes("financeiroEscolherMultiplosBtn")
     );
     record(
       "portal conferência operador (texto)",
