@@ -36,7 +36,9 @@
   let bancoAtivo = "";
   /** Fila antes da IA: { id, file, nome }[] */
   let arquivosPendentes = [];
+  let revisaoEmCurso = false;
   const pendentesLista = document.getElementById("financeiroPendentesLista");
+  const revisarTodosBtn = document.getElementById("financeiroExtratoRevisarTodosBtn");
 
   function escapeHtml(s) {
     return String(s ?? "")
@@ -537,6 +539,7 @@
     if (verRelatorioBtn) {
       verRelatorioBtn.disabled = nMov === 0;
     }
+    atualizarBotaoRevisarTodos();
   }
 
   function renderTabelaLancamentos(titulo, linhas, cols) {
@@ -1014,11 +1017,36 @@
     atualizarBotoesExportRelatorio(false);
   }
 
+  function uploadsComArquivoGuardado() {
+    if (!bancoAtivo) return [];
+    return getUploads(bancoAtivo).filter((u) => Boolean(u.arquivoDataUrl));
+  }
+
+  function atualizarBotaoRevisarTodos() {
+    if (!revisarTodosBtn) return;
+    const n = uploadsComArquivoGuardado().length;
+    revisarTodosBtn.disabled = revisaoEmCurso || n === 0;
+    revisarTodosBtn.title =
+      n === 0
+        ? "Só ficheiros enviados a partir de agora guardam a imagem para revisão. Reenvie os antigos."
+        : `Revisar ${n} ficheiro(s) com IA (leitura linha a linha, modelo avançado)`;
+  }
+
+  function setFinanceiroIaUiBusy(busy) {
+    if (extrairBtn) extrairBtn.disabled = busy;
+    if (limparBtn) limparBtn.disabled = busy;
+    if (revisarTodosBtn) revisarTodosBtn.disabled = busy || uploadsComArquivoGuardado().length === 0;
+    uploadsLista?.querySelectorAll("[data-fin-upload-revisar]").forEach((b) => {
+      b.disabled = busy;
+    });
+  }
+
   function renderUploadsLista() {
     if (!uploadsLista || !bancoAtivo) return;
     const uploads = getUploads(bancoAtivo);
     if (!uploads.length) {
       uploadsLista.innerHTML = '<p class="subtext">Nenhum extrato processado neste banco.</p>';
+      atualizarBotaoRevisarTodos();
       return;
     }
     uploadsLista.innerHTML = uploads
@@ -1027,12 +1055,22 @@
       .map((u) => {
         const dt = u.processadoEm ? new Date(u.processadoEm).toLocaleString("pt-BR") : "";
         const n = (u.movimentos || []).length;
+        const temArquivo = Boolean(u.arquivoDataUrl);
+        const revisado = u.revisadoEm ? ` · revisado ${new Date(u.revisadoEm).toLocaleString("pt-BR")}` : "";
+        const revisarBtn = temArquivo
+          ? `<button type="button" class="btn-primary btn-secondary-outline financeiro-upload-revisar" data-fin-upload-revisar="${escapeHtml(u.id)}">Revisar com IA</button>`
+          : `<button type="button" class="btn-primary btn-secondary-outline" disabled title="Reenvie este ficheiro para activar revisão">Revisar com IA</button>`;
         return `<div class="financeiro-upload-item">
           <div>
             <strong>${escapeHtml(u.nomeArquivo || "extrato")}</strong>
-            <span class="subtext"> — ${n} movimento(s) · ${escapeHtml(dt)}</span>
+            <span class="subtext"> — ${n} movimento(s) · ${escapeHtml(dt)}${revisado}</span>
+            ${u.revisadoEm ? '<span class="financeiro-upload-item__badge">✓ revisado IA</span>' : ""}
+            ${!temArquivo ? '<span class="subtext"> · imagem não guardada (reenvie para revisar)</span>' : ""}
           </div>
-          <button type="button" class="btn-primary btn-secondary-outline financeiro-upload-remover" data-fin-upload-id="${escapeHtml(u.id)}">Remover</button>
+          <div class="financeiro-upload-item__acoes">
+            ${revisarBtn}
+            <button type="button" class="btn-primary btn-secondary-outline financeiro-upload-remover" data-fin-upload-id="${escapeHtml(u.id)}">Remover</button>
+          </div>
         </div>`;
       })
       .join("");
@@ -1046,6 +1084,133 @@
         atualizarResumoBar();
       });
     });
+    uploadsLista.querySelectorAll("[data-fin-upload-revisar]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-fin-upload-revisar");
+        if (id) void revisarUploadComIA(id);
+      });
+    });
+    atualizarBotaoRevisarTodos();
+  }
+
+  async function revisarUploadComIA(uploadId) {
+    if (!bancoAtivo || revisaoEmCurso) return;
+    const uploads = getUploads(bancoAtivo);
+    const upload = uploads.find((u) => u.id === uploadId);
+    if (!upload) return;
+    if (!upload.arquivoDataUrl) {
+      window.alert(
+        "Imagem original não guardada neste navegador.\n\nRemova o registo e envie o ficheiro outra vez — a partir daí poderá usar «Revisar com IA»."
+      );
+      return;
+    }
+
+    revisaoEmCurso = true;
+    setFinanceiroIaUiBusy(true);
+    if (msgEl) {
+      msgEl.textContent = `Revisão IA (linha a linha): ${upload.nomeArquivo || "extrato"}… pode demorar ~1–2 min.`;
+      msgEl.classList.remove("portal-feedback--erro");
+      msgEl.classList.remove("portal-feedback--ok");
+    }
+
+    try {
+      const r = await processarDataUrlExtrato(upload.arquivoDataUrl, upload.nomeArquivo || "extrato", {
+        modoRevisao: true,
+        uploadId: upload.id,
+        movimentosAnteriores: upload.movimentos || [],
+        salvarArquivo: false,
+      });
+      renderUploadsLista();
+      atualizarResumoBar();
+      if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
+        renderRelatorioModalConteudo();
+      }
+      if (!r.ok) {
+        if (msgEl) {
+          msgEl.textContent = r.erro || "Falha na revisão IA.";
+          msgEl.classList.add("portal-feedback--erro");
+        }
+        return;
+      }
+      const total = todosMovimentosBanco(bancoAtivo).length;
+      const diff = (r.novos || 0) - (r.anterior || 0);
+      const diffTxt = diff > 0 ? ` (+${diff} vs anterior)` : diff < 0 ? ` (${diff} vs anterior)` : " (mesma quantidade)";
+      if (msgEl) {
+        msgEl.textContent = `Revisão concluída: ${r.novos} movimento(s)${diffTxt} · base total: ${total}.${r.observacoes ? ` ${r.observacoes}` : ""}`;
+        msgEl.classList.remove("portal-feedback--erro");
+        msgEl.classList.add("portal-feedback--ok");
+      }
+    } catch (e) {
+      if (msgEl) {
+        msgEl.textContent = String(e?.message || e);
+        msgEl.classList.add("portal-feedback--erro");
+      }
+    } finally {
+      revisaoEmCurso = false;
+      setFinanceiroIaUiBusy(false);
+      atualizarBotaoRevisarTodos();
+    }
+  }
+
+  async function revisarTodosComIA() {
+    if (!bancoAtivo || revisaoEmCurso) return;
+    const lista = uploadsComArquivoGuardado();
+    if (!lista.length) {
+      window.alert(
+        "Nenhum ficheiro com imagem guardada para revisão.\n\nFicheiros antigos não têm cópia local — remova e reenvie as imagens."
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        `Revisar ${lista.length} ficheiro(s) com IA avançada (linha a linha)?\n\nSubstitui os movimentos de cada ficheiro pelos novos resultados.`
+      )
+    ) {
+      return;
+    }
+
+    revisaoEmCurso = true;
+    setFinanceiroIaUiBusy(true);
+    let ok = 0;
+    let fail = 0;
+
+    try {
+      for (let i = 0; i < lista.length; i += 1) {
+        const u = lista[i];
+        if (msgEl) {
+          msgEl.textContent = `Revisão IA ${i + 1}/${lista.length}: ${u.nomeArquivo || "extrato"}…`;
+          msgEl.classList.remove("portal-feedback--erro");
+          msgEl.classList.remove("portal-feedback--ok");
+        }
+        try {
+          const r = await processarDataUrlExtrato(u.arquivoDataUrl, u.nomeArquivo || "extrato", {
+            modoRevisao: true,
+            uploadId: u.id,
+            movimentosAnteriores: u.movimentos || [],
+            salvarArquivo: false,
+          });
+          if (r.ok) ok += 1;
+          else fail += 1;
+        } catch {
+          fail += 1;
+        }
+      }
+      renderUploadsLista();
+      atualizarResumoBar();
+      if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
+        renderRelatorioModalConteudo();
+      }
+      const total = todosMovimentosBanco(bancoAtivo).length;
+      if (msgEl) {
+        msgEl.textContent = `Revisão em lote: ${ok}/${lista.length} ficheiro(s) OK${fail ? ` · ${fail} com erro` : ""} · base: ${total} movimento(s).`;
+        msgEl.classList.toggle("portal-feedback--erro", fail === lista.length);
+        msgEl.classList.toggle("portal-feedback--ok", ok > 0);
+      }
+    } finally {
+      revisaoEmCurso = false;
+      setFinanceiroIaUiBusy(false);
+      atualizarBotaoRevisarTodos();
+    }
   }
 
   function setFinanceiroPlaceholderVisible(visible) {
@@ -1153,9 +1318,10 @@
     return { mime: m[1], base64: m[2] };
   }
 
-  async function comprimirImagemDataUrl(dataUrl, maxPx) {
+  async function comprimirImagemDataUrl(dataUrl, maxPx, quality) {
     const { mime, base64 } = parseDataUrl(dataUrl);
     if (!mime.startsWith("image/") || !base64) return dataUrl;
+    const q = Number.isFinite(quality) ? quality : 0.82;
     return new Promise((resolve) => {
       const img = new Image();
       img.onload = () => {
@@ -1178,11 +1344,23 @@
           return;
         }
         ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
+        resolve(canvas.toDataURL("image/jpeg", q));
       };
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
+  }
+
+  async function dataUrlParaArmazenamento(dataUrl) {
+    const { mime } = parseDataUrl(dataUrl);
+    if (!mime.startsWith("image/")) {
+      if (mime === "application/pdf" && String(dataUrl).length < 600000) return dataUrl;
+      return null;
+    }
+    let url = await comprimirImagemDataUrl(dataUrl, 1400, 0.78);
+    if (url.length > 450000) url = await comprimirImagemDataUrl(dataUrl, 1200, 0.68);
+    if (url.length > 450000) url = await comprimirImagemDataUrl(dataUrl, 1000, 0.6);
+    return url.length <= 500000 ? url : null;
   }
 
   function formatarErroServidorIa(data, status) {
@@ -1235,7 +1413,7 @@
       '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null}';
     return `Leitor de extrato bancário brasileiro (${bancoLabel}). Analise a imagem ou PDF anexo.
 
-Extraia TODAS as movimentações visíveis (créditos, débitos, PIX, TED, tarifas, salários, etc.).
+Extraia TODAS as movimentações visíveis linha a linha (créditos, débitos, PIX, TED, tarifas, salários, estornos, etc.). Não omita linhas.
 
 Responda APENAS um objeto json válido (sem markdown): ${schema}
 
@@ -1246,6 +1424,34 @@ Regras:
 - descricao: histórico como no extrato
 - pagadorNome e pagadorCpf: em PIX/TED preencha nome e CPF/CNPJ do pagador ou recebedor quando aparecer
 - categoria: ex. pix, ted, tarifa, salario, boleto — quando identificável
+- banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"`;
+  }
+
+  function montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores) {
+    const schema =
+      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"totalLinhasVisiveis":number|null}';
+    const nAnt = Array.isArray(movimentosAnteriores) ? movimentosAnteriores.length : 0;
+    const amostraAnt = (movimentosAnteriores || [])
+      .slice(0, 8)
+      .map((m) => `${m.data} · ${m.descricao} · ${currencyBRL(m.valor)} (${m.tipo})`)
+      .join("\n");
+    return `REVISÃO DETALHADA de extrato bancário brasileiro (${bancoLabel}). A leitura anterior extraiu ${nAnt} movimento(s) — pode estar incompleta.
+
+Leia a imagem/PDF LINHA A LINHA, da primeira à última movimentação visível. NÃO omita nenhuma linha (PIX, TED, tarifas, estornos, salários, boletos, compras, etc.).
+
+${nAnt > 0 ? `Extração anterior (referência — pode faltar linhas):\n${amostraAnt}\n` : ""}
+
+Responda APENAS um objeto json válido (sem markdown): ${schema}
+
+Regras rigorosas:
+- Extraia TODAS as linhas de movimentação visíveis, mesmo valores pequenos ou texto parcial
+- data em DD/MM/AAAA (complete o ano se só houver dia/mês no extrato)
+- valor numérico positivo com até 2 decimais; use o valor da coluna de movimentação
+- tipo "entrada" para créditos (+); "saida" para débitos (-)
+- descricao: copie o histórico completo como aparece (nome, banco, finalidade)
+- pagadorNome e pagadorCpf: preencha em PIX/TED/transferências quando visível
+- totalLinhasVisiveis: quantas linhas de movimento você contou na imagem
+- observacoes: liste linhas ilegíveis ou dúvidas, se houver
 - banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"`;
   }
 
@@ -1281,8 +1487,10 @@ Regras:
       'IA não disponível. Configure <code>OPENAI_API_KEY</code> na Vercel (redeploy) ou guarde a chave em Operação → Lançamento de aluguel → Validação → «Chave OpenAI só neste navegador».';
   }
 
-  async function chamarOpenAIExtrato(content) {
-    const payload = { content, tipo: "extrato", max_tokens: 4096 };
+  async function chamarOpenAIExtrato(content, opts = {}) {
+    const maxTokens = Number(opts.max_tokens) > 0 ? opts.max_tokens : 4096;
+    const modo = String(opts.modo || "").toLowerCase();
+    const payload = { content, tipo: "extrato", max_tokens: maxTokens, modo };
     const bodyStr = JSON.stringify(payload);
     if (bodyStr.length > 3_800_000) {
       return {
@@ -1335,14 +1543,15 @@ Regras:
     }
 
     try {
+      const model = modo === "revisao" ? "gpt-4o" : "gpt-4o-mini";
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
         body: JSON.stringify({
-          model: "gpt-4o-mini",
+          model,
           messages: [{ role: "user", content }],
           response_format: { type: "json_object" },
-          max_tokens: 4096,
+          max_tokens: maxTokens,
         }),
       });
       if (!res.ok) {
@@ -1359,20 +1568,35 @@ Regras:
     }
   }
 
-  async function processarUmArquivoExtrato(file, nomeArquivo) {
-    let dataUrl = await fileToBase64(file);
-    const { mime } = parseDataUrl(dataUrl);
-    if (mime.startsWith("image/")) {
-      dataUrl = await comprimirImagemDataUrl(dataUrl, 1400);
+  async function processarDataUrlExtrato(dataUrlRaw, nomeArquivo, opts = {}) {
+    const {
+      modoRevisao = false,
+      uploadId = null,
+      movimentosAnteriores = [],
+      salvarArquivo = true,
+    } = opts;
+    let dataUrl = dataUrlRaw;
+    const { mime: mimeRaw } = parseDataUrl(dataUrlRaw);
+    const maxPxIa = modoRevisao ? 2400 : 2000;
+    if (mimeRaw.startsWith("image/")) {
+      dataUrl = await comprimirImagemDataUrl(dataUrlRaw, maxPxIa, modoRevisao ? 0.9 : 0.86);
+    }
+
+    let arquivoParaGuardar = null;
+    if (salvarArquivo && !uploadId) {
+      arquivoParaGuardar = await dataUrlParaArmazenamento(dataUrlRaw);
     }
 
     const bancoLabel = BANCOS[bancoAtivo] || bancoAtivo;
-    const content = [{ type: "text", text: montarPromptExtrato(bancoLabel) }];
+    const prompt = modoRevisao
+      ? montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores)
+      : montarPromptExtrato(bancoLabel);
+    const content = [{ type: "text", text: prompt }];
     const parsedUrl = parseDataUrl(dataUrl);
     if (parsedUrl.mime.startsWith("image/") && parsedUrl.base64) {
       content.push({
         type: "image_url",
-        image_url: { url: `data:${parsedUrl.mime};base64,${parsedUrl.base64}` },
+        image_url: { url: `data:${parsedUrl.mime};base64,${parsedUrl.base64}`, detail: modoRevisao ? "high" : "auto" },
       });
     } else if (parsedUrl.mime === "application/pdf" && parsedUrl.base64) {
       content.push({
@@ -1390,7 +1614,10 @@ Regras:
       });
     }
 
-    const oai = await chamarOpenAIExtrato(content);
+    const oai = await chamarOpenAIExtrato(content, {
+      max_tokens: modoRevisao ? 8192 : 4096,
+      modo: modoRevisao ? "revisao" : "",
+    });
     if (!oai.ok) {
       return { ok: false, erro: oai.msg || "Falha na IA." };
     }
@@ -1405,15 +1632,42 @@ Regras:
       };
     }
 
-    const noLote = dedupeListaMovimentos(movimentosBrutos);
-    const { kept: movimentos, ignorados } = filtrarMovimentosNovos(noLote, bancoAtivo);
+    const movimentos = dedupeListaMovimentos(movimentosBrutos);
+    const observacoes = String(oai.parsed?.observacoes || "").trim();
+    const totalVisivel = oai.parsed?.totalLinhasVisiveis;
 
-    if (!movimentos.length) {
+    if (uploadId) {
+      const uploads = getUploads(bancoAtivo);
+      const idx = uploads.findIndex((u) => u.id === uploadId);
+      if (idx < 0) return { ok: false, erro: "Ficheiro não encontrado na base." };
+      const anterior = (uploads[idx].movimentos || []).length;
+      uploads[idx] = {
+        ...uploads[idx],
+        movimentos,
+        processadoEm: new Date().toISOString(),
+        revisadoEm: new Date().toISOString(),
+        observacoes,
+        totalLinhasVisiveis: totalVisivel,
+      };
+      setUploads(bancoAtivo, uploads);
+      return {
+        ok: true,
+        revisao: true,
+        novos: movimentos.length,
+        anterior,
+        observacoes,
+        totalVisivel,
+      };
+    }
+
+    const { kept: movimentosNovos, ignorados } = filtrarMovimentosNovos(movimentos, bancoAtivo);
+
+    if (!movimentosNovos.length) {
       return {
         ok: true,
         vazio: true,
         ignorados: ignorados || movimentosBrutos.length,
-        observacoes: String(oai.parsed?.observacoes || "").trim(),
+        observacoes,
       };
     }
 
@@ -1422,12 +1676,19 @@ Regras:
       id: newId(),
       nomeArquivo,
       processadoEm: new Date().toISOString(),
-      movimentos,
-      observacoes: String(oai.parsed?.observacoes || "").trim(),
+      movimentos: movimentosNovos,
+      observacoes,
+      arquivoDataUrl: arquivoParaGuardar || undefined,
+      totalLinhasVisiveis: totalVisivel,
     });
     setUploads(bancoAtivo, uploads);
 
-    return { ok: true, novos: movimentos.length, ignorados, observacoes: String(oai.parsed?.observacoes || "").trim() };
+    return { ok: true, novos: movimentosNovos.length, ignorados, observacoes };
+  }
+
+  async function processarUmArquivoExtrato(file, nomeArquivo, opts = {}) {
+    const dataUrl = await fileToBase64(file);
+    return processarDataUrlExtrato(dataUrl, nomeArquivo, opts);
   }
 
   async function extrairComIA() {
@@ -1441,8 +1702,7 @@ Regras:
     }
 
     const fila = [...arquivosPendentes];
-    if (extrairBtn) extrairBtn.disabled = true;
-    if (limparBtn) limparBtn.disabled = true;
+    setFinanceiroIaUiBusy(true);
 
     let okCount = 0;
     let failCount = 0;
@@ -1512,8 +1772,7 @@ Regras:
         msgEl.classList.add("portal-feedback--erro");
       }
     } finally {
-      if (extrairBtn) extrairBtn.disabled = false;
-      if (limparBtn) limparBtn.disabled = false;
+      setFinanceiroIaUiBusy(false);
     }
   }
 
@@ -1589,6 +1848,7 @@ Regras:
     });
 
     extrairBtn?.addEventListener("click", () => void extrairComIA());
+    revisarTodosBtn?.addEventListener("click", () => void revisarTodosComIA());
     limparBtn?.addEventListener("click", () => limparArquivoPendente());
 
     verRelatorioBtn?.addEventListener("click", () => abrirRelatorioModal());

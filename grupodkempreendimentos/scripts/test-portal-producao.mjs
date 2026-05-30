@@ -73,6 +73,10 @@ async function main() {
         html.includes("portalPdfPartilharWhatsAppBtn")
     );
     record(
+      "financeiro revisão IA",
+      html.includes("financeiroExtratoRevisarTodosBtn")
+    );
+    record(
       "financeiro fila múltiplas imagens",
       html.includes("financeiroPendentesLista") &&
         html.includes("id=\"financeiroExtratoFile\"") &&

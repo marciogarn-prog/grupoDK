@@ -979,6 +979,24 @@ body {
   background: rgba(10, 12, 18, 0.5);
 }
 
+.financeiro-upload-item__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.financeiro-upload-item__acoes .btn-primary {
+  margin-top: 0;
+  white-space: nowrap;
+}
+
+.financeiro-upload-item__badge {
+  font-size: 0.75rem;
+  color: var(--accent);
+  margin-left: 0.35rem;
+}
+
 .financeiro-relatorio {
   margin-top: 1.25rem;
 }
