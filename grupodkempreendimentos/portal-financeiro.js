@@ -10,6 +10,28 @@
     sicredi: "Sicredi",
   };
 
+  /** Sugestão inicial se o operador ainda não guardou instruções. */
+  const INSTRUCOES_PADRAO_BANCO = {
+    santander: `App Santander (captura de ecrã): cada cabeçalho com calendário — ex. «Segunda, 18 de maio» — vale para TODOS os lançamentos abaixo até ao próximo cabeçalho de data. «Pix recebido» = entrada; «Pix enviado» = saída. Nome por baixo do tipo = pagadorNome. Complete o ano (ex.: maio/2023 → 18/05/2023).`,
+    sicredi: `App Sicredi: cabeçalhos de data agrupam os lançamentos abaixo. Crédito = entrada; débito = saída. Propague a data do cabeçalho a cada movimento.`,
+  };
+
+  const MESES_PT = {
+    janeiro: 1,
+    fevereiro: 2,
+    marco: 3,
+    março: 3,
+    abril: 4,
+    maio: 5,
+    junho: 6,
+    julho: 7,
+    agosto: 8,
+    setembro: 9,
+    outubro: 10,
+    novembro: 11,
+    dezembro: 12,
+  };
+
   const panel = document.getElementById("panel-financeiro-locadora");
   if (!panel) return;
 
@@ -360,6 +382,169 @@
     return d;
   }
 
+  function normMesPt(s) {
+    return String(s || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  /** DD/MM/AAAA, DD/MM+ano, «18 de maio», «Segunda, 18 de maio». */
+  function parseDataExtratoFlexivel(s, anoRef) {
+    const t = String(s ?? "").trim();
+    if (!t) return null;
+
+    let m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[1].padStart(2, "0")}/${m[2].padStart(2, "0")}/${m[3]}`;
+
+    m = t.match(/^(\d{1,2})\/(\d{1,2})$/);
+    if (m && anoRef) {
+      return formatBrDate(new Date(Number(anoRef), Number(m[2]) - 1, Number(m[1])));
+    }
+
+    m = t.match(/(\d{1,2})\s+de\s+([a-zà-úç]+)/i);
+    if (m) {
+      const mes = MESES_PT[normMesPt(m[2])];
+      const ano = anoRef || new Date().getFullYear();
+      if (mes) return formatBrDate(new Date(ano, mes - 1, Number(m[1])));
+    }
+
+    return null;
+  }
+
+  function inferirAnoReferencia(parsed, nomeArquivo, movimentosBase) {
+    const yParsed = Number(parsed?.anoReferencia);
+    if (Number.isFinite(yParsed) && yParsed >= 2000 && yParsed <= 2100) return yParsed;
+
+    for (const src of [
+      String(parsed?.observacoes || ""),
+      String(nomeArquivo || ""),
+      JSON.stringify(parsed?.cabecalhosDatas || []),
+    ]) {
+      const ym = src.match(/20\d{2}/);
+      if (ym) return Number(ym[0]);
+    }
+
+    for (const m of movimentosBase || []) {
+      const d = parseBrDate(parseDataExtratoFlexivel(m?.data, null) || m?.data);
+      if (d) return d.getFullYear();
+    }
+
+    if (bancoAtivo) {
+      for (const m of todosMovimentosBanco(bancoAtivo)) {
+        const d = parseBrDate(m.data);
+        if (d) return d.getFullYear();
+      }
+    }
+
+    return new Date().getFullYear();
+  }
+
+  function inferirTipoPorDescricao(descricao, tipoAtual) {
+    const t = String(tipoAtual || "").toLowerCase();
+    if (t === "entrada" || t === "saida") return t;
+    const d = String(descricao || "");
+    if (/pix\s*recebid|credito|cr[eé]dito|dep[oó]sito|recebiment/i.test(d)) return "entrada";
+    if (/pix\s*enviad|d[eé]bito|debito|pagament|saque|tarifa|envio/i.test(d)) return "saida";
+    return t || "saida";
+  }
+
+  /**
+   * App móvel: cabeçalhos de data + movimentos. Aceita secoes[] ou movimentos[] plano.
+   */
+  function flattenExtratoParsed(parsed, nomeArquivo) {
+    const anoRef = inferirAnoReferencia(parsed, nomeArquivo, parsed?.movimentos);
+    const out = [];
+
+    const secoes = parsed?.secoes || parsed?.gruposPorData || parsed?.grupos || [];
+    if (Array.isArray(secoes) && secoes.length) {
+      for (const sec of secoes) {
+        const dataHeader = parseDataExtratoFlexivel(
+          sec.data || sec.dataCabecalho || sec.dataCabecalhoBr || sec.dataTextoOriginal || sec.cabecalho,
+          anoRef
+        );
+        const movs = sec.movimentos || sec.lancamentos || [];
+        for (const m of movs) {
+          out.push({
+            ...m,
+            data:
+              parseDataExtratoFlexivel(m.data || m.dataMovimento, anoRef) ||
+              dataHeader ||
+              m.data ||
+              m.dataMovimento,
+          });
+        }
+      }
+    } else {
+      const flat = parsed?.movimentos || parsed?.lancamentos || [];
+      for (const m of flat) {
+        out.push({
+          ...m,
+          data: parseDataExtratoFlexivel(m.data || m.dataMovimento, anoRef) || m.data || m.dataMovimento,
+        });
+      }
+    }
+
+    if (!out.length) return out;
+
+    let dataCorrente = "";
+    const cabecalhos = Array.isArray(parsed?.cabecalhosDatas) ? parsed.cabecalhosDatas : [];
+    let cabIdx = 0;
+
+    return out.map((m) => {
+      const bruta = String(m.data || "").trim();
+      const parsedData = parseDataExtratoFlexivel(bruta, anoRef);
+      const desc = String(m.descricao || m.historico || m.lancamento || "").trim();
+      const soData =
+        parsedData &&
+        (!desc || /^(segunda|ter[cç]a|quarta|quinta|sexta|s[aá]bado|domingo)/i.test(desc));
+
+      if (soData && !/pix/i.test(desc)) {
+        dataCorrente = parsedData;
+        return { ...m, data: parsedData, _cabecalhoData: true };
+      }
+
+      if (parsedData) dataCorrente = parsedData;
+      else if (!dataCorrente && cabIdx < cabecalhos.length) {
+        const dc = parseDataExtratoFlexivel(cabecalhos[cabIdx], anoRef);
+        if (dc) {
+          dataCorrente = dc;
+          cabIdx += 1;
+        }
+      }
+
+      return {
+        ...m,
+        data: parsedData || dataCorrente || bruta,
+      };
+    }).filter((m) => !m._cabecalhoData);
+  }
+
+  function contarDatasUnicasMovimentos(movs) {
+    const set = new Set();
+    for (const m of movs || []) {
+      const k = dateKeyBr(m.data);
+      if (k) set.add(k);
+    }
+    return set.size;
+  }
+
+  function blocoLayoutAppMobile(bancoLabel) {
+    const b = String(bancoLabel || "").toLowerCase();
+    const app = b.includes("sant") ? "Santander" : b.includes("sicr") ? "Sicredi" : "banco";
+    return `
+
+LAYOUT APP MÓVEL (${app} — captura WhatsApp/ecrã):
+- Cabeçalhos de DATA aparecem UMA vez com ícone de calendário (ex.: «Segunda, 18 de maio», «Terça, 19 de maio»).
+- TODOS os lançamentos IMEDIATAMENTE ABAIXO desse cabeçalho pertencem a essa data, até aparecer o PRÓXIMO cabeçalho.
+- Cada lançamento: tipo («Pix recebido», «Pix enviado»), nome da pessoa, valor R$ à direita.
+- «Pix recebido» = entrada; «Pix enviado» = saida.
+- OBRIGATÓRIO: preencha o campo data (DD/MM/AAAA) em CADA movimento, propagando a data do cabeçalho vigente.
+- Use o formato secoes[] quando for captura de app: [{ "dataCabecalho":"18/05/2023", "dataTextoOriginal":"Segunda, 18 de maio", "movimentos":[...] }].
+- Informe anoReferencia (ex.: 2023) e cabecalhosDatas (lista de todas as datas de cabeçalho visíveis na imagem).
+- NÃO omita nenhum Pix visível — conte todos os cabeçalhos de data da imagem.`;
+  }
+
   function formatBrDate(d) {
     const p2 = (n) => String(n).padStart(2, "0");
     return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()}`;
@@ -417,10 +602,10 @@
     return rest ? `Semana a partir de ${rest}` : key;
   }
 
-  function normalizarMovimentos(lista) {
+  function normalizarMovimentos(lista, anoRef) {
     const out = [];
     for (const m of lista || []) {
-      const data = String(m.data || m.dataMovimento || "").trim();
+      let data = parseDataExtratoFlexivel(m.data || m.dataMovimento, anoRef) || String(m.data || m.dataMovimento || "").trim();
       const descricao = String(m.descricao || m.historico || m.lancamento || "").trim();
       let valor = Number(m.valor);
       if (!Number.isFinite(valor)) {
@@ -431,7 +616,11 @@
         valor = Number(v2);
       }
       if (!Number.isFinite(valor) || valor <= 0) continue;
-      let tipo = String(m.tipo || "").toLowerCase();
+
+      const nomePix = String(m.pagadorNome || m.nomePagador || "").trim();
+      const descCompleta = nomePix && !descricao.includes(nomePix) ? `${descricao} — ${nomePix}`.trim() : descricao;
+
+      let tipo = inferirTipoPorDescricao(descCompleta, String(m.tipo || "").toLowerCase());
       if (tipo !== "entrada" && tipo !== "saida") {
         tipo = m.credito === true || m.debito === false ? "entrada" : "saida";
       }
@@ -439,12 +628,16 @@
         const sinal = String(m.sinal || "").toLowerCase();
         tipo = sinal === "+" || sinal === "c" ? "entrada" : "saida";
       }
-      const pagadorNome = String(m.pagadorNome || m.nomePagador || "").trim();
+
+      const pagadorNome = nomePix || (descricao.match(/pix\s+(?:recebid|enviad)[oa]?\s*(.*)/i)?.[1]?.trim()) || "";
       const pagadorCpf = onlyDigits(m.pagadorCpf || m.cpfPagador || "");
-      const categoria = String(m.categoria || "").trim();
+      const categoria = String(m.categoria || "").trim() || (/pix/i.test(descCompleta) ? "pix" : "");
+
+      if (!parseBrDate(data)) continue;
+
       out.push({
         data,
-        descricao,
+        descricao: descCompleta || descricao,
         valor: Math.abs(valor),
         tipo,
         pagadorNome,
@@ -1051,7 +1244,12 @@
   }
 
   function syncInstrucoesIaUi() {
-    if (iaInstrucoesEl) iaInstrucoesEl.value = getInstrucoesIaAtivas();
+    if (iaInstrucoesEl) {
+      iaInstrucoesEl.value = getInstrucoesIaAtivas();
+      iaInstrucoesEl.placeholder =
+        INSTRUCOES_PADRAO_BANCO[bancoAtivo] ||
+        "Ex.: cabeçalho de data vale para todos os Pix abaixo até ao próximo cabeçalho.";
+    }
   }
 
   function blocoInstrucoesIaPrompt(instrucoesExtra) {
@@ -1071,7 +1269,7 @@
       .trim();
   }
 
-  function extrairRelatorioErros(parsed, totalExtraidas, instrucoesExtra) {
+  function extrairRelatorioErros(parsed, totalExtraidas, instrucoesExtra, movimentosNormalizados) {
     const linhas = [];
     const raw = parsed?.linhasNaoLidas || parsed?.linhas_ilegiveis || parsed?.errosLeitura || [];
     if (Array.isArray(raw)) {
@@ -1102,13 +1300,25 @@
     const totalVis = Number(parsed?.totalLinhasVisiveis);
     if (Number.isFinite(totalVis) && totalVis > totalExtraidas) {
       avisos.push(
-        `Contagem: ${totalVis} linha(s) visível(eis) na imagem, ${totalExtraidas} extraída(s) — verifique linhasNaoLidas.`
+        `Contagem: ${totalVis} lançamento(s) visível(eis) na imagem, ${totalExtraidas} extraído(s) — use «Revisar com IA».`
+      );
+    }
+    const nCab =
+      Number(parsed?.totalCabecalhosData) ||
+      (Array.isArray(parsed?.cabecalhosDatas) ? parsed.cabecalhosDatas.length : 0) ||
+      (Array.isArray(parsed?.secoes) ? parsed.secoes.length : 0);
+    const nDatas = contarDatasUnicasMovimentos(movimentosNormalizados);
+    if (nCab > 0 && nDatas < nCab) {
+      avisos.push(
+        `Datas: a imagem tem ${nCab} cabeçalho(s) de data, mas só ${nDatas} data(s) nos movimentos — faltam lançamentos ou datas não foram propagadas do cabeçalho.`
       );
     }
     return {
       linhasNaoLidas: linhas,
       avisos,
       totalLinhasVisiveis: Number.isFinite(totalVis) ? totalVis : null,
+      totalCabecalhosData: nCab || null,
+      totalDatasExtraidas: nDatas || null,
       totalExtraidas,
       instrucoesUsadas: [getInstrucoesIaAtivas(), String(instrucoesExtra || "").trim()]
         .filter(Boolean)
@@ -1775,53 +1985,53 @@
 
   function montarPromptExtrato(bancoLabel, instrucoesExtra) {
     const schema =
-      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"linhasNaoLidas":[{"numeroLinha":number|null,"textoVisivel":"string","motivo":"string","campo":"data|valor|descricao|null"}],"totalLinhasVisiveis":number|null}';
+      '{"banco":"santander|sicredi","anoReferencia":2023,"cabecalhosDatas":["DD/MM/AAAA"],"secoes":[{"dataCabecalho":"DD/MM/AAAA","dataTextoOriginal":"Segunda, 18 de maio","movimentos":[{"data":"DD/MM/AAAA","descricao":"Pix recebido — Nome","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}]}],"movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"linhasNaoLidas":[{"numeroLinha":number|null,"textoVisivel":"string","motivo":"string","campo":"data|valor|descricao|null"}],"totalLinhasVisiveis":number|null,"totalCabecalhosData":number|null}';
     return `Leitor de extrato bancário brasileiro (${bancoLabel}). Analise a imagem ou PDF anexo.
 
-Extraia TODAS as movimentações visíveis linha a linha (créditos, débitos, PIX, TED, tarifas, salários, estornos, etc.). Não omita linhas.
+Extraia TODAS as movimentações visíveis. Não omita linhas.${blocoLayoutAppMobile(bancoLabel)}
 
-Para cada linha que NÃO conseguir ler com segurança, registe em linhasNaoLidas (número da linha, texto parcial visível, motivo, campo em falha).
+Use secoes[] para capturas de app móvel (cada secção = um cabeçalho de data + lançamentos abaixo). Também pode usar movimentos[] plano com data em cada item.
+
+Para cada linha ilegível, registe em linhasNaoLidas.
 
 Responda APENAS um objeto json válido (sem markdown): ${schema}
 
 Regras:
-- data em DD/MM/AAAA; se o extrato só mostrar dia/mês, complete com o ano visível no documento
+- data em DD/MM/AAAA em TODOS os movimentos (propagada do cabeçalho de data quando for app móvel)
 - valor numérico positivo com até 2 decimais
-- tipo "entrada" para créditos/depósitos/recebimentos; "saida" para débitos/pagamentos/saques
-- descricao: histórico como no extrato
-- pagadorNome e pagadorCpf: em PIX/TED preencha nome e CPF/CNPJ do pagador ou recebedor quando aparecer
-- categoria: ex. pix, ted, tarifa, salario, boleto — quando identificável
-- totalLinhasVisiveis: quantas linhas de movimento contou na imagem
+- tipo "entrada" para Pix recebido/créditos; "saida" para Pix enviado/débitos
+- pagadorNome: nome da pessoa abaixo de Pix recebido/enviado
+- totalCabecalhosData: quantos cabeçalhos de data distintos existem na imagem
+- cabecalhosDatas: lista DD/MM/AAAA de cada cabeçalho visível
+- totalLinhasVisiveis: quantos Pix/lançamentos individuais contou
 - banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"${blocoInstrucoesIaPrompt(instrucoesExtra)}`;
   }
 
   function montarPromptExtratoRevisao(bancoLabel, movimentosAnteriores, instrucoesExtra) {
     const schema =
-      '{"banco":"santander|sicredi","movimentos":[{"data":"DD/MM/AAAA","descricao":"string","valor":0.00,"tipo":"entrada|saida","pagadorNome":string|null,"pagadorCpf":string|null,"categoria":string|null}],"observacoes":string|null,"totalLinhasVisiveis":number|null,"linhasNaoLidas":[{"numeroLinha":number|null,"textoVisivel":"string","motivo":"string","campo":"data|valor|descricao|null"}],"avisos":["string"]}';
+      '{"banco":"santander|sicredi","anoReferencia":2023,"cabecalhosDatas":["DD/MM/AAAA"],"secoes":[{"dataCabecalho":"DD/MM/AAAA","dataTextoOriginal":"string","movimentos":[...]}],"movimentos":[...],"observacoes":string|null,"totalLinhasVisiveis":number|null,"totalCabecalhosData":number|null,"linhasNaoLidas":[{"numeroLinha":number|null,"textoVisivel":"string","motivo":"string","campo":"data|valor|descricao|null"}],"avisos":["string"]}';
     const nAnt = Array.isArray(movimentosAnteriores) ? movimentosAnteriores.length : 0;
+    const datasAnt = contarDatasUnicasMovimentos(movimentosAnteriores);
     const amostraAnt = (movimentosAnteriores || [])
       .slice(0, 8)
       .map((m) => `${m.data} · ${m.descricao} · ${currencyBRL(m.valor)} (${m.tipo})`)
       .join("\n");
-    return `REVISÃO DETALHADA de extrato bancário brasileiro (${bancoLabel}). A leitura anterior extraiu ${nAnt} movimento(s) — pode estar incompleta ou errada.
+    return `REVISÃO DETALHADA de extrato bancário brasileiro (${bancoLabel}). Extração anterior: ${nAnt} movimento(s) em ${datasAnt} data(s) distinta(s) — INCOMPLETA se faltarem cabeçalhos/datas.
 
-Leia a imagem/PDF LINHA A LINHA, da primeira à última movimentação visível. NÃO omita nenhuma linha.
+Leia a imagem LINHA A LINHA. NÃO omita cabeçalhos de data nem Pix.${blocoLayoutAppMobile(bancoLabel)}
 
-${nAnt > 0 ? `Extração anterior (referência — pode faltar linhas):\n${amostraAnt}\n` : ""}
+${nAnt > 0 ? `Amostra anterior:\n${amostraAnt}\n` : ""}
 
-OBRIGATÓRIO: preencha linhasNaoLidas com TODA linha ilegível, borrada, cortada ou ambígua (numeroLinha, textoVisivel parcial, motivo, campo).
+CRÍTICO: cada cabeçalho «Segunda, 18 de maio» etc. deve gerar data DD/MM/AAAA em TODOS os Pix abaixo até ao próximo cabeçalho.
+
+OBRIGATÓRIO: linhasNaoLidas para linhas ilegíveis; cabecalhosDatas com TODAS as datas visíveis; totalCabecalhosData = tamanho de cabecalhosDatas.
 
 Responda APENAS um objeto json válido (sem markdown): ${schema}
 
 Regras rigorosas:
-- Extraia TODAS as linhas legíveis; valores pequenos também entram
-- data em DD/MM/AAAA (complete o ano se só houver dia/mês)
-- valor numérico positivo com até 2 decimais
-- tipo "entrada" para créditos (+); "saida" para débitos (-)
-- descricao: histórico completo como no extrato
-- pagadorNome e pagadorCpf quando visível em PIX/TED
-- totalLinhasVisiveis: total de linhas de movimento visíveis na imagem
-- avisos: dúvidas gerais sobre layout ou qualidade da foto
+- Preferir secoes[] no app móvel (um bloco por cabeçalho de data)
+- Pix recebido = entrada; Pix enviado = saida
+- pagadorNome = nome sob o tipo Pix
 - banco: "${bancoLabel.toLowerCase().includes("sant") ? "santander" : "sicredi"}"${blocoInstrucoesIaPrompt(instrucoesExtra)}`;
   }
 
@@ -1967,7 +2177,7 @@ Regras rigorosas:
     if (parsedUrl.mime.startsWith("image/") && parsedUrl.base64) {
       content.push({
         type: "image_url",
-        image_url: { url: `data:${parsedUrl.mime};base64,${parsedUrl.base64}`, detail: modoRevisao ? "high" : "auto" },
+        image_url: { url: `data:${parsedUrl.mime};base64,${parsedUrl.base64}`, detail: "high" },
       });
     } else if (parsedUrl.mime === "application/pdf" && parsedUrl.base64) {
       content.push({
@@ -1986,27 +2196,34 @@ Regras rigorosas:
     }
 
     const oai = await chamarOpenAIExtrato(content, {
-      max_tokens: modoRevisao ? 8192 : 4096,
+      max_tokens: 8192,
       modo: modoRevisao ? "revisao" : "",
     });
     if (!oai.ok) {
       return { ok: false, erro: oai.msg || "Falha na IA." };
     }
 
-    const movimentosBrutos = normalizarMovimentos(oai.parsed?.movimentos || oai.parsed?.lancamentos);
+    const anoRef = inferirAnoReferencia(oai.parsed, nomeArquivo);
+    const flat = flattenExtratoParsed(oai.parsed, nomeArquivo);
+    const movimentosBrutos = normalizarMovimentos(flat, anoRef);
     if (!movimentosBrutos.length) {
       return {
         ok: false,
         erro:
           String(oai.parsed?.observacoes || "") ||
-          "A IA não encontrou movimentos neste ficheiro.",
+          "A IA não encontrou movimentos neste ficheiro. Use «Revisar com IA» ou ajuste instruções (cabecalho de data → Pix abaixo).",
       };
     }
 
     const movimentos = dedupeListaMovimentos(movimentosBrutos);
     const observacoes = String(oai.parsed?.observacoes || "").trim();
     const totalVisivel = oai.parsed?.totalLinhasVisiveis;
-    const relatorioErros = extrairRelatorioErros(oai.parsed, movimentos.length, instrucoesExtra);
+    const relatorioErros = extrairRelatorioErros(
+      oai.parsed,
+      movimentos.length,
+      instrucoesExtra,
+      movimentos
+    );
 
     if (uploadId) {
       const uploads = getUploads(bancoAtivo);

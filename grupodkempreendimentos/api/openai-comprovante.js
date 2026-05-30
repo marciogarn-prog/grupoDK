@@ -60,9 +60,9 @@ module.exports = async function handler(req, res) {
   const revisao = modo === "revisao" || tipo === "extrato_revisao";
   const maxTokens =
     tipo === "extrato" || tipo === "extrato_revisao"
-      ? Math.min(8192, Number.isFinite(pedido) && pedido > 0 ? pedido : revisao ? 8192 : 4096)
+      ? Math.min(8192, Number.isFinite(pedido) && pedido > 0 ? pedido : 8192)
       : Math.min(4096, Number.isFinite(pedido) && pedido > 0 ? pedido : 900);
-  const model = revisao ? "gpt-4o" : "gpt-4o-mini";
+  const model = tipo === "extrato" || tipo === "extrato_revisao" ? "gpt-4o" : "gpt-4o-mini";
 
   try {
     const oai = await fetch("https://api.openai.com/v1/chat/completions", {
