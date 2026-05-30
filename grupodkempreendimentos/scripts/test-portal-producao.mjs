@@ -57,6 +57,10 @@ async function main() {
         html.includes("portalPdfPartilharWhatsAppBtn")
     );
     record(
+      "botão Baixar APP na home",
+      html.includes('home-baixar-app-btn') && html.includes("apps.html") && html.includes("Baixar APP")
+    );
+    record(
       "cadastro patrimônio CRLV (admin)",
       html.includes("btn-locadora-patrimonio") &&
         html.includes("panel-patrimonio-locadora") &&
