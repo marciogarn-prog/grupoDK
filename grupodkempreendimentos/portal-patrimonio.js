@@ -64,6 +64,7 @@
   const btnNovo = document.getElementById("patrimonioBtnNovoDoc");
   const btnRelatorio = document.getElementById("patrimonioVerRelatorioBtn");
   const relatorioModal = document.getElementById("patrimonioRelatorioModal");
+  const relatorioConteudo = document.getElementById("patrimonioRelatorioConteudo");
   const relatorioContador = document.getElementById("patrimonioRelatorioContador");
   const cameraOverlay = document.getElementById("patrimonioCameraOverlay");
   const previewOverlay = document.getElementById("patrimonioPreviewOverlay");
@@ -867,14 +868,23 @@ ${contador}
 
   function abrirRelatorioModal() {
     if (!relatorioModal) return;
-    renderRelatorioTabela();
+    try {
+      renderRelatorioTabela();
+    } catch (e) {
+      console.error("[DK patrimônio] relatório", e);
+      if (relatorioConteudo) {
+        relatorioConteudo.innerHTML = '<p class="portal-feedback portal-feedback--erro">Erro ao abrir relatório. Atualize a página.</p>';
+      }
+    }
     relatorioModal.classList.remove("hidden");
     relatorioModal.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
   }
 
   function fecharRelatorioModal() {
     relatorioModal?.classList.add("hidden");
     relatorioModal?.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
   }
 
   async function refreshOpenAIStatus() {
