@@ -1,7 +1,9 @@
-const CACHE_NAME = "dk-corporativo-v1";
+const CACHE_NAME = "dk-corporativo-v2";
 const ASSETS = [
   "./",
   "./index.html",
+  "./app.html",
+  "./home-install-pwa.js",
   "./apps.html",
   "./styles.css",
   "./app.js",
@@ -14,8 +16,8 @@ const ASSETS = [
   "./clientes-extra-sync.js",
   "./locacoes-receita-2026-import.js",
   "./manifest-corporativo.webmanifest",
-  "./icons/icon-192.svg",
-  "./icons/icon-512.svg",
+  "./icons/icon-cliente-192.png",
+  "./icons/icon-cliente-512.png",
 ];
 
 self.addEventListener("install", (event) => {
@@ -69,7 +71,10 @@ self.addEventListener("fetch", (event) => {
               fetch(event.request)
             );
           }
-          return caches.match("./index.html");
+          return (
+            (await caches.match("./app.html")) ||
+            (await caches.match("./index.html"))
+          );
         })
     );
     return;

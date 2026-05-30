@@ -23,9 +23,17 @@
   <title>Grupo DK Empreendimentos</title>
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260530baixar-app">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
+  <meta name="apple-mobile-web-app-title" content="Grupo DK">
+  <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
+  <link rel="stylesheet" href="styles.css?v=20260530dk-app">
+  <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/service-worker-corporativo.js").catch(function () {});
+      });
+    }
+  </script>
 </head>
 <body>
   <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
@@ -38,8 +46,14 @@
         </div>
       </div>
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
-      <a href="apps.html" class="btn-primary home-baixar-app-btn">Baixar APP</a>
+      <a href="app.html?instalar=1" class="btn-primary home-baixar-app-btn">Baixar APP</a>
     </header>
+
+    <div id="homeInstallPanel" class="cliente-install-panel hidden" aria-live="polite">
+      <p id="homeInstallStatus" class="subtext">Instale o app Grupo DK no telemóvel (Chrome ou Safari).</p>
+      <button type="button" id="homeInstallBtn" class="btn-primary" style="width:100%;max-width:320px;margin:0 auto;display:block">Instalar app agora</button>
+      <p class="subtext" style="text-align:center;margin-top:0.5rem"><a href="app.html?instalar=1">Abrir página do app</a> · Visitante, Cliente ou Funcionário</p>
+    </div>
 
     <main class="grid-choices" id="main-choices" aria-label="Unidades de negócio">
       <button type="button" class="choice-card" data-go="locadora">
@@ -1784,6 +1798,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
+  <script src="home-install-pwa.js?v=20260530dk-app" defer></script>
   <script src="data/dk-banco-cadastro.js?v=20260519banco-unificado"></script>
   <script src="clientes-extra-sync.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>

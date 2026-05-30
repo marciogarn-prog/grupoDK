@@ -11,6 +11,10 @@
   },
   "rewrites": [
     {
+      "source": "/app",
+      "destination": "/app.html"
+    },
+    {
       "source": "/instalar",
       "destination": "/instalar.html"
     }
@@ -21,10 +25,24 @@
       "headers": [{ "key": "X-Content-Type-Options", "value": "nosniff" }]
     },
     {
+      "source": "/manifest-corporativo.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
       "source": "/manifest-cliente.webmanifest",
       "headers": [
         { "key": "Content-Type", "value": "application/manifest+json" },
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/service-worker-corporativo.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" },
+        { "key": "Service-Worker-Allowed", "value": "/" }
       ]
     },
     {

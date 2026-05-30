@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#c9a227">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Grupo DK">
+  <meta name="description" content="Grupo DK — visitante, cliente ou funcionário.">
+  <link rel="manifest" href="/manifest-corporativo.webmanifest">
+  <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
+  <title>Grupo DK — App</title>
+  <link rel="stylesheet" href="styles.css?v=20260530dk-app">
+  <script>
+    if ("serviceWorker" in navigator && location.protocol !== "file:") {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/service-worker-corporativo.js").catch(function () {});
+      });
+    }
+  </script>
+</head>
+<body>
+  <div id="view-app-entry" class="view view--active dk-app-entry">
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">DK</span>
+        <div class="brand__text">
+          <span class="brand__title">Grupo DK</span>
+          <span class="brand__subtitle">Empreendimentos</span>
+        </div>
+      </div>
+      <p class="header-lead">Como deseja entrar?</p>
+    </header>
+
+    <div id="dkAppInstallPanel" class="cliente-install-panel hidden" aria-live="polite">
+      <h2 class="cliente-install-panel__title">Instalar app no telemóvel</h2>
+      <p id="dkAppInstallStatus" class="subtext">Toque no botão para instalar. Use Chrome (Android) ou Safari (iPhone).</p>
+      <button type="button" id="dkAppInstallBtn" class="btn-primary" style="width:100%">Instalar app Grupo DK</button>
+      <details class="cliente-install-manual" id="dkAppInstallManual">
+        <summary>Instalação manual</summary>
+        <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → «Instalar app» ou «Adicionar ao ecrã inicial».</p>
+        <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → «Adicionar à Tela de Início».</p>
+        <p class="subtext">Não use o browser dentro do WhatsApp — abra no Chrome ou Safari.</p>
+      </details>
+    </div>
+
+    <main class="grid-choices dk-app-choices" aria-label="Tipo de acesso">
+      <button type="button" class="choice-card" id="dkAppBtnVisitante">
+        <span class="choice-card__icon" aria-hidden="true">&#9734;</span>
+        <span class="choice-card__label">Visitante</span>
+        <span class="choice-card__hint">Propagandas e novidades (sem login)</span>
+      </button>
+      <button type="button" class="choice-card" id="dkAppBtnCliente">
+        <span class="choice-card__icon" aria-hidden="true">&#9670;</span>
+        <span class="choice-card__label">Cliente</span>
+        <span class="choice-card__hint">CPF e protocolo de locação ativo</span>
+      </button>
+      <button type="button" class="choice-card" id="dkAppBtnFuncionario">
+        <span class="choice-card__icon" aria-hidden="true">&#9671;</span>
+        <span class="choice-card__label">Funcionário</span>
+        <span class="choice-card__hint">CPF cadastrado pelo administrador</span>
+      </button>
+    </main>
+
+    <footer class="site-footer">
+      <a href="./" class="btn-primary btn-secondary-outline">Site completo (navegador)</a>
+    </footer>
+  </div>
+
+  <div id="view-app-visitante" class="view dk-app-entry hidden" aria-hidden="true">
+    <div class="subpage">
+      <header class="portal-unit-bar portal-unit-bar--simple">
+        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="dkAppVoltarVisitante">&larr; Voltar</button>
+      </header>
+      <h1 class="subpage__title">Visitante</h1>
+      <section class="portal-panel locadora-cliente-propaganda">
+        <h2 class="portal-panel__title">Produtos e novidades</h2>
+        <p class="subtext">Este espaço será atualizado em breve com planos, promoções e informações da DK Locadora.</p>
+        <div class="locadora-propaganda-placeholder" role="status"><p>Em breve</p></div>
+      </section>
+    </div>
+  </div>
+
+  <div id="view-app-cliente" class="view dk-app-entry hidden" aria-hidden="true">
+    <div class="subpage">
+      <header class="portal-unit-bar portal-unit-bar--simple">
+        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="dkAppVoltarCliente">&larr; Voltar</button>
+      </header>
+      <h1 class="subpage__title">Cliente</h1>
+      <p class="subpage__lead">Informe CPF e protocolo da locação <strong>ativa</strong>.</p>
+      <form id="dkAppFormCliente" class="portal-form" novalidate>
+        <label class="portal-field">
+          <span>CPF</span>
+          <input type="text" id="dkAppClienteCpf" inputmode="numeric" maxlength="14" autocomplete="username" placeholder="000.000.000-00" required>
+        </label>
+        <label class="portal-field">
+          <span>Protocolo</span>
+          <input type="text" id="dkAppClienteProto" autocomplete="off" placeholder="Número do protocolo" required>
+        </label>
+        <p id="dkAppClienteMsg" class="portal-feedback" role="status"></p>
+        <button type="submit" class="btn-primary">Entrar como cliente</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="dk-app-entry.js?v=20260530dk-app" defer></script>
+</body>
+</html>

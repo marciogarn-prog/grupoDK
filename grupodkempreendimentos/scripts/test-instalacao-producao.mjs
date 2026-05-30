@@ -17,6 +17,38 @@ async function main() {
   const page = await browser.newPage();
 
   try {
+    const corpManifestRes = await fetch(new URL("manifest-corporativo.webmanifest", BASE));
+    const corpManifest = await corpManifestRes.json();
+    record("manifest corporativo 200", corpManifestRes.ok, String(corpManifestRes.status));
+    record(
+      "manifest corporativo PNG + start_url app",
+      corpManifest.short_name === "Grupo DK" &&
+        corpManifest.start_url?.includes("app.html") &&
+        (corpManifest.icons || []).some((i) => i.sizes === "192x192" && i.type === "image/png") &&
+        (corpManifest.icons || []).some((i) => i.sizes === "512x512")
+    );
+
+    for (const path of ["/app", "/app.html?instalar=1"]) {
+      const url = new URL(path, BASE).href;
+      const res = await page.goto(url, { waitUntil: "domcontentloaded", timeout: 45000 });
+      const status = res?.status() ?? 0;
+      const html = await page.content();
+      const ok =
+        status === 200 &&
+        html.includes("dkAppBtnVisitante") &&
+        html.includes("dkAppBtnCliente") &&
+        html.includes("dkAppBtnFuncionario");
+      record(`pagina ${path} app entry`, ok, `status=${status}`);
+    }
+
+    const corpSwRes = await fetch(new URL("service-worker-corporativo.js", BASE));
+    const corpSwText = await corpSwRes.text();
+    record("SW corporativo inclui app.html", corpSwText.includes("app.html"));
+    record(
+      "SW corporativo icones PNG",
+      corpSwText.includes("icon-cliente-192.png") && corpSwText.includes("icon-cliente-512.png")
+    );
+
     const manifestRes = await fetch(new URL("manifest-cliente.webmanifest", BASE));
     const manifest = await manifestRes.json();
     record("manifest 200", manifestRes.ok, String(manifestRes.status));
