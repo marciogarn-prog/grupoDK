@@ -52,7 +52,7 @@ async function main() {
     );
     record(
       "SW corporativo cache atual + network-first",
-      corpSwText.includes("dk-corporativo-v20260531") && corpSwText.includes("isNetworkFirstAsset")
+      corpSwText.includes("dk-corporativo-v20260531scan") && corpSwText.includes("isNetworkFirstAsset")
     );
 
     const manifestRes = await fetch(new URL("manifest-cliente.webmanifest", BASE));

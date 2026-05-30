@@ -70,6 +70,8 @@ async function main() {
         html.includes("patrimonioCameraCapturarBtn") &&
         html.includes("patrimonio-shutter") &&
         html.includes("patrimonioPreviewSimBtn") &&
+        html.includes("patrimonioPreviewRetratBtn") &&
+        html.includes("portal-patrimonio-scan.js") &&
         html.includes("portal-patrimonio.js")
     );
     record(

@@ -52,6 +52,7 @@
 
   let cameraStream = null;
   let previewDataUrl = "";
+  let previewDataUrlRaw = "";
   let processando = false;
   let patrimonioHistoryDepth = 0;
   let patrimonioHistorySuppress = false;
@@ -273,11 +274,8 @@
   }
 
   function montarPromptCrlv() {
-    const schema = `{"recorte":{"esquerda":0.0,"topo":0.0,"direita":1.0,"baixo":1.0},"campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
-    return `Documento CRLV-e brasileiro (Certificado de Registro e Licenciamento de Veículo — digital).
-
-1) Detecte os limites da folha do documento na foto e devolva recorte com coordenadas normalizadas 0–1 (esquerda, topo, direita, baixo) para recortar só a folha A4, como scanner.
-2) Extraia TODOS os campos visíveis do CRLV-e.
+    const schema = `{"campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
+    return `CRLV-e brasileiro já recortado (só a folha A4). Extraia TODOS os campos visíveis.
 
 Responda APENAS JSON válido (sem markdown): ${schema}
 
@@ -287,6 +285,44 @@ Regras:
 - campos ausentes: string vazia
 - observacaoVeiculo: texto do campo «Observações» / «Observação do veículo»
 - cpfCnpj com pontuação se visível`;
+  }
+
+  async function tratarImagemDocumento(dataUrlRaw) {
+    if (typeof window.__DK_patrimonioTratarDocumento === "function") {
+      const r = await window.__DK_patrimonioTratarDocumento(dataUrlRaw, { usarIa: true });
+      if (r?.ok && r.imagem) return r.imagem;
+    }
+    const recorte = await detectarRecorteFallback(dataUrlRaw);
+    return recortarDocumentoA4(dataUrlRaw, recorte);
+  }
+
+  async function detectarRecorteFallback(dataUrlRaw) {
+    if (typeof window.__DK_patrimonioDetectarFolha === "function") {
+      const box = await window.__DK_patrimonioDetectarFolha(dataUrlRaw);
+      if (box) return box;
+    }
+    return { esquerda: 0.06, topo: 0.06, direita: 0.94, baixo: 0.94 };
+  }
+
+  async function prepararEExibirPreview(dataUrlRaw) {
+    previewDataUrlRaw = dataUrlRaw;
+    previewDataUrl = dataUrlRaw;
+    mostrarPreview(dataUrlRaw);
+    const pergunta = document.querySelector(".patrimonio-preview-pergunta");
+    if (pergunta) pergunta.textContent = "A recortar folha A4 e tratar imagem…";
+    setMsg("A eliminar fundo e ajustar documento…", false);
+    try {
+      const tratada = await tratarImagemDocumento(dataUrlRaw);
+      previewDataUrl = tratada;
+      if (previewImg) previewImg.src = tratada;
+      if (pergunta) {
+        pergunta.textContent = "O recorte está OK? (deve aparecer só a folha A4, sem mesa ou fundo)";
+      }
+      setMsg("", false);
+    } catch {
+      if (pergunta) pergunta.textContent = "A qualidade da foto está OK?";
+      setMsg("Não foi possível tratar automaticamente. Confira a foto.", true);
+    }
   }
 
   async function chamarIaCrlv(dataUrl) {
@@ -325,20 +361,18 @@ Regras:
     return out;
   }
 
-  async function processarFotoConfirmada(dataUrlRaw) {
+  async function processarFotoConfirmada(dataUrlEntrada) {
     if (processando) return;
     processando = true;
-    setMsg("A processar documento com IA…", false);
+    setMsg("A ler campos do CRLV com IA…", false);
     try {
-      const comprimida = await comprimirImagem(dataUrlRaw, 2000, 0.88);
-      const oai = await chamarIaCrlv(comprimida);
+      const imagemTratada = previewDataUrl || dataUrlEntrada;
+      const oai = await chamarIaCrlv(await comprimirImagem(imagemTratada, 1800, 0.9));
       if (!oai.ok) {
         setMsg(oai.msg || "IA não respondeu.", true);
         return;
       }
-      const recorte = oai.parsed?.recorte || oai.parsed?.crop;
-      const imagemRecortada = await recortarDocumentoA4(comprimida, recorte);
-      const imagemGuardar = await comprimirImagem(imagemRecortada, 1400, 0.82);
+      const imagemGuardar = await comprimirImagem(imagemTratada, 1600, 0.88);
       const campos = normalizarCampos(oai.parsed);
       if (!campos.placa) {
         setMsg("IA não leu a placa. Tire outra foto com melhor enquadramento.", true);
@@ -396,6 +430,7 @@ Regras:
     previewOverlay?.classList.add("hidden");
     previewOverlay?.setAttribute("aria-hidden", "true");
     previewDataUrl = "";
+    previewDataUrlRaw = "";
     if (previewImg) previewImg.removeAttribute("src");
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
@@ -441,7 +476,7 @@ Regras:
     ctx.drawImage(cameraVideo, 0, 0, vw, vh);
     previewDataUrl = cameraCanvas.toDataURL("image/jpeg", 0.92);
     fecharCamera(false);
-    mostrarPreview(previewDataUrl);
+    void prepararEExibirPreview(previewDataUrl);
   }
 
   function mostrarPreview(dataUrl) {
@@ -689,13 +724,16 @@ Regras:
       fecharPreview();
       void abrirCameraNativa();
     });
+    document.getElementById("patrimonioPreviewRetratBtn")?.addEventListener("click", () => {
+      if (previewDataUrlRaw) void prepararEExibirPreview(previewDataUrlRaw);
+    });
 
     fileFallback?.addEventListener("change", async () => {
       const f = fileFallback.files?.[0];
       fileFallback.value = "";
       if (!f || !f.type.startsWith("image/")) return;
       const fr = new FileReader();
-      fr.onload = () => mostrarPreview(String(fr.result || ""));
+      fr.onload = () => void prepararEExibirPreview(String(fr.result || ""));
       fr.readAsDataURL(f);
     });
 
