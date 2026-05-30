@@ -413,7 +413,7 @@ REGRAS CRÍTICAS:
       previewDataUrl = tratada;
       if (previewImg) previewImg.src = tratada;
       if (pergunta) {
-        pergunta.textContent = "O recorte está OK? (deve aparecer só a folha A4, sem mesa ou fundo)";
+        pergunta.textContent = "O recorte está OK? (deve aparecer só a folha branca do CRLV, sem tecido ou fundo colorido)";
       }
       setMsg("", false);
     } catch {

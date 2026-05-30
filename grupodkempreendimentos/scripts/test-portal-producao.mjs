@@ -78,6 +78,14 @@ async function main() {
         html.includes("portal-patrimonio-scan.js") &&
         html.includes("portal-patrimonio.js")
     );
+    const scanJs = await page.evaluate(async () => {
+      const r = await fetch("portal-patrimonio-scan.js?v=20260531crop-v2", { cache: "no-store" });
+      return r.ok ? await r.text() : "";
+    });
+    record(
+      "recorte CRLV exclui fundo colorido",
+      scanJs.includes("isPaperPixel") && scanJs.includes("refinarRecorteDocumento") && scanJs.includes("isColorfulBackground")
+    );
     record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
