@@ -7,8 +7,9 @@
   <meta name="description" content="Baixe o app DK Cliente ou o app DK Corporativo (portal de operação).">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/apps.html">
   <title>Baixar aplicativos — Grupo DK</title>
-  <link rel="stylesheet" href="styles.css?v=20260520apps">
+  <link rel="stylesheet" href="styles.css?v=20260531pwa-force">
   <link rel="stylesheet" href="cliente-app.css?v=20260520apps">
+  <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
 <body>
   <div class="view view--active" style="max-width:720px">
@@ -35,7 +36,7 @@
           <span class="apps-card__title" style="font-size:0.95rem">Já validou? Abrir app instalado</span>
           <span class="subtext">Link direto: <strong>/cliente</strong> (login ou área logada)</span>
         </a>
-        <a class="apps-card" href="app.html?instalar=1">
+        <a class="apps-card" href="app.html?instalar=1" id="appsCardGrupoDk">
           <span class="apps-card__icon" aria-hidden="true">&#9635;</span>
           <span class="apps-card__title">App Grupo DK</span>
           <span class="subtext">Visitante, Cliente ou Funcionário — instale no telemóvel e entre com o tipo de acesso.</span>
@@ -65,9 +66,13 @@
   </div>
 
   <script>
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("./service-worker-corporativo.js").catch(function () {});
-    }
+    document.getElementById("appsCardGrupoDk")?.addEventListener("click", async function (e) {
+      e.preventDefault();
+      if (typeof window.__DK_ensureLatestPwa === "function") {
+        await window.__DK_ensureLatestPwa({ force: true }).catch(function () {});
+      }
+      location.href = "app.html?instalar=1&_=" + Date.now();
+    });
   </script>
 </body>
 </html>

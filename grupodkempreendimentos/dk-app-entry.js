@@ -101,6 +101,10 @@
       panel.classList.remove("hidden");
     }
 
+    if (typeof window.__DK_ensureLatestPwa === "function") {
+      void window.__DK_ensureLatestPwa({ force: true });
+    }
+
     let deferred = null;
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
@@ -116,6 +120,9 @@
     });
 
     btn.addEventListener("click", async () => {
+      if (typeof window.__DK_ensureLatestPwa === "function") {
+        await window.__DK_ensureLatestPwa({ force: true }).catch(() => {});
+      }
       if (deferred) {
         deferred.prompt();
         await deferred.userChoice.catch(() => {});

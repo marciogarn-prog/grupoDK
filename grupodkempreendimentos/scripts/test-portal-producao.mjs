@@ -58,7 +58,8 @@ async function main() {
     );
     record(
       "botão Baixar APP na home",
-      html.includes('home-baixar-app-btn') && html.includes("app.html") && html.includes("Baixar APP")
+      html.includes('home-baixar-app-btn') && html.includes("app.html") && html.includes("Baixar APP") &&
+        html.includes("dk-pwa-update.js")
     );
     record(
       "cadastro patrimônio CRLV (admin)",

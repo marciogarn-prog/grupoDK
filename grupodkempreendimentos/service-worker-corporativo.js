@@ -1,15 +1,18 @@
-const CACHE_NAME = "dk-corporativo-v2";
+const CACHE_NAME = "dk-corporativo-v20260531";
 const ASSETS = [
   "./",
   "./index.html",
   "./app.html",
   "./home-install-pwa.js",
+  "./dk-pwa-update.js",
+  "./dk-app-entry.js",
   "./apps.html",
   "./styles.css",
   "./app.js",
   "./portal-locadora-ui.js",
   "./portal-lancamentos-extras.js",
   "./portal-multas-relatorio.js",
+  "./portal-patrimonio.js",
   "./portal-supabase-sync.js",
   "./supabase-init.js",
   "./data/dk-banco-cadastro.js",
@@ -19,6 +22,10 @@ const ASSETS = [
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
 ];
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((c) => c.addAll(ASSETS).catch(() => {})));
@@ -38,6 +45,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+function isNetworkFirstAsset(url) {
+  const p = url.pathname.toLowerCase();
+  if (url.searchParams.has("v")) return true;
+  return (
+    p.endsWith(".js") ||
+    p.endsWith(".css") ||
+    p.endsWith(".html") ||
+    p.endsWith(".webmanifest") ||
+    p === "" ||
+    p.endsWith("/")
+  );
+}
+
+function cachePut(request, response) {
+  if (!response || !response.ok) return;
+  caches.open(CACHE_NAME).then((c) => c.put(request, response));
+}
+
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
@@ -45,6 +70,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(fetch(event.request));
     return;
   }
+
   if (event.request.mode === "navigate") {
     const navPath = url.pathname.replace(/\/$/, "") || "/";
     const isClienteAppNav =
@@ -55,8 +81,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(event.request)
         .then((r) => {
-          const clone = r.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+          cachePut(event.request, r.clone());
           return r;
         })
         .catch(async () => {
@@ -71,20 +96,29 @@ self.addEventListener("fetch", (event) => {
               fetch(event.request)
             );
           }
-          return (
-            (await caches.match("./app.html")) ||
-            (await caches.match("./index.html"))
-          );
+          return (await caches.match("./app.html")) || (await caches.match("./index.html"));
         })
     );
     return;
   }
+
+  if (isNetworkFirstAsset(url)) {
+    event.respondWith(
+      fetch(event.request)
+        .then((r) => {
+          cachePut(event.request, r.clone());
+          return r;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const net = fetch(event.request)
         .then((r) => {
-          const clone = r.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
+          cachePut(event.request, r.clone());
           return r;
         })
         .catch(() => cached);

@@ -24,6 +24,7 @@ async function main() {
       "manifest corporativo PNG + start_url app",
       corpManifest.short_name === "Grupo DK" &&
         corpManifest.start_url?.includes("app.html") &&
+        corpManifest.start_url?.includes("instalar=1") &&
         (corpManifest.icons || []).some((i) => i.sizes === "192x192" && i.type === "image/png") &&
         (corpManifest.icons || []).some((i) => i.sizes === "512x512")
     );
@@ -37,7 +38,8 @@ async function main() {
         status === 200 &&
         html.includes("dkAppBtnVisitante") &&
         html.includes("dkAppBtnCliente") &&
-        html.includes("dkAppBtnFuncionario");
+        html.includes("dkAppBtnFuncionario") &&
+        html.includes("dk-pwa-update.js");
       record(`pagina ${path} app entry`, ok, `status=${status}`);
     }
 
@@ -47,6 +49,10 @@ async function main() {
     record(
       "SW corporativo icones PNG",
       corpSwText.includes("icon-cliente-192.png") && corpSwText.includes("icon-cliente-512.png")
+    );
+    record(
+      "SW corporativo cache atual + network-first",
+      corpSwText.includes("dk-corporativo-v20260531") && corpSwText.includes("isNetworkFirstAsset")
     );
 
     const manifestRes = await fetch(new URL("manifest-cliente.webmanifest", BASE));

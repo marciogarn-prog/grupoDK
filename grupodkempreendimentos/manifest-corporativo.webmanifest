@@ -3,7 +3,7 @@
   "short_name": "Grupo DK",
   "description": "DK Locadora — visitante, cliente ou funcionário.",
   "id": "/app.html",
-  "start_url": "/app.html?source=pwa",
+  "start_url": "/app.html?source=pwa&instalar=1",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0c0f14",

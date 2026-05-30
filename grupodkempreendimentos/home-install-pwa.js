@@ -1,13 +1,26 @@
-/** Botão instalar PWA na home (beforeinstallprompt). */
+/** Botão instalar PWA na home (beforeinstallprompt) + força última versão ao abrir. */
 (function homeInstallPwa() {
   const panel = document.getElementById("homeInstallPanel");
   const btn = document.getElementById("homeInstallBtn");
+  const link = document.getElementById("homeBaixarAppLink");
   const status = document.getElementById("homeInstallStatus");
   if (!panel || !btn) return;
 
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   if (standalone) return;
+
+  function appInstallUrl() {
+    return `app.html?instalar=1&_=${Date.now()}`;
+  }
+
+  async function irParaInstalacaoApp() {
+    if (status) status.textContent = "A preparar a última versão do app…";
+    if (typeof window.__DK_ensureLatestPwa === "function") {
+      await window.__DK_ensureLatestPwa({ force: true }).catch(() => {});
+    }
+    window.location.href = appInstallUrl();
+  }
 
   let deferred = null;
   window.addEventListener("beforeinstallprompt", (e) => {
@@ -24,11 +37,19 @@
 
   btn.addEventListener("click", async () => {
     if (deferred) {
+      if (typeof window.__DK_ensureLatestPwa === "function") {
+        await window.__DK_ensureLatestPwa({ force: true }).catch(() => {});
+      }
       deferred.prompt();
       await deferred.userChoice.catch(() => {});
       deferred = null;
       return;
     }
-    window.location.href = "app.html?instalar=1";
+    await irParaInstalacaoApp();
+  });
+
+  link?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void irParaInstalacaoApp();
   });
 })();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-dk-pwa-force="1">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -11,14 +11,8 @@
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
   <title>Grupo DK — App</title>
-  <link rel="stylesheet" href="styles.css?v=20260530dk-app">
-  <script>
-    if ("serviceWorker" in navigator && location.protocol !== "file:") {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("/service-worker-corporativo.js").catch(function () {});
-      });
-    }
-  </script>
+  <link rel="stylesheet" href="styles.css?v=20260531pwa-force">
+  <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
 <body>
   <div id="view-app-entry" class="view view--active dk-app-entry">
@@ -104,6 +98,6 @@
     </div>
   </div>
 
-  <script src="dk-app-entry.js?v=20260530dk-app" defer></script>
+  <script src="dk-app-entry.js?v=20260531force" defer></script>
 </body>
 </html>

@@ -15645,13 +15645,26 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
     __dkPath.startsWith("/instalar/");
   window.addEventListener("load", () => {
     if (__dkIsClienteApp) return;
+    const attach = (registration) => {
+      swRegistration = registration || window.__DK_getPwaRegistration?.() || null;
+      if (!swRegistration) return;
+      revealUpdateButton("Buscar atualizações");
+      wireServiceWorkerUpdateSignals(swRegistration);
+    };
+    if (typeof window.__DK_getPwaRegistration === "function") {
+      const existing = window.__DK_getPwaRegistration();
+      if (existing) {
+        attach(existing);
+        return;
+      }
+    }
+    if (typeof window.__DK_ensureLatestPwa === "function") {
+      window.__DK_ensureLatestPwa({ force: false }).then(attach);
+      return;
+    }
     navigator.serviceWorker
       .register("./service-worker-corporativo.js")
-      .then((registration) => {
-        swRegistration = registration;
-        revealUpdateButton("Buscar atualizações");
-        wireServiceWorkerUpdateSignals(registration);
-      });
+      .then(attach);
   });
 
   navigator.serviceWorker.addEventListener("controllerchange", () => {
