@@ -1302,6 +1302,19 @@ Regras:
   bindUi();
 
   window.__DK_financeiroReset = resetFinanceiroUi;
+  window.__DK_financeiroEscapeBack = () => {
+    if (!panel || panel.classList.contains("hidden")) return false;
+    if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
+      fecharRelatorioModal();
+      return true;
+    }
+    if (!bancoAtivo) return false;
+    bancoAtivo = "";
+    limparArquivoPendente();
+    setFinanceiroPlaceholderVisible(true);
+    syncFinanceiroSidebarButtons(null);
+    return true;
+  };
   window.__DK_financeiroOnShow = () => {
     resetFinanceiroUi();
     void refreshFinanceiroOpenAIStatus();

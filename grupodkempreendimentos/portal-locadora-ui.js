@@ -736,6 +736,140 @@
     panelLogado?.classList.remove("hidden");
   }
 
+  function portalFecharModalAberto() {
+    const abertos = Array.from(document.querySelectorAll(".portal-modal")).filter(
+      (m) => !m.classList.contains("hidden")
+    );
+    if (!abertos.length) return false;
+    const modal = abertos[abertos.length - 1];
+    const backdrop = modal.querySelector(".portal-modal__backdrop");
+    if (backdrop instanceof HTMLElement) {
+      backdrop.click();
+      return true;
+    }
+    modal.classList.add("hidden");
+    return true;
+  }
+
+  function portalDropdownEstaAberto(id) {
+    const p = document.getElementById(id);
+    return Boolean(p && !p.classList.contains("hidden") && !p.hidden);
+  }
+
+  function portalFecharDropdownsAbertos() {
+    if (portalDropdownEstaAberto("portalChecklistPlacaLista")) {
+      hidePortalChecklistPlacaDropdown();
+      return true;
+    }
+    if (portalDropdownEstaAberto("operacaoVeiculoPlacaLista")) {
+      hideOperacaoVeiculoPlacaDropdown();
+      return true;
+    }
+    if (portalDropdownEstaAberto("operacaoLocacaoPlacaLista")) {
+      hideOperacaoLocacaoPlacaDropdown();
+      return true;
+    }
+    if (
+      portalDropdownEstaAberto("portalWaListaCpf") ||
+      portalDropdownEstaAberto("portalWaListaNome") ||
+      portalDropdownEstaAberto("portalWaListaPlaca")
+    ) {
+      portalWaHideAllDropdowns();
+      return true;
+    }
+    return false;
+  }
+
+  function portalOperacaoFormularioAberto() {
+    if (!panelOperacao || panelOperacao.classList.contains("hidden")) return false;
+    const ph = document.getElementById("operacaoFormPlaceholder");
+    return Boolean(ph && ph.classList.contains("hidden"));
+  }
+
+  function portalManutencaoFormularioAberto() {
+    if (!panelManutencao || panelManutencao.classList.contains("hidden")) return false;
+    const ph = document.getElementById("manutencaoFormPlaceholder");
+    return Boolean(ph && ph.classList.contains("hidden"));
+  }
+
+  /** Mesma lógica do botão «Voltar» (data-back) — tela anterior no fluxo do portal. */
+  function portalAcaoVoltarTela() {
+    const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
+    const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
+    const emFinanceiro = panelFinanceiro && !panelFinanceiro.classList.contains("hidden");
+    if (emOperacao || emManutencao || emFinanceiro) {
+      portalVoltarEquipaLocadora();
+      return;
+    }
+    if (viewLocadoraHub?.classList.contains("view--active")) {
+      portalVoltarInicio();
+      return;
+    }
+    if (viewLocadoraCliente?.classList.contains("view--active")) {
+      portalVoltarLocadoraHub();
+      return;
+    }
+    if (currentUnit === "locadora" && viewUnit?.classList.contains("view--active")) {
+      portalVoltarLocadoraHub();
+      return;
+    }
+    portalVoltarInicio();
+  }
+
+  function portalTratarTeclaEscape(e) {
+    if (e.key !== "Escape") return;
+    if (!viewHome || !viewUnit) return;
+
+    if (portalFecharModalAberto()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (portalFecharDropdownsAbertos()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (typeof window.__DK_financeiroEscapeBack === "function" && window.__DK_financeiroEscapeBack()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    const fotos = document.getElementById("portalChecklistFotosGrid");
+    if (fotos && !fotos.classList.contains("hidden")) {
+      fotos.classList.add("hidden");
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (portalOperacaoFormularioAberto()) {
+      hideInlineForms();
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (portalManutencaoFormularioAberto()) {
+      hideManutencaoInlineFormsCore();
+      setManutencaoFormPlaceholderVisible(true);
+      syncManutencaoSidebarButtons(null);
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (panelSenha && !panelSenha.classList.contains("hidden")) {
+      panelSenha.classList.add("hidden");
+      panelLogin?.classList.remove("hidden");
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    portalAcaoVoltarTela();
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  document.addEventListener("keydown", portalTratarTeclaEscape, true);
+
   function resetPortalLoginFormularioETipoAcesso() {
     const cpfIn = document.getElementById("login-cpf");
     const senhaIn = document.getElementById("login-senha");
@@ -748,27 +882,12 @@
 
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
-      const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
-      const emFinanceiro = panelFinanceiro && !panelFinanceiro.classList.contains("hidden");
-      if (emOperacao || emManutencao || emFinanceiro) {
-        portalVoltarEquipaLocadora();
+      if (panelSenha && !panelSenha.classList.contains("hidden")) {
+        panelSenha.classList.add("hidden");
+        panelLogin?.classList.remove("hidden");
         return;
       }
-      if (viewLocadoraHub?.classList.contains("view--active")) {
-        portalVoltarInicio();
-        return;
-      }
-      if (currentUnit === "locadora" && viewUnit?.classList.contains("view--active")) {
-        const emEquipa = panelLogado && !panelLogado.classList.contains("hidden");
-        if (emEquipa) {
-          portalVoltarLocadoraHub();
-          return;
-        }
-        portalVoltarLocadoraHub();
-        return;
-      }
-      portalVoltarInicio();
+      portalAcaoVoltarTela();
     });
   });
 
