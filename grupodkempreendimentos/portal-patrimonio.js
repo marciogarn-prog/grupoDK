@@ -30,6 +30,30 @@
     { key: "observacaoVeiculo", label: "Observação do veículo" },
   ];
 
+  const MSG_NITIDEZ = "Imagem sem nitidez suficiente para ser processada.";
+  /** Campos que a IA deve ler com 100% de certeza — senão reprova o cadastro. */
+  const CAMPOS_OBRIGATORIOS = [
+    "codigoRenavam",
+    "placa",
+    "exercicio",
+    "anoFabricacao",
+    "anoModelo",
+    "numeroCrv",
+    "codigoSegurancaCla",
+    "marcaModeloVersao",
+    "especieTipo",
+    "chassi",
+    "corPredominante",
+    "combustivel",
+    "categoria",
+    "potenciaCilindrada",
+    "motor",
+    "nome",
+    "cpfCnpj",
+    "local",
+    "data",
+  ];
+
   const panel = document.getElementById("panel-patrimonio-locadora");
   if (!panel) return;
 
@@ -56,6 +80,7 @@
   let processando = false;
   let patrimonioHistoryDepth = 0;
   let patrimonioHistorySuppress = false;
+  let patrimonioFlashLigado = false;
 
   function patrimonioOverlayAberto() {
     return (
@@ -126,6 +151,30 @@
     return String(s || "")
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function onlyDigits(s) {
+    return String(s ?? "").replace(/\D/g, "");
+  }
+
+  function placaValida(p) {
+    const x = normPlaca(p);
+    if (x.length !== 7) return false;
+    return /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/.test(x) || /^[A-Z]{3}[0-9]{4}$/.test(x);
+  }
+
+  function dataBrValida(s) {
+    const m = String(s || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return false;
+    const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return !Number.isNaN(d.getTime()) && d.getDate() === Number(m[1]);
+  }
+
+  function chassiValido(s) {
+    const c = String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    return c.length === 17;
   }
 
   function parseBrDateMs(s) {
@@ -265,17 +314,73 @@
   }
 
   function montarPromptCrlv() {
-    const schema = `{"campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
-    return `CRLV-e brasileiro já recortado (só a folha A4). Extraia TODOS os campos visíveis.
+    const schema = `{"aprovado":true,"confianca":"alta","camposIlegiveis":[],"motivoReprovacao":"","campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
+    return `CRLV-e brasileiro (folha A4 recortada). Leia TODOS os campos com atenção a cada dígito e letra.
 
 Responda APENAS JSON válido (sem markdown): ${schema}
 
-Regras:
-- placa em maiúsculas sem hífen (ex.: RZS4G95)
-- data do documento em DD/MM/AAAA (campo «Data» no rodapé)
-- campos ausentes: string vazia
-- observacaoVeiculo: texto do campo «Observações» / «Observação do veículo»
-- cpfCnpj com pontuação se visível`;
+REGRAS CRÍTICAS:
+- Se QUALQUER campo obrigatório estiver ilegível, duvidoso ou parcial → "aprovado": false, "confianca": "baixa", liste os nomes em "camposIlegiveis" e explique em "motivoReprovacao".
+- Só use "aprovado": true e "confianca": "alta" se TODOS os campos obrigatórios estiverem 100% legíveis e corretos.
+- NÃO invente dígitos. Diferencie 0/O, 1/I/l, 8/B, 5/S, 2/Z.
+- codigoRenavam: exatamente 11 dígitos.
+- placa: 7 caracteres maiúsculos sem hífen (Mercosul ou antiga).
+- chassi: exatamente 17 caracteres alfanuméricos.
+- codigoSegurancaCla: 11 dígitos.
+- data: DD/MM/AAAA do campo Local/Data.
+- cpfCnpj: CPF ou CNPJ completo como impresso.
+- potenciaCilindrada: ex. "8CV/150".
+- observacaoVeiculo: "SEM OBSERVAÇÕES" se for o caso.`;
+  }
+
+  function validarLeituraCrlv(parsed, campos) {
+    const meta = parsed?.campos ? parsed : { campos: parsed };
+    const root = parsed || {};
+
+    if (root.aprovado === false) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (String(root.confianca || "").toLowerCase() !== "alta") {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    const ileg = Array.isArray(root.camposIlegiveis) ? root.camposIlegiveis : [];
+    if (ileg.length > 0) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (String(root.motivoReprovacao || "").trim()) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+
+    for (const key of CAMPOS_OBRIGATORIOS) {
+      if (!String(campos[key] ?? "").trim()) {
+        return { ok: false, msg: MSG_NITIDEZ };
+      }
+    }
+
+    if (!placaValida(campos.placa)) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (onlyDigits(campos.codigoRenavam).length !== 11) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (onlyDigits(campos.codigoSegurancaCla).length !== 11) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (!chassiValido(campos.chassi)) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (!dataBrValida(campos.data)) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    const cnpjCpf = onlyDigits(campos.cpfCnpj);
+    if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+    if (!/^\d{4}$/.test(String(campos.exercicio || ""))) {
+      return { ok: false, msg: MSG_NITIDEZ };
+    }
+
+    return { ok: true };
   }
 
   async function tratarImagemDocumento(dataUrlRaw) {
@@ -349,26 +454,35 @@ Regras:
       out[key] = String(c[key] ?? c[key.replace(/([A-Z])/g, "_$1").toLowerCase()] ?? "").trim();
     }
     if (out.placa) out.placa = normPlaca(out.placa);
+    if (out.chassi) {
+      out.chassi = String(out.chassi)
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 17);
+    }
+    if (out.codigoRenavam) out.codigoRenavam = onlyDigits(out.codigoRenavam).slice(0, 11);
+    if (out.codigoSegurancaCla) out.codigoSegurancaCla = onlyDigits(out.codigoSegurancaCla).slice(0, 11);
     return out;
   }
 
   async function processarFotoConfirmada(dataUrlEntrada) {
     if (processando) return;
     processando = true;
-    setMsg("A ler campos do CRLV com IA…", false);
+    setMsg("A validar nitidez e ler campos do CRLV…", false);
     try {
       const imagemTratada = previewDataUrl || dataUrlEntrada;
-      const oai = await chamarIaCrlv(await comprimirImagem(imagemTratada, 1800, 0.9));
+      const oai = await chamarIaCrlv(await comprimirImagem(imagemTratada, 2200, 0.94));
       if (!oai.ok) {
-        setMsg(oai.msg || "IA não respondeu.", true);
+        setMsg(MSG_NITIDEZ, true);
         return;
       }
-      const imagemGuardar = await comprimirImagem(imagemTratada, 1600, 0.88);
       const campos = normalizarCampos(oai.parsed);
-      if (!campos.placa) {
-        setMsg("IA não leu a placa. Tire outra foto com melhor enquadramento.", true);
+      const val = validarLeituraCrlv(oai.parsed, campos);
+      if (!val.ok) {
+        setMsg(val.msg || MSG_NITIDEZ, true);
         return;
       }
+      const imagemGuardar = await comprimirImagem(imagemTratada, 1800, 0.92);
       const doc = {
         ...campos,
         id: newId(),
@@ -411,6 +525,8 @@ Regras:
   }
 
   function fecharCamera(syncHistory = true) {
+    patrimonioFlashLigado = false;
+    atualizarUiFlash();
     void pararCamera();
     cameraOverlay?.classList.add("hidden");
     cameraOverlay?.setAttribute("aria-hidden", "true");
@@ -426,6 +542,28 @@ Regras:
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
+  function atualizarUiFlash() {
+    const btn = document.getElementById("patrimonioCameraFlashBtn");
+    if (!btn) return;
+    btn.setAttribute("aria-pressed", patrimonioFlashLigado ? "true" : "false");
+    btn.textContent = patrimonioFlashLigado ? "Flash: on" : "Flash: off";
+  }
+
+  async function aplicarFlashCamera() {
+    if (!cameraStream) return;
+    const track = cameraStream.getVideoTracks()[0];
+    if (!track) return;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: patrimonioFlashLigado }] });
+    } catch {
+      try {
+        await track.applyConstraints({ torch: patrimonioFlashLigado });
+      } catch {
+        /* dispositivo sem lanterna */
+      }
+    }
+  }
+
   async function abrirCameraNativa() {
     fecharPreview(false);
     if (!cameraOverlay || !cameraVideo) {
@@ -435,6 +573,7 @@ Regras:
     cameraOverlay.classList.remove("hidden");
     cameraOverlay.setAttribute("aria-hidden", "false");
     patrimonioNotificarOverlayAberto();
+    atualizarUiFlash();
     await pararCamera();
     if (!navigator.mediaDevices?.getUserMedia) {
       fecharCamera();
@@ -443,16 +582,27 @@ Regras:
     }
     try {
       cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 } },
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920 },
+          height: { ideal: 2560 },
+        },
         audio: false,
       });
       cameraVideo.srcObject = cameraStream;
       await cameraVideo.play();
+      await aplicarFlashCamera();
     } catch {
       fecharCamera();
       setMsg("Permita o acesso à câmera ou use o seletor de ficheiro.", true);
       fileFallback?.click();
     }
+  }
+
+  function alternarFlashCamera() {
+    patrimonioFlashLigado = !patrimonioFlashLigado;
+    atualizarUiFlash();
+    void aplicarFlashCamera();
   }
 
   function capturarDaCamera() {
@@ -706,6 +856,7 @@ Regras:
 
     document.getElementById("patrimonioCameraCapturarBtn")?.addEventListener("click", capturarDaCamera);
     document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
+    document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
     document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {
       const url = previewDataUrl;
       fecharPreview();

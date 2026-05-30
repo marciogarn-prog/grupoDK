@@ -1,9 +1,10 @@
 /**
- * Recorte automático da folha A4 + filtro scanner (estilo CamScanner).
- * Elimina mesa, sombras e fundo ao redor do CRLV-e.
+ * Recorte automático da folha A4 + filtro scanner nítido (estilo CamScanner).
  */
 (function portalPatrimonioScan() {
   const A4 = 210 / 297;
+  const A4_OUT_W = 1240;
+  const A4_OUT_H = 1754;
 
   function clamp01(n) {
     return Math.max(0, Math.min(1, Number(n) || 0));
@@ -48,7 +49,6 @@
     return best;
   }
 
-  /** Detecção local: folha branca sobre fundo escuro (mesa). */
   async function detectarFolhaBranca(dataUrl) {
     return new Promise((resolve) => {
       const img = new Image();
@@ -96,8 +96,8 @@
           const bw = maxX - minX + 1;
           const bh = maxY - minY + 1;
           if (bw < w * 0.2 || bh < h * 0.2) continue;
-          const shrinkX = Math.round(bw * 0.012);
-          const shrinkY = Math.round(bh * 0.012);
+          const shrinkX = Math.round(bw * 0.015);
+          const shrinkY = Math.round(bh * 0.015);
           candidatos.push({
             esquerda: (minX + shrinkX) / w,
             topo: (minY + shrinkY) / h,
@@ -122,7 +122,7 @@
     });
   }
 
-  /** Recorta bbox e ajusta para proporção A4 (sem letterbox desnecessário). */
+  /** Folha A4 inteira — preenche o canvas (sem mesa ao redor). */
   async function recortarParaA4(dataUrl, recorte) {
     const box = normalizarBox(recorte) || { esquerda: 0.04, topo: 0.04, direita: 0.96, baixo: 0.96 };
     const img = await loadImage(dataUrl).catch(() => null);
@@ -133,41 +133,21 @@
     const sw = Math.max(10, Math.round((box.direita - box.esquerda) * img.width));
     const sh = Math.max(10, Math.round((box.baixo - box.topo) * img.height));
 
-    const cropAspect = sw / sh;
-    let dw;
-    let dh;
-    if (Math.abs(cropAspect - A4) / A4 < 0.18) {
-      dh = 1600;
-      dw = Math.round(dh * cropAspect);
-    } else if (cropAspect > A4) {
-      dw = 1200;
-      dh = Math.round(dw / A4);
-    } else {
-      dh = 1600;
-      dw = Math.round(dh * A4);
-    }
-
     const canvas = document.createElement("canvas");
-    canvas.width = dw;
-    canvas.height = dh;
+    canvas.width = A4_OUT_W;
+    canvas.height = A4_OUT_H;
     const ctx = canvas.getContext("2d");
     if (!ctx) return dataUrl;
 
     ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, dw, dh);
+    ctx.fillRect(0, 0, A4_OUT_W, A4_OUT_H);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
-
-    const scale = Math.min(dw / sw, dh / sh);
-    const rw = Math.round(sw * scale);
-    const rh = Math.round(sh * scale);
-    const ox = Math.round((dw - rw) / 2);
-    const oy = Math.round((dh - rh) / 2);
-    ctx.drawImage(img, sx, sy, sw, sh, ox, oy, rw, rh);
-    return canvas.toDataURL("image/jpeg", 0.94);
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, A4_OUT_W, A4_OUT_H);
+    return canvas.toDataURL("image/jpeg", 0.96);
   }
 
-  /** Contraste tipo scanner — fundo branco, texto escuro. */
+  /** Scanner nítido: fundo branco puro, texto preto forte. */
   async function aplicarFiltroScanner(dataUrl) {
     const img = await loadImage(dataUrl).catch(() => null);
     if (!img) return dataUrl;
@@ -181,27 +161,45 @@
 
     for (let i = 0; i < data.length; i += 4) {
       let g = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-      g = (g - 128) * 1.42 + 128;
-      if (g > 168) g = 255 - (255 - g) * 0.35;
-      else g = Math.max(0, g * 0.78);
-      g = Math.max(0, Math.min(255, g));
+      g = (g - 128) * 1.55 + 128;
+      if (g >= 192) g = 255;
+      else if (g <= 108) g = Math.max(0, g * 0.55);
+      else g = Math.max(0, Math.min(255, (g - 108) * (255 / 84)));
       data[i] = data[i + 1] = data[i + 2] = g;
     }
     ctx.putImageData({ data, width, height }, 0, 0);
-    return canvas.toDataURL("image/jpeg", 0.9);
+
+    const sharp = ctx.getImageData(0, 0, width, height);
+    const s = sharp.data;
+    const out = new Uint8ClampedArray(s);
+    const w = width;
+    for (let y = 1; y < height - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const i = (y * w + x) * 4;
+        const c = s[i];
+        const lap =
+          -s[((y - 1) * w + x) * 4] -
+          s[(y * w + (x - 1)) * 4] +
+          4 * c -
+          s[(y * w + (x + 1)) * 4] -
+          s[((y + 1) * w + x) * 4];
+        const v = Math.max(0, Math.min(255, c + lap * 0.35));
+        out[i] = out[i + 1] = out[i + 2] = v;
+      }
+    }
+    ctx.putImageData(new ImageData(out, width, height), 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.94);
   }
 
   async function chamarIaRecorte(dataUrl) {
     const m = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
     if (!m) return null;
-    const prompt = `Foto de um CRLV-e brasileiro (folha A4 branca) sobre mesa ou fundo escuro.
+    const prompt = `Foto de CRLV-e (folha A4 branca) sobre fundo escuro.
 
-Detecte APENAS os 4 cantos da folha de papel (não inclua mesa, mãos, laptop ou sombras externas).
+Detecte a caixa EXATA da folha branca (sem mesa, mãos, laptop, sombras externas).
 
-Responda APENAS JSON:
-{"recorte":{"esquerda":0.0,"topo":0.0,"direita":1.0,"baixo":1.0}}
-
-Coordenadas normalizadas 0–1 da caixa justa da folha branca. Margem zero fora do papel.`;
+JSON apenas:
+{"recorte":{"esquerda":0.0,"topo":0.0,"direita":1.0,"baixo":1.0}}`;
     try {
       const res = await fetch("/api/openai-comprovante", {
         method: "POST",
@@ -225,10 +223,6 @@ Coordenadas normalizadas 0–1 da caixa justa da folha branca. Margem zero fora 
     return null;
   }
 
-  /**
-   * Pipeline completo: detectar folha → recortar A4 → filtro scanner.
-   * @returns {{ ok: boolean, imagem: string, box: object|null, msg?: string }}
-   */
   async function tratarDocumentoCrlv(dataUrl, opts) {
     const usarIa = opts?.usarIa !== false;
     try {

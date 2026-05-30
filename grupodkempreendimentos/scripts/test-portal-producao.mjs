@@ -68,6 +68,7 @@ async function main() {
         html.includes("patrimonioBtnNovoDoc") &&
         html.includes("patrimonioVerRelatorioBtn") &&
         html.includes("patrimonioCameraCapturarBtn") &&
+        html.includes("patrimonioCameraFlashBtn") &&
         html.includes("patrimonio-shutter") &&
         html.includes("patrimonioPreviewSimBtn") &&
         html.includes("patrimonioPreviewRetratBtn") &&

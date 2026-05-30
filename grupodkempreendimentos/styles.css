@@ -3144,6 +3144,18 @@ table.validados-app .lnk-comprovante {
   min-width: 72px;
 }
 
+.patrimonio-camera-flash {
+  justify-self: end;
+  min-width: 0;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.patrimonio-camera-flash[aria-pressed="true"] {
+  border-color: var(--accent, #c9a227);
+  color: var(--accent, #c9a227);
+}
+
 .patrimonio-shutter {
   appearance: none;
   width: 72px;
