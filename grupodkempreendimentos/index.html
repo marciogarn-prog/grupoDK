@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260521fin-revisao-erros">
+  <link rel="stylesheet" href="styles.css?v=20260530patrimonio">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -196,6 +196,7 @@
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-patrimonio">Cadastro de patrimônio</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
@@ -1517,6 +1518,70 @@
         </div>
       </section>
 
+      <section id="panel-patrimonio-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
+        <p class="subpage__lead">CRLV-e digital — fotografe o documento no celular. A IA extrai os dados e guarda na nuvem.</p>
+        <p class="subtext">Uma placa por registo: se enviar outro CRLV da mesma placa, prevalece o documento com <strong>data mais recente</strong>.</p>
+        <div class="patrimonio-acoes-principais">
+          <button type="button" class="btn-primary" id="patrimonioBtnNovoDoc">Fotografar documento</button>
+          <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
+        </div>
+        <input type="file" id="patrimonioCameraFallback" accept="image/*" capture="environment" class="patrimonio-file-hidden" tabindex="-1" aria-hidden="true">
+        <p id="patrimonioOpenAIStatus" class="subtext" role="status"></p>
+        <p id="patrimonioMsg" class="portal-feedback" role="status"></p>
+        <p id="patrimonioResumo" class="subtext" role="status">Nenhum CRLV cadastrado.</p>
+        <h3 class="portal-lanc-aluguel-section__title">Veículos cadastrados</h3>
+        <div id="patrimonioLista" class="patrimonio-lista"></div>
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-patrimonio-locadora">Voltar</button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div id="patrimonioCameraOverlay" class="patrimonio-overlay hidden" aria-hidden="true" role="dialog" aria-label="Câmera">
+    <video id="patrimonioCameraVideo" class="patrimonio-camera-video" playsinline autoplay muted></video>
+    <canvas id="patrimonioCameraCanvas" class="patrimonio-file-hidden" aria-hidden="true"></canvas>
+    <div class="patrimonio-overlay__bar">
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioCameraCancelarBtn">Cancelar</button>
+      <button type="button" class="btn-primary" id="patrimonioCameraCapturarBtn">Capturar</button>
+    </div>
+  </div>
+
+  <div id="patrimonioPreviewOverlay" class="patrimonio-overlay patrimonio-overlay--preview hidden" aria-hidden="true" role="dialog" aria-label="Confirmar foto">
+    <img id="patrimonioPreviewImg" class="patrimonio-preview-img" alt="Pré-visualização do CRLV">
+    <p class="patrimonio-preview-pergunta">A qualidade da foto está OK?</p>
+    <div class="patrimonio-overlay__bar patrimonio-overlay__bar--preview">
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewNaoBtn">Não — outra foto</button>
+      <button type="button" class="btn-primary" id="patrimonioPreviewSimBtn">Sim — salvar</button>
+    </div>
+  </div>
+
+  <div id="patrimonioImagemViewer" class="patrimonio-overlay patrimonio-overlay--viewer hidden" aria-hidden="true" role="dialog" aria-label="Documento CRLV">
+    <div class="patrimonio-viewer-toolbar">
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemPrintBtn">Imprimir</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareEmailBtn">E-mail</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareWaBtn">WhatsApp</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemFecharBtn">Fechar</button>
+    </div>
+    <img id="patrimonioImagemViewerImg" class="patrimonio-viewer-img" alt="CRLV recortado">
+  </div>
+
+  <div id="patrimonioRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="patrimonioRelatorioTitulo">
+    <div class="portal-modal__backdrop" data-close-pat-relatorio></div>
+    <div class="portal-modal__card portal-modal__card--wide">
+      <h3 id="patrimonioRelatorioTitulo" class="portal-modal__title">Relatório de patrimônio — CRLV</h3>
+      <p class="subtext portal-modal__text">Campos na ordem oficial do CRLV-e. Exporte ou clique em «Ver imagem» por placa.</p>
+      <div class="patrimonio-relatorio-export">
+        <button type="button" class="btn-primary" id="patrimonioRelatorioPdfBtn">Gerar PDF</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioExcelBtn">Gerar Excel</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioAtualizarBtn">Atualizar</button>
+      </div>
+      <div id="patrimonioRelatorioConteudo" class="patrimonio-relatorio-conteudo" aria-live="polite"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary btn-secondary-outline" data-close-pat-relatorio>Fechar</button>
+      </div>
     </div>
   </div>
 
@@ -1724,10 +1789,11 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260530sem-financeiro" defer></script>
+  <script src="portal-locadora-ui.js?v=20260530patrimonio" defer></script>
+  <script src="portal-patrimonio.js?v=20260530patrimonio" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
-  <script src="portal-supabase-sync.js?v=20260527financeiro-dedupe" defer></script>
+  <script src="portal-supabase-sync.js?v=20260530patrimonio" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522extrair-ia-operador" defer></script>
 </body>
 </html>

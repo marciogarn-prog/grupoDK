@@ -3009,3 +3009,156 @@ table.validados-app .lnk-comprovante {
 .cliente-pagamento-row--envio span:first-child {
   font-size: 0.82rem;
 }
+
+/* —— Cadastro de patrimônio (CRLV-e) —— */
+.patrimonio-file-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.patrimonio-acoes-principais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.patrimonio-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.patrimonio-doc-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border-subtle, #333);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.patrimonio-doc-item__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.patrimonio-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+}
+
+.patrimonio-overlay.hidden {
+  display: none !important;
+}
+
+.patrimonio-camera-video {
+  flex: 1;
+  width: 100%;
+  object-fit: cover;
+  background: #111;
+}
+
+.patrimonio-overlay__bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.patrimonio-overlay__bar--preview {
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.patrimonio-overlay--preview {
+  background: #0a0a0a;
+  justify-content: flex-start;
+}
+
+.patrimonio-preview-img {
+  flex: 1;
+  width: 100%;
+  object-fit: contain;
+  min-height: 0;
+  background: #111;
+}
+
+.patrimonio-preview-pergunta {
+  text-align: center;
+  padding: 0.75rem 1rem 0;
+  font-size: 1.05rem;
+  color: #f5f5f5;
+}
+
+.patrimonio-overlay--viewer {
+  background: #0a0a0a;
+}
+
+.patrimonio-viewer-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.9);
+  justify-content: center;
+}
+
+.patrimonio-viewer-img {
+  flex: 1;
+  width: 100%;
+  object-fit: contain;
+  min-height: 0;
+}
+
+.patrimonio-relatorio-export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.patrimonio-relatorio-conteudo {
+  max-height: min(60vh, 520px);
+  overflow: auto;
+}
+
+.patrimonio-relatorio-table {
+  font-size: 0.78rem;
+}
+
+.patrimonio-relatorio-table th,
+.patrimonio-relatorio-table td {
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .patrimonio-doc-item {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .patrimonio-overlay__bar .btn-primary {
+    flex: 1;
+    min-width: 120px;
+  }
+}

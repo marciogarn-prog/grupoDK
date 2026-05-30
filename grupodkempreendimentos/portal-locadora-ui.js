@@ -27,12 +27,14 @@
   const panelLogado = document.getElementById("panel-logado");
   const panelOperacao = document.getElementById("panel-operacao-locadora");
   const panelManutencao = document.getElementById("panel-manutencao-locadora");
+  const panelPatrimonio = document.getElementById("panel-patrimonio-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
   const logadoTexto = document.getElementById("logado-texto");
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
+  const btnPatrimonio = document.getElementById("btn-locadora-patrimonio");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
   const logadoSubtextPreparacao = document.getElementById("logado-subtext-preparacao");
@@ -40,6 +42,7 @@
   const locadoraAppFeedback = document.getElementById("locadora-app-feedback");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
+  const btnVoltarPatrimonio = document.getElementById("btn-voltar-patrimonio-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
@@ -437,6 +440,7 @@
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
     btnManutencao?.classList.toggle("hidden", !allowOp);
+    btnPatrimonio?.classList.toggle("hidden", !isPortalTitularAdministrador());
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
     }
@@ -619,6 +623,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnPatrimonio?.classList.add("hidden");
     showView("hub");
     setPortalHash("locadora");
   }
@@ -648,7 +653,7 @@
   }
 
   function hideAllPanels() {
-    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao].forEach((p) => {
+    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelPatrimonio].forEach((p) => {
       if (p) p.classList.add("hidden");
     });
   }
@@ -698,6 +703,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnPatrimonio?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     clearPortalUnitDadosAtualizados();
     showView("home");
@@ -711,10 +717,11 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnPatrimonio?.classList.add("hidden");
     openLocadoraHub();
   }
 
-  /** Da Operação/Manutenção → Área da equipa. */
+  /** Da Operação/Manutenção/Patrimônio → Área da equipa. */
   function portalVoltarEquipaLocadora() {
     hideInlineForms();
     hideManutencaoInlineFormsCore();
@@ -722,8 +729,10 @@
     setManutencaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
     syncManutencaoSidebarButtons(null);
+    if (typeof window.__DK_patrimonioReset === "function") window.__DK_patrimonioReset();
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
+    panelPatrimonio?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
   }
 
@@ -787,7 +796,8 @@
   function portalAcaoVoltarTela() {
     const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
     const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
-    if (emOperacao || emManutencao) {
+    const emPatrimonio = panelPatrimonio && !panelPatrimonio.classList.contains("hidden");
+    if (emOperacao || emManutencao || emPatrimonio) {
       portalVoltarEquipaLocadora();
       return;
     }
@@ -816,6 +826,11 @@
       return;
     }
     if (portalFecharDropdownsAbertos()) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (typeof window.__DK_patrimonioEscapeBack === "function" && window.__DK_patrimonioEscapeBack()) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -1144,6 +1159,17 @@
   });
 
   btnVoltarManutencao?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
+  });
+
+  btnPatrimonio?.addEventListener("click", () => {
+    if (!isPortalTitularAdministrador()) return;
+    hideAllPanels();
+    if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
+    panelPatrimonio?.classList.remove("hidden");
+  });
+
+  btnVoltarPatrimonio?.addEventListener("click", () => {
     portalVoltarEquipaLocadora();
   });
 
@@ -2430,6 +2456,7 @@ ${printable.innerHTML}
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnPatrimonio?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {
       openLocadoraEmpresa();
@@ -4025,7 +4052,17 @@ ${printable.innerHTML}
             return;
           }
           const el = ev.target.closest?.(".lnk-comprovante[data-dk-comprovante-id]");
-          if (!el) return;
+          if (!el) {
+            const pat = ev.target.closest?.(".lnk-patrimonio-img[data-pat-id]");
+            if (pat) {
+              ev.preventDefault();
+              const pid = pat.getAttribute("data-pat-id");
+              if (pid && typeof window.__DK_openPatrimonioImagemById === "function") {
+                window.__DK_openPatrimonioImagemById(pid);
+              }
+            }
+            return;
+          }
           ev.preventDefault();
           const id = el.getAttribute("data-dk-comprovante-id");
           if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {

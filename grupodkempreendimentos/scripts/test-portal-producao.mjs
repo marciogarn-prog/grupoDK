@@ -57,6 +57,14 @@ async function main() {
         html.includes("portalPdfPartilharWhatsAppBtn")
     );
     record(
+      "cadastro patrimônio CRLV (admin)",
+      html.includes("btn-locadora-patrimonio") &&
+        html.includes("panel-patrimonio-locadora") &&
+        html.includes("patrimonioBtnNovoDoc") &&
+        html.includes("patrimonioVerRelatorioBtn") &&
+        html.includes("portal-patrimonio.js")
+    );
+    record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );

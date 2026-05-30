@@ -25,6 +25,7 @@
     "dk_comprovantes_cliente_pendentes",
     "dk_cliente_notificacoes",
     "dk_financeiro_extratos_v1",
+    "dk_patrimonio_crlv_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
   ];
@@ -118,6 +119,19 @@
         const { arquivoBase64, ...rest } = rec;
         return rest;
       });
+    }
+    if (out.dk_patrimonio_crlv_v1?.documentos && Array.isArray(out.dk_patrimonio_crlv_v1.documentos)) {
+      out.dk_patrimonio_crlv_v1 = {
+        documentos: out.dk_patrimonio_crlv_v1.documentos.map((d) => {
+          if (!d || typeof d !== "object") return d;
+          const img = String(d.imagemRecortada || "");
+          if (img.length > 350000) {
+            const { imagemRecortada, ...rest } = d;
+            return rest;
+          }
+          return d;
+        }),
+      };
     }
     return out;
   }
@@ -305,6 +319,28 @@
         const merged = replace
           ? parseFinanceiroStore(cloudObj)
           : mergeFinanceiroExtratos(localObj, cloudObj);
+        localStorage.setItem(k, JSON.stringify(merged));
+        continue;
+      }
+      if (k === "dk_patrimonio_crlv_v1") {
+        let cloudObj = v;
+        if (typeof v === "string") {
+          try {
+            cloudObj = JSON.parse(v);
+          } catch {
+            cloudObj = null;
+          }
+        }
+        let localObj = null;
+        try {
+          const raw = localStorage.getItem(k);
+          localObj = raw ? JSON.parse(raw) : null;
+        } catch {
+          localObj = null;
+        }
+        const merged = replace
+          ? parsePatrimonioStore(cloudObj)
+          : mergePatrimonioCrlv(localObj, cloudObj);
         localStorage.setItem(k, JSON.stringify(merged));
         continue;
       }
@@ -649,6 +685,12 @@
         if (JSON.stringify(merged) !== JSON.stringify(prev)) return true;
         continue;
       }
+      if (k === "dk_patrimonio_crlv_v1") {
+        const merged = mergePatrimonioCrlv(b, a);
+        const prev = parsePatrimonioStore(b);
+        if (JSON.stringify(merged) !== JSON.stringify(prev)) return true;
+        continue;
+      }
       if (JSON.stringify(a) !== JSON.stringify(b)) return true;
     }
     return false;
@@ -872,6 +914,64 @@
     };
   }
 
+  function parsePatrimonioStore(raw) {
+    if (!raw) return { documentos: [] };
+    if (typeof raw === "string") {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        return { documentos: [] };
+      }
+    }
+    if (Array.isArray(raw?.documentos)) return { documentos: raw.documentos };
+    if (Array.isArray(raw)) return { documentos: raw };
+    return { documentos: [] };
+  }
+
+  function patrimonioDataMs(d) {
+    const m = String(d?.data || "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!m) return 0;
+    const dt = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+  }
+
+  function normPatrimonioPlaca(s) {
+    return String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  /** Uma placa por registo — prevalece CRLV com data mais recente; imagem do mais completo. */
+  function mergePatrimonioCrlv(localRaw, cloudRaw) {
+    const map = new Map();
+    for (const d of [...parsePatrimonioStore(localRaw).documentos, ...parsePatrimonioStore(cloudRaw).documentos]) {
+      if (!d || typeof d !== "object") continue;
+      const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
+      if (!placa) continue;
+      const cur = map.get(placa);
+      if (!cur) {
+        map.set(placa, { ...d, placaNorm: placa, placa });
+        continue;
+      }
+      const msN = patrimonioDataMs(d);
+      const msC = patrimonioDataMs(cur);
+      const imgN = String(d.imagemRecortada || "").length;
+      const imgC = String(cur.imagemRecortada || "").length;
+      if (msN > msC || (msN === msC && imgN > imgC)) {
+        map.set(placa, {
+          ...cur,
+          ...d,
+          placaNorm: placa,
+          placa,
+          imagemRecortada: imgN >= imgC ? d.imagemRecortada : cur.imagemRecortada,
+        });
+      } else if (imgN > imgC) {
+        map.set(placa, { ...cur, imagemRecortada: d.imagemRecortada });
+      }
+    }
+    return { documentos: Array.from(map.values()) };
+  }
+
   function readLocalJsonArray(key) {
     try {
       const raw = localStorage.getItem(key);
@@ -903,6 +1003,12 @@
         cloudPayload.dk_financeiro_extratos_v1
       );
     }
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_patrimonio_crlv_v1")) {
+      out.dk_patrimonio_crlv_v1 = mergePatrimonioCrlv(
+        localPayload.dk_patrimonio_crlv_v1,
+        cloudPayload.dk_patrimonio_crlv_v1
+      );
+    }
     return out;
   }
 
@@ -925,6 +1031,12 @@
         localStorage.setItem(
           "dk_financeiro_extratos_v1",
           JSON.stringify(mergedPayload.dk_financeiro_extratos_v1)
+        );
+      }
+      if (mergedPayload.dk_patrimonio_crlv_v1) {
+        localStorage.setItem(
+          "dk_patrimonio_crlv_v1",
+          JSON.stringify(mergedPayload.dk_patrimonio_crlv_v1)
         );
       }
     } finally {
