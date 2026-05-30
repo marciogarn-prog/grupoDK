@@ -191,7 +191,7 @@ async function main() {
     record("frota+portal no mesmo arquivo", storage.frota >= 100 && storage.portal >= 3, `frota=${storage.frota} portal=${storage.portal}`);
 
     const appsHtml = await page.evaluate(() => fetch("./apps.html").then((r) => r.text()));
-    record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Corporativo"));
+    record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Grupo DK"));
 
     await page.goto(new URL("cliente.html", BASE_URL).href, { waitUntil: "networkidle", timeout: 60000 });
     const clienteGateRedirect =
