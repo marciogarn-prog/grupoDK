@@ -928,20 +928,21 @@
     return { documentos: [] };
   }
 
-  function patrimonioDataMs(d) {
-    const m = String(d?.data || "").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!m) return 0;
-    const dt = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
-    return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
-  }
-
   function normPatrimonioPlaca(s) {
     return String(s || "")
       .toUpperCase()
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  /** Uma placa por registo — prevalece CRLV com data mais recente; imagem do mais completo. */
+  function patrimonioEnvioMs(d) {
+    for (const k of ["atualizadoEm", "processadoEm", "cadastradoEm"]) {
+      const t = Date.parse(String(d?.[k] || ""));
+      if (Number.isFinite(t)) return t;
+    }
+    return 0;
+  }
+
+  /** Uma placa = um documento — prevalece o envio mais recente (foto/arquivo). */
   function mergePatrimonioCrlv(localRaw, cloudRaw) {
     const map = new Map();
     for (const d of [...parsePatrimonioStore(localRaw).documentos, ...parsePatrimonioStore(cloudRaw).documentos]) {
@@ -953,20 +954,10 @@
         map.set(placa, { ...d, placaNorm: placa, placa });
         continue;
       }
-      const msN = patrimonioDataMs(d);
-      const msC = patrimonioDataMs(cur);
-      const imgN = String(d.imagemRecortada || "").length;
-      const imgC = String(cur.imagemRecortada || "").length;
-      if (msN > msC || (msN === msC && imgN > imgC)) {
-        map.set(placa, {
-          ...cur,
-          ...d,
-          placaNorm: placa,
-          placa,
-          imagemRecortada: imgN >= imgC ? d.imagemRecortada : cur.imagemRecortada,
-        });
-      } else if (imgN > imgC) {
-        map.set(placa, { ...cur, imagemRecortada: d.imagemRecortada });
+      const msN = patrimonioEnvioMs(d);
+      const msC = patrimonioEnvioMs(cur);
+      if (msN >= msC) {
+        map.set(placa, { ...cur, ...d, placaNorm: placa, placa });
       }
     }
     return { documentos: Array.from(map.values()) };

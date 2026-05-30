@@ -161,26 +161,17 @@
     const placa = normPlaca(doc.placa);
     if (!placa) return { ok: false, erro: "Placa não identificada na IA. Tente outra foto." };
     const store = loadStore();
-    const docs = store.documentos.filter((d) => normPlaca(d.placa) !== placa);
     const antigo = store.documentos.find((d) => normPlaca(d.placa) === placa);
-    const msNovo = parseBrDateMs(doc.data);
-    const msAnt = antigo ? parseBrDateMs(antigo.data) : 0;
-    if (antigo && msAnt > msNovo && msNovo > 0) {
-      return {
-        ok: false,
-        erro: `Já existe documento mais recente para ${placa} (${antigo.data}). Este CRLV é de ${doc.data}.`,
-      };
-    }
-    if (antigo && msAnt === msNovo && msNovo > 0) {
-      /* mesma data — substitui com scan mais recente */
-    }
+    const docs = store.documentos.filter((d) => normPlaca(d.placa) !== placa);
+    const agora = new Date().toISOString();
     const registro = {
       ...doc,
       id: antigo?.id || doc.id || newId(),
-      placa: placa,
+      placa,
       placaNorm: placa,
-      atualizadoEm: new Date().toISOString(),
-      cadastradoEm: antigo?.cadastradoEm || doc.cadastradoEm || new Date().toISOString(),
+      processadoEm: agora,
+      atualizadoEm: agora,
+      cadastradoEm: antigo?.cadastradoEm || doc.cadastradoEm || agora,
     };
     docs.push(registro);
     saveStore({ documentos: docs });
@@ -392,7 +383,7 @@ Regras:
       }
       setMsg(
         r.substituiu
-          ? `Documento ${campos.placa} salvo. Próximo documento…`
+          ? `Documento ${campos.placa} atualizado (foto anterior substituída). Próximo documento…`
           : `Documento ${campos.placa} cadastrado. Próximo documento…`,
         false,
         true
@@ -493,7 +484,7 @@ Regras:
     if (resumoEl) {
       resumoEl.textContent =
         docs.length > 0
-          ? `${docs.length} veículo(s) · uma placa por registo (mais recente prevalece).`
+          ? `${docs.length} veículo(s) · uma placa = um documento (foto mais recente prevalece).`
           : "Nenhum CRLV cadastrado. Toque em «Fotografar documento».";
     }
     if (btnRelatorio) btnRelatorio.disabled = docs.length === 0;
