@@ -86,6 +86,16 @@ async function main() {
       "recorte CRLV exclui fundo colorido",
       scanJs.includes("isPaperPixel") && scanJs.includes("refinarRecorteDocumento") && scanJs.includes("isColorfulBackground")
     );
+    const patJs = await page.evaluate(async () => {
+      const r = await fetch("portal-patrimonio.js?v=20260531placa-unica", { cache: "no-store" });
+      return r.ok ? await r.text() : "";
+    });
+    record(
+      "patrimônio uma placa substitui foto antiga",
+      patJs.includes("deduplicarDocumentos") &&
+        patJs.includes("imagemAtualizadaEm") &&
+        patJs.includes("comprimirImagemLimite")
+    );
     record(
       "portal conferência operador (texto)",
       html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")

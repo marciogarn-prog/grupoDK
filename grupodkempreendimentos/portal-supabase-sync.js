@@ -942,25 +942,87 @@
     return 0;
   }
 
+  function deduplicarDocumentosPatrimonio(documentos) {
+    const list = (documentos || []).filter((d) => d && typeof d === "object");
+    const byPlaca = new Map();
+    for (const d of list) {
+      const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
+      if (!placa) continue;
+      const cur = byPlaca.get(placa);
+      if (!cur || patrimonioEnvioMs(d) >= patrimonioEnvioMs(cur)) {
+        byPlaca.set(placa, { ...d, placa, placaNorm: placa });
+      }
+    }
+    const porPlaca = Array.from(byPlaca.values());
+    const byChassi = new Map();
+    for (const d of porPlaca) {
+      const c = String(d.chassi || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      if (c.length !== 17) {
+        byChassi.set(`id:${d.id || Math.random()}`, d);
+        continue;
+      }
+      const cur = byChassi.get(c);
+      if (!cur || patrimonioEnvioMs(d) >= patrimonioEnvioMs(cur)) byChassi.set(c, d);
+    }
+    return Array.from(byChassi.values());
+  }
+
+  /** Mescla dois registros da mesma placa — registro mais recente substitui foto e campos. */
+  function mergePatrimonioPar(antigo, novo, preferirNovoEmEmpate) {
+    const placa = normPatrimonioPlaca(novo.placaNorm || novo.placa || antigo.placa);
+    const msAntigo = patrimonioEnvioMs(antigo);
+    const msNovo = patrimonioEnvioMs(novo);
+    let winner;
+    let loser;
+    if (msNovo > msAntigo) {
+      winner = novo;
+      loser = antigo;
+    } else if (msAntigo > msNovo) {
+      winner = antigo;
+      loser = novo;
+    } else {
+      winner = preferirNovoEmEmpate ? novo : antigo;
+      loser = preferirNovoEmEmpate ? antigo : novo;
+    }
+    const out = {
+      ...loser,
+      ...winner,
+      placa,
+      placaNorm: placa,
+      id: winner.id || loser.id,
+    };
+    if (patrimonioEnvioMs(winner) >= patrimonioEnvioMs(loser)) {
+      out.imagemRecortada = String(winner.imagemRecortada || "");
+      if (winner.imagemAtualizadaEm) out.imagemAtualizadaEm = winner.imagemAtualizadaEm;
+    } else {
+      out.imagemRecortada = String(winner.imagemRecortada || loser.imagemRecortada || "");
+    }
+    return out;
+  }
+
   /** Uma placa = um documento — prevalece o envio mais recente (foto/arquivo). */
   function mergePatrimonioCrlv(localRaw, cloudRaw) {
     const map = new Map();
-    for (const d of [...parsePatrimonioStore(localRaw).documentos, ...parsePatrimonioStore(cloudRaw).documentos]) {
-      if (!d || typeof d !== "object") continue;
+    const cloudDocs = deduplicarDocumentosPatrimonio(parsePatrimonioStore(cloudRaw).documentos);
+    const localDocs = deduplicarDocumentosPatrimonio(parsePatrimonioStore(localRaw).documentos);
+
+    function upsert(d, preferirNovoEmEmpate) {
       const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
-      if (!placa) continue;
+      if (!placa) return;
       const cur = map.get(placa);
       if (!cur) {
-        map.set(placa, { ...d, placaNorm: placa, placa });
-        continue;
+        map.set(placa, { ...d, placa, placaNorm: placa });
+        return;
       }
-      const msN = patrimonioEnvioMs(d);
-      const msC = patrimonioEnvioMs(cur);
-      if (msN >= msC) {
-        map.set(placa, { ...cur, ...d, placaNorm: placa, placa });
-      }
+      map.set(placa, mergePatrimonioPar(cur, d, preferirNovoEmEmpate));
     }
-    return { documentos: Array.from(map.values()) };
+
+    for (const d of cloudDocs) upsert(d, false);
+    for (const d of localDocs) upsert(d, true);
+
+    return { documentos: deduplicarDocumentosPatrimonio(Array.from(map.values())) };
   }
 
   function readLocalJsonArray(key) {
@@ -1025,9 +1087,10 @@
         );
       }
       if (mergedPayload.dk_patrimonio_crlv_v1) {
+        const deduped = deduplicarDocumentosPatrimonio(mergedPayload.dk_patrimonio_crlv_v1.documentos || []);
         localStorage.setItem(
           "dk_patrimonio_crlv_v1",
-          JSON.stringify(mergedPayload.dk_patrimonio_crlv_v1)
+          JSON.stringify({ documentos: deduped })
         );
       }
     } finally {

@@ -185,19 +185,57 @@
     return Number.isNaN(d.getTime()) ? 0 : d.getTime();
   }
 
+  function docMs(d) {
+    for (const k of ["atualizadoEm", "processadoEm", "cadastradoEm"]) {
+      const t = Date.parse(String(d?.[k] || ""));
+      if (Number.isFinite(t)) return t;
+    }
+    return 0;
+  }
+
+  /** Uma placa = um registro; chassi igual = mesmo veículo (foto mais recente). */
+  function deduplicarDocumentos(documentos) {
+    const list = (documentos || []).filter((d) => d && typeof d === "object");
+    const byPlaca = new Map();
+    for (const d of list) {
+      const p = normPlaca(d.placaNorm || d.placa);
+      if (!p) continue;
+      const cur = byPlaca.get(p);
+      if (!cur || docMs(d) >= docMs(cur)) {
+        byPlaca.set(p, { ...d, placa: p, placaNorm: p });
+      }
+    }
+    const porPlaca = Array.from(byPlaca.values());
+    const byChassi = new Map();
+    for (const d of porPlaca) {
+      const c = String(d.chassi || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      if (c.length !== 17) {
+        byChassi.set(`id:${d.id || Math.random()}`, d);
+        continue;
+      }
+      const cur = byChassi.get(c);
+      if (!cur || docMs(d) >= docMs(cur)) byChassi.set(c, d);
+    }
+    return Array.from(byChassi.values());
+  }
+
   function loadStore() {
     try {
       const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      if (Array.isArray(raw.documentos)) return { documentos: raw.documentos };
-      if (Array.isArray(raw)) return { documentos: raw };
-      return { documentos: [] };
+      let documentos = [];
+      if (Array.isArray(raw.documentos)) documentos = raw.documentos;
+      else if (Array.isArray(raw)) documentos = raw;
+      return { documentos: deduplicarDocumentos(documentos) };
     } catch {
       return { documentos: [] };
     }
   }
 
   function saveStore(store) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    const documentos = deduplicarDocumentos(store?.documentos || []);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ documentos }));
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       portalPushCloudSnapshotAfterPersist();
     }
@@ -221,6 +259,7 @@
       placaNorm: placa,
       processadoEm: agora,
       atualizadoEm: agora,
+      imagemAtualizadaEm: agora,
       cadastradoEm: antigo?.cadastradoEm || doc.cadastradoEm || agora,
     };
     docs.push(registro);
@@ -265,6 +304,21 @@
       img.onerror = () => resolve(dataUrl);
       img.src = dataUrl;
     });
+  }
+
+  /** Comprime até caber na nuvem (~320 KB base64) para a foto nova ir sempre no sync. */
+  async function comprimirImagemLimite(dataUrl, maxPx, maxLen, qualityStart) {
+    const limite = maxLen || 320000;
+    let q = qualityStart || 0.9;
+    let px = maxPx || 1600;
+    let result = await comprimirImagem(dataUrl, px, q);
+    for (let i = 0; i < 8; i++) {
+      if (parseDataUrl(result).base64.length <= limite) return result;
+      if (q > 0.62) q -= 0.07;
+      else px = Math.max(900, Math.round(px * 0.86));
+      result = await comprimirImagem(dataUrl, px, q);
+    }
+    return result;
   }
 
   /** Recorte documento (bbox normalizado 0–1) e ajusta proporção A4. */
@@ -483,7 +537,7 @@ REGRAS CRÍTICAS:
         setMsg(val.msg || MSG_NITIDEZ, true);
         return;
       }
-      const imagemGuardar = await comprimirImagem(imagemTratada, 1800, 0.92);
+      const imagemGuardar = await comprimirImagemLimite(imagemTratada, 1600, 320000, 0.88);
       const doc = {
         ...campos,
         id: newId(),
@@ -983,6 +1037,8 @@ ${contador}
         return;
       }
     }
+    const store = loadStore();
+    saveStore(store);
     void refreshOpenAIStatus();
     renderLista();
   }
@@ -1012,6 +1068,10 @@ ${contador}
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
   window.__DK_openPatrimonioImagemById = abrirViewerImagem;
+
+  window.addEventListener("dk-comprovantes-synced", () => {
+    renderLista();
+  });
 
   bindUi();
   renderLista();
