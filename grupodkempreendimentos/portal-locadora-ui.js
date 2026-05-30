@@ -734,6 +734,79 @@
     panelManutencao?.classList.add("hidden");
     panelPatrimonio?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
+    portalPersistirAreaAtiva("equipa");
+  }
+
+  const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
+
+  function portalPersistirAreaAtiva(area) {
+    try {
+      sessionStorage.setItem(PORTAL_AREA_ATIVA_KEY, area);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalLimparAreaAtiva() {
+    try {
+      sessionStorage.removeItem(PORTAL_AREA_ATIVA_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalObterFuncionarioDaSessaoRestauracao() {
+    const f = getPortalSessaoEquipaFuncionario();
+    if (f) return f;
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return null;
+      const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11) return null;
+      const role = String(s.role || "").trim();
+      if (role === "owner" || cpf === DK_LOCADORA_ADMIN_CPF) {
+        return {
+          cpf,
+          nome: String(s.nome || "").trim() || "Administrador",
+          role: "owner",
+        };
+      }
+      return { cpf, nome: String(s.nome || "").trim(), role: role || "operacao" };
+    } catch {
+      return null;
+    }
+  }
+
+  /** Após recarga da página (ex.: câmera nativa no telemóvel), reabre património/operação sem novo login. */
+  function portalRestaurarAreaLogadaAposRecarga() {
+    const area = sessionStorage.getItem(PORTAL_AREA_ATIVA_KEY);
+    if (!area || area === "equipa") return;
+    const h = (window.location.hash || "").toLowerCase();
+    if (h.startsWith("#locadora/cliente")) return;
+    if (area === "patrimonio" && panelPatrimonio && !panelPatrimonio.classList.contains("hidden")) return;
+    if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
+    if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
+    const func = portalObterFuncionarioDaSessaoRestauracao();
+    if (!func) return;
+    currentUnit = "locadora";
+    showView("unit");
+    finalizarLoginEquipaPortal(func);
+    hideAllPanels();
+    if (area === "patrimonio" && isPortalTitularAdministrador()) {
+      panelPatrimonio?.classList.remove("hidden");
+      if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
+    } else if (area === "operacao") {
+      panelOperacao?.classList.remove("hidden");
+      refreshPortalOperacaoNavPorAcessos();
+      portalOperacaoAutoAbrirSeUnicoPermitido();
+    } else if (area === "manutencao") {
+      panelManutencao?.classList.remove("hidden");
+    } else {
+      panelLogado?.classList.remove("hidden");
+    }
+    portalPersistirAreaAtiva(area);
   }
 
   function portalFecharModalAberto() {
@@ -794,6 +867,9 @@
 
   /** Mesma lógica do botão «Voltar» (data-back) — tela anterior no fluxo do portal. */
   function portalAcaoVoltarTela() {
+    if (typeof window.__DK_patrimonioEscapeBack === "function" && window.__DK_patrimonioEscapeBack()) {
+      return;
+    }
     const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
     const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
     const emPatrimonio = panelPatrimonio && !panelPatrimonio.classList.contains("hidden");
@@ -1080,6 +1156,7 @@
         return;
       }
       finalizarLoginEquipaPortal(funcionario);
+      portalPersistirAreaAtiva("equipa");
       return;
     }
   });
@@ -1111,6 +1188,7 @@
     if (typeof saveFuncionariosAccess === "function") saveFuncionariosAccess();
     portalColaboradorSenhaPendente = null;
     finalizarLoginEquipaPortal(f);
+    portalPersistirAreaAtiva("equipa");
   });
 
   btnOperacao?.addEventListener("click", () => {
@@ -1123,6 +1201,7 @@
     panelOperacao?.classList.remove("hidden");
     refreshPortalOperacaoNavPorAcessos();
     portalOperacaoAutoAbrirSeUnicoPermitido();
+    portalPersistirAreaAtiva("operacao");
   });
 
   function hideManutencaoInlineFormsCore() {
@@ -1156,6 +1235,7 @@
     syncManutencaoSidebarButtons(null);
     hideAllPanels();
     panelManutencao?.classList.remove("hidden");
+    portalPersistirAreaAtiva("manutencao");
   });
 
   btnVoltarManutencao?.addEventListener("click", () => {
@@ -1167,6 +1247,7 @@
     hideAllPanels();
     if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
     panelPatrimonio?.classList.remove("hidden");
+    portalPersistirAreaAtiva("patrimonio");
   });
 
   btnVoltarPatrimonio?.addEventListener("click", () => {
@@ -2451,6 +2532,7 @@ ${printable.innerHTML}
 
   btnSair?.addEventListener("click", () => {
     portalColaboradorSenhaPendente = null;
+    portalLimparAreaAtiva();
     clearSession();
     resetPortalLoginFormularioETipoAcesso();
     hideAllPanels();
@@ -10257,6 +10339,8 @@ ${printable.innerHTML}
 
   applyPortalLocadoraHash();
   window.addEventListener("hashchange", applyPortalLocadoraHash);
+  window.addEventListener("pageshow", () => portalRestaurarAreaLogadaAposRecarga());
+  portalRestaurarAreaLogadaAposRecarga();
 
   /**
    * Enter no teclado avança para o próximo campo editável; no último campo submete o formulário.

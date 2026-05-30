@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260530dk-app">
+  <link rel="stylesheet" href="styles.css?v=20260530patrimonio-cam">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script>
     if ("serviceWorker" in navigator && location.protocol !== "file:") {
@@ -1555,12 +1555,17 @@
     </div>
   </div>
 
-  <div id="patrimonioCameraOverlay" class="patrimonio-overlay hidden" aria-hidden="true" role="dialog" aria-label="Câmera">
-    <video id="patrimonioCameraVideo" class="patrimonio-camera-video" playsinline autoplay muted></video>
+  <div id="patrimonioCameraOverlay" class="patrimonio-overlay patrimonio-overlay--camera hidden" aria-hidden="true" role="dialog" aria-label="Câmera">
+    <div class="patrimonio-camera-wrap">
+      <video id="patrimonioCameraVideo" class="patrimonio-camera-video" playsinline autoplay muted></video>
+    </div>
     <canvas id="patrimonioCameraCanvas" class="patrimonio-file-hidden" aria-hidden="true"></canvas>
-    <div class="patrimonio-overlay__bar">
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioCameraCancelarBtn">Cancelar</button>
-      <button type="button" class="btn-primary" id="patrimonioCameraCapturarBtn">Capturar</button>
+    <div class="patrimonio-camera-controls">
+      <button type="button" class="btn-primary btn-secondary-outline patrimonio-camera-cancel" id="patrimonioCameraCancelarBtn">Cancelar</button>
+      <button type="button" class="patrimonio-shutter" id="patrimonioCameraCapturarBtn" aria-label="Tirar foto">
+        <span class="patrimonio-shutter__ring" aria-hidden="true"></span>
+      </button>
+      <span class="patrimonio-camera-spacer" aria-hidden="true"></span>
     </div>
   </div>
 
@@ -1805,8 +1810,8 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260530patrimonio" defer></script>
-  <script src="portal-patrimonio.js?v=20260530patrimonio" defer></script>
+  <script src="portal-locadora-ui.js?v=20260530patrimonio-cam" defer></script>
+  <script src="portal-patrimonio.js?v=20260530patrimonio-cam" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260530patrimonio" defer></script>

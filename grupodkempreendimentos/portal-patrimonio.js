@@ -53,6 +53,61 @@
   let cameraStream = null;
   let previewDataUrl = "";
   let processando = false;
+  let patrimonioHistoryDepth = 0;
+  let patrimonioHistorySuppress = false;
+
+  function patrimonioOverlayAberto() {
+    return (
+      (cameraOverlay && !cameraOverlay.classList.contains("hidden")) ||
+      (previewOverlay && !previewOverlay.classList.contains("hidden")) ||
+      (imagemViewer && !imagemViewer.classList.contains("hidden"))
+    );
+  }
+
+  function patrimonioNotificarOverlayAberto() {
+    if (patrimonioHistoryDepth > 0) return;
+    try {
+      history.pushState({ dkPatrimonioOverlay: 1 }, "", location.href);
+      patrimonioHistoryDepth = 1;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function patrimonioNotificarOverlayFechado() {
+    if (patrimonioHistoryDepth <= 0) return;
+    patrimonioHistoryDepth = 0;
+    patrimonioHistorySuppress = true;
+    try {
+      history.back();
+    } catch {
+      patrimonioHistorySuppress = false;
+    }
+  }
+
+  function patrimonioSyncHistoryAposFechar() {
+    if (!patrimonioOverlayAberto()) patrimonioNotificarOverlayFechado();
+  }
+
+  window.addEventListener("popstate", () => {
+    if (patrimonioHistorySuppress) {
+      patrimonioHistorySuppress = false;
+      return;
+    }
+    if (patrimonioHistoryDepth <= 0) return;
+    patrimonioHistoryDepth = 0;
+    if (previewOverlay && !previewOverlay.classList.contains("hidden")) {
+      fecharPreview(false);
+      return;
+    }
+    if (cameraOverlay && !cameraOverlay.classList.contains("hidden")) {
+      fecharCamera(false);
+      return;
+    }
+    if (imagemViewer && !imagemViewer.classList.contains("hidden")) {
+      fecharViewerImagem(false);
+    }
+  });
 
   function escapeHtml(s) {
     return String(s ?? "")
@@ -303,12 +358,13 @@ Regras:
       }
       setMsg(
         r.substituiu
-          ? `Documento ${campos.placa} atualizado (${campos.data || "sem data"}).`
-          : `Documento ${campos.placa} cadastrado.`,
+          ? `Documento ${campos.placa} salvo. Próximo documento…`
+          : `Documento ${campos.placa} cadastrado. Próximo documento…`,
         false,
         true
       );
       renderLista();
+      window.setTimeout(() => void abrirCameraNativa(), 500);
     } finally {
       processando = false;
     }
@@ -329,27 +385,30 @@ Regras:
     if (cameraVideo) cameraVideo.srcObject = null;
   }
 
-  function fecharCamera() {
+  function fecharCamera(syncHistory = true) {
     void pararCamera();
     cameraOverlay?.classList.add("hidden");
     cameraOverlay?.setAttribute("aria-hidden", "true");
+    if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
-  function fecharPreview() {
+  function fecharPreview(syncHistory = true) {
     previewOverlay?.classList.add("hidden");
     previewOverlay?.setAttribute("aria-hidden", "true");
     previewDataUrl = "";
     if (previewImg) previewImg.removeAttribute("src");
+    if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
   async function abrirCameraNativa() {
-    fecharPreview();
+    fecharPreview(false);
     if (!cameraOverlay || !cameraVideo) {
       fileFallback?.click();
       return;
     }
     cameraOverlay.classList.remove("hidden");
     cameraOverlay.setAttribute("aria-hidden", "false");
+    patrimonioNotificarOverlayAberto();
     await pararCamera();
     if (!navigator.mediaDevices?.getUserMedia) {
       fecharCamera();
@@ -381,7 +440,7 @@ Regras:
     if (!ctx) return;
     ctx.drawImage(cameraVideo, 0, 0, vw, vh);
     previewDataUrl = cameraCanvas.toDataURL("image/jpeg", 0.92);
-    fecharCamera();
+    fecharCamera(false);
     mostrarPreview(previewDataUrl);
   }
 
@@ -391,6 +450,7 @@ Regras:
     previewImg.src = dataUrl;
     previewOverlay.classList.remove("hidden");
     previewOverlay.setAttribute("aria-hidden", "false");
+    patrimonioNotificarOverlayAberto();
   }
 
   function renderLista() {
@@ -452,12 +512,14 @@ Regras:
     imagemViewer.dataset.patId = id;
     imagemViewer.classList.remove("hidden");
     imagemViewer.setAttribute("aria-hidden", "false");
+    patrimonioNotificarOverlayAberto();
   }
 
-  function fecharViewerImagem() {
+  function fecharViewerImagem(syncHistory = true) {
     imagemViewer?.classList.add("hidden");
     imagemViewer?.setAttribute("aria-hidden", "true");
     if (imagemViewerImg) imagemViewerImg.removeAttribute("src");
+    if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
   function imprimirViewerImagem() {
@@ -664,9 +726,11 @@ Regras:
   }
 
   function resetPatrimonioUi() {
-    fecharCamera();
-    fecharPreview();
-    fecharViewerImagem();
+    patrimonioHistoryDepth = 0;
+    patrimonioHistorySuppress = false;
+    fecharCamera(false);
+    fecharPreview(false);
+    fecharViewerImagem(false);
     fecharRelatorioModal();
     setMsg("");
     renderLista();
@@ -706,6 +770,7 @@ Regras:
   window.__DK_patrimonioOnShow = onShowPatrimonio;
   window.__DK_patrimonioReset = resetPatrimonioUi;
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
+  window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
   window.__DK_openPatrimonioImagemById = abrirViewerImagem;
 
   bindUi();
