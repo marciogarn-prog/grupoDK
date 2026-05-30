@@ -64,7 +64,7 @@
   const btnNovo = document.getElementById("patrimonioBtnNovoDoc");
   const btnRelatorio = document.getElementById("patrimonioVerRelatorioBtn");
   const relatorioModal = document.getElementById("patrimonioRelatorioModal");
-  const relatorioConteudo = document.getElementById("patrimonioRelatorioConteudo");
+  const relatorioContador = document.getElementById("patrimonioRelatorioContador");
   const cameraOverlay = document.getElementById("patrimonioCameraOverlay");
   const previewOverlay = document.getElementById("patrimonioPreviewOverlay");
   const previewImg = document.getElementById("patrimonioPreviewImg");
@@ -738,9 +738,54 @@ REGRAS CRÍTICAS:
     return [...CAMPOS_ORDEM.map((c) => c.label), "Documento"];
   }
 
+  function chaveModeloAnoDoc(doc) {
+    const marca = String(doc.marcaModeloVersao || "").trim();
+    const fab = String(doc.anoFabricacao || "").trim();
+    const mod = String(doc.anoModelo || "").trim();
+    if (!marca && !fab && !mod) return "";
+    return `${marca}|${fab}|${mod}`;
+  }
+
+  /** Contagem: marca/modelo/versão + ano fabricação + ano modelo = N registro(s). */
+  function buildContadorModeloAnoLinhas(docs) {
+    const map = new Map();
+    for (const d of docs) {
+      const k = chaveModeloAnoDoc(d);
+      if (!k) continue;
+      map.set(k, (map.get(k) || 0) + 1);
+    }
+    return [...map.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0], "pt-BR"))
+      .map(([k, qtd]) => {
+        const [marca, fab, mod] = k.split("|");
+        const qLabel = qtd === 1 ? "1 registro" : `${qtd} registros`;
+        return `${marca}+${fab}+${mod} = ${qLabel}`;
+      });
+  }
+
+  function renderContadorModeloAno(docs) {
+    const linhas = buildContadorModeloAnoLinhas(docs);
+    if (!relatorioContador) return;
+    if (!linhas.length) {
+      relatorioContador.innerHTML = "";
+      relatorioContador.classList.add("hidden");
+      return;
+    }
+    relatorioContador.classList.remove("hidden");
+    relatorioContador.innerHTML = `<p class="subtext" style="margin:0 0 0.35rem"><strong>Contagem por modelo e ano</strong></p><ul class="patrimonio-relatorio-contador__lista">${linhas.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
+  }
+
+  function buildContadorModeloAnoHtmlBloco(docs) {
+    const linhas = buildContadorModeloAnoLinhas(docs);
+    if (!linhas.length) return "";
+    const itens = linhas.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
+    return `<div class="contador-modelo-ano"><p><strong>Contagem por modelo e ano</strong></p><ul>${itens}</ul></div>`;
+  }
+
   function renderRelatorioTabela() {
     if (!relatorioConteudo) return;
     const docs = getDocumentos().slice().sort((a, b) => normPlaca(a.placa).localeCompare(normPlaca(b.placa)));
+    renderContadorModeloAno(docs);
     if (!docs.length) {
       relatorioConteudo.innerHTML = '<p class="subtext">Nenhum documento.</p>';
       return;
@@ -786,6 +831,8 @@ REGRAS CRÍTICAS:
   }
 
   function buildPatrimonioPdfHtml(headers, rows, titulo) {
+    const docs = getDocumentos().slice();
+    const contador = buildContadorModeloAnoHtmlBloco(docs);
     const head = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
     const body = rows
       .map((row) => {
@@ -798,12 +845,15 @@ REGRAS CRÍTICAS:
       })
       .join("");
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title>
-<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f5f5f5}.meta{color:#555;margin-bottom:12px}a{color:#0066cc}</style></head>
+<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f5f5f5}.meta{color:#555;margin-bottom:12px}a{color:#0066cc}.contador-modelo-ano{margin:0 0 14px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;background:#faf6e8}.contador-modelo-ano ul{margin:4px 0 0;padding-left:18px}</style></head>
 <body><h1>${escapeHtml(titulo)}</h1><p class="meta">Grupo DK Locadora · ${escapeHtml(new Date().toLocaleString("pt-BR"))} · ${rows.length} veículo(s)</p>
+${contador}
 <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
   }
 
   function buildPatrimonioExcelHtml(headers, rows, titulo) {
+    const docs = getDocumentos().slice();
+    const contador = buildContadorModeloAnoHtmlBloco(docs);
     const head = headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
     const body = rows
       .map((row) => {
@@ -812,7 +862,7 @@ REGRAS CRÍTICAS:
       })
       .join("");
     return `<html xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title></head>
-<body><h2>${escapeHtml(titulo)}</h2><table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+<body><h2>${escapeHtml(titulo)}</h2>${contador}<table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
   }
 
   function abrirRelatorioModal() {

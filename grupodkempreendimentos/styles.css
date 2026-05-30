@@ -3260,6 +3260,25 @@ table.validados-app .lnk-comprovante {
   min-height: 0;
 }
 
+.patrimonio-relatorio-contador {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-subtle, #333);
+  border-radius: 8px;
+  background: rgba(201, 162, 39, 0.08);
+}
+
+.patrimonio-relatorio-contador__lista {
+  margin: 0.35rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.patrimonio-relatorio-contador__lista li {
+  margin: 0.15rem 0;
+}
+
 .patrimonio-relatorio-export {
   display: flex;
   flex-wrap: wrap;

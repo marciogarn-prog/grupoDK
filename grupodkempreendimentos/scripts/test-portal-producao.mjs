@@ -67,6 +67,7 @@ async function main() {
         html.includes("panel-patrimonio-locadora") &&
         html.includes("patrimonioBtnNovoDoc") &&
         html.includes("patrimonioVerRelatorioBtn") &&
+        html.includes("patrimonioRelatorioContador") &&
         html.includes("patrimonioCameraCapturarBtn") &&
         html.includes("patrimonioCameraFlashBtn") &&
         html.includes("patrimonio-shutter") &&
