@@ -62,7 +62,15 @@ async function main() {
       html.includes("financeiroVerRelatorioBtn") &&
         html.includes("financeiroRelatorioModal") &&
         html.includes("financeiroFiltroCategoria") &&
+        html.includes("financeiroRelatorioPdfBtn") &&
+        html.includes("financeiroRelatorioExcelBtn") &&
         html.includes("quem_pagou")
+    );
+    record(
+      "financeiro PDF partilhar e-mail WhatsApp",
+      html.includes("portalPdfPartilharBtn") &&
+        html.includes("portalPdfPartilharEmailBtn") &&
+        html.includes("portalPdfPartilharWhatsAppBtn")
     );
     record(
       "financeiro fila múltiplas imagens",

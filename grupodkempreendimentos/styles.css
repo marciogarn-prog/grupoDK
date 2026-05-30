@@ -1624,7 +1624,43 @@ body {
 .portal-pdf-viewer__toolbar-btns {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.portal-pdf-viewer__share-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.portal-pdf-viewer__share-menu {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 10.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  background: #12151c;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.portal-pdf-viewer__share-menu.hidden {
+  display: none;
+}
+
+.portal-pdf-viewer__share-menu .btn-primary {
+  margin-top: 0;
+  width: 100%;
+}
+
+.financeiro-relatorio-acoes__lbl {
+  flex: 1 1 100%;
+  margin: 0;
 }
 
 .portal-pdf-viewer__iframe {

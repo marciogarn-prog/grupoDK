@@ -24,7 +24,7 @@
   <link rel="manifest" href="manifest-corporativo.webmanifest">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Corporativo">
-  <link rel="stylesheet" href="styles.css?v=20260522invalidar-fix">
+  <link rel="stylesheet" href="styles.css?v=20260521fin-relatorio-export">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect fill='%23c9a227' width='32' height='32' rx='6'/%3E%3Ctext x='16' y='22' text-anchor='middle' fill='%230c0f14' font-size='14' font-weight='bold' font-family='system-ui'%3EDK%3C/text%3E%3C/svg%3E">
 </head>
 <body>
@@ -1599,9 +1599,16 @@
 
   <div id="portalRelatorioPdfViewer" class="portal-pdf-viewer hidden" aria-hidden="true">
     <div class="portal-pdf-viewer__toolbar">
-      <span class="portal-pdf-viewer__hint">Pré-visualização do relatório &mdash; use o botão para imprimir ou guardar como PDF.</span>
+      <span class="portal-pdf-viewer__hint">Pré-visualização do relatório &mdash; imprima, guarde como PDF ou partilhe.</span>
       <div class="portal-pdf-viewer__toolbar-btns">
         <button type="button" class="btn-primary" id="portalPdfImprimirBtn">Imprimir ou guardar PDF</button>
+        <div class="portal-pdf-viewer__share-wrap">
+          <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfPartilharBtn" aria-expanded="false" aria-controls="portalPdfPartilharMenu">Partilhar</button>
+          <div id="portalPdfPartilharMenu" class="portal-pdf-viewer__share-menu hidden" role="menu" aria-label="Partilhar relatório">
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfPartilharEmailBtn" role="menuitem">E-mail</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfPartilharWhatsAppBtn" role="menuitem">WhatsApp</button>
+          </div>
+        </div>
         <button type="button" class="btn-primary btn-secondary-outline" id="portalPdfFecharViewerBtn">Fechar relatório</button>
       </div>
     </div>
@@ -1741,6 +1748,11 @@
         <button type="button" class="btn-primary" id="financeiroRelatorioAtualizarBtn">Atualizar relatório</button>
       </div>
       <p id="financeiroRelatorioPeriodoLbl" class="subtext financeiro-relatorio-periodo-lbl"></p>
+      <div id="financeiroRelatorioExportAcoes" class="financeiro-relatorio-acoes hidden" aria-hidden="true">
+        <span class="subtext financeiro-relatorio-acoes__lbl">Exportar relatório do período:</span>
+        <button type="button" class="btn-primary" id="financeiroRelatorioPdfBtn">Gerar PDF</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="financeiroRelatorioExcelBtn">Gerar Excel</button>
+      </div>
       <div id="financeiroRelatorioConteudo" class="financeiro-relatorio-conteudo" aria-live="polite"></div>
       <div class="portal-modal__actions">
         <button type="button" class="btn-primary btn-secondary-outline" data-close-fin-relatorio>Fechar</button>
@@ -1803,8 +1815,8 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260522clientes-loc" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521escape-voltar" defer></script>
-  <script src="portal-financeiro.js?v=20260521escape-voltar" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521fin-relatorio-export" defer></script>
+  <script src="portal-financeiro.js?v=20260521fin-relatorio-export" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260527financeiro-dedupe" defer></script>

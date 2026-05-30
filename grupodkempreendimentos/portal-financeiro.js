@@ -563,26 +563,346 @@
       </div>`;
   }
 
-  function renderRelatorioModalConteudo() {
-    if (!relatorioConteudo || !bancoAtivo) return;
+  const CATEGORIA_LABELS = {
+    resumo: "Resumo — entradas e saídas por dia, semana e mês",
+    entradas: "Total de entradas no período",
+    saidas: "Saídas no período",
+    clientes_repetidos: "Clientes repetidos (vários pagamentos)",
+    quem_pagou: "Quem pagou — cruzamento com cadastro",
+  };
+
+  let relatorioEstadoAtual = null;
+  const relatorioExportAcoes = document.getElementById("financeiroRelatorioExportAcoes");
+
+  function coletarEstadoRelatorio() {
     const de = String(filtroDe?.value || "").trim();
     const ate = String(filtroAte?.value || "").trim();
     const cat = String(filtroCategoria?.value || "resumo");
     const todos = todosMovimentosBanco(bancoAtivo);
     const movs = todos.filter((m) => movimentoNoPeriodo(m, de, ate));
+    return {
+      de,
+      ate,
+      cat,
+      catLabel: CATEGORIA_LABELS[cat] || cat,
+      banco: bancoAtivo,
+      bancoLabel: BANCOS[bancoAtivo] || bancoAtivo,
+      movs,
+      totalBase: todos.length,
+      hasData: movs.length > 0,
+    };
+  }
+
+  function aggRowsPlain(rows) {
+    return rows.map((r) => [
+      r.label,
+      currencyBRL(r.entrada),
+      currencyBRL(r.saida),
+      currencyBRL(r.entrada - r.saida),
+      String(r.qtd),
+    ]);
+  }
+
+  function buildRelatorioSections(estado) {
+    const { movs, cat } = estado;
+    const sections = [];
+    if (!movs.length) return sections;
+
+    if (cat === "resumo") {
+      const porDia = agregar(movs, dateKeyBr, (k) => {
+        const p = k.split("-");
+        return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : k;
+      });
+      const porSemana = agregar(movs, weekKeyFromBr, weekLabel);
+      const porMes = agregar(movs, monthKeyFromBr, monthLabel);
+      const aggHeaders = ["Período", "Entradas", "Saídas", "Saldo", "Qtd."];
+      if (porDia.length) {
+        sections.push({ title: "Por dia", headers: aggHeaders, rows: aggRowsPlain(porDia), numericCols: [1, 2, 3] });
+      }
+      if (porSemana.length) {
+        sections.push({
+          title: "Por semana (segunda a domingo)",
+          headers: aggHeaders,
+          rows: aggRowsPlain(porSemana),
+          numericCols: [1, 2, 3],
+        });
+      }
+      if (porMes.length) {
+        sections.push({ title: "Por mês", headers: aggHeaders, rows: aggRowsPlain(porMes), numericCols: [1, 2, 3] });
+      }
+    } else if (cat === "entradas") {
+      const ent = movs.filter((m) => m.tipo === "entrada");
+      const tot = ent.reduce((s, m) => s + m.valor, 0);
+      sections.push({
+        title: "Detalhe das entradas",
+        subtitle: `Total entradas: ${currencyBRL(tot)} (${ent.length} lançamento(s))`,
+        headers: ["Data", "Descrição", "Valor"],
+        rows: ent.map((m) => [m.data, m.descricao, currencyBRL(m.valor)]),
+        numericCols: [2],
+      });
+    } else if (cat === "saidas") {
+      const sai = movs.filter((m) => m.tipo === "saida");
+      const tot = sai.reduce((s, m) => s + m.valor, 0);
+      sections.push({
+        title: "Detalhe das saídas",
+        subtitle: `Total saídas: ${currencyBRL(tot)} (${sai.length} lançamento(s))`,
+        headers: ["Data", "Descrição", "Valor"],
+        rows: sai.map((m) => [m.data, m.descricao, currencyBRL(m.valor)]),
+        numericCols: [2],
+      });
+    } else if (cat === "clientes_repetidos") {
+      const map = new Map();
+      for (const m of movs.filter((x) => x.tipo === "entrada")) {
+        const { cpf, nome } = resolverPagador(m);
+        const chave = cpf || normNome(nome) || normNome(m.descricao);
+        if (!chave) continue;
+        if (!map.has(chave)) {
+          map.set(chave, { cpf, nome: nome || m.descricao, total: 0, qtd: 0, datas: [] });
+        }
+        const g = map.get(chave);
+        g.total += m.valor;
+        g.qtd += 1;
+        g.datas.push(m.data);
+      }
+      const reps = Array.from(map.values())
+        .filter((g) => g.qtd >= 2)
+        .sort((a, b) => b.total - a.total);
+      sections.push({
+        title: "Clientes repetidos",
+        subtitle: `Pagadores com 2 ou mais entradas no período (${reps.length}).`,
+        headers: ["Nome / histórico", "CPF", "Qtd.", "Total", "Datas"],
+        rows: reps.map((r) => [
+          r.nome,
+          r.cpf || "—",
+          String(r.qtd),
+          currencyBRL(r.total),
+          [...new Set(r.datas)].sort().join(", "),
+        ]),
+        numericCols: [3],
+      });
+    } else if (cat === "quem_pagou") {
+      const ent = movs.filter((m) => m.tipo === "entrada");
+      const linhas = ent.map((m) => {
+        const { cpf, nome } = resolverPagador(m);
+        const cad = buscarClienteCadastro(cpf, nome);
+        const statusTxt =
+          cad.status === "cadastrado"
+            ? "Cadastrado"
+            : cad.status === "nao_cadastrado"
+              ? "Não cadastrado"
+              : "—";
+        return {
+          data: m.data,
+          nomeExib: cad.nomeCadastro || nome || "—",
+          cpf: cpf || cad.cpf || "—",
+          descricao: m.descricao,
+          valor: m.valor,
+          statusTxt,
+        };
+      });
+      const totCad = linhas.filter((l) => l.statusTxt === "Cadastrado").length;
+      const totNao = linhas.filter((l) => l.statusTxt === "Não cadastrado").length;
+      sections.push({
+        title: "Quem pagou",
+        subtitle: `${ent.length} entrada(s): ${totCad} cadastrado(s), ${totNao} não cadastrado(s).`,
+        headers: ["Data", "Pagador", "CPF", "Valor", "Cadastro", "Histórico"],
+        rows: linhas.map((l) => [
+          l.data,
+          l.nomeExib,
+          l.cpf,
+          currencyBRL(l.valor),
+          l.statusTxt,
+          l.descricao,
+        ]),
+        numericCols: [3],
+      });
+    }
+    return sections;
+  }
+
+  function atualizarBotoesExportRelatorio(hasData) {
+    if (!relatorioExportAcoes) return;
+    relatorioExportAcoes.classList.toggle("hidden", !hasData);
+    relatorioExportAcoes.setAttribute("aria-hidden", hasData ? "false" : "true");
+    const pdfBtn = document.getElementById("financeiroRelatorioPdfBtn");
+    const xlsBtn = document.getElementById("financeiroRelatorioExcelBtn");
+    if (pdfBtn) pdfBtn.disabled = !hasData;
+    if (xlsBtn) xlsBtn.disabled = !hasData;
+  }
+
+  function brDateFilenameSegment(br) {
+    const t = String(br || "").trim();
+    const m = t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return `${m[1].padStart(2, "0")}-${m[2].padStart(2, "0")}-${m[3]}`;
+    return t.replace(/\//g, "-") || "periodo";
+  }
+
+  function nomeArquivoRelatorioFinanceiro(estado) {
+    const banco = String(estado.bancoLabel || "financeiro").replace(/\s+/g, " ").trim();
+    const de = brDateFilenameSegment(estado.de);
+    const ate = brDateFilenameSegment(estado.ate);
+    return `relatorio financeiro ${banco} ${de} ate ${ate}`.replace(/[<>:"/\\|?*]+/g, "").slice(0, 180);
+  }
+
+  function buildFinanceiroPdfDocumentHtml(estado, sections) {
+    const quando = new Date().toLocaleString("pt-BR");
+    const parteDe = estado.de || "início";
+    const parteAte = estado.ate || "fim";
+    const blocos = sections
+      .map((s) => {
+        const head = s.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("");
+        const body = (s.rows || [])
+          .map((row) => {
+            const tds = row
+              .map((c, i) => {
+                const align = s.numericCols?.includes(i) ? ' style="text-align:right"' : "";
+                return `<td${align}>${escapeHtml(String(c ?? ""))}</td>`;
+              })
+              .join("");
+            return `<tr>${tds}</tr>`;
+          })
+          .join("");
+        const subt = s.subtitle ? `<p class="meta">${escapeHtml(s.subtitle)}</p>` : "";
+        return `<h2>${escapeHtml(s.title)}</h2>${subt}<table><thead><tr>${head}</tr></thead><tbody>${body || `<tr><td colspan="${s.headers.length}">Nenhum registo.</td></tr>`}</tbody></table>`;
+      })
+      .join('<div style="height:14px"></div>');
+    const titulo = `Relatório financeiro — ${estado.bancoLabel}`;
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title><style>
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      h1{font-size:1.05rem;margin:0 0 0.35rem}
+      h2{font-size:0.95rem;margin:1rem 0 0.35rem;color:#333}
+      .meta{color:#444;margin:0.2rem 0 0.5rem;font-size:11px}
+      table{width:100%;border-collapse:collapse;margin-bottom:0.35rem}
+      th,td{border:1px solid #333;padding:5px 7px;text-align:left;vertical-align:top}
+      th{background:#eee;font-weight:600}
+    </style></head><body>
+      <h1>${escapeHtml(titulo)}</h1>
+      <p class="meta"><strong>${escapeHtml(estado.catLabel)}</strong></p>
+      <p class="meta">Período: ${escapeHtml(parteDe)} até ${escapeHtml(parteAte)} · ${escapeHtml(String(estado.movs.length))} lançamento(s) de ${escapeHtml(String(estado.totalBase))} na base</p>
+      <p class="meta">Emitido em ${escapeHtml(quando)} · Grupo DK Locadora</p>
+      ${blocos}
+    </body></html>`;
+  }
+
+  function buildFinanceiroExcelDocumentHtml(estado, sections) {
+    const parteDe = estado.de || "início";
+    const parteAte = estado.ate || "fim";
+    const titulo = `Relatório financeiro — ${estado.bancoLabel}`;
+    const meta = [
+      `<tr><td colspan="6"><strong>${escapeHtml(titulo)}</strong></td></tr>`,
+      `<tr><td colspan="6">${escapeHtml(estado.catLabel)}</td></tr>`,
+      `<tr><td colspan="6">Período: ${escapeHtml(parteDe)} até ${escapeHtml(parteAte)} · ${estado.movs.length} lançamento(s)</td></tr>`,
+      `<tr><td colspan="6"></td></tr>`,
+    ].join("");
+    const blocos = sections
+      .map((s) => {
+        const head = `<tr>${s.headers.map((h) => `<th>${escapeHtml(h)}</th>`).join("")}</tr>`;
+        const subt = s.subtitle ? `<tr><td colspan="${s.headers.length}">${escapeHtml(s.subtitle)}</td></tr>` : "";
+        const body = (s.rows || [])
+          .map((row) => `<tr>${row.map((c) => `<td>${escapeHtml(String(c ?? ""))}</td>`).join("")}</tr>`)
+          .join("");
+        return `<tr><td colspan="${s.headers.length}"><strong>${escapeHtml(s.title)}</strong></td></tr>${subt}${head}${body}<tr><td colspan="${s.headers.length}"></td></tr>`;
+      })
+      .join("");
+    return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel"><head><meta charset="utf-8"></head><body><table border="1">${meta}${blocos}</table></body></html>`;
+  }
+
+  function montarTextoShareFinanceiro(estado, sections) {
+    const parteDe = estado.de || "início";
+    const parteAte = estado.ate || "fim";
+    const linhas = [
+      `Relatório financeiro — ${estado.bancoLabel}`,
+      estado.catLabel,
+      `Período: ${parteDe} até ${parteAte}`,
+      `${estado.movs.length} lançamento(s) no período`,
+      "",
+    ];
+    for (const s of sections) {
+      linhas.push(s.title);
+      if (s.subtitle) linhas.push(s.subtitle);
+      if (s.rows?.length) {
+        linhas.push(`${s.rows.length} linha(s) no detalhe.`);
+      }
+      linhas.push("");
+    }
+    return linhas.join("\n").trim();
+  }
+
+  function emitFinanceiroRelatorioPdf() {
+    renderRelatorioModalConteudo();
+    const estado = relatorioEstadoAtual;
+    if (!estado?.hasData) {
+      window.alert("Nenhum movimento no período selecionado. Ajuste as datas ou atualize o relatório.");
+      return;
+    }
+    const sections = buildRelatorioSections(estado);
+    if (!sections.length) {
+      window.alert("Não há dados para exportar neste tipo de relatório.");
+      return;
+    }
+    const html = buildFinanceiroPdfDocumentHtml(estado, sections);
+    const fileBase = nomeArquivoRelatorioFinanceiro(estado);
+    const ctx = {
+      fileSlug: "financeiro-extrato",
+      title: `Relatório financeiro — ${estado.bancoLabel}`,
+      buildPdfHtml: () => html,
+      shareMeta: {
+        title: `Relatório financeiro — ${estado.bancoLabel}`,
+        bodyText: montarTextoShareFinanceiro(estado, sections),
+        fileBaseName: fileBase,
+      },
+    };
+    if (typeof window.__DK_emitPortalRelatorioPdf === "function") {
+      window.__DK_emitPortalRelatorioPdf(ctx);
+      return;
+    }
+    window.alert("Visualizador PDF indisponível. Recarregue a página.");
+  }
+
+  function emitFinanceiroRelatorioExcel() {
+    renderRelatorioModalConteudo();
+    const estado = relatorioEstadoAtual;
+    if (!estado?.hasData) {
+      window.alert("Nenhum movimento no período selecionado. Ajuste as datas ou atualize o relatório.");
+      return;
+    }
+    const sections = buildRelatorioSections(estado);
+    if (!sections.length) {
+      window.alert("Não há dados para exportar neste tipo de relatório.");
+      return;
+    }
+    const ctx = {
+      fileSlug: "financeiro-extrato",
+      title: `Relatório financeiro — ${estado.bancoLabel}`,
+      buildExcelHtml: () => buildFinanceiroExcelDocumentHtml(estado, sections),
+    };
+    if (typeof window.__DK_emitPortalRelatorioExcel === "function") {
+      window.__DK_emitPortalRelatorioExcel(ctx);
+      return;
+    }
+    window.alert("Exportação Excel indisponível. Recarregue a página.");
+  }
+
+  function renderRelatorioModalConteudo() {
+    if (!relatorioConteudo || !bancoAtivo) return;
+    const estado = coletarEstadoRelatorio();
+    relatorioEstadoAtual = estado;
 
     if (relatorioPeriodoLbl) {
-      const parteDe = de || "início";
-      const parteAte = ate || "fim";
-      relatorioPeriodoLbl.textContent = `Período: ${parteDe} até ${parteAte} · ${movs.length} de ${todos.length} lançamento(s)`;
+      const parteDe = estado.de || "início";
+      const parteAte = estado.ate || "fim";
+      relatorioPeriodoLbl.textContent = `Período: ${parteDe} até ${parteAte} · ${estado.movs.length} de ${estado.totalBase} lançamento(s)`;
     }
 
-    if (!movs.length) {
+    atualizarBotoesExportRelatorio(estado.hasData);
+
+    if (!estado.hasData) {
       relatorioConteudo.innerHTML =
         "<p class=\"subtext\">Nenhum movimento neste período. Ajuste as datas ou envie mais imagens.</p>";
       return;
     }
 
+    const { movs, cat } = estado;
     let html = "";
 
     if (cat === "resumo") {
@@ -691,6 +1011,7 @@
 
   function fecharRelatorioModal() {
     relatorioModal?.classList.add("hidden");
+    atualizarBotoesExportRelatorio(false);
   }
 
   function renderUploadsLista() {
@@ -1273,6 +1594,17 @@ Regras:
     verRelatorioBtn?.addEventListener("click", () => abrirRelatorioModal());
     document.getElementById("financeiroRelatorioAtualizarBtn")?.addEventListener("click", () => {
       renderRelatorioModalConteudo();
+    });
+    document.getElementById("financeiroRelatorioPdfBtn")?.addEventListener("click", () => {
+      emitFinanceiroRelatorioPdf();
+    });
+    document.getElementById("financeiroRelatorioExcelBtn")?.addEventListener("click", () => {
+      emitFinanceiroRelatorioExcel();
+    });
+    filtroCategoria?.addEventListener("change", () => {
+      if (relatorioModal && !relatorioModal.classList.contains("hidden")) {
+        renderRelatorioModalConteudo();
+      }
     });
     relatorioModal?.querySelectorAll("[data-close-fin-relatorio]").forEach((el) => {
       el.addEventListener("click", () => fecharRelatorioModal());

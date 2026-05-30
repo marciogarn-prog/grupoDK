@@ -3580,6 +3580,7 @@ ${printable.innerHTML}
       }
       portalLocacaoRelatorioPdfBlobUrl = "";
     }
+    hidePortalPdfShareMenu();
   }
 
   function clearRelatorioLocacaoSelectionClasses() {
@@ -4015,6 +4016,11 @@ ${printable.innerHTML}
           });
     html = applyPortalPdfDocumentTitle(html, getPortalRelatorioPdfSaveSuggestedBaseName(context));
     hideRelatorioLocacaoPdfViewer();
+    window.__DK_portalPdfShareMeta = context.shareMeta || {
+      title: context.title || "Relatório DK Locadora",
+      bodyText: "",
+      fileBaseName: getPortalRelatorioPdfSaveSuggestedBaseName(context),
+    };
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
     iframe.src = portalLocacaoRelatorioPdfBlobUrl;
@@ -5792,6 +5798,63 @@ ${printable.innerHTML}
   });
 
   document.getElementById("portalPdfFecharViewerBtn")?.addEventListener("click", () => hideRelatorioLocacaoPdfViewer());
+
+  function hidePortalPdfShareMenu() {
+    const menu = document.getElementById("portalPdfPartilharMenu");
+    const btn = document.getElementById("portalPdfPartilharBtn");
+    menu?.classList.add("hidden");
+    btn?.setAttribute("aria-expanded", "false");
+  }
+
+  function getPortalPdfShareText() {
+    const meta = window.__DK_portalPdfShareMeta;
+    if (meta?.bodyText) return String(meta.bodyText).trim();
+    try {
+      const iframe = document.getElementById("portalPdfIframe");
+      return String(iframe?.contentDocument?.body?.innerText || "").trim().slice(0, 4500);
+    } catch {
+      return "";
+    }
+  }
+
+  document.getElementById("portalPdfPartilharBtn")?.addEventListener("click", () => {
+    const menu = document.getElementById("portalPdfPartilharMenu");
+    const btn = document.getElementById("portalPdfPartilharBtn");
+    if (!menu) return;
+    const abrir = menu.classList.contains("hidden");
+    if (abrir) {
+      menu.classList.remove("hidden");
+      btn?.setAttribute("aria-expanded", "true");
+    } else {
+      hidePortalPdfShareMenu();
+    }
+  });
+
+  document.getElementById("portalPdfPartilharEmailBtn")?.addEventListener("click", () => {
+    const meta = window.__DK_portalPdfShareMeta || {};
+    const titulo = String(meta.title || "Relatório DK Locadora").trim();
+    const corpo =
+      getPortalPdfShareText() +
+      "\n\n(Guarde o PDF com «Imprimir ou guardar PDF» e anexe ao e-mail se necessário.)";
+    window.location.href = `mailto:?subject=${encodeURIComponent(titulo)}&body=${encodeURIComponent(corpo)}`;
+    hidePortalPdfShareMenu();
+  });
+
+  document.getElementById("portalPdfPartilharWhatsAppBtn")?.addEventListener("click", () => {
+    const meta = window.__DK_portalPdfShareMeta || {};
+    const titulo = String(meta.title || "Relatório DK Locadora").trim();
+    const texto =
+      `${titulo}\n\n${getPortalPdfShareText()}\n\n` +
+      "Guarde o PDF com «Imprimir ou guardar PDF» e envie o ficheiro no WhatsApp.";
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+    hidePortalPdfShareMenu();
+  });
+
+  document.addEventListener("click", (e) => {
+    const wrap = document.querySelector(".portal-pdf-viewer__share-wrap");
+    if (!wrap || wrap.contains(e.target)) return;
+    hidePortalPdfShareMenu();
+  });
 
   document.getElementById("portalPdfImprimirBtn")?.addEventListener("click", () => {
     const iframe = document.getElementById("portalPdfIframe");
@@ -10675,5 +10738,8 @@ ${printable.innerHTML}
       refreshPortalRelPlacaDatalist();
     })
   );
+
+  window.__DK_emitPortalRelatorioPdf = emitPortalRelatorioPdf;
+  window.__DK_emitPortalRelatorioExcel = emitPortalRelatorioExcel;
 })();
 
