@@ -1,32 +1,51 @@
 /**
  * Recorte automático da folha A4 + filtro scanner nítido (estilo CamScanner).
- * Distingue papel branco neutro de fundos coloridos (tecido rosa, mesa, etc.).
+ * Saída: só o CRLV branco, sem tecido/mesa (ex.: faixa rosa no topo).
  */
 (function portalPatrimonioScan() {
   const A4 = 210 / 297;
   const A4_OUT_W = 1240;
   const A4_OUT_H = 1754;
+  const SCAN_VERSION = 3;
 
   function clamp01(n) {
     return Math.max(0, Math.min(1, Number(n) || 0));
   }
 
-  /** Papel branco neutro — rejeita rosa, vermelho e outros fundos saturados. */
+  function isPinkOuSaturado(r, g, b) {
+    if (r > g + 10 && r > b + 6) return true;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    return max - min >= 28;
+  }
+
+  /** Papel branco neutro — rejeita rosa, vermelho e outros fundos. */
   function isPaperPixel(r, g, b) {
+    if (isPinkOuSaturado(r, g, b)) return false;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (gray < 165) return false;
-    if (max - min > 26) return false;
-    if (min < 148) return false;
+    if (gray < 168) return false;
+    if (max - min > 22) return false;
+    if (min < 152) return false;
     return true;
   }
 
   function isColorfulBackground(r, g, b) {
+    if (isPinkOuSaturado(r, g, b)) return true;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-    return gray >= 90 && max - min >= 32;
+    return gray >= 85 && max - min >= 26;
+  }
+
+  /** Após filtro scanner: branco puro ou texto escuro = conteúdo do documento. */
+  function isConteudoDocumentoPixel(r, g, b) {
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (isPinkOuSaturado(r, g, b)) return false;
+    if (gray >= 235) return true;
+    if (gray <= 95) return true;
+    return false;
   }
 
   function normalizarBox(box) {
@@ -56,41 +75,10 @@
     return 1 - Math.min(1, Math.abs(aspect - A4) / A4);
   }
 
-  function escolherMelhorBox(candidatos) {
-    let best = null;
-    let bestScore = 0;
-    for (const raw of candidatos) {
-      const box = normalizarBox(raw);
-      if (!box || recorteOcupaQuaseTudo(box)) continue;
-      const w = box.direita - box.esquerda;
-      const h = box.baixo - box.topo;
-      const area = w * h;
-      if (area < 0.12 || area > 0.88) continue;
-      const aspectScore = aspectoA4Score(box);
-      if (aspectScore < 0.55) continue;
-      const score = area * (0.25 + 0.75 * aspectScore);
-      if (score > bestScore) {
-        bestScore = score;
-        best = box;
-      }
-    }
-    return best;
-  }
-
   function ratioPapelNaLinha(data, w, y, x0, x1) {
     let count = 0;
     const total = Math.max(1, x1 - x0 + 1);
     for (let x = x0; x <= x1; x++) {
-      const i = (y * w + x) * 4;
-      if (isPaperPixel(data[i], data[i + 1], data[i + 2])) count++;
-    }
-    return count / total;
-  }
-
-  function ratioPapelNaColuna(data, w, h, x, y0, y1) {
-    let count = 0;
-    const total = Math.max(1, y1 - y0 + 1);
-    for (let y = y0; y <= y1; y++) {
       const i = (y * w + x) * 4;
       if (isPaperPixel(data[i], data[i + 1], data[i + 2])) count++;
     }
@@ -107,7 +95,27 @@
     return count / total;
   }
 
-  /** Ajusta bordas pelo contraste papel branco × fundo colorido/escuro. */
+  function ratioConteudoNaLinha(data, w, y, x0, x1) {
+    let count = 0;
+    const total = Math.max(1, x1 - x0 + 1);
+    for (let x = x0; x <= x1; x++) {
+      const i = (y * w + x) * 4;
+      if (isConteudoDocumentoPixel(data[i], data[i + 1], data[i + 2])) count++;
+    }
+    return count / total;
+  }
+
+  function ratioConteudoNaColuna(data, w, h, x, y0, y1) {
+    let count = 0;
+    const total = Math.max(1, y1 - y0 + 1);
+    for (let y = y0; y <= y1; y++) {
+      const i = (y * w + x) * 4;
+      if (isConteudoDocumentoPixel(data[i], data[i + 1], data[i + 2])) count++;
+    }
+    return count / total;
+  }
+
+  /** Topo do documento: primeira linha com papel sem faixa rosa acima. */
   function refinarRecorteDocumento(data, w, h, box) {
     const b = normalizarBox(box);
     if (!b) return box;
@@ -117,33 +125,37 @@
     let minY = Math.max(0, Math.floor(b.topo * h));
     let maxY = Math.min(h - 1, Math.ceil(b.baixo * h));
 
-    const rowMin = 0.2;
-    const rowStrong = 0.34;
-    const colMin = 0.18;
+    const rowMin = 0.22;
+    const rowStrong = 0.38;
 
-    for (let y = 0; y < h - 4; y++) {
-      const r0 = ratioPapelNaLinha(data, w, y, minX, maxX);
-      const r1 = ratioPapelNaLinha(data, w, y + 1, minX, maxX);
-      const r2 = ratioPapelNaLinha(data, w, y + 2, minX, maxX);
-      const r3 = ratioPapelNaLinha(data, w, y + 3, minX, maxX);
-      const avg = (r0 + r1 + r2 + r3) / 4;
-      if (r0 >= rowMin && r1 >= rowMin && r2 >= rowMin && avg >= rowStrong) {
+    for (let y = 0; y < h - 6; y++) {
+      if (ratioColoridoNaLinha(data, w, y, minX, maxX) > 0.06) continue;
+      let ok = 0;
+      for (let k = 0; k < 6; k++) {
+        const yy = y + k;
+        if (ratioColoridoNaLinha(data, w, yy, minX, maxX) > 0.05) break;
+        if (ratioPapelNaLinha(data, w, yy, minX, maxX) >= rowMin) ok++;
+      }
+      if (ok >= 5) {
         minY = y;
         break;
       }
     }
 
-    for (let y = h - 1; y >= 3; y--) {
-      const r0 = ratioPapelNaLinha(data, w, y, minX, maxX);
-      const r1 = ratioPapelNaLinha(data, w, y - 1, minX, maxX);
-      const r2 = ratioPapelNaLinha(data, w, y - 2, minX, maxX);
-      const avg = (r0 + r1 + r2) / 3;
-      if (r0 >= rowMin && r1 >= rowMin && avg >= rowStrong) {
+    for (let y = h - 1; y >= 5; y--) {
+      if (ratioColoridoNaLinha(data, w, y, minX, maxX) > 0.06) continue;
+      let ok = 0;
+      for (let k = 0; k < 5; k++) {
+        const yy = y - k;
+        if (ratioPapelNaLinha(data, w, yy, minX, maxX) >= rowMin) ok++;
+      }
+      if (ok >= 4) {
         maxY = y;
         break;
       }
     }
 
+    const colMin = 0.2;
     for (let x = 0; x < w - 4; x++) {
       const c0 = ratioPapelNaColuna(data, w, h, x, minY, maxY);
       const c1 = ratioPapelNaColuna(data, w, h, x + 1, minY, maxY);
@@ -164,15 +176,8 @@
       }
     }
 
-    const bandRows = Math.max(4, Math.round((maxY - minY) * 0.035));
-    for (let y = minY; y < minY + bandRows && y <= maxY; y++) {
-      if (ratioColoridoNaLinha(data, w, y, minX, maxX) > 0.12) {
-        minY = Math.min(maxY - 10, y + 1);
-      }
-    }
-
-    const padX = Math.round((maxX - minX) * 0.008);
-    const padY = Math.round((maxY - minY) * 0.008);
+    const padX = Math.round((maxX - minX) * 0.006);
+    const padY = Math.round((maxY - minY) * 0.006);
     minX = Math.max(0, minX + padX);
     maxX = Math.min(w - 1, maxX - padX);
     minY = Math.max(0, minY + padY);
@@ -186,20 +191,14 @@
     };
   }
 
-  function recorteTemFaixaColoridaTopo(data, w, h, box) {
-    const b = normalizarBox(box);
-    if (!b) return true;
-    const x0 = Math.floor(b.esquerda * w);
-    const x1 = Math.ceil(b.direita * w);
-    const y0 = Math.floor(b.topo * h);
-    const band = Math.max(5, Math.round((b.baixo - b.topo) * h * 0.06));
-    let colorful = 0;
-    let total = 0;
-    for (let y = y0; y < Math.min(h, y0 + band); y++) {
-      colorful += ratioColoridoNaLinha(data, w, y, x0, x1);
-      total++;
+  function ratioPapelNaColuna(data, w, h, x, y0, y1) {
+    let count = 0;
+    const total = Math.max(1, y1 - y0 + 1);
+    for (let y = y0; y <= y1; y++) {
+      const i = (y * w + x) * 4;
+      if (isPaperPixel(data[i], data[i + 1], data[i + 2])) count++;
     }
-    return total > 0 && colorful / total > 0.08;
+    return count / total;
   }
 
   function detectarFolhaBrancaEmCanvas(data, w, h) {
@@ -222,10 +221,10 @@
       }
     }
 
-    if (count < w * h * 0.05) return null;
+    if (count < w * h * 0.04) return null;
     const bw = maxX - minX + 1;
     const bh = maxY - minY + 1;
-    if (bw < w * 0.18 || bh < h * 0.18) return null;
+    if (bw < w * 0.15 || bh < h * 0.15) return null;
 
     const rough = {
       esquerda: minX / w,
@@ -236,32 +235,20 @@
     return refinarRecorteDocumento(data, w, h, rough);
   }
 
-  async function detectarFolhaBranca(dataUrl) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxSide = 960;
-        let w = img.width;
-        let h = img.height;
-        const scale = Math.min(1, maxSide / Math.max(w, h));
-        w = Math.max(1, Math.round(w * scale));
-        h = Math.max(1, Math.round(h * scale));
-        const canvas = document.createElement("canvas");
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext("2d", { willReadFrequently: true });
-        if (!ctx) {
-          resolve(null);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, w, h);
-        const { data } = ctx.getImageData(0, 0, w, h);
-        const box = detectarFolhaBrancaEmCanvas(data, w, h);
-        resolve(box);
-      };
-      img.onerror = () => resolve(null);
-      img.src = dataUrl;
-    });
+  function recorteTemFaixaColoridaTopo(data, w, h, box) {
+    const b = normalizarBox(box);
+    if (!b) return true;
+    const x0 = Math.floor(b.esquerda * w);
+    const x1 = Math.ceil(b.direita * w);
+    const y0 = Math.floor(b.topo * h);
+    const band = Math.max(6, Math.round((b.baixo - b.topo) * h * 0.05));
+    let colorful = 0;
+    let total = 0;
+    for (let y = y0; y < Math.min(h, y0 + band); y++) {
+      colorful += ratioColoridoNaLinha(data, w, y, x0, x1);
+      total++;
+    }
+    return total > 0 && colorful / total > 0.05;
   }
 
   function recorteValido(box, data, w, h) {
@@ -351,16 +338,86 @@
     return canvas.toDataURL("image/jpeg", 0.94);
   }
 
+  /** Remove faixas rosa/mesa ainda visíveis após recorte (imagem já em A4). */
+  async function apararMargensSemDocumento(dataUrl) {
+    const img = await loadImage(dataUrl).catch(() => null);
+    if (!img) return dataUrl;
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, 0, 0);
+    const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+    let top = 0;
+    let bottom = height - 1;
+    let left = 0;
+    let right = width - 1;
+
+    function linhaValida(y) {
+      if (ratioColoridoNaLinha(data, width, y, 0, width - 1) > 0.04) return false;
+      return ratioConteudoNaLinha(data, width, y, 0, width - 1) >= 0.52;
+    }
+
+    function colunaValida(x) {
+      return ratioConteudoNaColuna(data, width, height, x, top, bottom) >= 0.48;
+    }
+
+    while (top < bottom - 20 && !linhaValida(top)) top++;
+    while (bottom > top + 20 && !linhaValida(bottom)) bottom--;
+    while (left < right - 20 && !colunaValida(left)) left++;
+    while (right > left + 20 && !colunaValida(right)) right--;
+
+    const cw = right - left + 1;
+    const ch = bottom - top + 1;
+    if (cw < width * 0.55 || ch < height * 0.55) return dataUrl;
+
+    const out = document.createElement("canvas");
+    out.width = A4_OUT_W;
+    out.height = A4_OUT_H;
+    const octx = out.getContext("2d");
+    if (!octx) return dataUrl;
+    octx.fillStyle = "#ffffff";
+    octx.fillRect(0, 0, A4_OUT_W, A4_OUT_H);
+    octx.imageSmoothingEnabled = true;
+    octx.imageSmoothingQuality = "high";
+    octx.drawImage(canvas, left, top, cw, ch, 0, 0, A4_OUT_W, A4_OUT_H);
+    return out.toDataURL("image/jpeg", 0.95);
+  }
+
+  async function analisarImagem(dataUrl) {
+    const img = await loadImage(dataUrl).catch(() => null);
+    if (!img) return null;
+    const maxSide = 1200;
+    let w = img.width;
+    let h = img.height;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    w = Math.max(1, Math.round(w * scale));
+    h = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0, w, h);
+    const { data } = ctx.getImageData(0, 0, w, h);
+    return { data, w, h };
+  }
+
+  async function detectarFolhaBranca(dataUrl) {
+    const analise = await analisarImagem(dataUrl);
+    if (!analise) return null;
+    return detectarFolhaBrancaEmCanvas(analise.data, analise.w, analise.h);
+  }
+
   async function chamarIaRecorte(dataUrl) {
     const m = String(dataUrl || "").match(/^data:([^;]+);base64,(.+)$/);
     if (!m) return null;
-    const prompt = `Foto de CRLV-e (folha A4 branca com moldura preta) sobre fundo colorido ou escuro (tecido rosa/vermelho, mesa, etc.).
+    const prompt = `Foto de CRLV-e (folha A4 branca com moldura preta) sobre fundo colorido (tecido rosa, mesa, etc.).
 
-Detecte a caixa EXATA da folha branca do documento — como scan CamScanner: só o retângulo branco do CRLV, sem NENHUM fundo colorido acima, abaixo ou nas laterais.
-
-EXCLUA totalmente tecido, mesa, mãos, sombras externas e qualquer área rosa/vermelha/azul fora do papel.
-
-Coordenadas normalizadas 0–1 (esquerda, topo, direita, baixo).
+Detecte a caixa EXATA da folha branca — só o retângulo do CRLV, estilo scan CamScanner/PDF. ZERO fundo rosa/vermelho/azul acima ou ao redor.
 
 JSON apenas:
 {"recorte":{"esquerda":0.0,"topo":0.0,"direita":1.0,"baixo":1.0}}`;
@@ -387,28 +444,16 @@ JSON apenas:
     return null;
   }
 
-  async function analisarImagem(dataUrl) {
-    const img = await loadImage(dataUrl).catch(() => null);
-    if (!img) return null;
-    const maxSide = 960;
-    let w = img.width;
-    let h = img.height;
-    const scale = Math.min(1, maxSide / Math.max(w, h));
-    w = Math.max(1, Math.round(w * scale));
-    h = Math.max(1, Math.round(h * scale));
-    const canvas = document.createElement("canvas");
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return null;
-    ctx.drawImage(img, 0, 0, w, h);
-    const { data } = ctx.getImageData(0, 0, w, h);
-    return { data, w, h };
-  }
-
   async function tratarDocumentoCrlv(dataUrl, opts) {
     const usarIa = opts?.usarIa !== false;
+    const soAparar = opts?.soAparar === true;
     try {
+      if (soAparar) {
+        let imagem = await aplicarFiltroScanner(dataUrl);
+        imagem = await apararMargensSemDocumento(imagem);
+        return { ok: true, imagem, box: null, scanVersion: SCAN_VERSION };
+      }
+
       const analise = await analisarImagem(dataUrl);
       let box = analise ? detectarFolhaBrancaEmCanvas(analise.data, analise.w, analise.h) : await detectarFolhaBranca(dataUrl);
 
@@ -426,13 +471,14 @@ JSON apenas:
           box = refinarRecorteDocumento(analise.data, analise.w, analise.h, box);
         }
         if (!box || recorteOcupaQuaseTudo(box)) {
-          box = { esquerda: 0.08, topo: 0.1, direita: 0.92, baixo: 0.96 };
+          box = { esquerda: 0.06, topo: 0.12, direita: 0.94, baixo: 0.98 };
         }
       }
 
       let imagem = await recortarParaA4(dataUrl, box);
       imagem = await aplicarFiltroScanner(imagem);
-      return { ok: true, imagem, box };
+      imagem = await apararMargensSemDocumento(imagem);
+      return { ok: true, imagem, box, scanVersion: SCAN_VERSION };
     } catch (e) {
       return { ok: false, imagem: dataUrl, box: null, msg: String(e?.message || e) };
     }
@@ -440,4 +486,5 @@ JSON apenas:
 
   window.__DK_patrimonioTratarDocumento = tratarDocumentoCrlv;
   window.__DK_patrimonioDetectarFolha = detectarFolhaBranca;
+  window.__DK_patrimonioScanVersion = SCAN_VERSION;
 })();

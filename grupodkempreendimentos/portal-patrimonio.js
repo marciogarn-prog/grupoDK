@@ -4,6 +4,7 @@
  */
 (function portalPatrimonio() {
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
+  const PATRIMONIO_SCAN_VERSAO = 3;
 
   const CAMPOS_ORDEM = [
     { key: "codigoRenavam", label: "Código RENAVAM" },
@@ -619,10 +620,12 @@ REGRAS CRÍTICAS:
         return;
       }
       const imagemGuardar = await comprimirImagemLimite(imagemTratada, 1600, 320000, 0.88);
+      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
       const doc = {
         ...campos,
         id: newId(),
         imagemRecortada: imagemGuardar,
+        imagemScanVersao: scanV,
         processadoEm: new Date().toISOString(),
         cadastradoEm: new Date().toISOString(),
       };
@@ -1111,6 +1114,50 @@ ${contador}
     renderLista();
   }
 
+  let migracaoScanEmCurso = false;
+
+  async function migrarImagensPatrimonioScan() {
+    if (migracaoScanEmCurso) return;
+    if (typeof window.__DK_patrimonioTratarDocumento !== "function") return;
+    const alvo = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
+    const store = loadStore();
+    const pendentes = store.documentos.filter(
+      (d) => d?.imagemRecortada && Number(d.imagemScanVersao || 0) < alvo
+    );
+    if (!pendentes.length) return;
+
+    migracaoScanEmCurso = true;
+    setMsg(`A ajustar ${pendentes.length} imagem(ns) ao padrão CRLV (sem fundo)…`, false);
+    let alterou = false;
+
+    try {
+      for (const d of pendentes) {
+        const entrada = d.imagemRecortada;
+        let r = await window.__DK_patrimonioTratarDocumento(entrada, { usarIa: false });
+        if (!r?.ok || !r.imagem) {
+          r = await window.__DK_patrimonioTratarDocumento(entrada, { soAparar: true });
+        }
+        if (r?.ok && r.imagem) {
+          d.imagemRecortada = await comprimirImagemLimite(r.imagem, 1600, 320000, 0.88);
+          d.imagemScanVersao = alvo;
+          d.imagemAtualizadaEm = new Date().toISOString();
+          alterou = true;
+        }
+      }
+      if (alterou) {
+        saveStore(store);
+        setMsg("Imagens ajustadas ao padrão CRLV (só folha branca).", false, true);
+        renderLista();
+      } else {
+        setMsg("", false);
+      }
+    } catch {
+      setMsg("", false);
+    } finally {
+      migracaoScanEmCurso = false;
+    }
+  }
+
   function onShowPatrimonio() {
     if (typeof window.__DK_isPortalTitularAdministrador === "function") {
       if (!window.__DK_isPortalTitularAdministrador()) {
@@ -1122,6 +1169,7 @@ ${contador}
     saveStore(store);
     void refreshOpenAIStatus();
     renderLista();
+    void migrarImagensPatrimonioScan();
   }
 
   function escapeBackPatrimonio() {

@@ -79,15 +79,17 @@ async function main() {
         html.includes("portal-patrimonio.js")
     );
     const scanJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-scan.js?v=20260531crop-v2", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio-scan.js?v=20260531scan-v3", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "recorte CRLV exclui fundo colorido",
-      scanJs.includes("isPaperPixel") && scanJs.includes("refinarRecorteDocumento") && scanJs.includes("isColorfulBackground")
+      scanJs.includes("isPinkOuSaturado") &&
+        scanJs.includes("apararMargensSemDocumento") &&
+        scanJs.includes("SCAN_VERSION")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531id-unica", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531scan-v3", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -99,7 +101,8 @@ async function main() {
         patJs.includes("resolverPlacaMercosul") &&
         patJs.includes("sanitizarDocumentoPatrimonio") &&
         patJs.includes("chavesIdentidadePatrimonio") &&
-        patJs.includes("docMesmaIdentidade")
+        patJs.includes("docMesmaIdentidade") &&
+        patJs.includes("migrarImagensPatrimonioScan")
     );
     const placaMercosulOk = await page.evaluate(() => ({
       fn: typeof window.isPlacaMercosul === "function",
