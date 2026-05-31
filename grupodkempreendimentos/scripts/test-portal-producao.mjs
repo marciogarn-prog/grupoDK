@@ -79,17 +79,18 @@ async function main() {
         html.includes("portal-patrimonio.js")
     );
     const scanJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-scan.js?v=20260531scan-v3", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio-scan.js?v=20260531scan-v4", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "recorte CRLV exclui fundo colorido",
-      scanJs.includes("isPinkOuSaturado") &&
-        scanJs.includes("apararMargensSemDocumento") &&
-        scanJs.includes("SCAN_VERSION")
+      scanJs.includes("isTecidoOuRosa") &&
+        scanJs.includes("encontrarLimitesDocumentoCrlv") &&
+        scanJs.includes("retocarImagemArmazenada") &&
+        scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531scan-v3", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531scan-v4", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(

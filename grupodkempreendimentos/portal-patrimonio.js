@@ -4,7 +4,7 @@
  */
 (function portalPatrimonio() {
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
-  const PATRIMONIO_SCAN_VERSAO = 3;
+  const PATRIMONIO_SCAN_VERSAO = 4;
 
   const CAMPOS_ORDEM = [
     { key: "codigoRenavam", label: "Código RENAVAM" },
@@ -819,10 +819,30 @@ REGRAS CRÍTICAS:
     return getDocumentos().find((d) => d.id === id) || null;
   }
 
-  function abrirViewerImagem(id) {
+  async function abrirViewerImagem(id) {
     const doc = getDocById(id);
-    const url = doc?.imagemRecortada;
+    let url = doc?.imagemRecortada;
     if (!url || !imagemViewer || !imagemViewerImg) return;
+
+    if (typeof window.__DK_patrimonioRetocarImagem === "function") {
+      try {
+        const retocada = await window.__DK_patrimonioRetocarImagem(url);
+        if (retocada && retocada !== url) {
+          url = retocada;
+          const store = loadStore();
+          const idx = store.documentos.findIndex((d) => d.id === id);
+          if (idx >= 0) {
+            store.documentos[idx].imagemRecortada = await comprimirImagemLimite(url, 1600, 320000, 0.88);
+            store.documentos[idx].imagemScanVersao = PATRIMONIO_SCAN_VERSAO;
+            store.documentos[idx].imagemAtualizadaEm = new Date().toISOString();
+            saveStore(store);
+          }
+        }
+      } catch {
+        /* mostrar original */
+      }
+    }
+
     imagemViewerImg.src = url;
     imagemViewer.dataset.patId = id;
     imagemViewer.classList.remove("hidden");
@@ -1133,12 +1153,19 @@ ${contador}
     try {
       for (const d of pendentes) {
         const entrada = d.imagemRecortada;
-        let r = await window.__DK_patrimonioTratarDocumento(entrada, { usarIa: false });
-        if (!r?.ok || !r.imagem) {
-          r = await window.__DK_patrimonioTratarDocumento(entrada, { soAparar: true });
+        const fn =
+          typeof window.__DK_patrimonioRetocarImagem === "function"
+            ? window.__DK_patrimonioRetocarImagem
+            : null;
+        let nova = null;
+        if (fn) {
+          nova = await fn(entrada);
+        } else {
+          const r = await window.__DK_patrimonioTratarDocumento(entrada, { retocarArmazenada: true });
+          nova = r?.ok ? r.imagem : null;
         }
-        if (r?.ok && r.imagem) {
-          d.imagemRecortada = await comprimirImagemLimite(r.imagem, 1600, 320000, 0.88);
+        if (nova && nova !== entrada) {
+          d.imagemRecortada = await comprimirImagemLimite(nova, 1600, 320000, 0.88);
           d.imagemScanVersao = alvo;
           d.imagemAtualizadaEm = new Date().toISOString();
           alterou = true;
