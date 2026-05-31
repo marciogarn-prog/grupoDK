@@ -161,9 +161,82 @@
   const PLACA_MERCOSUL_RE = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
 
   function placaValida(p) {
-    const x = normPlaca(p);
-    if (typeof window.isPlacaMercosul === "function") return window.isPlacaMercosul(x);
-    return PLACA_MERCOSUL_RE.test(x);
+    return Boolean(resolverPlacaMercosul(p));
+  }
+
+  function resolverPlacaMercosul(raw) {
+    const x = normPlaca(raw);
+    if (typeof window.corrigirPlacaMercosul === "function") {
+      const c = window.corrigirPlacaMercosul(x);
+      if (c) return c;
+    }
+    if (typeof window.isPlacaMercosul === "function" && window.isPlacaMercosul(x)) return x;
+    return PLACA_MERCOSUL_RE.test(x) ? x : "";
+  }
+
+  function sanitizarDocumentoPatrimonio(d) {
+    if (!d || typeof d !== "object") return null;
+    const placa = resolverPlacaMercosul(d.placaNorm || d.placa);
+    if (!placa) return null;
+    return { ...d, placa, placaNorm: placa };
+  }
+
+  /** Uma placa = um registro; chassi igual = mesmo veículo (foto mais recente). */
+  function deduplicarDocumentos(documentos) {
+    const list = (documentos || [])
+      .map(sanitizarDocumentoPatrimonio)
+      .filter(Boolean);
+
+    function pickNewer(a, b) {
+      return docMs(a) >= docMs(b) ? a : b;
+    }
+
+    const byPlaca = new Map();
+    for (const d of list) {
+      const p = d.placa;
+      const cur = byPlaca.get(p);
+      byPlaca.set(p, cur ? pickNewer(cur, d) : d);
+    }
+
+    let docs = Array.from(byPlaca.values());
+
+    const byRenavam = new Map();
+    for (const d of docs) {
+      const r = onlyDigits(d.codigoRenavam);
+      if (r.length !== 11) {
+        byRenavam.set(`id:${d.id || Math.random()}`, d);
+        continue;
+      }
+      const cur = byRenavam.get(r);
+      byRenavam.set(r, cur ? pickNewer(cur, d) : d);
+    }
+    docs = Array.from(byRenavam.values());
+
+    const byChassi = new Map();
+    for (const d of docs) {
+      const c = String(d.chassi || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      if (c.length !== 17) {
+        byChassi.set(`id:${d.id || Math.random()}`, d);
+        continue;
+      }
+      const cur = byChassi.get(c);
+      byChassi.set(c, cur ? pickNewer(cur, d) : d);
+    }
+    return Array.from(byChassi.values());
+  }
+
+  function loadStore() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      let documentos = [];
+      if (Array.isArray(raw.documentos)) documentos = raw.documentos;
+      else if (Array.isArray(raw)) documentos = raw;
+      return { documentos: deduplicarDocumentos(documentos) };
+    } catch {
+      return { documentos: [] };
+    }
   }
 
   function dataBrValida(s) {
@@ -195,46 +268,6 @@
     return 0;
   }
 
-  /** Uma placa = um registro; chassi igual = mesmo veículo (foto mais recente). */
-  function deduplicarDocumentos(documentos) {
-    const list = (documentos || []).filter((d) => d && typeof d === "object");
-    const byPlaca = new Map();
-    for (const d of list) {
-      const p = normPlaca(d.placaNorm || d.placa);
-      if (!p) continue;
-      const cur = byPlaca.get(p);
-      if (!cur || docMs(d) >= docMs(cur)) {
-        byPlaca.set(p, { ...d, placa: p, placaNorm: p });
-      }
-    }
-    const porPlaca = Array.from(byPlaca.values());
-    const byChassi = new Map();
-    for (const d of porPlaca) {
-      const c = String(d.chassi || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
-      if (c.length !== 17) {
-        byChassi.set(`id:${d.id || Math.random()}`, d);
-        continue;
-      }
-      const cur = byChassi.get(c);
-      if (!cur || docMs(d) >= docMs(cur)) byChassi.set(c, d);
-    }
-    return Array.from(byChassi.values());
-  }
-
-  function loadStore() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-      let documentos = [];
-      if (Array.isArray(raw.documentos)) documentos = raw.documentos;
-      else if (Array.isArray(raw)) documentos = raw;
-      return { documentos: deduplicarDocumentos(documentos) };
-    } catch {
-      return { documentos: [] };
-    }
-  }
-
   function saveStore(store) {
     const documentos = deduplicarDocumentos(store?.documentos || []);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ documentos }));
@@ -248,8 +281,13 @@
   }
 
   function upsertDocumento(doc) {
-    const placa = normPlaca(doc.placa);
-    if (!placa) return { ok: false, erro: "Placa não identificada na IA. Tente outra foto." };
+    const placa = resolverPlacaMercosul(doc.placa);
+    if (!placa) {
+      return {
+        ok: false,
+        erro: "Placa inválida (padrão LLLNLNN). Confira nitidez e fotografe de novo.",
+      };
+    }
     const store = loadStore();
     const antigo = store.documentos.find((d) => normPlaca(d.placa) === placa);
     const docs = store.documentos.filter((d) => normPlaca(d.placa) !== placa);
@@ -381,7 +419,7 @@ REGRAS CRÍTICAS:
 - Só use "aprovado": true e "confianca": "alta" se TODOS os campos obrigatórios estiverem 100% legíveis e corretos.
 - NÃO invente dígitos. Diferencie 0/O, 1/I/l, 8/B, 5/S, 2/Z.
 - codigoRenavam: exatamente 11 dígitos.
-- placa: exatamente 7 caracteres no padrão Mercosul LLLNLNN (3 letras + 1 número + 1 letra + 2 números), ex.: SOX2A84. Proibido formato antigo LLLNNNN (4 números no fim).
+- placa: exatamente LLLNLNN — posição 4 = NÚMERO, posição 5 = LETRA, posições 6-7 = NÚMEROS (ex.: SOX2A84). Proibido LLLLNNN (ex.: SOXA284). Diferencie 2 de A, 0 de O, 8 de B.
 - chassi: exatamente 17 caracteres alfanuméricos.
 - codigoSegurancaCla: 11 dígitos.
 - data: DD/MM/AAAA do campo Local/Data.
@@ -510,7 +548,9 @@ REGRAS CRÍTICAS:
     for (const { key } of CAMPOS_ORDEM) {
       out[key] = String(c[key] ?? c[key.replace(/([A-Z])/g, "_$1").toLowerCase()] ?? "").trim();
     }
-    if (out.placa) out.placa = normPlaca(out.placa);
+    if (out.placa) {
+      out.placa = resolverPlacaMercosul(out.placa) || normPlaca(out.placa);
+    }
     if (out.chassi) {
       out.chassi = String(out.chassi)
         .toUpperCase()

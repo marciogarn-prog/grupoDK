@@ -87,7 +87,7 @@ async function main() {
       scanJs.includes("isPaperPixel") && scanJs.includes("refinarRecorteDocumento") && scanJs.includes("isColorfulBackground")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531placa-llnlnn", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531placa-ocr", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -95,7 +95,9 @@ async function main() {
       patJs.includes("deduplicarDocumentos") &&
         patJs.includes("imagemAtualizadaEm") &&
         patJs.includes("comprimirImagemLimite") &&
-        patJs.includes("PLACA_MERCOSUL_RE")
+        patJs.includes("PLACA_MERCOSUL_RE") &&
+        patJs.includes("resolverPlacaMercosul") &&
+        patJs.includes("sanitizarDocumentoPatrimonio")
     );
     const placaMercosulOk = await page.evaluate(() => ({
       fn: typeof window.isPlacaMercosul === "function",
@@ -103,12 +105,16 @@ async function main() {
         window.isPlacaMercosul("SOX2A84") &&
         window.isPlacaMercosul("ABC1D23") &&
         !window.isPlacaMercosul("ABC1234") &&
-        !window.isPlacaMercosul("JRB5376"),
+        !window.isPlacaMercosul("JRB5376") &&
+        !window.isPlacaMercosul("SOXA284"),
+      ocr:
+        typeof window.corrigirPlacaMercosul === "function" &&
+        window.corrigirPlacaMercosul("SOXA284") === "SOX2A84",
     }));
     record(
       "placa Mercosul LLLNLNN único padrão",
-      placaMercosulOk.fn && placaMercosulOk.ok,
-      placaMercosulOk.ok ? "SOX2A84 ok, ABC1234 rejeitada" : "validação"
+      placaMercosulOk.fn && placaMercosulOk.ok && placaMercosulOk.ocr,
+      placaMercosulOk.ocr ? "SOXA284→SOX2A84" : "validação"
     );
     record(
       "portal conferência operador (texto)",

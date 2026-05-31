@@ -4071,6 +4071,46 @@ function placaMercosulOuVazio(value) {
   return isPlacaMercosul(p) ? p : "";
 }
 
+/** Corrige leitura IA (ex.: SOXA284 → SOX2A84) e devolve "" se não for LLLNLNN. */
+function corrigirPlacaMercosul(value) {
+  const x = normalizePlate(value);
+  if (!x || x.length !== 7) return "";
+  if (isPlacaMercosul(x)) return x;
+
+  const trocaPos45 = x.slice(0, 3) + x[4] + x[3] + x.slice(5);
+  if (isPlacaMercosul(trocaPos45)) return trocaPos45;
+
+  const paresOcr = [
+    ["0", "O"],
+    ["O", "0"],
+    ["1", "I"],
+    ["I", "1"],
+    ["2", "Z"],
+    ["Z", "2"],
+    ["5", "S"],
+    ["S", "5"],
+    ["8", "B"],
+    ["B", "8"],
+    ["6", "G"],
+    ["G", "6"],
+    ["4", "A"],
+    ["A", "4"],
+  ];
+  const bases = [x, trocaPos45];
+  const idxMerc = [3, 4, 5, 6];
+  for (const base of bases) {
+    if (base.length !== 7) continue;
+    for (const i of idxMerc) {
+      for (const [de, para] of paresOcr) {
+        if (base[i] !== de) continue;
+        const cand = base.slice(0, i) + para + base.slice(i + 1);
+        if (isPlacaMercosul(cand)) return cand;
+      }
+    }
+  }
+  return "";
+}
+
 function nextTagByTipo(tipo, veiculos) {
   const prefix = tipo === "CARRO" ? "DKCR" : "DKMT";
   let maxNum = 0;
@@ -15740,6 +15780,7 @@ normalizeCurrencyMaskValues();
 window.formatDateMask = formatDateMask;
 window.isPlacaMercosul = isPlacaMercosul;
 window.placaMercosulOuVazio = placaMercosulOuVazio;
+window.corrigirPlacaMercosul = corrigirPlacaMercosul;
 window.normalizePlate = normalizePlate;
 window.isDkDateFieldInput = isDkDateFieldInput;
 window.formatCurrencyMask = formatCurrencyMask;
