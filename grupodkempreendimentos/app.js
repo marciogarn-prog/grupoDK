@@ -4058,6 +4058,19 @@ function normalizePlate(value) {
   return normalizeKey(value).replace(/[^A-Z0-9]/g, "");
 }
 
+/** Placa Mercosul: LLLNLNN — 3 letras + 1 número + 1 letra + 2 números (único padrão aceite). */
+const PLACA_MERCOSUL_RE = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+
+function isPlacaMercosul(value) {
+  return PLACA_MERCOSUL_RE.test(normalizePlate(value));
+}
+
+function placaMercosulOuVazio(value) {
+  const p = normalizePlate(value);
+  if (!p) return "";
+  return isPlacaMercosul(p) ? p : "";
+}
+
 function nextTagByTipo(tipo, veiculos) {
   const prefix = tipo === "CARRO" ? "DKCR" : "DKMT";
   let maxNum = 0;
@@ -4253,6 +4266,15 @@ function validateVeiculoUniqueRealtime() {
   cadVeiculoChassiInput.value = chassi;
   cadVeiculoRenavamInput.value = renavam;
   cadVeiculoMotorInput.value = motor;
+
+  const placaNorm = normalizePlate(placa);
+  if (placaNorm && !isPlacaMercosul(placaNorm)) {
+    veiculoCadastroErro.textContent =
+      "PLACA INVÁLIDA — USE MERCOSUL LLLNLNN (EX.: ABC1D23). FORMATO ANTIGO LLLNNNN NÃO É ACEITE.";
+    veiculoCadastroErro.classList.remove("hidden");
+    if (veiculoSubmitButton) veiculoSubmitButton.disabled = true;
+    return false;
+  }
 
   const veiculoDuplicadoPorPlaca = findVeiculoByPlaca(placa);
   if (veiculoDuplicadoPorPlaca && veiculoDuplicadoPorPlaca.id !== veiculoEmEdicaoId) {
@@ -5232,7 +5254,7 @@ async function chamarOpenAIComprovante() {
   }
   const schema =
     '{"nomeClienteOuBeneficiario":string|null,"nomePagador":string|null,"cpf":string|null,"placaVeiculo":string|null,"dataPagamento":string|null,"valor":number|null,"pagamentoPorTerceiro":boolean}';
-  const instr = `Você é leitor de comprovante de pagamento (PIX, TED, boleto) em português. Responda APENAS com JSON válido: ${schema}. CPF com 11 dígitos, sem formatação. placa no padrão Mercosul maiúsculo. data no formato dd/mm/aaaa. Se o nome do pagador/PIX for diferente do beneficiário, pagamentoPorTerceiro: true.`;
+  const instr = `Você é leitor de comprovante de pagamento (PIX, TED, boleto) em português. Responda APENAS com JSON válido: ${schema}. CPF com 11 dígitos, sem formatação. placaVeiculo SOMENTE no padrão Mercosul LLLNLNN (3 letras + 1 número + 1 letra + 2 números, ex.: ABC1D23) — proibido formato antigo LLLNNNN. data no formato dd/mm/aaaa. Se o nome do pagador/PIX for diferente do beneficiário, pagamentoPorTerceiro: true.`;
   const content = [];
   content.push({ type: "text", text: instr });
   if (comprovanteImagemPendente.base64 && comprovanteImagemPendente.mime) {
@@ -14225,6 +14247,12 @@ cadVeiculoUpdateBtn.addEventListener("click", () => {
   const renavam = String(document.getElementById("cadVeiculoRenavam").value || "").trim();
   const motor = String(document.getElementById("cadVeiculoMotor").value || "").trim();
   if (!tipo || !placa || !modelo) return;
+  if (!isPlacaMercosul(placa)) {
+    veiculoCadastroErro.textContent =
+      "PLACA INVÁLIDA — USE MERCOSUL LLLNLNN (EX.: ABC1D23). FORMATO ANTIGO LLLNNNN NÃO É ACEITE.";
+    veiculoCadastroErro.classList.remove("hidden");
+    return;
+  }
 
   const veiculos = loadCadastro(CAD_VEICULOS_KEY);
   if (hasEquipamentoDuplicado(veiculos, "", chassi, renavam, motor, veiculoEmEdicaoId)) {
@@ -15710,6 +15738,9 @@ normalizeDateMaskValues();
 normalizeCurrencyMaskValues();
 
 window.formatDateMask = formatDateMask;
+window.isPlacaMercosul = isPlacaMercosul;
+window.placaMercosulOuVazio = placaMercosulOuVazio;
+window.normalizePlate = normalizePlate;
 window.isDkDateFieldInput = isDkDateFieldInput;
 window.formatCurrencyMask = formatCurrencyMask;
 window.formatCurrencyInputBlur = formatCurrencyInputBlur;

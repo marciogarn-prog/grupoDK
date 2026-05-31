@@ -158,10 +158,12 @@
     return String(s ?? "").replace(/\D/g, "");
   }
 
+  const PLACA_MERCOSUL_RE = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+
   function placaValida(p) {
     const x = normPlaca(p);
-    if (x.length !== 7) return false;
-    return /^[A-Z]{3}[0-9][0-9A-Z][0-9]{2}$/.test(x) || /^[A-Z]{3}[0-9]{4}$/.test(x);
+    if (typeof window.isPlacaMercosul === "function") return window.isPlacaMercosul(x);
+    return PLACA_MERCOSUL_RE.test(x);
   }
 
   function dataBrValida(s) {
@@ -379,7 +381,7 @@ REGRAS CRÍTICAS:
 - Só use "aprovado": true e "confianca": "alta" se TODOS os campos obrigatórios estiverem 100% legíveis e corretos.
 - NÃO invente dígitos. Diferencie 0/O, 1/I/l, 8/B, 5/S, 2/Z.
 - codigoRenavam: exatamente 11 dígitos.
-- placa: 7 caracteres maiúsculos sem hífen (Mercosul ou antiga).
+- placa: exatamente 7 caracteres no padrão Mercosul LLLNLNN (3 letras + 1 número + 1 letra + 2 números), ex.: SOX2A84. Proibido formato antigo LLLNNNN (4 números no fim).
 - chassi: exatamente 17 caracteres alfanuméricos.
 - codigoSegurancaCla: 11 dígitos.
 - data: DD/MM/AAAA do campo Local/Data.

@@ -17,6 +17,15 @@
   /** `true` = mostrar e usar «Falar com o cliente» (WhatsApp). `false` = botão oculto e clique sem efeito. */
   const DK_PORTAL_WA_CLIENTE_ATIVO = false;
 
+  const PLACA_MERCOSUL_RE = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+  const MSG_PLACA_MERCOSUL =
+    "Placa inválida. Use o padrão Mercosul LLLNLNN (ex.: ABC1D23). Formato antigo LLLNNNN não é aceite.";
+
+  function portalPlacaMercosulOk(plateNorm) {
+    if (typeof window.isPlacaMercosul === "function") return window.isPlacaMercosul(plateNorm);
+    return PLACA_MERCOSUL_RE.test(String(plateNorm || ""));
+  }
+
   const unitTitle = document.getElementById("unit-page-title");
   const unitLead = document.getElementById("unit-page-lead");
   const portalUnitDadosAtualizados = document.getElementById("portal-unit-dados-atualizados");
@@ -6977,6 +6986,10 @@ ${printable.innerHTML}
       if (msg) msg.textContent = "Informe placa e modelo.";
       return;
     }
+    if (!portalPlacaMercosulOk(plate)) {
+      if (msg) msg.textContent = MSG_PLACA_MERCOSUL;
+      return;
+    }
     const marca = getVal("operacaoVeiculoMarca");
     const valor = getVal("operacaoVeiculoValor");
     const cor = getVal("operacaoVeiculoCor");
@@ -7140,6 +7153,10 @@ ${printable.innerHTML}
             .replace(/[^A-Z0-9]/g, "");
     if (!plate) {
       if (msg) msg.textContent = "Informe a placa.";
+      return;
+    }
+    if (!portalPlacaMercosulOk(plate)) {
+      if (msg) msg.textContent = MSG_PLACA_MERCOSUL;
       return;
     }
     const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();

@@ -87,14 +87,28 @@ async function main() {
       scanJs.includes("isPaperPixel") && scanJs.includes("refinarRecorteDocumento") && scanJs.includes("isColorfulBackground")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531placa-unica", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531placa-llnlnn", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "patrimônio uma placa substitui foto antiga",
       patJs.includes("deduplicarDocumentos") &&
         patJs.includes("imagemAtualizadaEm") &&
-        patJs.includes("comprimirImagemLimite")
+        patJs.includes("comprimirImagemLimite") &&
+        patJs.includes("PLACA_MERCOSUL_RE")
+    );
+    const placaMercosulOk = await page.evaluate(() => ({
+      fn: typeof window.isPlacaMercosul === "function",
+      ok: typeof window.isPlacaMercosul === "function" &&
+        window.isPlacaMercosul("SOX2A84") &&
+        window.isPlacaMercosul("ABC1D23") &&
+        !window.isPlacaMercosul("ABC1234") &&
+        !window.isPlacaMercosul("JRB5376"),
+    }));
+    record(
+      "placa Mercosul LLLNLNN único padrão",
+      placaMercosulOk.fn && placaMercosulOk.ok,
+      placaMercosulOk.ok ? "SOX2A84 ok, ABC1234 rejeitada" : "validação"
     );
     record(
       "portal conferência operador (texto)",
