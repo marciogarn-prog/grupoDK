@@ -144,8 +144,29 @@
   $("dkAppVoltarCliente")?.addEventListener("click", () => showView("view-app-entry"));
 
   $("dkAppBtnFuncionario")?.addEventListener("click", () => {
-    window.location.href = "/#locadora/empresa/colaborador";
+    try {
+      sessionStorage.setItem("dk_from_pwa_app", "1");
+    } catch {
+      /* ignore */
+    }
+    window.location.replace("/#locadora/empresa/colaborador");
   });
+
+  /** PWA reiniciou em app.html mas sessão do portal ainda está activa — voltar ao portal. */
+  (function restaurarPortalSeSessaoAtiva() {
+    try {
+      const area = sessionStorage.getItem("dk_portal_area_ativa");
+      if (!area) return;
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return;
+      const sub = s.role === "owner" ? "administrador" : "colaborador";
+      window.location.replace(`/#locadora/empresa/${sub}`);
+    } catch {
+      /* ignore */
+    }
+  })();
 
   $("dkAppClienteCpf")?.addEventListener("input", (e) => {
     const el = e.target;

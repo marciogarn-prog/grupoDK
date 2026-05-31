@@ -324,6 +324,24 @@
     });
   }
 
+  /** Reduz resolução antes de processamento pesado (evita crash no telemóvel). */
+  async function redimensionarParaProcessamento(dataUrl, maxLado) {
+    const img = await loadImage(dataUrl).catch(() => null);
+    if (!img) return dataUrl;
+    const max = maxLado || 1400;
+    const escala = Math.min(1, max / Math.max(img.width, img.height));
+    if (escala >= 0.999) return dataUrl;
+    const w = Math.max(1, Math.round(img.width * escala));
+    const h = Math.max(1, Math.round(img.height * escala));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return dataUrl;
+    ctx.drawImage(img, 0, 0, w, h);
+    return canvas.toDataURL("image/jpeg", 0.9);
+  }
+
   async function recortarCanvasParaA4(canvas, sx, sy, sw, sh) {
     const out = document.createElement("canvas");
     out.width = A4_OUT_W;
@@ -505,16 +523,18 @@
     const retocar = opts?.retocarArmazenada === true;
     try {
       if (retocar) {
-        const imagem = await retocarImagemArmazenada(dataUrl);
+        const entrada = await redimensionarParaProcessamento(dataUrl, 1400);
+        const imagem = await retocarImagemArmazenada(entrada);
         return { ok: true, imagem, box: null, scanVersion: SCAN_VERSION };
       }
 
-      const analise = await analisarImagem(dataUrl);
-      let box = analise ? detectarFolhaBrancaEmCanvas(analise.data, analise.w, analise.h) : await detectarFolhaBranca(dataUrl);
+      const base = await redimensionarParaProcessamento(dataUrl, 1400);
+      const analise = await analisarImagem(base);
+      let box = analise ? detectarFolhaBrancaEmCanvas(analise.data, analise.w, analise.h) : await detectarFolhaBranca(base);
       const localOk = box && recorteValido(box, analise?.data, analise?.w, analise?.h);
 
       if (!localOk && usarIa) {
-        const ia = await chamarIaRecorte(dataUrl);
+        const ia = await chamarIaRecorte(base);
         if (ia) {
           box = analise ? refinarRecorteDocumento(analise.data, analise.w, analise.h, ia) : ia;
         }
@@ -527,7 +547,7 @@
         }
       }
 
-      let imagem = await recortarParaA4(dataUrl, box);
+      let imagem = await recortarParaA4(base, box);
       imagem = await apararMargensColoridas(imagem);
       imagem = await aplicarFiltroScanner(imagem);
       return { ok: true, imagem, box, scanVersion: SCAN_VERSION };

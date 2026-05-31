@@ -10334,6 +10334,14 @@ ${printable.innerHTML}
   function applyPortalLocadoraHash() {
     const h = (window.location.hash || "").toLowerCase();
     if (!h.startsWith("#locadora")) return;
+    try {
+      if (sessionStorage.getItem("dk_from_pwa_app") === "1") {
+        sessionStorage.removeItem("dk_from_pwa_app");
+        history.replaceState({ dkPortalLocadora: 1 }, "", location.href);
+      }
+    } catch {
+      /* ignore */
+    }
     const rest = h.replace(/^#locadora\/?/, "").trim();
     if (!rest || rest === "hub") {
       openLocadoraHub();

@@ -4,6 +4,7 @@
  */
 (function portalPatrimonio() {
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
+  const PENDING_FOTO_KEY = "dk_patrimonio_foto_pendente_v1";
   const PATRIMONIO_SCAN_VERSAO = 4;
 
   const CAMPOS_ORDEM = [
@@ -80,7 +81,7 @@
   let previewDataUrl = "";
   let previewDataUrlRaw = "";
   let processando = false;
-  let patrimonioHistoryDepth = 0;
+  let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = false;
 
@@ -92,25 +93,45 @@
     );
   }
 
-  function patrimonioNotificarOverlayAberto() {
-    if (patrimonioHistoryDepth > 0) return;
+  function patrimonioPersistirAreaPortal() {
     try {
-      history.pushState({ dkPatrimonioOverlay: 1 }, "", location.href);
-      patrimonioHistoryDepth = 1;
+      sessionStorage.setItem("dk_portal_area_ativa", "patrimonio");
     } catch {
       /* ignore */
     }
   }
 
-  function patrimonioNotificarOverlayFechado() {
-    if (patrimonioHistoryDepth <= 0) return;
-    patrimonioHistoryDepth = 0;
-    patrimonioHistorySuppress = true;
+  function patrimonioGuardarFotoPendente(dataUrl) {
+    patrimonioPersistirAreaPortal();
     try {
-      history.back();
+      sessionStorage.setItem(PENDING_FOTO_KEY, dataUrl);
     } catch {
-      patrimonioHistorySuppress = false;
+      /* foto grande — ignorar */
     }
+  }
+
+  function patrimonioLimparFotoPendente() {
+    try {
+      sessionStorage.removeItem(PENDING_FOTO_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function patrimonioNotificarOverlayAberto() {
+    if (patrimonioModalHistorico) return;
+    patrimonioPersistirAreaPortal();
+    try {
+      history.pushState({ dkPatrimonioOverlay: 1 }, "", location.href);
+      patrimonioModalHistorico = true;
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Fecha overlay sem history.back() — evita voltar ao app.html (PWA) na pilha. */
+  function patrimonioNotificarOverlayFechado() {
+    patrimonioModalHistorico = false;
   }
 
   function patrimonioSyncHistoryAposFechar() {
@@ -122,8 +143,8 @@
       patrimonioHistorySuppress = false;
       return;
     }
-    if (patrimonioHistoryDepth <= 0) return;
-    patrimonioHistoryDepth = 0;
+    if (!patrimonioOverlayAberto() && !patrimonioModalHistorico) return;
+    patrimonioModalHistorico = false;
     if (previewOverlay && !previewOverlay.classList.contains("hidden")) {
       fecharPreview(false);
       return;
@@ -518,9 +539,10 @@ REGRAS CRÍTICAS:
     return { ok: true };
   }
 
-  async function tratarImagemDocumento(dataUrlRaw) {
+  async function tratarImagemDocumento(dataUrlRaw, opts) {
+    const usarIa = opts?.usarIa === true;
     if (typeof window.__DK_patrimonioTratarDocumento === "function") {
-      const r = await window.__DK_patrimonioTratarDocumento(dataUrlRaw, { usarIa: true });
+      const r = await window.__DK_patrimonioTratarDocumento(dataUrlRaw, { usarIa });
       if (r?.ok && r.imagem) return r.imagem;
     }
     const recorte = await detectarRecorteFallback(dataUrlRaw);
@@ -536,16 +558,19 @@ REGRAS CRÍTICAS:
   }
 
   async function prepararEExibirPreview(dataUrlRaw) {
-    previewDataUrlRaw = dataUrlRaw;
-    previewDataUrl = dataUrlRaw;
-    mostrarPreview(dataUrlRaw);
+    const reduzida = await comprimirImagem(dataUrlRaw, 1400, 0.9);
+    previewDataUrlRaw = reduzida;
+    previewDataUrl = reduzida;
+    patrimonioGuardarFotoPendente(reduzida);
+    mostrarPreview(reduzida);
     const pergunta = document.querySelector(".patrimonio-preview-pergunta");
     if (pergunta) pergunta.textContent = "A recortar folha A4 e tratar imagem…";
     setMsg("A eliminar fundo e ajustar documento…", false);
     try {
-      const tratada = await tratarImagemDocumento(dataUrlRaw);
+      const tratada = await tratarImagemDocumento(reduzida, { usarIa: false });
       previewDataUrl = tratada;
       if (previewImg) previewImg.src = tratada;
+      patrimonioGuardarFotoPendente(tratada);
       if (pergunta) {
         pergunta.textContent = "O recorte está OK? (deve aparecer só a folha branca do CRLV, sem tecido ou fundo colorido)";
       }
@@ -641,6 +666,7 @@ REGRAS CRÍTICAS:
         false,
         true
       );
+      patrimonioLimparFotoPendente();
       renderLista();
       window.setTimeout(() => void abrirCameraNativa(), 500);
     } finally {
@@ -705,6 +731,7 @@ REGRAS CRÍTICAS:
 
   async function abrirCameraNativa() {
     fecharPreview(false);
+    patrimonioPersistirAreaPortal();
     if (!cameraOverlay || !cameraVideo) {
       fileFallback?.click();
       return;
@@ -749,14 +776,18 @@ REGRAS CRÍTICAS:
     const vw = cameraVideo.videoWidth;
     const vh = cameraVideo.videoHeight;
     if (!vw || !vh) return;
-    cameraCanvas.width = vw;
-    cameraCanvas.height = vh;
+    const maxLado = 1400;
+    const escala = Math.min(1, maxLado / Math.max(vw, vh));
+    const cw = Math.max(1, Math.round(vw * escala));
+    const ch = Math.max(1, Math.round(vh * escala));
+    cameraCanvas.width = cw;
+    cameraCanvas.height = ch;
     const ctx = cameraCanvas.getContext("2d");
     if (!ctx) return;
-    ctx.drawImage(cameraVideo, 0, 0, vw, vh);
-    previewDataUrl = cameraCanvas.toDataURL("image/jpeg", 0.92);
+    ctx.drawImage(cameraVideo, 0, 0, cw, ch);
+    const dataUrl = cameraCanvas.toDataURL("image/jpeg", 0.88);
     fecharCamera(false);
-    void prepararEExibirPreview(previewDataUrl);
+    void prepararEExibirPreview(dataUrl);
   }
 
   function mostrarPreview(dataUrl) {
@@ -1077,6 +1108,7 @@ ${contador}
     document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
     document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {
       const url = previewDataUrl;
+      patrimonioLimparFotoPendente();
       fecharPreview();
       if (url) void processarFotoConfirmada(url);
     });
@@ -1124,8 +1156,9 @@ ${contador}
   }
 
   function resetPatrimonioUi() {
-    patrimonioHistoryDepth = 0;
+    patrimonioModalHistorico = false;
     patrimonioHistorySuppress = false;
+    patrimonioLimparFotoPendente();
     fecharCamera(false);
     fecharPreview(false);
     fecharViewerImagem(false);
@@ -1138,6 +1171,7 @@ ${contador}
 
   async function migrarImagensPatrimonioScan() {
     if (migracaoScanEmCurso) return;
+    if (patrimonioOverlayAberto() || processando) return;
     if (typeof window.__DK_patrimonioTratarDocumento !== "function") return;
     const alvo = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
     const store = loadStore();
@@ -1192,11 +1226,20 @@ ${contador}
         return;
       }
     }
+    patrimonioPersistirAreaPortal();
     const store = loadStore();
     saveStore(store);
     void refreshOpenAIStatus();
     renderLista();
-    void migrarImagensPatrimonioScan();
+    try {
+      const pendente = sessionStorage.getItem(PENDING_FOTO_KEY);
+      if (pendente && pendente.startsWith("data:image/")) {
+        void prepararEExibirPreview(pendente);
+      }
+    } catch {
+      /* ignore */
+    }
+    window.setTimeout(() => void migrarImagensPatrimonioScan(), 800);
   }
 
   function escapeBackPatrimonio() {
