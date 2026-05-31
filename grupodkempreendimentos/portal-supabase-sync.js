@@ -942,34 +942,85 @@
     return 0;
   }
 
-  function deduplicarDocumentosPatrimonio(documentos) {
-    const list = (documentos || []).filter((d) => d && typeof d === "object");
-    const byPlaca = new Map();
-    for (const d of list) {
-      const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
-      if (!placa) continue;
-      const cur = byPlaca.get(placa);
-      if (!cur || patrimonioEnvioMs(d) >= patrimonioEnvioMs(cur)) {
-        byPlaca.set(placa, { ...d, placa, placaNorm: placa });
-      }
-    }
-    const porPlaca = Array.from(byPlaca.values());
-    const byChassi = new Map();
-    for (const d of porPlaca) {
-      const c = String(d.chassi || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
-      if (c.length !== 17) {
-        byChassi.set(`id:${d.id || Math.random()}`, d);
-        continue;
-      }
-      const cur = byChassi.get(c);
-      if (!cur || patrimonioEnvioMs(d) >= patrimonioEnvioMs(cur)) byChassi.set(c, d);
-    }
-    return Array.from(byChassi.values());
+  function normPatrimonioRenavam(s) {
+    return String(s || "").replace(/\D/g, "").slice(0, 11);
   }
 
-  /** Mescla dois registros da mesma placa — registro mais recente substitui foto e campos. */
+  function normPatrimonioChassi(s) {
+    return String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function normPatrimonioMotor(s) {
+    return String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function chavesIdentidadePatrimonioSync(d) {
+    const keys = [];
+    const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
+    if (placa) keys.push(`placa:${placa}`);
+    const renavam = normPatrimonioRenavam(d.codigoRenavam);
+    if (renavam.length === 11) keys.push(`renavam:${renavam}`);
+    const chassi = normPatrimonioChassi(d.chassi);
+    if (chassi.length === 17) keys.push(`chassi:${chassi}`);
+    const motor = normPatrimonioMotor(d.motor);
+    if (motor.length >= 8) keys.push(`motor:${motor}`);
+    return keys;
+  }
+
+  function deduplicarPatrimonioUnionFind(documentos, pickWinner) {
+    const docs = (documentos || []).filter((d) => d && typeof d === "object");
+    if (docs.length <= 1) return docs;
+
+    const parent = docs.map((_, i) => i);
+    function find(i) {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    }
+    function union(i, j) {
+      const ri = find(i);
+      const rj = find(j);
+      if (ri !== rj) parent[rj] = ri;
+    }
+
+    const keyToIdx = new Map();
+    for (let i = 0; i < docs.length; i++) {
+      for (const k of chavesIdentidadePatrimonioSync(docs[i])) {
+        if (keyToIdx.has(k)) union(i, keyToIdx.get(k));
+        else keyToIdx.set(k, i);
+      }
+    }
+
+    const groups = new Map();
+    for (let i = 0; i < docs.length; i++) {
+      const root = find(i);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push(docs[i]);
+    }
+
+    const choose =
+      pickWinner ||
+      ((group) =>
+        group.reduce((best, d) => (patrimonioEnvioMs(d) >= patrimonioEnvioMs(best) ? d : best)));
+
+    return Array.from(groups.values()).map((group) => {
+      const winner = choose(group);
+      const placa = normPatrimonioPlaca(winner.placaNorm || winner.placa);
+      return placa ? { ...winner, placa, placaNorm: placa } : winner;
+    });
+  }
+
+  function deduplicarDocumentosPatrimonio(documentos) {
+    return deduplicarPatrimonioUnionFind(documentos);
+  }
+
+  /** Mescla dois registros — registro mais recente substitui foto e campos. */
   function mergePatrimonioPar(antigo, novo, preferirNovoEmEmpate) {
     const placa = normPatrimonioPlaca(novo.placaNorm || novo.placa || antigo.placa);
     const msAntigo = patrimonioEnvioMs(antigo);
@@ -1002,27 +1053,26 @@
     return out;
   }
 
-  /** Uma placa = um documento — prevalece o envio mais recente (foto/arquivo). */
+  /** Placa, RENAVAM, chassi ou motor iguais = um documento — prevalece o envio mais recente. */
   function mergePatrimonioCrlv(localRaw, cloudRaw) {
-    const map = new Map();
-    const cloudDocs = deduplicarDocumentosPatrimonio(parsePatrimonioStore(cloudRaw).documentos);
-    const localDocs = deduplicarDocumentosPatrimonio(parsePatrimonioStore(localRaw).documentos);
+    const cloudDocs = parsePatrimonioStore(cloudRaw).documentos.map((d) => ({ ...d, _dkSyncLocal: false }));
+    const localDocs = parsePatrimonioStore(localRaw).documentos.map((d) => ({ ...d, _dkSyncLocal: true }));
+    const all = [...cloudDocs, ...localDocs];
 
-    function upsert(d, preferirNovoEmEmpate) {
-      const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
-      if (!placa) return;
-      const cur = map.get(placa);
-      if (!cur) {
-        map.set(placa, { ...d, placa, placaNorm: placa });
-        return;
-      }
-      map.set(placa, mergePatrimonioPar(cur, d, preferirNovoEmEmpate));
-    }
+    const merged = deduplicarPatrimonioUnionFind(all, (group) =>
+      group.reduce((best, d) => {
+        const msD = patrimonioEnvioMs(d);
+        const msB = patrimonioEnvioMs(best);
+        if (msD !== msB) return msD > msB ? d : best;
+        if (d._dkSyncLocal && !best._dkSyncLocal) return d;
+        if (!d._dkSyncLocal && best._dkSyncLocal) return best;
+        return d;
+      })
+    );
 
-    for (const d of cloudDocs) upsert(d, false);
-    for (const d of localDocs) upsert(d, true);
-
-    return { documentos: deduplicarDocumentosPatrimonio(Array.from(map.values())) };
+    return {
+      documentos: merged.map(({ _dkSyncLocal, ...rest }) => rest),
+    };
   }
 
   function readLocalJsonArray(key) {

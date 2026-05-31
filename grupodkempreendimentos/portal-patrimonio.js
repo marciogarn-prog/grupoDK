@@ -181,50 +181,86 @@
     return { ...d, placa, placaNorm: placa };
   }
 
-  /** Uma placa = um registro; chassi igual = mesmo veículo (foto mais recente). */
+  function normChassi(s) {
+    return String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function normMotor(s) {
+    return String(s || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function normRenavam(s) {
+    return onlyDigits(s).slice(0, 11);
+  }
+
+  /** Chaves únicas: placa, RENAVAM, chassi ou motor repetido = mesmo veículo. */
+  function chavesIdentidadePatrimonio(d) {
+    const keys = [];
+    const placa = resolverPlacaMercosul(d.placaNorm || d.placa);
+    if (placa) keys.push(`placa:${placa}`);
+    const renavam = normRenavam(d.codigoRenavam);
+    if (renavam.length === 11) keys.push(`renavam:${renavam}`);
+    const chassi = normChassi(d.chassi);
+    if (chassi.length === 17) keys.push(`chassi:${chassi}`);
+    const motor = normMotor(d.motor);
+    if (motor.length >= 8) keys.push(`motor:${motor}`);
+    return keys;
+  }
+
+  function docMesmaIdentidade(a, b) {
+    const ka = chavesIdentidadePatrimonio(a);
+    const kb = new Set(chavesIdentidadePatrimonio(b));
+    return ka.some((k) => kb.has(k));
+  }
+
+  function deduplicarPorIdentidade(list) {
+    const docs = (list || []).filter(Boolean);
+    if (docs.length <= 1) return docs;
+
+    const parent = docs.map((_, i) => i);
+    function find(i) {
+      while (parent[i] !== i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    }
+    function union(i, j) {
+      const ri = find(i);
+      const rj = find(j);
+      if (ri !== rj) parent[rj] = ri;
+    }
+
+    const keyToIdx = new Map();
+    for (let i = 0; i < docs.length; i++) {
+      for (const k of chavesIdentidadePatrimonio(docs[i])) {
+        if (keyToIdx.has(k)) union(i, keyToIdx.get(k));
+        else keyToIdx.set(k, i);
+      }
+    }
+
+    const groups = new Map();
+    for (let i = 0; i < docs.length; i++) {
+      const root = find(i);
+      if (!groups.has(root)) groups.set(root, []);
+      groups.get(root).push(docs[i]);
+    }
+
+    return Array.from(groups.values()).map((group) =>
+      group.reduce((best, d) => (docMs(d) >= docMs(best) ? d : best))
+    );
+  }
+
+  /** Placa / RENAVAM / chassi / motor iguais = um veículo (foto mais recente prevalece). */
   function deduplicarDocumentos(documentos) {
     const list = (documentos || [])
       .map(sanitizarDocumentoPatrimonio)
       .filter(Boolean);
-
-    function pickNewer(a, b) {
-      return docMs(a) >= docMs(b) ? a : b;
-    }
-
-    const byPlaca = new Map();
-    for (const d of list) {
-      const p = d.placa;
-      const cur = byPlaca.get(p);
-      byPlaca.set(p, cur ? pickNewer(cur, d) : d);
-    }
-
-    let docs = Array.from(byPlaca.values());
-
-    const byRenavam = new Map();
-    for (const d of docs) {
-      const r = onlyDigits(d.codigoRenavam);
-      if (r.length !== 11) {
-        byRenavam.set(`id:${d.id || Math.random()}`, d);
-        continue;
-      }
-      const cur = byRenavam.get(r);
-      byRenavam.set(r, cur ? pickNewer(cur, d) : d);
-    }
-    docs = Array.from(byRenavam.values());
-
-    const byChassi = new Map();
-    for (const d of docs) {
-      const c = String(d.chassi || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
-      if (c.length !== 17) {
-        byChassi.set(`id:${d.id || Math.random()}`, d);
-        continue;
-      }
-      const cur = byChassi.get(c);
-      byChassi.set(c, cur ? pickNewer(cur, d) : d);
-    }
-    return Array.from(byChassi.values());
+    return deduplicarPorIdentidade(list);
   }
 
   function loadStore() {
@@ -288,15 +324,18 @@
         erro: "Placa inválida (padrão LLLNLNN). Confira nitidez e fotografe de novo.",
       };
     }
+    const docNorm = { ...doc, placa, placaNorm: placa };
     const store = loadStore();
-    const antigo = store.documentos.find((d) => normPlaca(d.placa) === placa);
-    const docs = store.documentos.filter((d) => normPlaca(d.placa) !== placa);
+    const antigos = store.documentos.filter((d) => docMesmaIdentidade(d, docNorm));
+    const antigo = antigos.length
+      ? antigos.reduce((best, d) => (docMs(d) >= docMs(best) ? d : best))
+      : null;
+    const idsRemover = new Set(antigos.map((d) => d.id));
+    const docs = store.documentos.filter((d) => !idsRemover.has(d.id));
     const agora = new Date().toISOString();
     const registro = {
-      ...doc,
+      ...docNorm,
       id: antigo?.id || doc.id || newId(),
-      placa,
-      placaNorm: placa,
       processadoEm: agora,
       atualizadoEm: agora,
       imagemAtualizadaEm: agora,
@@ -731,7 +770,7 @@ REGRAS CRÍTICAS:
     if (resumoEl) {
       resumoEl.textContent =
         docs.length > 0
-          ? `${docs.length} veículo(s) · uma placa = um documento (foto mais recente prevalece).`
+          ? `${docs.length} veículo(s) · placa, RENAVAM, chassi ou motor iguais = mesmo documento (foto mais recente prevalece).`
           : "Nenhum CRLV cadastrado. Toque em «Fotografar documento».";
     }
     if (btnRelatorio) btnRelatorio.disabled = docs.length === 0;

@@ -87,7 +87,7 @@ async function main() {
       scanJs.includes("isPaperPixel") && scanJs.includes("refinarRecorteDocumento") && scanJs.includes("isColorfulBackground")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531placa-ocr", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531id-unica", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -97,7 +97,9 @@ async function main() {
         patJs.includes("comprimirImagemLimite") &&
         patJs.includes("PLACA_MERCOSUL_RE") &&
         patJs.includes("resolverPlacaMercosul") &&
-        patJs.includes("sanitizarDocumentoPatrimonio")
+        patJs.includes("sanitizarDocumentoPatrimonio") &&
+        patJs.includes("chavesIdentidadePatrimonio") &&
+        patJs.includes("docMesmaIdentidade")
     );
     const placaMercosulOk = await page.evaluate(() => ({
       fn: typeof window.isPlacaMercosul === "function",
