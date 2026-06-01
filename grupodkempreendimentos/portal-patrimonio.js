@@ -711,32 +711,93 @@ REGRAS CRÍTICAS:
     const btn = document.getElementById("patrimonioCameraFlashBtn");
     if (!btn) return;
     btn.setAttribute("aria-pressed", patrimonioFlashLigado ? "true" : "false");
+    if (btn.dataset.flashDisponivel === "0") {
+      btn.textContent = "Flash: N/A";
+      btn.disabled = true;
+      return;
+    }
+    btn.disabled = false;
     btn.textContent = patrimonioFlashLigado ? "Flash: on" : "Flash: off";
   }
 
-  async function aplicarFlashCamera() {
-    if (!cameraStream) return;
-    const track = cameraStream.getVideoTracks()[0];
-    if (!track) return;
+  function patrimonioTrackCaps(track) {
+    if (!track?.getCapabilities) return {};
     try {
-      await track.applyConstraints({ advanced: [{ torch: patrimonioFlashLigado }] });
+      return track.getCapabilities();
     } catch {
-      try {
-        await track.applyConstraints({ torch: patrimonioFlashLigado });
-      } catch {
-        /* dispositivo sem lanterna */
+      return {};
+    }
+  }
+
+  function patrimonioLanternaDisponivel(track) {
+    const caps = patrimonioTrackCaps(track);
+    if (caps.torch === true) return true;
+    if (Array.isArray(caps.fillLightMode) && caps.fillLightMode.includes("flash")) return true;
+    return false;
+  }
+
+  async function aplicarFlashCamera() {
+    if (!cameraStream) return { ok: false, motivo: "sem_stream" };
+    const track = cameraStream.getVideoTracks()[0];
+    if (!track) return { ok: false, motivo: "sem_track" };
+
+    const btn = document.getElementById("patrimonioCameraFlashBtn");
+    if (!patrimonioLanternaDisponivel(track)) {
+      if (btn) btn.dataset.flashDisponivel = "0";
+      atualizarUiFlash();
+      return { ok: false, motivo: "nao_suportado" };
+    }
+    if (btn) btn.dataset.flashDisponivel = "1";
+
+    const ligar = patrimonioFlashLigado;
+    const caps = patrimonioTrackCaps(track);
+    const metodos = [];
+
+    if (caps.torch) {
+      metodos.push(() => track.applyConstraints({ advanced: [{ torch: ligar }] }));
+      metodos.push(() => track.applyConstraints({ torch: ligar }));
+      if (caps.zoom) {
+        metodos.push(() =>
+          track.applyConstraints({
+            advanced: [{ torch: ligar, zoom: caps.zoom.min ?? 1 }],
+          })
+        );
       }
     }
+    if (Array.isArray(caps.fillLightMode)) {
+      if (ligar && caps.fillLightMode.includes("flash")) {
+        metodos.push(() => track.applyConstraints({ fillLightMode: "flash" }));
+        metodos.push(() => track.applyConstraints({ advanced: [{ fillLightMode: "flash" }] }));
+      } else if (!ligar && caps.fillLightMode.includes("off")) {
+        metodos.push(() => track.applyConstraints({ fillLightMode: "off" }));
+      }
+    }
+
+    for (const fn of metodos) {
+      try {
+        await fn();
+        const st = track.getSettings?.() || {};
+        if (st.torch === ligar) return { ok: true };
+        if (ligar && st.torch !== false) return { ok: true };
+        if (ligar && st.fillLightMode === "flash") return { ok: true };
+      } catch {
+        /* tentar próximo método */
+      }
+    }
+    return { ok: false, motivo: "constraint_falhou" };
   }
 
   /** Alguns Android iniciam a câmera com zoom digital > 1 — força o mínimo. */
   async function normalizarCameraSemZoom(track) {
     if (!track?.getCapabilities) return;
-    const caps = track.getCapabilities();
+    const caps = patrimonioTrackCaps(track);
     const advanced = [];
     if (caps.zoom) {
       const zMin = typeof caps.zoom.min === "number" ? caps.zoom.min : 1;
       advanced.push({ zoom: zMin });
+    }
+    if (caps.torch && patrimonioFlashLigado) {
+      advanced.push({ torch: true });
     }
     if (Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
       advanced.push({ focusMode: "continuous" });
@@ -755,6 +816,70 @@ REGRAS CRÍTICAS:
     }
   }
 
+  async function obterStreamCameraPatrimonio() {
+    const videoBase = {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1280, max: 1920 },
+      height: { ideal: 720, max: 1920 },
+      aspectRatio: { ideal: 16 / 9 },
+    };
+    const tentativas = [];
+    if (patrimonioFlashLigado) {
+      tentativas.push(
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: {
+              ...videoBase,
+              facingMode: { ideal: "environment" },
+              advanced: [{ torch: true }],
+            },
+            audio: false,
+          }),
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: { ...videoBase, torch: true },
+            audio: false,
+          })
+      );
+    }
+    tentativas.push(
+      () =>
+        navigator.mediaDevices.getUserMedia({
+          video: { ...videoBase, resizeMode: "none" },
+          audio: false,
+        }),
+      () =>
+        navigator.mediaDevices.getUserMedia({
+          video: videoBase,
+          audio: false,
+        })
+    );
+    for (const fn of tentativas) {
+      try {
+        return await fn();
+      } catch {
+        /* próxima tentativa */
+      }
+    }
+    throw new Error("camera_indisponivel");
+  }
+
+  async function conectarStreamCameraPatrimonio() {
+    await pararCamera();
+    cameraStream = await obterStreamCameraPatrimonio();
+    const track = cameraStream.getVideoTracks()[0];
+    if (track) await normalizarCameraSemZoom(track);
+    if (cameraVideo) {
+      cameraVideo.srcObject = cameraStream;
+      await cameraVideo.play();
+    }
+    const flashBtn = document.getElementById("patrimonioCameraFlashBtn");
+    if (flashBtn && track) {
+      flashBtn.dataset.flashDisponivel = patrimonioLanternaDisponivel(track) ? "1" : "0";
+    }
+    return aplicarFlashCamera();
+  }
+
   async function abrirCameraNativa() {
     fecharPreview(false);
     patrimonioPersistirAreaPortal();
@@ -765,36 +890,16 @@ REGRAS CRÍTICAS:
     cameraOverlay.classList.remove("hidden");
     cameraOverlay.setAttribute("aria-hidden", "false");
     patrimonioNotificarOverlayAberto();
+    const flashBtn = document.getElementById("patrimonioCameraFlashBtn");
+    if (flashBtn) flashBtn.dataset.flashDisponivel = "1";
     atualizarUiFlash();
-    await pararCamera();
     if (!navigator.mediaDevices?.getUserMedia) {
       fecharCamera();
       fileFallback?.click();
       return;
     }
-    const videoBase = {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1280, max: 1920 },
-      height: { ideal: 720, max: 1920 },
-      aspectRatio: { ideal: 16 / 9 },
-    };
     try {
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: { ...videoBase, resizeMode: "none" },
-          audio: false,
-        });
-      } catch {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: videoBase,
-          audio: false,
-        });
-      }
-      const track = cameraStream.getVideoTracks()[0];
-      if (track) await normalizarCameraSemZoom(track);
-      cameraVideo.srcObject = cameraStream;
-      await cameraVideo.play();
-      await aplicarFlashCamera();
+      await conectarStreamCameraPatrimonio();
     } catch {
       fecharCamera();
       setMsg("Permita o acesso à câmera ou use o seletor de ficheiro.", true);
@@ -802,10 +907,29 @@ REGRAS CRÍTICAS:
     }
   }
 
-  function alternarFlashCamera() {
+  async function alternarFlashCamera() {
     patrimonioFlashLigado = !patrimonioFlashLigado;
     atualizarUiFlash();
-    void aplicarFlashCamera();
+    let r = await aplicarFlashCamera();
+    if (!r.ok && patrimonioFlashLigado) {
+      try {
+        r = await conectarStreamCameraPatrimonio();
+      } catch {
+        r = { ok: false, motivo: "stream_falhou" };
+      }
+    }
+    if (!r.ok && patrimonioFlashLigado) {
+      patrimonioFlashLigado = false;
+      atualizarUiFlash();
+      setMsg(
+        r.motivo === "nao_suportado"
+          ? "Lanterna indisponível neste telemóvel/browser. Use boa luz ou a câmera nativa (ficheiro)."
+          : "Não foi possível ligar a lanterna. Feche e abra a câmera e tente de novo.",
+        true
+      );
+      return;
+    }
+    setMsg("", false);
   }
 
   function capturarDaCamera() {

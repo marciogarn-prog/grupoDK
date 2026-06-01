@@ -110,7 +110,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531pat-cam", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531flash", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -118,6 +118,13 @@ async function main() {
       patJs.includes("normalizarCameraSemZoom") &&
         patJs.includes('resizeMode: "none"') &&
         !patJs.includes("height: { ideal: 2560 }")
+    );
+    record(
+      "câmera patrimônio lanterna/flash (torch)",
+      patJs.includes("patrimonioLanternaDisponivel") &&
+        patJs.includes("obterStreamCameraPatrimonio") &&
+        patJs.includes("conectarStreamCameraPatrimonio") &&
+        patJs.includes('advanced: [{ torch: true }]')
     );
     const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260531veic-legivel`, {
       cache: "no-store",
