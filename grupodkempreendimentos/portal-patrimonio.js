@@ -62,6 +62,8 @@
 
   const msgEl = document.getElementById("patrimonioMsg");
   const listaEl = document.getElementById("patrimonioLista");
+  const fotosListaEl = document.getElementById("patrimonioFotosLista");
+  const fotosResumoEl = document.getElementById("patrimonioFotosResumo");
   const resumoEl = document.getElementById("patrimonioResumo");
   const statusIaEl = document.getElementById("patrimonioOpenAIStatus");
   const btnNovo = document.getElementById("patrimonioBtnNovoDoc");
@@ -76,6 +78,10 @@
   const cameraCanvas = document.getElementById("patrimonioCameraCanvas");
   const imagemViewer = document.getElementById("patrimonioImagemViewer");
   const imagemViewerImg = document.getElementById("patrimonioImagemViewerImg");
+  const fotoCapturaViewer = document.getElementById("patrimonioFotoCapturaViewer");
+  const fotoCapturaViewerImg = document.getElementById("patrimonioFotoCapturaViewerImg");
+  const fotoCapturaTagEl = document.getElementById("patrimonioFotoCapturaTag");
+  const fotoCapturaStatusEl = document.getElementById("patrimonioFotoCapturaStatus");
   const fileFallback = document.getElementById("patrimonioCameraFallback");
 
   let cameraStream = null;
@@ -203,7 +209,8 @@
     return (
       (cameraOverlay && !cameraOverlay.classList.contains("hidden")) ||
       (previewOverlay && !previewOverlay.classList.contains("hidden")) ||
-      (imagemViewer && !imagemViewer.classList.contains("hidden"))
+      (imagemViewer && !imagemViewer.classList.contains("hidden")) ||
+      (fotoCapturaViewer && !fotoCapturaViewer.classList.contains("hidden"))
     );
   }
 
@@ -269,6 +276,10 @@
     }
     if (imagemViewer && !imagemViewer.classList.contains("hidden")) {
       fecharViewerImagem(false);
+      return;
+    }
+    if (fotoCapturaViewer && !fotoCapturaViewer.classList.contains("hidden")) {
+      fecharViewerFotoCaptura(false);
     }
   });
 
@@ -282,6 +293,77 @@
 
   function newId() {
     return `pat_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function newFotoId() {
+    return `fot_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  }
+
+  function formatTagPatrimonioFoto(d) {
+    const dt = d instanceof Date ? d : new Date(d);
+    if (Number.isNaN(dt.getTime())) return "00000000-0000";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}-${pad(dt.getHours())}${pad(dt.getMinutes())}`;
+  }
+
+  function fotoCapturaMs(f) {
+    const t = Date.parse(String(f?.registradoEm || f?.atualizadoEm || ""));
+    return Number.isFinite(t) ? t : 0;
+  }
+
+  function sanitizeFotoCaptura(f) {
+    if (!f || typeof f !== "object") return null;
+    const id = String(f.id || "").trim();
+    const tag = String(f.tag || "").trim();
+    const imagem = String(f.imagem || "").trim();
+    if (!id || !tag || !imagem.startsWith("data:image/")) return null;
+    return {
+      id,
+      tag,
+      registradoEm: String(f.registradoEm || new Date().toISOString()),
+      imagem,
+      imagemOriginal: String(f.imagemOriginal || "").trim() || undefined,
+      statusIa: String(f.statusIa || "pendente"),
+      docId: String(f.docId || "").trim(),
+      placa: String(f.placa || "").trim(),
+      msgIa: String(f.msgIa || "").trim(),
+      atualizadoEm: String(f.atualizadoEm || f.registradoEm || ""),
+    };
+  }
+
+  function sanitizeFotosCapturas(list) {
+    const map = new Map();
+    for (const f of list || []) {
+      const s = sanitizeFotoCaptura(f);
+      if (!s) continue;
+      const prev = map.get(s.id);
+      if (!prev || fotoCapturaMs(s) >= fotoCapturaMs(prev)) map.set(s.id, s);
+    }
+    return [...map.values()].sort((a, b) => fotoCapturaMs(b) - fotoCapturaMs(a));
+  }
+
+  function getFotosCapturas(store) {
+    return sanitizeFotosCapturas(store?.fotosCapturas || loadStore().fotosCapturas);
+  }
+
+  function getFotoCapturaById(id) {
+    return getFotosCapturas().find((f) => f.id === id) || null;
+  }
+
+  function labelStatusFotoCaptura(f) {
+    const st = String(f?.statusIa || "").toLowerCase();
+    if (st === "ok") {
+      return f.placa ? `IA OK · ${f.placa}` : "IA OK · cadastrado";
+    }
+    if (st === "falhou") return "IA não leu";
+    return "Aguardando IA";
+  }
+
+  function classeStatusFotoCaptura(f) {
+    const st = String(f?.statusIa || "").toLowerCase();
+    if (st === "ok") return "patrimonio-foto-status patrimonio-foto-status--ok";
+    if (st === "falhou") return "patrimonio-foto-status patrimonio-foto-status--falhou";
+    return "patrimonio-foto-status";
   }
 
   function normPlaca(s) {
@@ -405,9 +487,10 @@
       let documentos = [];
       if (Array.isArray(raw.documentos)) documentos = raw.documentos;
       else if (Array.isArray(raw)) documentos = raw;
-      return { documentos: deduplicarDocumentos(documentos) };
+      const fotosCapturas = sanitizeFotosCapturas(raw.fotosCapturas);
+      return { documentos: deduplicarDocumentos(documentos), fotosCapturas };
     } catch {
-      return { documentos: [] };
+      return { documentos: [], fotosCapturas: [] };
     }
   }
 
@@ -441,11 +524,53 @@
   }
 
   function saveStore(store) {
-    const documentos = deduplicarDocumentos(store?.documentos || []);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ documentos }));
+    const prev = loadStore();
+    const documentos = deduplicarDocumentos(store?.documentos ?? prev.documentos);
+    const fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 150);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ documentos, fotosCapturas }));
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       portalPushCloudSnapshotAfterPersist();
     }
+  }
+
+  function atualizarFotoCaptura(id, patch) {
+    const store = loadStore();
+    const idx = store.fotosCapturas.findIndex((f) => f.id === id);
+    if (idx < 0) return null;
+    store.fotosCapturas[idx] = sanitizeFotoCaptura({
+      ...store.fotosCapturas[idx],
+      ...patch,
+      atualizadoEm: new Date().toISOString(),
+    });
+    saveStore(store);
+    return store.fotosCapturas[idx];
+  }
+
+  async function registrarFotoCaptura(dataUrlRaw, dataUrlTratada) {
+    const agora = new Date();
+    const imagemTratada = dataUrlTratada || dataUrlRaw;
+    const imagem = await comprimirImagemLimite(imagemTratada, 1600, 320000, 0.88);
+    let imagemOriginal;
+    if (dataUrlRaw && dataUrlRaw !== imagemTratada) {
+      imagemOriginal = await comprimirImagemLimite(dataUrlRaw, 1400, 280000, 0.85);
+    }
+    const foto = sanitizeFotoCaptura({
+      id: newFotoId(),
+      tag: formatTagPatrimonioFoto(agora),
+      registradoEm: agora.toISOString(),
+      imagem,
+      imagemOriginal,
+      statusIa: "pendente",
+      docId: "",
+      placa: "",
+      msgIa: "",
+      atualizadoEm: agora.toISOString(),
+    });
+    if (!foto) return null;
+    const store = loadStore();
+    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 150);
+    saveStore(store);
+    return foto;
   }
 
   function getDocumentos() {
@@ -813,16 +938,33 @@ REGRAS:
     if (processando) return;
     processando = true;
     setMsg("A validar nitidez e ler campos do CRLV…", false);
+    let fotoId = "";
     try {
+      const imagemTratada = previewDataUrl || dataUrlEntrada;
+      const imagemRaw = previewDataUrlRaw || dataUrlEntrada;
+      const fotoReg = await registrarFotoCaptura(imagemRaw, imagemTratada);
+      fotoId = fotoReg?.id || "";
+      renderFotosLista();
+
       const leitura = await lerCrlvComRetry([previewDataUrlRaw, previewDataUrl, dataUrlEntrada]);
       if (!leitura.ok) {
-        setMsg(leitura.msg || MSG_NITIDEZ, true);
+        if (fotoId) {
+          atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
+          renderFotosLista();
+        }
+        setMsg(
+          `${leitura.msg || MSG_NITIDEZ} A foto foi guardada em «Fotos capturadas» para conferência.`,
+          true
+        );
         return;
       }
       const campos = leitura.campos;
-      const imagemTratada =
-        leitura.imagemUsada === previewDataUrlRaw && previewDataUrl ? previewDataUrl : previewDataUrl || dataUrlEntrada;
-      const imagemGuardar = await comprimirImagemLimite(imagemTratada, 1600, 320000, 0.88);
+      const imagemGuardar = await comprimirImagemLimite(
+        leitura.imagemUsada === previewDataUrlRaw && previewDataUrl ? previewDataUrl : imagemTratada,
+        1600,
+        320000,
+        0.88
+      );
       const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
       const doc = {
         ...campos,
@@ -834,8 +976,20 @@ REGRAS:
       };
       const r = upsertDocumento(doc);
       if (!r.ok) {
+        if (fotoId) {
+          atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
+          renderFotosLista();
+        }
         setMsg(r.erro, true);
         return;
+      }
+      if (fotoId) {
+        atualizarFotoCaptura(fotoId, {
+          statusIa: "ok",
+          docId: r.registro?.id || doc.id,
+          placa: campos.placa,
+          msgIa: "",
+        });
       }
       setMsg(
         r.substituiu
@@ -849,6 +1003,68 @@ REGRAS:
       window.setTimeout(() => void abrirCameraNativa(), 500);
     } finally {
       processando = false;
+    }
+  }
+
+  async function revisarFotoCapturaComIa(fotoId) {
+    const foto = getFotoCapturaById(fotoId);
+    if (!foto || processando) return;
+    processando = true;
+    const btnRevisar = document.getElementById("patrimonioFotoCapturaRevisarBtn");
+    if (btnRevisar) btnRevisar.disabled = true;
+    if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "A processar com IA…";
+    setMsg("A revisar foto com IA…", false);
+    try {
+      atualizarFotoCaptura(fotoId, { statusIa: "pendente", msgIa: "" });
+      renderFotosLista();
+      const leitura = await lerCrlvComRetry([foto.imagemOriginal, foto.imagem]);
+      if (!leitura.ok) {
+        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
+        renderFotosLista();
+        if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(getFotoCapturaById(fotoId));
+        setMsg(leitura.msg || MSG_NITIDEZ, true);
+        return;
+      }
+      const campos = leitura.campos;
+      const imagemGuardar = await comprimirImagemLimite(foto.imagem, 1600, 320000, 0.88);
+      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
+      const doc = {
+        ...campos,
+        id: newId(),
+        imagemRecortada: imagemGuardar,
+        imagemScanVersao: scanV,
+        processadoEm: new Date().toISOString(),
+        cadastradoEm: new Date().toISOString(),
+      };
+      const r = upsertDocumento(doc);
+      if (!r.ok) {
+        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
+        renderFotosLista();
+        if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(getFotoCapturaById(fotoId));
+        setMsg(r.erro, true);
+        return;
+      }
+      atualizarFotoCaptura(fotoId, {
+        statusIa: "ok",
+        docId: r.registro?.id || doc.id,
+        placa: campos.placa,
+        msgIa: "",
+      });
+      renderFotosLista();
+      renderLista();
+      if (fotoCapturaStatusEl) {
+        fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(getFotoCapturaById(fotoId));
+      }
+      setMsg(
+        r.substituiu
+          ? `Documento ${campos.placa} atualizado a partir da foto ${foto.tag}.`
+          : `Documento ${campos.placa} cadastrado a partir da foto ${foto.tag}.`,
+        false,
+        true
+      );
+    } finally {
+      processando = false;
+      if (btnRevisar) btnRevisar.disabled = false;
     }
   }
 
@@ -1337,6 +1553,68 @@ REGRAS:
         renderLista();
       });
     });
+    renderFotosLista();
+  }
+
+  function renderFotosLista() {
+    const fotos = getFotosCapturas();
+    if (fotosResumoEl) {
+      fotosResumoEl.textContent = fotos.length
+        ? `${fotos.length} foto(s) — tag AAAAMMDD-HHMM. Toque para abrir, excluir ou revisar com IA.`
+        : "Nenhuma foto registrada ainda. Todas as fotos confirmadas aparecem aqui, mesmo se a IA falhar.";
+    }
+    if (!fotosListaEl) return;
+    if (!fotos.length) {
+      fotosListaEl.innerHTML = '<p class="subtext">Sem fotos capturadas.</p>';
+      return;
+    }
+    fotosListaEl.innerHTML = fotos
+      .map(
+        (f) => `<div class="patrimonio-foto-item">
+          <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir foto ${escapeHtml(f.tag)}">
+            <span class="patrimonio-foto-tag">${escapeHtml(f.tag)}</span>
+          </button>
+          <span class="${classeStatusFotoCaptura(f)}">${escapeHtml(labelStatusFotoCaptura(f))}</span>
+        </div>`
+      )
+      .join("");
+    fotosListaEl.querySelectorAll(".patrimonio-foto-link").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-foto-id");
+        if (id) void abrirViewerFotoCaptura(id);
+      });
+    });
+  }
+
+  function abrirViewerFotoCaptura(id) {
+    const foto = getFotoCapturaById(id);
+    if (!foto || !fotoCapturaViewer || !fotoCapturaViewerImg) return;
+    fotoCapturaViewerImg.src = foto.imagem;
+    fotoCapturaViewer.dataset.fotoId = id;
+    if (fotoCapturaTagEl) fotoCapturaTagEl.textContent = foto.tag;
+    if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(foto);
+    const btnRevisar = document.getElementById("patrimonioFotoCapturaRevisarBtn");
+    if (btnRevisar) btnRevisar.disabled = false;
+    fotoCapturaViewer.classList.remove("hidden");
+    fotoCapturaViewer.setAttribute("aria-hidden", "false");
+    patrimonioNotificarOverlayAberto();
+  }
+
+  function fecharViewerFotoCaptura(syncHistory = true) {
+    fotoCapturaViewer?.classList.add("hidden");
+    fotoCapturaViewer?.setAttribute("aria-hidden", "true");
+    if (fotoCapturaViewerImg) fotoCapturaViewerImg.removeAttribute("src");
+    if (fotoCapturaViewer) delete fotoCapturaViewer.dataset.fotoId;
+    if (syncHistory) patrimonioSyncHistoryAposFechar();
+  }
+
+  function excluirFotoCaptura(id) {
+    if (!id || !window.confirm("Excluir esta foto capturada?")) return;
+    const store = loadStore();
+    saveStore({ fotosCapturas: store.fotosCapturas.filter((f) => f.id !== id) });
+    fecharViewerFotoCaptura();
+    renderFotosLista();
+    setMsg("Foto excluída.", false, true);
   }
 
   function getDocById(id) {
@@ -1632,6 +1910,18 @@ ${contador}
       partilharViewerImagem("whatsapp")
     );
 
+    document.getElementById("patrimonioFotoCapturaFecharBtn")?.addEventListener("click", () =>
+      fecharViewerFotoCaptura()
+    );
+    document.getElementById("patrimonioFotoCapturaExcluirBtn")?.addEventListener("click", () => {
+      const id = fotoCapturaViewer?.dataset?.fotoId || "";
+      if (id) excluirFotoCaptura(id);
+    });
+    document.getElementById("patrimonioFotoCapturaRevisarBtn")?.addEventListener("click", () => {
+      const id = fotoCapturaViewer?.dataset?.fotoId || "";
+      if (id) void revisarFotoCapturaComIa(id);
+    });
+
     document.getElementById("patrimonioRelatorioPdfBtn")?.addEventListener("click", () => {
       if (typeof window.__DK_emitPortalRelatorioPdf === "function") {
         window.__DK_emitPortalRelatorioPdf(getRelatorioContext());
@@ -1656,6 +1946,7 @@ ${contador}
     fecharCamera(false);
     fecharPreview(false);
     fecharViewerImagem(false);
+    fecharViewerFotoCaptura(false);
     fecharRelatorioModal();
     setMsg("");
     renderLista();
@@ -1747,6 +2038,10 @@ ${contador}
     }
     if (imagemViewer && !imagemViewer.classList.contains("hidden")) {
       fecharViewerImagem();
+      return true;
+    }
+    if (fotoCapturaViewer && !fotoCapturaViewer.classList.contains("hidden")) {
+      fecharViewerFotoCaptura();
       return true;
     }
     if (relatorioModal && !relatorioModal.classList.contains("hidden")) {

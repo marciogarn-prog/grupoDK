@@ -121,16 +121,30 @@
       });
     }
     if (out.dk_patrimonio_crlv_v1?.documentos && Array.isArray(out.dk_patrimonio_crlv_v1.documentos)) {
+      const stripDocImg = (d) => {
+        if (!d || typeof d !== "object") return d;
+        const img = String(d.imagemRecortada || "");
+        if (img.length > 350000) {
+          const { imagemRecortada, ...rest } = d;
+          return rest;
+        }
+        return d;
+      };
+      const stripFotoImg = (f) => {
+        if (!f || typeof f !== "object") return f;
+        const img = String(f.imagem || "");
+        const imgOrig = String(f.imagemOriginal || "");
+        if (img.length > 350000 || imgOrig.length > 350000) {
+          const { imagem, imagemOriginal, ...rest } = f;
+          return rest;
+        }
+        return f;
+      };
       out.dk_patrimonio_crlv_v1 = {
-        documentos: out.dk_patrimonio_crlv_v1.documentos.map((d) => {
-          if (!d || typeof d !== "object") return d;
-          const img = String(d.imagemRecortada || "");
-          if (img.length > 350000) {
-            const { imagemRecortada, ...rest } = d;
-            return rest;
-          }
-          return d;
-        }),
+        documentos: out.dk_patrimonio_crlv_v1.documentos.map(stripDocImg),
+        fotosCapturas: Array.isArray(out.dk_patrimonio_crlv_v1.fotosCapturas)
+          ? out.dk_patrimonio_crlv_v1.fotosCapturas.map(stripFotoImg)
+          : [],
       };
     }
     return out;
@@ -915,7 +929,7 @@
   }
 
   function parsePatrimonioStore(raw) {
-    if (!raw) return { documentos: [] };
+    if (!raw) return { documentos: [], fotosCapturas: [] };
     if (typeof raw === "string") {
       try {
         raw = JSON.parse(raw);
@@ -923,9 +937,27 @@
         return { documentos: [] };
       }
     }
-    if (Array.isArray(raw?.documentos)) return { documentos: raw.documentos };
-    if (Array.isArray(raw)) return { documentos: raw };
-    return { documentos: [] };
+    if (Array.isArray(raw?.documentos)) return { documentos: raw.documentos, fotosCapturas: raw.fotosCapturas || [] };
+    if (Array.isArray(raw)) return { documentos: raw, fotosCapturas: [] };
+    return { documentos: [], fotosCapturas: [] };
+  }
+
+  function mergeFotosCapturasPatrimonio(localList, cloudList) {
+    const map = new Map();
+    for (const f of [...(cloudList || []), ...(localList || [])]) {
+      if (!f || typeof f !== "object") continue;
+      const id = String(f.id || "").trim();
+      if (!id) continue;
+      const prev = map.get(id);
+      const msF = Date.parse(String(f.atualizadoEm || f.registradoEm || "")) || 0;
+      const msP = prev ? Date.parse(String(prev.atualizadoEm || prev.registradoEm || "")) || 0 : -1;
+      if (!prev || msF >= msP) map.set(id, f);
+    }
+    return [...map.values()].sort((a, b) => {
+      const msA = Date.parse(String(a.registradoEm || "")) || 0;
+      const msB = Date.parse(String(b.registradoEm || "")) || 0;
+      return msB - msA;
+    });
   }
 
   function normPatrimonioPlaca(s) {
@@ -1072,6 +1104,10 @@
 
     return {
       documentos: merged.map(({ _dkSyncLocal, ...rest }) => rest),
+      fotosCapturas: mergeFotosCapturasPatrimonio(
+        parsePatrimonioStore(localRaw).fotosCapturas,
+        parsePatrimonioStore(cloudRaw).fotosCapturas
+      ),
     };
   }
 
@@ -1140,7 +1176,10 @@
         const deduped = deduplicarDocumentosPatrimonio(mergedPayload.dk_patrimonio_crlv_v1.documentos || []);
         localStorage.setItem(
           "dk_patrimonio_crlv_v1",
-          JSON.stringify({ documentos: deduped })
+          JSON.stringify({
+            documentos: deduped,
+            fotosCapturas: mergedPayload.dk_patrimonio_crlv_v1.fotosCapturas || [],
+          })
         );
       }
     } finally {

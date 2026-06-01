@@ -76,6 +76,9 @@ async function main() {
         html.includes("patrimonio-shutter") &&
         html.includes("patrimonioPreviewSimBtn") &&
         html.includes("patrimonioPreviewRetratBtn") &&
+        html.includes("patrimonioFotosLista") &&
+        html.includes("patrimonioFotoCapturaViewer") &&
+        html.includes("patrimonioFotoCapturaRevisarBtn") &&
         html.includes("portal-patrimonio-scan.js") &&
         html.includes("portal-patrimonio.js")
     );
@@ -111,7 +114,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531crlv-ia", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260601fotos-capt", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -127,7 +130,15 @@ async function main() {
         patJs.includes("renavamValido") &&
         patJs.includes("aplicarFlashCameraComReforco")
     );
-    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260531flash2`, {
+    record(
+      "patrimônio fotos capturadas (histórico + revisar IA)",
+      patJs.includes("registrarFotoCaptura") &&
+        patJs.includes("renderFotosLista") &&
+        patJs.includes("formatTagPatrimonioFoto") &&
+        patJs.includes("revisarFotoCapturaComIa") &&
+        patJs.includes("patrimonioFotoCapturaExcluirBtn")
+    );
+    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601fotos-capt`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(

@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260531flash2">
+  <link rel="stylesheet" href="styles.css?v=20260601fotos-capt">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -1546,6 +1546,10 @@
         <p id="patrimonioResumo" class="subtext" role="status">Nenhum CRLV cadastrado.</p>
         <h3 class="portal-lanc-aluguel-section__title">Veículos cadastrados</h3>
         <div id="patrimonioLista" class="patrimonio-lista"></div>
+
+        <h3 class="patrimonio-fotos-titulo">Fotos capturadas</h3>
+        <p id="patrimonioFotosResumo" class="subtext patrimonio-fotos-resumo">Nenhuma foto registrada ainda.</p>
+        <div id="patrimonioFotosLista" class="patrimonio-fotos-lista"></div>
         <div class="logado-actions">
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-patrimonio-locadora">Voltar</button>
         </div>
@@ -1587,6 +1591,17 @@
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemFecharBtn">Fechar</button>
     </div>
     <img id="patrimonioImagemViewerImg" class="patrimonio-viewer-img" alt="CRLV recortado">
+  </div>
+
+  <div id="patrimonioFotoCapturaViewer" class="patrimonio-overlay patrimonio-overlay--viewer hidden" aria-hidden="true" role="dialog" aria-label="Foto capturada">
+    <div class="patrimonio-viewer-toolbar patrimonio-foto-captura-toolbar">
+      <span id="patrimonioFotoCapturaTag" class="patrimonio-foto-captura-tag"></span>
+      <span id="patrimonioFotoCapturaStatus" class="patrimonio-foto-captura-status subtext"></span>
+      <button type="button" class="btn-primary" id="patrimonioFotoCapturaRevisarBtn">Revisar com IA</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioFotoCapturaExcluirBtn">Excluir</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioFotoCapturaFecharBtn">Fechar</button>
+    </div>
+    <img id="patrimonioFotoCapturaViewerImg" class="patrimonio-viewer-img" alt="Foto CRLV capturada">
   </div>
 
   <div id="patrimonioRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="patrimonioRelatorioTitulo">
@@ -1814,7 +1829,7 @@
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
   <script src="portal-patrimonio-scan.js?v=20260531scan-v5" defer></script>
-  <script src="portal-patrimonio.js?v=20260531crlv-ia" defer></script>
+  <script src="portal-patrimonio.js?v=20260601fotos-capt" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260531id-unica" defer></script>

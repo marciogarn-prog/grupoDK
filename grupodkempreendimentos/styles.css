@@ -3175,6 +3175,85 @@ table.validados-app .lnk-comprovante {
   gap: 0.4rem;
 }
 
+.patrimonio-fotos-titulo {
+  margin: 1.25rem 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.patrimonio-fotos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.patrimonio-foto-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+}
+
+.patrimonio-foto-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent, #0066cc);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+
+.patrimonio-foto-link:hover,
+.patrimonio-foto-link:focus-visible {
+  text-decoration: underline;
+}
+
+.patrimonio-foto-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
+}
+
+.patrimonio-foto-status {
+  font-size: 0.85rem;
+  color: var(--text-muted, #666);
+  white-space: nowrap;
+}
+
+.patrimonio-foto-status--ok {
+  color: #1a7f37;
+}
+
+.patrimonio-foto-status--falhou {
+  color: #b42318;
+}
+
+.patrimonio-foto-captura-toolbar {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.patrimonio-foto-captura-tag {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  margin-right: 0.25rem;
+}
+
+.patrimonio-foto-captura-status {
+  flex: 1 1 auto;
+  min-width: 8rem;
+}
+
 .patrimonio-overlay {
   position: fixed;
   inset: 0;
