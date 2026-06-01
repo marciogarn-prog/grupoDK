@@ -118,13 +118,20 @@ async function main() {
         patJs.includes('resizeMode: "none"') &&
         !patJs.includes("height: { ideal: 2560 }")
     );
-    const cssPatCam = await page.evaluate(async () => {
-      const r = await fetch("styles.css?v=20260531pat-cam", { cache: "no-store" });
-      return r.ok ? await r.text() : "";
-    });
+    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260531veic-legivel`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
     record(
       "CSS câmera patrimônio object-fit contain",
-      /\.patrimonio-overlay--camera\s+\.patrimonio-camera-video[\s\S]*?object-fit:\s*contain/.test(cssPatCam)
+      /\.patrimonio-overlay--camera\s+\.patrimonio-camera-video[\s\S]*?object-fit:\s*contain/.test(
+        cssStyles
+      )
+    );
+    record(
+      "CSS cartões frota legíveis (texto claro no botão)",
+      cssStyles.includes(".operacao-veiculo-resumo-card") &&
+        cssStyles.includes("color: var(--text") &&
+        cssStyles.includes("appearance: none")
     );
     record(
       "patrimônio uma placa substitui foto antiga",

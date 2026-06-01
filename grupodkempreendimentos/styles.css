@@ -1333,17 +1333,22 @@ body {
   padding: 0.55rem 0.6rem;
   border-radius: 8px;
   border: 1px solid rgba(201, 162, 39, 0.35);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--bg-elevated, #141a24);
+  color: var(--text, #e8eaef);
+  font-family: inherit;
   font-size: 0.76rem;
   line-height: 1.38;
   cursor: pointer;
   text-align: left;
+  appearance: none;
+  -webkit-appearance: none;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .operacao-veiculo-resumo-card:hover,
 .operacao-veiculo-resumo-card:focus-visible {
-  background: rgba(201, 162, 39, 0.08);
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--text, #e8eaef);
   outline: none;
 }
 
@@ -1357,11 +1362,12 @@ body {
 
 .operacao-veiculo-resumo-card__linha {
   margin: 0.12rem 0;
+  color: var(--text, #e8eaef);
 }
 
 .operacao-veiculo-resumo-card__linha strong {
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.72);
+  color: var(--muted, #8b93a5);
 }
 
 .operacao-veiculo-resumo-card__status {
