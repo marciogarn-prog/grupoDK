@@ -3248,6 +3248,28 @@ table.validados-app .lnk-comprovante {
   color: var(--accent, #c9a227);
 }
 
+.patrimonio-camera-nativa-btn {
+  display: block;
+  width: calc(100% - 2.5rem);
+  margin: 0 1.25rem 1rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  background: rgba(201, 162, 39, 0.12);
+  color: var(--text, #e8eaef);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+
+.patrimonio-camera-nativa-btn:hover,
+.patrimonio-camera-nativa-btn:focus-visible {
+  background: rgba(201, 162, 39, 0.22);
+  outline: none;
+}
+
 .patrimonio-shutter {
   appearance: none;
   width: 72px;

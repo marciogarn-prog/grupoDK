@@ -83,7 +83,7 @@
   let processando = false;
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
-  let patrimonioFlashLigado = false;
+  let patrimonioFlashLigado = true;
 
   function patrimonioOverlayAberto() {
     return (
@@ -720,6 +720,21 @@ REGRAS CRÍTICAS:
     btn.textContent = patrimonioFlashLigado ? "Flash: on" : "Flash: off";
   }
 
+  function patrimonioDispositivoSemLanternaWeb() {
+    const ua = String(navigator.userAgent || "");
+    return (
+      /iPad|iPhone|iPod/i.test(ua) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+    );
+  }
+
+  function abrirCameraTelefoneNativa() {
+    patrimonioPersistirAreaPortal();
+    fecharCamera(false);
+    setMsg("Use o flash da câmera do telemóvel para foto legível do CRLV.", false);
+    fileFallback?.click();
+  }
+
   function patrimonioTrackCaps(track) {
     if (!track?.getCapabilities) return {};
     try {
@@ -730,10 +745,13 @@ REGRAS CRÍTICAS:
   }
 
   function patrimonioLanternaDisponivel(track) {
+    if (!track) return false;
     const caps = patrimonioTrackCaps(track);
-    if (caps.torch === true) return true;
-    if (Array.isArray(caps.fillLightMode) && caps.fillLightMode.includes("flash")) return true;
-    return false;
+    if ("torch" in caps) return true;
+    if (Array.isArray(caps.fillLightMode) && caps.fillLightMode.some((m) => m === "flash" || m === "auto")) {
+      return true;
+    }
+    return typeof ImageCapture !== "undefined";
   }
 
   async function aplicarFlashCamera() {
@@ -763,6 +781,9 @@ REGRAS CRÍTICAS:
           })
         );
       }
+    } else if ("torch" in caps) {
+      metodos.push(() => track.applyConstraints({ advanced: [{ torch: ligar }] }));
+      metodos.push(() => track.applyConstraints({ torch: ligar }));
     }
     if (Array.isArray(caps.fillLightMode)) {
       if (ligar && caps.fillLightMode.includes("flash")) {
@@ -883,10 +904,15 @@ REGRAS CRÍTICAS:
   async function abrirCameraNativa() {
     fecharPreview(false);
     patrimonioPersistirAreaPortal();
+    if (patrimonioDispositivoSemLanternaWeb()) {
+      abrirCameraTelefoneNativa();
+      return;
+    }
     if (!cameraOverlay || !cameraVideo) {
       fileFallback?.click();
       return;
     }
+    patrimonioFlashLigado = true;
     cameraOverlay.classList.remove("hidden");
     cameraOverlay.setAttribute("aria-hidden", "false");
     patrimonioNotificarOverlayAberto();
@@ -899,7 +925,13 @@ REGRAS CRÍTICAS:
       return;
     }
     try {
-      await conectarStreamCameraPatrimonio();
+      const r = await conectarStreamCameraPatrimonio();
+      if (!r.ok && patrimonioFlashLigado) {
+        setMsg(
+          "Lanterna web indisponível — use «Câmera nativa do telemóvel (flash)» abaixo.",
+          true
+        );
+      }
     } catch {
       fecharCamera();
       setMsg("Permita o acesso à câmera ou use o seletor de ficheiro.", true);
@@ -932,21 +964,57 @@ REGRAS CRÍTICAS:
     setMsg("", false);
   }
 
-  function capturarDaCamera() {
+  async function capturarComImageCaptureFlash() {
+    const track = cameraStream?.getVideoTracks?.()?.[0];
+    if (!track || typeof ImageCapture === "undefined") return null;
+    try {
+      const ic = new ImageCapture(track);
+      const photoSettings = {};
+      try {
+        const caps = ic.getPhotoCapabilities ? await ic.getPhotoCapabilities() : null;
+        const modes = caps?.fillLightMode;
+        if (Array.isArray(modes)) {
+          if (modes.includes("flash")) photoSettings.fillLightMode = "flash";
+          else if (modes.includes("auto")) photoSettings.fillLightMode = "auto";
+        }
+      } catch {
+        /* ignore */
+      }
+      if (patrimonioFlashLigado) await aplicarFlashCamera();
+      const blob = await ic.takePhoto(photoSettings);
+      return await new Promise((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result || "") || null);
+        fr.onerror = () => resolve(null);
+        fr.readAsDataURL(blob);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  async function capturarDaCamera() {
     if (!cameraVideo || !cameraCanvas) return;
-    const vw = cameraVideo.videoWidth;
-    const vh = cameraVideo.videoHeight;
-    if (!vw || !vh) return;
-    const maxLado = 1400;
-    const escala = Math.min(1, maxLado / Math.max(vw, vh));
-    const cw = Math.max(1, Math.round(vw * escala));
-    const ch = Math.max(1, Math.round(vh * escala));
-    cameraCanvas.width = cw;
-    cameraCanvas.height = ch;
-    const ctx = cameraCanvas.getContext("2d");
-    if (!ctx) return;
-    ctx.drawImage(cameraVideo, 0, 0, cw, ch);
-    const dataUrl = cameraCanvas.toDataURL("image/jpeg", 0.88);
+    let dataUrl = null;
+    if (patrimonioFlashLigado) {
+      dataUrl = await capturarComImageCaptureFlash();
+    }
+    if (!dataUrl) {
+      const vw = cameraVideo.videoWidth;
+      const vh = cameraVideo.videoHeight;
+      if (!vw || !vh) return;
+      if (patrimonioFlashLigado) await aplicarFlashCamera();
+      const maxLado = 1400;
+      const escala = Math.min(1, maxLado / Math.max(vw, vh));
+      const cw = Math.max(1, Math.round(vw * escala));
+      const ch = Math.max(1, Math.round(vh * escala));
+      cameraCanvas.width = cw;
+      cameraCanvas.height = ch;
+      const ctx = cameraCanvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(cameraVideo, 0, 0, cw, ch);
+      dataUrl = cameraCanvas.toDataURL("image/jpeg", 0.88);
+    }
     fecharCamera(false);
     void prepararEExibirPreview(dataUrl);
   }
@@ -1264,7 +1332,8 @@ ${contador}
     btnNovo?.addEventListener("click", () => void abrirCameraNativa());
     btnRelatorio?.addEventListener("click", () => abrirRelatorioModal());
 
-    document.getElementById("patrimonioCameraCapturarBtn")?.addEventListener("click", capturarDaCamera);
+    document.getElementById("patrimonioCameraCapturarBtn")?.addEventListener("click", () => void capturarDaCamera());
+    document.getElementById("patrimonioCameraNativaBtn")?.addEventListener("click", abrirCameraTelefoneNativa);
     document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
     document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
     document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {

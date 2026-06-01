@@ -72,6 +72,7 @@ async function main() {
         html.includes("patrimonioRelatorioModal") &&
         html.includes("patrimonioCameraCapturarBtn") &&
         html.includes("patrimonioCameraFlashBtn") &&
+        html.includes("patrimonioCameraNativaBtn") &&
         html.includes("patrimonio-shutter") &&
         html.includes("patrimonioPreviewSimBtn") &&
         html.includes("patrimonioPreviewRetratBtn") &&
@@ -110,7 +111,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531flash", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531flash2", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -123,10 +124,11 @@ async function main() {
       "câmera patrimônio lanterna/flash (torch)",
       patJs.includes("patrimonioLanternaDisponivel") &&
         patJs.includes("obterStreamCameraPatrimonio") &&
-        patJs.includes("conectarStreamCameraPatrimonio") &&
+        patJs.includes("capturarComImageCaptureFlash") &&
+        patJs.includes("abrirCameraTelefoneNativa") &&
         patJs.includes('advanced: [{ torch: true }]')
     );
-    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260531veic-legivel`, {
+    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260531flash2`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
