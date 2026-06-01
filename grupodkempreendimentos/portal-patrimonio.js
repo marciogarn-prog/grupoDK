@@ -33,7 +33,8 @@
   ];
 
   const MSG_NITIDEZ = "Imagem sem nitidez suficiente para ser processada.";
-  /** Campos que a IA deve ler com 100% de certeza — senão reprova o cadastro. */
+  const MSG_IA_FALHOU = "Não foi possível ler o CRLV. Confira a foto ou fotografe de novo.";
+  /** Campos que a IA deve ler — validação final é programática (placa, RENAVAM, chassi, etc.). */
   const CAMPOS_OBRIGATORIOS = [
     "codigoRenavam",
     "placa",
@@ -582,71 +583,116 @@
     });
   }
 
-  function montarPromptCrlv() {
+  function montarPromptCrlv(revisao) {
     const schema = `{"aprovado":true,"confianca":"alta","camposIlegiveis":[],"motivoReprovacao":"","campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
-    return `CRLV-e brasileiro (folha A4 recortada). Leia TODOS os campos com atenção a cada dígito e letra.
+    if (revisao) {
+      return `CRLV-e brasileiro — segunda leitura. Foque em placa Mercosul (LLLNLNN), RENAVAM (11 dígitos), potência/cilindrada e observações.
+
+Responda APENAS JSON: ${schema}
+
+- placa: 7 caracteres — 3 letras + 1 número + 1 letra + 2 números (ex.: SPA9H12 → S-P-A-9-H-1-2).
+- codigoRenavam: conte exatamente 11 dígitos.
+- potenciaCilindrada: copie como impresso (ex.: "0CV/162", "8CV/150") — zero à esquerda é válido.
+- observacaoVeiculo: texto em "OBSERVAÇÕES DO VEÍCULO" ou "SEM OBSERVAÇÕES".
+- Preencha todos os campos legíveis; use "aprovado": true se placa, RENAVAM e chassi estiverem corretos.`;
+    }
+    return `CRLV-e brasileiro (digital impresso, foto com ou sem recorte). Extraia TODOS os campos visíveis.
 
 Responda APENAS JSON válido (sem markdown): ${schema}
 
-REGRAS CRÍTICAS:
-- Se QUALQUER campo obrigatório estiver ilegível, duvidoso ou parcial → "aprovado": false, "confianca": "baixa", liste os nomes em "camposIlegiveis" e explique em "motivoReprovacao".
-- Só use "aprovado": true e "confianca": "alta" se TODOS os campos obrigatórios estiverem 100% legíveis e corretos.
-- NÃO invente dígitos. Diferencie 0/O, 1/I/l, 8/B, 5/S, 2/Z.
-- codigoRenavam: exatamente 11 dígitos.
-- placa: exatamente LLLNLNN — posição 4 = NÚMERO, posição 5 = LETRA, posições 6-7 = NÚMEROS (ex.: SOX2A84). Proibido LLLLNNN (ex.: SOXA284). Diferencie 2 de A, 0 de O, 8 de B.
-- chassi: exatamente 17 caracteres alfanuméricos.
-- codigoSegurancaCla: 11 dígitos.
+LAYOUT TÍPICO:
+- Esquerda: RENAVAM, PLACA, exercício, anos, QR, marca/modelo, chassi, cor, combustível.
+- Direita: categoria, potência/cilindrada, motor, nome, CPF/CNPJ, local/data.
+- Rodapé: OBSERVAÇÕES DO VEÍCULO (ex.: ALIENAÇÃO FIDUCIÁRIA ou SEM OBSERVAÇÕES).
+- Número CRV e código segurança CLA: campos numéricos longos no documento.
+
+REGRAS:
+- placa Mercosul LLLNLNN: posição 4 = NÚMERO, 5 = LETRA, 6-7 = NÚMEROS (ex.: SPA9H12). Diferencie 9/H, 2/A, 0/O.
+- codigoRenavam: exatamente 11 dígitos (conte um a um).
+- chassi: 17 caracteres alfanuméricos.
+- potenciaCilindrada: copie exatamente (motos podem ter "0CV/162").
+- observacaoVeiculo: copie o texto das observações ou "SEM OBSERVAÇÕES".
+- carroceria: "NÃO APLICÁVEL" se motocicleta sem carroceria.
+- placaAnterior: asteriscos ou vazio se mascarada.
 - data: DD/MM/AAAA do campo Local/Data.
-- cpfCnpj: CPF ou CNPJ completo como impresso.
-- potenciaCilindrada: ex. "8CV/150".
-- observacaoVeiculo: "SEM OBSERVAÇÕES" se for o caso.`;
+- Use "aprovado": true se os campos principais estiverem legíveis; liste só em "camposIlegiveis" o que realmente não conseguir ler.
+- NÃO invente dígitos.`;
+  }
+
+  function preencherDefaultsCrlv(campos) {
+    if (!campos || typeof campos !== "object") return;
+    const obs = String(campos.observacaoVeiculo ?? "").trim();
+    if (!obs || /^[*.\-–—]+$/.test(obs)) {
+      campos.observacaoVeiculo = "SEM OBSERVAÇÕES";
+    }
+    const pa = String(campos.placaAnterior ?? "").trim();
+    if (!pa || /^[*]+$/.test(pa)) campos.placaAnterior = "";
+    if (!String(campos.carroceria ?? "").trim()) {
+      const esp = String(campos.especieTipo ?? "").toUpperCase();
+      if (/MOTOC|MOTON|CICLOM/.test(esp)) campos.carroceria = "NÃO APLICÁVEL";
+    }
+  }
+
+  function renavamDigitoVerificador(renavam10) {
+    const seq = onlyDigits(renavam10).padStart(10, "0").slice(-10);
+    let soma = 0;
+    const pesos = [2, 3, 4, 5, 6, 7, 8, 9, 2, 3];
+    for (let i = 0; i < 10; i++) {
+      soma += Number(seq[9 - i]) * pesos[i];
+    }
+    const resto = soma % 11;
+    return resto <= 1 ? 0 : 11 - resto;
+  }
+
+  function renavamValido(renavam) {
+    const d = onlyDigits(renavam);
+    if (d.length !== 11) return false;
+    return renavamDigitoVerificador(d.slice(0, 10)) === Number(d[10]);
+  }
+
+  function normalizarRenavamPatrimonio(raw) {
+    let d = onlyDigits(raw);
+    if (d.length === 11 && renavamValido(d)) return d;
+    if (d.length === 12) {
+      for (let i = 0; i < 12; i++) {
+        const cand = d.slice(0, i) + d.slice(i + 1);
+        if (renavamValido(cand)) return cand;
+      }
+    }
+    if (d.length > 11) d = d.slice(0, 11);
+    return d;
   }
 
   function validarLeituraCrlv(parsed, campos) {
-    const meta = parsed?.campos ? parsed : { campos: parsed };
-    const root = parsed || {};
-
-    if (root.aprovado === false) {
-      return { ok: false, msg: MSG_NITIDEZ };
-    }
-    if (String(root.confianca || "").toLowerCase() !== "alta") {
-      return { ok: false, msg: MSG_NITIDEZ };
-    }
-    const ileg = Array.isArray(root.camposIlegiveis) ? root.camposIlegiveis : [];
-    if (ileg.length > 0) {
-      return { ok: false, msg: MSG_NITIDEZ };
-    }
-    if (String(root.motivoReprovacao || "").trim()) {
-      return { ok: false, msg: MSG_NITIDEZ };
-    }
+    preencherDefaultsCrlv(campos);
 
     for (const key of CAMPOS_OBRIGATORIOS) {
       if (!String(campos[key] ?? "").trim()) {
-        return { ok: false, msg: MSG_NITIDEZ };
+        return { ok: false, msg: MSG_NITIDEZ, field: key };
       }
     }
 
     if (!placaValida(campos.placa)) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "placa" };
     }
     if (onlyDigits(campos.codigoRenavam).length !== 11) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "codigoRenavam" };
     }
     if (onlyDigits(campos.codigoSegurancaCla).length !== 11) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "codigoSegurancaCla" };
     }
     if (!chassiValido(campos.chassi)) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "chassi" };
     }
     if (!dataBrValida(campos.data)) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "data" };
     }
     const cnpjCpf = onlyDigits(campos.cpfCnpj);
     if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "cpfCnpj" };
     }
     if (!/^\d{4}$/.test(String(campos.exercicio || ""))) {
-      return { ok: false, msg: MSG_NITIDEZ };
+      return { ok: false, msg: MSG_NITIDEZ, field: "exercicio" };
     }
 
     return { ok: true };
@@ -694,10 +740,10 @@ REGRAS CRÍTICAS:
     }
   }
 
-  async function chamarIaCrlv(dataUrl) {
+  async function chamarIaCrlv(dataUrl, revisao) {
     const parsed = parseDataUrl(dataUrl);
     const content = [
-      { type: "text", text: montarPromptCrlv() },
+      { type: "text", text: montarPromptCrlv(Boolean(revisao)) },
       {
         type: "image_url",
         image_url: {
@@ -714,10 +760,32 @@ REGRAS CRÍTICAS:
       });
       const data = await res.json();
       if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
-      return { ok: false, msg: data.error || data.reason || "Falha na IA." };
+      return { ok: false, msg: data.error || data.reason || MSG_IA_FALHOU };
     } catch (e) {
       return { ok: false, msg: String(e?.message || e) };
     }
+  }
+
+  async function lerCrlvComRetry(imagens) {
+    const fontes = [...new Set((imagens || []).filter(Boolean))];
+    let ultimo = { ok: false, msg: MSG_NITIDEZ };
+
+    for (let i = 0; i < fontes.length; i++) {
+      const img = await comprimirImagem(fontes[i], 2400, 0.92);
+      for (const revisao of [false, true]) {
+        const oai = await chamarIaCrlv(img, revisao);
+        if (!oai.ok) {
+          ultimo = oai;
+          continue;
+        }
+        const campos = normalizarCampos(oai.parsed);
+        preencherDefaultsCrlv(campos);
+        const val = validarLeituraCrlv(oai.parsed, campos);
+        if (val.ok) return { ok: true, campos, parsed: oai.parsed, imagemUsada: fontes[i] };
+        ultimo = val;
+      }
+    }
+    return ultimo;
   }
 
   function normalizarCampos(raw) {
@@ -735,8 +803,9 @@ REGRAS CRÍTICAS:
         .replace(/[^A-Z0-9]/g, "")
         .slice(0, 17);
     }
-    if (out.codigoRenavam) out.codigoRenavam = onlyDigits(out.codigoRenavam).slice(0, 11);
+    if (out.codigoRenavam) out.codigoRenavam = normalizarRenavamPatrimonio(out.codigoRenavam);
     if (out.codigoSegurancaCla) out.codigoSegurancaCla = onlyDigits(out.codigoSegurancaCla).slice(0, 11);
+    preencherDefaultsCrlv(out);
     return out;
   }
 
@@ -745,18 +814,14 @@ REGRAS CRÍTICAS:
     processando = true;
     setMsg("A validar nitidez e ler campos do CRLV…", false);
     try {
-      const imagemTratada = previewDataUrl || dataUrlEntrada;
-      const oai = await chamarIaCrlv(await comprimirImagem(imagemTratada, 2200, 0.94));
-      if (!oai.ok) {
-        setMsg(MSG_NITIDEZ, true);
+      const leitura = await lerCrlvComRetry([previewDataUrlRaw, previewDataUrl, dataUrlEntrada]);
+      if (!leitura.ok) {
+        setMsg(leitura.msg || MSG_NITIDEZ, true);
         return;
       }
-      const campos = normalizarCampos(oai.parsed);
-      const val = validarLeituraCrlv(oai.parsed, campos);
-      if (!val.ok) {
-        setMsg(val.msg || MSG_NITIDEZ, true);
-        return;
-      }
+      const campos = leitura.campos;
+      const imagemTratada =
+        leitura.imagemUsada === previewDataUrlRaw && previewDataUrl ? previewDataUrl : previewDataUrl || dataUrlEntrada;
       const imagemGuardar = await comprimirImagemLimite(imagemTratada, 1600, 320000, 0.88);
       const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
       const doc = {
