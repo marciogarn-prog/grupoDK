@@ -84,6 +84,119 @@
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
+  let patrimonioCameraDeviceId = "";
+
+  function patrimonioLabelEhFrontal(label) {
+    const L = String(label || "").toLowerCase();
+    return /front|user|selfie|facial|face|frontal/.test(L);
+  }
+
+  function patrimonioLabelEhTraseira(label) {
+    const L = String(label || "").toLowerCase();
+    if (patrimonioLabelEhFrontal(L)) return false;
+    if (/back|rear|traseir|environment|trás|facing back/.test(L)) return true;
+    return !patrimonioLabelEhFrontal(L);
+  }
+
+  function patrimonioLabelPrioridadeCameraTraseira(label) {
+    const L = String(label || "").toLowerCase();
+    let s = 0;
+    if (/back|rear|traseir|environment|facing back/.test(L)) s += 30;
+    if (/camera2 0|camera 0/.test(L)) s += 12;
+    if (/main|standard/.test(L)) s += 18;
+    if (/wide/.test(L) && !/ultra/.test(L)) s += 8;
+    if (/ultra|macro|depth|tele|zoom|dual|aux/.test(L)) s -= 25;
+    if (patrimonioLabelEhFrontal(L)) s -= 100;
+    return s;
+  }
+
+  function patrimonioTrackEhTraseira(track) {
+    if (!track) return false;
+    const settings = track.getSettings?.() || {};
+    if (settings.facingMode === "environment") return true;
+    if (settings.facingMode === "user") return false;
+    return patrimonioLabelEhTraseira(track.label || "");
+  }
+
+  function patrimonioTrackTemTorch(track) {
+    const caps = patrimonioTrackCaps(track);
+    return "torch" in caps && caps.torch !== false;
+  }
+
+  async function patrimonioGarantirPermissaoCamera() {
+    let tmp = null;
+    try {
+      tmp = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: "environment" } },
+        audio: false,
+      });
+    } catch {
+      return false;
+    }
+    tmp.getTracks().forEach((t) => t.stop());
+    return true;
+  }
+
+  /** Escolhe câmera TRASEIRA principal com lanterna (Galaxy S24: evita ultra-wide/frontal). */
+  async function patrimonioDetectarCameraTraseiraComLanterna() {
+    if (!navigator.mediaDevices?.getUserMedia) return "";
+    await patrimonioGarantirPermissaoCamera();
+    let devices = [];
+    try {
+      devices = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+    } catch {
+      return "";
+    }
+    if (!devices.length) return "";
+
+    let candidatos = devices.filter((d) => patrimonioLabelEhTraseira(d.label));
+    if (!candidatos.length) candidatos = devices.filter((d) => !patrimonioLabelEhFrontal(d.label));
+    if (!candidatos.length) candidatos = devices.slice();
+
+    candidatos.sort(
+      (a, b) => patrimonioLabelPrioridadeCameraTraseira(b.label) - patrimonioLabelPrioridadeCameraTraseira(a.label)
+    );
+
+    let melhorId = "";
+    let melhorScore = -999;
+
+    for (const dev of candidatos.slice(0, 6)) {
+      let stream = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { deviceId: { exact: dev.deviceId } },
+          audio: false,
+        });
+        const track = stream.getVideoTracks()[0];
+        if (!track) continue;
+        let score = patrimonioLabelPrioridadeCameraTraseira(dev.label || track.label || "");
+        if (patrimonioTrackEhTraseira(track)) score += 40;
+        if (patrimonioTrackTemTorch(track)) score += 80;
+        if (score > melhorScore) {
+          melhorScore = score;
+          melhorId = dev.deviceId;
+        }
+      } catch {
+        /* tentar próxima lente */
+      } finally {
+        stream?.getTracks?.().forEach((t) => t.stop());
+      }
+    }
+
+    return melhorId || candidatos[0]?.deviceId || "";
+  }
+
+  function patrimonioVideoConstraintsBase(extra) {
+    const base = {
+      width: { ideal: patrimonioEhAndroidSamsung() ? 1920 : 1280, max: 3840 },
+      height: { ideal: patrimonioEhAndroidSamsung() ? 1080 : 720, max: 2160 },
+      ...(extra || {}),
+    };
+    if (patrimonioCameraDeviceId) {
+      return { deviceId: { exact: patrimonioCameraDeviceId }, ...base };
+    }
+    return { facingMode: { ideal: "environment" }, ...base };
+  }
 
   function patrimonioOverlayAberto() {
     return (
@@ -691,6 +804,7 @@ REGRAS CRÍTICAS:
 
   function fecharCamera(syncHistory = true) {
     patrimonioFlashLigado = false;
+    patrimonioCameraDeviceId = "";
     atualizarUiFlash();
     void pararCamera();
     cameraOverlay?.classList.add("hidden");
@@ -778,37 +892,58 @@ REGRAS CRÍTICAS:
     if (!track) return { ok: false, motivo: "sem_track" };
 
     const btn = document.getElementById("patrimonioCameraFlashBtn");
-    if (!patrimonioLanternaDisponivel(track)) {
+    const ligar = patrimonioFlashLigado;
+
+    if (!ligar) {
+      const caps = patrimonioTrackCaps(track);
+      const metodosOff = [
+        () => track.applyConstraints({ advanced: [{ torch: false }] }),
+        () => track.applyConstraints({ torch: false }),
+      ];
+      if (Array.isArray(caps.fillLightMode) && caps.fillLightMode.includes("off")) {
+        metodosOff.push(() => track.applyConstraints({ fillLightMode: "off" }));
+      }
+      for (const fn of metodosOff) {
+        try {
+          await fn();
+          if (btn) btn.dataset.flashDisponivel = "1";
+          return { ok: true };
+        } catch {
+          /* ignore */
+        }
+      }
+      if (btn) btn.dataset.flashDisponivel = "1";
+      return { ok: true };
+    }
+
+    if (!patrimonioTrackEhTraseira(track)) {
+      return { ok: false, motivo: "camera_errada" };
+    }
+
+    if (!patrimonioLanternaDisponivel(track) && !patrimonioTrackTemTorch(track)) {
       if (btn) btn.dataset.flashDisponivel = "0";
-      atualizarUiFlash();
       return { ok: false, motivo: "nao_suportado" };
     }
     if (btn) btn.dataset.flashDisponivel = "1";
 
-    const ligar = patrimonioFlashLigado;
     const caps = patrimonioTrackCaps(track);
     const metodos = [];
 
-    if (caps.torch) {
-      metodos.push(() => track.applyConstraints({ advanced: [{ torch: ligar }] }));
-      metodos.push(() => track.applyConstraints({ torch: ligar }));
+    if ("torch" in caps) {
+      metodos.push(() => track.applyConstraints({ advanced: [{ torch: true }] }));
+      metodos.push(() => track.applyConstraints({ torch: true }));
       if (caps.zoom) {
         metodos.push(() =>
           track.applyConstraints({
-            advanced: [{ torch: ligar, zoom: caps.zoom.min ?? 1 }],
+            advanced: [{ torch: true, zoom: caps.zoom.min ?? 1 }],
           })
         );
       }
-    } else if ("torch" in caps) {
-      metodos.push(() => track.applyConstraints({ advanced: [{ torch: ligar }] }));
-      metodos.push(() => track.applyConstraints({ torch: ligar }));
     }
     if (Array.isArray(caps.fillLightMode)) {
-      if (ligar && caps.fillLightMode.includes("flash")) {
+      if (caps.fillLightMode.includes("flash")) {
         metodos.push(() => track.applyConstraints({ fillLightMode: "flash" }));
         metodos.push(() => track.applyConstraints({ advanced: [{ fillLightMode: "flash" }] }));
-      } else if (!ligar && caps.fillLightMode.includes("off")) {
-        metodos.push(() => track.applyConstraints({ fillLightMode: "off" }));
       }
     }
 
@@ -816,14 +951,17 @@ REGRAS CRÍTICAS:
       try {
         await fn();
         const st = track.getSettings?.() || {};
-        if (st.torch === ligar) return { ok: true };
-        if (ligar && st.torch !== false) return { ok: true };
-        if (ligar && st.fillLightMode === "flash") return { ok: true };
+        if (st.torch === true) return { ok: true };
+        if (st.fillLightMode === "flash") return { ok: true };
       } catch {
         /* tentar próximo método */
       }
     }
-    return { ok: false, motivo: "constraint_falhou" };
+
+    if (patrimonioEhAndroid() && metodos.length) {
+      return { ok: true, aviso: "torch_nao_confirmado" };
+    }
+    return { ok: false, motivo: metodos.length ? "constraint_falhou" : "nao_suportado" };
   }
 
   async function aplicarFlashCameraComReforco() {
@@ -872,83 +1010,18 @@ REGRAS CRÍTICAS:
   }
 
   async function obterStreamCameraPatrimonio() {
-    const videoBase = {
-      facingMode: { ideal: "environment" },
-      width: { ideal: 1280, max: 1920 },
-      height: { ideal: 720, max: 1920 },
-      aspectRatio: { ideal: 16 / 9 },
-    };
-    const videoSamsung = {
-      facingMode: { exact: "environment" },
-      width: { ideal: 1920, max: 3840 },
-      height: { ideal: 1080, max: 2160 },
-    };
     const tentativas = [];
 
-    if (patrimonioFlashLigado && patrimonioEhAndroidSamsung()) {
+    if (patrimonioFlashLigado) {
       tentativas.push(
         () =>
           navigator.mediaDevices.getUserMedia({
-            video: { ...videoSamsung, advanced: [{ torch: true }] },
+            video: { ...patrimonioVideoConstraintsBase(), advanced: [{ torch: true }] },
             audio: false,
           }),
         () =>
           navigator.mediaDevices.getUserMedia({
-            video: { ...videoSamsung, torch: true },
-            audio: false,
-          }),
-        () =>
-          navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { exact: "environment" },
-              advanced: [{ torch: true }],
-            },
-            audio: false,
-          })
-      );
-    }
-
-    if (patrimonioFlashLigado && patrimonioEhAndroid()) {
-      tentativas.push(
-        () =>
-          navigator.mediaDevices.getUserMedia({
-            video: {
-              facingMode: { exact: "environment" },
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              advanced: [{ torch: true }],
-            },
-            audio: false,
-          }),
-        () =>
-          navigator.mediaDevices.getUserMedia({
-            video: {
-              ...videoBase,
-              facingMode: { ideal: "environment" },
-              advanced: [{ torch: true }],
-            },
-            audio: false,
-          }),
-        () =>
-          navigator.mediaDevices.getUserMedia({
-            video: { ...videoBase, torch: true },
-            audio: false,
-          })
-      );
-    } else if (patrimonioFlashLigado) {
-      tentativas.push(
-        () =>
-          navigator.mediaDevices.getUserMedia({
-            video: {
-              ...videoBase,
-              facingMode: { ideal: "environment" },
-              advanced: [{ torch: true }],
-            },
-            audio: false,
-          }),
-        () =>
-          navigator.mediaDevices.getUserMedia({
-            video: { ...videoBase, torch: true },
+            video: { ...patrimonioVideoConstraintsBase({ torch: true }) },
             audio: false,
           })
       );
@@ -957,18 +1030,30 @@ REGRAS CRÍTICAS:
     tentativas.push(
       () =>
         navigator.mediaDevices.getUserMedia({
-          video: { ...videoBase, resizeMode: "none" },
+          video: patrimonioVideoConstraintsBase({ resizeMode: "none" }),
           audio: false,
         }),
       () =>
         navigator.mediaDevices.getUserMedia({
-          video: videoBase,
+          video: patrimonioVideoConstraintsBase(),
+          audio: false,
+        }),
+      () =>
+        navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } },
           audio: false,
         })
     );
+
     for (const fn of tentativas) {
       try {
-        return await fn();
+        const stream = await fn();
+        const track = stream.getVideoTracks()[0];
+        if (track && !patrimonioTrackEhTraseira(track) && patrimonioCameraDeviceId) {
+          stream.getTracks().forEach((t) => t.stop());
+          continue;
+        }
+        return stream;
       } catch {
         /* próxima tentativa */
       }
@@ -976,10 +1061,22 @@ REGRAS CRÍTICAS:
     throw new Error("camera_indisponivel");
   }
 
-  async function conectarStreamCameraPatrimonio() {
+  async function conectarStreamCameraPatrimonio(opcoes) {
+    const forcarDetectar = Boolean(opcoes?.forcarDetectar);
+    if (forcarDetectar || !patrimonioCameraDeviceId) {
+      patrimonioCameraDeviceId = await patrimonioDetectarCameraTraseiraComLanterna();
+    }
     await pararCamera();
     cameraStream = await obterStreamCameraPatrimonio();
-    const track = cameraStream.getVideoTracks()[0];
+    let track = cameraStream.getVideoTracks()[0];
+
+    if (track && !patrimonioTrackEhTraseira(track)) {
+      patrimonioCameraDeviceId = await patrimonioDetectarCameraTraseiraComLanterna();
+      await pararCamera();
+      cameraStream = await obterStreamCameraPatrimonio();
+      track = cameraStream.getVideoTracks()[0];
+    }
+
     if (track) await normalizarCameraSemZoom(track);
     if (cameraVideo) {
       cameraVideo.srcObject = cameraStream;
@@ -1019,14 +1116,17 @@ REGRAS CRÍTICAS:
       return;
     }
     try {
-      const r = await conectarStreamCameraPatrimonio();
-      if (!r.ok && patrimonioFlashLigado) {
+      const r = await conectarStreamCameraPatrimonio({ forcarDetectar: true });
+      if (!r.ok && patrimonioFlashLigado && r.motivo !== "camera_errada") {
         setMsg(
           patrimonioEhAndroidSamsung()
-            ? "Galaxy S24: se o flash não acender aqui, use «Câmera nativa do telemóvel (flash)» e active ⚡."
-            : "Lanterna web indisponível — use «Câmera nativa do telemóvel (flash)» abaixo.",
+            ? "Galaxy: flash ON — se a luz não acender, use «Câmera nativa do telemóvel (flash)»."
+            : "Flash ON — se a luz não acender, use «Câmera nativa do telemóvel (flash)».",
           true
         );
+      } else if (r.motivo === "camera_errada") {
+        setMsg("A trocar para a câmera traseira principal…", false);
+        await conectarStreamCameraPatrimonio({ forcarDetectar: true });
       }
     } catch {
       fecharCamera();
@@ -1038,27 +1138,28 @@ REGRAS CRÍTICAS:
   async function alternarFlashCamera() {
     patrimonioFlashLigado = !patrimonioFlashLigado;
     atualizarUiFlash();
+
     let r = await aplicarFlashCameraComReforco();
     if (!r.ok && patrimonioFlashLigado) {
       try {
-        r = await conectarStreamCameraPatrimonio();
+        r = await conectarStreamCameraPatrimonio({ forcarDetectar: true });
       } catch {
         r = { ok: false, motivo: "stream_falhou" };
       }
     }
+
     if (!r.ok && patrimonioFlashLigado) {
-      patrimonioFlashLigado = false;
-      atualizarUiFlash();
       setMsg(
-        r.motivo === "nao_suportado"
-          ? patrimonioEhAndroidSamsung()
-            ? "Use «Câmera nativa do telemóvel (flash)» — no Galaxy o flash ⚡ funciona na câmera Samsung."
-            : "Lanterna indisponível neste telemóvel/browser. Use a câmera nativa (ficheiro)."
-          : "Não foi possível ligar a lanterna. Feche e abra a câmera ou use a câmera nativa.",
+        r.motivo === "camera_errada"
+          ? "Câmera errada detectada — a usar a traseira principal. Toque Flash de novo."
+          : patrimonioEhAndroidSamsung()
+            ? "Flash fica ON. Se a luz não acender, use «Câmera nativa do telemóvel (flash)» e ⚡."
+            : "Flash fica ON. Se a luz não acender, use «Câmera nativa do telemóvel (flash)».",
         true
       );
       return;
     }
+
     setMsg("", false);
   }
 
