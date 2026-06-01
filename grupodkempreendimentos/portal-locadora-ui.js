@@ -4311,6 +4311,41 @@ ${printable.innerHTML}
     return { grupo: 2, num: 0, raw: t };
   }
 
+  function portalVeiculoCodigoSortKey(veiculo) {
+    const raw = String(veiculo?.codigo || veiculo?.tag || "")
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "");
+    const m = raw.match(/^([A-Z]+)(\d+)$/);
+    if (m) {
+      return { prefix: m[1], num: parseInt(m[2], 10) || 0, raw };
+    }
+    const m2 = raw.match(/^([A-Z]*?)(\d+)$/);
+    if (m2) {
+      return { prefix: m2[1] || raw, num: parseInt(m2[2], 10) || 0, raw };
+    }
+    return { prefix: raw, num: 0, raw };
+  }
+
+  /** DKCA001, DKCA002… depois DKMT001… (prefixo + número). */
+  function portalCompareVeiculoPorCodigo(a, b) {
+    const ka = portalVeiculoCodigoSortKey(a);
+    const kb = portalVeiculoCodigoSortKey(b);
+    const cmpPrefix = ka.prefix.localeCompare(kb.prefix, "pt-BR");
+    if (cmpPrefix !== 0) return cmpPrefix;
+    if (ka.num !== kb.num) return ka.num - kb.num;
+    return ka.raw.localeCompare(kb.raw, "pt-BR");
+  }
+
+  function portalCompareVeiculoResumoFrota(a, b) {
+    const da = getPortalResumoVeiculoCardData(a);
+    const db = getPortalResumoVeiculoCardData(b);
+    const locA = da.statusClass === "locado" ? 0 : 1;
+    const locB = db.statusClass === "locado" ? 0 : 1;
+    if (locA !== locB) return locA - locB;
+    return portalCompareVeiculoPorCodigo(a, b);
+  }
+
   function portalCompareVeiculoPorTag(a, b) {
     const ka = portalVeiculoTagSortKey(a.tag);
     const kb = portalVeiculoTagSortKey(b.tag);
@@ -4478,7 +4513,7 @@ ${printable.innerHTML}
     if (!grid) return;
     refreshOperacaoVeiculoPlacasCache();
     const veiculos = portalVeiculoPlacasCache.map((x) => x.record).filter(Boolean);
-    veiculos.sort(portalCompareVeiculoPorTag);
+    veiculos.sort(portalCompareVeiculoResumoFrota);
 
     if (!veiculos.length) {
       grid.innerHTML =

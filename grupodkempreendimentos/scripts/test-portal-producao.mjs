@@ -87,7 +87,7 @@ async function main() {
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
     const portalUiJs = await page.evaluate(async () => {
-      const r = await fetch("portal-locadora-ui.js?v=20260531veic-resumo", { cache: "no-store" });
+      const r = await fetch("portal-locadora-ui.js?v=20260531veic-ordem", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -95,7 +95,8 @@ async function main() {
       portalUiJs.includes("renderOperacaoVeiculoResumoFrota") &&
         portalUiJs.includes("getPortalUltimoKmPorPlaca") &&
         portalUiJs.includes("getPortalResumoVeiculoCardData") &&
-        portalUiJs.includes('statusClass: locado')
+        portalUiJs.includes("portalCompareVeiculoResumoFrota") &&
+        portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const scanJs = await page.evaluate(async () => {
       const r = await fetch("portal-patrimonio-scan.js?v=20260531scan-v5", { cache: "no-store" });
