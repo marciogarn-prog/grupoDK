@@ -76,7 +76,19 @@ async function main() {
         html.includes("patrimonioPreviewSimBtn") &&
         html.includes("patrimonioPreviewRetratBtn") &&
         html.includes("portal-patrimonio-scan.js") &&
-        html.includes("portal-patrimonio.js")
+        html.includes("portal-patrimonio.js") &&
+        html.includes("operacaoVeiculoResumoGrid") &&
+        html.includes("operacao-veiculo-resumo-card")
+    );
+    const portalUiJs = await page.evaluate(async () => {
+      const r = await fetch("portal-locadora-ui.js?v=20260531veic-resumo", { cache: "no-store" });
+      return r.ok ? await r.text() : "";
+    });
+    record(
+      "cadastro veículo resumo frota (código, placa, km, cliente)",
+      portalUiJs.includes("renderOperacaoVeiculoResumoFrota") &&
+        portalUiJs.includes("getPortalUltimoKmPorPlaca") &&
+        portalUiJs.includes("operacao-veiculo-resumo-card__status--locado")
     );
     const scanJs = await page.evaluate(async () => {
       const r = await fetch("portal-patrimonio-scan.js?v=20260531scan-v5", { cache: "no-store" });

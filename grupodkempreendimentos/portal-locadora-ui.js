@@ -4335,6 +4335,185 @@ ${printable.innerHTML}
     return { carros, motos, outros };
   }
 
+  function getPortalPlacasEmManutencaoSet() {
+    const set = new Set();
+    if (typeof loadCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") return set;
+    loadCadastro(CAD_MANUTENCOES_KEY)
+      .filter((m) => !String(m.dataRealSaida || "").trim())
+      .forEach((m) => {
+        const pl =
+          typeof normalizePlate === "function"
+            ? normalizePlate(m.placa)
+            : String(m.placa || "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        if (pl) set.add(pl);
+      });
+    return set;
+  }
+
+  function getPortalLocacaoAtivaDetalhePorPlaca(plateKey) {
+    if (!plateKey) return null;
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      const locacoes = loadCadastro(CAD_LOCACOES_KEY).filter((l) => {
+        const pl =
+          typeof normalizePlate === "function"
+            ? normalizePlate(l.placa)
+            : String(l.placa || "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        return pl === plateKey && !String(l.fim || "").trim();
+      });
+      if (locacoes.length) {
+        locacoes.sort(
+          (a, b) => Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0)
+        );
+        return locacoes[0];
+      }
+    }
+    if (typeof buildLatestReceita2026RowByPlateMap === "function") {
+      const hit = buildLatestReceita2026RowByPlateMap().get(plateKey);
+      if (hit?.row && !String(hit.row.fim || "").trim()) {
+        return {
+          cpf: hit.row.cpf,
+          nome: hit.row.nome,
+          placa: plateKey,
+          kmInicial: hit.row.kmInicial || "",
+          numeroContrato: hit.row.numeroContrato || hit.row.protocolo || "",
+        };
+      }
+    }
+    return null;
+  }
+
+  function getPortalUltimoKmPorPlaca(plateKey) {
+    if (!plateKey) return "—";
+    let best = -1;
+    const consider = (raw) => {
+      const n = parseInt(String(raw || "").replace(/\D/g, ""), 10);
+      if (!Number.isFinite(n) || n < 0) return;
+      if (n > best) best = n;
+    };
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY)
+        .filter((l) => {
+          const pl =
+            typeof normalizePlate === "function"
+              ? normalizePlate(l.placa)
+              : String(l.placa || "")
+                  .toUpperCase()
+                  .replace(/[^A-Z0-9]/g, "");
+          return pl === plateKey;
+        })
+        .forEach((l) => consider(l.kmInicial));
+    }
+    if (typeof buildLatestReceita2026RowByPlateMap === "function") {
+      const hit = buildLatestReceita2026RowByPlateMap().get(plateKey);
+      if (hit?.row) consider(hit.row.kmInicial);
+    }
+    const ativa = getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
+    if (ativa?.kmInicial) consider(ativa.kmInicial);
+    if (best < 0) return "—";
+    return `${best.toLocaleString("pt-BR")} km`;
+  }
+
+  function getPortalResumoVeiculoCardData(veiculo) {
+    const plateKey =
+      typeof normalizePlate === "function"
+        ? normalizePlate(veiculo?.placa)
+        : String(veiculo?.placa || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    const activeSet =
+      typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    const manutencaoSet = getPortalPlacasEmManutencaoSet();
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (x) => String(x || "").trim().toUpperCase();
+    const indisponivel = nk(veiculo?.status).includes("INDISPONIVEL");
+    const locado = Boolean(plateKey && activeSet.has(plateKey));
+    const emManutencao = Boolean(plateKey && manutencaoSet.has(plateKey));
+
+    let cliente = "—";
+    let statusText = "Disponível";
+    if (locado) {
+      const loc = getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
+      const cpf =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(loc?.cpf || ""))
+          : String(loc?.cpf || "").replace(/\D/g, "");
+      let nome = String(loc?.nome || "").trim();
+      if (cpf.length === 11 && typeof findClienteByCpfCadastro === "function") {
+        const cli = findClienteByCpfCadastro(cpf);
+        if (cli?.nome) nome = String(cli.nome).trim();
+      }
+      cliente = nome || "Cliente cadastrado";
+      statusText = "Em locação";
+    } else if (emManutencao) {
+      cliente = "—";
+      statusText = "Em manutenção";
+    } else if (indisponivel) {
+      cliente = "—";
+      statusText = "Indisponível";
+    } else {
+      cliente = "Disponível";
+      statusText = "Disponível";
+    }
+
+    const codigo =
+      String(veiculo?.codigo || "").trim() || String(veiculo?.tag || "").trim() || "—";
+
+    return {
+      codigo,
+      placa: plateKey || "—",
+      ultimoKm: getPortalUltimoKmPorPlaca(plateKey),
+      cliente,
+      statusText,
+      statusClass: locado ? "locado" : "livre",
+      record: veiculo,
+    };
+  }
+
+  function renderOperacaoVeiculoResumoFrota() {
+    const grid = document.getElementById("operacaoVeiculoResumoGrid");
+    if (!grid) return;
+    refreshOperacaoVeiculoPlacasCache();
+    const veiculos = portalVeiculoPlacasCache.map((x) => x.record).filter(Boolean);
+    veiculos.sort(portalCompareVeiculoPorTag);
+
+    if (!veiculos.length) {
+      grid.innerHTML =
+        '<p class="subtext" role="listitem">Nenhum veículo cadastrado neste navegador.</p>';
+      return;
+    }
+
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    grid.innerHTML = veiculos
+      .map((v) => {
+        const d = getPortalResumoVeiculoCardData(v);
+        return `<button type="button" class="operacao-veiculo-resumo-card operacao-veiculo-resumo-card--${eh(
+          d.statusClass
+        )}" role="listitem" data-placa="${eh(d.placa)}">
+          <p class="operacao-veiculo-resumo-card__linha"><strong>Código:</strong> ${eh(d.codigo)}</p>
+          <p class="operacao-veiculo-resumo-card__linha"><strong>Placa:</strong> ${eh(d.placa)}</p>
+          <p class="operacao-veiculo-resumo-card__linha"><strong>Último km:</strong> ${eh(d.ultimoKm)}</p>
+          <p class="operacao-veiculo-resumo-card__linha"><strong>Cliente:</strong> ${eh(d.cliente)}</p>
+          <p class="operacao-veiculo-resumo-card__status operacao-veiculo-resumo-card__status--${eh(
+            d.statusClass
+          )}">${eh(d.statusText)}</p>
+        </button>`;
+      })
+      .join("");
+
+    grid.querySelectorAll(".operacao-veiculo-resumo-card[data-placa]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const placa = btn.getAttribute("data-placa");
+        if (!placa || placa === "—") return;
+        const hit = portalVeiculoPlacasCache.find((x) => x.placa === placa);
+        if (hit?.record) fillOperacaoVeiculoFormFromRecord(hit.record);
+      });
+    });
+  }
+
   function getPortalProtocoloAtivoPorPlaca(plateKey) {
     if (!plateKey) return "";
     const ncNorm = (v) =>
@@ -7105,6 +7284,7 @@ ${printable.innerHTML}
       const form = document.getElementById("formOperacaoVeiculoInline");
       if (form && typeof form.reset === "function") form.reset();
       refreshOperacaoVeiculoTagPreview();
+      renderOperacaoVeiculoResumoFrota();
     };
     if (existenteVeiculo && isPortalTitularAdministrador()) {
       const changes = portalBuildAlteracoesLista(
@@ -9926,6 +10106,7 @@ ${printable.innerHTML}
     syncOperacaoCadastroButtons("btn-operacao-cadastro-veiculo");
     refreshOperacaoVeiculoPlacasCache();
     refreshOperacaoVeiculoTagPreview();
+    renderOperacaoVeiculoResumoFrota();
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();

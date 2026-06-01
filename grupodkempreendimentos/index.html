@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260531pat-cam">
+  <link rel="stylesheet" href="styles.css?v=20260531veic-resumo">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -532,6 +532,11 @@
           <p class="operacao-inline-form__footnote">
             <button type="button" class="link-like" id="operacaoVeiculoAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
           </p>
+          <section id="operacaoVeiculoResumoFrota" class="operacao-veiculo-resumo-frota" aria-label="Resumo da frota">
+            <h4 class="operacao-veiculo-resumo-frota__titulo">Frota cadastrada</h4>
+            <p class="subtext operacao-veiculo-resumo-frota__lead">Toque num cartão para carregar o veículo no formulário. Verde = em locação; vermelho = disponível.</p>
+            <div id="operacaoVeiculoResumoGrid" class="operacao-veiculo-resumo-grid" role="list"></div>
+          </section>
         </div>
 
         <div id="operacaoInlineLocacao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-locacao-title">
@@ -1806,7 +1811,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260531placa-llnlnn" defer></script>
+  <script src="portal-locadora-ui.js?v=20260531veic-resumo" defer></script>
   <script src="portal-patrimonio-scan.js?v=20260531scan-v5" defer></script>
   <script src="portal-patrimonio.js?v=20260531pat-cam" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
