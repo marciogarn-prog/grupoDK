@@ -728,10 +728,27 @@ REGRAS CRÍTICAS:
     );
   }
 
+  function patrimonioEhAndroid() {
+    return /Android/i.test(String(navigator.userAgent || ""));
+  }
+
+  /** Galaxy S24 Ultra e outros Samsung — torch exige câmera traseira exacta. */
+  function patrimonioEhAndroidSamsung() {
+    const ua = String(navigator.userAgent || "");
+    return /Android/i.test(ua) && (/Samsung/i.test(ua) || /\bSM-S/i.test(ua));
+  }
+
+  function patrimonioMaxPxCaptura() {
+    return patrimonioEhAndroidSamsung() ? 2200 : 1400;
+  }
+
   function abrirCameraTelefoneNativa() {
     patrimonioPersistirAreaPortal();
     fecharCamera(false);
-    setMsg("Use o flash da câmera do telemóvel para foto legível do CRLV.", false);
+    const dica = patrimonioEhAndroidSamsung()
+      ? "Galaxy: na câmera Samsung, toque no ícone ⚡ (flash) antes de fotografar o CRLV."
+      : "Use o flash da câmera do telemóvel para foto legível do CRLV.";
+    setMsg(dica, false);
     fileFallback?.click();
   }
 
@@ -746,6 +763,7 @@ REGRAS CRÍTICAS:
 
   function patrimonioLanternaDisponivel(track) {
     if (!track) return false;
+    if (patrimonioEhAndroid()) return true;
     const caps = patrimonioTrackCaps(track);
     if ("torch" in caps) return true;
     if (Array.isArray(caps.fillLightMode) && caps.fillLightMode.some((m) => m === "flash" || m === "auto")) {
@@ -808,6 +826,20 @@ REGRAS CRÍTICAS:
     return { ok: false, motivo: "constraint_falhou" };
   }
 
+  async function aplicarFlashCameraComReforco() {
+    let r = await aplicarFlashCamera();
+    if (!patrimonioFlashLigado) return r;
+    if (patrimonioEhAndroidSamsung() && !r.ok) {
+      await new Promise((resolve) => setTimeout(resolve, 220));
+      r = await aplicarFlashCamera();
+    }
+    if (patrimonioEhAndroidSamsung() && r.ok) {
+      await new Promise((resolve) => setTimeout(resolve, 120));
+      await aplicarFlashCamera();
+    }
+    return r;
+  }
+
   /** Alguns Android iniciam a câmera com zoom digital > 1 — força o mínimo. */
   async function normalizarCameraSemZoom(track) {
     if (!track?.getCapabilities) return;
@@ -817,7 +849,9 @@ REGRAS CRÍTICAS:
       const zMin = typeof caps.zoom.min === "number" ? caps.zoom.min : 1;
       advanced.push({ zoom: zMin });
     }
-    if (caps.torch && patrimonioFlashLigado) {
+    if (patrimonioFlashLigado && "torch" in caps) {
+      advanced.push({ torch: true });
+    } else if (caps.torch && patrimonioFlashLigado) {
       advanced.push({ torch: true });
     }
     if (Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
@@ -844,8 +878,64 @@ REGRAS CRÍTICAS:
       height: { ideal: 720, max: 1920 },
       aspectRatio: { ideal: 16 / 9 },
     };
+    const videoSamsung = {
+      facingMode: { exact: "environment" },
+      width: { ideal: 1920, max: 3840 },
+      height: { ideal: 1080, max: 2160 },
+    };
     const tentativas = [];
-    if (patrimonioFlashLigado) {
+
+    if (patrimonioFlashLigado && patrimonioEhAndroidSamsung()) {
+      tentativas.push(
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: { ...videoSamsung, advanced: [{ torch: true }] },
+            audio: false,
+          }),
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: { ...videoSamsung, torch: true },
+            audio: false,
+          }),
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { exact: "environment" },
+              advanced: [{ torch: true }],
+            },
+            audio: false,
+          })
+      );
+    }
+
+    if (patrimonioFlashLigado && patrimonioEhAndroid()) {
+      tentativas.push(
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { exact: "environment" },
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              advanced: [{ torch: true }],
+            },
+            audio: false,
+          }),
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: {
+              ...videoBase,
+              facingMode: { ideal: "environment" },
+              advanced: [{ torch: true }],
+            },
+            audio: false,
+          }),
+        () =>
+          navigator.mediaDevices.getUserMedia({
+            video: { ...videoBase, torch: true },
+            audio: false,
+          })
+      );
+    } else if (patrimonioFlashLigado) {
       tentativas.push(
         () =>
           navigator.mediaDevices.getUserMedia({
@@ -863,6 +953,7 @@ REGRAS CRÍTICAS:
           })
       );
     }
+
     tentativas.push(
       () =>
         navigator.mediaDevices.getUserMedia({
@@ -894,11 +985,14 @@ REGRAS CRÍTICAS:
       cameraVideo.srcObject = cameraStream;
       await cameraVideo.play();
     }
+    if (patrimonioEhAndroidSamsung() && patrimonioFlashLigado) {
+      await new Promise((resolve) => setTimeout(resolve, 350));
+    }
     const flashBtn = document.getElementById("patrimonioCameraFlashBtn");
     if (flashBtn && track) {
       flashBtn.dataset.flashDisponivel = patrimonioLanternaDisponivel(track) ? "1" : "0";
     }
-    return aplicarFlashCamera();
+    return aplicarFlashCameraComReforco();
   }
 
   async function abrirCameraNativa() {
@@ -928,7 +1022,9 @@ REGRAS CRÍTICAS:
       const r = await conectarStreamCameraPatrimonio();
       if (!r.ok && patrimonioFlashLigado) {
         setMsg(
-          "Lanterna web indisponível — use «Câmera nativa do telemóvel (flash)» abaixo.",
+          patrimonioEhAndroidSamsung()
+            ? "Galaxy S24: se o flash não acender aqui, use «Câmera nativa do telemóvel (flash)» e active ⚡."
+            : "Lanterna web indisponível — use «Câmera nativa do telemóvel (flash)» abaixo.",
           true
         );
       }
@@ -942,7 +1038,7 @@ REGRAS CRÍTICAS:
   async function alternarFlashCamera() {
     patrimonioFlashLigado = !patrimonioFlashLigado;
     atualizarUiFlash();
-    let r = await aplicarFlashCamera();
+    let r = await aplicarFlashCameraComReforco();
     if (!r.ok && patrimonioFlashLigado) {
       try {
         r = await conectarStreamCameraPatrimonio();
@@ -955,8 +1051,10 @@ REGRAS CRÍTICAS:
       atualizarUiFlash();
       setMsg(
         r.motivo === "nao_suportado"
-          ? "Lanterna indisponível neste telemóvel/browser. Use boa luz ou a câmera nativa (ficheiro)."
-          : "Não foi possível ligar a lanterna. Feche e abra a câmera e tente de novo.",
+          ? patrimonioEhAndroidSamsung()
+            ? "Use «Câmera nativa do telemóvel (flash)» — no Galaxy o flash ⚡ funciona na câmera Samsung."
+            : "Lanterna indisponível neste telemóvel/browser. Use a câmera nativa (ficheiro)."
+          : "Não foi possível ligar a lanterna. Feche e abra a câmera ou use a câmera nativa.",
         true
       );
       return;
@@ -980,7 +1078,7 @@ REGRAS CRÍTICAS:
       } catch {
         /* ignore */
       }
-      if (patrimonioFlashLigado) await aplicarFlashCamera();
+      if (patrimonioFlashLigado) await aplicarFlashCameraComReforco();
       const blob = await ic.takePhoto(photoSettings);
       return await new Promise((resolve) => {
         const fr = new FileReader();
@@ -1003,8 +1101,8 @@ REGRAS CRÍTICAS:
       const vw = cameraVideo.videoWidth;
       const vh = cameraVideo.videoHeight;
       if (!vw || !vh) return;
-      if (patrimonioFlashLigado) await aplicarFlashCamera();
-      const maxLado = 1400;
+      if (patrimonioFlashLigado) await aplicarFlashCameraComReforco();
+      const maxLado = patrimonioMaxPxCaptura();
       const escala = Math.min(1, maxLado / Math.max(vw, vh));
       const cw = Math.max(1, Math.round(vw * escala));
       const ch = Math.max(1, Math.round(vh * escala));
