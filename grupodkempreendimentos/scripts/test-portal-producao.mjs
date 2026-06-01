@@ -78,14 +78,13 @@ async function main() {
         html.includes("portal-patrimonio-scan.js") &&
         html.includes("portal-patrimonio.js")
     );
-    const indexFresh = await page.evaluate(async () => {
-      const r = await fetch("/", { cache: "no-store" });
-      return r.ok ? await r.text() : "";
-    });
+    const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
     record(
       "cadastro veículo resumo frota no HTML",
       indexFresh.includes("operacaoVeiculoResumoGrid") &&
-        indexFresh.includes("operacao-veiculo-resumo-card")
+        indexFresh.includes("operacao-veiculo-resumo-frota")
     );
     const portalUiJs = await page.evaluate(async () => {
       const r = await fetch("portal-locadora-ui.js?v=20260531veic-resumo", { cache: "no-store" });
