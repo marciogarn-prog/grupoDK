@@ -3192,11 +3192,28 @@ table.validados-app .lnk-comprovante {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--border, #ddd);
   border-radius: 8px;
   background: var(--surface, #fff);
+}
+
+.patrimonio-foto-item--reprovada {
+  border-color: #e8a598;
+  background: rgba(180, 35, 24, 0.06);
+}
+
+.patrimonio-foto-item__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.patrimonio-foto-status--proc {
+  color: #9a6700;
 }
 
 .patrimonio-foto-link {

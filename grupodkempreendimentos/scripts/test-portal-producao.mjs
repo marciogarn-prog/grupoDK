@@ -114,7 +114,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260601fotos-capt", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260601fotos-todas", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -133,12 +133,13 @@ async function main() {
     record(
       "patrimônio fotos capturadas (histórico + revisar IA)",
       patJs.includes("registrarFotoCaptura") &&
-        patJs.includes("renderFotosLista") &&
+        patJs.includes("confirmarFotoPatrimonio") &&
+        patJs.includes("enfileirarIaPatrimonio") &&
         patJs.includes("formatTagPatrimonioFoto") &&
-        patJs.includes("revisarFotoCapturaComIa") &&
-        patJs.includes("patrimonioFotoCapturaExcluirBtn")
+        patJs.includes("repararFotosCapturasPendentes") &&
+        patJs.includes("patrimonio-foto-excluir")
     );
-    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601fotos-capt`, {
+    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601fotos-todas`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(

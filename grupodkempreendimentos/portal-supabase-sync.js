@@ -135,8 +135,12 @@
         const img = String(f.imagem || "");
         const imgOrig = String(f.imagemOriginal || "");
         if (img.length > 350000 || imgOrig.length > 350000) {
-          const { imagem, imagemOriginal, ...rest } = f;
-          return rest;
+          return {
+            ...f,
+            imagem: img.length > 350000 ? "" : f.imagem,
+            imagemOriginal: imgOrig.length > 350000 ? undefined : f.imagemOriginal,
+            imagemIndisponivel: img.length > 350000,
+          };
         }
         return f;
       };
@@ -942,6 +946,22 @@
     return { documentos: [], fotosCapturas: [] };
   }
 
+  function mergeFotoCapturaPar(a, b) {
+    const msA = Date.parse(String(a?.atualizadoEm || a?.registradoEm || "")) || 0;
+    const msB = Date.parse(String(b?.atualizadoEm || b?.registradoEm || "")) || 0;
+    const winner = msB >= msA ? b : a;
+    const loser = msB >= msA ? a : b;
+    const imgW = String(winner?.imagem || "");
+    const imgL = String(loser?.imagem || "");
+    return {
+      ...loser,
+      ...winner,
+      imagem: imgW.startsWith("data:image/") ? winner.imagem : loser.imagem || "",
+      imagemOriginal: winner.imagemOriginal || loser.imagemOriginal,
+      imagemIndisponivel: !imgW.startsWith("data:image/") && !imgL.startsWith("data:image/"),
+    };
+  }
+
   function mergeFotosCapturasPatrimonio(localList, cloudList) {
     const map = new Map();
     for (const f of [...(cloudList || []), ...(localList || [])]) {
@@ -949,9 +969,7 @@
       const id = String(f.id || "").trim();
       if (!id) continue;
       const prev = map.get(id);
-      const msF = Date.parse(String(f.atualizadoEm || f.registradoEm || "")) || 0;
-      const msP = prev ? Date.parse(String(prev.atualizadoEm || prev.registradoEm || "")) || 0 : -1;
-      if (!prev || msF >= msP) map.set(id, f);
+      map.set(id, prev ? mergeFotoCapturaPar(prev, f) : f);
     }
     return [...map.values()].sort((a, b) => {
       const msA = Date.parse(String(a.registradoEm || "")) || 0;

@@ -88,6 +88,8 @@
   let previewDataUrl = "";
   let previewDataUrlRaw = "";
   let processando = false;
+  let iaPatrimonioRodando = false;
+  const filaIaPatrimonio = [];
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
@@ -301,9 +303,16 @@
 
   function formatTagPatrimonioFoto(d) {
     const dt = d instanceof Date ? d : new Date(d);
-    if (Number.isNaN(dt.getTime())) return "00000000-0000";
+    if (Number.isNaN(dt.getTime())) return "00000000-000000";
     const pad = (n) => String(n).padStart(2, "0");
-    return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}-${pad(dt.getHours())}${pad(dt.getMinutes())}`;
+    return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}-${pad(dt.getHours())}${pad(dt.getMinutes())}${pad(dt.getSeconds())}`;
+  }
+
+  function formatTagPatrimonioFotoLegivel(tag) {
+    const t = String(tag || "");
+    const m = t.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/);
+    if (!m) return t;
+    return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
   }
 
   function fotoCapturaMs(f) {
@@ -315,14 +324,17 @@
     if (!f || typeof f !== "object") return null;
     const id = String(f.id || "").trim();
     const tag = String(f.tag || "").trim();
+    if (!id || !tag) return null;
     const imagem = String(f.imagem || "").trim();
-    if (!id || !tag || !imagem.startsWith("data:image/")) return null;
+    const temImagem = imagem.startsWith("data:image/");
+    if (!temImagem && !f.imagemIndisponivel) return null;
     return {
       id,
       tag,
       registradoEm: String(f.registradoEm || new Date().toISOString()),
-      imagem,
+      imagem: temImagem ? imagem : "",
       imagemOriginal: String(f.imagemOriginal || "").trim() || undefined,
+      imagemIndisponivel: !temImagem,
       statusIa: String(f.statusIa || "pendente"),
       docId: String(f.docId || "").trim(),
       placa: String(f.placa || "").trim(),
@@ -355,7 +367,8 @@
     if (st === "ok") {
       return f.placa ? `IA OK · ${f.placa}` : "IA OK · cadastrado";
     }
-    if (st === "falhou") return "IA não leu";
+    if (st === "falhou") return f.msgIa ? `Reprovada · ${f.msgIa}` : "Reprovada pela IA";
+    if (st === "processando") return "IA a processar…";
     return "Aguardando IA";
   }
 
@@ -363,6 +376,7 @@
     const st = String(f?.statusIa || "").toLowerCase();
     if (st === "ok") return "patrimonio-foto-status patrimonio-foto-status--ok";
     if (st === "falhou") return "patrimonio-foto-status patrimonio-foto-status--falhou";
+    if (st === "processando") return "patrimonio-foto-status patrimonio-foto-status--proc";
     return "patrimonio-foto-status";
   }
 
@@ -526,7 +540,7 @@
   function saveStore(store) {
     const prev = loadStore();
     const documentos = deduplicarDocumentos(store?.documentos ?? prev.documentos);
-    const fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 150);
+    const fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 200);
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ documentos, fotosCapturas }));
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       portalPushCloudSnapshotAfterPersist();
@@ -549,10 +563,10 @@
   async function registrarFotoCaptura(dataUrlRaw, dataUrlTratada) {
     const agora = new Date();
     const imagemTratada = dataUrlTratada || dataUrlRaw;
-    const imagem = await comprimirImagemLimite(imagemTratada, 1600, 320000, 0.88);
+    const imagem = await comprimirImagemLimite(imagemTratada, 1500, 300000, 0.86);
     let imagemOriginal;
     if (dataUrlRaw && dataUrlRaw !== imagemTratada) {
-      imagemOriginal = await comprimirImagemLimite(dataUrlRaw, 1400, 280000, 0.85);
+      imagemOriginal = await comprimirImagemLimite(dataUrlRaw, 1300, 260000, 0.84);
     }
     const foto = sanitizeFotoCaptura({
       id: newFotoId(),
@@ -560,7 +574,7 @@
       registradoEm: agora.toISOString(),
       imagem,
       imagemOriginal,
-      statusIa: "pendente",
+      statusIa: "processando",
       docId: "",
       placa: "",
       msgIa: "",
@@ -568,9 +582,120 @@
     });
     if (!foto) return null;
     const store = loadStore();
-    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 150);
+    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 200);
     saveStore(store);
     return foto;
+  }
+
+  function repararFotosCapturasPendentes() {
+    const store = loadStore();
+    const agora = Date.now();
+    let alterou = false;
+    for (const f of store.fotosCapturas) {
+      const st = String(f.statusIa || "").toLowerCase();
+      if (st !== "pendente" && st !== "processando") continue;
+      if (agora - fotoCapturaMs(f) < 90000) continue;
+      f.statusIa = "falhou";
+      f.msgIa = "Processamento interrompido — toque em Revisar com IA.";
+      f.atualizadoEm = new Date().toISOString();
+      alterou = true;
+    }
+    if (alterou) saveStore(store);
+  }
+
+  function enfileirarIaPatrimonio(fotoId, imagens) {
+    if (!fotoId) return;
+    filaIaPatrimonio.push({ fotoId, imagens: (imagens || []).filter(Boolean) });
+    void processarFilaIaPatrimonio();
+  }
+
+  async function processarFilaIaPatrimonio() {
+    if (iaPatrimonioRodando) return;
+    iaPatrimonioRodando = true;
+    while (filaIaPatrimonio.length) {
+      const job = filaIaPatrimonio.shift();
+      if (job?.fotoId) {
+        await processarIaParaFotoCaptura(job.fotoId, job.imagens);
+      }
+    }
+    iaPatrimonioRodando = false;
+  }
+
+  async function processarIaParaFotoCaptura(fotoId, imagens) {
+    atualizarFotoCaptura(fotoId, { statusIa: "processando", msgIa: "" });
+    renderFotosLista();
+    setMsg("A ler CRLV com IA…", false);
+    try {
+      const leitura = await lerCrlvComRetry(imagens);
+      if (!leitura.ok) {
+        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
+        renderFotosLista();
+        setMsg(`${leitura.msg || MSG_NITIDEZ} Foto guardada para conferência do administrador.`, true);
+        return;
+      }
+      const campos = leitura.campos;
+      const foto = getFotoCapturaById(fotoId);
+      const imagemBase =
+        leitura.imagemUsada ||
+        foto?.imagem ||
+        imagens.find((u) => String(u).startsWith("data:image/")) ||
+        "";
+      const imagemGuardar = await comprimirImagemLimite(imagemBase, 1600, 320000, 0.88);
+      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
+      const doc = {
+        ...campos,
+        id: newId(),
+        imagemRecortada: imagemGuardar,
+        imagemScanVersao: scanV,
+        processadoEm: new Date().toISOString(),
+        cadastradoEm: new Date().toISOString(),
+      };
+      const r = upsertDocumento(doc);
+      if (!r.ok) {
+        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
+        renderFotosLista();
+        setMsg(r.erro, true);
+        return;
+      }
+      atualizarFotoCaptura(fotoId, {
+        statusIa: "ok",
+        docId: r.registro?.id || doc.id,
+        placa: campos.placa,
+        msgIa: "",
+      });
+      renderLista();
+      setMsg(
+        r.substituiu
+          ? `Documento ${campos.placa} atualizado. Pode fotografar o próximo.`
+          : `Documento ${campos.placa} cadastrado. Pode fotografar o próximo.`,
+        false,
+        true
+      );
+    } catch (e) {
+      atualizarFotoCaptura(fotoId, {
+        statusIa: "falhou",
+        msgIa: String(e?.message || e || MSG_IA_FALHOU),
+      });
+      renderFotosLista();
+      setMsg(MSG_IA_FALHOU, true);
+    }
+  }
+
+  async function confirmarFotoPatrimonio(payload) {
+    const imagemTratada = payload?.tratada || payload?.url || "";
+    const imagemRaw = payload?.raw || imagemTratada;
+    if (!imagemTratada && !imagemRaw) return;
+
+    const fotoReg = await registrarFotoCaptura(imagemRaw, imagemTratada);
+    if (!fotoReg) {
+      setMsg("Não foi possível guardar a foto.", true);
+      return;
+    }
+    renderFotosLista();
+    setMsg(`Foto ${fotoReg.tag} guardada. IA a processar…`, false);
+    patrimonioLimparFotoPendente();
+    enfileirarIaPatrimonio(fotoReg.id, [imagemRaw, imagemTratada]);
+    window.setTimeout(() => void abrirCameraNativa(), 400);
   }
 
   function getDocumentos() {
@@ -934,138 +1059,23 @@ REGRAS:
     return out;
   }
 
-  async function processarFotoConfirmada(dataUrlEntrada) {
-    if (processando) return;
-    processando = true;
-    setMsg("A validar nitidez e ler campos do CRLV…", false);
-    let fotoId = "";
-    try {
-      const imagemTratada = previewDataUrl || dataUrlEntrada;
-      const imagemRaw = previewDataUrlRaw || dataUrlEntrada;
-      const fotoReg = await registrarFotoCaptura(imagemRaw, imagemTratada);
-      fotoId = fotoReg?.id || "";
-      renderFotosLista();
-
-      const leitura = await lerCrlvComRetry([previewDataUrlRaw, previewDataUrl, dataUrlEntrada]);
-      if (!leitura.ok) {
-        if (fotoId) {
-          atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
-          renderFotosLista();
-        }
-        setMsg(
-          `${leitura.msg || MSG_NITIDEZ} A foto foi guardada em «Fotos capturadas» para conferência.`,
-          true
-        );
-        return;
-      }
-      const campos = leitura.campos;
-      const imagemGuardar = await comprimirImagemLimite(
-        leitura.imagemUsada === previewDataUrlRaw && previewDataUrl ? previewDataUrl : imagemTratada,
-        1600,
-        320000,
-        0.88
-      );
-      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
-      const doc = {
-        ...campos,
-        id: newId(),
-        imagemRecortada: imagemGuardar,
-        imagemScanVersao: scanV,
-        processadoEm: new Date().toISOString(),
-        cadastradoEm: new Date().toISOString(),
-      };
-      const r = upsertDocumento(doc);
-      if (!r.ok) {
-        if (fotoId) {
-          atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
-          renderFotosLista();
-        }
-        setMsg(r.erro, true);
-        return;
-      }
-      if (fotoId) {
-        atualizarFotoCaptura(fotoId, {
-          statusIa: "ok",
-          docId: r.registro?.id || doc.id,
-          placa: campos.placa,
-          msgIa: "",
-        });
-      }
-      setMsg(
-        r.substituiu
-          ? `Documento ${campos.placa} atualizado (foto anterior substituída). Próximo documento…`
-          : `Documento ${campos.placa} cadastrado. Próximo documento…`,
-        false,
-        true
-      );
-      patrimonioLimparFotoPendente();
-      renderLista();
-      window.setTimeout(() => void abrirCameraNativa(), 500);
-    } finally {
-      processando = false;
-    }
+  async function processarFotoConfirmada(dataUrlEntrada, dataUrlRawEntrada) {
+    await confirmarFotoPatrimonio({
+      raw: dataUrlRawEntrada || dataUrlEntrada,
+      tratada: dataUrlEntrada,
+    });
   }
 
   async function revisarFotoCapturaComIa(fotoId) {
     const foto = getFotoCapturaById(fotoId);
-    if (!foto || processando) return;
-    processando = true;
-    const btnRevisar = document.getElementById("patrimonioFotoCapturaRevisarBtn");
-    if (btnRevisar) btnRevisar.disabled = true;
-    if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "A processar com IA…";
-    setMsg("A revisar foto com IA…", false);
-    try {
-      atualizarFotoCaptura(fotoId, { statusIa: "pendente", msgIa: "" });
-      renderFotosLista();
-      const leitura = await lerCrlvComRetry([foto.imagemOriginal, foto.imagem]);
-      if (!leitura.ok) {
-        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
-        renderFotosLista();
-        if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(getFotoCapturaById(fotoId));
-        setMsg(leitura.msg || MSG_NITIDEZ, true);
-        return;
-      }
-      const campos = leitura.campos;
-      const imagemGuardar = await comprimirImagemLimite(foto.imagem, 1600, 320000, 0.88);
-      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
-      const doc = {
-        ...campos,
-        id: newId(),
-        imagemRecortada: imagemGuardar,
-        imagemScanVersao: scanV,
-        processadoEm: new Date().toISOString(),
-        cadastradoEm: new Date().toISOString(),
-      };
-      const r = upsertDocumento(doc);
-      if (!r.ok) {
-        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
-        renderFotosLista();
-        if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(getFotoCapturaById(fotoId));
-        setMsg(r.erro, true);
-        return;
-      }
-      atualizarFotoCaptura(fotoId, {
-        statusIa: "ok",
-        docId: r.registro?.id || doc.id,
-        placa: campos.placa,
-        msgIa: "",
-      });
-      renderFotosLista();
-      renderLista();
-      if (fotoCapturaStatusEl) {
-        fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(getFotoCapturaById(fotoId));
-      }
-      setMsg(
-        r.substituiu
-          ? `Documento ${campos.placa} atualizado a partir da foto ${foto.tag}.`
-          : `Documento ${campos.placa} cadastrado a partir da foto ${foto.tag}.`,
-        false,
-        true
-      );
-    } finally {
-      processando = false;
-      if (btnRevisar) btnRevisar.disabled = false;
+    if (!foto) return;
+    if (foto.imagemIndisponivel || !String(foto.imagem || "").startsWith("data:image/")) {
+      setMsg("Imagem indisponível neste dispositivo.", true);
+      return;
     }
+    if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "Na fila da IA…";
+    setMsg(`Foto ${foto.tag} na fila para revisão com IA…`, false);
+    enfileirarIaPatrimonio(fotoId, [foto.imagemOriginal, foto.imagem].filter(Boolean));
   }
 
   function setMsg(text, erro, ok) {
@@ -1558,9 +1568,14 @@ REGRAS:
 
   function renderFotosLista() {
     const fotos = getFotosCapturas();
+    const reprovadas = fotos.filter((f) => String(f.statusIa || "").toLowerCase() === "falhou").length;
+    const processandoN = fotos.filter((f) => {
+      const st = String(f.statusIa || "").toLowerCase();
+      return st === "pendente" || st === "processando";
+    }).length;
     if (fotosResumoEl) {
       fotosResumoEl.textContent = fotos.length
-        ? `${fotos.length} foto(s) — tag AAAAMMDD-HHMM. Toque para abrir, excluir ou revisar com IA.`
+        ? `${fotos.length} foto(s) · tag AAAAMMDD-HHMMSS · ${reprovadas} reprovada(s) pela IA${processandoN ? ` · ${processandoN} a processar` : ""}.`
         : "Nenhuma foto registrada ainda. Todas as fotos confirmadas aparecem aqui, mesmo se a IA falhar.";
     }
     if (!fotosListaEl) return;
@@ -1569,14 +1584,20 @@ REGRAS:
       return;
     }
     fotosListaEl.innerHTML = fotos
-      .map(
-        (f) => `<div class="patrimonio-foto-item">
-          <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir foto ${escapeHtml(f.tag)}">
+      .map((f) => {
+        const st = String(f.statusIa || "").toLowerCase();
+        const podeRevisar = !f.imagemIndisponivel && String(f.imagem || "").startsWith("data:image/");
+        return `<div class="patrimonio-foto-item${st === "falhou" ? " patrimonio-foto-item--reprovada" : ""}">
+          <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir ${escapeHtml(formatTagPatrimonioFotoLegivel(f.tag))}">
             <span class="patrimonio-foto-tag">${escapeHtml(f.tag)}</span>
           </button>
-          <span class="${classeStatusFotoCaptura(f)}">${escapeHtml(labelStatusFotoCaptura(f))}</span>
-        </div>`
-      )
+          <span class="${classeStatusFotoCaptura(f)}" title="${escapeHtml(f.msgIa || "")}">${escapeHtml(labelStatusFotoCaptura(f))}</span>
+          <div class="patrimonio-foto-item__acoes">
+            ${podeRevisar ? `<button type="button" class="btn-primary btn-secondary-outline patrimonio-foto-revisar" data-foto-id="${escapeHtml(f.id)}">Revisar IA</button>` : ""}
+            <button type="button" class="btn-primary btn-secondary-outline patrimonio-foto-excluir" data-foto-id="${escapeHtml(f.id)}">Excluir</button>
+          </div>
+        </div>`;
+      })
       .join("");
     fotosListaEl.querySelectorAll(".patrimonio-foto-link").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -1584,11 +1605,29 @@ REGRAS:
         if (id) void abrirViewerFotoCaptura(id);
       });
     });
+    fotosListaEl.querySelectorAll(".patrimonio-foto-revisar").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const id = btn.getAttribute("data-foto-id");
+        if (id) void revisarFotoCapturaComIa(id);
+      });
+    });
+    fotosListaEl.querySelectorAll(".patrimonio-foto-excluir").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        const id = btn.getAttribute("data-foto-id");
+        if (id) excluirFotoCaptura(id);
+      });
+    });
   }
 
   function abrirViewerFotoCaptura(id) {
     const foto = getFotoCapturaById(id);
     if (!foto || !fotoCapturaViewer || !fotoCapturaViewerImg) return;
+    if (foto.imagemIndisponivel || !String(foto.imagem || "").startsWith("data:image/")) {
+      setMsg("Imagem só neste telemóvel ou indisponível. Use o dispositivo que fotografou.", true);
+      return;
+    }
     fotoCapturaViewerImg.src = foto.imagem;
     fotoCapturaViewer.dataset.fotoId = id;
     if (fotoCapturaTagEl) fotoCapturaTagEl.textContent = foto.tag;
@@ -1879,10 +1918,13 @@ ${contador}
     document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
     document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
     document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {
-      const url = previewDataUrl;
+      const payload = {
+        raw: previewDataUrlRaw || previewDataUrl,
+        tratada: previewDataUrl || previewDataUrlRaw,
+      };
       patrimonioLimparFotoPendente();
       fecharPreview();
-      if (url) void processarFotoConfirmada(url);
+      if (payload.tratada || payload.raw) void confirmarFotoPatrimonio(payload);
     });
     document.getElementById("patrimonioPreviewNaoBtn")?.addEventListener("click", () => {
       fecharPreview();
@@ -1956,7 +1998,7 @@ ${contador}
 
   async function migrarImagensPatrimonioScan() {
     if (migracaoScanEmCurso) return;
-    if (patrimonioOverlayAberto() || processando) return;
+    if (patrimonioOverlayAberto() || processando || iaPatrimonioRodando) return;
     if (typeof window.__DK_patrimonioTratarDocumento !== "function") return;
     const alvo = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
     const store = loadStore();
@@ -2012,6 +2054,7 @@ ${contador}
       }
     }
     patrimonioPersistirAreaPortal();
+    repararFotosCapturasPendentes();
     const store = loadStore();
     saveStore(store);
     void refreshOpenAIStatus();
