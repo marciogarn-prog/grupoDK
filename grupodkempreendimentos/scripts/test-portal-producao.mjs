@@ -90,9 +90,23 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260531scan-v5", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260531pat-cam", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
+    record(
+      "câmera patrimônio sem zoom (preview + sensor)",
+      patJs.includes("normalizarCameraSemZoom") &&
+        patJs.includes('resizeMode: "none"') &&
+        !patJs.includes("height: { ideal: 2560 }")
+    );
+    const cssPatCam = await page.evaluate(async () => {
+      const r = await fetch("styles.css?v=20260531pat-cam", { cache: "no-store" });
+      return r.ok ? await r.text() : "";
+    });
+    record(
+      "CSS câmera patrimônio object-fit contain",
+      /\.patrimonio-overlay--camera\s+\.patrimonio-camera-video[\s\S]*?object-fit:\s*contain/.test(cssPatCam)
+    );
     record(
       "patrimônio uma placa substitui foto antiga",
       patJs.includes("deduplicarDocumentos") &&

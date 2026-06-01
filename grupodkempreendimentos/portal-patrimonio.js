@@ -729,6 +729,32 @@ REGRAS CRÍTICAS:
     }
   }
 
+  /** Alguns Android iniciam a câmera com zoom digital > 1 — força o mínimo. */
+  async function normalizarCameraSemZoom(track) {
+    if (!track?.getCapabilities) return;
+    const caps = track.getCapabilities();
+    const advanced = [];
+    if (caps.zoom) {
+      const zMin = typeof caps.zoom.min === "number" ? caps.zoom.min : 1;
+      advanced.push({ zoom: zMin });
+    }
+    if (Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
+      advanced.push({ focusMode: "continuous" });
+    }
+    if (!advanced.length) return;
+    try {
+      await track.applyConstraints({ advanced });
+    } catch {
+      if (caps.zoom) {
+        try {
+          await track.applyConstraints({ zoom: caps.zoom.min ?? 1 });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }
+
   async function abrirCameraNativa() {
     fecharPreview(false);
     patrimonioPersistirAreaPortal();
@@ -746,15 +772,26 @@ REGRAS CRÍTICAS:
       fileFallback?.click();
       return;
     }
+    const videoBase = {
+      facingMode: { ideal: "environment" },
+      width: { ideal: 1280, max: 1920 },
+      height: { ideal: 720, max: 1920 },
+      aspectRatio: { ideal: 16 / 9 },
+    };
     try {
-      cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: "environment" },
-          width: { ideal: 1920 },
-          height: { ideal: 2560 },
-        },
-        audio: false,
-      });
+      try {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { ...videoBase, resizeMode: "none" },
+          audio: false,
+        });
+      } catch {
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: videoBase,
+          audio: false,
+        });
+      }
+      const track = cameraStream.getVideoTracks()[0];
+      if (track) await normalizarCameraSemZoom(track);
       cameraVideo.srcObject = cameraStream;
       await cameraVideo.play();
       await aplicarFlashCamera();
