@@ -79,6 +79,9 @@ async function main() {
         html.includes("patrimonioFotosLista") &&
         html.includes("patrimonioFotoCapturaViewer") &&
         html.includes("patrimonioFotoCapturaRevisarBtn") &&
+        html.includes("patrimonioCropStage") &&
+        html.includes("patrimonioPreviewAplicarRecorteBtn") &&
+        html.includes("portal-patrimonio-crop.js") &&
         html.includes("portal-patrimonio-scan.js") &&
         html.includes("portal-patrimonio.js")
     );
@@ -103,7 +106,7 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const scanJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-scan.js?v=20260531scan-v5", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio-scan.js?v=20260601crop-cantos", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -114,7 +117,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260601fotos-todas", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260601crop-cantos", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -139,7 +142,18 @@ async function main() {
         patJs.includes("repararFotosCapturasPendentes") &&
         patJs.includes("patrimonio-foto-excluir")
     );
-    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601fotos-todas`, {
+    const cropJs = await page.evaluate(async () => {
+      const r = await fetch("portal-patrimonio-crop.js?v=20260601crop-cantos", { cache: "no-store" });
+      return r.ok ? await r.text() : "";
+    });
+    record(
+      "patrimônio recorte 4 cantos + zoom",
+      cropJs.includes("recortarPorCantos") &&
+        cropJs.includes("bindZoomPan") &&
+        cropJs.includes("detectarCantosFolha") &&
+        patJs.includes("aplicarRecortePreviewAtual")
+    );
+    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601crop-cantos`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(

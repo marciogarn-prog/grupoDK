@@ -559,5 +559,7 @@
   window.__DK_patrimonioTratarDocumento = tratarDocumentoCrlv;
   window.__DK_patrimonioRetocarImagem = retocarImagemArmazenada;
   window.__DK_patrimonioDetectarFolha = detectarFolhaBranca;
+  window.__DK_patrimonioApararMargens = apararMargensColoridas;
+  window.__DK_patrimonioAplicarScanner = aplicarFiltroScanner;
   window.__DK_patrimonioScanVersion = SCAN_VERSION;
 })();

@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260601fotos-todas">
+  <link rel="stylesheet" href="styles.css?v=20260601crop-cantos">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -1574,11 +1574,33 @@
   </div>
 
   <div id="patrimonioPreviewOverlay" class="patrimonio-overlay patrimonio-overlay--preview hidden" aria-hidden="true" role="dialog" aria-label="Confirmar foto">
-    <img id="patrimonioPreviewImg" class="patrimonio-preview-img" alt="Pré-visualização do CRLV">
-    <p class="patrimonio-preview-pergunta">A qualidade da foto está OK?</p>
+    <p class="patrimonio-preview-pergunta patrimonio-crop-instrucao">Ajuste os 4 cantos da folha (vermelho). Área verde = recorte. Roda do rato ou pinça para zoom.</p>
+    <div id="patrimonioCropStage" class="patrimonio-crop-stage hidden">
+      <div id="patrimonioCropViewport" class="patrimonio-crop-viewport">
+        <div id="patrimonioCropInner" class="patrimonio-crop-inner">
+          <img id="patrimonioCropImg" class="patrimonio-crop-img" alt="Foto para recorte" draggable="false">
+          <svg class="patrimonio-crop-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <mask id="patrimonioCropMask">
+                <rect width="100" height="100" fill="white"></rect>
+                <polygon id="patrimonioCropPolygon" fill="black" points="6,8 94,8 94,98 6,98"></polygon>
+              </mask>
+            </defs>
+            <rect width="100" height="100" fill="rgba(0,0,0,0.45)" mask="url(#patrimonioCropMask)"></rect>
+            <polygon id="patrimonioCropQuad" fill="none" stroke="#22c55e" stroke-width="0.6" vector-effect="non-scaling-stroke" points="6,8 94,8 94,98 6,98"></polygon>
+          </svg>
+          <button type="button" class="patrimonio-crop-handle" data-canto="tl" aria-label="Canto superior esquerdo"></button>
+          <button type="button" class="patrimonio-crop-handle" data-canto="tr" aria-label="Canto superior direito"></button>
+          <button type="button" class="patrimonio-crop-handle" data-canto="br" aria-label="Canto inferior direito"></button>
+          <button type="button" class="patrimonio-crop-handle" data-canto="bl" aria-label="Canto inferior esquerdo"></button>
+        </div>
+      </div>
+    </div>
+    <img id="patrimonioPreviewImg" class="patrimonio-preview-img hidden" alt="Pré-visualização do CRLV recortado">
     <div class="patrimonio-overlay__bar patrimonio-overlay__bar--preview">
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewNaoBtn">Não — outra foto</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewRetratBtn">Retratar recorte</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewRetratBtn">Ajustar cantos</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewAplicarRecorteBtn">Aplicar recorte</button>
       <button type="button" class="btn-primary" id="patrimonioPreviewSimBtn">Sim — salvar</button>
     </div>
   </div>
@@ -1590,7 +1612,11 @@
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareWaBtn">WhatsApp</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemFecharBtn">Fechar</button>
     </div>
-    <img id="patrimonioImagemViewerImg" class="patrimonio-viewer-img" alt="CRLV recortado">
+    <div id="patrimonioImagemViewerZoom" class="patrimonio-viewer-zoom-viewport">
+      <div class="patrimonio-viewer-zoom-inner">
+        <img id="patrimonioImagemViewerImg" class="patrimonio-viewer-img" alt="CRLV recortado" draggable="false">
+      </div>
+    </div>
   </div>
 
   <div id="patrimonioFotoCapturaViewer" class="patrimonio-overlay patrimonio-overlay--viewer hidden" aria-hidden="true" role="dialog" aria-label="Foto capturada">
@@ -1601,7 +1627,11 @@
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioFotoCapturaExcluirBtn">Excluir</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioFotoCapturaFecharBtn">Fechar</button>
     </div>
-    <img id="patrimonioFotoCapturaViewerImg" class="patrimonio-viewer-img" alt="Foto CRLV capturada">
+    <div id="patrimonioFotoCapturaViewerZoom" class="patrimonio-viewer-zoom-viewport">
+      <div class="patrimonio-viewer-zoom-inner">
+        <img id="patrimonioFotoCapturaViewerImg" class="patrimonio-viewer-img" alt="Foto CRLV capturada" draggable="false">
+      </div>
+    </div>
   </div>
 
   <div id="patrimonioRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="patrimonioRelatorioTitulo">
@@ -1828,8 +1858,9 @@
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
-  <script src="portal-patrimonio-scan.js?v=20260531scan-v5" defer></script>
-  <script src="portal-patrimonio.js?v=20260601fotos-todas" defer></script>
+  <script src="portal-patrimonio-scan.js?v=20260601crop-cantos" defer></script>
+  <script src="portal-patrimonio-crop.js?v=20260601crop-cantos" defer></script>
+  <script src="portal-patrimonio.js?v=20260601crop-cantos" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260531id-unica" defer></script>

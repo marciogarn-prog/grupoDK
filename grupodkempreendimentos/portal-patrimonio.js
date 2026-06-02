@@ -966,28 +966,58 @@ REGRAS:
     return { esquerda: 0.06, topo: 0.06, direita: 0.94, baixo: 0.94 };
   }
 
+  async function aplicarRecortePreviewAtual() {
+    const raw = previewDataUrlRaw;
+    const cropUi = window.__DK_patrimonioCropUi;
+    const cantos = cropUi?.getCantos?.();
+    if (!raw || !cantos || !cropUi?.aplicarRecorte) return false;
+    const pergunta = document.querySelector(".patrimonio-crop-instrucao");
+    if (pergunta) pergunta.textContent = "A recortar folha (área verde)…";
+    setMsg("A recortar e ajustar documento…", false);
+    try {
+      const tratada = await cropUi.aplicarRecorte(raw, cantos);
+      cropUi.fechar();
+      previewDataUrl = tratada;
+      if (previewImg) {
+        previewImg.src = tratada;
+        previewImg.classList.remove("hidden");
+      }
+      patrimonioGuardarFotoPendente(tratada);
+      if (pergunta) {
+        pergunta.textContent =
+          "Recorte aplicado. Confira abaixo ou volte a «Ajustar cantos». Sim — salvar para enviar à IA.";
+      }
+      setMsg("", false);
+      return true;
+    } catch {
+      if (pergunta) {
+        pergunta.textContent = "Ajuste os 4 cantos da folha (vermelho). Área verde = recorte. Roda do rato ou pinça para zoom.";
+      }
+      setMsg("Não foi possível recortar. Ajuste os cantos e tente de novo.", true);
+      return false;
+    }
+  }
+
+  async function abrirEditorCantosPreview() {
+    const raw = previewDataUrlRaw;
+    if (!raw || !window.__DK_patrimonioCropUi?.abrir) return;
+    if (previewImg) previewImg.classList.add("hidden");
+    setMsg("A detectar cantos da folha…", false);
+    try {
+      await window.__DK_patrimonioCropUi.abrir(raw);
+      setMsg("Arraste os cantos vermelhos. Depois «Aplicar recorte».", false);
+    } catch {
+      setMsg("Não foi possível abrir o editor de recorte.", true);
+    }
+  }
+
   async function prepararEExibirPreview(dataUrlRaw) {
     const reduzida = await comprimirImagem(dataUrlRaw, 1400, 0.9);
     previewDataUrlRaw = reduzida;
     previewDataUrl = reduzida;
     patrimonioGuardarFotoPendente(reduzida);
     mostrarPreview(reduzida);
-    const pergunta = document.querySelector(".patrimonio-preview-pergunta");
-    if (pergunta) pergunta.textContent = "A recortar folha A4 e tratar imagem…";
-    setMsg("A eliminar fundo e ajustar documento…", false);
-    try {
-      const tratada = await tratarImagemDocumento(reduzida, { usarIa: false });
-      previewDataUrl = tratada;
-      if (previewImg) previewImg.src = tratada;
-      patrimonioGuardarFotoPendente(tratada);
-      if (pergunta) {
-        pergunta.textContent = "O recorte está OK? (deve aparecer só a folha branca do CRLV, sem tecido ou fundo colorido)";
-      }
-      setMsg("", false);
-    } catch {
-      if (pergunta) pergunta.textContent = "A qualidade da foto está OK?";
-      setMsg("Não foi possível tratar automaticamente. Confira a foto.", true);
-    }
+    await abrirEditorCantosPreview();
   }
 
   async function chamarIaCrlv(dataUrl, revisao) {
@@ -1104,11 +1134,15 @@ REGRAS:
   }
 
   function fecharPreview(syncHistory = true) {
+    window.__DK_patrimonioCropUi?.fechar?.();
     previewOverlay?.classList.add("hidden");
     previewOverlay?.setAttribute("aria-hidden", "true");
     previewDataUrl = "";
     previewDataUrlRaw = "";
-    if (previewImg) previewImg.removeAttribute("src");
+    if (previewImg) {
+      previewImg.removeAttribute("src");
+      previewImg.classList.add("hidden");
+    }
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
@@ -1509,10 +1543,30 @@ REGRAS:
     void prepararEExibirPreview(dataUrl);
   }
 
+  let unbindZoomViewerDoc = null;
+  let unbindZoomViewerFoto = null;
+
+  function bindZoomViewerDoc() {
+    const crop = window.__DK_patrimonioCropUi;
+    const vp = document.getElementById("patrimonioImagemViewerZoom");
+    const inner = vp?.querySelector(".patrimonio-viewer-zoom-inner");
+    if (!crop?.bindZoomPan || !vp || !inner) return;
+    if (unbindZoomViewerDoc) unbindZoomViewerDoc();
+    unbindZoomViewerDoc = crop.bindZoomPan(vp, inner, { minScale: 0.5, maxScale: 8 });
+  }
+
+  function bindZoomViewerFoto() {
+    const crop = window.__DK_patrimonioCropUi;
+    const vp = document.getElementById("patrimonioFotoCapturaViewerZoom");
+    const inner = vp?.querySelector(".patrimonio-viewer-zoom-inner");
+    if (!crop?.bindZoomPan || !vp || !inner) return;
+    if (unbindZoomViewerFoto) unbindZoomViewerFoto();
+    unbindZoomViewerFoto = crop.bindZoomPan(vp, inner, { minScale: 0.5, maxScale: 8 });
+  }
+
   function mostrarPreview(dataUrl) {
-    if (!previewOverlay || !previewImg) return;
+    if (!previewOverlay) return;
     previewDataUrl = dataUrl;
-    previewImg.src = dataUrl;
     previewOverlay.classList.remove("hidden");
     previewOverlay.setAttribute("aria-hidden", "false");
     patrimonioNotificarOverlayAberto();
@@ -1636,6 +1690,7 @@ REGRAS:
     if (btnRevisar) btnRevisar.disabled = false;
     fotoCapturaViewer.classList.remove("hidden");
     fotoCapturaViewer.setAttribute("aria-hidden", "false");
+    bindZoomViewerFoto();
     patrimonioNotificarOverlayAberto();
   }
 
@@ -1644,6 +1699,10 @@ REGRAS:
     fotoCapturaViewer?.setAttribute("aria-hidden", "true");
     if (fotoCapturaViewerImg) fotoCapturaViewerImg.removeAttribute("src");
     if (fotoCapturaViewer) delete fotoCapturaViewer.dataset.fotoId;
+    if (unbindZoomViewerFoto) {
+      unbindZoomViewerFoto();
+      unbindZoomViewerFoto = null;
+    }
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
@@ -1688,6 +1747,7 @@ REGRAS:
     imagemViewer.dataset.patId = id;
     imagemViewer.classList.remove("hidden");
     imagemViewer.setAttribute("aria-hidden", "false");
+    bindZoomViewerDoc();
     patrimonioNotificarOverlayAberto();
   }
 
@@ -1695,6 +1755,10 @@ REGRAS:
     imagemViewer?.classList.add("hidden");
     imagemViewer?.setAttribute("aria-hidden", "true");
     if (imagemViewerImg) imagemViewerImg.removeAttribute("src");
+    if (unbindZoomViewerDoc) {
+      unbindZoomViewerDoc();
+      unbindZoomViewerDoc = null;
+    }
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
@@ -1917,7 +1981,13 @@ ${contador}
     document.getElementById("patrimonioCameraNativaBtn")?.addEventListener("click", abrirCameraTelefoneNativa);
     document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
     document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
-    document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {
+    document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", async () => {
+      const cropStage = document.getElementById("patrimonioCropStage");
+      const emModoCantos = cropStage && !cropStage.classList.contains("hidden");
+      if (emModoCantos) {
+        const ok = await aplicarRecortePreviewAtual();
+        if (!ok) return;
+      }
       const payload = {
         raw: previewDataUrlRaw || previewDataUrl,
         tratada: previewDataUrl || previewDataUrlRaw,
@@ -1931,7 +2001,10 @@ ${contador}
       void abrirCameraNativa();
     });
     document.getElementById("patrimonioPreviewRetratBtn")?.addEventListener("click", () => {
-      if (previewDataUrlRaw) void prepararEExibirPreview(previewDataUrlRaw);
+      void abrirEditorCantosPreview();
+    });
+    document.getElementById("patrimonioPreviewAplicarRecorteBtn")?.addEventListener("click", () => {
+      void aplicarRecortePreviewAtual();
     });
 
     fileFallback?.addEventListener("change", async () => {
