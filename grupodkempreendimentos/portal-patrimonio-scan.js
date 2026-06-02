@@ -260,6 +260,80 @@
     };
   }
 
+  /** Quatro cantos da folha (coordenadas 0–1) a partir dos pixels brancos do CRLV. */
+  function cantosQuadranteExtremo(data, w, h, box, quadrant) {
+    const cx = ((box.esquerda + box.direita) / 2) * w;
+    const cy = ((box.topo + box.baixo) / 2) * h;
+    const x0 = Math.max(0, Math.floor(box.esquerda * w));
+    const x1 = Math.min(w - 1, Math.ceil(box.direita * w));
+    const y0 = Math.max(0, Math.floor(box.topo * h));
+    const y1 = Math.min(h - 1, Math.ceil(box.baixo * h));
+    const passo = Math.max(1, Math.round(Math.min(w, h) / 320));
+    let best = null;
+    let bestScore = -1;
+    for (let y = y0; y <= y1; y += passo) {
+      for (let x = x0; x <= x1; x += passo) {
+        const i = (y * w + x) * 4;
+        if (!isPaperPixel(data[i], data[i + 1], data[i + 2])) continue;
+        let score = 0;
+        if (quadrant === "tl") score = cx - x + (cy - y);
+        else if (quadrant === "tr") score = x - cx + (cy - y);
+        else if (quadrant === "br") score = x - cx + (y - cy);
+        else score = cx - x + (y - cy);
+        if (score > bestScore) {
+          bestScore = score;
+          best = { x, y };
+        }
+      }
+    }
+    return best;
+  }
+
+  function detectarCantosFolhaEmCanvas(data, w, h) {
+    const box = detectarFolhaBrancaEmCanvas(data, w, h);
+    if (!box) return null;
+    const b = normalizarBox(box);
+    if (!b || !recorteValido(b, data, w, h)) return null;
+    const tl = cantosQuadranteExtremo(data, w, h, b, "tl");
+    const tr = cantosQuadranteExtremo(data, w, h, b, "tr");
+    const br = cantosQuadranteExtremo(data, w, h, b, "br");
+    const bl = cantosQuadranteExtremo(data, w, h, b, "bl");
+    if (!tl || !tr || !br || !bl) {
+      return {
+        tl: { x: b.esquerda, y: b.topo },
+        tr: { x: b.direita, y: b.topo },
+        br: { x: b.direita, y: b.baixo },
+        bl: { x: b.esquerda, y: b.baixo },
+      };
+    }
+    const pad = 0.002;
+    return {
+      tl: { x: Math.max(0, tl.x / w - pad), y: Math.max(0, tl.y / h - pad) },
+      tr: { x: Math.min(1, tr.x / w + pad), y: Math.max(0, tr.y / h - pad) },
+      br: { x: Math.min(1, br.x / w + pad), y: Math.min(1, br.y / h + pad) },
+      bl: { x: Math.max(0, bl.x / w - pad), y: Math.min(1, bl.y / h + pad) },
+    };
+  }
+
+  async function detectarCantosFolha(dataUrl) {
+    const base = await redimensionarParaProcessamento(dataUrl, 1400);
+    const analise = await analisarImagem(base);
+    if (analise) {
+      const cantos = detectarCantosFolhaEmCanvas(analise.data, analise.w, analise.h);
+      if (cantos) return cantos;
+    }
+    const box = await detectarFolhaBranca(base);
+    if (!box) return null;
+    const b = normalizarBox(box);
+    if (!b) return null;
+    return {
+      tl: { x: b.esquerda, y: b.topo },
+      tr: { x: b.direita, y: b.topo },
+      br: { x: b.direita, y: b.baixo },
+      bl: { x: b.esquerda, y: b.baixo },
+    };
+  }
+
   function detectarFolhaBrancaEmCanvas(data, w, h) {
     let minX = w;
     let minY = h;
@@ -559,6 +633,7 @@
   window.__DK_patrimonioTratarDocumento = tratarDocumentoCrlv;
   window.__DK_patrimonioRetocarImagem = retocarImagemArmazenada;
   window.__DK_patrimonioDetectarFolha = detectarFolhaBranca;
+  window.__DK_patrimonioDetectarCantosFolha = detectarCantosFolha;
   window.__DK_patrimonioApararMargens = apararMargensColoridas;
   window.__DK_patrimonioAplicarScanner = aplicarFiltroScanner;
   window.__DK_patrimonioScanVersion = SCAN_VERSION;

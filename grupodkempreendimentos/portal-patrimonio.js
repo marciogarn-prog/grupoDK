@@ -1375,12 +1375,44 @@ REGRAS:
     const raw = previewDataUrlRaw;
     if (!raw || !window.__DK_patrimonioCropUi?.abrir) return;
     if (previewImg) previewImg.classList.add("hidden");
-    setMsg("A detectar cantos da folha…", false);
+    const pergunta = document.querySelector(".patrimonio-crop-instrucao");
+    if (pergunta) {
+      pergunta.textContent =
+        "O sistema localiza os cantos da folha (pontos vermelhos). Arraste com o dedo ou rato para corrigir.";
+    }
+    setMsg("A localizar cantos da folha…", false);
     try {
-      await window.__DK_patrimonioCropUi.abrir(raw);
-      setMsg("Arraste os cantos vermelhos. Depois «Aplicar recorte».", false);
+      const r = await window.__DK_patrimonioCropUi.abrir(raw);
+      if (r?.auto) {
+        setMsg(
+          "Cantos detectados automaticamente. Confira os pontos vermelhos e ajuste se necessário.",
+          false,
+          true
+        );
+      } else {
+        setMsg(
+          "Não foi possível localizar a folha — ajuste os 4 pontos vermelhos manualmente ou toque em «Detectar cantos».",
+          true
+        );
+      }
     } catch {
       setMsg("Não foi possível abrir o editor de recorte.", true);
+    }
+  }
+
+  async function redetectarCantosPreview() {
+    const cropUi = window.__DK_patrimonioCropUi;
+    if (!cropUi?.redetectarCantos) return;
+    setMsg("A localizar cantos da folha…", false);
+    try {
+      const r = await cropUi.redetectarCantos();
+      if (r?.auto) {
+        setMsg("Cantos atualizados. Arraste os pontos vermelhos se precisar corrigir.", false, true);
+      } else {
+        setMsg("Detecção automática falhou — ajuste os pontos vermelhos à mão.", true);
+      }
+    } catch {
+      setMsg("Não foi possível detectar os cantos.", true);
     }
   }
 
@@ -2393,6 +2425,9 @@ ${contador}
     });
     document.getElementById("patrimonioPreviewRetratBtn")?.addEventListener("click", () => {
       void abrirEditorCantosPreview();
+    });
+    document.getElementById("patrimonioPreviewDetectarCantosBtn")?.addEventListener("click", () => {
+      void redetectarCantosPreview();
     });
     document.getElementById("patrimonioPreviewAplicarRecorteBtn")?.addEventListener("click", () => {
       void aplicarRecortePreviewAtual();

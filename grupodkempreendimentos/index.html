@@ -1574,7 +1574,7 @@
   </div>
 
   <div id="patrimonioPreviewOverlay" class="patrimonio-overlay patrimonio-overlay--preview hidden" aria-hidden="true" role="dialog" aria-label="Confirmar foto">
-    <p class="patrimonio-preview-pergunta patrimonio-crop-instrucao">Ajuste os 4 cantos da folha (vermelho). Área verde = recorte. Roda do rato ou pinça para zoom.</p>
+    <p class="patrimonio-preview-pergunta patrimonio-crop-instrucao">O sistema localiza os cantos da folha (pontos vermelhos). Arraste com o dedo ou rato para corrigir. Área verde = recorte. Pinça ou roda do rato para zoom.</p>
     <div id="patrimonioCropStage" class="patrimonio-crop-stage hidden">
       <div id="patrimonioCropViewport" class="patrimonio-crop-viewport">
         <div id="patrimonioCropInner" class="patrimonio-crop-inner">
@@ -1600,6 +1600,7 @@
     <div class="patrimonio-overlay__bar patrimonio-overlay__bar--preview">
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewNaoBtn">Não — outra foto</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewRetratBtn">Ajustar cantos</button>
+      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewDetectarCantosBtn">Detectar cantos</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewAplicarRecorteBtn">Aplicar recorte</button>
       <button type="button" class="btn-primary" id="patrimonioPreviewSimBtn">Sim — salvar</button>
     </div>
@@ -1858,9 +1859,9 @@
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
-  <script src="portal-patrimonio-scan.js?v=20260601crop-cantos" defer></script>
-  <script src="portal-patrimonio-crop.js?v=20260602orientacao-cantos" defer></script>
-  <script src="portal-patrimonio.js?v=20260602orientacao-excluir" defer></script>
+  <script src="portal-patrimonio-scan.js?v=20260602detectar-cantos" defer></script>
+  <script src="portal-patrimonio-crop.js?v=20260602detectar-cantos" defer></script>
+  <script src="portal-patrimonio.js?v=20260602detectar-cantos" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260602orientacao-excluir" defer></script>

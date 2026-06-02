@@ -3462,6 +3462,24 @@ table.validados-app .lnk-comprovante {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+}
+
+.patrimonio-crop-stage--detectando::after {
+  content: "A localizar cantos da folha…";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  transform: translate(-50%, -50%);
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #f5f5f5;
+  font-size: 0.9rem;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .patrimonio-crop-viewport {
@@ -3523,6 +3541,29 @@ table.validados-app .lnk-comprovante {
 .patrimonio-crop-handle:active {
   cursor: grabbing;
   transform: scale(1.12);
+}
+
+.patrimonio-crop-handle--auto {
+  animation: patrimonio-crop-handle-pulse 0.75s ease-in-out 3;
+}
+
+@keyframes patrimonio-crop-handle-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(239, 68, 68, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 10px rgba(239, 68, 68, 0.55);
+  }
+}
+
+@media (pointer: coarse) {
+  .patrimonio-crop-handle {
+    width: 30px;
+    height: 30px;
+    margin: -15px 0 0 -15px;
+    border-width: 3px;
+  }
 }
 
 .patrimonio-overlay--viewer {

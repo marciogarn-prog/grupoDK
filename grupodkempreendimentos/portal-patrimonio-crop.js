@@ -148,12 +148,42 @@
     return canvas.toDataURL("image/jpeg", mob ? 0.9 : 0.96);
   }
 
+  function cantosSaoPadrao(c) {
+    const p = cantosPadrao();
+    const keys = ["tl", "tr", "br", "bl"];
+    return keys.every((k) => Math.abs(c[k].x - p[k].x) < 0.02 && Math.abs(c[k].y - p[k].y) < 0.02);
+  }
+
   async function detectarCantosFolha(dataUrl) {
-    if (typeof window.__DK_patrimonioDetectarFolha === "function") {
-      const box = await window.__DK_patrimonioDetectarFolha(dataUrl);
-      if (box) return boxParaCantos(box);
+    if (typeof window.__DK_patrimonioDetectarCantosFolha === "function") {
+      try {
+        const c = await window.__DK_patrimonioDetectarCantosFolha(dataUrl);
+        if (c?.tl && c?.tr && c?.br && c?.bl) {
+          return { cantos: ordenarCantosCrlv(c), auto: true };
+        }
+        if (c && (c.esquerda != null || c.left != null)) {
+          return { cantos: boxParaCantos(c), auto: true };
+        }
+      } catch {
+        /* fallback */
+      }
     }
-    return cantosPadrao();
+    if (typeof window.__DK_patrimonioDetectarFolha === "function") {
+      try {
+        const box = await window.__DK_patrimonioDetectarFolha(dataUrl);
+        if (box) return { cantos: boxParaCantos(box), auto: true };
+      } catch {
+        /* fallback */
+      }
+    }
+    return { cantos: cantosPadrao(), auto: false };
+  }
+
+  function pulsarHandlesAuto(handles) {
+    handles.forEach((h) => h.classList.add("patrimonio-crop-handle--auto"));
+    window.setTimeout(() => {
+      handles.forEach((h) => h.classList.remove("patrimonio-crop-handle--auto"));
+    }, 1400);
   }
 
   /** Zoom + pan em contentor com imagem (PC: roda do rato; telemóvel: pinça e arrastar). */
@@ -326,6 +356,8 @@
           x: clamp01((clientX - rect.left) / rect.width),
           y: clamp01((clientY - rect.top) / rect.height),
         };
+        cropState.autoDetectado = false;
+        handle.classList.remove("patrimonio-crop-handle--auto");
         atualizarOverlaySvg();
         cropState.onChange?.(cropState.cantos);
       };
@@ -353,6 +385,7 @@
 
     if (previewImg) previewImg.classList.add("hidden");
     stage.classList.remove("hidden");
+    stage.classList.add("patrimonio-crop-stage--detectando");
 
     imgEl.src = dataUrl;
     await new Promise((resolve, reject) => {
@@ -363,10 +396,19 @@
       }
     });
 
-    const cantos = normalizarCantos(opts?.cantos || (await detectarCantosFolha(dataUrl)));
     const polygon = document.getElementById("patrimonioCropPolygon");
     const quad = document.getElementById("patrimonioCropQuad");
     const handles = Array.from(stage.querySelectorAll(".patrimonio-crop-handle"));
+
+    let cantos = normalizarCantos(opts?.cantos);
+    let autoDetectado = Boolean(opts?.autoDetectado);
+    if (!opts?.cantos) {
+      const det = await detectarCantosFolha(dataUrl);
+      cantos = det.cantos;
+      autoDetectado = det.auto && !cantosSaoPadrao(cantos);
+    }
+
+    stage.classList.remove("patrimonio-crop-stage--detectando");
 
     cropState = {
       dataUrl,
@@ -375,6 +417,7 @@
       polygon,
       quad,
       handles,
+      autoDetectado,
       onChange: opts?.onChange,
     };
 
@@ -385,11 +428,26 @@
     });
 
     atualizarOverlaySvg();
+    if (autoDetectado) pulsarHandlesAuto(handles);
 
     if (unbindZoom) unbindZoom();
     unbindZoom = bindZoomPan(viewport, inner, {});
 
-    return cantos;
+    return { cantos, auto: autoDetectado };
+  }
+
+  async function redetectarCantosEditor() {
+    if (!cropState?.dataUrl) return { cantos: cantosPadrao(), auto: false };
+    const stage = document.getElementById("patrimonioCropStage");
+    stage?.classList.add("patrimonio-crop-stage--detectando");
+    const det = await detectarCantosFolha(cropState.dataUrl);
+    stage?.classList.remove("patrimonio-crop-stage--detectando");
+    cropState.cantos = det.cantos;
+    cropState.autoDetectado = det.auto && !cantosSaoPadrao(det.cantos);
+    atualizarOverlaySvg();
+    cropState.onChange?.(cropState.cantos);
+    if (cropState.autoDetectado) pulsarHandlesAuto(cropState.handles);
+    return { cantos: cropState.cantos, auto: cropState.autoDetectado };
   }
 
   function fecharEditorCantos() {
@@ -426,6 +484,7 @@
     abrir: abrirEditorCantos,
     fechar: fecharEditorCantos,
     getCantos: getCantosAtuais,
+    redetectarCantos: redetectarCantosEditor,
     aplicarRecorte: aplicarRecorteCantos,
     bindZoomPan,
   };
