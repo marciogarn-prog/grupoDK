@@ -117,7 +117,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260601crop-cantos", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260602sim-ia", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -151,7 +151,7 @@ async function main() {
       cropJs.includes("recortarPorCantos") &&
         cropJs.includes("bindZoomPan") &&
         cropJs.includes("detectarCantosFolha") &&
-        patJs.includes("aplicarRecortePreviewAtual")
+        patJs.includes("finalizarSimSalvarPreview")
     );
     const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601crop-cantos`, {
       cache: "no-store",

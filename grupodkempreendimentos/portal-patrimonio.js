@@ -88,6 +88,7 @@
   let previewDataUrl = "";
   let previewDataUrlRaw = "";
   let processando = false;
+  let previewSalvando = false;
   let iaPatrimonioRodando = false;
   const filaIaPatrimonio = [];
   let patrimonioModalHistorico = false;
@@ -563,10 +564,21 @@
   async function registrarFotoCaptura(dataUrlRaw, dataUrlTratada) {
     const agora = new Date();
     const imagemTratada = dataUrlTratada || dataUrlRaw;
-    const imagem = await comprimirImagemLimite(imagemTratada, 1500, 300000, 0.86);
+    const mob = patrimonioEhAndroid() || /iPhone|iPad/i.test(navigator.userAgent);
+    const imagem = await comprimirImagemLimite(
+      imagemTratada,
+      mob ? 1200 : 1500,
+      mob ? 260000 : 300000,
+      mob ? 0.82 : 0.86
+    );
     let imagemOriginal;
     if (dataUrlRaw && dataUrlRaw !== imagemTratada) {
-      imagemOriginal = await comprimirImagemLimite(dataUrlRaw, 1300, 260000, 0.84);
+      imagemOriginal = await comprimirImagemLimite(
+        dataUrlRaw,
+        mob ? 1100 : 1300,
+        mob ? 220000 : 260000,
+        0.84
+      );
     }
     const foto = sanitizeFotoCaptura({
       id: newFotoId(),
@@ -681,6 +693,25 @@
     }
   }
 
+  function patrimonioYieldUi() {
+    return new Promise((resolve) => {
+      window.setTimeout(resolve, 16);
+    });
+  }
+
+  function setPreviewBotoesAtivos(ativo) {
+    const ids = [
+      "patrimonioPreviewSimBtn",
+      "patrimonioPreviewNaoBtn",
+      "patrimonioPreviewRetratBtn",
+      "patrimonioPreviewAplicarRecorteBtn",
+    ];
+    ids.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.disabled = !ativo;
+    });
+  }
+
   async function confirmarFotoPatrimonio(payload) {
     const imagemTratada = payload?.tratada || payload?.url || "";
     const imagemRaw = payload?.raw || imagemTratada;
@@ -692,10 +723,56 @@
       return;
     }
     renderFotosLista();
-    setMsg(`Foto ${fotoReg.tag} guardada. IA a processar…`, false);
-    patrimonioLimparFotoPendente();
+    renderLista();
+    setMsg(`Foto ${fotoReg.tag} — IA a ler o CRLV…`, false);
     enfileirarIaPatrimonio(fotoReg.id, [imagemRaw, imagemTratada]);
-    window.setTimeout(() => void abrirCameraNativa(), 400);
+  }
+
+  /** Sim — salvar: fecha ecrã, recorta (se preciso) e envia à fila da IA sem travar o telemóvel. */
+  async function finalizarSimSalvarPreview() {
+    if (previewSalvando) return;
+    previewSalvando = true;
+    setPreviewBotoesAtivos(false);
+
+    const cropUi = window.__DK_patrimonioCropUi;
+    const cropStage = document.getElementById("patrimonioCropStage");
+    const emCantos = cropStage && !cropStage.classList.contains("hidden");
+
+    let raw = previewDataUrlRaw || previewDataUrl;
+    let tratada = previewDataUrl || raw;
+    const cantos = emCantos ? cropUi?.getCantos?.() : null;
+
+    if (!raw && !tratada) {
+      previewSalvando = false;
+      setPreviewBotoesAtivos(true);
+      return;
+    }
+
+    try {
+      patrimonioLimparFotoPendente();
+      fecharPreview(false);
+      renderFotosLista();
+      setMsg("A preparar documento…", false);
+      await patrimonioYieldUi();
+
+      if (emCantos && cantos && cropUi?.aplicarRecorte) {
+        setMsg("A recortar folha (área verde)…", false);
+        await patrimonioYieldUi();
+        tratada = await cropUi.aplicarRecorte(raw, cantos);
+        await patrimonioYieldUi();
+      }
+
+      setMsg("A enviar à IA…", false);
+      await confirmarFotoPatrimonio({ raw, tratada });
+    } catch {
+      setMsg("Erro ao guardar. Ajuste os cantos e tente de novo.", true);
+      if (raw) void abrirEditorCantosPreview();
+    } finally {
+      previewSalvando = false;
+      setPreviewBotoesAtivos(true);
+      previewDataUrl = "";
+      previewDataUrlRaw = "";
+    }
   }
 
   function getDocumentos() {
@@ -1133,12 +1210,14 @@ REGRAS:
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
-  function fecharPreview(syncHistory = true) {
+  function fecharPreview(syncHistory = true, limparUrls = false) {
     window.__DK_patrimonioCropUi?.fechar?.();
     previewOverlay?.classList.add("hidden");
     previewOverlay?.setAttribute("aria-hidden", "true");
-    previewDataUrl = "";
-    previewDataUrlRaw = "";
+    if (limparUrls) {
+      previewDataUrl = "";
+      previewDataUrlRaw = "";
+    }
     if (previewImg) {
       previewImg.removeAttribute("src");
       previewImg.classList.add("hidden");
@@ -1981,20 +2060,8 @@ ${contador}
     document.getElementById("patrimonioCameraNativaBtn")?.addEventListener("click", abrirCameraTelefoneNativa);
     document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
     document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
-    document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", async () => {
-      const cropStage = document.getElementById("patrimonioCropStage");
-      const emModoCantos = cropStage && !cropStage.classList.contains("hidden");
-      if (emModoCantos) {
-        const ok = await aplicarRecortePreviewAtual();
-        if (!ok) return;
-      }
-      const payload = {
-        raw: previewDataUrlRaw || previewDataUrl,
-        tratada: previewDataUrl || previewDataUrlRaw,
-      };
-      patrimonioLimparFotoPendente();
-      fecharPreview();
-      if (payload.tratada || payload.raw) void confirmarFotoPatrimonio(payload);
+    document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {
+      void finalizarSimSalvarPreview();
     });
     document.getElementById("patrimonioPreviewNaoBtn")?.addEventListener("click", () => {
       fecharPreview();

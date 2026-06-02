@@ -73,13 +73,21 @@
     ctx.restore();
   }
 
-  async function recortarPorCantos(dataUrl, cantos) {
+  function patrimonioMobileLeve() {
+    return (
+      /Android|iPhone|iPad|Mobile/i.test(String(navigator.userAgent || "")) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 1)
+    );
+  }
+
+  async function recortarPorCantos(dataUrl, cantos, outW, outH) {
     const c = normalizarCantos(cantos);
     const img = await loadImage(dataUrl).catch(() => null);
     if (!img) return dataUrl;
 
-    const W = A4_OUT_W;
-    const H = A4_OUT_H;
+    const mob = patrimonioMobileLeve();
+    const W = outW || (mob ? 1000 : A4_OUT_W);
+    const H = outH || (mob ? 1414 : A4_OUT_H);
     const iw = img.width;
     const ih = img.height;
     const tl = { x: c.tl.x * iw, y: c.tl.y * ih };
@@ -99,7 +107,7 @@
 
     drawImageTriangle(ctx, img, tl.x, tl.y, tr.x, tr.y, br.x, br.y, 0, 0, W, 0, W, H);
     drawImageTriangle(ctx, img, tl.x, tl.y, br.x, br.y, bl.x, bl.y, 0, 0, W, H, 0, H);
-    return canvas.toDataURL("image/jpeg", 0.96);
+    return canvas.toDataURL("image/jpeg", mob ? 0.9 : 0.96);
   }
 
   async function detectarCantosFolha(dataUrl) {
@@ -363,11 +371,12 @@
   }
 
   async function aplicarRecorteCantos(dataUrl, cantos) {
+    const mob = patrimonioMobileLeve();
     let img = await recortarPorCantos(dataUrl, cantos);
-    if (typeof window.__DK_patrimonioApararMargens === "function") {
+    if (!mob && typeof window.__DK_patrimonioApararMargens === "function") {
       img = await window.__DK_patrimonioApararMargens(img);
     }
-    if (typeof window.__DK_patrimonioAplicarScanner === "function") {
+    if (typeof window.__DK_patrimonioAplicarScanner === "function" && !mob) {
       img = await window.__DK_patrimonioAplicarScanner(img);
     }
     return img;
