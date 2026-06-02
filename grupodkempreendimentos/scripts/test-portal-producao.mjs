@@ -117,7 +117,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260602excluir-foto", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260602excluir-permanente", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -146,6 +146,12 @@ async function main() {
       const r = await fetch("portal-patrimonio-crop.js?v=20260601crop-cantos", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
+    const syncJs = await page.evaluate(async () => {
+      const r = await fetch("portal-supabase-sync.js?v=20260602excluir-permanente", {
+        cache: "no-store",
+      });
+      return r.ok ? await r.text() : "";
+    });
     record(
       "patrimônio recorte 4 cantos + zoom",
       cropJs.includes("recortarPorCantos") &&
@@ -153,7 +159,16 @@ async function main() {
         cropJs.includes("detectarCantosFolha") &&
         patJs.includes("finalizarSimSalvarPreview") &&
         patJs.includes("fotosCapturasExcluidas") &&
-        patJs.includes("removerFotosAntigasMesmaPlaca")
+        patJs.includes("removerFotosAntigasMesmaPlaca") &&
+        patJs.includes("exclusaoFotoCapturaEntry") &&
+        patJs.includes("__DK_pushCloudSnapshotNow")
+    );
+    record(
+      "patrimônio exclusão permanente na nuvem (merge Supabase+Redis)",
+      syncJs.includes("normalizePatrimonioPayloadForSync") &&
+        syncJs.includes("mergeRemoteSnapshotsBeforePush") &&
+        syncJs.includes("fotosCapturasExcluidas") &&
+        syncJs.includes("aplicarExclusoesFotosCapturas")
     );
     const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601crop-cantos`, {
       cache: "no-store",

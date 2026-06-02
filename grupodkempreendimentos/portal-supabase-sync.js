@@ -359,9 +359,7 @@
         } catch {
           localObj = null;
         }
-        const merged = replace
-          ? parsePatrimonioStore(cloudObj)
-          : mergePatrimonioCrlv(localObj, cloudObj);
+        const merged = mergePatrimonioCrlv(localObj, cloudObj);
         localStorage.setItem(k, JSON.stringify(merged));
         continue;
       }
@@ -548,7 +546,14 @@
   async function fetchCloudSnapshotPayload() {
     const supa = await fetchSupabaseSnapshotPayload();
     const redis = await fetchRedundantSnapshotPayload();
-    return pickNewestCloudRow([supa, redis]);
+    const mergedPayload = mergeRemoteSnapshotsBeforePush(supa, redis);
+    if (!mergedPayload) return null;
+    const newest = pickNewestCloudRow([supa, redis]);
+    return {
+      payload: mergedPayload,
+      updated_at: newest?.updated_at || supa?.updated_at || redis?.updated_at || null,
+      source: newest?.source || "merged",
+    };
   }
 
   function mergeRemoteSnapshotsBeforePush(supa, redis) {
@@ -970,10 +975,33 @@
   }
 
   function aplicarExclusoesFotosCapturas(fotos, exclusoes) {
-    const ids = new Set(
-      (exclusoes || []).map((e) => String(e?.id || "").trim()).filter(Boolean)
-    );
-    return (fotos || []).filter((f) => f?.id && !ids.has(f.id));
+    const ids = new Set();
+    const tags = new Set();
+    for (const e of exclusoes || []) {
+      const id = String(e?.id || "").trim();
+      if (id) ids.add(id);
+      const tag = String(e?.tag || "").trim();
+      if (tag) tags.add(tag);
+    }
+    return (fotos || []).filter((f) => {
+      if (!f?.id) return false;
+      if (ids.has(f.id)) return false;
+      const tag = String(f.tag || "").trim();
+      if (tag && tags.has(tag)) return false;
+      return true;
+    });
+  }
+
+  function normalizePatrimonioPayloadForSync(raw) {
+    const parsed = parsePatrimonioStore(raw);
+    const exclusoes = mergeFotosCapturasExcluidas(parsed.fotosCapturasExcluidas);
+    let fotosCapturas = mergeFotosCapturasPatrimonio([], parsed.fotosCapturas);
+    fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
+    return {
+      documentos: parsed.documentos,
+      fotosCapturas,
+      fotosCapturasExcluidas: exclusoes,
+    };
   }
 
   function mergeFotoCapturaPar(a, b) {
@@ -1159,11 +1187,11 @@
     let fotosCapturas = mergeFotosCapturasPatrimonio(localP.fotosCapturas, cloudP.fotosCapturas);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
 
-    return {
+    return normalizePatrimonioPayloadForSync({
       documentos: merged.map(({ _dkSyncLocal, ...rest }) => rest),
       fotosCapturas,
       fotosCapturasExcluidas: exclusoes,
-    };
+    });
   }
 
   function readLocalJsonArray(key) {
@@ -1228,13 +1256,14 @@
         );
       }
       if (mergedPayload.dk_patrimonio_crlv_v1) {
-        const deduped = deduplicarDocumentosPatrimonio(mergedPayload.dk_patrimonio_crlv_v1.documentos || []);
+        const patNorm = normalizePatrimonioPayloadForSync(mergedPayload.dk_patrimonio_crlv_v1);
+        const deduped = deduplicarDocumentosPatrimonio(patNorm.documentos || []);
         localStorage.setItem(
           "dk_patrimonio_crlv_v1",
           JSON.stringify({
             documentos: deduped,
-            fotosCapturas: mergedPayload.dk_patrimonio_crlv_v1.fotosCapturas || [],
-            fotosCapturasExcluidas: mergedPayload.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [],
+            fotosCapturas: patNorm.fotosCapturas || [],
+            fotosCapturasExcluidas: patNorm.fotosCapturasExcluidas || [],
           })
         );
       }
@@ -1278,7 +1307,13 @@
       fetchSupabaseSnapshotPayload(),
       fetchRedundantSnapshotPayload(),
     ]);
-    const cloudMeta = pickNewestCloudPayloadWithMeta(supaRow, redisRow);
+    const cloudPayloadMerged = mergeRemoteSnapshotsBeforePush(supaRow, redisRow);
+    const cloudMeta = cloudPayloadMerged
+      ? {
+          payload: cloudPayloadMerged,
+          updated_at: pickNewestCloudRow([supaRow, redisRow])?.updated_at || null,
+        }
+      : pickNewestCloudPayloadWithMeta(supaRow, redisRow);
     const localComprovantesBeforeMerge = Array.isArray(payload.dk_comprovantes_cliente_pendentes)
       ? payload.dk_comprovantes_cliente_pendentes
       : readLocalJsonArray("dk_comprovantes_cliente_pendentes");
@@ -1295,6 +1330,9 @@
       if (!isLocalDataAuthorityActive() && !fullReplaceComprovantes) {
         persistMergedPayloadToLocal(payload);
       }
+    }
+    if (payload.dk_patrimonio_crlv_v1) {
+      payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(payload.dk_patrimonio_crlv_v1);
     }
     const updatedAt = new Date().toISOString();
     let supaOk = false;

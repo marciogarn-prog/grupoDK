@@ -372,11 +372,43 @@
     return [...map.values()].slice(-MAX_FOTOS_EXCLUIDAS);
   }
 
+  function exclusaoFotoCapturaEntry(id, tag) {
+    const idStr = String(id || "").trim();
+    if (!idStr) return null;
+    const tagStr = String(tag || "").trim();
+    return {
+      id: idStr,
+      tag: tagStr || undefined,
+      excluidoEm: new Date().toISOString(),
+    };
+  }
+
   function aplicarExclusoesFotosCapturas(fotos, exclusoes) {
-    const ids = new Set(
-      (exclusoes || []).map((e) => String(e?.id || "").trim()).filter(Boolean)
-    );
-    return (fotos || []).filter((f) => f?.id && !ids.has(f.id));
+    const ids = new Set();
+    const tags = new Set();
+    for (const e of exclusoes || []) {
+      const id = String(e?.id || "").trim();
+      if (id) ids.add(id);
+      const tag = String(e?.tag || "").trim();
+      if (tag) tags.add(tag);
+    }
+    return (fotos || []).filter((f) => {
+      if (!f?.id) return false;
+      if (ids.has(f.id)) return false;
+      const tag = String(f.tag || "").trim();
+      if (tag && tags.has(tag)) return false;
+      return true;
+    });
+  }
+
+  function findFotoCapturaRawById(id) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      const list = Array.isArray(raw.fotosCapturas) ? raw.fotosCapturas : [];
+      return list.find((f) => f && f.id === id) || null;
+    } catch {
+      return null;
+    }
   }
 
   function getFotosCapturas(store) {
@@ -613,7 +645,10 @@
       }
       const fp = normPlaca(f.placa);
       if (fp && fp === p) {
-        exclusoes = mergeFotosCapturasExcluidas(exclusoes, [{ id: f.id, excluidoEm: agora }]);
+        exclusoes = mergeFotosCapturasExcluidas(
+          exclusoes,
+          exclusaoFotoCapturaEntry(f.id, f.tag) || [{ id: f.id, excluidoEm: agora }]
+        );
       } else {
         fotos.push(f);
       }
@@ -1864,12 +1899,17 @@ REGRAS:
     if (syncHistory) patrimonioSyncHistoryAposFechar();
   }
 
-  function excluirFotoCaptura(id) {
+  async function excluirFotoCaptura(id) {
     if (!id || !window.confirm("Excluir esta foto capturada?")) return;
     const store = loadStore();
-    const exclusoes = mergeFotosCapturasExcluidas(store.fotosCapturasExcluidas, [
-      { id, excluidoEm: new Date().toISOString() },
-    ]);
+    const rawFoto = findFotoCapturaRawById(id);
+    const tag =
+      String(rawFoto?.tag || "").trim() ||
+      String(store.fotosCapturas.find((f) => f.id === id)?.tag || "").trim();
+    const exclusoes = mergeFotosCapturasExcluidas(
+      store.fotosCapturasExcluidas,
+      exclusaoFotoCapturaEntry(id, tag) || [{ id, excluidoEm: new Date().toISOString() }]
+    );
     saveStore({
       documentos: store.documentos,
       fotosCapturas: store.fotosCapturas.filter((f) => f.id !== id),
@@ -1878,6 +1918,14 @@ REGRAS:
     fecharViewerFotoCaptura();
     renderFotosLista();
     setMsg("Foto excluída permanentemente.", false, true);
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      try {
+        await window.__DK_pushCloudSnapshotNow();
+        renderFotosLista();
+      } catch (e) {
+        console.warn("[DK patrimônio] push após excluir foto", e);
+      }
+    }
   }
 
   function getDocById(id) {
