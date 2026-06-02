@@ -20,15 +20,53 @@
 
   function boxParaCantos(box) {
     const b = box || { esquerda: 0.06, topo: 0.06, direita: 0.94, baixo: 0.94 };
-    const l = clamp01(b.esquerda ?? b.left ?? 0.06);
-    const t = clamp01(b.topo ?? b.top ?? 0.06);
-    const r = clamp01(b.direita ?? b.right ?? 0.94);
-    const bo = clamp01(b.baixo ?? b.bottom ?? 0.94);
-    return {
+    let l = clamp01(b.esquerda ?? b.left ?? 0.06);
+    let t = clamp01(b.topo ?? b.top ?? 0.06);
+    let r = clamp01(b.direita ?? b.right ?? 0.94);
+    let bo = clamp01(b.baixo ?? b.bottom ?? 0.94);
+    if (l > r) {
+      const tmp = l;
+      l = r;
+      r = tmp;
+    }
+    if (t > bo) {
+      const tmp = t;
+      t = bo;
+      bo = tmp;
+    }
+    return ordenarCantosCrlv({
       tl: { x: l, y: t },
       tr: { x: r, y: t },
       br: { x: r, y: bo },
       bl: { x: l, y: bo },
+    });
+  }
+
+  /** Evita recorte espelhado quando detecção inverte esquerda/direita. */
+  function ordenarCantosCrlv(c) {
+    const n = c?.tl && c?.tr && c?.br && c?.bl ? c : cantosPadrao();
+    let { tl, tr, br, bl } = n;
+    if (tl.x > tr.x) {
+      const a = tl;
+      tl = tr;
+      tr = a;
+      const b = bl;
+      bl = br;
+      br = b;
+    }
+    if (tl.y > bl.y) {
+      const a = tl;
+      tl = bl;
+      bl = a;
+      const b = tr;
+      tr = br;
+      br = b;
+    }
+    return {
+      tl: { x: clamp01(tl.x), y: clamp01(tl.y) },
+      tr: { x: clamp01(tr.x), y: clamp01(tr.y) },
+      br: { x: clamp01(br.x), y: clamp01(br.y) },
+      bl: { x: clamp01(bl.x), y: clamp01(bl.y) },
     };
   }
 
@@ -39,12 +77,12 @@
   function normalizarCantos(c) {
     if (!c) return cantosPadrao();
     if (c.tl && c.tr && c.br && c.bl) {
-      return {
+      return ordenarCantosCrlv({
         tl: { x: clamp01(c.tl.x), y: clamp01(c.tl.y) },
         tr: { x: clamp01(c.tr.x), y: clamp01(c.tr.y) },
         br: { x: clamp01(c.br.x), y: clamp01(c.br.y) },
         bl: { x: clamp01(c.bl.x), y: clamp01(c.bl.y) },
-      };
+      });
     }
     return boxParaCantos(c);
   }

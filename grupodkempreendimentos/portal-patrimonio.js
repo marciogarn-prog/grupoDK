@@ -4,6 +4,7 @@
  */
 (function portalPatrimonio() {
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
+  const EXCLUSOES_KEY = "dk_patrimonio_fotos_excluidas_v1";
   const PENDING_FOTO_KEY = "dk_patrimonio_foto_pendente_v1";
   const PATRIMONIO_SCAN_VERSAO = 4;
   const MAX_FOTOS_EXCLUIDAS = 400;
@@ -562,7 +563,9 @@
       let documentos = [];
       if (Array.isArray(raw.documentos)) documentos = raw.documentos;
       else if (Array.isArray(raw)) documentos = raw;
-      const exclusoes = mergeFotosCapturasExcluidas(raw.fotosCapturasExcluidas);
+      const exclusoes = persistirExclusoesPatrimonio(
+        todasExclusoesPatrimonio(raw.fotosCapturasExcluidas)
+      );
       const fotosCapturas = aplicarExclusoesFotosCapturas(
         sanitizeFotosCapturas(raw.fotosCapturas),
         exclusoes
@@ -615,9 +618,8 @@
     }
     const prevDocs = Array.isArray(prev.documentos) ? prev.documentos : [];
     const documentos = deduplicarDocumentos(store?.documentos ?? prevDocs);
-    const exclusoes = mergeFotosCapturasExcluidas(
-      store?.fotosCapturasExcluidas,
-      prev.fotosCapturasExcluidas
+    const exclusoes = persistirExclusoesPatrimonio(
+      todasExclusoesPatrimonio(store?.fotosCapturasExcluidas, prev.fotosCapturasExcluidas)
     );
     let fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 200);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
@@ -929,9 +931,189 @@
     return { mime: m[1], base64: m[2] };
   }
 
+  function dataUrlParaBytes(dataUrl) {
+    const { base64 } = parseDataUrl(dataUrl);
+    if (!base64) return null;
+    try {
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      return bytes;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Lê orientação EXIF (JPEG) para corrigir foto do telemóvel deitada/espelhada. */
+  function lerOrientacaoExifJpeg(bytes) {
+    if (!bytes || bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) return 1;
+    let off = 2;
+    while (off + 4 < bytes.length) {
+      if (bytes[off] !== 0xff) break;
+      const marker = bytes[off + 1];
+      if (marker === 0xd8 || marker === 0xd9) {
+        off += 2;
+        continue;
+      }
+      const len = (bytes[off + 2] << 8) + bytes[off + 3];
+      if (len < 2 || off + len > bytes.length) break;
+      if (marker === 0xe1) {
+        const start = off + 10;
+        if (
+          start + 6 <= bytes.length &&
+          bytes[off + 4] === 0x45 &&
+          bytes[off + 5] === 0x78 &&
+          bytes[off + 6] === 0x69 &&
+          bytes[off + 7] === 0x66
+        ) {
+          const le = bytes[start] === 0x49 && bytes[start + 1] === 0x49;
+          const u16 = (o) => (le ? bytes[o] | (bytes[o + 1] << 8) : (bytes[o] << 8) | bytes[o + 1]);
+          const u32 = (o) => {
+            const v = le
+              ? bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16) | (bytes[o + 3] << 24)
+              : (bytes[o] << 24) | (bytes[o + 1] << 16) | (bytes[o + 2] << 8) | bytes[o + 3];
+            return v >>> 0;
+          };
+          const ifdOff = start + u32(start + 4);
+          if (ifdOff + 2 < bytes.length) {
+            const n = u16(ifdOff);
+            for (let i = 0; i < n; i++) {
+              const e = ifdOff + 2 + i * 12;
+              if (e + 12 > bytes.length) break;
+              if (u16(e) === 0x0112) {
+                const o = u16(e + 8);
+                return o >= 1 && o <= 8 ? o : 1;
+              }
+            }
+          }
+        }
+        return 1;
+      }
+      off += 2 + len;
+    }
+    return 1;
+  }
+
+  function desenharImagemComOrientacaoExif(ctx, img, orient, dw, dh) {
+    const o = orient || 1;
+    ctx.save();
+    switch (o) {
+      case 2:
+        ctx.translate(dw, 0);
+        ctx.scale(-1, 1);
+        break;
+      case 3:
+        ctx.translate(dw, dh);
+        ctx.rotate(Math.PI);
+        break;
+      case 4:
+        ctx.translate(0, dh);
+        ctx.scale(1, -1);
+        break;
+      case 5:
+        ctx.rotate(0.5 * Math.PI);
+        ctx.scale(1, -1);
+        break;
+      case 6:
+        ctx.rotate(0.5 * Math.PI);
+        ctx.translate(0, -dh);
+        break;
+      case 7:
+        ctx.rotate(0.5 * Math.PI);
+        ctx.translate(dw, -dh);
+        ctx.scale(-1, 1);
+        break;
+      case 8:
+        ctx.rotate(-0.5 * Math.PI);
+        ctx.translate(-dw, 0);
+        break;
+      default:
+        break;
+    }
+    const sw = o >= 5 && o <= 8 ? dh : dw;
+    const sh = o >= 5 && o <= 8 ? dw : dh;
+    ctx.drawImage(img, 0, 0, sw, sh);
+    ctx.restore();
+  }
+
+  function canvasSizeParaOrientacao(orient, w, h) {
+    const o = orient || 1;
+    if (o >= 5 && o <= 8) return { w: h, h: w };
+    return { w, h };
+  }
+
+  async function corrigirOrientacaoImagem(dataUrl) {
+    const bytes = dataUrlParaBytes(dataUrl);
+    const orient = bytes ? lerOrientacaoExifJpeg(bytes) : 1;
+    if (orient === 1) return dataUrl;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const { w, h } = canvasSizeParaOrientacao(orient, img.width, img.height);
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, w, h);
+        desenharImagemComOrientacaoExif(ctx, img, orient, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.92));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
+  function desenharFrameVideoCamera(ctx, video, cw, ch, track) {
+    const traseira = patrimonioTrackEhTraseira(track);
+    const espelhar =
+      !traseira || (traseira && (patrimonioEhAndroidSamsung() || patrimonioEhAndroid()));
+    if (!espelhar) {
+      ctx.drawImage(video, 0, 0, cw, ch);
+      return;
+    }
+    ctx.save();
+    ctx.translate(cw, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, cw, ch);
+    ctx.restore();
+  }
+
+  function lerExclusoesPatrimonioStandalone() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(EXCLUSOES_KEY) || "[]");
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function gravarExclusoesPatrimonioStandalone(lista) {
+    try {
+      localStorage.setItem(EXCLUSOES_KEY, JSON.stringify(lista || []));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function todasExclusoesPatrimonio(...listas) {
+    return mergeFotosCapturasExcluidas(...listas, lerExclusoesPatrimonioStandalone());
+  }
+
+  function persistirExclusoesPatrimonio(exclusoes) {
+    const merged = mergeFotosCapturasExcluidas(exclusoes);
+    gravarExclusoesPatrimonioStandalone(merged);
+    return merged;
+  }
+
   async function comprimirImagem(dataUrl, maxPx, quality) {
-    const { mime, base64 } = parseDataUrl(dataUrl);
-    if (!mime.startsWith("image/") || !base64) return dataUrl;
+    const orientada = await corrigirOrientacaoImagem(dataUrl);
+    const { mime, base64 } = parseDataUrl(orientada);
+    if (!mime.startsWith("image/") || !base64) return orientada;
     const q = Number.isFinite(quality) ? quality : 0.85;
     return new Promise((resolve) => {
       const img = new Image();
@@ -951,14 +1133,14 @@
         canvas.height = h;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve(dataUrl);
+          resolve(orientada);
           return;
         }
         ctx.drawImage(img, 0, 0, w, h);
         resolve(canvas.toDataURL("image/jpeg", q));
       };
-      img.onerror = () => resolve(dataUrl);
-      img.src = dataUrl;
+      img.onerror = () => resolve(orientada);
+      img.src = orientada;
     });
   }
 
@@ -1203,7 +1385,8 @@ REGRAS:
   }
 
   async function prepararEExibirPreview(dataUrlRaw) {
-    const reduzida = await comprimirImagem(dataUrlRaw, 1400, 0.9);
+    const orientada = await corrigirOrientacaoImagem(dataUrlRaw);
+    const reduzida = await comprimirImagem(orientada, 1400, 0.9);
     previewDataUrlRaw = reduzida;
     previewDataUrl = reduzida;
     patrimonioGuardarFotoPendente(reduzida);
@@ -1729,8 +1912,10 @@ REGRAS:
       cameraCanvas.height = ch;
       const ctx = cameraCanvas.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(cameraVideo, 0, 0, cw, ch);
+      const track = cameraStream?.getVideoTracks?.()?.[0];
+      desenharFrameVideoCamera(ctx, cameraVideo, cw, ch, track);
       dataUrl = cameraCanvas.toDataURL("image/jpeg", 0.88);
+      dataUrl = await corrigirOrientacaoImagem(dataUrl);
     }
     fecharCamera(false);
     void prepararEExibirPreview(dataUrl);
@@ -1906,13 +2091,18 @@ REGRAS:
     const tag =
       String(rawFoto?.tag || "").trim() ||
       String(store.fotosCapturas.find((f) => f.id === id)?.tag || "").trim();
-    const exclusoes = mergeFotosCapturasExcluidas(
-      store.fotosCapturasExcluidas,
-      exclusaoFotoCapturaEntry(id, tag) || [{ id, excluidoEm: new Date().toISOString() }]
+    const exclusoes = persistirExclusoesPatrimonio(
+      todasExclusoesPatrimonio(
+        store.fotosCapturasExcluidas,
+        exclusaoFotoCapturaEntry(id, tag) || [{ id, excluidoEm: new Date().toISOString() }]
+      )
     );
     saveStore({
       documentos: store.documentos,
-      fotosCapturas: store.fotosCapturas.filter((f) => f.id !== id),
+      fotosCapturas: aplicarExclusoesFotosCapturas(
+        store.fotosCapturas.filter((f) => f.id !== id),
+        exclusoes
+      ),
       fotosCapturasExcluidas: exclusoes,
     });
     fecharViewerFotoCaptura();

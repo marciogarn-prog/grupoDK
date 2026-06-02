@@ -75,6 +75,89 @@ function mergeComprovantesClientePendentes(localArr, cloudArr) {
   );
 }
 
+function mergeFotosCapturasExcluidas(...listas) {
+  const map = new Map();
+  for (const lista of listas) {
+    for (const item of lista || []) {
+      const id = String(item?.id || item || "").trim();
+      if (!id) continue;
+      const excluidoEm = String(item?.excluidoEm || new Date().toISOString());
+      const tag = String(item?.tag || "").trim() || undefined;
+      const prev = map.get(id);
+      if (!prev || Date.parse(excluidoEm) >= Date.parse(prev.excluidoEm || 0)) {
+        map.set(id, { id, tag, excluidoEm });
+      }
+    }
+  }
+  return [...map.values()].slice(-600);
+}
+
+function aplicarExclusoesFotosCapturas(fotos, exclusoes) {
+  const ids = new Set();
+  const tags = new Set();
+  for (const e of exclusoes || []) {
+    const id = String(e?.id || "").trim();
+    if (id) ids.add(id);
+    const tag = String(e?.tag || "").trim();
+    if (tag) tags.add(tag);
+  }
+  return (Array.isArray(fotos) ? fotos : []).filter((f) => {
+    if (!f?.id) return false;
+    if (ids.has(f.id)) return false;
+    const tag = String(f.tag || "").trim();
+    if (tag && tags.has(tag)) return false;
+    return true;
+  });
+}
+
+function parsePatrimonioStore(raw) {
+  if (!raw) return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [] };
+  if (typeof raw === "string") {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [] };
+    }
+  }
+  if (Array.isArray(raw?.documentos)) {
+    return {
+      documentos: raw.documentos,
+      fotosCapturas: raw.fotosCapturas || [],
+      fotosCapturasExcluidas: raw.fotosCapturasExcluidas || [],
+    };
+  }
+  if (Array.isArray(raw)) return { documentos: raw, fotosCapturas: [], fotosCapturasExcluidas: [] };
+  return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [] };
+}
+
+function mergePatrimonioCrlvRedis(existing, incoming, exStandalone) {
+  const e = parsePatrimonioStore(existing);
+  const i = parsePatrimonioStore(incoming);
+  const exclusoes = mergeFotosCapturasExcluidas(
+    e.fotosCapturasExcluidas,
+    i.fotosCapturasExcluidas,
+    Array.isArray(exStandalone) ? exStandalone : []
+  );
+  const byId = new Map();
+  for (const f of [...(e.fotosCapturas || []), ...(i.fotosCapturas || [])]) {
+    if (!f || typeof f !== "object") continue;
+    const id = String(f.id || "").trim();
+    if (!id) continue;
+    byId.set(id, f);
+  }
+  let fotosCapturas = aplicarExclusoesFotosCapturas([...byId.values()], exclusoes);
+  fotosCapturas.sort(
+    (a, b) =>
+      (Date.parse(b.registradoEm || b.atualizadoEm || "") || 0) -
+      (Date.parse(a.registradoEm || a.atualizadoEm || "") || 0)
+  );
+  return {
+    documentos: i.documentos?.length ? i.documentos : e.documentos,
+    fotosCapturas,
+    fotosCapturasExcluidas: exclusoes,
+  };
+}
+
 function mergePayloads(existing, incoming) {
   if (!isObject(existing)) return stripInternalPayloadKeys(incoming);
   if (!isObject(incoming)) return existing;
@@ -93,6 +176,25 @@ function mergePayloads(existing, incoming) {
     out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
       existing.dk_comprovantes_cliente_pendentes,
       incoming.dk_comprovantes_cliente_pendentes
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_patrimonio_crlv_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_patrimonio_crlv_v1")
+  ) {
+    out.dk_patrimonio_crlv_v1 = mergePatrimonioCrlvRedis(
+      existing.dk_patrimonio_crlv_v1,
+      incoming.dk_patrimonio_crlv_v1,
+      incoming.dk_patrimonio_fotos_excluidas_v1 || existing.dk_patrimonio_fotos_excluidas_v1
+    );
+    out.dk_patrimonio_fotos_excluidas_v1 = out.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [];
+  } else if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_patrimonio_fotos_excluidas_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_patrimonio_fotos_excluidas_v1")
+  ) {
+    out.dk_patrimonio_fotos_excluidas_v1 = mergeFotosCapturasExcluidas(
+      existing.dk_patrimonio_fotos_excluidas_v1,
+      incoming.dk_patrimonio_fotos_excluidas_v1
     );
   }
   return stripInternalPayloadKeys(out);

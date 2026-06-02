@@ -26,6 +26,7 @@
     "dk_cliente_notificacoes",
     "dk_financeiro_extratos_v1",
     "dk_patrimonio_crlv_v1",
+    "dk_patrimonio_fotos_excluidas_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
   ];
@@ -105,7 +106,27 @@
         payload[k] = raw;
       }
     }
+    if (payload.dk_patrimonio_crlv_v1) {
+      payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
+        payload.dk_patrimonio_crlv_v1,
+        payload.dk_patrimonio_fotos_excluidas_v1
+      );
+    }
     return payload;
+  }
+
+  function parseExclusoesPatrimonioLista(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === "string") {
+      try {
+        const p = JSON.parse(raw);
+        return Array.isArray(p) ? p : [];
+      } catch {
+        return [];
+      }
+    }
+    return [];
   }
 
   /** Cópia Redis: sem imagens PDF/JPEG em base64 (limite ~4,5 MB na Vercel). Metadados e assinaturas mantêm-se. */
@@ -153,6 +174,9 @@
           ? out.dk_patrimonio_crlv_v1.fotosCapturasExcluidas
           : [],
       };
+    }
+    if (Array.isArray(out.dk_patrimonio_fotos_excluidas_v1)) {
+      out.dk_patrimonio_fotos_excluidas_v1 = out.dk_patrimonio_fotos_excluidas_v1.slice(-600);
     }
     return out;
   }
@@ -359,8 +383,31 @@
         } catch {
           localObj = null;
         }
-        const merged = mergePatrimonioCrlv(localObj, cloudObj);
+        const merged = mergePatrimonioCrlv(
+          localObj,
+          cloudObj,
+          payload.dk_patrimonio_fotos_excluidas_v1
+        );
         localStorage.setItem(k, JSON.stringify(merged));
+        localStorage.setItem(
+          "dk_patrimonio_fotos_excluidas_v1",
+          JSON.stringify(merged.fotosCapturasExcluidas || [])
+        );
+        continue;
+      }
+      if (k === "dk_patrimonio_fotos_excluidas_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          cloudArr = parseExclusoesPatrimonioLista(v);
+        }
+        const localArr = parseExclusoesPatrimonioLista(
+          localStorage.getItem("dk_patrimonio_fotos_excluidas_v1")
+        );
+        localStorage.setItem(
+          "dk_patrimonio_fotos_excluidas_v1",
+          JSON.stringify(mergeFotosCapturasExcluidas(localArr, cloudArr))
+        );
         continue;
       }
       if (typeof v === "string") {
@@ -712,7 +759,7 @@
         continue;
       }
       if (k === "dk_patrimonio_crlv_v1") {
-        const merged = mergePatrimonioCrlv(b, a);
+        const merged = mergePatrimonioCrlv(b, a, cloudPayload.dk_patrimonio_fotos_excluidas_v1);
         const prev = parsePatrimonioStore(b);
         if (JSON.stringify(merged) !== JSON.stringify(prev)) return true;
         continue;
@@ -992,9 +1039,12 @@
     });
   }
 
-  function normalizePatrimonioPayloadForSync(raw) {
+  function normalizePatrimonioPayloadForSync(raw, exclusoesExtra) {
     const parsed = parsePatrimonioStore(raw);
-    const exclusoes = mergeFotosCapturasExcluidas(parsed.fotosCapturasExcluidas);
+    const exclusoes = mergeFotosCapturasExcluidas(
+      parsed.fotosCapturasExcluidas,
+      parseExclusoesPatrimonioLista(exclusoesExtra)
+    );
     let fotosCapturas = mergeFotosCapturasPatrimonio([], parsed.fotosCapturas);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
     return {
@@ -1162,7 +1212,7 @@
   }
 
   /** Placa, RENAVAM, chassi ou motor iguais = um documento — prevalece o envio mais recente. */
-  function mergePatrimonioCrlv(localRaw, cloudRaw) {
+  function mergePatrimonioCrlv(localRaw, cloudRaw, cloudExclusoesStandalone) {
     const cloudDocs = parsePatrimonioStore(cloudRaw).documentos.map((d) => ({ ...d, _dkSyncLocal: false }));
     const localDocs = parsePatrimonioStore(localRaw).documentos.map((d) => ({ ...d, _dkSyncLocal: true }));
     const all = [...cloudDocs, ...localDocs];
@@ -1180,9 +1230,19 @@
 
     const localP = parsePatrimonioStore(localRaw);
     const cloudP = parsePatrimonioStore(cloudRaw);
+    let exLocalStandalone = [];
+    try {
+      exLocalStandalone = parseExclusoesPatrimonioLista(
+        localStorage.getItem("dk_patrimonio_fotos_excluidas_v1")
+      );
+    } catch {
+      exLocalStandalone = [];
+    }
     const exclusoes = mergeFotosCapturasExcluidas(
       localP.fotosCapturasExcluidas,
-      cloudP.fotosCapturasExcluidas
+      cloudP.fotosCapturasExcluidas,
+      exLocalStandalone,
+      parseExclusoesPatrimonioLista(cloudExclusoesStandalone)
     );
     let fotosCapturas = mergeFotosCapturasPatrimonio(localP.fotosCapturas, cloudP.fotosCapturas);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
@@ -1228,8 +1288,11 @@
     if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_patrimonio_crlv_v1")) {
       out.dk_patrimonio_crlv_v1 = mergePatrimonioCrlv(
         localPayload.dk_patrimonio_crlv_v1,
-        cloudPayload.dk_patrimonio_crlv_v1
+        cloudPayload.dk_patrimonio_crlv_v1,
+        cloudPayload.dk_patrimonio_fotos_excluidas_v1
       );
+      out.dk_patrimonio_fotos_excluidas_v1 =
+        out.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [];
     }
     return out;
   }
@@ -1256,7 +1319,10 @@
         );
       }
       if (mergedPayload.dk_patrimonio_crlv_v1) {
-        const patNorm = normalizePatrimonioPayloadForSync(mergedPayload.dk_patrimonio_crlv_v1);
+        const patNorm = normalizePatrimonioPayloadForSync(
+          mergedPayload.dk_patrimonio_crlv_v1,
+          mergedPayload.dk_patrimonio_fotos_excluidas_v1
+        );
         const deduped = deduplicarDocumentosPatrimonio(patNorm.documentos || []);
         localStorage.setItem(
           "dk_patrimonio_crlv_v1",
@@ -1265,6 +1331,10 @@
             fotosCapturas: patNorm.fotosCapturas || [],
             fotosCapturasExcluidas: patNorm.fotosCapturasExcluidas || [],
           })
+        );
+        localStorage.setItem(
+          "dk_patrimonio_fotos_excluidas_v1",
+          JSON.stringify(patNorm.fotosCapturasExcluidas || [])
         );
       }
     } finally {
@@ -1332,7 +1402,12 @@
       }
     }
     if (payload.dk_patrimonio_crlv_v1) {
-      payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(payload.dk_patrimonio_crlv_v1);
+      payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
+        payload.dk_patrimonio_crlv_v1,
+        payload.dk_patrimonio_fotos_excluidas_v1
+      );
+      payload.dk_patrimonio_fotos_excluidas_v1 =
+        payload.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [];
     }
     const updatedAt = new Date().toISOString();
     let supaOk = false;
