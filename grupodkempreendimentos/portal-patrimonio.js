@@ -6,6 +6,7 @@
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
   const PENDING_FOTO_KEY = "dk_patrimonio_foto_pendente_v1";
   const PATRIMONIO_SCAN_VERSAO = 4;
+  const MAX_FOTOS_EXCLUIDAS = 400;
 
   const CAMPOS_ORDEM = [
     { key: "codigoRenavam", label: "Código RENAVAM" },
@@ -355,8 +356,35 @@
     return [...map.values()].sort((a, b) => fotoCapturaMs(b) - fotoCapturaMs(a));
   }
 
+  function mergeFotosCapturasExcluidas(...listas) {
+    const map = new Map();
+    for (const lista of listas) {
+      for (const item of lista || []) {
+        const id = String(item?.id || item || "").trim();
+        if (!id) continue;
+        const excluidoEm = String(item?.excluidoEm || new Date().toISOString());
+        const prev = map.get(id);
+        if (!prev || Date.parse(excluidoEm) >= Date.parse(prev.excluidoEm || 0)) {
+          map.set(id, { id, excluidoEm });
+        }
+      }
+    }
+    return [...map.values()].slice(-MAX_FOTOS_EXCLUIDAS);
+  }
+
+  function aplicarExclusoesFotosCapturas(fotos, exclusoes) {
+    const ids = new Set(
+      (exclusoes || []).map((e) => String(e?.id || "").trim()).filter(Boolean)
+    );
+    return (fotos || []).filter((f) => f?.id && !ids.has(f.id));
+  }
+
   function getFotosCapturas(store) {
-    return sanitizeFotosCapturas(store?.fotosCapturas || loadStore().fotosCapturas);
+    const s = store || loadStore();
+    return aplicarExclusoesFotosCapturas(
+      sanitizeFotosCapturas(s.fotosCapturas),
+      s.fotosCapturasExcluidas
+    );
   }
 
   function getFotoCapturaById(id) {
@@ -502,10 +530,18 @@
       let documentos = [];
       if (Array.isArray(raw.documentos)) documentos = raw.documentos;
       else if (Array.isArray(raw)) documentos = raw;
-      const fotosCapturas = sanitizeFotosCapturas(raw.fotosCapturas);
-      return { documentos: deduplicarDocumentos(documentos), fotosCapturas };
+      const exclusoes = mergeFotosCapturasExcluidas(raw.fotosCapturasExcluidas);
+      const fotosCapturas = aplicarExclusoesFotosCapturas(
+        sanitizeFotosCapturas(raw.fotosCapturas),
+        exclusoes
+      );
+      return {
+        documentos: deduplicarDocumentos(documentos),
+        fotosCapturas,
+        fotosCapturasExcluidas: exclusoes,
+      };
     } catch {
-      return { documentos: [], fotosCapturas: [] };
+      return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [] };
     }
   }
 
@@ -539,13 +575,54 @@
   }
 
   function saveStore(store) {
-    const prev = loadStore();
-    const documentos = deduplicarDocumentos(store?.documentos ?? prev.documentos);
-    const fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 200);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ documentos, fotosCapturas }));
+    let prev;
+    try {
+      prev = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch {
+      prev = {};
+    }
+    const prevDocs = Array.isArray(prev.documentos) ? prev.documentos : [];
+    const documentos = deduplicarDocumentos(store?.documentos ?? prevDocs);
+    const exclusoes = mergeFotosCapturasExcluidas(
+      store?.fotosCapturasExcluidas,
+      prev.fotosCapturasExcluidas
+    );
+    let fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 200);
+    fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes })
+    );
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       portalPushCloudSnapshotAfterPersist();
     }
+  }
+
+  /** Foto mais recente da mesma placa substitui tentativas antigas na lista. */
+  function removerFotosAntigasMesmaPlaca(placa, manterFotoId) {
+    const p = normPlaca(placa);
+    if (!p || !manterFotoId) return;
+    const store = loadStore();
+    let exclusoes = store.fotosCapturasExcluidas || [];
+    const agora = new Date().toISOString();
+    const fotos = [];
+    for (const f of store.fotosCapturas) {
+      if (f.id === manterFotoId) {
+        fotos.push(f);
+        continue;
+      }
+      const fp = normPlaca(f.placa);
+      if (fp && fp === p) {
+        exclusoes = mergeFotosCapturasExcluidas(exclusoes, [{ id: f.id, excluidoEm: agora }]);
+      } else {
+        fotos.push(f);
+      }
+    }
+    saveStore({
+      documentos: store.documentos,
+      fotosCapturas: fotos,
+      fotosCapturasExcluidas: exclusoes,
+    });
   }
 
   function atualizarFotoCaptura(id, patch) {
@@ -675,6 +752,8 @@
         placa: campos.placa,
         msgIa: "",
       });
+      removerFotosAntigasMesmaPlaca(campos.placa, fotoId);
+      renderFotosLista();
       renderLista();
       setMsg(
         r.substituiu
@@ -1788,10 +1867,17 @@ REGRAS:
   function excluirFotoCaptura(id) {
     if (!id || !window.confirm("Excluir esta foto capturada?")) return;
     const store = loadStore();
-    saveStore({ fotosCapturas: store.fotosCapturas.filter((f) => f.id !== id) });
+    const exclusoes = mergeFotosCapturasExcluidas(store.fotosCapturasExcluidas, [
+      { id, excluidoEm: new Date().toISOString() },
+    ]);
+    saveStore({
+      documentos: store.documentos,
+      fotosCapturas: store.fotosCapturas.filter((f) => f.id !== id),
+      fotosCapturasExcluidas: exclusoes,
+    });
     fecharViewerFotoCaptura();
     renderFotosLista();
-    setMsg("Foto excluída.", false, true);
+    setMsg("Foto excluída permanentemente.", false, true);
   }
 
   function getDocById(id) {

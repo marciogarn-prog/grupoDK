@@ -149,6 +149,9 @@
         fotosCapturas: Array.isArray(out.dk_patrimonio_crlv_v1.fotosCapturas)
           ? out.dk_patrimonio_crlv_v1.fotosCapturas.map(stripFotoImg)
           : [],
+        fotosCapturasExcluidas: Array.isArray(out.dk_patrimonio_crlv_v1.fotosCapturasExcluidas)
+          ? out.dk_patrimonio_crlv_v1.fotosCapturasExcluidas
+          : [],
       };
     }
     return out;
@@ -941,9 +944,36 @@
         return { documentos: [] };
       }
     }
-    if (Array.isArray(raw?.documentos)) return { documentos: raw.documentos, fotosCapturas: raw.fotosCapturas || [] };
-    if (Array.isArray(raw)) return { documentos: raw, fotosCapturas: [] };
-    return { documentos: [], fotosCapturas: [] };
+    if (Array.isArray(raw?.documentos)) {
+      return {
+        documentos: raw.documentos,
+        fotosCapturas: raw.fotosCapturas || [],
+        fotosCapturasExcluidas: raw.fotosCapturasExcluidas || [],
+      };
+    }
+    if (Array.isArray(raw)) return { documentos: raw, fotosCapturas: [], fotosCapturasExcluidas: [] };
+    return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [] };
+  }
+
+  function mergeFotosCapturasExcluidas(localList, cloudList) {
+    const map = new Map();
+    for (const item of [...(cloudList || []), ...(localList || [])]) {
+      const id = String(item?.id || item || "").trim();
+      if (!id) continue;
+      const excluidoEm = String(item?.excluidoEm || new Date().toISOString());
+      const prev = map.get(id);
+      if (!prev || Date.parse(excluidoEm) >= Date.parse(prev.excluidoEm || 0)) {
+        map.set(id, { id, excluidoEm });
+      }
+    }
+    return [...map.values()].slice(-400);
+  }
+
+  function aplicarExclusoesFotosCapturas(fotos, exclusoes) {
+    const ids = new Set(
+      (exclusoes || []).map((e) => String(e?.id || "").trim()).filter(Boolean)
+    );
+    return (fotos || []).filter((f) => f?.id && !ids.has(f.id));
   }
 
   function mergeFotoCapturaPar(a, b) {
@@ -1120,12 +1150,19 @@
       })
     );
 
+    const localP = parsePatrimonioStore(localRaw);
+    const cloudP = parsePatrimonioStore(cloudRaw);
+    const exclusoes = mergeFotosCapturasExcluidas(
+      localP.fotosCapturasExcluidas,
+      cloudP.fotosCapturasExcluidas
+    );
+    let fotosCapturas = mergeFotosCapturasPatrimonio(localP.fotosCapturas, cloudP.fotosCapturas);
+    fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
+
     return {
       documentos: merged.map(({ _dkSyncLocal, ...rest }) => rest),
-      fotosCapturas: mergeFotosCapturasPatrimonio(
-        parsePatrimonioStore(localRaw).fotosCapturas,
-        parsePatrimonioStore(cloudRaw).fotosCapturas
-      ),
+      fotosCapturas,
+      fotosCapturasExcluidas: exclusoes,
     };
   }
 
@@ -1197,6 +1234,7 @@
           JSON.stringify({
             documentos: deduped,
             fotosCapturas: mergedPayload.dk_patrimonio_crlv_v1.fotosCapturas || [],
+            fotosCapturasExcluidas: mergedPayload.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [],
           })
         );
       }
