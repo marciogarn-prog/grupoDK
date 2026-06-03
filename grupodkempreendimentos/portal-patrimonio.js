@@ -1,6 +1,6 @@
 /**
  * Portal DK — Cadastro de Patrimônio (CRLV-e digital).
- * Foto via câmera → IA extrai campos → relatório PDF/Excel (administrador).
+ * Anexo de PDFs (vários de uma vez) → IA extrai campos → relatório PDF/Excel (administrador).
  */
 (function portalPatrimonio() {
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
@@ -34,8 +34,11 @@
     { key: "observacaoVeiculo", label: "Observação do veículo" },
   ];
 
-  const MSG_NITIDEZ = "Imagem sem nitidez suficiente para ser processada.";
-  const MSG_IA_FALHOU = "Não foi possível ler o CRLV. Confira a foto ou fotografe de novo.";
+  const MSG_NITIDEZ = "PDF sem nitidez suficiente para ser processado.";
+  const MSG_IA_FALHOU = "Não foi possível ler o CRLV. Confira o PDF ou envie outro ficheiro.";
+  const MAX_PDF_BYTES = 12 * 1024 * 1024;
+  const PDF_STORAGE_B64_MAX = 420000;
+  const PDFJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
   /** Campos essenciais — sem estes o cadastro não é aceite. */
   const CAMPOS_CRITICOS = [
     "codigoRenavam",
@@ -73,7 +76,8 @@
   const fotoCapturaViewerImg = document.getElementById("patrimonioFotoCapturaViewerImg");
   const fotoCapturaTagEl = document.getElementById("patrimonioFotoCapturaTag");
   const fotoCapturaStatusEl = document.getElementById("patrimonioFotoCapturaStatus");
-  const fileFallback = document.getElementById("patrimonioCameraFallback");
+  const pdfInput = document.getElementById("patrimonioPdfInput");
+  const pdfDropzone = document.getElementById("patrimonioPdfDropzone");
 
   let cameraStream = null;
   let previewDataUrl = "";
@@ -320,12 +324,17 @@
     const imagem = String(f.imagem || "").trim();
     const temImagem = imagem.startsWith("data:image/");
     if (!temImagem && !f.imagemIndisponivel) return null;
+    const pdfOriginal = String(f.pdfOriginal || "").trim();
+    const pdfOk = pdfOriginal.startsWith("data:application/pdf");
     return {
       id,
       tag,
+      tipo: String(f.tipo || (pdfOk ? "pdf" : "foto")),
+      nomeArquivo: String(f.nomeArquivo || "").trim() || undefined,
       registradoEm: String(f.registradoEm || new Date().toISOString()),
       imagem: temImagem ? imagem : "",
       imagemOriginal: String(f.imagemOriginal || "").trim() || undefined,
+      pdfOriginal: pdfOk ? pdfOriginal : undefined,
       imagemIndisponivel: !temImagem,
       statusIa: String(f.statusIa || "pendente"),
       docId: String(f.docId || "").trim(),
@@ -413,7 +422,7 @@
     return getFotosCapturas().find((f) => f.id === id) || null;
   }
 
-  function labelStatusFotoCaptura(f) {
+  function labelStatusArquivoCaptura(f) {
     const st = String(f?.statusIa || "").toLowerCase();
     if (st === "ok") {
       return f.placa ? `IA OK · ${f.placa}` : "IA OK · cadastrado";
@@ -745,7 +754,7 @@
       if (!leitura.ok) {
         atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
         renderFotosLista();
-        setMsg(`${leitura.msg || MSG_NITIDEZ} Foto guardada para conferência do administrador.`, true);
+        setMsg(`${leitura.msg || MSG_NITIDEZ} Arquivo guardado para conferência do administrador.`, true);
         return;
       }
       const campos = leitura.campos;
@@ -757,13 +766,14 @@
         "";
       const imagemGuardar = await comprimirImagemLimite(imagemBase, 1600, 320000, 0.88);
       const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
-      let imagemPdfRecortada;
-      const pdfTmp = window.__DK_patrimonioUltimoPdfRecorte;
-      if (typeof pdfTmp === "string" && pdfTmp.startsWith("data:application/pdf")) {
-        const pdfB64 = pdfTmp.split(",")[1] || "";
-        if (pdfB64.length > 0 && pdfB64.length < 420000) imagemPdfRecortada = pdfTmp;
+      let imagemPdfRecortada = pdfDataUrlParaArmazenar(foto?.pdfOriginal || "");
+      if (!imagemPdfRecortada) {
+        const pdfTmp = window.__DK_patrimonioUltimoPdfRecorte;
+        if (typeof pdfTmp === "string" && pdfTmp.startsWith("data:application/pdf")) {
+          imagemPdfRecortada = pdfDataUrlParaArmazenar(pdfTmp);
+        }
+        window.__DK_patrimonioUltimoPdfRecorte = null;
       }
-      window.__DK_patrimonioUltimoPdfRecorte = null;
       const doc = {
         ...campos,
         id: newId(),
@@ -791,8 +801,8 @@
       renderLista();
       setMsg(
         r.substituiu
-          ? `Documento ${campos.placa} atualizado. Pode fotografar o próximo.`
-          : `Documento ${campos.placa} cadastrado. Pode fotografar o próximo.`,
+          ? `Documento ${campos.placa} atualizado. Pode anexar o próximo PDF.`
+          : `Documento ${campos.placa} cadastrado. Pode anexar o próximo PDF.`,
         false,
         true
       );
@@ -1159,6 +1169,236 @@
     return result;
   }
 
+  function ehArquivoPdf(file) {
+    if (!file) return false;
+    const tipo = String(file.type || "").toLowerCase();
+    if (tipo === "application/pdf") return true;
+    return /\.pdf$/i.test(String(file.name || ""));
+  }
+
+  function fileParaDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ""));
+      fr.onerror = () => reject(new Error("Não foi possível ler o ficheiro."));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function fileParaArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error("Não foi possível ler o PDF."));
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  let pdfJsCarregando = null;
+
+  async function garantirPdfJs() {
+    if (window.pdfjsLib?.getDocument) {
+      if (!window.pdfjsLib.GlobalWorkerOptions?.workerSrc) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}pdf.worker.min.js`;
+      }
+      return window.pdfjsLib;
+    }
+    if (pdfJsCarregando) return pdfJsCarregando;
+    pdfJsCarregando = new Promise((resolve, reject) => {
+      const existente = document.querySelector('script[src*="pdf.min.js"]');
+      const onReady = () => {
+        const lib = window.pdfjsLib;
+        if (!lib?.getDocument) {
+          reject(new Error("Biblioteca PDF não disponível."));
+          return;
+        }
+        lib.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}pdf.worker.min.js`;
+        resolve(lib);
+      };
+      if (existente) {
+        if (window.pdfjsLib?.getDocument) onReady();
+        else existente.addEventListener("load", onReady, { once: true });
+        existente.addEventListener("error", () => reject(new Error("Falha ao carregar PDF.js")), {
+          once: true,
+        });
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = `${PDFJS_CDN}pdf.min.js`;
+      s.crossOrigin = "anonymous";
+      s.referrerPolicy = "no-referrer";
+      s.onload = onReady;
+      s.onerror = () => reject(new Error("Falha ao carregar PDF.js"));
+      document.head.appendChild(s);
+    });
+    try {
+      return await pdfJsCarregando;
+    } finally {
+      pdfJsCarregando = null;
+    }
+  }
+
+  async function renderizarPaginaPdfParaImagem(pdfDoc, pageNum, escala) {
+    const page = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: escala || 2.2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas indisponível.");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+    return canvas.toDataURL("image/jpeg", 0.92);
+  }
+
+  async function pdfArquivoParaImagemAlta(file) {
+    if (file.size > MAX_PDF_BYTES) {
+      throw new Error(`Ficheiro demasiado grande (máx. ${Math.round(MAX_PDF_BYTES / 1024 / 1024)} MB).`);
+    }
+    const pdfjs = await garantirPdfJs();
+    const buf = await fileParaArrayBuffer(file);
+    const pdf = await pdfjs.getDocument({ data: buf }).promise;
+    const numPag = pdf.numPages || 1;
+    let melhor = null;
+    let melhorArea = 0;
+    const paginas = numPag > 1 ? [1, 2] : [1];
+    for (const p of paginas) {
+      if (p > numPag) continue;
+      const img = await renderizarPaginaPdfParaImagem(pdf, p, 2.4);
+      const { base64 } = parseDataUrl(img);
+      const area = base64.length;
+      if (area > melhorArea) {
+        melhorArea = area;
+        melhor = img;
+      }
+    }
+    if (!melhor) throw new Error("PDF sem páginas legíveis.");
+    return melhor;
+  }
+
+  function pdfDataUrlParaArmazenar(dataUrl) {
+    const b64 = parseDataUrl(dataUrl).base64;
+    if (!b64 || b64.length > PDF_STORAGE_B64_MAX) return undefined;
+    return dataUrl;
+  }
+
+  async function registrarArquivoPdf(file, imagemRenderizada, pdfDataUrl) {
+    const agora = new Date();
+    const imagem = await comprimirImagemLimite(
+      imagemRenderizada,
+      1800,
+      320000,
+      0.9
+    );
+    const pdfOriginal = pdfDataUrlParaArmazenar(pdfDataUrl);
+    const foto = sanitizeFotoCaptura({
+      id: newFotoId(),
+      tag: formatTagPatrimonioFoto(agora),
+      tipo: "pdf",
+      nomeArquivo: String(file.name || "documento.pdf").slice(0, 120),
+      registradoEm: agora.toISOString(),
+      imagem,
+      pdfOriginal,
+      statusIa: "processando",
+      docId: "",
+      placa: "",
+      msgIa: "",
+      atualizadoEm: agora.toISOString(),
+    });
+    if (!foto) return null;
+    const store = loadStore();
+    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 200);
+    saveStore(store);
+    return foto;
+  }
+
+  async function processarArquivosPdf(fileList) {
+    const files = [...(fileList || [])].filter(ehArquivoPdf);
+    if (!files.length) {
+      setMsg("Selecione um ou mais ficheiros PDF (.pdf).", true);
+      return;
+    }
+    setMsg(`A processar ${files.length} PDF(s)…`, false);
+    let ok = 0;
+    for (const file of files) {
+      try {
+        setMsg(`A converter «${file.name}» para leitura…`, false);
+        await patrimonioYieldUi();
+        const pdfDataUrl = await fileParaDataUrl(file);
+        const imagem = await pdfArquivoParaImagemAlta(file);
+        const foto = await registrarArquivoPdf(file, imagem, pdfDataUrl);
+        if (!foto) {
+          setMsg(`Não foi possível guardar «${file.name}».`, true);
+          continue;
+        }
+        renderFotosLista();
+        enfileirarIaPatrimonio(foto.id, [imagem]);
+        ok++;
+      } catch (e) {
+        setMsg(`Erro em «${file.name}»: ${String(e?.message || e)}`, true);
+      }
+    }
+    renderLista();
+    if (ok > 0) {
+      setMsg(
+        ok === 1
+          ? "1 PDF na fila da IA. Pode anexar mais enquanto processa."
+          : `${ok} PDF(s) na fila da IA.`,
+        false,
+        true
+      );
+    }
+  }
+
+  function abrirSeletorPdf() {
+    if (pdfInput) {
+      pdfInput.value = "";
+      pdfInput.click();
+      return;
+    }
+    setMsg("Seletor de ficheiros indisponível neste navegador.", true);
+  }
+
+  function bindPatrimonioPdfUpload() {
+    if (!pdfInput || pdfInput.dataset.dkPdfBound === "1") return;
+    pdfInput.dataset.dkPdfBound = "1";
+    pdfInput.addEventListener("change", () => {
+      const files = pdfInput.files;
+      pdfInput.value = "";
+      if (files?.length) void processarArquivosPdf(files);
+    });
+
+    if (!pdfDropzone || pdfDropzone.dataset.dkPdfBound === "1") return;
+    pdfDropzone.dataset.dkPdfBound = "1";
+    pdfDropzone.addEventListener("click", (ev) => {
+      if (ev.target.closest("a,button,input")) return;
+      abrirSeletorPdf();
+    });
+    pdfDropzone.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") {
+        ev.preventDefault();
+        abrirSeletorPdf();
+      }
+    });
+    ["dragenter", "dragover"].forEach((evName) => {
+      pdfDropzone.addEventListener(evName, (ev) => {
+        ev.preventDefault();
+        pdfDropzone.classList.add("patrimonio-pdf-dropzone--drag");
+      });
+    });
+    ["dragleave", "drop"].forEach((evName) => {
+      pdfDropzone.addEventListener(evName, (ev) => {
+        ev.preventDefault();
+        pdfDropzone.classList.remove("patrimonio-pdf-dropzone--drag");
+      });
+    });
+    pdfDropzone.addEventListener("drop", (ev) => {
+      const files = ev.dataTransfer?.files;
+      if (files?.length) void processarArquivosPdf(files);
+    });
+  }
+
   /** Recorte documento (bbox normalizado 0–1) e ajusta proporção A4. */
   async function recortarDocumentoA4(dataUrl, recorte) {
     const box = recorte || { esquerda: 0.02, topo: 0.02, direita: 0.98, baixo: 0.98 };
@@ -1384,7 +1624,7 @@ REGRAS DE CONTEÚDO:
         const label = CAMPOS_ORDEM.find((c) => c.key === key)?.label || key;
         return {
           ok: false,
-          msg: `IA não leu «${label}». Ajuste recorte/nitidez ou toque em Revisar IA.`,
+          msg: `IA não leu «${label}». Envie outro PDF ou toque em Revisar IA.`,
           field: key,
         };
       }
@@ -1636,7 +1876,7 @@ REGRAS DE CONTEÚDO:
       return;
     }
     if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "Na fila da IA…";
-    setMsg(`Foto ${foto.tag} na fila para revisão com IA…`, false);
+    setMsg(`Arquivo ${foto.nomeArquivo || foto.tag} na fila para revisão com IA…`, false);
     enfileirarIaPatrimonio(fotoId, [foto.imagemOriginal, foto.imagem].filter(Boolean));
   }
 
@@ -2113,8 +2353,8 @@ REGRAS DE CONTEÚDO:
     if (resumoEl) {
       resumoEl.textContent =
         docs.length > 0
-          ? `${docs.length} veículo(s) · placa, RENAVAM, chassi ou motor iguais = mesmo documento (foto mais recente prevalece).`
-          : "Nenhum CRLV cadastrado. Toque em «Fotografar documento».";
+          ? `${docs.length} veículo(s) · placa, RENAVAM, chassi ou motor iguais = mesmo documento (PDF mais recente prevalece).`
+          : "Nenhum CRLV cadastrado. Anexe PDFs na área abaixo.";
     }
     if (btnRelatorio) btnRelatorio.disabled = docs.length === 0;
     if (!listaEl) return;
@@ -2165,23 +2405,25 @@ REGRAS DE CONTEÚDO:
     }).length;
     if (fotosResumoEl) {
       fotosResumoEl.textContent = fotos.length
-        ? `${fotos.length} foto(s) · tag AAAAMMDD-HHMMSS · ${reprovadas} reprovada(s) pela IA${processandoN ? ` · ${processandoN} a processar` : ""}.`
-        : "Nenhuma foto registrada ainda. Todas as fotos confirmadas aparecem aqui, mesmo se a IA falhar.";
+        ? `${fotos.length} arquivo(s) · ${reprovadas} reprovado(s) pela IA${processandoN ? ` · ${processandoN} a processar` : ""}.`
+        : "Nenhum PDF enviado ainda. Todos os arquivos aparecem aqui, mesmo se a IA falhar.";
     }
     if (!fotosListaEl) return;
     if (!fotos.length) {
-      fotosListaEl.innerHTML = '<p class="subtext">Sem fotos capturadas.</p>';
+      fotosListaEl.innerHTML = '<p class="subtext">Sem PDFs enviados.</p>';
       return;
     }
     fotosListaEl.innerHTML = fotos
       .map((f) => {
         const st = String(f.statusIa || "").toLowerCase();
         const podeRevisar = !f.imagemIndisponivel && String(f.imagem || "").startsWith("data:image/");
+        const nome = f.nomeArquivo ? escapeHtml(f.nomeArquivo) : "";
         return `<div class="patrimonio-foto-item${st === "falhou" ? " patrimonio-foto-item--reprovada" : ""}">
           <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir ${escapeHtml(formatTagPatrimonioFotoLegivel(f.tag))}">
             <span class="patrimonio-foto-tag">${escapeHtml(f.tag)}</span>
+            ${nome ? `<span class="patrimonio-foto-nome">${nome}</span>` : ""}
           </button>
-          <span class="${classeStatusFotoCaptura(f)}" title="${escapeHtml(f.msgIa || "")}">${escapeHtml(labelStatusFotoCaptura(f))}</span>
+          <span class="${classeStatusFotoCaptura(f)}" title="${escapeHtml(f.msgIa || "")}">${escapeHtml(labelStatusArquivoCaptura(f))}</span>
           <div class="patrimonio-foto-item__acoes">
             ${podeRevisar ? `<button type="button" class="btn-primary btn-secondary-outline patrimonio-foto-revisar" data-foto-id="${escapeHtml(f.id)}">Revisar IA</button>` : ""}
             <button type="button" class="btn-primary btn-secondary-outline patrimonio-foto-excluir" data-foto-id="${escapeHtml(f.id)}">Excluir</button>
@@ -2221,7 +2463,12 @@ REGRAS DE CONTEÚDO:
     fotoCapturaViewerImg.src = foto.imagem;
     fotoCapturaViewer.dataset.fotoId = id;
     if (fotoCapturaTagEl) fotoCapturaTagEl.textContent = foto.tag;
-    if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = labelStatusFotoCaptura(foto);
+    if (fotoCapturaStatusEl) {
+      fotoCapturaStatusEl.textContent = [
+        labelStatusArquivoCaptura(foto),
+        foto.nomeArquivo ? ` · ${foto.nomeArquivo}` : "",
+      ].join("");
+    }
     const btnRevisar = document.getElementById("patrimonioFotoCapturaRevisarBtn");
     if (btnRevisar) btnRevisar.disabled = false;
     fotoCapturaViewer.classList.remove("hidden");
@@ -2243,7 +2490,7 @@ REGRAS DE CONTEÚDO:
   }
 
   async function excluirFotoCaptura(id) {
-    if (!id || !window.confirm("Excluir esta foto capturada?")) return;
+    if (!id || !window.confirm("Excluir este arquivo enviado?")) return;
     const store = loadStore();
     const rawFoto = findFotoCapturaRawById(id);
     const tag =
@@ -2265,7 +2512,7 @@ REGRAS DE CONTEÚDO:
     });
     fecharViewerFotoCaptura();
     renderFotosLista();
-    setMsg("Foto excluída permanentemente.", false, true);
+    setMsg("Arquivo excluído permanentemente.", false, true);
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       try {
         await window.__DK_pushCloudSnapshotNow();
@@ -2545,7 +2792,7 @@ ${contador}
       });
       const data = await res.json();
       if (data?.ok && data?.mode === "server") {
-        statusIaEl.innerHTML = "✓ <strong>IA no servidor</strong> — leitura automática do CRLV-e.";
+        statusIaEl.innerHTML = "✓ <strong>IA no servidor</strong> — leitura automática a partir dos PDFs anexados.";
       } else {
         statusIaEl.textContent = "IA não configurada no servidor.";
       }
@@ -2558,38 +2805,9 @@ ${contador}
     if (document.documentElement.dataset.dkPatrimonioBound === "1") return;
     document.documentElement.dataset.dkPatrimonioBound = "1";
 
-    btnNovo?.addEventListener("click", () => void abrirCameraNativa());
+    btnNovo?.addEventListener("click", abrirSeletorPdf);
     btnRelatorio?.addEventListener("click", () => abrirRelatorioModal());
-
-    document.getElementById("patrimonioCameraCapturarBtn")?.addEventListener("click", () => void capturarDaCamera());
-    document.getElementById("patrimonioCameraNativaBtn")?.addEventListener("click", abrirCameraTelefoneNativa);
-    document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
-    document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", alternarFlashCamera);
-    document.getElementById("patrimonioPreviewSimBtn")?.addEventListener("click", () => {
-      void finalizarSimSalvarPreview();
-    });
-    document.getElementById("patrimonioPreviewNaoBtn")?.addEventListener("click", () => {
-      fecharPreview();
-      void abrirCameraNativa();
-    });
-    document.getElementById("patrimonioPreviewRetratBtn")?.addEventListener("click", () => {
-      void abrirEditorCantosPreview();
-    });
-    document.getElementById("patrimonioPreviewDetectarCantosBtn")?.addEventListener("click", () => {
-      void redetectarCantosPreview();
-    });
-    document.getElementById("patrimonioPreviewAplicarRecorteBtn")?.addEventListener("click", () => {
-      void aplicarRecortePreviewAtual();
-    });
-
-    fileFallback?.addEventListener("change", async () => {
-      const f = fileFallback.files?.[0];
-      fileFallback.value = "";
-      if (!f || !f.type.startsWith("image/")) return;
-      const fr = new FileReader();
-      fr.onload = () => void prepararEExibirPreview(String(fr.result || ""));
-      fr.readAsDataURL(f);
-    });
+    bindPatrimonioPdfUpload();
 
     document.getElementById("patrimonioImagemFecharBtn")?.addEventListener("click", fecharViewerImagem);
     document.getElementById("patrimonioImagemPdfBtn")?.addEventListener("click", baixarPdfViewerImagem);
@@ -2709,14 +2927,10 @@ ${contador}
     void refreshOpenAIStatus();
     renderLista();
     try {
-      const pendente = sessionStorage.getItem(PENDING_FOTO_KEY);
-      if (pendente && pendente.startsWith("data:image/")) {
-        void prepararEExibirPreview(pendente);
-      }
+      sessionStorage.removeItem(PENDING_FOTO_KEY);
     } catch {
       /* ignore */
     }
-    window.setTimeout(() => void migrarImagensPatrimonioScan(), 800);
   }
 
   function escapeBackPatrimonio() {

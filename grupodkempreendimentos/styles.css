@@ -3143,6 +3143,52 @@ table.validados-app .lnk-comprovante {
   clip: rect(0, 0, 0, 0);
 }
 
+.patrimonio-pdf-dropzone {
+  margin: 1rem 0 1.25rem;
+  padding: 1.35rem 1rem;
+  border: 2px dashed var(--border, rgba(255, 255, 255, 0.22));
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.patrimonio-pdf-dropzone:hover,
+.patrimonio-pdf-dropzone:focus-visible,
+.patrimonio-pdf-dropzone--drag {
+  border-color: var(--accent, #3b82f6);
+  background: rgba(59, 130, 246, 0.08);
+  outline: none;
+}
+
+.patrimonio-pdf-dropzone__titulo {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.patrimonio-pdf-dropzone__sub {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.72));
+}
+
+.patrimonio-pdf-dropzone__limite {
+  margin: 0.5rem 0 0;
+}
+
+.patrimonio-foto-nome {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.65));
+  margin-top: 0.15rem;
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .patrimonio-acoes-principais {
   display: flex;
   flex-wrap: wrap;

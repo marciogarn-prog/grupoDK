@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260601crop-cantos">
+  <link rel="stylesheet" href="styles.css?v=20260603pdf-upload">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -1534,21 +1534,26 @@
 
       <section id="panel-patrimonio-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
-        <p class="subpage__lead">CRLV-e digital — fotografe o documento no celular. A IA extrai os dados e guarda na nuvem.</p>
-        <p class="subtext">Uma placa = um documento. Foto tratada (só folha A4). A IA só cadastra com leitura 100% nítida — caso contrário reprova.</p>
+        <p class="subpage__lead">CRLV-e digital — anexe PDFs nítidos do documento. A IA extrai os dados e guarda na nuvem.</p>
+        <p class="subtext">Uma placa = um documento. Pode enviar vários PDFs de uma vez (computador ou telemóvel). A IA só cadastra quando a leitura estiver completa.</p>
         <div class="patrimonio-acoes-principais">
-          <button type="button" class="btn-primary" id="patrimonioBtnNovoDoc">Fotografar documento</button>
+          <button type="button" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs</button>
           <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
         </div>
-        <input type="file" id="patrimonioCameraFallback" accept="image/*" capture="environment" class="patrimonio-file-hidden" tabindex="-1" aria-hidden="true">
+        <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf" multiple class="patrimonio-file-hidden" tabindex="-1" aria-hidden="true">
+        <div id="patrimonioPdfDropzone" class="patrimonio-pdf-dropzone" tabindex="0" role="button" aria-label="Anexar PDFs do CRLV. Clique ou arraste ficheiros.">
+          <p class="patrimonio-pdf-dropzone__titulo">Anexar PDFs do CRLV</p>
+          <p class="patrimonio-pdf-dropzone__sub">Clique aqui, use «Escolher PDFs» ou arraste vários ficheiros .pdf (computador ou celular).</p>
+          <p class="patrimonio-pdf-dropzone__limite subtext">Máx. 12 MB por ficheiro · vários de uma vez</p>
+        </div>
         <p id="patrimonioOpenAIStatus" class="subtext" role="status"></p>
         <p id="patrimonioMsg" class="portal-feedback" role="status"></p>
         <p id="patrimonioResumo" class="subtext" role="status">Nenhum CRLV cadastrado.</p>
         <h3 class="portal-lanc-aluguel-section__title">Veículos cadastrados</h3>
         <div id="patrimonioLista" class="patrimonio-lista"></div>
 
-        <h3 class="patrimonio-fotos-titulo">Fotos capturadas</h3>
-        <p id="patrimonioFotosResumo" class="subtext patrimonio-fotos-resumo">Nenhuma foto registrada ainda.</p>
+        <h3 class="patrimonio-fotos-titulo">Arquivos enviados</h3>
+        <p id="patrimonioFotosResumo" class="subtext patrimonio-fotos-resumo">Nenhum PDF enviado ainda.</p>
         <div id="patrimonioFotosLista" class="patrimonio-fotos-lista"></div>
         <div class="logado-actions">
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-patrimonio-locadora">Voltar</button>
@@ -1860,10 +1865,9 @@
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="portal-patrimonio-scan.js?v=20260602tarja-a4-pdf" defer></script>
-  <script src="portal-patrimonio-crop.js?v=20260602tarja-a4-pdf" defer></script>
-  <script src="portal-patrimonio.js?v=20260602tarja-a4-pdf" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+  <script src="portal-patrimonio-crop.js?v=20260603pdf-upload" defer></script>
+  <script src="portal-patrimonio.js?v=20260603pdf-upload" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260602orientacao-excluir" defer></script>

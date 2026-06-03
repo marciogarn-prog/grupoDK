@@ -70,20 +70,16 @@ async function main() {
         html.includes("patrimonioRelatorioContador") &&
         html.includes("patrimonioRelatorioConteudo") &&
         html.includes("patrimonioRelatorioModal") &&
-        html.includes("patrimonioCameraCapturarBtn") &&
-        html.includes("patrimonioCameraFlashBtn") &&
-        html.includes("patrimonioCameraNativaBtn") &&
-        html.includes("patrimonio-shutter") &&
-        html.includes("patrimonioPreviewSimBtn") &&
-        html.includes("patrimonioPreviewRetratBtn") &&
+        html.includes("patrimonioPdfInput") &&
+        html.includes("patrimonioPdfDropzone") &&
+        html.includes('accept="application/pdf') &&
+        html.includes("multiple") &&
+        html.includes("pdf.min.js") &&
         html.includes("patrimonioFotosLista") &&
-        html.includes("patrimonioFotoCapturaViewer") &&
         html.includes("patrimonioFotoCapturaRevisarBtn") &&
-        html.includes("patrimonioCropStage") &&
-        html.includes("patrimonioPreviewAplicarRecorteBtn") &&
         html.includes("portal-patrimonio-crop.js") &&
-        html.includes("portal-patrimonio-scan.js") &&
-        html.includes("portal-patrimonio.js")
+        html.includes("portal-patrimonio.js") &&
+        !html.includes("portal-patrimonio-scan.js")
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
@@ -105,52 +101,41 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoResumoFrota") &&
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
-    const scanJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-scan.js?v=20260601crop-cantos", { cache: "no-store" });
-      return r.ok ? await r.text() : "";
-    });
-    record(
-      "recorte CRLV exclui fundo colorido",
-      scanJs.includes("isTecidoOuRosa") &&
-        scanJs.includes("encontrarLimitesDocumentoCrlv") &&
-        scanJs.includes("retocarImagemArmazenada") &&
-        scanJs.includes("SCAN_VERSION = 5") &&
-        scanJs.includes("detectarTarjaSenatran") &&
-        scanJs.includes("detectarCantosA4PorTarja")
-    );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260602tarja-a4-pdf", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603pdf-upload", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
-      "câmera patrimônio sem zoom (preview + sensor)",
-      patJs.includes("normalizarCameraSemZoom") &&
-        patJs.includes('resizeMode: "none"') &&
-        !patJs.includes("height: { ideal: 2560 }")
+      "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
+      patJs.includes("processarArquivosPdf") &&
+        patJs.includes("pdfArquivoParaImagemAlta") &&
+        patJs.includes("registrarArquivoPdf") &&
+        patJs.includes("bindPatrimonioPdfUpload") &&
+        patJs.includes("patrimonioPdfDropzone") &&
+        patJs.includes("ehArquivoPdf") &&
+        patJs.includes("garantirPdfJs")
     );
     record(
-      "câmera patrimônio lanterna/flash (torch)",
-      patJs.includes("patrimonioDetectarCameraTraseiraComLanterna") &&
-        patJs.includes("lerCrlvComRetry") &&
+      "patrimônio IA CRLV (campos críticos + mapa tarja)",
+      patJs.includes("lerCrlvComRetry") &&
         patJs.includes("prepararImagemParaIaCrlv") &&
         patJs.includes("CAMPOS_CRITICOS") &&
         patJs.includes("extrairCamposRespostaIa") &&
         patJs.includes("mapaEspacialCrlvPrompt") &&
         patJs.includes("TARJA PRETA") &&
-        patJs.includes("renavamValido") &&
-        patJs.includes("aplicarFlashCameraComReforco")
+        patJs.includes("renavamValido")
     );
     record(
-      "patrimônio fotos capturadas (histórico + revisar IA)",
-      patJs.includes("registrarFotoCaptura") &&
-        patJs.includes("confirmarFotoPatrimonio") &&
+      "patrimônio arquivos enviados (histórico + revisar IA)",
+      patJs.includes("registrarArquivoPdf") &&
         patJs.includes("enfileirarIaPatrimonio") &&
         patJs.includes("formatTagPatrimonioFoto") &&
         patJs.includes("repararFotosCapturasPendentes") &&
-        patJs.includes("patrimonio-foto-excluir")
+        patJs.includes("patrimonio-foto-excluir") &&
+        patJs.includes("nomeArquivo")
     );
     const cropJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-crop.js?v=20260602tarja-a4-pdf", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio-crop.js?v=20260603pdf-upload", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     const syncJs = await page.evaluate(async () => {
@@ -160,16 +145,13 @@ async function main() {
       return r.ok ? await r.text() : "";
     });
     record(
-      "patrimônio recorte 4 cantos + zoom",
-      cropJs.includes("recortarPorCantos") &&
-        cropJs.includes("bindZoomPan") &&
-        cropJs.includes("detectarCantosFolha") &&
-        patJs.includes("finalizarSimSalvarPreview") &&
+      "patrimônio viewer zoom + exclusões nuvem",
+      cropJs.includes("bindZoomPan") &&
         patJs.includes("fotosCapturasExcluidas") &&
         patJs.includes("removerFotosAntigasMesmaPlaca") &&
         patJs.includes("exclusaoFotoCapturaEntry") &&
-        patJs.includes("corrigirOrientacaoImagem") &&
-        patJs.includes("desenharFrameVideoCamera") &&
+        patJs.includes("imagemPdfRecortada") &&
+        patJs.includes("baixarPdfViewerImagem") &&
         patJs.includes("__DK_pushCloudSnapshotNow")
     );
     record(
@@ -180,36 +162,13 @@ async function main() {
         syncJs.includes("fotosCapturasExcluidas") &&
         syncJs.includes("aplicarExclusoesFotosCapturas")
     );
-    record(
-      "patrimônio recorte sem espelhar (ordenar cantos)",
-      cropJs.includes("ordenarCantosCrlv")
-    );
-    const scanJsCantos = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-scan.js?v=20260602tarja-a4-pdf", { cache: "no-store" });
-      return r.ok ? await r.text() : "";
-    });
-    record(
-      "patrimônio detecção automática dos 4 cantos",
-      scanJsCantos.includes("detectarCantosFolhaEmCanvas") &&
-        scanJsCantos.includes("detectarCantosA4PorTarja") &&
-        scanJsCantos.includes("imagemParaPdfA4") &&
-        cropJs.includes("redetectarCantosEditor") &&
-        cropJs.includes("patrimonio-crop-handle--auto") &&
-        cropJs.includes("__DK_patrimonioUltimoPdfRecorte") &&
-        patJs.includes("imagemPdfRecortada") &&
-        patJs.includes("baixarPdfViewerImagem") &&
-        html.includes("patrimonioPreviewDetectarCantosBtn") &&
-        html.includes("patrimonioImagemPdfBtn") &&
-        html.includes("jspdf")
-    );
-    const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601crop-cantos`, {
+    const cssStyles = await fetch(`${BASE_URL}styles.css`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "CSS câmera patrimônio object-fit contain",
-      /\.patrimonio-overlay--camera\s+\.patrimonio-camera-video[\s\S]*?object-fit:\s*contain/.test(
-        cssStyles
-      )
+      "CSS patrimônio zona PDF (arrastar e soltar)",
+      cssStyles.includes(".patrimonio-pdf-dropzone") &&
+        cssStyles.includes("patrimonio-pdf-dropzone--drag")
     );
     record(
       "CSS cartões frota legíveis (texto claro no botão)",
@@ -218,7 +177,7 @@ async function main() {
         cssStyles.includes("appearance: none")
     );
     record(
-      "patrimônio uma placa substitui foto antiga",
+      "patrimônio uma placa substitui documento antigo",
       patJs.includes("deduplicarDocumentos") &&
         patJs.includes("imagemAtualizadaEm") &&
         patJs.includes("comprimirImagemLimite") &&
