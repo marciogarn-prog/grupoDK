@@ -1198,40 +1198,80 @@
     });
   }
 
+  /**
+   * Mapa fixo CRLV-e (SENATRAN): posição de cada VALOR em negrito abaixo da tarja preta superior.
+   * Rótulos pequenos ("PLACA", "CÓDIGO RENAVAM") podem estar ilegíveis — use a posição.
+   */
+  function mapaEspacialCrlvPrompt() {
+    return `REFERÊNCIA FIXA — TARJA PRETA NO TOPO (brasão, "REPÚBLICA FEDERATIVA DO BRASIL", SENATRAN, gov.br).
+Tudo abaixo dessa tarja mantém o MESMO LUGAR em todo CRLV-e digital. Leia o VALOR EM LETRAS MAIORES/NEGRITO em cada caixa, não o rótulo pequeno acima.
+
+MÉTODO: (1) localize a tarja preta no topo; (2) para cada campo abaixo, leia o dado grande na posição descrita; (3) ignore QR code central-esquerdo.
+
+FAIXA 1 — imediatamente abaixo da tarja (topo do formulário):
+• COLUNA ESQUERDA (0–45% largura):
+  - codigoRenavam: primeira linha, canto superior esquerdo — 11 dígitos grandes (ex.: 01131834566).
+  - placa: linha abaixo do RENAVAM, lado esquerdo — 7 caracteres MAIÚSCULOS em negrito (ex.: PCK8G70). Mercosul LLLNLNN.
+  - exercicio: à direita da placa, mesma linha — 4 dígitos do ano (ex.: 2025).
+  - anoFabricacao: abaixo da placa, esquerda — 4 dígitos.
+  - anoModelo: à direita do ano fabricação — 4 dígitos.
+  - numeroCrv: abaixo dos anos — número longo (ex.: 254419349417).
+• COLUNA DIREITA (45–100% largura):
+  - categoria: topo direito (ex.: PARTICULAR).
+  - potenciaCilindrada: abaixo categoria — formato "0CV/162" ou "8CV/150" (copie exato).
+  - motor: linha larga abaixo — alfanumérico longo (ex.: KC22E0J110894).
+  - carroceria: abaixo motor — ex.: NÃO APLICAVEL / NÃO APLICÁVEL.
+  - nome: caixa larga — nome do proprietário em MAIÚSCULAS (ex.: MARCIO JOSE SIQUEIRA DOS SANTOS).
+  - cpfCnpj: abaixo ou à direita do nome — CPF 11 dígitos ou CNPJ 14 (ex.: 030.378.974-30).
+
+FAIXA 2 — meio do documento (abaixo do QR / bloco superior):
+• ESQUERDA:
+  - codigoSegurancaCla: linha com número longo ~11 dígitos (ex.: 71846753390), acima de marca/modelo.
+  - marcaModeloVersao: texto longo marca/modelo (ex.: HONDA/CG 160 FAN).
+  - especieTipo: abaixo (ex.: PASSAGEIRO MOTOCICLETA).
+  - placaAnterior: esquerda — placa/UF ou asteriscos (ex.: PCK8670/PE).
+  - chassi: à direita da placa anterior — exatamente 17 caracteres (ex.: 9C2KC2200JR110897).
+  - corPredominante: abaixo placa anterior (ex.: BRANCA).
+  - combustivel: à direita da cor (ex.: ALCOOL/GASOLINA).
+• DIREITA:
+  - local: cidade/UF (ex.: PETROLINA PE).
+  - data: à direita do local — DD/MM/AAAA (ex.: 24/07/2025).
+
+FAIXA 3 — rodapé (linha tracejada horizontal):
+  - observacaoVeiculo: caixa INFERIOR ESQUERDA — texto grande ou "SEM OBSERVAÇÕES".
+  - Ignore caixas DPVAT/seguro à direita se só asteriscos (*).`;
+  }
+
   function montarPromptCrlv(revisao) {
     const schema = `{"aprovado":true,"confianca":"alta","camposIlegiveis":[],"motivoReprovacao":"","campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
+    const mapa = mapaEspacialCrlvPrompt();
     if (revisao) {
-      return `CRLV-e brasileiro — segunda leitura. Foque em placa Mercosul (LLLNLNN), RENAVAM (11 dígitos), potência/cilindrada e observações.
+      return `CRLV-e brasileiro — segunda leitura com MAPA DE POSIÇÕES (tarja preta = topo).
+
+${mapa}
 
 Responda APENAS JSON: ${schema}
 
-- placa: 7 caracteres — 3 letras + 1 número + 1 letra + 2 números (ex.: SPA9H12 → S-P-A-9-H-1-2).
-- codigoRenavam: conte exatamente 11 dígitos.
-- potenciaCilindrada: copie como impresso (ex.: "0CV/162", "8CV/150") — zero à esquerda é válido.
-- observacaoVeiculo: texto em "OBSERVAÇÕES DO VEÍCULO" ou "SEM OBSERVAÇÕES".
-- Preencha todos os campos legíveis; use "aprovado": true se placa, RENAVAM e chassi estiverem corretos.`;
+Revise com prioridade: placa (negrito esquerda faixa 1), codigoRenavam (11 dígitos topo esquerdo), chassi (17 chars faixa 2), potenciaCilindrada, observacaoVeiculo (caixa inferior esquerda).
+- placa Mercosul LLLNLNN; conte dígitos do RENAVAM um a um.
+- Use "aprovado": true se placa, RENAVAM e chassi estiverem corretos.`;
     }
-    return `CRLV-e brasileiro (digital impresso, foto com ou sem recorte). Extraia TODOS os campos visíveis.
+    return `CRLV-e brasileiro (SENATRAN, layout fixo). Extraia os VALORES EM NEGRITO nas posições abaixo — mesmo que rótulos pequenos ("PLACA", "CÓDIGO DE SEGURANÇA") estejam borrados.
+
+${mapa}
 
 Responda APENAS JSON válido (sem markdown): ${schema}
 
-LAYOUT TÍPICO:
-- Esquerda: RENAVAM, PLACA, exercício, anos, QR, marca/modelo, chassi, cor, combustível.
-- Direita: categoria, potência/cilindrada, motor, nome, CPF/CNPJ, local/data.
-- Rodapé: OBSERVAÇÕES DO VEÍCULO (ex.: ALIENAÇÃO FIDUCIÁRIA ou SEM OBSERVAÇÕES).
-- Número CRV e código segurança CLA: campos numéricos longos no documento.
-
-REGRAS:
-- placa Mercosul LLLNLNN: posição 4 = NÚMERO, 5 = LETRA, 6-7 = NÚMEROS (ex.: SPA9H12). Diferencie 9/H, 2/A, 0/O.
-- codigoRenavam: exatamente 11 dígitos (conte um a um).
-- chassi: 17 caracteres alfanuméricos.
-- potenciaCilindrada: copie exatamente (motos podem ter "0CV/162").
-- observacaoVeiculo: copie o texto das observações ou "SEM OBSERVAÇÕES".
-- carroceria: "NÃO APLICÁVEL" se motocicleta sem carroceria.
-- placaAnterior: asteriscos ou vazio se mascarada.
-- data: DD/MM/AAAA do campo Local/Data.
-- Use "aprovado": true se os campos principais estiverem legíveis; liste só em "camposIlegiveis" o que realmente não conseguir ler.
-- NÃO invente dígitos.`;
+REGRAS DE CONTEÚDO:
+- placa: 7 caracteres Mercosul LLLNLNN (3 letras + 1 número + 1 letra + 2 números). Posição: esquerda faixa 1. Diferencie 8/B, 0/O, 5/S.
+- codigoRenavam: 11 dígitos na primeira linha esquerda.
+- chassi: 17 caracteres na faixa 2, à direita de placa anterior.
+- potenciaCilindrada: copie exato da caixa direita (ex.: 0CV/162).
+- cpfCnpj: só dígitos com pontuação se visível.
+- observacaoVeiculo: caixa inferior esquerda; se vazio use "SEM OBSERVAÇÕES".
+- carroceria: motocicleta → "NÃO APLICÁVEL" se aplicável.
+- NÃO invente dígitos; se a posição estiver legível mas o rótulo não, confie na posição do mapa.
+- "aprovado": true quando placa, RENAVAM e chassi forem lidos com confiança.`;
   }
 
   function preencherDefaultsCrlv(campos) {

@@ -117,7 +117,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260602ia-crlv", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260602mapa-crlv", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -133,6 +133,8 @@ async function main() {
         patJs.includes("prepararImagemParaIaCrlv") &&
         patJs.includes("CAMPOS_CRITICOS") &&
         patJs.includes("extrairCamposRespostaIa") &&
+        patJs.includes("mapaEspacialCrlvPrompt") &&
+        patJs.includes("TARJA PRETA") &&
         patJs.includes("renavamValido") &&
         patJs.includes("aplicarFlashCameraComReforco")
     );
