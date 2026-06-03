@@ -2,7 +2,12 @@
  * Smoke test em produção (headless) — DK Locadora portal cadastro.
  * node scripts/test-portal-producao.mjs
  */
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { chromium } from "playwright";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
 const BASE_URL = "https://grupodkempreendimentos.com.br/";
 const results = [];
@@ -72,6 +77,7 @@ async function main() {
         html.includes("patrimonioRelatorioModal") &&
         html.includes("patrimonioPdfInput") &&
         html.includes("patrimonioPdfDropzone") &&
+        html.includes('for="patrimonioPdfInput"') &&
         html.includes("mesma placa") &&
         html.includes('accept="application/pdf') &&
         html.includes("multiple") &&
@@ -103,16 +109,19 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603placa-substitui", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603pdf-fix", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
       patJs.includes("processarArquivosPdf") &&
+        patJs.includes("onPatrimonioPdfInputChange") &&
+        patJs.includes("Array.from(input.files") &&
+        patJs.includes("crlvdigital") &&
         patJs.includes("pdfArquivoParaImagemAlta") &&
         patJs.includes("registrarArquivoPdf") &&
         patJs.includes("bindPatrimonioPdfUpload") &&
-        patJs.includes("patrimonioPdfDropzone") &&
+        patJs.includes("__DK_patrimonioEhArquivoPdf") &&
         patJs.includes("ehArquivoPdf") &&
         patJs.includes("garantirPdfJs")
     );
@@ -392,6 +401,75 @@ async function main() {
         const okVal = /R\$\s*123,45/.test(valRaw);
         record("mascara valor R$ xxx,xx", okVal, valRaw);
       }
+    }
+
+    const patrimonioPdfPath = path.join(REPO_ROOT, "Relatorio de Veiculos DK.pdf");
+    try {
+      await page.goto(`${BASE_URL}#locadora/empresa/administrador`, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
+      await page.waitForTimeout(1000);
+      const cpf = page.locator("#login-cpf");
+      if (await cpf.isVisible().catch(() => false)) {
+        const senha = process.env.DK_OWNER_SENHA || "110499@Gb";
+        await cpf.fill("03037897430");
+        await page.locator("#login-senha, input[type=password]").first().fill(senha);
+        await page.locator("#form-login button[type=submit]").first().click();
+        await page.waitForSelector("#panel-logado:not(.hidden)", { timeout: 25000 });
+        await page.waitForTimeout(600);
+      }
+      const patBtn = page.locator("text=Cadastro de patrimônio").first();
+      if ((await patBtn.isVisible().catch(() => false)) && fs.existsSync(patrimonioPdfPath)) {
+        await patBtn.click();
+        await page.waitForTimeout(1200);
+        const unit = await page.evaluate(() => ({
+          crlv: Boolean(
+            window.__DK_patrimonioEhArquivoPdf?.({
+              name: "CRLVDigital_UHK2B97_2025",
+              type: "",
+              size: 80000,
+            })
+          ),
+        }));
+        record("patrimônio aceita CRLVDigital_* sem extensão .pdf", unit.crlv);
+        const antes = await page.locator("#patrimonioFotosLista .patrimonio-foto-item").count();
+        await page.locator("#patrimonioPdfInput").setInputFiles([
+          {
+            name: "CRLVDigital_E2E_TEST_2026",
+            mimeType: "application/pdf",
+            buffer: fs.readFileSync(patrimonioPdfPath),
+          },
+        ]);
+        await page
+          .waitForFunction(
+            () => {
+              const msg = document.getElementById("patrimonioMsg")?.textContent || "";
+              const n = document.querySelectorAll("#patrimonioFotosLista .patrimonio-foto-item").length;
+              return (
+                /processar|converter|fila|receber|PDF|Erro/i.test(msg) ||
+                n > 0
+              );
+            },
+            { timeout: 50000 }
+          )
+          .catch(() => null);
+        const depois = await page.locator("#patrimonioFotosLista .patrimonio-foto-item").count();
+        const msgPat = (await page.locator("#patrimonioMsg").textContent().catch(() => "")) || "";
+        record(
+          "patrimônio E2E: Abrir no seletor dispara processamento",
+          depois > antes || /processar|converter|fila|receber/i.test(msgPat),
+          `itens ${antes}→${depois} · ${msgPat.slice(0, 90)}`
+        );
+      } else {
+        record(
+          "patrimônio E2E: Abrir no seletor dispara processamento",
+          false,
+          !fs.existsSync(patrimonioPdfPath) ? "PDF amostra ausente no repo" : "botão patrimônio invisível"
+        );
+      }
+    } catch (e) {
+      record("patrimônio E2E: Abrir no seletor dispara processamento", false, String(e?.message || e).slice(0, 120));
     }
 
     const veiculoBtn = page.locator("text=Cadastro de veículo").first();

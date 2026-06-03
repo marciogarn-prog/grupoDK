@@ -3144,6 +3144,7 @@ table.validados-app .lnk-comprovante {
 }
 
 .patrimonio-pdf-dropzone {
+  display: block;
   margin: 1rem 0 1.25rem;
   padding: 1.35rem 1rem;
   border: 2px dashed var(--border, rgba(255, 255, 255, 0.22));

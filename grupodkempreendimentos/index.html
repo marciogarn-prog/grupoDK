@@ -1537,15 +1537,15 @@
         <p class="subpage__lead">CRLV-e digital — anexe PDFs nítidos do documento. A IA extrai os dados e guarda na nuvem.</p>
         <p class="subtext">Uma placa = um documento. Se enviar outro PDF com a <strong>mesma placa</strong>, substitui o arquivo e os dados já cadastrados. Vários PDFs de placas diferentes podem ser enviados de uma vez.</p>
         <div class="patrimonio-acoes-principais">
-          <button type="button" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs</button>
+          <label for="patrimonioPdfInput" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs</label>
           <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
         </div>
-        <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf" multiple class="patrimonio-file-hidden" tabindex="-1" aria-hidden="true">
-        <div id="patrimonioPdfDropzone" class="patrimonio-pdf-dropzone" tabindex="0" role="button" aria-label="Anexar PDFs do CRLV. Clique ou arraste ficheiros.">
+        <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
+        <label id="patrimonioPdfDropzone" for="patrimonioPdfInput" class="patrimonio-pdf-dropzone" tabindex="0" aria-label="Anexar PDFs do CRLV. Clique ou arraste ficheiros.">
           <p class="patrimonio-pdf-dropzone__titulo">Anexar PDFs do CRLV</p>
           <p class="patrimonio-pdf-dropzone__sub">Clique aqui, use «Escolher PDFs» ou arraste vários ficheiros .pdf (computador ou celular).</p>
           <p class="patrimonio-pdf-dropzone__limite subtext">Máx. 12 MB por ficheiro · vários de uma vez</p>
-        </div>
+        </label>
         <p id="patrimonioOpenAIStatus" class="subtext" role="status"></p>
         <p id="patrimonioMsg" class="portal-feedback" role="status"></p>
         <p id="patrimonioResumo" class="subtext" role="status">Nenhum CRLV cadastrado.</p>
@@ -1867,7 +1867,7 @@
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603pdf-upload" defer></script>
-  <script src="portal-patrimonio.js?v=20260603placa-substitui" defer></script>
+  <script src="portal-patrimonio.js?v=20260603pdf-fix" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260602orientacao-excluir" defer></script>

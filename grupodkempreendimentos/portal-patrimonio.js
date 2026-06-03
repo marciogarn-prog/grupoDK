@@ -1177,10 +1177,14 @@
   }
 
   function ehArquivoPdf(file) {
-    if (!file) return false;
+    if (!file || !(file.size > 0)) return false;
     const tipo = String(file.type || "").toLowerCase();
-    if (tipo === "application/pdf") return true;
-    return /\.pdf$/i.test(String(file.name || ""));
+    const nome = String(file.name || "");
+    if (tipo === "application/pdf" || tipo === "application/x-pdf") return true;
+    if (/\.pdf$/i.test(nome)) return true;
+    if (/^crlvdigital[_-]/i.test(nome) || /^crlv[_-]/i.test(nome)) return true;
+    if (!tipo && file.size >= 400) return true;
+    return false;
   }
 
   function fileParaDataUrl(file) {
@@ -1321,11 +1325,19 @@
   }
 
   async function processarArquivosPdf(fileList) {
-    const files = [...(fileList || [])].filter(ehArquivoPdf);
+    const files = Array.from(fileList || []).filter(ehArquivoPdf);
     if (!files.length) {
-      setMsg("Selecione um ou mais ficheiros PDF (.pdf).", true);
+      const total = Array.from(fileList || []).length;
+      setMsg(
+        total > 0
+          ? "Nenhum ficheiro reconhecido como PDF/CRLV. Use .pdf ou ficheiros CRLVDigital_* do gov.br."
+          : "Selecione um ou mais ficheiros PDF.",
+        true
+      );
       return;
     }
+    setMsg(`A receber ${files.length} ficheiro(s)…`, false);
+    await patrimonioYieldUi();
     setMsg(`A processar ${files.length} PDF(s)…`, false);
     let ok = 0;
     for (const file of files) {
@@ -1358,49 +1370,53 @@
     }
   }
 
+  function obterInputPdf() {
+    return document.getElementById("patrimonioPdfInput") || pdfInput;
+  }
+
   function abrirSeletorPdf() {
-    if (pdfInput) {
-      pdfInput.value = "";
-      pdfInput.click();
+    const input = obterInputPdf();
+    if (input) {
+      input.click();
       return;
     }
     setMsg("Seletor de ficheiros indisponível neste navegador.", true);
   }
 
-  function bindPatrimonioPdfUpload() {
-    if (!pdfInput || pdfInput.dataset.dkPdfBound === "1") return;
-    pdfInput.dataset.dkPdfBound = "1";
-    pdfInput.addEventListener("change", () => {
-      const files = pdfInput.files;
-      pdfInput.value = "";
-      if (files?.length) void processarArquivosPdf(files);
-    });
+  function onPatrimonioPdfInputChange(ev) {
+    const input = ev?.target || obterInputPdf();
+    if (!input) return;
+    const files = Array.from(input.files || []);
+    input.value = "";
+    if (!files.length) return;
+    void processarArquivosPdf(files);
+  }
 
-    if (!pdfDropzone || pdfDropzone.dataset.dkPdfBound === "1") return;
-    pdfDropzone.dataset.dkPdfBound = "1";
-    pdfDropzone.addEventListener("click", (ev) => {
-      if (ev.target.closest("a,button,input")) return;
-      abrirSeletorPdf();
-    });
-    pdfDropzone.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") {
-        ev.preventDefault();
-        abrirSeletorPdf();
-      }
-    });
+  function bindPatrimonioPdfUpload() {
+    const input = obterInputPdf();
+    if (input && input.dataset.dkPdfBound !== "1") {
+      input.dataset.dkPdfBound = "1";
+      input.addEventListener("change", onPatrimonioPdfInputChange);
+    }
+
+    const zone = document.getElementById("patrimonioPdfDropzone") || pdfDropzone;
+    if (!zone || zone.dataset.dkPdfBound === "1") return;
+    zone.dataset.dkPdfBound = "1";
     ["dragenter", "dragover"].forEach((evName) => {
-      pdfDropzone.addEventListener(evName, (ev) => {
+      zone.addEventListener(evName, (ev) => {
         ev.preventDefault();
-        pdfDropzone.classList.add("patrimonio-pdf-dropzone--drag");
+        ev.stopPropagation();
+        zone.classList.add("patrimonio-pdf-dropzone--drag");
       });
     });
     ["dragleave", "drop"].forEach((evName) => {
-      pdfDropzone.addEventListener(evName, (ev) => {
+      zone.addEventListener(evName, (ev) => {
         ev.preventDefault();
-        pdfDropzone.classList.remove("patrimonio-pdf-dropzone--drag");
+        ev.stopPropagation();
+        zone.classList.remove("patrimonio-pdf-dropzone--drag");
       });
     });
-    pdfDropzone.addEventListener("drop", (ev) => {
+    zone.addEventListener("drop", (ev) => {
       const files = ev.dataTransfer?.files;
       if (files?.length) void processarArquivosPdf(files);
     });
@@ -2812,7 +2828,6 @@ ${contador}
     if (document.documentElement.dataset.dkPatrimonioBound === "1") return;
     document.documentElement.dataset.dkPatrimonioBound = "1";
 
-    btnNovo?.addEventListener("click", abrirSeletorPdf);
     btnRelatorio?.addEventListener("click", () => abrirRelatorioModal());
     bindPatrimonioPdfUpload();
 
@@ -2928,6 +2943,7 @@ ${contador}
       }
     }
     patrimonioPersistirAreaPortal();
+    bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
     const store = loadStore();
     saveStore(store);
@@ -2965,6 +2981,8 @@ ${contador}
   }
 
   window.__DK_patrimonioOnShow = onShowPatrimonio;
+  window.__DK_patrimonioProcessarArquivosPdf = processarArquivosPdf;
+  window.__DK_patrimonioEhArquivoPdf = ehArquivoPdf;
   window.__DK_patrimonioReset = resetPatrimonioUi;
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
