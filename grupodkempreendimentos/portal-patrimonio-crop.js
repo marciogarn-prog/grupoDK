@@ -466,13 +466,14 @@
     return cropState ? normalizarCantos(cropState.cantos) : null;
   }
 
-  async function aplicarRecorteCantos(dataUrl, cantos) {
+  async function aplicarRecorteCantos(dataUrl, cantos, opts) {
     const mob = patrimonioMobileLeve();
+    const skipScanner = Boolean(opts?.skipScanner);
     let img = await recortarPorCantos(dataUrl, cantos);
     if (!mob && typeof window.__DK_patrimonioApararMargens === "function") {
       img = await window.__DK_patrimonioApararMargens(img);
     }
-    if (typeof window.__DK_patrimonioAplicarScanner === "function" && !mob) {
+    if (!skipScanner && typeof window.__DK_patrimonioAplicarScanner === "function" && !mob) {
       img = await window.__DK_patrimonioAplicarScanner(img);
     }
     return img;

@@ -36,26 +36,15 @@
 
   const MSG_NITIDEZ = "Imagem sem nitidez suficiente para ser processada.";
   const MSG_IA_FALHOU = "Não foi possível ler o CRLV. Confira a foto ou fotografe de novo.";
-  /** Campos que a IA deve ler — validação final é programática (placa, RENAVAM, chassi, etc.). */
-  const CAMPOS_OBRIGATORIOS = [
+  /** Campos essenciais — sem estes o cadastro não é aceite. */
+  const CAMPOS_CRITICOS = [
     "codigoRenavam",
     "placa",
-    "exercicio",
-    "anoFabricacao",
-    "anoModelo",
-    "numeroCrv",
-    "codigoSegurancaCla",
-    "marcaModeloVersao",
-    "especieTipo",
     "chassi",
-    "corPredominante",
-    "combustivel",
-    "categoria",
-    "potenciaCilindrada",
-    "motor",
     "nome",
     "cpfCnpj",
-    "local",
+    "marcaModeloVersao",
+    "exercicio",
     "data",
   ];
 
@@ -841,7 +830,7 @@
     renderFotosLista();
     renderLista();
     setMsg(`Foto ${fotoReg.tag} — IA a ler o CRLV…`, false);
-    enfileirarIaPatrimonio(fotoReg.id, [imagemRaw, imagemTratada]);
+    enfileirarIaPatrimonio(fotoReg.id, [imagemTratada, imagemRaw]);
   }
 
   /** Sim — salvar: fecha ecrã, recorta (se preciso) e envia à fila da IA sem travar o telemóvel. */
@@ -874,7 +863,7 @@
       if (emCantos && cantos && cropUi?.aplicarRecorte) {
         setMsg("A recortar folha (área verde)…", false);
         await patrimonioYieldUi();
-        tratada = await cropUi.aplicarRecorte(raw, cantos);
+        tratada = await cropUi.aplicarRecorte(raw, cantos, { skipScanner: true });
         await patrimonioYieldUi();
       }
 
@@ -1069,10 +1058,7 @@
   }
 
   function desenharFrameVideoCamera(ctx, video, cw, ch, track) {
-    const traseira = patrimonioTrackEhTraseira(track);
-    const espelhar =
-      !traseira || (traseira && (patrimonioEhAndroidSamsung() || patrimonioEhAndroid()));
-    if (!espelhar) {
+    if (patrimonioTrackEhTraseira(track)) {
       ctx.drawImage(video, 0, 0, cw, ch);
       return;
     }
@@ -1081,6 +1067,12 @@
     ctx.scale(-1, 1);
     ctx.drawImage(video, 0, 0, cw, ch);
     ctx.restore();
+  }
+
+  /** Imagem em cores, tamanho adequado à API Vision (sem filtro scanner). */
+  async function prepararImagemParaIaCrlv(dataUrl) {
+    const orientada = await corrigirOrientacaoImagem(dataUrl);
+    return comprimirImagem(orientada, 1536, 0.9);
   }
 
   function lerExclusoesPatrimonioStandalone() {
@@ -1254,6 +1246,56 @@ REGRAS:
       const esp = String(campos.especieTipo ?? "").toUpperCase();
       if (/MOTOC|MOTON|CICLOM/.test(esp)) campos.carroceria = "NÃO APLICÁVEL";
     }
+    const opcionais = {
+      motor: "N/I",
+      potenciaCilindrada: "N/I",
+      numeroCrv: "N/I",
+      especieTipo: "N/I",
+      corPredominante: "N/I",
+      combustivel: "N/I",
+      categoria: "N/I",
+      local: "N/I",
+      anoFabricacao: String(campos.exercicio || "").trim() || "N/I",
+      anoModelo: String(campos.exercicio || "").trim() || "N/I",
+    };
+    for (const [k, v] of Object.entries(opcionais)) {
+      if (!String(campos[k] ?? "").trim()) campos[k] = v;
+    }
+    const cla = onlyDigits(campos.codigoSegurancaCla);
+    if (cla.length < 9) {
+      campos.codigoSegurancaCla = cla.length >= 4 ? cla.padEnd(11, "0").slice(0, 11) : "00000000000";
+    }
+  }
+
+  function extrairCamposRespostaIa(parsed) {
+    if (!parsed || typeof parsed !== "object") return {};
+    const aninhado = parsed.campos || parsed.Campos || parsed.dados || parsed.fields || parsed.veiculo;
+    if (aninhado && typeof aninhado === "object" && !Array.isArray(aninhado)) {
+      return { ...aninhado };
+    }
+    const out = { ...parsed };
+    delete out.aprovado;
+    delete out.confianca;
+    delete out.camposIlegiveis;
+    delete out.motivoReprovacao;
+    delete out.motivo_reprovacao;
+    return out;
+  }
+
+  function msgErroApiIa(data, status) {
+    const reason = String(data?.reason || "").trim();
+    if (reason === "openai_not_configured") {
+      return "IA não configurada no servidor (contacte suporte DK).";
+    }
+    if (reason === "forbidden_origin") return "Pedido bloqueado (origem inválida).";
+    if (reason === "invalid_content") return "Erro interno ao enviar imagem à IA.";
+    if (reason === "openai_error") {
+      const det = String(data?.error || "").slice(0, 120);
+      return det ? `OpenAI: ${det}` : "Erro na API OpenAI.";
+    }
+    if (reason === "server_error") return String(data?.error || MSG_IA_FALHOU);
+    if (status === 413) return "Imagem demasiado grande para a IA — tente outra foto.";
+    return String(data?.error || data?.msg || MSG_IA_FALHOU);
   }
 
   function renavamDigitoVerificador(renavam10) {
@@ -1289,33 +1331,39 @@ REGRAS:
   function validarLeituraCrlv(parsed, campos) {
     preencherDefaultsCrlv(campos);
 
-    for (const key of CAMPOS_OBRIGATORIOS) {
+    for (const key of CAMPOS_CRITICOS) {
       if (!String(campos[key] ?? "").trim()) {
-        return { ok: false, msg: MSG_NITIDEZ, field: key };
+        const label = CAMPOS_ORDEM.find((c) => c.key === key)?.label || key;
+        return {
+          ok: false,
+          msg: `IA não leu «${label}». Ajuste recorte/nitidez ou toque em Revisar IA.`,
+          field: key,
+        };
       }
     }
 
     if (!placaValida(campos.placa)) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "placa" };
+      return { ok: false, msg: "Placa inválida na leitura — confira Mercosul (LLLNLNN).", field: "placa" };
     }
-    if (onlyDigits(campos.codigoRenavam).length !== 11) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "codigoRenavam" };
+    const renavam = normalizarRenavamPatrimonio(campos.codigoRenavam);
+    if (onlyDigits(renavam).length !== 11) {
+      return { ok: false, msg: "RENAVAM deve ter 11 dígitos.", field: "codigoRenavam" };
     }
-    if (onlyDigits(campos.codigoSegurancaCla).length !== 11) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "codigoSegurancaCla" };
-    }
+    campos.codigoRenavam = renavam;
     if (!chassiValido(campos.chassi)) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "chassi" };
+      return { ok: false, msg: "Chassi inválido (17 caracteres).", field: "chassi" };
     }
     if (!dataBrValida(campos.data)) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "data" };
+      const ex = String(campos.exercicio || "").trim();
+      if (/^\d{4}$/.test(ex)) campos.data = `01/01/${ex}`;
+      else return { ok: false, msg: "Data do documento ilegível.", field: "data" };
     }
     const cnpjCpf = onlyDigits(campos.cpfCnpj);
     if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "cpfCnpj" };
+      return { ok: false, msg: "CPF/CNPJ inválido na leitura.", field: "cpfCnpj" };
     }
     if (!/^\d{4}$/.test(String(campos.exercicio || ""))) {
-      return { ok: false, msg: MSG_NITIDEZ, field: "exercicio" };
+      return { ok: false, msg: "Exercício (ano) ilegível.", field: "exercicio" };
     }
 
     return { ok: true };
@@ -1348,7 +1396,7 @@ REGRAS:
     if (pergunta) pergunta.textContent = "A recortar folha (área verde)…";
     setMsg("A recortar e ajustar documento…", false);
     try {
-      const tratada = await cropUi.aplicarRecorte(raw, cantos);
+      const tratada = await cropUi.aplicarRecorte(raw, cantos, { skipScanner: true });
       cropUi.fechar();
       previewDataUrl = tratada;
       if (previewImg) {
@@ -1444,9 +1492,9 @@ REGRAS:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content, tipo: "crlv", max_tokens: 4096 }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
-      return { ok: false, msg: data.error || data.reason || MSG_IA_FALHOU };
+      return { ok: false, msg: msgErroApiIa(data, res.status) };
     } catch (e) {
       return { ok: false, msg: String(e?.message || e) };
     }
@@ -1454,14 +1502,22 @@ REGRAS:
 
   async function lerCrlvComRetry(imagens) {
     const fontes = [...new Set((imagens || []).filter(Boolean))];
-    let ultimo = { ok: false, msg: MSG_NITIDEZ };
+    let ultimo = { ok: false, msg: MSG_IA_FALHOU };
 
     for (let i = 0; i < fontes.length; i++) {
-      const img = await comprimirImagem(fontes[i], 2400, 0.92);
+      const img = await prepararImagemParaIaCrlv(fontes[i]);
+      const { base64 } = parseDataUrl(img);
+      if (!base64 || base64.length < 5000) {
+        ultimo = { ok: false, msg: "Imagem vazia ou corrompida para a IA." };
+        continue;
+      }
       for (const revisao of [false, true]) {
         const oai = await chamarIaCrlv(img, revisao);
         if (!oai.ok) {
           ultimo = oai;
+          if (String(oai.msg || "").includes("configurada") || String(oai.msg || "").includes("OpenAI")) {
+            return ultimo;
+          }
           continue;
         }
         const campos = normalizarCampos(oai.parsed);
@@ -1475,10 +1531,32 @@ REGRAS:
   }
 
   function normalizarCampos(raw) {
-    const c = raw?.campos || raw || {};
+    const c = extrairCamposRespostaIa(raw);
+    const aliases = {
+      codigo_renavam: "codigoRenavam",
+      renavam: "codigoRenavam",
+      codigo_seguranca_cla: "codigoSegurancaCla",
+      cla: "codigoSegurancaCla",
+      marca_modelo_versao: "marcaModeloVersao",
+      marca_modelo: "marcaModeloVersao",
+      cpf_cnpj: "cpfCnpj",
+      numero_crv: "numeroCrv",
+      placa_anterior: "placaAnterior",
+      cor_predominante: "corPredominante",
+      potencia_cilindrada: "potenciaCilindrada",
+      especie_tipo: "especieTipo",
+      observacao_veiculo: "observacaoVeiculo",
+      ano_fabricacao: "anoFabricacao",
+      ano_modelo: "anoModelo",
+    };
     const out = {};
     for (const { key } of CAMPOS_ORDEM) {
-      out[key] = String(c[key] ?? c[key.replace(/([A-Z])/g, "_$1").toLowerCase()] ?? "").trim();
+      let v = c[key];
+      if (v == null || v === "") {
+        const snake = key.replace(/([A-Z])/g, "_$1").toLowerCase().replace(/^_/, "");
+        v = c[snake] ?? c[aliases[snake]];
+      }
+      out[key] = String(v ?? "").trim();
     }
     if (out.placa) {
       out.placa = resolverPlacaMercosul(out.placa) || normPlaca(out.placa);

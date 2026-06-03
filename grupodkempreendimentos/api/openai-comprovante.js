@@ -93,9 +93,24 @@ module.exports = async function handler(req, res) {
 
     const data = await oai.json();
     let raw = String(data.choices?.[0]?.message?.content || "").trim();
-    const fence = raw.match(/^```(?:json)?\s*([\s\S]*?)```$/im);
+    const fence = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
     if (fence) raw = fence[1].trim();
-    const parsed = JSON.parse(raw);
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      const start = raw.indexOf("{");
+      const end = raw.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        parsed = JSON.parse(raw.slice(start, end + 1));
+      } else {
+        return res.status(500).json({
+          ok: false,
+          reason: "json_parse_error",
+          error: raw.slice(0, 200),
+        });
+      }
+    }
     return res.status(200).json({ ok: true, parsed });
   } catch (e) {
     return res.status(500).json({

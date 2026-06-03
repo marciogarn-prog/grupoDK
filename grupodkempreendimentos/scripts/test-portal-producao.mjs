@@ -117,7 +117,7 @@ async function main() {
         scanJs.includes("SCAN_VERSION = 4")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260602detectar-cantos", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260602ia-crlv", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -130,6 +130,9 @@ async function main() {
       "câmera patrimônio lanterna/flash (torch)",
       patJs.includes("patrimonioDetectarCameraTraseiraComLanterna") &&
         patJs.includes("lerCrlvComRetry") &&
+        patJs.includes("prepararImagemParaIaCrlv") &&
+        patJs.includes("CAMPOS_CRITICOS") &&
+        patJs.includes("extrairCamposRespostaIa") &&
         patJs.includes("renavamValido") &&
         patJs.includes("aplicarFlashCameraComReforco")
     );
