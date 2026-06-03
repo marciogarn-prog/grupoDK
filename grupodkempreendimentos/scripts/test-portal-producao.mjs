@@ -75,7 +75,7 @@ async function main() {
         html.includes("patrimonioRelatorioContador") &&
         html.includes("patrimonioRelatorioConteudo") &&
         html.includes("patrimonioRelatorioModal") &&
-        html.includes("patrimonioPdfInput") &&
+        html.includes("patrimonioBtnReprocessarReprovados") &&
         html.includes("patrimonioPdfDropzone") &&
         html.includes('for="patrimonioPdfInput"') &&
         html.includes("mesma placa") &&
@@ -109,12 +109,15 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603pdf-fix", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603lote-88", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
-      patJs.includes("processarArquivosPdf") &&
+        patJs.includes("reprocessarTodosReprovadosPatrimonio") &&
+        patJs.includes("patrimonioImagensFila") &&
+        patJs.includes("statusIa: \"fila\"") &&
+        patJs.includes("placaDoNomeArquivo") &&
         patJs.includes("onPatrimonioPdfInputChange") &&
         patJs.includes("Array.from(input.files") &&
         patJs.includes("crlvdigital") &&

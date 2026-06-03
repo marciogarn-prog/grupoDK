@@ -86,6 +86,11 @@
   let previewSalvando = false;
   let iaPatrimonioRodando = false;
   const filaIaPatrimonio = [];
+  /** Imagens completas em memória (fila grande — não cabem todas no localStorage). */
+  const patrimonioImagensFila = new Map();
+  const PATRIMONIO_IA_INTERVALO_MS = 700;
+  const PATRIMONIO_IA_TIMEOUT_MS = 360000;
+  const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 36000;
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
@@ -323,7 +328,9 @@
     if (!id || !tag) return null;
     const imagem = String(f.imagem || "").trim();
     const temImagem = imagem.startsWith("data:image/");
-    if (!temImagem && !f.imagemIndisponivel) return null;
+    const st = String(f.statusIa || "").toLowerCase();
+    const emFila = st === "fila" || st === "pendente";
+    if (!temImagem && !f.imagemIndisponivel && !emFila) return null;
     const pdfOriginal = String(f.pdfOriginal || "").trim();
     const pdfOk = pdfOriginal.startsWith("data:application/pdf");
     return {
@@ -427,8 +434,9 @@
     if (st === "ok") {
       return f.placa ? `IA OK · ${f.placa}` : "IA OK · cadastrado";
     }
-    if (st === "falhou") return f.msgIa ? `Reprovada · ${f.msgIa}` : "Reprovada pela IA";
+    if (st === "falhou") return f.msgIa ? `Reprovado · ${f.msgIa}` : "Reprovado pela IA";
     if (st === "processando") return "IA a processar…";
+    if (st === "fila") return "Na fila da IA…";
     return "Aguardando IA";
   }
 
@@ -628,10 +636,42 @@
     );
     let fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 200);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes })
-    );
+
+    const payload = { documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes };
+    const gravar = (lista) => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...payload, fotosCapturas: lista })
+      );
+    };
+    try {
+      gravar(fotosCapturas);
+    } catch {
+      const aliviada = fotosCapturas.map((f) => {
+        const st = String(f.statusIa || "").toLowerCase();
+        if (st === "falhou" || st === "fila" || st === "ok") {
+          return { ...f, imagem: "", pdfOriginal: undefined, imagemIndisponivel: true };
+        }
+        return f;
+      });
+      try {
+        gravar(aliviada);
+      } catch {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            documentos,
+            fotosCapturas: fotosCapturas.slice(0, 40).map((f) => ({
+              ...f,
+              imagem: "",
+              pdfOriginal: undefined,
+              imagemIndisponivel: true,
+            })),
+            fotosCapturasExcluidas: exclusoes,
+          })
+        );
+      }
+    }
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       portalPushCloudSnapshotAfterPersist();
     }
@@ -724,14 +764,56 @@
     let alterou = false;
     for (const f of store.fotosCapturas) {
       const st = String(f.statusIa || "").toLowerCase();
-      if (st !== "pendente" && st !== "processando") continue;
-      if (agora - fotoCapturaMs(f) < 90000) continue;
+      if (st === "fila" || st === "pendente") continue;
+      if (st !== "processando") continue;
+      if (agora - fotoCapturaMs(f) < PATRIMONIO_IA_TIMEOUT_MS) continue;
       f.statusIa = "falhou";
-      f.msgIa = "Processamento interrompido — toque em Revisar com IA.";
+      f.msgIa = "Tempo esgotado na IA — toque em Revisar IA.";
       f.atualizadoEm = new Date().toISOString();
+      patrimonioImagensFila.delete(f.id);
       alterou = true;
     }
     if (alterou) saveStore(store);
+  }
+
+  function placaDoNomeArquivo(nome) {
+    const m = String(nome || "").match(/CRLVDigital[_-]([A-Za-z0-9]{7})[_-]/i);
+    if (!m) return "";
+    return resolverPlacaMercosul(m[1]);
+  }
+
+  function imagensParaFotoCaptura(fotoId, imagensPassadas) {
+    const passadas = (imagensPassadas || []).filter(Boolean);
+    if (passadas.length) return passadas;
+    const mem = patrimonioImagensFila.get(fotoId);
+    if (mem?.imagem) return [mem.imagem];
+    const foto = getFotoCapturaById(fotoId);
+    if (foto?.imagem?.startsWith("data:image/")) return [foto.imagem];
+    return [];
+  }
+
+  function contagemFilaPatrimonio() {
+    const fotos = getFotosCapturas();
+    let fila = 0;
+    let processando = 0;
+    let ok = 0;
+    let falhou = 0;
+    for (const f of fotos) {
+      const st = String(f.statusIa || "").toLowerCase();
+      if (st === "ok") ok++;
+      else if (st === "falhou") falhou++;
+      else if (st === "processando") processando++;
+      else fila++;
+    }
+    return { fila, processando, ok, falhou, total: fotos.length };
+  }
+
+  function reiniciarFilaPatrimonioAposAbrir() {
+    const fotos = getFotosCapturas().filter((f) => String(f.statusIa || "").toLowerCase() === "fila");
+    for (const f of fotos) {
+      const imgs = imagensParaFotoCaptura(f.id, null);
+      if (imgs.length) enfileirarIaPatrimonio(f.id, imgs);
+    }
   }
 
   function enfileirarIaPatrimonio(fotoId, imagens) {
@@ -743,21 +825,50 @@
   async function processarFilaIaPatrimonio() {
     if (iaPatrimonioRodando) return;
     iaPatrimonioRodando = true;
+    let n = 0;
     while (filaIaPatrimonio.length) {
       const job = filaIaPatrimonio.shift();
       if (job?.fotoId) {
+        n++;
+        const c = contagemFilaPatrimonio();
+        setMsg(
+          `IA a ler documento ${n} (${c.ok} OK · ${c.falhou} reprovados · ${filaIaPatrimonio.length + 1} na fila)…`,
+          false
+        );
         await processarIaParaFotoCaptura(job.fotoId, job.imagens);
+        if (filaIaPatrimonio.length) {
+          await new Promise((r) => window.setTimeout(r, PATRIMONIO_IA_INTERVALO_MS));
+        }
       }
     }
     iaPatrimonioRodando = false;
+    const c = contagemFilaPatrimonio();
+    if (c.total) {
+      setMsg(
+        `Lote concluído: ${c.ok} cadastrados · ${c.falhou} reprovados · ${c.fila + c.processando} pendentes.`,
+        c.falhou > 0,
+        c.falhou === 0
+      );
+    }
+    renderFotosLista();
   }
 
   async function processarIaParaFotoCaptura(fotoId, imagens) {
+    const imgs = imagensParaFotoCaptura(fotoId, imagens);
+    if (!imgs.length) {
+      atualizarFotoCaptura(fotoId, {
+        statusIa: "falhou",
+        msgIa: "Imagem indisponível — reenvie o PDF.",
+      });
+      renderFotosLista();
+      return;
+    }
     atualizarFotoCaptura(fotoId, { statusIa: "processando", msgIa: "" });
     renderFotosLista();
-    setMsg("A ler CRLV com IA…", false);
+    const fotoMeta = getFotoCapturaById(fotoId);
+    const placaHint = placaDoNomeArquivo(fotoMeta?.nomeArquivo);
     try {
-      const leitura = await lerCrlvComRetry(imagens);
+      const leitura = await lerCrlvComRetry(imgs, { placaHint, nomeArquivo: fotoMeta?.nomeArquivo });
       if (!leitura.ok) {
         atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
         renderFotosLista();
@@ -765,15 +876,13 @@
         return;
       }
       const campos = leitura.campos;
-      const foto = getFotoCapturaById(fotoId);
       const imagemBase =
         leitura.imagemUsada ||
-        foto?.imagem ||
-        imagens.find((u) => String(u).startsWith("data:image/")) ||
+        imgs[0] ||
+        fotoMeta?.imagem ||
         "";
-      const imagemGuardar = await comprimirImagemLimite(imagemBase, 1600, 320000, 0.88);
-      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
-      let imagemPdfRecortada = pdfDataUrlParaArmazenar(foto?.pdfOriginal || "");
+      const pdfMem = patrimonioImagensFila.get(fotoId);
+      let imagemPdfRecortada = pdfDataUrlParaArmazenar(pdfMem?.pdfDataUrl || fotoMeta?.pdfOriginal || "");
       if (!imagemPdfRecortada) {
         const pdfTmp = window.__DK_patrimonioUltimoPdfRecorte;
         if (typeof pdfTmp === "string" && pdfTmp.startsWith("data:application/pdf")) {
@@ -781,6 +890,8 @@
         }
         window.__DK_patrimonioUltimoPdfRecorte = null;
       }
+      const imagemGuardar = await comprimirImagemLimite(imagemBase, 1600, 320000, 0.88);
+      const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
       const doc = {
         ...campos,
         id: newId(),
@@ -804,6 +915,7 @@
         msgIa: "",
       });
       removerFotosAntigasMesmaPlaca(campos.placa, fotoId);
+      patrimonioImagensFila.delete(fotoId);
       renderFotosLista();
       renderLista();
       setMsg(
@@ -1296,28 +1408,39 @@
 
   async function registrarArquivoPdf(file, imagemRenderizada, pdfDataUrl) {
     const agora = new Date();
-    const imagem = await comprimirImagemLimite(
-      imagemRenderizada,
-      1800,
-      320000,
-      0.9
-    );
-    const pdfOriginal = pdfDataUrlParaArmazenar(pdfDataUrl);
+    patrimonioImagensFila.set("__tmp__", { imagem: imagemRenderizada, pdfDataUrl });
+    let imagemMini = "";
+    try {
+      imagemMini = await comprimirImagemLimite(
+        imagemRenderizada,
+        720,
+        PATRIMONIO_IMAGEM_FILA_MAX_B64,
+        0.72
+      );
+    } catch {
+      imagemMini = "";
+    }
+    patrimonioImagensFila.delete("__tmp__");
     const foto = sanitizeFotoCaptura({
       id: newFotoId(),
       tag: formatTagPatrimonioFoto(agora),
       tipo: "pdf",
       nomeArquivo: String(file.name || "documento.pdf").slice(0, 120),
       registradoEm: agora.toISOString(),
-      imagem,
-      pdfOriginal,
-      statusIa: "processando",
+      imagem: imagemMini.startsWith("data:image/") ? imagemMini : "",
+      imagemIndisponivel: !imagemMini.startsWith("data:image/"),
+      statusIa: "fila",
       docId: "",
-      placa: "",
+      placa: placaDoNomeArquivo(file.name) || "",
       msgIa: "",
       atualizadoEm: agora.toISOString(),
     });
     if (!foto) return null;
+    patrimonioImagensFila.set(foto.id, {
+      imagem: imagemRenderizada,
+      pdfDataUrl: pdfDataUrl || "",
+      nomeArquivo: foto.nomeArquivo,
+    });
     const store = loadStore();
     store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 200);
     saveStore(store);
@@ -1513,12 +1636,18 @@ FAIXA 3 — rodapé (linha tracejada horizontal):
   - Ignore caixas DPVAT/seguro à direita se só asteriscos (*).`;
   }
 
-  function montarPromptCrlv(revisao) {
+  function montarPromptCrlv(revisao, opts) {
+    const hintPlaca = String(opts?.placaHint || "").trim();
+    const hintNome = String(opts?.nomeArquivo || "").trim();
+    const hintExtra =
+      hintPlaca || hintNome
+        ? `\nDICA DO SISTEMA: ficheiro «${hintNome || "?"}»${hintPlaca ? ` — placa esperada ${hintPlaca} (confirme no documento).` : "."}\n`
+        : "";
     const schema = `{"aprovado":true,"confianca":"alta","camposIlegiveis":[],"motivoReprovacao":"","campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
     const mapa = mapaEspacialCrlvPrompt();
     if (revisao) {
       return `CRLV-e brasileiro — segunda leitura com MAPA DE POSIÇÕES (tarja preta = topo).
-
+${hintExtra}
 ${mapa}
 
 Responda APENAS JSON: ${schema}
@@ -1528,7 +1657,7 @@ Revise com prioridade: placa (negrito esquerda faixa 1), codigoRenavam (11 dígi
 - Use "aprovado": true se placa, RENAVAM e chassi estiverem corretos.`;
     }
     return `CRLV-e brasileiro (SENATRAN, layout fixo). Extraia os VALORES EM NEGRITO nas posições abaixo — mesmo que rótulos pequenos ("PLACA", "CÓDIGO DE SEGURANÇA") estejam borrados.
-
+${hintExtra}
 ${mapa}
 
 Responda APENAS JSON válido (sem markdown): ${schema}
@@ -1785,10 +1914,10 @@ REGRAS DE CONTEÚDO:
     await abrirEditorCantosPreview();
   }
 
-  async function chamarIaCrlv(dataUrl, revisao) {
+  async function chamarIaCrlv(dataUrl, revisao, opts) {
     const parsed = parseDataUrl(dataUrl);
     const content = [
-      { type: "text", text: montarPromptCrlv(Boolean(revisao)) },
+      { type: "text", text: montarPromptCrlv(Boolean(revisao), opts) },
       {
         type: "image_url",
         image_url: {
@@ -1797,23 +1926,36 @@ REGRAS DE CONTEÚDO:
         },
       },
     ];
-    try {
-      const res = await fetch("/api/openai-comprovante", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, tipo: "crlv", max_tokens: 4096 }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
-      return { ok: false, msg: msgErroApiIa(data, res.status) };
-    } catch (e) {
-      return { ok: false, msg: String(e?.message || e) };
+    const maxTentativas = 5;
+    for (let t = 0; t < maxTentativas; t++) {
+      try {
+        const res = await fetch("/api/openai-comprovante", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, tipo: "crlv", max_tokens: 4096 }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429 || (data?.reason === "openai_error" && /rate|429|limit/i.test(String(data?.error)))) {
+          await new Promise((r) => window.setTimeout(r, 1500 * (t + 1)));
+          continue;
+        }
+        if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
+        return { ok: false, msg: msgErroApiIa(data, res.status) };
+      } catch (e) {
+        if (t === maxTentativas - 1) return { ok: false, msg: String(e?.message || e) };
+        await new Promise((r) => window.setTimeout(r, 1200 * (t + 1)));
+      }
     }
+    return { ok: false, msg: "OpenAI ocupada (limite de pedidos). Tente Revisar IA em instantes." };
   }
 
-  async function lerCrlvComRetry(imagens) {
+  async function lerCrlvComRetry(imagens, opts) {
     const fontes = [...new Set((imagens || []).filter(Boolean))];
     let ultimo = { ok: false, msg: MSG_IA_FALHOU };
+    const iaOpts = {
+      placaHint: opts?.placaHint || "",
+      nomeArquivo: opts?.nomeArquivo || "",
+    };
 
     for (let i = 0; i < fontes.length; i++) {
       const img = await prepararImagemParaIaCrlv(fontes[i]);
@@ -1823,7 +1965,7 @@ REGRAS DE CONTEÚDO:
         continue;
       }
       for (const revisao of [false, true]) {
-        const oai = await chamarIaCrlv(img, revisao);
+        const oai = await chamarIaCrlv(img, revisao, iaOpts);
         if (!oai.ok) {
           ultimo = oai;
           if (String(oai.msg || "").includes("configurada") || String(oai.msg || "").includes("OpenAI")) {
@@ -1832,6 +1974,9 @@ REGRAS DE CONTEÚDO:
           continue;
         }
         const campos = normalizarCampos(oai.parsed);
+        if (!placaValida(campos.placa) && iaOpts.placaHint) {
+          campos.placa = iaOpts.placaHint;
+        }
         preencherDefaultsCrlv(campos);
         const val = validarLeituraCrlv(oai.parsed, campos);
         if (val.ok) return { ok: true, campos, parsed: oai.parsed, imagemUsada: fontes[i] };
@@ -1894,13 +2039,38 @@ REGRAS DE CONTEÚDO:
   async function revisarFotoCapturaComIa(fotoId) {
     const foto = getFotoCapturaById(fotoId);
     if (!foto) return;
-    if (foto.imagemIndisponivel || !String(foto.imagem || "").startsWith("data:image/")) {
-      setMsg("Imagem indisponível neste dispositivo.", true);
+    const imgs = imagensParaFotoCaptura(fotoId, null);
+    if (!imgs.length) {
+      setMsg("Imagem indisponível — reenvie o PDF deste veículo.", true);
       return;
     }
+    atualizarFotoCaptura(fotoId, { statusIa: "fila", msgIa: "" });
     if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "Na fila da IA…";
     setMsg(`Arquivo ${foto.nomeArquivo || foto.tag} na fila para revisão com IA…`, false);
-    enfileirarIaPatrimonio(fotoId, [foto.imagemOriginal, foto.imagem].filter(Boolean));
+    enfileirarIaPatrimonio(fotoId, imgs);
+    renderFotosLista();
+  }
+
+  function reprocessarTodosReprovadosPatrimonio() {
+    const fotos = getFotosCapturas().filter((f) => String(f.statusIa || "").toLowerCase() === "falhou");
+    if (!fotos.length) {
+      setMsg("Nenhum arquivo reprovado para reprocessar.", true);
+      return;
+    }
+    let n = 0;
+    for (const f of fotos) {
+      const imgs = imagensParaFotoCaptura(f.id, null);
+      if (!imgs.length) continue;
+      atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
+      enfileirarIaPatrimonio(f.id, imgs);
+      n++;
+    }
+    renderFotosLista();
+    if (n > 0) {
+      setMsg(`${n} reprovado(s) recolocados na fila da IA. Aguarde o processamento.`, false, true);
+    } else {
+      setMsg("Reprovados sem imagem em memória — reenvie os PDFs.", true);
+    }
   }
 
   function setMsg(text, erro, ok) {
@@ -2422,13 +2592,14 @@ REGRAS DE CONTEÚDO:
   function renderFotosLista() {
     const fotos = getFotosCapturas();
     const reprovadas = fotos.filter((f) => String(f.statusIa || "").toLowerCase() === "falhou").length;
+    const okN = fotos.filter((f) => String(f.statusIa || "").toLowerCase() === "ok").length;
     const processandoN = fotos.filter((f) => {
       const st = String(f.statusIa || "").toLowerCase();
-      return st === "pendente" || st === "processando";
+      return st === "processando" || st === "fila" || st === "pendente";
     }).length;
     if (fotosResumoEl) {
       fotosResumoEl.textContent = fotos.length
-        ? `${fotos.length} arquivo(s) · ${reprovadas} reprovado(s) pela IA${processandoN ? ` · ${processandoN} a processar` : ""}.`
+        ? `${fotos.length} arquivo(s) · ${okN} cadastrados · ${reprovadas} reprovados · ${processandoN} na fila/IA.`
         : "Nenhum PDF enviado ainda. Todos os arquivos aparecem aqui, mesmo se a IA falhar.";
     }
     if (!fotosListaEl) return;
@@ -2439,7 +2610,7 @@ REGRAS DE CONTEÚDO:
     fotosListaEl.innerHTML = fotos
       .map((f) => {
         const st = String(f.statusIa || "").toLowerCase();
-        const podeRevisar = !f.imagemIndisponivel && String(f.imagem || "").startsWith("data:image/");
+        const podeRevisar = imagensParaFotoCaptura(f.id, null).length > 0;
         const nome = f.nomeArquivo ? escapeHtml(f.nomeArquivo) : "";
         return `<div class="patrimonio-foto-item${st === "falhou" ? " patrimonio-foto-item--reprovada" : ""}">
           <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir ${escapeHtml(formatTagPatrimonioFotoLegivel(f.tag))}">
@@ -2831,6 +3002,10 @@ ${contador}
     btnRelatorio?.addEventListener("click", () => abrirRelatorioModal());
     bindPatrimonioPdfUpload();
 
+    document.getElementById("patrimonioBtnReprocessarReprovados")?.addEventListener("click", () => {
+      reprocessarTodosReprovadosPatrimonio();
+    });
+
     document.getElementById("patrimonioImagemFecharBtn")?.addEventListener("click", fecharViewerImagem);
     document.getElementById("patrimonioImagemPdfBtn")?.addEventListener("click", baixarPdfViewerImagem);
     document.getElementById("patrimonioImagemPrintBtn")?.addEventListener("click", imprimirViewerImagem);
@@ -2945,6 +3120,7 @@ ${contador}
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
+    reiniciarFilaPatrimonioAposAbrir();
     const store = loadStore();
     saveStore(store);
     void refreshOpenAIStatus();

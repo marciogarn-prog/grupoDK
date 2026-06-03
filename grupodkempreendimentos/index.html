@@ -1535,9 +1535,10 @@
       <section id="panel-patrimonio-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
         <p class="subpage__lead">CRLV-e digital — anexe PDFs nítidos do documento. A IA extrai os dados e guarda na nuvem.</p>
-        <p class="subtext">Uma placa = um documento. Se enviar outro PDF com a <strong>mesma placa</strong>, substitui o arquivo e os dados já cadastrados. Vários PDFs de placas diferentes podem ser enviados de uma vez.</p>
+        <p class="subtext">Uma placa = um documento (novo PDF substitui o anterior). Lotes grandes processam na fila — mantenha a página aberta. Reprovados: «Reprocessar reprovados».</p>
         <div class="patrimonio-acoes-principais">
           <label for="patrimonioPdfInput" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs</label>
+          <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnReprocessarReprovados">Reprocessar reprovados</button>
           <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
         </div>
         <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
@@ -1867,7 +1868,7 @@
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603pdf-upload" defer></script>
-  <script src="portal-patrimonio.js?v=20260603pdf-fix" defer></script>
+  <script src="portal-patrimonio.js?v=20260603lote-88" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260602orientacao-excluir" defer></script>
