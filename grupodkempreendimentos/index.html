@@ -1608,6 +1608,7 @@
 
   <div id="patrimonioImagemViewer" class="patrimonio-overlay patrimonio-overlay--viewer hidden" aria-hidden="true" role="dialog" aria-label="Documento CRLV">
     <div class="patrimonio-viewer-toolbar">
+      <button type="button" class="btn-primary btn-secondary-outline hidden" id="patrimonioImagemPdfBtn">Baixar PDF</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemPrintBtn">Imprimir</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareEmailBtn">E-mail</button>
       <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareWaBtn">WhatsApp</button>
@@ -1859,9 +1860,10 @@
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
-  <script src="portal-patrimonio-scan.js?v=20260602detectar-cantos" defer></script>
-  <script src="portal-patrimonio-crop.js?v=20260602ia-crlv" defer></script>
-  <script src="portal-patrimonio.js?v=20260602mapa-crlv" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+  <script src="portal-patrimonio-scan.js?v=20260602tarja-a4-pdf" defer></script>
+  <script src="portal-patrimonio-crop.js?v=20260602tarja-a4-pdf" defer></script>
+  <script src="portal-patrimonio.js?v=20260602tarja-a4-pdf" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260602orientacao-excluir" defer></script>

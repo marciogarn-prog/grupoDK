@@ -114,10 +114,12 @@ async function main() {
       scanJs.includes("isTecidoOuRosa") &&
         scanJs.includes("encontrarLimitesDocumentoCrlv") &&
         scanJs.includes("retocarImagemArmazenada") &&
-        scanJs.includes("SCAN_VERSION = 4")
+        scanJs.includes("SCAN_VERSION = 5") &&
+        scanJs.includes("detectarTarjaSenatran") &&
+        scanJs.includes("detectarCantosA4PorTarja")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260602mapa-crlv", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260602tarja-a4-pdf", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -148,7 +150,7 @@ async function main() {
         patJs.includes("patrimonio-foto-excluir")
     );
     const cropJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-crop.js?v=20260602detectar-cantos", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio-crop.js?v=20260602tarja-a4-pdf", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     const syncJs = await page.evaluate(async () => {
@@ -183,15 +185,22 @@ async function main() {
       cropJs.includes("ordenarCantosCrlv")
     );
     const scanJsCantos = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-scan.js?v=20260602detectar-cantos", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio-scan.js?v=20260602tarja-a4-pdf", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "patrimônio detecção automática dos 4 cantos",
       scanJsCantos.includes("detectarCantosFolhaEmCanvas") &&
+        scanJsCantos.includes("detectarCantosA4PorTarja") &&
+        scanJsCantos.includes("imagemParaPdfA4") &&
         cropJs.includes("redetectarCantosEditor") &&
         cropJs.includes("patrimonio-crop-handle--auto") &&
-        html.includes("patrimonioPreviewDetectarCantosBtn")
+        cropJs.includes("__DK_patrimonioUltimoPdfRecorte") &&
+        patJs.includes("imagemPdfRecortada") &&
+        patJs.includes("baixarPdfViewerImagem") &&
+        html.includes("patrimonioPreviewDetectarCantosBtn") &&
+        html.includes("patrimonioImagemPdfBtn") &&
+        html.includes("jspdf")
     );
     const cssStyles = await fetch(`${BASE_URL}styles.css?v=20260601crop-cantos`, {
       cache: "no-store",

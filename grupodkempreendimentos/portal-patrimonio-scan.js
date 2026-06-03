@@ -6,7 +6,7 @@
   const A4 = 210 / 297;
   const A4_OUT_W = 1240;
   const A4_OUT_H = 1754;
-  const SCAN_VERSION = 4;
+  const SCAN_VERSION = 5;
 
   function clamp01(n) {
     return Math.max(0, Math.min(1, Number(n) || 0));
@@ -239,8 +239,11 @@
       }
     }
 
+    const tarja = detectarTarjaSenatran(data, w, h);
+    if (tarja && tarja.top < minY) minY = Math.max(0, tarja.top - 1);
+
     const limits = encontrarLimitesDocumentoCrlv(data, w, h);
-    if (limits.top > minY) minY = limits.top;
+    if (!tarja && limits.top > minY) minY = limits.top;
     if (limits.bottom < maxY) maxY = limits.bottom;
     if (limits.left > minX) minX = limits.left;
     if (limits.right < maxX) maxX = limits.right;
@@ -258,6 +261,144 @@
       direita: (maxX + 1) / w,
       baixo: (maxY + 1) / h,
     };
+  }
+
+  /** Linha da tarja preta SENATRAN (REPÚBLICA FEDERATIVA / gov.br). */
+  function linhaEhTarjaSenatran(data, w, y) {
+    const x0 = Math.floor(w * 0.04);
+    const x1 = Math.floor(w * 0.96);
+    let dark = 0;
+    let total = 0;
+    for (let x = x0; x <= x1; x += Math.max(1, Math.floor(w / 400))) {
+      const i = (y * w + x) * 4;
+      if (grayPx(data[i], data[i + 1], data[i + 2]) < 88) dark++;
+      total++;
+    }
+    return total > 0 && dark / total >= 0.52;
+  }
+
+  function detectarTarjaSenatran(data, w, h) {
+    const maxY = Math.floor(h * 0.2);
+    let top = -1;
+    let bottom = -1;
+    for (let y = 0; y < maxY; y++) {
+      if (linhaEhTarjaSenatran(data, w, y)) {
+        if (top < 0) top = y;
+        bottom = y;
+      } else if (top >= 0 && bottom - top >= 2) {
+        break;
+      }
+    }
+    if (top < 0 || bottom < top) return null;
+    while (bottom + 1 < maxY && linhaEhTarjaSenatran(data, w, bottom + 1)) bottom++;
+
+    const yMid = Math.floor((top + bottom) / 2);
+    let left = w;
+    let right = 0;
+    for (let x = 0; x < w; x++) {
+      const i = (yMid * w + x) * 4;
+      if (grayPx(data[i], data[i + 1], data[i + 2]) < 96) {
+        if (x < left) left = x;
+        if (x > right) right = x;
+      }
+    }
+    if (right - left < w * 0.28) return null;
+    return { top, bottom, left, right, yMid };
+  }
+
+  function isPixelDocumentoOuBorda(data, w, x, y) {
+    const i = (y * w + x) * 4;
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    if (grayPx(r, g, b) < 118) return true;
+    if (isPaperPixel(r, g, b)) return true;
+    return false;
+  }
+
+  function refinarBordaVertical(data, w, h, xStart, top, bottom, side) {
+    const y0 = top;
+    const y1 = bottom;
+    const passo = Math.max(1, Math.floor((y1 - y0) / 100));
+    const scan = (xFrom, xTo, step) => {
+      for (let x = xFrom; x !== xTo; x += step) {
+        let hit = 0;
+        let total = 0;
+        for (let y = y0; y <= y1; y += passo) {
+          total++;
+          if (isPixelDocumentoOuBorda(data, w, x, y)) hit++;
+        }
+        if (total && hit / total >= 0.1) return x;
+      }
+      return xStart;
+    };
+    if (side === "left") {
+      return scan(Math.max(0, xStart - 35), Math.min(w, xStart + 45), 1);
+    }
+    return scan(Math.min(w - 1, xStart + 35), Math.max(0, xStart - 45), -1);
+  }
+
+  function refinarBordaInferior(data, w, h, left, right, top, estBottom) {
+    const x0 = left + Math.floor((right - left) * 0.06);
+    const x1 = right - Math.floor((right - left) * 0.06);
+    const minY = top + Math.floor(((right - left) / A4) * 0.55);
+    for (let y = Math.min(h - 1, estBottom + 25); y >= minY; y--) {
+      const s = statsLinha(data, w, y, x0, x1);
+      if (linhaTemConteudoCrlv(s) || s.darkRatio >= 0.018) return y;
+    }
+    return estBottom;
+  }
+
+  /** Cantos do retângulo A4 usando tarja preta superior + proporção 210×297 mm. */
+  function detectarCantosA4PorTarja(data, w, h) {
+    const tarja = detectarTarjaSenatran(data, w, h);
+    if (!tarja) return null;
+
+    let top = Math.max(0, tarja.top - 1);
+    let left = refinarBordaVertical(data, w, h, tarja.left, top, h - 1, "left");
+    let right = refinarBordaVertical(data, w, h, tarja.right, top, h - 1, "right");
+    const docW = right - left;
+    if (docW < w * 0.2) return null;
+
+    let bottom = Math.min(h - 1, Math.round(top + docW / A4));
+    bottom = refinarBordaInferior(data, w, h, left, right, top, bottom);
+
+    const idealH = docW / A4;
+    const atualH = bottom - top;
+    if (Math.abs(atualH - idealH) / idealH > 0.12) {
+      bottom = Math.min(h - 1, Math.round(top + idealH));
+    }
+
+    const pad = 2;
+    top = Math.max(0, top - pad);
+    left = Math.max(0, left - pad);
+    right = Math.min(w - 1, right + pad);
+    bottom = Math.min(h - 1, bottom + pad);
+
+    const box = {
+      esquerda: left / w,
+      topo: top / h,
+      direita: (right + 1) / w,
+      baixo: (bottom + 1) / h,
+    };
+    if (!recorteValido(box, data, w, h)) return null;
+
+    return {
+      tl: { x: box.esquerda, y: box.topo },
+      tr: { x: box.direita, y: box.topo },
+      br: { x: box.direita, y: box.baixo },
+      bl: { x: box.esquerda, y: box.baixo },
+    };
+  }
+
+  function boxDeCantos(cantos) {
+    if (!cantos?.tl) return null;
+    return normalizarBox({
+      esquerda: cantos.tl.x,
+      topo: cantos.tl.y,
+      direita: cantos.br.x,
+      baixo: cantos.br.y,
+    });
   }
 
   /** Quatro cantos da folha (coordenadas 0–1) a partir dos pixels brancos do CRLV. */
@@ -290,6 +431,9 @@
   }
 
   function detectarCantosFolhaEmCanvas(data, w, h) {
+    const porTarja = detectarCantosA4PorTarja(data, w, h);
+    if (porTarja) return porTarja;
+
     const box = detectarFolhaBrancaEmCanvas(data, w, h);
     if (!box) return null;
     const b = normalizarBox(box);
@@ -632,8 +776,25 @@
 
   window.__DK_patrimonioTratarDocumento = tratarDocumentoCrlv;
   window.__DK_patrimonioRetocarImagem = retocarImagemArmazenada;
+  async function imagemParaPdfA4(dataUrl) {
+    try {
+      const JsPDF = window.jspdf?.jsPDF || window.jsPDF;
+      if (!JsPDF || !dataUrl) return null;
+      const pdf = new JsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
+      const fmt = String(dataUrl).includes("image/png") ? "PNG" : "JPEG";
+      pdf.addImage(dataUrl, fmt, 0, 0, 210, 297, undefined, "MEDIUM");
+      return pdf.output("datauristring");
+    } catch (e) {
+      console.warn("[DK patrimônio] gerar PDF A4", e);
+      return null;
+    }
+  }
+
   window.__DK_patrimonioDetectarFolha = detectarFolhaBranca;
   window.__DK_patrimonioDetectarCantosFolha = detectarCantosFolha;
+  window.__DK_patrimonioDetectarCantosA4Tarja = detectarCantosA4PorTarja;
+  window.__DK_patrimonioImagemParaPdfA4 = imagemParaPdfA4;
+  window.__DK_patrimonioUltimoPdfRecorte = null;
   window.__DK_patrimonioApararMargens = apararMargensColoridas;
   window.__DK_patrimonioAplicarScanner = aplicarFiltroScanner;
   window.__DK_patrimonioScanVersion = SCAN_VERSION;

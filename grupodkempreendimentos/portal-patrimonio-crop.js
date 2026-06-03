@@ -476,6 +476,13 @@
     if (!skipScanner && typeof window.__DK_patrimonioAplicarScanner === "function" && !mob) {
       img = await window.__DK_patrimonioAplicarScanner(img);
     }
+    if (opts?.gerarPdf !== false && typeof window.__DK_patrimonioImagemParaPdfA4 === "function") {
+      try {
+        window.__DK_patrimonioUltimoPdfRecorte = await window.__DK_patrimonioImagemParaPdfA4(img);
+      } catch {
+        window.__DK_patrimonioUltimoPdfRecorte = null;
+      }
+    }
     return img;
   }
 

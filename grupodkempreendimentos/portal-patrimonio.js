@@ -6,7 +6,7 @@
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
   const EXCLUSOES_KEY = "dk_patrimonio_fotos_excluidas_v1";
   const PENDING_FOTO_KEY = "dk_patrimonio_foto_pendente_v1";
-  const PATRIMONIO_SCAN_VERSAO = 4;
+  const PATRIMONIO_SCAN_VERSAO = 5;
   const MAX_FOTOS_EXCLUIDAS = 400;
 
   const CAMPOS_ORDEM = [
@@ -757,10 +757,18 @@
         "";
       const imagemGuardar = await comprimirImagemLimite(imagemBase, 1600, 320000, 0.88);
       const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
+      let imagemPdfRecortada;
+      const pdfTmp = window.__DK_patrimonioUltimoPdfRecorte;
+      if (typeof pdfTmp === "string" && pdfTmp.startsWith("data:application/pdf")) {
+        const pdfB64 = pdfTmp.split(",")[1] || "";
+        if (pdfB64.length > 0 && pdfB64.length < 420000) imagemPdfRecortada = pdfTmp;
+      }
+      window.__DK_patrimonioUltimoPdfRecorte = null;
       const doc = {
         ...campos,
         id: newId(),
         imagemRecortada: imagemGuardar,
+        imagemPdfRecortada,
         imagemScanVersao: scanV,
         processadoEm: new Date().toISOString(),
         cadastradoEm: new Date().toISOString(),
@@ -2298,10 +2306,33 @@ REGRAS DE CONTEÚDO:
 
     imagemViewerImg.src = url;
     imagemViewer.dataset.patId = id;
+    const pdfBtn = document.getElementById("patrimonioImagemPdfBtn");
+    if (pdfBtn) {
+      const temPdf = String(doc?.imagemPdfRecortada || "").startsWith("data:application/pdf");
+      pdfBtn.classList.toggle("hidden", !temPdf);
+    }
     imagemViewer.classList.remove("hidden");
     imagemViewer.setAttribute("aria-hidden", "false");
     bindZoomViewerDoc();
     patrimonioNotificarOverlayAberto();
+  }
+
+  function baixarPdfViewerImagem() {
+    const id = imagemViewer?.dataset?.patId;
+    const doc = id ? getDocById(id) : null;
+    const pdf = doc?.imagemPdfRecortada;
+    if (!pdf) {
+      setMsg("PDF não disponível para este documento.", true);
+      return;
+    }
+    const a = document.createElement("a");
+    a.href = pdf;
+    a.download = `CRLV-${doc.placa || "documento"}.pdf`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setMsg("PDF transferido.", false, true);
   }
 
   function fecharViewerImagem(syncHistory = true) {
@@ -2561,6 +2592,7 @@ ${contador}
     });
 
     document.getElementById("patrimonioImagemFecharBtn")?.addEventListener("click", fecharViewerImagem);
+    document.getElementById("patrimonioImagemPdfBtn")?.addEventListener("click", baixarPdfViewerImagem);
     document.getElementById("patrimonioImagemPrintBtn")?.addEventListener("click", imprimirViewerImagem);
     document.getElementById("patrimonioImagemShareEmailBtn")?.addEventListener("click", () =>
       partilharViewerImagem("email")
