@@ -80,7 +80,9 @@ async function main() {
         html.includes("200 PDFs") &&
         html.includes("patrimonioPdfDropzone") &&
         html.includes('for="patrimonioPdfInput"') &&
-        html.includes("mesma placa") &&
+        html.includes("Mesma placa") &&
+        html.includes("patrimonioBtnReprocessarReprovados") &&
+        html.includes("patrimonioPdfInput") &&
         html.includes('accept="application/pdf') &&
         html.includes("multiple") &&
         html.includes("pdf.min.js") &&
@@ -116,8 +118,10 @@ async function main() {
     });
     record(
       "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
+        patJs.includes("PATRIMONIO_MAX_LOTE = 200") &&
+        patJs.includes("patrimonioSalvarImagemFila") &&
+        patJs.includes("patrimonioLerImagemFila") &&
         patJs.includes("reprocessarTodosReprovadosPatrimonio") &&
-        patJs.includes("patrimonioImagensFila") &&
         patJs.includes("statusIa: \"fila\"") &&
         patJs.includes("placaDoNomeArquivo") &&
         patJs.includes("onPatrimonioPdfInputChange") &&
