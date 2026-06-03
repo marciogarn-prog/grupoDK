@@ -72,6 +72,7 @@ async function main() {
         html.includes("patrimonioRelatorioModal") &&
         html.includes("patrimonioPdfInput") &&
         html.includes("patrimonioPdfDropzone") &&
+        html.includes("mesma placa") &&
         html.includes('accept="application/pdf') &&
         html.includes("multiple") &&
         html.includes("pdf.min.js") &&
@@ -102,7 +103,7 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603pdf-upload", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603placa-substitui", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -178,7 +179,8 @@ async function main() {
     );
     record(
       "patrimônio uma placa substitui documento antigo",
-      patJs.includes("deduplicarDocumentos") &&
+      patJs.includes("documentoMesmaPlaca") &&
+        patJs.includes("deduplicarDocumentos") &&
         patJs.includes("imagemAtualizadaEm") &&
         patJs.includes("comprimirImagemLimite") &&
         patJs.includes("PLACA_MERCOSUL_RE") &&

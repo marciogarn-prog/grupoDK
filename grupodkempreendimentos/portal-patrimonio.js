@@ -509,6 +509,13 @@
     return ka.some((k) => kb.has(k));
   }
 
+  /** Mesma placa Mercosul = mesmo veículo (regra de substituição ao anexar novo PDF). */
+  function documentoMesmaPlaca(a, b) {
+    const pa = normPlaca(resolverPlacaMercosul(a?.placaNorm || a?.placa));
+    const pb = normPlaca(resolverPlacaMercosul(b?.placaNorm || b?.placa));
+    return Boolean(pa && pb && pa === pb);
+  }
+
   function deduplicarPorIdentidade(list) {
     const docs = (list || []).filter(Boolean);
     if (docs.length <= 1) return docs;
@@ -630,7 +637,7 @@
     }
   }
 
-  /** Foto mais recente da mesma placa substitui tentativas antigas na lista. */
+  /** Arquivo/PDF mais recente da mesma placa substitui tentativas antigas na lista de enviados. */
   function removerFotosAntigasMesmaPlaca(placa, manterFotoId) {
     const p = normPlaca(placa);
     if (!p || !manterFotoId) return;
@@ -801,8 +808,8 @@
       renderLista();
       setMsg(
         r.substituiu
-          ? `Documento ${campos.placa} atualizado. Pode anexar o próximo PDF.`
-          : `Documento ${campos.placa} cadastrado. Pode anexar o próximo PDF.`,
+          ? `Placa ${campos.placa}: PDF e dados substituíram o documento anterior.`
+          : `Placa ${campos.placa} cadastrada. Pode anexar o próximo PDF.`,
         false,
         true
       );
@@ -907,12 +914,12 @@
     if (!placa) {
       return {
         ok: false,
-        erro: "Placa inválida (padrão LLLNLNN). Confira nitidez e fotografe de novo.",
+        erro: "Placa inválida (padrão LLLNLNN). Confira o PDF e envie de novo.",
       };
     }
     const docNorm = { ...doc, placa, placaNorm: placa };
     const store = loadStore();
-    const antigos = store.documentos.filter((d) => docMesmaIdentidade(d, docNorm));
+    const antigos = store.documentos.filter((d) => documentoMesmaPlaca(d, docNorm));
     const antigo = antigos.length
       ? antigos.reduce((best, d) => (docMs(d) >= docMs(best) ? d : best))
       : null;
@@ -2353,7 +2360,7 @@ REGRAS DE CONTEÚDO:
     if (resumoEl) {
       resumoEl.textContent =
         docs.length > 0
-          ? `${docs.length} veículo(s) · placa, RENAVAM, chassi ou motor iguais = mesmo documento (PDF mais recente prevalece).`
+          ? `${docs.length} veículo(s) · mesma placa = um documento (novo PDF substitui o anterior).`
           : "Nenhum CRLV cadastrado. Anexe PDFs na área abaixo.";
     }
     if (btnRelatorio) btnRelatorio.disabled = docs.length === 0;
