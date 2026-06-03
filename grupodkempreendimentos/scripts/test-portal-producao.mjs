@@ -75,7 +75,9 @@ async function main() {
         html.includes("patrimonioRelatorioContador") &&
         html.includes("patrimonioRelatorioConteudo") &&
         html.includes("patrimonioRelatorioModal") &&
-        html.includes("patrimonioBtnReprocessarReprovados") &&
+        html.includes("patrimonioLoteProgress") &&
+        html.includes("portal-patrimonio-idb.js") &&
+        html.includes("200 PDFs") &&
         html.includes("patrimonioPdfDropzone") &&
         html.includes('for="patrimonioPdfInput"') &&
         html.includes("mesma placa") &&
@@ -109,7 +111,7 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603lote-88", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603lote-200", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(

@@ -39,6 +39,8 @@
   const MAX_PDF_BYTES = 12 * 1024 * 1024;
   const PDF_STORAGE_B64_MAX = 420000;
   const PDFJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
+  const PATRIMONIO_MAX_LOTE = 200;
+  const PATRIMONIO_MAX_ARQUIVOS = 250;
   /** Campos essenciais — sem estes o cadastro não é aceite. */
   const CAMPOS_CRITICOS = [
     "codigoRenavam",
@@ -86,11 +88,15 @@
   let previewSalvando = false;
   let iaPatrimonioRodando = false;
   const filaIaPatrimonio = [];
-  /** Imagens completas em memória (fila grande — não cabem todas no localStorage). */
+  /** Fallback se IndexedDB falhar (1–2 itens). Lote grande usa IDB. */
   const patrimonioImagensFila = new Map();
-  const PATRIMONIO_IA_INTERVALO_MS = 700;
-  const PATRIMONIO_IA_TIMEOUT_MS = 360000;
-  const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 36000;
+  const PATRIMONIO_IA_INTERVALO_MS = 950;
+  const PATRIMONIO_IA_TIMEOUT_MS = 420000;
+  const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 28000;
+  const PATRIMONIO_IDB_IMAGEM_MAX_B64 = 175000;
+  let patrimonioWakeLock = null;
+  let patrimonioLoteRecebidos = 0;
+  let patrimonioLoteTotal = 0;
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
@@ -634,7 +640,10 @@
     const exclusoes = persistirExclusoesPatrimonio(
       todasExclusoesPatrimonio(store?.fotosCapturasExcluidas, prev.fotosCapturasExcluidas)
     );
-    let fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(0, 200);
+    let fotosCapturas = sanitizeFotosCapturas(store?.fotosCapturas ?? prev.fotosCapturas).slice(
+      0,
+      PATRIMONIO_MAX_ARQUIVOS
+    );
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
 
     const payload = { documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes };
@@ -753,9 +762,95 @@
     });
     if (!foto) return null;
     const store = loadStore();
-    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 200);
+    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, PATRIMONIO_MAX_ARQUIVOS);
     saveStore(store);
     return foto;
+  }
+
+  function atualizarProgressoLotePatrimonio(recebidos, total, extra) {
+    const wrap = document.getElementById("patrimonioLoteProgress");
+    const fill = document.getElementById("patrimonioLoteProgressFill");
+    const txt = document.getElementById("patrimonioLoteProgressText");
+    if (!wrap || !fill || !txt) return;
+    const t = Math.max(1, total || 1);
+    const pct = Math.min(100, Math.round((recebidos / t) * 100));
+    wrap.classList.toggle("hidden", total <= 0);
+    fill.style.width = `${pct}%`;
+    txt.textContent = extra || `A preparar ${recebidos}/${total} PDF(s) para a fila da IA…`;
+  }
+
+  async function patrimonioAtivarWakeLock() {
+    try {
+      if (navigator.wakeLock && !patrimonioWakeLock) {
+        patrimonioWakeLock = await navigator.wakeLock.request("screen");
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function patrimonioLibertarWakeLock() {
+    try {
+      patrimonioWakeLock?.release?.();
+    } catch {
+      /* ignore */
+    }
+    patrimonioWakeLock = null;
+  }
+
+  async function patrimonioSalvarImagemFila(id, imagem, meta) {
+    const imagemIa = await comprimirImagemLimite(
+      imagem,
+      1536,
+      PATRIMONIO_IDB_IMAGEM_MAX_B64,
+      0.88
+    );
+    if (typeof window.__DK_patrimonioIdbPut === "function") {
+      await window.__DK_patrimonioIdbPut(id, {
+        imagem: imagemIa,
+        nomeArquivo: String(meta?.nomeArquivo || "").slice(0, 120),
+      });
+      patrimonioImagensFila.delete(id);
+      return imagemIa;
+    }
+    patrimonioImagensFila.set(id, { imagem: imagemIa, nomeArquivo: meta?.nomeArquivo });
+    return imagemIa;
+  }
+
+  async function patrimonioLerImagemFila(id) {
+    if (typeof window.__DK_patrimonioIdbGet === "function") {
+      try {
+        const row = await window.__DK_patrimonioIdbGet(id);
+        if (row?.imagem?.startsWith("data:image/")) return row.imagem;
+      } catch {
+        /* fallback memória */
+      }
+    }
+    return patrimonioImagensFila.get(id)?.imagem || "";
+  }
+
+  async function patrimonioApagarImagemFila(id) {
+    patrimonioImagensFila.delete(id);
+    if (typeof window.__DK_patrimonioIdbDelete === "function") {
+      try {
+        await window.__DK_patrimonioIdbDelete(id);
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  async function patrimonioFilaTemImagem(id) {
+    if (patrimonioImagensFila.has(id)) return true;
+    if (typeof window.__DK_patrimonioIdbHas === "function") {
+      try {
+        return await window.__DK_patrimonioIdbHas(id);
+      } catch {
+        return false;
+      }
+    }
+    const f = getFotoCapturaById(id);
+    return Boolean(f?.imagem?.startsWith("data:image/"));
   }
 
   function repararFotosCapturasPendentes() {
@@ -766,11 +861,20 @@
       const st = String(f.statusIa || "").toLowerCase();
       if (st === "fila" || st === "pendente") continue;
       if (st !== "processando") continue;
-      if (agora - fotoCapturaMs(f) < PATRIMONIO_IA_TIMEOUT_MS) continue;
+      const elapsed = agora - fotoCapturaMs(f);
+      if (elapsed < PATRIMONIO_IA_TIMEOUT_MS) {
+        if (elapsed > 120000) {
+          f.statusIa = "fila";
+          f.msgIa = "";
+          f.atualizadoEm = new Date().toISOString();
+          alterou = true;
+        }
+        continue;
+      }
       f.statusIa = "falhou";
-      f.msgIa = "Tempo esgotado na IA — toque em Revisar IA.";
+      f.msgIa = "Tempo esgotado na IA — use Revisar IA ou Reprocessar reprovados.";
       f.atualizadoEm = new Date().toISOString();
-      patrimonioImagensFila.delete(f.id);
+      void patrimonioApagarImagemFila(f.id);
       alterou = true;
     }
     if (alterou) saveStore(store);
@@ -780,6 +884,16 @@
     const m = String(nome || "").match(/CRLVDigital[_-]([A-Za-z0-9]{7})[_-]/i);
     if (!m) return "";
     return resolverPlacaMercosul(m[1]);
+  }
+
+  async function imagensParaFotoCapturaAsync(fotoId, imagensPassadas) {
+    const passadas = (imagensPassadas || []).filter(Boolean);
+    if (passadas.length) return passadas;
+    const idb = await patrimonioLerImagemFila(fotoId);
+    if (idb) return [idb];
+    const foto = getFotoCapturaById(fotoId);
+    if (foto?.imagem?.startsWith("data:image/")) return [foto.imagem];
+    return [];
   }
 
   function imagensParaFotoCaptura(fotoId, imagensPassadas) {
@@ -808,16 +922,24 @@
     return { fila, processando, ok, falhou, total: fotos.length };
   }
 
-  function reiniciarFilaPatrimonioAposAbrir() {
-    const fotos = getFotosCapturas().filter((f) => String(f.statusIa || "").toLowerCase() === "fila");
+  async function reiniciarFilaPatrimonioAposAbrir() {
+    const fotos = getFotosCapturas().filter((f) => {
+      const st = String(f.statusIa || "").toLowerCase();
+      return st === "fila" || st === "processando";
+    });
     for (const f of fotos) {
-      const imgs = imagensParaFotoCaptura(f.id, null);
-      if (imgs.length) enfileirarIaPatrimonio(f.id, imgs);
+      if (String(f.statusIa || "").toLowerCase() === "processando") {
+        atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
+      }
+      if (await patrimonioFilaTemImagem(f.id)) {
+        enfileirarIaPatrimonio(f.id, []);
+      }
     }
   }
 
   function enfileirarIaPatrimonio(fotoId, imagens) {
     if (!fotoId) return;
+    if (filaIaPatrimonio.some((j) => j.fotoId === fotoId)) return;
     filaIaPatrimonio.push({ fotoId, imagens: (imagens || []).filter(Boolean) });
     void processarFilaIaPatrimonio();
   }
@@ -825,15 +947,23 @@
   async function processarFilaIaPatrimonio() {
     if (iaPatrimonioRodando) return;
     iaPatrimonioRodando = true;
+    await patrimonioAtivarWakeLock();
     let n = 0;
+    const totalFilaInicial = filaIaPatrimonio.length;
     while (filaIaPatrimonio.length) {
       const job = filaIaPatrimonio.shift();
       if (job?.fotoId) {
         n++;
         const c = contagemFilaPatrimonio();
+        const restantes = filaIaPatrimonio.length;
         setMsg(
-          `IA a ler documento ${n} (${c.ok} OK · ${c.falhou} reprovados · ${filaIaPatrimonio.length + 1} na fila)…`,
+          `IA ${n}/${totalFilaInicial} · ${c.ok} OK · ${c.falhou} reprovados · ${restantes} restantes…`,
           false
+        );
+        atualizarProgressoLotePatrimonio(
+          c.ok + c.falhou + n,
+          c.fila + c.processando + c.ok + c.falhou,
+          `IA a processar (${n} deste lote · ${restantes} na fila)…`
         );
         await processarIaParaFotoCaptura(job.fotoId, job.imagens);
         if (filaIaPatrimonio.length) {
@@ -842,6 +972,10 @@
       }
     }
     iaPatrimonioRodando = false;
+    patrimonioLibertarWakeLock();
+    patrimonioLoteTotal = 0;
+    patrimonioLoteRecebidos = 0;
+    atualizarProgressoLotePatrimonio(0, 0, "");
     const c = contagemFilaPatrimonio();
     if (c.total) {
       setMsg(
@@ -854,7 +988,7 @@
   }
 
   async function processarIaParaFotoCaptura(fotoId, imagens) {
-    const imgs = imagensParaFotoCaptura(fotoId, imagens);
+    const imgs = await imagensParaFotoCapturaAsync(fotoId, imagens);
     if (!imgs.length) {
       atualizarFotoCaptura(fotoId, {
         statusIa: "falhou",
@@ -881,8 +1015,7 @@
         imgs[0] ||
         fotoMeta?.imagem ||
         "";
-      const pdfMem = patrimonioImagensFila.get(fotoId);
-      let imagemPdfRecortada = pdfDataUrlParaArmazenar(pdfMem?.pdfDataUrl || fotoMeta?.pdfOriginal || "");
+      let imagemPdfRecortada = pdfDataUrlParaArmazenar(fotoMeta?.pdfOriginal || "");
       if (!imagemPdfRecortada) {
         const pdfTmp = window.__DK_patrimonioUltimoPdfRecorte;
         if (typeof pdfTmp === "string" && pdfTmp.startsWith("data:application/pdf")) {
@@ -915,7 +1048,7 @@
         msgIa: "",
       });
       removerFotosAntigasMesmaPlaca(campos.placa, fotoId);
-      patrimonioImagensFila.delete(fotoId);
+      await patrimonioApagarImagemFila(fotoId);
       renderFotosLista();
       renderLista();
       setMsg(
@@ -1406,23 +1539,25 @@
     return dataUrl;
   }
 
-  async function registrarArquivoPdf(file, imagemRenderizada, pdfDataUrl) {
+  async function registrarArquivoPdf(file, imagemRenderizada) {
     const agora = new Date();
-    patrimonioImagensFila.set("__tmp__", { imagem: imagemRenderizada, pdfDataUrl });
+    const fotoId = newFotoId();
+    await patrimonioSalvarImagemFila(fotoId, imagemRenderizada, {
+      nomeArquivo: String(file.name || "documento.pdf").slice(0, 120),
+    });
     let imagemMini = "";
     try {
       imagemMini = await comprimirImagemLimite(
         imagemRenderizada,
-        720,
+        640,
         PATRIMONIO_IMAGEM_FILA_MAX_B64,
-        0.72
+        0.68
       );
     } catch {
       imagemMini = "";
     }
-    patrimonioImagensFila.delete("__tmp__");
     const foto = sanitizeFotoCaptura({
-      id: newFotoId(),
+      id: fotoId,
       tag: formatTagPatrimonioFoto(agora),
       tipo: "pdf",
       nomeArquivo: String(file.name || "documento.pdf").slice(0, 120),
@@ -1435,20 +1570,18 @@
       msgIa: "",
       atualizadoEm: agora.toISOString(),
     });
-    if (!foto) return null;
-    patrimonioImagensFila.set(foto.id, {
-      imagem: imagemRenderizada,
-      pdfDataUrl: pdfDataUrl || "",
-      nomeArquivo: foto.nomeArquivo,
-    });
+    if (!foto) {
+      await patrimonioApagarImagemFila(fotoId);
+      return null;
+    }
     const store = loadStore();
-    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, 200);
+    store.fotosCapturas = [foto, ...store.fotosCapturas].slice(0, PATRIMONIO_MAX_ARQUIVOS);
     saveStore(store);
     return foto;
   }
 
   async function processarArquivosPdf(fileList) {
-    const files = Array.from(fileList || []).filter(ehArquivoPdf);
+    let files = Array.from(fileList || []).filter(ehArquivoPdf);
     if (!files.length) {
       const total = Array.from(fileList || []).length;
       setMsg(
@@ -1459,37 +1592,54 @@
       );
       return;
     }
-    setMsg(`A receber ${files.length} ficheiro(s)…`, false);
+    if (files.length > PATRIMONIO_MAX_LOTE) {
+      setMsg(
+        `Foram selecionados ${files.length} ficheiros — serão processados os primeiros ${PATRIMONIO_MAX_LOTE}.`,
+        false
+      );
+      files = files.slice(0, PATRIMONIO_MAX_LOTE);
+    }
+    patrimonioLoteTotal = files.length;
+    patrimonioLoteRecebidos = 0;
+    await patrimonioAtivarWakeLock();
+    setMsg(`A receber ${files.length} ficheiro(s) (máx. ${PATRIMONIO_MAX_LOTE})…`, false);
+    atualizarProgressoLotePatrimonio(0, files.length);
     await patrimonioYieldUi();
-    setMsg(`A processar ${files.length} PDF(s)…`, false);
     let ok = 0;
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
       try {
-        setMsg(`A converter «${file.name}» para leitura…`, false);
+        patrimonioLoteRecebidos = i + 1;
+        atualizarProgressoLotePatrimonio(
+          i + 1,
+          files.length,
+          `A converter ${i + 1}/${files.length}: «${file.name}»…`
+        );
+        setMsg(`A converter ${i + 1}/${files.length}: «${file.name}»…`, false);
         await patrimonioYieldUi();
-        const pdfDataUrl = await fileParaDataUrl(file);
         const imagem = await pdfArquivoParaImagemAlta(file);
-        const foto = await registrarArquivoPdf(file, imagem, pdfDataUrl);
+        const foto = await registrarArquivoPdf(file, imagem);
         if (!foto) {
           setMsg(`Não foi possível guardar «${file.name}».`, true);
           continue;
         }
-        renderFotosLista();
-        enfileirarIaPatrimonio(foto.id, [imagem]);
+        if (i % 5 === 4) renderFotosLista();
+        enfileirarIaPatrimonio(foto.id, []);
         ok++;
       } catch (e) {
         setMsg(`Erro em «${file.name}»: ${String(e?.message || e)}`, true);
       }
     }
     renderLista();
+    renderFotosLista();
     if (ok > 0) {
       setMsg(
-        ok === 1
-          ? "1 PDF na fila da IA. Pode anexar mais enquanto processa."
-          : `${ok} PDF(s) na fila da IA.`,
+        `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_MAX_LOTE} por envio). Mantenha a página aberta.`,
         false,
         true
       );
+    } else {
+      patrimonioLibertarWakeLock();
     }
   }
 
@@ -1926,7 +2076,7 @@ REGRAS DE CONTEÚDO:
         },
       },
     ];
-    const maxTentativas = 5;
+    const maxTentativas = 8;
     for (let t = 0; t < maxTentativas; t++) {
       try {
         const res = await fetch("/api/openai-comprovante", {
@@ -2039,7 +2189,7 @@ REGRAS DE CONTEÚDO:
   async function revisarFotoCapturaComIa(fotoId) {
     const foto = getFotoCapturaById(fotoId);
     if (!foto) return;
-    const imgs = imagensParaFotoCaptura(fotoId, null);
+    const imgs = await imagensParaFotoCapturaAsync(fotoId, null);
     if (!imgs.length) {
       setMsg("Imagem indisponível — reenvie o PDF deste veículo.", true);
       return;
@@ -2051,7 +2201,7 @@ REGRAS DE CONTEÚDO:
     renderFotosLista();
   }
 
-  function reprocessarTodosReprovadosPatrimonio() {
+  async function reprocessarTodosReprovadosPatrimonio() {
     const fotos = getFotosCapturas().filter((f) => String(f.statusIa || "").toLowerCase() === "falhou");
     if (!fotos.length) {
       setMsg("Nenhum arquivo reprovado para reprocessar.", true);
@@ -2059,17 +2209,16 @@ REGRAS DE CONTEÚDO:
     }
     let n = 0;
     for (const f of fotos) {
-      const imgs = imagensParaFotoCaptura(f.id, null);
-      if (!imgs.length) continue;
+      if (!(await patrimonioFilaTemImagem(f.id))) continue;
       atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
-      enfileirarIaPatrimonio(f.id, imgs);
+      enfileirarIaPatrimonio(f.id, []);
       n++;
     }
     renderFotosLista();
     if (n > 0) {
-      setMsg(`${n} reprovado(s) recolocados na fila da IA. Aguarde o processamento.`, false, true);
+      setMsg(`${n} reprovado(s) recolocados na fila da IA. Aguarde (lote grande ≈ horas).`, false, true);
     } else {
-      setMsg("Reprovados sem imagem em memória — reenvie os PDFs.", true);
+      setMsg("Reprovados sem imagem guardada — reenvie os PDFs.", true);
     }
   }
 
@@ -2610,7 +2759,7 @@ REGRAS DE CONTEÚDO:
     fotosListaEl.innerHTML = fotos
       .map((f) => {
         const st = String(f.statusIa || "").toLowerCase();
-        const podeRevisar = imagensParaFotoCaptura(f.id, null).length > 0;
+        const podeRevisar = st === "falhou" || st === "fila" || imagensParaFotoCaptura(f.id, null).length > 0;
         const nome = f.nomeArquivo ? escapeHtml(f.nomeArquivo) : "";
         return `<div class="patrimonio-foto-item${st === "falhou" ? " patrimonio-foto-item--reprovada" : ""}">
           <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir ${escapeHtml(formatTagPatrimonioFotoLegivel(f.tag))}">
@@ -3003,7 +3152,7 @@ ${contador}
     bindPatrimonioPdfUpload();
 
     document.getElementById("patrimonioBtnReprocessarReprovados")?.addEventListener("click", () => {
-      reprocessarTodosReprovadosPatrimonio();
+      void reprocessarTodosReprovadosPatrimonio();
     });
 
     document.getElementById("patrimonioImagemFecharBtn")?.addEventListener("click", fecharViewerImagem);
@@ -3120,7 +3269,7 @@ ${contador}
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
-    reiniciarFilaPatrimonioAposAbrir();
+    void reiniciarFilaPatrimonioAposAbrir();
     const store = loadStore();
     saveStore(store);
     void refreshOpenAIStatus();
