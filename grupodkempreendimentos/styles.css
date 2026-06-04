@@ -3703,6 +3703,38 @@ table.validados-app .lnk-comprovante {
   background: rgba(201, 162, 39, 0.08);
 }
 
+.patrimonio-relatorio-auditoria {
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border-subtle, #333);
+}
+
+.patrimonio-auditoria-alerta {
+  color: #e8a87c;
+}
+
+.patrimonio-relatorio-contador__grade {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  align-items: start;
+}
+
+.patrimonio-relatorio-contador__col {
+  min-width: 0;
+}
+
+.patrimonio-relatorio-contador__titulo {
+  margin: 0 0 0.35rem;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 960px) {
+  .patrimonio-relatorio-contador__grade {
+    grid-template-columns: 1fr;
+  }
+}
+
 .patrimonio-relatorio-contador__lista {
   margin: 0.35rem 0 0;
   padding-left: 1.2rem;

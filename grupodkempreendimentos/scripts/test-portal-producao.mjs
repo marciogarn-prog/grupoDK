@@ -155,6 +155,9 @@ async function main() {
         patJs.includes("deduplicarDocumentos") &&
         patJs.includes("patrimonioRecuperarFalhasComImagemIdb") &&
         patJs.includes("patrimonioRecuperarDocumentosDedupPlaca") &&
+        patJs.includes("patrimonioColetarAuditoriaArquivos") &&
+        patJs.includes("buildContadoresRelatorioHtmlBloco") &&
+        patJs.includes("classificarGrupoProprietario") &&
         patJs.includes("lerCrlvComRetry") &&
         patJs.includes("lerProprietarioCrlvComRetry") &&
         patJs.includes("prepararImagemParaIaCrlv") &&

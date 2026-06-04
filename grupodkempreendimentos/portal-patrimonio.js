@@ -13,7 +13,9 @@
   const CRLV_REGIAO_PROPRIETARIO = { esquerda: 0.51, topo: 0.12, direita: 0.99, baixo: 0.38 };
   const CRLV_REGIAO_PROPRIETARIO_AMPLA = { esquerda: 0.48, topo: 0.1, direita: 0.99, baixo: 0.42 };
   const CNPJ_DK_LOCADORA_DIGITS = "59665734000132";
+  const CPF_MARCIO_DIGITS = "03037897430";
   const NOME_DK_LOCADORA_PADRAO = "DK LOCADORA LTDA";
+  const PATRIMONIO_META_LOTES_ARQUIVOS = 162;
   /** Miniatura na lista (localStorage) — só preview. */
   const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 28000;
   /** Imagem completa na fila (IndexedDB) — IA e visualização. */
@@ -4020,6 +4022,141 @@ REGRAS OBRIGATÓRIAS:
     return `${marca}|${fab}|${mod}`;
   }
 
+  function classificarGrupoProprietario(doc) {
+    const cnpjCpf = onlyDigits(doc?.cpfCnpj);
+    const nome = normTextoComparacao(doc?.nome);
+    if (cnpjCpf === CPF_MARCIO_DIGITS) return "marcio";
+    if (cnpjCpf === CNPJ_DK_LOCADORA_DIGITS || /DK\s*LOCADORA/i.test(nome)) return "dk";
+    if (/MARCIO/i.test(nome) && cnpjCpf.length === 11) return "marcio";
+    if (nomeProprietarioInvalido(doc?.nome)) return "indefinido";
+    return "outros";
+  }
+
+  function classificarObservacaoVeiculo(doc) {
+    const obs = normTextoComparacao(doc?.observacaoVeiculo);
+    if (!obs || obs === "SEM OBSERVACOES" || obs === "N/I") return "sem_observacao";
+    if (/ALIENAD/.test(obs)) return "alienado";
+    if (/^[*.\-–—\s]+$/.test(String(doc?.observacaoVeiculo || "").trim())) return "sem_observacao";
+    return "outra";
+  }
+
+  function buildContadorProprietarioLinhas(docs) {
+    const grupos = { marcio: 0, dk: 0, outros: 0, indefinido: 0 };
+    for (const d of docs) {
+      grupos[classificarGrupoProprietario(d)]++;
+    }
+    const q = (n) => (n === 1 ? "1 veículo" : `${n} veículos`);
+    return [
+      `Márcio (CPF ${CPF_MARCIO_DIGITS.slice(0, 3)}.***.***-**) = ${q(grupos.marcio)}`,
+      `DK Locadora (CNPJ 59.665.734/0001-32) = ${q(grupos.dk)}`,
+      `Outros proprietários = ${q(grupos.outros)}`,
+      grupos.indefinido > 0 ? `Proprietário indefinido/N/I = ${q(grupos.indefinido)}` : "",
+    ].filter(Boolean);
+  }
+
+  function buildContadorObservacaoLinhas(docs) {
+    const grupos = { alienado: 0, sem_observacao: 0, outra: 0 };
+    for (const d of docs) {
+      grupos[classificarObservacaoVeiculo(d)]++;
+    }
+    const q = (n) => (n === 1 ? "1 veículo" : `${n} veículos`);
+    return [
+      `Alienado = ${q(grupos.alienado)}`,
+      `Sem observação = ${q(grupos.sem_observacao)}`,
+      grupos.outra > 0 ? `Outra observação = ${q(grupos.outra)}` : "",
+    ].filter(Boolean);
+  }
+
+  function patrimonioColetarAuditoriaArquivos() {
+    let raw = {};
+    try {
+      raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch {
+      raw = {};
+    }
+    const documentosBrutos = Array.isArray(raw.documentos) ? raw.documentos.filter(Boolean) : [];
+    const documentosRelatorio = getDocumentos();
+    const exclusoes = todasExclusoesPatrimonio(raw.fotosCapturasExcluidas);
+    const fotos = sanitizeFotosCapturas(raw.fotosCapturas || []);
+    const placasRel = new Set(
+      documentosRelatorio.map((d) => normPlaca(d.placa)).filter(Boolean)
+    );
+    const placasBrutas = new Set(
+      documentosBrutos.map((d) => normPlaca(d.placa)).filter(Boolean)
+    );
+    const placasExcluidas = new Set(
+      exclusoes.map((e) => normPlaca(e.placa || placaDoNomeArquivo(e.nomeArquivo))).filter(Boolean)
+    );
+    const pendentes = fotos.filter((f) => fotoEstaPendenteIa(f));
+    const falhasIa = exclusoes.length;
+    const estimativaArquivos = documentosRelatorio.length + falhasIa + pendentes.length;
+    const prop = { marcio: 0, dk: 0, outros: 0, indefinido: 0 };
+    const obs = { alienado: 0, sem_observacao: 0, outra: 0 };
+    for (const d of documentosRelatorio) {
+      prop[classificarGrupoProprietario(d)]++;
+      obs[classificarObservacaoVeiculo(d)]++;
+    }
+    return {
+      veiculosRelatorio: documentosRelatorio.length,
+      registosBrutosStorage: documentosBrutos.length,
+      placasUnicasRelatorio: placasRel.size,
+      placasBrutasStorage: placasBrutas.size,
+      arquivosExcluidos: falhasIa,
+      arquivosNaFila: pendentes.length,
+      placasExcluidasSemCadastro: [...placasExcluidas].filter((p) => !placasRel.has(p)).length,
+      estimativaArquivosProcessados: estimativaArquivos,
+      metaLotes: PATRIMONIO_META_LOTES_ARQUIVOS,
+      faltamParaMeta: Math.max(0, PATRIMONIO_META_LOTES_ARQUIVOS - documentosRelatorio.length),
+      proprietario: prop,
+      observacao: obs,
+    };
+  }
+
+  function buildResumoAuditoriaHtml(aud) {
+    const linhas = [
+      `<strong>${aud.veiculosRelatorio} veículo(s)</strong> no relatório (placas únicas: ${aud.placasUnicasRelatorio})`,
+      `${aud.registosBrutosStorage} registo(s) brutos guardados · ${aud.arquivosExcluidos} arquivo(s) descartado(s) após falha na IA`,
+    ];
+    if (aud.arquivosNaFila > 0) {
+      linhas.push(`${aud.arquivosNaFila} PDF(s) ainda na fila — aguarde ou use «Reprocessar pendentes»`);
+    }
+    if (aud.faltamParaMeta > 0) {
+      linhas.push(
+        `<span class="patrimonio-auditoria-alerta">Meta dos 3 lotes: ${aud.metaLotes} ficheiros — faltam <strong>${aud.faltamParaMeta}</strong> veículo(s) cadastrado(s)</span>`
+      );
+    } else if (aud.veiculosRelatorio >= aud.metaLotes) {
+      linhas.push(`Meta dos lotes (${aud.metaLotes} ficheiros): <strong>atingida</strong> no relatório`);
+    }
+    if (aud.placasExcluidasSemCadastro > 0) {
+      linhas.push(
+        `${aud.placasExcluidasSemCadastro} placa(s) em exclusões sem veículo no relatório — reenvie ou «Reprocessar pendentes»`
+      );
+    }
+    return `<div class="patrimonio-relatorio-auditoria"><p class="subtext" style="margin:0 0 0.35rem"><strong>Auditoria de arquivos</strong></p><ul class="patrimonio-relatorio-contador__lista">${linhas.map((l) => `<li>${l}</li>`).join("")}</ul></div>`;
+  }
+
+  function buildColunaContadorHtml(titulo, linhas) {
+    if (!linhas.length) return "";
+    const itens = linhas.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
+    return `<div class="patrimonio-relatorio-contador__col"><p class="patrimonio-relatorio-contador__titulo"><strong>${escapeHtml(titulo)}</strong></p><ul class="patrimonio-relatorio-contador__lista">${itens}</ul></div>`;
+  }
+
+  function buildContadoresRelatorioHtmlBloco(docs, aud) {
+    const modelo = buildContadorModeloAnoLinhas(docs);
+    const proprietario = buildContadorProprietarioLinhas(docs);
+    const observacao = buildContadorObservacaoLinhas(docs);
+    const grade = [
+      buildColunaContadorHtml("Contagem por modelo e ano", modelo),
+      buildColunaContadorHtml("Contagem por proprietário", proprietario),
+      buildColunaContadorHtml('Contagem por observação ("alienado" ou sem observação)', observacao),
+    ]
+      .filter(Boolean)
+      .join("");
+    const auditoria = aud ? buildResumoAuditoriaHtml(aud) : "";
+    if (!auditoria && !grade) return "";
+    return `${auditoria}${grade ? `<div class="patrimonio-relatorio-contador__grade">${grade}</div>` : ""}`;
+  }
+
   /** Contagem: marca/modelo/versão + ano fabricação + ano modelo = N registro(s). */
   function buildContadorModeloAnoLinhas(docs) {
     const map = new Map();
@@ -4037,29 +4174,27 @@ REGRAS OBRIGATÓRIAS:
       });
   }
 
-  function renderContadorModeloAno(docs) {
-    const linhas = buildContadorModeloAnoLinhas(docs);
+  function renderContadoresRelatorio(docs) {
     if (!relatorioContador) return;
-    if (!linhas.length) {
+    const aud = patrimonioColetarAuditoriaArquivos();
+    const html = buildContadoresRelatorioHtmlBloco(docs, aud);
+    if (!html) {
       relatorioContador.innerHTML = "";
       relatorioContador.classList.add("hidden");
       return;
     }
     relatorioContador.classList.remove("hidden");
-    relatorioContador.innerHTML = `<p class="subtext" style="margin:0 0 0.35rem"><strong>Contagem por modelo e ano</strong></p><ul class="patrimonio-relatorio-contador__lista">${linhas.map((l) => `<li>${escapeHtml(l)}</li>`).join("")}</ul>`;
+    relatorioContador.innerHTML = html;
   }
 
   function buildContadorModeloAnoHtmlBloco(docs) {
-    const linhas = buildContadorModeloAnoLinhas(docs);
-    if (!linhas.length) return "";
-    const itens = linhas.map((l) => `<li>${escapeHtml(l)}</li>`).join("");
-    return `<div class="contador-modelo-ano"><p><strong>Contagem por modelo e ano</strong></p><ul>${itens}</ul></div>`;
+    return buildContadoresRelatorioHtmlBloco(docs, patrimonioColetarAuditoriaArquivos());
   }
 
   function renderRelatorioTabela() {
     if (!relatorioConteudo) return;
     const docs = getDocumentos().slice().sort((a, b) => normPlaca(a.placa).localeCompare(normPlaca(b.placa)));
-    renderContadorModeloAno(docs);
+    renderContadoresRelatorio(docs);
     if (!docs.length) {
       relatorioConteudo.innerHTML = '<p class="subtext">Nenhum documento.</p>';
       return;
@@ -4096,7 +4231,10 @@ REGRAS OBRIGATÓRIAS:
       previewHtml,
       shareMeta: {
         title: titulo,
-        bodyText: `${getDocumentos().length} veículo(s) cadastrado(s) — CRLV digital.`,
+        bodyText: (() => {
+          const aud = patrimonioColetarAuditoriaArquivos();
+          return `${aud.veiculosRelatorio} veículo(s) · DK ${aud.proprietario.dk} · Márcio ${aud.proprietario.marcio} · outros ${aud.proprietario.outros} · alienado ${aud.observacao.alienado} · sem obs. ${aud.observacao.sem_observacao}`;
+        })(),
         fileBaseName: "relatorio patrimonio crlv",
       },
       buildPdfHtml: () => buildPatrimonioPdfHtml(headers, rows, titulo),
@@ -4119,7 +4257,7 @@ REGRAS OBRIGATÓRIAS:
       })
       .join("");
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title>
-<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f5f5f5}.meta{color:#555;margin-bottom:12px}a{color:#0066cc}.contador-modelo-ano{margin:0 0 14px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;background:#faf6e8}.contador-modelo-ano ul{margin:4px 0 0;padding-left:18px}</style></head>
+<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top}th{background:#f5f5f5}.meta{color:#555;margin-bottom:12px}a{color:#0066cc}.patrimonio-relatorio-auditoria,.patrimonio-relatorio-contador__grade{margin:0 0 14px;padding:8px 10px;border:1px solid #ccc;border-radius:6px;background:#faf6e8}.patrimonio-relatorio-contador__grade{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}.patrimonio-relatorio-contador__col{min-width:0}.patrimonio-relatorio-contador__lista{margin:4px 0 0;padding-left:18px;font-size:10px}.patrimonio-auditoria-alerta{color:#a33}</style></head>
 <body><h1>${escapeHtml(titulo)}</h1><p class="meta">Grupo DK Locadora · ${escapeHtml(new Date().toLocaleString("pt-BR"))} · ${rows.length} veículo(s)</p>
 ${contador}
 <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
@@ -4352,6 +4490,7 @@ ${contador}
     return false;
   }
 
+  window.__DK_patrimonioColetarAuditoria = patrimonioColetarAuditoriaArquivos;
   window.__DK_patrimonioOnShow = onShowPatrimonio;
   window.__DK_patrimonioProcessarArquivosPdf = processarArquivosPdf;
   window.__DK_patrimonioEhArquivoPdf = ehArquivoPdf;
