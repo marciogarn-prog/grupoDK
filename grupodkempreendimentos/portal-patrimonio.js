@@ -604,7 +604,7 @@
         exclusoes
       );
       return {
-        documentos: deduplicarDocumentos(documentos),
+        documentos: deduplicarDocumentos(corrigirProprietariosDocumentos(documentos)),
         fotosCapturas,
         fotosCapturasExcluidas: exclusoes,
       };
@@ -982,6 +982,19 @@
       alterou = true;
     }
     if (alterou) saveStore({ documentos: store.documentos });
+  }
+
+  function patrimonioRepararProprietariosDocumentos() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      const documentos = Array.isArray(raw.documentos) ? raw.documentos : [];
+      if (!documentos.length) return;
+      const corrigidos = corrigirProprietariosDocumentos(documentos);
+      const alterou = documentos.some((d, i) => String(d?.nome || "") !== String(corrigidos[i]?.nome || ""));
+      if (alterou) saveStore({ documentos: deduplicarDocumentos(corrigidos) });
+    } catch {
+      /* ignore */
+    }
   }
 
   async function patrimonioFilaTemImagem(id) {
@@ -2295,9 +2308,91 @@ REGRAS DE CONTEÚDO:
 - potenciaCilindrada: copie exato da caixa direita (ex.: 0CV/162).
 - cpfCnpj: só dígitos com pontuação se visível.
 - observacaoVeiculo: caixa inferior esquerda; se vazio use "SEM OBSERVAÇÕES".
-- carroceria: motocicleta → "NÃO APLICÁVEL" se aplicável.
+- carroceria: motocicleta → "NÃO APLICÁVEL" se aplicável — NUNCA coloque isso em nome.
+- nome: razão social ou nome do proprietário (caixa ABAIXO de carroceria). Nunca "NÃO APLICÁVEL".
 - NÃO invente dígitos; se a posição estiver legível mas o rótulo não, confie na posição do mapa.
 - "aprovado": true quando placa, RENAVAM e chassi forem lidos com confiança.`;
+  }
+
+  function nomeProprietarioInvalido(nome) {
+    const n = String(nome || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (!n) return true;
+    if (n === "N/I" || /^PROPRIETARIO\s*N\s*\/?\s*I$/i.test(n)) return true;
+    if (/NAO\s*APLIC/i.test(n)) return true;
+    if (/^SEM\s+(OBSERVA|DADOS)/i.test(n)) return true;
+    return false;
+  }
+
+  function inferirNomeProprietarioFrota(cpfCnpj, docs) {
+    const alvo = onlyDigits(cpfCnpj);
+    if (alvo.length !== 11 && alvo.length !== 14) return "";
+    const contagem = new Map();
+    for (const d of docs || []) {
+      if (!d || typeof d !== "object") continue;
+      if (onlyDigits(d.cpfCnpj) !== alvo) continue;
+      const nome = String(d.nome || "").trim();
+      if (nomeProprietarioInvalido(nome)) continue;
+      contagem.set(nome, (contagem.get(nome) || 0) + 1);
+    }
+    let best = "";
+    let bestN = 0;
+    for (const [nome, n] of contagem) {
+      if (n > bestN) {
+        best = nome;
+        bestN = n;
+      }
+    }
+    return best;
+  }
+
+  function inferirNomeProprietarioModaFrota(docs) {
+    const contagem = new Map();
+    for (const d of docs || []) {
+      if (!d || typeof d !== "object") continue;
+      const nome = String(d.nome || "").trim();
+      if (nomeProprietarioInvalido(nome)) continue;
+      contagem.set(nome, (contagem.get(nome) || 0) + 1);
+    }
+    let best = "";
+    let bestN = 0;
+    for (const [nome, n] of contagem) {
+      if (n > bestN) {
+        best = nome;
+        bestN = n;
+      }
+    }
+    return best;
+  }
+
+  function corrigirCamposProprietarioCrlv(campos, opts) {
+    if (!campos || typeof campos !== "object") return;
+    const nomeAtual = String(campos.nome ?? "").trim();
+    if (!nomeProprietarioInvalido(nomeAtual)) return;
+    const docs = opts?.documentosReferencia;
+    const ref =
+      Array.isArray(docs) && docs.length
+        ? docs
+        : typeof getDocumentos === "function"
+          ? getDocumentos()
+          : [];
+    const inferido =
+      inferirNomeProprietarioFrota(campos.cpfCnpj, ref) || inferirNomeProprietarioModaFrota(ref);
+    if (inferido) campos.nome = inferido;
+    else if (nomeAtual) campos.nome = "PROPRIETÁRIO N/I";
+  }
+
+  function corrigirProprietariosDocumentos(documentos) {
+    const docs = (documentos || []).filter(Boolean);
+    return docs.map((d) => {
+      const out = { ...d };
+      corrigirCamposProprietarioCrlv(out, { documentosReferencia: docs });
+      if (!String(out.nome ?? "").trim()) out.nome = "PROPRIETÁRIO N/I";
+      return out;
+    });
   }
 
   function preencherDefaultsCrlv(campos, opts) {
@@ -2310,7 +2405,6 @@ REGRAS DE CONTEÚDO:
     if (!String(campos.data ?? "").trim() && /^\d{4}$/.test(String(campos.exercicio || ""))) {
       campos.data = `01/01/${campos.exercicio}`;
     }
-    if (!String(campos.nome ?? "").trim()) campos.nome = "PROPRIETÁRIO N/I";
     if (!String(campos.marcaModeloVersao ?? "").trim()) campos.marcaModeloVersao = "N/I";
     const obs = String(campos.observacaoVeiculo ?? "").trim();
     if (!obs || /^[*.\-–—]+$/.test(obs)) {
@@ -2345,6 +2439,8 @@ REGRAS DE CONTEÚDO:
     if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
       campos.cpfCnpj = "N/I";
     }
+    corrigirCamposProprietarioCrlv(campos, opts);
+    if (!String(campos.nome ?? "").trim()) campos.nome = "PROPRIETÁRIO N/I";
   }
 
   function extrairCamposRespostaIa(parsed) {
@@ -3849,6 +3945,7 @@ ${contador}
 
   bindUi();
   void (async () => {
+    patrimonioRepararProprietariosDocumentos();
     await patrimonioMigrarImagensDocParaIdb();
     await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
     renderLista();
