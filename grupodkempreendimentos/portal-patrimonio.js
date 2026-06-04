@@ -41,17 +41,8 @@
   const PDFJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
   const PATRIMONIO_MAX_LOTE = 200;
   const PATRIMONIO_MAX_ARQUIVOS = 250;
-  /** Campos essenciais — sem estes o cadastro não é aceite. */
-  const CAMPOS_CRITICOS = [
-    "codigoRenavam",
-    "placa",
-    "chassi",
-    "nome",
-    "cpfCnpj",
-    "marcaModeloVersao",
-    "exercicio",
-    "data",
-  ];
+  /** Campos mínimos — placa, RENAVAM e chassi; resto preenchido com defaults/nome do ficheiro. */
+  const CAMPOS_CRITICOS = ["codigoRenavam", "placa", "chassi"];
 
   const panel = document.getElementById("panel-patrimonio-locadora");
   if (!panel) return;
@@ -90,13 +81,16 @@
   const filaIaPatrimonio = [];
   /** Fallback se IndexedDB falhar (1–2 itens). Lote grande usa IDB. */
   const patrimonioImagensFila = new Map();
-  const PATRIMONIO_IA_INTERVALO_MS = 950;
+  const PATRIMONIO_IA_INTERVALO_MS = 1100;
   const PATRIMONIO_IA_TIMEOUT_MS = 420000;
   const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 28000;
-  const PATRIMONIO_IDB_IMAGEM_MAX_B64 = 175000;
+  const PATRIMONIO_IDB_IMAGEM_MAX_B64 = 240000;
   let patrimonioWakeLock = null;
   let patrimonioLoteRecebidos = 0;
   let patrimonioLoteTotal = 0;
+  let patrimonioSyncCloudPausado = 0;
+  let patrimonioConvertendoPdfs = false;
+  let patrimonioAutoReprocessouLote = false;
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
@@ -628,6 +622,39 @@
     return 0;
   }
 
+  function stripDocumentosParaLocalStorage(documentos) {
+    return (documentos || []).map((d) => {
+      const ir = String(d.imagemRecortada || "");
+      const irLen = ir.startsWith("data:") ? parseDataUrl(ir).base64.length : 0;
+      const pdf = String(d.imagemPdfRecortada || "");
+      const pdfLen = pdf.startsWith("data:") ? parseDataUrl(pdf).base64.length : 0;
+      if (!d.imagemDocIdb && irLen <= 5000 && pdfLen <= 5000) return d;
+      return {
+        ...d,
+        imagemRecortada: irLen <= 5000 ? ir : "",
+        imagemPdfRecortada: pdfLen <= 5000 ? pdf || undefined : undefined,
+        imagemDocIdb: Boolean(d.imagemDocIdb || irLen > 5000),
+        pdfDocIdb: Boolean(d.pdfDocIdb || pdfLen > 5000),
+      };
+    });
+  }
+
+  function patrimonioPausarSyncCloud() {
+    patrimonioSyncCloudPausado++;
+  }
+
+  function patrimonioRetomarSyncCloud() {
+    patrimonioSyncCloudPausado = Math.max(0, patrimonioSyncCloudPausado - 1);
+    if (
+      patrimonioSyncCloudPausado === 0 &&
+      !patrimonioConvertendoPdfs &&
+      !iaPatrimonioRodando &&
+      typeof portalPushCloudSnapshotAfterPersist === "function"
+    ) {
+      portalPushCloudSnapshotAfterPersist();
+    }
+  }
+
   function saveStore(store) {
     let prev;
     try {
@@ -636,7 +663,9 @@
       prev = {};
     }
     const prevDocs = Array.isArray(prev.documentos) ? prev.documentos : [];
-    const documentos = deduplicarDocumentos(store?.documentos ?? prevDocs);
+    const documentos = stripDocumentosParaLocalStorage(
+      deduplicarDocumentos(store?.documentos ?? prevDocs)
+    );
     const exclusoes = persistirExclusoesPatrimonio(
       todasExclusoesPatrimonio(store?.fotosCapturasExcluidas, prev.fotosCapturasExcluidas)
     );
@@ -647,41 +676,39 @@
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
 
     const payload = { documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes };
-    const gravar = (lista) => {
+    const gravar = (docs, lista) => {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ...payload, fotosCapturas: lista })
+        JSON.stringify({ ...payload, documentos: docs, fotosCapturas: lista })
       );
     };
     try {
-      gravar(fotosCapturas);
+      gravar(documentos, fotosCapturas);
     } catch {
-      const aliviada = fotosCapturas.map((f) => {
-        const st = String(f.statusIa || "").toLowerCase();
-        if (st === "falhou" || st === "fila" || st === "ok") {
-          return { ...f, imagem: "", pdfOriginal: undefined, imagemIndisponivel: true };
-        }
-        return f;
-      });
+      const aliviada = fotosCapturas.map((f) => ({
+        ...f,
+        imagem: "",
+        pdfOriginal: undefined,
+        imagemIndisponivel: true,
+      }));
       try {
-        gravar(aliviada);
+        gravar(documentos, aliviada);
       } catch {
-        localStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({
-            documentos,
-            fotosCapturas: fotosCapturas.slice(0, 40).map((f) => ({
-              ...f,
-              imagem: "",
-              pdfOriginal: undefined,
-              imagemIndisponivel: true,
-            })),
-            fotosCapturasExcluidas: exclusoes,
-          })
-        );
+        const docsLeves = documentos.map((d) => ({
+          ...d,
+          imagemRecortada: "",
+          imagemPdfRecortada: undefined,
+          imagemDocIdb: true,
+        }));
+        gravar(docsLeves, aliviada);
       }
     }
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+    if (
+      patrimonioSyncCloudPausado === 0 &&
+      !patrimonioConvertendoPdfs &&
+      !iaPatrimonioRodando &&
+      typeof portalPushCloudSnapshotAfterPersist === "function"
+    ) {
       portalPushCloudSnapshotAfterPersist();
     }
   }
@@ -840,6 +867,67 @@
     }
   }
 
+  async function patrimonioSalvarImagensDoc(docId, imagens) {
+    if (!docId || typeof window.__DK_patrimonioIdbPut !== "function") return false;
+    try {
+      await window.__DK_patrimonioIdbPut(docId, {
+        tipo: "doc",
+        imagemRecortada: String(imagens?.imagemRecortada || ""),
+        imagemPdfRecortada: String(imagens?.imagemPdfRecortada || ""),
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function patrimonioLerImagensDoc(docId) {
+    if (!docId || typeof window.__DK_patrimonioIdbGet !== "function") return null;
+    try {
+      const row = await window.__DK_patrimonioIdbGet(docId);
+      if (!row) return null;
+      const ir = String(row.imagemRecortada || "");
+      const pdf = String(row.imagemPdfRecortada || "");
+      if (!ir.startsWith("data:image/") && !pdf.startsWith("data:application/pdf")) return null;
+      return {
+        imagemRecortada: ir.startsWith("data:image/") ? ir : "",
+        imagemPdfRecortada: pdf.startsWith("data:application/pdf") ? pdf : "",
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  async function patrimonioApagarImagensDoc(docId) {
+    if (!docId || typeof window.__DK_patrimonioIdbDelete !== "function") return;
+    try {
+      await window.__DK_patrimonioIdbDelete(docId);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function patrimonioMigrarImagensDocParaIdb() {
+    const store = loadStore();
+    let alterou = false;
+    for (const d of store.documentos) {
+      if (d.imagemDocIdb) continue;
+      const ir = String(d.imagemRecortada || "");
+      if (!ir.startsWith("data:image/") || parseDataUrl(ir).base64.length < 6000) continue;
+      const pdfInline = d.imagemPdfRecortada || "";
+      await patrimonioSalvarImagensDoc(d.id, {
+        imagemRecortada: ir,
+        imagemPdfRecortada: pdfInline,
+      });
+      d.imagemRecortada = "";
+      d.imagemPdfRecortada = undefined;
+      d.imagemDocIdb = true;
+      d.pdfDocIdb = Boolean(String(pdfInline).startsWith("data:application/pdf"));
+      alterou = true;
+    }
+    if (alterou) saveStore({ documentos: store.documentos });
+  }
+
   async function patrimonioFilaTemImagem(id) {
     if (patrimonioImagensFila.has(id)) return true;
     if (typeof window.__DK_patrimonioIdbHas === "function") {
@@ -884,6 +972,11 @@
     const m = String(nome || "").match(/CRLVDigital[_-]([A-Za-z0-9]{7})[_-]/i);
     if (!m) return "";
     return resolverPlacaMercosul(m[1]);
+  }
+
+  function exercicioDoNomeArquivo(nome) {
+    const m = String(nome || "").match(/CRLVDigital[_-][A-Za-z0-9]{7}[_-](\d{4})/i);
+    return m ? m[1] : "";
   }
 
   async function imagensParaFotoCapturaAsync(fotoId, imagensPassadas) {
@@ -965,7 +1058,15 @@
           c.fila + c.processando + c.ok + c.falhou,
           `IA a processar (${n} deste lote · ${restantes} na fila)…`
         );
-        await processarIaParaFotoCaptura(job.fotoId, job.imagens);
+        try {
+          await processarIaParaFotoCaptura(job.fotoId, job.imagens);
+        } catch (e) {
+          atualizarFotoCaptura(job.fotoId, {
+            statusIa: "falhou",
+            msgIa: String(e?.message || e || MSG_IA_FALHOU),
+          });
+          renderFotosLista();
+        }
         if (filaIaPatrimonio.length) {
           await new Promise((r) => window.setTimeout(r, PATRIMONIO_IA_INTERVALO_MS));
         }
@@ -985,6 +1086,31 @@
       );
     }
     renderFotosLista();
+    patrimonioRetomarSyncCloud();
+    await patrimonioAutoReprocessarReprovadosLote();
+  }
+
+  async function patrimonioAutoReprocessarReprovadosLote() {
+    if (patrimonioAutoReprocessouLote || iaPatrimonioRodando || filaIaPatrimonio.length) return;
+    const reprovados = getFotosCapturas().filter(
+      (f) => String(f.statusIa || "").toLowerCase() === "falhou"
+    );
+    if (!reprovados.length || reprovados.length > 120) return;
+    const comImagem = [];
+    for (const f of reprovados) {
+      if (await patrimonioFilaTemImagem(f.id)) comImagem.push(f);
+    }
+    if (!comImagem.length) return;
+    patrimonioAutoReprocessouLote = true;
+    patrimonioPausarSyncCloud();
+    setMsg(
+      `A reprocessar automaticamente ${comImagem.length} reprovado(s) (2.ª passagem)…`,
+      false
+    );
+    for (const f of comImagem) {
+      atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
+      enfileirarIaPatrimonio(f.id, []);
+    }
   }
 
   async function processarIaParaFotoCaptura(fotoId, imagens) {
@@ -1034,7 +1160,7 @@
         processadoEm: new Date().toISOString(),
         cadastradoEm: new Date().toISOString(),
       };
-      const r = upsertDocumento(doc);
+      const r = await upsertDocumento(doc);
       if (!r.ok) {
         atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
         renderFotosLista();
@@ -1154,7 +1280,7 @@
     return loadStore().documentos || [];
   }
 
-  function upsertDocumento(doc) {
+  async function upsertDocumento(doc) {
     const placa = resolverPlacaMercosul(doc.placa);
     if (!placa) {
       return {
@@ -1170,10 +1296,33 @@
       : null;
     const idsRemover = new Set(antigos.map((d) => d.id));
     const docs = store.documentos.filter((d) => !idsRemover.has(d.id));
+    for (const idRem of idsRemover) {
+      if (idRem !== antigo?.id) void patrimonioApagarImagensDoc(idRem);
+    }
     const agora = new Date().toISOString();
+    const docId = antigo?.id || doc.id || newId();
+    const imagemRecortada = String(doc.imagemRecortada || "");
+    const imagemPdfRecortada = String(doc.imagemPdfRecortada || "");
+    let imagemInline = "";
+    let imagemDocIdb = false;
+    if (imagemRecortada.startsWith("data:image/")) {
+      imagemDocIdb = await patrimonioSalvarImagensDoc(docId, {
+        imagemRecortada,
+        imagemPdfRecortada,
+      });
+      if (!imagemDocIdb) {
+        imagemInline = await comprimirImagemLimite(imagemRecortada, 1100, 90000, 0.72);
+      }
+    } else {
+      await patrimonioSalvarImagensDoc(docId, { imagemRecortada: "", imagemPdfRecortada });
+    }
     const registro = {
       ...docNorm,
-      id: antigo?.id || doc.id || newId(),
+      id: docId,
+      imagemRecortada: imagemInline,
+      imagemPdfRecortada: undefined,
+      imagemDocIdb,
+      pdfDocIdb: Boolean(imagemPdfRecortada.startsWith("data:application/pdf")),
       processadoEm: agora,
       atualizadoEm: agora,
       imagemAtualizadaEm: agora,
@@ -1342,7 +1491,7 @@
   /** Imagem em cores, tamanho adequado à API Vision (sem filtro scanner). */
   async function prepararImagemParaIaCrlv(dataUrl) {
     const orientada = await corrigirOrientacaoImagem(dataUrl);
-    return comprimirImagem(orientada, 1536, 0.9);
+    return comprimirImagem(orientada, 1800, 0.92);
   }
 
   function lerExclusoesPatrimonioStandalone() {
@@ -1521,7 +1670,7 @@
     const paginas = numPag > 1 ? [1, 2] : [1];
     for (const p of paginas) {
       if (p > numPag) continue;
-      const img = await renderizarPaginaPdfParaImagem(pdf, p, 2.4);
+      const img = await renderizarPaginaPdfParaImagem(pdf, p, 2.85);
       const { base64 } = parseDataUrl(img);
       const area = base64.length;
       if (area > melhorArea) {
@@ -1601,6 +1750,9 @@
     }
     patrimonioLoteTotal = files.length;
     patrimonioLoteRecebidos = 0;
+    patrimonioAutoReprocessouLote = false;
+    patrimonioConvertendoPdfs = true;
+    patrimonioPausarSyncCloud();
     await patrimonioAtivarWakeLock();
     setMsg(`A receber ${files.length} ficheiro(s) (máx. ${PATRIMONIO_MAX_LOTE})…`, false);
     atualizarProgressoLotePatrimonio(0, files.length);
@@ -1632,6 +1784,7 @@
     }
     renderLista();
     renderFotosLista();
+    patrimonioConvertendoPdfs = false;
     if (ok > 0) {
       setMsg(
         `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_MAX_LOTE} por envio). Mantenha a página aberta.`,
@@ -1640,6 +1793,7 @@
       );
     } else {
       patrimonioLibertarWakeLock();
+      patrimonioRetomarSyncCloud();
     }
   }
 
@@ -1824,8 +1978,18 @@ REGRAS DE CONTEÚDO:
 - "aprovado": true quando placa, RENAVAM e chassi forem lidos com confiança.`;
   }
 
-  function preencherDefaultsCrlv(campos) {
+  function preencherDefaultsCrlv(campos, opts) {
     if (!campos || typeof campos !== "object") return;
+    const nomeArq = String(opts?.nomeArquivo || "").trim();
+    if (!String(campos.exercicio ?? "").trim()) {
+      const ex = exercicioDoNomeArquivo(nomeArq);
+      if (ex) campos.exercicio = ex;
+    }
+    if (!String(campos.data ?? "").trim() && /^\d{4}$/.test(String(campos.exercicio || ""))) {
+      campos.data = `01/01/${campos.exercicio}`;
+    }
+    if (!String(campos.nome ?? "").trim()) campos.nome = "PROPRIETÁRIO N/I";
+    if (!String(campos.marcaModeloVersao ?? "").trim()) campos.marcaModeloVersao = "N/I";
     const obs = String(campos.observacaoVeiculo ?? "").trim();
     if (!obs || /^[*.\-–—]+$/.test(obs)) {
       campos.observacaoVeiculo = "SEM OBSERVAÇÕES";
@@ -1854,6 +2018,10 @@ REGRAS DE CONTEÚDO:
     const cla = onlyDigits(campos.codigoSegurancaCla);
     if (cla.length < 9) {
       campos.codigoSegurancaCla = cla.length >= 4 ? cla.padEnd(11, "0").slice(0, 11) : "00000000000";
+    }
+    const cnpjCpf = onlyDigits(campos.cpfCnpj);
+    if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
+      campos.cpfCnpj = "N/I";
     }
   }
 
@@ -1918,8 +2086,8 @@ REGRAS DE CONTEÚDO:
     return d;
   }
 
-  function validarLeituraCrlv(parsed, campos) {
-    preencherDefaultsCrlv(campos);
+  function validarLeituraCrlv(parsed, campos, opts) {
+    preencherDefaultsCrlv(campos, opts);
 
     for (const key of CAMPOS_CRITICOS) {
       if (!String(campos[key] ?? "").trim()) {
@@ -1933,7 +2101,12 @@ REGRAS DE CONTEÚDO:
     }
 
     if (!placaValida(campos.placa)) {
-      return { ok: false, msg: "Placa inválida na leitura — confira Mercosul (LLLNLNN).", field: "placa" };
+      const hint = placaDoNomeArquivo(opts?.nomeArquivo);
+      if (hint && placaValida(hint)) {
+        campos.placa = hint;
+      } else {
+        return { ok: false, msg: "Placa inválida na leitura — confira Mercosul (LLLNLNN).", field: "placa" };
+      }
     }
     const renavam = normalizarRenavamPatrimonio(campos.codigoRenavam);
     if (onlyDigits(renavam).length !== 11) {
@@ -1946,14 +2119,12 @@ REGRAS DE CONTEÚDO:
     if (!dataBrValida(campos.data)) {
       const ex = String(campos.exercicio || "").trim();
       if (/^\d{4}$/.test(ex)) campos.data = `01/01/${ex}`;
-      else return { ok: false, msg: "Data do documento ilegível.", field: "data" };
-    }
-    const cnpjCpf = onlyDigits(campos.cpfCnpj);
-    if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
-      return { ok: false, msg: "CPF/CNPJ inválido na leitura.", field: "cpfCnpj" };
+      else campos.data = "01/01/2026";
     }
     if (!/^\d{4}$/.test(String(campos.exercicio || ""))) {
-      return { ok: false, msg: "Exercício (ano) ilegível.", field: "exercicio" };
+      const ano = String(campos.data || "").match(/(\d{4})\s*$/);
+      if (ano) campos.exercicio = ano[1];
+      else campos.exercicio = String(new Date().getFullYear());
     }
 
     return { ok: true };
@@ -2114,11 +2285,12 @@ REGRAS DE CONTEÚDO:
         ultimo = { ok: false, msg: "Imagem vazia ou corrompida para a IA." };
         continue;
       }
-      for (const revisao of [false, true]) {
+      for (const revisao of [false, true, true]) {
         const oai = await chamarIaCrlv(img, revisao, iaOpts);
         if (!oai.ok) {
           ultimo = oai;
-          if (String(oai.msg || "").includes("configurada") || String(oai.msg || "").includes("OpenAI")) {
+          const msg = String(oai.msg || "");
+          if (/n[aã]o configurada|openai_not_configured/i.test(msg)) {
             return ultimo;
           }
           continue;
@@ -2127,8 +2299,8 @@ REGRAS DE CONTEÚDO:
         if (!placaValida(campos.placa) && iaOpts.placaHint) {
           campos.placa = iaOpts.placaHint;
         }
-        preencherDefaultsCrlv(campos);
-        const val = validarLeituraCrlv(oai.parsed, campos);
+        preencherDefaultsCrlv(campos, { nomeArquivo: iaOpts.nomeArquivo });
+        const val = validarLeituraCrlv(oai.parsed, campos, { nomeArquivo: iaOpts.nomeArquivo });
         if (val.ok) return { ok: true, campos, parsed: oai.parsed, imagemUsada: fontes[i] };
         ultimo = val;
       }
@@ -2731,6 +2903,7 @@ REGRAS DE CONTEÚDO:
         const id = btn.getAttribute("data-pat-id");
         if (!id || !window.confirm("Remover este CRLV da base?")) return;
         const store = loadStore();
+        void patrimonioApagarImagensDoc(id);
         saveStore({ documentos: store.documentos.filter((d) => d.id !== id) });
         renderLista();
       });
@@ -2872,20 +3045,33 @@ REGRAS DE CONTEÚDO:
 
   async function abrirViewerImagem(id) {
     const doc = getDocById(id);
-    let url = doc?.imagemRecortada;
-    if (!url || !imagemViewer || !imagemViewerImg) return;
+    if (!doc || !imagemViewer || !imagemViewerImg) return;
+
+    let url = doc.imagemRecortada;
+    if (!url?.startsWith("data:image/")) {
+      const idb = await patrimonioLerImagensDoc(id);
+      if (idb?.imagemRecortada) url = idb.imagemRecortada;
+    }
+    if (!url?.startsWith("data:image/")) {
+      setMsg("Imagem indisponível — reenvie o PDF deste veículo.", true);
+      return;
+    }
 
     if (typeof window.__DK_patrimonioRetocarImagem === "function") {
       try {
         const retocada = await window.__DK_patrimonioRetocarImagem(url);
         if (retocada && retocada !== url) {
           url = retocada;
+          await patrimonioSalvarImagensDoc(id, {
+            imagemRecortada: await comprimirImagemLimite(url, 1600, 320000, 0.88),
+            imagemPdfRecortada: "",
+          });
           const store = loadStore();
           const idx = store.documentos.findIndex((d) => d.id === id);
           if (idx >= 0) {
-            store.documentos[idx].imagemRecortada = await comprimirImagemLimite(url, 1600, 320000, 0.88);
             store.documentos[idx].imagemScanVersao = PATRIMONIO_SCAN_VERSAO;
             store.documentos[idx].imagemAtualizadaEm = new Date().toISOString();
+            store.documentos[idx].imagemDocIdb = true;
             saveStore(store);
           }
         }
@@ -2898,8 +3084,12 @@ REGRAS DE CONTEÚDO:
     imagemViewer.dataset.patId = id;
     const pdfBtn = document.getElementById("patrimonioImagemPdfBtn");
     if (pdfBtn) {
-      const temPdf = String(doc?.imagemPdfRecortada || "").startsWith("data:application/pdf");
-      pdfBtn.classList.toggle("hidden", !temPdf);
+      let pdf = doc.imagemPdfRecortada;
+      if (!pdf?.startsWith("data:application/pdf")) {
+        const idb = await patrimonioLerImagensDoc(id);
+        pdf = idb?.imagemPdfRecortada || pdf;
+      }
+      pdfBtn.classList.toggle("hidden", !String(pdf || "").startsWith("data:application/pdf"));
     }
     imagemViewer.classList.remove("hidden");
     imagemViewer.setAttribute("aria-hidden", "false");
@@ -2910,19 +3100,25 @@ REGRAS DE CONTEÚDO:
   function baixarPdfViewerImagem() {
     const id = imagemViewer?.dataset?.patId;
     const doc = id ? getDocById(id) : null;
-    const pdf = doc?.imagemPdfRecortada;
-    if (!pdf) {
-      setMsg("PDF não disponível para este documento.", true);
-      return;
-    }
-    const a = document.createElement("a");
-    a.href = pdf;
-    a.download = `CRLV-${doc.placa || "documento"}.pdf`;
-    a.rel = "noopener";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setMsg("PDF transferido.", false, true);
+    void (async () => {
+      let pdf = doc?.imagemPdfRecortada;
+      if (!pdf?.startsWith("data:application/pdf") && id) {
+        const idb = await patrimonioLerImagensDoc(id);
+        pdf = idb?.imagemPdfRecortada || pdf;
+      }
+      if (!pdf?.startsWith("data:application/pdf")) {
+        setMsg("PDF não disponível para este documento.", true);
+        return;
+      }
+      const a = document.createElement("a");
+      a.href = pdf;
+      a.download = `CRLV-${doc.placa || "documento"}.pdf`;
+      a.rel = "noopener";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setMsg("PDF transferido.", false, true);
+    })();
   }
 
   function fecharViewerImagem(syncHistory = true) {
@@ -3308,6 +3504,8 @@ ${contador}
   window.__DK_patrimonioOnShow = onShowPatrimonio;
   window.__DK_patrimonioProcessarArquivosPdf = processarArquivosPdf;
   window.__DK_patrimonioEhArquivoPdf = ehArquivoPdf;
+  window.__DK_patrimonioSalvarImagensDoc = patrimonioSalvarImagensDoc;
+  window.__DK_patrimonioLerImagensDoc = patrimonioLerImagensDoc;
   window.__DK_patrimonioReset = resetPatrimonioUi;
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
@@ -3318,5 +3516,6 @@ ${contador}
   });
 
   bindUi();
+  void patrimonioMigrarImagensDocParaIdb();
   renderLista();
 })();

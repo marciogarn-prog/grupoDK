@@ -113,14 +113,18 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603lote-200", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603lote-fix", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
       "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
         patJs.includes("PATRIMONIO_MAX_LOTE = 200") &&
         patJs.includes("patrimonioSalvarImagemFila") &&
+        patJs.includes("patrimonioSalvarImagensDoc") &&
+        patJs.includes("patrimonioLerImagensDoc") &&
         patJs.includes("patrimonioLerImagemFila") &&
+        patJs.includes("patrimonioPausarSyncCloud") &&
+        patJs.includes("patrimonioAutoReprocessarReprovadosLote") &&
         patJs.includes("reprocessarTodosReprovadosPatrimonio") &&
         patJs.includes("statusIa: \"fila\"") &&
         patJs.includes("placaDoNomeArquivo") &&
