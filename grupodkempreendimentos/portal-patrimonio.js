@@ -90,6 +90,7 @@
   let patrimonioLoteRecebidos = 0;
   let patrimonioLoteTotal = 0;
   let patrimonioLoteExcluidos = 0;
+  let patrimonioLoteCadastrados = 0;
   let patrimonioSyncCloudPausado = 0;
   let patrimonioConvertendoPdfs = false;
   let patrimonioModalHistorico = false;
@@ -305,16 +306,18 @@
 
   function formatTagPatrimonioFoto(d) {
     const dt = d instanceof Date ? d : new Date(d);
-    if (Number.isNaN(dt.getTime())) return "00000000-000000";
+    if (Number.isNaN(dt.getTime())) return "00000000-000000-000";
     const pad = (n) => String(n).padStart(2, "0");
-    return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}-${pad(dt.getHours())}${pad(dt.getMinutes())}${pad(dt.getSeconds())}`;
+    const pad3 = (n) => String(n).padStart(3, "0");
+    return `${dt.getFullYear()}${pad(dt.getMonth() + 1)}${pad(dt.getDate())}-${pad(dt.getHours())}${pad(dt.getMinutes())}${pad(dt.getSeconds())}-${pad3(dt.getMilliseconds())}`;
   }
 
   function formatTagPatrimonioFotoLegivel(tag) {
     const t = String(tag || "");
-    const m = t.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})$/);
+    const m = t.match(/^(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})(?:-(\d{1,3}))?$/);
     if (!m) return t;
-    return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+    const ms = m[7] ? `.${String(m[7]).padStart(3, "0")}` : "";
+    return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}:${m[6]}${ms}`;
   }
 
   function fotoCapturaMs(f) {
@@ -1016,12 +1019,27 @@
 
   async function excluirFotoCapturaAutomatico(id, motivo) {
     if (!id) return false;
+    await patrimonioApagarImagemFila(id);
+    if (!excluirFotoCapturaRegistro(id)) return false;
+    patrimonioLoteExcluidos++;
+    console.warn("[DK patrimônio] arquivo excluído após IA:", id, motivo || "");
+    return true;
+  }
+
+  async function excluirFotoCapturaAposSucesso(id) {
+    if (!id) return false;
+    await patrimonioApagarImagemFila(id);
+    return excluirFotoCapturaRegistro(id);
+  }
+
+  function excluirFotoCapturaRegistro(id) {
+    if (!id) return false;
     const store = loadStore();
     const rawFoto = findFotoCapturaRawById(id);
+    if (!store.fotosCapturas.some((f) => f.id === id)) return false;
     const tag =
       String(rawFoto?.tag || "").trim() ||
       String(store.fotosCapturas.find((f) => f.id === id)?.tag || "").trim();
-    await patrimonioApagarImagemFila(id);
     const exclusoes = persistirExclusoesPatrimonio(
       todasExclusoesPatrimonio(
         store.fotosCapturasExcluidas,
@@ -1036,9 +1054,89 @@
       ),
       fotosCapturasExcluidas: exclusoes,
     });
-    patrimonioLoteExcluidos++;
-    console.warn("[DK patrimônio] arquivo excluído após IA:", id, motivo || "");
     return true;
+  }
+
+  function patrimonioLimparArquivosEnviados(storeIn) {
+    const store = storeIn || loadStore();
+    const documentos = Array.isArray(store.documentos) ? store.documentos : [];
+    const placasDoc = new Set();
+    for (const d of documentos) {
+      const p = normPlaca(d.placa);
+      if (p) placasDoc.add(p);
+    }
+
+    let exclusoes = store.fotosCapturasExcluidas || [];
+    const agora = new Date().toISOString();
+    const fotos = sanitizeFotosCapturas(store.fotosCapturas || []);
+    const ordenadas = [...fotos].sort((a, b) => fotoCapturaMs(b) - fotoCapturaMs(a));
+    const manter = [];
+    const nomeVisto = new Set();
+    const tagVisto = new Set();
+
+    const marcarExclusao = (f) => {
+      exclusoes = mergeFotosCapturasExcluidas(
+        exclusoes,
+        exclusaoFotoCapturaEntry(f.id, f.tag) || [{ id: f.id, excluidoEm: agora }]
+      );
+    };
+
+    for (const f of ordenadas) {
+      const st = String(f.statusIa || "").toLowerCase();
+
+      if (st === "ok" || st === "falhou" || !fotoEstaPendenteIa(f)) {
+        marcarExclusao(f);
+        continue;
+      }
+
+      const placaHint = placaDoNomeArquivo(f.nomeArquivo);
+      const placaEfetiva = normPlaca(f.placa) || placaHint;
+      if (placaEfetiva && placasDoc.has(placaEfetiva)) {
+        marcarExclusao(f);
+        continue;
+      }
+
+      const nome = String(f.nomeArquivo || "").trim().toLowerCase();
+      if (nome) {
+        if (nomeVisto.has(nome)) {
+          marcarExclusao(f);
+          continue;
+        }
+        nomeVisto.add(nome);
+      }
+
+      if (tagVisto.has(f.tag)) {
+        marcarExclusao(f);
+        continue;
+      }
+      tagVisto.add(f.tag);
+
+      manter.push(f);
+    }
+
+    return {
+      documentos,
+      fotosCapturas: manter.sort((a, b) => fotoCapturaMs(b) - fotoCapturaMs(a)),
+      fotosCapturasExcluidas: persistirExclusoesPatrimonio(exclusoes),
+    };
+  }
+
+  async function patrimonioAplicarLimpezaArquivosEnviados() {
+    const store = loadStore();
+    const idsAntes = new Set((store.fotosCapturas || []).map((f) => f.id));
+    const limpo = patrimonioLimparArquivosEnviados(store);
+    const idsDepois = new Set(limpo.fotosCapturas.map((f) => f.id));
+    let removidos = 0;
+    for (const id of idsAntes) {
+      if (!idsDepois.has(id)) {
+        removidos++;
+        await patrimonioApagarImagemFila(id);
+      }
+    }
+    if (removidos > 0 || limpo.fotosCapturas.length !== store.fotosCapturas.length) {
+      saveStore(limpo);
+    }
+    return removidos;
   }
 
   async function tratarFalhaIaFotoCaptura(fotoId, msg) {
@@ -1162,21 +1260,25 @@
     await patrimonioDrenarLoteSemPendentes();
     const c = contagemFilaPatrimonio();
     const excl = patrimonioLoteExcluidos;
-    if (c.ok > 0 || excl > 0 || c.total > 0) {
-      const partes = [`${c.ok} cadastrado(s)`];
+    const cad = patrimonioLoteCadastrados;
+    const pendentes = getFotosCapturasEmProcessamento().length;
+    if (cad > 0 || excl > 0 || pendentes > 0 || c.total > 0) {
+      const partes = [];
+      if (cad > 0) partes.push(`${cad} cadastrado(s) neste lote`);
       if (excl > 0) partes.push(`${excl} excluído(s) após ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas`);
-      const restantes = c.fila + c.processando + c.falhou;
       setMsg(
-        restantes
-          ? `A processar… ${partes.join(" · ")} · ${restantes} em curso.`
-          : `Lote concluído: ${partes.join(" · ")}.`,
+        pendentes
+          ? `A processar… ${partes.join(" · ") || "em curso"} · ${pendentes} restante(s).`
+          : `Lote concluído${partes.length ? `: ${partes.join(" · ")}` : ""}.`,
         excl > 0,
-        excl === 0
+        excl === 0 && !pendentes
       );
     }
     renderFotosLista();
     renderLista();
     patrimonioRetomarSyncCloud();
+    await patrimonioAplicarLimpezaArquivosEnviados();
+    renderFotosLista();
   }
 
   async function processarFilaIaPatrimonioInterno() {
@@ -1192,7 +1294,7 @@
         const c = contagemFilaPatrimonio();
         const restantes = filaIaPatrimonio.length;
         setMsg(
-          `IA · tentativa até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${c.ok} OK · ${restantes} na fila…`,
+          `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila…`,
           false
         );
         atualizarProgressoLotePatrimonio(
@@ -1263,15 +1365,9 @@
         await tratarFalhaIaFotoCaptura(fotoId, r.erro || MSG_NITIDEZ);
         return;
       }
-      atualizarFotoCaptura(fotoId, {
-        statusIa: "ok",
-        docId: r.registro?.id || doc.id,
-        placa: campos.placa,
-        msgIa: "",
-        tentativasIa: 0,
-      });
-      removerFotosAntigasMesmaPlaca(campos.placa, fotoId);
-      await patrimonioApagarImagemFila(fotoId);
+      patrimonioLoteCadastrados++;
+      await excluirFotoCapturaAposSucesso(fotoId);
+      await patrimonioAplicarLimpezaArquivosEnviados();
       renderFotosLista();
       renderLista();
       setMsg(
@@ -1844,6 +1940,7 @@
     patrimonioLoteTotal = files.length;
     patrimonioLoteRecebidos = 0;
     patrimonioLoteExcluidos = 0;
+    patrimonioLoteCadastrados = 0;
     patrimonioConvertendoPdfs = true;
     patrimonioPausarSyncCloud();
     await patrimonioAtivarWakeLock();
@@ -3012,20 +3109,23 @@ REGRAS DE CONTEÚDO:
     renderFotosLista();
   }
 
+  function getFotosCapturasEmProcessamento() {
+    return getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+  }
+
   function renderFotosLista() {
-    const fotos = getFotosCapturas();
-    const okN = fotos.filter((f) => String(f.statusIa || "").toLowerCase() === "ok").length;
-    const processandoN = fotos.filter((f) => fotoEstaPendenteIa(f)).length;
+    const fotos = getFotosCapturasEmProcessamento();
+    const docsN = getDocumentos().length;
     if (fotosResumoEl) {
       fotosResumoEl.textContent = fotos.length
-        ? processandoN
-          ? `${fotos.length} arquivo(s) · ${okN} cadastrados · ${processandoN} a processar (até ${PATRIMONIO_IA_MAX_TENTATIVAS}× cada).`
-          : `${fotos.length} arquivo(s) · ${okN} cadastrados.`
-        : "Nenhum PDF enviado ainda.";
+        ? `${docsN} veículo(s) cadastrados · ${fotos.length} a processar (até ${PATRIMONIO_IA_MAX_TENTATIVAS}× cada).`
+        : docsN > 0
+          ? `${docsN} veículo(s) cadastrados. Nenhum arquivo em processamento.`
+          : "Nenhum PDF em processamento.";
     }
     if (!fotosListaEl) return;
     if (!fotos.length) {
-      fotosListaEl.innerHTML = '<p class="subtext">Sem PDFs enviados.</p>';
+      fotosListaEl.innerHTML = '<p class="subtext">Sem arquivos em processamento.</p>';
       return;
     }
     fotosListaEl.innerHTML = fotos
@@ -3107,25 +3207,8 @@ REGRAS DE CONTEÚDO:
 
   async function excluirFotoCaptura(id) {
     if (!id || !window.confirm("Excluir este arquivo enviado?")) return;
-    const store = loadStore();
-    const rawFoto = findFotoCapturaRawById(id);
-    const tag =
-      String(rawFoto?.tag || "").trim() ||
-      String(store.fotosCapturas.find((f) => f.id === id)?.tag || "").trim();
-    const exclusoes = persistirExclusoesPatrimonio(
-      todasExclusoesPatrimonio(
-        store.fotosCapturasExcluidas,
-        exclusaoFotoCapturaEntry(id, tag) || [{ id, excluidoEm: new Date().toISOString() }]
-      )
-    );
-    saveStore({
-      documentos: store.documentos,
-      fotosCapturas: aplicarExclusoesFotosCapturas(
-        store.fotosCapturas.filter((f) => f.id !== id),
-        exclusoes
-      ),
-      fotosCapturasExcluidas: exclusoes,
-    });
+    await patrimonioApagarImagemFila(id);
+    if (!excluirFotoCapturaRegistro(id)) return;
     fecharViewerFotoCaptura();
     renderFotosLista();
     setMsg("Arquivo excluído permanentemente.", false, true);
@@ -3565,7 +3648,18 @@ ${contador}
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
-    void reiniciarFilaPatrimonioAposAbrir();
+    void (async () => {
+      const removidos = await patrimonioAplicarLimpezaArquivosEnviados();
+      if (removidos > 0) {
+        setMsg(
+          `Lista limpa: ${removidos} registo(s) duplicado(s) ou já processado(s) removido(s).`,
+          false,
+          true
+        );
+      }
+      renderFotosLista();
+      await reiniciarFilaPatrimonioAposAbrir();
+    })();
     const store = loadStore();
     saveStore(store);
     void refreshOpenAIStatus();
@@ -3605,7 +3699,8 @@ ${contador}
   window.__DK_patrimonioProcessarArquivosPdf = processarArquivosPdf;
   window.__DK_patrimonioEhArquivoPdf = ehArquivoPdf;
   window.__DK_patrimonioSalvarImagensDoc = patrimonioSalvarImagensDoc;
-  window.__DK_patrimonioLerImagensDoc = patrimonioLerImagensDoc;
+  window.__DK_patrimonioLimparArquivosEnviados = patrimonioLimparArquivosEnviados;
+  window.__DK_patrimonioAplicarLimpezaArquivosEnviados = patrimonioAplicarLimpezaArquivosEnviados;
   window.__DK_patrimonioReset = resetPatrimonioUi;
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
@@ -3616,6 +3711,10 @@ ${contador}
   });
 
   bindUi();
-  void patrimonioMigrarImagensDocParaIdb();
-  renderLista();
+  void (async () => {
+    await patrimonioMigrarImagensDocParaIdb();
+    await patrimonioAplicarLimpezaArquivosEnviados();
+    renderLista();
+    renderFotosLista();
+  })();
 })();

@@ -113,7 +113,7 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603ia-5x", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603limpa", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -128,6 +128,9 @@ async function main() {
         patJs.includes("tratarFalhaIaFotoCaptura") &&
         patJs.includes("patrimonioDrenarLoteSemPendentes") &&
         patJs.includes("excluirFotoCapturaAutomatico") &&
+        patJs.includes("patrimonioLimparArquivosEnviados") &&
+        patJs.includes("excluirFotoCapturaAposSucesso") &&
+        patJs.includes("getFotosCapturasEmProcessamento") &&
         patJs.includes("reprocessarTodosReprovadosPatrimonio") &&
         patJs.includes("statusIa: \"fila\"") &&
         patJs.includes("placaDoNomeArquivo") &&
