@@ -400,13 +400,19 @@
     return [...map.values()].slice(-MAX_FOTOS_EXCLUIDAS);
   }
 
-  function exclusaoFotoCapturaEntry(id, tag) {
+  function exclusaoFotoCapturaEntry(id, tag, extra) {
     const idStr = String(id || "").trim();
     if (!idStr) return null;
     const tagStr = String(tag || "").trim();
+    const nomeArquivo = String(extra?.nomeArquivo || "").trim();
+    const placa = normPlaca(extra?.placa || placaDoNomeArquivo(nomeArquivo));
+    const motivo = String(extra?.motivo || "").trim();
     return {
       id: idStr,
       tag: tagStr || undefined,
+      nomeArquivo: nomeArquivo || undefined,
+      placa: placa || undefined,
+      motivo: motivo || undefined,
       excluidoEm: new Date().toISOString(),
     };
   }
@@ -522,24 +528,14 @@
     return onlyDigits(s).slice(0, 11);
   }
 
-  /** Chaves únicas: placa, RENAVAM, chassi ou motor repetido = mesmo veículo. */
+  /** Identidade = só placa Mercosul (cada PDF = um veículo; mesmo PDF/placa substitui). */
   function chavesIdentidadePatrimonio(d) {
-    const keys = [];
     const placa = resolverPlacaMercosul(d.placaNorm || d.placa);
-    if (placa) keys.push(`placa:${placa}`);
-    const renavam = normRenavam(d.codigoRenavam);
-    if (renavam.length === 11) keys.push(`renavam:${renavam}`);
-    const chassi = normChassi(d.chassi);
-    if (chassi.length === 17) keys.push(`chassi:${chassi}`);
-    const motor = normMotor(d.motor);
-    if (motor.length >= 8) keys.push(`motor:${motor}`);
-    return keys;
+    return placa ? [`placa:${placa}`] : [];
   }
 
   function docMesmaIdentidade(a, b) {
-    const ka = chavesIdentidadePatrimonio(a);
-    const kb = new Set(chavesIdentidadePatrimonio(b));
-    return ka.some((k) => kb.has(k));
+    return documentoMesmaPlaca(a, b);
   }
 
   /** Mesma placa Mercosul = mesmo veículo (regra de substituição ao anexar novo PDF). */
@@ -587,7 +583,7 @@
     );
   }
 
-  /** Placa / RENAVAM / chassi / motor iguais = um veículo (foto mais recente prevalece). */
+  /** Uma entrada por placa — registo mais recente prevalece. */
   function deduplicarDocumentos(documentos) {
     const list = (documentos || [])
       .map(sanitizarDocumentoPatrimonio)
@@ -1083,8 +1079,7 @@
 
   async function excluirFotoCapturaAutomatico(id, motivo) {
     if (!id) return false;
-    await patrimonioApagarImagemFila(id);
-    if (!excluirFotoCapturaRegistro(id)) return false;
+    if (!excluirFotoCapturaRegistro(id, { motivo: String(motivo || "") })) return false;
     patrimonioLoteExcluidos++;
     console.warn("[DK patrimônio] arquivo excluído após IA:", id, motivo || "");
     return true;
@@ -1096,29 +1091,139 @@
     return excluirFotoCapturaRegistro(id);
   }
 
-  function excluirFotoCapturaRegistro(id) {
+  function excluirFotoCapturaRegistro(id, opts) {
     if (!id) return false;
     const store = loadStore();
     const rawFoto = findFotoCapturaRawById(id);
-    if (!store.fotosCapturas.some((f) => f.id === id)) return false;
+    const filaFoto = store.fotosCapturas.find((f) => f.id === id);
+    if (!filaFoto && !rawFoto) return false;
     const tag =
-      String(rawFoto?.tag || "").trim() ||
-      String(store.fotosCapturas.find((f) => f.id === id)?.tag || "").trim();
+      String(rawFoto?.tag || "").trim() || String(filaFoto?.tag || "").trim();
+    const nomeArquivo = String(rawFoto?.nomeArquivo || filaFoto?.nomeArquivo || "").trim();
+    const placa = normPlaca(rawFoto?.placa || filaFoto?.placa || placaDoNomeArquivo(nomeArquivo));
     const exclusoes = persistirExclusoesPatrimonio(
       todasExclusoesPatrimonio(
         store.fotosCapturasExcluidas,
-        exclusaoFotoCapturaEntry(id, tag) || [{ id, excluidoEm: new Date().toISOString() }]
+        exclusaoFotoCapturaEntry(id, tag, {
+          nomeArquivo,
+          placa,
+          motivo: opts?.motivo,
+        }) || [{ id, excluidoEm: new Date().toISOString() }]
       )
     );
+    const fotosFiltradas = filaFoto
+      ? store.fotosCapturas.filter((f) => f.id !== id)
+      : store.fotosCapturas;
     saveStore({
       documentos: store.documentos,
-      fotosCapturas: aplicarExclusoesFotosCapturas(
-        store.fotosCapturas.filter((f) => f.id !== id),
-        exclusoes
-      ),
+      fotosCapturas: aplicarExclusoesFotosCapturas(fotosFiltradas, exclusoes),
       fotosCapturasExcluidas: exclusoes,
     });
     return true;
+  }
+
+  function lerDocumentosBrutosLocalStorage() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+      if (Array.isArray(raw.documentos)) return raw.documentos.filter(Boolean);
+      if (Array.isArray(raw)) return raw.filter(Boolean);
+    } catch {
+      /* ignore */
+    }
+    return [];
+  }
+
+  /** Repõe veículos fundidos indevidamente (dedup antigo por RENAVAM/chassi/motor). */
+  function patrimonioRecuperarDocumentosDedupPlaca() {
+    const brutos = lerDocumentosBrutosLocalStorage()
+      .map(sanitizarDocumentoPatrimonio)
+      .filter(Boolean);
+    if (!brutos.length) return { antes: 0, depois: 0, recuperados: 0 };
+    const antes = getDocumentos().length;
+    const depoisLista = deduplicarDocumentos(corrigirProprietariosDocumentos(brutos));
+    const depois = depoisLista.length;
+    if (depois > antes) {
+      saveStore({ documentos: depoisLista });
+    }
+    return { antes, depois, recuperados: Math.max(0, depois - antes) };
+  }
+
+  /** Reenfileira PDFs excluídos cuja imagem ainda está no IndexedDB e placa não cadastrada. */
+  async function patrimonioRecuperarFalhasComImagemIdb() {
+    let rawStore;
+    try {
+      rawStore = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch {
+      return 0;
+    }
+    const exclusoes = todasExclusoesPatrimonio(rawStore.fotosCapturasExcluidas);
+    const placasDoc = new Set(getDocumentos().map((d) => normPlaca(d.placa)).filter(Boolean));
+    const idsFila = new Set((rawStore.fotosCapturas || []).map((f) => f.id));
+    let recuperados = 0;
+    const novasFotos = Array.isArray(rawStore.fotosCapturas) ? [...rawStore.fotosCapturas] : [];
+    const idsRecuperar = new Set();
+
+    for (const ex of exclusoes) {
+      const id = String(ex?.id || "").trim();
+      if (!id || idsFila.has(id) || idsRecuperar.has(id)) continue;
+      const placaHint = normPlaca(ex.placa || placaDoNomeArquivo(ex.nomeArquivo));
+      if (placaHint && placasDoc.has(placaHint)) continue;
+      const temImg = await patrimonioFilaTemImagem(id);
+      if (!temImg) continue;
+      const agora = new Date().toISOString();
+      novasFotos.unshift(
+        sanitizeFotoCaptura({
+          id,
+          tag: String(ex.tag || formatTagPatrimonioFoto(new Date())).trim(),
+          tipo: "pdf",
+          nomeArquivo: String(ex.nomeArquivo || "").slice(0, 120),
+          registradoEm: agora,
+          imagem: "",
+          imagemIndisponivel: true,
+          statusIa: "fila",
+          docId: "",
+          placa: placaHint || "",
+          msgIa: "Recuperação automática — nova leitura IA.",
+          tentativasIa: 0,
+          atualizadoEm: agora,
+        })
+      );
+      idsRecuperar.add(id);
+      recuperados++;
+    }
+
+    if (!recuperados) return 0;
+
+    const exclusoesNovas = exclusoes.filter((e) => !idsRecuperar.has(String(e?.id || "").trim()));
+    saveStore({
+      documentos: getDocumentos(),
+      fotosCapturas: novasFotos.slice(0, PATRIMONIO_MAX_ARQUIVOS),
+      fotosCapturasExcluidas: persistirExclusoesPatrimonio(exclusoesNovas),
+    });
+    for (const id of idsRecuperar) {
+      enfileirarIaPatrimonio(id, []);
+    }
+    void processarFilaIaPatrimonio();
+    return recuperados;
+  }
+
+  async function patrimonioAuditarErecuperarCadastros() {
+    const dedup = patrimonioRecuperarDocumentosDedupPlaca();
+    const idb = await patrimonioRecuperarFalhasComImagemIdb();
+    renderLista();
+    renderFotosLista();
+    const total = getDocumentos().length;
+    const partes = [`${total} veículo(s) no relatório`];
+    if (dedup.recuperados > 0) {
+      partes.push(`${dedup.recuperados} restaurado(s) após corrigir contagem (era ${dedup.antes})`);
+    }
+    if (idb > 0) {
+      partes.push(`${idb} PDF(s) na fila para nova leitura`);
+    }
+    if (dedup.recuperados > 0 || idb > 0) {
+      setMsg(partes.join(" · ") + ". Mantenha a página aberta.", false, true);
+    }
+    return { total, dedup, idb };
   }
 
   function tagBasePatrimonio(tag) {
@@ -3108,9 +3213,16 @@ REGRAS OBRIGATÓRIAS:
   }
 
   async function reprocessarTodosReprovadosPatrimonio() {
+    patrimonioPausarSyncCloud();
+    const audit = await patrimonioAuditarErecuperarCadastros();
     const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
     if (!fotos.length) {
-      setMsg("Nenhum arquivo pendente para reprocessar.", true);
+      if (audit.idb > 0 || audit.dedup.recuperados > 0) return;
+      setMsg(
+        `Relatório com ${audit.total} veículo(s). Se faltam PDFs, envie de novo os ficheiros em falta (mesma placa substitui).`,
+        false,
+        audit.total >= 160
+      );
       return;
     }
     let n = 0;
@@ -4197,6 +4309,7 @@ ${contador}
     bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
     void (async () => {
+      await patrimonioAuditarErecuperarCadastros();
       const removidos = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
       renderFotosLista();
       renderLista();
@@ -4262,7 +4375,16 @@ ${contador}
   bindUi();
   void (async () => {
     patrimonioRepararProprietariosDocumentos();
+    patrimonioRecuperarDocumentosDedupPlaca();
     await patrimonioMigrarImagensDocParaIdb();
+    const idb = await patrimonioRecuperarFalhasComImagemIdb();
+    if (idb > 0) {
+      setMsg(
+        `${idb} PDF(s) em falha recuperado(s) para nova leitura. Mantenha a página aberta.`,
+        false,
+        true
+      );
+    }
     await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
     renderLista();
     renderFotosLista();

@@ -152,7 +152,10 @@ async function main() {
     );
     record(
       "patrimônio IA CRLV (campos críticos + mapa tarja)",
-      patJs.includes("lerCrlvComRetry") &&
+        patJs.includes("deduplicarDocumentos") &&
+        patJs.includes("patrimonioRecuperarFalhasComImagemIdb") &&
+        patJs.includes("patrimonioRecuperarDocumentosDedupPlaca") &&
+        patJs.includes("lerCrlvComRetry") &&
         patJs.includes("lerProprietarioCrlvComRetry") &&
         patJs.includes("prepararImagemParaIaCrlv") &&
         patJs.includes("CAMPOS_CRITICOS") &&

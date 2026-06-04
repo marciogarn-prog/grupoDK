@@ -1117,16 +1117,8 @@
   }
 
   function chavesIdentidadePatrimonioSync(d) {
-    const keys = [];
     const placa = normPatrimonioPlaca(d.placaNorm || d.placa);
-    if (placa) keys.push(`placa:${placa}`);
-    const renavam = normPatrimonioRenavam(d.codigoRenavam);
-    if (renavam.length === 11) keys.push(`renavam:${renavam}`);
-    const chassi = normPatrimonioChassi(d.chassi);
-    if (chassi.length === 17) keys.push(`chassi:${chassi}`);
-    const motor = normPatrimonioMotor(d.motor);
-    if (motor.length >= 8) keys.push(`motor:${motor}`);
-    return keys;
+    return placa ? [`placa:${placa}`] : [];
   }
 
   function deduplicarPatrimonioUnionFind(documentos, pickWinner) {
@@ -1211,7 +1203,7 @@
     return out;
   }
 
-  /** Placa, RENAVAM, chassi ou motor iguais = um documento — prevalece o envio mais recente. */
+  /** Uma entrada por placa Mercosul — prevalece o envio mais recente. */
   function mergePatrimonioCrlv(localRaw, cloudRaw, cloudExclusoesStandalone) {
     const cloudDocs = parsePatrimonioStore(cloudRaw).documentos.map((d) => ({ ...d, _dkSyncLocal: false }));
     const localDocs = parsePatrimonioStore(localRaw).documentos.map((d) => ({ ...d, _dkSyncLocal: true }));
