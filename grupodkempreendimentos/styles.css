@@ -3746,6 +3746,18 @@ table.validados-app .lnk-comprovante {
   margin: 0.15rem 0;
 }
 
+.patrimonio-btn-lixo {
+  border-color: rgba(220, 80, 60, 0.55);
+}
+
+.patrimonio-acoes-principais {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
 .patrimonio-relatorio-export {
   display: flex;
   flex-wrap: wrap;

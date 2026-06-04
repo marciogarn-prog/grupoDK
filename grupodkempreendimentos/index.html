@@ -1543,7 +1543,9 @@
         <div class="patrimonio-acoes-principais">
           <label for="patrimonioPdfInput" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs</label>
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnReprocessarReprovados">Reprocessar pendentes</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnRevisarFalhados">Revisar todos os falhados</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnLimparFila">Limpar fila</button>
+          <button type="button" class="btn-primary btn-secondary-outline patrimonio-btn-lixo" id="patrimonioBtnExcluirLixo">Excluir lixo (fora do relatório)</button>
           <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
         </div>
         <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
@@ -1874,7 +1876,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
-  <script src="portal-patrimonio.js?v=20260604relatorio-auditoria" defer></script>
+  <script src="portal-patrimonio.js?v=20260604botoes-lixo" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260604dedup-placa" defer></script>

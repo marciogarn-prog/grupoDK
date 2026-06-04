@@ -1150,8 +1150,10 @@
     return { antes, depois, recuperados: Math.max(0, depois - antes) };
   }
 
-  /** Reenfileira PDFs excluídos cuja imagem ainda está no IndexedDB e placa não cadastrada. */
-  async function patrimonioRecuperarFalhasComImagemIdb() {
+  /** Reenfileira PDFs excluídos cuja imagem ainda está no IndexedDB. */
+  async function patrimonioRecuperarFalhasComImagemIdb(opts) {
+    const apenasForaRelatorio = opts?.apenasForaRelatorio !== false;
+    const iniciarFila = opts?.iniciarFila !== false;
     let rawStore;
     try {
       rawStore = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
@@ -1162,6 +1164,7 @@
     const placasDoc = new Set(getDocumentos().map((d) => normPlaca(d.placa)).filter(Boolean));
     const idsFila = new Set((rawStore.fotosCapturas || []).map((f) => f.id));
     let recuperados = 0;
+    let semImagem = 0;
     const novasFotos = Array.isArray(rawStore.fotosCapturas) ? [...rawStore.fotosCapturas] : [];
     const idsRecuperar = new Set();
 
@@ -1169,9 +1172,12 @@
       const id = String(ex?.id || "").trim();
       if (!id || idsFila.has(id) || idsRecuperar.has(id)) continue;
       const placaHint = normPlaca(ex.placa || placaDoNomeArquivo(ex.nomeArquivo));
-      if (placaHint && placasDoc.has(placaHint)) continue;
+      if (apenasForaRelatorio && placaHint && placasDoc.has(placaHint)) continue;
       const temImg = await patrimonioFilaTemImagem(id);
-      if (!temImg) continue;
+      if (!temImg) {
+        semImagem++;
+        continue;
+      }
       const agora = new Date().toISOString();
       novasFotos.unshift(
         sanitizeFotoCaptura({
@@ -1185,7 +1191,7 @@
           statusIa: "fila",
           docId: "",
           placa: placaHint || "",
-          msgIa: "Recuperação automática — nova leitura IA.",
+          msgIa: opts?.msgIa || "Recuperação automática — nova leitura IA.",
           tentativasIa: 0,
           atualizadoEm: agora,
         })
@@ -1205,8 +1211,156 @@
     for (const id of idsRecuperar) {
       enfileirarIaPatrimonio(id, []);
     }
-    void processarFilaIaPatrimonio();
+    if (iniciarFila) void processarFilaIaPatrimonio();
     return recuperados;
+  }
+
+  async function patrimonioContarFalhadosRecuperaveis() {
+    let rawStore;
+    try {
+      rawStore = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch {
+      return { exclusoes: 0, comImagem: 0, semImagem: 0, naFila: 0 };
+    }
+    const exclusoes = todasExclusoesPatrimonio(rawStore.fotosCapturasExcluidas);
+    const placasDoc = new Set(getDocumentos().map((d) => normPlaca(d.placa)).filter(Boolean));
+    const idsFila = new Set((rawStore.fotosCapturas || []).map((f) => f.id));
+    let comImagem = 0;
+    let semImagem = 0;
+    for (const ex of exclusoes) {
+      const id = String(ex?.id || "").trim();
+      if (!id || idsFila.has(id)) continue;
+      const placaHint = normPlaca(ex.placa || placaDoNomeArquivo(ex.nomeArquivo));
+      if (placaHint && placasDoc.has(placaHint)) continue;
+      if (await patrimonioFilaTemImagem(id)) comImagem++;
+      else semImagem++;
+    }
+    const naFila = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f)).length;
+    return {
+      exclusoes: exclusoes.length,
+      comImagem,
+      semImagem,
+      naFila,
+    };
+  }
+
+  async function patrimonioRevisarTodosArquivosFalhadosManual() {
+    const stats = await patrimonioContarFalhadosRecuperaveis();
+    const veiculos = getDocumentos().length;
+    if (!stats.comImagem && !stats.naFila) {
+      setMsg(
+        stats.semImagem > 0
+          ? `${stats.semImagem} falha(s) sem imagem guardada — reenvie os PDFs. Relatório: ${veiculos} veículo(s).`
+          : `Nenhum PDF falhado com imagem para revisar. Relatório: ${veiculos} veículo(s).`,
+        stats.semImagem > 0,
+        stats.semImagem === 0
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        `Revisar com IA os PDFs que falharam e ainda não estão no relatório?\n\n` +
+          `· ${stats.comImagem} na lista de excluídos (com imagem)\n` +
+          `· ${stats.naFila} já na fila\n` +
+          `· ${veiculos} veículo(s) no relatório mantêm-se (mesma placa substitui após nova leitura)\n\n` +
+          `Mantenha a página aberta até terminar.`
+      )
+    ) {
+      return;
+    }
+    patrimonioPausarSyncCloud();
+    filaIaPatrimonio.length = 0;
+    const nExcl = await patrimonioRecuperarFalhasComImagemIdb({
+      msgIa: "Revisão em massa — nova leitura IA.",
+      iniciarFila: false,
+    });
+    let nFila = 0;
+    const placasDoc = new Set(getDocumentos().map((d) => normPlaca(d.placa)).filter(Boolean));
+    for (const f of getFotosCapturas()) {
+      const placa = normPlaca(f.placa || placaDoNomeArquivo(f.nomeArquivo));
+      if (placa && placasDoc.has(placa)) continue;
+      if (!(await patrimonioFilaTemImagem(f.id))) continue;
+      atualizarFotoCaptura(f.id, {
+        statusIa: "fila",
+        tentativasIa: 0,
+        msgIa: "Revisão em massa — nova leitura IA.",
+      });
+      enfileirarIaPatrimonio(f.id, []);
+      nFila++;
+    }
+    renderFotosLista();
+    const total = nExcl + nFila;
+    if (total > 0) {
+      setMsg(
+        `${total} PDF(s) na fila da IA (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). Mantenha a página aberta.`,
+        false,
+        true
+      );
+      void finalizarLotePatrimonioAposUpload();
+    } else {
+      setMsg("Nenhum PDF recuperado para revisão.", true);
+      patrimonioRetomarSyncCloud();
+    }
+  }
+
+  async function patrimonioExcluirLixoForaRelatorioManual() {
+    let rawStore;
+    try {
+      rawStore = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch {
+      rawStore = {};
+    }
+    const documentos = getDocumentos();
+    const fotos = sanitizeFotosCapturas(rawStore.fotosCapturas || []);
+    const exclusoes = todasExclusoesPatrimonio(rawStore.fotosCapturasExcluidas);
+    const totalLixo = fotos.length + exclusoes.length;
+    if (!totalLixo) {
+      setMsg(`Nada a limpar. Relatório: ${documentos.length} veículo(s).`, false, true);
+      return;
+    }
+    if (
+      !window.confirm(
+        `Excluir definitivamente ${totalLixo} registo(s) que NÃO fazem parte do relatório?\n\n` +
+          `· Remove fila «Arquivos enviados» e histórico de falhas\n` +
+          `· Apaga imagens/PDF guardados no navegador desses envios\n` +
+          `· Mantém os ${documentos.length} veículo(s) já cadastrados no relatório\n\n` +
+          `Esta ação não pode ser desfeita.`
+      )
+    ) {
+      return;
+    }
+    filaIaPatrimonio.length = 0;
+    iaPatrimonioRodando = false;
+    const idsApagar = new Set();
+    for (const f of fotos) {
+      if (f?.id) idsApagar.add(f.id);
+    }
+    for (const e of exclusoes) {
+      if (e?.id) idsApagar.add(e.id);
+    }
+    for (const id of idsApagar) {
+      await patrimonioApagarImagemFila(id);
+    }
+    patrimonioImagensFila.clear();
+    saveStore({
+      documentos,
+      fotosCapturas: [],
+      fotosCapturasExcluidas: persistirExclusoesPatrimonio([]),
+    });
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      try {
+        await window.__DK_pushCloudSnapshotNow();
+      } catch {
+        /* ignore */
+      }
+    }
+    renderLista();
+    renderFotosLista();
+    setMsg(
+      `${totalLixo} arquivo(s) removido(s). Relatório: ${documentos.length} veículo(s). Lista de enviados limpa.`,
+      false,
+      true
+    );
   }
 
   async function patrimonioAuditarErecuperarCadastros() {
@@ -1262,7 +1416,10 @@
     const marcarExclusao = (f) => {
       exclusoes = mergeFotosCapturasExcluidas(
         exclusoes,
-        exclusaoFotoCapturaEntry(f.id, f.tag) || [{ id: f.id, excluidoEm: agora }]
+        exclusaoFotoCapturaEntry(f.id, f.tag, {
+          nomeArquivo: f.nomeArquivo,
+          placa: f.placa,
+        }) || [{ id: f.id, excluidoEm: agora }]
       );
     };
 
@@ -4328,8 +4485,14 @@ ${contador}
     document.getElementById("patrimonioBtnReprocessarReprovados")?.addEventListener("click", () => {
       void reprocessarTodosReprovadosPatrimonio();
     });
+    document.getElementById("patrimonioBtnRevisarFalhados")?.addEventListener("click", () => {
+      void patrimonioRevisarTodosArquivosFalhadosManual();
+    });
     document.getElementById("patrimonioBtnLimparFila")?.addEventListener("click", () => {
       void patrimonioZerarFilaEnviadosManual();
+    });
+    document.getElementById("patrimonioBtnExcluirLixo")?.addEventListener("click", () => {
+      void patrimonioExcluirLixoForaRelatorioManual();
     });
 
     document.getElementById("patrimonioImagemFecharBtn")?.addEventListener("click", fecharViewerImagem);
@@ -4498,6 +4661,8 @@ ${contador}
   window.__DK_patrimonioLimparArquivosEnviados = patrimonioLimparArquivosEnviados;
   window.__DK_patrimonioAplicarLimpezaArquivosEnviados = patrimonioAplicarLimpezaArquivosEnviados;
   window.__DK_patrimonioZerarFilaEnviados = patrimonioZerarFilaEnviadosManual;
+  window.__DK_patrimonioRevisarFalhados = patrimonioRevisarTodosArquivosFalhadosManual;
+  window.__DK_patrimonioExcluirLixo = patrimonioExcluirLixoForaRelatorioManual;
   window.__DK_patrimonioReset = resetPatrimonioUi;
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;

@@ -82,6 +82,8 @@ async function main() {
         html.includes('for="patrimonioPdfInput"') &&
         html.includes("Mesma placa") &&
         html.includes("patrimonioBtnLimparFila") &&
+        html.includes("patrimonioBtnRevisarFalhados") &&
+        html.includes("patrimonioBtnExcluirLixo") &&
         html.includes("patrimonioBtnReprocessarReprovados") &&
         html.includes("patrimonioPdfInput") &&
         html.includes('accept="application/pdf') &&
@@ -130,6 +132,8 @@ async function main() {
         patJs.includes("patrimonioDrenarLoteSemPendentes") &&
         patJs.includes("excluirFotoCapturaAutomatico") &&
         patJs.includes("patrimonioZerarFilaEnviadosManual") &&
+        patJs.includes("patrimonioRevisarTodosArquivosFalhadosManual") &&
+        patJs.includes("patrimonioExcluirLixoForaRelatorioManual") &&
         patJs.includes("tagBasePatrimonio") &&
         patJs.includes("expurgarTudo") &&
         patJs.includes("excluirFotoCapturaAposSucesso") &&
