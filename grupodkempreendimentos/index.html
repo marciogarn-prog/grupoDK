@@ -1651,17 +1651,22 @@
 
   <div id="patrimonioRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="patrimonioRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-pat-relatorio></div>
-    <div class="portal-modal__card portal-modal__card--wide">
-      <h3 id="patrimonioRelatorioTitulo" class="portal-modal__title">Relatório de patrimônio — CRLV</h3>
+    <div class="portal-modal__card portal-modal__card--wide portal-modal__card--patrimonio-relatorio">
+      <div class="patrimonio-relatorio-modal-top">
+        <h3 id="patrimonioRelatorioTitulo" class="portal-modal__title">Relatório de patrimônio — CRLV</h3>
+        <button type="button" class="btn-primary btn-secondary-outline patrimonio-relatorio-fechar-topo" data-close-pat-relatorio>Fechar</button>
+      </div>
       <p class="subtext portal-modal__text">Campos na ordem oficial do CRLV-e. Exporte ou clique em «Ver imagem» por placa.</p>
-      <div id="patrimonioRelatorioContador" class="patrimonio-relatorio-contador" aria-live="polite"></div>
       <div class="patrimonio-relatorio-export">
         <button type="button" class="btn-primary" id="patrimonioRelatorioPdfBtn">Gerar PDF</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioExcelBtn">Gerar Excel</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioAtualizarBtn">Atualizar</button>
       </div>
-      <div id="patrimonioRelatorioConteudo" class="patrimonio-relatorio-conteudo" aria-live="polite"></div>
-      <div class="portal-modal__actions">
+      <div class="patrimonio-relatorio-modal-scroll">
+        <div id="patrimonioRelatorioContador" class="patrimonio-relatorio-contador" aria-live="polite"></div>
+        <div id="patrimonioRelatorioConteudo" class="patrimonio-relatorio-conteudo" aria-live="polite"></div>
+      </div>
+      <div class="portal-modal__actions patrimonio-relatorio-modal-footer">
         <button type="button" class="btn-primary btn-secondary-outline" data-close-pat-relatorio>Fechar</button>
       </div>
     </div>
@@ -1876,7 +1881,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
-  <script src="portal-patrimonio.js?v=20260604botoes-lixo" defer></script>
+  <script src="portal-patrimonio.js?v=20260604relatorio-scroll" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260522lanc-aluguel-menu" defer></script>
   <script src="portal-supabase-sync.js?v=20260604dedup-placa" defer></script>

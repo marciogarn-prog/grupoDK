@@ -3693,6 +3693,70 @@ table.validados-app .lnk-comprovante {
 
 #patrimonioRelatorioModal.portal-modal {
   z-index: 13050;
+  align-items: center;
+  padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right))
+    max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
+}
+
+#patrimonioRelatorioModal .portal-modal__card--patrimonio-relatorio {
+  max-width: min(96vw, 52rem);
+  width: 100%;
+  max-height: min(92vh, 56rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+}
+
+.patrimonio-relatorio-modal-top {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 1rem 1.15rem 0.5rem;
+}
+
+.patrimonio-relatorio-modal-top .portal-modal__title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 10rem;
+}
+
+.patrimonio-relatorio-fechar-topo {
+  flex-shrink: 0;
+}
+
+#patrimonioRelatorioModal .portal-modal__text {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 1.15rem 0.5rem;
+}
+
+#patrimonioRelatorioModal .patrimonio-relatorio-export {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0 1.15rem 0.65rem;
+}
+
+.patrimonio-relatorio-modal-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 1.15rem 0.75rem;
+}
+
+#patrimonioRelatorioModal .patrimonio-relatorio-modal-footer {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.75rem 1.15rem 1rem;
+  border-top: 1px solid rgba(201, 162, 39, 0.28);
+  background: var(--bg-elevated);
+  box-shadow: 0 -8px 20px rgba(0, 0, 0, 0.22);
 }
 
 .patrimonio-relatorio-contador {
@@ -3740,6 +3804,10 @@ table.validados-app .lnk-comprovante {
   padding-left: 1.2rem;
   font-size: 0.9rem;
   line-height: 1.5;
+  max-height: min(28vh, 14rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .patrimonio-relatorio-contador__lista li {
@@ -3757,9 +3825,10 @@ table.validados-app .lnk-comprovante {
   margin-bottom: 1rem;
 }
 
-.patrimonio-relatorio-conteudo {
-  max-height: min(60vh, 520px);
-  overflow: auto;
+#patrimonioRelatorioModal .patrimonio-relatorio-conteudo {
+  max-height: none;
+  overflow: visible;
+  margin-top: 0.75rem;
 }
 
 .patrimonio-relatorio-table {
