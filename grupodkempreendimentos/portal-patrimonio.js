@@ -83,14 +83,15 @@
   const patrimonioImagensFila = new Map();
   const PATRIMONIO_IA_INTERVALO_MS = 1100;
   const PATRIMONIO_IA_TIMEOUT_MS = 420000;
+  const PATRIMONIO_IA_MAX_TENTATIVAS = 5;
   const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 28000;
   const PATRIMONIO_IDB_IMAGEM_MAX_B64 = 240000;
   let patrimonioWakeLock = null;
   let patrimonioLoteRecebidos = 0;
   let patrimonioLoteTotal = 0;
+  let patrimonioLoteExcluidos = 0;
   let patrimonioSyncCloudPausado = 0;
   let patrimonioConvertendoPdfs = false;
-  let patrimonioAutoReprocessouLote = false;
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
@@ -347,6 +348,7 @@
       docId: String(f.docId || "").trim(),
       placa: String(f.placa || "").trim(),
       msgIa: String(f.msgIa || "").trim(),
+      tentativasIa: Math.max(0, Math.min(PATRIMONIO_IA_MAX_TENTATIVAS, Number(f.tentativasIa) || 0)),
       atualizadoEm: String(f.atualizadoEm || f.registradoEm || ""),
     };
   }
@@ -436,7 +438,12 @@
     }
     if (st === "falhou") return f.msgIa ? `Reprovado · ${f.msgIa}` : "Reprovado pela IA";
     if (st === "processando") return "IA a processar…";
-    if (st === "fila") return "Na fila da IA…";
+    if (st === "fila") {
+      const t = tentativasIaFoto(f);
+      return t > 0
+        ? `Na fila · tentativa ${t + 1}/${PATRIMONIO_IA_MAX_TENTATIVAS}`
+        : "Na fila da IA…";
+    }
     return "Aguardando IA";
   }
 
@@ -950,20 +957,16 @@
       if (st === "fila" || st === "pendente") continue;
       if (st !== "processando") continue;
       const elapsed = agora - fotoCapturaMs(f);
-      if (elapsed < PATRIMONIO_IA_TIMEOUT_MS) {
-        if (elapsed > 120000) {
-          f.statusIa = "fila";
-          f.msgIa = "";
-          f.atualizadoEm = new Date().toISOString();
-          alterou = true;
-        }
+      if (elapsed >= PATRIMONIO_IA_TIMEOUT_MS) {
+        void tratarFalhaIaFotoCaptura(f.id, "Tempo esgotado na IA.");
         continue;
       }
-      f.statusIa = "falhou";
-      f.msgIa = "Tempo esgotado na IA — use Revisar IA ou Reprocessar reprovados.";
-      f.atualizadoEm = new Date().toISOString();
-      void patrimonioApagarImagemFila(f.id);
-      alterou = true;
+      if (elapsed > 120000) {
+        f.statusIa = "fila";
+        f.msgIa = "";
+        f.atualizadoEm = new Date().toISOString();
+        alterou = true;
+      }
     }
     if (alterou) saveStore(store);
   }
@@ -999,6 +1002,68 @@
     return [];
   }
 
+  function fotoEstaPendenteIa(f) {
+    const st = String(f?.statusIa || "").toLowerCase();
+    return st === "fila" || st === "processando" || st === "pendente" || st === "falhou";
+  }
+
+  function tentativasIaFoto(f) {
+    const n = Number(f?.tentativasIa);
+    if (Number.isFinite(n) && n > 0) return Math.min(PATRIMONIO_IA_MAX_TENTATIVAS, n);
+    const st = String(f?.statusIa || "").toLowerCase();
+    return st === "falhou" ? 1 : 0;
+  }
+
+  async function excluirFotoCapturaAutomatico(id, motivo) {
+    if (!id) return false;
+    const store = loadStore();
+    const rawFoto = findFotoCapturaRawById(id);
+    const tag =
+      String(rawFoto?.tag || "").trim() ||
+      String(store.fotosCapturas.find((f) => f.id === id)?.tag || "").trim();
+    await patrimonioApagarImagemFila(id);
+    const exclusoes = persistirExclusoesPatrimonio(
+      todasExclusoesPatrimonio(
+        store.fotosCapturasExcluidas,
+        exclusaoFotoCapturaEntry(id, tag) || [{ id, excluidoEm: new Date().toISOString() }]
+      )
+    );
+    saveStore({
+      documentos: store.documentos,
+      fotosCapturas: aplicarExclusoesFotosCapturas(
+        store.fotosCapturas.filter((f) => f.id !== id),
+        exclusoes
+      ),
+      fotosCapturasExcluidas: exclusoes,
+    });
+    patrimonioLoteExcluidos++;
+    console.warn("[DK patrimônio] arquivo excluído após IA:", id, motivo || "");
+    return true;
+  }
+
+  async function tratarFalhaIaFotoCaptura(fotoId, msg) {
+    const foto = getFotoCapturaById(fotoId);
+    if (!foto) return "excluido";
+    const tent = tentativasIaFoto(foto) + 1;
+    const detalhe = String(msg || MSG_IA_FALHOU).slice(0, 160);
+    if (tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
+      await excluirFotoCapturaAutomatico(
+        fotoId,
+        `${detalhe} (esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas)`
+      );
+      renderFotosLista();
+      return "excluido";
+    }
+    atualizarFotoCaptura(fotoId, {
+      statusIa: "fila",
+      tentativasIa: tent,
+      msgIa: `Tentativa ${tent}/${PATRIMONIO_IA_MAX_TENTATIVAS} — ${detalhe}`,
+    });
+    enfileirarIaPatrimonio(fotoId, []);
+    renderFotosLista();
+    return "reenfileirado";
+  }
+
   function contagemFilaPatrimonio() {
     const fotos = getFotosCapturas();
     let fila = 0;
@@ -1016,17 +1081,60 @@
   }
 
   async function reiniciarFilaPatrimonioAposAbrir() {
-    const fotos = getFotosCapturas().filter((f) => {
-      const st = String(f.statusIa || "").toLowerCase();
-      return st === "fila" || st === "processando";
-    });
+    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+    if (!fotos.length) return;
+    patrimonioPausarSyncCloud();
     for (const f of fotos) {
       if (String(f.statusIa || "").toLowerCase() === "processando") {
-        atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
+        atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
       }
       if (await patrimonioFilaTemImagem(f.id)) {
         enfileirarIaPatrimonio(f.id, []);
+      } else if (tentativasIaFoto(f) >= PATRIMONIO_IA_MAX_TENTATIVAS) {
+        await excluirFotoCapturaAutomatico(f.id, "Sem imagem guardada.");
       }
+    }
+    void finalizarLotePatrimonioAposUpload();
+  }
+
+  async function patrimonioDrenarLoteSemPendentes() {
+    let rodadas = 0;
+    while (rodadas < 12) {
+      rodadas++;
+      const pendentes = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+      if (!pendentes.length && !filaIaPatrimonio.length) break;
+
+      for (const f of pendentes) {
+        const tent = tentativasIaFoto(f);
+        const temImg = await patrimonioFilaTemImagem(f.id);
+        if (!temImg || tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
+          await excluirFotoCapturaAutomatico(
+            f.id,
+            temImg
+              ? `Esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas de IA.`
+              : "Imagem indisponível."
+          );
+          continue;
+        }
+        if (filaIaPatrimonio.some((j) => j.fotoId === f.id)) continue;
+        atualizarFotoCaptura(f.id, {
+          statusIa: "fila",
+          tentativasIa: tent,
+          msgIa: f.msgIa || `Retomando (${tent}/${PATRIMONIO_IA_MAX_TENTATIVAS})…`,
+        });
+        enfileirarIaPatrimonio(f.id, []);
+      }
+
+      if (filaIaPatrimonio.length) {
+        await processarFilaIaPatrimonioInterno();
+      } else if (!getFotosCapturas().some((f) => fotoEstaPendenteIa(f))) {
+        break;
+      }
+    }
+
+    const sobraram = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+    for (const f of sobraram) {
+      await excluirFotoCapturaAutomatico(f.id, "Não processado — removido para não ficar pendente.");
     }
   }
 
@@ -1034,15 +1142,49 @@
     if (!fotoId) return;
     if (filaIaPatrimonio.some((j) => j.fotoId === fotoId)) return;
     filaIaPatrimonio.push({ fotoId, imagens: (imagens || []).filter(Boolean) });
-    void processarFilaIaPatrimonio();
+    void processarFilaIaPatrimonioInterno();
+  }
+
+  async function aguardarIaPatrimonioParar() {
+    while (iaPatrimonioRodando) {
+      await new Promise((r) => window.setTimeout(r, 200));
+    }
+  }
+
+  async function finalizarLotePatrimonioAposUpload() {
+    await aguardarIaPatrimonioParar();
+    await processarFilaIaPatrimonio();
   }
 
   async function processarFilaIaPatrimonio() {
     if (iaPatrimonioRodando) return;
+    await processarFilaIaPatrimonioInterno();
+    await patrimonioDrenarLoteSemPendentes();
+    const c = contagemFilaPatrimonio();
+    const excl = patrimonioLoteExcluidos;
+    if (c.ok > 0 || excl > 0 || c.total > 0) {
+      const partes = [`${c.ok} cadastrado(s)`];
+      if (excl > 0) partes.push(`${excl} excluído(s) após ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas`);
+      const restantes = c.fila + c.processando + c.falhou;
+      setMsg(
+        restantes
+          ? `A processar… ${partes.join(" · ")} · ${restantes} em curso.`
+          : `Lote concluído: ${partes.join(" · ")}.`,
+        excl > 0,
+        excl === 0
+      );
+    }
+    renderFotosLista();
+    renderLista();
+    patrimonioRetomarSyncCloud();
+  }
+
+  async function processarFilaIaPatrimonioInterno() {
+    if (iaPatrimonioRodando) return;
     iaPatrimonioRodando = true;
     await patrimonioAtivarWakeLock();
     let n = 0;
-    const totalFilaInicial = filaIaPatrimonio.length;
+    const totalFilaInicial = Math.max(filaIaPatrimonio.length, 1);
     while (filaIaPatrimonio.length) {
       const job = filaIaPatrimonio.shift();
       if (job?.fotoId) {
@@ -1050,22 +1192,18 @@
         const c = contagemFilaPatrimonio();
         const restantes = filaIaPatrimonio.length;
         setMsg(
-          `IA ${n}/${totalFilaInicial} · ${c.ok} OK · ${c.falhou} reprovados · ${restantes} restantes…`,
+          `IA · tentativa até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${c.ok} OK · ${restantes} na fila…`,
           false
         );
         atualizarProgressoLotePatrimonio(
-          c.ok + c.falhou + n,
-          c.fila + c.processando + c.ok + c.falhou,
-          `IA a processar (${n} deste lote · ${restantes} na fila)…`
+          c.ok + n,
+          c.fila + c.processando + c.ok + c.falhou + restantes + 1,
+          `IA (${n}/${totalFilaInicial}) · ${restantes} restantes…`
         );
         try {
           await processarIaParaFotoCaptura(job.fotoId, job.imagens);
         } catch (e) {
-          atualizarFotoCaptura(job.fotoId, {
-            statusIa: "falhou",
-            msgIa: String(e?.message || e || MSG_IA_FALHOU),
-          });
-          renderFotosLista();
+          await tratarFalhaIaFotoCaptura(job.fotoId, String(e?.message || e || MSG_IA_FALHOU));
         }
         if (filaIaPatrimonio.length) {
           await new Promise((r) => window.setTimeout(r, PATRIMONIO_IA_INTERVALO_MS));
@@ -1077,50 +1215,12 @@
     patrimonioLoteTotal = 0;
     patrimonioLoteRecebidos = 0;
     atualizarProgressoLotePatrimonio(0, 0, "");
-    const c = contagemFilaPatrimonio();
-    if (c.total) {
-      setMsg(
-        `Lote concluído: ${c.ok} cadastrados · ${c.falhou} reprovados · ${c.fila + c.processando} pendentes.`,
-        c.falhou > 0,
-        c.falhou === 0
-      );
-    }
-    renderFotosLista();
-    patrimonioRetomarSyncCloud();
-    await patrimonioAutoReprocessarReprovadosLote();
-  }
-
-  async function patrimonioAutoReprocessarReprovadosLote() {
-    if (patrimonioAutoReprocessouLote || iaPatrimonioRodando || filaIaPatrimonio.length) return;
-    const reprovados = getFotosCapturas().filter(
-      (f) => String(f.statusIa || "").toLowerCase() === "falhou"
-    );
-    if (!reprovados.length || reprovados.length > 120) return;
-    const comImagem = [];
-    for (const f of reprovados) {
-      if (await patrimonioFilaTemImagem(f.id)) comImagem.push(f);
-    }
-    if (!comImagem.length) return;
-    patrimonioAutoReprocessouLote = true;
-    patrimonioPausarSyncCloud();
-    setMsg(
-      `A reprocessar automaticamente ${comImagem.length} reprovado(s) (2.ª passagem)…`,
-      false
-    );
-    for (const f of comImagem) {
-      atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
-      enfileirarIaPatrimonio(f.id, []);
-    }
   }
 
   async function processarIaParaFotoCaptura(fotoId, imagens) {
     const imgs = await imagensParaFotoCapturaAsync(fotoId, imagens);
     if (!imgs.length) {
-      atualizarFotoCaptura(fotoId, {
-        statusIa: "falhou",
-        msgIa: "Imagem indisponível — reenvie o PDF.",
-      });
-      renderFotosLista();
+      await tratarFalhaIaFotoCaptura(fotoId, "Imagem indisponível — reenvie o PDF.");
       return;
     }
     atualizarFotoCaptura(fotoId, { statusIa: "processando", msgIa: "" });
@@ -1130,9 +1230,7 @@
     try {
       const leitura = await lerCrlvComRetry(imgs, { placaHint, nomeArquivo: fotoMeta?.nomeArquivo });
       if (!leitura.ok) {
-        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: leitura.msg || MSG_NITIDEZ });
-        renderFotosLista();
-        setMsg(`${leitura.msg || MSG_NITIDEZ} Arquivo guardado para conferência do administrador.`, true);
+        await tratarFalhaIaFotoCaptura(fotoId, leitura.msg || MSG_NITIDEZ);
         return;
       }
       const campos = leitura.campos;
@@ -1162,9 +1260,7 @@
       };
       const r = await upsertDocumento(doc);
       if (!r.ok) {
-        atualizarFotoCaptura(fotoId, { statusIa: "falhou", msgIa: r.erro || MSG_NITIDEZ });
-        renderFotosLista();
-        setMsg(r.erro, true);
+        await tratarFalhaIaFotoCaptura(fotoId, r.erro || MSG_NITIDEZ);
         return;
       }
       atualizarFotoCaptura(fotoId, {
@@ -1172,6 +1268,7 @@
         docId: r.registro?.id || doc.id,
         placa: campos.placa,
         msgIa: "",
+        tentativasIa: 0,
       });
       removerFotosAntigasMesmaPlaca(campos.placa, fotoId);
       await patrimonioApagarImagemFila(fotoId);
@@ -1185,12 +1282,7 @@
         true
       );
     } catch (e) {
-      atualizarFotoCaptura(fotoId, {
-        statusIa: "falhou",
-        msgIa: String(e?.message || e || MSG_IA_FALHOU),
-      });
-      renderFotosLista();
-      setMsg(MSG_IA_FALHOU, true);
+      await tratarFalhaIaFotoCaptura(fotoId, String(e?.message || e || MSG_IA_FALHOU));
     }
   }
 
@@ -1717,6 +1809,7 @@
       docId: "",
       placa: placaDoNomeArquivo(file.name) || "",
       msgIa: "",
+      tentativasIa: 0,
       atualizadoEm: agora.toISOString(),
     });
     if (!foto) {
@@ -1750,7 +1843,7 @@
     }
     patrimonioLoteTotal = files.length;
     patrimonioLoteRecebidos = 0;
-    patrimonioAutoReprocessouLote = false;
+    patrimonioLoteExcluidos = 0;
     patrimonioConvertendoPdfs = true;
     patrimonioPausarSyncCloud();
     await patrimonioAtivarWakeLock();
@@ -1787,10 +1880,11 @@
     patrimonioConvertendoPdfs = false;
     if (ok > 0) {
       setMsg(
-        `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_MAX_LOTE} por envio). Mantenha a página aberta.`,
+        `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). Mantenha a página aberta.`,
         false,
         true
       );
+      void finalizarLotePatrimonioAposUpload();
     } else {
       patrimonioLibertarWakeLock();
       patrimonioRetomarSyncCloud();
@@ -2366,7 +2460,7 @@ REGRAS DE CONTEÚDO:
       setMsg("Imagem indisponível — reenvie o PDF deste veículo.", true);
       return;
     }
-    atualizarFotoCaptura(fotoId, { statusIa: "fila", msgIa: "" });
+    atualizarFotoCaptura(fotoId, { statusIa: "fila", msgIa: "", tentativasIa: 0 });
     if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "Na fila da IA…";
     setMsg(`Arquivo ${foto.nomeArquivo || foto.tag} na fila para revisão com IA…`, false);
     enfileirarIaPatrimonio(fotoId, imgs);
@@ -2374,23 +2468,30 @@ REGRAS DE CONTEÚDO:
   }
 
   async function reprocessarTodosReprovadosPatrimonio() {
-    const fotos = getFotosCapturas().filter((f) => String(f.statusIa || "").toLowerCase() === "falhou");
+    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
     if (!fotos.length) {
-      setMsg("Nenhum arquivo reprovado para reprocessar.", true);
+      setMsg("Nenhum arquivo pendente para reprocessar.", true);
       return;
     }
     let n = 0;
+    patrimonioPausarSyncCloud();
     for (const f of fotos) {
       if (!(await patrimonioFilaTemImagem(f.id))) continue;
-      atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "" });
+      atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "", tentativasIa: 0 });
       enfileirarIaPatrimonio(f.id, []);
       n++;
     }
     renderFotosLista();
     if (n > 0) {
-      setMsg(`${n} reprovado(s) recolocados na fila da IA. Aguarde (lote grande ≈ horas).`, false, true);
+      setMsg(
+        `${n} arquivo(s) na fila (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). Aguarde…`,
+        false,
+        true
+      );
+      void finalizarLotePatrimonioAposUpload();
     } else {
-      setMsg("Reprovados sem imagem guardada — reenvie os PDFs.", true);
+      setMsg("Pendentes sem imagem guardada — reenvie os PDFs.", true);
+      patrimonioRetomarSyncCloud();
     }
   }
 
@@ -2913,16 +3014,14 @@ REGRAS DE CONTEÚDO:
 
   function renderFotosLista() {
     const fotos = getFotosCapturas();
-    const reprovadas = fotos.filter((f) => String(f.statusIa || "").toLowerCase() === "falhou").length;
     const okN = fotos.filter((f) => String(f.statusIa || "").toLowerCase() === "ok").length;
-    const processandoN = fotos.filter((f) => {
-      const st = String(f.statusIa || "").toLowerCase();
-      return st === "processando" || st === "fila" || st === "pendente";
-    }).length;
+    const processandoN = fotos.filter((f) => fotoEstaPendenteIa(f)).length;
     if (fotosResumoEl) {
       fotosResumoEl.textContent = fotos.length
-        ? `${fotos.length} arquivo(s) · ${okN} cadastrados · ${reprovadas} reprovados · ${processandoN} na fila/IA.`
-        : "Nenhum PDF enviado ainda. Todos os arquivos aparecem aqui, mesmo se a IA falhar.";
+        ? processandoN
+          ? `${fotos.length} arquivo(s) · ${okN} cadastrados · ${processandoN} a processar (até ${PATRIMONIO_IA_MAX_TENTATIVAS}× cada).`
+          : `${fotos.length} arquivo(s) · ${okN} cadastrados.`
+        : "Nenhum PDF enviado ainda.";
     }
     if (!fotosListaEl) return;
     if (!fotos.length) {
@@ -2932,9 +3031,10 @@ REGRAS DE CONTEÚDO:
     fotosListaEl.innerHTML = fotos
       .map((f) => {
         const st = String(f.statusIa || "").toLowerCase();
-        const podeRevisar = st === "falhou" || st === "fila" || imagensParaFotoCaptura(f.id, null).length > 0;
+        const podeRevisar =
+          (st === "fila" || st === "processando") && imagensParaFotoCaptura(f.id, null).length > 0;
         const nome = f.nomeArquivo ? escapeHtml(f.nomeArquivo) : "";
-        return `<div class="patrimonio-foto-item${st === "falhou" ? " patrimonio-foto-item--reprovada" : ""}">
+        return `<div class="patrimonio-foto-item${st === "processando" ? " patrimonio-foto-item--proc" : ""}">
           <button type="button" class="patrimonio-foto-link" data-foto-id="${escapeHtml(f.id)}" title="Abrir ${escapeHtml(formatTagPatrimonioFotoLegivel(f.tag))}">
             <span class="patrimonio-foto-tag">${escapeHtml(f.tag)}</span>
             ${nome ? `<span class="patrimonio-foto-nome">${nome}</span>` : ""}
