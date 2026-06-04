@@ -81,6 +81,7 @@ async function main() {
         html.includes("patrimonioPdfDropzone") &&
         html.includes('for="patrimonioPdfInput"') &&
         html.includes("Mesma placa") &&
+        html.includes("patrimonioBtnLimparFila") &&
         html.includes("patrimonioBtnReprocessarReprovados") &&
         html.includes("patrimonioPdfInput") &&
         html.includes('accept="application/pdf') &&
@@ -113,7 +114,7 @@ async function main() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603hq", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260603zerafila", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -128,7 +129,9 @@ async function main() {
         patJs.includes("tratarFalhaIaFotoCaptura") &&
         patJs.includes("patrimonioDrenarLoteSemPendentes") &&
         patJs.includes("excluirFotoCapturaAutomatico") &&
-        patJs.includes("patrimonioLimparArquivosEnviados") &&
+        patJs.includes("patrimonioZerarFilaEnviadosManual") &&
+        patJs.includes("tagBasePatrimonio") &&
+        patJs.includes("expurgarTudo") &&
         patJs.includes("excluirFotoCapturaAposSucesso") &&
         patJs.includes("prepararImagemDocumentoArmazenar") &&
         patJs.includes("PATRIMONIO_PDF_RENDER_SCALE") &&

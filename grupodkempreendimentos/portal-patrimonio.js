@@ -455,9 +455,7 @@
     if (st === "processando") return "IA a processar…";
     if (st === "fila") {
       const t = tentativasIaFoto(f);
-      return t > 0
-        ? `Na fila · tentativa ${t + 1}/${PATRIMONIO_IA_MAX_TENTATIVAS}`
-        : "Na fila da IA…";
+      return t > 0 ? `Na fila · ${t}/${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas` : "Na fila da IA…";
     }
     return "Aguardando IA";
   }
@@ -1105,7 +1103,19 @@
     return true;
   }
 
-  function patrimonioLimparArquivosEnviados(storeIn) {
+  function tagBasePatrimonio(tag) {
+    return String(tag || "")
+      .replace(/-\d{1,3}$/, "")
+      .trim();
+  }
+
+  function patrimonioFilaPatrimonioAtiva() {
+    return Boolean(
+      patrimonioConvertendoPdfs || iaPatrimonioRodando || filaIaPatrimonio.length > 0
+    );
+  }
+
+  function patrimonioLimparArquivosEnviados(storeIn, opts) {
     const store = storeIn || loadStore();
     const documentos = Array.isArray(store.documentos) ? store.documentos : [];
     const placasDoc = new Set();
@@ -1114,13 +1124,15 @@
       if (p) placasDoc.add(p);
     }
 
+    const expurgarTudo = opts?.expurgarTudo === true || !patrimonioFilaPatrimonioAtiva();
     let exclusoes = store.fotosCapturasExcluidas || [];
     const agora = new Date().toISOString();
     const fotos = sanitizeFotosCapturas(store.fotosCapturas || []);
     const ordenadas = [...fotos].sort((a, b) => fotoCapturaMs(b) - fotoCapturaMs(a));
     const manter = [];
     const nomeVisto = new Set();
-    const tagVisto = new Set();
+    const tagBaseVisto = new Set();
+    const placaFilaVista = new Set();
 
     const marcarExclusao = (f) => {
       exclusoes = mergeFotosCapturasExcluidas(
@@ -1139,7 +1151,19 @@
 
       const placaHint = placaDoNomeArquivo(f.nomeArquivo);
       const placaEfetiva = normPlaca(f.placa) || placaHint;
+      const tent = tentativasIaFoto(f);
+
       if (placaEfetiva && placasDoc.has(placaEfetiva)) {
+        marcarExclusao(f);
+        continue;
+      }
+
+      if (tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
+        marcarExclusao(f);
+        continue;
+      }
+
+      if (expurgarTudo) {
         marcarExclusao(f);
         continue;
       }
@@ -1153,11 +1177,18 @@
         nomeVisto.add(nome);
       }
 
-      if (tagVisto.has(f.tag)) {
+      const tagBase = tagBasePatrimonio(f.tag);
+      if (tagBase && tagBaseVisto.has(tagBase)) {
         marcarExclusao(f);
         continue;
       }
-      tagVisto.add(f.tag);
+      if (tagBase) tagBaseVisto.add(tagBase);
+
+      if (placaEfetiva && placaFilaVista.has(placaEfetiva)) {
+        marcarExclusao(f);
+        continue;
+      }
+      if (placaEfetiva) placaFilaVista.add(placaEfetiva);
 
       manter.push(f);
     }
@@ -1169,10 +1200,11 @@
     };
   }
 
-  async function patrimonioAplicarLimpezaArquivosEnviados() {
+  async function patrimonioAplicarLimpezaArquivosEnviados(opts) {
+    filaIaPatrimonio.length = 0;
     const store = loadStore();
     const idsAntes = new Set((store.fotosCapturas || []).map((f) => f.id));
-    const limpo = patrimonioLimparArquivosEnviados(store);
+    const limpo = patrimonioLimparArquivosEnviados(store, opts);
     const idsDepois = new Set(limpo.fotosCapturas.map((f) => f.id));
     let removidos = 0;
     for (const id of idsAntes) {
@@ -1183,14 +1215,46 @@
     }
     if (removidos > 0 || limpo.fotosCapturas.length !== store.fotosCapturas.length) {
       saveStore(limpo);
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        try {
+          await window.__DK_pushCloudSnapshotNow();
+        } catch {
+          /* ignore */
+        }
+      }
     }
     return removidos;
+  }
+
+  async function patrimonioZerarFilaEnviadosManual() {
+    if (
+      !window.confirm(
+        "Remover todos os arquivos pendentes da fila? Os veículos já cadastrados mantêm-se."
+      )
+    ) {
+      return;
+    }
+    const n = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+    renderFotosLista();
+    setMsg(
+      n > 0
+        ? `${n} registo(s) pendente(s) removido(s). Fila limpa.`
+        : "Nenhum pendente na fila.",
+      false,
+      true
+    );
   }
 
   async function tratarFalhaIaFotoCaptura(fotoId, msg) {
     const foto = getFotoCapturaById(fotoId);
     if (!foto) return "excluido";
-    const tent = tentativasIaFoto(foto) + 1;
+    const tentAtual = tentativasIaFoto(foto);
+    if (tentAtual >= PATRIMONIO_IA_MAX_TENTATIVAS) {
+      await excluirFotoCapturaAutomatico(fotoId, "Esgotou tentativas de IA.");
+      renderFotosLista();
+      return "excluido";
+    }
+    const tent = tentAtual + 1;
     const detalhe = String(msg || MSG_IA_FALHOU).slice(0, 160);
     if (tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
       await excluirFotoCapturaAutomatico(
@@ -1227,9 +1291,9 @@
   }
 
   async function reiniciarFilaPatrimonioAposAbrir() {
+    if (!patrimonioFilaPatrimonioAtiva()) return;
     const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
     if (!fotos.length) return;
-    patrimonioPausarSyncCloud();
     for (const f of fotos) {
       if (String(f.statusIa || "").toLowerCase() === "processando") {
         atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
@@ -1325,7 +1389,7 @@
     renderFotosLista();
     renderLista();
     patrimonioRetomarSyncCloud();
-    await patrimonioAplicarLimpezaArquivosEnviados();
+    await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
     renderFotosLista();
   }
 
@@ -3602,6 +3666,9 @@ ${contador}
     document.getElementById("patrimonioBtnReprocessarReprovados")?.addEventListener("click", () => {
       void reprocessarTodosReprovadosPatrimonio();
     });
+    document.getElementById("patrimonioBtnLimparFila")?.addEventListener("click", () => {
+      void patrimonioZerarFilaEnviadosManual();
+    });
 
     document.getElementById("patrimonioImagemFecharBtn")?.addEventListener("click", fecharViewerImagem);
     document.getElementById("patrimonioImagemPdfBtn")?.addEventListener("click", baixarPdfViewerImagem);
@@ -3718,16 +3785,12 @@ ${contador}
     bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
     void (async () => {
-      const removidos = await patrimonioAplicarLimpezaArquivosEnviados();
-      if (removidos > 0) {
-        setMsg(
-          `Lista limpa: ${removidos} registo(s) duplicado(s) ou já processado(s) removido(s).`,
-          false,
-          true
-        );
-      }
+      const removidos = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
       renderFotosLista();
-      await reiniciarFilaPatrimonioAposAbrir();
+      renderLista();
+      if (removidos > 0) {
+        setMsg(`${removidos} pendente(s) obsoleto(s) removido(s). Fila limpa.`, false, true);
+      }
     })();
     const store = loadStore();
     saveStore(store);
@@ -3770,19 +3833,24 @@ ${contador}
   window.__DK_patrimonioSalvarImagensDoc = patrimonioSalvarImagensDoc;
   window.__DK_patrimonioLimparArquivosEnviados = patrimonioLimparArquivosEnviados;
   window.__DK_patrimonioAplicarLimpezaArquivosEnviados = patrimonioAplicarLimpezaArquivosEnviados;
+  window.__DK_patrimonioZerarFilaEnviados = patrimonioZerarFilaEnviadosManual;
   window.__DK_patrimonioReset = resetPatrimonioUi;
   window.__DK_patrimonioEscapeBack = escapeBackPatrimonio;
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
   window.__DK_openPatrimonioImagemById = abrirViewerImagem;
 
   window.addEventListener("dk-comprovantes-synced", () => {
-    renderLista();
+    void (async () => {
+      await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+      renderLista();
+      renderFotosLista();
+    })();
   });
 
   bindUi();
   void (async () => {
     await patrimonioMigrarImagensDocParaIdb();
-    await patrimonioAplicarLimpezaArquivosEnviados();
+    await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
     renderLista();
     renderFotosLista();
   })();
