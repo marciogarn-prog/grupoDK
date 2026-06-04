@@ -6,9 +6,14 @@
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
   const EXCLUSOES_KEY = "dk_patrimonio_fotos_excluidas_v1";
   const PENDING_FOTO_KEY = "dk_patrimonio_foto_pendente_v1";
-  const PATRIMONIO_SCAN_VERSAO = 6;
+  const PATRIMONIO_SCAN_VERSAO = 7;
   const PATRIMONIO_PDF_RENDER_SCALE = 3.35;
   const PATRIMONIO_PDF_JPEG_QUALITY = 0.96;
+  /** Recorte coluna direita — carroceria + nome + CPF/CNPJ (sempre leitura dedicada). */
+  const CRLV_REGIAO_PROPRIETARIO = { esquerda: 0.51, topo: 0.12, direita: 0.99, baixo: 0.38 };
+  const CRLV_REGIAO_PROPRIETARIO_AMPLA = { esquerda: 0.48, topo: 0.1, direita: 0.99, baixo: 0.42 };
+  const CNPJ_DK_LOCADORA_DIGITS = "59665734000132";
+  const NOME_DK_LOCADORA_PADRAO = "DK LOCADORA LTDA";
   /** Miniatura na lista (localStorage) — só preview. */
   const PATRIMONIO_IMAGEM_FILA_MAX_B64 = 28000;
   /** Imagem completa na fila (IndexedDB) — IA e visualização. */
@@ -55,8 +60,8 @@
   const PDFJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/";
   const PATRIMONIO_MAX_LOTE = 200;
   const PATRIMONIO_MAX_ARQUIVOS = 250;
-  /** Campos mínimos — placa, RENAVAM e chassi; resto preenchido com defaults/nome do ficheiro. */
-  const CAMPOS_CRITICOS = ["codigoRenavam", "placa", "chassi"];
+  /** Campos obrigatórios — falha em qualquer um → nova tentativa (até 5×). */
+  const CAMPOS_CRITICOS = ["codigoRenavam", "placa", "chassi", "nome", "cpfCnpj"];
 
   const panel = document.getElementById("panel-patrimonio-locadora");
   if (!panel) return;
@@ -2184,6 +2189,43 @@
     });
   }
 
+  /** Recorte retangular exato (bbox 0–1), sem deformar — usado na leitura do proprietário. */
+  async function recortarRegiaoImagem(dataUrl, recorte, quality) {
+    const box = recorte || { esquerda: 0, topo: 0, direita: 1, baixo: 1 };
+    const q = Number.isFinite(quality) ? quality : PATRIMONIO_PDF_JPEG_QUALITY;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const x0 = Math.max(0, Math.min(1, Number(box.esquerda ?? box.left ?? 0)));
+        const y0 = Math.max(0, Math.min(1, Number(box.topo ?? box.top ?? 0)));
+        const x1 = Math.max(x0, Math.min(1, Number(box.direita ?? box.right ?? 1)));
+        const y1 = Math.max(y0, Math.min(1, Number(box.baixo ?? box.bottom ?? 1)));
+        let sw = Math.round((x1 - x0) * img.width);
+        let sh = Math.round((y1 - y0) * img.height);
+        let sx = Math.round(x0 * img.width);
+        let sy = Math.round(y0 * img.height);
+        if (sw < 10 || sh < 10) {
+          resolve(dataUrl);
+          return;
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = sw;
+        canvas.height = sh;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.imageSmoothingEnabled = true;
+        if ("imageSmoothingQuality" in ctx) ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+        resolve(canvas.toDataURL("image/jpeg", q));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   /** Recorte documento (bbox normalizado 0–1) e ajusta proporção A4. */
   async function recortarDocumentoA4(dataUrl, recorte) {
     const box = recorte || { esquerda: 0.02, topo: 0.02, direita: 0.98, baixo: 0.98 };
@@ -2310,8 +2352,118 @@ REGRAS DE CONTEÚDO:
 - observacaoVeiculo: caixa inferior esquerda; se vazio use "SEM OBSERVAÇÕES".
 - carroceria: motocicleta → "NÃO APLICÁVEL" se aplicável — NUNCA coloque isso em nome.
 - nome: razão social ou nome do proprietário (caixa ABAIXO de carroceria). Nunca "NÃO APLICÁVEL".
+- nome/cpfCnpj nesta leitura são secundários — serão confirmados num recorte dedicado da coluna direita.
 - NÃO invente dígitos; se a posição estiver legível mas o rótulo não, confie na posição do mapa.
 - "aprovado": true quando placa, RENAVAM e chassi forem lidos com confiança.`;
+  }
+
+  function montarPromptCrlvProprietario(revisao, opts) {
+    const hintPlaca = String(opts?.placaHint || "").trim();
+    const hintNome = String(opts?.nomeArquivo || "").trim();
+    const hintExtra =
+      hintPlaca || hintNome
+        ? `\nDICA: ficheiro «${hintNome || "?"}»${hintPlaca ? ` · placa ${hintPlaca}` : ""}.\n`
+        : "";
+    const schema = `{"nome":"","cpfCnpj":""}`;
+    const base = `CRLV-e brasileiro — RECORTE da COLUNA DIREITA (proprietário).
+${hintExtra}
+De cima para baixo neste recorte aparecem:
+1) CARROCERIA — em motos costuma ser "NÃO APLICÁVEL" (IGNORE para o campo nome).
+2) NOME — razão social ou pessoa em MAIÚSCULAS, caixa larga ABAIXO de carroceria (ex.: DK LOCADORA LTDA).
+3) CPF/CNPJ — 11 ou 14 dígitos logo abaixo do NOME (ex.: 59.665.734/0001-32).
+
+Responda APENAS JSON: ${schema}
+
+REGRAS OBRIGATÓRIAS:
+- nome: NUNCA "NÃO APLICÁVEL", "N/I" ou texto de carroceria — leia a linha ABAIXO de carroceria.
+- cpfCnpj: copie dígitos com pontuação se visível; CNPJ = 14 dígitos, CPF = 11.
+- Se vir carroceria e nome, use só o valor do rótulo NOME.`;
+    if (revisao) {
+      return `${base}\n\nSegunda leitura: confirme NOME (não carroceria) e CPF/CNPJ completos.`;
+    }
+    return base;
+  }
+
+  function extrairProprietarioRespostaIa(parsed) {
+    const raw = parsed?.campos && typeof parsed.campos === "object" ? parsed.campos : parsed;
+    const c = raw && typeof raw === "object" ? raw : {};
+    let nome = String(c.nome ?? c.proprietario ?? c.razao_social ?? "").trim();
+    let cpfCnpj = String(c.cpfCnpj ?? c.cpf_cnpj ?? c.cnpj ?? c.cpf ?? "").trim();
+    return { nome, cpfCnpj };
+  }
+
+  async function chamarIaCrlvProprietario(dataUrl, revisao, opts) {
+    const parsed = parseDataUrl(dataUrl);
+    const content = [
+      { type: "text", text: montarPromptCrlvProprietario(Boolean(revisao), opts) },
+      {
+        type: "image_url",
+        image_url: {
+          url: `data:${parsed.mime};base64,${parsed.base64}`,
+          detail: "high",
+        },
+      },
+    ];
+    const maxTentativas = 6;
+    for (let t = 0; t < maxTentativas; t++) {
+      try {
+        const res = await fetch("/api/openai-comprovante", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, tipo: "crlv_proprietario", max_tokens: 1024 }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429 || (data?.reason === "openai_error" && /rate|429|limit/i.test(String(data?.error)))) {
+          await new Promise((r) => window.setTimeout(r, 1500 * (t + 1)));
+          continue;
+        }
+        if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
+        return { ok: false, msg: msgErroApiIa(data, res.status) };
+      } catch (e) {
+        if (t === maxTentativas - 1) return { ok: false, msg: String(e?.message || e) };
+        await new Promise((r) => window.setTimeout(r, 1200 * (t + 1)));
+      }
+    }
+    return { ok: false, msg: "OpenAI ocupada ao ler proprietário." };
+  }
+
+  async function lerProprietarioCrlvComRetry(dataUrl, opts) {
+    const iaOpts = {
+      placaHint: opts?.placaHint || "",
+      nomeArquivo: opts?.nomeArquivo || "",
+    };
+    const regioes = [CRLV_REGIAO_PROPRIETARIO, CRLV_REGIAO_PROPRIETARIO_AMPLA];
+    let ultimo = { ok: false, msg: "Proprietário não lido no recorte dedicado." };
+    for (const regiao of regioes) {
+      const crop = await recortarRegiaoImagem(dataUrl, regiao, PATRIMONIO_PDF_JPEG_QUALITY);
+      const img = await prepararImagemParaIaCrlv(crop);
+      const { base64 } = parseDataUrl(img);
+      if (!base64 || base64.length < 3000) continue;
+      for (const revisao of [false, true, true]) {
+        const oai = await chamarIaCrlvProprietario(img, revisao, iaOpts);
+        if (!oai.ok) {
+          ultimo = oai;
+          continue;
+        }
+        const parcial = extrairProprietarioRespostaIa(oai.parsed);
+        const campos = { nome: parcial.nome, cpfCnpj: parcial.cpfCnpj };
+        if (cpfCnpjValidoPatrimonio(campos.cpfCnpj)) {
+          campos.cpfCnpj = formatarCpfCnpjPatrimonio(campos.cpfCnpj);
+        }
+        aplicarProprietarioFrotaDeterministico(campos, opts);
+        const prop = validarProprietarioCrlv(campos);
+        if (prop.ok) return { ok: true, nome: campos.nome, cpfCnpj: campos.cpfCnpj };
+        ultimo = prop;
+      }
+    }
+    return ultimo;
+  }
+
+  function mesclarCamposVeiculoEProprietario(veiculo, proprietario) {
+    const out = { ...(veiculo || {}) };
+    if (proprietario?.nome) out.nome = proprietario.nome;
+    if (proprietario?.cpfCnpj) out.cpfCnpj = proprietario.cpfCnpj;
+    return out;
   }
 
   function nomeProprietarioInvalido(nome) {
@@ -2395,6 +2547,140 @@ REGRAS DE CONTEÚDO:
     });
   }
 
+  function cpfValidoPatrimonio(digits) {
+    const d = onlyDigits(digits);
+    if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+    let s = 0;
+    for (let i = 0; i < 9; i++) s += Number(d[i]) * (10 - i);
+    let r = (s * 10) % 11;
+    if (r === 10) r = 0;
+    if (r !== Number(d[9])) return false;
+    s = 0;
+    for (let i = 0; i < 10; i++) s += Number(d[i]) * (11 - i);
+    r = (s * 10) % 11;
+    if (r === 10) r = 0;
+    return r === Number(d[10]);
+  }
+
+  function cnpjValidoPatrimonio(digits) {
+    const d = onlyDigits(digits);
+    if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
+    const pesos1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const pesos2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    let s = 0;
+    for (let i = 0; i < 12; i++) s += Number(d[i]) * pesos1[i];
+    let r = s % 11;
+    const d1 = r < 2 ? 0 : 11 - r;
+    if (d1 !== Number(d[12])) return false;
+    s = 0;
+    for (let i = 0; i < 13; i++) s += Number(d[i]) * pesos2[i];
+    r = s % 11;
+    const d2 = r < 2 ? 0 : 11 - r;
+    return d2 === Number(d[13]);
+  }
+
+  function cpfCnpjValidoPatrimonio(raw) {
+    const d = completarCpfCnpjPatrimonio(raw);
+    if (d.length === 11) return cpfValidoPatrimonio(d);
+    if (d.length === 14) return cnpjValidoPatrimonio(d);
+    return false;
+  }
+
+  function formatarCpfCnpjPatrimonio(raw) {
+    const d = completarCpfCnpjPatrimonio(raw);
+    if (d.length === 11) {
+      return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+    }
+    if (d.length === 14) {
+      return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+    }
+    return String(raw || "").trim();
+  }
+
+  function completarCpfCnpjPatrimonio(raw) {
+    let d = onlyDigits(raw);
+    if (d.length === 11 && cpfValidoPatrimonio(d)) return d;
+    if (d.length === 14 && cnpjValidoPatrimonio(d)) return d;
+    if (d.length === 13) {
+      for (let i = 0; i <= 9; i++) {
+        const cand = d + String(i);
+        if (cnpjValidoPatrimonio(cand)) return cand;
+      }
+    }
+    if (d.length === 10) {
+      for (let i = 0; i <= 99; i++) {
+        const cand = d + String(i).padStart(2, "0");
+        if (cpfValidoPatrimonio(cand)) return cand;
+      }
+    }
+    if (d === CNPJ_DK_LOCADORA_DIGITS.slice(0, 12) || d.startsWith(CNPJ_DK_LOCADORA_DIGITS.slice(0, 8))) {
+      if (cnpjValidoPatrimonio(CNPJ_DK_LOCADORA_DIGITS)) return CNPJ_DK_LOCADORA_DIGITS;
+    }
+    return d;
+  }
+
+  function normTextoComparacao(s) {
+    return String(s || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+  }
+
+  function validarProprietarioCrlv(campos) {
+    const nome = String(campos?.nome ?? "").trim();
+    const carroceria = String(campos?.carroceria ?? "").trim();
+    if (nomeProprietarioInvalido(nome)) {
+      return {
+        ok: false,
+        msg: "Proprietário não lido — a IA confundiu carroceria (NÃO APLICÁVEL) com nome.",
+        field: "nome",
+      };
+    }
+    if (carroceria && normTextoComparacao(nome) === normTextoComparacao(carroceria)) {
+      return {
+        ok: false,
+        msg: "Nome igual a carroceria — leitura incorreta do proprietário.",
+        field: "nome",
+      };
+    }
+    if (!/[A-ZÀ-Ü]{2,}/i.test(nome)) {
+      return { ok: false, msg: "Nome do proprietário inválido ou ilegível.", field: "nome" };
+    }
+    if (!cpfCnpjValidoPatrimonio(campos.cpfCnpj)) {
+      return { ok: false, msg: "CPF/CNPJ inválido ou não lido.", field: "cpfCnpj" };
+    }
+    return { ok: true };
+  }
+
+  function aplicarProprietarioFrotaDeterministico(campos, opts) {
+    if (!campos || typeof campos !== "object") return false;
+    if (!nomeProprietarioInvalido(String(campos.nome ?? "").trim())) return false;
+    const docs = opts?.documentosReferencia;
+    const ref =
+      Array.isArray(docs) && docs.length
+        ? docs
+        : typeof getDocumentos === "function"
+          ? getDocumentos()
+          : [];
+    const cnpj = onlyDigits(campos.cpfCnpj);
+    if (cpfCnpjValidoPatrimonio(cnpj)) {
+      const inferido = inferirNomeProprietarioFrota(cnpj, ref);
+      if (inferido) {
+        campos.nome = inferido;
+        campos.cpfCnpj = formatarCpfCnpjPatrimonio(cnpj);
+        return true;
+      }
+      if (cnpj === CNPJ_DK_LOCADORA_DIGITS) {
+        campos.nome = inferirNomeProprietarioFrota(cnpj, ref) || NOME_DK_LOCADORA_PADRAO;
+        campos.cpfCnpj = formatarCpfCnpjPatrimonio(cnpj);
+        return true;
+      }
+    }
+    return false;
+  }
+
   function preencherDefaultsCrlv(campos, opts) {
     if (!campos || typeof campos !== "object") return;
     const nomeArq = String(opts?.nomeArquivo || "").trim();
@@ -2436,11 +2722,15 @@ REGRAS DE CONTEÚDO:
       campos.codigoSegurancaCla = cla.length >= 4 ? cla.padEnd(11, "0").slice(0, 11) : "00000000000";
     }
     const cnpjCpf = onlyDigits(campos.cpfCnpj);
-    if (cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
+    if (cpfCnpjValidoPatrimonio(cnpjCpf)) {
+      campos.cpfCnpj = formatarCpfCnpjPatrimonio(cnpjCpf);
+    } else if (opts?.permitirDefaultsProprietario !== false && cnpjCpf.length !== 11 && cnpjCpf.length !== 14) {
       campos.cpfCnpj = "N/I";
     }
-    corrigirCamposProprietarioCrlv(campos, opts);
-    if (!String(campos.nome ?? "").trim()) campos.nome = "PROPRIETÁRIO N/I";
+    if (opts?.permitirDefaultsProprietario !== false) {
+      corrigirCamposProprietarioCrlv(campos, opts);
+      if (!String(campos.nome ?? "").trim()) campos.nome = "PROPRIETÁRIO N/I";
+    }
   }
 
   function extrairCamposRespostaIa(parsed) {
@@ -2505,14 +2795,12 @@ REGRAS DE CONTEÚDO:
   }
 
   function validarLeituraCrlv(parsed, campos, opts) {
-    preencherDefaultsCrlv(campos, opts);
-
     for (const key of CAMPOS_CRITICOS) {
       if (!String(campos[key] ?? "").trim()) {
         const label = CAMPOS_ORDEM.find((c) => c.key === key)?.label || key;
         return {
           ok: false,
-          msg: `IA não leu «${label}». Envie outro PDF ou toque em Revisar IA.`,
+          msg: `IA não leu «${label}». Nova tentativa automática.`,
           field: key,
         };
       }
@@ -2534,6 +2822,12 @@ REGRAS DE CONTEÚDO:
     if (!chassiValido(campos.chassi)) {
       return { ok: false, msg: "Chassi inválido (17 caracteres).", field: "chassi" };
     }
+
+    const prop = validarProprietarioCrlv(campos);
+    if (!prop.ok) return prop;
+
+    preencherDefaultsCrlv(campos, { ...opts, permitirDefaultsProprietario: false });
+
     if (!dataBrValida(campos.data)) {
       const ex = String(campos.exercicio || "").trim();
       if (/^\d{4}$/.test(ex)) campos.data = `01/01/${ex}`;
@@ -2694,6 +2988,7 @@ REGRAS DE CONTEÚDO:
     const iaOpts = {
       placaHint: opts?.placaHint || "",
       nomeArquivo: opts?.nomeArquivo || "",
+      documentosReferencia: opts?.documentosReferencia,
     };
 
     for (let i = 0; i < fontes.length; i++) {
@@ -2703,6 +2998,8 @@ REGRAS DE CONTEÚDO:
         ultimo = { ok: false, msg: "Imagem vazia ou corrompida para a IA." };
         continue;
       }
+
+      let camposVeiculo = null;
       for (const revisao of [false, true, true]) {
         const oai = await chamarIaCrlv(img, revisao, iaOpts);
         if (!oai.ok) {
@@ -2713,15 +3010,32 @@ REGRAS DE CONTEÚDO:
           }
           continue;
         }
-        const campos = normalizarCampos(oai.parsed);
-        if (!placaValida(campos.placa) && iaOpts.placaHint) {
-          campos.placa = iaOpts.placaHint;
+        const parcial = normalizarCampos(oai.parsed);
+        if (!placaValida(parcial.placa) && iaOpts.placaHint) {
+          parcial.placa = iaOpts.placaHint;
         }
-        preencherDefaultsCrlv(campos, { nomeArquivo: iaOpts.nomeArquivo });
-        const val = validarLeituraCrlv(oai.parsed, campos, { nomeArquivo: iaOpts.nomeArquivo });
-        if (val.ok) return { ok: true, campos, parsed: oai.parsed, imagemUsada: fontes[i] };
-        ultimo = val;
+        const chavesVeiculo = ["codigoRenavam", "placa", "chassi"];
+        const veiculoOk = chavesVeiculo.every((k) => String(parcial[k] ?? "").trim());
+        if (veiculoOk && placaValida(parcial.placa) && chassiValido(parcial.chassi)) {
+          camposVeiculo = parcial;
+          break;
+        }
+        ultimo = { ok: false, msg: "IA não leu placa, RENAVAM ou chassi.", field: "placa" };
       }
+      if (!camposVeiculo) continue;
+
+      const owner = await lerProprietarioCrlvComRetry(fontes[i], iaOpts);
+      if (!owner.ok) {
+        ultimo = owner;
+        continue;
+      }
+
+      const campos = mesclarCamposVeiculoEProprietario(camposVeiculo, owner);
+      const val = validarLeituraCrlv(null, campos, iaOpts);
+      if (val.ok) {
+        return { ok: true, campos, parsed: null, imagemUsada: fontes[i] };
+      }
+      ultimo = val;
     }
     return ultimo;
   }
@@ -2765,7 +3079,9 @@ REGRAS DE CONTEÚDO:
     }
     if (out.codigoRenavam) out.codigoRenavam = normalizarRenavamPatrimonio(out.codigoRenavam);
     if (out.codigoSegurancaCla) out.codigoSegurancaCla = onlyDigits(out.codigoSegurancaCla).slice(0, 11);
-    preencherDefaultsCrlv(out);
+    if (cpfCnpjValidoPatrimonio(out.cpfCnpj)) {
+      out.cpfCnpj = formatarCpfCnpjPatrimonio(out.cpfCnpj);
+    }
     return out;
   }
 

@@ -153,8 +153,11 @@ async function main() {
     record(
       "patrimônio IA CRLV (campos críticos + mapa tarja)",
       patJs.includes("lerCrlvComRetry") &&
+        patJs.includes("lerProprietarioCrlvComRetry") &&
         patJs.includes("prepararImagemParaIaCrlv") &&
         patJs.includes("CAMPOS_CRITICOS") &&
+        patJs.includes("validarProprietarioCrlv") &&
+        patJs.includes("CRLV_REGIAO_PROPRIETARIO") &&
         patJs.includes("extrairCamposRespostaIa") &&
         patJs.includes("mapaEspacialCrlvPrompt") &&
         patJs.includes("TARJA PRETA") &&
