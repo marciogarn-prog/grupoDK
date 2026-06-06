@@ -1542,7 +1542,6 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="dkGeoMapFitAll">Ver todos</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="dkGeoMapCenterPetrolina">Petrolina</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="dkGeoMapToggleSat">Satélite</button>
-          <button type="button" class="btn-primary" id="dkGeoMapRefresh">Atualizar</button>
           <label class="dk-geo-mapa-busca">
             <span class="hidden">Buscar</span>
             <input type="search" id="dkGeoMapBusca" placeholder="CPF, placa ou nome…" autocomplete="off">
@@ -1551,7 +1550,12 @@
         <p id="dkGeoMapContador" class="subtext dk-geo-mapa-contador">A carregar…</p>
         <p id="dkGeoMapMsg" class="portal-feedback" role="status"></p>
         <div class="dk-geo-mapa-layout">
-          <div id="dkGeoMapCanvas" class="dk-geo-mapa-canvas" aria-label="Mapa de localização"></div>
+          <div class="dk-geo-mapa-canvas-wrap">
+            <div id="dkGeoMapCanvas" class="dk-geo-mapa-canvas" aria-label="Mapa de localização"></div>
+            <button type="button" class="dk-geo-mapa-refresh-overlay btn-primary" id="dkGeoMapRefresh" title="Atualizar posições no mapa" aria-label="Atualizar mapa">
+              ↻ Atualizar mapa
+            </button>
+          </div>
           <aside class="dk-geo-mapa-lista-wrap" aria-label="Lista de clientes">
             <h3 class="portal-lanc-aluguel-section__title">Clientes</h3>
             <div id="dkGeoMapLista" class="dk-geo-mapa-lista"></div>
@@ -1907,7 +1911,7 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-cliente-geo-mapa.js?v=20260521geo-v1" defer></script>
+  <script src="portal-cliente-geo-mapa.js?v=20260521geo-v2" defer></script>
   <script src="portal-locadora-ui.js?v=20260521geo-v1" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>

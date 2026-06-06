@@ -3892,12 +3892,36 @@ table.validados-app .lnk-comprovante {
   min-height: min(68vh, 620px);
 }
 
+.dk-geo-mapa-canvas-wrap {
+  position: relative;
+  min-height: 420px;
+}
+
 .dk-geo-mapa-canvas {
   min-height: 420px;
   height: min(68vh, 620px);
   border-radius: 10px;
   border: 1px solid var(--border, #333);
   z-index: 0;
+}
+
+.dk-geo-mapa-refresh-overlay {
+  position: absolute;
+  top: 0.65rem;
+  right: 0.65rem;
+  z-index: 500;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  font-size: 0.88rem;
+  padding: 0.45rem 0.75rem;
+}
+
+.dk-geo-mapa-refresh-overlay.is-loading {
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.dk-geo-mapa-refresh-overlay.is-loading::before {
+  content: "… ";
 }
 
 .dk-geo-mapa-lista-wrap {

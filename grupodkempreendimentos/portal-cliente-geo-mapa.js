@@ -164,8 +164,9 @@
     });
   }
 
-  function renderMarkers(rows) {
+  function renderMarkers(rows, opts) {
     if (!map || !layerGroup) return;
+    const preserveView = Boolean(opts?.preserveView);
     layerGroup.clearLayers();
     const bounds = [];
     rows.forEach((r) => {
@@ -178,6 +179,7 @@
       m.addTo(layerGroup);
       bounds.push([lat, lng]);
     });
+    if (preserveView) return;
     if (bounds.length === 1) {
       map.setView(bounds[0], 15);
     } else if (bounds.length > 1) {
@@ -185,8 +187,19 @@
     }
   }
 
-  async function fetchGeo() {
+  let fetchGeoInFlight = false;
+
+  async function fetchGeo(opts) {
+    const preserveView = Boolean(opts?.preserveView);
     const msg = $("dkGeoMapMsg");
+    const btn = $("dkGeoMapRefresh");
+    if (fetchGeoInFlight) return;
+    fetchGeoInFlight = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add("is-loading");
+    }
+    if (msg && preserveView) msg.textContent = "A atualizar mapa…";
     try {
       const res = await fetch(GEO_API, { cache: "no-store" });
       const data = await res.json();
@@ -195,10 +208,16 @@
       const q = $("dkGeoMapBusca")?.value || "";
       const filtered = filterRows(q);
       renderList(filtered);
-      renderMarkers(filtered);
-      if (msg) msg.textContent = `Atualizado ${new Date().toLocaleTimeString("pt-BR")}`;
+      renderMarkers(filtered, { preserveView });
+      if (msg) msg.textContent = `Mapa atualizado ${new Date().toLocaleTimeString("pt-BR")}`;
     } catch (e) {
       if (msg) msg.textContent = e?.message || "Erro ao carregar localizações.";
+    } finally {
+      fetchGeoInFlight = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.classList.remove("is-loading");
+      }
     }
   }
 
@@ -217,11 +236,11 @@
       else map?.setView(PETROLINA, 13);
     });
     $("dkGeoMapCenterPetrolina")?.addEventListener("click", () => map?.setView(PETROLINA, 13));
-    $("dkGeoMapRefresh")?.addEventListener("click", () => fetchGeo());
+    $("dkGeoMapRefresh")?.addEventListener("click", () => fetchGeo({ preserveView: true }));
     $("dkGeoMapBusca")?.addEventListener("input", () => {
       const filtered = filterRows($("dkGeoMapBusca")?.value);
       renderList(filtered);
-      renderMarkers(filtered);
+      renderMarkers(filtered, { preserveView: true });
     });
     let sat = false;
     $("dkGeoMapToggleSat")?.addEventListener("click", () => {
@@ -247,7 +266,7 @@
       wireToolbar();
       await fetchGeo();
       if (refreshTimer) clearInterval(refreshTimer);
-      refreshTimer = setInterval(fetchGeo, REFRESH_MS);
+      refreshTimer = setInterval(() => fetchGeo({ preserveView: true }), REFRESH_MS);
       window.setTimeout(() => map?.invalidateSize(), 200);
     } catch (e) {
       const msg = $("dkGeoMapMsg");

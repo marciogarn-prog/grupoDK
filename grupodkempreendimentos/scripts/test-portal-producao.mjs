@@ -107,7 +107,8 @@ async function main() {
       "mapa localização clientes (admin)",
       html.includes("btn-locadora-localizacao") &&
         html.includes("panel-localizacao-locadora") &&
-        html.includes("dkGeoMapCanvas") &&
+        html.includes("dkGeoMapRefresh") &&
+        html.includes("dk-geo-mapa-refresh-overlay") &&
         html.includes("portal-cliente-geo-mapa.js")
     );
     record(
