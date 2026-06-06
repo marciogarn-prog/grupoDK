@@ -95,15 +95,19 @@
         <span class="choice-card__hint">Colaborador ou administrador (CPF e senha)</span>
       </button>
     </main>
-    <footer class="site-footer">
-      <button type="button" class="btn-back" data-back>&larr; Voltar ao início</button>
+    <footer class="site-footer site-footer--nav-dupla">
+      <button type="button" class="btn-back" data-back>&larr; Voltar</button>
+      <button type="button" class="btn-back btn-back--inicio" data-inicio>Início</button>
     </footer>
   </div>
 
   <div id="view-locadora-cliente" class="view view--locadora-sub" role="region" aria-labelledby="locadora-cliente-title" aria-hidden="true">
     <div class="subpage">
       <header class="portal-unit-bar portal-unit-bar--simple" aria-label="Navegação">
-        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-locadora-back="hub">&larr; Voltar</button>
+        <div class="portal-unit-bar__nav">
+          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-locadora-back="hub">&larr; Voltar</button>
+          <button type="button" class="btn-back btn-back--compact btn-back--inicio" data-inicio>Início</button>
+        </div>
       </header>
       <h1 id="locadora-cliente-title" class="subpage__title">Área do Cliente</h1>
       <p class="subpage__lead">Consulte novidades e instale o app DK Cliente no telemóvel (apenas clientes cadastrados com protocolo válido).</p>
@@ -154,7 +158,10 @@
             <button type="button" class="role-picker__btn" data-role="administrador" role="tab" aria-selected="false">Administrador</button>
           </div>
         </div>
-        <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="portal-unit-back-btn" data-back>&larr; Voltar</button>
+        <div class="portal-unit-bar__nav">
+          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="portal-unit-back-btn" data-back>&larr; Voltar</button>
+          <button type="button" class="btn-back btn-back--compact btn-back--inicio" id="portal-unit-inicio-btn" data-inicio>Início</button>
+        </div>
       </header>
 
       <div class="portal-unit-heading">
@@ -1912,7 +1919,7 @@
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521geo-v1" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521nav-voltar" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>

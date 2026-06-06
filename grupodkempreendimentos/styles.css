@@ -345,7 +345,29 @@ body {
 
 .portal-unit-bar__back {
   align-self: center;
+}
+
+.portal-unit-bar__nav {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.65rem;
   margin-left: auto;
+}
+
+.btn-back--inicio {
+  color: var(--accent);
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  border-radius: 6px;
+  padding: 0.35rem 0.65rem;
+}
+
+.site-footer--nav-dupla {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  justify-content: center;
+  align-items: center;
 }
 
 .portal-unit-heading {
@@ -490,6 +512,11 @@ body {
 
   .portal-unit-bar__left {
     flex: 1 1 100%;
+  }
+
+  .portal-unit-bar__nav {
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .portal-unit-bar__back {

@@ -625,7 +625,7 @@
       b.classList.remove("hidden");
       b.hidden = false;
     });
-    if (portalUnitBackBtn) portalUnitBackBtn.textContent = "← Voltar ao início";
+    if (portalUnitBackBtn) portalUnitBackBtn.textContent = "← Voltar";
   }
 
   function openLocadoraHub() {
@@ -740,7 +740,7 @@
     openLocadoraHub();
   }
 
-  /** Da Operação/Manutenção/Patrimônio → Área da equipa. */
+  /** Da Operação/Manutenção/Localização/Patrimônio → Área da equipa. */
   function portalVoltarEquipaLocadora() {
     hideInlineForms();
     hideManutencaoInlineFormsCore();
@@ -756,6 +756,29 @@
     panelPatrimonio?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
     portalPersistirAreaAtiva("equipa");
+  }
+
+  /** Área da equipa (logado) → ecrã de login da unidade (tela anterior). */
+  function portalVoltarLoginDaEquipa() {
+    portalColaboradorSenhaPendente = null;
+    portalLimparAreaAtiva();
+    hideInlineForms();
+    hideManutencaoInlineFormsCore();
+    setOperacaoFormPlaceholderVisible(true);
+    setManutencaoFormPlaceholderVisible(true);
+    syncOperacaoCadastroButtons(null);
+    syncManutencaoSidebarButtons(null);
+    if (typeof window.__DK_patrimonioReset === "function") window.__DK_patrimonioReset();
+    if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
+    if (typeof clearSession === "function") clearSession();
+    hideAllPanels();
+    btnOperacao?.classList.add("hidden");
+    btnManutencao?.classList.add("hidden");
+    btnLocalizacao?.classList.add("hidden");
+    btnPatrimonio?.classList.add("hidden");
+    panelLogin?.classList.remove("hidden");
+    if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
+    clearPortalUnitDadosAtualizados();
   }
 
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
@@ -890,7 +913,7 @@
     return Boolean(ph && ph.classList.contains("hidden"));
   }
 
-  /** Mesma lógica do botão «Voltar» (data-back) — tela anterior no fluxo do portal. */
+  /** Botão «Voltar» (data-back) — tela anterior no fluxo do portal (não vai ao início). */
   function portalAcaoVoltarTela() {
     if (typeof window.__DK_patrimonioEscapeBack === "function" && window.__DK_patrimonioEscapeBack()) {
       return;
@@ -898,8 +921,26 @@
     const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
     const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
     const emPatrimonio = panelPatrimonio && !panelPatrimonio.classList.contains("hidden");
-    if (emOperacao || emManutencao || emPatrimonio) {
+    const emLocalizacao = panelLocalizacao && !panelLocalizacao.classList.contains("hidden");
+    if (emOperacao || emManutencao || emPatrimonio || emLocalizacao) {
       portalVoltarEquipaLocadora();
+      return;
+    }
+    if (panelLogado && !panelLogado.classList.contains("hidden")) {
+      portalVoltarLoginDaEquipa();
+      return;
+    }
+    if (panelSenha && !panelSenha.classList.contains("hidden")) {
+      panelSenha.classList.add("hidden");
+      panelLogin?.classList.remove("hidden");
+      return;
+    }
+    if (panelLogin && !panelLogin.classList.contains("hidden") && viewUnit?.classList.contains("view--active")) {
+      if (currentUnit === "locadora") {
+        portalVoltarLocadoraHub();
+      } else {
+        portalVoltarInicio();
+      }
       return;
     }
     if (viewLocadoraHub?.classList.contains("view--active")) {
@@ -983,19 +1024,19 @@
 
   document.querySelectorAll("[data-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      if (panelSenha && !panelSenha.classList.contains("hidden")) {
-        panelSenha.classList.add("hidden");
-        panelLogin?.classList.remove("hidden");
-        return;
-      }
       portalAcaoVoltarTela();
+    });
+  });
+
+  document.querySelectorAll("[data-inicio]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      portalVoltarInicio();
     });
   });
 
   document.querySelectorAll("[data-locadora-back]").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const dest = btn.getAttribute("data-locadora-back") || "";
-      if (dest === "hub") portalVoltarLocadoraHub();
+      portalAcaoVoltarTela();
     });
   });
 
