@@ -29,11 +29,32 @@ if (!fs.existsSync(portalDir)) {
 /* Garante que novas rotas /api/* na raiz do repo também existem no portal (Root Directory Vercel). */
 const repoApiDir = path.join(repoRoot, "api");
 const portalApiDir = path.join(portalDir, "api");
-if (fs.existsSync(repoApiDir)) {
+if (fs.existsSync(repoApiDir) && fs.existsSync(portalApiDir)) {
+  fs.mkdirSync(portalApiDir, { recursive: true });
+  fs.mkdirSync(repoApiDir, { recursive: true });
+  const portalApiNames = new Set(
+    fs.readdirSync(portalApiDir).filter((n) => n.endsWith(".js"))
+  );
+  for (const name of fs.readdirSync(repoApiDir)) {
+    if (!name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(repoApiDir, name), path.join(portalApiDir, name));
+    portalApiNames.delete(name);
+  }
+  /* Rotas novas só no portal → espelhar na raiz (Vercel serverless lê api/ do repo). */
+  for (const name of portalApiNames) {
+    fs.copyFileSync(path.join(portalApiDir, name), path.join(repoApiDir, name));
+  }
+} else if (fs.existsSync(repoApiDir)) {
   fs.mkdirSync(portalApiDir, { recursive: true });
   for (const name of fs.readdirSync(repoApiDir)) {
     if (!name.endsWith(".js")) continue;
     fs.copyFileSync(path.join(repoApiDir, name), path.join(portalApiDir, name));
+  }
+} else if (fs.existsSync(portalApiDir)) {
+  fs.mkdirSync(repoApiDir, { recursive: true });
+  for (const name of fs.readdirSync(portalApiDir)) {
+    if (!name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(portalApiDir, name), path.join(repoApiDir, name));
   }
 }
 const repoLibDir = path.join(repoRoot, "lib");

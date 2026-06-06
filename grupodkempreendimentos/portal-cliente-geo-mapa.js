@@ -202,14 +202,29 @@
     if (msg && preserveView) msg.textContent = "A atualizar mapa…";
     try {
       const res = await fetch(GEO_API, { cache: "no-store" });
-      const data = await res.json();
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        throw new Error(
+          res.ok
+            ? "Resposta inválida da API de localização."
+            : `Serviço de mapa indisponível (${res.status}). Recarregue em 1 minuto.`
+        );
+      }
       if (!res.ok || !data.ok) throw new Error(data.msg || "Falha ao carregar");
       lastRows = Array.isArray(data.clientes) ? data.clientes : [];
       const q = $("dkGeoMapBusca")?.value || "";
       const filtered = filterRows(q);
       renderList(filtered);
       renderMarkers(filtered, { preserveView });
-      if (msg) msg.textContent = `Mapa atualizado ${new Date().toLocaleTimeString("pt-BR")}`;
+      if (msg) {
+        msg.textContent =
+          filtered.length > 0
+            ? `Mapa atualizado ${new Date().toLocaleTimeString("pt-BR")} · ${filtered.length} cliente(s)`
+            : `Mapa atualizado ${new Date().toLocaleTimeString("pt-BR")} · nenhum cliente com GPS ainda (app DK Cliente com localização ativa)`;
+      }
     } catch (e) {
       if (msg) msg.textContent = e?.message || "Erro ao carregar localizações.";
     } finally {

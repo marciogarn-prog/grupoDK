@@ -104,6 +104,18 @@ async function main() {
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
     record(
+      "API dk-cliente-geo responde JSON",
+      (await fetch(`${BASE_URL}api/dk-cliente-geo`, { cache: "no-store" }).then(async (r) => {
+        const t = await r.text();
+        try {
+          const j = JSON.parse(t);
+          return r.status === 200 && j.ok === true && Array.isArray(j.clientes);
+        } catch {
+          return false;
+        }
+      }))
+    );
+    record(
       "mapa localização clientes (admin)",
       html.includes("btn-locadora-localizacao") &&
         html.includes("panel-localizacao-locadora") &&
