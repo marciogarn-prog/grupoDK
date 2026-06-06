@@ -314,9 +314,115 @@
   }
 
   function showView(name) {
+    $("view-geolocalizacao")?.classList.toggle("hidden", name !== "geo");
     $("view-login")?.classList.toggle("hidden", name !== "login");
     $("view-app")?.classList.toggle("hidden", name !== "app");
     $("view-propaganda")?.classList.toggle("hidden", name !== "propaganda");
+  }
+
+  function showGeoBlocked(msg) {
+    showView("geo");
+    const status = $("cliente-geo-status");
+    const blocked = $("cliente-geo-bloqueado");
+    const btn = $("btn-cliente-geo-autorizar");
+    if (status) {
+      status.textContent = msg || "Autorização negada.";
+      status.classList.add("error");
+    }
+    blocked?.classList.remove("hidden");
+    if (btn) btn.disabled = false;
+  }
+
+  function metaGeoFromSessao(sessao) {
+    if (!sessao?.cpf) return null;
+    const locs = filterLocacoesAtivas(
+      loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === sessao.cpf)
+    );
+    const loc = locs[0] || loadCadastro(CAD_LOCACOES_KEY).find((l) => onlyDigits(l.cpf) === sessao.cpf);
+    return {
+      cpf: sessao.cpf,
+      nome: sessao.nome,
+      placa: String(loc?.placa || "").trim(),
+      protocolo: normNc(loc?.numeroContrato || ""),
+    };
+  }
+
+  function startGeoForSession(sessao) {
+    const meta = metaGeoFromSessao(sessao);
+    if (meta && typeof window.__DK_clienteGeoStartTracking === "function") {
+      window.__DK_clienteGeoStartTracking(meta);
+    }
+  }
+
+  async function ensureGeoGateBeforeApp() {
+    const ensure = window.__DK_clienteGeoEnsurePermission;
+    if (typeof ensure !== "function") {
+      showGeoBlocked("Módulo de localização indisponível. Recarregue a página.");
+      return false;
+    }
+    const status = $("cliente-geo-status");
+    const blocked = $("cliente-geo-bloqueado");
+    blocked?.classList.add("hidden");
+
+    const perm = await window.__DK_clienteGeoQueryState?.();
+    if (perm === "denied") {
+      showGeoBlocked("Localização bloqueada nas definições do telemóvel.");
+      return false;
+    }
+    if (perm === "granted" && window.__DK_clienteGeoHasConsent?.()) {
+      const recheck = await ensure({ required: true });
+      if (recheck.ok) return true;
+      showGeoBlocked(recheck.msg);
+      return false;
+    }
+
+    showView("geo");
+    if (status) {
+      status.textContent = "Toque em «Autorizar localização» para continuar.";
+      status.classList.remove("error", "success");
+    }
+
+    return new Promise((resolve) => {
+      const btn = $("btn-cliente-geo-autorizar");
+      if (!btn) {
+        resolve(false);
+        return;
+      }
+      const onClick = async () => {
+        btn.disabled = true;
+        if (status) status.textContent = "A pedir permissão ao telemóvel…";
+        const res = await ensure({ required: true });
+        if (res.ok) {
+          if (status) {
+            status.textContent = "Localização autorizada.";
+            status.classList.add("success");
+          }
+          btn.removeEventListener("click", onClick);
+          resolve(true);
+          return;
+        }
+        showGeoBlocked(res.msg);
+        resolve(false);
+      };
+      btn.addEventListener("click", onClick);
+      if (perm === "granted") {
+        void onClick();
+      }
+    });
+  }
+
+  async function requireGeoForInstall() {
+    const ensure = window.__DK_clienteGeoEnsurePermission;
+    if (typeof ensure !== "function") return false;
+    const res = await ensure({ required: true });
+    if (!res.ok) {
+      updateInstallPanelUi(
+        res.msg || "Instalação bloqueada: autorize a localização antes de instalar."
+      );
+      showGeoBlocked(res.msg);
+      return false;
+    }
+    return true;
   }
 
   function renderPropaganda(sessao, motivo) {
@@ -1005,6 +1111,14 @@
 
   async function atualizarProgramaEDados(sessao, opts) {
     await checkAtualizacaoPrograma();
+    if (typeof window.__DK_clienteGeoEnsurePermission === "function") {
+      const geo = await window.__DK_clienteGeoEnsurePermission({ required: true });
+      if (!geo.ok) {
+        showGeoBlocked(geo.msg);
+        return;
+      }
+      if (sessao?.cpf) startGeoForSession(sessao);
+    }
     await sincronizarDadosCliente(sessao, opts);
   }
 
@@ -1440,7 +1554,11 @@
       panel.classList.add("hidden");
       return;
     }
-    if (wantsInstallFlow()) panel.classList.remove("hidden");
+    if (wantsInstallFlow() && window.__DK_clienteGeoHasConsent?.()) {
+      panel.classList.remove("hidden");
+    } else if (wantsInstallFlow()) {
+      panel.classList.add("hidden");
+    }
   }
 
   function wireInstall() {
@@ -1450,10 +1568,14 @@
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
       deferredInstallPrompt = e;
-      updateInstallPanelUi(
-        "O sistema está pronto. Toque em «Instalar app DK Cliente» (pode demorar 1–2 segundos a aparecer)."
-      );
-      panel?.classList.remove("hidden");
+      if (window.__DK_clienteGeoHasConsent?.()) {
+        updateInstallPanelUi(
+          "O sistema está pronto. Toque em «Instalar app DK Cliente» (pode demorar 1–2 segundos a aparecer)."
+        );
+        panel?.classList.remove("hidden");
+      } else {
+        updateInstallPanelUi("Autorize a localização acima antes de instalar o app.");
+      }
     });
 
     window.addEventListener("appinstalled", () => {
@@ -1470,6 +1592,11 @@
     });
 
     btn?.addEventListener("click", async () => {
+      const geoOk = await requireGeoForInstall();
+      if (!geoOk) {
+        panel?.classList.add("hidden");
+        return;
+      }
       if (deferredInstallPrompt) {
         try {
           deferredInstallPrompt.prompt();
@@ -1496,7 +1623,7 @@
       $("cliente-install-manual")?.setAttribute("open", "open");
     });
 
-    if (wantsInstallFlow()) {
+    if (wantsInstallFlow() && window.__DK_clienteGeoHasConsent?.()) {
       updateInstallPanelUi(
         "Aguarde o carregamento e toque em «Instalar app DK Cliente». Se não aparecer, abra as instruções manuais."
       );
@@ -1519,6 +1646,7 @@
 
   async function afterLogin(sess) {
     persistGateFromSession();
+    startGeoForSession(sess);
     if (isStandaloneDisplay()) {
       try {
         localStorage.setItem("dk_cliente_pwa_installed", "1");
@@ -1566,6 +1694,15 @@
     persistGateFromSession();
     wireLaunchQueueShare();
     wireComprovanteLinkDelegation();
+
+    if (!canOpenAppWithoutPortalRedirect()) {
+      window.location.replace("/#locadora/cliente");
+      return;
+    }
+
+    const geoOk = await ensureGeoGateBeforeApp();
+    if (!geoOk) return;
+
     if (!document.documentElement.dataset.dkClientePagBound) {
       document.documentElement.dataset.dkClientePagBound = "1";
       document.addEventListener("click", onClientePagamentosClick);
@@ -1587,15 +1724,19 @@
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
         const sessao = getSessao();
-        if (sessao?.cpf) void sincronizarDadosCliente(sessao, { silent: true });
+        if (!sessao?.cpf) return;
+        const meta = metaGeoFromSessao(sessao);
+        if (typeof window.__DK_clienteGeoRefreshOnVisible === "function") {
+          void window.__DK_clienteGeoRefreshOnVisible(meta).then((r) => {
+            if (r && r.ok === false && r.state === "denied") {
+              showGeoBlocked("Localização revogada. Reative para continuar.");
+            }
+          });
+        }
+        void sincronizarDadosCliente(sessao, { silent: true });
       });
     }
     void registerClienteServiceWorker();
-
-    if (!canOpenAppWithoutPortalRedirect()) {
-      window.location.replace("/#locadora/cliente");
-      return;
-    }
 
     $("form-login")?.addEventListener("submit", (e) => {
       e.preventDefault();
@@ -1613,6 +1754,7 @@
       }
       const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
       setSessao(sess);
+      startGeoForSession(sess);
       if (fb) fb.textContent = "A sincronizar…";
       resolveAppViewAfterData(sess);
       void (async () => {
@@ -1626,6 +1768,9 @@
     });
 
     const doLogout = () => {
+      if (typeof window.__DK_clienteGeoStopTracking === "function") {
+        window.__DK_clienteGeoStopTracking();
+      }
       clearSessao();
       showView("login");
     };
@@ -1676,10 +1821,10 @@
     await processIncomingShare();
 
     const sessao = getSessao();
+    showView("login");
     if (sessao?.cpf) {
+      startGeoForSession(sessao);
       await afterLogin(sessao);
-    } else {
-      showView("login");
     }
 
     wireInstall();

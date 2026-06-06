@@ -3854,3 +3854,130 @@ table.validados-app .lnk-comprovante {
     min-width: 120px;
   }
 }
+
+/* Mapa localização clientes (admin) */
+.dk-geo-mapa-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0.75rem 0;
+}
+
+.dk-geo-mapa-tool {
+  min-width: 2.5rem;
+  padding-inline: 0.65rem;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.dk-geo-mapa-busca {
+  flex: 1 1 180px;
+  min-width: 140px;
+}
+
+.dk-geo-mapa-busca input {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #333);
+  background: var(--surface, #1a1a1a);
+  color: inherit;
+}
+
+.dk-geo-mapa-layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 280px);
+  gap: 0.75rem;
+  min-height: min(68vh, 620px);
+}
+
+.dk-geo-mapa-canvas {
+  min-height: 420px;
+  height: min(68vh, 620px);
+  border-radius: 10px;
+  border: 1px solid var(--border, #333);
+  z-index: 0;
+}
+
+.dk-geo-mapa-lista-wrap {
+  overflow: auto;
+  max-height: min(68vh, 620px);
+  border: 1px solid var(--border, #333);
+  border-radius: 10px;
+  padding: 0.5rem;
+}
+
+.dk-geo-mapa-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dk-geo-lista-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.dk-geo-lista-item:hover {
+  border-color: var(--accent, #c9a227);
+  background: rgba(201, 162, 39, 0.08);
+}
+
+.dk-geo-lista-item__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-top: 0.35rem;
+  background: #94a3b8;
+  flex-shrink: 0;
+}
+
+.dk-geo-lista-item__dot.is-online {
+  background: #22c55e;
+}
+
+.dk-geo-lista-item__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.82rem;
+}
+
+.dk-geo-marker-wrap {
+  background: transparent;
+  border: none;
+}
+
+.dk-geo-marker {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+}
+
+.dk-geo-popup {
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+@media (max-width: 900px) {
+  .dk-geo-mapa-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .dk-geo-mapa-lista-wrap {
+    max-height: 220px;
+  }
+}

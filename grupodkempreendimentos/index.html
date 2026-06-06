@@ -205,6 +205,7 @@
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-localizacao">Localização clientes</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-patrimonio">Cadastro de patrimônio</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
@@ -1532,6 +1533,35 @@
         </div>
       </section>
 
+      <section id="panel-localizacao-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Localização dos clientes</h2>
+        <p class="subpage__lead">Posição GPS enviada pelo app DK Cliente (com autorização do cliente).</p>
+        <div class="dk-geo-mapa-toolbar" role="toolbar" aria-label="Controles do mapa">
+          <button type="button" class="btn-primary btn-secondary-outline dk-geo-mapa-tool" id="dkGeoMapZoomIn" title="Aumentar zoom">+</button>
+          <button type="button" class="btn-primary btn-secondary-outline dk-geo-mapa-tool" id="dkGeoMapZoomOut" title="Reduzir zoom">−</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="dkGeoMapFitAll">Ver todos</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="dkGeoMapCenterPetrolina">Petrolina</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="dkGeoMapToggleSat">Satélite</button>
+          <button type="button" class="btn-primary" id="dkGeoMapRefresh">Atualizar</button>
+          <label class="dk-geo-mapa-busca">
+            <span class="hidden">Buscar</span>
+            <input type="search" id="dkGeoMapBusca" placeholder="CPF, placa ou nome…" autocomplete="off">
+          </label>
+        </div>
+        <p id="dkGeoMapContador" class="subtext dk-geo-mapa-contador">A carregar…</p>
+        <p id="dkGeoMapMsg" class="portal-feedback" role="status"></p>
+        <div class="dk-geo-mapa-layout">
+          <div id="dkGeoMapCanvas" class="dk-geo-mapa-canvas" aria-label="Mapa de localização"></div>
+          <aside class="dk-geo-mapa-lista-wrap" aria-label="Lista de clientes">
+            <h3 class="portal-lanc-aluguel-section__title">Clientes</h3>
+            <div id="dkGeoMapLista" class="dk-geo-mapa-lista"></div>
+          </aside>
+        </div>
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-localizacao-locadora">Voltar</button>
+        </div>
+      </section>
+
       <section id="panel-patrimonio-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
         <p class="subpage__lead">CRLV-e digital — anexe PDFs nítidos do documento. A IA extrai os dados e guarda na nuvem.</p>
@@ -1877,7 +1907,8 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
-  <script src="portal-locadora-ui.js?v=20260531veic-ordem" defer></script>
+  <script src="portal-cliente-geo-mapa.js?v=20260521geo-v1" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521geo-v1" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>

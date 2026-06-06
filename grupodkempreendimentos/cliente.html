@@ -42,7 +42,27 @@
   <link rel="stylesheet" href="cliente-app.css?v=20260521sync-cores">
 </head>
 <body class="cliente-app-body">
-  <section id="view-login" class="cliente-app-card" aria-label="Entrar">
+  <section id="view-geolocalizacao" class="cliente-app-card cliente-geo-gate" aria-label="Autorização de localização">
+    <header class="cliente-app-header">
+      <div class="cliente-app-brand">
+        <span class="cliente-app-brand__mark" aria-hidden="true">DK</span>
+        <div>
+          <div class="cliente-app-brand__title">Localização obrigatória</div>
+          <div class="cliente-app-brand__sub">App DK Cliente</div>
+        </div>
+      </div>
+    </header>
+    <p class="cliente-geo-gate__lead">Para instalar e usar o app, autorize o envio da <strong>localização do telemóvel</strong> à DK Locadora (gestão da locação e segurança do veículo).</p>
+    <p class="subtext">O browser pedirá permissão <strong>uma vez</strong>. Sem autorização, a instalação e o acesso ao app não continuam.</p>
+    <button type="button" id="btn-cliente-geo-autorizar" class="btn-primary" style="width:100%">Autorizar localização</button>
+    <p id="cliente-geo-status" class="portal-feedback" role="status"></p>
+    <div id="cliente-geo-bloqueado" class="cliente-geo-bloqueado hidden">
+      <p><strong>Instalação / acesso bloqueado.</strong></p>
+      <p class="subtext">Ative a localização para este site: definições do browser → Permissões → Localização → Permitir. Depois recarregue a página.</p>
+    </div>
+  </section>
+
+  <section id="view-login" class="cliente-app-card hidden" aria-label="Entrar">
     <header class="cliente-app-header">
       <div class="cliente-app-brand">
         <span class="cliente-app-brand__mark" aria-hidden="true">DK</span>
@@ -211,6 +231,7 @@
     </p>
   </section>
 
+  <script src="portal-cliente-geolocalizacao.js?v=20260521geo-v1" defer></script>
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
   <script src="portal-supabase-sync.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-notificacoes.js?v=20260522jose-040-fix" defer></script>
@@ -218,6 +239,6 @@
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260522unico" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-app.js?v=20260522jose-040-fix" defer></script>
+  <script src="cliente-app.js?v=20260521geo-v1" defer></script>
 </body>
 </html>

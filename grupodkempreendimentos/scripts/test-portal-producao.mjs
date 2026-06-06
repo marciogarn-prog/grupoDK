@@ -103,8 +103,24 @@ async function main() {
       indexFresh.includes("operacaoVeiculoResumoGrid") &&
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
+    record(
+      "mapa localização clientes (admin)",
+      html.includes("btn-locadora-localizacao") &&
+        html.includes("panel-localizacao-locadora") &&
+        html.includes("dkGeoMapCanvas") &&
+        html.includes("portal-cliente-geo-mapa.js")
+    );
+    record(
+      "app cliente geolocalização obrigatória",
+      (await fetch(`${BASE_URL}cliente.html`, { cache: "no-store" }).then((r) => r.text())).includes(
+        "view-geolocalizacao"
+      ) &&
+        (await fetch(`${BASE_URL}portal-cliente-geolocalizacao.js?v=20260521geo-v1`, { cache: "no-store" }).then(
+          (r) => r.text()
+        )).includes("__DK_clienteGeoEnsurePermission")
+    );
     const portalUiJs = await page.evaluate(async () => {
-      const r = await fetch("portal-locadora-ui.js?v=20260531veic-ordem", { cache: "no-store" });
+      const r = await fetch("portal-locadora-ui.js?v=20260521geo-v1", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -114,6 +130,12 @@ async function main() {
         portalUiJs.includes("getPortalResumoVeiculoCardData") &&
         portalUiJs.includes("portalCompareVeiculoResumoFrota") &&
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
+    );
+    record(
+      "portal localização clientes (código mapa)",
+      portalUiJs.includes("panelLocalizacao") &&
+        portalUiJs.includes("btnLocalizacao") &&
+        portalUiJs.includes("__DK_clienteGeoMapaOnShow")
     );
     const patJs = await page.evaluate(async () => {
       const r = await fetch("portal-patrimonio.js?v=20260603zerafila", { cache: "no-store" });

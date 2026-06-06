@@ -5,6 +5,25 @@
   margin-inline: auto;
 }
 
+.cliente-geo-gate__lead {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  margin: 0 0 0.75rem;
+}
+
+.cliente-geo-bloqueado {
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: 8px;
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+}
+
+.cliente-geo-bloqueado.hidden {
+  display: none;
+}
+
+
 .cliente-app-header {
   display: flex;
   align-items: center;

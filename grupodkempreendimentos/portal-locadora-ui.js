@@ -37,6 +37,7 @@
   const panelOperacao = document.getElementById("panel-operacao-locadora");
   const panelManutencao = document.getElementById("panel-manutencao-locadora");
   const panelPatrimonio = document.getElementById("panel-patrimonio-locadora");
+  const panelLocalizacao = document.getElementById("panel-localizacao-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
@@ -44,6 +45,7 @@
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
   const btnPatrimonio = document.getElementById("btn-locadora-patrimonio");
+  const btnLocalizacao = document.getElementById("btn-locadora-localizacao");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
   const logadoSubtextPreparacao = document.getElementById("logado-subtext-preparacao");
@@ -52,6 +54,7 @@
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
   const btnVoltarPatrimonio = document.getElementById("btn-voltar-patrimonio-locadora");
+  const btnVoltarLocalizacao = document.getElementById("btn-voltar-localizacao-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
 
@@ -449,6 +452,7 @@
     const allowOp = currentUnit === "locadora" && (funcionario.role === "operacao" || funcionario.role === "owner");
     btnOperacao?.classList.toggle("hidden", !allowOp);
     btnManutencao?.classList.toggle("hidden", !allowOp);
+    btnLocalizacao?.classList.toggle("hidden", !allowOp);
     btnPatrimonio?.classList.toggle("hidden", !isPortalTitularAdministrador());
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
@@ -632,6 +636,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnLocalizacao?.classList.add("hidden");
     btnPatrimonio?.classList.add("hidden");
     showView("hub");
     setPortalHash("locadora");
@@ -662,9 +667,12 @@
   }
 
   function hideAllPanels() {
-    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelPatrimonio].forEach((p) => {
-      if (p) p.classList.add("hidden");
-    });
+    if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
+    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelPatrimonio].forEach(
+      (p) => {
+        if (p) p.classList.add("hidden");
+      }
+    );
   }
 
   function openUnit(go) {
@@ -712,6 +720,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnLocalizacao?.classList.add("hidden");
     btnPatrimonio?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     clearPortalUnitDadosAtualizados();
@@ -726,6 +735,7 @@
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnLocalizacao?.classList.add("hidden");
     btnPatrimonio?.classList.add("hidden");
     openLocadoraHub();
   }
@@ -739,8 +749,10 @@
     syncOperacaoCadastroButtons(null);
     syncManutencaoSidebarButtons(null);
     if (typeof window.__DK_patrimonioReset === "function") window.__DK_patrimonioReset();
+    if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
+    panelLocalizacao?.classList.add("hidden");
     panelPatrimonio?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
     portalPersistirAreaAtiva("equipa");
@@ -795,6 +807,7 @@
     const h = (window.location.hash || "").toLowerCase();
     if (h.startsWith("#locadora/cliente")) return;
     if (area === "patrimonio" && panelPatrimonio && !panelPatrimonio.classList.contains("hidden")) return;
+    if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
     if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
     if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
     const func = portalObterFuncionarioDaSessaoRestauracao();
@@ -806,6 +819,9 @@
     if (area === "patrimonio" && isPortalTitularAdministrador()) {
       panelPatrimonio?.classList.remove("hidden");
       if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
+    } else if (area === "localizacao") {
+      panelLocalizacao?.classList.remove("hidden");
+      if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
     } else if (area === "operacao") {
       panelOperacao?.classList.remove("hidden");
       refreshPortalOperacaoNavPorAcessos();
@@ -1259,7 +1275,18 @@
     portalPersistirAreaAtiva("patrimonio");
   });
 
+  btnLocalizacao?.addEventListener("click", () => {
+    hideAllPanels();
+    panelLocalizacao?.classList.remove("hidden");
+    if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
+    portalPersistirAreaAtiva("localizacao");
+  });
+
   btnVoltarPatrimonio?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
+  });
+
+  btnVoltarLocalizacao?.addEventListener("click", () => {
     portalVoltarEquipaLocadora();
   });
 
@@ -2547,6 +2574,7 @@ ${printable.innerHTML}
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
+    btnLocalizacao?.classList.add("hidden");
     btnPatrimonio?.classList.add("hidden");
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {
