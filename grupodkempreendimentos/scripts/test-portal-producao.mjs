@@ -485,6 +485,9 @@ async function main() {
     const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521badge-tipo`, {
       cache: "no-store",
     }).then((r) => r.text());
+    const clienteCss = await fetch(`${BASE_URL}cliente-app.css?v=20260521badge-tipo`, { cache: "no-store" }).then(
+      (r) => r.text()
+    );
     record(
       "app cliente envio comprovante inativado",
       clienteHtml.includes('id="cliente-sec-comprovante"') &&
@@ -494,8 +497,10 @@ async function main() {
     );
     record(
       "app cliente badge contrato por tipo/plano",
-      clienteAppJs.includes("cliente-badge-contrato--minha-moto") &&
-        clienteResumoJs.includes("computeBadgeContrato"),
+      clienteAppJs.includes("renderContratoBadge") &&
+        clienteResumoJs.includes("computeBadgeContrato") &&
+        clienteCss.includes("cliente-badge-contrato--minha-moto") &&
+        clienteCss.includes("cliente-badge-contrato--carro"),
       "azul/verde/marrom/vermelho"
     );
 
