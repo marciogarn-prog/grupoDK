@@ -441,8 +441,13 @@ module.exports = async function handler(req, res) {
         for (const k of wipeKeys) {
           payload[k] = Object.prototype.hasOwnProperty.call(incoming, k) ? incoming[k] : [];
         }
-        payload.dk_cadastro_manual_portal_v1 = true;
-        payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        if (channel === "default") {
+          payload.dk_cadastro_manual_portal_v1 = true;
+          payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        } else {
+          delete payload.dk_cadastro_manual_portal_v1;
+          delete payload.dk_cadastro_lock_v1;
+        }
         payload = stripInternalPayloadKeys(payload);
       } else {
         const lockedIncoming = existingPayload

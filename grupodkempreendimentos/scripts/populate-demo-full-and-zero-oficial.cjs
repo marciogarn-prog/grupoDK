@@ -158,8 +158,17 @@ Execute:
 
   await postRedis(REDIS_DEMO_URL, {
     payload: demoPayload,
+    wipe_keys: [
+      "dk_clientes_cadastro",
+      "dk_portal_clientes_cadastro",
+      "dk_veiculos_cadastro",
+      "dk_portal_veiculos_cadastro",
+      "dk_veiculos_frota_planilha",
+      "dk_locacoes_cadastro",
+      "dk_lancamentos_aluguel",
+      "dk_lancamentos_aluguel_cadastro",
+    ],
     updated_at: updatedAt,
-    replace: true,
   });
   await postRedis(REDIS_DEFAULT_URL, {
     payload: oficialPayload,
