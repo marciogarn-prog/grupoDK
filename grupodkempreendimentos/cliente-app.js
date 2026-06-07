@@ -10,6 +10,66 @@
   const SHARE_CACHE_KEY = "dk-shared-comprovante";
   const PENDING_SHARE_SESSION_KEY = "dk_cliente_share_pending";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
+  const PORTAL_ADMIN_SESSAO_KEY = "dk_sessao_cliente";
+
+  function isPortalAdminSessaoAtiva() {
+    try {
+      const raw = localStorage.getItem(PORTAL_ADMIN_SESSAO_KEY);
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      return s?.tipo === "admin" && String(s.role || "") === "owner";
+    } catch {
+      return false;
+    }
+  }
+
+  function isAdminPreviewMode() {
+    try {
+      if (new URLSearchParams(location.search).get("adminPreview") === "1") return true;
+      return sessionStorage.getItem("dk_admin_preview_cliente") === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function showAdminPreviewBanner() {
+    const el = document.getElementById("portal-admin-banner-cliente");
+    if (!el) return;
+    el.classList.remove("hidden");
+    document.body.classList.add("cliente-admin-preview");
+  }
+
+  async function afterLoginAdminPreview(sess) {
+    await sincronizarDadosCliente(sess, { silent: false });
+    showView("app");
+    renderApp(sess);
+  }
+
+  async function autoLoginAdminPreviewFromGate() {
+    if (!isAdminPreviewMode() || !isPortalAdminSessaoAtiva()) return false;
+    showAdminPreviewBanner();
+    let gateCpf = "";
+    let gateNome = "";
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      const g = raw ? JSON.parse(raw) : null;
+      gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
+      gateNome = String(g?.nome || "").trim();
+    } catch {
+      /* ignore */
+    }
+    if (gateCpf.length !== 11) return false;
+    const row = loadCadastro(CAD_CLIENTES_KEY).find((c) => onlyDigits(c.cpf) === gateCpf);
+    const sess = {
+      cpf: gateCpf,
+      nome: gateNome || String(row?.nome || "").trim() || "Cliente",
+      origem: "adminPreview",
+      adminPreview: true,
+    };
+    setSessao(sess);
+    await afterLoginAdminPreview(sess);
+    return true;
+  }
   let pendingShareFocus = false;
   /** Protocolos com lista de pagamentos expandida (ver todos). */
   const pagamentosExpandidos = new Set();
@@ -1700,8 +1760,19 @@
       return;
     }
 
-    const geoOk = await ensureGeoGateBeforeApp();
-    if (!geoOk) return;
+    const adminPreview = isAdminPreviewMode() && isPortalAdminSessaoAtiva();
+    if (adminPreview) {
+      try {
+        sessionStorage.setItem("dk_admin_preview_cliente", "1");
+      } catch {
+        /* ignore */
+      }
+    }
+
+    if (!adminPreview) {
+      const geoOk = await ensureGeoGateBeforeApp();
+      if (!geoOk) return;
+    }
 
     if (!document.documentElement.dataset.dkClientePagBound) {
       document.documentElement.dataset.dkClientePagBound = "1";
@@ -1820,10 +1891,18 @@
 
     await processIncomingShare();
 
+    if (adminPreview && (await autoLoginAdminPreviewFromGate())) {
+      wireInstall();
+      bindCompMasks();
+      updateInstallPanelUi();
+      window.addEventListener("dk-comprovantes-synced", onComprovantesSyncedRefreshView);
+      return;
+    }
+
     const sessao = getSessao();
     showView("login");
     if (sessao?.cpf) {
-      startGeoForSession(sessao);
+      if (!adminPreview) startGeoForSession(sessao);
       await afterLogin(sessao);
     }
 

@@ -25,11 +25,21 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260521dk-logo">
+  <link rel="stylesheet" href="styles.css?v=20260521admin-nav">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
 <body>
+  <div id="portal-admin-banner" class="portal-admin-banner hidden" role="status" aria-live="polite">
+    <span class="portal-admin-banner__label">LOGADO COMO ADMINISTRADOR</span>
+    <nav class="portal-admin-banner__nav" aria-label="Navegação administrador">
+      <button type="button" class="portal-admin-banner__link" data-admin-nav="home">Início</button>
+      <button type="button" class="portal-admin-banner__link" data-admin-nav="hub">DK Locadora</button>
+      <button type="button" class="portal-admin-banner__link" data-admin-nav="empresa">Área empresa</button>
+      <button type="button" class="portal-admin-banner__link" data-admin-nav="cliente">Área cliente</button>
+      <button type="button" class="portal-admin-banner__link portal-admin-banner__link--sair" data-admin-nav="sair">Sair</button>
+    </nav>
+  </div>
   <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
     <header class="site-header">
       <div class="brand">
@@ -118,7 +128,27 @@
       <h1 id="locadora-cliente-title" class="subpage__title">Área do Cliente</h1>
       <p class="subpage__lead">Consulte novidades e instale o app DK Cliente no telemóvel (apenas clientes cadastrados com protocolo válido).</p>
 
-      <section class="portal-panel locadora-cliente-propaganda" aria-labelledby="locadora-propaganda-title">
+      <section id="portal-admin-cliente-preview" class="portal-panel hidden" aria-labelledby="portal-admin-cliente-title" hidden>
+        <h2 id="portal-admin-cliente-title" class="portal-panel__title">Pré-visualizar app do cliente</h2>
+        <p class="subtext">Digite o CPF — surgem sugestões com o nome. Escolha o protocolo e abra o app como o cliente vê (desenvolvimento).</p>
+        <div class="portal-form">
+          <label class="portal-field">
+            <span>CPF do cliente</span>
+            <input type="text" id="portal-admin-cliente-cpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="portal-admin-cliente-cpf-sugestoes" aria-autocomplete="list">
+            <datalist id="portal-admin-cliente-cpf-sugestoes"></datalist>
+          </label>
+          <label class="portal-field">
+            <span>Protocolo da locação</span>
+            <select id="portal-admin-cliente-protocolo">
+              <option value="">— informe o CPF —</option>
+            </select>
+          </label>
+          <p id="portal-admin-cliente-feedback" class="portal-feedback" role="status"></p>
+          <button type="button" class="btn-primary" id="portal-admin-cliente-abrir">Ver app como cliente</button>
+        </div>
+      </section>
+
+      <section class="portal-panel locadora-cliente-propaganda" aria-labelledby="locadora-propaganda-title" id="locadora-cliente-propaganda-section">
         <h2 id="locadora-propaganda-title" class="portal-panel__title">Produtos e novidades</h2>
         <p class="subtext">Este espaço será atualizado em breve com planos, promoções e informações da DK Locadora.</p>
         <div class="locadora-propaganda-placeholder" role="status" aria-label="Conteúdo em preparação">
@@ -126,7 +156,7 @@
         </div>
       </section>
 
-      <section class="portal-panel" aria-labelledby="locadora-app-title">
+      <section class="portal-panel" aria-labelledby="locadora-app-title" id="locadora-cliente-app-section">
         <h2 id="locadora-app-title" class="portal-panel__title">Baixar o app DK Cliente</h2>
         <p class="subtext">Informe o CPF e o número do protocolo da sua locação. Só clientes cadastrados com contrato correspondente podem instalar.</p>
         <p class="subtext">Após instalar no telemóvel (Android), ao <strong>partilhar</strong> um comprovante do banco aparece <strong>DK Cliente</strong> nas opções de partilha.</p>
@@ -220,6 +250,7 @@
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-localizacao">Localização clientes</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-patrimonio">Cadastro de patrimônio</button>
+          <button type="button" class="btn-primary btn-secondary-outline hidden" id="btn-locadora-preview-cliente">Área do cliente (pré-visualizar)</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
         <div id="portal-cloud-sync-bar" class="portal-cloud-sync-bar hidden" aria-live="polite">
@@ -1925,7 +1956,7 @@
   <script src="app.js?v=20260531placa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521pesquisa-placa" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521admin-nav" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>

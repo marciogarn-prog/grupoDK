@@ -4128,6 +4128,103 @@ table.validados-app .lnk-comprovante {
   }
 }
 
+.portal-admin-banner--cliente {
+  position: sticky;
+}
+
+.portal-body--admin-logado {
+  padding-top: 2.85rem;
+}
+
+.portal-body--admin-logado .view {
+  min-height: calc(100vh - 2.85rem);
+}
+
+.portal-admin-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  flex-wrap: wrap;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem;
+  background: linear-gradient(90deg, #7f1d1d 0%, #dc2626 50%, #7f1d1d 100%);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.55);
+}
+
+.portal-admin-banner__label {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  white-space: nowrap;
+}
+
+.portal-admin-banner__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  margin-left: auto;
+}
+
+.portal-admin-banner__link {
+  margin: 0;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  color: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.portal-admin-banner__link:hover {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
+.portal-admin-banner__link--sair {
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 640px) {
+  .portal-admin-banner {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.4rem 0.65rem;
+  }
+
+  .portal-admin-banner__nav {
+    margin-left: 0;
+    justify-content: flex-start;
+  }
+
+  .portal-body--admin-logado {
+    padding-top: 4.5rem;
+  }
+}
+
+#portal-admin-cliente-preview .portal-form {
+  max-width: 26rem;
+}
+
+.cliente-app-body.cliente-admin-preview {
+  padding-top: 2.85rem;
+}
+
 /* Tema DK Locadora — vermelho e preto + showroom */
 .header-lead {
   color: rgba(255, 255, 255, 0.82);

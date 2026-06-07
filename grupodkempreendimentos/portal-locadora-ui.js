@@ -13,6 +13,233 @@
   /** Único CPF com acesso «Administrador» no portal DK Locadora. */
   const DK_LOCADORA_ADMIN_CPF = "03037897430";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
+  const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
+  const PORTAL_SESSAO_BUILD_ID = "20260521admin-nav";
+
+  function isPortalAdministradorLogado() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin" || String(s.role || "") !== "owner") return false;
+      return localStorage.getItem(PORTAL_SESSAO_BUILD_KEY) === PORTAL_SESSAO_BUILD_ID;
+    } catch {
+      return false;
+    }
+  }
+
+  function portalMarcarSessaoAdminBuild() {
+    try {
+      localStorage.setItem(PORTAL_SESSAO_BUILD_KEY, PORTAL_SESSAO_BUILD_ID);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalInvalidarSessaoSeBuildAntigo() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return;
+      if (localStorage.getItem(PORTAL_SESSAO_BUILD_KEY) !== PORTAL_SESSAO_BUILD_ID) {
+        if (typeof clearSession === "function") clearSession();
+        localStorage.removeItem(PORTAL_SESSAO_BUILD_KEY);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalResetSessaoSeNaoAdmin() {
+    if (isPortalAdministradorLogado()) return;
+    if (typeof clearSession === "function") clearSession();
+  }
+
+  function portalAtualizarBannerAdmin() {
+    const banner = document.getElementById("portal-admin-banner");
+    if (!banner) return;
+    const on = isPortalAdministradorLogado();
+    banner.classList.toggle("hidden", !on);
+    document.body.classList.toggle("portal-body--admin-logado", on);
+    const btnPreview = document.getElementById("btn-locadora-preview-cliente");
+    if (btnPreview) btnPreview.classList.toggle("hidden", !on);
+  }
+
+  function portalColetarClientesParaAdminPreview(prefixDigits) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const prefix = dig(String(prefixDigits || "")).slice(0, 11);
+    const byCpf = new Map();
+    const addRow = (cpfRaw, nomeRaw) => {
+      const cpf = dig(String(cpfRaw || "")).slice(0, 11);
+      if (cpf.length !== 11) return;
+      if (prefix.length && !cpf.startsWith(prefix)) return;
+      const nome = String(nomeRaw || "").trim();
+      const prev = byCpf.get(cpf);
+      if (!prev || (nome && !prev.nome)) byCpf.set(cpf, { cpf, nome: nome || prev?.nome || "" });
+    };
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => addRow(c.cpf, c.nome));
+    }
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        addRow(l.cpf, l.nome || l.cliente);
+      });
+    }
+    if (typeof findClienteByCpfCadastro === "function") {
+      byCpf.forEach((row, cpf) => {
+        if (row.nome) return;
+        const c = findClienteByCpfCadastro(cpf);
+        if (c?.nome) row.nome = String(c.nome).trim();
+      });
+    }
+    return Array.from(byCpf.values()).sort((a, b) => {
+      const an = String(a.nome || "").trim();
+      const bn = String(b.nome || "").trim();
+      if (an && !bn) return -1;
+      if (!an && bn) return 1;
+      return an.localeCompare(bn, "pt-BR") || a.cpf.localeCompare(b.cpf);
+    });
+  }
+
+  function refreshPortalAdminClienteCpfDatalist() {
+    const dl = document.getElementById("portal-admin-cliente-cpf-sugestoes");
+    const inp = document.getElementById("portal-admin-cliente-cpf");
+    if (!dl) return;
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const rows = portalColetarClientesParaAdminPreview(inp?.value || "");
+    dl.innerHTML = rows
+      .slice(0, 120)
+      .map((row) => {
+        const lbl = row.nome ? `${row.nome}` : "Cliente cadastrado";
+        return `<option value="${portalEscapeHtml(fmt(row.cpf))}" label="${portalEscapeHtml(lbl)}"></option>`;
+      })
+      .join("");
+  }
+
+  function refreshPortalAdminClienteProtocoloSelect() {
+    const sel = document.getElementById("portal-admin-cliente-protocolo");
+    const inp = document.getElementById("portal-admin-cliente-cpf");
+    if (!sel || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(inp?.value || "")).slice(0, 11);
+    if (cpf.length !== 11) {
+      sel.innerHTML = '<option value="">— informe o CPF —</option>';
+      return;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => dig(String(l.cpf || "")) === cpf);
+    const protos = locs
+      .map((l) => ({
+        proto: normPortalNumeroContrato(l.numeroContrato),
+        placa: String(l.placa || "").trim(),
+        ativo: typeof isPortalLocacaoAtiva === "function" ? isPortalLocacaoAtiva(l) : !String(l.dataFim || "").trim(),
+      }))
+      .filter((x) => x.proto);
+    protos.sort((a, b) => {
+      if (a.ativo !== b.ativo) return a.ativo ? -1 : 1;
+      return a.proto.localeCompare(b.proto);
+    });
+    if (!protos.length) {
+      sel.innerHTML = '<option value="">— nenhum protocolo para este CPF —</option>';
+      return;
+    }
+    sel.innerHTML =
+      `<option value="">— escolha —</option>` +
+      protos
+        .map((p) => {
+          const lbl = `${p.proto}${p.placa ? ` · ${p.placa}` : ""}${p.ativo ? " · ativo" : ""}`;
+          return `<option value="${portalEscapeHtml(p.proto)}">${portalEscapeHtml(lbl)}</option>`;
+        })
+        .join("");
+    if (protos.length === 1) sel.value = protos[0].proto;
+  }
+
+  function portalRenderAdminClientePreviewUi() {
+    const adminPanel = document.getElementById("portal-admin-cliente-preview");
+    const propaganda = document.getElementById("locadora-cliente-propaganda-section");
+    const appSection = document.getElementById("locadora-cliente-app-section");
+    const adminOn = isPortalAdministradorLogado();
+    if (adminPanel) {
+      adminPanel.classList.toggle("hidden", !adminOn);
+      if (adminOn) adminPanel.removeAttribute("hidden");
+      else adminPanel.setAttribute("hidden", "");
+    }
+    if (propaganda) propaganda.classList.toggle("hidden", adminOn);
+    if (appSection) appSection.classList.toggle("hidden", adminOn);
+    if (adminOn) {
+      refreshPortalAdminClienteCpfDatalist();
+      refreshPortalAdminClienteProtocoloSelect();
+    }
+  }
+
+  function portalAdminAbrirAppCliente() {
+    const fb = document.getElementById("portal-admin-cliente-feedback");
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(document.getElementById("portal-admin-cliente-cpf")?.value || "")).slice(0, 11);
+    const proto = normPortalNumeroContrato(
+      String(document.getElementById("portal-admin-cliente-protocolo")?.value || "").trim()
+    );
+    if (cpf.length !== 11) {
+      if (fb) fb.textContent = "Informe um CPF válido (11 dígitos).";
+      return;
+    }
+    if (!proto) {
+      if (fb) fb.textContent = "Escolha o protocolo da locação.";
+      return;
+    }
+    const v = validateClienteProtocoloParaApp(cpf, proto);
+    if (!v.ok) {
+      if (fb) fb.textContent = v.msg || "CPF ou protocolo inválido.";
+      return;
+    }
+    if (fb) fb.textContent = "";
+    const gatePayload = JSON.stringify({
+      cpf,
+      proto: v.proto,
+      nome: String(v.cliente?.nome || "").trim(),
+      at: Date.now(),
+    });
+    sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
+    try {
+      localStorage.setItem("dk_cliente_gate_persist", gatePayload);
+    } catch {
+      /* ignore */
+    }
+    try {
+      sessionStorage.setItem("dk_admin_preview_cliente", "1");
+    } catch {
+      /* ignore */
+    }
+    const url = `/cliente?cpf=${encodeURIComponent(cpf)}&proto=${encodeURIComponent(v.proto)}&adminPreview=1`;
+    window.location.assign(url);
+  }
+
+  function portalAdminNav(dest) {
+    if (dest === "sair") {
+      btnSair?.click();
+      return;
+    }
+    if (dest === "home") {
+      showView("home");
+      setPortalHash("");
+      portalAtualizarBannerAdmin();
+      return;
+    }
+    if (dest === "hub") {
+      openLocadoraHub();
+      return;
+    }
+    if (dest === "empresa") {
+      openLocadoraEmpresa();
+      return;
+    }
+    if (dest === "cliente") {
+      openLocadoraClienteArea();
+    }
+  }
 
   /** `true` = mostrar e usar «Falar com o cliente» (WhatsApp). `false` = botão oculto e clique sem efeito. */
   const DK_PORTAL_WA_CLIENTE_ATIVO = false;
@@ -458,6 +685,8 @@
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
     }
     clearPortalUnitDadosAtualizados();
+    if (funcionario.role === "owner") portalMarcarSessaoAdminBuild();
+    portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
   }
@@ -631,39 +860,54 @@
   function openLocadoraHub() {
     currentUnit = "locadora";
     portalColaboradorSenhaPendente = null;
-    if (typeof clearSession === "function") clearSession();
-    resetPortalLoginFormularioETipoAcesso();
-    hideAllPanels();
-    btnOperacao?.classList.add("hidden");
-    btnManutencao?.classList.add("hidden");
-    btnLocalizacao?.classList.add("hidden");
-    btnPatrimonio?.classList.add("hidden");
+    portalResetSessaoSeNaoAdmin();
+    if (!isPortalAdministradorLogado()) {
+      resetPortalLoginFormularioETipoAcesso();
+      hideAllPanels();
+      btnOperacao?.classList.add("hidden");
+      btnManutencao?.classList.add("hidden");
+      btnLocalizacao?.classList.add("hidden");
+      btnPatrimonio?.classList.add("hidden");
+    }
     showView("hub");
     setPortalHash("locadora");
+    portalAtualizarBannerAdmin();
   }
 
   function openLocadoraClienteArea() {
     currentUnit = "locadora";
-    if (typeof clearSession === "function") clearSession();
+    portalResetSessaoSeNaoAdmin();
     showView("cliente");
     setPortalHash("locadora/cliente");
     if (locadoraAppFeedback) locadoraAppFeedback.textContent = "";
+    portalRenderAdminClientePreviewUi();
+    portalAtualizarBannerAdmin();
   }
 
   function openLocadoraEmpresa() {
     currentUnit = "locadora";
     portalColaboradorSenhaPendente = null;
-    if (typeof clearSession === "function") clearSession();
     if (loginUnit) loginUnit.value = "locadora";
     if (unitTitle) unitTitle.textContent = "DK Locadora — Área da empresa";
+    setPortalRolePickerLocadoraEmpresa();
+    showView("unit");
+    setPortalHash("locadora/empresa");
+
+    const funcAdmin = isPortalAdministradorLogado() ? portalObterFuncionarioDaSessaoRestauracao() : null;
+    if (funcAdmin) {
+      clearPortalUnitDadosAtualizados();
+      resetPortalLoginFormularioETipoAcesso();
+      finalizarLoginEquipaPortal(funcAdmin);
+      return;
+    }
+
+    portalResetSessaoSeNaoAdmin();
     if (unitLead) unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
     clearPortalUnitDadosAtualizados();
     resetPortalLoginFormularioETipoAcesso();
     hideAllPanels();
     if (panelLogin) panelLogin.classList.add("hidden");
-    setPortalRolePickerLocadoraEmpresa();
-    showView("unit");
-    setPortalHash("locadora/empresa");
+    portalAtualizarBannerAdmin();
   }
 
   function hideAllPanels() {
@@ -682,7 +926,7 @@
     }
     currentUnit = go;
     portalColaboradorSenhaPendente = null;
-    if (typeof clearSession === "function") clearSession();
+    portalResetSessaoSeNaoAdmin();
     if (loginUnit) loginUnit.value = go;
     if (unitTitle) {
       unitTitle.textContent = go === "centro" ? "DK Centro Automotivo" : "DK Construtora";
@@ -715,28 +959,24 @@
 
   function portalVoltarInicio() {
     portalColaboradorSenhaPendente = null;
-    if (typeof clearSession === "function") clearSession();
-    resetPortalLoginFormularioETipoAcesso();
-    hideAllPanels();
-    btnOperacao?.classList.add("hidden");
-    btnManutencao?.classList.add("hidden");
-    btnLocalizacao?.classList.add("hidden");
-    btnPatrimonio?.classList.add("hidden");
-    refreshPortalUnitLeadForSession();
-    clearPortalUnitDadosAtualizados();
+    portalResetSessaoSeNaoAdmin();
+    if (!isPortalAdministradorLogado()) {
+      resetPortalLoginFormularioETipoAcesso();
+      hideAllPanels();
+      btnOperacao?.classList.add("hidden");
+      btnManutencao?.classList.add("hidden");
+      btnLocalizacao?.classList.add("hidden");
+      btnPatrimonio?.classList.add("hidden");
+      refreshPortalUnitLeadForSession();
+      clearPortalUnitDadosAtualizados();
+    }
     showView("home");
     setPortalHash("");
+    portalAtualizarBannerAdmin();
   }
 
   function portalVoltarLocadoraHub() {
     portalColaboradorSenhaPendente = null;
-    if (typeof clearSession === "function") clearSession();
-    resetPortalLoginFormularioETipoAcesso();
-    hideAllPanels();
-    btnOperacao?.classList.add("hidden");
-    btnManutencao?.classList.add("hidden");
-    btnLocalizacao?.classList.add("hidden");
-    btnPatrimonio?.classList.add("hidden");
     openLocadoraHub();
   }
 
@@ -758,8 +998,12 @@
     portalPersistirAreaAtiva("equipa");
   }
 
-  /** Área da equipa (logado) → ecrã de login da unidade (tela anterior). */
+  /** Área da equipa (logado) → hub (admin) ou ecrã de login (colaborador). */
   function portalVoltarLoginDaEquipa() {
+    if (isPortalAdministradorLogado()) {
+      portalVoltarLocadoraHub();
+      return;
+    }
     portalColaboradorSenhaPendente = null;
     portalLimparAreaAtiva();
     hideInlineForms();
@@ -779,6 +1023,7 @@
     panelLogin?.classList.remove("hidden");
     if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
     clearPortalUnitDadosAtualizados();
+    portalAtualizarBannerAdmin();
   }
 
   const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
@@ -2610,13 +2855,19 @@ ${printable.innerHTML}
   btnSair?.addEventListener("click", () => {
     portalColaboradorSenhaPendente = null;
     portalLimparAreaAtiva();
-    clearSession();
+    if (typeof clearSession === "function") clearSession();
+    try {
+      localStorage.removeItem(PORTAL_SESSAO_BUILD_KEY);
+    } catch {
+      /* ignore */
+    }
     resetPortalLoginFormularioETipoAcesso();
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
     btnPatrimonio?.classList.add("hidden");
+    portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {
       openLocadoraEmpresa();
@@ -10681,7 +10932,35 @@ ${printable.innerHTML}
   applyPortalLocadoraHash();
   window.addEventListener("hashchange", applyPortalLocadoraHash);
   window.addEventListener("pageshow", () => portalRestaurarAreaLogadaAposRecarga());
+  portalInvalidarSessaoSeBuildAntigo();
+  portalAtualizarBannerAdmin();
   portalRestaurarAreaLogadaAposRecarga();
+
+  document.getElementById("portal-admin-cliente-cpf")?.addEventListener("input", () => {
+    const inp = document.getElementById("portal-admin-cliente-cpf");
+    if (inp && typeof formatCpf === "function") {
+      const d = onlyDigits(String(inp.value || "")).slice(0, 11);
+      inp.value = formatCpf(d);
+    }
+    refreshPortalAdminClienteCpfDatalist();
+    refreshPortalAdminClienteProtocoloSelect();
+    const fb = document.getElementById("portal-admin-cliente-feedback");
+    if (fb) fb.textContent = "";
+  });
+  document.getElementById("portal-admin-cliente-cpf")?.addEventListener("change", () => {
+    refreshPortalAdminClienteProtocoloSelect();
+  });
+  document.getElementById("portal-admin-cliente-abrir")?.addEventListener("click", () => {
+    portalAdminAbrirAppCliente();
+  });
+  document.getElementById("btn-locadora-preview-cliente")?.addEventListener("click", () => {
+    openLocadoraClienteArea();
+  });
+  document.querySelectorAll("[data-admin-nav]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      portalAdminNav(btn.getAttribute("data-admin-nav") || "");
+    });
+  });
 
   /**
    * Enter no teclado avança para o próximo campo editável; no último campo submete o formulário.

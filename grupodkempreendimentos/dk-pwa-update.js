@@ -108,6 +108,12 @@
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!reloadPending) return;
     reloadPending = false;
+    try {
+      localStorage.removeItem("dk_sessao_cliente");
+      localStorage.removeItem("dk_portal_sessao_build");
+    } catch {
+      /* ignore */
+    }
     const url = new URL(location.href);
     if (!url.searchParams.has("_")) {
       url.searchParams.set("_", String(Date.now()));

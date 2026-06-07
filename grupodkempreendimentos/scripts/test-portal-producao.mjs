@@ -117,7 +117,7 @@ async function main() {
     );
     record(
       "tema vermelho preto + fundo showroom",
-      html.includes("20260521dk-logo") &&
+      html.includes("20260521admin-nav") &&
         html.includes('theme-color" content="#050505"') &&
         (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
     );
@@ -141,8 +141,17 @@ async function main() {
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
     record(
+      "admin logado banner e preview cliente",
+      html.includes("portal-admin-banner") &&
+        html.includes("portal-admin-cliente-cpf") &&
+        html.includes("LOGADO COMO ADMINISTRADOR") &&
+        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521admin-nav`, { cache: "no-store" }).then((r) =>
+          r.ok ? r.text() : ""
+        )).includes("isPortalAdministradorLogado")
+    );
+    record(
       "pesquisa contrato preenche placa automaticamente",
-      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521pesquisa-placa`, { cache: "no-store" }).then((r) =>
+      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521admin-nav`, { cache: "no-store" }).then((r) =>
         r.ok ? r.text() : ""
       )).includes("protoNormAtual") && html.includes("operacaoLancAluguelPlacaBusca")
     );
