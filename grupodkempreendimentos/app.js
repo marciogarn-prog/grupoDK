@@ -2626,7 +2626,10 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
 function saveCadastro(key, list, opts) {
   const bypass =
     opts && typeof opts === "object" && opts.bypassImmutabilidadeCadastro === true;
-  const next = Array.isArray(list) ? list : [];
+  let next = Array.isArray(list) ? list : [];
+  if (typeof window.__DK_filterOficialCadastroArray === "function") {
+    next = window.__DK_filterOficialCadastroArray(key, next);
+  }
   let toStore = next;
   if (
     !bypass &&
@@ -2637,8 +2640,14 @@ function saveCadastro(key, list, opts) {
       key === FROTA_VEICULOS_KEY ||
       key === CAD_LOCACOES_KEY)
   ) {
-    const prev = loadCadastro(key);
+    let prev = loadCadastro(key);
+    if (typeof window.__DK_filterOficialCadastroArray === "function") {
+      prev = window.__DK_filterOficialCadastroArray(key, prev);
+    }
     toStore = mergeCadastroHistoricoImutavel(key, prev, next);
+    if (typeof window.__DK_filterOficialCadastroArray === "function") {
+      toStore = window.__DK_filterOficialCadastroArray(key, toStore);
+    }
   }
   const json = JSON.stringify(toStore);
   localStorage.setItem(key, json);
@@ -2662,6 +2671,9 @@ function saveCadastro(key, list, opts) {
  */
 function cloudSnapshotWouldMutateLocal(cloudPayload) {
   if (!cloudPayload || typeof cloudPayload !== "object") return false;
+  if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+    cloudPayload = window.__DK_sanitizeOficialCloudPayload(cloudPayload);
+  }
   const mergeKeys = new Set([
     CAD_CLIENTES_KEY,
     PORTAL_CLIENTES_KEY,
@@ -15788,6 +15800,9 @@ if (window.location.protocol === "file:") {
 resetProjetoSomenteCadastrosV3Once();
 enableCadastroManualPortalMode();
 applyInstalacaoLimpaOnce();
+if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
+  window.__DK_purgeOficialLocalCadastrosAntigos();
+}
 seedVeiculosDatabaseIfNeeded();
 seedClientesDatabaseIfNeeded();
 migratePlacaInLocalStorage();

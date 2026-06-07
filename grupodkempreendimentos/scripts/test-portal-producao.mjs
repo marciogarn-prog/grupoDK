@@ -234,7 +234,10 @@ async function runSuite() {
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
-    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260607demo-oficial-split`, {
+    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260607oficial-guard`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    const oficialGuardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=20260607oficial-guard`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
@@ -244,6 +247,40 @@ async function runSuite() {
         deployChannelJs.includes("__DK_IS_DEMO_DEPLOY__") &&
         deployChannelJs.includes("demo.grupodkempreendimentos.com.br")
     );
+    if (!IS_DEMO_TEST) {
+      const guardUi = await page.evaluate(() => ({
+        guardLoaded: typeof window.__DK_sanitizeOficialCloudPayload === "function",
+        guardActive: window.__DK_isOficialCadastroGuardActive?.() === true,
+        blockedOld: (() => {
+          const p = window.__DK_sanitizeOficialCloudPayload({
+            dk_clientes_cadastro: [{ cpf: "12345678901", nome: "Antigo", dataCadastro: "01/01/2020" }],
+            dk_locacoes_cadastro: [{ cpf: "12345678901", inicio: "01/01/2020", numeroContrato: "2020010101" }],
+          });
+          return (
+            (p.dk_clientes_cadastro || []).length === 0 && (p.dk_locacoes_cadastro || []).length === 0
+          );
+        })(),
+      }));
+      record(
+        "oficial: bloqueio cadastros anteriores a hoje",
+        oficialGuardJs.includes("__DK_sanitizeOficialCloudPayload") &&
+          guardUi.guardLoaded &&
+          guardUi.guardActive &&
+          guardUi.blockedOld,
+        `active=${guardUi.guardActive}`
+      );
+      const cloudOficial = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, { cache: "no-store" }).then((r) =>
+        r.ok ? r.json() : {}
+      );
+      const pOf = cloudOficial.payload || {};
+      record(
+        "oficial: nuvem sem cadastros (zerado)",
+        (pOf.dk_clientes_cadastro || []).length === 0 &&
+          (pOf.dk_veiculos_cadastro || []).length === 0 &&
+          (pOf.dk_locacoes_cadastro || []).length === 0,
+        `c=${(pOf.dk_clientes_cadastro || []).length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
+      );
+    }
     if (IS_DEMO_TEST) {
       const demoUi = await page.evaluate(() => ({
         channel: window.__DK_DEPLOY_CHANNEL__,
@@ -263,6 +300,17 @@ async function runSuite() {
         "demo: nuvem separada do oficial (snapshot demo)",
         demoUi.snapshotLabel === "demo",
         `label=${demoUi.snapshotLabel}`
+      );
+      const cloudDemo = await fetch(`${BASE_URL}api/dk-cloud-snapshot?channel=demo`, { cache: "no-store" }).then(
+        (r) => (r.ok ? r.json() : {})
+      );
+      const pDemo = cloudDemo.payload || {};
+      record(
+        "demo: nuvem com clientes veículos e locações",
+        (pDemo.dk_clientes_cadastro || []).length >= 300 &&
+          (pDemo.dk_veiculos_cadastro || []).length >= 150 &&
+          (pDemo.dk_locacoes_cadastro || []).length >= 300,
+        `c=${(pDemo.dk_clientes_cadastro || []).length} v=${(pDemo.dk_veiculos_cadastro || []).length} l=${(pDemo.dk_locacoes_cadastro || []).length}`
       );
     }
     record(

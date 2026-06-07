@@ -8,6 +8,9 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const {
+  sanitizePayloadForOficial,
+} = require("../lib/dk-oficial-cadastro-guard.cjs");
 
 const REDIS_KEYS = {
   default: "dk:portal:cloud_snapshot:v1",
@@ -332,10 +335,12 @@ module.exports = async function handler(req, res) {
         }
       }
       const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
+      const safePayload =
+        channel === "default" && payload ? sanitizePayloadForOficial(payload) : payload;
       return res.status(200).json({
         ok: true,
         label: LABEL,
-        payload,
+        payload: safePayload,
         updated_at: row?.updated_at || null,
         source: "redis",
       });
@@ -343,9 +348,12 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "POST") {
       const body = parseBody(req);
-      const incoming = body.payload;
+      let incoming = body.payload;
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
+      }
+      if (channel === "default") {
+        incoming = sanitizePayloadForOficial(incoming);
       }
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const existingRaw = await redis.get(REDIS_KEY);
@@ -381,6 +389,9 @@ module.exports = async function handler(req, res) {
         payload = existingPayload
           ? mergePayloads(existingPayload, lockedIncoming)
           : stripInternalPayloadKeys(lockedIncoming);
+      }
+      if (channel === "default") {
+        payload = sanitizePayloadForOficial(payload);
       }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));

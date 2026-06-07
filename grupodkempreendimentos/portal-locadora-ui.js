@@ -3072,6 +3072,16 @@ ${printable.innerHTML}
   }
 
   function getPortalClientesBundledSnapshot() {
+    if (
+      typeof window.__DK_isOficialCadastroGuardActive === "function" &&
+      window.__DK_isOficialCadastroGuardActive()
+    ) {
+      const extras =
+        typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
+          ? CLIENTES_EXTRA_SYNC_DATA
+          : [];
+      return extras;
+    }
     const extras =
       typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
         ? CLIENTES_EXTRA_SYNC_DATA

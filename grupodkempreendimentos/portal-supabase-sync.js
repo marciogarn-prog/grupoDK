@@ -54,6 +54,21 @@
   const DK_LOCAL_AUTHORITY_MS = 45 * 60 * 1000;
   const DK_CLOUD_LAST_PUSH_AT_KEY = "dkCloudLastPushedAt";
 
+  function countCadastroRecordsInPayload(p) {
+    if (!p || typeof p !== "object") return 0;
+    const keys = [
+      "dk_clientes_cadastro",
+      "dk_portal_clientes_cadastro",
+      "dk_veiculos_cadastro",
+      "dk_portal_veiculos_cadastro",
+      "dk_veiculos_frota_planilha",
+      "dk_locacoes_cadastro",
+      "dk_lancamentos_aluguel",
+      "dk_lancamentos_aluguel_cadastro",
+    ];
+    return keys.reduce((n, k) => n + (Array.isArray(p[k]) ? p[k].length : 0), 0);
+  }
+
   const CLOUD_PUSH_DEBOUNCE_MS = 2500;
   const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -287,6 +302,9 @@
 
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
+    if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+      payload = window.__DK_sanitizeOficialCloudPayload(payload);
+    }
     if (payload.dk_cadastro_manual_portal_v1 === true && typeof window.__DK_enableCadastroManualPortalMode === "function") {
       try {
         window.__DK_enableCadastroManualPortalMode();
@@ -1853,13 +1871,30 @@
     setMsg("A importar backup…", "muted");
     try {
       const parsed = await readBackupJsonFile(file);
-      const payload = normalizeBackupFileToCloudPayload(parsed);
+      let payload = normalizeBackupFileToCloudPayload(parsed);
       if (!payload) {
         setMsg(
           "Ficheiro inválido. Use o JSON anexo do e-mail «DK Backup» (ou exportado por «Gerar backup»).",
           null
         );
         return;
+      }
+      if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+        const before = countCadastroRecordsInPayload(payload);
+        payload = window.__DK_sanitizeOficialCloudPayload(payload);
+        const after = countCadastroRecordsInPayload(payload);
+        if (
+          window.__DK_isOficialCadastroGuardActive &&
+          window.__DK_isOficialCadastroGuardActive() &&
+          before > 0 &&
+          after === 0
+        ) {
+          setMsg(
+            "No site oficial só entram cadastros com data de hoje. Este backup tem apenas registos antigos.",
+            null
+          );
+          return;
+        }
       }
       const nKeys = countBackupPayloadKeys(payload);
       suppressCloudHook = true;
