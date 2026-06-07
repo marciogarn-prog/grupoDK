@@ -358,7 +358,8 @@ async function main() {
 
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",
-      banco: Boolean(window.DK_BANCO_CADASTRO?.veiculos?.length),
+      bancoVazio: Array.isArray(window.DK_BANCO_CADASTRO?.veiculos) && window.DK_BANCO_CADASTRO.veiculos.length === 0,
+      manual: typeof window.__DK_isCadastroManualPortalMode === "function" && window.__DK_isCadastroManualPortalMode(),
       upsert: typeof window.__DK_upsertPortalClienteByCpf === "function",
       dateMask: typeof window.formatDateMask === "function",
       isDkDate: typeof window.isDkDateFieldInput === "function",
@@ -366,7 +367,10 @@ async function main() {
       observer: Boolean(window.__dkDateMaskObserver),
       currencyMask: typeof window.formatCurrencyMask === "function",
     }));
-    record("app.js banco unificado", hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.banco);
+    record(
+      "app.js instalacao limpa (banco vazio + manual)",
+      hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.bancoVazio && hasPortalFns.manual
+    );
     record(
       "mascaras globais carregadas",
       hasPortalFns.dateMask &&
