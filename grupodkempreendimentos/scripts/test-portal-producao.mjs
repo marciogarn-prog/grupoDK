@@ -372,11 +372,12 @@ async function main() {
     record("auto-detect id com Data", autoDateDetect.detected, "testeAutoDataCampoNovo");
     record("auto-mascara campo novo", autoDateDetect.masked === "01/01/2030", autoDateDetect.masked);
 
-    await page.click("text=DK Locadora", { timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(800);
+    await page.click('[data-go="locadora"]', { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector("#view-locadora-hub.view--active", { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(400);
 
-    const hubCliente = page.locator("text=Área do Cliente").first();
-    const hubEmpresa = page.locator("text=Área da Empresa").first();
+    const hubCliente = page.locator("#view-locadora-hub [data-locadora-go='cliente'], #view-locadora-hub >> text=Área do Cliente").first();
+    const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa'], #view-locadora-hub >> text=Área da Empresa").first();
     record(
       "hub DK Locadora (cliente + empresa)",
       (await hubCliente.isVisible().catch(() => false)) && (await hubEmpresa.isVisible().catch(() => false))
