@@ -218,14 +218,14 @@ async function main() {
         html.includes("operacaoLocacaoProtocoloAdminBusca"),
       "nuvem/local + busca admin"
     );
-    const syncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
+    const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
     record(
       "picker protocolo locacao apos CPF e nuvem",
       portalUiProto.includes("portalLocacaoCpfDigitsMatch") &&
         portalUiProto.includes("refreshOperacaoLocacaoProtocoloPicker({ force: true })") &&
-        syncJs.includes("__DK_portalRefreshOperacaoDeferred"),
+        cloudSyncJs.includes("__DK_portalRefreshOperacaoDeferred"),
       "CPF + sync nuvem atualiza select"
     );
     record(
