@@ -6,8 +6,24 @@
  * Se um falhar, o portal tenta o outro no pull/push.
  */
 (function portalSupabaseSync() {
-  const DK_SNAPSHOT_LABEL = "default";
   const REDUNDANT_SNAPSHOT_API = "dk-cloud-snapshot";
+
+  function dkSnapshotLabel() {
+    if (typeof window.__DK_deploySnapshotLabel === "function") {
+      return window.__DK_deploySnapshotLabel();
+    }
+    return window.__DK_DEPLOY_CHANNEL__ === "demo" ? "demo" : "default";
+  }
+
+  function dkCloudChannelQuery() {
+    const ch = dkSnapshotLabel();
+    return ch === "demo" ? "?channel=demo" : "";
+  }
+
+  function dkCloudFetchHeaders() {
+    const ch = dkSnapshotLabel();
+    return ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
+  }
 
   const DK_STORAGE_KEYS = [
     "dk_clientes_cadastro",
@@ -527,8 +543,9 @@
       .replace(/\/$/, "");
     const h = window.location.hostname;
     const isLocal = h === "localhost" || h === "127.0.0.1";
-    const localUrl = `${window.location.origin}/api/${REDUNDANT_SNAPSHOT_API}`;
-    if (isLocal && meta) return [localUrl, `${meta}/api/${REDUNDANT_SNAPSHOT_API}`];
+    const q = dkCloudChannelQuery();
+    const localUrl = `${window.location.origin}/api/${REDUNDANT_SNAPSHOT_API}${q}`;
+    if (isLocal && meta) return [localUrl, `${meta}/api/${REDUNDANT_SNAPSHOT_API}${q}`];
     return [localUrl];
   }
 
@@ -536,7 +553,10 @@
     const urls = resolveRedundantSnapshotApiUrls();
     for (let i = 0; i < urls.length; i += 1) {
       try {
-        const res = await fetch(urls[i], { method: "GET" });
+        const res = await fetch(urls[i], {
+          method: "GET",
+          headers: dkCloudFetchHeaders(),
+        });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.ok) continue;
         if (!data.payload || typeof data.payload !== "object") return null;
@@ -576,7 +596,7 @@
       try {
         const res = await fetch(urls[i], {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...dkCloudFetchHeaders() },
           body: JSON.stringify({
             payload: bodyPayload,
             updated_at: updatedAt,
@@ -614,7 +634,7 @@
     const { data, error } = await client
       .from("dk_cloud_snapshots")
       .select("payload, updated_at")
-      .eq("label", DK_SNAPSHOT_LABEL)
+      .eq("label", dkSnapshotLabel())
       .maybeSingle();
     if (error || !data?.payload) return null;
     return { ...data, source: "supabase" };
@@ -1552,7 +1572,7 @@
 
     const client = window.__DK_SUPABASE_CLIENT__;
     if (client && window.__DK_SUPABASE_CONFIGURED__) {
-      const row = { label: DK_SNAPSHOT_LABEL, payload, updated_at: updatedAt };
+      const row = { label: dkSnapshotLabel(), payload, updated_at: updatedAt };
       const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
         onConflict: "label",
       });

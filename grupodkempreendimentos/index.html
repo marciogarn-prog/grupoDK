@@ -25,11 +25,16 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260607cadastro-ambiente-teste-proto-verde">
+  <link rel="stylesheet" href="styles.css?v=20260521demo-oficial-env">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
+  <script src="dk-deploy-channel.js?v=20260521demo-oficial-env"></script>
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
 <body>
+  <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
+    <strong>AMBIENTE DEMO</strong>
+    <span>Dados de teste — não use cadastros reais. Oficial: grupodkempreendimentos.com.br</span>
+  </div>
   <div id="portal-admin-banner" class="portal-admin-banner hidden" role="status" aria-live="polite">
     <span class="portal-admin-banner__label">LOGADO COMO ADMINISTRADOR</span>
     <nav class="portal-admin-banner__nav" aria-label="Navegação administrador">
@@ -2025,7 +2030,7 @@
   <script src="portal-patrimonio.js?v=20260521fila-zero-pendente" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260521pesquisa-placa" defer></script>
-  <script src="portal-supabase-sync.js?v=20260521fila-orfa-15min" defer></script>
+  <script src="portal-supabase-sync.js?v=20260521demo-oficial-env" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522extrair-ia-operador" defer></script>
 </body>
 </html>

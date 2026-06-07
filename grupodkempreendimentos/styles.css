@@ -4278,12 +4278,68 @@ table.validados-app .lnk-comprovante {
   }
 }
 
-.portal-admin-banner--cliente {
-  position: sticky;
-}
-
 :root {
   --portal-admin-banner-h: 0px;
+  --dk-demo-env-banner-h: 0px;
+}
+
+.dk-demo-env-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10001;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem 0.75rem;
+  padding: 0.45rem 0.75rem;
+  background: linear-gradient(90deg, #b8860b 0%, #d4a017 50%, #b8860b 100%);
+  color: #1a1200;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+
+.dk-demo-env-banner strong {
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.portal-body--demo-env {
+  padding-top: var(--dk-demo-env-banner-h, 0px);
+}
+
+.portal-body--demo-env .portal-admin-banner {
+  top: var(--dk-demo-env-banner-h, 0px);
+}
+
+.portal-body--demo-env.portal-body--admin-logado {
+  padding-top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px));
+}
+
+.portal-body--demo-env.portal-body--admin-logado .view {
+  min-height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px));
+}
+
+.portal-body--demo-env.portal-body--admin-logado .portal-pdf-viewer,
+.portal-body--demo-env.portal-body--admin-logado .portal-modal:not(.hidden) {
+  top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px));
+}
+
+.cliente-app-body.portal-body--demo-env {
+  padding-top: var(--dk-demo-env-banner-h, 0px);
+}
+
+.cliente-app-body.portal-body--demo-env .portal-admin-banner--cliente {
+  top: var(--dk-demo-env-banner-h, 0px);
+}
+
+.portal-admin-banner--cliente {
+  position: sticky;
 }
 
 .portal-body--admin-logado {

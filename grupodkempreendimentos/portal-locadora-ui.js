@@ -65,6 +65,9 @@
     } catch {
       /* ignore */
     }
+    if (typeof window.__DK_syncDemoBannerLayout === "function") {
+      window.__DK_syncDemoBannerLayout();
+    }
   }
 
   function portalAtualizarBannerAdmin() {

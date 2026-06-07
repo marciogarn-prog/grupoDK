@@ -32,3 +32,6 @@ grant select, insert, update, delete on table public.dk_cloud_snapshots to anon,
 
 -- Atualiza o cache da API REST (evita "Could not find the table ... in the schema cache").
 notify pgrst, 'reload schema';
+
+-- Ambiente demo (branch demo / demo.grupodkempreendimentos.com.br) usa label = 'demo' na mesma tabela.
+-- Não é necessária tabela extra; o portal grava snapshot JSON com label diferente de 'default'.

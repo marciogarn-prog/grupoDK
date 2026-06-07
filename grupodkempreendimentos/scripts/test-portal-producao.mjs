@@ -9,7 +9,11 @@ import { chromium } from "playwright";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-const BASE_URL = "https://grupodkempreendimentos.com.br/";
+const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://grupodkempreendimentos.com.br/").replace(
+  /\/?$/,
+  "/"
+);
+const IS_DEMO_TEST = /demo\.grupodkempreendimentos|git-demo-/i.test(BASE_URL);
 const results = [];
 
 function record(name, ok, detail = "") {
@@ -230,6 +234,28 @@ async function runSuite() {
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
+    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-oficial-env`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "ambiente demo/oficial (dk-deploy-channel + faixa)",
+      html.includes("dk-deploy-channel.js") &&
+        html.includes("dk-demo-env-banner") &&
+        deployChannelJs.includes("__DK_IS_DEMO_DEPLOY__") &&
+        deployChannelJs.includes("demo.grupodkempreendimentos.com.br")
+    );
+    if (IS_DEMO_TEST) {
+      const demoUi = await page.evaluate(() => ({
+        channel: window.__DK_DEPLOY_CHANNEL__,
+        isDemo: window.__DK_IS_DEMO_DEPLOY__,
+        bannerVisible: !document.getElementById("dk-demo-env-banner")?.classList.contains("hidden"),
+      }));
+      record(
+        "demo: canal e faixa amarela activos",
+        demoUi.channel === "demo" && demoUi.isDemo === true && demoUi.bannerVisible,
+        `channel=${demoUi.channel}`
+      );
+    }
     record(
       "admin logado banner e preview cliente",
       html.includes("portal-admin-banner") &&
@@ -407,7 +433,7 @@ async function runSuite() {
       return r.ok ? await r.text() : "";
     });
     const syncJs = await page.evaluate(async () => {
-      const r = await fetch("portal-supabase-sync.js?v=20260521fila-orfa-15min", {
+      const r = await fetch("portal-supabase-sync.js?v=20260521demo-oficial-env", {
         cache: "no-store",
       });
       return r.ok ? await r.text() : "";

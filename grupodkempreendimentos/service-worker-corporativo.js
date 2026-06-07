@@ -5,6 +5,7 @@ const ASSETS = [
   "./app.html",
   "./home-install-pwa.js",
   "./dk-pwa-update.js",
+  "./dk-deploy-channel.js",
   "./dk-app-entry.js",
   "./apps.html",
   "./styles.css",
