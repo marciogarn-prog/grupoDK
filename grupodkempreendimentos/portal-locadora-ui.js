@@ -7502,6 +7502,8 @@ ${printable.innerHTML}
     portalResetAmbienteForm("Locacao");
     refreshOperacaoLocacaoApagarProtocoloBtn();
   }
+
+  function refreshOperacaoLocacaoProtocoloPicker(opts = {}) {
     const force = Boolean(opts.force);
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");

@@ -229,10 +229,9 @@ async function main() {
         portalUiJs.includes("btnLocalizacao") &&
         portalUiJs.includes("__DK_clienteGeoMapaOnShow")
     );
-    const patJs = await page.evaluate(async () => {
-      const r = await fetch(`portal-patrimonio.js?v=${patrimonioJsVer || "latest"}`, { cache: "no-store" });
-      return r.ok ? await r.text() : "";
-    });
+    const patJs = await fetch(`${BASE_URL}portal-patrimonio.js?v=${patrimonioJsVer || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
     record(
       "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
         patJs.includes("PATRIMONIO_MAX_LOTE = 200") &&
@@ -419,9 +418,30 @@ async function main() {
     record("auto-detect id com Data", autoDateDetect.detected, "testeAutoDataCampoNovo");
     record("auto-mascara campo novo", autoDateDetect.masked === "01/01/2030", autoDateDetect.masked);
 
-    await page.goto(`${BASE_URL}#locadora`, { waitUntil: "domcontentloaded", timeout: 60000 });
-    await page.waitForSelector("#view-locadora-hub.view--active", { timeout: 15000 }).catch(() => {});
-    await page.waitForTimeout(500);
+    async function ensureLocadoraHubVisible() {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (await page.locator("#view-locadora-hub.view--active").isVisible().catch(() => false)) return true;
+        const homeBtn = page.locator('#view-home [data-go="locadora"]').first();
+        if (await homeBtn.isVisible().catch(() => false)) {
+          await homeBtn.click();
+        } else {
+          await page.goto(`${BASE_URL}#locadora`, { waitUntil: "networkidle", timeout: 90000 });
+        }
+        await page.waitForTimeout(600);
+        await page
+          .evaluate(() => {
+            if (!document.getElementById("view-locadora-hub")?.classList.contains("view--active")) {
+              location.hash = "locadora";
+              window.dispatchEvent(new HashChangeEvent("hashchange"));
+            }
+          })
+          .catch(() => null);
+        await page.waitForTimeout(600);
+      }
+      return page.locator("#view-locadora-hub.view--active").isVisible().catch(() => false);
+    }
+    await ensureLocadoraHubVisible();
+    await page.waitForTimeout(300);
 
     const hubCliente = page.locator("#view-locadora-hub [data-locadora-go='cliente']").first();
     const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa']").first();
@@ -621,9 +641,9 @@ async function main() {
         );
         localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
       });
-      await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 60000 });
-      await page.waitForSelector("#panel-logado:not(.hidden)", { timeout: 20000 }).catch(() => null);
-      await page.waitForTimeout(800);
+      await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
+      await page.waitForSelector("#btn-locadora-patrimonio:not(.hidden)", { timeout: 25000 }).catch(() => null);
+      await page.waitForTimeout(400);
       const patBtn = page.locator("#btn-locadora-patrimonio");
       if ((await patBtn.isVisible().catch(() => false)) && fs.existsSync(patrimonioPdfPath)) {
         await patBtn.click();
