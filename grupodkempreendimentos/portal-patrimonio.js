@@ -1593,21 +1593,33 @@
     );
   }
 
+  /** PDFs ainda por processar (uma contagem — não somar fila em memória + storage). */
+  function patrimonioContarRestantesIa() {
+    return getFotosCapturas().filter((f) => fotoEstaPendenteIa(f)).length;
+  }
+
+  /** Total do lote atual (upload ou fila pendente). */
+  function patrimonioTotalLoteIa() {
+    if (patrimonioLoteTotal > 0) return patrimonioLoteTotal;
+    const rest = patrimonioContarRestantesIa();
+    const feitos = patrimonioLoteCadastrados + patrimonioLoteExcluidos;
+    return Math.max(rest + feitos, rest, 1);
+  }
+
   function patrimonioAtualizarBadgeSegundoPlano() {
     const badge = document.getElementById("patrimonioIaBgBadge");
     const txt = document.getElementById("patrimonioIaBgBadgeText");
     if (!badge || !txt) return;
-    const filaMem = filaIaPatrimonio.length;
-    const pendentes = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f)).length;
+    const restantes = patrimonioContarRestantesIa();
     const erros = coletarPatrimonioErrosIa().length;
-    const ativo = patrimonioConvertendoPdfs || iaPatrimonioRodando || pendentes > 0 || filaMem > 0;
+    const ativo =
+      patrimonioConvertendoPdfs || iaPatrimonioRodando || restantes > 0 || filaIaPatrimonio.length > 0;
     badge.classList.toggle("hidden", !ativo);
     if (!ativo) return;
     if (patrimonioConvertendoPdfs) {
       txt.textContent = `Património: a preparar PDFs (${patrimonioLoteRecebidos}/${patrimonioLoteTotal || "…"})…`;
       return;
     }
-    const restantes = filaMem + pendentes;
     txt.textContent = `IA património: ${patrimonioLoteCadastrados} cadastrado(s) · ${restantes} restante(s)${erros ? ` · ${erros} recusado(s)` : ""} — pode usar outras áreas`;
   }
 
@@ -1658,6 +1670,8 @@
           excl === 0
         );
       }
+      patrimonioLoteTotal = 0;
+      patrimonioLoteRecebidos = 0;
       if (!patrimonioIaEmCurso()) {
         await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
       }
@@ -1708,23 +1722,21 @@
     if (iaPatrimonioRodando) return;
     iaPatrimonioRodando = true;
     await patrimonioAtivarWakeLock();
-    let n = 0;
-    const totalFilaInicial = Math.max(filaIaPatrimonio.length, 1);
+    const totalLote = patrimonioTotalLoteIa();
     while (filaIaPatrimonio.length) {
       const job = filaIaPatrimonio.shift();
       if (job?.fotoId) {
-        n++;
-        const c = contagemFilaPatrimonio();
-        const restantes = filaIaPatrimonio.length;
+        const restantes = patrimonioContarRestantesIa();
+        const feitos = Math.max(0, totalLote - restantes);
         setMsg(
           `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila… (segundo plano)`,
           false
         );
         patrimonioAtualizarBadgeSegundoPlano();
         atualizarProgressoLotePatrimonio(
-          c.ok + n,
-          c.fila + c.processando + c.ok + c.falhou + restantes + 1,
-          `IA (${n}/${totalFilaInicial}) · ${restantes} restantes…`
+          feitos,
+          totalLote,
+          `IA (${feitos}/${totalLote}) · ${restantes} restante(s)…`
         );
         try {
           await processarIaParaFotoCaptura(job.fotoId, job.imagens);
@@ -1738,9 +1750,9 @@
     }
     iaPatrimonioRodando = false;
     patrimonioLibertarWakeLock();
-    patrimonioLoteTotal = 0;
-    patrimonioLoteRecebidos = 0;
-    atualizarProgressoLotePatrimonio(0, 0, "");
+    if (!patrimonioContarRestantesIa() && !filaIaPatrimonio.length) {
+      atualizarProgressoLotePatrimonio(0, 0, "");
+    }
     patrimonioAtualizarBadgeSegundoPlano();
   }
 
