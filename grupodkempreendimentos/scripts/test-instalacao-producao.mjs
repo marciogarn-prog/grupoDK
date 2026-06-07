@@ -52,7 +52,7 @@ async function main() {
     );
     record(
       "SW corporativo cache atual + network-first",
-      corpSwText.includes("dk-corporativo-v20260531scan") && corpSwText.includes("isNetworkFirstAsset")
+      corpSwText.includes("dk-corporativo-v20260521icon") && corpSwText.includes("isNetworkFirstAsset")
     );
 
     const manifestRes = await fetch(new URL("manifest-cliente.webmanifest", BASE));
@@ -119,7 +119,7 @@ async function main() {
     record("SW inclui instalar.html", swText.includes("instalar.html"));
     record(
       "SW cache cliente seguro",
-      swText.includes("dk-cliente-v20260522unico") && swText.includes("networkFirst")
+      swText.includes("dk-cliente-v20260521icon") && swText.includes("networkFirst")
     );
 
     const shareApi = await fetch(new URL("api/cliente-share", BASE), { redirect: "manual" });

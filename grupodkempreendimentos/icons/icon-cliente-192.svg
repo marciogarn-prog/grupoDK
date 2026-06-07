@@ -1,6 +1,3 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
-  <rect width="192" height="192" rx="32" fill="#0c0f14"/>
-  <rect x="16" y="16" width="160" height="160" rx="24" fill="#c9a227"/>
-  <text x="96" y="88" text-anchor="middle" font-size="40" font-family="system-ui,sans-serif" fill="#0c0f14" font-weight="700">DK</text>
-  <text x="96" y="124" text-anchor="middle" font-size="18" font-family="system-ui,sans-serif" fill="#0c0f14">CLIENTE</text>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="192" height="192" viewBox="0 0 192 192">
+  <image xlink:href="icon-cliente-192.png" width="192" height="192"/>
 </svg>

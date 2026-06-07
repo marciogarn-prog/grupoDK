@@ -1,6 +1,6 @@
 {
   "name": "Grupo DK Empreendimentos",
-  "short_name": "Grupo DK",
+  "short_name": "DK Locadora",
   "description": "DK Locadora — visitante, cliente ou funcionário.",
   "id": "/app.html",
   "start_url": "/app.html?source=pwa&instalar=1",

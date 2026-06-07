@@ -129,6 +129,14 @@ async function main() {
         (await fetch(`${BASE_URL}images/dk-locadora-logo.png`, { cache: "no-store" }).then((r) => r.ok))
     );
     record(
+      "icone PWA DK Locadora (substitui laranja)",
+      (await fetch(`${BASE_URL}icons/icon-cliente-192.png`, { cache: "no-store" }).then(async (r) => {
+        if (!r.ok) return false;
+        const buf = await r.arrayBuffer();
+        return buf.byteLength > 20000;
+      }))
+    );
+    record(
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
