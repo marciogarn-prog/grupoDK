@@ -1536,6 +1536,16 @@
     return out;
   }
 
+  /** Demo: arrays vazios no local não entram no POST (evita merge na API apagar a nuvem). */
+  function omitEmptyDemoCadastroKeysForPush(payload) {
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true || !payload || typeof payload !== "object") return payload;
+    const out = { ...payload };
+    for (const k of DK_IMMUTABLE_CADASTRO_KEYS) {
+      if (Array.isArray(out[k]) && out[k].length === 0) delete out[k];
+    }
+    return out;
+  }
+
   async function upsertSnapshotRow(showUserMessages, opts) {
     const forceReplace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
@@ -1587,6 +1597,7 @@
       }
     }
     payload = preserveCloudCadastrosWhenLocalEmpty(payload, cloudMeta?.payload || cloudPayloadMerged);
+    payload = omitEmptyDemoCadastroKeysForPush(payload);
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
         payload.dk_patrimonio_crlv_v1,
@@ -1662,9 +1673,8 @@
       if (typeof loadCadastro === "function") {
         const c = (loadCadastro("dk_clientes_cadastro") || []).length;
         const v = (loadCadastro("dk_veiculos_cadastro") || []).length;
-        const l = (loadCadastro("dk_locacoes_cadastro") || []).length;
-        if (c === 0 && v === 0 && l === 0) {
-          return { ok: true, skipped: true, reason: "demo_empty_local_no_push" };
+        if (c === 0 && v === 0) {
+          return { ok: true, skipped: true, reason: "demo_empty_clientes_veiculos_no_push" };
         }
       }
     }

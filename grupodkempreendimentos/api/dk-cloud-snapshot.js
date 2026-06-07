@@ -279,6 +279,19 @@ function applyCadastroLock(existing, incoming) {
   return out;
 }
 
+/** Demo: push parcial com local vazio não pode apagar clientes/veículos já na nuvem. */
+function applyDemoCadastroNoShrink(existing, merged) {
+  if (!isObject(existing) || !isObject(merged)) return merged;
+  const out = { ...merged };
+  for (const k of CADASTRO_KEYS) {
+    const ex = existing[k];
+    const inc = out[k];
+    if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
+    if (ex.length > 0 && inc.length < ex.length) out[k] = ex;
+  }
+  return out;
+}
+
 function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
   const byNc = new Map();
   const normNc = (v) =>
@@ -456,6 +469,9 @@ module.exports = async function handler(req, res) {
         payload = existingPayload
           ? mergePayloads(existingPayload, lockedIncoming)
           : stripInternalPayloadKeys(lockedIncoming);
+        if (channel === "demo" && existingPayload) {
+          payload = applyDemoCadastroNoShrink(existingPayload, payload);
+        }
       }
       if (channel === "default") {
         payload = sanitizePayloadForOficial(payload);
