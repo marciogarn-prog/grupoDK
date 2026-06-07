@@ -245,6 +245,9 @@ async function main() {
         patJs.includes("patrimonioProcessarIaSegundoPlano") &&
         patJs.includes("fotoAguardaProcessamentoIa") &&
         patJs.includes("patrimonioRecuperarTravamentoIa") &&
+        patJs.includes("patrimonioExpurgarFilaObsoleta") &&
+        patJs.includes("patrimonioRetomarFilaIa") &&
+        patJs.includes("PATRIMONIO_FILA_TTL_MS") &&
         patJs.includes("coletarPatrimonioErrosIa") &&
         patJs.includes("patrimonioAtualizarBadgeSegundoPlano") &&
         patJs.includes("excluirFotoCapturaAutomatico") &&

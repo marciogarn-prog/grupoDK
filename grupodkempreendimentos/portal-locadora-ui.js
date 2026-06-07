@@ -829,6 +829,12 @@
     refreshPortalOperacaoNavPorAcessos();
     refreshOperacaoLocacaoAdminProtocoloUi();
     portalSyncAmbienteCadastroAdminUi();
+    if (
+      funcionario.role === "owner" &&
+      typeof window.__DK_patrimonioRetomarFilaIa === "function"
+    ) {
+      void window.__DK_patrimonioRetomarFilaIa({ silencioso: true });
+    }
   }
 
   const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
