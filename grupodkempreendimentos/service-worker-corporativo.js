@@ -10,6 +10,7 @@ const ASSETS = [
   "./styles.css",
   "./app.js",
   "./portal-locadora-ui.js",
+  "./portal-lanc-aluguel-calendario.js",
   "./portal-lancamentos-extras.js",
   "./portal-multas-relatorio.js",
   "./portal-patrimonio.js",
