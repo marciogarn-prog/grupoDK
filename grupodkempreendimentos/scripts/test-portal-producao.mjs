@@ -479,7 +479,7 @@ async function main() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521contrato-simples`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521geo-v2`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521contrato-simples`, {
@@ -510,6 +510,11 @@ async function main() {
         clienteResumoJs.includes("investimentoAcumulado") &&
         clienteResumoJs.includes("pickUltimoPagamento"),
       "placa, semanal, pago, investimento, último pagamento"
+    );
+    record(
+      "app cliente geo só instalação e bypass admin",
+      clienteAppJs.includes("maybeRunInstallGeoGate") && clienteAppJs.includes("isGeoGateBypassed"),
+      "adminPreview + instalar=1"
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();

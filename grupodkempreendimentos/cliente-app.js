@@ -47,6 +47,15 @@
     }
   }
 
+  /** Admin (pré-visualização) e desktop operador nunca passam pelo gate de GPS. */
+  function isGeoGateBypassed() {
+    return isAdminPreviewMode();
+  }
+
+  function canAdminPreviewAutoLogin() {
+    return isAdminPreviewMode() && isPortalAdminSessaoAtiva();
+  }
+
   function showAdminPreviewBanner() {
     const el = document.getElementById("portal-admin-banner-cliente");
     if (!el) return;
@@ -429,6 +438,20 @@
     }
   }
 
+  async function maybeRunInstallGeoGate() {
+    if (isGeoGateBypassed()) return true;
+    if (typeof window.__DK_clienteGeoHasConsent === "function" && window.__DK_clienteGeoHasConsent()) {
+      return true;
+    }
+    if (!hasClienteAppDownloadGate()) return true;
+    try {
+      if (new URLSearchParams(location.search).get("instalar") !== "1") return true;
+    } catch {
+      return true;
+    }
+    return ensureGeoGateBeforeApp();
+  }
+
   async function ensureGeoGateBeforeApp() {
     const ensure = window.__DK_clienteGeoEnsurePermission;
     if (typeof ensure !== "function") {
@@ -453,7 +476,7 @@
 
     showView("geo");
     if (status) {
-      status.textContent = "Toque em «Autorizar localização» para continuar.";
+      status.textContent = "";
       status.classList.remove("error", "success");
     }
 
@@ -1200,13 +1223,16 @@
 
   async function atualizarProgramaEDados(sessao, opts) {
     await checkAtualizacaoPrograma();
-    if (typeof window.__DK_clienteGeoEnsurePermission === "function") {
-      const geo = await window.__DK_clienteGeoEnsurePermission({ required: true });
-      if (!geo.ok) {
-        showGeoBlocked(geo.msg);
-        return;
+    if (!isGeoGateBypassed() && sessao?.cpf && typeof window.__DK_clienteGeoEnsurePermission === "function") {
+      const perm = await window.__DK_clienteGeoQueryState?.();
+      if (perm === "granted") {
+        if (!window.__DK_clienteGeoHasConsent?.()) {
+          const geo = await window.__DK_clienteGeoEnsurePermission({ required: false });
+          if (geo.ok) startGeoForSession(sessao);
+        } else {
+          startGeoForSession(sessao);
+        }
       }
-      if (sessao?.cpf) startGeoForSession(sessao);
     }
     await sincronizarDadosCliente(sessao, opts);
   }
@@ -1791,8 +1817,8 @@
       return;
     }
 
-    const adminPreview = isAdminPreviewMode() && isPortalAdminSessaoAtiva();
-    if (adminPreview) {
+    const adminPreviewLogin = canAdminPreviewAutoLogin();
+    if (isAdminPreviewMode()) {
       try {
         sessionStorage.setItem("dk_admin_preview_cliente", "1");
       } catch {
@@ -1800,8 +1826,8 @@
       }
     }
 
-    if (!adminPreview) {
-      const geoOk = await ensureGeoGateBeforeApp();
+    if (!isGeoGateBypassed()) {
+      const geoOk = await maybeRunInstallGeoGate();
       if (!geoOk) return;
     }
 
@@ -1825,12 +1851,13 @@
       window.addEventListener("dk-comprovantes-sync-nuvem", refreshClienteApp);
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
+        if (isGeoGateBypassed()) return;
         const sessao = getSessao();
         if (!sessao?.cpf) return;
         const meta = metaGeoFromSessao(sessao);
         if (typeof window.__DK_clienteGeoRefreshOnVisible === "function") {
           void window.__DK_clienteGeoRefreshOnVisible(meta).then((r) => {
-            if (r && r.ok === false && r.state === "denied") {
+            if (r && r.ok === false && r.state === "denied" && window.__DK_clienteGeoHasConsent?.()) {
               showGeoBlocked("Localização revogada. Reative para continuar.");
             }
           });
@@ -1922,7 +1949,7 @@
 
     await processIncomingShare();
 
-    if (adminPreview && (await autoLoginAdminPreviewFromGate())) {
+    if (adminPreviewLogin && (await autoLoginAdminPreviewFromGate())) {
       wireInstall();
       if (clienteEnvioComprovanteAtivo()) bindCompMasks();
       updateInstallPanelUi();
@@ -1933,7 +1960,7 @@
     const sessao = getSessao();
     showView("login");
     if (sessao?.cpf) {
-      if (!adminPreview) startGeoForSession(sessao);
+      if (!isGeoGateBypassed()) startGeoForSession(sessao);
       await afterLogin(sessao);
     }
 
