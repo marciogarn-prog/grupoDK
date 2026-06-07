@@ -69,7 +69,8 @@
     mesEl.querySelectorAll(".portal-lanc-cal-week").forEach((tr) => semanaTotalLinha(tr));
   }
 
-  function buildMesHtml(ano, mesIdx, mapa) {
+  function buildMesHtml(ano, mesIdx, mapa, diaPagCol) {
+    const colPag = Number.isFinite(Number(diaPagCol)) ? Number(diaPagCol) : 3;
     const titulo = `${MESES_ABREV[mesIdx]}/${String(ano).slice(-2)}`;
     const lastDay = new Date(ano, mesIdx + 1, 0).getDate();
     const weeks = [];
@@ -86,7 +87,10 @@
 
     let html = `<section class="portal-lanc-cal-mes" data-mes="${mesIdx}"><h4 class="portal-lanc-cal-mes__title">${titulo}</h4>`;
     html += `<table class="portal-lanc-cal-grid" aria-label="Calendário ${titulo}"><thead><tr>`;
-    for (const d of DOW) html += `<th class="portal-lanc-cal-dow">${d}</th>`;
+    for (let col = 0; col < 7; col++) {
+      const cls = col === colPag ? " portal-lanc-cal-dow--pagamento" : "";
+      html += `<th class="portal-lanc-cal-dow${cls}">${DOW[col]}</th>`;
+    }
     html += `<th class="portal-lanc-cal-dow portal-lanc-cal-dow--total">TOTAL<br>SEMANA</th></tr></thead><tbody>`;
 
     for (const wk of weeks) {
@@ -98,12 +102,12 @@
           continue;
         }
         const iso = isoFromParts(ano, mesIdx, dNum);
-        const isQua = col === 3;
+        const isDiaPag = col === colPag;
         const val = mapa.get(iso) || 0;
         const valStr = val > 0 ? fmtVal(val) : "";
         html += `<td class="portal-lanc-cal-day" data-iso="${iso}">`;
         html += `<div class="portal-lanc-cal-day-num">${dNum}</div>`;
-        html += `<input type="text" class="portal-lanc-cal-val${isQua ? " portal-lanc-cal-val--qua" : ""}" data-iso="${iso}" inputmode="decimal" autocomplete="off" value="${valStr.replace(/"/g, "&quot;")}" aria-label="Pagamento ${brFromIso(iso)}">`;
+        html += `<input type="text" class="portal-lanc-cal-val${isDiaPag ? " portal-lanc-cal-val--dia-pagamento" : ""}" data-iso="${iso}" inputmode="decimal" autocomplete="off" value="${valStr.replace(/"/g, "&quot;")}" aria-label="Pagamento ${brFromIso(iso)}">`;
         html += `</td>`;
       }
       html += `<td class="portal-lanc-cal-week-total"><span class="portal-lanc-cal-week-sum">0</span></td></tr>`;
@@ -112,9 +116,9 @@
     return html;
   }
 
-  function buildAnoHtml(ano, mapa) {
+  function buildAnoHtml(ano, mapa, diaPagCol) {
     let html = `<div class="portal-lanc-cal-ano" data-ano="${ano}">`;
-    for (let m = 0; m < 12; m++) html += buildMesHtml(ano, m, mapa);
+    for (let m = 0; m < 12; m++) html += buildMesHtml(ano, m, mapa, diaPagCol);
     html += `</div>`;
     return html;
   }
@@ -186,13 +190,20 @@
         ? window.__DK_getPortalLancamentosAluguelContrato(ctx.cpfDigits, ctx.proto)
         : [];
     const mapa = agruparPagamentosPorDataIso(arr, ano);
+    const colPag = Number.isFinite(Number(ctx.diaPagamentoCol)) ? Number(ctx.diaPagamentoCol) : 3;
     pick?.classList.add("hidden");
     corpo.classList.remove("hidden");
     document.getElementById("portalLancAluguelCalVoltarAnosBtn")?.classList.remove("hidden");
-    corpo.innerHTML = buildAnoHtml(ano, mapa);
+    corpo.innerHTML = buildAnoHtml(ano, mapa, colPag);
     corpo.dataset.ano = String(ano);
+    corpo.dataset.diaPagCol = String(colPag);
     bindCalendarioInputs(corpo);
-    if (titulo) titulo.textContent = `Relatório de pagamentos — ${ano}`;
+    const diaLbl = ctx.diaPagamentoLabel || "";
+    if (titulo) {
+      titulo.textContent = diaLbl
+        ? `Relatório de pagamentos — ${ano} · dia ${diaLbl}`
+        : `Relatório de pagamentos — ${ano}`;
+    }
   }
 
   function fecharModal() {

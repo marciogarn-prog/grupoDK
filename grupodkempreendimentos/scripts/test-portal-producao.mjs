@@ -77,7 +77,18 @@ async function main() {
       "lançamento aluguel só avulso (flag JS)",
       portalUiLancJs.includes("OPERACAO_LANC_ALUGUEL_SUB_ATIVOS") &&
         portalUiLancJs.includes('new Set(["avulso"])') &&
-        portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno")
+        portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno") &&
+        portalUiLancJs.includes("portalLancAluguelDiaPagamentoColIdx")
+    );
+    const calJsVer = html.match(/portal-lanc-aluguel-calendario\.js\?v=([^"]+)/)?.[1] || "";
+    const calJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=${calJsVer || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "calendário aluguel dia pagamento por cliente",
+      calJs.includes("portal-lanc-cal-val--dia-pagamento") &&
+        calJs.includes("diaPagamentoCol") &&
+        calJs.includes("portal-lanc-cal-dow--pagamento")
     );
     record(
       "PDF partilhar e-mail WhatsApp",

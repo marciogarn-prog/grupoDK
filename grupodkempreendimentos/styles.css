@@ -4525,9 +4525,15 @@ table.validados-app .lnk-comprovante {
   text-align: center;
 }
 
+.portal-lanc-cal-val--dia-pagamento,
 .portal-lanc-cal-val--qua {
   background: #a5d6a7;
   border-color: #2e7d32;
+}
+
+.portal-lanc-cal-dow--pagamento {
+  background: #1b5e20;
+  box-shadow: inset 0 0 0 2px #fff59d;
 }
 
 .portal-lanc-cal-week-total {

@@ -9665,6 +9665,32 @@ ${printable.innerHTML}
     refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
+  function portalLancAluguelDiaPagamentoColIdx(raw, loc) {
+    const s = String(raw || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "");
+    if (s.startsWith("DOM")) return 0;
+    const norm =
+      typeof window.__DK_normDiaPagamentoMultas === "function"
+        ? window.__DK_normDiaPagamentoMultas(raw)
+        : "";
+    const map = { SEG: 1, TER: 2, QUA: 3, QUI: 4, SEX: 5, SAB: 6, DOM: 0 };
+    if (norm && Object.prototype.hasOwnProperty.call(map, norm)) return map[norm];
+    const inicio = String(loc?.inicio || "").trim();
+    if (inicio && typeof parseBrDate === "function") {
+      const d = parseBrDate(inicio);
+      if (d && !Number.isNaN(d.getTime())) return d.getDay();
+    }
+    return 3;
+  }
+
+  function portalLancAluguelDiaPagamentoLegivel(colIdx) {
+    const labels = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+    return labels[colIdx] || "Quarta-feira";
+  }
+
   function portalIsoParaDataBr(iso) {
     const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (!m) return "";
@@ -11969,7 +11995,20 @@ ${printable.innerHTML}
   window.__DK_emitPortalRelatorioExcel = emitPortalRelatorioExcel;
   window.__DK_portalLancAluguelCalCtx = () => {
     const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
-    return { cpfDigits: cpf, proto: nc };
+    const loc =
+      cpf.length === 11 && nc
+        ? collectPortalLocacoesComProtocoloByCpf(cpf).find(
+            (l) => normPortalNumeroContrato(l.numeroContrato) === nc
+          )
+        : null;
+    const diaRaw = String(loc?.diaPagto || loc?.diaPagamento || "").trim();
+    const diaPagamentoCol = portalLancAluguelDiaPagamentoColIdx(diaRaw, loc);
+    return {
+      cpfDigits: cpf,
+      proto: nc,
+      diaPagamentoCol,
+      diaPagamentoLabel: portalLancAluguelDiaPagamentoLegivel(diaPagamentoCol),
+    };
   };
   window.__DK_getPortalLancamentosAluguelContrato = (cpfDigits, proto) => {
     const loc = collectPortalLocacoesComProtocoloByCpf(cpfDigits).find(
