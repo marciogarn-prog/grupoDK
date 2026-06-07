@@ -6734,6 +6734,9 @@ ${printable.innerHTML}
     }
   });
 
+  /** Submenus visíveis em «Lançamento de aluguel» — reactivar comprovante/validacao/relatorios quando necessário. */
+  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso"]);
+
   const OPERACAO_LANC_ALUGUEL_SUB_IDS = {
     avulso: "operacaoLancAluguelPaneAvulso",
     comprovante: "operacaoLancAluguelPaneComprovante",
@@ -6753,9 +6756,37 @@ ${printable.innerHTML}
 
   let operacaoLancAluguelSubAtivo = "avulso";
 
+  function operacaoLancAluguelSubPermitido(sub) {
+    return OPERACAO_LANC_ALUGUEL_SUB_ATIVOS.has(String(sub || "").trim());
+  }
+
+  function operacaoLancAluguelSubnavTemMultiplos() {
+    return OPERACAO_LANC_ALUGUEL_SUB_ATIVOS.size > 1;
+  }
+
+  function syncOperacaoLancAluguelSubnavItemsVisibility() {
+    [
+      "btn-lanc-aluguel-avulso",
+      "btn-lanc-aluguel-comprovante",
+      "btn-lanc-aluguel-validacao",
+      "btn-lanc-aluguel-relatorios",
+    ].forEach((id) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      const sub = b.getAttribute("data-lanc-aluguel-sub") || "";
+      const show = operacaoLancAluguelSubPermitido(sub);
+      b.classList.toggle("hidden", !show);
+      b.toggleAttribute("hidden", !show);
+      b.setAttribute("aria-hidden", show ? "false" : "true");
+      b.tabIndex = show ? 0 : -1;
+      b.disabled = !show;
+    });
+  }
+
   function syncOperacaoLancAluguelSubnavVisible(visible) {
     const nav = document.getElementById("operacaoLancAluguelSubnav");
     if (!nav) return;
+    const show = Boolean(visible) && operacaoLancAluguelSubnavTemMultiplos();
     nav.classList.toggle("hidden", !visible);
     if (visible) nav.removeAttribute("hidden");
     else nav.setAttribute("hidden", "");
@@ -6806,7 +6837,8 @@ ${printable.innerHTML}
   }
 
   function showOperacaoLancAluguelSub(subRaw) {
-    const sub = OPERACAO_LANC_ALUGUEL_SUB_IDS[subRaw] ? subRaw : "avulso";
+    let sub = OPERACAO_LANC_ALUGUEL_SUB_IDS[subRaw] ? subRaw : "avulso";
+    if (!operacaoLancAluguelSubPermitido(sub)) sub = "avulso";
     operacaoLancAluguelSubAtivo = sub;
     for (const [key, paneId] of Object.entries(OPERACAO_LANC_ALUGUEL_SUB_IDS)) {
       const pane = document.getElementById(paneId);
@@ -6848,13 +6880,8 @@ ${printable.innerHTML}
   }
 
   function openOperacaoLancamentoAluguel(subRaw) {
-    const sub =
-      subRaw ||
-      operacaoLancAluguelSubAtivo ||
-      document
-        .getElementById("btn-operacao-lancamento-aluguel")
-        ?.getAttribute("data-lanc-aluguel-sub") ||
-      "avulso";
+    const pedido = subRaw || operacaoLancAluguelSubAtivo || "avulso";
+    const sub = operacaoLancAluguelSubPermitido(pedido) ? pedido : "avulso";
     hideOperacaoInlineFormsCore();
     syncOperacaoLancAluguelSubnavVisible(true);
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
@@ -10952,6 +10979,8 @@ ${printable.innerHTML}
     openOperacaoLancamentoAluguel("avulso");
   });
 
+  syncOperacaoLancAluguelSubnavItemsVisibility();
+
   [
     "btn-lanc-aluguel-avulso",
     "btn-lanc-aluguel-comprovante",
@@ -10960,6 +10989,7 @@ ${printable.innerHTML}
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       const sub = document.getElementById(id)?.getAttribute("data-lanc-aluguel-sub") || "avulso";
+      if (!operacaoLancAluguelSubPermitido(sub)) return;
       openOperacaoLancamentoAluguel(sub);
     });
   });

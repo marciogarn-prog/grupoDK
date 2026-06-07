@@ -53,10 +53,20 @@ async function main() {
         html.includes("portalOperadorComprovanteResumo")
     );
     record(
-      "submenu lançamento aluguel (4 painéis)",
+      "submenu lançamento aluguel (só avulso ativo)",
       html.includes("btn-lanc-aluguel-avulso") &&
-        html.includes("operacaoLancAluguelPaneValidacao") &&
-        html.includes("operacaoLancAluguelPaneRelatorios")
+        html.includes('btn-lanc-aluguel-comprovante" class="btn-operacao-cmd btn-operacao-cmd--sub hidden"') &&
+        html.includes('btn-lanc-aluguel-validacao" class="btn-operacao-cmd btn-operacao-cmd--sub hidden"') &&
+        html.includes('btn-lanc-aluguel-relatorios" class="btn-operacao-cmd btn-operacao-cmd--sub hidden"')
+    );
+    const portalUiVerLanc = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
+    const portalUiLancJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVerLanc || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "lançamento aluguel só avulso (flag JS)",
+      portalUiLancJs.includes("OPERACAO_LANC_ALUGUEL_SUB_ATIVOS") &&
+        portalUiLancJs.includes('new Set(["avulso"])')
     );
     record(
       "PDF partilhar e-mail WhatsApp",
