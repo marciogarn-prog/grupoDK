@@ -234,7 +234,7 @@ async function runSuite() {
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
-    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-oficial-env`, {
+    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-shared-data`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
@@ -248,12 +248,21 @@ async function runSuite() {
       const demoUi = await page.evaluate(() => ({
         channel: window.__DK_DEPLOY_CHANNEL__,
         isDemo: window.__DK_IS_DEMO_DEPLOY__,
+        snapshotLabel:
+          typeof window.__DK_deploySnapshotLabel === "function"
+            ? window.__DK_deploySnapshotLabel()
+            : "",
         bannerVisible: !document.getElementById("dk-demo-env-banner")?.classList.contains("hidden"),
       }));
       record(
         "demo: canal e faixa amarela activos",
         demoUi.channel === "demo" && demoUi.isDemo === true && demoUi.bannerVisible,
         `channel=${demoUi.channel}`
+      );
+      record(
+        "demo: mesmos cadastros que oficial (snapshot default)",
+        demoUi.snapshotLabel === "default",
+        `label=${demoUi.snapshotLabel}`
       );
     }
     record(

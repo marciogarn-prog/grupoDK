@@ -15,6 +15,10 @@ Como saber onde está:
   • Oficial = URL sem "demo." e SEM faixa amarela
   • Demo    = demo.grupodkempreendimentos.com.br + faixa "AMBIENTE DEMO"
 
+Dados:
+  • Demo e oficial usam os MESMOS cadastros (Supabase label default + Redis produção)
+  • A demo serve para testar código antes do merge em main; lançamentos na demo afetam a nuvem real
+
 Fluxo do programador:
   git checkout demo
   # alterações, commit, push

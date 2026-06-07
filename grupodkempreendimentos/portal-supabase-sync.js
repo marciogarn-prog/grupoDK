@@ -12,17 +12,15 @@
     if (typeof window.__DK_deploySnapshotLabel === "function") {
       return window.__DK_deploySnapshotLabel();
     }
-    return window.__DK_DEPLOY_CHANNEL__ === "demo" ? "demo" : "default";
+    return "default";
   }
 
   function dkCloudChannelQuery() {
-    const ch = dkSnapshotLabel();
-    return ch === "demo" ? "?channel=demo" : "";
+    return "";
   }
 
   function dkCloudFetchHeaders() {
-    const ch = dkSnapshotLabel();
-    return ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
+    return {};
   }
 
   const DK_STORAGE_KEYS = [

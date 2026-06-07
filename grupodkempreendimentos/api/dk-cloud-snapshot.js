@@ -9,31 +9,9 @@
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 
-const REDIS_KEYS = {
-  default: "dk:portal:cloud_snapshot:v1",
-  demo: "dk:portal:cloud_snapshot:demo:v1",
-};
-
-function resolveDeployChannel(req) {
-  const q = String(req.query?.channel || "").trim().toLowerCase();
-  if (q === "demo") return "demo";
-  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
-  if (hdr === "demo") return "demo";
-  const origin = String(req.headers.origin || req.headers.referer || "");
-  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
-  if (/^https?:\/\/demo\./i.test(origin)) return "demo";
-  const env = String(process.env.DK_DEPLOY_CHANNEL || "").trim().toLowerCase();
-  if (env === "demo") return "demo";
-  return "default";
-}
-
-function redisKeyForChannel(channel) {
-  return channel === "demo" ? REDIS_KEYS.demo : REDIS_KEYS.default;
-}
-
-function labelForChannel(channel) {
-  return channel === "demo" ? "demo" : "default";
-}
+/** Demo e oficial partilham o mesmo snapshot (cadastros reais). */
+const REDIS_KEY = "dk:portal:cloud_snapshot:v1";
+const SNAPSHOT_LABEL = "default";
 const CADASTRO_KEYS = [
   "dk_clientes_cadastro",
   "dk_portal_clientes_cadastro",
@@ -307,9 +285,7 @@ module.exports = async function handler(req, res) {
   }
 
   const redis = createRedisClient();
-  const channel = resolveDeployChannel(req);
-  const REDIS_KEY = redisKeyForChannel(channel);
-  const LABEL = labelForChannel(channel);
+  const LABEL = SNAPSHOT_LABEL;
 
   try {
     if (req.method === "GET") {
