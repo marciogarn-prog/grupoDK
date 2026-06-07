@@ -34,7 +34,7 @@ function isObject(v) {
   return v && typeof v === "object" && !Array.isArray(v);
 }
 
-/** Pontuação de merge: invalidado pelo admin vence «confirmado» antigo na nuvem. */
+/** Pontuação de merge: invalidado pelo admin e recusas manuais vencem «confirmado» antigo na nuvem. */
 function comprovanteClienteMergeScore(r) {
   if (!r || typeof r !== "object") return 0;
   if (r.pagamentoInvalidado) {
@@ -158,6 +158,41 @@ function mergePatrimonioCrlvRedis(existing, incoming, exStandalone) {
   };
 }
 
+function stripInternalPayloadKeys(payload) {
+  if (!isObject(payload)) return payload;
+  const out = { ...payload };
+  delete out._dkFullReplaceKeys;
+  return out;
+}
+
+/** União por número de protocolo — evita apagar contratos do portal (ex. 2026010104) em push parcial. */
+function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
+  const byNc = new Map();
+  const normNc = (v) =>
+    String(v ?? "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  const add = (loc) => {
+    if (!loc || typeof loc !== "object") return;
+    const nc = normNc(loc.numeroContrato);
+    if (!nc) return;
+    const prev = byNc.get(nc);
+    if (!prev) {
+      byNc.set(nc, { ...loc });
+      return;
+    }
+    byNc.set(nc, {
+      ...prev,
+      ...loc,
+      numeroContrato: prev.numeroContrato || loc.numeroContrato,
+    });
+  };
+  (Array.isArray(existingArr) ? existingArr : []).forEach(add);
+  (Array.isArray(incomingArr) ? incomingArr : []).forEach(add);
+  return Array.from(byNc.values());
+}
+
 function mergePayloads(existing, incoming) {
   if (!isObject(existing)) return stripInternalPayloadKeys(incoming);
   if (!isObject(incoming)) return existing;
@@ -165,8 +200,19 @@ function mergePayloads(existing, incoming) {
     ? incoming._dkFullReplaceKeys.filter((k) => typeof k === "string")
     : [];
   const out = { ...existing, ...incoming };
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_locacoes_cadastro") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_locacoes_cadastro")
+  ) {
+    out.dk_locacoes_cadastro = mergeLocacoesCadastroArrays(
+      existing.dk_locacoes_cadastro,
+      incoming.dk_locacoes_cadastro
+    );
+  }
   for (const k of fullReplaceKeys) {
-    if (Object.prototype.hasOwnProperty.call(incoming, k)) out[k] = incoming[k];
+    if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
+    if (k === "dk_locacoes_cadastro") continue;
+    out[k] = incoming[k];
   }
   if (
     !fullReplaceKeys.includes("dk_comprovantes_cliente_pendentes") &&
@@ -198,13 +244,6 @@ function mergePayloads(existing, incoming) {
     );
   }
   return stripInternalPayloadKeys(out);
-}
-
-function stripInternalPayloadKeys(payload) {
-  if (!isObject(payload)) return payload;
-  const out = { ...payload };
-  delete out._dkFullReplaceKeys;
-  return out;
 }
 
 module.exports = async function handler(req, res) {
@@ -272,9 +311,9 @@ module.exports = async function handler(req, res) {
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
       }
       const replace = body.replace === true || body.mode === "replace";
-      const payload = replace
-        ? stripInternalPayloadKeys(incoming)
-        : mergePayloads(existingPayload, incoming);
+      const payload = existingPayload
+        ? mergePayloads(existingPayload, incoming)
+        : stripInternalPayloadKeys(incoming);
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       return res.status(200).json({

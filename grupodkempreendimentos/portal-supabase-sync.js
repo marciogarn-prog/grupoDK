@@ -1255,9 +1255,45 @@
     }
   }
 
+  function mergeLocacoesCadastroBeforePush(localArr, cloudArr) {
+    const byNc = new Map();
+    const normNc = (v) =>
+      String(v ?? "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    const add = (loc) => {
+      if (!loc || typeof loc !== "object") return;
+      const nc = normNc(loc.numeroContrato);
+      if (!nc) return;
+      const prev = byNc.get(nc);
+      if (!prev) {
+        byNc.set(nc, { ...loc });
+        return;
+      }
+      byNc.set(nc, {
+        ...prev,
+        ...loc,
+        numeroContrato: prev.numeroContrato || loc.numeroContrato,
+      });
+    };
+    (Array.isArray(localArr) ? localArr : []).forEach(add);
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
+    return Array.from(byNc.values());
+  }
+
   function mergePayloadWithCloudBeforePush(localPayload, cloudPayload) {
     const out = { ...localPayload };
     if (!cloudPayload || typeof cloudPayload !== "object") return out;
+    if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_locacoes_cadastro") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")
+    ) {
+      out.dk_locacoes_cadastro = mergeLocacoesCadastroBeforePush(
+        localPayload.dk_locacoes_cadastro,
+        cloudPayload.dk_locacoes_cadastro
+      );
+    }
     if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_comprovantes_cliente_pendentes")) {
       out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
         localPayload.dk_comprovantes_cliente_pendentes,

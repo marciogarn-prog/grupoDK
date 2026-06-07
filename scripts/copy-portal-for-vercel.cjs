@@ -32,17 +32,19 @@ const portalApiDir = path.join(portalDir, "api");
 if (fs.existsSync(repoApiDir) && fs.existsSync(portalApiDir)) {
   fs.mkdirSync(portalApiDir, { recursive: true });
   fs.mkdirSync(repoApiDir, { recursive: true });
+  const repoApiNames = new Set(
+    fs.readdirSync(repoApiDir).filter((n) => n.endsWith(".js"))
+  );
   const portalApiNames = new Set(
     fs.readdirSync(portalApiDir).filter((n) => n.endsWith(".js"))
   );
-  for (const name of fs.readdirSync(repoApiDir)) {
-    if (!name.endsWith(".js")) continue;
-    fs.copyFileSync(path.join(repoApiDir, name), path.join(portalApiDir, name));
-    portalApiNames.delete(name);
-  }
-  /* Rotas novas só no portal → espelhar na raiz (Vercel serverless lê api/ do repo). */
+  /* Portal é fonte de verdade: espelha portal → raiz; só copia raiz → portal se rota existir só na raiz. */
   for (const name of portalApiNames) {
     fs.copyFileSync(path.join(portalApiDir, name), path.join(repoApiDir, name));
+    repoApiNames.delete(name);
+  }
+  for (const name of repoApiNames) {
+    fs.copyFileSync(path.join(repoApiDir, name), path.join(portalApiDir, name));
   }
 } else if (fs.existsSync(repoApiDir)) {
   fs.mkdirSync(portalApiDir, { recursive: true });
