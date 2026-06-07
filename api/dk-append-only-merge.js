@@ -91,36 +91,34 @@ function mergeVeiculosCadastro(previousList, incomingList) {
 function mergeLocacoesCadastro(previousList, incomingList) {
   const prev = Array.isArray(previousList) ? previousList : [];
   const incoming = Array.isArray(incomingList) ? incomingList : [];
-  const dig = (cpf) => onlyDigits(cpf);
-  const keyOf = (l) => {
-    const cpf = dig(l.cpf);
-    const pl = normalizePlate(l.placa);
-    const nc = ncNorm(l.numeroContrato);
-    if (cpf.length === 11 && pl && nc) return `${cpf}|${pl}|${nc}`;
-    const idn = Number(l.id || l.createdAt || 0);
-    return `${cpf}|${pl}|id:${idn}`;
-  };
-  const byK = new Map();
+  const byNc = new Map();
+  const noNc = [];
   const score = (l) => Number(l.updatedAt || l.createdAt || l.id || 0);
   const add = (l) => {
-    const k = keyOf(l);
-    const ex = byK.get(k);
-    const merged = ex ? { ...ex, ...l } : { ...l };
-    if (!ex) {
-      byK.set(k, merged);
+    const nc = ncNorm(l.numeroContrato);
+    if (!nc) {
+      noNc.push({ ...l });
       return;
     }
+    const ex = byNc.get(nc);
+    if (!ex) {
+      byNc.set(nc, { ...l, numeroContrato: l.numeroContrato || nc });
+      return;
+    }
+    const merged = { ...ex, ...l, numeroContrato: ex.numeroContrato || l.numeroContrato || nc };
     if (score(l) > score(ex)) {
-      byK.set(k, merged);
+      byNc.set(nc, merged);
       return;
     }
     if (score(l) === score(ex) && JSON.stringify(l).length >= JSON.stringify(ex).length) {
-      byK.set(k, merged);
+      byNc.set(nc, merged);
+      return;
     }
+    byNc.set(nc, { ...merged, ...ex, numeroContrato: ex.numeroContrato || nc });
   };
   prev.forEach(add);
   incoming.forEach(add);
-  return Array.from(byK.values());
+  return [...byNc.values(), ...noNc];
 }
 
 module.exports = {

@@ -1257,29 +1257,39 @@
 
   function mergeLocacoesCadastroBeforePush(localArr, cloudArr) {
     const byNc = new Map();
+    const noNc = [];
     const normNc = (v) =>
       String(v ?? "")
         .trim()
         .toUpperCase()
         .replace(/[^A-Z0-9]/g, "");
+    const score = (l) => Number(l?.updatedAt || l?.createdAt || l?.id || 0);
     const add = (loc) => {
       if (!loc || typeof loc !== "object") return;
       const nc = normNc(loc.numeroContrato);
-      if (!nc) return;
-      const prev = byNc.get(nc);
-      if (!prev) {
-        byNc.set(nc, { ...loc });
+      if (!nc) {
+        noNc.push({ ...loc });
         return;
       }
-      byNc.set(nc, {
+      const prev = byNc.get(nc);
+      if (!prev) {
+        byNc.set(nc, { ...loc, numeroContrato: loc.numeroContrato || nc });
+        return;
+      }
+      const merged = {
         ...prev,
         ...loc,
         numeroContrato: prev.numeroContrato || loc.numeroContrato,
-      });
+      };
+      if (score(loc) >= score(prev)) {
+        byNc.set(nc, merged);
+      } else {
+        byNc.set(nc, { ...merged, ...prev, numeroContrato: prev.numeroContrato || nc });
+      }
     };
     (Array.isArray(localArr) ? localArr : []).forEach(add);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
-    return Array.from(byNc.values());
+    return [...byNc.values(), ...noNc];
   }
 
   function mergePayloadWithCloudBeforePush(localPayload, cloudPayload) {

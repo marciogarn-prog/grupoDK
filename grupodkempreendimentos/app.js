@@ -2517,20 +2517,11 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       String(normalizeNumeroContratoKey(v || ""))
         .trim()
         .replace(/\s+/g, "");
-    const keyOf = (l) => {
-      const cpf = dig(l.cpf);
-      const pl = plateNorm(l.placa);
-      const nc = ncNorm(l.numeroContrato);
-      if (cpf.length === 11 && pl && nc) return `${cpf}|${pl}|${nc}`;
-      const idn = Number(l.id || l.createdAt || 0);
-      return `${cpf}|${pl}|id:${idn}`;
-    };
-    const byK = new Map();
-    const score = (l) => Number(l.updatedAt || l.createdAt || l.id || 0);
-    const add = (l) => {
-      const k = keyOf(l);
-      const ex = byK.get(k);
-      const mergedPl = mergePortalLancamentosAluguelEmbutidos([ex?.portalLancamentosAluguel, l?.portalLancamentosAluguel]);
+    const mergeLocPair = (ex, l) => {
+      const mergedPl = mergePortalLancamentosAluguelEmbutidos([
+        ex?.portalLancamentosAluguel,
+        l?.portalLancamentosAluguel,
+      ]);
       const mergedPlMultas = mergePortalLancamentosAluguelEmbutidos([
         ex?.portalLancamentosMultas,
         l?.portalLancamentosMultas,
@@ -2543,40 +2534,42 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         ex?.portalLancamentosManutencao,
         l?.portalLancamentosManutencao,
       ]);
-      if (!ex) {
-        const merged = { ...l };
-        if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
-        if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
-        if (mergedMultasTransito.length) merged.portalMultasTransito = mergedMultasTransito;
-        if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
-        byK.set(k, merged);
-        return;
-      }
-      const merged = { ...ex, ...l };
+      const merged = { ...ex, ...l, numeroContrato: ex.numeroContrato || l.numeroContrato };
       if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
       if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
       if (mergedMultasTransito.length) merged.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
       Object.assign(merged, mergeLocacaoCamposSincronizacaoPortal(ex, l));
-      if (score(l) > score(ex)) {
-        byK.set(k, merged);
-        return;
-      }
-      if (score(l) === score(ex) && JSON.stringify(l).length >= JSON.stringify(ex).length) {
-        byK.set(k, merged);
-        return;
-      }
+      const score = (x) => Number(x.updatedAt || x.createdAt || x.id || 0);
+      if (score(l) > score(ex)) return merged;
+      if (score(l) === score(ex) && JSON.stringify(l).length >= JSON.stringify(ex).length) return merged;
       const stay = { ...ex };
       if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
       if (mergedPlMultas.length) stay.portalLancamentosMultas = mergedPlMultas;
       if (mergedMultasTransito.length) stay.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) stay.portalLancamentosManutencao = mergedPlManut;
       Object.assign(stay, mergeLocacaoCamposSincronizacaoPortal(ex, l));
-      byK.set(k, stay);
+      return stay;
+    };
+    const byNc = new Map();
+    const byFallback = new Map();
+    const add = (l) => {
+      const nc = ncNorm(l.numeroContrato);
+      if (nc) {
+        const ex = byNc.get(nc);
+        byNc.set(nc, ex ? mergeLocPair(ex, l) : { ...l, numeroContrato: l.numeroContrato || nc });
+        return;
+      }
+      const cpf = dig(l.cpf);
+      const pl = plateNorm(l.placa);
+      const idn = Number(l.id || l.createdAt || 0);
+      const fb = idn ? `${cpf}|${pl}|id:${idn}` : `${cpf}|${pl}|row:${byFallback.size}`;
+      const ex = byFallback.get(fb);
+      byFallback.set(fb, ex ? mergeLocPair(ex, l) : { ...l });
     };
     prev.forEach(add);
     incoming.forEach(add);
-    return Array.from(byK.values());
+    return [...byNc.values(), ...byFallback.values()];
   }
 
   return incoming;
@@ -6027,65 +6020,42 @@ function mergePortalLancamentosNoKeeper(keeper, dup, keeperNc) {
 }
 
 /**
- * Remove apenas cópias do mesmo vínculo (CPF + placa + data de início).
- * Contratos com datas de início diferentes permanecem (ex.: 28/08/2025 e 16/01/2026).
+ * Funde registos com o mesmo número de protocolo (nunca remove protocolos distintos).
  */
 function deduplicateLocacoesCadastro(locs) {
-  const remap = new Map();
-  let list = locs.map((l) => ({ ...l }));
-
-  const byNatural = new Map();
-  list.forEach((loc) => {
-    const key = locacaoContratoNaturalKey(loc);
-    if (!key) return;
-    if (!byNatural.has(key)) byNatural.set(key, []);
-    byNatural.get(key).push(loc);
-  });
-
-  const dropIds = new Set();
-  byNatural.forEach((group) => {
-    if (group.length <= 1) return;
-    group.sort((a, b) => scoreLocacaoCanonica(b) - scoreLocacaoCanonica(a));
-    let keeper = { ...group[0] };
-    const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
-    for (let i = 1; i < group.length; i++) {
-      const dup = group[i];
-      dropIds.add(Number(dup.id));
-      const dupNc = String(normalizeNumeroContratoKey(dup.numeroContrato || "")).replace(/\s+/g, "");
-      if (dupNc && keeperNc && dupNc !== keeperNc) remap.set(dupNc, keeperNc);
-      keeper = mergePortalLancamentosNoKeeper(keeper, dup, keeperNc);
+  const ncNorm = (v) =>
+    String(normalizeNumeroContratoKey(v || ""))
+      .trim()
+      .replace(/\s+/g, "");
+  const byNc = new Map();
+  const noNc = [];
+  locs.forEach((loc) => {
+    const nc = ncNorm(loc.numeroContrato);
+    if (!nc) {
+      noNc.push({ ...loc });
+      return;
     }
-    const ki = list.findIndex((x) => Number(x.id) === Number(keeper.id));
-    if (ki >= 0) list[ki] = keeper;
+    const prev = byNc.get(nc);
+    if (!prev) {
+      byNc.set(nc, { ...loc });
+      return;
+    }
+    byNc.set(nc, mergePortalLancamentosNoKeeper(prev, loc, nc));
   });
-
-  list = list.filter((l) => !dropIds.has(Number(l.id)));
-  return { locs: list, remap };
+  return { locs: [...byNc.values(), ...noNc], remap: new Map() };
 }
 
 /**
- * Fantasma = protocolo desalinhado com a data de início, mas já existe contrato correto
- * para o mesmo CPF+placa+início → apaga o fantasma (ex. 2026082801 duplicando 2026011601).
- * Caso contrário, renomeia para AAAAMMDDXX livre (sem colidir com outro contrato).
+ * Fantasma = protocolo desalinhado com a data de início.
+ * Renumerar para AAAAMMDDXX livre — nunca apagar o registo (protocolo imutável).
  */
 function repairProtocolosLocacaoDesalinhados(locs) {
   const list = locs.map((l) => ({ ...l }));
   const remap = new Map();
-  const dropIds = new Set();
-
-  const alignedByNatural = new Map();
-  list.forEach((l) => {
-    const nk = locacaoContratoVinculoKey(l);
-    const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
-    if (!nk || !nc || !isProtocoloAlignedWithLocacaoInicio(nc, l)) return;
-    const cur = alignedByNatural.get(nk);
-    if (!cur || scoreLocacaoCanonica(l) > scoreLocacaoCanonica(cur)) alignedByNatural.set(nk, l);
-  });
 
   const used = new Set();
   const maxSeqByPrefix = new Map();
   list.forEach((l) => {
-    if (dropIds.has(Number(l.id))) return;
     const nc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
     if (!nc || !isProtocoloAlignedWithLocacaoInicio(nc, l)) return;
     used.add(nc);
@@ -6095,31 +6065,17 @@ function repairProtocolosLocacaoDesalinhados(locs) {
     }
   });
 
-  list.forEach((l, idx) => {
-    const oldNc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
-    if (!oldNc || isProtocoloAlignedWithLocacaoInicio(oldNc, l)) return;
-
-    const nk = locacaoContratoVinculoKey(l);
-    const keeper = nk ? alignedByNatural.get(nk) : null;
-    if (keeper && Number(keeper.id) !== Number(l.id)) {
-      const keeperNc = String(normalizeNumeroContratoKey(keeper.numeroContrato || "")).replace(/\s+/g, "");
-      dropIds.add(Number(l.id));
-      if (oldNc !== keeperNc) remap.set(oldNc, keeperNc);
-      const ki = list.findIndex((x) => Number(x.id) === Number(keeper.id));
-      if (ki >= 0) list[ki] = mergePortalLancamentosNoKeeper(list[ki], l, keeperNc);
-      return;
-    }
-
-    const prefix = protocoloPrefixFromLocacaoInicio(l);
+  const renumberMisaligned = (l, idx, oldNc) => {
+    const prefix = protocoloPrefixFromLocacaoInicio(l) || oldNc.slice(0, 8);
     if (!prefix) return;
 
     let newNc = allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix);
-    while (list.some((x) => {
-      if (Number(x.id) === Number(l.id) || dropIds.has(Number(x.id))) return false;
-      return (
-        String(normalizeNumeroContratoKey(x.numeroContrato || "")).replace(/\s+/g, "") === newNc
-      );
-    })) {
+    while (
+      list.some((x) => {
+        if (Number(x.id) === Number(l.id)) return false;
+        return String(normalizeNumeroContratoKey(x.numeroContrato || "")).replace(/\s+/g, "") === newNc;
+      })
+    ) {
       let seq = Number(maxSeqByPrefix.get(prefix) || 0) + 1;
       const pad = seq <= 99 ? 2 : seq <= 999 ? 3 : String(seq).length;
       newNc = `${prefix}${String(seq).padStart(pad, "0")}`;
@@ -6140,9 +6096,15 @@ function repairProtocolosLocacaoDesalinhados(locs) {
       };
     }
     list[idx] = next;
+  };
+
+  list.forEach((l, idx) => {
+    const oldNc = String(normalizeNumeroContratoKey(l.numeroContrato || "")).replace(/\s+/g, "");
+    if (!oldNc || isProtocoloAlignedWithLocacaoInicio(oldNc, l)) return;
+    renumberMisaligned(l, idx, oldNc);
   });
 
-  return { locs: list.filter((l) => !dropIds.has(Number(l.id))), remap };
+  return { locs: list, remap };
 }
 
 /** Converte `LOCACOES_RECEITA_2026_IMPORT` (planilha RECEITA 2026) em registos de locação. */
@@ -6353,7 +6315,7 @@ function normalizeLocacoesContratoAtivoStore() {
   return next;
 }
 
-/** Remove só cópias do mesmo vínculo (não altera números de protocolo da planilha). */
+/** Remove só cópias do mesmo número de protocolo (nunca remove protocolos distintos). */
 function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
   let locs = normalizeLocacoesContratoAtivoList(loadCadastro(CAD_LOCACOES_KEY));
   if (!locs.length) {

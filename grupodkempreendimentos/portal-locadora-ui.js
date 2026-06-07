@@ -689,6 +689,7 @@
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
+    refreshOperacaoLocacaoAdminProtocoloUi();
   }
 
   const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
@@ -7360,6 +7361,8 @@ ${printable.innerHTML}
           : "";
       clearPortalLocacaoCamposParaNovoContrato();
       syncOperacaoLocacaoProtocoloComDataInicio();
+      refreshOperacaoLocacaoSubmitBtn();
+      refreshOperacaoLocacaoFinalizarBtn();
       return;
     }
     const digits =
@@ -7367,8 +7370,10 @@ ${printable.innerHTML}
         ? onlyDigits(String(document.getElementById("operacaoLocacaoCpf")?.value || ""))
         : String(document.getElementById("operacaoLocacaoCpf")?.value || "").replace(/\D/g, "");
     hid.value = norm(v);
-    const loc = collectPortalLocacoesByCpf(digits).find((l) => norm(l.numeroContrato || "") === hid.value);
+    const loc = findPortalLocacaoByProtocolo(v);
     if (loc) applyPortalLocacaoRowFromRecord(loc);
+    refreshOperacaoLocacaoSubmitBtn();
+    refreshOperacaoLocacaoFinalizarBtn();
   }
 
   function normPortalNumeroContrato(x) {
@@ -7377,8 +7382,83 @@ ${printable.innerHTML}
       : String(x || "").trim();
   }
 
+  function findPortalLocacaoByProtocolo(ncRaw) {
+    const nc = normPortalNumeroContrato(ncRaw);
+    if (!nc || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return null;
+    }
+    return (
+      loadCadastro(CAD_LOCACOES_KEY).find(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === nc
+      ) || null
+    );
+  }
+
+  function refreshOperacaoLocacaoAdminProtocoloUi() {
+    const wrap = document.getElementById("operacaoLocacaoProtocoloAdminWrap");
+    if (!wrap) return;
+    wrap.classList.toggle("hidden", !isPortalTitularAdministrador());
+  }
+
+  function refreshOperacaoLocacaoSubmitBtn() {
+    const btn = document.getElementById("operacaoLocacaoSubmitBtn");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!btn || !sel) return;
+    const isNovo = String(sel.value || "") === PORTAL_PROTO_NOVO;
+    const editing = !isNovo && Boolean(String(sel.value || "").trim());
+    if (editing && isPortalTitularAdministrador()) {
+      btn.textContent = "Atualizar locação";
+    } else {
+      btn.textContent = "Cadastrar locação";
+    }
+  }
+
+  function loadOperacaoLocacaoByProtocoloNumero(rawNc) {
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (!isPortalTitularAdministrador()) {
+      if (msg) msg.textContent = "Apenas o administrador pode carregar e editar um protocolo pelo número.";
+      return { ok: false };
+    }
+    const nc = normPortalNumeroContrato(rawNc);
+    if (!nc) {
+      if (msg) msg.textContent = "Informe um número de protocolo válido.";
+      return { ok: false };
+    }
+    const loc = findPortalLocacaoByProtocolo(nc);
+    if (!loc) {
+      if (msg) msg.textContent = `Protocolo ${nc} não encontrado na base.`;
+      return { ok: false };
+    }
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = dig(String(loc.cpf || ""));
+    const cpfEl = document.getElementById("operacaoLocacaoCpf");
+    const cliEl = document.getElementById("operacaoLocacaoCliente");
+    if (cpfEl) {
+      cpfEl.value =
+        typeof formatCpf === "function" ? formatCpf(cpfDigits) : cpfDigits;
+    }
+    if (cliEl) cliEl.value = String(loc.nome || "").trim();
+    portalLocacaoProtocoloPickerCpf = "";
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    if (sel) sel.value = nc;
+    if (hid) hid.value = nc;
+    applyPortalLocacaoRowFromRecord(loc);
+    refreshOperacaoLocacaoDatalists();
+    refreshOperacaoLocacaoSubmitBtn();
+    refreshOperacaoLocacaoFinalizarBtn();
+    if (msg) msg.textContent = `Protocolo ${nc} carregado. Pode corrigir os dados e clicar em «Atualizar locação».`;
+    return { ok: true, loc };
+  }
+
   function persistPortalLocacaoFinalizar() {
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (!isPortalTitularAdministrador()) {
+      if (msg) msg.textContent = "Apenas o administrador pode encerrar (finalizar) uma locação.";
+      return;
+    }
     if (
       typeof loadCadastro !== "function" ||
       typeof saveCadastro !== "function" ||
@@ -7415,14 +7495,13 @@ ${printable.innerHTML}
     const fimBr = formatPortalDataBr(fimDt);
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
-    const idx = locs.findIndex(
-      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === ncNorm
-    );
+    const idx = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === ncNorm);
     if (idx === -1) {
       if (msg) msg.textContent = "Locação não encontrada na base deste navegador.";
       return;
     }
     const prev = locs[idx];
+    const cpfDigits = dig(String(prev.cpf || inpCpf?.value || ""));
     const finalizarLocacao = () => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
@@ -7467,10 +7546,6 @@ ${printable.innerHTML}
         { titulo: `Confirmar finalização — locação ${ncNorm}`, changes: changesFim },
         finalizarLocacao
       );
-      return;
-    }
-    if (window.confirm(`Finalizar a locação ${ncNorm} com data fim ${fimBr}? O estado será marcado como finalizado.`)) {
-      finalizarLocacao();
     }
   }
 
@@ -7790,12 +7865,17 @@ ${printable.innerHTML}
     const statusLocacao = fimBr ? "FINALIZADO" : "ATIVO";
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
-    const idxAll = locs.findIndex(
-      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
-    );
+    const idxAll = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === nc);
     const prev = idxAll >= 0 ? locs[idxAll] : null;
     if (!prev && !isNovo) {
       if (msg) msg.textContent = "Contrato não encontrado para atualizar. Use «NOVO» para criar um protocolo.";
+      return;
+    }
+    if (prev && !isPortalTitularAdministrador()) {
+      if (msg) {
+        msg.textContent =
+          "Apenas o administrador pode alterar um protocolo já cadastrado. Colaboradores podem cadastrar contratos novos (NOVO).";
+      }
       return;
     }
     if (prev && isNovo) {
@@ -9694,6 +9774,17 @@ ${printable.innerHTML}
     const comboPlaca = document.getElementById("operacaoLocacaoPlacaCombo");
 
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", onOperacaoLocacaoProtocoloSelectChange);
+    document.getElementById("operacaoLocacaoProtocoloAdminCarregarBtn")?.addEventListener("click", () => {
+      const raw = String(document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.value || "").trim();
+      loadOperacaoLocacaoByProtocoloNumero(raw);
+    });
+    document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        const raw = String(ev.target?.value || "").trim();
+        loadOperacaoLocacaoByProtocoloNumero(raw);
+      }
+    });
 
     [inpCpf, inpNome].filter(Boolean).forEach((el) => {
       el.addEventListener("focus", () => refreshOperacaoLocacaoDatalists(), { passive: true });
@@ -10499,6 +10590,8 @@ ${printable.innerHTML}
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-locacao");
     updateOperacaoLocacaoDataInicioPlaceholder();
+    refreshOperacaoLocacaoAdminProtocoloUi();
+    refreshOperacaoLocacaoSubmitBtn();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     refreshOperacaoLocacaoDatalists();

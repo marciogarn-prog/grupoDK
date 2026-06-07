@@ -586,7 +586,7 @@
 
         <div id="operacaoInlineLocacao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-locacao-title">
           <h3 id="operacao-inline-locacao-title" class="operacao-inline-form__title">Cadastro de locação</h3>
-          <p class="subtext operacao-inline-form__lead">&Eacute; necess&aacute;rio <strong>cliente</strong> e <strong>veículo</strong> já cadastrados neste navegador. Mesmas colunas da folha <strong>Receita 2026</strong>. Ao digitar <strong>CPF</strong>, <strong>nome</strong> ou <strong>placa</strong>, aparecem sugestões da base &mdash; a lista afina-se enquanto escreve. Placas mostradas são veículos disponíveis para nova locação (sem contrato ativo). O protocolo só avança depois de <strong>Cadastrar locação</strong>.</p>
+          <p class="subtext operacao-inline-form__lead">&Eacute; necess&aacute;rio <strong>cliente</strong> e <strong>veículo</strong> já cadastrados neste navegador. Mesmas colunas da folha <strong>Receita 2026</strong>. O <strong>protocolo</strong>, depois de criado, <strong>nunca é apagado</strong> &mdash; pode ser <strong>encerrado</strong> (data fim) pelo administrador. Colaboradores só cadastram contratos novos; <strong>alterar dados</strong> (cliente, veículo, datas, valores) &eacute; exclusivo do <strong>administrador</strong>.</p>
           <form id="formOperacaoLocacaoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>PROTOCOLO</span>
@@ -596,6 +596,20 @@
                 autocomplete="off"
                 aria-label="PROTOCOLO: contratos deste CPF ou NOVO"
               ></select>
+            </label>
+            <label class="portal-field portal-field--wide hidden" id="operacaoLocacaoProtocoloAdminWrap">
+              <span>BUSCAR POR PROTOCOLO (administrador)</span>
+              <div class="portal-inline-actions">
+                <input
+                  type="text"
+                  id="operacaoLocacaoProtocoloAdminBusca"
+                  maxlength="40"
+                  autocomplete="off"
+                  placeholder="Ex.: 2026010104"
+                  aria-label="Número do protocolo para carregar e editar"
+                >
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoProtocoloAdminCarregarBtn">Carregar protocolo</button>
+              </div>
             </label>
             <label class="portal-field">
               <span>CPF</span>
@@ -804,7 +818,7 @@
             <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
 
             <div class="operacao-inline-form__actions">
-              <button type="submit" class="btn-primary">Cadastrar locação</button>
+              <button type="submit" class="btn-primary" id="operacaoLocacaoSubmitBtn">Cadastrar locação</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoGerarRelatorioBtn">Gerar relatório</button>
@@ -1953,10 +1967,10 @@
   <script src="clientes-extra-sync.js"></script>
   <script src="locacoes-receita-2026-import.js?v=20260518datas-protocolo"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260531placa-ocr" defer></script>
+  <script src="app.js?v=20260521proto-imutavel" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521admin-nav" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521proto-imutavel" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
