@@ -96,7 +96,7 @@ async function runSuite() {
       IS_DEMO_TEST ? "HTML demo com banco planilha completo" : "HTML com instalação limpa (sem Excel)",
       IS_DEMO_TEST
         ? html.includes("dk-banco-cadastro.js") && html.includes("demo-cadastros")
-        : html.includes("virgem") && html.includes("dk-banco-cadastro-vazio"),
+        : html.includes("dk-banco-cadastro-vazio") && html.includes("instalacao-limpa"),
       "scripts"
     );
     const cacheOk =
@@ -235,7 +235,9 @@ async function runSuite() {
     );
     record(
       "tema vermelho preto + fundo showroom",
-      html.includes("20260607virgem") &&
+      (html.includes("demo-cadastros") ||
+        html.includes("20260607virgem") ||
+        html.includes("instalacao-limpa")) &&
         html.includes('theme-color" content="#050505"') &&
         (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
     );
@@ -580,6 +582,7 @@ async function runSuite() {
     const hasPortalFns = await page.evaluate(() => ({
       unify: typeof window.__DK_unifyCadastroSingleDatabaseOnce === "function",
       bancoVazio: Array.isArray(window.DK_BANCO_CADASTRO?.veiculos) && window.DK_BANCO_CADASTRO.veiculos.length === 0,
+      bancoClientes: (window.DK_BANCO_CADASTRO?.clientes || []).length,
       manual: typeof window.__DK_isCadastroManualPortalMode === "function" && window.__DK_isCadastroManualPortalMode(),
       upsert: typeof window.__DK_upsertPortalClienteByCpf === "function",
       dateMask: typeof window.formatDateMask === "function",
@@ -589,8 +592,14 @@ async function runSuite() {
       currencyMask: typeof window.formatCurrencyMask === "function",
     }));
     record(
-      "app.js instalacao limpa (banco vazio + manual)",
-      hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.bancoVazio && hasPortalFns.manual
+      IS_DEMO_TEST ? "demo: banco planilha + manual" : "app.js instalacao limpa (banco vazio + manual)",
+      IS_DEMO_TEST
+        ? hasPortalFns.unify &&
+          hasPortalFns.upsert &&
+          hasPortalFns.manual &&
+          hasPortalFns.bancoClientes >= 300
+        : hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.bancoVazio && hasPortalFns.manual,
+      IS_DEMO_TEST ? `clientes=${hasPortalFns.bancoClientes}` : ""
     );
     record(
       "mascaras globais carregadas",
