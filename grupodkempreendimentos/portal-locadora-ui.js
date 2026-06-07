@@ -56,6 +56,17 @@
     if (typeof clearSession === "function") clearSession();
   }
 
+  function portalSyncAdminBannerLayout() {
+    const banner = document.getElementById("portal-admin-banner");
+    const h =
+      banner && !banner.classList.contains("hidden") ? `${banner.offsetHeight}px` : "0px";
+    try {
+      document.documentElement.style.setProperty("--portal-admin-banner-h", h);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function portalAtualizarBannerAdmin() {
     const banner = document.getElementById("portal-admin-banner");
     if (!banner) return;
@@ -64,6 +75,12 @@
     document.body.classList.toggle("portal-body--admin-logado", on);
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
+    requestAnimationFrame(() => portalSyncAdminBannerLayout());
+  }
+
+  if (!window.__dkPortalAdminBannerLayoutBound) {
+    window.__dkPortalAdminBannerLayoutBound = true;
+    window.addEventListener("resize", () => portalSyncAdminBannerLayout());
   }
 
   function portalColetarClientesParaAdminPreview(prefixDigits) {

@@ -4132,12 +4132,30 @@ table.validados-app .lnk-comprovante {
   position: sticky;
 }
 
+:root {
+  --portal-admin-banner-h: 0px;
+}
+
 .portal-body--admin-logado {
-  padding-top: 2.85rem;
+  padding-top: var(--portal-admin-banner-h, 0px);
 }
 
 .portal-body--admin-logado .view {
-  min-height: calc(100vh - 2.85rem);
+  min-height: calc(100vh - var(--portal-admin-banner-h, 0px));
+}
+
+.portal-body--admin-logado .portal-pdf-viewer {
+  top: var(--portal-admin-banner-h, 0px);
+  bottom: 0;
+  left: 0;
+  right: 0;
+}
+
+.portal-body--admin-logado .portal-modal:not(.hidden) {
+  top: var(--portal-admin-banner-h, 0px);
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 
 .portal-admin-banner {
@@ -4210,10 +4228,6 @@ table.validados-app .lnk-comprovante {
   .portal-admin-banner__nav {
     margin-left: 0;
     justify-content: flex-start;
-  }
-
-  .portal-body--admin-logado {
-    padding-top: 4.5rem;
   }
 }
 
