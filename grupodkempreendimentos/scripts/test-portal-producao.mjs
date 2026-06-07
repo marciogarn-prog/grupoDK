@@ -225,6 +225,7 @@ async function main() {
       "picker protocolo locacao apos CPF e nuvem",
       portalUiProto.includes("portalLocacaoCpfDigitsMatch") &&
         portalUiProto.includes("refreshOperacaoLocacaoProtocoloPicker({ force: true })") &&
+        portalUiProto.includes("portal-locacao-proto-opt--ativo") &&
         cloudSyncJs.includes("__DK_portalRefreshOperacaoDeferred"),
       "CPF + sync nuvem atualiza select"
     );

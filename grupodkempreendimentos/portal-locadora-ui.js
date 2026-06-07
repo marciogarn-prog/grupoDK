@@ -7638,6 +7638,7 @@ ${printable.innerHTML}
         typeof normalizePlate === "function" ? normalizePlate(String(l.placa || "")) : String(l.placa || "").trim();
       const ini = String(l.inicio || "").trim();
       opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
+      if (isPortalLocacaoAtiva(l)) opt.classList.add("portal-locacao-proto-opt--ativo");
       sel.appendChild(opt);
     });
     const optNovo = document.createElement("option");
@@ -7658,6 +7659,20 @@ ${printable.innerHTML}
       hid.value =
         protoNovo || (pNorm && isPortalProtocoloAlignedWithInicioForm(pNorm) ? pNorm : "");
     }
+    syncOperacaoLocacaoProtocoloSelectAtivoUi();
+  }
+
+  /** Verde no select fechado quando o protocolo escolhido está ativo (sem data fim). */
+  function syncOperacaoLocacaoProtocoloSelectAtivoUi() {
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!sel) return;
+    const v = String(sel.value || "").trim();
+    if (!v || v === PORTAL_PROTO_NOVO || sel.disabled) {
+      sel.classList.remove("portal-locacao-proto-select--ativo");
+      return;
+    }
+    const opt = Array.from(sel.options).find((o) => o.value === v);
+    sel.classList.toggle("portal-locacao-proto-select--ativo", Boolean(opt?.classList.contains("portal-locacao-proto-opt--ativo")));
   }
 
   function onOperacaoLocacaoProtocoloSelectChange() {
@@ -7667,6 +7682,7 @@ ${printable.innerHTML}
     const v = sel.value;
     if (!v) {
       hid.value = "";
+      syncOperacaoLocacaoProtocoloSelectAtivoUi();
       return;
     }
     const norm = (x) =>
@@ -7686,6 +7702,7 @@ ${printable.innerHTML}
       refreshOperacaoLocacaoSubmitBtn();
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoApagarProtocoloBtn();
+      syncOperacaoLocacaoProtocoloSelectAtivoUi();
       return;
     }
     const digits =
@@ -7697,9 +7714,8 @@ ${printable.innerHTML}
     if (loc) applyPortalLocacaoRowFromRecord(loc);
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoFinalizarBtn();
+    syncOperacaoLocacaoProtocoloSelectAtivoUi();
   }
-
-  function normPortalNumeroContrato(x) {
     return typeof normalizeNumeroContratoKey === "function"
       ? normalizeNumeroContratoKey(x || "")
       : String(x || "").trim();

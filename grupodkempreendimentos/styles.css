@@ -1373,6 +1373,17 @@ body {
   color: #ffffff;
 }
 
+/* Cadastro locação — protocolos ativos (sem data fim) em verde no select */
+#operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--ativo {
+  color: #6ee7a0;
+  font-weight: 600;
+}
+
+#operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--ativo {
+  color: #6ee7a0;
+  font-weight: 600;
+}
+
 @media (min-width: 520px) {
   .operacao-inline-form__grid {
     grid-template-columns: 1fr 1fr;
