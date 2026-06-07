@@ -4150,9 +4150,33 @@ function normalizePlate(value) {
 
 /** Placa Mercosul: LLLNLNN — 3 letras + 1 número + 1 letra + 2 números (único padrão aceite). */
 const PLACA_MERCOSUL_RE = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
+/** Formato antigo brasileiro LLLNNNN (converte para Mercosul antes de validar). */
+const PLACA_ANTIGA_RE = /^[A-Z]{3}[0-9]{4}$/;
+const PLACA_ANTIGA_PARA_MERCOSUL = "ABCDEFGHIJ";
 
 function isPlacaMercosul(value) {
   return PLACA_MERCOSUL_RE.test(normalizePlate(value));
+}
+
+function convertPlacaAntigaParaMercosul(value) {
+  const x = normalizePlate(value);
+  if (!PLACA_ANTIGA_RE.test(x)) return "";
+  const letter = PLACA_ANTIGA_PARA_MERCOSUL[parseInt(x[4], 10)];
+  if (!letter) return "";
+  const converted = x.slice(0, 4) + letter + x.slice(5);
+  return isPlacaMercosul(converted) ? converted : "";
+}
+
+/** Mercosul direto, correção OCR ou conversão do formato antigo LLLNNNN. */
+function normalizePlacaParaCadastro(value) {
+  const raw = normalizePlate(value);
+  if (!raw) return "";
+  if (isPlacaMercosul(raw)) return raw;
+  const ocr = corrigirPlacaMercosul(value);
+  if (ocr) return ocr;
+  const converted = convertPlacaAntigaParaMercosul(raw);
+  if (converted) return converted;
+  return raw;
 }
 
 function placaMercosulOuVazio(value) {
@@ -4397,7 +4421,7 @@ function validateVeiculoUniqueRealtime() {
   cadVeiculoRenavamInput.value = renavam;
   cadVeiculoMotorInput.value = motor;
 
-  const placaNorm = normalizePlate(placa);
+  const placaNorm = normalizePlacaParaCadastro(placa);
   if (placaNorm && !isPlacaMercosul(placaNorm)) {
     veiculoCadastroErro.textContent =
       "PLACA INVÁLIDA — USE MERCOSUL LLLNLNN (EX.: ABC1D23). FORMATO ANTIGO LLLNNNN NÃO É ACEITE.";
@@ -14356,7 +14380,9 @@ cadVeiculoUpdateBtn.addEventListener("click", () => {
   const renavam = String(document.getElementById("cadVeiculoRenavam").value || "").trim();
   const motor = String(document.getElementById("cadVeiculoMotor").value || "").trim();
   if (!tipo || !placa || !modelo) return;
-  if (!isPlacaMercosul(placa)) {
+  const placaNorm =
+    typeof normalizePlacaParaCadastro === "function" ? normalizePlacaParaCadastro(placa) : normalizePlate(placa);
+  if (!isPlacaMercosul(placaNorm)) {
     veiculoCadastroErro.textContent =
       "PLACA INVÁLIDA — USE MERCOSUL LLLNLNN (EX.: ABC1D23). FORMATO ANTIGO LLLNNNN NÃO É ACEITE.";
     veiculoCadastroErro.classList.remove("hidden");
@@ -14375,7 +14401,7 @@ cadVeiculoUpdateBtn.addEventListener("click", () => {
   veiculos[idx] = {
     ...veiculos[idx],
     tipo,
-    placa,
+    placa: placaNorm,
     marca,
     modelo,
     valor,
@@ -15853,6 +15879,8 @@ window.formatDateMask = formatDateMask;
 window.isPlacaMercosul = isPlacaMercosul;
 window.placaMercosulOuVazio = placaMercosulOuVazio;
 window.corrigirPlacaMercosul = corrigirPlacaMercosul;
+window.convertPlacaAntigaParaMercosul = convertPlacaAntigaParaMercosul;
+window.normalizePlacaParaCadastro = normalizePlacaParaCadastro;
 window.normalizePlate = normalizePlate;
 window.isDkDateFieldInput = isDkDateFieldInput;
 window.formatCurrencyMask = formatCurrencyMask;

@@ -568,11 +568,16 @@ async function runSuite() {
       ocr:
         typeof window.corrigirPlacaMercosul === "function" &&
         window.corrigirPlacaMercosul("SOXA284") === "SOX2A84",
+      antiga:
+        typeof window.convertPlacaAntigaParaMercosul === "function" &&
+        window.convertPlacaAntigaParaMercosul("JRB5376") === "JRB5D76" &&
+        typeof window.normalizePlacaParaCadastro === "function" &&
+        window.normalizePlacaParaCadastro("JRB5376") === "JRB5D76",
     }));
     record(
       "placa Mercosul LLLNLNN único padrão",
-      placaMercosulOk.fn && placaMercosulOk.ok && placaMercosulOk.ocr,
-      placaMercosulOk.ocr ? "SOXA284→SOX2A84" : "validação"
+      placaMercosulOk.fn && placaMercosulOk.ok && placaMercosulOk.ocr && placaMercosulOk.antiga,
+      placaMercosulOk.antiga ? "SOXA284→SOX2A84 · JRB5376→JRB5D76" : "validação"
     );
     record(
       "portal conferência operador (texto)",

@@ -4168,6 +4168,15 @@ ${printable.innerHTML}
       renderOperacaoVeiculoPlacaDropdown(inpPlaca.value);
     });
 
+    inpPlaca.addEventListener("blur", () => {
+      const raw = String(inpPlaca.value || "").trim();
+      if (!raw || typeof window.normalizePlacaParaCadastro !== "function") return;
+      const norm = window.normalizePlacaParaCadastro(raw);
+      if (norm && typeof window.isPlacaMercosul === "function" && window.isPlacaMercosul(norm) && norm !== raw.toUpperCase().replace(/[^A-Z0-9]/g, "")) {
+        inpPlaca.value = norm;
+      }
+    });
+
     inpPlaca.addEventListener("keydown", (e) => {
       if (e.key === "Escape") hideOperacaoVeiculoPlacaDropdown();
     });
@@ -7968,20 +7977,31 @@ ${printable.innerHTML}
     const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
     const plateRaw = getVal("operacaoVeiculoPlaca");
     const plate =
-      typeof normalizePlate === "function"
-        ? normalizePlate(plateRaw)
-        : String(plateRaw || "")
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "");
+      typeof normalizePlacaParaCadastro === "function"
+        ? normalizePlacaParaCadastro(plateRaw)
+        : typeof normalizePlate === "function"
+          ? normalizePlate(plateRaw)
+          : String(plateRaw || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
     const modelo = getVal("operacaoVeiculoModelo");
     if (!plate || !modelo) {
       if (msg) msg.textContent = "Informe placa e modelo.";
       return;
     }
     if (!portalPlacaMercosulOk(plate)) {
-      if (msg) msg.textContent = MSG_PLACA_MERCOSUL;
+      const digitado = String(plateRaw || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      let extra = digitado ? ` Digitado: ${digitado}.` : "";
+      if (digitado.length === 7 && /^[A-Z]{3}[0-9]{4}$/.test(digitado)) {
+        extra = " Formato antigo (LLLNNNN) — o sistema converte para Mercosul ao guardar; confira se digitou certo.";
+      }
+      if (msg) msg.textContent = MSG_PLACA_MERCOSUL + extra;
       return;
     }
+    const placaInput = document.getElementById("operacaoVeiculoPlaca");
+    if (placaInput && placaInput.value !== plate) placaInput.value = plate;
     const marca = getVal("operacaoVeiculoMarca");
     const valor = getVal("operacaoVeiculoValor");
     const cor = getVal("operacaoVeiculoCor");
