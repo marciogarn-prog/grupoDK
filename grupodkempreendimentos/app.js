@@ -501,13 +501,11 @@ const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
 /** Importação única das 378 locações do bundle RECEITA 2026 (locacoes-receita-2026-import.js). */
 const BOOTSTRAP_LOCACOES_RECEITA2026_KEY = "dk_bootstrap_locacoes_receita2026_v1";
 const CADASTRO_MANUAL_PORTAL_KEY = "dk_cadastro_manual_portal_v1";
+/** Migração única: instalação limpa (sem banco embutido) — zera cadastros locais uma vez. */
+const INSTALACAO_LIMPA_V1_KEY = "dk_instalacao_limpa_v1";
 
 function isCadastroManualPortalMode() {
-  try {
-    return localStorage.getItem(CADASTRO_MANUAL_PORTAL_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return true;
 }
 
 function enableCadastroManualPortalMode() {
@@ -515,6 +513,25 @@ function enableCadastroManualPortalMode() {
     localStorage.setItem(CADASTRO_MANUAL_PORTAL_KEY, "1");
     localStorage.setItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY, "done");
     localStorage.setItem("dk_force_locacoes_excel_receita2026_v9", "done");
+    localStorage.setItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY, "done");
+  } catch {
+    /* ignore */
+  }
+}
+
+function applyInstalacaoLimpaOnce() {
+  if (localStorage.getItem(INSTALACAO_LIMPA_V1_KEY) === "done") return;
+  const bypass = { bypassImmutabilidadeCadastro: true };
+  [
+    CAD_CLIENTES_KEY,
+    PORTAL_CLIENTES_KEY,
+    CAD_VEICULOS_KEY,
+    PORTAL_VEICULOS_KEY,
+    FROTA_VEICULOS_KEY,
+    CAD_LOCACOES_KEY,
+  ].forEach((k) => saveCadastro(k, [], bypass));
+  try {
+    localStorage.setItem(INSTALACAO_LIMPA_V1_KEY, "done");
   } catch {
     /* ignore */
   }
@@ -3350,6 +3367,15 @@ function bootstrapFromDkBancoCadastroOnce() {
  * Cadastros do portal (origemPortal) prevalecem sobre a planilha na mesma placa/CPF.
  */
 function unifyCadastroSingleDatabaseOnce() {
+  if (isCadastroManualPortalMode()) {
+    try {
+      localStorage.setItem(DK_BANCO_UNIFICADO_FLAG, "1");
+      localStorage.setItem("dk_portal_cadastro_db_v1", "1");
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
   try {
     if (localStorage.getItem(DK_BANCO_UNIFICADO_FLAG)) return;
 
@@ -6140,6 +6166,7 @@ function repairProtocolosLocacaoDesalinhados(locs) {
 
 /** Converte `LOCACOES_RECEITA_2026_IMPORT` (planilha RECEITA 2026) em registos de locação. */
 function buildLocacoesArrayFromReceita2026Import() {
+  if (isCadastroManualPortalMode()) return [];
   const rows =
     typeof LOCACOES_RECEITA_2026_IMPORT !== "undefined" && Array.isArray(LOCACOES_RECEITA_2026_IMPORT)
       ? LOCACOES_RECEITA_2026_IMPORT
@@ -6385,6 +6412,7 @@ function sanitizeLocacoesProtocolosAndDedupe(opts = {}) {
 
 /** Sincroniza com a planilha RECEITA 2026 (Excel oficial) — sem renumerar protocolos. */
 function repairProtocolosLocacaoPorDataInicioOnce() {
+  if (isCadastroManualPortalMode()) return;
   const forced = forceReplaceLocacoesFromExcelReceita2026Once();
   const enforced = enforceReceita2026OfficialLocacoesBase();
   if (forced.replaced) {
@@ -9499,6 +9527,7 @@ function seedLocacoesDatabaseIfNeeded() {
 }
 
 function importLocacoesFromPlanilhaOnce() {
+  if (isCadastroManualPortalMode()) return;
   if (localStorage.getItem(IMPORT_LOCACOES_PLANILHA_ONCE_KEY) === "done") return;
   if (!locacoesSeedData.length) return;
   const baseNow = Date.now();
@@ -15757,6 +15786,8 @@ if (window.location.protocol === "file:") {
 }
 
 resetProjetoSomenteCadastrosV3Once();
+enableCadastroManualPortalMode();
+applyInstalacaoLimpaOnce();
 seedVeiculosDatabaseIfNeeded();
 seedClientesDatabaseIfNeeded();
 migratePlacaInLocalStorage();

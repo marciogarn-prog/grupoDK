@@ -11,6 +11,16 @@ const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.
 
 const REDIS_KEY = "dk:portal:cloud_snapshot:v1";
 const LABEL = "default";
+const CADASTRO_KEYS = [
+  "dk_clientes_cadastro",
+  "dk_portal_clientes_cadastro",
+  "dk_veiculos_cadastro",
+  "dk_portal_veiculos_cadastro",
+  "dk_veiculos_frota_planilha",
+  "dk_locacoes_cadastro",
+  "dk_lancamentos_aluguel",
+  "dk_lancamentos_aluguel_cadastro",
+];
 
 function applyCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -166,6 +176,21 @@ function stripInternalPayloadKeys(payload) {
 }
 
 /** União por número de protocolo — evita apagar contratos do portal (ex. 2026010104) em push parcial. */
+function applyCadastroLock(existing, incoming) {
+  if (!isObject(existing) || !isObject(incoming)) return incoming;
+  const lockUntil = Date.parse(String(existing.dk_cadastro_lock_v1 || "")) || 0;
+  if (!lockUntil || Date.now() >= lockUntil) return incoming;
+  const out = { ...incoming };
+  for (const k of CADASTRO_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
+    const inc = incoming[k];
+    const ex = existing[k];
+    if (!Array.isArray(inc) || !Array.isArray(ex)) continue;
+    if (inc.length > ex.length) out[k] = ex;
+  }
+  return out;
+}
+
 function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
   const byNc = new Map();
   const normNc = (v) =>
@@ -320,11 +345,16 @@ module.exports = async function handler(req, res) {
         for (const k of wipeKeys) {
           payload[k] = Object.prototype.hasOwnProperty.call(incoming, k) ? incoming[k] : [];
         }
+        payload.dk_cadastro_manual_portal_v1 = true;
+        payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
         payload = stripInternalPayloadKeys(payload);
       } else {
+        const lockedIncoming = existingPayload
+          ? applyCadastroLock(existingPayload, incoming)
+          : incoming;
         payload = existingPayload
-          ? mergePayloads(existingPayload, incoming)
-          : stripInternalPayloadKeys(incoming);
+          ? mergePayloads(existingPayload, lockedIncoming)
+          : stripInternalPayloadKeys(lockedIncoming);
       }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));

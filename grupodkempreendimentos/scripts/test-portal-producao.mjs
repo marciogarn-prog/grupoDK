@@ -25,13 +25,12 @@ async function main() {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const html = await page.content();
-    record("HTML com cache banco-unificado", html.includes("banco-unificado"), "scripts");
+    record("HTML com instalação limpa (sem Excel)", html.includes("instalacao-limpa") && html.includes("dk-banco-cadastro-vazio"), "scripts");
     const cacheOk =
+      html.includes("instalacao-limpa") ||
       html.includes("locadora-hub") ||
       html.includes("data-auto") ||
-      html.includes("mascaras") ||
-      html.includes("20260520") ||
-      html.includes("20260530");
+      html.includes("mascaras");
     record("HTML com cache app/portal atualizado", cacheOk, "app.js + portal-locadora-ui.js");
     record(
       "views hub locadora no HTML",
@@ -155,7 +154,7 @@ async function main() {
         r.ok ? r.text() : ""
       )).includes("protoNormAtual") && html.includes("operacaoLancAluguelPlacaBusca")
     );
-    const appJsProto = await fetch(`${BASE_URL}app.js?v=20260521proto-imutavel`, { cache: "no-store" }).then((r) =>
+    const appJsProto = await fetch(`${BASE_URL}app.js?v=20260607instalacao-limpa`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
     const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, {
@@ -164,10 +163,19 @@ async function main() {
     record(
       "protocolo imutavel (merge por numero + admin edita)",
       appJsProto.includes("byNc.set(nc") &&
+        appJsProto.includes("isCadastroManualPortalMode") &&
         portalUiProto.includes("findPortalLocacaoByProtocolo") &&
         portalUiProto.includes("operacaoLocacaoProtocoloAdminBusca") &&
         html.includes("operacaoLocacaoProtocoloAdminBusca"),
       "nuvem/local + busca admin"
+    );
+    record(
+      "modo instalacao limpa (sem Excel embutido)",
+      appJsProto.includes("applyInstalacaoLimpaOnce") &&
+        appJsProto.includes("return true") &&
+        !html.includes("locacoes-receita-2026-import.js") &&
+        html.includes("dk-banco-cadastro-vazio.js"),
+      "cadastro manual permanente"
     );
     record(
       "mapa localização clientes (admin)",
@@ -430,10 +438,10 @@ async function main() {
     const storage = await page.evaluate(() => {
       const rawC = localStorage.getItem("dk_clientes_cadastro");
       const rawV = localStorage.getItem("dk_veiculos_cadastro");
-      const dig = (s) => String(s ?? "").replace(/\D/g, "");
-      const norm = (p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const rawL = localStorage.getItem("dk_locacoes_cadastro");
       let clientes = [];
       let veiculos = [];
+      let locacoes = [];
       try {
         clientes = rawC ? JSON.parse(rawC) : [];
       } catch {
@@ -444,27 +452,23 @@ async function main() {
       } catch {
         /* */
       }
-      const c1 = clientes.find((c) => dig(c.cpf) === "00000000001");
-      const ferrari = veiculos.find((v) => norm(v.placa) === "AAA0A00");
-      const frota = veiculos.filter((v) => !v.origemPortal);
-      const portal = veiculos.filter((v) => v.origemPortal);
+      try {
+        locacoes = rawL ? JSON.parse(rawL) : [];
+      } catch {
+        /* */
+      }
       return {
         clientes: clientes.length,
         veiculos: veiculos.length,
-        frota: frota.length,
-        portal: portal.length,
-        teste001: c1?.nome || "",
-        ferrari: ferrari ? `${ferrari.modelo} ${ferrari.tag}` : "",
-        flag: localStorage.getItem("dk_banco_cadastro_unificado_v2"),
+        locacoes: locacoes.length,
+        manual: localStorage.getItem("dk_cadastro_manual_portal_v1"),
+        instalacaoLimpa: localStorage.getItem("dk_instalacao_limpa_v1"),
       };
     });
 
-    record("unificação v2 executada", storage.flag === "1", `flag=${storage.flag}`);
-    record("banco clientes ≥ 4", storage.clientes >= 4, `count=${storage.clientes}`);
-    record("banco veículos ≥ 165", storage.veiculos >= 165, `count=${storage.veiculos}`);
-    record("TESTE-001 no localStorage", /teste-001/i.test(storage.teste001), storage.teste001);
-    record("Ferrari no banco único", /ferrari/i.test(storage.ferrari) && /DKCR013/.test(storage.ferrari), storage.ferrari);
-    record("frota+portal no mesmo arquivo", storage.frota >= 100 && storage.portal >= 3, `frota=${storage.frota} portal=${storage.portal}`);
+    record("modo cadastro manual ativo", storage.manual === "1", `manual=${storage.manual}`);
+    record("instalação limpa aplicada no browser", storage.instalacaoLimpa === "done", `flag=${storage.instalacaoLimpa}`);
+    record("cadastros vazios após instalação limpa", storage.clientes === 0 && storage.veiculos === 0 && storage.locacoes === 0, `c=${storage.clientes} v=${storage.veiculos} l=${storage.locacoes}`);
 
     const appsHtml = await page.evaluate(() => fetch("./apps.html").then((r) => r.text()));
     record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Grupo DK"));

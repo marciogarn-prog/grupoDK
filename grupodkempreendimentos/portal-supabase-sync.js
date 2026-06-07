@@ -278,7 +278,14 @@
         /* ignore */
       }
     }
+    const lockUntil = Date.parse(String(payload.dk_cadastro_lock_v1 || "")) || 0;
+    const cadastroLocked = lockUntil > Date.now();
+    const manualMode =
+      payload.dk_cadastro_manual_portal_v1 === true ||
+      (typeof window.__DK_isCadastroManualPortalMode === "function" &&
+        window.__DK_isCadastroManualPortalMode());
     const replace = Boolean(opts && opts.replace);
+    const forceCadastroReplace = replace || cadastroLocked || manualMode;
     const lightSanitize = Boolean(opts && opts.lightSanitize);
 
     for (const k of DK_STORAGE_KEYS) {
@@ -307,7 +314,7 @@
         if (k === "dk_locacoes_cadastro") {
           arr = normalizeLocacoesContratoAtivoList(arr);
         }
-        if (replace) {
+        if (forceCadastroReplace) {
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true });
         } else {
           saveCadastro(k, arr);
@@ -1309,9 +1316,28 @@
     return [...byNc.values(), ...noNc];
   }
 
+  function isCloudCadastroLockedEmpty(cloudPayload) {
+    if (!cloudPayload || typeof cloudPayload !== "object") return false;
+    const lockUntil = Date.parse(String(cloudPayload.dk_cadastro_lock_v1 || "")) || 0;
+    if (!lockUntil || Date.now() >= lockUntil) return false;
+    if (cloudPayload.dk_cadastro_manual_portal_v1 !== true) return false;
+    return ["dk_clientes_cadastro", "dk_veiculos_cadastro", "dk_locacoes_cadastro"].every(
+      (k) => !Array.isArray(cloudPayload[k]) || cloudPayload[k].length === 0
+    );
+  }
+
   function mergePayloadWithCloudBeforePush(localPayload, cloudPayload) {
     const out = { ...localPayload };
     if (!cloudPayload || typeof cloudPayload !== "object") return out;
+    if (isCloudCadastroLockedEmpty(cloudPayload)) {
+      for (const k of DK_IMMUTABLE_CADASTRO_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(cloudPayload, k)) {
+          out[k] = Array.isArray(cloudPayload[k]) ? [...cloudPayload[k]] : [];
+        }
+      }
+      out.dk_cadastro_manual_portal_v1 = true;
+      out.dk_cadastro_lock_v1 = cloudPayload.dk_cadastro_lock_v1;
+    }
     if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_locacoes_cadastro") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")
@@ -1415,6 +1441,12 @@
     const forceReplace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
     let payload = collectPayloadFromLocalStorage();
+    if (
+      typeof window.__DK_isCadastroManualPortalMode === "function" &&
+      window.__DK_isCadastroManualPortalMode()
+    ) {
+      payload.dk_cadastro_manual_portal_v1 = true;
+    }
     if (
       typeof window.__DK_comprovantesClientePayloadParaNuvem === "function" &&
       payload.dk_comprovantes_cliente_pendentes
