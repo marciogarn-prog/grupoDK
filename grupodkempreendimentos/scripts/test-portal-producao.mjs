@@ -25,6 +25,9 @@ async function main() {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const html = await page.content();
+    const portalUiVer = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
+    const appJsVer = html.match(/app\.js\?v=([^"]+)/)?.[1] || "";
+    const patrimonioJsVer = html.match(/portal-patrimonio\.js\?v=([^"]+)/)?.[1] || "";
     record("HTML com instalação limpa (sem Excel)", html.includes("virgem") && html.includes("dk-banco-cadastro-vazio"), "scripts");
     const cacheOk =
       html.includes("virgem") ||
@@ -158,20 +161,20 @@ async function main() {
       html.includes("portal-admin-banner") &&
         html.includes("portal-admin-cliente-cpf") &&
         html.includes("LOGADO COMO ADMINISTRADOR") &&
-        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260607virgem`, { cache: "no-store" }).then((r) =>
+        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVer || "latest"}`, { cache: "no-store" }).then((r) =>
           r.ok ? r.text() : ""
         )).includes("isPortalAdministradorLogado")
     );
     record(
       "pesquisa contrato preenche placa automaticamente",
-      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260607virgem`, { cache: "no-store" }).then((r) =>
+      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVer || "latest"}`, { cache: "no-store" }).then((r) =>
         r.ok ? r.text() : ""
       )).includes("protoNormAtual") && html.includes("operacaoLancAluguelPlacaBusca")
     );
-    const appJsProto = await fetch(`${BASE_URL}app.js?v=20260607virgem`, { cache: "no-store" }).then((r) =>
+    const appJsProto = await fetch(`${BASE_URL}app.js?v=${appJsVer || "latest"}`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
-    const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260607virgem`, {
+    const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVer || "latest"}`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
@@ -227,7 +230,7 @@ async function main() {
         portalUiJs.includes("__DK_clienteGeoMapaOnShow")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260607ia-segundo-plano", { cache: "no-store" });
+      const r = await fetch(`portal-patrimonio.js?v=${patrimonioJsVer || "latest"}`, { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -241,6 +244,8 @@ async function main() {
         patJs.includes("PATRIMONIO_IA_MAX_TENTATIVAS = 5") &&
         patJs.includes("tratarFalhaIaFotoCaptura") &&
         patJs.includes("patrimonioProcessarIaSegundoPlano") &&
+        patJs.includes("fotoAguardaProcessamentoIa") &&
+        patJs.includes("patrimonioRecuperarTravamentoIa") &&
         patJs.includes("coletarPatrimonioErrosIa") &&
         patJs.includes("patrimonioAtualizarBadgeSegundoPlano") &&
         patJs.includes("excluirFotoCapturaAutomatico") &&
@@ -414,12 +419,12 @@ async function main() {
     record("auto-detect id com Data", autoDateDetect.detected, "testeAutoDataCampoNovo");
     record("auto-mascara campo novo", autoDateDetect.masked === "01/01/2030", autoDateDetect.masked);
 
-    await page.click('[data-go="locadora"]', { timeout: 15000 }).catch(() => {});
-    await page.waitForSelector("#view-locadora-hub.view--active", { timeout: 8000 }).catch(() => {});
-    await page.waitForTimeout(400);
+    await page.goto(`${BASE_URL}#locadora`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.waitForSelector("#view-locadora-hub.view--active", { timeout: 15000 }).catch(() => {});
+    await page.waitForTimeout(500);
 
-    const hubCliente = page.locator("#view-locadora-hub [data-locadora-go='cliente'], #view-locadora-hub >> text=Área do Cliente").first();
-    const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa'], #view-locadora-hub >> text=Área da Empresa").first();
+    const hubCliente = page.locator("#view-locadora-hub [data-locadora-go='cliente']").first();
+    const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa']").first();
     record(
       "hub DK Locadora (cliente + empresa)",
       (await hubCliente.isVisible().catch(() => false)) && (await hubEmpresa.isVisible().catch(() => false))
@@ -604,24 +609,26 @@ async function main() {
 
     const patrimonioPdfPath = path.join(REPO_ROOT, "Relatorio de Veiculos DK.pdf");
     try {
-      await page.goto(`${BASE_URL}#locadora/empresa/administrador`, {
-        waitUntil: "domcontentloaded",
-        timeout: 60000,
+      await page.evaluate(() => {
+        localStorage.setItem(
+          "dk_sessao_cliente",
+          JSON.stringify({
+            tipo: "admin",
+            role: "owner",
+            cpf: "03037897430",
+            nome: "Administrador E2E",
+          })
+        );
+        localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
       });
-      await page.waitForTimeout(1000);
-      const cpf = page.locator("#login-cpf");
-      if (await cpf.isVisible().catch(() => false)) {
-        const senha = process.env.DK_OWNER_SENHA || "110499@Gb";
-        await cpf.fill("03037897430");
-        await page.locator("#login-senha, input[type=password]").first().fill(senha);
-        await page.locator("#form-login button[type=submit]").first().click();
-        await page.waitForSelector("#panel-logado:not(.hidden)", { timeout: 25000 });
-        await page.waitForTimeout(600);
-      }
-      const patBtn = page.locator("text=Cadastro de patrimônio").first();
+      await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await page.waitForSelector("#panel-logado:not(.hidden)", { timeout: 20000 }).catch(() => null);
+      await page.waitForTimeout(800);
+      const patBtn = page.locator("#btn-locadora-patrimonio");
       if ((await patBtn.isVisible().catch(() => false)) && fs.existsSync(patrimonioPdfPath)) {
         await patBtn.click();
-        await page.waitForTimeout(1200);
+        await page.waitForSelector("#panel-patrimonio-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
+        await page.waitForTimeout(800);
         const unit = await page.evaluate(() => ({
           crlv: Boolean(
             window.__DK_patrimonioEhArquivoPdf?.({

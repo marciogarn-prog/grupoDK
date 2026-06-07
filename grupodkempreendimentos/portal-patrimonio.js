@@ -1077,6 +1077,45 @@
     return st === "fila" || st === "processando" || st === "pendente" || st === "falhou";
   }
 
+  /** Itens que ainda entram na fila de processamento (exclui falha esgotada). */
+  function fotoAguardaProcessamentoIa(f) {
+    const st = String(f?.statusIa || "").toLowerCase();
+    if (st === "fila" || st === "processando" || st === "pendente") return true;
+    if (st === "falhou") return tentativasIaFoto(f) < PATRIMONIO_IA_MAX_TENTATIVAS;
+    return false;
+  }
+
+  function patrimonioRecuperarTravamentoIa() {
+    const store = loadStore();
+    let alterou = false;
+    const agora = Date.now();
+    for (const f of store.fotosCapturas) {
+      const st = String(f.statusIa || "").toLowerCase();
+      if (st === "processando") {
+        const elapsed = agora - fotoCapturaMs(f);
+        if (elapsed > 90000) {
+          f.statusIa = "fila";
+          f.msgIa = "";
+          f.atualizadoEm = new Date().toISOString();
+          alterou = true;
+        }
+      }
+    }
+    if (alterou) saveStore(store);
+    if (
+      !patrimonioConvertendoPdfs &&
+      !iaPatrimonioRodando &&
+      !filaIaPatrimonio.length &&
+      !getFotosCapturas().some((f) => fotoAguardaProcessamentoIa(f))
+    ) {
+      if (patrimonioSyncCloudPausado > 0) {
+        patrimonioSyncCloudPausado = 0;
+        patrimonioRetomarSyncCloud();
+      }
+      patrimonioLibertarWakeLock();
+    }
+  }
+
   function tentativasIaFoto(f) {
     const n = Number(f?.tentativasIa);
     if (Number.isFinite(n) && n > 0) return Math.min(PATRIMONIO_IA_MAX_TENTATIVAS, n);
@@ -1589,13 +1628,13 @@
       patrimonioConvertendoPdfs ||
       iaPatrimonioRodando ||
       filaIaPatrimonio.length > 0 ||
-      getFotosCapturas().some((f) => fotoEstaPendenteIa(f))
+      getFotosCapturas().some((f) => fotoAguardaProcessamentoIa(f))
     );
   }
 
   /** PDFs ainda por processar (uma contagem — não somar fila em memória + storage). */
   function patrimonioContarRestantesIa() {
-    return getFotosCapturas().filter((f) => fotoEstaPendenteIa(f)).length;
+    return getFotosCapturas().filter((f) => fotoAguardaProcessamentoIa(f)).length;
   }
 
   /** Total do lote atual (upload ou fila pendente). */
@@ -1624,7 +1663,7 @@
   }
 
   async function patrimonioSincronizarFilaComStorage() {
-    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+    const fotos = getFotosCapturas().filter((f) => fotoAguardaProcessamentoIa(f));
     for (const f of fotos) {
       if (String(f.statusIa || "").toLowerCase() === "processando") {
         atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
@@ -1654,11 +1693,11 @@
     await patrimonioSincronizarFilaComStorage();
     await processarFilaIaPatrimonioInterno();
     await patrimonioSincronizarFilaComStorage();
-    if (filaIaPatrimonio.length || getFotosCapturas().some((f) => fotoEstaPendenteIa(f))) {
+    if (filaIaPatrimonio.length || getFotosCapturas().some((f) => fotoAguardaProcessamentoIa(f))) {
       await processarFilaIaPatrimonioInterno();
     }
     const aindaPendentes =
-      getFotosCapturas().some((f) => fotoEstaPendenteIa(f)) || filaIaPatrimonio.length > 0;
+      getFotosCapturas().some((f) => fotoAguardaProcessamentoIa(f)) || filaIaPatrimonio.length > 0;
     if (!aindaPendentes) {
       const excl = patrimonioLoteExcluidos;
       const cad = patrimonioLoteCadastrados;
@@ -1721,39 +1760,46 @@
   async function processarFilaIaPatrimonioInterno() {
     if (iaPatrimonioRodando) return;
     iaPatrimonioRodando = true;
-    await patrimonioAtivarWakeLock();
-    const totalLote = patrimonioTotalLoteIa();
-    while (filaIaPatrimonio.length) {
-      const job = filaIaPatrimonio.shift();
-      if (job?.fotoId) {
-        const restantes = patrimonioContarRestantesIa();
-        const feitos = Math.max(0, totalLote - restantes);
-        setMsg(
-          `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila… (segundo plano)`,
-          false
-        );
-        patrimonioAtualizarBadgeSegundoPlano();
-        atualizarProgressoLotePatrimonio(
-          feitos,
-          totalLote,
-          `IA (${feitos}/${totalLote}) · ${restantes} restante(s)…`
-        );
-        try {
-          await processarIaParaFotoCaptura(job.fotoId, job.imagens);
-        } catch (e) {
-          await tratarFalhaIaFotoCaptura(job.fotoId, String(e?.message || e || MSG_IA_FALHOU));
-        }
-        if (filaIaPatrimonio.length) {
-          await new Promise((r) => window.setTimeout(r, PATRIMONIO_IA_INTERVALO_MS));
+    try {
+      await patrimonioAtivarWakeLock();
+      const totalLote = patrimonioTotalLoteIa();
+      while (filaIaPatrimonio.length) {
+        const job = filaIaPatrimonio.shift();
+        if (job?.fotoId) {
+          const restantes = patrimonioContarRestantesIa();
+          const feitos = Math.max(0, totalLote - restantes);
+          setMsg(
+            `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila… (segundo plano)`,
+            false
+          );
+          patrimonioAtualizarBadgeSegundoPlano();
+          atualizarProgressoLotePatrimonio(
+            feitos,
+            totalLote,
+            `IA (${feitos}/${totalLote}) · ${restantes} restante(s)…`
+          );
+          try {
+            await processarIaParaFotoCaptura(job.fotoId, job.imagens);
+          } catch (e) {
+            await tratarFalhaIaFotoCaptura(job.fotoId, String(e?.message || e || MSG_IA_FALHOU));
+          }
+          if (filaIaPatrimonio.length) {
+            await new Promise((r) => window.setTimeout(r, PATRIMONIO_IA_INTERVALO_MS));
+          }
         }
       }
+      if (!patrimonioContarRestantesIa() && !filaIaPatrimonio.length) {
+        atualizarProgressoLotePatrimonio(0, 0, "");
+      }
+      patrimonioAtualizarBadgeSegundoPlano();
+    } finally {
+      iaPatrimonioRodando = false;
+      patrimonioLibertarWakeLock();
+      if (!patrimonioIaEmCurso() && patrimonioSyncCloudPausado > 0) {
+        patrimonioSyncCloudPausado = 0;
+        patrimonioRetomarSyncCloud();
+      }
     }
-    iaPatrimonioRodando = false;
-    patrimonioLibertarWakeLock();
-    if (!patrimonioContarRestantesIa() && !filaIaPatrimonio.length) {
-      atualizarProgressoLotePatrimonio(0, 0, "");
-    }
-    patrimonioAtualizarBadgeSegundoPlano();
   }
 
   async function processarIaParaFotoCaptura(fotoId, imagens) {
@@ -4916,6 +4962,7 @@ ${contador}
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
     repararFotosCapturasPendentes();
+    patrimonioRecuperarTravamentoIa();
     void (async () => {
       await patrimonioAuditarErecuperarCadastros();
       if (!patrimonioIaEmCurso()) {
@@ -5001,6 +5048,7 @@ ${contador}
   void (async () => {
     patrimonioRepararProprietariosDocumentos();
     patrimonioRecuperarDocumentosDedupPlaca();
+    patrimonioRecuperarTravamentoIa();
     await patrimonioMigrarImagensDocParaIdb();
     const idb = await patrimonioRecuperarFalhasComImagemIdb();
     if (idb > 0) {
