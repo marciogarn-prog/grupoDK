@@ -63,7 +63,22 @@
     document.body.classList.add("cliente-admin-preview");
   }
 
+  function markAdminPreviewActive() {
+    window.__DK_CLIENTE_ADMIN_PREVIEW = true;
+    if (typeof window.__DK_clienteGeoStopTracking === "function") {
+      window.__DK_clienteGeoStopTracking();
+    }
+  }
+
+  function isClienteRealSession(sessao) {
+    if (!sessao?.cpf) return false;
+    if (sessao.adminPreview) return false;
+    if (String(sessao.origem || "") === "adminPreview") return false;
+    return !isGeoGateBypassed();
+  }
+
   async function afterLoginAdminPreview(sess) {
+    markAdminPreviewActive();
     await sincronizarDadosCliente(sess, { silent: false });
     showView("app");
     renderApp(sess);
@@ -432,6 +447,12 @@
   }
 
   function startGeoForSession(sessao) {
+    if (!isClienteRealSession(sessao)) {
+      if (typeof window.__DK_clienteGeoStopTracking === "function") {
+        window.__DK_clienteGeoStopTracking();
+      }
+      return;
+    }
     const meta = metaGeoFromSessao(sessao);
     if (meta && typeof window.__DK_clienteGeoStartTracking === "function") {
       window.__DK_clienteGeoStartTracking(meta);
@@ -1223,7 +1244,7 @@
 
   async function atualizarProgramaEDados(sessao, opts) {
     await checkAtualizacaoPrograma();
-    if (!isGeoGateBypassed() && sessao?.cpf && typeof window.__DK_clienteGeoEnsurePermission === "function") {
+    if (!isGeoGateBypassed() && sessao?.cpf && isClienteRealSession(sessao) && typeof window.__DK_clienteGeoEnsurePermission === "function") {
       const perm = await window.__DK_clienteGeoQueryState?.();
       if (perm === "granted") {
         if (!window.__DK_clienteGeoHasConsent?.()) {
@@ -1762,7 +1783,11 @@
 
   async function afterLogin(sess) {
     persistGateFromSession();
-    startGeoForSession(sess);
+    if (isClienteRealSession(sess)) {
+      startGeoForSession(sess);
+    } else {
+      markAdminPreviewActive();
+    }
     if (isStandaloneDisplay()) {
       try {
         localStorage.setItem("dk_cliente_pwa_installed", "1");
@@ -1819,6 +1844,7 @@
 
     const adminPreviewLogin = canAdminPreviewAutoLogin();
     if (isAdminPreviewMode()) {
+      markAdminPreviewActive();
       try {
         sessionStorage.setItem("dk_admin_preview_cliente", "1");
       } catch {
@@ -1883,7 +1909,7 @@
       }
       const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
       setSessao(sess);
-      startGeoForSession(sess);
+      if (isClienteRealSession(sess)) startGeoForSession(sess);
       if (fb) fb.textContent = "A sincronizar…";
       resolveAppViewAfterData(sess);
       void (async () => {

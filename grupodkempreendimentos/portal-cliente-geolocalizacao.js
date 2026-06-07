@@ -68,7 +68,20 @@
     });
   }
 
+  function isClienteGeoPushAllowed() {
+    try {
+      if (window.__DK_CLIENTE_ADMIN_PREVIEW === true) return false;
+      if (window.__DK_CLIENTE_APP !== true) return false;
+      if (new URLSearchParams(location.search).get("adminPreview") === "1") return false;
+      if (sessionStorage.getItem("dk_admin_preview_cliente") === "1") return false;
+    } catch {
+      return false;
+    }
+    return true;
+  }
+
   async function pushPosition(pos, meta) {
+    if (!isClienteGeoPushAllowed()) return { ok: false, skipped: true, reason: "admin_preview" };
     if (!pos || !meta?.cpf) return { ok: false };
     const cpf = onlyDigits(meta.cpf).slice(0, 11);
     if (cpf.length !== 11) return { ok: false };
@@ -89,6 +102,8 @@
         heading: Number.isFinite(pos.coords.heading) ? pos.coords.heading : null,
         speed: Number.isFinite(pos.coords.speed) ? pos.coords.speed : null,
         ts: now,
+        source: "cliente_app",
+        adminPreview: false,
       };
       const res = await fetch(GEO_API, {
         method: "POST",
@@ -134,6 +149,10 @@
   }
 
   function startTracking(meta) {
+    if (!isClienteGeoPushAllowed()) {
+      stopTracking();
+      return false;
+    }
     if (!navigator.geolocation || !meta?.cpf) return false;
     trackingMeta = {
       cpf: onlyDigits(meta.cpf).slice(0, 11),
@@ -222,6 +241,7 @@
   }
 
   async function refreshPermissionOnVisible(meta) {
+    if (!isClienteGeoPushAllowed()) return { ok: true, state: "skipped_admin" };
     const perm = await queryPermissionState();
     if (perm === "denied") {
       stopTracking();

@@ -105,6 +105,12 @@ module.exports = async function handler(req, res) {
     }
 
     const body = parseBody(req);
+    if (body.adminPreview === true || String(body.source || "").trim() !== "cliente_app") {
+      return res.status(403).json({
+        ok: false,
+        msg: "Localização só pode ser enviada pelo app do cliente (acesso real, não pré-visualização admin).",
+      });
+    }
     const cpf = onlyDigits(body.cpf).slice(0, 11);
     const lat = Number(body.lat);
     const lng = Number(body.lng);

@@ -479,7 +479,7 @@ async function main() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521geo-v2`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521geo-v3`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521contrato-simples`, {
@@ -513,8 +513,18 @@ async function main() {
     );
     record(
       "app cliente geo só instalação e bypass admin",
-      clienteAppJs.includes("maybeRunInstallGeoGate") && clienteAppJs.includes("isGeoGateBypassed"),
+      clienteAppJs.includes("maybeRunInstallGeoGate") &&
+        clienteAppJs.includes("isGeoGateBypassed") &&
+        clienteAppJs.includes("markAdminPreviewActive"),
       "adminPreview + instalar=1"
+    );
+    const geoJs = await fetch(`${BASE_URL}portal-cliente-geolocalizacao.js?v=20260521geo-v3`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente GPS bloqueado em admin preview",
+      geoJs.includes("isClienteGeoPushAllowed") && geoJs.includes('source: "cliente_app"'),
+      "push só cliente real"
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
