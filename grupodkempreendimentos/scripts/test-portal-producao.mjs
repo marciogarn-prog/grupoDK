@@ -72,6 +72,9 @@ async function main() {
         html.includes("panel-patrimonio-locadora") &&
         html.includes("patrimonioBtnNovoDoc") &&
         html.includes("patrimonioVerRelatorioBtn") &&
+        html.includes("patrimonioVerErrosBtn") &&
+        html.includes("patrimonioIaBgBadge") &&
+        html.includes("patrimonioRelatorioErrosWrap") &&
         html.includes("patrimonioRelatorioContador") &&
         html.includes("patrimonioRelatorioConteudo") &&
         html.includes("patrimonioRelatorioModal") &&
@@ -214,7 +217,7 @@ async function main() {
         portalUiJs.includes("__DK_clienteGeoMapaOnShow")
     );
     const patJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio.js?v=20260603zerafila", { cache: "no-store" });
+      const r = await fetch("portal-patrimonio.js?v=20260607ia-segundo-plano", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record(
@@ -227,7 +230,9 @@ async function main() {
         patJs.includes("patrimonioPausarSyncCloud") &&
         patJs.includes("PATRIMONIO_IA_MAX_TENTATIVAS = 5") &&
         patJs.includes("tratarFalhaIaFotoCaptura") &&
-        patJs.includes("patrimonioDrenarLoteSemPendentes") &&
+        patJs.includes("patrimonioProcessarIaSegundoPlano") &&
+        patJs.includes("coletarPatrimonioErrosIa") &&
+        patJs.includes("patrimonioAtualizarBadgeSegundoPlano") &&
         patJs.includes("excluirFotoCapturaAutomatico") &&
         patJs.includes("patrimonioZerarFilaEnviadosManual") &&
         patJs.includes("patrimonioRevisarTodosArquivosFalhadosManual") &&
