@@ -117,9 +117,13 @@ async function main() {
     );
     record(
       "tema vermelho preto + fundo showroom",
-      html.includes("20260522dk-red-black") &&
+      html.includes("20260521login-compact") &&
         html.includes('theme-color" content="#050505"') &&
         (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
+    );
+    record(
+      "login empresa painel compacto",
+      html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
     record(
       "mapa localização clientes (admin)",
