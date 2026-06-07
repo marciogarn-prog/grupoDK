@@ -1,7 +1,6 @@
 /**
  * Recebe POST do share_target (comprovante do banco) e redireciona para /cliente com ficheiro em sessionStorage.
  * Evita erro 405 da Vercel em POST direto em /cliente (ficheiro estático).
- * Deve existir em grupodkempreendimentos/api/ (Root Directory Vercel = portal).
  */
 const Busboy = require("busboy");
 

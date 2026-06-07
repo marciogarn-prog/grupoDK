@@ -1,0 +1,27 @@
+{
+  "total": 378,
+  "misalignedCount": 0,
+  "badFormatCount": 0,
+  "badInicioCount": 0,
+  "duplicateProtocolCount": 0,
+  "duplicateNaturalKeyCount": 1,
+  "misaligned": [],
+  "badFormat": [],
+  "badInicio": [],
+  "duplicateProtocol": [],
+  "duplicateNatural": [
+    {
+      "key": "07761234400|UHK3F59|18/11/2025",
+      "items": [
+        {
+          "i": 195,
+          "nc": "2025111807"
+        },
+        {
+          "i": 209,
+          "nc": "2025111803"
+        }
+      ]
+    }
+  ]
+}

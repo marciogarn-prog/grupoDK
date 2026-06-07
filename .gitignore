@@ -4,3 +4,4 @@ node_modules/
 .cursor/
 .vercel-portal-dist/
 .vercel
+.env*

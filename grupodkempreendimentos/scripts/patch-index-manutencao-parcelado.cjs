@@ -87,13 +87,24 @@ const newBlock = `            <section id="operacaoLancManutencaoReferenciaPanel
 html = html.slice(0, secStart) + newBlock + "\n          " + html.slice(i1);
 
 if (!html.includes("operacaoLancManutencaoRelatorioActions")) {
-  html = html.replace(
-    'id="operacaoLancManutencaoHistorico"',
-    `id="operacaoLancManutencaoRelatorioActions" class="operacao-inline-form__actions portal-multas-relatorio-actions hidden" hidden>
+  const insertRelatorio = (historicoOpen) =>
+    `${historicoOpen.replace(
+      'id="operacaoLancManutencaoHistorico"',
+      `id="operacaoLancManutencaoRelatorioActions" class="operacao-inline-form__actions portal-multas-relatorio-actions hidden" hidden>
             <button type="button" class="btn-primary" id="operacaoLancManutencaoGerarRelatorioBtn">Relat&oacute;rio de manuten&ccedil;&otilde;es (imprimir / PDF)</button>
           </div>
-          <div id="operacaoLancManutencaoHistorico"`
-  );
+          <motion id="operacaoLancManutencaoHistorico"`
+    )}`.replace(/<motion /g, "<motion ");
+
+  if (html.includes('</form>\n          <div id="operacaoLancManutencaoHistorico"')) {
+    html = html.replace(
+      /<div id="operacaoLancManutencaoHistorico"/,
+      insertRelatorio('<div id="operacaoLancManutencaoHistorico"').replace(
+        '<motion id="operacaoLancManutencaoHistorico"',
+        '<div id="operacaoLancManutencaoHistorico"'
+      )
+    );
+  }
 }
 
 html = html.replace(/<motion /g, "<div ").replace(/<\/motion>/g, "</div>");

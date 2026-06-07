@@ -1,0 +1,33 @@
+
+        <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
+          <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
+          <p class="subtext operacao-inline-form__lead">Registe pagamentos de <strong>multas</strong> no protocolo. O <strong>total pago em multas</strong> é a soma dos lançamentos confirmados neste ecrã.</p>
+          <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
+            <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
+              <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Informe <strong>nome</strong>, <strong>CPF</strong> ou <strong>número do protocolo</strong> e confirme.</p>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
+                <label class="portal-field portal-field--wide">
+                  <span>Nome do cliente</span>
+                  <input type="text" id="operacaoLancMultasNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes">
+                  <datalist id="operacaoLancMultasNomeSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>CPF</span>
+                  <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancMultasCpfSugestoes">
+                  <datalist id="operacaoLancMultasCpfSugestoes"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Nº do protocolo</span>
+                  <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes">
+                  <datalist id="operacaoLancMultasProtocoloSugestoes"></datalist>
+                </label>
+                <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
+                  <button type="button" class="btn-primary" id="operacaoLancMultasConfirmarPesquisaBtn">Confirmar pesquisa</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparPesquisaBtn">Limpar dados</button>
+                </div>
+              </div>
+            </section>
+            <section id="operacaoLancMultasReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
+              <h4 class="portal-lanc-aluguel-section__title">Dados do protocolo</h4>
+              <motion class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
