@@ -4,6 +4,8 @@
  */
 (function dkClienteApp() {
   window.__DK_CLIENTE_APP = true;
+  /** `false` = cliente não vê nem usa o formulário «Enviar comprovante» (lançamento inativado). */
+  const CLIENTE_ENVIO_COMPROVANTE_ATIVO = false;
   const SESSAO_KEY = "dk_sessao_cliente_app";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const GATE_PERSIST_KEY = "dk_cliente_gate_persist";
@@ -11,6 +13,19 @@
   const PENDING_SHARE_SESSION_KEY = "dk_cliente_share_pending";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
   const PORTAL_ADMIN_SESSAO_KEY = "dk_sessao_cliente";
+
+  function clienteEnvioComprovanteAtivo() {
+    return CLIENTE_ENVIO_COMPROVANTE_ATIVO;
+  }
+
+  function applyClienteComprovanteUiVisibility() {
+    const sec = $("cliente-sec-comprovante");
+    if (!sec) return;
+    const on = clienteEnvioComprovanteAtivo();
+    sec.classList.toggle("hidden", !on);
+    sec.toggleAttribute("hidden", !on);
+    sec.setAttribute("aria-hidden", on ? "false" : "true");
+  }
 
   function isPortalAdminSessaoAtiva() {
     try {
@@ -521,7 +536,7 @@
     if (comprovanteFile || pendingShareFocus) {
       showView("app");
       renderApp(sessao);
-      if (comprovanteFile) {
+      if (clienteEnvioComprovanteAtivo() && comprovanteFile) {
         attachFileToComprovanteInput(comprovanteFile);
         preselectProtocoloComprovante();
         const msg = $("comp-msg");
@@ -530,6 +545,9 @@
             "Comprovante anexado — informe data e valor e toque em Enviar comprovante.";
         }
         focusComprovanteSection();
+      } else if (comprovanteFile) {
+        comprovanteFile = null;
+        pendingShareFocus = false;
       }
       return;
     }
@@ -540,7 +558,8 @@
     }
     showView("app");
     renderApp(sessao);
-    if (pendingShareFocus) focusComprovanteSection();
+    if (pendingShareFocus && clienteEnvioComprovanteAtivo()) focusComprovanteSection();
+    else pendingShareFocus = false;
   }
 
   function formatDateMask(value) {
@@ -876,6 +895,7 @@
   }
 
   function renderApp(sessao) {
+    applyClienteComprovanteUiVisibility();
     if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
       window.__DK_comprovantesClienteInvalidateCache();
     }
@@ -913,10 +933,11 @@
     }
 
     fillProtocoloSelect(dados.locacoes);
-    bindCompMasks();
+    if (clienteEnvioComprovanteAtivo()) bindCompMasks();
   }
 
   function focusComprovanteSection() {
+    if (!clienteEnvioComprovanteAtivo()) return;
     const el = $("cliente-sec-comprovante");
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -961,6 +982,7 @@
   }
 
   async function applySharedFileToComprovante(file) {
+    if (!clienteEnvioComprovanteAtivo()) return false;
     if (!file || !file.size) return false;
     attachFileToComprovanteInput(file);
 
@@ -1018,6 +1040,7 @@
   }
 
   async function processIncomingShare() {
+    if (!clienteEnvioComprovanteAtivo()) return;
     const q = new URLSearchParams(location.search);
     if (q.get("dkShare") === "large") {
       const fb = $("login-feedback") || $("comp-msg");
@@ -1056,6 +1079,7 @@
   }
 
   function wireLaunchQueueShare() {
+    if (!clienteEnvioComprovanteAtivo()) return;
     if (!("launchQueue" in window)) return;
     try {
       window.launchQueue.setConsumer(async (launchParams) => {
@@ -1475,6 +1499,7 @@
   }
 
   async function enviarComprovanteParaNuvem() {
+    if (!clienteEnvioComprovanteAtivo()) return;
     const sessao = getSessao();
     if (!sessao) return;
     const proto = normNc($("comp-protocolo")?.value);
@@ -1750,6 +1775,7 @@
 
   async function init() {
     fecharModalRelatorio();
+    applyClienteComprovanteUiVisibility();
     restoreGateToSession();
     persistGateFromSession();
     wireLaunchQueueShare();
@@ -1893,7 +1919,7 @@
 
     if (adminPreview && (await autoLoginAdminPreviewFromGate())) {
       wireInstall();
-      bindCompMasks();
+      if (clienteEnvioComprovanteAtivo()) bindCompMasks();
       updateInstallPanelUi();
       window.addEventListener("dk-comprovantes-synced", onComprovantesSyncedRefreshView);
       return;
@@ -1907,7 +1933,7 @@
     }
 
     wireInstall();
-    bindCompMasks();
+    if (clienteEnvioComprovanteAtivo()) bindCompMasks();
     updateInstallPanelUi();
     window.addEventListener("dk-comprovantes-synced", onComprovantesSyncedRefreshView);
   }

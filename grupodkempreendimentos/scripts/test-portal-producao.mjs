@@ -479,6 +479,16 @@ async function main() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521sem-comprovante`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente envio comprovante inativado",
+      clienteHtml.includes('id="cliente-sec-comprovante"') &&
+        clienteHtml.includes("hidden") &&
+        clienteAppJs.includes("CLIENTE_ENVIO_COMPROVANTE_ATIVO = false"),
+      "secção oculta + flag false"
+    );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
     if (await clienteBtn.isVisible().catch(() => false)) {
