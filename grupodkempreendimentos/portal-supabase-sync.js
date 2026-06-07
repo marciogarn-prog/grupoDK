@@ -450,6 +450,13 @@
         /* ignore */
       }
     }
+    if (typeof window.__DK_portalRefreshOperacaoDeferred === "function") {
+      try {
+        window.__DK_portalRefreshOperacaoDeferred(["locacao", "aluguel"]);
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   function runLocacoesSanitizeAfterCloudApply(opts) {

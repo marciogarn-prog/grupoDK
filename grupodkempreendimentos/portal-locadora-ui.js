@@ -7384,12 +7384,67 @@ ${printable.innerHTML}
   const PORTAL_PROTO_NOVO = "__PORTAL_PROTO_NOVO__";
   let portalLocacaoProtocoloPickerCpf = "";
 
+  function portalLocacaoCpfDigitsMatch(lCpfRaw, cpfDigits) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const want = dig(String(cpfDigits || "")).slice(0, 11);
+    if (want.length !== 11) return false;
+    const got = dig(String(lCpfRaw || "")).slice(0, 11);
+    if (got === want) return true;
+    if (got.length === 10 && `0${got}` === want) return true;
+    if (want.length === 10 && `0${want}` === got) return true;
+    return false;
+  }
+
   function collectPortalLocacoesByCpf(cpfDigits) {
     if (!cpfDigits || cpfDigits.length !== 11) return [];
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    return loadCadastro(CAD_LOCACOES_KEY).filter((l) => dig(String(l.cpf || "")) === cpfDigits);
+    const cpfNorm = dig(String(cpfDigits || "")).slice(0, 11);
+    if (cpfNorm.length !== 11) return [];
+
+    const known =
+      typeof getPortalClienteKnownRecord === "function" ? getPortalClienteKnownRecord(cpfNorm) : null;
+    const nomeKeys = new Set();
+    const addNomeKey = (raw) => {
+      const nk = portalNomeChaveBusca(raw);
+      if (nk.length >= 3) nomeKeys.add(nk);
+    };
+    if (known) addNomeKey(known.nome);
+    addNomeKey(document.getElementById("operacaoLocacaoCliente")?.value);
+
+    const codKeys = new Set();
+    const addCod = (raw) => {
+      const s = String(raw || "").trim();
+      if (!s) return;
+      codKeys.add(s);
+      if (typeof normalizeKey === "function") codKeys.add(normalizeKey(s));
+    };
+    if (known) {
+      addCod(known.codigo);
+      addCod(known.clienteCodigo);
+    }
+
+    const byKey = new Map();
+    loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+      let match = portalLocacaoCpfDigitsMatch(l.cpf, cpfNorm);
+      if (!match && codKeys.size) {
+        const lc = String(l.clienteCodigo || "").trim();
+        if (lc && (codKeys.has(lc) || (typeof normalizeKey === "function" && codKeys.has(normalizeKey(lc))))) {
+          match = true;
+        }
+      }
+      if (!match && nomeKeys.size) {
+        const ln = portalNomeChaveBusca(String(l.nome || l.cliente || l.clienteNome || "").trim());
+        if (ln && nomeKeys.has(ln)) match = true;
+      }
+      if (!match) return;
+      const nc = normPortalNumeroContrato(l.numeroContrato || "");
+      const dedupeKey = nc || `${dig(String(l.cpf || ""))}|${String(l.placa || "").trim()}|${l.id || l.createdAt || byKey.size}`;
+      if (!byKey.has(dedupeKey)) byKey.set(dedupeKey, l);
+    });
+    return Array.from(byKey.values());
   }
 
   function getPortalProtocoloDateFromInicio() {
@@ -7545,7 +7600,10 @@ ${printable.innerHTML}
     if (!sel || !hid || !inpCpf) return;
     const digits =
       typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
-    const known = digits.length === 11 && Boolean(getPortalClienteKnownRecord(digits));
+    const locs = collectPortalLocacoesByCpf(digits);
+    const known =
+      digits.length === 11 &&
+      (Boolean(getPortalClienteKnownRecord(digits)) || locs.some((l) => Boolean(normPortalNumeroContrato(l.numeroContrato))));
     if (!known) {
       portalLocacaoProtocoloPickerCpf = "";
       sel.disabled = true;
@@ -7565,7 +7623,6 @@ ${printable.innerHTML}
       typeof normalizeNumeroContratoKey === "function"
         ? normalizeNumeroContratoKey(v || "")
         : String(v || "").trim();
-    const locs = collectPortalLocacoesByCpf(digits);
     const byNc = new Map();
     locs.forEach((l) => {
       const nc = norm(l.numeroContrato || "");
@@ -10267,7 +10324,7 @@ ${printable.innerHTML}
         // Sugestão direta enquanto o CPF ainda está incompleto.
         inpNome.value = String(candidatos[0].nome || "").trim();
       }
-      refreshOperacaoLocacaoProtocoloPicker();
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
     });
 
     inpNome?.addEventListener("change", () => syncPortalLocacaoCpfFromNomeField());
@@ -11043,6 +11100,7 @@ ${printable.innerHTML}
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     refreshOperacaoLocacaoDatalists();
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
