@@ -55,9 +55,13 @@ async function main() {
     record(
       "submenu lançamento aluguel (só avulso ativo)",
       html.includes("btn-lanc-aluguel-avulso") &&
-        html.includes('btn-lanc-aluguel-comprovante" class="btn-operacao-cmd btn-operacao-cmd--sub hidden"') &&
-        html.includes('btn-lanc-aluguel-validacao" class="btn-operacao-cmd btn-operacao-cmd--sub hidden"') &&
-        html.includes('btn-lanc-aluguel-relatorios" class="btn-operacao-cmd btn-operacao-cmd--sub hidden"')
+        html.includes('id="btn-lanc-aluguel-comprovante"') &&
+        html.includes('id="btn-lanc-aluguel-validacao"') &&
+        html.includes('id="btn-lanc-aluguel-relatorios"') &&
+        /btn-lanc-aluguel-comprovante[^>]*hidden/.test(html) &&
+        /btn-lanc-aluguel-validacao[^>]*hidden/.test(html) &&
+        /btn-lanc-aluguel-relatorios[^>]*hidden/.test(html) &&
+        !/btn-lanc-aluguel-avulso[^>]*hidden/.test(html)
     );
     const portalUiVerLanc = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
     const portalUiLancJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVerLanc || "latest"}`, {
