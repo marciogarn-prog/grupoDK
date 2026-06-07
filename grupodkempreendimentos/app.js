@@ -9098,7 +9098,7 @@ async function renderRelatorioLocacao(tipo) {
     const html = rows.length
       ? `
         <p><strong>Total de veículos locados:</strong> ${rows.length}</p>
-        <p class="hint"><strong>Protocolo:</strong> número único por contrato (CPF + placa no registro). O mesmo cliente pode ter <strong>vários protocolos ativos</strong> em placas diferentes; cada placa só pode ter <strong>um</strong> protocolo ativo. <strong>Lista:</strong> contratos ATIVO na base embarcada (<code>locacoes-planilha-data.js</code>), uma linha por placa quando aplicável; senão receita 2026 + cadastro local. <strong>Telefones:</strong> cadastro de clientes.</p>
+        <p class="hint"><strong>Protocolo:</strong> número único por contrato (CPF + placa no registro). O mesmo cliente pode ter <strong>vários protocolos ativos</strong> em placas diferentes; cada placa só pode ter <strong>um</strong> protocolo ativo. <strong>Lista:</strong> contratos ATIVO no cadastro local. <strong>Telefones:</strong> cadastro de clientes.</p>
         <div class="report-actions">
           <button type="button" class="secondary" data-report-export="pdf">Exportar para PDF</button>
           <button type="button" class="secondary" data-report-export="excel">Exportar para Excel</button>
@@ -15796,10 +15796,7 @@ applyClienteCpfFixes();
 normalizeClienteCodigos();
 clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
-importLocacoesFromPlanilhaOnce();
-bootstrapLocacoesReceita2026Bundled();
 ensureNumeroContratoForLocacoes();
-repairProtocolosLocacaoPorDataInicioOnce();
 fixKnownRentalValueOverrides();
 if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();

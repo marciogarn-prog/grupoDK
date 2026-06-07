@@ -282,7 +282,7 @@
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
                 <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
-                <span class="btn-operacao-cmd__hint">14 campos da planilha (código, datas, CPF, nome, etc.) à direita</span>
+                <span class="btn-operacao-cmd__hint">Campos do cadastro (código, datas, CPF, nome, etc.) à direita</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
                 <span class="btn-operacao-cmd__title">Cadastro de veículo</span>
@@ -290,7 +290,7 @@
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-locacao" aria-expanded="false" aria-controls="operacaoInlineLocacao">
                 <span class="btn-operacao-cmd__title">Cadastro de locação</span>
-                <span class="btn-operacao-cmd__hint">Protocolo automático (Receita 2026), CPF, placa, plano, valores e datas</span>
+                <span class="btn-operacao-cmd__hint">Protocolo automático, CPF, placa, plano, valores e datas</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoLancAluguelSubnav">
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
@@ -479,7 +479,7 @@
 
         <div id="operacaoInlineVeiculo" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-veiculo-title">
           <h3 id="operacao-inline-veiculo-title" class="operacao-inline-form__title">Dados do veículo</h3>
-          <p class="subtext operacao-inline-form__lead">Preencha os 14 campos do veículo. Tudo fica no banco único <code>dk_veiculos_cadastro</code> (planilha importada + cadastros novos do portal, num só arquivo).</p>
+          <p class="subtext operacao-inline-form__lead">Preencha os campos do veículo. Tudo fica em <code>dk_veiculos_cadastro</code> (cadastro manual pelo operador).</p>
           <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Tipo</span>
@@ -586,7 +586,7 @@
 
         <div id="operacaoInlineLocacao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-locacao-title">
           <h3 id="operacao-inline-locacao-title" class="operacao-inline-form__title">Cadastro de locação</h3>
-          <p class="subtext operacao-inline-form__lead">&Eacute; necess&aacute;rio <strong>cliente</strong> e <strong>veículo</strong> já cadastrados neste navegador. Mesmas colunas da folha <strong>Receita 2026</strong>. O <strong>protocolo</strong>, depois de criado, <strong>nunca é apagado</strong> &mdash; pode ser <strong>encerrado</strong> (data fim) pelo administrador. Colaboradores só cadastram contratos novos; <strong>alterar dados</strong> (cliente, veículo, datas, valores) &eacute; exclusivo do <strong>administrador</strong>.</p>
+          <p class="subtext operacao-inline-form__lead">&Eacute; necess&aacute;rio <strong>cliente</strong> e <strong>veículo</strong> já cadastrados neste navegador. O <strong>protocolo</strong>, depois de criado, <strong>nunca é apagado</strong> &mdash; pode ser <strong>encerrado</strong> (data fim) pelo administrador. Colaboradores só cadastram contratos novos; <strong>alterar dados</strong> (cliente, veículo, datas, valores) &eacute; exclusivo do <strong>administrador</strong>.</p>
           <form id="formOperacaoLocacaoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>PROTOCOLO</span>
@@ -1965,10 +1965,10 @@
   <script src="home-install-pwa.js?v=20260531force" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260607instalacao-limpa" defer></script>
+  <script src="app.js?v=20260607virgem" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521proto-fix" defer></script>
+  <script src="portal-locadora-ui.js?v=20260607virgem" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>

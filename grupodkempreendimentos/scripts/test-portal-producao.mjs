@@ -25,8 +25,9 @@ async function main() {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const html = await page.content();
-    record("HTML com instalação limpa (sem Excel)", html.includes("instalacao-limpa") && html.includes("dk-banco-cadastro-vazio"), "scripts");
+    record("HTML com instalação limpa (sem Excel)", html.includes("virgem") && html.includes("dk-banco-cadastro-vazio"), "scripts");
     const cacheOk =
+      html.includes("virgem") ||
       html.includes("instalacao-limpa") ||
       html.includes("locadora-hub") ||
       html.includes("data-auto") ||
@@ -116,7 +117,7 @@ async function main() {
     );
     record(
       "tema vermelho preto + fundo showroom",
-      html.includes("20260521proto-fix") &&
+      html.includes("20260607virgem") &&
         html.includes('theme-color" content="#050505"') &&
         (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
     );
@@ -144,20 +145,20 @@ async function main() {
       html.includes("portal-admin-banner") &&
         html.includes("portal-admin-cliente-cpf") &&
         html.includes("LOGADO COMO ADMINISTRADOR") &&
-        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, { cache: "no-store" }).then((r) =>
+        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260607virgem`, { cache: "no-store" }).then((r) =>
           r.ok ? r.text() : ""
         )).includes("isPortalAdministradorLogado")
     );
     record(
       "pesquisa contrato preenche placa automaticamente",
-      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, { cache: "no-store" }).then((r) =>
+      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260607virgem`, { cache: "no-store" }).then((r) =>
         r.ok ? r.text() : ""
       )).includes("protoNormAtual") && html.includes("operacaoLancAluguelPlacaBusca")
     );
-    const appJsProto = await fetch(`${BASE_URL}app.js?v=20260607instalacao-limpa`, { cache: "no-store" }).then((r) =>
+    const appJsProto = await fetch(`${BASE_URL}app.js?v=20260607virgem`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
-    const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, {
+    const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260607virgem`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(

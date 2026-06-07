@@ -1675,7 +1675,7 @@
     if (!panel || !inp) return;
     const items = filterPlacasAtivasChecklistDropdown(queryRaw);
     if (!items.length) {
-      panel.innerHTML = `<div class="portal-placa-dropdown__empty">Nenhuma placa em operação (sem locação ativa no cadastro ou na Receita 2026).</div>`;
+      panel.innerHTML = `<div class="portal-placa-dropdown__empty">Nenhuma placa em operação (cadastre uma locação ativa primeiro).</div>`;
     } else {
       panel.innerHTML = items
         .map(
@@ -5071,13 +5071,13 @@ ${printable.innerHTML}
     const frota = bloco.frota || { carros: [], motos: [], outros: [] };
     let html = `<section class="portal-relatorio-veiculos-bloco"><h2>${eh(tituloBloco)}</h2>`;
     const portalHtml = buildPortalRelatorioVeiculosGrupoTipoHtml(
-      "Cadastro no portal (fora da planilha embutida)",
+      "Cadastros do portal",
       portal,
       headers,
       rowClass
     );
     if (portalHtml) html += portalHtml;
-    html += buildPortalRelatorioVeiculosGrupoTipoHtml("Frota da planilha", frota, headers, rowClass);
+    html += buildPortalRelatorioVeiculosGrupoTipoHtml("Frota cadastrada", frota, headers, rowClass);
     html += `</section>`;
     return html;
   }
@@ -5182,7 +5182,7 @@ ${printable.innerHTML}
             });
           };
           appendGrupo("Cadastro no portal", bloco.portal || {});
-          appendGrupo("Frota da planilha", bloco.frota || {});
+          appendGrupo("Frota cadastrada", bloco.frota || {});
           return out;
         };
         const head = headers.map((h) => `<th>${eh(h)}</th>`).join("");

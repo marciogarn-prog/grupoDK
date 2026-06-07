@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260521icon";
+const CACHE_NAME = "dk-corporativo-v20260607virgem";
 const ASSETS = [
   "./",
   "./index.html",
@@ -16,9 +16,7 @@ const ASSETS = [
   "./portal-patrimonio-scan.js",
   "./portal-supabase-sync.js",
   "./supabase-init.js",
-  "./data/dk-banco-cadastro.js",
-  "./clientes-extra-sync.js",
-  "./locacoes-receita-2026-import.js",
+  "./data/dk-banco-cadastro-vazio.js",
   "./manifest-corporativo.webmanifest",
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
