@@ -479,7 +479,10 @@ async function main() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521sem-comprovante`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521badge-tipo`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521badge-tipo`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -488,6 +491,12 @@ async function main() {
         clienteHtml.includes("hidden") &&
         clienteAppJs.includes("CLIENTE_ENVIO_COMPROVANTE_ATIVO = false"),
       "secção oculta + flag false"
+    );
+    record(
+      "app cliente badge contrato por tipo/plano",
+      clienteAppJs.includes("cliente-badge-contrato--minha-moto") &&
+        clienteResumoJs.includes("computeBadgeContrato"),
+      "azul/verde/marrom/vermelho"
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();

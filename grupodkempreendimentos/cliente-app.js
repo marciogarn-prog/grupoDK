@@ -803,6 +803,13 @@
     }
   }
 
+  function renderContratoBadge(resumo) {
+    const badge = resumo?.badge;
+    if (!badge?.variant) return "";
+    const cls = `cliente-badge-contrato cliente-badge-contrato--${badge.variant}`;
+    return ` <span class="${cls}">${escapeHtml(badge.text || "Ativo")}</span>`;
+  }
+
   function renderContratoCard(loc, cpf, resumoFn) {
     const nc = normNc(loc.numeroContrato);
     const resumo = resumoFn ? resumoFn(loc) : null;
@@ -833,7 +840,7 @@
     const corpoPag = renderSecaoPagamentos(linhasPag, nc);
 
     return `<article class="cliente-protocolo">
-      <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${resumo?.ativo ? ' <span class="cliente-badge-ativo">Ativo</span>' : ""}</div>
+      <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${renderContratoBadge(resumo)}</div>
       ${detalhes}
       ${corpoPag}
     </article>`;

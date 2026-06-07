@@ -315,6 +315,32 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
   color: var(--muted);
 }
 
+.cliente-badge-contrato {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #fff;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.cliente-badge-contrato--minha-moto {
+  background: #1565c0;
+}
+
+.cliente-badge-contrato--meu-transporte {
+  background: #2e7d32;
+}
+
+.cliente-badge-contrato--carro {
+  background: #6d4c41;
+}
+
+.cliente-badge-contrato--inativo {
+  background: var(--accent);
+}
+
 .cliente-badge-ativo {
   font-size: 0.72rem;
   font-weight: 600;

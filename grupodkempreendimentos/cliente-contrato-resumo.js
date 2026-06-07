@@ -213,6 +213,63 @@
     );
   }
 
+  function normPlanoKey(s) {
+    return String(s || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function inferTipoVeiculoLocacao(loc) {
+    const mod = normPlanoKey(loc?.modalidade || "");
+    if (mod.includes("CARRO")) return "CARRO";
+    if (mod.includes("MOTO")) return "MOTO";
+    const placa = String(loc?.placa || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (!placa) return "MOTO";
+    try {
+      const raw = localStorage.getItem("dk_veiculos_cadastro");
+      const veiculos = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(veiculos)) return "MOTO";
+      const v = veiculos.find(
+        (row) =>
+          String(row?.placa || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "") === placa
+      );
+      if (!v) return "MOTO";
+      const tipo = normPlanoKey(v.tipo || "");
+      const tag = normPlanoKey(v.tag || "");
+      if (tipo.includes("CARRO") || tag.includes("DKCR")) return "CARRO";
+      if (tipo.includes("MOTO") || tag.includes("DKMT")) return "MOTO";
+      return tipo.includes("CARRO") ? "CARRO" : "MOTO";
+    } catch {
+      return "MOTO";
+    }
+  }
+
+  function inferPlanoContrato(loc) {
+    const planoKey = normPlanoKey(loc?.plano || loc?.opcaoContrato || "");
+    if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) return "MINHA_MOTO";
+    if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) return "MEU_TRANSPORTE";
+    const valInv = parseCur(loc?.valorInvestimento ?? 0);
+    if (valInv > 0) return "MINHA_MOTO";
+    return "MEU_TRANSPORTE";
+  }
+
+  /** Badge «Ativo»/«Inativo» — cor por plano (moto) ou carro; inativo = vermelho. */
+  function computeBadgeContrato(loc, ativo) {
+    if (!ativo) return { text: "Inativo", variant: "inativo" };
+    if (inferTipoVeiculoLocacao(loc) === "CARRO") return { text: "Ativo", variant: "carro" };
+    const plano = inferPlanoContrato(loc);
+    if (plano === "MINHA_MOTO") return { text: "Ativo", variant: "minha-moto" };
+    return { text: "Ativo", variant: "meu-transporte" };
+  }
+
   function computeResumoContrato(loc) {
     const valLoc = parseCur(loc?.valorLocacao ?? 0);
     const valInv = parseCur(loc?.valorInvestimento ?? 0);
@@ -247,6 +304,11 @@
     const revisaoKm = String(loc?.ultimaRevisaoKm ?? loc?.kmUltimaRevisao ?? "").trim();
     const revisaoServicos = loc?.ultimaRevisaoServicos ?? loc?.servicosUltimaRevisao;
 
+    const ativo = (() => {
+      const fim = String(loc?.fim || loc?.dataFim || "").trim();
+      return !fim || fim === "...";
+    })();
+
     return {
       protocolo: normNc(loc.numeroContrato),
       placa: String(loc.placa || "").trim(),
@@ -266,10 +328,8 @@
         ? revisaoServicos.map(String)
         : null,
       lancamentos: lancs,
-      ativo: (() => {
-        const fim = String(loc?.fim || loc?.dataFim || "").trim();
-        return !fim || fim === "...";
-      })(),
+      ativo,
+      badge: computeBadgeContrato(loc, ativo),
     };
   }
 
