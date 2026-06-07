@@ -4505,6 +4505,7 @@ ${printable.innerHTML}
     };
     viewer.classList.remove("hidden");
     viewer.setAttribute("aria-hidden", "false");
+    portalSyncAdminBannerLayout();
   }
 
   function emitPortalRelatorioExcel(context) {
