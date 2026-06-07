@@ -116,6 +116,12 @@ async function main() {
       }))
     );
     record(
+      "tema vermelho preto + fundo showroom",
+      html.includes("20260522dk-red-black") &&
+        html.includes('theme-color" content="#050505"') &&
+        (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
+    );
+    record(
       "mapa localização clientes (admin)",
       html.includes("btn-locadora-localizacao") &&
         html.includes("panel-localizacao-locadora") &&

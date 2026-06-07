@@ -3,6 +3,7 @@
   min-height: 100vh;
   max-width: 28rem;
   margin-inline: auto;
+  background: transparent;
 }
 
 .cliente-geo-gate__lead {
@@ -61,11 +62,14 @@
 }
 
 .cliente-app-card {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-accent);
   border-radius: var(--radius);
   padding: 1rem 1.1rem;
   margin-bottom: 1rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
 }
 
 .cliente-app-card h2 {
@@ -241,7 +245,7 @@ button.lnk-comprovante {
   border-radius: var(--radius);
   padding: 1rem;
   margin-bottom: 1rem;
-  background: rgba(201, 162, 39, 0.08);
+  background: rgba(220, 38, 38, 0.08);
 }
 
 .cliente-install-panel__title {
@@ -380,7 +384,7 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 }
 
 .cliente-btn-de-acordo:active {
-  background: rgba(201, 162, 39, 0.15);
+  background: rgba(220, 38, 38, 0.15);
 }
 
 .cliente-pagamentos-list {
@@ -402,7 +406,7 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 }
 
 .cliente-pagamentos-toggle:hover {
-  background: rgba(201, 162, 39, 0.12);
+  background: rgba(220, 38, 38, 0.12);
 }
 
 .cliente-notificacao {
@@ -410,7 +414,7 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
   border-radius: 10px;
   padding: 0.65rem 0.75rem;
   margin-bottom: 0.5rem;
-  background: rgba(201, 162, 39, 0.08);
+  background: rgba(220, 38, 38, 0.08);
 }
 
 .cliente-notificacao__msg {
