@@ -1069,6 +1069,41 @@
     });
   }
 
+  /** Fila pendente na nuvem sem imagem ou com leitura já consumida — não ressuscitar no cliente. */
+  function patrimonioFotoFilaOrfaSync(f) {
+    if (!f || typeof f !== "object") return false;
+    const st = String(f.statusIa || "").toLowerCase();
+    if (st === "ok") return false;
+    const pendente = st === "fila" || st === "processando" || st === "pendente" || st === "falhou";
+    if (!pendente) return false;
+    if (st === "falhou") return true;
+    if (Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1) return true;
+    const img = String(f.imagem || "");
+    return Boolean(f.imagemIndisponivel && !img.startsWith("data:image/"));
+  }
+
+  function expurgarFotosCapturasOrfaosSync(fotosCapturas, exclusoes) {
+    const agora = new Date().toISOString();
+    let exclusoesOut = mergeFotosCapturasExcluidas(exclusoes, []);
+    const orfaos = (fotosCapturas || []).filter(patrimonioFotoFilaOrfaSync);
+    for (const f of orfaos) {
+      const id = String(f.id || "").trim();
+      if (!id) continue;
+      exclusoesOut = mergeFotosCapturasExcluidas(exclusoesOut, [
+        {
+          id,
+          tag: String(f.tag || "").trim() || undefined,
+          excluidoEm: agora,
+          motivo: "Fila órfã removida na sincronização.",
+        },
+      ]);
+    }
+    return {
+      fotosCapturas: aplicarExclusoesFotosCapturas(fotosCapturas, exclusoesOut),
+      fotosCapturasExcluidas: exclusoesOut,
+    };
+  }
+
   function normalizePatrimonioPayloadForSync(raw, exclusoesExtra) {
     const parsed = parsePatrimonioStore(raw);
     const exclusoes = mergeFotosCapturasExcluidas(
@@ -1076,11 +1111,13 @@
       parseExclusoesPatrimonioLista(exclusoesExtra)
     );
     let fotosCapturas = mergeFotosCapturasPatrimonio([], parsed.fotosCapturas);
-    fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
+    const expurgado = expurgarFotosCapturasOrfaosSync(fotosCapturas, exclusoes);
+    fotosCapturas = expurgado.fotosCapturas;
+    fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, expurgado.fotosCapturasExcluidas);
     return {
       documentos: parsed.documentos,
       fotosCapturas,
-      fotosCapturasExcluidas: exclusoes,
+      fotosCapturasExcluidas: expurgado.fotosCapturasExcluidas,
     };
   }
 

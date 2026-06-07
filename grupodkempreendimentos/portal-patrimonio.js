@@ -1227,12 +1227,32 @@
     }
   }
 
-  /** Remove da fila itens sem imagem ou com prazo esgotado — processa ou exclui. */
+  /** Pendente visível na UI mas sem direito a nova leitura (leitura já reservada ou falhou). */
+  function fotoFilaPresaSemProcessamento(f) {
+    if (!f || !fotoEstaPendenteIa(f)) return false;
+    const st = String(f.statusIa || "").toLowerCase();
+    if (st === "falhou") return true;
+    if (patrimonioFotoJaConsumiuLeituraIa(f)) return true;
+    return !fotoAguardaProcessamentoIa(f);
+  }
+
+  /** Remove da fila itens sem imagem, presos após reserva de leitura, ou com prazo esgotado. */
   async function patrimonioExpurgarFilaObsoleta() {
     const agora = Date.now();
     const fotos = [...getFotosCapturas()];
     let removidos = 0;
     for (const f of fotos) {
+      if (fotoFilaPresaSemProcessamento(f)) {
+        const st = String(f.statusIa || "").toLowerCase();
+        const motivo =
+          st === "falhou"
+            ? String(f.msgIa || "Reprovado pela IA.").slice(0, 220)
+            : patrimonioFotoJaConsumiuLeituraIa(f)
+              ? "Leitura IA já contabilizada — reenvie o PDF para nova leitura."
+              : "Processamento interrompido — reenvie o PDF.";
+        if (await excluirFotoCapturaAutomatico(f.id, motivo)) removidos++;
+        continue;
+      }
       if (!fotoAguardaProcessamentoIa(f)) continue;
       const idade = agora - fotoCapturaMs(f);
       const temImg = await patrimonioFilaTemImagem(f.id);
@@ -1264,19 +1284,21 @@
     await patrimonioSincronizarFilaComStorage();
     patrimonioAtualizarBadgeSegundoPlano();
     const restantes = patrimonioContarRestantesIa();
+    let limpos = 0;
     if (restantes > 0 || filaIaPatrimonio.length > 0) {
       await patrimonioProcessarIaSegundoPlano();
     } else if (!patrimonioIaEmCurso()) {
-      await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+      limpos = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
       patrimonioAtualizarBadgeSegundoPlano();
     }
-    if (!silencioso) {
+    const alterouFila = expurgados > 0 || limpos > 0;
+    if (!silencioso || alterouFila) {
       renderFotosLista();
       renderLista();
       atualizarBotaoErrosPatrimonio();
-      if (expurgados > 0) {
+      if (!silencioso && expurgados > 0) {
         setMsg(
-          `${expurgados} arquivo(s) removido(s) da fila (prazo esgotado ou sem imagem).`,
+          `${expurgados} arquivo(s) removido(s) da fila (presos, prazo esgotado ou sem imagem).`,
           false,
           true
         );
@@ -1591,6 +1613,11 @@
       const st = String(f.statusIa || "").toLowerCase();
 
       if (st === "ok" || st === "falhou" || !fotoEstaPendenteIa(f)) {
+        marcarExclusao(f);
+        continue;
+      }
+
+      if (fotoFilaPresaSemProcessamento(f)) {
         marcarExclusao(f);
         continue;
       }
@@ -4228,7 +4255,7 @@ REGRAS OBRIGATÓRIAS:
   }
 
   function getFotosCapturasEmProcessamento() {
-    return getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+    return getFotosCapturas().filter((f) => fotoAguardaProcessamentoIa(f));
   }
 
   function renderFotosLista() {
@@ -5083,12 +5110,7 @@ ${contador}
   }
 
   window.addEventListener("dk-comprovantes-synced", () => {
-    void (async () => {
-      if (patrimonioIaEmCurso()) return;
-      await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
-      renderLista();
-      renderFotosLista();
-    })();
+    void patrimonioRetomarFilaIa({ silencioso: true });
   });
 
   bindUi();

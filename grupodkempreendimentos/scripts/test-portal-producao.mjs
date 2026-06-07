@@ -336,6 +336,7 @@ async function runSuite() {
         patJs.includes("patrimonioProcessarIaSegundoPlano") &&
         patJs.includes("patrimonioRecuperarTravamentoIa") &&
         patJs.includes("patrimonioExpurgarFilaObsoleta") &&
+        patJs.includes("fotoFilaPresaSemProcessamento") &&
         patJs.includes("patrimonioRetomarFilaIa") &&
         patJs.includes("PATRIMONIO_FILA_TTL_MS") &&
         patJs.includes("coletarPatrimonioErrosIa") &&
@@ -405,7 +406,7 @@ async function runSuite() {
       return r.ok ? await r.text() : "";
     });
     const syncJs = await page.evaluate(async () => {
-      const r = await fetch("portal-supabase-sync.js?v=20260602orientacao-excluir", {
+      const r = await fetch("portal-supabase-sync.js?v=20260521fila-orfa-sync", {
         cache: "no-store",
       });
       return r.ok ? await r.text() : "";
@@ -423,6 +424,8 @@ async function runSuite() {
     record(
       "patrimônio exclusão permanente na nuvem (merge Supabase+Redis)",
       syncJs.includes("normalizePatrimonioPayloadForSync") &&
+        syncJs.includes("patrimonioFotoFilaOrfaSync") &&
+        syncJs.includes("expurgarFotosCapturasOrfaosSync") &&
         syncJs.includes("mergeRemoteSnapshotsBeforePush") &&
         syncJs.includes("dk_patrimonio_fotos_excluidas_v1") &&
         syncJs.includes("fotosCapturasExcluidas") &&
