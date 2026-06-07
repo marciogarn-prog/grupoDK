@@ -19,12 +19,13 @@ Dados:
   • Demo e oficial usam os MESMOS cadastros (Supabase label default + Redis produção)
   • A demo serve para testar código antes do merge em main; lançamentos na demo afetam a nuvem real
 
-Fluxo do programador:
+Fluxo do programador (padrão — cada alteração aqui no Cursor):
   git checkout demo
-  # alterações, commit, push
+  # alterações, commit, push origin demo
   node grupodkempreendimentos/scripts/test-portal-demo.mjs
+  # testar em https://demo.grupodkempreendimentos.com.br
 
-Promover para oficial:
+Promover para oficial (só quando pedir explicitamente):
   git checkout main && git pull && git merge demo && git push origin main
   node grupodkempreendimentos/scripts/test-portal-producao.mjs
 
