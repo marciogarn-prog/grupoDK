@@ -68,6 +68,19 @@ async function upsertSupabaseLabel(label, payload) {
   return updatedAt;
 }
 
+async function fetchJson(url) {
+  const res = await fetch(url);
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(`Resposta inválida (${url}): ${text.slice(0, 80)}`);
+  }
+  if (!res.ok) throw new Error(data?.error || data?.reason || `HTTP ${res.status} (${url})`);
+  return data;
+}
+
 async function postRedis(url, body) {
   const res = await fetch(url, {
     method: "POST",
@@ -104,7 +117,7 @@ Execute:
   const banco = loadBancoCadastro();
   console.log("Banco planilha:", banco.clientes.length, "clientes,", banco.veiculos.length, "veículos");
 
-  const demoRes = await fetch(REDIS_DEMO_URL).then((r) => r.json());
+  const demoRes = await fetchJson(REDIS_DEMO_URL);
   const demoBase = demoRes?.payload && typeof demoRes.payload === "object" ? demoRes.payload : {};
   const locacoes = Array.isArray(demoBase.dk_locacoes_cadastro) ? demoBase.dk_locacoes_cadastro : [];
   console.log("Locações demo actuais:", locacoes.length);
@@ -163,8 +176,8 @@ Execute:
     updated_at: updatedAt,
   });
 
-  const verifyDemo = await fetch(REDIS_DEMO_URL).then((r) => r.json());
-  const verifyDefault = await fetch(REDIS_DEFAULT_URL).then((r) => r.json());
+  const verifyDemo = await fetchJson(REDIS_DEMO_URL);
+  const verifyDefault = await fetchJson(REDIS_DEFAULT_URL);
   const afterDemo = counts(verifyDemo.payload || {});
   const afterDefault = counts(verifyDefault.payload || {});
 

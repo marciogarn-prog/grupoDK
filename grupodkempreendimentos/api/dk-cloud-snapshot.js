@@ -8,9 +8,71 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const {
-  sanitizePayloadForOficial,
-} = require("../lib/dk-oficial-cadastro-guard.cjs");
+
+const OFICIAL_GUARD_KEYS = [
+  "dk_clientes_cadastro",
+  "dk_portal_clientes_cadastro",
+  "dk_veiculos_cadastro",
+  "dk_portal_veiculos_cadastro",
+  "dk_veiculos_frota_planilha",
+  "dk_locacoes_cadastro",
+  "dk_lancamentos_aluguel",
+  "dk_lancamentos_aluguel_cadastro",
+];
+
+function oficialTodayYmd() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+function oficialParseYmd(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
+    }
+    return null;
+  }
+  const s = String(value).trim();
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const ms = Date.parse(s);
+  if (Number.isFinite(ms)) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ms));
+  }
+  return null;
+}
+
+function oficialRecordYmd(record, key) {
+  if (!record || typeof record !== "object") return null;
+  const fields =
+    String(key).includes("locacoes")
+      ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
+      : String(key).includes("lancamento")
+        ? ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"]
+        : ["dataCadastro", "createdAt", "updatedAt"];
+  for (const f of fields) {
+    const ymd = oficialParseYmd(record[f]);
+    if (ymd) return ymd;
+  }
+  return null;
+}
+
+function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
+  if (!payload || typeof payload !== "object") return payload;
+  const out = { ...payload };
+  for (const k of OFICIAL_GUARD_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
+    out[k] = out[k].filter((r) => {
+      const ymd = oficialRecordYmd(r, k);
+      return ymd && ymd >= cutoffYmd;
+    });
+  }
+  out.dk_oficial_cadastro_guard_v1 = cutoffYmd;
+  return out;
+}
 
 const REDIS_KEYS = {
   default: "dk:portal:cloud_snapshot:v1",
