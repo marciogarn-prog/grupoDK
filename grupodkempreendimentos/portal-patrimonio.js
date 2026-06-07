@@ -12,6 +12,9 @@
   /** Recorte coluna direita — carroceria + nome + CPF/CNPJ (sempre leitura dedicada). */
   const CRLV_REGIAO_PROPRIETARIO = { esquerda: 0.51, topo: 0.12, direita: 0.99, baixo: 0.38 };
   const CRLV_REGIAO_PROPRIETARIO_AMPLA = { esquerda: 0.48, topo: 0.1, direita: 0.99, baixo: 0.42 };
+  /** Faixa 1 esquerda — RENAVAM + rótulo PLACA + valor da placa em negrito. */
+  const CRLV_REGIAO_PLACA_RENAVAM = { esquerda: 0.02, topo: 0.1, direita: 0.48, baixo: 0.26 };
+  const CRLV_REGIAO_PLACA_FOCADA = { esquerda: 0.02, topo: 0.14, direita: 0.4, baixo: 0.24 };
   const CNPJ_DK_LOCADORA_DIGITS = "59665734000132";
   const CPF_MARCIO_DIGITS = "03037897430";
   const NOME_DK_LOCADORA_PADRAO = "DK LOCADORA LTDA";
@@ -1751,8 +1754,13 @@
     renderFotosLista();
     const fotoMeta = getFotoCapturaById(fotoId);
     const placaHint = placaDoNomeArquivo(fotoMeta?.nomeArquivo);
+    const documentosReferencia = getDocumentos();
     try {
-      const leitura = await lerCrlvComRetry(imgs, { placaHint, nomeArquivo: fotoMeta?.nomeArquivo });
+      const leitura = await lerCrlvComRetry(imgs, {
+        placaHint,
+        nomeArquivo: fotoMeta?.nomeArquivo,
+        documentosReferencia,
+      });
       if (!leitura.ok) {
         await tratarFalhaIaFotoCaptura(fotoId, leitura.msg || MSG_NITIDEZ);
         return;
@@ -1772,14 +1780,17 @@
       }
       const imagemGuardar = await prepararImagemDocumentoArmazenar(imagemBase);
       const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
+      const existente =
+        leitura.documentoExistente || buscarDocumentoCadastradoPorPlaca(campos.placa);
+      const agora = new Date().toISOString();
       const doc = {
         ...campos,
-        id: newId(),
+        id: existente?.id || newId(),
         imagemRecortada: imagemGuardar,
         imagemPdfRecortada,
         imagemScanVersao: scanV,
-        processadoEm: new Date().toISOString(),
-        cadastradoEm: new Date().toISOString(),
+        processadoEm: agora,
+        cadastradoEm: existente?.cadastradoEm || agora,
       };
       const r = await upsertDocumento(doc);
       if (!r.ok) {
@@ -1887,6 +1898,15 @@
 
   function getDocumentos() {
     return loadStore().documentos || [];
+  }
+
+  /** Documento já cadastrado com a mesma placa Mercosul (para substituição). */
+  function buscarDocumentoCadastradoPorPlaca(placa) {
+    const p = normPlaca(resolverPlacaMercosul(placa));
+    if (!p) return null;
+    const docs = getDocumentos().filter((d) => documentoMesmaPlaca(d, { placa: p, placaNorm: p }));
+    if (!docs.length) return null;
+    return docs.reduce((best, d) => (docMs(d) >= docMs(best) ? d : best));
   }
 
   async function upsertDocumento(doc) {
@@ -2578,7 +2598,7 @@ MÉTODO: (1) localize a tarja preta no topo; (2) para cada campo abaixo, leia o 
 FAIXA 1 — imediatamente abaixo da tarja (topo do formulário):
 • COLUNA ESQUERDA (0–45% largura):
   - codigoRenavam: primeira linha, canto superior esquerdo — 11 dígitos grandes (ex.: 01131834566).
-  - placa: linha abaixo do RENAVAM, lado esquerdo — 7 caracteres MAIÚSCULOS em negrito (ex.: PCK8G70). Mercosul LLLNLNN.
+  - placa: linha abaixo do RENAVAM, lado esquerdo — rótulo pequeno "PLACA" com o VALOR EM NEGRITO logo ABAIXO (7 caracteres MAIÚSCULOS, ex.: PCK8G70). Leia o valor, não o rótulo. Mercosul LLLNLNN.
   - exercicio: à direita da placa, mesma linha — 4 dígitos do ano (ex.: 2025).
   - anoFabricacao: abaixo da placa, esquerda — 4 dígitos.
   - anoModelo: à direita do ano fabricação — 4 dígitos.
@@ -2647,6 +2667,120 @@ REGRAS DE CONTEÚDO:
 - nome/cpfCnpj nesta leitura são secundários — serão confirmados num recorte dedicado da coluna direita.
 - NÃO invente dígitos; se a posição estiver legível mas o rótulo não, confie na posição do mapa.
 - "aprovado": true quando placa, RENAVAM e chassi forem lidos com confiança.`;
+  }
+
+  function montarPromptCrlvPlaca(revisao, opts) {
+    const hintPlaca = String(opts?.placaHint || "").trim();
+    const hintNome = String(opts?.nomeArquivo || "").trim();
+    const cadastradas = (opts?.documentosReferencia || getDocumentos())
+      .map((d) => resolverPlacaMercosul(d.placaNorm || d.placa))
+      .filter(Boolean);
+    const listaCadastro = cadastradas.length
+      ? `\nPLACAS JÁ CADASTRADAS NO PATRIMÔNIO (${cadastradas.length}): ${cadastradas.slice(0, 80).join(", ")}${cadastradas.length > 80 ? "…" : ""}. Leia a placa DESTE documento para comparar.\n`
+      : "";
+    const hintExtra =
+      hintPlaca || hintNome
+        ? `\nDICA: ficheiro «${hintNome || "?"}»${hintPlaca ? ` · placa esperada ${hintPlaca}` : ""}.\n`
+        : "";
+    const schema = `{"placa":"","codigoRenavam":"","confianca":"alta|media|baixa"}`;
+    const base = `CRLV-e brasileiro — RECORTE da FAIXA SUPERIOR ESQUERDA (RENAVAM + PLACA).
+${listaCadastro}${hintExtra}
+De cima para baixo neste recorte:
+1) CÓDIGO RENAVAM — 11 dígitos grandes na primeira linha (ex.: 01131834566).
+2) PLACA — rótulo pequeno "PLACA" com o VALOR EM NEGRITO logo ABAIXO (7 caracteres Mercosul LLLNLNN, ex.: PCK8G70). Leia o valor em negrito, NÃO o rótulo.
+
+Responda APENAS JSON: ${schema}
+
+REGRAS OBRIGATÓRIAS:
+- placa: 7 caracteres Mercosul LLLNLNN; diferencie 8/B, 0/O, 5/S, G/6.
+- codigoRenavam: 11 dígitos se visível neste recorte.
+- Leia apenas o que está VISÍVEL neste recorte.`;
+    if (revisao) {
+      return `${base}\n\nSegunda leitura: confirme dígito a dígito a placa em negrito abaixo de "PLACA".`;
+    }
+    return base;
+  }
+
+  function extrairPlacaRespostaIa(parsed) {
+    const raw = parsed?.campos && typeof parsed.campos === "object" ? parsed.campos : parsed;
+    const c = raw && typeof raw === "object" ? raw : {};
+    let placa = String(c.placa ?? c.plate ?? "").trim();
+    placa = resolverPlacaMercosul(placa) || normPlaca(placa);
+    const codigoRenavam = normalizarRenavamPatrimonio(String(c.codigoRenavam ?? c.renavam ?? c.codigo_renavam ?? ""));
+    return { placa, codigoRenavam };
+  }
+
+  async function chamarIaCrlvPlaca(dataUrl, revisao, opts) {
+    const parsed = parseDataUrl(dataUrl);
+    const content = [
+      { type: "text", text: montarPromptCrlvPlaca(Boolean(revisao), opts) },
+      {
+        type: "image_url",
+        image_url: {
+          url: `data:${parsed.mime};base64,${parsed.base64}`,
+          detail: "high",
+        },
+      },
+    ];
+    const maxTentativas = 6;
+    for (let t = 0; t < maxTentativas; t++) {
+      try {
+        const res = await fetch("/api/openai-comprovante", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content, tipo: "crlv", max_tokens: 512 }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 429 || (data?.reason === "openai_error" && /rate|429|limit/i.test(String(data?.error)))) {
+          await new Promise((r) => window.setTimeout(r, 1500 * (t + 1)));
+          continue;
+        }
+        if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
+        return { ok: false, msg: msgErroApiIa(data, res.status) };
+      } catch (e) {
+        if (t === maxTentativas - 1) return { ok: false, msg: String(e?.message || e) };
+        await new Promise((r) => window.setTimeout(r, 1200 * (t + 1)));
+      }
+    }
+    return { ok: false, msg: "OpenAI ocupada ao ler placa." };
+  }
+
+  async function lerPlacaCrlvComRetry(dataUrl, opts) {
+    const iaOpts = {
+      placaHint: opts?.placaHint || "",
+      nomeArquivo: opts?.nomeArquivo || "",
+      documentosReferencia: opts?.documentosReferencia ?? getDocumentos(),
+    };
+    const regioes = [CRLV_REGIAO_PLACA_FOCADA, CRLV_REGIAO_PLACA_RENAVAM];
+    let ultimo = { ok: false, msg: "Placa não lida no recorte dedicado." };
+    for (const regiao of regioes) {
+      const crop = await recortarRegiaoImagem(dataUrl, regiao, PATRIMONIO_PDF_JPEG_QUALITY);
+      const img = await prepararImagemParaIaCrlv(crop);
+      const { base64 } = parseDataUrl(img);
+      if (!base64 || base64.length < 2000) continue;
+      for (const revisao of [false, true, true]) {
+        const oai = await chamarIaCrlvPlaca(img, revisao, iaOpts);
+        if (!oai.ok) {
+          ultimo = oai;
+          continue;
+        }
+        const parcial = extrairPlacaRespostaIa(oai.parsed);
+        const placa = resolverPlacaMercosul(parcial.placa) || normPlaca(parcial.placa);
+        if (!placaValida(placa)) {
+          ultimo = { ok: false, msg: "IA não leu placa válida no recorte dedicado.", field: "placa" };
+          continue;
+        }
+        const documentoExistente = buscarDocumentoCadastradoPorPlaca(placa);
+        return {
+          ok: true,
+          placa,
+          codigoRenavam: parcial.codigoRenavam || "",
+          documentoExistente,
+          substituirExistente: Boolean(documentoExistente),
+        };
+      }
+    }
+    return ultimo;
   }
 
   function montarPromptCrlvProprietario(revisao, opts) {
@@ -3284,6 +3418,13 @@ REGRAS OBRIGATÓRIAS:
     };
 
     for (let i = 0; i < fontes.length; i++) {
+      let placaLida = { ok: false };
+      placaLida = await lerPlacaCrlvComRetry(fontes[i], iaOpts);
+      if (placaLida.ok && placaValida(placaLida.placa)) {
+        iaOpts.placaHint = placaLida.placa;
+        iaOpts.documentoSubstituir = placaLida.documentoExistente || null;
+      }
+
       const img = await prepararImagemParaIaCrlv(fontes[i]);
       const { base64 } = parseDataUrl(img);
       if (!base64 || base64.length < 5000) {
@@ -3316,6 +3457,13 @@ REGRAS OBRIGATÓRIAS:
       }
       if (!camposVeiculo) continue;
 
+      if (placaLida.ok && placaValida(placaLida.placa)) {
+        camposVeiculo.placa = placaLida.placa;
+        if (placaLida.codigoRenavam && !String(camposVeiculo.codigoRenavam || "").trim()) {
+          camposVeiculo.codigoRenavam = placaLida.codigoRenavam;
+        }
+      }
+
       const owner = await lerProprietarioCrlvComRetry(fontes[i], iaOpts);
       if (!owner.ok) {
         ultimo = owner;
@@ -3325,7 +3473,19 @@ REGRAS OBRIGATÓRIAS:
       const campos = mesclarCamposVeiculoEProprietario(camposVeiculo, owner);
       const val = validarLeituraCrlv(null, campos, iaOpts);
       if (val.ok) {
-        return { ok: true, campos, parsed: null, imagemUsada: fontes[i] };
+        const documentoExistente =
+          placaLida.documentoExistente ||
+          iaOpts.documentoSubstituir ||
+          buscarDocumentoCadastradoPorPlaca(campos.placa);
+        return {
+          ok: true,
+          campos,
+          parsed: null,
+          imagemUsada: fontes[i],
+          placaLidaRecorte: placaLida.ok ? placaLida.placa : "",
+          documentoExistente,
+          substituirExistente: Boolean(documentoExistente),
+        };
       }
       ultimo = val;
     }
