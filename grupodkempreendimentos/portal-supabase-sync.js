@@ -1658,6 +1658,16 @@
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
   async function pushCloudSnapshotNow(opts) {
+    if (window.__DK_IS_DEMO_DEPLOY__ === true && !(opts && opts.force)) {
+      if (typeof loadCadastro === "function") {
+        const c = (loadCadastro("dk_clientes_cadastro") || []).length;
+        const v = (loadCadastro("dk_veiculos_cadastro") || []).length;
+        const l = (loadCadastro("dk_locacoes_cadastro") || []).length;
+        if (c === 0 && v === 0 && l === 0) {
+          return { ok: true, skipped: true, reason: "demo_empty_local_no_push" };
+        }
+      }
+    }
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
     return pushSnapshotQuiet(opts);

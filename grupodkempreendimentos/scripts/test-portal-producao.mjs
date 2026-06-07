@@ -22,6 +22,20 @@ function record(name, ok, detail = "") {
 }
 
 async function runSuite() {
+  if (IS_DEMO_TEST) {
+    const cloudDemoPre = await fetch("https://grupodkempreendimentos.com.br/api/dk-cloud-snapshot?channel=demo", {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.json() : {}));
+    const pPre = cloudDemoPre.payload || {};
+    record(
+      "demo: nuvem com clientes veículos e locações",
+      (pPre.dk_clientes_cadastro || []).length >= 300 &&
+        (pPre.dk_veiculos_cadastro || []).length >= 150 &&
+        (pPre.dk_locacoes_cadastro || []).length >= 300,
+      `c=${(pPre.dk_clientes_cadastro || []).length} v=${(pPre.dk_veiculos_cadastro || []).length} l=${(pPre.dk_locacoes_cadastro || []).length}`
+    );
+  }
+
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
@@ -300,17 +314,6 @@ async function runSuite() {
         "demo: nuvem separada do oficial (snapshot demo)",
         demoUi.snapshotLabel === "demo",
         `label=${demoUi.snapshotLabel}`
-      );
-      const cloudDemo = await fetch("https://grupodkempreendimentos.com.br/api/dk-cloud-snapshot?channel=demo", {
-        cache: "no-store",
-      }).then((r) => (r.ok ? r.json() : {}));
-      const pDemo = cloudDemo.payload || {};
-      record(
-        "demo: nuvem com clientes veículos e locações",
-        (pDemo.dk_clientes_cadastro || []).length >= 300 &&
-          (pDemo.dk_veiculos_cadastro || []).length >= 150 &&
-          (pDemo.dk_locacoes_cadastro || []).length >= 300,
-        `c=${(pDemo.dk_clientes_cadastro || []).length} v=${(pDemo.dk_veiculos_cadastro || []).length} l=${(pDemo.dk_locacoes_cadastro || []).length}`
       );
     }
     record(
