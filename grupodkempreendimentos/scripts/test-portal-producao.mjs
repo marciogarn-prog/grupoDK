@@ -52,16 +52,15 @@ async function main() {
         html.includes("portalOperadorComprovanteConfirmarBtn") &&
         html.includes("portalOperadorComprovanteResumo")
     );
+    const htmlLancAluguel = await fetch(BASE_URL, { cache: "no-store" }).then((r) => r.text());
     record(
       "submenu lançamento aluguel (só avulso ativo)",
-      html.includes("btn-lanc-aluguel-avulso") &&
-        html.includes('id="btn-lanc-aluguel-comprovante"') &&
-        html.includes('id="btn-lanc-aluguel-validacao"') &&
-        html.includes('id="btn-lanc-aluguel-relatorios"') &&
-        /btn-lanc-aluguel-comprovante[^>]*hidden/.test(html) &&
-        /btn-lanc-aluguel-validacao[^>]*hidden/.test(html) &&
-        /btn-lanc-aluguel-relatorios[^>]*hidden/.test(html) &&
-        !/btn-lanc-aluguel-avulso[^>]*hidden/.test(html)
+      htmlLancAluguel.includes("btn-lanc-aluguel-avulso") &&
+        htmlLancAluguel.includes('id="btn-lanc-aluguel-comprovante"') &&
+        /btn-lanc-aluguel-comprovante[^>]*hidden/.test(htmlLancAluguel) &&
+        /btn-lanc-aluguel-validacao[^>]*hidden/.test(htmlLancAluguel) &&
+        /btn-lanc-aluguel-relatorios[^>]*hidden/.test(htmlLancAluguel) &&
+        !/btn-lanc-aluguel-avulso[^>]*hidden/.test(htmlLancAluguel)
     );
     const portalUiVerLanc = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
     const portalUiLancJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVerLanc || "latest"}`, {
