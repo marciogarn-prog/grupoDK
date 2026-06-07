@@ -271,6 +271,13 @@
 
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
+    if (payload.dk_cadastro_manual_portal_v1 === true && typeof window.__DK_enableCadastroManualPortalMode === "function") {
+      try {
+        window.__DK_enableCadastroManualPortalMode();
+      } catch {
+        /* ignore */
+      }
+    }
     const replace = Boolean(opts && opts.replace);
     const lightSanitize = Boolean(opts && opts.lightSanitize);
 
@@ -440,6 +447,16 @@
 
   function runLocacoesSanitizeAfterCloudApply(opts) {
     const light = Boolean(opts && opts.light);
+    if (typeof window.__DK_isCadastroManualPortalMode === "function" && window.__DK_isCadastroManualPortalMode()) {
+      if (typeof window.__DK_sanitizeLocacoesCadastro === "function") {
+        try {
+          window.__DK_sanitizeLocacoesCadastro({ pushCloud: false });
+        } catch (e) {
+          console.warn("[DK cloud] sanitize locações", e);
+        }
+      }
+      return;
+    }
     if (light) {
       if (typeof window.__DK_sanitizeLocacoesCadastro === "function") {
         try {

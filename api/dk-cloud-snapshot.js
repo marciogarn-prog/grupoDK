@@ -311,9 +311,21 @@ module.exports = async function handler(req, res) {
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
       }
       const replace = body.replace === true || body.mode === "replace";
-      const payload = existingPayload
-        ? mergePayloads(existingPayload, incoming)
-        : stripInternalPayloadKeys(incoming);
+      const wipeKeys = Array.isArray(body.wipe_keys)
+        ? body.wipe_keys.filter((k) => typeof k === "string")
+        : [];
+      let payload;
+      if (wipeKeys.length) {
+        payload = existingPayload ? { ...existingPayload, ...incoming } : { ...incoming };
+        for (const k of wipeKeys) {
+          payload[k] = Object.prototype.hasOwnProperty.call(incoming, k) ? incoming[k] : [];
+        }
+        payload = stripInternalPayloadKeys(payload);
+      } else {
+        payload = existingPayload
+          ? mergePayloads(existingPayload, incoming)
+          : stripInternalPayloadKeys(incoming);
+      }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       return res.status(200).json({

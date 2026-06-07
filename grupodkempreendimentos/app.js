@@ -500,6 +500,25 @@ const CLEAR_LOCACOES_ONCE_KEY = "dk_clear_locacoes_once_v1";
 const IMPORT_LOCACOES_PLANILHA_ONCE_KEY = "dk_import_locacoes_planilha_once_v1";
 /** Importação única das 378 locações do bundle RECEITA 2026 (locacoes-receita-2026-import.js). */
 const BOOTSTRAP_LOCACOES_RECEITA2026_KEY = "dk_bootstrap_locacoes_receita2026_v1";
+const CADASTRO_MANUAL_PORTAL_KEY = "dk_cadastro_manual_portal_v1";
+
+function isCadastroManualPortalMode() {
+  try {
+    return localStorage.getItem(CADASTRO_MANUAL_PORTAL_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function enableCadastroManualPortalMode() {
+  try {
+    localStorage.setItem(CADASTRO_MANUAL_PORTAL_KEY, "1");
+    localStorage.setItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY, "done");
+    localStorage.setItem("dk_force_locacoes_excel_receita2026_v9", "done");
+  } catch {
+    /* ignore */
+  }
+}
 /** Migração única: zera toda a pilha operacional de locação/lançamentos; mantém clientes e veículos. */
 const RESET_LOCACAO_STACK_SITE_V2_KEY = "dk_reset_locacao_stack_site_v2";
 /**
@@ -2320,6 +2339,18 @@ function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
   else fimPick = (dB ? fimB : "") || (dA ? fimA : "");
   if (fimPick && fimPick !== "...") {
     out.fim = fimPick;
+    out.statusLocacao = "FINALIZADO";
+  } else if (
+    String(ex.statusLocacao || ex.status || "")
+      .trim()
+      .toUpperCase() === "FINALIZADO" ||
+    String(l.statusLocacao || l.status || "")
+      .trim()
+      .toUpperCase() === "FINALIZADO" ||
+    Number(ex.portalLocacaoFinalizadoEmMs || 0) > 0 ||
+    Number(l.portalLocacaoFinalizadoEmMs || 0) > 0
+  ) {
+    out.fim = fimA || fimB || "";
     out.statusLocacao = "FINALIZADO";
   } else {
     out.fim = "";
@@ -6155,6 +6186,7 @@ function buildLocacoesArrayFromReceita2026Import() {
  * Descarta fantasmas (mesmo CPF+placa+início com protocolo fora da planilha).
  */
 function enforceReceita2026OfficialLocacoesBase() {
+  if (isCadastroManualPortalMode()) return { changed: false, count: 0 };
   const official = buildLocacoesArrayFromReceita2026Import();
   if (!official.length) return { changed: false, count: 0 };
 
@@ -6237,6 +6269,7 @@ function forceReplaceLocacoesFromExcelReceita2026Once() {
 
 /** Repõe locações oficiais do bundle RECEITA 2026 que faltem (por número de protocolo). */
 function reconcileLocacoesWithReceita2026Bundle() {
+  if (isCadastroManualPortalMode()) return { added: 0 };
   const bundle = buildLocacoesArrayFromReceita2026Import();
   if (!bundle.length) return { added: 0 };
 
@@ -6374,6 +6407,8 @@ try {
 }
 
 try {
+  window.__DK_isCadastroManualPortalMode = isCadastroManualPortalMode;
+  window.__DK_enableCadastroManualPortalMode = enableCadastroManualPortalMode;
   window.__DK_sanitizeLocacoesCadastro = (opts) => sanitizeLocacoesProtocolosAndDedupe(opts);
   window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
   window.__DK_reconcileLocacoesCadastro = () => reconcileLocacoesWithReceita2026Bundle();
@@ -9198,6 +9233,7 @@ async function renderRelatorioLocacao(tipo) {
 }
 
 function seedVeiculosDatabaseIfNeeded() {
+  if (isCadastroManualPortalMode()) return;
   if (!veiculosSeedData.length) return;
   const current = loadCadastro(CAD_VEICULOS_KEY);
   const placaToIndex = new Map();
@@ -9369,6 +9405,7 @@ function fixKnownRentalValueOverrides() {
 
 
 function seedClientesDatabaseIfNeeded() {
+  if (isCadastroManualPortalMode()) return;
   if (!clientesSeedData.length) return;
   const current = loadCadastro(CAD_CLIENTES_KEY);
   const cpfToIndex = new Map();
@@ -9494,6 +9531,7 @@ function importLocacoesFromPlanilhaOnce() {
  * Regra operacional: esse conjunto é a base inicial única; novas locações entram só pela área Operação → Cadastro locação.
  */
 function bootstrapLocacoesReceita2026Bundled() {
+  if (isCadastroManualPortalMode()) return;
   if (localStorage.getItem(BOOTSTRAP_LOCACOES_RECEITA2026_KEY) === "done") return;
   const rows =
     typeof LOCACOES_RECEITA_2026_IMPORT !== "undefined" && Array.isArray(LOCACOES_RECEITA_2026_IMPORT)
