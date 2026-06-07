@@ -16,8 +16,8 @@ Como saber onde está:
   • Demo    = demo.grupodkempreendimentos.com.br + faixa "AMBIENTE DEMO"
 
 Dados:
-  • Demo e oficial usam os MESMOS cadastros (Supabase label default + Redis produção)
-  • A demo serve para testar código antes do merge em main; lançamentos na demo afetam a nuvem real
+  • Demo = label "demo" (Supabase + Redis demo) — mantém cópia dos cadastros para testes
+  • Oficial = label "default" — cadastros zerados; cadastro manual limpo
 
 Fluxo do programador (padrão — cada alteração aqui no Cursor):
   git checkout demo

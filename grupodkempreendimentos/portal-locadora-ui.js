@@ -7035,8 +7035,27 @@ ${printable.innerHTML}
   }
 
   /**
+   * Clientes elegíveis no cadastro de locação: só CPF com registo em dk_clientes_cadastro
+   * (não CPF órfão de protocolos/planilha sem cadastro de cliente).
+   */
+  function getPortalCadastroLocacaoClienteCandidates() {
+    if (typeof getLancamentoClienteCandidates !== "function") return [];
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cadastroCpfs = new Set();
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+        const cpf = dig(String(c.cpf || ""));
+        if (cpf.length === 11 && String(c.nome || "").trim().length >= 2) cadastroCpfs.add(cpf);
+      });
+    }
+    if (!cadastroCpfs.size) return [];
+    return getLancamentoClienteCandidates().filter((c) => cadastroCpfs.has(dig(String(c.cpf || ""))));
+  }
+
+  /**
    * Preenche os datalists do formulário de locação (portal): mesmas regras que o painel DK —
-   * placas de `getVeiculosSemProtocoloAtivo()`, clientes de `getLancamentoClienteCandidates()`.
+   * placas de `getVeiculosSemProtocoloAtivo()`, clientes de `getPortalCadastroLocacaoClienteCandidates()`.
    */
   function refreshOperacaoLocacaoDatalists() {
     const dlPlaca = document.getElementById("operacaoLocacaoPlacaSugestoes");
@@ -7068,12 +7087,12 @@ ${printable.innerHTML}
     if (
       dlCpf &&
       dlNome &&
-      typeof getLancamentoClienteCandidates === "function"
+      typeof getPortalCadastroLocacaoClienteCandidates === "function"
     ) {
       const dig =
         typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
       const prefix = dig(prevCpf).slice(0, 11);
-      let candidatos = getLancamentoClienteCandidates();
+      let candidatos = getPortalCadastroLocacaoClienteCandidates();
       if (prefix.length) {
         candidatos = candidatos.filter((c) => dig(String(c.cpf || "")).startsWith(prefix));
       }

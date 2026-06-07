@@ -234,7 +234,7 @@ async function runSuite() {
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
-    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-shared-data`, {
+    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260607demo-oficial-split`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
@@ -260,8 +260,8 @@ async function runSuite() {
         `channel=${demoUi.channel}`
       );
       record(
-        "demo: mesmos cadastros que oficial (snapshot default)",
-        demoUi.snapshotLabel === "default",
+        "demo: nuvem separada do oficial (snapshot demo)",
+        demoUi.snapshotLabel === "demo",
         `label=${demoUi.snapshotLabel}`
       );
     }

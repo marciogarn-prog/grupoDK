@@ -1,7 +1,7 @@
 /**
- * Canal de deploy: default (oficial) ou demo (só UI/código).
- * Demo: demo.grupodkempreendimentos.com.br, preview Vercel da branch demo, ou ?dk_channel=demo
- * Cadastros e nuvem são os mesmos da produção (label "default") para testar lançamentos.
+ * Canal de deploy: default (oficial) ou demo.
+ * Demo: demo.grupodkempreendimentos.com.br — cadastros na nuvem label "demo".
+ * Oficial: grupodkempreendimentos.com.br — cadastros label "default" (zerados para cadastro manual).
  */
 (function dkDeployChannel() {
   function readQueryChannel() {
@@ -31,7 +31,7 @@
   window.__DK_DEPLOY_CHANNEL__ = channel;
   window.__DK_IS_DEMO_DEPLOY__ = isDemo;
   window.__DK_deploySnapshotLabel = function () {
-    return "default";
+    return isDemo ? "demo" : "default";
   };
 
   function syncDemoBannerLayout() {
