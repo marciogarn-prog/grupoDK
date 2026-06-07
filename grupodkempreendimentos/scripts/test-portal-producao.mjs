@@ -117,9 +117,16 @@ async function main() {
     );
     record(
       "tema vermelho preto + fundo showroom",
-      html.includes("20260521login-compact") &&
+      html.includes("20260521dk-logo") &&
         html.includes('theme-color" content="#050505"') &&
         (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
+    );
+    record(
+      "logo DK Locadora no site e botao app",
+      html.includes("dk-locadora-logo.png") &&
+        html.includes("home-baixar-app-btn") &&
+        html.includes("btn-app-logo") &&
+        (await fetch(`${BASE_URL}images/dk-locadora-logo.png`, { cache: "no-store" }).then((r) => r.ok))
     );
     record(
       "login empresa painel compacto",

@@ -116,19 +116,13 @@ body {
   margin-bottom: 1.25rem;
 }
 
-.brand__mark {
-  width: 52px;
-  height: 52px;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(145deg, #ef4444, #b91c1c);
-  color: #fff;
-  font-weight: 800;
-  font-size: 1.1rem;
-  letter-spacing: -0.02em;
-  border-radius: 12px;
-  box-shadow: 0 0 18px var(--accent-glow), inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+.brand__logo {
+  display: block;
+  height: clamp(2.75rem, 8vw, 3.35rem);
+  width: auto;
+  max-width: min(10.5rem, 46vw);
+  object-fit: contain;
+  filter: drop-shadow(0 3px 12px rgba(0, 0, 0, 0.55));
 }
 
 .brand__text {
@@ -162,10 +156,27 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 0.55rem;
   margin: 1rem auto 0;
   min-width: 10rem;
   text-decoration: none;
   font-weight: 700;
+}
+
+.btn-app-logo {
+  display: block;
+  height: 1.55rem;
+  width: auto;
+  max-width: 4.5rem;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.btn-primary--with-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
 }
 
 @media (min-width: 900px) {

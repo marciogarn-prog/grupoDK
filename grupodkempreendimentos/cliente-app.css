@@ -39,16 +39,13 @@
   gap: 0.65rem;
 }
 
-.cliente-app-brand__mark {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 10px;
-  background: var(--accent);
-  color: var(--bg);
-  font-weight: 700;
-  display: grid;
-  place-items: center;
-  font-size: 0.85rem;
+.cliente-app-brand__logo {
+  display: block;
+  height: 2.35rem;
+  width: auto;
+  max-width: 6.75rem;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 .cliente-app-brand__title {

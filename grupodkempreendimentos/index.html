@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260521login-compact">
+  <link rel="stylesheet" href="styles.css?v=20260521dk-logo">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -33,19 +33,25 @@
   <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
     <header class="site-header">
       <div class="brand">
-        <span class="brand__mark" aria-hidden="true">DK</span>
+        <img class="brand__logo" src="/images/dk-locadora-logo.png" alt="DK Locadora" width="140" height="56" decoding="async">
         <div class="brand__text">
           <span class="brand__title">Grupo DK</span>
           <span class="brand__subtitle">Empreendimentos</span>
         </div>
       </div>
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
-      <a href="app.html?instalar=1" class="btn-primary home-baixar-app-btn" id="homeBaixarAppLink">Baixar APP</a>
+      <a href="app.html?instalar=1" class="btn-primary home-baixar-app-btn btn-primary--with-logo" id="homeBaixarAppLink">
+        <img class="btn-app-logo" src="/images/dk-locadora-logo.png" alt="" width="72" height="28" decoding="async" aria-hidden="true">
+        <span>Baixar APP</span>
+      </a>
     </header>
 
     <div id="homeInstallPanel" class="cliente-install-panel hidden" aria-live="polite">
       <p id="homeInstallStatus" class="subtext">Instale o app Grupo DK no telemóvel (Chrome ou Safari).</p>
-      <button type="button" id="homeInstallBtn" class="btn-primary" style="width:100%;max-width:320px;margin:0 auto;display:block">Instalar app agora</button>
+      <button type="button" id="homeInstallBtn" class="btn-primary btn-primary--with-logo" style="width:100%;max-width:320px;margin:0 auto;display:flex">
+        <img class="btn-app-logo" src="/images/dk-locadora-logo.png" alt="" width="72" height="28" decoding="async" aria-hidden="true">
+        <span>Instalar app agora</span>
+      </button>
       <p class="subtext" style="text-align:center;margin-top:0.5rem"><a href="app.html?instalar=1">Abrir página do app</a> · Visitante, Cliente ou Funcionário</p>
     </div>
 
@@ -75,7 +81,7 @@
   <div id="view-locadora-hub" class="view view--locadora-sub" role="region" aria-labelledby="locadora-hub-title" aria-hidden="true">
     <header class="site-header site-header--sub">
       <div class="brand">
-        <span class="brand__mark" aria-hidden="true">DK</span>
+        <img class="brand__logo" src="/images/dk-locadora-logo.png" alt="DK Locadora" width="140" height="56" decoding="async">
         <div class="brand__text">
           <span class="brand__title">DK Locadora</span>
           <span class="brand__subtitle">Grupo DK</span>
