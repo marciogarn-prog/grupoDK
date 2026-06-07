@@ -8643,7 +8643,7 @@ ${printable.innerHTML}
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
         const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
         const status = row.ativo ? "ativo" : "inativo";
-        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}" data-placa="${portalEscapeHtml(row.placa || "")}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
       })
       .join("")}</ul>`;
   }
@@ -8771,6 +8771,29 @@ ${printable.innerHTML}
       if (protosDoCpf.length === 1) inpProto.value = protosDoCpf[0];
     }
 
+    const cpfDigAtual = dig(String(inpCpf?.value || prevCpf)).slice(0, 11);
+    const protoNormAtual = normPortalNumeroContrato(String(inpProto?.value || prevProto).trim());
+    if (source !== "placa" && inpPlaca) {
+      let placaAuto = "";
+      if (protoNormAtual) {
+        const hitProto = filtradas.find((r) => r.proto === protoNormAtual);
+        if (hitProto?.placa) placaAuto = hitProto.placa;
+      }
+      if (!placaAuto && cpfDigAtual.length === 11) {
+        const placasDoCpf = [
+          ...new Set(filtradas.filter((r) => r.cpf === cpfDigAtual).map((r) => r.placa).filter(Boolean)),
+        ];
+        if (placasDoCpf.length === 1) placaAuto = placasDoCpf[0];
+      }
+      if (!placaAuto && filtradas.length === 1 && filtradas[0].placa) {
+        placaAuto = filtradas[0].placa;
+      }
+      if (placaAuto) {
+        inpPlaca.value =
+          typeof normalizePlate === "function" ? normalizePlate(placaAuto) : String(placaAuto).toUpperCase();
+      }
+    }
+
     if (inpCpf && source === "cpf" && typeof formatCpf === "function") {
       const d = dig(inpCpf.value).slice(0, 11);
       inpCpf.value = formatCpf(d);
@@ -8785,18 +8808,24 @@ ${printable.innerHTML}
     refreshOperacaoLancAluguelPesquisaDatalists();
   }
 
-  function aplicarOperacaoLancAluguelPesquisaLinha(cpf, nome, proto) {
+  function aplicarOperacaoLancAluguelPesquisaLinha(cpf, nome, proto, placa) {
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
     const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
     const inpProto = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    const inpPlaca = document.getElementById("operacaoLancAluguelPlacaBusca");
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
     const cpfDigits = dig(String(cpf || ""));
     if (inpCpf && cpfDigits.length === 11 && typeof formatCpf === "function") {
       inpCpf.value = formatCpf(cpfDigits);
     }
     if (inpNome && nome && nome !== "(sem nome)") inpNome.value = String(nome).trim();
     if (inpProto && proto) inpProto.value = String(proto).trim();
+    if (inpPlaca && placa) inpPlaca.value = np(placa);
     refreshOperacaoLancAluguelPesquisaDatalists();
     hideOperacaoLancAluguelDetalhePanels();
   }
@@ -8881,7 +8910,8 @@ ${printable.innerHTML}
     aplicarOperacaoLancAluguelPesquisaLinha(
       hit.cpfDigits,
       resolveOperacaoLancAluguelNomePorCpf(hit.cpfDigits) || String(hit.loc?.nome || hit.loc?.cliente || "").trim(),
-      hit.proto
+      hit.proto,
+      hit.loc?.placa
     );
     if (msg) msg.textContent = "";
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true, preserveNc: hit.proto });
@@ -10321,7 +10351,8 @@ ${printable.innerHTML}
     aplicarOperacaoLancAluguelPesquisaLinha(
       btn.getAttribute("data-cpf"),
       btn.getAttribute("data-nome"),
-      btn.getAttribute("data-proto")
+      btn.getAttribute("data-proto"),
+      btn.getAttribute("data-placa")
     );
   });
 

@@ -984,10 +984,6 @@
       } else if (source === "cpf" && cpfDig.length === 11) {
         const placasDoCpf = [...new Set(filtradas.filter((r) => r.cpf === cpfDig).map((r) => r.placa).filter(Boolean))];
         if (placasDoCpf.length === 1) inpPlaca.value = placasDoCpf[0];
-      } else if (source === "proto" && prevProto) {
-        const protoNorm = normNc(prevProto);
-        const hit = filtradas.find((r) => r.proto === protoNorm);
-        if (hit?.placa) inpPlaca.value = hit.placa;
       }
     }
 
@@ -1002,6 +998,19 @@
       if (protosDaPlaca.length === 1) inpProto.value = protosDaPlaca[0];
     }
 
+    if (source !== "placa" && inpPlaca) {
+      const protoNormPos = normNc(String(inpProto?.value || prevProto).trim());
+      if (protoNormPos) {
+        const hitProto = filtradas.find((r) => r.proto === protoNormPos);
+        if (hitProto?.placa) inpPlaca.value = hitProto.placa;
+      } else if (cpfDig.length === 11) {
+        const placasDoCpf = [...new Set(filtradas.filter((r) => r.cpf === cpfDig).map((r) => r.placa).filter(Boolean))];
+        if (placasDoCpf.length === 1) inpPlaca.value = placasDoCpf[0];
+      } else if (filtradas.length === 1 && filtradas[0].placa) {
+        inpPlaca.value = filtradas[0].placa;
+      }
+    }
+
     if (inpCpf && source === "cpf" && typeof formatCpf === "function") {
       const d = dig(inpCpf.value).slice(0, 11);
       inpCpf.value = formatCpf(d);
@@ -1011,7 +1020,7 @@
       inpPlaca.value = normPlate(inpPlaca.value);
     }
 
-    const protoNorm = normNc(prevProto);
+    const protoNorm = normNc(String(inpProto?.value || prevProto).trim());
     if (protoNorm) {
       const hitProto = filtradas.find((r) => r.proto === protoNorm);
       if (hitProto) preencherCamposDeLinha(cfg, hitProto, "proto");

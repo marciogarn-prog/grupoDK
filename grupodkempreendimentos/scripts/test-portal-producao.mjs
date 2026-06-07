@@ -141,6 +141,12 @@ async function main() {
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
     record(
+      "pesquisa contrato preenche placa automaticamente",
+      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521pesquisa-placa`, { cache: "no-store" }).then((r) =>
+        r.ok ? r.text() : ""
+      )).includes("protoNormAtual") && html.includes("operacaoLancAluguelPlacaBusca")
+    );
+    record(
       "mapa localização clientes (admin)",
       html.includes("btn-locadora-localizacao") &&
         html.includes("panel-localizacao-locadora") &&
