@@ -270,6 +270,60 @@
     return { text: "Ativo", variant: "meu-transporte" };
   }
 
+  function lookupModeloVeiculo(loc) {
+    const direct = String(loc?.marcaModelo || loc?.modelo || "").trim();
+    if (direct) return direct;
+    const placa = String(loc?.placa || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (!placa) return "—";
+    try {
+      const raw = localStorage.getItem("dk_veiculos_cadastro");
+      const veiculos = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(veiculos)) return "—";
+      const v = veiculos.find(
+        (row) =>
+          String(row?.placa || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "") === placa
+      );
+      if (!v) return "—";
+      const modelo = String(v.modelo || "").trim();
+      const marca = String(v.marca || "").trim();
+      if (modelo && marca && !modelo.toUpperCase().includes(marca.toUpperCase())) {
+        return `${marca} ${modelo}`.trim();
+      }
+      return modelo || marca || "—";
+    } catch {
+      return "—";
+    }
+  }
+
+  function computeInvestimentoAcumuladoNum(loc, lancs, tempoDias, valLoc) {
+    const valorDevidoAluguelNum = tempoDias * (valLoc / 7);
+    const valorDevidoManutencaoNum = sumManutencao(loc);
+    const multasRegistradasNum = sumMultasRegistradas(loc);
+    const totalPagoNum = lancs.reduce((a, x) => a + Number(x.valor || 0), 0);
+    return (
+      totalPagoNum - (valorDevidoAluguelNum + multasRegistradasNum + valorDevidoManutencaoNum)
+    );
+  }
+
+  function pickUltimoPagamento(lancs) {
+    if (!lancs?.length) return null;
+    const p = lancs[0];
+    let lancadoPor = "DK Locadora";
+    if (p.confirmadoViaAppCliente) lancadoPor = "Cliente (app)";
+    else if (p.registradoPorNome) lancadoPor = String(p.registradoPorNome).trim();
+    return {
+      data: String(p.data || "").trim() || "—",
+      valor: currencyBRL(p.valor),
+      lancadoPor,
+    };
+  }
+
   function computeResumoContrato(loc) {
     const valLoc = parseCur(loc?.valorLocacao ?? 0);
     const valInv = parseCur(loc?.valorInvestimento ?? 0);
@@ -309,9 +363,17 @@
       return !fim || fim === "...";
     })();
 
+    const planoTipo = inferPlanoContrato(loc);
+    const investimentoAcumuladoNum = computeInvestimentoAcumuladoNum(loc, lancs, tempoDias, valLoc);
+
     return {
       protocolo: normNc(loc.numeroContrato),
       placa: String(loc.placa || "").trim(),
+      modeloVeiculo: lookupModeloVeiculo(loc),
+      valorSemanal: currencyBRL(valLoc + valInv),
+      plano: planoTipo,
+      investimentoAcumulado: currencyBRL(investimentoAcumuladoNum),
+      ultimoPagamento: pickUltimoPagamento(lancs),
       inicio: String(loc.inicio || "").trim(),
       fim: String(loc.fim || "").trim(),
       tempoLocacaoTexto: formatTempoSemanasDias(tempoDias),

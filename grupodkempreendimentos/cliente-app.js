@@ -813,36 +813,34 @@
   function renderContratoCard(loc, cpf, resumoFn) {
     const nc = normNc(loc.numeroContrato);
     const resumo = resumoFn ? resumoFn(loc) : null;
-    const linhasPag = buildLinhasPagamentoContrato(loc, cpf, resumo);
-    const servicosHtml =
-      resumo && Array.isArray(resumo.ultimaRevisaoServicos) && resumo.ultimaRevisaoServicos.length
-        ? `<ul class="cliente-revisao-servicos">${resumo.ultimaRevisaoServicos.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>`
-        : '<p class="subtext cliente-em-breve">Lista de serviços da última revisão — em breve</p>';
 
-    const detalhes = resumo
-      ? `<dl class="cliente-contrato-dl">
-          <div><dt>Data de início</dt><dd>${escapeHtml(resumo.inicio || "—")}</dd></div>
-          <div><dt>Placa</dt><dd>${escapeHtml(resumo.placa || "—")}</dd></div>
-          <div><dt>Valor devido (estimado)</dt><dd>${escapeHtml(resumo.valorDevidoTexto)}</dd></div>
-          <div><dt>Total pago</dt><dd>${escapeHtml(resumo.totalPago)}</dd></div>
-          <div><dt>Tempo de locação</dt><dd>${escapeHtml(resumo.tempoLocacaoTexto)}</dd></div>
-          <div><dt>Gasto com manutenção</dt><dd>${escapeHtml(resumo.gastoManutencao)}</dd></div>
-          <div><dt>Multas registradas</dt><dd>${escapeHtml(resumo.multasRegistradas)}</dd></div>
-          <div><dt>Multas pagas e validadas pela DK</dt><dd class="cliente-em-breve">${escapeHtml(resumo.multasPagasValidadas)}</dd></div>
-          <div><dt>Tempo para concluir o plano</dt><dd>${escapeHtml(resumo.tempoRestantePlano)}</dd></div>
-          <div><dt>Data da última revisão</dt><dd class="cliente-em-breve">${escapeHtml(resumo.ultimaRevisaoData)}</dd></div>
-          <div><dt>Km da última revisão</dt><dd class="cliente-em-breve">${escapeHtml(resumo.ultimaRevisaoKm)}</dd></div>
-        </dl>
-        <h3 class="cliente-subsecao">Última revisão — serviços</h3>
-        ${servicosHtml}`
-      : `<p class="subtext">Resumo do contrato indisponível neste dispositivo.</p>`;
+    let detalhes;
+    if (resumo) {
+      const invRow =
+        resumo.plano === "MINHA_MOTO"
+          ? `<div><dt>Investimento atualizado</dt><dd>${escapeHtml(resumo.investimentoAcumulado)}</dd></div>`
+          : "";
+      const ult = resumo.ultimoPagamento;
+      const ultRows = ult
+        ? `<div><dt>Data do último pagamento</dt><dd>${escapeHtml(ult.data)}</dd></div>
+          <div><dt>Valor do último pagamento</dt><dd>${escapeHtml(ult.valor)}</dd></div>
+          <div><dt>Lançado por</dt><dd>${escapeHtml(ult.lancadoPor)}</dd></div>`
+        : `<div><dt>Último pagamento</dt><dd class="cliente-em-breve">Nenhum pagamento registado</dd></div>`;
 
-    const corpoPag = renderSecaoPagamentos(linhasPag, nc);
+      detalhes = `<dl class="cliente-contrato-dl">
+          <div><dt>Placa e modelo</dt><dd>${escapeHtml(resumo.placa || "—")} · ${escapeHtml(resumo.modeloVeiculo || "—")}</dd></div>
+          <div><dt>Valor do contrato semanal</dt><dd>${escapeHtml(resumo.valorSemanal)}</dd></div>
+          <div><dt>Valor pago</dt><dd>${escapeHtml(resumo.totalPago)}</dd></div>
+          ${invRow}
+          ${ultRows}
+        </dl>`;
+    } else {
+      detalhes = `<p class="subtext">Resumo do contrato indisponível neste dispositivo.</p>`;
+    }
 
     return `<article class="cliente-protocolo">
       <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${renderContratoBadge(resumo)}</div>
       ${detalhes}
-      ${corpoPag}
     </article>`;
   }
 

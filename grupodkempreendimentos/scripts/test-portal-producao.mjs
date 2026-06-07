@@ -479,13 +479,13 @@ async function main() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521badge-tipo`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521contrato-simples`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521badge-tipo`, {
+    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521contrato-simples`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteCss = await fetch(`${BASE_URL}cliente-app.css?v=20260521badge-tipo`, { cache: "no-store" }).then(
+    const clienteCss = await fetch(`${BASE_URL}cliente-app.css?v=20260521contrato-simples`, { cache: "no-store" }).then(
       (r) => r.text()
     );
     record(
@@ -502,6 +502,14 @@ async function main() {
         clienteCss.includes("cliente-badge-contrato--minha-moto") &&
         clienteCss.includes("cliente-badge-contrato--carro"),
       "azul/verde/marrom/vermelho"
+    );
+    record(
+      "app cliente vista provisória contrato simplificada",
+      clienteAppJs.includes("Valor do contrato semanal") &&
+        clienteAppJs.includes("Data do último pagamento") &&
+        clienteResumoJs.includes("investimentoAcumulado") &&
+        clienteResumoJs.includes("pickUltimoPagamento"),
+      "placa, semanal, pago, investimento, último pagamento"
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();

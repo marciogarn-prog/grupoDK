@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <link rel="stylesheet" href="styles.css?v=20260521dk-logo">
-  <link rel="stylesheet" href="cliente-app.css?v=20260521badge-tipo">
+  <link rel="stylesheet" href="cliente-app.css?v=20260521contrato-simples">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Cliente">
   <meta name="description" content="DK Locadora — área do cliente: contratos, pagamentos e envio de comprovantes.">
@@ -167,11 +167,7 @@
 
     <div class="cliente-app-card">
       <h2>Meus contratos</h2>
-      <p class="subtext">Dados do protocolo, pagamentos confirmados pela DK e envios feitos por si no app.</p>
-      <p class="cliente-sync-legenda subtext" aria-label="Legenda de sincronização">
-        <span class="cliente-sync-nuvem--ok">Azul</span>: enviado à nuvem DK.
-        <span class="cliente-sync-nuvem--pendente">Vermelho</span>: registado no telemóvel, ainda não na nuvem.
-      </p>
+      <p class="subtext">Resumo do protocolo, valores e último pagamento registado.</p>
       <div id="cliente-contratos"></div>
     </div>
 
@@ -243,10 +239,10 @@
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
   <script src="portal-supabase-sync.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-notificacoes.js?v=20260522jose-040-fix" defer></script>
-  <script src="cliente-contrato-resumo.js?v=20260521badge-tipo" defer></script>
+  <script src="cliente-contrato-resumo.js?v=20260521contrato-simples" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260522unico" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-app.js?v=20260521badge-tipo" defer></script>
+  <script src="cliente-app.js?v=20260521contrato-simples" defer></script>
 </body>
 </html>
