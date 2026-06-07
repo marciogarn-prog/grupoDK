@@ -532,7 +532,6 @@
       bodyPayload._dkFullReplaceKeys = [
         "dk_comprovantes_cliente_pendentes",
         "dk_cliente_notificacoes",
-        "dk_locacoes_cadastro",
         "dk_lancamentos_aluguel",
         "dk_lancamentos_aluguel_cadastro",
         "dk_comprovantes_banco_assinaturas",
