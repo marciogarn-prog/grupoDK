@@ -11887,11 +11887,24 @@ ${printable.innerHTML}
       const clientes = loadCadastro(CAD_CLIENTES_KEY);
       const veiculos = loadCadastro(CAD_VEICULOS_KEY);
       const locacoes = loadCadastro(CAD_LOCACOES_KEY);
-      await Promise.all([
-        dkPortalPushToApi("cadastro-clientes", Array.isArray(clientes) ? clientes : []),
-        dkPortalPushToApi("cadastro-veiculos", Array.isArray(veiculos) ? veiculos : []),
-        dkPortalPushToApi("cadastro-locacoes", Array.isArray(locacoes) ? locacoes : []),
-      ]);
+      const clientesArr = Array.isArray(clientes) ? clientes : [];
+      const veiculosArr = Array.isArray(veiculos) ? veiculos : [];
+      const locacoesArr = Array.isArray(locacoes) ? locacoes : [];
+      const isDemo = window.__DK_IS_DEMO_DEPLOY__ === true;
+      if (isDemo && !clientesArr.length && !veiculosArr.length && !locacoesArr.length) {
+        return;
+      }
+      const apiTasks = [];
+      if (!isDemo || clientesArr.length) {
+        apiTasks.push(dkPortalPushToApi("cadastro-clientes", clientesArr));
+      }
+      if (!isDemo || veiculosArr.length) {
+        apiTasks.push(dkPortalPushToApi("cadastro-veiculos", veiculosArr));
+      }
+      if (!isDemo || locacoesArr.length) {
+        apiTasks.push(dkPortalPushToApi("cadastro-locacoes", locacoesArr));
+      }
+      if (apiTasks.length) await Promise.all(apiTasks);
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
         await window.__DK_pushCloudSnapshotNow();
       }

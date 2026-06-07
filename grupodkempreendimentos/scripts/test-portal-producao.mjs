@@ -301,9 +301,9 @@ async function runSuite() {
         demoUi.snapshotLabel === "demo",
         `label=${demoUi.snapshotLabel}`
       );
-      const cloudDemo = await fetch(`${BASE_URL}api/dk-cloud-snapshot?channel=demo`, { cache: "no-store" }).then(
-        (r) => (r.ok ? r.json() : {})
-      );
+      const cloudDemo = await fetch("https://grupodkempreendimentos.com.br/api/dk-cloud-snapshot?channel=demo", {
+        cache: "no-store",
+      }).then((r) => (r.ok ? r.json() : {}));
       const pDemo = cloudDemo.payload || {};
       record(
         "demo: nuvem com clientes veículos e locações",
