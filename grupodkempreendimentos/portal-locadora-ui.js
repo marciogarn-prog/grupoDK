@@ -6746,7 +6746,7 @@ ${printable.innerHTML}
 
   const OPERACAO_LANC_ALUGUEL_SUB_LEADS = {
     avulso:
-      "1 — Avulso: pesquise CPF, nome, protocolo ou placa; informe data e valor (Pix + espécie + cartão) e salve o lançamento.",
+      "Pesquise o contrato, confirme e registe data + valor. Use «Lançamento em bloco» para o relatório em calendário (2025, 2026…).",
     comprovante:
       "2 — Com comprovante: pesquise o contrato, cole o comprovante; a IA valida destino DK e o operador confirma.",
     validacao:
@@ -7166,6 +7166,7 @@ ${printable.innerHTML}
     "operacaoLancAluguelValorEspecie",
     "operacaoLancAluguelValorPix",
     "operacaoLancAluguelValorCartao",
+    "operacaoLancAluguelValorSimples",
     "operacaoLancMultasValorMulta",
     "operacaoLancManutencaoValorManutencao",
     "portalLancAluguelEditValor",
@@ -9066,20 +9067,53 @@ ${printable.innerHTML}
     else out.value = "";
   }
 
+  function refreshOperacaoLancAluguelResumoCompacto() {
+    const box = document.getElementById("operacaoLancAluguelResumoCompacto");
+    const txt = document.getElementById("operacaoLancAluguelResumoTexto");
+    const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
+    if (!box || !txt || !nc || cpf.length !== 11) {
+      box?.classList.add("hidden");
+      return;
+    }
+    const nome = resolveOperacaoLancAluguelNomePorCpf(cpf);
+    const placa = String(document.getElementById("operacaoLancAluguelPlaca")?.value || "").trim() || "—";
+    const cpfFmt = typeof formatCpf === "function" ? formatCpf(cpf) : cpf;
+    txt.textContent = `${nome || "Cliente"} · CPF ${cpfFmt} · Protocolo ${nc} · Placa ${placa}`;
+    box.classList.remove("hidden");
+  }
+
+  function preencherLancAluguelFormSimples() {
+    const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
+    const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
+    if (dataEl) dataEl.value = formatPortalDataBr(new Date());
+    const valContrato = String(document.getElementById("operacaoLancAluguelValorAluguel")?.value || "").trim();
+    if (valSimples && valContrato) valSimples.value = valContrato;
+    if (typeof normalizePortalMaskedFieldValues === "function") normalizePortalMaskedFieldValues();
+  }
+
   function setOperacaoLancAluguelDetalhePanelsVisible(visible) {
     ["operacaoLancAluguelReferenciaPanel", "operacaoLancAluguelContratoPanel"].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.classList.toggle("hidden", !visible);
-      if (visible) el.removeAttribute("hidden");
-      else el.setAttribute("hidden", "");
+      el.classList.add("hidden");
+      el.setAttribute("hidden", "");
     });
+    const resumo = document.getElementById("operacaoLancAluguelResumoCompacto");
     const pag = document.getElementById("operacaoLancAluguelPagamentoPanel");
+    const showPag = visible && operacaoLancAluguelSubAtivo === "avulso";
+    if (resumo) {
+      resumo.classList.toggle("hidden", !showPag);
+      if (showPag) {
+        refreshOperacaoLancAluguelResumoCompacto();
+        resumo.removeAttribute("hidden");
+      } else resumo.setAttribute("hidden", "");
+    }
     if (pag) {
-      const showPag = visible && operacaoLancAluguelSubAtivo === "avulso";
       pag.classList.toggle("hidden", !showPag);
-      if (showPag) pag.removeAttribute("hidden");
-      else pag.setAttribute("hidden", "");
+      if (showPag) {
+        pag.removeAttribute("hidden");
+        preencherLancAluguelFormSimples();
+      } else pag.setAttribute("hidden", "");
     }
     syncPortalOperadorComprovanteSection();
   }
@@ -9555,6 +9589,7 @@ ${printable.innerHTML}
       "operacaoLancAluguelValorEspecie",
       "operacaoLancAluguelValorPix",
       "operacaoLancAluguelValorCartao",
+      "operacaoLancAluguelValorSimples",
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
@@ -9621,12 +9656,66 @@ ${printable.innerHTML}
       if (resumo.investimentoAcumuladoNeg) invEl.classList.add("portal-investimento-acumulado--negativo");
       else if (resumo.investimentoAcumuladoPos) invEl.classList.add("portal-investimento-acumulado--positivo");
     }
-    ["operacaoLancAluguelValorEspecie", "operacaoLancAluguelValorPix", "operacaoLancAluguelValorCartao", "operacaoLancAluguelValorPago", "operacaoLancAluguelDataPagamento"].forEach((id) => {
+    ["operacaoLancAluguelValorEspecie", "operacaoLancAluguelValorPix", "operacaoLancAluguelValorCartao", "operacaoLancAluguelValorPago", "operacaoLancAluguelDataPagamento", "operacaoLancAluguelValorSimples"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
     syncOperacaoLancAluguelValorPagoFromMeios();
+    preencherLancAluguelFormSimples();
     refreshOperacaoLancAluguelAdminControlsVisibility();
+  }
+
+  function portalIsoParaDataBr(iso) {
+    const m = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!m) return "";
+    return `${m[3]}/${m[2]}/${m[1]}`;
+  }
+
+  function persistPortalLancAluguelCalendarioAno(cpfDigits, ncNorm, ano, celulasMap) {
+    if (!getPortalSessaoAdminRole()) return false;
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const nc = normPortalNumeroContrato(ncNorm);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const idx = locs.findIndex(
+      (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (idx === -1) return false;
+    const loc = locs[idx];
+    materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+    const reg = getPortalSessaoParaRegistroLancamentoAluguel();
+    const arr = loc.portalLancamentosAluguel || [];
+    const manter = arr.filter((x) => {
+      const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
+      if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) return true;
+      if (x.origemComprovanteClienteId || x.confirmadoViaAppCliente) return true;
+      return false;
+    });
+    if (celulasMap && typeof celulasMap.forEach === "function") {
+      celulasMap.forEach((val, iso) => {
+        const v = Number(val) || 0;
+        if (v <= 0) return;
+        if (!String(iso).startsWith(String(ano))) return;
+        const dataStr = portalIsoParaDataBr(iso);
+        if (!dataStr) return;
+        manter.push({
+          data: dataStr,
+          valor: v,
+          valorEspecie: v,
+          valorPix: 0,
+          valorCartao: 0,
+          createdAt: Date.now(),
+          registradoPorCpf: reg?.cpf || "",
+          registradoPorNome: reg?.nome || "",
+          ficticio: portalRegistroEhTeste(loc),
+        });
+      });
+    }
+    loc.portalLancamentosAluguel = manter;
+    return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
@@ -9828,47 +9917,9 @@ ${printable.innerHTML}
   function renderOperacaoLancAluguelHistorico() {
     const wrap = document.getElementById("operacaoLancAluguelHistorico");
     if (!wrap) return;
-    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
-    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
-    const dig =
-      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const digits = dig(String(inpCpf?.value || ""));
-    const proto = normPortalNumeroContrato(sel?.value || "");
-    const owner = isPortalTitularAdministrador();
-    if (digits.length !== 11 || !proto || !sel || sel.disabled) {
-      wrap.classList.add("hidden");
-      wrap.replaceChildren();
-      return;
-    }
-    wrap.classList.remove("hidden");
-    const loc = collectPortalLocacoesComProtocoloByCpf(digits).find(
-      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
-    );
-    const locTeste = portalRegistroEhTeste(loc);
-    const arr = loc ? getPortalLancamentosAluguelDoContrato(loc) : [];
-    if (!arr.length) {
-      wrap.innerHTML =
-        '<p class="subtext">Nenhum pagamento registado neste protocolo.</p>';
-      return;
-    }
-    const thead = owner
-      ? "<thead><tr><th>Data</th><th>Valor (R$)</th><th>Ações</th></tr></thead>"
-      : "<thead><tr><th>Data</th><th>Valor (R$)</th></tr></thead>";
-    const rows = arr
-      .map((x, i) => {
-        const v = formatPortalLancamentoSumBrl(x.valor);
-        const d = portalEscapeHtml(String(x.data || ""));
-        const vv = portalEscapeHtml(v);
-        const ficticio = locTeste || x.ficticio;
-        const tag = ficticio ? '<span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
-        const trCls = ficticio ? ' class="portal-registro-teste"' : "";
-        if (owner) {
-          return `<tr${trCls}><td>${d}${tag}</td><td>${vv}</td><td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-edit="${i}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-del="${i}">Apagar</button></td></tr>`;
-        }
-        return `<tr${trCls}><td>${d}${tag}</td><td>${vv}</td></tr>`;
-      })
-      .join("");
-    wrap.innerHTML = `<p class="subtext operacao-inline-form__lead" style="margin-bottom:0.5rem"><strong>Pagamentos registados</strong></p><table class="portal-lanc-hist" aria-label="Histórico de pagamentos do protocolo">${thead}<tbody>${rows}</tbody></table>`;
+    wrap.classList.add("hidden");
+    wrap.setAttribute("hidden", "");
+    wrap.replaceChildren();
   }
 
   function refreshOperacaoLancAluguelAdminControlsVisibility() {
@@ -9999,6 +10050,7 @@ ${printable.innerHTML}
     const loc = collectPortalLocacoesComProtocoloByCpf(digits).find((l) => normPortalNumeroContrato(l.numeroContrato) === want);
     if (loc) applyOperacaoLancamentoAluguelFromLoc(loc);
     syncPortalOperadorComprovanteSection();
+    refreshOperacaoLancAluguelResumoCompacto();
   }
 
   function syncOperacaoLancamentoAluguelAfterCpfEdit() {
@@ -11108,7 +11160,9 @@ ${printable.innerHTML}
 
   document.getElementById("operacaoLancAluguelLimparBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    clearOperacaoLancamentoAluguelForm({ voltarPesquisa: true });
+    preencherLancAluguelFormSimples();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
   });
 
   document.getElementById("portalAdminAlteracaoConfirmSimBtn")?.addEventListener("click", () => {
@@ -11278,10 +11332,7 @@ ${printable.innerHTML}
     e.preventDefault();
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
-    const inpValor = document.getElementById("operacaoLancAluguelValorPago");
-    const inpEsp = document.getElementById("operacaoLancAluguelValorEspecie");
-    const inpPix = document.getElementById("operacaoLancAluguelValorPix");
-    const inpCart = document.getElementById("operacaoLancAluguelValorCartao");
+    const inpValorSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (!getPortalSessaoAdminRole()) {
@@ -11302,18 +11353,14 @@ ${printable.innerHTML}
             const n = Number(cleaned);
             return Number.isFinite(n) ? n : 0;
           };
-    syncOperacaoLancAluguelValorPagoFromMeios();
-    const ve = Number(parseVal(String(inpEsp?.value || "")));
-    const vp = Number(parseVal(String(inpPix?.value || "")));
-    const vc = Number(parseVal(String(inpCart?.value || "")));
-    const valorNum = ve + vp + vc;
+    const valorNum = Number(parseVal(String(inpValorSimples?.value || "")));
     const dataStr = String(inpData?.value || "").trim();
     if (digits.length !== 11 || !proto) {
       if (msg) msg.textContent = "Informe CPF e protocolo com locação.";
       return;
     }
     if (!Number.isFinite(valorNum) || valorNum <= 0) {
-      if (msg) msg.textContent = "Informe valores em espécie, Pix e/ou cartão (a soma é o valor pago).";
+      if (msg) msg.textContent = "Informe o valor do pagamento.";
       return;
     }
     const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
@@ -11325,7 +11372,7 @@ ${printable.innerHTML}
     const nome =
       typeof findClienteByCpfCadastro === "function"
         ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
-        : "";
+        : resolveOperacaoLancAluguelNomePorCpf(digits);
     const nomeExibir = nome || "—";
     const cpfFmt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
     const valorFmt =
@@ -11335,21 +11382,17 @@ ${printable.innerHTML}
     const texto = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
       const ok = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
-        valorEspecie: ve,
-        valorPix: vp,
-        valorCartao: vc,
+        valorEspecie: valorNum,
+        valorPix: 0,
+        valorCartao: 0,
       });
       if (ok) {
-        if (msg) msg.textContent = "Pagamento registado. O total em «Cadastro de locação» foi atualizado.";
-        if (inpEsp) inpEsp.value = "";
-        if (inpPix) inpPix.value = "";
-        if (inpCart) inpCart.value = "";
-        if (inpValor) inpValor.value = "";
-        if (inpData) inpData.value = "";
+        if (msg) msg.textContent = "Pagamento registado. Consulte «Lançamento em bloco» para ver o calendário.";
         const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
           (l) => normPortalNumeroContrato(l.numeroContrato) === proto
         );
         if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
+        refreshOperacaoLancAluguelResumoCompacto();
       } else if (msg) {
         msg.textContent = !getPortalSessaoAdminRole()
           ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
@@ -11924,5 +11967,25 @@ ${printable.innerHTML}
 
   window.__DK_emitPortalRelatorioPdf = emitPortalRelatorioPdf;
   window.__DK_emitPortalRelatorioExcel = emitPortalRelatorioExcel;
+  window.__DK_portalLancAluguelCalCtx = () => {
+    const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
+    return { cpfDigits: cpf, proto: nc };
+  };
+  window.__DK_getPortalLancamentosAluguelContrato = (cpfDigits, proto) => {
+    const loc = collectPortalLocacoesComProtocoloByCpf(cpfDigits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === normPortalNumeroContrato(proto)
+    );
+    return loc ? getPortalLancamentosAluguelDoContrato(loc) : [];
+  };
+  window.__DK_persistPortalLancAluguelCalendarioAno = persistPortalLancAluguelCalendarioAno;
+  window.__DK_refreshOperacaoLancAluguelAposPagamento = () => {
+    const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
+    if (!nc || cpf.length !== 11) return;
+    const loc = collectPortalLocacoesComProtocoloByCpf(cpf).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === nc
+    );
+    if (loc) applyOperacaoLancamentoAluguelFromLoc(loc);
+    refreshOperacaoLancAluguelResumoCompacto();
+  };
 })();
 

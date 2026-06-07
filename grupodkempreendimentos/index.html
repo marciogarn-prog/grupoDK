@@ -924,7 +924,6 @@
               </div>
             </section>
             <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
-              <h4 id="portal-lanc-aluguel-referencia-title" class="portal-lanc-aluguel-section__title">Situação do protocolo / contrato</h4>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
                 <div class="portal-lanc-ref-row-top">
                   <label class="portal-field portal-lanc-ref-proto">
@@ -992,42 +991,39 @@
           </div>
 
           <div id="operacaoLancAluguelPaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento avulso pelo operador">
-            <h4 class="portal-lanc-aluguel-section__title">Lançamento avulso (operador)</h4>
-            <p class="subtext">Com o protocolo confirmado acima, informe a <strong>data do pagamento</strong> e o valor (espécie + Pix + cartão = total). Depois clique em <strong>Salvar lançamento</strong>.</p>
+            <section id="operacaoLancAluguelResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" aria-live="polite">
+              <p id="operacaoLancAluguelResumoTexto" class="portal-lanc-aluguel-resumo-compact__text"></p>
+            </section>
             <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
-            <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento hidden" aria-labelledby="portal-lanc-aluguel-pagamento-title" hidden>
+            <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento portal-lanc-aluguel-pagamento--simples hidden" aria-labelledby="portal-lanc-aluguel-pagamento-title" hidden>
               <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
-              <div class="operacao-inline-form__grid">
-                <label class="portal-field">
-                  <span>VALOR PAGO (total)</span>
-                  <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" maxlength="32" readonly tabindex="-1" inputmode="none" placeholder="R$ 0,00" aria-label="VALOR PAGO (soma espécie + Pix + cartão)">
-                </label>
+              <div class="operacao-inline-form__grid portal-lanc-aluguel-pagamento-simples__grid">
                 <label class="portal-field">
                   <span>DATA DO PAGAMENTO</span>
                   <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
                 </label>
                 <label class="portal-field">
-                  <span>Pagamento em espécie</span>
-                  <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Pagamento em espécie">
+                  <span>VALOR (R$)</span>
+                  <input type="text" id="operacaoLancAluguelValorSimples" name="valorSimples" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento">
                 </label>
-                <label class="portal-field">
-                  <span>Pagamento em Pix</span>
-                  <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Pagamento em Pix">
-                </label>
-                <label class="portal-field">
-                  <span>Pagamento em cartão</span>
-                  <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Pagamento em cartão">
-                </label>
-                <div class="operacao-inline-form__actions">
-                  <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Salvar lançamento</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar pagamento</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar à pesquisa</button>
-                </div>
+              </div>
+              <div class="operacao-inline-form__actions">
+                <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLancBlocoBtn">Lançamento em bloco</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar à pesquisa</button>
+              </div>
+              <!-- Campos legados (compatibilidade interna) -->
+              <div class="hidden" aria-hidden="true">
+                <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" tabindex="-1">
+                <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" tabindex="-1">
+                <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" tabindex="-1">
+                <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" tabindex="-1">
               </div>
             </section>
           </form>
-          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo"></div>
-          <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note">
+          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo" hidden></div>
+          <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note" hidden>
             Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
           </p>
           </div>
@@ -1950,6 +1946,21 @@
     </div>
   </div>
 
+  <div id="portalLancAluguelCalModal" class="portal-modal portal-lanc-cal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelCalTitulo">
+    <div class="portal-modal__backdrop" id="portalLancAluguelCalModalBackdrop"></div>
+    <div class="portal-modal__card portal-lanc-cal-modal__card">
+      <h3 id="portalLancAluguelCalTitulo" class="portal-modal__title">Relatório de pagamentos</h3>
+      <p id="portalLancAluguelCalMsg" class="portal-feedback" role="status"></p>
+      <div id="portalLancAluguelCalAnoPick" class="portal-lanc-cal-ano-pick" role="group" aria-label="Escolher ano"></div>
+      <div id="portalLancAluguelCalCorpo" class="portal-lanc-cal-corpo hidden"></div>
+      <div class="portal-modal__actions portal-lanc-cal-modal__actions">
+        <button type="button" class="btn-primary" id="portalLancAluguelCalSalvarBtn">Salvar lançamentos do ano</button>
+        <button type="button" class="btn-primary btn-secondary-outline hidden" id="portalLancAluguelCalVoltarAnosBtn">Escolher outro ano</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalLancAluguelCalFecharBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
 
   <div id="portalMultasRelatorioModal" class="portal-modal portal-multas-relatorio-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMultasRelatorioTitulo">
     <div class="portal-modal__backdrop" data-close-multas-relatorio></div>
@@ -2006,7 +2017,8 @@
   <script src="app.js?v=20260607virgem" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521lanc-avulso" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521lanc-calendario" defer></script>
+  <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-calendario" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>

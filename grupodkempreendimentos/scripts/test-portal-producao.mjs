@@ -67,9 +67,17 @@ async function main() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
+      "lançamento aluguel calendário anual (bloco + modal)",
+      htmlLancAluguel.includes("operacaoLancAluguelValorSimples") &&
+        htmlLancAluguel.includes("operacaoLancAluguelLancBlocoBtn") &&
+        htmlLancAluguel.includes("portalLancAluguelCalModal") &&
+        htmlLancAluguel.includes("portal-lanc-aluguel-calendario.js")
+    );
+    record(
       "lançamento aluguel só avulso (flag JS)",
       portalUiLancJs.includes("OPERACAO_LANC_ALUGUEL_SUB_ATIVOS") &&
-        portalUiLancJs.includes('new Set(["avulso"])')
+        portalUiLancJs.includes('new Set(["avulso"])') &&
+        portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno")
     );
     record(
       "PDF partilhar e-mail WhatsApp",
