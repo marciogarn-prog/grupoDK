@@ -200,16 +200,19 @@ function mergePayloads(existing, incoming) {
     ? incoming._dkFullReplaceKeys.filter((k) => typeof k === "string")
     : [];
   const out = { ...existing, ...incoming };
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_locacoes_cadastro") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_locacoes_cadastro")
+  ) {
+    out.dk_locacoes_cadastro = mergeLocacoesCadastroArrays(
+      existing.dk_locacoes_cadastro,
+      incoming.dk_locacoes_cadastro
+    );
+  }
   for (const k of fullReplaceKeys) {
     if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
-    if (k === "dk_locacoes_cadastro") {
-      out.dk_locacoes_cadastro = mergeLocacoesCadastroArrays(
-        existing.dk_locacoes_cadastro,
-        incoming.dk_locacoes_cadastro
-      );
-    } else {
-      out[k] = incoming[k];
-    }
+    if (k === "dk_locacoes_cadastro") continue;
+    out[k] = incoming[k];
   }
   if (
     !fullReplaceKeys.includes("dk_comprovantes_cliente_pendentes") &&
