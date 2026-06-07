@@ -113,7 +113,8 @@ async function main() {
         indexFresh.includes("operacaoVeiculoAmbienteWrap") &&
         indexFresh.includes("operacaoLocacaoAmbienteWrap") &&
         indexFresh.includes("operacaoLocacaoApagarProtocoloBtn") &&
-        indexFresh.includes("portal-registro-teste")
+        indexFresh.includes('value="teste"') &&
+        indexFresh.includes("cadastro-ambiente-teste")
     );
     record(
       "API dk-cliente-geo responde JSON",
