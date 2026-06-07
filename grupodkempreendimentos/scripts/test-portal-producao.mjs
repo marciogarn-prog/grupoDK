@@ -74,13 +74,17 @@ async function runSuite() {
     });
     record("modo cadastro manual ativo", storageInicial.manual === "1", `manual=${storageInicial.manual}`);
     record(
-      "instalação limpa aplicada no browser",
-      storageInicial.instalacaoLimpa === "done",
+      IS_DEMO_TEST ? "demo: instalação limpa não aplicada" : "instalação limpa aplicada no browser",
+      IS_DEMO_TEST
+        ? storageInicial.instalacaoLimpa !== "done"
+        : storageInicial.instalacaoLimpa === "done",
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      "cadastros vazios após instalação limpa",
-      storageInicial.clientes === 0 && storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "cadastros vazios após instalação limpa",
+      IS_DEMO_TEST
+        ? storageInicial.clientes >= 300 && storageInicial.veiculos >= 150
+        : storageInicial.clientes === 0 && storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
@@ -88,7 +92,13 @@ async function runSuite() {
     const portalUiVer = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
     const appJsVer = html.match(/app\.js\?v=([^"]+)/)?.[1] || "";
     const patrimonioJsVer = html.match(/portal-patrimonio\.js\?v=([^"]+)/)?.[1] || "";
-    record("HTML com instalação limpa (sem Excel)", html.includes("virgem") && html.includes("dk-banco-cadastro-vazio"), "scripts");
+    record(
+      IS_DEMO_TEST ? "HTML demo com banco planilha completo" : "HTML com instalação limpa (sem Excel)",
+      IS_DEMO_TEST
+        ? html.includes("dk-banco-cadastro.js") && html.includes("demo-cadastros")
+        : html.includes("virgem") && html.includes("dk-banco-cadastro-vazio"),
+      "scripts"
+    );
     const cacheOk =
       html.includes("virgem") ||
       html.includes("instalacao-limpa") ||

@@ -61,6 +61,11 @@
       document.title = `[DEMO] ${baseTitle}`;
     }
     requestAnimationFrame(syncDemoBannerLayout);
+    const lead = document.getElementById("operacaoClienteLead");
+    if (lead) {
+      lead.textContent =
+        "Preencha abaixo. Ambiente demo — 307 clientes e 165 veículos (planilha + nuvem).";
+    }
   }
 
   window.__DK_syncDemoBannerLayout = syncDemoBannerLayout;

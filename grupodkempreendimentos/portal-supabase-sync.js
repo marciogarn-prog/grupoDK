@@ -85,6 +85,48 @@
     return autoPullFromCloudOnStartup();
   }
 
+  function demoNeedsCloudCadastroBootstrap() {
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true) return false;
+    let c = 0;
+    let v = 0;
+    let l = 0;
+    try {
+      const rawC = localStorage.getItem("dk_clientes_cadastro");
+      const rawV = localStorage.getItem("dk_veiculos_cadastro");
+      const rawL = localStorage.getItem("dk_locacoes_cadastro");
+      if (rawC) c = (JSON.parse(rawC) || []).length;
+      if (rawV) v = (JSON.parse(rawV) || []).length;
+      if (rawL) l = (JSON.parse(rawL) || []).length;
+    } catch {
+      /* ignore */
+    }
+    return c === 0 || v === 0 || l === 0;
+  }
+
+  async function bootstrapDemoCadastrosFromCloudIfEmpty() {
+    if (!demoNeedsCloudCadastroBootstrap()) {
+      return { ok: true, skipped: true, reason: "demo_cadastros_ok" };
+    }
+    const data = await fetchCloudSnapshotPayload();
+    if (!data?.payload) return { ok: false, reason: "no_cloud" };
+    const p = data.payload;
+    const hasData =
+      (p.dk_clientes_cadastro || []).length > 0 ||
+      (p.dk_veiculos_cadastro || []).length > 0 ||
+      (p.dk_locacoes_cadastro || []).length > 0;
+    if (!hasData) return { ok: false, reason: "cloud_empty" };
+    suppressCloudHook = true;
+    try {
+      applyPayloadToLocalStorage(data.payload, { replace: false, lightSanitize: true });
+    } finally {
+      suppressCloudHook = false;
+    }
+    if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+      window.__DK_portalRefreshOperacaoLocal();
+    }
+    return { ok: true, applied: true, source: data.source || "cloud" };
+  }
+
   function markLocalDataAuthority(ms = DK_LOCAL_AUTHORITY_MS) {
     try {
       sessionStorage.setItem(DK_LOCAL_AUTHORITY_KEY, String(Date.now() + ms));
@@ -1763,8 +1805,9 @@
     if (isLocalDataAuthorityActive()) {
       return { ok: true, skipped: true, reason: "local_authority" };
     }
+    const forceDemoBootstrap = demoNeedsCloudCadastroBootstrap();
     const now = Date.now();
-    if (now - backgroundPullLastAt < BACKGROUND_PULL_MIN_INTERVAL_MS) {
+    if (!forceDemoBootstrap && now - backgroundPullLastAt < BACKGROUND_PULL_MIN_INTERVAL_MS) {
       return backgroundPullInFlight || { ok: true, skipped: true, reason: "throttled" };
     }
     if (backgroundPullInFlight) return backgroundPullInFlight;
@@ -1809,6 +1852,7 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_bootstrapDemoCadastrosFromCloud = bootstrapDemoCadastrosFromCloudIfEmpty;
   } catch {
     /* ignore */
   }
@@ -2063,8 +2107,15 @@
   }
 
   function autoPullFromCloudOnStartup() {
+    if (isLocalDataAuthorityActive()) return;
+    if (window.__DK_IS_DEMO_DEPLOY__ === true) {
+      return bootstrapDemoCadastrosFromCloudIfEmpty().catch((e) => {
+        console.warn("[DK cloud] demo bootstrap", e);
+        return { ok: false, error: e };
+      });
+    }
     const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client || isLocalDataAuthorityActive()) return;
+    if (!client) return;
     try {
       sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
     } catch {

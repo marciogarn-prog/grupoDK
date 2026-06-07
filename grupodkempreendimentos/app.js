@@ -520,6 +520,7 @@ function enableCadastroManualPortalMode() {
 }
 
 function applyInstalacaoLimpaOnce() {
+  if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
   if (localStorage.getItem(INSTALACAO_LIMPA_V1_KEY) === "done") return;
   const bypass = { bypassImmutabilidadeCadastro: true };
   [
@@ -3371,6 +3372,33 @@ function bootstrapFromDkBancoCadastroOnce() {
     localStorage.setItem("dk_financeiro_2026_imported_v1", "1");
   } catch (e) {
     console.warn("[DK] bootstrapFromDkBancoCadastroOnce", e);
+  }
+}
+
+/** Demo: planilha completa no bundle + nuvem — preenche localStorage se ainda vazio. */
+function bootstrapDemoCadastrosIfEmpty() {
+  if (window.__DK_IS_DEMO_DEPLOY__ !== true) return;
+  const banco =
+    typeof window !== "undefined" && window.DK_BANCO_CADASTRO && typeof window.DK_BANCO_CADASTRO === "object"
+      ? window.DK_BANCO_CADASTRO
+      : null;
+  if (!banco) return;
+  const veiculos = Array.isArray(banco.veiculos) ? banco.veiculos : [];
+  const clientes = Array.isArray(banco.clientes) ? banco.clientes : [];
+  if (!veiculos.length && !clientes.length) return;
+  const bypass = { bypassImmutabilidadeCadastro: true };
+  if (!loadCadastro(CAD_VEICULOS_KEY).length && veiculos.length) {
+    saveCadastro(CAD_VEICULOS_KEY, veiculos, bypass);
+  }
+  if (!loadCadastro(CAD_CLIENTES_KEY).length && clientes.length) {
+    saveCadastro(CAD_CLIENTES_KEY, clientes, bypass);
+  }
+  if (veiculos.length || clientes.length) {
+    try {
+      localStorage.setItem("dk_banco_cadastro_embedded_v1", "1");
+    } catch {
+      /* ignore */
+    }
   }
 }
 
@@ -15800,6 +15828,7 @@ if (window.location.protocol === "file:") {
 resetProjetoSomenteCadastrosV3Once();
 enableCadastroManualPortalMode();
 applyInstalacaoLimpaOnce();
+bootstrapDemoCadastrosIfEmpty();
 if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
   window.__DK_purgeOficialLocalCadastrosAntigos();
 }

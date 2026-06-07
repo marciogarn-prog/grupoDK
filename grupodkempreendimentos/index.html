@@ -27,7 +27,7 @@
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
   <link rel="stylesheet" href="styles.css?v=20260521demo-oficial-cadastro-ambiente-teste">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
-  <script src="dk-deploy-channel.js?v=20260607oficial-guard"></script>
+  <script src="dk-deploy-channel.js?v=20260608demo-cadastros"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -397,7 +397,7 @@
 
         <div id="operacaoInlineCliente" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-cliente-title">
           <h3 id="operacao-inline-cliente-title" class="operacao-inline-form__title">Dados do cliente</h3>
-          <p class="subtext operacao-inline-form__lead">Preencha abaixo. Em ambiente de teste os dados ficam só neste navegador (rascunho).</p>
+          <p class="subtext operacao-inline-form__lead" id="operacaoClienteLead">Preencha abaixo. Em ambiente de teste os dados ficam só neste navegador (rascunho).</p>
           <form id="formOperacaoClienteInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Cód.</span>
@@ -2018,9 +2018,17 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260531force" defer></script>
-  <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
+  <script>
+    (function () {
+      var src =
+        window.__DK_IS_DEMO_DEPLOY__ === true
+          ? "data/dk-banco-cadastro.js?v=20260608demo-cadastros"
+          : "data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa";
+      document.write('<script src="' + src + '"><\/script>');
+    })();
+  </script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260607virgem" defer></script>
+  <script src="app.js?v=20260608demo-cadastros" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260607demo-no-shrink" defer></script>
@@ -2031,7 +2039,7 @@
   <script src="portal-patrimonio.js?v=20260521fila-zero-pendente" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260521pesquisa-placa" defer></script>
-  <script src="portal-supabase-sync.js?v=20260607demo-no-shrink" defer></script>
+  <script src="portal-supabase-sync.js?v=20260608demo-cadastros" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522extrair-ia-operador" defer></script>
 </body>
 </html>
