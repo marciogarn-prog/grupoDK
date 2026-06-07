@@ -1512,6 +1512,68 @@ body {
   font-size: 0.88rem;
 }
 
+/* Cadastro ambiente teste (admin) — texto amarelo após gravação */
+.portal-ambiente-admin {
+  border: 1px dashed rgba(245, 197, 24, 0.45);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: rgba(245, 197, 24, 0.06);
+}
+
+.portal-ambiente-opcoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  margin-top: 0.35rem;
+}
+
+.portal-ambiente-opcoes label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  font-size: 0.95rem;
+}
+
+.portal-ambiente-hint {
+  margin: 0.45rem 0 0;
+  font-size: 0.82rem;
+  opacity: 0.92;
+}
+
+.portal-registro-teste,
+.portal-registro-teste input:not([type="radio"]):not([type="checkbox"]),
+.portal-registro-teste select,
+.portal-registro-teste textarea,
+.portal-registro-teste .portal-field > span,
+.portal-registro-teste .operacao-inline-form__title,
+.portal-registro-teste p,
+.portal-registro-teste strong,
+.portal-registro-teste label,
+.portal-registro-teste .operacao-veiculo-resumo-card__linha,
+.portal-registro-teste .operacao-veiculo-resumo-card__status,
+.operacao-veiculo-resumo-card--teste,
+.operacao-veiculo-resumo-card--teste .operacao-veiculo-resumo-card__linha,
+.operacao-veiculo-resumo-card--teste .operacao-veiculo-resumo-card__status,
+.portal-lanc-hist tr.portal-registro-teste td {
+  color: #f5c518 !important;
+}
+
+.portal-lanc-hist tr.portal-registro-teste td::after {
+  content: none;
+}
+
+.portal-lanc-hist .portal-lanc-ficticio-tag {
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: 0.35rem;
+  color: #f5c518 !important;
+}
+
+.portal-lanc-aluguel-form.portal-registro-teste .portal-lanc-aluguel-section__title {
+  color: #f5c518 !important;
+}
+
 .portal-lanc-aluguel-form {
   display: flex;
   flex-direction: column;

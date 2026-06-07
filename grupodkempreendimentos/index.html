@@ -461,6 +461,14 @@
               <span>Endereço</span>
               <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
             </label>
+            <div id="operacaoClienteAmbienteWrap" class="portal-field portal-field--wide portal-ambiente-admin hidden" role="group" aria-label="Ambiente do cadastro">
+              <span>Ambiente do cadastro</span>
+              <div class="portal-ambiente-opcoes">
+                <label><input type="radio" name="operacaoClienteAmbiente" value="real" checked> Real</label>
+                <label><input type="radio" name="operacaoClienteAmbiente" value="teste"> Teste</label>
+              </div>
+              <p class="subtext portal-ambiente-hint">Teste: pode apagar cliente e protocolos ligados; pagamentos são fictícios. Real: histórico imutável.</p>
+            </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary hidden" id="operacaoClienteAtualizarBtn">Atualizar dados do cliente</button>
@@ -565,8 +573,17 @@
               <span>Local</span>
               <input type="text" id="operacaoVeiculoLocal" name="local" maxlength="120" placeholder="Local / garagem / filial" aria-label="Local">
             </label>
+            <div id="operacaoVeiculoAmbienteWrap" class="portal-field portal-field--wide portal-ambiente-admin hidden" role="group" aria-label="Ambiente do cadastro">
+              <span>Ambiente do cadastro</span>
+              <div class="portal-ambiente-opcoes">
+                <label><input type="radio" name="operacaoVeiculoAmbiente" value="real" checked> Real</label>
+                <label><input type="radio" name="operacaoVeiculoAmbiente" value="teste"> Teste</label>
+              </div>
+              <p class="subtext portal-ambiente-hint">Teste: veículo pode ser apagado pelo administrador.</p>
+            </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar veículo</button>
+              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoVeiculoApagarBtn" title="Só administrador e cadastro marcado como TESTE">Apagar veículo (teste)</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoVeiculoGerarRelatorioBtn">Gerar relatório</button>
@@ -817,8 +834,18 @@
             <datalist id="operacaoLocacaoCpfSugestoes"></datalist>
             <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
 
+            <div id="operacaoLocacaoAmbienteWrap" class="portal-field portal-field--wide portal-ambiente-admin hidden" role="group" aria-label="Ambiente do cadastro">
+              <span>Ambiente do cadastro</span>
+              <div class="portal-ambiente-opcoes">
+                <label><input type="radio" name="operacaoLocacaoAmbiente" value="real" checked> Real</label>
+                <label><input type="radio" name="operacaoLocacaoAmbiente" value="teste"> Teste</label>
+              </div>
+              <p class="subtext portal-ambiente-hint">Teste: protocolo e pagamentos podem ser apagados; dados fictícios para desenvolvimento.</p>
+            </div>
+
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary" id="operacaoLocacaoSubmitBtn">Cadastrar locação</button>
+              <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoLocacaoApagarProtocoloBtn" title="Só administrador e protocolo marcado como TESTE">Apagar protocolo (teste)</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoGerarRelatorioBtn">Gerar relatório</button>
@@ -1979,7 +2006,7 @@
   <script src="app.js?v=20260607virgem" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260607admin-banner-fix" defer></script>
+  <script src="portal-locadora-ui.js?v=20260607cadastro-ambiente-teste" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>

@@ -107,6 +107,15 @@ async function main() {
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
     record(
+      "cadastro ambiente real/teste (admin)",
+      indexFresh.includes("operacaoClienteAmbienteWrap") &&
+        indexFresh.includes('name="operacaoClienteAmbiente"') &&
+        indexFresh.includes("operacaoVeiculoAmbienteWrap") &&
+        indexFresh.includes("operacaoLocacaoAmbienteWrap") &&
+        indexFresh.includes("operacaoLocacaoApagarProtocoloBtn") &&
+        indexFresh.includes("portal-registro-teste")
+    );
+    record(
       "API dk-cliente-geo responde JSON",
       (await fetch(`${BASE_URL}api/dk-cliente-geo`, { cache: "no-store" }).then(async (r) => {
         const t = await r.text();

@@ -75,6 +75,7 @@
     document.body.classList.toggle("portal-body--admin-logado", on);
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
+    portalSyncAmbienteCadastroAdminUi();
     requestAnimationFrame(() => portalSyncAdminBannerLayout());
   }
 
@@ -326,6 +327,121 @@
     return getPortalSessaoAdminRole() === "owner";
   }
 
+  const PORTAL_AMBIENTE_REAL = "real";
+  const PORTAL_AMBIENTE_TESTE = "teste";
+
+  function portalNormAmbiente(v) {
+    return String(v || "")
+      .trim()
+      .toLowerCase() === PORTAL_AMBIENTE_TESTE
+      ? PORTAL_AMBIENTE_TESTE
+      : PORTAL_AMBIENTE_REAL;
+  }
+
+  function portalRegistroEhTeste(rec) {
+    return portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE;
+  }
+
+  function portalGetAmbienteFormValue(tipo) {
+    if (!isPortalTitularAdministrador()) return PORTAL_AMBIENTE_REAL;
+    const el = document.querySelector(`input[name="operacao${tipo}Ambiente"]:checked`);
+    return portalNormAmbiente(el?.value);
+  }
+
+  function portalSetAmbienteFormValue(tipo, ambiente) {
+    const val = portalNormAmbiente(ambiente);
+    document.querySelectorAll(`input[name="operacao${tipo}Ambiente"]`).forEach((inp) => {
+      inp.checked = inp.value === val;
+    });
+  }
+
+  function portalSyncAmbienteCadastroAdminUi() {
+    const admin = isPortalTitularAdministrador();
+    ["operacaoClienteAmbienteWrap", "operacaoVeiculoAmbienteWrap", "operacaoLocacaoAmbienteWrap"].forEach((id) => {
+      document.getElementById(id)?.classList.toggle("hidden", !admin);
+    });
+  }
+
+  function portalApplyAmbienteVisualForm(tipo, recordOrAmbiente) {
+    const form = document.getElementById(`formOperacao${tipo}Inline`);
+    if (!form) return;
+    const amb =
+      typeof recordOrAmbiente === "string"
+        ? portalNormAmbiente(recordOrAmbiente)
+        : recordOrAmbiente
+          ? portalNormAmbiente(recordOrAmbiente.ambiente)
+          : portalGetAmbienteFormValue(tipo);
+    form.classList.toggle("portal-registro-teste", amb === PORTAL_AMBIENTE_TESTE);
+    if (recordOrAmbiente && typeof recordOrAmbiente === "object") {
+      portalSetAmbienteFormValue(tipo, recordOrAmbiente.ambiente);
+    }
+  }
+
+  function portalResetAmbienteForm(tipo) {
+    portalSetAmbienteFormValue(tipo, PORTAL_AMBIENTE_REAL);
+    portalApplyAmbienteVisualForm(tipo, PORTAL_AMBIENTE_REAL);
+  }
+
+  function portalApagarLocacoesTestePorCpf(cpfDigits) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return 0;
+    }
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (cpf.length !== 11) return 0;
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const antes = locs.length;
+    const restantes = locs.filter((l) => {
+      if (dig(String(l.cpf || "")) !== cpf) return true;
+      return !portalRegistroEhTeste(l);
+    });
+    if (restantes.length !== antes) saveCadastro(CAD_LOCACOES_KEY, restantes);
+    return antes - restantes.length;
+  }
+
+  function portalApagarLocacoesTestePorPlaca(plateRaw) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return 0;
+    }
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(plateRaw || ""))
+        : String(plateRaw || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!plate) return 0;
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const antes = locs.length;
+    const restantes = locs.filter((l) => {
+      const pl =
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(l.placa || ""))
+          : String(l.placa || "")
+              .trim()
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      if (pl !== plate) return true;
+      return !portalRegistroEhTeste(l);
+    });
+    if (restantes.length !== antes) saveCadastro(CAD_LOCACOES_KEY, restantes);
+    return antes - restantes.length;
+  }
+
+  function portalApagarProtocoloTeste(ncRaw) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return false;
+    }
+    const nc = normPortalNumeroContrato(ncRaw);
+    if (!nc) return false;
+    const loc = findPortalLocacaoByProtocolo(nc);
+    if (!loc || !portalRegistroEhTeste(loc)) return false;
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => normPortalNumeroContrato(l.numeroContrato) !== nc);
+    saveCadastro(CAD_LOCACOES_KEY, locs);
+    return true;
+  }
+
   const PORTAL_CLIENTE_DIFF_LABELS = {
     codigo: "Código",
     dataCadastro: "Data cadastro",
@@ -341,6 +457,7 @@
     cep: "CEP",
     municipioUf: "Município/UF",
     endereco: "Endereço",
+    ambiente: "Ambiente",
   };
 
   const PORTAL_VEICULO_DIFF_LABELS = {
@@ -358,6 +475,7 @@
     motor: "Motor",
     proprietario: "Proprietário",
     local: "Local",
+    ambiente: "Ambiente",
   };
 
   const PORTAL_LOCACAO_DIFF_LABELS = {
@@ -374,6 +492,7 @@
     periodoLocacao: "Período",
     marcaModelo: "Marca/modelo",
     modalidade: "Modalidade",
+    ambiente: "Ambiente",
   };
 
   let portalAdminAlteracaoConfirmCallback = null;
@@ -476,6 +595,7 @@
       cep: portalNormDiffVal(rec?.cep),
       municipioUf: portalNormDiffVal(rec?.municipioUf),
       endereco: portalNormDiffVal(rec?.endereco),
+      ambiente: portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
     };
   }
 
@@ -497,6 +617,7 @@
       cep: getVal("operacaoClienteCep"),
       municipioUf: getVal("operacaoClienteMunicipioUf"),
       endereco: getVal("operacaoClienteEndereco"),
+      ambiente: portalGetAmbienteFormValue("Cliente"),
     };
   }
 
@@ -707,6 +828,7 @@
     refreshPortalUnitLeadForSession();
     refreshPortalOperacaoNavPorAcessos();
     refreshOperacaoLocacaoAdminProtocoloUi();
+    portalSyncAmbienteCadastroAdminUi();
   }
 
   const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
@@ -3166,7 +3288,15 @@ ${printable.innerHTML}
           ? findClienteByCpfCadastro(digits)
           : null;
       let show = Boolean(isOwner && localOnly);
-      if (show && typeof clienteTemVinculoComLocacao === "function") {
+      if (show && portalRegistroEhTeste(localOnly)) {
+        btn.textContent = "Apagar cliente (teste)";
+        btn.title = "Cadastro de TESTE — remove cliente e protocolos de teste ligados.";
+      } else {
+        btn.textContent = "Apagar cliente";
+        btn.title =
+          "Só administrador (titular), só cadastro local e sem histórico de locação — o botão fica oculto se existir locação com este cliente";
+      }
+      if (show && !portalRegistroEhTeste(localOnly) && typeof clienteTemVinculoComLocacao === "function") {
         const nome = String(localOnly?.nome || inpNome?.value || "").trim();
         const codigo = String(document.getElementById("operacaoClienteCodigo")?.value || localOnly?.codigo || "").trim();
         if (clienteTemVinculoComLocacao(digits, nome, codigo)) show = false;
@@ -3226,6 +3356,7 @@ ${printable.innerHTML}
         cep: getVal("operacaoClienteCep"),
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
+        ambiente: portalGetAmbienteFormValue("Cliente"),
       };
       const payloadPortal = { ...payload, origemPortal: true, updatedAt: Date.now() };
       if (typeof upsertPortalClienteByCpf === "function") {
@@ -3241,6 +3372,7 @@ ${printable.innerHTML}
       }
       portalPushCloudSnapshotAfterPersist();
       if (msg) msg.textContent = "Dados do cliente guardados com sucesso.";
+      portalApplyAmbienteVisualForm("Cliente", payloadPortal);
       return true;
     }
 
@@ -3428,6 +3560,8 @@ ${printable.innerHTML}
       const ear = get("operacaoClienteEar");
       if (ear) ear.value = String(cliente.ear || "").trim();
       normalizePortalMaskedFieldValues();
+      portalApplyAmbienteVisualForm("Cliente", cliente);
+      refreshOperacaoClienteApagarBtn(cpfDigits);
     }
 
     function getPrimeiraLocacaoDateLabelByCpf(cpfDigits) {
@@ -3600,6 +3734,7 @@ ${printable.innerHTML}
         cep: getVal("operacaoClienteCep"),
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
+        ambiente: portalGetAmbienteFormValue("Cliente"),
       };
       if (typeof upsertPortalClienteByCpf === "function") {
         try {
@@ -3627,6 +3762,8 @@ ${printable.innerHTML}
       if (msg) {
         msg.textContent = `Cliente ${nextCode} cadastrado com sucesso.`;
       }
+      portalApplyAmbienteVisualForm("Cliente", novo);
+      refreshOperacaoClienteApagarBtn(digits);
       const modalRel = document.getElementById("portalRelatorioModal");
       const resumoEl = document.getElementById("portalRelatorioResumo");
       if (
@@ -3685,14 +3822,64 @@ ${printable.innerHTML}
       const codigo = document.getElementById("operacaoClienteCodigo");
       if (codigo) codigo.value = "";
       if (msg) msg.textContent = "";
+      portalResetAmbienteForm("Cliente");
+      refreshOperacaoClienteApagarBtn("");
       inpCpf.focus();
     });
 
     document.getElementById("operacaoClienteApagarBtn")?.addEventListener("click", (ev) => {
       ev.preventDefault();
-      window.alert(
-        "Política do sistema: cadastros de cliente, veículo e locação não podem ser apagados. Use cancelamento ou alteração de dados no sistema completo, se disponível."
-      );
+      if (!isPortalTitularAdministrador()) return;
+      const digits =
+        typeof onlyDigits === "function"
+          ? onlyDigits(inpCpf?.value || "")
+          : String(inpCpf?.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) {
+        if (msg) msg.textContent = "Informe o CPF do cliente a apagar.";
+        return;
+      }
+      const localOnly =
+        typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+      if (!localOnly) {
+        window.alert("Cliente não encontrado no cadastro local deste navegador.");
+        return;
+      }
+      if (!portalRegistroEhTeste(localOnly)) {
+        window.alert(
+          "Cadastros REAIS não podem ser apagados. Marque como TESTE ao cadastrar ou use cancelamento/alteração."
+        );
+        return;
+      }
+      if (
+        !window.confirm(
+          "Apagar este cliente de TESTE e os protocolos de teste ligados a este CPF? Esta ação não pode ser desfeita."
+        )
+      ) {
+        return;
+      }
+      const nLoc = portalApagarLocacoesTestePorCpf(digits);
+      if (typeof removeClientesByCpf === "function") removeClientesByCpf([digits]);
+      else if (typeof loadCadastro === "function" && typeof saveCadastro === "function") {
+        const clientes = loadCadastro(CAD_CLIENTES_KEY).filter(
+          (c) =>
+            (typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "")) !==
+            digits
+        );
+        saveCadastro(CAD_CLIENTES_KEY, clientes);
+      }
+      portalPushCloudSnapshotAfterPersist();
+      form?.reset();
+      form?.querySelectorAll("input").forEach((inpEl) => {
+        inpEl.value = "";
+      });
+      portalResetAmbienteForm("Cliente");
+      refreshOperacaoClienteApagarBtn("");
+      if (msg) {
+        msg.textContent =
+          nLoc > 0
+            ? `Cliente de teste apagado (${nLoc} protocolo(s) de teste removido(s)).`
+            : "Cliente de teste apagado.";
+      }
     });
   }
 
@@ -3902,6 +4089,24 @@ ${printable.innerHTML}
     set("operacaoVeiculoLocal", veiculo.local);
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (msg) msg.textContent = plate ? `Dados do veículo ${plate} carregados.` : "";
+    portalApplyAmbienteVisualForm("Veiculo", veiculo);
+    refreshOperacaoVeiculoApagarBtn(plate);
+  }
+
+  function refreshOperacaoVeiculoApagarBtn(plateRaw) {
+    const btn = document.getElementById("operacaoVeiculoApagarBtn");
+    if (!btn) return;
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(plateRaw || ""))
+        : String(plateRaw || "")
+            .trim()
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    let record = null;
+    if (plate && typeof findPortalVeiculoByPlaca === "function") record = findPortalVeiculoByPlaca(plate);
+    const show = Boolean(isPortalTitularAdministrador() && record && portalRegistroEhTeste(record));
+    btn.classList.toggle("hidden", !show);
   }
 
   function renderOperacaoVeiculoPlacaDropdown(queryRaw) {
@@ -4864,9 +5069,10 @@ ${printable.innerHTML}
     grid.innerHTML = veiculos
       .map((v) => {
         const d = getPortalResumoVeiculoCardData(v);
+        const testeCls = portalRegistroEhTeste(v) ? " operacao-veiculo-resumo-card--teste" : "";
         return `<button type="button" class="operacao-veiculo-resumo-card operacao-veiculo-resumo-card--${eh(
           d.statusClass
-        )}" role="listitem" data-placa="${eh(d.placa)}">
+        )}${testeCls}" role="listitem" data-placa="${eh(d.placa)}">
           <p class="operacao-veiculo-resumo-card__linha"><strong>Código:</strong> ${eh(d.codigo)}</p>
           <p class="operacao-veiculo-resumo-card__linha"><strong>Placa:</strong> ${eh(d.placa)}</p>
           <p class="operacao-veiculo-resumo-card__linha"><strong>Último km:</strong> ${eh(d.ultimoKm)}</p>
@@ -6258,6 +6464,7 @@ ${printable.innerHTML}
     iframe.src = portalLocacaoRelatorioPdfBlobUrl;
     viewer.classList.remove("hidden");
     viewer.setAttribute("aria-hidden", "false");
+    portalSyncAdminBannerLayout();
   }
 
   function emitPortalRelatorioLocacaoExcel(escopo) {
@@ -7274,6 +7481,10 @@ ${printable.innerHTML}
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     fillOperacaoLocacaoTotaisLancamentoPortal(loc);
+    portalApplyAmbienteVisualForm("Locacao", loc);
+    refreshOperacaoLocacaoApagarProtocoloBtn();
+    const lancForm = document.getElementById("formOperacaoLancAluguel");
+    if (lancForm) lancForm.classList.toggle("portal-registro-teste", portalRegistroEhTeste(loc));
   }
 
   function clearPortalLocacaoCamposParaNovoContrato() {
@@ -7288,9 +7499,9 @@ ${printable.innerHTML}
     updateOperacaoLocacaoDataInicioPlaceholder();
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
+    portalResetAmbienteForm("Locacao");
+    refreshOperacaoLocacaoApagarProtocoloBtn();
   }
-
-  function refreshOperacaoLocacaoProtocoloPicker(opts = {}) {
     const force = Boolean(opts.force);
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");
@@ -7381,6 +7592,7 @@ ${printable.innerHTML}
       syncOperacaoLocacaoProtocoloComDataInicio();
       refreshOperacaoLocacaoSubmitBtn();
       refreshOperacaoLocacaoFinalizarBtn();
+      refreshOperacaoLocacaoApagarProtocoloBtn();
       return;
     }
     const digits =
@@ -7416,6 +7628,16 @@ ${printable.innerHTML}
     const wrap = document.getElementById("operacaoLocacaoProtocoloAdminWrap");
     if (!wrap) return;
     wrap.classList.toggle("hidden", !isPortalTitularAdministrador());
+    portalSyncAmbienteCadastroAdminUi();
+    refreshOperacaoLocacaoApagarProtocoloBtn();
+  }
+
+  function refreshOperacaoLocacaoApagarProtocoloBtn() {
+    const btn = document.getElementById("operacaoLocacaoApagarProtocoloBtn");
+    if (!btn) return;
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    btn.classList.toggle("hidden", !isPortalTitularAdministrador() || !portalRegistroEhTeste(loc));
   }
 
   function refreshOperacaoLocacaoSubmitBtn() {
@@ -7467,6 +7689,7 @@ ${printable.innerHTML}
     refreshOperacaoLocacaoDatalists();
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoFinalizarBtn();
+    refreshOperacaoLocacaoApagarProtocoloBtn();
     if (msg) msg.textContent = `Protocolo ${nc} carregado. Pode corrigir os dados e clicar em «Atualizar locação».`;
     return { ok: true, loc };
   }
@@ -7681,6 +7904,7 @@ ${printable.innerHTML}
       proprietario: getVal("operacaoVeiculoProprietario"),
       local: getVal("operacaoVeiculoLocal"),
       status: String(existenteVeiculo?.status || "DISPONIVEL").trim() || "DISPONIVEL",
+      ambiente: portalGetAmbienteFormValue("Veiculo"),
     };
     const snapshotVeiculo = (v) => ({
       tipo: portalNormDiffVal(v?.tipo),
@@ -7697,6 +7921,7 @@ ${printable.innerHTML}
       motor: portalNormDiffVal(v?.motor),
       proprietario: portalNormDiffVal(v?.proprietario),
       local: portalNormDiffVal(v?.local),
+      ambiente: portalNormAmbiente(v?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
     });
     const doSaveVeiculo = () => {
       try {
@@ -7728,9 +7953,14 @@ ${printable.innerHTML}
       if (msg) {
         msg.textContent = existenteVeiculo ? "Veículo atualizado com sucesso." : "Veículo cadastrado com sucesso.";
       }
+      portalApplyAmbienteVisualForm("Veiculo", novo);
+      refreshOperacaoVeiculoApagarBtn(plate);
       const form = document.getElementById("formOperacaoVeiculoInline");
-      if (form && typeof form.reset === "function") form.reset();
-      refreshOperacaoVeiculoTagPreview();
+      if (form && typeof form.reset === "function" && !existenteVeiculo) {
+        form.reset();
+        portalResetAmbienteForm("Veiculo");
+        refreshOperacaoVeiculoTagPreview();
+      }
       renderOperacaoVeiculoResumoFrota();
     };
     if (existenteVeiculo && isPortalTitularAdministrador()) {
@@ -7987,6 +8217,9 @@ ${printable.innerHTML}
       tabela: "",
       valorParcela: valorSemanal,
       clienteCodigo,
+      ambiente: isPortalTitularAdministrador()
+        ? portalGetAmbienteFormValue("Locacao")
+        : portalNormAmbiente(prev?.ambiente),
     };
 
     if (prev) {
@@ -8028,6 +8261,7 @@ ${printable.innerHTML}
       periodoLocacao: portalNormDiffVal(rec?.periodoLocacao),
       marcaModelo: portalNormDiffVal(rec?.marcaModelo),
       modalidade: portalNormDiffVal(rec?.modalidade),
+      ambiente: portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
     });
     const registroNovo = snapshotLoc({ ...baseRecord, numeroContrato: nc });
     const doSaveLocacao = () => {
@@ -9488,6 +9722,7 @@ ${printable.innerHTML}
       valorEspecie: Number.isFinite(ve) && ve >= 0 ? ve : 0,
       valorPix: Number.isFinite(vp) && vp >= 0 ? vp : 0,
       valorCartao: Number.isFinite(vc) && vc >= 0 ? vc : 0,
+      ficticio: portalRegistroEhTeste(loc),
     };
     loc.portalLancamentosAluguel.push(entry);
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
@@ -9574,6 +9809,7 @@ ${printable.innerHTML}
     const loc = collectPortalLocacoesComProtocoloByCpf(digits).find(
       (l) => normPortalNumeroContrato(l.numeroContrato) === proto
     );
+    const locTeste = portalRegistroEhTeste(loc);
     const arr = loc ? getPortalLancamentosAluguelDoContrato(loc) : [];
     if (!arr.length) {
       wrap.innerHTML =
@@ -9588,10 +9824,13 @@ ${printable.innerHTML}
         const v = formatPortalLancamentoSumBrl(x.valor);
         const d = portalEscapeHtml(String(x.data || ""));
         const vv = portalEscapeHtml(v);
+        const ficticio = locTeste || x.ficticio;
+        const tag = ficticio ? '<span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
+        const trCls = ficticio ? ' class="portal-registro-teste"' : "";
         if (owner) {
-          return `<tr><td>${d}</td><td>${vv}</td><td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-edit="${i}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-del="${i}">Apagar</button></td></tr>`;
+          return `<tr${trCls}><td>${d}${tag}</td><td>${vv}</td><td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-edit="${i}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-portal-lanc-del="${i}">Apagar</button></td></tr>`;
         }
-        return `<tr><td>${d}</td><td>${vv}</td></tr>`;
+        return `<tr${trCls}><td>${d}${tag}</td><td>${vv}</td></tr>`;
       })
       .join("");
     wrap.innerHTML = `<p class="subtext operacao-inline-form__lead" style="margin-bottom:0.5rem"><strong>Pagamentos registados</strong></p><table class="portal-lanc-hist" aria-label="Histórico de pagamentos do protocolo">${thead}<tbody>${rows}</tbody></table>`;
@@ -10016,8 +10255,54 @@ ${printable.innerHTML}
     if (form && typeof form.reset === "function") form.reset();
     hideOperacaoVeiculoPlacaDropdown();
     refreshOperacaoVeiculoTagPreview();
+    portalResetAmbienteForm("Veiculo");
+    refreshOperacaoVeiculoApagarBtn("");
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (msg) msg.textContent = "";
+  });
+  document.getElementById("operacaoVeiculoApagarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!isPortalTitularAdministrador()) return;
+    const plateRaw = String(document.getElementById("operacaoVeiculoPlaca")?.value || "");
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(plateRaw)
+        : plateRaw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const record = plate && typeof findPortalVeiculoByPlaca === "function" ? findPortalVeiculoByPlaca(plate) : null;
+    const msg = document.getElementById("operacaoVeiculoInlineMsg");
+    if (!record || !portalRegistroEhTeste(record)) {
+      window.alert("Só veículos marcados como TESTE podem ser apagados.");
+      return;
+    }
+    if (!window.confirm(`Apagar veículo de TESTE ${plate} e protocolos de teste desta placa?`)) return;
+    const nLoc = portalApagarLocacoesTestePorPlaca(plate);
+    const key =
+      typeof PORTAL_VEICULOS_KEY !== "undefined" ? PORTAL_VEICULOS_KEY : CAD_VEICULOS_KEY;
+    if (typeof loadCadastro === "function" && typeof saveCadastro === "function" && key) {
+      const veiculos = loadCadastro(key).filter((v) => {
+        const p =
+          typeof normalizePlate === "function"
+            ? normalizePlate(String(v.placa || ""))
+            : String(v.placa || "")
+                .trim()
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        return p !== plate;
+      });
+      saveCadastro(key, veiculos);
+    }
+    portalPushCloudSnapshotAfterPersist();
+    const form = document.getElementById("formOperacaoVeiculoInline");
+    if (form && typeof form.reset === "function") form.reset();
+    portalResetAmbienteForm("Veiculo");
+    refreshOperacaoVeiculoApagarBtn("");
+    renderOperacaoVeiculoResumoFrota();
+    if (msg) {
+      msg.textContent =
+        nLoc > 0
+          ? `Veículo de teste apagado (${nLoc} protocolo(s) de teste removido(s)).`
+          : "Veículo de teste apagado.";
+    }
   });
   const formOperacaoLocacaoInline = document.getElementById("formOperacaoLocacaoInline");
   formOperacaoLocacaoInline?.addEventListener("submit", persistPortalOperacaoLocacaoInlineSubmit);
@@ -10044,6 +10329,8 @@ ${printable.innerHTML}
     syncOperacaoLocacaoFromDataInicio();
     portalLocacaoProtocoloPickerCpf = "";
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    portalResetAmbienteForm("Locacao");
+    refreshOperacaoLocacaoApagarProtocoloBtn();
   }
 
   document.getElementById("operacaoLocacaoLimparBtn")?.addEventListener("click", (e) => {
@@ -10051,6 +10338,37 @@ ${printable.innerHTML}
     e.stopPropagation();
     clearOperacaoLocacaoInlineForm();
   });
+
+  document.getElementById("operacaoLocacaoApagarProtocoloBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (!isPortalTitularAdministrador()) return;
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (!nc) {
+      if (msg) msg.textContent = "Carregue um protocolo de TESTE para apagar.";
+      return;
+    }
+    const loc = findPortalLocacaoByProtocolo(nc);
+    if (!loc || !portalRegistroEhTeste(loc)) {
+      window.alert("Só protocolos marcados como TESTE podem ser apagados.");
+      return;
+    }
+    if (!window.confirm(`Apagar protocolo de TESTE ${nc} e todos os pagamentos fictícios ligados?`)) return;
+    if (!portalApagarProtocoloTeste(nc)) {
+      window.alert("Não foi possível apagar o protocolo.");
+      return;
+    }
+    portalPushCloudSnapshotAfterPersist();
+    clearOperacaoLocacaoInlineForm();
+    if (msg) msg.textContent = `Protocolo de teste ${nc} apagado.`;
+  });
+
+  ["Cliente", "Veiculo", "Locacao"].forEach((tipo) => {
+    document.querySelectorAll(`input[name="operacao${tipo}Ambiente"]`).forEach((inp) => {
+      inp.addEventListener("change", () => portalApplyAmbienteVisualForm(tipo, portalGetAmbienteFormValue(tipo)));
+    });
+  });
+  portalSyncAmbienteCadastroAdminUi();
 
   /** Locações ativas → WhatsApp (número do cadastro do cliente). */
   let portalWaDatasetCache = [];
@@ -11469,6 +11787,7 @@ ${printable.innerHTML}
   window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_hideOperacaoInlineForms = hideInlineForms;
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
   window.__DK_openPortalLancConfirmModal = openPortalLancAluguelConfirmModal;
@@ -11515,6 +11834,7 @@ ${printable.innerHTML}
 
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
   window.__DK_portalOperadorPodeConferirComprovanteCliente = portalOperadorPodeConferirComprovanteCliente;
   window.__DK_operacaoLancAluguelProtocoloAtual = operacaoLancAluguelProtocoloAtual;
