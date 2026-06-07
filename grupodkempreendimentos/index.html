@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260522dk-red-black">
+  <link rel="stylesheet" href="styles.css?v=20260521login-compact">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -170,7 +170,7 @@
         <p class="subtext portal-unit-heading__atualizado" id="portal-unit-dados-atualizados" role="status" aria-live="polite" hidden></p>
       </div>
 
-      <section id="panel-login" class="portal-panel hidden" aria-live="polite">
+      <section id="panel-login" class="portal-panel portal-panel--auth hidden" aria-live="polite">
         <h2 class="portal-panel__title" id="login-panel-title">Entrar</h2>
         <form id="form-login" class="portal-form" novalidate>
           <input type="hidden" id="login-unit" name="unit" value="">
@@ -188,7 +188,7 @@
         </form>
       </section>
 
-      <section id="panel-senha" class="portal-panel hidden" aria-live="polite">
+      <section id="panel-senha" class="portal-panel portal-panel--auth hidden" aria-live="polite">
         <h2 class="portal-panel__title">Definir nova senha</h2>
         <p class="subtext">Colaborador: use <strong>exatamente 6 números</strong>, diferentes da senha inicial <strong>123456</strong>.</p>
         <form id="form-nova-senha" class="portal-form" novalidate>
