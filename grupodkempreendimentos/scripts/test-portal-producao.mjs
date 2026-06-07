@@ -240,10 +240,15 @@ async function main() {
         patJs.includes("patrimonioLerImagensDoc") &&
         patJs.includes("patrimonioLerImagemFila") &&
         patJs.includes("patrimonioPausarSyncCloud") &&
-        patJs.includes("PATRIMONIO_IA_MAX_TENTATIVAS = 5") &&
+        patJs.includes("PATRIMONIO_IA_MAX_TENTATIVAS = 1") &&
+        patJs.includes("PATRIMONIO_IA_LEDGER_KEY") &&
+        patJs.includes("patrimonioReservarLeituraIa") &&
+        patJs.includes("patrimonioHashFile") &&
+        patJs.includes("patrimonioHashJaConsumiuLeitura") &&
+        patJs.includes("fotoAguardaProcessamentoIa") &&
+        patJs.includes("ia_content_hash") &&
         patJs.includes("tratarFalhaIaFotoCaptura") &&
         patJs.includes("patrimonioProcessarIaSegundoPlano") &&
-        patJs.includes("fotoAguardaProcessamentoIa") &&
         patJs.includes("patrimonioRecuperarTravamentoIa") &&
         patJs.includes("patrimonioExpurgarFilaObsoleta") &&
         patJs.includes("patrimonioRetomarFilaIa") &&
@@ -277,13 +282,12 @@ async function main() {
     record(
       "patrimônio IA CRLV (campos críticos + mapa tarja)",
         patJs.includes("deduplicarDocumentos") &&
-        patJs.includes("patrimonioRecuperarFalhasComImagemIdb") &&
-        patJs.includes("patrimonioRecuperarDocumentosDedupPlaca") &&
         patJs.includes("patrimonioColetarAuditoriaArquivos") &&
         patJs.includes("buildContadoresRelatorioHtmlBloco") &&
         patJs.includes("classificarGrupoProprietario") &&
         patJs.includes("lerCrlvComRetry") &&
-        patJs.includes("lerProprietarioCrlvComRetry") &&
+        patJs.includes("montarPromptCrlv") &&
+        patJs.includes("chamarIaCrlv") &&
         patJs.includes("prepararImagemParaIaCrlv") &&
         patJs.includes("CAMPOS_CRITICOS") &&
         patJs.includes("validarProprietarioCrlv") &&
@@ -292,6 +296,15 @@ async function main() {
         patJs.includes("mapaEspacialCrlvPrompt") &&
         patJs.includes("TARJA PRETA") &&
         patJs.includes("renavamValido")
+    );
+    const oaiApiPath = path.join(REPO_ROOT, "grupodkempreendimentos/api/openai-comprovante.js");
+    const oaiApi = fs.existsSync(oaiApiPath) ? fs.readFileSync(oaiApiPath, "utf8") : "";
+    record(
+      "patrimônio API IA ledger servidor (hash + teto diário)",
+      oaiApi.includes("patrimonioIaReservarLeitura") &&
+        oaiApi.includes("ia_already_processed") &&
+        oaiApi.includes("ia_daily_cap") &&
+        oaiApi.includes("DK_PATRIMONIO_IA_DAILY_CAP")
     );
     record(
       "patrimônio arquivos enviados (histórico + revisar IA)",

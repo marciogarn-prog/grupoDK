@@ -108,13 +108,13 @@
   const patrimonioImagensFila = new Map();
   const PATRIMONIO_IA_INTERVALO_MS = 1100;
   const PATRIMONIO_IA_TIMEOUT_MS = 420000;
-  const PATRIMONIO_IA_MAX_TENTATIVAS = 5;
+  /** Uma única leitura IA por envio — falhou exclui; reenvio manual consome nova leitura. */
+  const PATRIMONIO_IA_MAX_TENTATIVAS = 1;
+  const PATRIMONIO_IA_LEDGER_KEY = "dk_patrimonio_ia_ledger_v1";
   /** Pendente na fila além deste prazo → excluir (reenvio manual). */
   const PATRIMONIO_FILA_TTL_MS = 6 * 60 * 60 * 1000;
   /** Reavalia fila enquanto o portal estiver aberto (mesmo noutra área). */
   const PATRIMONIO_FILA_POLL_MS = 60 * 1000;
-  /** «Fila» sem avançar para processamento → nova tentativa. */
-  const PATRIMONIO_FILA_REPROCESS_MS = 45 * 60 * 1000;
   let patrimonioWakeLock = null;
   let patrimonioLoteRecebidos = 0;
   let patrimonioLoteTotal = 0;
@@ -355,6 +355,99 @@
     return Number.isFinite(t) ? t : 0;
   }
 
+  async function patrimonioHashBuffer(buf) {
+    if (!buf || !crypto?.subtle?.digest) return "";
+    const hash = await crypto.subtle.digest("SHA-256", buf);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+
+  async function patrimonioHashFile(file) {
+    if (!file) return "";
+    try {
+      return await patrimonioHashBuffer(await file.arrayBuffer());
+    } catch {
+      return "";
+    }
+  }
+
+  async function patrimonioHashDataUrl(dataUrl) {
+    try {
+      const { base64 } = parseDataUrl(dataUrl);
+      if (!base64) return "";
+      const bin = atob(base64);
+      const buf = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+      return await patrimonioHashBuffer(buf.buffer);
+    } catch {
+      return "";
+    }
+  }
+
+  function patrimonioLedgerLoad() {
+    try {
+      return JSON.parse(localStorage.getItem(PATRIMONIO_IA_LEDGER_KEY) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function patrimonioLedgerSave(map) {
+    try {
+      localStorage.setItem(PATRIMONIO_IA_LEDGER_KEY, JSON.stringify(map));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function patrimonioLedgerGet(hash) {
+    const h = String(hash || "").trim();
+    if (!h) return null;
+    return patrimonioLedgerLoad()[h] || null;
+  }
+
+  function patrimonioHashJaConsumiuLeitura(hash) {
+    const e = patrimonioLedgerGet(hash);
+    return Boolean(e && Number(e.leiturasIa) >= 1);
+  }
+
+  function patrimonioFotoJaConsumiuLeituraIa(f) {
+    if (!f) return false;
+    if (Number(f.leiturasIa) >= 1) return true;
+    return patrimonioHashJaConsumiuLeitura(f.hashPdf);
+  }
+
+  function patrimonioLedgerMarcarLeitura(hash, fotoId, extra) {
+    const h = String(hash || "").trim();
+    if (!h) return;
+    const map = patrimonioLedgerLoad();
+    map[h] = {
+      leiturasIa: 1,
+      fotoId: String(fotoId || ""),
+      processadoEm: String(extra?.processadoEm || new Date().toISOString()),
+      excluidoEm: String(extra?.excluidoEm || ""),
+    };
+    const keys = Object.keys(map);
+    if (keys.length > 2500) {
+      keys
+        .sort((a, b) => Date.parse(map[b]?.processadoEm || 0) - Date.parse(map[a]?.processadoEm || 0))
+        .slice(2500)
+        .forEach((k) => delete map[k]);
+    }
+    patrimonioLedgerSave(map);
+  }
+
+  function patrimonioReservarLeituraIa(fotoId, hashPdf) {
+    const agora = new Date().toISOString();
+    atualizarFotoCaptura(fotoId, {
+      leiturasIa: 1,
+      tentativasIa: 1,
+      iaLeituraEm: agora,
+    });
+    patrimonioLedgerMarcarLeitura(hashPdf, fotoId, { processadoEm: agora });
+  }
+
   function sanitizeFotoCaptura(f) {
     if (!f || typeof f !== "object") return null;
     const id = String(f.id || "").trim();
@@ -381,7 +474,11 @@
       docId: String(f.docId || "").trim(),
       placa: String(f.placa || "").trim(),
       msgIa: String(f.msgIa || "").trim(),
-      tentativasIa: Math.max(0, Math.min(PATRIMONIO_IA_MAX_TENTATIVAS, Number(f.tentativasIa) || 0)),
+      tentativasIa: Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1 ? 1 : 0,
+      leiturasIa: Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1 ? 1 : 0,
+      hashPdf: String(f.hashPdf || "").trim().slice(0, 64) || undefined,
+      iaLeituraEm: String(f.iaLeituraEm || "").trim() || undefined,
+      iaExcluidoEm: String(f.iaExcluidoEm || "").trim() || undefined,
       atualizadoEm: String(f.atualizadoEm || f.registradoEm || ""),
     };
   }
@@ -420,11 +517,13 @@
     const nomeArquivo = String(extra?.nomeArquivo || "").trim();
     const placa = normPlaca(extra?.placa || placaDoNomeArquivo(nomeArquivo));
     const motivo = String(extra?.motivo || "").trim();
+    const hashPdf = String(extra?.hashPdf || "").trim().slice(0, 64);
     return {
       id: idStr,
       tag: tagStr || undefined,
       nomeArquivo: nomeArquivo || undefined,
       placa: placa || undefined,
+      hashPdf: hashPdf || undefined,
       motivo: motivo || undefined,
       excluidoEm: new Date().toISOString(),
     };
@@ -1030,18 +1129,10 @@
     let alterou = false;
     for (const f of store.fotosCapturas) {
       const st = String(f.statusIa || "").toLowerCase();
-      if (st === "fila" || st === "pendente") continue;
       if (st !== "processando") continue;
       const elapsed = agora - fotoCapturaMs(f);
       if (elapsed >= PATRIMONIO_IA_TIMEOUT_MS) {
-        void tratarFalhaIaFotoCaptura(f.id, "Tempo esgotado na IA.");
-        continue;
-      }
-      if (elapsed > 120000) {
-        f.statusIa = "fila";
-        f.msgIa = "";
-        f.atualizadoEm = new Date().toISOString();
-        alterou = true;
+        void excluirFotoCapturaAutomatico(f.id, "Tempo esgotado na IA — reenvie o PDF.");
       }
     }
     if (alterou) saveStore(store);
@@ -1083,12 +1174,11 @@
     return st === "fila" || st === "processando" || st === "pendente" || st === "falhou";
   }
 
-  /** Itens que ainda entram na fila de processamento (exclui falha esgotada). */
+  /** Itens que ainda entram na fila de processamento (1 leitura por envio). */
   function fotoAguardaProcessamentoIa(f) {
+    if (patrimonioFotoJaConsumiuLeituraIa(f)) return false;
     const st = String(f?.statusIa || "").toLowerCase();
-    if (st === "fila" || st === "processando" || st === "pendente") return true;
-    if (st === "falhou") return tentativasIaFoto(f) < PATRIMONIO_IA_MAX_TENTATIVAS;
-    return false;
+    return st === "fila" || st === "processando" || st === "pendente";
   }
 
   function exclusaoPatrimonioEhDefinitiva(ex) {
@@ -1108,17 +1198,17 @@
       if (st === "processando") {
         const elapsed = agora - fotoCapturaMs(f);
         if (elapsed > 90000) {
-          f.statusIa = "fila";
-          f.msgIa = "";
-          f.atualizadoEm = new Date().toISOString();
-          alterou = true;
-        }
-      } else if ((st === "fila" || st === "pendente") && fotoAguardaProcessamentoIa(f)) {
-        const elapsed = agora - fotoCapturaMs(f);
-        if (elapsed > PATRIMONIO_FILA_REPROCESS_MS && tentativasIaFoto(f) < PATRIMONIO_IA_MAX_TENTATIVAS) {
-          f.tentativasIa = Math.max(tentativasIaFoto(f), 1);
-          f.atualizadoEm = new Date().toISOString();
-          alterou = true;
+          if (patrimonioFotoJaConsumiuLeituraIa(f)) {
+            void excluirFotoCapturaAutomatico(
+              f.id,
+              "Processamento interrompido — reenvie o PDF para nova leitura."
+            );
+          } else {
+            f.statusIa = "fila";
+            f.msgIa = "";
+            f.atualizadoEm = new Date().toISOString();
+            alterou = true;
+          }
         }
       }
     }
@@ -1225,12 +1315,17 @@
       String(rawFoto?.tag || "").trim() || String(filaFoto?.tag || "").trim();
     const nomeArquivo = String(rawFoto?.nomeArquivo || filaFoto?.nomeArquivo || "").trim();
     const placa = normPlaca(rawFoto?.placa || filaFoto?.placa || placaDoNomeArquivo(nomeArquivo));
+    const hashPdf = String(rawFoto?.hashPdf || filaFoto?.hashPdf || "").trim();
+    if (hashPdf && Number(rawFoto?.leiturasIa || filaFoto?.leiturasIa) >= 1) {
+      patrimonioLedgerMarcarLeitura(hashPdf, id, { excluidoEm: new Date().toISOString() });
+    }
     const exclusoes = persistirExclusoesPatrimonio(
       todasExclusoesPatrimonio(
         store.fotosCapturasExcluidas,
         exclusaoFotoCapturaEntry(id, tag, {
           nomeArquivo,
           placa,
+          hashPdf,
           motivo: opts?.motivo,
         }) || [{ id, excluidoEm: new Date().toISOString() }]
       )
@@ -1368,62 +1463,12 @@
   }
 
   async function patrimonioRevisarTodosArquivosFalhadosManual() {
-    const stats = await patrimonioContarFalhadosRecuperaveis();
     const veiculos = getDocumentos().length;
-    if (!stats.comImagem && !stats.naFila) {
-      setMsg(
-        stats.semImagem > 0
-          ? `${stats.semImagem} falha(s) sem imagem guardada — reenvie os PDFs. Relatório: ${veiculos} veículo(s).`
-          : `Nenhum PDF falhado com imagem para revisar. Relatório: ${veiculos} veículo(s).`,
-        stats.semImagem > 0,
-        stats.semImagem === 0
-      );
-      return;
-    }
-    if (
-      !window.confirm(
-        `Revisar com IA os PDFs que falharam e ainda não estão no relatório?\n\n` +
-          `· ${stats.comImagem} na lista de excluídos (com imagem)\n` +
-          `· ${stats.naFila} já na fila\n` +
-          `· ${veiculos} veículo(s) no relatório mantêm-se (mesma placa substitui após nova leitura)\n\n` +
-          `Mantenha a página aberta até terminar.`
-      )
-    ) {
-      return;
-    }
-    patrimonioPausarSyncCloud();
-    filaIaPatrimonio.length = 0;
-    const nExcl = await patrimonioRecuperarFalhasComImagemIdb({
-      msgIa: "Revisão em massa — nova leitura IA.",
-      iniciarFila: false,
-    });
-    let nFila = 0;
-    const placasDoc = new Set(getDocumentos().map((d) => normPlaca(d.placa)).filter(Boolean));
-    for (const f of getFotosCapturas()) {
-      const placa = normPlaca(f.placa || placaDoNomeArquivo(f.nomeArquivo));
-      if (placa && placasDoc.has(placa)) continue;
-      if (!(await patrimonioFilaTemImagem(f.id))) continue;
-      atualizarFotoCaptura(f.id, {
-        statusIa: "fila",
-        tentativasIa: 0,
-        msgIa: "Revisão em massa — nova leitura IA.",
-      });
-      enfileirarIaPatrimonio(f.id, []);
-      nFila++;
-    }
-    renderFotosLista();
-    const total = nExcl + nFila;
-    if (total > 0) {
-      setMsg(
-        `${total} PDF(s) na fila da IA (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). Mantenha a página aberta.`,
-        false,
-        true
-      );
-      void finalizarLotePatrimonioAposUpload();
-    } else {
-      setMsg("Nenhum PDF recuperado para revisão.", true);
-      patrimonioRetomarSyncCloud();
-    }
+    setMsg(
+      `Relatório: ${veiculos} veículo(s). Para nova leitura IA, reenvie cada PDF pelo seletor — 1 leitura por ficheiro.`,
+      false,
+      true
+    );
   }
 
   async function patrimonioExcluirLixoForaRelatorioManual() {
@@ -1488,7 +1533,6 @@
 
   async function patrimonioAuditarErecuperarCadastros() {
     const dedup = patrimonioRecuperarDocumentosDedupPlaca();
-    const idb = await patrimonioRecuperarFalhasComImagemIdb();
     renderLista();
     renderFotosLista();
     const total = getDocumentos().length;
@@ -1496,13 +1540,10 @@
     if (dedup.recuperados > 0) {
       partes.push(`${dedup.recuperados} restaurado(s) após corrigir contagem (era ${dedup.antes})`);
     }
-    if (idb > 0) {
-      partes.push(`${idb} PDF(s) na fila para nova leitura`);
+    if (dedup.recuperados > 0) {
+      setMsg(partes.join(" · ") + ".", false, true);
     }
-    if (dedup.recuperados > 0 || idb > 0) {
-      setMsg(partes.join(" · ") + ". A IA continua em segundo plano.", false, true);
-    }
-    return { total, dedup, idb };
+    return { total, dedup, idb: 0 };
   }
 
   function tagBasePatrimonio(tag) {
@@ -1653,38 +1694,12 @@
   async function tratarFalhaIaFotoCaptura(fotoId, msg) {
     const foto = getFotoCapturaById(fotoId);
     if (!foto) return "excluido";
-    const tentAtual = tentativasIaFoto(foto);
     const detalhe = String(msg || MSG_IA_FALHOU).slice(0, 220);
-    if (tentAtual >= PATRIMONIO_IA_MAX_TENTATIVAS) {
-      await excluirFotoCapturaAutomatico(
-        fotoId,
-        `${detalhe} (esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas)`
-      );
-      renderFotosLista();
-      atualizarBotaoErrosPatrimonio();
-      patrimonioAtualizarBadgeSegundoPlano();
-      return "excluido";
-    }
-    const tent = tentAtual + 1;
-    if (tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
-      await excluirFotoCapturaAutomatico(
-        fotoId,
-        `${detalhe} (esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas)`
-      );
-      renderFotosLista();
-      atualizarBotaoErrosPatrimonio();
-      patrimonioAtualizarBadgeSegundoPlano();
-      return "excluido";
-    }
-    atualizarFotoCaptura(fotoId, {
-      statusIa: "fila",
-      tentativasIa: tent,
-      msgIa: `Tentativa ${tent}/${PATRIMONIO_IA_MAX_TENTATIVAS} — ${detalhe}`,
-    });
-    enfileirarIaPatrimonio(fotoId, []);
+    await excluirFotoCapturaAutomatico(fotoId, detalhe);
     renderFotosLista();
+    atualizarBotaoErrosPatrimonio();
     patrimonioAtualizarBadgeSegundoPlano();
-    return "reenfileirado";
+    return "excluido";
   }
 
   function coletarPatrimonioErrosIa() {
@@ -1744,8 +1759,19 @@
   async function patrimonioSincronizarFilaComStorage() {
     const fotos = getFotosCapturas().filter((f) => fotoAguardaProcessamentoIa(f));
     for (const f of fotos) {
+      if (patrimonioFotoJaConsumiuLeituraIa(f)) {
+        await excluirFotoCapturaAutomatico(
+          f.id,
+          "Leitura IA já contabilizada — reenvie o PDF para nova leitura."
+        );
+        continue;
+      }
       if (String(f.statusIa || "").toLowerCase() === "processando") {
-        atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
+        if (Number(f.leiturasIa) >= 1) {
+          await excluirFotoCapturaAutomatico(f.id, "Processamento interrompido — reenvie o PDF.");
+        } else {
+          atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
+        }
       }
       if (filaIaPatrimonio.some((j) => j.fotoId === f.id)) continue;
       const temImg = await patrimonioFilaTemImagem(f.id);
@@ -1846,7 +1872,7 @@
           const restantes = patrimonioContarRestantesIa();
           const feitos = Math.max(0, totalLote - restantes);
           setMsg(
-            `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila… (segundo plano)`,
+            `IA · 1 leitura/PDF · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila… (segundo plano)`,
             false
           );
           patrimonioAtualizarBadgeSegundoPlano();
@@ -1885,9 +1911,25 @@
       await tratarFalhaIaFotoCaptura(fotoId, "Imagem indisponível — reenvie o PDF.");
       return;
     }
+    const fotoMeta = getFotoCapturaById(fotoId);
+    if (patrimonioFotoJaConsumiuLeituraIa(fotoMeta)) {
+      await excluirFotoCapturaAutomatico(
+        fotoId,
+        "Leitura IA já contabilizada — reenvie o PDF para nova leitura."
+      );
+      return;
+    }
+    const hashPdf = String(fotoMeta?.hashPdf || "").trim();
+    if (hashPdf && patrimonioHashJaConsumiuLeitura(hashPdf)) {
+      await excluirFotoCapturaAutomatico(
+        fotoId,
+        "Este PDF já consumiu 1 leitura IA. Reenvie o ficheiro se precisar de nova leitura."
+      );
+      return;
+    }
+    patrimonioReservarLeituraIa(fotoId, hashPdf);
     atualizarFotoCaptura(fotoId, { statusIa: "processando", msgIa: "" });
     renderFotosLista();
-    const fotoMeta = getFotoCapturaById(fotoId);
     const placaHint = placaDoNomeArquivo(fotoMeta?.nomeArquivo);
     const documentosReferencia = getDocumentos();
     try {
@@ -1895,6 +1937,8 @@
         placaHint,
         nomeArquivo: fotoMeta?.nomeArquivo,
         documentosReferencia,
+        fotoId,
+        hashPdf,
       });
       if (!leitura.ok) {
         await tratarFalhaIaFotoCaptura(fotoId, leitura.msg || MSG_NITIDEZ);
@@ -2468,6 +2512,10 @@
   async function registrarArquivoPdf(file, imagemRenderizada) {
     const agora = new Date();
     const fotoId = newFotoId();
+    const hashPdf = await patrimonioHashFile(file);
+    if (hashPdf && patrimonioHashJaConsumiuLeitura(hashPdf)) {
+      return null;
+    }
     let pdfOriginal = "";
     try {
       pdfOriginal = await fileParaDataUrl(file);
@@ -2501,6 +2549,8 @@
       docId: "",
       placa: placaDoNomeArquivo(file.name) || "",
       msgIa: "",
+      hashPdf: hashPdf || undefined,
+      leiturasIa: 0,
       tentativasIa: 0,
       atualizadoEm: agora.toISOString(),
     });
@@ -2544,6 +2594,7 @@
     atualizarProgressoLotePatrimonio(0, files.length);
     await patrimonioYieldUi();
     let ok = 0;
+    let ignoradosHash = 0;
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
@@ -2555,6 +2606,12 @@
         );
         setMsg(`A converter ${i + 1}/${files.length}: «${file.name}»…`, false);
         await patrimonioYieldUi();
+        const hashPdf = await patrimonioHashFile(file);
+        if (hashPdf && patrimonioHashJaConsumiuLeitura(hashPdf)) {
+          ignoradosHash++;
+          patrimonioLoteExcluidos++;
+          continue;
+        }
         const imagem = await pdfArquivoParaImagemAlta(file);
         const foto = await registrarArquivoPdf(file, imagem);
         if (!foto) {
@@ -2572,12 +2629,23 @@
     renderFotosLista();
     patrimonioConvertendoPdfs = false;
     if (ok > 0) {
+      const extraHash =
+        ignoradosHash > 0
+          ? ` ${ignoradosHash} ignorado(s) — PDF já consumiu 1 leitura IA (reenvie ficheiro alterado).`
+          : "";
       setMsg(
-        `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). A IA continua em segundo plano — pode usar outras áreas do portal.`,
+        `${ok} PDF(s) na fila da IA (1 leitura cada).${extraHash} A IA continua em segundo plano — pode usar outras áreas do portal.`,
         false,
         true
       );
       void finalizarLotePatrimonioAposUpload();
+    } else if (ignoradosHash > 0) {
+      setMsg(
+        `${ignoradosHash} PDF(s) ignorado(s) — já consumiram 1 leitura IA. Reenvie ficheiros novos ou alterados.`,
+        true
+      );
+      patrimonioLibertarWakeLock();
+      patrimonioRetomarSyncCloud();
     } else {
       patrimonioLibertarWakeLock();
       patrimonioRetomarSyncCloud();
@@ -2764,7 +2832,7 @@ FAIXA 3 — rodapé (linha tracejada horizontal):
   - Ignore caixas DPVAT/seguro à direita se só asteriscos (*).`;
   }
 
-  function montarPromptCrlv(revisao, opts) {
+  function montarPromptCrlv(_revisao, opts) {
     const hintPlaca = String(opts?.placaHint || "").trim();
     const hintNome = String(opts?.nomeArquivo || "").trim();
     const hintExtra =
@@ -2773,35 +2841,22 @@ FAIXA 3 — rodapé (linha tracejada horizontal):
         : "";
     const schema = `{"aprovado":true,"confianca":"alta","camposIlegiveis":[],"motivoReprovacao":"","campos":{"codigoRenavam":"","placa":"","exercicio":"","anoFabricacao":"","anoModelo":"","numeroCrv":"","codigoSegurancaCla":"","marcaModeloVersao":"","especieTipo":"","placaAnterior":"","chassi":"","corPredominante":"","combustivel":"","categoria":"","potenciaCilindrada":"","motor":"","carroceria":"","nome":"","cpfCnpj":"","local":"","data":"DD/MM/AAAA","observacaoVeiculo":""}}`;
     const mapa = mapaEspacialCrlvPrompt();
-    if (revisao) {
-      return `CRLV-e brasileiro — segunda leitura com MAPA DE POSIÇÕES (tarja preta = topo).
-${hintExtra}
-${mapa}
-
-Responda APENAS JSON: ${schema}
-
-Revise com prioridade: placa (negrito esquerda faixa 1), codigoRenavam (11 dígitos topo esquerdo), chassi (17 chars faixa 2), potenciaCilindrada, observacaoVeiculo (caixa inferior esquerda).
-- placa Mercosul LLLNLNN; conte dígitos do RENAVAM um a um.
-- Use "aprovado": true se placa, RENAVAM e chassi estiverem corretos.`;
-    }
-    return `CRLV-e brasileiro (SENATRAN, layout fixo). Extraia os VALORES EM NEGRITO nas posições abaixo — mesmo que rótulos pequenos ("PLACA", "CÓDIGO DE SEGURANÇA") estejam borrados.
+    return `CRLV-e brasileiro (SENATRAN) — UMA ÚNICA LEITURA. Extraia TODOS os campos abaixo numa só resposta JSON.
 ${hintExtra}
 ${mapa}
 
 Responda APENAS JSON válido (sem markdown): ${schema}
 
-REGRAS DE CONTEÚDO:
-- placa: 7 caracteres Mercosul LLLNLNN (3 letras + 1 número + 1 letra + 2 números). Posição: esquerda faixa 1. Diferencie 8/B, 0/O, 5/S.
-- codigoRenavam: 11 dígitos na primeira linha esquerda.
-- chassi: 17 caracteres na faixa 2, à direita de placa anterior.
-- potenciaCilindrada: copie exato da caixa direita (ex.: 0CV/162).
-- cpfCnpj: só dígitos com pontuação se visível.
+REGRAS OBRIGATÓRIAS:
+- placa: Mercosul LLLNLNN (7 caracteres) — faixa 1 esquerda, negrito.
+- codigoRenavam: 11 dígitos — faixa 1 esquerda.
+- chassi: 17 caracteres — faixa 2.
+- nome: proprietário (razão social ou pessoa) — coluna direita, ABAIXO de carroceria; NUNCA "NÃO APLICÁVEL".
+- cpfCnpj: 11 ou 14 dígitos abaixo do nome.
+- carroceria: motocicleta pode ser "NÃO APLICÁVEL" — NUNCA use isso em nome.
 - observacaoVeiculo: caixa inferior esquerda; se vazio use "SEM OBSERVAÇÕES".
-- carroceria: motocicleta → "NÃO APLICÁVEL" se aplicável — NUNCA coloque isso em nome.
-- nome: razão social ou nome do proprietário (caixa ABAIXO de carroceria). Nunca "NÃO APLICÁVEL".
-- nome/cpfCnpj nesta leitura são secundários — serão confirmados num recorte dedicado da coluna direita.
-- NÃO invente dígitos; se a posição estiver legível mas o rótulo não, confie na posição do mapa.
-- "aprovado": true quando placa, RENAVAM e chassi forem lidos com confiança.`;
+- NÃO invente dígitos; leia só o que está visível.
+- "aprovado": true quando placa, RENAVAM, chassi, nome e cpfCnpj estiverem corretos.`;
   }
 
   function montarPromptCrlvPlaca(revisao, opts) {
@@ -3314,6 +3369,12 @@ REGRAS OBRIGATÓRIAS:
     if (reason === "openai_not_configured") {
       return "IA não configurada no servidor (contacte suporte DK).";
     }
+    if (reason === "ia_already_processed") {
+      return "Este PDF já consumiu 1 leitura IA no servidor.";
+    }
+    if (reason === "ia_daily_cap") {
+      return "Limite diário de leituras IA atingido. Tente amanhã.";
+    }
     if (reason === "forbidden_origin") return "Pedido bloqueado (origem inválida).";
     if (reason === "invalid_content") return "Erro interno ao enviar imagem à IA.";
     if (reason === "openai_error") {
@@ -3361,7 +3422,7 @@ REGRAS OBRIGATÓRIAS:
         const label = CAMPOS_ORDEM.find((c) => c.key === key)?.label || key;
         return {
           ok: false,
-          msg: `IA não leu «${label}». Nova tentativa automática.`,
+          msg: `IA não leu «${label}». Reenvie o PDF se necessário.`,
           field: key,
         };
       }
@@ -3508,10 +3569,10 @@ REGRAS OBRIGATÓRIAS:
     await abrirEditorCantosPreview();
   }
 
-  async function chamarIaCrlv(dataUrl, revisao, opts) {
+  async function chamarIaCrlv(dataUrl, opts) {
     const parsed = parseDataUrl(dataUrl);
     const content = [
-      { type: "text", text: montarPromptCrlv(Boolean(revisao), opts) },
+      { type: "text", text: montarPromptCrlv(false, opts) },
       {
         type: "image_url",
         image_url: {
@@ -3520,111 +3581,65 @@ REGRAS OBRIGATÓRIAS:
         },
       },
     ];
-    const maxTentativas = 8;
-    for (let t = 0; t < maxTentativas; t++) {
-      try {
-        const res = await fetch("/api/openai-comprovante", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content, tipo: "crlv", max_tokens: 4096 }),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.status === 429 || (data?.reason === "openai_error" && /rate|429|limit/i.test(String(data?.error)))) {
-          await new Promise((r) => window.setTimeout(r, 1500 * (t + 1)));
-          continue;
-        }
-        if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
-        return { ok: false, msg: msgErroApiIa(data, res.status) };
-      } catch (e) {
-        if (t === maxTentativas - 1) return { ok: false, msg: String(e?.message || e) };
-        await new Promise((r) => window.setTimeout(r, 1200 * (t + 1)));
+    try {
+      const res = await fetch("/api/openai-comprovante", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content,
+          tipo: "crlv",
+          max_tokens: 4096,
+          ia_job_id: String(opts?.fotoId || opts?.iaJobId || ""),
+          ia_content_hash: String(opts?.hashPdf || opts?.iaContentHash || ""),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 409 && data?.reason === "ia_already_processed") {
+        return { ok: false, msg: "Este PDF já consumiu 1 leitura IA no servidor." };
       }
+      if (res.status === 429 && data?.reason === "ia_daily_cap") {
+        return { ok: false, msg: "Limite diário de leituras IA atingido. Tente amanhã." };
+      }
+      if (res.ok && data.ok && data.parsed) return { ok: true, parsed: data.parsed };
+      return { ok: false, msg: msgErroApiIa(data, res.status) };
+    } catch (e) {
+      return { ok: false, msg: String(e?.message || e) };
     }
-    return { ok: false, msg: "OpenAI ocupada (limite de pedidos). Tente Revisar IA em instantes." };
   }
 
+  /** Uma imagem, uma chamada API, uma leitura — processa ou falha (sem retry). */
   async function lerCrlvComRetry(imagens, opts) {
-    const fontes = [...new Set((imagens || []).filter(Boolean))];
-    let ultimo = { ok: false, msg: MSG_IA_FALHOU };
+    const src = (imagens || []).find(Boolean);
+    if (!src) return { ok: false, msg: MSG_IA_FALHOU };
     const iaOpts = {
       placaHint: opts?.placaHint || "",
       nomeArquivo: opts?.nomeArquivo || "",
       documentosReferencia: opts?.documentosReferencia,
+      fotoId: opts?.fotoId || "",
+      hashPdf: opts?.hashPdf || "",
     };
-
-    for (let i = 0; i < fontes.length; i++) {
-      let placaLida = { ok: false };
-      placaLida = await lerPlacaCrlvComRetry(fontes[i], iaOpts);
-      if (placaLida.ok && placaValida(placaLida.placa)) {
-        iaOpts.placaHint = placaLida.placa;
-        iaOpts.documentoSubstituir = placaLida.documentoExistente || null;
-      }
-
-      const img = await prepararImagemParaIaCrlv(fontes[i]);
-      const { base64 } = parseDataUrl(img);
-      if (!base64 || base64.length < 5000) {
-        ultimo = { ok: false, msg: "Imagem vazia ou corrompida para a IA." };
-        continue;
-      }
-
-      let camposVeiculo = null;
-      for (const revisao of [false, true, true]) {
-        const oai = await chamarIaCrlv(img, revisao, iaOpts);
-        if (!oai.ok) {
-          ultimo = oai;
-          const msg = String(oai.msg || "");
-          if (/n[aã]o configurada|openai_not_configured/i.test(msg)) {
-            return ultimo;
-          }
-          continue;
-        }
-        const parcial = normalizarCampos(oai.parsed);
-        if (!placaValida(parcial.placa) && iaOpts.placaHint) {
-          parcial.placa = iaOpts.placaHint;
-        }
-        const chavesVeiculo = ["codigoRenavam", "placa", "chassi"];
-        const veiculoOk = chavesVeiculo.every((k) => String(parcial[k] ?? "").trim());
-        if (veiculoOk && placaValida(parcial.placa) && chassiValido(parcial.chassi)) {
-          camposVeiculo = parcial;
-          break;
-        }
-        ultimo = { ok: false, msg: "IA não leu placa, RENAVAM ou chassi.", field: "placa" };
-      }
-      if (!camposVeiculo) continue;
-
-      if (placaLida.ok && placaValida(placaLida.placa)) {
-        camposVeiculo.placa = placaLida.placa;
-        if (placaLida.codigoRenavam && !String(camposVeiculo.codigoRenavam || "").trim()) {
-          camposVeiculo.codigoRenavam = placaLida.codigoRenavam;
-        }
-      }
-
-      const owner = await lerProprietarioCrlvComRetry(fontes[i], iaOpts);
-      if (!owner.ok) {
-        ultimo = owner;
-        continue;
-      }
-
-      const campos = mesclarCamposVeiculoEProprietario(camposVeiculo, owner);
-      const val = validarLeituraCrlv(null, campos, iaOpts);
-      if (val.ok) {
-        const documentoExistente =
-          placaLida.documentoExistente ||
-          iaOpts.documentoSubstituir ||
-          buscarDocumentoCadastradoPorPlaca(campos.placa);
-        return {
-          ok: true,
-          campos,
-          parsed: null,
-          imagemUsada: fontes[i],
-          placaLidaRecorte: placaLida.ok ? placaLida.placa : "",
-          documentoExistente,
-          substituirExistente: Boolean(documentoExistente),
-        };
-      }
-      ultimo = val;
+    const hintArquivo = placaDoNomeArquivo(iaOpts.nomeArquivo);
+    if (hintArquivo && placaValida(hintArquivo)) iaOpts.placaHint = hintArquivo;
+    const img = await prepararImagemParaIaCrlv(src);
+    const { base64 } = parseDataUrl(img);
+    if (!base64 || base64.length < 5000) {
+      return { ok: false, msg: "Imagem vazia ou corrompida para a IA." };
     }
-    return ultimo;
+    const oai = await chamarIaCrlv(img, iaOpts);
+    if (!oai.ok) return oai;
+    const campos = normalizarCampos(oai.parsed);
+    if (!placaValida(campos.placa) && iaOpts.placaHint) campos.placa = iaOpts.placaHint;
+    const val = validarLeituraCrlv(null, campos, iaOpts);
+    if (!val.ok) return { ok: false, msg: val.msg, field: val.field };
+    const documentoExistente = buscarDocumentoCadastradoPorPlaca(campos.placa);
+    return {
+      ok: true,
+      campos,
+      parsed: null,
+      imagemUsada: src,
+      documentoExistente,
+      substituirExistente: Boolean(documentoExistente),
+    };
   }
 
   function normalizarCampos(raw) {
@@ -3680,53 +3695,18 @@ REGRAS OBRIGATÓRIAS:
   }
 
   async function revisarFotoCapturaComIa(fotoId) {
-    const foto = getFotoCapturaById(fotoId);
-    if (!foto) return;
-    const imgs = await imagensParaFotoCapturaAsync(fotoId, null);
-    if (!imgs.length) {
-      setMsg("Imagem indisponível — reenvie o PDF deste veículo.", true);
-      return;
-    }
-    atualizarFotoCaptura(fotoId, { statusIa: "fila", msgIa: "", tentativasIa: 0 });
-    if (fotoCapturaStatusEl) fotoCapturaStatusEl.textContent = "Na fila da IA…";
-    setMsg(`Arquivo ${foto.nomeArquivo || foto.tag} na fila para revisão com IA…`, false);
-    enfileirarIaPatrimonio(fotoId, imgs);
-    renderFotosLista();
+    setMsg(
+      "Nova leitura IA consome 1 crédito por PDF. Reenvie o ficheiro pelo seletor «Abrir» (não reutiliza leitura anterior).",
+      true
+    );
   }
 
   async function reprocessarTodosReprovadosPatrimonio() {
-    patrimonioPausarSyncCloud();
-    const audit = await patrimonioAuditarErecuperarCadastros();
-    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
-    if (!fotos.length) {
-      if (audit.idb > 0 || audit.dedup.recuperados > 0) return;
-      setMsg(
-        `Relatório com ${audit.total} veículo(s). Se faltam PDFs, envie de novo os ficheiros em falta (mesma placa substitui).`,
-        false,
-        audit.total >= 160
-      );
-      return;
-    }
-    let n = 0;
-    patrimonioPausarSyncCloud();
-    for (const f of fotos) {
-      if (!(await patrimonioFilaTemImagem(f.id))) continue;
-      atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: "", tentativasIa: 0 });
-      enfileirarIaPatrimonio(f.id, []);
-      n++;
-    }
-    renderFotosLista();
-    if (n > 0) {
-      setMsg(
-        `${n} arquivo(s) na fila (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). Aguarde…`,
-        false,
-        true
-      );
-      void finalizarLotePatrimonioAposUpload();
-    } else {
-      setMsg("Pendentes sem imagem guardada — reenvie os PDFs.", true);
-      patrimonioRetomarSyncCloud();
-    }
+    setMsg(
+      "Para nova leitura IA, reenvie cada PDF pelo seletor — 1 leitura por ficheiro enviado.",
+      false,
+      true
+    );
   }
 
   function setMsg(text, erro, ok) {
@@ -4256,7 +4236,7 @@ REGRAS OBRIGATÓRIAS:
     const docsN = getDocumentos().length;
     if (fotosResumoEl) {
       fotosResumoEl.textContent = fotos.length
-        ? `${docsN} veículo(s) cadastrados · ${fotos.length} a processar (até ${PATRIMONIO_IA_MAX_TENTATIVAS}× cada).`
+        ? `${docsN} veículo(s) cadastrados · ${fotos.length} a processar (1 leitura IA cada).`
         : docsN > 0
           ? `${docsN} veículo(s) cadastrados. Nenhum arquivo em processamento.`
           : "Nenhum PDF em processamento.";
