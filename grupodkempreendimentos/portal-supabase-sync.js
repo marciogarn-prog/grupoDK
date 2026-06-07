@@ -1524,6 +1524,18 @@
     }
   }
 
+  function preserveCloudCadastrosWhenLocalEmpty(localPayload, cloudPayload) {
+    if (!cloudPayload || typeof cloudPayload !== "object") return localPayload;
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true) return localPayload;
+    const out = { ...localPayload };
+    for (const k of DK_IMMUTABLE_CADASTRO_KEYS) {
+      const localArr = Array.isArray(out[k]) ? out[k] : [];
+      const cloudArr = Array.isArray(cloudPayload[k]) ? cloudPayload[k] : [];
+      if (localArr.length === 0 && cloudArr.length > 0) out[k] = cloudArr;
+    }
+    return out;
+  }
+
   async function upsertSnapshotRow(showUserMessages, opts) {
     const forceReplace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
@@ -1574,6 +1586,7 @@
         persistMergedPayloadToLocal(payload);
       }
     }
+    payload = preserveCloudCadastrosWhenLocalEmpty(payload, cloudMeta?.payload || cloudPayloadMerged);
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
         payload.dk_patrimonio_crlv_v1,
