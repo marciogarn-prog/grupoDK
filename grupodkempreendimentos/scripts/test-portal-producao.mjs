@@ -337,6 +337,7 @@ async function runSuite() {
         patJs.includes("patrimonioRecuperarTravamentoIa") &&
         patJs.includes("patrimonioExpurgarFilaObsoleta") &&
         patJs.includes("fotoFilaPresaSemProcessamento") &&
+        patJs.includes("patrimonioExpurgarFilaPendenteFinal") &&
         patJs.includes("patrimonioRetomarFilaIa") &&
         patJs.includes("PATRIMONIO_FILA_TTL_MS") &&
         patJs.includes("coletarPatrimonioErrosIa") &&
@@ -406,7 +407,7 @@ async function runSuite() {
       return r.ok ? await r.text() : "";
     });
     const syncJs = await page.evaluate(async () => {
-      const r = await fetch("portal-supabase-sync.js?v=20260521fila-orfa-sync", {
+      const r = await fetch("portal-supabase-sync.js?v=20260521fila-orfa-15min", {
         cache: "no-store",
       });
       return r.ok ? await r.text() : "";

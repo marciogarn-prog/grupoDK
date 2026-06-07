@@ -1069,7 +1069,7 @@
     });
   }
 
-  /** Fila pendente na nuvem sem imagem ou com leitura já consumida — não ressuscitar no cliente. */
+  /** Fila pendente na nuvem sem imagem, com leitura consumida ou antiga — não ressuscitar no cliente. */
   function patrimonioFotoFilaOrfaSync(f) {
     if (!f || typeof f !== "object") return false;
     const st = String(f.statusIa || "").toLowerCase();
@@ -1079,7 +1079,10 @@
     if (st === "falhou") return true;
     if (Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1) return true;
     const img = String(f.imagem || "");
-    return Boolean(f.imagemIndisponivel && !img.startsWith("data:image/"));
+    if (f.imagemIndisponivel && !img.startsWith("data:image/")) return true;
+    const ms = Date.parse(String(f.atualizadoEm || f.registradoEm || "")) || 0;
+    if (ms && Date.now() - ms >= 15 * 60 * 1000) return true;
+    return false;
   }
 
   function expurgarFotosCapturasOrfaosSync(fotosCapturas, exclusoes) {
@@ -1137,7 +1140,7 @@
     };
   }
 
-  function mergeFotosCapturasPatrimonio(localList, cloudList) {
+  function mergeFotosCapturasPatrimonio(localList, cloudList, exclusoes) {
     const map = new Map();
     for (const f of [...(cloudList || []), ...(localList || [])]) {
       if (!f || typeof f !== "object") continue;
@@ -1146,7 +1149,9 @@
       const prev = map.get(id);
       map.set(id, prev ? mergeFotoCapturaPar(prev, f) : f);
     }
-    return [...map.values()].sort((a, b) => {
+    let fotos = [...map.values()];
+    if (exclusoes) fotos = aplicarExclusoesFotosCapturas(fotos, exclusoes);
+    return fotos.sort((a, b) => {
       const msA = Date.parse(String(a.registradoEm || "")) || 0;
       const msB = Date.parse(String(b.registradoEm || "")) || 0;
       return msB - msA;
@@ -1303,7 +1308,7 @@
       exLocalStandalone,
       parseExclusoesPatrimonioLista(cloudExclusoesStandalone)
     );
-    let fotosCapturas = mergeFotosCapturasPatrimonio(localP.fotosCapturas, cloudP.fotosCapturas);
+    let fotosCapturas = mergeFotosCapturasPatrimonio(localP.fotosCapturas, cloudP.fotosCapturas, exclusoes);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
 
     return normalizePatrimonioPayloadForSync({

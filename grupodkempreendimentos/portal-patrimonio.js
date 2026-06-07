@@ -112,7 +112,7 @@
   const PATRIMONIO_IA_MAX_TENTATIVAS = 1;
   const PATRIMONIO_IA_LEDGER_KEY = "dk_patrimonio_ia_ledger_v1";
   /** Pendente na fila além deste prazo → excluir (reenvio manual). */
-  const PATRIMONIO_FILA_TTL_MS = 6 * 60 * 60 * 1000;
+  const PATRIMONIO_FILA_TTL_MS = 15 * 60 * 1000;
   /** Reavalia fila enquanto o portal estiver aberto (mesmo noutra área). */
   const PATRIMONIO_FILA_POLL_MS = 60 * 1000;
   let patrimonioWakeLock = null;
@@ -414,7 +414,7 @@
 
   function patrimonioFotoJaConsumiuLeituraIa(f) {
     if (!f) return false;
-    if (Number(f.leiturasIa) >= 1) return true;
+    if (Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1) return true;
     return patrimonioHashJaConsumiuLeitura(f.hashPdf);
   }
 
@@ -1183,7 +1183,13 @@
 
   function exclusaoPatrimonioEhDefinitiva(ex) {
     const motivo = String(ex?.motivo || "").toLowerCase();
-    if (/prazo esgotado|imagem indisponível|esgotou.*tentativas/.test(motivo)) return true;
+    if (
+      /prazo esgotado|imagem indisponível|esgotou.*tentativas|leitura ia|processamento interrompido|não foi possível concluir|fila órfã|reenvie o pdf/.test(
+        motivo
+      )
+    ) {
+      return true;
+    }
     const excluidoMs = Date.parse(String(ex?.excluidoEm || "")) || 0;
     if (excluidoMs && Date.now() - excluidoMs > PATRIMONIO_FILA_TTL_MS) return true;
     return false;
@@ -1261,11 +1267,11 @@
         continue;
       }
       if (idade >= PATRIMONIO_FILA_TTL_MS) {
-        const h = Math.round(PATRIMONIO_FILA_TTL_MS / 3600000);
+        const mins = Math.max(1, Math.round(PATRIMONIO_FILA_TTL_MS / 60000));
         if (
           await excluirFotoCapturaAutomatico(
             f.id,
-            `Prazo esgotado (${h}h na fila) — reenvie o PDF se ainda precisar.`
+            `Prazo esgotado (${mins} min na fila) — reenvie o PDF se ainda precisar.`
           )
         ) {
           removidos++;
@@ -1275,9 +1281,53 @@
     return removidos;
   }
 
+  /** Após tentativa de processamento: exclui tudo o que ainda estiver pendente (processa ou exclui). */
+  async function patrimonioExpurgarFilaPendenteFinal() {
+    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+    let removidos = 0;
+    for (const f of fotos) {
+      const motivo = String(f.msgIa || "Não foi possível concluir a leitura IA — reenvie o PDF.").slice(
+        0,
+        220
+      );
+      if (await excluirFotoCapturaAutomatico(f.id, motivo)) removidos++;
+    }
+    if (removidos > 0) {
+      await patrimonioApagarImagensFilaOrfas();
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        try {
+          await window.__DK_pushCloudSnapshotNow();
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return removidos;
+  }
+
+  async function patrimonioApagarImagensFilaOrfas() {
+    const idsAtivos = new Set(getFotosCapturas().map((f) => f.id));
+    let rawStore;
+    try {
+      rawStore = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
+    } catch {
+      return;
+    }
+    const candidatos = [
+      ...(Array.isArray(rawStore.fotosCapturas) ? rawStore.fotosCapturas : []),
+      ...todasExclusoesPatrimonio(rawStore.fotosCapturasExcluidas),
+    ];
+    for (const item of candidatos) {
+      const id = String(item?.id || "").trim();
+      if (!id || idsAtivos.has(id)) continue;
+      await patrimonioApagarImagemFila(id);
+    }
+  }
+
   /** Sincroniza fila, processa pendentes ou limpa enviados concluídos. */
   async function patrimonioRetomarFilaIa(opts = {}) {
     const silencioso = opts.silencioso !== false;
+    const finalizar = opts.finalizar !== false;
     repararFotosCapturasPendentes();
     patrimonioRecuperarTravamentoIa();
     const expurgados = await patrimonioExpurgarFilaObsoleta();
@@ -1285,20 +1335,32 @@
     patrimonioAtualizarBadgeSegundoPlano();
     const restantes = patrimonioContarRestantesIa();
     let limpos = 0;
+    let expurgadosFinal = 0;
     if (restantes > 0 || filaIaPatrimonio.length > 0) {
       await patrimonioProcessarIaSegundoPlano();
     } else if (!patrimonioIaEmCurso()) {
       limpos = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
       patrimonioAtualizarBadgeSegundoPlano();
     }
-    const alterouFila = expurgados > 0 || limpos > 0;
+    if (
+      finalizar &&
+      !patrimonioConvertendoPdfs &&
+      !iaPatrimonioRodando &&
+      getFotosCapturas().some((f) => fotoEstaPendenteIa(f))
+    ) {
+      expurgadosFinal = await patrimonioExpurgarFilaPendenteFinal();
+      if (!patrimonioIaEmCurso()) {
+        limpos += await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+      }
+    }
+    const alterouFila = expurgados > 0 || limpos > 0 || expurgadosFinal > 0;
     if (!silencioso || alterouFila) {
       renderFotosLista();
       renderLista();
       atualizarBotaoErrosPatrimonio();
-      if (!silencioso && expurgados > 0) {
+      if (!silencioso && (expurgados > 0 || expurgadosFinal > 0)) {
         setMsg(
-          `${expurgados} arquivo(s) removido(s) da fila (presos, prazo esgotado ou sem imagem).`,
+          `${expurgados + expurgadosFinal} arquivo(s) removido(s) da fila (presos, prazo esgotado ou sem imagem).`,
           false,
           true
         );
@@ -5045,7 +5107,7 @@ ${contador}
     }
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
-    void patrimonioRetomarFilaIa({ silencioso: false });
+    void patrimonioRetomarFilaIa({ silencioso: false, finalizar: true });
     try {
       sessionStorage.removeItem(PENDING_FOTO_KEY);
     } catch {
