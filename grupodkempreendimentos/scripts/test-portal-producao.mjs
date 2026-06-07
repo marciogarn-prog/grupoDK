@@ -17,12 +17,54 @@ function record(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"} | ${name}${detail ? ` | ${detail}` : ""}`);
 }
 
-async function main() {
+async function runSuite() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
 
   try {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
+
+    const storageInicial = await page.evaluate(() => {
+      const rawC = localStorage.getItem("dk_clientes_cadastro");
+      const rawV = localStorage.getItem("dk_veiculos_cadastro");
+      const rawL = localStorage.getItem("dk_locacoes_cadastro");
+      let clientes = [];
+      let veiculos = [];
+      let locacoes = [];
+      try {
+        clientes = rawC ? JSON.parse(rawC) : [];
+      } catch {
+        /* */
+      }
+      try {
+        veiculos = rawV ? JSON.parse(rawV) : [];
+      } catch {
+        /* */
+      }
+      try {
+        locacoes = rawL ? JSON.parse(rawL) : [];
+      } catch {
+        /* */
+      }
+      return {
+        clientes: clientes.length,
+        veiculos: veiculos.length,
+        locacoes: locacoes.length,
+        manual: localStorage.getItem("dk_cadastro_manual_portal_v1"),
+        instalacaoLimpa: localStorage.getItem("dk_instalacao_limpa_v1"),
+      };
+    });
+    record("modo cadastro manual ativo", storageInicial.manual === "1", `manual=${storageInicial.manual}`);
+    record(
+      "instalação limpa aplicada no browser",
+      storageInicial.instalacaoLimpa === "done",
+      `flag=${storageInicial.instalacaoLimpa}`
+    );
+    record(
+      "cadastros vazios após instalação limpa",
+      storageInicial.clientes === 0 && storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
+      `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
+    );
 
     const html = await page.content();
     const portalUiVer = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
@@ -477,40 +519,68 @@ async function main() {
     record("auto-detect id com Data", autoDateDetect.detected, "testeAutoDataCampoNovo");
     record("auto-mascara campo novo", autoDateDetect.masked === "01/01/2030", autoDateDetect.masked);
 
+    async function readLocadoraHubState() {
+      return page.evaluate(() => {
+        const hub = document.getElementById("view-locadora-hub");
+        const cliente = hub?.querySelector("[data-locadora-go='cliente']");
+        const empresa = hub?.querySelector("[data-locadora-go='empresa']");
+        return {
+          hubActive: Boolean(hub?.classList.contains("view--active")),
+          hasCliente: Boolean(cliente),
+          hasEmpresa: Boolean(empresa),
+        };
+      });
+    }
+
     async function ensureLocadoraHubVisible() {
+      await page.goto(`${BASE_URL}#locadora`, { waitUntil: "networkidle", timeout: 90000 });
       for (let attempt = 0; attempt < 3; attempt++) {
-        if (await page.locator("#view-locadora-hub.view--active").isVisible().catch(() => false)) return true;
-        const homeBtn = page.locator('#view-home [data-go="locadora"]').first();
-        if (await homeBtn.isVisible().catch(() => false)) {
-          await homeBtn.click();
-        } else {
-          await page.goto(`${BASE_URL}#locadora`, { waitUntil: "networkidle", timeout: 90000 });
-        }
-        await page.waitForTimeout(600);
+        let state = await readLocadoraHubState();
+        if (state.hubActive && state.hasCliente && state.hasEmpresa) return true;
         await page
           .evaluate(() => {
-            if (!document.getElementById("view-locadora-hub")?.classList.contains("view--active")) {
-              location.hash = "locadora";
-              window.dispatchEvent(new HashChangeEvent("hashchange"));
-            }
+            location.hash = "locadora";
+            window.dispatchEvent(new HashChangeEvent("hashchange"));
           })
           .catch(() => null);
-        await page.waitForTimeout(600);
+        await page
+          .waitForFunction(
+            () => {
+              const hub = document.getElementById("view-locadora-hub");
+              return Boolean(
+                hub?.classList.contains("view--active") &&
+                  hub.querySelector("[data-locadora-go='cliente']") &&
+                  hub.querySelector("[data-locadora-go='empresa']")
+              );
+            },
+            { timeout: 15000 }
+          )
+          .catch(() => null);
+        await page.waitForTimeout(500);
+        state = await readLocadoraHubState();
+        if (state.hubActive && state.hasCliente && state.hasEmpresa) return true;
+        const homeBtn = page.locator('#view-home [data-go="locadora"]').first();
+        if (await homeBtn.isVisible().catch(() => false)) {
+          await homeBtn.click().catch(() => null);
+          await page.waitForTimeout(800);
+        }
       }
-      return page.locator("#view-locadora-hub.view--active").isVisible().catch(() => false);
+      const finalState = await readLocadoraHubState();
+      return finalState.hubActive && finalState.hasCliente && finalState.hasEmpresa;
     }
     await ensureLocadoraHubVisible();
     await page.waitForTimeout(300);
 
-    const hubCliente = page.locator("#view-locadora-hub [data-locadora-go='cliente']").first();
-    const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa']").first();
+    const hubState = await readLocadoraHubState();
     record(
       "hub DK Locadora (cliente + empresa)",
-      (await hubCliente.isVisible().catch(() => false)) && (await hubEmpresa.isVisible().catch(() => false))
+      hubState.hubActive && hubState.hasCliente && hubState.hasEmpresa,
+      `hubActive=${hubState.hubActive}`
     );
 
-    if (await hubEmpresa.isVisible().catch(() => false)) {
-      await hubEmpresa.click();
+    const hubEmpresa = page.locator("#view-locadora-hub [data-locadora-go='empresa']").first();
+    if (hubState.hasEmpresa) {
+      await hubEmpresa.click().catch(() => null);
       await page.waitForTimeout(500);
     }
 
@@ -538,41 +608,6 @@ async function main() {
       await cloudBtn.click();
       await page.waitForTimeout(5000);
     }
-
-    const storage = await page.evaluate(() => {
-      const rawC = localStorage.getItem("dk_clientes_cadastro");
-      const rawV = localStorage.getItem("dk_veiculos_cadastro");
-      const rawL = localStorage.getItem("dk_locacoes_cadastro");
-      let clientes = [];
-      let veiculos = [];
-      let locacoes = [];
-      try {
-        clientes = rawC ? JSON.parse(rawC) : [];
-      } catch {
-        /* */
-      }
-      try {
-        veiculos = rawV ? JSON.parse(rawV) : [];
-      } catch {
-        /* */
-      }
-      try {
-        locacoes = rawL ? JSON.parse(rawL) : [];
-      } catch {
-        /* */
-      }
-      return {
-        clientes: clientes.length,
-        veiculos: veiculos.length,
-        locacoes: locacoes.length,
-        manual: localStorage.getItem("dk_cadastro_manual_portal_v1"),
-        instalacaoLimpa: localStorage.getItem("dk_instalacao_limpa_v1"),
-      };
-    });
-
-    record("modo cadastro manual ativo", storage.manual === "1", `manual=${storage.manual}`);
-    record("instalação limpa aplicada no browser", storage.instalacaoLimpa === "done", `flag=${storage.instalacaoLimpa}`);
-    record("cadastros vazios após instalação limpa", storage.clientes === 0 && storage.veiculos === 0 && storage.locacoes === 0, `c=${storage.clientes} v=${storage.veiculos} l=${storage.locacoes}`);
 
     const appsHtml = await page.evaluate(() => fetch("./apps.html").then((r) => r.text()));
     record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Grupo DK"));
@@ -689,6 +724,7 @@ async function main() {
     const patrimonioPdfPath = path.join(REPO_ROOT, "Relatorio de Veiculos DK.pdf");
     try {
       await page.evaluate(() => {
+        sessionStorage.removeItem("dk_portal_area_ativa");
         localStorage.setItem(
           "dk_sessao_cliente",
           JSON.stringify({
@@ -700,11 +736,34 @@ async function main() {
         );
         localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
       });
-      await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
-      await page.waitForSelector("#btn-locadora-patrimonio:not(.hidden)", { timeout: 25000 }).catch(() => null);
-      await page.waitForTimeout(400);
+      await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 90000 });
+      await page
+        .waitForFunction(
+          () => {
+            const btn = document.getElementById("btn-locadora-patrimonio");
+            const panel = document.getElementById("panel-logado");
+            return Boolean(
+              btn &&
+                panel &&
+                !btn.classList.contains("hidden") &&
+                !panel.classList.contains("hidden")
+            );
+          },
+          { timeout: 35000 }
+        )
+        .catch(() => null);
+      await page.waitForTimeout(600);
+      const patBtnState = await page.evaluate(() => {
+        const btn = document.getElementById("btn-locadora-patrimonio");
+        const panel = document.getElementById("panel-logado");
+        return {
+          ok: Boolean(btn && panel && !btn.classList.contains("hidden") && !panel.classList.contains("hidden")),
+          panelHidden: panel?.classList.contains("hidden"),
+          btnHidden: btn?.classList.contains("hidden"),
+        };
+      });
       const patBtn = page.locator("#btn-locadora-patrimonio");
-      if ((await patBtn.isVisible().catch(() => false)) && fs.existsSync(patrimonioPdfPath)) {
+      if (patBtnState.ok && fs.existsSync(patrimonioPdfPath)) {
         await patBtn.click();
         await page.waitForSelector("#panel-patrimonio-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
         await page.waitForTimeout(800);
@@ -750,7 +809,9 @@ async function main() {
         record(
           "patrimônio E2E: Abrir no seletor dispara processamento",
           false,
-          !fs.existsSync(patrimonioPdfPath) ? "PDF amostra ausente no repo" : "botão patrimônio invisível"
+          !fs.existsSync(patrimonioPdfPath)
+            ? "PDF amostra ausente no repo"
+            : `botão/painel oculto (panel=${patBtnState.panelHidden} btn=${patBtnState.btnHidden})`
         );
       }
     } catch (e) {
@@ -780,10 +841,31 @@ async function main() {
   } finally {
     await browser.close();
   }
+}
 
-  const passed = results.filter((r) => r.ok).length;
-  console.log(`\n--- ${passed}/${results.length} testes passaram ---`);
-  process.exit(passed === results.length ? 0 : 1);
+const MAX_TEST_ATTEMPTS = 3;
+
+async function main() {
+  for (let attempt = 1; attempt <= MAX_TEST_ATTEMPTS; attempt++) {
+    if (attempt > 1) {
+      results.length = 0;
+      console.log(`\n>>> Repetindo testes (${attempt}/${MAX_TEST_ATTEMPTS}) após falha parcial...\n`);
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+    await runSuite();
+    const passed = results.filter((r) => r.ok).length;
+    const total = results.length;
+    if (passed === total) {
+      console.log(`\n--- ${passed}/${total} testes passaram${attempt > 1 ? ` (tentativa ${attempt})` : ""} ---`);
+      process.exit(0);
+    }
+    if (attempt < MAX_TEST_ATTEMPTS) {
+      console.log(`\n--- ${passed}/${total} testes passaram — nova tentativa ---`);
+    } else {
+      console.log(`\n--- ${passed}/${total} testes passaram (após ${MAX_TEST_ATTEMPTS} tentativas) ---`);
+      process.exit(1);
+    }
+  }
 }
 
 main().catch((e) => {

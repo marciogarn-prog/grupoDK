@@ -7716,6 +7716,8 @@ ${printable.innerHTML}
     refreshOperacaoLocacaoFinalizarBtn();
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
   }
+
+  function normPortalNumeroContrato(x) {
     return typeof normalizeNumeroContratoKey === "function"
       ? normalizeNumeroContratoKey(x || "")
       : String(x || "").trim();
