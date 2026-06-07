@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260607admin-banner-fix">
+  <link rel="stylesheet" href="styles.css?v=20260607ia-segundo-plano">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-pwa-update.js?v=20260531force"></script>
 </head>
@@ -1638,6 +1638,7 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnRevisarFalhados">Revisar todos os falhados</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnLimparFila">Limpar fila</button>
           <button type="button" class="btn-primary btn-secondary-outline patrimonio-btn-lixo" id="patrimonioBtnExcluirLixo">Excluir lixo (fora do relatório)</button>
+          <button type="button" class="btn-primary btn-secondary-outline hidden" id="patrimonioVerErrosBtn" disabled>Relatório de erros</button>
           <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
         </div>
         <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
@@ -1750,12 +1751,17 @@
       </div>
       <p class="subtext portal-modal__text">Campos na ordem oficial do CRLV-e. Exporte ou clique em «Ver imagem» por placa.</p>
       <div class="patrimonio-relatorio-export">
+        <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioErrosPdfBtn">PDF erros</button>
         <button type="button" class="btn-primary" id="patrimonioRelatorioPdfBtn">Gerar PDF</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioExcelBtn">Gerar Excel</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioAtualizarBtn">Atualizar</button>
       </div>
       <div class="patrimonio-relatorio-modal-scroll">
         <div id="patrimonioRelatorioContador" class="patrimonio-relatorio-contador" aria-live="polite"></div>
+        <div id="patrimonioRelatorioErrosWrap" class="patrimonio-relatorio-erros hidden" aria-live="polite">
+          <h4 class="patrimonio-relatorio-erros__titulo">Arquivos recusados pela IA</h4>
+          <div id="patrimonioRelatorioErrosConteudo" class="patrimonio-relatorio-erros__conteudo"></div>
+        </div>
         <div id="patrimonioRelatorioConteudo" class="patrimonio-relatorio-conteudo" aria-live="polite"></div>
       </div>
       <div class="portal-modal__actions patrimonio-relatorio-modal-footer">
@@ -1787,6 +1793,11 @@
         <button type="button" class="btn-primary btn-secondary-outline" id="portalReciboFecharBtn">Fechar</button>
       </div>
     </div>
+  </div>
+
+  <div id="patrimonioIaBgBadge" class="patrimonio-ia-bg-badge hidden" role="status" aria-live="polite">
+    <span id="patrimonioIaBgBadgeText" class="patrimonio-ia-bg-badge__text"></span>
+    <button type="button" class="patrimonio-ia-bg-badge__btn" id="patrimonioIaBgBadgeIrBtn">Património</button>
   </div>
 
   <div id="portalRelatorioPdfViewer" class="portal-pdf-viewer hidden" aria-hidden="true">
@@ -1972,7 +1983,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
-  <script src="portal-patrimonio.js?v=20260604relatorio-scroll" defer></script>
+  <script src="portal-patrimonio.js?v=20260607ia-segundo-plano" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260521pesquisa-placa" defer></script>
   <script src="portal-supabase-sync.js?v=20260607instalacao-limpa" defer></script>

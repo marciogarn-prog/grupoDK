@@ -76,6 +76,7 @@
   const statusIaEl = document.getElementById("patrimonioOpenAIStatus");
   const btnNovo = document.getElementById("patrimonioBtnNovoDoc");
   const btnRelatorio = document.getElementById("patrimonioVerRelatorioBtn");
+  const btnErros = document.getElementById("patrimonioVerErrosBtn");
   const relatorioModal = document.getElementById("patrimonioRelatorioModal");
   const relatorioConteudo = document.getElementById("patrimonioRelatorioConteudo");
   const relatorioContador = document.getElementById("patrimonioRelatorioContador");
@@ -115,7 +116,8 @@
   let patrimonioModalHistorico = false;
   let patrimonioHistorySuppress = false;
   let patrimonioFlashLigado = true;
-  let patrimonioCameraDeviceId = "";
+  let patrimonioIaLoopPromessa = null;
+  let patrimonioModoRelatorioErros = false;
 
   function patrimonioLabelEhFrontal(label) {
     const L = String(label || "").toLowerCase();
@@ -1377,7 +1379,7 @@
       partes.push(`${idb} PDF(s) na fila para nova leitura`);
     }
     if (dedup.recuperados > 0 || idb > 0) {
-      setMsg(partes.join(" · ") + ". Mantenha a página aberta.", false, true);
+      setMsg(partes.join(" · ") + ". A IA continua em segundo plano.", false, true);
     }
     return { total, dedup, idb };
   }
@@ -1531,19 +1533,26 @@
     const foto = getFotoCapturaById(fotoId);
     if (!foto) return "excluido";
     const tentAtual = tentativasIaFoto(foto);
+    const detalhe = String(msg || MSG_IA_FALHOU).slice(0, 220);
     if (tentAtual >= PATRIMONIO_IA_MAX_TENTATIVAS) {
-      await excluirFotoCapturaAutomatico(fotoId, "Esgotou tentativas de IA.");
+      await excluirFotoCapturaAutomatico(
+        fotoId,
+        `${detalhe} (esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas)`
+      );
       renderFotosLista();
+      atualizarBotaoErrosPatrimonio();
+      patrimonioAtualizarBadgeSegundoPlano();
       return "excluido";
     }
     const tent = tentAtual + 1;
-    const detalhe = String(msg || MSG_IA_FALHOU).slice(0, 160);
     if (tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
       await excluirFotoCapturaAutomatico(
         fotoId,
         `${detalhe} (esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas)`
       );
       renderFotosLista();
+      atualizarBotaoErrosPatrimonio();
+      patrimonioAtualizarBadgeSegundoPlano();
       return "excluido";
     }
     atualizarFotoCaptura(fotoId, {
@@ -1553,7 +1562,112 @@
     });
     enfileirarIaPatrimonio(fotoId, []);
     renderFotosLista();
+    patrimonioAtualizarBadgeSegundoPlano();
     return "reenfileirado";
+  }
+
+  function coletarPatrimonioErrosIa() {
+    const store = loadStore();
+    return todasExclusoesPatrimonio(store.fotosCapturasExcluidas)
+      .filter((e) => String(e?.motivo || "").trim())
+      .sort((a, b) => (Date.parse(b.excluidoEm) || 0) - (Date.parse(a.excluidoEm) || 0));
+  }
+
+  function atualizarBotaoErrosPatrimonio() {
+    const n = coletarPatrimonioErrosIa().length;
+    if (!btnErros) return;
+    btnErros.disabled = n === 0;
+    btnErros.classList.toggle("hidden", n === 0);
+    btnErros.textContent = n === 1 ? "Relatório de erros (1)" : `Relatório de erros (${n})`;
+  }
+
+  function patrimonioIaEmCurso() {
+    return (
+      patrimonioConvertendoPdfs ||
+      iaPatrimonioRodando ||
+      filaIaPatrimonio.length > 0 ||
+      getFotosCapturas().some((f) => fotoEstaPendenteIa(f))
+    );
+  }
+
+  function patrimonioAtualizarBadgeSegundoPlano() {
+    const badge = document.getElementById("patrimonioIaBgBadge");
+    const txt = document.getElementById("patrimonioIaBgBadgeText");
+    if (!badge || !txt) return;
+    const filaMem = filaIaPatrimonio.length;
+    const pendentes = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f)).length;
+    const erros = coletarPatrimonioErrosIa().length;
+    const ativo = patrimonioConvertendoPdfs || iaPatrimonioRodando || pendentes > 0 || filaMem > 0;
+    badge.classList.toggle("hidden", !ativo);
+    if (!ativo) return;
+    if (patrimonioConvertendoPdfs) {
+      txt.textContent = `Património: a preparar PDFs (${patrimonioLoteRecebidos}/${patrimonioLoteTotal || "…"})…`;
+      return;
+    }
+    const restantes = filaMem + pendentes;
+    txt.textContent = `IA património: ${patrimonioLoteCadastrados} cadastrado(s) · ${restantes} restante(s)${erros ? ` · ${erros} recusado(s)` : ""} — pode usar outras áreas`;
+  }
+
+  async function patrimonioSincronizarFilaComStorage() {
+    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
+    for (const f of fotos) {
+      if (String(f.statusIa || "").toLowerCase() === "processando") {
+        atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
+      }
+      if (filaIaPatrimonio.some((j) => j.fotoId === f.id)) continue;
+      const temImg = await patrimonioFilaTemImagem(f.id);
+      if (!temImg) {
+        if (tentativasIaFoto(f) >= PATRIMONIO_IA_MAX_TENTATIVAS) {
+          await excluirFotoCapturaAutomatico(f.id, f.msgIa || "Sem imagem guardada.");
+        }
+        continue;
+      }
+      enfileirarIaPatrimonio(f.id, [], { silencioso: true });
+    }
+  }
+
+  function patrimonioProcessarIaSegundoPlano() {
+    if (!patrimonioIaLoopPromessa) {
+      patrimonioIaLoopPromessa = patrimonioLoopIaSegundoPlano().finally(() => {
+        patrimonioIaLoopPromessa = null;
+      });
+    }
+    return patrimonioIaLoopPromessa;
+  }
+
+  async function patrimonioLoopIaSegundoPlano() {
+    await patrimonioSincronizarFilaComStorage();
+    await processarFilaIaPatrimonioInterno();
+    await patrimonioSincronizarFilaComStorage();
+    if (filaIaPatrimonio.length || getFotosCapturas().some((f) => fotoEstaPendenteIa(f))) {
+      await processarFilaIaPatrimonioInterno();
+    }
+    const aindaPendentes =
+      getFotosCapturas().some((f) => fotoEstaPendenteIa(f)) || filaIaPatrimonio.length > 0;
+    if (!aindaPendentes) {
+      const excl = patrimonioLoteExcluidos;
+      const cad = patrimonioLoteCadastrados;
+      if (cad > 0 || excl > 0) {
+        const errosN = coletarPatrimonioErrosIa().length;
+        setMsg(
+          `Lote concluído: ${cad} cadastrado(s)${excl > 0 ? ` · ${excl} recusado(s)` : ""}.${errosN ? " Veja «Relatório de erros»." : ""}`,
+          excl > 0,
+          excl === 0
+        );
+      }
+      if (!patrimonioIaEmCurso()) {
+        await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+      }
+      patrimonioRetomarSyncCloud();
+    }
+    renderFotosLista();
+    renderLista();
+    atualizarBotaoErrosPatrimonio();
+    patrimonioAtualizarBadgeSegundoPlano();
+  }
+
+  async function processarFilaIaPatrimonio() {
+    return patrimonioProcessarIaSegundoPlano();
   }
 
   function contagemFilaPatrimonio() {
@@ -1572,107 +1686,19 @@
     return { fila, processando, ok, falhou, total: fotos.length };
   }
 
-  async function reiniciarFilaPatrimonioAposAbrir() {
-    if (!patrimonioFilaPatrimonioAtiva()) return;
-    const fotos = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
-    if (!fotos.length) return;
-    for (const f of fotos) {
-      if (String(f.statusIa || "").toLowerCase() === "processando") {
-        atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
-      }
-      if (await patrimonioFilaTemImagem(f.id)) {
-        enfileirarIaPatrimonio(f.id, []);
-      } else if (tentativasIaFoto(f) >= PATRIMONIO_IA_MAX_TENTATIVAS) {
-        await excluirFotoCapturaAutomatico(f.id, "Sem imagem guardada.");
-      }
-    }
-    void finalizarLotePatrimonioAposUpload();
-  }
-
-  async function patrimonioDrenarLoteSemPendentes() {
-    let rodadas = 0;
-    while (rodadas < 12) {
-      rodadas++;
-      const pendentes = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
-      if (!pendentes.length && !filaIaPatrimonio.length) break;
-
-      for (const f of pendentes) {
-        const tent = tentativasIaFoto(f);
-        const temImg = await patrimonioFilaTemImagem(f.id);
-        if (!temImg || tent >= PATRIMONIO_IA_MAX_TENTATIVAS) {
-          await excluirFotoCapturaAutomatico(
-            f.id,
-            temImg
-              ? `Esgotou ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas de IA.`
-              : "Imagem indisponível."
-          );
-          continue;
-        }
-        if (filaIaPatrimonio.some((j) => j.fotoId === f.id)) continue;
-        atualizarFotoCaptura(f.id, {
-          statusIa: "fila",
-          tentativasIa: tent,
-          msgIa: f.msgIa || `Retomando (${tent}/${PATRIMONIO_IA_MAX_TENTATIVAS})…`,
-        });
-        enfileirarIaPatrimonio(f.id, []);
-      }
-
-      if (filaIaPatrimonio.length) {
-        await processarFilaIaPatrimonioInterno();
-      } else if (!getFotosCapturas().some((f) => fotoEstaPendenteIa(f))) {
-        break;
-      }
-    }
-
-    const sobraram = getFotosCapturas().filter((f) => fotoEstaPendenteIa(f));
-    for (const f of sobraram) {
-      await excluirFotoCapturaAutomatico(f.id, "Não processado — removido para não ficar pendente.");
-    }
-  }
-
-  function enfileirarIaPatrimonio(fotoId, imagens) {
+  function enfileirarIaPatrimonio(fotoId, imagens, opts) {
     if (!fotoId) return;
     if (filaIaPatrimonio.some((j) => j.fotoId === fotoId)) return;
     filaIaPatrimonio.push({ fotoId, imagens: (imagens || []).filter(Boolean) });
-    void processarFilaIaPatrimonioInterno();
-  }
-
-  async function aguardarIaPatrimonioParar() {
-    while (iaPatrimonioRodando) {
-      await new Promise((r) => window.setTimeout(r, 200));
+    patrimonioAtualizarBadgeSegundoPlano();
+    if (!opts?.silencioso) {
+      void patrimonioProcessarIaSegundoPlano();
     }
   }
 
   async function finalizarLotePatrimonioAposUpload() {
-    await aguardarIaPatrimonioParar();
-    await processarFilaIaPatrimonio();
-  }
-
-  async function processarFilaIaPatrimonio() {
-    if (iaPatrimonioRodando) return;
-    await processarFilaIaPatrimonioInterno();
-    await patrimonioDrenarLoteSemPendentes();
-    const c = contagemFilaPatrimonio();
-    const excl = patrimonioLoteExcluidos;
-    const cad = patrimonioLoteCadastrados;
-    const pendentes = getFotosCapturasEmProcessamento().length;
-    if (cad > 0 || excl > 0 || pendentes > 0 || c.total > 0) {
-      const partes = [];
-      if (cad > 0) partes.push(`${cad} cadastrado(s) neste lote`);
-      if (excl > 0) partes.push(`${excl} excluído(s) após ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas`);
-      setMsg(
-        pendentes
-          ? `A processar… ${partes.join(" · ") || "em curso"} · ${pendentes} restante(s).`
-          : `Lote concluído${partes.length ? `: ${partes.join(" · ")}` : ""}.`,
-        excl > 0,
-        excl === 0 && !pendentes
-      );
-    }
-    renderFotosLista();
-    renderLista();
-    patrimonioRetomarSyncCloud();
-    await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
-    renderFotosLista();
+    await patrimonioSincronizarFilaComStorage();
+    void patrimonioProcessarIaSegundoPlano();
   }
 
   async function processarFilaIaPatrimonioInterno() {
@@ -1688,9 +1714,10 @@
         const c = contagemFilaPatrimonio();
         const restantes = filaIaPatrimonio.length;
         setMsg(
-          `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila…`,
+          `IA · até ${PATRIMONIO_IA_MAX_TENTATIVAS}× · ${patrimonioLoteCadastrados} cadastrados · ${restantes} na fila… (segundo plano)`,
           false
         );
+        patrimonioAtualizarBadgeSegundoPlano();
         atualizarProgressoLotePatrimonio(
           c.ok + n,
           c.fila + c.processando + c.ok + c.falhou + restantes + 1,
@@ -1711,6 +1738,7 @@
     patrimonioLoteTotal = 0;
     patrimonioLoteRecebidos = 0;
     atualizarProgressoLotePatrimonio(0, 0, "");
+    patrimonioAtualizarBadgeSegundoPlano();
   }
 
   async function processarIaParaFotoCaptura(fotoId, imagens) {
@@ -2390,7 +2418,7 @@
     patrimonioConvertendoPdfs = false;
     if (ok > 0) {
       setMsg(
-        `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). Mantenha a página aberta.`,
+        `${ok} PDF(s) na fila da IA (até ${PATRIMONIO_IA_MAX_TENTATIVAS} tentativas cada). A IA continua em segundo plano — pode usar outras áreas do portal.`,
         false,
         true
       );
@@ -3883,6 +3911,7 @@ REGRAS OBRIGATÓRIAS:
           : "Nenhum CRLV cadastrado. Anexe PDFs na área abaixo.";
     }
     if (btnRelatorio) btnRelatorio.disabled = docs.length === 0;
+    atualizarBotaoErrosPatrimonio();
     if (!listaEl) return;
     if (!docs.length) {
       listaEl.innerHTML = '<p class="subtext">Nenhum documento ainda.</p>';
@@ -4352,6 +4381,7 @@ REGRAS OBRIGATÓRIAS:
     if (!relatorioConteudo) return;
     const docs = getDocumentos().slice().sort((a, b) => normPlaca(a.placa).localeCompare(normPlaca(b.placa)));
     renderContadoresRelatorio(docs);
+    renderPatrimonioErrosTabela();
     if (!docs.length) {
       relatorioConteudo.innerHTML = '<p class="subtext">Nenhum documento.</p>';
       return;
@@ -4434,10 +4464,105 @@ ${contador}
 <body><h2>${escapeHtml(titulo)}</h2>${contador}<table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
   }
 
-  function abrirRelatorioModal() {
+  function formatPatrimonioErroData(iso) {
+    const ts = Date.parse(String(iso || ""));
+    if (!Number.isFinite(ts)) return "—";
+    return new Date(ts).toLocaleString("pt-BR");
+  }
+
+  function buildPatrimonioErrosRows() {
+    return coletarPatrimonioErrosIa().map((e) => [
+      formatPatrimonioErroData(e.excluidoEm),
+      String(e.nomeArquivo || e.tag || e.id || "—"),
+      String(e.placa || placaDoNomeArquivo(e.nomeArquivo) || "—"),
+      String(e.motivo || "Recusado pela IA"),
+    ]);
+  }
+
+  function renderPatrimonioErrosTabela() {
+    const wrap = document.getElementById("patrimonioRelatorioErrosWrap");
+    const el = document.getElementById("patrimonioRelatorioErrosConteudo");
+    const erros = coletarPatrimonioErrosIa();
+    if (!wrap || !el) return;
+    if (!erros.length) {
+      wrap.classList.add("hidden");
+      el.innerHTML = "";
+      return;
+    }
+    wrap.classList.remove("hidden");
+    const head = ["Data", "Arquivo", "Placa", "Motivo da recusa"]
+      .map((h) => `<th>${escapeHtml(h)}</th>`)
+      .join("");
+    const body = buildPatrimonioErrosRows()
+      .map((row) => `<tr>${row.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`)
+      .join("");
+    el.innerHTML = `<div class="portal-lanc-hist-wrap"><table class="portal-lanc-hist patrimonio-relatorio-erros-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  function buildPatrimonioErrosPdfHtml() {
+    const rows = buildPatrimonioErrosRows();
+    const quando = new Date().toLocaleString("pt-BR");
+    const head = ["Data", "Arquivo", "Placa", "Motivo da recusa"]
+      .map((h) => `<th>${escapeHtml(h)}</th>`)
+      .join("");
+    const body = rows.length
+      ? rows.map((row) => `<tr>${row.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`).join("")
+      : `<tr><td colspan="4">Nenhum arquivo recusado.</td></tr>`;
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de erros — património CRLV</title>
+<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:11px;margin:16px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #ccc;padding:4px 6px;text-align:left;vertical-align:top}th{background:#fee2e2}.meta{color:#555;margin-bottom:12px}</style></head>
+<body><h1>Relatório de erros — património CRLV</h1><p class="meta">Emitido em ${escapeHtml(quando)} · ${rows.length} arquivo(s) recusado(s) pela IA</p>
+<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+  }
+
+  function getRelatorioErrosContext() {
+    const rows = buildPatrimonioErrosRows();
+    return {
+      title: "Relatório de erros — património CRLV",
+      headers: ["Data", "Arquivo", "Placa", "Motivo da recusa"],
+      rows,
+      fileSlug: "patrimonio-crlv-erros",
+      textColumns: [0, 1, 2, 3],
+      buildPdfHtml: () => buildPatrimonioErrosPdfHtml(),
+      buildExcelHtml: () => {
+        const titulo = "Relatório de erros — património CRLV";
+        const head = ["Data", "Arquivo", "Placa", "Motivo da recusa"]
+          .map((h) => `<th>${escapeHtml(h)}</th>`)
+          .join("");
+        const body = rows
+          .map((row) => `<tr>${row.map((c) => `<td>${escapeHtml(c)}</td>`).join("")}</tr>`)
+          .join("");
+        return `<html xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><title>${escapeHtml(titulo)}</title></head><body><h2>${escapeHtml(titulo)}</h2><table border="1"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></body></html>`;
+      },
+    };
+  }
+
+  function abrirRelatorioErrosModal() {
+    patrimonioModoRelatorioErros = true;
+    abrirRelatorioModal(true);
+  }
+
+  function abrirRelatorioModal(somenteErros) {
     if (!relatorioModal) return;
+    patrimonioModoRelatorioErros = somenteErros === true;
     try {
-      renderRelatorioTabela();
+      if (patrimonioModoRelatorioErros) {
+        renderPatrimonioErrosTabela();
+        if (relatorioConteudo) {
+          relatorioConteudo.innerHTML =
+            '<p class="subtext">Lista de PDFs recusados pela IA após esgotar tentativas ou validação.</p>';
+        }
+        if (relatorioContador) {
+          relatorioContador.innerHTML = "";
+          relatorioContador.classList.add("hidden");
+        }
+        const titulo = document.getElementById("patrimonioRelatorioTitulo");
+        if (titulo) titulo.textContent = "Relatório de erros — património CRLV";
+      } else {
+        renderRelatorioTabela();
+        const titulo = document.getElementById("patrimonioRelatorioTitulo");
+        if (titulo) titulo.textContent = "Relatório de patrimônio — CRLV";
+      }
+      renderPatrimonioErrosTabela();
     } catch (e) {
       console.error("[DK patrimônio] relatório", e);
       if (relatorioConteudo) {
@@ -4450,6 +4575,7 @@ ${contador}
   }
 
   function fecharRelatorioModal() {
+    patrimonioModoRelatorioErros = false;
     relatorioModal?.classList.add("hidden");
     relatorioModal?.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
@@ -4479,7 +4605,11 @@ ${contador}
     if (document.documentElement.dataset.dkPatrimonioBound === "1") return;
     document.documentElement.dataset.dkPatrimonioBound = "1";
 
-    btnRelatorio?.addEventListener("click", () => abrirRelatorioModal());
+    btnRelatorio?.addEventListener("click", () => abrirRelatorioModal(false));
+    btnErros?.addEventListener("click", () => abrirRelatorioErrosModal());
+    document.getElementById("patrimonioIaBgBadgeIrBtn")?.addEventListener("click", () => {
+      document.getElementById("btn-locadora-patrimonio")?.click();
+    });
     bindPatrimonioPdfUpload();
 
     document.getElementById("patrimonioBtnReprocessarReprovados")?.addEventListener("click", () => {
@@ -4520,6 +4650,11 @@ ${contador}
     document.getElementById("patrimonioRelatorioPdfBtn")?.addEventListener("click", () => {
       if (typeof window.__DK_emitPortalRelatorioPdf === "function") {
         window.__DK_emitPortalRelatorioPdf(getRelatorioContext());
+      }
+    });
+    document.getElementById("patrimonioRelatorioErrosPdfBtn")?.addEventListener("click", () => {
+      if (typeof window.__DK_emitPortalRelatorioPdf === "function") {
+        window.__DK_emitPortalRelatorioPdf(getRelatorioErrosContext());
       }
     });
     document.getElementById("patrimonioRelatorioExcelBtn")?.addEventListener("click", () => {
@@ -4611,17 +4746,22 @@ ${contador}
     repararFotosCapturasPendentes();
     void (async () => {
       await patrimonioAuditarErecuperarCadastros();
-      const removidos = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+      if (!patrimonioIaEmCurso()) {
+        const removidos = await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+        if (removidos > 0) {
+          setMsg(`${removidos} pendente(s) obsoleto(s) removido(s). Fila limpa.`, false, true);
+        }
+      }
       renderFotosLista();
       renderLista();
-      if (removidos > 0) {
-        setMsg(`${removidos} pendente(s) obsoleto(s) removido(s). Fila limpa.`, false, true);
-      }
     })();
     const store = loadStore();
     saveStore(store);
     void refreshOpenAIStatus();
     renderLista();
+    atualizarBotaoErrosPatrimonio();
+    patrimonioAtualizarBadgeSegundoPlano();
+    void patrimonioSincronizarFilaComStorage().then(() => patrimonioProcessarIaSegundoPlano());
     try {
       sessionStorage.removeItem(PENDING_FOTO_KEY);
     } catch {
@@ -4653,7 +4793,8 @@ ${contador}
     return false;
   }
 
-  window.__DK_patrimonioColetarAuditoria = patrimonioColetarAuditoriaArquivos;
+  window.__DK_patrimonioColetarErrosIa = coletarPatrimonioErrosIa;
+  window.__DK_patrimonioIaEmCurso = patrimonioIaEmCurso;
   window.__DK_patrimonioOnShow = onShowPatrimonio;
   window.__DK_patrimonioProcessarArquivosPdf = processarArquivosPdf;
   window.__DK_patrimonioEhArquivoPdf = ehArquivoPdf;
@@ -4668,8 +4809,16 @@ ${contador}
   window.__DK_patrimonioOverlayAberto = patrimonioOverlayAberto;
   window.__DK_openPatrimonioImagemById = abrirViewerImagem;
 
+  window.__DK_patrimonioColetarAuditoria = patrimonioColetarAuditoriaArquivos;
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    void patrimonioSincronizarFilaComStorage().then(() => patrimonioProcessarIaSegundoPlano());
+  });
+
   window.addEventListener("dk-comprovantes-synced", () => {
     void (async () => {
+      if (patrimonioIaEmCurso()) return;
       await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
       renderLista();
       renderFotosLista();
@@ -4684,13 +4833,19 @@ ${contador}
     const idb = await patrimonioRecuperarFalhasComImagemIdb();
     if (idb > 0) {
       setMsg(
-        `${idb} PDF(s) em falha recuperado(s) para nova leitura. Mantenha a página aberta.`,
+        `${idb} PDF(s) em falha recuperado(s) para nova leitura. A IA continua em segundo plano.`,
         false,
         true
       );
     }
-    await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+    if (!patrimonioIaEmCurso()) {
+      await patrimonioAplicarLimpezaArquivosEnviados({ expurgarTudo: true });
+    }
     renderLista();
     renderFotosLista();
+    atualizarBotaoErrosPatrimonio();
+    await patrimonioSincronizarFilaComStorage();
+    patrimonioProcessarIaSegundoPlano();
+    patrimonioAtualizarBadgeSegundoPlano();
   })();
 })();
