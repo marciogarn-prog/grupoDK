@@ -7501,7 +7501,6 @@ ${printable.innerHTML}
       return;
     }
     const prev = locs[idx];
-    const cpfDigits = dig(String(prev.cpf || inpCpf?.value || ""));
     const finalizarLocacao = () => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);

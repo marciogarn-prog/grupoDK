@@ -117,7 +117,7 @@ async function main() {
     );
     record(
       "tema vermelho preto + fundo showroom",
-      html.includes("20260521proto-imutavel") &&
+      html.includes("20260521proto-fix") &&
         html.includes('theme-color" content="#050505"') &&
         (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
     );
@@ -145,20 +145,20 @@ async function main() {
       html.includes("portal-admin-banner") &&
         html.includes("portal-admin-cliente-cpf") &&
         html.includes("LOGADO COMO ADMINISTRADOR") &&
-        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-imutavel`, { cache: "no-store" }).then((r) =>
+        (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, { cache: "no-store" }).then((r) =>
           r.ok ? r.text() : ""
         )).includes("isPortalAdministradorLogado")
     );
     record(
       "pesquisa contrato preenche placa automaticamente",
-      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-imutavel`, { cache: "no-store" }).then((r) =>
+      (await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, { cache: "no-store" }).then((r) =>
         r.ok ? r.text() : ""
       )).includes("protoNormAtual") && html.includes("operacaoLancAluguelPlacaBusca")
     );
     const appJsProto = await fetch(`${BASE_URL}app.js?v=20260521proto-imutavel`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
-    const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-imutavel`, {
+    const portalUiProto = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521proto-fix`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
