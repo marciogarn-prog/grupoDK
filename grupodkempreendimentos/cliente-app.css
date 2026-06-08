@@ -507,6 +507,70 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
   margin-top: 0.65rem;
 }
 
+.cliente-btn-documentos {
+  width: 100%;
+  margin-top: 0.55rem;
+}
+
+.cliente-docs-inline {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cliente-docs-inline__head {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #c62828;
+}
+
+.cliente-docs-inline__lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.cliente-doc-link {
+  width: 100%;
+  text-align: left;
+  word-break: break-word;
+}
+
+.cliente-doc-zoom-viewport {
+  position: relative;
+  overflow: auto;
+  max-height: min(70vh, 520px);
+  -webkit-overflow-scrolling: touch;
+  touch-action: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: #f5f5f5;
+}
+
+.cliente-doc-zoom-stage {
+  display: inline-block;
+  min-width: 100%;
+  padding: 0.35rem;
+  will-change: transform;
+}
+
+.cliente-doc-iframe {
+  width: 100%;
+  min-width: 18rem;
+  height: 70vh;
+  max-height: 520px;
+  border: 0;
+  background: #fff;
+}
+
+.cliente-doc-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
 .cliente-cal-inline {
   margin-top: 0.75rem;
   padding-top: 0.65rem;
