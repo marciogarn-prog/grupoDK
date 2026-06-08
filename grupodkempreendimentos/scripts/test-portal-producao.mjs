@@ -846,6 +846,20 @@ async function runSuite() {
         clienteResumoJs.includes("pickUltimoPagamento"),
       "placa, semanal, pago, investimento, último pagamento"
     );
+    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cliente-cal-inline`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente detalhamento pagamentos calendario bloco",
+      clienteHtml.includes("Detalhamento dos pagamentos") &&
+        clienteHtml.includes("cliente-pagamentos-calendario.js") &&
+        clienteAppJs.includes("cliente-cal-inline") &&
+        clienteAppJs.includes("data-cliente-cal-proto") &&
+        clienteCalJs.includes("Pagamentos de") &&
+        clienteCalJs.includes("buildAnoHtml") &&
+        clienteCalJs.includes("__DK_clienteToggleCalendarioInline"),
+      "botão abre calendário em bloco abaixo do contrato"
+    );
     record(
       "app cliente troca senha inicial 123456",
       clienteAppJs.includes("SENHA_INICIAL_CLIENTE") &&

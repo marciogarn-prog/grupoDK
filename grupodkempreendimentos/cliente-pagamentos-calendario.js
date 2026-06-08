@@ -47,7 +47,10 @@
   function semanaTotalLinha(tr) {
     let s = 0;
     tr.querySelectorAll(".portal-lanc-cal-val").forEach((el) => {
-      const raw = String(el.textContent || "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".");
+      const raw = String(el.textContent || "")
+        .replace(/[^\d,.-]/g, "")
+        .replace(/\./g, "")
+        .replace(",", ".");
       const n = Number(raw);
       if (Number.isFinite(n)) s += n;
     });
@@ -113,6 +116,52 @@
     return html;
   }
 
+  function mostrarCalendarioAno(ano, ctx, ui) {
+    const { pick, corpo, titulo, voltarBtn } = ui;
+    if (!corpo || !ctx) return;
+    const mapa = agruparPagamentosPorDataIso(ctx.lancamentos, ano);
+    const colPag = Number.isFinite(Number(ctx.diaPagamentoCol)) ? Number(ctx.diaPagamentoCol) : 3;
+    pick?.classList.add("hidden");
+    corpo.classList.remove("hidden");
+    voltarBtn?.classList.remove("hidden");
+    corpo.innerHTML = buildAnoHtml(ano, mapa, colPag);
+    corpo.dataset.ano = String(ano);
+    corpo.querySelectorAll(".portal-lanc-cal-mes").forEach((mesEl) => atualizarTotaisMes(mesEl));
+    const diaLbl = ctx.diaPagamentoLabel || "";
+    const proto = ctx.proto || "";
+    if (titulo) {
+      titulo.textContent = diaLbl
+        ? `Pagamentos de ${ano} guardados. · protocolo ${proto} · dia ${diaLbl}`
+        : `Pagamentos de ${ano} guardados.`;
+    }
+  }
+
+  function abrirEscolhaAno(ctx, ui) {
+    const { pick, corpo, titulo, voltarBtn, panel } = ui;
+    if (!pick || !corpo || !ctx) return false;
+    pick.replaceChildren();
+    pick.classList.remove("hidden");
+    corpo.classList.add("hidden");
+    corpo.replaceChildren();
+    voltarBtn?.classList.add("hidden");
+    if (titulo) {
+      titulo.textContent = `Detalhamento dos pagamentos — escolha o ano · protocolo ${ctx.proto || ""}`;
+    }
+    for (const ano of anosDisponiveis()) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn-primary btn-secondary-outline portal-lanc-cal-ano-btn";
+      btn.textContent = String(ano);
+      btn.addEventListener("click", () => mostrarCalendarioAno(ano, ctx, ui));
+      pick.appendChild(btn);
+    }
+    if (panel) {
+      panel.classList.remove("hidden");
+      panel.hidden = false;
+    }
+    return true;
+  }
+
   function fecharModal() {
     const modal = document.getElementById("clienteCalPagamentosModal");
     if (modal) {
@@ -121,60 +170,64 @@
     }
   }
 
-  function mostrarCalendarioAno(ano, ctx) {
-    const pick = document.getElementById("clienteCalPagamentosAnoPick");
-    const corpo = document.getElementById("clienteCalPagamentosCorpo");
-    const titulo = document.getElementById("clienteCalPagamentosTitulo");
-    if (!corpo || !ctx) return;
-    const mapa = agruparPagamentosPorDataIso(ctx.lancamentos, ano);
-    const colPag = Number.isFinite(Number(ctx.diaPagamentoCol)) ? Number(ctx.diaPagamentoCol) : 3;
-    pick?.classList.add("hidden");
-    corpo.classList.remove("hidden");
-    document.getElementById("clienteCalPagamentosVoltarAnosBtn")?.classList.remove("hidden");
-    corpo.innerHTML = buildAnoHtml(ano, mapa, colPag);
-    corpo.dataset.ano = String(ano);
-    corpo.querySelectorAll(".portal-lanc-cal-mes").forEach((mesEl) => atualizarTotaisMes(mesEl));
-    const diaLbl = ctx.diaPagamentoLabel || "";
-    const proto = ctx.proto || "";
-    if (titulo) {
-      titulo.textContent = diaLbl
-        ? `Detalhamento dos pagamentos — ${ano} · protocolo ${proto} · dia ${diaLbl}`
-        : `Detalhamento dos pagamentos — ${ano} · protocolo ${proto}`;
-    }
-  }
-
   function abrirModalAnoPick(ctx) {
     const modal = document.getElementById("clienteCalPagamentosModal");
-    const pick = document.getElementById("clienteCalPagamentosAnoPick");
-    const corpo = document.getElementById("clienteCalPagamentosCorpo");
-    const titulo = document.getElementById("clienteCalPagamentosTitulo");
-    if (!modal || !pick || !corpo || !ctx) return false;
-
-    pick.replaceChildren();
-    pick.classList.remove("hidden");
-    corpo.classList.add("hidden");
-    corpo.replaceChildren();
-    document.getElementById("clienteCalPagamentosVoltarAnosBtn")?.classList.add("hidden");
-    if (titulo) titulo.textContent = `Detalhamento dos pagamentos — escolha o ano · protocolo ${ctx.proto || ""}`;
-
-    for (const ano of anosDisponiveis()) {
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "btn-primary btn-secondary-outline portal-lanc-cal-ano-btn";
-      btn.textContent = String(ano);
-      btn.addEventListener("click", () => mostrarCalendarioAno(ano, ctx));
-      pick.appendChild(btn);
-    }
-
+    if (!modal || !ctx) return false;
+    const ui = {
+      panel: null,
+      pick: document.getElementById("clienteCalPagamentosAnoPick"),
+      corpo: document.getElementById("clienteCalPagamentosCorpo"),
+      titulo: document.getElementById("clienteCalPagamentosTitulo"),
+      voltarBtn: document.getElementById("clienteCalPagamentosVoltarAnosBtn"),
+    };
+    abrirEscolhaAno(ctx, ui);
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
     return true;
   }
 
-  function abrirCalendarioPagamentos(loc) {
+  function getInlineUi(proto) {
+    const panel = document.querySelector(`[data-cliente-cal-panel="${proto}"]`);
+    if (!panel) return null;
+    return {
+      panel,
+      pick: panel.querySelector("[data-cliente-cal-ano-pick]"),
+      corpo: panel.querySelector("[data-cliente-cal-corpo]"),
+      titulo: panel.querySelector("[data-cliente-cal-head]"),
+      voltarBtn: panel.querySelector("[data-cliente-cal-voltar]"),
+    };
+  }
+
+  function fecharPainéisInline(excetoProto) {
+    document.querySelectorAll("[data-cliente-cal-panel]").forEach((panel) => {
+      const proto = String(panel.getAttribute("data-cliente-cal-panel") || "").trim();
+      if (excetoProto && proto === excetoProto) return;
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      const btn = document.querySelector(`[data-cliente-cal-proto="${proto}"]`);
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+  }
+
+  function toggleCalendarioInline(proto, loc) {
+    const ui = getInlineUi(proto);
+    if (!ui?.panel) return false;
+    const aberto = !ui.panel.classList.contains("hidden");
+    const btn = document.querySelector(`[data-cliente-cal-proto="${proto}"]`);
+    if (aberto) {
+      ui.panel.classList.add("hidden");
+      ui.panel.hidden = true;
+      if (btn) btn.setAttribute("aria-expanded", "false");
+      return true;
+    }
     if (!loc || typeof window.__DK_clienteBuildCalendarioCtx !== "function") return false;
     const ctx = window.__DK_clienteBuildCalendarioCtx(loc);
-    return abrirModalAnoPick(ctx);
+    window.__DK_clienteCalendarioCtxAtual = ctx;
+    fecharPainéisInline(proto);
+    abrirEscolhaAno(ctx, ui);
+    if (btn) btn.setAttribute("aria-expanded", "true");
+    ui.panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return true;
   }
 
   function bindUi() {
@@ -186,14 +239,24 @@
     document.getElementById("clienteCalPagamentosModal")?.addEventListener("click", (e) => {
       if (e.target?.id === "clienteCalPagamentosModal") fecharModal();
     });
+    document.getElementById("cliente-contratos")?.addEventListener("click", (e) => {
+      const voltar = e.target.closest?.("[data-cliente-cal-voltar]");
+      if (!voltar) return;
+      e.preventDefault();
+      const proto = String(voltar.getAttribute("data-cliente-cal-voltar") || "").trim();
+      const ctx = window.__DK_clienteCalendarioCtxAtual;
+      const ui = getInlineUi(proto);
+      if (ctx && ui) abrirEscolhaAno(ctx, ui);
+    });
   }
 
   window.__DK_clienteAbrirCalendarioPagamentos = (loc) => {
     if (typeof window.__DK_clienteBuildCalendarioCtx === "function") {
       window.__DK_clienteCalendarioCtxAtual = window.__DK_clienteBuildCalendarioCtx(loc);
     }
-    return abrirCalendarioPagamentos(loc);
+    return abrirModalAnoPick(window.__DK_clienteCalendarioCtxAtual);
   };
+  window.__DK_clienteToggleCalendarioInline = toggleCalendarioInline;
   window.__DK_clienteFecharCalendarioPagamentos = fecharModal;
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUi);

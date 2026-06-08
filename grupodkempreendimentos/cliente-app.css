@@ -504,7 +504,31 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 
 .cliente-btn-detalhe-pagamentos {
   width: 100%;
-  margin-top: 0.35rem;
+  margin-top: 0.65rem;
+}
+
+.cliente-cal-inline {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.cliente-cal-inline__head {
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #c62828;
+}
+
+.cliente-cal-inline__corpo {
+  max-height: none;
+  overflow: visible;
+  padding: 0.15rem 0 0.5rem;
+}
+
+.cliente-cal-inline__voltar {
+  width: 100%;
+  margin-top: 0.5rem;
 }
 
 .cliente-cal-modal .cliente-modal__card {
@@ -562,63 +586,73 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 }
 
 .portal-lanc-cal-dow {
-  padding: 0.2rem;
+  background: #2e7d32;
+  color: #fff;
   text-align: center;
-  font-weight: 600;
-  background: #e3f2fd;
-  border: 1px solid #bbdefb;
+  padding: 0.2rem 0.1rem;
+  font-weight: 700;
+  border: 1px solid #1b5e20;
 }
 
 .portal-lanc-cal-dow--pagamento {
-  background: #fff9c4;
-  border-color: #fff176;
+  background: #1b5e20;
+  box-shadow: inset 0 0 0 2px #fff59d;
 }
 
 .portal-lanc-cal-dow--total {
-  background: #bbdefb;
+  background: #64b5f6;
+  color: #0d47a1;
   font-size: 0.62rem;
+  line-height: 1.15;
 }
 
 .portal-lanc-cal-day-num {
   font-size: 0.65rem;
-  font-weight: 700;
-  color: #37474f;
-  margin-bottom: 0.1rem;
+  text-align: right;
+  padding: 0 0.15rem;
+  color: #333;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-bottom: none;
 }
 
 .portal-lanc-cal-val {
   display: block;
   width: 100%;
-  min-height: 1.35rem;
-  font-size: 0.62rem;
+  box-sizing: border-box;
+  min-height: 2rem;
+  border: 1px solid #f9a825;
+  background: #fff59d;
+  color: #111;
+  font-size: 0.68rem;
+  padding: 0.15rem 0.1rem;
   text-align: center;
-  padding: 0.1rem 0.05rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 3px;
-  background: #fff;
 }
 
 .portal-lanc-cal-val--readonly {
   pointer-events: none;
   user-select: text;
-  background: #fafafa;
 }
 
-.portal-lanc-cal-val--dia-pagamento {
-  background: #fffde7;
-  border-color: #fff59d;
+.portal-lanc-cal-val--dia-pagamento,
+.portal-lanc-cal-val--qua {
+  background: #a5d6a7;
+  border-color: #2e7d32;
 }
 
 .portal-lanc-cal-week-total {
+  background: #bbdefb;
   text-align: center;
   vertical-align: middle;
   font-weight: 700;
+  color: #0d47a1;
+  border: 1px solid #64b5f6;
   font-size: 0.62rem;
-  background: #e8eaf6;
 }
 
 .portal-lanc-cal-empty {
-  background: #f5f5f5;
+  background: #fafafa;
+  border: 1px solid #eee;
 }
 
 .portal-lanc-cal-modal__actions {
