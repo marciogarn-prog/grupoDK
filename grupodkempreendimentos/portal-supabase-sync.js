@@ -385,8 +385,16 @@
     if (!isClienteAppPage()) return "";
     try {
       if (typeof window.__DK_getClienteSessaoCpf === "function") {
-        return String(window.__DK_getClienteSessaoCpf() || "").replace(/\D/g, "").slice(0, 11);
+        const cpfFn = String(window.__DK_getClienteSessaoCpf() || "")
+          .replace(/\D/g, "")
+          .slice(0, 11);
+        if (cpfFn.length === 11) return cpfFn;
       }
+      const raw = localStorage.getItem("dk_sessao_cliente_app");
+      const s = raw ? JSON.parse(raw) : null;
+      return String(s?.cpf || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
     } catch {
       /* ignore */
     }
