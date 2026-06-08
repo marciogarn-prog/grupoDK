@@ -1007,12 +1007,11 @@
 
     try {
       const q = new URLSearchParams({
-        gate: "1",
         cpf,
         protocolo: String(protoRaw || "").trim(),
       });
       if (dkPortalSnapshotLabel() === "demo") q.set("channel", "demo");
-      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`, {
+      const res = await fetch(`/api/cliente-app-gate?${q.toString()}`, {
         headers: dkPortalCloudFetchHeaders(),
       });
       const data = await res.json().catch(() => ({}));
