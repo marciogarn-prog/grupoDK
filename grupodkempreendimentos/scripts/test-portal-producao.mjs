@@ -860,6 +860,16 @@ async function runSuite() {
         clienteCalJs.includes("__DK_clienteToggleCalendarioInline"),
       "botão abre calendário em bloco abaixo do contrato"
     );
+    const clienteCalZoomJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cal-zoom-cliente`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente calendário zoom pinça",
+      clienteCalZoomJs.includes("bindClienteCalPinchZoom") &&
+        clienteCalZoomJs.includes("cliente-cal-zoom-viewport") &&
+        clienteCalZoomJs.includes("fmtValCell"),
+      "pinch-zoom e valores compactos no calendário"
+    );
     record(
       "app cliente lancamentos alinhados ao portal",
       clienteResumoJs.includes("__DK_clienteGetLancamentosAluguelContrato") &&
