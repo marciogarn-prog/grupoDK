@@ -381,6 +381,11 @@
     try {
       persistGateFromQuery();
       if (sessionStorage.getItem(CLIENTE_APP_GATE_KEY)) return;
+      const legacy = sessionStorage.getItem("dk_cliente_app_gate_v1");
+      if (legacy) {
+        sessionStorage.setItem(CLIENTE_APP_GATE_KEY, legacy);
+        return;
+      }
       const p = localStorage.getItem(GATE_PERSIST_KEY);
       if (p) sessionStorage.setItem(CLIENTE_APP_GATE_KEY, p);
     } catch {
@@ -1785,7 +1790,10 @@
 
   function hasClienteAppDownloadGate() {
     try {
-      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY);
+      const raw =
+        sessionStorage.getItem(CLIENTE_APP_GATE_KEY) ||
+        sessionStorage.getItem("dk_cliente_app_gate_v1") ||
+        localStorage.getItem(GATE_PERSIST_KEY);
       if (!raw) return false;
       const g = JSON.parse(raw);
       const cpf = onlyDigits(String(g?.cpf || "")).slice(0, 11);
@@ -2007,10 +2015,11 @@
     }
 
     const sessao = getSessao();
-    showView("login");
     if (sessao?.cpf) {
       if (!isGeoGateBypassed()) startGeoForSession(sessao);
       await afterLogin(sessao);
+    } else {
+      showView("login");
     }
 
     wireInstall();
