@@ -407,6 +407,13 @@ async function runSuite() {
       "campo senha app no formulário cliente"
     );
     record(
+      "admin resetar senha app cliente no cadastro",
+      html.includes("operacaoClienteSenhaResetBtn") &&
+        portalUiProto.includes("portalResetClienteSenhaApp") &&
+        portalUiProto.includes('senha: ini'),
+      "reset volta a 123456 e app pede troca no login"
+    );
+    record(
       "modo instalacao limpa (sem Excel embutido)",
       appJsProto.includes("applyInstalacaoLimpaOnce") &&
         appJsProto.includes("return true") &&

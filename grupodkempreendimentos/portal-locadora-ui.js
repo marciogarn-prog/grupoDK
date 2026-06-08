@@ -405,6 +405,10 @@
     });
   }
 
+  function portalClienteSenhaInicial() {
+    return typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456";
+  }
+
   function portalResolveClienteSenhaApp(rec, cpfDigits) {
     let local = null;
     if (cpfDigits && typeof findClienteByCpfCadastro === "function") {
@@ -412,7 +416,54 @@
     }
     const s = String((local || rec)?.senha || "").trim();
     if (s) return s;
-    return typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456";
+    return portalClienteSenhaInicial();
+  }
+
+  function portalResetClienteSenhaApp(cpfDigits, rec) {
+    const digits = onlyDigits(String(cpfDigits || "")).slice(0, 11);
+    if (digits.length !== 11) {
+      return { ok: false, message: "Informe um CPF completo para resetar a senha." };
+    }
+    if (!isPortalTitularAdministrador()) {
+      return { ok: false, message: "Só o administrador titular pode resetar a senha do app." };
+    }
+    const ini = portalClienteSenhaInicial();
+    const local =
+      typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(digits) : null;
+    const base = local || rec;
+    const nomeForm = String(document.getElementById("operacaoClienteNome")?.value || "").trim();
+    const nome = String(base?.nome || nomeForm || "").trim();
+    if (!base && !nome) {
+      return {
+        ok: false,
+        message: "Cliente não encontrado. Preencha o CPF e o nome ou guarde o cadastro antes de resetar.",
+      };
+    }
+    const payload = {
+      ...(base && typeof base === "object" ? base : {}),
+      cpf: digits,
+      nome,
+      senha: ini,
+      origemPortal: true,
+      updatedAt: Date.now(),
+    };
+    if (typeof upsertPortalClienteByCpf === "function") {
+      upsertPortalClienteByCpf(payload, base?.status || "ATIVO");
+    } else if (typeof upsertClienteCadastroByCpf === "function") {
+      upsertClienteCadastroByCpf(payload, base?.status || "ATIVO");
+    } else if (typeof loadCadastro === "function" && typeof saveCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      const clientes = loadCadastro(CAD_CLIENTES_KEY);
+      const idx = clientes.findIndex((c) => onlyDigits(String(c.cpf || "")) === digits);
+      if (idx >= 0) clientes[idx] = { ...clientes[idx], ...payload };
+      else clientes.push({ ...payload, id: Number(payload.id) || Date.now(), createdAt: Date.now() });
+      saveCadastro(CAD_CLIENTES_KEY, clientes);
+    } else {
+      return { ok: false, message: "Não foi possível guardar a senha neste ambiente." };
+    }
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      portalPushCloudSnapshotAfterPersist();
+    }
+    return { ok: true, senha: ini };
   }
 
   function portalRefreshOperacaoClienteSenhaField(cpfDigits, rec) {
@@ -425,12 +476,17 @@
     const senha = portalResolveClienteSenhaApp(rec, digits);
     inp.value = senha;
     const st = document.getElementById("operacaoClienteSenhaStatus");
-    const ini = typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456";
+    const ini = portalClienteSenhaInicial();
     if (st) {
       st.textContent =
         String(senha || "").trim() === ini
           ? "Cliente ainda não trocou no app (senha inicial)."
           : "Senha já personalizada pelo cliente no app.";
+    }
+    const resetBtn = document.getElementById("operacaoClienteSenhaResetBtn");
+    if (resetBtn) {
+      resetBtn.classList.toggle("hidden", digits.length !== 11);
+      resetBtn.disabled = digits.length !== 11;
     }
   }
 
@@ -4124,6 +4180,43 @@ ${printable.innerHTML}
       portalRefreshOperacaoClienteSenhaField("", null);
       refreshOperacaoClienteApagarBtn("");
       inpCpf.focus();
+    });
+
+    document.getElementById("operacaoClienteSenhaResetBtn")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      if (!isPortalTitularAdministrador()) return;
+      const digits =
+        typeof onlyDigits === "function"
+          ? onlyDigits(inpCpf?.value || "")
+          : String(inpCpf?.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) {
+        if (msg) msg.textContent = "Informe o CPF completo do cliente para resetar a senha.";
+        inpCpf?.focus();
+        return;
+      }
+      const fonte = getClienteByCpfAny(digits);
+      const nomeForm = String(inpNome?.value || "").trim();
+      if (!fonte && !nomeForm) {
+        if (msg) msg.textContent = "Informe o nome do cliente ou carregue um cadastro existente.";
+        return;
+      }
+      if (
+        !window.confirm(
+          "Resetar a senha do app deste cliente para 123456?\n\nNo próximo login o app pedirá uma nova senha de 6 números."
+        )
+      ) {
+        return;
+      }
+      const result = portalResetClienteSenhaApp(digits, fonte);
+      if (!result.ok) {
+        if (msg) msg.textContent = result.message || "Não foi possível resetar a senha.";
+        return;
+      }
+      portalRefreshOperacaoClienteSenhaField(digits, getClienteByCpfAny(digits));
+      if (msg) {
+        msg.textContent =
+          "Senha resetada para 123456. O cliente terá de definir uma nova senha no próximo login no app.";
+      }
     });
 
     document.getElementById("operacaoClienteApagarBtn")?.addEventListener("click", (ev) => {
