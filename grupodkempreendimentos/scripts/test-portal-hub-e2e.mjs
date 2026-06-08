@@ -17,7 +17,7 @@ async function main() {
   const page = await browser.newPage();
   try {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
-    await page.click("text=DK Locadora", { timeout: 15000 });
+    await page.locator('#view-home [data-go="locadora"]').first().click({ timeout: 15000 });
     await page.waitForTimeout(600);
     record("Hub após DK Locadora", await page.locator("text=Área do Cliente").first().isVisible());
     record("Hub área empresa", await page.locator("text=Área da Empresa").first().isVisible());

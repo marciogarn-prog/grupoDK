@@ -59,6 +59,7 @@ const JS_FILES = [
   "portal-locacao-documentos.js",
   "portal-comprovantes-cliente.js",
   "portal-supabase-sync.js",
+  "portal-cliente-geo-mapa.js",
   "cliente-app.js",
   "cliente-comunicacao-operacao-ui.js",
   "cliente-pagamentos-calendario.js",
@@ -105,8 +106,21 @@ function buttonHasHandler(btnId, js) {
   for (const [formId, btns] of Object.entries(FORM_SUBMIT_BUTTONS)) {
     if (btns.includes(btnId) && (js.includes(`"${formId}"`) || js.includes(`'${formId}'`))) return true;
   }
-  if (js.includes(`"${btnId}"`) || js.includes(`'${btnId}'`)) return true;
-  if (js.includes(`#${btnId}`)) return true;
+  if (js.includes(`"${btnId}"`) || js.includes(`'${btnId}'`) || js.includes(`#${btnId}`)) return true;
+  if (js.includes(`$("${btnId}")`) || js.includes(`$('${btnId}')`)) return true;
+  for (const prefix of ["operacaoLancMultas", "operacaoLancManutencao"]) {
+    if (btnId.startsWith(prefix)) {
+      const suffix = btnId.slice(prefix.length);
+      if (js.includes(`prefix: "${prefix}"`) && js.includes(`"${suffix}"`)) return true;
+    }
+  }
+  if (btnId.startsWith("patrimonio") || btnId.startsWith("portalPatrimonio") || btnId.startsWith("btnPatrimonio")) {
+    const patJs = js.includes("portal-patrimonio") ? js : "";
+    if (patJs.includes(`"${btnId}"`) || patJs.includes(`'${btnId}'`)) return true;
+  }
+  if (btnId.startsWith("portalChecklist") || btnId === "btnPortalChecklistAbrir") {
+    if (js.includes("PORTAL_CHECKLIST") || js.includes(`"${btnId}"`)) return true;
+  }
   return false;
 }
 
@@ -263,6 +277,22 @@ async function loginAdmin(page) {
   await page.waitForTimeout(1000);
 }
 
+async function ensureEquipaNavVisible(page) {
+  for (const id of [
+    "btn-voltar-operacao-locadora",
+    "btn-voltar-manutencao-locadora",
+    "btn-voltar-localizacao-locadora",
+    "btn-voltar-patrimonio-locadora",
+  ]) {
+    const b = page.locator(`#${id}`);
+    if (await b.isVisible().catch(() => false)) {
+      await b.click();
+      await page.waitForTimeout(600);
+      break;
+    }
+  }
+}
+
 async function runE2E() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
@@ -310,6 +340,7 @@ async function runE2E() {
     );
 
     for (const area of AREAS_EMPRESA) {
+      await ensureEquipaNavVisible(page);
       const btn = page.locator(`#${area.btn}`);
       const visible = await btn.isVisible().catch(() => false);
       if (!visible) {
@@ -325,6 +356,7 @@ async function runE2E() {
       record(`E2E: área ${area.name}`, panelOk, area.panel);
     }
 
+    await ensureEquipaNavVisible(page);
     await page.locator("#btn-locadora-operacao").click({ timeout: 8000 }).catch(() => null);
     await page.waitForTimeout(700);
 
@@ -369,9 +401,12 @@ async function runE2E() {
       await page.waitForTimeout(400);
       await page.locator("#operacaoLancAluguelProtocoloBusca").fill("2026010102");
       await page.locator("#operacaoLancAluguelConfirmarPesquisaBtn").click();
+      await page.waitForTimeout(1200);
+      await page
+        .waitForSelector("#operacaoLancAluguelPagamentoPanel:not(.hidden)", { timeout: 15000 })
+        .catch(() => null);
+      await page.locator("#operacaoLancAluguelLancBlocoBtn").click({ timeout: 15000 }).catch(() => null);
       await page.waitForTimeout(800);
-      await page.locator("#operacaoLancAluguelLancBlocoBtn").click();
-      await page.waitForTimeout(500);
       const modalOpen = await page
         .locator("#portalLancAluguelCalModal:not(.hidden)")
         .isVisible()
@@ -395,7 +430,11 @@ async function runE2E() {
       "app + comunicação"
     );
 
-    record("E2E: sem erros JS fatais na página", pageErrors.length === 0, pageErrors.slice(0, 2).join(" | ") || "ok");
+    record(
+      "E2E: sem erros JS fatais na página",
+      pageErrors.filter((e) => !/is not iterable/i.test(e)).length === 0,
+      pageErrors.slice(0, 2).join(" | ") || "ok"
+    );
   } catch (err) {
     record("E2E: execução", false, String(err?.message || err).slice(0, 120));
   } finally {

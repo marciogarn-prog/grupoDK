@@ -544,7 +544,8 @@
   function mergeFotosCapturasExcluidas(...listas) {
     const map = new Map();
     for (const lista of listas) {
-      for (const item of lista || []) {
+      const arr = Array.isArray(lista) ? lista : [];
+      for (const item of arr) {
         const id = String(item?.id || item || "").trim();
         if (!id) continue;
         const excluidoEm = String(item?.excluidoEm || new Date().toISOString());
@@ -5783,6 +5784,20 @@ ${contador}
 
     relatorioModal?.querySelectorAll("[data-close-pat-relatorio]").forEach((el) => {
       el.addEventListener("click", fecharRelatorioModal);
+    });
+
+    document.getElementById("patrimonioCameraCancelarBtn")?.addEventListener("click", () => fecharCamera());
+    document.getElementById("patrimonioCameraCapturarBtn")?.addEventListener("click", () => {
+      void capturarDaCamera();
+    });
+    document.getElementById("patrimonioCameraFlashBtn")?.addEventListener("click", () => {
+      void alternarFlashCamera();
+    });
+    document.getElementById("patrimonioCameraNativaBtn")?.addEventListener("click", () => {
+      abrirCameraTelefoneNativa();
+    });
+    document.getElementById("patrimonioPreviewDetectarCantosBtn")?.addEventListener("click", () => {
+      void redetectarCantosPreview();
     });
   }
 
