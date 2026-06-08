@@ -1935,6 +1935,7 @@
     return com;
   }
 
+  function preserveCloudCadastrosWhenLocalEmpty(localPayload, cloudPayload) {
     if (!cloudPayload || typeof cloudPayload !== "object") return localPayload;
     if (window.__DK_IS_DEMO_DEPLOY__ !== true) return localPayload;
     const out = { ...localPayload };
