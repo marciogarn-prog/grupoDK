@@ -929,6 +929,13 @@ async function runSuite() {
       "pinch-zoom e valores compactos no calendário"
     );
     record(
+      "protocolo lançamento + sincronismo (dk-lancamento-protocolo)",
+      html.includes("dk-lancamento-protocolo.js") &&
+        html.includes("operacaoLocacaoLancamentosHistorico") &&
+        html.includes("lanc-proto"),
+      "AAAAMMDDHHMMSS-NNN"
+    );
+    record(
       "app cliente lancamentos alinhados ao portal",
       clienteResumoJs.includes("__DK_clienteGetLancamentosAluguelContrato") &&
         clienteResumoJs.includes("mergeLancamentosEmbutidos") &&

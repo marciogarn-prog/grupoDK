@@ -2696,11 +2696,16 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   }
 
   function baseMetaPagamentoComprovante(rec, regCpf, regNome) {
+    const now = Date.now();
     return {
       data: rec.dataPagamento,
-      createdAt: Date.now(),
+      createdAt: now,
       registradoPorCpf: regCpf,
       registradoPorNome: regNome,
+      protocoloLancamento:
+        typeof window.__DK_gerarProtocoloLancamento === "function"
+          ? window.__DK_gerarProtocoloLancamento(regCpf, now)
+          : "",
       valorEspecie: 0,
       valorPix: 0,
       valorCartao: 0,
