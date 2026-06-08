@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260608pagamentos-nuvem";
+const CACHE_NAME = "dk-cliente-v20260608cal-zoom-cliente";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",

@@ -32,6 +32,152 @@
     return Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   }
 
+  /** Valor curto para caber na célula; `title` traz o valor completo. */
+  function fmtValCell(n) {
+    const v = Number(n || 0);
+    if (!(v > 0)) return { text: "", title: "" };
+    const full = fmtVal(v);
+    let text;
+    if (v >= 1000000) {
+      const m = v / 1000000;
+      text = Number.isInteger(m) ? `${m}M` : `${m.toFixed(1).replace(".", ",")}M`;
+    } else if (v >= 10000) {
+      text = `${Math.round(v / 1000)}k`;
+    } else if (v >= 1000) {
+      const k = v / 1000;
+      text = Number.isInteger(k) ? `${k}k` : `${k.toFixed(1).replace(".", ",")}k`;
+    } else if (Math.abs(v - Math.round(v)) < 0.009) {
+      text = String(Math.round(v));
+    } else {
+      text = v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    return { text, title: full };
+  }
+
+  function wrapCalendarioHtml(innerHtml) {
+    return `<div class="cliente-cal-zoom-wrap">
+      <div class="cliente-cal-zoom-toolbar" role="toolbar" aria-label="Zoom do calendário">
+        <button type="button" class="cliente-cal-zoom-btn" data-cal-zoom="out" aria-label="Reduzir">−</button>
+        <span class="cliente-cal-zoom-label" data-cal-zoom-label>100%</span>
+        <button type="button" class="cliente-cal-zoom-btn" data-cal-zoom="in" aria-label="Ampliar">+</button>
+        <button type="button" class="cliente-cal-zoom-btn cliente-cal-zoom-btn--reset" data-cal-zoom="reset">Ajustar</button>
+      </div>
+      <p class="cliente-cal-zoom-hint">Pinça com dois dedos para ampliar · arraste com um dedo quando ampliado</p>
+      <div class="cliente-cal-zoom-viewport" tabindex="0">
+        <div class="cliente-cal-zoom-stage">${innerHtml}</div>
+      </div>
+    </div>`;
+  }
+
+  function bindClienteCalPinchZoom(wrap) {
+    if (!wrap || wrap.dataset.zoomBound === "1") return;
+    wrap.dataset.zoomBound = "1";
+    const viewport = wrap.querySelector(".cliente-cal-zoom-viewport");
+    const stage = wrap.querySelector(".cliente-cal-zoom-stage");
+    const label = wrap.querySelector("[data-cal-zoom-label]");
+    if (!viewport || !stage) return;
+
+    let scale = 1;
+    let panX = 0;
+    let panY = 0;
+    let pinchStartDist = 0;
+    let pinchStartScale = 1;
+    let touchStartPanX = 0;
+    let touchStartPanY = 0;
+    let lastTouchPan = null;
+    const MIN = 0.7;
+    const MAX = 3.5;
+
+    function updateLabel() {
+      if (label) label.textContent = `${Math.round(scale * 100)}%`;
+    }
+
+    function applyTransform() {
+      stage.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+      stage.style.transformOrigin = "0 0";
+      updateLabel();
+    }
+
+    function setScale(next, cx, cy) {
+      const prev = scale;
+      scale = Math.min(MAX, Math.max(MIN, next));
+      if (cx != null && cy != null && prev > 0 && prev !== scale) {
+        const rect = viewport.getBoundingClientRect();
+        const ox = cx - rect.left - panX;
+        const oy = cy - rect.top - panY;
+        panX -= ox * (scale / prev - 1);
+        panY -= oy * (scale / prev - 1);
+      }
+      applyTransform();
+    }
+
+    function touchDist(touches) {
+      return Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+    }
+
+    function touchMid(touches) {
+      return {
+        x: (touches[0].clientX + touches[1].clientX) / 2,
+        y: (touches[0].clientY + touches[1].clientY) / 2,
+      };
+    }
+
+    viewport.addEventListener(
+      "touchstart",
+      (e) => {
+        if (e.touches.length === 2) {
+          pinchStartDist = touchDist(e.touches);
+          pinchStartScale = scale;
+          e.preventDefault();
+        } else if (e.touches.length === 1 && scale > 1.02) {
+          lastTouchPan = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+          touchStartPanX = panX;
+          touchStartPanY = panY;
+        }
+      },
+      { passive: false }
+    );
+
+    viewport.addEventListener(
+      "touchmove",
+      (e) => {
+        if (e.touches.length === 2 && pinchStartDist > 0) {
+          const m = touchMid(e.touches);
+          setScale(pinchStartScale * (touchDist(e.touches) / pinchStartDist), m.x, m.y);
+          e.preventDefault();
+        } else if (e.touches.length === 1 && lastTouchPan && scale > 1.02) {
+          panX = touchStartPanX + (e.touches[0].clientX - lastTouchPan.x);
+          panY = touchStartPanY + (e.touches[0].clientY - lastTouchPan.y);
+          applyTransform();
+          e.preventDefault();
+        }
+      },
+      { passive: false }
+    );
+
+    viewport.addEventListener("touchend", (e) => {
+      if (e.touches.length < 2) pinchStartDist = 0;
+      if (e.touches.length === 0) lastTouchPan = null;
+    });
+
+    wrap.querySelector('[data-cal-zoom="in"]')?.addEventListener("click", () => {
+      const r = viewport.getBoundingClientRect();
+      setScale(scale + 0.3, r.left + r.width / 2, r.top + r.height / 2);
+    });
+    wrap.querySelector('[data-cal-zoom="out"]')?.addEventListener("click", () => {
+      const r = viewport.getBoundingClientRect();
+      setScale(scale - 0.3, r.left + r.width / 2, r.top + r.height / 2);
+    });
+    wrap.querySelector('[data-cal-zoom="reset"]')?.addEventListener("click", () => {
+      scale = 1;
+      panX = 0;
+      panY = 0;
+      applyTransform();
+    });
+
+    applyTransform();
+  }
+
   function anosDisponiveis() {
     const anos = [2025, 2026];
     const y = new Date().getFullYear();
@@ -62,7 +208,11 @@
       if (Number.isFinite(n)) s += n;
     });
     const out = tr.querySelector(".portal-lanc-cal-week-sum");
-    if (out) out.textContent = s > 0 ? fmtVal(s) : "0";
+    if (out) {
+      const cell = fmtValCell(s);
+      out.textContent = s > 0 ? cell.text : "0";
+      out.title = cell.title || "";
+    }
   }
 
   function atualizarTotaisMes(mesEl) {
@@ -104,10 +254,10 @@
         const iso = isoFromParts(ano, mesIdx, dNum);
         const isDiaPag = col === colPag;
         const val = mapa.get(iso) || 0;
-        const valStr = val > 0 ? fmtVal(val) : "";
+        const cell = fmtValCell(val);
         html += `<td class="portal-lanc-cal-day" data-iso="${iso}">`;
         html += `<div class="portal-lanc-cal-day-num">${dNum}</div>`;
-        html += `<span class="portal-lanc-cal-val portal-lanc-cal-val--readonly${isDiaPag ? " portal-lanc-cal-val--dia-pagamento" : ""}" aria-label="Pagamento ${iso}">${valStr}</span>`;
+        html += `<span class="portal-lanc-cal-val portal-lanc-cal-val--readonly${isDiaPag ? " portal-lanc-cal-val--dia-pagamento" : ""}" aria-label="Pagamento ${iso}"${cell.title ? ` title="${cell.title.replace(/"/g, "&quot;")}"` : ""}>${cell.text}</span>`;
         html += `</td>`;
       }
       html += `<td class="portal-lanc-cal-week-total"><span class="portal-lanc-cal-week-sum">0</span></td></tr>`;
@@ -131,8 +281,10 @@
     pick?.classList.add("hidden");
     corpo.classList.remove("hidden");
     voltarBtn?.classList.remove("hidden");
-    corpo.innerHTML = buildAnoHtml(ano, mapa, colPag);
+    corpo.innerHTML = wrapCalendarioHtml(buildAnoHtml(ano, mapa, colPag));
     corpo.dataset.ano = String(ano);
+    const zoomWrap = corpo.querySelector(".cliente-cal-zoom-wrap");
+    if (zoomWrap) bindClienteCalPinchZoom(zoomWrap);
     corpo.querySelectorAll(".portal-lanc-cal-mes").forEach((mesEl) => atualizarTotaisMes(mesEl));
     const diaLbl = ctx.diaPagamentoLabel || "";
     const proto = ctx.proto || "";
