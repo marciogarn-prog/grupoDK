@@ -55,6 +55,15 @@
   const DK_LOCAL_AUTHORITY_MS = 45 * 60 * 1000;
   const DK_CLOUD_LAST_PUSH_AT_KEY = "dkCloudLastPushedAt";
 
+  function isClienteAppPage() {
+    try {
+      const p = String(location.pathname || "").toLowerCase();
+      return p === "/cliente" || p.endsWith("/cliente") || p.endsWith("/cliente.html");
+    } catch {
+      return false;
+    }
+  }
+
   function countCadastroRecordsInPayload(p) {
     if (!p || typeof p !== "object") return 0;
     const keys = [
@@ -873,6 +882,38 @@
     );
   }
 
+  function locacoesCloudMergeWouldChangeLocal(cloudPayload) {
+    if (!cloudPayload || typeof cloudPayload !== "object") return false;
+    const cloudArr = Array.isArray(cloudPayload.dk_locacoes_cadastro) ? cloudPayload.dk_locacoes_cadastro : [];
+    if (!cloudArr.length) return false;
+    const localArr = readLocalJsonArray("dk_locacoes_cadastro");
+    const mergeFn =
+      typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+        ? window.__DK_mergeLocacoesCadastroCliente
+        : mergeLocacoesCadastroBeforePush;
+    const merged = mergeFn(localArr, cloudArr);
+    if (JSON.stringify(merged) !== JSON.stringify(localArr)) return true;
+    const lancCountByNc = (arr) => {
+      const m = new Map();
+      for (const loc of arr || []) {
+        if (!loc || typeof loc !== "object") continue;
+        const nc = String(loc.numeroContrato || "")
+          .replace(/\D/g, "")
+          .trim();
+        if (!nc) continue;
+        const n = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel.length : 0;
+        m.set(nc, Math.max(m.get(nc) || 0, n));
+      }
+      return m;
+    };
+    const localCounts = lancCountByNc(localArr);
+    const cloudCounts = lancCountByNc(cloudArr);
+    for (const [nc, cloudN] of cloudCounts) {
+      if (cloudN > (localCounts.get(nc) || 0)) return true;
+    }
+    return false;
+  }
+
   function cloudPullWouldChangeAnything(cloudPayload) {
     if (typeof window.__DK_cloudSnapshotWouldMutateLocal === "function") {
       return window.__DK_cloudSnapshotWouldMutateLocal(cloudPayload);
@@ -882,6 +923,10 @@
       if (!DK_CLOUD_KEYS.has(k)) continue;
       const a = cloudPayload[k];
       const b = Object.prototype.hasOwnProperty.call(localObj, k) ? localObj[k] : undefined;
+      if (k === "dk_locacoes_cadastro") {
+        if (locacoesCloudMergeWouldChangeLocal(cloudPayload)) return true;
+        continue;
+      }
       if (k === "dk_comprovantes_cliente_pendentes") {
         const merged = mergeComprovantesClientePendentes(b, a);
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
@@ -1885,16 +1930,24 @@
    * Lê o snapshot na nuvem e aplica ao localStorage (merge nos cadastros imutáveis) sem recarregar a página.
    * Usado ao mudar de ecrã na Operação; não substitui «Carregar da nuvem» (que pede confirmação e dá F5).
    */
-  async function pullCloudSnapshotSilentMerge() {
-    if (isLocalDataAuthorityActive()) {
+  async function pullCloudSnapshotSilentMerge(opts) {
+    const force = Boolean(opts && opts.force);
+    const clientePage = isClienteAppPage();
+    if (isLocalDataAuthorityActive() && !clientePage) {
       return { ok: true, skipped: true, reason: "local_authority" };
     }
     const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
       return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
     }
-    const mergeNeeded = cloudPullWouldChangeAnything(data.payload);
-    if (!isCloudSnapshotNewerThanLocal(data.updated_at) && !mergeNeeded) {
+    let mergeNeeded = cloudPullWouldChangeAnything(data.payload);
+    if (clientePage) {
+      mergeNeeded = locacoesCloudMergeWouldChangeLocal(data.payload) || mergeNeeded;
+      if (force && Array.isArray(data.payload.dk_locacoes_cadastro) && data.payload.dk_locacoes_cadastro.length) {
+        mergeNeeded = true;
+      }
+    }
+    if (!force && !isCloudSnapshotNewerThanLocal(data.updated_at) && !mergeNeeded) {
       return { ok: true, skipped: true, reason: "cloud_not_newer" };
     }
     if (!mergeNeeded) {
@@ -1914,23 +1967,22 @@
     } catch {
       /* ignore */
     }
-    const clienteAppPage = (() => {
+    if (clientePage) {
       try {
-        const p = String(location.pathname || "").toLowerCase();
-        return p === "/cliente" || p.endsWith("/cliente") || p.endsWith("/cliente.html");
+        window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
       } catch {
-        return false;
+        /* ignore */
       }
-    })();
+    }
     if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
-      if (clienteAppPage) {
+      if (clientePage) {
         await Promise.resolve(window.__DK_comprovantesClienteRepararHistorico({ leve: true }));
       } else {
         void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
       }
     }
     if (
-      !clienteAppPage &&
+      !clientePage &&
       typeof window.__DK_comprovantesClienteProcessarFilaAutomatica === "function"
     ) {
       void window.__DK_comprovantesClienteProcessarFilaAutomatica().then(() => {
@@ -1952,7 +2004,7 @@
 
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
   async function scheduleBackgroundCloudPullIfStale() {
-    if (isLocalDataAuthorityActive()) {
+    if (isLocalDataAuthorityActive() && !isClienteAppPage()) {
       return { ok: true, skipped: true, reason: "local_authority" };
     }
     const forceDemoBootstrap = demoNeedsCloudCadastroBootstrap();

@@ -940,6 +940,21 @@ async function runSuite() {
       clienteAppJs.includes("countPagamentosCliente") && clienteAppJs.includes("finally"),
       "mensagem pós-sync com total de pagamentos"
     );
+    const portalSyncPullJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521pag-sync`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente pull pagamentos ignora local_authority",
+      portalSyncPullJs.includes("isClienteAppPage") &&
+        portalSyncPullJs.includes("locacoesCloudMergeWouldChangeLocal") &&
+        portalSyncPullJs.includes("!clientePage"),
+      "pull no app cliente não bloqueia por autoridade local"
+    );
+    record(
+      "app cliente sync força merge locações",
+      clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
+      "Atualizar da nuvem re-funde pagamentos"
+    );
     record(
       "app cliente troca senha inicial 123456",
       clienteAppJs.includes("SENHA_INICIAL_CLIENTE") &&
