@@ -815,6 +815,19 @@
   }
 
   function onClientePagamentosClick(e) {
+    const calBtn = e.target.closest?.("[data-cliente-cal-proto]");
+    if (calBtn) {
+      e.preventDefault();
+      const proto = String(calBtn.getAttribute("data-cliente-cal-proto") || "").trim();
+      const sessao = getSessao();
+      if (!sessao || !proto) return;
+      const dados = loadDadosCliente(sessao.cpf);
+      const loc = filterLocacoesAtivas(dados.locacoes).find((l) => normNc(l.numeroContrato) === proto);
+      if (loc && typeof window.__DK_clienteAbrirCalendarioPagamentos === "function") {
+        window.__DK_clienteAbrirCalendarioPagamentos(loc);
+      }
+      return;
+    }
     const expandBtn = e.target.closest?.("[data-pag-expand]");
     if (expandBtn) {
       e.preventDefault();
@@ -874,6 +887,7 @@
       detalhes = `<dl class="cliente-contrato-dl">
           <div><dt>Placa e modelo</dt><dd>${escapeHtml(resumo.placa || "—")} · ${escapeHtml(resumo.modeloVeiculo || "—")}</dd></div>
           <div><dt>Valor do contrato semanal</dt><dd>${escapeHtml(resumo.valorSemanal)}</dd></div>
+          <div><dt>Valor devido</dt><dd>${escapeHtml(resumo.valorDevidoTexto || "—")}</dd></div>
           <div><dt>Valor pago</dt><dd>${escapeHtml(resumo.totalPago)}</dd></div>
           ${invRow}
           ${ultRows}
@@ -882,9 +896,10 @@
       detalhes = `<p class="subtext">Resumo do contrato indisponível neste dispositivo.</p>`;
     }
 
-    return `<article class="cliente-protocolo">
+    return `<article class="cliente-protocolo" data-cliente-proto="${escapeHtml(nc)}">
       <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${renderContratoBadge(resumo)}</div>
       ${detalhes}
+      <button type="button" class="btn-primary btn-secondary-outline cliente-btn-detalhe-pagamentos" data-cliente-cal-proto="${escapeHtml(nc)}">Detalhamento dos pagamentos</button>
     </article>`;
   }
 
@@ -1864,7 +1879,15 @@
     if (!document.documentElement.dataset.dkClienteEscBound) {
       document.documentElement.dataset.dkClienteEscBound = "1";
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape") fecharModalRelatorio();
+        if (e.key !== "Escape") return;
+        if (typeof window.__DK_clienteFecharCalendarioPagamentos === "function") {
+          const calModal = document.getElementById("clienteCalPagamentosModal");
+          if (calModal && !calModal.classList.contains("hidden")) {
+            window.__DK_clienteFecharCalendarioPagamentos();
+            return;
+          }
+        }
+        fecharModalRelatorio();
       });
     }
     if (!document.documentElement.dataset.dkClienteSyncBound) {
