@@ -397,6 +397,34 @@
         }
         continue;
       }
+      if (DK_IMMUTABLE_CADASTRO_KEYS.has(k)) {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        if (k === "dk_locacoes_cadastro") {
+          cloudArr = normalizeLocacoesContratoAtivoList(cloudArr);
+        }
+        if (forceCadastroReplace) {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
+        } else if (k === "dk_locacoes_cadastro" && typeof window.__DK_mergeLocacoesCadastroCliente === "function") {
+          const localArr = readLocalJsonArray(k);
+          localStorage.setItem(
+            k,
+            JSON.stringify(window.__DK_mergeLocacoesCadastroCliente(localArr, cloudArr))
+          );
+        } else {
+          const localArr = readLocalJsonArray(k);
+          localStorage.setItem(k, JSON.stringify([...(localArr || []), ...cloudArr]));
+        }
+        continue;
+      }
       if (k === "dk_comprovantes_cliente_pendentes") {
         let cloudArr = [];
         if (Array.isArray(v)) cloudArr = v;
@@ -1415,6 +1443,9 @@
   }
 
   function mergeLocacoesCadastroBeforePush(localArr, cloudArr) {
+    if (typeof window.__DK_mergeLocacoesCadastroCliente === "function") {
+      return window.__DK_mergeLocacoesCadastroCliente(localArr, cloudArr);
+    }
     const byNc = new Map();
     const noNc = [];
     const normNc = (v) =>

@@ -15,10 +15,17 @@
 
   function parseBrDate(s) {
     const raw = String(s || "").trim();
-    if (!raw || !raw.includes("/")) return null;
-    const [day, month, year] = raw.split("/").map(Number);
-    if (!day || !month || !year) return null;
-    return new Date(year, month - 1, day);
+    if (!raw) return null;
+    if (raw.includes("/")) {
+      const [day, month, year] = raw.split("/").map(Number);
+      if (!day || !month || !year) return null;
+      return new Date(year, month - 1, day);
+    }
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) {
+      return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+    }
+    return null;
   }
 
   function fmtVal(n) {

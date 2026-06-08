@@ -298,6 +298,13 @@
   }
 
   function getLancamentosFromLoc(loc) {
+    if (typeof window.__DK_clienteGetLancamentosAluguelContrato === "function") {
+      return window.__DK_clienteGetLancamentosAluguelContrato(loc).map((x) => ({
+        ...x,
+        tipo: "Aluguel",
+        protocolo: normNc(loc.numeroContrato),
+      }));
+    }
     const out = [];
     const push = (arr, tipo) => {
       if (!Array.isArray(arr)) return;
