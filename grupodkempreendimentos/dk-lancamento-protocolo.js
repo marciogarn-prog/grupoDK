@@ -16,6 +16,12 @@
   }
 
   function isOficialDeploy() {
+    const h = String(window.location.hostname || "").toLowerCase();
+    if (h === "grupodkempreendimentos.com.br" || h === "www.grupodkempreendimentos.com.br") return true;
+    if (h === "demo.grupodkempreendimentos.com.br" || /^demo\./.test(h)) return false;
+    const ch = String(window.__DK_DEPLOY_CHANNEL__ || "").trim().toLowerCase();
+    if (ch === "demo") return false;
+    if (ch === "default") return true;
     return window.__DK_IS_DEMO_DEPLOY__ !== true;
   }
 

@@ -4,7 +4,13 @@
  * Oficial: grupodkempreendimentos.com.br — cadastros label "default" (zerados para cadastro manual).
  */
 (function dkDeployChannel() {
+  function isOficialHostname() {
+    const h = String(window.location.hostname || "").toLowerCase();
+    return h === "grupodkempreendimentos.com.br" || h === "www.grupodkempreendimentos.com.br";
+  }
+
   function readQueryChannel() {
+    if (isOficialHostname()) return "default";
     try {
       const q = String(new URLSearchParams(window.location.search).get("dk_channel") || "")
         .trim()
@@ -19,6 +25,7 @@
 
   function readHostnameChannel() {
     const h = String(window.location.hostname || "").toLowerCase();
+    if (isOficialHostname()) return "default";
     if (h === "demo.grupodkempreendimentos.com.br") return "demo";
     if (/^demo\./.test(h)) return "demo";
     if (h.endsWith(".vercel.app") && /(^demo-|-demo-|git-demo-)/.test(h)) return "demo";
