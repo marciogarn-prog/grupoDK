@@ -1,9 +1,12 @@
 /**
  * Posições GPS dos clientes (app DK Cliente).
- * POST /api/dk-cliente-geo — body { cpf, lat, lng, accuracy?, nome?, placa?, protocolo?, heading?, speed? }
+ * POST /api/dk-cliente-geo — body { cpf, lat, lng, ... }
  * GET  /api/dk-cliente-geo — lista últimas posições (admin mapa)
+ *
+ * Web Push (mensagens DK): GET/POST /api/dk-cliente-geo?push=1
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const { handleClientePush } = require("../lib/dk-cliente-push-handler.cjs");
 
 const REDIS_KEY = "dk:portal:cliente_geo_v1";
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -64,11 +67,15 @@ function pruneStore(store) {
 
 function applyCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-DK-Deploy-Channel");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 }
 
 module.exports = async function handler(req, res) {
+  if (String(req.query?.push || "") === "1") {
+    return handleClientePush(req, res);
+  }
+
   applyCors(res);
 
   if (req.method === "OPTIONS") {

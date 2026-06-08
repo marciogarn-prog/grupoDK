@@ -34,7 +34,7 @@
     if (cpf.length !== 11) return;
     const headers = { "Content-Type": "application/json" };
     if (window.__DK_DEPLOY_CHANNEL__ === "demo") headers["X-DK-Deploy-Channel"] = "demo";
-    void fetch("/api/dk-cliente-push", {
+    void fetch("/api/dk-cliente-geo?push=1", {
       method: "POST",
       headers,
       keepalive: true,

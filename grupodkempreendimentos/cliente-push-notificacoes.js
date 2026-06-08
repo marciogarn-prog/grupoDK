@@ -46,8 +46,10 @@
     }
   }
 
+  const PUSH_API = "/api/dk-cliente-geo?push=1";
+
   async function fetchVapidPublicKey() {
-    const res = await fetch(`/api/dk-cliente-push?action=vapid${pushChannelQuery()}`, {
+    const res = await fetch(`${PUSH_API}&action=vapid${pushChannelQuery().replace("?", "&")}`, {
       headers: pushFetchHeaders(),
     });
     const data = await res.json().catch(() => ({}));
@@ -91,7 +93,7 @@
       });
     }
 
-    const res = await fetch("/api/dk-cliente-push", {
+    const res = await fetch(`${PUSH_API}${pushChannelQuery().replace("?", "&")}`, {
       method: "POST",
       headers: pushFetchHeaders(),
       body: JSON.stringify({

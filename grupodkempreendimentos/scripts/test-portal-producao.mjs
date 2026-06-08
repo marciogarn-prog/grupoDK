@@ -1040,7 +1040,7 @@ async function runSuite() {
     const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260608push-notify`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const pushApi = await fetch(`${BASE_URL}api/dk-cliente-push?action=vapid`, { cache: "no-store" })
+    const pushApi = await fetch(`${BASE_URL}api/dk-cliente-geo?push=1&action=vapid`, { cache: "no-store" })
       .then((r) => r.json())
       .catch(() => ({}));
     record(
