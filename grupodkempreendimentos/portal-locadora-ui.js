@@ -422,7 +422,16 @@
     if (wrap) wrap.classList.toggle("hidden", !admin);
     if (!admin || !inp) return;
     const digits = onlyDigits(String(cpfDigits || "")).slice(0, 11);
-    inp.value = portalResolveClienteSenhaApp(rec, digits);
+    const senha = portalResolveClienteSenhaApp(rec, digits);
+    inp.value = senha;
+    const st = document.getElementById("operacaoClienteSenhaStatus");
+    const ini = typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456";
+    if (st) {
+      st.textContent =
+        String(senha || "").trim() === ini
+          ? "Cliente ainda não trocou no app (senha inicial)."
+          : "Senha já personalizada pelo cliente no app.";
+    }
   }
 
   function portalSyncAmbienteCadastroAdminUi() {
@@ -3638,7 +3647,7 @@ ${printable.innerHTML}
         ambiente: portalGetAmbienteFormValue("Cliente"),
       };
       if (isPortalTitularAdministrador()) {
-        const senhaVal = getVal("operacaoClienteSenha");
+        const senhaVal = getVal("operacaoClienteSenha").replace(/\s*\(.*\)\s*$/, "");
         if (senhaVal) payload.senha = senhaVal;
         else if (existenteLocal?.senha) payload.senha = String(existenteLocal.senha).trim();
       } else if (existenteLocal?.senha) {

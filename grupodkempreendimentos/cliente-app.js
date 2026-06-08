@@ -137,6 +137,8 @@
   const pagamentosExpandidos = new Set();
   const CAD_CLIENTES_KEY = "dk_clientes_cadastro";
   const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
+  const SENHA_INICIAL_CLIENTE = "123456";
+  let clienteTrocaSenhaPendente = null;
 
   const MOCK_CLIENTES = [
     { cpf: "11111111111", senha: "1234", nome: "Joao Silva" },
@@ -241,6 +243,36 @@
 
   function loadCadastro(key) {
     return loadJson(key, []);
+  }
+
+  function clienteSenhaEhInicial(senha) {
+    return String(senha || "").trim() === SENHA_INICIAL_CLIENTE;
+  }
+
+  function isClienteSenhaNovaValida(senha) {
+    return /^\d{6}$/.test(String(senha || "").trim()) && !clienteSenhaEhInicial(senha);
+  }
+
+  function updateClienteSenhaNoCadastro(cpfDigits, novaSenha) {
+    const clientes = loadCadastro(CAD_CLIENTES_KEY);
+    const idx = clientes.findIndex((c) => onlyDigits(c.cpf) === cpfDigits);
+    if (idx < 0) return false;
+    clientes[idx] = {
+      ...clientes[idx],
+      senha: String(novaSenha).trim(),
+      updatedAt: Date.now(),
+    };
+    saveJson(CAD_CLIENTES_KEY, clientes);
+    try {
+      if (typeof window.__DK_pushCloudSnapshotDebounced === "function") {
+        window.__DK_pushCloudSnapshotDebounced();
+      } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        void window.__DK_pushCloudSnapshotNow();
+      }
+    } catch {
+      /* ignore */
+    }
+    return true;
   }
 
   function findClienteLogin(cpfDigits, senha) {
@@ -443,8 +475,22 @@
   function showView(name) {
     $("view-geolocalizacao")?.classList.toggle("hidden", name !== "geo");
     $("view-login")?.classList.toggle("hidden", name !== "login");
+    $("view-trocar-senha")?.classList.toggle("hidden", name !== "trocar-senha");
     $("view-app")?.classList.toggle("hidden", name !== "app");
     $("view-propaganda")?.classList.toggle("hidden", name !== "propaganda");
+  }
+
+  async function finalizarLoginCliente(sess, fb) {
+    setSessao(sess);
+    if (isClienteRealSession(sess)) startGeoForSession(sess);
+    if (fb) fb.textContent = "A sincronizar…";
+    resolveAppViewAfterData(sess);
+    try {
+      await afterLogin(sess);
+    } catch {
+      resolveAppViewAfterData(sess);
+    }
+    if (fb) fb.textContent = "";
   }
 
   function showGeoBlocked(msg) {
@@ -1963,18 +2009,50 @@
         return;
       }
       const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
-      setSessao(sess);
-      if (isClienteRealSession(sess)) startGeoForSession(sess);
-      if (fb) fb.textContent = "A sincronizar…";
-      resolveAppViewAfterData(sess);
-      void (async () => {
-        try {
-          await afterLogin(sess);
-        } catch {
-          resolveAppViewAfterData(sess);
-        }
+      if (!isGeoGateBypassed() && clienteSenhaEhInicial(senha)) {
+        clienteTrocaSenhaPendente = { cpf, nome: hit.nome };
+        const n1 = $("cliente-nova-senha");
+        const n2 = $("cliente-nova-senha-2");
+        if (n1) n1.value = "";
+        if (n2) n2.value = "";
+        const trocaFb = $("cliente-troca-senha-feedback");
+        if (trocaFb) trocaFb.textContent = "";
+        showView("trocar-senha");
         if (fb) fb.textContent = "";
-      })();
+        return;
+      }
+      void finalizarLoginCliente(sess, fb);
+    });
+
+    $("form-trocar-senha")?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fb = $("cliente-troca-senha-feedback");
+      const pend = clienteTrocaSenhaPendente;
+      if (!pend?.cpf) {
+        if (fb) fb.textContent = "Sessão expirada. Entre novamente com CPF e senha.";
+        showView("login");
+        return;
+      }
+      const nova = String($("cliente-nova-senha")?.value || "").trim();
+      const conf = String($("cliente-nova-senha-2")?.value || "").trim();
+      if (!isClienteSenhaNovaValida(nova)) {
+        if (fb) {
+          fb.textContent = "Use exatamente 6 números, diferentes da senha inicial 123456.";
+        }
+        return;
+      }
+      if (nova !== conf) {
+        if (fb) fb.textContent = "A confirmação não coincide com a nova senha.";
+        return;
+      }
+      if (!updateClienteSenhaNoCadastro(pend.cpf, nova)) {
+        if (fb) fb.textContent = "Não foi possível guardar a nova senha. Tente novamente.";
+        return;
+      }
+      clienteTrocaSenhaPendente = null;
+      const sess = { cpf: pend.cpf, nome: pend.nome, loginEm: new Date().toISOString() };
+      if (fb) fb.textContent = "Senha atualizada. A entrar…";
+      void finalizarLoginCliente(sess, fb);
     });
 
     const doLogout = () => {
@@ -1982,6 +2060,7 @@
         window.__DK_clienteGeoStopTracking();
       }
       clearSessao();
+      clienteTrocaSenhaPendente = null;
       showView("login");
     };
     $("btn-logout")?.addEventListener("click", doLogout);
