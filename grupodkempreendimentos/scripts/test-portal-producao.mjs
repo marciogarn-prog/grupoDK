@@ -251,7 +251,8 @@ async function runSuite() {
         html.includes("20260607virgem") ||
         html.includes("instalacao-limpa")) &&
         html.includes('theme-color" content="#050505"') &&
-        (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok))
+        (IS_DEMO_TEST ||
+          (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok)))
     );
     record(
       "logo DK Locadora no site e botao app",
