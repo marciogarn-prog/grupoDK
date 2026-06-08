@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <link rel="stylesheet" href="styles.css?v=20260521demo-oficial-env">
-  <link rel="stylesheet" href="cliente-app.css?v=20260521contrato-simples">
+  <link rel="stylesheet" href="cliente-app.css?v=20260608cliente-cal-pagamentos">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Cliente">
   <meta name="description" content="DK Locadora — área do cliente: contratos, pagamentos e envio de comprovantes.">
@@ -221,6 +221,21 @@
       </div>
     </div>
 
+    <div id="clienteCalPagamentosModal" class="cliente-modal cliente-cal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="clienteCalPagamentosTitulo">
+      <div class="cliente-modal__card portal-lanc-cal-modal__card">
+        <header class="cliente-modal__head">
+          <h2 id="clienteCalPagamentosTitulo" class="portal-modal__title">Detalhamento dos pagamentos</h2>
+          <button type="button" class="btn-primary btn-secondary-outline" id="clienteCalPagamentosFecharBtn" aria-label="Fechar">Fechar</button>
+        </header>
+        <p class="subtext cliente-cal-modal__hint">Somente consulta — os valores são os pagamentos registados pela DK Locadora.</p>
+        <div id="clienteCalPagamentosAnoPick" class="portal-lanc-cal-ano-pick" role="group" aria-label="Escolher ano"></div>
+        <div id="clienteCalPagamentosCorpo" class="portal-lanc-cal-corpo hidden"></div>
+        <div class="portal-modal__actions portal-lanc-cal-modal__actions">
+          <button type="button" class="btn-primary btn-secondary-outline hidden" id="clienteCalPagamentosVoltarAnosBtn">Escolher outro ano</button>
+        </div>
+      </div>
+    </div>
+
     <div id="cliente-modal-relatorio" class="cliente-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cliente-relatorio-title">
       <div class="cliente-modal__card">
         <header class="cliente-modal__head">
@@ -243,10 +258,11 @@
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
   <script src="portal-supabase-sync.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-notificacoes.js?v=20260522jose-040-fix" defer></script>
-  <script src="cliente-contrato-resumo.js?v=20260521contrato-simples" defer></script>
+  <script src="cliente-contrato-resumo.js?v=20260608cliente-cal-pagamentos" defer></script>
+  <script src="cliente-pagamentos-calendario.js?v=20260608cliente-cal-pagamentos" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260522unico" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-app.js?v=20260521geo-v3" defer></script>
+  <script src="cliente-app.js?v=20260608cliente-cal-pagamentos" defer></script>
 </body>
 </html>

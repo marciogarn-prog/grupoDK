@@ -311,6 +311,49 @@
     );
   }
 
+  function diaPagamentoColIdx(raw, loc) {
+    const s = String(raw || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "");
+    if (s.startsWith("DOM")) return 0;
+    const map = { SEG: 1, TER: 2, QUA: 3, QUI: 4, SEX: 5, SAB: 6, DOM: 0 };
+    const token = s.slice(0, 3);
+    if (Object.prototype.hasOwnProperty.call(map, token)) return map[token];
+    const inicio = String(loc?.inicio || "").trim();
+    if (inicio) {
+      const d = parseBrDate(inicio);
+      if (d && !Number.isNaN(d.getTime())) return d.getDay();
+    }
+    return 3;
+  }
+
+  function diaPagamentoLegivel(colIdx) {
+    const labels = [
+      "Domingo",
+      "Segunda-feira",
+      "Terça-feira",
+      "Quarta-feira",
+      "Quinta-feira",
+      "Sexta-feira",
+      "Sábado",
+    ];
+    return labels[Number(colIdx)] || "Quarta-feira";
+  }
+
+  function buildCalendarioCtxContrato(loc) {
+    const diaRaw = String(loc?.diaPagto || loc?.diaPagamento || "").trim();
+    const diaPagamentoCol = diaPagamentoColIdx(diaRaw, loc);
+    return {
+      proto: normNc(loc.numeroContrato),
+      placa: String(loc.placa || "").trim(),
+      lancamentos: getLancamentosAluguelContrato(loc),
+      diaPagamentoCol,
+      diaPagamentoLabel: diaPagamentoLegivel(diaPagamentoCol),
+    };
+  }
+
   function pickUltimoPagamento(lancs) {
     if (!lancs?.length) return null;
     const p = lancs[0];
@@ -397,4 +440,5 @@
 
   window.__DK_clienteComputeResumoContrato = computeResumoContrato;
   window.__DK_dedupeLancamentosPagamento = dedupeLancamentosPagamento;
+  window.__DK_clienteBuildCalendarioCtx = buildCalendarioCtxContrato;
 })();

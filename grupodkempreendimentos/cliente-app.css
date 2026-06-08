@@ -501,3 +501,126 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 .apps-card--cliente .apps-card__title {
   color: var(--accent);
 }
+
+.cliente-btn-detalhe-pagamentos {
+  width: 100%;
+  margin-top: 0.35rem;
+}
+
+.cliente-cal-modal .cliente-modal__card {
+  max-width: min(96vw, 920px);
+  max-height: 92vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cliente-cal-modal__hint {
+  margin: 0 0 0.5rem;
+}
+
+.portal-lanc-cal-modal__card {
+  max-width: min(96vw, 920px);
+}
+
+.portal-lanc-cal-corpo {
+  overflow: auto;
+  flex: 1;
+  min-height: 200px;
+  max-height: 58vh;
+  padding: 0.25rem 0.15rem 0.75rem;
+}
+
+.portal-lanc-cal-ano-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.portal-lanc-cal-ano-btn {
+  min-width: 5.5rem;
+}
+
+.portal-lanc-cal-mes {
+  margin-bottom: 1.25rem;
+}
+
+.portal-lanc-cal-mes__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1565c0;
+  text-transform: lowercase;
+}
+
+.portal-lanc-cal-grid {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.72rem;
+}
+
+.portal-lanc-cal-dow {
+  padding: 0.2rem;
+  text-align: center;
+  font-weight: 600;
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+}
+
+.portal-lanc-cal-dow--pagamento {
+  background: #fff9c4;
+  border-color: #fff176;
+}
+
+.portal-lanc-cal-dow--total {
+  background: #bbdefb;
+  font-size: 0.62rem;
+}
+
+.portal-lanc-cal-day-num {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #37474f;
+  margin-bottom: 0.1rem;
+}
+
+.portal-lanc-cal-val {
+  display: block;
+  width: 100%;
+  min-height: 1.35rem;
+  font-size: 0.62rem;
+  text-align: center;
+  padding: 0.1rem 0.05rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.portal-lanc-cal-val--readonly {
+  pointer-events: none;
+  user-select: text;
+  background: #fafafa;
+}
+
+.portal-lanc-cal-val--dia-pagamento {
+  background: #fffde7;
+  border-color: #fff59d;
+}
+
+.portal-lanc-cal-week-total {
+  text-align: center;
+  vertical-align: middle;
+  font-weight: 700;
+  font-size: 0.62rem;
+  background: #e8eaf6;
+}
+
+.portal-lanc-cal-empty {
+  background: #f5f5f5;
+}
+
+.portal-lanc-cal-modal__actions {
+  margin-top: 0.5rem;
+}
