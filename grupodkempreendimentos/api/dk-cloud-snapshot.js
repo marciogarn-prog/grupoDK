@@ -8,6 +8,7 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
 
 const OFICIAL_GUARD_KEYS = [
   "dk_clientes_cadastro",
@@ -293,30 +294,7 @@ function applyDemoCadastroNoShrink(existing, merged) {
 }
 
 function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
-  const byNc = new Map();
-  const normNc = (v) =>
-    String(v ?? "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
-  const add = (loc) => {
-    if (!loc || typeof loc !== "object") return;
-    const nc = normNc(loc.numeroContrato);
-    if (!nc) return;
-    const prev = byNc.get(nc);
-    if (!prev) {
-      byNc.set(nc, { ...loc });
-      return;
-    }
-    byNc.set(nc, {
-      ...prev,
-      ...loc,
-      numeroContrato: prev.numeroContrato || loc.numeroContrato,
-    });
-  };
-  (Array.isArray(existingArr) ? existingArr : []).forEach(add);
-  (Array.isArray(incomingArr) ? incomingArr : []).forEach(add);
-  return Array.from(byNc.values());
+  return mergeLocacoesCadastro(existingArr, incomingArr);
 }
 
 function mergePayloads(existing, incoming) {

@@ -7346,7 +7346,7 @@ ${printable.innerHTML}
       return;
     }
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
-    window.__DK_pushCloudSnapshotNow().catch((err) => {
+    window.__DK_pushCloudSnapshotNow({ force: true }).catch((err) => {
       console.warn("[DK portal] enviar snapshot nuvem", err);
     });
   }

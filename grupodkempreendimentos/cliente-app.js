@@ -1000,10 +1000,25 @@
     }
   }
 
+  function countPagamentosCliente(cpf) {
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpf);
+    const ativas = filterLocacoesAtivas(locs);
+    let n = 0;
+    let total = 0;
+    ativas.forEach((loc) => {
+      getLancamentosFromLoc(loc).forEach((p) => {
+        n += 1;
+        total += Number(p.valor) || 0;
+      });
+    });
+    return { n, total };
+  }
+
   async function sincronizarDadosCliente(sessao, opts) {
     const silent = Boolean(opts?.silent);
     const msg = $("sync-msg");
     if (msg && !silent) msg.textContent = "A sincronizar com a nuvem…";
+    let syncOk = false;
     try {
       if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
         await Promise.race([
@@ -1027,18 +1042,30 @@
       if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
         window.__DK_comprovantesClienteInvalidateCache();
       }
+      syncOk = true;
       if (msg && !silent) {
         const pend =
           typeof window.__DK_comprovantesClienteTemPendentesNuvem === "function" &&
           window.__DK_comprovantesClienteTemPendentesNuvem();
+        const { n, total } = sessao?.cpf ? countPagamentosCliente(sessao.cpf) : { n: 0, total: 0 };
+        const pagInfo =
+          n > 0
+            ? ` ${n} pagamento(s) · total ${currencyBRL(total)}.`
+            : " Nenhum pagamento na nuvem para este CPF — peça ao DK para gravar no portal.";
         msg.textContent = pend
-          ? "Dados atualizados. Alguns envios ainda só neste telemóvel (vermelho) — repita quando tiver internet."
-          : "Dados sincronizados com a nuvem.";
+          ? `Dados atualizados.${pagInfo} Alguns envios ainda só neste telemóvel — repita com internet.`
+          : `Dados sincronizados.${pagInfo}`;
       }
     } catch {
       if (msg && !silent) msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
+    } finally {
+      if (sessao) {
+        resolveAppViewAfterData(sessao);
+        if (msg && !silent && !syncOk && msg.textContent.startsWith("A sincronizar")) {
+          msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
+        }
+      }
     }
-    if (sessao) resolveAppViewAfterData(sessao);
   }
 
   function onComprovantesSyncedRefreshView() {
