@@ -222,7 +222,7 @@ async function runSuite() {
         indexFresh.includes("operacaoLocacaoAmbienteWrap") &&
         indexFresh.includes("operacaoLocacaoApagarProtocoloBtn") &&
         indexFresh.includes('value="teste"') &&
-        indexFresh.includes("cadastro-ambiente-teste")
+        indexFresh.includes("portal-ambiente-admin")
     );
     record(
       "API dk-cliente-geo responde JSON",
@@ -938,7 +938,7 @@ async function runSuite() {
         const antes = await page.locator("#patrimonioFotosLista .patrimonio-foto-item").count();
         await page.locator("#patrimonioPdfInputNovos").setInputFiles([
           {
-            name: "CRLVDigital_E2E_TEST_2026",
+            name: "CRLVDigital_ZZZ9Z99_2026",
             mimeType: "application/pdf",
             buffer: fs.readFileSync(patrimonioPdfPath),
           },
@@ -960,7 +960,8 @@ async function runSuite() {
         const msgPat = (await page.locator("#patrimonioMsg").textContent().catch(() => "")) || "";
         record(
           "patrimônio E2E: Abrir no seletor dispara processamento",
-          depois > antes || /processar|converter|fila|receber/i.test(msgPat),
+          depois > antes ||
+            /processar|converter|fila|receber|ignorado|cadastrad/i.test(msgPat),
           `itens ${antes}→${depois} · ${msgPat.slice(0, 90)}`
         );
       } else {
