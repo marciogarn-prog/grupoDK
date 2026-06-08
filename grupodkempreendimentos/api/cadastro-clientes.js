@@ -3,7 +3,7 @@
  * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeClientesCadastro } = require("./dk-append-only-merge");
+const { mergeClientesCadastro } = require("../lib/dk-append-only-merge.cjs");
 const {
   onlyDigits,
   resolveDeployChannel,

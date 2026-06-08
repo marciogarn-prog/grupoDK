@@ -40,19 +40,13 @@
   async function validateClienteRemote(cpf, protoRaw) {
     const proto = normProto(protoRaw);
     try {
-      const q = new URLSearchParams({ cpf, protocolo: String(protoRaw || "").trim() });
-      const res = await fetch(`/api/cliente-app-gate?${q.toString()}`);
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.ok) {
-        return { ok: true, nome: String(data.nome || "").trim(), proto: String(data.proto || proto) };
-      }
-      if (data.msg) return { ok: false, msg: data.msg };
-    } catch {
-      /* ignore */
-    }
-    try {
       const q = new URLSearchParams({ gate: "1", cpf, protocolo: String(protoRaw || "").trim() });
-      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`);
+      const isDemo =
+        window.__DK_IS_DEMO_DEPLOY__ === true || String(window.__DK_DEPLOY_CHANNEL__ || "") === "demo";
+      if (isDemo) q.set("channel", "demo");
+      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`, {
+        headers: isDemo ? { "X-DK-Deploy-Channel": "demo" } : {},
+      });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         return {

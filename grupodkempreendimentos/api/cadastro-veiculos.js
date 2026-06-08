@@ -3,7 +3,7 @@
  * Variáveis obrigatórias: UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeVeiculosCadastro } = require("./dk-append-only-merge");
+const { mergeVeiculosCadastro } = require("../lib/dk-append-only-merge.cjs");
 
 const STORAGE_KEY = "dk:portal:veiculos_cadastro:v1";
 
