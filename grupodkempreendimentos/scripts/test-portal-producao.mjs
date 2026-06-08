@@ -971,7 +971,7 @@ async function runSuite() {
     const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260521comunicacao`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao`, {
+    const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521setor-routing`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteComUiJs = await fetch(`${BASE_URL}cliente-comunicacao-operacao-ui.js?v=20260521comunicacao`, {
@@ -983,13 +983,18 @@ async function runSuite() {
         html.includes("portalComunicacaoManutencaoLista") &&
         html.includes("operacaoClienteMsgClienteBtn") &&
         html.includes("operacaoClienteMsgTodosBtn") &&
+        html.includes("operacaoLancManutencaoMsgClienteBtn") &&
+        html.includes("operacaoLancManutencaoMsgTodosBtn") &&
+        !html.includes("operacaoClienteMsgSetor") &&
         comunicacaoJs.includes("dk_comunicacao_operacao_v1") &&
         comunicacaoJs.includes("listarPendentesOperacao") &&
-        comunicacaoUiJs.includes("__DK_portalComunicacaoRefresh") &&
+        comunicacaoUiJs.includes("__DK_portalComunicacaoSyncManutencaoBtn") &&
+        comunicacaoUiJs.includes('abrirModalTodos("vendas")') &&
+        comunicacaoUiJs.includes('abrirModalTodos("manutencao")') &&
         clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
         clienteComUiJs.includes("__DK_clienteComunicacaoRefresh"),
-      "caixas verde/amarelo, chat texto e sync nuvem"
+      "cadastro→verde; manutenção→amarelo; chat texto e sync nuvem"
     );
     record(
       "app cliente troca senha inicial 123456",

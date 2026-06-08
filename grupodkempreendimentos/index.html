@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260521comunicacao">
+  <link rel="stylesheet" href="styles.css?v=20260521setor-routing">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260521demo-icon"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -482,13 +482,7 @@
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteSenhaResetBtn" title="Volta a senha para 123456">Resetar senha</button>
             </div>
             <div class="operacao-inline-form__actions operacao-inline-form__actions--comunicacao">
-              <label class="portal-field portal-field--inline-setor">
-                <span>Setor da mensagem</span>
-                <select id="operacaoClienteMsgSetor" aria-label="Setor da mensagem">
-                  <option value="vendas">Vendas</option>
-                  <option value="manutencao">Manutenção</option>
-                </select>
-              </label>
+              <p class="subtext portal-comunicacao-setor-hint">Mensagens deste cadastro vão para o app do cliente na caixa <strong>verde (vendas)</strong>.</p>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteMsgClienteBtn" disabled>Enviar mensagem para cliente</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteMsgTodosBtn">Enviar mensagem para todos os clientes</button>
             </div>
@@ -1404,6 +1398,11 @@
                   <button type="button" class="btn-primary" id="operacaoLancManutencaoConfirmarPesquisaBtn">Confirmar pesquisa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparPesquisaBtn">Limpar dados</button>
                 </div>
+                <div class="operacao-inline-form__actions operacao-inline-form__actions--comunicacao">
+                  <p class="subtext portal-comunicacao-setor-hint">Mensagens da manuten&ccedil;&atilde;o v&atilde;o para o app do cliente na caixa <strong>amarela (manuten&ccedil;&atilde;o)</strong>.</p>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoMsgClienteBtn" disabled>Enviar mensagem para cliente</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoMsgTodosBtn">Enviar circular para todos os clientes</button>
+                </div>
               </div>
             </section>
                         <section id="operacaoLancManutencaoReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
@@ -2109,9 +2108,10 @@
     <div class="portal-modal__backdrop" id="portalComunicacaoTodosFecharBtn"></div>
     <div class="portal-modal__card">
       <h3 id="portalComunicacaoTodosTitulo" class="portal-modal__title">Mensagem para todos os clientes</h3>
-      <label class="portal-field">
+      <p id="portalComunicacaoTodosSetorHint" class="subtext portal-comunicacao-setor-hint" hidden></p>
+      <label class="portal-field hidden" id="portalComunicacaoTodosSetorWrap" hidden>
         <span>Setor</span>
-        <select id="portalComunicacaoTodosSetor">
+        <select id="portalComunicacaoTodosSetor" aria-hidden="true" tabindex="-1">
           <option value="vendas">Vendas</option>
           <option value="manutencao">Manutenção</option>
         </select>
@@ -2145,7 +2145,7 @@
   <script src="portal-comunicacao-operacao.js?v=20260521comunicacao" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260521comunicacao" defer></script>
-  <script src="portal-comunicacao-operacao-ui.js?v=20260521comunicacao" defer></script>
+  <script src="portal-comunicacao-operacao-ui.js?v=20260521setor-routing" defer></script>
   <script src="portal-locacao-documentos.js?v=20260608loc-docs" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260608pagamentos-nuvem" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
@@ -2153,7 +2153,7 @@
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio.js?v=20260608patrimonio-deposito-fix" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260521pesquisa-placa" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260521setor-routing" defer></script>
   <script src="portal-supabase-sync.js?v=20260521comunicacao" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522extrair-ia-operador" defer></script>
 </body>

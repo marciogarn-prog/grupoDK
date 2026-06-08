@@ -452,6 +452,9 @@
       hist.replaceChildren();
     }
     if (isParcelado(cfg)) updateRelatorioParceladoActions(cfg, null);
+    if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
+      window.__DK_portalComunicacaoSyncManutencaoBtn();
+    }
   }
 
   function showDetalhe(cfg) {
@@ -826,6 +829,9 @@
     }
     if (source !== "placa" && $(cfg, "PlacaBusca") && row.placa) $(cfg, "PlacaBusca").value = row.placa;
     if (source !== "proto" && $(cfg, "ProtocoloBusca") && row.proto) $(cfg, "ProtocoloBusca").value = row.proto;
+    if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
+      window.__DK_portalComunicacaoSyncManutencaoBtn();
+    }
   }
 
   function renderPesquisaLista(cfg, linhas) {
@@ -1160,6 +1166,9 @@
       const nc = normNc(sel?.value);
       const loc = collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
       if (loc) applyLocToForm(cfg, loc);
+      if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
+        window.__DK_portalComunicacaoSyncManutencaoBtn();
+      }
     });
 
     if (isParcelado(cfg)) {

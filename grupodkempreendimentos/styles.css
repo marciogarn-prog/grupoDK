@@ -5025,6 +5025,13 @@ table.validados-app .lnk-comprovante {
   gap: 0.5rem;
 }
 
+.portal-comunicacao-setor-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.62);
+}
+
 .portal-field--inline-setor {
   min-width: 10rem;
 }

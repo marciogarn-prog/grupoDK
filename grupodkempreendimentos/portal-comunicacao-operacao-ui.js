@@ -5,6 +5,7 @@
   "use strict";
 
   let chatCtx = null;
+  let modalTodosSetor = "vendas";
 
   function $(id) {
     return document.getElementById(id);
@@ -30,6 +31,17 @@
     const d = Date.parse(iso || "");
     if (!Number.isFinite(d)) return "";
     return new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function resolveNomePorCpf(cpf) {
+    if (typeof findClienteByCpfCadastro === "function") {
+      const n = String(findClienteByCpfCadastro(cpf)?.nome || "").trim();
+      if (n) return n;
+    }
+    if (typeof window.__DK_resolveLancNomePorCpf === "function") {
+      return String(window.__DK_resolveLancNomePorCpf(cpf) || "").trim();
+    }
+    return "";
   }
 
   function renderLista(el, setor) {
@@ -129,30 +141,68 @@
     window.setTimeout(fecharChat, 400);
   }
 
-  function abrirChatClienteCadastro() {
-    const cpf = String($("operacaoClienteCpf")?.value || "").replace(/\D/g, "").slice(0, 11);
-    const nome = String($("operacaoClienteNome")?.value || "").trim();
-    const setorSel = $("operacaoClienteMsgSetor");
-    const setor = window.__DK_comunicacaoNormSetor?.(setorSel?.value) || "vendas";
-    if (cpf.length !== 11 || !nome) return;
-    const tid = window.__DK_comunicacaoThreadId?.(cpf, setor);
-    if (!tid) return;
-    let placa = "";
+  function resolvePlacaCadastro(cpf) {
     try {
       const locs = JSON.parse(localStorage.getItem("dk_locacoes_cadastro") || "[]");
       const loc = Array.isArray(locs)
         ? locs.find((l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11) === cpf)
         : null;
-      placa = String(loc?.placa || "").trim();
+      return String(loc?.placa || "").trim();
     } catch {
-      /* ignore */
+      return "";
     }
-    abrirChat({ threadId: tid, cpf, nome, placa, setor });
   }
 
-  function abrirModalTodos() {
+  function abrirChatClienteCadastro() {
+    const cpf = String($("operacaoClienteCpf")?.value || "").replace(/\D/g, "").slice(0, 11);
+    const nome = String($("operacaoClienteNome")?.value || "").trim();
+    const setor = "vendas";
+    if (cpf.length !== 11 || !nome) return;
+    const tid = window.__DK_comunicacaoThreadId?.(cpf, setor);
+    if (!tid) return;
+    abrirChat({ threadId: tid, cpf, nome, placa: resolvePlacaCadastro(cpf), setor });
+  }
+
+  function resolveCtxManutencao() {
+    const cpf = String($("operacaoLancManutencaoCpf")?.value || "").replace(/\D/g, "").slice(0, 11);
+    if (cpf.length !== 11) return null;
+    let nome = String($("operacaoLancManutencaoNomeBusca")?.value || "").trim();
+    if (!nome) nome = resolveNomePorCpf(cpf);
+    if (!nome) return null;
+    let placa = String($("operacaoLancManutencaoPlaca")?.value || "").trim();
+    if (!placa) placa = String($("operacaoLancManutencaoPlacaBusca")?.value || "").trim();
+    return { cpf, nome, placa, setor: "manutencao" };
+  }
+
+  function abrirChatManutencao() {
+    const ctx = resolveCtxManutencao();
+    if (!ctx) return;
+    const tid = window.__DK_comunicacaoThreadId?.(ctx.cpf, ctx.setor);
+    if (!tid) return;
+    abrirChat({ threadId: tid, ...ctx });
+  }
+
+  function abrirModalTodos(setorFixo) {
     const modal = $("portalComunicacaoTodosModal");
     if (!modal) return;
+    modalTodosSetor = window.__DK_comunicacaoNormSetor?.(setorFixo) || "vendas";
+    const sel = $("portalComunicacaoTodosSetor");
+    if (sel) sel.value = modalTodosSetor;
+    const titulo = $("portalComunicacaoTodosTitulo");
+    const hint = $("portalComunicacaoTodosSetorHint");
+    if (titulo) {
+      titulo.textContent =
+        modalTodosSetor === "manutencao"
+          ? "Circular de manutenção para todos os clientes"
+          : "Mensagem de vendas para todos os clientes";
+    }
+    if (hint) {
+      hint.textContent =
+        modalTodosSetor === "manutencao"
+          ? "A mensagem aparece no app do cliente na caixa amarela (manutenção)."
+          : "A mensagem aparece no app do cliente na caixa verde (vendas).";
+      hint.hidden = false;
+    }
     $("portalComunicacaoTodosTexto") && ($("portalComunicacaoTodosTexto").value = "");
     $("portalComunicacaoTodosMsg") && ($("portalComunicacaoTodosMsg").textContent = "");
     modal.classList.remove("hidden");
@@ -165,13 +215,15 @@
       modal.classList.add("hidden");
       modal.setAttribute("aria-hidden", "true");
     }
+    const hint = $("portalComunicacaoTodosSetorHint");
+    if (hint) hint.hidden = true;
   }
 
   function enviarParaTodos() {
     const msg = $("portalComunicacaoTodosMsg");
     const op = operadorAtual();
     const r = window.__DK_comunicacaoOperacaoParaTodos?.({
-      setor: $("portalComunicacaoTodosSetor")?.value || "vendas",
+      setor: modalTodosSetor,
       texto: $("portalComunicacaoTodosTexto")?.value || "",
       operadorNome: op.nome,
       operadorCpf: op.cpf,
@@ -190,6 +242,12 @@
     const cpf = String($("operacaoClienteCpf")?.value || "").replace(/\D/g, "").slice(0, 11);
     const nome = String($("operacaoClienteNome")?.value || "").trim();
     btn.disabled = cpf.length !== 11 || !nome;
+  }
+
+  function syncBtnManutencao() {
+    const btn = $("operacaoLancManutencaoMsgClienteBtn");
+    if (!btn) return;
+    btn.disabled = !resolveCtxManutencao();
   }
 
   function bindUi() {
@@ -227,12 +285,24 @@
       }
     });
     $("operacaoClienteMsgClienteBtn")?.addEventListener("click", abrirChatClienteCadastro);
-    $("operacaoClienteMsgTodosBtn")?.addEventListener("click", abrirModalTodos);
+    $("operacaoClienteMsgTodosBtn")?.addEventListener("click", () => abrirModalTodos("vendas"));
+    $("operacaoLancManutencaoMsgClienteBtn")?.addEventListener("click", abrirChatManutencao);
+    $("operacaoLancManutencaoMsgTodosBtn")?.addEventListener("click", () => abrirModalTodos("manutencao"));
     $("portalComunicacaoTodosFecharBtn")?.addEventListener("click", fecharModalTodos);
     $("portalComunicacaoTodosFecharBtn2")?.addEventListener("click", fecharModalTodos);
     $("portalComunicacaoTodosEnviarBtn")?.addEventListener("click", enviarParaTodos);
     $("operacaoClienteCpf")?.addEventListener("input", syncBtnClienteCadastro);
     $("operacaoClienteNome")?.addEventListener("input", syncBtnClienteCadastro);
+    [
+      "operacaoLancManutencaoCpf",
+      "operacaoLancManutencaoNomeBusca",
+      "operacaoLancManutencaoPlaca",
+      "operacaoLancManutencaoPlacaBusca",
+      "operacaoLancManutencaoProtocoloSelect",
+    ].forEach((id) => {
+      $(id)?.addEventListener("input", syncBtnManutencao);
+      $(id)?.addEventListener("change", syncBtnManutencao);
+    });
     window.addEventListener("dk-comunicacao-operacao-changed", refreshInboxes);
     window.addEventListener("dk-comprovantes-synced", refreshInboxes);
     document.addEventListener("visibilitychange", () => {
@@ -242,16 +312,19 @@
 
   window.__DK_portalComunicacaoRefresh = refreshInboxes;
   window.__DK_portalComunicacaoSyncCadastroBtn = syncBtnClienteCadastro;
+  window.__DK_portalComunicacaoSyncManutencaoBtn = syncBtnManutencao;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       bindUi();
       refreshInboxes();
       syncBtnClienteCadastro();
+      syncBtnManutencao();
     });
   } else {
     bindUi();
     refreshInboxes();
     syncBtnClienteCadastro();
+    syncBtnManutencao();
   }
 })();
