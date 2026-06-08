@@ -2196,6 +2196,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       createdAt: ca || Date.now(),
       registradoPorCpf: rp,
       registradoPorNome: String(raw.registradoPorNome || "").trim(),
+      protocoloLancamento: String(raw.protocoloLancamento || raw.protocolo || "").trim(),
       origemComprovanteClienteId: String(raw.origemComprovanteClienteId || "").trim(),
       comprovanteFp: String(raw.comprovanteFp || "").trim(),
       confirmadoViaAppCliente: Boolean(raw.confirmadoViaAppCliente),
@@ -2240,6 +2241,7 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
   const seenOid = new Set();
   const seenFp = new Set();
   const seenIdTx = new Set();
+  const seenProto = new Set();
   const seenDataValor = new Set();
   const deduped = [];
   const normIdTxMerge = (raw) => {
@@ -2258,16 +2260,19 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     const oid = String(row.origemComprovanteClienteId || "").trim();
     const fp = String(row.comprovanteFp || "").trim();
     const idTx = normIdTxMerge(row.idTransacaoComprovante || row.idTransacao || "");
+    const proto = String(row.protocoloLancamento || "").trim();
     const data = String(row.data || "").trim();
     const valor = roundCentMerge(row.valor);
     const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
     if (oid && seenOid.has(oid)) continue;
     if (fp && seenFp.has(fp)) continue;
     if (idTx && seenIdTx.has(idTx)) continue;
+    if (proto && typeof window.__DK_isProtocoloLancamentoValid === "function" && window.__DK_isProtocoloLancamentoValid(proto) && seenProto.has(proto)) continue;
     if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
     if (oid) seenOid.add(oid);
     if (fp) seenFp.add(fp);
     if (idTx) seenIdTx.add(idTx);
+    if (proto && typeof window.__DK_isProtocoloLancamentoValid === "function" && window.__DK_isProtocoloLancamentoValid(proto)) seenProto.add(proto);
     if (data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
     deduped.push(row);
   }

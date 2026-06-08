@@ -361,6 +361,14 @@
     }
   }
 
+  function consolidateLocacoesPagamentosInPlace(arr) {
+    if (!Array.isArray(arr) || typeof window.__DK_consolidarLancamentosAluguelLoc !== "function") return arr;
+    for (const loc of arr) {
+      if (loc && typeof loc === "object") window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
+    }
+    return arr;
+  }
+
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
     if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
@@ -408,6 +416,7 @@
         }
         if (k === "dk_locacoes_cadastro") {
           arr = normalizeLocacoesContratoAtivoList(arr);
+          consolidateLocacoesPagamentosInPlace(arr);
         }
         if (forceCadastroReplace) {
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true });
@@ -429,6 +438,7 @@
         }
         if (k === "dk_locacoes_cadastro") {
           cloudArr = normalizeLocacoesContratoAtivoList(cloudArr);
+          consolidateLocacoesPagamentosInPlace(cloudArr);
         }
         if (forceCadastroReplace) {
           localStorage.setItem(k, JSON.stringify(cloudArr));
@@ -438,7 +448,9 @@
             typeof window.__DK_mergeLocacoesCadastroCliente === "function"
               ? window.__DK_mergeLocacoesCadastroCliente
               : mergeLocacoesCadastroBeforePush;
-          localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
+          const mergedLocs = mergeFn(localArr, cloudArr);
+          consolidateLocacoesPagamentosInPlace(mergedLocs);
+          localStorage.setItem(k, JSON.stringify(mergedLocs));
         } else {
           const localArr = readLocalJsonArray(k);
           localStorage.setItem(k, JSON.stringify([...(localArr || []), ...cloudArr]));
@@ -1635,9 +1647,15 @@
       numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
     };
     if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+    if (typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
+      window.__DK_consolidarLancamentosAluguelLoc(merged, { mutate: true });
+    }
     if (score(incoming) >= score(ex)) return merged;
     const stay = { ...ex, ...merged };
     if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+    if (typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
+      window.__DK_consolidarLancamentosAluguelLoc(stay, { mutate: true });
+    }
     return stay;
   }
 

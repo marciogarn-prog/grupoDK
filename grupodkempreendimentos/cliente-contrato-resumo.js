@@ -257,6 +257,10 @@
   }
 
   function getLancamentosAluguelContrato(loc) {
+    if (typeof window.__DK_getLancamentosAluguelCanonico === "function") {
+      const rows = window.__DK_getLancamentosAluguelCanonico(loc);
+      return dedupeLancamentosPagamento(rows);
+    }
     if (!loc || typeof loc !== "object") return [];
     const chunks = [];
     const pushChunk = (arr) => {

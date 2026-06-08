@@ -193,6 +193,17 @@
   }
 
   function getLancamentosContrato(loc) {
+    if (typeof window.__DK_getLancamentosAluguelCanonico === "function") {
+      return window.__DK_getLancamentosAluguelCanonico(loc).filter((lan) => {
+        if (lan?.pagamentoInvalidado) return false;
+        const oid = String(lan.origemComprovanteClienteId || "").trim();
+        if (oid) {
+          const ex = loadComprovantes().find((x) => String(x.id || "") === oid);
+          if (ex?.pagamentoInvalidado) return false;
+        }
+        return true;
+      });
+    }
     const chunks = [];
     if (Array.isArray(loc.portalLancamentosAluguel) && loc.portalLancamentosAluguel.length) {
       chunks.push(loc.portalLancamentosAluguel);
@@ -418,12 +429,12 @@
 
       body += `<h2>${eh(`Protocolo ${proto} · Placa ${placa}`)}</h2>`;
       body += `<p class="meta">${eh("Pagamentos")}</p>`;
-      body += `<table><thead><tr><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th></tr></thead><tbody>`;
+      body += `<table><thead><tr><th>${eh("Protocolo")}</th><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th><th>${eh("Registado por")}</th></tr></thead><tbody>`;
       if (!lancs.length) {
-        body += `<tr><td colspan="2">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
+        body += `<tr><td colspan="4">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
       } else {
         for (const lan of lancs) {
-          body += `<tr><td>${eh(lan.data)}</td><td>${eh(currencyBRL(lan.valor))}</td></tr>`;
+          body += `<tr><td>${eh(lan.protocoloLancamento || "—")}</td><td>${eh(lan.data)}</td><td>${eh(currencyBRL(lan.valor))}</td><td>${eh(lan.registradoPorNome || lan.registradoPorCpf || "—")}</td></tr>`;
         }
       }
       body += `</tbody></table>`;

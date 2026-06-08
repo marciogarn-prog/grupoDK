@@ -45,6 +45,11 @@ const SUITES = [
     script: "test-instalacao-producao.mjs",
     env: {},
   },
+  {
+    label: "DEMO — sincronismo lançamentos portal/app",
+    script: "test-lancamentos-sync.mjs",
+    env: { DK_TEST_BASE_URL: "https://demo.grupodkempreendimentos.com.br/" },
+  },
 ];
 
 function runSuite(suite) {
