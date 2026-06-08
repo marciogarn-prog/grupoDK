@@ -1,7 +1,6 @@
 /**
- * Protocolo de rastreabilidade por lançamento: AAAAMMDDHHMMSS-NNN
- * NNN = três primeiros dígitos do CPF de quem registou.
- * Fonte canónica: loc.portalLancamentosAluguel (consolida legados ao gravar/ler).
+ * Oficial: lançamentos estritos — sem legado global/demo, só portalLancamentosAluguel auditável.
+ * Demo: consolidação completa (legado + planilha) para testes.
  */
 (function dkLancamentoProtocolo() {
   const PROTO_RE = /^\d{14}-\d{3}$/;
@@ -14,6 +13,10 @@
 
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
+  }
+
+  function isOficialDeploy() {
+    return window.__DK_IS_DEMO_DEPLOY__ !== true;
   }
 
   function normNc(v) {
@@ -74,6 +77,20 @@
     return PROTO_RE.test(String(s || "").trim());
   }
 
+  /** Oficial: rejeita fantasma, legado -000, teste e lançamento sem operador identificado. */
+  function isLancamentoOficialAceite(row) {
+    if (!row || row.pagamentoInvalidado) return false;
+    if (!isOficialDeploy()) return true;
+    if (row.ficticio) return false;
+    const proto = String(row.protocoloLancamento || "").trim();
+    if (!isProtocoloLancamentoValid(proto)) return false;
+    if (proto.endsWith("-000")) return false;
+    const cpfOp = onlyDigits(row.registradoPorCpf || row.comprovanteValidadoPorCpf || "").slice(0, 11);
+    if (cpfOp.length !== 11) return false;
+    if (typeof row.createdAt !== "number" || !Number.isFinite(row.createdAt) || row.createdAt <= 0) return false;
+    return true;
+  }
+
   function normalizeRow(raw) {
     if (!raw || typeof raw !== "object") return null;
     if (raw.pagamentoInvalidado) return null;
@@ -113,6 +130,7 @@
       origemComprovanteClienteId: String(raw.origemComprovanteClienteId || "").trim(),
       comprovanteFp: String(raw.comprovanteFp || "").trim(),
       confirmadoViaAppCliente: Boolean(raw.confirmadoViaAppCliente),
+      comprovanteValidadoPorCpf: onlyDigits(String(raw.comprovanteValidadoPorCpf || "")).slice(0, 11),
       ficticio: Boolean(raw.ficticio),
     };
     if (hasMeios) {
@@ -121,13 +139,16 @@
       row.valorCartao = valorCartao;
     }
     if (!isProtocoloLancamentoValid(row.protocoloLancamento)) {
-      const proto = gerarProtocoloLancamento(registradoPorCpf, new Date(createdAt));
+      const cpfProto = registradoPorCpf || row.comprovanteValidadoPorCpf;
+      const proto = gerarProtocoloLancamento(cpfProto, new Date(createdAt));
       if (proto) row.protocoloLancamento = proto;
     }
+    if (isOficialDeploy() && !isLancamentoOficialAceite(row)) return null;
     return row;
   }
 
   function readGlobalRowsForLoc(loc) {
+    if (isOficialDeploy()) return [];
     const cpf = onlyDigits(loc?.cpf).slice(0, 11);
     const nc = normNc(loc?.numeroContrato);
     const placa = normPlate(loc?.placa);
@@ -167,6 +188,7 @@
       if (n.length) chunks.push(n);
     };
     push(loc?.portalLancamentosAluguel);
+    if (isOficialDeploy()) return chunks;
     push(loc?.lancamentosAluguel);
     push(loc?.lancamentos);
     const global = readGlobalRowsForLoc(loc);
@@ -186,7 +208,9 @@
 
   function mergeRows(chunks) {
     if (typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function") {
-      return window.__DK_mergePortalLancamentosAluguelEmbutidos(chunks);
+      const merged = window.__DK_mergePortalLancamentosAluguelEmbutidos(chunks);
+      if (isOficialDeploy()) return merged.filter(isLancamentoOficialAceite);
+      return merged;
     }
     const byProto = new Map();
     const byLegacy = new Map();
@@ -200,6 +224,7 @@
           if (!byProto.has(proto)) byProto.set(proto, row);
           continue;
         }
+        if (isOficialDeploy()) continue;
         const legacyKey = `${row.data}|${Number(row.valor).toFixed(2)}|${row.createdAt}|${row.registradoPorCpf}`;
         if (!byLegacy.has(legacyKey)) byLegacy.set(legacyKey, row);
       }
@@ -211,24 +236,33 @@
 
   function ensureUniqueProtocols(rows) {
     const seen = new Set();
-    return (rows || []).map((raw) => {
-      const row = normalizeRow(raw);
-      if (!row) return null;
-      let proto = String(row.protocoloLancamento || "").trim();
-      if (!isProtocoloLancamentoValid(proto)) {
-        proto = gerarProtocoloLancamento(row.registradoPorCpf, new Date(row.createdAt || Date.now()));
-      }
-      let attempt = 0;
-      while (proto && seen.has(proto) && attempt < 5) {
-        attempt += 1;
-        proto = gerarProtocoloLancamento(row.registradoPorCpf, new Date((row.createdAt || Date.now()) + attempt));
-      }
-      if (proto) {
-        row.protocoloLancamento = proto;
-        seen.add(proto);
-      }
-      return row;
-    }).filter(Boolean);
+    return (rows || [])
+      .map((raw) => {
+        const row = normalizeRow(raw);
+        if (!row) return null;
+        let proto = String(row.protocoloLancamento || "").trim();
+        if (!isProtocoloLancamentoValid(proto)) {
+          proto = gerarProtocoloLancamento(
+            row.registradoPorCpf || row.comprovanteValidadoPorCpf,
+            new Date(row.createdAt || Date.now())
+          );
+        }
+        let attempt = 0;
+        while (proto && seen.has(proto) && attempt < 5) {
+          attempt += 1;
+          proto = gerarProtocoloLancamento(
+            row.registradoPorCpf || row.comprovanteValidadoPorCpf,
+            new Date((row.createdAt || Date.now()) + attempt)
+          );
+        }
+        if (proto) {
+          row.protocoloLancamento = proto;
+          seen.add(proto);
+        }
+        if (isOficialDeploy() && !isLancamentoOficialAceite(row)) return null;
+        return row;
+      })
+      .filter(Boolean);
   }
 
   function consolidarLancamentosAluguelLoc(loc, opts) {
@@ -239,11 +273,24 @@
       loc.portalLancamentosAluguel = merged.map((x) => ({ ...x }));
       if (Object.prototype.hasOwnProperty.call(loc, "lancamentosAluguel")) delete loc.lancamentosAluguel;
       if (Object.prototype.hasOwnProperty.call(loc, "lancamentos")) delete loc.lancamentos;
+      if (isOficialDeploy()) {
+        loc.totalPagoAno2025 = merged.length
+          ? String(
+              merged.reduce((a, x) => a + Number(x.valor || 0), 0).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })
+            )
+          : "0,00";
+      }
     }
     return merged;
   }
 
   function getLancamentosAluguelCanonico(loc) {
+    if (isOficialDeploy()) {
+      return consolidarLancamentosAluguelLoc(loc, { mutate: false });
+    }
     const embedded = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
     const hasLegacy =
       (Array.isArray(loc?.lancamentosAluguel) && loc.lancamentosAluguel.length) ||
@@ -253,6 +300,40 @@
       return consolidarLancamentosAluguelLoc(loc, { mutate: false });
     }
     return embedded.map(normalizeRow).filter(Boolean);
+  }
+
+  function purgeGlobalLancamentoKeysOficial() {
+    if (!isOficialDeploy()) return { purged: false };
+    let n = 0;
+    for (const key of GLOBAL_KEYS) {
+      try {
+        if (localStorage.getItem(key)) {
+          localStorage.removeItem(key);
+          n += 1;
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    return { purged: true, keys: n };
+  }
+
+  function sanitizeCloudPayloadLancamentosOficial(payload) {
+    if (!isOficialDeploy() || !payload || typeof payload !== "object") return payload;
+    const out = { ...payload };
+    for (const key of GLOBAL_KEYS) {
+      out[key] = [];
+    }
+    if (Array.isArray(out.dk_locacoes_cadastro)) {
+      out.dk_locacoes_cadastro = out.dk_locacoes_cadastro.map((loc) => {
+        if (!loc || typeof loc !== "object") return loc;
+        const clone = { ...loc };
+        consolidarLancamentosAluguelLoc(clone, { mutate: true });
+        return clone;
+      });
+    }
+    out.dk_oficial_lancamentos_strict_v1 = true;
+    return out;
   }
 
   function formatHoraMs(ms) {
@@ -306,6 +387,8 @@
 
   window.__DK_gerarProtocoloLancamento = gerarProtocoloLancamento;
   window.__DK_isProtocoloLancamentoValid = isProtocoloLancamentoValid;
+  window.__DK_isOficialLancamentosStrict = isOficialDeploy;
+  window.__DK_isLancamentoOficialAceite = isLancamentoOficialAceite;
   window.__DK_ensureProtocoloLancamento = (entry, cpfFallback) => {
     const row = normalizeRow(entry);
     if (!row) return entry;
@@ -318,4 +401,15 @@
   window.__DK_consolidarLancamentosAluguelLoc = consolidarLancamentosAluguelLoc;
   window.__DK_getLancamentosAluguelCanonico = getLancamentosAluguelCanonico;
   window.__DK_renderHistoricoLancamentosHtml = renderHistoricoLancamentosHtml;
+  window.__DK_purgeGlobalLancamentoKeysOficial = purgeGlobalLancamentoKeysOficial;
+  window.__DK_sanitizeCloudPayloadLancamentosOficial = sanitizeCloudPayloadLancamentosOficial;
+
+  if (isOficialDeploy()) {
+    const runPurge = () => purgeGlobalLancamentoKeysOficial();
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", runPurge);
+    } else {
+      runPurge();
+    }
+  }
 })();

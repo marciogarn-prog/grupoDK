@@ -46,6 +46,11 @@ const SUITES = [
     env: {},
   },
   {
+    label: "OFICIAL — lançamentos modo estrito (sem legado demo)",
+    script: "test-lancamentos-oficial-strict.mjs",
+    env: { DK_TEST_BASE_URL: "https://grupodkempreendimentos.com.br/" },
+  },
+  {
     label: "DEMO — sincronismo lançamentos portal/app",
     script: "test-lancamentos-sync.mjs",
     env: { DK_TEST_BASE_URL: "https://demo.grupodkempreendimentos.com.br/" },

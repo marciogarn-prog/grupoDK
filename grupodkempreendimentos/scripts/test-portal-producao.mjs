@@ -935,6 +935,18 @@ async function runSuite() {
         html.includes("lanc-proto"),
       "AAAAMMDDHHMMSS-NNN"
     );
+    const lancProtoJs = await fetch(`${BASE_URL}dk-lancamento-protocolo.js?v=20260608oficial-lanc-strict`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "oficial: lançamentos modo estrito (sem legado global)",
+      !IS_DEMO_TEST
+        ? lancProtoJs.includes("__DK_isOficialLancamentosStrict") &&
+            lancProtoJs.includes("__DK_isLancamentoOficialAceite") &&
+            lancProtoJs.includes("purgeGlobalLancamentoKeysOficial")
+        : lancProtoJs.includes("__DK_getLancamentosAluguelCanonico"),
+      IS_DEMO_TEST ? "demo: consolidação completa" : "oficial: só portalLancamentosAluguel auditável"
+    );
     record(
       "app cliente lancamentos alinhados ao portal",
       clienteResumoJs.includes("__DK_clienteGetLancamentosAluguelContrato") &&

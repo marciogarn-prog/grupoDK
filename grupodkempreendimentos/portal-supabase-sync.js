@@ -616,6 +616,13 @@
         /* ignore */
       }
     }
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true && typeof window.__DK_purgeGlobalLancamentoKeysOficial === "function") {
+      try {
+        window.__DK_purgeGlobalLancamentoKeysOficial();
+      } catch {
+        /* ignore */
+      }
+    }
   }
 
   function runLocacoesSanitizeAfterCloudApply(opts) {
@@ -1545,6 +1552,11 @@
   /** Antes do push: copia `dk_lancamentos_*` para `portalLancamentosAluguel` em cada locação (app cliente lê da locação). */
   function hydrateLocacoesCadastroPagamentosParaNuvem(payload) {
     if (!payload || typeof payload !== "object") return payload;
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true) {
+      return typeof window.__DK_sanitizeCloudPayloadLancamentosOficial === "function"
+        ? window.__DK_sanitizeCloudPayloadLancamentosOficial(payload)
+        : payload;
+    }
     const locs = payload.dk_locacoes_cadastro;
     if (!Array.isArray(locs) || !locs.length) return payload;
     const globalPools = [
@@ -1900,7 +1912,12 @@
       }
     }
     payload = preserveCloudCadastrosWhenLocalEmpty(payload, cloudMeta?.payload || cloudPayloadMerged);
-    payload = hydrateLocacoesCadastroPagamentosParaNuvem(payload);
+    payload =
+      window.__DK_IS_DEMO_DEPLOY__ === true
+        ? hydrateLocacoesCadastroPagamentosParaNuvem(payload)
+        : typeof window.__DK_sanitizeCloudPayloadLancamentosOficial === "function"
+          ? window.__DK_sanitizeCloudPayloadLancamentosOficial(payload)
+          : payload;
     payload = omitEmptyDemoCadastroKeysForPush(payload);
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
