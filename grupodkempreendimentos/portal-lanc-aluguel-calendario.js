@@ -214,9 +214,10 @@
     }
   }
 
-  function salvarCalendarioAno() {
+  async function salvarCalendarioAno() {
     const corpo = document.getElementById("portalLancAluguelCalCorpo");
     const msg = document.getElementById("portalLancAluguelCalMsg");
+    const btn = document.getElementById("portalLancAluguelCalSalvarBtn");
     if (!corpo || corpo.classList.contains("hidden")) return;
     const ano = Number(corpo.dataset.ano);
     if (!Number.isFinite(ano)) return;
@@ -228,11 +229,32 @@
       if (msg) msg.textContent = "Função de gravação indisponível.";
       return;
     }
+    if (btn) btn.disabled = true;
     const ok = fn(ctx.cpfDigits, ctx.proto, ano, celulas);
-    if (msg) msg.textContent = ok ? `Pagamentos de ${ano} guardados.` : "Não foi possível guardar.";
-    if (ok && typeof window.__DK_refreshOperacaoLancAluguelAposPagamento === "function") {
+    if (!ok) {
+      if (msg) msg.textContent = "Não foi possível guardar.";
+      if (btn) btn.disabled = false;
+      return;
+    }
+    if (typeof window.__DK_refreshOperacaoLancAluguelAposPagamento === "function") {
       window.__DK_refreshOperacaoLancAluguelAposPagamento();
     }
+    if (msg) msg.textContent = "A enviar pagamentos para a nuvem…";
+    let nuvemOk = true;
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      try {
+        await window.__DK_pushCloudSnapshotNow({ force: true });
+      } catch (err) {
+        nuvemOk = false;
+        console.warn("[DK portal] calendário → nuvem", err);
+      }
+    }
+    if (msg) {
+      msg.textContent = nuvemOk
+        ? `Pagamentos de ${ano} guardados e enviados à nuvem.`
+        : `Pagamentos de ${ano} guardados neste computador — repita «Salvar» com internet para enviar à nuvem.`;
+    }
+    if (btn) btn.disabled = false;
   }
 
   function bindUi() {

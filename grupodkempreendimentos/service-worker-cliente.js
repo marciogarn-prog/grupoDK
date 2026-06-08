@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260608cliente-lanc-sync";
+const CACHE_NAME = "dk-cliente-v20260608push-lanc-merge";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",

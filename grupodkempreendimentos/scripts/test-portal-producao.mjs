@@ -868,6 +868,28 @@ async function runSuite() {
         clienteResumoJs.includes("valorEspecie"),
       "portalLancamentosAluguel + nuvem no app cliente"
     );
+    const syncJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260608push-lanc-merge`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const calPortalJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=20260608push-lanc-merge`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "push nuvem preserva portalLancamentosAluguel",
+      syncJs.includes("mergeLocacaoCadastroParSync") &&
+        syncJs.includes("mergeLancamentosAluguelLocacaoPar"),
+      "merge de pagamentos no push/pull locações"
+    );
+    record(
+      "calendário portal envia nuvem após salvar",
+      calPortalJs.includes("__DK_pushCloudSnapshotNow") && calPortalJs.includes("force: true"),
+      "salvar calendário faz push forçado"
+    );
+    record(
+      "app cliente sync mostra contagem pagamentos",
+      clienteAppJs.includes("countPagamentosCliente") && clienteAppJs.includes("finally"),
+      "mensagem pós-sync com total de pagamentos"
+    );
     record(
       "app cliente troca senha inicial 123456",
       clienteAppJs.includes("SENHA_INICIAL_CLIENTE") &&
