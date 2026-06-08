@@ -2632,6 +2632,12 @@
 
   function autoPullFromCloudOnStartup() {
     if (isLocalDataAuthorityActive()) return;
+    if (isClienteAppPage() && clienteAppSessaoCpf()) {
+      return pullClienteCloudSnapshotLight().catch((e) => {
+        console.warn("[DK cloud] cliente pull leve", e);
+        return { ok: false, error: e };
+      });
+    }
     if (window.__DK_IS_DEMO_DEPLOY__ === true) {
       return bootstrapDemoCadastrosFromCloudIfEmpty().catch((e) => {
         console.warn("[DK cloud] demo bootstrap", e);
