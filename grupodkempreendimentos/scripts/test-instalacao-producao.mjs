@@ -22,7 +22,7 @@ async function main() {
     record("manifest corporativo 200", corpManifestRes.ok, String(corpManifestRes.status));
     record(
       "manifest corporativo PNG + start_url app",
-      corpManifest.short_name === "Grupo DK" &&
+      corpManifest.short_name === "DK Locadora" &&
         corpManifest.start_url?.includes("app.html") &&
         corpManifest.start_url?.includes("instalar=1") &&
         (corpManifest.icons || []).some((i) => i.sizes === "192x192" && i.type === "image/png") &&
@@ -52,7 +52,7 @@ async function main() {
     );
     record(
       "SW corporativo cache atual + network-first",
-      corpSwText.includes("dk-corporativo-v20260521icon") && corpSwText.includes("isNetworkFirstAsset")
+      corpSwText.includes("dk-corporativo-v20260521demo-icon") && corpSwText.includes("isNetworkFirstAsset")
     );
 
     const manifestRes = await fetch(new URL("manifest-cliente.webmanifest", BASE));
