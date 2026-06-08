@@ -971,7 +971,7 @@ async function runSuite() {
     const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260521comunicacao`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const portalUiJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521comunicacao-fixa`, {
+    const portalComunicacaoLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521comunicacao-fixa`, {
       cache: "no-store",
     }).then((r) => r.text());
     const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao-fixa`, {
@@ -997,8 +997,8 @@ async function runSuite() {
         comunicacaoUiJs.includes("__DK_portalComunicacaoSyncManutencaoBtn") &&
         comunicacaoUiJs.includes('abrirModalTodos("vendas")') &&
         comunicacaoUiJs.includes('abrirModalTodos("manutencao")') &&
-        portalUiJs.includes("portalComunicacaoAcessosEfetivos") &&
-        portalUiJs.includes("portal-body--comunicacao-ativa") &&
+        portalComunicacaoLocadoraJs.includes("portalComunicacaoAcessosEfetivos") &&
+        portalComunicacaoLocadoraJs.includes("portal-body--comunicacao-ativa") &&
         clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
         clienteComUiJs.includes("__DK_clienteComunicacaoRefresh"),
