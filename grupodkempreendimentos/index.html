@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260608cliente-senha-admin">
+  <link rel="stylesheet" href="styles.css?v=20260608home-app-botoes">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608demo-cadastros"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -56,20 +56,11 @@
         </div>
       </div>
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
-      <a href="app.html?instalar=1" class="btn-primary home-baixar-app-btn btn-primary--with-logo" id="homeBaixarAppLink">
-        <img class="btn-app-logo" src="/images/dk-locadora-logo.png" alt="" width="72" height="28" decoding="async" aria-hidden="true">
-        <span>Baixar APP</span>
-      </a>
+      <div class="home-app-downloads" role="group" aria-label="Baixar aplicativos">
+        <a href="/instalar" class="home-app-btn home-app-btn--cliente" id="homeBaixarAppCliente">Baixar app cliente</a>
+        <a href="./?instalar=1#locadora" class="home-app-btn home-app-btn--operacao" id="homeBaixarAppOperacao">Baixar app operação</a>
+      </div>
     </header>
-
-    <div id="homeInstallPanel" class="cliente-install-panel hidden" aria-live="polite">
-      <p id="homeInstallStatus" class="subtext">Instale o app Grupo DK no telemóvel (Chrome ou Safari).</p>
-      <button type="button" id="homeInstallBtn" class="btn-primary btn-primary--with-logo" style="width:100%;max-width:320px;margin:0 auto;display:flex">
-        <img class="btn-app-logo" src="/images/dk-locadora-logo.png" alt="" width="72" height="28" decoding="async" aria-hidden="true">
-        <span>Instalar app agora</span>
-      </button>
-      <p class="subtext" style="text-align:center;margin-top:0.5rem"><a href="app.html?instalar=1">Abrir página do app</a> · Visitante, Cliente ou Funcionário</p>
-    </div>
 
     <main class="grid-choices" id="main-choices" aria-label="Unidades de negócio">
       <button type="button" class="choice-card" data-go="locadora">
@@ -2068,7 +2059,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="home-install-pwa.js?v=20260531force" defer></script>
+  <script src="home-install-pwa.js?v=20260608home-app-botoes" defer></script>
   <script>
     (function () {
       var src =
