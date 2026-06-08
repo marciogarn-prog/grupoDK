@@ -576,8 +576,16 @@ async function runSuite() {
     }));
     record(
       "placa Mercosul LLLNLNN único padrão",
-      placaMercosulOk.fn && placaMercosulOk.ok && placaMercosulOk.ocr && placaMercosulOk.antiga,
-      placaMercosulOk.antiga ? "SOXA284→SOX2A84 · JRB5376→JRB5D76" : "validação"
+      placaMercosulOk.fn &&
+        placaMercosulOk.ok &&
+        placaMercosulOk.ocr &&
+        placaMercosulOk.antiga &&
+        placaMercosulOk.abcDirect,
+      placaMercosulOk.abcDirect
+        ? "ABC1D23 OK · JRB5376→JRB5D76"
+        : placaMercosulOk.ocr
+          ? "SOXA284→SOX2A84"
+          : "validação"
     );
     record(
       "portal conferência operador (texto)",
