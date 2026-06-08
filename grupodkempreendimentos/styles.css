@@ -2157,6 +2157,104 @@ body {
   background: rgba(34, 197, 94, 0.18);
 }
 
+.portal-colab-lista-wrap {
+  margin-top: 1.35rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+
+.portal-colab-lista__titulo {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.portal-colab-lista__hint {
+  margin: 0 0 0.75rem;
+}
+
+.portal-colab-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  max-height: 280px;
+  overflow: auto;
+}
+
+.portal-colab-lista__item {
+  margin: 0;
+}
+
+.portal-colab-lista__btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.14));
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.22);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.65rem;
+}
+
+.portal-colab-lista__btn:hover,
+.portal-colab-lista__item--ativo .portal-colab-lista__btn {
+  border-color: rgba(248, 113, 113, 0.65);
+  background: rgba(127, 29, 29, 0.28);
+}
+
+.portal-colab-lista__nome {
+  font-weight: 600;
+  flex: 1 1 100%;
+}
+
+.portal-colab-lista__sub {
+  font-size: 0.82rem;
+  color: var(--text-muted, rgba(255, 255, 255, 0.68));
+  flex: 1 1 auto;
+}
+
+.portal-colab-lista__badge {
+  font-size: 0.72rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.portal-colab-lista__badge--bloqueado {
+  background: rgba(239, 68, 68, 0.22);
+  color: #fecaca;
+}
+
+.portal-colab-permissoes-detalhe {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+}
+
+.portal-colab-permissoes-detalhe__titulo {
+  margin: 0 0 0.45rem;
+  font-weight: 600;
+}
+
+.portal-colab-permissoes-detalhe__lista {
+  margin: 0;
+  padding-left: 1.15rem;
+  font-size: 0.9rem;
+}
+
+.portal-colab-permissoes-detalhe__lista li {
+  margin: 0.2rem 0;
+}
+
 .portal-cloud-sync-bar {
   margin-top: 1.25rem;
   padding-top: 1rem;

@@ -348,6 +348,16 @@
   let portalColaboradorSenhaPendente = null;
   /** Comprimento anterior do CPF (só dígitos) para limpar campos ao sair de 11 dígitos. */
   let portalColabCpfPrevLen = 0;
+  let portalColabListaCpfAtivo = "";
+
+  const PORTAL_COLAB_ACESSO_ITENS = [
+    { key: "cliente", label: "Cadastro de cliente" },
+    { key: "veiculo", label: "Cadastro de veículo" },
+    { key: "locacao", label: "Cadastro de locação" },
+    { key: "lancamentoAluguel", label: "Lançamento de aluguel" },
+    { key: "lancamentoMultas", label: "Lançamento de multas" },
+    { key: "lancamentoManutencao", label: "Lançamento de manutenção" },
+  ];
 
   /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
   function getPortalSessaoAdminRole() {
@@ -2768,6 +2778,118 @@ ${printable.innerHTML}
     if (c6) c6.checked = true;
   }
 
+  function portalColabPermissoesAtivas(f) {
+    const a = f?.acessos || {};
+    return PORTAL_COLAB_ACESSO_ITENS.filter((it) => Boolean(a[it.key]));
+  }
+
+  function portalColabFormatCpfExibicao(digits11) {
+    const dig = onlyDigits(String(digits11 || "")).slice(0, 11);
+    return typeof formatCpf === "function" && dig.length === 11 ? formatCpf(dig) : dig;
+  }
+
+  function portalRenderColaboradorPermissoesDetalhe(f) {
+    const wrap = document.getElementById("portalColabPermissoesDetalhe");
+    const titulo = document.getElementById("portalColabPermissoesDetalheTitulo");
+    const lista = document.getElementById("portalColabPermissoesDetalheLista");
+    if (!wrap || !titulo || !lista) return;
+    if (!f) {
+      wrap.classList.add("hidden");
+      titulo.textContent = "";
+      lista.innerHTML = "";
+      return;
+    }
+    const ativas = portalColabPermissoesAtivas(f);
+    const cpfFmt = portalColabFormatCpfExibicao(f.cpf);
+    const bloqueado = f.blocked ? " · bloqueado" : "";
+    titulo.textContent = `${String(f.nome || "").trim()} (${cpfFmt})${bloqueado}`;
+    if (!ativas.length) {
+      lista.innerHTML = "<li>Nenhuma operação permitida</li>";
+    } else {
+      lista.innerHTML = ativas.map((it) => `<li>${portalEscapeHtml(it.label)}</li>`).join("");
+    }
+    wrap.classList.remove("hidden");
+  }
+
+  function portalSelecionarColaboradorLista(cpfDig) {
+    const dig = onlyDigits(String(cpfDig || "")).slice(0, 11);
+    if (dig.length !== 11) return;
+    const f = findFuncionarioOperacaoPortalPorCpf(dig);
+    if (!f) return;
+    portalColabListaCpfAtivo = dig;
+    const inp = document.getElementById("portalColabCpf");
+    if (inp) inp.value = portalColabFormatCpfExibicao(dig);
+    portalColabCpfPrevLen = 11;
+    aplicarPortalColaboradorDoFuncionario(f);
+    setPortalColaboradorModoCadastroOuEdicao(false);
+    refreshPortalColaboradorBloqueioUi();
+    portalRenderColaboradoresLista();
+    portalRenderColaboradorPermissoesDetalhe(f);
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (fb) fb.textContent = "";
+  }
+
+  function portalRenderColaboradoresLista() {
+    const ul = document.getElementById("portalColabLista");
+    const vazia = document.getElementById("portalColabListaVazia");
+    if (!ul) return;
+    if (!isPortalTitularAdministrador()) {
+      ul.innerHTML = "";
+      vazia?.classList.add("hidden");
+      return;
+    }
+    if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) {
+      ul.innerHTML = "";
+      vazia?.classList.remove("hidden");
+      if (vazia) vazia.textContent = "Lista indisponível neste ambiente.";
+      return;
+    }
+    const list = funcionariosAccess
+      .filter((f) => String(f.role || "").trim() === "operacao")
+      .slice()
+      .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"));
+    if (!list.length) {
+      ul.innerHTML = "";
+      vazia?.classList.remove("hidden");
+      if (vazia) vazia.textContent = "Nenhum colaborador cadastrado.";
+      portalRenderColaboradorPermissoesDetalhe(null);
+      return;
+    }
+    vazia?.classList.add("hidden");
+    ul.innerHTML = list
+      .map((f) => {
+        const dig = onlyDigits(String(f.cpf || "")).slice(0, 11);
+        const nome = portalEscapeHtml(String(f.nome || "").trim() || "—");
+        const funcao = portalEscapeHtml(String(f.funcao || "").trim());
+        const cpfFmt = portalEscapeHtml(portalColabFormatCpfExibicao(dig));
+        const nPerm = portalColabPermissoesAtivas(f).length;
+        const sel = dig === portalColabListaCpfAtivo ? " portal-colab-lista__item--ativo" : "";
+        const bloqueado = f.blocked
+          ? '<span class="portal-colab-lista__badge portal-colab-lista__badge--bloqueado">Bloqueado</span>'
+          : "";
+        const sub = funcao
+          ? `${funcao} · ${cpfFmt} · ${nPerm} permissão(ões)`
+          : `${cpfFmt} · ${nPerm} permissão(ões)`;
+        return `<li class="portal-colab-lista__item${sel}">
+          <button type="button" class="portal-colab-lista__btn" data-colab-cpf="${portalEscapeHtml(dig)}" aria-pressed="${dig === portalColabListaCpfAtivo ? "true" : "false"}">
+            <span class="portal-colab-lista__nome">${nome}</span>
+            <span class="portal-colab-lista__sub">${portalEscapeHtml(sub)}</span>
+            ${bloqueado}
+          </button>
+        </li>`;
+      })
+      .join("");
+    ul.querySelectorAll("[data-colab-cpf]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        portalSelecionarColaboradorLista(btn.getAttribute("data-colab-cpf"));
+      });
+    });
+    if (portalColabListaCpfAtivo) {
+      const ativo = findFuncionarioOperacaoPortalPorCpf(portalColabListaCpfAtivo);
+      portalRenderColaboradorPermissoesDetalhe(ativo);
+    }
+  }
+
   function aplicarPortalColaboradorDoFuncionario(f) {
     if (!f) return;
     const nome = document.getElementById("portalColabNome");
@@ -2817,20 +2939,28 @@ ${printable.innerHTML}
     portalColabCpfPrevLen = len;
 
     if (len < 11) {
+      portalColabListaCpfAtivo = "";
       setPortalColaboradorModoCadastroOuEdicao(true);
       refreshPortalColaboradorBloqueioUi();
+      portalRenderColaboradoresLista();
+      portalRenderColaboradorPermissoesDetalhe(null);
       return;
     }
 
     const f = findFuncionarioOperacaoPortalPorCpf(dig);
     if (f) {
+      portalColabListaCpfAtivo = dig;
       aplicarPortalColaboradorDoFuncionario(f);
       setPortalColaboradorModoCadastroOuEdicao(false);
+      portalRenderColaboradorPermissoesDetalhe(f);
     } else {
+      portalColabListaCpfAtivo = "";
       limparPortalColaboradorCamposParaNovo();
       setPortalColaboradorModoCadastroOuEdicao(true);
+      portalRenderColaboradorPermissoesDetalhe(null);
     }
     refreshPortalColaboradorBloqueioUi();
+    portalRenderColaboradoresLista();
   }
 
   formPortalCadastroColaborador?.addEventListener("submit", (ev) => {
@@ -2911,7 +3041,9 @@ ${printable.innerHTML}
     portalPushCloudSnapshotAfterPersist();
     formPortalCadastroColaborador.reset();
     portalColabCpfPrevLen = 0;
+    portalColabListaCpfAtivo = "";
     syncPortalColaboradorFormFromCpf();
+    portalRenderColaboradoresLista();
     if (fb) {
       fb.textContent =
         "Colaborador cadastrado. Senha inicial 123456 — no primeiro login será pedida a nova senha (6 números).";
@@ -3023,6 +3155,8 @@ ${printable.innerHTML}
       portalPushCloudSnapshotAfterPersist();
       aplicarPortalColaboradorDoFuncionario(f);
       refreshPortalOperacaoNavPorAcessos();
+      portalRenderColaboradoresLista();
+      portalRenderColaboradorPermissoesDetalhe(f);
       if (fb) fb.textContent = "Alterações guardadas.";
     };
     portalConfirmarAlteracaoAdministrador(
@@ -3048,11 +3182,36 @@ ${printable.innerHTML}
     saveFuncionariosAccess();
     portalPushCloudSnapshotAfterPersist();
     syncPortalColaboradorFormFromCpf();
+    portalRenderColaboradoresLista();
     if (fb) {
       fb.textContent = f.blocked
         ? "Colaborador bloqueado — não pode entrar no sistema."
         : "Colaborador desbloqueado — pode voltar a aceder.";
     }
+  });
+
+  PORTAL_COLAB_ACESSO_ITENS.forEach(({ key }) => {
+    const idMap = {
+      cliente: "portalColabAceCliente",
+      veiculo: "portalColabAceVeiculo",
+      locacao: "portalColabAceLocacao",
+      lancamentoAluguel: "portalColabAceLancAluguel",
+      lancamentoMultas: "portalColabAceLancMultas",
+      lancamentoManutencao: "portalColabAceLancManutencao",
+    };
+    const el = document.getElementById(idMap[key]);
+    el?.addEventListener("change", () => {
+      const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+      const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+      if (f && dig === portalColabListaCpfAtivo) portalRenderColaboradorPermissoesDetalhe({ ...f, acessos: {
+        cliente: Boolean(document.getElementById("portalColabAceCliente")?.checked),
+        veiculo: Boolean(document.getElementById("portalColabAceVeiculo")?.checked),
+        locacao: Boolean(document.getElementById("portalColabAceLocacao")?.checked),
+        lancamentoAluguel: Boolean(document.getElementById("portalColabAceLancAluguel")?.checked),
+        lancamentoMultas: Boolean(document.getElementById("portalColabAceLancMultas")?.checked),
+        lancamentoManutencao: Boolean(document.getElementById("portalColabAceLancManutencao")?.checked),
+      }});
+    });
   });
 
   document.getElementById("portalColabCpf")?.addEventListener("input", () => {
@@ -11276,6 +11435,7 @@ ${printable.innerHTML}
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-colaborador");
     syncPortalColaboradorFormFromCpf();
+    portalRenderColaboradoresLista();
   });
 
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>
