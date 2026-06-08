@@ -1768,12 +1768,11 @@
         cloudPayload.dk_cliente_notificacoes
       );
     }
-    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_comunicacao_operacao_v1")) {
-      const mergeCom =
-        typeof window.__DK_comunicacaoOperacaoMerge === "function"
-          ? window.__DK_comunicacaoOperacaoMerge
-          : (localArr, cloudArr) => [...(localArr || []), ...(cloudArr || [])];
-      out.dk_comunicacao_operacao_v1 = mergeCom(
+    if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_comunicacao_operacao_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_comunicacao_operacao_v1")
+    ) {
+      out.dk_comunicacao_operacao_v1 = mergeComunicacaoOperacaoArrays(
         localPayload.dk_comunicacao_operacao_v1,
         cloudPayload.dk_comunicacao_operacao_v1
       );
@@ -1862,7 +1861,80 @@
     }
   }
 
-  function preserveCloudCadastrosWhenLocalEmpty(localPayload, cloudPayload) {
+  function mergeComunicacaoOperacaoArrays(localArr, cloudArr) {
+    if (typeof window.__DK_comunicacaoOperacaoMerge === "function") {
+      return window.__DK_comunicacaoOperacaoMerge(localArr, cloudArr);
+    }
+    const byId = new Map();
+    const push = (m) => {
+      if (!m || typeof m !== "object" || !m.id) return;
+      byId.set(m.id, m);
+    };
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(push);
+    (Array.isArray(localArr) ? localArr : []).forEach(push);
+    return Array.from(byId.values());
+  }
+
+  /** Push leve: só mensagens cliente↔operação (app cliente não envia snapshot gigante). */
+  async function pushComunicacaoSnapshotNow() {
+    const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
+    if (!localArr.length) return { ok: true, skipped: true, reason: "empty_local" };
+    const [supaRow, redisRow] = await Promise.all([
+      fetchSupabaseSnapshotPayload(),
+      fetchRedundantSnapshotPayload(),
+    ]);
+    const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
+    const merged = mergeComunicacaoOperacaoArrays(localArr, cloudPayload.dk_comunicacao_operacao_v1);
+    const patch = { dk_comunicacao_operacao_v1: merged };
+    const updatedAt = new Date().toISOString();
+    let supaOk = false;
+    let redisOk = false;
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (client && window.__DK_SUPABASE_CONFIGURED__) {
+      const fullPayload = { ...cloudPayload, ...patch };
+      const { error } = await client.from("dk_cloud_snapshots").upsert(
+        { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
+        { onConflict: "label" }
+      );
+      supaOk = !error;
+    }
+    const red = await pushRedundantSnapshotPayload(patch, updatedAt);
+    redisOk = red.ok;
+    if (supaOk || redisOk) noteCloudPushTimestamp(updatedAt);
+    return { ok: supaOk || redisOk, supaOk, redisOk, count: merged.length };
+  }
+
+  /** Portal com autoridade local: ainda assim traz mensagens novas da nuvem. */
+  async function pullComunicacaoOperacaoFromCloudMerge() {
+    const data = await fetchCloudSnapshotPayload();
+    const cloudArr = data?.payload?.dk_comunicacao_operacao_v1;
+    if (!Array.isArray(cloudArr) || !cloudArr.length) {
+      return { ok: true, skipped: true, reason: "no_cloud_comunicacao" };
+    }
+    const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
+    const merged = mergeComunicacaoOperacaoArrays(localArr, cloudArr);
+    if (JSON.stringify(merged) === JSON.stringify(localArr)) {
+      return { ok: true, unchanged: true };
+    }
+    suppressCloudHook = true;
+    try {
+      localStorage.setItem("dk_comunicacao_operacao_v1", JSON.stringify(merged));
+    } finally {
+      suppressCloudHook = false;
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed"));
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, applied: true, count: merged.length };
+  }
+
+  async function pullAppendOnlyKeysFromCloud() {
+    const com = await pullComunicacaoOperacaoFromCloudMerge();
+    return com;
+  }
+
     if (!cloudPayload || typeof cloudPayload !== "object") return localPayload;
     if (window.__DK_IS_DEMO_DEPLOY__ !== true) return localPayload;
     const out = { ...localPayload };
@@ -2041,7 +2113,7 @@
     const force = Boolean(opts && opts.force);
     const clientePage = isClienteAppPage();
     if (isLocalDataAuthorityActive() && !clientePage) {
-      return { ok: true, skipped: true, reason: "local_authority" };
+      return pullAppendOnlyKeysFromCloud();
     }
     const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
@@ -2162,6 +2234,8 @@
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
     window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
+    window.__DK_pullComunicacaoOperacaoFromCloudMerge = pullComunicacaoOperacaoFromCloudMerge;
+    window.__DK_pushComunicacaoSnapshotNow = pushComunicacaoSnapshotNow;
     window.__DK_markLocalDataAuthority = markLocalDataAuthority;
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;

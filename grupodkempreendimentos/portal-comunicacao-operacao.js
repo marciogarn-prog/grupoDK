@@ -45,8 +45,10 @@
     if (typeof window.__DK_markLocalDataAuthority === "function") {
       window.__DK_markLocalDataAuthority(3 * 60 * 1000);
     }
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      window.__DK_pushCloudSnapshotNow().catch(() => {});
+    if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
+      window.__DK_pushComunicacaoSnapshotNow().catch(() => {});
+    } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
     } else if (typeof window.__DK_pushToCloudAfterSave === "function") {
       window.__DK_pushToCloudAfterSave();
     }

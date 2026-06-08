@@ -63,11 +63,16 @@
   }
 
   function refreshInboxes() {
-    renderLista($("portalComunicacaoVendasLista"), "vendas");
-    renderLista($("portalComunicacaoManutencaoLista"), "manutencao");
-    if (typeof window.__DK_portalSyncComunicacaoBarLayout === "function") {
-      requestAnimationFrame(() => window.__DK_portalSyncComunicacaoBarLayout());
-    }
+    void (async () => {
+      if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+        await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
+      }
+      renderLista($("portalComunicacaoVendasLista"), "vendas");
+      renderLista($("portalComunicacaoManutencaoLista"), "manutencao");
+      if (typeof window.__DK_portalSyncComunicacaoBarLayout === "function") {
+        requestAnimationFrame(() => window.__DK_portalSyncComunicacaoBarLayout());
+      }
+    })();
   }
 
   function renderChatHistorico() {

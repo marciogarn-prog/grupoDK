@@ -297,6 +297,19 @@ function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
   return mergeLocacoesCadastro(existingArr, incomingArr);
 }
 
+function mergeComunicacaoOperacaoRedis(existing, incoming) {
+  const byId = new Map();
+  const push = (m) => {
+    if (!m || typeof m !== "object" || !m.id) return;
+    byId.set(m.id, m);
+  };
+  (Array.isArray(existing) ? existing : []).forEach(push);
+  (Array.isArray(incoming) ? incoming : []).forEach(push);
+  return Array.from(byId.values())
+    .sort((a, b) => (Date.parse(a.criadoEm || 0) || 0) - (Date.parse(b.criadoEm || 0) || 0))
+    .slice(0, 3000);
+}
+
 function mergePayloads(existing, incoming) {
   if (!isObject(existing)) return stripInternalPayloadKeys(incoming);
   if (!isObject(incoming)) return existing;
@@ -326,6 +339,15 @@ function mergePayloads(existing, incoming) {
     out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
       existing.dk_comprovantes_cliente_pendentes,
       incoming.dk_comprovantes_cliente_pendentes
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_comunicacao_operacao_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_comunicacao_operacao_v1")
+  ) {
+    out.dk_comunicacao_operacao_v1 = mergeComunicacaoOperacaoRedis(
+      existing.dk_comunicacao_operacao_v1,
+      incoming.dk_comunicacao_operacao_v1
     );
   }
   if (
