@@ -8035,6 +8035,27 @@ ${printable.innerHTML}
   }
 
   function applyPortalLocacaoRowFromRecord(loc) {
+    if (loc && typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
+      window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
+      try {
+        if (typeof loadCadastro === "function" && typeof saveCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+          const dig =
+            typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+          const ncKey = normPortalNumeroContrato(loc.numeroContrato);
+          const cpf = dig(String(loc.cpf || ""));
+          const locs = loadCadastro(CAD_LOCACOES_KEY);
+          const idx = locs.findIndex(
+            (l) => dig(String(l.cpf || "")) === cpf && normPortalNumeroContrato(l.numeroContrato) === ncKey
+          );
+          if (idx >= 0) {
+            locs[idx] = loc;
+            saveCadastro(CAD_LOCACOES_KEY, locs);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
     const placaEl = document.getElementById("operacaoLocacaoPlaca");
     const modeloEl = document.getElementById("operacaoLocacaoModelo");
     const diEl = document.getElementById("operacaoLocacaoDataInicio");

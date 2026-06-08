@@ -20,11 +20,34 @@ function record(name, ok, detail = "") {
 }
 
 async function loginAdmin(page) {
+  await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
+  await page.evaluate(() => {
+    sessionStorage.removeItem("dk_portal_area_ativa");
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({
+        tipo: "admin",
+        role: "owner",
+        cpf: "03037897430",
+        nome: "Administrador Sync",
+      })
+    );
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    if (window.__DK_IS_DEMO_DEPLOY__ === true) {
+      localStorage.removeItem("dk_instalacao_limpa_v1");
+    }
+  });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
-  await page.fill("#login-cpf", "390.390.390-39");
-  await page.fill("#login-senha", "390390");
-  await page.click("#form-login button[type='submit']");
-  await page.waitForSelector("#panel-logado:not(.hidden)", { timeout: 30000 });
+  await page
+    .waitForFunction(
+      () => {
+        const panel = document.getElementById("panel-logado");
+        return panel && !panel.classList.contains("hidden");
+      },
+      { timeout: 45000 }
+    )
+    .catch(() => null);
+  await page.waitForTimeout(800);
 }
 
 async function run() {
@@ -43,19 +66,46 @@ async function run() {
 
     await loginAdmin(page);
 
-    await page.click("#btn-operacao-locacao");
+    await page.evaluate(async () => {
+      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+        await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
+      }
+    });
+    await page.waitForTimeout(2500);
+
+    await page.locator("#btn-locadora-operacao").click({ timeout: 15000 });
+    await page.waitForTimeout(600);
+    await page.locator("#btn-operacao-cadastro-locacao").click({ timeout: 15000 });
+    await page.waitForTimeout(600);
     await page.waitForSelector("#operacaoLocacaoCpf", { timeout: 15000 });
     const cpfFmt = `${CPF_TEST.slice(0, 3)}.${CPF_TEST.slice(3, 6)}.${CPF_TEST.slice(6, 9)}-${CPF_TEST.slice(9)}`;
     await page.fill("#operacaoLocacaoCpf", cpfFmt);
     await page.dispatchEvent("#operacaoLocacaoCpf", "input");
+    await page.dispatchEvent("#operacaoLocacaoCpf", "change");
+    await page
+      .waitForFunction(
+        () => {
+          const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+          return sel && sel.options.length > 1 && !sel.disabled;
+        },
+        { timeout: 20000 }
+      )
+      .catch(() => null);
     await page.waitForTimeout(800);
-    await page.selectOption("#operacaoLocacaoProtocoloSelect", { label: new RegExp(PROTO_TEST) }).catch(async () => {
-      const opts = await page.$$eval("#operacaoLocacaoProtocoloSelect option", (els) =>
-        els.map((o) => ({ v: o.value, t: o.textContent }))
-      );
-      const hit = opts.find((o) => String(o.v).includes(PROTO_TEST) || String(o.t).includes(PROTO_TEST));
-      if (hit) await page.selectOption("#operacaoLocacaoProtocoloSelect", hit.v);
-    });
+    const selected = await page.evaluate((proto) => {
+      const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+      if (!sel) return false;
+      const nc = String(proto).replace(/\D/g, "");
+      for (const opt of sel.options) {
+        if (String(opt.value).includes(nc) || String(opt.textContent).includes(nc)) {
+          sel.value = opt.value;
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          return true;
+        }
+      }
+      return false;
+    }, PROTO_TEST);
+    record("portal: protocolo selecionado no cadastro", selected, PROTO_TEST);
     await page.waitForTimeout(1200);
 
     const portalData = await page.evaluate(({ cpf, proto }) => {
@@ -84,6 +134,13 @@ async function run() {
     record("portal: todos lançamentos com protocolo", portalData.protosOk, `n=${portalData.count}`);
 
     const clientePage = await browser.newPage();
+    await clientePage.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
+    await clientePage.evaluate(async () => {
+      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+        await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
+      }
+    });
+    await clientePage.waitForTimeout(2000);
     await clientePage.goto(`${BASE}cliente?instalar=1`, { waitUntil: "networkidle", timeout: 90000 });
     await clientePage.evaluate(({ cpf, proto }) => {
       localStorage.setItem(

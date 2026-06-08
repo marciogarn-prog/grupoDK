@@ -57,7 +57,7 @@
     if (Number.isNaN(d.getTime())) return "";
     const pad = (n) => String(n).padStart(2, "0");
     const cpf3 = onlyDigits(cpfOperador).slice(0, 3);
-    if (cpf3.length < 3) return "";
+    const suffix = cpf3.length >= 3 ? cpf3 : "000";
     return (
       String(d.getFullYear()) +
       pad(d.getMonth() + 1) +
@@ -66,7 +66,7 @@
       pad(d.getMinutes()) +
       pad(d.getSeconds()) +
       "-" +
-      cpf3
+      suffix
     );
   }
 
