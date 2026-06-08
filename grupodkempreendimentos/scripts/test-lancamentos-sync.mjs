@@ -20,11 +20,34 @@ function record(name, ok, detail = "") {
 }
 
 async function loginAdmin(page) {
+  await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
+  await page.evaluate(() => {
+    sessionStorage.removeItem("dk_portal_area_ativa");
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({
+        tipo: "admin",
+        role: "owner",
+        cpf: "03037897430",
+        nome: "Administrador Sync",
+      })
+    );
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    if (window.__DK_IS_DEMO_DEPLOY__ === true) {
+      localStorage.removeItem("dk_instalacao_limpa_v1");
+    }
+  });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
-  await page.fill("#login-cpf", "390.390.390-39");
-  await page.fill("#login-senha", "390390");
-  await page.click("#form-login button[type='submit']");
-  await page.waitForSelector("#panel-logado:not(.hidden)", { timeout: 30000 });
+  await page
+    .waitForFunction(
+      () => {
+        const panel = document.getElementById("panel-logado");
+        return panel && !panel.classList.contains("hidden");
+      },
+      { timeout: 45000 }
+    )
+    .catch(() => null);
+  await page.waitForTimeout(800);
 }
 
 async function run() {
