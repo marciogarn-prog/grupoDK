@@ -897,7 +897,9 @@
       if (!sessao || !proto) return;
       const dados = loadDadosCliente(sessao.cpf);
       const loc = filterLocacoesAtivas(dados.locacoes).find((l) => normNc(l.numeroContrato) === proto);
-      if (loc && typeof window.__DK_clienteAbrirCalendarioPagamentos === "function") {
+      if (loc && typeof window.__DK_clienteToggleCalendarioInline === "function") {
+        window.__DK_clienteToggleCalendarioInline(proto, loc);
+      } else if (loc && typeof window.__DK_clienteAbrirCalendarioPagamentos === "function") {
         window.__DK_clienteAbrirCalendarioPagamentos(loc);
       }
       return;
@@ -961,7 +963,6 @@
       detalhes = `<dl class="cliente-contrato-dl">
           <div><dt>Placa e modelo</dt><dd>${escapeHtml(resumo.placa || "—")} · ${escapeHtml(resumo.modeloVeiculo || "—")}</dd></div>
           <div><dt>Valor do contrato semanal</dt><dd>${escapeHtml(resumo.valorSemanal)}</dd></div>
-          <div><dt>Valor devido</dt><dd>${escapeHtml(resumo.valorDevidoTexto || "—")}</dd></div>
           <div><dt>Valor pago</dt><dd>${escapeHtml(resumo.totalPago)}</dd></div>
           ${invRow}
           ${ultRows}
@@ -973,7 +974,13 @@
     return `<article class="cliente-protocolo" data-cliente-proto="${escapeHtml(nc)}">
       <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${renderContratoBadge(resumo)}</div>
       ${detalhes}
-      <button type="button" class="btn-primary btn-secondary-outline cliente-btn-detalhe-pagamentos" data-cliente-cal-proto="${escapeHtml(nc)}">Detalhamento dos pagamentos</button>
+      <button type="button" class="btn-primary btn-secondary-outline cliente-btn-detalhe-pagamentos" data-cliente-cal-proto="${escapeHtml(nc)}" aria-expanded="false" aria-controls="cliente-cal-panel-${escapeHtml(nc)}">Detalhamento dos pagamentos</button>
+      <div id="cliente-cal-panel-${escapeHtml(nc)}" class="cliente-cal-inline hidden" data-cliente-cal-panel="${escapeHtml(nc)}" hidden>
+        <p class="cliente-cal-inline__head" data-cliente-cal-head></p>
+        <div class="portal-lanc-cal-ano-pick" data-cliente-cal-ano-pick="${escapeHtml(nc)}"></div>
+        <div class="portal-lanc-cal-corpo cliente-cal-inline__corpo hidden" data-cliente-cal-corpo="${escapeHtml(nc)}"></div>
+        <button type="button" class="btn-primary btn-secondary-outline cliente-cal-inline__voltar hidden" data-cliente-cal-voltar="${escapeHtml(nc)}">Escolher outro ano</button>
+      </div>
     </article>`;
   }
 
