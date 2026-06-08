@@ -2,8 +2,10 @@
  * App Grupo DK — entrada: Visitante | Cliente | Funcionário.
  */
 (function dkAppEntry() {
-  const GATE_KEY = "dk_cliente_app_gate_v1";
+  const GATE_KEY = "dk_cliente_app_gate";
+  const GATE_KEY_LEGACY = "dk_cliente_app_gate_v1";
   const GATE_PERSIST = "dk_cliente_gate_persist";
+  const CLIENTE_SESSAO_KEY = "dk_sessao_cliente_app";
 
   function $(id) {
     return document.getElementById(id);
@@ -85,9 +87,39 @@
     });
     try {
       sessionStorage.setItem(GATE_KEY, payload);
+      sessionStorage.setItem(GATE_KEY_LEGACY, payload);
       localStorage.setItem(GATE_PERSIST, payload);
     } catch {
       /* ignore */
+    }
+  }
+
+  /** PWA Grupo DK abre em app.html — se o cliente já entrou, ir directo para /cliente. */
+  function tryResumeClienteApp() {
+    try {
+      if (sessionStorage.getItem("dk_portal_area_ativa")) return false;
+      const sessRaw = localStorage.getItem(CLIENTE_SESSAO_KEY);
+      if (sessRaw) {
+        const s = JSON.parse(sessRaw);
+        if (onlyDigits(s?.cpf).length === 11) {
+          window.location.replace("/cliente?source=pwa");
+          return true;
+        }
+      }
+      const gateRaw =
+        localStorage.getItem(GATE_PERSIST) ||
+        sessionStorage.getItem(GATE_KEY) ||
+        sessionStorage.getItem(GATE_KEY_LEGACY);
+      if (!gateRaw) return false;
+      const g = JSON.parse(gateRaw);
+      const cpf = onlyDigits(g?.cpf).slice(0, 11);
+      const proto = normProto(g?.proto);
+      if (cpf.length !== 11 || !proto) return false;
+      const q = new URLSearchParams({ source: "pwa", cpf, proto });
+      window.location.replace(`/cliente?${q.toString()}`);
+      return true;
+    } catch {
+      return false;
     }
   }
 
@@ -156,6 +188,8 @@
     }
     window.location.replace("/#locadora/empresa/colaborador");
   });
+
+  if (tryResumeClienteApp()) return;
 
   /** PWA reiniciou em app.html mas sessão do portal ainda está activa — voltar ao portal. */
   (function restaurarPortalSeSessaoAtiva() {
