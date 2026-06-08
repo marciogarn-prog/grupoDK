@@ -1020,6 +1020,23 @@
     return { n, total };
   }
 
+  function consolidarLancamentosClienteLogado(cpf) {
+    const dig = onlyDigits(cpf).slice(0, 11);
+    if (dig.length !== 11 || typeof window.__DK_consolidarLancamentosAluguelLoc !== "function") return;
+    if (typeof window.__DK_clearGlobalLancamentosStorageCache === "function") {
+      window.__DK_clearGlobalLancamentosStorageCache();
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    if (!Array.isArray(locs) || !locs.length) return;
+    let changed = false;
+    for (const loc of locs) {
+      if (!loc || onlyDigits(loc.cpf).slice(0, 11) !== dig) continue;
+      window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
+      changed = true;
+    }
+    if (changed) saveJson(CAD_LOCACOES_KEY, locs);
+  }
+
   async function sincronizarDadosCliente(sessao, opts) {
     const silent = Boolean(opts?.silent);
     const msg = $("sync-msg");
@@ -1049,6 +1066,7 @@
         window.__DK_comprovantesClienteInvalidateCache();
       }
       syncOk = true;
+      if (sessao?.cpf) consolidarLancamentosClienteLogado(sessao.cpf);
       if (msg && !silent) {
         const pend =
           typeof window.__DK_comprovantesClienteTemPendentesNuvem === "function" &&
@@ -2180,7 +2198,8 @@
     const sessao = getSessao();
     if (sessao?.cpf) {
       if (!isGeoGateBypassed()) startGeoForSession(sessao);
-      await afterLogin(sessao);
+      resolveAppViewAfterData(sessao);
+      void afterLogin(sessao).catch(() => resolveAppViewAfterData(sessao));
     } else {
       showView("login");
     }

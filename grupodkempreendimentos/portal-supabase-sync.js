@@ -361,10 +361,33 @@
     }
   }
 
-  function consolidateLocacoesPagamentosInPlace(arr) {
+  function clienteAppSessaoCpf() {
+    if (!isClienteAppPage()) return "";
+    try {
+      if (typeof window.__DK_getClienteSessaoCpf === "function") {
+        return String(window.__DK_getClienteSessaoCpf() || "").replace(/\D/g, "").slice(0, 11);
+      }
+    } catch {
+      /* ignore */
+    }
+    return "";
+  }
+
+  /** App cliente: não consolidar centenas de locações da demo no pull (travava a UI). */
+  function shouldSkipConsolidateLocacoesOnApply(opts) {
+    return Boolean(opts && opts.lightSanitize && isClienteAppPage());
+  }
+
+  function consolidateLocacoesPagamentosInPlace(arr, opts) {
     if (!Array.isArray(arr) || typeof window.__DK_consolidarLancamentosAluguelLoc !== "function") return arr;
+    if (shouldSkipConsolidateLocacoesOnApply(opts)) return arr;
+    const cpfFilter = String(opts?.cpfFilter || clienteAppSessaoCpf() || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
     for (const loc of arr) {
-      if (loc && typeof loc === "object") window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
+      if (!loc || typeof loc !== "object") continue;
+      if (cpfFilter && String(loc.cpf || "").replace(/\D/g, "").slice(0, 11) !== cpfFilter) continue;
+      window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
     }
     return arr;
   }
@@ -416,7 +439,7 @@
         }
         if (k === "dk_locacoes_cadastro") {
           arr = normalizeLocacoesContratoAtivoList(arr);
-          consolidateLocacoesPagamentosInPlace(arr);
+          consolidateLocacoesPagamentosInPlace(arr, opts);
         }
         if (forceCadastroReplace) {
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true });
@@ -438,7 +461,7 @@
         }
         if (k === "dk_locacoes_cadastro") {
           cloudArr = normalizeLocacoesContratoAtivoList(cloudArr);
-          consolidateLocacoesPagamentosInPlace(cloudArr);
+          consolidateLocacoesPagamentosInPlace(cloudArr, opts);
         }
         if (forceCadastroReplace) {
           localStorage.setItem(k, JSON.stringify(cloudArr));
@@ -449,7 +472,7 @@
               ? window.__DK_mergeLocacoesCadastroCliente
               : mergeLocacoesCadastroBeforePush;
           const mergedLocs = mergeFn(localArr, cloudArr);
-          consolidateLocacoesPagamentosInPlace(mergedLocs);
+          consolidateLocacoesPagamentosInPlace(mergedLocs, opts);
           localStorage.setItem(k, JSON.stringify(mergedLocs));
         } else {
           const localArr = readLocalJsonArray(k);

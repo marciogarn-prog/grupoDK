@@ -4,10 +4,9 @@
  */
 import { chromium } from "playwright";
 
-const BASE = (process.env.DK_TEST_BASE_URL || "https://grupodkempreendimentos.com.br/").replace(
-  /\/?$/,
-  "/"
-);
+/** Sempre oficial — não herda DK_TEST_BASE_URL (muitas vezes aponta para demo). */
+const OFICIAL_BASE = "https://grupodkempreendimentos.com.br/";
+const BASE = (process.env.DK_TEST_OFICIAL_URL || OFICIAL_BASE).replace(/\/?$/, "/");
 
 const results = [];
 function record(name, ok, detail = "") {
@@ -16,19 +15,26 @@ function record(name, ok, detail = "") {
 }
 
 async function run() {
+  console.log(`URL oficial: ${BASE}`);
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
     await page.waitForFunction(
-      () => window.__DK_DEPLOY_CHANNEL__ === "default" || window.__DK_IS_DEMO_DEPLOY__ === false,
-      { timeout: 20000 }
-    ).catch(() => null);
+      () =>
+        typeof window.__DK_isOficialLancamentosStrict === "function" &&
+        window.__DK_isOficialLancamentosStrict() === true,
+      { timeout: 45000 }
+    );
 
     const staticChecks = await page.evaluate(() => ({
       host: location.hostname,
       channel: window.__DK_DEPLOY_CHANNEL__,
-      isDemo: window.__DK_DEPLOY_CHANNEL__ === "demo" || window.__DK_IS_DEMO_DEPLOY__ === true,
+      isDemo:
+        window.__DK_DEPLOY_CHANNEL__ === "demo" ||
+        window.__DK_IS_DEMO_DEPLOY__ === true ||
+        (typeof window.__DK_isOficialLancamentosStrict === "function" &&
+          window.__DK_isOficialLancamentosStrict() !== true),
       strictFn: typeof window.__DK_isOficialLancamentosStrict === "function",
       strictActive: window.__DK_IS_DEMO_DEPLOY__ !== true,
       purgeFn: typeof window.__DK_purgeGlobalLancamentoKeysOficial === "function",

@@ -159,31 +159,48 @@
     const nc = normNc(loc?.numeroContrato);
     const placa = normPlate(loc?.placa);
     if (cpf.length !== 11 || !nc || !placa) return [];
+    const globals = readGlobalLancamentosStorageCached();
     const out = [];
+    for (const global of globals) {
+      if (!Array.isArray(global)) continue;
+      for (const item of global) {
+        if (!item || typeof item !== "object") continue;
+        if (onlyDigits(item.cpf).slice(0, 11) !== cpf) continue;
+        if (normNc(item.numeroContrato) !== nc && normPlate(item.placa) !== placa) continue;
+        const n = normalizeRow({
+          data: item.dataPagamento || item.semanaInicio || item.data,
+          valor: item.valorPago ?? item.valor,
+          createdAt: item.createdAt || item.id,
+          registradoPorCpf: item.registradoPorCpf,
+          registradoPorNome: item.registradoPorNome,
+          protocoloLancamento: item.protocoloLancamento,
+        });
+        if (n) out.push(n);
+      }
+    }
+    return out;
+  }
+
+  let globalLancamentosStorageCache = null;
+
+  function readGlobalLancamentosStorageCached() {
+    if (globalLancamentosStorageCache) return globalLancamentosStorageCache;
+    const buckets = [];
     for (const key of GLOBAL_KEYS) {
       try {
         const raw = localStorage.getItem(key);
         const global = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(global)) continue;
-        for (const item of global) {
-          if (!item || typeof item !== "object") continue;
-          if (onlyDigits(item.cpf).slice(0, 11) !== cpf) continue;
-          if (normNc(item.numeroContrato) !== nc && normPlate(item.placa) !== placa) continue;
-          const n = normalizeRow({
-            data: item.dataPagamento || item.semanaInicio || item.data,
-            valor: item.valorPago ?? item.valor,
-            createdAt: item.createdAt || item.id,
-            registradoPorCpf: item.registradoPorCpf,
-            registradoPorNome: item.registradoPorNome,
-            protocoloLancamento: item.protocoloLancamento,
-          });
-          if (n) out.push(n);
-        }
+        buckets.push(Array.isArray(global) ? global : []);
       } catch {
-        /* ignore */
+        buckets.push([]);
       }
     }
-    return out;
+    globalLancamentosStorageCache = buckets;
+    return buckets;
+  }
+
+  function clearGlobalLancamentosStorageCache() {
+    globalLancamentosStorageCache = null;
   }
 
   function collectLegacySources(loc) {
@@ -310,6 +327,7 @@
 
   function purgeGlobalLancamentoKeysOficial() {
     if (!isOficialDeploy()) return { purged: false };
+    clearGlobalLancamentosStorageCache();
     let n = 0;
     for (const key of GLOBAL_KEYS) {
       try {
@@ -391,6 +409,7 @@
     return `<p class="subtext"><strong>Pagamentos registados (${arr.length})</strong></p><table class="portal-lanc-hist">${thead}<tbody>${rows}</tbody></table>`;
   }
 
+  window.__DK_clearGlobalLancamentosStorageCache = clearGlobalLancamentosStorageCache;
   window.__DK_gerarProtocoloLancamento = gerarProtocoloLancamento;
   window.__DK_isProtocoloLancamentoValid = isProtocoloLancamentoValid;
   window.__DK_isOficialLancamentosStrict = isOficialDeploy;
