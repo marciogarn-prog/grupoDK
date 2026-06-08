@@ -869,6 +869,32 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => r.text());
     record(
+      "cadastro locação documentos por protocolo",
+      indexFresh.includes("operacaoLocacaoDocumentosBtn") &&
+        indexFresh.includes("operacaoLocacaoDocumentosWrap") &&
+        indexFresh.includes("portal-locacao-documentos.js"),
+      "upload de documentos após escolher protocolo"
+    );
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260608loc-docs`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "documentos locação sync nuvem",
+      locDocsJs.includes("dk_locacao_documentos_v1") && locDocsJs.includes("podeGerirDocumentosLocacao"),
+      "chave dk_locacao_documentos_v1 + permissão locação"
+    );
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260608loc-docs`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente documentação contrato com zoom",
+      clienteAppJs.includes("Documentação do contrato") &&
+        clienteAppJs.includes("data-cliente-docs-proto") &&
+        clienteDocsJs.includes("cliente-doc-zoom-viewport") &&
+        clienteHtml.includes("cliente-documentos-locacao.js"),
+      "visualização de documentos com pinch-zoom"
+    );
+    record(
       "app cliente calendário zoom pinça",
       clienteCalZoomJs.includes("bindClienteCalPinchZoom") &&
         clienteCalZoomJs.includes("cliente-cal-zoom-viewport") &&

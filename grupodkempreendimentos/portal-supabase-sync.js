@@ -45,6 +45,7 @@
     "dk_patrimonio_fotos_excluidas_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
+    "dk_locacao_documentos_v1",
   ];
 
   const DK_CLOUD_KEYS = new Set(DK_STORAGE_KEYS);
@@ -208,6 +209,14 @@
     const out = { ...payload };
     if (Array.isArray(out.dk_comprovantes_cliente_pendentes)) {
       out.dk_comprovantes_cliente_pendentes = out.dk_comprovantes_cliente_pendentes.map((rec) => {
+        if (!rec || typeof rec !== "object") return rec;
+        if (!rec.arquivoBase64) return rec;
+        const { arquivoBase64, ...rest } = rec;
+        return rest;
+      });
+    }
+    if (Array.isArray(out.dk_locacao_documentos_v1)) {
+      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.map((rec) => {
         if (!rec || typeof rec !== "object") return rec;
         if (!rec.arquivoBase64) return rec;
         const { arquivoBase64, ...rest } = rec;

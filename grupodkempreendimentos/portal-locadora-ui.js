@@ -8071,6 +8071,9 @@ ${printable.innerHTML}
         protoNovo || (pNorm && isPortalProtocoloAlignedWithInicioForm(pNorm) ? pNorm : "");
     }
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
+    if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
+      window.__DK_refreshOperacaoLocacaoDocumentosUi();
+    }
   }
 
   /** Verde no select fechado quando o protocolo escolhido está ativo (sem data fim). */
@@ -8094,6 +8097,9 @@ ${printable.innerHTML}
     if (!v) {
       hid.value = "";
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
+      if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
+        window.__DK_refreshOperacaoLocacaoDocumentosUi();
+      }
       return;
     }
     const norm = (x) =>
@@ -8114,6 +8120,9 @@ ${printable.innerHTML}
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoApagarProtocoloBtn();
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
+      if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
+        window.__DK_refreshOperacaoLocacaoDocumentosUi();
+      }
       return;
     }
     const digits =
@@ -8126,6 +8135,9 @@ ${printable.innerHTML}
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoFinalizarBtn();
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
+    if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
+      window.__DK_refreshOperacaoLocacaoDocumentosUi();
+    }
   }
 
   function normPortalNumeroContrato(x) {
@@ -12451,6 +12463,8 @@ ${printable.innerHTML}
   }
 
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
+  window.__DK_getPortalSessaoEquipaFuncionario = getPortalSessaoEquipaFuncionario;
+  window.__DK_getPortalOperacaoAcessosEfetivos = getPortalOperacaoAcessosEfetivos;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;

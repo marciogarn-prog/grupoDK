@@ -988,6 +988,12 @@
         <div class="portal-lanc-cal-corpo cliente-cal-inline__corpo hidden" data-cliente-cal-corpo="${escapeHtml(nc)}"></div>
         <button type="button" class="btn-primary btn-secondary-outline cliente-cal-inline__voltar hidden" data-cliente-cal-voltar="${escapeHtml(nc)}">Escolher outro ano</button>
       </div>
+      <button type="button" class="btn-primary btn-secondary-outline cliente-btn-documentos" data-cliente-docs-proto="${escapeHtml(nc)}" data-cliente-docs-cpf="${escapeHtml(cpf)}" aria-expanded="false" aria-controls="cliente-docs-panel-${escapeHtml(nc)}">Documentação do contrato</button>
+      <div id="cliente-docs-panel-${escapeHtml(nc)}" class="cliente-docs-inline hidden" data-cliente-docs-panel="${escapeHtml(nc)}" hidden>
+        <p class="cliente-docs-inline__head" data-cliente-docs-titulo></p>
+        <div class="cliente-docs-inline__lista" data-cliente-docs-lista></div>
+        <div class="cliente-docs-inline__viewer" data-cliente-docs-viewer></div>
+      </div>
     </article>`;
   }
 
@@ -2171,6 +2177,10 @@
     updateInstallPanelUi();
     window.addEventListener("dk-comprovantes-synced", onComprovantesSyncedRefreshView);
   }
+
+  window.__DK_getClienteSessaoCpf = function getClienteSessaoCpf() {
+    return onlyDigits(getSessao()?.cpf).slice(0, 11);
+  };
 
   window.__DK_clienteAppRecarregar = async function clienteAppRecarregar() {
     if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {

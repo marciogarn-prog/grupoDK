@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260608cal-zoom-cliente";
+const CACHE_NAME = "dk-cliente-v20260608loc-docs";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -11,6 +11,7 @@ const ASSETS = [
   "./cliente-notificacoes.js",
   "./cliente-contrato-resumo.js",
   "./cliente-pagamentos-calendario.js",
+  "./cliente-documentos-locacao.js",
   "./styles.css",
   "./manifest-cliente.webmanifest",
   "./icons/icon-cliente-192.png",
