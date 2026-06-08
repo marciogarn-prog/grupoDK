@@ -187,6 +187,9 @@ async function runSuite() {
         html.includes("portal-patrimonio-idb.js") &&
         html.includes("200 PDFs") &&
         html.includes("patrimonioPdfDropzoneNovos") &&
+        html.includes("patrimonioPdfDropzoneCompletar") &&
+        html.includes("patrimonioBtnCompletarLote") &&
+        html.includes('for="patrimonioPdfInputCompletar"') &&
         html.includes("patrimonioPdfDropzoneAtualizacao") &&
         html.includes('for="patrimonioPdfInputNovos"') &&
         html.includes("CRLVDigital_PLACA_ANO") &&
@@ -576,6 +579,8 @@ async function runSuite() {
     record(
       "patrimônio duas zonas novos vs atualização",
       patJs.includes("filtrarArquivosPdfPorModo") &&
+        patJs.includes("PATRIMONIO_MODO_COMPLETAR") &&
+        patJs.includes("patrimonioLimparFilaConcluidaAutomatica") &&
         patJs.includes("mesclarCamposAtualizacaoCrlv") &&
         patJs.includes("PATRIMONIO_CAMPOS_ATUALIZACAO") &&
         patJs.includes("bindPatrimonioPdfDropzone")

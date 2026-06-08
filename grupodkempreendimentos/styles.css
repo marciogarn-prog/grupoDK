@@ -3469,6 +3469,20 @@ table.validados-app .lnk-comprovante {
   min-height: 9.5rem;
 }
 
+.patrimonio-pdf-dropzone--completar {
+  grid-column: 1 / -1;
+  border-color: rgba(59, 130, 246, 0.45);
+  background: rgba(59, 130, 246, 0.06);
+}
+
+.patrimonio-pdf-dropzone--completar:hover,
+.patrimonio-pdf-dropzone--completar:focus-visible,
+.patrimonio-pdf-dropzone--completar.patrimonio-pdf-dropzone--drag {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.12);
+  outline: none;
+}
+
 .patrimonio-pdf-dropzone--novos:hover,
 .patrimonio-pdf-dropzone--novos:focus-visible,
 .patrimonio-pdf-dropzone--novos.patrimonio-pdf-dropzone--drag {
