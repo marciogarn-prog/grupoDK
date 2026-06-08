@@ -119,7 +119,7 @@ async function main() {
     record("SW inclui instalar.html", swText.includes("instalar.html"));
     record(
       "SW cache cliente seguro",
-      swText.includes("dk-cliente-v20260521setor-routing") && swText.includes("networkFirst")
+      swText.includes("dk-cliente-v20260521cal-persist") && swText.includes("networkFirst")
     );
 
     const shareApi = await fetch(new URL("api/cliente-share", BASE), { redirect: "manual" });
