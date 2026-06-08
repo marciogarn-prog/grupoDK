@@ -1106,6 +1106,9 @@
     }
 
     renderNotificacoes(cpf);
+    if (typeof window.__DK_clienteComunicacaoRefresh === "function") {
+      window.__DK_clienteComunicacaoRefresh();
+    }
 
     const lista = $("cliente-contratos");
     if (lista) {

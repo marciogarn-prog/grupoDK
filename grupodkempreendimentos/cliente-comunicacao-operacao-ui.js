@@ -1,0 +1,165 @@
+/**
+ * App cliente: botões vendas (verde) / manutenção (amarelo) + chat texto.
+ */
+(function clienteComunicacaoOperacaoUi() {
+  "use strict";
+
+  let chatSetor = "";
+  let sessaoCpf = "";
+  let sessaoNome = "";
+
+  function $(id) {
+    return document.getElementById(id);
+  }
+
+  function fmtHora(iso) {
+    const d = Date.parse(iso || "");
+    if (!Number.isFinite(d)) return "";
+    return new Date(d).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+
+  function resolveSessao() {
+    if (typeof window.__DK_getClienteSessaoCpf === "function") {
+      const cpf = String(window.__DK_getClienteSessaoCpf() || "").replace(/\D/g, "").slice(0, 11);
+      if (cpf.length === 11) {
+        sessaoCpf = cpf;
+        sessaoNome = String($("cliente-nome")?.textContent || "Cliente").trim();
+        return;
+      }
+    }
+    sessaoCpf = String($("cliente-cpf-label")?.textContent || "").replace(/\D/g, "").slice(0, 11);
+    sessaoNome = String($("cliente-nome")?.textContent || "Cliente").trim();
+  }
+
+  function atualizarBadges() {
+    if (!sessaoCpf || typeof window.__DK_comunicacaoContarNaoLidasCliente !== "function") return;
+    const nv = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, "vendas");
+    const nm = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, "manutencao");
+    const bv = $("clienteComunicacaoBadgeVendas");
+    const bm = $("clienteComunicacaoBadgeManutencao");
+    if (bv) {
+      bv.textContent = nv > 0 ? String(nv) : "";
+      bv.classList.toggle("hidden", nv <= 0);
+    }
+    if (bm) {
+      bm.textContent = nm > 0 ? String(nm) : "";
+      bm.classList.toggle("hidden", nm <= 0);
+    }
+  }
+
+  function renderChat() {
+    const corpo = $("clienteComunicacaoChatCorpo");
+    if (!corpo || !chatSetor) return;
+    const tid = window.__DK_comunicacaoThreadId?.(sessaoCpf, chatSetor);
+    const hist = tid && window.__DK_comunicacaoHistorico ? window.__DK_comunicacaoHistorico(tid) : [];
+    corpo.innerHTML = hist.length
+      ? hist
+          .map((m) => {
+            const out = m.autor === "cliente";
+            const quem = out ? "Você" : String(m.operadorNome || "DK").trim();
+            return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}">
+            <span class="dk-chat-bubble__meta">${quem} · ${fmtHora(m.criadoEm)}</span>
+            <p class="dk-chat-bubble__texto">${String(m.texto || "").replace(/</g, "&lt;")}</p>
+          </div>`;
+          })
+          .join("")
+      : '<p class="subtext dk-chat-vazio">Nenhuma mensagem ainda. Escreva abaixo.</p>';
+    corpo.scrollTop = corpo.scrollHeight;
+    atualizarBadges();
+  }
+
+  function abrirChat(setor) {
+    resolveSessao();
+    if (sessaoCpf.length !== 11) return;
+    chatSetor = setor;
+    const modal = $("clienteComunicacaoChatModal");
+    const titulo = $("clienteComunicacaoChatTitulo");
+    const inp = $("clienteComunicacaoChatInput");
+    const msg = $("clienteComunicacaoChatMsg");
+    if (!modal) return;
+    titulo.textContent =
+      setor === "manutencao" ? "Manutenção DK" : "Vendas DK";
+    if (inp) inp.value = "";
+    if (msg) msg.textContent = "";
+    renderChat();
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    inp?.focus();
+  }
+
+  function fecharChat() {
+    const modal = $("clienteComunicacaoChatModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+    chatSetor = "";
+  }
+
+  function enviarMensagem() {
+    resolveSessao();
+    if (!chatSetor || sessaoCpf.length !== 11) return;
+    const inp = $("clienteComunicacaoChatInput");
+    const msg = $("clienteComunicacaoChatMsg");
+    let placa = "";
+    try {
+      const locs = JSON.parse(localStorage.getItem("dk_locacoes_cadastro") || "[]");
+      const loc = Array.isArray(locs)
+        ? locs.find((l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11) === sessaoCpf)
+        : null;
+      placa = String(loc?.placa || "").trim();
+    } catch {
+      /* ignore */
+    }
+    const r = window.__DK_comunicacaoClienteEnviar?.({
+      cpf: sessaoCpf,
+      nome: sessaoNome,
+      placa,
+      setor: chatSetor,
+      texto: inp?.value || "",
+    });
+    if (!r?.ok) {
+      if (msg) msg.textContent = r?.msg || "Não foi possível enviar.";
+      return;
+    }
+    if (inp) inp.value = "";
+    if (msg) msg.textContent = "Mensagem enviada.";
+    renderChat();
+  }
+
+  function bindUi() {
+    $("clienteComunicacaoVendasBtn")?.addEventListener("click", () => abrirChat("vendas"));
+    $("clienteComunicacaoManutencaoBtn")?.addEventListener("click", () => abrirChat("manutencao"));
+    $("clienteComunicacaoChatFecharBtn")?.addEventListener("click", fecharChat);
+    $("clienteComunicacaoChatEnviarBtn")?.addEventListener("click", enviarMensagem);
+    $("clienteComunicacaoChatInput")?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        enviarMensagem();
+      }
+    });
+    window.addEventListener("dk-comunicacao-operacao-changed", () => {
+      if (chatSetor) renderChat();
+      atualizarBadges();
+    });
+    window.addEventListener("dk-comprovantes-synced", atualizarBadges);
+  }
+
+  window.__DK_clienteComunicacaoRefresh = function () {
+    resolveSessao();
+    atualizarBadges();
+    if (chatSetor) renderChat();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+      bindUi();
+      resolveSessao();
+      atualizarBadges();
+    });
+  } else {
+    bindUi();
+    resolveSessao();
+    atualizarBadges();
+  }
+})();

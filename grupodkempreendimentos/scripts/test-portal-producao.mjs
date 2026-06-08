@@ -968,6 +968,29 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
+    const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260521comunicacao`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const clienteComUiJs = await fetch(`${BASE_URL}cliente-comunicacao-operacao-ui.js?v=20260521comunicacao`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "comunicação cliente operação vendas e manutenção",
+      html.includes("portalComunicacaoVendasLista") &&
+        html.includes("portalComunicacaoManutencaoLista") &&
+        html.includes("operacaoClienteMsgClienteBtn") &&
+        html.includes("operacaoClienteMsgTodosBtn") &&
+        comunicacaoJs.includes("dk_comunicacao_operacao_v1") &&
+        comunicacaoJs.includes("listarPendentesOperacao") &&
+        comunicacaoUiJs.includes("__DK_portalComunicacaoRefresh") &&
+        clienteHtml.includes("clienteComunicacaoVendasBtn") &&
+        clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
+        clienteComUiJs.includes("__DK_clienteComunicacaoRefresh"),
+      "caixas verde/amarelo, chat texto e sync nuvem"
+    );
     record(
       "app cliente troca senha inicial 123456",
       clienteAppJs.includes("SENHA_INICIAL_CLIENTE") &&
