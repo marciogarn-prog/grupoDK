@@ -15,6 +15,7 @@
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const PORTAL_SESSAO_BUILD_KEY = "dk_portal_sessao_build";
   const PORTAL_SESSAO_BUILD_ID = "20260521admin-nav";
+  const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
 
   function isPortalAdministradorLogado() {
     try {
@@ -12059,6 +12060,28 @@ ${printable.innerHTML}
   ["operacaoClienteVoltarBtn", "operacaoVeiculoVoltarBtn", "operacaoLocacaoVoltarBtn", "operacaoLancAluguelVoltarBtn", "operacaoLancMultasVoltarBtn", "operacaoLancManutencaoVoltarBtn"].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       hideInlineForms();
+    });
+  });
+
+  function abrirPainelCompletoDkExterno() {
+    const meta = document.querySelector('meta[name="dk-sistema-cadastros-url"]');
+    const url = String(meta?.getAttribute("content") || "").trim();
+    if (url) {
+      window.open(url, "_blank", "noopener,noreferrer");
+      return;
+    }
+    window.open("../index.html", "_blank", "noopener,noreferrer");
+  }
+
+  [
+    "operacaoClienteAbrirSistemaBtn",
+    "operacaoVeiculoAbrirSistemaBtn",
+    "operacaoLocacaoAbrirSistemaBtn",
+    "operacaoLancAluguelAbrirSistemaBtn",
+  ].forEach((id) => {
+    document.getElementById(id)?.addEventListener("click", (e) => {
+      e.preventDefault();
+      abrirPainelCompletoDkExterno();
     });
   });
 
