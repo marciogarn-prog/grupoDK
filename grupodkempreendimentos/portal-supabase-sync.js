@@ -1443,6 +1443,79 @@
     }
   }
 
+  /** Antes do push: copia `dk_lancamentos_*` para `portalLancamentosAluguel` em cada locação (app cliente lê da locação). */
+  function hydrateLocacoesCadastroPagamentosParaNuvem(payload) {
+    if (!payload || typeof payload !== "object") return payload;
+    const locs = payload.dk_locacoes_cadastro;
+    if (!Array.isArray(locs) || !locs.length) return payload;
+    const globalPools = [
+      payload.dk_lancamentos_aluguel,
+      payload.dk_lancamentos_aluguel_cadastro,
+      payload.dk_lancamento_aluguel,
+      payload.dk_lancamento_aluguel_cadastro,
+    ].filter((a) => Array.isArray(a) && a.length);
+    if (!globalPools.length) return payload;
+    const dig = (s) => String(s ?? "").replace(/\D/g, "");
+    const normPlate = (p) =>
+      String(p ?? "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    const normNc = (v) =>
+      String(v ?? "")
+        .trim()
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    const rowsForLoc = (loc) => {
+      const cpf = dig(loc.cpf).slice(0, 11);
+      const nc = normNc(loc.numeroContrato);
+      const placa = normPlate(loc.placa);
+      if (cpf.length !== 11 || !nc || !placa) return [];
+      const out = [];
+      for (const pool of globalPools) {
+        for (const item of pool) {
+          if (!item || typeof item !== "object") continue;
+          if (dig(item.cpf).slice(0, 11) !== cpf) continue;
+          if (normNc(item.numeroContrato) !== nc) continue;
+          if (normPlate(item.placa) !== placa) continue;
+          const data = String(item.data || item.dataPagamento || item.semanaInicio || "").trim();
+          if (!data) continue;
+          let valor = typeof item.valor === "number" ? item.valor : Number(item.valorPago);
+          const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+          if (MEIOS.some((k) => Object.prototype.hasOwnProperty.call(item, k))) {
+            const sum = MEIOS.reduce((s, k) => s + (Number(item[k]) || 0), 0);
+            if (sum > 0) valor = sum;
+          }
+          if (!Number.isFinite(valor) || valor <= 0) continue;
+          const row = {
+            data,
+            valor,
+            createdAt: Number(item.createdAt || item.id || 0) || Date.now(),
+            registradoPorCpf: dig(item.registradoPorCpf).slice(0, 11),
+            registradoPorNome: String(item.registradoPorNome || "").trim(),
+          };
+          if (MEIOS.some((k) => Object.prototype.hasOwnProperty.call(item, k))) {
+            row.valorEspecie = Number(item.valorEspecie) || 0;
+            row.valorPix = Number(item.valorPix) || 0;
+            row.valorCartao = Number(item.valorCartao) || 0;
+          }
+          out.push(row);
+        }
+      }
+      return out;
+    };
+    const outLocs = locs.map((loc) => {
+      if (!loc || typeof loc !== "object") return loc;
+      const globalRows = rowsForLoc(loc);
+      const embedded = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+      if (!globalRows.length && !embedded.length) return loc;
+      const mergedPl = mergeLancamentosAluguelLocacaoPar([embedded, globalRows]);
+      if (!mergedPl.length) return loc;
+      return { ...loc, portalLancamentosAluguel: mergedPl };
+    });
+    return { ...payload, dk_locacoes_cadastro: outLocs };
+  }
+
   function mergeLancamentosAluguelLocacaoPar(arrays) {
     if (typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function") {
       return window.__DK_mergePortalLancamentosAluguelEmbutidos(arrays);
@@ -1706,6 +1779,7 @@
       }
     }
     payload = preserveCloudCadastrosWhenLocalEmpty(payload, cloudMeta?.payload || cloudPayloadMerged);
+    payload = hydrateLocacoesCadastroPagamentosParaNuvem(payload);
     payload = omitEmptyDemoCadastroKeysForPush(payload);
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
