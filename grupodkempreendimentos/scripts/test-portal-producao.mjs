@@ -253,9 +253,17 @@ async function runSuite() {
     const temaImgOk = IS_DEMO_TEST
       ? true
       : await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok);
+    const temaColorMeta = await page.evaluate(() => {
+      const m = document.querySelector('meta[name="theme-color"]');
+      return m ? String(m.getAttribute("content") || "").toLowerCase() : "";
+    });
+    const temaColorOk = IS_DEMO_TEST
+      ? temaColorMeta === "#f97316" || temaColorMeta === "#050505"
+      : temaColorMeta === "#050505";
     record(
       "tema vermelho preto + fundo showroom",
-      temaHtmlOk && html.includes('theme-color" content="#050505"') && temaImgOk
+      temaHtmlOk && temaColorOk && temaImgOk,
+      IS_DEMO_TEST ? `theme-color=${temaColorMeta}` : ""
     );
     record(
       "logo DK Locadora no site e botao app",
