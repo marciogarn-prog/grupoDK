@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260608chat-vista">
+  <link rel="stylesheet" href="styles.css?v=20260608carregar-msgs">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -48,11 +48,19 @@
   </div>
   <div id="portal-comunicacao-inbox-wrap" class="portal-comunicacao-inbox-grid portal-comunicacao-inbox-grid--fixed hidden" aria-label="Mensagens de clientes">
     <section class="portal-comunicacao-inbox portal-comunicacao-inbox--vendas" aria-labelledby="portal-comunicacao-vendas-title">
-      <h3 id="portal-comunicacao-vendas-title" class="portal-comunicacao-inbox__title">Vendas — mensagens pendentes</h3>
+      <div class="portal-comunicacao-inbox__head">
+        <h3 id="portal-comunicacao-vendas-title" class="portal-comunicacao-inbox__title">Vendas — mensagens pendentes</h3>
+        <button type="button" id="portalComunicacaoCarregarVendasBtn" class="portal-comunicacao-inbox__carregar-btn">Carregar mensagens</button>
+      </div>
+      <p id="portalComunicacaoCarregarVendasMsg" class="portal-comunicacao-inbox__carregar-msg" aria-live="polite"></p>
       <div id="portalComunicacaoVendasLista" class="portal-comunicacao-inbox__lista"></div>
     </section>
     <section class="portal-comunicacao-inbox portal-comunicacao-inbox--manutencao" aria-labelledby="portal-comunicacao-manut-title">
-      <h3 id="portal-comunicacao-manut-title" class="portal-comunicacao-inbox__title">Manutenção — mensagens pendentes</h3>
+      <div class="portal-comunicacao-inbox__head">
+        <h3 id="portal-comunicacao-manut-title" class="portal-comunicacao-inbox__title">Manutenção — mensagens pendentes</h3>
+        <button type="button" id="portalComunicacaoCarregarManutencaoBtn" class="portal-comunicacao-inbox__carregar-btn">Carregar mensagens</button>
+      </div>
+      <p id="portalComunicacaoCarregarManutencaoMsg" class="portal-comunicacao-inbox__carregar-msg" aria-live="polite"></p>
       <div id="portalComunicacaoManutencaoLista" class="portal-comunicacao-inbox__lista"></div>
     </section>
   </div>
@@ -2149,7 +2157,7 @@
   <script src="portal-comunicacao-operacao.js?v=20260608chat-vista" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260608oficial-lanc-strict" defer></script>
-  <script src="portal-comunicacao-operacao-ui.js?v=20260608cliente-fix-trava" defer></script>
+  <script src="portal-comunicacao-operacao-ui.js?v=20260608carregar-msgs" defer></script>
   <script src="portal-locacao-documentos.js?v=20260608loc-docs" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
@@ -2159,6 +2167,6 @@
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260521setor-routing" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260608comunicacao-sync" defer></script>
+  <script src="portal-supabase-sync.js?v=20260608carregar-msgs" defer></script>
 </body>
 </html>

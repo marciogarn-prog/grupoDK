@@ -75,6 +75,48 @@
     })();
   }
 
+  async function carregarMensagensNuvem(setor, opts) {
+    const silent = Boolean(opts?.silent);
+    const st = window.__DK_comunicacaoNormSetor?.(setor) || setor;
+    const isManut = st === "manutencao";
+    const btn = $(isManut ? "portalComunicacaoCarregarManutencaoBtn" : "portalComunicacaoCarregarVendasBtn");
+    const status = $(isManut ? "portalComunicacaoCarregarManutencaoMsg" : "portalComunicacaoCarregarVendasMsg");
+    const lista = $(isManut ? "portalComunicacaoManutencaoLista" : "portalComunicacaoVendasLista");
+    if (btn && !silent) {
+      btn.disabled = true;
+      btn.textContent = "A carregar…";
+    }
+    if (status && !silent) status.textContent = "A buscar na nuvem…";
+    let pull = { ok: false };
+    if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+      pull = await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => ({ ok: false }));
+    }
+    renderLista(lista, st);
+    const pendentes =
+      typeof window.__DK_comunicacaoListarPendentes === "function"
+        ? window.__DK_comunicacaoListarPendentes(st)
+        : [];
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Carregar mensagens";
+    }
+    if (status && !silent) {
+      if (pull?.reason === "no_cloud_comunicacao") {
+        status.textContent = "Nenhuma mensagem na nuvem ainda.";
+      } else if (pendentes.length > 0) {
+        status.textContent = `${pendentes.length} mensagem(ns) pendente(s) carregada(s).`;
+      } else if (pull?.applied) {
+        status.textContent = "Nuvem atualizada — sem pendentes nesta caixa.";
+      } else {
+        status.textContent = "Nenhuma mensagem pendente.";
+      }
+    }
+    if (typeof window.__DK_portalSyncComunicacaoBarLayout === "function") {
+      requestAnimationFrame(() => window.__DK_portalSyncComunicacaoBarLayout());
+    }
+    return { ok: true, pull, pendentes: pendentes.length };
+  }
+
   function renderChatHistorico() {
     const corpo = $("portalComunicacaoChatCorpo");
     if (!corpo || !chatCtx) return;
@@ -272,6 +314,12 @@
   }
 
   function bindUi() {
+    $("portalComunicacaoCarregarVendasBtn")?.addEventListener("click", () => {
+      void carregarMensagensNuvem("vendas");
+    });
+    $("portalComunicacaoCarregarManutencaoBtn")?.addEventListener("click", () => {
+      void carregarMensagensNuvem("manutencao");
+    });
     $("portalComunicacaoVendasLista")?.addEventListener("click", (e) => {
       const btn = e.target.closest?.("[data-chat-thread]");
       if (!btn) return;
@@ -336,6 +384,7 @@
   }
 
   window.__DK_portalComunicacaoRefresh = refreshInboxes;
+  window.__DK_portalCarregarMensagensNuvem = carregarMensagensNuvem;
   window.__DK_portalComunicacaoSyncCadastroBtn = syncBtnClienteCadastro;
   window.__DK_portalComunicacaoSyncManutencaoBtn = syncBtnManutencao;
 

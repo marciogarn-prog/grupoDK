@@ -2004,8 +2004,16 @@
 
   /** Portal com autoridade local: ainda assim traz mensagens novas da nuvem. */
   async function pullComunicacaoOperacaoFromCloudMerge() {
+    let cloudArr = [];
+    const redisRow = await fetchRedundantSnapshotPayload();
+    if (Array.isArray(redisRow?.payload?.dk_comunicacao_operacao_v1)) {
+      cloudArr = redisRow.payload.dk_comunicacao_operacao_v1;
+    }
     const data = await fetchCloudSnapshotPayload();
-    const cloudArr = data?.payload?.dk_comunicacao_operacao_v1;
+    const mergedCloud = data?.payload?.dk_comunicacao_operacao_v1;
+    if (Array.isArray(mergedCloud) && mergedCloud.length) {
+      cloudArr = mergeComunicacaoOperacaoArrays(cloudArr, mergedCloud);
+    }
     if (!Array.isArray(cloudArr) || !cloudArr.length) {
       return { ok: true, skipped: true, reason: "no_cloud_comunicacao" };
     }
