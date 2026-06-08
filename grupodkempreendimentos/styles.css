@@ -5145,6 +5145,23 @@ table.validados-app .lnk-comprovante {
   word-break: break-word;
 }
 
+.dk-chat-bubble--vista .dk-chat-bubble__texto {
+  color: #4ade80;
+  font-weight: 500;
+}
+
+.dk-chat-bubble--vista .dk-chat-bubble__meta {
+  color: #86efac;
+}
+
+.dk-chat-bubble--vista.portal-chat-bubble--manutencao .dk-chat-bubble__texto {
+  color: #fde047;
+}
+
+.dk-chat-bubble--vista.portal-chat-bubble--manutencao .dk-chat-bubble__meta {
+  color: #fef08a;
+}
+
 .dk-chat-modal__composer {
   display: flex;
   flex-direction: column;

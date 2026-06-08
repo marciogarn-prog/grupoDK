@@ -78,17 +78,25 @@
   function renderChatHistorico() {
     const corpo = $("portalComunicacaoChatCorpo");
     if (!corpo || !chatCtx) return;
+    if (typeof window.__DK_comunicacaoMarcarThreadLida === "function") {
+      window.__DK_comunicacaoMarcarThreadLida(chatCtx.threadId, "operacao");
+    }
     const hist =
       typeof window.__DK_comunicacaoHistorico === "function"
         ? window.__DK_comunicacaoHistorico(chatCtx.threadId)
         : [];
+    const vistaFn = window.__DK_comunicacaoMensagemVista;
     corpo.innerHTML = hist
       .map((m) => {
         const out = m.autor === "operacao";
         const quem = out
           ? String(m.operadorNome || "DK").trim()
           : String(m.nome || "Cliente").trim();
-        return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}">
+        const vista = typeof vistaFn === "function" ? vistaFn(m, "operacao") : false;
+        const vistaCls = vista ? " dk-chat-bubble--vista" : "";
+        const setorCls =
+          vista && !out && chatCtx.setor === "manutencao" ? " portal-chat-bubble--manutencao" : "";
+        return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}${vistaCls}${setorCls}">
           <span class="dk-chat-bubble__meta">${quem} · ${fmtHora(m.criadoEm)}</span>
           <p class="dk-chat-bubble__texto">${String(m.texto || "").replace(/</g, "&lt;")}</p>
         </div>`;
@@ -108,9 +116,14 @@
     titulo.textContent = `${ctx.nome} · ${ctx.placa || "—"} — ${setorLbl}`;
     if (inp) inp.value = "";
     if (msg) msg.textContent = "";
-    renderChatHistorico();
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    void (async () => {
+      if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+        await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
+      }
+      renderChatHistorico();
+    })();
     inp?.focus();
   }
 

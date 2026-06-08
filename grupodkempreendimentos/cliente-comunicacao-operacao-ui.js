@@ -51,15 +51,21 @@
     const corpo = $("clienteComunicacaoChatCorpo");
     if (!corpo || !chatSetor) return;
     const tid = window.__DK_comunicacaoThreadId?.(sessaoCpf, chatSetor);
+    if (tid && typeof window.__DK_comunicacaoMarcarThreadLida === "function") {
+      window.__DK_comunicacaoMarcarThreadLida(tid, "cliente");
+    }
     const hist = tid && window.__DK_comunicacaoHistorico ? window.__DK_comunicacaoHistorico(tid) : [];
+    const vistaFn = window.__DK_comunicacaoMensagemVista;
     corpo.innerHTML = hist.length
       ? hist
           .map((m) => {
             const out = m.autor === "cliente";
             const quem = out ? "Você" : String(m.operadorNome || "DK").trim();
+            const vista = typeof vistaFn === "function" ? vistaFn(m, "cliente") : false;
+            const vistaCls = vista ? " dk-chat-bubble--vista" : "";
             const setorCls =
-              !out && chatSetor === "manutencao" ? " cliente-chat-bubble--manutencao" : "";
-            return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}${setorCls}">
+              vista && !out && chatSetor === "manutencao" ? " cliente-chat-bubble--manutencao" : "";
+            return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}${vistaCls}${setorCls}">
             <span class="dk-chat-bubble__meta">${quem} · ${fmtHora(m.criadoEm)}</span>
             <p class="dk-chat-bubble__texto">${String(m.texto || "").replace(/</g, "&lt;")}</p>
           </div>`;
@@ -83,9 +89,14 @@
       setor === "manutencao" ? "Manutenção DK" : "Vendas DK";
     if (inp) inp.value = "";
     if (msg) msg.textContent = "";
-    renderChat();
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    void (async () => {
+      if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+        await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
+      }
+      renderChat();
+    })();
     inp?.focus();
   }
 

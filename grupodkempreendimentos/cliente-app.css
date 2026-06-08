@@ -63,31 +63,31 @@
   display: none;
 }
 
-/* Chat: mensagens DK (operação) = verde; mensagens do cliente = texto claro no balão vermelho */
-.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--in {
+/* Chat: verde/amarelo só em mensagens já visualizadas pelo receptor */
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--vista.dk-chat-bubble--in {
   background: rgba(22, 101, 52, 0.22);
   border-color: rgba(34, 197, 94, 0.5);
 }
 
-.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--in .dk-chat-bubble__texto {
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--vista .dk-chat-bubble__texto {
   color: #4ade80;
   font-weight: 500;
 }
 
-.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--in .dk-chat-bubble__meta {
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--vista .dk-chat-bubble__meta {
   color: #86efac;
 }
 
-.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--in.cliente-chat-bubble--manutencao {
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--vista.cliente-chat-bubble--manutencao {
   background: rgba(133, 77, 14, 0.28);
   border-color: rgba(234, 179, 8, 0.55);
 }
 
-.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--in.cliente-chat-bubble--manutencao .dk-chat-bubble__texto {
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--vista.cliente-chat-bubble--manutencao .dk-chat-bubble__texto {
   color: #fde047;
 }
 
-.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--in.cliente-chat-bubble--manutencao .dk-chat-bubble__meta {
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--vista.cliente-chat-bubble--manutencao .dk-chat-bubble__meta {
   color: #fef08a;
 }
 
@@ -95,8 +95,16 @@
   color: #fafafa;
 }
 
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--out.dk-chat-bubble--vista .dk-chat-bubble__texto {
+  color: #4ade80;
+}
+
 .cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--out .dk-chat-bubble__meta {
   color: rgba(255, 255, 255, 0.72);
+}
+
+.cliente-app-body .dk-chat-modal__corpo .dk-chat-bubble--out.dk-chat-bubble--vista .dk-chat-bubble__meta {
+  color: #86efac;
 }
 
 .dk-chat-vazio {

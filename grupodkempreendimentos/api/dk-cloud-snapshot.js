@@ -297,11 +297,29 @@ function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
   return mergeLocacoesCadastro(existingArr, incomingArr);
 }
 
+function mergeComunicacaoOperacaoRedisRecord(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const maxIso = (a, b) => {
+    const ta = Date.parse(a || "") || 0;
+    const tb = Date.parse(b || "") || 0;
+    if (ta >= tb) return a || b || "";
+    return b || a || "";
+  };
+  return {
+    ...prev,
+    ...next,
+    id: prev.id || next.id,
+    lidaClienteEm: maxIso(prev.lidaClienteEm, next.lidaClienteEm),
+    lidaOperacaoEm: maxIso(prev.lidaOperacaoEm, next.lidaOperacaoEm),
+  };
+}
+
 function mergeComunicacaoOperacaoRedis(existing, incoming) {
   const byId = new Map();
   const push = (m) => {
     if (!m || typeof m !== "object" || !m.id) return;
-    byId.set(m.id, m);
+    byId.set(m.id, mergeComunicacaoOperacaoRedisRecord(byId.get(m.id), m));
   };
   (Array.isArray(existing) ? existing : []).forEach(push);
   (Array.isArray(incoming) ? incoming : []).forEach(push);

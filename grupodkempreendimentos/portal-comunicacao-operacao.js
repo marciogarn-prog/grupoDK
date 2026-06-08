@@ -214,6 +214,12 @@
     const pick =
       (Date.parse(next.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0) ? next : prev;
     const other = pick === next ? prev : next;
+    const maxIso = (a, b) => {
+      const ta = Date.parse(a || "") || 0;
+      const tb = Date.parse(b || "") || 0;
+      if (ta >= tb) return a || b || "";
+      return b || a || "";
+    };
     return {
       ...other,
       ...pick,
@@ -222,6 +228,8 @@
       cpf: pick.cpf || other.cpf,
       texto: pick.texto || other.texto,
       criadoEm: prev.criadoEm || next.criadoEm,
+      lidaClienteEm: maxIso(prev.lidaClienteEm, next.lidaClienteEm),
+      lidaOperacaoEm: maxIso(prev.lidaOperacaoEm, next.lidaOperacaoEm),
     };
   }
 
@@ -241,13 +249,42 @@
   function contarNaoLidasCliente(cpf, setor) {
     const tid = threadId(cpf, setor);
     if (!tid) return 0;
-    const msgs = mensagensThread(tid);
-    let n = 0;
-    for (let i = msgs.length - 1; i >= 0; i -= 1) {
-      if (msgs[i].autor === "operacao") n += 1;
-      else break;
+    return mensagensThread(tid).filter((m) => m.autor === "operacao" && !m.lidaClienteEm).length;
+  }
+
+  function marcarThreadLida(tid, leitor) {
+    const st = leitor === "operacao" ? "operacao" : "cliente";
+    if (!tid) return false;
+    const now = new Date().toISOString();
+    const all = loadAll();
+    let changed = false;
+    for (let i = 0; i < all.length; i += 1) {
+      const m = all[i];
+      if (!m || m.threadId !== tid) continue;
+      if (st === "cliente" && m.autor === "operacao" && !m.lidaClienteEm) {
+        all[i] = { ...m, lidaClienteEm: now };
+        changed = true;
+      } else if (st === "operacao" && m.autor === "cliente" && !m.lidaOperacaoEm) {
+        all[i] = { ...m, lidaOperacaoEm: now };
+        changed = true;
+      }
     }
-    return n;
+    if (!changed) return false;
+    saveAll(all);
+    try {
+      window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed", { detail: { threadId: tid } }));
+    } catch {
+      /* ignore */
+    }
+    return true;
+  }
+
+  function mensagemVistaPorReceptor(m, lado) {
+    if (!m) return false;
+    if (lado === "cliente") {
+      return m.autor === "operacao" ? Boolean(m.lidaClienteEm) : Boolean(m.lidaOperacaoEm);
+    }
+    return m.autor === "cliente" ? Boolean(m.lidaOperacaoEm) : Boolean(m.lidaClienteEm);
   }
 
   window.__DK_comunicacaoOperacaoStorageKey = STORAGE_KEY;
@@ -259,5 +296,7 @@
   window.__DK_comunicacaoOperacaoResponder = responderOperacao;
   window.__DK_comunicacaoOperacaoParaTodos = enviarOperacaoParaTodos;
   window.__DK_comunicacaoContarNaoLidasCliente = contarNaoLidasCliente;
+  window.__DK_comunicacaoMarcarThreadLida = marcarThreadLida;
+  window.__DK_comunicacaoMensagemVista = mensagemVistaPorReceptor;
   window.__DK_comunicacaoNormSetor = normSetor;
 })();
