@@ -125,6 +125,9 @@
     if (inp) inp.value = "";
     if (msg) msg.textContent = "Mensagem enviada.";
     renderChat();
+    if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
+      void window.__DK_pushComunicacaoSnapshotNow().catch(() => null);
+    }
   }
 
   function bindUi() {
@@ -149,6 +152,9 @@
     resolveSessao();
     atualizarBadges();
     if (chatSetor) renderChat();
+    if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
+      void window.__DK_pushComunicacaoSnapshotNow().catch(() => null);
+    }
   };
 
   if (document.readyState === "loading") {
