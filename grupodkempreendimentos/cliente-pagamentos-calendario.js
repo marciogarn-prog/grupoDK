@@ -5,6 +5,21 @@
   const MESES_ABREV = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
   const DOW = ["D", "S", "T", "Q", "Q", "S", "S"];
 
+  /** Painel inline aberto — preservado quando o app re-renderiza após sync. */
+  let inlineOpenState = null;
+
+  function setInlineOpenState(proto, ano = null) {
+    const p = String(proto || "").trim();
+    if (!p) {
+      inlineOpenState = null;
+      return;
+    }
+    inlineOpenState = {
+      proto: p,
+      ano: ano != null && Number.isFinite(Number(ano)) ? Number(ano) : null,
+    };
+  }
+
   function pad2(n) {
     return String(n).padStart(2, "0");
   }
@@ -293,6 +308,10 @@
         ? `Pagamentos de ${ano} guardados. · protocolo ${proto} · dia ${diaLbl}`
         : `Pagamentos de ${ano} guardados.`;
     }
+    const inlinePanel = document.querySelector(`[data-cliente-cal-panel="${ctx.proto}"]`);
+    if (inlinePanel && !inlinePanel.classList.contains("hidden")) {
+      setInlineOpenState(ctx.proto, ano);
+    }
   }
 
   function abrirEscolhaAno(ctx, ui) {
@@ -317,6 +336,7 @@
     if (panel) {
       panel.classList.remove("hidden");
       panel.hidden = false;
+      setInlineOpenState(ctx.proto, null);
     }
     return true;
   }
@@ -366,6 +386,23 @@
       const btn = document.querySelector(`[data-cliente-cal-proto="${proto}"]`);
       if (btn) btn.setAttribute("aria-expanded", "false");
     });
+    if (!excetoProto) setInlineOpenState(null);
+  }
+
+  function restaurarCalendarioInline(proto, loc) {
+    const p = String(proto || "").trim();
+    if (!p || !loc || typeof window.__DK_clienteBuildCalendarioCtx !== "function") return false;
+    const ui = getInlineUi(p);
+    if (!ui?.panel) return false;
+    const ctx = window.__DK_clienteBuildCalendarioCtx(loc);
+    window.__DK_clienteCalendarioCtxAtual = ctx;
+    fecharPainéisInline(p);
+    const ano = inlineOpenState?.proto === p ? inlineOpenState.ano : null;
+    if (ano) mostrarCalendarioAno(ano, ctx, ui);
+    else abrirEscolhaAno(ctx, ui);
+    const btn = document.querySelector(`[data-cliente-cal-proto="${p}"]`);
+    if (btn) btn.setAttribute("aria-expanded", "true");
+    return true;
   }
 
   function toggleCalendarioInline(proto, loc) {
@@ -377,12 +414,14 @@
       ui.panel.classList.add("hidden");
       ui.panel.hidden = true;
       if (btn) btn.setAttribute("aria-expanded", "false");
+      setInlineOpenState(null);
       return true;
     }
     if (!loc || typeof window.__DK_clienteBuildCalendarioCtx !== "function") return false;
     const ctx = window.__DK_clienteBuildCalendarioCtx(loc);
     window.__DK_clienteCalendarioCtxAtual = ctx;
     fecharPainéisInline(proto);
+    setInlineOpenState(proto, null);
     abrirEscolhaAno(ctx, ui);
     if (btn) btn.setAttribute("aria-expanded", "true");
     ui.panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -416,6 +455,8 @@
     return abrirModalAnoPick(window.__DK_clienteCalendarioCtxAtual);
   };
   window.__DK_clienteToggleCalendarioInline = toggleCalendarioInline;
+  window.__DK_clienteRestoreCalendarioInline = restaurarCalendarioInline;
+  window.__DK_clienteCalendarioInlineAberto = () => inlineOpenState?.proto || "";
   window.__DK_clienteFecharCalendarioPagamentos = fecharModal;
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUi);

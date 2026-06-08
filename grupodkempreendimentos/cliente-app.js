@@ -1118,6 +1118,16 @@
       } else {
         lista.innerHTML = locAtivas.map((loc) => renderContratoCard(loc, cpf, resumoFn)).join("");
       }
+      const protoCal =
+        typeof window.__DK_clienteCalendarioInlineAberto === "function"
+          ? String(window.__DK_clienteCalendarioInlineAberto() || "").trim()
+          : "";
+      if (protoCal) {
+        const locCal = locAtivas.find((l) => normNc(l.numeroContrato) === protoCal);
+        if (locCal && typeof window.__DK_clienteRestoreCalendarioInline === "function") {
+          window.__DK_clienteRestoreCalendarioInline(protoCal, locCal);
+        }
+      }
     }
 
     fillProtocoloSelect(dados.locacoes);
