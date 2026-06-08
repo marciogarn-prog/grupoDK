@@ -425,6 +425,26 @@
     return Boolean(e && Number(e.leiturasIa) >= 1);
   }
 
+  function patrimonioPlacaDeContexto(placaOuNomeArquivo) {
+    const raw = String(placaOuNomeArquivo || "");
+    const fromNome = placaDoNomeArquivo(raw);
+    if (fromNome) return normPlaca(fromNome);
+    return normPlaca(resolverPlacaMercosul(raw));
+  }
+
+  /** Só bloqueia reenvio se a placa já está no relatório — falha anterior sem cadastro permite nova leitura. */
+  function patrimonioHashBloqueiaReenvioPdf(hash, placaOuNomeArquivo) {
+    if (!hash || !patrimonioHashJaConsumiuLeitura(hash)) return false;
+    const placa = patrimonioPlacaDeContexto(placaOuNomeArquivo);
+    if (!placa) return true;
+    return patrimonioPlacasCadastradasSet().has(placa);
+  }
+
+  function patrimonioPlacaJaNoRelatorio(placaOuNomeArquivo) {
+    const placa = patrimonioPlacaDeContexto(placaOuNomeArquivo);
+    return Boolean(placa && patrimonioPlacasCadastradasSet().has(placa));
+  }
+
   function patrimonioFotoJaConsumiuLeituraIa(f) {
     if (!f) return false;
     if (Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1) return true;
@@ -2109,7 +2129,9 @@
       return;
     }
     const fotoMeta = getFotoCapturaById(fotoId);
-    if (patrimonioFotoJaConsumiuLeituraIa(fotoMeta)) {
+    const placaFoto = normPlaca(fotoMeta?.placa || placaDoNomeArquivo(fotoMeta?.nomeArquivo));
+    const jaNoRelatorio = placaFoto && patrimonioPlacasCadastradasSet().has(placaFoto);
+    if (jaNoRelatorio && patrimonioFotoJaConsumiuLeituraIa(fotoMeta)) {
       await excluirFotoCapturaAutomatico(
         fotoId,
         "Leitura IA já contabilizada — reenvie o PDF para nova leitura."
@@ -2117,7 +2139,10 @@
       return;
     }
     const hashPdf = String(fotoMeta?.hashPdf || "").trim();
-    if (hashPdf && patrimonioHashJaConsumiuLeitura(hashPdf)) {
+    if (
+      hashPdf &&
+      patrimonioHashBloqueiaReenvioPdf(hashPdf, fotoMeta?.nomeArquivo || placaFoto)
+    ) {
       await excluirFotoCapturaAutomatico(
         fotoId,
         "Este PDF já consumiu 1 leitura IA. Reenvie o ficheiro se precisar de nova leitura."
@@ -2728,7 +2753,7 @@
     const agora = new Date();
     const fotoId = newFotoId();
     const hashPdf = await patrimonioHashFile(file);
-    if (hashPdf && patrimonioHashJaConsumiuLeitura(hashPdf)) {
+    if (hashPdf && patrimonioHashBloqueiaReenvioPdf(hashPdf, file.name)) {
       return null;
     }
     let pdfOriginal = "";
@@ -2880,7 +2905,7 @@
         setMsg(`A converter ${i + 1}/${files.length}: «${file.name}»…`, false);
         await patrimonioYieldUi();
         const hashPdf = await patrimonioHashFile(file);
-        if (hashPdf && patrimonioHashJaConsumiuLeitura(hashPdf)) {
+        if (hashPdf && patrimonioHashBloqueiaReenvioPdf(hashPdf, file.name)) {
           ignoradosHash++;
           patrimonioLoteExcluidos++;
           continue;
@@ -2904,7 +2929,7 @@
     if (ok > 0) {
       const extraHash =
         ignoradosHash > 0
-          ? ` ${ignoradosHash} ignorado(s) — PDF já consumiu 1 leitura IA (reenvie ficheiro alterado).`
+          ? ` ${ignoradosHash} ignorado(s) — placa já no relatório (PDF já lido).`
           : "";
       setMsg(
         `${ok} PDF(s) na fila da IA (1 leitura cada).${extraHash} A IA continua em segundo plano — pode usar outras áreas do portal.`,
