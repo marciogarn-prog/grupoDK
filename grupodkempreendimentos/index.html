@@ -426,7 +426,8 @@
             <label id="operacaoClienteSenhaWrap" class="portal-field portal-ambiente-admin hidden">
               <span>Senha app cliente</span>
               <input type="text" id="operacaoClienteSenha" name="senhaApp" autocomplete="off" maxlength="32" readonly aria-readonly="true" placeholder="123456" aria-label="Senha do app cliente (só administrador titular)">
-              <span class="subtext portal-ambiente-hint">Só o administrador titular vê. Padrão ao cadastrar: 123456.</span>
+              <span id="operacaoClienteSenhaStatus" class="subtext portal-ambiente-hint" role="status"></span>
+              <span class="subtext portal-ambiente-hint">Só o administrador titular vê. Inicial: <strong>123456</strong> — no 1.º login no app o cliente troca por senha nova (6 números).</span>
             </label>
             <label class="portal-field">
               <span>Nº do Celular</span>
@@ -2082,7 +2083,7 @@
   <script src="app.js?v=20260608locacao-nome-app" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260608cliente-senha-admin" defer></script>
+  <script src="portal-locadora-ui.js?v=20260608cliente-troca-senha" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-dia-pag" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>

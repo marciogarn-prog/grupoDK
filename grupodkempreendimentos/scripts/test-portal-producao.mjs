@@ -406,6 +406,15 @@ async function runSuite() {
         portalUiProto.includes("operacaoClienteSenhaWrap"),
       "campo senha app no formulário cliente"
     );
+    const clienteHtml = await fetch(`${BASE_URL}cliente`, { cache: "no-store" }).then((r) => r.text());
+    record(
+      "app cliente troca senha inicial 123456",
+      clienteAppJs.includes("SENHA_INICIAL_CLIENTE") &&
+        clienteAppJs.includes("view-trocar-senha") &&
+        clienteAppJs.includes("form-trocar-senha") &&
+        clienteHtml.includes("view-trocar-senha"),
+      "primeiro login pede nova senha 6 dígitos"
+    );
     record(
       "modo instalacao limpa (sem Excel embutido)",
       appJsProto.includes("applyInstalacaoLimpaOnce") &&

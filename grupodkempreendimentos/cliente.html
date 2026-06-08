@@ -96,7 +96,7 @@
         <p class="subtext">Use o <strong>Chrome</strong> ou <strong>Safari</strong> (não o browser dentro do WhatsApp).</p>
       </details>
     </div>
-    <p class="subtext">Informe seu CPF e senha. Senha inicial costuma ser <strong>123456</strong> (definida no cadastro).</p>
+    <p class="subtext">Informe CPF e senha. A senha inicial é <strong>123456</strong>; no primeiro acesso o app pede uma <strong>nova senha de 6 números</strong>.</p>
     <form id="form-login" class="portal-form" novalidate>
       <label class="portal-field">
         <span>CPF</span>
@@ -110,6 +110,31 @@
       <button type="submit" class="btn-primary">Entrar</button>
     </form>
     <p class="cliente-install-hint">Com o app instalado no ecrã inicial (Android), no banco use <strong>Partilhar</strong> o comprovante e escolha <strong>DK Cliente</strong> na lista — o ficheiro vai para «Enviar comprovante».</p>
+  </section>
+
+  <section id="view-trocar-senha" class="hidden cliente-app-card" aria-label="Definir nova senha">
+    <header class="cliente-app-header">
+      <div class="cliente-app-brand">
+        <img class="cliente-app-brand__logo" src="/images/dk-locadora-logo.png" alt="DK Locadora" width="108" height="42" decoding="async">
+        <div>
+          <div class="cliente-app-brand__title">Nova senha</div>
+          <div class="cliente-app-brand__sub">Primeiro acesso</div>
+        </div>
+      </div>
+    </header>
+    <p class="subtext">Você entrou com a senha inicial <strong>123456</strong>. Defina uma senha pessoal com <strong>6 números</strong> (diferente de 123456).</p>
+    <form id="form-trocar-senha" class="portal-form" novalidate>
+      <label class="portal-field">
+        <span>Nova senha (6 números)</span>
+        <input type="password" id="cliente-nova-senha" inputmode="numeric" maxlength="6" minlength="6" autocomplete="new-password" required placeholder="000000">
+      </label>
+      <label class="portal-field">
+        <span>Confirmar nova senha</span>
+        <input type="password" id="cliente-nova-senha-2" inputmode="numeric" maxlength="6" minlength="6" autocomplete="new-password" required placeholder="000000">
+      </label>
+      <p id="cliente-troca-senha-feedback" class="portal-feedback" role="status"></p>
+      <button type="submit" class="btn-primary">Guardar e entrar</button>
+    </form>
   </section>
 
   <section id="view-propaganda" class="hidden cliente-app-card" aria-label="Novidades DK">
@@ -263,6 +288,6 @@
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260522unico" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-app.js?v=20260608admin-banner-cliente" defer></script>
+  <script src="cliente-app.js?v=20260608cliente-troca-senha" defer></script>
 </body>
 </html>
