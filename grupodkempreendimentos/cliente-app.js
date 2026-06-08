@@ -56,11 +56,33 @@
     return isAdminPreviewMode() && isPortalAdminSessaoAtiva();
   }
 
+  function syncClienteAdminBannerLayout() {
+    const banner = document.getElementById("portal-admin-banner-cliente");
+    const h =
+      banner && !banner.classList.contains("hidden") ? `${banner.offsetHeight}px` : "0px";
+    try {
+      document.documentElement.style.setProperty("--portal-admin-banner-h", h);
+    } catch {
+      /* ignore */
+    }
+  }
+
   function showAdminPreviewBanner() {
     const el = document.getElementById("portal-admin-banner-cliente");
     if (!el) return;
     el.classList.remove("hidden");
     document.body.classList.add("cliente-admin-preview");
+    requestAnimationFrame(() => {
+      syncClienteAdminBannerLayout();
+      if (typeof window.__DK_syncDemoBannerLayout === "function") {
+        window.__DK_syncDemoBannerLayout();
+      }
+    });
+    if (!window.__dkClienteAdminBannerResizeBound) {
+      window.__dkClienteAdminBannerResizeBound = true;
+      window.addEventListener("resize", syncClienteAdminBannerLayout);
+      window.addEventListener("dk-deploy-channel-ready", syncClienteAdminBannerLayout);
+    }
   }
 
   function markAdminPreviewActive() {
@@ -86,13 +108,14 @@
 
   async function autoLoginAdminPreviewFromGate() {
     if (!isAdminPreviewMode() || !isPortalAdminSessaoAtiva()) return false;
-    showAdminPreviewBanner();
     let gateCpf = "";
     let gateNome = "";
     try {
+      const q = new URLSearchParams(location.search);
+      gateCpf = onlyDigits(q.get("cpf") || "").slice(0, 11);
       const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
       const g = raw ? JSON.parse(raw) : null;
-      gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
+      if (!gateCpf) gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
       gateNome = String(g?.nome || "").trim();
     } catch {
       /* ignore */
@@ -1868,6 +1891,7 @@
     const adminPreviewLogin = canAdminPreviewAutoLogin();
     if (isAdminPreviewMode()) {
       markAdminPreviewActive();
+      showAdminPreviewBanner();
       try {
         sessionStorage.setItem("dk_admin_preview_cliente", "1");
       } catch {
