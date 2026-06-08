@@ -868,17 +868,26 @@ async function runSuite() {
         clienteResumoJs.includes("valorEspecie"),
       "portalLancamentosAluguel + nuvem no app cliente"
     );
-    const portalSyncLancJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260608push-lanc-merge`, {
+    const portalSyncLancJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260608pagamentos-nuvem`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const calPortalJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=20260608push-lanc-merge`, {
+    const calPortalJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=20260608pagamentos-nuvem`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const portalUiLancPersistJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260608pagamentos-nuvem`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "push nuvem preserva portalLancamentosAluguel",
       portalSyncLancJs.includes("mergeLocacaoCadastroParSync") &&
-        portalSyncLancJs.includes("mergeLancamentosAluguelLocacaoPar"),
-      "merge de pagamentos no push/pull locações"
+        portalSyncLancJs.includes("mergeLancamentosAluguelLocacaoPar") &&
+        portalSyncLancJs.includes("hydrateLocacoesCadastroPagamentosParaNuvem"),
+      "merge + hidratação de pagamentos no push"
+    );
+    record(
+      "persist pagamento atualiza loc.updatedAt",
+      portalUiLancPersistJs.includes("loc.updatedAt = Date.now()"),
+      "locação ganha timestamp ao gravar pagamentos"
     );
     record(
       "calendário portal envia nuvem após salvar",

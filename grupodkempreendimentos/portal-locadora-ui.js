@@ -10320,6 +10320,7 @@ ${printable.innerHTML}
       loc.ultimoLancamentoAluguelData = "";
       loc.ultimoLancamentoAluguelValor = "";
     }
+    loc.updatedAt = Date.now();
     try {
       saveCadastro(CAD_LOCACOES_KEY, locs);
     } catch (err) {
