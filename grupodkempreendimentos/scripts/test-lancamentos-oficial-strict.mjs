@@ -20,16 +20,22 @@ async function run() {
   const page = await browser.newPage();
   try {
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
+    await page.waitForFunction(
+      () => window.__DK_DEPLOY_CHANNEL__ === "default" || window.__DK_IS_DEMO_DEPLOY__ === false,
+      { timeout: 20000 }
+    ).catch(() => null);
 
     const staticChecks = await page.evaluate(() => ({
-      isDemo: window.__DK_IS_DEMO_DEPLOY__ === true,
+      host: location.hostname,
+      channel: window.__DK_DEPLOY_CHANNEL__,
+      isDemo: window.__DK_DEPLOY_CHANNEL__ === "demo" || window.__DK_IS_DEMO_DEPLOY__ === true,
       strictFn: typeof window.__DK_isOficialLancamentosStrict === "function",
       strictActive: window.__DK_IS_DEMO_DEPLOY__ !== true,
       purgeFn: typeof window.__DK_purgeGlobalLancamentoKeysOficial === "function",
       sanitizeFn: typeof window.__DK_sanitizeCloudPayloadLancamentosOficial === "function",
     }));
-    record("oficial: não é ambiente demo", !staticChecks.isDemo);
-    record("oficial: modo estrito activo", staticChecks.strictActive && staticChecks.strictFn);
+    record("oficial: não é ambiente demo", !staticChecks.isDemo, staticChecks.channel || staticChecks.host);
+    record("oficial: modo estrito activo", staticChecks.strictFn && !staticChecks.isDemo, staticChecks.channel);
     record("oficial: purge chaves globais disponível", staticChecks.purgeFn);
     record("oficial: sanitize nuvem disponível", staticChecks.sanitizeFn);
 
