@@ -57,7 +57,9 @@
           .map((m) => {
             const out = m.autor === "cliente";
             const quem = out ? "Você" : String(m.operadorNome || "DK").trim();
-            return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}">
+            const setorCls =
+              !out && chatSetor === "manutencao" ? " cliente-chat-bubble--manutencao" : "";
+            return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}${setorCls}">
             <span class="dk-chat-bubble__meta">${quem} · ${fmtHora(m.criadoEm)}</span>
             <p class="dk-chat-bubble__texto">${String(m.texto || "").replace(/</g, "&lt;")}</p>
           </div>`;
