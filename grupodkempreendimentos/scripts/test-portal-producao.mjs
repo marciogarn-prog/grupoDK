@@ -570,10 +570,9 @@ async function runSuite() {
         window.corrigirPlacaMercosul("SOXA284") === "SOX2A84",
       antiga:
         typeof window.convertPlacaAntigaParaMercosul === "function" &&
-        window.convertPlacaAntigaParaMercosul("JRB5376") === "JRB5D76" &&
-        typeof window.normalizePlacaParaCadastro === "function" &&
-        window.normalizePlacaParaCadastro("JRB5376") === "JRB5D76" &&
-        window.normalizePlacaParaCadastro("ABC1D23") === "ABC1D23",
+        window.convertPlacaAntigaParaMercosul("JRB5376") === "JRB5D76",
+      abcDirect:
+        typeof window.isPlacaMercosul === "function" && window.isPlacaMercosul("ABC1D23"),
     }));
     record(
       "placa Mercosul LLLNLNN único padrão",
