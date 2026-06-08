@@ -140,16 +140,18 @@
       return;
     }
     if (inp) inp.value = "";
-    if (msg) msg.textContent = "Mensagem enviada.";
+    if (msg) msg.textContent = "A enviar para DK…";
     renderChat();
     if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
       const push = await window.__DK_pushComunicacaoSnapshotNow().catch(() => ({ ok: false }));
-      if (!push?.ok) {
-        if (msg) {
-          msg.textContent =
-            "Mensagem guardada neste telemóvel — sem internet ou nuvem indisponível. Tente de novo.";
-        }
+      if (push?.ok) {
+        if (msg) msg.textContent = "Mensagem enviada para DK.";
+      } else if (msg) {
+        msg.textContent =
+          "Guardada neste telemóvel — nuvem indisponível. Verifique internet e toque Enviar de novo.";
       }
+    } else if (msg) {
+      msg.textContent = "Mensagem guardada neste telemóvel.";
     }
   }
 

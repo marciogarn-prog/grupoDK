@@ -42,16 +42,25 @@
     const next = (Array.isArray(arr) ? arr : []).slice(0, MAX_MSG);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     if (opts?.skipCloud) return;
-    if (typeof window.__DK_markLocalDataAuthority === "function") {
+    const pushNuvem = () => {
+      if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
+        return window.__DK_pushComunicacaoSnapshotNow();
+      }
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        return window.__DK_pushCloudSnapshotNow({ force: true });
+      }
+      if (typeof window.__DK_pushToCloudAfterSave === "function") {
+        window.__DK_pushToCloudAfterSave();
+      }
+      return Promise.resolve({ ok: false, skipped: true });
+    };
+    if (opts?.awaitCloud) {
+      return pushNuvem();
+    }
+    if (typeof window.__DK_markLocalDataAuthority === "function" && !opts?.fromCliente) {
       window.__DK_markLocalDataAuthority(3 * 60 * 1000);
     }
-    if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
-      window.__DK_pushComunicacaoSnapshotNow().catch(() => {});
-    } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
-    } else if (typeof window.__DK_pushToCloudAfterSave === "function") {
-      window.__DK_pushToCloudAfterSave();
-    }
+    pushNuvem().catch((e) => console.warn("[DK comunicacao] push", e));
   }
 
   function sanitizeTexto(raw) {
@@ -92,8 +101,27 @@
   }
 
   function threadPendenteOperacao(tid) {
-    const last = ultimaMensagemThread(tid);
-    return Boolean(last && last.autor === "cliente");
+    const msgs = mensagensThread(tid);
+    if (!msgs.length) return false;
+    const last = msgs[msgs.length - 1];
+    if (last.autor === "cliente") return true;
+    return msgs.some((m) => m.autor === "cliente" && !m.lidaOperacaoEm);
+  }
+
+  function marcarClienteMsgsLidasInThread(tid) {
+    if (!tid) return false;
+    const now = new Date().toISOString();
+    const all = loadAll();
+    let changed = false;
+    for (let i = 0; i < all.length; i += 1) {
+      const m = all[i];
+      if (!m || m.threadId !== tid || m.autor !== "cliente" || m.lidaOperacaoEm) continue;
+      all[i] = { ...m, lidaOperacaoEm: now };
+      changed = true;
+    }
+    if (!changed) return false;
+    saveAll(all);
+    return true;
   }
 
   function listarPendentesOperacao(setor) {
@@ -145,7 +173,11 @@
     };
     const all = loadAll();
     all.push(rec);
-    saveAll(all);
+    const fromCliente =
+      autor === "cliente" &&
+      typeof window.__DK_getClienteSessaoCpf === "function" &&
+      String(window.__DK_getClienteSessaoCpf() || "").replace(/\D/g, "").slice(0, 11) === cpf;
+    saveAll(all, { fromCliente });
     try {
       window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed", { detail: { threadId: tid, setor } }));
     } catch {
@@ -159,6 +191,10 @@
   }
 
   function responderOperacao(payload) {
+    const cpf = onlyDigits(payload.cpf).slice(0, 11);
+    const setor = normSetor(payload.setor);
+    const tid = threadId(cpf, setor);
+    if (tid) marcarClienteMsgsLidasInThread(tid);
     return novaMensagem({ ...payload, autor: "operacao" });
   }
 

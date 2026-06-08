@@ -2002,6 +2002,23 @@
     return { ok: supaOk || redisOk, supaOk, redisOk, count: localArr.length };
   }
 
+  function comunicacaoStorageFingerprint(arr) {
+    if (!Array.isArray(arr) || !arr.length) return "0";
+    let maxTs = 0;
+    let maxId = "";
+    let unreadCliente = 0;
+    for (const m of arr) {
+      if (!m || typeof m !== "object") continue;
+      const ts = Date.parse(m.criadoEm || "") || 0;
+      if (ts >= maxTs) {
+        maxTs = ts;
+        maxId = String(m.id || "");
+      }
+      if (m.autor === "cliente" && !m.lidaOperacaoEm) unreadCliente += 1;
+    }
+    return `${arr.length}|${maxTs}|${maxId}|u${unreadCliente}`;
+  }
+
   /** Portal com autoridade local: ainda assim traz mensagens novas da nuvem. */
   async function pullComunicacaoOperacaoFromCloudMerge() {
     let cloudArr = [];
@@ -2019,8 +2036,10 @@
     }
     const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
     const merged = mergeComunicacaoOperacaoArrays(localArr, cloudArr);
-    if (JSON.stringify(merged) === JSON.stringify(localArr)) {
-      return { ok: true, unchanged: true };
+    const fpLocal = comunicacaoStorageFingerprint(localArr);
+    const fpMerged = comunicacaoStorageFingerprint(merged);
+    if (fpLocal === fpMerged && localArr.length === merged.length) {
+      return { ok: true, unchanged: true, count: merged.length };
     }
     suppressCloudHook = true;
     try {

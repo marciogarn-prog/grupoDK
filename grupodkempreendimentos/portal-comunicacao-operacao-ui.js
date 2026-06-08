@@ -105,8 +105,8 @@
         status.textContent = "Nenhuma mensagem na nuvem ainda.";
       } else if (pendentes.length > 0) {
         status.textContent = `${pendentes.length} mensagem(ns) pendente(s) carregada(s).`;
-      } else if (pull?.applied) {
-        status.textContent = "Nuvem atualizada — sem pendentes nesta caixa.";
+      } else if (pull?.count > 0 || pull?.applied || pull?.unchanged) {
+        status.textContent = `Nuvem sincronizada (${pull?.count || "—"} msgs) — nenhuma pendente nesta caixa.`;
       } else {
         status.textContent = "Nenhuma mensagem pendente.";
       }
