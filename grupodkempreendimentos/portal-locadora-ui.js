@@ -274,6 +274,38 @@
     return PLACA_MERCOSUL_RE.test(String(plateNorm || ""));
   }
 
+  function portalConvertPlacaAntigaParaMercosul(value) {
+    const x = String(value || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (!/^[A-Z]{3}[0-9]{4}$/.test(x)) return "";
+    const letter = "ABCDEFGHIJ"[parseInt(x[4], 10)];
+    if (!letter) return "";
+    const converted = x.slice(0, 4) + letter + x.slice(5);
+    return portalPlacaMercosulOk(converted) ? converted : "";
+  }
+
+  /** Mercosul, conversão LLLNNNN ou OCR — prioriza formato antigo antes do OCR. */
+  function portalResolvePlacaCadastro(raw) {
+    const digitado = String(raw || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (!digitado) return "";
+    const antiga = portalConvertPlacaAntigaParaMercosul(digitado);
+    if (antiga) return antiga;
+    if (typeof window.normalizePlacaParaCadastro === "function") {
+      const norm = window.normalizePlacaParaCadastro(raw);
+      if (portalPlacaMercosulOk(norm)) return norm;
+    }
+    if (typeof window.corrigirPlacaMercosul === "function") {
+      const ocr = window.corrigirPlacaMercosul(raw);
+      if (ocr && portalPlacaMercosulOk(ocr)) return ocr;
+    }
+    return digitado;
+  }
+
   const unitTitle = document.getElementById("unit-page-title");
   const unitLead = document.getElementById("unit-page-lead");
   const portalUnitDadosAtualizados = document.getElementById("portal-unit-dados-atualizados");
@@ -4170,9 +4202,10 @@ ${printable.innerHTML}
 
     inpPlaca.addEventListener("blur", () => {
       const raw = String(inpPlaca.value || "").trim();
-      if (!raw || typeof window.normalizePlacaParaCadastro !== "function") return;
-      const norm = window.normalizePlacaParaCadastro(raw);
-      if (norm && typeof window.isPlacaMercosul === "function" && window.isPlacaMercosul(norm) && norm !== raw.toUpperCase().replace(/[^A-Z0-9]/g, "")) {
+      if (!raw) return;
+      const norm = portalResolvePlacaCadastro(raw);
+      const digitado = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+      if (norm && portalPlacaMercosulOk(norm) && norm !== digitado) {
         inpPlaca.value = norm;
       }
     });
@@ -7976,14 +8009,7 @@ ${printable.innerHTML}
     if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
     const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
     const plateRaw = getVal("operacaoVeiculoPlaca");
-    const plate =
-      typeof normalizePlacaParaCadastro === "function"
-        ? normalizePlacaParaCadastro(plateRaw)
-        : typeof normalizePlate === "function"
-          ? normalizePlate(plateRaw)
-          : String(plateRaw || "")
-              .toUpperCase()
-              .replace(/[^A-Z0-9]/g, "");
+    const plate = portalResolvePlacaCadastro(plateRaw);
     const modelo = getVal("operacaoVeiculoModelo");
     if (!plate || !modelo) {
       if (msg) msg.textContent = "Informe placa e modelo.";
