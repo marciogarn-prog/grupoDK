@@ -9113,8 +9113,9 @@ ${printable.innerHTML}
     }
   }
 
-  /** Lançamentos em `dk_lancamentos_aluguel` (quadro DK) para o mesmo CPF + placa + protocolo — usado quando o array embutido na locação veio vazio após merge/nuvem. */
+  /** Lançamentos em `dk_lancamentos_aluguel` — só demo; oficial usa só portalLancamentosAluguel. */
   function portalLancamentosAluguelFromCadastroGlobal(loc) {
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true) return [];
     if (typeof getLancamentosAluguel !== "function") return [];
     const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const cpfD = dig(String(loc.cpf || ""));
@@ -10518,6 +10519,10 @@ ${printable.innerHTML}
     const dataStr = String(dataPagamentoBr || "").trim();
     materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     const reg = getPortalSessaoParaRegistroLancamentoAluguel();
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true) {
+      const cpfOp = String(reg?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      if (cpfOp.length !== 11) return false;
+    }
     const ve = Number(parsePortalLancamentoValorRaw(meios?.valorEspecie ?? 0));
     const vp = Number(parsePortalLancamentoValorRaw(meios?.valorPix ?? 0));
     const vc = Number(parsePortalLancamentoValorRaw(meios?.valorCartao ?? 0));
