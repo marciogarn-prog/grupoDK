@@ -971,7 +971,10 @@ async function runSuite() {
     const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260521comunicacao`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521setor-routing`, {
+    const portalUiJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521comunicacao-fixa`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao-fixa`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteComUiJs = await fetch(`${BASE_URL}cliente-comunicacao-operacao-ui.js?v=20260521comunicacao`, {
@@ -981,6 +984,9 @@ async function runSuite() {
       "comunicação cliente operação vendas e manutenção",
       html.includes("portalComunicacaoVendasLista") &&
         html.includes("portalComunicacaoManutencaoLista") &&
+        html.includes("portal-comunicacao-inbox-grid--fixed") &&
+        html.includes("portalColabAceComManutencao") &&
+        html.includes("portalColabAceComVendas") &&
         html.includes("operacaoClienteMsgClienteBtn") &&
         html.includes("operacaoClienteMsgTodosBtn") &&
         html.includes("operacaoLancManutencaoMsgClienteBtn") &&
@@ -991,10 +997,12 @@ async function runSuite() {
         comunicacaoUiJs.includes("__DK_portalComunicacaoSyncManutencaoBtn") &&
         comunicacaoUiJs.includes('abrirModalTodos("vendas")') &&
         comunicacaoUiJs.includes('abrirModalTodos("manutencao")') &&
+        portalUiJs.includes("portalComunicacaoAcessosEfetivos") &&
+        portalUiJs.includes("portal-body--comunicacao-ativa") &&
         clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
         clienteComUiJs.includes("__DK_clienteComunicacaoRefresh"),
-      "cadastro→verde; manutenção→amarelo; chat texto e sync nuvem"
+      "barra fixa no topo; cadastro→verde; manutenção→amarelo"
     );
     record(
       "app cliente troca senha inicial 123456",

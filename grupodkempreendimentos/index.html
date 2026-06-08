@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260521setor-routing">
+  <link rel="stylesheet" href="styles.css?v=20260521comunicacao-fixa">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260521demo-icon"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -45,6 +45,16 @@
       <button type="button" class="portal-admin-banner__link" data-admin-nav="cliente">Área cliente</button>
       <button type="button" class="portal-admin-banner__link portal-admin-banner__link--sair" data-admin-nav="sair">Sair</button>
     </nav>
+  </div>
+  <div id="portal-comunicacao-inbox-wrap" class="portal-comunicacao-inbox-grid portal-comunicacao-inbox-grid--fixed hidden" aria-label="Mensagens de clientes">
+    <section class="portal-comunicacao-inbox portal-comunicacao-inbox--vendas" aria-labelledby="portal-comunicacao-vendas-title">
+      <h3 id="portal-comunicacao-vendas-title" class="portal-comunicacao-inbox__title">Vendas — mensagens pendentes</h3>
+      <div id="portalComunicacaoVendasLista" class="portal-comunicacao-inbox__lista"></div>
+    </section>
+    <section class="portal-comunicacao-inbox portal-comunicacao-inbox--manutencao" aria-labelledby="portal-comunicacao-manut-title">
+      <h3 id="portal-comunicacao-manut-title" class="portal-comunicacao-inbox__title">Manutenção — mensagens pendentes</h3>
+      <div id="portalComunicacaoManutencaoLista" class="portal-comunicacao-inbox__lista"></div>
+    </section>
   </div>
   <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
     <header class="site-header">
@@ -242,16 +252,6 @@
         <h2 class="portal-panel__title" id="logado-titulo">área logada</h2>
         <p id="logado-texto" class="subpage__lead"></p>
         <p class="subtext hidden" id="logado-subtext-preparacao">Conteúdo da unidade em preparação.</p>
-        <div id="portal-comunicacao-inbox-wrap" class="portal-comunicacao-inbox-grid hidden" aria-label="Mensagens de clientes">
-          <section class="portal-comunicacao-inbox portal-comunicacao-inbox--vendas" aria-labelledby="portal-comunicacao-vendas-title">
-            <h3 id="portal-comunicacao-vendas-title" class="portal-comunicacao-inbox__title">Vendas — mensagens pendentes</h3>
-            <div id="portalComunicacaoVendasLista" class="portal-comunicacao-inbox__lista"></div>
-          </section>
-          <section class="portal-comunicacao-inbox portal-comunicacao-inbox--manutencao" aria-labelledby="portal-comunicacao-manut-title">
-            <h3 id="portal-comunicacao-manut-title" class="portal-comunicacao-inbox__title">Manutenção — mensagens pendentes</h3>
-            <div id="portalComunicacaoManutencaoLista" class="portal-comunicacao-inbox__lista"></div>
-          </section>
-        </div>
         <div class="logado-actions">
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
@@ -1508,6 +1508,8 @@
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lançamento de multas</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lançamento de manutenção</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceComManutencao"> Comunicação manutenção</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceComVendas"> Comunicação vendas</label>
             </div>
             <div class="operacao-inline-form__actions portal-colab-actions-row">
               <div class="portal-colab-primary-actions">
@@ -2140,12 +2142,12 @@
     })();
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="app.js?v=20260608locacao-nome-app" defer></script>
+  <script src="app.js?v=20260521comunicacao-fixa" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-comunicacao-operacao.js?v=20260521comunicacao" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260521comunicacao" defer></script>
-  <script src="portal-comunicacao-operacao-ui.js?v=20260521setor-routing" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521comunicacao-fixa" defer></script>
+  <script src="portal-comunicacao-operacao-ui.js?v=20260521comunicacao-fixa" defer></script>
   <script src="portal-locacao-documentos.js?v=20260608loc-docs" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260608pagamentos-nuvem" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>

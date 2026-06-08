@@ -68,7 +68,45 @@
     if (typeof window.__DK_syncDemoBannerLayout === "function") {
       window.__DK_syncDemoBannerLayout();
     }
+    portalSyncComunicacaoBarLayout();
   }
+
+  function portalIsEquipaLocadoraLogada() {
+    if (currentUnit !== "locadora") return false;
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return false;
+      const role = String(s.role || "").trim();
+      return role === "owner" || role === "operacao";
+    } catch {
+      return false;
+    }
+  }
+
+  function portalComunicacaoAcessosEfetivos() {
+    const f = getPortalSessaoEquipaFuncionario() || portalObterFuncionarioDaSessaoRestauracao();
+    const isOwner = f && String(f.role || "").trim() === "owner";
+    const acessos = getPortalOperacaoAcessosEfetivos(f);
+    return {
+      vendas: isOwner || Boolean(acessos?.comunicacaoVendas),
+      manutencao: isOwner || Boolean(acessos?.comunicacaoManutencao),
+    };
+  }
+
+  function portalSyncComunicacaoBarLayout() {
+    const wrap = document.getElementById("portal-comunicacao-inbox-wrap");
+    const h =
+      wrap && !wrap.classList.contains("hidden") ? `${Math.ceil(wrap.getBoundingClientRect().height)}px` : "0px";
+    try {
+      document.documentElement.style.setProperty("--portal-comunicacao-bar-h", h);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  window.__DK_portalSyncComunicacaoBarLayout = portalSyncComunicacaoBarLayout;
 
   function portalAtualizarBannerAdmin() {
     const banner = document.getElementById("portal-admin-banner");
@@ -357,6 +395,8 @@
     { key: "lancamentoAluguel", label: "Lançamento de aluguel" },
     { key: "lancamentoMultas", label: "Lançamento de multas" },
     { key: "lancamentoManutencao", label: "Lançamento de manutenção" },
+    { key: "comunicacaoManutencao", label: "Comunicação manutenção" },
+    { key: "comunicacaoVendas", label: "Comunicação vendas" },
   ];
 
   /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
@@ -833,6 +873,8 @@
             lancamentoAluguel: true,
             lancamentoMultas: true,
             lancamentoManutencao: true,
+            comunicacaoVendas: true,
+            comunicacaoManutencao: true,
             funcionario: true,
           }
         : {
@@ -843,6 +885,8 @@
             lancamentoAluguel: true,
             lancamentoMultas: true,
             lancamentoManutencao: true,
+            comunicacaoVendas: true,
+            comunicacaoManutencao: true,
             lancamentoDespesa: true,
             funcionario: true,
           };
@@ -986,11 +1030,19 @@
   function portalToggleComunicacaoInbox(show) {
     const wrap = document.getElementById("portal-comunicacao-inbox-wrap");
     if (!wrap) return;
-    const visible = Boolean(show) && currentUnit === "locadora";
-    wrap.classList.toggle("hidden", !visible);
-    if (visible && typeof window.__DK_portalComunicacaoRefresh === "function") {
+    const acc = portalComunicacaoAcessosEfetivos();
+    const showVendas = Boolean(show) && portalIsEquipaLocadoraLogada() && acc.vendas;
+    const showManut = Boolean(show) && portalIsEquipaLocadoraLogada() && acc.manutencao;
+    const showAny = showVendas || showManut;
+    wrap.classList.toggle("hidden", !showAny);
+    document.body.classList.toggle("portal-body--comunicacao-ativa", showAny);
+    wrap.querySelector(".portal-comunicacao-inbox--vendas")?.classList.toggle("hidden", !showVendas);
+    wrap.querySelector(".portal-comunicacao-inbox--manutencao")?.classList.toggle("hidden", !showManut);
+    wrap.classList.toggle("portal-comunicacao-inbox-grid--solo", showAny && !(showVendas && showManut));
+    if (showAny && typeof window.__DK_portalComunicacaoRefresh === "function") {
       window.__DK_portalComunicacaoRefresh();
     }
+    requestAnimationFrame(() => portalSyncComunicacaoBarLayout());
   }
 
   const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
@@ -1358,10 +1410,9 @@
     panelLogin?.classList.remove("hidden");
     if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
     clearPortalUnitDadosAtualizados();
+    portalToggleComunicacaoInbox(false);
     portalAtualizarBannerAdmin();
   }
-
-  const PORTAL_AREA_ATIVA_KEY = "dk_portal_area_ativa";
 
   function portalPersistirAreaAtiva(area) {
     try {
@@ -1434,6 +1485,7 @@
     } else {
       panelLogado?.classList.remove("hidden");
     }
+    portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva(area);
   }
 
@@ -1847,6 +1899,7 @@
     panelOperacao?.classList.remove("hidden");
     refreshPortalOperacaoNavPorAcessos();
     portalOperacaoAutoAbrirSeUnicoPermitido();
+    portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva("operacao");
   });
 
@@ -1881,6 +1934,7 @@
     syncManutencaoSidebarButtons(null);
     hideAllPanels();
     panelManutencao?.classList.remove("hidden");
+    portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva("manutencao");
   });
 
@@ -1893,6 +1947,7 @@
     hideAllPanels();
     if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
     panelPatrimonio?.classList.remove("hidden");
+    portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva("patrimonio");
   });
 
@@ -1900,6 +1955,7 @@
     hideAllPanels();
     panelLocalizacao?.classList.remove("hidden");
     if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
+    portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva("localizacao");
   });
 
@@ -3016,12 +3072,16 @@ ${printable.innerHTML}
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
     const c6 = document.getElementById("portalColabAceLancManutencao");
+    const c7 = document.getElementById("portalColabAceComManutencao");
+    const c8 = document.getElementById("portalColabAceComVendas");
     if (c1) c1.checked = Boolean(a.cliente);
     if (c2) c2.checked = Boolean(a.veiculo);
     if (c3) c3.checked = Boolean(a.locacao);
     if (c4) c4.checked = Boolean(a.lancamentoAluguel);
     if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
     if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
+    if (c7) c7.checked = Boolean(a.comunicacaoManutencao);
+    if (c8) c8.checked = Boolean(a.comunicacaoVendas);
   }
 
   function setPortalColaboradorModoCadastroOuEdicao(modoCadastroNovo) {
@@ -3102,7 +3162,9 @@ ${printable.innerHTML}
     const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
     const aceMultas = Boolean(document.getElementById("portalColabAceLancMultas")?.checked);
     const aceManut = Boolean(document.getElementById("portalColabAceLancManutencao")?.checked);
-    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut) {
+    const aceComManut = Boolean(document.getElementById("portalColabAceComManutencao")?.checked);
+    const aceComVendas = Boolean(document.getElementById("portalColabAceComVendas")?.checked);
+    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut && !aceComManut && !aceComVendas) {
       if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
       return;
     }
@@ -3117,6 +3179,8 @@ ${printable.innerHTML}
               lancamentoAluguel: aceLanc,
               lancamentoMultas: aceMultas,
               lancamentoManutencao: aceManut,
+              comunicacaoManutencao: aceComManut,
+              comunicacaoVendas: aceComVendas,
               lancamentoDespesa: false,
             },
             "operacao"
@@ -3129,6 +3193,8 @@ ${printable.innerHTML}
             lancamentoAluguel: aceLanc,
             lancamentoMultas: aceMultas,
             lancamentoManutencao: aceManut,
+            comunicacaoManutencao: aceComManut,
+            comunicacaoVendas: aceComVendas,
             lancamentoDespesa: false,
             funcionario: false,
           };
@@ -3189,7 +3255,9 @@ ${printable.innerHTML}
     const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
     const aceMultas = Boolean(document.getElementById("portalColabAceLancMultas")?.checked);
     const aceManut = Boolean(document.getElementById("portalColabAceLancManutencao")?.checked);
-    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut) {
+    const aceComManut = Boolean(document.getElementById("portalColabAceComManutencao")?.checked);
+    const aceComVendas = Boolean(document.getElementById("portalColabAceComVendas")?.checked);
+    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut && !aceComManut && !aceComVendas) {
       if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
       return;
     }
@@ -3204,6 +3272,8 @@ ${printable.innerHTML}
               lancamentoAluguel: aceLanc,
               lancamentoMultas: aceMultas,
               lancamentoManutencao: aceManut,
+              comunicacaoManutencao: aceComManut,
+              comunicacaoVendas: aceComVendas,
               lancamentoDespesa: false,
             },
             "operacao"
@@ -3216,6 +3286,8 @@ ${printable.innerHTML}
             lancamentoAluguel: aceLanc,
             lancamentoMultas: aceMultas,
             lancamentoManutencao: aceManut,
+            comunicacaoManutencao: aceComManut,
+            comunicacaoVendas: aceComVendas,
             lancamentoDespesa: false,
             funcionario: false,
           };
@@ -3229,6 +3301,8 @@ ${printable.innerHTML}
       lancamentoAluguel: portalNormDiffVal(f.acessos?.lancamentoAluguel ? "sim" : "não"),
       lancamentoMultas: portalNormDiffVal(f.acessos?.lancamentoMultas ? "sim" : "não"),
       lancamentoManutencao: portalNormDiffVal(f.acessos?.lancamentoManutencao ? "sim" : "não"),
+      comunicacaoManutencao: portalNormDiffVal(f.acessos?.comunicacaoManutencao ? "sim" : "não"),
+      comunicacaoVendas: portalNormDiffVal(f.acessos?.comunicacaoVendas ? "sim" : "não"),
     };
     const depoisColab = {
       nome,
@@ -3240,6 +3314,8 @@ ${printable.innerHTML}
       lancamentoAluguel: aceLanc ? "sim" : "não",
       lancamentoMultas: aceMultas ? "sim" : "não",
       lancamentoManutencao: aceManut ? "sim" : "não",
+      comunicacaoManutencao: aceComManut ? "sim" : "não",
+      comunicacaoVendas: aceComVendas ? "sim" : "não",
     };
     const COLAB_LABELS = {
       nome: "Nome",
@@ -3251,6 +3327,8 @@ ${printable.innerHTML}
       lancamentoAluguel: "Lanç. aluguel",
       lancamentoMultas: "Lanç. multas",
       lancamentoManutencao: "Lanç. manutenção",
+      comunicacaoManutencao: "Comunicação manutenção",
+      comunicacaoVendas: "Comunicação vendas",
     };
     const doSaveColab = () => {
       f.nome = nome;
@@ -3263,6 +3341,7 @@ ${printable.innerHTML}
       refreshPortalOperacaoNavPorAcessos();
       portalRenderColaboradoresLista();
       portalRenderColaboradorPermissoesDetalhe(f);
+      portalToggleComunicacaoInbox(true);
       if (fb) fb.textContent = "Alterações guardadas.";
     };
     portalConfirmarAlteracaoAdministrador(
@@ -3304,6 +3383,8 @@ ${printable.innerHTML}
       lancamentoAluguel: "portalColabAceLancAluguel",
       lancamentoMultas: "portalColabAceLancMultas",
       lancamentoManutencao: "portalColabAceLancManutencao",
+      comunicacaoManutencao: "portalColabAceComManutencao",
+      comunicacaoVendas: "portalColabAceComVendas",
     };
     const el = document.getElementById(idMap[key]);
     el?.addEventListener("change", () => {
@@ -3316,6 +3397,8 @@ ${printable.innerHTML}
         lancamentoAluguel: Boolean(document.getElementById("portalColabAceLancAluguel")?.checked),
         lancamentoMultas: Boolean(document.getElementById("portalColabAceLancMultas")?.checked),
         lancamentoManutencao: Boolean(document.getElementById("portalColabAceLancManutencao")?.checked),
+        comunicacaoManutencao: Boolean(document.getElementById("portalColabAceComManutencao")?.checked),
+        comunicacaoVendas: Boolean(document.getElementById("portalColabAceComVendas")?.checked),
       }});
     });
   });
@@ -3351,6 +3434,7 @@ ${printable.innerHTML}
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
     btnPatrimonio?.classList.add("hidden");
+    portalToggleComunicacaoInbox(false);
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {

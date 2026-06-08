@@ -65,6 +65,9 @@
   function refreshInboxes() {
     renderLista($("portalComunicacaoVendasLista"), "vendas");
     renderLista($("portalComunicacaoManutencaoLista"), "manutencao");
+    if (typeof window.__DK_portalSyncComunicacaoBarLayout === "function") {
+      requestAnimationFrame(() => window.__DK_portalSyncComunicacaoBarLayout());
+    }
   }
 
   function renderChatHistorico() {

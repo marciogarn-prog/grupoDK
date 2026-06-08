@@ -1418,6 +1418,8 @@ function buildFullOperacaoAccess() {
     lancamentoAluguel: false,
     lancamentoMultas: false,
     lancamentoManutencao: false,
+    comunicacaoVendas: false,
+    comunicacaoManutencao: false,
     lancamentoDespesa: false,
     funcionario: false,
   };
@@ -1434,6 +1436,8 @@ function normalizeOperacaoAccess(acessos, role) {
     lancamentoAluguel: acessos?.lancamentoAluguel ?? fallback.lancamentoAluguel,
     lancamentoMultas: acessos?.lancamentoMultas ?? fallback.lancamentoMultas,
     lancamentoManutencao: acessos?.lancamentoManutencao ?? fallback.lancamentoManutencao,
+    comunicacaoVendas: acessos?.comunicacaoVendas ?? fallback.comunicacaoVendas,
+    comunicacaoManutencao: acessos?.comunicacaoManutencao ?? fallback.comunicacaoManutencao,
     lancamentoDespesa: acessos?.lancamentoDespesa ?? fallback.lancamentoDespesa,
     funcionario: false,
   };
