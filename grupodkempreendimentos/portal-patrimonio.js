@@ -451,6 +451,14 @@
     return patrimonioHashJaConsumiuLeitura(f.hashPdf);
   }
 
+  /** Placa ainda fora do relatório → pode nova leitura mesmo após tentativa interrompida. */
+  function patrimonioFotoPermiteNovaLeituraIa(f) {
+    if (!f) return false;
+    const placa = patrimonioPlacaDeContexto(f.placa || f.nomeArquivo);
+    if (placa && !patrimonioPlacasCadastradasSet().has(placa)) return true;
+    return !patrimonioFotoJaConsumiuLeituraIa(f);
+  }
+
   function patrimonioLedgerMarcarLeitura(hash, fotoId, extra) {
     const h = String(hash || "").trim();
     if (!h) return;
@@ -1304,9 +1312,9 @@
 
   /** Itens que ainda entram na fila de processamento (1 leitura por envio). */
   function fotoAguardaProcessamentoIa(f) {
-    if (patrimonioFotoJaConsumiuLeituraIa(f)) return false;
     const st = String(f?.statusIa || "").toLowerCase();
-    return st === "fila" || st === "processando" || st === "pendente";
+    if (!(st === "fila" || st === "processando" || st === "pendente")) return false;
+    return patrimonioFotoPermiteNovaLeituraIa(f);
   }
 
   function exclusaoPatrimonioEhDefinitiva(ex) {
@@ -1321,6 +1329,33 @@
     const excluidoMs = Date.parse(String(ex?.excluidoEm || "")) || 0;
     if (excluidoMs && Date.now() - excluidoMs > PATRIMONIO_FILA_TTL_MS) return true;
     return false;
+  }
+
+  function patrimonioDestravarIaForcado() {
+    iaPatrimonioRodando = false;
+    patrimonioIaLoopPromessa = null;
+  }
+
+  /** Limpa reserva de leitura em pendentes cuja placa ainda não entrou no relatório. */
+  function patrimonioResetLeiturasPendentesSemCadastro() {
+    const placasCad = patrimonioPlacasCadastradasSet();
+    const store = loadStore();
+    let alterou = false;
+    for (const f of store.fotosCapturas) {
+      if (!fotoEstaPendenteIa(f)) continue;
+      const placa = patrimonioPlacaDeContexto(f.placa || f.nomeArquivo);
+      if (!placa || placasCad.has(placa)) continue;
+      if (Number(f.leiturasIa) >= 1 || Number(f.tentativasIa) >= 1 || String(f.statusIa || "").toLowerCase() === "processando") {
+        f.leiturasIa = 0;
+        f.tentativasIa = 0;
+        f.statusIa = "fila";
+        f.msgIa = "";
+        f.atualizadoEm = new Date().toISOString();
+        alterou = true;
+      }
+    }
+    if (alterou) saveStore(store);
+    return alterou;
   }
 
   function patrimonioRecuperarTravamentoIa() {
@@ -1361,13 +1396,12 @@
     }
   }
 
-  /** Pendente visível na UI mas sem direito a nova leitura (leitura já reservada ou falhou). */
+  /** Pendente visível na UI mas sem direito a nova leitura. */
   function fotoFilaPresaSemProcessamento(f) {
     if (!f || !fotoEstaPendenteIa(f)) return false;
+    if (patrimonioFotoPermiteNovaLeituraIa(f)) return false;
     const st = String(f.statusIa || "").toLowerCase();
-    if (st === "falhou") return true;
-    if (patrimonioFotoJaConsumiuLeituraIa(f)) return true;
-    return !fotoAguardaProcessamentoIa(f);
+    return st === "falhou" || patrimonioFotoJaConsumiuLeituraIa(f);
   }
 
   /** Remove da fila itens sem imagem, presos após reserva de leitura, ou com prazo esgotado. */
@@ -1456,6 +1490,8 @@
   async function patrimonioRetomarFilaIa(opts = {}) {
     const silencioso = opts.silencioso !== false;
     const finalizar = opts.finalizar !== false;
+    patrimonioDestravarIaForcado();
+    patrimonioResetLeiturasPendentesSemCadastro();
     repararFotosCapturasPendentes();
     patrimonioRecuperarTravamentoIa();
     const expurgados = await patrimonioExpurgarFilaObsoleta();
@@ -1976,7 +2012,12 @@
   async function patrimonioSincronizarFilaComStorage() {
     const fotos = getFotosCapturas().filter((f) => fotoAguardaProcessamentoIa(f));
     for (const f of fotos) {
-      if (patrimonioFotoJaConsumiuLeituraIa(f)) {
+      const placa = patrimonioPlacaDeContexto(f.placa || f.nomeArquivo);
+      if (
+        patrimonioFotoJaConsumiuLeituraIa(f) &&
+        placa &&
+        patrimonioPlacasCadastradasSet().has(placa)
+      ) {
         await excluirFotoCapturaAutomatico(
           f.id,
           "Leitura IA já contabilizada — reenvie o PDF para nova leitura."
@@ -1984,10 +2025,10 @@
         continue;
       }
       if (String(f.statusIa || "").toLowerCase() === "processando") {
-        if (Number(f.leiturasIa) >= 1) {
+        if (Number(f.leiturasIa) >= 1 && placa && patrimonioPlacasCadastradasSet().has(placa)) {
           await excluirFotoCapturaAutomatico(f.id, "Processamento interrompido — reenvie o PDF.");
         } else {
-          atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "" });
+          atualizarFotoCaptura(f.id, { statusIa: "fila", msgIa: f.msgIa || "", leiturasIa: 0, tentativasIa: 0 });
         }
       }
       if (filaIaPatrimonio.some((j) => j.fotoId === f.id)) continue;
