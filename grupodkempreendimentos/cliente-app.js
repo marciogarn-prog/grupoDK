@@ -1028,7 +1028,7 @@
     try {
       if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
         await Promise.race([
-          window.__DK_pullCloudSnapshotSilentMerge(),
+          window.__DK_pullCloudSnapshotSilentMerge({ force: true }),
           new Promise((_, reject) => {
             window.setTimeout(() => reject(new Error("timeout")), 12000);
           }),
