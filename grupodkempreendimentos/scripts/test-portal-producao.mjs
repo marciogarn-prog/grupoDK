@@ -186,14 +186,17 @@ async function runSuite() {
         html.includes("patrimonioLoteProgress") &&
         html.includes("portal-patrimonio-idb.js") &&
         html.includes("200 PDFs") &&
-        html.includes("patrimonioPdfDropzone") &&
-        html.includes('for="patrimonioPdfInput"') &&
-        html.includes("Mesma placa") &&
+        html.includes("patrimonioPdfDropzoneNovos") &&
+        html.includes("patrimonioPdfDropzoneAtualizacao") &&
+        html.includes('for="patrimonioPdfInputNovos"') &&
+        html.includes("CRLVDigital_PLACA_ANO") &&
+        html.includes("patrimonioBtnAtualizacaoDoc") &&
         html.includes("patrimonioBtnLimparFila") &&
         html.includes("patrimonioBtnRevisarFalhados") &&
         html.includes("patrimonioBtnExcluirLixo") &&
         html.includes("patrimonioBtnReprocessarReprovados") &&
-        html.includes("patrimonioPdfInput") &&
+        html.includes("patrimonioPdfInputNovos") &&
+        html.includes("patrimonioPdfInputAtualizacao") &&
         html.includes('accept="application/pdf') &&
         html.includes("multiple") &&
         html.includes("pdf.min.js") &&
@@ -559,7 +562,9 @@ async function runSuite() {
     }).then((r) => (r.ok ? r.text() : ""));
     record(
       "CSS patrimônio zona PDF (arrastar e soltar)",
-      cssStyles.includes(".patrimonio-pdf-dropzone") &&
+      cssStyles.includes(".patrimonio-pdf-zonas") &&
+        cssStyles.includes("patrimonio-pdf-dropzone--novos") &&
+        cssStyles.includes("patrimonio-pdf-dropzone--atualizacao") &&
         cssStyles.includes("patrimonio-pdf-dropzone--drag")
     );
     record(
@@ -567,6 +572,13 @@ async function runSuite() {
       cssStyles.includes(".operacao-veiculo-resumo-card") &&
         cssStyles.includes("color: var(--text") &&
         cssStyles.includes("appearance: none")
+    );
+    record(
+      "patrimônio duas zonas novos vs atualização",
+      patJs.includes("filtrarArquivosPdfPorModo") &&
+        patJs.includes("mesclarCamposAtualizacaoCrlv") &&
+        patJs.includes("PATRIMONIO_CAMPOS_ATUALIZACAO") &&
+        patJs.includes("bindPatrimonioPdfDropzone")
     );
     record(
       "patrimônio uma placa substitui documento antigo",
@@ -924,7 +936,7 @@ async function runSuite() {
         }));
         record("patrimônio aceita CRLVDigital_* sem extensão .pdf", unit.crlv);
         const antes = await page.locator("#patrimonioFotosLista .patrimonio-foto-item").count();
-        await page.locator("#patrimonioPdfInput").setInputFiles([
+        await page.locator("#patrimonioPdfInputNovos").setInputFiles([
           {
             name: "CRLVDigital_E2E_TEST_2026",
             mimeType: "application/pdf",

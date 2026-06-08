@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260521demo-oficial-cadastro-ambiente-teste">
+  <link rel="stylesheet" href="styles.css?v=20260608patrimonio-duas-zonas">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608demo-cadastros"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -1657,14 +1657,15 @@
 
       <section id="panel-patrimonio-locadora" class="portal-panel hidden" aria-live="polite">
         <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
-        <p class="subpage__lead">CRLV-e digital — anexe PDFs nítidos do documento. A IA extrai os dados e guarda na nuvem.</p>
+        <p class="subpage__lead">CRLV-e digital — use <strong>CRLVDigital_PLACA_ANO.pdf</strong> (placa entre <code>_</code>). Área <strong>Novos</strong>: só placas ainda não cadastradas. Área <strong>Atualização</strong>: substitui PDF e renova exercício, proprietário, local/data e observações.</p>
         <p class="subtext">Até <strong>200 PDFs</strong> por envio. A fila processa um a um — mantenha a página aberta (horas em lotes grandes). Mesma placa substitui o anterior.</p>
         <div id="patrimonioLoteProgress" class="patrimonio-lote-progress hidden" aria-live="polite">
           <div class="patrimonio-lote-progress__track"><div id="patrimonioLoteProgressFill" class="patrimonio-lote-progress__fill"></div></div>
           <p id="patrimonioLoteProgressText" class="subtext patrimonio-lote-progress__text"></p>
         </div>
         <div class="patrimonio-acoes-principais">
-          <label for="patrimonioPdfInput" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs</label>
+          <label for="patrimonioPdfInputNovos" class="btn-primary" id="patrimonioBtnNovoDoc">Escolher PDFs (novos)</label>
+          <label for="patrimonioPdfInputAtualizacao" class="btn-primary btn-secondary-outline" id="patrimonioBtnAtualizacaoDoc">Escolher PDFs (atualização)</label>
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnReprocessarReprovados">Reprocessar pendentes</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnRevisarFalhados">Revisar todos os falhados</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnLimparFila">Limpar fila</button>
@@ -1672,12 +1673,20 @@
           <button type="button" class="btn-primary btn-secondary-outline hidden" id="patrimonioVerErrosBtn" disabled>Relatório de erros</button>
           <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
         </div>
-        <input type="file" id="patrimonioPdfInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
-        <label id="patrimonioPdfDropzone" for="patrimonioPdfInput" class="patrimonio-pdf-dropzone" tabindex="0" aria-label="Anexar PDFs do CRLV. Clique ou arraste ficheiros.">
-          <p class="patrimonio-pdf-dropzone__titulo">Anexar PDFs do CRLV</p>
-          <p class="patrimonio-pdf-dropzone__sub">Clique aqui, use «Escolher PDFs» ou arraste vários ficheiros .pdf (computador ou celular).</p>
-          <p class="patrimonio-pdf-dropzone__limite subtext">Máx. 12 MB/ficheiro · até 200 PDFs de uma vez</p>
-        </label>
+        <input type="file" id="patrimonioPdfInputNovos" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden" data-patrimonio-modo="novo">
+        <input type="file" id="patrimonioPdfInputAtualizacao" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden" data-patrimonio-modo="atualizacao">
+        <div class="patrimonio-pdf-zonas">
+          <label id="patrimonioPdfDropzoneNovos" for="patrimonioPdfInputNovos" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--novos" tabindex="0" aria-label="Anexar PDFs novos do CRLV. Clique ou arraste ficheiros.">
+            <p class="patrimonio-pdf-dropzone__titulo">Novos — anexar PDFs do CRLV</p>
+            <p class="patrimonio-pdf-dropzone__sub">Só processa placas <strong>ainda não cadastradas</strong>. A placa vem do nome do ficheiro (<code>CRLVDigital_PES5J25_2026.pdf</code>).</p>
+            <p class="patrimonio-pdf-dropzone__limite subtext">Ignora automaticamente placas repetidas · máx. 12 MB/ficheiro · até 200 PDFs</p>
+          </label>
+          <label id="patrimonioPdfDropzoneAtualizacao" for="patrimonioPdfInputAtualizacao" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--atualizacao" tabindex="0" aria-label="Anexar PDFs para atualização do CRLV. Clique ou arraste ficheiros.">
+            <p class="patrimonio-pdf-dropzone__titulo">Atualização — substituir CRLV existente</p>
+            <p class="patrimonio-pdf-dropzone__sub">Só placas <strong>já cadastradas</strong>. Substitui o PDF e atualiza exercício, nome, CPF/CNPJ, local, data e observações.</p>
+            <p class="patrimonio-pdf-dropzone__limite subtext">Chassi, modelo e demais dados fixos mantêm-se · máx. 12 MB/ficheiro · até 200 PDFs</p>
+          </label>
+        </div>
         <p id="patrimonioOpenAIStatus" class="subtext" role="status"></p>
         <p id="patrimonioMsg" class="portal-feedback" role="status"></p>
         <p id="patrimonioResumo" class="subtext" role="status">Nenhum CRLV cadastrado.</p>
@@ -2038,7 +2047,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
-  <script src="portal-patrimonio.js?v=20260521fila-zero-pendente" defer></script>
+  <script src="portal-patrimonio.js?v=20260608patrimonio-duas-zonas" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260521pesquisa-placa" defer></script>
   <script src="portal-supabase-sync.js?v=20260608demo-cadastros" defer></script>

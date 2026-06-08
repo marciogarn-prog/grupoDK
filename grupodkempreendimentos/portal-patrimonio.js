@@ -67,6 +67,10 @@
   const PATRIMONIO_MAX_ARQUIVOS = 250;
   /** Campos obrigatórios — falha em qualquer um → nova tentativa (até 5×). */
   const CAMPOS_CRITICOS = ["codigoRenavam", "placa", "chassi", "nome", "cpfCnpj"];
+  /** Campos que mudam numa atualização anual do CRLV (demais dados fixos do veículo). */
+  const PATRIMONIO_CAMPOS_ATUALIZACAO = ["exercicio", "nome", "cpfCnpj", "local", "data", "observacaoVeiculo"];
+  const PATRIMONIO_MODO_NOVO = "novo";
+  const PATRIMONIO_MODO_ATUALIZACAO = "atualizacao";
 
   const panel = document.getElementById("panel-patrimonio-locadora");
   if (!panel) return;
@@ -94,8 +98,13 @@
   const fotoCapturaViewerImg = document.getElementById("patrimonioFotoCapturaViewerImg");
   const fotoCapturaTagEl = document.getElementById("patrimonioFotoCapturaTag");
   const fotoCapturaStatusEl = document.getElementById("patrimonioFotoCapturaStatus");
-  const pdfInput = document.getElementById("patrimonioPdfInput");
-  const pdfDropzone = document.getElementById("patrimonioPdfDropzone");
+  const pdfInputNovos = document.getElementById("patrimonioPdfInputNovos");
+  const pdfInputAtualizacao = document.getElementById("patrimonioPdfInputAtualizacao");
+  const pdfDropzoneNovos = document.getElementById("patrimonioPdfDropzoneNovos");
+  const pdfDropzoneAtualizacao = document.getElementById("patrimonioPdfDropzoneAtualizacao");
+  /** @deprecated compat — zona única antiga */
+  const pdfInput = pdfInputNovos || document.getElementById("patrimonioPdfInput");
+  const pdfDropzone = pdfDropzoneNovos || document.getElementById("patrimonioPdfDropzone");
 
   let cameraStream = null;
   let previewDataUrl = "";
@@ -479,6 +488,10 @@
       hashPdf: String(f.hashPdf || "").trim().slice(0, 64) || undefined,
       iaLeituraEm: String(f.iaLeituraEm || "").trim() || undefined,
       iaExcluidoEm: String(f.iaExcluidoEm || "").trim() || undefined,
+      modoEnvio:
+        String(f.modoEnvio || "").trim() === PATRIMONIO_MODO_ATUALIZACAO
+          ? PATRIMONIO_MODO_ATUALIZACAO
+          : PATRIMONIO_MODO_NOVO,
       atualizadoEm: String(f.atualizadoEm || f.registradoEm || ""),
     };
   }
@@ -1144,6 +1157,52 @@
     return resolverPlacaMercosul(m[1]);
   }
 
+  function patrimonioPlacasCadastradasSet() {
+    const set = new Set();
+    getDocumentos().forEach((d) => {
+      const p = normPlaca(d.placa);
+      if (p) set.add(p);
+    });
+    return set;
+  }
+
+  /** Filtra lote por modo: novos = só placas ausentes; atualização = só placas já cadastradas. */
+  function filtrarArquivosPdfPorModo(files, modo) {
+    const placasCad = patrimonioPlacasCadastradasSet();
+    const aceitos = [];
+    const ignorados = [];
+    const semPlaca = [];
+    for (const file of files) {
+      const placa = normPlaca(placaDoNomeArquivo(file.name));
+      if (!placa) {
+        semPlaca.push(file);
+        continue;
+      }
+      if (modo === PATRIMONIO_MODO_ATUALIZACAO) {
+        if (placasCad.has(placa)) aceitos.push(file);
+        else ignorados.push({ file, placa, motivo: "placa_nao_cadastrada" });
+      } else {
+        if (placasCad.has(placa)) ignorados.push({ file, placa, motivo: "placa_ja_cadastrada" });
+        else aceitos.push(file);
+      }
+    }
+    return { aceitos, ignorados, semPlaca };
+  }
+
+  function mesclarCamposAtualizacaoCrlv(existente, novosCampos) {
+    if (!existente || !novosCampos) return novosCampos || existente;
+    const out = { ...existente };
+    for (const key of PATRIMONIO_CAMPOS_ATUALIZACAO) {
+      const v = String(novosCampos[key] ?? "").trim();
+      if (v) out[key] = v;
+    }
+    if (novosCampos.placa) {
+      out.placa = novosCampos.placa;
+      out.placaNorm = novosCampos.placa;
+    }
+    return out;
+  }
+
   function exercicioDoNomeArquivo(nome) {
     const m = String(nome || "").match(/CRLVDigital[_-][A-Za-z0-9]{7}[_-](\d{4})/i);
     return m ? m[1] : "";
@@ -1688,7 +1747,7 @@
       const placaEfetiva = normPlaca(f.placa) || placaHint;
       const tent = tentativasIaFoto(f);
 
-      if (placaEfetiva && placasDoc.has(placaEfetiva)) {
+      if (placaEfetiva && placasDoc.has(placaEfetiva) && String(f.modoEnvio || "") !== PATRIMONIO_MODO_ATUALIZACAO) {
         marcarExclusao(f);
         continue;
       }
@@ -2050,9 +2109,21 @@
       const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
       const existente =
         leitura.documentoExistente || buscarDocumentoCadastradoPorPlaca(campos.placa);
+      const modoEnvio = String(fotoMeta?.modoEnvio || PATRIMONIO_MODO_NOVO);
+      let camposFinal = campos;
+      if (modoEnvio === PATRIMONIO_MODO_ATUALIZACAO) {
+        if (!existente) {
+          await tratarFalhaIaFotoCaptura(
+            fotoId,
+            `Placa ${campos.placa} não está cadastrada — use a área «Novos».`
+          );
+          return;
+        }
+        camposFinal = mesclarCamposAtualizacaoCrlv(existente, campos);
+      }
       const agora = new Date().toISOString();
       const doc = {
-        ...campos,
+        ...camposFinal,
         id: existente?.id || newId(),
         imagemRecortada: imagemGuardar,
         imagemPdfRecortada,
@@ -2072,7 +2143,9 @@
       renderLista();
       setMsg(
         r.substituiu
-          ? `Placa ${campos.placa}: PDF e dados substituíram o documento anterior.`
+          ? modoEnvio === PATRIMONIO_MODO_ATUALIZACAO
+            ? `Placa ${campos.placa}: CRLV atualizado (exercício, proprietário, local/data e observações).`
+            : `Placa ${campos.placa}: PDF e dados substituíram o documento anterior.`
           : `Placa ${campos.placa} cadastrada. Pode anexar o próximo PDF.`,
         false,
         true
@@ -2598,7 +2671,11 @@
     return dataUrl;
   }
 
-  async function registrarArquivoPdf(file, imagemRenderizada) {
+  async function registrarArquivoPdf(file, imagemRenderizada, opts) {
+    const modoEnvio =
+      String(opts?.modoEnvio || PATRIMONIO_MODO_NOVO) === PATRIMONIO_MODO_ATUALIZACAO
+        ? PATRIMONIO_MODO_ATUALIZACAO
+        : PATRIMONIO_MODO_NOVO;
     const agora = new Date();
     const fotoId = newFotoId();
     const hashPdf = await patrimonioHashFile(file);
@@ -2637,6 +2714,7 @@
       statusIa: "fila",
       docId: "",
       placa: placaDoNomeArquivo(file.name) || "",
+      modoEnvio,
       msgIa: "",
       hashPdf: hashPdf || undefined,
       leiturasIa: 0,
@@ -2653,7 +2731,11 @@
     return foto;
   }
 
-  async function processarArquivosPdf(fileList) {
+  async function processarArquivosPdf(fileList, opts) {
+    const modo =
+      String(opts?.modo || PATRIMONIO_MODO_NOVO) === PATRIMONIO_MODO_ATUALIZACAO
+        ? PATRIMONIO_MODO_ATUALIZACAO
+        : PATRIMONIO_MODO_NOVO;
     let files = Array.from(fileList || []).filter(ehArquivoPdf);
     if (!files.length) {
       const total = Array.from(fileList || []).length;
@@ -2663,6 +2745,30 @@
           : "Selecione um ou mais ficheiros PDF.",
         true
       );
+      return;
+    }
+    const filtrado = filtrarArquivosPdfPorModo(files, modo);
+    files = filtrado.aceitos;
+    const rotuloModo = modo === PATRIMONIO_MODO_ATUALIZACAO ? "atualização" : "novos";
+    if (filtrado.semPlaca.length) {
+      setMsg(
+        `${filtrado.semPlaca.length} ficheiro(s) ignorado(s) — nome deve ser CRLVDigital_PLACA_ANO.pdf (placa entre _).`,
+        true
+      );
+    }
+    if (filtrado.ignorados.length) {
+      const placasIgn = filtrado.ignorados.map((x) => x.placa).filter(Boolean);
+      const motivo =
+        modo === PATRIMONIO_MODO_ATUALIZACAO
+          ? "placa ainda não cadastrada (use «Novos»)"
+          : "placa já cadastrada (use «Atualização» ou ignore)";
+      setMsg(
+        `${filtrado.ignorados.length} PDF(s) ignorado(s) — ${motivo}: ${placasIgn.slice(0, 12).join(", ")}${placasIgn.length > 12 ? "…" : ""}.`,
+        false
+      );
+    }
+    if (!files.length) {
+      setMsg(`Nenhum PDF elegível na área «${rotuloModo}».`, true);
       return;
     }
     if (files.length > PATRIMONIO_MAX_LOTE) {
@@ -2679,7 +2785,7 @@
     patrimonioConvertendoPdfs = true;
     patrimonioPausarSyncCloud();
     await patrimonioAtivarWakeLock();
-    setMsg(`A receber ${files.length} ficheiro(s) (máx. ${PATRIMONIO_MAX_LOTE})…`, false);
+    setMsg(`A receber ${files.length} ficheiro(s) (${rotuloModo}, máx. ${PATRIMONIO_MAX_LOTE})…`, false);
     atualizarProgressoLotePatrimonio(0, files.length);
     await patrimonioYieldUi();
     let ok = 0;
@@ -2702,7 +2808,7 @@
           continue;
         }
         const imagem = await pdfArquivoParaImagemAlta(file);
-        const foto = await registrarArquivoPdf(file, imagem);
+        const foto = await registrarArquivoPdf(file, imagem, { modoEnvio: modo });
         if (!foto) {
           setMsg(`Não foi possível guardar «${file.name}».`, true);
           continue;
@@ -2741,12 +2847,15 @@
     }
   }
 
-  function obterInputPdf() {
-    return document.getElementById("patrimonioPdfInput") || pdfInput;
+  function obterInputPdf(modo) {
+    if (modo === PATRIMONIO_MODO_ATUALIZACAO) {
+      return document.getElementById("patrimonioPdfInputAtualizacao") || pdfInputAtualizacao;
+    }
+    return document.getElementById("patrimonioPdfInputNovos") || pdfInputNovos || pdfInput;
   }
 
-  function abrirSeletorPdf() {
-    const input = obterInputPdf();
+  function abrirSeletorPdf(modo) {
+    const input = obterInputPdf(modo);
     if (input) {
       input.click();
       return;
@@ -2755,22 +2864,20 @@
   }
 
   function onPatrimonioPdfInputChange(ev) {
-    const input = ev?.target || obterInputPdf();
+    const input = ev?.target;
     if (!input) return;
+    const modo =
+      String(input.dataset?.patrimonioModo || input.getAttribute("data-patrimonio-modo") || PATRIMONIO_MODO_NOVO) ===
+      PATRIMONIO_MODO_ATUALIZACAO
+        ? PATRIMONIO_MODO_ATUALIZACAO
+        : PATRIMONIO_MODO_NOVO;
     const files = Array.from(input.files || []);
     input.value = "";
     if (!files.length) return;
-    void processarArquivosPdf(files);
+    void processarArquivosPdf(files, { modo });
   }
 
-  function bindPatrimonioPdfUpload() {
-    const input = obterInputPdf();
-    if (input && input.dataset.dkPdfBound !== "1") {
-      input.dataset.dkPdfBound = "1";
-      input.addEventListener("change", onPatrimonioPdfInputChange);
-    }
-
-    const zone = document.getElementById("patrimonioPdfDropzone") || pdfDropzone;
+  function bindPatrimonioPdfDropzone(zone, modo) {
     if (!zone || zone.dataset.dkPdfBound === "1") return;
     zone.dataset.dkPdfBound = "1";
     ["dragenter", "dragover"].forEach((evName) => {
@@ -2789,8 +2896,26 @@
     });
     zone.addEventListener("drop", (ev) => {
       const files = ev.dataTransfer?.files;
-      if (files?.length) void processarArquivosPdf(files);
+      if (files?.length) void processarArquivosPdf(files, { modo });
     });
+  }
+
+  function bindPatrimonioPdfUpload() {
+    [pdfInputNovos, pdfInputAtualizacao, pdfInput].filter(Boolean).forEach((input) => {
+      if (input.dataset.dkPdfBound === "1") return;
+      input.dataset.dkPdfBound = "1";
+      input.addEventListener("change", onPatrimonioPdfInputChange);
+    });
+
+    bindPatrimonioPdfDropzone(
+      document.getElementById("patrimonioPdfDropzoneNovos") || pdfDropzoneNovos,
+      PATRIMONIO_MODO_NOVO
+    );
+    bindPatrimonioPdfDropzone(
+      document.getElementById("patrimonioPdfDropzoneAtualizacao") || pdfDropzoneAtualizacao,
+      PATRIMONIO_MODO_ATUALIZACAO
+    );
+    bindPatrimonioPdfDropzone(document.getElementById("patrimonioPdfDropzone") || pdfDropzone, PATRIMONIO_MODO_NOVO);
   }
 
   /** Recorte retangular exato (bbox 0–1), sem deformar — usado na leitura do proprietário. */
