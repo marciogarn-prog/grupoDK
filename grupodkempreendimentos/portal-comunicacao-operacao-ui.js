@@ -329,6 +329,10 @@
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") refreshInboxes();
     });
+    window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      refreshInboxes();
+    }, 45000);
   }
 
   window.__DK_portalComunicacaoRefresh = refreshInboxes;

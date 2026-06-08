@@ -1043,9 +1043,13 @@
     if (msg && !silent) msg.textContent = "A sincronizar com a nuvem…";
     let syncOk = false;
     try {
-      if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      const pullFn =
+        typeof window.__DK_pullClienteCloudSnapshotLight === "function"
+          ? window.__DK_pullClienteCloudSnapshotLight
+          : window.__DK_pullCloudSnapshotSilentMerge;
+      if (typeof pullFn === "function") {
         await Promise.race([
-          window.__DK_pullCloudSnapshotSilentMerge({ force: true }),
+          pullFn({ force: false }),
           new Promise((_, reject) => {
             window.setTimeout(() => reject(new Error("timeout")), 12000);
           }),
@@ -1066,7 +1070,9 @@
         window.__DK_comprovantesClienteInvalidateCache();
       }
       syncOk = true;
-      if (sessao?.cpf) consolidarLancamentosClienteLogado(sessao.cpf);
+      if (sessao?.cpf) {
+        window.setTimeout(() => consolidarLancamentosClienteLogado(sessao.cpf), 0);
+      }
       if (msg && !silent) {
         const pend =
           typeof window.__DK_comprovantesClienteTemPendentesNuvem === "function" &&
@@ -1084,7 +1090,8 @@
       if (msg && !silent) msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
     } finally {
       if (sessao) {
-        resolveAppViewAfterData(sessao);
+        if (silent) scheduleClienteRender(sessao);
+        else resolveAppViewAfterData(sessao);
         if (msg && !silent && !syncOk && msg.textContent.startsWith("A sincronizar")) {
           msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
         }
@@ -1092,9 +1099,19 @@
     }
   }
 
+  let clienteRenderRaf = 0;
+  function scheduleClienteRender(sessao) {
+    if (!sessao?.cpf) return;
+    if (clienteRenderRaf) cancelAnimationFrame(clienteRenderRaf);
+    clienteRenderRaf = requestAnimationFrame(() => {
+      clienteRenderRaf = 0;
+      renderApp(sessao);
+    });
+  }
+
   function onComprovantesSyncedRefreshView() {
     const sessao = getSessao();
-    if (sessao?.cpf) resolveAppViewAfterData(sessao);
+    if (sessao?.cpf) scheduleClienteRender(sessao);
   }
 
   function renderApp(sessao) {
@@ -1953,6 +1970,9 @@
 
   async function afterLogin(sess) {
     persistGateFromSession();
+    if (typeof window.__DK_trimClienteLocacoesLocal === "function") {
+      window.__DK_trimClienteLocacoesLocal();
+    }
     if (isClienteRealSession(sess)) {
       startGeoForSession(sess);
     } else {
@@ -2050,10 +2070,11 @@
       document.documentElement.dataset.dkClienteSyncBound = "1";
       const refreshClienteApp = () => {
         const sessao = getSessao();
-        if (sessao?.cpf) renderApp(sessao);
+        if (sessao?.cpf) scheduleClienteRender(sessao);
       };
       window.addEventListener("dk-comprovantes-synced", refreshClienteApp);
       window.addEventListener("dk-comprovantes-sync-nuvem", refreshClienteApp);
+      let visSyncTimer = 0;
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState !== "visible") return;
         if (isGeoGateBypassed()) return;
@@ -2067,7 +2088,11 @@
             }
           });
         }
-        void sincronizarDadosCliente(sessao, { silent: true });
+        if (visSyncTimer) window.clearTimeout(visSyncTimer);
+        visSyncTimer = window.setTimeout(() => {
+          visSyncTimer = 0;
+          void sincronizarDadosCliente(sessao, { silent: true });
+        }, 2500);
       });
     }
     void registerClienteServiceWorker();

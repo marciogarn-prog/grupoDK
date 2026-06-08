@@ -110,6 +110,10 @@
   }
 
   function enviarMensagem() {
+    void enviarMensagemAsync();
+  }
+
+  async function enviarMensagemAsync() {
     resolveSessao();
     if (!chatSetor || sessaoCpf.length !== 11) return;
     const inp = $("clienteComunicacaoChatInput");
@@ -139,7 +143,13 @@
     if (msg) msg.textContent = "Mensagem enviada.";
     renderChat();
     if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
-      void window.__DK_pushComunicacaoSnapshotNow().catch(() => null);
+      const push = await window.__DK_pushComunicacaoSnapshotNow().catch(() => ({ ok: false }));
+      if (!push?.ok) {
+        if (msg) {
+          msg.textContent =
+            "Mensagem guardada neste telemóvel — sem internet ou nuvem indisponível. Tente de novo.";
+        }
+      }
     }
   }
 

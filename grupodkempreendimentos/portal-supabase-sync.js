@@ -115,6 +115,9 @@
   }
 
   async function bootstrapDemoCadastrosFromCloudIfEmpty() {
+    if (isClienteAppPage()) {
+      return { ok: true, skipped: true, reason: "cliente_bootstrap_deferred" };
+    }
     if (!demoNeedsCloudCadastroBootstrap()) {
       return { ok: true, skipped: true, reason: "demo_cadastros_ok" };
     }
@@ -348,6 +351,23 @@
 
   function normalizeLocacoesContratoAtivoStore() {
     try {
+      const cpf = clienteAppSessaoCpf();
+      if (cpf && isClienteAppPage()) {
+        const raw = localStorage.getItem("dk_locacoes_cadastro");
+        if (!raw) return;
+        const arr = JSON.parse(raw);
+        if (!Array.isArray(arr)) return;
+        let changed = false;
+        const next = arr.map((loc) => {
+          if (!loc || typeof loc !== "object") return loc;
+          if (String(loc.cpf || "").replace(/\D/g, "").slice(0, 11) !== cpf) return loc;
+          const normalized = normalizeLocacoesContratoAtivoList([loc])[0];
+          if (JSON.stringify(normalized) !== JSON.stringify(loc)) changed = true;
+          return normalized;
+        });
+        if (changed) localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(next));
+        return;
+      }
       const raw = localStorage.getItem("dk_locacoes_cadastro");
       if (!raw) return;
       const arr = JSON.parse(raw);
@@ -373,6 +393,57 @@
     return "";
   }
 
+  function filterCloudLocacoesForCliente(cpf, cloudArr) {
+    const dig = String(cpf || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
+    if (!dig || !Array.isArray(cloudArr)) return [];
+    return cloudArr.filter(
+      (l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
+    );
+  }
+
+  /** App cliente: não baixar frota inteira da demo — só dados do CPF logado. */
+  function filterCloudPayloadForClienteApp(payload, cpf) {
+    if (!payload || typeof payload !== "object") return payload;
+    const dig = String(cpf || clienteAppSessaoCpf() || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
+    if (!dig) return payload;
+    const out = { ...payload };
+    if (Array.isArray(out.dk_locacoes_cadastro)) {
+      out.dk_locacoes_cadastro = filterCloudLocacoesForCliente(dig, out.dk_locacoes_cadastro);
+    }
+    if (Array.isArray(out.dk_comunicacao_operacao_v1)) {
+      out.dk_comunicacao_operacao_v1 = out.dk_comunicacao_operacao_v1.filter(
+        (m) => String(m?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
+      );
+    }
+    if (Array.isArray(out.dk_cliente_notificacoes)) {
+      out.dk_cliente_notificacoes = out.dk_cliente_notificacoes.filter(
+        (n) => String(n?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
+      );
+    }
+    if (Array.isArray(out.dk_comprovantes_cliente_pendentes)) {
+      out.dk_comprovantes_cliente_pendentes = out.dk_comprovantes_cliente_pendentes.filter(
+        (r) => String(r?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
+      );
+    }
+    delete out.dk_clientes_cadastro;
+    delete out.dk_portal_clientes_cadastro;
+    delete out.dk_veiculos_cadastro;
+    delete out.dk_portal_veiculos_cadastro;
+    delete out.dk_veiculos_frota_planilha;
+    return out;
+  }
+
+  const CLIENTE_CLOUD_PULL_KEYS = new Set([
+    "dk_locacoes_cadastro",
+    "dk_comunicacao_operacao_v1",
+    "dk_cliente_notificacoes",
+    "dk_comprovantes_cliente_pendentes",
+  ]);
+
   /** App cliente: não consolidar centenas de locações da demo no pull (travava a UI). */
   function shouldSkipConsolidateLocacoesOnApply(opts) {
     return Boolean(opts && opts.lightSanitize && isClienteAppPage());
@@ -397,6 +468,12 @@
     if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
       payload = window.__DK_sanitizeOficialCloudPayload(payload);
     }
+    const lightSanitize = Boolean(opts && opts.lightSanitize);
+    const clientePage = lightSanitize && isClienteAppPage();
+    const cpfCliente = clientePage ? clienteAppSessaoCpf() : "";
+    if (clientePage && cpfCliente) {
+      payload = filterCloudPayloadForClienteApp(payload, cpfCliente);
+    }
     if (payload.dk_cadastro_manual_portal_v1 === true && typeof window.__DK_enableCadastroManualPortalMode === "function") {
       try {
         window.__DK_enableCadastroManualPortalMode();
@@ -412,9 +489,9 @@
         window.__DK_isCadastroManualPortalMode());
     const replace = Boolean(opts && opts.replace);
     const forceCadastroReplace = replace || cadastroLocked || manualMode;
-    const lightSanitize = Boolean(opts && opts.lightSanitize);
 
     for (const k of DK_STORAGE_KEYS) {
+      if (clientePage && !CLIENTE_CLOUD_PULL_KEYS.has(k)) continue;
       if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
         localStorage.removeItem(k);
         continue;
@@ -950,7 +1027,10 @@
 
   function locacoesCloudMergeWouldChangeLocal(cloudPayload) {
     if (!cloudPayload || typeof cloudPayload !== "object") return false;
-    const cloudArr = Array.isArray(cloudPayload.dk_locacoes_cadastro) ? cloudPayload.dk_locacoes_cadastro : [];
+    let cloudArr = Array.isArray(cloudPayload.dk_locacoes_cadastro) ? cloudPayload.dk_locacoes_cadastro : [];
+    if (!cloudArr.length) return false;
+    const cpf = isClienteAppPage() ? clienteAppSessaoCpf() : "";
+    if (cpf) cloudArr = filterCloudLocacoesForCliente(cpf, cloudArr);
     if (!cloudArr.length) return false;
     const localArr = readLocalJsonArray("dk_locacoes_cadastro");
     const mergeFn =
@@ -1879,29 +1959,39 @@
   async function pushComunicacaoSnapshotNow() {
     const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
     if (!localArr.length) return { ok: true, skipped: true, reason: "empty_local" };
-    const [supaRow, redisRow] = await Promise.all([
-      fetchSupabaseSnapshotPayload(),
-      fetchRedundantSnapshotPayload(),
-    ]);
-    const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
-    const merged = mergeComunicacaoOperacaoArrays(localArr, cloudPayload.dk_comunicacao_operacao_v1);
-    const patch = { dk_comunicacao_operacao_v1: merged };
+    const patch = { dk_comunicacao_operacao_v1: localArr };
     const updatedAt = new Date().toISOString();
     let supaOk = false;
     let redisOk = false;
+    for (let attempt = 0; attempt < 3 && !redisOk; attempt += 1) {
+      const red = await pushRedundantSnapshotPayload(patch, updatedAt);
+      redisOk = red.ok;
+      if (!redisOk && attempt < 2) {
+        await new Promise((r) => window.setTimeout(r, 350 * (attempt + 1)));
+      }
+    }
     const client = window.__DK_SUPABASE_CLIENT__;
     if (client && window.__DK_SUPABASE_CONFIGURED__) {
-      const fullPayload = { ...cloudPayload, ...patch };
-      const { error } = await client.from("dk_cloud_snapshots").upsert(
-        { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
-        { onConflict: "label" }
-      );
-      supaOk = !error;
+      try {
+        const [supaRow, redisRow] = await Promise.all([
+          fetchSupabaseSnapshotPayload(),
+          fetchRedundantSnapshotPayload(),
+        ]);
+        const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
+        const merged = mergeComunicacaoOperacaoArrays(localArr, cloudPayload.dk_comunicacao_operacao_v1);
+        const fullPayload = { ...cloudPayload, dk_comunicacao_operacao_v1: merged };
+        const { error } = await client.from("dk_cloud_snapshots").upsert(
+          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
+          { onConflict: "label" }
+        );
+        supaOk = !error;
+      } catch (e) {
+        console.warn("[DK comunicacao] push Supabase", e);
+      }
     }
-    const red = await pushRedundantSnapshotPayload(patch, updatedAt);
-    redisOk = red.ok;
     if (supaOk || redisOk) noteCloudPushTimestamp(updatedAt);
-    return { ok: supaOk || redisOk, supaOk, redisOk, count: merged.length };
+    else console.warn("[DK comunicacao] push falhou — mensagem só neste telemóvel");
+    return { ok: supaOk || redisOk, supaOk, redisOk, count: localArr.length };
   }
 
   /** Portal com autoridade local: ainda assim traz mensagens novas da nuvem. */
@@ -2110,9 +2200,59 @@
    * Lê o snapshot na nuvem e aplica ao localStorage (merge nos cadastros imutáveis) sem recarregar a página.
    * Usado ao mudar de ecrã na Operação; não substitui «Carregar da nuvem» (que pede confirmação e dá F5).
    */
+  function trimLocalLocacoesToClienteCpf() {
+    const cpf = clienteAppSessaoCpf();
+    if (!cpf || !isClienteAppPage()) return false;
+    const arr = readLocalJsonArray("dk_locacoes_cadastro");
+    if (!arr.length) return false;
+    const kept = arr.filter(
+      (l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11) === cpf
+    );
+    if (kept.length === arr.length) return false;
+    localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(kept));
+    return true;
+  }
+
+  /**
+   * App cliente: pull leve — só locação/comunicação/notificações do CPF logado (evita travar com frota demo).
+   */
+  async function pullClienteCloudSnapshotLight() {
+    const cpf = clienteAppSessaoCpf();
+    if (!cpf) return { ok: true, skipped: true, reason: "no_sessao" };
+    trimLocalLocacoesToClienteCpf();
+    const data = await fetchCloudSnapshotPayload();
+    if (!data?.payload) return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
+    const filtered = filterCloudPayloadForClienteApp(data.payload, cpf);
+    const mini = {};
+    for (const k of CLIENTE_CLOUD_PULL_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(filtered, k)) mini[k] = filtered[k];
+    }
+    if (!Object.keys(mini).length) return { ok: true, skipped: true, reason: "empty_filtered" };
+    suppressCloudHook = true;
+    try {
+      applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: true });
+    } finally {
+      suppressCloudHook = false;
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed"));
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
+    } catch {
+      /* ignore */
+    }
+    return { ok: true, applied: true, source: data.source || "cloud" };
+  }
+
   async function pullCloudSnapshotSilentMerge(opts) {
     const force = Boolean(opts && opts.force);
     const clientePage = isClienteAppPage();
+    if (clientePage) {
+      return pullClienteCloudSnapshotLight();
+    }
     if (isLocalDataAuthorityActive() && !clientePage) {
       return pullAppendOnlyKeysFromCloud();
     }
@@ -2121,12 +2261,6 @@
       return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
     }
     let mergeNeeded = cloudPullWouldChangeAnything(data.payload);
-    if (clientePage) {
-      mergeNeeded = locacoesCloudMergeWouldChangeLocal(data.payload) || mergeNeeded;
-      if (force && Array.isArray(data.payload.dk_locacoes_cadastro) && data.payload.dk_locacoes_cadastro.length) {
-        mergeNeeded = true;
-      }
-    }
     if (!force && !isCloudSnapshotNewerThanLocal(data.updated_at) && !mergeNeeded) {
       return { ok: true, skipped: true, reason: "cloud_not_newer" };
     }
@@ -2159,12 +2293,11 @@
         /* ignore */
       }
     }
-    if (typeof window.__DK_comprovantesClienteRepararHistorico === "function") {
-      if (clientePage) {
-        await Promise.resolve(window.__DK_comprovantesClienteRepararHistorico({ leve: true }));
-      } else {
-        void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
-      }
+    if (
+      !clientePage &&
+      typeof window.__DK_comprovantesClienteRepararHistorico === "function"
+    ) {
+      void Promise.resolve(window.__DK_comprovantesClienteRepararHistorico());
     }
     if (
       !clientePage &&
@@ -2232,6 +2365,8 @@
 
   try {
     window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
+    window.__DK_pullClienteCloudSnapshotLight = pullClienteCloudSnapshotLight;
+    window.__DK_trimClienteLocacoesLocal = trimLocalLocacoesToClienteCpf;
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
     window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;

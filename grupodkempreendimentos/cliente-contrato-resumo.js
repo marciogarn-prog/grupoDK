@@ -171,9 +171,10 @@
     return [...byNc.values(), ...noNc];
   }
 
-  function comprovanteInvalidadoPorId(id) {
+  function comprovanteInvalidadoPorId(id, invalidados) {
     const cid = String(id || "").trim();
     if (!cid) return false;
+    if (invalidados instanceof Set) return invalidados.has(cid);
     try {
       const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
       const all = raw ? JSON.parse(raw) : [];
@@ -182,6 +183,25 @@
       return Boolean(hit?.pagamentoInvalidado);
     } catch {
       return false;
+    }
+  }
+
+  function loadComprovantesInvalidadosSet() {
+    try {
+      const raw = localStorage.getItem("dk_comprovantes_cliente_pendentes");
+      const all = raw ? JSON.parse(raw) : [];
+      const set = new Set();
+      if (Array.isArray(all)) {
+        for (const r of all) {
+          if (r?.pagamentoInvalidado) {
+            const id = String(r.id || "").trim();
+            if (id) set.add(id);
+          }
+        }
+      }
+      return set;
+    } catch {
+      return new Set();
     }
   }
 
@@ -221,6 +241,7 @@
 
   /** Evita duas linhas iguais (mesma data + valor) vindas de portal + legado + global. */
   function dedupeLancamentosPagamento(rows) {
+    const invalidados = loadComprovantesInvalidadosSet();
     const sorted = [...(rows || [])].sort((a, b) => {
       if (a.confirmadoViaAppCliente && !b.confirmadoViaAppCliente) return -1;
       if (!a.confirmadoViaAppCliente && b.confirmadoViaAppCliente) return 1;
@@ -235,7 +256,7 @@
     for (const row of sorted) {
       if (row.pagamentoInvalidado) continue;
       const oid = String(row.origemComprovanteClienteId || "").trim();
-      if (oid && comprovanteInvalidadoPorId(oid)) continue;
+      if (oid && comprovanteInvalidadoPorId(oid, invalidados)) continue;
       const fp = String(row.comprovanteFp || "").trim();
       const data = String(row.data || "").trim();
       const valor = Number(row.valor);
