@@ -4529,6 +4529,7 @@ table.validados-app .lnk-comprovante {
 :root {
   --portal-admin-banner-h: 0px;
   --dk-demo-env-banner-h: 0px;
+  --portal-comunicacao-bar-h: 0px;
 }
 
 .dk-demo-env-banner {
@@ -4610,6 +4611,19 @@ table.validados-app .lnk-comprovante {
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+.portal-body--comunicacao-ativa {
+  padding-top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px) + var(--portal-comunicacao-bar-h, 0px));
+}
+
+.portal-body--comunicacao-ativa .view {
+  min-height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px) - var(--portal-comunicacao-bar-h, 0px));
+}
+
+.portal-body--comunicacao-ativa .portal-pdf-viewer,
+.portal-body--comunicacao-ativa .portal-modal:not(.hidden) {
+  top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px) + var(--portal-comunicacao-bar-h, 0px));
 }
 
 .portal-admin-banner {
@@ -4928,11 +4942,36 @@ table.validados-app .lnk-comprovante {
 }
 
 /* Comunicação cliente ↔ operação (vendas verde / manutenção amarelo) */
+.portal-comunicacao-inbox-grid--fixed {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 9998;
+  top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px));
+  margin: 0;
+  padding: 0.45rem 0.75rem 0.55rem;
+  background: rgba(5, 5, 5, 0.94);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.portal-comunicacao-inbox-grid--fixed.portal-comunicacao-inbox-grid--solo {
+  grid-template-columns: 1fr;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .portal-comunicacao-inbox-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.85rem;
   margin: 0 0 1.1rem;
+}
+
+.portal-comunicacao-inbox-grid--fixed {
+  margin: 0;
 }
 
 @media (max-width: 720px) {
@@ -4942,10 +4981,14 @@ table.validados-app .lnk-comprovante {
 }
 
 .portal-comunicacao-inbox {
-  min-height: 7.5rem;
-  padding: 0.65rem 0.75rem;
+  min-height: 5.5rem;
+  padding: 0.55rem 0.65rem;
   border-radius: 10px;
   background: rgba(0, 0, 0, 0.45);
+}
+
+.portal-comunicacao-inbox-grid--fixed .portal-comunicacao-inbox {
+  min-height: 4.75rem;
 }
 
 .portal-comunicacao-inbox--vendas {
@@ -4978,8 +5021,12 @@ table.validados-app .lnk-comprovante {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  max-height: 11rem;
+  max-height: 8rem;
   overflow-y: auto;
+}
+
+.portal-comunicacao-inbox-grid--fixed .portal-comunicacao-inbox__lista {
+  max-height: 6.5rem;
 }
 
 .portal-comunicacao-inbox__item {
@@ -5023,6 +5070,13 @@ table.validados-app .lnk-comprovante {
   grid-column: 1 / -1;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+.portal-comunicacao-setor-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.62);
 }
 
 .portal-field--inline-setor {
