@@ -423,15 +423,6 @@
               <input type="text" id="operacaoClienteNome" name="nome" list="operacaoClienteNomeSugestoes" autocomplete="off" maxlength="120" required placeholder="Nome completo" aria-label="Nome" aria-autocomplete="list">
               <datalist id="operacaoClienteNomeSugestoes"></datalist>
             </label>
-            <label id="operacaoClienteSenhaWrap" class="portal-field portal-ambiente-admin hidden">
-              <span>Senha app cliente</span>
-              <div class="portal-cliente-senha-row">
-                <input type="text" id="operacaoClienteSenha" name="senhaApp" autocomplete="off" maxlength="32" readonly aria-readonly="true" placeholder="123456" aria-label="Senha do app cliente (só administrador titular)">
-                <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoClienteSenhaResetBtn" title="Volta a senha para 123456; no próximo login o app pede nova senha (6 números)">Resetar senha</button>
-              </div>
-              <span id="operacaoClienteSenhaStatus" class="subtext portal-ambiente-hint" role="status"></span>
-              <span class="subtext portal-ambiente-hint">Só o administrador titular vê. Inicial: <strong>123456</strong> — no 1.º login no app o cliente troca por senha nova (6 números).</span>
-            </label>
             <label class="portal-field">
               <span>Nº do Celular</span>
               <input type="tel" id="operacaoClienteCelular" name="celular" inputmode="tel" maxlength="20" placeholder="Celular" aria-label="Número do celular">
@@ -483,6 +474,11 @@
                 <label><input type="radio" name="operacaoClienteAmbiente" value="teste"> Teste</label>
               </div>
               <p class="subtext portal-ambiente-hint">Teste: pode apagar cliente e protocolos ligados; pagamentos são fictícios. Real: histórico imutável.</p>
+            </div>
+            <div id="operacaoClienteSenhaWrap" class="portal-field portal-field--wide portal-cliente-senha-bar hidden" role="status" aria-live="polite" aria-label="Senha do app cliente">
+              <span id="operacaoClienteSenhaLabel" class="portal-cliente-senha-label">senha=123456</span>
+              <input type="hidden" id="operacaoClienteSenha" name="senhaApp" value="">
+              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteSenhaResetBtn" title="Volta a senha para 123456">Resetar senha</button>
             </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
@@ -2086,7 +2082,7 @@
   <script src="app.js?v=20260608locacao-nome-app" defer></script>
   <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260608cliente-reset-senha" defer></script>
+  <script src="portal-locadora-ui.js?v=20260608cliente-senha-bar" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-dia-pag" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260608deposito-fix" defer></script>
