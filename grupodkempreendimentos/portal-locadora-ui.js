@@ -915,9 +915,6 @@
 
   function matchClienteProtocoloEmListas(cpf, proto, clientes, locs) {
     const cliente = (clientes || []).find((c) => onlyDigits(String(c.cpf || "")) === cpf) || null;
-    if (!cliente) {
-      return { ok: false, msg: "Cliente não cadastrado. Contacte a DK Locadora." };
-    }
     const hit = (locs || []).find(
       (l) =>
         onlyDigits(String(l.cpf || "")) === cpf &&
@@ -929,7 +926,27 @@
         msg: "Protocolo não encontrado para este CPF. Verifique os dados ou contacte a locadora.",
       };
     }
-    return { ok: true, cliente, loc: hit, proto };
+    const nome = String(cliente?.nome || hit.nome || hit.cliente || "").trim();
+    if (!nome) {
+      return { ok: false, msg: "Cliente não cadastrado. Contacte a DK Locadora." };
+    }
+    const clienteOut = cliente ? { ...cliente, nome: nome || cliente.nome } : { cpf, nome };
+    return { ok: true, cliente: clienteOut, loc: hit, proto };
+  }
+
+  function dkPortalSnapshotLabel() {
+    if (typeof window.__DK_deploySnapshotLabel === "function") {
+      return window.__DK_deploySnapshotLabel();
+    }
+    return window.__DK_IS_DEMO_DEPLOY__ === true ? "demo" : "default";
+  }
+
+  function dkPortalCloudChannelQuery() {
+    return dkPortalSnapshotLabel() === "demo" ? "?channel=demo" : "";
+  }
+
+  function dkPortalCloudFetchHeaders() {
+    return dkPortalSnapshotLabel() === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
   }
 
   async function validateClienteProtocoloViaSupabase(cpfDigits, protoRaw) {
@@ -942,10 +959,11 @@
       return { ok: false, msg: "Nuvem DK indisponível neste momento." };
     }
     try {
+      const label = dkPortalSnapshotLabel();
       const { data, error } = await client
         .from("dk_cloud_snapshots")
         .select("payload")
-        .eq("label", "default")
+        .eq("label", label)
         .maybeSingle();
       if (error || !data?.payload) {
         return {
@@ -983,7 +1001,10 @@
         cpf,
         protocolo: String(protoRaw || "").trim(),
       });
-      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`);
+      if (dkPortalSnapshotLabel() === "demo") q.set("channel", "demo");
+      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`, {
+        headers: dkPortalCloudFetchHeaders(),
+      });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {
         return {
@@ -1010,13 +1031,13 @@
     if (cpf.length !== 11) return { ok: false, msg: "Informe um CPF válido (11 dígitos)." };
     const proto = normProtoClienteGate(protoRaw);
     if (!proto) return { ok: false, msg: "Informe o protocolo da locação." };
-    const cliente =
-      typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpf) : null;
-    if (!cliente) return { ok: false, msg: "Cliente não cadastrado. Contacte a DK Locadora." };
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return { ok: false, msg: "Cadastro indisponível. Tente novamente mais tarde." };
     }
-    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
+    const locs =
+      typeof collectPortalLocacoesByCpf === "function"
+        ? collectPortalLocacoesByCpf(cpf)
+        : loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(String(l.cpf || "")) === cpf);
     const hit = locs.find((l) => normProtoClienteGate(l.numeroContrato) === proto);
     if (!hit) {
       return {
@@ -1024,7 +1045,19 @@
         msg: "Protocolo não encontrado para este CPF. Verifique os dados ou contacte a locadora.",
       };
     }
-    return { ok: true, cliente, loc: hit, proto };
+    let cliente =
+      typeof getPortalClienteKnownRecord === "function" ? getPortalClienteKnownRecord(cpf) : null;
+    if (!cliente && typeof findClienteByCpfCadastro === "function") {
+      cliente = findClienteByCpfCadastro(cpf);
+    }
+    const nome =
+      String(cliente?.nome || hit.nome || hit.cliente || "").trim() ||
+      (typeof resolveOperacaoLancAluguelNomePorCpf === "function"
+        ? resolveOperacaoLancAluguelNomePorCpf(cpf)
+        : "");
+    if (!nome) return { ok: false, msg: "Cliente não cadastrado. Contacte a DK Locadora." };
+    const clienteOut = cliente ? { ...cliente, nome: nome || cliente.nome } : { cpf, nome };
+    return { ok: true, cliente: clienteOut, loc: hit, proto };
   }
 
   function setPortalRolePickerLocadoraEmpresa() {
@@ -10375,9 +10408,12 @@ ${printable.innerHTML}
       const digits =
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
       if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
-      if (digits.length === 11 && typeof findClienteByCpfCadastro === "function") {
-      const cli = findClienteByCpfCadastro(digits);
-      if (cli && inpNome) inpNome.value = String(cli.nome || "").trim();
+      if (digits.length === 11 && inpNome) {
+        const nome =
+          typeof resolveOperacaoLancAluguelNomePorCpf === "function"
+            ? resolveOperacaoLancAluguelNomePorCpf(digits)
+            : String(findClienteByCpfCadastro?.(digits)?.nome || "").trim();
+        if (nome) inpNome.value = nome;
       }
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
     });
@@ -10417,9 +10453,12 @@ ${printable.innerHTML}
       } else if (!digits.length) {
         refreshOperacaoLocacaoDatalists();
       }
-      if (digits.length === 11 && typeof findClienteByCpfCadastro === "function" && inpNome) {
-        const cli = findClienteByCpfCadastro(digits);
-        if (cli) inpNome.value = String(cli.nome || "").trim();
+      if (digits.length === 11 && inpNome) {
+        const nome =
+          typeof resolveOperacaoLancAluguelNomePorCpf === "function"
+            ? resolveOperacaoLancAluguelNomePorCpf(digits)
+            : String(findClienteByCpfCadastro?.(digits)?.nome || "").trim();
+        if (nome) inpNome.value = nome;
       } else if (inpNome && candidatos.length === 1) {
         // Sugestão direta enquanto o CPF ainda está incompleto.
         inpNome.value = String(candidatos[0].nome || "").trim();

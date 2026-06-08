@@ -370,6 +370,30 @@ async function runSuite() {
       "CPF + sync nuvem atualiza select"
     );
     record(
+      "locacao CPF preenche nome (cadastro + planilha)",
+      portalUiProto.includes("resolveOperacaoLancAluguelNomePorCpf(digits)") &&
+        portalUiProto.includes("bindOperacaoLocacaoAutofill"),
+      "autofill usa resolucao completa"
+    );
+    const gateApiSrc = fs.readFileSync(
+      path.join(REPO_ROOT, "grupodkempreendimentos/api/cadastro-clientes.js"),
+      "utf8"
+    );
+    record(
+      "app cliente gate canal demo",
+      portalUiProto.includes("dkPortalSnapshotLabel") &&
+        portalUiProto.includes("X-DK-Deploy-Channel") &&
+        gateApiSrc.includes("fetchPortalCadastrosFromRedis") &&
+        gateApiSrc.includes("resolveDeployChannel"),
+      "API snapshot demo"
+    );
+    record(
+      "senha inicial cliente portal 123456",
+      appJsProto.includes("SENHA_INICIAL_OPERACAO") &&
+        appJsProto.includes('base.senha = SENHA_INICIAL_OPERACAO'),
+      "novo cliente recebe senha app"
+    );
+    record(
       "modo instalacao limpa (sem Excel embutido)",
       appJsProto.includes("applyInstalacaoLimpaOnce") &&
         appJsProto.includes("return true") &&

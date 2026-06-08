@@ -3037,6 +3037,9 @@ function upsertPortalClienteByCpf(payload, status) {
     status: status || payload?.status || "ATIVO",
     updatedAt: Date.now(),
   };
+  if (idx < 0 && !String(base.senha || "").trim()) {
+    base.senha = SENHA_INICIAL_OPERACAO;
+  }
   if (idx >= 0) clientes[idx] = mergeCadastroClienteHistorico(clientes[idx], base);
   else clientes.push({ ...base, id: Number(payload?.id || Date.now()), createdAt: Date.now() });
   saveCadastro(CAD_CLIENTES_KEY, clientes);
