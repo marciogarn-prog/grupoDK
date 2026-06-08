@@ -34,6 +34,44 @@
     return isDemo ? "demo" : "default";
   };
 
+  const DEMO_PWA_ICON = "/icons/icon-cliente-demo-192.png";
+
+  function isClientePwaPage() {
+    const path = String(location.pathname || "").toLowerCase();
+    return (
+      path === "/cliente" ||
+      path.endsWith("/cliente") ||
+      path.endsWith("/cliente.html") ||
+      path === "/instalar" ||
+      path.endsWith("/instalar") ||
+      path.endsWith("/instalar.html")
+    );
+  }
+
+  function demoManifestHref() {
+    return isClientePwaPage()
+      ? "/manifest-cliente-demo.webmanifest"
+      : "/manifest-corporativo-demo.webmanifest";
+  }
+
+  /** Ícone com contorno laranja + manifest demo — distingue PWA instalado do oficial. */
+  function applyDemoPwaBranding() {
+    if (!isDemo) return;
+    try {
+      document.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((el) => {
+        el.setAttribute("href", DEMO_PWA_ICON);
+      });
+      const manifest = document.querySelector('link[rel="manifest"]');
+      if (manifest) manifest.setAttribute("href", demoManifestHref());
+      const appleTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (appleTitle) appleTitle.setAttribute("content", "DK Demo");
+      const theme = document.querySelector('meta[name="theme-color"]');
+      if (theme) theme.setAttribute("content", "#f97316");
+    } catch {
+      /* ignore */
+    }
+  }
+
   function syncDemoBannerLayout() {
     const banner = document.getElementById("dk-demo-env-banner");
     const h =
@@ -54,6 +92,7 @@
       document.documentElement.style.setProperty("--dk-demo-env-banner-h", "0px");
       return;
     }
+    applyDemoPwaBranding();
     banner.classList.remove("hidden");
     document.body.classList.add("portal-body--demo-env");
     const baseTitle = document.title.replace(/^\[DEMO\]\s*/i, "");
@@ -69,6 +108,8 @@
   }
 
   window.__DK_syncDemoBannerLayout = syncDemoBannerLayout;
+
+  if (isDemo) applyDemoPwaBranding();
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", applyDemoUi);

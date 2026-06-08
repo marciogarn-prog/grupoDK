@@ -271,7 +271,7 @@ async function runSuite() {
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
-    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260607oficial-guard`, {
+    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-icon`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     const oficialGuardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=20260607oficial-guard`, {
@@ -283,6 +283,19 @@ async function runSuite() {
         html.includes("dk-demo-env-banner") &&
         deployChannelJs.includes("__DK_IS_DEMO_DEPLOY__") &&
         deployChannelJs.includes("demo.grupodkempreendimentos.com.br")
+    );
+    record(
+      "icone PWA demo com contorno laranja",
+      deployChannelJs.includes("applyDemoPwaBranding") &&
+        deployChannelJs.includes("icon-cliente-demo-192.png") &&
+        deployChannelJs.includes("manifest-cliente-demo.webmanifest") &&
+        (IS_DEMO_TEST
+          ? await fetch(`${BASE_URL}icons/icon-cliente-demo-192.png`, { cache: "no-store" }).then(
+              async (r) => r.ok && (await r.arrayBuffer()).byteLength > 15000
+            )
+          : await fetch(`${BASE_URL}icons/icon-cliente-demo-192.png`, { cache: "no-store" }).then(
+              (r) => r.ok
+            ))
     );
     if (!IS_DEMO_TEST) {
       const guardUi = await page.evaluate(() => ({

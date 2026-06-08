@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260521pag-sync";
+const CACHE_NAME = "dk-cliente-v20260521demo-icon";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -13,9 +13,13 @@ const ASSETS = [
   "./cliente-pagamentos-calendario.js",
   "./cliente-documentos-locacao.js",
   "./styles.css",
+  "./dk-deploy-channel.js",
   "./manifest-cliente.webmanifest",
+  "./manifest-cliente-demo.webmanifest",
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
+  "./icons/icon-cliente-demo-192.png",
+  "./icons/icon-cliente-demo-512.png",
   "./icons/icon-cliente-192.svg",
   "./icons/icon-cliente-512.svg",
 ];
