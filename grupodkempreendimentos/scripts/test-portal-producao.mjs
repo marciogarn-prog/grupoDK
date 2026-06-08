@@ -864,7 +864,7 @@ async function runSuite() {
         clienteResumoJs.includes("pickUltimoPagamento"),
       "placa, semanal, pago, investimento, último pagamento"
     );
-    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cliente-lanc-sync`, {
+    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260521cal-persist`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -873,12 +873,14 @@ async function runSuite() {
         clienteHtml.includes("cliente-pagamentos-calendario.js") &&
         clienteAppJs.includes("cliente-cal-inline") &&
         clienteAppJs.includes("data-cliente-cal-proto") &&
+        clienteAppJs.includes("__DK_clienteRestoreCalendarioInline") &&
         clienteCalJs.includes("Pagamentos de") &&
         clienteCalJs.includes("buildAnoHtml") &&
-        clienteCalJs.includes("__DK_clienteToggleCalendarioInline"),
+        clienteCalJs.includes("__DK_clienteToggleCalendarioInline") &&
+        clienteCalJs.includes("restaurarCalendarioInline"),
       "botão abre calendário em bloco abaixo do contrato"
     );
-    const clienteCalZoomJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cal-zoom-cliente`, {
+    const clienteCalZoomJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260521cal-persist`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(

@@ -4774,6 +4774,10 @@ table.validados-app .lnk-comprovante {
   max-width: 420px;
 }
 
+#portalLancAluguelCalModal.portal-modal {
+  z-index: 10050;
+}
+
 .portal-lanc-cal-modal__card {
   max-width: min(96vw, 920px);
   max-height: 92vh;
