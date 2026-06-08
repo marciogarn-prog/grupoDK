@@ -405,11 +405,39 @@
     });
   }
 
+  function portalResolveClienteSenhaApp(rec, cpfDigits) {
+    let local = null;
+    if (cpfDigits && typeof findClienteByCpfCadastro === "function") {
+      local = findClienteByCpfCadastro(cpfDigits);
+    }
+    const s = String((local || rec)?.senha || "").trim();
+    if (s) return s;
+    return typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456";
+  }
+
+  function portalRefreshOperacaoClienteSenhaField(cpfDigits, rec) {
+    const wrap = document.getElementById("operacaoClienteSenhaWrap");
+    const inp = document.getElementById("operacaoClienteSenha");
+    const admin = isPortalTitularAdministrador();
+    if (wrap) wrap.classList.toggle("hidden", !admin);
+    if (!admin || !inp) return;
+    const digits = onlyDigits(String(cpfDigits || "")).slice(0, 11);
+    inp.value = portalResolveClienteSenhaApp(rec, digits);
+  }
+
   function portalSyncAmbienteCadastroAdminUi() {
     const admin = isPortalTitularAdministrador();
-    ["operacaoClienteAmbienteWrap", "operacaoVeiculoAmbienteWrap", "operacaoLocacaoAmbienteWrap"].forEach((id) => {
+    ["operacaoClienteAmbienteWrap", "operacaoClienteSenhaWrap", "operacaoVeiculoAmbienteWrap", "operacaoLocacaoAmbienteWrap"].forEach((id) => {
       document.getElementById(id)?.classList.toggle("hidden", !admin);
     });
+    if (admin) {
+      const cpfIn = document.getElementById("operacaoClienteCpf");
+      const digits = onlyDigits(String(cpfIn?.value || "")).slice(0, 11);
+      portalRefreshOperacaoClienteSenhaField(digits, null);
+    } else {
+      const inp = document.getElementById("operacaoClienteSenha");
+      if (inp) inp.value = "";
+    }
   }
 
   function portalApplyAmbienteVisualForm(tipo, recordOrAmbiente) {
@@ -508,6 +536,7 @@
     municipioUf: "Município/UF",
     endereco: "Endereço",
     ambiente: "Ambiente",
+    senha: "Senha app cliente",
   };
 
   const PORTAL_VEICULO_DIFF_LABELS = {
@@ -646,6 +675,7 @@
       municipioUf: portalNormDiffVal(rec?.municipioUf),
       endereco: portalNormDiffVal(rec?.endereco),
       ambiente: portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
+      senha: isPortalTitularAdministrador() ? portalNormDiffVal(rec?.senha) : "",
     };
   }
 
@@ -668,6 +698,7 @@
       municipioUf: getVal("operacaoClienteMunicipioUf"),
       endereco: getVal("operacaoClienteEndereco"),
       ambiente: portalGetAmbienteFormValue("Cliente"),
+      senha: isPortalTitularAdministrador() ? getVal("operacaoClienteSenha") : "",
     };
   }
 
@@ -3561,6 +3592,7 @@ ${printable.innerHTML}
           known && admin ? "Guardar alterações do cliente" : known && !admin ? "Guardar cliente" : "Guardar cliente";
       }
       refreshOperacaoClienteApagarBtn(cpfDigits);
+      portalRefreshOperacaoClienteSenhaField(cpfDigits, getClienteByCpfAny(cpfDigits));
     }
 
     function persistOperacaoClienteAtualizacao(cpfDigits, fonte) {
@@ -3605,6 +3637,13 @@ ${printable.innerHTML}
         endereco: getVal("operacaoClienteEndereco"),
         ambiente: portalGetAmbienteFormValue("Cliente"),
       };
+      if (isPortalTitularAdministrador()) {
+        const senhaVal = getVal("operacaoClienteSenha");
+        if (senhaVal) payload.senha = senhaVal;
+        else if (existenteLocal?.senha) payload.senha = String(existenteLocal.senha).trim();
+      } else if (existenteLocal?.senha) {
+        payload.senha = String(existenteLocal.senha).trim();
+      }
       const payloadPortal = { ...payload, origemPortal: true, updatedAt: Date.now() };
       if (typeof upsertPortalClienteByCpf === "function") {
         upsertPortalClienteByCpf(payloadPortal, existenteLocal?.status || fonte?.status || "ATIVO");
@@ -3808,6 +3847,7 @@ ${printable.innerHTML}
       if (ear) ear.value = String(cliente.ear || "").trim();
       normalizePortalMaskedFieldValues();
       portalApplyAmbienteVisualForm("Cliente", cliente);
+      portalRefreshOperacaoClienteSenhaField(cpfDigits, cliente);
       refreshOperacaoClienteApagarBtn(cpfDigits);
     }
 
@@ -3843,6 +3883,7 @@ ${printable.innerHTML}
         setAtualizarButtonByCpf("");
         lockImmutableClienteFields(false);
         if (codigoEl) codigoEl.value = "";
+        portalRefreshOperacaoClienteSenhaField("", null);
         return;
       }
       const candidatos = getByCpfPrefix(digits);
@@ -4010,6 +4051,7 @@ ${printable.innerHTML}
         msg.textContent = `Cliente ${nextCode} cadastrado com sucesso.`;
       }
       portalApplyAmbienteVisualForm("Cliente", novo);
+      portalRefreshOperacaoClienteSenhaField(digits, novo);
       refreshOperacaoClienteApagarBtn(digits);
       const modalRel = document.getElementById("portalRelatorioModal");
       const resumoEl = document.getElementById("portalRelatorioResumo");
@@ -4070,6 +4112,7 @@ ${printable.innerHTML}
       if (codigo) codigo.value = "";
       if (msg) msg.textContent = "";
       portalResetAmbienteForm("Cliente");
+      portalRefreshOperacaoClienteSenhaField("", null);
       refreshOperacaoClienteApagarBtn("");
       inpCpf.focus();
     });

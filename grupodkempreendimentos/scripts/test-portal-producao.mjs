@@ -400,6 +400,13 @@ async function runSuite() {
       "novo cliente recebe senha app"
     );
     record(
+      "cadastro cliente senha visível só administrador",
+      html.includes("operacaoClienteSenha") &&
+        portalUiProto.includes("portalRefreshOperacaoClienteSenhaField") &&
+        portalUiProto.includes("operacaoClienteSenhaWrap"),
+      "campo senha app no formulário cliente"
+    );
+    record(
       "modo instalacao limpa (sem Excel embutido)",
       appJsProto.includes("applyInstalacaoLimpaOnce") &&
         appJsProto.includes("return true") &&
