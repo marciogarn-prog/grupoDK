@@ -149,15 +149,29 @@
     return out;
   }
 
+  function readLancAluguelCalCtx() {
+    if (typeof window.__DK_portalLancAluguelCalCtx === "function") {
+      const ctx = window.__DK_portalLancAluguelCalCtx();
+      if (String(ctx?.cpfDigits || "").length === 11 && ctx?.proto) return ctx;
+    }
+    if (typeof window.__DK_operacaoLancAluguelProtocoloAtual === "function") {
+      const { nc, cpf } = window.__DK_operacaoLancAluguelProtocoloAtual();
+      if (cpf.length === 11 && nc) {
+        return { cpfDigits: cpf, proto: nc, diaPagamentoCol: 3, diaPagamentoLabel: "" };
+      }
+    }
+    return null;
+  }
+
   function abrirModalAnoPick() {
     const modal = document.getElementById("portalLancAluguelCalModal");
     const pick = document.getElementById("portalLancAluguelCalAnoPick");
     const corpo = document.getElementById("portalLancAluguelCalCorpo");
     const titulo = document.getElementById("portalLancAluguelCalTitulo");
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (!modal || !pick || !corpo) return false;
-    if (typeof window.__DK_portalLancAluguelCalCtx !== "function") return false;
-    const ctx = window.__DK_portalLancAluguelCalCtx();
-    if (!ctx?.cpfDigits || !ctx?.proto) return false;
+    const ctx = readLancAluguelCalCtx();
+    if (!ctx) return false;
 
     pick.replaceChildren();
     pick.classList.remove("hidden");
@@ -177,6 +191,7 @@
 
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    if (msg) msg.textContent = "";
     return true;
   }
 
@@ -221,7 +236,7 @@
     if (!corpo || corpo.classList.contains("hidden")) return;
     const ano = Number(corpo.dataset.ano);
     if (!Number.isFinite(ano)) return;
-    const ctx = typeof window.__DK_portalLancAluguelCalCtx === "function" ? window.__DK_portalLancAluguelCalCtx() : null;
+    const ctx = readLancAluguelCalCtx();
     if (!ctx?.cpfDigits || !ctx?.proto) return;
     const celulas = coletarCelulasAno(corpo);
     const fn = window.__DK_persistPortalLancAluguelCalendarioAno;

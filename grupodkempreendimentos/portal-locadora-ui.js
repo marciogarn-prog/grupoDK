@@ -7285,10 +7285,19 @@ ${printable.innerHTML}
 
   function operacaoLancAluguelProtocoloAtual() {
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
-    const nc = normPortalNumeroContrato(String(sel?.value || "").trim());
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const cpf = dig(String(document.getElementById("operacaoLancAluguelCpf")?.value || "")).slice(0, 11);
+    let nc = normPortalNumeroContrato(String(sel?.value || "").trim());
+    let cpf = dig(String(document.getElementById("operacaoLancAluguelCpf")?.value || "")).slice(0, 11);
+    if ((!nc || cpf.length !== 11) && operacaoLancAluguelPesquisaConfirmada) {
+      if (!nc) nc = operacaoLancAluguelPesquisaConfirmada.nc;
+      if (cpf.length !== 11) cpf = operacaoLancAluguelPesquisaConfirmada.cpf;
+    }
+    if (!nc) {
+      nc = normPortalNumeroContrato(
+        String(document.getElementById("operacaoLancAluguelProtocoloBusca")?.value || "").trim()
+      );
+    }
     return { nc, cpf };
   }
 
@@ -10155,6 +10164,7 @@ ${printable.innerHTML}
     const hit = resolveOperacaoLancAluguelLocacaoFromPesquisa();
     if (!hit || hit.cpfDigits.length !== 11) {
       hideOperacaoLancAluguelDetalhePanels();
+      clearOperacaoLancAluguelPesquisaConfirmada();
       if (msg) msg.textContent = "Informe nome, CPF, protocolo ou placa válidos com locação cadastrada.";
       return;
     }
@@ -10165,6 +10175,7 @@ ${printable.innerHTML}
       hit.loc?.placa
     );
     if (msg) msg.textContent = "";
+    operacaoLancAluguelPesquisaConfirmada = { cpf: hit.cpfDigits, nc: hit.proto };
     refreshOperacaoLancamentoAluguelProtocoloSelect({ force: true, preserveNc: hit.proto });
     setOperacaoLancAluguelDetalhePanelsVisible(true);
     refreshOperacaoLancAluguelAdminControlsVisibility();
@@ -10345,7 +10356,13 @@ ${printable.innerHTML}
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
+  /** CPF + protocolo confirmados na pesquisa (modo avulso — select oculto). */
+  let operacaoLancAluguelPesquisaConfirmada = null;
   let portalLancAluguelConfirmCallback = null;
+
+  function clearOperacaoLancAluguelPesquisaConfirmada() {
+    operacaoLancAluguelPesquisaConfirmada = null;
+  }
 
   function openPortalLancAluguelConfirmModal(texto, onConfirm) {
     const modal = document.getElementById("portalLancAluguelConfirmModal");
@@ -10726,6 +10743,7 @@ ${printable.innerHTML}
     }
     clearOperacaoLancamentoAluguelCamposDerivados();
     portalLancAluguelProtocoloSyncCpf = "";
+    clearOperacaoLancAluguelPesquisaConfirmada();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     refreshOperacaoLancAluguelPesquisaDatalists();
@@ -11706,6 +11724,7 @@ ${printable.innerHTML}
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
+    clearOperacaoLancAluguelPesquisaConfirmada();
     refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf" });
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
@@ -11758,6 +11777,7 @@ ${printable.innerHTML}
       btn.getAttribute("data-proto"),
       btn.getAttribute("data-placa")
     );
+    confirmarOperacaoLancAluguelPesquisa();
   });
 
   /** Máscara 000.000.000-00 + datalist enquanto digita (padrão portal CPF cliente). */
