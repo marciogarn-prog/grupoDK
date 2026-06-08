@@ -61,11 +61,21 @@ if (fs.existsSync(repoApiDir) && fs.existsSync(portalApiDir)) {
 }
 const repoLibDir = path.join(repoRoot, "lib");
 const portalLibDir = path.join(portalDir, "lib");
+if (fs.existsSync(portalLibDir)) {
+  fs.mkdirSync(repoLibDir, { recursive: true });
+  for (const name of fs.readdirSync(portalLibDir)) {
+    if (!name.endsWith(".cjs") && !name.endsWith(".js")) continue;
+    fs.copyFileSync(path.join(portalLibDir, name), path.join(repoLibDir, name));
+  }
+}
 if (fs.existsSync(repoLibDir)) {
   fs.mkdirSync(portalLibDir, { recursive: true });
   for (const name of fs.readdirSync(repoLibDir)) {
     if (!name.endsWith(".cjs") && !name.endsWith(".js")) continue;
-    fs.copyFileSync(path.join(repoLibDir, name), path.join(portalLibDir, name));
+    const dest = path.join(portalLibDir, name);
+    if (!fs.existsSync(dest)) {
+      fs.copyFileSync(path.join(repoLibDir, name), dest);
+    }
   }
 }
 

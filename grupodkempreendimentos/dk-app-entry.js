@@ -20,6 +20,19 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function isDemoDeploy() {
+    if (window.__DK_IS_DEMO_DEPLOY__ === true) return true;
+    if (String(window.__DK_DEPLOY_CHANNEL__ || "") === "demo") return true;
+    const h = String(window.location.hostname || "").toLowerCase();
+    if (h === "demo.grupodkempreendimentos.com.br") return true;
+    if (/^demo\./.test(h)) return true;
+    return false;
+  }
+
+  function demoFetchHeaders() {
+    return isDemoDeploy() ? { "X-DK-Deploy-Channel": "demo" } : {};
+  }
+
   function formatCpfMask(d) {
     const d11 = onlyDigits(d).slice(0, 11);
     if (d11.length <= 3) return d11;
@@ -40,12 +53,10 @@
   async function validateClienteRemote(cpf, protoRaw) {
     const proto = normProto(protoRaw);
     try {
-      const q = new URLSearchParams({ gate: "1", cpf, protocolo: String(protoRaw || "").trim() });
-      const isDemo =
-        window.__DK_IS_DEMO_DEPLOY__ === true || String(window.__DK_DEPLOY_CHANNEL__ || "") === "demo";
-      if (isDemo) q.set("channel", "demo");
-      const res = await fetch(`/api/cadastro-clientes?${q.toString()}`, {
-        headers: isDemo ? { "X-DK-Deploy-Channel": "demo" } : {},
+      const q = new URLSearchParams({ cpf, protocolo: String(protoRaw || "").trim() });
+      if (isDemoDeploy()) q.set("channel", "demo");
+      const res = await fetch(`/api/cliente-app-gate?${q.toString()}`, {
+        headers: demoFetchHeaders(),
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.ok) {

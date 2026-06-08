@@ -11,10 +11,15 @@
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
   <title>Grupo DK — App</title>
-  <link rel="stylesheet" href="styles.css?v=20260521dk-logo">
-  <script src="dk-pwa-update.js?v=20260531force"></script>
+  <link rel="stylesheet" href="styles.css?v=20260608app-demo-banner">
+  <script src="dk-deploy-channel.js?v=20260608app-demo-banner"></script>
+  <script src="dk-pwa-update.js?v=20260608app-demo-gate"></script>
 </head>
 <body>
+  <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
+    <strong>AMBIENTE DEMO</strong>
+    <span>Dados de teste separados do oficial — app Grupo DK demo.</span>
+  </div>
   <div id="view-app-entry" class="view view--active dk-app-entry">
     <header class="site-header">
       <div class="brand">
@@ -101,6 +106,6 @@
     </div>
   </div>
 
-  <script src="dk-app-entry.js?v=20260531patrimonio" defer></script>
+  <script src="dk-app-entry.js?v=20260608app-demo-gate" defer></script>
 </body>
 </html>
