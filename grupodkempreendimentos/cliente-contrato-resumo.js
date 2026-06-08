@@ -35,6 +35,142 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function onlyDigits(s) {
+    return String(s ?? "").replace(/\D/g, "");
+  }
+
+  function normPlate(p) {
+    return String(p || "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  const LANCAMENTO_GLOBAL_KEYS = [
+    "dk_lancamentos_aluguel",
+    "dk_lancamento_aluguel",
+    "dk_lancamentos_aluguel_cadastro",
+    "dk_lancamento_aluguel_cadastro",
+  ];
+
+  function normalizeLancamentoEntry(x) {
+    if (!x || typeof x !== "object") return null;
+    if (x.pagamentoInvalidado) return null;
+    const oid = String(x.origemComprovanteClienteId || "").trim();
+    if (oid && comprovanteInvalidadoPorId(oid)) return null;
+    const data = String(x.data || x.dataPagamento || x.semanaInicio || "").trim();
+    if (!data) return null;
+    const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+    const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x, k));
+    let valor;
+    if (hasMeios) {
+      const ve = parseCur(x.valorEspecie ?? 0);
+      const vp = parseCur(x.valorPix ?? 0);
+      const vc = parseCur(x.valorCartao ?? 0);
+      valor = ve + vp + vc;
+    } else {
+      valor =
+        typeof x.valor === "number" && Number.isFinite(x.valor) && x.valor > 0
+          ? x.valor
+          : parseCur(x.valor ?? x.valorPago ?? 0);
+    }
+    if (!Number.isFinite(valor) || valor <= 0) return null;
+    return {
+      data,
+      valor,
+      createdAt: Number(x.createdAt || x.id || 0),
+      confirmadoViaAppCliente: Boolean(x.confirmadoViaAppCliente),
+      origemComprovanteClienteId: oid,
+      comprovanteFp: String(x.comprovanteFp || "").trim(),
+      registradoPorNome: String(x.registradoPorNome || "").trim(),
+      origem: "DK",
+    };
+  }
+
+  function mergeLancamentosEmbutidos(arrays) {
+    if (typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function") {
+      return window.__DK_mergePortalLancamentosAluguelEmbutidos(arrays);
+    }
+    const byKey = new Map();
+    for (const arr of arrays || []) {
+      if (!Array.isArray(arr)) continue;
+      for (const raw of arr) {
+        const row = normalizeLancamentoEntry(raw);
+        if (!row) continue;
+        const key = `${row.data}|${Number(row.valor).toFixed(2)}|${row.createdAt}|${row.origemComprovanteClienteId}`;
+        if (!byKey.has(key)) byKey.set(key, row);
+      }
+    }
+    return Array.from(byKey.values());
+  }
+
+  function readGlobalLancamentosAluguel(loc) {
+    const cpf = onlyDigits(loc?.cpf).slice(0, 11);
+    const nc = normNc(loc?.numeroContrato);
+    const placa = normPlate(loc?.placa);
+    if (cpf.length !== 11 || !nc || !placa) return [];
+    const out = [];
+    for (const key of LANCAMENTO_GLOBAL_KEYS) {
+      try {
+        const raw = localStorage.getItem(key);
+        const global = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(global)) continue;
+        global.forEach((item) => {
+          if (!item || typeof item !== "object") return;
+          if (onlyDigits(item.cpf).slice(0, 11) !== cpf) return;
+          if (normNc(item.numeroContrato) !== nc) return;
+          if (normPlate(item.placa) !== placa) return;
+          const row = normalizeLancamentoEntry({
+            ...item,
+            data: item.data || item.dataPagamento || item.semanaInicio,
+            valor: item.valor,
+            valorPago: item.valorPago,
+          });
+          if (row) out.push(row);
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    return out;
+  }
+
+  function mergeLocacaoParCliente(ex, incoming) {
+    const mergedPl = mergeLancamentosEmbutidos([
+      ex?.portalLancamentosAluguel,
+      incoming?.portalLancamentosAluguel,
+    ]);
+    const score = (x) => Number(x?.updatedAt || x?.createdAt || x?.id || 0);
+    const merged = {
+      ...ex,
+      ...incoming,
+      numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
+    };
+    if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+    if (score(incoming) >= score(ex)) return merged;
+    const stay = { ...ex, ...merged };
+    if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+    return stay;
+  }
+
+  function mergeLocacoesCadastroCliente(localArr, cloudArr) {
+    const byNc = new Map();
+    const noNc = [];
+    const add = (loc) => {
+      if (!loc || typeof loc !== "object") return;
+      const nc = normNc(loc.numeroContrato);
+      if (!nc) {
+        noNc.push({ ...loc });
+        return;
+      }
+      const prev = byNc.get(nc);
+      byNc.set(nc, prev ? mergeLocacaoParCliente(prev, loc) : { ...loc, numeroContrato: loc.numeroContrato || nc });
+    };
+    (Array.isArray(localArr) ? localArr : []).forEach(add);
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
+    return [...byNc.values(), ...noNc];
+  }
+
   function comprovanteInvalidadoPorId(id) {
     const cid = String(id || "").trim();
     if (!cid) return false;
@@ -121,67 +257,29 @@
   }
 
   function getLancamentosAluguelContrato(loc) {
-    const out = [];
-    const push = (arr, origem) => {
-      if (!Array.isArray(arr)) return;
-      arr.forEach((x) => {
-        if (!x || typeof x !== "object") return;
-        if (x.pagamentoInvalidado) return;
-        const oid = String(x.origemComprovanteClienteId || "").trim();
-        if (oid && comprovanteInvalidadoPorId(oid)) return;
-        const data = String(x.data || x.dataPagamento || "").trim();
-        let valor = typeof x.valor === "number" ? x.valor : parseCur(x.valor ?? x.valorPago);
-        if (!Number.isFinite(valor) || valor <= 0) return;
-        out.push({
-          data,
-          valor,
-          origem,
-          createdAt: Number(x.createdAt || x.id || 0),
-          confirmadoViaAppCliente: Boolean(x.confirmadoViaAppCliente),
-          origemComprovanteClienteId: oid,
-          comprovanteFp: String(x.comprovanteFp || "").trim(),
-          registradoPorNome: String(x.registradoPorNome || "").trim(),
-        });
-      });
+    if (!loc || typeof loc !== "object") return [];
+    const chunks = [];
+    const pushChunk = (arr) => {
+      const n = (arr || []).map(normalizeLancamentoEntry).filter(Boolean);
+      if (n.length) chunks.push(n);
     };
-    push(loc.portalLancamentosAluguel, "DK");
-    push(loc.lancamentosAluguel, "DK");
-    push(loc.lancamentos, "DK");
-    try {
-      const raw = localStorage.getItem("dk_lancamentos_aluguel");
-      const global = raw ? JSON.parse(raw) : [];
-      if (Array.isArray(global)) {
-        const cpf = String(loc.cpf || "").replace(/\D/g, "");
-        const nc = normNc(loc.numeroContrato);
-        const placa = String(loc.placa || "")
-          .trim()
-          .toUpperCase()
-          .replace(/[^A-Z0-9]/g, "");
-        global.forEach((item) => {
-          if (!item || typeof item !== "object") return;
-          if (String(item.cpf || "").replace(/\D/g, "") !== cpf) return;
-          const ncIt = normNc(item.numeroContrato);
-          const plIt = String(item.placa || "")
-            .trim()
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "");
-          if (ncIt !== nc && plIt !== placa) return;
-          const data = String(item.dataPagamento || item.semanaInicio || "").trim();
-          const valor = parseCur(item.valorPago ?? item.valor ?? 0);
-          if (!data || valor <= 0) return;
-          out.push({
-            data,
-            valor,
-            origem: "DK",
-            confirmadoViaAppCliente: false,
-            registradoPorNome: String(item.registradoPorNome || "").trim(),
-          });
-        });
-      }
-    } catch {
-      /* ignore */
+    pushChunk(loc.portalLancamentosAluguel);
+    pushChunk(loc.lancamentosAluguel);
+    pushChunk(loc.lancamentos);
+    const globalRows = readGlobalLancamentosAluguel(loc);
+    if (globalRows.length) chunks.push(globalRows);
+    const legado = parseCur(loc.totalPagoAno2025 ?? "0");
+    if (legado > 0 && chunks.length === 0) {
+      chunks.push([
+        normalizeLancamentoEntry({
+          data: String(loc.ultimoLancamentoAluguelData || "").trim() || "01/01/2025",
+          valor: legado,
+          createdAt: Number(loc.createdAt || loc.id || 0) || Date.now(),
+        }),
+      ].filter(Boolean));
     }
-    return dedupeLancamentosPagamento(out);
+    const merged = mergeLancamentosEmbutidos(chunks);
+    return dedupeLancamentosPagamento(merged);
   }
 
   function sumMultasRegistradas(loc) {
@@ -441,4 +539,6 @@
   window.__DK_clienteComputeResumoContrato = computeResumoContrato;
   window.__DK_dedupeLancamentosPagamento = dedupeLancamentosPagamento;
   window.__DK_clienteBuildCalendarioCtx = buildCalendarioCtxContrato;
+  window.__DK_clienteGetLancamentosAluguelContrato = getLancamentosAluguelContrato;
+  window.__DK_mergeLocacoesCadastroCliente = mergeLocacoesCadastroCliente;
 })();

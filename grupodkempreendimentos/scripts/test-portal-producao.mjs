@@ -817,7 +817,7 @@ async function runSuite() {
     const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521geo-v3`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260521contrato-simples`, {
+    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260608cliente-lanc-sync`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteCss = await fetch(`${BASE_URL}cliente-app.css?v=20260521contrato-simples`, { cache: "no-store" }).then(
@@ -846,7 +846,7 @@ async function runSuite() {
         clienteResumoJs.includes("pickUltimoPagamento"),
       "placa, semanal, pago, investimento, último pagamento"
     );
-    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cliente-cal-inline`, {
+    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cliente-lanc-sync`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -859,6 +859,14 @@ async function runSuite() {
         clienteCalJs.includes("buildAnoHtml") &&
         clienteCalJs.includes("__DK_clienteToggleCalendarioInline"),
       "botão abre calendário em bloco abaixo do contrato"
+    );
+    record(
+      "app cliente lancamentos alinhados ao portal",
+      clienteResumoJs.includes("__DK_clienteGetLancamentosAluguelContrato") &&
+        clienteResumoJs.includes("mergeLancamentosEmbutidos") &&
+        clienteResumoJs.includes("__DK_mergeLocacoesCadastroCliente") &&
+        clienteResumoJs.includes("valorEspecie"),
+      "portalLancamentosAluguel + nuvem no app cliente"
     );
     record(
       "app cliente troca senha inicial 123456",
