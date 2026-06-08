@@ -5193,6 +5193,7 @@ table.validados-app .lnk-comprovante {
   margin: 0;
   white-space: pre-wrap;
   word-break: break-word;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .dk-chat-bubble--vista .dk-chat-bubble__texto {

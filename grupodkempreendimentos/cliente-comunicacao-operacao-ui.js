@@ -91,11 +91,13 @@
     if (msg) msg.textContent = "";
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    const openedSetor = setor;
+    renderChat();
     void (async () => {
       if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
         await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
       }
-      renderChat();
+      if (chatSetor === openedSetor) renderChat();
     })();
     inp?.focus();
   }

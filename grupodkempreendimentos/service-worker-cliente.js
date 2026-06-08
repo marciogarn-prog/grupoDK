@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260608push-msg";
+const CACHE_NAME = "dk-cliente-v20260608comunicacao-fix";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",

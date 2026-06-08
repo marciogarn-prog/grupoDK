@@ -128,22 +128,24 @@
         ? window.__DK_comunicacaoHistorico(chatCtx.threadId)
         : [];
     const vistaFn = window.__DK_comunicacaoMensagemVista;
-    corpo.innerHTML = hist
-      .map((m) => {
-        const out = m.autor === "operacao";
-        const quem = out
-          ? String(m.operadorNome || "DK").trim()
-          : String(m.nome || "Cliente").trim();
-        const vista = typeof vistaFn === "function" ? vistaFn(m, "operacao") : false;
-        const vistaCls = vista ? " dk-chat-bubble--vista" : "";
-        const setorCls =
-          vista && !out && chatCtx.setor === "manutencao" ? " portal-chat-bubble--manutencao" : "";
-        return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}${vistaCls}${setorCls}">
+    corpo.innerHTML = hist.length
+      ? hist
+          .map((m) => {
+            const out = m.autor === "operacao";
+            const quem = out
+              ? String(m.operadorNome || "DK").trim()
+              : String(m.nome || "Cliente").trim();
+            const vista = typeof vistaFn === "function" ? vistaFn(m, "operacao") : false;
+            const vistaCls = vista ? " dk-chat-bubble--vista" : "";
+            const setorCls =
+              vista && !out && chatCtx.setor === "manutencao" ? " portal-chat-bubble--manutencao" : "";
+            return `<div class="dk-chat-bubble ${out ? "dk-chat-bubble--out" : "dk-chat-bubble--in"}${vistaCls}${setorCls}">
           <span class="dk-chat-bubble__meta">${quem} · ${fmtHora(m.criadoEm)}</span>
           <p class="dk-chat-bubble__texto">${String(m.texto || "").replace(/</g, "&lt;")}</p>
         </div>`;
-      })
-      .join("");
+          })
+          .join("")
+      : '<p class="subtext dk-chat-vazio">Nenhuma mensagem nesta conversa ainda.</p>';
     corpo.scrollTop = corpo.scrollHeight;
   }
 
@@ -160,11 +162,13 @@
     if (msg) msg.textContent = "";
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
+    const openedThreadId = ctx.threadId;
+    renderChatHistorico();
     void (async () => {
       if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
         await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
       }
-      renderChatHistorico();
+      if (chatCtx?.threadId === openedThreadId) renderChatHistorico();
     })();
     inp?.focus();
   }

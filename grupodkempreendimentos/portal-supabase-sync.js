@@ -25,6 +25,15 @@
     return ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
   }
 
+  function withCloudTimeout(promise, ms, label) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        window.setTimeout(() => reject(new Error(label || "cloud_timeout")), ms);
+      }),
+    ]);
+  }
+
   const DK_STORAGE_KEYS = [
     "dk_clientes_cadastro",
     "dk_clientes_validacao_pendente",
@@ -1963,13 +1972,38 @@
     return Array.from(byId.values());
   }
 
+  async function pushComunicacaoSupabaseBackground(arr, updatedAt) {
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return false;
+    try {
+      const [supaRow, redisRow] = await Promise.all([
+        withCloudTimeout(fetchSupabaseSnapshotPayload(), 7000, "supabase_timeout").catch(() => null),
+        fetchRedundantSnapshotPayload(),
+      ]);
+      const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
+      const merged = mergeComunicacaoOperacaoArrays(arr, cloudPayload.dk_comunicacao_operacao_v1);
+      const fullPayload = { ...cloudPayload, dk_comunicacao_operacao_v1: merged };
+      const { error } = await withCloudTimeout(
+        client.from("dk_cloud_snapshots").upsert(
+          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
+          { onConflict: "label" }
+        ),
+        8000,
+        "supabase_upsert_timeout"
+      );
+      return !error;
+    } catch (e) {
+      console.warn("[DK comunicacao] push Supabase", e);
+      return false;
+    }
+  }
+
   /** Push leve: uma ou todas as mensagens cliente↔operação. */
   async function pushComunicacaoMensagemNow(recOrArr) {
     const arr = Array.isArray(recOrArr) ? recOrArr.filter(Boolean) : recOrArr ? [recOrArr] : [];
     if (!arr.length) return pushComunicacaoSnapshotNow();
     const patch = { dk_comunicacao_operacao_v1: arr };
     const updatedAt = new Date().toISOString();
-    let supaOk = false;
     let redisOk = false;
     let lastErr = null;
     for (let attempt = 0; attempt < 3 && !redisOk; attempt += 1) {
@@ -1980,28 +2014,15 @@
         await new Promise((r) => window.setTimeout(r, 400 * (attempt + 1)));
       }
     }
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (client && window.__DK_SUPABASE_CONFIGURED__) {
-      try {
-        const [supaRow, redisRow] = await Promise.all([
-          fetchSupabaseSnapshotPayload(),
-          fetchRedundantSnapshotPayload(),
-        ]);
-        const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
-        const merged = mergeComunicacaoOperacaoArrays(arr, cloudPayload.dk_comunicacao_operacao_v1);
-        const fullPayload = { ...cloudPayload, dk_comunicacao_operacao_v1: merged };
-        const { error } = await client.from("dk_cloud_snapshots").upsert(
-          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
-          { onConflict: "label" }
-        );
-        supaOk = !error;
-      } catch (e) {
-        console.warn("[DK comunicacao] push Supabase", e);
-      }
+    if (redisOk) {
+      noteCloudPushTimestamp(updatedAt);
+      void pushComunicacaoSupabaseBackground(arr, updatedAt);
+      return { ok: true, supaOk: false, redisOk: true, count: arr.length, error: null };
     }
-    if (supaOk || redisOk) noteCloudPushTimestamp(updatedAt);
+    const supaOk = await pushComunicacaoSupabaseBackground(arr, updatedAt);
+    if (supaOk) noteCloudPushTimestamp(updatedAt);
     else console.warn("[DK comunicacao] push mensagem falhou", lastErr);
-    return { ok: supaOk || redisOk, supaOk, redisOk, count: arr.length, error: lastErr };
+    return { ok: supaOk, supaOk, redisOk: false, count: arr.length, error: lastErr };
   }
 
   /** Push leve: só mensagens cliente↔operação (app cliente não envia snapshot gigante). */
@@ -2010,7 +2031,6 @@
     if (!localArr.length) return { ok: true, skipped: true, reason: "empty_local" };
     const patch = { dk_comunicacao_operacao_v1: localArr };
     const updatedAt = new Date().toISOString();
-    let supaOk = false;
     let redisOk = false;
     for (let attempt = 0; attempt < 3 && !redisOk; attempt += 1) {
       const red = await pushRedundantSnapshotPayload(patch, updatedAt);
@@ -2019,28 +2039,15 @@
         await new Promise((r) => window.setTimeout(r, 350 * (attempt + 1)));
       }
     }
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (client && window.__DK_SUPABASE_CONFIGURED__) {
-      try {
-        const [supaRow, redisRow] = await Promise.all([
-          fetchSupabaseSnapshotPayload(),
-          fetchRedundantSnapshotPayload(),
-        ]);
-        const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
-        const merged = mergeComunicacaoOperacaoArrays(localArr, cloudPayload.dk_comunicacao_operacao_v1);
-        const fullPayload = { ...cloudPayload, dk_comunicacao_operacao_v1: merged };
-        const { error } = await client.from("dk_cloud_snapshots").upsert(
-          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
-          { onConflict: "label" }
-        );
-        supaOk = !error;
-      } catch (e) {
-        console.warn("[DK comunicacao] push Supabase", e);
-      }
+    if (redisOk) {
+      noteCloudPushTimestamp(updatedAt);
+      void pushComunicacaoSupabaseBackground(localArr, updatedAt);
+      return { ok: true, supaOk: false, redisOk: true, count: localArr.length };
     }
-    if (supaOk || redisOk) noteCloudPushTimestamp(updatedAt);
+    const supaOk = await pushComunicacaoSupabaseBackground(localArr, updatedAt);
+    if (supaOk) noteCloudPushTimestamp(updatedAt);
     else console.warn("[DK comunicacao] push falhou — mensagem só neste telemóvel");
-    return { ok: supaOk || redisOk, supaOk, redisOk, count: localArr.length };
+    return { ok: supaOk, supaOk, redisOk: false, count: localArr.length };
   }
 
   function comunicacaoStorageFingerprint(arr) {
@@ -2067,10 +2074,14 @@
     if (Array.isArray(redisRow?.payload?.dk_comunicacao_operacao_v1)) {
       cloudArr = redisRow.payload.dk_comunicacao_operacao_v1;
     }
-    const data = await fetchCloudSnapshotPayload();
-    const mergedCloud = data?.payload?.dk_comunicacao_operacao_v1;
-    if (Array.isArray(mergedCloud) && mergedCloud.length) {
-      cloudArr = mergeComunicacaoOperacaoArrays(cloudArr, mergedCloud);
+    try {
+      const data = await withCloudTimeout(fetchCloudSnapshotPayload(), 8000, "cloud_snapshot_timeout");
+      const mergedCloud = data?.payload?.dk_comunicacao_operacao_v1;
+      if (Array.isArray(mergedCloud) && mergedCloud.length) {
+        cloudArr = mergeComunicacaoOperacaoArrays(cloudArr, mergedCloud);
+      }
+    } catch (e) {
+      console.warn("[DK comunicacao] pull cloud timeout — usando Redis", e?.message || e);
     }
     if (!Array.isArray(cloudArr) || !cloudArr.length) {
       return { ok: true, skipped: true, reason: "no_cloud_comunicacao" };

@@ -89,9 +89,14 @@
     }
   }
 
+  function msgThreadId(m) {
+    if (!m) return "";
+    return m.threadId || threadId(m.cpf, m.setor);
+  }
+
   function mensagensThread(tid) {
     return loadAll()
-      .filter((m) => m && m.threadId === tid)
+      .filter((m) => msgThreadId(m) === tid)
       .sort((a, b) => (Date.parse(a.criadoEm || 0) || 0) - (Date.parse(b.criadoEm || 0) || 0));
   }
 
@@ -115,7 +120,7 @@
     let changed = false;
     for (let i = 0; i < all.length; i += 1) {
       const m = all[i];
-      if (!m || m.threadId !== tid || m.autor !== "cliente" || m.lidaOperacaoEm) continue;
+      if (!m || msgThreadId(m) !== tid || m.autor !== "cliente" || m.lidaOperacaoEm) continue;
       all[i] = { ...m, lidaOperacaoEm: now };
       changed = true;
     }
@@ -131,7 +136,7 @@
     const out = [];
     for (const m of loadAll()) {
       if (!m || normSetor(m.setor) !== st) continue;
-      const tid = m.threadId || threadId(m.cpf, m.setor);
+      const tid = msgThreadId(m);
       if (!tid || seen.has(tid)) continue;
       if (!threadPendenteOperacao(tid)) continue;
       seen.add(tid);
@@ -312,7 +317,7 @@
     let changed = false;
     for (let i = 0; i < all.length; i += 1) {
       const m = all[i];
-      if (!m || m.threadId !== tid) continue;
+      if (!m || msgThreadId(m) !== tid) continue;
       if (st === "cliente" && m.autor === "operacao" && !m.lidaClienteEm) {
         all[i] = { ...m, lidaClienteEm: now };
         changed = true;
