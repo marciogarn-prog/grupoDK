@@ -46,6 +46,7 @@
     "dk_audit_log",
     "dk_funcionarios_access",
     "dk_locacao_documentos_v1",
+    "dk_comunicacao_operacao_v1",
   ];
 
   const DK_CLOUD_KEYS = new Set(DK_STORAGE_KEYS);
@@ -479,6 +480,29 @@
         } else {
           const localArr = readLocalJsonArray(k);
           localStorage.setItem(k, JSON.stringify(mergeClienteNotificacoes(localArr, cloudArr)));
+        }
+        continue;
+      }
+      if (k === "dk_comunicacao_operacao_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const mergeFn =
+          typeof window.__DK_comunicacaoOperacaoMerge === "function"
+            ? window.__DK_comunicacaoOperacaoMerge
+            : (localArr, inc) => [...(localArr || []), ...(inc || [])];
+        if (replace) {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
+        } else {
+          const localArr = readLocalJsonArray(k);
+          localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
         }
         continue;
       }
@@ -934,6 +958,15 @@
       }
       if (k === "dk_cliente_notificacoes") {
         const merged = mergeClienteNotificacoes(b, a);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
+      if (k === "dk_comunicacao_operacao_v1") {
+        const mergeCom =
+          typeof window.__DK_comunicacaoOperacaoMerge === "function"
+            ? window.__DK_comunicacaoOperacaoMerge
+            : (localArr, cloudArr) => [...(localArr || []), ...(cloudArr || [])];
+        const merged = mergeCom(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
@@ -1682,6 +1715,16 @@
         cloudPayload.dk_cliente_notificacoes
       );
     }
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_comunicacao_operacao_v1")) {
+      const mergeCom =
+        typeof window.__DK_comunicacaoOperacaoMerge === "function"
+          ? window.__DK_comunicacaoOperacaoMerge
+          : (localArr, cloudArr) => [...(localArr || []), ...(cloudArr || [])];
+      out.dk_comunicacao_operacao_v1 = mergeCom(
+        localPayload.dk_comunicacao_operacao_v1,
+        cloudPayload.dk_comunicacao_operacao_v1
+      );
+    }
     if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_financeiro_extratos_v1")) {
       out.dk_financeiro_extratos_v1 = mergeFinanceiroExtratos(
         localPayload.dk_financeiro_extratos_v1,
@@ -1713,6 +1756,12 @@
         localStorage.setItem(
           "dk_cliente_notificacoes",
           JSON.stringify(mergedPayload.dk_cliente_notificacoes)
+        );
+      }
+      if (mergedPayload.dk_comunicacao_operacao_v1) {
+        localStorage.setItem(
+          "dk_comunicacao_operacao_v1",
+          JSON.stringify(mergedPayload.dk_comunicacao_operacao_v1)
         );
       }
       if (mergedPayload.dk_financeiro_extratos_v1) {
@@ -1964,6 +2013,11 @@
     }
     try {
       window.dispatchEvent(new CustomEvent("dk-comprovantes-synced"));
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed"));
     } catch {
       /* ignore */
     }

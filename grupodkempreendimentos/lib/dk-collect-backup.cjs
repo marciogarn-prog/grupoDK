@@ -1,8 +1,6 @@
 /**
  * Coleta snapshot DK para backup (Supabase + Redis Upstash).
  */
-const { Redis } = require("@upstash/redis");
-
 const REDIS_KEYS = {
   clientes: "dk:portal:clientes_cadastro:v1",
   veiculos: "dk:portal:veiculos_cadastro:v1",
@@ -21,6 +19,7 @@ const SNAPSHOT_STORAGE_KEYS = [
   "dk_comprovantes_banco",
   "dk_audit_log",
   "dk_funcionarios_access",
+  "dk_comunicacao_operacao_v1",
 ];
 
 function parseJsonArray(raw) {

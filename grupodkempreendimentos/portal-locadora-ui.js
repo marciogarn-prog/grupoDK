@@ -980,6 +980,17 @@
     ) {
       void window.__DK_patrimonioRetomarFilaIa({ silencioso: true });
     }
+    portalToggleComunicacaoInbox(true);
+  }
+
+  function portalToggleComunicacaoInbox(show) {
+    const wrap = document.getElementById("portal-comunicacao-inbox-wrap");
+    if (!wrap) return;
+    const visible = Boolean(show) && currentUnit === "locadora";
+    wrap.classList.toggle("hidden", !visible);
+    if (visible && typeof window.__DK_portalComunicacaoRefresh === "function") {
+      window.__DK_portalComunicacaoRefresh();
+    }
   }
 
   const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
@@ -1318,6 +1329,7 @@
     panelLocalizacao?.classList.add("hidden");
     panelPatrimonio?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
+    portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva("equipa");
   }
 
@@ -3913,6 +3925,9 @@ ${printable.innerHTML}
       portalApplyAmbienteVisualForm("Cliente", cliente);
       portalRefreshOperacaoClienteSenhaField(cpfDigits, cliente);
       refreshOperacaoClienteApagarBtn(cpfDigits);
+      if (typeof window.__DK_portalComunicacaoSyncCadastroBtn === "function") {
+        window.__DK_portalComunicacaoSyncCadastroBtn();
+      }
     }
 
     function getPrimeiraLocacaoDateLabelByCpf(cpfDigits) {

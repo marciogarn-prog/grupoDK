@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <link rel="stylesheet" href="styles.css?v=20260608admin-banner-cliente">
-  <link rel="stylesheet" href="cliente-app.css?v=20260608loc-docs">
+  <link rel="stylesheet" href="cliente-app.css?v=20260521comunicacao">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Cliente">
   <meta name="description" content="DK Locadora — área do cliente: contratos, pagamentos e envio de comprovantes.">
@@ -188,6 +188,19 @@
       <button type="button" id="btn-notif-lidas" class="btn-primary btn-secondary-outline" style="width:100%;margin-top:0.5rem">Marcar avisos como lidos</button>
     </div>
 
+    <div class="cliente-app-card cliente-comunicacao-card">
+      <h2>Falar com a DK</h2>
+      <p class="subtext">Somente texto — não é permitido enviar ficheiros por este canal.</p>
+      <button type="button" id="clienteComunicacaoVendasBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--vendas" style="width:100%;margin-bottom:0.5rem">
+        Enviar mensagem para setor de vendas
+        <span id="clienteComunicacaoBadgeVendas" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
+      </button>
+      <button type="button" id="clienteComunicacaoManutencaoBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--manutencao" style="width:100%">
+        Enviar mensagem setor de manutenção
+        <span id="clienteComunicacaoBadgeManutencao" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
+      </button>
+    </div>
+
     <div class="cliente-app-card">
       <h2>Relatório 2 — Por cliente</h2>
       <p class="subtext">Igual ao relatório da equipa DK no portal: pagamentos, resumo do protocolo (custo dia, plano, investimento) e comprovantes validados.</p>
@@ -273,6 +286,22 @@
       </div>
     </div>
 
+    <div id="clienteComunicacaoChatModal" class="cliente-modal dk-chat-modal hidden" role="dialog" aria-modal="true" aria-labelledby="clienteComunicacaoChatTitulo">
+      <div class="cliente-modal__card dk-chat-modal__card">
+        <header class="cliente-modal__head">
+          <h2 id="clienteComunicacaoChatTitulo" class="portal-modal__title">Conversa</h2>
+          <button type="button" class="btn-primary btn-secondary-outline" id="clienteComunicacaoChatFecharBtn" aria-label="Fechar">Fechar</button>
+        </header>
+        <div id="clienteComunicacaoChatCorpo" class="dk-chat-modal__corpo" role="log" aria-live="polite"></div>
+        <p class="subtext dk-chat-modal__aviso">Apenas mensagens de texto — sem anexos.</p>
+        <div class="dk-chat-modal__composer">
+          <textarea id="clienteComunicacaoChatInput" class="dk-chat-modal__input" rows="2" maxlength="2000" placeholder="Escreva a sua mensagem…"></textarea>
+          <button type="button" class="btn-primary" id="clienteComunicacaoChatEnviarBtn">Enviar</button>
+        </div>
+        <p id="clienteComunicacaoChatMsg" class="portal-feedback" role="status"></p>
+      </div>
+    </div>
+
     <p class="subtext" style="text-align:center;margin-top:1rem">
       <a href="apps.html">Outros aplicativos DK</a> ·
       <a href="/">Portal completo</a>
@@ -282,13 +311,15 @@
   <script src="portal-cliente-geolocalizacao.js?v=20260521geo-v3" defer></script>
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
   <script src="cliente-contrato-resumo.js?v=20260608pagamentos-nuvem" defer></script>
-  <script src="portal-supabase-sync.js?v=20260521pag-sync" defer></script>
+  <script src="portal-comunicacao-operacao.js?v=20260521comunicacao" defer></script>
+  <script src="portal-supabase-sync.js?v=20260521comunicacao" defer></script>
   <script src="cliente-notificacoes.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-pagamentos-calendario.js?v=20260608cal-zoom-cliente" defer></script>
   <script src="cliente-documentos-locacao.js?v=20260608loc-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260522unico" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-app.js?v=20260521pag-sync" defer></script>
+  <script src="cliente-comunicacao-operacao-ui.js?v=20260521comunicacao" defer></script>
+  <script src="cliente-app.js?v=20260521comunicacao" defer></script>
 </body>
 </html>

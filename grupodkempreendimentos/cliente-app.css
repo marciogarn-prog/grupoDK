@@ -25,6 +25,50 @@
 }
 
 
+.cliente-comunicacao-btn {
+  position: relative;
+  text-align: left;
+  padding-right: 2rem;
+}
+
+.cliente-comunicacao-btn--vendas {
+  background: #166534 !important;
+  border: 2px solid #22c55e !important;
+  color: #ecfdf5 !important;
+}
+
+.cliente-comunicacao-btn--manutencao {
+  background: #854d0e !important;
+  border: 2px solid #eab308 !important;
+  color: #fefce8 !important;
+}
+
+.cliente-comunicacao-badge {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.45rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+.cliente-comunicacao-badge.hidden {
+  display: none;
+}
+
+.dk-chat-vazio {
+  margin: 0;
+  text-align: center;
+  padding: 1rem 0;
+}
+
 .cliente-app-header {
   display: flex;
   align-items: center;
