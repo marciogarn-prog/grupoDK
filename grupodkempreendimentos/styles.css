@@ -4642,7 +4642,7 @@ table.validados-app .lnk-comprovante {
 }
 
 .cliente-app-body.cliente-admin-preview {
-  padding-top: 2.85rem;
+  padding-top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 2.85rem));
 }
 
 /* Tema DK Locadora — vermelho e preto + showroom */
