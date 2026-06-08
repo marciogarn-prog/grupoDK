@@ -1001,7 +1001,7 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260521comunicacao`, {
+    const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260608push-notify`, {
       cache: "no-store",
     }).then((r) => r.text());
     const portalComunicacaoLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521comunicacao-fixa`, {
@@ -1036,6 +1036,20 @@ async function runSuite() {
         clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
         clienteComUiJs.includes("__DK_clienteComunicacaoRefresh"),
       "barra fixa no topo; cadastro→verde; manutenção→amarelo"
+    );
+    const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260608push-notify`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    const pushApi = await fetch(`${BASE_URL}api/dk-cliente-push?action=vapid`, { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => ({}));
+    record(
+      "web push mensagens DK para app cliente",
+      clienteHtml.includes("cliente-push-notificacoes.js") &&
+        pushNotifyJs.includes("ensureClientePushSubscription") &&
+        comunicacaoJs.includes("notifyClientePushMensagem") &&
+        pushApi && typeof pushApi.ok === "boolean",
+      "notificação sistema + abrir chat ao tocar"
     );
     record(
       "app cliente troca senha inicial 123456",

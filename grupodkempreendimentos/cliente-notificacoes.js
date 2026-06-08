@@ -95,6 +95,34 @@
     return { ok: true, rec };
   }
 
+  function adicionarNotificacaoMensagemDk(payload) {
+    const cpf = onlyDigits(payload.cpf).slice(0, 11);
+    if (cpf.length !== 11) return { ok: false, msg: "CPF inválido." };
+    const setor = String(payload.setor || "vendas").trim().toLowerCase();
+    const rec = {
+      id: `cn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      tipo: "mensagem_dk",
+      cpf,
+      setor: setor === "manutencao" ? "manutencao" : "vendas",
+      mensagem: "Você tem uma nova mensagem da DK",
+      criadoEm: new Date().toISOString(),
+      lido: false,
+    };
+    const all = loadAll();
+    const dup = all.some(
+      (r) =>
+        r.tipo === "mensagem_dk" &&
+        onlyDigits(r.cpf) === cpf &&
+        r.setor === rec.setor &&
+        !r.lido &&
+        Date.now() - (Date.parse(r.criadoEm || 0) || 0) < 120000
+    );
+    if (dup) return { ok: true, skipped: true };
+    all.unshift(rec);
+    saveAll(all, { skipCloud: true });
+    return { ok: true, rec };
+  }
+
   function adicionarNotificacaoPagamentoConfirmado(payload) {
     const cpf = onlyDigits(payload.cpf).slice(0, 11);
     if (cpf.length !== 11) return { ok: false, msg: "CPF inválido." };
@@ -149,6 +177,7 @@
   window.__DK_clienteNotificacaoPagamentoConfirmado = adicionarNotificacaoPagamentoConfirmado;
   window.__DK_clienteNotificacaoPagamentoInvalidado = adicionarNotificacaoPagamentoInvalidado;
   window.__DK_clienteNotificacaoComprovanteRejeitado = adicionarNotificacaoComprovanteRejeitado;
+  window.__DK_clienteNotificacaoMensagemDk = adicionarNotificacaoMensagemDk;
   window.__DK_clienteNotificacoesList = listarPorCpf;
   window.__DK_clienteNotificacoesMarcarLidas = marcarLidasPorCpf;
   window.__DK_clienteMensagemPagamentoConfirmado = mensagemPagamentoConfirmado;

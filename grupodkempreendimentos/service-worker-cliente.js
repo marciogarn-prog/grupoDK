@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260608comunicacao-fix";
+const CACHE_NAME = "dk-cliente-v20260608push-notify";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -9,6 +9,7 @@ const ASSETS = [
   "./cliente-app.css",
   "./cliente-app.js",
   "./cliente-notificacoes.js",
+  "./cliente-push-notificacoes.js",
   "./cliente-contrato-resumo.js",
   "./cliente-pagamentos-calendario.js",
   "./cliente-documentos-locacao.js",
@@ -39,6 +40,49 @@ self.addEventListener("activate", (event) => {
     )
   );
   self.clients.claim();
+});
+
+function parsePushPayload(event) {
+  try {
+    return event.data ? event.data.json() : {};
+  } catch {
+    return {};
+  }
+}
+
+self.addEventListener("push", (event) => {
+  const data = parsePushPayload(event);
+  const title = String(data.title || "DK Locadora");
+  const body = String(data.body || "Você tem uma nova mensagem da DK");
+  const setor = data.setor === "manutencao" ? "manutencao" : "vendas";
+  const url = String(data.url || `/cliente?dkChat=${setor}`);
+  const options = {
+    body,
+    icon: "/icons/icon-cliente-192.png",
+    badge: "/icons/icon-cliente-192.png",
+    tag: String(data.tag || `dk-msg-${setor}`),
+    renotify: true,
+    data: { url, setor },
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = String(event.notification?.data?.url || "/cliente");
+  const setor = event.notification?.data?.setor || "vendas";
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && client.url.includes("/cliente")) {
+          client.postMessage({ type: "dk-open-chat", setor });
+          if ("focus" in client) return client.focus();
+        }
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+      return undefined;
+    })
+  );
 });
 
 async function storeSharedComprovanteFromPost(request) {

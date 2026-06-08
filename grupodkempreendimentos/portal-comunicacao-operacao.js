@@ -28,6 +28,27 @@
     return `${dig}|${st}`;
   }
 
+  function notifyClientePushMensagem(rec) {
+    if (!rec || rec.autor !== "operacao") return;
+    const cpf = onlyDigits(rec.cpf).slice(0, 11);
+    if (cpf.length !== 11) return;
+    const headers = { "Content-Type": "application/json" };
+    if (window.__DK_DEPLOY_CHANNEL__ === "demo") headers["X-DK-Deploy-Channel"] = "demo";
+    void fetch("/api/dk-cliente-push", {
+      method: "POST",
+      headers,
+      keepalive: true,
+      body: JSON.stringify({
+        action: "notify",
+        cpf,
+        setor: normSetor(rec.setor) || "vendas",
+        title: "DK Locadora",
+        body: "Você tem uma nova mensagem da DK",
+        channel: window.__DK_DEPLOY_CHANNEL__ === "demo" ? "demo" : "default",
+      }),
+    }).catch(() => null);
+  }
+
   function loadAll() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -183,6 +204,7 @@
       typeof window.__DK_getClienteSessaoCpf === "function" &&
       String(window.__DK_getClienteSessaoCpf() || "").replace(/\D/g, "").slice(0, 11) === cpf;
     saveAll(all, { skipCloud: fromCliente });
+    if (autor === "operacao") notifyClientePushMensagem(rec);
     try {
       window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed", { detail: { threadId: tid, setor } }));
     } catch {

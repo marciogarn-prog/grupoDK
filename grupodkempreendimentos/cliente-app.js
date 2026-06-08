@@ -1070,6 +1070,12 @@
         window.__DK_comprovantesClienteInvalidateCache();
       }
       syncOk = true;
+      if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+        await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
+      }
+      if (typeof window.__DK_clienteComunicacaoChecarNovas === "function") {
+        window.__DK_clienteComunicacaoChecarNovas();
+      }
       if (sessao?.cpf) {
         window.setTimeout(() => consolidarLancamentosClienteLogado(sessao.cpf), 0);
       }
@@ -1975,6 +1981,7 @@
     }
     if (isClienteRealSession(sess)) {
       startGeoForSession(sess);
+      void window.__DK_clienteEnsurePushSubscription?.(sess.cpf);
     } else {
       markAdminPreviewActive();
     }
@@ -1989,6 +1996,7 @@
       await processIncomingShare();
     }
     await atualizarProgramaEDados(sess, { silent: false });
+    window.__DK_clienteComunicacaoInitBaseline?.();
     if (comprovanteFile) {
       showView("app");
       renderApp(sess);

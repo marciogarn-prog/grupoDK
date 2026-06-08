@@ -97,7 +97,10 @@
       if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
         await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
       }
-      if (chatSetor === openedSetor) renderChat();
+      if (chatSetor === openedSetor) {
+        renderChat();
+        checarNovasMensagensOperacao();
+      }
     })();
     inp?.focus();
   }
@@ -198,15 +201,53 @@
     }
   };
 
+  window.__DK_clienteAbrirChatComunicacao = function (setor) {
+    const st = window.__DK_comunicacaoNormSetor?.(setor) || setor;
+    if (st === "vendas" || st === "manutencao") abrirChat(st);
+  };
+
+  let ultimoContagemNaoLidas = { vendas: 0, manutencao: 0 };
+
+  function checarNovasMensagensOperacao() {
+    if (!sessaoCpf || typeof window.__DK_comunicacaoContarNaoLidasCliente !== "function") return;
+    for (const st of ["vendas", "manutencao"]) {
+      const n = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, st);
+      if (n > ultimoContagemNaoLidas[st]) {
+        if (typeof window.__DK_clientePushForegroundNotify === "function") {
+          window.__DK_clientePushForegroundNotify(st);
+        }
+        if (typeof window.__DK_clienteNotificacaoMensagemDk === "function") {
+          window.__DK_clienteNotificacaoMensagemDk({ cpf: sessaoCpf, setor: st });
+        }
+      }
+      ultimoContagemNaoLidas[st] = n;
+    }
+    atualizarBadges();
+  }
+
+  function initContagemBaseline() {
+    resolveSessao();
+    if (!sessaoCpf || typeof window.__DK_comunicacaoContarNaoLidasCliente !== "function") return;
+    for (const st of ["vendas", "manutencao"]) {
+      ultimoContagemNaoLidas[st] = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, st);
+    }
+  }
+
+  window.__DK_clienteComunicacaoInitBaseline = initContagemBaseline;
+
+  window.__DK_clienteComunicacaoChecarNovas = checarNovasMensagensOperacao;
+
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       bindUi();
       resolveSessao();
+      initContagemBaseline();
       atualizarBadges();
     });
   } else {
     bindUi();
     resolveSessao();
+    initContagemBaseline();
     atualizarBadges();
   }
 })();
