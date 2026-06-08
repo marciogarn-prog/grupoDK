@@ -167,8 +167,14 @@ async function runSuite() {
         html.includes("portalPdfPartilharWhatsAppBtn")
     );
     record(
-      "botão Baixar APP na home",
-      html.includes('home-baixar-app-btn') && html.includes("app.html") && html.includes("Baixar APP") &&
+      "botões baixar app cliente e operação na home",
+      html.includes("home-app-btn--cliente") &&
+        html.includes("home-app-btn--operacao") &&
+        html.includes('id="homeBaixarAppCliente"') &&
+        html.includes('id="homeBaixarAppOperacao"') &&
+        html.includes("/instalar") &&
+        html.includes("Baixar app cliente") &&
+        html.includes("Baixar app operação") &&
         html.includes("dk-pwa-update.js")
     );
     record(
@@ -250,8 +256,7 @@ async function runSuite() {
     record(
       "logo DK Locadora no site e botao app",
       html.includes("dk-locadora-logo.png") &&
-        html.includes("home-baixar-app-btn") &&
-        html.includes("btn-app-logo") &&
+        html.includes("home-app-downloads") &&
         (await fetch(`${BASE_URL}images/dk-locadora-logo.png`, { cache: "no-store" }).then((r) => r.ok))
     );
     record(

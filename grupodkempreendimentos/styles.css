@@ -152,15 +152,45 @@ body {
   margin: 0 auto;
 }
 
-.home-baixar-app-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.55rem;
+.home-app-downloads {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
   margin: 1rem auto 0;
-  min-width: 10rem;
-  text-decoration: none;
+  width: 100%;
+  max-width: 20rem;
+}
+
+.home-app-btn {
+  display: block;
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  border-radius: 999px;
   font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  border: 2px solid var(--accent);
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.home-app-btn:hover,
+.home-app-btn:focus-visible {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.home-app-btn--cliente {
+  background: var(--accent);
+  color: #000;
+}
+
+.home-app-btn--operacao {
+  background: #000;
+  color: var(--accent);
 }
 
 .btn-app-logo {
@@ -180,22 +210,23 @@ body {
 }
 
 @media (min-width: 900px) {
-  .home-baixar-app-btn {
+  .home-app-downloads {
     margin: 0 0 0 1rem;
     flex-shrink: 0;
+    max-width: 14rem;
   }
 
-  .site-header:has(.home-baixar-app-btn) {
+  .site-header:has(.home-app-downloads) {
     flex-wrap: wrap;
   }
 
-  .site-header:has(.home-baixar-app-btn) .header-lead {
+  .site-header:has(.home-app-downloads) .header-lead {
     flex: 1 1 auto;
     margin-left: auto;
     margin-right: 0;
   }
 
-  .site-header:has(.home-baixar-app-btn) .home-baixar-app-btn {
+  .site-header:has(.home-app-downloads) .home-app-downloads {
     margin-left: auto;
     order: 3;
     width: auto;
@@ -4668,8 +4699,12 @@ table.validados-app .lnk-comprovante {
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
 }
 
-.home-baixar-app-btn {
+.home-app-btn--cliente {
   box-shadow: 0 6px 20px rgba(220, 38, 38, 0.4);
+}
+
+.home-app-btn--operacao {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55);
 }
 
 .subpage--wide {

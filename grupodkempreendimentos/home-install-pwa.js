@@ -1,55 +1,54 @@
-/** Botão instalar PWA na home (beforeinstallprompt) + força última versão ao abrir. */
+/** Dois botões na home: app cliente (/instalar) e app operação (portal + PWA). */
 (function homeInstallPwa() {
-  const panel = document.getElementById("homeInstallPanel");
-  const btn = document.getElementById("homeInstallBtn");
-  const link = document.getElementById("homeBaixarAppLink");
-  const status = document.getElementById("homeInstallStatus");
-  if (!panel || !btn) return;
+  const btnCliente = document.getElementById("homeBaixarAppCliente");
+  const btnOperacao = document.getElementById("homeBaixarAppOperacao");
+  if (!btnCliente && !btnOperacao) return;
 
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-  if (standalone) return;
-
-  function appInstallUrl() {
-    return `app.html?instalar=1&_=${Date.now()}`;
-  }
-
-  async function irParaInstalacaoApp() {
-    if (status) status.textContent = "A preparar a última versão do app…";
-    if (typeof window.__DK_ensureLatestPwa === "function") {
-      await window.__DK_ensureLatestPwa({ force: true }).catch(() => {});
-    }
-    window.location.href = appInstallUrl();
-  }
 
   let deferred = null;
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferred = e;
-    panel.classList.remove("hidden");
-    if (status) status.textContent = "Toque em «Instalar app agora» ou use «Baixar APP».";
   });
 
   window.addEventListener("appinstalled", () => {
     deferred = null;
-    panel.classList.add("hidden");
   });
 
-  btn.addEventListener("click", async () => {
-    if (deferred) {
-      if (typeof window.__DK_ensureLatestPwa === "function") {
-        await window.__DK_ensureLatestPwa({ force: true }).catch(() => {});
-      }
+  async function ensureLatest() {
+    if (typeof window.__DK_ensureLatestPwa === "function") {
+      await window.__DK_ensureLatestPwa({ force: true }).catch(() => {});
+    }
+  }
+
+  function clienteInstallUrl() {
+    return `/instalar?_=${Date.now()}`;
+  }
+
+  function operacaoInstallUrl() {
+    const base = `${location.pathname || "/"}?instalar=1`;
+    return `${base}#locadora`;
+  }
+
+  btnCliente?.addEventListener("click", (e) => {
+    e.preventDefault();
+    void (async () => {
+      await ensureLatest();
+      window.location.href = clienteInstallUrl();
+    })();
+  });
+
+  btnOperacao?.addEventListener("click", async (e) => {
+    e.preventDefault();
+    await ensureLatest();
+    if (deferred && !standalone) {
       deferred.prompt();
       await deferred.userChoice.catch(() => {});
       deferred = null;
       return;
     }
-    await irParaInstalacaoApp();
-  });
-
-  link?.addEventListener("click", (e) => {
-    e.preventDefault();
-    void irParaInstalacaoApp();
+    window.location.href = operacaoInstallUrl();
   });
 })();
