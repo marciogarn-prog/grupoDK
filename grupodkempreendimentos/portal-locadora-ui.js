@@ -267,18 +267,25 @@
 
   const PLACA_MERCOSUL_RE = /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/;
   const MSG_PLACA_MERCOSUL =
-    "Placa inválida. Use o padrão Mercosul LLLNLNN (ex.: ABC1D23). Formato antigo LLLNNNN não é aceite.";
+    "Placa inválida. Use o padrão Mercosul LLLNLNN (ex.: ABC1D23). Formato antigo LLLNNNN também é aceite (converte automaticamente).";
+
+  function portalSanitizePlacaInput(raw) {
+    return String(raw || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 7);
+  }
 
   function portalPlacaMercosulOk(plateNorm) {
-    if (typeof window.isPlacaMercosul === "function") return window.isPlacaMercosul(plateNorm);
-    return PLACA_MERCOSUL_RE.test(String(plateNorm || ""));
+    const p = portalSanitizePlacaInput(plateNorm);
+    return PLACA_MERCOSUL_RE.test(p);
   }
 
   function portalConvertPlacaAntigaParaMercosul(value) {
-    const x = String(value || "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
+    const x = portalSanitizePlacaInput(value);
     if (!/^[A-Z]{3}[0-9]{4}$/.test(x)) return "";
     const letter = "ABCDEFGHIJ"[parseInt(x[4], 10)];
     if (!letter) return "";
@@ -286,22 +293,20 @@
     return portalPlacaMercosulOk(converted) ? converted : "";
   }
 
-  /** Mercosul, conversão LLLNNNN ou OCR — prioriza formato antigo antes do OCR. */
+  /** Mercosul directo, conversão LLLNNNN ou OCR — nunca altera placa Mercosul válida. */
   function portalResolvePlacaCadastro(raw) {
-    const digitado = String(raw || "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
+    const digitado = portalSanitizePlacaInput(raw);
     if (!digitado) return "";
+    if (portalPlacaMercosulOk(digitado)) return digitado;
     const antiga = portalConvertPlacaAntigaParaMercosul(digitado);
     if (antiga) return antiga;
-    if (typeof window.normalizePlacaParaCadastro === "function") {
-      const norm = window.normalizePlacaParaCadastro(raw);
-      if (portalPlacaMercosulOk(norm)) return norm;
-    }
     if (typeof window.corrigirPlacaMercosul === "function") {
-      const ocr = window.corrigirPlacaMercosul(raw);
+      const ocr = portalSanitizePlacaInput(window.corrigirPlacaMercosul(raw));
       if (ocr && portalPlacaMercosulOk(ocr)) return ocr;
+    }
+    if (typeof window.normalizePlacaParaCadastro === "function") {
+      const norm = portalSanitizePlacaInput(window.normalizePlacaParaCadastro(raw));
+      if (portalPlacaMercosulOk(norm)) return norm;
     }
     return digitado;
   }
@@ -4196,7 +4201,7 @@ ${printable.innerHTML}
     });
 
     inpPlaca.addEventListener("input", () => {
-      inpPlaca.value = String(inpPlaca.value || "").toUpperCase();
+      inpPlaca.value = portalSanitizePlacaInput(inpPlaca.value);
       renderOperacaoVeiculoPlacaDropdown(inpPlaca.value);
     });
 
@@ -8016,12 +8021,11 @@ ${printable.innerHTML}
       return;
     }
     if (!portalPlacaMercosulOk(plate)) {
-      const digitado = String(plateRaw || "")
-        .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
-      let extra = digitado ? ` Digitado: ${digitado}.` : "";
+      const digitado = portalSanitizePlacaInput(plateRaw);
+      let extra = digitado ? ` Recebido: «${digitado}» (${digitado.length} caracteres).` : "";
       if (digitado.length === 7 && /^[A-Z]{3}[0-9]{4}$/.test(digitado)) {
-        extra = " Formato antigo (LLLNNNN) — o sistema converte para Mercosul ao guardar; confira se digitou certo.";
+        extra =
+          " Formato antigo (LLLNNNN) — será convertido para Mercosul; confira os 7 caracteres.";
       }
       if (msg) msg.textContent = MSG_PLACA_MERCOSUL + extra;
       return;

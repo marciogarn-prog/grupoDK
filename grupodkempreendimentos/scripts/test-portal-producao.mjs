@@ -572,7 +572,8 @@ async function runSuite() {
         typeof window.convertPlacaAntigaParaMercosul === "function" &&
         window.convertPlacaAntigaParaMercosul("JRB5376") === "JRB5D76" &&
         typeof window.normalizePlacaParaCadastro === "function" &&
-        window.normalizePlacaParaCadastro("JRB5376") === "JRB5D76",
+        window.normalizePlacaParaCadastro("JRB5376") === "JRB5D76" &&
+        window.normalizePlacaParaCadastro("ABC1D23") === "ABC1D23",
     }));
     record(
       "placa Mercosul LLLNLNN único padrão",
@@ -947,6 +948,18 @@ async function runSuite() {
           "form veículo reconhece AAA0A00",
           /ferrari/i.test(modelo) || tag === "DKCR013",
           `modelo=${modelo} tag=${tag}`
+        );
+        await page.selectOption("#operacaoVeiculoTipo", "CARRO").catch(() => {});
+        await placaField.fill("ABC1D23");
+        await placaField.dispatchEvent("input");
+        await page.locator("#operacaoVeiculoModelo").fill("VEICULO TESTE MERCOSUL");
+        await page.locator("#formOperacaoVeiculoInline button[type=submit]").click();
+        await page.waitForTimeout(700);
+        const veiculoMsg = await page.locator("#operacaoVeiculoInlineMsg").textContent().catch(() => "");
+        record(
+          "cadastro veículo aceita Mercosul ABC1D23",
+          !/placa inválida/i.test(String(veiculoMsg || "")),
+          String(veiculoMsg || "").slice(0, 90)
         );
       }
     }

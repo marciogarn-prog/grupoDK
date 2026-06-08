@@ -4167,7 +4167,6 @@ function convertPlacaAntigaParaMercosul(value) {
   return isPlacaMercosul(converted) ? converted : "";
 }
 
-/** Mercosul direto, conversão LLLNNNN ou correção OCR. */
 function normalizePlacaParaCadastro(value) {
   const raw = normalizePlate(value);
   if (!raw) return "";
@@ -4175,7 +4174,7 @@ function normalizePlacaParaCadastro(value) {
   const converted = convertPlacaAntigaParaMercosul(raw);
   if (converted) return converted;
   const ocr = corrigirPlacaMercosul(value);
-  if (ocr) return ocr;
+  if (ocr && isPlacaMercosul(ocr)) return ocr;
   return raw;
 }
 
