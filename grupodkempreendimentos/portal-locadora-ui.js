@@ -469,23 +469,20 @@
   function portalRefreshOperacaoClienteSenhaField(cpfDigits, rec) {
     const wrap = document.getElementById("operacaoClienteSenhaWrap");
     const inp = document.getElementById("operacaoClienteSenha");
+    const label = document.getElementById("operacaoClienteSenhaLabel");
     const admin = isPortalTitularAdministrador();
     if (wrap) wrap.classList.toggle("hidden", !admin);
-    if (!admin || !inp) return;
+    if (!admin) {
+      if (inp) inp.value = "";
+      if (label) label.textContent = "senha=123456";
+      return;
+    }
     const digits = onlyDigits(String(cpfDigits || "")).slice(0, 11);
     const senha = portalResolveClienteSenhaApp(rec, digits);
-    inp.value = senha;
-    const st = document.getElementById("operacaoClienteSenhaStatus");
-    const ini = portalClienteSenhaInicial();
-    if (st) {
-      st.textContent =
-        String(senha || "").trim() === ini
-          ? "Cliente ainda não trocou no app (senha inicial)."
-          : "Senha já personalizada pelo cliente no app.";
-    }
+    if (inp) inp.value = senha;
+    if (label) label.textContent = `senha=${senha}`;
     const resetBtn = document.getElementById("operacaoClienteSenhaResetBtn");
     if (resetBtn) {
-      resetBtn.classList.toggle("hidden", digits.length !== 11);
       resetBtn.disabled = digits.length !== 11;
     }
   }
@@ -501,7 +498,9 @@
       portalRefreshOperacaoClienteSenhaField(digits, null);
     } else {
       const inp = document.getElementById("operacaoClienteSenha");
+      const label = document.getElementById("operacaoClienteSenhaLabel");
       if (inp) inp.value = "";
+      if (label) label.textContent = "senha=123456";
     }
   }
 
@@ -4213,10 +4212,7 @@ ${printable.innerHTML}
         return;
       }
       portalRefreshOperacaoClienteSenhaField(digits, getClienteByCpfAny(digits));
-      if (msg) {
-        msg.textContent =
-          "Senha resetada para 123456. O cliente terá de definir uma nova senha no próximo login no app.";
-      }
+      if (msg) msg.textContent = "Senha resetada para 123456.";
     });
 
     document.getElementById("operacaoClienteApagarBtn")?.addEventListener("click", (ev) => {

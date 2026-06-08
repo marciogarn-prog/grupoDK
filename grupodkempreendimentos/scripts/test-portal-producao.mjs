@@ -401,10 +401,11 @@ async function runSuite() {
     );
     record(
       "cadastro cliente senha visível só administrador",
-      html.includes("operacaoClienteSenha") &&
+      html.includes("operacaoClienteSenhaLabel") &&
+        html.includes('senha=123456') &&
         portalUiProto.includes("portalRefreshOperacaoClienteSenhaField") &&
         portalUiProto.includes("operacaoClienteSenhaWrap"),
-      "campo senha app no formulário cliente"
+      "senha=123456 só no layout administrador"
     );
     record(
       "admin resetar senha app cliente no cadastro",
