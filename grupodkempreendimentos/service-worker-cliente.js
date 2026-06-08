@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260521cal-persist";
+const CACHE_NAME = "dk-cliente-v20260608push-msg";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -111,7 +111,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (event.request.method !== "GET") return;
+  if (event.request.method !== "GET") {
+    if (url.pathname.includes("/api/dk-cloud-snapshot")) {
+      event.respondWith(fetch(event.request));
+    }
+    return;
+  }
 
   const isScriptOrStyle =
     url.pathname.endsWith(".js") ||

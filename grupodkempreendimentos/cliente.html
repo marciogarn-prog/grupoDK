@@ -32,7 +32,7 @@
           }
         } catch (e) {}
         try {
-          await navigator.serviceWorker.register("/service-worker-cliente.js", { scope: "/" });
+          await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260608push-msg", { scope: "/" });
         } catch (e) {}
       })();
       try {
@@ -312,15 +312,15 @@
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
   <script src="cliente-contrato-resumo.js?v=20260608cliente-fix-trava" defer></script>
-  <script src="portal-comunicacao-operacao.js?v=20260608msgs-pendentes" defer></script>
-  <script src="portal-supabase-sync.js?v=20260608msgs-pendentes" defer></script>
+  <script src="portal-comunicacao-operacao.js?v=20260608push-msg" defer></script>
+  <script src="portal-supabase-sync.js?v=20260608push-msg" defer></script>
   <script src="cliente-notificacoes.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-pagamentos-calendario.js?v=20260521cal-persist" defer></script>
   <script src="cliente-documentos-locacao.js?v=20260608loc-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260608lanc-proto" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-comunicacao-operacao-ui.js?v=20260608msgs-pendentes" defer></script>
+  <script src="cliente-comunicacao-operacao-ui.js?v=20260608push-msg" defer></script>
   <script src="cliente-app.js?v=20260608cliente-fix-trava" defer></script>
 </body>
 </html>

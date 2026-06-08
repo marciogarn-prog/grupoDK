@@ -128,27 +128,41 @@
     } catch {
       /* ignore */
     }
-    const r = window.__DK_comunicacaoClienteEnviar?.({
+    if (msg) msg.textContent = "A enviar para DK…";
+    const r = (await window.__DK_comunicacaoClienteEnviarNuvem?.({
       cpf: sessaoCpf,
       nome: sessaoNome,
       placa,
       setor: chatSetor,
       texto: inp?.value || "",
-    });
+    })) ||
+      window.__DK_comunicacaoClienteEnviar?.({
+        cpf: sessaoCpf,
+        nome: sessaoNome,
+        placa,
+        setor: chatSetor,
+        texto: inp?.value || "",
+      });
     if (!r?.ok) {
       if (msg) msg.textContent = r?.msg || "Não foi possível enviar.";
       return;
     }
     if (inp) inp.value = "";
-    if (msg) msg.textContent = "A enviar para DK…";
     renderChat();
-    if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
-      const push = await window.__DK_pushComunicacaoSnapshotNow().catch(() => ({ ok: false }));
-      if (push?.ok) {
-        if (msg) msg.textContent = "Mensagem enviada para DK.";
-      } else if (msg) {
+    const push = r.push;
+    if (push?.ok) {
+      if (msg) msg.textContent = "Mensagem enviada para DK.";
+    } else if (push) {
+      if (msg) {
         msg.textContent =
           "Guardada neste telemóvel — nuvem indisponível. Verifique internet e toque Enviar de novo.";
+      }
+    } else if (typeof window.__DK_pushComunicacaoMensagemNow === "function" && r.rec) {
+      const retry = await window.__DK_pushComunicacaoMensagemNow(r.rec).catch(() => ({ ok: false }));
+      if (msg) {
+        msg.textContent = retry?.ok
+          ? "Mensagem enviada para DK."
+          : "Guardada neste telemóvel — nuvem indisponível. Verifique internet e toque Enviar de novo.";
       }
     } else if (msg) {
       msg.textContent = "Mensagem guardada neste telemóvel.";

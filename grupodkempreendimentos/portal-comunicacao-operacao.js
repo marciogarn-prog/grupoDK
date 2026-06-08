@@ -177,7 +177,7 @@
       autor === "cliente" &&
       typeof window.__DK_getClienteSessaoCpf === "function" &&
       String(window.__DK_getClienteSessaoCpf() || "").replace(/\D/g, "").slice(0, 11) === cpf;
-    saveAll(all, { fromCliente });
+    saveAll(all, { skipCloud: fromCliente });
     try {
       window.dispatchEvent(new CustomEvent("dk-comunicacao-operacao-changed", { detail: { threadId: tid, setor } }));
     } catch {
@@ -188,6 +188,22 @@
 
   function enviarClienteParaSetor(payload) {
     return novaMensagem({ ...payload, autor: "cliente" });
+  }
+
+  async function enviarClienteParaSetorNuvem(payload) {
+    const r = enviarClienteParaSetor(payload);
+    if (!r?.ok || !r.rec) return r;
+    const pushFn =
+      typeof window.__DK_pushComunicacaoMensagemNow === "function"
+        ? window.__DK_pushComunicacaoMensagemNow
+        : typeof window.__DK_pushComunicacaoSnapshotNow === "function"
+          ? window.__DK_pushComunicacaoSnapshotNow
+          : null;
+    if (!pushFn) {
+      return { ...r, push: { ok: false, reason: "no_push_fn" } };
+    }
+    const push = await pushFn(r.rec).catch(() => ({ ok: false }));
+    return { ...r, push };
   }
 
   function responderOperacao(payload) {
@@ -329,6 +345,7 @@
   window.__DK_comunicacaoListarPendentes = listarPendentesOperacao;
   window.__DK_comunicacaoHistorico = mensagensThread;
   window.__DK_comunicacaoClienteEnviar = enviarClienteParaSetor;
+  window.__DK_comunicacaoClienteEnviarNuvem = enviarClienteParaSetorNuvem;
   window.__DK_comunicacaoOperacaoResponder = responderOperacao;
   window.__DK_comunicacaoOperacaoParaTodos = enviarOperacaoParaTodos;
   window.__DK_comunicacaoContarNaoLidasCliente = contarNaoLidasCliente;

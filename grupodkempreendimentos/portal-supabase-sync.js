@@ -1963,6 +1963,47 @@
     return Array.from(byId.values());
   }
 
+  /** Push leve: uma ou todas as mensagens cliente↔operação. */
+  async function pushComunicacaoMensagemNow(recOrArr) {
+    const arr = Array.isArray(recOrArr) ? recOrArr.filter(Boolean) : recOrArr ? [recOrArr] : [];
+    if (!arr.length) return pushComunicacaoSnapshotNow();
+    const patch = { dk_comunicacao_operacao_v1: arr };
+    const updatedAt = new Date().toISOString();
+    let supaOk = false;
+    let redisOk = false;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3 && !redisOk; attempt += 1) {
+      const red = await pushRedundantSnapshotPayload(patch, updatedAt);
+      redisOk = red.ok;
+      lastErr = red.error || null;
+      if (!redisOk && attempt < 2) {
+        await new Promise((r) => window.setTimeout(r, 400 * (attempt + 1)));
+      }
+    }
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (client && window.__DK_SUPABASE_CONFIGURED__) {
+      try {
+        const [supaRow, redisRow] = await Promise.all([
+          fetchSupabaseSnapshotPayload(),
+          fetchRedundantSnapshotPayload(),
+        ]);
+        const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
+        const merged = mergeComunicacaoOperacaoArrays(arr, cloudPayload.dk_comunicacao_operacao_v1);
+        const fullPayload = { ...cloudPayload, dk_comunicacao_operacao_v1: merged };
+        const { error } = await client.from("dk_cloud_snapshots").upsert(
+          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
+          { onConflict: "label" }
+        );
+        supaOk = !error;
+      } catch (e) {
+        console.warn("[DK comunicacao] push Supabase", e);
+      }
+    }
+    if (supaOk || redisOk) noteCloudPushTimestamp(updatedAt);
+    else console.warn("[DK comunicacao] push mensagem falhou", lastErr);
+    return { ok: supaOk || redisOk, supaOk, redisOk, count: arr.length, error: lastErr };
+  }
+
   /** Push leve: só mensagens cliente↔operação (app cliente não envia snapshot gigante). */
   async function pushComunicacaoSnapshotNow() {
     const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
@@ -2407,6 +2448,7 @@
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
     window.__DK_pullComunicacaoOperacaoFromCloudMerge = pullComunicacaoOperacaoFromCloudMerge;
     window.__DK_pushComunicacaoSnapshotNow = pushComunicacaoSnapshotNow;
+    window.__DK_pushComunicacaoMensagemNow = pushComunicacaoMensagemNow;
     window.__DK_markLocalDataAuthority = markLocalDataAuthority;
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
