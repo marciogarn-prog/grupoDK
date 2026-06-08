@@ -73,6 +73,7 @@
   const PATRIMONIO_MODO_ATUALIZACAO = "atualizacao";
   /** Lote completo (ex.: 162 PDFs): ignora placas já no relatório e enfileira só as pendentes. */
   const PATRIMONIO_MODO_COMPLETAR = "completar";
+  const PATRIMONIO_DEPOSITO_MAX_TENTATIVAS = 5;
 
   const panel = document.getElementById("panel-patrimonio-locadora");
   if (!panel) return;
@@ -765,10 +766,408 @@
         documentos: deduplicarDocumentos(corrigirProprietariosDocumentos(documentos)),
         fotosCapturas,
         fotosCapturasExcluidas: exclusoes,
+        depositoLote: sanitizeDepositoLote(raw.depositoLote),
       };
     } catch {
-      return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [] };
+      return { documentos: [], fotosCapturas: [], fotosCapturasExcluidas: [], depositoLote: [] };
     }
+  }
+
+  function sanitizeDepositoItem(d) {
+    if (!d || typeof d !== "object") return null;
+    const id = String(d.id || "").trim();
+    const placa = normPlaca(resolverPlacaMercosul(d.placa || placaDoNomeArquivo(d.nomeArquivo)));
+    const nomeArquivo = String(d.nomeArquivo || "").slice(0, 140);
+    if (!id || !placa || !nomeArquivo) return null;
+    const st = String(d.status || "guardado").toLowerCase();
+    const status = ["guardado", "pendente", "processando", "ok", "falhou", "skip"].includes(st) ? st : "guardado";
+    return {
+      id,
+      placa,
+      nomeArquivo,
+      status,
+      tentativas: Math.max(0, Number(d.tentativas) || 0),
+      msgErro: String(d.msgErro || "").slice(0, 220),
+      guardadoEm: String(d.guardadoEm || d.registradoEm || new Date().toISOString()),
+      atualizadoEm: String(d.atualizadoEm || d.guardadoEm || new Date().toISOString()),
+    };
+  }
+
+  function sanitizeDepositoLote(list) {
+    const byPlaca = new Map();
+    for (const raw of Array.isArray(list) ? list : []) {
+      const d = sanitizeDepositoItem(raw);
+      if (!d) continue;
+      const prev = byPlaca.get(d.placa);
+      if (!prev || Date.parse(d.atualizadoEm) >= Date.parse(prev.atualizadoEm)) byPlaca.set(d.placa, d);
+    }
+    return [...byPlaca.values()].slice(0, PATRIMONIO_MAX_LOTE);
+  }
+
+  function getDepositoLote() {
+    return loadStore().depositoLote || [];
+  }
+
+  function saveDepositoLote(depositoLote) {
+    const store = loadStore();
+    saveStore({ ...store, depositoLote: sanitizeDepositoLote(depositoLote) });
+  }
+
+  function patrimonioDepositoContagem(depositoLote) {
+    const list = depositoLote || getDepositoLote();
+    const docs = patrimonioPlacasCadastradasSet();
+    let guardados = 0;
+    let ok = 0;
+    let pendentes = 0;
+    let falhas = 0;
+    let skip = 0;
+    for (const d of list) {
+      if (d.status === "ok" || docs.has(d.placa)) ok++;
+      else if (d.status === "skip") skip++;
+      else if (d.status === "falhou") falhas++;
+      else if (d.status === "processando") pendentes++;
+      else if (d.status === "guardado" || d.status === "pendente") pendentes++;
+      guardados++;
+    }
+    const relatorioLote = [...docs].filter((p) =>
+      list.some((d) => normPlaca(d.placa) === p)
+    ).length;
+    return { total: list.length, guardados, ok, pendentes, falhas, skip, relatorioLote };
+  }
+
+  let patrimonioDepositoRodando = false;
+
+  function patrimonioDepositoPatch(id, patch) {
+    const list = getDepositoLote();
+    const idx = list.findIndex((d) => d.id === id);
+    if (idx < 0) return;
+    const merged = sanitizeDepositoItem({
+      ...list[idx],
+      ...patch,
+      atualizadoEm: new Date().toISOString(),
+    });
+    if (!merged) return;
+    list[idx] = merged;
+    saveDepositoLote(list);
+  }
+
+  async function patrimonioDepositoGuardarArquivos(fileList) {
+    let files = Array.from(fileList || []).filter(ehArquivoPdf);
+    if (!files.length) {
+      setMsg("Selecione ficheiros PDF CRLVDigital_PLACA_ANO.pdf.", true);
+      return;
+    }
+    if (files.length > PATRIMONIO_MAX_LOTE) {
+      setMsg(`Serão guardados os primeiros ${PATRIMONIO_MAX_LOTE} de ${files.length} PDF(s).`, false);
+      files = files.slice(0, PATRIMONIO_MAX_LOTE);
+    }
+    patrimonioPausarSyncCloud();
+    await patrimonioAtivarWakeLock();
+    setMsg(`A guardar ${files.length} PDF(s) no depósito local…`, false);
+    atualizarProgressoLotePatrimonio(0, files.length, "A guardar PDFs no depósito…");
+    const deposito = getDepositoLote();
+    const byPlaca = new Map(deposito.map((d) => [d.placa, d]));
+    let guardados = 0;
+    let semPlaca = 0;
+    let substituidos = 0;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      atualizarProgressoLotePatrimonio(
+        i + 1,
+        files.length,
+        `Depósito ${i + 1}/${files.length}: «${file.name}»…`
+      );
+      await patrimonioYieldUi();
+      const placa = normPlaca(placaDoNomeArquivo(file.name));
+      if (!placa) {
+        semPlaca++;
+        continue;
+      }
+      const prev = byPlaca.get(placa);
+      const id = prev?.id || `dep-${newId()}`;
+      if (prev && prev.status === "ok") continue;
+      try {
+        const imagem = await pdfArquivoParaImagemAlta(file);
+        let pdfOriginal = "";
+        try {
+          pdfOriginal = await fileParaDataUrl(file);
+        } catch {
+          pdfOriginal = "";
+        }
+        await patrimonioSalvarImagemFila(id, imagem, {
+          nomeArquivo: String(file.name || "documento.pdf").slice(0, 120),
+          pdfOriginal,
+        });
+        const agora = new Date().toISOString();
+        const item = sanitizeDepositoItem({
+          id,
+          placa,
+          nomeArquivo: String(file.name || "documento.pdf").slice(0, 140),
+          status: prev?.status === "falhou" ? "pendente" : "guardado",
+          tentativas: prev?.tentativas || 0,
+          msgErro: "",
+          guardadoEm: prev?.guardadoEm || agora,
+          atualizadoEm: agora,
+        });
+        if (!item) continue;
+        byPlaca.set(placa, item);
+        if (prev) substituidos++;
+        else guardados++;
+      } catch (e) {
+        setMsg(`Erro ao guardar «${file.name}»: ${String(e?.message || e)}`, true);
+      }
+    }
+    saveDepositoLote([...byPlaca.values()]);
+    renderDepositoPatrimonio();
+    patrimonioLibertarWakeLock();
+    patrimonioRetomarSyncCloud();
+    atualizarProgressoLotePatrimonio(0, 0, "");
+    const c = patrimonioDepositoContagem();
+    const partes = [`${c.total} no depósito`];
+    if (guardados) partes.push(`${guardados} novo(s)`);
+    if (substituidos) partes.push(`${substituidos} actualizado(s)`);
+    if (semPlaca) partes.push(`${semPlaca} sem placa no nome`);
+    setMsg(
+      `${partes.join(" · ")}. Clique «Processar depósito» para a IA ler (mantenha a página aberta).`,
+      false,
+      true
+    );
+  }
+
+  async function patrimonioDepositoProcessarUm(item, docsCad) {
+    if (docsCad.has(item.placa)) {
+      patrimonioDepositoPatch(item.id, { status: "skip", msgErro: "Já no relatório" });
+      return "skip";
+    }
+    patrimonioDepositoPatch(item.id, { status: "processando", msgErro: "" });
+    renderDepositoPatrimonio();
+    const img = await patrimonioLerImagemFila(item.id);
+    if (!img) {
+      const tent = (item.tentativas || 0) + 1;
+      patrimonioDepositoPatch(item.id, {
+        status: tent >= PATRIMONIO_DEPOSITO_MAX_TENTATIVAS ? "falhou" : "pendente",
+        tentativas: tent,
+        msgErro: "PDF não encontrado neste browser — carregue de novo no depósito.",
+      });
+      return "falhou";
+    }
+    const leitura = await lerCrlvComRetry([img], {
+      placaHint: item.placa,
+      nomeArquivo: item.nomeArquivo,
+      fotoId: item.id,
+    });
+    if (!leitura.ok) {
+      const tent = (item.tentativas || 0) + 1;
+      patrimonioDepositoPatch(item.id, {
+        status: tent >= PATRIMONIO_DEPOSITO_MAX_TENTATIVAS ? "falhou" : "pendente",
+        tentativas: tent,
+        msgErro: String(leitura.msg || MSG_IA_FALHOU).slice(0, 220),
+      });
+      return "falhou";
+    }
+    const campos = leitura.campos;
+    const pdfFila = await patrimonioLerPdfFila(item.id);
+    let imagemPdfRecortada = pdfFila.startsWith("data:application/pdf") ? pdfFila : "";
+    const imagemGuardar = await prepararImagemDocumentoArmazenar(leitura.imagemUsada || img);
+    const scanV = Number(window.__DK_patrimonioScanVersion) || PATRIMONIO_SCAN_VERSAO;
+    const existente = leitura.documentoExistente || buscarDocumentoCadastradoPorPlaca(campos.placa);
+    const agora = new Date().toISOString();
+    const doc = {
+      ...campos,
+      id: existente?.id || newId(),
+      imagemRecortada: imagemGuardar,
+      imagemPdfRecortada,
+      imagemScanVersao: scanV,
+      processadoEm: agora,
+      cadastradoEm: existente?.cadastradoEm || agora,
+    };
+    const r = await upsertDocumento(doc);
+    if (!r.ok) {
+      const tent = (item.tentativas || 0) + 1;
+      patrimonioDepositoPatch(item.id, {
+        status: tent >= PATRIMONIO_DEPOSITO_MAX_TENTATIVAS ? "falhou" : "pendente",
+        tentativas: tent,
+        msgErro: String(r.erro || MSG_IA_FALHOU).slice(0, 220),
+      });
+      return "falhou";
+    }
+    patrimonioDepositoPatch(item.id, { status: "ok", msgErro: "", tentativas: item.tentativas || 0 });
+    docsCad.add(normPlaca(campos.placa));
+    renderLista();
+    return "ok";
+  }
+
+  async function patrimonioDepositoProcessarLote(opts) {
+    if (patrimonioDepositoRodando) {
+      setMsg("Processamento do depósito já em curso…", false);
+      return;
+    }
+    const apenasFalhas = Boolean(opts?.apenasFalhas);
+    const bruto = getDepositoLote();
+    const tinhaProcessando = bruto.some((d) => d.status === "processando");
+    const list = bruto.map((d) => (d.status === "processando" ? { ...d, status: "pendente" } : d));
+    if (tinhaProcessando) saveDepositoLote(list);
+    const docsCad = patrimonioPlacasCadastradasSet();
+    const fila = list.filter((d) => {
+      if (d.status === "ok" || d.status === "skip") return false;
+      if (docsCad.has(d.placa)) return true;
+      if (apenasFalhas) return d.status === "falhou" && (d.tentativas || 0) < PATRIMONIO_DEPOSITO_MAX_TENTATIVAS;
+      if (d.status === "falhou" && (d.tentativas || 0) >= PATRIMONIO_DEPOSITO_MAX_TENTATIVAS) return false;
+      return ["guardado", "pendente", "falhou"].includes(d.status);
+    });
+    if (!fila.length) {
+      const c = patrimonioDepositoContagem();
+      setMsg(
+        c.total
+          ? `Depósito: nada a processar (${c.ok} ok · ${c.falhas} falha definitiva · relatório ${getDocumentos().length}).`
+          : "Depósito vazio — carregue os 162 PDFs primeiro.",
+        c.total === 0
+      );
+      renderDepositoPatrimonio();
+      return;
+    }
+    patrimonioDepositoRodando = true;
+    patrimonioPausarSyncCloud();
+    await patrimonioAtivarWakeLock();
+    let okN = 0;
+    let falN = 0;
+    let skipN = 0;
+    try {
+      for (let i = 0; i < fila.length; i++) {
+        const item = fila[i];
+        setMsg(
+          `Depósito · IA ${i + 1}/${fila.length} · ${item.placa} · ${getDocumentos().length}/${PATRIMONIO_META_LOTES_ARQUIVOS} no relatório…`,
+          false
+        );
+        atualizarProgressoLotePatrimonio(
+          i + 1,
+          fila.length,
+          `Depósito IA ${i + 1}/${fila.length}: ${item.placa}…`
+        );
+        const r = await patrimonioDepositoProcessarUm(item, docsCad);
+        if (r === "ok") okN++;
+        else if (r === "skip") skipN++;
+        else falN++;
+        renderDepositoPatrimonio();
+        if (i + 1 < fila.length) {
+          await new Promise((resolve) => window.setTimeout(resolve, PATRIMONIO_IA_INTERVALO_MS));
+        }
+      }
+    } finally {
+      patrimonioDepositoRodando = false;
+      patrimonioLibertarWakeLock();
+      patrimonioRetomarSyncCloud();
+      atualizarProgressoLotePatrimonio(0, 0, "");
+      renderDepositoPatrimonio();
+      renderLista();
+      const c = patrimonioDepositoContagem();
+      setMsg(
+        `Depósito concluído: ${okN} cadastrado(s) nesta execução · ${c.pendentes} pendente(s) · ${c.falhas} falha(s) · relatório ${getDocumentos().length}/${PATRIMONIO_META_LOTES_ARQUIVOS}.`,
+        falN > 0 && okN === 0,
+        okN > 0 || c.falhas === 0
+      );
+    }
+  }
+
+  async function patrimonioDepositoLimpar() {
+    const list = getDepositoLote();
+    if (!list.length) {
+      setMsg("Depósito já está vazio.", false);
+      return;
+    }
+    if (!window.confirm(`Limpar ${list.length} PDF(s) do depósito local? Os cadastros no relatório mantêm-se.`)) {
+      return;
+    }
+    for (const d of list) {
+      await patrimonioApagarImagemFila(d.id);
+    }
+    saveDepositoLote([]);
+    renderDepositoPatrimonio();
+    setMsg("Depósito limpo.", false, true);
+  }
+
+  function renderDepositoPatrimonio() {
+    const resumoElDep = document.getElementById("patrimonioDepositoResumo");
+    const listaElDep = document.getElementById("patrimonioDepositoLista");
+    const btnProc = document.getElementById("patrimonioDepositoProcessarBtn");
+    const btnRep = document.getElementById("patrimonioDepositoRepetirBtn");
+    if (!resumoElDep) return;
+    const c = patrimonioDepositoContagem();
+    const rel = getDocumentos().length;
+    resumoElDep.textContent =
+      c.total > 0
+        ? `${c.total} PDF(s) guardados · ${c.ok} cadastrado(s) · ${c.pendentes} a processar · ${c.falhas} falha(s) · relatório ${rel}/${PATRIMONIO_META_LOTES_ARQUIVOS}`
+        : `Nenhum PDF no depósito. Carregue os ${PATRIMONIO_META_LOTES_ARQUIVOS} ficheiros — ficam guardados neste browser até concluir.`;
+    if (btnProc) btnProc.disabled = patrimonioDepositoRodando || c.total === 0;
+    if (btnRep) btnRep.disabled = patrimonioDepositoRodando || c.falhas === 0;
+    if (!listaElDep) return;
+    const falhas = getDepositoLote().filter((d) => d.status === "falhou" || (d.status === "pendente" && d.msgErro));
+    const pendentes = getDepositoLote().filter((d) =>
+      ["guardado", "pendente", "processando"].includes(d.status)
+    );
+    const mostrar = [...falhas, ...pendentes.filter((p) => !falhas.some((f) => f.id === p.id))].slice(0, 40);
+    if (!mostrar.length) {
+      listaElDep.innerHTML = c.total ? '<p class="subtext">Nenhuma falha pendente — todos processados ou já no relatório.</p>' : "";
+      return;
+    }
+    listaElDep.innerHTML = `<table class="patrimonio-deposito-tabela"><thead><tr><th>Placa</th><th>Ficheiro</th><th>Estado</th><th>Detalhe</th></tr></thead><tbody>${mostrar
+      .map((d) => {
+        const st =
+          d.status === "processando"
+            ? "A processar…"
+            : d.status === "guardado"
+              ? "Guardado"
+              : d.status === "pendente"
+                ? `Pendente (${d.tentativas || 0}/${PATRIMONIO_DEPOSITO_MAX_TENTATIVAS})`
+                : d.status === "falhou"
+                  ? "Falhou"
+                  : d.status;
+        return `<tr><td>${escapeHtml(d.placa)}</td><td>${escapeHtml(d.nomeArquivo)}</td><td>${escapeHtml(st)}</td><td>${escapeHtml(d.msgErro || "—")}</td></tr>`;
+      })
+      .join("")}</tbody></table>`;
+  }
+
+  function bindDepositoPatrimonio() {
+    const input = document.getElementById("patrimonioDepositoInput");
+    const zone = document.getElementById("patrimonioDepositoDropzone");
+    if (input && input.dataset.dkDepBound !== "1") {
+      input.dataset.dkDepBound = "1";
+      input.addEventListener("change", (ev) => {
+        const files = Array.from(ev.target?.files || []);
+        ev.target.value = "";
+        if (files.length) void patrimonioDepositoGuardarArquivos(files);
+      });
+    }
+    if (zone && zone.dataset.dkDepBound !== "1") {
+      zone.dataset.dkDepBound = "1";
+      ["dragenter", "dragover"].forEach((evName) => {
+        zone.addEventListener(evName, (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          zone.classList.add("patrimonio-pdf-dropzone--drag");
+        });
+      });
+      ["dragleave", "drop"].forEach((evName) => {
+        zone.addEventListener(evName, (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          zone.classList.remove("patrimonio-pdf-dropzone--drag");
+        });
+      });
+      zone.addEventListener("drop", (ev) => {
+        const files = Array.from(ev.dataTransfer?.files || []).filter(ehArquivoPdf);
+        if (files.length) void patrimonioDepositoGuardarArquivos(files);
+      });
+    }
+    document.getElementById("patrimonioDepositoProcessarBtn")?.addEventListener("click", () => {
+      void patrimonioDepositoProcessarLote({ apenasFalhas: false });
+    });
+    document.getElementById("patrimonioDepositoRepetirBtn")?.addEventListener("click", () => {
+      void patrimonioDepositoProcessarLote({ apenasFalhas: true });
+    });
+    document.getElementById("patrimonioDepositoLimparBtn")?.addEventListener("click", () => {
+      void patrimonioDepositoLimpar();
+    });
   }
 
   function dataBrValida(s) {
@@ -852,16 +1251,17 @@
       PATRIMONIO_MAX_ARQUIVOS
     );
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
+    const depositoLote = sanitizeDepositoLote(store?.depositoLote ?? prev.depositoLote);
 
-    const payload = { documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes };
-    const gravar = (docs, lista) => {
+    const payload = { documentos, fotosCapturas, fotosCapturasExcluidas: exclusoes, depositoLote };
+    const gravar = (docs, lista, dep) => {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ ...payload, documentos: docs, fotosCapturas: lista })
+        JSON.stringify({ ...payload, documentos: docs, fotosCapturas: lista, depositoLote: dep ?? depositoLote })
       );
     };
     try {
-      gravar(documentos, fotosCapturas);
+      gravar(documentos, fotosCapturas, depositoLote);
     } catch {
       const aliviada = fotosCapturas.map((f) => ({
         ...f,
@@ -870,7 +1270,7 @@
         imagemIndisponivel: true,
       }));
       try {
-        gravar(documentos, aliviada);
+        gravar(documentos, aliviada, depositoLote);
       } catch {
         const docsLeves = documentos.map((d) => ({
           ...d,
@@ -878,7 +1278,7 @@
           imagemPdfRecortada: undefined,
           imagemDocIdb: true,
         }));
-        gravar(docsLeves, aliviada);
+        gravar(docsLeves, aliviada, depositoLote);
       }
     }
     if (
@@ -5257,6 +5657,7 @@ ${contador}
       document.getElementById("btn-locadora-patrimonio")?.click();
     });
     bindPatrimonioPdfUpload();
+    bindDepositoPatrimonio();
 
     document.getElementById("patrimonioBtnReprocessarReprovados")?.addEventListener("click", () => {
       void reprocessarTodosReprovadosPatrimonio();
@@ -5326,6 +5727,7 @@ ${contador}
     fecharRelatorioModal();
     setMsg("");
     renderLista();
+    renderDepositoPatrimonio();
   }
 
   let migracaoScanEmCurso = false;
@@ -5389,6 +5791,8 @@ ${contador}
     }
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
+    bindDepositoPatrimonio();
+    renderDepositoPatrimonio();
     void patrimonioRetomarFilaIa({ silencioso: false, finalizar: true });
     try {
       sessionStorage.removeItem(PENDING_FOTO_KEY);
@@ -5458,6 +5862,7 @@ ${contador}
   });
 
   bindUi();
+  renderDepositoPatrimonio();
   void (async () => {
     patrimonioRepararProprietariosDocumentos();
     patrimonioRecuperarDocumentosDedupPlaca();

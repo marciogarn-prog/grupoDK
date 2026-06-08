@@ -3523,6 +3523,64 @@ table.validados-app .lnk-comprovante {
   margin: 0.5rem 0 0;
 }
 
+.patrimonio-deposito {
+  margin: 1.25rem 0 1.5rem;
+  padding: 1rem 1.1rem 1.15rem;
+  border: 2px solid rgba(56, 189, 248, 0.55);
+  border-radius: 12px;
+  background: rgba(14, 116, 144, 0.12);
+}
+
+.patrimonio-deposito-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 0.85rem 0 1rem;
+}
+
+.patrimonio-pdf-dropzone--deposito {
+  border-color: rgba(56, 189, 248, 0.65);
+  background: rgba(8, 47, 73, 0.35);
+}
+
+.patrimonio-pdf-dropzone--deposito:hover,
+.patrimonio-pdf-dropzone--deposito:focus-visible,
+.patrimonio-pdf-dropzone--deposito.patrimonio-pdf-dropzone--drag {
+  border-color: rgba(125, 211, 252, 0.95);
+  background: rgba(8, 47, 73, 0.5);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+.patrimonio-deposito-resumo {
+  margin: 0.75rem 0 0.35rem;
+  font-weight: 500;
+}
+
+.patrimonio-deposito-lista {
+  margin-top: 0.5rem;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.patrimonio-deposito-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.patrimonio-deposito-tabela th,
+.patrimonio-deposito-tabela td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  vertical-align: top;
+}
+
+.patrimonio-deposito-tabela th {
+  font-weight: 600;
+  color: var(--text-muted, rgba(255, 255, 255, 0.75));
+}
+
 .patrimonio-foto-nome {
   display: block;
   font-size: 0.78rem;

@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260608patrimonio-duas-zonas">
+  <link rel="stylesheet" href="styles.css?v=20260608patrimonio-deposito">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608demo-cadastros"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -1659,6 +1659,24 @@
         <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
         <p class="subpage__lead">CRLV-e digital — use <strong>CRLVDigital_PLACA_ANO.pdf</strong> (placa entre <code>_</code>). Para enviar <strong>os 162 de uma vez</strong>, use a caixa azul <strong>Completar lote</strong> (ignora os já lidos). Área <strong>Novos</strong>: só placas novas. <strong>Atualização</strong>: renovar CRLV já cadastrado.</p>
         <p class="subtext">Até <strong>200 PDFs</strong> por envio. A fila processa um a um — mantenha a página aberta (horas em lotes grandes). Mesma placa substitui o anterior.</p>
+        <section id="patrimonioDeposito" class="patrimonio-deposito" aria-labelledby="patrimonioDepositoTitulo">
+          <h3 id="patrimonioDepositoTitulo" class="portal-lanc-aluguel-section__title">Depósito do lote (162 PDFs)</h3>
+          <p class="subtext">Carregue aqui os 162 PDFs <strong>uma vez</strong>. Ficam guardados neste computador (IndexedDB) até concluir. Depois clique <strong>Processar depósito</strong> — a IA tenta cada um (até 5×), <strong>sem bloqueio de reenvio</strong>. Mantenha a página aberta.</p>
+          <div class="patrimonio-deposito-acoes">
+            <label for="patrimonioDepositoInput" class="btn-primary">Carregar PDFs no depósito</label>
+            <button type="button" class="btn-primary" id="patrimonioDepositoProcessarBtn">Processar depósito</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioDepositoRepetirBtn">Repetir falhas</button>
+            <button type="button" class="btn-primary btn-secondary-outline patrimonio-btn-lixo" id="patrimonioDepositoLimparBtn">Limpar depósito</button>
+          </div>
+          <input type="file" id="patrimonioDepositoInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
+          <label id="patrimonioDepositoDropzone" for="patrimonioDepositoInput" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--deposito" tabindex="0" aria-label="Depósito do lote — arraste ou clique para guardar PDFs CRLV.">
+            <p class="patrimonio-pdf-dropzone__titulo">Arrastar os 162 PDFs para o depósito</p>
+            <p class="patrimonio-pdf-dropzone__sub">Os ficheiros <strong>permanecem guardados</strong> mesmo se fechar o browser. Processamento separado — clique «Processar depósito» quando terminar o upload.</p>
+            <p class="patrimonio-pdf-dropzone__limite subtext">Nome: <code>CRLVDigital_PLACA_ANO.pdf</code> · até 200 PDFs · meta 162 veículos</p>
+          </label>
+          <p id="patrimonioDepositoResumo" class="subtext patrimonio-deposito-resumo">Nenhum PDF no depósito.</p>
+          <div id="patrimonioDepositoLista" class="patrimonio-deposito-lista"></div>
+        </section>
         <div id="patrimonioLoteProgress" class="patrimonio-lote-progress hidden" aria-live="polite">
           <div class="patrimonio-lote-progress__track"><div id="patrimonioLoteProgressFill" class="patrimonio-lote-progress__fill"></div></div>
           <p id="patrimonioLoteProgressText" class="subtext patrimonio-lote-progress__text"></p>
@@ -2054,7 +2072,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260603zerafila" defer></script>
   <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
-  <script src="portal-patrimonio.js?v=20260608patrimonio-destravar-fila" defer></script>
+  <script src="portal-patrimonio.js?v=20260608patrimonio-deposito-lote" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260521pesquisa-placa" defer></script>
   <script src="portal-supabase-sync.js?v=20260608demo-cadastros" defer></script>
