@@ -4,6 +4,7 @@
  */
 (function portalPatrimonio() {
   const STORAGE_KEY = "dk_patrimonio_crlv_v1";
+  const DEPOSITO_KEY = "dk_patrimonio_deposito_v1";
   const EXCLUSOES_KEY = "dk_patrimonio_fotos_excluidas_v1";
   const PENDING_FOTO_KEY = "dk_patrimonio_foto_pendente_v1";
   const PATRIMONIO_SCAN_VERSAO = 7;
@@ -805,12 +806,39 @@
   }
 
   function getDepositoLote() {
-    return loadStore().depositoLote || [];
+    try {
+      const raw = JSON.parse(localStorage.getItem(DEPOSITO_KEY) || "null");
+      if (Array.isArray(raw) && raw.length) return sanitizeDepositoLote(raw);
+    } catch {
+      /* migrate abaixo */
+    }
+    const legado = sanitizeDepositoLote(loadStore().depositoLote);
+    if (legado.length) {
+      try {
+        localStorage.setItem(DEPOSITO_KEY, JSON.stringify(legado));
+      } catch {
+        /* ignore */
+      }
+    }
+    return legado;
   }
 
   function saveDepositoLote(depositoLote) {
-    const store = loadStore();
-    saveStore({ ...store, depositoLote: sanitizeDepositoLote(depositoLote) });
+    const clean = sanitizeDepositoLote(depositoLote);
+    try {
+      localStorage.setItem(DEPOSITO_KEY, JSON.stringify(clean));
+    } catch {
+      const leve = clean.map((d) => ({
+        ...d,
+        msgErro: String(d.msgErro || "").slice(0, 80),
+        nomeArquivo: String(d.nomeArquivo || "").slice(0, 80),
+      }));
+      try {
+        localStorage.setItem(DEPOSITO_KEY, JSON.stringify(leve));
+      } catch {
+        setMsg("Depósito: não coube no armazenamento local — use menos PDFs de cada vez.", true);
+      }
+    }
   }
 
   function patrimonioDepositoContagem(depositoLote) {
@@ -1092,25 +1120,27 @@
     const btnProc = document.getElementById("patrimonioDepositoProcessarBtn");
     const btnRep = document.getElementById("patrimonioDepositoRepetirBtn");
     if (!resumoElDep) return;
-    const c = patrimonioDepositoContagem();
+    const list = getDepositoLote();
+    const c = patrimonioDepositoContagem(list);
     const rel = getDocumentos().length;
+    const ordemStatus = { processando: 0, guardado: 1, pendente: 2, falhou: 3, ok: 4, skip: 5 };
     resumoElDep.textContent =
       c.total > 0
-        ? `${c.total} PDF(s) guardados · ${c.ok} cadastrado(s) · ${c.pendentes} a processar · ${c.falhas} falha(s) · relatório ${rel}/${PATRIMONIO_META_LOTES_ARQUIVOS}`
+        ? `${c.total} PDF(s) no depósito · ${c.ok} cadastrado(s) · ${c.pendentes} a processar · ${c.falhas} falha(s) · relatório ${rel}/${PATRIMONIO_META_LOTES_ARQUIVOS}${patrimonioDepositoRodando ? " · IA a correr…" : ""}`
         : `Nenhum PDF no depósito. Carregue os ${PATRIMONIO_META_LOTES_ARQUIVOS} ficheiros — ficam guardados neste browser até concluir.`;
     if (btnProc) btnProc.disabled = patrimonioDepositoRodando || c.total === 0;
     if (btnRep) btnRep.disabled = patrimonioDepositoRodando || c.falhas === 0;
     if (!listaElDep) return;
-    const falhas = getDepositoLote().filter((d) => d.status === "falhou" || (d.status === "pendente" && d.msgErro));
-    const pendentes = getDepositoLote().filter((d) =>
-      ["guardado", "pendente", "processando"].includes(d.status)
-    );
-    const mostrar = [...falhas, ...pendentes.filter((p) => !falhas.some((f) => f.id === p.id))].slice(0, 40);
-    if (!mostrar.length) {
-      listaElDep.innerHTML = c.total ? '<p class="subtext">Nenhuma falha pendente — todos processados ou já no relatório.</p>' : "";
+    if (!list.length) {
+      listaElDep.innerHTML = "";
       return;
     }
-    listaElDep.innerHTML = `<table class="patrimonio-deposito-tabela"><thead><tr><th>Placa</th><th>Ficheiro</th><th>Estado</th><th>Detalhe</th></tr></thead><tbody>${mostrar
+    const sorted = [...list].sort(
+      (a, b) =>
+        (ordemStatus[a.status] ?? 9) - (ordemStatus[b.status] ?? 9) ||
+        String(a.placa).localeCompare(String(b.placa))
+    );
+    listaElDep.innerHTML = `<table class="patrimonio-deposito-tabela"><thead><tr><th>Placa</th><th>Ficheiro</th><th>Estado</th><th>Detalhe</th></tr></thead><tbody>${sorted
       .map((d) => {
         const st =
           d.status === "processando"
@@ -1121,10 +1151,48 @@
                 ? `Pendente (${d.tentativas || 0}/${PATRIMONIO_DEPOSITO_MAX_TENTATIVAS})`
                 : d.status === "falhou"
                   ? "Falhou"
-                  : d.status;
+                  : d.status === "ok"
+                    ? "Cadastrado"
+                    : d.status === "skip"
+                      ? "Já no relatório"
+                      : d.status;
         return `<tr><td>${escapeHtml(d.placa)}</td><td>${escapeHtml(d.nomeArquivo)}</td><td>${escapeHtml(st)}</td><td>${escapeHtml(d.msgErro || "—")}</td></tr>`;
       })
       .join("")}</tbody></table>`;
+  }
+
+  async function patrimonioDepositoRecuperarDeIdbSeVazio() {
+    if (getDepositoLote().length) return 0;
+    if (typeof window.__DK_patrimonioIdbGetAllIds !== "function") return 0;
+    try {
+      const ids = (await window.__DK_patrimonioIdbGetAllIds()).filter((id) =>
+        String(id).startsWith("dep-")
+      );
+      if (!ids.length) return 0;
+      const items = [];
+      for (const id of ids) {
+        const row = await window.__DK_patrimonioIdbGet(id);
+        const nome = String(row?.nomeArquivo || "").slice(0, 140);
+        const placa = normPlaca(placaDoNomeArquivo(nome));
+        if (!placa || !nome) continue;
+        const item = sanitizeDepositoItem({
+          id: String(id),
+          placa,
+          nomeArquivo: nome,
+          status: "guardado",
+          tentativas: 0,
+          msgErro: "",
+          guardadoEm: String(row?.atualizadoEm || new Date().toISOString()),
+          atualizadoEm: String(row?.atualizadoEm || new Date().toISOString()),
+        });
+        if (item) items.push(item);
+      }
+      if (!items.length) return 0;
+      saveDepositoLote(items);
+      return items.length;
+    } catch {
+      return 0;
+    }
   }
 
   function bindDepositoPatrimonio() {
@@ -1226,6 +1294,7 @@
       patrimonioSyncCloudPausado === 0 &&
       !patrimonioConvertendoPdfs &&
       !iaPatrimonioRodando &&
+      !patrimonioDepositoRodando &&
       typeof portalPushCloudSnapshotAfterPersist === "function"
     ) {
       portalPushCloudSnapshotAfterPersist();
@@ -1285,6 +1354,7 @@
       patrimonioSyncCloudPausado === 0 &&
       !patrimonioConvertendoPdfs &&
       !iaPatrimonioRodando &&
+      !patrimonioDepositoRodando &&
       typeof portalPushCloudSnapshotAfterPersist === "function"
     ) {
       portalPushCloudSnapshotAfterPersist();
@@ -5792,7 +5862,18 @@ ${contador}
     patrimonioPersistirAreaPortal();
     bindPatrimonioPdfUpload();
     bindDepositoPatrimonio();
-    renderDepositoPatrimonio();
+    void patrimonioDepositoRecuperarDeIdbSeVazio().then((n) => {
+      if (n > 0) {
+        renderDepositoPatrimonio();
+        setMsg(
+          `${n} PDF(s) recuperado(s) do armazenamento local — clique «Processar depósito».`,
+          false,
+          true
+        );
+      } else {
+        renderDepositoPatrimonio();
+      }
+    });
     void patrimonioRetomarFilaIa({ silencioso: false, finalizar: true });
     try {
       sessionStorage.removeItem(PENDING_FOTO_KEY);

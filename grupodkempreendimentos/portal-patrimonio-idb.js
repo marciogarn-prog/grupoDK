@@ -74,8 +74,19 @@
     return Boolean(row?.imagem);
   }
 
+  async function idbGetAllIds() {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, "readonly");
+      const req = tx.objectStore(STORE).getAllKeys();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   window.__DK_patrimonioIdbPut = idbPut;
   window.__DK_patrimonioIdbGet = idbGet;
   window.__DK_patrimonioIdbDelete = idbDelete;
   window.__DK_patrimonioIdbHas = idbHas;
+  window.__DK_patrimonioIdbGetAllIds = idbGetAllIds;
 })();

@@ -1201,6 +1201,7 @@
       documentos: parsed.documentos,
       fotosCapturas,
       fotosCapturasExcluidas: expurgado.fotosCapturasExcluidas,
+      depositoLote: Array.isArray(raw?.depositoLote) ? raw.depositoLote : [],
     };
   }
 
@@ -1391,11 +1392,16 @@
     let fotosCapturas = mergeFotosCapturasPatrimonio(localP.fotosCapturas, cloudP.fotosCapturas, exclusoes);
     fotosCapturas = aplicarExclusoesFotosCapturas(fotosCapturas, exclusoes);
 
-    return normalizePatrimonioPayloadForSync({
-      documentos: merged.map(({ _dkSyncLocal, ...rest }) => rest),
-      fotosCapturas,
-      fotosCapturasExcluidas: exclusoes,
-    });
+    const depositoLote = Array.isArray(localRaw?.depositoLote) ? localRaw.depositoLote : [];
+    return {
+      ...normalizePatrimonioPayloadForSync({
+        documentos: merged.map(({ _dkSyncLocal, ...rest }) => rest),
+        fotosCapturas,
+        fotosCapturasExcluidas: exclusoes,
+        depositoLote,
+      }),
+      depositoLote,
+    };
   }
 
   function readLocalJsonArray(key) {
