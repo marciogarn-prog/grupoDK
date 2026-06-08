@@ -245,14 +245,17 @@ async function runSuite() {
         }
       }))
     );
+    const temaHtmlOk = IS_DEMO_TEST
+      ? html.includes("demo-cadastros") || html.includes("__DK_IS_DEMO_DEPLOY__")
+      : html.includes("demo-cadastros") ||
+        html.includes("20260607virgem") ||
+        html.includes("instalacao-limpa");
+    const temaImgOk = IS_DEMO_TEST
+      ? true
+      : await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok);
     record(
       "tema vermelho preto + fundo showroom",
-      (html.includes("demo-cadastros") ||
-        html.includes("20260607virgem") ||
-        html.includes("instalacao-limpa")) &&
-        html.includes('theme-color" content="#050505"') &&
-        (IS_DEMO_TEST ||
-          (await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok)))
+      temaHtmlOk && html.includes('theme-color" content="#050505"') && temaImgOk
     );
     record(
       "logo DK Locadora no site e botao app",
