@@ -465,13 +465,23 @@
     return labels[Number(colIdx)] || "Quarta-feira";
   }
 
+  /** Calendário só leitura: usa pagamentos já gravados no protocolo (evita consolidar legado a cada clique). */
+  function getLancamentosCalendarioContrato(loc) {
+    if (!loc || typeof loc !== "object") return [];
+    const embedded = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    if (embedded.length) {
+      return dedupeLancamentosPagamento(embedded.map(normalizeLancamentoEntry).filter(Boolean));
+    }
+    return getLancamentosAluguelContrato(loc);
+  }
+
   function buildCalendarioCtxContrato(loc) {
     const diaRaw = String(loc?.diaPagto || loc?.diaPagamento || "").trim();
     const diaPagamentoCol = diaPagamentoColIdx(diaRaw, loc);
     return {
       proto: normNc(loc.numeroContrato),
       placa: String(loc.placa || "").trim(),
-      lancamentos: getLancamentosAluguelContrato(loc),
+      lancamentos: getLancamentosCalendarioContrato(loc),
       diaPagamentoCol,
       diaPagamentoLabel: diaPagamentoLegivel(diaPagamentoCol),
     };

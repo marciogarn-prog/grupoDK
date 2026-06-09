@@ -895,6 +895,13 @@
     }
   }
 
+  function findLocacaoAtivaPorProtocolo(cpf, proto) {
+    const p = String(proto || "").trim();
+    if (!p) return null;
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpf);
+    return filterLocacoesAtivas(locs).find((l) => normNc(l.numeroContrato) === p) || null;
+  }
+
   function onClientePagamentosClick(e) {
     const calBtn = e.target.closest?.("[data-cliente-cal-proto]");
     if (calBtn) {
@@ -902,8 +909,7 @@
       const proto = String(calBtn.getAttribute("data-cliente-cal-proto") || "").trim();
       const sessao = getSessao();
       if (!sessao || !proto) return;
-      const dados = loadDadosCliente(sessao.cpf);
-      const loc = filterLocacoesAtivas(dados.locacoes).find((l) => normNc(l.numeroContrato) === proto);
+      const loc = findLocacaoAtivaPorProtocolo(sessao.cpf, proto);
       if (loc && typeof window.__DK_clienteToggleCalendarioInline === "function") {
         window.__DK_clienteToggleCalendarioInline(proto, loc);
       } else if (loc && typeof window.__DK_clienteAbrirCalendarioPagamentos === "function") {
@@ -1026,15 +1032,15 @@
     if (typeof window.__DK_clearGlobalLancamentosStorageCache === "function") {
       window.__DK_clearGlobalLancamentosStorageCache();
     }
-    const locs = loadCadastro(CAD_LOCACOES_KEY);
-    if (!Array.isArray(locs) || !locs.length) return;
+    const all = loadCadastro(CAD_LOCACOES_KEY);
+    if (!Array.isArray(all) || !all.length) return;
     let changed = false;
-    for (const loc of locs) {
+    for (const loc of all) {
       if (!loc || onlyDigits(loc.cpf).slice(0, 11) !== dig) continue;
       window.__DK_consolidarLancamentosAluguelLoc(loc, { mutate: true });
       changed = true;
     }
-    if (changed) saveJson(CAD_LOCACOES_KEY, locs);
+    if (changed) saveJson(CAD_LOCACOES_KEY, all);
   }
 
   async function sincronizarDadosCliente(sessao, opts) {
@@ -1106,13 +1112,35 @@
   }
 
   let clienteRenderRaf = 0;
+  let clienteRenderDebounce = 0;
+  let lastClienteRenderKey = "";
+
+  function clienteRenderKey(sessao) {
+    const cpf = sessao?.cpf;
+    if (!cpf) return "";
+    const locs = filterLocacoesAtivas(
+      loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpf)
+    );
+    return locs
+      .map((loc) => {
+        const nc = normNc(loc.numeroContrato);
+        const n = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel.length : 0;
+        return `${nc}:${n}:${loc.updatedAt || 0}`;
+      })
+      .join("|");
+  }
+
   function scheduleClienteRender(sessao) {
     if (!sessao?.cpf) return;
-    if (clienteRenderRaf) cancelAnimationFrame(clienteRenderRaf);
-    clienteRenderRaf = requestAnimationFrame(() => {
-      clienteRenderRaf = 0;
-      renderApp(sessao);
-    });
+    if (clienteRenderDebounce) window.clearTimeout(clienteRenderDebounce);
+    clienteRenderDebounce = window.setTimeout(() => {
+      clienteRenderDebounce = 0;
+      if (clienteRenderRaf) cancelAnimationFrame(clienteRenderRaf);
+      clienteRenderRaf = requestAnimationFrame(() => {
+        clienteRenderRaf = 0;
+        renderApp(sessao);
+      });
+    }, 120);
   }
 
   function onComprovantesSyncedRefreshView() {
@@ -1120,9 +1148,19 @@
     if (sessao?.cpf) scheduleClienteRender(sessao);
   }
 
-  function renderApp(sessao) {
+  function renderApp(sessao, opts) {
+    const calAberto =
+      typeof window.__DK_clienteCalendarioInlineAberto === "function"
+        ? String(window.__DK_clienteCalendarioInlineAberto() || "").trim()
+        : "";
+    const renderKey = clienteRenderKey(sessao);
+    if (!opts?.force && calAberto && renderKey && renderKey === lastClienteRenderKey) {
+      return;
+    }
+    lastClienteRenderKey = renderKey;
+
     applyClienteComprovanteUiVisibility();
-    if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+    if (!calAberto && typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
       window.__DK_comprovantesClienteInvalidateCache();
     }
     const cpf = sessao.cpf;
@@ -1166,7 +1204,9 @@
       if (protoCal) {
         const locCal = locAtivas.find((l) => normNc(l.numeroContrato) === protoCal);
         if (locCal && typeof window.__DK_clienteRestoreCalendarioInline === "function") {
-          window.__DK_clienteRestoreCalendarioInline(protoCal, locCal);
+          requestAnimationFrame(() => {
+            window.__DK_clienteRestoreCalendarioInline(protoCal, locCal);
+          });
         }
       }
     }
