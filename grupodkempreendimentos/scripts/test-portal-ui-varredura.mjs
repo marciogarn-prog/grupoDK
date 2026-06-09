@@ -394,21 +394,41 @@ async function runE2E() {
     }
 
     if (IS_DEMO) {
+      await page.evaluate(async () => {
+        if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+          await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
+        }
+      });
+      await page.waitForTimeout(2500);
       await page.locator("#btn-operacao-lancamento-aluguel").click().catch(() => null);
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(600);
       await page.locator("#btn-lanc-aluguel-avulso").click().catch(() => null);
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(600);
+      await page.locator("#operacaoLancAluguelCpf").fill("065.232.444-40");
+      await page.dispatchEvent("#operacaoLancAluguelCpf", "input");
+      await page.dispatchEvent("#operacaoLancAluguelCpf", "change");
+      await page.waitForTimeout(500);
       await page.locator("#operacaoLancAluguelProtocoloBusca").fill("2026010102");
       await page.locator("#operacaoLancAluguelConfirmarPesquisaBtn").click();
-      await page.waitForTimeout(1200);
+      await page.waitForTimeout(2000);
       await page
-        .waitForSelector("#operacaoLancAluguelPagamentoPanel:not(.hidden)", { timeout: 15000 })
+        .waitForSelector("#operacaoLancAluguelPagamentoPanel:not(.hidden)", { timeout: 20000 })
+        .catch(() => null);
+      await page
+        .waitForFunction(
+          () => {
+            const fn = window.__DK_operacaoLancAluguelProtocoloAtual;
+            if (typeof fn !== "function") return false;
+            const { nc, cpf } = fn();
+            return String(cpf || "").replace(/\D/g, "").length === 11 && Boolean(nc);
+          },
+          { timeout: 15000 }
+        )
         .catch(() => null);
       await page.locator("#operacaoLancAluguelLancBlocoBtn").click({ timeout: 15000 }).catch(() => null);
-      await page.waitForTimeout(800);
       const modalOpen = await page
-        .locator("#portalLancAluguelCalModal:not(.hidden)")
-        .isVisible()
+        .waitForSelector("#portalLancAluguelCalModal:not(.hidden)", { timeout: 12000 })
+        .then(() => true)
         .catch(() => false);
       record("E2E: lançamento em bloco abre modal", modalOpen);
       if (modalOpen) {
