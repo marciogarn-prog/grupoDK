@@ -1049,17 +1049,26 @@
     if (msg && !silent) msg.textContent = "A sincronizar com a nuvem…";
     let syncOk = false;
     try {
-      const pullFn =
-        typeof window.__DK_pullClienteCloudSnapshotLight === "function"
-          ? window.__DK_pullClienteCloudSnapshotLight
-          : window.__DK_pullCloudSnapshotSilentMerge;
-      if (typeof pullFn === "function") {
+      if (!silent && typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
         await Promise.race([
-          pullFn({ force: false }),
+          window.__DK_pullCloudSnapshotSilentMerge({ force: true }),
           new Promise((_, reject) => {
             window.setTimeout(() => reject(new Error("timeout")), 12000);
           }),
         ]);
+      } else {
+        const pullFn =
+          typeof window.__DK_pullClienteCloudSnapshotLight === "function"
+            ? window.__DK_pullClienteCloudSnapshotLight
+            : window.__DK_pullCloudSnapshotSilentMerge;
+        if (typeof pullFn === "function") {
+          await Promise.race([
+            pullFn({ force: false }),
+            new Promise((_, reject) => {
+              window.setTimeout(() => reject(new Error("timeout")), 12000);
+            }),
+          ]);
+        }
       }
       if (
         !isClienteAppPage() &&
