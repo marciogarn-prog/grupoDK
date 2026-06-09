@@ -683,6 +683,30 @@
     return true;
   }
 
+  function notifyClienteAvisoLancamento(cfg, cpfDigits, nc, loc, entry) {
+    const sk = pStore(cfg);
+    const payload = {
+      cpf: cpfDigits,
+      protocolo: nc,
+      placa: String(loc?.placa || "").trim(),
+      cod: String(entry[sk.cod] || "").trim(),
+      descricao: String(entry.descricao || "").trim(),
+      valor: parseVal(entry[sk.valor]) || Number(entry.valor) || 0,
+      quantidadeParcelas: Number(entry.quantidadeParcelas) || 1,
+    };
+    if (parceladoTipo(cfg) === "manutencao") {
+      payload.dataManutencao = String(entry[sk.data] || "").trim();
+      if (typeof window.__DK_clienteNotificacaoManutencaoLancada === "function") {
+        window.__DK_clienteNotificacaoManutencaoLancada(payload);
+      }
+      return;
+    }
+    payload.dataMulta = String(entry[sk.data] || "").trim();
+    if (typeof window.__DK_clienteNotificacaoMultaLancada === "function") {
+      window.__DK_clienteNotificacaoMultaLancada(payload);
+    }
+  }
+
   function persistMultaTransito(cfg, cpfDigits, nc, entry) {
     if (typeof loadCadastro !== "function") return false;
     const locs = loadCadastro(CAD_LOCACOES_KEY);
@@ -700,7 +724,9 @@
       registradoPorCpf: reg.cpf || "",
       registradoPorNome: reg.nome || "",
     });
-    return persistLancamentos(cfg, locs, loc, cpfDigits, nc);
+    const ok = persistLancamentos(cfg, locs, loc, cpfDigits, nc);
+    if (ok) notifyClienteAvisoLancamento(cfg, cpfDigits, nc, loc, entry);
+    return ok;
   }
 
   function persistPagamento(cfg, cpfDigits, nc, valorNum, dataStr, meios) {

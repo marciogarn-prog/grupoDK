@@ -360,7 +360,7 @@
   const panelLogado = document.getElementById("panel-logado");
   const panelOperacao = document.getElementById("panel-operacao-locadora");
   const panelManutencao = document.getElementById("panel-manutencao-locadora");
-  const panelPatrimonio = document.getElementById("panel-patrimonio-locadora");
+  const panelDocumentos = document.getElementById("panel-documentos-locadora");
   const panelLocalizacao = document.getElementById("panel-localizacao-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
@@ -368,7 +368,7 @@
   const logadoTexto = document.getElementById("logado-texto");
   const btnOperacao = document.getElementById("btn-locadora-operacao");
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
-  const btnPatrimonio = document.getElementById("btn-locadora-patrimonio");
+  const btnDocumentos = document.getElementById("btn-locadora-documentos");
   const btnLocalizacao = document.getElementById("btn-locadora-localizacao");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
@@ -377,7 +377,7 @@
   const locadoraAppFeedback = document.getElementById("locadora-app-feedback");
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
-  const btnVoltarPatrimonio = document.getElementById("btn-voltar-patrimonio-locadora");
+  const btnVoltarDocumentos = document.getElementById("btn-voltar-documentos-locadora");
   const btnVoltarLocalizacao = document.getElementById("btn-voltar-localizacao-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
@@ -416,6 +416,15 @@
   /** Administrador titular (`owner`) — pode editar ou apagar lançamentos já registados; colaboradores (`operacao`) só lançam novos. */
   function isPortalTitularAdministrador() {
     return getPortalSessaoAdminRole() === "owner";
+  }
+
+  function isPortalDocumentosAcesso() {
+    if (currentUnit !== "locadora") return false;
+    if (isPortalTitularAdministrador()) return true;
+    const f = getPortalSessaoEquipaFuncionario() || portalObterFuncionarioDaSessaoRestauracao();
+    if (!f || String(f.role || "").trim() !== "operacao") return false;
+    const acessos = getPortalOperacaoAcessosEfetivos(f);
+    return Boolean(acessos?.veiculo || acessos?.locacao);
   }
 
   const PORTAL_AMBIENTE_REAL = "real";
@@ -1008,7 +1017,7 @@
     btnOperacao?.classList.toggle("hidden", !allowOp);
     btnManutencao?.classList.toggle("hidden", !allowOp);
     btnLocalizacao?.classList.toggle("hidden", !allowOp);
-    btnPatrimonio?.classList.toggle("hidden", !isPortalTitularAdministrador());
+    btnDocumentos?.classList.toggle("hidden", !isPortalDocumentosAcesso());
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
     }
@@ -1019,12 +1028,6 @@
     refreshPortalOperacaoNavPorAcessos();
     refreshOperacaoLocacaoAdminProtocoloUi();
     portalSyncAmbienteCadastroAdminUi();
-    if (
-      funcionario.role === "owner" &&
-      typeof window.__DK_patrimonioRetomarFilaIa === "function"
-    ) {
-      void window.__DK_patrimonioRetomarFilaIa({ silencioso: true });
-    }
     portalToggleComunicacaoInbox(true);
   }
 
@@ -1254,7 +1257,7 @@
       btnOperacao?.classList.add("hidden");
       btnManutencao?.classList.add("hidden");
       btnLocalizacao?.classList.add("hidden");
-      btnPatrimonio?.classList.add("hidden");
+      btnDocumentos?.classList.add("hidden");
     }
     showView("hub");
     setPortalHash("locadora");
@@ -1299,7 +1302,7 @@
 
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
-    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelPatrimonio].forEach(
+    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos].forEach(
       (p) => {
         if (p) p.classList.add("hidden");
       }
@@ -1353,7 +1356,7 @@
       btnOperacao?.classList.add("hidden");
       btnManutencao?.classList.add("hidden");
       btnLocalizacao?.classList.add("hidden");
-      btnPatrimonio?.classList.add("hidden");
+      btnDocumentos?.classList.add("hidden");
       refreshPortalUnitLeadForSession();
       clearPortalUnitDadosAtualizados();
     }
@@ -1375,12 +1378,12 @@
     setManutencaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
     syncManutencaoSidebarButtons(null);
-    if (typeof window.__DK_patrimonioReset === "function") window.__DK_patrimonioReset();
+    if (typeof window.__DK_documentosReset === "function") window.__DK_documentosReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
     panelLocalizacao?.classList.add("hidden");
-    panelPatrimonio?.classList.add("hidden");
+    panelDocumentos?.classList.add("hidden");
     panelLogado?.classList.remove("hidden");
     portalToggleComunicacaoInbox(true);
     portalPersistirAreaAtiva("equipa");
@@ -1400,14 +1403,14 @@
     setManutencaoFormPlaceholderVisible(true);
     syncOperacaoCadastroButtons(null);
     syncManutencaoSidebarButtons(null);
-    if (typeof window.__DK_patrimonioReset === "function") window.__DK_patrimonioReset();
+    if (typeof window.__DK_documentosReset === "function") window.__DK_documentosReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     if (typeof clearSession === "function") clearSession();
     hideAllPanels();
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
-    btnPatrimonio?.classList.add("hidden");
+    btnDocumentos?.classList.add("hidden");
     panelLogin?.classList.remove("hidden");
     if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
     clearPortalUnitDadosAtualizados();
@@ -1461,7 +1464,7 @@
     if (!area || area === "equipa") return;
     const h = (window.location.hash || "").toLowerCase();
     if (h.startsWith("#locadora/cliente")) return;
-    if (area === "patrimonio" && panelPatrimonio && !panelPatrimonio.classList.contains("hidden")) return;
+    if (area === "documentos" && panelDocumentos && !panelDocumentos.classList.contains("hidden")) return;
     if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
     if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
     if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
@@ -1471,9 +1474,9 @@
     showView("unit");
     finalizarLoginEquipaPortal(func);
     hideAllPanels();
-    if (area === "patrimonio" && isPortalTitularAdministrador()) {
-      panelPatrimonio?.classList.remove("hidden");
-      if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
+    if (area === "documentos" && isPortalDocumentosAcesso()) {
+      panelDocumentos?.classList.remove("hidden");
+      if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
     } else if (area === "localizacao") {
       panelLocalizacao?.classList.remove("hidden");
       if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
@@ -1548,14 +1551,14 @@
 
   /** Botão «Voltar» (data-back) — tela anterior no fluxo do portal (não vai ao início). */
   function portalAcaoVoltarTela() {
-    if (typeof window.__DK_patrimonioEscapeBack === "function" && window.__DK_patrimonioEscapeBack()) {
+    if (typeof window.__DK_documentosEscapeBack === "function" && window.__DK_documentosEscapeBack()) {
       return;
     }
     const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
     const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
-    const emPatrimonio = panelPatrimonio && !panelPatrimonio.classList.contains("hidden");
+    const emDocumentos = panelDocumentos && !panelDocumentos.classList.contains("hidden");
     const emLocalizacao = panelLocalizacao && !panelLocalizacao.classList.contains("hidden");
-    if (emOperacao || emManutencao || emPatrimonio || emLocalizacao) {
+    if (emOperacao || emManutencao || emDocumentos || emLocalizacao) {
       portalVoltarEquipaLocadora();
       return;
     }
@@ -1605,7 +1608,7 @@
       e.stopPropagation();
       return;
     }
-    if (typeof window.__DK_patrimonioEscapeBack === "function" && window.__DK_patrimonioEscapeBack()) {
+    if (typeof window.__DK_documentosEscapeBack === "function" && window.__DK_documentosEscapeBack()) {
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -1954,13 +1957,13 @@
     portalVoltarEquipaLocadora();
   });
 
-  btnPatrimonio?.addEventListener("click", () => {
-    if (!isPortalTitularAdministrador()) return;
+  btnDocumentos?.addEventListener("click", () => {
+    if (!isPortalDocumentosAcesso()) return;
     hideAllPanels();
-    if (typeof window.__DK_patrimonioOnShow === "function") window.__DK_patrimonioOnShow();
-    panelPatrimonio?.classList.remove("hidden");
+    if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
+    panelDocumentos?.classList.remove("hidden");
     portalToggleComunicacaoInbox(true);
-    portalPersistirAreaAtiva("patrimonio");
+    portalPersistirAreaAtiva("documentos");
   });
 
   btnLocalizacao?.addEventListener("click", () => {
@@ -1971,7 +1974,7 @@
     portalPersistirAreaAtiva("localizacao");
   });
 
-  btnVoltarPatrimonio?.addEventListener("click", () => {
+  btnVoltarDocumentos?.addEventListener("click", () => {
     portalVoltarEquipaLocadora();
   });
 
@@ -3445,7 +3448,7 @@ ${printable.innerHTML}
     btnOperacao?.classList.add("hidden");
     btnManutencao?.classList.add("hidden");
     btnLocalizacao?.classList.add("hidden");
-    btnPatrimonio?.classList.add("hidden");
+    btnDocumentos?.classList.add("hidden");
     portalToggleComunicacaoInbox(false);
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
@@ -5195,17 +5198,7 @@ ${printable.innerHTML}
             return;
           }
           const el = ev.target.closest?.(".lnk-comprovante[data-dk-comprovante-id]");
-          if (!el) {
-            const pat = ev.target.closest?.(".lnk-patrimonio-img[data-pat-id]");
-            if (pat) {
-              ev.preventDefault();
-              const pid = pat.getAttribute("data-pat-id");
-              if (pid && typeof window.__DK_openPatrimonioImagemById === "function") {
-                window.__DK_openPatrimonioImagemById(pid);
-              }
-            }
-            return;
-          }
+          if (!el) return;
           ev.preventDefault();
           const id = el.getAttribute("data-dk-comprovante-id");
           if (id && typeof window.__DK_openComprovanteClienteViewerById === "function") {
@@ -10553,7 +10546,17 @@ ${printable.innerHTML}
       ficticio: portalRegistroEhTeste(loc),
     };
     loc.portalLancamentosAluguel.push(entry);
-    return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+    if (ok && typeof window.__DK_clienteNotificacaoPagamentoLancado === "function") {
+      window.__DK_clienteNotificacaoPagamentoLancado({
+        cpf: cpfDigits,
+        protocolo: nc,
+        placa: loc.placa,
+        valor: valorNum,
+        dataPagamento: dataStr,
+      });
+    }
+    return ok;
   }
 
   function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
