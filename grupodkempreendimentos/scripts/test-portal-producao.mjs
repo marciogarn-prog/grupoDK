@@ -1048,8 +1048,9 @@ async function runSuite() {
       clienteHtml.includes("cliente-push-notificacoes.js") &&
         pushNotifyJs.includes("ensureClientePushSubscription") &&
         comunicacaoJs.includes("notifyClientePushMensagem") &&
-        pushApi && typeof pushApi.ok === "boolean",
-      "notificação sistema + abrir chat ao tocar"
+        pushApi?.configured === true &&
+        Boolean(pushApi?.publicKey),
+      "VAPID activo + notify ao enviar mensagem operação"
     );
     record(
       "app cliente troca senha inicial 123456",
