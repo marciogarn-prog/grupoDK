@@ -5264,3 +5264,155 @@ table.validados-app .lnk-comprovante {
   margin: 0.35rem 0 0;
   font-size: 0.78rem;
 }
+
+/* === Documentos (depósito CRLV / contratos / multas) === */
+.documentos-busca {
+  margin: 1.25rem 0 1.5rem;
+  padding: 1rem 1.1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.25);
+}
+.documentos-busca-tipos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 0.75rem 0 1rem;
+  border: none;
+  padding: 0;
+}
+.documentos-busca-tipo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.documentos-busca-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: center;
+}
+.documentos-busca-input {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+.documentos-busca-resultados {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+.documentos-resultado {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+}
+.documentos-resultado__nome {
+  display: block;
+  word-break: break-all;
+}
+.documentos-resultado__acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+.documentos-depositos {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+.documentos-deposito {
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.2);
+}
+.documentos-deposito--crlv {
+  border-color: rgba(34, 197, 94, 0.35);
+}
+.documentos-deposito--contrato {
+  border-color: rgba(59, 130, 246, 0.35);
+}
+.documentos-deposito--multa {
+  border-color: rgba(234, 179, 8, 0.4);
+}
+.documentos-dropzone {
+  display: block;
+  margin: 0.75rem 0;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.documentos-dropzone--over {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+.documentos-dropzone--contrato {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+.documentos-dropzone--multa {
+  border-color: rgba(234, 179, 8, 0.45);
+}
+.documentos-file-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.documentos-resumo {
+  margin-top: 0.35rem;
+}
+.documentos-viewer-modal .portal-modal__card {
+  max-width: min(960px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+.documentos-viewer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.documentos-viewer-iframe,
+.documentos-viewer-img {
+  width: 100%;
+  min-height: 60vh;
+  max-height: 75vh;
+  border: none;
+  border-radius: 8px;
+  background: #111;
+  object-fit: contain;
+}
+
+.portal-lanc-multas-docs {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(234, 179, 8, 0.35);
+  border-radius: 10px;
+  background: rgba(234, 179, 8, 0.06);
+}
+
+.portal-lanc-multas-deposito-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.65rem;
+}
+
+.portal-lanc-multas-deposito-item {
+  margin: 0;
+}
