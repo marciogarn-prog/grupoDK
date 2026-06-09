@@ -878,28 +878,22 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260608push-notify`, {
-      cache: "no-store",
-    }).then((r) => r.text());
-    const portalComunicacaoLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609avisos-dk`, {
-      cache: "no-store",
-    }).then((r) => r.text());
-    const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao-fixa`, {
+    const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609sem-comunicacao`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260609avisos-dk`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "comunicação portal operação (inbox equipa)",
-      html.includes("portalComunicacaoVendasLista") &&
-        html.includes("portalComunicacaoManutencaoLista") &&
-        html.includes("portal-comunicacao-inbox-grid--fixed") &&
-        comunicacaoJs.includes("dk_comunicacao_operacao_v1") &&
-        comunicacaoUiJs.includes("__DK_portalComunicacaoSyncManutencaoBtn") &&
-        portalComunicacaoLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancado") &&
-        portalComunicacaoLocadoraJs.includes("portalComunicacaoAcessosEfetivos"),
-      "inbox portal + avisos automáticos ao lançar"
+      "comunicação portal removida (sem inbox/chat)",
+      !html.includes("portal-comunicacao-inbox-wrap") &&
+        !html.includes("portalComunicacaoVendasLista") &&
+        !html.includes("portal-comunicacao-operacao-ui.js") &&
+        !html.includes("portal-comunicacao-operacao.js") &&
+        !html.includes("operacaoClienteMsgClienteBtn") &&
+        portalLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancado") &&
+        !portalLocadoraJs.includes("portalComunicacaoAcessosEfetivos"),
+      "avisos automáticos mantidos; chat/inbox removidos"
     );
     record(
       "app cliente avisos DK (sem chat)",
@@ -994,6 +988,7 @@ async function runSuite() {
           "dk_sessao_cliente",
           JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
         );
+        localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
       });
       await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 90000 });
       await page
