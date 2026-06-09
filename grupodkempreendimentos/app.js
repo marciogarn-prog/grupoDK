@@ -1942,6 +1942,7 @@ function hideClienteSenhaInstrucaoText() {
 }
 
 function showMessage(target, message, type) {
+  if (!target) return;
   target.textContent = message;
   target.className = `message ${type}`;
 }
