@@ -1798,7 +1798,18 @@
 
   formLogin?.addEventListener("submit", (e) => {
     e.preventDefault();
-    if (typeof enforceMaintenanceAndDailyRoutines === "function" && enforceMaintenanceAndDailyRoutines()) return;
+    if (typeof enforceMaintenanceAndDailyRoutines === "function" && enforceMaintenanceAndDailyRoutines()) {
+      const aviso =
+        typeof getMaintenanceNotice === "function"
+          ? getMaintenanceNotice()
+          : "Sistema em conferência diária. Tente novamente mais tarde.";
+      if (loginFeedback) {
+        loginFeedback.textContent = aviso;
+        loginFeedback.classList.add("portal-feedback--error");
+      }
+      return;
+    }
+    if (loginFeedback) loginFeedback.classList.remove("portal-feedback--error");
     const fd = new FormData(formLogin);
     const cpf = onlyDigits(String(fd.get("cpf") || ""));
     const senha = String(fd.get("senha") || "").trim();
