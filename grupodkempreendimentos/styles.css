@@ -4955,6 +4955,28 @@ table.validados-app .lnk-comprovante {
   align-self: center;
 }
 
+.portal-loc-docs-item__abrir {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.portal-loc-docs-item__enviar {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.portal-loc-docs-item__enviar--ok {
+  opacity: 0.72;
+}
+
+.portal-loc-docs-item__enviado {
+  color: #86efac;
+}
+
+.portal-loc-docs-item__pendente {
+  color: #fcd34d;
+}
+
 .portal-loc-docs-item__ver {
   font-size: 0.82rem;
   padding: 0.25rem 0.55rem;

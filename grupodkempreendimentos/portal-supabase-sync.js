@@ -237,12 +237,12 @@
       });
     }
     if (Array.isArray(out.dk_locacao_documentos_v1)) {
-      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.map((rec) => {
-        if (!rec || typeof rec !== "object") return rec;
-        if (!rec.arquivoBase64) return rec;
-        const { arquivoBase64, ...rest } = rec;
-        return rest;
-      });
+      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1
+        .filter((rec) => rec && rec.enviadoCliente === true)
+        .map((rec) => {
+          if (!rec || typeof rec !== "object") return rec;
+          return { ...rec };
+        });
     }
     if (out.dk_patrimonio_crlv_v1?.documentos && Array.isArray(out.dk_patrimonio_crlv_v1.documentos)) {
       const stripDocImg = (d) => {

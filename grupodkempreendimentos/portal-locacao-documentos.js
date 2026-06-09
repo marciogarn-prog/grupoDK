@@ -27,13 +27,26 @@
     }
   }
 
-  function saveAll(arr) {
+  function saveAllLocal(arr) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-    if (typeof window.__DK_pushToCloudAfterSave === "function") {
-      window.__DK_pushToCloudAfterSave();
-    } else if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+  }
+
+  function pushDocumentosNuvem() {
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    } else if (typeof window.__DK_pushToCloudAfterSave === "function") {
+      window.__DK_pushToCloudAfterSave();
     }
+  }
+
+  function saveAll(arr) {
+    saveAllLocal(arr);
+  }
+
+  function isDocEnviadoCliente(d) {
+    if (d?.enviadoCliente === false) return false;
+    if (d?.enviadoCliente === true) return true;
+    return Boolean(String(d?.arquivoBase64 || "").trim());
   }
 
   function getProtocoloAtual() {
@@ -209,6 +222,7 @@
       origemDepositoCategoria: categoria,
       origemDepositoChave: String(depositEntry.chave || "").trim(),
       importadoAutomaticamente: true,
+      enviadoCliente: false,
     });
     saveAll(all);
     return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo };
@@ -299,13 +313,18 @@
       }
       const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
       const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
-      const prevTs = Number(prev.createdAt) || 0;
-      const recTs = Number(rec.createdAt) || 0;
+      const prevTs = Number(prev.enviadoClienteEm || prev.createdAt) || 0;
+      const recTs = Number(rec.enviadoClienteEm || rec.createdAt) || 0;
       if (recHas && !prevHas) {
         byId.set(rec.id, rec);
         return;
       }
       if (prevHas && !recHas) return;
+      if (rec.enviadoCliente === true && prev.enviadoCliente !== true) {
+        byId.set(rec.id, rec);
+        return;
+      }
+      if (prev.enviadoCliente === true && rec.enviadoCliente !== true) return;
       if (recTs >= prevTs) byId.set(rec.id, rec);
     };
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(pick);
@@ -352,6 +371,7 @@
         registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
         registradoPorNome: String(reg.nome || "").trim(),
         arquivoBase64: dataUrl,
+        enviadoCliente: false,
       });
       added += 1;
     }
@@ -359,6 +379,40 @@
     if (!added) return { ok: false, msg: "Formato não suportado. Use PDF, JPG ou PNG." };
     saveAll(all);
     return { ok: true, msg: `${added} documento(s) guardado(s) no protocolo ${protocolo}.` };
+  }
+
+  function abrirDocumento(d) {
+    const url = String(d?.arquivoBase64 || "").trim();
+    if (!url) return false;
+    window.open(url, "_blank", "noopener,noreferrer");
+    return true;
+  }
+
+  function enviarDocumentoParaCliente(id) {
+    if (!podeGerirDocumentosLocacao()) {
+      return { ok: false, msg: "Sem permissão de cadastro de locação." };
+    }
+    const all = loadAll();
+    const idx = all.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return { ok: false, msg: "Documento não encontrado." };
+    const doc = all[idx];
+    if (!String(doc.arquivoBase64 || "").trim()) {
+      return { ok: false, msg: "Ficheiro indisponível neste computador — carregue de novo o PDF." };
+    }
+    if (doc.enviadoCliente === true) {
+      return { ok: true, already: true, msg: "Este documento já foi enviado ao cliente." };
+    }
+    const reg = getRegistroOperador();
+    all[idx] = {
+      ...doc,
+      enviadoCliente: true,
+      enviadoClienteEm: Date.now(),
+      enviadoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
+      enviadoPorNome: String(reg.nome || "").trim(),
+    };
+    saveAllLocal(all);
+    pushDocumentosNuvem();
+    return { ok: true, msg: "Documento enviado — o cliente vê no app (Ver contrato / CRLV / multas)." };
   }
 
   function removerDocumento(id) {
@@ -374,8 +428,10 @@
       const dig = onlyDigits(reg.cpf).slice(0, 11);
       if (onlyDigits(all[idx].registradoPorCpf).slice(0, 11) !== dig) return false;
     }
+    const doc = all[idx];
     all.splice(idx, 1);
-    saveAll(all);
+    saveAllLocal(all);
+    if (doc?.enviadoCliente === true) pushDocumentosNuvem();
     return true;
   }
 
@@ -394,12 +450,19 @@
           ? dt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
           : "—";
         const quem = String(d.registradoPorNome || d.registradoPorCpf || "—").trim();
+        const enviado = isDocEnviadoCliente(d);
+        const enviadoEm = d.enviadoClienteEm
+          ? new Date(Number(d.enviadoClienteEm)).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+          : "";
+        const statusEnvio = enviado
+          ? `<span class="portal-loc-docs-item__enviado">Enviado ao cliente${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`
+          : `<span class="portal-loc-docs-item__pendente">Aguarda envio ao cliente</span>`;
         return `<li class="portal-loc-docs-item">
           <span class="portal-loc-docs-item__nome">${escapeHtml(d.nome)}</span>
-          <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)}</span>
+          <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)} · ${statusEnvio}</span>
           <span class="portal-loc-docs-item__acoes">
-            <a class="btn-primary btn-secondary-outline portal-loc-docs-item__ver" href="${String(d.arquivoBase64 || "#").replace(/"/g, "&quot;")}" target="_blank" rel="noopener" download="${escapeHtml(d.nome)}">Baixar</a>
-            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__del" data-loc-doc-del="${escapeHtml(d.id)}" title="Remover">Remover</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__abrir" data-loc-doc-abrir="${escapeHtml(d.id)}" title="Abrir PDF para conferir">Abrir</button>
+            <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado ? "disabled" : ""} title="Publicar na nuvem para o app do cliente">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
           </span>
         </li>`;
       })
@@ -446,7 +509,7 @@
     }
     if (msg) {
       const n = docsDoProtocolo(nc, cpf).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — contrato, CRLV e multas no app do cliente.`;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — use <strong>Abrir</strong> para conferir e <strong>Enviar para o cliente</strong> para publicar no app.`;
     }
     renderLista(nc, cpf);
     scheduleAutoImportDeposito();
@@ -623,13 +686,23 @@
     });
 
     lista?.addEventListener("click", (e) => {
-      const del = e.target.closest?.("[data-loc-doc-del]");
-      if (!del) return;
-      const id = del.getAttribute("data-loc-doc-del");
-      if (!id) return;
-      if (!window.confirm("Remover este documento do protocolo?")) return;
-      if (removerDocumento(id)) refreshUi();
-      else if (msg) msg.textContent = "Não foi possível remover (sem permissão).";
+      const abrir = e.target.closest?.("[data-loc-doc-abrir]");
+      if (abrir) {
+        const id = abrir.getAttribute("data-loc-doc-abrir");
+        const doc = loadAll().find((d) => String(d.id) === String(id));
+        if (!doc || !abrirDocumento(doc)) {
+          if (msg) msg.textContent = "Não foi possível abrir — ficheiro indisponível neste computador.";
+        }
+        return;
+      }
+      const enviar = e.target.closest?.("[data-loc-doc-enviar]");
+      if (enviar && !enviar.disabled) {
+        const id = enviar.getAttribute("data-loc-doc-enviar");
+        if (!id) return;
+        const res = enviarDocumentoParaCliente(id);
+        if (msg) msg.textContent = res.msg || "";
+        refreshUi();
+      }
     });
 
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", refreshUi);
@@ -646,6 +719,7 @@
   window.__DK_refreshOperacaoLocacaoDocumentosUi = refreshUi;
   window.__DK_docsLocacaoDoProtocolo = docsDoProtocolo;
   window.__DK_docsLocacaoDoProtocoloPorTipo = docsDoProtocoloPorTipo;
+  window.__DK_docsLocacaoIsEnviadoCliente = isDocEnviadoCliente;
   window.__DK_docsLocacaoInferTipo = inferDocTipo;
   window.__DK_docsLocacaoLoadAll = loadAll;
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
