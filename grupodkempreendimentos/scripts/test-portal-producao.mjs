@@ -844,7 +844,7 @@ async function runSuite() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521geo-v3`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260608sync-force-manual`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260608cal-no-trava`, {
@@ -1114,7 +1114,10 @@ async function runSuite() {
       }
     }
 
-    const patrimonioPdfPath = path.join(REPO_ROOT, "Relatorio de Veiculos DK.pdf");
+    const patrimonioPdfPath = path.join(
+      REPO_ROOT,
+      "grupodkempreendimentos/test-fixtures/crlv-amostra.pdf"
+    );
     try {
       await page.evaluate(() => {
         sessionStorage.removeItem("dk_portal_area_ativa");
