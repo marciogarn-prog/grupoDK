@@ -50,8 +50,7 @@
     "dk_comprovantes_cliente_pendentes",
     "dk_cliente_notificacoes",
     "dk_financeiro_extratos_v1",
-    "dk_patrimonio_crlv_v1",
-    "dk_patrimonio_fotos_excluidas_v1",
+    "dk_documentos_deposito_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
     "dk_locacao_documentos_v1",
@@ -657,6 +656,56 @@
         localStorage.setItem(k, JSON.stringify(merged));
         continue;
       }
+      if (k === "dk_patrimonio_crlv_v1" || k === "dk_patrimonio_fotos_excluidas_v1") continue;
+      if (k === "dk_documentos_deposito_v1") {
+        let cloudDep = v;
+        if (typeof v === "string") {
+          try {
+            cloudDep = JSON.parse(v);
+          } catch {
+            cloudDep = null;
+          }
+        }
+        let localDep = null;
+        try {
+          const raw = localStorage.getItem(k);
+          localDep = raw ? JSON.parse(raw) : null;
+        } catch {
+          localDep = null;
+        }
+        const mergeFn =
+          typeof window.__DK_documentosMergeDeposit === "function"
+            ? window.__DK_documentosMergeDeposit
+            : (_, c) => c;
+        const merged = replace ? cloudDep : mergeFn(localDep, cloudDep);
+        if (merged && typeof merged === "object") {
+          localStorage.setItem(k, JSON.stringify(merged));
+        }
+        continue;
+      }
+      if (k === "dk_locacao_documentos_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const mergeFn =
+          typeof window.__DK_docsLocacaoMerge === "function"
+            ? window.__DK_docsLocacaoMerge
+            : (localArr, inc) => [...(localArr || []), ...(inc || [])];
+        if (replace) {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
+        } else {
+          const localArr = readLocalJsonArray(k);
+          localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
+        }
+        continue;
+      }
       if (k === "dk_patrimonio_crlv_v1") {
         let cloudObj = v;
         if (typeof v === "string") {
@@ -1106,6 +1155,15 @@
             ? window.__DK_comunicacaoOperacaoMerge
             : (localArr, cloudArr) => [...(localArr || []), ...(cloudArr || [])];
         const merged = mergeCom(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
+      if (k === "dk_locacao_documentos_v1") {
+        const mergeFn =
+          typeof window.__DK_docsLocacaoMerge === "function"
+            ? window.__DK_docsLocacaoMerge
+            : (localArr, inc) => [...(localArr || []), ...(inc || [])];
+        const merged = mergeFn(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
@@ -1880,15 +1938,31 @@
         cloudPayload.dk_financeiro_extratos_v1
       );
     }
-    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_patrimonio_crlv_v1")) {
-      out.dk_patrimonio_crlv_v1 = mergePatrimonioCrlv(
-        localPayload.dk_patrimonio_crlv_v1,
-        cloudPayload.dk_patrimonio_crlv_v1,
-        cloudPayload.dk_patrimonio_fotos_excluidas_v1
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_documentos_deposito_v1")) {
+      const mergeFn =
+        typeof window.__DK_documentosMergeDeposit === "function"
+          ? window.__DK_documentosMergeDeposit
+          : (_, c) => c;
+      out.dk_documentos_deposito_v1 = mergeFn(
+        localPayload.dk_documentos_deposito_v1,
+        cloudPayload.dk_documentos_deposito_v1
       );
-      out.dk_patrimonio_fotos_excluidas_v1 =
-        out.dk_patrimonio_crlv_v1.fotosCapturasExcluidas || [];
     }
+    if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_locacao_documentos_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacao_documentos_v1")
+    ) {
+      const mergeFn =
+        typeof window.__DK_docsLocacaoMerge === "function"
+          ? window.__DK_docsLocacaoMerge
+          : (localArr, inc) => [...(localArr || []), ...(inc || [])];
+      out.dk_locacao_documentos_v1 = mergeFn(
+        localPayload.dk_locacao_documentos_v1,
+        cloudPayload.dk_locacao_documentos_v1
+      );
+    }
+    delete out.dk_patrimonio_crlv_v1;
+    delete out.dk_patrimonio_fotos_excluidas_v1;
     return out;
   }
 
@@ -1919,25 +1993,20 @@
           JSON.stringify(mergedPayload.dk_financeiro_extratos_v1)
         );
       }
-      if (mergedPayload.dk_patrimonio_crlv_v1) {
-        const patNorm = normalizePatrimonioPayloadForSync(
-          mergedPayload.dk_patrimonio_crlv_v1,
-          mergedPayload.dk_patrimonio_fotos_excluidas_v1
-        );
-        const deduped = deduplicarDocumentosPatrimonio(patNorm.documentos || []);
+      if (mergedPayload.dk_documentos_deposito_v1) {
         localStorage.setItem(
-          "dk_patrimonio_crlv_v1",
-          JSON.stringify({
-            documentos: deduped,
-            fotosCapturas: patNorm.fotosCapturas || [],
-            fotosCapturasExcluidas: patNorm.fotosCapturasExcluidas || [],
-          })
-        );
-        localStorage.setItem(
-          "dk_patrimonio_fotos_excluidas_v1",
-          JSON.stringify(patNorm.fotosCapturasExcluidas || [])
+          "dk_documentos_deposito_v1",
+          JSON.stringify(mergedPayload.dk_documentos_deposito_v1)
         );
       }
+      if (mergedPayload.dk_locacao_documentos_v1) {
+        localStorage.setItem(
+          "dk_locacao_documentos_v1",
+          JSON.stringify(mergedPayload.dk_locacao_documentos_v1)
+        );
+      }
+      localStorage.removeItem("dk_patrimonio_crlv_v1");
+      localStorage.removeItem("dk_patrimonio_fotos_excluidas_v1");
     } finally {
       suppressCloudHook = false;
     }

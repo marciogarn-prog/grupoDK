@@ -868,7 +868,7 @@
 
             <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
               <span>Documentos do contrato</span>
-              <p class="subtext portal-loc-docs__hint">PDF ou imagem (máx. 4 MB). Escolha o protocolo <strong>ativo</strong> acima. O cliente vê e pode baixar estes ficheiros no app, em <strong>Documentação do contrato</strong>, enquanto o protocolo estiver ativo.</p>
+              <p class="subtext portal-loc-docs__hint">Com CPF, placa e protocolo definidos, o sistema importa automaticamente o <strong>contrato</strong> (depósito, pelo n.º do protocolo) e o <strong>CRLV</strong> (pela placa). Também pode anexar PDF ou imagem manualmente (máx. 4 MB). O cliente vê tudo no app em <strong>Documentação do contrato</strong>.</p>
               <input type="file" id="operacaoLocacaoDocumentosInput" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocumentosBtn" disabled>Carregar documentos</button>
               <p id="operacaoLocacaoDocumentosMsg" class="subtext portal-loc-docs__msg"></p>
@@ -2035,12 +2035,12 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260609avisos-dk" defer></script>
   <script src="portal-comunicacao-operacao-ui.js?v=20260609com-perf" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260609loc-docs-cadastro" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260609docs-auto" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
-  <script src="portal-documentos.js?v=20260609docs-v1" defer></script>
+  <script src="portal-documentos.js?v=20260609docs-auto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260609avisos-dk" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260609docs-v1" defer></script>
+  <script src="portal-supabase-sync.js?v=20260609docs-auto" defer></script>
 </body>
 </html>

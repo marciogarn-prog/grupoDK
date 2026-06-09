@@ -113,6 +113,184 @@
     });
   }
 
+  function getPlacaAtual() {
+    const inp = document.getElementById("operacaoLocacaoPlaca");
+    const raw = String(inp?.value || "").trim();
+    if (typeof window.__DK_documentosNormPlaca === "function") {
+      return window.__DK_documentosNormPlaca(raw);
+    }
+    return raw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 7);
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result || ""));
+      fr.onerror = () => reject(fr.error || new Error("leitura"));
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  function docDepositoJaImportado(all, nc, cpf, depositId, categoria) {
+    const n = normNc(nc);
+    const dig = onlyDigits(cpf).slice(0, 11);
+    return all.some(
+      (d) =>
+        normNc(d.numeroContrato) === n &&
+        onlyDigits(d.cpf).slice(0, 11) === dig &&
+        String(d.origemDepositoId || "") === String(depositId || "") &&
+        String(d.origemDepositoCategoria || "") === String(categoria || "")
+    );
+  }
+
+  function nomeImportadoDeposito(categoria, nc, placa, depositEntry) {
+    const base = String(depositEntry?.nomeArquivo || "").trim();
+    if (categoria === "contrato") {
+      return base && base.toLowerCase().includes("contrato") ? base : `Contrato — protocolo ${nc}${base ? ` (${base})` : ""}`;
+    }
+    if (categoria === "crlv") {
+      return base && /crlv/i.test(base) ? base : `CRLV — ${placa || "veículo"}${base ? ` (${base})` : ""}`;
+    }
+    return base || "Documento";
+  }
+
+  async function importarDocDepositoParaProtocolo(depositEntry, categoria, nc, cpf, placa, reg) {
+    const obterFn = typeof window.__DK_documentosObterBlobDoc === "function" ? window.__DK_documentosObterBlobDoc : null;
+    if (!obterFn || !depositEntry?.id) return { ok: false, reason: "no_fn" };
+    const all = loadAll();
+    if (docDepositoJaImportado(all, nc, cpf, depositEntry.id, categoria)) {
+      return { ok: true, skipped: true };
+    }
+    const row = await obterFn(categoria, depositEntry.id);
+    if (!row?.blob) return { ok: false, reason: "no_blob", categoria };
+    if (row.blob.size > MAX_BYTES) {
+      return { ok: false, reason: "too_big", categoria, nome: depositEntry.nomeArquivo };
+    }
+    const dataUrl = await blobToDataUrl(row.blob);
+    if (!dataUrl) return { ok: false, reason: "read_fail", categoria };
+    all.push({
+      id: `ld_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      numeroContrato: normNc(nc),
+      cpf: onlyDigits(cpf).slice(0, 11),
+      nome: nomeImportadoDeposito(categoria, nc, placa, depositEntry),
+      mimeType:
+        depositEntry.mimeType ||
+        row.mimeType ||
+        row.blob.type ||
+        (String(depositEntry.nomeArquivo || "").toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
+      tamanho: row.blob.size,
+      createdAt: Date.now(),
+      registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
+      registradoPorNome: String(reg.nome || "").trim() || "Importação automática",
+      arquivoBase64: dataUrl,
+      origemDepositoId: depositEntry.id,
+      origemDepositoCategoria: categoria,
+      origemDepositoChave: String(depositEntry.chave || "").trim(),
+      importadoAutomaticamente: true,
+    });
+    saveAll(all);
+    return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo };
+  }
+
+  async function autoImportarDocumentosDeposito() {
+    const nc = getProtocoloAtual();
+    const cpf = getCpfAtual();
+    const placa = getPlacaAtual();
+    if (!nc || cpf.length !== 11 || placa.length < 6) return { ok: false, reason: "incomplete" };
+    if (!podeGerirDocumentosLocacao()) return { ok: false, reason: "sem_perm" };
+    if (!protocoloLocacaoAtivo(nc)) return { ok: false, reason: "inativo" };
+    const listarFn = typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
+    if (!listarFn) return { ok: false, reason: "no_deposit" };
+
+    const reg = getRegistroOperador();
+    const msgs = [];
+    let added = 0;
+
+    const contratos = listarFn("contrato", nc);
+    if (contratos.length) {
+      const r = await importarDocDepositoParaProtocolo(contratos[0], "contrato", nc, cpf, placa, reg);
+      if (r.added) {
+        added += 1;
+        msgs.push("Contrato importado do depósito.");
+      } else if (r.reason === "no_blob") {
+        msgs.push("Contrato encontrado no depósito, mas o ficheiro não está neste computador.");
+      } else if (r.reason === "too_big") {
+        msgs.push("Contrato no depósito excede 4 MB — reduza o ficheiro.");
+      }
+    }
+
+    const crlvs = listarFn("crlv", placa);
+    if (crlvs.length) {
+      const r = await importarDocDepositoParaProtocolo(crlvs[0], "crlv", nc, cpf, placa, reg);
+      if (r.added) {
+        added += 1;
+        msgs.push("CRLV importado do depósito.");
+      } else if (r.reason === "no_blob") {
+        msgs.push("CRLV encontrado no depósito, mas o ficheiro não está neste computador.");
+      } else if (r.reason === "too_big") {
+        msgs.push("CRLV no depósito excede 4 MB — reduza o ficheiro.");
+      }
+    }
+
+    return { ok: true, added, msgs };
+  }
+
+  let autoImportTimer = 0;
+  let autoImportBusy = false;
+
+  function scheduleAutoImportDeposito() {
+    if (autoImportTimer) window.clearTimeout(autoImportTimer);
+    autoImportTimer = window.setTimeout(async () => {
+      autoImportTimer = 0;
+      if (autoImportBusy) return;
+      const nc = getProtocoloAtual();
+      const cpf = getCpfAtual();
+      const placa = getPlacaAtual();
+      if (!nc || cpf.length !== 11 || placa.length < 6) return;
+      autoImportBusy = true;
+      try {
+        const res = await autoImportarDocumentosDeposito();
+        const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
+        if (res.added > 0) {
+          refreshUi();
+          if (msg) {
+            const base = `${docsDoProtocolo(nc, cpf).length} documento(s) no protocolo ${nc}.`;
+            msg.textContent = res.msgs?.length ? `${res.msgs.join(" ")} ${base}` : base;
+          }
+        } else if (msg && res.msgs?.length && !String(msg.textContent || "").includes("documento(s) no protocolo")) {
+          msg.textContent = res.msgs.join(" ");
+        }
+      } finally {
+        autoImportBusy = false;
+      }
+    }, 450);
+  }
+
+  function mergeLocacaoDocumentos(localArr, cloudArr) {
+    const byId = new Map();
+    const pick = (rec) => {
+      if (!rec?.id) return;
+      const prev = byId.get(rec.id);
+      if (!prev) {
+        byId.set(rec.id, rec);
+        return;
+      }
+      const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
+      const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
+      const prevTs = Number(prev.createdAt) || 0;
+      const recTs = Number(rec.createdAt) || 0;
+      if (recHas && !prevHas) {
+        byId.set(rec.id, rec);
+        return;
+      }
+      if (prevHas && !recHas) return;
+      if (recTs >= prevTs) byId.set(rec.id, rec);
+    };
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(pick);
+    (Array.isArray(localArr) ? localArr : []).forEach(pick);
+    return Array.from(byId.values());
+  }
+
   async function adicionarDocumentos(files, nc, cpf) {
     const protocolo = normNc(nc);
     const cpfDig = onlyDigits(cpf).slice(0, 11);
@@ -245,9 +423,11 @@
       return;
     }
     if (msg) {
-      msg.textContent = `${docsDoProtocolo(nc, cpf).length} documento(s) no protocolo ${nc} — visíveis no app em «Documentação do contrato».`;
+      const n = docsDoProtocolo(nc, cpf).length;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — visíveis no app em «Documentação do contrato».`;
     }
     renderLista(nc, cpf);
+    scheduleAutoImportDeposito();
   }
 
   function bindUi() {
@@ -283,6 +463,8 @@
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", refreshUi);
     document.getElementById("operacaoLocacaoProtocolo")?.addEventListener("change", refreshUi);
     document.getElementById("operacaoLocacaoCpf")?.addEventListener("input", refreshUi);
+    document.getElementById("operacaoLocacaoPlaca")?.addEventListener("input", refreshUi);
+    document.getElementById("operacaoLocacaoPlaca")?.addEventListener("change", refreshUi);
     document.getElementById("operacaoLocacaoDataInicio")?.addEventListener("input", refreshUi);
     document.getElementById("operacaoLocacaoProtocoloAdminCarregarBtn")?.addEventListener("click", () => {
       window.setTimeout(refreshUi, 50);
@@ -292,6 +474,8 @@
   window.__DK_refreshOperacaoLocacaoDocumentosUi = refreshUi;
   window.__DK_docsLocacaoDoProtocolo = docsDoProtocolo;
   window.__DK_docsLocacaoLoadAll = loadAll;
+  window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
+  window.__DK_autoImportLocacaoDocumentosDeposito = autoImportarDocumentosDeposito;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

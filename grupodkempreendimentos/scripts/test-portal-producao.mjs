@@ -488,6 +488,8 @@ async function runSuite() {
     record(
       "documentos depósito CRLV contratos multas (JS)",
       docsJs.includes("dk_documentos_deposito_v1") &&
+        docsJs.includes("__DK_documentosListarPorChave") &&
+        docsJs.includes("__DK_documentosObterBlobDoc") &&
         docsJs.includes("chaveFromFilename") &&
         docsJs.includes("adicionarFicheiros") &&
         docsJs.includes("listarPorChave") &&
@@ -496,10 +498,14 @@ async function runSuite() {
         !docsJs.includes("patrimonioReservarLeituraIa")
     );
     const syncJs = await page.evaluate(async () => {
-      const r = await fetch("portal-supabase-sync.js?v=20260609docs-v1", { cache: "no-store" });
+      const r = await fetch("portal-supabase-sync.js?v=20260609docs-auto", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
     record("documentos sync nuvem (dk_documentos_deposito_v1)", syncJs.includes("dk_documentos_deposito_v1"));
+    record(
+      "documentos locação merge nuvem (dk_locacao_documentos_v1)",
+      syncJs.includes("dk_locacao_documentos_v1") && syncJs.includes("__DK_docsLocacaoMerge")
+    );
     const cssStyles = await fetch(`${BASE_URL}styles.css`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
@@ -763,20 +769,20 @@ async function runSuite() {
       indexFresh.includes("operacaoLocacaoDocumentosBtn") &&
         indexFresh.includes("operacaoLocacaoDocumentosWrap") &&
         indexFresh.includes("portal-loc-docs--cadastro") &&
-        indexFresh.includes("Documentos do contrato") &&
-        indexFresh.includes("Documentação do contrato") &&
+        indexFresh.includes("importa automaticamente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "upload de documentos no cadastro de locação (substitui ambiente teste)"
+      "importação automática contrato+CRLV do depósito"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609loc-docs-cadastro`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609docs-auto`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "documentos locação sync nuvem",
       locDocsJs.includes("dk_locacao_documentos_v1") &&
-        locDocsJs.includes("podeGerirDocumentosLocacao") &&
-        locDocsJs.includes("protocoloLocacaoAtivo"),
-      "chave dk_locacao_documentos_v1 + permissão locação + protocolo ativo"
+        locDocsJs.includes("autoImportarDocumentosDeposito") &&
+        locDocsJs.includes("__DK_docsLocacaoMerge") &&
+        locDocsJs.includes("origemDepositoId"),
+      "import depósito + merge nuvem com base64"
     );
     const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609loc-docs-cadastro`, {
       cache: "no-store",
