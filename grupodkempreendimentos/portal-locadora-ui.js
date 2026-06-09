@@ -10258,6 +10258,35 @@ ${printable.innerHTML}
     return `${m[3]}/${m[2]}/${m[1]}`;
   }
 
+  function portalLancAluguelEntryNotifyKey(entry) {
+    return `${String(entry?.data || "").trim()}|${Number(entry?.valor) || 0}`;
+  }
+
+  function portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, entries, keysBefore, opts) {
+    if (!Array.isArray(entries) || !entries.length) return;
+    if (typeof window.__DK_clienteNotificacaoPagamentoLancado !== "function") return;
+    const before = keysBefore instanceof Set ? keysBefore : new Set();
+    const anoFiltro = Number(opts?.ano);
+    entries.forEach((entry) => {
+      if (entry?.origemComprovanteClienteId || entry?.confirmadoViaAppCliente) return;
+      if (Number.isFinite(anoFiltro)) {
+        const dt = typeof parseBrDate === "function" ? parseBrDate(String(entry?.data || "").trim()) : null;
+        if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== anoFiltro) return;
+      }
+      const valor = Number(entry?.valor);
+      const dataPagamento = String(entry?.data || "").trim();
+      if (!Number.isFinite(valor) || valor <= 0 || !dataPagamento) return;
+      if (before.has(portalLancAluguelEntryNotifyKey(entry))) return;
+      window.__DK_clienteNotificacaoPagamentoLancado({
+        cpf: cpfDigits,
+        protocolo: nc,
+        placa: loc?.placa,
+        valor,
+        dataPagamento,
+      });
+    });
+  }
+
   function persistPortalLancAluguelCalendarioAno(cpfDigits, ncNorm, ano, celulasMap) {
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -10275,6 +10304,16 @@ ${printable.innerHTML}
     materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     const reg = getPortalSessaoParaRegistroLancamentoAluguel();
     const arr = loc.portalLancamentosAluguel || [];
+    const keysBefore = new Set(
+      arr
+        .filter((x) => {
+          const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
+          if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) return false;
+          if (x.origemComprovanteClienteId || x.confirmadoViaAppCliente) return false;
+          return true;
+        })
+        .map(portalLancAluguelEntryNotifyKey)
+    );
     const manter = arr.filter((x) => {
       const dt = typeof parseBrDate === "function" ? parseBrDate(String(x.data || "").trim()) : null;
       if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== ano) return true;
@@ -10306,7 +10345,11 @@ ${printable.innerHTML}
       });
     }
     loc.portalLancamentosAluguel = manter;
-    return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+    const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+    if (ok) {
+      portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, loc.portalLancamentosAluguel, keysBefore, { ano });
+    }
+    return ok;
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
@@ -10461,15 +10504,7 @@ ${printable.innerHTML}
     };
     loc.portalLancamentosAluguel.push(entry);
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
-    if (ok && typeof window.__DK_clienteNotificacaoPagamentoLancado === "function") {
-      window.__DK_clienteNotificacaoPagamentoLancado({
-        cpf: cpfDigits,
-        protocolo: nc,
-        placa: loc.placa,
-        valor: valorNum,
-        dataPagamento: dataStr,
-      });
-    }
+    if (ok) portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, [entry], new Set());
     return ok;
   }
 

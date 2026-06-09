@@ -23,6 +23,26 @@
     }
   }
 
+  function dispararPushAvisoCliente(cpf, mensagem) {
+    const cpfDig = onlyDigits(cpf).slice(0, 11);
+    if (cpfDig.length !== 11) return;
+    const body = String(mensagem || "").trim().slice(0, 180) || "Você tem um novo aviso da DK";
+    const headers = { "Content-Type": "application/json" };
+    if (window.__DK_DEPLOY_CHANNEL__ === "demo") headers["X-DK-Deploy-Channel"] = "demo";
+    void fetch("/api/dk-cliente-geo?push=1", {
+      method: "POST",
+      headers,
+      keepalive: true,
+      body: JSON.stringify({
+        action: "notify",
+        cpf: cpfDig,
+        title: "DK Locadora",
+        body,
+        channel: window.__DK_DEPLOY_CHANNEL__ === "demo" ? "demo" : "default",
+      }),
+    }).catch(() => null);
+  }
+
   function saveAll(arr, opts) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(arr.slice(0, 300)));
     if (opts?.skipCloud) return;
@@ -101,6 +121,7 @@
     const all = loadAll();
     all.unshift(rec);
     saveAll(all);
+    dispararPushAvisoCliente(cpf, msg);
     return { ok: true, rec };
   }
 
