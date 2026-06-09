@@ -1239,6 +1239,7 @@
 
       $(cfg, "CadastrarBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
+        void (async () => {
         const msg = $(cfg, "InlineMsg");
         const admin =
           typeof window.__DK_getPortalSessaoAdminRole === "function" && window.__DK_getPortalSessaoAdminRole();
@@ -1278,6 +1279,23 @@
           if (msg) msg.textContent = "Informe a data da primeira parcela (DD/MM/AAAA).";
           return;
         }
+
+        let docMultaRes = null;
+        if (cfg.key === "lancamentoMultas" && typeof window.__DK_garantirDocMultaParaCadastro === "function") {
+          docMultaRes = await window.__DK_garantirDocMultaParaCadastro(digits, nc);
+          if (!docMultaRes?.ok || !docMultaRes.doc) {
+            if (msg) {
+              msg.textContent =
+                docMultaRes?.msg ||
+                "Deposite o PDF da multa em Documentos (PLACA-CPF) e clique Multa antes de cadastrar.";
+            }
+            if (typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
+              window.__DK_refreshLancMultasDocumentosDeposito();
+            }
+            return;
+          }
+        }
+
         const locAtual = getCurrentLocForCfg(cfg);
         const diaPag =
           locAtual && typeof window.__DK_normDiaPagamentoMultas === "function"
@@ -1305,6 +1323,12 @@
         entry[sk.data] = dataReg;
         entry[sk.cod] = codReg;
         entry[sk.valor] = valorReg;
+
+        if (docMultaRes?.doc) {
+          entry.locacaoDocumentoId = docMultaRes.doc.id;
+          if (docMultaRes.doc.origemDepositoId) entry.origemDepositoId = docMultaRes.doc.origemDepositoId;
+        }
+
         const texto = `Cadastrar ${lbl.registro} ${codReg} (${descricao}) no valor de ${fmtBrlNum(valorReg)} em ${quantidadeParcelas} parcela(s) (protocolo ${nc})?`;
         const go = () => {
           const ok = persistMultaTransito(cfg, digits, nc, entry);
@@ -1312,11 +1336,15 @@
             if (msg) msg.textContent = lbl.registado;
             const loc = collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
             if (loc) applyLocToForm(cfg, loc);
+            if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
+              window.__DK_refreshLancMultasDocumentosDeposito();
+            }
           } else if (msg) msg.textContent = "Não foi possível guardar.";
         };
         if (typeof window.__DK_openPortalLancConfirmModal === "function") {
           window.__DK_openPortalLancConfirmModal(texto, go);
         } else if (window.confirm(texto)) go();
+        })();
       });
 
       $(cfg, "LimparLancamentoBtn")?.addEventListener("click", (e) => {

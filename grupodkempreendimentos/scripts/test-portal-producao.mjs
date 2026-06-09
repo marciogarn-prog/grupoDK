@@ -775,13 +775,14 @@ async function runSuite() {
       "importar do depósito Documentos; Abrir + enviar ao app"
     );
     record(
-      "lançamento multas consulta depósito Documentos",
+      "lançamento multas importa depósito Documentos",
       indexFresh.includes("operacaoLancMultasDocumentosDeposito") &&
-        indexFresh.includes("operacaoLancMultasBuscarDepositoBtn") &&
-        indexFresh.includes("Consultar multas no depósito"),
-      "busca PLACA-CPF e importação para protocolo"
+        indexFresh.includes("operacaoLancMultasDocImportBtn") &&
+        !indexFresh.includes("operacaoLancMultasBuscarDepositoBtn") &&
+        indexFresh.includes("Enviar para o cliente"),
+      "botão Multa PLACA-CPF; Abrir + enviar ao app; cadastro exige PDF"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-deposito`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609multa-deposito`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -792,8 +793,18 @@ async function runSuite() {
         locDocsJs.includes("importarTipoDoDeposito") &&
         locDocsJs.includes("data-loc-doc-abrir") &&
         locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito") &&
+        locDocsJs.includes("__DK_garantirDocMultaParaCadastro") &&
         !locDocsJs.includes("adicionarDocumentos"),
-      "importação manual do depósito; só enviados vão à nuvem"
+      "multas: importação do depósito + vínculo ao cadastrar; só enviados vão à nuvem"
+    );
+    const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "cadastrar multa exige documento do depósito",
+      lancExtrasJs.includes("__DK_garantirDocMultaParaCadastro") &&
+        lancExtrasJs.includes("locacaoDocumentoId"),
+      "bloqueia cadastro sem PDF importado de Documentos"
     );
     const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-enviar`, {
       cache: "no-store",
