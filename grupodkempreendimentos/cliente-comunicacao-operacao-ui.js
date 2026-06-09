@@ -251,13 +251,22 @@
 
   let ultimoContagemNaoLidas = { vendas: 0, manutencao: 0 };
 
-  const REFRESH_BOTOES_MS = 60_000;
+  const REFRESH_BOTOES_MS = 90_000;
+  const COM_CLIENTE_PULL_MIN_MS = 25_000;
+  let comClientePullLastAt = 0;
   let refreshBotoesTimer = 0;
 
   async function atualizarBotoesPeriodicamente() {
     resolveSessao();
     if (sessaoCpf.length !== 11) return;
     if (!$("clienteComunicacaoVendasBtn")) return;
+    refreshComunicacaoUi();
+    const now = Date.now();
+    if (now - comClientePullLastAt < COM_CLIENTE_PULL_MIN_MS) {
+      checarNovasMensagensOperacao();
+      return;
+    }
+    comClientePullLastAt = now;
     if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
       await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
     }

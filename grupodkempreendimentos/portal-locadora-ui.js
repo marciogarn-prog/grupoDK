@@ -1041,7 +1041,7 @@
     wrap.querySelector(".portal-comunicacao-inbox--manutencao")?.classList.toggle("hidden", !showManut);
     wrap.classList.toggle("portal-comunicacao-inbox-grid--solo", showAny && !(showVendas && showManut));
     if (showAny && typeof window.__DK_portalComunicacaoRefresh === "function") {
-      window.__DK_portalComunicacaoRefresh();
+      window.__DK_portalComunicacaoRefresh({ forcePull: true });
     }
     requestAnimationFrame(() => portalSyncComunicacaoBarLayout());
   }

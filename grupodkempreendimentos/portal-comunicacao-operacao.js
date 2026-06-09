@@ -153,21 +153,39 @@
   function listarPendentesOperacao(setor) {
     const st = normSetor(setor);
     if (!st) return [];
-    const seen = new Set();
-    const out = [];
+    /** Uma passagem — evita O(n²) com milhares de msgs na demo. */
+    const byThread = new Map();
     for (const m of loadAll()) {
       if (!m || normSetor(m.setor) !== st) continue;
       const tid = msgThreadId(m);
-      if (!tid || seen.has(tid)) continue;
-      if (!threadPendenteOperacao(tid)) continue;
-      seen.add(tid);
-      const last = ultimaMensagemThread(tid);
+      if (!tid) continue;
+      let entry = byThread.get(tid);
+      if (!entry) {
+        entry = {
+          cpf: onlyDigits(m.cpf).slice(0, 11),
+          nome: String(m.nome || "").trim() || "Cliente",
+          placa: String(m.placa || "").trim(),
+          last: m,
+          hasUnreadCliente: false,
+        };
+        byThread.set(tid, entry);
+      }
+      const ts = Date.parse(m.criadoEm || 0) || 0;
+      const lastTs = Date.parse(entry.last?.criadoEm || 0) || 0;
+      if (ts >= lastTs) entry.last = m;
+      if (m.autor === "cliente" && !m.lidaOperacaoEm) entry.hasUnreadCliente = true;
+    }
+    const out = [];
+    for (const [tid, entry] of byThread) {
+      const last = entry.last;
+      const pendente = last?.autor === "cliente" || entry.hasUnreadCliente;
+      if (!pendente) continue;
       out.push({
         threadId: tid,
         setor: st,
-        cpf: onlyDigits(m.cpf).slice(0, 11),
-        nome: String(m.nome || "").trim() || "Cliente",
-        placa: String(m.placa || "").trim() || resolvePlacaCliente(m.cpf),
+        cpf: entry.cpf,
+        nome: entry.nome,
+        placa: entry.placa || resolvePlacaCliente(entry.cpf),
         ultimaMensagem: String(last?.texto || "").trim(),
         criadoEm: last?.criadoEm || "",
       });
