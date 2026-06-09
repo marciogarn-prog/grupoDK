@@ -7,6 +7,7 @@
 
   /** Painel inline aberto — preservado quando o app re-renderiza após sync. */
   let inlineOpenState = null;
+  let calBuildToken = 0;
 
   function setInlineOpenState(proto, ano = null) {
     const p = String(proto || "").trim();
@@ -291,16 +292,13 @@
   function mostrarCalendarioAno(ano, ctx, ui) {
     const { pick, corpo, titulo, voltarBtn } = ui;
     if (!corpo || !ctx) return;
-    const mapa = agruparPagamentosPorDataIso(ctx.lancamentos, ano);
-    const colPag = Number.isFinite(Number(ctx.diaPagamentoCol)) ? Number(ctx.diaPagamentoCol) : 3;
+    const token = ++calBuildToken;
     pick?.classList.add("hidden");
     corpo.classList.remove("hidden");
     voltarBtn?.classList.remove("hidden");
-    corpo.innerHTML = wrapCalendarioHtml(buildAnoHtml(ano, mapa, colPag));
     corpo.dataset.ano = String(ano);
-    const zoomWrap = corpo.querySelector(".cliente-cal-zoom-wrap");
-    if (zoomWrap) bindClienteCalPinchZoom(zoomWrap);
-    corpo.querySelectorAll(".portal-lanc-cal-mes").forEach((mesEl) => atualizarTotaisMes(mesEl));
+    corpo.innerHTML = '<p class="subtext cliente-cal-loading">A montar calendário…</p>';
+    const colPag = Number.isFinite(Number(ctx.diaPagamentoCol)) ? Number(ctx.diaPagamentoCol) : 3;
     const diaLbl = ctx.diaPagamentoLabel || "";
     const proto = ctx.proto || "";
     if (titulo) {
@@ -312,6 +310,15 @@
     if (inlinePanel && !inlinePanel.classList.contains("hidden")) {
       setInlineOpenState(ctx.proto, ano);
     }
+    window.requestAnimationFrame(() => {
+      if (token !== calBuildToken) return;
+      const mapa = agruparPagamentosPorDataIso(ctx.lancamentos, ano);
+      if (token !== calBuildToken) return;
+      corpo.innerHTML = wrapCalendarioHtml(buildAnoHtml(ano, mapa, colPag));
+      const zoomWrap = corpo.querySelector(".cliente-cal-zoom-wrap");
+      if (zoomWrap) bindClienteCalPinchZoom(zoomWrap);
+      corpo.querySelectorAll(".portal-lanc-cal-mes").forEach((mesEl) => atualizarTotaisMes(mesEl));
+    });
   }
 
   function abrirEscolhaAno(ctx, ui) {
@@ -394,10 +401,22 @@
     if (!p || !loc || typeof window.__DK_clienteBuildCalendarioCtx !== "function") return false;
     const ui = getInlineUi(p);
     if (!ui?.panel) return false;
+    const ano = inlineOpenState?.proto === p ? inlineOpenState.ano : null;
+    if (!ui.panel.classList.contains("hidden")) {
+      if (ano != null) {
+        const curAno = ui.corpo?.dataset?.ano;
+        if (String(curAno) === String(ano) && ui.corpo?.querySelector(".portal-lanc-cal-ano")) {
+          return true;
+        }
+      } else if (ui.pick && !ui.pick.classList.contains("hidden") && ui.pick.children.length > 0) {
+        return true;
+      }
+    }
     const ctx = window.__DK_clienteBuildCalendarioCtx(loc);
     window.__DK_clienteCalendarioCtxAtual = ctx;
     fecharPainéisInline(p);
-    const ano = inlineOpenState?.proto === p ? inlineOpenState.ano : null;
+    ui.panel.classList.remove("hidden");
+    ui.panel.hidden = false;
     if (ano) mostrarCalendarioAno(ano, ctx, ui);
     else abrirEscolhaAno(ctx, ui);
     const btn = document.querySelector(`[data-cliente-cal-proto="${p}"]`);
@@ -411,6 +430,7 @@
     const aberto = !ui.panel.classList.contains("hidden");
     const btn = document.querySelector(`[data-cliente-cal-proto="${proto}"]`);
     if (aberto) {
+      calBuildToken += 1;
       ui.panel.classList.add("hidden");
       ui.panel.hidden = true;
       if (btn) btn.setAttribute("aria-expanded", "false");
@@ -418,13 +438,30 @@
       return true;
     }
     if (!loc || typeof window.__DK_clienteBuildCalendarioCtx !== "function") return false;
-    const ctx = window.__DK_clienteBuildCalendarioCtx(loc);
-    window.__DK_clienteCalendarioCtxAtual = ctx;
     fecharPainéisInline(proto);
     setInlineOpenState(proto, null);
-    abrirEscolhaAno(ctx, ui);
+    ui.panel.classList.remove("hidden");
+    ui.panel.hidden = false;
+    if (ui.pick) {
+      ui.pick.classList.remove("hidden");
+      ui.pick.replaceChildren();
+      const loading = document.createElement("p");
+      loading.className = "subtext cliente-cal-loading";
+      loading.textContent = "A carregar calendário…";
+      ui.pick.appendChild(loading);
+    }
+    if (ui.corpo) {
+      ui.corpo.classList.add("hidden");
+      ui.corpo.replaceChildren();
+    }
+    ui.voltarBtn?.classList.add("hidden");
     if (btn) btn.setAttribute("aria-expanded", "true");
-    ui.panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    window.requestAnimationFrame(() => {
+      const ctx = window.__DK_clienteBuildCalendarioCtx(loc);
+      window.__DK_clienteCalendarioCtxAtual = ctx;
+      abrirEscolhaAno(ctx, ui);
+    });
+    ui.panel.scrollIntoView({ behavior: "auto", block: "nearest" });
     return true;
   }
 

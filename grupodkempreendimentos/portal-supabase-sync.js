@@ -2303,7 +2303,8 @@
   /**
    * App cliente: pull leve — só locação/comunicação/notificações do CPF logado (evita travar com frota demo).
    */
-  async function pullClienteCloudSnapshotLight() {
+  async function pullClienteCloudSnapshotLight(opts) {
+    const force = Boolean(opts && opts.force);
     const cpf = clienteAppSessaoCpf();
     if (!cpf) return { ok: true, skipped: true, reason: "no_sessao" };
     trimLocalLocacoesToClienteCpf();
@@ -2317,7 +2318,8 @@
     if (!Object.keys(mini).length) return { ok: true, skipped: true, reason: "empty_filtered" };
     suppressCloudHook = true;
     try {
-      applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: true });
+      applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: !force });
+      trimLocalLocacoesToClienteCpf();
     } finally {
       suppressCloudHook = false;
     }
@@ -2338,7 +2340,7 @@
     const force = Boolean(opts && opts.force);
     const clientePage = isClienteAppPage();
     if (clientePage) {
-      return pullClienteCloudSnapshotLight();
+      return pullClienteCloudSnapshotLight(opts);
     }
     if (isLocalDataAuthorityActive() && !clientePage) {
       return pullAppendOnlyKeysFromCloud();
