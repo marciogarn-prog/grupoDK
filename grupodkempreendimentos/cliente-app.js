@@ -1004,15 +1004,24 @@
       detalhes = `<p class="subtext">Resumo do contrato indisponível neste dispositivo.</p>`;
     }
 
+    const docPainel = (tipo, tituloId) =>
+      `<div id="cliente-docs-panel-${escapeHtml(nc)}-${tipo}" class="cliente-docs-inline hidden" data-cliente-docs-panel="${escapeHtml(nc)}" data-cliente-docs-tipo="${tipo}" hidden>
+        <p class="cliente-docs-inline__head" data-cliente-docs-titulo id="${tituloId}"></p>
+        <div class="cliente-docs-inline__lista" data-cliente-docs-lista></div>
+        <div class="cliente-docs-inline__viewer" data-cliente-docs-viewer></div>
+      </div>`;
+
     return `<article class="cliente-protocolo" data-cliente-proto="${escapeHtml(nc)}">
       <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${renderContratoBadge(resumo)}</div>
       ${detalhes}
-      <button type="button" class="btn-primary btn-secondary-outline cliente-btn-documentos" data-cliente-docs-proto="${escapeHtml(nc)}" data-cliente-docs-cpf="${escapeHtml(cpf)}" aria-expanded="false" aria-controls="cliente-docs-panel-${escapeHtml(nc)}">Documentação do contrato</button>
-      <div id="cliente-docs-panel-${escapeHtml(nc)}" class="cliente-docs-inline hidden" data-cliente-docs-panel="${escapeHtml(nc)}" hidden>
-        <p class="cliente-docs-inline__head" data-cliente-docs-titulo></p>
-        <div class="cliente-docs-inline__lista" data-cliente-docs-lista></div>
-        <div class="cliente-docs-inline__viewer" data-cliente-docs-viewer></div>
+      <div class="cliente-docs-btns" role="group" aria-label="Documentos do protocolo ${escapeHtml(nc)}">
+        <button type="button" class="btn-primary btn-secondary-outline cliente-btn-documentos cliente-btn-documentos--contrato" data-cliente-docs-proto="${escapeHtml(nc)}" data-cliente-docs-cpf="${escapeHtml(cpf)}" data-cliente-docs-tipo="contrato" aria-expanded="false" aria-controls="cliente-docs-panel-${escapeHtml(nc)}-contrato">Ver contrato</button>
+        <button type="button" class="btn-primary btn-secondary-outline cliente-btn-documentos cliente-btn-documentos--crlv" data-cliente-docs-proto="${escapeHtml(nc)}" data-cliente-docs-cpf="${escapeHtml(cpf)}" data-cliente-docs-tipo="crlv" aria-expanded="false" aria-controls="cliente-docs-panel-${escapeHtml(nc)}-crlv">Ver CRLV</button>
+        <button type="button" class="btn-primary btn-secondary-outline cliente-btn-documentos cliente-btn-documentos--multa" data-cliente-docs-proto="${escapeHtml(nc)}" data-cliente-docs-cpf="${escapeHtml(cpf)}" data-cliente-docs-tipo="multa" aria-expanded="false" aria-controls="cliente-docs-panel-${escapeHtml(nc)}-multa">Ver multas</button>
       </div>
+      ${docPainel("contrato", `cliente-docs-title-${escapeHtml(nc)}-contrato`)}
+      ${docPainel("crlv", `cliente-docs-title-${escapeHtml(nc)}-crlv`)}
+      ${docPainel("multa", `cliente-docs-title-${escapeHtml(nc)}-multa`)}
     </article>`;
   }
 

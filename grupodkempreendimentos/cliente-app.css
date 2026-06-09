@@ -657,7 +657,24 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
 
 .cliente-btn-documentos {
   width: 100%;
+  margin-top: 0;
+}
+
+.cliente-docs-btns {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
   margin-top: 0.55rem;
+}
+
+@media (min-width: 420px) {
+  .cliente-docs-btns {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.cliente-btn-documentos--multa {
+  border-color: rgba(251, 191, 36, 0.45);
 }
 
 .cliente-docs-inline {

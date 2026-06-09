@@ -80,6 +80,23 @@
     return loadAll().filter((d) => normNc(d.numeroContrato) === n && (!dig || onlyDigits(d.cpf).slice(0, 11) === dig));
   }
 
+  function inferDocTipo(d) {
+    const t = String(d?.tipo || "").trim().toLowerCase();
+    if (t === "contrato" || t === "crlv" || t === "multa") return t;
+    const cat = String(d?.origemDepositoCategoria || "").trim().toLowerCase();
+    if (cat === "contrato" || cat === "crlv" || cat === "multa") return cat;
+    const nome = String(d?.nome || "");
+    if (/^contrato\b|contrato\s*—/i.test(nome)) return "contrato";
+    if (/crlv/i.test(nome)) return "crlv";
+    if (/multa/i.test(nome)) return "multa";
+    return "";
+  }
+
+  function docsDoProtocoloPorTipo(nc, cpf, tipo) {
+    const want = String(tipo || "").trim().toLowerCase();
+    return docsDoProtocolo(nc, cpf).filter((d) => inferDocTipo(d) === want);
+  }
+
   function locacaoDoProtocolo(nc) {
     const n = normNc(nc);
     if (!n) return null;
@@ -151,6 +168,10 @@
     if (categoria === "crlv") {
       return base && /crlv/i.test(base) ? base : `CRLV — ${placa || "veículo"}${base ? ` (${base})` : ""}`;
     }
+    if (categoria === "multa") {
+      const chave = String(depositEntry?.chave || "").trim();
+      return base && /multa/i.test(base) ? base : `Multa — ${chave || placa || "protocolo"}${base ? ` (${base})` : ""}`;
+    }
     return base || "Documento";
   }
 
@@ -183,6 +204,7 @@
       registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
       registradoPorNome: String(reg.nome || "").trim() || "Importação automática",
       arquivoBase64: dataUrl,
+      tipo: categoria,
       origemDepositoId: depositEntry.id,
       origemDepositoCategoria: categoria,
       origemDepositoChave: String(depositEntry.chave || "").trim(),
@@ -424,10 +446,160 @@
     }
     if (msg) {
       const n = docsDoProtocolo(nc, cpf).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — visíveis no app em «Documentação do contrato».`;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — contrato, CRLV e multas no app do cliente.`;
     }
     renderLista(nc, cpf);
     scheduleAutoImportDeposito();
+  }
+
+  function normPlacaGenerica(raw) {
+    if (typeof window.__DK_documentosNormPlaca === "function") return window.__DK_documentosNormPlaca(raw);
+    return String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 7);
+  }
+
+  function chaveMultaDeposito(placa, cpf) {
+    const p = normPlacaGenerica(placa);
+    const dig = onlyDigits(cpf).slice(0, 11);
+    if (p.length < 6 || dig.length !== 11) return "";
+    return `${p}-${dig}`;
+  }
+
+  function getLancMultasContexto() {
+    const cpf = onlyDigits(document.getElementById("operacaoLancMultasCpf")?.value).slice(0, 11);
+    const nc = normNc(document.getElementById("operacaoLancMultasProtocoloSelect")?.value);
+    const placa = normPlacaGenerica(document.getElementById("operacaoLancMultasPlaca")?.value);
+    return { cpf, nc, placa };
+  }
+
+  function multaDepositoJaNoProtocolo(ctx, depositId) {
+    return docsDoProtocoloPorTipo(ctx.nc, ctx.cpf, "multa").some(
+      (d) => String(d.origemDepositoId || "") === String(depositId || "")
+    );
+  }
+
+  function renderMultasDepositoLista(rows, ctx) {
+    const lista = document.getElementById("operacaoLancMultasDepositoLista");
+    if (!lista) return;
+    if (!rows.length) {
+      lista.innerHTML = '<p class="subtext">Nenhuma multa encontrada no depósito para esta placa e CPF.</p>';
+      return;
+    }
+    lista.innerHTML = rows
+      .map((e) => {
+        const ja = multaDepositoJaNoProtocolo(ctx, e.id);
+        const quando = e.criadoEm ? new Date(e.criadoEm).toLocaleString("pt-BR") : "—";
+        return `<article class="documentos-resultado portal-lanc-multas-deposito-item">
+          <div class="documentos-resultado__info">
+            <strong class="documentos-resultado__nome">${escapeHtml(e.nomeArquivo || e.chave)}</strong>
+            <span class="subtext">${escapeHtml(String(e.chave || ""))} · ${escapeHtml(quando)}</span>
+          </div>
+          <div class="documentos-resultado__acoes">
+            <button type="button" class="btn-primary btn-secondary-outline" data-multa-dep-import="${escapeHtml(e.id)}" ${ja ? "disabled" : ""}>${ja ? "Já no protocolo" : "Importar para protocolo"}</button>
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  async function consultarMultasDepositoLancamento() {
+    const ctx = getLancMultasContexto();
+    const msg = document.getElementById("operacaoLancMultasDepositoMsg");
+    if (ctx.cpf.length !== 11 || !ctx.nc) {
+      if (msg) msg.textContent = "Confirme a pesquisa e selecione um protocolo.";
+      renderMultasDepositoLista([], ctx);
+      return { ok: false };
+    }
+    if (ctx.placa.length < 6) {
+      if (msg) msg.textContent = "Placa do protocolo indisponível.";
+      renderMultasDepositoLista([], ctx);
+      return { ok: false };
+    }
+    const listarFn =
+      typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
+    if (!listarFn) {
+      if (msg) msg.textContent = "Módulo Documentos indisponível.";
+      return { ok: false };
+    }
+    const chave = chaveMultaDeposito(ctx.placa, ctx.cpf);
+    const rows = listarFn("multa", chave);
+    renderMultasDepositoLista(rows, ctx);
+    if (msg) {
+      msg.textContent = rows.length
+        ? `${rows.length} multa(s) no depósito (${chave}). Importe para o protocolo — o cliente vê no app.`
+        : `Nenhuma multa no depósito para ${chave}. Deposite em Documentos com nome PLACA-CPF.`;
+    }
+    return { ok: true, rows: rows.length, chave };
+  }
+
+  async function importarMultaDepositoParaLancamento(depositId) {
+    const ctx = getLancMultasContexto();
+    const msg = document.getElementById("operacaoLancMultasDepositoMsg");
+    if (ctx.cpf.length !== 11 || !ctx.nc || ctx.placa.length < 6) {
+      if (msg) msg.textContent = "Selecione um protocolo válido antes de importar.";
+      return { ok: false };
+    }
+    const listarFn =
+      typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
+    if (!listarFn) return { ok: false };
+    const chave = chaveMultaDeposito(ctx.placa, ctx.cpf);
+    const entry = listarFn("multa", chave).find((e) => String(e.id) === String(depositId));
+    if (!entry) {
+      if (msg) msg.textContent = "Multa não encontrada no depósito.";
+      return { ok: false };
+    }
+    const reg = getRegistroOperador();
+    const r = await importarDocDepositoParaProtocolo(entry, "multa", ctx.nc, ctx.cpf, ctx.placa, reg);
+    if (r.added) {
+      if (msg) msg.textContent = `Multa importada para o protocolo ${ctx.nc}. Visível no app do cliente.`;
+      await consultarMultasDepositoLancamento();
+      return { ok: true };
+    }
+    if (r.skipped) {
+      if (msg) msg.textContent = "Esta multa já está no protocolo.";
+      await consultarMultasDepositoLancamento();
+      return { ok: true, skipped: true };
+    }
+    if (r.reason === "no_blob") {
+      if (msg) msg.textContent = "Ficheiro não está neste computador — carregue a multa de novo em Documentos.";
+    } else if (r.reason === "too_big") {
+      if (msg) msg.textContent = "Multa no depósito excede 4 MB — reduza o ficheiro.";
+    } else if (msg) msg.textContent = "Não foi possível importar a multa.";
+    return { ok: false };
+  }
+
+  function refreshLancMultasDocumentosDeposito() {
+    const sec = document.getElementById("operacaoLancMultasDocumentosDeposito");
+    if (!sec) return;
+    const ctx = getLancMultasContexto();
+    const visivel = ctx.cpf.length === 11 && Boolean(ctx.nc);
+    sec.classList.toggle("hidden", !visivel);
+    if (!visivel) {
+      sec.setAttribute("hidden", "");
+      const lista = document.getElementById("operacaoLancMultasDepositoLista");
+      if (lista) lista.innerHTML = "";
+      const msg = document.getElementById("operacaoLancMultasDepositoMsg");
+      if (msg) msg.textContent = "";
+      return;
+    }
+    sec.removeAttribute("hidden");
+    void consultarMultasDepositoLancamento();
+  }
+
+  function bindMultasDepositoUi() {
+    document.getElementById("operacaoLancMultasBuscarDepositoBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      void consultarMultasDepositoLancamento();
+    });
+    document.getElementById("operacaoLancMultasDepositoLista")?.addEventListener("click", (e) => {
+      const btn = e.target.closest?.("[data-multa-dep-import]");
+      if (!btn || btn.disabled) return;
+      const id = btn.getAttribute("data-multa-dep-import");
+      if (!id) return;
+      void importarMultaDepositoParaLancamento(id);
+    });
   }
 
   function bindUi() {
@@ -473,17 +645,23 @@
 
   window.__DK_refreshOperacaoLocacaoDocumentosUi = refreshUi;
   window.__DK_docsLocacaoDoProtocolo = docsDoProtocolo;
+  window.__DK_docsLocacaoDoProtocoloPorTipo = docsDoProtocoloPorTipo;
+  window.__DK_docsLocacaoInferTipo = inferDocTipo;
   window.__DK_docsLocacaoLoadAll = loadAll;
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
   window.__DK_autoImportLocacaoDocumentosDeposito = autoImportarDocumentosDeposito;
+  window.__DK_refreshLancMultasDocumentosDeposito = refreshLancMultasDocumentosDeposito;
+  window.__DK_importarMultaDepositoParaProtocolo = importarMultaDepositoParaLancamento;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       bindUi();
+      bindMultasDepositoUi();
       refreshUi();
     });
   } else {
     bindUi();
+    bindMultasDepositoUi();
     refreshUi();
   }
 })();

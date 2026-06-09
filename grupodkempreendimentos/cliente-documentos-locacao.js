@@ -1,7 +1,13 @@
 /**
- * App cliente — visualização de documentos do protocolo (com zoom).
+ * App cliente — visualização de documentos do protocolo (contrato, CRLV, multas).
  */
 (function clienteDocumentosLocacao() {
+  const TITULOS = {
+    contrato: "Contrato",
+    crlv: "CRLV",
+    multa: "Multas",
+  };
+
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
   }
@@ -21,19 +27,52 @@
       .replace(/"/g, "&quot;");
   }
 
-  function loadDocs(proto, cpf) {
+  function inferDocTipo(d) {
+    if (typeof window.__DK_docsLocacaoInferTipo === "function") return window.__DK_docsLocacaoInferTipo(d);
+    const t = String(d?.tipo || d?.origemDepositoCategoria || "").trim().toLowerCase();
+    if (t === "contrato" || t === "crlv" || t === "multa") return t;
+    const nome = String(d?.nome || "");
+    if (/^contrato\b|contrato\s*—/i.test(nome)) return "contrato";
+    if (/crlv/i.test(nome)) return "crlv";
+    if (/multa/i.test(nome)) return "multa";
+    return "";
+  }
+
+  function loadDocs(proto, cpf, tipo) {
+    const fnPorTipo =
+      typeof window.__DK_docsLocacaoDoProtocoloPorTipo === "function"
+        ? window.__DK_docsLocacaoDoProtocoloPorTipo
+        : null;
+    if (fnPorTipo && tipo) return fnPorTipo(proto, cpf, tipo);
     const fn = typeof window.__DK_docsLocacaoDoProtocolo === "function" ? window.__DK_docsLocacaoDoProtocolo : null;
-    if (fn) return fn(proto, cpf);
-    try {
-      const raw = localStorage.getItem("dk_locacao_documentos_v1");
-      const all = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(all)) return [];
-      const nc = normNc(proto);
-      const dig = onlyDigits(cpf).slice(0, 11);
-      return all.filter((d) => normNc(d.numeroContrato) === nc && onlyDigits(d.cpf).slice(0, 11) === dig);
-    } catch {
-      return [];
+    let rows = [];
+    if (fn) rows = fn(proto, cpf);
+    else {
+      try {
+        const raw = localStorage.getItem("dk_locacao_documentos_v1");
+        const all = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(all)) rows = [];
+        else {
+          const nc = normNc(proto);
+          const dig = onlyDigits(cpf).slice(0, 11);
+          rows = all.filter((d) => normNc(d.numeroContrato) === nc && onlyDigits(d.cpf).slice(0, 11) === dig);
+        }
+      } catch {
+        rows = [];
+      }
     }
+    if (!tipo) return rows;
+    return rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
+  }
+
+  function panelEl(proto, tipo) {
+    return document.querySelector(`[data-cliente-docs-panel="${proto}"][data-cliente-docs-tipo="${tipo}"]`);
+  }
+
+  function btnEl(proto, tipo) {
+    return document.querySelector(
+      `[data-cliente-docs-proto="${proto}"][data-cliente-docs-tipo="${tipo}"]`
+    );
   }
 
   function bindPinchZoom(wrap) {
@@ -137,37 +176,44 @@
   function renderViewer(doc) {
     const url = String(doc.arquivoBase64 || "").trim();
     const mime = String(doc.mimeType || "").toLowerCase();
-    if (!url) return '<p class="subtext">Documento indisponível neste dispositivo.</p>';
+    if (!url) return '<p class="subtext">Documento indisponível neste dispositivo. Toque em Atualizar da nuvem.</p>';
     if (mime.includes("pdf") || url.includes("application/pdf")) {
       return `<iframe class="cliente-doc-iframe" src="${url.replace(/"/g, "&quot;")}" title="${escapeHtml(doc.nome)}"></iframe>`;
     }
     return `<img class="cliente-doc-img" src="${url.replace(/"/g, "&quot;")}" alt="${escapeHtml(doc.nome)}">`;
   }
 
-  function abrirPainel(proto, cpf) {
-    const panel = document.querySelector(`[data-cliente-docs-panel="${proto}"]`);
+  function tituloPainel(tipo, proto, qtd) {
+    const rotulo = TITULOS[tipo] || "Documentos";
+    if (qtd > 0) return `${rotulo} — protocolo ${proto} (${qtd} ficheiro(s))`;
+    return `${rotulo} — protocolo ${proto} (sem ficheiros)`;
+  }
+
+  function abrirPainel(proto, cpf, tipo) {
+    const panel = panelEl(proto, tipo);
     if (!panel) return false;
     const lista = panel.querySelector("[data-cliente-docs-lista]");
     const viewer = panel.querySelector("[data-cliente-docs-viewer]");
     const titulo = panel.querySelector("[data-cliente-docs-titulo]");
-    const docs = loadDocs(proto, cpf).sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+    const docs = loadDocs(proto, cpf, tipo).sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
 
-    if (titulo) {
-      titulo.textContent =
-        docs.length > 0
-          ? `Documentação — protocolo ${proto} (${docs.length} ficheiro(s))`
-          : `Documentação — protocolo ${proto} (sem ficheiros na nuvem)`;
-    }
+    if (titulo) titulo.textContent = tituloPainel(tipo, proto, docs.length);
 
     if (lista) {
       if (!docs.length) {
-        lista.innerHTML = '<p class="subtext">Ainda não há documentos para este contrato.</p>';
+        const vazio =
+          tipo === "multa"
+            ? "Ainda não há multas anexadas a este protocolo."
+            : tipo === "crlv"
+              ? "CRLV ainda não disponível neste protocolo."
+              : "Contrato ainda não disponível neste protocolo.";
+        lista.innerHTML = `<p class="subtext">${vazio}</p>`;
       } else {
         lista.innerHTML = docs
           .map(
             (d, i) =>
               `<div class="cliente-doc-row">
-                <button type="button" class="btn-primary btn-secondary-outline cliente-doc-link" data-cliente-doc-idx="${i}" data-cliente-doc-proto="${escapeHtml(proto)}">${escapeHtml(d.nome)}</button>
+                <button type="button" class="btn-primary btn-secondary-outline cliente-doc-link" data-cliente-doc-idx="${i}" data-cliente-doc-proto="${escapeHtml(proto)}" data-cliente-doc-tipo="${escapeHtml(tipo)}">${escapeHtml(d.nome)}</button>
                 <a class="btn-primary btn-secondary-outline cliente-doc-download" href="${String(d.arquivoBase64 || "#").replace(/"/g, "&quot;")}" download="${escapeHtml(d.nome)}">Baixar</a>
               </div>`
           )
@@ -200,21 +246,26 @@
     return true;
   }
 
-  function fecharOutros(exceto) {
+  function fecharOutros(excetoProto, excetoTipo) {
     document.querySelectorAll("[data-cliente-docs-panel]").forEach((p) => {
       const proto = String(p.getAttribute("data-cliente-docs-panel") || "");
-      if (exceto && proto === exceto) return;
+      const tipo = String(p.getAttribute("data-cliente-docs-tipo") || "");
+      if (excetoProto && proto === excetoProto && excetoTipo && tipo === excetoTipo) return;
       p.classList.add("hidden");
       p.hidden = true;
-      const btn = document.querySelector(`[data-cliente-docs-proto="${proto}"]`);
-      if (btn) btn.setAttribute("aria-expanded", "false");
+    });
+    document.querySelectorAll("[data-cliente-docs-tipo]").forEach((btn) => {
+      const proto = String(btn.getAttribute("data-cliente-docs-proto") || "");
+      const tipo = String(btn.getAttribute("data-cliente-docs-tipo") || "");
+      if (excetoProto && proto === excetoProto && excetoTipo && tipo === excetoTipo) return;
+      btn.setAttribute("aria-expanded", "false");
     });
   }
 
-  function togglePainel(proto, cpf) {
-    const panel = document.querySelector(`[data-cliente-docs-panel="${proto}"]`);
-    const btn = document.querySelector(`[data-cliente-docs-proto="${proto}"]`);
-    if (!panel) return false;
+  function togglePainel(proto, cpf, tipo) {
+    const panel = panelEl(proto, tipo);
+    const btn = btnEl(proto, tipo);
+    if (!panel || !tipo) return false;
     const aberto = !panel.classList.contains("hidden");
     if (aberto) {
       panel.classList.add("hidden");
@@ -222,8 +273,8 @@
       if (btn) btn.setAttribute("aria-expanded", "false");
       return true;
     }
-    fecharOutros(proto);
-    abrirPainel(proto, cpf);
+    fecharOutros(proto, tipo);
+    abrirPainel(proto, cpf, tipo);
     if (btn) btn.setAttribute("aria-expanded", "true");
     panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     return true;
@@ -231,21 +282,23 @@
 
   function bindUi() {
     document.getElementById("cliente-contratos")?.addEventListener("click", (e) => {
-      const openBtn = e.target.closest?.("[data-cliente-docs-proto]");
-      if (openBtn) {
+      const openBtn = e.target.closest?.("[data-cliente-docs-tipo]");
+      if (openBtn && openBtn.hasAttribute("data-cliente-docs-proto")) {
         e.preventDefault();
         const proto = String(openBtn.getAttribute("data-cliente-docs-proto") || "").trim();
+        const tipo = String(openBtn.getAttribute("data-cliente-docs-tipo") || "").trim();
         const cpfBtn = onlyDigits(openBtn.getAttribute("data-cliente-docs-cpf")).slice(0, 11);
         const sessFn = typeof window.__DK_getClienteSessaoCpf === "function" ? window.__DK_getClienteSessaoCpf : null;
         const cpfFinal = cpfBtn || (sessFn ? sessFn() : "");
-        togglePainel(proto, cpfFinal);
+        togglePainel(proto, cpfFinal, tipo);
         return;
       }
 
       const docBtn = e.target.closest?.("[data-cliente-doc-idx]");
       if (docBtn) {
         const proto = String(docBtn.getAttribute("data-cliente-doc-proto") || "").trim();
-        const panel = document.querySelector(`[data-cliente-docs-panel="${proto}"]`);
+        const tipo = String(docBtn.getAttribute("data-cliente-doc-tipo") || "").trim();
+        const panel = panelEl(proto, tipo);
         const idx = Number(docBtn.getAttribute("data-cliente-doc-idx"));
         const docs = panel?._dkDocsCache || [];
         const doc = docs[idx];
@@ -270,7 +323,7 @@
   }
 
   window.__DK_clienteToggleDocumentosLocacao = togglePainel;
-  window.__DK_clienteDocsLocacaoCount = (proto, cpf) => loadDocs(proto, cpf).length;
+  window.__DK_clienteDocsLocacaoCount = (proto, cpf, tipo) => loadDocs(proto, cpf, tipo).length;
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", bindUi);
   else bindUi();

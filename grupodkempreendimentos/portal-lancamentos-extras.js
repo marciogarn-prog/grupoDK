@@ -455,6 +455,11 @@
     if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
       window.__DK_portalComunicacaoSyncManutencaoBtn();
     }
+    if (cfg.key === "lancamentoMultas") {
+      const sec = document.getElementById("operacaoLancMultasDocumentosDeposito");
+      sec?.classList.add("hidden");
+      sec?.setAttribute("hidden", "");
+    }
   }
 
   function showDetalhe(cfg) {
@@ -462,6 +467,9 @@
     $(cfg, "ReferenciaPanel")?.removeAttribute("hidden");
     $(cfg, detalhePanelSuffix(cfg))?.classList.remove("hidden");
     $(cfg, detalhePanelSuffix(cfg))?.removeAttribute("hidden");
+    if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
+      window.__DK_refreshLancMultasDocumentosDeposito();
+    }
   }
 
   function syncValorPagoFromMeios(cfg) {
@@ -497,6 +505,9 @@
       clearParceladoLancamentoForm(cfg);
       renderHistorico(cfg, loc);
       updateRelatorioParceladoActions(cfg, loc);
+      if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
+        window.__DK_refreshLancMultasDocumentosDeposito();
+      }
       return;
     }
     const resumo =
@@ -1192,6 +1203,9 @@
       const nc = normNc(sel?.value);
       const loc = collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === nc);
       if (loc) applyLocToForm(cfg, loc);
+      if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
+        window.__DK_refreshLancMultasDocumentosDeposito();
+      }
       if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
         window.__DK_portalComunicacaoSyncManutencaoBtn();
       }
