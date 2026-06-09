@@ -39,6 +39,10 @@
   }
 
   function loadDocs(proto, cpf, tipo) {
+    const isEnviado =
+      typeof window.__DK_docsLocacaoIsEnviadoCliente === "function"
+        ? window.__DK_docsLocacaoIsEnviadoCliente
+        : (d) => d?.enviadoCliente !== false;
     const fnPorTipo =
       typeof window.__DK_docsLocacaoDoProtocoloPorTipo === "function"
         ? window.__DK_docsLocacaoDoProtocoloPorTipo
@@ -61,8 +65,8 @@
         rows = [];
       }
     }
-    if (!tipo) return rows;
-    return rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
+    if (!tipo) return rows.filter(isEnviado);
+    return rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase() && isEnviado(d));
   }
 
   function panelEl(proto, tipo) {

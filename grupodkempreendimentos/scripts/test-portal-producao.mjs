@@ -767,11 +767,10 @@ async function runSuite() {
     );
     record(
       "cadastro locação documentos por protocolo",
-      indexFresh.includes("operacaoLocacaoDocumentosBtn") &&
-        indexFresh.includes("importa automaticamente") &&
-        indexFresh.includes("Ver contrato") &&
+        indexFresh.includes("operacaoLocacaoDocumentosBtn") &&
+        indexFresh.includes("Enviar para o cliente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "importação automática + 3 botões no app cliente"
+      "Abrir PDF + enviar ao app cliente"
     );
     record(
       "lançamento multas consulta depósito Documentos",
@@ -780,18 +779,19 @@ async function runSuite() {
         indexFresh.includes("Consultar multas no depósito"),
       "busca PLACA-CPF e importação para protocolo"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609docs-multas`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-enviar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "documentos locação sync nuvem",
       locDocsJs.includes("dk_locacao_documentos_v1") &&
-        locDocsJs.includes("docsDoProtocoloPorTipo") &&
-        locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito") &&
-        locDocsJs.includes("tipo: categoria"),
-      "contrato/crlv/multa + import multas lançamento"
+        locDocsJs.includes("enviarDocumentoParaCliente") &&
+        locDocsJs.includes("enviadoCliente") &&
+        locDocsJs.includes("data-loc-doc-abrir") &&
+        locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito"),
+      "Abrir + enviar cliente; só enviados vão à nuvem"
     );
-    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609docs-multas`, {
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-enviar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -801,6 +801,7 @@ async function runSuite() {
         clienteAppJs.includes("Ver multas") &&
         clienteAppJs.includes("data-cliente-docs-tipo") &&
         clienteDocsJs.includes("__DK_docsLocacaoDoProtocoloPorTipo") &&
+        clienteDocsJs.includes("__DK_docsLocacaoIsEnviadoCliente") &&
         clienteDocsJs.includes("cliente-doc-zoom-viewport") &&
         clienteHtml.includes("cliente-documentos-locacao.js"),
       "3 botões contrato/CRLV/multas com zoom"
