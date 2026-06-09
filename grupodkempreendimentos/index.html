@@ -845,9 +845,11 @@
 
             <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
               <span>Documentos do contrato</span>
-              <p class="subtext portal-loc-docs__hint">Com CPF, placa e protocolo definidos, importa automaticamente o <strong>contrato</strong> e o <strong>CRLV</strong> do depósito Documentos. Use <strong>Abrir</strong> para conferir o PDF e <strong>Enviar para o cliente</strong> para publicar no app (<strong>Ver contrato</strong>, <strong>Ver CRLV</strong>, <strong>Ver multas</strong>).</p>
-              <input type="file" id="operacaoLocacaoDocumentosInput" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocumentosBtn" disabled>Carregar documentos</button>
+              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong> (CRLV = placa, contrato = protocolo). Aqui importa do depósito, use <strong>Abrir</strong> para conferir e <strong>Enviar para o cliente</strong> para publicar no app.</p>
+              <div class="portal-loc-docs__import-btns" role="group" aria-label="Importar do depósito Documentos">
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocContratoBtn" disabled>Contrato</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocCrlvBtn" disabled>CRLV</button>
+              </div>
               <p id="operacaoLocacaoDocumentosMsg" class="subtext portal-loc-docs__msg"></p>
               <ul id="operacaoLocacaoDocumentosLista" class="portal-loc-docs-list"></ul>
             </div>
@@ -1969,7 +1971,7 @@
   <script src="cliente-notificacoes.js?v=20260609lanc-aviso" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260609lanc-aviso" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260609doc-enviar" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260609doc-deposito" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
   <script src="portal-documentos.js?v=20260609docs-auto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
