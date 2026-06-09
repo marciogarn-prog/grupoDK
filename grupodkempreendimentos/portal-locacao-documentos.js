@@ -78,6 +78,25 @@
     return Boolean(acessos?.locacao);
   }
 
+  function podeGerirDocumentosMultas() {
+    if (typeof window.__DK_getPortalSessaoAdminRole !== "function") return false;
+    const role = window.__DK_getPortalSessaoAdminRole();
+    if (!role) return false;
+    if (role === "owner") return true;
+    const fn =
+      typeof window.__DK_getPortalSessaoEquipaFuncionario === "function"
+        ? window.__DK_getPortalSessaoEquipaFuncionario
+        : null;
+    const acessosFn =
+      typeof window.__DK_getPortalOperacaoAcessosEfetivos === "function"
+        ? window.__DK_getPortalOperacaoAcessosEfetivos
+        : null;
+    if (!fn || !acessosFn) return false;
+    const f = fn();
+    const acessos = acessosFn(f);
+    return Boolean(acessos?.lancamentoMultas || acessos?.locacao);
+  }
+
   function getRegistroOperador() {
     if (typeof window.__DK_getPortalSessaoParaRegistroLancamento === "function") {
       const r = window.__DK_getPortalSessaoParaRegistroLancamento();
@@ -375,29 +394,20 @@
     return true;
   }
 
-  function renderLista(nc, cpf) {
-    const ul = document.getElementById("operacaoLocacaoDocumentosLista");
-    if (!ul) return;
-    const docs = docsDoProtocolo(nc, cpf).sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
-    if (!docs.length) {
-      ul.innerHTML = '<li class="subtext">Nenhum documento neste protocolo.</li>';
-      return;
-    }
-    ul.innerHTML = docs
-      .map((d) => {
-        const dt = new Date(Number(d.createdAt) || 0);
-        const quando = Number.isFinite(dt.getTime())
-          ? dt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-          : "—";
-        const quem = String(d.registradoPorNome || d.registradoPorCpf || "—").trim();
-        const enviado = isDocEnviadoCliente(d);
-        const enviadoEm = d.enviadoClienteEm
-          ? new Date(Number(d.enviadoClienteEm)).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
-          : "";
-        const statusEnvio = enviado
-          ? `<span class="portal-loc-docs-item__enviado">Enviado ao cliente${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`
-          : `<span class="portal-loc-docs-item__pendente">Aguarda envio ao cliente</span>`;
-        return `<li class="portal-loc-docs-item">
+  function buildDocListItemHtml(d) {
+    const dt = new Date(Number(d.createdAt) || 0);
+    const quando = Number.isFinite(dt.getTime())
+      ? dt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+      : "—";
+    const quem = String(d.registradoPorNome || d.registradoPorCpf || "—").trim();
+    const enviado = isDocEnviadoCliente(d);
+    const enviadoEm = d.enviadoClienteEm
+      ? new Date(Number(d.enviadoClienteEm)).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+      : "";
+    const statusEnvio = enviado
+      ? `<span class="portal-loc-docs-item__enviado">Enviado ao cliente${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`
+      : `<span class="portal-loc-docs-item__pendente">Aguarda envio ao cliente</span>`;
+    return `<li class="portal-loc-docs-item">
           <span class="portal-loc-docs-item__nome">${escapeHtml(d.nome)}</span>
           <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)} · ${statusEnvio}</span>
           <span class="portal-loc-docs-item__acoes">
@@ -405,8 +415,22 @@
             <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado ? "disabled" : ""} title="Publicar na nuvem para o app do cliente">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
           </span>
         </li>`;
-      })
-      .join("");
+  }
+
+  function renderDocsListaUl(ul, docs, emptyText) {
+    if (!ul) return;
+    const sorted = (Array.isArray(docs) ? docs : []).slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+    if (!sorted.length) {
+      ul.innerHTML = `<li class="subtext">${escapeHtml(emptyText || "Nenhum documento.")}</li>`;
+      return;
+    }
+    ul.innerHTML = sorted.map(buildDocListItemHtml).join("");
+  }
+
+  function renderLista(nc, cpf) {
+    const ul = document.getElementById("operacaoLocacaoDocumentosLista");
+    const docs = docsDoProtocolo(nc, cpf);
+    renderDocsListaUl(ul, docs, "Nenhum documento neste protocolo.");
   }
 
   function escapeHtml(s) {
@@ -491,131 +515,200 @@
     return { cpf, nc, placa };
   }
 
-  function multaDepositoJaNoProtocolo(ctx, depositId) {
-    return docsDoProtocoloPorTipo(ctx.nc, ctx.cpf, "multa").some(
-      (d) => String(d.origemDepositoId || "") === String(depositId || "")
+  function locacaoDoProtocoloCpf(nc, cpf) {
+    const n = normNc(nc);
+    const dig = onlyDigits(cpf).slice(0, 11);
+    if (!n || dig.length !== 11) return null;
+    try {
+      const raw = localStorage.getItem("dk_locacoes_cadastro");
+      const locs = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(locs)) return null;
+      return locs.find((l) => normNc(l?.numeroContrato) === n && onlyDigits(l?.cpf).slice(0, 11) === dig) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function getMultasDocIdsVinculadosARegistros(nc, cpf) {
+    const loc = locacaoDoProtocoloCpf(nc, cpf);
+    const ids = new Set();
+    (loc?.portalMultasTransito || []).forEach((m) => {
+      if (m?.locacaoDocumentoId) ids.add(String(m.locacaoDocumentoId));
+      if (m?.origemDepositoId) ids.add(String(m.origemDepositoId));
+    });
+    return ids;
+  }
+
+  function getMultaDocPendenteVinculo(nc, cpf) {
+    const vinc = getMultasDocIdsVinculadosARegistros(nc, cpf);
+    return (
+      docsDoProtocoloPorTipo(nc, cpf, "multa").find((d) => !vinc.has(String(d.id))) || null
     );
   }
 
-  function renderMultasDepositoLista(rows, ctx) {
-    const lista = document.getElementById("operacaoLancMultasDepositoLista");
-    if (!lista) return;
-    if (!rows.length) {
-      lista.innerHTML = '<p class="subtext">Nenhuma multa encontrada no depósito para esta placa e CPF.</p>';
-      return;
-    }
-    lista.innerHTML = rows
-      .map((e) => {
-        const ja = multaDepositoJaNoProtocolo(ctx, e.id);
-        const quando = e.criadoEm ? new Date(e.criadoEm).toLocaleString("pt-BR") : "—";
-        return `<article class="documentos-resultado portal-lanc-multas-deposito-item">
-          <div class="documentos-resultado__info">
-            <strong class="documentos-resultado__nome">${escapeHtml(e.nomeArquivo || e.chave)}</strong>
-            <span class="subtext">${escapeHtml(String(e.chave || ""))} · ${escapeHtml(quando)}</span>
-          </div>
-          <div class="documentos-resultado__acoes">
-            <button type="button" class="btn-primary btn-secondary-outline" data-multa-dep-import="${escapeHtml(e.id)}" ${ja ? "disabled" : ""}>${ja ? "Já no protocolo" : "Importar para protocolo"}</button>
-          </div>
-        </article>`;
-      })
-      .join("");
+  function renderMultasLancDocsLista(nc, cpf) {
+    const ul = document.getElementById("operacaoLancMultasDocumentosLista");
+    const docs = docsDoProtocoloPorTipo(nc, cpf, "multa");
+    renderDocsListaUl(ul, docs, "Nenhuma multa importada neste protocolo — clique Multa após depositar em Documentos.");
   }
 
-  async function consultarMultasDepositoLancamento() {
+  async function importarProximaMultaDoDeposito() {
     const ctx = getLancMultasContexto();
-    const msg = document.getElementById("operacaoLancMultasDepositoMsg");
-    if (ctx.cpf.length !== 11 || !ctx.nc) {
-      if (msg) msg.textContent = "Confirme a pesquisa e selecione um protocolo.";
-      renderMultasDepositoLista([], ctx);
-      return { ok: false };
+    const { cpf, nc, placa } = ctx;
+    const label = "Multa";
+
+    if (!podeGerirDocumentosMultas()) {
+      return { ok: false, msg: "Sem permissão de lançamento de multas." };
     }
-    if (ctx.placa.length < 6) {
-      if (msg) msg.textContent = "Placa do protocolo indisponível.";
-      renderMultasDepositoLista([], ctx);
-      return { ok: false };
+    if (!nc) {
+      return { ok: false, msg: "Confirme a pesquisa e selecione um protocolo." };
     }
+    if (cpf.length !== 11) {
+      return { ok: false, msg: "Informe o CPF do cliente." };
+    }
+    if (placa.length < 6) {
+      return { ok: false, msg: "Placa do protocolo indisponível." };
+    }
+
     const listarFn =
       typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
     if (!listarFn) {
-      if (msg) msg.textContent = "Módulo Documentos indisponível.";
-      return { ok: false };
+      return { ok: false, msg: "Depósito Documentos indisponível — abra o menu Documentos neste computador." };
     }
-    const chave = chaveMultaDeposito(ctx.placa, ctx.cpf);
-    const rows = listarFn("multa", chave);
-    renderMultasDepositoLista(rows, ctx);
-    if (msg) {
-      msg.textContent = rows.length
-        ? `${rows.length} multa(s) no depósito (${chave}). Importe para o protocolo — o cliente vê no app.`
-        : `Nenhuma multa no depósito para ${chave}. Deposite em Documentos com nome PLACA-CPF.`;
-    }
-    return { ok: true, rows: rows.length, chave };
-  }
 
-  async function importarMultaDepositoParaLancamento(depositId) {
-    const ctx = getLancMultasContexto();
-    const msg = document.getElementById("operacaoLancMultasDepositoMsg");
-    if (ctx.cpf.length !== 11 || !ctx.nc || ctx.placa.length < 6) {
-      if (msg) msg.textContent = "Selecione um protocolo válido antes de importar.";
-      return { ok: false };
+    const chave = chaveMultaDeposito(placa, cpf);
+    const rows = listarFn("multa", chave);
+    if (!rows.length) {
+      return {
+        ok: false,
+        msg: `Nenhuma multa no depósito para ${chave}. Deposite em Documentos (nome = PLACA-CPF).`,
+      };
     }
-    const listarFn =
-      typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
-    if (!listarFn) return { ok: false };
-    const chave = chaveMultaDeposito(ctx.placa, ctx.cpf);
-    const entry = listarFn("multa", chave).find((e) => String(e.id) === String(depositId));
+
+    const all = loadAll();
+    const entry = rows.find((r) => !docDepositoJaImportado(all, nc, cpf, r.id, "multa"));
     if (!entry) {
-      if (msg) msg.textContent = "Multa não encontrada no depósito.";
-      return { ok: false };
+      const pend = getMultaDocPendenteVinculo(nc, cpf);
+      if (pend) {
+        return { ok: true, already: true, msg: "Multa já importada — cadastre os dados ou importe outro PDF em Documentos." };
+      }
+      return {
+        ok: false,
+        msg: `Todas as multas do depósito (${chave}) já foram importadas. Deposite outro PDF em Documentos se necessário.`,
+      };
     }
+
     const reg = getRegistroOperador();
-    const r = await importarDocDepositoParaProtocolo(entry, "multa", ctx.nc, ctx.cpf, ctx.placa, reg);
+    const r = await importarDocDepositoParaProtocolo(entry, "multa", nc, cpf, placa, reg);
     if (r.added) {
-      if (msg) msg.textContent = `Multa importada para o protocolo ${ctx.nc}. Visível no app do cliente.`;
-      await consultarMultasDepositoLancamento();
-      return { ok: true };
+      return { ok: true, added: true, msg: `${label} importada do depósito Documentos.` };
     }
     if (r.skipped) {
-      if (msg) msg.textContent = "Esta multa já está no protocolo.";
-      await consultarMultasDepositoLancamento();
-      return { ok: true, skipped: true };
+      return { ok: true, already: true, msg: "Esta multa já está neste protocolo." };
     }
     if (r.reason === "no_blob") {
-      if (msg) msg.textContent = "Ficheiro não está neste computador — carregue a multa de novo em Documentos.";
-    } else if (r.reason === "too_big") {
-      if (msg) msg.textContent = "Multa no depósito excede 4 MB — reduza o ficheiro.";
-    } else if (msg) msg.textContent = "Não foi possível importar a multa.";
-    return { ok: false };
+      return {
+        ok: false,
+        msg: "Multa encontrada no depósito, mas o ficheiro não está neste computador — deposite de novo em Documentos.",
+      };
+    }
+    if (r.reason === "too_big") {
+      return { ok: false, msg: "Multa no depósito excede 4 MB — reduza o ficheiro em Documentos." };
+    }
+    return { ok: false, msg: "Não foi possível importar a multa." };
+  }
+
+  async function garantirDocMultaParaCadastro(cpfDigits, nc) {
+    const cpf = onlyDigits(cpfDigits).slice(0, 11);
+    const protocolo = normNc(nc);
+    if (cpf.length !== 11 || !protocolo) {
+      return { ok: false, msg: "Informe CPF e protocolo." };
+    }
+
+    let doc = getMultaDocPendenteVinculo(protocolo, cpf);
+    if (doc) return { ok: true, doc };
+
+    const imp = await importarProximaMultaDoDeposito();
+    if (!imp.ok) return imp;
+
+    doc = getMultaDocPendenteVinculo(protocolo, cpf);
+    if (doc) return { ok: true, doc };
+
+    return {
+      ok: false,
+      msg:
+        imp.msg ||
+        "Deposite o PDF da multa em Documentos (PLACA-CPF) e clique Multa antes de cadastrar.",
+    };
   }
 
   function refreshLancMultasDocumentosDeposito() {
     const sec = document.getElementById("operacaoLancMultasDocumentosDeposito");
+    const btn = document.getElementById("operacaoLancMultasDocImportBtn");
+    const msg = document.getElementById("operacaoLancMultasDepositoMsg");
     if (!sec) return;
+
     const ctx = getLancMultasContexto();
-    const visivel = ctx.cpf.length === 11 && Boolean(ctx.nc);
+    const permitido = podeGerirDocumentosMultas();
+    const visivel = permitido && ctx.cpf.length === 11 && Boolean(ctx.nc);
+    const placaOk = ctx.placa.length >= 6;
+
     sec.classList.toggle("hidden", !visivel);
     if (!visivel) {
       sec.setAttribute("hidden", "");
-      const lista = document.getElementById("operacaoLancMultasDepositoLista");
-      if (lista) lista.innerHTML = "";
-      const msg = document.getElementById("operacaoLancMultasDepositoMsg");
+      const ul = document.getElementById("operacaoLancMultasDocumentosLista");
+      if (ul) ul.innerHTML = "";
       if (msg) msg.textContent = "";
+      if (btn) btn.disabled = true;
       return;
     }
+
     sec.removeAttribute("hidden");
-    void consultarMultasDepositoLancamento();
+    if (btn) btn.disabled = !placaOk;
+
+    const pend = getMultaDocPendenteVinculo(ctx.nc, ctx.cpf);
+    const nMultas = docsDoProtocoloPorTipo(ctx.nc, ctx.cpf, "multa").length;
+    if (msg) {
+      const chave = placaOk ? chaveMultaDeposito(ctx.placa, ctx.cpf) : "";
+      msg.textContent = pend
+        ? `Documento pronto para cadastrar (${chave}). ${nMultas} multa(s) importada(s) neste protocolo.`
+        : placaOk
+          ? `${nMultas} multa(s) importada(s). Clique Multa para importar do depósito (${chave}) antes de cadastrar.`
+          : "Placa indisponível — confirme o protocolo.";
+    }
+    renderMultasLancDocsLista(ctx.nc, ctx.cpf);
   }
 
   function bindMultasDepositoUi() {
-    document.getElementById("operacaoLancMultasBuscarDepositoBtn")?.addEventListener("click", (e) => {
-      e.preventDefault();
-      void consultarMultasDepositoLancamento();
+    const btn = document.getElementById("operacaoLancMultasDocImportBtn");
+    const lista = document.getElementById("operacaoLancMultasDocumentosLista");
+    const msg = document.getElementById("operacaoLancMultasDepositoMsg");
+
+    btn?.addEventListener("click", async () => {
+      if (btn.disabled) return;
+      const res = await importarProximaMultaDoDeposito();
+      refreshLancMultasDocumentosDeposito();
+      if (msg && res.msg) msg.textContent = res.msg;
     });
-    document.getElementById("operacaoLancMultasDepositoLista")?.addEventListener("click", (e) => {
-      const btn = e.target.closest?.("[data-multa-dep-import]");
-      if (!btn || btn.disabled) return;
-      const id = btn.getAttribute("data-multa-dep-import");
-      if (!id) return;
-      void importarMultaDepositoParaLancamento(id);
+
+    lista?.addEventListener("click", (e) => {
+      const abrir = e.target.closest?.("[data-loc-doc-abrir]");
+      if (abrir) {
+        const id = abrir.getAttribute("data-loc-doc-abrir");
+        const doc = loadAll().find((d) => String(d.id) === String(id));
+        if (!doc || !abrirDocumento(doc)) {
+          if (msg) msg.textContent = "Não foi possível abrir — ficheiro indisponível neste computador.";
+        }
+        return;
+      }
+      const enviar = e.target.closest?.("[data-loc-doc-enviar]");
+      if (enviar && !enviar.disabled) {
+        const id = enviar.getAttribute("data-loc-doc-enviar");
+        if (!id) return;
+        const res = enviarDocumentoParaCliente(id);
+        if (msg) msg.textContent = res.msg || "";
+        refreshLancMultasDocumentosDeposito();
+      }
     });
   }
 
@@ -681,7 +774,8 @@
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
   window.__DK_importarLocacaoDocDoDeposito = importarTipoDoDeposito;
   window.__DK_refreshLancMultasDocumentosDeposito = refreshLancMultasDocumentosDeposito;
-  window.__DK_importarMultaDepositoParaProtocolo = importarMultaDepositoParaLancamento;
+  window.__DK_garantirDocMultaParaCadastro = garantirDocMultaParaCadastro;
+  window.__DK_importarMultaDocDoDeposito = importarProximaMultaDoDeposito;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {

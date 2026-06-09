@@ -209,7 +209,7 @@ const OPERACAO_PANELS = [
     name: "Lançamento multas",
     cmd: "btn-operacao-lancamento-multas",
     panel: "operacaoInlineLancamentoMultas",
-    buttons: ["operacaoLancMultasConfirmarPesquisaBtn", "operacaoLancMultasGerarRelatorioBtn"],
+    buttons: ["operacaoLancMultasConfirmarPesquisaBtn", "operacaoLancMultasDocImportBtn", "operacaoLancMultasGerarRelatorioBtn"],
   },
   {
     name: "Lançamento manutenção",

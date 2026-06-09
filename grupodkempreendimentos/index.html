@@ -1237,7 +1237,7 @@
         
         <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
           <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
-          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. As parcelas são a cada <strong>7 dias</strong>; a <strong>data da Última parcela</strong> é calculada automaticamente.</p>
+          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. Deposite o PDF em <strong>Documentos</strong> (PLACA-CPF), importe com o botão <strong>Multa</strong> e só então cadastre. As parcelas são a cada <strong>7 dias</strong>.</p>
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
@@ -1288,12 +1288,14 @@
                 <label class="portal-field"><span>TOTAL EM MULTAS (protocolo)</span><input type="text" id="operacaoLancMultasValorDevido" readonly tabindex="-1" title="Soma do valor das multas de trânsito registadas"></label>
               </div>
             </section>
-            <section id="operacaoLancMultasDocumentosDeposito" class="portal-lanc-multas-docs hidden" hidden aria-labelledby="portal-lanc-multas-docs-deposito-title">
-              <h4 id="portal-lanc-multas-docs-deposito-title" class="portal-lanc-aluguel-section__title">Multas no depósito Documentos</h4>
-              <p class="subtext">Consulte multas guardadas na área <strong>Documentos</strong> (nome do ficheiro: <strong>PLACA-CPF</strong>, ex.: ABC1D23-12345678901.pdf) e importe para este protocolo.</p>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasBuscarDepositoBtn">Consultar multas no depósito</button>
-              <div id="operacaoLancMultasDepositoLista" class="portal-lanc-multas-deposito-lista"></div>
+            <section id="operacaoLancMultasDocumentosDeposito" class="portal-lanc-multas-docs portal-loc-docs hidden" hidden aria-labelledby="portal-lanc-multas-docs-deposito-title">
+              <h4 id="portal-lanc-multas-docs-deposito-title" class="portal-lanc-aluguel-section__title">Documento da multa</h4>
+              <p class="subtext portal-loc-docs__hint">O PDF entra <strong>só</strong> pelo menu <strong>Documentos</strong> (nome = <strong>PLACA-CPF</strong>, ex.: ABC1D23-12345678901.pdf). Importe aqui <strong>antes</strong> de cadastrar a multa; use <strong>Abrir</strong> para conferir e <strong>Enviar para o cliente</strong> para publicar no app.</p>
+              <div class="portal-loc-docs__import-btns" role="group" aria-label="Importar multa do depósito Documentos">
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasDocImportBtn" disabled>Multa</button>
+              </div>
               <p id="operacaoLancMultasDepositoMsg" class="subtext portal-loc-docs__msg" role="status"></p>
+              <ul id="operacaoLancMultasDocumentosLista" class="portal-loc-docs-list"></ul>
             </section>
             <section id="operacaoLancMultasLancamentoPanel" class="portal-lanc-aluguel-pagamento hidden" hidden aria-labelledby="portal-lanc-multas-lancamento-title">
               <h4 id="portal-lanc-multas-lancamento-title" class="portal-lanc-aluguel-section__title">Dados da multa de trânsito</h4>
@@ -1971,11 +1973,11 @@
   <script src="cliente-notificacoes.js?v=20260609lanc-aviso" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260609lanc-aviso" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260609doc-deposito" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260609multa-deposito" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
   <script src="portal-documentos.js?v=20260609docs-auto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260609sem-comunicacao" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260609multa-deposito" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
   <script src="portal-supabase-sync.js?v=20260609doc-enviar" defer></script>
 </body>
