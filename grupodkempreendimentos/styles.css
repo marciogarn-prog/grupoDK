@@ -4892,7 +4892,19 @@ table.validados-app .lnk-comprovante {
   margin-top: 0.5rem;
 }
 
-/* Documentos do protocolo — cadastro de locação */
+/* Documentos do contrato — cadastro de locação (substitui ambiente teste) */
+.portal-loc-docs--cadastro {
+  border: 1px solid rgba(59, 130, 246, 0.55);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.portal-loc-docs--cadastro > span {
+  color: #93c5fd;
+  font-weight: 600;
+}
+
 .portal-loc-docs__hint {
   margin: 0.35rem 0 0.65rem;
 }
@@ -4931,6 +4943,22 @@ table.validados-app .lnk-comprovante {
   grid-column: 1;
   font-size: 0.78rem;
   color: rgba(255, 255, 255, 0.62);
+}
+
+.portal-loc-docs-item__acoes {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+  align-self: center;
+}
+
+.portal-loc-docs-item__ver {
+  font-size: 0.82rem;
+  padding: 0.25rem 0.55rem;
+  text-decoration: none;
 }
 
 .portal-loc-docs-item__del {

@@ -706,9 +706,9 @@
         let stored = v;
         if (k === "dk_locacoes_cadastro" && Array.isArray(v)) {
           stored = normalizeLocacoesContratoAtivoList(v);
-        }
-        localStorage.setItem(k, JSON.stringify(stored));
       }
+        localStorage.setItem(k, JSON.stringify(stored));
+    }
     }
     normalizeLocacoesContratoAtivoStore();
     runLocacoesSanitizeAfterCloudApply({ light: lightSanitize });
@@ -1718,7 +1718,7 @@
             if (sum > 0) valor = sum;
           }
           if (!Number.isFinite(valor) || valor <= 0) continue;
-          const row = {
+    const row = {
             data,
             valor,
             createdAt: Number(item.createdAt || item.id || 0) || Date.now(),
@@ -2209,10 +2209,10 @@
     const client = window.__DK_SUPABASE_CLIENT__;
     if (client && window.__DK_SUPABASE_CONFIGURED__) {
       const row = { label: dkSnapshotLabel(), payload, updated_at: updatedAt };
-      const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
-        onConflict: "label",
-      });
-      if (error) {
+    const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
+      onConflict: "label",
+    });
+    if (error) {
         supaErr = error.message || String(error);
         console.error("[DK cloud] Supabase push", error);
       } else {
@@ -2478,10 +2478,10 @@
     const r = await upsertSnapshotRow(true);
     if (!r.ok) return;
     if (r.supaOk && r.redisOk) {
-      setMsg(
+    setMsg(
         "Dados guardados. Noutro aparelho abra o site ou use «Carregar da nuvem» — se o Supabase falhar, a cópia Redis atende.",
-        "ok"
-      );
+      "ok"
+    );
     }
   }
 

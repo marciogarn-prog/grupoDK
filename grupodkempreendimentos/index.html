@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260608comunicacao-fix">
+  <link rel="stylesheet" href="styles.css?v=20260609loc-docs-cadastro">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -861,18 +861,14 @@
             <datalist id="operacaoLocacaoCpfSugestoes"></datalist>
             <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
 
-            <div id="operacaoLocacaoAmbienteWrap" class="portal-field portal-field--wide portal-ambiente-admin hidden" role="group" aria-label="Ambiente do cadastro">
-              <span>Ambiente do cadastro</span>
-              <div class="portal-ambiente-opcoes">
-                <label><input type="radio" name="operacaoLocacaoAmbiente" value="real" checked> Real</label>
-                <label><input type="radio" name="operacaoLocacaoAmbiente" value="teste"> Teste</label>
-              </div>
-              <p class="subtext portal-ambiente-hint">Teste: protocolo e pagamentos podem ser apagados; dados fictícios para desenvolvimento.</p>
+            <div id="operacaoLocacaoAmbientePersist" class="portal-ambiente-persist hidden" aria-hidden="true" hidden>
+              <input type="radio" name="operacaoLocacaoAmbiente" value="real" checked>
+              <input type="radio" name="operacaoLocacaoAmbiente" value="teste">
             </div>
 
-            <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs hidden" aria-live="polite">
-              <span>DOCUMENTOS DO PROTOCOLO</span>
-              <p class="subtext portal-loc-docs__hint">PDF ou imagem (máx. 4 MB). Disponível após escolher o protocolo. Quem tem permissão de <strong>cadastro de locação</strong> pode anexar.</p>
+            <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
+              <span>Documentos do contrato</span>
+              <p class="subtext portal-loc-docs__hint">PDF ou imagem (máx. 4 MB). Escolha o protocolo <strong>ativo</strong> acima. O cliente vê e pode baixar estes ficheiros no app, em <strong>Documentação do contrato</strong>, enquanto o protocolo estiver ativo.</p>
               <input type="file" id="operacaoLocacaoDocumentosInput" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/*" multiple style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none">
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocumentosBtn" disabled>Carregar documentos</button>
               <p id="operacaoLocacaoDocumentosMsg" class="subtext portal-loc-docs__msg"></p>
@@ -2158,7 +2154,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260608oficial-lanc-strict" defer></script>
   <script src="portal-comunicacao-operacao-ui.js?v=20260608comunicacao-fix" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260608loc-docs" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260609loc-docs-cadastro" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="portal-patrimonio-idb.js?v=20260608deposito-fix" defer></script>
