@@ -2068,11 +2068,41 @@
   }
 
   /** Portal com autoridade local: ainda assim traz mensagens novas da nuvem. */
-  async function pullComunicacaoOperacaoFromCloudMerge() {
+  const COM_PULL_MIN_INTERVAL_MS = 20_000;
+  let comPullLastAt = 0;
+
+  async function pullComunicacaoOperacaoFromCloudMerge(opts) {
+    const force = Boolean(opts && opts.force);
+    const now = Date.now();
+    if (!force && now - comPullLastAt < COM_PULL_MIN_INTERVAL_MS) {
+      return { ok: true, skipped: true, reason: "throttled" };
+    }
+    comPullLastAt = now;
     let cloudArr = [];
     const redisRow = await fetchRedundantSnapshotPayload();
     if (Array.isArray(redisRow?.payload?.dk_comunicacao_operacao_v1)) {
       cloudArr = redisRow.payload.dk_comunicacao_operacao_v1;
+    }
+    const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
+    let mergedFromRedis = mergeComunicacaoOperacaoArrays(localArr, cloudArr);
+    const fpLocal = comunicacaoStorageFingerprint(localArr);
+    const fpRedisMerged = comunicacaoStorageFingerprint(mergedFromRedis);
+    const redisTs = Date.parse(String(redisRow?.updated_at || "")) || 0;
+    let lastPush = 0;
+    try {
+      lastPush = Date.parse(localStorage.getItem(DK_CLOUD_LAST_PUSH_AT_KEY) || "") || 0;
+    } catch {
+      lastPush = 0;
+    }
+    const redisFreshEnough = !redisTs || redisTs <= lastPush + 500;
+    if (
+      !force &&
+      fpLocal === fpRedisMerged &&
+      localArr.length === mergedFromRedis.length &&
+      cloudArr.length > 0 &&
+      redisFreshEnough
+    ) {
+      return { ok: true, unchanged: true, count: mergedFromRedis.length, source: "redis" };
     }
     try {
       const data = await withCloudTimeout(fetchCloudSnapshotPayload(), 8000, "cloud_snapshot_timeout");
@@ -2086,9 +2116,7 @@
     if (!Array.isArray(cloudArr) || !cloudArr.length) {
       return { ok: true, skipped: true, reason: "no_cloud_comunicacao" };
     }
-    const localArr = readLocalJsonArray("dk_comunicacao_operacao_v1");
     const merged = mergeComunicacaoOperacaoArrays(localArr, cloudArr);
-    const fpLocal = comunicacaoStorageFingerprint(localArr);
     const fpMerged = comunicacaoStorageFingerprint(merged);
     if (fpLocal === fpMerged && localArr.length === merged.length) {
       return { ok: true, unchanged: true, count: merged.length };
@@ -2412,7 +2440,7 @@
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
   async function scheduleBackgroundCloudPullIfStale() {
     if (isLocalDataAuthorityActive() && !isClienteAppPage()) {
-      return { ok: true, skipped: true, reason: "local_authority" };
+      return pullComunicacaoOperacaoFromCloudMerge();
     }
     const forceDemoBootstrap = demoNeedsCloudCadastroBootstrap();
     const now = Date.now();

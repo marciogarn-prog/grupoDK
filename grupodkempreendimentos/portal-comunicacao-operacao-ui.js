@@ -62,21 +62,45 @@
       .join("");
   }
 
-  function refreshInboxes() {
-    void (async () => {
-      if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
-        await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
+  const COM_UI_PULL_MIN_MS = 25_000;
+  let comUiPullLastAt = 0;
+  let comUiPullInFlight = null;
+
+  function renderInboxesLocal() {
+    renderLista($("portalComunicacaoVendasLista"), "vendas");
+    renderLista($("portalComunicacaoManutencaoLista"), "manutencao");
+    if (typeof window.__DK_portalSyncComunicacaoBarLayout === "function") {
+      requestAnimationFrame(() => window.__DK_portalSyncComunicacaoBarLayout());
+    }
+  }
+
+  function refreshInboxes(opts) {
+    const forcePull = Boolean(opts?.forcePull);
+    const localOnly = Boolean(opts?.localOnly);
+    renderInboxesLocal();
+    if (localOnly) return;
+    const now = Date.now();
+    if (!forcePull && now - comUiPullLastAt < COM_UI_PULL_MIN_MS) return;
+    if (comUiPullInFlight) {
+      void comUiPullInFlight.then(() => renderInboxesLocal());
+      return;
+    }
+    comUiPullLastAt = now;
+    comUiPullInFlight = (async () => {
+      try {
+        if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+          await window.__DK_pullComunicacaoOperacaoFromCloudMerge({ force: forcePull }).catch(() => null);
+        }
+      } finally {
+        comUiPullInFlight = null;
       }
-      renderLista($("portalComunicacaoVendasLista"), "vendas");
-      renderLista($("portalComunicacaoManutencaoLista"), "manutencao");
-      if (typeof window.__DK_portalSyncComunicacaoBarLayout === "function") {
-        requestAnimationFrame(() => window.__DK_portalSyncComunicacaoBarLayout());
-      }
+      renderInboxesLocal();
     })();
   }
 
   async function carregarMensagensNuvem(setor, opts) {
     const silent = Boolean(opts?.silent);
+    const forcePull = Boolean(opts?.forcePull);
     const st = window.__DK_comunicacaoNormSetor?.(setor) || setor;
     const isManut = st === "manutencao";
     const btn = $(isManut ? "portalComunicacaoCarregarManutencaoBtn" : "portalComunicacaoCarregarVendasBtn");
@@ -88,8 +112,11 @@
     }
     if (status && !silent) status.textContent = "A buscar na nuvem…";
     let pull = { ok: false };
+    renderInboxesLocal();
     if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
-      pull = await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => ({ ok: false }));
+      pull = await window
+        .__DK_pullComunicacaoOperacaoFromCloudMerge({ force: forcePull || !silent })
+        .catch(() => ({ ok: false }));
     }
     renderLista(lista, st);
     const pendentes =
@@ -204,7 +231,7 @@
     if (inp) inp.value = "";
     if (msg) msg.textContent = "Mensagem enviada.";
     renderChatHistorico();
-    refreshInboxes();
+    refreshInboxes({ forcePull: true });
     window.setTimeout(fecharChat, 400);
   }
 
@@ -319,10 +346,10 @@
 
   function bindUi() {
     $("portalComunicacaoCarregarVendasBtn")?.addEventListener("click", () => {
-      void carregarMensagensNuvem("vendas");
+      void carregarMensagensNuvem("vendas", { forcePull: true });
     });
     $("portalComunicacaoCarregarManutencaoBtn")?.addEventListener("click", () => {
-      void carregarMensagensNuvem("manutencao");
+      void carregarMensagensNuvem("manutencao", { forcePull: true });
     });
     $("portalComunicacaoVendasLista")?.addEventListener("click", (e) => {
       const btn = e.target.closest?.("[data-chat-thread]");
@@ -376,15 +403,15 @@
       $(id)?.addEventListener("input", syncBtnManutencao);
       $(id)?.addEventListener("change", syncBtnManutencao);
     });
-    window.addEventListener("dk-comunicacao-operacao-changed", refreshInboxes);
-    window.addEventListener("dk-comprovantes-synced", refreshInboxes);
+    window.addEventListener("dk-comunicacao-operacao-changed", () => refreshInboxes({ localOnly: true }));
+    window.addEventListener("dk-comprovantes-synced", () => refreshInboxes({ localOnly: true }));
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") refreshInboxes();
+      if (document.visibilityState === "visible") refreshInboxes({ forcePull: true });
     });
     window.setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      refreshInboxes();
-    }, 45000);
+      refreshInboxes({ forcePull: true });
+    }, 90_000);
   }
 
   window.__DK_portalComunicacaoRefresh = refreshInboxes;
@@ -395,13 +422,13 @@
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       bindUi();
-      refreshInboxes();
+      refreshInboxes({ forcePull: true });
       syncBtnClienteCadastro();
       syncBtnManutencao();
     });
   } else {
     bindUi();
-    refreshInboxes();
+    refreshInboxes({ forcePull: true });
     syncBtnClienteCadastro();
     syncBtnManutencao();
   }
