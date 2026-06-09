@@ -80,6 +80,30 @@
     return loadAll().filter((d) => normNc(d.numeroContrato) === n && (!dig || onlyDigits(d.cpf).slice(0, 11) === dig));
   }
 
+  function locacaoDoProtocolo(nc) {
+    const n = normNc(nc);
+    if (!n) return null;
+    try {
+      const raw = localStorage.getItem("dk_locacoes_cadastro");
+      const locs = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(locs)) return null;
+      return locs.find((l) => normNc(l?.numeroContrato) === n) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function protocoloLocacaoAtivo(nc) {
+    const loc = locacaoDoProtocolo(nc);
+    if (!loc) return true;
+    const fim = String(loc.fim || loc.dataFim || loc.data_fim || "").trim();
+    if (fim) return false;
+    if (typeof window.__DK_isPortalLocacaoAtiva === "function") {
+      return Boolean(window.__DK_isPortalLocacaoAtiva(loc));
+    }
+    return true;
+  }
+
   function readFileAsDataUrl(file) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader();
@@ -95,6 +119,9 @@
     if (!protocolo) return { ok: false, msg: "Escolha um protocolo antes de carregar documentos." };
     if (!podeGerirDocumentosLocacao()) {
       return { ok: false, msg: "Sem permissão de cadastro de locação para anexar documentos." };
+    }
+    if (!protocoloLocacaoAtivo(normNc(nc))) {
+      return { ok: false, msg: "Só é possível anexar documentos a protocolos ativos (sem data fim)." };
     }
     const lista = Array.from(files || []).filter(Boolean);
     if (!lista.length) return { ok: false, msg: "Nenhum ficheiro selecionado." };
@@ -170,7 +197,10 @@
         return `<li class="portal-loc-docs-item">
           <span class="portal-loc-docs-item__nome">${escapeHtml(d.nome)}</span>
           <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)}</span>
-          <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__del" data-loc-doc-del="${escapeHtml(d.id)}" title="Remover">Remover</button>
+          <span class="portal-loc-docs-item__acoes">
+            <a class="btn-primary btn-secondary-outline portal-loc-docs-item__ver" href="${String(d.arquivoBase64 || "#").replace(/"/g, "&quot;")}" target="_blank" rel="noopener" download="${escapeHtml(d.nome)}">Baixar</a>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__del" data-loc-doc-del="${escapeHtml(d.id)}" title="Remover">Remover</button>
+          </span>
         </li>`;
       })
       .join("");
@@ -194,9 +224,10 @@
     const nc = getProtocoloAtual();
     const cpf = getCpfAtual();
     const temProtocolo = Boolean(nc);
+    const ativo = temProtocolo ? protocoloLocacaoAtivo(nc) : false;
 
     wrap.classList.toggle("hidden", !permitido);
-    btn.disabled = !permitido || !temProtocolo;
+    btn.disabled = !permitido || !temProtocolo || !ativo;
     if (!permitido) {
       if (msg) msg.textContent = "";
       return;
@@ -206,7 +237,16 @@
       renderLista("", cpf);
       return;
     }
-    if (msg) msg.textContent = `${docsDoProtocolo(nc, cpf).length} documento(s) no protocolo ${nc}.`;
+    if (!ativo) {
+      if (msg) {
+        msg.textContent = `Protocolo ${nc} finalizado — não é possível anexar novos documentos. O cliente só acede à documentação em protocolos ativos.`;
+      }
+      renderLista(nc, cpf);
+      return;
+    }
+    if (msg) {
+      msg.textContent = `${docsDoProtocolo(nc, cpf).length} documento(s) no protocolo ${nc} — visíveis no app em «Documentação do contrato».`;
+    }
     renderLista(nc, cpf);
   }
 

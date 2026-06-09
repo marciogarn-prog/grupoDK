@@ -782,9 +782,9 @@
         kind: "pago",
         sort: pagamentoSortKey(p.data, p.createdAt),
         label: p.confirmadoViaAppCliente
-          ? "Confirmado (envio seu)"
-          : p.registradoPorNome
-            ? `DK — ${p.registradoPorNome}`
+              ? "Confirmado (envio seu)"
+              : p.registradoPorNome
+                ? `DK — ${p.registradoPorNome}`
             : "Confirmado pela DK",
         data: p.data,
         valor: p.valor,
@@ -895,28 +895,7 @@
     }
   }
 
-  function findLocacaoAtivaPorProtocolo(cpf, proto) {
-    const p = String(proto || "").trim();
-    if (!p) return null;
-    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpf);
-    return filterLocacoesAtivas(locs).find((l) => normNc(l.numeroContrato) === p) || null;
-  }
-
   function onClientePagamentosClick(e) {
-    const calBtn = e.target.closest?.("[data-cliente-cal-proto]");
-    if (calBtn) {
-      e.preventDefault();
-      const proto = String(calBtn.getAttribute("data-cliente-cal-proto") || "").trim();
-      const sessao = getSessao();
-      if (!sessao || !proto) return;
-      const loc = findLocacaoAtivaPorProtocolo(sessao.cpf, proto);
-      if (loc && typeof window.__DK_clienteToggleCalendarioInline === "function") {
-        window.__DK_clienteToggleCalendarioInline(proto, loc);
-      } else if (loc && typeof window.__DK_clienteAbrirCalendarioPagamentos === "function") {
-        window.__DK_clienteAbrirCalendarioPagamentos(loc);
-      }
-      return;
-    }
     const expandBtn = e.target.closest?.("[data-pag-expand]");
     if (expandBtn) {
       e.preventDefault();
@@ -987,13 +966,6 @@
     return `<article class="cliente-protocolo" data-cliente-proto="${escapeHtml(nc)}">
       <div class="cliente-protocolo__head">Protocolo ${escapeHtml(nc)}${renderContratoBadge(resumo)}</div>
       ${detalhes}
-      <button type="button" class="btn-primary btn-secondary-outline cliente-btn-detalhe-pagamentos" data-cliente-cal-proto="${escapeHtml(nc)}" aria-expanded="false" aria-controls="cliente-cal-panel-${escapeHtml(nc)}">Detalhamento dos pagamentos</button>
-      <div id="cliente-cal-panel-${escapeHtml(nc)}" class="cliente-cal-inline hidden" data-cliente-cal-panel="${escapeHtml(nc)}" hidden>
-        <p class="cliente-cal-inline__head" data-cliente-cal-head></p>
-        <div class="portal-lanc-cal-ano-pick" data-cliente-cal-ano-pick="${escapeHtml(nc)}"></div>
-        <div class="portal-lanc-cal-corpo cliente-cal-inline__corpo hidden" data-cliente-cal-corpo="${escapeHtml(nc)}"></div>
-        <button type="button" class="btn-primary btn-secondary-outline cliente-cal-inline__voltar hidden" data-cliente-cal-voltar="${escapeHtml(nc)}">Escolher outro ano</button>
-      </div>
       <button type="button" class="btn-primary btn-secondary-outline cliente-btn-documentos" data-cliente-docs-proto="${escapeHtml(nc)}" data-cliente-docs-cpf="${escapeHtml(cpf)}" aria-expanded="false" aria-controls="cliente-docs-panel-${escapeHtml(nc)}">Documentação do contrato</button>
       <div id="cliente-docs-panel-${escapeHtml(nc)}" class="cliente-docs-inline hidden" data-cliente-docs-panel="${escapeHtml(nc)}" hidden>
         <p class="cliente-docs-inline__head" data-cliente-docs-titulo></p>
@@ -1158,18 +1130,14 @@
   }
 
   function renderApp(sessao, opts) {
-    const calAberto =
-      typeof window.__DK_clienteCalendarioInlineAberto === "function"
-        ? String(window.__DK_clienteCalendarioInlineAberto() || "").trim()
-        : "";
     const renderKey = clienteRenderKey(sessao);
-    if (!opts?.force && calAberto && renderKey && renderKey === lastClienteRenderKey) {
+    if (!opts?.force && renderKey && renderKey === lastClienteRenderKey) {
       return;
     }
     lastClienteRenderKey = renderKey;
 
     applyClienteComprovanteUiVisibility();
-    if (!calAberto && typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+    if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
       window.__DK_comprovantesClienteInvalidateCache();
     }
     const cpf = sessao.cpf;
@@ -1205,18 +1173,6 @@
           '<p class="subtext">Nenhum protocolo ativo. Se a locação acabou de ser finalizada, atualize da nuvem — verá apenas novidades DK.</p>';
       } else {
         lista.innerHTML = locAtivas.map((loc) => renderContratoCard(loc, cpf, resumoFn)).join("");
-      }
-      const protoCal =
-        typeof window.__DK_clienteCalendarioInlineAberto === "function"
-          ? String(window.__DK_clienteCalendarioInlineAberto() || "").trim()
-          : "";
-      if (protoCal) {
-        const locCal = locAtivas.find((l) => normNc(l.numeroContrato) === protoCal);
-        if (locCal && typeof window.__DK_clienteRestoreCalendarioInline === "function") {
-          requestAnimationFrame(() => {
-            window.__DK_clienteRestoreCalendarioInline(protoCal, locCal);
-          });
-        }
       }
     }
 
@@ -1945,10 +1901,10 @@
       e.preventDefault();
       deferredInstallPrompt = e;
       if (window.__DK_clienteGeoHasConsent?.()) {
-        updateInstallPanelUi(
-          "O sistema está pronto. Toque em «Instalar app DK Cliente» (pode demorar 1–2 segundos a aparecer)."
-        );
-        panel?.classList.remove("hidden");
+      updateInstallPanelUi(
+        "O sistema está pronto. Toque em «Instalar app DK Cliente» (pode demorar 1–2 segundos a aparecer)."
+      );
+      panel?.classList.remove("hidden");
       } else {
         updateInstallPanelUi("Autorize a localização acima antes de instalar o app.");
       }
@@ -2056,7 +2012,7 @@
         msg.textContent =
           "Comprovante anexado — informe data e valor e toque em Enviar comprovante.";
       }
-      focusComprovanteSection();
+        focusComprovanteSection();
     }
   }
 
@@ -2113,13 +2069,6 @@
       document.documentElement.dataset.dkClienteEscBound = "1";
       document.addEventListener("keydown", (e) => {
         if (e.key !== "Escape") return;
-        if (typeof window.__DK_clienteFecharCalendarioPagamentos === "function") {
-          const calModal = document.getElementById("clienteCalPagamentosModal");
-          if (calModal && !calModal.classList.contains("hidden")) {
-            window.__DK_clienteFecharCalendarioPagamentos();
-            return;
-          }
-        }
         fecharModalRelatorio();
       });
     }
@@ -2178,7 +2127,7 @@
         const trocaFb = $("cliente-troca-senha-feedback");
         if (trocaFb) trocaFb.textContent = "";
         showView("trocar-senha");
-        if (fb) fb.textContent = "";
+      if (fb) fb.textContent = "";
         return;
       }
       void finalizarLoginCliente(sess, fb);

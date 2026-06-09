@@ -166,7 +166,10 @@
         lista.innerHTML = docs
           .map(
             (d, i) =>
-              `<button type="button" class="btn-primary btn-secondary-outline cliente-doc-link" data-cliente-doc-idx="${i}" data-cliente-doc-proto="${escapeHtml(proto)}">${escapeHtml(d.nome)}</button>`
+              `<div class="cliente-doc-row">
+                <button type="button" class="btn-primary btn-secondary-outline cliente-doc-link" data-cliente-doc-idx="${i}" data-cliente-doc-proto="${escapeHtml(proto)}">${escapeHtml(d.nome)}</button>
+                <a class="btn-primary btn-secondary-outline cliente-doc-download" href="${String(d.arquivoBase64 || "#").replace(/"/g, "&quot;")}" download="${escapeHtml(d.nome)}">Baixar</a>
+              </div>`
           )
           .join("");
       }

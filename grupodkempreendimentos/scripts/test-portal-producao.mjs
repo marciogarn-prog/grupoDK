@@ -228,7 +228,9 @@ async function runSuite() {
       indexFresh.includes("operacaoClienteAmbienteWrap") &&
         indexFresh.includes('name="operacaoClienteAmbiente"') &&
         indexFresh.includes("operacaoVeiculoAmbienteWrap") &&
-        indexFresh.includes("operacaoLocacaoAmbienteWrap") &&
+        indexFresh.includes('name="operacaoLocacaoAmbiente"') &&
+        indexFresh.includes("operacaoLocacaoAmbientePersist") &&
+        !indexFresh.includes("operacaoLocacaoAmbienteWrap") &&
         indexFresh.includes("operacaoLocacaoApagarProtocoloBtn") &&
         indexFresh.includes('value="teste"') &&
         indexFresh.includes("portal-ambiente-admin")
@@ -876,42 +878,35 @@ async function runSuite() {
         clienteResumoJs.includes("pickUltimoPagamento"),
       "placa, semanal, pago, investimento, último pagamento"
     );
-    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cal-no-trava`, {
-      cache: "no-store",
-    }).then((r) => r.text());
     record(
-      "app cliente detalhamento pagamentos calendario bloco",
-      clienteHtml.includes("Detalhamento dos pagamentos") &&
-        clienteHtml.includes("cliente-pagamentos-calendario.js") &&
-        clienteAppJs.includes("cliente-cal-inline") &&
-        clienteAppJs.includes("data-cliente-cal-proto") &&
-        clienteAppJs.includes("__DK_clienteRestoreCalendarioInline") &&
-        clienteCalJs.includes("Pagamentos de") &&
-        clienteCalJs.includes("buildAnoHtml") &&
-        clienteCalJs.includes("__DK_clienteToggleCalendarioInline") &&
-        clienteCalJs.includes("restaurarCalendarioInline") &&
-        clienteCalJs.includes("cliente-cal-loading"),
-      "botão abre calendário em bloco abaixo do contrato"
+      "app cliente sem detalhamento pagamentos",
+      !clienteHtml.includes("cliente-pagamentos-calendario.js") &&
+        !clienteHtml.includes("clienteCalPagamentosModal") &&
+        !clienteAppJs.includes("Detalhamento dos pagamentos") &&
+        !clienteAppJs.includes("data-cliente-cal-proto"),
+      "calendário de pagamentos removido (performance)"
     );
-    const clienteCalZoomJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cal-no-trava`, {
-      cache: "no-store",
-    }).then((r) => r.text());
     record(
       "cadastro locação documentos por protocolo",
       indexFresh.includes("operacaoLocacaoDocumentosBtn") &&
         indexFresh.includes("operacaoLocacaoDocumentosWrap") &&
+        indexFresh.includes("portal-loc-docs--cadastro") &&
+        indexFresh.includes("Documentos do contrato") &&
+        indexFresh.includes("Documentação do contrato") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "upload de documentos após escolher protocolo"
+      "upload de documentos no cadastro de locação (substitui ambiente teste)"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260608loc-docs`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609loc-docs-cadastro`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "documentos locação sync nuvem",
-      locDocsJs.includes("dk_locacao_documentos_v1") && locDocsJs.includes("podeGerirDocumentosLocacao"),
-      "chave dk_locacao_documentos_v1 + permissão locação"
+      locDocsJs.includes("dk_locacao_documentos_v1") &&
+        locDocsJs.includes("podeGerirDocumentosLocacao") &&
+        locDocsJs.includes("protocoloLocacaoAtivo"),
+      "chave dk_locacao_documentos_v1 + permissão locação + protocolo ativo"
     );
-    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260608loc-docs`, {
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609loc-docs-cadastro`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -919,15 +914,9 @@ async function runSuite() {
       clienteAppJs.includes("Documentação do contrato") &&
         clienteAppJs.includes("data-cliente-docs-proto") &&
         clienteDocsJs.includes("cliente-doc-zoom-viewport") &&
+        clienteDocsJs.includes("cliente-doc-download") &&
         clienteHtml.includes("cliente-documentos-locacao.js"),
-      "visualização de documentos com pinch-zoom"
-    );
-    record(
-      "app cliente calendário zoom pinça",
-      clienteCalZoomJs.includes("bindClienteCalPinchZoom") &&
-        clienteCalZoomJs.includes("cliente-cal-zoom-viewport") &&
-        clienteCalZoomJs.includes("fmtValCell"),
-      "pinch-zoom e valores compactos no calendário"
+      "visualização e download de documentos com pinch-zoom"
     );
     record(
       "protocolo lançamento + sincronismo (dk-lancamento-protocolo)",
@@ -1011,7 +1000,7 @@ async function runSuite() {
     const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao-fixa`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteComUiJs = await fetch(`${BASE_URL}cliente-comunicacao-operacao-ui.js?v=20260521comunicacao`, {
+    const clienteComUiJs = await fetch(`${BASE_URL}cliente-comunicacao-operacao-ui.js?v=20260609com-minuto`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1035,7 +1024,13 @@ async function runSuite() {
         portalComunicacaoLocadoraJs.includes("portal-body--comunicacao-ativa") &&
         clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
-        clienteComUiJs.includes("__DK_clienteComunicacaoRefresh"),
+        clienteHtml.includes("clienteComunicacaoPreviewVendas") &&
+        clienteHtml.includes("Conversar com administração") &&
+        clienteHtml.includes("Conversar com manutenção") &&
+        clienteComUiJs.includes("__DK_clienteComunicacaoRefresh") &&
+        clienteComUiJs.includes("ultimaMensagemOperacaoSetor") &&
+        clienteComUiJs.includes("REFRESH_BOTOES_MS") &&
+        clienteComUiJs.includes("atualizarBotoesPeriodicamente"),
       "barra fixa no topo; cadastro→verde; manutenção→amarelo"
     );
     const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260608push-notify`, {

@@ -62,7 +62,6 @@ const JS_FILES = [
   "portal-cliente-geo-mapa.js",
   "cliente-app.js",
   "cliente-comunicacao-operacao-ui.js",
-  "cliente-pagamentos-calendario.js",
   "cliente-documentos-locacao.js",
   "dk-app-entry.js",
 ];

@@ -31,6 +31,45 @@
     sessaoNome = String($("cliente-nome")?.textContent || "Cliente").trim();
   }
 
+  const PREVIEW_PLACEHOLDER = {
+    vendas: "Nenhuma mensagem da administração ainda.",
+    manutencao: "Nenhuma mensagem da manutenção ainda.",
+  };
+
+  const TITULO_SETOR = {
+    vendas: "Conversar com administração",
+    manutencao: "Conversar com manutenção",
+  };
+
+  function ultimaMensagemOperacaoSetor(setor) {
+    if (!sessaoCpf || sessaoCpf.length !== 11) return null;
+    const tid = window.__DK_comunicacaoThreadId?.(sessaoCpf, setor);
+    if (!tid || typeof window.__DK_comunicacaoHistorico !== "function") return null;
+    const hist = window.__DK_comunicacaoHistorico(tid);
+    const ops = hist.filter((m) => m.autor === "operacao");
+    return ops.length ? ops[ops.length - 1] : null;
+  }
+
+  function atualizarPreviewsSetores() {
+    resolveSessao();
+    for (const [setor, elId] of [
+      ["vendas", "clienteComunicacaoPreviewVendas"],
+      ["manutencao", "clienteComunicacaoPreviewManutencao"],
+    ]) {
+      const el = $(elId);
+      if (!el) continue;
+      const last = ultimaMensagemOperacaoSetor(setor);
+      const texto = String(last?.texto || "").trim();
+      if (texto) {
+        el.textContent = texto;
+        el.classList.remove("cliente-comunicacao-btn__placeholder");
+      } else {
+        el.textContent = PREVIEW_PLACEHOLDER[setor];
+        el.classList.add("cliente-comunicacao-btn__placeholder");
+      }
+    }
+  }
+
   function atualizarBadges() {
     if (!sessaoCpf || typeof window.__DK_comunicacaoContarNaoLidasCliente !== "function") return;
     const nv = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, "vendas");
@@ -45,6 +84,12 @@
       bm.textContent = nm > 0 ? String(nm) : "";
       bm.classList.toggle("hidden", nm <= 0);
     }
+  }
+
+  function refreshComunicacaoUi() {
+    resolveSessao();
+    atualizarBadges();
+    atualizarPreviewsSetores();
   }
 
   function renderChat() {
@@ -73,7 +118,7 @@
           .join("")
       : '<p class="subtext dk-chat-vazio">Nenhuma mensagem ainda. Escreva abaixo.</p>';
     corpo.scrollTop = corpo.scrollHeight;
-    atualizarBadges();
+    refreshComunicacaoUi();
   }
 
   function abrirChat(setor) {
@@ -85,8 +130,7 @@
     const inp = $("clienteComunicacaoChatInput");
     const msg = $("clienteComunicacaoChatMsg");
     if (!modal) return;
-    titulo.textContent =
-      setor === "manutencao" ? "Manutenção DK" : "Vendas DK";
+    titulo.textContent = TITULO_SETOR[setor] || "Conversa";
     if (inp) inp.value = "";
     if (msg) msg.textContent = "";
     modal.classList.remove("hidden");
@@ -187,14 +231,13 @@
     });
     window.addEventListener("dk-comunicacao-operacao-changed", () => {
       if (chatSetor) renderChat();
-      atualizarBadges();
+      else refreshComunicacaoUi();
     });
-    window.addEventListener("dk-comprovantes-synced", atualizarBadges);
+    window.addEventListener("dk-comprovantes-synced", refreshComunicacaoUi);
   }
 
   window.__DK_clienteComunicacaoRefresh = function () {
-    resolveSessao();
-    atualizarBadges();
+    refreshComunicacaoUi();
     if (chatSetor) renderChat();
     if (typeof window.__DK_pushComunicacaoSnapshotNow === "function") {
       void window.__DK_pushComunicacaoSnapshotNow().catch(() => null);
@@ -208,21 +251,66 @@
 
   let ultimoContagemNaoLidas = { vendas: 0, manutencao: 0 };
 
-  function checarNovasMensagensOperacao() {
-    if (!sessaoCpf || typeof window.__DK_comunicacaoContarNaoLidasCliente !== "function") return;
-    for (const st of ["vendas", "manutencao"]) {
-      const n = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, st);
-      if (n > ultimoContagemNaoLidas[st]) {
-        if (typeof window.__DK_clientePushForegroundNotify === "function") {
-          window.__DK_clientePushForegroundNotify(st);
-        }
-        if (typeof window.__DK_clienteNotificacaoMensagemDk === "function") {
-          window.__DK_clienteNotificacaoMensagemDk({ cpf: sessaoCpf, setor: st });
-        }
-      }
-      ultimoContagemNaoLidas[st] = n;
+  const REFRESH_BOTOES_MS = 60_000;
+  let refreshBotoesTimer = 0;
+
+  async function atualizarBotoesPeriodicamente() {
+    resolveSessao();
+    if (sessaoCpf.length !== 11) return;
+    if (!$("clienteComunicacaoVendasBtn")) return;
+    if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
+      await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
     }
-    atualizarBadges();
+    checarNovasMensagensOperacao();
+  }
+
+  function pararAtualizacaoPeriodicaBotoes() {
+    if (refreshBotoesTimer) {
+      window.clearInterval(refreshBotoesTimer);
+      refreshBotoesTimer = 0;
+    }
+  }
+
+  function iniciarAtualizacaoPeriodicaBotoes() {
+    pararAtualizacaoPeriodicaBotoes();
+    if (document.visibilityState !== "visible") return;
+    refreshBotoesTimer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void atualizarBotoesPeriodicamente();
+    }, REFRESH_BOTOES_MS);
+  }
+
+  function bindAtualizacaoPeriodicaBotoes() {
+    if (document.documentElement.dataset.dkClienteComRefreshMinBound === "1") return;
+    document.documentElement.dataset.dkClienteComRefreshMinBound = "1";
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") {
+        void atualizarBotoesPeriodicamente();
+        iniciarAtualizacaoPeriodicaBotoes();
+      } else {
+        pararAtualizacaoPeriodicaBotoes();
+      }
+    });
+    window.addEventListener("pagehide", pararAtualizacaoPeriodicaBotoes);
+  }
+
+  function checarNovasMensagensOperacao() {
+    resolveSessao();
+    if (sessaoCpf && typeof window.__DK_comunicacaoContarNaoLidasCliente === "function") {
+      for (const st of ["vendas", "manutencao"]) {
+        const n = window.__DK_comunicacaoContarNaoLidasCliente(sessaoCpf, st);
+        if (n > ultimoContagemNaoLidas[st]) {
+          if (typeof window.__DK_clientePushForegroundNotify === "function") {
+            window.__DK_clientePushForegroundNotify(st);
+          }
+          if (typeof window.__DK_clienteNotificacaoMensagemDk === "function") {
+            window.__DK_clienteNotificacaoMensagemDk({ cpf: sessaoCpf, setor: st });
+          }
+        }
+        ultimoContagemNaoLidas[st] = n;
+      }
+    }
+    refreshComunicacaoUi();
   }
 
   function initContagemBaseline() {
@@ -233,21 +321,24 @@
     }
   }
 
+  window.__DK_clienteComunicacaoAtualizarPreviews = atualizarPreviewsSetores;
+
   window.__DK_clienteComunicacaoInitBaseline = initContagemBaseline;
 
   window.__DK_clienteComunicacaoChecarNovas = checarNovasMensagensOperacao;
+  window.__DK_clienteComunicacaoAtualizarBotoesPeriodicamente = atualizarBotoesPeriodicamente;
+
+  function bootComunicacaoUi() {
+    bindUi();
+    bindAtualizacaoPeriodicaBotoes();
+    refreshComunicacaoUi();
+    initContagemBaseline();
+    iniciarAtualizacaoPeriodicaBotoes();
+  }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      bindUi();
-      resolveSessao();
-      initContagemBaseline();
-      atualizarBadges();
-    });
+    document.addEventListener("DOMContentLoaded", bootComunicacaoUi);
   } else {
-    bindUi();
-    resolveSessao();
-    initContagemBaseline();
-    atualizarBadges();
+    bootComunicacaoUi();
   }
 })();
