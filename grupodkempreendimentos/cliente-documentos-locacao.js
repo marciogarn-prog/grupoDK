@@ -27,6 +27,13 @@
       .replace(/"/g, "&quot;");
   }
 
+  function isDocEnviadoCliente(d) {
+    if (typeof window.__DK_docsLocacaoIsEnviadoCliente === "function") {
+      return window.__DK_docsLocacaoIsEnviadoCliente(d);
+    }
+    return d?.enviadoCliente === true;
+  }
+
   function inferDocTipo(d) {
     if (typeof window.__DK_docsLocacaoInferTipo === "function") return window.__DK_docsLocacaoInferTipo(d);
     const t = String(d?.tipo || d?.origemDepositoCategoria || "").trim().toLowerCase();
@@ -39,19 +46,18 @@
   }
 
   function loadDocs(proto, cpf, tipo) {
-    const isEnviado =
-      typeof window.__DK_docsLocacaoIsEnviadoCliente === "function"
-        ? window.__DK_docsLocacaoIsEnviadoCliente
-        : (d) => d?.enviadoCliente !== false;
     const fnPorTipo =
       typeof window.__DK_docsLocacaoDoProtocoloPorTipo === "function"
         ? window.__DK_docsLocacaoDoProtocoloPorTipo
         : null;
-    if (fnPorTipo && tipo) return fnPorTipo(proto, cpf, tipo);
     const fn = typeof window.__DK_docsLocacaoDoProtocolo === "function" ? window.__DK_docsLocacaoDoProtocolo : null;
     let rows = [];
-    if (fn) rows = fn(proto, cpf);
-    else {
+    if (fnPorTipo && tipo) {
+      rows = fnPorTipo(proto, cpf, tipo);
+    } else if (fn) {
+      rows = fn(proto, cpf);
+      if (tipo) rows = rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
+    } else {
       try {
         const raw = localStorage.getItem("dk_locacao_documentos_v1");
         const all = raw ? JSON.parse(raw) : [];
@@ -60,13 +66,13 @@
           const nc = normNc(proto);
           const dig = onlyDigits(cpf).slice(0, 11);
           rows = all.filter((d) => normNc(d.numeroContrato) === nc && onlyDigits(d.cpf).slice(0, 11) === dig);
+          if (tipo) rows = rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
         }
       } catch {
         rows = [];
       }
     }
-    if (!tipo) return rows.filter(isEnviado);
-    return rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase() && isEnviado(d));
+    return rows.filter(isDocEnviadoCliente);
   }
 
   function panelEl(proto, tipo) {

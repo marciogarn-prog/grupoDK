@@ -4955,7 +4955,8 @@ table.validados-app .lnk-comprovante {
   align-self: center;
 }
 
-.portal-loc-docs-item__abrir {
+.portal-loc-docs-item__abrir,
+.portal-loc-docs-item__confirmar {
   font-size: 0.82rem;
   padding: 0.25rem 0.55rem;
 }
@@ -4999,6 +5000,41 @@ table.validados-app .lnk-comprovante {
 
 .portal-loc-docs__import-btns .btn-primary {
   min-width: 7.5rem;
+}
+
+.portal-loc-docs-grupos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.portal-loc-docs-grupo__titulo {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #93c5fd;
+  letter-spacing: 0.02em;
+}
+
+.portal-loc-docs-item__tipo {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(59, 130, 246, 0.25);
+  color: #bfdbfe;
+}
+
+.portal-loc-docs-item__confirmar--ok {
+  opacity: 0.75;
+}
+
+.portal-loc-docs-item__conferido {
+  color: #86efac;
 }
 
 /* Comunicação cliente ↔ operação (vendas verde / manutenção amarelo) */

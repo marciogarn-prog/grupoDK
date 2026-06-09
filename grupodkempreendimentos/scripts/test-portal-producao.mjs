@@ -769,20 +769,24 @@ async function runSuite() {
       "cadastro locação documentos por protocolo",
         indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         indexFresh.includes("operacaoLocacaoDocCrlvBtn") &&
+        indexFresh.includes("operacaoLocacaoDocumentosListaContrato") &&
+        indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
+        indexFresh.includes("Confirmar") &&
         indexFresh.includes("Enviar para o cliente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "importar do depósito Documentos; Abrir + enviar ao app"
+      "3 tipos → 3 botões app; Abrir + Confirmar + Enviar"
     );
     record(
       "lançamento multas importa depósito Documentos",
       indexFresh.includes("operacaoLancMultasDocumentosDeposito") &&
         indexFresh.includes("operacaoLancMultasDocImportBtn") &&
         !indexFresh.includes("operacaoLancMultasBuscarDepositoBtn") &&
+        indexFresh.includes("Confirmar") &&
         indexFresh.includes("Enviar para o cliente"),
-      "botão Multa PLACA-CPF; Abrir + enviar ao app; cadastro exige PDF"
+      "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609multa-deposito`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-confirmar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -793,9 +797,12 @@ async function runSuite() {
         locDocsJs.includes("importarTipoDoDeposito") &&
         locDocsJs.includes("data-loc-doc-abrir") &&
         locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito") &&
+        locDocsJs.includes("confirmarDocumentoOperador") &&
+        locDocsJs.includes("conferidoOperador") &&
+        locDocsJs.includes("DOC_DESTINO_APP") &&
         locDocsJs.includes("__DK_garantirDocMultaParaCadastro") &&
         !locDocsJs.includes("adicionarDocumentos"),
-      "multas: importação do depósito + vínculo ao cadastrar; só enviados vão à nuvem"
+      "tipo contrato/crlv/multa; confirmar antes de enviar; só enviados vão à nuvem"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
       cache: "no-store",
@@ -806,7 +813,7 @@ async function runSuite() {
         lancExtrasJs.includes("locacaoDocumentoId"),
       "bloqueia cadastro sem PDF importado de Documentos"
     );
-    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-enviar`, {
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-confirmar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -814,12 +821,14 @@ async function runSuite() {
       clienteAppJs.includes("Ver contrato") &&
         clienteAppJs.includes("Ver CRLV") &&
         clienteAppJs.includes("Ver multas") &&
-        clienteAppJs.includes("data-cliente-docs-tipo") &&
-        clienteDocsJs.includes("__DK_docsLocacaoDoProtocoloPorTipo") &&
-        clienteDocsJs.includes("__DK_docsLocacaoIsEnviadoCliente") &&
+        clienteAppJs.includes('data-cliente-docs-tipo="contrato"') &&
+        clienteAppJs.includes('data-cliente-docs-tipo="crlv"') &&
+        clienteAppJs.includes('data-cliente-docs-tipo="multa"') &&
+        clienteDocsJs.includes("isDocEnviadoCliente") &&
+        clienteDocsJs.includes("enviadoCliente === true") &&
         clienteDocsJs.includes("cliente-doc-zoom-viewport") &&
         clienteHtml.includes("cliente-documentos-locacao.js"),
-      "3 botões contrato/CRLV/multas com zoom"
+      "cada botão filtra tipo; só docs enviados pelo operador"
     );
     record(
       "protocolo lançamento + sincronismo (dk-lancamento-protocolo)",
