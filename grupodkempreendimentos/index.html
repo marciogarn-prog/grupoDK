@@ -845,13 +845,26 @@
 
             <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
               <span>Documentos do contrato</span>
-              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong> (CRLV = placa, contrato = protocolo). Aqui importa do depósito, use <strong>Abrir</strong> para conferir e <strong>Enviar para o cliente</strong> para publicar no app.</p>
+              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong>. Importe com os botões abaixo; depois <strong>Abrir</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong> (cada tipo vai ao botão certo no app: Ver contrato / Ver CRLV / Ver multas).</p>
               <div class="portal-loc-docs__import-btns" role="group" aria-label="Importar do depósito Documentos">
                 <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocContratoBtn" disabled>Contrato</button>
                 <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocCrlvBtn" disabled>CRLV</button>
               </div>
               <p id="operacaoLocacaoDocumentosMsg" class="subtext portal-loc-docs__msg"></p>
-              <ul id="operacaoLocacaoDocumentosLista" class="portal-loc-docs-list"></ul>
+              <div class="portal-loc-docs-grupos">
+                <section class="portal-loc-docs-grupo" aria-labelledby="operacaoLocDocsTituloContrato">
+                  <h5 id="operacaoLocDocsTituloContrato" class="portal-loc-docs-grupo__titulo">Contrato → app «Ver contrato»</h5>
+                  <ul id="operacaoLocacaoDocumentosListaContrato" class="portal-loc-docs-list"></ul>
+                </section>
+                <section class="portal-loc-docs-grupo" aria-labelledby="operacaoLocDocsTituloCrlv">
+                  <h5 id="operacaoLocDocsTituloCrlv" class="portal-loc-docs-grupo__titulo">CRLV → app «Ver CRLV»</h5>
+                  <ul id="operacaoLocacaoDocumentosListaCrlv" class="portal-loc-docs-list"></ul>
+                </section>
+                <section class="portal-loc-docs-grupo" aria-labelledby="operacaoLocDocsTituloMulta">
+                  <h5 id="operacaoLocDocsTituloMulta" class="portal-loc-docs-grupo__titulo">Multas → app «Ver multas»</h5>
+                  <ul id="operacaoLocacaoDocumentosListaMulta" class="portal-loc-docs-list"></ul>
+                </section>
+              </div>
             </div>
 
             <div class="operacao-inline-form__actions">
@@ -1290,7 +1303,7 @@
             </section>
             <section id="operacaoLancMultasDocumentosDeposito" class="portal-lanc-multas-docs portal-loc-docs hidden" hidden aria-labelledby="portal-lanc-multas-docs-deposito-title">
               <h4 id="portal-lanc-multas-docs-deposito-title" class="portal-lanc-aluguel-section__title">Documento da multa</h4>
-              <p class="subtext portal-loc-docs__hint">O PDF entra <strong>só</strong> pelo menu <strong>Documentos</strong> (nome = <strong>PLACA-CPF</strong>, ex.: ABC1D23-12345678901.pdf). Importe aqui <strong>antes</strong> de cadastrar a multa; use <strong>Abrir</strong> para conferir e <strong>Enviar para o cliente</strong> para publicar no app.</p>
+              <p class="subtext portal-loc-docs__hint">O PDF entra <strong>só</strong> pelo menu <strong>Documentos</strong> (nome = <strong>PLACA-CPF</strong>). Importe com <strong>Multa</strong>, depois <strong>Abrir</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong> (aparece no app em «Ver multas»).</p>
               <div class="portal-loc-docs__import-btns" role="group" aria-label="Importar multa do depósito Documentos">
                 <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasDocImportBtn" disabled>Multa</button>
               </div>
@@ -1973,7 +1986,7 @@
   <script src="cliente-notificacoes.js?v=20260609lanc-aviso" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260609lanc-aviso" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260609multa-deposito" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260609doc-confirmar" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
   <script src="portal-documentos.js?v=20260609docs-auto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>

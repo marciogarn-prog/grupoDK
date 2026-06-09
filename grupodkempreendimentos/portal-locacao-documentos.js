@@ -4,6 +4,16 @@
 (function portalLocacaoDocumentos() {
   const STORAGE_KEY = "dk_locacao_documentos_v1";
   const MAX_BYTES = 4 * 1024 * 1024;
+  const DOC_DESTINO_APP = {
+    contrato: { rotulo: "Contrato", botaoApp: "Ver contrato" },
+    crlv: { rotulo: "CRLV", botaoApp: "Ver CRLV" },
+    multa: { rotulo: "Multa", botaoApp: "Ver multas" },
+  };
+  const LISTA_TIPO_IDS = {
+    contrato: "operacaoLocacaoDocumentosListaContrato",
+    crlv: "operacaoLocacaoDocumentosListaCrlv",
+    multa: "operacaoLocacaoDocumentosListaMulta",
+  };
 
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
@@ -232,6 +242,7 @@
       origemDepositoChave: String(depositEntry.chave || "").trim(),
       importadoAutomaticamente: true,
       enviadoCliente: false,
+      conferidoOperador: false,
     });
     saveAll(all);
     return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo };
@@ -347,21 +358,31 @@
     return true;
   }
 
+  function podeGerirEnvioDocumento(doc) {
+    const t = inferDocTipo(doc);
+    if (t === "multa") return podeGerirDocumentosMultas();
+    return podeGerirDocumentosLocacao();
+  }
+
   function enviarDocumentoParaCliente(id) {
-    if (!podeGerirDocumentosLocacao()) {
-      return { ok: false, msg: "Sem permissão de cadastro de locação." };
-    }
     const all = loadAll();
     const idx = all.findIndex((d) => String(d.id) === String(id));
     if (idx === -1) return { ok: false, msg: "Documento não encontrado." };
     const doc = all[idx];
+    if (!podeGerirEnvioDocumento(doc)) {
+      return { ok: false, msg: "Sem permissão para enviar este documento ao cliente." };
+    }
     if (!String(doc.arquivoBase64 || "").trim()) {
       return { ok: false, msg: "Ficheiro indisponível neste computador — importe de novo a partir de Documentos." };
     }
     if (doc.enviadoCliente === true) {
       return { ok: true, already: true, msg: "Este documento já foi enviado ao cliente." };
     }
+    if (doc.conferidoOperador !== true) {
+      return { ok: false, msg: "Abra o PDF e clique Confirmar antes de enviar ao cliente." };
+    }
     const reg = getRegistroOperador();
+    const dest = DOC_DESTINO_APP[inferDocTipo(doc)]?.botaoApp || "app do cliente";
     all[idx] = {
       ...doc,
       enviadoCliente: true,
@@ -371,7 +392,33 @@
     };
     saveAllLocal(all);
     pushDocumentosNuvem();
-    return { ok: true, msg: "Documento enviado — o cliente vê no app (Ver contrato / CRLV / multas)." };
+    return { ok: true, msg: `Documento enviado — o cliente vê em «${dest}».` };
+  }
+
+  function confirmarDocumentoOperador(id) {
+    const all = loadAll();
+    const idx = all.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return { ok: false, msg: "Documento não encontrado." };
+    const doc = all[idx];
+    if (!podeGerirEnvioDocumento(doc)) {
+      return { ok: false, msg: "Sem permissão para confirmar este documento." };
+    }
+    if (doc.enviadoCliente === true) {
+      return { ok: true, already: true, msg: "Documento já enviado ao cliente." };
+    }
+    if (doc.conferidoOperador === true) {
+      return { ok: true, already: true, msg: "Documento já confirmado — pode enviar ao cliente." };
+    }
+    const reg = getRegistroOperador();
+    all[idx] = {
+      ...doc,
+      conferidoOperador: true,
+      conferidoEm: Date.now(),
+      conferidoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
+      conferidoPorNome: String(reg.nome || "").trim(),
+    };
+    saveAllLocal(all);
+    return { ok: true, msg: "Documento confirmado — pode enviar ao cliente." };
   }
 
   function removerDocumento(id) {
@@ -400,19 +447,29 @@
       ? dt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
       : "—";
     const quem = String(d.registradoPorNome || d.registradoPorCpf || "—").trim();
+    const tipo = inferDocTipo(d);
+    const dest = DOC_DESTINO_APP[tipo] || { rotulo: "Documento", botaoApp: "app" };
     const enviado = isDocEnviadoCliente(d);
+    const conferido = d.conferidoOperador === true;
     const enviadoEm = d.enviadoClienteEm
       ? new Date(Number(d.enviadoClienteEm)).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
       : "";
-    const statusEnvio = enviado
-      ? `<span class="portal-loc-docs-item__enviado">Enviado ao cliente${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`
-      : `<span class="portal-loc-docs-item__pendente">Aguarda envio ao cliente</span>`;
-    return `<li class="portal-loc-docs-item">
-          <span class="portal-loc-docs-item__nome">${escapeHtml(d.nome)}</span>
+    let statusEnvio;
+    if (enviado) {
+      statusEnvio = `<span class="portal-loc-docs-item__enviado">Enviado · «${escapeHtml(dest.botaoApp)}»${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`;
+    } else if (conferido) {
+      statusEnvio = `<span class="portal-loc-docs-item__conferido">Confirmado — pronto para enviar a «${escapeHtml(dest.botaoApp)}»</span>`;
+    } else {
+      statusEnvio = `<span class="portal-loc-docs-item__pendente">Abrir e confirmar antes de enviar</span>`;
+    }
+    const podeEnviar = enviado || conferido;
+    return `<li class="portal-loc-docs-item" data-loc-doc-tipo="${escapeHtml(tipo)}">
+          <span class="portal-loc-docs-item__nome"><span class="portal-loc-docs-item__tipo">${escapeHtml(dest.rotulo)}</span> ${escapeHtml(d.nome)}</span>
           <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)} · ${statusEnvio}</span>
           <span class="portal-loc-docs-item__acoes">
-            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__abrir" data-loc-doc-abrir="${escapeHtml(d.id)}" title="Abrir PDF para conferir">Abrir</button>
-            <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado ? "disabled" : ""} title="Publicar na nuvem para o app do cliente">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__abrir" data-loc-doc-abrir="${escapeHtml(d.id)}" title="Visualizar PDF">Abrir</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__confirmar${conferido ? " portal-loc-docs-item__confirmar--ok" : ""}" data-loc-doc-confirmar="${escapeHtml(d.id)}" ${conferido || enviado ? "disabled" : ""} title="Confirmar que o ficheiro está correto">${conferido ? "Confirmado" : "Confirmar"}</button>
+            <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado || !podeEnviar ? "disabled" : ""} title="Publicar no app (${escapeHtml(dest.botaoApp)})">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
           </span>
         </li>`;
   }
@@ -427,10 +484,46 @@
     ul.innerHTML = sorted.map(buildDocListItemHtml).join("");
   }
 
+  function renderListasPorTipo(nc, cpf) {
+    Object.keys(LISTA_TIPO_IDS).forEach((tipo) => {
+      const ul = document.getElementById(LISTA_TIPO_IDS[tipo]);
+      const docs = docsDoProtocoloPorTipo(nc, cpf, tipo);
+      const botao = DOC_DESTINO_APP[tipo]?.botaoApp || tipo;
+      renderDocsListaUl(ul, docs, `Nenhum — importe e envie para «${botao}» no app.`);
+    });
+  }
+
   function renderLista(nc, cpf) {
-    const ul = document.getElementById("operacaoLocacaoDocumentosLista");
-    const docs = docsDoProtocolo(nc, cpf);
-    renderDocsListaUl(ul, docs, "Nenhum documento neste protocolo.");
+    renderListasPorTipo(nc, cpf);
+  }
+
+  function handleDocListaClick(e, msgEl, onRefresh) {
+    const abrir = e.target.closest?.("[data-loc-doc-abrir]");
+    if (abrir) {
+      const id = abrir.getAttribute("data-loc-doc-abrir");
+      const doc = loadAll().find((d) => String(d.id) === String(id));
+      if (!doc || !abrirDocumento(doc)) {
+        if (msgEl) msgEl.textContent = "Não foi possível abrir — ficheiro indisponível neste computador.";
+      }
+      return;
+    }
+    const confirmar = e.target.closest?.("[data-loc-doc-confirmar]");
+    if (confirmar && !confirmar.disabled) {
+      const id = confirmar.getAttribute("data-loc-doc-confirmar");
+      if (!id) return;
+      const res = confirmarDocumentoOperador(id);
+      if (msgEl) msgEl.textContent = res.msg || "";
+      if (typeof onRefresh === "function") onRefresh();
+      return;
+    }
+    const enviar = e.target.closest?.("[data-loc-doc-enviar]");
+    if (enviar && !enviar.disabled) {
+      const id = enviar.getAttribute("data-loc-doc-enviar");
+      if (!id) return;
+      const res = enviarDocumentoParaCliente(id);
+      if (msgEl) msgEl.textContent = res.msg || "";
+      if (typeof onRefresh === "function") onRefresh();
+    }
   }
 
   function escapeHtml(s) {
@@ -488,7 +581,7 @@
     }
     if (msg) {
       const n = docsDoProtocolo(nc, cpf).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — importe com Contrato/CRLV; Abrir para conferir; Enviar para o cliente para publicar no app.`;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — Abrir, Confirmar e Enviar (cada tipo vai ao botão certo no app).`;
     }
     renderLista(nc, cpf);
   }
@@ -692,30 +785,14 @@
     });
 
     lista?.addEventListener("click", (e) => {
-      const abrir = e.target.closest?.("[data-loc-doc-abrir]");
-      if (abrir) {
-        const id = abrir.getAttribute("data-loc-doc-abrir");
-        const doc = loadAll().find((d) => String(d.id) === String(id));
-        if (!doc || !abrirDocumento(doc)) {
-          if (msg) msg.textContent = "Não foi possível abrir — ficheiro indisponível neste computador.";
-        }
-        return;
-      }
-      const enviar = e.target.closest?.("[data-loc-doc-enviar]");
-      if (enviar && !enviar.disabled) {
-        const id = enviar.getAttribute("data-loc-doc-enviar");
-        if (!id) return;
-        const res = enviarDocumentoParaCliente(id);
-        if (msg) msg.textContent = res.msg || "";
-        refreshLancMultasDocumentosDeposito();
-      }
+      handleDocListaClick(e, msg, refreshLancMultasDocumentosDeposito);
     });
   }
 
   function bindUi() {
     const btnContrato = document.getElementById("operacaoLocacaoDocContratoBtn");
     const btnCrlv = document.getElementById("operacaoLocacaoDocCrlvBtn");
-    const lista = document.getElementById("operacaoLocacaoDocumentosLista");
+    const wrap = document.getElementById("operacaoLocacaoDocumentosWrap");
     const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
 
     async function onImportClick(categoria) {
@@ -734,24 +811,9 @@
       void onImportClick("crlv");
     });
 
-    lista?.addEventListener("click", (e) => {
-      const abrir = e.target.closest?.("[data-loc-doc-abrir]");
-      if (abrir) {
-        const id = abrir.getAttribute("data-loc-doc-abrir");
-        const doc = loadAll().find((d) => String(d.id) === String(id));
-        if (!doc || !abrirDocumento(doc)) {
-          if (msg) msg.textContent = "Não foi possível abrir — ficheiro indisponível neste computador.";
-        }
-        return;
-      }
-      const enviar = e.target.closest?.("[data-loc-doc-enviar]");
-      if (enviar && !enviar.disabled) {
-        const id = enviar.getAttribute("data-loc-doc-enviar");
-        if (!id) return;
-        const res = enviarDocumentoParaCliente(id);
-        if (msg) msg.textContent = res.msg || "";
-        refreshUi();
-      }
+    wrap?.addEventListener("click", (e) => {
+      if (!e.target.closest?.("[data-loc-doc-abrir],[data-loc-doc-confirmar],[data-loc-doc-enviar]")) return;
+      handleDocListaClick(e, msg, refreshUi);
     });
 
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", refreshUi);
