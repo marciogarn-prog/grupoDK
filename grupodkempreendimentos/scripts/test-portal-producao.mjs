@@ -285,6 +285,20 @@ async function runSuite() {
       "login empresa painel compacto",
       html.includes("portal-panel--auth") && html.includes('id="panel-login"')
     );
+    const appLoginJs = await fetch(`${BASE_URL}app.js?v=20260609login-manut`, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
+    const portalLoginUiJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609login-manut`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "login empresa: demo sem bloqueio manutenção + aviso no portal",
+      appLoginJs.includes("__DK_IS_DEMO_DEPLOY__") &&
+        appLoginJs.includes("getMaintenanceNotice") &&
+        portalLoginUiJs.includes("getMaintenanceNotice") &&
+        portalLoginUiJs.includes("login-feedback"),
+      "demo 24h; oficial 02h–03h com mensagem visível"
+    );
     const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-icon`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
@@ -772,7 +786,7 @@ async function runSuite() {
         const homeBtn = page.locator('#view-home [data-go="locadora"]').first();
         if (await homeBtn.isVisible().catch(() => false)) {
           await homeBtn.click().catch(() => null);
-          await page.waitForTimeout(800);
+    await page.waitForTimeout(800);
         }
       }
       const finalState = await readLocadoraHubState();
@@ -1257,7 +1271,7 @@ async function main() {
       await new Promise((r) => setTimeout(r, 5000));
     }
     await runSuite();
-    const passed = results.filter((r) => r.ok).length;
+  const passed = results.filter((r) => r.ok).length;
     const total = results.length;
     if (passed === total) {
       console.log(`\n--- ${passed}/${total} testes passaram${attempt > 1 ? ` (tentativa ${attempt})` : ""} ---`);

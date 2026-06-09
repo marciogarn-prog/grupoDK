@@ -1954,6 +1954,7 @@ function getDateKey(dateObj = new Date()) {
 }
 
 function isMaintenanceWindow(now = new Date()) {
+  if (window.__DK_IS_DEMO_DEPLOY__ === true) return false;
   const totalMinutes = now.getHours() * 60 + now.getMinutes();
   const startMinutes = MAINTENANCE_START_HOUR * 60;
   const endMinutes = startMinutes + MAINTENANCE_DURATION_MINUTES;
@@ -1966,13 +1967,18 @@ function getMaintenanceNotice() {
 
 function enforceMaintenanceBlock() {
   clearSession();
-  dashboardCard.classList.add("hidden");
-  adminCard.classList.add("hidden");
-  loginArea.classList.remove("hidden");
-  showLocadoraArea();
+  dashboardCard?.classList.add("hidden");
+  adminCard?.classList.add("hidden");
+  loginArea?.classList.remove("hidden");
+  if (typeof showLocadoraArea === "function") showLocadoraArea();
   const warning = getMaintenanceNotice();
   showMessage(loginClienteMessage, warning, "error");
   showMessage(loginAdminMessage, warning, "error");
+  const portalFb = document.getElementById("login-feedback");
+  if (portalFb) {
+    portalFb.textContent = warning;
+    portalFb.classList.add("portal-feedback--error");
+  }
 }
 
 function runDailyReconciliationIfNeeded(now = new Date()) {
