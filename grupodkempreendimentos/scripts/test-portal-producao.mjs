@@ -847,7 +847,7 @@ async function runSuite() {
     const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521geo-v3`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260608cliente-lanc-sync`, {
+    const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260608cal-no-trava`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteCss = await fetch(`${BASE_URL}cliente-app.css?v=20260521contrato-simples`, { cache: "no-store" }).then(
@@ -876,7 +876,7 @@ async function runSuite() {
         clienteResumoJs.includes("pickUltimoPagamento"),
       "placa, semanal, pago, investimento, último pagamento"
     );
-    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260521cal-persist`, {
+    const clienteCalJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cal-no-trava`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -889,10 +889,11 @@ async function runSuite() {
         clienteCalJs.includes("Pagamentos de") &&
         clienteCalJs.includes("buildAnoHtml") &&
         clienteCalJs.includes("__DK_clienteToggleCalendarioInline") &&
-        clienteCalJs.includes("restaurarCalendarioInline"),
+        clienteCalJs.includes("restaurarCalendarioInline") &&
+        clienteCalJs.includes("cliente-cal-loading"),
       "botão abre calendário em bloco abaixo do contrato"
     );
-    const clienteCalZoomJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260521cal-persist`, {
+    const clienteCalZoomJs = await fetch(`${BASE_URL}cliente-pagamentos-calendario.js?v=20260608cal-no-trava`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1048,8 +1049,9 @@ async function runSuite() {
       clienteHtml.includes("cliente-push-notificacoes.js") &&
         pushNotifyJs.includes("ensureClientePushSubscription") &&
         comunicacaoJs.includes("notifyClientePushMensagem") &&
-        pushApi && typeof pushApi.ok === "boolean",
-      "notificação sistema + abrir chat ao tocar"
+        pushApi?.configured === true &&
+        Boolean(pushApi?.publicKey),
+      "VAPID activo + notify ao enviar mensagem operação"
     );
     record(
       "app cliente troca senha inicial 123456",

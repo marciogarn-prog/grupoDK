@@ -2318,6 +2318,7 @@
     suppressCloudHook = true;
     try {
       applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: true });
+      trimLocalLocacoesToClienteCpf();
     } finally {
       suppressCloudHook = false;
     }
