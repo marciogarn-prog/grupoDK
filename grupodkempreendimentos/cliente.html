@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5, viewport-fit=cover">
   <meta name="theme-color" content="#050505">
   <link rel="stylesheet" href="styles.css?v=20260608comunicacao-fix">
-  <link rel="stylesheet" href="cliente-app.css?v=20260608chat-vista">
+  <link rel="stylesheet" href="cliente-app.css?v=20260609loc-docs-cadastro">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="DK Cliente">
   <meta name="description" content="DK Locadora — área do cliente: contratos, pagamentos e envio de comprovantes.">
@@ -32,7 +32,7 @@
           }
         } catch (e) {}
         try {
-          await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260608push-notify", { scope: "/" });
+          await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260609com-minuto", { scope: "/" });
         } catch (e) {}
       })();
       try {
@@ -191,14 +191,20 @@
     <div class="cliente-app-card cliente-comunicacao-card">
       <h2>Falar com a DK</h2>
       <p class="subtext">Somente texto — não é permitido enviar ficheiros por este canal.</p>
-      <button type="button" id="clienteComunicacaoVendasBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--vendas" style="width:100%;margin-bottom:0.5rem">
-        Enviar mensagem para setor de vendas
-        <span id="clienteComunicacaoBadgeVendas" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
-      </button>
-      <button type="button" id="clienteComunicacaoManutencaoBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--manutencao" style="width:100%">
-        Enviar mensagem setor de manutenção
-        <span id="clienteComunicacaoBadgeManutencao" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
-      </button>
+      <div class="cliente-comunicacao-lane">
+        <p class="cliente-comunicacao-cabecalho cliente-comunicacao-cabecalho--vendas">Conversar com administração</p>
+        <button type="button" id="clienteComunicacaoVendasBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--vendas" aria-label="Conversar com administração">
+          <span id="clienteComunicacaoPreviewVendas" class="cliente-comunicacao-btn__preview cliente-comunicacao-btn__placeholder">Nenhuma mensagem da administração ainda.</span>
+          <span id="clienteComunicacaoBadgeVendas" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
+        </button>
+      </div>
+      <div class="cliente-comunicacao-lane">
+        <p class="cliente-comunicacao-cabecalho cliente-comunicacao-cabecalho--manutencao">Conversar com manutenção</p>
+        <button type="button" id="clienteComunicacaoManutencaoBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--manutencao" aria-label="Conversar com manutenção">
+          <span id="clienteComunicacaoPreviewManutencao" class="cliente-comunicacao-btn__preview cliente-comunicacao-btn__placeholder">Nenhuma mensagem da manutenção ainda.</span>
+          <span id="clienteComunicacaoBadgeManutencao" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
+        </button>
+      </div>
     </div>
 
     <div class="cliente-app-card">
@@ -259,21 +265,6 @@
       </div>
     </div>
 
-    <div id="clienteCalPagamentosModal" class="cliente-modal cliente-cal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="clienteCalPagamentosTitulo">
-      <div class="cliente-modal__card portal-lanc-cal-modal__card">
-        <header class="cliente-modal__head">
-          <h2 id="clienteCalPagamentosTitulo" class="portal-modal__title">Detalhamento dos pagamentos</h2>
-          <button type="button" class="btn-primary btn-secondary-outline" id="clienteCalPagamentosFecharBtn" aria-label="Fechar">Fechar</button>
-        </header>
-        <p class="subtext cliente-cal-modal__hint">Somente consulta — os valores são os pagamentos registados pela DK Locadora.</p>
-        <div id="clienteCalPagamentosAnoPick" class="portal-lanc-cal-ano-pick" role="group" aria-label="Escolher ano"></div>
-        <div id="clienteCalPagamentosCorpo" class="portal-lanc-cal-corpo hidden"></div>
-        <div class="portal-modal__actions portal-lanc-cal-modal__actions">
-          <button type="button" class="btn-primary btn-secondary-outline hidden" id="clienteCalPagamentosVoltarAnosBtn">Escolher outro ano</button>
-        </div>
-      </div>
-    </div>
-
     <div id="cliente-modal-relatorio" class="cliente-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cliente-relatorio-title">
       <div class="cliente-modal__card">
         <header class="cliente-modal__head">
@@ -315,13 +306,12 @@
   <script src="portal-comunicacao-operacao.js?v=20260608push-notify" defer></script>
   <script src="portal-supabase-sync.js?v=20260608sync-force-manual" defer></script>
   <script src="cliente-notificacoes.js?v=20260608push-notify" defer></script>
-  <script src="cliente-pagamentos-calendario.js?v=20260608cal-no-trava" defer></script>
-  <script src="cliente-documentos-locacao.js?v=20260608loc-docs" defer></script>
+  <script src="cliente-documentos-locacao.js?v=20260609loc-docs-cadastro" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260608lanc-proto" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-comunicacao-operacao-ui.js?v=20260608push-notify" defer></script>
+  <script src="cliente-comunicacao-operacao-ui.js?v=20260609com-minuto" defer></script>
   <script src="cliente-push-notificacoes.js?v=20260608push-notify" defer></script>
-  <script src="cliente-app.js?v=20260608sync-force-manual" defer></script>
+  <script src="cliente-app.js?v=20260609sem-cal-pag" defer></script>
 </body>
 </html>

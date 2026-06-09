@@ -530,7 +530,7 @@
 
   function portalSyncAmbienteCadastroAdminUi() {
     const admin = isPortalTitularAdministrador();
-    ["operacaoClienteAmbienteWrap", "operacaoClienteSenhaWrap", "operacaoVeiculoAmbienteWrap", "operacaoLocacaoAmbienteWrap"].forEach((id) => {
+    ["operacaoClienteAmbienteWrap", "operacaoClienteSenhaWrap", "operacaoVeiculoAmbienteWrap"].forEach((id) => {
       document.getElementById(id)?.classList.toggle("hidden", !admin);
     });
     if (admin) {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260608cal-no-trava";
+const CACHE_NAME = "dk-cliente-v20260609com-minuto";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -11,7 +11,6 @@ const ASSETS = [
   "./cliente-notificacoes.js",
   "./cliente-push-notificacoes.js",
   "./cliente-contrato-resumo.js",
-  "./cliente-pagamentos-calendario.js",
   "./cliente-documentos-locacao.js",
   "./portal-comunicacao-operacao.js",
   "./cliente-comunicacao-operacao-ui.js",
