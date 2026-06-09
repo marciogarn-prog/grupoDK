@@ -46,24 +46,6 @@
       <button type="button" class="portal-admin-banner__link portal-admin-banner__link--sair" data-admin-nav="sair">Sair</button>
     </nav>
   </div>
-  <div id="portal-comunicacao-inbox-wrap" class="portal-comunicacao-inbox-grid portal-comunicacao-inbox-grid--fixed hidden" aria-label="Mensagens de clientes">
-    <section class="portal-comunicacao-inbox portal-comunicacao-inbox--vendas" aria-labelledby="portal-comunicacao-vendas-title">
-      <div class="portal-comunicacao-inbox__head">
-        <h3 id="portal-comunicacao-vendas-title" class="portal-comunicacao-inbox__title">Vendas — mensagens pendentes</h3>
-        <button type="button" id="portalComunicacaoCarregarVendasBtn" class="portal-comunicacao-inbox__carregar-btn">Carregar mensagens</button>
-      </div>
-      <p id="portalComunicacaoCarregarVendasMsg" class="portal-comunicacao-inbox__carregar-msg" aria-live="polite"></p>
-      <div id="portalComunicacaoVendasLista" class="portal-comunicacao-inbox__lista"></div>
-    </section>
-    <section class="portal-comunicacao-inbox portal-comunicacao-inbox--manutencao" aria-labelledby="portal-comunicacao-manut-title">
-      <div class="portal-comunicacao-inbox__head">
-        <h3 id="portal-comunicacao-manut-title" class="portal-comunicacao-inbox__title">Manutenção — mensagens pendentes</h3>
-        <button type="button" id="portalComunicacaoCarregarManutencaoBtn" class="portal-comunicacao-inbox__carregar-btn">Carregar mensagens</button>
-      </div>
-      <p id="portalComunicacaoCarregarManutencaoMsg" class="portal-comunicacao-inbox__carregar-msg" aria-live="polite"></p>
-      <div id="portalComunicacaoManutencaoLista" class="portal-comunicacao-inbox__lista"></div>
-    </section>
-  </div>
   <div id="view-home" class="view view--active" role="region" aria-label="Início" aria-hidden="false">
     <header class="site-header">
       <div class="brand">
@@ -488,11 +470,6 @@
               <span id="operacaoClienteSenhaLabel" class="portal-cliente-senha-label">senha=123456</span>
               <input type="hidden" id="operacaoClienteSenha" name="senhaApp" value="">
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteSenhaResetBtn" title="Volta a senha para 123456">Resetar senha</button>
-            </div>
-            <div class="operacao-inline-form__actions operacao-inline-form__actions--comunicacao">
-              <p class="subtext portal-comunicacao-setor-hint">Mensagens deste cadastro vão para o app do cliente na caixa <strong>verde (vendas)</strong>.</p>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteMsgClienteBtn" disabled>Enviar mensagem para cliente</button>
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteMsgTodosBtn">Enviar mensagem para todos os clientes</button>
             </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
@@ -1410,11 +1387,6 @@
                   <button type="button" class="btn-primary" id="operacaoLancManutencaoConfirmarPesquisaBtn">Confirmar pesquisa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoLimparPesquisaBtn">Limpar dados</button>
                 </div>
-                <div class="operacao-inline-form__actions operacao-inline-form__actions--comunicacao">
-                  <p class="subtext portal-comunicacao-setor-hint">Mensagens da manuten&ccedil;&atilde;o v&atilde;o para o app do cliente na caixa <strong>amarela (manuten&ccedil;&atilde;o)</strong>.</p>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoMsgClienteBtn" disabled>Enviar mensagem para cliente</button>
-                  <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancManutencaoMsgTodosBtn">Enviar circular para todos os clientes</button>
-                </div>
               </div>
             </section>
                         <section id="operacaoLancManutencaoReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
@@ -1520,8 +1492,6 @@
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lançamento de multas</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lançamento de manutenção</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceComManutencao"> Comunicação manutenção</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceComVendas"> Comunicação vendas</label>
             </div>
             <div class="operacao-inline-form__actions portal-colab-actions-row">
               <div class="portal-colab-primary-actions">
@@ -1982,47 +1952,6 @@
     </div>
   </div>
 
-  <div id="portalComunicacaoChatModal" class="portal-modal dk-chat-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalComunicacaoChatTitulo">
-    <div class="portal-modal__backdrop" data-close-comunicacao-chat></div>
-    <div class="portal-modal__card dk-chat-modal__card">
-      <header class="dk-chat-modal__header">
-        <h3 id="portalComunicacaoChatTitulo" class="portal-modal__title">Conversa</h3>
-        <button type="button" class="btn-primary btn-secondary-outline dk-chat-modal__fechar" id="portalComunicacaoChatFecharBtnTop">Fechar</button>
-      </header>
-      <div id="portalComunicacaoChatCorpo" class="dk-chat-modal__corpo" role="log" aria-live="polite"></div>
-      <p class="subtext dk-chat-modal__aviso">Apenas texto — não é permitido enviar ficheiros por este canal.</p>
-      <div class="dk-chat-modal__composer">
-        <textarea id="portalComunicacaoChatInput" class="dk-chat-modal__input" rows="2" maxlength="2000" placeholder="Escreva a resposta…"></textarea>
-        <button type="button" class="btn-primary" id="portalComunicacaoChatEnviarBtn">Enviar</button>
-      </div>
-      <p id="portalComunicacaoChatMsg" class="portal-feedback" role="status"></p>
-    </div>
-  </div>
-
-  <div id="portalComunicacaoTodosModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalComunicacaoTodosTitulo">
-    <div class="portal-modal__backdrop" id="portalComunicacaoTodosFecharBtn"></div>
-    <div class="portal-modal__card">
-      <h3 id="portalComunicacaoTodosTitulo" class="portal-modal__title">Mensagem para todos os clientes</h3>
-      <p id="portalComunicacaoTodosSetorHint" class="subtext portal-comunicacao-setor-hint" hidden></p>
-      <label class="portal-field hidden" id="portalComunicacaoTodosSetorWrap" hidden>
-        <span>Setor</span>
-        <select id="portalComunicacaoTodosSetor" aria-hidden="true" tabindex="-1">
-          <option value="vendas">Vendas</option>
-          <option value="manutencao">Manutenção</option>
-        </select>
-      </label>
-      <label class="portal-field portal-field--wide">
-        <span>Mensagem (só texto)</span>
-        <textarea id="portalComunicacaoTodosTexto" rows="4" maxlength="2000" placeholder="Aviso ou informação para todos os clientes cadastrados…"></textarea>
-      </label>
-      <div class="portal-modal__actions">
-        <button type="button" class="btn-primary" id="portalComunicacaoTodosEnviarBtn">Enviar para todos</button>
-        <button type="button" class="btn-primary btn-secondary-outline" id="portalComunicacaoTodosFecharBtn2">Cancelar</button>
-      </div>
-      <p id="portalComunicacaoTodosMsg" class="portal-feedback" role="status"></p>
-    </div>
-  </div>
-
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260608home-app-botoes" defer></script>
   <script>
@@ -2038,15 +1967,13 @@
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
   <script src="app.js?v=20260609login-manut" defer></script>
   <script src="cliente-notificacoes.js?v=20260609avisos-dk" defer></script>
-  <script src="portal-comunicacao-operacao.js?v=20260609com-perf" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260609avisos-dk" defer></script>
-  <script src="portal-comunicacao-operacao-ui.js?v=20260609com-perf" defer></script>
+  <script src="portal-locadora-ui.js?v=20260609sem-comunicacao" defer></script>
   <script src="portal-locacao-documentos.js?v=20260609docs-multas" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
   <script src="portal-documentos.js?v=20260609docs-auto" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260609docs-multas" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260609sem-comunicacao" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
   <script src="portal-supabase-sync.js?v=20260609docs-auto" defer></script>
 </body>

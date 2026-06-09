@@ -452,9 +452,6 @@
       hist.replaceChildren();
     }
     if (isParcelado(cfg)) updateRelatorioParceladoActions(cfg, null);
-    if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
-      window.__DK_portalComunicacaoSyncManutencaoBtn();
-    }
     if (cfg.key === "lancamentoMultas") {
       const sec = document.getElementById("operacaoLancMultasDocumentosDeposito");
       sec?.classList.add("hidden");
@@ -866,9 +863,6 @@
     }
     if (source !== "placa" && $(cfg, "PlacaBusca") && row.placa) $(cfg, "PlacaBusca").value = row.placa;
     if (source !== "proto" && $(cfg, "ProtocoloBusca") && row.proto) $(cfg, "ProtocoloBusca").value = row.proto;
-    if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
-      window.__DK_portalComunicacaoSyncManutencaoBtn();
-    }
   }
 
   function renderPesquisaLista(cfg, linhas) {
@@ -1205,9 +1199,6 @@
       if (loc) applyLocToForm(cfg, loc);
       if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
         window.__DK_refreshLancMultasDocumentosDeposito();
-      }
-      if (cfg.key === "lancamentoManutencao" && typeof window.__DK_portalComunicacaoSyncManutencaoBtn === "function") {
-        window.__DK_portalComunicacaoSyncManutencaoBtn();
       }
     });
 

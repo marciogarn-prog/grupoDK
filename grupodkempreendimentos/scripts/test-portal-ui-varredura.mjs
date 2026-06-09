@@ -52,8 +52,7 @@ const JS_FILES = [
   "app.js",
   "portal-locadora-ui.js",
   "portal-lanc-aluguel-calendario.js",
-  "portal-comunicacao-operacao-ui.js",
-  "portal-patrimonio.js",
+  "portal-documentos.js",
   "portal-multas-relatorio.js",
   "portal-lancamentos-extras.js",
   "portal-locacao-documentos.js",
@@ -61,7 +60,6 @@ const JS_FILES = [
   "portal-supabase-sync.js",
   "portal-cliente-geo-mapa.js",
   "cliente-app.js",
-  "cliente-comunicacao-operacao-ui.js",
   "cliente-documentos-locacao.js",
   "dk-app-entry.js",
 ];
@@ -73,7 +71,7 @@ const HANDLER_WHITELIST = new Set([
   "btn-voltar-operacao-locadora",
   "btn-voltar-manutencao-locadora",
   "btn-voltar-localizacao-locadora",
-  "btn-voltar-patrimonio-locadora",
+  "btn-voltar-documentos-locadora",
   "btn-lanc-aluguel-comprovante",
   "btn-lanc-aluguel-validacao",
   "btn-lanc-aluguel-relatorios",
@@ -113,9 +111,9 @@ function buttonHasHandler(btnId, js) {
       if (js.includes(`prefix: "${prefix}"`) && js.includes(`"${suffix}"`)) return true;
     }
   }
-  if (btnId.startsWith("patrimonio") || btnId.startsWith("portalPatrimonio") || btnId.startsWith("btnPatrimonio")) {
-    const patJs = js.includes("portal-patrimonio") ? js : "";
-    if (patJs.includes(`"${btnId}"`) || patJs.includes(`'${btnId}'`)) return true;
+  if (btnId.startsWith("documentos") || btnId.startsWith("portalDocumentos") || btnId.startsWith("btnDocumentos")) {
+    const docJs = js.includes("portal-documentos") ? js : "";
+    if (docJs.includes(`"${btnId}"`) || docJs.includes(`'${btnId}'`)) return true;
   }
   if (btnId.startsWith("portalChecklist") || btnId === "btnPortalChecklistAbrir") {
     if (js.includes("PORTAL_CHECKLIST") || js.includes(`"${btnId}"`)) return true;
@@ -236,7 +234,7 @@ const AREAS_EMPRESA = [
   { name: "Operação", btn: "btn-locadora-operacao", panel: "panel-operacao-locadora" },
   { name: "Manutenção frota", btn: "btn-locadora-manutencao", panel: "panel-manutencao-locadora" },
   { name: "Localização clientes", btn: "btn-locadora-localizacao", panel: "panel-localizacao-locadora" },
-  { name: "Patrimônio", btn: "btn-locadora-patrimonio", panel: "panel-patrimonio-locadora" },
+  { name: "Documentos", btn: "btn-locadora-documentos", panel: "panel-documentos-locadora" },
 ];
 
 async function loginAdmin(page) {
@@ -281,7 +279,7 @@ async function ensureEquipaNavVisible(page) {
     "btn-voltar-operacao-locadora",
     "btn-voltar-manutencao-locadora",
     "btn-voltar-localizacao-locadora",
-    "btn-voltar-patrimonio-locadora",
+    "btn-voltar-documentos-locadora",
   ]) {
     const b = page.locator(`#${id}`);
     if (await b.isVisible().catch(() => false)) {
@@ -333,9 +331,9 @@ async function runE2E() {
     );
 
     record(
-      "E2E: barra comunicação vendas/manutenção",
-      (await page.locator("#portal-comunicacao-inbox-wrap").count()) > 0 &&
-        (await page.locator("#portalComunicacaoVendasLista").count()) > 0
+      "E2E: barra comunicação removida",
+      (await page.locator("#portal-comunicacao-inbox-wrap").count()) === 0 &&
+        (await page.locator("#portalComunicacaoVendasLista").count()) === 0
     );
 
     for (const area of AREAS_EMPRESA) {
