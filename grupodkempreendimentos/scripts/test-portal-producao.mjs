@@ -878,10 +878,10 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609sem-comunicacao`, {
+    const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609lanc-aviso`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260609avisos-dk`, {
+    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260609lanc-aviso`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -892,6 +892,7 @@ async function runSuite() {
         !html.includes("portal-comunicacao-operacao.js") &&
         !html.includes("operacaoClienteMsgClienteBtn") &&
         portalLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancado") &&
+        portalLocadoraJs.includes("portalNotificarClientePagamentosLancados") &&
         !portalLocadoraJs.includes("portalComunicacaoAcessosEfetivos"),
       "avisos automáticos mantidos; chat/inbox removidos"
     );
@@ -902,8 +903,10 @@ async function runSuite() {
         !clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         !clienteHtml.includes("cliente-comunicacao-operacao-ui.js") &&
         clienteNotifJs.includes("__DK_clienteNotificacaoMultaLancada") &&
+        clienteNotifJs.includes("dispararPushAvisoCliente") &&
+        clienteNotifJs.includes("dk-cliente-geo?push=1") &&
         clienteNotifJs.includes("apenasLidas"),
-      "avisos pagamento/multa/manutenção + histórico lidos"
+      "avisos pagamento/multa/manutenção + push + histórico lidos"
     );
     const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260609avisos-dk`, {
       cache: "no-store",
