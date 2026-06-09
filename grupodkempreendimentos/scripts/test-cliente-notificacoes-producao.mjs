@@ -85,7 +85,8 @@ async function main() {
     await page.waitForTimeout(2000);
 
     const wrapVisibleBefore = await page.evaluate(() => {
-      return !document.getElementById("cliente-notificacoes-wrap")?.classList.contains("hidden");
+      const box = document.getElementById("cliente-notificacoes");
+      return /Aviso E2E/i.test(box?.innerText || "");
     });
     record("painel avisos visível antes", wrapVisibleBefore);
 
@@ -93,9 +94,8 @@ async function main() {
     await page.waitForTimeout(1500);
 
     const afterMark = await page.evaluate((testId) => {
-      const wrapHidden = document
-        .getElementById("cliente-notificacoes-wrap")
-        ?.classList.contains("hidden");
+      const boxText = document.getElementById("cliente-notificacoes")?.innerText || "";
+      const semAvisoNovo = /Nenhum aviso novo/i.test(boxText) || !/Aviso E2E/i.test(boxText);
       let rec = null;
       try {
         const all = JSON.parse(localStorage.getItem("dk_cliente_notificacoes") || "[]");
@@ -109,12 +109,24 @@ async function main() {
           JSON.parse(localStorage.getItem("dk_sessao_cliente_app") || "{}").cpf || "19174403400"
         ).length;
       })();
-      return { wrapHidden, lido: Boolean(rec?.lido), lidaEm: rec?.lidaEm || "", unread };
+      return { semAvisoNovo, lido: Boolean(rec?.lido), lidaEm: rec?.lidaEm || "", unread };
     }, TEST_ID);
 
-    record("painel oculto após marcar lidos", afterMark.wrapHidden);
+    record("lista unread vazia após marcar", afterMark.unread === 0, `unread=${afterMark.unread}`);
+    record("texto E2E saiu dos avisos novos", afterMark.semAvisoNovo);
     record("lido=true no LS", afterMark.lido, afterMark.lidaEm);
-    record("lista unread vazia", afterMark.unread === 0, `unread=${afterMark.unread}`);
+
+    await page.locator("#btn-notif-ver-lidas").click();
+    await page.waitForTimeout(500);
+
+    const lidasModal = await page.evaluate((testId) => {
+      const modal = document.getElementById("cliente-modal-avisos-lidos");
+      const visivel = modal && !modal.classList.contains("hidden");
+      const texto = document.getElementById("cliente-avisos-lidos-lista")?.innerText || "";
+      return { visivel, temE2E: /Aviso E2E/i.test(texto), testId };
+    }, TEST_ID);
+    record("modal avisos lidos abre", lidasModal.visivel);
+    record("modal mostra aviso E2E lido", lidasModal.temE2E);
 
     await page.evaluate(async () => {
       if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
@@ -130,9 +142,8 @@ async function main() {
     await page.waitForTimeout(5000);
 
     const afterSync = await page.evaluate((testId) => {
-      const wrapHidden = document
-        .getElementById("cliente-notificacoes-wrap")
-        ?.classList.contains("hidden");
+      const boxText = document.getElementById("cliente-notificacoes")?.innerText || "";
+      const semAvisoNovo = /Nenhum aviso novo/i.test(boxText) || !/Aviso E2E/i.test(boxText);
       let rec = null;
       try {
         const all = JSON.parse(localStorage.getItem("dk_cliente_notificacoes") || "[]");
@@ -140,17 +151,14 @@ async function main() {
       } catch {
         /* ignore */
       }
-      const textoVisivel = document.getElementById("cliente-notificacoes")?.innerText || "";
       return {
-        wrapHidden,
+        semAvisoNovo,
         lido: Boolean(rec?.lido),
-        textoTemE2E: /Aviso E2E/i.test(textoVisivel),
       };
     }, TEST_ID);
 
-    record("após sync: painel continua oculto", afterSync.wrapHidden);
+    record("após sync: aviso E2E não nos novos", afterSync.semAvisoNovo);
     record("após sync: lido mantido", afterSync.lido);
-    record("após sync: texto E2E não na UI", !afterSync.textoTemE2E, `e2e=${afterSync.textoTemE2E}`);
   } catch (e) {
     record("E2E exceção", false, e.message || String(e));
   } finally {

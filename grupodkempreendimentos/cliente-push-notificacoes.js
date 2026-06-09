@@ -114,19 +114,19 @@
     return data?.ok ? { ok: true } : { ok: false, reason: data?.msg || "subscribe_failed" };
   }
 
-  function maybeShowForegroundNotification(setor) {
+  function maybeShowForegroundNotification() {
     if (!isSupported() || Notification.permission !== "granted") return;
     if (document.visibilityState === "visible") {
       try {
         const n = new Notification("DK Locadora", {
-          body: "Você tem uma nova mensagem da DK",
+          body: "Você tem um novo aviso da DK",
           icon: "/icons/icon-cliente-192.png",
-          tag: `dk-msg-fg-${setor || "vendas"}`,
+          tag: "dk-aviso-fg",
         });
         n.onclick = () => {
           window.focus();
-          if (typeof window.__DK_clienteAbrirChatComunicacao === "function") {
-            window.__DK_clienteAbrirChatComunicacao(setor || "vendas");
+          if (typeof window.__DK_clienteScrollToAvisos === "function") {
+            window.__DK_clienteScrollToAvisos();
           }
           n.close();
         };
@@ -141,31 +141,31 @@
     navigator.serviceWorker.addEventListener("message", (event) => {
       const d = event.data;
       if (!d || d.type !== "dk-open-chat") return;
-      if (typeof window.__DK_clienteAbrirChatComunicacao === "function") {
-        window.__DK_clienteAbrirChatComunicacao(d.setor || "vendas");
+      if (typeof window.__DK_clienteScrollToAvisos === "function") {
+        window.__DK_clienteScrollToAvisos();
       }
     });
   }
 
-  function parseDkChatFromUrl() {
+  function parseDkAvisosFromUrl() {
     try {
       const p = new URLSearchParams(window.location.search);
-      const chat = String(p.get("dkChat") || "").trim().toLowerCase();
-      if (chat === "vendas" || chat === "manutencao") return chat;
+      const aviso = String(p.get("dkAviso") || p.get("dkChat") || "").trim();
+      if (aviso === "1" || aviso.toLowerCase() === "true") return true;
     } catch {
       /* ignore */
     }
-    return "";
+    return false;
   }
 
-  function openChatFromUrlWhenReady() {
-    const setor = parseDkChatFromUrl();
-    if (!setor) return;
+  function openAvisosFromUrlWhenReady() {
+    if (!parseDkAvisosFromUrl()) return;
     const tryOpen = () => {
-      if (typeof window.__DK_clienteAbrirChatComunicacao === "function") {
-        window.__DK_clienteAbrirChatComunicacao(setor);
+      if (typeof window.__DK_clienteScrollToAvisos === "function") {
+        window.__DK_clienteScrollToAvisos();
         try {
           const u = new URL(window.location.href);
+          u.searchParams.delete("dkAviso");
           u.searchParams.delete("dkChat");
           window.history.replaceState({}, "", u.pathname + u.search + u.hash);
         } catch {
@@ -182,12 +182,12 @@
 
   window.__DK_clienteEnsurePushSubscription = ensureClientePushSubscription;
   window.__DK_clientePushForegroundNotify = maybeShowForegroundNotification;
-  window.__DK_clientePushOpenChatFromUrl = openChatFromUrlWhenReady;
+  window.__DK_clientePushOpenAvisosFromUrl = openAvisosFromUrlWhenReady;
 
   wireServiceWorkerMessages();
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", openChatFromUrlWhenReady);
+    document.addEventListener("DOMContentLoaded", openAvisosFromUrlWhenReady);
   } else {
-    openChatFromUrlWhenReady();
+    openAvisosFromUrlWhenReady();
   }
 })();

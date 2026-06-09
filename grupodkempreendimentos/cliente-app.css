@@ -578,6 +578,28 @@ html.dk-cliente-install-flow .cliente-install-panel.hidden {
   color: var(--muted);
 }
 
+.cliente-notificacao--lida {
+  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  opacity: 0.92;
+}
+
+.cliente-notificacao--lida .cliente-notificacao__msg {
+  font-weight: 500;
+}
+
+.cliente-notificacoes-vazio {
+  margin: 0;
+}
+
+.cliente-avisos-lidos-lista {
+  max-height: min(70vh, 520px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .cliente-revisao-servicos {
   margin: 0.25rem 0 0;
   padding-left: 1.1rem;

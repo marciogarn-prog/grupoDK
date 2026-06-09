@@ -91,7 +91,7 @@ async function runSuite() {
     const html = await page.content();
     const portalUiVer = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
     const appJsVer = html.match(/app\.js\?v=([^"]+)/)?.[1] || "";
-    const patrimonioJsVer = html.match(/portal-patrimonio\.js\?v=([^"]+)/)?.[1] || "";
+    const documentosJsVer = html.match(/portal-documentos\.js\?v=([^"]+)/)?.[1] || "";
     record(
       IS_DEMO_TEST ? "HTML demo com banco planilha completo" : "HTML com instalação limpa (sem Excel)",
       IS_DEMO_TEST
@@ -178,42 +178,21 @@ async function runSuite() {
         html.includes("dk-pwa-update.js")
     );
     record(
-      "cadastro patrimônio CRLV (admin)",
-      html.includes("btn-locadora-patrimonio") &&
-        html.includes("panel-patrimonio-locadora") &&
-        html.includes("patrimonioBtnNovoDoc") &&
-        html.includes("patrimonioVerRelatorioBtn") &&
-        html.includes("patrimonioVerErrosBtn") &&
-        html.includes("patrimonioIaBgBadge") &&
-        html.includes("patrimonioRelatorioErrosWrap") &&
-        html.includes("patrimonioRelatorioContador") &&
-        html.includes("patrimonioRelatorioConteudo") &&
-        html.includes("patrimonioRelatorioModal") &&
-        html.includes("patrimonioLoteProgress") &&
-        html.includes("portal-patrimonio-idb.js") &&
-        html.includes("200 PDFs") &&
-        html.includes("patrimonioPdfDropzoneNovos") &&
-        html.includes("patrimonioPdfDropzoneCompletar") &&
-        html.includes("patrimonioBtnCompletarLote") &&
-        html.includes('for="patrimonioPdfInputCompletar"') &&
-        html.includes("patrimonioPdfDropzoneAtualizacao") &&
-        html.includes('for="patrimonioPdfInputNovos"') &&
-        html.includes("CRLVDigital_PLACA_ANO") &&
-        html.includes("patrimonioBtnAtualizacaoDoc") &&
-        html.includes("patrimonioBtnLimparFila") &&
-        html.includes("patrimonioBtnRevisarFalhados") &&
-        html.includes("patrimonioBtnExcluirLixo") &&
-        html.includes("patrimonioBtnReprocessarReprovados") &&
-        html.includes("patrimonioPdfInputNovos") &&
-        html.includes("patrimonioPdfInputAtualizacao") &&
-        html.includes('accept="application/pdf') &&
-        html.includes("multiple") &&
-        html.includes("pdf.min.js") &&
-        html.includes("patrimonioFotosLista") &&
-        html.includes("patrimonioFotoCapturaRevisarBtn") &&
-        html.includes("portal-patrimonio-crop.js") &&
-        html.includes("portal-patrimonio.js") &&
-        !html.includes("portal-patrimonio-scan.js")
+      "depósito documentos CRLV contratos multas (sem IA)",
+      html.includes("btn-locadora-documentos") &&
+        html.includes("panel-documentos-locadora") &&
+        html.includes("documentosBuscaTitulo") &&
+        html.includes('name="documentosBuscaTipo"') &&
+        html.includes("documentosInputCrlv") &&
+        html.includes("documentosInputContrato") &&
+        html.includes("documentosInputMulta") &&
+        html.includes("documentosDropCrlv") &&
+        html.includes("documentosDropContrato") &&
+        html.includes("documentosDropMulta") &&
+        html.includes("portal-documentos.js") &&
+        !html.includes("portal-patrimonio.js") &&
+        !html.includes("patrimonioIaBgBadge") &&
+        !html.includes("patrimonioRelatorioModal")
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
@@ -503,161 +482,38 @@ async function runSuite() {
         portalUiJs.includes("btnLocalizacao") &&
         portalUiJs.includes("__DK_clienteGeoMapaOnShow")
     );
-    const patJs = await fetch(`${BASE_URL}portal-patrimonio.js?v=${patrimonioJsVer || "latest"}`, {
+    const docsJs = await fetch(`${BASE_URL}portal-documentos.js?v=${documentosJsVer || "latest"}`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "patrimônio anexo PDF múltiplo (PDF.js + fila IA)",
-        patJs.includes("PATRIMONIO_MAX_LOTE = 200") &&
-        patJs.includes("patrimonioSalvarImagemFila") &&
-        patJs.includes("patrimonioSalvarImagensDoc") &&
-        patJs.includes("patrimonioLerImagensDoc") &&
-        patJs.includes("patrimonioLerImagemFila") &&
-        patJs.includes("patrimonioPausarSyncCloud") &&
-        patJs.includes("PATRIMONIO_IA_MAX_TENTATIVAS = 1") &&
-        patJs.includes("PATRIMONIO_IA_LEDGER_KEY") &&
-        patJs.includes("patrimonioReservarLeituraIa") &&
-        patJs.includes("patrimonioHashFile") &&
-        patJs.includes("patrimonioHashJaConsumiuLeitura") &&
-        patJs.includes("fotoAguardaProcessamentoIa") &&
-        patJs.includes("ia_content_hash") &&
-        patJs.includes("tratarFalhaIaFotoCaptura") &&
-        patJs.includes("patrimonioProcessarIaSegundoPlano") &&
-        patJs.includes("patrimonioRecuperarTravamentoIa") &&
-        patJs.includes("patrimonioExpurgarFilaObsoleta") &&
-        patJs.includes("fotoFilaPresaSemProcessamento") &&
-        patJs.includes("patrimonioExpurgarFilaPendenteFinal") &&
-        patJs.includes("patrimonioRetomarFilaIa") &&
-        patJs.includes("PATRIMONIO_FILA_TTL_MS") &&
-        patJs.includes("coletarPatrimonioErrosIa") &&
-        patJs.includes("patrimonioAtualizarBadgeSegundoPlano") &&
-        patJs.includes("excluirFotoCapturaAutomatico") &&
-        patJs.includes("patrimonioZerarFilaEnviadosManual") &&
-        patJs.includes("patrimonioRevisarTodosArquivosFalhadosManual") &&
-        patJs.includes("patrimonioExcluirLixoForaRelatorioManual") &&
-        patJs.includes("tagBasePatrimonio") &&
-        patJs.includes("expurgarTudo") &&
-        patJs.includes("excluirFotoCapturaAposSucesso") &&
-        patJs.includes("prepararImagemDocumentoArmazenar") &&
-        patJs.includes("PATRIMONIO_PDF_RENDER_SCALE") &&
-        patJs.includes("PATRIMONIO_IDB_DOC_IMAGEM_MAX_B64") &&
-        patJs.includes("patrimonioLerPdfFila") &&
-        patJs.includes("reprocessarTodosReprovadosPatrimonio") &&
-        patJs.includes("statusIa: \"fila\"") &&
-        patJs.includes("placaDoNomeArquivo") &&
-        patJs.includes("onPatrimonioPdfInputChange") &&
-        patJs.includes("Array.from(input.files") &&
-        patJs.includes("crlvdigital") &&
-        patJs.includes("pdfArquivoParaImagemAlta") &&
-        patJs.includes("registrarArquivoPdf") &&
-        patJs.includes("bindPatrimonioPdfUpload") &&
-        patJs.includes("__DK_patrimonioEhArquivoPdf") &&
-        patJs.includes("ehArquivoPdf") &&
-        patJs.includes("garantirPdfJs")
+      "documentos depósito CRLV contratos multas (JS)",
+      docsJs.includes("dk_documentos_deposito_v1") &&
+        docsJs.includes("chaveFromFilename") &&
+        docsJs.includes("adicionarFicheiros") &&
+        docsJs.includes("listarPorChave") &&
+        docsJs.includes("excluirDoc") &&
+        docsJs.includes("purgeLegacyPatrimonioLocal") &&
+        !docsJs.includes("patrimonioReservarLeituraIa")
     );
-    record(
-      "patrimônio IA CRLV (campos críticos + mapa tarja)",
-        patJs.includes("deduplicarDocumentos") &&
-        patJs.includes("patrimonioColetarAuditoriaArquivos") &&
-        patJs.includes("buildContadoresRelatorioHtmlBloco") &&
-        patJs.includes("classificarGrupoProprietario") &&
-        patJs.includes("lerCrlvComRetry") &&
-        patJs.includes("montarPromptCrlv") &&
-        patJs.includes("chamarIaCrlv") &&
-        patJs.includes("prepararImagemParaIaCrlv") &&
-        patJs.includes("CAMPOS_CRITICOS") &&
-        patJs.includes("validarProprietarioCrlv") &&
-        patJs.includes("CRLV_REGIAO_PROPRIETARIO") &&
-        patJs.includes("extrairCamposRespostaIa") &&
-        patJs.includes("mapaEspacialCrlvPrompt") &&
-        patJs.includes("TARJA PRETA") &&
-        patJs.includes("renavamValido")
-    );
-    const oaiApiPath = path.join(REPO_ROOT, "grupodkempreendimentos/api/openai-comprovante.js");
-    const oaiApi = fs.existsSync(oaiApiPath) ? fs.readFileSync(oaiApiPath, "utf8") : "";
-    record(
-      "patrimônio API IA ledger servidor (hash + teto diário)",
-      oaiApi.includes("patrimonioIaReservarLeitura") &&
-        oaiApi.includes("ia_already_processed") &&
-        oaiApi.includes("ia_daily_cap") &&
-        oaiApi.includes("DK_PATRIMONIO_IA_DAILY_CAP")
-    );
-    record(
-      "patrimônio arquivos enviados (histórico + revisar IA)",
-      patJs.includes("registrarArquivoPdf") &&
-        patJs.includes("enfileirarIaPatrimonio") &&
-        patJs.includes("formatTagPatrimonioFoto") &&
-        patJs.includes("repararFotosCapturasPendentes") &&
-        patJs.includes("patrimonio-foto-excluir") &&
-        patJs.includes("nomeArquivo")
-    );
-    const cropJs = await page.evaluate(async () => {
-      const r = await fetch("portal-patrimonio-crop.js?v=20260603pdf-upload", { cache: "no-store" });
-      return r.ok ? await r.text() : "";
-    });
     const syncJs = await page.evaluate(async () => {
-      const r = await fetch("portal-supabase-sync.js?v=20260521demo-oficial-env", {
-        cache: "no-store",
-      });
+      const r = await fetch("portal-supabase-sync.js?v=20260609docs-v1", { cache: "no-store" });
       return r.ok ? await r.text() : "";
     });
-    record(
-      "patrimônio viewer zoom + exclusões nuvem",
-      cropJs.includes("bindZoomPan") &&
-        patJs.includes("fotosCapturasExcluidas") &&
-        patJs.includes("removerFotosAntigasMesmaPlaca") &&
-        patJs.includes("exclusaoFotoCapturaEntry") &&
-        patJs.includes("imagemPdfRecortada") &&
-        patJs.includes("baixarPdfViewerImagem") &&
-        patJs.includes("__DK_pushCloudSnapshotNow")
-    );
-    record(
-      "patrimônio exclusão permanente na nuvem (merge Supabase+Redis)",
-      syncJs.includes("normalizePatrimonioPayloadForSync") &&
-        syncJs.includes("patrimonioFotoFilaOrfaSync") &&
-        syncJs.includes("expurgarFotosCapturasOrfaosSync") &&
-        syncJs.includes("mergeRemoteSnapshotsBeforePush") &&
-        syncJs.includes("dk_patrimonio_fotos_excluidas_v1") &&
-        syncJs.includes("fotosCapturasExcluidas") &&
-        syncJs.includes("aplicarExclusoesFotosCapturas")
-    );
+    record("documentos sync nuvem (dk_documentos_deposito_v1)", syncJs.includes("dk_documentos_deposito_v1"));
     const cssStyles = await fetch(`${BASE_URL}styles.css`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "CSS patrimônio zona PDF (arrastar e soltar)",
-      cssStyles.includes(".patrimonio-pdf-zonas") &&
-        cssStyles.includes("patrimonio-pdf-dropzone--novos") &&
-        cssStyles.includes("patrimonio-pdf-dropzone--atualizacao") &&
-        cssStyles.includes("patrimonio-pdf-dropzone--drag")
+      "CSS documentos depósito e busca",
+      cssStyles.includes(".documentos-dropzone") &&
+        cssStyles.includes(".documentos-busca") &&
+        cssStyles.includes(".documentos-resultado")
     );
     record(
       "CSS cartões frota legíveis (texto claro no botão)",
       cssStyles.includes(".operacao-veiculo-resumo-card") &&
         cssStyles.includes("color: var(--text") &&
         cssStyles.includes("appearance: none")
-    );
-    record(
-      "patrimônio duas zonas novos vs atualização",
-      patJs.includes("filtrarArquivosPdfPorModo") &&
-        patJs.includes("PATRIMONIO_MODO_COMPLETAR") &&
-        patJs.includes("patrimonioLimparFilaConcluidaAutomatica") &&
-        patJs.includes("mesclarCamposAtualizacaoCrlv") &&
-        patJs.includes("PATRIMONIO_CAMPOS_ATUALIZACAO") &&
-        patJs.includes("bindPatrimonioPdfDropzone")
-    );
-    record(
-      "patrimônio uma placa substitui documento antigo",
-      patJs.includes("documentoMesmaPlaca") &&
-        patJs.includes("deduplicarDocumentos") &&
-        patJs.includes("imagemAtualizadaEm") &&
-        patJs.includes("comprimirImagemLimite") &&
-        patJs.includes("PLACA_MERCOSUL_RE") &&
-        patJs.includes("resolverPlacaMercosul") &&
-        patJs.includes("sanitizarDocumentoPatrimonio") &&
-        patJs.includes("chavesIdentidadePatrimonio") &&
-        patJs.includes("docMesmaIdentidade") &&
-        patJs.includes("migrarImagensPatrimonioScan")
     );
     const placaMercosulOk = await page.evaluate(() => ({
       fn: typeof window.isPlacaMercosul === "function",
@@ -853,8 +709,10 @@ async function runSuite() {
       clienteHtml.includes("atualizarProgramaEDados") === false &&
         clienteHtml.includes("cliente-notificacoes.js") &&
         clienteHtml.includes("cliente-contrato-resumo.js") &&
-        clienteHtml.includes("cliente-notificacoes-wrap"),
-      "scripts v20260520cliente-v2"
+        clienteHtml.includes("cliente-notificacoes-wrap") &&
+        clienteHtml.includes("btn-notif-ver-lidas") &&
+        !clienteHtml.includes("Falar com a DK"),
+      "avisos DK unidirecionais"
     );
     record(
       "app cliente resumo contrato no HTML",
@@ -1008,59 +866,50 @@ async function runSuite() {
     const comunicacaoJs = await fetch(`${BASE_URL}portal-comunicacao-operacao.js?v=20260608push-notify`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const portalComunicacaoLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260521comunicacao-fixa`, {
+    const portalComunicacaoLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609avisos-dk`, {
       cache: "no-store",
     }).then((r) => r.text());
     const comunicacaoUiJs = await fetch(`${BASE_URL}portal-comunicacao-operacao-ui.js?v=20260521comunicacao-fixa`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteComUiJs = await fetch(`${BASE_URL}cliente-comunicacao-operacao-ui.js?v=20260609com-minuto`, {
+    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260609avisos-dk`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "comunicação cliente operação vendas e manutenção",
+      "comunicação portal operação (inbox equipa)",
       html.includes("portalComunicacaoVendasLista") &&
         html.includes("portalComunicacaoManutencaoLista") &&
         html.includes("portal-comunicacao-inbox-grid--fixed") &&
-        html.includes("portalColabAceComManutencao") &&
-        html.includes("portalColabAceComVendas") &&
-        html.includes("operacaoClienteMsgClienteBtn") &&
-        html.includes("operacaoClienteMsgTodosBtn") &&
-        html.includes("operacaoLancManutencaoMsgClienteBtn") &&
-        html.includes("operacaoLancManutencaoMsgTodosBtn") &&
-        !html.includes("operacaoClienteMsgSetor") &&
         comunicacaoJs.includes("dk_comunicacao_operacao_v1") &&
-        comunicacaoJs.includes("listarPendentesOperacao") &&
         comunicacaoUiJs.includes("__DK_portalComunicacaoSyncManutencaoBtn") &&
-        comunicacaoUiJs.includes('abrirModalTodos("vendas")') &&
-        comunicacaoUiJs.includes('abrirModalTodos("manutencao")') &&
-        portalComunicacaoLocadoraJs.includes("portalComunicacaoAcessosEfetivos") &&
-        portalComunicacaoLocadoraJs.includes("portal-body--comunicacao-ativa") &&
-        clienteHtml.includes("clienteComunicacaoVendasBtn") &&
-        clienteHtml.includes("clienteComunicacaoManutencaoBtn") &&
-        clienteHtml.includes("clienteComunicacaoPreviewVendas") &&
-        clienteHtml.includes("Conversar com administração") &&
-        clienteHtml.includes("Conversar com manutenção") &&
-        clienteComUiJs.includes("__DK_clienteComunicacaoRefresh") &&
-        clienteComUiJs.includes("ultimaMensagemOperacaoSetor") &&
-        clienteComUiJs.includes("REFRESH_BOTOES_MS") &&
-        clienteComUiJs.includes("atualizarBotoesPeriodicamente"),
-      "barra fixa no topo; cadastro→verde; manutenção→amarelo"
+        portalComunicacaoLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancado") &&
+        portalComunicacaoLocadoraJs.includes("portalComunicacaoAcessosEfetivos"),
+      "inbox portal + avisos automáticos ao lançar"
     );
-    const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260608push-notify`, {
+    record(
+      "app cliente avisos DK (sem chat)",
+      clienteHtml.includes("Avisos DK") &&
+        clienteHtml.includes("btn-notif-ver-lidas") &&
+        !clienteHtml.includes("clienteComunicacaoVendasBtn") &&
+        !clienteHtml.includes("cliente-comunicacao-operacao-ui.js") &&
+        clienteNotifJs.includes("__DK_clienteNotificacaoMultaLancada") &&
+        clienteNotifJs.includes("apenasLidas"),
+      "avisos pagamento/multa/manutenção + histórico lidos"
+    );
+    const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260609avisos-dk`, {
       cache: "no-store",
     }).then((r) => r.text());
     const pushApi = await fetch(`${BASE_URL}api/dk-cliente-geo?push=1&action=vapid`, { cache: "no-store" })
       .then((r) => r.json())
       .catch(() => ({}));
     record(
-      "web push mensagens DK para app cliente",
+      "web push avisos DK para app cliente",
       clienteHtml.includes("cliente-push-notificacoes.js") &&
         pushNotifyJs.includes("ensureClientePushSubscription") &&
-        comunicacaoJs.includes("notifyClientePushMensagem") &&
+        pushNotifyJs.includes("__DK_clienteScrollToAvisos") &&
         pushApi?.configured === true &&
         Boolean(pushApi?.publicKey),
-      "VAPID activo + notify ao enviar mensagem operação"
+      "VAPID activo + push abre avisos"
     );
     record(
       "app cliente troca senha inicial 123456",
@@ -1123,105 +972,39 @@ async function runSuite() {
       }
     }
 
-    const patrimonioPdfPath = path.join(
-      REPO_ROOT,
-      "grupodkempreendimentos/test-fixtures/crlv-amostra.pdf"
-    );
     try {
       await page.evaluate(() => {
         sessionStorage.removeItem("dk_portal_area_ativa");
         localStorage.setItem(
           "dk_sessao_cliente",
-          JSON.stringify({
-            tipo: "admin",
-            role: "owner",
-            cpf: "03037897430",
-            nome: "Administrador E2E",
-          })
+          JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
         );
-        localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
       });
       await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 90000 });
       await page
         .waitForFunction(
           () => {
-            const btn = document.getElementById("btn-locadora-patrimonio");
+            const btn = document.getElementById("btn-locadora-documentos");
             const panel = document.getElementById("panel-logado");
-            return Boolean(
-              btn &&
-                panel &&
-                !btn.classList.contains("hidden") &&
-                !panel.classList.contains("hidden")
-            );
+            return btn && panel && !btn.classList.contains("hidden") && !panel.classList.contains("hidden");
           },
           { timeout: 35000 }
         )
         .catch(() => null);
-      await page.waitForTimeout(600);
-      const patBtnState = await page.evaluate(() => {
-        const btn = document.getElementById("btn-locadora-patrimonio");
-        const panel = document.getElementById("panel-logado");
-        return {
-          ok: Boolean(btn && panel && !btn.classList.contains("hidden") && !panel.classList.contains("hidden")),
-          panelHidden: panel?.classList.contains("hidden"),
-          btnHidden: btn?.classList.contains("hidden"),
-        };
-      });
-      const patBtn = page.locator("#btn-locadora-patrimonio");
-      if (patBtnState.ok && fs.existsSync(patrimonioPdfPath)) {
-        await patBtn.click();
-        await page.waitForSelector("#panel-patrimonio-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
-        await page.waitForTimeout(800);
-        const unit = await page.evaluate(() => ({
-          crlv: Boolean(
-            window.__DK_patrimonioEhArquivoPdf?.({
-              name: "CRLVDigital_UHK2B97_2025",
-              type: "",
-              size: 80000,
-            })
-          ),
-        }));
-        record("patrimônio aceita CRLVDigital_* sem extensão .pdf", unit.crlv);
-        const antes = await page.locator("#patrimonioFotosLista .patrimonio-foto-item").count();
-        await page.locator("#patrimonioPdfInputNovos").setInputFiles([
-          {
-            name: "CRLVDigital_ZZZ9Z99_2026",
-            mimeType: "application/pdf",
-            buffer: fs.readFileSync(patrimonioPdfPath),
-          },
-        ]);
-        await page
-          .waitForFunction(
-            () => {
-              const msg = document.getElementById("patrimonioMsg")?.textContent || "";
-              const n = document.querySelectorAll("#patrimonioFotosLista .patrimonio-foto-item").length;
-              return (
-                /processar|converter|fila|receber|PDF|Erro/i.test(msg) ||
-                n > 0
-              );
-            },
-            { timeout: 50000 }
-          )
-          .catch(() => null);
-        const depois = await page.locator("#patrimonioFotosLista .patrimonio-foto-item").count();
-        const msgPat = (await page.locator("#patrimonioMsg").textContent().catch(() => "")) || "";
-        record(
-          "patrimônio E2E: Abrir no seletor dispara processamento",
-          depois > antes ||
-            /processar|converter|fila|receber|ignorado|cadastrad/i.test(msgPat),
-          `itens ${antes}→${depois} · ${msgPat.slice(0, 90)}`
-        );
+      const docBtn = page.locator("#btn-locadora-documentos");
+      if (await docBtn.isVisible().catch(() => false)) {
+        await docBtn.click();
+        await page.waitForSelector("#panel-documentos-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
+        const ok = await page.evaluate(() => {
+          const el = document.getElementById("panel-documentos-locadora");
+          return Boolean(el && !el.classList.contains("hidden") && document.getElementById("documentosBuscaBtn"));
+        });
+        record("documentos E2E: painel abre com busca", ok);
       } else {
-        record(
-          "patrimônio E2E: Abrir no seletor dispara processamento",
-          false,
-          !fs.existsSync(patrimonioPdfPath)
-            ? "PDF amostra ausente no repo"
-            : `botão/painel oculto (panel=${patBtnState.panelHidden} btn=${patBtnState.btnHidden})`
-        );
+        record("documentos E2E: painel abre com busca", false, "botão Documentos oculto");
       }
     } catch (e) {
-      record("patrimônio E2E: Abrir no seletor dispara processamento", false, String(e?.message || e).slice(0, 120));
+      record("documentos E2E: painel abre com busca", false, String(e?.message || e).slice(0, 120));
     }
 
     const veiculoBtn = page.locator("text=Cadastro de veículo").first();

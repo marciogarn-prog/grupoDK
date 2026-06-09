@@ -182,29 +182,12 @@
       <div id="cliente-resumo" class="subtext"></div>
     </div>
 
-    <div id="cliente-notificacoes-wrap" class="cliente-app-card hidden" aria-live="polite">
+    <div id="cliente-notificacoes-wrap" class="cliente-app-card" aria-live="polite">
       <h2>Avisos DK</h2>
+      <p class="subtext">Avisos automáticos da locadora sobre pagamentos, multas e manutenção do seu protocolo.</p>
       <div id="cliente-notificacoes"></div>
       <button type="button" id="btn-notif-lidas" class="btn-primary btn-secondary-outline" style="width:100%;margin-top:0.5rem">Marcar avisos como lidos</button>
-    </div>
-
-    <div class="cliente-app-card cliente-comunicacao-card">
-      <h2>Falar com a DK</h2>
-      <p class="subtext">Somente texto — não é permitido enviar ficheiros por este canal.</p>
-      <div class="cliente-comunicacao-lane">
-        <p class="cliente-comunicacao-cabecalho cliente-comunicacao-cabecalho--vendas">Conversar com administração</p>
-        <button type="button" id="clienteComunicacaoVendasBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--vendas" aria-label="Conversar com administração">
-          <span id="clienteComunicacaoPreviewVendas" class="cliente-comunicacao-btn__preview cliente-comunicacao-btn__placeholder">Nenhuma mensagem da administração ainda.</span>
-          <span id="clienteComunicacaoBadgeVendas" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
-        </button>
-      </div>
-      <div class="cliente-comunicacao-lane">
-        <p class="cliente-comunicacao-cabecalho cliente-comunicacao-cabecalho--manutencao">Conversar com manutenção</p>
-        <button type="button" id="clienteComunicacaoManutencaoBtn" class="btn-primary cliente-comunicacao-btn cliente-comunicacao-btn--manutencao" aria-label="Conversar com manutenção">
-          <span id="clienteComunicacaoPreviewManutencao" class="cliente-comunicacao-btn__preview cliente-comunicacao-btn__placeholder">Nenhuma mensagem da manutenção ainda.</span>
-          <span id="clienteComunicacaoBadgeManutencao" class="cliente-comunicacao-badge hidden" aria-hidden="true"></span>
-        </button>
-      </div>
+      <button type="button" id="btn-notif-ver-lidas" class="btn-primary btn-secondary-outline" style="width:100%;margin-top:0.5rem">Ver avisos já lidos</button>
     </div>
 
     <div class="cliente-app-card">
@@ -277,19 +260,13 @@
       </div>
     </div>
 
-    <div id="clienteComunicacaoChatModal" class="cliente-modal dk-chat-modal hidden" role="dialog" aria-modal="true" aria-labelledby="clienteComunicacaoChatTitulo">
-      <div class="cliente-modal__card dk-chat-modal__card">
+    <div id="cliente-modal-avisos-lidos" class="cliente-modal hidden" role="dialog" aria-modal="true" aria-labelledby="cliente-avisos-lidos-title">
+      <div class="cliente-modal__card">
         <header class="cliente-modal__head">
-          <h2 id="clienteComunicacaoChatTitulo" class="portal-modal__title">Conversa</h2>
-          <button type="button" class="btn-primary btn-secondary-outline" id="clienteComunicacaoChatFecharBtn" aria-label="Fechar">Fechar</button>
+          <h2 id="cliente-avisos-lidos-title">Avisos já lidos</h2>
+          <button type="button" id="btn-avisos-lidos-fechar" class="btn-primary btn-secondary-outline" aria-label="Fechar">Fechar</button>
         </header>
-        <div id="clienteComunicacaoChatCorpo" class="dk-chat-modal__corpo" role="log" aria-live="polite"></div>
-        <p class="subtext dk-chat-modal__aviso">Apenas mensagens de texto — sem anexos.</p>
-        <div class="dk-chat-modal__composer">
-          <textarea id="clienteComunicacaoChatInput" class="dk-chat-modal__input" rows="2" maxlength="2000" placeholder="Escreva a sua mensagem…"></textarea>
-          <button type="button" class="btn-primary" id="clienteComunicacaoChatEnviarBtn">Enviar</button>
-        </div>
-        <p id="clienteComunicacaoChatMsg" class="portal-feedback" role="status"></p>
+        <div id="cliente-avisos-lidos-lista" class="cliente-avisos-lidos-lista"></div>
       </div>
     </div>
 
@@ -303,15 +280,13 @@
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
   <script src="cliente-contrato-resumo.js?v=20260608cal-no-trava" defer></script>
-  <script src="portal-comunicacao-operacao.js?v=20260608push-notify" defer></script>
   <script src="portal-supabase-sync.js?v=20260608sync-force-manual" defer></script>
-  <script src="cliente-notificacoes.js?v=20260608push-notify" defer></script>
+  <script src="cliente-notificacoes.js?v=20260609avisos-dk" defer></script>
   <script src="cliente-documentos-locacao.js?v=20260609loc-docs-cadastro" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
   <script src="cliente-relatorio-pagamentos.js?v=20260608lanc-proto" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="cliente-comunicacao-operacao-ui.js?v=20260609com-perf" defer></script>
-  <script src="cliente-push-notificacoes.js?v=20260608push-notify" defer></script>
-  <script src="cliente-app.js?v=20260609sem-cal-pag" defer></script>
+  <script src="cliente-push-notificacoes.js?v=20260609avisos-dk" defer></script>
+  <script src="cliente-app.js?v=20260609avisos-dk" defer></script>
 </body>
 </html>

@@ -264,7 +264,7 @@
           <button type="button" class="btn-primary hidden" id="btn-locadora-operacao">Operação</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-manutencao">Manutenção</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-localizacao">Localização clientes</button>
-          <button type="button" class="btn-primary hidden" id="btn-locadora-patrimonio">Cadastro de patrimônio</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-documentos">Documentos</button>
           <button type="button" class="btn-primary btn-secondary-outline hidden" id="btn-locadora-preview-cliente">Área do cliente (pré-visualizar)</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
@@ -1696,187 +1696,74 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-localizacao-locadora">Voltar</button>
         </div>
       </section>
+      <section id="panel-documentos-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Documentos</h2>
+        <p class="subpage__lead">Depósito de ficheiros <strong>sem IA</strong>. CRLV (nome = placa), contratos (nome = protocolo), multas (nome = <code>PLACA-CPF</code>). Vários ficheiros com o mesmo nome ficam guardados — use a pesquisa para ver todos e excluir um a um.</p>
+        <p id="documentosMsg" class="portal-feedback" role="status"></p>
 
-      <section id="panel-patrimonio-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Cadastro de patrimônio</h2>
-        <p class="subpage__lead">CRLV-e digital — use <strong>CRLVDigital_PLACA_ANO.pdf</strong> (placa entre <code>_</code>). Para enviar <strong>os 162 de uma vez</strong>, use a caixa azul <strong>Completar lote</strong> (ignora os já lidos). Área <strong>Novos</strong>: só placas novas. <strong>Atualização</strong>: renovar CRLV já cadastrado.</p>
-        <p class="subtext">Até <strong>200 PDFs</strong> por envio. A fila processa um a um — mantenha a página aberta (horas em lotes grandes). Mesma placa substitui o anterior.</p>
-        <section id="patrimonioDeposito" class="patrimonio-deposito" aria-labelledby="patrimonioDepositoTitulo">
-          <h3 id="patrimonioDepositoTitulo" class="portal-lanc-aluguel-section__title">Depósito do lote (162 PDFs)</h3>
-          <p class="subtext">Carregue aqui os 162 PDFs <strong>uma vez</strong>. Ficam guardados neste computador (IndexedDB) até concluir. Depois clique <strong>Processar depósito</strong> — a IA tenta cada um (até 5×), <strong>sem bloqueio de reenvio</strong>. Mantenha a página aberta.</p>
-          <div class="patrimonio-deposito-acoes">
-            <label for="patrimonioDepositoInput" class="btn-primary">Carregar PDFs no depósito</label>
-            <button type="button" class="btn-primary" id="patrimonioDepositoProcessarBtn">Processar depósito</button>
-            <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioDepositoRepetirBtn">Repetir falhas</button>
-            <button type="button" class="btn-primary btn-secondary-outline patrimonio-btn-lixo" id="patrimonioDepositoLimparBtn">Limpar depósito</button>
+        <section class="documentos-busca" aria-labelledby="documentosBuscaTitulo">
+          <h3 id="documentosBuscaTitulo" class="portal-lanc-aluguel-section__title">O que você busca?</h3>
+          <fieldset class="documentos-busca-tipos">
+            <legend class="subtext">Tipo de documento</legend>
+            <label class="documentos-busca-tipo"><input type="radio" name="documentosBuscaTipo" value="crlv" checked> CRLV</label>
+            <label class="documentos-busca-tipo"><input type="radio" name="documentosBuscaTipo" value="contrato"> CONTRATO</label>
+            <label class="documentos-busca-tipo"><input type="radio" name="documentosBuscaTipo" value="multa"> MULTAS</label>
+          </fieldset>
+          <div class="documentos-busca-linha">
+            <input type="search" id="documentosBuscaInput" class="portal-field__input documentos-busca-input" placeholder="Placa, protocolo ou PLACA-CPF" autocomplete="off">
+            <button type="button" class="btn-primary" id="documentosBuscaBtn">Buscar</button>
           </div>
-          <input type="file" id="patrimonioDepositoInput" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden">
-          <label id="patrimonioDepositoDropzone" for="patrimonioDepositoInput" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--deposito" tabindex="0" aria-label="Depósito do lote — arraste ou clique para guardar PDFs CRLV.">
-            <p class="patrimonio-pdf-dropzone__titulo">Arrastar os 162 PDFs para o depósito</p>
-            <p class="patrimonio-pdf-dropzone__sub">Os ficheiros <strong>permanecem guardados</strong> mesmo se fechar o browser. Processamento separado — clique «Processar depósito» quando terminar o upload.</p>
-            <p class="patrimonio-pdf-dropzone__limite subtext">Nome: <code>CRLVDigital_PLACA_ANO.pdf</code> · até 200 PDFs · meta 162 veículos</p>
-          </label>
-          <p id="patrimonioDepositoResumo" class="subtext patrimonio-deposito-resumo">Nenhum PDF no depósito.</p>
-          <div id="patrimonioDepositoLista" class="patrimonio-deposito-lista"></div>
+          <p id="documentosBuscaMsg" class="subtext" role="status"></p>
+          <div id="documentosBuscaResultados" class="documentos-busca-resultados"></div>
         </section>
-        <div id="patrimonioLoteProgress" class="patrimonio-lote-progress hidden" aria-live="polite">
-          <div class="patrimonio-lote-progress__track"><div id="patrimonioLoteProgressFill" class="patrimonio-lote-progress__fill"></div></div>
-          <p id="patrimonioLoteProgressText" class="subtext patrimonio-lote-progress__text"></p>
-        </div>
-        <div class="patrimonio-acoes-principais">
-          <label for="patrimonioPdfInputCompletar" class="btn-primary" id="patrimonioBtnCompletarLote">Completar lote (162 PDFs)</label>
-          <label for="patrimonioPdfInputNovos" class="btn-primary btn-secondary-outline" id="patrimonioBtnNovoDoc">Escolher PDFs (novos)</label>
-          <label for="patrimonioPdfInputAtualizacao" class="btn-primary btn-secondary-outline" id="patrimonioBtnAtualizacaoDoc">Escolher PDFs (atualização)</label>
-          <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnReprocessarReprovados">Reprocessar pendentes</button>
-          <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnRevisarFalhados">Revisar todos os falhados</button>
-          <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioBtnLimparFila">Limpar fila</button>
-          <button type="button" class="btn-primary btn-secondary-outline patrimonio-btn-lixo" id="patrimonioBtnExcluirLixo">Excluir lixo (fora do relatório)</button>
-          <button type="button" class="btn-primary btn-secondary-outline hidden" id="patrimonioVerErrosBtn" disabled>Relatório de erros</button>
-          <button type="button" class="btn-primary" id="patrimonioVerRelatorioBtn" disabled>Ver relatório</button>
-        </div>
-        <input type="file" id="patrimonioPdfInputCompletar" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden" data-patrimonio-modo="completar">
-        <input type="file" id="patrimonioPdfInputNovos" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden" data-patrimonio-modo="novo">
-        <input type="file" id="patrimonioPdfInputAtualizacao" accept="application/pdf,.pdf,application/octet-stream" multiple class="patrimonio-file-hidden" data-patrimonio-modo="atualizacao">
-        <div class="patrimonio-pdf-zonas">
-          <label id="patrimonioPdfDropzoneCompletar" for="patrimonioPdfInputCompletar" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--completar" tabindex="0" aria-label="Completar lote de 162 PDFs. Ignora placas já no relatório.">
-            <p class="patrimonio-pdf-dropzone__titulo">Completar lote — enviar os 162 PDFs de uma vez</p>
-            <p class="patrimonio-pdf-dropzone__sub">Seleccione <strong>todos</strong> os ficheiros <code>CRLVDigital_*</code>. O sistema <strong>ignora automaticamente</strong> as placas já no relatório e enfileira só as que faltam para a IA.</p>
-            <p class="patrimonio-pdf-dropzone__limite subtext">Meta 162 veículos · até 200 PDFs por envio · mantenha a página aberta</p>
-          </label>
-          <label id="patrimonioPdfDropzoneNovos" for="patrimonioPdfInputNovos" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--novos" tabindex="0" aria-label="Anexar PDFs novos do CRLV. Clique ou arraste ficheiros.">
-            <p class="patrimonio-pdf-dropzone__titulo">Novos — anexar PDFs do CRLV</p>
-            <p class="patrimonio-pdf-dropzone__sub">Só processa placas <strong>ainda não cadastradas</strong>. A placa vem do nome do ficheiro (<code>CRLVDigital_PES5J25_2026.pdf</code>).</p>
-            <p class="patrimonio-pdf-dropzone__limite subtext">Ignora automaticamente placas repetidas · máx. 12 MB/ficheiro · até 200 PDFs</p>
-          </label>
-          <label id="patrimonioPdfDropzoneAtualizacao" for="patrimonioPdfInputAtualizacao" class="patrimonio-pdf-dropzone patrimonio-pdf-dropzone--atualizacao" tabindex="0" aria-label="Anexar PDFs para atualização do CRLV. Clique ou arraste ficheiros.">
-            <p class="patrimonio-pdf-dropzone__titulo">Atualização — substituir CRLV existente</p>
-            <p class="patrimonio-pdf-dropzone__sub">Só placas <strong>já cadastradas</strong>. Substitui o PDF e atualiza exercício, nome, CPF/CNPJ, local, data e observações.</p>
-            <p class="patrimonio-pdf-dropzone__limite subtext">Chassi, modelo e demais dados fixos mantêm-se · máx. 12 MB/ficheiro · até 200 PDFs</p>
-          </label>
-        </div>
-        <p id="patrimonioOpenAIStatus" class="subtext" role="status"></p>
-        <p id="patrimonioMsg" class="portal-feedback" role="status"></p>
-        <p id="patrimonioResumo" class="subtext" role="status">Nenhum CRLV cadastrado.</p>
-        <h3 class="portal-lanc-aluguel-section__title">Veículos cadastrados</h3>
-        <div id="patrimonioLista" class="patrimonio-lista"></div>
 
-        <h3 class="patrimonio-fotos-titulo">Arquivos enviados</h3>
-        <p id="patrimonioFotosResumo" class="subtext patrimonio-fotos-resumo">Nenhum PDF em processamento.</p>
-        <div id="patrimonioFotosLista" class="patrimonio-fotos-lista"></div>
+        <div class="documentos-depositos">
+          <section class="documentos-deposito documentos-deposito--crlv" aria-labelledby="documentosCrlvTitulo">
+            <h3 id="documentosCrlvTitulo" class="portal-lanc-aluguel-section__title">CRLV — documentos dos veículos</h3>
+            <p class="subtext">Nome do ficheiro = <strong>placa</strong> (ex.: <code>ABC1D23.pdf</code>).</p>
+            <input type="file" id="documentosInputCrlv" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+            <label id="documentosDropCrlv" for="documentosInputCrlv" class="documentos-dropzone" tabindex="0">Arrastar ou clicar para depositar CRLV</label>
+            <p id="documentosUploadMsgCrlv" class="subtext"></p>
+            <p id="documentosResumoCrlv" class="subtext documentos-resumo">0 ficheiro(s) CRLV no depósito.</p>
+          </section>
+
+          <section class="documentos-deposito documentos-deposito--contrato" aria-labelledby="documentosContratoTitulo">
+            <h3 id="documentosContratoTitulo" class="portal-lanc-aluguel-section__title">Contratos</h3>
+            <p class="subtext">Nome do ficheiro = <strong>número do protocolo</strong>.</p>
+            <input type="file" id="documentosInputContrato" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+            <label id="documentosDropContrato" for="documentosInputContrato" class="documentos-dropzone documentos-dropzone--contrato" tabindex="0">Arrastar ou clicar para depositar contratos</label>
+            <p id="documentosUploadMsgContrato" class="subtext"></p>
+            <p id="documentosResumoContrato" class="subtext documentos-resumo">0 contrato(s) no depósito.</p>
+          </section>
+
+          <section class="documentos-deposito documentos-deposito--multa" aria-labelledby="documentosMultaTitulo">
+            <h3 id="documentosMultaTitulo" class="portal-lanc-aluguel-section__title">Multas</h3>
+            <p class="subtext">Nome do ficheiro = <strong>PLACA-CPF</strong> (ex.: <code>ABC1D23-12345678901.pdf</code>).</p>
+            <input type="file" id="documentosInputMulta" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+            <label id="documentosDropMulta" for="documentosInputMulta" class="documentos-dropzone documentos-dropzone--multa" tabindex="0">Arrastar ou clicar para depositar multas</label>
+            <p id="documentosUploadMsgMulta" class="subtext"></p>
+            <p id="documentosResumoMulta" class="subtext documentos-resumo">0 multa(s) no depósito.</p>
+          </section>
+        </div>
+
         <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-patrimonio-locadora">Voltar</button>
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-documentos-locadora">Voltar</button>
         </div>
       </section>
 
     </div>
   </div>
-
-  <div id="patrimonioCameraOverlay" class="patrimonio-overlay patrimonio-overlay--camera hidden" aria-hidden="true" role="dialog" aria-label="Câmera">
-    <div class="patrimonio-camera-wrap">
-      <video id="patrimonioCameraVideo" class="patrimonio-camera-video" playsinline autoplay muted></video>
-    </div>
-    <canvas id="patrimonioCameraCanvas" class="patrimonio-file-hidden" aria-hidden="true"></canvas>
-    <div class="patrimonio-camera-controls">
-      <button type="button" class="btn-primary btn-secondary-outline patrimonio-camera-cancel" id="patrimonioCameraCancelarBtn">Cancelar</button>
-      <button type="button" class="patrimonio-shutter" id="patrimonioCameraCapturarBtn" aria-label="Tirar foto">
-        <span class="patrimonio-shutter__ring" aria-hidden="true"></span>
-      </button>
-      <button type="button" class="btn-primary btn-secondary-outline patrimonio-camera-flash" id="patrimonioCameraFlashBtn" aria-pressed="true" title="Flash / lanterna">Flash: on</button>
-    </div>
-    <button type="button" class="patrimonio-camera-nativa-btn" id="patrimonioCameraNativaBtn">Câmera nativa do telemóvel (flash)</button>
-  </div>
-
-  <div id="patrimonioPreviewOverlay" class="patrimonio-overlay patrimonio-overlay--preview hidden" aria-hidden="true" role="dialog" aria-label="Confirmar foto">
-    <p class="patrimonio-preview-pergunta patrimonio-crop-instrucao">O sistema localiza os cantos da folha (pontos vermelhos). Arraste com o dedo ou rato para corrigir. Área verde = recorte. Pinça ou roda do rato para zoom.</p>
-    <div id="patrimonioCropStage" class="patrimonio-crop-stage hidden">
-      <div id="patrimonioCropViewport" class="patrimonio-crop-viewport">
-        <div id="patrimonioCropInner" class="patrimonio-crop-inner">
-          <img id="patrimonioCropImg" class="patrimonio-crop-img" alt="Foto para recorte" draggable="false">
-          <svg class="patrimonio-crop-svg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-            <defs>
-              <mask id="patrimonioCropMask">
-                <rect width="100" height="100" fill="white"></rect>
-                <polygon id="patrimonioCropPolygon" fill="black" points="6,8 94,8 94,98 6,98"></polygon>
-              </mask>
-            </defs>
-            <rect width="100" height="100" fill="rgba(0,0,0,0.45)" mask="url(#patrimonioCropMask)"></rect>
-            <polygon id="patrimonioCropQuad" fill="none" stroke="#22c55e" stroke-width="0.6" vector-effect="non-scaling-stroke" points="6,8 94,8 94,98 6,98"></polygon>
-          </svg>
-          <button type="button" class="patrimonio-crop-handle" data-canto="tl" aria-label="Canto superior esquerdo"></button>
-          <button type="button" class="patrimonio-crop-handle" data-canto="tr" aria-label="Canto superior direito"></button>
-          <button type="button" class="patrimonio-crop-handle" data-canto="br" aria-label="Canto inferior direito"></button>
-          <button type="button" class="patrimonio-crop-handle" data-canto="bl" aria-label="Canto inferior esquerdo"></button>
-        </div>
+  <div id="documentosViewerModal" class="portal-modal documentos-viewer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="documentosViewerTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-close-documentos-viewer></div>
+    <div class="portal-modal__card portal-modal__card--wide documentos-viewer-card">
+      <div class="documentos-viewer-toolbar">
+        <h3 id="documentosViewerTitulo" class="portal-modal__title">Documento</h3>
+        <button type="button" class="btn-primary btn-secondary-outline" id="documentosViewerFecharBtn">Fechar</button>
       </div>
-    </div>
-    <img id="patrimonioPreviewImg" class="patrimonio-preview-img hidden" alt="Pré-visualização do CRLV recortado">
-    <div class="patrimonio-overlay__bar patrimonio-overlay__bar--preview">
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewNaoBtn">Não — outra foto</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewRetratBtn">Ajustar cantos</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewDetectarCantosBtn">Detectar cantos</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioPreviewAplicarRecorteBtn">Aplicar recorte</button>
-      <button type="button" class="btn-primary" id="patrimonioPreviewSimBtn">Sim — salvar</button>
+      <iframe id="documentosViewerIframe" class="documentos-viewer-iframe hidden" title="Visualizar documento"></iframe>
+      <img id="documentosViewerImg" class="documentos-viewer-img hidden" alt="Documento">
     </div>
   </div>
-
-  <div id="patrimonioImagemViewer" class="patrimonio-overlay patrimonio-overlay--viewer hidden" aria-hidden="true" role="dialog" aria-label="Documento CRLV">
-    <div class="patrimonio-viewer-toolbar">
-      <button type="button" class="btn-primary btn-secondary-outline hidden" id="patrimonioImagemPdfBtn">Baixar PDF</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemPrintBtn">Imprimir</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareEmailBtn">E-mail</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemShareWaBtn">WhatsApp</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioImagemFecharBtn">Fechar</button>
-    </div>
-    <div id="patrimonioImagemViewerZoom" class="patrimonio-viewer-zoom-viewport">
-      <div class="patrimonio-viewer-zoom-inner">
-        <img id="patrimonioImagemViewerImg" class="patrimonio-viewer-img" alt="CRLV recortado" draggable="false">
-      </div>
-    </div>
-  </div>
-
-  <div id="patrimonioFotoCapturaViewer" class="patrimonio-overlay patrimonio-overlay--viewer hidden" aria-hidden="true" role="dialog" aria-label="Foto capturada">
-    <div class="patrimonio-viewer-toolbar patrimonio-foto-captura-toolbar">
-      <span id="patrimonioFotoCapturaTag" class="patrimonio-foto-captura-tag"></span>
-      <span id="patrimonioFotoCapturaStatus" class="patrimonio-foto-captura-status subtext"></span>
-      <button type="button" class="btn-primary" id="patrimonioFotoCapturaRevisarBtn">Revisar com IA</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioFotoCapturaExcluirBtn">Excluir</button>
-      <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioFotoCapturaFecharBtn">Fechar</button>
-    </div>
-    <div id="patrimonioFotoCapturaViewerZoom" class="patrimonio-viewer-zoom-viewport">
-      <div class="patrimonio-viewer-zoom-inner">
-        <img id="patrimonioFotoCapturaViewerImg" class="patrimonio-viewer-img" alt="Foto CRLV capturada" draggable="false">
-      </div>
-    </div>
-  </div>
-
-  <div id="patrimonioRelatorioModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="patrimonioRelatorioTitulo">
-    <div class="portal-modal__backdrop" data-close-pat-relatorio></div>
-    <div class="portal-modal__card portal-modal__card--wide portal-modal__card--patrimonio-relatorio">
-      <div class="patrimonio-relatorio-modal-top">
-        <h3 id="patrimonioRelatorioTitulo" class="portal-modal__title">Relatório de patrimônio — CRLV</h3>
-        <button type="button" class="btn-primary btn-secondary-outline patrimonio-relatorio-fechar-topo" data-close-pat-relatorio>Fechar</button>
-      </div>
-      <p class="subtext portal-modal__text">Campos na ordem oficial do CRLV-e. Exporte ou clique em «Ver imagem» por placa.</p>
-      <div class="patrimonio-relatorio-export">
-        <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioErrosPdfBtn">PDF erros</button>
-        <button type="button" class="btn-primary" id="patrimonioRelatorioPdfBtn">Gerar PDF</button>
-        <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioExcelBtn">Gerar Excel</button>
-        <button type="button" class="btn-primary btn-secondary-outline" id="patrimonioRelatorioAtualizarBtn">Atualizar</button>
-      </div>
-      <div class="patrimonio-relatorio-modal-scroll">
-        <div id="patrimonioRelatorioContador" class="patrimonio-relatorio-contador" aria-live="polite"></div>
-        <div id="patrimonioRelatorioErrosWrap" class="patrimonio-relatorio-erros hidden" aria-live="polite">
-          <h4 class="patrimonio-relatorio-erros__titulo">Arquivos recusados pela IA</h4>
-          <div id="patrimonioRelatorioErrosConteudo" class="patrimonio-relatorio-erros__conteudo"></div>
-        </div>
-        <div id="patrimonioRelatorioConteudo" class="patrimonio-relatorio-conteudo" aria-live="polite"></div>
-      </div>
-      <div class="portal-modal__actions patrimonio-relatorio-modal-footer">
-        <button type="button" class="btn-primary btn-secondary-outline" data-close-pat-relatorio>Fechar</button>
-      </div>
-    </div>
-  </div>
-
   <div id="portalWaTodosModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalWaTodosTitulo">
     <div class="portal-modal__backdrop" data-close-wa-todos></div>
     <div class="portal-modal__card portal-modal__card--wa-todos">
@@ -1901,12 +1788,6 @@
       </div>
     </div>
   </div>
-
-  <div id="patrimonioIaBgBadge" class="patrimonio-ia-bg-badge hidden" role="status" aria-live="polite">
-    <span id="patrimonioIaBgBadgeText" class="patrimonio-ia-bg-badge__text"></span>
-    <button type="button" class="patrimonio-ia-bg-badge__btn" id="patrimonioIaBgBadgeIrBtn">Património</button>
-  </div>
-
   <div id="portalRelatorioPdfViewer" class="portal-pdf-viewer hidden" aria-hidden="true">
     <div class="portal-pdf-viewer__toolbar">
       <span class="portal-pdf-viewer__hint">Pré-visualização do relatório &mdash; imprima, guarde como PDF ou partilhe.</span>
@@ -2149,20 +2030,17 @@
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
   <script src="app.js?v=20260609login-manut" defer></script>
-  <script src="cliente-notificacoes.js?v=20260522invalidado" defer></script>
+  <script src="cliente-notificacoes.js?v=20260609avisos-dk" defer></script>
   <script src="portal-comunicacao-operacao.js?v=20260609com-perf" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260609com-perf" defer></script>
+  <script src="portal-locadora-ui.js?v=20260609avisos-dk" defer></script>
   <script src="portal-comunicacao-operacao-ui.js?v=20260609com-perf" defer></script>
   <script src="portal-locacao-documentos.js?v=20260609loc-docs-cadastro" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-  <script src="portal-patrimonio-idb.js?v=20260608deposito-fix" defer></script>
-  <script src="portal-patrimonio-crop.js?v=20260603zerafila" defer></script>
-  <script src="portal-patrimonio.js?v=20260521ui-audit-fix" defer></script>
+  <script src="portal-documentos.js?v=20260609docs-v1" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260521setor-routing" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260609avisos-dk" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260609com-perf" defer></script>
+  <script src="portal-supabase-sync.js?v=20260609docs-v1" defer></script>
 </body>
 </html>

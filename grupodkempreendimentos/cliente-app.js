@@ -742,25 +742,66 @@
     });
   }
 
+  function notificacaoMetaHtml(n) {
+    const parts = [];
+    if (n.protocolo) parts.push(`Protocolo ${escapeHtml(n.protocolo)}`);
+    if (n.placa) parts.push(escapeHtml(n.placa));
+    const quando = n.criadoEm ? new Date(n.criadoEm).toLocaleString("pt-BR") : "";
+    if (quando) parts.push(escapeHtml(quando));
+    if (n.lido && n.lidaEm) {
+      parts.push(`Lido ${escapeHtml(new Date(n.lidaEm).toLocaleString("pt-BR"))}`);
+    }
+    return parts.length ? `<p class="cliente-notificacao__meta">${parts.join(" · ")}</p>` : "";
+  }
+
+  function renderNotificacaoItemHtml(n, extraClass) {
+    return `<div class="cliente-notificacao${extraClass ? ` ${extraClass}` : ""}" role="status"><p class="cliente-notificacao__msg">${escapeHtml(n.mensagem)}</p>${notificacaoMetaHtml(n)}</div>`;
+  }
+
   function renderNotificacoes(cpf) {
     const wrap = $("cliente-notificacoes-wrap");
     const box = $("cliente-notificacoes");
+    const btnLidas = $("btn-notif-lidas");
     const listFn = typeof window.__DK_clienteNotificacoesList === "function" ? window.__DK_clienteNotificacoesList : null;
     if (!wrap || !box || !listFn) return;
     const rows = listFn(cpf, { incluirLidas: false });
     if (!rows.length) {
-      wrap.classList.add("hidden");
-      box.innerHTML = "";
-      return;
+      box.innerHTML = `<p class="subtext cliente-notificacoes-vazio">Nenhum aviso novo no momento.</p>`;
+    } else {
+      box.innerHTML = rows.map((n) => renderNotificacaoItemHtml(n)).join("");
     }
-    wrap.classList.remove("hidden");
-    box.innerHTML = rows
-      .map(
-        (n) =>
-          `<div class="cliente-notificacao" role="status"><p class="cliente-notificacao__msg">${escapeHtml(n.mensagem)}</p><p class="cliente-notificacao__meta">Protocolo ${escapeHtml(n.protocolo || "—")} · ${escapeHtml(n.criadoEm ? new Date(n.criadoEm).toLocaleString("pt-BR") : "")}</p></div>`
-      )
-      .join("");
+    if (btnLidas) btnLidas.disabled = !rows.length;
   }
+
+  function renderAvisosLidosModal(cpf) {
+    const modal = $("cliente-modal-avisos-lidos");
+    const lista = $("cliente-avisos-lidos-lista");
+    const listFn = typeof window.__DK_clienteNotificacoesList === "function" ? window.__DK_clienteNotificacoesList : null;
+    if (!modal || !lista || !listFn) return;
+    const rows = listFn(cpf, { apenasLidas: true });
+    if (!rows.length) {
+      lista.innerHTML = `<p class="subtext">Ainda não há avisos marcados como lidos.</p>`;
+    } else {
+      lista.innerHTML = rows.map((n) => renderNotificacaoItemHtml(n, "cliente-notificacao--lida")).join("");
+    }
+    modal.classList.remove("hidden");
+    modal.removeAttribute("hidden");
+  }
+
+  function fecharAvisosLidosModal() {
+    const modal = $("cliente-modal-avisos-lidos");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("hidden", "");
+  }
+
+  function scrollToAvisosCliente() {
+    const wrap = $("cliente-notificacoes-wrap");
+    if (!wrap) return;
+    wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  window.__DK_clienteScrollToAvisos = scrollToAvisosCliente;
 
   function pagamentoSortKey(data, extraTs) {
     const d = parseBrDate(data);
@@ -1057,12 +1098,6 @@
         window.__DK_comprovantesClienteInvalidateCache();
       }
       syncOk = true;
-      if (typeof window.__DK_pullComunicacaoOperacaoFromCloudMerge === "function") {
-        await window.__DK_pullComunicacaoOperacaoFromCloudMerge().catch(() => null);
-      }
-      if (typeof window.__DK_clienteComunicacaoChecarNovas === "function") {
-        window.__DK_clienteComunicacaoChecarNovas();
-      }
       if (sessao?.cpf) {
         window.setTimeout(() => consolidarLancamentosClienteLogado(sessao.cpf), 0);
       }
@@ -1162,9 +1197,6 @@
     }
 
     renderNotificacoes(cpf);
-    if (typeof window.__DK_clienteComunicacaoRefresh === "function") {
-      window.__DK_clienteComunicacaoRefresh();
-    }
 
     const lista = $("cliente-contratos");
     if (lista) {
@@ -2001,7 +2033,6 @@
       await processIncomingShare();
     }
     await atualizarProgramaEDados(sess, { silent: false });
-    window.__DK_clienteComunicacaoInitBaseline?.();
     if (comprovanteFile) {
       showView("app");
       renderApp(sess);
@@ -2193,6 +2224,15 @@
         window.__DK_markLocalDataAuthority(5 * 60 * 1000);
       }
       renderNotificacoes(sessao.cpf);
+    });
+    $("btn-notif-ver-lidas")?.addEventListener("click", () => {
+      const sessao = getSessao();
+      if (!sessao) return;
+      renderAvisosLidosModal(sessao.cpf);
+    });
+    $("btn-avisos-lidos-fechar")?.addEventListener("click", () => fecharAvisosLidosModal());
+    $("cliente-modal-avisos-lidos")?.addEventListener("click", (e) => {
+      if (e.target?.id === "cliente-modal-avisos-lidos") fecharAvisosLidosModal();
     });
     $("comp-arquivo")?.addEventListener("change", onComprovanteFileChange);
     $("btn-enviar-comprovante")?.addEventListener("click", () => enviarComprovanteParaNuvem());
