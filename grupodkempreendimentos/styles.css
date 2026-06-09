@@ -4990,9 +4990,15 @@ table.validados-app .lnk-comprovante {
   padding: 0.35rem 0.55rem;
 }
 
-#operacaoLocacaoDocumentosBtn {
-  width: 100%;
-  max-width: 20rem;
+.portal-loc-docs__import-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.portal-loc-docs__import-btns .btn-primary {
+  min-width: 7.5rem;
 }
 
 /* Comunicação cliente ↔ operação (vendas verde / manutenção amarelo) */

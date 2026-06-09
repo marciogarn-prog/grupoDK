@@ -767,10 +767,12 @@ async function runSuite() {
     );
     record(
       "cadastro locação documentos por protocolo",
-        indexFresh.includes("operacaoLocacaoDocumentosBtn") &&
+        indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
+        indexFresh.includes("operacaoLocacaoDocCrlvBtn") &&
+        !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
         indexFresh.includes("Enviar para o cliente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "Abrir PDF + enviar ao app cliente"
+      "importar do depósito Documentos; Abrir + enviar ao app"
     );
     record(
       "lançamento multas consulta depósito Documentos",
@@ -779,7 +781,7 @@ async function runSuite() {
         indexFresh.includes("Consultar multas no depósito"),
       "busca PLACA-CPF e importação para protocolo"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-enviar`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-deposito`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -787,9 +789,11 @@ async function runSuite() {
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
         locDocsJs.includes("enviadoCliente") &&
+        locDocsJs.includes("importarTipoDoDeposito") &&
         locDocsJs.includes("data-loc-doc-abrir") &&
-        locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito"),
-      "Abrir + enviar cliente; só enviados vão à nuvem"
+        locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito") &&
+        !locDocsJs.includes("adicionarDocumentos"),
+      "importação manual do depósito; só enviados vão à nuvem"
     );
     const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-enviar`, {
       cache: "no-store",

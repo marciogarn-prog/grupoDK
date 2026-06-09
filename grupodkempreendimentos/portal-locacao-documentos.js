@@ -4,7 +4,6 @@
 (function portalLocacaoDocumentos() {
   const STORAGE_KEY = "dk_locacao_documentos_v1";
   const MAX_BYTES = 4 * 1024 * 1024;
-  const MIME_OK = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp", "image/jpg"]);
 
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
@@ -134,15 +133,6 @@
     return true;
   }
 
-  function readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const fr = new FileReader();
-      fr.onload = () => resolve(String(fr.result || ""));
-      fr.onerror = () => reject(fr.error || new Error("leitura"));
-      fr.readAsDataURL(file);
-    });
-  }
-
   function getPlacaAtual() {
     const inp = document.getElementById("operacaoLocacaoPlaca");
     const raw = String(inp?.value || "").trim();
@@ -215,7 +205,7 @@
       tamanho: row.blob.size,
       createdAt: Date.now(),
       registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
-      registradoPorNome: String(reg.nome || "").trim() || "Importação automática",
+      registradoPorNome: String(reg.nome || "").trim() || "Importação do depósito",
       arquivoBase64: dataUrl,
       tipo: categoria,
       origemDepositoId: depositEntry.id,
@@ -228,78 +218,77 @@
     return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo };
   }
 
-  async function autoImportarDocumentosDeposito() {
+  let importDepositoBusy = false;
+
+  async function importarTipoDoDeposito(categoria) {
+    const msgEl = document.getElementById("operacaoLocacaoDocumentosMsg");
+    const cat = String(categoria || "").trim().toLowerCase();
+    if (cat !== "contrato" && cat !== "crlv") return { ok: false, msg: "Tipo de documento inválido." };
+    if (importDepositoBusy) return { ok: false, msg: "Aguarde a importação em curso." };
+
     const nc = getProtocoloAtual();
     const cpf = getCpfAtual();
     const placa = getPlacaAtual();
-    if (!nc || cpf.length !== 11 || placa.length < 6) return { ok: false, reason: "incomplete" };
-    if (!podeGerirDocumentosLocacao()) return { ok: false, reason: "sem_perm" };
-    if (!protocoloLocacaoAtivo(nc)) return { ok: false, reason: "inativo" };
-    const listarFn = typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
-    if (!listarFn) return { ok: false, reason: "no_deposit" };
+    const label = cat === "contrato" ? "Contrato" : "CRLV";
 
-    const reg = getRegistroOperador();
-    const msgs = [];
-    let added = 0;
-
-    const contratos = listarFn("contrato", nc);
-    if (contratos.length) {
-      const r = await importarDocDepositoParaProtocolo(contratos[0], "contrato", nc, cpf, placa, reg);
-      if (r.added) {
-        added += 1;
-        msgs.push("Contrato importado do depósito.");
-      } else if (r.reason === "no_blob") {
-        msgs.push("Contrato encontrado no depósito, mas o ficheiro não está neste computador.");
-      } else if (r.reason === "too_big") {
-        msgs.push("Contrato no depósito excede 4 MB — reduza o ficheiro.");
-      }
+    if (!podeGerirDocumentosLocacao()) {
+      return { ok: false, msg: "Sem permissão de cadastro de locação." };
+    }
+    if (!nc) {
+      return { ok: false, msg: "Escolha o protocolo (ou informe data de início para NOVO) antes de importar." };
+    }
+    if (cpf.length !== 11) {
+      return { ok: false, msg: "Informe o CPF do cliente antes de importar documentos." };
+    }
+    if (!protocoloLocacaoAtivo(nc)) {
+      return { ok: false, msg: `Protocolo ${nc} finalizado — não é possível importar novos documentos.` };
+    }
+    if (cat === "crlv" && placa.length < 6) {
+      return { ok: false, msg: "Informe a placa do veículo antes de importar o CRLV." };
     }
 
-    const crlvs = listarFn("crlv", placa);
-    if (crlvs.length) {
-      const r = await importarDocDepositoParaProtocolo(crlvs[0], "crlv", nc, cpf, placa, reg);
-      if (r.added) {
-        added += 1;
-        msgs.push("CRLV importado do depósito.");
-      } else if (r.reason === "no_blob") {
-        msgs.push("CRLV encontrado no depósito, mas o ficheiro não está neste computador.");
-      } else if (r.reason === "too_big") {
-        msgs.push("CRLV no depósito excede 4 MB — reduza o ficheiro.");
-      }
+    const listarFn =
+      typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
+    if (!listarFn) {
+      return {
+        ok: false,
+        msg: "Depósito Documentos indisponível — abra o menu Documentos neste computador.",
+      };
     }
 
-    return { ok: true, added, msgs };
-  }
+    const chave = cat === "contrato" ? nc : placa;
+    const rows = listarFn(cat, chave);
+    if (!rows.length) {
+      const hint =
+        cat === "contrato"
+          ? `Nenhum contrato no depósito para o protocolo ${nc}. Deposite em Documentos (nome = protocolo).`
+          : `Nenhum CRLV no depósito para a placa ${placa}. Deposite em Documentos (nome = placa).`;
+      return { ok: false, msg: hint };
+    }
 
-  let autoImportTimer = 0;
-  let autoImportBusy = false;
-
-  function scheduleAutoImportDeposito() {
-    if (autoImportTimer) window.clearTimeout(autoImportTimer);
-    autoImportTimer = window.setTimeout(async () => {
-      autoImportTimer = 0;
-      if (autoImportBusy) return;
-      const nc = getProtocoloAtual();
-      const cpf = getCpfAtual();
-      const placa = getPlacaAtual();
-      if (!nc || cpf.length !== 11 || placa.length < 6) return;
-      autoImportBusy = true;
-      try {
-        const res = await autoImportarDocumentosDeposito();
-        const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
-        if (res.added > 0) {
-          refreshUi();
-          if (msg) {
-            const base = `${docsDoProtocolo(nc, cpf).length} documento(s) no protocolo ${nc}.`;
-            msg.textContent = res.msgs?.length ? `${res.msgs.join(" ")} ${base}` : base;
-          }
-        } else if (msg && res.msgs?.length && !String(msg.textContent || "").includes("documento(s) no protocolo")) {
-          msg.textContent = res.msgs.join(" ");
-        }
-      } finally {
-        autoImportBusy = false;
+    importDepositoBusy = true;
+    try {
+      const reg = getRegistroOperador();
+      const r = await importarDocDepositoParaProtocolo(rows[0], cat, nc, cpf, placa, reg);
+      if (r.added) {
+        return { ok: true, msg: `${label} importado do depósito Documentos.` };
       }
-    }, 450);
+      if (r.skipped) {
+        return { ok: true, already: true, msg: `${label} já está neste protocolo.` };
+      }
+      if (r.reason === "no_blob") {
+        return {
+          ok: false,
+          msg: `${label} encontrado no depósito, mas o ficheiro não está neste computador — deposite de novo em Documentos.`,
+        };
+      }
+      if (r.reason === "too_big") {
+        return { ok: false, msg: `${label} no depósito excede 4 MB — reduza o ficheiro em Documentos.` };
+      }
+      return { ok: false, msg: `Não foi possível importar o ${label.toLowerCase()}.` };
+    } finally {
+      importDepositoBusy = false;
+    }
   }
 
   function mergeLocacaoDocumentos(localArr, cloudArr) {
@@ -332,55 +321,6 @@
     return Array.from(byId.values());
   }
 
-  async function adicionarDocumentos(files, nc, cpf) {
-    const protocolo = normNc(nc);
-    const cpfDig = onlyDigits(cpf).slice(0, 11);
-    if (!protocolo) return { ok: false, msg: "Escolha um protocolo antes de carregar documentos." };
-    if (!podeGerirDocumentosLocacao()) {
-      return { ok: false, msg: "Sem permissão de cadastro de locação para anexar documentos." };
-    }
-    if (!protocoloLocacaoAtivo(normNc(nc))) {
-      return { ok: false, msg: "Só é possível anexar documentos a protocolos ativos (sem data fim)." };
-    }
-    const lista = Array.from(files || []).filter(Boolean);
-    if (!lista.length) return { ok: false, msg: "Nenhum ficheiro selecionado." };
-
-    const reg = getRegistroOperador();
-    const all = loadAll();
-    let added = 0;
-
-    for (const file of lista) {
-      const mime = String(file.type || "").toLowerCase();
-      const nome = String(file.name || "documento").trim();
-      const extOk = /\.(pdf|jpe?g|png|webp)$/i.test(nome);
-      if (!MIME_OK.has(mime) && !extOk) continue;
-      if (file.size > MAX_BYTES) {
-        return { ok: false, msg: `«${nome}» excede 4 MB. Reduza o ficheiro e tente de novo.` };
-      }
-      const dataUrl = await readFileAsDataUrl(file);
-      if (!dataUrl) continue;
-      const id = `ld_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-      all.push({
-        id,
-        numeroContrato: protocolo,
-        cpf: cpfDig,
-        nome,
-        mimeType: mime || (nome.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
-        tamanho: file.size,
-        createdAt: Date.now(),
-        registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
-        registradoPorNome: String(reg.nome || "").trim(),
-        arquivoBase64: dataUrl,
-        enviadoCliente: false,
-      });
-      added += 1;
-    }
-
-    if (!added) return { ok: false, msg: "Formato não suportado. Use PDF, JPG ou PNG." };
-    saveAll(all);
-    return { ok: true, msg: `${added} documento(s) guardado(s) no protocolo ${protocolo}.` };
-  }
-
   function abrirDocumento(d) {
     const url = String(d?.arquivoBase64 || "").trim();
     if (!url) return false;
@@ -397,7 +337,7 @@
     if (idx === -1) return { ok: false, msg: "Documento não encontrado." };
     const doc = all[idx];
     if (!String(doc.arquivoBase64 || "").trim()) {
-      return { ok: false, msg: "Ficheiro indisponível neste computador — carregue de novo o PDF." };
+      return { ok: false, msg: "Ficheiro indisponível neste computador — importe de novo a partir de Documentos." };
     }
     if (doc.enviadoCliente === true) {
       return { ok: true, already: true, msg: "Este documento já foi enviado ao cliente." };
@@ -479,40 +419,54 @@
 
   function refreshUi() {
     const wrap = document.getElementById("operacaoLocacaoDocumentosWrap");
-    const btn = document.getElementById("operacaoLocacaoDocumentosBtn");
+    const btnContrato = document.getElementById("operacaoLocacaoDocContratoBtn");
+    const btnCrlv = document.getElementById("operacaoLocacaoDocCrlvBtn");
     const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
-    if (!wrap || !btn) return;
+    if (!wrap || !btnContrato || !btnCrlv) return;
 
     const permitido = podeGerirDocumentosLocacao();
     const nc = getProtocoloAtual();
     const cpf = getCpfAtual();
+    const placa = getPlacaAtual();
     const temProtocolo = Boolean(nc);
     const ativo = temProtocolo ? protocoloLocacaoAtivo(nc) : false;
+    const cpfOk = cpf.length === 11;
+    const placaOk = placa.length >= 6;
+    const baseOk = permitido && temProtocolo && ativo && cpfOk;
 
     wrap.classList.toggle("hidden", !permitido);
-    btn.disabled = !permitido || !temProtocolo || !ativo;
+    btnContrato.disabled = !baseOk;
+    btnCrlv.disabled = !baseOk || !placaOk;
+
     if (!permitido) {
       if (msg) msg.textContent = "";
       return;
     }
     if (!temProtocolo) {
-      if (msg) msg.textContent = "Escolha o protocolo (ou informe data de início para NOVO) para carregar documentos.";
+      if (msg) {
+        msg.textContent =
+          "Escolha o protocolo (ou informe data de início para NOVO). Deposite ficheiros em Documentos e importe com Contrato ou CRLV.";
+      }
       renderLista("", cpf);
+      return;
+    }
+    if (!cpfOk) {
+      if (msg) msg.textContent = "Informe o CPF do cliente para importar documentos do depósito.";
+      renderLista(nc, cpf);
       return;
     }
     if (!ativo) {
       if (msg) {
-        msg.textContent = `Protocolo ${nc} finalizado — não é possível anexar novos documentos. O cliente só acede à documentação em protocolos ativos.`;
+        msg.textContent = `Protocolo ${nc} finalizado — não é possível importar novos documentos. O cliente só acede à documentação em protocolos ativos.`;
       }
       renderLista(nc, cpf);
       return;
     }
     if (msg) {
       const n = docsDoProtocolo(nc, cpf).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — use <strong>Abrir</strong> para conferir e <strong>Enviar para o cliente</strong> para publicar no app.`;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — importe com Contrato/CRLV; Abrir para conferir; Enviar para o cliente para publicar no app.`;
     }
     renderLista(nc, cpf);
-    scheduleAutoImportDeposito();
   }
 
   function normPlacaGenerica(raw) {
@@ -666,23 +620,25 @@
   }
 
   function bindUi() {
-    const btn = document.getElementById("operacaoLocacaoDocumentosBtn");
-    const input = document.getElementById("operacaoLocacaoDocumentosInput");
+    const btnContrato = document.getElementById("operacaoLocacaoDocContratoBtn");
+    const btnCrlv = document.getElementById("operacaoLocacaoDocCrlvBtn");
     const lista = document.getElementById("operacaoLocacaoDocumentosLista");
     const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
 
-    btn?.addEventListener("click", () => {
-      if (btn.disabled) return;
-      input?.click();
+    async function onImportClick(categoria) {
+      const res = await importarTipoDoDeposito(categoria);
+      refreshUi();
+      if (msg && res.msg) msg.textContent = res.msg;
+    }
+
+    btnContrato?.addEventListener("click", () => {
+      if (btnContrato.disabled) return;
+      void onImportClick("contrato");
     });
 
-    input?.addEventListener("change", async () => {
-      const nc = getProtocoloAtual();
-      const cpf = getCpfAtual();
-      const res = await adicionarDocumentos(input.files, nc, cpf);
-      if (msg) msg.textContent = res.msg || "";
-      input.value = "";
-      refreshUi();
+    btnCrlv?.addEventListener("click", () => {
+      if (btnCrlv.disabled) return;
+      void onImportClick("crlv");
     });
 
     lista?.addEventListener("click", (e) => {
@@ -723,7 +679,7 @@
   window.__DK_docsLocacaoInferTipo = inferDocTipo;
   window.__DK_docsLocacaoLoadAll = loadAll;
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
-  window.__DK_autoImportLocacaoDocumentosDeposito = autoImportarDocumentosDeposito;
+  window.__DK_importarLocacaoDocDoDeposito = importarTipoDoDeposito;
   window.__DK_refreshLancMultasDocumentosDeposito = refreshLancMultasDocumentosDeposito;
   window.__DK_importarMultaDepositoParaProtocolo = importarMultaDepositoParaLancamento;
 
