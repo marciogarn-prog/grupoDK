@@ -5028,6 +5028,11 @@ table.validados-app .lnk-comprovante {
   opacity: 0.72;
 }
 
+.portal-loc-docs-item__enviar--busy {
+  opacity: 0.85;
+  cursor: wait;
+}
+
 .portal-loc-docs-item__enviado {
   color: #86efac;
 }

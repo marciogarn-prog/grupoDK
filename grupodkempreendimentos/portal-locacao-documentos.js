@@ -15,6 +15,7 @@
     crlv: "operacaoLocacaoDocumentosListaCrlv",
     multa: "operacaoLancMultasDocumentosLista",
   };
+  const docsEnviando = new Set();
   const BUSCA_UI = {
     contrato: {
       inputId: "operacaoLocacaoDocBuscaContrato",
@@ -88,14 +89,22 @@
       typeof window.__DK_docsLocacaoMerge === "function" ? window.__DK_docsLocacaoMerge : null;
     let redisArr = null;
     let cloudArr = null;
-    if (typeof window.__DK_fetchRedundantSnapshotPayload === "function") {
+    const fetchOne = async (fn) => {
       try {
-        const redis = await window.__DK_fetchRedundantSnapshotPayload();
-        if (Array.isArray(redis?.payload?.dk_locacao_documentos_v1)) {
-          redisArr = redis.payload.dk_locacao_documentos_v1;
-        }
+        return await Promise.race([
+          fn(),
+          new Promise((_, reject) => {
+            window.setTimeout(() => reject(new Error("docs_cloud_timeout")), 12000);
+          }),
+        ]);
       } catch {
-        /* ignore */
+        return null;
+      }
+    };
+    if (typeof window.__DK_fetchRedundantSnapshotPayload === "function") {
+      const redis = await fetchOne(() => window.__DK_fetchRedundantSnapshotPayload());
+      if (Array.isArray(redis?.payload?.dk_locacao_documentos_v1)) {
+        redisArr = redis.payload.dk_locacao_documentos_v1;
       }
     }
     const fetchFn =
@@ -103,13 +112,9 @@
         ? window.__DK_fetchCloudSnapshotPayload
         : null;
     if (fetchFn) {
-      try {
-        const data = await fetchFn();
-        if (Array.isArray(data?.payload?.dk_locacao_documentos_v1)) {
-          cloudArr = data.payload.dk_locacao_documentos_v1;
-        }
-      } catch {
-        /* ignore */
+      const data = await fetchOne(() => fetchFn());
+      if (Array.isArray(data?.payload?.dk_locacao_documentos_v1)) {
+        cloudArr = data.payload.dk_locacao_documentos_v1;
       }
     }
     if (mergeFn) {
@@ -121,7 +126,8 @@
     return null;
   }
 
-  async function verificarDocumentoEnviadoNaNuvem(doc, tentativa) {
+  async function verificarDocumentoEnviadoNaNuvem(doc, tentativa, opts) {
+    const maxTentativas = opts?.maxTentativas ?? 3;
     if (!doc?.id) {
       return {
         ok: false,
@@ -129,7 +135,7 @@
       };
     }
     if (tentativa > 0) {
-      await new Promise((r) => window.setTimeout(r, 2000));
+      await new Promise((r) => window.setTimeout(r, tentativa === 1 ? 800 : 1500));
     }
     const cpfDig = onlyDigits(doc.cpf).slice(0, 11);
     const nc = normNc(doc.numeroContrato);
@@ -138,7 +144,9 @@
     }
     const arr = await fetchDocumentosLocacaoNaNuvem();
     if (!Array.isArray(arr)) {
-      if (tentativa < 5) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
+      if (tentativa < maxTentativas) {
+        return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1, opts);
+      }
       return { ok: false, msg: "Nuvem ainda sem registo do documento — tente enviar de novo." };
     }
     const pool = arr.filter(
@@ -146,7 +154,9 @@
     );
     const found = pool.find((d) => documentoCorrespondeNaNuvem(d, doc));
     if (!found) {
-      if (tentativa < 5) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
+      if (tentativa < maxTentativas) {
+        return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1, opts);
+      }
       return {
         ok: false,
         msg: `O PDF não chegou à nuvem para o protocolo ${nc} — verifique a ligação e clique «Enviar para o cliente» de novo.`,
@@ -872,29 +882,38 @@
         ? window.__DK_pushLocacaoDocumentoNuvem
         : null;
     let pushOk = false;
+    let pushDetail = null;
     if (directFn) {
-      const directRes = await directFn(pendingDoc);
-      pushOk = directRes?.ok === true;
-    }
-    if (!pushOk) {
-      all[idx] = pendingDoc;
-      saveAllLocal(all);
-      const pushRes = await pushDocumentosNuvem();
-      pushOk = pushRes?.ok === true && pushRes?.skipped !== true;
-      if (!pushOk) {
-        all[idx] = doc;
-        saveAllLocal(all);
-      }
+      pushDetail = await directFn(pendingDoc);
+      pushOk = pushDetail?.ok === true;
     }
     if (!pushOk) {
       return {
         ok: false,
-        msg: "Falha ao enviar à nuvem — verifique a ligação à internet e tente de novo.",
+        msg:
+          pushDetail?.error === "doc_sem_pdf"
+            ? "PDF indisponível — importe de novo a partir de Documentos."
+            : "Falha ao enviar à nuvem — verifique a ligação à internet e tente de novo.",
       };
     }
 
-    const ver = await verificarDocumentoEnviadoNaNuvem(pendingDoc, 0);
+    const ver = await verificarDocumentoEnviadoNaNuvem(pendingDoc, 0, {
+      maxTentativas: pushDetail?.redisOk ? 2 : 3,
+    });
     if (!ver.ok) {
+      if (pushDetail?.redisOk && String(pendingDoc.arquivoBase64 || "").trim()) {
+        all = loadAll();
+        idx = all.findIndex((d) => String(d.id) === String(id));
+        if (idx >= 0) {
+          all[idx] = pendingDoc;
+          saveAllLocal(all);
+        }
+        return {
+          ok: true,
+          msg: `${rotulo} enviado à cópia Redis — o cliente acede em «${dest}» (actualize o app).`,
+          cloudOk: true,
+        };
+      }
       return {
         ok: false,
         msg:
@@ -984,6 +1003,7 @@
     const dest = DOC_DESTINO_APP[tipo] || { rotulo: "Documento", botaoApp: "app" };
     const enviado = isDocEnviadoCliente(d);
     const conferido = d.conferidoOperador === true;
+    const isEnviando = docsEnviando.has(String(d.id));
     const enviadoEm = d.enviadoClienteEm
       ? new Date(Number(d.enviadoClienteEm)).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
       : "";
@@ -996,14 +1016,15 @@
       statusEnvio = `<span class="portal-loc-docs-item__pendente">Visualize e confirme antes de enviar</span>`;
     }
     const podeEnviar = enviado || conferido;
+    const enviarLabel = isEnviando ? "A enviar…" : enviado ? "Enviado" : "Enviar para o cliente";
     return `<li class="portal-loc-docs-item" data-loc-doc-tipo="${escapeHtml(tipo)}">
           <span class="portal-loc-docs-item__nome"><span class="portal-loc-docs-item__tipo">${escapeHtml(dest.rotulo)}</span> ${escapeHtml(d.nome)}</span>
           <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)} · ${statusEnvio}</span>
           <span class="portal-loc-docs-item__acoes">
             <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__visualizar" data-loc-doc-visualizar="${escapeHtml(d.id)}" title="Visualizar PDF">Visualizar</button>
-            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__confirmar${conferido ? " portal-loc-docs-item__confirmar--ok" : ""}" data-loc-doc-confirmar="${escapeHtml(d.id)}" ${conferido || enviado ? "disabled" : ""} title="Confirmar que o ficheiro está correto">${conferido ? "Confirmado" : "Confirmar"}</button>
-            <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado || !podeEnviar ? "disabled" : ""} title="Publicar no app (${escapeHtml(dest.botaoApp)})">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
-            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__excluir" data-loc-doc-excluir="${escapeHtml(d.id)}" title="Remover documento errado deste protocolo">Excluir</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__confirmar${conferido ? " portal-loc-docs-item__confirmar--ok" : ""}" data-loc-doc-confirmar="${escapeHtml(d.id)}" ${conferido || enviado || isEnviando ? "disabled" : ""} title="Confirmar que o ficheiro está correto">${conferido ? "Confirmado" : "Confirmar"}</button>
+            <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}${isEnviando ? " portal-loc-docs-item__enviar--busy" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado || !podeEnviar || isEnviando ? "disabled" : ""} title="Publicar no app (${escapeHtml(dest.botaoApp)})">${escapeHtml(enviarLabel)}</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__excluir" data-loc-doc-excluir="${escapeHtml(d.id)}" ${isEnviando ? "disabled" : ""} title="Remover documento errado deste protocolo">Excluir</button>
           </span>
         </li>`;
   }
@@ -1068,15 +1089,13 @@
     if (enviar && !enviar.disabled) {
       const id = enviar.getAttribute("data-loc-doc-enviar");
       if (!id) return;
-      const labelEnviar = enviar.textContent;
-      enviar.disabled = true;
-      enviar.textContent = "A enviar…";
+      docsEnviando.add(String(id));
+      if (typeof onRefresh === "function") onRefresh();
       mostrarFeedbackEnvioDoc(msgEl, "A enviar PDF à nuvem e a confirmar no app do cliente…", null);
       void (async () => {
         try {
           const res = await enviarDocumentoParaCliente(id);
           mostrarFeedbackEnvioDoc(msgEl, res.msg || "", res.ok === true);
-          if (typeof onRefresh === "function") onRefresh();
         } catch (err) {
           const det = String(err?.message || err || "erro desconhecido");
           mostrarFeedbackEnvioDoc(
@@ -1085,8 +1104,8 @@
             false
           );
         } finally {
-          enviar.disabled = false;
-          enviar.textContent = labelEnviar || "Enviar para o cliente";
+          docsEnviando.delete(String(id));
+          if (typeof onRefresh === "function") onRefresh();
         }
       })();
       return;
