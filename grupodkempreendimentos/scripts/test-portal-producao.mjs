@@ -817,7 +817,7 @@ async function runSuite() {
         !locDocsJs.includes("adicionarDocumentos"),
       "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
     );
-    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260610doc-confirmar`, {
+    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521crlv-merge-fix`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -825,12 +825,13 @@ async function runSuite() {
       syncDocEnviarJs.includes('"dk_locacao_documentos_v1"') &&
         syncDocEnviarJs.includes("CLIENTE_CLOUD_PULL_KEYS") &&
         syncDocEnviarJs.includes("filterCloudPayloadForClienteApp") &&
-        syncDocEnviarJs.includes("enviadoCliente === true"),
+        syncDocEnviarJs.includes("enviadoCliente === true") &&
+        syncDocEnviarJs.includes("mergeLocacaoDocumentosV1"),
       "cliente recebe CRLV/contrato enviados via sync da nuvem"
     );
     record(
       "cliente.html sync documentos locação",
-      clienteHtml.includes("portal-supabase-sync.js?v=20260610doc-confirmar"),
+      clienteHtml.includes("portal-supabase-sync.js?v=20260521crlv-merge-fix"),
       "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
@@ -842,7 +843,7 @@ async function runSuite() {
         lancExtrasJs.includes("locacaoDocumentoId"),
       "bloqueia cadastro sem PDF importado de Documentos"
     );
-    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-confirmar`, {
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260521crlv-merge-fix`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
