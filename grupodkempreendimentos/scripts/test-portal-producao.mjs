@@ -771,6 +771,7 @@ async function runSuite() {
         indexFresh.includes("Trazer documento para CRLV") &&
         indexFresh.includes("operacaoLocacaoDocumentosListaContrato") &&
         indexFresh.includes("Visualizar") &&
+        indexFresh.includes("Excluir") &&
         !indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
@@ -788,7 +789,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-visualizar`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-excluir`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -799,6 +800,8 @@ async function runSuite() {
         locDocsJs.includes("visualizarDocumento") &&
         locDocsJs.includes("__DK_documentosAbrirViewerBlob") &&
         locDocsJs.includes("data-loc-doc-visualizar") &&
+        locDocsJs.includes("data-loc-doc-excluir") &&
+        locDocsJs.includes("excluirDocumentoOperador") &&
         locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito") &&
         locDocsJs.includes("confirmarDocumentoOperador") &&
         locDocsJs.includes("conferidoOperador") &&

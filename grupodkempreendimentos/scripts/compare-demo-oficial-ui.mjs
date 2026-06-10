@@ -12,6 +12,7 @@ const MARKERS = [
   "Trazer documento para contrato",
   "Trazer documento para CRLV",
   "Visualizar",
+  "Excluir",
   "operacaoLocacaoDocBuscaContrato",
   "operacaoLocacaoDocSugestoesCrlv",
   "portal-loc-docs-grupos",
