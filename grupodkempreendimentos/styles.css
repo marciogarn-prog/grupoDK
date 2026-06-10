@@ -4913,6 +4913,16 @@ table.validados-app .lnk-comprovante {
   margin: 0.45rem 0 0.25rem;
 }
 
+.portal-loc-docs__msg--erro {
+  color: #ffb4b4;
+  font-weight: 600;
+}
+
+.portal-loc-docs__msg--ok {
+  color: #9dffb0;
+  font-weight: 600;
+}
+
 .portal-loc-docs-list {
   list-style: none;
   margin: 0.5rem 0 0;

@@ -70,12 +70,45 @@
     return Promise.resolve({ ok: false, error: "sync_unavailable" });
   }
 
-  async function verificarDocumentoEnviadoNaNuvem(doc, tentativa) {
+  function documentoCorrespondeNaNuvem(found, doc) {
+    if (!found || !doc) return false;
+    if (String(found.id) === String(doc.id)) return true;
+    const tipo = inferDocTipo(doc);
+    if (!tipo) return false;
+    return (
+      normNc(found.numeroContrato) === normNc(doc.numeroContrato) &&
+      onlyDigits(found.cpf).slice(0, 11) === onlyDigits(doc.cpf).slice(0, 11) &&
+      inferDocTipo(found) === tipo &&
+      found.enviadoCliente === true
+    );
+  }
+
+  async function fetchDocumentosLocacaoNaNuvem() {
+    if (typeof window.__DK_fetchRedundantSnapshotPayload === "function") {
+      try {
+        const redis = await window.__DK_fetchRedundantSnapshotPayload();
+        const arr = redis?.payload?.dk_locacao_documentos_v1;
+        if (Array.isArray(arr)) return arr;
+      } catch {
+        /* fallback merge */
+      }
+    }
     const fetchFn =
       typeof window.__DK_fetchCloudSnapshotPayload === "function"
         ? window.__DK_fetchCloudSnapshotPayload
         : null;
-    if (!fetchFn || !doc?.id) {
+    if (!fetchFn) return null;
+    try {
+      const data = await fetchFn();
+      const arr = data?.payload?.dk_locacao_documentos_v1;
+      return Array.isArray(arr) ? arr : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function verificarDocumentoEnviadoNaNuvem(doc, tentativa) {
+    if (!doc?.id) {
       return {
         ok: false,
         msg: "Verificação indisponível — recarregue a página e tente enviar de novo.",
@@ -84,29 +117,25 @@
     if (tentativa > 0) {
       await new Promise((r) => window.setTimeout(r, 1500));
     }
-    let data;
-    try {
-      data = await fetchFn();
-    } catch {
-      data = null;
-    }
     const cpfDig = onlyDigits(doc.cpf).slice(0, 11);
-    let arr = data?.payload?.dk_locacao_documentos_v1;
+    const nc = normNc(doc.numeroContrato);
+    if (!nc || cpfDig.length !== 11) {
+      return { ok: false, msg: "Protocolo ou CPF do cliente inválido — confira o cadastro da locação." };
+    }
+    const arr = await fetchDocumentosLocacaoNaNuvem();
     if (!Array.isArray(arr)) {
       if (tentativa < 3) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
       return { ok: false, msg: "Nuvem ainda sem registo do documento — tente enviar de novo." };
     }
-    arr = arr.filter(
-      (d) =>
-        d?.enviadoCliente === true &&
-        onlyDigits(d.cpf).slice(0, 11) === cpfDig
+    const pool = arr.filter(
+      (d) => d?.enviadoCliente === true && onlyDigits(d.cpf).slice(0, 11) === cpfDig
     );
-    const found = arr.find((d) => String(d?.id) === String(doc.id));
+    const found = pool.find((d) => documentoCorrespondeNaNuvem(d, doc));
     if (!found) {
       if (tentativa < 3) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
       return {
         ok: false,
-        msg: "O app do cliente ainda não recebe este documento — confirme o mesmo ambiente (demo/oficial) e tente de novo.",
+        msg: `O PDF não chegou à nuvem para o protocolo ${nc} — verifique a ligação e clique «Enviar para o cliente» de novo.`,
       };
     }
     if (!String(found.arquivoBase64 || "").trim()) {
@@ -726,6 +755,57 @@
     return podeGerirDocumentosLocacao();
   }
 
+  function mostrarFeedbackEnvioDoc(msgEl, texto, ok) {
+    if (msgEl) {
+      msgEl.textContent = texto || "";
+      msgEl.classList.toggle("portal-loc-docs__msg--erro", ok === false);
+      msgEl.classList.toggle("portal-loc-docs__msg--ok", ok === true);
+      try {
+        msgEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      } catch {
+        /* ignore */
+      }
+    }
+    if (ok === false && texto) {
+      window.alert(texto);
+    }
+  }
+
+  async function prepararDocumentoParaEnvio(doc) {
+    const nc = normNc(doc?.numeroContrato) || getProtocoloAtual();
+    const cpf = onlyDigits(doc?.cpf).slice(0, 11) || getCpfAtual();
+    if (!nc || cpf.length !== 11) {
+      return { ok: false, msg: "Preencha protocolo e CPF do cliente no cadastro da locação antes de enviar." };
+    }
+    let out = { ...doc, numeroContrato: nc, cpf };
+    if (!String(out.arquivoBase64 || "").trim()) {
+      const row = await resolveDocBlob(out);
+      if (!row?.blob) {
+        return {
+          ok: false,
+          msg: "Ficheiro indisponível neste computador — importe de novo a partir de Documentos.",
+        };
+      }
+      const dataUrl = await blobToDataUrl(row.blob);
+      if (!dataUrl) {
+        return { ok: false, msg: "Não foi possível ler o PDF — importe de novo a partir de Documentos." };
+      }
+      out = {
+        ...out,
+        arquivoBase64: dataUrl,
+        mimeType: row.mimeType || out.mimeType || "application/pdf",
+        tamanho: row.blob.size || out.tamanho,
+      };
+      const all = loadAll();
+      const idx = all.findIndex((d) => String(d.id) === String(out.id));
+      if (idx >= 0) {
+        all[idx] = { ...all[idx], ...out };
+        saveAllLocal(all);
+      }
+    }
+    return { ok: true, doc: out };
+  }
+
   async function enviarDocumentoParaCliente(id) {
     let all = loadAll();
     let idx = all.findIndex((d) => String(d.id) === String(id));
@@ -734,9 +814,9 @@
     if (!podeGerirEnvioDocumento(doc)) {
       return { ok: false, msg: "Sem permissão para enviar este documento ao cliente." };
     }
-    if (!String(doc.arquivoBase64 || "").trim()) {
-      return { ok: false, msg: "Ficheiro indisponível neste computador — importe de novo a partir de Documentos." };
-    }
+    const prep = await prepararDocumentoParaEnvio(doc);
+    if (!prep.ok) return prep;
+    doc = prep.doc;
     if (doc.conferidoOperador !== true) {
       return { ok: false, msg: "Visualize o PDF e clique Confirmar antes de enviar ao cliente." };
     }
@@ -784,7 +864,7 @@
     }
     if (!pushOk) {
       const pushRes = await pushDocumentosNuvem();
-      pushOk = pushRes?.ok === true;
+      pushOk = pushRes?.ok === true && pushRes?.skipped !== true;
     }
     if (!pushOk) {
       return {
@@ -968,15 +1048,25 @@
     if (enviar && !enviar.disabled) {
       const id = enviar.getAttribute("data-loc-doc-enviar");
       if (!id) return;
+      const labelEnviar = enviar.textContent;
       enviar.disabled = true;
-      if (msgEl) msgEl.textContent = "A enviar PDF à nuvem e a confirmar no app do cliente…";
+      enviar.textContent = "A enviar…";
+      mostrarFeedbackEnvioDoc(msgEl, "A enviar PDF à nuvem e a confirmar no app do cliente…", null);
       void (async () => {
         try {
           const res = await enviarDocumentoParaCliente(id);
-          if (msgEl) msgEl.textContent = res.msg || "";
+          mostrarFeedbackEnvioDoc(msgEl, res.msg || "", res.ok === true);
           if (typeof onRefresh === "function") onRefresh();
+        } catch (err) {
+          const det = String(err?.message || err || "erro desconhecido");
+          mostrarFeedbackEnvioDoc(
+            msgEl,
+            `Erro ao enviar — ${det}. Recarregue a página e tente de novo.`,
+            false
+          );
         } finally {
           enviar.disabled = false;
+          enviar.textContent = labelEnviar || "Enviar para o cliente";
         }
       })();
       return;

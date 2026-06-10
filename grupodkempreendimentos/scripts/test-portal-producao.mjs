@@ -789,13 +789,15 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260610doc-confirmar`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260521envio-geral`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "documentos locação sync nuvem",
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
+        locDocsJs.includes("prepararDocumentoParaEnvio") &&
+        locDocsJs.includes("documentoCorrespondeNaNuvem") &&
         locDocsJs.includes("verificarDocumentoEnviadoNaNuvem") &&
         locDocsJs.includes("reconciliarDocumentosEnvioProtocolo") &&
         locDocsJs.includes("__DK_pushLocacaoDocumentoNuvem") &&
@@ -817,7 +819,7 @@ async function runSuite() {
         !locDocsJs.includes("adicionarDocumentos"),
       "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
     );
-    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521crlv-unico`, {
+    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521envio-geral`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -827,7 +829,9 @@ async function runSuite() {
         syncDocEnviarJs.includes("filterCloudPayloadForClienteApp") &&
         syncDocEnviarJs.includes("enviadoCliente === true") &&
         syncDocEnviarJs.includes("mergeLocacaoDocumentosV1") &&
-        syncDocEnviarJs.includes("compactLocacaoDocumentosClienteStore"),
+        syncDocEnviarJs.includes("compactLocacaoDocumentosClienteStore") &&
+        syncDocEnviarJs.includes("__DK_fetchRedundantSnapshotPayload") &&
+        syncDocEnviarJs.includes("skipShrink"),
       "cliente recebe CRLV/contrato enviados via sync da nuvem"
     );
     record(
