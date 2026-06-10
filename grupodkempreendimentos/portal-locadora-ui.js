@@ -7800,6 +7800,25 @@ ${printable.innerHTML}
 
   const PORTAL_PROTO_NOVO = "__PORTAL_PROTO_NOVO__";
   let portalLocacaoProtocoloPickerCpf = "";
+  let portalEnsureLocacoesFromCloudInFlight = null;
+
+  async function portalEnsureLocacoesFromCloud(opts) {
+    const fn =
+      typeof window.__DK_ensurePortalCadastrosFromCloud === "function"
+        ? window.__DK_ensurePortalCadastrosFromCloud
+        : null;
+    if (!fn) return { ok: false, reason: "no_sync_fn" };
+    if (portalEnsureLocacoesFromCloudInFlight) return portalEnsureLocacoesFromCloudInFlight;
+    portalEnsureLocacoesFromCloudInFlight = fn(opts)
+      .catch((e) => {
+        console.warn("[DK portal] sync locações nuvem", e);
+        return { ok: false, error: e };
+      })
+      .finally(() => {
+        portalEnsureLocacoesFromCloudInFlight = null;
+      });
+    return portalEnsureLocacoesFromCloudInFlight;
+  }
 
   function portalLocacaoCpfDigitsMatch(lCpfRaw, cpfDigits) {
     const dig =
@@ -8039,6 +8058,7 @@ ${printable.innerHTML}
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const inpCpf = document.getElementById("operacaoLocacaoCpf");
+    const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
     if (!sel || !hid || !inpCpf) return;
     const digits =
       typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
@@ -8055,6 +8075,11 @@ ${printable.innerHTML}
       o.textContent = "Informe um CPF cadastrado";
       sel.appendChild(o);
       hid.value = "";
+      if (msgEl && digits.length === 11) {
+        msgEl.textContent = "CPF não encontrado no cadastro — confira o número ou use Cadastro de cliente.";
+      } else if (msgEl) {
+        msgEl.textContent = "";
+      }
       return;
     }
     if (!force && digits === portalLocacaoProtocoloPickerCpf) return;
@@ -8071,6 +8096,22 @@ ${printable.innerHTML}
       if (nc) byNc.set(nc, l);
     });
     const sorted = Array.from(byNc.keys()).sort((a, b) => a.localeCompare(b, "en"));
+    if (!sorted.length && digits.length === 11 && !opts.syncingCloud) {
+      if (msgEl) msgEl.textContent = "A carregar protocolos da nuvem…";
+      void portalEnsureLocacoesFromCloud({ force: true }).then((r) => {
+        if (r?.applied) {
+          refreshOperacaoLocacaoProtocoloPicker({ force: true, syncingCloud: true });
+          if (msgEl) msgEl.textContent = "";
+          return;
+        }
+        if (msgEl) {
+          msgEl.textContent =
+            "Nenhum protocolo para este CPF neste navegador. Use «Carregar da nuvem» ou confira o CPF (tem de ser o mesmo do contrato).";
+        }
+      });
+    } else if (msgEl && sorted.length) {
+      msgEl.textContent = "";
+    }
     sel.replaceChildren();
     sorted.forEach((nc) => {
       const l = byNc.get(nc);
@@ -10983,7 +11024,9 @@ ${printable.innerHTML}
             : String(findClienteByCpfCadastro?.(digits)?.nome || "").trim();
         if (nome) inpNome.value = nome;
       }
-      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+        refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      });
     });
 
     inpCpf?.addEventListener("input", () => {
@@ -11027,9 +11070,6 @@ ${printable.innerHTML}
             ? resolveOperacaoLancAluguelNomePorCpf(digits)
             : String(findClienteByCpfCadastro?.(digits)?.nome || "").trim();
         if (nome) inpNome.value = nome;
-      } else if (inpNome && candidatos.length === 1) {
-        // Sugestão direta enquanto o CPF ainda está incompleto.
-        inpNome.value = String(candidatos[0].nome || "").trim();
       }
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
     });
@@ -11120,6 +11160,10 @@ ${printable.innerHTML}
   }
 
   bindOperacaoLocacaoAutofill();
+
+  window.addEventListener("dk-locacoes-synced", () => {
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
+  });
   refreshOperacaoLocacaoProtocoloPicker({ force: true });
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
@@ -11802,7 +11846,9 @@ ${printable.innerHTML}
     syncOperacaoLocacaoFromDataInicio();
     syncOperacaoLocacaoValorPlano();
     refreshOperacaoLocacaoDatalists();
-    refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    });
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
