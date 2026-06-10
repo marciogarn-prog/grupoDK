@@ -1,6 +1,6 @@
-﻿/**
- * E2E demo: RelatÃ³rio da frota â€” cada placa aparece UMA sÃ³ vez
- * (ou em Â«inativosÂ» ou em Â«locadosÂ»). Caso reportado: UHO2D60 (locaÃ§Ã£o ativa 2026011201).
+/**
+ * E2E demo: Relatório da frota — cada placa aparece UMA só vez
+ * (ou em «inativos» ou em «locados»). Caso reportado: UHO2D60 (locação ativa 2026011201).
  * node grupodkempreendimentos/scripts/test-relatorio-frota-sem-duplicados-demo.mjs
  */
 import { chromium } from "playwright";
@@ -74,7 +74,7 @@ try {
     };
   });
 
-  record("relatÃ³rio gerado", res.ok === true, res.ok ? `inativos=${res.nInativos} locados=${res.nAtivos}` : res.reason);
+  record("relatório gerado", res.ok === true, res.ok ? `inativos=${res.nInativos} locados=${res.nAtivos}` : res.reason);
   record("nenhuma placa nos dois blocos", res.ok && res.emAmbos.length === 0, res.emAmbos?.slice(0, 8).join(",") || "0 repetidas");
   record(
     "sem placas duplicadas dentro de cada bloco",
@@ -82,7 +82,7 @@ try {
     `dupIn=${res.dupInativos?.length || 0} dupAt=${res.dupAtivos?.length || 0}`
   );
   record(
-    "UHO2D60 sÃ³ em Â«locadosÂ» (locaÃ§Ã£o ativa 2026011201)",
+    "UHO2D60 só em «locados» (locação ativa 2026011201)",
     res.ok && res.uho2d60?.ativo === true && res.uho2d60?.inativo === false,
     JSON.stringify(res.uho2d60)
   );

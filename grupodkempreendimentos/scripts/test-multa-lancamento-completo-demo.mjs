@@ -1,7 +1,7 @@
-﻿/**
- * E2E demo: fluxo COMPLETO de lanÃ§amento de multa
- * depÃ³sito â†’ pesquisa â†’ importar â†’ Confirmar â†’ Enviar ao cliente â†’ Cadastrar multa
- * â†’ histÃ³rico â†’ app cliente Â«Ver multasÂ» â†’ limpeza.
+/**
+ * E2E demo: fluxo COMPLETO de lançamento de multa
+ * depósito → pesquisa → importar → Confirmar → Enviar ao cliente → Cadastrar multa
+ * → histórico → app cliente «Ver multas» → limpeza.
  * node grupodkempreendimentos/scripts/test-multa-lancamento-completo-demo.mjs
  */
 import { chromium } from "playwright";
@@ -42,7 +42,7 @@ try {
   }, { timeout: 45000 });
   record("login admin portal demo", true);
 
-  /* 1. Semear multa no depÃ³sito Documentos */
+  /* 1. Semear multa no depósito Documentos */
   const seed = await page.evaluate(
     async ({ tag, chave }) => {
       const pdf = new Blob(
@@ -74,9 +74,9 @@ try {
     },
     { tag: TAG, chave: `${CASO.placa}-${CASO.cpfDig}` }
   );
-  record("multa semeada no depÃ³sito", seed.ok === true, seed.nome);
+  record("multa semeada no depósito", seed.ok === true, seed.nome);
 
-  /* 2. EcrÃ£ LanÃ§amento de multas + pesquisa */
+  /* 2. Ecrã Lançamento de multas + pesquisa */
   await page.click("#btn-locadora-operacao");
   await page.waitForTimeout(1000);
   await page.click("#btn-operacao-lancamento-multas");
@@ -199,20 +199,20 @@ try {
   record(
     "multa cadastrada com parcelas e doc vinculado",
     registado.encontrada && registado.parcelas === 2 && Boolean(registado.docId),
-    `confirm=${modalConfirm} msg=Â«${cadMsg.slice(0, 60)}Â» parcelas=${registado.parcelas} doc=${registado.docId ? "sim" : "nÃ£o"}`
+    `confirm=${modalConfirm} msg=«${cadMsg.slice(0, 60)}» parcelas=${registado.parcelas} doc=${registado.docId ? "sim" : "não"}`
   );
 
-  /* 7. HistÃ³rico mostra a multa */
+  /* 7. Histórico mostra a multa */
   const hist = await page.evaluate((tag) => {
     const h = document.getElementById("operacaoLancMultasHistorico");
     const txt = (h?.textContent || "").replace(/\s+/g, " ");
     return { visivel: Boolean(h && !h.classList.contains("hidden")), tem: txt.includes(tag), txt: txt.slice(0, 160) };
   }, TAG);
-  record("histÃ³rico de multas mostra o registo", hist.tem === true, hist.txt.slice(0, 120));
+  record("histórico de multas mostra o registo", hist.tem === true, hist.txt.slice(0, 120));
 
-  record("sem erros de pÃ¡gina (portal)", pageErrors.length === 0, pageErrors.join(" Â· ").slice(0, 160) || "0 erros");
+  record("sem erros de página (portal)", pageErrors.length === 0, pageErrors.join(" · ").slice(0, 160) || "0 erros");
 
-  /* 8. App cliente: multa visÃ­vel em Â«Ver multasÂ» */
+  /* 8. App cliente: multa visível em «Ver multas» */
   const ctx2 = await browser.newContext({
     geolocation: { latitude: -9.39, longitude: -40.5 },
     permissions: ["geolocation"],
@@ -267,10 +267,10 @@ try {
     pullRes?.ok === true && appState.nossa && appState.b64 > 50 && appState.countFn >= 1,
     `pull=${pullRes?.ok} multas=${appState.multas} b64=${appState.b64} count=${appState.countFn}`
   );
-  record("sem erros de pÃ¡gina (app cliente)", appErrors.length === 0, appErrors.join(" Â· ").slice(0, 160) || "0 erros");
+  record("sem erros de página (app cliente)", appErrors.length === 0, appErrors.join(" · ").slice(0, 160) || "0 erros");
   await ctx2.close();
 
-  /* 9. Limpeza: remover registo da multa, tombstone do doc, depÃ³sito e push */
+  /* 9. Limpeza: remover registo da multa, tombstone do doc, depósito e push */
   const cleanup = await page.evaluate(
     async ({ cpfDig, proto, tag, depId }) => {
       const norm = (v) => String(v ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
