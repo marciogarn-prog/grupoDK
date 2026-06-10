@@ -284,6 +284,16 @@
       .join("");
   }
 
+  async function idbListBlobIds() {
+    const db = await openIdb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, "readonly");
+      const req = tx.objectStore(IDB_STORE).getAllKeys();
+      req.onsuccess = () => resolve(new Set((req.result || []).map(String)));
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   function atualizarResumosDepositos() {
     const dep = loadDeposit();
     $("documentosResumoCrlv") &&
@@ -292,6 +302,34 @@
       ($("documentosResumoContrato").textContent = `${dep.contrato.length} contrato(s) no depósito.`);
     $("documentosResumoMulta") &&
       ($("documentosResumoMulta").textContent = `${dep.multa.length} multa(s) no depósito.`);
+    void (async () => {
+      let ids = null;
+      try {
+        ids = await idbListBlobIds();
+      } catch {
+        return;
+      }
+      const info = (cat) => {
+        const arr = dep[cat] || [];
+        const aqui = arr.filter((e) => ids.has(String(e.id))).length;
+        return { total: arr.length, aqui };
+      };
+      const c = info("crlv");
+      if ($("documentosResumoCrlv")) {
+        $("documentosResumoCrlv").textContent =
+          `${c.total} ficheiro(s) CRLV no depósito — ${c.aqui} disponível(eis) neste computador.`;
+      }
+      const ct = info("contrato");
+      if ($("documentosResumoContrato")) {
+        $("documentosResumoContrato").textContent =
+          `${ct.total} contrato(s) no depósito — ${ct.aqui} disponível(eis) neste computador.`;
+      }
+      const m = info("multa");
+      if ($("documentosResumoMulta")) {
+        $("documentosResumoMulta").textContent =
+          `${m.total} multa(s) no depósito — ${m.aqui} disponível(eis) neste computador.`;
+      }
+    })();
   }
 
   async function adicionarFicheiros(categoria, fileList) {
@@ -493,6 +531,15 @@
 
   purgeLegacyPatrimonioLocal();
   bindUi();
+
+  /* pedir armazenamento persistente — evita o navegador apagar os PDFs do depósito */
+  try {
+    if (navigator.storage && typeof navigator.storage.persist === "function") {
+      void navigator.storage.persist();
+    }
+  } catch {
+    /* ignore */
+  }
 
   window.__DK_documentosOnShow = onShowDocumentos;
   window.__DK_documentosReset = resetDocumentos;
