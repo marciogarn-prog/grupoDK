@@ -700,12 +700,12 @@ async function runSuite() {
     record("pagina apps.html disponivel", appsHtml.includes("App Cliente") && appsHtml.includes("App Grupo DK"));
 
     await page.goto(new URL("cliente.html", BASE_URL).href, { waitUntil: "networkidle", timeout: 60000 });
-    const clienteGateRedirect =
-      page.url().includes("locadora/cliente") ||
-      (await page.content()).includes("Baixar / instalar app");
+    const clienteLoginVisivel =
+      !(page.url().includes("locadora/cliente")) &&
+      (await page.locator("#form-login, #login-cpf").first().isVisible().catch(() => false));
     record(
-      "cliente.html exige gate (redireciona para área cliente)",
-      clienteGateRedirect,
+      "cliente.html mostra login sem redirecionar ao portal de instalação",
+      clienteLoginVisivel,
       page.url()
     );
 
