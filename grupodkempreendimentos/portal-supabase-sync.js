@@ -964,6 +964,7 @@
     const bar = document.getElementById("portal-cloud-sync-bar");
     if (!bar) return;
     bar.classList.remove("hidden");
+    refreshLastBackupPanel().catch((e) => console.warn("[DK backup] panel", e));
   }
 
   function resolveRedundantSnapshotApiUrls() {
@@ -2761,6 +2762,104 @@
     return "/api/dk-backup-email";
   }
 
+  function resolveBackupLatestApiUrl(full) {
+    const origin = String(window.location.origin || "").replace(/\/$/, "");
+    const base = origin && origin !== "null" ? origin : "";
+    const params = new URLSearchParams();
+    if (dkSnapshotLabel() === "demo") params.set("channel", "demo");
+    if (full) params.set("full", "1");
+    const qs = params.toString();
+    return `${base}/api/dk-backup-latest${qs ? `?${qs}` : ""}`;
+  }
+
+  function formatBackupBrDateTime(isoOrBr) {
+    if (!isoOrBr) return "—";
+    const s = String(isoOrBr);
+    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
+    return s.slice(0, 16).replace("T", " ");
+  }
+
+  function summarizeBackupCounts(counts) {
+    if (!counts || typeof counts !== "object") return "";
+    const loc = counts.dk_locacoes_cadastro ?? counts.dk_portal_locacoes_cadastro;
+    const cli = counts.dk_clientes_cadastro ?? counts.dk_portal_clientes_cadastro;
+    const vei = counts.dk_veiculos_cadastro ?? counts.dk_portal_veiculos_cadastro;
+    const parts = [];
+    if (loc != null) parts.push(`${loc} locações`);
+    if (cli != null) parts.push(`${cli} clientes`);
+    if (vei != null) parts.push(`${vei} veículos`);
+    return parts.length ? parts.join(" · ") : Object.keys(counts).length ? "dados na nuvem" : "";
+  }
+
+  let lastBackupMetaCache = null;
+
+  async function refreshLastBackupPanel() {
+    const panel = document.getElementById("dk-backup-last-info");
+    const textEl = document.getElementById("dk-backup-last-info-text");
+    if (!panel || !textEl) return;
+    textEl.textContent = "A carregar…";
+    panel.classList.remove("dk-backup-last-info--ok", "dk-backup-last-info--empty");
+    try {
+      const res = await fetch(resolveBackupLatestApiUrl(false), {
+        method: "GET",
+        headers: dkCloudFetchHeaders(),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok || !data.hasBackup || !data.meta) {
+        lastBackupMetaCache = null;
+        panel.classList.add("dk-backup-last-info--empty");
+        textEl.textContent =
+          "Ainda não há backup guardado neste ambiente. Use «Gerar backup» ou aguarde o envio diário (02:00).";
+        return;
+      }
+      lastBackupMetaCache = data.meta;
+      const when = formatBackupBrDateTime(data.meta.emailSentAt || data.meta.exportedAtBr);
+      const counts = summarizeBackupCounts(data.meta.counts);
+      const envLabel = dkSnapshotLabel() === "demo" ? "Demo" : "Oficial";
+      const to = data.meta.emailTo
+        ? Array.isArray(data.meta.emailTo)
+          ? data.meta.emailTo.join(", ")
+          : String(data.meta.emailTo)
+        : "marciogarn@gmail.com";
+      panel.classList.add("dk-backup-last-info--ok");
+      textEl.innerHTML = `<strong>${when}</strong> (${envLabel})<br>Enviado para ${to}${counts ? `<br>${counts}` : ""}`;
+    } catch (e) {
+      console.warn("[DK backup] último backup", e);
+      lastBackupMetaCache = null;
+      panel.classList.add("dk-backup-last-info--empty");
+      textEl.textContent = "Não foi possível carregar o último backup.";
+    }
+  }
+
+  function openBackupImportChoiceModal() {
+    const modal = document.getElementById("portalBackupImportChoiceModal");
+    if (!modal) {
+      promptImportBackupFile();
+      return;
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function closeBackupImportChoiceModal() {
+    const modal = document.getElementById("portalBackupImportChoiceModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function promptImportBackupChoice() {
+    if (lastBackupMetaCache) {
+      openBackupImportChoiceModal();
+      return;
+    }
+    refreshLastBackupPanel().then(() => {
+      if (lastBackupMetaCache) openBackupImportChoiceModal();
+      else promptImportBackupFile();
+    });
+  }
+
   function normalizeBackupFileToCloudPayload(parsed) {
     if (!parsed || typeof parsed !== "object") return null;
     let data = null;
@@ -2805,6 +2904,7 @@
   }
 
   function promptImportBackupFile() {
+    closeBackupImportChoiceModal();
     const input = document.getElementById("dk-backup-import-input");
     if (!input) {
       setMsg("Importação não disponível (input em falta).", null);
@@ -2812,6 +2912,75 @@
     }
     input.value = "";
     input.click();
+  }
+
+  async function applyImportedBackupParsed(parsed) {
+    let payload = normalizeBackupFileToCloudPayload(parsed);
+    if (!payload) {
+      setMsg(
+        "Ficheiro inválido. Use o JSON anexo do e-mail «DK Backup» (ou exportado por «Gerar backup»).",
+        null
+      );
+      return false;
+    }
+    if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+      const before = countCadastroRecordsInPayload(payload);
+      payload = window.__DK_sanitizeOficialCloudPayload(payload);
+      const after = countCadastroRecordsInPayload(payload);
+      if (
+        window.__DK_isOficialCadastroGuardActive &&
+        window.__DK_isOficialCadastroGuardActive() &&
+        before > 0 &&
+        after === 0
+      ) {
+        setMsg(
+          "No site oficial só entram cadastros com data de hoje. Este backup tem apenas registos antigos.",
+          null
+        );
+        return false;
+      }
+    }
+    const nKeys = countBackupPayloadKeys(payload);
+    suppressCloudHook = true;
+    try {
+      applyPayloadToLocalStorage(payload, { replace: true });
+    } finally {
+      suppressCloudHook = false;
+    }
+    markLocalDataAuthority();
+    setMsg("Backup importado. A guardar na nuvem…", "muted");
+    try {
+      await pushLocalSnapshotAfterImport();
+      noteCloudPushTimestamp(new Date().toISOString());
+    } catch (e) {
+      console.warn("[DK cloud] push após import", e);
+      setMsg(
+        "Backup importado localmente, mas falhou guardar na nuvem. Use «Guardar na nuvem» antes de mudar de ecrã.",
+        null
+      );
+      return true;
+    }
+    try {
+      sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
+    } catch {
+      /* ignore */
+    }
+    const src =
+      parsed && typeof parsed === "object" && parsed.exportedAtBr
+        ? String(parsed.exportedAtBr).slice(0, 10)
+        : "";
+    setMsg(
+      `Backup importado (${nKeys} blocos${src ? `, de ${src}` : ""}) e enviado à nuvem. A página vai recarregar.`,
+      "ok"
+    );
+    setTimeout(() => {
+      try {
+        window.location.reload();
+      } catch {
+        /* ignore */
+      }
+    }, 800);
+    return true;
   }
 
   async function applyImportedBackupFile(file) {
@@ -2828,70 +2997,7 @@
     setMsg("A importar backup…", "muted");
     try {
       const parsed = await readBackupJsonFile(file);
-      let payload = normalizeBackupFileToCloudPayload(parsed);
-      if (!payload) {
-        setMsg(
-          "Ficheiro inválido. Use o JSON anexo do e-mail «DK Backup» (ou exportado por «Gerar backup»).",
-          null
-        );
-        return;
-      }
-      if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
-        const before = countCadastroRecordsInPayload(payload);
-        payload = window.__DK_sanitizeOficialCloudPayload(payload);
-        const after = countCadastroRecordsInPayload(payload);
-        if (
-          window.__DK_isOficialCadastroGuardActive &&
-          window.__DK_isOficialCadastroGuardActive() &&
-          before > 0 &&
-          after === 0
-        ) {
-          setMsg(
-            "No site oficial só entram cadastros com data de hoje. Este backup tem apenas registos antigos.",
-            null
-          );
-          return;
-        }
-      }
-      const nKeys = countBackupPayloadKeys(payload);
-      suppressCloudHook = true;
-      try {
-        applyPayloadToLocalStorage(payload, { replace: true });
-      } finally {
-        suppressCloudHook = false;
-      }
-      markLocalDataAuthority();
-      setMsg("Backup importado. A guardar na nuvem…", "muted");
-      try {
-        await pushLocalSnapshotAfterImport();
-        noteCloudPushTimestamp(new Date().toISOString());
-      } catch (e) {
-        console.warn("[DK cloud] push após import", e);
-        setMsg(
-          "Backup importado localmente, mas falhou guardar na nuvem. Use «Guardar na nuvem» antes de mudar de ecrã.",
-          null
-        );
-      }
-      try {
-        sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
-      } catch {
-        /* ignore */
-      }
-      const src =
-        parsed && typeof parsed === "object" && parsed.exportedAtBr
-          ? String(parsed.exportedAtBr).slice(0, 10)
-          : "";
-      setMsg(
-        `Backup importado (${nKeys} blocos${src ? `, de ${src}` : ""}) e enviado à nuvem. A página vai recarregar.`,
-        "ok"
-      );
-      setTimeout(() => {
-        try {
-          window.location.reload();
-        } catch {
-          /* ignore */
-        }
-      }, 800);
+      await applyImportedBackupParsed(parsed);
     } catch (e) {
       console.error(e);
       const msg = String(e?.message || e);
@@ -2902,6 +3008,52 @@
       }
     } finally {
       if (btn) btn.disabled = false;
+    }
+  }
+
+  async function importLastStoredBackup() {
+    closeBackupImportChoiceModal();
+    const secret = readBackupSendSecret();
+    if (!secret) {
+      setMsg(
+        "Importação do último backup não configurada: defina DK_BACKUP_SEND_SECRET na Vercel e faça redeploy.",
+        null
+      );
+      return;
+    }
+    if (
+      !window.confirm(
+        "Isto substitui os dados deste navegador pelo último backup guardado no servidor. Continuar?"
+      )
+    ) {
+      return;
+    }
+    const btn = document.getElementById("btn-dk-backup-import");
+    const ultimoBtn = document.getElementById("portalBackupImportUltimoBtn");
+    if (btn) btn.disabled = true;
+    if (ultimoBtn) ultimoBtn.disabled = true;
+    setMsg("A importar último backup…", "muted");
+    try {
+      const res = await fetch(resolveBackupLatestApiUrl(true), {
+        method: "GET",
+        headers: {
+          ...dkCloudFetchHeaders(),
+          "x-dk-backup-secret": secret,
+        },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok || !data.payload) {
+        const detail = data.reason || data.error || res.statusText || "erro";
+        setMsg(`Não foi possível obter o último backup: ${detail}`, null);
+        return;
+      }
+      await applyImportedBackupParsed(data.payload);
+    } catch (e) {
+      console.error(e);
+      setMsg(`Erro ao importar último backup: ${String(e?.message || e)}`, null);
+    } finally {
+      if (btn) btn.disabled = false;
+      if (ultimoBtn) ultimoBtn.disabled = false;
     }
   }
 
@@ -2931,6 +3083,7 @@
         headers: {
           "Content-Type": "application/json",
           "x-dk-backup-secret": secret,
+          ...dkCloudFetchHeaders(),
         },
         body: JSON.stringify({ browserData }),
       });
@@ -2942,6 +3095,7 @@
       }
       const toList = Array.isArray(data.to) ? data.to.join(", ") : data.to || "marciogarn@gmail.com";
       setMsg(`Backup enviado por e-mail para ${toList}.`, "ok");
+      refreshLastBackupPanel().catch((e) => console.warn("[DK backup] refresh panel", e));
     } catch (e) {
       console.error(e);
       setMsg(`Erro ao enviar backup: ${String(e?.message || e)}`, null);
@@ -3040,8 +3194,23 @@
       });
     });
     document.getElementById("btn-dk-backup-import")?.addEventListener("click", () => {
+      promptImportBackupChoice();
+    });
+    document.getElementById("portalBackupImportUltimoBtn")?.addEventListener("click", () => {
+      importLastStoredBackup().catch((e) => {
+        console.error(e);
+        setMsg(String(e?.message || e));
+      });
+    });
+    document.getElementById("portalBackupImportFileBtn")?.addEventListener("click", () => {
       promptImportBackupFile();
     });
+    document.getElementById("portalBackupImportCancelBtn")?.addEventListener("click", () => {
+      closeBackupImportChoiceModal();
+    });
+    document
+      .querySelectorAll("[data-close-backup-import-choice]")
+      .forEach((el) => el.addEventListener("click", closeBackupImportChoiceModal));
     document.getElementById("dk-backup-import-input")?.addEventListener("change", (ev) => {
       const file = ev.target?.files?.[0];
       applyImportedBackupFile(file).catch((e) => {

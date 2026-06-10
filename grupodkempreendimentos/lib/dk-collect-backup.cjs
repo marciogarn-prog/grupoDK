@@ -1,10 +1,9 @@
 /**
  * Coleta snapshot DK para backup (Supabase + Redis Upstash).
  */
-const REDIS_KEYS = {
-  clientes: "dk:portal:clientes_cadastro:v1",
-  veiculos: "dk:portal:veiculos_cadastro:v1",
-  locacoes: "dk:portal:locacoes_cadastro:v1",
+const CLOUD_SNAPSHOT_REDIS_KEYS = {
+  default: "dk:portal:cloud_snapshot:v1",
+  demo: "dk:portal:cloud_snapshot:demo:v1",
 };
 
 const SNAPSHOT_STORAGE_KEYS = [
@@ -22,18 +21,8 @@ const SNAPSHOT_STORAGE_KEYS = [
   "dk_comunicacao_operacao_v1",
 ];
 
-function parseJsonArray(raw) {
-  if (raw == null) return [];
-  if (typeof raw === "string") {
-    try {
-      const p = JSON.parse(raw);
-      return Array.isArray(p) ? p : [];
-    } catch {
-      return [];
-    }
-  }
-  if (Array.isArray(raw)) return raw;
-  return [];
+function normalizeChannel(channel) {
+  return channel === "demo" ? "demo" : "default";
 }
 
 function countRecords(data) {
@@ -48,7 +37,24 @@ function countRecords(data) {
   return counts;
 }
 
-async function fetchSupabaseSnapshot() {
+function mergeSnapshotPayloads(primary, secondary) {
+  const data = {};
+  const sources = [primary, secondary].filter((p) => p && typeof p === "object");
+  for (const src of sources) {
+    for (const k of SNAPSHOT_STORAGE_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(src, k) && !Object.prototype.hasOwnProperty.call(data, k)) {
+        data[k] = src[k];
+      }
+    }
+    for (const [k, v] of Object.entries(src)) {
+      if (!Object.prototype.hasOwnProperty.call(data, k)) data[k] = v;
+    }
+  }
+  return data;
+}
+
+async function fetchSupabaseSnapshot(channel = "default") {
+  const label = normalizeChannel(channel) === "demo" ? "demo" : "default";
   const base =
     process.env.SUPABASE_URL ||
     process.env.VITE_SUPABASE_URL ||
@@ -62,7 +68,7 @@ async function fetchSupabaseSnapshot() {
     return { ok: false, reason: "supabase_key_missing", payload: null, updatedAt: null };
   }
 
-  const url = `${base.replace(/\/$/, "")}/rest/v1/dk_cloud_snapshots?label=eq.default&select=payload,updated_at`;
+  const url = `${base.replace(/\/$/, "")}/rest/v1/dk_cloud_snapshots?label=eq.${label}&select=payload,updated_at`;
   const res = await fetch(url, {
     headers: {
       apikey: key,
@@ -91,37 +97,47 @@ async function fetchSupabaseSnapshot() {
   };
 }
 
-async function fetchRedisCadastros() {
+async function fetchRedisCloudSnapshot(channel = "default") {
   const { isRedisKvConfigured, createRedisClient } = require("./dk-redis-env.cjs");
   if (!isRedisKvConfigured()) {
-    return { ok: false, reason: "redis_not_configured", data: null };
+    return { ok: false, reason: "redis_not_configured", payload: null, updatedAt: null };
   }
+  const ch = normalizeChannel(channel);
+  const redisKey = ch === "demo" ? CLOUD_SNAPSHOT_REDIS_KEYS.demo : CLOUD_SNAPSHOT_REDIS_KEYS.default;
   const redis = createRedisClient();
-  const data = {};
-  for (const [name, storageKey] of Object.entries(REDIS_KEYS)) {
-    const raw = await redis.get(storageKey);
-    data[name] = parseJsonArray(raw);
+  const raw = await redis.get(redisKey);
+  if (raw == null) {
+    return { ok: false, reason: "redis_empty", payload: null, updatedAt: null };
   }
-  return { ok: true, reason: "ok", data };
+  let row = raw;
+  if (typeof raw === "string") {
+    try {
+      row = JSON.parse(raw);
+    } catch {
+      return { ok: false, reason: "redis_parse", payload: null, updatedAt: null };
+    }
+  }
+  const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
+  return {
+    ok: Boolean(payload),
+    reason: payload ? "ok" : "redis_empty",
+    payload,
+    updatedAt: row?.updated_at || null,
+  };
 }
 
 /**
  * Monta payload no formato do backup operacional do app.
+ * @param {{ channel?: 'default'|'demo' }} opts
  */
-async function collectDkBackupPayload() {
-  const [supabase, redis] = await Promise.all([fetchSupabaseSnapshot(), fetchRedisCadastros()]);
+async function collectDkBackupPayload(opts = {}) {
+  const channel = normalizeChannel(opts.channel);
+  const [supabase, redis] = await Promise.all([
+    fetchSupabaseSnapshot(channel),
+    fetchRedisCloudSnapshot(channel),
+  ]);
 
-  const data = {};
-  if (supabase.payload) {
-    for (const k of SNAPSHOT_STORAGE_KEYS) {
-      if (Object.prototype.hasOwnProperty.call(supabase.payload, k)) {
-        data[k] = supabase.payload[k];
-      }
-    }
-    for (const [k, v] of Object.entries(supabase.payload)) {
-      if (!Object.prototype.hasOwnProperty.call(data, k)) data[k] = v;
-    }
-  }
+  const data = mergeSnapshotPayloads(supabase.payload, redis.payload);
 
   const now = new Date();
   const brParts = new Intl.DateTimeFormat("pt-BR", {
@@ -140,11 +156,12 @@ async function collectDkBackupPayload() {
   return {
     version: 2,
     source: "dk-vercel-cron",
+    channel,
     exportedAtIso: now.toISOString(),
     exportedAtBr,
     timezone: "America/Sao_Paulo",
     data,
-    redis: redis.data || null,
+    redis: null,
     sources: {
       supabase: {
         ok: supabase.ok,
@@ -152,23 +169,24 @@ async function collectDkBackupPayload() {
         updatedAt: supabase.updatedAt,
         detail: supabase.detail || null,
       },
-      redis: { ok: redis.ok, reason: redis.reason },
+      redis: {
+        ok: redis.ok,
+        reason: redis.reason,
+        updatedAt: redis.updatedAt,
+      },
     },
     counts: countRecords(data),
-    redisCounts: redis.data
-      ? {
-          clientes: redis.data.clientes?.length || 0,
-          veiculos: redis.data.veiculos?.length || 0,
-          locacoes: redis.data.locacoes?.length || 0,
-        }
-      : null,
+    redisCounts: null,
   };
 }
 
 function backupFileBaseName(payload, suffix) {
   const d = payload?.exportedAtBr?.slice(0, 10) || new Date().toISOString().slice(0, 10);
+  const channelSuffix =
+    suffix ||
+    (payload?.channel === "demo" ? "demo" : payload?.channel === "default" ? null : null);
   const base = `dk-backup-${d}`;
-  return suffix ? `${base}-${suffix}` : base;
+  return channelSuffix ? `${base}-${channelSuffix}` : base;
 }
 
 function brExportedAtParts(now = new Date()) {
@@ -188,12 +206,14 @@ function brExportedAtParts(now = new Date()) {
 }
 
 /** Snapshot enviado pelo navegador (botão «Gerar backup» no portal). */
-function buildBrowserBackupPayload(browserData) {
+function buildBrowserBackupPayload(browserData, channel = "default") {
   const data = browserData && typeof browserData === "object" ? browserData : {};
+  const ch = normalizeChannel(channel);
   const { exportedAtBr, exportedAtIso } = brExportedAtParts();
   return {
     version: 2,
     source: "dk-portal-browser",
+    channel: ch,
     exportedAtIso,
     exportedAtBr,
     timezone: "America/Sao_Paulo",
@@ -214,4 +234,5 @@ module.exports = {
   buildBrowserBackupPayload,
   backupFileBaseName,
   countRecords,
+  normalizeChannel,
 };

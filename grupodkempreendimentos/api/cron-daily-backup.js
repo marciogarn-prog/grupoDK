@@ -1,20 +1,12 @@
 /**
  * Backup diário por e-mail (cron Vercel — 02:00 America/Sao_Paulo).
- *
- * Variáveis na Vercel:
- *   CRON_SECRET — obrigatório (Vercel envia Authorization: Bearer … no cron)
- *   DK_BACKUP_EMAIL_TO — destino (padrão: marciogarn@gmail.com)
- *
- * E-mail (escolha um):
- *   Resend: RESEND_API_KEY, RESEND_FROM (ex.: DK Backup <backup@seudominio.com>)
- *   Gmail SMTP: SMTP_USER, SMTP_PASS (senha de app), opcional SMTP_HOST/SMTP_PORT
- *
- * Dados:
- *   SUPABASE_URL, SUPABASE_ANON_KEY (ou SERVICE_ROLE)
- *   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+ * Envia backup do canal oficial (default) e do demo.
  */
 const { collectDkBackupPayload, backupFileBaseName } = require("../lib/dk-collect-backup.cjs");
 const { sendBackupEmail } = require("../lib/dk-send-backup-email.cjs");
+const { storeLastBackup } = require("../lib/dk-store-last-backup.cjs");
+
+const BACKUP_CHANNELS = ["default", "demo"];
 
 function authorizeCron(req) {
   const secret = process.env.CRON_SECRET;
@@ -22,6 +14,52 @@ function authorizeCron(req) {
   const auth = String(req.headers.authorization || "");
   if (auth === `Bearer ${secret}`) return { ok: true };
   return { ok: false, reason: "unauthorized" };
+}
+
+function channelLabel(channel) {
+  return channel === "demo" ? "DEMO" : "oficial";
+}
+
+async function runChannelBackup(channel) {
+  const payload = await collectDkBackupPayload({ channel });
+  const suffix = channel === "demo" ? "demo" : undefined;
+  const baseName = backupFileBaseName(payload, suffix);
+  const label = channelLabel(channel);
+  const email = await sendBackupEmail(payload, baseName, {
+    subject: `DK Backup diário ${label} — ${baseName}`,
+    footerNote: `Gerado por cron Vercel (02:00 Brasília) — ambiente ${label}.`,
+  });
+
+  if (!email.ok) {
+    return {
+      ok: false,
+      channel,
+      reason: email.reason,
+      attempts: email.attempts,
+      backup: {
+        exportedAtBr: payload.exportedAtBr,
+        counts: payload.counts,
+        sources: payload.sources,
+      },
+    };
+  }
+
+  const stored = await storeLastBackup(channel, payload, {
+    emailTo: email.to,
+    filename: `${baseName}.json`,
+  });
+
+  return {
+    ok: true,
+    channel,
+    provider: email.provider,
+    to: email.to,
+    exportedAtBr: payload.exportedAtBr,
+    counts: payload.counts,
+    sources: payload.sources,
+    stored: stored.ok,
+    storedReason: stored.ok ? null : stored.reason,
+  };
 }
 
 module.exports = async function handler(req, res) {
@@ -38,30 +76,17 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const payload = await collectDkBackupPayload();
-    const baseName = backupFileBaseName(payload);
-    const email = await sendBackupEmail(payload, baseName);
-
-    if (!email.ok) {
-      return res.status(503).json({
-        ok: false,
-        reason: email.reason,
-        attempts: email.attempts,
-        backup: {
-          exportedAtBr: payload.exportedAtBr,
-          counts: payload.counts,
-          sources: payload.sources,
-        },
-      });
+    const results = [];
+    for (const channel of BACKUP_CHANNELS) {
+      results.push(await runChannelBackup(channel));
     }
 
-    return res.status(200).json({
-      ok: true,
-      provider: email.provider,
-      to: email.to,
-      exportedAtBr: payload.exportedAtBr,
-      counts: payload.counts,
-      sources: payload.sources,
+    const allOk = results.every((r) => r.ok);
+    const status = allOk ? 200 : results.some((r) => r.ok) ? 207 : 503;
+
+    return res.status(status).json({
+      ok: allOk,
+      results,
     });
   } catch (e) {
     return res.status(500).json({
