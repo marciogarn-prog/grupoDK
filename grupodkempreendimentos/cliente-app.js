@@ -13,6 +13,17 @@
   const PENDING_SHARE_SESSION_KEY = "dk_cliente_share_pending";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
   const PORTAL_ADMIN_SESSAO_KEY = "dk_sessao_cliente";
+  const CLIENTE_PULL_KEYS = [
+    "dk_locacoes_cadastro",
+    "dk_locacao_documentos_v1",
+    "dk_comunicacao_operacao_v1",
+    "dk_cliente_notificacoes",
+    "dk_comprovantes_cliente_pendentes",
+  ];
+
+  function isDemoClienteApp() {
+    return window.__DK_DEPLOY_CHANNEL__ === "demo" || window.__DK_IS_DEMO_DEPLOY__ === true;
+  }
 
   function clienteEnvioComprovanteAtivo() {
     return CLIENTE_ENVIO_COMPROVANTE_ATIVO;
@@ -239,6 +250,88 @@
 
   function clearSessao() {
     localStorage.removeItem(SESSAO_KEY);
+  }
+
+  function clearClienteGate() {
+    try {
+      sessionStorage.removeItem(CLIENTE_APP_GATE_KEY);
+      sessionStorage.removeItem("dk_cliente_app_gate_v1");
+      localStorage.removeItem(GATE_PERSIST_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function setClienteGate(cpf, proto) {
+    const dig = onlyDigits(cpf).slice(0, 11);
+    const nc = normProtoGate(proto);
+    if (dig.length !== 11 || !nc) return false;
+    try {
+      const gatePayload = JSON.stringify({ cpf: dig, proto: nc, at: Date.now() });
+      sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
+      localStorage.setItem(GATE_PERSIST_KEY, gatePayload);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function getGateProto() {
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      const g = raw ? JSON.parse(raw) : null;
+      return normProtoGate(g?.proto || "");
+    } catch {
+      return "";
+    }
+  }
+
+  function limparCacheClienteAoSair() {
+    clearSessao();
+    clearClienteGate();
+    try {
+      for (const k of CLIENTE_PULL_KEYS) {
+        localStorage.removeItem(k);
+      }
+      if (typeof window.__DK_comprovantesClienteInvalidateCache === "function") {
+        window.__DK_comprovantesClienteInvalidateCache();
+      }
+      if (typeof window.__DK_trimClienteLocacoesLocal === "function") {
+        window.__DK_trimClienteLocacoesLocal();
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function resetLoginForm() {
+    const cpfIn = $("login-cpf");
+    const protoIn = $("login-protocolo");
+    const senhaIn = $("login-senha");
+    const fb = $("login-feedback");
+    if (cpfIn) cpfIn.value = "";
+    if (protoIn) protoIn.value = "";
+    if (senhaIn) senhaIn.value = "";
+    if (fb) fb.textContent = "";
+    cpfIn?.focus();
+  }
+
+  function updateLoginProtocoloUi() {
+    const demo = isDemoClienteApp();
+    const hint = $("login-demo-trocar-cliente");
+    const label = $("login-protocolo-label");
+    const protoIn = $("login-protocolo");
+    if (hint) hint.classList.toggle("hidden", !demo);
+    if (label) label.textContent = demo ? "Protocolo (obrigatório no demo)" : "Protocolo";
+    if (protoIn) protoIn.required = true;
+  }
+
+  function filterLocacoesParaExibicao(locacoes) {
+    const ativas = filterLocacoesAtivas(locacoes);
+    const proto = getGateProto();
+    if (!proto) return ativas;
+    const hit = ativas.filter((l) => normProtoGate(l.numeroContrato) === proto);
+    return hit.length ? hit : ativas;
   }
 
   function loadCadastro(key) {
@@ -1186,7 +1279,7 @@
     }
     const cpf = sessao.cpf;
     const dados = loadDadosCliente(cpf);
-    const locAtivas = filterLocacoesAtivas(dados.locacoes);
+    const locAtivas = filterLocacoesParaExibicao(dados.locacoes);
     $("cliente-nome").textContent = sessao.nome;
     $("cliente-cpf-label").textContent = formatCpf(cpf);
 
@@ -2183,10 +2276,19 @@
     $("form-login")?.addEventListener("submit", (e) => {
       e.preventDefault();
       const cpf = onlyDigits($("login-cpf")?.value).slice(0, 11);
+      const proto = normProtoGate($("login-protocolo")?.value || "");
       const senha = String($("login-senha")?.value || "").trim();
       const fb = $("login-feedback");
       if (cpf.length !== 11) {
         if (fb) fb.textContent = "Informe um CPF válido.";
+        return;
+      }
+      if (!proto) {
+        if (fb) fb.textContent = "Informe o protocolo da locação (ex.: 2026010102).";
+        return;
+      }
+      if (!setClienteGate(cpf, proto)) {
+        if (fb) fb.textContent = "Protocolo inválido.";
         return;
       }
       const hit = findClienteLogin(cpf, senha);
@@ -2194,9 +2296,10 @@
         if (fb) fb.textContent = "CPF ou senha inválidos.";
         return;
       }
-      const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString() };
-      if (!isGeoGateBypassed() && clienteSenhaEhInicial(senha)) {
-        clienteTrocaSenhaPendente = { cpf, nome: hit.nome };
+      const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString(), protocolo: proto };
+      const pularTrocaSenhaDemo = isDemoClienteApp();
+      if (!isGeoGateBypassed() && !pularTrocaSenhaDemo && clienteSenhaEhInicial(senha)) {
+        clienteTrocaSenhaPendente = { cpf, nome: hit.nome, proto };
         const n1 = $("cliente-nova-senha");
         const n2 = $("cliente-nova-senha-2");
         if (n1) n1.value = "";
@@ -2204,7 +2307,7 @@
         const trocaFb = $("cliente-troca-senha-feedback");
         if (trocaFb) trocaFb.textContent = "";
         showView("trocar-senha");
-      if (fb) fb.textContent = "";
+        if (fb) fb.textContent = "";
         return;
       }
       void finalizarLoginCliente(sess, fb);
@@ -2235,8 +2338,14 @@
         if (fb) fb.textContent = "Não foi possível guardar a nova senha. Tente novamente.";
         return;
       }
+      if (pend.proto) setClienteGate(pend.cpf, pend.proto);
       clienteTrocaSenhaPendente = null;
-      const sess = { cpf: pend.cpf, nome: pend.nome, loginEm: new Date().toISOString() };
+      const sess = {
+        cpf: pend.cpf,
+        nome: pend.nome,
+        loginEm: new Date().toISOString(),
+        protocolo: pend.proto || getGateProto(),
+      };
       if (fb) fb.textContent = "Senha atualizada. A entrar…";
       void finalizarLoginCliente(sess, fb);
     });
@@ -2245,8 +2354,9 @@
       if (typeof window.__DK_clienteGeoStopTracking === "function") {
         window.__DK_clienteGeoStopTracking();
       }
-      clearSessao();
+      limparCacheClienteAoSair();
       clienteTrocaSenhaPendente = null;
+      resetLoginForm();
       showView("login");
     };
     $("btn-logout")?.addEventListener("click", doLogout);
@@ -2287,19 +2397,27 @@
     $("btn-relatorio-compartilhar")?.addEventListener("click", () => compartilharRelatorioPagamentos());
 
     const cpfIn = $("login-cpf");
+    const protoIn = $("login-protocolo");
     cpfIn?.addEventListener("input", () => {
       const d = onlyDigits(cpfIn.value).slice(0, 11);
       cpfIn.value = formatCpf(d);
     });
+    protoIn?.addEventListener("input", () => {
+      protoIn.value = onlyDigits(protoIn.value).slice(0, 20);
+    });
+    updateLoginProtocoloUi();
 
-    const gateRaw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
-    let gateCpf = "";
-    try {
-      const g = gateRaw ? JSON.parse(gateRaw) : null;
-      gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
-      if (gateCpf && cpfIn && !cpfIn.value) cpfIn.value = formatCpf(gateCpf);
-    } catch {
-      /* ignore */
+    if (!getSessao()?.cpf) {
+      const gateRaw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      try {
+        const g = gateRaw ? JSON.parse(gateRaw) : null;
+        const gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
+        const gateProto = normProtoGate(g?.proto || "");
+        if (gateCpf && cpfIn && !cpfIn.value) cpfIn.value = formatCpf(gateCpf);
+        if (gateProto && protoIn && !protoIn.value) protoIn.value = gateProto;
+      } catch {
+        /* ignore */
+      }
     }
 
     await processIncomingShare();

@@ -24,6 +24,14 @@
   display: none;
 }
 
+.cliente-login-demo-hint {
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.35);
+}
+
 
 .cliente-comunicacao-lane + .cliente-comunicacao-lane {
   margin-top: 0.75rem;
