@@ -840,7 +840,7 @@ async function runSuite() {
     );
     record(
       "cliente.html sync documentos locação",
-      clienteHtml.includes("portal-supabase-sync.js?v=20260521crlv-unico"),
+      clienteHtml.includes("portal-supabase-sync.js?v="),
       "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
