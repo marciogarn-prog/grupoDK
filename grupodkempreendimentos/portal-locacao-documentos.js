@@ -31,8 +31,15 @@
       msgId: "operacaoLocacaoDocBuscaCrlvMsg",
       trazerLabel: "Importar CRLV",
     },
+    multa: {
+      inputId: "operacaoLancMultasDocBusca",
+      btnId: "operacaoLancMultasDocImportBtn",
+      sugestoesId: "operacaoLancMultasDocSugestoes",
+      msgId: "operacaoLancMultasDepositoMsg",
+      trazerLabel: "Importar multa",
+    },
   };
-  const buscaLocacaoState = { contrato: { selectedId: "" }, crlv: { selectedId: "" } };
+  const buscaLocacaoState = { contrato: { selectedId: "" }, crlv: { selectedId: "" }, multa: { selectedId: "" } };
   const MAX_SUGESTOES = 25;
 
   function onlyDigits(s) {
@@ -539,7 +546,7 @@
   }
 
   function fecharTodasSugestoesDeposito() {
-    LOC_CADASTRO_TIPOS.forEach(fecharSugestoesDeposito);
+    Object.keys(BUSCA_UI).forEach(fecharSugestoesDeposito);
   }
 
   function onBuscaDepositoInput(categoria) {
@@ -598,30 +605,68 @@
 
   async function importarDocDepositoPorId(categoria, depositId, opts = {}) {
     const cat = String(categoria || "").trim().toLowerCase();
-    if (cat !== "contrato" && cat !== "crlv") return { ok: false, msg: "Tipo de documento inválido." };
+    if (cat !== "contrato" && cat !== "crlv" && cat !== "multa") {
+      return { ok: false, msg: "Tipo de documento inválido." };
+    }
     if (importDepositoBusy) return { ok: false, msg: "Aguarde a importação em curso." };
 
-    const nc = getProtocoloAtual();
-    const cpf = getCpfAtual();
-    const placa = getPlacaAtual();
-    const label = cat === "contrato" ? "Contrato" : "CRLV";
+    const isMulta = cat === "multa";
+    const ctxMulta = isMulta ? getLancMultasContexto() : null;
+    const nc = isMulta ? ctxMulta.nc : getProtocoloAtual();
+    const cpf = isMulta ? ctxMulta.cpf : getCpfAtual();
+    const placa = isMulta ? ctxMulta.placa : getPlacaAtual();
+    const label = cat === "contrato" ? "Contrato" : cat === "crlv" ? "CRLV" : "Multa";
 
-    if (!podeGerirDocumentosLocacao()) {
-      return { ok: false, msg: "Sem permissão de cadastro de locação." };
+    if (isMulta ? !podeGerirDocumentosMultas() : !podeGerirDocumentosLocacao()) {
+      return {
+        ok: false,
+        msg: isMulta ? "Sem permissão de lançamento de multas." : "Sem permissão de cadastro de locação.",
+      };
     }
     if (!nc) {
-      return { ok: false, msg: "Escolha o protocolo (ou informe data de início para NOVO) antes de importar." };
+      return {
+        ok: false,
+        msg: isMulta
+          ? "Confirme a pesquisa do contrato antes de importar a multa."
+          : "Escolha o protocolo (ou informe data de início para NOVO) antes de importar.",
+      };
     }
     if (cpf.length !== 11) {
       return { ok: false, msg: "Informe o CPF do cliente antes de importar documentos." };
     }
-    if (!protocoloLocacaoAtivo(nc)) {
+    /* multas podem chegar depois do fim do contrato — sem bloqueio por protocolo finalizado */
+    if (!isMulta && !protocoloLocacaoAtivo(nc)) {
       return { ok: false, msg: `Protocolo ${nc} finalizado — não é possível importar novos documentos.` };
     }
 
     const entry = obterEntradaDeposito(cat, depositId);
     if (!entry) {
       return { ok: false, msg: "Ficheiro não encontrado no depósito Documentos." };
+    }
+
+    if (isMulta) {
+      if (docDepositoJaImportado(loadAll(), nc, cpf, depositId, "multa")) {
+        return { ok: true, already: true, msg: "Esta multa já está neste protocolo." };
+      }
+      importDepositoBusy = true;
+      try {
+        const reg = getRegistroOperador();
+        const r = await importarDocDepositoParaProtocolo(entry, "multa", nc, cpf, placa, reg);
+        if (r.added) return { ok: true, added: true, msg: "Multa importada do depósito Documentos." };
+        if (r.skipped) return { ok: true, already: true, msg: "Esta multa já está neste protocolo." };
+        if (r.reason === "no_blob") {
+          return {
+            ok: false,
+            msg: "Multa encontrada no depósito, mas o ficheiro não está neste computador — deposite de novo em Documentos.",
+          };
+        }
+        if (r.reason === "too_big") {
+          return { ok: false, msg: "Multa no depósito excede 4 MB — reduza o ficheiro em Documentos." };
+        }
+        return { ok: false, msg: "Não foi possível importar a multa." };
+      } finally {
+        importDepositoBusy = false;
+      }
     }
 
     const existente = docCanonicoPorTipo(nc, cpf, cat);
@@ -692,6 +737,10 @@
     const msgEl = document.getElementById(cfg.msgId);
     const termo = String(input?.value || "").trim();
     if (!termo) {
+      if (cat === "multa") {
+        /* sem pesquisa: tenta a convenção antiga PLACA-CPF do depósito */
+        return importarProximaMultaDoDeposito();
+      }
       const hint = "Digite parte do nome do ficheiro para filtrar o depósito.";
       if (msgEl) msgEl.textContent = hint;
       return { ok: false, msg: hint };
@@ -1285,7 +1334,7 @@
   function renderMultasLancDocsLista(nc, cpf) {
     const ul = document.getElementById("operacaoLancMultasDocumentosLista");
     const docs = docsDoProtocoloPorTipo(nc, cpf, "multa");
-    renderDocsListaUl(ul, docs, "Nenhuma multa importada neste protocolo — clique Multa após depositar em Documentos.");
+    renderDocsListaUl(ul, docs, "Nenhuma multa neste protocolo — pesquise no depósito Documentos e traga para o protocolo.");
   }
 
   async function importarProximaMultaDoDeposito() {
@@ -1381,13 +1430,13 @@
   function refreshLancMultasDocumentosDeposito() {
     const sec = document.getElementById("operacaoLancMultasDocumentosDeposito");
     const btn = document.getElementById("operacaoLancMultasDocImportBtn");
+    const input = document.getElementById("operacaoLancMultasDocBusca");
     const msg = document.getElementById("operacaoLancMultasDepositoMsg");
     if (!sec) return;
 
     const ctx = getLancMultasContexto();
     const permitido = podeGerirDocumentosMultas();
     const visivel = permitido && ctx.cpf.length === 11 && Boolean(ctx.nc);
-    const placaOk = ctx.placa.length >= 6;
 
     sec.classList.toggle("hidden", !visivel);
     if (!visivel) {
@@ -1396,36 +1445,34 @@
       if (ul) ul.innerHTML = "";
       if (msg) msg.textContent = "";
       if (btn) btn.disabled = true;
+      if (input) input.disabled = true;
+      fecharSugestoesDeposito("multa");
       return;
     }
 
     sec.removeAttribute("hidden");
-    if (btn) btn.disabled = !placaOk;
+    if (btn) btn.disabled = false;
+    if (input) input.disabled = false;
 
     const pend = getMultaDocPendenteVinculo(ctx.nc, ctx.cpf);
     const nMultas = docsDoProtocoloPorTipo(ctx.nc, ctx.cpf, "multa").length;
-    if (msg) {
-      const chave = placaOk ? chaveMultaDeposito(ctx.placa, ctx.cpf) : "";
+    if (msg && !String(input?.value || "").trim()) {
+      const total = contarDeposito("multa");
+      const deposito = total
+        ? `${total} ficheiro(s) no depósito — digite para filtrar.`
+        : "Nenhum ficheiro de multa no depósito Documentos.";
       msg.textContent = pend
-        ? `Documento pronto para cadastrar (${chave}). ${nMultas} multa(s) importada(s) neste protocolo.`
-        : placaOk
-          ? `${nMultas} multa(s) importada(s). Clique Multa para importar do depósito (${chave}) antes de cadastrar.`
-          : "Placa indisponível — confirme o protocolo.";
+        ? `${nMultas} multa(s) neste protocolo — documento pronto para cadastrar. ${deposito}`
+        : `${nMultas} multa(s) neste protocolo. ${deposito}`;
     }
     renderMultasLancDocsLista(ctx.nc, ctx.cpf);
   }
 
   function bindMultasDepositoUi() {
-    const btn = document.getElementById("operacaoLancMultasDocImportBtn");
     const lista = document.getElementById("operacaoLancMultasDocumentosLista");
     const msg = document.getElementById("operacaoLancMultasDepositoMsg");
 
-    btn?.addEventListener("click", async () => {
-      if (btn.disabled) return;
-      const res = await importarProximaMultaDoDeposito();
-      refreshLancMultasDocumentosDeposito();
-      if (msg && res.msg) msg.textContent = res.msg;
-    });
+    bindBuscaLocacaoUi("multa");
 
     lista?.addEventListener("click", (e) => {
       handleDocListaClick(e, msg, refreshLancMultasDocumentosDeposito);
@@ -1435,10 +1482,12 @@
   function bindBuscaLocacaoUi(categoria) {
     const cfg = BUSCA_UI[categoria];
     if (!cfg) return;
+    const isMulta = categoria === "multa";
     const input = document.getElementById(cfg.inputId);
     const btn = document.getElementById(cfg.btnId);
     const sugestoes = document.getElementById(cfg.sugestoesId);
-    const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
+    const msg = document.getElementById(isMulta ? cfg.msgId : "operacaoLocacaoDocumentosMsg");
+    const refreshFn = isMulta ? refreshLancMultasDocumentosDeposito : refreshUi;
 
     input?.addEventListener("input", () => onBuscaDepositoInput(categoria));
     input?.addEventListener("focus", () => {
@@ -1449,7 +1498,7 @@
         e.preventDefault();
         void (async () => {
           const res = await buscarEImportarDoDeposito(categoria);
-          refreshUi();
+          refreshFn();
           if (msg && res.msg) msg.textContent = res.msg;
         })();
       }
@@ -1458,7 +1507,7 @@
     btn?.addEventListener("click", async () => {
       if (btn.disabled) return;
       const res = await buscarEImportarDoDeposito(categoria);
-      refreshUi();
+      refreshFn();
       if (msg && res.msg) msg.textContent = res.msg;
     });
 

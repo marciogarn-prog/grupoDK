@@ -1246,7 +1246,7 @@
         
         <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
           <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
-          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. Deposite o PDF em <strong>Documentos</strong> (PLACA-CPF), importe com o botão <strong>Multa</strong> e só então cadastre. As parcelas são a cada <strong>7 dias</strong>.</p>
+          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. Deposite o PDF em <strong>Documentos</strong>, pesquise e importe com <strong>Importar multa</strong> e só então cadastre. As parcelas são a cada <strong>7 dias</strong>.</p>
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
@@ -1298,11 +1298,13 @@
               </div>
             </section>
             <section id="operacaoLancMultasDocumentosDeposito" class="portal-lanc-multas-docs portal-loc-docs hidden" hidden aria-labelledby="portal-lanc-multas-docs-deposito-title">
-              <h4 id="portal-lanc-multas-docs-deposito-title" class="portal-lanc-aluguel-section__title">Documento da multa</h4>
-              <p class="subtext portal-loc-docs__hint">O PDF entra <strong>só</strong> pelo menu <strong>Documentos</strong> (nome = <strong>PLACA-CPF</strong>). Importe com <strong>Multa</strong>, depois <strong>Abrir</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong> (aparece no app em «Ver multas»).</p>
-              <div class="portal-loc-docs__import-btns" role="group" aria-label="Importar multa do depósito Documentos">
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasDocImportBtn" disabled>Multa</button>
+              <h4 id="portal-lanc-multas-docs-deposito-title" class="portal-lanc-aluguel-section__title">Multas → app «Ver multas»</h4>
+              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong>. Pesquise, traga para o protocolo e depois <strong>Visualizar</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong>. Pode haver <strong>várias multas</strong> no mesmo protocolo.</p>
+              <div class="portal-loc-docs-busca" role="search">
+                <input type="search" class="portal-loc-docs-busca__input" id="operacaoLancMultasDocBusca" autocomplete="off" placeholder="Digite parte do nome ou placa…" aria-label="Pesquisar multa no depósito Documentos" disabled>
+                <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-busca__btn" id="operacaoLancMultasDocImportBtn" disabled>Importar multa</button>
               </div>
+              <ul id="operacaoLancMultasDocSugestoes" class="portal-loc-docs-sugestoes hidden" role="listbox" aria-label="Sugestões de multas"></ul>
               <p id="operacaoLancMultasDepositoMsg" class="subtext portal-loc-docs__msg" role="status"></p>
               <ul id="operacaoLancMultasDocumentosLista" class="portal-loc-docs-list"></ul>
             </section>
@@ -1995,7 +1997,7 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260610corte-fixo" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260610doc-tombstone" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260610multas-busca" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
   <script src="portal-documentos.js?v=20260609doc-visualizar" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
