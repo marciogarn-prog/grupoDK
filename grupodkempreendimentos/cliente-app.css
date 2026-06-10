@@ -209,6 +209,31 @@
   color: var(--accent);
 }
 
+.cliente-parabens {
+  text-align: center;
+  padding: 0.35rem 0.2rem;
+}
+
+.cliente-parabens__texto {
+  margin: 0.3rem 0;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--text, #fff);
+}
+
+.cliente-parabens__texto strong {
+  color: var(--accent);
+  font-size: 1.12em;
+}
+
+.cliente-sync-status {
+  margin: 0.5rem 0 0;
+  text-align: center;
+  font-size: 0.78rem;
+  opacity: 0.75;
+}
+
 .cliente-protocolo {
   border: 1px solid var(--border);
   border-radius: 12px;
