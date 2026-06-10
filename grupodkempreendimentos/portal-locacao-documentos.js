@@ -1012,184 +1012,6 @@
     };
   }
 
-  /**
-   * Distribuição em massa: casa cada CRLV do depósito com a locação ATIVA pela placa
-   * (nome do ficheiro contém a placa) e faz importar → confirmar → enviar ao cliente.
-   * Só administrador. Protocolos que já têm CRLV enviado são ignorados.
-   */
-  let distribuirCrlvsBusy = false;
-  async function distribuirCrlvsDepositoTodos(onProgress) {
-    const isAdmin =
-      typeof window.__DK_isPortalTitularAdministrador === "function" &&
-      window.__DK_isPortalTitularAdministrador();
-    if (!isAdmin) return { ok: false, msg: "Só o administrador pode enviar CRLVs em massa." };
-    if (distribuirCrlvsBusy) return { ok: false, msg: "Distribuição já em curso — aguarde terminar." };
-    distribuirCrlvsBusy = true;
-    try {
-      let locs = [];
-      try {
-        const raw = localStorage.getItem("dk_locacoes_cadastro");
-        locs = raw ? JSON.parse(raw) : [];
-      } catch {
-        locs = [];
-      }
-      if (!Array.isArray(locs)) locs = [];
-
-      const vistos = new Set();
-      const alvos = [];
-      for (const l of locs) {
-        const nc = normNc(l?.numeroContrato);
-        const cpf = onlyDigits(l?.cpf).slice(0, 11);
-        const placa = String(l?.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-        if (!nc || cpf.length !== 11 || placa.length < 6) continue;
-        if (vistos.has(nc)) continue;
-        vistos.add(nc);
-        if (!protocoloLocacaoAtivo(nc)) continue;
-        alvos.push({ nc, cpf, placa });
-      }
-
-      const deposito = filtrarDeposito("crlv", "");
-      const reg = getRegistroOperador();
-      const res = {
-        ok: true,
-        total: alvos.length,
-        processados: 0,
-        enviados: 0,
-        jaTinham: 0,
-        semDeposito: 0,
-        semFicheiro: 0,
-        falhas: 0,
-        detalhes: [],
-      };
-
-      for (const alvo of alvos) {
-        res.processados += 1;
-        const { nc, cpf, placa } = alvo;
-        try {
-          const atual = docCanonicoPorTipo(nc, cpf, "crlv");
-          if (atual?.enviadoCliente === true) {
-            res.jaTinham += 1;
-            if (typeof onProgress === "function") onProgress(res);
-            continue;
-          }
-
-          let doc = atual || null;
-          if (!doc) {
-            const entry = deposito.find((r) =>
-              `${String(r.nomeArquivo || "")} ${String(r.chave || "")}`
-                .toUpperCase()
-                .replace(/[^A-Z0-9]/g, " ")
-                .includes(placa)
-            );
-            if (!entry) {
-              res.semDeposito += 1;
-              res.detalhes.push(`${placa} (${nc}): sem CRLV no depósito`);
-              if (typeof onProgress === "function") onProgress(res);
-              continue;
-            }
-            const imp = await importarDocDepositoParaProtocolo(entry, "crlv", nc, cpf, placa, reg);
-            if (imp.reason === "no_blob") {
-              res.semFicheiro += 1;
-              res.detalhes.push(`${placa} (${nc}): ficheiro não está neste computador`);
-              if (typeof onProgress === "function") onProgress(res);
-              continue;
-            }
-            if (!imp.added && !imp.skipped) {
-              res.falhas += 1;
-              res.detalhes.push(`${placa} (${nc}): falha na importação (${imp.reason || "desconhecida"})`);
-              if (typeof onProgress === "function") onProgress(res);
-              continue;
-            }
-            doc = docCanonicoPorTipo(nc, cpf, "crlv");
-            if (!doc) {
-              res.falhas += 1;
-              res.detalhes.push(`${placa} (${nc}): documento não ficou no protocolo`);
-              if (typeof onProgress === "function") onProgress(res);
-              continue;
-            }
-          }
-
-          if (doc.conferidoOperador !== true) confirmarDocumentoOperador(doc.id);
-          const env = await enviarDocumentoParaCliente(doc.id);
-          if (env.ok) {
-            res.enviados += 1;
-          } else {
-            res.falhas += 1;
-            res.detalhes.push(`${placa} (${nc}): ${env.msg || "falha no envio"}`);
-          }
-        } catch (err) {
-          res.falhas += 1;
-          res.detalhes.push(`${placa} (${nc}): ${String(err?.message || err).slice(0, 80)}`);
-        }
-        if (typeof onProgress === "function") onProgress(res);
-      }
-      return res;
-    } finally {
-      distribuirCrlvsBusy = false;
-    }
-  }
-
-  function textoProgressoDistribuicao(res, terminou) {
-    const partes = [`${res.enviados} enviado(s)`];
-    if (res.jaTinham) partes.push(`${res.jaTinham} já tinham`);
-    if (res.semDeposito) partes.push(`${res.semDeposito} sem CRLV no depósito`);
-    if (res.semFicheiro) partes.push(`${res.semFicheiro} sem ficheiro neste computador`);
-    if (res.falhas) partes.push(`${res.falhas} falha(s)`);
-    const cab = terminou
-      ? `Distribuição concluída — ${res.processados}/${res.total} protocolos.`
-      : `A enviar… ${res.processados}/${res.total} protocolos.`;
-    return `${cab} ${partes.join(" · ")}.`;
-  }
-
-  function bindDistribuirCrlvsUi() {
-    const btn = document.getElementById("documentosCrlvEnviarTodosBtn");
-    const msg = document.getElementById("documentosCrlvEnviarTodosMsg");
-    if (!btn) return;
-    btn.addEventListener("click", () => {
-      const isAdmin =
-        typeof window.__DK_isPortalTitularAdministrador === "function" &&
-        window.__DK_isPortalTitularAdministrador();
-      if (!isAdmin) {
-        if (msg) msg.textContent = "Só o administrador pode enviar CRLVs em massa.";
-        return;
-      }
-      const totalDep = contarDeposito("crlv");
-      if (!totalDep) {
-        if (msg) msg.textContent = "Nenhum CRLV no depósito — deposite os ficheiros primeiro.";
-        return;
-      }
-      if (
-        !window.confirm(
-          `Enviar CRLVs aos clientes?\n\nO sistema vai casar os ${totalDep} ficheiro(s) do depósito com as locações ativas pela placa e enviar ao app de cada cliente («Ver CRLV»).\nProtocolos que já têm CRLV enviado são ignorados.`
-        )
-      ) {
-        return;
-      }
-      btn.disabled = true;
-      if (msg) msg.textContent = "A preparar distribuição…";
-      void (async () => {
-        try {
-          const res = await distribuirCrlvsDepositoTodos((parcial) => {
-            if (msg) msg.textContent = textoProgressoDistribuicao(parcial, false);
-          });
-          if (!res.ok) {
-            if (msg) msg.textContent = res.msg || "Não foi possível distribuir.";
-            return;
-          }
-          let texto = textoProgressoDistribuicao(res, true);
-          if (res.detalhes.length) {
-            texto += ` Pendências: ${res.detalhes.slice(0, 6).join(" | ")}${res.detalhes.length > 6 ? ` (+${res.detalhes.length - 6})` : ""}`;
-          }
-          if (msg) msg.textContent = texto;
-        } catch (err) {
-          if (msg) msg.textContent = `Erro na distribuição: ${String(err?.message || err).slice(0, 120)}`;
-        } finally {
-          btn.disabled = false;
-        }
-      })();
-    });
-  }
-
   function confirmarDocumentoOperador(id) {
     const all = loadAll();
     const idx = all.findIndex((d) => String(d.id) === String(id));
@@ -1742,19 +1564,16 @@
   window.__DK_refreshLancMultasDocumentosDeposito = refreshLancMultasDocumentosDeposito;
   window.__DK_garantirDocMultaParaCadastro = garantirDocMultaParaCadastro;
   window.__DK_importarMultaDocDoDeposito = importarProximaMultaDoDeposito;
-  window.__DK_distribuirCrlvsDeposito = distribuirCrlvsDepositoTodos;
 
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
       bindUi();
       bindMultasDepositoUi();
-      bindDistribuirCrlvsUi();
       refreshUi();
     });
   } else {
     bindUi();
     bindMultasDepositoUi();
-    bindDistribuirCrlvsUi();
     refreshUi();
   }
 })();
