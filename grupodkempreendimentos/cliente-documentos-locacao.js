@@ -45,6 +45,19 @@
     return "";
   }
 
+  function docScore(d) {
+    const has = Boolean(String(d?.arquivoBase64 || "").trim());
+    const env = d?.enviadoCliente === true;
+    const ts = Number(d?.enviadoClienteEm || d?.createdAt) || 0;
+    return (has ? 1e16 : 0) + (env ? 1e15 : 0) + ts;
+  }
+
+  function docCanonico(rows) {
+    if (!rows.length) return null;
+    if (rows.length === 1) return rows[0];
+    return rows.slice().sort((a, b) => docScore(b) - docScore(a))[0];
+  }
+
   function readAllDocsMerged() {
     try {
       const raw = localStorage.getItem("dk_locacao_documentos_v1");
@@ -58,6 +71,14 @@
     } catch {
       return [];
     }
+  }
+
+  /** Contrato e CRLV: só o ficheiro vigente (mais recente com PDF). Multas: todas. */
+  function canonizarParaCliente(rows, tipo) {
+    const want = String(tipo || "").trim().toLowerCase();
+    if (want !== "contrato" && want !== "crlv") return rows;
+    const canon = docCanonico(rows);
+    return canon ? [canon] : [];
   }
 
   function docMediaUrl(doc) {
@@ -87,7 +108,8 @@
       rows = all.filter((d) => normNc(d.numeroContrato) === nc && onlyDigits(d.cpf).slice(0, 11) === dig);
       if (tipo) rows = rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
     }
-    return rows.filter(isDocEnviadoCliente);
+    rows = rows.filter(isDocEnviadoCliente);
+    return canonizarParaCliente(rows, tipo);
   }
 
   function panelEl(proto, tipo) {
@@ -210,7 +232,10 @@
 
   function tituloPainel(tipo, proto, qtd) {
     const rotulo = TITULOS[tipo] || "Documentos";
-    if (qtd > 0) return `${rotulo} — protocolo ${proto} (${qtd} ficheiro(s))`;
+    if (qtd > 0) {
+      if (tipo === "contrato" || tipo === "crlv") return `${rotulo} — protocolo ${proto}`;
+      return `${rotulo} — protocolo ${proto} (${qtd} ficheiro(s))`;
+    }
     return `${rotulo} — protocolo ${proto} (sem ficheiros)`;
   }
 
