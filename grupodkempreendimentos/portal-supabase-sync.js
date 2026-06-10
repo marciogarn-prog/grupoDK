@@ -1029,6 +1029,35 @@
     return { ok: anyOk, error: lastErr };
   }
 
+  async function pushLocacaoDocumentoSupabaseBackground(doc, updatedAt) {
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__ || !doc?.id) return false;
+    try {
+      const [supaRow, redisRow] = await Promise.all([
+        withCloudTimeout(fetchSupabaseSnapshotPayload(), 7000, "supabase_timeout").catch(() => null),
+        fetchRedundantSnapshotPayload(),
+      ]);
+      const cloudPayload = mergeRemoteSnapshotsBeforePush(supaRow, redisRow) || {};
+      const merged = mergeLocacaoDocumentosV1(
+        [{ ...doc, enviadoCliente: true }],
+        cloudPayload.dk_locacao_documentos_v1
+      );
+      const fullPayload = { ...cloudPayload, dk_locacao_documentos_v1: merged };
+      const { error } = await withCloudTimeout(
+        client.from("dk_cloud_snapshots").upsert(
+          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
+          { onConflict: "label" }
+        ),
+        12000,
+        "supabase_upsert_timeout"
+      );
+      return !error;
+    } catch (e) {
+      console.warn("[DK docs locação] push Supabase", e);
+      return false;
+    }
+  }
+
   /** Push parcial: só o documento enviado (PDF incluído) — evita falha do snapshot completo. */
   async function pushLocacaoDocumentoNuvem(doc) {
     if (!doc || typeof doc !== "object" || !doc.id) {
@@ -1038,20 +1067,22 @@
       return { ok: false, error: "doc_sem_pdf" };
     }
     const updatedAt = new Date().toISOString();
-    const red = await pushRedundantSnapshotPayload(
-      {
-        dk_locacao_documentos_v1: [
-          {
-            ...doc,
-            enviadoCliente: true,
-          },
-        ],
-      },
-      updatedAt,
-      { skipShrink: true }
-    );
-    if (red.ok) noteCloudPushTimestamp(updatedAt);
-    return { ok: red.ok, redisOk: red.ok, error: red.error };
+    const patch = {
+      dk_locacao_documentos_v1: [{ ...doc, enviadoCliente: true }],
+    };
+    let redisOk = false;
+    let lastErr = null;
+    for (let attempt = 0; attempt < 3 && !redisOk; attempt += 1) {
+      const red = await pushRedundantSnapshotPayload(patch, updatedAt, { skipShrink: true });
+      redisOk = red.ok;
+      lastErr = red.error || null;
+      if (!redisOk && attempt < 2) {
+        await new Promise((r) => window.setTimeout(r, 450 * (attempt + 1)));
+      }
+    }
+    const supaOk = await pushLocacaoDocumentoSupabaseBackground(doc, updatedAt);
+    if (redisOk || supaOk) noteCloudPushTimestamp(updatedAt);
+    return { ok: redisOk || supaOk, redisOk, supaOk, error: lastErr };
   }
 
   function pickNewestCloudRow(rows) {
