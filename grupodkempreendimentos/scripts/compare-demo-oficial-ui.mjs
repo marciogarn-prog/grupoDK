@@ -9,13 +9,16 @@ const PAIRS = [
 const MARKERS = [
   "operacaoLocacaoDocumentosListaContrato",
   "operacaoLocacaoDocumentosListaCrlv",
-  "operacaoLocacaoDocumentosListaMulta",
-  "operacaoLocacaoDocContratoBtn",
-  "operacaoLocacaoDocCrlvBtn",
+  "operacaoLocacaoDocBuscarContratoBtn",
+  "operacaoLocacaoDocBuscarCrlvBtn",
+  "operacaoLocacaoDocBuscaContrato",
+  "operacaoLocacaoDocSugestoesCrlv",
   "portal-loc-docs-grupos",
   "Confirmar",
   "Enviar para o cliente",
   "operacaoLocacaoDocumentosInput",
+  "operacaoLocacaoDocumentosListaMulta",
+  "operacaoLocacaoDocContratoBtn",
 ];
 
 async function fetchText(url) {
@@ -34,6 +37,7 @@ for (const [base, label] of PAIRS) {
     cssVer,
     cssHasGrupos: css.includes("portal-loc-docs-grupos"),
     cssHasConfirmar: css.includes("portal-loc-docs-item__confirmar"),
+    cssHasBusca: css.includes("portal-loc-docs-busca"),
     markers: {},
   };
   for (const m of MARKERS) {
@@ -48,6 +52,13 @@ for (const m of MARKERS) {
   if (m === "operacaoLocacaoDocumentosInput") {
     if (results.demo.markers[m] || results.oficial.markers[m]) {
       console.error("FAIL: upload directo ainda presente");
+      ok = false;
+    }
+    continue;
+  }
+  if (m === "operacaoLocacaoDocumentosListaMulta" || m === "operacaoLocacaoDocContratoBtn") {
+    if (results.demo.markers[m] || results.oficial.markers[m]) {
+      console.error(`FAIL: ${m} ainda presente no cadastro locação`);
       ok = false;
     }
     continue;
@@ -67,6 +78,11 @@ if (results.demo.cssVer !== results.oficial.cssVer) {
 }
 if (results.demo.cssHasGrupos !== results.oficial.cssHasGrupos || !results.demo.cssHasGrupos) {
   console.error("FAIL css portal-loc-docs-grupos missing or diverge");
+  ok = false;
+}
+const cssBusca = results.demo.cssHasBusca === results.oficial.cssHasBusca && results.demo.cssHasBusca;
+if (!cssBusca) {
+  console.error("FAIL css portal-loc-docs-busca missing or diverge");
   ok = false;
 }
 console.log(ok ? "PARITY OK" : "PARITY FAIL");

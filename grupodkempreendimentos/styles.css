@@ -5037,6 +5037,71 @@ table.validados-app .lnk-comprovante {
   color: #86efac;
 }
 
+.portal-loc-docs-busca {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin: 0.35rem 0 0.25rem;
+}
+
+.portal-loc-docs-busca__input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.35);
+  color: inherit;
+}
+
+.portal-loc-docs-busca__btn {
+  flex: 0 0 auto;
+}
+
+.portal-loc-docs-busca-msg {
+  margin: 0.15rem 0 0.35rem;
+}
+
+.portal-loc-docs-sugestoes {
+  list-style: none;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  max-height: 11rem;
+  overflow-y: auto;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 0.35rem;
+  background: rgba(15, 23, 42, 0.95);
+}
+
+.portal-loc-docs-sugestoes__item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding: 0.45rem 0.65rem;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.portal-loc-docs-sugestoes__item:hover,
+.portal-loc-docs-sugestoes__item:focus {
+  background: rgba(59, 130, 246, 0.18);
+  outline: none;
+}
+
+.portal-loc-docs-sugestoes__item:last-child {
+  border-bottom: none;
+}
+
+.portal-loc-docs-sugestoes__nome {
+  font-size: 0.88rem;
+  word-break: break-all;
+}
+
+.portal-loc-docs-sugestoes__chave {
+  font-size: 0.75rem;
+}
+
 /* Comunicação cliente ↔ operação (vendas verde / manutenção amarelo) */
 .portal-comunicacao-inbox-grid--fixed {
   position: fixed;

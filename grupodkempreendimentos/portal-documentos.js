@@ -221,6 +221,33 @@
       .sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0));
   }
 
+  function filtrarDepositoPorTexto(categoria, termo) {
+    const cat = String(categoria || "").trim().toLowerCase();
+    const dep = loadDeposit();
+    const arr = dep[cat] || [];
+    const t = String(termo || "").trim().toLowerCase();
+    let rows = arr.slice();
+    if (t) {
+      rows = rows.filter((e) => {
+        const nome = String(e.nomeArquivo || "").toLowerCase();
+        const chave = String(e.chave || "").toLowerCase();
+        return nome.includes(t) || chave.includes(t);
+      });
+    }
+    return rows.sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0));
+  }
+
+  function obterEntradaDeposito(categoria, id) {
+    const cat = String(categoria || "").trim().toLowerCase();
+    if (!id) return null;
+    return (loadDeposit()[cat] || []).find((e) => String(e.id) === String(id)) || null;
+  }
+
+  function contarDeposito(categoria) {
+    const cat = String(categoria || "").trim().toLowerCase();
+    return (loadDeposit()[cat] || []).length;
+  }
+
   function renderBuscaResultados() {
     const wrap = $("documentosBuscaResultados");
     const msg = $("documentosBuscaMsg");
@@ -471,6 +498,9 @@
   window.__DK_documentosStorageKey = STORAGE_KEY;
   window.__DK_documentosLoadDeposit = loadDeposit;
   window.__DK_documentosListarPorChave = listarPorChave;
+  window.__DK_documentosFiltrarDeposito = filtrarDepositoPorTexto;
+  window.__DK_documentosObterEntrada = obterEntradaDeposito;
+  window.__DK_documentosContarDeposito = contarDeposito;
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
   window.__DK_documentosNormPlaca = normPlaca;
   window.__DK_documentosNormProtocolo = normProtocolo;
