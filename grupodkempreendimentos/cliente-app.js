@@ -548,18 +548,12 @@
     }
   }
 
-  function canOpenAppWithoutPortalRedirect() {
-    if (getSessao()?.cpf) return true;
-    if (hasClienteAppDownloadGate()) return true;
+  function markClientePwaInstalledIfStandalone() {
+    if (!isStandaloneDisplay()) return;
     try {
-      if (new URLSearchParams(location.search).get("instalar") === "1") return true;
+      localStorage.setItem("dk_cliente_pwa_installed", "1");
     } catch {
       /* ignore */
-    }
-    try {
-      return Boolean(localStorage.getItem(GATE_PERSIST_KEY));
-    } catch {
-      return false;
     }
   }
 
@@ -2195,16 +2189,12 @@
 
   async function init() {
     fecharModalRelatorio();
+    markClientePwaInstalledIfStandalone();
     applyClienteComprovanteUiVisibility();
     restoreGateToSession();
     persistGateFromSession();
     wireLaunchQueueShare();
     wireComprovanteLinkDelegation();
-
-    if (!canOpenAppWithoutPortalRedirect()) {
-      window.location.replace("/#locadora/cliente");
-      return;
-    }
 
     const adminPreviewLogin = canAdminPreviewAutoLogin();
     if (isAdminPreviewMode()) {
