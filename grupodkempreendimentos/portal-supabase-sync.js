@@ -120,6 +120,24 @@
     ]);
   }
 
+  function fetchWithCloudTimeout(url, init, ms) {
+    const timeoutMs = ms || 30000;
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = ctrl
+      ? window.setTimeout(() => {
+          try {
+            ctrl.abort();
+          } catch {
+            /* ignore */
+          }
+        }, timeoutMs)
+      : null;
+    const mergedInit = ctrl ? { ...init, signal: ctrl.signal } : init;
+    return fetch(url, mergedInit).finally(() => {
+      if (timer) window.clearTimeout(timer);
+    });
+  }
+
   const DK_STORAGE_KEYS = [
     "dk_clientes_cadastro",
     "dk_clientes_validacao_pendente",
@@ -985,10 +1003,14 @@
     const urls = resolveRedundantSnapshotApiUrls();
     for (let i = 0; i < urls.length; i += 1) {
       try {
-        const res = await fetch(urls[i], {
-          method: "GET",
-          headers: dkCloudFetchHeaders(),
-        });
+        const res = await fetchWithCloudTimeout(
+          urls[i],
+          {
+            method: "GET",
+            headers: dkCloudFetchHeaders(),
+          },
+          15000
+        );
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data?.ok) continue;
         if (!data.payload || typeof data.payload !== "object") return null;
@@ -1025,17 +1047,22 @@
     } else if (fullReplaceComprovantes) {
       bodyPayload._dkFullReplaceKeys = ["dk_comprovantes_cliente_pendentes"];
     }
+    const postTimeoutMs = opts && opts.skipShrink ? 90000 : 45000;
     for (let i = 0; i < urls.length; i += 1) {
       try {
-        const res = await fetch(urls[i], {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...dkCloudFetchHeaders() },
-          body: JSON.stringify({
-            payload: bodyPayload,
-            updated_at: updatedAt,
-            replace,
-          }),
-        });
+        const res = await fetchWithCloudTimeout(
+          urls[i],
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...dkCloudFetchHeaders() },
+            body: JSON.stringify({
+              payload: bodyPayload,
+              updated_at: updatedAt,
+              replace,
+            }),
+          },
+          postTimeoutMs
+        );
         const data = await res.json().catch(() => ({}));
         if (res.ok && data?.ok) {
           anyOk = true;
@@ -1101,9 +1128,16 @@
         await new Promise((r) => window.setTimeout(r, 450 * (attempt + 1)));
       }
     }
+    if (redisOk) {
+      noteCloudPushTimestamp(updatedAt);
+      void pushLocacaoDocumentoSupabaseBackground(doc, updatedAt).catch((e) =>
+        console.warn("[DK docs locação] Supabase background", e)
+      );
+      return { ok: true, redisOk: true, supaOk: false, supaPending: true, error: null };
+    }
     const supaOk = await pushLocacaoDocumentoSupabaseBackground(doc, updatedAt);
-    if (redisOk || supaOk) noteCloudPushTimestamp(updatedAt);
-    return { ok: redisOk || supaOk, redisOk, supaOk, error: lastErr };
+    if (supaOk) noteCloudPushTimestamp(updatedAt);
+    return { ok: supaOk, redisOk: false, supaOk, error: lastErr };
   }
 
   function pickNewestCloudRow(rows) {
@@ -2471,14 +2505,21 @@
     const client = window.__DK_SUPABASE_CLIENT__;
     if (client && window.__DK_SUPABASE_CONFIGURED__) {
       const row = { label: dkSnapshotLabel(), payload, updated_at: updatedAt };
-    const { error } = await client.from("dk_cloud_snapshots").upsert(row, {
-      onConflict: "label",
-    });
-    if (error) {
-        supaErr = error.message || String(error);
-        console.error("[DK cloud] Supabase push", error);
-      } else {
-        supaOk = true;
+      try {
+        const { error } = await withCloudTimeout(
+          client.from("dk_cloud_snapshots").upsert(row, { onConflict: "label" }),
+          20000,
+          "supabase_upsert_timeout"
+        );
+        if (error) {
+          supaErr = error.message || String(error);
+          console.error("[DK cloud] Supabase push", error);
+        } else {
+          supaOk = true;
+        }
+      } catch (e) {
+        supaErr = String(e?.message || e);
+        console.warn("[DK cloud] Supabase push timeout", e);
       }
     } else {
       supaErr = "Supabase não configurado";
