@@ -1,5 +1,5 @@
-﻿/**
- * E2E demo: portal operador â€” tela Cadastro de locaÃ§Ã£o mostra CRLV enviado.
+/**
+ * E2E demo: portal operador — tela Cadastro de locação mostra CRLV enviado.
  * node grupodkempreendimentos/scripts/test-crlv-portal-operador-demo.mjs
  */
 import { chromium } from "playwright";
@@ -52,7 +52,7 @@ try {
   await cpfInput.waitFor({ state: "visible", timeout: 20000 });
   await cpfInput.fill(CASO.cpf);
   await cpfInput.blur();
-  record("campo CPF locaÃ§Ã£o preenchido", true, CASO.cpf);
+  record("campo CPF locação preenchido", true, CASO.cpf);
 
   await page.waitForFunction(
     (proto) => {
@@ -85,7 +85,7 @@ try {
 
   const docState = await page.evaluate(() => {
     const ul = document.getElementById("operacaoLocacaoDocumentosListaCrlv");
-    const txt = ul ? ul.textContent || "" : "(lista CRLV nÃ£o encontrada)";
+    const txt = ul ? ul.textContent || "" : "(lista CRLV não encontrada)";
     const enviadoBtn = ul?.querySelector("[data-loc-doc-enviar]");
     return {
       temLista: Boolean(ul),
@@ -100,12 +100,12 @@ try {
     docState.texto.slice(0, 120)
   );
   record(
-    "estado Â«EnviadoÂ» no portal",
+    "estado «Enviado» no portal",
     docState.botaoEnviar === "Enviado" && docState.botaoDesativado === true,
-    `botÃ£o=${docState.botaoEnviar} disabled=${docState.botaoDesativado}`
+    `botão=${docState.botaoEnviar} disabled=${docState.botaoDesativado}`
   );
   record(
-    "status nuvem no cartÃ£o",
+    "status nuvem no cartão",
     /Enviado e confirmado na nuvem/i.test(docState.texto),
     /Enviado e confirmado/i.test(docState.texto) ? "confirmado" : docState.texto.slice(0, 120)
   );

@@ -1,8 +1,8 @@
-﻿/**
- * E2E oficial: simula navegador poluÃ­do (clientes de planilha no localStorage),
+/**
+ * E2E oficial: simula navegador poluído (clientes de planilha no localStorage),
  * carrega o site e verifica que a purga com data de corte limpa tudo:
- * - clientes antigos removidos (CÃ³d. volta a CLIENTE 1)
- * - dropdown de CPF no cadastro de locaÃ§Ã£o sem clientes antigos
+ * - clientes antigos removidos (Cód. volta a CLIENTE 1)
+ * - dropdown de CPF no cadastro de locação sem clientes antigos
  * - nuvem oficial sem cadastros
  * node grupodkempreendimentos/scripts/test-oficial-corte-limpo.mjs
  */
@@ -34,14 +34,14 @@ try {
   // nuvem oficial limpa?
   const cloud = await fetch(`${BASE_URL}api/dk-cloud-snapshot`).then((r) => r.json());
   const cp = cloud?.payload || {};
-  /* funcionÃ¡rios (logins) e audit log (registo operacional) nÃ£o sÃ£o poluiÃ§Ã£o de cadastro */
+  /* funcionários (logins) e audit log (registo operacional) não são poluição de cadastro */
   const IGNORAR = new Set(["dk_funcionarios_access", "dk_audit_log"]);
   const sujos = Object.keys(cp).filter(
     (k) => Array.isArray(cp[k]) && cp[k].length && !IGNORAR.has(k)
   );
   record("nuvem oficial sem cadastros", sujos.length === 0, sujos.join(",") || "limpa");
 
-  // 1Âª visita: injetar poluiÃ§Ã£o ANTES dos scripts (sessÃ£o admin + clientes planilha)
+  // 1ª visita: injetar poluição ANTES dos scripts (sessão admin + clientes planilha)
   await page.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 90000 });
   await page.evaluate((clientes) => {
     localStorage.setItem("dk_clientes_cadastro", JSON.stringify(clientes));
@@ -53,7 +53,7 @@ try {
     sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
   }, POLUICAO_CLIENTES);
 
-  // 2Âª visita: reload completo â€” a purga corre no arranque do app.js
+  // 2ª visita: reload completo — a purga corre no arranque do app.js
   await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
   await page.reload({ waitUntil: "networkidle", timeout: 90000 });
   await page
@@ -91,7 +91,7 @@ try {
     `restaram=${aposPurga.clientes} cutoff=${aposPurga.cutoff} guard=${aposPurga.guardAtivo}`
   );
 
-  // painel logado + cadastro de cliente: cÃ³digo deve ser CLIENTE 1
+  // painel logado + cadastro de cliente: código deve ser CLIENTE 1
   await page.waitForFunction(
     () => {
       const panel = document.getElementById("panel-logado");
@@ -119,12 +119,12 @@ try {
     return el ? el.value : null;
   });
   record(
-    "novo cadastro comeÃ§a em CLIENTE 1",
+    "novo cadastro começa em CLIENTE 1",
     codigoCliente === "CLIENTE 1",
     `codigo=${codigoCliente}`
   );
 
-  // cadastro de locaÃ§Ã£o: dropdown de CPF sem clientes antigos
+  // cadastro de locação: dropdown de CPF sem clientes antigos
   const btnLocacao = page.locator("#btn-operacao-cadastro-locacao");
   if (await btnLocacao.isVisible().catch(() => false)) {
     await btnLocacao.click();
@@ -134,7 +134,7 @@ try {
     const dl = document.getElementById("operacaoLocacaoCpfSugestoes");
     return dl ? dl.querySelectorAll("option").length : 0;
   });
-  record("dropdown CPF de locaÃ§Ã£o vazio", sugestoes === 0, `sugestoes=${sugestoes}`);
+  record("dropdown CPF de locação vazio", sugestoes === 0, `sugestoes=${sugestoes}`);
 
   // inverso: cadastro de hoje (>= corte) tem de SOBREVIVER ao filtro
   const sobrevive = await page.evaluate(() => {

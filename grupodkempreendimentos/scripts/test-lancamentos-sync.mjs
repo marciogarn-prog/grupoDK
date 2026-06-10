@@ -1,5 +1,5 @@
-﻿/**
- * Sincronismo portal â†” app cliente â€” lanÃ§amentos de aluguel com protocolo.
+/**
+ * Sincronismo portal ↔ app cliente — lançamentos de aluguel com protocolo.
  * node grupodkempreendimentos/scripts/test-lancamentos-sync.mjs
  * DK_TEST_BASE_URL=https://demo.grupodkempreendimentos.com.br/
  */
@@ -63,7 +63,7 @@ async function run() {
       const p = fn("39039039039", new Date(2026, 5, 8, 14, 22, 47));
       return { ok: /^\d{14}-\d{3}$/.test(p), sample: p };
     });
-    record("API protocolo lanÃ§amento AAAAMMDDHHMMSS-NNN", protoApi.ok, protoApi.sample || "");
+    record("API protocolo lançamento AAAAMMDDHHMMSS-NNN", protoApi.ok, protoApi.sample || "");
 
     await loginAdmin(page);
 
@@ -130,9 +130,9 @@ async function run() {
       return { count: lancs.length, total, protosOk, tp, histVisible, histRows, hasLoc: Boolean(loc) };
     }, { cpf: CPF_TEST, proto: PROTO_TEST });
 
-    record("portal: locaÃ§Ã£o encontrada", portalData.hasLoc, `proto=${PROTO_TEST}`);
-    record("portal: histÃ³rico visÃ­vel no cadastro locaÃ§Ã£o", portalData.histVisible && portalData.histRows >= 0, `rows=${portalData.histRows}`);
-    record("portal: todos lanÃ§amentos com protocolo", portalData.protosOk, `n=${portalData.count}`);
+    record("portal: locação encontrada", portalData.hasLoc, `proto=${PROTO_TEST}`);
+    record("portal: histórico visível no cadastro locação", portalData.histVisible && portalData.histRows >= 0, `rows=${portalData.histRows}`);
+    record("portal: todos lançamentos com protocolo", portalData.protosOk, `n=${portalData.count}`);
 
     const clientePage = await browser.newPage();
     await clientePage.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
@@ -170,24 +170,24 @@ async function run() {
       return { count: lancs.length, total, protosOk, hasLoc: Boolean(loc) };
     }, { cpf: CPF_TEST, proto: PROTO_TEST });
 
-    record("app: locaÃ§Ã£o encontrada", appData.hasLoc);
-    record("app: todos lanÃ§amentos com protocolo", appData.protosOk, `n=${appData.count}`);
+    record("app: locação encontrada", appData.hasLoc);
+    record("app: todos lançamentos com protocolo", appData.protosOk, `n=${appData.count}`);
 
     const diffCount = portalData.count === appData.count;
     const diffTotal = Math.abs(portalData.total - appData.total) < 0.02;
     record(
-      "sincronismo portal â†” app (contagem)",
+      "sincronismo portal ↔ app (contagem)",
       diffCount,
       `portal=${portalData.count} app=${appData.count}`
     );
     record(
-      "sincronismo portal â†” app (total R$)",
+      "sincronismo portal ↔ app (total R$)",
       diffTotal,
       `portal=${portalData.total.toFixed(2)} app=${appData.total.toFixed(2)}`
     );
 
     if (IS_DEMO && portalData.count > 0) {
-      record("demo: pelo menos 1 lanÃ§amento no protocolo teste", portalData.count >= 1);
+      record("demo: pelo menos 1 lançamento no protocolo teste", portalData.count >= 1);
     }
 
     await clientePage.close();
@@ -196,7 +196,7 @@ async function run() {
   }
 
   const ok = results.filter((r) => r.ok).length;
-  console.log(`\n--- ${ok}/${results.length} testes sincronismo lanÃ§amentos ---\n`);
+  console.log(`\n--- ${ok}/${results.length} testes sincronismo lançamentos ---\n`);
   process.exit(ok === results.length ? 0 : 1);
 }
 

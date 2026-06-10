@@ -1,5 +1,5 @@
-﻿/**
- * Varredura UI â€” telas e botÃµes do portal (oficial ou demo).
+/**
+ * Varredura UI — telas e botões do portal (oficial ou demo).
  * node grupodkempreendimentos/scripts/test-portal-ui-varredura.mjs
  * DK_TEST_BASE_URL=https://demo.grupodkempreendimentos.com.br/
  */
@@ -64,7 +64,7 @@ const JS_FILES = [
   "dk-app-entry.js",
 ];
 
-/** BotÃµes ligados por delegaÃ§Ã£o genÃ©rica ou submit de formulÃ¡rio. */
+/** Botões ligados por delegação genérica ou submit de formulário. */
 const HANDLER_WHITELIST = new Set([
   "portal-unit-back-btn",
   "portal-unit-inicio-btn",
@@ -138,7 +138,7 @@ function runStaticAudit() {
 
   const modals = extractModalIds(indexHtml);
   record(
-    "modais crÃ­ticos presentes",
+    "modais críticos presentes",
     modals.includes("portalLancAluguelCalModal") &&
       modals.includes("portalAdminAlteracaoConfirmModal") &&
       modals.includes("portalComunicacaoChatModal"),
@@ -147,19 +147,19 @@ function runStaticAudit() {
 
   const portalBtns = extractButtonIds(indexHtml);
   const clienteBtns = extractButtonIds(clienteHtml);
-  record("inventÃ¡rio botÃµes portal", portalBtns.length >= 90, `${portalBtns.length} botÃµes`);
-  record("inventÃ¡rio botÃµes app cliente", clienteBtns.length >= 10, `${clienteBtns.length} botÃµes`);
+  record("inventário botões portal", portalBtns.length >= 90, `${portalBtns.length} botões`);
+  record("inventário botões app cliente", clienteBtns.length >= 10, `${clienteBtns.length} botões`);
 
   const missingHandlers = portalBtns.filter((id) => !buttonHasHandler(id, js));
   record(
-    "botÃµes portal com handler JS",
+    "botões portal com handler JS",
     missingHandlers.length === 0,
-    missingHandlers.length ? `sem handler: ${missingHandlers.slice(0, 8).join(", ")}${missingHandlers.length > 8 ? "â€¦" : ""}` : "todos ok"
+    missingHandlers.length ? `sem handler: ${missingHandlers.slice(0, 8).join(", ")}${missingHandlers.length > 8 ? "…" : ""}` : "todos ok"
   );
 
   const missingCliente = clienteBtns.filter((id) => !buttonHasHandler(id, js));
   record(
-    "botÃµes app cliente com handler JS",
+    "botões app cliente com handler JS",
     missingCliente.length === 0,
     missingCliente.length ? missingCliente.join(", ") : "todos ok"
   );
@@ -180,19 +180,19 @@ const OPERACAO_PANELS = [
     buttons: ["operacaoClienteLimparBtn", "operacaoClienteVoltarBtn", "operacaoClienteGerarRelatorioBtn"],
   },
   {
-    name: "Cadastro veÃ­culo",
+    name: "Cadastro veículo",
     cmd: "btn-operacao-cadastro-veiculo",
     panel: "operacaoInlineVeiculo",
     buttons: ["operacaoVeiculoLimparBtn", "operacaoVeiculoVoltarBtn"],
   },
   {
-    name: "Cadastro locaÃ§Ã£o",
+    name: "Cadastro locação",
     cmd: "btn-operacao-cadastro-locacao",
     panel: "operacaoInlineLocacao",
     buttons: ["operacaoLocacaoLimparBtn", "operacaoLocacaoVoltarBtn", "operacaoLocacaoDocBuscarContratoBtn", "operacaoLocacaoDocBuscarCrlvBtn"],
   },
   {
-    name: "LanÃ§amento aluguel",
+    name: "Lançamento aluguel",
     cmd: "btn-operacao-lancamento-aluguel",
     panel: "operacaoInlineLancamentoAluguel",
     buttons: [
@@ -206,13 +206,13 @@ const OPERACAO_PANELS = [
     },
   },
   {
-    name: "LanÃ§amento multas",
+    name: "Lançamento multas",
     cmd: "btn-operacao-lancamento-multas",
     panel: "operacaoInlineLancamentoMultas",
     buttons: ["operacaoLancMultasConfirmarPesquisaBtn", "operacaoLancMultasDocImportBtn", "operacaoLancMultasGerarRelatorioBtn"],
   },
   {
-    name: "LanÃ§amento manutenÃ§Ã£o",
+    name: "Lançamento manutenção",
     cmd: "btn-operacao-lancamento-manutencao",
     panel: "operacaoInlineLancamentoManutencao",
     buttons: [
@@ -231,9 +231,9 @@ const OPERACAO_PANELS = [
 ];
 
 const AREAS_EMPRESA = [
-  { name: "OperaÃ§Ã£o", btn: "btn-locadora-operacao", panel: "panel-operacao-locadora" },
-  { name: "ManutenÃ§Ã£o frota", btn: "btn-locadora-manutencao", panel: "panel-manutencao-locadora" },
-  { name: "LocalizaÃ§Ã£o clientes", btn: "btn-locadora-localizacao", panel: "panel-localizacao-locadora" },
+  { name: "Operação", btn: "btn-locadora-operacao", panel: "panel-operacao-locadora" },
+  { name: "Manutenção frota", btn: "btn-locadora-manutencao", panel: "panel-manutencao-locadora" },
+  { name: "Localização clientes", btn: "btn-locadora-localizacao", panel: "panel-localizacao-locadora" },
   { name: "Documentos", btn: "btn-locadora-documentos", panel: "panel-documentos-locadora" },
 ];
 
@@ -299,7 +299,7 @@ async function runE2E() {
 
   try {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 90000 });
-    record("E2E: pÃ¡gina inicial carrega", (await page.title()).length > 0);
+    record("E2E: página inicial carrega", (await page.title()).length > 0);
 
     await page.locator('[data-go="locadora"]').first().click({ timeout: 10000 }).catch(() => null);
     await page.waitForTimeout(600);
@@ -311,7 +311,7 @@ async function runE2E() {
     await page.locator("[data-locadora-go='cliente']").first().click({ timeout: 8000 }).catch(() => null);
     await page.waitForTimeout(500);
     record(
-      "E2E: Ã¡rea cliente",
+      "E2E: área cliente",
       await page.locator("#locadora-cliente-title").isVisible().catch(() => false)
     );
 
@@ -320,7 +320,7 @@ async function runE2E() {
     await page.locator("[data-locadora-go='empresa']").first().click({ timeout: 8000 }).catch(() => null);
     await page.waitForTimeout(500);
     record(
-      "E2E: Ã¡rea empresa (login)",
+      "E2E: área empresa (login)",
       (await page.locator("#panel-login, .role-picker").first().isVisible().catch(() => false)) ||
         (await page.locator("#panel-logado").isVisible().catch(() => false))
     );
@@ -332,7 +332,7 @@ async function runE2E() {
     );
 
     record(
-      "E2E: barra comunicaÃ§Ã£o removida",
+      "E2E: barra comunicação removida",
       (await page.locator("#portal-comunicacao-inbox-wrap").count()) === 0 &&
         (await page.locator("#portalComunicacaoVendasLista").count()) === 0
     );
@@ -342,7 +342,7 @@ async function runE2E() {
       const btn = page.locator(`#${area.btn}`);
       const visible = await btn.isVisible().catch(() => false);
       if (!visible) {
-        record(`E2E: Ã¡rea ${area.name}`, false, "botÃ£o oculto");
+        record(`E2E: área ${area.name}`, false, "botão oculto");
         continue;
       }
       await btn.click();
@@ -351,7 +351,7 @@ async function runE2E() {
         .locator(`#${area.panel}:not(.hidden)`)
         .isVisible()
         .catch(() => false);
-      record(`E2E: Ã¡rea ${area.name}`, panelOk, area.panel);
+      record(`E2E: área ${area.name}`, panelOk, area.panel);
     }
 
     await ensureEquipaNavVisible(page);
@@ -429,12 +429,12 @@ async function runE2E() {
         .waitForSelector("#portalLancAluguelCalModal:not(.hidden)", { timeout: 12000 })
         .then(() => true)
         .catch(() => false);
-      record("E2E: lanÃ§amento em bloco abre modal", modalOpen);
+      record("E2E: lançamento em bloco abre modal", modalOpen);
       if (modalOpen) {
         await page.locator("#portalLancAluguelCalFecharBtn").click().catch(() => null);
       }
     } else {
-      record("E2E: lanÃ§amento em bloco abre modal", true, "oficial sem dados demo â€” skip interativo");
+      record("E2E: lançamento em bloco abre modal", true, "oficial sem dados demo — skip interativo");
     }
 
     const clienteHtml = await fetch(new URL("cliente.html", BASE_URL).href, { cache: "no-store" }).then((r) =>
@@ -445,23 +445,23 @@ async function runE2E() {
       clienteHtml.includes("cliente-app.js") &&
         clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         clienteHtml.includes("view-trocar-senha"),
-      "app + comunicaÃ§Ã£o"
+      "app + comunicação"
     );
 
     record(
-      "E2E: sem erros JS fatais na pÃ¡gina",
+      "E2E: sem erros JS fatais na página",
       pageErrors.filter((e) => !/is not iterable/i.test(e)).length === 0,
       pageErrors.slice(0, 2).join(" | ") || "ok"
     );
   } catch (err) {
-    record("E2E: execuÃ§Ã£o", false, String(err?.message || err).slice(0, 120));
+    record("E2E: execução", false, String(err?.message || err).slice(0, 120));
   } finally {
     await browser.close();
   }
 }
 
 async function main() {
-  console.log(`\n=== Varredura UI portal [${ENV_LABEL}] â€” ${BASE_URL} ===\n`);
+  console.log(`\n=== Varredura UI portal [${ENV_LABEL}] — ${BASE_URL} ===\n`);
   runStaticAudit();
   console.log("");
   await runE2E();
