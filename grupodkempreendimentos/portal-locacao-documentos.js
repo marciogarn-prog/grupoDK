@@ -84,27 +84,41 @@
   }
 
   async function fetchDocumentosLocacaoNaNuvem() {
+    const mergeFn =
+      typeof window.__DK_docsLocacaoMerge === "function" ? window.__DK_docsLocacaoMerge : null;
+    let redisArr = null;
+    let cloudArr = null;
     if (typeof window.__DK_fetchRedundantSnapshotPayload === "function") {
       try {
         const redis = await window.__DK_fetchRedundantSnapshotPayload();
-        const arr = redis?.payload?.dk_locacao_documentos_v1;
-        if (Array.isArray(arr)) return arr;
+        if (Array.isArray(redis?.payload?.dk_locacao_documentos_v1)) {
+          redisArr = redis.payload.dk_locacao_documentos_v1;
+        }
       } catch {
-        /* fallback merge */
+        /* ignore */
       }
     }
     const fetchFn =
       typeof window.__DK_fetchCloudSnapshotPayload === "function"
         ? window.__DK_fetchCloudSnapshotPayload
         : null;
-    if (!fetchFn) return null;
-    try {
-      const data = await fetchFn();
-      const arr = data?.payload?.dk_locacao_documentos_v1;
-      return Array.isArray(arr) ? arr : null;
-    } catch {
-      return null;
+    if (fetchFn) {
+      try {
+        const data = await fetchFn();
+        if (Array.isArray(data?.payload?.dk_locacao_documentos_v1)) {
+          cloudArr = data.payload.dk_locacao_documentos_v1;
+        }
+      } catch {
+        /* ignore */
+      }
     }
+    if (mergeFn) {
+      const merged = mergeFn(redisArr || [], cloudArr || []);
+      return merged.length ? merged : null;
+    }
+    if (Array.isArray(cloudArr)) return cloudArr;
+    if (Array.isArray(redisArr)) return redisArr;
+    return null;
   }
 
   async function verificarDocumentoEnviadoNaNuvem(doc, tentativa) {
@@ -115,7 +129,7 @@
       };
     }
     if (tentativa > 0) {
-      await new Promise((r) => window.setTimeout(r, 1500));
+      await new Promise((r) => window.setTimeout(r, 2000));
     }
     const cpfDig = onlyDigits(doc.cpf).slice(0, 11);
     const nc = normNc(doc.numeroContrato);
@@ -124,7 +138,7 @@
     }
     const arr = await fetchDocumentosLocacaoNaNuvem();
     if (!Array.isArray(arr)) {
-      if (tentativa < 3) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
+      if (tentativa < 5) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
       return { ok: false, msg: "Nuvem ainda sem registo do documento — tente enviar de novo." };
     }
     const pool = arr.filter(
@@ -132,7 +146,7 @@
     );
     const found = pool.find((d) => documentoCorrespondeNaNuvem(d, doc));
     if (!found) {
-      if (tentativa < 3) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
+      if (tentativa < 5) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
       return {
         ok: false,
         msg: `O PDF não chegou à nuvem para o protocolo ${nc} — verifique a ligação e clique «Enviar para o cliente» de novo.`,
@@ -863,8 +877,14 @@
       pushOk = directRes?.ok === true;
     }
     if (!pushOk) {
+      all[idx] = pendingDoc;
+      saveAllLocal(all);
       const pushRes = await pushDocumentosNuvem();
       pushOk = pushRes?.ok === true && pushRes?.skipped !== true;
+      if (!pushOk) {
+        all[idx] = doc;
+        saveAllLocal(all);
+      }
     }
     if (!pushOk) {
       return {

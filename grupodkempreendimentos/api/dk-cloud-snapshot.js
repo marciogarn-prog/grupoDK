@@ -315,6 +315,37 @@ function mergeComunicacaoOperacaoRedisRecord(prev, next) {
   };
 }
 
+/** Merge documentos CRLV/contrato por id — push parcial não pode apagar outros protocolos. */
+function mergeLocacaoDocumentosRedis(existing, incoming) {
+  const byId = new Map();
+  const pick = (rec) => {
+    if (!rec || typeof rec !== "object" || !rec.id) return;
+    const prev = byId.get(rec.id);
+    if (!prev) {
+      byId.set(rec.id, rec);
+      return;
+    }
+    const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
+    const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
+    const prevTs = Number(prev.enviadoClienteEm || prev.createdAt) || 0;
+    const recTs = Number(rec.enviadoClienteEm || rec.createdAt) || 0;
+    if (recHas && !prevHas) {
+      byId.set(rec.id, rec);
+      return;
+    }
+    if (prevHas && !recHas) return;
+    if (rec.enviadoCliente === true && prev.enviadoCliente !== true) {
+      byId.set(rec.id, rec);
+      return;
+    }
+    if (prev.enviadoCliente === true && rec.enviadoCliente !== true) return;
+    if (recTs >= prevTs) byId.set(rec.id, rec);
+  };
+  (Array.isArray(existing) ? existing : []).forEach(pick);
+  (Array.isArray(incoming) ? incoming : []).forEach(pick);
+  return Array.from(byId.values());
+}
+
 function mergeComunicacaoOperacaoRedis(existing, incoming) {
   const byId = new Map();
   const push = (m) => {
@@ -366,6 +397,15 @@ function mergePayloads(existing, incoming) {
     out.dk_comunicacao_operacao_v1 = mergeComunicacaoOperacaoRedis(
       existing.dk_comunicacao_operacao_v1,
       incoming.dk_comunicacao_operacao_v1
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_locacao_documentos_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_locacao_documentos_v1")
+  ) {
+    out.dk_locacao_documentos_v1 = mergeLocacaoDocumentosRedis(
+      existing.dk_locacao_documentos_v1,
+      incoming.dk_locacao_documentos_v1
     );
   }
   if (
