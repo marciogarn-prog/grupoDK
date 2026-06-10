@@ -21,14 +21,14 @@
       btnId: "operacaoLocacaoDocBuscarContratoBtn",
       sugestoesId: "operacaoLocacaoDocSugestoesContrato",
       msgId: "operacaoLocacaoDocBuscaContratoMsg",
-      trazerLabel: "Trazer documento para contrato",
+      trazerLabel: "Importar contrato",
     },
     crlv: {
       inputId: "operacaoLocacaoDocBuscaCrlv",
       btnId: "operacaoLocacaoDocBuscarCrlvBtn",
       sugestoesId: "operacaoLocacaoDocSugestoesCrlv",
       msgId: "operacaoLocacaoDocBuscaCrlvMsg",
-      trazerLabel: "Trazer documento para CRLV",
+      trazerLabel: "Importar CRLV",
     },
   };
   const buscaLocacaoState = { contrato: { selectedId: "" }, crlv: { selectedId: "" } };
@@ -384,7 +384,7 @@
       } else if (!rows.length) {
         msg.textContent = "Nenhum ficheiro corresponde à pesquisa.";
       } else {
-        const trazer = BUSCA_UI[categoria]?.trazerLabel || "Trazer documento";
+        const trazer = BUSCA_UI[categoria]?.trazerLabel || "Importar";
         msg.textContent =
           rows.length === 1
             ? `1 ficheiro encontrado — escolha na lista ou clique «${trazer}».`

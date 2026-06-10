@@ -767,8 +767,8 @@ async function runSuite() {
     );
     record(
       "cadastro locação documentos por protocolo",
-        indexFresh.includes("Trazer documento para contrato") &&
-        indexFresh.includes("Trazer documento para CRLV") &&
+        indexFresh.includes("Importar contrato") &&
+        indexFresh.includes("Importar CRLV") &&
         indexFresh.includes("operacaoLocacaoDocVagaContrato") &&
         indexFresh.includes("operacaoLocacaoDocVagaCrlv") &&
         indexFresh.includes("vaga única") &&
@@ -789,7 +789,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-unico`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-importar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(

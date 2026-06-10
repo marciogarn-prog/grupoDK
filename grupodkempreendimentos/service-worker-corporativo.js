@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260609doc-unico";
+const CACHE_NAME = "dk-corporativo-v20260609doc-importar";
 const ASSETS = [
   "./",
   "./index.html",

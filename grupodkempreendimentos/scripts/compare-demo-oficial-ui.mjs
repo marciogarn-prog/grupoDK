@@ -11,8 +11,8 @@ const PAIRS = [
 const MARKERS = [
   "operacaoLocacaoDocumentosListaContrato",
   "operacaoLocacaoDocumentosListaCrlv",
-  "Trazer documento para contrato",
-  "Trazer documento para CRLV",
+  "Importar contrato",
+  "Importar CRLV",
   "Visualizar",
   "operacaoLocacaoDocVagaContrato",
   "operacaoLocacaoDocVagaCrlv",
