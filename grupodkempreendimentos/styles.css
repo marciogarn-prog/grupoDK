@@ -5638,6 +5638,17 @@ table.validados-app .lnk-comprovante {
 .documentos-resumo {
   margin-top: 0.35rem;
 }
+.documentos-crlv-distribuir {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.documentos-crlv-distribuir button[disabled] {
+  opacity: 0.65;
+  cursor: progress;
+}
 .documentos-viewer-modal .portal-modal__card {
   max-width: min(960px, 96vw);
   max-height: 92vh;
