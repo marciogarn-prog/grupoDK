@@ -21,12 +21,14 @@
       btnId: "operacaoLocacaoDocBuscarContratoBtn",
       sugestoesId: "operacaoLocacaoDocSugestoesContrato",
       msgId: "operacaoLocacaoDocBuscaContratoMsg",
+      trazerLabel: "Trazer documento para contrato",
     },
     crlv: {
       inputId: "operacaoLocacaoDocBuscaCrlv",
       btnId: "operacaoLocacaoDocBuscarCrlvBtn",
       sugestoesId: "operacaoLocacaoDocSugestoesCrlv",
       msgId: "operacaoLocacaoDocBuscaCrlvMsg",
+      trazerLabel: "Trazer documento para CRLV",
     },
   };
   const buscaLocacaoState = { contrato: { selectedId: "" }, crlv: { selectedId: "" } };
@@ -351,9 +353,10 @@
       } else if (!rows.length) {
         msg.textContent = "Nenhum ficheiro corresponde à pesquisa.";
       } else {
+        const trazer = BUSCA_UI[categoria]?.trazerLabel || "Trazer documento";
         msg.textContent =
           rows.length === 1
-            ? "1 ficheiro encontrado — clique na lista ou Buscar para importar."
+            ? `1 ficheiro encontrado — escolha na lista ou clique «${trazer}».`
             : `${rows.length} ficheiro(s) — escolha na lista ou refine a pesquisa.`;
       }
     }
@@ -512,11 +515,53 @@
     return Array.from(byId.values());
   }
 
-  function abrirDocumento(d) {
-    const url = String(d?.arquivoBase64 || "").trim();
-    if (!url) return false;
+  async function resolveDocBlob(doc) {
+    const b64 = String(doc?.arquivoBase64 || "").trim();
+    if (b64) {
+      try {
+        const res = await fetch(b64);
+        const blob = await res.blob();
+        if (blob?.size) {
+          return { blob, mimeType: doc.mimeType || blob.type || "application/pdf" };
+        }
+      } catch {
+        /* tentar depósito */
+      }
+    }
+    const depId = doc?.origemDepositoId;
+    const depCat = doc?.origemDepositoCategoria || inferDocTipo(doc);
+    if (depId && depCat) {
+      const fn = typeof window.__DK_documentosObterBlobDoc === "function" ? window.__DK_documentosObterBlobDoc : null;
+      if (fn) {
+        const row = await fn(depCat, depId);
+        if (row?.blob) {
+          return {
+            blob: row.blob,
+            mimeType: row.mimeType || row.blob.type || doc.mimeType || "application/pdf",
+          };
+        }
+      }
+    }
+    return null;
+  }
+
+  async function visualizarDocumento(d) {
+    const row = await resolveDocBlob(d);
+    if (!row?.blob) return false;
+    const abrirFn =
+      typeof window.__DK_documentosAbrirViewerBlob === "function" ? window.__DK_documentosAbrirViewerBlob : null;
+    if (abrirFn) {
+      return abrirFn(row.blob, d?.nome || "Documento", row.mimeType);
+    }
+    const url = URL.createObjectURL(row.blob);
     window.open(url, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
     return true;
+  }
+
+  function abrirDocumento(d) {
+    void visualizarDocumento(d);
+    return Boolean(String(d?.arquivoBase64 || "").trim() || d?.origemDepositoId);
   }
 
   function podeGerirEnvioDocumento(doc) {
@@ -540,7 +585,7 @@
       return { ok: true, already: true, msg: "Este documento já foi enviado ao cliente." };
     }
     if (doc.conferidoOperador !== true) {
-      return { ok: false, msg: "Abra o PDF e clique Confirmar antes de enviar ao cliente." };
+      return { ok: false, msg: "Visualize o PDF e clique Confirmar antes de enviar ao cliente." };
     }
     const reg = getRegistroOperador();
     const dest = DOC_DESTINO_APP[inferDocTipo(doc)]?.botaoApp || "app do cliente";
@@ -621,14 +666,14 @@
     } else if (conferido) {
       statusEnvio = `<span class="portal-loc-docs-item__conferido">Confirmado — pronto para enviar a «${escapeHtml(dest.botaoApp)}»</span>`;
     } else {
-      statusEnvio = `<span class="portal-loc-docs-item__pendente">Abrir e confirmar antes de enviar</span>`;
+      statusEnvio = `<span class="portal-loc-docs-item__pendente">Visualize e confirme antes de enviar</span>`;
     }
     const podeEnviar = enviado || conferido;
     return `<li class="portal-loc-docs-item" data-loc-doc-tipo="${escapeHtml(tipo)}">
           <span class="portal-loc-docs-item__nome"><span class="portal-loc-docs-item__tipo">${escapeHtml(dest.rotulo)}</span> ${escapeHtml(d.nome)}</span>
           <span class="portal-loc-docs-item__meta">${escapeHtml(quando)} · ${escapeHtml(quem)} · ${statusEnvio}</span>
           <span class="portal-loc-docs-item__acoes">
-            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__abrir" data-loc-doc-abrir="${escapeHtml(d.id)}" title="Visualizar PDF">Abrir</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__visualizar" data-loc-doc-visualizar="${escapeHtml(d.id)}" title="Visualizar PDF">Visualizar</button>
             <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__confirmar${conferido ? " portal-loc-docs-item__confirmar--ok" : ""}" data-loc-doc-confirmar="${escapeHtml(d.id)}" ${conferido || enviado ? "disabled" : ""} title="Confirmar que o ficheiro está correto">${conferido ? "Confirmado" : "Confirmar"}</button>
             <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado || !podeEnviar ? "disabled" : ""} title="Publicar no app (${escapeHtml(dest.botaoApp)})">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
           </span>
@@ -650,7 +695,7 @@
       const ul = document.getElementById(LISTA_TIPO_IDS[tipo]);
       const docs = docsDoProtocoloPorTipo(nc, cpf, tipo);
       const botao = DOC_DESTINO_APP[tipo]?.botaoApp || tipo;
-      renderDocsListaUl(ul, docs, `Nenhum — pesquise no depósito Documentos e clique Buscar.`);
+      renderDocsListaUl(ul, docs, `Nenhum — pesquise no depósito Documentos e traga para o protocolo.`);
     });
   }
 
@@ -659,13 +704,20 @@
   }
 
   function handleDocListaClick(e, msgEl, onRefresh) {
-    const abrir = e.target.closest?.("[data-loc-doc-abrir]");
-    if (abrir) {
-      const id = abrir.getAttribute("data-loc-doc-abrir");
+    const visualizar = e.target.closest?.("[data-loc-doc-visualizar]");
+    if (visualizar) {
+      const id = visualizar.getAttribute("data-loc-doc-visualizar");
       const doc = loadAll().find((d) => String(d.id) === String(id));
-      if (!doc || !abrirDocumento(doc)) {
-        if (msgEl) msgEl.textContent = "Não foi possível abrir — ficheiro indisponível neste computador.";
+      if (!doc) {
+        if (msgEl) msgEl.textContent = "Documento não encontrado.";
+        return;
       }
+      void (async () => {
+        const ok = await visualizarDocumento(doc);
+        if (!ok && msgEl) {
+          msgEl.textContent = "Não foi possível visualizar — ficheiro indisponível neste computador.";
+        }
+      })();
       return;
     }
     const confirmar = e.target.closest?.("[data-loc-doc-confirmar]");
@@ -758,7 +810,7 @@
     }
     if (msg) {
       const n = docsDoProtocolo(nc, cpf).filter((d) => LOC_CADASTRO_TIPOS.includes(inferDocTipo(d))).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — pesquise, importe, Abrir, Confirmar e Enviar.`;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — traga do depósito, Visualize, Confirme e Envie.`;
     }
     renderLista(nc, cpf);
   }
@@ -1005,7 +1057,7 @@
         item.getAttribute("data-dep-nome")
       );
       const cfgMsg = document.getElementById(cfg.msgId);
-      if (cfgMsg) cfgMsg.textContent = "Ficheiro selecionado — clique Buscar para importar.";
+      if (cfgMsg) cfgMsg.textContent = "Ficheiro selecionado — clique em trazer documento.";
     });
   }
 
@@ -1021,7 +1073,7 @@
     });
 
     wrap?.addEventListener("click", (e) => {
-      if (!e.target.closest?.("[data-loc-doc-abrir],[data-loc-doc-confirmar],[data-loc-doc-enviar]")) return;
+      if (!e.target.closest?.("[data-loc-doc-visualizar],[data-loc-doc-confirmar],[data-loc-doc-enviar]")) return;
       handleDocListaClick(e, msg, refreshUi);
     });
 

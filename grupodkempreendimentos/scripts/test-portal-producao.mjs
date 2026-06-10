@@ -767,17 +767,17 @@ async function runSuite() {
     );
     record(
       "cadastro locação documentos por protocolo",
-        indexFresh.includes("operacaoLocacaoDocBuscarContratoBtn") &&
-        indexFresh.includes("operacaoLocacaoDocBuscarCrlvBtn") &&
+        indexFresh.includes("Trazer documento para contrato") &&
+        indexFresh.includes("Trazer documento para CRLV") &&
         indexFresh.includes("operacaoLocacaoDocumentosListaContrato") &&
-        indexFresh.includes("operacaoLocacaoDocSugestoesCrlv") &&
+        indexFresh.includes("Visualizar") &&
         !indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
         indexFresh.includes("Confirmar") &&
         indexFresh.includes("Enviar para o cliente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "Contrato + CRLV com Buscar no depósito; Abrir + Confirmar + Enviar"
+      "Contrato + CRLV: trazer do depósito; Visualizar + Confirmar + Enviar"
     );
     record(
       "lançamento multas importa depósito Documentos",
@@ -788,7 +788,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-busca`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-visualizar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -796,9 +796,9 @@ async function runSuite() {
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
         locDocsJs.includes("enviadoCliente") &&
-        locDocsJs.includes("buscarEImportarDoDeposito") &&
-        locDocsJs.includes("__DK_documentosFiltrarDeposito") &&
-        locDocsJs.includes("data-loc-doc-abrir") &&
+        locDocsJs.includes("visualizarDocumento") &&
+        locDocsJs.includes("__DK_documentosAbrirViewerBlob") &&
+        locDocsJs.includes("data-loc-doc-visualizar") &&
         locDocsJs.includes("__DK_refreshLancMultasDocumentosDeposito") &&
         locDocsJs.includes("confirmarDocumentoOperador") &&
         locDocsJs.includes("conferidoOperador") &&
@@ -806,7 +806,7 @@ async function runSuite() {
         locDocsJs.includes("__DK_garantirDocMultaParaCadastro") &&
         locDocsJs.includes("LOC_CADASTRO_TIPOS") &&
         !locDocsJs.includes("adicionarDocumentos"),
-      "contrato/crlv com busca no depósito; confirmar antes de enviar; só enviados vão à nuvem"
+      "contrato/crlv: visualizar no modal; confirmar antes de enviar; só enviados vão à nuvem"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
       cache: "no-store",
