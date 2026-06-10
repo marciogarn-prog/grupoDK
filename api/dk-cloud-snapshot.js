@@ -10,19 +10,31 @@
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
 const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
 
+/** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
+const OFICIAL_CUTOFF_YMD = "2026-06-10";
+
 const OFICIAL_GUARD_KEYS = [
   "dk_clientes_cadastro",
+  "dk_clientes_validacao_pendente",
   "dk_portal_clientes_cadastro",
   "dk_veiculos_cadastro",
   "dk_portal_veiculos_cadastro",
   "dk_veiculos_frota_planilha",
   "dk_locacoes_cadastro",
+  "dk_locacoes_quadro_geral",
+  "dk_manutencoes_cadastro",
   "dk_lancamentos_aluguel",
   "dk_lancamentos_aluguel_cadastro",
+  "dk_comprovantes_banco",
+  "dk_comprovantes_cliente_pendentes",
+  "dk_documentos_deposito_v1",
+  "dk_locacao_documentos_v1",
+  "dk_cliente_notificacoes",
+  "dk_comunicacao_operacao_v1",
 ];
 
 function oficialTodayYmd() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  return OFICIAL_CUTOFF_YMD;
 }
 
 function oficialParseYmd(value) {
@@ -49,12 +61,16 @@ function oficialParseYmd(value) {
 
 function oficialRecordYmd(record, key) {
   if (!record || typeof record !== "object") return null;
-  const fields =
-    String(key).includes("locacoes")
-      ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
-      : String(key).includes("lancamento")
-        ? ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"]
-        : ["dataCadastro", "createdAt", "updatedAt"];
+  const k = String(key);
+  const fields = k.includes("locacoes")
+    ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
+    : k.includes("lancamento") || k.includes("manutencoes")
+      ? ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"]
+      : k.includes("comprovante")
+        ? ["createdAt", "criadoEm", "enviadoEm", "data", "dataPagamento"]
+        : k.includes("documento")
+          ? ["createdAt", "criadoEm", "enviadoClienteEm", "updatedAt"]
+          : ["dataCadastro", "createdAt", "updatedAt"];
   for (const f of fields) {
     const ymd = oficialParseYmd(record[f]);
     if (ymd) return ymd;
