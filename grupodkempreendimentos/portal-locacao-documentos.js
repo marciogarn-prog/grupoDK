@@ -76,10 +76,13 @@
         ? window.__DK_fetchCloudSnapshotPayload
         : null;
     if (!fetchFn || !doc?.id) {
-      return { ok: true, skipped: true, msg: "Envio registado localmente." };
+      return {
+        ok: false,
+        msg: "Verificação indisponível — recarregue a página e tente enviar de novo.",
+      };
     }
     if (tentativa > 0) {
-      await new Promise((r) => window.setTimeout(r, 1200));
+      await new Promise((r) => window.setTimeout(r, 1500));
     }
     let data;
     try {
@@ -87,15 +90,24 @@
     } catch {
       data = null;
     }
-    const arr = data?.payload?.dk_locacao_documentos_v1;
+    const cpfDig = onlyDigits(doc.cpf).slice(0, 11);
+    let arr = data?.payload?.dk_locacao_documentos_v1;
     if (!Array.isArray(arr)) {
-      if (tentativa < 2) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
+      if (tentativa < 3) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
       return { ok: false, msg: "Nuvem ainda sem registo do documento — tente enviar de novo." };
     }
+    arr = arr.filter(
+      (d) =>
+        d?.enviadoCliente === true &&
+        onlyDigits(d.cpf).slice(0, 11) === cpfDig
+    );
     const found = arr.find((d) => String(d?.id) === String(doc.id));
-    if (!found || found.enviadoCliente !== true) {
-      if (tentativa < 2) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
-      return { ok: false, msg: "Envio não confirmado na nuvem — o cliente ainda não vê o ficheiro." };
+    if (!found) {
+      if (tentativa < 3) return verificarDocumentoEnviadoNaNuvem(doc, tentativa + 1);
+      return {
+        ok: false,
+        msg: "O app do cliente ainda não recebe este documento — confirme o mesmo ambiente (demo/oficial) e tente de novo.",
+      };
     }
     if (!String(found.arquivoBase64 || "").trim()) {
       return {
@@ -103,7 +115,53 @@
         msg: "Metadados na nuvem, mas o PDF não chegou — reduza o ficheiro ou tente de novo.",
       };
     }
-    return { ok: true, msg: "Nuvem confirmada — o cliente acede em «Ver contrato» / «Ver CRLV»." };
+    const tipo = inferDocTipo(doc);
+    const dest = DOC_DESTINO_APP[tipo]?.botaoApp || "Ver CRLV";
+    return {
+      ok: true,
+      msg: `Confirmado na nuvem — o cliente já acede em «${dest}» (peça para actualizar o app).`,
+    };
+  }
+
+  async function reconciliarDocumentosEnvioProtocolo(nc, cpf) {
+    const n = normNc(nc);
+    const dig = onlyDigits(cpf).slice(0, 11);
+    if (!n || dig.length !== 11) return;
+    const key = `${n}|${dig}`;
+    if (reconciliarDocumentosEnvioProtocolo._busy?.has(key)) return;
+    if (!reconciliarDocumentosEnvioProtocolo._busy) reconciliarDocumentosEnvioProtocolo._busy = new Set();
+    reconciliarDocumentosEnvioProtocolo._busy.add(key);
+    try {
+      const marcados = docsDoProtocolo(n, dig).filter((d) => d.enviadoCliente === true);
+      if (!marcados.length) return;
+      const all = loadAll();
+      let changed = false;
+      for (const d of marcados) {
+        const ver = await verificarDocumentoEnviadoNaNuvem(d, 0);
+        if (ver.ok) continue;
+        const idx = all.findIndex((x) => String(x.id) === String(d.id));
+        if (idx < 0) continue;
+        all[idx] = {
+          ...all[idx],
+          enviadoCliente: false,
+          enviadoClienteEm: null,
+          enviadoPorCpf: "",
+          enviadoPorNome: "",
+        };
+        changed = true;
+      }
+      if (changed) {
+        saveAllLocal(all);
+        renderListasPorTipo(n, dig);
+        const msgEl = document.getElementById("operacaoLocacaoDocumentosMsg");
+        if (msgEl) {
+          msgEl.textContent =
+            "Documento marcado como enviado, mas o PDF não está na nuvem — clique «Enviar para o cliente» de novo.";
+        }
+      }
+    } finally {
+      reconciliarDocumentosEnvioProtocolo._busy.delete(key);
+    }
   }
 
   function saveAll(arr) {
@@ -111,9 +169,7 @@
   }
 
   function isDocEnviadoCliente(d) {
-    if (d?.enviadoCliente === false) return false;
-    if (d?.enviadoCliente === true) return true;
-    return Boolean(String(d?.arquivoBase64 || "").trim());
+    return d?.enviadoCliente === true;
   }
 
   function getProtocoloAtual() {
@@ -671,55 +727,92 @@
   }
 
   async function enviarDocumentoParaCliente(id) {
-    const all = loadAll();
-    const idx = all.findIndex((d) => String(d.id) === String(id));
+    let all = loadAll();
+    let idx = all.findIndex((d) => String(d.id) === String(id));
     if (idx === -1) return { ok: false, msg: "Documento não encontrado." };
-    const doc = all[idx];
+    let doc = all[idx];
     if (!podeGerirEnvioDocumento(doc)) {
       return { ok: false, msg: "Sem permissão para enviar este documento ao cliente." };
     }
     if (!String(doc.arquivoBase64 || "").trim()) {
       return { ok: false, msg: "Ficheiro indisponível neste computador — importe de novo a partir de Documentos." };
     }
-    if (doc.enviadoCliente === true) {
-      return { ok: true, already: true, msg: "Este documento já foi enviado ao cliente." };
-    }
     if (doc.conferidoOperador !== true) {
       return { ok: false, msg: "Visualize o PDF e clique Confirmar antes de enviar ao cliente." };
     }
-    const reg = getRegistroOperador();
     const tipo = inferDocTipo(doc);
     const dest = DOC_DESTINO_APP[tipo]?.botaoApp || "app do cliente";
     const rotulo = DOC_DESTINO_APP[tipo]?.rotulo || "Documento";
-    all[idx] = {
+
+    if (doc.enviadoCliente === true) {
+      const verPrev = await verificarDocumentoEnviadoNaNuvem(doc, 0);
+      if (verPrev.ok) {
+        return {
+          ok: true,
+          already: true,
+          msg: `${rotulo} já confirmado na nuvem — o cliente acede em «${dest}».`,
+        };
+      }
+      all[idx] = {
+        ...doc,
+        enviadoCliente: false,
+        enviadoClienteEm: null,
+        enviadoPorCpf: "",
+        enviadoPorNome: "",
+      };
+      saveAllLocal(all);
+      doc = all[idx];
+    }
+
+    const reg = getRegistroOperador();
+    const pendingDoc = {
       ...doc,
       enviadoCliente: true,
       enviadoClienteEm: Date.now(),
       enviadoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
       enviadoPorNome: String(reg.nome || "").trim(),
     };
-    const sentDoc = all[idx];
-    saveAllLocal(all);
 
-    const pushRes = await pushDocumentosNuvem();
-    if (!pushRes?.ok) {
+    const directFn =
+      typeof window.__DK_pushLocacaoDocumentoNuvem === "function"
+        ? window.__DK_pushLocacaoDocumentoNuvem
+        : null;
+    let pushOk = false;
+    if (directFn) {
+      const directRes = await directFn(pendingDoc);
+      pushOk = directRes?.ok === true;
+    }
+    if (!pushOk) {
+      const pushRes = await pushDocumentosNuvem();
+      pushOk = pushRes?.ok === true;
+    }
+    if (!pushOk) {
       return {
         ok: false,
         msg: "Falha ao enviar à nuvem — verifique a ligação à internet e tente de novo.",
       };
     }
 
-    const ver = await verificarDocumentoEnviadoNaNuvem(sentDoc, 0);
+    const ver = await verificarDocumentoEnviadoNaNuvem(pendingDoc, 0);
     if (!ver.ok) {
       return {
         ok: false,
-        msg: ver.msg || "Nuvem não confirmou o envio — o cliente ainda não acede ao PDF.",
+        msg:
+          ver.msg ||
+          "Nuvem não confirmou o envio — o cliente ainda não acede ao PDF. O botão «Enviado» não foi activado.",
       };
     }
 
+    all = loadAll();
+    idx = all.findIndex((d) => String(d.id) === String(id));
+    if (idx === -1) return { ok: false, msg: "Documento não encontrado após envio." };
+    all[idx] = pendingDoc;
+    saveAllLocal(all);
+    void pushDocumentosNuvem();
+
     return {
       ok: true,
-      msg: `${rotulo} enviado com sucesso — o cliente já acede em «${dest}» (pode actualizar o app).`,
+      msg: ver.msg || `${rotulo} enviado com sucesso — o cliente já acede em «${dest}».`,
       cloudOk: true,
     };
   }
@@ -796,7 +889,7 @@
       : "";
     let statusEnvio;
     if (enviado) {
-      statusEnvio = `<span class="portal-loc-docs-item__enviado">Enviado · «${escapeHtml(dest.botaoApp)}»${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`;
+      statusEnvio = `<span class="portal-loc-docs-item__enviado">Enviado e confirmado na nuvem · «${escapeHtml(dest.botaoApp)}»${enviadoEm ? ` · ${escapeHtml(enviadoEm)}` : ""}</span>`;
     } else if (conferido) {
       statusEnvio = `<span class="portal-loc-docs-item__conferido">Confirmado — pronto para enviar a «${escapeHtml(dest.botaoApp)}»</span>`;
     } else {
@@ -840,6 +933,9 @@
 
   function renderLista(nc, cpf) {
     renderListasPorTipo(nc, cpf);
+    if (normNc(nc) && onlyDigits(cpf).length === 11) {
+      void reconciliarDocumentosEnvioProtocolo(nc, cpf);
+    }
   }
 
   function handleDocListaClick(e, msgEl, onRefresh) {
@@ -873,10 +969,15 @@
       const id = enviar.getAttribute("data-loc-doc-enviar");
       if (!id) return;
       enviar.disabled = true;
+      if (msgEl) msgEl.textContent = "A enviar PDF à nuvem e a confirmar no app do cliente…";
       void (async () => {
-        const res = await enviarDocumentoParaCliente(id);
-        if (msgEl) msgEl.textContent = res.msg || "";
-        if (typeof onRefresh === "function") onRefresh();
+        try {
+          const res = await enviarDocumentoParaCliente(id);
+          if (msgEl) msgEl.textContent = res.msg || "";
+          if (typeof onRefresh === "function") onRefresh();
+        } finally {
+          enviar.disabled = false;
+        }
       })();
       return;
     }

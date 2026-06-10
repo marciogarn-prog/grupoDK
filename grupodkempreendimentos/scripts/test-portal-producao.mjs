@@ -789,7 +789,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260610doc-enviar`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260610doc-confirmar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -797,7 +797,10 @@ async function runSuite() {
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
         locDocsJs.includes("verificarDocumentoEnviadoNaNuvem") &&
+        locDocsJs.includes("reconciliarDocumentosEnvioProtocolo") &&
+        locDocsJs.includes("__DK_pushLocacaoDocumentoNuvem") &&
         locDocsJs.includes("__DK_fetchCloudSnapshotPayload") &&
+        locDocsJs.includes("confirmado na nuvem") &&
         locDocsJs.includes("enviadoCliente") &&
         locDocsJs.includes("visualizarDocumento") &&
         locDocsJs.includes("__DK_documentosAbrirViewerBlob") &&
@@ -814,7 +817,7 @@ async function runSuite() {
         !locDocsJs.includes("adicionarDocumentos"),
       "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
     );
-    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260610doc-enviar`, {
+    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260610doc-confirmar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -827,7 +830,7 @@ async function runSuite() {
     );
     record(
       "cliente.html sync documentos locação",
-      clienteHtml.includes("portal-supabase-sync.js?v=20260610doc-enviar"),
+      clienteHtml.includes("portal-supabase-sync.js?v=20260610doc-confirmar"),
       "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {

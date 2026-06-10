@@ -943,6 +943,30 @@
     return { ok: anyOk, error: lastErr };
   }
 
+  /** Push parcial: só o documento enviado (PDF incluído) — evita falha do snapshot completo. */
+  async function pushLocacaoDocumentoNuvem(doc) {
+    if (!doc || typeof doc !== "object" || !doc.id) {
+      return { ok: false, error: "doc_invalid" };
+    }
+    if (!String(doc.arquivoBase64 || "").trim()) {
+      return { ok: false, error: "doc_sem_pdf" };
+    }
+    const updatedAt = new Date().toISOString();
+    const red = await pushRedundantSnapshotPayload(
+      {
+        dk_locacao_documentos_v1: [
+          {
+            ...doc,
+            enviadoCliente: true,
+          },
+        ],
+      },
+      updatedAt
+    );
+    if (red.ok) noteCloudPushTimestamp(updatedAt);
+    return { ok: red.ok, redisOk: red.ok, error: red.error };
+  }
+
   function pickNewestCloudRow(rows) {
     const list = (rows || []).filter((r) => r?.payload && typeof r.payload === "object");
     if (!list.length) return null;
@@ -2573,6 +2597,7 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_pushLocacaoDocumentoNuvem = pushLocacaoDocumentoNuvem;
     window.__DK_bootstrapDemoCadastrosFromCloud = bootstrapDemoCadastrosFromCloudIfEmpty;
   } catch {
     /* ignore */
