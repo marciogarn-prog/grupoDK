@@ -2326,6 +2326,9 @@ function mergePortalMultasTransitoEmbutidos(arrays) {
       registradoPorCpf: rp,
       registradoPorNome: String(raw.registradoPorNome || "").trim(),
     };
+    /* preservar vínculo ao PDF importado do depósito (multas) */
+    if (raw.locacaoDocumentoId) row.locacaoDocumentoId = String(raw.locacaoDocumentoId);
+    if (raw.origemDepositoId) row.origemDepositoId = String(raw.origemDepositoId);
     const key = `${dataMulta}|${codMulta}|${valorMulta}|${ca}|${rp}`;
     return { key, row };
   }
