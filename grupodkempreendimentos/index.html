@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260610crlv-massa">
+  <link rel="stylesheet" href="styles.css?v=20260610colab-reset">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260610corte-fixo"></script>
@@ -1513,6 +1513,11 @@
                 <button type="submit" id="portalColabBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
                 <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary btn-secondary-outline hidden">Salvar alterações</button>
               </div>
+              <div id="portalColabResetSenhaWrap" class="portal-colab-reset-wrap hidden" aria-live="polite">
+                <button type="button" id="portalColabResetSenhaBtn" class="btn-primary btn-secondary-outline portal-colab-reset-btn" title="Volta a senha do colaborador para 123456; no próximo login será pedida nova senha de 6 números">
+                  Resetar senha (123456)
+                </button>
+              </div>
               <div id="portalColabBloqueioWrap" class="portal-colab-bloqueio-wrap hidden" aria-live="polite">
                 <button type="button" id="portalColabBloqueioBtn" class="btn-primary btn-secondary-outline portal-colab-bloqueio-btn">
                   Bloquear colaborador
@@ -2000,7 +2005,7 @@
   <script src="app.js?v=20260610multa-vinculo" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260610frota-unica" defer></script>
+  <script src="portal-locadora-ui.js?v=20260610colab-reset" defer></script>
   <script src="portal-locacao-documentos.js?v=20260610crlv-massa" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
   <script src="portal-documentos.js?v=20260610blobs-local" defer></script>
