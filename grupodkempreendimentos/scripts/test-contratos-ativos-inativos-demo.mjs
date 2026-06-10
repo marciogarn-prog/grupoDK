@@ -73,8 +73,16 @@ try {
     return { ids: [a.id, b.id] };
   }, { tag: TAG, protoAtivo: casos.ativo, protoInativo: casos.inativo });
 
-  /* abrir painel Documentos e ler o resumo */
-  await page.evaluate(() => window.__DK_documentosOnShow && window.__DK_documentosOnShow());
+  /* abrir painel Documentos pelo botão real e ler o resumo */
+  await page.waitForFunction(() => {
+    const b = document.getElementById("btn-locadora-documentos");
+    return b && !b.classList.contains("hidden");
+  }, { timeout: 30000 });
+  await page.click("#btn-locadora-documentos");
+  await page.waitForFunction(() => {
+    const p = document.getElementById("panel-documentos-locadora");
+    return p && !p.classList.contains("hidden");
+  }, { timeout: 30000 });
   await page.waitForTimeout(1500);
   const resumo = await page.evaluate(() => document.getElementById("documentosResumoContrato")?.textContent || "");
   const mAtivos = resumo.match(/Contratos ativos:\s*(\d+)/i);
