@@ -189,7 +189,7 @@ const OPERACAO_PANELS = [
     name: "Cadastro locação",
     cmd: "btn-operacao-cadastro-locacao",
     panel: "operacaoInlineLocacao",
-    buttons: ["operacaoLocacaoLimparBtn", "operacaoLocacaoVoltarBtn", "operacaoLocacaoDocContratoBtn", "operacaoLocacaoDocCrlvBtn"],
+    buttons: ["operacaoLocacaoLimparBtn", "operacaoLocacaoVoltarBtn", "operacaoLocacaoDocBuscarContratoBtn", "operacaoLocacaoDocBuscarCrlvBtn"],
   },
   {
     name: "Lançamento aluguel",

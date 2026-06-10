@@ -25,11 +25,11 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260609doc-paridade">
+  <link rel="stylesheet" href="styles.css?v=20260609doc-busca">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
-  <script src="dk-pwa-update.js?v=20260609doc-paridade"></script>
+  <script src="dk-pwa-update.js?v=20260609doc-busca"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -845,24 +845,28 @@
 
             <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
               <span>Documentos do contrato</span>
-              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong>. Importe com os botões abaixo; depois <strong>Abrir</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong> (cada tipo vai ao botão certo no app: Ver contrato / Ver CRLV / Ver multas).</p>
-              <div class="portal-loc-docs__import-btns" role="group" aria-label="Importar do depósito Documentos">
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocContratoBtn" disabled>Contrato</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoDocCrlvBtn" disabled>CRLV</button>
-              </div>
+              <p class="subtext portal-loc-docs__hint">Os ficheiros entram <strong>só</strong> pelo menu <strong>Documentos</strong>. Pesquise no depósito, escolha o ficheiro e importe; depois <strong>Abrir</strong> → <strong>Confirmar</strong> → <strong>Enviar para o cliente</strong> (Ver contrato / Ver CRLV no app).</p>
               <p id="operacaoLocacaoDocumentosMsg" class="subtext portal-loc-docs__msg"></p>
               <div class="portal-loc-docs-grupos">
                 <section class="portal-loc-docs-grupo" aria-labelledby="operacaoLocDocsTituloContrato">
                   <h5 id="operacaoLocDocsTituloContrato" class="portal-loc-docs-grupo__titulo">Contrato → app «Ver contrato»</h5>
+                  <div class="portal-loc-docs-busca" role="search">
+                    <input type="search" class="portal-loc-docs-busca__input" id="operacaoLocacaoDocBuscaContrato" autocomplete="off" placeholder="Digite parte do nome ou protocolo…" aria-label="Pesquisar contrato no depósito Documentos" disabled>
+                    <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-busca__btn" id="operacaoLocacaoDocBuscarContratoBtn" disabled>Buscar</button>
+                  </div>
+                  <ul id="operacaoLocacaoDocSugestoesContrato" class="portal-loc-docs-sugestoes hidden" role="listbox" aria-label="Sugestões de contratos"></ul>
+                  <p id="operacaoLocacaoDocBuscaContratoMsg" class="subtext portal-loc-docs-busca-msg"></p>
                   <ul id="operacaoLocacaoDocumentosListaContrato" class="portal-loc-docs-list"></ul>
                 </section>
                 <section class="portal-loc-docs-grupo" aria-labelledby="operacaoLocDocsTituloCrlv">
                   <h5 id="operacaoLocDocsTituloCrlv" class="portal-loc-docs-grupo__titulo">CRLV → app «Ver CRLV»</h5>
+                  <div class="portal-loc-docs-busca" role="search">
+                    <input type="search" class="portal-loc-docs-busca__input" id="operacaoLocacaoDocBuscaCrlv" autocomplete="off" placeholder="Digite parte do nome ou placa…" aria-label="Pesquisar CRLV no depósito Documentos" disabled>
+                    <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-busca__btn" id="operacaoLocacaoDocBuscarCrlvBtn" disabled>Buscar</button>
+                  </div>
+                  <ul id="operacaoLocacaoDocSugestoesCrlv" class="portal-loc-docs-sugestoes hidden" role="listbox" aria-label="Sugestões de CRLV"></ul>
+                  <p id="operacaoLocacaoDocBuscaCrlvMsg" class="subtext portal-loc-docs-busca-msg"></p>
                   <ul id="operacaoLocacaoDocumentosListaCrlv" class="portal-loc-docs-list"></ul>
-                </section>
-                <section class="portal-loc-docs-grupo" aria-labelledby="operacaoLocDocsTituloMulta">
-                  <h5 id="operacaoLocDocsTituloMulta" class="portal-loc-docs-grupo__titulo">Multas → app «Ver multas»</h5>
-                  <ul id="operacaoLocacaoDocumentosListaMulta" class="portal-loc-docs-list"></ul>
                 </section>
               </div>
             </div>
@@ -1986,9 +1990,9 @@
   <script src="cliente-notificacoes.js?v=20260609lanc-aviso" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-locadora-ui.js?v=20260609lanc-aviso" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260609doc-confirmar" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260609doc-busca" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260521lanc-bloco-fix" defer></script>
-  <script src="portal-documentos.js?v=20260609docs-auto" defer></script>
+  <script src="portal-documentos.js?v=20260609doc-busca" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260609multa-deposito" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>

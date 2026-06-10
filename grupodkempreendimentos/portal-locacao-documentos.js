@@ -9,11 +9,28 @@
     crlv: { rotulo: "CRLV", botaoApp: "Ver CRLV" },
     multa: { rotulo: "Multa", botaoApp: "Ver multas" },
   };
+  const LOC_CADASTRO_TIPOS = ["contrato", "crlv"];
   const LISTA_TIPO_IDS = {
     contrato: "operacaoLocacaoDocumentosListaContrato",
     crlv: "operacaoLocacaoDocumentosListaCrlv",
-    multa: "operacaoLocacaoDocumentosListaMulta",
+    multa: "operacaoLancMultasDocumentosLista",
   };
+  const BUSCA_UI = {
+    contrato: {
+      inputId: "operacaoLocacaoDocBuscaContrato",
+      btnId: "operacaoLocacaoDocBuscarContratoBtn",
+      sugestoesId: "operacaoLocacaoDocSugestoesContrato",
+      msgId: "operacaoLocacaoDocBuscaContratoMsg",
+    },
+    crlv: {
+      inputId: "operacaoLocacaoDocBuscaCrlv",
+      btnId: "operacaoLocacaoDocBuscarCrlvBtn",
+      sugestoesId: "operacaoLocacaoDocSugestoesCrlv",
+      msgId: "operacaoLocacaoDocBuscaCrlvMsg",
+    },
+  };
+  const buscaLocacaoState = { contrato: { selectedId: "" }, crlv: { selectedId: "" } };
+  const MAX_SUGESTOES = 25;
 
   function onlyDigits(s) {
     return String(s ?? "").replace(/\D/g, "");
@@ -248,10 +265,129 @@
     return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo };
   }
 
+  function filtrarDeposito(categoria, termo) {
+    const fn =
+      typeof window.__DK_documentosFiltrarDeposito === "function" ? window.__DK_documentosFiltrarDeposito : null;
+    if (!fn) return [];
+    return fn(categoria, termo);
+  }
+
+  function obterEntradaDeposito(categoria, id) {
+    const fn = typeof window.__DK_documentosObterEntrada === "function" ? window.__DK_documentosObterEntrada : null;
+    if (!fn || !id) return null;
+    return fn(categoria, id);
+  }
+
+  function contarDeposito(categoria) {
+    const fn = typeof window.__DK_documentosContarDeposito === "function" ? window.__DK_documentosContarDeposito : null;
+    if (!fn) return 0;
+    return fn(categoria);
+  }
+
+  function docTipoJaEnviadoCliente(nc, cpf, categoria) {
+    return docsDoProtocoloPorTipo(nc, cpf, categoria).some((d) => d.enviadoCliente === true);
+  }
+
+  function removerDocsTipoNaoEnviados(nc, cpf, categoria) {
+    const n = normNc(nc);
+    const dig = onlyDigits(cpf).slice(0, 11);
+    const all = loadAll();
+    const next = all.filter((d) => {
+      if (normNc(d.numeroContrato) !== n || onlyDigits(d.cpf).slice(0, 11) !== dig) return true;
+      if (inferDocTipo(d) !== categoria) return true;
+      if (d.enviadoCliente === true) return true;
+      return false;
+    });
+    if (next.length !== all.length) saveAll(next);
+  }
+
+  function renderSugestoesDeposito(categoria, rows) {
+    const cfg = BUSCA_UI[categoria];
+    if (!cfg) return;
+    const ul = document.getElementById(cfg.sugestoesId);
+    if (!ul) return;
+    const list = (Array.isArray(rows) ? rows : []).slice(0, MAX_SUGESTOES);
+    if (!list.length) {
+      ul.innerHTML = "";
+      ul.classList.add("hidden");
+      return;
+    }
+    ul.innerHTML = list
+      .map(
+        (e) =>
+          `<li class="portal-loc-docs-sugestoes__item" role="option" data-dep-doc-id="${escapeHtml(e.id)}" data-dep-nome="${escapeHtml(e.nomeArquivo || e.chave || "")}" tabindex="0">
+            <span class="portal-loc-docs-sugestoes__nome">${escapeHtml(e.nomeArquivo || e.chave || "—")}</span>
+            <span class="portal-loc-docs-sugestoes__chave subtext">${escapeHtml(String(e.chave || ""))}</span>
+          </li>`
+      )
+      .join("");
+    ul.classList.remove("hidden");
+  }
+
+  function fecharSugestoesDeposito(categoria) {
+    const cfg = BUSCA_UI[categoria];
+    const ul = cfg ? document.getElementById(cfg.sugestoesId) : null;
+    if (ul) ul.classList.add("hidden");
+  }
+
+  function fecharTodasSugestoesDeposito() {
+    LOC_CADASTRO_TIPOS.forEach(fecharSugestoesDeposito);
+  }
+
+  function onBuscaDepositoInput(categoria) {
+    const cfg = BUSCA_UI[categoria];
+    if (!cfg) return;
+    const input = document.getElementById(cfg.inputId);
+    const msg = document.getElementById(cfg.msgId);
+    if (!input) return;
+    buscaLocacaoState[categoria].selectedId = "";
+    const termo = input.value.trim();
+    const rows = filtrarDeposito(categoria, termo);
+    renderSugestoesDeposito(categoria, rows);
+    if (msg) {
+      const total = contarDeposito(categoria);
+      if (!termo) {
+        msg.textContent = total ? `${total} ficheiro(s) no depósito — digite para filtrar.` : "Nenhum ficheiro no depósito Documentos.";
+      } else if (!rows.length) {
+        msg.textContent = "Nenhum ficheiro corresponde à pesquisa.";
+      } else {
+        msg.textContent =
+          rows.length === 1
+            ? "1 ficheiro encontrado — clique na lista ou Buscar para importar."
+            : `${rows.length} ficheiro(s) — escolha na lista ou refine a pesquisa.`;
+      }
+    }
+  }
+
+  function selecionarSugestaoDeposito(categoria, depositId, nome) {
+    const cfg = BUSCA_UI[categoria];
+    if (!cfg) return;
+    buscaLocacaoState[categoria].selectedId = String(depositId || "");
+    const input = document.getElementById(cfg.inputId);
+    if (input && nome) input.value = nome;
+    fecharSugestoesDeposito(categoria);
+  }
+
+  function resolverEntradaBusca(categoria, termo) {
+    const selectedId = buscaLocacaoState[categoria]?.selectedId;
+    if (selectedId) {
+      const entry = obterEntradaDeposito(categoria, selectedId);
+      if (entry) return entry;
+    }
+    const rows = filtrarDeposito(categoria, termo);
+    if (!rows.length) return null;
+    if (rows.length === 1) return rows[0];
+    const t = termo.toLowerCase();
+    const exact = rows.filter((r) => String(r.nomeArquivo || "").toLowerCase() === t);
+    if (exact.length === 1) return exact[0];
+    const byNome = rows.filter((r) => String(r.nomeArquivo || "").toLowerCase().includes(t) && t.length >= 3);
+    if (byNome.length === 1) return byNome[0];
+    return null;
+  }
+
   let importDepositoBusy = false;
 
-  async function importarTipoDoDeposito(categoria) {
-    const msgEl = document.getElementById("operacaoLocacaoDocumentosMsg");
+  async function importarDocDepositoPorId(categoria, depositId) {
     const cat = String(categoria || "").trim().toLowerCase();
     if (cat !== "contrato" && cat !== "crlv") return { ok: false, msg: "Tipo de documento inválido." };
     if (importDepositoBusy) return { ok: false, msg: "Aguarde a importação em curso." };
@@ -273,33 +409,21 @@
     if (!protocoloLocacaoAtivo(nc)) {
       return { ok: false, msg: `Protocolo ${nc} finalizado — não é possível importar novos documentos.` };
     }
-    if (cat === "crlv" && placa.length < 6) {
-      return { ok: false, msg: "Informe a placa do veículo antes de importar o CRLV." };
+
+    const entry = obterEntradaDeposito(cat, depositId);
+    if (!entry) {
+      return { ok: false, msg: "Ficheiro não encontrado no depósito Documentos." };
     }
 
-    const listarFn =
-      typeof window.__DK_documentosListarPorChave === "function" ? window.__DK_documentosListarPorChave : null;
-    if (!listarFn) {
-      return {
-        ok: false,
-        msg: "Depósito Documentos indisponível — abra o menu Documentos neste computador.",
-      };
-    }
-
-    const chave = cat === "contrato" ? nc : placa;
-    const rows = listarFn(cat, chave);
-    if (!rows.length) {
-      const hint =
-        cat === "contrato"
-          ? `Nenhum contrato no depósito para o protocolo ${nc}. Deposite em Documentos (nome = protocolo).`
-          : `Nenhum CRLV no depósito para a placa ${placa}. Deposite em Documentos (nome = placa).`;
-      return { ok: false, msg: hint };
+    if (docTipoJaEnviadoCliente(nc, cpf, cat)) {
+      return { ok: false, msg: `${label} já enviado ao cliente — não é possível substituir.` };
     }
 
     importDepositoBusy = true;
     try {
+      removerDocsTipoNaoEnviados(nc, cpf, cat);
       const reg = getRegistroOperador();
-      const r = await importarDocDepositoParaProtocolo(rows[0], cat, nc, cpf, placa, reg);
+      const r = await importarDocDepositoParaProtocolo(entry, cat, nc, cpf, placa, reg);
       if (r.added) {
         return { ok: true, msg: `${label} importado do depósito Documentos.` };
       }
@@ -319,6 +443,43 @@
     } finally {
       importDepositoBusy = false;
     }
+  }
+
+  async function buscarEImportarDoDeposito(categoria) {
+    const cat = String(categoria || "").trim().toLowerCase();
+    const cfg = BUSCA_UI[cat];
+    if (!cfg) return { ok: false, msg: "Tipo inválido." };
+    const input = document.getElementById(cfg.inputId);
+    const msgEl = document.getElementById(cfg.msgId);
+    const termo = String(input?.value || "").trim();
+    if (!termo) {
+      const hint = "Digite parte do nome do ficheiro para filtrar o depósito.";
+      if (msgEl) msgEl.textContent = hint;
+      return { ok: false, msg: hint };
+    }
+    const entry = resolverEntradaBusca(cat, termo);
+    if (!entry) {
+      const rows = filtrarDeposito(cat, termo);
+      renderSugestoesDeposito(cat, rows);
+      const hint =
+        rows.length > 1
+          ? "Vários ficheiros — escolha um na lista suspensa."
+          : "Nenhum ficheiro corresponde — verifique o nome ou deposite em Documentos.";
+      if (msgEl) msgEl.textContent = hint;
+      return { ok: false, msg: hint };
+    }
+    const res = await importarDocDepositoPorId(cat, entry.id);
+    if (res.ok && (res.added || res.already)) {
+      buscaLocacaoState[cat].selectedId = "";
+      if (input) input.value = "";
+      fecharSugestoesDeposito(cat);
+    }
+    if (msgEl && res.msg) msgEl.textContent = res.msg;
+    return res;
+  }
+
+  async function importarTipoDoDeposito(categoria) {
+    return buscarEImportarDoDeposito(categoria);
   }
 
   function mergeLocacaoDocumentos(localArr, cloudArr) {
@@ -485,11 +646,11 @@
   }
 
   function renderListasPorTipo(nc, cpf) {
-    Object.keys(LISTA_TIPO_IDS).forEach((tipo) => {
+    LOC_CADASTRO_TIPOS.forEach((tipo) => {
       const ul = document.getElementById(LISTA_TIPO_IDS[tipo]);
       const docs = docsDoProtocoloPorTipo(nc, cpf, tipo);
       const botao = DOC_DESTINO_APP[tipo]?.botaoApp || tipo;
-      renderDocsListaUl(ul, docs, `Nenhum — importe e envie para «${botao}» no app.`);
+      renderDocsListaUl(ul, docs, `Nenhum — pesquise no depósito Documentos e clique Buscar.`);
     });
   }
 
@@ -534,26 +695,42 @@
       .replace(/"/g, "&quot;");
   }
 
+  function atualizarBuscaLocacaoUi(baseOk) {
+    LOC_CADASTRO_TIPOS.forEach((tipo) => {
+      const cfg = BUSCA_UI[tipo];
+      const input = document.getElementById(cfg.inputId);
+      const btn = document.getElementById(cfg.btnId);
+      if (input) input.disabled = !baseOk;
+      if (btn) btn.disabled = !baseOk;
+      if (!baseOk) {
+        fecharSugestoesDeposito(tipo);
+        return;
+      }
+      const msg = document.getElementById(cfg.msgId);
+      const total = contarDeposito(tipo);
+      if (msg && !String(input?.value || "").trim()) {
+        msg.textContent = total
+          ? `${total} ficheiro(s) no depósito — digite para filtrar.`
+          : "Nenhum ficheiro no depósito Documentos.";
+      }
+    });
+  }
+
   function refreshUi() {
     const wrap = document.getElementById("operacaoLocacaoDocumentosWrap");
-    const btnContrato = document.getElementById("operacaoLocacaoDocContratoBtn");
-    const btnCrlv = document.getElementById("operacaoLocacaoDocCrlvBtn");
     const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
-    if (!wrap || !btnContrato || !btnCrlv) return;
+    if (!wrap) return;
 
     const permitido = podeGerirDocumentosLocacao();
     const nc = getProtocoloAtual();
     const cpf = getCpfAtual();
-    const placa = getPlacaAtual();
     const temProtocolo = Boolean(nc);
     const ativo = temProtocolo ? protocoloLocacaoAtivo(nc) : false;
     const cpfOk = cpf.length === 11;
-    const placaOk = placa.length >= 6;
     const baseOk = permitido && temProtocolo && ativo && cpfOk;
 
     wrap.classList.toggle("hidden", !permitido);
-    btnContrato.disabled = !baseOk;
-    btnCrlv.disabled = !baseOk || !placaOk;
+    atualizarBuscaLocacaoUi(baseOk);
 
     if (!permitido) {
       if (msg) msg.textContent = "";
@@ -562,7 +739,7 @@
     if (!temProtocolo) {
       if (msg) {
         msg.textContent =
-          "Escolha o protocolo (ou informe data de início para NOVO). Deposite ficheiros em Documentos e importe com Contrato ou CRLV.";
+          "Escolha o protocolo (ou informe data de início para NOVO). Deposite ficheiros em Documentos e pesquise abaixo.";
       }
       renderLista("", cpf);
       return;
@@ -580,8 +757,8 @@
       return;
     }
     if (msg) {
-      const n = docsDoProtocolo(nc, cpf).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — Abrir, Confirmar e Enviar (cada tipo vai ao botão certo no app).`;
+      const n = docsDoProtocolo(nc, cpf).filter((d) => LOC_CADASTRO_TIPOS.includes(inferDocTipo(d))).length;
+      msg.textContent = `${n} documento(s) no protocolo ${nc} — pesquise, importe, Abrir, Confirmar e Enviar.`;
     }
     renderLista(nc, cpf);
   }
@@ -789,26 +966,58 @@
     });
   }
 
+  function bindBuscaLocacaoUi(categoria) {
+    const cfg = BUSCA_UI[categoria];
+    if (!cfg) return;
+    const input = document.getElementById(cfg.inputId);
+    const btn = document.getElementById(cfg.btnId);
+    const sugestoes = document.getElementById(cfg.sugestoesId);
+    const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
+
+    input?.addEventListener("input", () => onBuscaDepositoInput(categoria));
+    input?.addEventListener("focus", () => {
+      if (!input.disabled && input.value.trim()) onBuscaDepositoInput(categoria);
+    });
+    input?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void (async () => {
+          const res = await buscarEImportarDoDeposito(categoria);
+          refreshUi();
+          if (msg && res.msg) msg.textContent = res.msg;
+        })();
+      }
+    });
+
+    btn?.addEventListener("click", async () => {
+      if (btn.disabled) return;
+      const res = await buscarEImportarDoDeposito(categoria);
+      refreshUi();
+      if (msg && res.msg) msg.textContent = res.msg;
+    });
+
+    sugestoes?.addEventListener("click", (e) => {
+      const item = e.target.closest?.("[data-dep-doc-id]");
+      if (!item) return;
+      selecionarSugestaoDeposito(
+        categoria,
+        item.getAttribute("data-dep-doc-id"),
+        item.getAttribute("data-dep-nome")
+      );
+      const cfgMsg = document.getElementById(cfg.msgId);
+      if (cfgMsg) cfgMsg.textContent = "Ficheiro selecionado — clique Buscar para importar.";
+    });
+  }
+
   function bindUi() {
-    const btnContrato = document.getElementById("operacaoLocacaoDocContratoBtn");
-    const btnCrlv = document.getElementById("operacaoLocacaoDocCrlvBtn");
     const wrap = document.getElementById("operacaoLocacaoDocumentosWrap");
     const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
 
-    async function onImportClick(categoria) {
-      const res = await importarTipoDoDeposito(categoria);
-      refreshUi();
-      if (msg && res.msg) msg.textContent = res.msg;
-    }
+    LOC_CADASTRO_TIPOS.forEach(bindBuscaLocacaoUi);
 
-    btnContrato?.addEventListener("click", () => {
-      if (btnContrato.disabled) return;
-      void onImportClick("contrato");
-    });
-
-    btnCrlv?.addEventListener("click", () => {
-      if (btnCrlv.disabled) return;
-      void onImportClick("crlv");
+    document.addEventListener("click", (e) => {
+      if (e.target.closest?.(".portal-loc-docs-busca") || e.target.closest?.(".portal-loc-docs-sugestoes")) return;
+      fecharTodasSugestoesDeposito();
     });
 
     wrap?.addEventListener("click", (e) => {
@@ -835,6 +1044,7 @@
   window.__DK_docsLocacaoLoadAll = loadAll;
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
   window.__DK_importarLocacaoDocDoDeposito = importarTipoDoDeposito;
+  window.__DK_buscarImportarLocacaoDoc = buscarEImportarDoDeposito;
   window.__DK_refreshLancMultasDocumentosDeposito = refreshLancMultasDocumentosDeposito;
   window.__DK_garantirDocMultaParaCadastro = garantirDocMultaParaCadastro;
   window.__DK_importarMultaDocDoDeposito = importarProximaMultaDoDeposito;
