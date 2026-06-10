@@ -1,7 +1,7 @@
-/**
- * E2E demo: depósito de Contratos dividido em ATIVOS e INATIVOS.
- * Semeia 2 contratos no depósito: um de protocolo de locação ativa e outro
- * de locação encerrada; verifica resumo e badge na pesquisa. Limpeza no fim.
+﻿/**
+ * E2E demo: depÃ³sito de Contratos dividido em ATIVOS e INATIVOS.
+ * Semeia 2 contratos no depÃ³sito: um de protocolo de locaÃ§Ã£o ativa e outro
+ * de locaÃ§Ã£o encerrada; verifica resumo e badge na pesquisa. Limpeza no fim.
  * node grupodkempreendimentos/scripts/test-contratos-ativos-inativos-demo.mjs
  */
 import { chromium } from "playwright";
@@ -28,6 +28,7 @@ try {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     localStorage.removeItem("dk_instalacao_limpa_v1");
   });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
@@ -38,7 +39,7 @@ try {
   await page.waitForTimeout(2500);
   record("login admin demo", true);
 
-  /* escolher um protocolo ATIVO e um INATIVO reais das locações */
+  /* escolher um protocolo ATIVO e um INATIVO reais das locaÃ§Ãµes */
   const casos = await page.evaluate(() => {
     const norm = (v) => String(v ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
     let locs = [];
@@ -54,7 +55,7 @@ try {
   record("protocolos ativo+inativo encontrados", Boolean(casos.ativo && casos.inativo), JSON.stringify(casos));
   if (!casos.ativo || !casos.inativo) throw new Error("sem protocolos candidatos");
 
-  /* semear 2 contratos no depósito (só metadados — basta para o resumo) */
+  /* semear 2 contratos no depÃ³sito (sÃ³ metadados â€” basta para o resumo) */
   const seed = await page.evaluate(({ tag, protoAtivo, protoInativo }) => {
     const dep = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null") || { crlv: [], contrato: [], multa: [] };
     dep.contrato = Array.isArray(dep.contrato) ? dep.contrato : [];
@@ -73,7 +74,7 @@ try {
     return { ids: [a.id, b.id] };
   }, { tag: TAG, protoAtivo: casos.ativo, protoInativo: casos.inativo });
 
-  /* abrir painel Documentos pelo botão real e ler o resumo */
+  /* abrir painel Documentos pelo botÃ£o real e ler o resumo */
   await page.waitForFunction(() => {
     const b = document.getElementById("btn-locadora-documentos");
     return b && !b.classList.contains("hidden");
@@ -101,17 +102,17 @@ try {
   await page.click("#documentosBuscaBtn");
   await page.waitForTimeout(800);
   const badgeInativo = await page.evaluate(() =>
-    (document.getElementById("documentosBuscaResultados")?.textContent || "").includes("locação INATIVA")
+    (document.getElementById("documentosBuscaResultados")?.textContent || "").includes("locaÃ§Ã£o INATIVA")
   );
-  record("pesquisa contrato com badge locação INATIVA", badgeInativo === true);
+  record("pesquisa contrato com badge locaÃ§Ã£o INATIVA", badgeInativo === true);
 
   await page.fill("#documentosBuscaInput", casos.ativo);
   await page.click("#documentosBuscaBtn");
   await page.waitForTimeout(800);
   const badgeAtivo = await page.evaluate(() =>
-    (document.getElementById("documentosBuscaResultados")?.textContent || "").includes("locação ATIVA")
+    (document.getElementById("documentosBuscaResultados")?.textContent || "").includes("locaÃ§Ã£o ATIVA")
   );
-  record("pesquisa contrato com badge locação ATIVA", badgeAtivo === true);
+  record("pesquisa contrato com badge locaÃ§Ã£o ATIVA", badgeAtivo === true);
 
   /* limpeza */
   await page.evaluate(async (ids) => {

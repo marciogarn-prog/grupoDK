@@ -1,6 +1,6 @@
-/**
- * E2E demo: botão «Resetar senha (123456)» no Cadastro de colaborador.
- * Semeia colaborador de teste com senha própria, reseta via UI e verifica:
+﻿/**
+ * E2E demo: botÃ£o Â«Resetar senha (123456)Â» no Cadastro de colaborador.
+ * Semeia colaborador de teste com senha prÃ³pria, reseta via UI e verifica:
  * senha=123456 + mustChangePassword=true. Limpa no fim.
  * node grupodkempreendimentos/scripts/test-colab-reset-senha-demo.mjs
  */
@@ -27,6 +27,7 @@ try {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     localStorage.removeItem("dk_instalacao_limpa_v1");
   });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
@@ -38,9 +39,9 @@ try {
   await page.waitForTimeout(2000);
 
   const temBtn = await page.evaluate(() => Boolean(document.getElementById("portalColabResetSenhaBtn")));
-  record("botão de reset presente no HTML", temBtn);
+  record("botÃ£o de reset presente no HTML", temBtn);
 
-  /* semear colaborador de teste com senha própria */
+  /* semear colaborador de teste com senha prÃ³pria */
   const seed = await page.evaluate((cpf) => {
     try {
       funcionariosAccess.push({
@@ -62,7 +63,7 @@ try {
   }, CPF_TESTE);
   record("colaborador de teste semeado (senha 654321)", seed.ok === true, seed.err || "");
 
-  /* preencher CPF e clicar em resetar (diálogo aceite) */
+  /* preencher CPF e clicar em resetar (diÃ¡logo aceite) */
   await page.evaluate((cpf) => {
     const inp = document.getElementById("portalColabCpf");
     inp.value = cpf;
@@ -73,7 +74,7 @@ try {
     const w = document.getElementById("portalColabResetSenhaWrap");
     return w ? !w.classList.contains("hidden") : false;
   });
-  record("botão de reset visível ao selecionar colaborador", visivel === true);
+  record("botÃ£o de reset visÃ­vel ao selecionar colaborador", visivel === true);
 
   await page.evaluate(() => document.getElementById("portalColabResetSenhaBtn").click());
   await page.waitForTimeout(1200);
@@ -94,7 +95,7 @@ try {
     };
   }, CPF_TESTE);
   record("senha voltou para 123456", depois.senha === "123456", `senha=${depois.senha}`);
-  record("mustChangePassword=true (troca no próximo login)", depois.mustChange === true);
+  record("mustChangePassword=true (troca no prÃ³ximo login)", depois.mustChange === true);
   record("feedback ao administrador", /resetada para 123456/i.test(depois.fb), depois.fb);
 
   /* limpeza: remover colaborador de teste e gravar */

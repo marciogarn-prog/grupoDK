@@ -1,6 +1,6 @@
-/**
- * E2E oficial: ecrã Lançamento de multas com pesquisa no depósito (igual CRLV).
- * Apenas UI — não cria cadastros (oficial fica zerado).
+﻿/**
+ * E2E oficial: ecrÃ£ LanÃ§amento de multas com pesquisa no depÃ³sito (igual CRLV).
+ * Apenas UI â€” nÃ£o cria cadastros (oficial fica zerado).
  * node grupodkempreendimentos/scripts/test-multas-ui-oficial.mjs
  */
 import { chromium } from "playwright";
@@ -23,21 +23,21 @@ try {
   const html = await (await fetch(`${BASE}?nocache=${Date.now()}`)).text();
   record("HTML oficial: painel multas com pesquisa", html.includes("operacaoLancMultasDocBusca") && html.includes("Importar multa"));
   record(
-    "HTML oficial: versões novas dos scripts",
+    "HTML oficial: versÃµes novas dos scripts",
     html.includes("portal-locacao-documentos.js?v=20260610multas-busca") &&
       html.includes("portal-lancamentos-extras.js?v=20260610multa-vinculo") &&
       html.includes("app.js?v=20260610multa-vinculo"),
     "cache-bust ok"
   );
   const js = await (await fetch(`${BASE}portal-lancamentos-extras.js?nocache=${Date.now()}`)).text();
-  record("JS oficial: vínculo do PDF preservado", js.includes("locacaoDocumentoId = String(x.locacaoDocumentoId)"));
+  record("JS oficial: vÃ­nculo do PDF preservado", js.includes("locacaoDocumentoId = String(x.locacaoDocumentoId)"));
   const jsDocs = await (await fetch(`${BASE}portal-locacao-documentos.js?nocache=${Date.now()}`)).text();
   record(
-    "JS oficial: pesquisa de multas no depósito",
+    "JS oficial: pesquisa de multas no depÃ³sito",
     jsDocs.includes("operacaoLancMultasDocBusca") && jsDocs.includes("Importar multa")
   );
 
-  /* Ecrã abre como admin, sem erros */
+  /* EcrÃ£ abre como admin, sem erros */
   await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
   await page.evaluate(() => {
     sessionStorage.removeItem("dk_portal_area_ativa");
@@ -46,6 +46,7 @@ try {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
   });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
   await page.waitForFunction(() => {
@@ -74,14 +75,14 @@ try {
       secOculta: document.getElementById("operacaoLancMultasDocumentosDeposito")?.classList.contains("hidden") ?? null,
     };
   });
-  record("ecrã multas abre com pesquisa de contrato", ui.formVisivel === true);
+  record("ecrÃ£ multas abre com pesquisa de contrato", ui.formVisivel === true);
   record(
-    "painel multas (busca + Importar multa + sugestões) no DOM",
+    "painel multas (busca + Importar multa + sugestÃµes) no DOM",
     ui.buscaNoDom && ui.btnNoDom && ui.sugestoesNoDom && ui.btnLabel === "Importar multa",
-    `btn=«${ui.btnLabel}»`
+    `btn=Â«${ui.btnLabel}Â»`
   );
-  record("painel oculto até confirmar pesquisa (oficial zerado)", ui.secOculta === true);
-  record("sem erros de página (oficial)", pageErrors.length === 0, pageErrors.join(" · ").slice(0, 160) || "0 erros");
+  record("painel oculto atÃ© confirmar pesquisa (oficial zerado)", ui.secOculta === true);
+  record("sem erros de pÃ¡gina (oficial)", pageErrors.length === 0, pageErrors.join(" Â· ").slice(0, 160) || "0 erros");
 
   /* Garantir que nada foi cadastrado */
   const zerado = await page.evaluate(() => {
@@ -95,7 +96,7 @@ try {
     };
     return { c: len("dk_clientes_cadastro"), v: len("dk_veiculos_cadastro"), l: len("dk_locacoes_cadastro") };
   });
-  record("oficial continua zerado (sem poluição)", zerado.c === 0 && zerado.v === 0 && zerado.l === 0, JSON.stringify(zerado));
+  record("oficial continua zerado (sem poluiÃ§Ã£o)", zerado.c === 0 && zerado.v === 0 && zerado.l === 0, JSON.stringify(zerado));
 } catch (e) {
   record("erro inesperado", false, String(e?.message || e).slice(0, 200));
 } finally {

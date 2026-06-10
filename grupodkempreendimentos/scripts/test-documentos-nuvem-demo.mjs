@@ -1,9 +1,9 @@
-/**
- * E2E demo: depósito de documentos com ficheiros na NUVEM.
- * 1. Browser A (operador 1): deposita um CRLV → ficheiro sobe para a nuvem.
- * 2. Backfill: ficheiro antigo (só local, sem flag nuvem) é enviado por __DK_documentosSyncNuvem.
+﻿/**
+ * E2E demo: depÃ³sito de documentos com ficheiros na NUVEM.
+ * 1. Browser A (operador 1): deposita um CRLV â†’ ficheiro sobe para a nuvem.
+ * 2. Backfill: ficheiro antigo (sÃ³ local, sem flag nuvem) Ã© enviado por __DK_documentosSyncNuvem.
  * 3. Browser B (operador 2, computador limpo): abre o mesmo ficheiro a partir da nuvem.
- * Limpeza no fim (depósito + linhas docblob na nuvem).
+ * Limpeza no fim (depÃ³sito + linhas docblob na nuvem).
  * node grupodkempreendimentos/scripts/test-documentos-nuvem-demo.mjs
  */
 import { chromium } from "playwright";
@@ -41,6 +41,7 @@ async function loginAdmin(page) {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     localStorage.removeItem("dk_instalacao_limpa_v1");
   });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
@@ -61,7 +62,7 @@ try {
   await loginAdmin(pageA);
   record("login operador A (demo)", true);
 
-  /* 1. depositar CRLV pelo input do depósito */
+  /* 1. depositar CRLV pelo input do depÃ³sito */
   const nomePdf = `${TAG}AAA1B23.pdf`;
   await pageA.setInputFiles("#documentosInputCrlv", {
     name: nomePdf,
@@ -85,7 +86,7 @@ try {
     .then((h) => h.jsonValue())
     .catch(() => null);
   record("CRLV depositado com flag nuvem", Boolean(depositado?.nuvem), JSON.stringify(depositado));
-  if (!depositado?.id) throw new Error("depósito falhou");
+  if (!depositado?.id) throw new Error("depÃ³sito falhou");
   idsLimpar.push(depositado.id);
 
   /* 2. linha docblob existe na nuvem */
@@ -100,7 +101,7 @@ try {
     `b64len=${String(payload?.b64 || "").length}`
   );
 
-  /* 3. backfill: ficheiro antigo só local (sem flag nuvem) sobe via sync */
+  /* 3. backfill: ficheiro antigo sÃ³ local (sem flag nuvem) sobe via sync */
   const antigo = await pageA.evaluate(async (tag) => {
     const pdf = new Blob([new TextEncoder().encode(`%PDF-1.4\n%${tag}-ANTIGO\n%%EOF`)], {
       type: "application/pdf",
@@ -173,7 +174,7 @@ try {
     },
     { idNovo: depositado.id, idAntigo: antigo.id }
   );
-  record("computador B começa sem ficheiros locais", aberturas.semLocal === true);
+  record("computador B comeÃ§a sem ficheiros locais", aberturas.semLocal === true);
   record(
     "operador B abre CRLV novo a partir da nuvem",
     aberturas.novo.ok === true && aberturas.novo.size > 20,
@@ -185,7 +186,7 @@ try {
     JSON.stringify(aberturas.antigo)
   );
 
-  /* cache local após abrir da nuvem */
+  /* cache local apÃ³s abrir da nuvem */
   const cacheado = await pageB.evaluate(async (id) => {
     return new Promise((res) => {
       const r = indexedDB.open("dk_documentos_blobs_v1", 1);
@@ -198,9 +199,9 @@ try {
       r.onerror = () => res(false);
     });
   }, depositado.id);
-  record("ficheiro fica em cache local após abrir da nuvem", cacheado === true);
+  record("ficheiro fica em cache local apÃ³s abrir da nuvem", cacheado === true);
 
-  /* limpeza no browser B: remover entradas do depósito e push */
+  /* limpeza no browser B: remover entradas do depÃ³sito e push */
   await pageB.evaluate(async (ids) => {
     const dep = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null");
     if (dep?.crlv) {

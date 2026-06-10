@@ -957,6 +957,12 @@
         role: funcionario.role,
       })
     );
+    /* sessão vale só nesta janela do navegador — ver dkExigirLoginEquipaPorJanela (app.js) */
+    try {
+      sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
+    } catch {
+      /* ignore */
+    }
     hideAllPanels();
     panelLogado?.classList.remove("hidden");
     if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";

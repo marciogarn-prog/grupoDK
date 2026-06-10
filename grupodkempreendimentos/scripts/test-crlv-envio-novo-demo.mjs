@@ -1,6 +1,6 @@
-/**
- * E2E demo: CRLV NOVO — protocolo sem CRLV: depósito → pesquisa → importar
- * → Confirmar → Enviar ao cliente → nuvem → app cliente. Limpeza no fim.
+﻿/**
+ * E2E demo: CRLV NOVO â€” protocolo sem CRLV: depÃ³sito â†’ pesquisa â†’ importar
+ * â†’ Confirmar â†’ Enviar ao cliente â†’ nuvem â†’ app cliente. Limpeza no fim.
  * node grupodkempreendimentos/scripts/test-crlv-envio-novo-demo.mjs
  */
 import { chromium } from "playwright";
@@ -30,6 +30,7 @@ try {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     localStorage.removeItem("dk_instalacao_limpa_v1");
   });
   await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
@@ -71,7 +72,7 @@ try {
   record("protocolo ativo sem CRLV escolhido", Boolean(caso), JSON.stringify(caso));
   if (!caso) throw new Error("nenhum protocolo candidato");
 
-  /* semear CRLV no depósito */
+  /* semear CRLV no depÃ³sito */
   const seed = await page.evaluate(
     async ({ tag, placa }) => {
       const pdf = new Blob(
@@ -103,9 +104,9 @@ try {
     },
     { tag: TAG, placa: caso.placa }
   );
-  record("CRLV semeado no depósito", seed.ok === true, seed.nome);
+  record("CRLV semeado no depÃ³sito", seed.ok === true, seed.nome);
 
-  /* ecrã cadastro de locação */
+  /* ecrÃ£ cadastro de locaÃ§Ã£o */
   await page.click("#btn-locadora-operacao");
   await page.waitForTimeout(1200);
   await page.click("#btn-operacao-cadastro-locacao");
@@ -122,7 +123,7 @@ try {
     sel.dispatchEvent(new Event("change", { bubbles: true }));
     return { ok: true };
   }, caso.proto);
-  record("protocolo selecionado no cadastro de locação", protoSel.ok === true, JSON.stringify(protoSel).slice(0, 140));
+  record("protocolo selecionado no cadastro de locaÃ§Ã£o", protoSel.ok === true, JSON.stringify(protoSel).slice(0, 140));
   await page.waitForTimeout(2000);
 
   /* pesquisar e importar CRLV */
@@ -140,7 +141,7 @@ try {
       msg: document.getElementById("operacaoLocacaoDocumentosMsg")?.textContent?.trim().slice(0, 120) || "",
     };
   }, TAG);
-  record("CRLV importado para a vaga", imp.tem === true, imp.tem ? "" : `lista=«${imp.txt}» msg=«${imp.msg}»`);
+  record("CRLV importado para a vaga", imp.tem === true, imp.tem ? "" : `lista=Â«${imp.txt}Â» msg=Â«${imp.msg}Â»`);
 
   /* Confirmar */
   await page.evaluate((tag) => {
@@ -157,7 +158,7 @@ try {
     const b = li?.querySelector("[data-loc-doc-enviar]");
     return { existe: Boolean(b), ativo: b ? !b.disabled : false, label: b?.textContent?.trim() || "" };
   }, TAG);
-  record("botão Enviar ativo após Confirmar", antesEnvio.existe && antesEnvio.ativo, JSON.stringify(antesEnvio));
+  record("botÃ£o Enviar ativo apÃ³s Confirmar", antesEnvio.existe && antesEnvio.ativo, JSON.stringify(antesEnvio));
 
   await page.evaluate((tag) => {
     const ul = document.getElementById("operacaoLocacaoDocumentosListaCrlv");
@@ -184,7 +185,7 @@ try {
   const msgEnvio = await page.evaluate(() => document.getElementById("operacaoLocacaoDocumentosMsg")?.textContent?.trim().slice(0, 160) || "");
   record("CRLV enviado ao cliente (nuvem confirmada)", envio.ok === true, `${msgEnvio}`);
 
-  record("sem erros de página (portal)", pageErrors.length === 0, pageErrors.join(" · ").slice(0, 200) || "0 erros");
+  record("sem erros de pÃ¡gina (portal)", pageErrors.length === 0, pageErrors.join(" Â· ").slice(0, 200) || "0 erros");
 
   /* app cliente recebe */
   const ctx2 = await browser.newContext({

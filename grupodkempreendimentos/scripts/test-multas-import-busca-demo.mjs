@@ -1,6 +1,6 @@
-/**
- * E2E demo: Lançamento de multas — pesquisa no depósito Documentos (igual CRLV),
- * importação de VÁRIAS multas para o protocolo e limpeza (tombstone) no fim.
+﻿/**
+ * E2E demo: LanÃ§amento de multas â€” pesquisa no depÃ³sito Documentos (igual CRLV),
+ * importaÃ§Ã£o de VÃRIAS multas para o protocolo e limpeza (tombstone) no fim.
  * node grupodkempreendimentos/scripts/test-multas-import-busca-demo.mjs
  */
 import { chromium } from "playwright";
@@ -28,6 +28,7 @@ try {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     localStorage.removeItem("dk_instalacao_limpa_v1");
   });
   await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
@@ -41,7 +42,7 @@ try {
   );
   record("login admin portal demo", true);
 
-  /* Semear 2 multas no depósito Documentos (localStorage + blob em IndexedDB) */
+  /* Semear 2 multas no depÃ³sito Documentos (localStorage + blob em IndexedDB) */
   const seed = await page.evaluate(
     async ({ tag, chave }) => {
       const pdfBytes = new TextEncoder().encode(
@@ -84,7 +85,7 @@ try {
     },
     { tag: TAG, chave: `${CASO.placa}-${CASO.cpfDig}` }
   );
-  record("2 multas semeadas no depósito", seed.ok === true, seed.ids.join(","));
+  record("2 multas semeadas no depÃ³sito", seed.ok === true, seed.ids.join(","));
 
   await page.click("#btn-locadora-operacao");
   await page.waitForTimeout(1200);
@@ -136,9 +137,9 @@ try {
     secVisivel.visivel && secVisivel.inputAtivo && secVisivel.btnAtivo,
     JSON.stringify(secVisivel)
   );
-  record("botão «Importar multa»", secVisivel.btnLabel === "Importar multa", String(secVisivel.btnLabel));
+  record("botÃ£o Â«Importar multaÂ»", secVisivel.btnLabel === "Importar multa", String(secVisivel.btnLabel));
 
-  /* Pesquisar e ver sugestões */
+  /* Pesquisar e ver sugestÃµes */
   const busca = page.locator("#operacaoLancMultasDocBusca");
   await busca.fill(`${TAG}-1`);
   await busca.dispatchEvent("input");
@@ -151,7 +152,7 @@ try {
       texto: ul ? ul.textContent.replace(/\s+/g, " ").trim().slice(0, 120) : "",
     };
   });
-  record("sugestões do depósito aparecem", sugestoes.visivel && sugestoes.n >= 1, JSON.stringify(sugestoes));
+  record("sugestÃµes do depÃ³sito aparecem", sugestoes.visivel && sugestoes.n >= 1, JSON.stringify(sugestoes));
 
   /* Importar multa 1 */
   await page.click("#operacaoLancMultasDocImportBtn");
@@ -163,7 +164,7 @@ try {
   }, TAG);
   record("multa 1 importada para o protocolo", lista1.tem1, lista1.texto.slice(0, 140));
 
-  /* Importar multa 2 — várias multas no mesmo protocolo */
+  /* Importar multa 2 â€” vÃ¡rias multas no mesmo protocolo */
   await busca.fill(`${TAG}-2`);
   await busca.dispatchEvent("input");
   await page.waitForTimeout(400);
@@ -176,12 +177,12 @@ try {
     return { tem1: txt.includes(`${tag}-1`), tem2: txt.includes(`${tag}-2`), itens, texto: txt.slice(0, 260) };
   }, TAG);
   record(
-    "2 multas no mesmo protocolo (várias permitidas)",
+    "2 multas no mesmo protocolo (vÃ¡rias permitidas)",
     lista2.tem1 && lista2.tem2,
     `itens=${lista2.itens} | ${lista2.texto.slice(0, 160)}`
   );
 
-  /* Visualizar funciona (não dá «Documento não encontrado») */
+  /* Visualizar funciona (nÃ£o dÃ¡ Â«Documento nÃ£o encontradoÂ») */
   const verRes = await page.evaluate((tag) => {
     const ul = document.getElementById("operacaoLancMultasDocumentosLista");
     const li = Array.from(ul?.querySelectorAll("li") || []).find((el) => el.textContent.includes(`${tag}-1`));
@@ -197,11 +198,11 @@ try {
   });
   record(
     "Visualizar multa sem erro",
-    verRes.ok && !/não encontrado/i.test(msgAposVer),
+    verRes.ok && !/nÃ£o encontrado/i.test(msgAposVer),
     msgAposVer.slice(0, 120) || "(sem mensagem)"
   );
 
-  /* Limpeza: remover docs do protocolo (tombstone) e do depósito; push para a nuvem */
+  /* Limpeza: remover docs do protocolo (tombstone) e do depÃ³sito; push para a nuvem */
   const cleanup = await page.evaluate(
     async ({ ids }) => {
       const idSet = new Set(ids.map(String));
