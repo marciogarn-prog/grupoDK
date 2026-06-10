@@ -149,6 +149,166 @@
     });
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Nuvem: ficheiros do depósito guardados no Supabase (1 linha por    */
+  /* ficheiro, label "docblob:<canal>:<id>") — acessíveis por qualquer  */
+  /* operador em qualquer computador.                                   */
+  /* ------------------------------------------------------------------ */
+
+  function readMeta(name) {
+    const el = document.querySelector(`meta[name="${name}"]`);
+    return el ? String(el.getAttribute("content") || "").trim() : "";
+  }
+
+  function cloudCfg() {
+    const url = readMeta("dk-supabase-url");
+    const key = readMeta("dk-supabase-anon-key");
+    if (!url || !key) return null;
+    return { url: url.replace(/\/$/, ""), key };
+  }
+
+  function cloudChannel() {
+    return window.__DK_DEPLOY_CHANNEL__ === "demo" ? "demo" : "default";
+  }
+
+  function docBlobLabel(id) {
+    return `docblob:${cloudChannel()}:${String(id)}`;
+  }
+
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => {
+        const s = String(r.result || "");
+        resolve(s.includes(",") ? s.slice(s.indexOf(",") + 1) : s);
+      };
+      r.onerror = () => reject(r.error || new Error("read_fail"));
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function base64ToBlob(b64, mime) {
+    const bin = atob(String(b64 || ""));
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: mime || "application/pdf" });
+  }
+
+  async function cloudPutBlob(id, blob, meta) {
+    const cfg = cloudCfg();
+    if (!cfg) return false;
+    const b64 = await blobToBase64(blob);
+    const res = await fetch(`${cfg.url}/rest/v1/dk_cloud_snapshots?on_conflict=label`, {
+      method: "POST",
+      headers: {
+        apikey: cfg.key,
+        Authorization: `Bearer ${cfg.key}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({
+        label: docBlobLabel(id),
+        payload: {
+          docBlob: true,
+          nomeArquivo: String(meta?.nomeArquivo || ""),
+          mimeType: String(meta?.mimeType || blob.type || "application/pdf"),
+          tamanho: blob.size,
+          criadoEm: new Date().toISOString(),
+          b64,
+        },
+      }),
+    });
+    return res.ok;
+  }
+
+  async function cloudGetBlob(id) {
+    const cfg = cloudCfg();
+    if (!cfg) return null;
+    const res = await fetch(
+      `${cfg.url}/rest/v1/dk_cloud_snapshots?label=eq.${encodeURIComponent(docBlobLabel(id))}&select=payload`,
+      { headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` } }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json().catch(() => null);
+    const p = Array.isArray(rows) && rows[0]?.payload ? rows[0].payload : null;
+    if (!p?.b64) return null;
+    const blob = base64ToBlob(p.b64, p.mimeType);
+    const out = {
+      id: String(id),
+      blob,
+      nomeArquivo: p.nomeArquivo || String(id),
+      mimeType: p.mimeType || blob.type,
+    };
+    /* cache local para abrir mais rápido da próxima vez */
+    await idbPutBlob(out.id, blob, { nomeArquivo: out.nomeArquivo, mimeType: out.mimeType }).catch(() => null);
+    return out;
+  }
+
+  async function cloudDeleteBlob(id) {
+    const cfg = cloudCfg();
+    if (!cfg) return false;
+    const res = await fetch(
+      `${cfg.url}/rest/v1/dk_cloud_snapshots?label=eq.${encodeURIComponent(docBlobLabel(id))}`,
+      { method: "DELETE", headers: { apikey: cfg.key, Authorization: `Bearer ${cfg.key}` } }
+    );
+    return res.ok;
+  }
+
+  /**
+   * Backfill: envia para a nuvem os ficheiros que só existem neste computador
+   * (entradas sem flag nuvem:true mas com blob no IndexedDB). Corre em segundo
+   * plano ao abrir o painel Documentos.
+   */
+  let nuvemSyncBusy = false;
+  async function sincronizarDepositoComNuvem(onProgress) {
+    if (nuvemSyncBusy || !cloudCfg()) return { enviados: 0, pendentes: 0 };
+    nuvemSyncBusy = true;
+    try {
+      const dep = loadDeposit();
+      const alvos = [];
+      for (const cat of ["crlv", "contrato", "multa"]) {
+        for (const e of dep[cat] || []) {
+          if (e && e.id && e.nuvem !== true) alvos.push(e);
+        }
+      }
+      let enviados = 0;
+      let pendentes = 0;
+      let marcados = false;
+      for (let i = 0; i < alvos.length; i += 1) {
+        const e = alvos[i];
+        try {
+          const row = await idbGetBlob(e.id);
+          if (!row?.blob) {
+            pendentes += 1;
+            continue;
+          }
+          const ok = await cloudPutBlob(e.id, row.blob, {
+            nomeArquivo: e.nomeArquivo || row.nomeArquivo,
+            mimeType: e.mimeType || row.mimeType,
+          });
+          if (ok) {
+            e.nuvem = true;
+            marcados = true;
+            enviados += 1;
+          } else {
+            pendentes += 1;
+          }
+        } catch {
+          pendentes += 1;
+        }
+        if (typeof onProgress === "function") onProgress(i + 1, alvos.length, enviados);
+        /* guardar a meio do caminho para não perder progresso em listas grandes */
+        if (marcados && (enviados % 20 === 0 || i === alvos.length - 1)) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dep));
+        }
+      }
+      if (marcados) saveDeposit(dep);
+      return { enviados, pendentes };
+    } finally {
+      nuvemSyncBusy = false;
+    }
+  }
+
   function purgeLegacyPatrimonioLocal() {
     if (localStorage.getItem(MIGRATION_FLAG) === "done") return;
     [
@@ -312,22 +472,22 @@
       const info = (cat) => {
         const arr = dep[cat] || [];
         const aqui = arr.filter((e) => ids.has(String(e.id))).length;
-        return { total: arr.length, aqui };
+        const nuvem = arr.filter((e) => e.nuvem === true).length;
+        return { total: arr.length, aqui, nuvem };
       };
+      const texto = (i, nome) =>
+        `${i.total} ${nome} no depósito — ${i.nuvem} na nuvem (todos os operadores) · ${i.aqui} neste computador.`;
       const c = info("crlv");
       if ($("documentosResumoCrlv")) {
-        $("documentosResumoCrlv").textContent =
-          `${c.total} ficheiro(s) CRLV no depósito — ${c.aqui} disponível(eis) neste computador.`;
+        $("documentosResumoCrlv").textContent = texto(c, "ficheiro(s) CRLV");
       }
       const ct = info("contrato");
       if ($("documentosResumoContrato")) {
-        $("documentosResumoContrato").textContent =
-          `${ct.total} contrato(s) no depósito — ${ct.aqui} disponível(eis) neste computador.`;
+        $("documentosResumoContrato").textContent = texto(ct, "contrato(s)");
       }
       const m = info("multa");
       if ($("documentosResumoMulta")) {
-        $("documentosResumoMulta").textContent =
-          `${m.total} multa(s) no depósito — ${m.aqui} disponível(eis) neste computador.`;
+        $("documentosResumoMulta").textContent = texto(m, "multa(s)");
       }
     })();
   }
@@ -361,28 +521,46 @@
       }
       const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       await idbPutBlob(id, file, { nomeArquivo: nome, mimeType: mime || "application/pdf" });
+      const mimeFinal = mime || (nome.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream");
+      let naNuvem = false;
+      try {
+        if (msgEl) msgEl.textContent = `A enviar «${nome}» para a nuvem…`;
+        naNuvem = await cloudPutBlob(id, file, { nomeArquivo: nome, mimeType: mimeFinal });
+      } catch {
+        naNuvem = false;
+      }
       arr.push({
         id,
         chave,
         nomeArquivo: nome,
-        mimeType: mime || (nome.toLowerCase().endsWith(".pdf") ? "application/pdf" : "application/octet-stream"),
+        mimeType: mimeFinal,
         tamanho: file.size,
         criadoEm: new Date().toISOString(),
+        nuvem: naNuvem,
       });
       n += 1;
     }
 
     dep[categoria] = arr;
     saveDeposit(dep);
-    if (msgEl) msgEl.textContent = n ? `${n} ficheiro(s) guardado(s).` : "Nenhum ficheiro válido.";
+    if (msgEl) {
+      msgEl.textContent = n
+        ? `${n} ficheiro(s) guardado(s) — disponíveis na nuvem para todos os operadores.`
+        : "Nenhum ficheiro válido.";
+    }
     atualizarResumosDepositos();
     return { ok: n > 0, n };
   }
 
   async function obterBlobDoc(categoria, id) {
-    const row = await idbGetBlob(id);
+    const row = await idbGetBlob(id).catch(() => null);
     if (row?.blob) return row;
-    return null;
+    /* não está neste computador — buscar na nuvem (depósito partilhado) */
+    try {
+      return await cloudGetBlob(id);
+    } catch {
+      return null;
+    }
   }
 
   function abrirViewerComBlob(blob, nomeArquivo, mimeType) {
@@ -415,7 +593,7 @@
   async function abrirDoc(categoria, id) {
     const row = await obterBlobDoc(categoria, id);
     if (!row?.blob) {
-      alert("Ficheiro não encontrado neste computador. Carregue o documento de novo.");
+      alert("Ficheiro não encontrado neste computador nem na nuvem. Carregue o documento de novo.");
       return;
     }
     abrirViewerComBlob(row.blob, row.nomeArquivo || id, row.mimeType || row.blob.type);
@@ -426,7 +604,7 @@
     const meta = dep.find((e) => e.id === id);
     const row = await obterBlobDoc(categoria, id);
     if (!row?.blob) {
-      alert("Ficheiro não encontrado neste computador.");
+      alert("Ficheiro não encontrado neste computador nem na nuvem.");
       return;
     }
     const url = URL.createObjectURL(row.blob);
@@ -444,6 +622,7 @@
     dep[categoria] = (dep[categoria] || []).filter((e) => e.id !== id);
     saveDeposit(dep);
     await idbDeleteBlob(id).catch(() => null);
+    void cloudDeleteBlob(id).catch(() => null);
     atualizarResumosDepositos();
     renderBuscaResultados();
   }
@@ -523,6 +702,25 @@
     $("documentosMsg") && ($("documentosMsg").textContent = "");
     atualizarResumosDepositos();
     renderBuscaResultados();
+    /* backfill: enviar para a nuvem os ficheiros que só existem neste computador */
+    void (async () => {
+      const msg = $("documentosMsg");
+      try {
+        const r = await sincronizarDepositoComNuvem((feitos, total) => {
+          if (msg) msg.textContent = `A enviar ficheiros do depósito para a nuvem… ${feitos}/${total}.`;
+        });
+        if (r.enviados > 0) {
+          if (msg) {
+            msg.textContent = `${r.enviados} ficheiro(s) enviados para a nuvem — já acessíveis por todos os operadores.${r.pendentes ? ` ${r.pendentes} pendente(s) (sem ficheiro neste computador).` : ""}`;
+          }
+          atualizarResumosDepositos();
+        } else if (msg && msg.textContent.startsWith("A enviar ficheiros")) {
+          msg.textContent = "";
+        }
+      } catch {
+        if (msg && msg.textContent.startsWith("A enviar ficheiros")) msg.textContent = "";
+      }
+    })();
   }
 
   function resetDocumentos() {
@@ -558,6 +756,8 @@
   window.__DK_documentosObterEntrada = obterEntradaDeposito;
   window.__DK_documentosContarDeposito = contarDeposito;
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
+  window.__DK_documentosSyncNuvem = sincronizarDepositoComNuvem;
+  window.__DK_documentosCloudGetBlob = cloudGetBlob;
   window.__DK_documentosAbrirViewerBlob = abrirViewerComBlob;
   window.__DK_documentosNormPlaca = normPlaca;
   window.__DK_documentosNormProtocolo = normProtocolo;
@@ -568,9 +768,14 @@
       const push = (e) => {
         if (!e?.id) return;
         const prev = byId.get(e.id);
-        if (!prev || (Date.parse(e.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0)) {
+        if (!prev) {
           byId.set(e.id, e);
+          return;
         }
+        const novo = (Date.parse(e.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0) ? { ...e } : { ...prev };
+        /* nuvem:true nunca regride — se um lado já enviou o ficheiro, mantém */
+        if (prev.nuvem === true || e.nuvem === true) novo.nuvem = true;
+        byId.set(e.id, novo);
       };
       (Array.isArray(cloudDep?.[cat]) ? cloudDep[cat] : []).forEach(push);
       (Array.isArray(localDep?.[cat]) ? localDep[cat] : []).forEach(push);
