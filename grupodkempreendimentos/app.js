@@ -1,3 +1,25 @@
+/**
+ * Segurança: sessão da equipa (tipo "admin") só vale enquanto o navegador/janela
+ * estiver aberto. Ao abrir o site de novo (browser fechado/reaberto, novo separador),
+ * a sessão antiga em localStorage é descartada e o login volta a ser exigido.
+ * O marcador vive em sessionStorage e é criado apenas no login real
+ * (finalizarLoginEquipaPortal em portal-locadora-ui.js).
+ */
+(function dkExigirLoginEquipaPorJanela() {
+  try {
+    const raw = localStorage.getItem("dk_sessao_cliente");
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s?.tipo !== "admin") return;
+    if (sessionStorage.getItem("dk_portal_sessao_viva_v1") === "1") return;
+    localStorage.removeItem("dk_sessao_cliente");
+    localStorage.removeItem("dk_portal_sessao_build");
+    sessionStorage.removeItem("dk_portal_area_ativa");
+  } catch {
+    /* ignore */
+  }
+})();
+
 const mockClientes = [
   {
     cpf: "11111111111",
@@ -1913,6 +1935,7 @@ function clearSession() {
   localStorage.removeItem("dk_sessao_cliente");
   try {
     sessionStorage.removeItem(SESSION_UNLOCK_SALVAR_CLIENTE_KEY);
+    sessionStorage.removeItem("dk_portal_sessao_viva_v1");
   } catch {
     // ignore
   }

@@ -1,5 +1,5 @@
-/**
- * Smoke test em produção (headless) — DK Locadora portal cadastro.
+﻿/**
+ * Smoke test em produÃ§Ã£o (headless) â€” DK Locadora portal cadastro.
  * node scripts/test-portal-producao.mjs
  */
 import fs from "fs";
@@ -28,7 +28,7 @@ async function runSuite() {
     }).then((r) => (r.ok ? r.json() : {}));
     const pPre = cloudDemoPre.payload || {};
     record(
-      "demo: nuvem com clientes veículos e locações",
+      "demo: nuvem com clientes veÃ­culos e locaÃ§Ãµes",
       (pPre.dk_clientes_cadastro || []).length >= 300 &&
         (pPre.dk_veiculos_cadastro || []).length >= 150 &&
         (pPre.dk_locacoes_cadastro || []).length >= 300,
@@ -74,14 +74,14 @@ async function runSuite() {
     });
     record("modo cadastro manual ativo", storageInicial.manual === "1", `manual=${storageInicial.manual}`);
     record(
-      IS_DEMO_TEST ? "demo: instalação limpa não aplicada" : "instalação limpa aplicada no browser",
+      IS_DEMO_TEST ? "demo: instalaÃ§Ã£o limpa nÃ£o aplicada" : "instalaÃ§Ã£o limpa aplicada no browser",
       IS_DEMO_TEST
         ? storageInicial.instalacaoLimpa !== "done"
         : storageInicial.instalacaoLimpa === "done",
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "cadastros vazios após instalação limpa",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "cadastros vazios apÃ³s instalaÃ§Ã£o limpa",
       IS_DEMO_TEST
         ? storageInicial.clientes >= 300 && storageInicial.veiculos >= 150
         : storageInicial.clientes === 0 && storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
@@ -93,7 +93,7 @@ async function runSuite() {
     const appJsVer = html.match(/app\.js\?v=([^"]+)/)?.[1] || "";
     const documentosJsVer = html.match(/portal-documentos\.js\?v=([^"]+)/)?.[1] || "";
     record(
-      IS_DEMO_TEST ? "HTML demo com banco planilha completo" : "HTML com instalação limpa (sem Excel)",
+      IS_DEMO_TEST ? "HTML demo com banco planilha completo" : "HTML com instalaÃ§Ã£o limpa (sem Excel)",
       IS_DEMO_TEST
         ? html.includes("dk-banco-cadastro.js") && html.includes("demo-cadastros")
         : html.includes("dk-banco-cadastro-vazio") && html.includes("instalacao-limpa"),
@@ -111,12 +111,12 @@ async function runSuite() {
       html.includes("view-locadora-hub") && html.includes("view-locadora-cliente")
     );
     record(
-      "secção comprovantes app cliente no portal",
+      "secÃ§Ã£o comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
     );
     record(
-      "lançamento com comprovante operador (extrair + confirmar)",
+      "lanÃ§amento com comprovante operador (extrair + confirmar)",
       html.includes("portalOperadorComprovantePasteZone") &&
         html.includes("portalOperadorComprovanteExtrairIaBtn") &&
         html.includes("portalOperadorComprovanteConfirmarBtn") &&
@@ -124,7 +124,7 @@ async function runSuite() {
     );
     const htmlLancAluguel = await fetch(BASE_URL, { cache: "no-store" }).then((r) => r.text());
     record(
-      "submenu lançamento aluguel (só avulso ativo)",
+      "submenu lanÃ§amento aluguel (sÃ³ avulso ativo)",
       htmlLancAluguel.includes("btn-lanc-aluguel-avulso") &&
         htmlLancAluguel.includes('id="btn-lanc-aluguel-comprovante"') &&
         /btn-lanc-aluguel-comprovante[^>]*hidden/.test(htmlLancAluguel) &&
@@ -137,14 +137,14 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "lançamento aluguel calendário anual (bloco + modal)",
+      "lanÃ§amento aluguel calendÃ¡rio anual (bloco + modal)",
       htmlLancAluguel.includes("operacaoLancAluguelValorSimples") &&
         htmlLancAluguel.includes("operacaoLancAluguelLancBlocoBtn") &&
         htmlLancAluguel.includes("portalLancAluguelCalModal") &&
         htmlLancAluguel.includes("portal-lanc-aluguel-calendario.js")
     );
     record(
-      "lançamento aluguel só avulso (flag JS)",
+      "lanÃ§amento aluguel sÃ³ avulso (flag JS)",
       portalUiLancJs.includes("OPERACAO_LANC_ALUGUEL_SUB_ATIVOS") &&
         portalUiLancJs.includes('new Set(["avulso"])') &&
         portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno") &&
@@ -155,7 +155,7 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "calendário aluguel dia pagamento por cliente",
+      "calendÃ¡rio aluguel dia pagamento por cliente",
       calJs.includes("portal-lanc-cal-val--dia-pagamento") &&
         calJs.includes("diaPagamentoCol") &&
         calJs.includes("portal-lanc-cal-dow--pagamento")
@@ -167,18 +167,18 @@ async function runSuite() {
         html.includes("portalPdfPartilharWhatsAppBtn")
     );
     record(
-      "botões baixar app cliente e operação na home",
+      "botÃµes baixar app cliente e operaÃ§Ã£o na home",
       html.includes("home-app-btn--cliente") &&
         html.includes("home-app-btn--operacao") &&
         html.includes('id="homeBaixarAppCliente"') &&
         html.includes('id="homeBaixarAppOperacao"') &&
         html.includes("/instalar") &&
         html.includes("Baixar app cliente") &&
-        html.includes("Baixar app operação") &&
+        html.includes("Baixar app operaÃ§Ã£o") &&
         html.includes("dk-pwa-update.js")
     );
     record(
-      "depósito documentos CRLV contratos multas (sem IA)",
+      "depÃ³sito documentos CRLV contratos multas (sem IA)",
       html.includes("btn-locadora-documentos") &&
         html.includes("panel-documentos-locadora") &&
         html.includes("documentosBuscaTitulo") &&
@@ -198,12 +198,12 @@ async function runSuite() {
       r.ok ? r.text() : ""
     );
     record(
-      "cadastro veículo resumo frota no HTML",
+      "cadastro veÃ­culo resumo frota no HTML",
       indexFresh.includes("operacaoVeiculoResumoGrid") &&
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
     record(
-      "cadastro sem opção real/teste (demo é o ambiente de testes)",
+      "cadastro sem opÃ§Ã£o real/teste (demo Ã© o ambiente de testes)",
       !indexFresh.includes("operacaoClienteAmbienteWrap") &&
         !indexFresh.includes('name="operacaoClienteAmbiente"') &&
         !indexFresh.includes("operacaoVeiculoAmbienteWrap") &&
@@ -269,12 +269,12 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "login empresa: demo sem bloqueio manutenção + aviso no portal",
+      "login empresa: demo sem bloqueio manutenÃ§Ã£o + aviso no portal",
       appLoginJs.includes("__DK_IS_DEMO_DEPLOY__") &&
         appLoginJs.includes("getMaintenanceNotice") &&
         portalLoginUiJs.includes("getMaintenanceNotice") &&
         portalLoginUiJs.includes("login-feedback"),
-      "demo 24h; oficial 02h–03h com mensagem visível"
+      "demo 24h; oficial 02hâ€“03h com mensagem visÃ­vel"
     );
     const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-icon`, {
       cache: "no-store",
@@ -423,12 +423,12 @@ async function runSuite() {
       "novo cliente recebe senha app"
     );
     record(
-      "cadastro cliente senha visível só administrador",
+      "cadastro cliente senha visÃ­vel sÃ³ administrador",
       html.includes("operacaoClienteSenhaLabel") &&
         html.includes('senha=123456') &&
         portalUiProto.includes("portalRefreshOperacaoClienteSenhaField") &&
         portalUiProto.includes("operacaoClienteSenhaWrap"),
-      "senha=123456 só no layout administrador"
+      "senha=123456 sÃ³ no layout administrador"
     );
     record(
       "admin resetar senha app cliente no cadastro",
@@ -446,7 +446,7 @@ async function runSuite() {
       "cadastro manual permanente"
     );
     record(
-      "mapa localização clientes (admin)",
+      "mapa localizaÃ§Ã£o clientes (admin)",
       html.includes("btn-locadora-localizacao") &&
         html.includes("panel-localizacao-locadora") &&
         html.includes("dkGeoMapRefresh") &&
@@ -454,7 +454,7 @@ async function runSuite() {
         html.includes("portal-cliente-geo-mapa.js")
     );
     record(
-      "app cliente geolocalização obrigatória",
+      "app cliente geolocalizaÃ§Ã£o obrigatÃ³ria",
       (await fetch(`${BASE_URL}cliente.html`, { cache: "no-store" }).then((r) => r.text())).includes(
         "view-geolocalizacao"
       ) &&
@@ -467,7 +467,7 @@ async function runSuite() {
       return r.ok ? await r.text() : "";
     });
     record(
-      "cadastro veículo resumo frota (código, placa, km, cliente)",
+      "cadastro veÃ­culo resumo frota (cÃ³digo, placa, km, cliente)",
       portalUiJs.includes("renderOperacaoVeiculoResumoFrota") &&
         portalUiJs.includes("getPortalUltimoKmPorPlaca") &&
         portalUiJs.includes("getPortalResumoVeiculoCardData") &&
@@ -475,7 +475,7 @@ async function runSuite() {
         portalUiJs.includes("portalCompareVeiculoPorCodigo")
     );
     record(
-      "portal localização clientes (código mapa)",
+      "portal localizaÃ§Ã£o clientes (cÃ³digo mapa)",
       portalUiJs.includes("panelLocalizacao") &&
         portalUiJs.includes("btnLocalizacao") &&
         portalUiJs.includes("__DK_clienteGeoMapaOnShow")
@@ -484,7 +484,7 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "documentos depósito CRLV contratos multas (JS)",
+      "documentos depÃ³sito CRLV contratos multas (JS)",
       docsJs.includes("dk_documentos_deposito_v1") &&
         docsJs.includes("__DK_documentosListarPorChave") &&
         docsJs.includes("__DK_documentosObterBlobDoc") &&
@@ -501,21 +501,21 @@ async function runSuite() {
     });
     record("documentos sync nuvem (dk_documentos_deposito_v1)", syncJs.includes("dk_documentos_deposito_v1"));
     record(
-      "documentos locação merge nuvem (dk_locacao_documentos_v1)",
+      "documentos locaÃ§Ã£o merge nuvem (dk_locacao_documentos_v1)",
       syncJs.includes("dk_locacao_documentos_v1") && syncJs.includes("__DK_docsLocacaoMerge")
     );
     const cssStyles = await fetch(`${BASE_URL}styles.css`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "CSS documentos depósito e busca",
+      "CSS documentos depÃ³sito e busca",
       cssStyles.includes(".documentos-dropzone") &&
         cssStyles.includes(".documentos-busca") &&
         cssStyles.includes(".documentos-resultado") &&
         cssStyles.includes(".portal-lanc-multas-docs")
     );
     record(
-      "CSS cartões frota legíveis (texto claro no botão)",
+      "CSS cartÃµes frota legÃ­veis (texto claro no botÃ£o)",
       cssStyles.includes(".operacao-veiculo-resumo-card") &&
         cssStyles.includes("color: var(--text") &&
         cssStyles.includes("appearance: none")
@@ -538,21 +538,21 @@ async function runSuite() {
         typeof window.isPlacaMercosul === "function" && window.isPlacaMercosul("ABC1D23"),
     }));
     record(
-      "placa Mercosul LLLNLNN único padrão",
+      "placa Mercosul LLLNLNN Ãºnico padrÃ£o",
       placaMercosulOk.fn &&
         placaMercosulOk.ok &&
         placaMercosulOk.ocr &&
         placaMercosulOk.antiga &&
         placaMercosulOk.abcDirect,
       placaMercosulOk.abcDirect
-        ? "ABC1D23 OK · JRB5376→JRB5D76"
+        ? "ABC1D23 OK Â· JRB5376â†’JRB5D76"
         : placaMercosulOk.ocr
-          ? "SOXA284→SOX2A84"
-          : "validação"
+          ? "SOXA284â†’SOX2A84"
+          : "validaÃ§Ã£o"
     );
     record(
-      "portal conferência operador (texto)",
-      html.includes("funcionário cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
+      "portal conferÃªncia operador (texto)",
+      html.includes("funcionÃ¡rio cadastrado") || html.includes("funcionario cadastrado") || html.includes("Conferir comprovante")
     );
 
     const hasPortalFns = await page.evaluate(() => ({
@@ -681,7 +681,7 @@ async function runSuite() {
       await page.waitForTimeout(2000);
     }
 
-    const operacao = page.locator("text=Operação").first();
+    const operacao = page.locator("text=OperaÃ§Ã£o").first();
     if (await operacao.isVisible().catch(() => false)) {
       await operacao.click();
       await page.waitForTimeout(1500);
@@ -702,7 +702,7 @@ async function runSuite() {
       !(page.url().includes("locadora/cliente")) &&
       (await page.locator("#form-login, #login-cpf").first().isVisible().catch(() => false));
     record(
-      "cliente.html mostra login sem redirecionar ao portal de instalação",
+      "cliente.html mostra login sem redirecionar ao portal de instalaÃ§Ã£o",
       clienteLoginVisivel,
       page.url()
     );
@@ -710,7 +710,7 @@ async function runSuite() {
     const clienteHtmlUrl = new URL("cliente.html", BASE_URL).href;
     const clienteHtml = await fetch(clienteHtmlUrl).then((r) => r.text());
     record(
-      "app cliente auto-sync e notificações",
+      "app cliente auto-sync e notificaÃ§Ãµes",
       clienteHtml.includes("atualizarProgramaEDados") === false &&
         clienteHtml.includes("cliente-notificacoes.js") &&
         clienteHtml.includes("cliente-contrato-resumo.js") &&
@@ -743,7 +743,7 @@ async function runSuite() {
       clienteHtml.includes('id="cliente-sec-comprovante"') &&
         clienteHtml.includes("hidden") &&
         clienteAppJs.includes("CLIENTE_ENVIO_COMPROVANTE_ATIVO = false"),
-      "secção oculta + flag false"
+      "secÃ§Ã£o oculta + flag false"
     );
     record(
       "app cliente badge contrato por tipo/plano",
@@ -754,12 +754,12 @@ async function runSuite() {
       "azul/verde/marrom/vermelho"
     );
     record(
-      "app cliente vista provisória contrato simplificada",
+      "app cliente vista provisÃ³ria contrato simplificada",
       clienteAppJs.includes("Valor do contrato semanal") &&
-        clienteAppJs.includes("Data do último pagamento") &&
+        clienteAppJs.includes("Data do Ãºltimo pagamento") &&
         clienteResumoJs.includes("investimentoAcumulado") &&
         clienteResumoJs.includes("pickUltimoPagamento"),
-      "placa, semanal, pago, investimento, último pagamento"
+      "placa, semanal, pago, investimento, Ãºltimo pagamento"
     );
     record(
       "app cliente sem detalhamento pagamentos",
@@ -767,37 +767,37 @@ async function runSuite() {
         !clienteHtml.includes("clienteCalPagamentosModal") &&
         !clienteAppJs.includes("Detalhamento dos pagamentos") &&
         !clienteAppJs.includes("data-cliente-cal-proto"),
-      "calendário de pagamentos removido (performance)"
+      "calendÃ¡rio de pagamentos removido (performance)"
     );
     record(
-      "cadastro locação documentos por protocolo",
+      "cadastro locaÃ§Ã£o documentos por protocolo",
         indexFresh.includes("Importar contrato") &&
         indexFresh.includes("Importar CRLV") &&
         indexFresh.includes("operacaoLocacaoDocVagaContrato") &&
         indexFresh.includes("operacaoLocacaoDocVagaCrlv") &&
-        indexFresh.includes("vaga única") &&
+        indexFresh.includes("vaga Ãºnica") &&
         !indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
         indexFresh.includes("Confirmar") &&
         indexFresh.includes("Enviar para o cliente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "Contrato + CRLV: trazer do depósito; Visualizar + Confirmar + Enviar + Excluir"
+      "Contrato + CRLV: trazer do depÃ³sito; Visualizar + Confirmar + Enviar + Excluir"
     );
     record(
-      "lançamento multas importa depósito Documentos",
+      "lanÃ§amento multas importa depÃ³sito Documentos",
       indexFresh.includes("operacaoLancMultasDocumentosDeposito") &&
         indexFresh.includes("operacaoLancMultasDocImportBtn") &&
         !indexFresh.includes("operacaoLancMultasBuscarDepositoBtn") &&
         indexFresh.includes("Confirmar") &&
         indexFresh.includes("Enviar para o cliente"),
-      "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
+      "Multa PLACA-CPF; Abrir + Confirmar + Enviar â†’ Ver multas"
     );
     const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260521envio-geral`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "documentos locação sync nuvem",
+      "documentos locaÃ§Ã£o sync nuvem",
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
         locDocsJs.includes("prepararDocumentoParaEnvio") &&
@@ -821,13 +821,13 @@ async function runSuite() {
         locDocsJs.includes("docCanonicoPorTipo") &&
         locDocsJs.includes("limparDuplicadosNaoEnviados") &&
         !locDocsJs.includes("adicionarDocumentos"),
-      "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
+      "contrato/crlv: push nuvem + confirmaÃ§Ã£o ao operador; sÃ³ enviados vÃ£o Ã  nuvem"
     );
     const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521envio-geral`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "app cliente pull documentos locação (dk_locacao_documentos_v1)",
+      "app cliente pull documentos locaÃ§Ã£o (dk_locacao_documentos_v1)",
       syncDocEnviarJs.includes('"dk_locacao_documentos_v1"') &&
         syncDocEnviarJs.includes("CLIENTE_CLOUD_PULL_KEYS") &&
         syncDocEnviarJs.includes("filterCloudPayloadForClienteApp") &&
@@ -839,7 +839,7 @@ async function runSuite() {
       "cliente recebe CRLV/contrato enviados via sync da nuvem"
     );
     record(
-      "cliente.html sync documentos locação",
+      "cliente.html sync documentos locaÃ§Ã£o",
       clienteHtml.includes("portal-supabase-sync.js?v="),
       "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
@@ -847,7 +847,7 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "cadastrar multa exige documento do depósito",
+      "cadastrar multa exige documento do depÃ³sito",
       lancExtrasJs.includes("__DK_garantirDocMultaParaCadastro") &&
         lancExtrasJs.includes("locacaoDocumentoId"),
       "bloqueia cadastro sem PDF importado de Documentos"
@@ -856,7 +856,7 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "app cliente documentação contrato com zoom",
+      "app cliente documentaÃ§Ã£o contrato com zoom",
       clienteAppJs.includes("Ver contrato") &&
         clienteAppJs.includes("Ver CRLV") &&
         clienteAppJs.includes("Ver multas") &&
@@ -868,10 +868,10 @@ async function runSuite() {
         clienteDocsJs.includes("enviadoCliente === true") &&
         clienteDocsJs.includes("cliente-doc-zoom-viewport") &&
         clienteHtml.includes("cliente-documentos-locacao.js"),
-      "cada botão filtra tipo; só docs enviados pelo operador"
+      "cada botÃ£o filtra tipo; sÃ³ docs enviados pelo operador"
     );
     record(
-      "protocolo lançamento + sincronismo (dk-lancamento-protocolo)",
+      "protocolo lanÃ§amento + sincronismo (dk-lancamento-protocolo)",
       html.includes("dk-lancamento-protocolo.js") &&
         html.includes("operacaoLocacaoLancamentosHistorico") &&
         html.includes("lanc-proto"),
@@ -881,13 +881,13 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "oficial: lançamentos modo estrito (sem legado global)",
+      "oficial: lanÃ§amentos modo estrito (sem legado global)",
       !IS_DEMO_TEST
         ? lancProtoJs.includes("__DK_isOficialLancamentosStrict") &&
             lancProtoJs.includes("__DK_isLancamentoOficialAceite") &&
             lancProtoJs.includes("purgeGlobalLancamentoKeysOficial")
         : lancProtoJs.includes("__DK_getLancamentosAluguelCanonico"),
-      IS_DEMO_TEST ? "demo: consolidação completa" : "oficial: só portalLancamentosAluguel auditável"
+      IS_DEMO_TEST ? "demo: consolidaÃ§Ã£o completa" : "oficial: sÃ³ portalLancamentosAluguel auditÃ¡vel"
     );
     record(
       "app cliente lancamentos alinhados ao portal",
@@ -911,22 +911,22 @@ async function runSuite() {
       portalSyncLancJs.includes("mergeLocacaoCadastroParSync") &&
         portalSyncLancJs.includes("mergeLancamentosAluguelLocacaoPar") &&
         portalSyncLancJs.includes("hydrateLocacoesCadastroPagamentosParaNuvem"),
-      "merge + hidratação de pagamentos no push"
+      "merge + hidrataÃ§Ã£o de pagamentos no push"
     );
     record(
       "persist pagamento atualiza loc.updatedAt",
       portalUiLancPersistJs.includes("loc.updatedAt = Date.now()"),
-      "locação ganha timestamp ao gravar pagamentos"
+      "locaÃ§Ã£o ganha timestamp ao gravar pagamentos"
     );
     record(
-      "calendário portal envia nuvem após salvar",
+      "calendÃ¡rio portal envia nuvem apÃ³s salvar",
       calPortalJs.includes("await fn(") && calPortalJs.includes("res.notify"),
-      "salvar calendário confirma aviso ao cliente"
+      "salvar calendÃ¡rio confirma aviso ao cliente"
     );
     record(
       "app cliente sync mostra contagem pagamentos",
       clienteAppJs.includes("countPagamentosCliente") && clienteAppJs.includes("finally"),
-      "mensagem pós-sync com total de pagamentos"
+      "mensagem pÃ³s-sync com total de pagamentos"
     );
     const portalSyncPullJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521pag-sync`, {
       cache: "no-store",
@@ -936,10 +936,10 @@ async function runSuite() {
       portalSyncPullJs.includes("isClienteAppPage") &&
         portalSyncPullJs.includes("locacoesCloudMergeWouldChangeLocal") &&
         portalSyncPullJs.includes("!clientePage"),
-      "pull no app cliente não bloqueia por autoridade local"
+      "pull no app cliente nÃ£o bloqueia por autoridade local"
     );
     record(
-      "app cliente sync força merge locações",
+      "app cliente sync forÃ§a merge locaÃ§Ãµes",
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
@@ -950,7 +950,7 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => r.text());
     record(
-      "comunicação portal removida (sem inbox/chat)",
+      "comunicaÃ§Ã£o portal removida (sem inbox/chat)",
       !html.includes("portal-comunicacao-inbox-wrap") &&
         !html.includes("portalComunicacaoVendasLista") &&
         !html.includes("portal-comunicacao-operacao-ui.js") &&
@@ -958,20 +958,20 @@ async function runSuite() {
         !html.includes("operacaoClienteMsgClienteBtn") &&
         portalLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancado") &&
         portalLocadoraJs.includes("portalNotificarClientePagamentosLancados") &&
-        portalLocadoraJs.includes("Lançamento de aluguel realizado com sucesso") &&
+        portalLocadoraJs.includes("LanÃ§amento de aluguel realizado com sucesso") &&
         !portalLocadoraJs.includes("portalComunicacaoAcessosEfetivos"),
-      "avisos automáticos mantidos; chat/inbox removidos"
+      "avisos automÃ¡ticos mantidos; chat/inbox removidos"
     );
     record(
-      "lançamento aluguel confirma aviso ao cliente na nuvem",
+      "lanÃ§amento aluguel confirma aviso ao cliente na nuvem",
       clienteNotifJs.includes("__DK_clienteNotificacaoPagamentoLancadoComNuvem") &&
         clienteNotifJs.includes("__DK_verificarNotificacaoClienteNaNuvem") &&
         clienteNotifJs.includes("confirmarNotificacaoClienteNaNuvem") &&
         portalLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancadoComNuvem"),
-      "operador só vê sucesso se aviso chegar à nuvem"
+      "operador sÃ³ vÃª sucesso se aviso chegar Ã  nuvem"
     );
     record(
-      "app cliente boas-vindas na instalação",
+      "app cliente boas-vindas na instalaÃ§Ã£o",
       clienteNotifJs.includes("__DK_clienteNotificacaoBoasVindas") &&
         clienteNotifJs.includes("mensagemBoasVindas") &&
         clienteNotifJs.includes("boas_vindas") &&
@@ -989,7 +989,7 @@ async function runSuite() {
         clienteNotifJs.includes("dispararPushAvisoCliente") &&
         clienteNotifJs.includes("dk-cliente-geo?push=1") &&
         clienteNotifJs.includes("apenasLidas"),
-      "avisos pagamento/multa/manutenção + push + histórico lidos"
+      "avisos pagamento/multa/manutenÃ§Ã£o + push + histÃ³rico lidos"
     );
     const pushNotifyJs = await fetch(`${BASE_URL}cliente-push-notificacoes.js?v=20260609avisos-dk`, {
       cache: "no-store",
@@ -1014,10 +1014,10 @@ async function runSuite() {
         clienteAppJs.includes("limparCacheClienteAoSair") &&
         !clienteAppJs.includes("pularTrocaSenhaDemo") &&
         clienteHtml.includes("view-trocar-senha"),
-      "primeiro login pede nova senha 6 dígitos"
+      "primeiro login pede nova senha 6 dÃ­gitos"
     );
     record(
-      "app cliente geo só instalação e bypass admin",
+      "app cliente geo sÃ³ instalaÃ§Ã£o e bypass admin",
       clienteAppJs.includes("maybeRunInstallGeoGate") &&
         clienteAppJs.includes("isGeoGateBypassed") &&
         clienteAppJs.includes("markAdminPreviewActive"),
@@ -1029,7 +1029,7 @@ async function runSuite() {
     record(
       "app cliente GPS bloqueado em admin preview",
       geoJs.includes("isClienteGeoPushAllowed") && geoJs.includes('source: "cliente_app"'),
-      "push só cliente real"
+      "push sÃ³ cliente real"
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
@@ -1046,7 +1046,7 @@ async function runSuite() {
       }
     }
 
-    const locacaoBtn = page.locator("text=Cadastro de locação").first();
+    const locacaoBtn = page.locator("text=Cadastro de locaÃ§Ã£o").first();
     if (await locacaoBtn.isVisible().catch(() => false)) {
       await locacaoBtn.click();
       await page.waitForTimeout(800);
@@ -1077,6 +1077,7 @@ async function runSuite() {
           JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
         );
         localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+        sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
       });
       await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 90000 });
       await page
@@ -1099,13 +1100,13 @@ async function runSuite() {
         });
         record("documentos E2E: painel abre com busca", ok);
       } else {
-        record("documentos E2E: painel abre com busca", false, "botão Documentos oculto");
+        record("documentos E2E: painel abre com busca", false, "botÃ£o Documentos oculto");
       }
     } catch (e) {
       record("documentos E2E: painel abre com busca", false, String(e?.message || e).slice(0, 120));
     }
 
-    const veiculoBtn = page.locator("text=Cadastro de veículo").first();
+    const veiculoBtn = page.locator("text=Cadastro de veÃ­culo").first();
     if (await veiculoBtn.isVisible().catch(() => false)) {
       await veiculoBtn.click();
       await page.waitForTimeout(800);
@@ -1117,7 +1118,7 @@ async function runSuite() {
         const modelo = await page.locator("#operacaoVeiculoModelo").inputValue().catch(() => "");
         const tag = await page.locator("#operacaoVeiculoTag").inputValue().catch(() => "");
         record(
-          "form veículo reconhece AAA0A00",
+          "form veÃ­culo reconhece AAA0A00",
           /ferrari/i.test(modelo) || tag === "DKCR013",
           `modelo=${modelo} tag=${tag}`
         );
@@ -1129,14 +1130,14 @@ async function runSuite() {
         await page.waitForTimeout(700);
         const veiculoMsg = await page.locator("#operacaoVeiculoInlineMsg").textContent().catch(() => "");
         record(
-          "cadastro veículo aceita Mercosul ABC1D23",
-          !/placa inválida/i.test(String(veiculoMsg || "")),
+          "cadastro veÃ­culo aceita Mercosul ABC1D23",
+          !/placa invÃ¡lida/i.test(String(veiculoMsg || "")),
           String(veiculoMsg || "").slice(0, 90)
         );
       }
     }
   } catch (e) {
-    record("execução sem erro fatal", false, String(e.message || e));
+    record("execuÃ§Ã£o sem erro fatal", false, String(e.message || e));
   } finally {
     await browser.close();
   }
@@ -1148,7 +1149,7 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_TEST_ATTEMPTS; attempt++) {
     if (attempt > 1) {
       results.length = 0;
-      console.log(`\n>>> Repetindo testes (${attempt}/${MAX_TEST_ATTEMPTS}) após falha parcial...\n`);
+      console.log(`\n>>> Repetindo testes (${attempt}/${MAX_TEST_ATTEMPTS}) apÃ³s falha parcial...\n`);
       await new Promise((r) => setTimeout(r, 5000));
     }
     await runSuite();
@@ -1159,9 +1160,9 @@ async function main() {
       process.exit(0);
     }
     if (attempt < MAX_TEST_ATTEMPTS) {
-      console.log(`\n--- ${passed}/${total} testes passaram — nova tentativa ---`);
+      console.log(`\n--- ${passed}/${total} testes passaram â€” nova tentativa ---`);
     } else {
-      console.log(`\n--- ${passed}/${total} testes passaram (após ${MAX_TEST_ATTEMPTS} tentativas) ---`);
+      console.log(`\n--- ${passed}/${total} testes passaram (apÃ³s ${MAX_TEST_ATTEMPTS} tentativas) ---`);
       process.exit(1);
     }
   }
