@@ -35,7 +35,8 @@ function oficialParseYmd(value) {
     return null;
   }
   const s = String(value).trim();
-  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  /* aceita prefixo de dia da semana, ex.: "sex 09/01/2026" */
+  const br = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
   if (br) return `${br[3]}-${br[2]}-${br[1]}`;
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
@@ -67,6 +68,7 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
   for (const k of OFICIAL_GUARD_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       const ymd = oficialRecordYmd(r, k);
       return ymd && ymd >= cutoffYmd;
     });
