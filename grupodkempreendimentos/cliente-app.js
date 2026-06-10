@@ -2020,6 +2020,36 @@
     }
   }
 
+  async function maybeRegistrarBoasVindasCliente(sess) {
+    if (!isClienteRealSession(sess)) return null;
+    const fn =
+      typeof window.__DK_clienteNotificacaoBoasVindasComNuvem === "function"
+        ? window.__DK_clienteNotificacaoBoasVindasComNuvem
+        : typeof window.__DK_clienteNotificacaoBoasVindas === "function"
+          ? window.__DK_clienteNotificacaoBoasVindas
+          : null;
+    if (!fn) return null;
+    let protocolo = "";
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      if (raw) {
+        const g = JSON.parse(raw);
+        protocolo = normNc(g?.proto || "");
+      }
+    } catch {
+      /* ignore */
+    }
+    if (!protocolo) {
+      const locs = filterLocacoesAtivas(
+        loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === sess.cpf)
+      );
+      const loc = locs[0] || loadCadastro(CAD_LOCACOES_KEY).find((l) => onlyDigits(l.cpf) === sess.cpf);
+      protocolo = normNc(loc?.numeroContrato || "");
+    }
+    if (!protocolo) return null;
+    return fn({ cpf: sess.cpf, nome: sess.nome, protocolo });
+  }
+
   async function afterLogin(sess) {
     persistGateFromSession();
     if (typeof window.__DK_trimClienteLocacoesLocal === "function") {
@@ -2042,6 +2072,13 @@
       await processIncomingShare();
     }
     await atualizarProgramaEDados(sess, { silent: false });
+    const boasVindas = await maybeRegistrarBoasVindasCliente(sess);
+    if (boasVindas?.ok && !boasVindas.already) {
+      renderApp(sess, { force: true });
+      if (typeof window.__DK_clienteScrollToAvisos === "function") {
+        window.setTimeout(() => window.__DK_clienteScrollToAvisos(), 500);
+      }
+    }
     if (comprovanteFile) {
       showView("app");
       renderApp(sess);

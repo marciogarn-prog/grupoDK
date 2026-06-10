@@ -10262,32 +10262,64 @@ ${printable.innerHTML}
     return `${String(entry?.data || "").trim()}|${Number(entry?.valor) || 0}`;
   }
 
-  function portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, entries, keysBefore, opts) {
-    if (!Array.isArray(entries) || !entries.length) return;
-    if (typeof window.__DK_clienteNotificacaoPagamentoLancado !== "function") return;
+  async function portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, entries, keysBefore, opts) {
+    if (!Array.isArray(entries) || !entries.length) {
+      return { ok: true, skipped: true, count: 0, msg: "Nenhum pagamento novo para avisar." };
+    }
+    const notifyFn =
+      typeof window.__DK_clienteNotificacaoPagamentoLancadoComNuvem === "function"
+        ? window.__DK_clienteNotificacaoPagamentoLancadoComNuvem
+        : typeof window.__DK_clienteNotificacaoPagamentoLancado === "function"
+          ? window.__DK_clienteNotificacaoPagamentoLancado
+          : null;
+    if (!notifyFn) {
+      return { ok: false, count: 0, msg: "Módulo de avisos ao cliente indisponível." };
+    }
     const before = keysBefore instanceof Set ? keysBefore : new Set();
     const anoFiltro = Number(opts?.ano);
-    entries.forEach((entry) => {
-      if (entry?.origemComprovanteClienteId || entry?.confirmadoViaAppCliente) return;
+    let count = 0;
+    let lastMsg = "";
+    for (const entry of entries) {
+      if (entry?.origemComprovanteClienteId || entry?.confirmadoViaAppCliente) continue;
       if (Number.isFinite(anoFiltro)) {
         const dt = typeof parseBrDate === "function" ? parseBrDate(String(entry?.data || "").trim()) : null;
-        if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== anoFiltro) return;
+        if (!dt || Number.isNaN(dt.getTime()) || dt.getFullYear() !== anoFiltro) continue;
       }
       const valor = Number(entry?.valor);
       const dataPagamento = String(entry?.data || "").trim();
-      if (!Number.isFinite(valor) || valor <= 0 || !dataPagamento) return;
-      if (before.has(portalLancAluguelEntryNotifyKey(entry))) return;
-      window.__DK_clienteNotificacaoPagamentoLancado({
+      if (!Number.isFinite(valor) || valor <= 0 || !dataPagamento) continue;
+      if (before.has(portalLancAluguelEntryNotifyKey(entry))) continue;
+      const res = await notifyFn({
         cpf: cpfDigits,
         protocolo: nc,
         placa: loc?.placa,
         valor,
         dataPagamento,
       });
-    });
+      if (!res?.ok) {
+        return {
+          ok: false,
+          count,
+          msg: res.msg || "Nuvem não confirmou o aviso — o cliente ainda não recebe a informação.",
+        };
+      }
+      count += 1;
+      lastMsg = res.msg || lastMsg;
+    }
+    if (!count) {
+      return { ok: true, skipped: true, count: 0, msg: "Nenhum pagamento novo para avisar." };
+    }
+    return {
+      ok: true,
+      count,
+      cloudOk: true,
+      msg:
+        lastMsg ||
+        "Lançamento de aluguel realizado com sucesso. Informação já enviada para o cliente.",
+    };
   }
 
-  function persistPortalLancAluguelCalendarioAno(cpfDigits, ncNorm, ano, celulasMap) {
+  async function persistPortalLancAluguelCalendarioAno(cpfDigits, ncNorm, ano, celulasMap) {
     if (!getPortalSessaoAdminRole()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -10346,10 +10378,16 @@ ${printable.innerHTML}
     }
     loc.portalLancamentosAluguel = manter;
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
-    if (ok) {
-      portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, loc.portalLancamentosAluguel, keysBefore, { ano });
-    }
-    return ok;
+    if (!ok) return { ok: false };
+    const notify = await portalNotificarClientePagamentosLancados(
+      cpfDigits,
+      nc,
+      loc,
+      loc.portalLancamentosAluguel,
+      keysBefore,
+      { ano }
+    );
+    return { ok: true, notify };
   }
 
   let portalLancAluguelProtocoloSyncCpf = "";
@@ -10504,8 +10542,8 @@ ${printable.innerHTML}
     };
     loc.portalLancamentosAluguel.push(entry);
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
-    if (ok) portalNotificarClientePagamentosLancados(cpfDigits, nc, loc, [entry], new Set());
-    return ok;
+    if (!ok) return { ok: false };
+    return { ok: true, entry, cpfDigits, nc, loc };
   }
 
   function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
@@ -12162,23 +12200,40 @@ ${printable.innerHTML}
         : Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const texto = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     openPortalLancAluguelConfirmModal(texto, () => {
-      const ok = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
-        valorEspecie: valorNum,
-        valorPix: 0,
-        valorCartao: 0,
-      });
-      if (ok) {
-        if (msg) msg.textContent = "Pagamento registado. Consulte «Lançamento em bloco» para ver o calendário.";
+      void (async () => {
+        const res = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
+          valorEspecie: valorNum,
+          valorPix: 0,
+          valorCartao: 0,
+        });
+        if (!res?.ok) {
+          if (msg) {
+            msg.textContent = !getPortalSessaoAdminRole()
+              ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
+              : "Não foi possível guardar o pagamento.";
+          }
+          return;
+        }
         const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
           (l) => normPortalNumeroContrato(l.numeroContrato) === proto
         );
         if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
         refreshOperacaoLancAluguelResumoCompacto();
-      } else if (msg) {
-        msg.textContent = !getPortalSessaoAdminRole()
-          ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
-          : "Não foi possível guardar o pagamento.";
-      }
+        if (msg) msg.textContent = "A enviar aviso ao cliente…";
+        const notify = await portalNotificarClientePagamentosLancados(
+          res.cpfDigits,
+          res.nc,
+          res.loc,
+          [res.entry],
+          new Set()
+        );
+        if (msg) {
+          msg.textContent = notify.ok
+            ? notify.msg ||
+                "Lançamento de aluguel realizado com sucesso. Informação já enviada para o cliente."
+            : notify.msg || "Pagamento guardado, mas o aviso ao cliente não foi confirmado na nuvem.";
+        }
+      })();
     });
   });
 
