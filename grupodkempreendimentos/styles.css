@@ -5660,6 +5660,14 @@ table.validados-app .lnk-comprovante {
 .documentos-resumo {
   margin-top: 0.35rem;
 }
+.documentos-resumo-contrato--ativos {
+  color: #4ade80;
+  font-weight: 600;
+}
+.documentos-resumo-contrato--inativos {
+  color: #facc15;
+  font-weight: 600;
+}
 .documentos-viewer-modal .portal-modal__card {
   max-width: min(960px, 96vw);
   max-height: 92vh;
