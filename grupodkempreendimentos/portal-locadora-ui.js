@@ -5594,12 +5594,6 @@ ${printable.innerHTML}
     return Boolean(v.origemPortal || v.portalManual);
   }
 
-  function portalSplitVeiculosPortalVsFrota(list) {
-    const portal = Array.isArray(list) ? [...list] : portalLoadVeiculosFrotaCadastro();
-    const frota = portalLoadFrotaPlanilhaVeiculos();
-    return { portal, frota };
-  }
-
   function portalCountVeiculosGrupos(grupos) {
     if (!grupos) return 0;
     if (grupos.carros || grupos.motos || grupos.outros) {
@@ -5611,36 +5605,44 @@ ${printable.innerHTML}
   }
 
   function buildPortalRelatorioVeiculoFrotaSections() {
-    const veiculos = portalLoadVeiculosFrotaCadastro();
+    /* Cada veículo aparece UMA só vez: ou em «locados» (placa com protocolo ativo) ou em «inativos». */
     const activePlates =
       typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
-    const inativos = [];
-    const ativos = [];
-    veiculos.forEach((v) => {
-      const pl =
-        typeof normalizePlate === "function"
-          ? normalizePlate(v.placa)
-          : String(v.placa || "")
-              .toUpperCase()
-              .replace(/[^A-Z0-9]/g, "");
+    const plateOf = (v) =>
+      typeof normalizePlate === "function"
+        ? normalizePlate(v.placa)
+        : String(v.placa || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    const buckets = {
+      inativos: { portal: [], frota: [] },
+      ativos: { portal: [], frota: [] },
+    };
+    const vistos = new Set();
+    const add = (v, origem) => {
+      const pl = plateOf(v);
       const tag = String(v.tag || "").trim();
       if (!pl && !tag) return;
-      if (pl && activePlates.has(pl)) ativos.push(v);
-      else inativos.push(v);
-    });
-    const splitInativos = portalSplitVeiculosPortalVsFrota(inativos);
-    const splitAtivos = portalSplitVeiculosPortalVsFrota(ativos);
+      const chave = pl || `TAG:${tag.toUpperCase()}`;
+      if (vistos.has(chave)) return;
+      vistos.add(chave);
+      const bloco = pl && activePlates.has(pl) ? buckets.ativos : buckets.inativos;
+      bloco[origem].push(v);
+    };
+    portalLoadVeiculosFrotaCadastro().forEach((v) => add(v, "portal"));
+    portalLoadFrotaPlanilhaVeiculos().forEach((v) => add(v, "frota"));
     return {
       inativos: {
-        portal: portalSortVeiculosCarrosDepoisMotos(splitInativos.portal),
-        frota: portalSortVeiculosCarrosDepoisMotos(splitInativos.frota),
+        portal: portalSortVeiculosCarrosDepoisMotos(buckets.inativos.portal),
+        frota: portalSortVeiculosCarrosDepoisMotos(buckets.inativos.frota),
       },
       ativos: {
-        portal: portalSortVeiculosCarrosDepoisMotos(splitAtivos.portal),
-        frota: portalSortVeiculosCarrosDepoisMotos(splitAtivos.frota),
+        portal: portalSortVeiculosCarrosDepoisMotos(buckets.ativos.portal),
+        frota: portalSortVeiculosCarrosDepoisMotos(buckets.ativos.frota),
       },
     };
   }
+  window.__DK_portalRelatorioVeiculosSections = buildPortalRelatorioVeiculoFrotaSections;
 
   function buildPortalRelatorioVeiculosTableHtml(headers, veiculos, rowClass) {
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
