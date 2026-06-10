@@ -5010,10 +5010,61 @@ table.validados-app .lnk-comprovante {
 }
 
 .portal-loc-docs-grupos {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
   margin-top: 0.5rem;
+}
+
+@media (min-width: 960px) {
+  .portal-loc-docs-grupos {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+.portal-loc-docs-grupo {
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 0.5rem;
+  padding: 0.75rem 0.85rem;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.portal-loc-docs-grupo--contrato {
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.portal-loc-docs-grupo--crlv {
+  border-color: rgba(59, 130, 246, 0.45);
+}
+
+.portal-loc-docs-grupo__legenda {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.portal-loc-docs-vaga {
+  margin-top: 0.35rem;
+  min-height: 3.25rem;
+  border: 1px dashed rgba(255, 255, 255, 0.14);
+  border-radius: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.portal-loc-docs-vaga--ocupada {
+  border-style: solid;
+  border-color: rgba(59, 130, 246, 0.35);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.portal-loc-docs-list--unico {
+  margin: 0;
+}
+
+.portal-loc-docs-list--unico .portal-loc-docs-item {
+  margin: 0;
 }
 
 .portal-loc-docs-grupo__titulo {

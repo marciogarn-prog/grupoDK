@@ -769,7 +769,9 @@ async function runSuite() {
       "cadastro locação documentos por protocolo",
         indexFresh.includes("Trazer documento para contrato") &&
         indexFresh.includes("Trazer documento para CRLV") &&
-        indexFresh.includes("operacaoLocacaoDocumentosListaContrato") &&
+        indexFresh.includes("operacaoLocacaoDocVagaContrato") &&
+        indexFresh.includes("operacaoLocacaoDocVagaCrlv") &&
+        indexFresh.includes("vaga única") &&
         !indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
@@ -787,7 +789,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-excluir`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-unico`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -805,7 +807,8 @@ async function runSuite() {
         locDocsJs.includes("conferidoOperador") &&
         locDocsJs.includes("DOC_DESTINO_APP") &&
         locDocsJs.includes("__DK_garantirDocMultaParaCadastro") &&
-        locDocsJs.includes("LOC_CADASTRO_TIPOS") &&
+        locDocsJs.includes("docCanonicoPorTipo") &&
+        locDocsJs.includes("limparDuplicadosNaoEnviados") &&
         !locDocsJs.includes("adicionarDocumentos"),
       "contrato/crlv: visualizar no modal; confirmar antes de enviar; só enviados vão à nuvem"
     );

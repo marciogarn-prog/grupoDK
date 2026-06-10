@@ -157,6 +157,36 @@
     return docsDoProtocolo(nc, cpf).filter((d) => inferDocTipo(d) === want);
   }
 
+  function docCanonicoPorTipo(nc, cpf, categoria) {
+    const docs = docsDoProtocoloPorTipo(nc, cpf, categoria);
+    if (!docs.length) return null;
+    if (docs.length === 1) return docs[0];
+    const enviados = docs.filter((d) => d.enviadoCliente === true);
+    const pool = enviados.length ? enviados : docs;
+    return pool.slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt))[0];
+  }
+
+  function limparDuplicadosNaoEnviados(nc, cpf) {
+    const n = normNc(nc);
+    const dig = onlyDigits(cpf).slice(0, 11);
+    if (!n || dig.length !== 11) return;
+    const all = loadAll();
+    const removeIds = new Set();
+    LOC_CADASTRO_TIPOS.forEach((tipo) => {
+      const docs = docsDoProtocoloPorTipo(n, dig, tipo);
+      if (docs.length <= 1) return;
+      const canon = docCanonicoPorTipo(n, dig, tipo);
+      if (!canon) return;
+      docs.forEach((d) => {
+        if (String(d.id) !== String(canon.id) && d.enviadoCliente !== true) {
+          removeIds.add(String(d.id));
+        }
+      });
+    });
+    if (!removeIds.size) return;
+    saveAll(all.filter((d) => !removeIds.has(String(d.id))));
+  }
+
   function locacaoDoProtocolo(nc) {
     const n = normNc(nc);
     if (!n) return null;
@@ -287,17 +317,18 @@
   }
 
   function docTipoJaEnviadoCliente(nc, cpf, categoria) {
-    return docsDoProtocoloPorTipo(nc, cpf, categoria).some((d) => d.enviadoCliente === true);
+    const doc = docCanonicoPorTipo(nc, cpf, categoria);
+    return doc?.enviadoCliente === true;
   }
 
-  function removerDocsTipoNaoEnviados(nc, cpf, categoria) {
+  function removerDocsTipoDoProtocolo(nc, cpf, categoria, exceptId) {
     const n = normNc(nc);
     const dig = onlyDigits(cpf).slice(0, 11);
     const all = loadAll();
     const next = all.filter((d) => {
       if (normNc(d.numeroContrato) !== n || onlyDigits(d.cpf).slice(0, 11) !== dig) return true;
       if (inferDocTipo(d) !== categoria) return true;
-      if (d.enviadoCliente === true) return true;
+      if (exceptId && String(d.id) === String(exceptId)) return true;
       return false;
     });
     if (next.length !== all.length) saveAll(next);
@@ -390,7 +421,7 @@
 
   let importDepositoBusy = false;
 
-  async function importarDocDepositoPorId(categoria, depositId) {
+  async function importarDocDepositoPorId(categoria, depositId, opts = {}) {
     const cat = String(categoria || "").trim().toLowerCase();
     if (cat !== "contrato" && cat !== "crlv") return { ok: false, msg: "Tipo de documento inválido." };
     if (importDepositoBusy) return { ok: false, msg: "Aguarde a importação em curso." };
@@ -418,17 +449,47 @@
       return { ok: false, msg: "Ficheiro não encontrado no depósito Documentos." };
     }
 
-    if (docTipoJaEnviadoCliente(nc, cpf, cat)) {
-      return { ok: false, msg: `${label} já enviado ao cliente — não é possível substituir.` };
+    const existente = docCanonicoPorTipo(nc, cpf, cat);
+    if (existente && String(existente.origemDepositoId || "") === String(depositId)) {
+      return { ok: true, already: true, msg: `${label} já está neste protocolo.` };
+    }
+
+    if (existente && !opts.substituirConfirmado) {
+      if (existente.enviadoCliente === true) {
+        const isAdmin =
+          typeof window.__DK_isPortalTitularAdministrador === "function" &&
+          window.__DK_isPortalTitularAdministrador();
+        if (!isAdmin) {
+          return { ok: false, msg: `${label} já enviado ao cliente — não é possível substituir.` };
+        }
+        if (
+          !window.confirm(
+            `${label} já enviado ao cliente («${existente.nome || "documento"}»). Excluir e trazer outro?`
+          )
+        ) {
+          return { ok: false, msg: "Substituição cancelada." };
+        }
+      } else if (
+        !window.confirm(
+          `Já existe ${label} neste protocolo («${existente.nome || "documento"}»). Excluir e trazer o novo ficheiro?`
+        )
+      ) {
+        return { ok: false, msg: "Importação cancelada — exclua o documento actual ou confirme a substituição." };
+      }
     }
 
     importDepositoBusy = true;
     try {
-      removerDocsTipoNaoEnviados(nc, cpf, cat);
+      if (existente) {
+        const wasSent = existente.enviadoCliente === true;
+        removerDocsTipoDoProtocolo(nc, cpf, cat);
+        if (wasSent) pushDocumentosNuvem();
+      }
       const reg = getRegistroOperador();
       const r = await importarDocDepositoParaProtocolo(entry, cat, nc, cpf, placa, reg);
       if (r.added) {
-        return { ok: true, msg: `${label} importado do depósito Documentos.` };
+        limparDuplicadosNaoEnviados(nc, cpf);
+        return { ok: true, added: true, msg: `${label} importado do depósito Documentos.` };
       }
       if (r.skipped) {
         return { ok: true, already: true, msg: `${label} já está neste protocolo.` };
@@ -703,11 +764,15 @@
   }
 
   function renderListasPorTipo(nc, cpf) {
+    limparDuplicadosNaoEnviados(nc, cpf);
     LOC_CADASTRO_TIPOS.forEach((tipo) => {
       const ul = document.getElementById(LISTA_TIPO_IDS[tipo]);
-      const docs = docsDoProtocoloPorTipo(nc, cpf, tipo);
-      const botao = DOC_DESTINO_APP[tipo]?.botaoApp || tipo;
-      renderDocsListaUl(ul, docs, `Nenhum — pesquise no depósito Documentos e traga para o protocolo.`);
+      const doc = docCanonicoPorTipo(nc, cpf, tipo);
+      const vaga = document.getElementById(
+        tipo === "contrato" ? "operacaoLocacaoDocVagaContrato" : "operacaoLocacaoDocVagaCrlv"
+      );
+      if (vaga) vaga.classList.toggle("portal-loc-docs-vaga--ocupada", Boolean(doc));
+      renderDocsListaUl(ul, doc ? [doc] : [], `Vaga livre — pesquise no depósito Documentos e traga para o protocolo.`);
     });
   }
 
@@ -836,8 +901,8 @@
       return;
     }
     if (msg) {
-      const n = docsDoProtocolo(nc, cpf).filter((d) => LOC_CADASTRO_TIPOS.includes(inferDocTipo(d))).length;
-      msg.textContent = `${n} documento(s) no protocolo ${nc} — traga do depósito, Visualize, Confirme e Envie.`;
+      const n = LOC_CADASTRO_TIPOS.filter((t) => docCanonicoPorTipo(nc, cpf, t)).length;
+      msg.textContent = `${n}/2 documento(s) no protocolo ${nc} — 1 contrato e 1 CRLV; traga, Visualize, Confirme e Envie.`;
     }
     renderLista(nc, cpf);
   }
