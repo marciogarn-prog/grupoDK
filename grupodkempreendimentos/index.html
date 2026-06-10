@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260521ultimo-backup">
+  <link rel="stylesheet" href="styles.css?v=20260521supabase-status">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -255,6 +255,7 @@
             Nuvem <strong>redundante</strong>: cada guardar grava em <strong>Supabase</strong> e numa <strong>cópia Redis</strong> (Vercel). Se um falhar, o outro atende no carregar.
             Use <strong>Carregar da nuvem</strong> noutro PC. Backup por e-mail → <strong>marciogarn@gmail.com</strong>; <strong>Importar backup</strong> restaura .json/.json.gz.
           </p>
+          <p id="portal-cloud-supabase-status" class="portal-cloud-supabase-status hidden" role="alert"></p>
           <div class="portal-cloud-sync-bar__row">
             <div class="portal-cloud-sync-bar__actions">
               <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
@@ -2000,6 +2001,6 @@
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260609multa-deposito" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260521doc-enviar-fix" defer></script>
+  <script src="portal-supabase-sync.js?v=20260521supabase-status" defer></script>
 </body>
 </html>
