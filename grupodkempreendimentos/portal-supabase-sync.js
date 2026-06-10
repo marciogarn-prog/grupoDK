@@ -190,6 +190,9 @@
     return autoPullFromCloudOnStartup();
   }
 
+  /** Demo: browser sem cadastros completos — puxar da nuvem (387 locações na demo). */
+  const DEMO_MIN_LOCACOES_LOCAL = 300;
+
   function demoNeedsCloudCadastroBootstrap() {
     if (window.__DK_IS_DEMO_DEPLOY__ !== true) return false;
     let c = 0;
@@ -205,15 +208,22 @@
     } catch {
       /* ignore */
     }
-    return c === 0 || v === 0 || l === 0;
+    if (c === 0 || v === 0 || l === 0) return true;
+    if (l < DEMO_MIN_LOCACOES_LOCAL) return true;
+    return false;
   }
 
-  async function bootstrapDemoCadastrosFromCloudIfEmpty() {
+  async function ensurePortalCadastrosFromCloud(opts) {
     if (isClienteAppPage()) {
-      return { ok: true, skipped: true, reason: "cliente_bootstrap_deferred" };
+      return { ok: true, skipped: true, reason: "cliente_app" };
     }
-    if (!demoNeedsCloudCadastroBootstrap()) {
-      return { ok: true, skipped: true, reason: "demo_cadastros_ok" };
+    const force = Boolean(opts && opts.force);
+    const localL = readLocalJsonArray("dk_locacoes_cadastro").length;
+    if (!force && window.__DK_IS_DEMO_DEPLOY__ !== true && localL > 0) {
+      return { ok: true, skipped: true, reason: "oficial_local_ok" };
+    }
+    if (!force && !demoNeedsCloudCadastroBootstrap()) {
+      return { ok: true, skipped: true, reason: "cadastros_ok" };
     }
     const data = await fetchCloudSnapshotPayload();
     if (!data?.payload) return { ok: false, reason: "no_cloud" };
@@ -229,10 +239,20 @@
     } finally {
       suppressCloudHook = false;
     }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
+    } catch {
+      /* ignore */
+    }
     if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
       window.__DK_portalRefreshOperacaoLocal();
     }
-    return { ok: true, applied: true, source: data.source || "cloud" };
+    const afterL = readLocalJsonArray("dk_locacoes_cadastro").length;
+    return { ok: true, applied: true, locacoes: afterL, source: data.source || "cloud" };
+  }
+
+  async function bootstrapDemoCadastrosFromCloudIfEmpty() {
+    return ensurePortalCadastrosFromCloud({ force: false });
   }
 
   function markLocalDataAuthority(ms = DK_LOCAL_AUTHORITY_MS) {
@@ -2697,6 +2717,7 @@
   try {
     window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
     window.__DK_pullClienteCloudSnapshotLight = pullClienteCloudSnapshotLight;
+    window.__DK_ensurePortalCadastrosFromCloud = ensurePortalCadastrosFromCloud;
     window.__DK_trimClienteLocacoesLocal = trimLocalLocacoesToClienteCpf;
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
     window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
