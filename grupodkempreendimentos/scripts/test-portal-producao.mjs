@@ -728,10 +728,10 @@ async function runSuite() {
     record(
       "app cliente login CPF e protocolo",
       clienteHtml.includes('id="login-protocolo"') &&
-        clienteHtml.includes("login-demo-trocar-cliente"),
-      "Sair e entrar com outro CPF/protocolo para testar clientes"
+        clienteHtml.includes("login-trocar-cliente-hint"),
+      "Sair e entrar com outro CPF/protocolo"
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521login-proto`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260521demo-oficial-igual`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260608cal-no-trava`, {
@@ -1013,8 +1013,8 @@ async function runSuite() {
       clienteAppJs.includes("SENHA_INICIAL_CLIENTE") &&
         clienteAppJs.includes("view-trocar-senha") &&
         clienteAppJs.includes("form-trocar-senha") &&
-        clienteAppJs.includes("isDemoClienteApp") &&
         clienteAppJs.includes("limparCacheClienteAoSair") &&
+        !clienteAppJs.includes("pularTrocaSenhaDemo") &&
         clienteHtml.includes("view-trocar-senha"),
       "primeiro login pede nova senha 6 dígitos"
     );

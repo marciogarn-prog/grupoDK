@@ -21,10 +21,6 @@
     "dk_comprovantes_cliente_pendentes",
   ];
 
-  function isDemoClienteApp() {
-    return window.__DK_DEPLOY_CHANNEL__ === "demo" || window.__DK_IS_DEMO_DEPLOY__ === true;
-  }
-
   function clienteEnvioComprovanteAtivo() {
     return CLIENTE_ENVIO_COMPROVANTE_ATIVO;
   }
@@ -317,12 +313,7 @@
   }
 
   function updateLoginProtocoloUi() {
-    const demo = isDemoClienteApp();
-    const hint = $("login-demo-trocar-cliente");
-    const label = $("login-protocolo-label");
     const protoIn = $("login-protocolo");
-    if (hint) hint.classList.toggle("hidden", !demo);
-    if (label) label.textContent = demo ? "Protocolo (obrigatório no demo)" : "Protocolo";
     if (protoIn) protoIn.required = true;
   }
 
@@ -2297,8 +2288,7 @@
         return;
       }
       const sess = { cpf, nome: hit.nome, loginEm: new Date().toISOString(), protocolo: proto };
-      const pularTrocaSenhaDemo = isDemoClienteApp();
-      if (!isGeoGateBypassed() && !pularTrocaSenhaDemo && clienteSenhaEhInicial(senha)) {
+      if (!isGeoGateBypassed() && clienteSenhaEhInicial(senha)) {
         clienteTrocaSenhaPendente = { cpf, nome: hit.nome, proto };
         const n1 = $("cliente-nova-senha");
         const n2 = $("cliente-nova-senha-2");
