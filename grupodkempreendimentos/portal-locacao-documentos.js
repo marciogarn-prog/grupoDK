@@ -627,24 +627,35 @@
     return { ok: true, msg: "Documento confirmado — pode enviar ao cliente." };
   }
 
-  function removerDocumento(id) {
-    if (!podeGerirDocumentosLocacao()) return false;
+  function excluirDocumentoOperador(id) {
     const all = loadAll();
     const idx = all.findIndex((d) => String(d.id) === String(id));
-    if (idx === -1) return false;
-    const podeApagar =
+    if (idx === -1) return { ok: false, msg: "Documento não encontrado." };
+    const doc = all[idx];
+    if (!podeGerirEnvioDocumento(doc)) {
+      return { ok: false, msg: "Sem permissão para excluir este documento." };
+    }
+    const isAdmin =
       typeof window.__DK_isPortalTitularAdministrador === "function" &&
       window.__DK_isPortalTitularAdministrador();
-    if (!podeApagar) {
+    if (!isAdmin) {
       const reg = getRegistroOperador();
       const dig = onlyDigits(reg.cpf).slice(0, 11);
-      if (onlyDigits(all[idx].registradoPorCpf).slice(0, 11) !== dig) return false;
+      if (onlyDigits(doc.registradoPorCpf).slice(0, 11) !== dig) {
+        return { ok: false, msg: "Só quem importou ou o administrador pode excluir." };
+      }
     }
-    const doc = all[idx];
+    if (doc.enviadoCliente === true && !isAdmin) {
+      return { ok: false, msg: "Já enviado ao cliente — só o administrador pode excluir." };
+    }
     all.splice(idx, 1);
     saveAllLocal(all);
-    if (doc?.enviadoCliente === true) pushDocumentosNuvem();
-    return true;
+    if (doc.enviadoCliente === true) pushDocumentosNuvem();
+    return { ok: true, msg: "Documento excluído — pode trazer outro do depósito." };
+  }
+
+  function removerDocumento(id) {
+    return excluirDocumentoOperador(id).ok;
   }
 
   function buildDocListItemHtml(d) {
@@ -676,6 +687,7 @@
             <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__visualizar" data-loc-doc-visualizar="${escapeHtml(d.id)}" title="Visualizar PDF">Visualizar</button>
             <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__confirmar${conferido ? " portal-loc-docs-item__confirmar--ok" : ""}" data-loc-doc-confirmar="${escapeHtml(d.id)}" ${conferido || enviado ? "disabled" : ""} title="Confirmar que o ficheiro está correto">${conferido ? "Confirmado" : "Confirmar"}</button>
             <button type="button" class="btn-primary portal-loc-docs-item__enviar${enviado ? " portal-loc-docs-item__enviar--ok" : ""}" data-loc-doc-enviar="${escapeHtml(d.id)}" ${enviado || !podeEnviar ? "disabled" : ""} title="Publicar no app (${escapeHtml(dest.botaoApp)})">${enviado ? "Enviado" : "Enviar para o cliente"}</button>
+            <button type="button" class="btn-primary btn-secondary-outline portal-loc-docs-item__excluir" data-loc-doc-excluir="${escapeHtml(d.id)}" title="Remover documento errado deste protocolo">Excluir</button>
           </span>
         </li>`;
   }
@@ -734,6 +746,21 @@
       const id = enviar.getAttribute("data-loc-doc-enviar");
       if (!id) return;
       const res = enviarDocumentoParaCliente(id);
+      if (msgEl) msgEl.textContent = res.msg || "";
+      if (typeof onRefresh === "function") onRefresh();
+      return;
+    }
+    const excluir = e.target.closest?.("[data-loc-doc-excluir]");
+    if (excluir) {
+      const id = excluir.getAttribute("data-loc-doc-excluir");
+      if (!id) return;
+      const doc = loadAll().find((d) => String(d.id) === String(id));
+      const nome = String(doc?.nome || "documento").trim();
+      const aviso = doc?.enviadoCliente
+        ? `«${nome}» já foi enviado ao cliente. Excluir mesmo assim?`
+        : `Excluir «${nome}» deste protocolo?`;
+      if (!window.confirm(aviso)) return;
+      const res = excluirDocumentoOperador(id);
       if (msgEl) msgEl.textContent = res.msg || "";
       if (typeof onRefresh === "function") onRefresh();
     }
@@ -1073,7 +1100,7 @@
     });
 
     wrap?.addEventListener("click", (e) => {
-      if (!e.target.closest?.("[data-loc-doc-visualizar],[data-loc-doc-confirmar],[data-loc-doc-enviar]")) return;
+      if (!e.target.closest?.("[data-loc-doc-visualizar],[data-loc-doc-confirmar],[data-loc-doc-enviar],[data-loc-doc-excluir]")) return;
       handleDocListaClick(e, msg, refreshUi);
     });
 
