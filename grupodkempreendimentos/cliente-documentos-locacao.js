@@ -45,6 +45,29 @@
     return "";
   }
 
+  function readAllDocsMerged() {
+    try {
+      const raw = localStorage.getItem("dk_locacao_documentos_v1");
+      const all = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(all)) return [];
+      const mergeFn =
+        typeof window.__DK_docsLocacaoMerge === "function"
+          ? window.__DK_docsLocacaoMerge
+          : (localArr, cloudArr) => [...(localArr || []), ...(cloudArr || [])];
+      return mergeFn([], all);
+    } catch {
+      return [];
+    }
+  }
+
+  function docMediaUrl(doc) {
+    const url = String(doc?.arquivoBase64 || "").trim();
+    if (!url) return "";
+    if (/^data:/i.test(url) || /^https?:\/\//i.test(url) || /^blob:/i.test(url)) return url;
+    const mime = String(doc?.mimeType || "application/pdf").trim() || "application/pdf";
+    return `data:${mime};base64,${url}`;
+  }
+
   function loadDocs(proto, cpf, tipo) {
     const fnPorTipo =
       typeof window.__DK_docsLocacaoDoProtocoloPorTipo === "function"
@@ -58,19 +81,11 @@
       rows = fn(proto, cpf);
       if (tipo) rows = rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
     } else {
-      try {
-        const raw = localStorage.getItem("dk_locacao_documentos_v1");
-        const all = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(all)) rows = [];
-        else {
-          const nc = normNc(proto);
-          const dig = onlyDigits(cpf).slice(0, 11);
-          rows = all.filter((d) => normNc(d.numeroContrato) === nc && onlyDigits(d.cpf).slice(0, 11) === dig);
-          if (tipo) rows = rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
-        }
-      } catch {
-        rows = [];
-      }
+      const all = readAllDocsMerged();
+      const nc = normNc(proto);
+      const dig = onlyDigits(cpf).slice(0, 11);
+      rows = all.filter((d) => normNc(d.numeroContrato) === nc && onlyDigits(d.cpf).slice(0, 11) === dig);
+      if (tipo) rows = rows.filter((d) => inferDocTipo(d) === String(tipo).trim().toLowerCase());
     }
     return rows.filter(isDocEnviadoCliente);
   }
@@ -184,7 +199,7 @@
   }
 
   function renderViewer(doc) {
-    const url = String(doc.arquivoBase64 || "").trim();
+    const url = docMediaUrl(doc);
     const mime = String(doc.mimeType || "").toLowerCase();
     if (!url) return '<p class="subtext">Documento indisponível neste dispositivo. Toque em Atualizar da nuvem.</p>';
     if (mime.includes("pdf") || url.includes("application/pdf")) {
@@ -224,7 +239,7 @@
             (d, i) =>
               `<div class="cliente-doc-row">
                 <button type="button" class="btn-primary btn-secondary-outline cliente-doc-link" data-cliente-doc-idx="${i}" data-cliente-doc-proto="${escapeHtml(proto)}" data-cliente-doc-tipo="${escapeHtml(tipo)}">${escapeHtml(d.nome)}</button>
-                <a class="btn-primary btn-secondary-outline cliente-doc-download" href="${String(d.arquivoBase64 || "#").replace(/"/g, "&quot;")}" download="${escapeHtml(d.nome)}">Baixar</a>
+                <a class="btn-primary btn-secondary-outline cliente-doc-download" href="${docMediaUrl(d).replace(/"/g, "&quot;") || "#"}" download="${escapeHtml(d.nome)}">Baixar</a>
               </div>`
           )
           .join("");
@@ -290,7 +305,24 @@
     return true;
   }
 
+  function refreshPainéisDocumentosAbertos() {
+    document.querySelectorAll("[data-cliente-docs-panel]").forEach((panel) => {
+      if (panel.classList.contains("hidden") || panel.hidden) return;
+      const proto = String(panel.getAttribute("data-cliente-docs-panel") || "").trim();
+      const tipo = String(panel.getAttribute("data-cliente-docs-tipo") || "").trim();
+      const btn = btnEl(proto, tipo);
+      const cpfBtn = onlyDigits(btn?.getAttribute("data-cliente-docs-cpf")).slice(0, 11);
+      const sessFn = typeof window.__DK_getClienteSessaoCpf === "function" ? window.__DK_getClienteSessaoCpf : null;
+      const cpf = cpfBtn || (sessFn ? sessFn() : "");
+      if (proto && tipo && cpf) abrirPainel(proto, cpf, tipo);
+    });
+  }
+
   function bindUi() {
+    if (!window.__DK_clienteDocsSyncBound) {
+      window.__DK_clienteDocsSyncBound = true;
+      window.addEventListener("dk-locacoes-synced", refreshPainéisDocumentosAbertos);
+    }
     document.getElementById("cliente-contratos")?.addEventListener("click", (e) => {
       const openBtn = e.target.closest?.("[data-cliente-docs-tipo]");
       if (openBtn && openBtn.hasAttribute("data-cliente-docs-proto")) {
