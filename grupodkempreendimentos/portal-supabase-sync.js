@@ -2306,15 +2306,28 @@
         );
       }
       if (mergedPayload.dk_documentos_deposito_v1) {
+        /* merge com o estado ACTUAL — ficheiros depositados durante o push não podem desaparecer */
+        const mergeDepFn =
+          typeof window.__DK_documentosMergeDeposit === "function"
+            ? window.__DK_documentosMergeDeposit
+            : (_, c) => c;
+        let depAtual = null;
+        try {
+          depAtual = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null");
+        } catch {
+          depAtual = null;
+        }
         localStorage.setItem(
           "dk_documentos_deposito_v1",
-          JSON.stringify(mergedPayload.dk_documentos_deposito_v1)
+          JSON.stringify(mergeDepFn(depAtual, mergedPayload.dk_documentos_deposito_v1))
         );
       }
       if (mergedPayload.dk_locacao_documentos_v1) {
+        /* merge com o estado ACTUAL — docs importados durante o push (ex.: multas) não podem desaparecer */
+        const docsAtuais = readLocalJsonArray("dk_locacao_documentos_v1");
         localStorage.setItem(
           "dk_locacao_documentos_v1",
-          JSON.stringify(mergedPayload.dk_locacao_documentos_v1)
+          JSON.stringify(mergeLocacaoDocumentosV1(docsAtuais, mergedPayload.dk_locacao_documentos_v1))
         );
       }
       localStorage.removeItem("dk_patrimonio_crlv_v1");
