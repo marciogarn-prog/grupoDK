@@ -3,6 +3,7 @@
  *
  * POST /api/dk-backup-email
  * Header: x-dk-backup-secret = DK_BACKUP_SEND_SECRET (injeta no build; pode ser igual ao CRON_SECRET)
+ * Header opcional: X-DK-Deploy-Channel: demo
  * Body opcional: { "browserData": { "dk_clientes_cadastro": …, … } }
  *   — se omitido, coleta Supabase + Redis no servidor (igual ao cron).
  *
@@ -13,14 +14,17 @@ const {
   collectDkBackupPayload,
   buildBrowserBackupPayload,
   backupFileBaseName,
+  normalizeChannel,
 } = require("../lib/dk-collect-backup.cjs");
 const { sendBackupEmail } = require("../lib/dk-send-backup-email.cjs");
+const { storeLastBackup } = require("../lib/dk-store-last-backup.cjs");
 
 function isOriginAllowed(origin) {
   if (!origin) return false;
   const allowed = new Set([
     "https://grupodkempreendimentos.com.br",
     "https://www.grupodkempreendimentos.com.br",
+    "https://demo.grupodkempreendimentos.com.br",
     "http://localhost:5173",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
@@ -39,9 +43,22 @@ function isOriginAllowed(origin) {
 function applyCors(res, origin) {
   if (isOriginAllowed(origin)) {
     res.setHeader("Access-Control-Allow-Origin", origin);
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-dk-backup-secret");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, x-dk-backup-secret, X-DK-Deploy-Channel"
+    );
     res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   }
+}
+
+function resolveChannel(req) {
+  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
+  if (hdr === "demo") return "demo";
+  const origin = String(req.headers.origin || "");
+  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
+  const bodyChannel = String(req.body?.channel || "").trim().toLowerCase();
+  if (bodyChannel === "demo") return "demo";
+  return "default";
 }
 
 function authorizeBackup(req) {
@@ -85,16 +102,20 @@ module.exports = async function handler(req, res) {
     }
   }
 
+  const channel = normalizeChannel(resolveChannel(req));
+
   try {
     const browserData = body?.browserData;
     const fromBrowser =
       browserData && typeof browserData === "object" && Object.keys(browserData).length > 0;
     const payload = fromBrowser
-      ? buildBrowserBackupPayload(browserData)
-      : await collectDkBackupPayload();
-    const baseName = backupFileBaseName(payload, fromBrowser ? "manual-browser" : "manual-server");
+      ? buildBrowserBackupPayload(browserData, channel)
+      : await collectDkBackupPayload({ channel });
+    const suffix = channel === "demo" ? "demo" : fromBrowser ? "manual-browser" : "manual-server";
+    const baseName = backupFileBaseName(payload, suffix === "demo" ? "demo" : suffix);
+    const label = channel === "demo" ? "DEMO" : "oficial";
     const email = await sendBackupEmail(payload, baseName, {
-      subject: `DK Backup manual — ${baseName}`,
+      subject: `DK Backup manual ${label} — ${baseName}`,
     });
 
     if (!email.ok) {
@@ -103,17 +124,25 @@ module.exports = async function handler(req, res) {
         reason: email.reason,
         attempts: email.attempts,
         source: payload.source,
+        channel,
         counts: payload.counts,
       });
     }
+
+    const stored = await storeLastBackup(channel, payload, {
+      emailTo: email.to,
+      filename: `${baseName}.json`,
+    });
 
     return res.status(200).json({
       ok: true,
       provider: email.provider,
       to: email.to,
       source: payload.source,
+      channel,
       exportedAtBr: payload.exportedAtBr,
       counts: payload.counts,
+      stored: stored.ok,
     });
   } catch (e) {
     return res.status(500).json({
