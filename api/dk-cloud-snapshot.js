@@ -343,6 +343,12 @@ function mergeLocacaoDocumentosRedis(existing, incoming) {
       byId.set(rec.id, rec);
       return;
     }
+    /* tombstone: doc excluído no portal não pode ressuscitar pelo merge */
+    if (rec.excluido === true || prev.excluido === true) {
+      const tsAct = (x) => Number(x.excluidoEm || x.enviadoClienteEm || x.createdAt) || 0;
+      if (tsAct(rec) >= tsAct(prev)) byId.set(rec.id, rec);
+      return;
+    }
     const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
     const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
     const prevTs = Number(prev.enviadoClienteEm || prev.createdAt) || 0;

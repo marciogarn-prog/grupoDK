@@ -282,10 +282,27 @@
     return { cpf: "", nome: "" };
   }
 
+  /** Exclusão lógica: o registo fica como marcador para a nuvem não o ressuscitar. */
+  function tombstoneDoc(d) {
+    return {
+      ...d,
+      excluido: true,
+      excluidoEm: Date.now(),
+      enviadoCliente: false,
+      conferidoOperador: false,
+      arquivoBase64: "",
+    };
+  }
+
   function docsDoProtocolo(nc, cpf) {
     const n = normNc(nc);
     const dig = onlyDigits(cpf).slice(0, 11);
-    return loadAll().filter((d) => normNc(d.numeroContrato) === n && (!dig || onlyDigits(d.cpf).slice(0, 11) === dig));
+    return loadAll().filter(
+      (d) =>
+        d?.excluido !== true &&
+        normNc(d.numeroContrato) === n &&
+        (!dig || onlyDigits(d.cpf).slice(0, 11) === dig)
+    );
   }
 
   function inferDocTipo(d) {
@@ -309,9 +326,14 @@
     const docs = docsDoProtocoloPorTipo(nc, cpf, categoria);
     if (!docs.length) return null;
     if (docs.length === 1) return docs[0];
+    const byNewest = (a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0);
     const enviados = docs.filter((d) => d.enviadoCliente === true);
-    const pool = enviados.length ? enviados : docs;
-    return pool.slice().sort((a, b) => Number(b.createdAt) - Number(a.createdAt))[0];
+    if (!enviados.length) return docs.slice().sort(byNewest)[0];
+    const enviadoTop = enviados.slice().sort(byNewest)[0];
+    /* importação mais recente que o enviado = substituição em curso — mostrá-la */
+    const maisNovo = docs.slice().sort(byNewest)[0];
+    if ((Number(maisNovo.createdAt) || 0) > (Number(enviadoTop.createdAt) || 0)) return maisNovo;
+    return enviadoTop;
   }
 
   function limparDuplicadosNaoEnviados(nc, cpf) {
@@ -326,13 +348,14 @@
       const canon = docCanonicoPorTipo(n, dig, tipo);
       if (!canon) return;
       docs.forEach((d) => {
-        if (String(d.id) !== String(canon.id) && d.enviadoCliente !== true) {
-          removeIds.add(String(d.id));
-        }
+        if (String(d.id) === String(canon.id) || d.enviadoCliente === true) return;
+        /* nunca apagar importação mais recente que o canónico — é uma substituição em curso */
+        if ((Number(d.createdAt) || 0) > (Number(canon.createdAt) || 0)) return;
+        removeIds.add(String(d.id));
       });
     });
     if (!removeIds.size) return;
-    saveAll(all.filter((d) => !removeIds.has(String(d.id))));
+    saveAll(all.map((d) => (removeIds.has(String(d.id)) ? tombstoneDoc(d) : d)));
   }
 
   function locacaoDoProtocolo(nc) {
@@ -382,6 +405,7 @@
     const dig = onlyDigits(cpf).slice(0, 11);
     return all.some(
       (d) =>
+        d?.excluido !== true &&
         normNc(d.numeroContrato) === n &&
         onlyDigits(d.cpf).slice(0, 11) === dig &&
         String(d.origemDepositoId || "") === String(depositId || "") &&
@@ -473,13 +497,16 @@
     const n = normNc(nc);
     const dig = onlyDigits(cpf).slice(0, 11);
     const all = loadAll();
-    const next = all.filter((d) => {
-      if (normNc(d.numeroContrato) !== n || onlyDigits(d.cpf).slice(0, 11) !== dig) return true;
-      if (inferDocTipo(d) !== categoria) return true;
-      if (exceptId && String(d.id) === String(exceptId)) return true;
-      return false;
+    let changed = false;
+    const next = all.map((d) => {
+      if (d?.excluido === true) return d;
+      if (normNc(d.numeroContrato) !== n || onlyDigits(d.cpf).slice(0, 11) !== dig) return d;
+      if (inferDocTipo(d) !== categoria) return d;
+      if (exceptId && String(d.id) === String(exceptId)) return d;
+      changed = true;
+      return tombstoneDoc(d);
     });
-    if (next.length !== all.length) saveAll(next);
+    if (changed) saveAll(next);
   }
 
   function renderSugestoesDeposito(categoria, rows) {
@@ -983,9 +1010,9 @@
     if (doc.enviadoCliente === true && !isAdmin) {
       return { ok: false, msg: "Já enviado ao cliente — só o administrador pode excluir." };
     }
-    all.splice(idx, 1);
+    all[idx] = tombstoneDoc(doc);
     saveAllLocal(all);
-    if (doc.enviadoCliente === true) pushDocumentosNuvem();
+    void pushDocumentosNuvem();
     return { ok: true, msg: "Documento excluído — pode trazer outro do depósito." };
   }
 
