@@ -1,6 +1,8 @@
 /**
- * Compara index.html e assets-chave entre demo e oficial.
+ * Compara index.html e assets-chave entre demo e oficial (markers + bytes).
  */
+import crypto from "crypto";
+
 const PAIRS = [
   ["https://grupodkempreendimentos.com.br/", "oficial"],
   ["https://demo.grupodkempreendimentos.com.br/", "demo"],
@@ -9,10 +11,12 @@ const PAIRS = [
 const MARKERS = [
   "operacaoLocacaoDocumentosListaContrato",
   "operacaoLocacaoDocumentosListaCrlv",
-  "Trazer documento para contrato",
-  "Trazer documento para CRLV",
+  "Importar contrato",
+  "Importar CRLV",
   "Visualizar",
-  "operacaoLocacaoDocBuscaContrato",
+  "operacaoLocacaoDocVagaContrato",
+  "operacaoLocacaoDocVagaCrlv",
+  "vaga única",
   "operacaoLocacaoDocSugestoesCrlv",
   "portal-loc-docs-grupos",
   "Confirmar",
@@ -22,17 +26,40 @@ const MARKERS = [
   "operacaoLocacaoDocContratoBtn",
 ];
 
+const BYTE_ASSETS = [
+  "index.html",
+  "portal-locacao-documentos.js",
+  "portal-documentos.js",
+  "portal-locadora-ui.js",
+  "app.js",
+  "styles.css",
+  "service-worker-corporativo.js",
+  "dk-pwa-update.js",
+];
+
+function sha256(text) {
+  return crypto.createHash("sha256").update(text).digest("hex").slice(0, 16);
+}
+
 async function fetchText(url) {
   const r = await fetch(url, { cache: "no-store" });
+  if (!r.ok) throw new Error(`${url} HTTP ${r.status}`);
   return r.text();
 }
 
+function verFromIndex(index, asset) {
+  const re = new RegExp(`${asset.replace(".", "\\.")}\\?v=([^"']+)`);
+  return (index.match(re) || [])[1] || "";
+}
+
 const results = {};
+const assetHashes = { oficial: {}, demo: {} };
+
 for (const [base, label] of PAIRS) {
   const index = await fetchText(`${base}index.html?_=${Date.now()}`);
-  const docVer = (index.match(/portal-locacao-documentos\.js\?v=([^"']+)/) || [])[1] || "?";
-  const cssVer = (index.match(/styles\.css\?v=([^"']+)/) || [])[1] || "?";
-  const css = await fetchText(`${base}styles.css?v=${cssVer}`);
+  const docVer = verFromIndex(index, "portal-locacao-documentos.js") || "?";
+  const cssVer = verFromIndex(index, "styles.css") || "?";
+  const css = await fetchText(`${base}styles.css?v=${cssVer}&_=${Date.now()}`);
   results[label] = {
     docVer,
     cssVer,
@@ -44,9 +71,17 @@ for (const [base, label] of PAIRS) {
   for (const m of MARKERS) {
     results[label].markers[m] = index.includes(m);
   }
+  assetHashes[label].index = sha256(index);
+  for (const asset of BYTE_ASSETS) {
+    if (asset === "index.html") continue;
+    const ver = verFromIndex(index, asset);
+    const q = ver ? `?v=${ver}&` : "?";
+    const body = await fetchText(`${base}${asset}${q}_=${Date.now()}`);
+    assetHashes[label][asset] = sha256(body);
+  }
 }
 
-console.log(JSON.stringify(results, null, 2));
+console.log(JSON.stringify({ results, assetHashes }, null, 2));
 
 let ok = true;
 for (const m of MARKERS) {
@@ -85,6 +120,14 @@ const cssBusca = results.demo.cssHasBusca === results.oficial.cssHasBusca && res
 if (!cssBusca) {
   console.error("FAIL css portal-loc-docs-busca missing or diverge");
   ok = false;
+}
+for (const asset of BYTE_ASSETS) {
+  const o = assetHashes.oficial[asset];
+  const d = assetHashes.demo[asset];
+  if (o !== d) {
+    console.error(`FAIL bytes diverge: ${asset} oficial=${o} demo=${d}`);
+    ok = false;
+  }
 }
 console.log(ok ? "PARITY OK" : "PARITY FAIL");
 process.exit(ok ? 0 : 1);

@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260609avisos-dk";
+const CACHE_NAME = "dk-cliente-v20260610avisos-check";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",

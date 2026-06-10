@@ -245,8 +245,8 @@
       return;
     }
     if (btn) btn.disabled = true;
-    const ok = fn(ctx.cpfDigits, ctx.proto, ano, celulas);
-    if (!ok) {
+    const res = await fn(ctx.cpfDigits, ctx.proto, ano, celulas);
+    if (!res?.ok) {
       if (msg) msg.textContent = "Não foi possível guardar.";
       if (btn) btn.disabled = false;
       return;
@@ -254,20 +254,19 @@
     if (typeof window.__DK_refreshOperacaoLancAluguelAposPagamento === "function") {
       window.__DK_refreshOperacaoLancAluguelAposPagamento();
     }
-    if (msg) msg.textContent = "A enviar pagamentos para a nuvem…";
-    let nuvemOk = true;
-    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
-      try {
-        await window.__DK_pushCloudSnapshotNow({ force: true });
-      } catch (err) {
-        nuvemOk = false;
-        console.warn("[DK portal] calendário → nuvem", err);
-      }
-    }
+    const notify = res.notify;
     if (msg) {
-      msg.textContent = nuvemOk
-        ? `Pagamentos de ${ano} guardados e enviados à nuvem.`
-        : `Pagamentos de ${ano} guardados neste computador — repita «Salvar» com internet para enviar à nuvem.`;
+      if (notify?.ok && notify.count > 0) {
+        msg.textContent =
+          notify.msg ||
+          `Pagamentos de ${ano} guardados. Informação já enviada para o cliente.`;
+      } else if (notify?.ok === false) {
+        msg.textContent =
+          notify.msg ||
+          `Pagamentos de ${ano} guardados, mas o aviso ao cliente não foi confirmado na nuvem.`;
+      } else {
+        msg.textContent = `Pagamentos de ${ano} guardados.`;
+      }
     }
     if (btn) btn.disabled = false;
   }

@@ -8,9 +8,108 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
 
-const REDIS_KEY = "dk:portal:cloud_snapshot:v1";
-const LABEL = "default";
+const OFICIAL_GUARD_KEYS = [
+  "dk_clientes_cadastro",
+  "dk_portal_clientes_cadastro",
+  "dk_veiculos_cadastro",
+  "dk_portal_veiculos_cadastro",
+  "dk_veiculos_frota_planilha",
+  "dk_locacoes_cadastro",
+  "dk_lancamentos_aluguel",
+  "dk_lancamentos_aluguel_cadastro",
+];
+
+function oficialTodayYmd() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
+function oficialParseYmd(value) {
+  if (value == null || value === "") return null;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const d = new Date(value);
+    if (!Number.isNaN(d.getTime())) {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
+    }
+    return null;
+  }
+  const s = String(value).trim();
+  const br = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (br) return `${br[3]}-${br[2]}-${br[1]}`;
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+  const ms = Date.parse(s);
+  if (Number.isFinite(ms)) {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date(ms));
+  }
+  return null;
+}
+
+function oficialRecordYmd(record, key) {
+  if (!record || typeof record !== "object") return null;
+  const fields =
+    String(key).includes("locacoes")
+      ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
+      : String(key).includes("lancamento")
+        ? ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"]
+        : ["dataCadastro", "createdAt", "updatedAt"];
+  for (const f of fields) {
+    const ymd = oficialParseYmd(record[f]);
+    if (ymd) return ymd;
+  }
+  return null;
+}
+
+function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
+  if (!payload || typeof payload !== "object") return payload;
+  const out = { ...payload };
+  for (const k of OFICIAL_GUARD_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
+    out[k] = out[k].filter((r) => {
+      const ymd = oficialRecordYmd(r, k);
+      return ymd && ymd >= cutoffYmd;
+    });
+  }
+  out.dk_oficial_cadastro_guard_v1 = cutoffYmd;
+  return out;
+}
+
+const REDIS_KEYS = {
+  default: "dk:portal:cloud_snapshot:v1",
+  demo: "dk:portal:cloud_snapshot:demo:v1",
+};
+
+function resolveDeployChannel(req) {
+  const q = String(req.query?.channel || "").trim().toLowerCase();
+  if (q === "demo") return "demo";
+  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
+  if (hdr === "demo") return "demo";
+  const origin = String(req.headers.origin || req.headers.referer || "");
+  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
+  if (/^https?:\/\/demo\./i.test(origin)) return "demo";
+  const env = String(process.env.DK_DEPLOY_CHANNEL || "").trim().toLowerCase();
+  if (env === "demo") return "demo";
+  return "default";
+}
+
+function redisKeyForChannel(channel) {
+  return channel === "demo" ? REDIS_KEYS.demo : REDIS_KEYS.default;
+}
+
+function labelForChannel(channel) {
+  return channel === "demo" ? "demo" : "default";
+}
+const CADASTRO_KEYS = [
+  "dk_clientes_cadastro",
+  "dk_portal_clientes_cadastro",
+  "dk_veiculos_cadastro",
+  "dk_portal_veiculos_cadastro",
+  "dk_veiculos_frota_planilha",
+  "dk_locacoes_cadastro",
+  "dk_lancamentos_aluguel",
+  "dk_lancamentos_aluguel_cadastro",
+];
 
 function applyCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -166,31 +265,98 @@ function stripInternalPayloadKeys(payload) {
 }
 
 /** União por número de protocolo — evita apagar contratos do portal (ex. 2026010104) em push parcial. */
+function applyCadastroLock(existing, incoming) {
+  if (!isObject(existing) || !isObject(incoming)) return incoming;
+  const lockUntil = Date.parse(String(existing.dk_cadastro_lock_v1 || "")) || 0;
+  if (!lockUntil || Date.now() >= lockUntil) return incoming;
+  const out = { ...incoming };
+  for (const k of CADASTRO_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
+    const inc = incoming[k];
+    const ex = existing[k];
+    if (!Array.isArray(inc) || !Array.isArray(ex)) continue;
+    if (inc.length > ex.length) out[k] = ex;
+  }
+  return out;
+}
+
+/** Demo: push parcial com local vazio não pode apagar clientes/veículos já na nuvem. */
+function applyDemoCadastroNoShrink(existing, merged) {
+  if (!isObject(existing) || !isObject(merged)) return merged;
+  const out = { ...merged };
+  for (const k of CADASTRO_KEYS) {
+    const ex = existing[k];
+    const inc = out[k];
+    if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
+    if (ex.length > 0 && inc.length < ex.length) out[k] = ex;
+  }
+  return out;
+}
+
 function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
-  const byNc = new Map();
-  const normNc = (v) =>
-    String(v ?? "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
-  const add = (loc) => {
-    if (!loc || typeof loc !== "object") return;
-    const nc = normNc(loc.numeroContrato);
-    if (!nc) return;
-    const prev = byNc.get(nc);
+  return mergeLocacoesCadastro(existingArr, incomingArr);
+}
+
+function mergeComunicacaoOperacaoRedisRecord(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+  const maxIso = (a, b) => {
+    const ta = Date.parse(a || "") || 0;
+    const tb = Date.parse(b || "") || 0;
+    if (ta >= tb) return a || b || "";
+    return b || a || "";
+  };
+  return {
+    ...prev,
+    ...next,
+    id: prev.id || next.id,
+    lidaClienteEm: maxIso(prev.lidaClienteEm, next.lidaClienteEm),
+    lidaOperacaoEm: maxIso(prev.lidaOperacaoEm, next.lidaOperacaoEm),
+  };
+}
+
+function mergeComunicacaoOperacaoRedis(existing, incoming) {
+  const byId = new Map();
+  const push = (m) => {
+    if (!m || typeof m !== "object" || !m.id) return;
+    byId.set(m.id, mergeComunicacaoOperacaoRedisRecord(byId.get(m.id), m));
+  };
+  (Array.isArray(existing) ? existing : []).forEach(push);
+  (Array.isArray(incoming) ? incoming : []).forEach(push);
+  return Array.from(byId.values())
+    .sort((a, b) => (Date.parse(a.criadoEm || 0) || 0) - (Date.parse(b.criadoEm || 0) || 0))
+    .slice(0, 3000);
+}
+
+/** Merge por id — preserva PDF (base64) e estado enviadoCliente ao fazer push parcial. */
+function mergeLocacaoDocumentosRedis(existing, incoming) {
+  const byId = new Map();
+  const pick = (rec) => {
+    if (!rec || typeof rec !== "object" || !rec.id) return;
+    const prev = byId.get(rec.id);
     if (!prev) {
-      byNc.set(nc, { ...loc });
+      byId.set(rec.id, rec);
       return;
     }
-    byNc.set(nc, {
-      ...prev,
-      ...loc,
-      numeroContrato: prev.numeroContrato || loc.numeroContrato,
-    });
+    const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
+    const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
+    const prevTs = Number(prev.enviadoClienteEm || prev.createdAt) || 0;
+    const recTs = Number(rec.enviadoClienteEm || rec.createdAt) || 0;
+    if (recHas && !prevHas) {
+      byId.set(rec.id, rec);
+      return;
+    }
+    if (prevHas && !recHas) return;
+    if (rec.enviadoCliente === true && prev.enviadoCliente !== true) {
+      byId.set(rec.id, rec);
+      return;
+    }
+    if (prev.enviadoCliente === true && rec.enviadoCliente !== true) return;
+    if (recTs >= prevTs) byId.set(rec.id, rec);
   };
-  (Array.isArray(existingArr) ? existingArr : []).forEach(add);
-  (Array.isArray(incomingArr) ? incomingArr : []).forEach(add);
-  return Array.from(byNc.values());
+  (Array.isArray(existing) ? existing : []).forEach(pick);
+  (Array.isArray(incoming) ? incoming : []).forEach(pick);
+  return Array.from(byId.values());
 }
 
 function mergePayloads(existing, incoming) {
@@ -222,6 +388,24 @@ function mergePayloads(existing, incoming) {
     out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
       existing.dk_comprovantes_cliente_pendentes,
       incoming.dk_comprovantes_cliente_pendentes
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_comunicacao_operacao_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_comunicacao_operacao_v1")
+  ) {
+    out.dk_comunicacao_operacao_v1 = mergeComunicacaoOperacaoRedis(
+      existing.dk_comunicacao_operacao_v1,
+      incoming.dk_comunicacao_operacao_v1
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_locacao_documentos_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_locacao_documentos_v1")
+  ) {
+    out.dk_locacao_documentos_v1 = mergeLocacaoDocumentosRedis(
+      existing.dk_locacao_documentos_v1,
+      incoming.dk_locacao_documentos_v1
     );
   }
   if (
@@ -259,6 +443,9 @@ module.exports = async function handler(req, res) {
   }
 
   const redis = createRedisClient();
+  const channel = resolveDeployChannel(req);
+  const REDIS_KEY = redisKeyForChannel(channel);
+  const LABEL = labelForChannel(channel);
 
   try {
     if (req.method === "GET") {
@@ -281,10 +468,12 @@ module.exports = async function handler(req, res) {
         }
       }
       const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
+      const safePayload =
+        channel === "default" && payload ? sanitizePayloadForOficial(payload) : payload;
       return res.status(200).json({
         ok: true,
         label: LABEL,
-        payload,
+        payload: safePayload,
         updated_at: row?.updated_at || null,
         source: "redis",
       });
@@ -292,9 +481,12 @@ module.exports = async function handler(req, res) {
 
     if (req.method === "POST") {
       const body = parseBody(req);
-      const incoming = body.payload;
+      let incoming = body.payload;
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
+      }
+      if (channel === "default") {
+        incoming = sanitizePayloadForOficial(incoming);
       }
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const existingRaw = await redis.get(REDIS_KEY);
@@ -320,11 +512,27 @@ module.exports = async function handler(req, res) {
         for (const k of wipeKeys) {
           payload[k] = Object.prototype.hasOwnProperty.call(incoming, k) ? incoming[k] : [];
         }
+        if (channel === "default") {
+          payload.dk_cadastro_manual_portal_v1 = true;
+          payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        } else {
+          delete payload.dk_cadastro_manual_portal_v1;
+          delete payload.dk_cadastro_lock_v1;
+        }
         payload = stripInternalPayloadKeys(payload);
       } else {
+        const lockedIncoming = existingPayload
+          ? applyCadastroLock(existingPayload, incoming)
+          : incoming;
         payload = existingPayload
-          ? mergePayloads(existingPayload, incoming)
-          : stripInternalPayloadKeys(incoming);
+          ? mergePayloads(existingPayload, lockedIncoming)
+          : stripInternalPayloadKeys(lockedIncoming);
+        if (channel === "demo" && existingPayload) {
+          payload = applyDemoCadastroNoShrink(existingPayload, payload);
+        }
+      }
+      if (channel === "default") {
+        payload = sanitizePayloadForOficial(payload);
       }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));

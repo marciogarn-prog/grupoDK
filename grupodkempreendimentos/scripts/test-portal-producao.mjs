@@ -725,7 +725,7 @@ async function runSuite() {
       "app cliente resumo contrato no HTML",
       clienteHtml.includes("Meus contratos") && clienteHtml.includes("cliente-contrato-resumo.js")
     );
-    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260609docs-multas`, {
+    const clienteAppJs = await fetch(`${BASE_URL}cliente-app.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
     const clienteResumoJs = await fetch(`${BASE_URL}cliente-contrato-resumo.js?v=20260608cal-no-trava`, {
@@ -767,9 +767,11 @@ async function runSuite() {
     );
     record(
       "cadastro locação documentos por protocolo",
-        indexFresh.includes("Trazer documento para contrato") &&
-        indexFresh.includes("Trazer documento para CRLV") &&
-        indexFresh.includes("operacaoLocacaoDocumentosListaContrato") &&
+        indexFresh.includes("Importar contrato") &&
+        indexFresh.includes("Importar CRLV") &&
+        indexFresh.includes("operacaoLocacaoDocVagaContrato") &&
+        indexFresh.includes("operacaoLocacaoDocVagaCrlv") &&
+        indexFresh.includes("vaga única") &&
         !indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
@@ -787,13 +789,18 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-excluir`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260610doc-confirmar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "documentos locação sync nuvem",
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
+        locDocsJs.includes("verificarDocumentoEnviadoNaNuvem") &&
+        locDocsJs.includes("reconciliarDocumentosEnvioProtocolo") &&
+        locDocsJs.includes("__DK_pushLocacaoDocumentoNuvem") &&
+        locDocsJs.includes("__DK_fetchCloudSnapshotPayload") &&
+        locDocsJs.includes("confirmado na nuvem") &&
         locDocsJs.includes("enviadoCliente") &&
         locDocsJs.includes("visualizarDocumento") &&
         locDocsJs.includes("__DK_documentosAbrirViewerBlob") &&
@@ -805,9 +812,27 @@ async function runSuite() {
         locDocsJs.includes("conferidoOperador") &&
         locDocsJs.includes("DOC_DESTINO_APP") &&
         locDocsJs.includes("__DK_garantirDocMultaParaCadastro") &&
-        locDocsJs.includes("LOC_CADASTRO_TIPOS") &&
+        locDocsJs.includes("docCanonicoPorTipo") &&
+        locDocsJs.includes("limparDuplicadosNaoEnviados") &&
         !locDocsJs.includes("adicionarDocumentos"),
-      "contrato/crlv: visualizar no modal; confirmar antes de enviar; só enviados vão à nuvem"
+      "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
+    );
+    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521crlv-merge-fix`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente pull documentos locação (dk_locacao_documentos_v1)",
+      syncDocEnviarJs.includes('"dk_locacao_documentos_v1"') &&
+        syncDocEnviarJs.includes("CLIENTE_CLOUD_PULL_KEYS") &&
+        syncDocEnviarJs.includes("filterCloudPayloadForClienteApp") &&
+        syncDocEnviarJs.includes("enviadoCliente === true") &&
+        syncDocEnviarJs.includes("mergeLocacaoDocumentosV1"),
+      "cliente recebe CRLV/contrato enviados via sync da nuvem"
+    );
+    record(
+      "cliente.html sync documentos locação",
+      clienteHtml.includes("portal-supabase-sync.js?v=20260521crlv-merge-fix"),
+      "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
       cache: "no-store",
@@ -818,7 +843,7 @@ async function runSuite() {
         lancExtrasJs.includes("locacaoDocumentoId"),
       "bloqueia cadastro sem PDF importado de Documentos"
     );
-    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260609doc-confirmar`, {
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260521crlv-merge-fix`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -865,7 +890,7 @@ async function runSuite() {
     const portalSyncLancJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260608pagamentos-nuvem`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const calPortalJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=20260608pagamentos-nuvem`, {
+    const calPortalJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
     const portalUiLancPersistJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260608pagamentos-nuvem`, {
@@ -885,8 +910,8 @@ async function runSuite() {
     );
     record(
       "calendário portal envia nuvem após salvar",
-      calPortalJs.includes("__DK_pushCloudSnapshotNow") && calPortalJs.includes("force: true"),
-      "salvar calendário faz push forçado"
+      calPortalJs.includes("await fn(") && calPortalJs.includes("res.notify"),
+      "salvar calendário confirma aviso ao cliente"
     );
     record(
       "app cliente sync mostra contagem pagamentos",
@@ -908,10 +933,10 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260609lanc-aviso`, {
+    const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260609lanc-aviso`, {
+    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -923,8 +948,26 @@ async function runSuite() {
         !html.includes("operacaoClienteMsgClienteBtn") &&
         portalLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancado") &&
         portalLocadoraJs.includes("portalNotificarClientePagamentosLancados") &&
+        portalLocadoraJs.includes("Lançamento de aluguel realizado com sucesso") &&
         !portalLocadoraJs.includes("portalComunicacaoAcessosEfetivos"),
       "avisos automáticos mantidos; chat/inbox removidos"
+    );
+    record(
+      "lançamento aluguel confirma aviso ao cliente na nuvem",
+      clienteNotifJs.includes("__DK_clienteNotificacaoPagamentoLancadoComNuvem") &&
+        clienteNotifJs.includes("__DK_verificarNotificacaoClienteNaNuvem") &&
+        clienteNotifJs.includes("confirmarNotificacaoClienteNaNuvem") &&
+        portalLocadoraJs.includes("__DK_clienteNotificacaoPagamentoLancadoComNuvem"),
+      "operador só vê sucesso se aviso chegar à nuvem"
+    );
+    record(
+      "app cliente boas-vindas na instalação",
+      clienteNotifJs.includes("__DK_clienteNotificacaoBoasVindas") &&
+        clienteNotifJs.includes("mensagemBoasVindas") &&
+        clienteNotifJs.includes("boas_vindas") &&
+        clienteAppJs.includes("maybeRegistrarBoasVindasCliente") &&
+        clienteHtml.includes("cliente-notificacoes.js?v=20260610avisos-check"),
+      "primeiro acesso: aviso personalizado com protocolo"
     );
     record(
       "app cliente avisos DK (sem chat)",

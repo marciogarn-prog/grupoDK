@@ -25,6 +25,50 @@
     return ch === "demo" ? { "X-DK-Deploy-Channel": "demo" } : {};
   }
 
+  /** Merge documentos de locação — preferir PDF (arquivoBase64) e enviadoCliente. Usado no portal e no app cliente. */
+  function mergeLocacaoDocumentosV1(localArr, cloudArr) {
+    const byId = new Map();
+    const pick = (rec) => {
+      if (!rec?.id) return;
+      const prev = byId.get(rec.id);
+      if (!prev) {
+        byId.set(rec.id, rec);
+        return;
+      }
+      const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
+      const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
+      const prevTs = Number(prev.enviadoClienteEm || prev.createdAt) || 0;
+      const recTs = Number(rec.enviadoClienteEm || rec.createdAt) || 0;
+      if (recHas && !prevHas) {
+        byId.set(rec.id, rec);
+        return;
+      }
+      if (prevHas && !recHas) return;
+      if (rec.enviadoCliente === true && prev.enviadoCliente !== true) {
+        byId.set(rec.id, rec);
+        return;
+      }
+      if (prev.enviadoCliente === true && rec.enviadoCliente !== true) return;
+      if (recTs >= prevTs) byId.set(rec.id, rec);
+    };
+    (Array.isArray(cloudArr) ? cloudArr : []).forEach(pick);
+    (Array.isArray(localArr) ? localArr : []).forEach(pick);
+    return Array.from(byId.values());
+  }
+
+  function dedupeLocacaoDocumentosStore(arr) {
+    return mergeLocacaoDocumentosV1([], Array.isArray(arr) ? arr : []);
+  }
+
+  function sanitizeLocacaoDocumentosLocalStorage() {
+    const arr = readLocalJsonArray("dk_locacao_documentos_v1");
+    const clean = dedupeLocacaoDocumentosStore(arr);
+    if (JSON.stringify(clean) !== JSON.stringify(arr)) {
+      localStorage.setItem("dk_locacao_documentos_v1", JSON.stringify(clean));
+    }
+    return clean;
+  }
+
   function withCloudTimeout(promise, ms, label) {
     return Promise.race([
       promise,
@@ -445,6 +489,15 @@
         (r) => String(r?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
       );
     }
+    if (Array.isArray(out.dk_locacao_documentos_v1)) {
+      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.filter(
+        (d) =>
+          d?.enviadoCliente === true &&
+          String(d?.cpf || "")
+            .replace(/\D/g, "")
+            .slice(0, 11) === dig
+      );
+    }
     delete out.dk_clientes_cadastro;
     delete out.dk_portal_clientes_cadastro;
     delete out.dk_veiculos_cadastro;
@@ -455,6 +508,7 @@
 
   const CLIENTE_CLOUD_PULL_KEYS = new Set([
     "dk_locacoes_cadastro",
+    "dk_locacao_documentos_v1",
     "dk_comunicacao_operacao_v1",
     "dk_cliente_notificacoes",
     "dk_comprovantes_cliente_pendentes",
@@ -694,15 +748,14 @@
             cloudArr = [];
           }
         }
-        const mergeFn =
-          typeof window.__DK_docsLocacaoMerge === "function"
-            ? window.__DK_docsLocacaoMerge
-            : (localArr, inc) => [...(localArr || []), ...(inc || [])];
         if (replace) {
-          localStorage.setItem(k, JSON.stringify(cloudArr));
+          localStorage.setItem(k, JSON.stringify(dedupeLocacaoDocumentosStore(cloudArr)));
         } else {
           const localArr = readLocalJsonArray(k);
-          localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
+          localStorage.setItem(
+            k,
+            JSON.stringify(mergeLocacaoDocumentosV1(localArr, cloudArr))
+          );
         }
         continue;
       }
@@ -933,6 +986,30 @@
     return { ok: anyOk, error: lastErr };
   }
 
+  /** Push parcial: só o documento enviado (PDF incluído) — evita falha do snapshot completo. */
+  async function pushLocacaoDocumentoNuvem(doc) {
+    if (!doc || typeof doc !== "object" || !doc.id) {
+      return { ok: false, error: "doc_invalid" };
+    }
+    if (!String(doc.arquivoBase64 || "").trim()) {
+      return { ok: false, error: "doc_sem_pdf" };
+    }
+    const updatedAt = new Date().toISOString();
+    const red = await pushRedundantSnapshotPayload(
+      {
+        dk_locacao_documentos_v1: [
+          {
+            ...doc,
+            enviadoCliente: true,
+          },
+        ],
+      },
+      updatedAt
+    );
+    if (red.ok) noteCloudPushTimestamp(updatedAt);
+    return { ok: red.ok, redisOk: red.ok, error: red.error };
+  }
+
   function pickNewestCloudRow(rows) {
     const list = (rows || []).filter((r) => r?.payload && typeof r.payload === "object");
     if (!list.length) return null;
@@ -1159,11 +1236,7 @@
         continue;
       }
       if (k === "dk_locacao_documentos_v1") {
-        const mergeFn =
-          typeof window.__DK_docsLocacaoMerge === "function"
-            ? window.__DK_docsLocacaoMerge
-            : (localArr, inc) => [...(localArr || []), ...(inc || [])];
-        const merged = mergeFn(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
+        const merged = mergeLocacaoDocumentosV1(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
@@ -1952,11 +2025,7 @@
       Object.prototype.hasOwnProperty.call(localPayload, "dk_locacao_documentos_v1") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacao_documentos_v1")
     ) {
-      const mergeFn =
-        typeof window.__DK_docsLocacaoMerge === "function"
-          ? window.__DK_docsLocacaoMerge
-          : (localArr, inc) => [...(localArr || []), ...(inc || [])];
-      out.dk_locacao_documentos_v1 = mergeFn(
+      out.dk_locacao_documentos_v1 = mergeLocacaoDocumentosV1(
         localPayload.dk_locacao_documentos_v1,
         cloudPayload.dk_locacao_documentos_v1
       );
@@ -2416,6 +2485,7 @@
     suppressCloudHook = true;
     try {
       applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: !force });
+      sanitizeLocacaoDocumentosLocalStorage();
       trimLocalLocacoesToClienteCpf();
     } finally {
       suppressCloudHook = false;
@@ -2563,6 +2633,8 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_pushLocacaoDocumentoNuvem = pushLocacaoDocumentoNuvem;
+    window.__DK_docsLocacaoMerge = mergeLocacaoDocumentosV1;
     window.__DK_bootstrapDemoCadastrosFromCloud = bootstrapDemoCadastrosFromCloudIfEmpty;
   } catch {
     /* ignore */
