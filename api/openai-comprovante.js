@@ -1,7 +1,48 @@
 /**
  * Proxy OpenAI para conferência de comprovantes (chave só no servidor Vercel).
  * Variáveis: OPENAI_API_KEY ou DK_OPENAI_API_KEY
+ * Património CRLV: ia_content_hash + ia_job_id evitam leitura duplicada (ledger Redis).
  */
+const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
+
+const PATRIMONIO_IA_LEDGER_PREFIX = "dk_patrimonio_ia_hash:";
+const PATRIMONIO_IA_DAILY_PREFIX = "dk_patrimonio_ia_daily:";
+const PATRIMONIO_IA_DAILY_CAP = Math.min(
+  5000,
+  Math.max(1, Number(process.env.DK_PATRIMONIO_IA_DAILY_CAP || 500) || 500)
+);
+
+function patrimonioIaDayKey() {
+  return PATRIMONIO_IA_DAILY_PREFIX + new Date().toISOString().slice(0, 10);
+}
+
+async function patrimonioIaReservarLeitura(hash, jobId) {
+  const h = String(hash || "").trim().toLowerCase();
+  if (!h || !isRedisKvConfigured()) return { ok: true };
+  const redis = createRedisClient();
+  const ledgerKey = PATRIMONIO_IA_LEDGER_PREFIX + h;
+  const dayKey = patrimonioIaDayKey();
+  const daily = Number(await redis.get(dayKey)) || 0;
+  if (daily >= PATRIMONIO_IA_DAILY_CAP) {
+    return { ok: false, reason: "ia_daily_cap" };
+  }
+  const reserved = await redis.set(
+    ledgerKey,
+    JSON.stringify({
+      leiturasIa: 1,
+      jobId: String(jobId || ""),
+      em: new Date().toISOString(),
+    }),
+    { nx: true }
+  );
+  if (!reserved) {
+    return { ok: false, reason: "ia_already_processed" };
+  }
+  await redis.incr(dayKey);
+  await redis.expire(dayKey, 172800);
+  return { ok: true, redis, ledgerKey };
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -54,6 +95,30 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ ok: false, reason: "invalid_content" });
   }
 
+  const tipo = String(body?.tipo || "").toLowerCase();
+  const modo = String(body?.modo || "").toLowerCase();
+  const pedido = Number(body?.max_tokens);
+  const revisao = modo === "revisao" || tipo === "extrato_revisao";
+  const isCrlv = tipo === "crlv" || tipo === "patrimonio" || tipo === "crlv_proprietario";
+  const isExtrato = tipo === "extrato" || tipo === "extrato_revisao";
+  const maxTokens = isCrlv
+    ? Math.min(4096, Number.isFinite(pedido) && pedido > 0 ? pedido : 4096)
+    : isExtrato
+      ? Math.min(8192, Number.isFinite(pedido) && pedido > 0 ? pedido : 8192)
+      : Math.min(4096, Number.isFinite(pedido) && pedido > 0 ? pedido : 900);
+  const model = isCrlv || isExtrato ? "gpt-4o" : "gpt-4o-mini";
+
+  const iaHash = String(body?.ia_content_hash || body?.iaContentHash || "").trim().toLowerCase();
+  const iaJobId = String(body?.ia_job_id || body?.iaJobId || "").trim();
+
+  if (isCrlv && iaHash) {
+    const gate = await patrimonioIaReservarLeitura(iaHash, iaJobId);
+    if (!gate.ok) {
+      const status = gate.reason === "ia_daily_cap" ? 429 : 409;
+      return res.status(status).json({ ok: false, reason: gate.reason });
+    }
+  }
+
   try {
     const oai = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -62,10 +127,10 @@ module.exports = async function handler(req, res) {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model,
         messages: [{ role: "user", content }],
         response_format: { type: "json_object" },
-        max_tokens: 900,
+        max_tokens: maxTokens,
       }),
     });
 

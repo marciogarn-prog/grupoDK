@@ -315,20 +315,7 @@ function mergeComunicacaoOperacaoRedisRecord(prev, next) {
   };
 }
 
-function mergeComunicacaoOperacaoRedis(existing, incoming) {
-  const byId = new Map();
-  const push = (m) => {
-    if (!m || typeof m !== "object" || !m.id) return;
-    byId.set(m.id, mergeComunicacaoOperacaoRedisRecord(byId.get(m.id), m));
-  };
-  (Array.isArray(existing) ? existing : []).forEach(push);
-  (Array.isArray(incoming) ? incoming : []).forEach(push);
-  return Array.from(byId.values())
-    .sort((a, b) => (Date.parse(a.criadoEm || 0) || 0) - (Date.parse(b.criadoEm || 0) || 0))
-    .slice(0, 3000);
-}
-
-/** Merge por id — preserva PDF (base64) e estado enviadoCliente ao fazer push parcial. */
+/** Merge documentos CRLV/contrato por id — push parcial não pode apagar outros protocolos. */
 function mergeLocacaoDocumentosRedis(existing, incoming) {
   const byId = new Map();
   const pick = (rec) => {
@@ -357,6 +344,19 @@ function mergeLocacaoDocumentosRedis(existing, incoming) {
   (Array.isArray(existing) ? existing : []).forEach(pick);
   (Array.isArray(incoming) ? incoming : []).forEach(pick);
   return Array.from(byId.values());
+}
+
+function mergeComunicacaoOperacaoRedis(existing, incoming) {
+  const byId = new Map();
+  const push = (m) => {
+    if (!m || typeof m !== "object" || !m.id) return;
+    byId.set(m.id, mergeComunicacaoOperacaoRedisRecord(byId.get(m.id), m));
+  };
+  (Array.isArray(existing) ? existing : []).forEach(push);
+  (Array.isArray(incoming) ? incoming : []).forEach(push);
+  return Array.from(byId.values())
+    .sort((a, b) => (Date.parse(a.criadoEm || 0) || 0) - (Date.parse(b.criadoEm || 0) || 0))
+    .slice(0, 3000);
 }
 
 function mergePayloads(existing, incoming) {
