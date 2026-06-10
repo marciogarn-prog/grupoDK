@@ -203,16 +203,14 @@ async function runSuite() {
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
     record(
-      "cadastro ambiente real/teste (admin)",
-      indexFresh.includes("operacaoClienteAmbienteWrap") &&
-        indexFresh.includes('name="operacaoClienteAmbiente"') &&
-        indexFresh.includes("operacaoVeiculoAmbienteWrap") &&
-        indexFresh.includes('name="operacaoLocacaoAmbiente"') &&
-        indexFresh.includes("operacaoLocacaoAmbientePersist") &&
-        !indexFresh.includes("operacaoLocacaoAmbienteWrap") &&
-        indexFresh.includes("operacaoLocacaoApagarProtocoloBtn") &&
-        indexFresh.includes('value="teste"') &&
-        indexFresh.includes("portal-ambiente-admin")
+      "cadastro sem opção real/teste (demo é o ambiente de testes)",
+      !indexFresh.includes("operacaoClienteAmbienteWrap") &&
+        !indexFresh.includes('name="operacaoClienteAmbiente"') &&
+        !indexFresh.includes("operacaoVeiculoAmbienteWrap") &&
+        !indexFresh.includes('name="operacaoLocacaoAmbiente"') &&
+        !indexFresh.includes("operacaoLocacaoAmbientePersist") &&
+        !indexFresh.includes("portal-ambiente-admin") &&
+        indexFresh.includes("operacaoClienteSenhaWrap")
     );
     record(
       "API dk-cliente-geo responde JSON",

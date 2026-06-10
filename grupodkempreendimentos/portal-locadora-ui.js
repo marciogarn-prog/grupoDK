@@ -413,17 +413,12 @@
     return portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE;
   }
 
-  function portalGetAmbienteFormValue(tipo) {
-    if (!isPortalTitularAdministrador()) return PORTAL_AMBIENTE_REAL;
-    const el = document.querySelector(`input[name="operacao${tipo}Ambiente"]:checked`);
-    return portalNormAmbiente(el?.value);
+  function portalGetAmbienteFormValue(_tipo) {
+    return PORTAL_AMBIENTE_REAL;
   }
 
-  function portalSetAmbienteFormValue(tipo, ambiente) {
-    const val = portalNormAmbiente(ambiente);
-    document.querySelectorAll(`input[name="operacao${tipo}Ambiente"]`).forEach((inp) => {
-      inp.checked = inp.value === val;
-    });
+  function portalSetAmbienteFormValue(_tipo, _ambiente) {
+    /* opção Real/Teste removida — demo.grupodk é o ambiente de testes */
   }
 
   function portalClienteSenhaInicial() {
@@ -510,9 +505,7 @@
 
   function portalSyncAmbienteCadastroAdminUi() {
     const admin = isPortalTitularAdministrador();
-    ["operacaoClienteAmbienteWrap", "operacaoClienteSenhaWrap", "operacaoVeiculoAmbienteWrap"].forEach((id) => {
-      document.getElementById(id)?.classList.toggle("hidden", !admin);
-    });
+    document.getElementById("operacaoClienteSenhaWrap")?.classList.toggle("hidden", !admin);
     if (admin) {
       const cpfIn = document.getElementById("operacaoClienteCpf");
       const digits = onlyDigits(String(cpfIn?.value || "")).slice(0, 11);
@@ -525,19 +518,10 @@
     }
   }
 
-  function portalApplyAmbienteVisualForm(tipo, recordOrAmbiente) {
+  function portalApplyAmbienteVisualForm(tipo, _recordOrAmbiente) {
     const form = document.getElementById(`formOperacao${tipo}Inline`);
     if (!form) return;
-    const amb =
-      typeof recordOrAmbiente === "string"
-        ? portalNormAmbiente(recordOrAmbiente)
-        : recordOrAmbiente
-          ? portalNormAmbiente(recordOrAmbiente.ambiente)
-          : portalGetAmbienteFormValue(tipo);
-    form.classList.toggle("portal-registro-teste", amb === PORTAL_AMBIENTE_TESTE);
-    if (recordOrAmbiente && typeof recordOrAmbiente === "object") {
-      portalSetAmbienteFormValue(tipo, recordOrAmbiente.ambiente);
-    }
+    form.classList.remove("portal-registro-teste");
   }
 
   function portalResetAmbienteForm(tipo) {
@@ -620,7 +604,6 @@
     cep: "CEP",
     municipioUf: "Município/UF",
     endereco: "Endereço",
-    ambiente: "Ambiente",
     senha: "Senha app cliente",
   };
 
@@ -639,7 +622,6 @@
     motor: "Motor",
     proprietario: "Proprietário",
     local: "Local",
-    ambiente: "Ambiente",
   };
 
   const PORTAL_LOCACAO_DIFF_LABELS = {
@@ -656,7 +638,6 @@
     periodoLocacao: "Período",
     marcaModelo: "Marca/modelo",
     modalidade: "Modalidade",
-    ambiente: "Ambiente",
   };
 
   let portalAdminAlteracaoConfirmCallback = null;
@@ -759,7 +740,6 @@
       cep: portalNormDiffVal(rec?.cep),
       municipioUf: portalNormDiffVal(rec?.municipioUf),
       endereco: portalNormDiffVal(rec?.endereco),
-      ambiente: portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
       senha: isPortalTitularAdministrador() ? portalNormDiffVal(rec?.senha) : "",
     };
   }
@@ -782,7 +762,6 @@
       cep: getVal("operacaoClienteCep"),
       municipioUf: getVal("operacaoClienteMunicipioUf"),
       endereco: getVal("operacaoClienteEndereco"),
-      ambiente: portalGetAmbienteFormValue("Cliente"),
       senha: isPortalTitularAdministrador() ? getVal("operacaoClienteSenha") : "",
     };
   }
@@ -3727,7 +3706,7 @@ ${printable.innerHTML}
         cep: getVal("operacaoClienteCep"),
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
-        ambiente: portalGetAmbienteFormValue("Cliente"),
+        ambiente: PORTAL_AMBIENTE_REAL,
       };
       if (isPortalTitularAdministrador()) {
         const senhaVal = getVal("operacaoClienteSenha").replace(/\s*\(.*\)\s*$/, "");
@@ -4114,7 +4093,7 @@ ${printable.innerHTML}
         cep: getVal("operacaoClienteCep"),
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
-        ambiente: portalGetAmbienteFormValue("Cliente"),
+        ambiente: PORTAL_AMBIENTE_REAL,
       };
       if (typeof upsertPortalClienteByCpf === "function") {
         try {
@@ -8493,7 +8472,7 @@ ${printable.innerHTML}
       proprietario: getVal("operacaoVeiculoProprietario"),
       local: getVal("operacaoVeiculoLocal"),
       status: String(existenteVeiculo?.status || "DISPONIVEL").trim() || "DISPONIVEL",
-      ambiente: portalGetAmbienteFormValue("Veiculo"),
+      ambiente: PORTAL_AMBIENTE_REAL,
     };
     const snapshotVeiculo = (v) => ({
       tipo: portalNormDiffVal(v?.tipo),
@@ -8510,7 +8489,6 @@ ${printable.innerHTML}
       motor: portalNormDiffVal(v?.motor),
       proprietario: portalNormDiffVal(v?.proprietario),
       local: portalNormDiffVal(v?.local),
-      ambiente: portalNormAmbiente(v?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
     });
     const doSaveVeiculo = () => {
       try {
@@ -8806,9 +8784,7 @@ ${printable.innerHTML}
       tabela: "",
       valorParcela: valorSemanal,
       clienteCodigo,
-      ambiente: isPortalTitularAdministrador()
-        ? portalGetAmbienteFormValue("Locacao")
-        : portalNormAmbiente(prev?.ambiente),
+      ambiente: PORTAL_AMBIENTE_REAL,
     };
 
     if (prev) {
@@ -8850,7 +8826,6 @@ ${printable.innerHTML}
       periodoLocacao: portalNormDiffVal(rec?.periodoLocacao),
       marcaModelo: portalNormDiffVal(rec?.marcaModelo),
       modalidade: portalNormDiffVal(rec?.modalidade),
-      ambiente: portalNormAmbiente(rec?.ambiente) === PORTAL_AMBIENTE_TESTE ? "Teste" : "Real",
     });
     const registroNovo = snapshotLoc({ ...baseRecord, numeroContrato: nc });
     const doSaveLocacao = () => {
@@ -11265,11 +11240,6 @@ ${printable.innerHTML}
     if (msg) msg.textContent = `Protocolo de teste ${nc} apagado.`;
   });
 
-  ["Cliente", "Veiculo", "Locacao"].forEach((tipo) => {
-    document.querySelectorAll(`input[name="operacao${tipo}Ambiente"]`).forEach((inp) => {
-      inp.addEventListener("change", () => portalApplyAmbienteVisualForm(tipo, portalGetAmbienteFormValue(tipo)));
-    });
-  });
   portalSyncAmbienteCadastroAdminUi();
 
   /** Locações ativas → WhatsApp (número do cadastro do cliente). */
