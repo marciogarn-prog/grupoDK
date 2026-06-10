@@ -817,7 +817,7 @@ async function runSuite() {
         !locDocsJs.includes("adicionarDocumentos"),
       "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
     );
-    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521crlv-merge-fix`, {
+    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260521crlv-unico`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -826,12 +826,13 @@ async function runSuite() {
         syncDocEnviarJs.includes("CLIENTE_CLOUD_PULL_KEYS") &&
         syncDocEnviarJs.includes("filterCloudPayloadForClienteApp") &&
         syncDocEnviarJs.includes("enviadoCliente === true") &&
-        syncDocEnviarJs.includes("mergeLocacaoDocumentosV1"),
+        syncDocEnviarJs.includes("mergeLocacaoDocumentosV1") &&
+        syncDocEnviarJs.includes("compactLocacaoDocumentosClienteStore"),
       "cliente recebe CRLV/contrato enviados via sync da nuvem"
     );
     record(
       "cliente.html sync documentos locação",
-      clienteHtml.includes("portal-supabase-sync.js?v=20260521crlv-merge-fix"),
+      clienteHtml.includes("portal-supabase-sync.js?v=20260521crlv-unico"),
       "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
@@ -843,7 +844,7 @@ async function runSuite() {
         lancExtrasJs.includes("locacaoDocumentoId"),
       "bloqueia cadastro sem PDF importado de Documentos"
     );
-    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260521crlv-merge-fix`, {
+    const clienteDocsJs = await fetch(`${BASE_URL}cliente-documentos-locacao.js?v=20260521crlv-unico`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -855,6 +856,7 @@ async function runSuite() {
         clienteAppJs.includes('data-cliente-docs-tipo="crlv"') &&
         clienteAppJs.includes('data-cliente-docs-tipo="multa"') &&
         clienteDocsJs.includes("isDocEnviadoCliente") &&
+        clienteDocsJs.includes("canonizarParaCliente") &&
         clienteDocsJs.includes("enviadoCliente === true") &&
         clienteDocsJs.includes("cliente-doc-zoom-viewport") &&
         clienteHtml.includes("cliente-documentos-locacao.js"),

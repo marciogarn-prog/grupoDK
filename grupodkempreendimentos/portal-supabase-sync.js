@@ -60,9 +60,51 @@
     return mergeLocacaoDocumentosV1([], Array.isArray(arr) ? arr : []);
   }
 
+  function inferDocTipoCompact(d) {
+    const t = String(d?.tipo || d?.origemDepositoCategoria || "").trim().toLowerCase();
+    if (t === "contrato" || t === "crlv" || t === "multa") return t;
+    const nome = String(d?.nome || "");
+    if (/^contrato\b|contrato\s*—/i.test(nome)) return "contrato";
+    if (/crlv/i.test(nome)) return "crlv";
+    if (/multa/i.test(nome)) return "multa";
+    return "";
+  }
+
+  function docLocacaoScore(d) {
+    const has = Boolean(String(d?.arquivoBase64 || "").trim());
+    const env = d?.enviadoCliente === true;
+    const ts = Number(d?.enviadoClienteEm || d?.createdAt) || 0;
+    return (has ? 1e16 : 0) + (env ? 1e15 : 0) + ts;
+  }
+
+  /** App cliente: 1 contrato + 1 CRLV por protocolo/CPF; multas mantêm-se todas. */
+  function compactLocacaoDocumentosClienteStore(arr) {
+    const merged = dedupeLocacaoDocumentosStore(arr);
+    const canonKeys = new Map();
+    const rest = [];
+    for (const d of merged) {
+      const tipo = inferDocTipoCompact(d);
+      if (tipo === "contrato" || tipo === "crlv") {
+        const nc = String(d?.numeroContrato ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+        const dig = String(d?.cpf ?? "")
+          .replace(/\D/g, "")
+          .slice(0, 11);
+        const key = `${nc}|${dig}|${tipo}`;
+        const prev = canonKeys.get(key);
+        if (!prev || docLocacaoScore(d) > docLocacaoScore(prev)) canonKeys.set(key, d);
+      } else {
+        rest.push(d);
+      }
+    }
+    return [...canonKeys.values(), ...rest];
+  }
+
   function sanitizeLocacaoDocumentosLocalStorage() {
     const arr = readLocalJsonArray("dk_locacao_documentos_v1");
-    const clean = dedupeLocacaoDocumentosStore(arr);
+    const clean = isClienteAppPage() ? compactLocacaoDocumentosClienteStore(arr) : dedupeLocacaoDocumentosStore(arr);
     if (JSON.stringify(clean) !== JSON.stringify(arr)) {
       localStorage.setItem("dk_locacao_documentos_v1", JSON.stringify(clean));
     }
