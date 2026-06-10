@@ -2842,19 +2842,23 @@ ${printable.innerHTML}
   function refreshPortalColaboradorBloqueioUi() {
     const wrap = document.getElementById("portalColabBloqueioWrap");
     const btn = document.getElementById("portalColabBloqueioBtn");
+    const resetWrap = document.getElementById("portalColabResetSenhaWrap");
     if (!wrap || !btn) return;
     if (!isPortalTitularAdministrador()) {
       wrap.classList.add("hidden");
+      resetWrap?.classList.add("hidden");
       return;
     }
     const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
     const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
     if (!f) {
       wrap.classList.add("hidden");
+      resetWrap?.classList.add("hidden");
       btn.textContent = "Bloquear colaborador";
       return;
     }
     wrap.classList.remove("hidden");
+    resetWrap?.classList.remove("hidden");
     btn.textContent = f.blocked ? "Desbloquear colaborador" : "Bloquear colaborador";
   }
 
@@ -3288,6 +3292,37 @@ ${printable.innerHTML}
       fb.textContent = f.blocked
         ? "Colaborador bloqueado — não pode entrar no sistema."
         : "Colaborador desbloqueado — pode voltar a aceder.";
+    }
+  });
+
+  document.getElementById("portalColabResetSenhaBtn")?.addEventListener("click", () => {
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (!isPortalTitularAdministrador()) {
+      if (fb) fb.textContent = "Apenas o administrador titular pode resetar senhas.";
+      return;
+    }
+    if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
+    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+    if (!f) {
+      if (fb) fb.textContent = "CPF não corresponde a um colaborador cadastrado.";
+      return;
+    }
+    const senhaIni = typeof SENHA_INICIAL_OPERACAO !== "undefined" ? SENHA_INICIAL_OPERACAO : "123456";
+    const nomeColab = String(f.nome || "").trim() || "colaborador";
+    if (
+      !window.confirm(
+        `Resetar a senha de ${nomeColab}?\n\nA senha volta para ${senhaIni} e no próximo login será pedida uma nova senha de 6 números.`
+      )
+    ) {
+      return;
+    }
+    f.senha = senhaIni;
+    f.mustChangePassword = true;
+    saveFuncionariosAccess();
+    portalPushCloudSnapshotAfterPersist();
+    if (fb) {
+      fb.textContent = `Senha de ${nomeColab} resetada para ${senhaIni} — no próximo login será pedida a nova senha (6 números).`;
     }
   });
 
