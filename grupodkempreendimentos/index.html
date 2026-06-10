@@ -388,7 +388,7 @@
 
         <div id="operacaoInlineCliente" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-cliente-title">
           <h3 id="operacao-inline-cliente-title" class="operacao-inline-form__title">Dados do cliente</h3>
-          <p class="subtext operacao-inline-form__lead" id="operacaoClienteLead">Preencha abaixo. Em ambiente de teste os dados ficam só neste navegador (rascunho).</p>
+          <p class="subtext operacao-inline-form__lead" id="operacaoClienteLead">Preencha os dados do cliente abaixo.</p>
           <form id="formOperacaoClienteInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Cód.</span>
@@ -458,14 +458,6 @@
               <span>Endereço</span>
               <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
             </label>
-            <div id="operacaoClienteAmbienteWrap" class="portal-field portal-field--wide portal-ambiente-admin hidden" role="group" aria-label="Ambiente do cadastro">
-              <span>Ambiente do cadastro</span>
-              <div class="portal-ambiente-opcoes">
-                <label><input type="radio" name="operacaoClienteAmbiente" value="real" checked> Real</label>
-                <label><input type="radio" name="operacaoClienteAmbiente" value="teste"> Teste</label>
-              </div>
-              <p class="subtext portal-ambiente-hint">Teste: pode apagar cliente e protocolos ligados; pagamentos são fictícios. Real: histórico imutável.</p>
-            </div>
             <div id="operacaoClienteSenhaWrap" class="portal-field portal-field--wide portal-cliente-senha-bar hidden" role="status" aria-live="polite" aria-label="Senha do app cliente">
               <span id="operacaoClienteSenhaLabel" class="portal-cliente-senha-label">senha=123456</span>
               <input type="hidden" id="operacaoClienteSenha" name="senhaApp" value="">
@@ -577,14 +569,6 @@
               <span>Local</span>
               <input type="text" id="operacaoVeiculoLocal" name="local" maxlength="120" placeholder="Local / garagem / filial" aria-label="Local">
             </label>
-            <div id="operacaoVeiculoAmbienteWrap" class="portal-field portal-field--wide portal-ambiente-admin hidden" role="group" aria-label="Ambiente do cadastro">
-              <span>Ambiente do cadastro</span>
-              <div class="portal-ambiente-opcoes">
-                <label><input type="radio" name="operacaoVeiculoAmbiente" value="real" checked> Real</label>
-                <label><input type="radio" name="operacaoVeiculoAmbiente" value="teste"> Teste</label>
-              </div>
-              <p class="subtext portal-ambiente-hint">Teste: veículo pode ser apagado pelo administrador.</p>
-            </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar veículo</button>
               <button type="button" class="btn-primary btn-secondary-outline hidden" id="operacaoVeiculoApagarBtn" title="Só administrador e cadastro marcado como TESTE">Apagar veículo (teste)</button>
@@ -837,11 +821,6 @@
             <datalist id="operacaoLocacaoPlacaSugestoes"></datalist>
             <datalist id="operacaoLocacaoCpfSugestoes"></datalist>
             <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
-
-            <div id="operacaoLocacaoAmbientePersist" class="portal-ambiente-persist hidden" aria-hidden="true" hidden>
-              <input type="radio" name="operacaoLocacaoAmbiente" value="real" checked>
-              <input type="radio" name="operacaoLocacaoAmbiente" value="teste">
-            </div>
 
             <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
               <span>Documentos do contrato</span>
@@ -1995,7 +1974,7 @@
   <script src="app.js?v=20260609login-manut" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260610avisos-check" defer></script>
+  <script src="portal-locadora-ui.js?v=20260521sem-ambiente-teste" defer></script>
   <script src="portal-locacao-documentos.js?v=20260521envio-geral" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
   <script src="portal-documentos.js?v=20260609doc-visualizar" defer></script>
