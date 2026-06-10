@@ -345,6 +345,9 @@
       registradoPorCpf: dig(x.registradoPorCpf).slice(0, 11),
       registradoPorNome: String(x.registradoPorNome || "").trim(),
     };
+    /* preservar vínculo ao PDF importado do depósito (multas) */
+    if (x.locacaoDocumentoId) row.locacaoDocumentoId = String(x.locacaoDocumentoId);
+    if (x.origemDepositoId) row.origemDepositoId = String(x.origemDepositoId);
     row[sk.data] = dataReg;
     row[sk.cod] = codReg;
     row[sk.valor] = valorReg;
