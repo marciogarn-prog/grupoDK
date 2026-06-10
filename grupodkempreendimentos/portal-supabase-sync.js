@@ -348,8 +348,9 @@
     return [];
   }
 
-  /** Cópia Redis: sem imagens PDF/JPEG em base64 (limite ~4,5 MB na Vercel). Metadados e assinaturas mantêm-se. */
-  function shrinkPayloadForRedundantCloud(payload) {
+  /** Cópia Redis: sem imagens PDF/JPEG pesadas (limite ~4,5 MB na Vercel). */
+  function stripHeavyBinaryFromPayload(payload, opts) {
+    const keepLocacaoPdf = Boolean(opts && opts.keepLocacaoPdf);
     if (!payload || typeof payload !== "object") return payload;
     const out = { ...payload };
     if (Array.isArray(out.dk_comprovantes_cliente_pendentes)) {
@@ -361,12 +362,15 @@
       });
     }
     if (Array.isArray(out.dk_locacao_documentos_v1)) {
-      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1
-        .filter((rec) => rec && rec.enviadoCliente === true)
-        .map((rec) => {
-          if (!rec || typeof rec !== "object") return rec;
-          return { ...rec };
-        });
+      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.map((rec) => {
+        if (!rec || typeof rec !== "object") return rec;
+        if (keepLocacaoPdf || !String(rec.arquivoBase64 || "").trim()) return { ...rec };
+        const { arquivoBase64, ...rest } = rec;
+        return { ...rest, pdfNaCopiaRedis: true };
+      });
+      if (!keepLocacaoPdf) {
+        /* Supabase: metadados de todos; Redis shrink: só enviados ao cliente */
+      }
     }
     if (out.dk_patrimonio_crlv_v1?.documentos && Array.isArray(out.dk_patrimonio_crlv_v1.documentos)) {
       const stripDocImg = (d) => {
@@ -406,6 +410,85 @@
       out.dk_patrimonio_fotos_excluidas_v1 = out.dk_patrimonio_fotos_excluidas_v1.slice(-600);
     }
     return out;
+  }
+
+  /** Supabase: cadastros + metadados; PDFs de CRLV/contrato ficam na cópia Redis. */
+  function shrinkPayloadForSupabaseStorage(payload) {
+    return stripHeavyBinaryFromPayload(payload, { keepLocacaoPdf: false });
+  }
+
+  function shrinkPayloadForRedundantCloud(payload) {
+    if (!payload || typeof payload !== "object") return payload;
+    const out = stripHeavyBinaryFromPayload(payload, { keepLocacaoPdf: true });
+    if (Array.isArray(out.dk_locacao_documentos_v1)) {
+      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.filter(
+        (rec) => rec && rec.enviadoCliente === true
+      );
+    }
+    return out;
+  }
+
+  const cloudSupabaseState = { down: false, reason: "", code: "", quietFailLogged: false };
+
+  function describeSupabasePushError(raw) {
+    const text = String(raw || "").trim();
+    const lower = text.toLowerCase();
+    if (
+      text.includes("PGRST002") ||
+      lower.includes("schema cache") ||
+      lower.includes("could not query the database for the schema cache")
+    ) {
+      return {
+        code: "PGRST002",
+        userMessage:
+          "Supabase REST indisponível (erro PGRST002 — cache de esquema). Os dados estão na cópia Redis. Abra o painel Supabase → reinicie o projeto ou execute NOTIFY pgrst, 'reload schema';",
+        isOutage: true,
+      };
+    }
+    if (lower.includes("supabase_upsert_timeout") || lower.includes("timeout")) {
+      return {
+        code: "timeout",
+        userMessage:
+          "Supabase demorou demais a responder (snapshot grande). Metadados vão para Redis; tente «Guardar na nuvem» de novo mais tarde.",
+        isOutage: false,
+      };
+    }
+    if (lower.includes("payload too large") || lower.includes("413")) {
+      return {
+        code: "payload_large",
+        userMessage:
+          "Snapshot demasiado grande para o Supabase neste pedido. Cadastros e metadados ficam na cópia Redis.",
+        isOutage: false,
+      };
+    }
+    if (!text) {
+      return {
+        code: "unknown",
+        userMessage: "Supabase não respondeu — cópia Redis activa.",
+        isOutage: true,
+      };
+    }
+    return { code: "error", userMessage: `Supabase: ${text.slice(0, 180)}`, isOutage: false };
+  }
+
+  function updateSupabaseStatusBanner(supaOk, supaErr) {
+    const el = document.getElementById("portal-cloud-supabase-status");
+    if (!el) return;
+    if (supaOk) {
+      cloudSupabaseState.down = false;
+      cloudSupabaseState.reason = "";
+      cloudSupabaseState.code = "";
+      cloudSupabaseState.quietFailLogged = false;
+      el.classList.add("hidden");
+      el.textContent = "";
+      return;
+    }
+    const info = describeSupabasePushError(supaErr);
+    cloudSupabaseState.down = true;
+    cloudSupabaseState.reason = info.userMessage;
+    cloudSupabaseState.code = info.code;
+    el.textContent = info.userMessage;
+    el.classList.remove("hidden");
   }
 
   function attachComprovanteMediaFromSecondary(primary, secondary) {
@@ -983,6 +1066,28 @@
     if (!bar) return;
     bar.classList.remove("hidden");
     refreshLastBackupPanel().catch((e) => console.warn("[DK backup] panel", e));
+    probeSupabaseCloudHealth().catch((e) => console.warn("[DK cloud] health", e));
+  }
+
+  async function probeSupabaseCloudHealth() {
+    const client = window.__DK_SUPABASE_CLIENT__;
+    if (!client || !window.__DK_SUPABASE_CONFIGURED__) return { ok: false, reason: "not_configured" };
+    try {
+      const { error } = await withCloudTimeout(
+        client.from("dk_cloud_snapshots").select("label").eq("label", dkSnapshotLabel()).limit(1),
+        8000,
+        "supabase_health_timeout"
+      );
+      if (error) {
+        updateSupabaseStatusBanner(false, error.message || String(error));
+        return { ok: false, reason: error.message };
+      }
+      updateSupabaseStatusBanner(true, "");
+      return { ok: true };
+    } catch (e) {
+      updateSupabaseStatusBanner(false, String(e?.message || e));
+      return { ok: false, reason: String(e?.message || e) };
+    }
   }
 
   function resolveRedundantSnapshotApiUrls() {
@@ -1091,12 +1196,13 @@
         cloudPayload.dk_locacao_documentos_v1
       );
       const fullPayload = { ...cloudPayload, dk_locacao_documentos_v1: merged };
+      const supabasePayload = shrinkPayloadForSupabaseStorage(fullPayload);
       const { error } = await withCloudTimeout(
         client.from("dk_cloud_snapshots").upsert(
-          { label: dkSnapshotLabel(), payload: fullPayload, updated_at: updatedAt },
+          { label: dkSnapshotLabel(), payload: supabasePayload, updated_at: updatedAt },
           { onConflict: "label" }
         ),
-        12000,
+        45000,
         "supabase_upsert_timeout"
       );
       return !error;
@@ -1243,10 +1349,10 @@
       };
     }
     if (!supaOk && redisOk) {
+      const info = describeSupabasePushError(supaErr);
       return {
-        text:
-          "Supabase indisponível — cadastros e comprovantes (metadados/assinaturas) guardados na cópia Redis. As imagens dos comprovantes ficam neste PC até o Supabase voltar.",
-        tone: "ok",
+        text: info.userMessage,
+        tone: info.isOutage ? null : "muted",
       };
     }
     const parts = [];
@@ -2504,15 +2610,20 @@
 
     const client = window.__DK_SUPABASE_CLIENT__;
     if (client && window.__DK_SUPABASE_CONFIGURED__) {
-      const row = { label: dkSnapshotLabel(), payload, updated_at: updatedAt };
+      const row = {
+        label: dkSnapshotLabel(),
+        payload: shrinkPayloadForSupabaseStorage(payload),
+        updated_at: updatedAt,
+      };
       try {
         const { error } = await withCloudTimeout(
           client.from("dk_cloud_snapshots").upsert(row, { onConflict: "label" }),
-          20000,
+          45000,
           "supabase_upsert_timeout"
         );
         if (error) {
           supaErr = error.message || String(error);
+          if (error.code) supaErr = `${error.code}: ${supaErr}`;
           console.error("[DK cloud] Supabase push", error);
         } else {
           supaOk = true;
@@ -2531,6 +2642,8 @@
     });
     redisOk = red.ok;
     if (!redisOk) redisErr = String(red.error || "Redis indisponível");
+
+    updateSupabaseStatusBanner(supaOk, supaErr);
 
     if (!supaOk && !redisOk) {
       const msg = formatPushResultMessage(supaOk, redisOk, supaErr, redisErr);
@@ -2552,14 +2665,21 @@
 
   async function pushSnapshotQuiet(opts) {
     const r = await upsertSnapshotRow(false, opts);
-    if (r.ok) {
-      const src =
-        r.source === "both"
-          ? "Supabase + Redis"
-          : r.source === "redis"
-            ? "cópia Redis (Supabase em falha)"
-            : "Supabase";
-      setMsg(`Nuvem atualizada (${src}).`, "muted");
+    if (!r.ok) return r;
+    if (r.supaOk && r.redisOk) {
+      setMsg("Nuvem actualizada (Supabase + Redis).", "ok");
+      return r;
+    }
+    if (r.redisOk && !r.supaOk) {
+      if (!cloudSupabaseState.quietFailLogged) {
+        cloudSupabaseState.quietFailLogged = true;
+        const info = describeSupabasePushError(cloudSupabaseState.reason || cloudSupabaseState.code);
+        console.warn("[DK cloud] Supabase em falha; Redis OK.", cloudSupabaseState.reason || info.userMessage);
+      }
+      return r;
+    }
+    if (r.supaOk && !r.redisOk) {
+      setMsg("Nuvem actualizada (Supabase; cópia Redis indisponível).", "muted");
     }
     return r;
   }
