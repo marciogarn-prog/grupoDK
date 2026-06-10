@@ -770,15 +770,13 @@ async function runSuite() {
         indexFresh.includes("Trazer documento para contrato") &&
         indexFresh.includes("Trazer documento para CRLV") &&
         indexFresh.includes("operacaoLocacaoDocumentosListaContrato") &&
-        indexFresh.includes("Visualizar") &&
-        indexFresh.includes("Excluir") &&
         !indexFresh.includes("operacaoLocacaoDocumentosListaMulta") &&
         !indexFresh.includes("operacaoLocacaoDocContratoBtn") &&
         !indexFresh.includes("operacaoLocacaoDocumentosInput") &&
         indexFresh.includes("Confirmar") &&
         indexFresh.includes("Enviar para o cliente") &&
         indexFresh.includes("portal-locacao-documentos.js"),
-      "Contrato + CRLV: trazer do depósito; Visualizar + Confirmar + Enviar"
+      "Contrato + CRLV: trazer do depósito; Visualizar + Confirmar + Enviar + Excluir"
     );
     record(
       "lançamento multas importa depósito Documentos",
