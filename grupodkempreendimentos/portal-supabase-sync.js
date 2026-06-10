@@ -989,7 +989,8 @@
     const urls = resolveRedundantSnapshotApiUrls();
     let anyOk = false;
     let lastErr = null;
-    const bodyPayload = shrinkPayloadForRedundantCloud(payload);
+    const bodyPayload =
+      opts && opts.skipShrink ? payload : shrinkPayloadForRedundantCloud(payload);
     if (replace) {
       bodyPayload._dkFullReplaceKeys = [
         "dk_comprovantes_cliente_pendentes",
@@ -1046,7 +1047,8 @@
           },
         ],
       },
-      updatedAt
+      updatedAt,
+      { skipShrink: true }
     );
     if (red.ok) noteCloudPushTimestamp(updatedAt);
     return { ok: red.ok, redisOk: red.ok, error: red.error };
@@ -2675,6 +2677,7 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_fetchRedundantSnapshotPayload = fetchRedundantSnapshotPayload;
     window.__DK_pushLocacaoDocumentoNuvem = pushLocacaoDocumentoNuvem;
     window.__DK_docsLocacaoMerge = mergeLocacaoDocumentosV1;
     window.__DK_bootstrapDemoCadastrosFromCloud = bootstrapDemoCadastrosFromCloudIfEmpty;
