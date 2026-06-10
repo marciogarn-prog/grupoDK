@@ -35,6 +35,12 @@
         byId.set(rec.id, rec);
         return;
       }
+      /* tombstone: doc excluído no portal não pode ressuscitar pelo merge */
+      if (rec.excluido === true || prev.excluido === true) {
+        const tsAct = (x) => Number(x.excluidoEm || x.enviadoClienteEm || x.createdAt) || 0;
+        if (tsAct(rec) >= tsAct(prev)) byId.set(rec.id, rec);
+        return;
+      }
       const prevHas = Boolean(String(prev.arquivoBase64 || "").trim());
       const recHas = Boolean(String(rec.arquivoBase64 || "").trim());
       const prevTs = Number(prev.enviadoClienteEm || prev.createdAt) || 0;
@@ -79,7 +85,7 @@
 
   /** App cliente: 1 contrato + 1 CRLV por protocolo/CPF; multas mantêm-se todas. */
   function compactLocacaoDocumentosClienteStore(arr) {
-    const merged = dedupeLocacaoDocumentosStore(arr);
+    const merged = dedupeLocacaoDocumentosStore(arr).filter((d) => d?.excluido !== true);
     const canonKeys = new Map();
     const rest = [];
     for (const d of merged) {
@@ -422,7 +428,7 @@
     const out = stripHeavyBinaryFromPayload(payload, { keepLocacaoPdf: true });
     if (Array.isArray(out.dk_locacao_documentos_v1)) {
       out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.filter(
-        (rec) => rec && rec.enviadoCliente === true
+        (rec) => rec && (rec.enviadoCliente === true || rec.excluido === true)
       );
     }
     return out;
@@ -653,9 +659,10 @@
       );
     }
     if (Array.isArray(out.dk_locacao_documentos_v1)) {
+      /* enviados + tombstones (excluído) — o tombstone remove o doc antigo do app */
       out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.filter(
         (d) =>
-          d?.enviadoCliente === true &&
+          (d?.enviadoCliente === true || d?.excluido === true) &&
           String(d?.cpf || "")
             .replace(/\D/g, "")
             .slice(0, 11) === dig
