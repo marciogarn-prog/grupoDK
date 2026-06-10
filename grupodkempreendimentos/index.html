@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260610doc-enviar">
+  <link rel="stylesheet" href="styles.css?v=20260521ultimo-backup">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260607oficial-guard"></script>
@@ -255,11 +255,17 @@
             Nuvem <strong>redundante</strong>: cada guardar grava em <strong>Supabase</strong> e numa <strong>cópia Redis</strong> (Vercel). Se um falhar, o outro atende no carregar.
             Use <strong>Carregar da nuvem</strong> noutro PC. Backup por e-mail → <strong>marciogarn@gmail.com</strong>; <strong>Importar backup</strong> restaura .json/.json.gz.
           </p>
-          <div class="portal-cloud-sync-bar__actions">
-            <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
-            <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-pull">Carregar da nuvem</button>
-            <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-email">Gerar backup</button>
-            <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-import">Importar backup</button>
+          <div class="portal-cloud-sync-bar__row">
+            <div class="portal-cloud-sync-bar__actions">
+              <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-push">Guardar na nuvem</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-cloud-pull">Carregar da nuvem</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-email">Gerar backup</button>
+              <button type="button" class="btn-primary btn-secondary-outline" id="btn-dk-backup-import">Importar backup</button>
+            </div>
+            <aside id="dk-backup-last-info" class="dk-backup-last-info" aria-live="polite">
+              <p class="dk-backup-last-info__title">Último backup enviado</p>
+              <p id="dk-backup-last-info-text" class="dk-backup-last-info__text subtext">A carregar…</p>
+            </aside>
           </div>
           <input type="file" id="dk-backup-import-input" class="hidden" accept=".json,.gz,application/json,application/gzip" tabindex="-1" aria-hidden="true">
           <p id="portal-cloud-sync-msg" class="portal-feedback" role="status"></p>
@@ -1869,6 +1875,19 @@
     </div>
   </div>
 
+  <div id="portalBackupImportChoiceModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalBackupImportChoiceTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-close-backup-import-choice></div>
+    <div class="portal-modal__card">
+      <h3 id="portalBackupImportChoiceTitulo" class="portal-modal__title">Importar backup</h3>
+      <p class="subtext">Restaura os dados deste navegador. Escolha o último backup guardado no servidor ou um ficheiro do seu PC.</p>
+      <div class="portal-modal__actions portal-modal__actions--wrap">
+        <button type="button" class="btn-primary" id="portalBackupImportUltimoBtn">Último backup</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalBackupImportFileBtn">Escolher ficheiro</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalBackupImportCancelBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalAdminAlteracaoConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalAdminAlteracaoConfirmTitulo">
     <div class="portal-modal__backdrop" data-close-admin-alteracao-confirm></div>
     <div class="portal-modal__card">
@@ -1981,6 +2000,6 @@
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260609multa-deposito" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260521proto-nuvem" defer></script>
+  <script src="portal-supabase-sync.js?v=20260521ultimo-backup" defer></script>
 </body>
 </html>
