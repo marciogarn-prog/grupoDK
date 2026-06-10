@@ -1192,23 +1192,19 @@
         const pend =
           typeof window.__DK_comprovantesClienteTemPendentesNuvem === "function" &&
           window.__DK_comprovantesClienteTemPendentesNuvem();
-        const { n, total } = sessao?.cpf ? countPagamentosCliente(sessao.cpf) : { n: 0, total: 0 };
-        const pagInfo =
-          n > 0
-            ? ` ${n} pagamento(s) · total ${currencyBRL(total)}.`
-            : " Nenhum pagamento na nuvem para este CPF — peça ao DK para gravar no portal.";
+        const hora = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
         msg.textContent = pend
-          ? `Dados atualizados.${pagInfo} Alguns envios ainda só neste telemóvel — repita com internet.`
-          : `Dados sincronizados.${pagInfo}`;
+          ? `Atualizado às ${hora}. Alguns envios ainda só neste telemóvel — repita com internet.`
+          : `Atualizado da nuvem às ${hora}.`;
       }
     } catch {
-      if (msg && !silent) msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
+      if (msg && !silent) msg.textContent = "Usando dados locais — deslize o ecrã para baixo para atualizar.";
     } finally {
       if (sessao) {
         if (silent) scheduleClienteRender(sessao);
         else resolveAppViewAfterData(sessao);
         if (msg && !silent && !syncOk && msg.textContent.startsWith("A sincronizar")) {
-          msg.textContent = "Usando dados locais — toque em Atualizar para repetir.";
+          msg.textContent = "Usando dados locais — deslize o ecrã para baixo para atualizar.";
         }
       }
     }
@@ -1275,12 +1271,19 @@
 
     const resumo = $("cliente-resumo");
     if (resumo) {
-      const pagAtivos = [];
-      locAtivas.forEach((loc) => {
-        getLancamentosFromLoc(loc).forEach((p) => pagAtivos.push(p));
-      });
-      const total = pagAtivos.reduce((s, p) => s + p.valor, 0);
-      resumo.innerHTML = `<p><strong>${locAtivas.length}</strong> contrato(s) ativo(s) · <strong>${pagAtivos.length}</strong> pagamento(s) · total pago <strong>${currencyBRL(total)}</strong></p>`;
+      /* PARABÉNS — semanas pagas = total pago ÷ valor do plano (arredondado para baixo) */
+      const nomeCliente = (String(sessao.nome || "").trim() || "Cliente").toUpperCase();
+      const linhas = locAtivas
+        .map((loc) => {
+          const plano = parseCurrencyBR(loc.valorLocacao) + parseCurrencyBR(loc.valorInvestimento);
+          const totalPago = getLancamentosFromLoc(loc).reduce((s, p) => s + p.valor, 0);
+          const semanas = plano > 0 ? Math.floor(totalPago / plano) : 0;
+          const placaInfo =
+            locAtivas.length > 1 ? ` (${escapeHtml(String(loc.placa || "").trim().toUpperCase())})` : "";
+          return `<p class="cliente-parabens__texto">PARABÉNS, <strong>${escapeHtml(nomeCliente)}</strong>! VOCÊ JÁ PAGOU <strong>${semanas}</strong> ${semanas === 1 ? "SEMANA" : "SEMANAS"} DO SEU PLANO DK MINHA MOTO${placaInfo}.</p>`;
+        })
+        .join("");
+      resumo.innerHTML = linhas ? `<div class="cliente-parabens">${linhas}</div>` : "";
     }
 
     renderNotificacoes(cpf);
@@ -1575,6 +1578,53 @@
   async function pullNuvem() {
     const sessao = getSessao();
     await atualizarProgramaEDados(sessao, { silent: false });
+  }
+
+  /* Puxar para atualizar: dedo de cima para baixo no topo da página sincroniza da nuvem. */
+  function wirePullToRefresh() {
+    if (document.documentElement.dataset.dkPullRefreshBound === "1") return;
+    document.documentElement.dataset.dkPullRefreshBound = "1";
+    const LIMIAR_PX = 80;
+    let startY = 0;
+    let pulling = false;
+    let busy = false;
+    document.addEventListener(
+      "touchstart",
+      (e) => {
+        if (window.scrollY > 5 || busy) {
+          pulling = false;
+          return;
+        }
+        startY = e.touches?.[0]?.clientY ?? 0;
+        pulling = true;
+      },
+      { passive: true }
+    );
+    document.addEventListener(
+      "touchmove",
+      (e) => {
+        if (!pulling || busy) return;
+        const dy = (e.touches?.[0]?.clientY ?? 0) - startY;
+        if (dy < LIMIAR_PX || window.scrollY > 5) return;
+        pulling = false;
+        const sessao = getSessao();
+        if (!sessao?.cpf) return;
+        busy = true;
+        const msg = $("sync-msg");
+        if (msg) msg.textContent = "A atualizar da nuvem…";
+        void pullNuvem().finally(() => {
+          busy = false;
+        });
+      },
+      { passive: true }
+    );
+    document.addEventListener(
+      "touchend",
+      () => {
+        pulling = false;
+      },
+      { passive: true }
+    );
   }
 
   let comprovanteFile = null;
@@ -2341,7 +2391,7 @@
     };
     $("btn-logout")?.addEventListener("click", doLogout);
     $("btn-logout-prop")?.addEventListener("click", doLogout);
-    $("btn-sync")?.addEventListener("click", () => pullNuvem());
+    wirePullToRefresh();
     $("btn-sync-prop")?.addEventListener("click", async () => {
       const sessao = getSessao();
       const msg = $("sync-msg-prop");
