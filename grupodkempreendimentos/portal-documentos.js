@@ -408,6 +408,43 @@
     return (loadDeposit()[cat] || []).length;
   }
 
+  /**
+   * Protocolos das locações: quais estão ATIVOS (sem data de fim).
+   * Contratos no depósito têm chave = número do protocolo.
+   */
+  function protocolosLocacoesAtivos() {
+    let locs = [];
+    try {
+      locs = JSON.parse(localStorage.getItem("dk_locacoes_cadastro") || "[]");
+    } catch {
+      locs = [];
+    }
+    if (!Array.isArray(locs)) locs = [];
+    const ativos = new Set();
+    const todos = new Set();
+    for (const l of locs) {
+      const nc = normProtocolo(l?.numeroContrato);
+      if (!nc) continue;
+      todos.add(nc);
+      const fim = String(l?.fim || l?.dataFim || l?.data_fim || "").trim();
+      let ativa = !fim;
+      if (ativa && typeof window.__DK_isPortalLocacaoAtiva === "function") {
+        ativa = Boolean(window.__DK_isPortalLocacaoAtiva(l));
+      }
+      if (ativa) ativos.add(nc);
+    }
+    return { ativos, todos };
+  }
+
+  function contratoEstaAtivo(entry, sets) {
+    const s = sets || protocolosLocacoesAtivos();
+    const nc = normProtocolo(entry?.chave);
+    if (!nc) return false;
+    /* protocolo sem locação conhecida: tratado como ativo (mesma regra da importação) */
+    if (!s.todos.has(nc)) return true;
+    return s.ativos.has(nc);
+  }
+
   function renderBuscaResultados() {
     const wrap = $("documentosBuscaResultados");
     const msg = $("documentosBuscaMsg");
@@ -426,13 +463,20 @@
       wrap.innerHTML = '<p class="subtext documentos-busca-vazio">Nenhum resultado.</p>';
       return;
     }
+    const setsContrato = cat === "contrato" ? protocolosLocacoesAtivos() : null;
+    const badgeContrato = (e) => {
+      if (!setsContrato) return "";
+      return contratoEstaAtivo(e, setsContrato)
+        ? ' · <span class="documentos-resumo-contrato--ativos">locação ATIVA</span>'
+        : ' · <span class="documentos-resumo-contrato--inativos">locação INATIVA</span>';
+    };
     wrap.innerHTML = rows
       .map(
         (e) =>
           `<article class="documentos-resultado" data-doc-id="${e.id}" data-doc-cat="${cat}">
             <div class="documentos-resultado__info">
               <strong class="documentos-resultado__nome">${String(e.nomeArquivo || e.chave).replace(/</g, "&lt;")}</strong>
-              <span class="subtext">Entrada: ${fmtData(e.criadoEm)} · ${String(e.chave || "")}</span>
+              <span class="subtext">Entrada: ${fmtData(e.criadoEm)} · ${String(e.chave || "")}${badgeContrato(e)}</span>
             </div>
             <div class="documentos-resultado__acoes">
               <button type="button" class="btn-primary btn-secondary-outline documentos-btn-ver" data-doc-id="${e.id}" data-doc-cat="${cat}">Abrir</button>
@@ -454,12 +498,26 @@
     });
   }
 
+  function resumoContratoHtml(dep, ids) {
+    const sets = protocolosLocacoesAtivos();
+    const arr = dep.contrato || [];
+    const ativos = arr.filter((e) => contratoEstaAtivo(e, sets));
+    const inativos = arr.filter((e) => !contratoEstaAtivo(e, sets));
+    const extra = ids
+      ? ` — ${arr.filter((e) => e.nuvem === true).length} na nuvem (todos os operadores) · ${arr.filter((e) => ids.has(String(e.id))).length} neste computador.`
+      : ".";
+    return (
+      `<span class="documentos-resumo-contrato documentos-resumo-contrato--ativos">Contratos ativos: <strong>${ativos.length}</strong></span>` +
+      ` · <span class="documentos-resumo-contrato documentos-resumo-contrato--inativos">Contratos inativos: <strong>${inativos.length}</strong></span>${extra}`
+    );
+  }
+
   function atualizarResumosDepositos() {
     const dep = loadDeposit();
     $("documentosResumoCrlv") &&
       ($("documentosResumoCrlv").textContent = `${dep.crlv.length} ficheiro(s) CRLV no depósito.`);
     $("documentosResumoContrato") &&
-      ($("documentosResumoContrato").textContent = `${dep.contrato.length} contrato(s) no depósito.`);
+      ($("documentosResumoContrato").innerHTML = resumoContratoHtml(dep, null));
     $("documentosResumoMulta") &&
       ($("documentosResumoMulta").textContent = `${dep.multa.length} multa(s) no depósito.`);
     void (async () => {
@@ -481,9 +539,8 @@
       if ($("documentosResumoCrlv")) {
         $("documentosResumoCrlv").textContent = texto(c, "ficheiro(s) CRLV");
       }
-      const ct = info("contrato");
       if ($("documentosResumoContrato")) {
-        $("documentosResumoContrato").textContent = texto(ct, "contrato(s)");
+        $("documentosResumoContrato").innerHTML = resumoContratoHtml(dep, ids);
       }
       const m = info("multa");
       if ($("documentosResumoMulta")) {
