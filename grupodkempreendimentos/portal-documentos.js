@@ -347,19 +347,15 @@
     return null;
   }
 
-  async function abrirDoc(categoria, id) {
-    const row = await obterBlobDoc(categoria, id);
-    if (!row?.blob) {
-      alert("Ficheiro não encontrado neste computador. Carregue o documento de novo.");
-      return;
-    }
-    const url = URL.createObjectURL(row.blob);
+  function abrirViewerComBlob(blob, nomeArquivo, mimeType) {
+    if (!blob) return false;
+    const url = URL.createObjectURL(blob);
     const modal = $("documentosViewerModal");
     const iframe = $("documentosViewerIframe");
     const img = $("documentosViewerImg");
     const titulo = $("documentosViewerTitulo");
-    const mime = String(row.mimeType || row.blob.type || "").toLowerCase();
-    if (titulo) titulo.textContent = row.nomeArquivo || id;
+    const mime = String(mimeType || blob.type || "").toLowerCase();
+    if (titulo) titulo.textContent = nomeArquivo || "Documento";
     if (mime.includes("pdf") && iframe) {
       iframe.src = url;
       iframe.classList.remove("hidden");
@@ -368,10 +364,23 @@
       img.src = url;
       img.classList.remove("hidden");
       iframe?.classList.add("hidden");
+    } else if (iframe) {
+      iframe.src = url;
+      iframe.classList.remove("hidden");
     }
     modal?.classList.remove("hidden");
     modal?.setAttribute("aria-hidden", "false");
-    modal.dataset.blobUrl = url;
+    if (modal) modal.dataset.blobUrl = url;
+    return true;
+  }
+
+  async function abrirDoc(categoria, id) {
+    const row = await obterBlobDoc(categoria, id);
+    if (!row?.blob) {
+      alert("Ficheiro não encontrado neste computador. Carregue o documento de novo.");
+      return;
+    }
+    abrirViewerComBlob(row.blob, row.nomeArquivo || id, row.mimeType || row.blob.type);
   }
 
   async function baixarDoc(categoria, id) {
@@ -502,6 +511,7 @@
   window.__DK_documentosObterEntrada = obterEntradaDeposito;
   window.__DK_documentosContarDeposito = contarDeposito;
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
+  window.__DK_documentosAbrirViewerBlob = abrirViewerComBlob;
   window.__DK_documentosNormPlaca = normPlaca;
   window.__DK_documentosNormProtocolo = normProtocolo;
   window.__DK_documentosMergeDeposit = function mergeLocalCloud(localDep, cloudDep) {

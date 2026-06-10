@@ -4955,6 +4955,7 @@ table.validados-app .lnk-comprovante {
   align-self: center;
 }
 
+.portal-loc-docs-item__visualizar,
 .portal-loc-docs-item__abrir,
 .portal-loc-docs-item__confirmar {
   font-size: 0.82rem;
@@ -5057,6 +5058,12 @@ table.validados-app .lnk-comprovante {
 
 .portal-loc-docs-busca__btn {
   flex: 0 0 auto;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+  padding: 0.45rem 0.65rem;
 }
 
 .portal-loc-docs-busca-msg {
