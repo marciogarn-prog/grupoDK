@@ -789,13 +789,15 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260609doc-importar`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260610doc-enviar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
       "documentos locação sync nuvem",
       locDocsJs.includes("dk_locacao_documentos_v1") &&
         locDocsJs.includes("enviarDocumentoParaCliente") &&
+        locDocsJs.includes("verificarDocumentoEnviadoNaNuvem") &&
+        locDocsJs.includes("__DK_fetchCloudSnapshotPayload") &&
         locDocsJs.includes("enviadoCliente") &&
         locDocsJs.includes("visualizarDocumento") &&
         locDocsJs.includes("__DK_documentosAbrirViewerBlob") &&
@@ -810,7 +812,23 @@ async function runSuite() {
         locDocsJs.includes("docCanonicoPorTipo") &&
         locDocsJs.includes("limparDuplicadosNaoEnviados") &&
         !locDocsJs.includes("adicionarDocumentos"),
-      "contrato/crlv: visualizar no modal; confirmar antes de enviar; só enviados vão à nuvem"
+      "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
+    );
+    const syncDocEnviarJs = await fetch(`${BASE_URL}portal-supabase-sync.js?v=20260610doc-enviar`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente pull documentos locação (dk_locacao_documentos_v1)",
+      syncDocEnviarJs.includes('"dk_locacao_documentos_v1"') &&
+        syncDocEnviarJs.includes("CLIENTE_CLOUD_PULL_KEYS") &&
+        syncDocEnviarJs.includes("filterCloudPayloadForClienteApp") &&
+        syncDocEnviarJs.includes("enviadoCliente === true"),
+      "cliente recebe CRLV/contrato enviados via sync da nuvem"
+    );
+    record(
+      "cliente.html sync documentos locação",
+      clienteHtml.includes("portal-supabase-sync.js?v=20260610doc-enviar"),
+      "app cliente carrega sync com pull de dk_locacao_documentos_v1"
     );
     const lancExtrasJs = await fetch(`${BASE_URL}portal-lancamentos-extras.js?v=20260609multa-deposito`, {
       cache: "no-store",

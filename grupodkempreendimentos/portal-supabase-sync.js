@@ -445,6 +445,15 @@
         (r) => String(r?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
       );
     }
+    if (Array.isArray(out.dk_locacao_documentos_v1)) {
+      out.dk_locacao_documentos_v1 = out.dk_locacao_documentos_v1.filter(
+        (d) =>
+          d?.enviadoCliente === true &&
+          String(d?.cpf || "")
+            .replace(/\D/g, "")
+            .slice(0, 11) === dig
+      );
+    }
     delete out.dk_clientes_cadastro;
     delete out.dk_portal_clientes_cadastro;
     delete out.dk_veiculos_cadastro;
@@ -455,6 +464,7 @@
 
   const CLIENTE_CLOUD_PULL_KEYS = new Set([
     "dk_locacoes_cadastro",
+    "dk_locacao_documentos_v1",
     "dk_comunicacao_operacao_v1",
     "dk_cliente_notificacoes",
     "dk_comprovantes_cliente_pendentes",
