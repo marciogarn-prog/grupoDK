@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260610menu-compacto">
+  <link rel="stylesheet" href="styles.css?v=20260610senha-relatorio">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260610corte-fixo"></script>
@@ -465,11 +465,6 @@
               <span>Endereço</span>
               <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
             </label>
-            <div id="operacaoClienteSenhaWrap" class="portal-field portal-field--wide portal-cliente-senha-bar hidden" role="status" aria-live="polite" aria-label="Senha do app cliente">
-              <span id="operacaoClienteSenhaLabel" class="portal-cliente-senha-label">senha=123456</span>
-              <input type="hidden" id="operacaoClienteSenha" name="senhaApp" value="">
-              <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteSenhaResetBtn" title="Volta a senha para 123456">Resetar senha</button>
-            </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary hidden" id="operacaoClienteAtualizarBtn">Atualizar dados do cliente</button>
@@ -477,6 +472,11 @@
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteLimparBtn">Limpar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteVoltarBtn">Voltar</button>
               <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteGerarRelatorioBtn">Gerar relatório</button>
+              <div id="operacaoClienteSenhaWrap" class="portal-cliente-senha-bar hidden" role="status" aria-live="polite" aria-label="Senha do app cliente">
+                <span id="operacaoClienteSenhaLabel" class="portal-cliente-senha-label">senha=123456</span>
+                <input type="hidden" id="operacaoClienteSenha" name="senhaApp" value="">
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoClienteSenhaResetBtn" title="Volta a senha para 123456">Resetar senha</button>
+              </div>
             </div>
           </form>
           <p id="operacaoClienteCadastroDetectMsg" class="portal-feedback portal-feedback--cadastro-detect" role="status" aria-live="polite"></p>
