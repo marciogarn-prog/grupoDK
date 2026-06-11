@@ -408,6 +408,16 @@
     return (loadDeposit()[cat] || []).filter(depEntradaVisivel).find((e) => String(e.id) === String(id)) || null;
   }
 
+  /** Contrato no depósito pela chave exacta (= número do protocolo). Um protocolo → um contrato. */
+  function obterContratoPorProtocolo(protocolo) {
+    const chave = normProtocolo(protocolo);
+    if (!chave) return null;
+    const arr = (loadDeposit().contrato || []).filter(depEntradaVisivel);
+    const matches = arr.filter((e) => normProtocolo(e.chave) === chave);
+    if (!matches.length) return null;
+    return matches.sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0))[0];
+  }
+
   function contarDeposito(categoria) {
     const cat = String(categoria || "").trim().toLowerCase();
     return (loadDeposit()[cat] || []).filter(depEntradaVisivel).length;
@@ -892,6 +902,7 @@
   window.__DK_documentosListarPorChave = listarPorChave;
   window.__DK_documentosFiltrarDeposito = filtrarDepositoPorTexto;
   window.__DK_documentosObterEntrada = obterEntradaDeposito;
+  window.__DK_documentosObterContratoPorProtocolo = obterContratoPorProtocolo;
   window.__DK_documentosContarDeposito = contarDeposito;
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
   window.__DK_documentosDepositarBlob = depositarBlob;
