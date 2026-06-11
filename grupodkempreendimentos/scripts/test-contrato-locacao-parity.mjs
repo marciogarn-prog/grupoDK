@@ -38,6 +38,8 @@ for (const [base, label] of PAIRS) {
     sincronizarPasta: contratoJs.includes("__DK_contratoLocacaoSincronizarPasta"),
     salvarPdf: contratoJs.includes("__DK_contratoLocacaoSalvarPdfBlob"),
     gerarPdf10: contratoJs.includes("paginas.length !== 10"),
+    vendorLocal:
+      contratoJs.includes("vendor/jspdf.umd.min.js") && contratoJs.includes("vendor/html2canvas.min.js"),
     moverPasta: docsJs.includes("__DK_documentosMoverContratoPorProtocolo"),
     garantirNuvem: docsJs.includes("__DK_documentosGarantirBlobNaNuvem"),
     refreshBotao: contratoJs.includes("__DK_contratoLocacaoRefreshBotao"),

@@ -24,6 +24,12 @@ const MARKERS = [
   "operacaoLocacaoDocumentosInput",
   "operacaoLocacaoDocumentosListaMulta",
   "operacaoLocacaoDocContratoBtn",
+  "operacaoLocacaoVisualizarContratoBtn",
+  "Gerar contrato",
+  "portal-contrato-locacao.js",
+  "dk-contrato-locacao-texto.js",
+  "documentosDropContratoAtivo",
+  "documentosDropContratoInativo",
 ];
 
 const BYTE_ASSETS = [
@@ -31,6 +37,10 @@ const BYTE_ASSETS = [
   "portal-locacao-documentos.js",
   "portal-documentos.js",
   "portal-locadora-ui.js",
+  "portal-contrato-locacao.js",
+  "data/dk-contrato-locacao-texto.js",
+  "vendor/jspdf.umd.min.js",
+  "vendor/html2canvas.min.js",
   "app.js",
   "styles.css",
   "service-worker-corporativo.js",

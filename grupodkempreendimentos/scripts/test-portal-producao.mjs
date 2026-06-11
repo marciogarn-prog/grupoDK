@@ -505,15 +505,22 @@ async function runSuite() {
         html.includes("portal-contrato-locacao.js") &&
         html.includes("dk-contrato-locacao-texto.js")
     );
-    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-10pag`, {
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-vendor`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
+    const vendorJspdf = await fetch(`${BASE_URL}vendor/jspdf.umd.min.js`, { cache: "no-store" }).then((r) => r.ok);
+    const vendorHtml2canvas = await fetch(`${BASE_URL}vendor/html2canvas.min.js`, { cache: "no-store" }).then(
+      (r) => r.ok
+    );
     record(
       "contrato locação gera PDF e deposita por protocolo",
       contratoJs.includes("__DK_contratoLocacaoSalvarPdfBlob") &&
         contratoJs.includes("__DK_contratoLocacaoRefreshBotao") &&
         contratoJs.includes("__DK_contratoLocacaoExisteParaProtocolo") &&
-        contratoJs.includes("html2canvas") &&
+        contratoJs.includes("vendor/jspdf.umd.min.js") &&
+        contratoJs.includes("vendor/html2canvas.min.js") &&
+        vendorJspdf &&
+        vendorHtml2canvas &&
         contratoJs.includes("__DK_contratoLocacaoSincronizarPasta") &&
         contratoJs.includes("__DK_documentosObterContratoPorProtocolo")
     );
