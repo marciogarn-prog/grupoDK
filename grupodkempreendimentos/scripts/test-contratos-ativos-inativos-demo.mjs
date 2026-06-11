@@ -41,6 +41,27 @@ try {
   await page.waitForTimeout(2500);
   record("login admin demo", true);
 
+  /* pré-limpeza: marcar como excluídos restos de execuções anteriores (chaves E2ECTR*) */
+  await page.evaluate(async () => {
+    const dep = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null");
+    if (dep?.contrato) {
+      let mudou = false;
+      dep.contrato = dep.contrato.map((e) => {
+        if (/^E2ECTR/i.test(String(e?.chave || "")) && e.excluido !== true) {
+          mudou = true;
+          return { ...e, excluido: true, excluidoEm: new Date().toISOString() };
+        }
+        return e;
+      });
+      if (mudou) {
+        localStorage.setItem("dk_documentos_deposito_v1", JSON.stringify(dep));
+        if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+          await window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => null);
+        }
+      }
+    }
+  });
+
   /* escolher um protocolo ATIVO e um INATIVO reais das locações */
   const casos = await page.evaluate(() => {
     const norm = (v) => String(v ?? "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -166,18 +187,24 @@ try {
 
   /* limpeza dos uploads via botão Excluir (remove local + nuvem) */
   for (const proto of [protoFakeIna, protoFakeAtv]) {
-    await page.fill("#documentosBuscaInput", proto);
-    await page.click("#documentosBuscaBtn");
-    await page.waitForTimeout(600);
-    await page.click("#documentosBuscaResultados .documentos-btn-excluir").catch(() => null);
-    await page.waitForTimeout(1500);
+    for (let tent = 0; tent < 3; tent += 1) {
+      await page.fill("#documentosBuscaInput", proto);
+      await page.click("#documentosBuscaBtn");
+      await page.waitForTimeout(1000);
+      const temBotao = await page.evaluate(
+        () => Boolean(document.querySelector("#documentosBuscaResultados .documentos-btn-excluir"))
+      );
+      if (!temBotao) break;
+      await page.click("#documentosBuscaResultados .documentos-btn-excluir").catch(() => null);
+      await page.waitForTimeout(2000);
+    }
   }
   const uploadsRestantes = await page.evaluate(({ ina, atv }) => {
     const dep = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null") || {};
     const arr = Array.isArray(dep.contrato) ? dep.contrato : [];
-    return arr.filter((e) => e.chave === ina || e.chave === atv).length;
+    return arr.filter((e) => (e.chave === ina || e.chave === atv) && e.excluido !== true).length;
   }, { ina: protoFakeIna, atv: protoFakeAtv });
-  record("limpeza dos uploads de pasta", uploadsRestantes === 0, `restantes=${uploadsRestantes}`);
+  record("limpeza dos uploads de pasta (tombstone)", uploadsRestantes === 0, `restantes=${uploadsRestantes}`);
 
   /* limpeza */
   await page.evaluate(async (ids) => {
