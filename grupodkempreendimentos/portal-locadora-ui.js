@@ -935,7 +935,6 @@
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
-      "btn-operacao-lancamento-manutencao",
     ];
     const visiveis = ids.filter((id) => {
       const el = document.getElementById(id);
@@ -1852,7 +1851,7 @@
   });
 
   function hideManutencaoInlineFormsCore() {
-    ["manutencaoInlineEmOperacao", "manutencaoInlineEmManutencao", "manutencaoInlineReserva", "manutencaoInlineOperacionais"].forEach((id) => {
+    ["operacaoInlineLancamentoManutencao", "manutencaoInlineEmOperacao", "manutencaoInlineEmManutencao", "manutencaoInlineReserva", "manutencaoInlineOperacionais"].forEach((id) => {
       document.getElementById(id)?.classList.add("hidden");
     });
     document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
@@ -1866,7 +1865,7 @@
   }
 
   function syncManutencaoSidebarButtons(activeButtonId) {
-    ["btn-manutencao-em-operacao", "btn-manutencao-em-manutencao", "btn-manutencao-reserva", "btn-manutencao-operacionais"].forEach((id) => {
+    ["btn-operacao-lancamento-manutencao", "btn-manutencao-em-operacao", "btn-manutencao-em-manutencao", "btn-manutencao-reserva", "btn-manutencao-operacionais"].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
       const on = Boolean(activeButtonId && id === activeButtonId);
@@ -1882,6 +1881,7 @@
     syncManutencaoSidebarButtons(null);
     hideAllPanels();
     panelManutencao?.classList.remove("hidden");
+    refreshPortalOperacaoNavPorAcessos();
     portalPersistirAreaAtiva("manutencao");
   });
 
@@ -7350,7 +7350,6 @@ ${printable.innerHTML}
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
-    document.getElementById("operacaoInlineLancamentoManutencao")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
     syncOperacaoLancAluguelSubnavVisible(false);
     syncOperacaoLancAluguelSubButtons(null);
@@ -7371,7 +7370,6 @@ ${printable.innerHTML}
       "btn-operacao-cadastro-locacao",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
-      "btn-operacao-lancamento-manutencao",
       "btn-operacao-cadastro-colaborador",
     ].forEach((id) => {
       const b = document.getElementById(id);
@@ -12861,6 +12859,17 @@ ${printable.innerHTML}
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_hideOperacaoInlineForms = hideInlineForms;
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
+  window.__DK_hideManutencaoInlineForms = () => {
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(true);
+    syncManutencaoSidebarButtons(null);
+  };
+  window.__DK_showManutencaoInlinePanel = (panelId, btnId) => {
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(false);
+    document.getElementById(panelId)?.classList.remove("hidden");
+    syncManutencaoSidebarButtons(btnId || null);
+  };
   window.__DK_openPortalLancConfirmModal = openPortalLancAluguelConfirmModal;
   window.__DK_portalConfirmarAlteracaoAdministrador = portalConfirmarAlteracaoAdministrador;
   function getPortalOperadorConferenciaSessao() {
