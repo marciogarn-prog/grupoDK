@@ -1,7 +1,9 @@
 /**
  * E2E demo: depósito de Contratos dividido em ATIVOS e INATIVOS.
- * Semeia 2 contratos no depósito: um de protocolo de locação ativa e outro
- * de locação encerrada; verifica resumo e badge na pesquisa. Limpeza no fim.
+ * 1) Semeia 2 contratos no depósito (legado, sem pasta): um de protocolo de locação
+ *    ativa e outro de locação encerrada; verifica resumo e badge na pesquisa.
+ * 2) Duas pastas de upload: depositar pela pasta ATIVOS/INATIVOS grava
+ *    statusContrato e tem prioridade sobre o estado da locação. Limpeza no fim.
  * node grupodkempreendimentos/scripts/test-contratos-ativos-inativos-demo.mjs
  */
 import { chromium } from "playwright";
@@ -113,6 +115,69 @@ try {
     (document.getElementById("documentosBuscaResultados")?.textContent || "").includes("locação ATIVA")
   );
   record("pesquisa contrato com badge locação ATIVA", badgeAtivo === true);
+
+  /* duas pastas de upload: a pasta escolhida define ativo/inativo */
+  const pastasVisiveis = await page.evaluate(() => {
+    const a = document.getElementById("documentosDropContratoAtivo");
+    const i = document.getElementById("documentosDropContratoInativo");
+    return Boolean(a && a.offsetParent !== null && i && i.offsetParent !== null);
+  });
+  record("duas pastas de contratos visíveis (ativos + inativos)", pastasVisiveis);
+
+  const pdfBuf = Buffer.from("%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF");
+  const protoFakeIna = `${TAG}INA`;
+  const protoFakeAtv = `${TAG}ATV`;
+  await page.setInputFiles("#documentosInputContratoInativo", {
+    name: `${protoFakeIna}.pdf`,
+    mimeType: "application/pdf",
+    buffer: pdfBuf,
+  });
+  await page.waitForTimeout(3000);
+  await page.setInputFiles("#documentosInputContratoAtivo", {
+    name: `${protoFakeAtv}.pdf`,
+    mimeType: "application/pdf",
+    buffer: pdfBuf,
+  });
+  await page.waitForTimeout(3000);
+
+  const flags = await page.evaluate(({ ina, atv }) => {
+    const dep = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null") || {};
+    const arr = Array.isArray(dep.contrato) ? dep.contrato : [];
+    const eIna = arr.find((e) => e.chave === ina);
+    const eAtv = arr.find((e) => e.chave === atv);
+    return {
+      stIna: eIna?.statusContrato || "",
+      stAtv: eAtv?.statusContrato || "",
+      idIna: eIna?.id || "",
+      idAtv: eAtv?.id || "",
+    };
+  }, { ina: protoFakeIna, atv: protoFakeAtv });
+  record("pasta INATIVOS grava statusContrato=inativo", flags.stIna === "inativo", `st=${flags.stIna}`);
+  record("pasta ATIVOS grava statusContrato=ativo", flags.stAtv === "ativo", `st=${flags.stAtv}`);
+
+  /* protocolo desconhecido depositado na pasta INATIVOS mostra badge INATIVA (pasta tem prioridade) */
+  await page.fill("#documentosBuscaInput", protoFakeIna);
+  await page.click("#documentosBuscaBtn");
+  await page.waitForTimeout(800);
+  const badgePastaInativa = await page.evaluate(() =>
+    (document.getElementById("documentosBuscaResultados")?.textContent || "").includes("locação INATIVA")
+  );
+  record("badge segue a pasta (INATIVA mesmo sem locação)", badgePastaInativa === true);
+
+  /* limpeza dos uploads via botão Excluir (remove local + nuvem) */
+  for (const proto of [protoFakeIna, protoFakeAtv]) {
+    await page.fill("#documentosBuscaInput", proto);
+    await page.click("#documentosBuscaBtn");
+    await page.waitForTimeout(600);
+    await page.click("#documentosBuscaResultados .documentos-btn-excluir").catch(() => null);
+    await page.waitForTimeout(1500);
+  }
+  const uploadsRestantes = await page.evaluate(({ ina, atv }) => {
+    const dep = JSON.parse(localStorage.getItem("dk_documentos_deposito_v1") || "null") || {};
+    const arr = Array.isArray(dep.contrato) ? dep.contrato : [];
+    return arr.filter((e) => e.chave === ina || e.chave === atv).length;
+  }, { ina: protoFakeIna, atv: protoFakeAtv });
+  record("limpeza dos uploads de pasta", uploadsRestantes === 0, `restantes=${uploadsRestantes}`);
 
   /* limpeza */
   await page.evaluate(async (ids) => {

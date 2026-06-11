@@ -437,6 +437,11 @@
   }
 
   function contratoEstaAtivo(entry, sets) {
+    /* Pasta escolhida pelo operador no depósito tem prioridade */
+    const st = String(entry?.statusContrato || "").trim().toLowerCase();
+    if (st === "ativo") return true;
+    if (st === "inativo") return false;
+    /* legado (sem pasta): deduz pela locação */
     const s = sets || protocolosLocacoesAtivos();
     const nc = normProtocolo(entry?.chave);
     if (!nc) return false;
@@ -549,7 +554,7 @@
     })();
   }
 
-  async function adicionarFicheiros(categoria, fileList) {
+  async function adicionarFicheiros(categoria, fileList, opts = {}) {
     const msgEl = $(`documentosUploadMsg${categoria.charAt(0).toUpperCase() + categoria.slice(1)}`);
     if (!podeAcessarDocumentos()) {
       if (msgEl) msgEl.textContent = "Sem permissão para gerir documentos.";
@@ -586,7 +591,7 @@
       } catch {
         naNuvem = false;
       }
-      arr.push({
+      const entry = {
         id,
         chave,
         nomeArquivo: nome,
@@ -594,7 +599,11 @@
         tamanho: file.size,
         criadoEm: new Date().toISOString(),
         nuvem: naNuvem,
-      });
+      };
+      if (categoria === "contrato" && (opts.statusContrato === "ativo" || opts.statusContrato === "inativo")) {
+        entry.statusContrato = opts.statusContrato;
+      }
+      arr.push(entry);
       n += 1;
     }
 
@@ -696,11 +705,11 @@
     modal.setAttribute("aria-hidden", "true");
   }
 
-  function bindUpload(categoria, inputId, dropId) {
+  function bindUpload(categoria, inputId, dropId, opts = {}) {
     const input = $(inputId);
     const drop = $(dropId);
     input?.addEventListener("change", () => {
-      void adicionarFicheiros(categoria, input.files).then(() => {
+      void adicionarFicheiros(categoria, input.files, opts).then(() => {
         input.value = "";
       });
     });
@@ -712,7 +721,7 @@
     drop?.addEventListener("drop", (e) => {
       e.preventDefault();
       drop.classList.remove("documentos-dropzone--over");
-      void adicionarFicheiros(categoria, e.dataTransfer?.files);
+      void adicionarFicheiros(categoria, e.dataTransfer?.files, opts);
     });
   }
 
@@ -741,7 +750,8 @@
     });
 
     bindUpload("crlv", "documentosInputCrlv", "documentosDropCrlv");
-    bindUpload("contrato", "documentosInputContrato", "documentosDropContrato");
+    bindUpload("contrato", "documentosInputContratoAtivo", "documentosDropContratoAtivo", { statusContrato: "ativo" });
+    bindUpload("contrato", "documentosInputContratoInativo", "documentosDropContratoInativo", { statusContrato: "inativo" });
     bindUpload("multa", "documentosInputMulta", "documentosDropMulta");
 
     $("documentosViewerFecharBtn")?.addEventListener("click", fecharViewer);
@@ -832,6 +842,10 @@
         const novo = (Date.parse(e.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0) ? { ...e } : { ...prev };
         /* nuvem:true nunca regride — se um lado já enviou o ficheiro, mantém */
         if (prev.nuvem === true || e.nuvem === true) novo.nuvem = true;
+        /* pasta ativo/inativo escolhida pelo operador nunca se perde no merge */
+        if (!novo.statusContrato && (prev.statusContrato || e.statusContrato)) {
+          novo.statusContrato = prev.statusContrato || e.statusContrato;
+        }
         byId.set(e.id, novo);
       };
       (Array.isArray(cloudDep?.[cat]) ? cloudDep[cat] : []).forEach(push);

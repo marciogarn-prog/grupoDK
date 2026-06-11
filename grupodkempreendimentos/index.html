@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260610situacao-pagamento">
+  <link rel="stylesheet" href="styles.css?v=20260610pastas-contratos">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260610corte-fixo"></script>
@@ -1679,9 +1679,19 @@
 
           <section class="documentos-deposito documentos-deposito--contrato" aria-labelledby="documentosContratoTitulo">
             <h3 id="documentosContratoTitulo" class="portal-lanc-aluguel-section__title">Contratos</h3>
-            <p class="subtext">Nome do ficheiro = <strong>número do protocolo</strong>.</p>
-            <input type="file" id="documentosInputContrato" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
-            <label id="documentosDropContrato" for="documentosInputContrato" class="documentos-dropzone documentos-dropzone--contrato" tabindex="0">Arrastar ou clicar para depositar contratos</label>
+            <p class="subtext">Nome do ficheiro = <strong>número do protocolo</strong>. Use a pasta certa: <strong>ativos</strong> ou <strong>inativos</strong>.</p>
+            <div class="documentos-contrato-pastas">
+              <div class="documentos-contrato-pasta documentos-contrato-pasta--ativos">
+                <p class="documentos-contrato-pasta__titulo">Contratos ATIVOS</p>
+                <input type="file" id="documentosInputContratoAtivo" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+                <label id="documentosDropContratoAtivo" for="documentosInputContratoAtivo" class="documentos-dropzone documentos-dropzone--contrato documentos-dropzone--contrato-ativo" tabindex="0">Arrastar ou clicar para depositar contratos ATIVOS</label>
+              </div>
+              <div class="documentos-contrato-pasta documentos-contrato-pasta--inativos">
+                <p class="documentos-contrato-pasta__titulo">Contratos INATIVOS</p>
+                <input type="file" id="documentosInputContratoInativo" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+                <label id="documentosDropContratoInativo" for="documentosInputContratoInativo" class="documentos-dropzone documentos-dropzone--contrato documentos-dropzone--contrato-inativo" tabindex="0">Arrastar ou clicar para depositar contratos INATIVOS</label>
+              </div>
+            </div>
             <p id="documentosUploadMsgContrato" class="subtext"></p>
             <p id="documentosResumoContrato" class="subtext documentos-resumo">0 contrato(s) no depósito.</p>
           </section>
@@ -1957,7 +1967,7 @@
   <script src="portal-locadora-ui.js?v=20260610clique-lista2" defer></script>
   <script src="portal-locacao-documentos.js?v=20260610sem-massa" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
-  <script src="portal-documentos.js?v=20260610contratos-split" defer></script>
+  <script src="portal-documentos.js?v=20260610pastas-contratos" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260610multa-vinculo" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>

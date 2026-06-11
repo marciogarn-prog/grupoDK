@@ -5705,6 +5705,50 @@ table.validados-app .lnk-comprovante {
 .documentos-dropzone--multa {
   border-color: rgba(234, 179, 8, 0.45);
 }
+
+/* Contratos: duas pastas (ativos / inativos) */
+.documentos-contrato-pastas {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0.75rem 0;
+}
+.documentos-contrato-pasta {
+  padding: 0.5rem 0.6rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.25);
+}
+.documentos-contrato-pasta__titulo {
+  margin: 0 0 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.documentos-contrato-pasta--ativos {
+  border-color: rgba(34, 197, 94, 0.45);
+}
+.documentos-contrato-pasta--ativos .documentos-contrato-pasta__titulo {
+  color: #4ade80;
+}
+.documentos-contrato-pasta--inativos {
+  border-color: rgba(234, 179, 8, 0.45);
+}
+.documentos-contrato-pasta--inativos .documentos-contrato-pasta__titulo {
+  color: #facc15;
+}
+.documentos-contrato-pasta .documentos-dropzone {
+  margin: 0.25rem 0 0;
+  padding: 0.85rem 0.75rem;
+  font-size: 0.85rem;
+}
+.documentos-dropzone--contrato-ativo {
+  border-color: rgba(34, 197, 94, 0.5);
+}
+.documentos-dropzone--contrato-inativo {
+  border-color: rgba(234, 179, 8, 0.5);
+}
 .documentos-file-hidden {
   position: absolute;
   width: 1px;
