@@ -1734,7 +1734,52 @@
     });
   });
 
-  formLogin?.addEventListener("submit", (e) => {
+  async function portalSyncFuncionariosBeforeLogin() {
+    try {
+      window.__DK_hydrateFuncionariosAccess?.();
+    } catch {
+      /* ignore */
+    }
+    if (typeof window.__DK_pullCloudSnapshotSilentMerge !== "function") return;
+    try {
+      await window.__DK_pullCloudSnapshotSilentMerge({ force: false });
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.__DK_hydrateFuncionariosAccess?.();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalAutenticarEquipaPorCpfSenha(role, cpf, senha) {
+    const funcionario = funcionariosAccess.find(
+      (f) => onlyDigits(String(f.cpf || "")) === cpf && f.senha === senha
+    );
+    if (!funcionario) {
+      return {
+        ok: false,
+        msg:
+          "CPF ou senha inválidos. Se o cadastro foi feito noutro computador, aguarde alguns segundos e tente de novo (ou Ctrl+F5).",
+      };
+    }
+    if (role === "administrador") {
+      if (funcionario.role !== "owner") {
+        return { ok: false, msg: "Este CPF não tem perfil de administrador." };
+      }
+    } else if (funcionario.role === "owner") {
+      return { ok: false, msg: "Administrador: use a opção Administrador acima." };
+    } else if (funcionario.role !== "operacao") {
+      return { ok: false, msg: "Perfil sem permissão de colaborador." };
+    }
+    if (funcionario.blocked) {
+      return { ok: false, msg: "Acesso bloqueado." };
+    }
+    return { ok: true, funcionario };
+  }
+
+  formLogin?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (typeof enforceMaintenanceAndDailyRoutines === "function" && enforceMaintenanceAndDailyRoutines()) {
       const aviso =
@@ -1770,27 +1815,25 @@
         loginFeedback.textContent = "Acesso de administrador restrito ao titular autorizado.";
         return;
       }
-      const funcionario = funcionariosAccess.find((f) => onlyDigits(String(f.cpf || "")) === cpf && f.senha === senha);
-      if (!funcionario) {
-        loginFeedback.textContent = "CPF ou senha inválidos.";
-        return;
-      }
-      if (role === "administrador") {
-        if (funcionario.role !== "owner") {
-          loginFeedback.textContent = "Este CPF não tem perfil de administrador.";
-          return;
+      if (loginFeedback) loginFeedback.textContent = "A sincronizar cadastro de colaboradores…";
+      await portalSyncFuncionariosBeforeLogin();
+      if (loginFeedback) loginFeedback.textContent = "";
+
+      let auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
+      if (!auth.ok && typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+        try {
+          await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
+          window.__DK_hydrateFuncionariosAccess?.();
+          auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
+        } catch {
+          /* ignore */
         }
-      } else if (funcionario.role === "owner") {
-        loginFeedback.textContent = "Administrador: use a opção Administrador acima.";
-        return;
-      } else if (funcionario.role !== "operacao") {
-        loginFeedback.textContent = "Perfil sem permissão de colaborador.";
+      }
+      if (!auth.ok) {
+        loginFeedback.textContent = auth.msg;
         return;
       }
-      if (funcionario.blocked) {
-        loginFeedback.textContent = "Acesso bloqueado.";
-        return;
-      }
+      const funcionario = auth.funcionario;
       if (funcionario.role === "operacao" && funcionario.mustChangePassword) {
         portalColaboradorSenhaPendente = funcionario;
         hideAllPanels();
@@ -1834,6 +1877,9 @@
     f.senha = nova;
     f.mustChangePassword = false;
     if (typeof saveFuncionariosAccess === "function") saveFuncionariosAccess();
+    if (typeof window.__DK_pushToCloudAfterSave === "function") {
+      void window.__DK_pushToCloudAfterSave();
+    }
     portalColaboradorSenhaPendente = null;
     finalizarLoginEquipaPortal(f);
     portalPersistirAreaAtiva("equipa");

@@ -1699,6 +1699,11 @@ function getMaxClienteCodigoFromBundledSnapshots() {
 }
 
 hydrateFuncionariosAccess();
+try {
+  window.__DK_hydrateFuncionariosAccess = hydrateFuncionariosAccess;
+} catch {
+  /* ignore */
+}
 const adminSecundario = funcionariosAccess.find((f) => f.cpf === "06523244440");
 if (adminSecundario) {
   adminSecundario.role = "owner";
