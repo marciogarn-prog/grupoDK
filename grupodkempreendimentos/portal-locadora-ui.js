@@ -361,6 +361,8 @@
   /** Comprimento anterior do CPF (só dígitos) para limpar campos ao sair de 11 dígitos. */
   let portalColabCpfPrevLen = 0;
   let portalColabListaCpfAtivo = "";
+  /** CPF original ao abrir colaborador existente — permite corrigir o CPF e gravar. */
+  let portalColabCpfEdicaoOriginal = "";
 
   const PORTAL_COLAB_ACESSO_ITENS = [
     { key: "cliente", label: "Cadastro de cliente" },
@@ -2845,6 +2847,15 @@ ${printable.innerHTML}
     );
   }
 
+  /** Colaborador em edição (CPF original ou CPF actual com 11 dígitos). */
+  function getPortalColaboradorEmEdicao() {
+    if (portalColabCpfEdicaoOriginal) {
+      return findFuncionarioOperacaoPortalPorCpf(portalColabCpfEdicaoOriginal);
+    }
+    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    return dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+  }
+
   function refreshPortalColaboradorBloqueioUi() {
     const wrap = document.getElementById("portalColabBloqueioWrap");
     const btn = document.getElementById("portalColabBloqueioBtn");
@@ -2855,8 +2866,7 @@ ${printable.innerHTML}
       resetWrap?.classList.add("hidden");
       return;
     }
-    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
-    const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+    const f = getPortalColaboradorEmEdicao();
     if (!f) {
       wrap.classList.add("hidden");
       resetWrap?.classList.add("hidden");
@@ -2928,6 +2938,7 @@ ${printable.innerHTML}
     const f = findFuncionarioOperacaoPortalPorCpf(dig);
     if (!f) return;
     portalColabListaCpfAtivo = dig;
+    portalColabCpfEdicaoOriginal = dig;
     const inp = document.getElementById("portalColabCpf");
     if (inp) inp.value = portalColabFormatCpfExibicao(dig);
     portalColabCpfPrevLen = 11;
@@ -3043,14 +3054,47 @@ ${printable.innerHTML}
     const inp = document.getElementById("portalColabCpf");
     const dig = onlyDigits(String(inp?.value || "")).slice(0, 11);
     const len = dig.length;
+    const emEdicao = Boolean(portalColabCpfEdicaoOriginal);
 
-    if (len < 11 && portalColabCpfPrevLen === 11) {
+    if (len < 11 && portalColabCpfPrevLen === 11 && !emEdicao) {
       limparPortalColaboradorCamposParaNovo();
     }
     portalColabCpfPrevLen = len;
 
+    if (emEdicao) {
+      const fOrig = findFuncionarioOperacaoPortalPorCpf(portalColabCpfEdicaoOriginal);
+      if (!fOrig) {
+        portalColabCpfEdicaoOriginal = "";
+      } else if (len === 11 && dig !== portalColabCpfEdicaoOriginal) {
+        const fOutro = findFuncionarioOperacaoPortalPorCpf(dig);
+        if (fOutro) {
+          portalColabCpfEdicaoOriginal = dig;
+          portalColabListaCpfAtivo = dig;
+          aplicarPortalColaboradorDoFuncionario(fOutro);
+          setPortalColaboradorModoCadastroOuEdicao(false);
+          portalRenderColaboradorPermissoesDetalhe(fOutro);
+        } else {
+          portalColabListaCpfAtivo = portalColabCpfEdicaoOriginal;
+          setPortalColaboradorModoCadastroOuEdicao(false);
+          portalRenderColaboradorPermissoesDetalhe(fOrig);
+        }
+      } else if (len === 11) {
+        portalColabListaCpfAtivo = dig;
+        setPortalColaboradorModoCadastroOuEdicao(false);
+        portalRenderColaboradorPermissoesDetalhe(fOrig);
+      } else {
+        portalColabListaCpfAtivo = portalColabCpfEdicaoOriginal;
+        setPortalColaboradorModoCadastroOuEdicao(false);
+        portalRenderColaboradorPermissoesDetalhe(fOrig);
+      }
+      refreshPortalColaboradorBloqueioUi();
+      portalRenderColaboradoresLista();
+      return;
+    }
+
     if (len < 11) {
       portalColabListaCpfAtivo = "";
+      portalColabCpfEdicaoOriginal = "";
       setPortalColaboradorModoCadastroOuEdicao(true);
       refreshPortalColaboradorBloqueioUi();
       portalRenderColaboradoresLista();
@@ -3061,11 +3105,13 @@ ${printable.innerHTML}
     const f = findFuncionarioOperacaoPortalPorCpf(dig);
     if (f) {
       portalColabListaCpfAtivo = dig;
+      portalColabCpfEdicaoOriginal = dig;
       aplicarPortalColaboradorDoFuncionario(f);
       setPortalColaboradorModoCadastroOuEdicao(false);
       portalRenderColaboradorPermissoesDetalhe(f);
     } else {
       portalColabListaCpfAtivo = "";
+      portalColabCpfEdicaoOriginal = "";
       limparPortalColaboradorCamposParaNovo();
       setPortalColaboradorModoCadastroOuEdicao(true);
       portalRenderColaboradorPermissoesDetalhe(null);
@@ -3153,6 +3199,7 @@ ${printable.innerHTML}
     formPortalCadastroColaborador.reset();
     portalColabCpfPrevLen = 0;
     portalColabListaCpfAtivo = "";
+    portalColabCpfEdicaoOriginal = "";
     syncPortalColaboradorFormFromCpf();
     portalRenderColaboradoresLista();
     if (fb) {
@@ -3171,17 +3218,25 @@ ${printable.innerHTML}
       if (fb) fb.textContent = "Cadastro indisponível neste ambiente.";
       return;
     }
-    const cpfRaw = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const cpfNovo = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
+    const cpfOriginal = portalColabCpfEdicaoOriginal || cpfNovo;
     const nome = String(document.getElementById("portalColabNome")?.value || "").trim();
     const funcao = String(document.getElementById("portalColabFuncao")?.value || "").trim();
     const dataIngresso = String(document.getElementById("portalColabIngresso")?.value || "").trim();
-    if (cpfRaw.length !== 11) {
+    if (cpfNovo.length !== 11) {
       if (fb) fb.textContent = "Informe um CPF válido (11 dígitos).";
       return;
     }
-    const f = findFuncionarioOperacaoPortalPorCpf(cpfRaw);
+    const f = findFuncionarioOperacaoPortalPorCpf(cpfOriginal);
     if (!f) {
       if (fb) fb.textContent = "Não há colaborador com este CPF para atualizar.";
+      return;
+    }
+    if (
+      cpfNovo !== cpfOriginal &&
+      funcionariosAccess.some((x) => onlyDigits(String(x.cpf || "")) === cpfNovo)
+    ) {
+      if (fb) fb.textContent = "Já existe outro cadastro com este CPF.";
       return;
     }
     if (!nome) {
@@ -3225,6 +3280,7 @@ ${printable.innerHTML}
             funcionario: false,
           };
     const antesColab = {
+      cpf: portalColabFormatCpfExibicao(cpfOriginal),
       nome: portalNormDiffVal(f.nome),
       funcao: portalNormDiffVal(f.funcao),
       dataIngresso: portalNormDiffVal(f.dataIngresso),
@@ -3236,6 +3292,7 @@ ${printable.innerHTML}
       lancamentoManutencao: portalNormDiffVal(f.acessos?.lancamentoManutencao ? "sim" : "não"),
     };
     const depoisColab = {
+      cpf: portalColabFormatCpfExibicao(cpfNovo),
       nome,
       funcao,
       dataIngresso,
@@ -3247,6 +3304,7 @@ ${printable.innerHTML}
       lancamentoManutencao: aceManut ? "sim" : "não",
     };
     const COLAB_LABELS = {
+      cpf: "CPF",
       nome: "Nome",
       funcao: "Função",
       dataIngresso: "Data ingresso",
@@ -3258,12 +3316,18 @@ ${printable.innerHTML}
       lancamentoManutencao: "Lanç. manutenção",
     };
     const doSaveColab = () => {
+      f.cpf = cpfNovo;
       f.nome = nome;
       f.funcao = funcao;
       f.dataIngresso = dataIngresso;
       f.acessos = acessos;
       saveFuncionariosAccess();
       portalPushCloudSnapshotAfterPersist();
+      portalColabCpfEdicaoOriginal = cpfNovo;
+      portalColabListaCpfAtivo = cpfNovo;
+      portalColabCpfPrevLen = 11;
+      const inpCpf = document.getElementById("portalColabCpf");
+      if (inpCpf && typeof formatCpf === "function") inpCpf.value = formatCpf(cpfNovo);
       aplicarPortalColaboradorDoFuncionario(f);
       refreshPortalOperacaoNavPorAcessos();
       portalRenderColaboradoresLista();
@@ -3283,8 +3347,7 @@ ${printable.innerHTML}
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
     if (!isPortalTitularAdministrador()) return;
     if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
-    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
-    const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+    const f = getPortalColaboradorEmEdicao();
     if (!f) {
       if (fb) fb.textContent = "CPF não corresponde a um colaborador cadastrado.";
       return;
@@ -3308,8 +3371,7 @@ ${printable.innerHTML}
       return;
     }
     if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
-    const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
-    const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
+    const f = getPortalColaboradorEmEdicao();
     if (!f) {
       if (fb) fb.textContent = "CPF não corresponde a um colaborador cadastrado.";
       return;
@@ -3343,9 +3405,8 @@ ${printable.innerHTML}
     };
     const el = document.getElementById(idMap[key]);
     el?.addEventListener("change", () => {
-      const dig = onlyDigits(String(document.getElementById("portalColabCpf")?.value || "")).slice(0, 11);
-      const f = dig.length === 11 ? findFuncionarioOperacaoPortalPorCpf(dig) : null;
-      if (f && dig === portalColabListaCpfAtivo) portalRenderColaboradorPermissoesDetalhe({ ...f, acessos: {
+      const f = getPortalColaboradorEmEdicao();
+      if (f && (portalColabCpfEdicaoOriginal || portalColabListaCpfAtivo)) portalRenderColaboradorPermissoesDetalhe({ ...f, acessos: {
         cliente: Boolean(document.getElementById("portalColabAceCliente")?.checked),
         veiculo: Boolean(document.getElementById("portalColabAceVeiculo")?.checked),
         locacao: Boolean(document.getElementById("portalColabAceLocacao")?.checked),
