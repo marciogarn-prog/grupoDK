@@ -2956,8 +2956,29 @@
   function formatBackupBrDateTime(isoOrBr) {
     if (!isoOrBr) return "—";
     const s = String(isoOrBr);
-    const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-    if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
+    /* ISO (UTC) → hora do Brasil; sem isto o painel mostrava hora "no futuro" */
+    if (/^\d{4}-\d{2}-\d{2}T/.test(s)) {
+      const d = new Date(s);
+      if (!Number.isNaN(d.getTime())) {
+        try {
+          return new Intl.DateTimeFormat("pt-BR", {
+            timeZone: "America/Sao_Paulo",
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })
+            .format(d)
+            .replace(",", "");
+        } catch {
+          /* fallback abaixo */
+        }
+      }
+      const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
+      if (m) return `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}`;
+    }
     return s.slice(0, 16).replace("T", " ");
   }
 
