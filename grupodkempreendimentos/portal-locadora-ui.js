@@ -12035,8 +12035,12 @@ ${printable.innerHTML}
     refreshOperacaoLancAluguelPesquisaDatalists({ source: "placa" });
   });
 
-  document.getElementById("formOperacaoLancamentoAluguelInline")?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".portal-lanc-pesquisa-linha");
+  // Ligado ao contentor inteiro do Lançamento de aluguel: a lista de sugestões
+  // (#operacaoLancAluguelPesquisaLista) fica na secção de pesquisa, fora do form.
+  document.getElementById("operacaoInlineLancamentoAluguel")?.addEventListener("click", (e) => {
+    const t = e.target;
+    if (!(t instanceof Element)) return;
+    const btn = t.closest(".portal-lanc-pesquisa-linha");
     if (!btn) return;
     e.preventDefault();
     aplicarOperacaoLancAluguelPesquisaLinha(
