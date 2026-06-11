@@ -90,6 +90,11 @@
     }
   }
 
+  /** Entradas excluídas ficam como tombstone (excluido:true) para a exclusão sobreviver ao merge da nuvem. */
+  function depEntradaVisivel(e) {
+    return e?.excluido !== true;
+  }
+
   function saveDeposit(dep) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dep));
     if (typeof window.__DK_pushToCloudAfterSave === "function") {
@@ -268,7 +273,7 @@
       const alvos = [];
       for (const cat of ["crlv", "contrato", "multa"]) {
         for (const e of dep[cat] || []) {
-          if (e && e.id && e.nuvem !== true) alvos.push(e);
+          if (e && e.id && e.nuvem !== true && depEntradaVisivel(e)) alvos.push(e);
         }
       }
       let enviados = 0;
@@ -370,7 +375,7 @@
 
   function listarPorChave(categoria, termo) {
     const dep = loadDeposit();
-    const arr = dep[categoria] || [];
+    const arr = (dep[categoria] || []).filter(depEntradaVisivel);
     const chave = normalizarTermoBusca(categoria, termo);
     if (!chave) return [];
     return arr
@@ -384,7 +389,7 @@
   function filtrarDepositoPorTexto(categoria, termo) {
     const cat = String(categoria || "").trim().toLowerCase();
     const dep = loadDeposit();
-    const arr = dep[cat] || [];
+    const arr = (dep[cat] || []).filter(depEntradaVisivel);
     const t = String(termo || "").trim().toLowerCase();
     let rows = arr.slice();
     if (t) {
@@ -400,12 +405,12 @@
   function obterEntradaDeposito(categoria, id) {
     const cat = String(categoria || "").trim().toLowerCase();
     if (!id) return null;
-    return (loadDeposit()[cat] || []).find((e) => String(e.id) === String(id)) || null;
+    return (loadDeposit()[cat] || []).filter(depEntradaVisivel).find((e) => String(e.id) === String(id)) || null;
   }
 
   function contarDeposito(categoria) {
     const cat = String(categoria || "").trim().toLowerCase();
-    return (loadDeposit()[cat] || []).length;
+    return (loadDeposit()[cat] || []).filter(depEntradaVisivel).length;
   }
 
   /**
@@ -505,7 +510,7 @@
 
   function resumoContratoHtml(dep, ids) {
     const sets = protocolosLocacoesAtivos();
-    const arr = dep.contrato || [];
+    const arr = (dep.contrato || []).filter(depEntradaVisivel);
     const ativos = arr.filter((e) => contratoEstaAtivo(e, sets));
     const inativos = arr.filter((e) => !contratoEstaAtivo(e, sets));
     const extra = ids
@@ -520,11 +525,11 @@
   function atualizarResumosDepositos() {
     const dep = loadDeposit();
     $("documentosResumoCrlv") &&
-      ($("documentosResumoCrlv").textContent = `${dep.crlv.length} ficheiro(s) CRLV no depósito.`);
+      ($("documentosResumoCrlv").textContent = `${dep.crlv.filter(depEntradaVisivel).length} ficheiro(s) CRLV no depósito.`);
     $("documentosResumoContrato") &&
       ($("documentosResumoContrato").innerHTML = resumoContratoHtml(dep, null));
     $("documentosResumoMulta") &&
-      ($("documentosResumoMulta").textContent = `${dep.multa.length} multa(s) no depósito.`);
+      ($("documentosResumoMulta").textContent = `${dep.multa.filter(depEntradaVisivel).length} multa(s) no depósito.`);
     void (async () => {
       let ids = null;
       try {
@@ -533,7 +538,7 @@
         return;
       }
       const info = (cat) => {
-        const arr = dep[cat] || [];
+        const arr = (dep[cat] || []).filter(depEntradaVisivel);
         const aqui = arr.filter((e) => ids.has(String(e.id))).length;
         const nuvem = arr.filter((e) => e.nuvem === true).length;
         return { total: arr.length, aqui, nuvem };
@@ -685,7 +690,10 @@
     if (!podeAcessarDocumentos()) return;
     if (!window.confirm("Excluir este ficheiro do depósito?")) return;
     const dep = loadDeposit();
-    dep[categoria] = (dep[categoria] || []).filter((e) => e.id !== id);
+    /* tombstone: a exclusão precisa sobreviver ao merge com a cópia da nuvem */
+    dep[categoria] = (dep[categoria] || []).map((e) =>
+      String(e.id) === String(id) ? { ...e, excluido: true, excluidoEm: new Date().toISOString() } : e
+    );
     saveDeposit(dep);
     await idbDeleteBlob(id).catch(() => null);
     void cloudDeleteBlob(id).catch(() => null);
@@ -845,6 +853,11 @@
         /* pasta ativo/inativo escolhida pelo operador nunca se perde no merge */
         if (!novo.statusContrato && (prev.statusContrato || e.statusContrato)) {
           novo.statusContrato = prev.statusContrato || e.statusContrato;
+        }
+        /* tombstone: ficheiro excluído num lado fica excluído nos dois */
+        if (prev.excluido === true || e.excluido === true) {
+          novo.excluido = true;
+          novo.excluidoEm = novo.excluidoEm || prev.excluidoEm || e.excluidoEm || new Date().toISOString();
         }
         byId.set(e.id, novo);
       };
