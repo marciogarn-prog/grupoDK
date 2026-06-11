@@ -460,6 +460,9 @@
       sec?.classList.add("hidden");
       sec?.setAttribute("hidden", "");
     }
+    if (cfg.key === "lancamentoManutencao" && typeof window.__DK_hideLancManutencaoChecklist === "function") {
+      window.__DK_hideLancManutencaoChecklist();
+    }
   }
 
   function showDetalhe(cfg) {
@@ -469,6 +472,9 @@
     $(cfg, detalhePanelSuffix(cfg))?.removeAttribute("hidden");
     if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
       window.__DK_refreshLancMultasDocumentosDeposito();
+    }
+    if (cfg.key === "lancamentoManutencao" && typeof window.__DK_refreshLancManutencaoChecklist === "function") {
+      window.__DK_refreshLancManutencaoChecklist();
     }
   }
 
@@ -507,6 +513,9 @@
       updateRelatorioParceladoActions(cfg, loc);
       if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
         window.__DK_refreshLancMultasDocumentosDeposito();
+      }
+      if (cfg.key === "lancamentoManutencao" && typeof window.__DK_refreshLancManutencaoChecklist === "function") {
+        window.__DK_refreshLancManutencaoChecklist();
       }
       return;
     }
@@ -1202,6 +1211,9 @@
       if (loc) applyLocToForm(cfg, loc);
       if (cfg.key === "lancamentoMultas" && typeof window.__DK_refreshLancMultasDocumentosDeposito === "function") {
         window.__DK_refreshLancMultasDocumentosDeposito();
+      }
+      if (cfg.key === "lancamentoManutencao" && typeof window.__DK_refreshLancManutencaoChecklist === "function") {
+        window.__DK_refreshLancManutencaoChecklist();
       }
     });
 
