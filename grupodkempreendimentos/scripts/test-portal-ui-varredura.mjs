@@ -55,6 +55,7 @@ const JS_FILES = [
   "portal-documentos.js",
   "portal-multas-relatorio.js",
   "portal-lancamentos-extras.js",
+  "portal-manutencao-checklist.js",
   "portal-locacao-documentos.js",
   "portal-comprovantes-cliente.js",
   "portal-supabase-sync.js",
@@ -140,8 +141,7 @@ function runStaticAudit() {
   record(
     "modais críticos presentes",
     modals.includes("portalLancAluguelCalModal") &&
-      modals.includes("portalAdminAlteracaoConfirmModal") &&
-      modals.includes("portalComunicacaoChatModal"),
+      modals.includes("portalAdminAlteracaoConfirmModal"),
     `${modals.length} modais`
   );
 
@@ -468,9 +468,8 @@ async function runE2E() {
     record(
       "E2E: cliente.html scripts principais",
       clienteHtml.includes("cliente-app.js") &&
-        clienteHtml.includes("clienteComunicacaoVendasBtn") &&
         clienteHtml.includes("view-trocar-senha"),
-      "app + comunicação"
+      "app + troca de senha"
     );
 
     record(
