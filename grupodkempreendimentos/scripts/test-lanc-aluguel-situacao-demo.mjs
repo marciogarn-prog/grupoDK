@@ -170,23 +170,32 @@ async function run() {
       situacao.acumClasse
     );
 
-    // 3) Limpeza: apagar o pagamento de teste (admin) pelo histórico
+    // 3) Limpeza (melhor esforço): apagar o pagamento de teste pelo histórico.
+    // Nota: a fusão na nuvem é append-only para lançamentos — a remoção pode não
+    // persistir após o próximo merge. O protocolo 2026010102 é o protocolo de testes do demo.
     await page.waitForTimeout(1500);
-    const limpou = await page.evaluate((valorTeste) => {
-      const alvo = Number(valorTeste.replace(",", "."));
-      const botoes = Array.from(document.querySelectorAll("#operacaoLancAluguelHistorico [data-portal-lanc-del]"));
+    const clicouApagar = await page.evaluate((valorTeste) => {
+      const botoes = Array.from(document.querySelectorAll("#operacaoLancAluguelHistorico [data-lanc-aluguel-del]"));
       for (const b of botoes) {
         const tr = b.closest("tr");
-        const txt = String(tr?.textContent || "");
-        if (txt.includes(valorTeste) || txt.includes(alvo.toFixed(2).replace(".", ","))) {
+        if (String(tr?.textContent || "").includes(valorTeste)) {
           b.click();
           return true;
         }
       }
       return false;
     }, VALOR_TESTE);
-    await page.waitForTimeout(2500);
-    record("limpeza: pagamento de teste apagado", limpou);
+    if (clicouApagar) {
+      await page
+        .waitForFunction(() => {
+          const m = document.getElementById("portalLancAluguelConfirmModal");
+          return m && !m.classList.contains("hidden");
+        }, { timeout: 10000 })
+        .catch(() => null);
+      await page.locator("#portalLancAluguelConfirmSimBtn").click({ timeout: 10000 }).catch(() => null);
+      await page.waitForTimeout(2000);
+    }
+    record("limpeza (melhor esforço): exclusão admin acionada", clicouApagar);
   } finally {
     await browser.close();
   }
