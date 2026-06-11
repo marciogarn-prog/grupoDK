@@ -119,13 +119,12 @@
     return `${String(n).padStart(6, "0")} Km(s)`;
   }
 
-  /** Plano → cor do papel: DK MINHA MOTO=verde, DK MEU TRANSPORTE=azul, carro=marrom. */
-  function corDoPlano(plano, isCarro) {
-    if (isCarro) return "#a06b3f";
+  /** Plano → tons do papel: DK MINHA MOTO=verde, DK MEU TRANSPORTE=azul, carro=marrom. */
+  function tonsDoPlano(plano, isCarro) {
+    if (isCarro) return { claro: "#ecdfd3", escuro: "#c49a6c" };
     const k = String(plano || "").toUpperCase();
-    if (k.includes("MINHA") && k.includes("MOTO")) return "#92d050";
-    if (k.includes("TRANSPORTE")) return "#5b9bd5";
-    return "#92d050";
+    if (k.includes("TRANSPORTE")) return { claro: "#dbe5f1", escuro: "#8eaadb" };
+    return { claro: "#e9f4da", escuro: "#a6d264" };
   }
 
   function getContexto() {
@@ -292,7 +291,7 @@
   }
 
   function buildChecklistPrintHtml(dados, form) {
-    const corPlano = corDoPlano(dados.plano, dados.isCarro);
+    const tons = tonsDoPlano(dados.plano, dados.isCarro);
     const agora = new Date();
     const horaEntrada = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
     const dataEntrada = fmtDataSemana(agora);
@@ -350,42 +349,43 @@
   .pagina:last-child { page-break-after: auto; }
 
   .cab-tabela td { border: 1.5px solid #111; }
-  .cab-logo { width: 26%; background: #0c0c0c; text-align: center; padding: 4px; }
-  .cab-logo img { max-width: 90%; max-height: 52px; }
+  .cab-logo { width: 26%; background: #fff; text-align: center; padding: 1px 2px; }
+  .cab-logo img { max-width: 99%; max-height: 60px; }
   .cab-titulo { text-align: center; font-weight: 700; font-size: 13px; }
-  .cab-plano { text-align: center; font-weight: 700; background: ${corPlano}; }
-  .cab-inicio { text-align: center; font-weight: 600; }
+  .cab-plano { text-align: center; font-weight: 700; background: linear-gradient(${tons.claro} 0%, ${tons.claro} 55%, ${tons.escuro} 100%); }
+  .cab-inicio { text-align: center; font-weight: 700; }
   .cab-proto { text-align: center; font-weight: 700; }
   .cab-entrada td { font-size: 10px; padding: 1px 4px; }
-  .entrada-data { background: ${corPlano}; font-weight: 700; text-align: center; }
+  .entrada-data { font-weight: 700; text-align: center; }
   .cab-dir { width: 24%; padding: 0; }
   .cab-dir table { height: 100%; }
   .cab-dir td { border-width: 1px; }
 
   .cliente-box { margin-top: 4px; }
-  .cliente-box .titulo { text-align: center; font-weight: 700; }
+  .cliente-box .titulo { text-align: center; font-weight: 400; }
   .cliente-box .nome { text-align: center; font-weight: 700; font-size: 11px; }
-  .cliente-box .cel-h { text-align: center; font-weight: 700; width: 22%; }
+  .cliente-box .cel-h { text-align: center; font-weight: 400; width: 22%; }
   .cliente-box .cel { text-align: center; font-weight: 700; }
 
   .veiculo-tabela { margin-top: 4px; }
   .veiculo-foto { width: 30%; text-align: center; padding: 3px; }
   .veiculo-img { max-width: 100%; max-height: 80px; }
   .veiculo-img--vazia { height: 80px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; text-align: center; color: #777; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; }
-  .veiculo-h { text-align: center; font-weight: 700; background: #f2f2f2; }
+  .veiculo-h { text-align: center; font-weight: 400; background: linear-gradient(#ffffff, #d6d6d6); }
   .veiculo-v { text-align: center; font-weight: 700; }
-  .oleo-h { background: #c00000; color: #fff; font-weight: 700; text-align: center; }
-  .oleo-v { background: #5b9bd5; color: #fff; font-weight: 700; text-align: center; letter-spacing: 1px; }
+  .oleo-h { background: linear-gradient(#ffffff, #d6d6d6); color: #c00000; font-weight: 700; text-align: center; }
+  .oleo-v { background: linear-gradient(#dce6f1 0%, #95b3d7 100%); color: #111; font-weight: 700; text-align: center; letter-spacing: 1px; }
   .pagou-ops { text-align: center; font-weight: 700; }
   .pagou-ops .cb { margin: 0 1px; }
 
   .legenda { margin: 5px 0 3px; font-size: 10.5px; display: flex; align-items: center; gap: 6px; }
-  .leg-box { display: inline-block; width: 13px; height: 13px; line-height: 13px; text-align: center; font-weight: 700; color: #fff; border: 1px solid #222; }
-  .leg-a { background: #2e7d32; }
-  .leg-r { background: #c00000; }
+  .leg-box { display: inline-block; width: 13px; height: 13px; line-height: 13px; text-align: center; font-weight: 700; color: #111; border: 1px solid #777; }
+  .leg-a { background: linear-gradient(#d2eedd, #5fc287); }
+  .leg-r { background: linear-gradient(#f7c5c2, #e0605d); }
 
-  .itens-tabela th { background: #f2f2f2; font-size: 10px; padding: 2px; }
-  .itens-tabela .falso-h { color: #c00000; font-weight: 700; }
+  .itens-tabela th { background: linear-gradient(#ffffff, #c9c9c9); font-size: 10px; padding: 2px; }
+  .itens-tabela .falso-h { color: #111; font-weight: 700; }
+  .itens-tabela th.ar-h { padding: 1px; }
   .itens-tabela .num { width: 5%; text-align: center; font-weight: 700; }
   .itens-tabela .desc { width: 44%; font-weight: 600; }
   .itens-tabela .ar { width: 4%; text-align: center; }
@@ -420,7 +420,7 @@
   <div class="pagina">
     <table class="cab-tabela">
       <tr>
-        <td class="cab-logo" rowspan="4"><img src="images/dk-locadora-logo.png" alt="DK Locadora"></td>
+        <td class="cab-logo" rowspan="4"><img src="images/manutencao/dk-checklist-logo.png" alt="DK Locadora"></td>
         <td class="cab-titulo">CHECK-LIST PARA MANUTENÇÃO / REPARAÇÕES</td>
         <td class="cab-dir" rowspan="4">
           <table>
@@ -476,7 +476,7 @@
 
     <table class="itens-tabela">
       <thead>
-        <tr><th class="num">&nbsp;</th><th class="falso-h">FALSO</th><th>A</th><th>R</th><th>Observações</th></tr>
+        <tr><th class="num">&nbsp;</th><th class="falso-h">FALSO</th><th class="ar-h"><span class="leg-box leg-a">A</span></th><th class="ar-h"><span class="leg-box leg-r">R</span></th><th>Observações</th></tr>
       </thead>
       <tbody>
         ${itensRows}
