@@ -168,6 +168,9 @@ async function run() {
         pag2: txt.includes("Pág.: 2 / 2"),
         anotacoes: txt.includes("Anotações"),
         assinaturaImg: Boolean(document.querySelector("img.assinatura-img")),
+        fotoOuMensagem:
+          Boolean(document.querySelector("img.veiculo-img")) ||
+          (document.body.innerText || "").includes("AINDA NÃO CADASTRADA"),
         paginas: document.querySelectorAll(".pagina").length,
       };
     });
@@ -180,6 +183,7 @@ async function run() {
     record("PDF: mecânicos + supervisor + rodapé SISLOC", pdf.mecanicos && pdf.supervisor && pdf.rodape);
     record("PDF: 2 páginas (1/2 e 2/2 com Anotações)", pdf.paginas === 2 && pdf.pag1 && pdf.pag2 && pdf.anotacoes);
     record("PDF: assinatura do cliente embutida", pdf.assinaturaImg === true);
+    record("PDF: foto do veículo ou mensagem «sem imagem»", pdf.fotoOuMensagem === true);
 
     await popup.screenshot({ path: "manutencao-checklist-pdf.png", fullPage: true }).catch(() => null);
     await popup.close().catch(() => null);

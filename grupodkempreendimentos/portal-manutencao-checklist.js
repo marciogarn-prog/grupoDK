@@ -332,7 +332,7 @@
 
     const imgVeiculoHtml = dados.imgVeiculo
       ? `<img class="veiculo-img" src="${esc(dados.imgVeiculo)}" alt="Veículo">`
-      : '<div class="veiculo-img veiculo-img--vazia"></div>';
+      : '<div class="veiculo-img veiculo-img--vazia"><span>FOTO DO VEÍCULO<br>AINDA NÃO CADASTRADA</span></div>';
 
     const linhasAnotacoes = Array.from({ length: 40 }, () => '<div class="anot-linha"></div>').join("");
 
@@ -371,7 +371,7 @@
   .veiculo-tabela { margin-top: 4px; }
   .veiculo-foto { width: 30%; text-align: center; padding: 3px; }
   .veiculo-img { max-width: 100%; max-height: 80px; }
-  .veiculo-img--vazia { height: 80px; border: 1px dashed #999; }
+  .veiculo-img--vazia { height: 80px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center; text-align: center; color: #777; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; }
   .veiculo-h { text-align: center; font-weight: 700; background: #f2f2f2; }
   .veiculo-v { text-align: center; font-weight: 700; }
   .oleo-h { background: #c00000; color: #fff; font-weight: 700; text-align: center; }
