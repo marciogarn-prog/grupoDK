@@ -12037,12 +12037,18 @@ ${printable.innerHTML}
 
   // Ligado ao contentor inteiro do Lançamento de aluguel: a lista de sugestões
   // (#operacaoLancAluguelPesquisaLista) fica na secção de pesquisa, fora do form.
-  document.getElementById("operacaoInlineLancamentoAluguel")?.addEventListener("click", (e) => {
+  // Usa mousedown porque o blur do campo de pesquisa re-renderiza a lista antes
+  // do mouseup, e o evento click deixaria de apontar para a linha.
+  let operacaoLancAluguelLinhaClickTs = 0;
+  function handleOperacaoLancAluguelLinhaEvent(e) {
     const t = e.target;
     if (!(t instanceof Element)) return;
     const btn = t.closest(".portal-lanc-pesquisa-linha");
     if (!btn) return;
     e.preventDefault();
+    const agora = Date.now();
+    if (agora - operacaoLancAluguelLinhaClickTs < 600) return;
+    operacaoLancAluguelLinhaClickTs = agora;
     aplicarOperacaoLancAluguelPesquisaLinha(
       btn.getAttribute("data-cpf"),
       btn.getAttribute("data-nome"),
@@ -12050,7 +12056,10 @@ ${printable.innerHTML}
       btn.getAttribute("data-placa")
     );
     confirmarOperacaoLancAluguelPesquisa();
-  });
+  }
+  const operacaoLancAluguelWrap = document.getElementById("operacaoInlineLancamentoAluguel");
+  operacaoLancAluguelWrap?.addEventListener("mousedown", handleOperacaoLancAluguelLinhaEvent);
+  operacaoLancAluguelWrap?.addEventListener("click", handleOperacaoLancAluguelLinhaEvent);
 
   /** Máscara 000.000.000-00 + datalist enquanto digita (padrão portal CPF cliente). */
   document.getElementById("portalRelClienteCpf")?.addEventListener("blur", () => {
