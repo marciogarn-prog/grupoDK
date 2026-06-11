@@ -1,0 +1,64 @@
+      <section id="panel-documentos-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Documentos</h2>
+        <p class="subpage__lead">Depósito de ficheiros <strong>sem IA</strong>. CRLV (nome = placa), contratos (nome = protocolo), multas (nome = <code>PLACA-CPF</code>). Vários ficheiros com o mesmo nome ficam guardados — use a pesquisa para ver todos e excluir um a um.</p>
+        <p id="documentosMsg" class="portal-feedback" role="status"></p>
+
+        <section class="documentos-busca" aria-labelledby="documentosBuscaTitulo">
+          <h3 id="documentosBuscaTitulo" class="portal-lanc-aluguel-section__title">O que você busca?</h3>
+          <fieldset class="documentos-busca-tipos">
+            <legend class="visually-hidden">Tipo de documento</legend>
+            <label class="documentos-busca-tipo"><input type="radio" name="documentosBuscaTipo" value="crlv" checked> CRLV</label>
+            <label class="documentos-busca-tipo"><input type="radio" name="documentosBuscaTipo" value="contrato"> CONTRATO</label>
+            <label class="documentos-busca-tipo"><input type="radio" name="documentosBuscaTipo" value="multa"> MULTAS</label>
+          </fieldset>
+          <div class="documentos-busca-linha">
+            <input type="search" id="documentosBuscaInput" class="portal-field__input documentos-busca-input" placeholder="Placa, protocolo ou PLACA-CPF" autocomplete="off">
+            <button type="button" class="btn-primary" id="documentosBuscaBtn">Buscar</button>
+          </div>
+          <p id="documentosBuscaMsg" class="subtext" role="status"></p>
+          <div id="documentosBuscaResultados" class="documentos-busca-resultados"></div>
+        </section>
+
+        <div class="documentos-depositos">
+          <section class="documentos-deposito documentos-deposito--crlv" aria-labelledby="documentosCrlvTitulo">
+            <h3 id="documentosCrlvTitulo" class="portal-lanc-aluguel-section__title">CRLV — documentos dos veículos</h3>
+            <p class="subtext">Nome do ficheiro = <strong>placa</strong> (ex.: <code>ABC1D23.pdf</code>).</p>
+            <input type="file" id="documentosInputCrlv" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+            <label id="documentosDropCrlv" for="documentosInputCrlv" class="documentos-dropzone" tabindex="0">Arrastar ou clicar para depositar CRLV</label>
+            <p id="documentosUploadMsgCrlv" class="subtext"></p>
+            <p id="documentosResumoCrlv" class="subtext documentos-resumo">0 ficheiro(s) CRLV no depósito.</p>
+          </section>
+
+          <section class="documentos-deposito documentos-deposito--contrato" aria-labelledby="documentosContratoTitulo">
+            <h3 id="documentosContratoTitulo" class="portal-lanc-aluguel-section__title">Contratos</h3>
+            <p class="subtext">Nome do ficheiro = <strong>número do protocolo</strong>. Use a pasta certa: <strong>ativos</strong> ou <strong>inativos</strong>.</p>
+            <div class="documentos-contrato-pastas">
+              <div class="documentos-contrato-pasta documentos-contrato-pasta--ativos">
+                <p class="documentos-contrato-pasta__titulo">Contratos ATIVOS</p>
+                <input type="file" id="documentosInputContratoAtivo" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+                <label id="documentosDropContratoAtivo" for="documentosInputContratoAtivo" class="documentos-dropzone documentos-dropzone--contrato documentos-dropzone--contrato-ativo" tabindex="0">Arrastar ou clicar para depositar contratos ATIVOS</label>
+              </div>
+              <div class="documentos-contrato-pasta documentos-contrato-pasta--inativos">
+                <p class="documentos-contrato-pasta__titulo">Contratos INATIVOS</p>
+                <input type="file" id="documentosInputContratoInativo" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+                <label id="documentosDropContratoInativo" for="documentosInputContratoInativo" class="documentos-dropzone documentos-dropzone--contrato documentos-dropzone--contrato-inativo" tabindex="0">Arrastar ou clicar para depositar contratos INATIVOS</label>
+              </div>
+            </div>
+            <p id="documentosUploadMsgContrato" class="subtext"></p>
+            <p id="documentosResumoContrato" class="subtext documentos-resumo">0 contrato(s) no depósito.</p>
+          </section>
+
+          <section class="documentos-deposito documentos-deposito--multa" aria-labelledby="documentosMultaTitulo">
+            <h3 id="documentosMultaTitulo" class="portal-lanc-aluguel-section__title">Multas</h3>
+            <p class="subtext">Nome do ficheiro = <strong>PLACA-CPF</strong> (ex.: <code>ABC1D23-12345678901.pdf</code>).</p>
+            <input type="file" id="documentosInputMulta" accept="application/pdf,.pdf,image/jpeg,image/png,image/webp" multiple class="documentos-file-hidden">
+            <label id="documentosDropMulta" for="documentosInputMulta" class="documentos-dropzone documentos-dropzone--multa" tabindex="0">Arrastar ou clicar para depositar multas</label>
+            <p id="documentosUploadMsgMulta" class="subtext"></p>
+            <p id="documentosResumoMulta" class="subtext documentos-resumo">0 multa(s) no depósito.</p>
+          </section>
+        </div>
+
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-documentos-locadora">Voltar</button>
+        </div>
+      </section>
