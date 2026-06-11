@@ -1005,6 +1005,13 @@
         /* ignore */
       }
     }
+    if (Object.prototype.hasOwnProperty.call(payload, "dk_funcionarios_access")) {
+      try {
+        window.__DK_hydrateFuncionariosAccess?.();
+      } catch {
+        /* ignore */
+      }
+    }
     if (window.__DK_IS_DEMO_DEPLOY__ !== true && typeof window.__DK_purgeGlobalLancamentoKeysOficial === "function") {
       try {
         window.__DK_purgeGlobalLancamentoKeysOficial();
@@ -3366,12 +3373,19 @@
     window.setTimeout(() => {
       scheduleBackgroundCloudPullIfStale()
         .then((r) => {
-          if (r && r.applied && typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+          if (r && r.applied) {
+            try {
+              window.__DK_hydrateFuncionariosAccess?.();
+            } catch {
+              /* ignore */
+            }
+          }
+          if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
             window.__DK_portalRefreshOperacaoLocal();
           }
         })
         .catch((e) => console.warn("[DK cloud] arranque pull", e));
-    }, 6000);
+    }, 1500);
   }
 
   function bind() {
