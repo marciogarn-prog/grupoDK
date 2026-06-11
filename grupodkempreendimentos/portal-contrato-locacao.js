@@ -5,8 +5,16 @@
   "use strict";
 
   const LOGO_SRC = "images/dk-locadora-logo.png";
-  const HTML2CANVAS_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-  const JSPDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
+  const VENDOR_JSPDF = "vendor/jspdf.umd.min.js";
+  const VENDOR_HTML2CANVAS = "vendor/html2canvas.min.js";
+
+  function vendorScriptUrl(relPath) {
+    try {
+      return new URL(relPath, window.location.href).href;
+    } catch {
+      return relPath;
+    }
+  }
   const DIAS_SEM = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
   const MESES = [
     "janeiro",
@@ -328,6 +336,8 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   }
 
   function scriptPreviewInline(dados) {
+    const html2canvasUrl = vendorScriptUrl(VENDOR_HTML2CANVAS);
+    const jspdfUrl = vendorScriptUrl(VENDOR_JSPDF);
     const meta = JSON.stringify({
       protocolo: dados.protocolo,
       statusLocacao: dados.statusLocacao,
@@ -352,8 +362,8 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   }
 
   async function ensurePdfLibs(){
-    if (!window.html2canvas) await loadScript("${HTML2CANVAS_URL}");
-    if (!window.jspdf && !window.jsPDF) await loadScript("${JSPDF_URL}");
+    if (!window.html2canvas) await loadScript("${html2canvasUrl}");
+    if (!window.jspdf && !window.jsPDF) await loadScript("${jspdfUrl}");
   }
 
   async function gerarPdfBlob(){
