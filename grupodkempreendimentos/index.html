@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260610senha-relatorio">
+  <link rel="stylesheet" href="styles.css?v=20260611manut-checklist">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260610corte-fixo"></script>
@@ -1421,6 +1421,66 @@
                 </div>
               </div>
             </section>
+            <section id="operacaoLancManutencaoChecklistPanel" class="portal-lanc-aluguel-pagamento portal-manut-checklist hidden" hidden aria-labelledby="portal-lanc-manutencao-checklist-title">
+              <h4 id="portal-lanc-manutencao-checklist-title" class="portal-lanc-aluguel-section__title">Check-list para manuten&ccedil;&atilde;o / repara&ccedil;&otilde;es</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Cabe&ccedil;alho preenchido pelo protocolo. Preencha os campos abaixo, assine no tablet (S-pen) se necess&aacute;rio e gere o PDF para impress&atilde;o.</p>
+              <div class="operacao-inline-form__grid">
+                <div class="portal-field">
+                  <span>TROCA DE &Oacute;LEO?</span>
+                  <div class="portal-manut-check-toggle" role="group" aria-label="Troca de óleo">
+                    <label><input type="radio" name="manutChecklistOleo" value="sim"> Sim</label>
+                    <label><input type="radio" name="manutChecklistOleo" value="nao"> N&atilde;o</label>
+                  </div>
+                </div>
+                <label class="portal-field">
+                  <span>OD&Ocirc;METRO (km)</span>
+                  <input type="text" id="manutChecklistOdometro" inputmode="numeric" maxlength="7" autocomplete="off" placeholder="Ex.: 26408">
+                </label>
+                <label class="portal-field">
+                  <span>PR&Oacute;X. TROCA DE &Oacute;LEO (km)</span>
+                  <input type="text" id="manutChecklistProximaTroca" readonly tabindex="-1" placeholder="Od&ocirc;metro + 1000" title="Calculado automaticamente: od&ocirc;metro + 1000 km">
+                </label>
+                <div class="portal-field">
+                  <span>PAGOU?</span>
+                  <div class="portal-manut-check-toggle" role="group" aria-label="Pagou">
+                    <label><input type="radio" name="manutChecklistPagou" value="S"> S</label>
+                    <label><input type="radio" name="manutChecklistPagou" value="N"> N</label>
+                    <label><input type="radio" name="manutChecklistPagou" value="NA"> N/A</label>
+                  </div>
+                </div>
+                <div class="portal-field">
+                  <span>MEC&Acirc;NICO</span>
+                  <div class="portal-manut-check-toggle portal-manut-check-toggle--coluna" role="group" aria-label="Mecânico responsável">
+                    <label><input type="radio" name="manutChecklistMecanico" value="TALISON CAMARGO"> TALISON CAMARGO</label>
+                    <label><input type="radio" name="manutChecklistMecanico" value="SAMUEL VICTOR"> SAMUEL VICTOR</label>
+                    <label><input type="radio" name="manutChecklistMecanico" value="Mecânico II"> Mec&acirc;nico II</label>
+                  </div>
+                </div>
+                <div class="portal-field portal-field--wide">
+                  <button type="button" class="btn-primary btn-secondary-outline" id="manutChecklistDetalharBtn" aria-expanded="false" aria-controls="manutChecklistDetalheWrap">Detalhamento da manuten&ccedil;&atilde;o (itens 1&ndash;29)</button>
+                </div>
+                <div id="manutChecklistDetalheWrap" class="portal-field portal-field--wide portal-manut-check-detalhe hidden" hidden></div>
+                <div class="portal-field portal-field--wide portal-manut-check-assinaturas">
+                  <span>ASSINATURAS (tablet / S-pen &mdash; opcional)</span>
+                  <div class="portal-manut-check-assinaturas__grid">
+                    <div class="portal-manut-check-assinatura">
+                      <p class="subtext">Cliente</p>
+                      <canvas id="manutChecklistAssinaturaCliente" class="portal-manut-check-assinatura__canvas" width="560" height="140" aria-label="Assinatura do cliente"></canvas>
+                      <button type="button" class="btn-primary btn-secondary-outline portal-manut-check-assinatura__limpar" data-manut-assinatura-limpar="manutChecklistAssinaturaCliente">Limpar assinatura</button>
+                    </div>
+                    <div class="portal-manut-check-assinatura">
+                      <p class="subtext">Supervisor</p>
+                      <canvas id="manutChecklistAssinaturaSupervisor" class="portal-manut-check-assinatura__canvas" width="560" height="140" aria-label="Assinatura do supervisor"></canvas>
+                      <button type="button" class="btn-primary btn-secondary-outline portal-manut-check-assinatura__limpar" data-manut-assinatura-limpar="manutChecklistAssinaturaSupervisor">Limpar assinatura</button>
+                    </div>
+                  </div>
+                </div>
+                <div class="operacao-inline-form__actions">
+                  <button type="button" class="btn-primary" id="manutChecklistGerarPdfBtn">Gerar check-list (PDF / imprimir)</button>
+                </div>
+                <p id="manutChecklistMsg" class="subtext portal-loc-docs__msg" role="status"></p>
+              </div>
+            </section>
           </form>
           <div id="operacaoLancManutencaoHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Hist&oacute;rico de manuten&ccedil;&otilde;es do protocolo"></div>
           <div id="operacaoLancManutencaoRelatorioActions" class="operacao-inline-form__actions portal-multas-relatorio-actions hidden" hidden>
@@ -1969,7 +2029,8 @@
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
   <script src="portal-documentos.js?v=20260610pastas-contratos2" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260610multa-vinculo" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260611manut-checklist" defer></script>
+  <script src="portal-manutencao-checklist.js?v=20260611manut-checklist" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
   <script src="portal-supabase-sync.js?v=20260610backup-fuso" defer></script>
 </body>
