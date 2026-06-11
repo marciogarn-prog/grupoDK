@@ -418,6 +418,88 @@
     return matches.sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0))[0];
   }
 
+  /** Garante PDF do contrato na nuvem (Supabase docblob) para todos os operadores. */
+  async function garantirEntradaBlobNaNuvem(entrada) {
+    if (!entrada?.id) return false;
+    if (entrada.nuvem === true) return true;
+    try {
+      const row = await idbGetBlob(entrada.id);
+      if (row?.blob) {
+        const ok = await cloudPutBlob(entrada.id, row.blob, {
+          nomeArquivo: entrada.nomeArquivo || row.nomeArquivo,
+          mimeType: entrada.mimeType || row.mimeType,
+        });
+        return ok;
+      }
+      const cloud = await cloudGetBlob(entrada.id);
+      return Boolean(cloud?.blob);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Move contrato entre Contratos ATIVOS e INATIVOS (campo statusContrato).
+   * Metadados sincronizam via dk_documentos_deposito_v1; PDF via docblob na nuvem.
+   */
+  async function moverContratoPorProtocolo(protocolo, statusContrato, opts = {}) {
+    const st = String(statusContrato || "")
+      .trim()
+      .toLowerCase();
+    if (st !== "ativo" && st !== "inativo") return { ok: false, msg: "status_invalido" };
+    const chave = normProtocolo(protocolo);
+    if (!chave) return { ok: false, msg: "protocolo_invalido" };
+
+    const dep = loadDeposit();
+    const arr = dep.contrato || [];
+    let idx = -1;
+    for (let i = 0; i < arr.length; i += 1) {
+      const e = arr[i];
+      if (e && depEntradaVisivel(e) && normProtocolo(e.chave) === chave) {
+        idx = i;
+        break;
+      }
+    }
+    if (idx < 0) return { ok: false, msg: "nao_encontrado" };
+
+    const prev = arr[idx];
+    const prevSt = String(prev.statusContrato || "")
+      .trim()
+      .toLowerCase();
+    const naNuvem = await garantirEntradaBlobNaNuvem(prev);
+    let changed = false;
+
+    if (prevSt !== st) {
+      arr[idx] = {
+        ...prev,
+        statusContrato: st,
+        pastaAtualizadaEm: new Date().toISOString(),
+        nuvem: naNuvem ? true : prev.nuvem,
+      };
+      changed = true;
+    } else if (naNuvem && prev.nuvem !== true) {
+      arr[idx] = { ...prev, nuvem: true };
+      changed = true;
+    }
+
+    if (changed) {
+      dep.contrato = arr;
+      saveDeposit(dep);
+      atualizarResumosDepositos();
+      if (!opts.silent && typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
+        window.__DK_contratoLocacaoRefreshBotao();
+      }
+    }
+
+    return {
+      ok: true,
+      moved: prevSt !== st,
+      unchanged: prevSt === st,
+      entry: arr[idx],
+      naNuvem: arr[idx].nuvem === true,
+    };
+  }
+
   function contarDeposito(categoria) {
     const cat = String(categoria || "").trim().toLowerCase();
     return (loadDeposit()[cat] || []).filter(depEntradaVisivel).length;
@@ -903,6 +985,8 @@
   window.__DK_documentosFiltrarDeposito = filtrarDepositoPorTexto;
   window.__DK_documentosObterEntrada = obterEntradaDeposito;
   window.__DK_documentosObterContratoPorProtocolo = obterContratoPorProtocolo;
+  window.__DK_documentosMoverContratoPorProtocolo = moverContratoPorProtocolo;
+  window.__DK_documentosGarantirBlobNaNuvem = garantirEntradaBlobNaNuvem;
   window.__DK_documentosContarDeposito = contarDeposito;
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
   window.__DK_documentosDepositarBlob = depositarBlob;
