@@ -7838,19 +7838,11 @@ ${printable.innerHTML}
     refreshOperacaoLocacaoVisualizarContratoBtn();
   }
 
-  /** Habilita «Visualizar contrato» quando há protocolo cadastrado (não NOVO). */
+  /** «Gerar contrato» ou «Visualizar contrato» conforme existência no depósito (chave = protocolo). */
   function refreshOperacaoLocacaoVisualizarContratoBtn() {
-    const btn = document.getElementById("operacaoLocacaoVisualizarContratoBtn");
-    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
-    const hid = document.getElementById("operacaoLocacaoProtocolo");
-    if (!btn) return;
-    const isNovo = sel && String(sel.value || "") === PORTAL_PROTO_NOVO;
-    const proto = normPortalNumeroContrato(String(hid?.value || ""));
-    const can = Boolean(proto) && !isNovo;
-    btn.disabled = !can;
-    btn.title = can
-      ? "Gerar contrato com os dados desta locação e guardar em Documentos → Contratos ATIVOS."
-      : "Cadastre a locação ou carregue um protocolo existente (não «NOVO»).";
+    if (typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
+      window.__DK_contratoLocacaoRefreshBotao();
+    }
   }
 
   /** Com investimento > 0: DK MINHA MOTO; caso contrário: DK MEU TRANSPORTE (mesma regra do painel DK). */
@@ -9059,26 +9051,7 @@ ${printable.innerHTML}
       if (saved) applyPortalLocacaoRowFromRecord(saved);
       refreshOperacaoLocacaoDatalists();
       refreshOperacaoLocacaoFinalizarBtn();
-      if (typeof window.__DK_contratoLocacaoGerar === "function" && saved) {
-        const dadosContrato =
-          typeof window.__DK_contratoLocacaoResolverFromLoc === "function"
-            ? window.__DK_contratoLocacaoResolverFromLoc(saved)
-            : null;
-        if (dadosContrato) {
-          void window.__DK_contratoLocacaoGerar({
-            dados: dadosContrato,
-            depositar: true,
-            somenteVisualizar: false,
-            silent: true,
-          }).then((r) => {
-            if (r?.ok && msg) {
-              msg.textContent = prev
-                ? "Locação atualizada. Contrato regenerado em Documentos → Contratos ATIVOS."
-                : "Locação cadastrada. Contrato gerado em Documentos → Contratos ATIVOS.";
-            }
-          });
-        }
-      }
+      refreshOperacaoLocacaoVisualizarContratoBtn();
     };
     if (prev && isPortalTitularAdministrador()) {
       const changes = portalBuildAlteracoesLista(snapshotLoc(prev), registroNovo, PORTAL_LOCACAO_DIFF_LABELS);

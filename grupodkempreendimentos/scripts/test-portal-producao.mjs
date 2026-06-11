@@ -491,6 +491,7 @@ async function runSuite() {
         docsJs.includes("chaveFromFilename") &&
         docsJs.includes("adicionarFicheiros") &&
         docsJs.includes("__DK_documentosDepositarBlob") &&
+        docsJs.includes("__DK_documentosObterContratoPorProtocolo") &&
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
         docsJs.includes("purgeLegacyPatrimonioLocal") &&
@@ -502,14 +503,15 @@ async function runSuite() {
         html.includes("portal-contrato-locacao.js") &&
         html.includes("dk-contrato-locacao-texto.js")
     );
-    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-loc`, {
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-btn`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
       "contrato locação gera PDF e deposita por protocolo",
       contratoJs.includes("__DK_contratoLocacaoGerar") &&
-        contratoJs.includes("__DK_documentosDepositarBlob") &&
-        contratoJs.includes("statusContrato")
+        contratoJs.includes("__DK_contratoLocacaoRefreshBotao") &&
+        contratoJs.includes("__DK_contratoLocacaoExisteParaProtocolo") &&
+        contratoJs.includes("__DK_documentosObterContratoPorProtocolo")
     );
     const syncJs = await page.evaluate(async () => {
       const r = await fetch("portal-supabase-sync.js?v=20260609docs-auto", { cache: "no-store" });

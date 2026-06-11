@@ -347,7 +347,92 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     return doc.output("blob");
   }
 
+  function obterContratoDeposito(protocolo) {
+    const fn =
+      typeof window.__DK_documentosObterContratoPorProtocolo === "function"
+        ? window.__DK_documentosObterContratoPorProtocolo
+        : null;
+    return fn ? fn(protocolo) : null;
+  }
+
+  function contratoExisteParaProtocolo(protocolo) {
+    return Boolean(obterContratoDeposito(protocolo));
+  }
+
+  async function visualizarContratoArmazenado(protocolo) {
+    const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
+    const entrada = obterContratoDeposito(protocolo);
+    if (!entrada) {
+      if (msgEl) msgEl.textContent = "Contrato ainda não gerado para este protocolo.";
+      atualizarBotaoContratoLocacao();
+      return { ok: false, msg: "nao_existe" };
+    }
+    const obter =
+      typeof window.__DK_documentosObterBlobDoc === "function" ? window.__DK_documentosObterBlobDoc : null;
+    if (!obter) {
+      if (msgEl) msgEl.textContent = "Visualização de documentos indisponível.";
+      return { ok: false };
+    }
+    try {
+      const row = await obter("contrato", entrada.id);
+      if (!row?.blob) {
+        if (msgEl) {
+          msgEl.textContent =
+            "Contrato registado mas ficheiro indisponível neste computador — abra Documentos ou aguarde a sincronização da nuvem.";
+        }
+        return { ok: false, msg: "blob_ausente" };
+      }
+      const abrir =
+        typeof window.__DK_documentosAbrirViewerBlob === "function"
+          ? window.__DK_documentosAbrirViewerBlob
+          : null;
+      if (abrir) {
+        abrir(row.blob, entrada.nomeArquivo || `${protocolo}.pdf`, entrada.mimeType || row.mimeType || "application/pdf");
+      } else {
+        const url = URL.createObjectURL(row.blob);
+        window.open(url, "_blank", "noopener");
+        window.setTimeout(() => URL.revokeObjectURL(url), 120000);
+      }
+      if (msgEl) msgEl.textContent = `Contrato do protocolo ${protocolo} aberto.`;
+      return { ok: true, entrada };
+    } catch (e) {
+      if (msgEl) msgEl.textContent = `Erro ao abrir contrato: ${e?.message || e}`;
+      return { ok: false, msg: String(e?.message || e) };
+    }
+  }
+
+  function atualizarBotaoContratoLocacao() {
+    const btn = document.getElementById("operacaoLocacaoVisualizarContratoBtn");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    if (!btn) return;
+    const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
+    const proto = normProtocolo(hid?.value);
+    const can = Boolean(proto) && !isNovo;
+    btn.disabled = !can;
+    if (!can) {
+      btn.textContent = "Gerar contrato";
+      btn.dataset.dkModo = "gerar";
+      btn.title = "Cadastre a locação ou carregue um protocolo existente (não «NOVO»).";
+      return;
+    }
+    const existe = contratoExisteParaProtocolo(proto);
+    if (existe) {
+      btn.textContent = "Visualizar contrato";
+      btn.dataset.dkModo = "visualizar";
+      btn.title = `Abrir o contrato já gerado para o protocolo ${proto} (Documentos → Contratos ATIVOS).`;
+    } else {
+      btn.textContent = "Gerar contrato";
+      btn.dataset.dkModo = "gerar";
+      btn.title = `Gerar contrato PDF para o protocolo ${proto} e guardar em Documentos → Contratos ATIVOS.`;
+    }
+  }
+
   async function depositarContrato(dados, opts = {}) {
+    const existente = obterContratoDeposito(dados.protocolo);
+    if (existente && !opts.forcarSubstituir) {
+      return { ok: true, id: existente.id, entry: existente, jaExistia: true };
+    }
     const depositar = typeof window.__DK_documentosDepositarBlob === "function" ? window.__DK_documentosDepositarBlob : null;
     if (!depositar) throw new Error("Depósito de documentos indisponível.");
     const html = buildContratoHtml(dados);
@@ -383,6 +468,12 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       if (msgEl && !opts.silent) msgEl.textContent = err;
       return { ok: false, msg: err };
     }
+    if (contratoExisteParaProtocolo(dados.protocolo) && !opts.forcarSubstituir) {
+      if (opts.somenteVisualizar !== false && !opts.silent) {
+        return visualizarContratoArmazenado(dados.protocolo);
+      }
+      return { ok: true, dados, deposito: { ok: true, jaExistia: true } };
+    }
     try {
       const html = buildContratoHtml(dados);
       let abriu = false;
@@ -392,7 +483,9 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       if (opts.depositar !== false) {
         const dep = await depositarContrato(dados, opts);
         if (msgEl && !opts.silent) {
-          if (dep.ok) {
+          if (dep.jaExistia) {
+            msgEl.textContent = `Contrato do protocolo ${dados.protocolo} já existe — use «Visualizar contrato».`;
+          } else if (dep.ok) {
             msgEl.textContent = abriu
               ? `Contrato ${dados.protocolo} gerado — confira a janela. Guardado em Documentos → Contratos ATIVOS.`
               : `Contrato ${dados.protocolo} guardado em Documentos → Contratos ATIVOS.`;
@@ -400,6 +493,8 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
             msgEl.textContent = "Não foi possível guardar o contrato no depósito.";
           }
         }
+        if (dep.ok && !dep.jaExistia) atualizarBotaoContratoLocacao();
+        if (dep.jaExistia) atualizarBotaoContratoLocacao();
         return { ok: Boolean(dep.ok || abriu), dados, deposito: dep };
       }
       if (abriu && msgEl && !opts.silent) {
@@ -418,9 +513,32 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   window.__DK_contratoLocacaoBuildHtml = buildContratoHtml;
   window.__DK_contratoLocacaoGerar = gerarContratoLocacao;
   window.__DK_contratoLocacaoDepositar = depositarContrato;
+  window.__DK_contratoLocacaoExisteParaProtocolo = contratoExisteParaProtocolo;
+  window.__DK_contratoLocacaoVisualizarArmazenado = visualizarContratoArmazenado;
+  window.__DK_contratoLocacaoRefreshBotao = atualizarBotaoContratoLocacao;
 
   document.getElementById("operacaoLocacaoVisualizarContratoBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    void gerarContratoLocacao({ depositar: true, somenteVisualizar: true });
+    const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
+    const dados = resolverDadosFromForm();
+    const err = validarDados(dados);
+    if (err) {
+      if (msgEl) msgEl.textContent = err;
+      return;
+    }
+    const btn = e.currentTarget;
+    const modo = String(btn?.dataset?.dkModo || "").trim();
+    if (modo === "visualizar" || contratoExisteParaProtocolo(dados.protocolo)) {
+      void visualizarContratoArmazenado(dados.protocolo);
+      return;
+    }
+    void gerarContratoLocacao({ dados, depositar: true, somenteVisualizar: true }).then(() => {
+      atualizarBotaoContratoLocacao();
+    });
+  });
+
+  atualizarBotaoContratoLocacao();
+  window.addEventListener("storage", (ev) => {
+    if (ev.key === "dk_documentos_deposito_v1") atualizarBotaoContratoLocacao();
   });
 })();
