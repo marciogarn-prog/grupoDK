@@ -466,8 +466,8 @@
       </tr>
       <tr>
         <td class="oleo-v">${form.oleo === "sim" ? "SIM" : form.oleo === "nao" ? "NÃO" : "&nbsp;"}</td>
-        <td class="veiculo-v">${esc(fmtKm(form.odometro) || "&nbsp;")}</td>
-        <td class="veiculo-v">${esc(fmtKm(form.proximaTroca) || "&nbsp;")}</td>
+        <td class="veiculo-v">${fmtKm(form.odometro) ? esc(fmtKm(form.odometro)) : "&nbsp;"}</td>
+        <td class="veiculo-v">${fmtKm(form.proximaTroca) ? esc(fmtKm(form.proximaTroca)) : "&nbsp;"}</td>
         <td class="pagou-ops">S <span class="cb">${marcado(form.pagou === "S")}</span>&nbsp; N <span class="cb">${marcado(form.pagou === "N")}</span>&nbsp; N/A <span class="cb">${marcado(form.pagou === "NA")}</span></td>
       </tr>
     </table>

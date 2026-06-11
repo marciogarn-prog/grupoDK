@@ -149,6 +149,7 @@ async function run() {
     const pdf = await popup.evaluate(() => {
       const txt = document.body.innerText || "";
       return {
+        semNbspLiteral: !txt.includes("&nbsp;"),
         titulo: txt.includes("CHECK-LIST PARA MANUTENÇÃO / REPARAÇÕES"),
         protocolo: txt.includes("Protocolo Nº"),
         plano: txt.includes("Plano:"),
@@ -184,9 +185,26 @@ async function run() {
     record("PDF: 2 páginas (1/2 e 2/2 com Anotações)", pdf.paginas === 2 && pdf.pag1 && pdf.pag2 && pdf.anotacoes);
     record("PDF: assinatura do cliente embutida", pdf.assinaturaImg === true);
     record("PDF: foto do veículo ou mensagem «sem imagem»", pdf.fotoOuMensagem === true);
+    record("PDF: sem texto literal «&nbsp;»", pdf.semNbspLiteral === true);
 
     await popup.screenshot({ path: "manutencao-checklist-pdf.png", fullPage: true }).catch(() => null);
+
+    // segundo PDF sem odômetro: células ficam em branco (sem «&nbsp;» literal)
     await popup.close().catch(() => null);
+    await page.locator("#manutChecklistOdometro").fill("");
+    await page.locator("#manutChecklistOdometro").dispatchEvent("input");
+    const [popupVazio] = await Promise.all([
+      context.waitForEvent("page", { timeout: 15000 }),
+      page.locator("#manutChecklistGerarPdfBtn").click(),
+    ]);
+    await popupVazio.waitForLoadState("domcontentloaded").catch(() => null);
+    await popupVazio.waitForTimeout(800);
+    const vazioOk = await popupVazio.evaluate(() => {
+      const txt = document.body.innerText || "";
+      return !txt.includes("&nbsp;") && !txt.includes("Km(s)");
+    });
+    record("PDF sem odômetro: células em branco (sem «&nbsp;»)", vazioOk === true);
+    await popupVazio.close().catch(() => null);
 
     // limpar pesquisa esconde o painel
     await page.locator("#operacaoLancManutencaoLimparPesquisaBtn").click({ force: true });
