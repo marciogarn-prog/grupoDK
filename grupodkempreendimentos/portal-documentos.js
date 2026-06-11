@@ -559,6 +559,69 @@
     })();
   }
 
+  async function depositarBlob(categoria, blob, meta = {}, opts = {}) {
+    const msgEl = $(`documentosUploadMsg${categoria.charAt(0).toUpperCase() + categoria.slice(1)}`);
+    if (!podeAcessarDocumentos()) {
+      if (msgEl) msgEl.textContent = "Sem permissão para gerir documentos.";
+      return { ok: false };
+    }
+    if (!blob || !(blob instanceof Blob)) return { ok: false, msg: "Ficheiro inválido." };
+    const nome = String(meta.nomeArquivo || "documento.pdf").trim();
+    const chave = String(meta.chave || chaveFromFilename(categoria, nome) || "").trim();
+    if (!chave) return { ok: false, msg: "Chave inválida." };
+    const mimeFinal = String(meta.mimeType || blob.type || "application/pdf").toLowerCase();
+    if (blob.size > MAX_BYTES) {
+      if (msgEl) msgEl.textContent = `«${nome}» excede 12 MB.`;
+      return { ok: false };
+    }
+
+    const dep = loadDeposit();
+    const arr = dep[categoria] || [];
+    if (opts.replaceChave) {
+      for (let i = 0; i < arr.length; i += 1) {
+        const e = arr[i];
+        if (e && depEntradaVisivel(e) && normProtocolo(e.chave) === normProtocolo(chave)) {
+          arr[i] = { ...e, excluido: true, excluidoEm: new Date().toISOString() };
+          void idbDeleteBlob(e.id).catch(() => null);
+          void cloudDeleteBlob(e.id).catch(() => null);
+        }
+      }
+    }
+
+    const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    await idbPutBlob(id, blob, { nomeArquivo: nome, mimeType: mimeFinal });
+    let naNuvem = false;
+    try {
+      if (msgEl) msgEl.textContent = `A enviar «${nome}» para a nuvem…`;
+      naNuvem = await cloudPutBlob(id, blob, { nomeArquivo: nome, mimeType: mimeFinal });
+    } catch {
+      naNuvem = false;
+    }
+    const entry = {
+      id,
+      chave,
+      nomeArquivo: nome,
+      mimeType: mimeFinal,
+      tamanho: blob.size,
+      criadoEm: new Date().toISOString(),
+      nuvem: naNuvem,
+      origem: String(meta.origem || "sistema"),
+    };
+    if (categoria === "contrato" && (opts.statusContrato === "ativo" || opts.statusContrato === "inativo")) {
+      entry.statusContrato = opts.statusContrato;
+    }
+    arr.push(entry);
+    dep[categoria] = arr;
+    saveDeposit(dep);
+    if (msgEl && !opts.silent) {
+      msgEl.textContent = naNuvem
+        ? `«${nome}» guardado — disponível na nuvem para todos os operadores.`
+        : `«${nome}» guardado localmente.`;
+    }
+    atualizarResumosDepositos();
+    return { ok: true, id, entry, naNuvem };
+  }
+
   async function adicionarFicheiros(categoria, fileList, opts = {}) {
     const msgEl = $(`documentosUploadMsg${categoria.charAt(0).toUpperCase() + categoria.slice(1)}`);
     if (!podeAcessarDocumentos()) {
@@ -831,6 +894,7 @@
   window.__DK_documentosObterEntrada = obterEntradaDeposito;
   window.__DK_documentosContarDeposito = contarDeposito;
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
+  window.__DK_documentosDepositarBlob = depositarBlob;
   window.__DK_documentosSyncNuvem = sincronizarDepositoComNuvem;
   window.__DK_documentosCloudGetBlob = cloudGetBlob;
   window.__DK_documentosAbrirViewerBlob = abrirViewerComBlob;

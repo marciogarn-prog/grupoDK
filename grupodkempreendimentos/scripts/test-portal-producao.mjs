@@ -490,10 +490,26 @@ async function runSuite() {
         docsJs.includes("__DK_documentosObterBlobDoc") &&
         docsJs.includes("chaveFromFilename") &&
         docsJs.includes("adicionarFicheiros") &&
+        docsJs.includes("__DK_documentosDepositarBlob") &&
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
         docsJs.includes("purgeLegacyPatrimonioLocal") &&
         !docsJs.includes("patrimonioReservarLeituraIa")
+    );
+    record(
+      "cadastro locação visualizar contrato (modelo + depósito ATIVOS)",
+      html.includes("operacaoLocacaoVisualizarContratoBtn") &&
+        html.includes("portal-contrato-locacao.js") &&
+        html.includes("dk-contrato-locacao-texto.js")
+    );
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-loc`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "contrato locação gera PDF e deposita por protocolo",
+      contratoJs.includes("__DK_contratoLocacaoGerar") &&
+        contratoJs.includes("__DK_documentosDepositarBlob") &&
+        contratoJs.includes("statusContrato")
     );
     const syncJs = await page.evaluate(async () => {
       const r = await fetch("portal-supabase-sync.js?v=20260609docs-auto", { cache: "no-store" });

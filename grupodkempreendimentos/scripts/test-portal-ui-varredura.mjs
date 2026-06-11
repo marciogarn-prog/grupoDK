@@ -86,7 +86,7 @@ const HANDLER_WHITELIST = new Set([
 const FORM_SUBMIT_BUTTONS = {
   formOperacaoClienteInline: ["operacaoClienteAtualizarBtn"],
   formOperacaoVeiculoInline: ["operacaoVeiculoSubmitBtn"],
-  formOperacaoLocacaoInline: ["operacaoLocacaoSubmitBtn"],
+  formOperacaoLocacaoInline: ["operacaoLocacaoSubmitBtn", "operacaoLocacaoVisualizarContratoBtn"],
   formOperacaoLancamentoAluguelInline: ["operacaoLancAluguelConfirmarPagamentoBtn"],
   portalColabForm: ["portalColabBtnCadastrar", "portalColabBtnSalvarAlteracoes"],
   "form-locadora-app-download": ["btn-locadora-app-download"],
