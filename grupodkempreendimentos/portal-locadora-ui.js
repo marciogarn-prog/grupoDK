@@ -9733,11 +9733,56 @@ ${printable.innerHTML}
         preencherLancAluguelFormSimples();
       } else pag.setAttribute("hidden", "");
     }
+    esconderOperacaoLancAluguelSituacao();
     syncPortalOperadorComprovanteSection();
   }
 
   function hideOperacaoLancAluguelDetalhePanels() {
     setOperacaoLancAluguelDetalhePanelsVisible(false);
+  }
+
+  /** Esconde o painel «Situação do protocolo após o pagamento». */
+  function esconderOperacaoLancAluguelSituacao() {
+    const panel = document.getElementById("operacaoLancAluguelSituacaoPanel");
+    if (!panel) return;
+    panel.classList.add("hidden");
+    panel.setAttribute("hidden", "");
+  }
+
+  /**
+   * Preenche e mostra o painel «Situação do protocolo após o pagamento» no Lançamento de aluguel.
+   * Mostra os totais que antes ficavam no Cadastro de locação: devido do plano, total pago,
+   * devido do aluguel, investimento acumulado e total pago no ano de resumo.
+   */
+  function refreshOperacaoLancAluguelSituacaoAposPagamento(loc) {
+    const panel = document.getElementById("operacaoLancAluguelSituacaoPanel");
+    if (!panel) return;
+    if (!loc) {
+      esconderOperacaoLancAluguelSituacao();
+      return;
+    }
+    const resumo = computePortalProtocoloResumoFromLoc(loc);
+    const lancs = getPortalLancamentosAluguelDoContrato(loc);
+    const totalAnoFmt = formatPortalLancamentoSumBrl(
+      sumPortalLancamentosAluguelNoAno(lancs, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
+    );
+    const setVal = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+    setVal("operacaoLancAluguelSitDevidoPlano", resumo.valorDevidoPlano);
+    setVal("operacaoLancAluguelSitTotalPago", resumo.totalPago);
+    setVal("operacaoLancAluguelSitDevidoAluguel", resumo.valorDevidoAluguel);
+    setVal("operacaoLancAluguelSitTotalPagoAno", totalAnoFmt);
+    const acumEl = document.getElementById("operacaoLancAluguelSitInvestAcumulado");
+    if (acumEl) {
+      acumEl.textContent = resumo.investimentoAcumulado;
+      acumEl.classList.remove("portal-lanc-situacao__valor--negativo", "portal-lanc-situacao__valor--positivo");
+      if (resumo.investimentoAcumuladoNeg) acumEl.classList.add("portal-lanc-situacao__valor--negativo");
+      else if (resumo.investimentoAcumuladoPos) acumEl.classList.add("portal-lanc-situacao__valor--positivo");
+    }
+    panel.classList.remove("hidden");
+    panel.removeAttribute("hidden");
   }
 
   /** Volta o foco e a rolagem para a área «Pesquisar contrato» (após Limpar dados). */
@@ -12278,6 +12323,7 @@ ${printable.innerHTML}
         );
         if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
         refreshOperacaoLancAluguelResumoCompacto();
+        refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
         if (msg) msg.textContent = "A enviar aviso ao cliente…";
         const notify = await portalNotificarClientePagamentosLancados(
           res.cpfDigits,
@@ -12795,6 +12841,7 @@ ${printable.innerHTML}
   })();
 
   window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
+  window.__DK_refreshLancAluguelSituacao = refreshOperacaoLancAluguelSituacaoAposPagamento;
   window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
