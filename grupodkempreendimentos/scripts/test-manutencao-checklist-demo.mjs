@@ -39,7 +39,7 @@ async function run() {
     await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
     await page.waitForTimeout(1500);
 
-    await page.locator("#btn-locadora-operacao").click({ timeout: 15000 });
+    await page.locator("#btn-locadora-manutencao").click({ timeout: 15000 });
     await page.waitForTimeout(400);
     await page.locator("#btn-operacao-lancamento-manutencao").click({ timeout: 15000 });
     await page.waitForTimeout(600);

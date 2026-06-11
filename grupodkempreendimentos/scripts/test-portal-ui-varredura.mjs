@@ -212,16 +212,6 @@ const OPERACAO_PANELS = [
     buttons: ["operacaoLancMultasConfirmarPesquisaBtn", "operacaoLancMultasDocImportBtn", "operacaoLancMultasGerarRelatorioBtn"],
   },
   {
-    name: "Lançamento manutenção",
-    cmd: "btn-operacao-lancamento-manutencao",
-    panel: "operacaoInlineLancamentoManutencao",
-    buttons: [
-      "operacaoLancManutencaoConfirmarPesquisaBtn",
-      "operacaoLancManutencaoMsgTodosBtn",
-      "operacaoLancManutencaoGerarRelatorioBtn",
-    ],
-  },
-  {
     name: "Cadastro colaborador",
     cmd: "btn-operacao-cadastro-colaborador",
     panel: "operacaoInlineColaborador",
@@ -391,6 +381,41 @@ async function runE2E() {
         panelVis ? (missingBtns.length ? `faltam: ${missingBtns.join(", ")}` : "ok") : "painel oculto"
       );
     }
+
+    /* Lançamento de manutenção vive agora na área Manutenção */
+    await ensureEquipaNavVisible(page);
+    await page.locator("#btn-locadora-manutencao").click({ timeout: 8000 }).catch(() => null);
+    await page.waitForTimeout(700);
+    {
+      const cmd = page.locator("#btn-operacao-lancamento-manutencao");
+      const cmdVis = await cmd.isVisible().catch(() => false);
+      if (!cmdVis) {
+        record("E2E: painel Lançamento manutenção (área Manutenção)", false, "comando oculto");
+      } else {
+        await cmd.click();
+        await page.waitForTimeout(600);
+        const panelVis = await page
+          .locator("#operacaoInlineLancamentoManutencao:not(.hidden)")
+          .isVisible()
+          .catch(() => false);
+        const missingBtns = [];
+        for (const bid of [
+          "operacaoLancManutencaoConfirmarPesquisaBtn",
+          "operacaoLancManutencaoGerarRelatorioBtn",
+        ]) {
+          const n = await page.locator(`#${bid}`).count();
+          if (!n) missingBtns.push(bid);
+        }
+        record(
+          "E2E: painel Lançamento manutenção (área Manutenção)",
+          panelVis && missingBtns.length === 0,
+          panelVis ? (missingBtns.length ? `faltam: ${missingBtns.join(", ")}` : "ok") : "painel oculto"
+        );
+      }
+    }
+    await ensureEquipaNavVisible(page);
+    await page.locator("#btn-locadora-operacao").click({ timeout: 8000 }).catch(() => null);
+    await page.waitForTimeout(700);
 
     if (IS_DEMO) {
       await page.evaluate(async () => {

@@ -22,6 +22,7 @@
       key: "lancamentoManutencao",
       btnId: "btn-operacao-lancamento-manutencao",
       panelId: "operacaoInlineLancamentoManutencao",
+      area: "manutencao",
       prefix: "operacaoLancManutencao",
       arrayField: "portalManutencoesRegistro",
       modoParcelado: true,
@@ -240,6 +241,26 @@
   }
 
   function showPanel(cfg) {
+    if (cfg.area === "manutencao") {
+      /* painel vive na área Manutenção (sidebar própria) */
+      if (typeof window.__DK_showManutencaoInlinePanel === "function") {
+        window.__DK_showManutencaoInlinePanel(cfg.panelId, cfg.btnId);
+      } else {
+        document
+          .querySelectorAll("#manutencaoPainelDireito > .operacao-inline-form")
+          .forEach((el) => el.classList.add("hidden"));
+        const ph = document.getElementById("manutencaoFormPlaceholder");
+        if (ph) {
+          ph.classList.add("hidden");
+          ph.setAttribute("aria-hidden", "true");
+        }
+        document.getElementById(cfg.panelId)?.classList.remove("hidden");
+      }
+      const btn = document.getElementById(cfg.btnId);
+      btn?.classList.add("is-active");
+      btn?.setAttribute("aria-expanded", "true");
+      return;
+    }
     hideAllOperacaoPanels();
     const panel = document.getElementById(cfg.panelId);
     const ph = document.getElementById("operacaoFormPlaceholder");
@@ -1376,6 +1397,10 @@
     if (isParcelado(cfg)) {
       $(cfg, "VoltarBtn")?.addEventListener("click", (e) => {
         e.preventDefault();
+        if (cfg.area === "manutencao") {
+          if (typeof window.__DK_hideManutencaoInlineForms === "function") window.__DK_hideManutencaoInlineForms();
+          return;
+        }
         if (typeof window.__DK_hideOperacaoInlineForms === "function") window.__DK_hideOperacaoInlineForms();
       });
     }

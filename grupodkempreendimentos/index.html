@@ -322,10 +322,6 @@
                 <span class="btn-operacao-cmd__title">Lançamento de multas</span>
                 <span class="btn-operacao-cmd__hint">Multas do protocolo &mdash; pesquisa por CPF, nome ou nº do protocolo</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
-                <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
-                <span class="btn-operacao-cmd__hint">Custos de manutenção do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
-              </button>
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
                 <span class="btn-operacao-cmd__hint">CPF, função, permissóes &mdash; formulário à direita (só administrador)</span>
@@ -1322,6 +1318,111 @@
           <p id="operacaoLancMultasInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
 
+
+
+<div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
+          <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
+          <p class="subtext operacao-inline-form__lead">
+            Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
+            Marque quais operações este utilizador poderá aceder.
+          </p>
+          <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>CPF</span>
+              <input type="text" id="portalColabCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do colaborador">
+            </label>
+            <label class="portal-field">
+              <span>Nome completo</span>
+              <input type="text" id="portalColabNome" maxlength="120" required autocomplete="name" aria-label="Nome do colaborador">
+            </label>
+            <label class="portal-field">
+              <span>Função</span>
+              <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="Função">
+            </label>
+            <label class="portal-field">
+              <span>Data de ingresso</span>
+              <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
+            </label>
+            <div class="portal-field portal-field--stack portal-colab-acessos" role="group" aria-labelledby="portal-colab-acessos-legend">
+              <span id="portal-colab-acessos-legend" class="portal-field__label">Operações permitidas</span>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceCliente" checked> Cadastro de cliente</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceVeiculo" checked> Cadastro de veículo</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locação</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lançamento de multas</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lançamento de manutenção</label>
+            </div>
+            <div class="operacao-inline-form__actions portal-colab-actions-row">
+              <div class="portal-colab-primary-actions">
+                <button type="submit" id="portalColabBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
+                <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary btn-secondary-outline hidden">Salvar alterações</button>
+              </div>
+              <div id="portalColabResetSenhaWrap" class="portal-colab-reset-wrap hidden" aria-live="polite">
+                <button type="button" id="portalColabResetSenhaBtn" class="btn-primary btn-secondary-outline portal-colab-reset-btn" title="Volta a senha do colaborador para 123456; no próximo login será pedida nova senha de 6 números">
+                  Resetar senha (123456)
+                </button>
+              </div>
+              <div id="portalColabBloqueioWrap" class="portal-colab-bloqueio-wrap hidden" aria-live="polite">
+                <button type="button" id="portalColabBloqueioBtn" class="btn-primary btn-secondary-outline portal-colab-bloqueio-btn">
+                  Bloquear colaborador
+                </button>
+              </div>
+            </div>
+          </form>
+          <p id="portalCadastroColaboradorFeedback" class="portal-feedback" role="status"></p>
+          <div id="portalColabListaWrap" class="portal-colab-lista-wrap">
+            <h4 class="portal-colab-lista__titulo">Colaboradores cadastrados</h4>
+            <p class="subtext portal-colab-lista__hint">Clique num nome para ver e editar as permissões no formulário acima.</p>
+            <p id="portalColabListaVazia" class="subtext portal-colab-lista__vazia hidden">Nenhum colaborador cadastrado.</p>
+            <ul id="portalColabLista" class="portal-colab-lista" role="list"></ul>
+            <div id="portalColabPermissoesDetalhe" class="portal-colab-permissoes-detalhe hidden" aria-live="polite">
+              <p id="portalColabPermissoesDetalheTitulo" class="portal-colab-permissoes-detalhe__titulo"></p>
+              <ul id="portalColabPermissoesDetalheLista" class="portal-colab-permissoes-detalhe__lista"></ul>
+            </div>
+          </div>
+        </div>
+
+          </div>
+        </div>
+
+        <div class="logado-actions">
+          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-operacao-locadora">Voltar</button>
+        </div>
+      </section>
+
+      <section id="panel-manutencao-locadora" class="portal-panel hidden" aria-live="polite">
+        <h2 class="portal-panel__title">Manutenção</h2>
+        <div class="portal-operacao-layout">
+          <aside class="portal-operacao-layout__sidebar" aria-label="áreas de manutenção">
+            <p class="subpage__lead">Gestáo da frota por estado.</p>
+            <p class="subtext">Escolha uma categoria à esquerda; o detalhe aparece à direita.</p>
+            <div class="operacao-comandos">
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
+                <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
+                <span class="btn-operacao-cmd__hint">Custos de manutenção do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-operacao" aria-expanded="false" aria-controls="manutencaoInlineEmOperacao">
+                <span class="btn-operacao-cmd__title">Veículos em operação</span>
+                <span class="btn-operacao-cmd__hint">Em uso ou com locação ativa</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-manutencao" aria-expanded="false" aria-controls="manutencaoInlineEmManutencao">
+                <span class="btn-operacao-cmd__title">Veículos em manutenção</span>
+                <span class="btn-operacao-cmd__hint">Oficina ou indisponíveis</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-reserva" aria-expanded="false" aria-controls="manutencaoInlineReserva">
+                <span class="btn-operacao-cmd__title">Veículos reserva</span>
+                <span class="btn-operacao-cmd__hint">Reserva da frota</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-operacionais" aria-expanded="false" aria-controls="manutencaoInlineOperacionais">
+                <span class="btn-operacao-cmd__title">Veículos operacionais</span>
+                <span class="btn-operacao-cmd__hint">Prontos para operação</span>
+              </button>
+            </div>
+          </aside>
+          <div class="portal-operacao-layout__main" id="manutencaoPainelDireito">
+            <div id="manutencaoFormPlaceholder" class="operacao-form-placeholder" role="status">
+              <p class="operacao-form-placeholder__text">Escolha uma área à esquerda.</p>
+            </div>
         <div id="operacaoInlineLancamentoManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-manutencao-title">
           <h3 id="operacao-inline-lanc-manutencao-title" class="operacao-inline-form__title">Lançamento de manutenção</h3>
           <p class="subtext operacao-inline-form__lead">Registe <strong>manuten&ccedil;&otilde;es</strong> do cliente no protocolo. As parcelas s&atilde;o a cada <strong>7 dias</strong>; a <strong>data da &uacute;ltima parcela</strong> &eacute; calculada automaticamente.</p>
@@ -1488,106 +1589,6 @@
           </div>
           <p id="operacaoLancManutencaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
-
-<div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
-          <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
-          <p class="subtext operacao-inline-form__lead">
-            Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
-            Marque quais operações este utilizador poderá aceder.
-          </p>
-          <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
-            <label class="portal-field">
-              <span>CPF</span>
-              <input type="text" id="portalColabCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do colaborador">
-            </label>
-            <label class="portal-field">
-              <span>Nome completo</span>
-              <input type="text" id="portalColabNome" maxlength="120" required autocomplete="name" aria-label="Nome do colaborador">
-            </label>
-            <label class="portal-field">
-              <span>Função</span>
-              <input type="text" id="portalColabFuncao" maxlength="80" placeholder="Ex.: Atendimento" aria-label="Função">
-            </label>
-            <label class="portal-field">
-              <span>Data de ingresso</span>
-              <input type="text" id="portalColabIngresso" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data de ingresso">
-            </label>
-            <div class="portal-field portal-field--stack portal-colab-acessos" role="group" aria-labelledby="portal-colab-acessos-legend">
-              <span id="portal-colab-acessos-legend" class="portal-field__label">Operações permitidas</span>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceCliente" checked> Cadastro de cliente</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceVeiculo" checked> Cadastro de veículo</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locação</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lançamento de multas</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lançamento de manutenção</label>
-            </div>
-            <div class="operacao-inline-form__actions portal-colab-actions-row">
-              <div class="portal-colab-primary-actions">
-                <button type="submit" id="portalColabBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
-                <button type="button" id="portalColabBtnSalvarAlteracoes" class="btn-primary btn-secondary-outline hidden">Salvar alterações</button>
-              </div>
-              <div id="portalColabResetSenhaWrap" class="portal-colab-reset-wrap hidden" aria-live="polite">
-                <button type="button" id="portalColabResetSenhaBtn" class="btn-primary btn-secondary-outline portal-colab-reset-btn" title="Volta a senha do colaborador para 123456; no próximo login será pedida nova senha de 6 números">
-                  Resetar senha (123456)
-                </button>
-              </div>
-              <div id="portalColabBloqueioWrap" class="portal-colab-bloqueio-wrap hidden" aria-live="polite">
-                <button type="button" id="portalColabBloqueioBtn" class="btn-primary btn-secondary-outline portal-colab-bloqueio-btn">
-                  Bloquear colaborador
-                </button>
-              </div>
-            </div>
-          </form>
-          <p id="portalCadastroColaboradorFeedback" class="portal-feedback" role="status"></p>
-          <div id="portalColabListaWrap" class="portal-colab-lista-wrap">
-            <h4 class="portal-colab-lista__titulo">Colaboradores cadastrados</h4>
-            <p class="subtext portal-colab-lista__hint">Clique num nome para ver e editar as permissões no formulário acima.</p>
-            <p id="portalColabListaVazia" class="subtext portal-colab-lista__vazia hidden">Nenhum colaborador cadastrado.</p>
-            <ul id="portalColabLista" class="portal-colab-lista" role="list"></ul>
-            <div id="portalColabPermissoesDetalhe" class="portal-colab-permissoes-detalhe hidden" aria-live="polite">
-              <p id="portalColabPermissoesDetalheTitulo" class="portal-colab-permissoes-detalhe__titulo"></p>
-              <ul id="portalColabPermissoesDetalheLista" class="portal-colab-permissoes-detalhe__lista"></ul>
-            </div>
-          </div>
-        </div>
-
-          </div>
-        </div>
-
-        <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-operacao-locadora">Voltar</button>
-        </div>
-      </section>
-
-      <section id="panel-manutencao-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Manutenção</h2>
-        <div class="portal-operacao-layout">
-          <aside class="portal-operacao-layout__sidebar" aria-label="áreas de manutenção">
-            <p class="subpage__lead">Gestáo da frota por estado.</p>
-            <p class="subtext">Escolha uma categoria à esquerda; o detalhe aparece à direita.</p>
-            <div class="operacao-comandos">
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-operacao" aria-expanded="false" aria-controls="manutencaoInlineEmOperacao">
-                <span class="btn-operacao-cmd__title">Veículos em operação</span>
-                <span class="btn-operacao-cmd__hint">Em uso ou com locação ativa</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-manutencao" aria-expanded="false" aria-controls="manutencaoInlineEmManutencao">
-                <span class="btn-operacao-cmd__title">Veículos em manutenção</span>
-                <span class="btn-operacao-cmd__hint">Oficina ou indisponíveis</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-reserva" aria-expanded="false" aria-controls="manutencaoInlineReserva">
-                <span class="btn-operacao-cmd__title">Veículos reserva</span>
-                <span class="btn-operacao-cmd__hint">Reserva da frota</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-operacionais" aria-expanded="false" aria-controls="manutencaoInlineOperacionais">
-                <span class="btn-operacao-cmd__title">Veículos operacionais</span>
-                <span class="btn-operacao-cmd__hint">Prontos para operação</span>
-              </button>
-            </div>
-          </aside>
-          <div class="portal-operacao-layout__main" id="manutencaoPainelDireito">
-            <div id="manutencaoFormPlaceholder" class="operacao-form-placeholder" role="status">
-              <p class="operacao-form-placeholder__text">Escolha uma área à esquerda.</p>
-            </div>
             <div id="manutencaoInlineEmOperacao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-operacao">
               <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Veículos em operação</h3>
               <p class="subtext operacao-inline-form__lead">Check-list de manutenção / reparações para veículos em operação (tablet).</p>
@@ -2021,15 +2022,15 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260610clique-lista2" defer></script>
+  <script src="app.js?v=20260611manut-area" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-locadora-ui.js?v=20260610clique-lista2" defer></script>
+  <script src="portal-locadora-ui.js?v=20260611manut-area" defer></script>
   <script src="portal-locacao-documentos.js?v=20260610sem-massa" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
   <script src="portal-documentos.js?v=20260610pastas-contratos2" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260611manut-checklist" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260611manut-area" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260611nbsp-branco" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
   <script src="portal-supabase-sync.js?v=20260610backup-fuso" defer></script>
