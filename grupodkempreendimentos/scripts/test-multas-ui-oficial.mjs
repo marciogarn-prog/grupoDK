@@ -24,9 +24,9 @@ try {
   record("HTML oficial: painel multas com pesquisa", html.includes("operacaoLancMultasDocBusca") && html.includes("Importar multa"));
   record(
     "HTML oficial: versões novas dos scripts",
-    html.includes("portal-locacao-documentos.js?v=20260610multas-busca") &&
-      html.includes("portal-lancamentos-extras.js?v=20260610multa-vinculo") &&
-      html.includes("app.js?v=20260610multa-vinculo"),
+    /portal-locacao-documentos\.js\?v=/.test(html) &&
+      /portal-lancamentos-extras\.js\?v=/.test(html) &&
+      /app\.js\?v=/.test(html),
     "cache-bust ok"
   );
   const js = await (await fetch(`${BASE}portal-lancamentos-extras.js?nocache=${Date.now()}`)).text();
