@@ -1,11 +1,11 @@
 /**
- * Contrato de locação — gera PDF/HTML a partir dos dados do cadastro de locação
- * e deposita em Documentos → Contratos ATIVOS (chave = protocolo).
+ * Contrato de locação — 10 páginas (modelo DK), preview → Gerar PDF → Imprimir | Salvar.
  */
 (function portalContratoLocacao() {
   "use strict";
 
   const LOGO_SRC = "images/dk-locadora-logo.png";
+  const HTML2CANVAS_URL = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
   const JSPDF_URL = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js";
   const DIAS_SEM = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
   const MESES = [
@@ -31,6 +31,14 @@
       .replace(/"/g, "&quot;");
 
   const onlyDigits = (s) => String(s || "").replace(/\D/g, "");
+
+  function logoAbsUrl() {
+    try {
+      return new URL(LOGO_SRC, window.location.href).href;
+    } catch {
+      return LOGO_SRC;
+    }
+  }
 
   function formatCpf(digits) {
     const d = onlyDigits(digits).slice(0, 11);
@@ -79,10 +87,7 @@
     const d = dt && !Number.isNaN(dt.getTime()) ? dt : new Date();
     const mun = String(municipioUf || "Petrolina/PE").trim() || "Petrolina/PE";
     const diaSem = DIAS_SEM[d.getDay()] || "";
-    const dia = d.getDate();
-    const mes = MESES[d.getMonth()] || "";
-    const ano = d.getFullYear();
-    return `${mun}, ${diaSem}, ${dia} de ${mes} de ${ano}`;
+    return `${mun}, ${diaSem}, ${d.getDate()} de ${MESES[d.getMonth()] || ""} de ${d.getFullYear()}`;
   }
 
   function loadCliente(cpfDigits) {
@@ -107,11 +112,9 @@
     const comp = String(cliente.complemento || "").trim();
     const mun = String(cliente.municipioUf || "").trim();
     const cep = String(cliente.cep || "").trim();
-    const parts = [base, comp, mun, cep ? `CEP ${cep}` : ""].filter(Boolean);
-    return parts.join(", ");
+    return [base, comp, mun, cep ? `CEP ${cep}` : ""].filter(Boolean).join(", ");
   }
 
-  /** Dados a partir do formulário de cadastro de locação (portal). */
   function resolverDadosFromForm() {
     const protocolo = normProtocolo(document.getElementById("operacaoLocacaoProtocolo")?.value);
     const cpfDigits = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
@@ -120,7 +123,8 @@
       String(loadCliente(cpfDigits)?.nome || "").trim();
     const placa = normPlaca(document.getElementById("operacaoLocacaoPlaca")?.value);
     const marcaModelo = String(document.getElementById("operacaoLocacaoModelo")?.value || "").trim();
-    const modalidade = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim() || "DK MEU TRANSPORTE";
+    const modalidade =
+      String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim() || "DK MEU TRANSPORTE";
     const rawInicio = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
     const inicioDt = parseBrDate(rawInicio) || new Date();
     const rawFim = String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim();
@@ -129,27 +133,22 @@
     const codigoCliente = String(cliente?.codigo || "").trim() || "0000";
     const endereco = enderecoCliente(cliente) || "(Endereço do Cliente)";
     const municipioUf = String(cliente?.municipioUf || "Petrolina/PE").trim();
-    return {
+    return montarDadosContrato({
       protocolo,
       cpfDigits,
       nome,
-      cpfFmt: formatCpf(cpfDigits),
-      endereco,
       placa,
       marcaModelo,
       modalidade,
       codigoCliente,
-      dataContrato: formatDataBr(inicioDt),
-      dataContratoDt: inicioDt,
+      endereco,
       municipioUf,
-      municipioData: municipioDataLong(inicioDt, municipioUf),
+      inicioDt,
       statusLocacao,
       fim: rawFim,
-      sidebar: `Prot. Nº: ${protocolo} - ${DIAS_SEM[inicioDt.getDay()] || "dia"}, ${formatDataBr(inicioDt)} - ${modalidade} - Cód. Cliente: ${codigoCliente} - ${nome.toUpperCase()} - Placa: ${placa} - ${marcaModelo.toUpperCase()}`,
-    };
+    });
   }
 
-  /** Dados a partir de registro de locação (objeto). */
   function resolverDadosFromLoc(loc) {
     if (!loc) return null;
     const cpfDigits = onlyDigits(loc.cpf);
@@ -157,32 +156,41 @@
     const inicioDt = parseBrDate(loc.inicio) || new Date();
     const nome = String(loc.nome || loc.cliente || cliente?.nome || "").trim();
     const modalidade = String(loc.plano || loc.opcaoContrato || loc.modalidade || "").trim() || "DK MEU TRANSPORTE";
-    const protocolo = normProtocolo(loc.numeroContrato);
-    const placa = normPlaca(loc.placa);
-    const marcaModelo = String(loc.marcaModelo || loc.modelo || "").trim();
-    const codigoCliente = String(loc.clienteCodigo || cliente?.codigo || "").trim() || "0000";
-    const endereco = enderecoCliente(cliente) || "(Endereço do Cliente)";
-    const municipioUf = String(cliente?.municipioUf || "Petrolina/PE").trim();
-    const statusLocacao = String(
-      loc.statusLocacao || (String(loc.fim || "").trim() ? "FINALIZADO" : "ATIVO")
-    ).trim();
-    return {
-      protocolo,
+    return montarDadosContrato({
+      protocolo: normProtocolo(loc.numeroContrato),
       cpfDigits,
       nome,
-      cpfFmt: formatCpf(cpfDigits),
-      endereco,
-      placa,
-      marcaModelo,
+      placa: normPlaca(loc.placa),
+      marcaModelo: String(loc.marcaModelo || loc.modelo || "").trim(),
       modalidade,
-      codigoCliente,
+      codigoCliente: String(loc.clienteCodigo || cliente?.codigo || "").trim() || "0000",
+      endereco: enderecoCliente(cliente) || "(Endereço do Cliente)",
+      municipioUf: String(cliente?.municipioUf || "Petrolina/PE").trim(),
+      inicioDt,
+      statusLocacao: String(loc.statusLocacao || (String(loc.fim || "").trim() ? "FINALIZADO" : "ATIVO")).trim(),
+      fim: String(loc.fim || "").trim(),
+    });
+  }
+
+  function montarDadosContrato(p) {
+    const inicioDt = p.inicioDt || new Date();
+    return {
+      protocolo: p.protocolo,
+      cpfDigits: p.cpfDigits,
+      nome: p.nome,
+      cpfFmt: formatCpf(p.cpfDigits),
+      endereco: p.endereco,
+      placa: p.placa,
+      marcaModelo: p.marcaModelo,
+      modalidade: p.modalidade,
+      codigoCliente: p.codigoCliente,
       dataContrato: formatDataBr(inicioDt),
       dataContratoDt: inicioDt,
-      municipioUf,
-      municipioData: municipioDataLong(inicioDt, municipioUf),
-      statusLocacao,
-      fim: String(loc.fim || "").trim(),
-      sidebar: `Prot. Nº: ${protocolo} - ${DIAS_SEM[inicioDt.getDay()] || "dia"}, ${formatDataBr(inicioDt)} - ${modalidade} - Cód. Cliente: ${codigoCliente} - ${nome.toUpperCase()} - Placa: ${placa} - ${marcaModelo.toUpperCase()}`,
+      municipioUf: p.municipioUf,
+      municipioData: municipioDataLong(inicioDt, p.municipioUf),
+      statusLocacao: p.statusLocacao,
+      fim: p.fim,
+      sidebar: `Prot. Nº: ${p.protocolo} - ${DIAS_SEM[inicioDt.getDay()] || "dia"}, ${formatDataBr(inicioDt)} - ${p.modalidade} - Cód. Cliente: ${p.codigoCliente} - ${String(p.nome).toUpperCase()} - Placa: ${p.placa} - ${String(p.marcaModelo).toUpperCase()}`,
     };
   }
 
@@ -202,34 +210,75 @@
       .replace(/\{\{MUNICIPIO_DATA\}\}/g, esc(dados.municipioData));
   }
 
+  /** CSS A4 — exactamente 1 ecrã = 1 página (10 páginas no total). */
   function cssContrato() {
     return `
-@page { size: A4 portrait; margin: 12mm 14mm 14mm 12mm; }
+@page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
-body { margin: 0; font-family: "Times New Roman", Times, serif; font-size: 9.5pt; line-height: 1.28; color: #111; }
-.contrato-doc { width: 100%; }
-.pagina { position: relative; width: 100%; min-height: 257mm; page-break-after: always; padding: 0 28mm 16mm 0; }
-.pagina:last-child { page-break-after: auto; }
-.cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
-.cabecalho img { height: 42px; width: auto; object-fit: contain; }
+html, body { margin: 0; padding: 0; background: #888; }
+body.contrato-preview { padding-top: 52px; }
+.contrato-doc { width: 210mm; margin: 0 auto; }
+.pagina {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  background: #fff;
+  margin: 0 auto 8px;
+  padding: 10mm 26mm 12mm 10mm;
+  font-family: "Times New Roman", Times, serif;
+  font-size: 8.25pt;
+  line-height: 1.2;
+  color: #111;
+  page-break-after: always;
+  break-after: page;
+}
+.pagina:last-child { page-break-after: auto; margin-bottom: 0; }
+.cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.cabecalho img { height: 38px; width: auto; object-fit: contain; }
 .cabecalho-titulo { text-align: right; flex: 1; }
-.cabecalho-titulo h1 { margin: 0; font-size: 13pt; text-decoration: underline; letter-spacing: 0.02em; }
-.cabecalho-titulo .proto { margin-top: 6px; font-size: 10pt; font-weight: 600; }
-.partes { margin: 8px 0 12px; text-align: justify; }
-.partes p { margin: 0 0 8px; }
-.hl { background: #fff3a0; padding: 0 2px; }
-.sidebar { position: absolute; top: 0; right: 0; width: 22mm; height: 100%; writing-mode: vertical-rl; transform: rotate(180deg); font-size: 6.5pt; color: #333; text-align: center; letter-spacing: 0.02em; padding: 4mm 0; }
+.cabecalho-titulo h1 { margin: 0; font-size: 12pt; text-decoration: underline; letter-spacing: 0.02em; font-weight: bold; }
+.cabecalho-titulo .proto { margin: 4px 0 0; font-size: 9.5pt; font-weight: 600; }
+.partes { margin: 4px 0 8px; text-align: justify; }
+.partes p { margin: 0 0 5px; }
+.hl { background: #fff3a0; padding: 0 1px; }
+.sidebar {
+  position: absolute; top: 10mm; right: 3mm; bottom: 12mm; width: 18mm;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-size: 6pt; color: #333; text-align: center; letter-spacing: 0.01em; line-height: 1.15;
+  overflow: hidden;
+}
 .corpo { text-align: justify; }
-.cl, .cl-n, .cl-t { margin: 0 0 5px; }
-.cl-t { font-weight: bold; margin-top: 8px; }
-.cl-n { padding-left: 0; }
-.sig-line { margin-top: 18px; letter-spacing: 0.15em; }
-.sig-block { display: flex; justify-content: space-between; margin-top: 4px; font-size: 9pt; }
-.pe-pagina { position: absolute; bottom: 0; left: 0; right: 28mm; display: flex; justify-content: space-between; font-size: 7.5pt; color: #444; border-top: 1px solid #ccc; padding-top: 4px; }
-.barra-acoes { position: fixed; top: 0; left: 0; right: 0; z-index: 99; background: #1a1a1a; color: #fff; padding: 10px 16px; display: flex; gap: 10px; }
-.barra-acoes button { padding: 8px 14px; cursor: pointer; border: 0; border-radius: 4px; background: #e85d04; color: #fff; font-weight: 600; }
+.cl, .cl-n { margin: 0 0 2px; text-align: justify; }
+.cl-t { font-weight: bold; margin: 5px 0 2px; font-size: 8.5pt; }
+.cl-n { margin-bottom: 1px; }
+.sig-line { margin-top: 12px; letter-spacing: 0.12em; text-align: center; }
+.sig-block { display: flex; justify-content: space-between; margin-top: 3px; font-size: 8.5pt; }
+.pe-pagina {
+  position: absolute; bottom: 6mm; left: 10mm; right: 26mm;
+  display: flex; justify-content: space-between; font-size: 7pt; color: #444;
+  border-top: 1px solid #ccc; padding-top: 3px;
+}
+.barra-acoes {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  background: #1a1a1a; color: #fff; padding: 10px 16px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+}
+.barra-acoes button {
+  padding: 8px 16px; cursor: pointer; border: 0; border-radius: 4px;
+  background: #e85d04; color: #fff; font-weight: 600; font-size: 13px;
+}
+.barra-acoes button:disabled { opacity: 0.5; cursor: wait; }
+.barra-acoes button.sec { background: #444; }
+.barra-acoes .barra-msg { font-size: 13px; opacity: 0.95; }
+.barra-acoes .hidden { display: none !important; }
 @media print {
+  html, body { background: #fff; padding: 0 !important; margin: 0 !important; }
   .barra-acoes { display: none !important; }
+  .contrato-doc { width: 100%; margin: 0; }
+  .pagina { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
+  .pagina:last-child { page-break-after: auto; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }`;
   }
@@ -247,19 +296,19 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
 </div>`;
   }
 
-  function buildPaginaHtml(num, total, corpoHtml, dados, opts = {}) {
+  function buildPaginaHtml(num, total, corpoHtml, dados) {
     const capa = num === 1 ? paginaCapa(dados) : "";
     const titulo =
       num === 1
         ? `<div class="cabecalho">
-  <img src="${LOGO_SRC}" alt="DK Locadora">
+  <img src="${esc(logoAbsUrl())}" alt="DK Locadora" crossorigin="anonymous">
   <div class="cabecalho-titulo">
     <h1>CONTRATO DE LOCAÇÃO DE VEÍCULO</h1>
     <p class="proto">Protocolo nº <span class="hl">${esc(dados.protocolo)}</span></p>
   </div>
 </div>`
         : "";
-    return `<div class="pagina">
+    return `<div class="pagina" data-pagina="${num}">
   <div class="sidebar">${esc(dados.sidebar)}</div>
   ${titulo}
   ${capa}
@@ -268,85 +317,122 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
 </div>`;
   }
 
-  function buildContratoHtml(dados) {
+  function buildPaginasHtml(dados) {
     const corpos = window.__DK_CONTRATO_LOCACAO_CORPOS;
-    if (!Array.isArray(corpos) || !corpos.length) {
-      throw new Error("Modelo de contrato indisponível. Atualize a página.");
+    if (!Array.isArray(corpos) || corpos.length !== 10) {
+      throw new Error("Modelo de contrato indisponível (10 páginas). Atualize a página.");
     }
-    const total = corpos.length;
-    const paginas = corpos.map((corpo, i) =>
-      buildPaginaHtml(i + 1, total, substituirPlaceholders(corpo, dados), dados)
+    return corpos.map((corpo, i) =>
+      buildPaginaHtml(i + 1, corpos.length, substituirPlaceholders(corpo, dados), dados)
     );
-    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Contrato ${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body>
-<div class="barra-acoes"><button type="button" onclick="window.print()">Imprimir / guardar PDF</button></div>
-<div class="contrato-doc">${paginas.join("")}</div>
-</body></html>`;
   }
 
-  let jspdfPromise = null;
-  function ensureJsPdf() {
-    if (window.jspdf?.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
-    if (!jspdfPromise) {
-      jspdfPromise = new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = JSPDF_URL;
-        s.crossOrigin = "anonymous";
-        s.referrerPolicy = "no-referrer";
-        s.onload = () => resolve(window.jspdf?.jsPDF);
-        s.onerror = () => reject(new Error("jsPDF indisponível"));
-        document.head.appendChild(s);
-      });
-    }
-    return jspdfPromise;
-  }
-
-  async function htmlToPdfBlob(html) {
-    const JsPDF = await ensureJsPdf();
-    const doc = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-    const wrap = document.createElement("div");
-    wrap.innerHTML = html;
-    wrap.style.position = "fixed";
-    wrap.style.left = "-12000px";
-    wrap.style.top = "0";
-    wrap.style.width = "180mm";
-    document.body.appendChild(wrap);
-    const paginas = wrap.querySelectorAll(".pagina");
-    const margin = 12;
-    const maxW = 186;
-    const lineH = 4.2;
-    paginas.forEach((pag, idx) => {
-      if (idx > 0) doc.addPage();
-      let y = margin;
-      const titulo = pag.querySelector(".cabecalho-titulo h1");
-      if (titulo) {
-        doc.setFontSize(12);
-        doc.text(String(titulo.textContent || "CONTRATO DE LOCAÇÃO DE VEÍCULO"), margin, y);
-        y += 7;
-      }
-      const proto = pag.querySelector(".proto");
-      if (proto) {
-        doc.setFontSize(10);
-        doc.text(String(proto.textContent || ""), margin, y);
-        y += 6;
-      }
-      doc.setFontSize(8.5);
-      const partesText = String(pag.querySelector(".partes")?.innerText || "").trim();
-      const corpoText = String(pag.querySelector(".corpo")?.innerText || "").trim();
-      const texto = [partesText, corpoText].filter(Boolean).join("\n\n");
-      const lines = doc.splitTextToSize(texto, maxW);
-      for (let i = 0; i < lines.length; i += 1) {
-        if (y > 285) {
-          doc.addPage();
-          y = margin;
-        }
-        doc.text(lines[i], margin, y);
-        y += lineH;
-      }
-      doc.setFontSize(7);
-      doc.text(`Pág. ${idx + 1} / ${paginas.length}`, 180, 290);
+  function scriptPreviewInline(dados) {
+    const meta = JSON.stringify({
+      protocolo: dados.protocolo,
+      statusLocacao: dados.statusLocacao,
+      fim: dados.fim || "",
     });
-    wrap.remove();
-    return doc.output("blob");
+    return `<script>
+(function(){
+  var META = ${meta};
+  var pdfBlob = null;
+  var btnGerar = document.getElementById("btnGerarPdf");
+  var barraInicial = document.getElementById("barraInicial");
+  var barraPos = document.getElementById("barraPosPdf");
+  var msg = document.getElementById("barraMsg");
+
+  function loadScript(src){
+    return new Promise(function(res, rej){
+      var s = document.createElement("script");
+      s.src = src; s.crossOrigin = "anonymous"; s.referrerPolicy = "no-referrer";
+      s.onload = res; s.onerror = function(){ rej(new Error("Script indisponível: " + src)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensurePdfLibs(){
+    if (!window.html2canvas) await loadScript("${HTML2CANVAS_URL}");
+    if (!window.jspdf && !window.jsPDF) await loadScript("${JSPDF_URL}");
+  }
+
+  async function gerarPdfBlob(){
+    await ensurePdfLibs();
+    var JsPDF = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : window.jsPDF;
+    if (!JsPDF) throw new Error("jsPDF indisponível");
+    var paginas = document.querySelectorAll(".pagina");
+    if (paginas.length !== 10) throw new Error("Contrato deve ter 10 páginas (encontradas: " + paginas.length + ")");
+    var pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+    for (var i = 0; i < paginas.length; i++) {
+      var canvas = await html2canvas(paginas[i], {
+        scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff",
+        width: paginas[i].offsetWidth, height: paginas[i].offsetHeight
+      });
+      var img = canvas.toDataURL("image/jpeg", 0.92);
+      if (i > 0) pdf.addPage();
+      pdf.addImage(img, "JPEG", 0, 0, 210, 297);
+    }
+    return pdf.output("blob");
+  }
+
+  btnGerar.addEventListener("click", function(){
+    btnGerar.disabled = true;
+    msg.textContent = "A gerar PDF (10 páginas)…";
+    gerarPdfBlob().then(function(blob){
+      pdfBlob = blob;
+      barraInicial.classList.add("hidden");
+      barraPos.classList.remove("hidden");
+      msg.textContent = "PDF gerado com 10 páginas — imprima ou guarde na pasta Contratos ATIVOS.";
+    }).catch(function(e){
+      msg.textContent = "Erro: " + (e && e.message ? e.message : e);
+      btnGerar.disabled = false;
+    });
+  });
+
+  document.getElementById("btnImprimir").addEventListener("click", function(){ window.print(); });
+
+  document.getElementById("btnSalvar").addEventListener("click", function(){
+    var btn = this;
+    if (!pdfBlob) { msg.textContent = "Gere o PDF primeiro."; return; }
+    if (!window.opener || typeof window.opener.__DK_contratoLocacaoSalvarPdfBlob !== "function") {
+      msg.textContent = "Portal indisponível — recarregue a janela principal.";
+      return;
+    }
+    btn.disabled = true;
+    msg.textContent = "A guardar na pasta Contratos ATIVOS…";
+    window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, pdfBlob).then(function(r){
+      if (r && r.ok) {
+        msg.textContent = r.moved
+          ? "Contrato guardado em Documentos → Contratos ATIVOS (nuvem)."
+          : "Contrato já existia — actualizado na pasta (nuvem).";
+        window.opener.__DK_contratoLocacaoRefreshBotao && window.opener.__DK_contratoLocacaoRefreshBotao();
+      } else {
+        msg.textContent = (r && r.msg) || "Não foi possível guardar.";
+        btn.disabled = false;
+      }
+    }).catch(function(e){
+      msg.textContent = "Erro ao guardar: " + (e && e.message ? e.message : e);
+      btn.disabled = false;
+    });
+  });
+})();
+<\/script>`;
+  }
+
+  function buildContratoPreviewHtml(dados) {
+    const paginas = buildPaginasHtml(dados);
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Contrato ${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
+<div class="barra-acoes">
+  <span id="barraInicial"><button type="button" id="btnGerarPdf">Gerar PDF</button></span>
+  <span id="barraPosPdf" class="hidden">
+    <button type="button" id="btnImprimir">Imprimir</button>
+    <button type="button" id="btnSalvar">Salvar</button>
+  </span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas</span>
+</div>
+<div class="contrato-doc">${paginas.join("")}</div>
+${scriptPreviewInline(dados)}
+</body></html>`;
   }
 
   function obterContratoDeposito(protocolo) {
@@ -375,15 +461,61 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
         ? window.__DK_documentosMoverContratoPorProtocolo
         : null;
     if (!mover) return { ok: false, msg: "deposito_indisponivel" };
-    const pasta = pastaContratoParaLocacao(statusLocacao, opts.fim);
-    return mover(protocolo, pasta, opts);
+    return mover(protocolo, pastaContratoParaLocacao(statusLocacao, opts.fim), opts);
+  }
+
+  async function salvarPdfBlobNoDeposito(meta, blob) {
+    const protocolo = normProtocolo(meta?.protocolo);
+    if (!protocolo || !(blob instanceof Blob)) return { ok: false, msg: "dados_invalidos" };
+    const depositar = typeof window.__DK_documentosDepositarBlob === "function" ? window.__DK_documentosDepositarBlob : null;
+    if (!depositar) return { ok: false, msg: "deposito_indisponivel" };
+
+    const statusLocacao = String(meta.statusLocacao || "ATIVO");
+    const fim = String(meta.fim || "");
+    const statusContrato = pastaContratoParaLocacao(statusLocacao, fim);
+    const existente = obterContratoDeposito(protocolo);
+
+    const dep = await depositar(
+      "contrato",
+      blob,
+      {
+        nomeArquivo: `${protocolo}.pdf`,
+        chave: protocolo,
+        mimeType: "application/pdf",
+        origem: "contrato-locacao",
+      },
+      { statusContrato, replaceChave: Boolean(existente), silent: true }
+    );
+
+    if (dep?.ok && dep.entry?.nuvem !== true) {
+      await sincronizarPastaContratoLocacao(protocolo, statusLocacao, { fim, silent: true });
+    }
+
+    return { ok: Boolean(dep?.ok), moved: !existente, entry: dep?.entry, naNuvem: dep?.naNuvem };
+  }
+
+  function abrirPreviewContrato(dados) {
+    const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
+    const html = buildContratoPreviewHtml(dados);
+    const popup = window.open("", "_blank", "width=920,height=1000");
+    if (!popup) {
+      if (msgEl) msgEl.textContent = "O navegador bloqueou a janela — permita pop-ups para gerar o contrato.";
+      return false;
+    }
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
+    if (msgEl) {
+      msgEl.textContent = `Contrato ${dados.protocolo} — clique «Gerar PDF» na janela; depois «Salvar» para a pasta Contratos ATIVOS.`;
+    }
+    return true;
   }
 
   async function visualizarContratoArmazenado(protocolo) {
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
     const entrada = obterContratoDeposito(protocolo);
     if (!entrada) {
-      if (msgEl) msgEl.textContent = "Contrato ainda não gerado para este protocolo.";
+      if (msgEl) msgEl.textContent = "Contrato ainda não gerado — clique em «Gerar contrato».";
       atualizarBotaoContratoLocacao();
       return { ok: false, msg: "nao_existe" };
     }
@@ -398,7 +530,7 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       if (!row?.blob) {
         if (msgEl) {
           msgEl.textContent =
-            "Contrato registado mas ficheiro indisponível neste computador — abra Documentos ou aguarde a sincronização da nuvem.";
+            "Contrato registado mas ficheiro indisponível — aguarde sincronização da nuvem ou gere de novo.";
         }
         return { ok: false, msg: "blob_ausente" };
       }
@@ -440,120 +572,18 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     if (existe) {
       btn.textContent = "Visualizar contrato";
       btn.dataset.dkModo = "visualizar";
-      btn.title = `Abrir o contrato já gerado para o protocolo ${proto} (Documentos → Contratos ATIVOS).`;
+      btn.title = `Abrir o PDF guardado para o protocolo ${proto}.`;
     } else {
       btn.textContent = "Gerar contrato";
       btn.dataset.dkModo = "gerar";
-      btn.title = `Gerar contrato PDF para o protocolo ${proto} e guardar em Documentos → Contratos ATIVOS.`;
-    }
-  }
-
-  async function depositarContrato(dados, opts = {}) {
-    const statusContrato = pastaContratoParaLocacao(dados.statusLocacao, dados.fim);
-    const existente = obterContratoDeposito(dados.protocolo);
-    if (existente && !opts.forcarSubstituir) {
-      const stAtual = String(existente.statusContrato || "").trim().toLowerCase();
-      if (stAtual !== statusContrato) {
-        await sincronizarPastaContratoLocacao(dados.protocolo, dados.statusLocacao, {
-          fim: dados.fim,
-          silent: Boolean(opts.silent),
-        });
-      } else if (existente.nuvem !== true) {
-        await sincronizarPastaContratoLocacao(dados.protocolo, dados.statusLocacao, {
-          fim: dados.fim,
-          silent: true,
-        });
-      }
-      return { ok: true, id: existente.id, entry: existente, jaExistia: true };
-    }
-    const depositar = typeof window.__DK_documentosDepositarBlob === "function" ? window.__DK_documentosDepositarBlob : null;
-    if (!depositar) throw new Error("Depósito de documentos indisponível.");
-    const html = buildContratoHtml(dados);
-    const blob = await htmlToPdfBlob(html);
-    const nomeArquivo = `${dados.protocolo}.pdf`;
-    const dep = await depositar(
-      "contrato",
-      blob,
-      { nomeArquivo, chave: dados.protocolo, mimeType: "application/pdf", origem: "contrato-locacao" },
-      { statusContrato, replaceChave: true, silent: Boolean(opts.silent) }
-    );
-    if (dep?.ok && dep.entry?.nuvem !== true) {
-      await sincronizarPastaContratoLocacao(dados.protocolo, dados.statusLocacao, {
-        fim: dados.fim,
-        silent: true,
-      });
-    }
-    return dep;
-  }
-
-  function abrirVisualizacao(html, dados, msgEl) {
-    const popup = window.open("", "_blank", "width=920,height=1000");
-    if (!popup) {
-      if (msgEl) msgEl.textContent = "O navegador bloqueou a janela — permita pop-ups para visualizar o contrato.";
-      return false;
-    }
-    popup.document.write(html);
-    popup.document.close();
-    popup.focus();
-    if (msgEl) msgEl.textContent = `Contrato ${dados.protocolo} gerado — confira a janela de impressão.`;
-    return true;
-  }
-
-  async function gerarContratoLocacao(opts = {}) {
-    const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
-    const dados = opts.dados || resolverDadosFromForm();
-    const err = validarDados(dados);
-    if (err) {
-      if (msgEl && !opts.silent) msgEl.textContent = err;
-      return { ok: false, msg: err };
-    }
-    if (contratoExisteParaProtocolo(dados.protocolo) && !opts.forcarSubstituir) {
-      if (opts.somenteVisualizar !== false && !opts.silent) {
-        return visualizarContratoArmazenado(dados.protocolo);
-      }
-      return { ok: true, dados, deposito: { ok: true, jaExistia: true } };
-    }
-    try {
-      const html = buildContratoHtml(dados);
-      let abriu = false;
-      if (opts.somenteVisualizar !== false && !opts.silent) {
-        abriu = abrirVisualizacao(html, dados, null);
-      }
-      if (opts.depositar !== false) {
-        const dep = await depositarContrato(dados, opts);
-        if (msgEl && !opts.silent) {
-          if (dep.jaExistia) {
-            msgEl.textContent = `Contrato do protocolo ${dados.protocolo} já existe — use «Visualizar contrato».`;
-          } else if (dep.ok) {
-            const pasta = pastaContratoParaLocacao(dados.statusLocacao, dados.fim);
-            const pastaLabel = pasta === "inativo" ? "Contratos INATIVOS" : "Contratos ATIVOS";
-            msgEl.textContent = abriu
-              ? `Contrato ${dados.protocolo} gerado — confira a janela. Guardado em Documentos → ${pastaLabel} (nuvem).`
-              : `Contrato ${dados.protocolo} guardado em Documentos → ${pastaLabel} (nuvem).`;
-          } else if (!abriu) {
-            msgEl.textContent = "Não foi possível guardar o contrato no depósito.";
-          }
-        }
-        if (dep.ok && !dep.jaExistia) atualizarBotaoContratoLocacao();
-        if (dep.jaExistia) atualizarBotaoContratoLocacao();
-        return { ok: Boolean(dep.ok || abriu), dados, deposito: dep };
-      }
-      if (abriu && msgEl && !opts.silent) {
-        msgEl.textContent = `Contrato ${dados.protocolo} gerado — confira a janela de impressão.`;
-      }
-      return { ok: true, dados };
-    } catch (e) {
-      const m = e?.message || String(e);
-      if (msgEl && !opts.silent) msgEl.textContent = `Erro ao gerar contrato: ${m}`;
-      return { ok: false, msg: m };
+      btn.title = `Abrir o modelo (10 páginas), gerar PDF e guardar em Contratos ATIVOS.`;
     }
   }
 
   window.__DK_contratoLocacaoResolverFromForm = resolverDadosFromForm;
   window.__DK_contratoLocacaoResolverFromLoc = resolverDadosFromLoc;
-  window.__DK_contratoLocacaoBuildHtml = buildContratoHtml;
-  window.__DK_contratoLocacaoGerar = gerarContratoLocacao;
-  window.__DK_contratoLocacaoDepositar = depositarContrato;
+  window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
+  window.__DK_contratoLocacaoSalvarPdfBlob = salvarPdfBlobNoDeposito;
   window.__DK_contratoLocacaoExisteParaProtocolo = contratoExisteParaProtocolo;
   window.__DK_contratoLocacaoVisualizarArmazenado = visualizarContratoArmazenado;
   window.__DK_contratoLocacaoSincronizarPasta = sincronizarPastaContratoLocacao;
@@ -568,15 +598,12 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       if (msgEl) msgEl.textContent = err;
       return;
     }
-    const btn = e.currentTarget;
-    const modo = String(btn?.dataset?.dkModo || "").trim();
+    const modo = String(e.currentTarget?.dataset?.dkModo || "").trim();
     if (modo === "visualizar" || contratoExisteParaProtocolo(dados.protocolo)) {
       void visualizarContratoArmazenado(dados.protocolo);
       return;
     }
-    void gerarContratoLocacao({ dados, depositar: true, somenteVisualizar: true }).then(() => {
-      atualizarBotaoContratoLocacao();
-    });
+    abrirPreviewContrato(dados);
   });
 
   atualizarBotaoContratoLocacao();
