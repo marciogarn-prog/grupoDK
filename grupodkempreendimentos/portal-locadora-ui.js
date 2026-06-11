@@ -8181,6 +8181,12 @@ ${printable.innerHTML}
     portalApplyAmbienteVisualForm("Locacao", loc);
     refreshOperacaoLocacaoApagarProtocoloBtn();
     refreshOperacaoLocacaoVisualizarContratoBtn();
+    if (loc?.numeroContrato && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+      void window.__DK_contratoLocacaoSincronizarPasta(normPortalNumeroContrato(loc.numeroContrato), loc.statusLocacao, {
+        fim: loc.fim,
+        silent: true,
+      });
+    }
     const lancForm = document.getElementById("formOperacaoLancAluguel");
     if (lancForm) lancForm.classList.toggle("portal-registro-teste", portalRegistroEhTeste(loc));
   }
@@ -8529,6 +8535,20 @@ ${printable.innerHTML}
       applyPortalLocacaoRowFromRecord(locs[idx]);
       refreshOperacaoLocacaoDatalists();
       refreshOperacaoLocacaoFinalizarBtn();
+      if (typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+        void window.__DK_contratoLocacaoSincronizarPasta(ncNorm, "FINALIZADO", { fim: fimBr }).then((r) => {
+          if (!msg) return;
+          if (r?.moved) {
+            msg.textContent =
+              "Locação finalizada. Contrato transferido para Documentos → Contratos INATIVOS (nuvem).";
+          } else if (r?.ok && r?.naNuvem) {
+            msg.textContent = "Locação finalizada. Contrato confirmado em Contratos INATIVOS (nuvem).";
+          } else if (r?.msg === "nao_encontrado") {
+            msg.textContent =
+              "Locação finalizada. Gere o contrato deste protocolo se ainda não existir no depósito.";
+          }
+        });
+      }
     };
     const changesFim = portalBuildAlteracoesLista(
       { fim: portalNormDiffVal(prev.fim), status: portalNormDiffVal(prev.statusLocacao) },
@@ -9052,6 +9072,9 @@ ${printable.innerHTML}
       refreshOperacaoLocacaoDatalists();
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoVisualizarContratoBtn();
+      if (saved && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+        void window.__DK_contratoLocacaoSincronizarPasta(nc, saved.statusLocacao, { fim: fimBr, silent: true });
+      }
     };
     if (prev && isPortalTitularAdministrador()) {
       const changes = portalBuildAlteracoesLista(snapshotLoc(prev), registroNovo, PORTAL_LOCACAO_DIFF_LABELS);

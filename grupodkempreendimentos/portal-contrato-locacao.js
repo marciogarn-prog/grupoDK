@@ -144,6 +144,7 @@
       municipioUf,
       municipioData: municipioDataLong(inicioDt, municipioUf),
       statusLocacao,
+      fim: rawFim,
       sidebar: `Prot. Nº: ${protocolo} - ${DIAS_SEM[inicioDt.getDay()] || "dia"}, ${formatDataBr(inicioDt)} - ${modalidade} - Cód. Cliente: ${codigoCliente} - ${nome.toUpperCase()} - Placa: ${placa} - ${marcaModelo.toUpperCase()}`,
     };
   }
@@ -180,6 +181,7 @@
       municipioUf,
       municipioData: municipioDataLong(inicioDt, municipioUf),
       statusLocacao,
+      fim: String(loc.fim || "").trim(),
       sidebar: `Prot. Nº: ${protocolo} - ${DIAS_SEM[inicioDt.getDay()] || "dia"}, ${formatDataBr(inicioDt)} - ${modalidade} - Cód. Cliente: ${codigoCliente} - ${nome.toUpperCase()} - Placa: ${placa} - ${marcaModelo.toUpperCase()}`,
     };
   }
@@ -359,6 +361,24 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     return Boolean(obterContratoDeposito(protocolo));
   }
 
+  function pastaContratoParaLocacao(statusLocacao, fim) {
+    const fin =
+      String(statusLocacao || "")
+        .toUpperCase()
+        .includes("FINAL") || Boolean(String(fim || "").trim());
+    return fin ? "inativo" : "ativo";
+  }
+
+  async function sincronizarPastaContratoLocacao(protocolo, statusLocacao, opts = {}) {
+    const mover =
+      typeof window.__DK_documentosMoverContratoPorProtocolo === "function"
+        ? window.__DK_documentosMoverContratoPorProtocolo
+        : null;
+    if (!mover) return { ok: false, msg: "deposito_indisponivel" };
+    const pasta = pastaContratoParaLocacao(statusLocacao, opts.fim);
+    return mover(protocolo, pasta, opts);
+  }
+
   async function visualizarContratoArmazenado(protocolo) {
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
     const entrada = obterContratoDeposito(protocolo);
@@ -429,8 +449,21 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   }
 
   async function depositarContrato(dados, opts = {}) {
+    const statusContrato = pastaContratoParaLocacao(dados.statusLocacao, dados.fim);
     const existente = obterContratoDeposito(dados.protocolo);
     if (existente && !opts.forcarSubstituir) {
+      const stAtual = String(existente.statusContrato || "").trim().toLowerCase();
+      if (stAtual !== statusContrato) {
+        await sincronizarPastaContratoLocacao(dados.protocolo, dados.statusLocacao, {
+          fim: dados.fim,
+          silent: Boolean(opts.silent),
+        });
+      } else if (existente.nuvem !== true) {
+        await sincronizarPastaContratoLocacao(dados.protocolo, dados.statusLocacao, {
+          fim: dados.fim,
+          silent: true,
+        });
+      }
       return { ok: true, id: existente.id, entry: existente, jaExistia: true };
     }
     const depositar = typeof window.__DK_documentosDepositarBlob === "function" ? window.__DK_documentosDepositarBlob : null;
@@ -438,13 +471,19 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     const html = buildContratoHtml(dados);
     const blob = await htmlToPdfBlob(html);
     const nomeArquivo = `${dados.protocolo}.pdf`;
-    const statusContrato = String(dados.statusLocacao || "").toUpperCase().includes("FINAL") ? "inativo" : "ativo";
-    return depositar(
+    const dep = await depositar(
       "contrato",
       blob,
       { nomeArquivo, chave: dados.protocolo, mimeType: "application/pdf", origem: "contrato-locacao" },
       { statusContrato, replaceChave: true, silent: Boolean(opts.silent) }
     );
+    if (dep?.ok && dep.entry?.nuvem !== true) {
+      await sincronizarPastaContratoLocacao(dados.protocolo, dados.statusLocacao, {
+        fim: dados.fim,
+        silent: true,
+      });
+    }
+    return dep;
   }
 
   function abrirVisualizacao(html, dados, msgEl) {
@@ -486,9 +525,11 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
           if (dep.jaExistia) {
             msgEl.textContent = `Contrato do protocolo ${dados.protocolo} já existe — use «Visualizar contrato».`;
           } else if (dep.ok) {
+            const pasta = pastaContratoParaLocacao(dados.statusLocacao, dados.fim);
+            const pastaLabel = pasta === "inativo" ? "Contratos INATIVOS" : "Contratos ATIVOS";
             msgEl.textContent = abriu
-              ? `Contrato ${dados.protocolo} gerado — confira a janela. Guardado em Documentos → Contratos ATIVOS.`
-              : `Contrato ${dados.protocolo} guardado em Documentos → Contratos ATIVOS.`;
+              ? `Contrato ${dados.protocolo} gerado — confira a janela. Guardado em Documentos → ${pastaLabel} (nuvem).`
+              : `Contrato ${dados.protocolo} guardado em Documentos → ${pastaLabel} (nuvem).`;
           } else if (!abriu) {
             msgEl.textContent = "Não foi possível guardar o contrato no depósito.";
           }
@@ -515,6 +556,7 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   window.__DK_contratoLocacaoDepositar = depositarContrato;
   window.__DK_contratoLocacaoExisteParaProtocolo = contratoExisteParaProtocolo;
   window.__DK_contratoLocacaoVisualizarArmazenado = visualizarContratoArmazenado;
+  window.__DK_contratoLocacaoSincronizarPasta = sincronizarPastaContratoLocacao;
   window.__DK_contratoLocacaoRefreshBotao = atualizarBotaoContratoLocacao;
 
   document.getElementById("operacaoLocacaoVisualizarContratoBtn")?.addEventListener("click", (e) => {
