@@ -1734,23 +1734,22 @@
     });
   });
 
-  async function portalSyncFuncionariosBeforeLogin() {
+  function portalHydrateFuncionariosForLogin() {
     try {
       window.__DK_hydrateFuncionariosAccess?.();
     } catch {
       /* ignore */
     }
+  }
+
+  async function portalPullFuncionariosFromCloudForLogin() {
     if (typeof window.__DK_pullCloudSnapshotSilentMerge !== "function") return;
     try {
-      await window.__DK_pullCloudSnapshotSilentMerge({ force: false });
+      await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
     } catch {
       /* ignore */
     }
-    try {
-      window.__DK_hydrateFuncionariosAccess?.();
-    } catch {
-      /* ignore */
-    }
+    portalHydrateFuncionariosForLogin();
   }
 
   function portalAutenticarEquipaPorCpfSenha(role, cpf, senha) {
@@ -1815,19 +1814,11 @@
         loginFeedback.textContent = "Acesso de administrador restrito ao titular autorizado.";
         return;
       }
-      if (loginFeedback) loginFeedback.textContent = "A sincronizar cadastro de colaboradores…";
-      await portalSyncFuncionariosBeforeLogin();
-      if (loginFeedback) loginFeedback.textContent = "";
-
+      portalHydrateFuncionariosForLogin();
       let auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
-      if (!auth.ok && typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
-        try {
-          await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
-          window.__DK_hydrateFuncionariosAccess?.();
-          auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
-        } catch {
-          /* ignore */
-        }
+      if (!auth.ok) {
+        await portalPullFuncionariosFromCloudForLogin();
+        auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
       }
       if (!auth.ok) {
         loginFeedback.textContent = auth.msg;
