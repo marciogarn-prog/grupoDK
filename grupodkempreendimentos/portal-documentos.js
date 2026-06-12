@@ -53,6 +53,29 @@
     return p ? `${p}.pdf` : "";
   }
 
+  function protocoloContratoEntrada(e) {
+    const fromChave = normProtocolo(e?.chave);
+    if (fromChave) return fromChave;
+    return normProtocolo(String(e?.nomeArquivo || "").replace(/\.pdf$/i, ""));
+  }
+
+  /** Um protocolo → um contrato visível; marca anteriores como excluídos. */
+  function marcarContratosSubstituirPorProtocolo(arr, protocolo) {
+    const alvo = normProtocolo(protocolo);
+    if (!alvo || !Array.isArray(arr)) return 0;
+    let n = 0;
+    for (let i = 0; i < arr.length; i += 1) {
+      const e = arr[i];
+      if (!e || !depEntradaVisivel(e)) continue;
+      if (protocoloContratoEntrada(e) !== alvo) continue;
+      arr[i] = { ...e, excluido: true, excluidoEm: new Date().toISOString() };
+      void idbDeleteBlob(e.id).catch(() => null);
+      void cloudDeleteBlob(e.id).catch(() => null);
+      n += 1;
+    }
+    return n;
+  }
+
   function chaveFromFilename(categoria, filename) {
     const base = String(filename || "")
       .replace(/\.[^.]+$/i, "")
@@ -685,13 +708,17 @@
 
     const dep = loadDeposit();
     const arr = dep[categoria] || [];
-    if (opts.replaceChave) {
+    let substituidos = 0;
+    if (categoria === "contrato") {
+      substituidos = marcarContratosSubstituirPorProtocolo(arr, chave);
+    } else if (opts.replaceChave) {
       for (let i = 0; i < arr.length; i += 1) {
         const e = arr[i];
         if (e && depEntradaVisivel(e) && normProtocolo(e.chave) === normProtocolo(chave)) {
           arr[i] = { ...e, excluido: true, excluidoEm: new Date().toISOString() };
           void idbDeleteBlob(e.id).catch(() => null);
           void cloudDeleteBlob(e.id).catch(() => null);
+          substituidos += 1;
         }
       }
     }
@@ -723,11 +750,15 @@
     saveDeposit(dep);
     if (msgEl && !opts.silent) {
       msgEl.textContent = naNuvem
-        ? `«${nome}» guardado — disponível na nuvem para todos os operadores.`
-        : `«${nome}» guardado localmente.`;
+        ? substituidos > 0
+          ? `«${nome}» substituiu o contrato anterior — disponível na nuvem.`
+          : `«${nome}» guardado — disponível na nuvem para todos os operadores.`
+        : substituidos > 0
+          ? `«${nome}» substituiu o contrato anterior (local).`
+          : `«${nome}» guardado localmente.`;
     }
     atualizarResumosDepositos();
-    return { ok: true, id, entry, naNuvem };
+    return { ok: true, id, entry, naNuvem, substituidos };
   }
 
   async function adicionarFicheiros(categoria, fileList, opts = {}) {
@@ -756,6 +787,9 @@
       if (!chave) {
         if (msgEl) msgEl.textContent = `Nome inválido: «${nome}».`;
         continue;
+      }
+      if (categoria === "contrato") {
+        marcarContratosSubstituirPorProtocolo(arr, chave);
       }
       const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
       await idbPutBlob(id, file, { nomeArquivo: nome, mimeType: mime || "application/pdf" });
