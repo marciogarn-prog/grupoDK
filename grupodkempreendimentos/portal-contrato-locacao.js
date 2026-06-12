@@ -7,6 +7,9 @@
   const LOGO_SRC = "images/dk-locadora-logo.png";
   const VENDOR_JSPDF = "vendor/jspdf.umd.min.js";
   const VENDOR_HTML2CANVAS = "vendor/html2canvas.min.js";
+  /** Limite importação contrato na locação (portal-locacao-documentos.js) */
+  const PDF_LOCACAO_MAX_BYTES = 4 * 1024 * 1024;
+  const PDF_LOCACAO_ALVO_BYTES = Math.floor(3.5 * 1024 * 1024);
 
   function vendorScriptUrl(relPath) {
     try {
@@ -380,24 +383,52 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     if (!window.jspdf && !window.jsPDF) await loadScript("${jspdfUrl}");
   }
 
-  async function gerarPdfBlob(){
-    await ensurePdfLibs();
-    var JsPDF = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : window.jsPDF;
-    if (!JsPDF) throw new Error("jsPDF indisponível");
-    var paginas = document.querySelectorAll(".pagina");
-    if (paginas.length !== 10) throw new Error("Contrato deve ter 10 páginas (encontradas: " + paginas.length + ")");
-    var pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
-    for (var i = 0; i < paginas.length; i++) {
-      var canvas = await html2canvas(paginas[i], {
-        scale: 2, useCORS: true, logging: false, backgroundColor: "#ffffff",
-        width: paginas[i].offsetWidth, height: paginas[i].offsetHeight
-      });
-      var img = canvas.toDataURL("image/jpeg", 0.92);
-      if (i > 0) pdf.addPage();
-      pdf.addImage(img, "JPEG", 0, 0, 210, 297);
+    const pdfLocacaoMax = ${PDF_LOCACAO_MAX_BYTES};
+    const pdfLocacaoAlvo = ${PDF_LOCACAO_ALVO_BYTES};
+    var tentativasPdf = [
+      { scale: 1.35, quality: 0.78 },
+      { scale: 1.2, quality: 0.72 },
+      { scale: 1.05, quality: 0.65 }
+    ];
+
+    function fmtTam(n){
+      if (!n) return "0 B";
+      if (n < 1024) return n + " B";
+      if (n < 1048576) return (n / 1024).toFixed(1).replace(".", ",") + " KB";
+      return (n / 1048576).toFixed(2).replace(".", ",") + " MB";
     }
-    return pdf.output("blob");
-  }
+
+    async function montarPdf(scale, quality){
+      var JsPDF = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : window.jsPDF;
+      if (!JsPDF) throw new Error("jsPDF indisponível");
+      var paginas = document.querySelectorAll(".pagina");
+      if (paginas.length !== 10) throw new Error("Contrato deve ter 10 páginas (encontradas: " + paginas.length + ")");
+      var pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
+      for (var i = 0; i < paginas.length; i++) {
+        var canvas = await html2canvas(paginas[i], {
+          scale: scale, useCORS: true, logging: false, backgroundColor: "#ffffff",
+          width: paginas[i].offsetWidth, height: paginas[i].offsetHeight
+        });
+        var img = canvas.toDataURL("image/jpeg", quality);
+        if (i > 0) pdf.addPage();
+        pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+      return pdf.output("blob");
+    }
+
+    async function gerarPdfBlob(){
+      await ensurePdfLibs();
+      var ultimo = null;
+      for (var t = 0; t < tentativasPdf.length; t++) {
+        var cfg = tentativasPdf[t];
+        ultimo = await montarPdf(cfg.scale, cfg.quality);
+        if (ultimo && ultimo.size <= pdfLocacaoAlvo) return ultimo;
+      }
+      if (ultimo && ultimo.size > pdfLocacaoMax) {
+        throw new Error("PDF ainda grande (" + fmtTam(ultimo.size) + ") — limite " + fmtTam(pdfLocacaoMax) + " para importar na locação.");
+      }
+      return ultimo;
+    }
 
   btnGerar.addEventListener("click", function(){
     btnGerar.disabled = true;
@@ -406,7 +437,8 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       pdfBlob = blob;
       barraInicial.classList.add("hidden");
       barraPos.classList.remove("hidden");
-      msg.textContent = "PDF gerado com 10 páginas — imprima ou guarde na pasta Contratos ATIVOS.";
+      var aviso = blob.size > pdfLocacaoMax ? " (excede limite da locação — gere de novo)" : "";
+      msg.textContent = "PDF gerado — 10 páginas · " + fmtTam(blob.size) + aviso + " — guarde em Contratos ATIVOS.";
     }).catch(function(e){
       msg.textContent = "Erro: " + (e && e.message ? e.message : e);
       btnGerar.disabled = false;
@@ -418,6 +450,10 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   document.getElementById("btnSalvar").addEventListener("click", function(){
     var btn = this;
     if (!pdfBlob) { msg.textContent = "Gere o PDF primeiro."; return; }
+    if (pdfBlob.size > pdfLocacaoMax) {
+      msg.textContent = "PDF demasiado grande (" + fmtTam(pdfBlob.size) + ") — clique em Gerar PDF novamente.";
+      return;
+    }
     if (!window.opener || typeof window.opener.__DK_contratoLocacaoSalvarPdfBlob !== "function") {
       msg.textContent = "Portal indisponível — recarregue a janela principal.";
       return;
@@ -649,6 +685,7 @@ ${scriptPreviewInline(dados)}
   window.__DK_contratoLocacaoResolverFromForm = resolverDadosFromForm;
   window.__DK_contratoLocacaoResolverFromLoc = resolverDadosFromLoc;
   window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
+  window.__DK_contratoLocacaoPdfMaxBytes = PDF_LOCACAO_MAX_BYTES;
   window.__DK_contratoLocacaoSalvarPdfBlob = salvarPdfBlobNoDeposito;
   window.__DK_contratoLocacaoExisteParaProtocolo = contratoExisteParaProtocolo;
   window.__DK_contratoLocacaoVisualizarArmazenado = visualizarContratoArmazenado;
