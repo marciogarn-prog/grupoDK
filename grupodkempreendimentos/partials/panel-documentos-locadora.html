@@ -2,6 +2,11 @@
         <h2 class="portal-panel__title">Documentos</h2>
         <p class="subpage__lead">Depósito de ficheiros <strong>sem IA</strong>. CRLV (nome = placa), contratos (nome = protocolo), multas (nome = <code>PLACA-CPF</code>). Vários ficheiros com o mesmo nome ficam guardados — use a pesquisa para ver todos e excluir um a um.</p>
         <p id="documentosMsg" class="portal-feedback" role="status"></p>
+        <div class="documentos-maquina-id">
+          <label for="documentosMaquinaRotulo" class="subtext">Identificação deste computador <span class="subtext">(ex.: Petrolina — recepção)</span></label>
+          <input type="text" id="documentosMaquinaRotulo" class="portal-field__input" maxlength="80" placeholder="Opcional — aparece nos relatórios quando depositar ficheiros" autocomplete="off">
+          <p id="documentosMaquinaIdHint" class="subtext"></p>
+        </div>
 
         <section class="documentos-busca" aria-labelledby="documentosBuscaTitulo">
           <h3 id="documentosBuscaTitulo" class="portal-lanc-aluguel-section__title">O que você busca?</h3>
