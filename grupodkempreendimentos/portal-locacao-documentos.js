@@ -1721,6 +1721,7 @@
   window.__DK_docsLocacaoDoProtocolo = docsDoProtocolo;
   window.__DK_docsLocacaoDoProtocoloPorTipo = docsDoProtocoloPorTipo;
   window.__DK_docsLocacaoIsEnviadoCliente = isDocEnviadoCliente;
+  window.__DK_docsLocacaoInferTipo = inferDocTipo;
   window.__DK_docsLocacaoCanonicoPorTipo = docCanonicoPorTipo;
   window.__DK_docsLocacaoLoadAll = loadAll;
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;

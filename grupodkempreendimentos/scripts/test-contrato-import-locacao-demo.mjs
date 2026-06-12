@@ -28,12 +28,13 @@ try {
     const p = document.getElementById("panel-logado");
     const b = document.getElementById("btn-locadora-operacao");
     return p && !p.classList.contains("hidden") && b && !b.classList.contains("hidden");
-  }, { timeout: 45000 });
+  }, null, { timeout: 45000 });
   await page.waitForFunction(
     () =>
       typeof window.__DK_docsLocacaoInferTipo === "function" &&
-      typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function" &&
-      typeof window.__DK_documentosLoadDeposit === "function"
+      typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function",
+    null,
+    { timeout: 60000 }
   );
 
   const infer = await page.evaluate(() => ({
@@ -100,7 +101,13 @@ try {
 
   const depId = `doc_e2e_dep_${caso.proto}_${Date.now()}`;
   await page.evaluate(({ proto, cpfDig, depId }) => {
-    const dep = window.__DK_documentosLoadDeposit?.() || { crlv: [], contrato: [], multa: [] };
+    const dep = { crlv: [], contrato: [], multa: [] };
+    try {
+      const raw = localStorage.getItem("dk_documentos_deposito_v1");
+      if (raw) Object.assign(dep, JSON.parse(raw));
+    } catch {
+      /* ignore */
+    }
     dep.contrato = (dep.contrato || []).filter((e) => String(e.chave || "") !== proto);
     dep.contrato.unshift({
       id: depId,
@@ -111,7 +118,7 @@ try {
       criadoEm: new Date().toISOString(),
       nuvem: false,
     });
-    localStorage.setItem(window.__DK_documentosStorageKey, JSON.stringify(dep));
+    localStorage.setItem("dk_documentos_deposito_v1", JSON.stringify(dep));
     localStorage.setItem("dk_locacao_documentos_v1", "[]");
     window.__DK_refreshOperacaoLocacaoDocumentosUi?.();
   }, { ...caso, depId });

@@ -871,7 +871,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260612loc-docs-import-sem-blob2`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260612loc-docs-import-sem-blob3`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
