@@ -166,6 +166,14 @@
     return false;
   }
 
+  function pickCampoEnderecoValido(...values) {
+    for (const value of values) {
+      const text = String(value ?? "").trim();
+      if (text && !enderecoEhPlaceholder(text)) return text;
+    }
+    return "";
+  }
+
   function formatCepContrato(cep) {
     const d = String(cep || "").replace(/\D/g, "");
     if (d.length !== 8) return String(cep || "").trim();
@@ -187,19 +195,99 @@
     return raw;
   }
 
+  function clienteEmbutidoPorCpf(cpfDigits) {
+    const d = onlyDigits(cpfDigits);
+    if (d.length !== 11) return null;
+    try {
+      const arr = window.DK_BANCO_CADASTRO?.clientes;
+      if (Array.isArray(arr)) {
+        const hit = arr.find((c) => onlyDigits(c?.cpf) === d);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function clienteCadastroLocalPorCpf(cpfDigits) {
+    const d = onlyDigits(cpfDigits);
+    if (d.length !== 11) return null;
+    if (typeof findClienteByCpfCadastro === "function") {
+      const hit = findClienteByCpfCadastro(d);
+      if (hit) return hit;
+    }
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      const hit = loadCadastro(CAD_CLIENTES_KEY).find((c) => onlyDigits(c?.cpf) === d);
+      if (hit) return hit;
+    }
+    try {
+      const raw = localStorage.getItem("dk_clientes_cadastro");
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) {
+        const hit = arr.find((c) => onlyDigits(c?.cpf) === d);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
+  /** Todas as fontes possíveis de endereço (formulário, cadastro, planilha). */
+  function coletarFontesEnderecoCliente(cpfDigits) {
+    const d = onlyDigits(cpfDigits);
+    const fontes = [];
+    const push = (obj) => {
+      if (obj && typeof obj === "object") fontes.push(obj);
+    };
+    const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
+    const formCpf = onlyDigits(document.getElementById("operacaoClienteCpf")?.value);
+    if (locCpf === d || formCpf === d) {
+      push({
+        endereco: document.getElementById("operacaoClienteEndereco")?.value,
+        municipioUf: document.getElementById("operacaoClienteMunicipioUf")?.value,
+        cep: document.getElementById("operacaoClienteCep")?.value,
+      });
+    }
+    if (typeof window.__DK_getClienteByCpfAny === "function") push(window.__DK_getClienteByCpfAny(d));
+    push(clienteCadastroLocalPorCpf(d));
+    push(clienteEmbutidoPorCpf(d));
+    push(loadCliente(d));
+    return fontes;
+  }
+
+  function montarEnderecoContratoDeFontes(fontes) {
+    const list = Array.isArray(fontes) ? fontes : [];
+    const endereco = pickCampoEnderecoValido(
+      ...list.map((f) => f?.endereco),
+      ...list.map((f) => f?.enderecoBase),
+      ...list.map((f) => f?.logradouro),
+      ...list.map((f) => f?.enderecoResidencia)
+    );
+    const complemento = pickCampoEnderecoValido(
+      ...list.map((f) => f?.complemento),
+      ...list.map((f) => f?.enderecoComplemento)
+    );
+    const municipioUf = pickCampoEnderecoValido(
+      ...list.map((f) => f?.municipioUf),
+      ...list.map((f) => f?.municipio)
+    );
+    const cep = pickCampoEnderecoValido(...list.map((f) => f?.cep));
+    return formatEnderecoContratoLocatario({ endereco, complemento, municipioUf, cep });
+  }
+
   function formatEnderecoContratoLocatario(cliente) {
     if (!cliente) return "";
-    const pickField = (keys) => {
-      for (const k of keys) {
-        const v = String(cliente[k] ?? "").trim();
-        if (v && !enderecoEhPlaceholder(v)) return v;
-      }
-      return "";
-    };
-    const end = pickField(["endereco", "enderecoBase", "logradouro", "enderecoResidencia"]);
-    const comp = pickField(["complemento", "enderecoComplemento"]);
-    const mun = pickField(["municipioUf", "municipio"]);
-    const cepRaw = pickField(["cep"]);
+    const end = pickCampoEnderecoValido(
+      cliente.endereco,
+      cliente.enderecoBase,
+      cliente.logradouro,
+      cliente.enderecoResidencia
+    );
+    const comp = pickCampoEnderecoValido(cliente.complemento, cliente.enderecoComplemento);
+    const mun = pickCampoEnderecoValido(cliente.municipioUf, cliente.municipio);
+    const cepRaw = pickCampoEnderecoValido(cliente.cep);
     const linhaEnd = [end, comp].filter(Boolean).join(", ");
     const munFmt = formatMunicipioContrato(mun);
     const cepFmt = formatCepContrato(cepRaw);
@@ -210,44 +298,24 @@
     return partes.join(" ");
   }
 
-  function enderecoFromFormCliente(cpfDigits) {
-    const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
-    const formCpf = onlyDigits(document.getElementById("operacaoClienteCpf")?.value);
-    if (locCpf !== cpfDigits && formCpf !== cpfDigits) return "";
-    const end = String(document.getElementById("operacaoClienteEndereco")?.value || "").trim();
-    const mun = String(document.getElementById("operacaoClienteMunicipioUf")?.value || "").trim();
-    const cep = String(document.getElementById("operacaoClienteCep")?.value || "").trim();
-    return formatEnderecoContratoLocatario({ endereco: end, municipioUf: mun, cep });
-  }
-
-  function enderecoCliente(cliente, cpfDigits) {
-    const fromForm = enderecoFromFormCliente(cpfDigits);
-    if (fromForm) return fromForm;
-    return formatEnderecoContratoLocatario(cliente);
-  }
-
-  function resolverEnderecoContrato(cpfDigits, cliente, loc) {
+  function resolverEnderecoContrato(cpfDigits) {
     const d = onlyDigits(cpfDigits);
     if (d.length !== 11) return "";
-    const merged =
-      (typeof window.__DK_getClienteByCpfAny === "function" ? window.__DK_getClienteByCpfAny(d) : null) ||
-      cliente ||
-      loadCliente(d);
-    const fromCadastro = formatEnderecoContratoLocatario(merged);
-    if (fromCadastro) return fromCadastro;
-    try {
-      const banco = window.DK_BANCO_CADASTRO?.clientes;
-      if (Array.isArray(banco)) {
-        const hit = banco.find((c) => onlyDigits(c?.cpf) === d);
-        const fromBundled = formatEnderecoContratoLocatario(hit);
-        if (fromBundled) return fromBundled;
-      }
-    } catch {
-      /* ignore */
-    }
-    const locEnd = String(loc?.endereco || loc?.enderecoCliente || "").trim();
-    if (locEnd && !enderecoEhPlaceholder(locEnd)) return locEnd;
-    return "";
+    return montarEnderecoContratoDeFontes(coletarFontesEnderecoCliente(d));
+  }
+
+  function garantirDadosContratoComEndereco(dados) {
+    if (!dados) return dados;
+    const cpfDigits = onlyDigits(dados.cpfDigits);
+    const enderecoResolvido = resolverEnderecoContrato(cpfDigits);
+    const enderecoAtual = String(dados.endereco || "").trim();
+    const enderecoFinal =
+      enderecoResolvido ||
+      (enderecoAtual && !enderecoEhPlaceholder(enderecoAtual) ? enderecoAtual : "");
+    return {
+      ...dados,
+      endereco: enderecoFinal || "endereço não cadastrado",
+    };
   }
 
   function resolverDadosFromForm() {
@@ -266,22 +334,23 @@
     const statusLocacao = rawFim ? "FINALIZADO" : "ATIVO";
     const cliente = loadCliente(cpfDigits);
     const codigoCliente = String(cliente?.codigo || "").trim() || "0000";
-    const endereco = resolverEnderecoContrato(cpfDigits, cliente) || "endereço não cadastrado";
     const municipioUf = String(cliente?.municipioUf || "Petrolina/PE").trim();
-    return montarDadosContrato({
-      protocolo,
-      cpfDigits,
-      nome,
-      placa,
-      marcaModelo,
-      modalidade,
-      codigoCliente,
-      endereco,
-      municipioUf,
-      inicioDt,
-      statusLocacao,
-      fim: rawFim,
-    });
+    return garantirDadosContratoComEndereco(
+      montarDadosContrato({
+        protocolo,
+        cpfDigits,
+        nome,
+        placa,
+        marcaModelo,
+        modalidade,
+        codigoCliente,
+        endereco: "",
+        municipioUf,
+        inicioDt,
+        statusLocacao,
+        fim: rawFim,
+      })
+    );
   }
 
   function resolverDadosFromLoc(loc) {
@@ -291,20 +360,22 @@
     const inicioDt = parseBrDate(loc.inicio) || new Date();
     const nome = String(loc.nome || loc.cliente || cliente?.nome || "").trim();
     const modalidade = String(loc.plano || loc.opcaoContrato || loc.modalidade || "").trim() || "DK MEU TRANSPORTE";
-    return montarDadosContrato({
-      protocolo: normProtocolo(loc.numeroContrato),
-      cpfDigits,
-      nome,
-      placa: normPlaca(loc.placa),
-      marcaModelo: String(loc.marcaModelo || loc.modelo || "").trim(),
-      modalidade,
-      codigoCliente: String(loc.clienteCodigo || cliente?.codigo || "").trim() || "0000",
-      endereco: resolverEnderecoContrato(cpfDigits, cliente, loc) || "endereço não cadastrado",
-      municipioUf: String(cliente?.municipioUf || "Petrolina/PE").trim(),
-      inicioDt,
-      statusLocacao: String(loc.statusLocacao || (String(loc.fim || "").trim() ? "FINALIZADO" : "ATIVO")).trim(),
-      fim: String(loc.fim || "").trim(),
-    });
+    return garantirDadosContratoComEndereco(
+      montarDadosContrato({
+        protocolo: normProtocolo(loc.numeroContrato),
+        cpfDigits,
+        nome,
+        placa: normPlaca(loc.placa),
+        marcaModelo: String(loc.marcaModelo || loc.modelo || "").trim(),
+        modalidade,
+        codigoCliente: String(loc.clienteCodigo || cliente?.codigo || "").trim() || "0000",
+        endereco: "",
+        municipioUf: String(cliente?.municipioUf || "Petrolina/PE").trim(),
+        inicioDt,
+        statusLocacao: String(loc.statusLocacao || (String(loc.fim || "").trim() ? "FINALIZADO" : "ATIVO")).trim(),
+        fim: String(loc.fim || "").trim(),
+      })
+    );
   }
 
   function montarDadosContrato(p) {
@@ -722,7 +793,8 @@ ${scriptPreviewInline(dados)}
 
   function abrirPreviewContrato(dados) {
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
-    const html = buildContratoPreviewHtml(dados);
+    const dadosFinal = garantirDadosContratoComEndereco(dados);
+    const html = buildContratoPreviewHtml(dadosFinal);
     const popup = window.open("", "_blank", "width=920,height=1000");
     if (!popup) {
       if (msgEl) msgEl.textContent = "O navegador bloqueou a janela — permita pop-ups para gerar o contrato.";
@@ -732,7 +804,7 @@ ${scriptPreviewInline(dados)}
     popup.document.close();
     popup.focus();
     if (msgEl) {
-      msgEl.textContent = `Contrato ${dados.protocolo} — clique «Gerar PDF» na janela; depois «Salvar» para a pasta Contratos ATIVOS.`;
+      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — clique «Gerar PDF» na janela; depois «Salvar» para a pasta Contratos ATIVOS.`;
     }
     return true;
   }
@@ -815,9 +887,46 @@ ${scriptPreviewInline(dados)}
     }
   }
 
+  function hidratarCamposClienteParaContrato(cpfDigits) {
+    const d = onlyDigits(cpfDigits);
+    if (d.length !== 11) return;
+    const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
+    if (locCpf !== d) return;
+    const fontes = coletarFontesEnderecoCliente(d).filter(
+      (f) =>
+        !(
+          String(f?.endereco || "") === String(document.getElementById("operacaoClienteEndereco")?.value || "") &&
+          String(f?.municipioUf || "") === String(document.getElementById("operacaoClienteMunicipioUf")?.value || "")
+        )
+    );
+    const endereco = pickCampoEnderecoValido(
+      ...fontes.map((f) => f?.endereco),
+      ...fontes.map((f) => f?.enderecoBase),
+      ...fontes.map((f) => f?.logradouro)
+    );
+    const municipioUf = pickCampoEnderecoValido(
+      ...fontes.map((f) => f?.municipioUf),
+      ...fontes.map((f) => f?.municipio)
+    );
+    const cep = pickCampoEnderecoValido(...fontes.map((f) => f?.cep));
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (!el || !val) return;
+      if (!String(el.value || "").trim() || enderecoEhPlaceholder(el.value)) el.value = val;
+    };
+    if (typeof formatCpf === "function") {
+      const cpfEl = document.getElementById("operacaoClienteCpf");
+      if (cpfEl && !onlyDigits(cpfEl.value)) cpfEl.value = formatCpf(d);
+    }
+    setVal("operacaoClienteEndereco", endereco);
+    setVal("operacaoClienteMunicipioUf", municipioUf);
+    setVal("operacaoClienteCep", cep);
+  }
+
   window.__DK_contratoLocacaoResolverFromForm = resolverDadosFromForm;
-  window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
   window.__DK_contratoLocacaoResolverFromLoc = resolverDadosFromLoc;
+  window.__DK_resolverEnderecoClienteContrato = resolverEnderecoContrato;
+  window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
   window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
   window.__DK_contratoLocacaoPdfMaxBytes = PDF_LOCACAO_MAX_BYTES;
   window.__DK_contratoLocacaoSalvarPdfBlob = salvarPdfBlobNoDeposito;
@@ -829,6 +938,8 @@ ${scriptPreviewInline(dados)}
   document.getElementById("operacaoLocacaoVisualizarContratoBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
+    const cpfDigits = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
+    hidratarCamposClienteParaContrato(cpfDigits);
     const dados = resolverDadosFromForm();
     const err = validarDados(dados);
     if (err) {

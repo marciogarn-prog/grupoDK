@@ -3582,14 +3582,19 @@ ${printable.innerHTML}
 
   function getPortalBundledClienteByCpf(cpfDigits) {
     if (!cpfDigits) return null;
+    const matchCpf = (c) => {
+      const cpf =
+        typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+      return cpf === cpfDigits;
+    };
     const base = getPortalClientesBundledSnapshot();
-    return (
-      base.find((c) => {
-        const cpf =
-          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-        return cpf === cpfDigits;
-      }) || null
-    );
+    const fromSnapshot = base.find(matchCpf);
+    if (fromSnapshot) return fromSnapshot;
+    if (Array.isArray(window.DK_BANCO_CADASTRO?.clientes)) {
+      const fromBanco = window.DK_BANCO_CADASTRO.clientes.find(matchCpf);
+      if (fromBanco) return fromBanco;
+    }
+    return null;
   }
 
   function portalHasClienteCadastroValue(value) {
