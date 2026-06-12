@@ -657,12 +657,13 @@
       if (msgEl) msgEl.textContent = "Sem permissão para gerir documentos.";
       return { ok: false };
     }
-    if (!blob || !(blob instanceof Blob)) return { ok: false, msg: "Ficheiro inválido." };
+    const blobLocal = await normalizarBlobLocal(blob, meta.mimeType);
+    if (!blobLocal) return { ok: false, msg: "Ficheiro inválido." };
     const nome = String(meta.nomeArquivo || "documento.pdf").trim();
     const chave = String(meta.chave || chaveFromFilename(categoria, nome) || "").trim();
     if (!chave) return { ok: false, msg: "Chave inválida." };
-    const mimeFinal = String(meta.mimeType || blob.type || "application/pdf").toLowerCase();
-    if (blob.size > MAX_BYTES) {
+    const mimeFinal = String(meta.mimeType || blobLocal.type || "application/pdf").toLowerCase();
+    if (blobLocal.size > MAX_BYTES) {
       if (msgEl) msgEl.textContent = `«${nome}» excede 12 MB.`;
       return { ok: false };
     }
@@ -681,11 +682,11 @@
     }
 
     const id = `doc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    await idbPutBlob(id, blob, { nomeArquivo: nome, mimeType: mimeFinal });
+    await idbPutBlob(id, blobLocal, { nomeArquivo: nome, mimeType: mimeFinal });
     let naNuvem = false;
     try {
       if (msgEl) msgEl.textContent = `A enviar «${nome}» para a nuvem…`;
-      naNuvem = await cloudPutBlob(id, blob, { nomeArquivo: nome, mimeType: mimeFinal });
+      naNuvem = await cloudPutBlob(id, blobLocal, { nomeArquivo: nome, mimeType: mimeFinal });
     } catch {
       naNuvem = false;
     }
@@ -694,7 +695,7 @@
       chave,
       nomeArquivo: nome,
       mimeType: mimeFinal,
-      tamanho: blob.size,
+      tamanho: blobLocal.size,
       criadoEm: new Date().toISOString(),
       nuvem: naNuvem,
       origem: String(meta.origem || "sistema"),
@@ -778,6 +779,198 @@
     return { ok: n > 0, n };
   }
 
+  async function normalizarBlobLocal(recebido, mimeType = "application/pdf") {
+    if (!recebido) return null;
+    if (recebido instanceof Blob) return recebido;
+    if (typeof recebido === "object" && recebido.ab instanceof ArrayBuffer) {
+      return new Blob([recebido.ab], { type: recebido.type || mimeType });
+    }
+    if (typeof recebido === "object" && typeof recebido.arrayBuffer === "function" && typeof recebido.size === "number") {
+      const ab = await recebido.arrayBuffer();
+      return new Blob([ab], { type: recebido.type || mimeType });
+    }
+    return null;
+  }
+
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  const RELATORIO_TITULOS = {
+    crlv: "Relatório de CRLV",
+    "contrato-ativo": "Relatório de Contratos ATIVOS",
+    "contrato-inativo": "Relatório de Contratos INATIVOS",
+    multa: "Relatório de Multas",
+  };
+
+  function listarParaRelatorio(tipo) {
+    const dep = loadDeposit();
+    const sets = protocolosLocacoesAtivos();
+    const visivel = (arr) => (arr || []).filter(depEntradaVisivel);
+    const sort = (arr) =>
+      arr.slice().sort((a, b) => {
+        const ka = String(a.chave || a.nomeArquivo || "").localeCompare(String(b.chave || b.nomeArquivo || ""), "pt-BR");
+        if (ka !== 0) return ka;
+        return (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0);
+      });
+    if (tipo === "crlv") return sort(visivel(dep.crlv));
+    if (tipo === "multa") return sort(visivel(dep.multa));
+    if (tipo === "contrato-ativo") {
+      return sort(visivel(dep.contrato).filter((e) => contratoEstaAtivo(e, sets)));
+    }
+    if (tipo === "contrato-inativo") {
+      return sort(visivel(dep.contrato).filter((e) => !contratoEstaAtivo(e, sets)));
+    }
+    return [];
+  }
+
+  function categoriaRelatorio(tipo) {
+    if (tipo === "crlv") return "crlv";
+    if (tipo === "multa") return "multa";
+    if (tipo === "contrato-ativo" || tipo === "contrato-inativo") return "contrato";
+    return "";
+  }
+
+  function buildRelatorioPopupHtml(tipo, titulo, rows, categoria) {
+    const agora = new Date().toLocaleString("pt-BR");
+    const corpo =
+      rows.length === 0
+        ? '<p class="vazio">Nenhum documento nesta pasta.</p>'
+        : `<table class="tabela"><thead><tr><th>Ficheiro</th><th>Chave</th><th>Entrada</th><th>PDF</th></tr></thead><tbody>${rows
+            .map(
+              (e) =>
+                `<tr>
+                  <td>${escHtml(e.nomeArquivo || e.chave || "—")}</td>
+                  <td><code>${escHtml(e.chave || "—")}</code></td>
+                  <td>${escHtml(fmtData(e.criadoEm))}${e.nuvem ? " · nuvem" : ""}</td>
+                  <td><button type="button" class="doc-link" data-cat="${escHtml(categoria)}" data-id="${escHtml(e.id)}">Ver PDF</button></td>
+                </tr>`
+            )
+            .join("")}</tbody></table>`;
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escHtml(titulo)}</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;margin:0;background:#1a1a1a;color:#eee}
+.cab{padding:14px 18px;background:#2a2a2a;border-bottom:1px solid #444}
+.cab h1{margin:0 0 4px;font-size:1.15rem;color:#fff}
+.cab p{margin:0;font-size:0.85rem;color:#aaa}
+.conteudo{padding:16px 18px 24px}
+.tabela{width:100%;border-collapse:collapse;font-size:0.9rem}
+.tabela th,.tabela td{border:1px solid #444;padding:8px 10px;text-align:left;vertical-align:middle}
+.tabela th{background:#333;color:#f5c518}
+.tabela tr:nth-child(even){background:#222}
+.doc-link{background:#e85d04;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:600}
+.doc-link:hover{background:#f48c06}
+.vazio{color:#aaa;font-style:italic}
+code{color:#facc15}
+</style></head><body>
+<div class="cab"><h1>${escHtml(titulo)}</h1><p>${rows.length} documento(s) · gerado em ${escHtml(agora)}</p></div>
+<div class="conteudo">${corpo}</div>
+<script>
+document.body.addEventListener("click",function(e){
+  var btn=e.target.closest(".doc-link");
+  if(!btn||!window.opener||typeof window.opener.__DK_documentosAbrirDocPdfViewer!=="function")return;
+  e.preventDefault();
+  window.opener.__DK_documentosAbrirDocPdfViewer(btn.getAttribute("data-cat"),btn.getAttribute("data-id"));
+});
+<\/script>
+</body></html>`;
+  }
+
+  function abrirRelatorioDocumentos(tipo) {
+    if (!podeAcessarDocumentos()) {
+      $("documentosMsg") && ($("documentosMsg").textContent = "Sem permissão para relatórios.");
+      return false;
+    }
+    const titulo = RELATORIO_TITULOS[tipo] || "Relatório";
+    const categoria = categoriaRelatorio(tipo);
+    if (!categoria) return false;
+    const rows = listarParaRelatorio(tipo);
+    const html = buildRelatorioPopupHtml(tipo, titulo, rows, categoria);
+    const popup = window.open("", "_blank", "width=920,height=720");
+    if (!popup) {
+      $("documentosMsg") && ($("documentosMsg").textContent = "Permita pop-ups para abrir o relatório.");
+      return false;
+    }
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
+    $("documentosMsg") && ($("documentosMsg").textContent = `${titulo} aberto (${rows.length} documento(s)).`);
+    return true;
+  }
+
+  function abrirPdfViewerPopup(blob, nomeArquivo, mimeType) {
+    if (!blob) return false;
+    const mime = String(mimeType || blob.type || "").toLowerCase();
+    const nome = String(nomeArquivo || "documento.pdf").trim() || "documento.pdf";
+    const url = URL.createObjectURL(blob);
+    const nomeJs = JSON.stringify(nome);
+    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escHtml(nome)}</title>
+<style>
+@page{margin:0}
+html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-serif}
+.barra{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#2a2a2a;border-bottom:1px solid #444}
+.barra button{background:#e85d04;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-weight:600;cursor:pointer}
+.barra button:hover{background:#f48c06}
+.barra-msg{color:#ccc;font-size:0.85rem;margin-left:8px}
+.pdf-wrap{height:calc(100vh - 52px)}
+.pdf-frame,.pdf-img{width:100%;height:100%;border:none;background:#fff;display:block;object-fit:contain}
+@media print{.barra{display:none!important}.pdf-wrap{height:100vh}}
+</style></head><body>
+<div class="barra">
+  <button type="button" id="btnImprimir">Imprimir</button>
+  <button type="button" id="btnSalvar">Salvar</button>
+  <span class="barra-msg">${escHtml(nome)}</span>
+</div>
+<div class="pdf-wrap">${
+      mime.includes("pdf")
+        ? `<iframe class="pdf-frame" id="pdfFrame" title="${escHtml(nome)}" src="${url}"></iframe>`
+        : `<img class="pdf-img" id="pdfImg" alt="${escHtml(nome)}" src="${url}">`
+    }</div>
+<script>
+(function(){
+  var url=${JSON.stringify(url)};
+  var nome=${nomeJs};
+  document.getElementById("btnImprimir").addEventListener("click",function(){window.print();});
+  document.getElementById("btnSalvar").addEventListener("click",function(){
+    var a=document.createElement("a");
+    a.href=url;a.download=nome;a.click();
+  });
+  window.addEventListener("beforeunload",function(){try{URL.revokeObjectURL(url);}catch(e){}});
+})();
+<\/script>
+</body></html>`;
+    const popup = window.open("", "_blank", "width=960,height=900");
+    if (!popup) {
+      alert("Permita pop-ups para visualizar o documento.");
+      URL.revokeObjectURL(url);
+      return false;
+    }
+    popup.document.write(html);
+    popup.document.close();
+    popup.focus();
+    return true;
+  }
+
+  async function abrirDocPdfViewer(categoria, id) {
+    const dep = loadDeposit()[categoria] || [];
+    const meta = dep.find((e) => String(e.id) === String(id));
+    const row = await obterBlobDoc(categoria, id);
+    if (!row?.blob) {
+      alert("Ficheiro não encontrado neste computador nem na nuvem.");
+      return false;
+    }
+    const blob = await normalizarBlobLocal(row.blob, row.mimeType || meta?.mimeType || "application/pdf");
+    if (!blob) {
+      alert("Não foi possível abrir o ficheiro.");
+      return false;
+    }
+    return abrirPdfViewerPopup(blob, meta?.nomeArquivo || row.nomeArquivo || id, row.mimeType || meta?.mimeType || blob.type);
+  }
+
   async function obterBlobDoc(categoria, id) {
     const row = await idbGetBlob(id).catch(() => null);
     if (row?.blob) return row;
@@ -817,6 +1010,12 @@
   }
 
   async function abrirDoc(categoria, id) {
+    const dep = loadDeposit()[categoria] || [];
+    const meta = dep.find((e) => e.id === id);
+    const mimeHint = String(meta?.mimeType || meta?.nomeArquivo || "").toLowerCase();
+    if (mimeHint.includes(".pdf") || mimeHint.includes("pdf") || !mimeHint.match(/\.(jpe?g|png|webp)$/)) {
+      return abrirDocPdfViewer(categoria, id);
+    }
     const row = await obterBlobDoc(categoria, id);
     if (!row?.blob) {
       alert("Ficheiro não encontrado neste computador nem na nuvem. Carregue o documento de novo.");
@@ -917,6 +1116,11 @@
     bindUpload("contrato", "documentosInputContratoInativo", "documentosDropContratoInativo", { statusContrato: "inativo" });
     bindUpload("multa", "documentosInputMulta", "documentosDropMulta");
 
+    $("documentosRelatorioCrlv")?.addEventListener("click", () => abrirRelatorioDocumentos("crlv"));
+    $("documentosRelatorioContratoAtivo")?.addEventListener("click", () => abrirRelatorioDocumentos("contrato-ativo"));
+    $("documentosRelatorioContratoInativo")?.addEventListener("click", () => abrirRelatorioDocumentos("contrato-inativo"));
+    $("documentosRelatorioMulta")?.addEventListener("click", () => abrirRelatorioDocumentos("multa"));
+
     $("documentosViewerFecharBtn")?.addEventListener("click", fecharViewer);
     $("documentosViewerModal")?.addEventListener("click", (e) => {
       if (e.target?.matches?.("[data-close-documentos-viewer]")) fecharViewer();
@@ -993,6 +1197,9 @@
   window.__DK_documentosSyncNuvem = sincronizarDepositoComNuvem;
   window.__DK_documentosCloudGetBlob = cloudGetBlob;
   window.__DK_documentosAbrirViewerBlob = abrirViewerComBlob;
+  window.__DK_documentosAbrirDocPdfViewer = abrirDocPdfViewer;
+  window.__DK_documentosAbrirRelatorio = abrirRelatorioDocumentos;
+  window.__DK_documentosNormalizarBlob = normalizarBlobLocal;
   window.__DK_documentosNormPlaca = normPlaca;
   window.__DK_documentosNormProtocolo = normProtocolo;
   window.__DK_documentosMergeDeposit = function mergeLocalCloud(localDep, cloudDep) {

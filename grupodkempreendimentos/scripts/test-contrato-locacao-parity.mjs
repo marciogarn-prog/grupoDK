@@ -40,6 +40,8 @@ for (const [base, label] of PAIRS) {
     gerarPdf10: contratoJs.includes("paginas.length !== 10"),
     vendorLocal:
       contratoJs.includes("vendor/jspdf.umd.min.js") && contratoJs.includes("vendor/html2canvas.min.js"),
+    relatorios: docsJs.includes("__DK_documentosAbrirRelatorio"),
+    pdfViewer: docsJs.includes("__DK_documentosAbrirDocPdfViewer"),
     moverPasta: docsJs.includes("__DK_documentosMoverContratoPorProtocolo"),
     garantirNuvem: docsJs.includes("__DK_documentosGarantirBlobNaNuvem"),
     refreshBotao: contratoJs.includes("__DK_contratoLocacaoRefreshBotao"),
