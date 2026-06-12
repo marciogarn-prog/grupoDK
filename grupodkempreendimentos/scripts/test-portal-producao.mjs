@@ -871,7 +871,7 @@ async function runSuite() {
         indexFresh.includes("Enviar para o cliente"),
       "Multa PLACA-CPF; Abrir + Confirmar + Enviar → Ver multas"
     );
-    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260521envio-geral`, {
+    const locDocsJs = await fetch(`${BASE_URL}portal-locacao-documentos.js?v=20260612loc-docs-contrato-paridade`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -898,6 +898,9 @@ async function runSuite() {
         locDocsJs.includes("__DK_garantirDocMultaParaCadastro") &&
         locDocsJs.includes("docCanonicoPorTipo") &&
         locDocsJs.includes("limparDuplicadosNaoEnviados") &&
+        locDocsJs.includes("repararMetadadosDocumentosLocacao") &&
+        locDocsJs.includes("garantirBlobDepositoParaImport") &&
+        locDocsJs.includes("bindListaDocumentosLocacao") &&
         !locDocsJs.includes("adicionarDocumentos"),
       "contrato/crlv: push nuvem + confirmação ao operador; só enviados vão à nuvem"
     );
