@@ -3614,6 +3614,36 @@ ${printable.innerHTML}
     };
   }
 
+  /** Cadastro completo (local + planilha embutida) — contrato, relatórios, formulários. */
+  function getClienteByCpfAny(cpfDigits) {
+    const d =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(cpfDigits || ""))
+        : String(cpfDigits || "").replace(/\D/g, "");
+    if (d.length !== 11) return null;
+    const portalOnly =
+      typeof findPortalClienteByCpf === "function" ? findPortalClienteByCpf(d) : null;
+    if (portalOnly) return portalMergeClienteCadastroWithBundled(portalOnly, d);
+    const local =
+      typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(d) : null;
+    if (local) return portalMergeClienteCadastroWithBundled(local, d);
+    const bundled = getPortalBundledClienteByCpf(d);
+    if (bundled) return bundled;
+    if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
+      const hit = clientesSeedData.find((c) => {
+        const cpf =
+          typeof onlyDigits === "function"
+            ? onlyDigits(String(c.cpf || ""))
+            : String(c.cpf || "").replace(/\D/g, "");
+        return cpf === d;
+      });
+      if (hit) return portalMergeClienteCadastroWithBundled(hit, d);
+    }
+    return null;
+  }
+
+  window.__DK_getClienteByCpfAny = getClienteByCpfAny;
+
   function getPortalBundledClienteCodeByCpf(cpfDigits) {
     const hit = getPortalBundledClienteByCpf(cpfDigits);
     if (!hit) return "";
@@ -3745,25 +3775,6 @@ ${printable.innerHTML}
 
     /** Evita repetir popup para o mesmo CPF em sequência. */
     let lastAlertedCpf = "";
-
-    function getClienteByCpfAny(cpfDigits) {
-      if (!cpfDigits) return null;
-      const portalOnly =
-        typeof findPortalClienteByCpf === "function" ? findPortalClienteByCpf(cpfDigits) : null;
-      if (portalOnly) return portalMergeClienteCadastroWithBundled(portalOnly, cpfDigits);
-      const local = typeof findClienteByCpfCadastro === "function" ? findClienteByCpfCadastro(cpfDigits) : null;
-      if (local) return portalMergeClienteCadastroWithBundled(local, cpfDigits);
-      const bundled = getPortalBundledClienteByCpf(cpfDigits);
-      if (bundled) return bundled;
-      if (typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)) {
-        const hit = clientesSeedData.find((c) => {
-          const cpf = typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
-          return cpf === cpfDigits;
-        });
-        if (hit) return portalMergeClienteCadastroWithBundled(hit, cpfDigits);
-      }
-      return null;
-    }
 
     function refreshOperacaoClienteApagarBtn(cpfDigits) {
       const btn = document.getElementById("operacaoClienteApagarBtn");
