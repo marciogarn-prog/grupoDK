@@ -182,8 +182,9 @@
 
   function montarDadosContrato(p) {
     const inicioDt = p.inicioDt || new Date();
+    const protocolo = normProtocolo(p.protocolo);
     return {
-      protocolo: p.protocolo,
+      protocolo,
       cpfDigits: p.cpfDigits,
       nome: p.nome,
       cpfFmt: formatCpf(p.cpfDigits),
@@ -335,11 +336,23 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     );
   }
 
+  function nomeArquivoContrato(protocolo) {
+    const fn =
+      typeof window.__DK_documentosNomeArquivoContrato === "function"
+        ? window.__DK_documentosNomeArquivoContrato
+        : null;
+    if (fn) return fn(protocolo);
+    const p = normProtocolo(protocolo);
+    return p ? `${p}.pdf` : "";
+  }
+
   function scriptPreviewInline(dados) {
     const html2canvasUrl = vendorScriptUrl(VENDOR_HTML2CANVAS);
     const jspdfUrl = vendorScriptUrl(VENDOR_JSPDF);
+    const proto = normProtocolo(dados.protocolo);
     const meta = JSON.stringify({
-      protocolo: dados.protocolo,
+      protocolo: proto,
+      nomeArquivo: nomeArquivoContrato(proto),
       statusLocacao: dados.statusLocacao,
       fim: dados.fim || "",
       pastaContrato: "ativo",
@@ -434,7 +447,7 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
 
   function buildContratoPreviewHtml(dados) {
     const paginas = buildPaginasHtml(dados);
-    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Contrato ${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
   <span id="barraInicial"><button type="button" id="btnGerarPdf">Gerar PDF</button></span>
   <span id="barraPosPdf" class="hidden">
@@ -492,12 +505,13 @@ ${scriptPreviewInline(dados)}
     const statusContrato =
       pastaMeta === "ativo" || pastaMeta === "inativo" ? pastaMeta : pastaContratoParaLocacao(statusLocacao, fim);
     const existente = obterContratoDeposito(protocolo);
+    const nomeArquivo = nomeArquivoContrato(protocolo);
 
     const dep = await depositar(
       "contrato",
       blob,
       {
-        nomeArquivo: `${protocolo}.pdf`,
+        nomeArquivo,
         chave: protocolo,
         mimeType: "application/pdf",
         origem: "contrato-locacao",
@@ -563,8 +577,9 @@ ${scriptPreviewInline(dados)}
           typeof window.__DK_documentosAbrirViewerBlob === "function"
             ? window.__DK_documentosAbrirViewerBlob
             : null;
+        const nomePdf = nomeArquivoContrato(protocolo);
         if (abrir) {
-          abrir(row.blob, entrada.nomeArquivo || `${protocolo}.pdf`, entrada.mimeType || row.mimeType || "application/pdf");
+          abrir(row.blob, nomePdf || entrada.nomeArquivo || `${protocolo}.pdf`, entrada.mimeType || row.mimeType || "application/pdf");
         } else {
           const url = URL.createObjectURL(row.blob);
           window.open(url, "_blank", "noopener");
