@@ -1720,6 +1720,7 @@
         <h2 class="portal-panel__title">Documentos</h2>
         <p class="subpage__lead">Depósito de ficheiros <strong>sem IA</strong>. CRLV (nome = placa), contratos (nome = protocolo), multas (nome = <code>PLACA-CPF</code>). Vários ficheiros com o mesmo nome ficam guardados — use a pesquisa para ver todos e excluir um a um.</p>
         <p id="documentosMsg" class="portal-feedback" role="status"></p>
+        <p id="documentosSyncStatus" class="subtext documentos-sync-status" role="status"></p>
         <div class="documentos-maquina-id">
           <label for="documentosMaquinaRotulo" class="subtext">Identificação deste computador <span class="subtext">(ex.: Petrolina — recepção)</span></label>
           <input type="text" id="documentosMaquinaRotulo" class="portal-field__input" maxlength="80" placeholder="Opcional — aparece nos relatórios quando depositar ficheiros" autocomplete="off">
@@ -2053,13 +2054,13 @@
   <script src="portal-locadora-ui.js?v=20260611contrato-endereco4" defer></script>
   <script src="portal-locacao-documentos.js?v=20260610sem-massa" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
-  <script src="portal-documentos.js?v=20260612documentos-sync-pull" defer></script>
+  <script src="portal-documentos.js?v=20260612documentos-bidir-sync" defer></script>
   <script src="data/dk-contrato-locacao-texto.js?v=20260611contrato-loc" defer></script>
   <script src="portal-contrato-locacao.js?v=20260611contrato-endereco4" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260611manut-area" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260611layout-papel" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260611colab-sync" defer></script>
+  <script src="portal-supabase-sync.js?v=20260612deposito-bidir-sync" defer></script>
 </body>
 </html>

@@ -2261,7 +2261,10 @@
         cloudPayload.dk_financeiro_extratos_v1
       );
     }
-    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_documentos_deposito_v1")) {
+    if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_documentos_deposito_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_documentos_deposito_v1")
+    ) {
       const mergeFn =
         typeof window.__DK_documentosMergeDeposit === "function"
           ? window.__DK_documentosMergeDeposit
@@ -2563,6 +2566,91 @@
     return out;
   }
 
+  function parseDepositForPush(raw) {
+    if (!raw) return { crlv: [], contrato: [], multa: [] };
+    if (typeof raw === "string") {
+      try {
+        const p = JSON.parse(raw);
+        return p && typeof p === "object" ? p : { crlv: [], contrato: [], multa: [] };
+      } catch {
+        return { crlv: [], contrato: [], multa: [] };
+      }
+    }
+    return raw && typeof raw === "object" ? raw : { crlv: [], contrato: [], multa: [] };
+  }
+
+  function depositoStatsForPush(dep) {
+    const p = parseDepositForPush(dep);
+    let total = 0;
+    let visible = 0;
+    let tombstones = 0;
+    for (const cat of ["crlv", "contrato", "multa"]) {
+      for (const e of p[cat] || []) {
+        if (!e?.id) continue;
+        total += 1;
+        if (e.excluido === true) tombstones += 1;
+        else visible += 1;
+      }
+    }
+    return { total, visible, tombstones };
+  }
+
+  /** Fase 3: push nunca apaga tombstones nem encolhe o catálogo da nuvem. */
+  function applyDepositPushGuard(payload, cloudPayload) {
+    if (!payload || typeof payload !== "object") return payload;
+    const out = { ...payload };
+    const mergeFn =
+      typeof window.__DK_documentosMergeDeposit === "function"
+        ? window.__DK_documentosMergeDeposit
+        : null;
+    const cloudDep = cloudPayload?.dk_documentos_deposito_v1;
+    const localDep = out.dk_documentos_deposito_v1;
+    if (!cloudDep && !localDep) return out;
+    if (mergeFn) {
+      out.dk_documentos_deposito_v1 = mergeFn(localDep, cloudDep);
+      return out;
+    }
+    const lc = depositoStatsForPush(localDep);
+    const cc = depositoStatsForPush(cloudDep);
+    if (cc.total > lc.total || cc.tombstones > lc.tombstones) {
+      out.dk_documentos_deposito_v1 = cloudDep;
+    }
+    return out;
+  }
+
+  /** Local sem depósito não envia chave vazia que substituiria a nuvem. */
+  function omitEmptyDepositForPush(payload, cloudPayload) {
+    if (!payload || typeof payload !== "object" || !cloudPayload?.dk_documentos_deposito_v1) {
+      return payload;
+    }
+    const lc = depositoStatsForPush(payload.dk_documentos_deposito_v1);
+    const cc = depositoStatsForPush(cloudPayload.dk_documentos_deposito_v1);
+    const out = { ...payload };
+    if (lc.total === 0 && cc.total > 0) {
+      delete out.dk_documentos_deposito_v1;
+    }
+    return out;
+  }
+
+  function scheduleDepositoSyncAfterCloudPull(reason) {
+    if (isClienteAppPage()) return;
+    if (typeof window.__DK_documentosSyncBidireccional !== "function") return;
+    void window.__DK_documentosSyncBidireccional().then((r) => {
+      if (!r || r.skipped) return;
+      if (r.baixados > 0 || r.enviados > 0) {
+        try {
+          window.dispatchEvent(new CustomEvent("dk-documentos-synced", { detail: { reason, ...r } }));
+        } catch {
+          /* ignore */
+        }
+      }
+      const el = document.getElementById("documentosSyncStatus");
+      if (el && typeof window.__DK_documentosSyncStatusResumo === "function") {
+        el.textContent = window.__DK_documentosSyncStatusResumo(r);
+      }
+    });
+  }
+
   async function upsertSnapshotRow(showUserMessages, opts) {
     const forceReplace = Boolean(opts && opts.replace);
     const fullReplaceComprovantes = Boolean(opts && opts.fullReplaceComprovantes);
@@ -2614,6 +2702,8 @@
       }
     }
     payload = preserveCloudCadastrosWhenLocalEmpty(payload, cloudMeta?.payload || cloudPayloadMerged);
+    payload = applyDepositPushGuard(payload, cloudMeta?.payload || cloudPayloadMerged);
+    payload = omitEmptyDepositForPush(payload, cloudMeta?.payload || cloudPayloadMerged);
     payload =
       window.__DK_IS_DEMO_DEPLOY__ === true
         ? hydrateLocacoesCadastroPagamentosParaNuvem(payload)
@@ -2830,6 +2920,9 @@
       window.dispatchEvent(new CustomEvent("dk-documentos-synced"));
     } catch {
       /* ignore */
+    }
+    if (!clientePage) {
+      scheduleDepositoSyncAfterCloudPull("pull");
     }
     if (clientePage) {
       try {
@@ -3384,6 +3477,7 @@
             } catch {
               /* ignore */
             }
+            scheduleDepositoSyncAfterCloudPull("startup");
           }
           if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
             window.__DK_portalRefreshOperacaoLocal();

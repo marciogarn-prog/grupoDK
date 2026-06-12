@@ -192,7 +192,8 @@ async function runSuite() {
         html.includes("documentosRelatorioCrlv") &&
         html.includes("documentosRelatorioContratoAtivo") &&
         html.includes("documentosRelatorioContratoInativo") &&
-        html.includes("documentosRelatorioMulta") &&
+        html.includes("documentosSyncStatus") &&
+        html.includes("documentosMaquinaRotulo") &&
         html.includes("portal-documentos.js") &&
         !html.includes("portal-patrimonio.js") &&
         !html.includes("patrimonioIaBgBadge") &&
@@ -505,6 +506,10 @@ async function runSuite() {
         docsJs.includes("__DK_documentosNomeArquivoContrato") &&
         docsJs.includes("inseridoPor") &&
         docsJs.includes("__DK_documentosFmtRastreabilidade") &&
+        docsJs.includes("__DK_documentosSyncDaNuvem") &&
+        docsJs.includes("__DK_documentosSyncBidireccional") &&
+        docsJs.includes("sincronizarDepositoDaNuvem") &&
+        docsJs.includes("documentosSyncStatus") &&
         docsJs.includes("documentosMaquinaRotulo") &&
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
@@ -560,6 +565,12 @@ async function runSuite() {
       return r.ok ? await r.text() : "";
     });
     record("documentos sync nuvem (dk_documentos_deposito_v1)", syncJs.includes("dk_documentos_deposito_v1"));
+    record(
+      "documentos depósito push guard + sync após pull",
+      syncJs.includes("applyDepositPushGuard") &&
+        syncJs.includes("omitEmptyDepositForPush") &&
+        syncJs.includes("scheduleDepositoSyncAfterCloudPull")
+    );
     record(
       "documentos locação merge nuvem (dk_locacao_documentos_v1)",
       syncJs.includes("dk_locacao_documentos_v1") && syncJs.includes("__DK_docsLocacaoMerge")

@@ -311,6 +311,22 @@ function applyDemoCadastroNoShrink(existing, merged) {
   return out;
 }
 
+/** Push parcial: catálogo de documentos nunca encolhe (tombstones preservados). */
+function applyDepositNoShrink(existing, merged) {
+  if (!isObject(existing) || !isObject(merged)) return merged;
+  const out = { ...merged };
+  if (
+    Object.prototype.hasOwnProperty.call(out, "dk_documentos_deposito_v1") &&
+    Object.prototype.hasOwnProperty.call(existing, "dk_documentos_deposito_v1")
+  ) {
+    out.dk_documentos_deposito_v1 = mergeDocumentosDepositoRedis(
+      existing.dk_documentos_deposito_v1,
+      out.dk_documentos_deposito_v1
+    );
+  }
+  return out;
+}
+
 function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
   return mergeLocacoesCadastro(existingArr, incomingArr);
 }
@@ -608,6 +624,9 @@ module.exports = async function handler(req, res) {
         payload = existingPayload
           ? mergePayloads(existingPayload, lockedIncoming)
           : stripInternalPayloadKeys(lockedIncoming);
+        if (existingPayload) {
+          payload = applyDepositNoShrink(existingPayload, payload);
+        }
         if (channel === "demo" && existingPayload) {
           payload = applyDemoCadastroNoShrink(existingPayload, payload);
         }
