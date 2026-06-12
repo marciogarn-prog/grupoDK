@@ -527,6 +527,7 @@ async function runSuite() {
         contratoJs.includes("vendor/jspdf.umd.min.js") &&
         contratoJs.includes("vendor/html2canvas.min.js") &&
         contratoJs.includes("nomeArquivoContrato") &&
+        contratoJs.includes("b64: b64") &&
         vendorJspdf &&
         vendorHtml2canvas &&
         contratoJs.includes("__DK_contratoLocacaoSincronizarPasta") &&

@@ -660,8 +660,14 @@
   async function depositarBlob(categoria, blob, meta = {}, opts = {}) {
     const msgEl = $(`documentosUploadMsg${categoria.charAt(0).toUpperCase() + categoria.slice(1)}`);
     if (!podeAcessarDocumentos()) {
-      if (msgEl) msgEl.textContent = "Sem permissão para gerir documentos.";
-      return { ok: false };
+      const contratoGeradoLocacao =
+        categoria === "contrato" &&
+        String(meta.origem || "") === "contrato-locacao" &&
+        Boolean(normProtocolo(meta.chave));
+      if (!contratoGeradoLocacao) {
+        if (msgEl) msgEl.textContent = "Sem permissão para gerir documentos.";
+        return { ok: false, msg: "sem_permissao" };
+      }
     }
     const blobLocal = await normalizarBlobLocal(blob, meta.mimeType);
     if (!blobLocal) return { ok: false, msg: "Ficheiro inválido." };
@@ -790,13 +796,32 @@
 
   async function normalizarBlobLocal(recebido, mimeType = "application/pdf") {
     if (!recebido) return null;
+    const mime = String(mimeType || "application/pdf").toLowerCase();
     if (recebido instanceof Blob) return recebido;
-    if (typeof recebido === "object" && recebido.ab instanceof ArrayBuffer) {
-      return new Blob([recebido.ab], { type: recebido.type || mimeType });
+    if (recebido instanceof ArrayBuffer) return new Blob([recebido], { type: mime });
+    if (ArrayBuffer.isView(recebido)) return new Blob([recebido], { type: mime });
+    if (typeof recebido === "string" && recebido.length > 0) {
+      return base64ToBlob(recebido, mime);
     }
-    if (typeof recebido === "object" && typeof recebido.arrayBuffer === "function" && typeof recebido.size === "number") {
-      const ab = await recebido.arrayBuffer();
-      return new Blob([ab], { type: recebido.type || mimeType });
+    if (typeof recebido === "object") {
+      if (typeof recebido.b64 === "string" && recebido.b64) {
+        return base64ToBlob(recebido.b64, recebido.type || mime);
+      }
+      const ab = recebido.ab;
+      if (ab instanceof ArrayBuffer || ArrayBuffer.isView(ab)) {
+        return new Blob([ab], { type: recebido.type || mime });
+      }
+      if (ab && typeof ab.byteLength === "number") {
+        try {
+          return new Blob([new Uint8Array(ab)], { type: recebido.type || mime });
+        } catch {
+          /* cross-realm ArrayBuffer — usar base64 no envio */
+        }
+      }
+      if (typeof recebido.arrayBuffer === "function" && typeof recebido.size === "number") {
+        const buf = await recebido.arrayBuffer();
+        return new Blob([buf], { type: recebido.type || mime });
+      }
     }
     return null;
   }
