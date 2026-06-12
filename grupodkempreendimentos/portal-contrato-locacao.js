@@ -424,8 +424,19 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     }
     btn.disabled = true;
     msg.textContent = "A guardar na pasta Contratos ATIVOS…";
-    pdfBlob.arrayBuffer().then(function(ab){
-      return window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, { ab: ab, type: "application/pdf" });
+    function blobParaBase64(blob){
+      return new Promise(function(res, rej){
+        var r = new FileReader();
+        r.onload = function(){
+          var s = String(r.result || "");
+          res(s.indexOf(",") >= 0 ? s.slice(s.indexOf(",") + 1) : s);
+        };
+        r.onerror = function(){ rej(new Error("leitura_pdf")); };
+        r.readAsDataURL(blob);
+      });
+    }
+    blobParaBase64(pdfBlob).then(function(b64){
+      return window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, { b64: b64, type: "application/pdf" });
     }).then(function(r){
       if (r && r.ok) {
         msg.textContent = r.moved
@@ -491,19 +502,29 @@ ${scriptPreviewInline(dados)}
   }
 
   async function salvarPdfBlobNoDeposito(meta, recebido) {
-    const protocolo = normProtocolo(meta?.protocolo);
+    const protocolo = normProtocolo(meta?.protocolo || String(meta?.nomeArquivo || "").replace(/\.pdf$/i, ""));
     const normalizar =
       typeof window.__DK_documentosNormalizarBlob === "function" ? window.__DK_documentosNormalizarBlob : null;
-    const blob = normalizar ? await normalizar(recebido, "application/pdf") : recebido instanceof Blob ? recebido : null;
-    if (!protocolo || !blob) return { ok: false, msg: "dados_invalidos" };
+    let blob = normalizar ? await normalizar(recebido, "application/pdf") : null;
+    if (!blob && recebido instanceof Blob) blob = recebido;
+    if (!blob && recebido?.b64) {
+      try {
+        const bin = atob(String(recebido.b64));
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i += 1) bytes[i] = bin.charCodeAt(i);
+        blob = new Blob([bytes], { type: "application/pdf" });
+      } catch {
+        blob = null;
+      }
+    }
+    if (!protocolo) return { ok: false, msg: "Protocolo inválido — recarregue o cadastro da locação." };
+    if (!blob || !blob.size) return { ok: false, msg: "PDF inválido — clique em Gerar PDF novamente." };
     const depositar = typeof window.__DK_documentosDepositarBlob === "function" ? window.__DK_documentosDepositarBlob : null;
     if (!depositar) return { ok: false, msg: "deposito_indisponivel" };
 
     const statusLocacao = String(meta.statusLocacao || "ATIVO");
     const fim = String(meta.fim || "");
-    const pastaMeta = String(meta.pastaContrato || "").trim().toLowerCase();
-    const statusContrato =
-      pastaMeta === "ativo" || pastaMeta === "inativo" ? pastaMeta : pastaContratoParaLocacao(statusLocacao, fim);
+    const statusContrato = "ativo";
     const existente = obterContratoDeposito(protocolo);
     const nomeArquivo = nomeArquivoContrato(protocolo);
 
@@ -516,14 +537,18 @@ ${scriptPreviewInline(dados)}
         mimeType: "application/pdf",
         origem: "contrato-locacao",
       },
-      { statusContrato, replaceChave: Boolean(existente), silent: true }
+      { statusContrato: "ativo", replaceChave: Boolean(existente), silent: true }
     );
+
+    if (!dep?.ok) {
+      return { ok: false, msg: dep?.msg || "Não foi possível guardar na pasta Contratos ATIVOS." };
+    }
 
     if (dep?.ok && dep.entry?.nuvem !== true) {
       await sincronizarPastaContratoLocacao(protocolo, statusLocacao, { fim, silent: true });
     }
 
-    return { ok: Boolean(dep?.ok), moved: !existente, entry: dep?.entry, naNuvem: dep?.naNuvem };
+    return { ok: Boolean(dep?.ok), moved: !existente, entry: dep?.entry, naNuvem: dep?.naNuvem, protocolo, nomeArquivo };
   }
 
   function abrirPreviewContrato(dados) {
