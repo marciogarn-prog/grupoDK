@@ -3599,18 +3599,40 @@ ${printable.innerHTML}
     return true;
   }
 
+  /** Rejeita placeholder legado «(Endereço do Cliente)» e máscaras XXXXX no contrato. */
+  function portalEnderecoContratoValido(value) {
+    const text = String(value ?? "").trim();
+    if (!text) return false;
+    if (/^x+$/i.test(text.replace(/[\s.,/-]/g, ""))) return false;
+    const norm = text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/\s+/g, " ");
+    if (norm.includes("endereco do cliente")) return false;
+    if (norm.includes("{endereco") || norm.includes("(endereco")) return false;
+    if (norm === "endereco nao cadastrado") return false;
+    return true;
+  }
+
   function portalMergeClienteCadastroWithBundled(record, cpfDigits) {
     if (!record || !cpfDigits) return record;
     const bundled = getPortalBundledClienteByCpf(cpfDigits);
     if (!bundled) return record;
     const pick = (primary, fallback) =>
       portalHasClienteCadastroValue(primary) ? String(primary).trim() : String(fallback || "").trim();
+    const pickEndereco = (primary, fallback) =>
+      portalEnderecoContratoValido(primary)
+        ? String(primary).trim()
+        : portalEnderecoContratoValido(fallback)
+          ? String(fallback).trim()
+          : "";
     return {
       ...record,
       nome: pick(record.nome, bundled.nome),
       cep: pick(record.cep, bundled.cep),
       municipioUf: pick(record.municipioUf, bundled.municipioUf),
-      endereco: pick(record.endereco, bundled.endereco),
+      endereco: pickEndereco(record.endereco, bundled.endereco),
     };
   }
 
@@ -3643,6 +3665,7 @@ ${printable.innerHTML}
   }
 
   window.__DK_getClienteByCpfAny = getClienteByCpfAny;
+  window.__DK_portalEnderecoContratoValido = portalEnderecoContratoValido;
 
   function getPortalBundledClienteCodeByCpf(cpfDigits) {
     const hit = getPortalBundledClienteByCpf(cpfDigits);
