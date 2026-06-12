@@ -236,10 +236,20 @@
     return d?.enviadoCliente === true;
   }
 
+  const PORTAL_PROTO_NOVO = "__PORTAL_PROTO_NOVO__";
+
   function getProtocoloAtual() {
     const hid = document.getElementById("operacaoLocacaoProtocolo");
-    const nc = normNc(hid?.value);
-    return nc || "";
+    let nc = normNc(hid?.value);
+    if (nc) return nc;
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const sv = String(sel?.value || "").trim();
+    if (sv && sv !== PORTAL_PROTO_NOVO) {
+      nc = normNc(sv);
+      if (nc && hid) hid.value = nc;
+      return nc;
+    }
+    return "";
   }
 
   function getCpfAtual() {
@@ -1711,7 +1721,7 @@
   window.__DK_docsLocacaoDoProtocolo = docsDoProtocolo;
   window.__DK_docsLocacaoDoProtocoloPorTipo = docsDoProtocoloPorTipo;
   window.__DK_docsLocacaoIsEnviadoCliente = isDocEnviadoCliente;
-  window.__DK_docsLocacaoInferTipo = inferDocTipo;
+  window.__DK_docsLocacaoCanonicoPorTipo = docCanonicoPorTipo;
   window.__DK_docsLocacaoLoadAll = loadAll;
   window.__DK_docsLocacaoMerge = mergeLocacaoDocumentos;
   window.__DK_importarLocacaoDocDoDeposito = importarTipoDoDeposito;

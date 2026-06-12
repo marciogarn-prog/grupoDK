@@ -92,7 +92,11 @@ try {
       sel.dispatchEvent(new Event("change", { bubbles: true }));
     }
   }, caso.proto);
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(500);
+  await page.evaluate((proto) => {
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    if (hid && !String(hid.value || "").trim()) hid.value = proto;
+  }, caso.proto);
 
   const depId = `doc_e2e_dep_${caso.proto}_${Date.now()}`;
   await page.evaluate(({ proto, cpfDig, depId }) => {
@@ -119,23 +123,17 @@ try {
   await page.waitForTimeout(1200);
 
   const ui = await page.evaluate(({ proto, cpfDig }) => {
+    window.__DK_refreshOperacaoLocacaoDocumentosUi?.();
     const ul = document.getElementById("operacaoLocacaoDocumentosListaContrato");
     const html = ul?.innerHTML || "";
-    let docs = [];
-    try {
-      docs = JSON.parse(localStorage.getItem("dk_locacao_documentos_v1") || "[]");
-    } catch {
-      docs = [];
-    }
-    const doc = docs.find(
-      (d) =>
-        d?.excluido !== true &&
-        String(d.numeroContrato || "").includes(proto) &&
-        String(d.cpf || "").includes(cpfDig.slice(-4))
-    );
+    const contratos = window.__DK_docsLocacaoDoProtocoloPorTipo?.(proto, cpfDig, "contrato") || [];
+    const canon = window.__DK_docsLocacaoCanonicoPorTipo?.(proto, cpfDig, "contrato");
+    const doc = contratos[0] || null;
     return {
       proto,
-      docCount: docs.filter((d) => d?.excluido !== true).length,
+      hid: document.getElementById("operacaoLocacaoProtocolo")?.value || "",
+      contratosLen: contratos.length,
+      hasCanon: Boolean(canon),
       hasOrigemDeposito: Boolean(doc?.origemDepositoId),
       hasVisualizar: html.includes("data-loc-doc-visualizar"),
       hasConfirmar: html.includes("data-loc-doc-confirmar"),
@@ -147,7 +145,7 @@ try {
 
   console.log(JSON.stringify(ui, null, 2));
 
-  if (ui.hasOrigemDeposito && ui.hasVisualizar && ui.hasConfirmar && ui.hasEnviar && ui.hasExcluir) {
+  if (ui.hasCanon && ui.hasVisualizar && ui.hasConfirmar && ui.hasEnviar && ui.hasExcluir) {
     console.log("PASS | Importar contrato (sem blob local) → botões Visualizar/Confirmar/Enviar/Excluir");
   } else {
     console.error("FAIL | importar contrato via botão", ui);
