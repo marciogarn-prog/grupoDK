@@ -104,6 +104,10 @@
   function loadCliente(cpfDigits) {
     const d = onlyDigits(cpfDigits);
     if (d.length !== 11) return null;
+    if (typeof window.__DK_getClienteByCpfAny === "function") {
+      const merged = window.__DK_getClienteByCpfAny(d);
+      if (merged) return merged;
+    }
     if (typeof findClienteByCpfCadastro === "function") {
       const cad = findClienteByCpfCadastro(d);
       if (cad) return cad;

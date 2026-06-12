@@ -512,7 +512,10 @@ async function runSuite() {
         html.includes("portal-contrato-locacao.js") &&
         html.includes("dk-contrato-locacao-texto.js")
     );
-    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-vendor`, {
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-endereco2`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    const uiContratoJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260611contrato-endereco2`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     const vendorJspdf = await fetch(`${BASE_URL}vendor/jspdf.umd.min.js`, { cache: "no-store" }).then((r) => r.ok);
@@ -529,8 +532,10 @@ async function runSuite() {
         contratoJs.includes("nomeArquivoContrato") &&
         contratoJs.includes("b64: b64") &&
         contratoJs.includes("tentativasPdf") &&
-        contratoJs.includes("findClienteByCpfCadastro") &&
+        contratoJs.includes("__DK_getClienteByCpfAny") &&
         contratoJs.includes("resolverEnderecoContrato") &&
+        uiContratoJs.includes("window.__DK_getClienteByCpfAny = getClienteByCpfAny") &&
+        uiContratoJs.includes("portalMergeClienteCadastroWithBundled") &&
         contratoJs.includes("__DK_contratoLocacaoPdfMaxBytes") &&
         vendorJspdf &&
         vendorHtml2canvas &&
