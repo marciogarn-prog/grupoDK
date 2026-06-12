@@ -53,7 +53,7 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  function loadAll() {
+  function loadAllRaw() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const p = raw ? JSON.parse(raw) : [];
@@ -61,6 +61,10 @@
     } catch {
       return [];
     }
+  }
+
+  function loadAll() {
+    return repararMetadadosDocumentosLocacao(loadAllRaw());
   }
 
   function saveAllLocal(arr) {
@@ -317,11 +321,33 @@
     if (t === "contrato" || t === "crlv" || t === "multa") return t;
     const cat = String(d?.origemDepositoCategoria || "").trim().toLowerCase();
     if (cat === "contrato" || cat === "crlv" || cat === "multa") return cat;
-    const nome = String(d?.nome || "");
+    const nome = String(d?.nome || "").trim();
     if (/^contrato\b|contrato\s*—/i.test(nome)) return "contrato";
     if (/crlv/i.test(nome)) return "crlv";
     if (/multa/i.test(nome)) return "multa";
+    const basePdf = nome.replace(/\.pdf$/i, "").trim();
+    if (/^\d{8,12}$/.test(basePdf)) return "contrato";
     return "";
+  }
+
+  function repararMetadadosDocumentosLocacao(arr) {
+    if (!Array.isArray(arr)) return [];
+    let changed = false;
+    const next = arr.map((d) => {
+      if (!d || d.excluido === true) return d;
+      const tipoAtual = String(d.tipo || "").trim().toLowerCase();
+      if (tipoAtual === "contrato" || tipoAtual === "crlv" || tipoAtual === "multa") return d;
+      const inferido = inferDocTipo(d);
+      if (!inferido) return d;
+      changed = true;
+      return {
+        ...d,
+        tipo: inferido,
+        origemDepositoCategoria: d.origemDepositoCategoria || inferido,
+      };
+    });
+    if (changed) saveAllLocal(next);
+    return next;
   }
 
   function docsDoProtocoloPorTipo(nc, cpf, tipo) {
@@ -435,14 +461,32 @@
     return base || "Documento";
   }
 
-  async function importarDocDepositoParaProtocolo(depositEntry, categoria, nc, cpf, placa, reg) {
+  async function garantirBlobDepositoParaImport(categoria, depositEntry) {
     const obterFn = typeof window.__DK_documentosObterBlobDoc === "function" ? window.__DK_documentosObterBlobDoc : null;
-    if (!obterFn || !depositEntry?.id) return { ok: false, reason: "no_fn" };
+    if (!obterFn || !depositEntry?.id) return null;
+    let row = await obterFn(categoria, depositEntry.id);
+    if (row?.blob?.size) return row;
+    const garantirFn =
+      typeof window.__DK_documentosGarantirBlobNaNuvem === "function"
+        ? window.__DK_documentosGarantirBlobNaNuvem
+        : null;
+    if (garantirFn) await garantirFn(depositEntry).catch(() => null);
+    row = await obterFn(categoria, depositEntry.id);
+    if (row?.blob?.size) return row;
+    const syncFn =
+      typeof window.__DK_documentosSyncBidireccional === "function" ? window.__DK_documentosSyncBidireccional : null;
+    if (syncFn) await syncFn().catch(() => null);
+    row = await obterFn(categoria, depositEntry.id);
+    return row?.blob?.size ? row : null;
+  }
+
+  async function importarDocDepositoParaProtocolo(depositEntry, categoria, nc, cpf, placa, reg) {
+    if (!depositEntry?.id) return { ok: false, reason: "no_fn" };
     const all = loadAll();
     if (docDepositoJaImportado(all, nc, cpf, depositEntry.id, categoria)) {
       return { ok: true, skipped: true };
     }
-    const row = await obterFn(categoria, depositEntry.id);
+    const row = await garantirBlobDepositoParaImport(categoria, depositEntry);
     if (!row?.blob) return { ok: false, reason: "no_blob", categoria };
     if (row.blob.size > MAX_BYTES) {
       return { ok: false, reason: "too_big", categoria, nome: depositEntry.nomeArquivo };
@@ -763,7 +807,20 @@
       fecharSugestoesDeposito(cat);
     }
     if (msgEl && res.msg) msgEl.textContent = res.msg;
+    if (!isMultaImportMsg(cat)) {
+      const globalMsg = document.getElementById("operacaoLocacaoDocumentosMsg");
+      if (globalMsg && res.msg) {
+        globalMsg.textContent = res.msg;
+        globalMsg.classList.toggle("portal-loc-docs__msg--erro", res.ok === false);
+        globalMsg.classList.toggle("portal-loc-docs__msg--ok", res.ok === true);
+      }
+    }
+    renderListasPorTipo(getProtocoloAtual(), getCpfAtual());
     return res;
+  }
+
+  function isMultaImportMsg(cat) {
+    return String(cat || "").trim().toLowerCase() === "multa";
   }
 
   async function importarTipoDoDeposito(categoria) {
@@ -1514,13 +1571,41 @@
     sugestoes?.addEventListener("click", (e) => {
       const item = e.target.closest?.("[data-dep-doc-id]");
       if (!item) return;
-      selecionarSugestaoDeposito(
-        categoria,
-        item.getAttribute("data-dep-doc-id"),
-        item.getAttribute("data-dep-nome")
-      );
-      const cfgMsg = document.getElementById(cfg.msgId);
-      if (cfgMsg) cfgMsg.textContent = "Ficheiro selecionado — clique em trazer documento.";
+      const depId = item.getAttribute("data-dep-doc-id");
+      const nome = item.getAttribute("data-dep-nome");
+      selecionarSugestaoDeposito(categoria, depId, nome);
+      if (isMulta) {
+        const cfgMsg = document.getElementById(cfg.msgId);
+        if (cfgMsg) cfgMsg.textContent = "Ficheiro selecionado — clique em Importar multa.";
+        return;
+      }
+      void (async () => {
+        const res = await importarDocDepositoPorId(categoria, depId);
+        refreshFn();
+        const cfgMsg = document.getElementById(cfg.msgId);
+        const trazer = cfg.trazerLabel || "Importar";
+        const txt = res.msg || (res.ok ? `${trazer} concluído.` : "Não foi possível importar.");
+        if (cfgMsg) cfgMsg.textContent = txt;
+        if (msg && txt) {
+          msg.textContent = txt;
+          msg.classList.toggle("portal-loc-docs__msg--erro", res.ok === false);
+          msg.classList.toggle("portal-loc-docs__msg--ok", res.ok === true);
+        }
+        if (res.ok && (res.added || res.already)) {
+          buscaLocacaoState[categoria].selectedId = "";
+          if (input) input.value = "";
+          fecharSugestoesDeposito(categoria);
+        }
+      })();
+    });
+  }
+
+  function bindListaDocumentosLocacao(listaId, msgEl, refreshFn) {
+    const ul = document.getElementById(listaId);
+    if (!ul || ul.dataset.dkLocDocsBound === "1") return;
+    ul.dataset.dkLocDocsBound = "1";
+    ul.addEventListener("click", (e) => {
+      handleDocListaClick(e, msgEl, refreshFn);
     });
   }
 
@@ -1529,6 +1614,8 @@
     const msg = document.getElementById("operacaoLocacaoDocumentosMsg");
 
     LOC_CADASTRO_TIPOS.forEach(bindBuscaLocacaoUi);
+    bindListaDocumentosLocacao(LISTA_TIPO_IDS.contrato, msg, refreshUi);
+    bindListaDocumentosLocacao(LISTA_TIPO_IDS.crlv, msg, refreshUi);
 
     document.addEventListener("click", (e) => {
       if (e.target.closest?.(".portal-loc-docs-busca") || e.target.closest?.(".portal-loc-docs-sugestoes")) return;
