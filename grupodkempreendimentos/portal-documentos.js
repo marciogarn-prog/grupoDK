@@ -47,6 +47,12 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  /** Contrato no depósito: nome do ficheiro = número do protocolo (ex.: 2026021301.pdf). */
+  function nomeArquivoContrato(chaveOuProtocolo) {
+    const p = normProtocolo(chaveOuProtocolo);
+    return p ? `${p}.pdf` : "";
+  }
+
   function chaveFromFilename(categoria, filename) {
     const base = String(filename || "")
       .replace(/\.[^.]+$/i, "")
@@ -659,9 +665,12 @@
     }
     const blobLocal = await normalizarBlobLocal(blob, meta.mimeType);
     if (!blobLocal) return { ok: false, msg: "Ficheiro inválido." };
-    const nome = String(meta.nomeArquivo || "documento.pdf").trim();
-    const chave = String(meta.chave || chaveFromFilename(categoria, nome) || "").trim();
+    const chave = String(meta.chave || chaveFromFilename(categoria, meta.nomeArquivo) || "").trim();
     if (!chave) return { ok: false, msg: "Chave inválida." };
+    const nome =
+      categoria === "contrato"
+        ? nomeArquivoContrato(chave) || String(meta.nomeArquivo || "documento.pdf").trim()
+        : String(meta.nomeArquivo || "documento.pdf").trim();
     const mimeFinal = String(meta.mimeType || blobLocal.type || "application/pdf").toLowerCase();
     if (blobLocal.size > MAX_BYTES) {
       if (msgEl) msgEl.textContent = `«${nome}» excede 12 MB.`;
@@ -968,7 +977,11 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
       alert("Não foi possível abrir o ficheiro.");
       return false;
     }
-    return abrirPdfViewerPopup(blob, meta?.nomeArquivo || row.nomeArquivo || id, row.mimeType || meta?.mimeType || blob.type);
+    let nome =
+      categoria === "contrato"
+        ? nomeArquivoContrato(meta?.chave || meta?.nomeArquivo) || meta?.nomeArquivo || row.nomeArquivo || id
+        : meta?.nomeArquivo || row.nomeArquivo || id;
+    return abrirPdfViewerPopup(blob, nome, row.mimeType || meta?.mimeType || blob.type);
   }
 
   async function obterBlobDoc(categoria, id) {
@@ -1202,6 +1215,7 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
   window.__DK_documentosNormalizarBlob = normalizarBlobLocal;
   window.__DK_documentosNormPlaca = normPlaca;
   window.__DK_documentosNormProtocolo = normProtocolo;
+  window.__DK_documentosNomeArquivoContrato = nomeArquivoContrato;
   window.__DK_documentosMergeDeposit = function mergeLocalCloud(localDep, cloudDep) {
     const out = emptyDeposit();
     for (const cat of ["crlv", "contrato", "multa"]) {

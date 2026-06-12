@@ -500,7 +500,7 @@ async function runSuite() {
         docsJs.includes("__DK_documentosGarantirBlobNaNuvem") &&
         docsJs.includes("__DK_documentosAbrirRelatorio") &&
         docsJs.includes("__DK_documentosAbrirDocPdfViewer") &&
-        docsJs.includes("__DK_documentosNormalizarBlob") &&
+        docsJs.includes("__DK_documentosNomeArquivoContrato") &&
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
         docsJs.includes("purgeLegacyPatrimonioLocal") &&
@@ -526,6 +526,7 @@ async function runSuite() {
         contratoJs.includes("__DK_contratoLocacaoExisteParaProtocolo") &&
         contratoJs.includes("vendor/jspdf.umd.min.js") &&
         contratoJs.includes("vendor/html2canvas.min.js") &&
+        contratoJs.includes("nomeArquivoContrato") &&
         vendorJspdf &&
         vendorHtml2canvas &&
         contratoJs.includes("__DK_contratoLocacaoSincronizarPasta") &&
