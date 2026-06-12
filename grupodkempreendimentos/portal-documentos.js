@@ -1040,10 +1040,19 @@ document.body.addEventListener("click",function(e){
 </body></html>`;
   }
 
-  function abrirRelatorioDocumentos(tipo) {
+  async function abrirRelatorioDocumentos(tipo) {
     if (!podeAcessarDocumentos()) {
       $("documentosMsg") && ($("documentosMsg").textContent = "Sem permissão para relatórios.");
       return false;
+    }
+    const msgEl = $("documentosMsg");
+    if (typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      if (msgEl) msgEl.textContent = "A sincronizar depósito com a nuvem…";
+      try {
+        await window.__DK_pullCloudSnapshotSilentMerge({ force: true });
+      } catch {
+        /* ignore */
+      }
     }
     const titulo = RELATORIO_TITULOS[tipo] || "Relatório";
     const categoria = categoriaRelatorio(tipo);
@@ -1280,10 +1289,10 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
     bindUpload("contrato", "documentosInputContratoInativo", "documentosDropContratoInativo", { statusContrato: "inativo" });
     bindUpload("multa", "documentosInputMulta", "documentosDropMulta");
 
-    $("documentosRelatorioCrlv")?.addEventListener("click", () => abrirRelatorioDocumentos("crlv"));
-    $("documentosRelatorioContratoAtivo")?.addEventListener("click", () => abrirRelatorioDocumentos("contrato-ativo"));
-    $("documentosRelatorioContratoInativo")?.addEventListener("click", () => abrirRelatorioDocumentos("contrato-inativo"));
-    $("documentosRelatorioMulta")?.addEventListener("click", () => abrirRelatorioDocumentos("multa"));
+    $("documentosRelatorioCrlv")?.addEventListener("click", () => void abrirRelatorioDocumentos("crlv"));
+    $("documentosRelatorioContratoAtivo")?.addEventListener("click", () => void abrirRelatorioDocumentos("contrato-ativo"));
+    $("documentosRelatorioContratoInativo")?.addEventListener("click", () => void abrirRelatorioDocumentos("contrato-inativo"));
+    $("documentosRelatorioMulta")?.addEventListener("click", () => void abrirRelatorioDocumentos("multa"));
 
     const rotuloInp = $("documentosMaquinaRotulo");
     if (rotuloInp && !rotuloInp.dataset.bound) {
@@ -1346,6 +1355,12 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
 
   purgeLegacyPatrimonioLocal();
   bindUi();
+
+  window.addEventListener("dk-documentos-synced", () => {
+    if ($("panel-documentos-locadora")?.classList.contains("hidden")) return;
+    atualizarResumosDepositos();
+    renderBuscaResultados();
+  });
 
   /* pedir armazenamento persistente — evita o navegador apagar os PDFs do depósito */
   try {
