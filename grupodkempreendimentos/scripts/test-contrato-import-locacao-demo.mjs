@@ -32,7 +32,8 @@ try {
   await page.waitForFunction(
     () =>
       typeof window.__DK_docsLocacaoInferTipo === "function" &&
-      typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function"
+      typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function" &&
+      typeof window.__DK_documentosLoadDeposit === "function"
   );
 
   const infer = await page.evaluate(() => ({
@@ -93,48 +94,63 @@ try {
   }, caso.proto);
   await page.waitForTimeout(1500);
 
-  const ui = await page.evaluate(({ proto, cpfDig }) => {
-    const pdfMini =
-      "data:application/pdf;base64," +
-      btoa("%PDF-1.4\n% contrato e2e\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF");
-    const docs = [
-      {
-        id: `ld_e2e_contrato_${Date.now()}`,
-        numeroContrato: proto,
-        cpf: cpfDig,
-        nome: `${proto}.pdf`,
-        mimeType: "application/pdf",
-        tamanho: 120,
-        createdAt: Date.now(),
-        registradoPorCpf: "03037897430",
-        registradoPorNome: "E2E",
-        arquivoBase64: pdfMini,
-        origemDepositoId: `doc_e2e_${proto}`,
-        origemDepositoCategoria: "contrato",
-        enviadoCliente: false,
-        conferidoOperador: false,
-      },
-    ];
-    localStorage.setItem("dk_locacao_documentos_v1", JSON.stringify(docs));
+  const depId = `doc_e2e_dep_${caso.proto}_${Date.now()}`;
+  await page.evaluate(({ proto, cpfDig, depId }) => {
+    const dep = window.__DK_documentosLoadDeposit?.() || { crlv: [], contrato: [], multa: [] };
+    dep.contrato = (dep.contrato || []).filter((e) => String(e.chave || "") !== proto);
+    dep.contrato.unshift({
+      id: depId,
+      chave: proto,
+      nomeArquivo: `${proto}.pdf`,
+      mimeType: "application/pdf",
+      tamanho: 120,
+      criadoEm: new Date().toISOString(),
+      nuvem: false,
+    });
+    localStorage.setItem(window.__DK_documentosStorageKey, JSON.stringify(dep));
+    localStorage.setItem("dk_locacao_documentos_v1", "[]");
     window.__DK_refreshOperacaoLocacaoDocumentosUi?.();
+  }, { ...caso, depId });
+
+  await page.fill("#operacaoLocacaoDocBuscaContrato", `${caso.proto}.pdf`);
+  await page.dispatchEvent("#operacaoLocacaoDocBuscaContrato", "input");
+  await page.waitForTimeout(400);
+  await page.click("#operacaoLocacaoDocBuscarContratoBtn");
+  await page.waitForTimeout(1200);
+
+  const ui = await page.evaluate(({ proto, cpfDig }) => {
     const ul = document.getElementById("operacaoLocacaoDocumentosListaContrato");
     const html = ul?.innerHTML || "";
+    let docs = [];
+    try {
+      docs = JSON.parse(localStorage.getItem("dk_locacao_documentos_v1") || "[]");
+    } catch {
+      docs = [];
+    }
+    const doc = docs.find(
+      (d) =>
+        d?.excluido !== true &&
+        String(d.numeroContrato || "").includes(proto) &&
+        String(d.cpf || "").includes(cpfDig.slice(-4))
+    );
     return {
       proto,
+      docCount: docs.filter((d) => d?.excluido !== true).length,
+      hasOrigemDeposito: Boolean(doc?.origemDepositoId),
       hasVisualizar: html.includes("data-loc-doc-visualizar"),
       hasConfirmar: html.includes("data-loc-doc-confirmar"),
       hasEnviar: html.includes("data-loc-doc-enviar"),
       hasExcluir: html.includes("data-loc-doc-excluir"),
-      snippet: html.slice(0, 320),
+      snippet: html.slice(0, 360),
     };
   }, caso);
 
   console.log(JSON.stringify(ui, null, 2));
 
-  if (ui.hasVisualizar && ui.hasConfirmar && ui.hasEnviar && ui.hasExcluir) {
-    console.log("PASS | lista contrato com botões Visualizar/Confirmar/Enviar/Excluir");
+  if (ui.hasOrigemDeposito && ui.hasVisualizar && ui.hasConfirmar && ui.hasEnviar && ui.hasExcluir) {
+    console.log("PASS | Importar contrato (sem blob local) → botões Visualizar/Confirmar/Enviar/Excluir");
   } else {
-    console.error("FAIL | lista contrato sem botões", ui);
+    console.error("FAIL | importar contrato via botão", ui);
     ok = false;
   }
 
