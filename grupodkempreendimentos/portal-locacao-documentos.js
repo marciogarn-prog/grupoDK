@@ -436,13 +436,14 @@
   function docDepositoJaImportado(all, nc, cpf, depositId, categoria) {
     const n = normNc(nc);
     const dig = onlyDigits(cpf).slice(0, 11);
+    const cat = String(categoria || "").trim().toLowerCase();
     return all.some(
       (d) =>
         d?.excluido !== true &&
         normNc(d.numeroContrato) === n &&
         onlyDigits(d.cpf).slice(0, 11) === dig &&
         String(d.origemDepositoId || "") === String(depositId || "") &&
-        String(d.origemDepositoCategoria || "") === String(categoria || "")
+        inferDocTipo(d) === cat
     );
   }
 
@@ -487,23 +488,33 @@
       return { ok: true, skipped: true };
     }
     const row = await garantirBlobDepositoParaImport(categoria, depositEntry);
-    if (!row?.blob) return { ok: false, reason: "no_blob", categoria };
-    if (row.blob.size > MAX_BYTES) {
-      return { ok: false, reason: "too_big", categoria, nome: depositEntry.nomeArquivo };
+    let dataUrl = "";
+    let tamanho = Number(depositEntry.tamanho || depositEntry.size || 0) || 0;
+    let mimeType = String(depositEntry.mimeType || "").trim();
+    let semBlobLocal = false;
+    if (row?.blob) {
+      if (row.blob.size > MAX_BYTES) {
+        return { ok: false, reason: "too_big", categoria, nome: depositEntry.nomeArquivo };
+      }
+      dataUrl = await blobToDataUrl(row.blob);
+      if (!dataUrl) return { ok: false, reason: "read_fail", categoria };
+      tamanho = row.blob.size;
+      mimeType = row.mimeType || row.blob.type || mimeType;
+    } else {
+      semBlobLocal = true;
     }
-    const dataUrl = await blobToDataUrl(row.blob);
-    if (!dataUrl) return { ok: false, reason: "read_fail", categoria };
+    if (!mimeType) {
+      mimeType = String(depositEntry.nomeArquivo || "").toLowerCase().endsWith(".pdf")
+        ? "application/pdf"
+        : "image/jpeg";
+    }
     all.push({
       id: `ld_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       numeroContrato: normNc(nc),
       cpf: onlyDigits(cpf).slice(0, 11),
       nome: nomeImportadoDeposito(categoria, nc, placa, depositEntry),
-      mimeType:
-        depositEntry.mimeType ||
-        row.mimeType ||
-        row.blob.type ||
-        (String(depositEntry.nomeArquivo || "").toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg"),
-      tamanho: row.blob.size,
+      mimeType,
+      tamanho,
       createdAt: Date.now(),
       registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
       registradoPorNome: String(reg.nome || "").trim() || "Importação do depósito",
@@ -517,7 +528,7 @@
       conferidoOperador: false,
     });
     saveAll(all);
-    return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo };
+    return { ok: true, added: true, categoria, nome: depositEntry.nomeArquivo, semBlobLocal };
   }
 
   function filtrarDeposito(categoria, termo) {
@@ -634,6 +645,17 @@
       const entry = obterEntradaDeposito(categoria, selectedId);
       if (entry) return entry;
     }
+    if (categoria === "contrato") {
+      const protoFn =
+        typeof window.__DK_documentosObterContratoPorProtocolo === "function"
+          ? window.__DK_documentosObterContratoPorProtocolo
+          : null;
+      const proto = normNc(String(termo || "").replace(/\.pdf$/i, ""));
+      if (protoFn && proto) {
+        const byProto = protoFn(proto);
+        if (byProto) return byProto;
+      }
+    }
     const rows = filtrarDeposito(categoria, termo);
     if (!rows.length) return null;
     if (rows.length === 1) return rows[0];
@@ -696,7 +718,12 @@
       try {
         const reg = getRegistroOperador();
         const r = await importarDocDepositoParaProtocolo(entry, "multa", nc, cpf, placa, reg);
-        if (r.added) return { ok: true, added: true, msg: "Multa importada do depósito Documentos." };
+        if (r.added) {
+          const extra = r.semBlobLocal
+            ? " O PDF será sincronizado ao visualizar."
+            : "";
+          return { ok: true, added: true, msg: `Multa importada do depósito Documentos.${extra}` };
+        }
         if (r.skipped) return { ok: true, already: true, msg: "Esta multa já está neste protocolo." };
         if (r.reason === "no_blob") {
           return {
@@ -753,15 +780,20 @@
       const r = await importarDocDepositoParaProtocolo(entry, cat, nc, cpf, placa, reg);
       if (r.added) {
         limparDuplicadosNaoEnviados(nc, cpf);
-        return { ok: true, added: true, msg: `${label} importado do depósito Documentos.` };
+        const extra = r.semBlobLocal
+          ? " O PDF será sincronizado deste computador ou da nuvem ao visualizar."
+          : "";
+        return { ok: true, added: true, msg: `${label} importado do depósito Documentos.${extra}` };
       }
       if (r.skipped) {
-        return { ok: true, already: true, msg: `${label} já está neste protocolo.` };
+        const visivel = docCanonicoPorTipo(nc, cpf, cat);
+        if (visivel) return { ok: true, already: true, msg: `${label} já está neste protocolo.` };
+        return { ok: false, msg: `${label} constava importado mas não aparece — tente de novo.` };
       }
       if (r.reason === "no_blob") {
         return {
           ok: false,
-          msg: `${label} encontrado no depósito, mas o ficheiro não está neste computador — deposite de novo em Documentos.`,
+          msg: `${label} encontrado no depósito, mas o ficheiro não está neste computador — abra Documentos e use «Carregar da nuvem».`,
         };
       }
       if (r.reason === "too_big") {
@@ -1536,6 +1568,49 @@
     });
   }
 
+  function aplicarFeedbackImportDeposito(categoria, res) {
+    const cfg = BUSCA_UI[categoria];
+    if (!cfg || !res) return;
+    const isMulta = categoria === "multa";
+    const msgGlobal = document.getElementById(isMulta ? cfg.msgId : "operacaoLocacaoDocumentosMsg");
+    const msgLocal = document.getElementById(cfg.msgId);
+    const txt = res.msg || "";
+    [msgGlobal, msgLocal].forEach((el) => {
+      if (!el || !txt) return;
+      el.textContent = txt;
+      el.classList.toggle("portal-loc-docs__msg--erro", res.ok === false);
+      el.classList.toggle("portal-loc-docs__msg--ok", res.ok === true);
+    });
+    if (res.ok === false && txt) window.alert(txt);
+  }
+
+  async function executarImportacaoBusca(categoria) {
+    const cfg = BUSCA_UI[categoria];
+    if (!cfg) return { ok: false, msg: "Tipo inválido." };
+    const isMulta = categoria === "multa";
+    const btn = document.getElementById(cfg.btnId);
+    const refreshFn = isMulta ? refreshLancMultasDocumentosDeposito : refreshUi;
+    if (btn?.dataset.dkImportBusy === "1") return { ok: false, msg: "Aguarde a importação em curso." };
+    if (btn) {
+      btn.dataset.dkImportBusy = "1";
+      btn.disabled = true;
+    }
+    try {
+      const res = await buscarEImportarDoDeposito(categoria);
+      refreshFn();
+      aplicarFeedbackImportDeposito(categoria, res);
+      return res;
+    } catch (err) {
+      const fail = { ok: false, msg: `Erro ao importar: ${String(err?.message || err || "erro")}` };
+      refreshFn();
+      aplicarFeedbackImportDeposito(categoria, fail);
+      return fail;
+    } finally {
+      if (btn) delete btn.dataset.dkImportBusy;
+      refreshFn();
+    }
+  }
+
   function bindBuscaLocacaoUi(categoria) {
     const cfg = BUSCA_UI[categoria];
     if (!cfg) return;
@@ -1553,19 +1628,13 @@
     input?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        void (async () => {
-          const res = await buscarEImportarDoDeposito(categoria);
-          refreshFn();
-          if (msg && res.msg) msg.textContent = res.msg;
-        })();
+        void executarImportacaoBusca(categoria);
       }
     });
 
-    btn?.addEventListener("click", async () => {
-      if (btn.disabled) return;
-      const res = await buscarEImportarDoDeposito(categoria);
-      refreshFn();
-      if (msg && res.msg) msg.textContent = res.msg;
+    btn?.addEventListener("click", () => {
+      if (btn.disabled || btn.dataset.dkImportBusy === "1") return;
+      void executarImportacaoBusca(categoria);
     });
 
     sugestoes?.addEventListener("click", (e) => {
