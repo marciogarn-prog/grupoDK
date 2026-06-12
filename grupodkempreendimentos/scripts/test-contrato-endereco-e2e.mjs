@@ -1,5 +1,5 @@
 /**
- * E2E: endereço do locatário no HTML do contrato (demo, CPF MIQUEIAS).
+ * E2E: endereço do locatário no HTML do contrato (demo).
  * node grupodkempreendimentos/scripts/test-contrato-endereco-e2e.mjs
  */
 import { chromium } from "playwright";
@@ -33,7 +33,7 @@ try {
   );
 
   const diag = await page.evaluate(
-    async ({ cpf, esperado }) => {
+    ({ cpf, esperado }) => {
       const d = String(cpf).replace(/\D/g, "");
       const key = "dk_clientes_cadastro";
       let cad = [];
@@ -70,13 +70,12 @@ try {
       document.getElementById("operacaoClienteEndereco").value = "RUA M, 71 - N10";
       document.getElementById("operacaoClienteMunicipioUf").value = "PETROLINA/PE";
       document.getElementById("operacaoClienteCep").value = "56.353-700";
+      document.getElementById("operacaoClienteCpf").value = "113.772.764-06";
 
       const banco = window.DK_BANCO_CADASTRO?.clientes?.find((c) => String(c.cpf || "").replace(/\D/g, "") === d);
       const enderecoFn = window.__DK_resolverEnderecoClienteContrato?.(d);
       const dados = window.__DK_contratoLocacaoResolverFromForm?.();
-      const html = window.__DK_contratoLocacaoBuildHtml?.(
-        window.__DK_contratoLocacaoResolverFromForm?.()
-      );
+      const html = window.__DK_contratoLocacaoBuildHtml?.(window.__DK_contratoLocacaoResolverFromForm?.());
 
       return {
         isDemo: window.__DK_IS_DEMO_DEPLOY__ === true,
@@ -95,7 +94,58 @@ try {
     { cpf: CPF, esperado: ESPERADO }
   );
 
+  const congelado = await page.evaluate(({ cpf }) => {
+    const d = String(cpf).replace(/\D/g, "");
+    const key = "dk_clientes_cadastro";
+    let cad = [];
+    try {
+      cad = JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      cad = [];
+    }
+    let alvo = cad.find((c) => String(c.cpf || "").replace(/\D/g, "") === d);
+    if (!alvo) {
+      alvo = {
+        cpf: d,
+        nome: "CLIENTE TESTE ENDERECO",
+        endereco: "AV. MANOEL DO ARROZ, 85 - BLOCO 06",
+        municipioUf: "PETROLINA/PE",
+        cep: "56306385",
+        origemPortal: true,
+        id: Date.now(),
+      };
+      cad.push(alvo);
+    } else {
+      alvo.endereco = "AV. MANOEL DO ARROZ, 85 - BLOCO 06";
+      alvo.municipioUf = "PETROLINA/PE";
+    }
+    localStorage.setItem(key, JSON.stringify(cad));
+
+    document.getElementById("operacaoLocacaoCpf").value = "113.772.764-06";
+    document.getElementById("operacaoLocacaoCliente").value = alvo.nome;
+    document.getElementById("operacaoLocacaoProtocolo").value = "2026021302";
+    document.getElementById("operacaoLocacaoPlaca").value = "ABC1D23";
+    document.getElementById("operacaoLocacaoModelo").value = "HONDA CG 160";
+    document.getElementById("operacaoLocacaoDataInicio").value = "13/02/2026";
+    document.getElementById("operacaoLocacaoTipoPlano").value = "DK MEU TRANSPORTE";
+    document.getElementById("operacaoClienteEndereco").value =
+      "TRAV. ANTÔNIO LUIZ FERREIRA, 511-A - CENTRO Juazeiro-BA";
+    document.getElementById("operacaoClienteMunicipioUf").value = "JUAZEIRO/BA";
+    document.getElementById("operacaoClienteCep").value = "48904-570";
+    document.getElementById("operacaoClienteCpf").value = "";
+
+    const enderecoFn = window.__DK_resolverEnderecoClienteContrato?.(d);
+    const dados = window.__DK_contratoLocacaoResolverFromForm?.();
+    return {
+      enderecoFn,
+      dadosEndereco: dados?.endereco || "",
+      usaCadastro: String(enderecoFn || "").includes("MANOEL DO ARROZ"),
+      rejeitaCongelado: !String(dados?.endereco || "").includes("ANTÔNIO LUIZ FERREIRA"),
+    };
+  }, { cpf: CPF });
+
   console.log(JSON.stringify(diag, null, 2));
+  console.log("congelado:", JSON.stringify(congelado, null, 2));
 
   let ok = true;
   if (diag.isDemo) {
@@ -120,6 +170,12 @@ try {
     console.log("PASS | HTML do contrato contém endereço real");
   } else {
     console.error(`FAIL | html snippet: ${diag.htmlSnippet}`);
+    ok = false;
+  }
+  if (congelado.usaCadastro && congelado.rejeitaCongelado) {
+    console.log("PASS | ignora endereço congelado e usa cadastro do cliente");
+  } else {
+    console.error("FAIL | endereço congelado do relatório anterior");
     ok = false;
   }
 

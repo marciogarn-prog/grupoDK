@@ -522,10 +522,10 @@ async function runSuite() {
         html.includes("portal-contrato-locacao.js") &&
         html.includes("dk-contrato-locacao-texto.js")
     );
-    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260612contrato-duplicado-compare`, {
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260612contrato-endereco-cadastro`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
-    const uiContratoJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260612contrato-duplicado-compare`, {
+    const uiContratoJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260612contrato-endereco-cadastro`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     const vendorJspdf = await fetch(`${BASE_URL}vendor/jspdf.umd.min.js`, { cache: "no-store" }).then((r) => r.ok);
