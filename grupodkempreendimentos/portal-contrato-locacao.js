@@ -342,6 +342,7 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       protocolo: dados.protocolo,
       statusLocacao: dados.statusLocacao,
       fim: dados.fim || "",
+      pastaContrato: "ativo",
     });
     return `<script>
 (function(){
@@ -410,7 +411,9 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     }
     btn.disabled = true;
     msg.textContent = "A guardar na pasta Contratos ATIVOS…";
-    window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, pdfBlob).then(function(r){
+    pdfBlob.arrayBuffer().then(function(ab){
+      return window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, { ab: ab, type: "application/pdf" });
+    }).then(function(r){
       if (r && r.ok) {
         msg.textContent = r.moved
           ? "Contrato guardado em Documentos → Contratos ATIVOS (nuvem)."
@@ -474,15 +477,20 @@ ${scriptPreviewInline(dados)}
     return mover(protocolo, pastaContratoParaLocacao(statusLocacao, opts.fim), opts);
   }
 
-  async function salvarPdfBlobNoDeposito(meta, blob) {
+  async function salvarPdfBlobNoDeposito(meta, recebido) {
     const protocolo = normProtocolo(meta?.protocolo);
-    if (!protocolo || !(blob instanceof Blob)) return { ok: false, msg: "dados_invalidos" };
+    const normalizar =
+      typeof window.__DK_documentosNormalizarBlob === "function" ? window.__DK_documentosNormalizarBlob : null;
+    const blob = normalizar ? await normalizar(recebido, "application/pdf") : recebido instanceof Blob ? recebido : null;
+    if (!protocolo || !blob) return { ok: false, msg: "dados_invalidos" };
     const depositar = typeof window.__DK_documentosDepositarBlob === "function" ? window.__DK_documentosDepositarBlob : null;
     if (!depositar) return { ok: false, msg: "deposito_indisponivel" };
 
     const statusLocacao = String(meta.statusLocacao || "ATIVO");
     const fim = String(meta.fim || "");
-    const statusContrato = pastaContratoParaLocacao(statusLocacao, fim);
+    const pastaMeta = String(meta.pastaContrato || "").trim().toLowerCase();
+    const statusContrato =
+      pastaMeta === "ativo" || pastaMeta === "inativo" ? pastaMeta : pastaContratoParaLocacao(statusLocacao, fim);
     const existente = obterContratoDeposito(protocolo);
 
     const dep = await depositar(
@@ -544,16 +552,24 @@ ${scriptPreviewInline(dados)}
         }
         return { ok: false, msg: "blob_ausente" };
       }
-      const abrir =
-        typeof window.__DK_documentosAbrirViewerBlob === "function"
-          ? window.__DK_documentosAbrirViewerBlob
+      const abrirPdf =
+        typeof window.__DK_documentosAbrirDocPdfViewer === "function"
+          ? window.__DK_documentosAbrirDocPdfViewer
           : null;
-      if (abrir) {
-        abrir(row.blob, entrada.nomeArquivo || `${protocolo}.pdf`, entrada.mimeType || row.mimeType || "application/pdf");
+      if (abrirPdf) {
+        await abrirPdf("contrato", entrada.id);
       } else {
-        const url = URL.createObjectURL(row.blob);
-        window.open(url, "_blank", "noopener");
-        window.setTimeout(() => URL.revokeObjectURL(url), 120000);
+        const abrir =
+          typeof window.__DK_documentosAbrirViewerBlob === "function"
+            ? window.__DK_documentosAbrirViewerBlob
+            : null;
+        if (abrir) {
+          abrir(row.blob, entrada.nomeArquivo || `${protocolo}.pdf`, entrada.mimeType || row.mimeType || "application/pdf");
+        } else {
+          const url = URL.createObjectURL(row.blob);
+          window.open(url, "_blank", "noopener");
+          window.setTimeout(() => URL.revokeObjectURL(url), 120000);
+        }
       }
       if (msgEl) msgEl.textContent = `Contrato do protocolo ${protocolo} aberto.`;
       return { ok: true, entrada };

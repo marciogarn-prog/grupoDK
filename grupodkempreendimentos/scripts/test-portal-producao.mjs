@@ -189,6 +189,10 @@ async function runSuite() {
         html.includes("documentosDropCrlv") &&
         html.includes("documentosDropContrato") &&
         html.includes("documentosDropMulta") &&
+        html.includes("documentosRelatorioCrlv") &&
+        html.includes("documentosRelatorioContratoAtivo") &&
+        html.includes("documentosRelatorioContratoInativo") &&
+        html.includes("documentosRelatorioMulta") &&
         html.includes("portal-documentos.js") &&
         !html.includes("portal-patrimonio.js") &&
         !html.includes("patrimonioIaBgBadge") &&
@@ -494,6 +498,9 @@ async function runSuite() {
         docsJs.includes("__DK_documentosObterContratoPorProtocolo") &&
         docsJs.includes("__DK_documentosMoverContratoPorProtocolo") &&
         docsJs.includes("__DK_documentosGarantirBlobNaNuvem") &&
+        docsJs.includes("__DK_documentosAbrirRelatorio") &&
+        docsJs.includes("__DK_documentosAbrirDocPdfViewer") &&
+        docsJs.includes("__DK_documentosNormalizarBlob") &&
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
         docsJs.includes("purgeLegacyPatrimonioLocal") &&
@@ -540,6 +547,7 @@ async function runSuite() {
       "CSS documentos depósito e busca",
       cssStyles.includes(".documentos-dropzone") &&
         cssStyles.includes(".documentos-busca") &&
+        cssStyles.includes(".documentos-relatorios") &&
         cssStyles.includes(".documentos-resultado") &&
         cssStyles.includes(".portal-lanc-multas-docs")
     );
