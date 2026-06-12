@@ -289,58 +289,164 @@
   }
 
   /**
-   * Backfill: envia para a nuvem os ficheiros que só existem neste computador
-   * (entradas sem flag nuvem:true mas com blob no IndexedDB). Corre em segundo
-   * plano ao abrir o painel Documentos.
+   * Backfill upload: envia para a nuvem os ficheiros que só existem neste computador.
    */
-  let nuvemSyncBusy = false;
-  async function sincronizarDepositoComNuvem(onProgress) {
-    if (nuvemSyncBusy || !cloudCfg()) return { enviados: 0, pendentes: 0 };
-    nuvemSyncBusy = true;
-    try {
-      const dep = loadDeposit();
-      const alvos = [];
-      for (const cat of ["crlv", "contrato", "multa"]) {
-        for (const e of dep[cat] || []) {
-          if (e && e.id && e.nuvem !== true && depEntradaVisivel(e)) alvos.push(e);
-        }
+  let depositoSyncBusy = false;
+
+  function contarDepositoSyncPendentes() {
+    const dep = loadDeposit();
+    let upload = 0;
+    let download = 0;
+    for (const cat of ["crlv", "contrato", "multa"]) {
+      for (const e of dep[cat] || []) {
+        if (!e?.id || !depEntradaVisivel(e)) continue;
+        if (e.nuvem !== true) upload += 1;
+        else download += 1;
       }
-      let enviados = 0;
-      let pendentes = 0;
-      let marcados = false;
-      for (let i = 0; i < alvos.length; i += 1) {
-        const e = alvos[i];
-        try {
-          const row = await idbGetBlob(e.id);
-          if (!row?.blob) {
-            pendentes += 1;
-            continue;
-          }
-          const ok = await cloudPutBlob(e.id, row.blob, {
-            nomeArquivo: e.nomeArquivo || row.nomeArquivo,
-            mimeType: e.mimeType || row.mimeType,
-          });
-          if (ok) {
-            e.nuvem = true;
-            marcados = true;
-            enviados += 1;
-          } else {
-            pendentes += 1;
-          }
-        } catch {
+    }
+    return { upload, downloadCatalogo: download };
+  }
+
+  async function sincronizarDepositoComNuvem(onProgress) {
+    if (!cloudCfg()) return { enviados: 0, pendentes: 0 };
+    const dep = loadDeposit();
+    const alvos = [];
+    for (const cat of ["crlv", "contrato", "multa"]) {
+      for (const e of dep[cat] || []) {
+        if (e && e.id && e.nuvem !== true && depEntradaVisivel(e)) alvos.push(e);
+      }
+    }
+    let enviados = 0;
+    let pendentes = 0;
+    let marcados = false;
+    for (let i = 0; i < alvos.length; i += 1) {
+      const e = alvos[i];
+      try {
+        const row = await idbGetBlob(e.id);
+        if (!row?.blob) {
+          pendentes += 1;
+          continue;
+        }
+        const ok = await cloudPutBlob(e.id, row.blob, {
+          nomeArquivo: e.nomeArquivo || row.nomeArquivo,
+          mimeType: e.mimeType || row.mimeType,
+        });
+        if (ok) {
+          e.nuvem = true;
+          marcados = true;
+          enviados += 1;
+        } else {
           pendentes += 1;
         }
-        if (typeof onProgress === "function") onProgress(i + 1, alvos.length, enviados);
-        /* guardar a meio do caminho para não perder progresso em listas grandes */
-        if (marcados && (enviados % 20 === 0 || i === alvos.length - 1)) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(dep));
+      } catch {
+        pendentes += 1;
+      }
+      if (typeof onProgress === "function") onProgress(i + 1, alvos.length, enviados);
+      if (marcados && (enviados % 20 === 0 || i === alvos.length - 1)) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(dep));
+      }
+    }
+    if (marcados) saveDeposit(dep);
+    return { enviados, pendentes };
+  }
+
+  /**
+   * Download automático: traz da nuvem os PDFs em falta neste computador (IndexedDB).
+   * Corre após pull da nuvem e ao abrir Documentos.
+   */
+  async function sincronizarDepositoDaNuvem(onProgress) {
+    if (!cloudCfg()) return { baixados: 0, pendentes: 0, falhas: 0 };
+    const dep = loadDeposit();
+    let idsLocal = new Set();
+    try {
+      idsLocal = await idbListBlobIds();
+    } catch {
+      idsLocal = new Set();
+    }
+    const alvos = [];
+    for (const cat of ["crlv", "contrato", "multa"]) {
+      for (const e of dep[cat] || []) {
+        if (!e?.id || !depEntradaVisivel(e)) continue;
+        if (idsLocal.has(String(e.id))) continue;
+        alvos.push(e);
+      }
+    }
+    let baixados = 0;
+    let pendentes = 0;
+    let falhas = 0;
+    let marcados = false;
+    for (let i = 0; i < alvos.length; i += 1) {
+      const e = alvos[i];
+      try {
+        const row = await cloudGetBlob(e.id);
+        if (row?.blob) {
+          baixados += 1;
+          if (e.nuvem !== true) {
+            e.nuvem = true;
+            marcados = true;
+          }
+        } else {
+          pendentes += 1;
+        }
+      } catch {
+        falhas += 1;
+      }
+      if (typeof onProgress === "function") {
+        onProgress(i + 1, alvos.length, baixados, "download");
+      }
+    }
+    if (marcados) saveDeposit(dep);
+    return { baixados, pendentes, falhas, total: alvos.length };
+  }
+
+  /** Upload + download — sincronização completa do depósito com a nuvem. */
+  async function sincronizarDepositoBidireccional(onProgress) {
+    if (depositoSyncBusy) return { ok: false, skipped: true, reason: "busy" };
+    depositoSyncBusy = true;
+    try {
+      const up = await sincronizarDepositoComNuvem((feito, total, ok) => {
+        if (typeof onProgress === "function") onProgress(feito, total, ok, "upload");
+      });
+      const down = await sincronizarDepositoDaNuvem(onProgress);
+      const stats = contarDepositoSyncPendentes();
+      let idsLocal = new Set();
+      try {
+        idsLocal = await idbListBlobIds();
+      } catch {
+        idsLocal = new Set();
+      }
+      const dep = loadDeposit();
+      let semBlobLocal = 0;
+      for (const cat of ["crlv", "contrato", "multa"]) {
+        for (const e of dep[cat] || []) {
+          if (!e?.id || !depEntradaVisivel(e)) continue;
+          if (!idsLocal.has(String(e.id))) semBlobLocal += 1;
         }
       }
-      if (marcados) saveDeposit(dep);
-      return { enviados, pendentes };
+      return {
+        ok: true,
+        enviados: up.enviados,
+        uploadPendentes: up.pendentes,
+        baixados: down.baixados,
+        downloadPendentes: down.pendentes,
+        downloadFalhas: down.falhas,
+        sincronizado: stats.upload === 0 && semBlobLocal === 0,
+        semBlobLocal,
+      };
     } finally {
-      nuvemSyncBusy = false;
+      depositoSyncBusy = false;
     }
+  }
+
+  function fmtSyncDepositoResumo(r) {
+    if (!r || r.skipped) return "";
+    if (r.sincronizado) return "Depósito sincronizado com a nuvem.";
+    const partes = [];
+    if (r.uploadPendentes > 0 || (r.enviados > 0 && r.uploadPendentes === undefined)) {
+      partes.push(`a enviar: ${r.uploadPendentes ?? contarDepositoSyncPendentes().upload}`);
+    }
+    if (r.semBlobLocal > 0) partes.push(`a baixar: ${r.semBlobLocal}`);
+    return partes.length ? `Sincronização depósito — ${partes.join(" · ")}` : "";
   }
 
   function purgeLegacyPatrimonioLocal() {
@@ -1054,6 +1160,13 @@ document.body.addEventListener("click",function(e){
         /* ignore */
       }
     }
+    if (typeof window.__DK_documentosSyncBidireccional === "function") {
+      try {
+        await window.__DK_documentosSyncBidireccional();
+      } catch {
+        /* ignore */
+      }
+    }
     const titulo = RELATORIO_TITULOS[tipo] || "Relatório";
     const categoria = categoriaRelatorio(tipo);
     if (!categoria) return false;
@@ -1328,23 +1441,35 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
     if (hint) hint.textContent = `ID técnico desta máquina: ${getMaquinaId()}`;
     atualizarResumosDepositos();
     renderBuscaResultados();
-    /* backfill: enviar para a nuvem os ficheiros que só existem neste computador */
+    /* backfill bidireccional: enviar locais + baixar da nuvem */
     void (async () => {
       const msg = $("documentosMsg");
+      const syncEl = $("documentosSyncStatus");
       try {
-        const r = await sincronizarDepositoComNuvem((feitos, total) => {
-          if (msg) msg.textContent = `A enviar ficheiros do depósito para a nuvem… ${feitos}/${total}.`;
+        if (syncEl) syncEl.textContent = "A sincronizar depósito com a nuvem…";
+        const r = await sincronizarDepositoBidireccional((feito, total, ok, dir) => {
+          const rotulo = dir === "download" ? "A baixar" : "A enviar";
+          if (msg) msg.textContent = `${rotulo} ficheiros… ${feito}/${total}.`;
+          if (syncEl) syncEl.textContent = `${rotulo}… ${feito}/${total}`;
         });
-        if (r.enviados > 0) {
-          if (msg) {
-            msg.textContent = `${r.enviados} ficheiro(s) enviados para a nuvem — já acessíveis por todos os operadores.${r.pendentes ? ` ${r.pendentes} pendente(s) (sem ficheiro neste computador).` : ""}`;
-          }
+        const resumo = fmtSyncDepositoResumo(r);
+        if (syncEl) syncEl.textContent = resumo || (r.sincronizado ? "Depósito sincronizado." : "");
+        if (msg && (r.enviados > 0 || r.baixados > 0)) {
+          msg.textContent = `${r.enviados || 0} enviado(s) · ${r.baixados || 0} baixado(s) da nuvem.`;
           atualizarResumosDepositos();
-        } else if (msg && msg.textContent.startsWith("A enviar ficheiros")) {
-          msg.textContent = "";
+        } else if (msg && msg.textContent.startsWith("A ")) {
+          msg.textContent = resumo || "";
+        }
+        if (r.baixados > 0 || r.enviados > 0) {
+          try {
+            window.dispatchEvent(new CustomEvent("dk-documentos-synced"));
+          } catch {
+            /* ignore */
+          }
         }
       } catch {
-        if (msg && msg.textContent.startsWith("A enviar ficheiros")) msg.textContent = "";
+        if (syncEl) syncEl.textContent = "";
+        if (msg && msg.textContent.startsWith("A ")) msg.textContent = "";
       }
     })();
   }
@@ -1393,6 +1518,9 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
   window.__DK_documentosObterBlobDoc = obterBlobDoc;
   window.__DK_documentosDepositarBlob = depositarBlob;
   window.__DK_documentosSyncNuvem = sincronizarDepositoComNuvem;
+  window.__DK_documentosSyncDaNuvem = sincronizarDepositoDaNuvem;
+  window.__DK_documentosSyncBidireccional = sincronizarDepositoBidireccional;
+  window.__DK_documentosSyncStatusResumo = fmtSyncDepositoResumo;
   window.__DK_documentosCloudGetBlob = cloudGetBlob;
   window.__DK_documentosAbrirViewerBlob = abrirViewerComBlob;
   window.__DK_documentosAbrirDocPdfViewer = abrirDocPdfViewer;
