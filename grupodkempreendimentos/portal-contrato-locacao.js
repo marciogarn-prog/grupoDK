@@ -234,26 +234,25 @@
     return null;
   }
 
-  /** Todas as fontes possíveis de endereço (formulário, cadastro, planilha). */
+  /** Todas as fontes possíveis de endereço (cadastro primeiro; formulário só se CPF do form coincidir). */
   function coletarFontesEnderecoCliente(cpfDigits) {
     const d = onlyDigits(cpfDigits);
     const fontes = [];
     const push = (obj) => {
       if (obj && typeof obj === "object") fontes.push(obj);
     };
-    const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
+    if (typeof window.__DK_getClienteByCpfAny === "function") push(window.__DK_getClienteByCpfAny(d));
+    push(clienteCadastroLocalPorCpf(d));
+    push(clienteEmbutidoPorCpf(d));
+    push(loadCliente(d));
     const formCpf = onlyDigits(document.getElementById("operacaoClienteCpf")?.value);
-    if (locCpf === d || formCpf === d) {
+    if (formCpf === d) {
       push({
         endereco: document.getElementById("operacaoClienteEndereco")?.value,
         municipioUf: document.getElementById("operacaoClienteMunicipioUf")?.value,
         cep: document.getElementById("operacaoClienteCep")?.value,
       });
     }
-    if (typeof window.__DK_getClienteByCpfAny === "function") push(window.__DK_getClienteByCpfAny(d));
-    push(clienteCadastroLocalPorCpf(d));
-    push(clienteEmbutidoPorCpf(d));
-    push(loadCliente(d));
     return fontes;
   }
 
@@ -1176,13 +1175,14 @@ ${scriptPreviewInline(dados)}
     if (d.length !== 11) return;
     const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
     if (locCpf !== d) return;
-    const fontes = coletarFontesEnderecoCliente(d).filter(
-      (f) =>
-        !(
-          String(f?.endereco || "") === String(document.getElementById("operacaoClienteEndereco")?.value || "") &&
-          String(f?.municipioUf || "") === String(document.getElementById("operacaoClienteMunicipioUf")?.value || "")
-        )
-    );
+    const fontes = [];
+    const push = (obj) => {
+      if (obj && typeof obj === "object") fontes.push(obj);
+    };
+    if (typeof window.__DK_getClienteByCpfAny === "function") push(window.__DK_getClienteByCpfAny(d));
+    push(clienteCadastroLocalPorCpf(d));
+    push(clienteEmbutidoPorCpf(d));
+    push(loadCliente(d));
     const endereco = pickCampoEnderecoValido(
       ...fontes.map((f) => f?.endereco),
       ...fontes.map((f) => f?.enderecoBase),
@@ -1196,11 +1196,11 @@ ${scriptPreviewInline(dados)}
     const setVal = (id, val) => {
       const el = document.getElementById(id);
       if (!el || !val) return;
-      if (!String(el.value || "").trim() || enderecoEhPlaceholder(el.value)) el.value = val;
+      el.value = val;
     };
     if (typeof formatCpf === "function") {
       const cpfEl = document.getElementById("operacaoClienteCpf");
-      if (cpfEl && !onlyDigits(cpfEl.value)) cpfEl.value = formatCpf(d);
+      if (cpfEl) cpfEl.value = formatCpf(d);
     }
     setVal("operacaoClienteEndereco", endereco);
     setVal("operacaoClienteMunicipioUf", municipioUf);
