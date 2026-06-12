@@ -1,14 +1,14 @@
 /**
  * Apaga TODOS os documentos visíveis do depósito (CRLV, contratos, multas)
- * na nuvem demo e oficial — tombstone + blobs Supabase.
+ * na nuvem demo e oficial — tombstone + blobs Supabase + snapshot Supabase.
  * node grupodkempreendimentos/scripts/purge-deposito-nuvem-completo.mjs
  */
 const SUPABASE_URL = "https://ppxtwqvzgujllfzarpuz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3";
 
 const CANAIS = [
-  { nome: "demo", base: "https://demo.grupodkempreendimentos.com.br", channel: "demo", blobChannel: "demo" },
-  { nome: "oficial", base: "https://grupodkempreendimentos.com.br", channel: "default", blobChannel: "default" },
+  { nome: "demo", base: "https://demo.grupodkempreendimentos.com.br", channel: "demo", blobChannel: "demo", supaLabel: "demo" },
+  { nome: "oficial", base: "https://grupodkempreendimentos.com.br", channel: "default", blobChannel: "default", supaLabel: "default" },
 ];
 
 function parseDep(payload) {
@@ -22,6 +22,20 @@ function parseDep(payload) {
     }
   }
   return raw;
+}
+
+async function upsertSupabaseSnapshot(label, payload, updatedAt) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/dk_cloud_snapshots?on_conflict=label`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "resolution=merge-duplicates,return=minimal",
+    },
+    body: JSON.stringify({ label, payload, updated_at: updatedAt }),
+  });
+  return res.ok;
 }
 
 async function purgeCanal(cfg) {
@@ -54,6 +68,8 @@ async function purgeCanal(cfg) {
     return { marcados: 0, blobs: 0, visiveis: 0 };
   }
 
+  const fullPayload = { ...(snap.payload || {}), dk_documentos_deposito_v1: dep };
+
   const post = await fetch(snapUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -63,7 +79,10 @@ async function purgeCanal(cfg) {
     }),
   }).then((r) => r.json());
 
-  if (!post?.ok) throw new Error(`${cfg.nome}: snapshot POST falhou — ${JSON.stringify(post)}`);
+  if (!post?.ok) throw new Error(`${cfg.nome}: snapshot POST Redis falhou — ${JSON.stringify(post)}`);
+
+  const supaOk = await upsertSupabaseSnapshot(cfg.supaLabel, fullPayload, now);
+  console.log(`[${cfg.nome}] Supabase snapshot: ${supaOk ? "OK" : "FALHOU"}`);
 
   let blobsOk = 0;
   for (const id of ids) {

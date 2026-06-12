@@ -2826,6 +2826,11 @@
     } catch {
       /* ignore */
     }
+    try {
+      window.dispatchEvent(new CustomEvent("dk-documentos-synced"));
+    } catch {
+      /* ignore */
+    }
     if (clientePage) {
       try {
         window.dispatchEvent(new CustomEvent("dk-locacoes-synced"));
