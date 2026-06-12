@@ -148,34 +148,105 @@
     return null;
   }
 
+  function enderecoEhPlaceholder(value) {
+    if (typeof window.__DK_portalEnderecoContratoValido === "function") {
+      return !window.__DK_portalEnderecoContratoValido(value);
+    }
+    const text = String(value ?? "").trim();
+    if (!text) return true;
+    if (/^x+$/i.test(text.replace(/[\s.,/-]/g, ""))) return true;
+    const norm = text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .replace(/\s+/g, " ");
+    if (norm.includes("endereco do cliente")) return true;
+    if (norm.includes("{endereco") || norm.includes("(endereco")) return true;
+    if (norm === "endereco nao cadastrado") return true;
+    return false;
+  }
+
+  function formatCepContrato(cep) {
+    const d = String(cep || "").replace(/\D/g, "");
+    if (d.length !== 8) return String(cep || "").trim();
+    return `${d.slice(0, 5)}-${d.slice(5)}`;
+  }
+
+  function formatMunicipioContrato(mun) {
+    const raw = String(mun || "").trim();
+    if (!raw || enderecoEhPlaceholder(raw)) return "";
+    if (raw.includes("/")) {
+      const parts = raw.split("/").map((s) => s.trim());
+      const cidade = parts[0] || "";
+      const uf = parts[1] || "";
+      if (cidade && uf) {
+        const cap = cidade.charAt(0).toUpperCase() + cidade.slice(1).toLowerCase();
+        return `${cap}-${uf.toUpperCase()}`;
+      }
+    }
+    return raw;
+  }
+
+  function formatEnderecoContratoLocatario(cliente) {
+    if (!cliente) return "";
+    const pickField = (keys) => {
+      for (const k of keys) {
+        const v = String(cliente[k] ?? "").trim();
+        if (v && !enderecoEhPlaceholder(v)) return v;
+      }
+      return "";
+    };
+    const end = pickField(["endereco", "enderecoBase", "logradouro", "enderecoResidencia"]);
+    const comp = pickField(["complemento", "enderecoComplemento"]);
+    const mun = pickField(["municipioUf", "municipio"]);
+    const cepRaw = pickField(["cep"]);
+    const linhaEnd = [end, comp].filter(Boolean).join(", ");
+    const munFmt = formatMunicipioContrato(mun);
+    const cepFmt = formatCepContrato(cepRaw);
+    const partes = [];
+    if (linhaEnd) partes.push(linhaEnd);
+    if (munFmt) partes.push(munFmt);
+    if (cepFmt) partes.push(`cep ${cepFmt}`);
+    return partes.join(" ");
+  }
+
   function enderecoFromFormCliente(cpfDigits) {
+    const locCpf = onlyDigits(document.getElementById("operacaoLocacaoCpf")?.value);
     const formCpf = onlyDigits(document.getElementById("operacaoClienteCpf")?.value);
-    if (formCpf !== cpfDigits) return "";
+    if (locCpf !== cpfDigits && formCpf !== cpfDigits) return "";
     const end = String(document.getElementById("operacaoClienteEndereco")?.value || "").trim();
     const mun = String(document.getElementById("operacaoClienteMunicipioUf")?.value || "").trim();
     const cep = String(document.getElementById("operacaoClienteCep")?.value || "").trim();
-    if (!end && !mun && !cep) return "";
-    return [end, mun, cep ? `CEP ${cep}` : ""].filter(Boolean).join(", ");
+    return formatEnderecoContratoLocatario({ endereco: end, municipioUf: mun, cep });
   }
 
   function enderecoCliente(cliente, cpfDigits) {
     const fromForm = enderecoFromFormCliente(cpfDigits);
     if (fromForm) return fromForm;
-    if (!cliente) return "";
-    const base = String(
-      cliente.endereco || cliente.enderecoBase || cliente.logradouro || cliente.enderecoResidencia || ""
-    ).trim();
-    const comp = String(cliente.complemento || cliente.enderecoComplemento || "").trim();
-    const mun = String(cliente.municipioUf || cliente.municipio || "").trim();
-    const cep = String(cliente.cep || "").trim();
-    return [base, comp, mun, cep ? `CEP ${cep}` : ""].filter(Boolean).join(", ");
+    return formatEnderecoContratoLocatario(cliente);
   }
 
   function resolverEnderecoContrato(cpfDigits, cliente, loc) {
-    const fromCliente = enderecoCliente(cliente, cpfDigits);
-    if (fromCliente) return fromCliente;
+    const d = onlyDigits(cpfDigits);
+    if (d.length !== 11) return "";
+    const merged =
+      (typeof window.__DK_getClienteByCpfAny === "function" ? window.__DK_getClienteByCpfAny(d) : null) ||
+      cliente ||
+      loadCliente(d);
+    const fromCadastro = formatEnderecoContratoLocatario(merged);
+    if (fromCadastro) return fromCadastro;
+    try {
+      const banco = window.DK_BANCO_CADASTRO?.clientes;
+      if (Array.isArray(banco)) {
+        const hit = banco.find((c) => onlyDigits(c?.cpf) === d);
+        const fromBundled = formatEnderecoContratoLocatario(hit);
+        if (fromBundled) return fromBundled;
+      }
+    } catch {
+      /* ignore */
+    }
     const locEnd = String(loc?.endereco || loc?.enderecoCliente || "").trim();
-    if (locEnd) return locEnd;
+    if (locEnd && !enderecoEhPlaceholder(locEnd)) return locEnd;
     return "";
   }
 
@@ -736,6 +807,7 @@ ${scriptPreviewInline(dados)}
   }
 
   window.__DK_contratoLocacaoResolverFromForm = resolverDadosFromForm;
+  window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
   window.__DK_contratoLocacaoResolverFromLoc = resolverDadosFromLoc;
   window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
   window.__DK_contratoLocacaoPdfMaxBytes = PDF_LOCACAO_MAX_BYTES;
