@@ -529,6 +529,8 @@ async function runSuite() {
         contratoJs.includes("nomeArquivoContrato") &&
         contratoJs.includes("b64: b64") &&
         contratoJs.includes("tentativasPdf") &&
+        contratoJs.includes("findClienteByCpfCadastro") &&
+        contratoJs.includes("resolverEnderecoContrato") &&
         contratoJs.includes("__DK_contratoLocacaoPdfMaxBytes") &&
         vendorJspdf &&
         vendorHtml2canvas &&

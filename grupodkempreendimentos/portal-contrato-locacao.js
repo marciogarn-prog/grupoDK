@@ -102,28 +102,77 @@
   }
 
   function loadCliente(cpfDigits) {
-    let clientes = [];
+    const d = onlyDigits(cpfDigits);
+    if (d.length !== 11) return null;
+    if (typeof findClienteByCpfCadastro === "function") {
+      const cad = findClienteByCpfCadastro(d);
+      if (cad) return cad;
+    }
+    if (typeof window.__DK_findPortalClienteByCpf === "function") {
+      const portal = window.__DK_findPortalClienteByCpf(d);
+      if (portal) return portal;
+    }
+    const loadFn =
+      typeof window.__DK_loadPortalClientesCadastro === "function"
+        ? window.__DK_loadPortalClientesCadastro
+        : typeof window.loadPortalClientesCadastro === "function"
+          ? window.loadPortalClientesCadastro
+          : null;
+    if (loadFn) {
+      const hit = loadFn().find((c) => onlyDigits(c?.cpf) === d);
+      if (hit) return hit;
+    }
     try {
-      if (typeof window.loadPortalClientesCadastro === "function") {
-        clientes = window.loadPortalClientesCadastro();
-      } else {
-        const raw = localStorage.getItem("dk_portal_clientes_cadastro");
-        clientes = raw ? JSON.parse(raw) : [];
+      const banco = window.DK_BANCO_CADASTRO?.clientes;
+      if (Array.isArray(banco)) {
+        const hit = banco.find((c) => onlyDigits(c?.cpf) === d);
+        if (hit) return hit;
       }
     } catch {
-      clientes = [];
+      /* ignore */
     }
-    if (!Array.isArray(clientes)) clientes = [];
-    return clientes.find((c) => onlyDigits(c.cpf) === cpfDigits) || null;
+    try {
+      const raw = localStorage.getItem("dk_portal_clientes_cadastro");
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) {
+        const hit = arr.find((c) => onlyDigits(c?.cpf) === d);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
   }
 
-  function enderecoCliente(cliente) {
+  function enderecoFromFormCliente(cpfDigits) {
+    const formCpf = onlyDigits(document.getElementById("operacaoClienteCpf")?.value);
+    if (formCpf !== cpfDigits) return "";
+    const end = String(document.getElementById("operacaoClienteEndereco")?.value || "").trim();
+    const mun = String(document.getElementById("operacaoClienteMunicipioUf")?.value || "").trim();
+    const cep = String(document.getElementById("operacaoClienteCep")?.value || "").trim();
+    if (!end && !mun && !cep) return "";
+    return [end, mun, cep ? `CEP ${cep}` : ""].filter(Boolean).join(", ");
+  }
+
+  function enderecoCliente(cliente, cpfDigits) {
+    const fromForm = enderecoFromFormCliente(cpfDigits);
+    if (fromForm) return fromForm;
     if (!cliente) return "";
-    const base = String(cliente.endereco || cliente.enderecoBase || "").trim();
-    const comp = String(cliente.complemento || "").trim();
-    const mun = String(cliente.municipioUf || "").trim();
+    const base = String(
+      cliente.endereco || cliente.enderecoBase || cliente.logradouro || cliente.enderecoResidencia || ""
+    ).trim();
+    const comp = String(cliente.complemento || cliente.enderecoComplemento || "").trim();
+    const mun = String(cliente.municipioUf || cliente.municipio || "").trim();
     const cep = String(cliente.cep || "").trim();
     return [base, comp, mun, cep ? `CEP ${cep}` : ""].filter(Boolean).join(", ");
+  }
+
+  function resolverEnderecoContrato(cpfDigits, cliente, loc) {
+    const fromCliente = enderecoCliente(cliente, cpfDigits);
+    if (fromCliente) return fromCliente;
+    const locEnd = String(loc?.endereco || loc?.enderecoCliente || "").trim();
+    if (locEnd) return locEnd;
+    return "";
   }
 
   function resolverDadosFromForm() {
@@ -142,7 +191,7 @@
     const statusLocacao = rawFim ? "FINALIZADO" : "ATIVO";
     const cliente = loadCliente(cpfDigits);
     const codigoCliente = String(cliente?.codigo || "").trim() || "0000";
-    const endereco = enderecoCliente(cliente) || "(Endereço do Cliente)";
+    const endereco = resolverEnderecoContrato(cpfDigits, cliente) || "endereço não cadastrado";
     const municipioUf = String(cliente?.municipioUf || "Petrolina/PE").trim();
     return montarDadosContrato({
       protocolo,
@@ -175,7 +224,7 @@
       marcaModelo: String(loc.marcaModelo || loc.modelo || "").trim(),
       modalidade,
       codigoCliente: String(loc.clienteCodigo || cliente?.codigo || "").trim() || "0000",
-      endereco: enderecoCliente(cliente) || "(Endereço do Cliente)",
+      endereco: resolverEnderecoContrato(cpfDigits, cliente, loc) || "endereço não cadastrado",
       municipioUf: String(cliente?.municipioUf || "Petrolina/PE").trim(),
       inicioDt,
       statusLocacao: String(loc.statusLocacao || (String(loc.fim || "").trim() ? "FINALIZADO" : "ATIVO")).trim(),
