@@ -500,6 +500,8 @@ async function runSuite() {
         docsJs.includes("__DK_documentosGarantirBlobNaNuvem") &&
         docsJs.includes("__DK_documentosAbrirRelatorio") &&
         docsJs.includes("__DK_documentosAbrirDocPdfViewer") &&
+        docsJs.includes("marcarContratosSubstituirPorProtocolo") &&
+        docsJs.includes("protocoloContratoEntrada") &&
         docsJs.includes("__DK_documentosNomeArquivoContrato") &&
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
@@ -512,7 +514,7 @@ async function runSuite() {
         html.includes("portal-contrato-locacao.js") &&
         html.includes("dk-contrato-locacao-texto.js")
     );
-    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-endereco3`, {
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-substitui`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     const uiContratoJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260611contrato-endereco3`, {
@@ -540,6 +542,8 @@ async function runSuite() {
         uiContratoJs.includes("portalEnderecoContratoValido") &&
         uiContratoJs.includes("portalMergeClienteCadastroWithBundled") &&
         !contratoJs.includes("(Endereço do Cliente)") &&
+        contratoJs.includes("substituido") &&
+        contratoJs.includes("PDF anterior removido") &&
         contratoJs.includes("__DK_contratoLocacaoPdfMaxBytes") &&
         vendorJspdf &&
         vendorHtml2canvas &&

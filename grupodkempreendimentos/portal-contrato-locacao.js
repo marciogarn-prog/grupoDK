@@ -599,9 +599,9 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       return window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, { b64: b64, type: "application/pdf" });
     }).then(function(r){
       if (r && r.ok) {
-        msg.textContent = r.moved
-          ? "Contrato guardado em Documentos → Contratos ATIVOS (nuvem)."
-          : "Contrato já existia — actualizado na pasta (nuvem).";
+        msg.textContent = r.substituido
+          ? "Contrato substituído em Documentos → Contratos ATIVOS (PDF anterior removido)."
+          : "Contrato guardado em Documentos → Contratos ATIVOS (nuvem).";
         window.opener.__DK_contratoLocacaoRefreshBotao && window.opener.__DK_contratoLocacaoRefreshBotao();
       } else {
         msg.textContent = (r && r.msg) || "Não foi possível guardar.";
@@ -697,7 +697,7 @@ ${scriptPreviewInline(dados)}
         mimeType: "application/pdf",
         origem: "contrato-locacao",
       },
-      { statusContrato: "ativo", replaceChave: Boolean(existente), silent: true }
+      { statusContrato: "ativo", silent: true }
     );
 
     if (!dep?.ok) {
@@ -708,7 +708,16 @@ ${scriptPreviewInline(dados)}
       await sincronizarPastaContratoLocacao(protocolo, statusLocacao, { fim, silent: true });
     }
 
-    return { ok: Boolean(dep?.ok), moved: !existente, entry: dep?.entry, naNuvem: dep?.naNuvem, protocolo, nomeArquivo };
+    const substituido = Boolean(existente) || Number(dep?.substituidos || 0) > 0;
+    return {
+      ok: Boolean(dep?.ok),
+      substituido,
+      substituidos: Number(dep?.substituidos || 0),
+      entry: dep?.entry,
+      naNuvem: dep?.naNuvem,
+      protocolo,
+      nomeArquivo,
+    };
   }
 
   function abrirPreviewContrato(dados) {
