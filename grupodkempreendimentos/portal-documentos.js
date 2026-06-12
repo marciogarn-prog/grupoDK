@@ -385,6 +385,94 @@
     });
   }
 
+  const MAQUINA_ID_KEY = "dk_maquina_id_v1";
+  const MAQUINA_ROTULO_KEY = "dk_maquina_rotulo_v1";
+
+  function getMaquinaId() {
+    let id = localStorage.getItem(MAQUINA_ID_KEY);
+    if (!id) {
+      id = `maq_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+      localStorage.setItem(MAQUINA_ID_KEY, id);
+    }
+    return id;
+  }
+
+  function readOperadorSessao() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      const s = raw ? JSON.parse(raw) : null;
+      if (!s || typeof s !== "object") {
+        return { cpf: "", nome: "Desconhecido", tipo: "", role: "" };
+      }
+      return {
+        cpf: onlyDigits(s.cpf).slice(0, 11),
+        nome: String(s.nome || s.displayName || "Operador").trim(),
+        tipo: String(s.tipo || "").trim(),
+        role: String(s.role || "").trim(),
+      };
+    } catch {
+      return { cpf: "", nome: "Desconhecido", tipo: "", role: "" };
+    }
+  }
+
+  function buildRastreabilidadeDeposito(extra = {}) {
+    const op = readOperadorSessao();
+    const rotulo = String(localStorage.getItem(MAQUINA_ROTULO_KEY) || "").trim().slice(0, 80);
+    return {
+      inseridoPor: {
+        cpf: op.cpf,
+        nome: op.nome,
+        tipo: op.tipo,
+        role: op.role,
+      },
+      inseridoEm: new Date().toISOString(),
+      maquinaId: getMaquinaId(),
+      maquinaRotulo: rotulo || undefined,
+      maquinaUserAgent: String(navigator.userAgent || "").slice(0, 220),
+      deployCanal: window.__DK_DEPLOY_CHANNEL__ === "demo" ? "demo" : "oficial",
+      ...extra,
+    };
+  }
+
+  function buildRastreabilidadeExclusao() {
+    const op = readOperadorSessao();
+    const rotulo = String(localStorage.getItem(MAQUINA_ROTULO_KEY) || "").trim().slice(0, 80);
+    return {
+      excluidoPor: {
+        cpf: op.cpf,
+        nome: op.nome,
+        tipo: op.tipo,
+        role: op.role,
+      },
+      excluidoEm: new Date().toISOString(),
+      excluidoMaquinaId: getMaquinaId(),
+      excluidoMaquinaRotulo: rotulo || undefined,
+    };
+  }
+
+  function fmtRastreabilidade(e) {
+    const ins = e?.inseridoPor;
+    const quando = e?.inseridoEm || e?.criadoEm;
+    const quem = ins?.nome ? String(ins.nome) : "—";
+    const cpf = ins?.cpf ? ` · CPF ${ins.cpf}` : "";
+    const maq = e?.maquinaRotulo || e?.maquinaId || "—";
+    const canal = e?.deployCanal ? ` · ${e.deployCanal}` : "";
+    return `${fmtData(quando)} · ${quem}${cpf} · ${maq}${canal}`;
+  }
+
+  function preservarRastreabilidadeDeposito(novo, prev) {
+    if (!prev) return novo;
+    if (!novo.inseridoPor && prev.inseridoPor) {
+      novo.inseridoPor = prev.inseridoPor;
+      novo.inseridoEm = novo.inseridoEm || prev.inseridoEm;
+      novo.maquinaId = novo.maquinaId || prev.maquinaId;
+      novo.maquinaRotulo = novo.maquinaRotulo || prev.maquinaRotulo;
+      novo.maquinaUserAgent = novo.maquinaUserAgent || prev.maquinaUserAgent;
+      novo.deployCanal = novo.deployCanal || prev.deployCanal;
+    }
+    return novo;
+  }
+
   function categoriaAtivaBusca() {
     const r = document.querySelector('input[name="documentosBuscaTipo"]:checked');
     return r?.value || "crlv";
@@ -608,6 +696,7 @@
             <div class="documentos-resultado__info">
               <strong class="documentos-resultado__nome">${String(e.nomeArquivo || e.chave).replace(/</g, "&lt;")}</strong>
               <span class="subtext">Entrada: ${fmtData(e.criadoEm)} · ${String(e.chave || "")}${badgeContrato(e)}</span>
+              <span class="subtext documentos-rastreio">Inserido: ${escHtml(fmtRastreabilidade(e))}</span>
             </div>
             <div class="documentos-resultado__acoes">
               <button type="button" class="btn-primary btn-secondary-outline documentos-btn-ver" data-doc-id="${e.id}" data-doc-cat="${cat}">Abrir</button>
@@ -740,7 +829,8 @@
       tamanho: blobLocal.size,
       criadoEm: new Date().toISOString(),
       nuvem: naNuvem,
-      origem: String(meta.origem || "sistema"),
+      origem: String(meta.origem || "upload-manual"),
+      ...buildRastreabilidadeDeposito(),
     };
     if (categoria === "contrato" && (opts.statusContrato === "ativo" || opts.statusContrato === "inativo")) {
       entry.statusContrato = opts.statusContrato;
@@ -809,6 +899,8 @@
         tamanho: file.size,
         criadoEm: new Date().toISOString(),
         nuvem: naNuvem,
+        origem: "upload-manual",
+        ...buildRastreabilidadeDeposito(),
       };
       if (categoria === "contrato" && (opts.statusContrato === "ativo" || opts.statusContrato === "inativo")) {
         entry.statusContrato = opts.statusContrato;
@@ -908,13 +1000,13 @@
     const corpo =
       rows.length === 0
         ? '<p class="vazio">Nenhum documento nesta pasta.</p>'
-        : `<table class="tabela"><thead><tr><th>Ficheiro</th><th>Chave</th><th>Entrada</th><th>PDF</th></tr></thead><tbody>${rows
+        : `<table class="tabela"><thead><tr><th>Ficheiro</th><th>Chave</th><th>Inserido por (máquina)</th><th>PDF</th></tr></thead><tbody>${rows
             .map(
               (e) =>
                 `<tr>
                   <td>${escHtml(e.nomeArquivo || e.chave || "—")}</td>
                   <td><code>${escHtml(e.chave || "—")}</code></td>
-                  <td>${escHtml(fmtData(e.criadoEm))}${e.nuvem ? " · nuvem" : ""}</td>
+                  <td>${escHtml(fmtRastreabilidade(e))}${e.nuvem ? " · nuvem" : ""}</td>
                   <td><button type="button" class="doc-link" data-cat="${escHtml(categoria)}" data-id="${escHtml(e.id)}">Ver PDF</button></td>
                 </tr>`
             )
@@ -1118,7 +1210,7 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
     const dep = loadDeposit();
     /* tombstone: a exclusão precisa sobreviver ao merge com a cópia da nuvem */
     dep[categoria] = (dep[categoria] || []).map((e) =>
-      String(e.id) === String(id) ? { ...e, excluido: true, excluidoEm: new Date().toISOString() } : e
+      String(e.id) === String(id) ? { ...e, excluido: true, ...buildRastreabilidadeExclusao() } : e
     );
     saveDeposit(dep);
     await idbDeleteBlob(id).catch(() => null);
@@ -1193,6 +1285,19 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
     $("documentosRelatorioContratoInativo")?.addEventListener("click", () => abrirRelatorioDocumentos("contrato-inativo"));
     $("documentosRelatorioMulta")?.addEventListener("click", () => abrirRelatorioDocumentos("multa"));
 
+    const rotuloInp = $("documentosMaquinaRotulo");
+    if (rotuloInp && !rotuloInp.dataset.bound) {
+      rotuloInp.dataset.bound = "1";
+      rotuloInp.value = String(localStorage.getItem(MAQUINA_ROTULO_KEY) || "");
+      rotuloInp.addEventListener("change", () => {
+        const v = String(rotuloInp.value || "").trim().slice(0, 80);
+        if (v) localStorage.setItem(MAQUINA_ROTULO_KEY, v);
+        else localStorage.removeItem(MAQUINA_ROTULO_KEY);
+        const hint = $("documentosMaquinaIdHint");
+        if (hint) hint.textContent = `ID técnico desta máquina: ${getMaquinaId()}`;
+      });
+    }
+
     $("documentosViewerFecharBtn")?.addEventListener("click", fecharViewer);
     $("documentosViewerModal")?.addEventListener("click", (e) => {
       if (e.target?.matches?.("[data-close-documentos-viewer]")) fecharViewer();
@@ -1206,6 +1311,12 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
       return;
     }
     $("documentosMsg") && ($("documentosMsg").textContent = "");
+    const rotuloInp = $("documentosMaquinaRotulo");
+    const hint = $("documentosMaquinaIdHint");
+    if (rotuloInp && !rotuloInp.dataset.bound) {
+      rotuloInp.value = String(localStorage.getItem(MAQUINA_ROTULO_KEY) || "");
+    }
+    if (hint) hint.textContent = `ID técnico desta máquina: ${getMaquinaId()}`;
     atualizarResumosDepositos();
     renderBuscaResultados();
     /* backfill: enviar para a nuvem os ficheiros que só existem neste computador */
@@ -1275,6 +1386,8 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
   window.__DK_documentosNormPlaca = normPlaca;
   window.__DK_documentosNormProtocolo = normProtocolo;
   window.__DK_documentosNomeArquivoContrato = nomeArquivoContrato;
+  window.__DK_documentosFmtRastreabilidade = fmtRastreabilidade;
+  window.__DK_documentosBuildRastreabilidadeDeposito = buildRastreabilidadeDeposito;
   window.__DK_documentosMergeDeposit = function mergeLocalCloud(localDep, cloudDep) {
     const out = emptyDeposit();
     for (const cat of ["crlv", "contrato", "multa"]) {
@@ -1286,7 +1399,9 @@ html,body{margin:0;height:100%;background:#111;font-family:Segoe UI,Arial,sans-s
           byId.set(e.id, e);
           return;
         }
-        const novo = (Date.parse(e.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0) ? { ...e } : { ...prev };
+        let novo = (Date.parse(e.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0) ? { ...e } : { ...prev };
+        novo = preservarRastreabilidadeDeposito(novo, prev);
+        novo = preservarRastreabilidadeDeposito(novo, e);
         /* nuvem:true nunca regride — se um lado já enviou o ficheiro, mantém */
         if (prev.nuvem === true || e.nuvem === true) novo.nuvem = true;
         /* pasta ativo/inativo escolhida pelo operador nunca se perde no merge */

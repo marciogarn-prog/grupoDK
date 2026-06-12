@@ -503,6 +503,9 @@ async function runSuite() {
         docsJs.includes("marcarContratosSubstituirPorProtocolo") &&
         docsJs.includes("protocoloContratoEntrada") &&
         docsJs.includes("__DK_documentosNomeArquivoContrato") &&
+        docsJs.includes("inseridoPor") &&
+        docsJs.includes("__DK_documentosFmtRastreabilidade") &&
+        docsJs.includes("documentosMaquinaRotulo")
         docsJs.includes("listarPorChave") &&
         docsJs.includes("excluirDoc") &&
         docsJs.includes("purgeLegacyPatrimonioLocal") &&
