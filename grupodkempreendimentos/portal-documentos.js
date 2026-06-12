@@ -576,6 +576,9 @@
       novo.maquinaUserAgent = novo.maquinaUserAgent || prev.maquinaUserAgent;
       novo.deployCanal = novo.deployCanal || prev.deployCanal;
     }
+    if (!novo.contratoDados && prev.contratoDados) {
+      novo.contratoDados = prev.contratoDados;
+    }
     return novo;
   }
 
@@ -940,6 +943,9 @@
     };
     if (categoria === "contrato" && (opts.statusContrato === "ativo" || opts.statusContrato === "inativo")) {
       entry.statusContrato = opts.statusContrato;
+    }
+    if (categoria === "contrato" && meta.contratoDados && typeof meta.contratoDados === "object") {
+      entry.contratoDados = meta.contratoDados;
     }
     arr.push(entry);
     dep[categoria] = arr;

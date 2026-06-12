@@ -522,10 +522,10 @@ async function runSuite() {
         html.includes("portal-contrato-locacao.js") &&
         html.includes("dk-contrato-locacao-texto.js")
     );
-    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260611contrato-endereco4`, {
+    const contratoJs = await fetch(`${BASE_URL}portal-contrato-locacao.js?v=20260612contrato-duplicado-compare`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
-    const uiContratoJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260611contrato-endereco4`, {
+    const uiContratoJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260612contrato-duplicado-compare`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     const vendorJspdf = await fetch(`${BASE_URL}vendor/jspdf.umd.min.js`, { cache: "no-store" }).then((r) => r.ok);
@@ -537,6 +537,12 @@ async function runSuite() {
       contratoJs.includes("__DK_contratoLocacaoSalvarPdfBlob") &&
         contratoJs.includes("__DK_contratoLocacaoRefreshBotao") &&
         contratoJs.includes("__DK_contratoLocacaoExisteParaProtocolo") &&
+        contratoJs.includes("__DK_contratoLocacaoVerificarExistente") &&
+        contratoJs.includes("__DK_contratoLocacaoAbrirComparacao") &&
+        contratoJs.includes("ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS") &&
+        contratoJs.includes("contratoDados") &&
+        contratoJs.includes("btnContratoComparar") &&
+        contratoJs.includes("substituirConfirmado") &&
         contratoJs.includes("vendor/jspdf.umd.min.js") &&
         contratoJs.includes("vendor/html2canvas.min.js") &&
         contratoJs.includes("nomeArquivoContrato") &&

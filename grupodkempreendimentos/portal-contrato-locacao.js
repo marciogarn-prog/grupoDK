@@ -480,14 +480,207 @@ body.contrato-preview { padding-top: 52px; }
 .barra-acoes button.sec { background: #444; }
 .barra-acoes .barra-msg { font-size: 13px; opacity: 0.95; }
 .barra-acoes .hidden { display: none !important; }
+.contrato-salvar-dialog {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; padding: 16px;
+}
+.contrato-salvar-dialog.hidden { display: none !important; }
+.contrato-salvar-dialog__box {
+  background: #fff; color: #222; max-width: 520px; width: 100%; padding: 24px 28px; border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.35); font-family: system-ui, sans-serif;
+}
+.contrato-salvar-dialog__titulo {
+  font: bold 15px/1.35 system-ui, sans-serif; color: #b91c1c; margin: 0 0 12px;
+  text-transform: uppercase; letter-spacing: 0.03em;
+}
+.contrato-salvar-dialog__sub { margin: 0 0 18px; font-size: 14px; line-height: 1.45; }
+.contrato-salvar-dialog__acoes { display: flex; flex-wrap: wrap; gap: 10px; }
+.contrato-salvar-dialog__acoes button {
+  padding: 10px 18px; cursor: pointer; border: 0; border-radius: 4px;
+  color: #fff; font-weight: 700; font-size: 13px; letter-spacing: 0.04em;
+}
+#btnContratoComparar { background: #2563eb; }
+#btnContratoSubstituir { background: #e85d04; }
+#btnContratoCancelarSalvar { background: #64748b; }
 @media print {
   html, body { background: #fff; padding: 0 !important; margin: 0 !important; }
-  .barra-acoes { display: none !important; }
+  .barra-acoes, .contrato-salvar-dialog { display: none !important; }
   .contrato-doc { width: 100%; margin: 0; }
   .pagina { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
   .pagina:last-child { page-break-after: auto; }
   body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }`;
+  }
+
+  function normCmpTexto(v) {
+    return String(v ?? "")
+      .trim()
+      .replace(/\s+/g, " ");
+  }
+
+  function snapshotContratoDados(dados) {
+    return {
+      protocolo: normProtocolo(dados.protocolo),
+      nome: normCmpTexto(dados.nome),
+      cpfFmt: dados.cpfFmt || formatCpf(dados.cpfDigits),
+      cpfDigits: onlyDigits(dados.cpfDigits),
+      endereco: normCmpTexto(dados.endereco),
+      placa: normPlaca(dados.placa),
+      marcaModelo: normCmpTexto(dados.marcaModelo),
+      modalidade: normCmpTexto(dados.modalidade),
+      codigoCliente: normCmpTexto(dados.codigoCliente),
+      municipioUf: normCmpTexto(dados.municipioUf),
+      dataContrato: normCmpTexto(dados.dataContrato),
+      fim: normCmpTexto(dados.fim),
+      statusLocacao: normCmpTexto(dados.statusLocacao || "ATIVO"),
+      geradoEm: new Date().toISOString(),
+    };
+  }
+
+  const CAMPOS_COMPARACAO_CONTRATO = [
+    { key: "nome", label: "Nome do locatário", grupo: "Cliente" },
+    { key: "cpfFmt", label: "CPF", grupo: "Cliente", norm: (_v, d) => onlyDigits(d?.cpfDigits) },
+    { key: "endereco", label: "Endereço", grupo: "Cliente" },
+    { key: "codigoCliente", label: "Código do cliente", grupo: "Cliente" },
+    { key: "municipioUf", label: "Município / UF", grupo: "Cliente" },
+    { key: "placa", label: "Placa", grupo: "Veículo", norm: (v) => normPlaca(v) },
+    { key: "marcaModelo", label: "Marca / modelo", grupo: "Veículo" },
+    { key: "modalidade", label: "Modalidade", grupo: "Veículo" },
+    { key: "dataContrato", label: "Data de início", grupo: "Contrato" },
+    { key: "fim", label: "Data de término", grupo: "Contrato" },
+    { key: "statusLocacao", label: "Status da locação", grupo: "Contrato" },
+  ];
+
+  function compararDadosContrato(novo, antigo) {
+    return CAMPOS_COMPARACAO_CONTRATO.map((c) => {
+      const vNovo = novo?.[c.key] ?? "";
+      const vAnt = antigo?.[c.key] ?? "";
+      const nN = c.norm ? c.norm(vNovo, novo) : normCmpTexto(vNovo);
+      const nA = antigo ? (c.norm ? c.norm(vAnt, antigo) : normCmpTexto(vAnt)) : null;
+      const igual = antigo ? nN === nA : null;
+      return {
+        ...c,
+        novo: vNovo || "—",
+        antigo: antigo ? vAnt || "—" : null,
+        igual,
+      };
+    });
+  }
+
+  function fmtDataHoraIso(iso) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return String(iso);
+    return d.toLocaleString("pt-BR");
+  }
+
+  function cssComparacaoContrato() {
+    return `
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: #f1f5f9; color: #0f172a; }
+.wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 32px; }
+h1 { margin: 0 0 6px; font-size: 20px; }
+.sub { margin: 0 0 16px; color: #475569; font-size: 14px; line-height: 1.45; }
+.aviso { background: #fef3c7; border: 1px solid #fcd34d; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; }
+.acoes-top { margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 10px; }
+.acoes-top button { padding: 8px 14px; border: 0; border-radius: 4px; cursor: pointer; font-weight: 600; background: #1e293b; color: #fff; }
+.grupo { margin-bottom: 20px; }
+.grupo h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; }
+table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 13px; vertical-align: top; }
+th { background: #f8fafc; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; }
+td.diff-igual { background: #f0fdf4; }
+td.diff-diff { background: #fef2f2; font-weight: 600; }
+td.diff-novo-only { background: #eff6ff; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.badge-igual { background: #dcfce7; color: #166534; }
+.badge-diff { background: #fee2e2; color: #991b1b; }
+`;
+  }
+
+  function buildComparacaoContratoHtml(linhas, ctx) {
+    const grupos = ["Cliente", "Veículo", "Contrato"];
+    const semAntigo = !ctx?.temDadosAntigo;
+    const aviso = semAntigo
+      ? `<div class="aviso">O PDF existente não tem registo de dados para comparação (foi guardado antes desta funcionalidade). Use «Ver PDF existente» para conferir manualmente.</div>`
+      : "";
+    const tabelas = grupos
+      .map((g) => {
+        const rows = linhas.filter((l) => l.grupo === g);
+        if (!rows.length) return "";
+        const trs = rows
+          .map((r) => {
+            const clsAnt = semAntigo ? "diff-novo-only" : r.igual ? "diff-igual" : "diff-diff";
+            const clsNov = semAntigo ? "diff-novo-only" : r.igual ? "diff-igual" : "diff-diff";
+            const badge = semAntigo
+              ? ""
+              : r.igual
+                ? `<span class="badge badge-igual">igual</span>`
+                : `<span class="badge badge-diff">diferente</span>`;
+            const antigoCell = semAntigo ? `<td>—</td>` : `<td class="${clsAnt}">${esc(r.antigo)}</td>`;
+            return `<tr><td>${esc(r.label)}</td>${antigoCell}<td class="${clsNov}">${esc(r.novo)}</td><td>${badge}</td></tr>`;
+          })
+          .join("");
+        return `<section class="grupo"><h2>${esc(g)}</h2><table><thead><tr><th>Campo</th><th>Arquivo existente</th><th>Novo arquivo</th><th></th></tr></thead><tbody>${trs}</tbody></table></section>`;
+      })
+      .join("");
+    const proto = esc(ctx?.protocolo || "");
+    const btnPdf =
+      ctx?.protocolo && ctx?.idExistente
+        ? `<button type="button" id="btnVerPdfExistente" data-proto="${proto}">Ver PDF existente</button>`
+        : "";
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Comparar contrato ${proto}</title><style>${cssComparacaoContrato()}</style></head><body>
+<div class="wrap">
+<h1>Comparação de contratos</h1>
+<p class="sub">Protocolo <strong>${proto}</strong> — dados do cliente e do veículo.<br>Arquivo na pasta: <strong>${esc(ctx?.nomeArquivo || "—")}</strong> · guardado em ${esc(fmtDataHoraIso(ctx?.criadoEm))}</p>
+<div class="acoes-top">${btnPdf}</div>
+${aviso}
+${tabelas}
+</div>
+<script>
+(function(){
+  var btn = document.getElementById("btnVerPdfExistente");
+  if (!btn || !window.opener) return;
+  btn.addEventListener("click", function(){
+    var fn = window.opener.__DK_contratoLocacaoVisualizarArmazenado;
+    if (typeof fn !== "function") { alert("Portal indisponível."); return; }
+    fn(btn.getAttribute("data-proto"));
+  });
+})();
+<\/script>
+</body></html>`;
+  }
+
+  function verificarContratoExistente(protocolo) {
+    const entrada = obterContratoDeposito(protocolo);
+    if (!entrada) return { existe: false, existente: null };
+    return {
+      existe: true,
+      existente: {
+        id: entrada.id,
+        nomeArquivo: entrada.nomeArquivo,
+        criadoEm: entrada.criadoEm,
+        contratoDados: entrada.contratoDados || null,
+      },
+    };
+  }
+
+  function abrirComparacaoContrato(novoDados, existenteInfo) {
+    const antigo = existenteInfo?.contratoDados || null;
+    const linhas = compararDadosContrato(novoDados, antigo);
+    const html = buildComparacaoContratoHtml(linhas, {
+      protocolo: novoDados?.protocolo || existenteInfo?.contratoDados?.protocolo,
+      nomeArquivo: existenteInfo?.nomeArquivo,
+      criadoEm: existenteInfo?.criadoEm,
+      temDadosAntigo: Boolean(antigo),
+      idExistente: existenteInfo?.id,
+    });
+    const w = window.open("", "_blank", "width=980,height=760");
+    if (!w) return { ok: false, msg: "popup_bloqueado" };
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    return { ok: true };
   }
 
   function paginaCapa(dados) {
@@ -554,6 +747,7 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       statusLocacao: dados.statusLocacao,
       fim: dados.fim || "",
       pastaContrato: "ativo",
+      contratoDados: snapshotContratoDados(dados),
     });
     return `<script>
 (function(){
@@ -642,6 +836,71 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
 
   document.getElementById("btnImprimir").addEventListener("click", function(){ window.print(); });
 
+  function blobParaBase64(blob){
+    return new Promise(function(res, rej){
+      var r = new FileReader();
+      r.onload = function(){
+        var s = String(r.result || "");
+        res(s.indexOf(",") >= 0 ? s.slice(s.indexOf(",") + 1) : s);
+      };
+      r.onerror = function(){ rej(new Error("leitura_pdf")); };
+      r.readAsDataURL(blob);
+    });
+  }
+
+  function fecharDialogSalvar(){
+    var dlg = document.getElementById("contratoSalvarDialog");
+    if (dlg) dlg.classList.add("hidden");
+  }
+
+  function doSalvar(substituir){
+    var btn = document.getElementById("btnSalvar");
+    btn.disabled = true;
+    msg.textContent = "A guardar na pasta Contratos ATIVOS…";
+    return blobParaBase64(pdfBlob).then(function(b64){
+      var opts = substituir ? { substituirConfirmado: true } : {};
+      return window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, { b64: b64, type: "application/pdf" }, opts);
+    }).then(function(r){
+      if (r && r.ok) {
+        msg.textContent = r.substituido
+          ? "Contrato substituído em Documentos → Contratos ATIVOS (PDF anterior removido)."
+          : "Contrato guardado em Documentos → Contratos ATIVOS (nuvem).";
+        fecharDialogSalvar();
+        window.opener.__DK_contratoLocacaoRefreshBotao && window.opener.__DK_contratoLocacaoRefreshBotao();
+      } else if (r && r.needConfirm) {
+        document.getElementById("contratoSalvarProto").textContent = META.protocolo;
+        document.getElementById("contratoSalvarDialog").classList.remove("hidden");
+        msg.textContent = r.msg || "ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS";
+        btn.disabled = false;
+      } else {
+        msg.textContent = (r && r.msg) || "Não foi possível guardar.";
+        btn.disabled = false;
+      }
+    }).catch(function(e){
+      msg.textContent = "Erro ao guardar: " + (e && e.message ? e.message : e);
+      btn.disabled = false;
+    });
+  }
+
+  document.getElementById("btnContratoComparar").addEventListener("click", function(){
+    if (!window.opener || typeof window.opener.__DK_contratoLocacaoAbrirComparacao !== "function") {
+      msg.textContent = "Comparação indisponível — recarregue a janela principal.";
+      return;
+    }
+    var v = window.opener.__DK_contratoLocacaoVerificarExistente(META.protocolo);
+    window.opener.__DK_contratoLocacaoAbrirComparacao(META.contratoDados, v && v.existente ? v.existente : null);
+  });
+
+  document.getElementById("btnContratoSubstituir").addEventListener("click", function(){
+    doSalvar(true);
+  });
+
+  document.getElementById("btnContratoCancelarSalvar").addEventListener("click", function(){
+    fecharDialogSalvar();
+    document.getElementById("btnSalvar").disabled = false;
+    msg.textContent = "Gravação cancelada — o PDF na pasta Documentos não foi alterado.";
+  });
+
   document.getElementById("btnSalvar").addEventListener("click", function(){
     var btn = this;
     if (!pdfBlob) { msg.textContent = "Gere o PDF primeiro."; return; }
@@ -653,35 +912,17 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
       msg.textContent = "Portal indisponível — recarregue a janela principal.";
       return;
     }
-    btn.disabled = true;
-    msg.textContent = "A guardar na pasta Contratos ATIVOS…";
-    function blobParaBase64(blob){
-      return new Promise(function(res, rej){
-        var r = new FileReader();
-        r.onload = function(){
-          var s = String(r.result || "");
-          res(s.indexOf(",") >= 0 ? s.slice(s.indexOf(",") + 1) : s);
-        };
-        r.onerror = function(){ rej(new Error("leitura_pdf")); };
-        r.readAsDataURL(blob);
-      });
-    }
-    blobParaBase64(pdfBlob).then(function(b64){
-      return window.opener.__DK_contratoLocacaoSalvarPdfBlob(META, { b64: b64, type: "application/pdf" });
-    }).then(function(r){
-      if (r && r.ok) {
-        msg.textContent = r.substituido
-          ? "Contrato substituído em Documentos → Contratos ATIVOS (PDF anterior removido)."
-          : "Contrato guardado em Documentos → Contratos ATIVOS (nuvem).";
-        window.opener.__DK_contratoLocacaoRefreshBotao && window.opener.__DK_contratoLocacaoRefreshBotao();
-      } else {
-        msg.textContent = (r && r.msg) || "Não foi possível guardar.";
-        btn.disabled = false;
+    var verificar = window.opener.__DK_contratoLocacaoVerificarExistente;
+    if (typeof verificar === "function") {
+      var chk = verificar(META.protocolo);
+      if (chk && chk.existe) {
+        document.getElementById("contratoSalvarProto").textContent = META.protocolo;
+        document.getElementById("contratoSalvarDialog").classList.remove("hidden");
+        msg.textContent = "ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS";
+        return;
       }
-    }).catch(function(e){
-      msg.textContent = "Erro ao guardar: " + (e && e.message ? e.message : e);
-      btn.disabled = false;
-    });
+    }
+    doSalvar(false);
   });
 })();
 <\/script>`;
@@ -697,6 +938,17 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     <button type="button" id="btnSalvar">Salvar</button>
   </span>
   <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas</span>
+</div>
+<div id="contratoSalvarDialog" class="contrato-salvar-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="contratoSalvarTitulo">
+  <div class="contrato-salvar-dialog__box">
+    <p id="contratoSalvarTitulo" class="contrato-salvar-dialog__titulo">ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS</p>
+    <p class="contrato-salvar-dialog__sub">Protocolo <strong id="contratoSalvarProto">${esc(dados.protocolo)}</strong> — já há um PDF com este nome em Documentos → Contratos ATIVOS. Deseja substituir?</p>
+    <div class="contrato-salvar-dialog__acoes">
+      <button type="button" id="btnContratoComparar">COMPARAR</button>
+      <button type="button" id="btnContratoSubstituir">SUBSTITUIR</button>
+      <button type="button" id="btnContratoCancelarSalvar">CANCELAR</button>
+    </div>
+  </div>
 </div>
 <div class="contrato-doc">${paginas.join("")}</div>
 ${scriptPreviewInline(dados)}
@@ -732,7 +984,7 @@ ${scriptPreviewInline(dados)}
     return mover(protocolo, pastaContratoParaLocacao(statusLocacao, opts.fim), opts);
   }
 
-  async function salvarPdfBlobNoDeposito(meta, recebido) {
+  async function salvarPdfBlobNoDeposito(meta, recebido, opts = {}) {
     const protocolo = normProtocolo(meta?.protocolo || String(meta?.nomeArquivo || "").replace(/\.pdf$/i, ""));
     const normalizar =
       typeof window.__DK_documentosNormalizarBlob === "function" ? window.__DK_documentosNormalizarBlob : null;
@@ -757,7 +1009,38 @@ ${scriptPreviewInline(dados)}
     const fim = String(meta.fim || "");
     const statusContrato = "ativo";
     const existente = obterContratoDeposito(protocolo);
+    if (existente && !opts.substituirConfirmado) {
+      return {
+        ok: false,
+        needConfirm: true,
+        msg: "ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS",
+        existente: {
+          id: existente.id,
+          nomeArquivo: existente.nomeArquivo,
+          criadoEm: existente.criadoEm,
+          contratoDados: existente.contratoDados || null,
+        },
+      };
+    }
     const nomeArquivo = nomeArquivoContrato(protocolo);
+    const contratoDados =
+      meta.contratoDados && typeof meta.contratoDados === "object"
+        ? meta.contratoDados
+        : snapshotContratoDados({
+            protocolo,
+            nome: meta.nome,
+            cpfDigits: meta.cpfDigits,
+            cpfFmt: meta.cpfFmt,
+            endereco: meta.endereco,
+            placa: meta.placa,
+            marcaModelo: meta.marcaModelo,
+            modalidade: meta.modalidade,
+            codigoCliente: meta.codigoCliente,
+            municipioUf: meta.municipioUf,
+            dataContrato: meta.dataContrato,
+            fim,
+            statusLocacao,
+          });
 
     const dep = await depositar(
       "contrato",
@@ -767,6 +1050,7 @@ ${scriptPreviewInline(dados)}
         chave: protocolo,
         mimeType: "application/pdf",
         origem: "contrato-locacao",
+        contratoDados,
       },
       { statusContrato: "ativo", silent: true }
     );
@@ -931,6 +1215,8 @@ ${scriptPreviewInline(dados)}
   window.__DK_contratoLocacaoPdfMaxBytes = PDF_LOCACAO_MAX_BYTES;
   window.__DK_contratoLocacaoSalvarPdfBlob = salvarPdfBlobNoDeposito;
   window.__DK_contratoLocacaoExisteParaProtocolo = contratoExisteParaProtocolo;
+  window.__DK_contratoLocacaoVerificarExistente = verificarContratoExistente;
+  window.__DK_contratoLocacaoAbrirComparacao = abrirComparacaoContrato;
   window.__DK_contratoLocacaoVisualizarArmazenado = visualizarContratoArmazenado;
   window.__DK_contratoLocacaoSincronizarPasta = sincronizarPastaContratoLocacao;
   window.__DK_contratoLocacaoRefreshBotao = atualizarBotaoContratoLocacao;
