@@ -81,10 +81,10 @@ async function runSuite() {
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "cadastros vazios após instalação limpa",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local sem veículos/locações",
       IS_DEMO_TEST
         ? storageInicial.clientes >= 300 && storageInicial.veiculos >= 150
-        : storageInicial.clientes === 0 && storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
+        : storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
@@ -320,25 +320,42 @@ async function runSuite() {
             (p.dk_clientes_cadastro || []).length === 0 && (p.dk_locacoes_cadastro || []).length === 0
           );
         })(),
+        retroOk: (() => {
+          const p = window.__DK_sanitizeOficialCloudPayload({
+            dk_clientes_cadastro: [
+              {
+                cpf: "06242649551",
+                nome: "RETRO",
+                dataCadastro: "sex 21/03/2025",
+                cadastroRetroativo: true,
+                codigo: "0001",
+              },
+            ],
+          });
+          return (p.dk_clientes_cadastro || []).length === 1;
+        })(),
       }));
       record(
         "oficial: bloqueio cadastros anteriores a hoje",
         oficialGuardJs.includes("__DK_sanitizeOficialCloudPayload") &&
           guardUi.guardLoaded &&
           guardUi.guardActive &&
-          guardUi.blockedOld,
+          guardUi.blockedOld &&
+          guardUi.retroOk,
         `active=${guardUi.guardActive}`
       );
       const cloudOficial = await fetch(`${BASE_URL}api/dk-cloud-snapshot`, { cache: "no-store" }).then((r) =>
         r.ok ? r.json() : {}
       );
       const pOf = cloudOficial.payload || {};
+      const clientesOf = pOf.dk_clientes_cadastro || [];
+      const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
-        "oficial: nuvem sem cadastros (zerado)",
-        (pOf.dk_clientes_cadastro || []).length === 0 &&
+        "oficial: nuvem com clientes retroativos (sem veículos/locações)",
+        retroOf.length >= 9 &&
           (pOf.dk_veiculos_cadastro || []).length === 0 &&
           (pOf.dk_locacoes_cadastro || []).length === 0,
-        `c=${(pOf.dk_clientes_cadastro || []).length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
+        `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
     }
     if (IS_DEMO_TEST) {
