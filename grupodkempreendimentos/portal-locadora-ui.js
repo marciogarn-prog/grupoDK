@@ -392,20 +392,30 @@
   }
 
   /** Titular (CPF autorizado) pode digitar o Cód. manualmente — útil para cadastros retroativos. */
-  function portalAdminPodeEditarCodigoCliente() {
+  function portalGetSessaoCpfDigits() {
     try {
       const raw = localStorage.getItem("dk_sessao_cliente");
-      if (!raw) return false;
+      if (!raw) return "";
       const s = JSON.parse(raw);
-      if (s?.tipo !== "admin") return false;
-      const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
-      return cpf === DK_LOCADORA_ADMIN_CPF;
+      return String(s.cpf || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
     } catch {
-      return false;
+      return "";
     }
   }
 
+  function portalAdminPodeEditarCodigoCliente() {
+    if (typeof window.__DK_adminPodeEditarCodigoCliente === "function") {
+      return window.__DK_adminPodeEditarCodigoCliente();
+    }
+    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
+  }
+
   function refreshOperacaoClienteCodigoEditavel() {
+    if (typeof window.__DK_unlockClienteCodigoAdmin === "function") {
+      window.__DK_unlockClienteCodigoAdmin();
+    }
     const codigo = document.getElementById("operacaoClienteCodigo");
     if (!codigo) return;
     const podeEditar = portalAdminPodeEditarCodigoCliente();
@@ -13073,6 +13083,8 @@ ${printable.innerHTML}
   window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
+  window.__DK_refreshOperacaoClienteCodigoEditavel = refreshOperacaoClienteCodigoEditavel;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_hideOperacaoInlineForms = hideInlineForms;
   window.__DK_syncOperacaoCadastroButtons = syncOperacaoCadastroButtons;
