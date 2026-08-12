@@ -85,6 +85,7 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
+      if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       const ymd = oficialRecordYmd(r, k);
       return ymd && ymd >= cutoffYmd;
     });

@@ -93,6 +93,7 @@
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
+    if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
     const ymd = extractRecordYmd(record, key);
     if (!ymd) return false;
     return ymd >= (cutoffYmd || OFICIAL_CUTOFF_YMD);
