@@ -1876,6 +1876,25 @@ body {
   font-size: 0.8rem;
 }
 
+.portal-relatorio-preview .portal-rel-table-compact th,
+.portal-relatorio-preview .portal-rel-table-compact td {
+  font-size: 0.62rem;
+  padding: 2px 3px;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.portal-relatorio-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.portal-relatorio-preview th,
+.portal-relatorio-preview td {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
 .portal-relatorio-preview.hidden {
   display: none;
 }

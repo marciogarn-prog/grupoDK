@@ -3843,6 +3843,21 @@ ${printable.innerHTML}
     return `CLIENTE ${anchor + xi + 1}`;
   }
 
+  function portalClienteCodigoRelatorioPreferido(cliente, cpfDigits, extraIdxByCpf) {
+    const stored = String(cliente?.codigo || "").trim();
+    if (stored) return stored;
+    return resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf) || "—";
+  }
+
+  function portalClienteCodigoSortKey(codigoRaw) {
+    const s = String(codigoRaw || "").trim();
+    const mCliente = s.match(/^CLIENTE\s*(\d+)$/i);
+    if (mCliente) return Number(mCliente[1]) || 0;
+    const digits = s.replace(/\D/g, "");
+    if (digits) return Number(digits) || 0;
+    return Number.MAX_SAFE_INTEGER;
+  }
+
   function bindOperacaoClienteCpfAssist() {
     const form = document.getElementById("formOperacaoClienteInline");
     const inpCpf = document.getElementById("operacaoClienteCpf");
@@ -5187,20 +5202,27 @@ ${printable.innerHTML}
       .filter((line) => String(line || "").trim())
       .map((line) => `<p class="meta"><strong>${eh(String(line))}</strong></p>`)
       .join("");
+    const compact = Boolean(reportOptions.compactTable);
+    const bodyFs = compact ? "10px" : "12px";
+    const cellFs = compact ? "9px" : "inherit";
+    const cellPad = compact ? "3px 4px" : "5px 7px";
+    const tableClass = compact ? ' class="portal-rel-table-compact"' : "";
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(title)}</title><style>
-      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:12px}
+      body{font-family:system-ui,-apple-system,sans-serif;margin:1.2rem;color:#111;font-size:${bodyFs}}
       h1{font-size:1.05rem;margin:0 0 0.35rem}
       .meta{color:#444;margin:0.2rem 0;font-size:11px}
-      table{width:100%;border-collapse:collapse}
-      th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+      table{width:100%;border-collapse:collapse;table-layout:fixed}
+      th,td{border:1px solid #333;padding:${cellPad};text-align:left;font-size:${cellFs};word-wrap:break-word;vertical-align:top}
       th{background:#eee;font-weight:600}
+      .portal-rel-table-compact th,.portal-rel-table-compact td{line-height:1.25}
       .portal-rel-status-ativo{background:#c8e6c9}
       .portal-rel-status-inativo{background:#fff9c4}
+      ${compact ? "@media print{@page{size:landscape;margin:8mm}body{margin:0.5rem}}" : ""}
     </style></head><body>
       <h1>${eh(title)}</h1>
       ${extraMeta}
       <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registro(s)${metaAtivosSuffix}</p>
-      <table><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
+      <table${tableClass}><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
         "Nenhum registo."
       )}</td></tr>`}</tbody></table>
     </body></html>`;
@@ -5287,6 +5309,7 @@ ${printable.innerHTML}
         : buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
             statusColumnIndex: context.statusColumnIndex,
             headerSubtitleLines: context.headerSubtitleLines,
+            compactTable: context.compactTable,
           });
     html = applyPortalPdfDocumentTitle(html, getPortalRelatorioPdfSaveSuggestedBaseName(context));
     hideRelatorioLocacaoPdfViewer();
@@ -5404,10 +5427,15 @@ ${printable.innerHTML}
         x.dataCadastro,
         x.nome,
         x.celular,
+        x.recado1,
+        x.recado2,
         x.cnh,
         x.categoria,
         x.vencimento,
+        x.ear,
+        x.cep,
         x.municipioUf,
+        x.endereco,
       ].filter((v) => String(v || "").trim()).length;
 
     const mergeOne = (c, preferOnTie) => {
@@ -5430,37 +5458,76 @@ ${printable.innerHTML}
     const extraIdxByCpf = buildPortalExtraClienteIndexByCpf(byCpf);
 
     const rowsRaw = Array.from(byCpf.values()).sort((a, b) => {
-      const da = portalRegistroRecencyMs(a);
-      const db = portalRegistroRecencyMs(b);
-      if (db !== da) return db - da;
+      const cpfA =
+        typeof onlyDigits === "function" ? onlyDigits(String(a.cpf || "")) : String(a.cpf || "").replace(/\D/g, "");
+      const cpfB =
+        typeof onlyDigits === "function" ? onlyDigits(String(b.cpf || "")) : String(b.cpf || "").replace(/\D/g, "");
+      const codA = portalClienteCodigoRelatorioPreferido(a, cpfA, extraIdxByCpf);
+      const codB = portalClienteCodigoRelatorioPreferido(b, cpfB, extraIdxByCpf);
+      const na = portalClienteCodigoSortKey(codA);
+      const nb = portalClienteCodigoSortKey(codB);
+      if (na !== nb) return na - nb;
       return String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR");
     });
-    const headers = ["Cód.", "Data Cadastro", "CPF", "Nome", "Celular", "CNH", "Categoria", "Vencimento", "Município/UF"];
+    const headers = [
+      "Cód.",
+      "Data do Cadastro",
+      "CPF",
+      "Cliente",
+      "Nº do Celular",
+      "Recados 01",
+      "Recados 02",
+      "Nº da CNH-e",
+      "Categoria",
+      "Vencimento",
+      "EAR?",
+      "Cep",
+      "Município/UF",
+      "Endereço",
+    ];
     const fmtCpf = typeof formatCpf === "function" ? formatCpf : (v) => String(v || "");
     const rows = rowsRaw.map((c) => {
       const cpfDigits =
         typeof onlyDigits === "function"
           ? onlyDigits(String(c.cpf || ""))
           : String(c.cpf || "").replace(/\D/g, "");
-      const codigoRel = resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf);
+      const codigoRel = portalClienteCodigoRelatorioPreferido(c, cpfDigits, extraIdxByCpf);
       return [
-        codigoRel || String(c.codigo || "").trim() || "—",
+        codigoRel,
         String(c.dataCadastro || "").trim() || "—",
         cpfDigits.length === 11 ? fmtCpf(cpfDigits) : String(c.cpf || "").trim() || "—",
         String(c.nome || "").trim() || "—",
         String(c.celular || "").trim() || "—",
+        String(c.recado1 || "").trim() || "—",
+        String(c.recado2 || "").trim() || "—",
         String(c.cnh || "").trim() || "—",
         String(c.categoria || "").trim() || "—",
         String(c.vencimento || "").trim() || "—",
+        String(c.ear || "").trim() || "—",
+        String(c.cep || "").trim() || "—",
         String(c.municipioUf || "").trim() || "—",
+        String(c.endereco || "").trim() || "—",
       ];
     });
+    const reportOpts = { compactTable: true, textColumns: [0, 2] };
+    const previewHtml = buildPortalRelatorioHtml(
+      "Relatório de clientes — lista unificada",
+      headers,
+      rows,
+      reportOpts
+    )
+      .replace(/^[\s\S]*?<body>/i, "")
+      .replace(/<\/body>[\s\S]*$/i, "");
     return {
       title: "Relatório de clientes — lista unificada",
       headers,
       rows,
       fileSlug: "clientes",
       textColumns: [0, 2],
+      compactTable: true,
+      previewHtml,
+      buildPdfHtml: () =>
+        buildPortalRelatorioHtml("Relatório de clientes — lista unificada", headers, rows, reportOpts),
     };
   }
 
