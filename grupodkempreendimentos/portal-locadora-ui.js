@@ -391,6 +391,46 @@
     return getPortalSessaoAdminRole() === "owner";
   }
 
+  /** Titular (CPF autorizado) pode digitar o Cód. manualmente — útil para cadastros retroativos. */
+  function portalAdminPodeEditarCodigoCliente() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      if (s?.tipo !== "admin") return false;
+      const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
+      return cpf === DK_LOCADORA_ADMIN_CPF;
+    } catch {
+      return false;
+    }
+  }
+
+  function refreshOperacaoClienteCodigoEditavel() {
+    const codigo = document.getElementById("operacaoClienteCodigo");
+    if (!codigo) return;
+    const podeEditar = portalAdminPodeEditarCodigoCliente();
+    if (podeEditar) {
+      codigo.readOnly = false;
+      codigo.disabled = false;
+      codigo.removeAttribute("readonly");
+      codigo.placeholder = "Ex.: CLIENTE 42";
+      codigo.classList.remove("portal-input-immutable");
+      codigo.setAttribute("aria-readonly", "false");
+    } else {
+      codigo.readOnly = true;
+      codigo.setAttribute("readonly", "");
+      codigo.placeholder = "Automático";
+      codigo.classList.add("portal-input-immutable");
+      codigo.setAttribute("aria-readonly", "true");
+    }
+  }
+
+  function portalResolveClienteCodigoFromForm(fallback) {
+    const codigoForm = String(document.getElementById("operacaoClienteCodigo")?.value || "").trim();
+    if (portalAdminPodeEditarCodigoCliente() && codigoForm) return codigoForm;
+    return String(fallback || "").trim();
+  }
+
   function isPortalDocumentosAcesso() {
     if (currentUnit !== "locadora") return false;
     if (isPortalTitularAdministrador()) return true;
@@ -508,6 +548,7 @@
   function portalSyncAmbienteCadastroAdminUi() {
     const admin = isPortalTitularAdministrador();
     document.getElementById("operacaoClienteSenhaWrap")?.classList.toggle("hidden", !admin);
+    refreshOperacaoClienteCodigoEditavel();
     if (admin) {
       const cpfIn = document.getElementById("operacaoClienteCpf");
       const digits = onlyDigits(String(cpfIn?.value || "")).slice(0, 11);
@@ -985,6 +1026,7 @@
     refreshPortalOperacaoNavPorAcessos();
     refreshOperacaoLocacaoAdminProtocoloUi();
     portalSyncAmbienteCadastroAdminUi();
+    refreshOperacaoClienteCodigoEditavel();
   }
 
   const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
@@ -1885,6 +1927,7 @@
     hideAllPanels();
     panelOperacao?.classList.remove("hidden");
     refreshPortalOperacaoNavPorAcessos();
+    refreshOperacaoClienteCodigoEditavel();
     portalOperacaoAutoAbrirSeUnicoPermitido();
     portalPersistirAreaAtiva("operacao");
   });
@@ -3861,6 +3904,7 @@ ${printable.innerHTML}
           dataVal ||
           "08/05/2026";
       const canonCode = getPortalCanonicalClienteCodeByCpf(cpfDigits) || String(fonte?.codigo || "").trim();
+      const codigoFinal = portalResolveClienteCodigoFromForm(canonCode);
       const existenteLocal =
         typeof findPortalClienteByCpf === "function"
           ? findPortalClienteByCpf(cpfDigits)
@@ -3870,7 +3914,7 @@ ${printable.innerHTML}
       const payload = {
         id: existenteLocal?.id ?? Date.now(),
         createdAt: existenteLocal?.createdAt ?? Date.now(),
-        codigo: canonCode,
+        codigo: codigoFinal,
         dataCadastro: dataCadastroFinal,
         cpf: cpfDigits,
         nome: nomeFinal,
@@ -4032,20 +4076,19 @@ ${printable.innerHTML}
         el.classList.toggle("portal-input-immutable", Boolean(on));
       };
       if (isPortalTitularAdministrador()) {
-        ["operacaoClienteCodigo", "operacaoClienteCpf", "operacaoClienteNome", "operacaoClienteDataCadastro"].forEach(
-          (id) => {
-            const el = document.getElementById(id);
-            if (el) {
-              el.readOnly = false;
-              el.classList.remove("portal-input-immutable");
-            }
+        ["operacaoClienteCpf", "operacaoClienteNome", "operacaoClienteDataCadastro"].forEach((id) => {
+          const el = document.getElementById(id);
+          if (el) {
+            el.readOnly = false;
+            el.classList.remove("portal-input-immutable");
           }
-        );
+        });
+        refreshOperacaoClienteCodigoEditavel();
         return;
       }
+      refreshOperacaoClienteCodigoEditavel();
       const codigo = document.getElementById("operacaoClienteCodigo");
       if (codigo) {
-        codigo.readOnly = true;
         if (fixed.codigo) codigo.value = fixed.codigo;
       }
       if (inpCpf) {
@@ -4250,7 +4293,7 @@ ${printable.innerHTML}
       }
 
       const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
-      const nextCode = getPortalNextClienteCode();
+      const nextCode = portalResolveClienteCodigoFromForm(getPortalNextClienteCode());
       const dataCadastro = getVal("operacaoClienteDataCadastro") || new Date().toLocaleDateString("pt-BR");
       const novo = {
         id: Date.now(),
@@ -4364,7 +4407,10 @@ ${printable.innerHTML}
       portalRefreshOperacaoClienteSenhaField("", null);
       refreshOperacaoClienteApagarBtn("");
       inpCpf.focus();
+      refreshOperacaoClienteCodigoEditavel();
     });
+
+    refreshOperacaoClienteCodigoEditavel();
 
     document.getElementById("operacaoClienteSenhaResetBtn")?.addEventListener("click", (ev) => {
       ev.preventDefault();
@@ -12081,6 +12127,7 @@ ${printable.innerHTML}
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
+    refreshOperacaoClienteCodigoEditavel();
   });
   document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();
