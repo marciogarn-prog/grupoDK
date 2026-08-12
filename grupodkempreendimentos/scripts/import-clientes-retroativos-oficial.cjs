@@ -123,6 +123,13 @@ const CLIENTES = [
     municipioUf: "PETROLINA/PE",
     endereco: "AV. BAIXA GRANDE, 581 - SÃO GONÇALO",
   },
+  {
+    codigo: "0010",
+    dataCadastro: "ter 13/05/2025",
+    cpf: "00000000001",
+    nome: "JEFERSON VINÍCIUS FREIRE MAGALHÃES",
+    celular: "(64) 99667-5194",
+  },
 ];
 
 function onlyDigits(s) {
@@ -253,7 +260,6 @@ async function main() {
     process.exit(1);
   }
   console.log("OK — clientes retroativos na nuvem oficial.");
-  console.log("Nota: registo 0010 (JEFERSON) omitido — CPF em falta na planilha.");
 }
 
 main().catch((e) => {
