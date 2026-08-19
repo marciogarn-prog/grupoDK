@@ -87,7 +87,7 @@ const CLIENTES = [
     ear: "SIM",
     cep: "56300-000",
     municipioUf: "PETROLINA/PE",
-    endereco: "RUA P, 70 - BL 70 - APTO 002 B - RESIDENCIAL NOVA PETROLINA - LOT TO",
+    endereco: "RUA P, 70 - BL 70 - APTO 002 B - RESIDENCIAL NOVA PETROLINA",
   },
   {
     codigo: "0176",
