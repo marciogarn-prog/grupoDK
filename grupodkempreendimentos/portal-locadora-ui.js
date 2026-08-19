@@ -8,6 +8,7 @@
   const viewUnit = document.getElementById("view-unit");
   const viewLocadoraHub = document.getElementById("view-locadora-hub");
   const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
+  const viewMiel = document.getElementById("view-miel");
   if (!viewHome || !viewUnit) return;
 
   /** Único CPF com acesso «Administrador» no portal DK Locadora. */
@@ -1039,7 +1040,7 @@
     refreshOperacaoClienteCodigoEditavel();
   }
 
-  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente].filter(Boolean);
+  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente, viewMiel].filter(Boolean);
 
   function showView(which) {
     const map = {
@@ -1047,6 +1048,7 @@
       unit: viewUnit,
       hub: viewLocadoraHub,
       cliente: viewLocadoraCliente,
+      miel: viewMiel,
     };
     portalViews.forEach((v) => {
       v.classList.remove("view--active");
@@ -1299,9 +1301,22 @@
     );
   }
 
+  function openMielSistema() {
+    currentUnit = "miel";
+    portalColaboradorSenhaPendente = null;
+    portalResetSessaoSeNaoAdmin();
+    showView("miel");
+    setPortalHash("miel");
+    portalAtualizarBannerAdmin();
+  }
+
   function openUnit(go) {
     if (go === "locadora") {
       openLocadoraHub();
+      return;
+    }
+    if (go === "miel") {
+      openMielSistema();
       return;
     }
     currentUnit = go;
@@ -1572,6 +1587,10 @@
     }
     if (viewLocadoraCliente?.classList.contains("view--active")) {
       portalVoltarLocadoraHub();
+      return;
+    }
+    if (viewMiel?.classList.contains("view--active")) {
+      portalVoltarInicio();
       return;
     }
     if (currentUnit === "locadora" && viewUnit?.classList.contains("view--active")) {
@@ -12677,6 +12696,10 @@ ${printable.innerHTML}
 
   function applyPortalLocadoraHash() {
     const h = (window.location.hash || "").toLowerCase();
+    if (h === "#miel" || h.startsWith("#miel/")) {
+      openMielSistema();
+      return;
+    }
     if (!h.startsWith("#locadora")) return;
     try {
       if (sessionStorage.getItem("dk_from_pwa_app") === "1") {
