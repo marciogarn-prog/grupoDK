@@ -352,7 +352,7 @@ async function runSuite() {
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
         "oficial: nuvem com clientes retroativos (sem veículos/locações)",
-        retroOf.length >= 20 &&
+        retroOf.length >= 30 &&
           (pOf.dk_veiculos_cadastro || []).length === 0 &&
           (pOf.dk_locacoes_cadastro || []).length === 0,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
