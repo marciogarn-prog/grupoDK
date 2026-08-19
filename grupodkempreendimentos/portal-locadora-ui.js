@@ -1308,6 +1308,7 @@
     showView("miel");
     setPortalHash("miel");
     portalAtualizarBannerAdmin();
+    if (typeof window.__DK_mielOnShow === "function") window.__DK_mielOnShow();
   }
 
   function openUnit(go) {

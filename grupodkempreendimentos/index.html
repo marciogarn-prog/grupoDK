@@ -26,6 +26,7 @@
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
   <link rel="stylesheet" href="styles.css?v=20260819sistema-miel-logo">
+  <link rel="stylesheet" href="portal-miel.css?v=20260819miel-p1">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260812retro-clientes"></script>
@@ -92,33 +93,56 @@
     </footer>
   </div>
 
-  <div id="view-miel" class="view view--locadora-sub view--miel" role="region" aria-labelledby="miel-page-title" aria-hidden="true">
-    <div class="subpage subpage--wide">
-      <header class="portal-unit-bar portal-unit-bar--simple" aria-label="Navegação Sistema MIEL">
-        <div class="portal-unit-bar__nav">
-          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-back>&larr; Voltar</button>
-          <button type="button" class="btn-back btn-back--compact btn-back--inicio" data-inicio>Início</button>
+  <div id="view-miel" class="view view--miel-app" role="region" aria-label="Sistema MIEL" aria-hidden="true">
+    <div class="miel-app">
+      <header class="miel-app__top">
+        <div class="miel-app__top-logo">
+          <img src="/images/dk-locadora-logo.png" alt="DK Locadora" width="200" height="80" decoding="async">
         </div>
+        <p class="miel-app__top-date" id="mielAppDataLocal" role="status">Petrolina-PE</p>
+        <table class="miel-app__diretoria" aria-label="Diretoria">
+          <thead>
+            <tr><th colspan="2">Diretoria</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Diretor Presidente</th><td>Marcio Santos</td></tr>
+            <tr><th scope="row">Diretor Admin./Financ.</th><td>Marcus Vinicius</td></tr>
+            <tr><th scope="row">Diretor Operacional</th><td>Plinio Fabrycio</td></tr>
+          </tbody>
+        </table>
       </header>
-      <div class="portal-unit-heading portal-unit-heading--miel">
-        <img class="miel-brand__logo" src="/images/miel-logo-botao.png" alt="" width="96" height="96" decoding="async">
-        <div>
-          <h1 id="miel-page-title">Sistema MIEL</h1>
-          <p class="subpage__lead portal-unit-heading__lead">Área reservada para replicar a planilha MIEL no portal Grupo DK.</p>
-        </div>
+
+      <div class="miel-app__body">
+        <aside class="miel-app__sidebar" aria-label="Menu Sistema MIEL">
+          <button type="button" class="miel-nav-btn miel-nav-btn--active" data-miel-nav="pagina-inicial">Página Inicial</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="dashboard">DASHBOARD</button>
+          <p class="miel-nav-section">Módulos</p>
+          <button type="button" class="miel-nav-btn" data-miel-nav="administrativo">Administrativo</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="financeiro">Financeiro</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="depto-pessoal">Depto Pessoal</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="locacao-veiculos">Ctrl de Locação de Veículos</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="ctrl-manutencao">Ctrl de Manutenção</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="graficos">Gráficos</button>
+          <button type="button" class="miel-nav-btn" data-miel-nav="planejamento">Planejamento</button>
+          <p class="miel-nav-section">Documentos Gerais</p>
+          <button type="button" class="miel-nav-btn" data-miel-nav="procedimentos">Procedimentos</button>
+        </aside>
+
+        <main class="miel-app__main">
+          <div class="miel-app__main-title" id="mielMainTitle">Página Inicial</div>
+          <div class="miel-app__main-content" id="mielMainContent">
+            <div class="miel-panel miel-pagina-inicial" data-miel-panel="pagina-inicial">
+              <img class="miel-pagina-inicial__hero" src="/images/dk-locadora-logo.png" alt="DK Locadora" decoding="async">
+            </div>
+          </div>
+        </main>
       </div>
-      <section class="portal-panel miel-placeholder" aria-live="polite">
-        <h2 class="portal-panel__title">Em construção</h2>
-        <p class="subtext">Os módulos, abas e botões da planilha serão implementados aqui. Coloque o ficheiro Excel em <code>grupodkempreendimentos/data/miel/planilha/</code> (nome sugerido: <strong>miel-sistema.xlsm</strong> ou <strong>miel-sistema.xlsx</strong>).</p>
-        <div class="locadora-propaganda-placeholder miel-placeholder__box" role="status">
-          <p>Aguardando planilha</p>
-        </div>
-      </section>
+
+      <footer class="miel-app__footer">
+        <button type="button" class="btn-back" data-back>&larr; Voltar</button>
+        <button type="button" class="btn-back btn-back--inicio" data-inicio>Início Grupo DK</button>
+      </footer>
     </div>
-    <footer class="site-footer site-footer--nav-dupla">
-      <button type="button" class="btn-back" data-back>&larr; Voltar</button>
-      <button type="button" class="btn-back btn-back--inicio" data-inicio>Início</button>
-    </footer>
   </div>
 
   <div id="view-locadora-hub" class="view view--locadora-sub" role="region" aria-labelledby="locadora-hub-title" aria-hidden="true">
@@ -2088,7 +2112,8 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260819sistema-miel" defer></script>
+  <script src="portal-locadora-ui.js?v=20260819miel-p1" defer></script>
+  <script src="portal-miel-ui.js?v=20260819miel-p1" defer></script>
   <script src="portal-locacao-documentos.js?v=20260612loc-docs-import-sem-blob3" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
   <script src="portal-documentos.js?v=20260612documentos-bidir-sync" defer></script>
