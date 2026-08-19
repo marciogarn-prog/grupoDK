@@ -111,10 +111,49 @@ async function runSuite() {
       html.includes("view-locadora-hub") && html.includes("view-locadora-cliente")
     );
     record(
+      "Sistema MIEL peça 1 no HTML",
+      html.includes("view-miel") &&
+        html.includes("portal-miel-ui.js") &&
+        html.includes("miel-pagina-inicial") &&
+        html.includes("miel-app__diretoria"),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "secção comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
     );
+
+    if (IS_DEMO_TEST) {
+      const mielBtn = page.locator('#view-home [data-go="miel"]').first();
+      if (await mielBtn.isVisible().catch(() => false)) await mielBtn.click();
+      await page.waitForTimeout(700);
+      const mielState = await page.evaluate(() => ({
+        active: document.getElementById("view-miel")?.classList.contains("view--active"),
+        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+        hero: Boolean(document.querySelector(".miel-pagina-inicial__hero")),
+        nav: document.querySelectorAll("[data-miel-nav]").length,
+        diretoria: document.querySelectorAll(".miel-app__diretoria tbody tr").length,
+        dateOk: (document.getElementById("mielAppDataLocal")?.textContent || "").includes("Petrolina-PE"),
+      }));
+      record(
+        "demo: MIEL peça 1 Página Inicial aberta",
+        mielState.active &&
+          mielState.title === "Página Inicial" &&
+          mielState.hero &&
+          mielState.nav >= 10 &&
+          mielState.dateOk,
+        `nav=${mielState.nav}`
+      );
+      record(
+        "demo: MIEL diretoria (3 cargos)",
+        mielState.diretoria === 3,
+        `linhas=${mielState.diretoria}`
+      );
+      await page.locator("#view-miel [data-inicio]").first().click().catch(() => null);
+      await page.waitForTimeout(500);
+    }
+
     record(
       "lançamento com comprovante operador (extrair + confirmar)",
       html.includes("portalOperadorComprovantePasteZone") &&

@@ -1,0 +1,226 @@
+/* Sistema MIEL — réplica visual planilha Excel (isolado do portal Locadora) */
+
+.view--miel-app {
+  background: #ece9d8;
+  color: #000;
+  min-height: 100vh;
+  overflow: auto;
+  padding: 0;
+  max-width: none;
+  margin: 0;
+}
+
+.view--miel-app.view--active {
+  display: flex;
+  flex-direction: column;
+}
+
+.miel-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  font-size: 14px;
+}
+
+.miel-app__top {
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) 1fr minmax(200px, 320px);
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.75rem 0.5rem;
+  background: #fff;
+  border-bottom: 1px solid #808080;
+}
+
+.miel-app__top-logo img {
+  display: block;
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+}
+
+.miel-app__top-date {
+  text-align: center;
+  font-size: 0.95rem;
+  color: #000;
+  line-height: 1.35;
+}
+
+.miel-app__diretoria {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  box-shadow: inset 0 0 0 1px #808080;
+}
+
+.miel-app__diretoria th,
+.miel-app__diretoria td {
+  border: 1px solid #808080;
+  padding: 0.2rem 0.45rem;
+  text-align: left;
+}
+
+.miel-app__diretoria thead th {
+  background: #c00000;
+  color: #fff;
+  text-align: center;
+  font-weight: 700;
+}
+
+.miel-app__diretoria tbody th {
+  background: #f2f2f2;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.miel-app__body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.miel-app__sidebar {
+  background: #d4d0c8;
+  border-right: 1px solid #808080;
+  padding: 0.35rem 0.35rem 1rem;
+  overflow-y: auto;
+}
+
+.miel-nav-btn {
+  appearance: none;
+  display: block;
+  width: 100%;
+  margin: 0 0 0.35rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid;
+  border-color: #fff #404040 #404040 #fff;
+  background: linear-gradient(180deg, #ece9d8 0%, #d4d0c8 45%, #b8b4ac 100%);
+  color: #c00000;
+  font: inherit;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.miel-nav-btn:hover {
+  background: linear-gradient(180deg, #f5f3ea 0%, #dedad2 100%);
+}
+
+.miel-nav-btn:active {
+  border-color: #404040 #fff #fff #404040;
+  background: #b8b4ac;
+  transform: translate(1px, 1px);
+}
+
+.miel-nav-btn--active {
+  background: #c00000;
+  border-color: #800000 #ff6666 #ff6666 #800000;
+  color: #fff;
+  box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.miel-nav-btn--active:hover {
+  background: #c00000;
+}
+
+.miel-nav-section {
+  margin: 0.65rem 0 0.35rem;
+  padding: 0.15rem 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.miel-app__main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #fff;
+}
+
+.miel-app__main-title {
+  background: #d4d0c8;
+  border-bottom: 1px solid #808080;
+  padding: 0.35rem 0.75rem;
+  font-weight: 700;
+  color: #000;
+}
+
+.miel-app__main-content {
+  flex: 1;
+  overflow: auto;
+  background: #fff;
+}
+
+.miel-panel {
+  min-height: 100%;
+}
+
+.miel-panel.hidden {
+  display: none;
+}
+
+.miel-pagina-inicial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(72vh, 680px);
+  padding: 2rem 1rem;
+  background: #fff;
+}
+
+.miel-pagina-inicial__hero {
+  width: min(92%, 520px);
+  height: auto;
+  object-fit: contain;
+}
+
+.miel-panel-placeholder {
+  padding: 2rem 1.25rem;
+  color: #333;
+}
+
+.miel-panel-placeholder h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: #c00000;
+}
+
+.miel-app__footer {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: #d4d0c8;
+  border-top: 1px solid #808080;
+}
+
+.miel-app__footer .btn-back {
+  font-size: 0.85rem;
+}
+
+@media (max-width: 900px) {
+  .miel-app__top {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .miel-app__body {
+    grid-template-columns: 1fr;
+  }
+
+  .miel-app__sidebar {
+    border-right: none;
+    border-bottom: 1px solid #808080;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.35rem;
+  }
+
+  .miel-nav-section {
+    grid-column: 1 / -1;
+  }
+}
