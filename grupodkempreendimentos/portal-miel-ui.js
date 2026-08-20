@@ -35,12 +35,13 @@
     procedimentos: "procedimentos",
   };
 
-  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo", "cad-clientes", "cad-veiculos"]);
+  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo", "cad-clientes", "cad-veiculos", "relacao-clientes"]);
 
   const INIT_HOOKS = {
     administrativo: "__DK_mielInitAdministrativo",
     "cad-clientes": "__DK_mielInitCadClientes",
     "cad-veiculos": "__DK_mielInitCadVeiculos",
+    "relacao-clientes": "__DK_mielInitRelacaoClientes",
   };
 
   const dateEl = document.getElementById("mielAppDataLocal");

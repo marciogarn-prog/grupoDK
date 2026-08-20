@@ -15,13 +15,13 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendi
   "/"
 );
 /** Etapas implementadas — incrementar a cada nova peça. */
-export const MIEL_ETAPAS_IMPLEMENTADAS = 4;
+export const MIEL_ETAPAS_IMPLEMENTADAS = 5;
 
 /** Destinos principais do grid Administrativo (coluna Formulários / Relatórios). */
 const ADMIN_GRID_EXPECTED = [
   { btn: "Cadastro de Clientes", title: "Cadastro de Clientes", panel: "cad-clientes", implemented: true },
   { btn: "Cadastro de Veículos", title: "Cadastro de Veículos", panel: "cad-veiculos", implemented: true },
-  { btn: "Relação de Clientes", title: "Relação de Clientes", panel: "relacao-clientes" },
+  { btn: "Relação de Clientes", title: "Relação de Clientes", panel: "relacao-clientes", implemented: true },
   { btn: "Relação de Veículos", title: "Relação de Veículos", panel: "relacao-veiculos" },
   { btn: "Status de Veículos", title: "Status Veículos", panel: "status-veiculos" },
   { btn: "Relação de Motos Vendidas", title: "Motos Vendidas", panel: "motos-vendidas" },
@@ -287,7 +287,7 @@ async function testEtapa2(page) {
     );
     const back = page
       .locator(
-        '.miel-panel:not(.hidden) [data-miel-stub-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-veic-back="administrativo"]'
+        '.miel-panel:not(.hidden) [data-miel-stub-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-veic-back="administrativo"], .miel-panel:not(.hidden) [data-miel-rel-cli-back="administrativo"]'
       )
       .first();
     if (await back.count()) {
@@ -464,6 +464,36 @@ async function testEtapa4(page) {
   record("regressão: etapa 2 após etapa 4", p2.title === "Administrativo" && p2.banner);
 }
 
+async function testEtapa5(page) {
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('[data-miel-admin-action="Relação de Clientes"]').first().click();
+  await page.waitForTimeout(400);
+  const s = await page.evaluate(() => {
+    const panel = document.getElementById("mielPanelRelacaoClientes");
+    return {
+      title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+      sheetTitle: panel?.querySelector(".miel-cc__title")?.textContent?.trim() || "",
+      headers: [...(panel?.querySelectorAll(".miel-cc__head th") || [])].map((el) => el.textContent?.trim()),
+      rows: panel?.querySelectorAll(".miel-cc__row").length || 0,
+      panelVisible: !panel?.classList.contains("hidden"),
+    };
+  });
+  record(
+    "etapa 5: Relação de Clientes abre tabela da planilha",
+    s.title === "Relação de Clientes" &&
+      s.sheetTitle === "# Relação de Clientes Cadastrados no Sistema" &&
+      s.panelVisible,
+    s.sheetTitle
+  );
+  record("etapa 5: 11 colunas linha 4 da planilha", s.headers.length === 11 && s.headers[2] === "Cliente");
+  record("etapa 5: clientes da planilha na relação", s.rows >= 300, `rows=${s.rows}`);
+  await page.locator('[data-miel-rel-cli-back="administrativo"]').first().click();
+  await page.waitForTimeout(250);
+  const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
+  record("etapa 5: voltar ao Administrativo", adm === "Administrativo", adm);
+}
+
 async function testRegressaoEtapa1Apos2(page) {
   await page.locator('[data-miel-nav="pagina-inicial"]').first().click();
   await page.waitForTimeout(300);
@@ -491,6 +521,7 @@ export async function runMielEtapasTests(page, maxEtapa = MIEL_ETAPAS_IMPLEMENTA
   }
   if (maxEtapa >= 3) await testEtapa3(page);
   if (maxEtapa >= 4) await testEtapa4(page);
+  if (maxEtapa >= 5) await testEtapa5(page);
   await testNavegacaoSaida(page);
   const failed = results.filter((r) => !r.ok);
   return { ok: failed.length === 0, total: results.length, failed: failed.length, results };
@@ -514,6 +545,13 @@ async function main() {
   try {
     execSync("node scripts/verify-miel-cad-veiculos-planilha.mjs", { cwd: __dirname + "/..", stdio: "inherit" });
     console.log("PASS | conferência planilha vs portal Cadastro de Veículos");
+  } catch {
+    console.error("FAIL | conferência planilha vs portal Cadastro de Veículos — corrigir antes de publicar");
+    process.exit(1);
+  }
+  try {
+    execSync("node scripts/verify-miel-relacao-clientes-planilha.mjs", { cwd: __dirname + "/..", stdio: "inherit" });
+    console.log("PASS | conferência planilha vs portal Relação de Clientes");
   } catch {
     console.error("FAIL | conferência planilha vs portal Cadastro de Veículos — corrigir antes de publicar");
     process.exit(1);
