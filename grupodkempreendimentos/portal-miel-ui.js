@@ -125,10 +125,17 @@
       btn.classList.toggle("miel-nav-btn--active", !meta.fromAdmin && target === sheetId);
     });
 
+    const PRESERVE_HTML = new Set(["pagina-inicial"]);
     if (INIT_HOOKS[sheetId] && typeof window[INIT_HOOKS[sheetId]] === "function") {
       window[INIT_HOOKS[sheetId]]();
-    } else if (typeof window.__DK_mielInitGenericSheet === "function") {
+    } else if (!PRESERVE_HTML.has(sheetId) && typeof window.__DK_mielInitGenericSheet === "function") {
       window.__DK_mielInitGenericSheet(sheetId, meta.label);
+    } else if (sheetId === "pagina-inicial") {
+      const panel = root.querySelector('[data-miel-panel="pagina-inicial"]');
+      if (panel && !panel.querySelector(".miel-pagina-inicial__hero")) {
+        panel.innerHTML =
+          '<img class="miel-pagina-inicial__hero" src="/images/dk-locadora-logo.png" alt="DK Locadora" decoding="async">';
+      }
     }
 
     ensurePanel(sheetId);
