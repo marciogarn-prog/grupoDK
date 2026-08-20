@@ -3,7 +3,7 @@
  * Etapa 01: Página_Inicial
  * Etapa 02: Administrativo
  * Etapa 03: Cadastro de Clientes
- * Etapa 04: Cadastro de Veículos (próxima)
+ * Etapa 04: Cadastro de Veículos
  */
 (function portalMielUi() {
   const root = document.getElementById("view-miel");
@@ -35,11 +35,12 @@
     procedimentos: "procedimentos",
   };
 
-  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo", "cad-clientes"]);
+  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo", "cad-clientes", "cad-veiculos"]);
 
   const INIT_HOOKS = {
     administrativo: "__DK_mielInitAdministrativo",
     "cad-clientes": "__DK_mielInitCadClientes",
+    "cad-veiculos": "__DK_mielInitCadVeiculos",
   };
 
   const dateEl = document.getElementById("mielAppDataLocal");

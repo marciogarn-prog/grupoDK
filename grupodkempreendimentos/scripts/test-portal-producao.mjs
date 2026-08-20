@@ -133,6 +133,13 @@ async function runSuite() {
       IS_DEMO_TEST ? "demo" : "html"
     );
     record(
+      "Sistema MIEL etapa 4 Cadastro Veículos no HTML",
+      html.includes("portal-miel-cad-veiculos.js") &&
+        html.includes("mielPanelCadVeiculos") &&
+        html.includes('data-miel-panel="cad-veiculos"'),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "Sistema MIEL permissão colaborador no HTML",
       html.includes("portalColabAceSistemaMiel") && html.includes("Acesso ao sistema MIEL"),
       IS_DEMO_TEST ? "demo" : "html"
@@ -214,6 +221,23 @@ async function runSuite() {
           cadState.nome &&
           cadState.panelVisible,
         cadState.title
+      );
+
+      await page.locator('[data-miel-admin-action="Cadastro de Veículos"]').first().click().catch(() => null);
+      await page.waitForTimeout(500);
+      const veicState = await page.evaluate(() => ({
+        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+        banner: (document.querySelector(".miel-cad__banner")?.textContent || "").trim(),
+        placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
+        panelVisible: !document.getElementById("mielPanelCadVeiculos")?.classList.contains("hidden"),
+      }));
+      record(
+        "demo: MIEL etapa 4 Cadastro Veículos",
+        veicState.title === "Cadastro de Veículos" &&
+          veicState.banner === "CADASTRO DE VEÍCULOS" &&
+          veicState.placa &&
+          veicState.panelVisible,
+        veicState.title
       );
 
       await page.locator("#view-miel [data-inicio]").first().click().catch(() => null);
