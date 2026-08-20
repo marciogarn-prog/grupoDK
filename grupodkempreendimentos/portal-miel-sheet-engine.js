@@ -92,6 +92,13 @@
       return y + off / EMU_PER_PX;
     }
     return drawings
+      .filter((d) => {
+        if (d.image) return true;
+        if (d.href) return true;
+        const n = String(d.name || "");
+        if (/^Retângulo|^Retangulo|^Agrupar|^Group/i.test(n)) return false;
+        return Boolean(n);
+      })
       .map((d, idx) => {
         const left = Math.round(xAt(d.fromCol, d.fromColOff || 0));
         const top = Math.round(yAt(d.fromRow, d.fromRowOff || 0));
@@ -100,7 +107,10 @@
         const w = Math.max(18, right - left);
         const h = Math.max(18, bottom - top);
         const img = d.image ? `<img src="data/miel/media/${esc(d.image)}" alt="${esc(d.name || "comando")}" />` : esc(d.name || "");
-        return `<button type="button" class="miel-sheet__shape" data-miel-xl-link="${esc(d.href || "")}" data-miel-shape="${esc(d.name || String(idx))}" style="left:${left}px;top:${top}px;width:${w}px;height:${h}px" title="${esc(d.href || d.name || "")}">${img}</button>`;
+        const tag = d.href ? "button" : "div";
+        const typeAttr = d.href ? `type="button"` : "";
+        const linkAttr = d.href ? `data-miel-xl-link="${esc(d.href)}" data-miel-admin-action="${esc(d.name || "")}"` : "";
+        return `<${tag} ${typeAttr} class="miel-sheet__shape${d.image ? " miel-sheet__shape--img" : ""}" ${linkAttr} data-miel-shape="${esc(d.name || String(idx))}" style="left:${left}px;top:${top}px;width:${w}px;height:${h}px" title="${esc(d.href || d.name || "")}">${img}</${tag}>`;
       })
       .join("");
   }
