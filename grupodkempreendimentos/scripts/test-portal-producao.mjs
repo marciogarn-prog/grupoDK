@@ -126,6 +126,13 @@ async function runSuite() {
       IS_DEMO_TEST ? "demo" : "html"
     );
     record(
+      "Sistema MIEL etapa 3 Cadastro Clientes no HTML",
+      html.includes("portal-miel-cad-clientes.js") &&
+        html.includes("mielPanelCadClientes") &&
+        html.includes('data-miel-panel="cad-clientes"'),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "secção comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
@@ -176,6 +183,23 @@ async function runSuite() {
           admState.sideBtns >= 10 &&
           admState.panelVisible,
         `btns=${admState.sideBtns}`
+      );
+
+      await page.locator('[data-miel-admin-action="Cadastro de Clientes"]').first().click().catch(() => null);
+      await page.waitForTimeout(500);
+      const cadState = await page.evaluate(() => ({
+        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+        banner: Boolean(document.querySelector(".miel-cad__banner")),
+        nome: Boolean(document.getElementById("mielCadCliente_nome")),
+        panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
+      }));
+      record(
+        "demo: MIEL etapa 3 Cadastro Clientes",
+        cadState.title === "Cadastro de Clientes" &&
+          cadState.banner &&
+          cadState.nome &&
+          cadState.panelVisible,
+        cadState.title
       );
 
       await page.locator("#view-miel [data-inicio]").first().click().catch(() => null);

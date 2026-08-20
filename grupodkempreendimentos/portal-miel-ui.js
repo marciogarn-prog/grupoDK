@@ -1,7 +1,9 @@
 /**
  * Sistema MIEL — UI isolada (réplica planilha Excel).
- * Etapa 01/84: Página_Inicial
- * Etapa 02/84: Administrativo
+ * Etapa 01: Página_Inicial
+ * Etapa 02: Administrativo
+ * Etapa 03: Cadastro de Clientes
+ * Etapa 04: Cadastro de Veículos (próxima)
  */
 (function portalMielUi() {
   const root = document.getElementById("view-miel");
@@ -33,7 +35,12 @@
     procedimentos: "procedimentos",
   };
 
-  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo"]);
+  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo", "cad-clientes"]);
+
+  const INIT_HOOKS = {
+    administrativo: "__DK_mielInitAdministrativo",
+    "cad-clientes": "__DK_mielInitCadClientes",
+  };
 
   const dateEl = document.getElementById("mielAppDataLocal");
   const titleEl = document.getElementById("mielMainTitle");
@@ -101,8 +108,8 @@
       btn.classList.toggle("miel-nav-btn--active", !meta.fromAdmin && target === sheetId);
     });
 
-    if (sheetId === "administrativo" && typeof window.__DK_mielInitAdministrativo === "function") {
-      window.__DK_mielInitAdministrativo();
+    if (INIT_HOOKS[sheetId] && typeof window[INIT_HOOKS[sheetId]] === "function") {
+      window[INIT_HOOKS[sheetId]]();
     }
 
     ensurePanel(sheetId);
@@ -118,7 +125,7 @@
 
   function openDestino(id, label, piece) {
     dynamicMeta.set(id, { id, label, piece, fromAdmin: true });
-    fillStub(id, dynamicMeta.get(id));
+    if (!IMPLEMENTED.has(id)) fillStub(id, dynamicMeta.get(id));
     showSheet(id);
   }
 
@@ -142,7 +149,7 @@
     showSheet("pagina-inicial");
   };
   window.__DK_mielPieceCount = 84;
-  window.__DK_mielEtapasImplementadas = 2;
+  window.__DK_mielEtapasImplementadas = 3;
   window.__DK_mielSheets = MIEL_SHEETS;
   window.__DK_mielShowSheet = showSheet;
   window.__DK_mielOpenDestino = openDestino;

@@ -12,11 +12,11 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendi
   "/"
 );
 /** Etapas implementadas — incrementar a cada nova peça. */
-export const MIEL_ETAPAS_IMPLEMENTADAS = 2;
+export const MIEL_ETAPAS_IMPLEMENTADAS = 3;
 
 /** Destinos esperados dos 16 botões laterais do Administrativo. */
 const ADMIN_SIDE_EXPECTED = [
-  { btn: "Cadastro de Clientes", title: "Cadastro de Clientes", panel: "cad-clientes" },
+  { btn: "Cadastro de Clientes", title: "Cadastro de Clientes", panel: "cad-clientes", implemented: true },
   { btn: "Cadastro de Veículos", title: "Cadastro de Veículos", panel: "cad-veiculos" },
   { btn: "Consulta de Clientes", title: "Consulta de Clientes", panel: "consulta-clientes" },
   { btn: "Consulta de Veículos", title: "Consulta de Veículos", panel: "consulta-veiculos" },
@@ -125,19 +125,30 @@ async function testEtapa2(page) {
   for (const exp of ADMIN_SIDE_EXPECTED) {
     await page.locator(`[data-miel-admin-action="${exp.btn}"]`).first().click();
     await page.waitForTimeout(250);
-    const sub = await page.evaluate((panelId) => {
-      const panel = document.querySelector(`[data-miel-panel="${panelId}"]`);
-      return {
-        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        stub: Boolean(panel && !panel.classList.contains("hidden")),
-      };
-    }, exp.panel);
+    const sub = await page.evaluate(
+      ({ panelId, implemented }) => {
+        const panel = document.querySelector(`[data-miel-panel="${panelId}"]`);
+        const visible = Boolean(panel && !panel.classList.contains("hidden"));
+        const contentOk = implemented
+          ? Boolean(panel?.querySelector(".miel-cad__banner"))
+          : Boolean(panel?.querySelector(".miel-panel-placeholder"));
+        return {
+          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+          ok: visible && contentOk,
+        };
+      },
+      { panelId: exp.panel, implemented: Boolean(exp.implemented) }
+    );
     record(
       `etapa 2: lateral «${exp.btn.slice(0, 28)}…» → destino`,
-      sub.title === exp.title && sub.stub,
+      sub.title === exp.title && sub.ok,
       `title=${sub.title}`
     );
-    const back = page.locator('.miel-panel:not(.hidden) [data-miel-stub-back="administrativo"]').first();
+    const back = page
+      .locator(
+        '.miel-panel:not(.hidden) [data-miel-stub-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-back="administrativo"]'
+      )
+      .first();
     if (await back.count()) {
       await back.click();
       await page.waitForTimeout(250);
@@ -154,6 +165,76 @@ async function testEtapa2(page) {
   await page.waitForTimeout(200);
   const searchVal = await page.locator("#mielAdminBuscaCliente").inputValue();
   record("etapa 2: campo pesquisa funcional", searchVal === "TERIVALDO");
+}
+
+async function testEtapa3(page) {
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('[data-miel-admin-action="Cadastro de Clientes"]').first().click();
+  await page.waitForTimeout(400);
+
+  const s = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    banner: Boolean(document.querySelector(".miel-cad__banner")),
+    busca: Boolean(document.getElementById("mielCadClienteBusca")),
+    nome: Boolean(document.getElementById("mielCadCliente_nome")),
+    cpf: Boolean(document.getElementById("mielCadCliente_cpfCnpj")),
+    codigo: Boolean(document.getElementById("mielCadCliente_codigo")),
+    panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
+    actions: document.querySelectorAll("[data-miel-cad-action]").length,
+  }));
+
+  record(
+    "etapa 3: Cadastro de Clientes abre formulário",
+    s.title === "Cadastro de Clientes" && s.banner && s.busca && s.nome && s.cpf && s.panelVisible,
+    `actions=${s.actions}`
+  );
+  record("etapa 3: campos principais presentes", s.codigo && s.actions >= 3);
+
+  await page.locator("#mielCadCliente_codigo").fill("CLIENTE TESTE 01");
+  await page.locator("#mielCadCliente_nome").fill("TERIVALDO MIEL TESTE");
+  await page.locator("#mielCadCliente_cpfCnpj").fill("123.456.789-00");
+  await page.locator('[data-miel-cad-action="guardar"]').first().click();
+  await page.waitForTimeout(300);
+
+  const saved = await page.evaluate(() => {
+    const fb = document.getElementById("mielCadClienteFeedback")?.textContent || "";
+    let count = 0;
+    try {
+      count = JSON.parse(localStorage.getItem("dk_miel_clientes_v1") || "[]").length;
+    } catch {
+      /* ignore */
+    }
+    return { fb, count };
+  });
+  record("etapa 3: guardar cliente no MIEL", saved.fb.includes("TERIVALDO") && saved.count >= 1, saved.fb);
+
+  await page.locator("#mielCadClienteBusca").fill("TERIVALDO");
+  await page.locator("#mielCadClienteBusca").dispatchEvent("change");
+  await page.waitForTimeout(250);
+  const loaded = await page.locator("#mielCadCliente_nome").inputValue();
+  record("etapa 3: pesquisa carrega cliente", loaded === "TERIVALDO MIEL TESTE", loaded);
+
+  await page.locator('[data-miel-cad-back="administrativo"]').first().click();
+  await page.waitForTimeout(250);
+  const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
+  record("etapa 3: voltar ao Administrativo", adm === "Administrativo", adm);
+
+  await page.locator('[data-miel-nav="pagina-inicial"]').first().click();
+  await page.waitForTimeout(200);
+  const p1 = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    hero: Boolean(document.querySelector(".miel-pagina-inicial__hero")),
+  }));
+  record("regressão: etapa 1 após etapa 3", p1.title === "Página Inicial" && p1.hero);
+
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
+  await page.waitForTimeout(200);
+  const p2 = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    banner: Boolean(document.querySelector(".miel-admin-table__banner")),
+  }));
+  record("regressão: etapa 2 após etapa 3", p2.title === "Administrativo" && p2.banner);
 }
 
 async function testRegressaoEtapa1Apos2(page) {
@@ -179,8 +260,9 @@ export async function runMielEtapasTests(page, maxEtapa = MIEL_ETAPAS_IMPLEMENTA
   if (maxEtapa >= 1) await testEtapa1(page);
   if (maxEtapa >= 2) {
     await testEtapa2(page);
-    await testRegressaoEtapa1Apos2(page);
+    if (maxEtapa < 3) await testRegressaoEtapa1Apos2(page);
   }
+  if (maxEtapa >= 3) await testEtapa3(page);
   await testNavegacaoSaida(page);
   const failed = results.filter((r) => !r.ok);
   return { ok: failed.length === 0, total: results.length, failed: failed.length, results };
