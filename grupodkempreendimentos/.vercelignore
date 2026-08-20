@@ -1,7 +1,8 @@
-# PDFs locais de referência não sobem; o modelo DETRAN do pacote de contrato sobe.
+# PDFs locais de referência não sobem; modelos oficiais do pacote de contrato sobem.
 *.pdf
 !modelos/
 !modelos/requerimento-padrao-detran.pdf
+!modelos/promessa-compra-venda.pdf
 *.xlsx
 *.xlsm
 *.docx
