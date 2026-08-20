@@ -25,7 +25,6 @@
     { a: "Planejamento", d: "Acomp. de CRLVs Anuais dos Veículos", t: null },
     { a: null, d: null, t: null },
     { a: "Documentos Gerais", d: null, t: null },
-    { a: null, d: null, t: null },
     { a: "Procedimentos", d: null, t: null },
   ];
 

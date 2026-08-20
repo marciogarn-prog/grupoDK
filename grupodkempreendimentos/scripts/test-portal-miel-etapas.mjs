@@ -1,12 +1,15 @@
 /**
  * Testes cumulativos Sistema MIEL — etapa N valida etapas 1..N.
+ * Antes dos testes E2E: conferência automática com a planilha (verify-miel-admin-planilha.mjs).
  * node grupodkempreendimentos/scripts/test-portal-miel-etapas.mjs
  */
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendimentos.com.br/").replace(
   /\/?$/,
   "/"
@@ -297,6 +300,15 @@ async function testEtapa2(page) {
   record("etapa 2: coluna A «DASHBOARD» abre Dashboard", dash === "Dashboard", dash);
   await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(200);
+
+  await page.locator('[data-miel-admin-action="Procedimentos"]').first().click();
+  await page.waitForTimeout(250);
+  const proc = await page.evaluate(
+    () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
+  );
+  record("etapa 2: coluna A «Procedimentos» abre Procedimentos", proc === "Procedimentos", proc);
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
+  await page.waitForTimeout(200);
 }
 
 async function testEtapa3(page) {
@@ -401,6 +413,14 @@ export async function runMielEtapasTests(page, maxEtapa = MIEL_ETAPAS_IMPLEMENTA
 }
 
 async function main() {
+  try {
+    execSync("node scripts/verify-miel-admin-planilha.mjs", { cwd: __dirname + "/..", stdio: "inherit" });
+    console.log("PASS | conferência planilha vs portal Administrativo");
+  } catch {
+    console.error("FAIL | conferência planilha vs portal Administrativo — corrigir antes de publicar");
+    process.exit(1);
+  }
+
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   try {
