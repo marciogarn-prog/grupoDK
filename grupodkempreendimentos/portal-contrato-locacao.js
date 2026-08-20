@@ -1016,7 +1016,10 @@ ${scriptPreviewInline(dados)}
   }
 
   async function salvarPdfBlobNoDeposito(meta, recebido, opts = {}) {
-    const protocolo = normProtocolo(meta?.protocolo || String(meta?.nomeArquivo || "").replace(/\.pdf$/i, ""));
+    const kitAnexo = Boolean(opts.kitAnexo || (meta?.kitTipo && meta.kitTipo !== "contrato"));
+    const protocolo = normProtocolo(
+      meta?.protocolo || String(meta?.nomeArquivo || "").replace(/\.pdf$/i, "").split("-")[0]
+    );
     const normalizar =
       typeof window.__DK_documentosNormalizarBlob === "function" ? window.__DK_documentosNormalizarBlob : null;
     let blob = normalizar ? await normalizar(recebido, "application/pdf") : null;
@@ -1038,22 +1041,27 @@ ${scriptPreviewInline(dados)}
 
     const statusLocacao = String(meta.statusLocacao || "ATIVO");
     const fim = String(meta.fim || "");
-    const statusContrato = "ativo";
-    const existente = obterContratoDeposito(protocolo);
-    if (existente && !opts.substituirConfirmado) {
-      return {
-        ok: false,
-        needConfirm: true,
-        msg: "ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS",
-        existente: {
-          id: existente.id,
-          nomeArquivo: existente.nomeArquivo,
-          criadoEm: existente.criadoEm,
-          contratoDados: existente.contratoDados || null,
-        },
-      };
+    let existente = null;
+    if (!kitAnexo) {
+      existente = obterContratoDeposito(protocolo);
+      if (existente && !opts.substituirConfirmado) {
+        return {
+          ok: false,
+          needConfirm: true,
+          msg: "ESTE ARQUIVO JÁ EXISTE NA PASTA DOCUMENTOS",
+          existente: {
+            id: existente.id,
+            nomeArquivo: existente.nomeArquivo,
+            criadoEm: existente.criadoEm,
+            contratoDados: existente.contratoDados || null,
+          },
+        };
+      }
     }
-    const nomeArquivo = nomeArquivoContrato(protocolo);
+    const nomeArquivo = kitAnexo
+      ? String(meta.nomeArquivo || `${protocolo}-${meta.kitTipo || "anexo"}.pdf`).trim()
+      : nomeArquivoContrato(protocolo);
+    const chaveDep = kitAnexo ? String(nomeArquivo).replace(/\.pdf$/i, "") : protocolo;
     const contratoDados =
       meta.contratoDados && typeof meta.contratoDados === "object"
         ? meta.contratoDados
@@ -1078,19 +1086,21 @@ ${scriptPreviewInline(dados)}
       blob,
       {
         nomeArquivo,
-        chave: protocolo,
+        chave: chaveDep,
         mimeType: "application/pdf",
         origem: "contrato-locacao",
         contratoDados,
+        kitTipo: meta.kitTipo || (kitAnexo ? "anexo" : "contrato"),
+        protocoloBase: protocolo,
       },
-      { statusContrato: "ativo", silent: true }
+      { statusContrato: "ativo", silent: true, kitAnexo, replaceChave: kitAnexo }
     );
 
     if (!dep?.ok) {
       return { ok: false, msg: dep?.msg || "Não foi possível guardar na pasta Contratos ATIVOS." };
     }
 
-    if (dep?.ok && dep.entry?.nuvem !== true) {
+    if (dep?.ok && dep.entry?.nuvem !== true && !kitAnexo) {
       await sincronizarPastaContratoLocacao(protocolo, statusLocacao, { fim, silent: true });
     }
 
@@ -1109,6 +1119,13 @@ ${scriptPreviewInline(dados)}
   function abrirPreviewContrato(dados) {
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
     const dadosFinal = garantirDadosContratoComEndereco(dados);
+    if (typeof window.__DK_contratoPacoteAbrir === "function") {
+      const ok = window.__DK_contratoPacoteAbrir(dadosFinal);
+      if (ok && msgEl) {
+        msgEl.textContent = `Pacote ${dadosFinal.protocolo} — 4 documentos preenchidos (contrato, opção, promessa e requerimento). Gere os PDFs na janela.`;
+      }
+      return ok;
+    }
     const html = buildContratoPreviewHtml(dadosFinal);
     const popup = window.open("", "_blank", "width=920,height=1000");
     if (!popup) {
@@ -1244,6 +1261,8 @@ ${scriptPreviewInline(dados)}
   window.__DK_resolverEnderecoClienteContrato = resolverEnderecoContrato;
   window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
   window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
+  window.__DK_contratoLocacaoBuildPaginasKit = buildPaginasHtml;
+  window.__DK_contratoLocacaoSnapshotDados = snapshotContratoDados;
   window.__DK_contratoLocacaoPdfMaxBytes = PDF_LOCACAO_MAX_BYTES;
   window.__DK_contratoLocacaoSalvarPdfBlob = salvarPdfBlobNoDeposito;
   window.__DK_contratoLocacaoExisteParaProtocolo = contratoExisteParaProtocolo;
