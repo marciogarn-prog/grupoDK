@@ -924,6 +924,8 @@
   /** Mapa `acessos` para colaborador operacional (fallback se registo antigo não tiver objeto). */
   function getPortalOperacaoAcessosEfetivos(f) {
     if (!f) return null;
+    const mielAdmin =
+      onlyDigits(String(f.cpf || "")).slice(0, 11) === DK_LOCADORA_ADMIN_CPF;
     if (String(f.role || "").trim() === "owner") {
       return typeof buildFullOperacaoAccess === "function"
         ? {
@@ -936,7 +938,7 @@
             comunicacaoVendas: true,
             comunicacaoManutencao: true,
             funcionario: true,
-            sistemaMiel: true,
+            sistemaMiel: mielAdmin,
           }
         : {
             cliente: true,
@@ -950,7 +952,7 @@
             comunicacaoManutencao: true,
             lancamentoDespesa: true,
             funcionario: true,
-            sistemaMiel: true,
+            sistemaMiel: mielAdmin,
           };
     }
     if (String(f.role || "").trim() !== "operacao") return null;
@@ -981,14 +983,14 @@
     }
   }
 
-  /** MIEL só para administrador titular ou colaborador com permissão explícita. Clientes nunca. */
+  /** MIEL: só o administrador CPF 03037897430 ou colaborador com permissão explícita. */
   function portalPodeAcessarSistemaMiel() {
     const s = portalLerSessaoPortal();
     if (!s || s.tipo === "cliente") return false;
     if (s.tipo !== "admin") return false;
-    const role = String(s.role || "").trim();
     const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
-    if (role === "owner" || cpf === DK_LOCADORA_ADMIN_CPF) return true;
+    if (cpf === DK_LOCADORA_ADMIN_CPF) return true;
+    const role = String(s.role || "").trim();
     if (role !== "operacao") return false;
     const f = getPortalSessaoEquipaFuncionario();
     if (!f || f.blocked) return false;
@@ -1393,7 +1395,9 @@
       refreshPortalMielHomeAcesso();
       showView("home");
       setPortalHash("");
-      window.alert("O Sistema MIEL só pode ser acedido por funcionário cadastrado com a permissão «Acesso ao sistema MIEL». Clientes não têm acesso.");
+      window.alert(
+        "O Sistema MIEL só pode ser acedido pelo administrador CPF 030.378.974-30 ou por funcionário cadastrado com a permissão «Acesso ao sistema MIEL». Clientes não têm acesso."
+      );
       return;
     }
     currentUnit = "miel";

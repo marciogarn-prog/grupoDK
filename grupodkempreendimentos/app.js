@@ -1444,7 +1444,7 @@ function buildFullOperacaoAccess() {
     comunicacaoManutencao: false,
     lancamentoDespesa: false,
     funcionario: false,
-    sistemaMiel: true,
+    sistemaMiel: false,
   };
 }
 
