@@ -367,12 +367,148 @@
   max-width: 280px;
 }
 
-/* --- Etapa 03: Cadastro de Clientes --- */
+/* --- Etapa 03: Cadastro de Clientes (réplica planilha Cad_Clientes) --- */
 .miel-cad-clientes {
-  padding: 0.35rem 0.5rem 1rem;
+  padding: 0;
   background: #fff;
 }
 
+.miel-cc__layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 220px);
+  gap: 0.35rem;
+  align-items: start;
+}
+
+.miel-cc__title {
+  margin: 0 0 0.35rem;
+  padding: 0.25rem 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #375623;
+  background: #f2f2f2;
+  border-bottom: 2px solid #548235;
+}
+
+.miel-cc__stats {
+  display: grid;
+  grid-template-columns: 1.1fr 0.5fr 1.4fr;
+  gap: 0.35rem;
+  background: #f2f2f2;
+  border: 1px solid #bfbfbf;
+  padding: 0.35rem 0.45rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+}
+
+.miel-cc__stats-subtitle {
+  font-weight: 700;
+  color: #375623;
+  margin: 0.2rem 0;
+}
+
+.miel-cc__stats-line,
+.miel-cc__stats-label {
+  color: #333;
+  line-height: 1.35;
+}
+
+.miel-cc__stats-label--green {
+  color: #548235;
+  font-weight: 700;
+}
+
+.miel-cc__stats-kpi {
+  line-height: 1.45;
+  color: #222;
+}
+
+.miel-cc__stats-kpi strong {
+  color: #c00000;
+}
+
+.miel-cc__table-wrap {
+  overflow: auto;
+  border: 1px solid #808080;
+  max-height: min(62vh, 520px);
+}
+
+.miel-cc__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.miel-cc__head th {
+  background: #fff;
+  color: #676666;
+  font-weight: 700;
+  border: 1px solid #bfbfbf;
+  padding: 0.28rem 0.35rem;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.miel-cc__row td {
+  border: 1px solid #d9d9d9;
+  padding: 0.18rem 0.3rem;
+  vertical-align: middle;
+}
+
+.miel-cc__row--alt td {
+  background: #e2efda;
+}
+
+.miel-cc__row--alert td {
+  background: #ffff00;
+}
+
+.miel-cc__cell--cod {
+  color: #c00000;
+  font-weight: 700;
+}
+
+.miel-cc__cell--nome {
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.miel-cc__cell--ear-nao {
+  background: #d9d9d9 !important;
+  color: #c00000;
+  font-weight: 700;
+}
+
+.miel-cc__cell--ear-sim {
+  font-weight: 700;
+}
+
+.miel-cc__cell--end {
+  text-transform: uppercase;
+  max-width: 220px;
+  white-space: normal;
+}
+
+.miel-cc__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-top: 0.15rem;
+}
+
+@media (max-width: 900px) {
+  .miel-cc__layout {
+    grid-template-columns: 1fr;
+  }
+
+  .miel-cc__stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Legado: cadastro veículos ainda usa .miel-cad__* */
 .miel-cad__layout {
   display: grid;
   grid-template-columns: 1fr minmax(180px, 220px);

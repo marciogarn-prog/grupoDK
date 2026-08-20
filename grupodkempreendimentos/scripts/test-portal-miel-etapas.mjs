@@ -267,7 +267,7 @@ async function testEtapa2(page) {
         const panel = document.querySelector(`[data-miel-panel="${panelId}"]`);
         const visible = Boolean(panel && !panel.classList.contains("hidden"));
         const contentOk = implemented
-          ? Boolean(panel?.querySelector(".miel-cad__banner"))
+          ? Boolean(panel?.querySelector(".miel-cc__table, .miel-cad__banner"))
           : Boolean(panel?.querySelector(".miel-panel-placeholder"));
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
@@ -325,45 +325,34 @@ async function testEtapa3(page) {
 
   const s = await page.evaluate(() => ({
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    banner: Boolean(document.querySelector(".miel-cad__banner")),
-    busca: Boolean(document.getElementById("mielCadClienteBusca")),
-    nome: Boolean(document.getElementById("mielCadCliente_nome")),
-    cpf: Boolean(document.getElementById("mielCadCliente_cpfCnpj")),
-    codigo: Boolean(document.getElementById("mielCadCliente_codigo")),
+    sheetTitle: document.querySelector(".miel-cc__title")?.textContent?.trim() || "",
+    stats: Boolean(document.querySelector(".miel-cc__stats")),
+    table: Boolean(document.querySelector(".miel-cc__table")),
+    headers: [...document.querySelectorAll(".miel-cc__head th")].map((el) => el.textContent?.trim()),
+    rows: document.querySelectorAll(".miel-cc__row").length,
     panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
-    actions: document.querySelectorAll("[data-miel-cad-action]").length,
+    sideBtns: document.querySelectorAll("[data-miel-cad-side]").length,
+    noWebForm: !document.getElementById("mielCadCliente_nome"),
+    headerCount: (window.__DK_mielCadClientesHeaders || []).length,
   }));
 
   record(
-    "etapa 3: Cadastro de Clientes abre formulário",
-    s.title === "Cadastro de Clientes" && s.banner && s.busca && s.nome && s.cpf && s.panelVisible,
-    `actions=${s.actions}`
+    "etapa 3: Cad_Clientes abre tabela da planilha",
+    s.title === "Cadastro de Clientes" &&
+      s.sheetTitle === "# Cadastro de Clientes" &&
+      s.stats &&
+      s.table &&
+      s.panelVisible &&
+      s.noWebForm,
+    `rows=${s.rows}`
   );
-  record("etapa 3: campos principais presentes", s.codigo && s.actions >= 3);
-
-  await page.locator("#mielCadCliente_codigo").fill("CLIENTE TESTE 01");
-  await page.locator("#mielCadCliente_nome").fill("TERIVALDO MIEL TESTE");
-  await page.locator("#mielCadCliente_cpfCnpj").fill("123.456.789-00");
-  await page.locator('[data-miel-cad-action="guardar"]').first().click();
-  await page.waitForTimeout(300);
-
-  const saved = await page.evaluate(() => {
-    const fb = document.getElementById("mielCadClienteFeedback")?.textContent || "";
-    let count = 0;
-    try {
-      count = JSON.parse(localStorage.getItem("dk_miel_clientes_v1") || "[]").length;
-    } catch {
-      /* ignore */
-    }
-    return { fb, count };
-  });
-  record("etapa 3: guardar cliente no MIEL", saved.fb.includes("TERIVALDO") && saved.count >= 1, saved.fb);
-
-  await page.locator("#mielCadClienteBusca").fill("TERIVALDO");
-  await page.locator("#mielCadClienteBusca").dispatchEvent("change");
-  await page.waitForTimeout(250);
-  const loaded = await page.locator("#mielCadCliente_nome").inputValue();
-  record("etapa 3: pesquisa carrega cliente", loaded === "TERIVALDO MIEL TESTE", loaded);
+  record(
+    "etapa 3: 17 colunas linha 11 da planilha",
+    s.headerCount === 17 && s.headers.length === 17 && s.headers[5] === "Cliente",
+    s.headers.slice(0, 4).join("|")
+  );
+  record("etapa 3: painel estatístico + botões laterais", s.stats && s.sideBtns >= 2);
+  record("etapa 3: tabela com dados iniciais", s.rows >= 3, `rows=${s.rows}`);
 
   await page.locator('[data-miel-cad-back="administrativo"]').first().click();
   await page.waitForTimeout(250);
@@ -516,6 +505,13 @@ async function main() {
     console.log("PASS | conferência planilha vs portal Administrativo");
   } catch {
     console.error("FAIL | conferência planilha vs portal Administrativo — corrigir antes de publicar");
+    process.exit(1);
+  }
+  try {
+    execSync("node scripts/verify-miel-cad-clientes-planilha.mjs", { cwd: __dirname + "/..", stdio: "inherit" });
+    console.log("PASS | conferência planilha vs portal Cadastro de Clientes");
+  } catch {
+    console.error("FAIL | conferência planilha vs portal Cadastro de Clientes — corrigir antes de publicar");
     process.exit(1);
   }
   try {
