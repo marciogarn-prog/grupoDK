@@ -1,16 +1,16 @@
 /**
  * Sistema MIEL — UI isolada (réplica planilha Excel).
- * Peça 1/84: Página_Inicial
+ * Etapa 01/84: Página_Inicial
+ * Etapa 02/84: Administrativo
  */
 (function portalMielUi() {
   const root = document.getElementById("view-miel");
   if (!root) return;
 
-  /** Mapa das 84 abas — ordem da planilha miel-sistema.xlsm */
   const MIEL_SHEETS = [
-    { id: "dashboard", label: "Dashboard", piece: 2 },
     { id: "pagina-inicial", label: "Página Inicial", piece: 1 },
-    { id: "administrativo", label: "Administrativo", piece: 3 },
+    { id: "administrativo", label: "Administrativo", piece: 2 },
+    { id: "dashboard", label: "Dashboard", piece: 3 },
     { id: "financeiro", label: "Financeiro", piece: 4 },
     { id: "depto-pessoal", label: "Depto Pessoal", piece: 5 },
     { id: "locacao-veiculos", label: "Ctrl de Locação de Veículos", piece: 6 },
@@ -32,6 +32,8 @@
     planejamento: "planejamento",
     procedimentos: "procedimentos",
   };
+
+  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo"]);
 
   const dateEl = document.getElementById("mielAppDataLocal");
   const titleEl = document.getElementById("mielMainTitle");
@@ -63,6 +65,7 @@
   }
 
   function ensurePanel(sheetId) {
+    if (IMPLEMENTED.has(sheetId)) return root.querySelector(`[data-miel-panel="${sheetId}"]`);
     let panel = root.querySelector(`[data-miel-panel="${CSS.escape(sheetId)}"]`);
     if (!panel && contentEl) {
       panel = document.createElement("div");
@@ -83,13 +86,17 @@
       btn.classList.toggle("miel-nav-btn--active", target === sheetId);
     });
 
+    if (sheetId === "administrativo" && typeof window.__DK_mielInitAdministrativo === "function") {
+      window.__DK_mielInitAdministrativo();
+    }
+
     ensurePanel(sheetId);
     panels().forEach((panel) => {
       const pid = panel.getAttribute("data-miel-panel") || "";
       panel.classList.toggle("hidden", pid !== sheetId);
     });
 
-    if (sheetId !== "pagina-inicial") {
+    if (!IMPLEMENTED.has(sheetId)) {
       const placeholder = root.querySelector(`[data-miel-panel="${sheetId}"]`);
       if (placeholder && placeholder.classList.contains("miel-panel--stub") && !placeholder.dataset.mielFilled) {
         placeholder.dataset.mielFilled = "1";
@@ -119,4 +126,5 @@
   };
   window.__DK_mielPieceCount = 84;
   window.__DK_mielSheets = MIEL_SHEETS;
+  window.__DK_mielShowSheet = showSheet;
 })();
