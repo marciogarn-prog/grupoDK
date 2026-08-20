@@ -244,7 +244,7 @@ function loadDrawings() {
       relMap[a.Id] = { type: a.Type || "", target: a.Target || "" };
     }
   }
-  const mediaOut = path.join(outDir, "media");
+  const mediaOut = path.join(__dirname, "../data/miel/media");
   fs.mkdirSync(mediaOut, { recursive: true });
   const drawings = [];
   for (const m of drawingXml.matchAll(/<xdr:twoCellAnchor[\s\S]*?<\/xdr:twoCellAnchor>/g)) {
