@@ -212,15 +212,17 @@ async function runSuite() {
       await page.waitForTimeout(500);
       const cadState = await page.evaluate(() => ({
         title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        banner: Boolean(document.querySelector(".miel-cad__banner")),
-        nome: Boolean(document.getElementById("mielCadCliente_nome")),
+        sheetTitle: document.querySelector(".miel-cc__title")?.textContent?.trim() || "",
+        table: Boolean(document.querySelector(".miel-cc__table")),
+        headers: document.querySelectorAll(".miel-cc__head th").length,
         panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
       }));
       record(
         "demo: MIEL etapa 3 Cadastro Clientes",
         cadState.title === "Cadastro de Clientes" &&
-          cadState.banner &&
-          cadState.nome &&
+          cadState.sheetTitle === "# Cadastro de Clientes" &&
+          cadState.table &&
+          cadState.headers === 17 &&
           cadState.panelVisible,
         cadState.title
       );
