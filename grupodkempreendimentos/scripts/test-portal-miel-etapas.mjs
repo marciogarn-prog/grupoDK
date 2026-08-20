@@ -231,27 +231,33 @@ async function testEtapa2(page) {
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
     banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim(),
     headers: [...document.querySelectorAll(".miel-admin-grid__headers td")].map((el) => el.textContent?.trim()),
+    gridCols: document.querySelector(".miel-admin-grid")?.classList.contains("miel-admin-grid--2col") ? 2 : 0,
     gridBtns: document.querySelectorAll(".miel-admin-grid__hit").length,
+    formBtns: (window.__DK_mielAdminFormItems || []).length,
+    relBtns: (window.__DK_mielAdminRelItems || []).length,
     panelVisible: !document.getElementById("mielPanelAdministrativo")?.classList.contains("hidden"),
     navActive: document.querySelector('[data-miel-nav="administrativo"]')?.classList.contains("miel-nav-btn--active"),
     cadClientes: Boolean(document.querySelector('[data-miel-admin-action="Cadastro de Clientes"]')),
+    cadVeiculos: Boolean(document.querySelector('[data-miel-admin-action="Cadastro de Veículos"]')),
     relClientes: Boolean(document.querySelector('[data-miel-admin-action="Relação de Clientes"]')),
   }));
 
   record(
     "etapa 2: botão Administrativo abre aba correta",
-    s.title === "Administrativo" && s.banner === "ADMINISTRATIVO" && s.panelVisible && s.navActive,
+    s.title === "Administrativo" && s.banner === "Administrativo" && s.panelVisible && s.navActive,
     `btns=${s.gridBtns}`
   );
   record(
-    "etapa 2: grid 3 colunas (Página Inicial | Formulários | Relatórios)",
-    s.headers.length === 3 &&
-      s.headers[0] === "Página Inicial" &&
-      s.headers[1] === "Formulários" &&
-      s.headers[2] === "Relatórios",
+    "etapa 2: grid 2 colunas (Formulários | Relatórios)",
+    s.headers.length === 2 && s.headers[0] === "Formulários" && s.headers[1] === "Relatórios",
     s.headers.join(" | ")
   );
-  record("etapa 2: itens principais visíveis no grid", s.cadClientes && s.relClientes && s.gridBtns >= 20, `count=${s.gridBtns}`);
+  record(
+    "etapa 2: sem coluna Página Inicial no grid",
+    !s.headers.includes("Página Inicial") && s.gridCols === 2,
+    `cols=${s.gridCols}`
+  );
+  record("etapa 2: itens principais visíveis no grid", s.cadClientes && s.cadVeiculos && s.relClientes && s.gridBtns >= 14, `count=${s.gridBtns} form=${s.formBtns} rel=${s.relBtns}`);
 
   for (const exp of ADMIN_GRID_EXPECTED) {
     await page.locator(`[data-miel-admin-action="${exp.btn}"]`).first().click();
@@ -292,21 +298,21 @@ async function testEtapa2(page) {
     await page.waitForTimeout(200);
   }
 
-  await page.locator('[data-miel-admin-action="DASHBOARD"]').first().click();
+  await page.locator('[data-miel-nav="dashboard"]').first().click();
   await page.waitForTimeout(250);
   const dash = await page.evaluate(
     () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
   );
-  record("etapa 2: coluna A «DASHBOARD» abre Dashboard", dash === "Dashboard", dash);
+  record("etapa 2: menu lateral «DASHBOARD» abre Dashboard", dash === "Dashboard", dash);
   await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(200);
 
-  await page.locator('[data-miel-admin-action="Procedimentos"]').first().click();
+  await page.locator('[data-miel-nav="procedimentos"]').first().click();
   await page.waitForTimeout(250);
   const proc = await page.evaluate(
     () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
   );
-  record("etapa 2: coluna A «Procedimentos» abre Procedimentos", proc === "Procedimentos", proc);
+  record("etapa 2: menu lateral «Procedimentos» abre Procedimentos", proc === "Procedimentos", proc);
   await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(200);
 }
@@ -376,7 +382,7 @@ async function testEtapa3(page) {
   await page.waitForTimeout(200);
   const p2 = await page.evaluate(() => ({
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim() === "ADMINISTRATIVO",
+    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim() === "Administrativo",
   }));
   record("regressão: etapa 2 após etapa 3", p2.title === "Administrativo" && p2.banner);
 }
@@ -467,7 +473,7 @@ async function testEtapa4(page) {
   await page.waitForTimeout(200);
   const p2 = await page.evaluate(() => ({
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim() === "ADMINISTRATIVO",
+    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim() === "Administrativo",
   }));
   record("regressão: etapa 2 após etapa 4", p2.title === "Administrativo" && p2.banner);
 }

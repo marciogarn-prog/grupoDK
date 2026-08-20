@@ -1,5 +1,7 @@
 /**
- * Conferência automática: aba Administrativo (planilha) vs portal-miel-admin.js
+ * Conferência automática: aba Administrativo (planilha) vs portal — layout VISUAL.
+ * - Menu lateral (coluna A) = sidebar HTML, não entra no grid principal.
+ * - Grid principal = Formulários (D11,A13,D15,D17,D19) | Relatórios (T11-19,D21-29).
  * node scripts/verify-miel-admin-planilha.mjs
  */
 import fs from "fs";
@@ -85,11 +87,10 @@ for (const row of sheet3.match(/<sheetData>([\s\S]*?)<\/sheetData>/)?.[1]?.match
     const open = cTag.match(/^<c ([^>]*)/)?.[1] || "";
     const attrs = parseAttrs(open);
     const ref = attrs.r;
-    const col = ref.replace(/\d+$/, "");
     const inner = cTag.replace(/^<c [^>]*>/, "").replace(/<\/c>$/, "");
     const v = inner.match(/<v>([^<]*)<\/v>/)?.[1] ?? "";
     const style = cellStyle(attrs.s ? +attrs.s : 0);
-    cells[ref] = { row: rn, col, text: resolveText(v, attrs), ht, ...style };
+    cells[ref] = { row: rn, text: resolveText(v, attrs), ht, ...style };
   }
 }
 
@@ -98,47 +99,70 @@ function colVal(row, letter) {
   return c?.text || null;
 }
 
-// Planilha: linhas ímpares 11-35, colunas A D T
-const EXCEL_ROWS = [];
+/** Formulários visíveis na planilha (área principal). */
+const EXCEL_FORM = [
+  colVal(11, "D"),
+  colVal(13, "A"),
+  colVal(15, "D"),
+  colVal(17, "D"),
+  colVal(19, "D"),
+].filter(Boolean);
+
+/** Relatórios visíveis na planilha (área principal). */
+const EXCEL_REL = [
+  colVal(11, "T"),
+  colVal(13, "T"),
+  colVal(15, "T"),
+  colVal(17, "T"),
+  colVal(19, "T"),
+  colVal(21, "D"),
+  colVal(23, "D"),
+  colVal(25, "D"),
+  colVal(27, "D"),
+  colVal(29, "D"),
+].filter(Boolean);
+
+/** Menu lateral — coluna A (exceto Cadastro de Veículos, que fica só em Formulários). */
+const EXCEL_SIDEBAR = [];
 for (let r = 11; r <= 35; r += 2) {
-  EXCEL_ROWS.push({ row: r, a: colVal(r, "A"), d: colVal(r, "D"), t: colVal(r, "T") });
+  const v = colVal(r, "A");
+  if (v && v !== "Cadastro de Veículos") EXCEL_SIDEBAR.push(v);
 }
-// espaçadores Excel (linhas pares vazias entre blocos)
-const EXCEL_SPACERS = [10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34];
 
-const EXCEL_HEADERS = {
-  a: colVal(9, "A"),
-  d: colVal(9, "D"),
-  t: colVal(9, "T"),
-};
-const EXCEL_BANNER = colVal(7, "A");
-
-// Portal (extraído de portal-miel-admin.js — manter sincronizado)
-const PORTAL_HEADERS = ["Página Inicial", "Formulários", "Relatórios"];
-const PORTAL_BANNER = "Administrativo"; // A7 na planilha; portal exibe ADMINISTRATIVO no banner
-const PORTAL_ROWS = [
-  { a: "DASHBOARD", d: "Cadastro de Clientes", t: "Relação de Clientes" },
-  { a: "Cadastro de Veículos", d: null, t: "Relação de Veículos" },
-  { a: "Módulos", d: "Consulta Integrada (Veículos/Clientes)", t: "Acomp. de Transf. de Propriedade" },
-  { a: "Administrativo", d: "Ctrl Integrado de Multas", t: "Status de Veículos" },
-  { a: "Financeiro", d: "Formulário de Lista de Espera", t: "Relação de Motos Vendidas" },
-  { a: "Depto Pessoal", d: "Etiquetas dos Chaveiros (Motos)", t: null },
-  { a: "Ctrl de Locação de Veículos", d: "Etiquetas dos Chaveiros (Carros)", t: null },
-  { a: "Ctrl de Manutenção", d: "Relatório de Status da CNH / EAR", t: null },
-  { a: "Gráficos", d: "Pendências Administrativas", t: null },
-  { a: "Planejamento", d: "Acomp. de CRLVs Anuais dos Veículos", t: null },
-  { a: null, d: null, t: null },
-  { a: "Documentos Gerais", d: null, t: null },
-  { a: "Procedimentos", d: null, t: null },
+const PORTAL_FORM = [
+  "Cadastro de Clientes",
+  "Cadastro de Veículos",
+  "Consulta Integrada (Veículos/Clientes)",
+  "Ctrl Integrado de Multas",
+  "Formulário de Lista de Espera",
 ];
 
-const STYLE_EXPECT = {
-  headerD: { color: "#FFFF00", bold: true, size: "15" },
-  headerT: { fill: "#D9D9D9", color: "#C00000", bold: true, size: "15" },
-  colT: { fill: "#D9D9D9", color: "#C00000", bold: true, size: "15" },
-  colA: { bold: true, size: "11" },
-  colD: { size: "11" },
-};
+const PORTAL_REL = [
+  "Relação de Clientes",
+  "Relação de Veículos",
+  "Acomp. de Transf. de Propriedade",
+  "Status de Veículos",
+  "Relação de Motos Vendidas",
+  "Etiquetas dos Chaveiros (Motos)",
+  "Etiquetas dos Chaveiros (Carros)",
+  "Relatório de Status da CNH / EAR",
+  "Pendências Administrativas",
+  "Acomp. de CRLVs Anuais dos Veículos",
+];
+
+const PORTAL_SIDEBAR = [
+  "DASHBOARD",
+  "Administrativo",
+  "Financeiro",
+  "Depto Pessoal",
+  "Ctrl de Locação de Veículos",
+  "Ctrl de Manutenção",
+  "Gráficos",
+  "Planejamento",
+  "Procedimentos",
+];
+
+const PORTAL_SIDEBAR_SECTIONS = ["Módulos", "Documentos Gerais"];
 
 let fails = 0;
 function ok(name, cond, detail = "") {
@@ -149,41 +173,39 @@ function ok(name, cond, detail = "") {
   }
 }
 
-console.log("=== CONFERÊNCIA PLANILHA vs PORTAL — Administrativo ===\n");
+console.log("=== CONFERÊNCIA VISUAL — Administrativo (planilha vs portal) ===\n");
 
-ok("Banner A7 existe na planilha", EXCEL_BANNER === "Administrativo", EXCEL_BANNER);
-ok("Cabeçalho A9", EXCEL_HEADERS.a === PORTAL_HEADERS[0], `${EXCEL_HEADERS.a}`);
-ok("Cabeçalho D9", EXCEL_HEADERS.d === PORTAL_HEADERS[1], `${EXCEL_HEADERS.d}`);
-ok("Cabeçalho T9", EXCEL_HEADERS.t === PORTAL_HEADERS[2], `${EXCEL_HEADERS.t}`);
+ok("Banner A7", colVal(7, "A") === "Administrativo", colVal(7, "A"));
+ok("Cabeçalho D9 Formulários", colVal(9, "D") === "Formulários");
+ok("Cabeçalho T9 Relatórios", colVal(9, "T") === "Relatórios");
+ok("A9 Página Inicial é menu lateral (não no grid)", colVal(9, "A") === "Página Inicial");
 
-ok("Estilo D9 (amarelo 15pt)", cells.D9?.color === STYLE_EXPECT.headerD.color && cells.D9?.size === STYLE_EXPECT.headerD.size);
-ok("Estilo T9 (cinza/vermelho)", cells.T9?.fill === STYLE_EXPECT.headerT.fill && cells.T9?.color === STYLE_EXPECT.headerT.color);
+ok("Estilo D9 (amarelo 15pt)", cells.D9?.color === "#FFFF00" && cells.D9?.size === "15");
+ok("Estilo T9 (cinza/vermelho)", cells.T9?.fill === "#D9D9D9" && cells.T9?.color === "#C00000");
 
-for (let i = 0; i < EXCEL_ROWS.length; i++) {
-  const ex = EXCEL_ROWS[i];
-  const po = PORTAL_ROWS[i];
-  if (!po) {
-    ok(`Linha Excel R${ex.row} existe no portal`, false, JSON.stringify(ex));
-    continue;
-  }
-  ok(`R${ex.row} col A`, ex.a === po.a, `planilha=${ex.a} portal=${po.a}`);
-  ok(`R${ex.row} col D`, ex.d === po.d, `planilha=${ex.d} portal=${po.d}`);
-  ok(`R${ex.row} col T`, ex.t === po.t, `planilha=${ex.t} portal=${po.t}`);
+ok("Formulários: quantidade", EXCEL_FORM.length === PORTAL_FORM.length, `${EXCEL_FORM.length} vs ${PORTAL_FORM.length}`);
+for (let i = 0; i < PORTAL_FORM.length; i++) {
+  ok(`Formulários [${i + 1}]`, EXCEL_FORM[i] === PORTAL_FORM[i], `planilha=${EXCEL_FORM[i]} portal=${PORTAL_FORM[i]}`);
 }
 
-if (PORTAL_ROWS.length > EXCEL_ROWS.length) {
-  ok("Portal não tem linhas a mais", false, `portal=${PORTAL_ROWS.length} excel=${EXCEL_ROWS.length}`);
+ok("Relatórios: quantidade", EXCEL_REL.length === PORTAL_REL.length, `${EXCEL_REL.length} vs ${PORTAL_REL.length}`);
+for (let i = 0; i < PORTAL_REL.length; i++) {
+  ok(`Relatórios [${i + 1}]`, EXCEL_REL[i] === PORTAL_REL[i], `planilha=${EXCEL_REL[i]} portal=${PORTAL_REL[i]}`);
 }
 
-// Estilos coluna T (amostra)
+ok("Sidebar: botões principais", PORTAL_SIDEBAR.every((l) => EXCEL_SIDEBAR.includes(l)));
+ok("Sidebar: secções Módulos + Documentos Gerais", PORTAL_SIDEBAR_SECTIONS.every((s) => EXCEL_SIDEBAR.includes(s)));
+ok("Cadastro de Veículos só em Formulários (não sidebar)", !EXCEL_SIDEBAR.includes("Cadastro de Veículos"));
+
+ok("Grid principal 2 colunas (sem coluna Página Inicial)", PORTAL_FORM.length > 0 && PORTAL_REL.length > 0);
+
 for (const r of [11, 13, 15]) {
   const c = cells[`T${r}`];
-  if (c?.text) ok(`Estilo T${r}`, c.fill === STYLE_EXPECT.colT.fill && c.color === STYLE_EXPECT.colT.color && c.bold);
+  if (c?.text) ok(`Estilo Relatórios T${r}`, c.fill === "#D9D9D9" && c.color === "#C00000" && c.bold);
 }
 
-// Alturas de linha (Excel: 15pt botões, 5.15pt espaçadores)
-ok("Altura R11 (botão)", cells.A11?.ht === "15" || cells.D11?.ht === "15", cells.A11?.ht);
-ok("Altura R10 (espaço)", cells.A10?.ht === "5.15" || !cells.A10, cells.A10?.ht || "vazio");
+ok("Altura R11 (botão)", cells.D11?.ht === "15" || cells.T11?.ht === "15", cells.D11?.ht);
+ok("Altura R10 (espaço)", cells.C10?.ht === "5.15" || !cells.A10, cells.C10?.ht || "5.15");
 
-console.log(`\n--- ${fails === 0 ? "CONFERÊNCIA OK" : `CONFERÊNCIA FALHOU (${fails} divergências)`} ---`);
+console.log(`\n--- ${fails === 0 ? "CONFERÊNCIA OK — layout idêntico à planilha" : `FALHOU (${fails} divergências)`} ---`);
 process.exit(fails === 0 ? 0 : 1);

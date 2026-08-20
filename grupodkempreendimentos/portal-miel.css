@@ -202,7 +202,7 @@
   font-size: 0.85rem;
 }
 
-/* --- Etapa 02: Administrativo (grid 3 colunas — planilha) --- */
+/* --- Etapa 02: Administrativo (grid 2 colunas — Formulários | Relatórios) --- */
 .miel-admin {
   padding: 0;
   background: #fff;
@@ -210,13 +210,20 @@
 
 .miel-admin-grid {
   width: 100%;
+  max-width: 920px;
   border-collapse: collapse;
   table-layout: fixed;
   font-size: 11px;
 }
 
+.miel-admin-grid--2col .miel-admin-grid__head,
+.miel-admin-grid--2col .miel-admin-grid__btn--form,
+.miel-admin-grid--2col .miel-admin-grid__btn--rel {
+  width: 50%;
+}
+
 .miel-admin-grid td {
-  border: 1px solid #b4b4b4;
+  border: 1px solid #808080;
   padding: 0;
   vertical-align: middle;
   text-align: center;
@@ -224,11 +231,10 @@
 
 .miel-admin-grid__banner td {
   background: #d4d0c8;
-  color: #c00000;
-  font-weight: 800;
+  color: #000;
+  font-weight: 700;
   font-size: 15px;
-  letter-spacing: 0.08em;
-  padding: 0.4rem 0.5rem;
+  padding: 0.45rem 0.5rem;
   border-color: #808080;
 }
 
@@ -272,35 +278,40 @@
   border-color: #b4b4b4;
 }
 
+.miel-admin-grid__gap--rel {
+  background: #d9d9d9;
+}
+
 .miel-admin-grid__btn {
   padding: 0;
-  background: #fff;
+  background: #d4d0c8;
 }
 
-.miel-admin-grid__btn--col-a {
-  background: #fff;
+.miel-admin-grid__btn--form {
+  background: #d4d0c8;
 }
 
-.miel-admin-grid__btn--col-a .miel-admin-grid__hit {
-  color: #676666;
-  font-weight: 700;
-  font-size: 11px;
-}
-
-.miel-admin-grid__btn--col-d .miel-admin-grid__hit {
+.miel-admin-grid__btn--form .miel-admin-grid__hit,
+.miel-admin-grid__btn--form.miel-admin-grid__btn--static span {
   color: #000;
   font-weight: 400;
   font-size: 11px;
 }
 
-.miel-admin-grid__btn--col-t {
+.miel-admin-grid__btn--rel {
   background: #d9d9d9;
 }
 
-.miel-admin-grid__btn--col-t .miel-admin-grid__hit {
+.miel-admin-grid__btn--rel .miel-admin-grid__hit,
+.miel-admin-grid__btn--rel.miel-admin-grid__btn--static span {
   color: #c00000;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 11px;
+}
+
+.miel-admin-grid__btn--disabled span {
+  color: #808080;
+  font-weight: 400;
 }
 
 .miel-admin-grid__hit {
@@ -309,45 +320,45 @@
   width: 100%;
   box-sizing: border-box;
   margin: 0;
-  padding: 0.38rem 0.35rem;
-  border: none;
-  background: transparent;
+  padding: 0.42rem 0.35rem;
+  border: 1px solid;
+  border-color: #fff #404040 #404040 #fff;
+  background: linear-gradient(180deg, #ece9d8 0%, #d4d0c8 45%, #c0bdb5 100%);
   font: inherit;
   text-align: center;
   line-height: 1.25;
   cursor: pointer;
 }
 
-.miel-admin-grid__btn--col-a .miel-admin-grid__hit:hover {
-  background: linear-gradient(180deg, #f5f3ea 0%, #dedad2 100%);
-  border: 1px solid;
-  border-color: #fff #404040 #404040 #fff;
-}
-
-.miel-admin-grid__btn--col-d .miel-admin-grid__hit:hover {
-  background: #f2f2f2;
-}
-
-.miel-admin-grid__btn--col-t .miel-admin-grid__hit:hover {
-  background: #ececec;
+.miel-admin-grid__btn--rel .miel-admin-grid__hit {
+  background: linear-gradient(180deg, #e8e8e8 0%, #d9d9d9 45%, #c8c8c8 100%);
 }
 
 .miel-admin-grid__btn--static span {
   display: block;
-  padding: 0.38rem 0.35rem;
+  padding: 0.42rem 0.35rem;
+  border: 1px solid;
+  border-color: #fff #404040 #404040 #fff;
+  background: linear-gradient(180deg, #ece9d8 0%, #d4d0c8 45%, #c0bdb5 100%);
+}
+
+.miel-admin-grid__btn--rel.miel-admin-grid__btn--static span {
+  background: linear-gradient(180deg, #e8e8e8 0%, #d9d9d9 45%, #c8c8c8 100%);
+}
+
+.miel-admin-grid__hit:hover {
+  filter: brightness(1.04);
 }
 
 .miel-admin-grid__hit:active {
+  border-color: #404040 #fff #fff #404040;
   transform: translate(1px, 1px);
 }
 
 @media (max-width: 900px) {
   .miel-admin-grid {
     font-size: 10px;
-  }
-
-  .miel-admin-grid__btn--col-t .miel-admin-grid__hit {
-    font-size: 12px;
+    max-width: 100%;
   }
 }
 
