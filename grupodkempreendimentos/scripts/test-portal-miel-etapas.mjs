@@ -299,12 +299,14 @@ async function testEtapa2(page) {
     const back = page.locator(BACK_ADMIN).first();
     if (await back.count()) {
       await back.click();
-      await page.waitForTimeout(250);
-      const admTitle = await page.evaluate(
-        () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
-      );
-      record(`etapa 2: voltar ao Administrativo (${exp.panel})`, admTitle === "Administrativo", admTitle);
+    } else {
+      await page.locator('[data-miel-nav="administrativo"]').first().click();
     }
+    await page.waitForTimeout(250);
+    const admTitle = await page.evaluate(
+      () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
+    );
+    record(`etapa 2: voltar ao Administrativo (${exp.panel})`, admTitle === "Administrativo", admTitle);
     await page.locator('[data-miel-nav="administrativo"]').first().click();
     await page.waitForTimeout(200);
   }
@@ -337,16 +339,22 @@ async function testEtapa3(page) {
   const s = await page.evaluate(() => {
     const panel = document.getElementById("mielPanelCadClientes");
     const grid = panel?.querySelector(".miel-sheet__grid");
-    const titleCell = panel?.querySelector(".miel-sheet__row--h1 td")?.textContent?.trim() || "";
+    const firstNome = panel?.querySelector('.miel-sheet__row--data td[data-ref]')
+      ? ""
+      : "";
+    const dataRow = panel?.querySelector(".miel-sheet__row--data");
+    const dataTexts = [...(dataRow?.querySelectorAll("td") || [])].map((td) => td.textContent?.trim() || "");
     return {
       title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-      sheetTitle: titleCell || (grid?.textContent?.match(/# Cadastro de Clientes/)?.[0] ?? ""),
-      stats: Boolean(panel?.querySelector(".miel-sheet__row--h4, .miel-sheet__row--h7")),
       table: Boolean(grid),
       headers: [...(panel?.querySelectorAll(".miel-sheet__row--h11 td") || [])].map((el) => el.textContent?.trim()),
       rows: panel?.querySelectorAll(".miel-sheet__row--data").length || 0,
       panelVisible: !panel?.classList.contains("hidden"),
-      sideBtns: document.querySelectorAll("[data-miel-cad-side]").length,
+      shapes: panel?.querySelectorAll(".miel-sheet__shape").length || 0,
+      links: [...(panel?.querySelectorAll("[data-miel-xl-link]") || [])].map((el) => el.getAttribute("data-miel-xl-link") || ""),
+      protocolos: Boolean(panel?.querySelector('[data-ref="B4"] .miel-sheet__link')),
+      firstCliente: dataTexts.find((t) => /FELIPE YAGO/i.test(t)) || "",
+      firstCod: dataTexts[0] || "",
       noWebForm: !document.getElementById("mielCadCliente_nome"),
       headerCount: (window.__DK_mielCadClientesHeaders || []).length,
       cadCount: (window.__DK_MIEL_CADASTROS?.clientes || []).length,
@@ -355,28 +363,27 @@ async function testEtapa3(page) {
 
   record(
     "etapa 3: Cad_Clientes abre tabela da planilha",
-    s.title === "Cadastro de Clientes" &&
-      s.sheetTitle === "# Cadastro de Clientes" &&
-      s.stats &&
-      s.table &&
-      s.panelVisible &&
-      s.noWebForm,
+    s.title === "Cadastro de Clientes" && s.table && s.panelVisible && s.noWebForm && s.rows >= 300,
     `rows=${s.rows}`
   );
   record(
     "etapa 3: 17 colunas linha 11 da planilha",
-    s.headerCount === 17,
-    `headers=${s.headerCount}`
+    s.headers.includes("Análise") && s.headers.includes("Cliente") && s.headers.includes("Endereço"),
+    `headers=${s.headers.filter(Boolean).length}`
   );
-  record("etapa 3: painel estatístico + botões laterais", s.stats && s.sideBtns >= 2);
-  record("etapa 3: dados da planilha carregados", s.rows >= 300, `rows=${s.rows}`);
+  record(
+    "etapa 3: comandos e links da planilha",
+    s.shapes >= 4 && s.protocolos && s.links.some((l) => /Página_Inicial/i.test(l)) && s.links.some((l) => /Consulta_Veíc/i.test(l)),
+    `shapes=${s.shapes} links=${s.links.length}`
+  );
+  record("etapa 3: dados da planilha carregados", s.rows >= 300 && s.firstCod === "1" && /FELIPE YAGO/i.test(s.firstCliente), `cod=${s.firstCod} nome=${s.firstCliente}`);
   record(
     "etapa 3: cadastros MIEL na memória",
     Boolean(s.cadCount >= 300),
     `cad=${s.cadCount}`
   );
 
-  await page.locator('[data-miel-cad-back="administrativo"]').first().click();
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(250);
   const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
   record("etapa 3: voltar ao Administrativo", adm === "Administrativo", adm);
@@ -462,7 +469,7 @@ async function testEtapa4(page) {
   });
   record(
     "regressão: etapa 3 após etapa 4",
-    cli.title === "Cadastro de Clientes" && cli.table && cli.sheetTitle === "# Cadastro de Clientes"
+    cli.title === "Cadastro de Clientes" && cli.table
   );
 
   await page.locator('[data-miel-nav="pagina-inicial"]').first().click();

@@ -1,6 +1,6 @@
 /**
  * Sistema MIEL — Cadastro de Clientes (aba Cad_Clientes).
- * Renderização célula-a-célula via portal-miel-sheet-engine.js + layout exportado da planilha.
+ * Célula-a-célula + comandos/links da planilha (hyperlinks e imagens).
  */
 (function portalMielCadClientes() {
   const PANEL_ID = "mielPanelCadClientes";
@@ -8,7 +8,7 @@
 
   const FIELD_BY_COL = {
     A: "cod",
-    B: "cod",
+    B: "codB",
     C: "analise",
     D: "statusProtocolo",
     E: "dataCadastro",
@@ -25,11 +25,6 @@
     P: "cep",
     Q: "municipioUf",
     R: "endereco",
-  };
-
-  const SIDE_TARGETS = {
-    "# Consulta de Clientes": { id: "consulta-clientes", label: "Consulta de Clientes", piece: 11 },
-    "# Cadastro de Veículos": { id: "cad-veiculos", label: "Cadastro de Veículos", piece: 13 },
   };
 
   let rows = [];
@@ -83,7 +78,7 @@
     return { total, byCity, ativosCompra, ativosMt, ativosCr, cnhAlerta, inativos };
   }
 
-  function patchHeaderCell(cell, rowNum) {
+  function patchHeaderCell(cell) {
     const st = stats();
     const ref = cell.ref || "";
     const patches = {
@@ -98,10 +93,7 @@
       O8: { text: String(st.cnhAlerta) },
       O9: { text: String(st.inativos) },
     };
-    if (patches[ref]) return patches[ref];
-    if (ref === "J4" && !cell.text) return { text: "Quantidade de Clientes Cadastrados  >>" };
-    if (ref === "B4" && !cell.text) return { text: "Distribuição de Clientes" };
-    return null;
+    return patches[ref] || null;
   }
 
   function rowToCells(record) {
@@ -109,7 +101,7 @@
     Object.entries(FIELD_BY_COL).forEach(([col, key]) => {
       let val = record[key] ?? "";
       if (key === "dataCadastro" || key === "vencimento") val = fmtDate(val) || val;
-      if (key === "cod") val = record.cod || record.codigo || val;
+      if (col === "A") val = record.cod || record.sheetRow - 11;
       out[col] = val;
     });
     return out;
@@ -123,17 +115,9 @@
       return;
     }
 
-    const sideHtml = Object.entries(SIDE_TARGETS)
-      .map(
-        ([label, t]) =>
-          `<button type="button" class="miel-admin-side-btn" data-miel-cad-side="${t.id}" data-miel-cad-side-label="${label.replace(/^#\s*/, "")}" data-miel-cad-side-piece="${t.piece}">${label}</button>`
-      )
-      .join("");
-
     const sheetHtml = eng.renderSheet(lay, {
-      patchHeaderCell(cell, rowNum) {
-        const p = patchHeaderCell(cell, rowNum);
-        return p || undefined;
+      patchHeaderCell(cell) {
+        return patchHeaderCell(cell) || undefined;
       },
       dataRows() {
         return rows.map((r) => rowToCells(r));
@@ -150,24 +134,15 @@
 
     container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
       <div class="miel-cc__main">${sheetHtml}</div>
-      <aside class="miel-cc__side" aria-label="Atalhos cadastro cliente">
-        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-cad-back="administrativo">← Voltar ao Administrativo</button>
-        ${sideHtml}
-      </aside>
     </div>`;
   }
 
   function bindPanel(container) {
-    container.querySelector('[data-miel-cad-back="administrativo"]')?.addEventListener("click", () => {
-      if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
-    });
-    container.querySelectorAll("[data-miel-cad-side]").forEach((btn) => {
+    container.querySelectorAll("[data-miel-xl-link]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-miel-cad-side") || "";
-        const label = btn.getAttribute("data-miel-cad-side-label") || id;
-        const piece = btn.getAttribute("data-miel-cad-side-piece") || "?";
-        if (typeof window.__DK_mielOpenDestino === "function") {
-          window.__DK_mielOpenDestino(id, label, piece);
+        const loc = btn.getAttribute("data-miel-xl-link") || "";
+        if (typeof window.__DK_mielOpenExcelLocation === "function") {
+          window.__DK_mielOpenExcelLocation(loc);
         }
       });
     });

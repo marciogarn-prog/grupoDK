@@ -2,6 +2,8 @@
  * Motor de renderização MIEL — grelha Excel célula-a-célula (layout exportado da planilha).
  */
 (function mielSheetEngine() {
+  const EMU_PER_PX = 9525;
+
   function numToCol(n) {
     let s = "";
     while (n > 0) {
@@ -20,9 +22,24 @@
       .replace(/"/g, "&quot;");
   }
 
-  function excelWidthPx(w) {
+  function excelWidthPx(w, hidden) {
+    if (hidden) return 0;
     if (!w || w <= 0) return 8;
     return Math.max(8, Math.round(w * 7 + 5));
+  }
+
+  function colPxList(layout) {
+    const hidden = layout.colHidden || [];
+    return (layout.colWidths || []).map((w, i) => excelWidthPx(w, hidden[i]));
+  }
+
+  function totalWidthPx(layout) {
+    return colPxList(layout).reduce((sum, w) => sum + w, 0);
+  }
+
+  function rowHeightPx(row) {
+    const ht = row?.height || 15;
+    return Math.round((ht * 96) / 72);
   }
 
   function cellStyleCss(cell) {
@@ -42,26 +59,52 @@
     if (cell.rowspan > 1) attrs.push(`rowspan="${cell.rowspan}"`);
     if (cell.ref) attrs.push(`data-ref="${cell.ref}"`);
     if (cs) attrs.push(`style="${cs}"`);
-    return `<td ${attrs.join(" ")}>${esc(cell.text)}</td>`;
+    let inner = esc(cell.text);
+    if (cell.href) {
+      inner = `<button type="button" class="miel-sheet__link" data-miel-xl-link="${esc(cell.href)}">${inner}</button>`;
+    }
+    return `<td ${attrs.join(" ")}>${inner}</td>`;
   }
 
-  function totalWidthPx(colWidths) {
-    return (colWidths || []).reduce((sum, w) => sum + excelWidthPx(w), 0);
-  }
-
-  function renderColgroup(colWidths) {
-    return `<colgroup>${colWidths
-      .map((w) => {
-        const px = excelWidthPx(w);
-        return `<col style="width:${px}px" />`;
-      })
+  function renderColgroup(layout) {
+    return `<colgroup>${colPxList(layout)
+      .map((px) => `<col style="width:${px}px" />`)
       .join("")}</colgroup>`;
+  }
+
+  function renderDrawings(layout) {
+    const drawings = layout.drawings || [];
+    if (!drawings.length) return "";
+    const colPx = colPxList(layout);
+    const rowPx = (layout.rows || []).map((row) => rowHeightPx(row));
+    function xAt(col, off) {
+      let x = 0;
+      for (let i = 0; i < col && i < colPx.length; i++) x += colPx[i];
+      return x + off / EMU_PER_PX;
+    }
+    function yAt(row, off) {
+      let y = 0;
+      for (let i = 0; i < row && i < rowPx.length; i++) y += rowPx[i];
+      return y + off / EMU_PER_PX;
+    }
+    return drawings
+      .map((d, idx) => {
+        const left = Math.round(xAt(d.fromCol, d.fromColOff || 0));
+        const top = Math.round(yAt(d.fromRow, d.fromRowOff || 0));
+        const right = Math.round(xAt(d.toCol, d.toColOff || 0));
+        const bottom = Math.round(yAt(d.toRow, d.toRowOff || 0));
+        const w = Math.max(18, right - left);
+        const h = Math.max(18, bottom - top);
+        const img = d.image ? `<img src="data/miel/media/${esc(d.image)}" alt="${esc(d.name || "comando")}" />` : esc(d.name || "");
+        return `<button type="button" class="miel-sheet__shape" data-miel-xl-link="${esc(d.href || "")}" data-miel-shape="${esc(d.name || String(idx))}" style="left:${left}px;top:${top}px;width:${w}px;height:${h}px" title="${esc(d.href || d.name || "")}">${img}</button>`;
+      })
+      .join("");
   }
 
   function renderSheet(layout, opts = {}) {
     const { dataRows, patchHeaderCell, cellStyleFn } = opts;
     const zoom = layout.zoom ? layout.zoom / 100 : 1;
-    const tableW = totalWidthPx(layout.colWidths);
+    const tableW = totalWidthPx(layout);
 
     const headerHtml = layout.rows
       .map((row) => {
@@ -108,11 +151,12 @@
     return `<div class="miel-sheet-wrap" style="width:${scaledW}px;max-width:100%">
       <div class="miel-sheet" style="transform:scale(${zoom});transform-origin:top left;width:${tableW}px">
         <div class="miel-sheet__scroll">
-          <table class="${gridClass}" style="width:${tableW}px">${renderColgroup(layout.colWidths)}<thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>
+          <table class="${gridClass}" style="width:${tableW}px">${renderColgroup(layout)}<thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>
+          ${renderDrawings(layout)}
         </div>
       </div>
     </div>`;
   }
 
-  window.__DK_mielSheetEngine = { renderSheet, esc, excelWidthPx, numToCol, totalWidthPx };
+  window.__DK_mielSheetEngine = { renderSheet, esc, excelWidthPx, numToCol, totalWidthPx, colPxList };
 })();

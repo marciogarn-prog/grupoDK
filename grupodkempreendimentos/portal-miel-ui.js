@@ -146,6 +146,37 @@
     showSheet(id);
   }
 
+  const EXCEL_SHEET_TO_ID = {
+    Página_Inicial: "pagina-inicial",
+    Administrativo: "administrativo",
+    Dashboard: "dashboard",
+    Financeiro: "financeiro",
+    Dpto_Pessoal: "depto-pessoal",
+    "Locação_de_Veículos": "locacao-veiculos",
+    Ctrl_de_Manutenção: "ctrl-manutencao",
+    Gráficos: "graficos",
+    Planejamento: "planejamento",
+    Procedimentos: "procedimentos",
+    Consulta_Veíc_ou_Cliente: "consulta-integrada",
+    Cad_Clientes: "cad-clientes",
+    "Cad_Clientes_(Loc.)": "cad-clientes",
+    Cad_Veículos: "cad-veiculos",
+    "Cad_Veículos_(Loc.)": "cad-veiculos",
+    Relação_Clientes: "relacao-clientes",
+    Relação_Veículos: "relacao-veiculos",
+    Status_Veículos: "status-veiculos",
+    Emissão_de_Protocolos: "emissao-protocolos",
+    "Termo_de_Subst._Provisória": "termo-subst-provisoria",
+  };
+
+  function openExcelLocation(location) {
+    const raw = String(location || "").replace(/^#/, "").trim();
+    const sheet = raw.replace(/^'/, "").replace(/'!.*$/, "").replace(/!.*$/, "").trim();
+    const id = EXCEL_SHEET_TO_ID[sheet] || sheet.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const label = sheet.replace(/_/g, " ");
+    openDestino(id, label, "?");
+  }
+
   function refreshDate() {
     if (dateEl) dateEl.textContent = formatMielDate(new Date());
   }
@@ -170,4 +201,5 @@
   window.__DK_mielSheets = MIEL_SHEETS;
   window.__DK_mielShowSheet = showSheet;
   window.__DK_mielOpenDestino = openDestino;
+  window.__DK_mielOpenExcelLocation = openExcelLocation;
 })();

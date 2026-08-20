@@ -28,10 +28,9 @@ function parseAttrs(tag) {
 
 function resolve(v, attrs) {
   if (v === "" || v == null) return "";
-  if (attrs.t === "s") return strings[+v] ?? v;
-  if (!attrs.t && /^\d+$/.test(String(v)) && strings[+v] && /[A-Za-zÀ-ú]/.test(strings[+v])) {
-    return strings[+v];
-  }
+  if (attrs.t === "s") return strings[+v] ?? "";
+  if (attrs.t === "str") return v;
+  if (attrs.t === "b") return v === "1" || v === "true" ? "TRUE" : "FALSE";
   return v;
 }
 

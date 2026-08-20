@@ -87,10 +87,10 @@ function resolve(v, attrs, inner) {
     const t = inner.match(/<t[^>]*>([\s\S]*?)<\/t>/);
     return t ? t[1] : "";
   }
-  if (!v && v !== 0) return "";
+  if (v === "" || v == null) return "";
   if (attrs.t === "s") return strings[+v] ?? "";
   if (attrs.t === "str") return v;
-  if (/^\d+$/.test(String(v)) && strings[+v]) return strings[+v];
+  if (attrs.t === "b") return v === "1" || v === "true" ? "TRUE" : "FALSE";
   return v;
 }
 
@@ -102,15 +102,27 @@ const freezeCol = pane ? +pane[1] : 0;
 const freezeRow = pane ? +pane[2] : 0;
 
 const colWidths = Array(maxCol).fill(9);
+const colHidden = Array(maxCol).fill(false);
 for (const col of sheetXml.match(/<col [^>]*\/?>/g) || []) {
   const min = +(col.match(/min="(\d+)"/)?.[1] || 0);
   const max = +(col.match(/max="(\d+)"/)?.[1] || min);
   const width = +(col.match(/width="([^"]+)"/)?.[1] || 9);
   const hidden = /hidden="1"/.test(col);
   for (let i = min; i <= max && i <= maxCol; i++) {
-    // Mantém largura real da planilha — hidden="1" no Excel NÃO significa width 0
     colWidths[i - 1] = width;
+    colHidden[i - 1] = hidden;
   }
+}
+
+const hyperlinks = [];
+const hBlock = sheetXml.match(/<hyperlinks>([\s\S]*?)<\/hyperlinks>/)?.[1] || "";
+for (const m of hBlock.matchAll(/<hyperlink ([^>]*)\/?>/g)) {
+  const a = parseAttrs(m[1]);
+  hyperlinks.push({
+    ref: a.ref || "",
+    location: a.location || a.display || "",
+    display: a.display || "",
+  });
 }
 
 const merges = [...(sheetXml.match(/<mergeCells[^>]*>([\s\S]*?)<\/mergeCells>/)?.[1] || "").matchAll(/ref="([^"]+)"/g)].map(
@@ -199,6 +211,72 @@ for (let c = 1; c <= maxCol; c++) {
   if (cell?.text) headerCells.push({ col, ref, text: cell.text });
 }
 
+for (const h of hyperlinks) {
+  const origin = (h.ref || "").split(":")[0];
+  if (!origin) continue;
+  for (const row of rows) {
+    const cell = row.cells.find((c) => c.ref === origin);
+    if (!cell) continue;
+    cell.href = h.location;
+    if (!String(cell.text || "").trim() && h.display) cell.text = h.display;
+  }
+}
+
+function loadDrawings() {
+  const relsFile = path.join(tmp, "xl/worksheets/_rels", `${sheetFile}.rels`);
+  if (!fs.existsSync(relsFile)) return [];
+  const sheetRels = fs.readFileSync(relsFile, "utf8");
+  const drawingTarget = [...sheetRels.matchAll(/Target="([^"]+)"/g)].map((m) => m[1]).find((t) => t.includes("drawings/"));
+  if (!drawingTarget) return [];
+  const drawingPath = path.normalize(path.join(tmp, "xl/worksheets", drawingTarget));
+  if (!fs.existsSync(drawingPath)) return [];
+  const drawingXml = fs.readFileSync(drawingPath, "utf8");
+  const drawingRelsPath = path.join(path.dirname(drawingPath), "_rels", path.basename(drawingPath) + ".rels");
+  const relMap = {};
+  if (fs.existsSync(drawingRelsPath)) {
+    const rxml = fs.readFileSync(drawingRelsPath, "utf8");
+    for (const m of rxml.matchAll(/<Relationship ([^>]*)\/>/g)) {
+      const a = parseAttrs(m[1]);
+      relMap[a.Id] = { type: a.Type || "", target: a.Target || "" };
+    }
+  }
+  const mediaOut = path.join(outDir, "media");
+  fs.mkdirSync(mediaOut, { recursive: true });
+  const drawings = [];
+  for (const m of drawingXml.matchAll(/<xdr:twoCellAnchor[\s\S]*?<\/xdr:twoCellAnchor>/g)) {
+    const block = m[0];
+    const name = block.match(/name="([^"]+)"/)?.[1] || "";
+    const blipId = block.match(/r:embed="(rId\d+)"/)?.[1];
+    const hIds = [...block.matchAll(/r:id="(rId\d+)"/g)].map((x) => x[1]);
+    const hRel = hIds.map((id) => relMap[id]).find((r) => r && /hyperlink/i.test(r.type));
+    const imgRel = blipId ? relMap[blipId] : null;
+    let image = "";
+    if (imgRel?.target) {
+      const src = path.normalize(path.join(path.dirname(drawingPath), imgRel.target));
+      if (fs.existsSync(src)) {
+        image = path.basename(src);
+        fs.copyFileSync(src, path.join(mediaOut, image));
+      }
+    }
+    drawings.push({
+      name,
+      href: (hRel?.target || "").replace(/^#/, ""),
+      image,
+      fromCol: +(block.match(/<xdr:from>[\s\S]*?<xdr:col>(\d+)/)?.[1] || 0),
+      fromColOff: +(block.match(/<xdr:from>[\s\S]*?<xdr:colOff>(\d+)/)?.[1] || 0),
+      fromRow: +(block.match(/<xdr:from>[\s\S]*?<xdr:row>(\d+)/)?.[1] || 0),
+      fromRowOff: +(block.match(/<xdr:from>[\s\S]*?<xdr:rowOff>(\d+)/)?.[1] || 0),
+      toCol: +(block.match(/<xdr:to>[\s\S]*?<xdr:col>(\d+)/)?.[1] || 0),
+      toColOff: +(block.match(/<xdr:to>[\s\S]*?<xdr:colOff>(\d+)/)?.[1] || 0),
+      toRow: +(block.match(/<xdr:to>[\s\S]*?<xdr:row>(\d+)/)?.[1] || 0),
+      toRowOff: +(block.match(/<xdr:to>[\s\S]*?<xdr:rowOff>(\d+)/)?.[1] || 0),
+    });
+  }
+  return drawings;
+}
+
+const drawings = loadDrawings();
+
 const payload = {
   sheetName,
   showGridLines,
@@ -206,16 +284,19 @@ const payload = {
   freezeCol,
   freezeRow,
   colWidths,
+  colHidden,
   rows,
   dataCols,
   dataColLetters: dataCols.map((d) => d.col),
   headerRow,
   templateRow,
   headerCells,
+  hyperlinks,
+  drawings,
 };
 
 const jsonPath = path.join(outDir, `${outBase}.json`);
 fs.writeFileSync(jsonPath, JSON.stringify(payload));
 const jsPath = path.join(outDir, `${outBase}.js`);
 fs.writeFileSync(jsPath, `window.__DK_MIEL_LAYOUT_${outBase.replace(/-/g, "_").toUpperCase()} = ${JSON.stringify(payload)};\n`);
-console.log(`OK ${jsonPath} (${rows.length} rows, ${dataCols.length} data cols)`);
+console.log(`OK ${jsonPath} (${rows.length} rows, ${dataCols.length} data cols, ${drawings.length} drawings, ${hyperlinks.length} links)`);
