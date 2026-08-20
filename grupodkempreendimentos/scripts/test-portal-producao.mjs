@@ -225,12 +225,15 @@ async function runSuite() {
 
       await page.locator('[data-miel-admin-action="Cadastro de Veículos"]').first().click().catch(() => null);
       await page.waitForTimeout(500);
-      const veicState = await page.evaluate(() => ({
-        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        banner: (document.querySelector(".miel-cad__banner")?.textContent || "").trim(),
-        placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
-        panelVisible: !document.getElementById("mielPanelCadVeiculos")?.classList.contains("hidden"),
-      }));
+      const veicState = await page.evaluate(() => {
+        const panel = document.getElementById("mielPanelCadVeiculos");
+        return {
+          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+          banner: (panel?.querySelector(".miel-cad__banner")?.textContent || "").trim(),
+          placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
+          panelVisible: !panel?.classList.contains("hidden"),
+        };
+      });
       record(
         "demo: MIEL etapa 4 Cadastro Veículos",
         veicState.title === "Cadastro de Veículos" &&

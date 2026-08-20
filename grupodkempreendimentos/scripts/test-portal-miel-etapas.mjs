@@ -387,18 +387,22 @@ async function testEtapa4(page) {
   await page.locator('[data-miel-admin-action="Cadastro de Veículos"]').first().click();
   await page.waitForTimeout(400);
 
-  const s = await page.evaluate(() => ({
-    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    bannerText: document.querySelector(".miel-cad__banner")?.textContent?.trim() || "",
-    busca: Boolean(document.getElementById("mielCadVeiculoBusca")),
-    codigo: Boolean(document.getElementById("mielCadVeiculo_codigo")),
-    placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
-    marca: Boolean(document.getElementById("mielCadVeiculo_marca")),
-    panelVisible: !document.getElementById("mielPanelCadVeiculos")?.classList.contains("hidden"),
-    actions: document.querySelectorAll("[data-miel-cad-veic-action]").length,
-    sideBtns: document.querySelectorAll("[data-miel-cad-veic-side]").length,
-    fieldCount: (window.__DK_mielCadVeiculosFields || []).length,
-  }));
+  const s = await page.evaluate(() => {
+    const panel = document.getElementById("mielPanelCadVeiculos");
+    const bannerEl = panel?.querySelector(".miel-cad__banner");
+    return {
+      title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+      bannerText: bannerEl?.textContent?.trim() || "",
+      busca: Boolean(document.getElementById("mielCadVeiculoBusca")),
+      codigo: Boolean(document.getElementById("mielCadVeiculo_codigo")),
+      placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
+      marca: Boolean(document.getElementById("mielCadVeiculo_marca")),
+      panelVisible: !panel?.classList.contains("hidden"),
+      actions: document.querySelectorAll("[data-miel-cad-veic-action]").length,
+      sideBtns: document.querySelectorAll("[data-miel-cad-veic-side]").length,
+      fieldCount: (window.__DK_mielCadVeiculosFields || []).length,
+    };
+  });
 
   record(
     "etapa 4: Cadastro de Veículos abre formulário",
