@@ -267,7 +267,7 @@ async function testEtapa2(page) {
         const panel = document.querySelector(`[data-miel-panel="${panelId}"]`);
         const visible = Boolean(panel && !panel.classList.contains("hidden"));
         const contentOk = implemented
-          ? Boolean(panel?.querySelector(".miel-cc__table, .miel-cad__banner"))
+          ? Boolean(panel?.querySelector(".miel-cc__table, .miel-cad__banner, .miel-cv__title"))
           : Boolean(panel?.querySelector(".miel-panel-placeholder"));
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
@@ -328,7 +328,7 @@ async function testEtapa3(page) {
     sheetTitle: document.querySelector(".miel-cc__title")?.textContent?.trim() || "",
     stats: Boolean(document.querySelector(".miel-cc__stats")),
     table: Boolean(document.querySelector(".miel-cc__table")),
-    headers: [...document.querySelectorAll(".miel-cc__head th")].map((el) => el.textContent?.trim()),
+    headers: [...document.querySelectorAll("#mielPanelCadClientes:not(.hidden) .miel-cc__head th")].map((el) => el.textContent?.trim()),
     rows: document.querySelectorAll(".miel-cc__row").length,
     panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
     sideBtns: document.querySelectorAll("[data-miel-cad-side]").length,
