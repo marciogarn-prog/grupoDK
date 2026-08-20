@@ -1,50 +1,50 @@
 /**
- * Sistema MIEL — Etapa 04: Cadastro de Veículos (aba Cad_Veículos).
- * Réplica visual: painel estatístico + tabela linha 17 (não formulário web).
+ * Sistema MIEL — Cadastro de Veículos (aba Cad_Veículos). Motor célula-a-célula.
  */
 (function portalMielCadVeiculos() {
   const PANEL_ID = "mielPanelCadVeiculos";
+  const LAYOUT_KEY = "__DK_MIEL_LAYOUT_CAD_VEICULOS_LAYOUT";
+
+  const FIELD_BY_COL = {
+    A: "codigo",
+    B: "codigo",
+    C: "dataCadastro",
+    D: "status",
+    E: "observacao",
+    F: "observacao",
+    G: "placa",
+    H: "categoria",
+    I: "marca",
+    J: "modelo",
+    K: "cor",
+    L: "chassi",
+    M: "renavam",
+    N: "anoModelo",
+    O: "numMotor",
+    P: "emplacada",
+    Q: "rastreador",
+    R: "assegurada",
+    S: "proprietario",
+    T: "cnpjCpf",
+    U: "municipioUf",
+    V: "valorAquisicao",
+  };
 
   const SIDE_TARGETS = {
     "# Consulta de Veículos": { id: "consulta-veiculos", label: "Consulta de Veículos", piece: 11 },
     "# Cadastro de Clientes": { id: "cad-clientes", label: "Cadastro de Clientes", piece: 12 },
   };
 
-  const TABLE_COLS = [
-    { key: "codigo", label: "Cód. do Veículo", cls: "miel-cc__cell--cod" },
-    { key: "dataCadastro", label: "Data do Cadastro" },
-    { key: "status", label: "Status" },
-    { key: "observacao", label: "Observação" },
-    { key: "placa", label: "Placa" },
-    { key: "categoria", label: "Categoria" },
-    { key: "marca", label: "Marca" },
-    { key: "modelo", label: "Modelo" },
-    { key: "cor", label: "Cor" },
-    { key: "chassi", label: "Chassi" },
-    { key: "renavam", label: "Renavam" },
-    { key: "anoModelo", label: "Ano/Modelo" },
-    { key: "numMotor", label: "Nº do Motor" },
-    { key: "emplacada", label: "Emplacada?" },
-    { key: "rastreador", label: "Rastreador?" },
-    { key: "assegurada", label: "Assegurada?" },
-    { key: "proprietario", label: "Proprietário" },
-    { key: "cnpjCpf", label: "CNPJ/CPF" },
-    { key: "municipioUf", label: "Município/UF" },
-    { key: "valorAquisicao", label: "Valor de Aquisição" },
-  ];
-
   let rows = [];
 
-  function planilha() {
-    return window.__DK_MIEL_CADASTROS || { veiculos: [], locacoes: [], vinculos: [] };
+  function layout() {
+    return window[LAYOUT_KEY] || null;
   }
-
-  function esc(s) {
-    return String(s ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+  function engine() {
+    return window.__DK_mielSheetEngine || null;
+  }
+  function planilha() {
+    return window.__DK_MIEL_CADASTROS || { veiculos: [], vinculos: [] };
   }
 
   function fmtDate(iso) {
@@ -64,24 +64,7 @@
   }
 
   function loadRows() {
-    const src = planilha().veiculos || [];
-    const locByVeic = new Map();
-    (planilha().vinculos || []).forEach((l) => {
-      if (l.tipo !== "locacao-cliente-veiculo") return;
-      const cur = locByVeic.get(l.veiculoId) || [];
-      cur.push(l);
-      locByVeic.set(l.veiculoId, cur);
-    });
-    rows = src.map((v) => {
-      const links = locByVeic.get(v.id) || [];
-      const ativo = links.find((x) => String(x.status || "").toUpperCase().includes("ATIVO"));
-      const last = ativo || links[links.length - 1];
-      return { ...v, clienteLocatario: last?.clienteNome || "", protocolo: last?.protocolo || "" };
-    });
-  }
-
-  function countStatus(re) {
-    return rows.filter((r) => re.test(String(r.status || "").toUpperCase())).length;
+    rows = (planilha().veiculos || []).map((v) => ({ ...v }));
   }
 
   function countCatStatus(cat, re) {
@@ -103,116 +86,109 @@
       const m = String(r.marca || "").trim().toUpperCase() || "—";
       marcas[m] = (marcas[m] || 0) + 1;
     });
+    const mk = (re) => ({ m: countCatStatus("MOTO", re), c: countCatStatus("CARRO", re) });
     return {
-      total: rows.length,
       motos,
       carros,
       invest,
       investMoto,
       investCarro,
       marcas,
-      locados: { m: countCatStatus("MOTO", /LOCADO/), c: countCatStatus("CARRO", /LOCADO/) },
-      disp: { m: countCatStatus("MOTO", /DISPON/), c: countCatStatus("CARRO", /DISPON/) },
-      manut: { m: countCatStatus("MOTO", /MANUT/), c: countCatStatus("CARRO", /MANUT/) },
-      vend: { m: countCatStatus("MOTO", /VEND/), c: countCatStatus("CARRO", /VEND/) },
-      indis: { m: countCatStatus("MOTO", /INDISP/), c: countCatStatus("CARRO", /INDISP/) },
-      admin: { m: countCatStatus("MOTO", /ADMIN/), c: countCatStatus("CARRO", /ADMIN/) },
-      reserva: { m: countCatStatus("MOTO", /RESERV/), c: countCatStatus("CARRO", /RESERV/) },
-      sini: { m: countCatStatus("MOTO", /SINISTR/), c: countCatStatus("CARRO", /SINISTR/) },
+      locados: mk(/LOCADO/),
+      disp: mk(/DISPON/),
+      manut: mk(/MANUT/),
+      vend: mk(/VEND/),
+      indis: mk(/INDISP/),
+      admin: mk(/ADMIN/),
+      reserva: mk(/RESERV/),
+      sini: mk(/SINISTR/),
     };
   }
 
   function pair(label, o) {
-    return `${label} &gt;&gt; ${o.m}  MOTO(S)  e  ${o.c}  CARRO(S)`;
+    return `${label} >> ${o.m}  MOTO(S)  e  ${o.c}  CARRO(S)`;
   }
 
-  function renderStats(st) {
-    const marcaLines = Object.entries(st.marcas)
-      .sort((a, b) => b[1] - a[1])
-      .map(([m, n]) => `<div>${n}   Veículo(s) ${esc(m)}</div>`)
-      .join("");
-    return `<div class="miel-cc__stats miel-cv__stats" aria-label="Resumo cadastro veículos">
-      <div>
-        <div class="miel-cc__stats-label">Protocolos Emitidos</div>
-        <div class="miel-cc__stats-label miel-cc__stats-label--green">Ctrl de Uso Provisório</div>
-        <div class="miel-cc__stats-subtitle">Veículos Disponíveis</div>
-        ${marcaLines}
-      </div>
-      <div>
-        <div class="miel-cc__stats-kpi">Total Investido &gt;&gt; <strong>${fmtMoney(st.invest)}</strong></div>
-        <div class="miel-cc__stats-kpi">Total Investido (Motos) &gt;&gt; <strong>${fmtMoney(st.investMoto)}</strong></div>
-        <div class="miel-cc__stats-kpi">Total Investido (Carros) &gt;&gt; <strong>${fmtMoney(st.investCarro)}</strong></div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos ADMINISTRATIVOS", st.admin)}</div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos RESERVAS", st.reserva)}</div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos LOCADOS", st.locados)}</div>
-      </div>
-      <div>
-        <div class="miel-cc__stats-kpi">Quantitativo Sintético | Veículos Cadastrados &gt;&gt; <strong>${st.motos} MOTOS</strong> e <strong>${st.carros} CARROS</strong></div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos DISPONÍVEIS", st.disp)}</div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos EM MANUTENÇÃO", st.manut)}</div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos SINISTRADOS", st.sini)}</div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos VENDIDOS", st.vend)}</div>
-        <div class="miel-cc__stats-kpi">${pair("Veículos INDISPONÍVEIS", st.indis)}</div>
-      </div>
-    </div>`;
+  function patchHeaderCell(cell, rowNum) {
+    const st = stats();
+    const ref = cell.ref || "";
+    const patches = {
+      B1: { text: "# Cadastro de Veículos" },
+      H4: { text: fmtMoney(st.invest) },
+      G7: { text: fmtMoney(st.investMoto) },
+      K7: { text: fmtMoney(st.investCarro) },
+      L4: { text: `Quantitativo Sintético  |  Veículos Cadastrados >> ${st.motos} MOTOS  e  ${st.carros} CARROS` },
+      N6: { text: pair("Veículos ADMINISTRATIVOS", st.admin) },
+      N7: { text: pair("Veículos RESERVAS", st.reserva) },
+      N8: { text: pair("Veículos LOCADOS", st.locados) },
+    };
+    if (ref === "A1" && cell.text?.includes("Cadastro")) return { text: "" };
+    if (patches[ref]) return patches[ref];
+    if (ref === "C7" && rowNum === 7) return { text: `${st.marcas.HONDA || 0}   Veículo(s) HONDA` };
+    if (ref === "A8") return { text: `${st.marcas.YAMAHA || 0}   Veículo(s) YAMAHA` };
+    if (ref === "A9") return { text: `${st.marcas.SHINERAY || 0}   Veículo(s) SHINERAY` };
+    return null;
   }
 
-  function renderTableBody() {
-    return rows
-      .map((r, idx) => {
-        const alt = idx % 2 === 1 ? " miel-cc__row--alt" : "";
-        const st = String(r.status || "").toUpperCase();
-        const alert = st.includes("LOCADO") ? " miel-cc__row--alert" : "";
-        const cells = TABLE_COLS.map((col) => {
-          let val = r[col.key] ?? "";
-          if (col.key === "dataCadastro") val = fmtDate(val) || val;
-          if (col.key === "valorAquisicao") val = fmtMoney(val);
-          const extra = col.cls ? ` ${col.cls}` : "";
-          return `<td class="miel-cc__cell${extra}">${esc(val)}</td>`;
-        }).join("");
-        return `<tr class="miel-cc__row${alt}${alert}" data-miel-cv-row="${esc(r.id)}" title="${esc(r.clienteLocatario || "")}">${cells}</tr>`;
-      })
-      .join("");
+  function rowToCells(record) {
+    const out = {};
+    Object.entries(FIELD_BY_COL).forEach(([col, key]) => {
+      let val = record[key] ?? "";
+      if (key === "dataCadastro") val = fmtDate(val) || val;
+      if (key === "valorAquisicao") val = fmtMoney(val);
+      if (key === "codigo") val = record.codigo || record.cod || val;
+      out[col] = val;
+    });
+    return out;
   }
 
   function renderPanel(container) {
-    const st = stats();
-    const headCells = TABLE_COLS.map((c) => `<th scope="col">${esc(c.label)}</th>`).join("");
+    const lay = layout();
+    const eng = engine();
+    if (!lay || !eng) {
+      container.innerHTML = `<p class="miel-cc__err">Layout Cad_Veículos não carregou.</p>`;
+      return;
+    }
     const sideHtml = Object.entries(SIDE_TARGETS)
       .map(
         ([label, t]) =>
-          `<button type="button" class="miel-admin-side-btn" data-miel-cad-veic-side="${esc(t.id)}" data-miel-cad-veic-side-label="${esc(t.label)}" data-miel-cad-veic-side-piece="${t.piece}">${esc(label)}</button>`
+          `<button type="button" class="miel-admin-side-btn" data-miel-cv-side="${t.id}" data-miel-cv-side-label="${label.replace(/^#\s*/, "")}" data-miel-cv-side-piece="${t.piece}">${label}</button>`
       )
       .join("");
-
-    container.innerHTML = `<div class="miel-cc__layout">
-      <div class="miel-cc__main">
-        <h2 class="miel-cc__title miel-cv__title"># Cadastro de Veículos</h2>
-        ${renderStats(st)}
-        <div class="miel-cc__table-wrap">
-          <table class="miel-cc__table" aria-label="Tabela cadastro de veículos">
-            <thead><tr class="miel-cc__head">${headCells}</tr></thead>
-            <tbody id="mielCadVeiculosBody">${renderTableBody()}</tbody>
-          </table>
-        </div>
-      </div>
-      <aside class="miel-cc__side" aria-label="Atalhos cadastro veículo">
-        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-cad-veic-back="administrativo">← Voltar ao Administrativo</button>
+    container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
+      <div class="miel-cc__main">${eng.renderSheet(lay, {
+        patchHeaderCell(cell, rowNum) {
+          const p = patchHeaderCell(cell, rowNum);
+          return p || undefined;
+        },
+        dataRows() {
+          return rows.map((r) => rowToCells(r));
+        },
+        cellStyleFn(col, val) {
+          if (col === "D" && /LOCADO/i.test(String(val))) return { color: "#C00000", bold: true };
+          return null;
+        },
+      })}</div>
+      <aside class="miel-cc__side">
+        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-cv-back="administrativo">← Voltar ao Administrativo</button>
         ${sideHtml}
       </aside>
     </div>`;
   }
 
   function bindPanel(container) {
-    container.querySelector('[data-miel-cad-veic-back="administrativo"]')?.addEventListener("click", () => {
+    container.querySelector("[data-miel-cv-back]")?.addEventListener("click", () => {
       if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
     });
-    container.querySelectorAll("[data-miel-cad-veic-side]").forEach((btn) => {
+    container.querySelectorAll("[data-miel-cv-side]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const id = btn.getAttribute("data-miel-cad-veic-side") || "";
-        const label = btn.getAttribute("data-miel-cad-veic-side-label") || id;
-        const piece = btn.getAttribute("data-miel-cad-veic-side-piece") || "?";
-        if (typeof window.__DK_mielOpenDestino === "function") window.__DK_mielOpenDestino(id, label, piece);
+        if (typeof window.__DK_mielOpenDestino === "function") {
+          window.__DK_mielOpenDestino(
+            btn.getAttribute("data-miel-cv-side") || "",
+            btn.getAttribute("data-miel-cv-side-label") || "",
+            btn.getAttribute("data-miel-cv-side-piece") || "?"
+          );
+        }
       });
     });
   }
@@ -227,6 +203,6 @@
   }
 
   window.__DK_mielInitCadVeiculos = init;
-  window.__DK_mielCadVeiculosFields = TABLE_COLS.map((c) => c.label);
+  window.__DK_mielCadVeiculosFields = Object.values(FIELD_BY_COL);
   window.__DK_mielCadVeiculosTitle = "# Cadastro de Veículos";
 })();

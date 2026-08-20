@@ -1,0 +1,40 @@
+{
+  "exportedAt": "2026-08-20T02:56:02.565Z",
+  "results": [
+    {
+      "sheet": "Cad_Clientes",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\cad-clientes-layout.json (11 rows, 18 data cols)"
+    },
+    {
+      "sheet": "Cad_Veiculos",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\cad-veiculos-layout.json (17 rows, 21 data cols)"
+    },
+    {
+      "sheet": "Relacao_Clientes",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\relacao-clientes-layout.json (4 rows, 11 data cols)"
+    },
+    {
+      "sheet": "Relacao_Veiculos",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\relacao-veiculos-layout.json (4 rows, 14 data cols)"
+    },
+    {
+      "sheet": "Status_Veiculos",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\status-veiculos-layout.json (6 rows, 12 data cols)"
+    },
+    {
+      "sheet": "Pagina_Inicial",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\pagina-inicial-layout.json (20 rows, 28 data cols)"
+    },
+    {
+      "sheet": "Administrativo",
+      "ok": true,
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\administrativo-layout.json (40 rows, 82 data cols)"
+    }
+  ]
+}
