@@ -3,6 +3,9 @@
 docs/
 *.xlsx
 *.pdf
+# Modelo oficial DETRAN (pacote «Gerar contrato» — sem edição de layout).
+!grupodkempreendimentos/modelos/
+!grupodkempreendimentos/modelos/requerimento-padrao-detran.pdf
 *.docx
 *.csv
 Backblaze-B2-orientacoes-Grupo-DK.docx
