@@ -22,25 +22,51 @@
     { d: "99HSHF175TS007486", az: "", t: "" },
   ];
 
-  /** Botões laterais (rótulos # da planilha — módulo administrativo). */
-  const ADMIN_SIDE_BUTTONS = [
-    "Cadastro de Clientes",
-    "Cadastro de Veículos",
-    "Consulta de Clientes",
-    "Consulta de Veículos",
-    "Relação de Clientes Cadastrados no Sistema",
-    "Relação de Veículos Cadastrados no Sistema",
-    "Relação de Status de Veículos",
-    "Emissão de Protocolos",
-    "Relação de Protocolos Emitidos",
-    "Relatório de Pendências no Cadastro dos Clientes",
-    "Relatório de Clientes por EAR",
-    "Formulário de Prestação de Contas (Fundo Fixo)",
-    "Recibo e Lista de Valores PASSIVOS para Cobrança Ostensiva",
-    "Panfleto Padrão",
-    "Relação de Motos Vendidas",
-    "Tabela Oficial",
-  ];
+  /** Botões laterais → destinos (abas da planilha). */
+  const ADMIN_SIDE_TARGETS = {
+    "Cadastro de Clientes": { id: "cad-clientes", label: "Cadastro de Clientes", piece: 12 },
+    "Cadastro de Veículos": { id: "cad-veiculos", label: "Cadastro de Veículos", piece: 13 },
+    "Consulta de Clientes": { id: "consulta-clientes", label: "Consulta de Clientes", piece: 11 },
+    "Consulta de Veículos": { id: "consulta-veiculos", label: "Consulta de Veículos", piece: 11 },
+    "Relação de Clientes Cadastrados no Sistema": {
+      id: "relacao-clientes",
+      label: "Relação de Clientes",
+      piece: 15,
+    },
+    "Relação de Veículos Cadastrados no Sistema": {
+      id: "relacao-veiculos",
+      label: "Relação de Veículos",
+      piece: 16,
+    },
+    "Relação de Status de Veículos": { id: "status-veiculos", label: "Status Veículos", piece: 17 },
+    "Emissão de Protocolos": { id: "emissao-protocolos", label: "Emissão de Protocolos", piece: 36 },
+    "Relação de Protocolos Emitidos": {
+      id: "relacao-protocolos",
+      label: "Relação Protocolos Emitidos",
+      piece: 46,
+    },
+    "Relatório de Pendências no Cadastro dos Clientes": {
+      id: "pendencias-clientes",
+      label: "Pendências Cad. Clientes",
+      piece: 60,
+    },
+    "Relatório de Clientes por EAR": { id: "relatorio-ear", label: "Relatório CNH/EAR", piece: 61 },
+    "Formulário de Prestação de Contas (Fundo Fixo)": {
+      id: "fundo-fixo",
+      label: "Fundo Fixo",
+      piece: 20,
+    },
+    "Recibo e Lista de Valores PASSIVOS para Cobrança Ostensiva": {
+      id: "passivo-cobranca",
+      label: "Passivo para Cobrança",
+      piece: 21,
+    },
+    "Panfleto Padrão": { id: "panfleto-padrao", label: "Panfleto Padrão", piece: 22 },
+    "Relação de Motos Vendidas": { id: "motos-vendidas", label: "Motos Vendidas", piece: 26 },
+    "Tabela Oficial": { id: "tabela-dk-locadora", label: "Tabela DK Locadora", piece: 27 },
+  };
+
+  const ADMIN_SIDE_BUTTONS = Object.keys(ADMIN_SIDE_TARGETS);
 
   function esc(s) {
     return String(s || "")
@@ -72,10 +98,10 @@
       </tr>`;
     }).join("");
 
-    const sideHtml = ADMIN_SIDE_BUTTONS.map(
-      (label) =>
-        `<button type="button" class="miel-admin-side-btn" data-miel-admin-action="${esc(label)}" disabled title="Próximas etapas">${esc(label)}</button>`
-    ).join("");
+    const sideHtml = ADMIN_SIDE_BUTTONS.map((label) => {
+      const t = ADMIN_SIDE_TARGETS[label];
+      return `<button type="button" class="miel-admin-side-btn" data-miel-admin-action="${esc(label)}" data-miel-admin-target="${esc(t.id)}" title="Ir para ${esc(t.label)}">${esc(label)}</button>`;
+    }).join("");
 
     container.innerHTML = `<div class="miel-admin__layout">
       <div class="miel-admin__form-area">
@@ -110,9 +136,18 @@
       }
       if (feedback) {
         feedback.textContent = input.value.trim()
-          ? `Pesquisa registrada (etapa 02): «${input.value.trim()}» — lógica completa nas próximas peças.`
+          ? `Pesquisa: «${input.value.trim()}»`
           : "";
       }
+    });
+
+    container.querySelectorAll("[data-miel-admin-target]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const label = btn.getAttribute("data-miel-admin-action") || "";
+        const target = ADMIN_SIDE_TARGETS[label];
+        if (!target || typeof window.__DK_mielOpenDestino !== "function") return;
+        window.__DK_mielOpenDestino(target.id, target.label, target.piece);
+      });
     });
   }
 

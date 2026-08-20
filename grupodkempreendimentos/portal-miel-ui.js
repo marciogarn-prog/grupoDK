@@ -60,7 +60,10 @@
     return `Petrolina-PE, ${dias[d.getDay()]}, ${d.getDate()} de ${meses[d.getMonth()]} de ${d.getFullYear()}`;
   }
 
+  const dynamicMeta = new Map();
+
   function sheetMeta(id) {
+    if (dynamicMeta.has(id)) return dynamicMeta.get(id);
     return MIEL_SHEETS.find((s) => s.id === id) || { id, label: id, piece: "?" };
   }
 
@@ -76,6 +79,18 @@
     return panel;
   }
 
+  function fillStub(sheetId, meta) {
+    const placeholder = ensurePanel(sheetId);
+    if (!placeholder) return;
+    placeholder.classList.add("miel-panel--stub");
+    placeholder.dataset.mielFilled = "1";
+    const backBtn = meta.fromAdmin
+      ? `<button type="button" class="miel-nav-btn miel-stub-back" data-miel-stub-back="administrativo">← Voltar ao Administrativo</button>`
+      : "";
+    placeholder.innerHTML = `<div class="miel-panel-placeholder"><h2>${meta.label}</h2><p>Peça <strong>${meta.piece}/84</strong> — em construção.</p>${backBtn}</div>`;
+    placeholder.querySelector("[data-miel-stub-back]")?.addEventListener("click", () => showSheet("administrativo"));
+  }
+
   function showSheet(sheetId) {
     const meta = sheetMeta(sheetId);
     if (titleEl) titleEl.textContent = meta.label;
@@ -83,7 +98,7 @@
     navButtons.forEach((btn) => {
       const nav = btn.getAttribute("data-miel-nav") || "";
       const target = NAV_TO_SHEET[nav] || nav;
-      btn.classList.toggle("miel-nav-btn--active", target === sheetId);
+      btn.classList.toggle("miel-nav-btn--active", !meta.fromAdmin && target === sheetId);
     });
 
     if (sheetId === "administrativo" && typeof window.__DK_mielInitAdministrativo === "function") {
@@ -97,12 +112,14 @@
     });
 
     if (!IMPLEMENTED.has(sheetId)) {
-      const placeholder = root.querySelector(`[data-miel-panel="${sheetId}"]`);
-      if (placeholder && placeholder.classList.contains("miel-panel--stub") && !placeholder.dataset.mielFilled) {
-        placeholder.dataset.mielFilled = "1";
-        placeholder.innerHTML = `<div class="miel-panel-placeholder"><h2>${meta.label}</h2><p>Peça <strong>${meta.piece}/84</strong> — em construção.</p></div>`;
-      }
+      fillStub(sheetId, meta);
     }
+  }
+
+  function openDestino(id, label, piece) {
+    dynamicMeta.set(id, { id, label, piece, fromAdmin: true });
+    fillStub(id, dynamicMeta.get(id));
+    showSheet(id);
   }
 
   function refreshDate() {
@@ -125,6 +142,8 @@
     showSheet("pagina-inicial");
   };
   window.__DK_mielPieceCount = 84;
+  window.__DK_mielEtapasImplementadas = 2;
   window.__DK_mielSheets = MIEL_SHEETS;
   window.__DK_mielShowSheet = showSheet;
+  window.__DK_mielOpenDestino = openDestino;
 })();
