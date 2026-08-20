@@ -639,7 +639,11 @@
     const chave = normProtocolo(protocolo);
     if (!chave) return null;
     const arr = (loadDeposit().contrato || []).filter(depEntradaVisivel);
-    const matches = arr.filter((e) => normProtocolo(e.chave) === chave);
+    const matches = arr.filter((e) => {
+      const kit = String(e.kitTipo || "contrato");
+      if (kit !== "contrato") return false;
+      return protocoloContratoEntrada(e) === chave || normProtocolo(e.chave) === chave;
+    });
     if (!matches.length) return null;
     return matches.sort((a, b) => (Date.parse(b.criadoEm || 0) || 0) - (Date.parse(a.criadoEm || 0) || 0))[0];
   }
@@ -894,8 +898,9 @@
     if (!blobLocal) return { ok: false, msg: "Ficheiro inválido." };
     const chave = String(meta.chave || chaveFromFilename(categoria, meta.nomeArquivo) || "").trim();
     if (!chave) return { ok: false, msg: "Chave inválida." };
+    const kitAnexo = Boolean(opts.kitAnexo || (meta.kitTipo && meta.kitTipo !== "contrato"));
     const nome =
-      categoria === "contrato"
+      categoria === "contrato" && !kitAnexo
         ? nomeArquivoContrato(chave) || String(meta.nomeArquivo || "documento.pdf").trim()
         : String(meta.nomeArquivo || "documento.pdf").trim();
     const mimeFinal = String(meta.mimeType || blobLocal.type || "application/pdf").toLowerCase();
@@ -907,12 +912,12 @@
     const dep = loadDeposit();
     const arr = dep[categoria] || [];
     let substituidos = 0;
-    if (categoria === "contrato") {
+    if (categoria === "contrato" && !kitAnexo) {
       substituidos = marcarContratosSubstituirPorProtocolo(arr, chave);
-    } else if (opts.replaceChave) {
+    } else if (opts.replaceChave || kitAnexo) {
       for (let i = 0; i < arr.length; i += 1) {
         const e = arr[i];
-        if (e && depEntradaVisivel(e) && normProtocolo(e.chave) === normProtocolo(chave)) {
+        if (e && depEntradaVisivel(e) && String(e.chave || "") === String(chave)) {
           arr[i] = { ...e, excluido: true, excluidoEm: new Date().toISOString() };
           void idbDeleteBlob(e.id).catch(() => null);
           void cloudDeleteBlob(e.id).catch(() => null);
@@ -941,6 +946,8 @@
       origem: String(meta.origem || "upload-manual"),
       ...buildRastreabilidadeDeposito(),
     };
+    if (meta.kitTipo) entry.kitTipo = String(meta.kitTipo);
+    if (meta.protocoloBase) entry.protocoloBase = String(meta.protocoloBase);
     if (categoria === "contrato" && (opts.statusContrato === "ativo" || opts.statusContrato === "inativo")) {
       entry.statusContrato = opts.statusContrato;
     }
