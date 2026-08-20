@@ -152,6 +152,14 @@ async function runSuite() {
       IS_DEMO_TEST ? "demo" : "html"
     );
     record(
+      "Sistema MIEL XLS botão e módulo no HTML",
+      html.includes('data-go="miel-xls"') &&
+        html.includes("Sistema MIEL XLS") &&
+        html.includes("portal-miel-xls.js") &&
+        html.includes("miel-xls-config.js"),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "secção comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))

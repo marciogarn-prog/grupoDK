@@ -369,6 +369,18 @@ body {
   filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.42));
 }
 
+.choice-card--miel-xls {
+  border-color: rgba(34, 120, 60, 0.45);
+}
+
+.choice-card--miel-xls:hover {
+  border-color: rgba(72, 180, 100, 0.55);
+}
+
+.choice-card--miel-xls .choice-card__hint {
+  color: rgba(180, 230, 190, 0.92);
+}
+
 .portal-unit-heading--miel {
   display: flex;
   align-items: center;
