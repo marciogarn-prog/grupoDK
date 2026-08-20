@@ -341,6 +341,134 @@
   }
 }
 
+/* --- Etapa 03: Cadastro de Clientes --- */
+.miel-cad-clientes {
+  padding: 0.35rem 0.5rem 1rem;
+  background: #fff;
+}
+
+.miel-cad__layout {
+  display: grid;
+  grid-template-columns: 1fr minmax(180px, 220px);
+  gap: 0.5rem;
+  align-items: start;
+}
+
+.miel-cad__banner {
+  background: #d4d0c8;
+  border: 1px solid #808080;
+  text-align: center;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.06em;
+  color: #c00000;
+  padding: 0.45rem;
+  margin-bottom: 0.5rem;
+}
+
+.miel-cad__search-row {
+  margin-bottom: 0.5rem;
+}
+
+.miel-cad__search-row label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.82rem;
+  margin-bottom: 0.25rem;
+  color: #333;
+}
+
+.miel-cad-form {
+  border: 1px solid #808080;
+  padding: 0.5rem;
+  background: #fafafa;
+}
+
+.miel-cad-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+}
+
+.miel-cad-field {
+  flex: 1 1 180px;
+  min-width: 140px;
+}
+
+.miel-cad-field--full {
+  flex: 1 1 100%;
+}
+
+.miel-cad-field label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+  color: #222;
+}
+
+.miel-cad-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid;
+  border-color: #404040 #dfdfdf #dfdfdf #404040;
+  padding: 0.3rem 0.45rem;
+  font: inherit;
+  font-size: 0.85rem;
+  background: #fff;
+}
+
+.miel-cad-input--area {
+  resize: vertical;
+  min-height: 2.5rem;
+}
+
+.miel-cad-input:focus {
+  outline: 1px dotted #000;
+  outline-offset: -2px;
+}
+
+.miel-cad__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.55rem;
+}
+
+.miel-cad-action-btn {
+  appearance: none;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid;
+  border-color: #fff #404040 #404040 #fff;
+  background: linear-gradient(180deg, #ece9d8 0%, #d4d0c8 45%, #b8b4ac 100%);
+  color: #000;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.miel-cad-action-btn--primary {
+  color: #c00000;
+}
+
+.miel-cad-action-btn:hover {
+  background: linear-gradient(180deg, #f5f3ea 0%, #dedad2 100%);
+}
+
+.miel-cad__side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+@media (max-width: 900px) {
+  .miel-cad__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .miel-app__top {
     grid-template-columns: 1fr;
