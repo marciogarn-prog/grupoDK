@@ -2597,6 +2597,73 @@ body {
   margin-top: 0.5rem;
 }
 
+.portal-checklist-mount--tablet {
+  width: 100%;
+  max-width: 1024px;
+  margin-inline: auto;
+}
+
+.portal-checklist-mount--tablet .portal-checklist-print-root {
+  min-height: min(90dvh, 900px);
+  max-height: 90dvh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.portal-checklist-print-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.portal-checklist-print-header h4 {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+}
+
+.portal-checklist-print-title-print-only {
+  display: none;
+}
+
+.portal-checklist-clipboard-btn {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  line-height: 1;
+}
+
+.portal-checklist-clipboard-btn:hover,
+.portal-checklist-clipboard-btn:focus-visible {
+  border-color: var(--accent, #ef4444);
+  background: rgba(239, 68, 68, 0.18);
+  outline: none;
+}
+
+.portal-checklist-clipboard-btn__icon {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.portal-checklist-clipboard-body {
+  flex: 1;
+  min-height: 0;
+}
+
 .portal-checklist-print-root {
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -2609,6 +2676,155 @@ body {
   font-size: 1.05rem;
   text-align: center;
   letter-spacing: 0.04em;
+}
+
+/* Modo prancheta: só o check-list, tela cheia tablet, sem scroll */
+body.portal-checklist-clipboard-mode {
+  overflow: hidden !important;
+}
+
+body.portal-checklist-clipboard-mode .dk-demo-env-banner,
+body.portal-checklist-clipboard-mode .portal-admin-banner,
+body.portal-checklist-clipboard-mode .site-header,
+body.portal-checklist-clipboard-mode .portal-topnav,
+body.portal-checklist-clipboard-mode header,
+body.portal-checklist-clipboard-mode .portal-nav,
+body.portal-checklist-clipboard-mode .portal-operacao-layout__sidebar,
+body.portal-checklist-clipboard-mode .logado-actions,
+body.portal-checklist-clipboard-mode .portal-checklist-toolbar,
+body.portal-checklist-clipboard-mode .portal-checklist-placa-bar,
+body.portal-checklist-clipboard-mode .operacao-inline-form__title,
+body.portal-checklist-clipboard-mode .operacao-inline-form__lead,
+body.portal-checklist-clipboard-mode #manutencaoFormPlaceholder,
+body.portal-checklist-clipboard-mode .portal-panel__title {
+  display: none !important;
+}
+
+body.portal-checklist-clipboard-mode #panel-manutencao-locadora,
+body.portal-checklist-clipboard-mode .portal-operacao-layout,
+body.portal-checklist-clipboard-mode .portal-operacao-layout__main,
+body.portal-checklist-clipboard-mode #manutencaoInlineEmOperacao,
+body.portal-checklist-clipboard-mode #portalChecklistMount {
+  margin: 0 !important;
+  padding: 0 !important;
+  max-width: none !important;
+  width: 100% !important;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+body.portal-checklist-clipboard-mode #portalChecklistPrintArea.portal-checklist-print-root--clipboard {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 100dvh;
+  margin: 0;
+  border-radius: 0;
+  border: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 0.45rem 0.55rem 0.55rem;
+  background: #1a1a1a;
+  box-sizing: border-box;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-print-header {
+  margin-bottom: 0.25rem;
+  flex: 0 0 auto;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-print-header h4 {
+  font-size: clamp(0.85rem, 2.2vh, 1.05rem);
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-clipboard-body {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-meta-grid,
+body.portal-checklist-clipboard-mode .portal-checklist-dates {
+  gap: 0.28rem 0.55rem;
+  margin-bottom: 0.35rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-meta-grid label,
+body.portal-checklist-clipboard-mode .portal-checklist-dates label,
+body.portal-checklist-clipboard-mode .portal-checklist-inline-field label {
+  font-size: clamp(0.65rem, 1.5vh, 0.82rem);
+  gap: 0.12rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-meta-grid input,
+body.portal-checklist-clipboard-mode .portal-checklist-dates input,
+body.portal-checklist-clipboard-mode .portal-checklist-inline-field input,
+body.portal-checklist-clipboard-mode .portal-checklist-obs-input,
+body.portal-checklist-clipboard-mode .portal-checklist-staff-row select {
+  padding: 0.2rem 0.35rem;
+  font-size: clamp(0.7rem, 1.6vh, 0.9rem);
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-inline-row {
+  gap: 0.45rem 0.85rem;
+  margin-bottom: 0.35rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-toggle-options label {
+  min-height: 2rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.82rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-inspection {
+  font-size: clamp(0.58rem, 1.35vh, 0.78rem);
+  margin-bottom: 0.35rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-inspection th,
+body.portal-checklist-clipboard-mode .portal-checklist-inspection td {
+  padding: 0.12rem 0.28rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-ar label {
+  min-height: 1.6rem;
+  padding: 0.1rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-staff-row {
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.25rem;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-export-hint {
+  font-size: 0.75rem;
+  margin: 0.2rem 0;
+}
+
+body.portal-checklist-clipboard-mode .portal-checklist-export-footer {
+  margin-top: 0.15rem;
+  gap: 0.4rem 0.75rem;
+}
+
+.portal-checklist-no-print {
+  /* marcador semântico; impressão/PDF remove o header via JS */
+}
+
+@media print {
+  .portal-checklist-print-header,
+  .portal-checklist-clipboard-btn,
+  .portal-checklist-no-print {
+    display: none !important;
+  }
+  .portal-checklist-print-title-print-only {
+    display: block !important;
+    text-align: center;
+    margin: 0 0 0.75rem;
+  }
 }
 
 .portal-checklist-meta-grid {

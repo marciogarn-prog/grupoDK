@@ -2797,6 +2797,14 @@
     const printable = root.cloneNode(true);
     printable.querySelectorAll(".portal-checklist-export-footer").forEach((node) => node.remove());
     printable.querySelectorAll(".portal-checklist-disposition-msg").forEach((node) => node.remove());
+    printable.querySelectorAll(".portal-checklist-print-header").forEach((node) => node.remove());
+    printable.querySelectorAll(".portal-checklist-clipboard-btn").forEach((node) => node.remove());
+    const body = printable.querySelector(".portal-checklist-clipboard-body");
+    if (body) {
+      body.style.transform = "";
+      body.style.width = "";
+      body.style.height = "";
+    }
     const title = "Check-list manutenção";
     const popup = window.open("", "_blank", "width=1100,height=800");
     if (!popup) return;
@@ -2897,8 +2905,22 @@ ${printable.innerHTML}
     }).join("");
 
     mount.innerHTML = `
-      <div id="portalChecklistPrintArea" class="portal-checklist-print-root">
-        <h4>CHECK LIST — MANUTENÇÃO / REPARAÇÕES</h4>
+      <div id="portalChecklistPrintArea" class="portal-checklist-print-root portal-checklist-tablet">
+        <div class="portal-checklist-print-header portal-checklist-no-print">
+          <h4>CHECK LIST — MANUTENÇÃO / REPARAÇÕES</h4>
+          <button
+            type="button"
+            class="portal-checklist-clipboard-btn"
+            id="portalChecklistBtnClipboard"
+            aria-pressed="false"
+            title="Expandir check-list (prancheta tablet)"
+            aria-label="Expandir check-list em tela cheia"
+          >
+            <span class="portal-checklist-clipboard-btn__icon" aria-hidden="true">↗</span>
+          </button>
+        </div>
+        <h4 class="portal-checklist-print-title-print-only">CHECK LIST — MANUTENÇÃO / REPARAÇÕES</h4>
+        <div class="portal-checklist-clipboard-body" id="portalChecklistClipboardBody">
         <div class="portal-checklist-meta-grid">
           <label>Plano <input type="text" id="portalChecklistFieldPlano" autocomplete="off"></label>
           <label>Início do contrato (oficial) <input type="text" id="portalChecklistFieldInicioContrato" autocomplete="off"></label>
@@ -2971,18 +2993,116 @@ ${printable.innerHTML}
           </div>
         </div>
         <p id="portalChecklistDispositionMsg" class="portal-checklist-disposition-msg" role="status"></p>
+        </div>
       </div>
     `;
 
     portalPopulateColaboradoresChecklistSelects();
     portalBindInnerChecklistEvents();
+    portalBindChecklistClipboardToggle();
     portalValidateChecklistCompleto();
     portalChecklistUiBuilt = true;
+  }
+
+  function portalFitChecklistClipboardScale() {
+    const root = document.getElementById("portalChecklistPrintArea");
+    const body = document.getElementById("portalChecklistClipboardBody");
+    const header = root?.querySelector(".portal-checklist-print-header");
+    if (!root || !body) return;
+    if (!document.body.classList.contains("portal-checklist-clipboard-mode")) {
+      body.style.transform = "";
+      body.style.width = "";
+      body.style.height = "";
+      return;
+    }
+    body.style.transform = "none";
+    body.style.width = "100%";
+    body.style.height = "auto";
+    const availH = Math.max(120, root.clientHeight - (header?.offsetHeight || 0) - 10);
+    const availW = Math.max(200, root.clientWidth - 12);
+    const needH = Math.max(1, body.scrollHeight);
+    const needW = Math.max(1, body.scrollWidth);
+    const scale = Math.min(1, availH / needH, availW / needW);
+    body.style.transformOrigin = "top center";
+    body.style.transform = `scale(${scale})`;
+    body.style.width = `${100 / scale}%`;
+    body.style.height = `${needH}px`;
+  }
+
+  let portalChecklistClipboardHost = null;
+
+  function portalSetChecklistClipboardMode(on) {
+    const root = document.getElementById("portalChecklistPrintArea");
+    const btn = document.getElementById("portalChecklistBtnClipboard");
+    const icon = btn?.querySelector(".portal-checklist-clipboard-btn__icon");
+    const mount = document.getElementById("portalChecklistMount");
+    if (!root) return;
+
+    if (on) {
+      if (!portalChecklistClipboardHost) {
+        portalChecklistClipboardHost = root.parentElement;
+      }
+      if (root.parentElement !== document.body) {
+        document.body.appendChild(root);
+      }
+    } else if (portalChecklistClipboardHost && root.parentElement === document.body) {
+      portalChecklistClipboardHost.appendChild(root);
+    }
+
+    document.body.classList.toggle("portal-checklist-clipboard-mode", Boolean(on));
+    root.classList.toggle("portal-checklist-print-root--clipboard", Boolean(on));
+    mount?.classList.toggle("portal-checklist-mount--tablet", true);
+    if (btn) {
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      btn.title = on
+        ? "Voltar à visualização do programa"
+        : "Expandir check-list (prancheta tablet)";
+      btn.setAttribute(
+        "aria-label",
+        on ? "Recolher check-list e voltar ao programa" : "Expandir check-list em tela cheia"
+      );
+    }
+    if (icon) icon.textContent = on ? "↙" : "↗";
+    if (on) {
+      requestAnimationFrame(() => {
+        portalFitChecklistClipboardScale();
+        requestAnimationFrame(portalFitChecklistClipboardScale);
+      });
+    } else {
+      portalFitChecklistClipboardScale();
+    }
+  }
+
+  function portalBindChecklistClipboardToggle() {
+    const btn = document.getElementById("portalChecklistBtnClipboard");
+    if (!btn || btn.dataset.boundClipboard === "1") return;
+    btn.dataset.boundClipboard = "1";
+    btn.addEventListener("click", () => {
+      const next = !document.body.classList.contains("portal-checklist-clipboard-mode");
+      portalSetChecklistClipboardMode(next);
+    });
+    window.addEventListener(
+      "resize",
+      () => {
+        if (document.body.classList.contains("portal-checklist-clipboard-mode")) {
+          portalFitChecklistClipboardScale();
+        }
+      },
+      { passive: true }
+    );
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && document.body.classList.contains("portal-checklist-clipboard-mode")) {
+        portalSetChecklistClipboardMode(false);
+      }
+    });
   }
 
   document.getElementById("btnPortalChecklistAbrir")?.addEventListener("click", () => {
     portalEnsureChecklistUiBuilt();
     refreshPortalChecklistPlacasAtivasCache();
+    const mount = document.getElementById("portalChecklistMount");
+    mount?.classList.remove("hidden");
+    mount?.classList.add("portal-checklist-mount--tablet");
     const inp = document.getElementById("portalChecklistPlacaInput");
     inp?.focus();
     if (inp) renderPortalChecklistPlacaDropdown(String(inp.value || ""));
@@ -3019,6 +3139,7 @@ ${printable.innerHTML}
     const res = portalFillChecklistFromCadastro(plateFmt);
     if (msgEl) msgEl.textContent = res.message;
     mount?.classList.remove("hidden");
+    mount?.classList.add("portal-checklist-mount--tablet");
     fotosGrid?.classList.remove("hidden");
     portalValidateChecklistCompleto();
   });
