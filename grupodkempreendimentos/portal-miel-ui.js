@@ -127,6 +127,8 @@
 
     if (INIT_HOOKS[sheetId] && typeof window[INIT_HOOKS[sheetId]] === "function") {
       window[INIT_HOOKS[sheetId]]();
+    } else if (typeof window.__DK_mielInitGenericSheet === "function") {
+      window.__DK_mielInitGenericSheet(sheetId, meta.label);
     }
 
     ensurePanel(sheetId);
@@ -134,47 +136,23 @@
       const pid = panel.getAttribute("data-miel-panel") || "";
       panel.classList.toggle("hidden", pid !== sheetId);
     });
-
-    if (!IMPLEMENTED.has(sheetId)) {
-      fillStub(sheetId, meta);
-    }
   }
 
   function openDestino(id, label, piece) {
     dynamicMeta.set(id, { id, label, piece, fromAdmin: true });
-    if (!IMPLEMENTED.has(id)) fillStub(id, dynamicMeta.get(id));
     showSheet(id);
   }
 
-  const EXCEL_SHEET_TO_ID = {
-    Página_Inicial: "pagina-inicial",
-    Administrativo: "administrativo",
-    Dashboard: "dashboard",
-    Financeiro: "financeiro",
-    Dpto_Pessoal: "depto-pessoal",
-    "Locação_de_Veículos": "locacao-veiculos",
-    Ctrl_de_Manutenção: "ctrl-manutencao",
-    Gráficos: "graficos",
-    Planejamento: "planejamento",
-    Procedimentos: "procedimentos",
-    Consulta_Veíc_ou_Cliente: "consulta-integrada",
-    Cad_Clientes: "cad-clientes",
-    "Cad_Clientes_(Loc.)": "cad-clientes",
-    Cad_Veículos: "cad-veiculos",
-    "Cad_Veículos_(Loc.)": "cad-veiculos",
-    Relação_Clientes: "relacao-clientes",
-    Relação_Veículos: "relacao-veiculos",
-    Status_Veículos: "status-veiculos",
-    Emissão_de_Protocolos: "emissao-protocolos",
-    "Termo_de_Subst._Provisória": "termo-subst-provisoria",
-  };
-
   function openExcelLocation(location) {
-    const raw = String(location || "").replace(/^#/, "").trim();
-    const sheet = raw.replace(/^'/, "").replace(/'!.*$/, "").replace(/!.*$/, "").trim();
-    const id = EXCEL_SHEET_TO_ID[sheet] || sheet.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const toId =
+      typeof window.__DK_mielExcelLocationToId === "function"
+        ? window.__DK_mielExcelLocationToId(location)
+        : String(location || "");
+    const sheet = typeof window.__DK_mielParseExcelSheetName === "function"
+      ? window.__DK_mielParseExcelSheetName(location)
+      : String(location || "");
     const label = sheet.replace(/_/g, " ");
-    openDestino(id, label, "?");
+    openDestino(toId, label, "?");
   }
 
   function refreshDate() {
@@ -202,4 +180,11 @@
   window.__DK_mielShowSheet = showSheet;
   window.__DK_mielOpenDestino = openDestino;
   window.__DK_mielOpenExcelLocation = openExcelLocation;
+
+  contentEl?.addEventListener("click", (ev) => {
+    const btn = ev.target.closest("[data-miel-xl-link]");
+    if (!btn || !contentEl.contains(btn)) return;
+    const loc = btn.getAttribute("data-miel-xl-link") || "";
+    if (loc) openExcelLocation(loc);
+  });
 })();

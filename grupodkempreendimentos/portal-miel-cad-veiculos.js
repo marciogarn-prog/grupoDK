@@ -149,12 +149,6 @@
       container.innerHTML = `<p class="miel-cc__err">Layout Cad_Veículos não carregou.</p>`;
       return;
     }
-    const sideHtml = Object.entries(SIDE_TARGETS)
-      .map(
-        ([label, t]) =>
-          `<button type="button" class="miel-admin-side-btn" data-miel-cv-side="${t.id}" data-miel-cv-side-label="${label.replace(/^#\s*/, "")}" data-miel-cv-side-piece="${t.piece}">${label}</button>`
-      )
-      .join("");
     container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
       <div class="miel-cc__main">${eng.renderSheet(lay, {
         patchHeaderCell(cell, rowNum) {
@@ -169,28 +163,11 @@
           return null;
         },
       })}</div>
-      <aside class="miel-cc__side">
-        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-cv-back="administrativo">← Voltar ao Administrativo</button>
-        ${sideHtml}
-      </aside>
     </div>`;
   }
 
   function bindPanel(container) {
-    container.querySelector("[data-miel-cv-back]")?.addEventListener("click", () => {
-      if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
-    });
-    container.querySelectorAll("[data-miel-cv-side]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (typeof window.__DK_mielOpenDestino === "function") {
-          window.__DK_mielOpenDestino(
-            btn.getAttribute("data-miel-cv-side") || "",
-            btn.getAttribute("data-miel-cv-side-label") || "",
-            btn.getAttribute("data-miel-cv-side-piece") || "?"
-          );
-        }
-      });
-    });
+    /* vínculos Excel: clique delegado em portal-miel-ui.js (data-miel-xl-link) */
   }
 
   function init() {

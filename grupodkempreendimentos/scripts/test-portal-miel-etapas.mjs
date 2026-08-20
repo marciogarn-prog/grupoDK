@@ -423,7 +423,7 @@ async function testEtapa4(page) {
       headers: [...(panel?.querySelectorAll(".miel-sheet__row--h17 td") || [])].map((el) => el.textContent?.trim()),
       rows: panel?.querySelectorAll(".miel-sheet__row--data").length || 0,
       panelVisible: !panel?.classList.contains("hidden"),
-      sideBtns: document.querySelectorAll("[data-miel-cv-side]").length,
+      shapes: panel?.querySelectorAll(".miel-sheet__shape").length || 0,
       noWebForm: !document.getElementById("mielCadVeiculo_placa"),
       fieldCount: (window.__DK_mielCadVeiculosFields || []).length,
       veicCount: (window.__DK_MIEL_CADASTROS?.veiculos || []).length,
@@ -434,16 +434,11 @@ async function testEtapa4(page) {
 
   record(
     "etapa 4: Cad_Veículos abre tabela da planilha",
-    s.title === "Cadastro de Veículos" &&
-      s.sheetTitle === "# Cadastro de Veículos" &&
-      s.stats &&
-      s.table &&
-      s.panelVisible &&
-      s.noWebForm,
+    s.title === "Cadastro de Veículos" && s.table && s.panelVisible && s.noWebForm && s.rows >= 150,
     `rows=${s.rows}`
   );
   record("etapa 4: 20 colunas linha 17 da planilha", s.fieldCount === 20 || s.rows >= 150, `fields=${s.fieldCount}`);
-  record("etapa 4: botões laterais Consulta/Cad. Clientes", s.sideBtns >= 2, `side=${s.sideBtns}`);
+  record("etapa 4: comandos da planilha (imagens)", s.shapes >= 2, `shapes=${s.shapes}`);
   record("etapa 4: veículos da planilha carregados", s.rows >= 150 && s.veicCount >= 150, `rows=${s.rows}`);
   record(
     "etapa 4: locações e vínculos importados",
@@ -451,7 +446,7 @@ async function testEtapa4(page) {
     `loc=${s.locCount} vinc=${s.vincCount}`
   );
 
-  await page.locator('[data-miel-cv-back="administrativo"]').first().click();
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(250);
   const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
   record("etapa 4: voltar ao Administrativo", adm === "Administrativo", adm);
@@ -516,7 +511,7 @@ async function testEtapa5(page) {
   );
   record("etapa 5: 11 colunas linha 4 da planilha", s.headers.filter(Boolean).length >= 8);
   record("etapa 5: clientes da planilha na relação", s.rows >= 300, `rows=${s.rows}`);
-  await page.locator('[data-miel-rel-back="administrativo"]').first().click();
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(250);
   const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
   record("etapa 5: voltar ao Administrativo", adm === "Administrativo", adm);

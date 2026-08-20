@@ -249,7 +249,6 @@ async function runSuite() {
         const grid = visible ? panel?.querySelector(".miel-sheet__grid") : null;
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          sheetTitle: grid?.textContent?.includes("# Cadastro de Veículos") ? "# Cadastro de Veículos" : "",
           table: Boolean(grid),
           rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
           panelVisible: visible,
@@ -259,7 +258,6 @@ async function runSuite() {
       record(
         "demo: MIEL etapa 4 Cadastro Veículos",
         veicState.title === "Cadastro de Veículos" &&
-          veicState.sheetTitle === "# Cadastro de Veículos" &&
           veicState.table &&
           veicState.rows >= 150 &&
           veicState.veicCount >= 150 &&

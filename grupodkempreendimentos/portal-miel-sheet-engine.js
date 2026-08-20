@@ -61,7 +61,8 @@
     if (cs) attrs.push(`style="${cs}"`);
     let inner = esc(cell.text);
     if (cell.href) {
-      inner = `<button type="button" class="miel-sheet__link" data-miel-xl-link="${esc(cell.href)}">${inner}</button>`;
+      const action = cell.linkDisplay || cell.text || "";
+      inner = `<button type="button" class="miel-sheet__link" data-miel-xl-link="${esc(cell.href)}" data-miel-admin-action="${esc(action)}">${inner}</button>`;
     }
     return `<td ${attrs.join(" ")}>${inner}</td>`;
   }

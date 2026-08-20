@@ -1,19 +1,9 @@
 {
-  "updatedAt": "2026-08-20T01:10:00-03:00",
-  "targetReview": "2026-08-20T07:00:00-03:00",
-  "method": "Motor célula-a-célula + hiperligações e imagens da planilha",
-  "completed": [],
-  "inProgress": ["Cad_Clientes — comandos, links, dados e layout iguais à planilha (não avançar de aba)"],
-  "pending": [
-    "Cad_Veículos e restantes só depois de Cad_Clientes fechar 100%",
-    "Pendências Administrativas",
-    "Financeiro + ~68 abas restantes"
-  ],
-  "counts": { "implementedPanels": 15, "totalSheets": 84, "layoutExports": 15 },
-  "deploy": {
-    "main": "pendente",
-    "demo": "pendente",
-    "tests": { "mielEtapas": "pendente", "compareLive": "pendente" }
-  },
-  "blockers": "Ver data/miel/miel-blockers.json"
+  "updatedAt": "2026-08-20T01:20:00-03:00",
+  "method": "84 layouts Excel + grafo de 263 vínculos + resolvedor de nomes",
+  "completed": ["Inventário 84 abas", "Export 84 layouts", "Resolvedor de hiperligações com 6 aliases órfãos"],
+  "inProgress": ["Replicação visual/dados aba a aba; Cad_Clientes é a referência de qualidade"],
+  "pending": ["Dados dinâmicos nas abas de listagem restantes", "Macros VBA"],
+  "counts": { "sheets": 84, "layouts": 84, "links": 263, "implementedDataSheets": 5 },
+  "aliases": ["Página Inicial", "Cad_Clientes_(Loc.)", "Cad_Veículos_(Loc.)", "Controle_de_Manutenção", "Anotações de_Km_Atual", "Termo_de_Insp_e_Troca_de_Óleo"]
 }
