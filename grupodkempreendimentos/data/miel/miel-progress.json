@@ -1,0 +1,23 @@
+{
+  "updatedAt": "2026-08-20T04:30:00-03:00",
+  "targetReview": "2026-08-20T07:00:00-03:00",
+  "method": "Motor célula-a-célula (export-miel-sheet-layout.mjs + portal-miel-sheet-engine.js)",
+  "completed": [
+    { "step": 3, "sheet": "Cad_Clientes", "commit": "9128812", "verify": "32/32 OK", "engine": true },
+    { "step": 4, "sheet": "Cad_Veículos", "engine": true, "rows": 186 },
+    { "step": 5, "sheet": "Relacao_Clientes", "engine": true, "rows": 366 },
+    { "step": 6, "sheet": "Relacao_Veiculos", "engine": true, "rows": 186 },
+    { "step": 7, "sheet": "Status_Veiculos", "engine": true, "rows": 186 },
+    { "step": "static", "sheets": ["consulta-integrada", "acomp-transf", "motos-vendidas", "form-lista-espera", "id-chaveiros-carros", "id-chaveiros-motos", "ctrl-multas", "relatorio-ear"], "engine": "layout-only" }
+  ],
+  "inProgress": ["Administrativo (grid HTML + layout exportado disponível)", "Pagina_Inicial (layout exportado)"],
+  "pending": [
+    "Pendências Administrativas",
+    "Acomp CRLVs Anuais",
+    "Financeiro + ~68 abas restantes",
+    "Botões Excel (formas/drawings) como overlay clicável",
+    "Verificação visual pixel-a-pixel"
+  ],
+  "counts": { "implementedPanels": 15, "totalSheets": 84, "layoutExports": 15 },
+  "blockers": "Ver data/miel/miel-blockers.json"
+}

@@ -140,6 +140,14 @@
       dataRows() {
         return rows.map((r) => rowToCells(r));
       },
+      cellStyleFn(col, val) {
+        if (col === "O") {
+          const u = String(val).toUpperCase();
+          if (u === "NÃO" || u === "NAO") return { color: "#C00000" };
+          if (u === "SIM") return { color: "#0070C0" };
+        }
+        return null;
+      },
     });
 
     container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">

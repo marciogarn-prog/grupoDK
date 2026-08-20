@@ -35,13 +35,28 @@
     procedimentos: "procedimentos",
   };
 
-  const IMPLEMENTED = new Set(["pagina-inicial", "administrativo", "cad-clientes", "cad-veiculos", "relacao-clientes"]);
+  const STATIC_IDS = (window.__DK_MIEL_STATIC_REGISTRY || []).map((s) => s.id);
+  const STATIC_HOOKS = window.__DK_MIEL_STATIC_INIT_HOOKS || {};
+
+  const IMPLEMENTED = new Set([
+    "pagina-inicial",
+    "administrativo",
+    "cad-clientes",
+    "cad-veiculos",
+    "relacao-clientes",
+    "relacao-veiculos",
+    "status-veiculos",
+    ...STATIC_IDS,
+  ]);
 
   const INIT_HOOKS = {
     administrativo: "__DK_mielInitAdministrativo",
     "cad-clientes": "__DK_mielInitCadClientes",
     "cad-veiculos": "__DK_mielInitCadVeiculos",
     "relacao-clientes": "__DK_mielInitRelacaoClientes",
+    "relacao-veiculos": "__DK_mielInitRelacaoVeiculos",
+    "status-veiculos": "__DK_mielInitStatusVeiculos",
+    ...STATIC_HOOKS,
   };
 
   const dateEl = document.getElementById("mielAppDataLocal");
@@ -151,7 +166,7 @@
     showSheet("pagina-inicial");
   };
   window.__DK_mielPieceCount = 84;
-  window.__DK_mielEtapasImplementadas = 3;
+  window.__DK_mielEtapasImplementadas = 7;
   window.__DK_mielSheets = MIEL_SHEETS;
   window.__DK_mielShowSheet = showSheet;
   window.__DK_mielOpenDestino = openDestino;

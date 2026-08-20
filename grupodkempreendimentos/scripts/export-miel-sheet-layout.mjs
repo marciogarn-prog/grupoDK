@@ -16,6 +16,8 @@ const outBase = process.argv[4] || "cad-clientes-layout";
 const rowStart = +(process.argv[5] || 1);
 const rowEnd = +(process.argv[6] || 11);
 const maxCol = +(process.argv[7] || 19);
+const templateRow = +(process.argv[8] || 12);
+const headerRow = +(process.argv[9] || templateRow - 1);
 
 const ssXml = fs.readFileSync(path.join(tmp, "xl/sharedStrings.xml"), "utf8");
 const strings = [];
@@ -179,13 +181,21 @@ for (let r = rowStart; r <= rowEnd; r++) {
   rows.push({ row: r, height: rowHeights[r], cells: rowCells });
 }
 
-// Template linha 12 (estilos dados)
+// Template linha de dados (estilos)
 const dataCols = [];
-for (let c = 2; c <= 18; c++) {
+for (let c = 1; c <= maxCol; c++) {
   const col = numToCol(c);
-  const ref = `${col}12`;
+  const ref = `${col}${templateRow}`;
   const cell = cells[ref];
   if (cell) dataCols.push({ col, ref, style: cell.style });
+}
+
+const headerCells = [];
+for (let c = 1; c <= maxCol; c++) {
+  const col = numToCol(c);
+  const ref = `${col}${headerRow}`;
+  const cell = cells[ref];
+  if (cell?.text) headerCells.push({ col, ref, text: cell.text });
 }
 
 const payload = {
@@ -198,6 +208,9 @@ const payload = {
   rows,
   dataCols,
   dataColLetters: dataCols.map((d) => d.col),
+  headerRow,
+  templateRow,
+  headerCells,
 };
 
 const jsonPath = path.join(outDir, `${outBase}.json`);

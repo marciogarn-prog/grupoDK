@@ -1,0 +1,529 @@
+{
+  "merges": [
+    "BO20:CB20",
+    "BO21:CB21",
+    "BO16:CB16",
+    "BO22:CB22",
+    "BO23:CB23",
+    "BO24:CB24",
+    "C35:P35",
+    "AI30:AV30",
+    "AI31:AV31",
+    "AY21:BL21",
+    "S33:AF33",
+    "C24:P24",
+    "S25:AF25",
+    "AY27:BL27",
+    "S28:AF28",
+    "S29:AF29",
+    "S27:AF27",
+    "AI29:AV29",
+    "AI20:AV20",
+    "AI21:AV21",
+    "AI22:AV22",
+    "AI23:AV23",
+    "AI24:AV24",
+    "AI25:AV25",
+    "AI26:AV26",
+    "AI27:AV27",
+    "S10:AF10",
+    "AI10:AV10",
+    "AI11:AV11",
+    "AI12:AV12",
+    "AI13:AV13",
+    "AI14:AV14",
+    "AI15:AV15",
+    "AI19:AV19",
+    "AI16:AV16",
+    "AI17:AV17",
+    "AI18:AV18",
+    "BO12:CB12",
+    "BO13:CB13",
+    "BO14:CB14",
+    "BO15:CB15",
+    "BO34:CB34",
+    "AY36:BL36",
+    "BO36:CB36",
+    "BO35:CB35",
+    "BO37:CB37",
+    "AY37:BL37",
+    "BO26:CB26",
+    "BO27:CB27",
+    "BO28:CB28",
+    "BO29:CB29",
+    "AY29:BL29",
+    "AY17:BL17",
+    "AY19:BL19",
+    "AY25:BL25",
+    "AY13:BL13",
+    "AY23:BL23",
+    "BO25:CB25",
+    "BO17:CB17",
+    "BO18:CB18",
+    "BO19:CB19",
+    "BO32:CB32",
+    "AY34:BL34",
+    "BO33:CB33",
+    "AY35:BL35",
+    "BO30:CB30",
+    "AY32:BL32",
+    "BO31:CB31",
+    "AY33:BL33",
+    "AY31:BL31",
+    "S37:AF37",
+    "AI32:AV32",
+    "AI33:AV33",
+    "AI34:AV34",
+    "AI35:AV35",
+    "AI36:AV36",
+    "S34:AF34",
+    "C26:P26",
+    "S26:AF26",
+    "S36:AF36",
+    "C33:P33",
+    "C32:P32",
+    "C34:P34",
+    "C36:P36",
+    "C30:P30",
+    "C37:P37",
+    "C28:P28",
+    "S35:AF35",
+    "S32:AF32",
+    "C29:P29",
+    "S30:AF30",
+    "AI28:AV28",
+    "S31:AF31",
+    "AI37:AV37",
+    "B46:CC46",
+    "C44:P44",
+    "C45:P45",
+    "S45:AF45",
+    "AI45:AV45",
+    "AY45:BL45",
+    "BO45:CB45",
+    "C42:P42",
+    "S42:AF42",
+    "AI42:AV42",
+    "AY42:BL42",
+    "BO42:CB42",
+    "C43:P43",
+    "S43:AF43",
+    "AI43:AV43",
+    "AY43:BL43",
+    "BO43:CB43",
+    "C40:P40",
+    "S40:AF40",
+    "AI40:AV40",
+    "AY40:BL40",
+    "BO40:CB40",
+    "C41:P41",
+    "S41:AF41",
+    "AI41:AV41",
+    "AY41:BL41",
+    "BO41:CB41",
+    "S38:AF38",
+    "AI38:AV38",
+    "AY38:BL38",
+    "BO38:CB38",
+    "S39:AF39",
+    "AI39:AV39",
+    "AY39:BL39",
+    "BO39:CB39",
+    "C38:P38",
+    "C39:P39",
+    "C11:P13",
+    "C22:P22",
+    "S22:AF22",
+    "C25:P25",
+    "C27:P27",
+    "C31:P31",
+    "S24:AF24",
+    "S23:AF23",
+    "C18:P18",
+    "S15:AF15",
+    "S19:AF19",
+    "C15:P15",
+    "C20:P20",
+    "S20:AF20",
+    "S17:AF17",
+    "C23:P23",
+    "S18:AF18",
+    "C17:P17",
+    "C21:P21",
+    "S21:AF21",
+    "A7:A46",
+    "C8:P8",
+    "S8:AF8",
+    "AI8:AV8",
+    "AY8:BL8",
+    "BO8:CB8",
+    "S14:AF14",
+    "S12:AF12",
+    "BO11:CB11",
+    "S13:AF13",
+    "C16:P16",
+    "S11:AF11",
+    "AY11:BL11",
+    "S16:AF16",
+    "C14:P14",
+    "AY15:BL15",
+    "C19:P19",
+    "C10:P10",
+    "AY10:BL10",
+    "BO10:CB10",
+    "R7:CC7",
+    "C9:P9",
+    "AY9:CB9",
+    "S9:AV9"
+  ],
+  "grid": [
+    {
+      "row": 7,
+      "cells": [
+        {
+          "ref": "A7",
+          "value": "954",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        }
+      ]
+    },
+    {
+      "row": 9,
+      "cells": [
+        {
+          "ref": "A9",
+          "value": "1655",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D9",
+          "value": "1935",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        },
+        {
+          "ref": "T9",
+          "value": "399",
+          "formula": null,
+          "fill": "#D9D9D9",
+          "bold": true,
+          "color": "#C00000"
+        }
+      ]
+    },
+    {
+      "row": 11,
+      "cells": [
+        {
+          "ref": "A11",
+          "value": "3368",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D11",
+          "value": "2062",
+          "formula": null,
+          "fill": null,
+          "bold": false,
+          "color": null
+        },
+        {
+          "ref": "T11",
+          "value": "3856",
+          "formula": null,
+          "fill": "#D9D9D9",
+          "bold": true,
+          "color": "#C00000"
+        }
+      ]
+    },
+    {
+      "row": 13,
+      "cells": [
+        {
+          "ref": "A13",
+          "value": "2063",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "T13",
+          "value": "1798",
+          "formula": null,
+          "fill": "#D9D9D9",
+          "bold": true,
+          "color": "#C00000"
+        }
+      ]
+    },
+    {
+      "row": 15,
+      "cells": [
+        {
+          "ref": "A15",
+          "value": "1938",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D15",
+          "value": "763",
+          "formula": null,
+          "fill": null,
+          "bold": false,
+          "color": null
+        },
+        {
+          "ref": "T15",
+          "value": "703",
+          "formula": null,
+          "fill": "#D9D9D9",
+          "bold": true,
+          "color": "#C00000"
+        }
+      ]
+    },
+    {
+      "row": 17,
+      "cells": [
+        {
+          "ref": "A17",
+          "value": "954",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D17",
+          "value": "762",
+          "formula": null,
+          "fill": null,
+          "bold": false,
+          "color": null
+        },
+        {
+          "ref": "T17",
+          "value": "1799",
+          "formula": null,
+          "fill": "#D9D9D9",
+          "bold": true,
+          "color": "#C00000"
+        }
+      ]
+    },
+    {
+      "row": 19,
+      "cells": [
+        {
+          "ref": "A19",
+          "value": "956",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D19",
+          "value": "1565",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        },
+        {
+          "ref": "T19",
+          "value": "3940",
+          "formula": null,
+          "fill": "#D9D9D9",
+          "bold": true,
+          "color": "#C00000"
+        }
+      ]
+    },
+    {
+      "row": 21,
+      "cells": [
+        {
+          "ref": "A21",
+          "value": "3521",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D21",
+          "value": "4673",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        }
+      ]
+    },
+    {
+      "row": 23,
+      "cells": [
+        {
+          "ref": "A23",
+          "value": "3520",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D23",
+          "value": "4674",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        }
+      ]
+    },
+    {
+      "row": 25,
+      "cells": [
+        {
+          "ref": "A25",
+          "value": "3420",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D25",
+          "value": "1987",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        }
+      ]
+    },
+    {
+      "row": 27,
+      "cells": [
+        {
+          "ref": "A27",
+          "value": "1904",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D27",
+          "value": "1668",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        }
+      ]
+    },
+    {
+      "row": 29,
+      "cells": [
+        {
+          "ref": "A29",
+          "value": "1995",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        },
+        {
+          "ref": "D29",
+          "value": "1939",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#FFFF00"
+        }
+      ]
+    },
+    {
+      "row": 33,
+      "cells": [
+        {
+          "ref": "A33",
+          "value": "5096",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        }
+      ]
+    },
+    {
+      "row": 35,
+      "cells": [
+        {
+          "ref": "A35",
+          "value": "1937",
+          "formula": null,
+          "fill": null,
+          "bold": true,
+          "color": "#E7E6E6"
+        }
+      ]
+    }
+  ],
+  "buttonLabels": [
+    "Cadastro de Clientes",
+    "Cadastro de Veículos",
+    "Consulta Integrada (Veículos/Clientes)",
+    "Emissão de Protocolos",
+    "Formulário de Lista de Espera",
+    "Formulário de Prestação de Contas (Fundo Fixo)",
+    "Formulários",
+    "Recibo \"Avulso\" - Sem Registro de Protocolo",
+    "Recibo de Pagamento",
+    "Recibo de Pagto (Venda de Veículos)",
+    "Recibo de Pagto de Locação/Plano",
+    "Relatório Sintético",
+    "Relatório de Acomp. de Contrato",
+    "Relatório de Acompanhamento de Contrato",
+    "Relatório de Recebimentos (Individual)",
+    "Relatório de Recebimentos (Mensal-2025)",
+    "Relatório de Recebimentos (Semanal)",
+    "Relatório de Status da CNH / EAR",
+    "Relatório sintético referente ao(s) período(s)",
+    "Relatórios",
+    "Relação de Clientes",
+    "Relação de Motos Vendidas",
+    "Relação de Protocolos Emitidos",
+    "Relação de Veículos",
+    "Tabela",
+    "Tabela 01",
+    "Tabela 02",
+    "Tabela 03",
+    "Tabela 04",
+    "Tabela 05",
+    "Tabela 06",
+    "Tabela DK Locadora",
+    "Tabela de Valores (Motos 0Km)",
+    "Tabela de Valores (Usadas)",
+    "Tabela de Valores:",
+    "Tabelas"
+  ]
+}

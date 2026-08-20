@@ -1,35 +1,36 @@
 /**
- * Sistema MIEL — Etapa 05: Relação de Clientes (aba Relação_Clientes).
+ * Sistema MIEL — Relação de Clientes (aba Relação_Clientes). Motor célula-a-célula.
  */
 (function portalMielRelacaoClientes() {
   const PANEL_ID = "mielPanelRelacaoClientes";
-  const TABLE_COLS = [
-    { key: "cod", label: "Cód. do Cliente", cls: "miel-cc__cell--cod" },
-    { key: "statusProtocolo", label: "Status" },
-    { key: "cliente", label: "Cliente", cls: "miel-cc__cell--nome" },
-    { key: "cnpjCpf", label: "CNPJ/CPF" },
-    { key: "celular", label: "Nº do Celular" },
-    { key: "recados01", label: "Nº para Recados" },
-    { key: "cep", label: "Cep" },
-    { key: "endereco", label: "Endereço", cls: "miel-cc__cell--end" },
-    { key: "primeiroContrato", label: "Primeiro Contrato" },
-    { key: "valorCaucao", label: "Valor do Caução" },
-    { key: "valorPago", label: "Valor Pago" },
-  ];
+  const LAYOUT_KEY = "__DK_MIEL_LAYOUT_RELACAO_CLIENTES_LAYOUT";
 
-  function esc(s) {
-    return String(s ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
+  const FIELD_BY_COL = {
+    A: "cod",
+    B: "cod",
+    C: "statusProtocolo",
+    D: "cliente",
+    E: "cnpjCpf",
+    F: "celular",
+    G: "recados01",
+    H: "cep",
+    I: "endereco",
+    J: "primeiroContrato",
+    K: "valorCaucao",
+    L: "valorPago",
+  };
+
+  function layout() {
+    return window[LAYOUT_KEY] || null;
   }
-
+  function engine() {
+    return window.__DK_mielSheetEngine || null;
+  }
   function cadastros() {
     return window.__DK_MIEL_CADASTROS || { clientes: [], locacoes: [] };
   }
 
-  function rows() {
+  function buildRows() {
     const locs = cadastros().locacoes || [];
     const byCliente = new Map();
     locs.forEach((l) => {
@@ -39,57 +40,68 @@
       byCliente.set(l.clienteId, cur);
     });
     return (cadastros().clientes || []).map((c) => {
-      const hist = (byCliente.get(c.id) || []).slice().sort((a, b) => String(a.dataInicio).localeCompare(String(b.dataInicio)));
+      const hist = (byCliente.get(c.id) || []).slice().sort((a, b) => String(a.dataInicio || "").localeCompare(String(b.dataInicio || "")));
       const first = hist[0];
       return {
         ...c,
-        primeiroContrato: first ? `${first.protocolo} · ${first.placa || ""}`.trim() : "",
-        valorCaucao: "",
-        valorPago: "",
+        cod: c.cod || c.codigo || "",
+        primeiroContrato: first ? `${first.protocolo || ""} · ${first.placa || ""}`.trim() : "",
+        valorCaucao: c.valorCaucao || "",
+        valorPago: c.valorPago || "",
       };
     });
   }
 
+  function rowToCells(record) {
+    const out = {};
+    Object.entries(FIELD_BY_COL).forEach(([col, key]) => {
+      out[col] = record[key] ?? "";
+    });
+    return out;
+  }
+
   function renderPanel(container) {
-    const data = rows();
-    const head = TABLE_COLS.map((c) => `<th scope="col">${esc(c.label)}</th>`).join("");
-    const body = data
-      .map((r, idx) => {
-        const alt = idx % 2 === 1 ? " miel-cc__row--alt" : "";
-        const alert = String(r.statusProtocolo || "").toUpperCase().includes("INATIVO") ? " miel-cc__row--alert" : "";
-        const cells = TABLE_COLS.map((col) => {
-          const extra = col.cls ? ` ${col.cls}` : "";
-          return `<td class="miel-cc__cell${extra}">${esc(r[col.key] ?? "")}</td>`;
-        }).join("");
-        return `<tr class="miel-cc__row${alt}${alert}">${cells}</tr>`;
-      })
-      .join("");
-    container.innerHTML = `<div class="miel-cc__layout">
-      <div class="miel-cc__main">
-        <h2 class="miel-cc__title" id="mielRelacaoClientesTitle"># Relação de Clientes Cadastrados no Sistema</h2>
-        <div class="miel-cc__table-wrap">
-          <table class="miel-cc__table" aria-label="Relação de clientes">
-            <thead><tr class="miel-cc__head">${head}</tr></thead>
-            <tbody>${body}</tbody>
-          </table>
-        </div>
-      </div>
+    const lay = layout();
+    const eng = engine();
+    if (!lay || !eng) {
+      container.innerHTML = `<p class="miel-cc__err">Layout Relação_Clientes não carregou.</p>`;
+      return;
+    }
+    const data = buildRows();
+    container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
+      <div class="miel-cc__main">${eng.renderSheet(lay, {
+        patchHeaderCell(cell) {
+          if (cell.ref === "B1" && !cell.text) return { text: "# Relação de Clientes Cadastrados no Sistema" };
+          if (cell.ref === "A1" && cell.text?.includes("Relação")) return { text: "" };
+          return null;
+        },
+        dataRows() {
+          return data.map((r) => rowToCells(r));
+        },
+        cellStyleFn(col, val) {
+          if (col === "C" && /INATIVO/i.test(String(val))) return { color: "#C00000" };
+          return null;
+        },
+      })}</div>
       <aside class="miel-cc__side">
-        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-rel-cli-back="administrativo">← Voltar ao Administrativo</button>
-        <button type="button" class="miel-admin-side-btn" data-miel-rel-cli-side="cad-clientes" data-miel-rel-cli-side-label="Cadastro de Clientes" data-miel-rel-cli-side-piece="12"># Cadastro de Clientes</button>
-        <button type="button" class="miel-admin-side-btn" data-miel-rel-cli-side="consulta-clientes" data-miel-rel-cli-side-label="Consulta de Clientes" data-miel-rel-cli-side-piece="11"># Consulta de Clientes</button>
+        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-rel-back="administrativo">← Voltar ao Administrativo</button>
+        <button type="button" class="miel-admin-side-btn" data-miel-rel-side="cad-clientes" data-miel-rel-side-label="Cadastro de Clientes" data-miel-rel-side-piece="12"># Cadastro de Clientes</button>
+        <button type="button" class="miel-admin-side-btn" data-miel-rel-side="consulta-clientes" data-miel-rel-side-label="Consulta de Clientes" data-miel-rel-side-piece="11"># Consulta de Clientes</button>
       </aside>
     </div>`;
-    container.querySelector("[data-miel-rel-cli-back]")?.addEventListener("click", () => {
+  }
+
+  function bindPanel(container) {
+    container.querySelector("[data-miel-rel-back]")?.addEventListener("click", () => {
       if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
     });
-    container.querySelectorAll("[data-miel-rel-cli-side]").forEach((btn) => {
+    container.querySelectorAll("[data-miel-rel-side]").forEach((btn) => {
       btn.addEventListener("click", () => {
         if (typeof window.__DK_mielOpenDestino === "function") {
           window.__DK_mielOpenDestino(
-            btn.getAttribute("data-miel-rel-cli-side") || "",
-            btn.getAttribute("data-miel-rel-cli-side-label") || "",
-            btn.getAttribute("data-miel-rel-cli-side-piece") || "?"
+            btn.getAttribute("data-miel-rel-side") || "",
+            btn.getAttribute("data-miel-rel-side-label") || "",
+            btn.getAttribute("data-miel-rel-side-piece") || "?"
           );
         }
       });
@@ -100,9 +112,22 @@
     const container = document.getElementById(PANEL_ID);
     if (!container) return;
     renderPanel(container);
+    bindPanel(container);
     container.dataset.mielRelClientesReady = "1";
   }
 
   window.__DK_mielInitRelacaoClientes = init;
-  window.__DK_mielRelacaoClientesHeaders = TABLE_COLS.map((c) => c.label);
+  window.__DK_mielRelacaoClientesHeaders = [
+    "Cód. do Cliente",
+    "Status",
+    "Cliente",
+    "CNPJ/CPF",
+    "Nº do Celular",
+    "Nº para Recados",
+    "Cep",
+    "Endereço",
+    "Primeiro Contrato",
+    "Valor do Caução",
+    "Valor Pago",
+  ];
 })();

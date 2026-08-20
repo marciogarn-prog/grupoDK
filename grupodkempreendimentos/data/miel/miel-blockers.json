@@ -1,0 +1,29 @@
+{
+  "updatedAt": "2026-08-20T02:55:00-03:00",
+  "blockers": [
+    {
+      "id": "vba-macros",
+      "sheet": "*",
+      "reason": "Macros VBA e botões ActiveX não executam no browser — reimplementar como JS depois, aba a aba.",
+      "status": "deferred"
+    },
+    {
+      "id": "formulas-cross-sheet",
+      "sheet": "Cad_Clientes, Cad_Veiculos",
+      "reason": "Fórmulas que referem Emissão_de_Protocolos / Tab_Config — substituídas por cálculo JS a partir de miel-cadastros.json.",
+      "status": "deferred-partial"
+    },
+    {
+      "id": "side-buttons-shapes",
+      "sheet": "Cad_Clientes, Cad_Veiculos",
+      "reason": "Botões laterais são formas Excel (não células) — mantidos como atalhos HTML equivalentes até export de drawing XML.",
+      "status": "deferred"
+    }
+  ],
+  "completed": ["Cad_Clientes", "Cad_Veiculos", "Relacao_Clientes", "Relacao_Veiculos", "Status_Veiculos", "Consulta_Integrada", "Ctrl_Multas", "Form_Lista_Espera", "Motos_Vendidas", "ID_Chaveiros_Motos", "ID_Chaveiros_Carros", "Relatorio_EAR", "Acomp_Transf"],
+  "inProgress": ["Administrativo", "Pagina_Inicial"],
+  "deferred": [
+    { "id": "admin-engine-buttons", "reason": "Aba Administrativo usa grid HTML clicável; layout Excel exportado tem células vazias (botões são formas). Migrar quando export drawing XML." },
+    { "id": "pagina-inicial-hero", "reason": "Página Inicial mantém hero HTML; layout Excel disponível para overlay futuro." }
+  ]
+}
