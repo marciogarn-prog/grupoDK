@@ -15,13 +15,13 @@
     },
     {
       "id": "side-buttons-shapes",
-      "sheet": "Cad_Clientes, Cad_Veiculos",
-      "reason": "Botões laterais são formas Excel (não células) — mantidos como atalhos HTML equivalentes até export de drawing XML.",
-      "status": "deferred"
+      "sheet": "Cad_Veiculos",
+      "reason": "Botões laterais de Cad_Veículos ainda são HTML; Cad_Clientes passou a usar imagens/hiperligações da planilha.",
+      "status": "open"
     }
   ],
-  "completed": ["Cad_Clientes", "Cad_Veiculos", "Relacao_Clientes", "Relacao_Veiculos", "Status_Veiculos", "Consulta_Integrada", "Ctrl_Multas", "Form_Lista_Espera", "Motos_Vendidas", "ID_Chaveiros_Motos", "ID_Chaveiros_Carros", "Relatorio_EAR", "Acomp_Transf"],
-  "inProgress": ["Administrativo", "Pagina_Inicial"],
+  "completed": ["Consulta_Integrada", "Ctrl_Multas", "Form_Lista_Espera", "Motos_Vendidas", "ID_Chaveiros_Motos", "ID_Chaveiros_Carros", "Relatorio_EAR", "Acomp_Transf"],
+  "inProgress": ["Cad_Clientes"],
   "deferred": [
     { "id": "admin-engine-buttons", "reason": "Aba Administrativo usa grid HTML clicável; layout Excel exportado tem células vazias (botões são formas). Migrar quando export drawing XML." },
     { "id": "pagina-inicial-hero", "reason": "Página Inicial mantém hero HTML; layout Excel disponível para overlay futuro." }

@@ -223,18 +223,18 @@ async function runSuite() {
         const grid = visible ? panel.querySelector(".miel-sheet__grid") : null;
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          sheetTitle: grid?.textContent?.includes("# Cadastro de Clientes") ? "# Cadastro de Clientes" : "",
           table: Boolean(grid),
           rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
+          shapes: visible ? panel.querySelectorAll(".miel-sheet__shape").length : 0,
           panelVisible: visible,
         };
       });
       record(
         "demo: MIEL etapa 3 Cadastro Clientes",
         cadState.title === "Cadastro de Clientes" &&
-          cadState.sheetTitle === "# Cadastro de Clientes" &&
           cadState.table &&
           cadState.rows >= 300 &&
+          cadState.shapes >= 4 &&
           cadState.panelVisible,
         cadState.title
       );

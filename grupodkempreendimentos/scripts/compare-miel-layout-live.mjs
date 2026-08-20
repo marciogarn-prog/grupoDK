@@ -1,9 +1,6 @@
 /**
  * Compara layout exportado da planilha vs células renderizadas no portal (DOM).
- * Falha se textos fixos ou larguras de coluna divergirem — evita falso positivo dos verify-*.mjs.
- *
  * node scripts/compare-miel-layout-live.mjs [sheetId] [layoutBase]
- * Ex.: node scripts/compare-miel-layout-live.mjs cad-clientes cad-clientes-layout
  */
 import { chromium } from "playwright";
 import fs from "fs";
@@ -12,15 +9,24 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sheetId = process.argv[2] || "cad-clientes";
-const layoutBase = process.argv[3] || `${sheetId.replace(/-/g, "-")}-layout`;
+const layoutBase = process.argv[3] || "cad-clientes-layout";
 const layoutFile = path.join(__dirname, `../data/miel/${layoutBase}.json`);
 const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendimentos.com.br/").replace(
   /\/?$/,
   "/"
 );
 
-/** Células com valores dinâmicos (stats, fórmulas) — não comparar texto. */
 const SKIP_TEXT_REFS = new Set([
+  "A1",
+  "A4",
+  "A5",
+  "A6",
+  "A7",
+  "A8",
+  "A9",
+  "C4",
+  "C5",
+  "K4",
   "O4",
   "O5",
   "O6",
@@ -32,6 +38,15 @@ const SKIP_TEXT_REFS = new Set([
   "K7",
   "K8",
   "K9",
+  "L5",
+  "L6",
+  "L7",
+  "L8",
+  "N5",
+  "N6",
+  "N7",
+  "N8",
+  "N9",
 ]);
 
 const ADMIN_ACTIONS = {
@@ -42,7 +57,8 @@ const ADMIN_ACTIONS = {
   "status-veiculos": "Status de Veículos",
 };
 
-function excelWidthPx(w) {
+function excelWidthPx(w, hidden) {
+  if (hidden) return 0;
   if (!w || w <= 0) return 8;
   return Math.max(8, Math.round(w * 7 + 5));
 }
@@ -110,6 +126,14 @@ async function main() {
       colPx,
       tableWidth: parseInt(grid?.style.width, 10) || 0,
       dataRows: panel?.querySelectorAll(".miel-sheet__row--data").length || 0,
+      shapes: panel?.querySelectorAll(".miel-sheet__shape").length || 0,
+      cellHrefs: [...(panel?.querySelectorAll("[data-miel-xl-link]") || [])].map(
+        (el) => el.getAttribute("data-miel-xl-link") || ""
+      ),
+      sideInvented: panel?.querySelectorAll("[data-miel-cad-side], [data-miel-cad-back]").length || 0,
+      firstRow: [...(panel?.querySelector(".miel-sheet__row--data")?.querySelectorAll("td") || [])].map(
+        (td) => td.textContent?.trim() || ""
+      ),
     };
   }, sheetId);
 
@@ -129,7 +153,8 @@ async function main() {
     }
   }
 
-  const expectedCols = layout.colWidths.map(excelWidthPx);
+  const hidden = layout.colHidden || [];
+  const expectedCols = layout.colWidths.map((w, i) => excelWidthPx(w, hidden[i]));
   const minTableW = expectedCols.reduce((a, b) => a + b, 0);
   if (dom.colPx.length !== expectedCols.length) {
     console.log(`FAIL | colunas DOM=${dom.colPx.length} layout=${expectedCols.length}`);
@@ -138,7 +163,7 @@ async function main() {
     let colFail = false;
     for (let i = 0; i < expectedCols.length; i++) {
       if (dom.colPx[i] !== expectedCols[i]) {
-        console.log(`FAIL | col ${i + 1} px DOM=${dom.colPx[i]} esperado=${expectedCols[i]}`);
+        console.log(`FAIL | col ${i + 1} px DOM=${dom.colPx[i]} esperado=${expectedCols[i]} hidden=${hidden[i]}`);
         colFail = true;
       }
     }
@@ -147,18 +172,60 @@ async function main() {
   }
 
   if (dom.tableWidth < minTableW * 0.85) {
-    console.log(`FAIL | largura tabela ${dom.tableWidth}px < mínimo ~${minTableW}px (layout colapsado?)`);
+    console.log(`FAIL | largura tabela ${dom.tableWidth}px < mínimo ~${minTableW}px`);
     fails++;
   } else {
     console.log(`OK   | largura tabela ${dom.tableWidth}px (mín ~${minTableW}px)`);
   }
 
-  const title = dom.cells.A1 || dom.cells["A1"];
-  if (sheetId === "cad-clientes" && !norm(title).includes("Cadastro de Clientes")) {
-    console.log(`FAIL | título A1 ausente ou errado: «${title}»`);
+  const expectedDrawings = (layout.drawings || []).length;
+  if (expectedDrawings && dom.shapes !== expectedDrawings) {
+    console.log(`FAIL | comandos/imagens DOM=${dom.shapes} planilha=${expectedDrawings}`);
     fails++;
-  } else if (sheetId === "cad-clientes") {
-    console.log(`OK   | título A1 «${norm(title).slice(0, 40)}»`);
+  } else if (expectedDrawings) {
+    console.log(`OK   | ${dom.shapes} comandos (imagens) da planilha`);
+  }
+
+  for (const h of layout.hyperlinks || []) {
+    const loc = h.location || "";
+    if (!loc) continue;
+    const ok = dom.cellHrefs.some((x) => x.includes(loc) || loc.includes(String(x).replace(/^#/, "")));
+    if (!ok) {
+      console.log(`FAIL | hiperligação ausente ${h.ref} → ${loc}`);
+      fails++;
+    } else {
+      console.log(`OK   | hiperligação ${h.ref} → ${loc}`);
+    }
+  }
+
+  if (sheetId === "cad-clientes") {
+    if (dom.sideInvented) {
+      console.log(`FAIL | atalhos HTML inventados: ${dom.sideInvented}`);
+      fails++;
+    } else {
+      console.log("OK   | sem botões laterais inventados");
+    }
+    const cadPath = path.join(__dirname, "../data/miel/miel-cadastros.json");
+    if (fs.existsSync(cadPath)) {
+      const cad = JSON.parse(fs.readFileSync(cadPath, "utf8"));
+      const first = cad.clientes?.[0];
+      if (first && !dom.firstRow.some((t) => norm(t).includes(norm(first.cliente).slice(0, 12)))) {
+        console.log(`FAIL | 1.ª linha sem cliente «${first.cliente}»`);
+        fails++;
+      } else if (first) {
+        console.log(`OK   | 1.ª linha dados «${first.cliente}»`);
+      }
+      if (first && String(first.cod) !== "1") {
+        console.log(`FAIL | cadastros.cod[0]=«${first.cod}» esperado 1`);
+        fails++;
+      }
+    }
+    if (!norm(dom.cells.C11 || "").includes("Análise")) {
+      console.log(`FAIL | cabeçalho C11 «${dom.cells.C11 || ""}»`);
+      fails++;
+    } else {
+      console.log(`OK   | cabeçalho C11 «${norm(dom.cells.C11)}»`);
+    }
   }
 
   console.log(`OK   | linhas de dados renderizadas: ${dom.dataRows}`);

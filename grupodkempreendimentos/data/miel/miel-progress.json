@@ -1,28 +1,19 @@
 {
-  "updatedAt": "2026-08-20T04:45:00-03:00",
+  "updatedAt": "2026-08-20T01:10:00-03:00",
   "targetReview": "2026-08-20T07:00:00-03:00",
-  "method": "Motor célula-a-célula (export-miel-sheet-layout.mjs + portal-miel-sheet-engine.js)",
-  "completed": [
-    { "step": 3, "sheet": "Cad_Clientes", "commit": "9128812", "verify": "32/32 OK", "engine": true },
-    { "step": 4, "sheet": "Cad_Veículos", "engine": true, "rows": 186 },
-    { "step": 5, "sheet": "Relacao_Clientes", "engine": true, "rows": 366 },
-    { "step": 6, "sheet": "Relacao_Veiculos", "engine": true, "rows": 186, "commit": "74762f8" },
-    { "step": 7, "sheet": "Status_Veiculos", "engine": true, "rows": 186, "commit": "74762f8" },
-    { "step": "static", "sheets": ["consulta-integrada", "acomp-transf", "motos-vendidas", "form-lista-espera", "id-chaveiros-carros", "id-chaveiros-motos", "ctrl-multas", "relatorio-ear"], "engine": "layout-only" }
-  ],
-  "inProgress": ["Administrativo (grid HTML + layout exportado disponível)", "Pagina_Inicial (layout exportado)"],
+  "method": "Motor célula-a-célula + hiperligações e imagens da planilha",
+  "completed": [],
+  "inProgress": ["Cad_Clientes — comandos, links, dados e layout iguais à planilha (não avançar de aba)"],
   "pending": [
+    "Cad_Veículos e restantes só depois de Cad_Clientes fechar 100%",
     "Pendências Administrativas",
-    "Acomp CRLVs Anuais",
-    "Financeiro + ~68 abas restantes",
-    "Botões Excel (formas/drawings) como overlay clicável",
-    "Verificação visual pixel-a-pixel"
+    "Financeiro + ~68 abas restantes"
   ],
   "counts": { "implementedPanels": 15, "totalSheets": 84, "layoutExports": 15 },
   "deploy": {
-    "main": "74762f8",
-    "demo": "13ac747",
-    "tests": { "mielEtapas": "62/62", "portalDemo": "100/103", "portalOficial": "94/96" }
+    "main": "pendente",
+    "demo": "pendente",
+    "tests": { "mielEtapas": "pendente", "compareLive": "pendente" }
   },
   "blockers": "Ver data/miel/miel-blockers.json"
 }
