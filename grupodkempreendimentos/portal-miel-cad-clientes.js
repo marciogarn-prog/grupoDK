@@ -32,74 +32,11 @@
     { key: "endereco", label: "Endereço", cls: "miel-cc__cell--end" },
   ];
 
-  /** Amostra inicial (linhas 12–14 da planilha) quando store vazio. */
-  const SEED_ROWS = [
-    {
-      id: "mc_seed_1",
-      cod: "0191",
-      analise: "APROVADO",
-      statusProtocolo: "ATIVO (LOCAÇÃO - MT)",
-      dataCadastro: "2025-04-15",
-      cnpjCpf: "062.426.495-51",
-      cliente: "FELIPE YAGO GOMES RIBEIRO",
-      celular: "74988071669",
-      recados01: "74988114082",
-      recados02: "74988540253",
-      cnh: "7263609641",
-      categoria: "A",
-      vencimento: "2024-04-15",
-      validacao: "VÁLIDA",
-      ear: "NÃO",
-      cep: "56.317-386",
-      municipioUf: "PETROLINA/PE",
-      endereco: "RUA SABIÁ LARANJEIRA, 420 - PEDRA LINDA",
-      alert: false,
-    },
-    {
-      id: "mc_seed_2",
-      cod: "0192",
-      analise: "APROVADO",
-      statusProtocolo: "INATIVO",
-      dataCadastro: "2025-04-15",
-      cnpjCpf: "083.606.204-31",
-      cliente: "MAGNO LOPES FERREIRA",
-      celular: "87991212060",
-      recados01: "87988289740",
-      recados02: "87999686462",
-      cnh: "4776990950",
-      categoria: "AB",
-      vencimento: "2023-11-20",
-      validacao: "VÁLIDA",
-      ear: "NÃO",
-      cep: "56.300-000",
-      municipioUf: "PETROLINA/PE",
-      endereco: "RUA SETE, 191 - ANTÔNIO CASSIMIRO",
-      alert: true,
-    },
-    {
-      id: "mc_seed_3",
-      cod: "0193",
-      analise: "APROVADO",
-      statusProtocolo: "INATIVO",
-      dataCadastro: "2025-04-23",
-      cnpjCpf: "001.750.155-54",
-      cliente: "ALOISIO DE SENA SILVA JUNIOR",
-      celular: "87991143391",
-      recados01: "87991581244",
-      recados02: "75983128822",
-      cnh: "3711100333",
-      categoria: "AB",
-      vencimento: "2023-01-10",
-      validacao: "VÁLIDA",
-      ear: "SIM",
-      cep: "56.300-000",
-      municipioUf: "PETROLINA/PE",
-      endereco: "RUA NOVE, 590 - JARDIM SÃO PAULO",
-      alert: true,
-    },
-  ];
-
   let rows = [];
+
+  function planilhaClientes() {
+    return (window.__DK_MIEL_CADASTROS && window.__DK_MIEL_CADASTROS.clientes) || [];
+  }
 
   function esc(s) {
     return String(s ?? "")
@@ -119,16 +56,15 @@
   }
 
   function loadStore() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      rows = raw ? JSON.parse(raw) : [];
-      if (!Array.isArray(rows)) rows = [];
-      if (!rows.length) {
-        rows = SEED_ROWS.map((r) => ({ ...r }));
-        saveStore();
+    rows = planilhaClientes().map((r) => ({ ...r }));
+    if (!rows.length) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const local = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(local)) rows = local;
+      } catch {
+        rows = [];
       }
-    } catch {
-      rows = SEED_ROWS.map((r) => ({ ...r }));
     }
   }
 
