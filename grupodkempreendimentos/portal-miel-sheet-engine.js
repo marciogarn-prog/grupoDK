@@ -21,8 +21,8 @@
   }
 
   function excelWidthPx(w) {
-    if (!w || w <= 0) return 0;
-    return Math.max(0, Math.round(w * 7 + 5));
+    if (!w || w <= 0) return 8;
+    return Math.max(8, Math.round(w * 7 + 5));
   }
 
   function cellStyleCss(cell) {
@@ -40,15 +40,19 @@
     const attrs = [];
     if (cell.colspan > 1) attrs.push(`colspan="${cell.colspan}"`);
     if (cell.rowspan > 1) attrs.push(`rowspan="${cell.rowspan}"`);
+    if (cell.ref) attrs.push(`data-ref="${cell.ref}"`);
     if (cs) attrs.push(`style="${cs}"`);
     return `<td ${attrs.join(" ")}>${esc(cell.text)}</td>`;
+  }
+
+  function totalWidthPx(colWidths) {
+    return (colWidths || []).reduce((sum, w) => sum + excelWidthPx(w), 0);
   }
 
   function renderColgroup(colWidths) {
     return `<colgroup>${colWidths
       .map((w) => {
         const px = excelWidthPx(w);
-        if (px <= 0) return `<col style="width:0;visibility:hidden" />`;
         return `<col style="width:${px}px" />`;
       })
       .join("")}</colgroup>`;
@@ -57,6 +61,8 @@
   function renderSheet(layout, opts = {}) {
     const { dataRows, patchHeaderCell, cellStyleFn } = opts;
     const zoom = layout.zoom ? layout.zoom / 100 : 1;
+    const tableW = totalWidthPx(layout.colWidths);
+
     const headerHtml = layout.rows
       .map((row) => {
         const ht = row.height ? ` style="height:${row.height}pt"` : "";
@@ -98,8 +104,15 @@
     }
 
     const gridClass = layout.showGridLines ? "miel-sheet__grid" : "miel-sheet__grid miel-sheet__grid--no-lines";
-    return `<div class="miel-sheet" style="zoom:${zoom}"><div class="miel-sheet__scroll"><table class="${gridClass}">${renderColgroup(layout.colWidths)}<thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table></div></div>`;
+    const scaledW = Math.round(tableW * zoom);
+    return `<div class="miel-sheet-wrap" style="width:${scaledW}px;max-width:100%">
+      <div class="miel-sheet" style="transform:scale(${zoom});transform-origin:top left;width:${tableW}px">
+        <div class="miel-sheet__scroll">
+          <table class="${gridClass}" style="width:${tableW}px">${renderColgroup(layout.colWidths)}<thead>${headerHtml}</thead><tbody>${bodyHtml}</tbody></table>
+        </div>
+      </div>
+    </div>`;
   }
 
-  window.__DK_mielSheetEngine = { renderSheet, esc, excelWidthPx, numToCol };
+  window.__DK_mielSheetEngine = { renderSheet, esc, excelWidthPx, numToCol, totalWidthPx };
 })();

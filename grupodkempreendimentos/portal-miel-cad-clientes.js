@@ -98,8 +98,6 @@
       O8: { text: String(st.cnhAlerta) },
       O9: { text: String(st.inativos) },
     };
-    if (ref === "B1" && !cell.text) return { text: "# Cadastro de Clientes" };
-    if (ref === "A1" && cell.text?.includes("Cadastro")) return { text: "" };
     if (patches[ref]) return patches[ref];
     if (ref === "J4" && !cell.text) return { text: "Quantidade de Clientes Cadastrados  >>" };
     if (ref === "B4" && !cell.text) return { text: "Distribuição de Clientes" };
