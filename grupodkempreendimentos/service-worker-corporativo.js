@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260820req-modelo";
+const CACHE_NAME = "dk-corporativo-v20260820promessa-exata";
 const ASSETS = [
   "./",
   "./index.html",

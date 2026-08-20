@@ -141,12 +141,20 @@
     };
   }
 
+  function logoPacoteUrl() {
+    try {
+      return new URL("images/dk-locadora-logo.png", window.location.href).href;
+    } catch {
+      return "images/dk-locadora-logo.png";
+    }
+  }
+
   function substituirPacote(html, d) {
     const map = {
       "{{NOME}}": d.nome,
       "{{CPF}}": d.cpfFmt,
       "{{ENDERECO}}": d.endereco,
-      "{{PROTOCOLO}}": d.protocolo,
+      "{{PROTOCOLO}}": d.protocolo || "**********",
       "{{PLACA}}": d.placa,
       "{{MARCA_MODELO}}": d.marcaModelo,
       "{{CHASSI}}": d.chassi,
@@ -168,10 +176,12 @@
       "{{CIDADE}}": d.cidade,
       "{{UF}}": d.uf,
       "{{EMAIL}}": d.email,
+      "{{LOGO_URL}}": logoPacoteUrl(),
     };
     let out = String(html || "");
     for (const [k, v] of Object.entries(map)) {
-      out = out.split(k).join(esc(v));
+      /* LOGO_URL is a trusted same-origin path — do not HTML-escape the URL. */
+      out = out.split(k).join(k === "{{LOGO_URL}}" ? String(v) : esc(v));
     }
     return out;
   }
@@ -238,6 +248,133 @@ body.kit-preview { padding-top: 58px; }
   display: flex; justify-content: space-between; font-size: 8pt; color: #444;
   border-top: 1px solid #ccc; padding-top: 3px;
 }
+/* —— Promessa (modelo oficial SISLOC) —— */
+.pagina.pagina-promessa {
+  padding: 18mm 20mm 22mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+}
+.pagina.pagina-promessa .corpo { height: 100%; }
+.kit-promessa {
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  font-size: 9.6pt;
+  line-height: 1.28;
+  color: #000;
+}
+.kit-promessa__cab {
+  position: relative;
+  text-align: center;
+  min-height: 16mm;
+  margin: 0 0 7mm;
+  padding: 0 0 0 30mm;
+}
+.kit-promessa__logo {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  width: 26mm;
+  height: auto;
+  max-height: 15mm;
+  object-fit: contain;
+  object-position: left top;
+}
+.kit-promessa__cab-txt { text-align: center; padding-top: 0.5mm; }
+.kit-promessa__titulo {
+  margin: 0;
+  font-size: 11.2pt;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+}
+.kit-promessa__proto {
+  margin: 2.5mm 0 0;
+  font-size: 10pt;
+  text-align: center;
+  font-weight: 400;
+}
+.kit-promessa__p {
+  margin: 0 0 2.4mm;
+  text-align: justify;
+  text-justify: inter-word;
+  hyphens: auto;
+}
+.kit-promessa__h2 {
+  margin: 3.2mm 0 1.6mm;
+  font-size: 10pt;
+  font-weight: 700;
+  text-align: left;
+}
+.kit-promessa__veiculo {
+  display: grid;
+  grid-template-columns: 1.35fr 1.1fr 0.85fr 0.95fr;
+  grid-template-areas:
+    "placa placa marca marca"
+    "chassi renavam cor ano";
+  column-gap: 6mm;
+  row-gap: 2.2mm;
+  margin: 2mm 0 3.5mm;
+}
+.kit-promessa__campo--placa { grid-area: placa; }
+.kit-promessa__campo--marca { grid-area: marca; }
+.kit-promessa__campo--chassi { grid-area: chassi; }
+.kit-promessa__campo--renavam { grid-area: renavam; }
+.kit-promessa__campo--cor { grid-area: cor; }
+.kit-promessa__campo--ano { grid-area: ano; }
+.kit-promessa__campo-lbl {
+  display: block;
+  font-size: 9pt;
+  font-weight: 400;
+  margin-bottom: 0.6mm;
+}
+.kit-promessa__campo-box {
+  font-size: 9.5pt;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid #111;
+  padding: 0 0 1px;
+  line-height: 1.35;
+}
+.kit-promessa__campo-box strong { font-weight: 700; }
+.kit-promessa--p2 { padding-top: 2mm; }
+.kit-promessa__fecho {
+  margin: 8mm 0 0;
+  text-align: left;
+}
+.kit-promessa__data {
+  margin: 14mm 0 0;
+  text-align: center;
+  font-size: 10pt;
+}
+.kit-promessa__sigs {
+  display: flex;
+  justify-content: space-between;
+  gap: 16mm;
+  margin-top: 18mm;
+  width: 100%;
+}
+.kit-promessa__sig { flex: 1 1 0; min-width: 0; text-align: center; }
+.kit-promessa__sig-line {
+  width: 100%;
+  border-bottom: 1.15pt solid #111;
+  height: 10mm;
+  margin: 0 0 2.5mm;
+}
+.kit-promessa__sig-name { margin: 0; font-size: 9.5pt; }
+.kit-promessa__sig-id { margin: 1.5mm 0 0; font-size: 9pt; }
+.pe-pagina.pe-promessa {
+  left: 20mm; right: 20mm; bottom: 10mm;
+  font-size: 8pt; color: #222;
+  border-top: 1px solid #333; padding-top: 2.5px;
+  font-family: Arial, Helvetica, sans-serif;
+}
 .pagina.kit-pdf-pagina {
   padding: 0;
   display: flex;
@@ -285,7 +422,7 @@ body.kit-preview { padding-top: 58px; }
     }
     if (docId === "promessa") {
       const arr = window.__DK_CONTRATO_PACOTE_PROMESSA || [];
-      return arr.map((c, i) => wrapPagina(substituirPacote(c, d), i + 1, arr.length, d, "Promessa"));
+      return arr.map((c, i) => wrapPaginaPromessa(substituirPacote(c, d), i + 1, arr.length));
     }
     if (docId === "requerimento") {
       /* PDF modelo oficial — páginas preenchidas em runtime (sem alterar layout). */
@@ -300,6 +437,14 @@ body.kit-preview { padding-top: 58px; }
     return `<div class="pagina" data-pagina="${num}" data-kit-label="${esc(label)}">
   <div class="corpo">${corpoHtml}</div>
   <div class="pe-pagina"><span>DK - SISLOC — ${esc(label)} · Prot. ${esc(d.protocolo)}</span><span>Pág.: ${num} / ${total}</span></div>
+</div>`;
+  }
+
+  /** Rodapé idêntico ao PDF oficial da Promessa. */
+  function wrapPaginaPromessa(corpoHtml, num, total) {
+    return `<div class="pagina pagina-promessa" data-pagina="${num}" data-kit-label="Promessa">
+  <div class="corpo">${corpoHtml}</div>
+  <div class="pe-pagina pe-promessa"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: ${num} / ${total}</span></div>
 </div>`;
   }
 
