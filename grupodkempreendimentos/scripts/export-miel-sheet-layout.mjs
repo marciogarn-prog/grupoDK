@@ -34,8 +34,16 @@ for (const b of ssXml.split("<si>").slice(1)) {
 const stylesXml = fs.readFileSync(path.join(tmp, "xl/styles.xml"), "utf8");
 const themeXml = fs.readFileSync(path.join(tmp, "xl/theme/theme1.xml"), "utf8");
 const themeColors = [];
-for (const m of themeXml.matchAll(/<a:srgbClr val="([^"]+)"/g)) themeColors.push("#" + m[1]);
-for (const m of themeXml.matchAll(/<a:sysClr[^>]*lastClr="([^"]+)"/g)) themeColors.push("#" + m[1]);
+const clrScheme = themeXml.match(/<a:clrScheme[^>]*>([\s\S]*?)<\/a:clrScheme>/)?.[1] || "";
+for (const block of clrScheme.match(/<a:(?:dk|lt|accent|hlink|folHlink)\d*[^>]*>[\s\S]*?<\/a:(?:dk|lt|accent|hlink|folHlink)\d*>/g) || []) {
+  const rgb = block.match(/<a:srgbClr val="([^"]+)"/)?.[1];
+  const sys = block.match(/<a:sysClr[^>]*lastClr="([^"]+)"/)?.[1];
+  themeColors.push("#" + (rgb || sys || "000000"));
+}
+if (themeColors.length < 2) {
+  for (const m of themeXml.matchAll(/<a:srgbClr val="([^"]+)"/g)) themeColors.push("#" + m[1]);
+  for (const m of themeXml.matchAll(/<a:sysClr[^>]*lastClr="([^"]+)"/g)) themeColors.push("#" + m[1]);
+}
 
 const fills = [...stylesXml.matchAll(/<fill>([\s\S]*?)<\/fill>/g)].map((m) => m[1]);
 const fonts = [...stylesXml.matchAll(/<font>([\s\S]*?)<\/font>/g)].map((m) => m[1]);
