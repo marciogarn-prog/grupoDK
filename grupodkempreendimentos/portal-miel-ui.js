@@ -46,6 +46,7 @@
     "relacao-clientes",
     "relacao-veiculos",
     "status-veiculos",
+    "consulta-integrada",
     ...STATIC_IDS,
   ]);
 
@@ -56,6 +57,7 @@
     "relacao-clientes": "__DK_mielInitRelacaoClientes",
     "relacao-veiculos": "__DK_mielInitRelacaoVeiculos",
     "status-veiculos": "__DK_mielInitStatusVeiculos",
+    "consulta-integrada": "__DK_mielInitConsultaIntegrada",
     ...STATIC_HOOKS,
   };
 

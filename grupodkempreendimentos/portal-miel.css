@@ -740,3 +740,214 @@
   color: #c00000;
   padding: 1rem;
 }
+
+/* Consulta Integrada (Consulta_Veíc_ou_Cliente) */
+.miel-consulta-integrada {
+  padding: 0.35rem 0.5rem 1rem;
+  overflow: auto;
+  max-height: calc(100vh - 11rem);
+  background: #f2f2f2;
+}
+
+.miel-ci__toolbar {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin-bottom: 0.55rem;
+  padding: 0.25rem 0.35rem;
+  background: #d9d9d9;
+  border: 1px solid #bbb;
+}
+
+.miel-ci__icon {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+}
+
+.miel-ci__icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.miel-ci {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.miel-ci__col {
+  background: #fff;
+  border: 1px solid #bfbfbf;
+  min-width: 0;
+}
+
+.miel-ci__head {
+  margin: 0;
+  padding: 0.4rem 0.65rem;
+  background: #c00000;
+  color: #fff;
+  font: 700 13pt Calibri, "Segoe UI", sans-serif;
+}
+
+.miel-ci__search {
+  padding: 0.55rem 0.65rem;
+  background: #f2f2f2;
+  border-bottom: 1px solid #d0d0d0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.miel-ci__hint {
+  margin: 0;
+  font: 10pt Calibri, "Segoe UI", sans-serif;
+  color: #333;
+}
+
+.miel-ci__search-row {
+  display: grid;
+  grid-template-columns: 9.5rem 1fr;
+  gap: 0.4rem;
+  align-items: center;
+  font: 700 10.5pt Calibri, "Segoe UI", sans-serif;
+  color: #333;
+}
+
+.miel-ci__search-row--stack {
+  grid-template-columns: 1fr;
+}
+
+.miel-ci__input {
+  border: 1px solid #7f7f7f;
+  padding: 0.28rem 0.4rem;
+  font: 11pt Calibri, "Segoe UI", sans-serif;
+  background: #fff;
+}
+
+.miel-ci__input--blue {
+  background: #ddebf7;
+  color: #0070c0;
+  font-weight: 700;
+}
+
+.miel-ci__btn {
+  justify-self: start;
+  border: 1px solid #8b0000;
+  background: #c00000;
+  color: #fff;
+  font: 700 10pt Calibri, "Segoe UI", sans-serif;
+  padding: 0.3rem 0.75rem;
+  cursor: pointer;
+}
+
+.miel-ci__result {
+  padding: 0.45rem 0.55rem 0.7rem;
+}
+
+.miel-ci__block {
+  margin-top: 0.45rem;
+  border: 1px solid #cfcfcf;
+  background: #fafafa;
+}
+
+.miel-ci__block-title {
+  margin: 0;
+  padding: 0.28rem 0.45rem;
+  background: #d9d9d9;
+  color: #c00000;
+  font: 700 11pt Calibri, "Segoe UI", sans-serif;
+}
+
+.miel-ci__row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  padding: 0.4rem;
+}
+
+.miel-ci__row--2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.miel-ci__row--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.miel-ci__row--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.miel-ci__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.miel-ci__lbl {
+  font: 700 9pt Calibri, "Segoe UI", sans-serif;
+  color: #595959;
+}
+
+.miel-ci__val {
+  border: 1px solid #b0b0b0;
+  background: #fff;
+  padding: 0.22rem 0.35rem;
+  font: 11pt Calibri, "Segoe UI", sans-serif;
+  min-height: 1.35rem;
+  word-break: break-word;
+}
+
+.miel-ci__val--blue {
+  background: #ddebf7;
+  color: #0070c0;
+  font-weight: 700;
+}
+
+.miel-ci__val--yellow {
+  background: #ffff99;
+  color: #000;
+  font-weight: 700;
+}
+
+.miel-ci__val--danger {
+  background: #fce4d6;
+  color: #c00000;
+  font-weight: 700;
+}
+
+.miel-ci__val--ok {
+  background: #e2efda;
+  color: #375623;
+  font-weight: 700;
+}
+
+.miel-ci__val--warn {
+  background: #fff2cc;
+  color: #833c0c;
+  font-weight: 700;
+}
+
+.miel-ci__empty {
+  padding: 1rem;
+  color: #666;
+  font: 11pt Calibri, "Segoe UI", sans-serif;
+}
+
+@media (max-width: 1100px) {
+  .miel-ci {
+    grid-template-columns: 1fr;
+  }
+
+  .miel-ci__row--3,
+  .miel-ci__row--4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
