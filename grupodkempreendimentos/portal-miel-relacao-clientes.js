@@ -72,7 +72,6 @@
       <div class="miel-cc__main">${eng.renderSheet(lay, {
         patchHeaderCell(cell) {
           if (cell.ref === "B1" && !cell.text) return { text: "# Relação de Clientes Cadastrados no Sistema" };
-          if (cell.ref === "A1" && cell.text?.includes("Relação")) return { text: "" };
           return null;
         },
         dataRows() {

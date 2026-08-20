@@ -69,7 +69,7 @@ ok("Qtd colunas", excel.length === PORTAL.length, `${excel.length} vs ${PORTAL.l
 for (let i = 0; i < PORTAL.length; i++) ok(`Col ${i + 1}`, excel[i] === PORTAL[i], `${excel[i]}`);
 const js = fs.readFileSync(path.join(__dirname, "../portal-miel-relacao-clientes.js"), "utf8");
 ok("Portal usa título da planilha", js.includes("# Relação de Clientes Cadastrados no Sistema"));
-ok("Portal é tabela", js.includes("miel-cc__table") && !js.includes("Guardar"));
+ok("Portal é tabela", js.includes("renderSheet") && !js.includes("Guardar"));
 
 console.log(`\n--- ${fails === 0 ? "CONFERÊNCIA OK" : `FALHOU (${fails})`} ---`);
 process.exit(fails === 0 ? 0 : 1);

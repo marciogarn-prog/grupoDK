@@ -87,7 +87,7 @@ function ok(name, cond, detail = "") {
 console.log("=== CONFERÊNCIA VISUAL — Cad_Veículos (planilha vs portal) ===\n");
 ok("Título A1", strings.includes(PORTAL_TITLE));
 ok("Portal usa título planilha", cadJs.includes(PORTAL_TITLE));
-ok("Portal é tabela (não formulário Guardar)", cadJs.includes("mielCadVeiculosBody") && !cadJs.includes("Guardar Veículo"));
+ok("Portal é tabela (não formulário Guardar)", cadJs.includes("renderSheet") && cadJs.includes("__DK_mielInitCadVeiculos") && !cadJs.includes("Guardar Veículo"));
 ok("Quantidade colunas linha 17", excelHeaders.length === PORTAL_HEADERS.length, `${excelHeaders.length}`);
 for (let i = 0; i < PORTAL_HEADERS.length; i++) {
   ok(`Coluna ${i + 1}`, excelHeaders[i] === PORTAL_HEADERS[i], `${excelHeaders[i]}`);
