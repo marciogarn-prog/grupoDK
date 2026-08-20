@@ -15,12 +15,12 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendi
   "/"
 );
 /** Etapas implementadas — incrementar a cada nova peça. */
-export const MIEL_ETAPAS_IMPLEMENTADAS = 3;
+export const MIEL_ETAPAS_IMPLEMENTADAS = 4;
 
 /** Destinos principais do grid Administrativo (coluna Formulários / Relatórios). */
 const ADMIN_GRID_EXPECTED = [
   { btn: "Cadastro de Clientes", title: "Cadastro de Clientes", panel: "cad-clientes", implemented: true },
-  { btn: "Cadastro de Veículos", title: "Cadastro de Veículos", panel: "cad-veiculos" },
+  { btn: "Cadastro de Veículos", title: "Cadastro de Veículos", panel: "cad-veiculos", implemented: true },
   { btn: "Relação de Clientes", title: "Relação de Clientes", panel: "relacao-clientes" },
   { btn: "Relação de Veículos", title: "Relação de Veículos", panel: "relacao-veiculos" },
   { btn: "Status de Veículos", title: "Status Veículos", panel: "status-veiculos" },
@@ -277,7 +277,7 @@ async function testEtapa2(page) {
     );
     const back = page
       .locator(
-        '.miel-panel:not(.hidden) [data-miel-stub-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-back="administrativo"]'
+        '.miel-panel:not(.hidden) [data-miel-stub-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-back="administrativo"], .miel-panel:not(.hidden) [data-miel-cad-veic-back="administrativo"]'
       )
       .first();
     if (await back.count()) {
@@ -381,6 +381,93 @@ async function testEtapa3(page) {
   record("regressão: etapa 2 após etapa 3", p2.title === "Administrativo" && p2.banner);
 }
 
+async function testEtapa4(page) {
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
+  await page.waitForTimeout(300);
+  await page.locator('[data-miel-admin-action="Cadastro de Veículos"]').first().click();
+  await page.waitForTimeout(400);
+
+  const s = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    bannerText: document.querySelector(".miel-cad__banner")?.textContent?.trim() || "",
+    busca: Boolean(document.getElementById("mielCadVeiculoBusca")),
+    codigo: Boolean(document.getElementById("mielCadVeiculo_codigo")),
+    placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
+    marca: Boolean(document.getElementById("mielCadVeiculo_marca")),
+    panelVisible: !document.getElementById("mielPanelCadVeiculos")?.classList.contains("hidden"),
+    actions: document.querySelectorAll("[data-miel-cad-veic-action]").length,
+    sideBtns: document.querySelectorAll("[data-miel-cad-veic-side]").length,
+    fieldCount: (window.__DK_mielCadVeiculosFields || []).length,
+  }));
+
+  record(
+    "etapa 4: Cadastro de Veículos abre formulário",
+    s.title === "Cadastro de Veículos" &&
+      s.bannerText === "CADASTRO DE VEÍCULOS" &&
+      s.busca &&
+      s.codigo &&
+      s.placa &&
+      s.panelVisible,
+    `actions=${s.actions}`
+  );
+  record("etapa 4: 20 campos da planilha (linha 17)", s.fieldCount === 20 && s.actions >= 3);
+  record("etapa 4: botões laterais Consulta/Cad. Clientes", s.sideBtns >= 2, `side=${s.sideBtns}`);
+
+  await page.locator("#mielCadVeiculo_codigo").fill("DKMT-TESTE");
+  await page.locator("#mielCadVeiculo_placa").fill("ABC1D23");
+  await page.locator("#mielCadVeiculo_marca").fill("HONDA");
+  await page.locator("#mielCadVeiculo_modelo").fill("CG 160");
+  await page.locator('[data-miel-cad-veic-action="guardar"]').first().click();
+  await page.waitForTimeout(300);
+
+  const saved = await page.evaluate(() => {
+    const fb = document.getElementById("mielCadVeiculoFeedback")?.textContent || "";
+    let count = 0;
+    try {
+      count = JSON.parse(localStorage.getItem("dk_miel_veiculos_v1") || "[]").length;
+    } catch {
+      /* ignore */
+    }
+    return { fb, count };
+  });
+  record("etapa 4: guardar veículo no MIEL", saved.fb.includes("ABC1D23") && saved.count >= 1, saved.fb);
+
+  await page.locator("#mielCadVeiculoBusca").fill("ABC1D23");
+  await page.locator("#mielCadVeiculoBusca").dispatchEvent("change");
+  await page.waitForTimeout(250);
+  const loaded = await page.locator("#mielCadVeiculo_marca").inputValue();
+  record("etapa 4: pesquisa carrega veículo", loaded === "HONDA", loaded);
+
+  await page.locator('[data-miel-cad-veic-back="administrativo"]').first().click();
+  await page.waitForTimeout(250);
+  const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
+  record("etapa 4: voltar ao Administrativo", adm === "Administrativo", adm);
+
+  await page.locator('[data-miel-admin-action="Cadastro de Clientes"]').first().click();
+  await page.waitForTimeout(300);
+  const cli = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    nome: Boolean(document.getElementById("mielCadCliente_nome")),
+  }));
+  record("regressão: etapa 3 após etapa 4", cli.title === "Cadastro de Clientes" && cli.nome);
+
+  await page.locator('[data-miel-nav="pagina-inicial"]').first().click();
+  await page.waitForTimeout(200);
+  const p1 = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    hero: Boolean(document.querySelector(".miel-pagina-inicial__hero")),
+  }));
+  record("regressão: etapa 1 após etapa 4", p1.title === "Página Inicial" && p1.hero);
+
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
+  await page.waitForTimeout(200);
+  const p2 = await page.evaluate(() => ({
+    title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim() === "ADMINISTRATIVO",
+  }));
+  record("regressão: etapa 2 após etapa 4", p2.title === "Administrativo" && p2.banner);
+}
+
 async function testRegressaoEtapa1Apos2(page) {
   await page.locator('[data-miel-nav="pagina-inicial"]').first().click();
   await page.waitForTimeout(300);
@@ -407,6 +494,7 @@ export async function runMielEtapasTests(page, maxEtapa = MIEL_ETAPAS_IMPLEMENTA
     if (maxEtapa < 3) await testRegressaoEtapa1Apos2(page);
   }
   if (maxEtapa >= 3) await testEtapa3(page);
+  if (maxEtapa >= 4) await testEtapa4(page);
   await testNavegacaoSaida(page);
   const failed = results.filter((r) => !r.ok);
   return { ok: failed.length === 0, total: results.length, failed: failed.length, results };
@@ -418,6 +506,13 @@ async function main() {
     console.log("PASS | conferência planilha vs portal Administrativo");
   } catch {
     console.error("FAIL | conferência planilha vs portal Administrativo — corrigir antes de publicar");
+    process.exit(1);
+  }
+  try {
+    execSync("node scripts/verify-miel-cad-veiculos-planilha.mjs", { cwd: __dirname + "/..", stdio: "inherit" });
+    console.log("PASS | conferência planilha vs portal Cadastro de Veículos");
+  } catch {
+    console.error("FAIL | conferência planilha vs portal Cadastro de Veículos — corrigir antes de publicar");
     process.exit(1);
   }
 
