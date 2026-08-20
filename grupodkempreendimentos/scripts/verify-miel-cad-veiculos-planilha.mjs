@@ -1,5 +1,5 @@
 /**
- * Conferência: aba Cad_Veículos (linha 17) vs portal-miel-cad-veiculos.js
+ * Conferência visual: aba Cad_Veículos vs portal (tabela + painel, não formulário).
  */
 import fs from "fs";
 import path from "path";
@@ -7,8 +7,10 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tmp = path.join(__dirname, "../data/miel/planilha/_tmp-admin");
+const dataJs = path.join(__dirname, "../data/miel/miel-cadastros.js");
 
-const PORTAL_FIELDS = [
+const PORTAL_TITLE = "# Cadastro de Veículos";
+const PORTAL_HEADERS = [
   "Cód. do Veículo",
   "Data do Cadastro",
   "Status",
@@ -49,9 +51,9 @@ function parseAttrs(tag) {
 }
 
 function resolveText(raw, attrs) {
-  if (!raw) return "";
+  if (!raw && raw !== 0) return "";
   if (attrs.t === "s") return strings[+raw] ?? raw;
-  if (/^\d+$/.test(String(raw)) && strings[+raw]) return strings[+raw];
+  if (!attrs.t && /^\d+$/.test(String(raw)) && strings[+raw] && /[A-Za-zÀ-ú]/.test(strings[+raw])) return strings[+raw];
   return raw;
 }
 
@@ -61,14 +63,18 @@ const excelHeaders = [];
 for (const cTag of row17.match(/<c [^>]*(?:\/>|[\s\S]*?<\/c>)/g) || []) {
   const open = cTag.match(/^<c ([^>]*)/)?.[1] || "";
   const attrs = parseAttrs(open);
-  const ref = attrs.r;
   const inner = cTag.replace(/^<c [^>]*>/, "").replace(/<\/c>$/, "");
   const v = inner.match(/<v>([^<]*)<\/v>/)?.[1] ?? "";
   const text = resolveText(v, attrs);
-  if (text) excelHeaders.push({ ref, text });
+  if (text) excelHeaders.push(text);
 }
 
-const excelLabels = excelHeaders.map((h) => h.text);
+const cadJs = fs.readFileSync(path.join(__dirname, "../portal-miel-cad-veiculos.js"), "utf8");
+const dataSrc = fs.readFileSync(dataJs, "utf8");
+const veiculosCount = (dataSrc.match(/"codigo":/g) || []).length;
+const clientesCount = (dataSrc.match(/"cliente":/g) || []).length;
+const locacoesCount = (dataSrc.match(/"protocolo":/g) || []).length;
+
 let fails = 0;
 function ok(name, cond, detail = "") {
   if (cond) console.log(`OK   | ${name}${detail ? ` | ${detail}` : ""}`);
@@ -78,18 +84,24 @@ function ok(name, cond, detail = "") {
   }
 }
 
-console.log("=== CONFERÊNCIA Cad_Veículos linha 17 vs portal ===\n");
-ok("Título planilha A1", strings.some((s) => s === "# Cadastro de Veículos"));
-ok("Banner portal", true, "CADASTRO DE VEÍCULOS");
-
-ok("Quantidade de campos", excelLabels.length === PORTAL_FIELDS.length, `planilha=${excelLabels.length} portal=${PORTAL_FIELDS.length}`);
-
-for (let i = 0; i < PORTAL_FIELDS.length; i++) {
-  ok(`Campo ${i + 1}`, excelLabels[i] === PORTAL_FIELDS[i], `planilha=${excelLabels[i]} portal=${PORTAL_FIELDS[i]}`);
+console.log("=== CONFERÊNCIA VISUAL — Cad_Veículos (planilha vs portal) ===\n");
+ok("Título A1", strings.includes(PORTAL_TITLE));
+ok("Portal usa título planilha", cadJs.includes(PORTAL_TITLE));
+ok("Portal é tabela (não formulário Guardar)", cadJs.includes("mielCadVeiculosBody") && !cadJs.includes("Guardar Veículo"));
+ok("Quantidade colunas linha 17", excelHeaders.length === PORTAL_HEADERS.length, `${excelHeaders.length}`);
+for (let i = 0; i < PORTAL_HEADERS.length; i++) {
+  ok(`Coluna ${i + 1}`, excelHeaders[i] === PORTAL_HEADERS[i], `${excelHeaders[i]}`);
 }
+ok("Painel Total Investido na planilha", strings.some((s) => s.includes("Total Investido")));
+ok(
+  "Painel Quantitativo / Veículos Cadastrados",
+  strings.some((s) => /Quantitativo/i.test(s)) && strings.some((s) => s.includes("Veículos Cadastrados"))
+);
+ok("Dados veículos importados", veiculosCount >= 180, `n=${veiculosCount}`);
+ok("Dados clientes importados", clientesCount >= 350, `n=${clientesCount}`);
+ok("Locações importadas", (dataSrc.match(/"protocolo":"20/g) || []).length >= 400, `n=${(dataSrc.match(/"protocolo":"20/g) || []).length}`);
+ok("Botão Consulta de Veículos", strings.includes("# Consulta de Veículos"));
+ok("Botão Cadastro de Clientes", strings.includes("# Cadastro de Clientes"));
 
-ok("Botão lateral Consulta de Veículos", strings.includes("# Consulta de Veículos"));
-ok("Botão lateral Cadastro de Clientes", strings.includes("# Cadastro de Clientes"));
-
-console.log(`\n--- ${fails === 0 ? "CONFERÊNCIA OK" : `FALHOU (${fails})`} ---`);
+console.log(`\n--- ${fails === 0 ? "CONFERÊNCIA OK — layout e dados da planilha" : `FALHOU (${fails})`} ---`);
 process.exit(fails === 0 ? 0 : 1);

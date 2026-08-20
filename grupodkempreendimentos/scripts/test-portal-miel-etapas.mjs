@@ -334,6 +334,7 @@ async function testEtapa3(page) {
     sideBtns: document.querySelectorAll("[data-miel-cad-side]").length,
     noWebForm: !document.getElementById("mielCadCliente_nome"),
     headerCount: (window.__DK_mielCadClientesHeaders || []).length,
+    cadCount: (window.__DK_MIEL_CADASTROS?.clientes || []).length,
   }));
 
   record(
@@ -352,7 +353,12 @@ async function testEtapa3(page) {
     s.headers.slice(0, 4).join("|")
   );
   record("etapa 3: painel estatístico + botões laterais", s.stats && s.sideBtns >= 2);
-  record("etapa 3: tabela com dados iniciais", s.rows >= 3, `rows=${s.rows}`);
+  record("etapa 3: dados da planilha carregados", s.rows >= 300, `rows=${s.rows}`);
+  record(
+    "etapa 3: cadastros MIEL na memória",
+    Boolean(s.cadCount >= 300),
+    `cad=${s.cadCount}`
+  );
 
   await page.locator('[data-miel-cad-back="administrativo"]').first().click();
   await page.waitForTimeout(250);
@@ -384,58 +390,41 @@ async function testEtapa4(page) {
 
   const s = await page.evaluate(() => {
     const panel = document.getElementById("mielPanelCadVeiculos");
-    const bannerEl = panel?.querySelector(".miel-cad__banner");
     return {
       title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-      bannerText: bannerEl?.textContent?.trim() || "",
-      busca: Boolean(document.getElementById("mielCadVeiculoBusca")),
-      codigo: Boolean(document.getElementById("mielCadVeiculo_codigo")),
-      placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
-      marca: Boolean(document.getElementById("mielCadVeiculo_marca")),
+      sheetTitle: panel?.querySelector(".miel-cv__title, .miel-cc__title")?.textContent?.trim() || "",
+      stats: Boolean(panel?.querySelector(".miel-cv__stats, .miel-cc__stats")),
+      table: Boolean(panel?.querySelector(".miel-cc__table")),
+      headers: [...(panel?.querySelectorAll(".miel-cc__head th") || [])].map((el) => el.textContent?.trim()),
+      rows: panel?.querySelectorAll(".miel-cc__row").length || 0,
       panelVisible: !panel?.classList.contains("hidden"),
-      actions: document.querySelectorAll("[data-miel-cad-veic-action]").length,
       sideBtns: document.querySelectorAll("[data-miel-cad-veic-side]").length,
+      noWebForm: !document.getElementById("mielCadVeiculo_placa"),
       fieldCount: (window.__DK_mielCadVeiculosFields || []).length,
+      veicCount: (window.__DK_MIEL_CADASTROS?.veiculos || []).length,
+      locCount: (window.__DK_MIEL_CADASTROS?.locacoes || []).length,
+      vincCount: (window.__DK_MIEL_CADASTROS?.vinculos || []).length,
     };
   });
 
   record(
-    "etapa 4: Cadastro de Veículos abre formulário",
+    "etapa 4: Cad_Veículos abre tabela da planilha",
     s.title === "Cadastro de Veículos" &&
-      s.bannerText === "CADASTRO DE VEÍCULOS" &&
-      s.busca &&
-      s.codigo &&
-      s.placa &&
-      s.panelVisible,
-    `actions=${s.actions}`
+      s.sheetTitle === "# Cadastro de Veículos" &&
+      s.stats &&
+      s.table &&
+      s.panelVisible &&
+      s.noWebForm,
+    `rows=${s.rows}`
   );
-  record("etapa 4: 20 campos da planilha (linha 17)", s.fieldCount === 20 && s.actions >= 3);
+  record("etapa 4: 20 colunas linha 17 da planilha", s.fieldCount === 20 && s.headers.length === 20);
   record("etapa 4: botões laterais Consulta/Cad. Clientes", s.sideBtns >= 2, `side=${s.sideBtns}`);
-
-  await page.locator("#mielCadVeiculo_codigo").fill("DKMT-TESTE");
-  await page.locator("#mielCadVeiculo_placa").fill("ABC1D23");
-  await page.locator("#mielCadVeiculo_marca").fill("HONDA");
-  await page.locator("#mielCadVeiculo_modelo").fill("CG 160");
-  await page.locator('[data-miel-cad-veic-action="guardar"]').first().click();
-  await page.waitForTimeout(300);
-
-  const saved = await page.evaluate(() => {
-    const fb = document.getElementById("mielCadVeiculoFeedback")?.textContent || "";
-    let count = 0;
-    try {
-      count = JSON.parse(localStorage.getItem("dk_miel_veiculos_v1") || "[]").length;
-    } catch {
-      /* ignore */
-    }
-    return { fb, count };
-  });
-  record("etapa 4: guardar veículo no MIEL", saved.fb.includes("ABC1D23") && saved.count >= 1, saved.fb);
-
-  await page.locator("#mielCadVeiculoBusca").fill("ABC1D23");
-  await page.locator("#mielCadVeiculoBusca").dispatchEvent("change");
-  await page.waitForTimeout(250);
-  const loaded = await page.locator("#mielCadVeiculo_marca").inputValue();
-  record("etapa 4: pesquisa carrega veículo", loaded === "HONDA", loaded);
+  record("etapa 4: veículos da planilha carregados", s.rows >= 150 && s.veicCount >= 150, `rows=${s.rows}`);
+  record(
+    "etapa 4: locações e vínculos importados",
+    s.locCount >= 400 && s.vincCount >= 400,
+    `loc=${s.locCount} vinc=${s.vincCount}`
+  );
 
   await page.locator('[data-miel-cad-veic-back="administrativo"]').first().click();
   await page.waitForTimeout(250);

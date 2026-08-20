@@ -233,16 +233,20 @@ async function runSuite() {
         const panel = document.getElementById("mielPanelCadVeiculos");
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          banner: (panel?.querySelector(".miel-cad__banner")?.textContent || "").trim(),
-          placa: Boolean(document.getElementById("mielCadVeiculo_placa")),
+          sheetTitle: (panel?.querySelector(".miel-cv__title, .miel-cc__title")?.textContent || "").trim(),
+          table: Boolean(panel?.querySelector(".miel-cc__table")),
+          rows: panel?.querySelectorAll(".miel-cc__row").length || 0,
           panelVisible: !panel?.classList.contains("hidden"),
+          veicCount: (window.__DK_MIEL_CADASTROS?.veiculos || []).length,
         };
       });
       record(
         "demo: MIEL etapa 4 Cadastro Veículos",
         veicState.title === "Cadastro de Veículos" &&
-          veicState.banner === "CADASTRO DE VEÍCULOS" &&
-          veicState.placa &&
+          veicState.sheetTitle === "# Cadastro de Veículos" &&
+          veicState.table &&
+          veicState.rows >= 150 &&
+          veicState.veicCount >= 150 &&
           veicState.panelVisible,
         veicState.title
       );
