@@ -92,6 +92,7 @@
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
     portalSyncAmbienteCadastroAdminUi();
+    refreshPortalMielHomeAcesso();
     requestAnimationFrame(() => portalSyncAdminBannerLayout());
   }
 
@@ -372,7 +373,52 @@
     { key: "lancamentoAluguel", label: "Lançamento de aluguel" },
     { key: "lancamentoMultas", label: "Lançamento de multas" },
     { key: "lancamentoManutencao", label: "Lançamento de manutenção" },
+    { key: "sistemaMiel", label: "Acesso ao sistema MIEL" },
   ];
+
+  const PORTAL_COLAB_ACE_IDS = {
+    cliente: "portalColabAceCliente",
+    veiculo: "portalColabAceVeiculo",
+    locacao: "portalColabAceLocacao",
+    lancamentoAluguel: "portalColabAceLancAluguel",
+    lancamentoMultas: "portalColabAceLancMultas",
+    lancamentoManutencao: "portalColabAceLancManutencao",
+    sistemaMiel: "portalColabAceSistemaMiel",
+  };
+
+  function readPortalColabAcessosFromForm() {
+    return {
+      cliente: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.cliente)?.checked),
+      veiculo: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.veiculo)?.checked),
+      locacao: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.locacao)?.checked),
+      lancamentoAluguel: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoAluguel)?.checked),
+      lancamentoMultas: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoMultas)?.checked),
+      lancamentoManutencao: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.lancamentoManutencao)?.checked),
+      sistemaMiel: Boolean(document.getElementById(PORTAL_COLAB_ACE_IDS.sistemaMiel)?.checked),
+      manutencao: false,
+      lancamentoDespesa: false,
+    };
+  }
+
+  function buildPortalColabAcessosNormalizados() {
+    const raw = readPortalColabAcessosFromForm();
+    return typeof normalizeOperacaoAccess === "function"
+      ? normalizeOperacaoAccess(raw, "operacao")
+      : { ...raw, funcionario: false };
+  }
+
+  function portalColabTemAlgumaOperacaoMarcada() {
+    const a = readPortalColabAcessosFromForm();
+    return Boolean(
+      a.cliente ||
+        a.veiculo ||
+        a.locacao ||
+        a.lancamentoAluguel ||
+        a.lancamentoMultas ||
+        a.lancamentoManutencao ||
+        a.sistemaMiel
+    );
+  }
 
   /** Role do funcionário em sessão portal (`operacao` | `owner`) ou "" se não for admin. */
   function getPortalSessaoAdminRole() {
@@ -890,6 +936,7 @@
             comunicacaoVendas: true,
             comunicacaoManutencao: true,
             funcionario: true,
+            sistemaMiel: true,
           }
         : {
             cliente: true,
@@ -903,6 +950,7 @@
             comunicacaoManutencao: true,
             lancamentoDespesa: true,
             funcionario: true,
+            sistemaMiel: true,
           };
     }
     if (String(f.role || "").trim() !== "operacao") return null;
@@ -919,7 +967,46 @@
           manutencao: false,
           lancamentoDespesa: false,
           funcionario: false,
+          sistemaMiel: false,
         };
+  }
+
+  function portalLerSessaoPortal() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  /** MIEL só para administrador titular ou colaborador com permissão explícita. Clientes nunca. */
+  function portalPodeAcessarSistemaMiel() {
+    const s = portalLerSessaoPortal();
+    if (!s || s.tipo === "cliente") return false;
+    if (s.tipo !== "admin") return false;
+    const role = String(s.role || "").trim();
+    const cpf = onlyDigits(String(s.cpf || "")).slice(0, 11);
+    if (role === "owner" || cpf === DK_LOCADORA_ADMIN_CPF) return true;
+    if (role !== "operacao") return false;
+    const f = getPortalSessaoEquipaFuncionario();
+    if (!f || f.blocked) return false;
+    const acessos = getPortalOperacaoAcessosEfetivos(f);
+    return Boolean(acessos?.sistemaMiel);
+  }
+
+  function refreshPortalMielHomeAcesso() {
+    const allow = portalPodeAcessarSistemaMiel();
+    document.querySelectorAll('#view-home [data-go="miel"]').forEach((btn) => {
+      btn.classList.toggle("hidden", !allow);
+      btn.setAttribute("aria-hidden", allow ? "false" : "true");
+      btn.toggleAttribute("disabled", !allow);
+    });
+    if (!allow && viewMiel?.classList.contains("view--active")) {
+      showView("home");
+      setPortalHash("");
+    }
   }
 
   /** Esconde botões da operação para os quais o colaborador não tem permissão em `acessos`. */
@@ -1302,9 +1389,15 @@
   }
 
   function openMielSistema() {
+    if (!portalPodeAcessarSistemaMiel()) {
+      refreshPortalMielHomeAcesso();
+      showView("home");
+      setPortalHash("");
+      window.alert("O Sistema MIEL só pode ser acedido por funcionário cadastrado com a permissão «Acesso ao sistema MIEL». Clientes não têm acesso.");
+      return;
+    }
     currentUnit = "miel";
     portalColaboradorSenhaPendente = null;
-    portalResetSessaoSeNaoAdmin();
     showView("miel");
     setPortalHash("miel");
     portalAtualizarBannerAdmin();
@@ -3001,12 +3094,14 @@ ${printable.innerHTML}
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
     const c6 = document.getElementById("portalColabAceLancManutencao");
+    const c7 = document.getElementById("portalColabAceSistemaMiel");
     if (c1) c1.checked = true;
     if (c2) c2.checked = true;
     if (c3) c3.checked = true;
     if (c4) c4.checked = true;
     if (c5) c5.checked = true;
     if (c6) c6.checked = true;
+    if (c7) c7.checked = false;
   }
 
   function portalColabPermissoesAtivas(f) {
@@ -3142,12 +3237,14 @@ ${printable.innerHTML}
     const c4 = document.getElementById("portalColabAceLancAluguel");
     const c5 = document.getElementById("portalColabAceLancMultas");
     const c6 = document.getElementById("portalColabAceLancManutencao");
+    const c7 = document.getElementById("portalColabAceSistemaMiel");
     if (c1) c1.checked = Boolean(a.cliente);
     if (c2) c2.checked = Boolean(a.veiculo);
     if (c3) c3.checked = Boolean(a.locacao);
     if (c4) c4.checked = Boolean(a.lancamentoAluguel);
     if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
     if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
+    if (c7) c7.checked = Boolean(a.sistemaMiel);
   }
 
   function setPortalColaboradorModoCadastroOuEdicao(modoCadastroNovo) {
@@ -3257,42 +3354,11 @@ ${printable.innerHTML}
       if (fb) fb.textContent = "Já existe cadastro com este CPF.";
       return;
     }
-    const aceCliente = Boolean(document.getElementById("portalColabAceCliente")?.checked);
-    const aceVeiculo = Boolean(document.getElementById("portalColabAceVeiculo")?.checked);
-    const aceLocacao = Boolean(document.getElementById("portalColabAceLocacao")?.checked);
-    const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
-    const aceMultas = Boolean(document.getElementById("portalColabAceLancMultas")?.checked);
-    const aceManut = Boolean(document.getElementById("portalColabAceLancManutencao")?.checked);
-    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut) {
+    if (!portalColabTemAlgumaOperacaoMarcada()) {
       if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
       return;
     }
-    const acessos =
-      typeof normalizeOperacaoAccess === "function"
-        ? normalizeOperacaoAccess(
-            {
-              cliente: aceCliente,
-              veiculo: aceVeiculo,
-              locacao: aceLocacao,
-              manutencao: false,
-              lancamentoAluguel: aceLanc,
-              lancamentoMultas: aceMultas,
-              lancamentoManutencao: aceManut,
-              lancamentoDespesa: false,
-            },
-            "operacao"
-          )
-        : {
-            cliente: aceCliente,
-            veiculo: aceVeiculo,
-            locacao: aceLocacao,
-            manutencao: false,
-            lancamentoAluguel: aceLanc,
-            lancamentoMultas: aceMultas,
-            lancamentoManutencao: aceManut,
-            lancamentoDespesa: false,
-            funcionario: false,
-          };
+    const acessos = buildPortalColabAcessosNormalizados();
     funcionariosAccess.push({
       cpf: cpfRaw,
       senha: "123456",
@@ -3306,6 +3372,7 @@ ${printable.innerHTML}
     });
     saveFuncionariosAccess();
     portalPushCloudSnapshotAfterPersist();
+    refreshPortalMielHomeAcesso();
     formPortalCadastroColaborador.reset();
     portalColabCpfPrevLen = 0;
     portalColabListaCpfAtivo = "";
@@ -3353,42 +3420,11 @@ ${printable.innerHTML}
       if (fb) fb.textContent = "Informe o nome completo.";
       return;
     }
-    const aceCliente = Boolean(document.getElementById("portalColabAceCliente")?.checked);
-    const aceVeiculo = Boolean(document.getElementById("portalColabAceVeiculo")?.checked);
-    const aceLocacao = Boolean(document.getElementById("portalColabAceLocacao")?.checked);
-    const aceLanc = Boolean(document.getElementById("portalColabAceLancAluguel")?.checked);
-    const aceMultas = Boolean(document.getElementById("portalColabAceLancMultas")?.checked);
-    const aceManut = Boolean(document.getElementById("portalColabAceLancManutencao")?.checked);
-    if (!aceCliente && !aceVeiculo && !aceLocacao && !aceLanc && !aceMultas && !aceManut) {
+    if (!portalColabTemAlgumaOperacaoMarcada()) {
       if (fb) fb.textContent = "Marque pelo menos uma operação permitida.";
       return;
     }
-    const acessos =
-      typeof normalizeOperacaoAccess === "function"
-        ? normalizeOperacaoAccess(
-            {
-              cliente: aceCliente,
-              veiculo: aceVeiculo,
-              locacao: aceLocacao,
-              manutencao: false,
-              lancamentoAluguel: aceLanc,
-              lancamentoMultas: aceMultas,
-              lancamentoManutencao: aceManut,
-              lancamentoDespesa: false,
-            },
-            "operacao"
-          )
-        : {
-            cliente: aceCliente,
-            veiculo: aceVeiculo,
-            locacao: aceLocacao,
-            manutencao: false,
-            lancamentoAluguel: aceLanc,
-            lancamentoMultas: aceMultas,
-            lancamentoManutencao: aceManut,
-            lancamentoDespesa: false,
-            funcionario: false,
-          };
+    const acessos = buildPortalColabAcessosNormalizados();
     const antesColab = {
       cpf: portalColabFormatCpfExibicao(cpfOriginal),
       nome: portalNormDiffVal(f.nome),
@@ -3433,6 +3469,7 @@ ${printable.innerHTML}
       f.acessos = acessos;
       saveFuncionariosAccess();
       portalPushCloudSnapshotAfterPersist();
+      refreshPortalMielHomeAcesso();
       portalColabCpfEdicaoOriginal = cpfNovo;
       portalColabListaCpfAtivo = cpfNovo;
       portalColabCpfPrevLen = 11;
@@ -3505,25 +3542,12 @@ ${printable.innerHTML}
   });
 
   PORTAL_COLAB_ACESSO_ITENS.forEach(({ key }) => {
-    const idMap = {
-      cliente: "portalColabAceCliente",
-      veiculo: "portalColabAceVeiculo",
-      locacao: "portalColabAceLocacao",
-      lancamentoAluguel: "portalColabAceLancAluguel",
-      lancamentoMultas: "portalColabAceLancMultas",
-      lancamentoManutencao: "portalColabAceLancManutencao",
-    };
-    const el = document.getElementById(idMap[key]);
+    const el = document.getElementById(PORTAL_COLAB_ACE_IDS[key]);
     el?.addEventListener("change", () => {
       const f = getPortalColaboradorEmEdicao();
-      if (f && (portalColabCpfEdicaoOriginal || portalColabListaCpfAtivo)) portalRenderColaboradorPermissoesDetalhe({ ...f, acessos: {
-        cliente: Boolean(document.getElementById("portalColabAceCliente")?.checked),
-        veiculo: Boolean(document.getElementById("portalColabAceVeiculo")?.checked),
-        locacao: Boolean(document.getElementById("portalColabAceLocacao")?.checked),
-        lancamentoAluguel: Boolean(document.getElementById("portalColabAceLancAluguel")?.checked),
-        lancamentoMultas: Boolean(document.getElementById("portalColabAceLancMultas")?.checked),
-        lancamentoManutencao: Boolean(document.getElementById("portalColabAceLancManutencao")?.checked),
-      }});
+      if (f && (portalColabCpfEdicaoOriginal || portalColabListaCpfAtivo)) {
+        portalRenderColaboradorPermissoesDetalhe({ ...f, acessos: readPortalColabAcessosFromForm() });
+      }
     });
   });
 
@@ -13235,6 +13259,8 @@ ${printable.innerHTML}
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_getPortalSessaoEquipaFuncionario = getPortalSessaoEquipaFuncionario;
   window.__DK_getPortalOperacaoAcessosEfetivos = getPortalOperacaoAcessosEfetivos;
+  window.__DK_portalPodeAcessarSistemaMiel = portalPodeAcessarSistemaMiel;
+  window.__DK_portalRefreshMielAcesso = refreshPortalMielHomeAcesso;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;

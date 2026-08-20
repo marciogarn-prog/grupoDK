@@ -41,8 +41,120 @@ function record(name, ok, detail = "") {
   console.log(`${ok ? "PASS" : "FAIL"} | MIEL ${name}${detail ? ` | ${detail}` : ""}`);
 }
 
+async function grantMielOwnerSession(page) {
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
+    );
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+  });
+}
+
 async function openMielFromHome(page) {
   await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
+  page.on("dialog", (d) => d.accept().catch(() => {}));
+
+  const hiddenVisitante = await page.evaluate(() => {
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    return !btn || btn.classList.contains("hidden") || btn.getAttribute("aria-hidden") === "true";
+  });
+  record("acesso: visitante não vê botão MIEL", hiddenVisitante);
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "cliente", cpf: "11144477735", nome: "Cliente Teste", protocolo: "X" })
+    );
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+  });
+  await page.waitForTimeout(150);
+  const hiddenCliente = await page.evaluate(() => {
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    return !btn || btn.classList.contains("hidden");
+  });
+  record("acesso: cliente não vê botão MIEL", hiddenCliente);
+
+  await page.evaluate(() => {
+    window.location.hash = "miel";
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+  });
+  await page.waitForTimeout(200);
+  const clienteNaoEntrou = await page.evaluate(
+    () => !document.getElementById("view-miel")?.classList.contains("view--active")
+  );
+  record("acesso: cliente não entra por #miel", clienteNaoEntrou);
+
+  await page.evaluate(() => {
+    const cpfSem = "90090090001";
+    const cpfCom = "90090090002";
+    let list = [];
+    try {
+      list = JSON.parse(localStorage.getItem("dk_funcionarios_access") || "[]");
+      if (!Array.isArray(list)) list = [];
+    } catch {
+      list = [];
+    }
+    const upsert = (row) => {
+      const i = list.findIndex((x) => String(x.cpf) === row.cpf);
+      if (i >= 0) list[i] = { ...list[i], ...row };
+      else list.push(row);
+    };
+    upsert({
+      cpf: cpfSem,
+      senha: "123456",
+      nome: "Colab Sem MIEL",
+      role: "operacao",
+      blocked: false,
+      acessos: { cliente: true, veiculo: true, locacao: true, sistemaMiel: false },
+    });
+    upsert({
+      cpf: cpfCom,
+      senha: "123456",
+      nome: "Colab Com MIEL",
+      role: "operacao",
+      blocked: false,
+      acessos: { cliente: true, veiculo: true, locacao: true, sistemaMiel: true },
+    });
+    localStorage.setItem("dk_funcionarios_access", JSON.stringify(list));
+    if (typeof window.__DK_hydrateFuncionariosAccess === "function") window.__DK_hydrateFuncionariosAccess();
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "admin", role: "operacao", cpf: cpfSem, nome: "Colab Sem MIEL" })
+    );
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+  });
+  await page.waitForTimeout(150);
+  const hiddenColabSem = await page.evaluate(() => {
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    return !btn || btn.classList.contains("hidden");
+  });
+  record("acesso: colaborador sem permissão não vê MIEL", hiddenColabSem);
+
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "admin", role: "operacao", cpf: "90090090002", nome: "Colab Com MIEL" })
+    );
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+  });
+  await page.waitForTimeout(150);
+  const colabComVe = await page.evaluate(() => {
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    return Boolean(btn && !btn.classList.contains("hidden"));
+  });
+  record("acesso: colaborador com permissão vê MIEL", colabComVe);
+
+  await grantMielOwnerSession(page);
+  await page.waitForTimeout(150);
+  const ownerVe = await page.evaluate(() => {
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    return Boolean(btn && !btn.classList.contains("hidden"));
+  });
+  record("acesso: administrador titular vê botão MIEL", ownerVe);
+
   const mielBtn = page.locator('#view-home [data-go="miel"]').first();
   await mielBtn.click({ timeout: 10000 });
   await page.waitForFunction(
