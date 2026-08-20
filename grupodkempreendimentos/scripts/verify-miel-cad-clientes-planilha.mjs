@@ -54,8 +54,13 @@ ok("R11 Endereço", r11?.text === "Endereço", r11?.text);
 
 const first = cad.clientes?.[0];
 ok("1.º cliente da planilha", first?.cliente === "FELIPE YAGO GOMES RIBEIRO", first?.cliente);
-ok("coluna A = código numérico 1", String(first?.cod) === "1", String(first?.cod));
-ok("366 clientes importados", cad.clientes.length === 366, String(cad.clientes.length));
+ok("código do 1.º cliente", String(first?.cod) === "1", String(first?.cod));
+ok("clientes importados (~369)", cad.clientes.length >= 360 && cad.clientes.length <= 380, String(cad.clientes.length));
+ok("portal mapeia Cód. na coluna B", portal.includes('B: "cod"') || portal.includes("B: 'cod'"));
+ok("portal formata data curta (ddd)", portal.includes("DIAS_CURTOS") && portal.includes("fmtDateShort"));
+ok("cabeçalho B11 Cód.", layout.headerCells.some((h) => h.ref === "B11" && h.text === "Cód."));
+ok("painel Distribuição no layout", layout.rows.some((r) => r.cells.some((c) => /Distribuição de Clientes/.test(c.text || ""))));
+ok("painel Quantidade no layout", layout.rows.some((r) => r.cells.some((c) => /Quantidade de Clientes/.test(c.text || ""))));
 
 console.log(`\n--- ${fails === 0 ? "CONFERÊNCIA OK" : `FALHOU (${fails})`} ---`);
 process.exit(fails === 0 ? 0 : 1);

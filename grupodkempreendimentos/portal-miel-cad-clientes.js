@@ -26,6 +26,8 @@
     R: "endereco",
   };
 
+  const DIAS_CURTOS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+
   let rows = [];
 
   function layout() {
@@ -40,13 +42,27 @@
     return (window.__DK_MIEL_CADASTROS && window.__DK_MIEL_CADASTROS.clientes) || [];
   }
 
-  function fmtDate(iso) {
+  function fmtDateShort(iso) {
     if (!iso) return "";
     const p = String(iso).slice(0, 10).split("-");
-    if (p.length !== 3) return iso;
+    if (p.length !== 3 || p[0].length !== 4) return iso;
     const d = new Date(+p[0], +p[1] - 1, +p[2]);
-    const dias = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
-    return `${dias[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    if (Number.isNaN(d.getTime())) return iso;
+    return `${DIAS_CURTOS[d.getDay()]} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+  }
+
+  function fmtDateVenc(iso) {
+    if (!iso) return "";
+    const p = String(iso).slice(0, 10).split("-");
+    if (p.length !== 3 || p[0].length !== 4) return iso;
+    return `${String(p[2]).padStart(2, "0")}/${String(p[1]).padStart(2, "0")}/${p[0]}`;
+  }
+
+  function fmtPhone(raw) {
+    const d = String(raw || "").replace(/\D/g, "");
+    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return String(raw || "");
   }
 
   function loadRows() {
@@ -77,21 +93,31 @@
     return { total, byCity, ativosCompra, ativosMt, ativosCr, cnhAlerta, inativos };
   }
 
+  function statusRowFill(status) {
+    const st = String(status || "").toUpperCase();
+    if (st.includes("COMPRA")) return "#E2EFDA";
+    if (st.includes("LOCAÇÃO - MT") || st.includes("LOCACAO - MT")) return "#FFF2CC";
+    if (st.includes("LOCAÇÃO - CR") || st.includes("LOCACAO - CR")) return "#FCE4D6";
+    return null;
+  }
+
   function patchHeaderCell(cell) {
     const st = stats();
     const ref = cell.ref || "";
     const patches = {
-      O4: { text: String(st.total) },
+      B1: { text: "# Cadastro de Clientes", fill: "#548235", color: "#FFFFFF", bold: true, sz: 14 },
+      O4: { text: String(st.total), fill: "#D9D9D9", color: "#44546A", bold: true },
       K5: { text: String(st.byCity.petrolina) },
       K6: { text: String(st.byCity.juazeiro) },
       K7: { text: String(st.byCity.outras) },
       K8: { text: String(st.byCity.indef) },
-      O5: { text: String(st.ativosCompra) },
-      O6: { text: String(st.ativosMt) },
-      O7: { text: String(st.ativosCr) },
-      O8: { text: String(st.cnhAlerta) },
-      O9: { text: String(st.inativos) },
+      O5: { text: String(st.ativosCompra), fill: "#FFFF00", color: "#000000", bold: true },
+      O6: { text: String(st.ativosMt), fill: "#92D050", color: "#000000", bold: true },
+      O7: { text: String(st.ativosCr), fill: "#FFC000", color: "#000000", bold: true },
+      O8: { text: String(st.cnhAlerta), fill: "#F4B183", color: "#000000", bold: true },
+      O9: { text: String(st.inativos), fill: "#C00000", color: "#FFFFFF", bold: true },
     };
+    if (/^[C-S]1$/.test(ref)) return { fill: "#548235", color: "#FFFFFF", bold: true };
     return patches[ref] || null;
   }
 
@@ -99,7 +125,9 @@
     const out = { A: "" };
     Object.entries(FIELD_BY_COL).forEach(([col, key]) => {
       let val = record[key] ?? "";
-      if (key === "dataCadastro" || key === "vencimento") val = fmtDate(val) || val;
+      if (key === "dataCadastro") val = fmtDateShort(val) || val;
+      if (key === "vencimento") val = fmtDateVenc(val) || val;
+      if (key === "celular" || key === "recados01" || key === "recados02") val = fmtPhone(val);
       if (key === "cod") val = record.cod || "";
       out[col] = val;
     });
@@ -121,13 +149,17 @@
       dataRows() {
         return rows.map((r) => rowToCells(r));
       },
-      cellStyleFn(col, val) {
+      cellStyleFn(col, val, rowData) {
+        const rowFill = statusRowFill(rowData?.D);
+        const base = rowFill ? { fill: rowFill } : {};
+        if (col === "B") return { ...base, color: "#C00000", bold: true };
         if (col === "O") {
           const u = String(val).toUpperCase();
-          if (u === "NÃO" || u === "NAO") return { color: "#C00000" };
-          if (u === "SIM") return { color: "#0070C0" };
+          if (u === "NÃO" || u === "NAO") return { color: "#C00000", bold: true, fill: "#FFFF00" };
+          if (u === "SIM") return { ...base, color: "#0070C0", bold: true };
         }
-        return null;
+        if (col === "H" || col === "I" || col === "J") return { ...base, color: "#0070C0" };
+        return Object.keys(base).length ? base : null;
       },
     });
 
