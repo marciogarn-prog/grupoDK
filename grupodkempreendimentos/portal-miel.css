@@ -658,16 +658,21 @@
 .miel-cc__layout--sheet .miel-cc__main {
   overflow: auto;
   background: #fff;
+  min-width: 0;
+}
+
+.miel-sheet-wrap {
+  overflow: auto;
+  max-width: 100%;
 }
 
 .miel-sheet {
   transform-origin: top left;
-  min-width: min-content;
 }
 
 .miel-sheet__scroll {
-  overflow: auto;
-  max-height: calc(100vh - 220px);
+  overflow: visible;
+  max-height: none;
 }
 
 .miel-sheet__grid {

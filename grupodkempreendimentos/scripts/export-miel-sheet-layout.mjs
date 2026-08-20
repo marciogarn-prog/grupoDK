@@ -108,7 +108,8 @@ for (const col of sheetXml.match(/<col [^>]*\/?>/g) || []) {
   const width = +(col.match(/width="([^"]+)"/)?.[1] || 9);
   const hidden = /hidden="1"/.test(col);
   for (let i = min; i <= max && i <= maxCol; i++) {
-    colWidths[i - 1] = hidden ? 0 : width;
+    // Mantém largura real da planilha — hidden="1" no Excel NÃO significa width 0
+    colWidths[i - 1] = width;
   }
 }
 

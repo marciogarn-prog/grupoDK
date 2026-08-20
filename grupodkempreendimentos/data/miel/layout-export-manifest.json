@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-08-20T02:56:02.565Z",
+  "exportedAt": "2026-08-20T03:43:27.763Z",
   "results": [
     {
       "sheet": "Cad_Clientes",
@@ -24,7 +24,7 @@
     {
       "sheet": "Status_Veiculos",
       "ok": true,
-      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\status-veiculos-layout.json (6 rows, 12 data cols)"
+      "out": "OK C:\\Users\\marci\\OneDrive\\Documentos\\CURSOR DK\\grupodkempreendimentos\\data\\miel\\status-veiculos-layout.json (4 rows, 12 data cols)"
     },
     {
       "sheet": "Pagina_Inicial",
