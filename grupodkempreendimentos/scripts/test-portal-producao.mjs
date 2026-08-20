@@ -184,19 +184,19 @@ async function runSuite() {
       await page.waitForTimeout(600);
       const admState = await page.evaluate(() => ({
         title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        banner: Boolean(document.querySelector(".miel-admin-table__banner")),
-        search: Boolean(document.getElementById("mielAdminBuscaCliente")),
-        sideBtns: document.querySelectorAll(".miel-admin-side-btn").length,
+        banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim(),
+        headers: [...document.querySelectorAll(".miel-admin-grid__headers td")].map((el) => el.textContent?.trim()),
+        gridBtns: document.querySelectorAll(".miel-admin-grid__hit").length,
         panelVisible: !document.getElementById("mielPanelAdministrativo")?.classList.contains("hidden"),
       }));
       record(
         "demo: MIEL etapa 2 Administrativo",
         admState.title === "Administrativo" &&
-          admState.banner &&
-          admState.search &&
-          admState.sideBtns >= 10 &&
+          admState.banner === "ADMINISTRATIVO" &&
+          admState.headers.length === 3 &&
+          admState.gridBtns >= 20 &&
           admState.panelVisible,
-        `btns=${admState.sideBtns}`
+        `btns=${admState.gridBtns}`
       );
 
       await page.locator('[data-miel-admin-action="Cadastro de Clientes"]').first().click().catch(() => null);
