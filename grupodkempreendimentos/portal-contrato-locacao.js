@@ -459,8 +459,40 @@ body.contrato-preview { padding-top: 52px; }
 .cl, .cl-n { margin: 0 0 2px; text-align: justify; }
 .cl-t { font-weight: bold; margin: 5px 0 2px; font-size: 8.5pt; }
 .cl-n { margin-bottom: 1px; }
-.sig-line { margin-top: 12px; letter-spacing: 0.12em; text-align: center; }
-.sig-block { display: flex; justify-content: space-between; margin-top: 3px; font-size: 8.5pt; }
+.sig-area {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 18mm;
+  margin-top: 28px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.sig-col {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+.sig-rule {
+  width: 100%;
+  border-bottom: 1.2pt solid #111;
+  height: 22px;
+  margin: 0 0 6px;
+}
+.sig-name {
+  margin: 0;
+  font-size: 8.5pt;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.25;
+}
+.sig-id {
+  margin: 2px 0 0;
+  font-size: 8pt;
+  text-align: center;
+  line-height: 1.2;
+}
+.sig-line, .sig-block { display: none; }
 .pe-pagina {
   position: absolute; bottom: 6mm; left: 10mm; right: 26mm;
   display: flex; justify-content: space-between; font-size: 7pt; color: #444;
