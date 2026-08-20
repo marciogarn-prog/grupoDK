@@ -27,17 +27,10 @@
       container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
         <div class="miel-cc__main">${eng.renderSheet(lay, {
           patchHeaderCell(cell) {
-            if (cell.ref?.endsWith("1") && !cell.text && cfg.label) return { text: `# ${cfg.label}` };
             return null;
           },
         })}</div>
-        <aside class="miel-cc__side">
-          <button type="button" class="miel-nav-btn miel-stub-back" data-miel-static-back="administrativo">← Voltar ao Administrativo</button>
-        </aside>
       </div>`;
-      container.querySelector("[data-miel-static-back]")?.addEventListener("click", () => {
-        if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
-      });
     };
     cfg.initHook = hook;
   });

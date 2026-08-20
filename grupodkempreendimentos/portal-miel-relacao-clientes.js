@@ -82,30 +82,10 @@
           return null;
         },
       })}</div>
-      <aside class="miel-cc__side">
-        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-rel-back="administrativo">← Voltar ao Administrativo</button>
-        <button type="button" class="miel-admin-side-btn" data-miel-rel-side="cad-clientes" data-miel-rel-side-label="Cadastro de Clientes" data-miel-rel-side-piece="12"># Cadastro de Clientes</button>
-        <button type="button" class="miel-admin-side-btn" data-miel-rel-side="consulta-clientes" data-miel-rel-side-label="Consulta de Clientes" data-miel-rel-side-piece="11"># Consulta de Clientes</button>
-      </aside>
     </div>`;
   }
 
-  function bindPanel(container) {
-    container.querySelector("[data-miel-rel-back]")?.addEventListener("click", () => {
-      if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
-    });
-    container.querySelectorAll("[data-miel-rel-side]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (typeof window.__DK_mielOpenDestino === "function") {
-          window.__DK_mielOpenDestino(
-            btn.getAttribute("data-miel-rel-side") || "",
-            btn.getAttribute("data-miel-rel-side-label") || "",
-            btn.getAttribute("data-miel-rel-side-piece") || "?"
-          );
-        }
-      });
-    });
-  }
+  function bindPanel() {}
 
   function init() {
     const container = document.getElementById(PANEL_ID);

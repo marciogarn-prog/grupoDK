@@ -8,7 +8,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const tmp = path.join(__dirname, "../data/miel/planilha/_tmp-admin");
-const outDir = path.join(__dirname, "../data/miel");
+const outSub = process.argv[10] || "";
+const outDir = path.join(__dirname, "../data/miel", outSub);
 
 const sheetName = process.argv[2] || "Cad_Clientes";
 const sheetFile = process.argv[3] || "sheet12.xml";
@@ -155,8 +156,10 @@ function mergeOrigin(ref) {
 
 const cells = {};
 const rowHeights = {};
-for (const row of sheetXml.match(/<row[^>]*>[\s\S]*?<\/row>/g) || []) {
-  const rn = +row.match(/r="(\d+)"/)[1];
+const parseThrough = Math.max(rowEnd, templateRow, headerRow);
+for (let rn = rowStart; rn <= parseThrough; rn++) {
+  const row = sheetXml.match(new RegExp(`<row r="${rn}"[^>]*>[\\s\\S]*?</row>`))?.[0];
+  if (!row) continue;
   rowHeights[rn] = row.match(/ht="([^"]+)"/)?.[1] ? +row.match(/ht="([^"]+)"/)[1] : null;
   for (const cTag of row.match(/<c [^>]*(?:\/>|[\s\S]*?<\/c>)/g) || []) {
     const open = cTag.match(/^<c ([^>]*)/)?.[1] || "";
@@ -218,6 +221,7 @@ for (const h of hyperlinks) {
     const cell = row.cells.find((c) => c.ref === origin);
     if (!cell) continue;
     cell.href = h.location;
+    cell.linkDisplay = h.display || "";
     if (!String(cell.text || "").trim() && h.display) cell.text = h.display;
   }
 }
@@ -295,6 +299,7 @@ const payload = {
   drawings,
 };
 
+fs.mkdirSync(outDir, { recursive: true });
 const jsonPath = path.join(outDir, `${outBase}.json`);
 fs.writeFileSync(jsonPath, JSON.stringify(payload));
 const jsPath = path.join(outDir, `${outBase}.js`);

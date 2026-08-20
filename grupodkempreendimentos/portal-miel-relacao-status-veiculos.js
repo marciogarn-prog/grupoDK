@@ -21,13 +21,6 @@
       return;
     }
     const data = cfg.buildRows();
-    const side =
-      cfg.sideButtons
-        ?.map(
-          (b) =>
-            `<button type="button" class="miel-admin-side-btn" data-miel-side="${b.id}" data-miel-side-label="${b.label}" data-miel-side-piece="${b.piece}">${b.text}</button>`
-        )
-        .join("") || "";
     container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
       <div class="miel-cc__main">${eng.renderSheet(lay, {
         patchHeaderCell: cfg.patchHeaderCell,
@@ -36,25 +29,7 @@
         },
         cellStyleFn: cfg.cellStyleFn || null,
       })}</div>
-      <aside class="miel-cc__side">
-        <button type="button" class="miel-nav-btn miel-stub-back" data-miel-back="${cfg.id}">← Voltar ao Administrativo</button>
-        ${side}
-      </aside>
     </div>`;
-    container.querySelector(`[data-miel-back="${cfg.id}"]`)?.addEventListener("click", () => {
-      if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
-    });
-    container.querySelectorAll("[data-miel-side]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        if (typeof window.__DK_mielOpenDestino === "function") {
-          window.__DK_mielOpenDestino(
-            btn.getAttribute("data-miel-side") || "",
-            btn.getAttribute("data-miel-side-label") || "",
-            btn.getAttribute("data-miel-side-piece") || "?"
-          );
-        }
-      });
-    });
   }
 
   window.__DK_mielInitRelacaoVeiculos = function initRelacaoVeiculos() {

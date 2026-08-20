@@ -1,0 +1,6691 @@
+{
+  "exportedAt": "2026-08-20T04:07:00.429Z",
+  "sheetCount": 84,
+  "visible": 68,
+  "inventory": [
+    {
+      "index": 1,
+      "name": "Dashboard",
+      "sheetId": "52",
+      "rId": "rId1",
+      "xml": "sheet1.xml",
+      "id": "dashboard",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:S691",
+      "zoom": 90,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 1,
+      "drawingLinks": 1,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial"
+      ]
+    },
+    {
+      "index": 2,
+      "name": "Página_Inicial",
+      "sheetId": "2",
+      "rId": "rId2",
+      "xml": "sheet2.xml",
+      "id": "pagina-inicial",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CI77",
+      "zoom": 70,
+      "hiddenCols": 2,
+      "hyperlinkCount": 10,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "C9:O9",
+          "location": "'Página Inicial'!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Página Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Procedimentos",
+        "Planejamento",
+        "Gráficos",
+        "Dashboard"
+      ]
+    },
+    {
+      "index": 3,
+      "name": "Administrativo",
+      "sheetId": "41",
+      "rId": "rId3",
+      "xml": "sheet3.xml",
+      "id": "administrativo",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 22,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "S11:AF11",
+          "location": "Cad_Clientes!A1",
+          "display": "Cadastro de Clientes"
+        },
+        {
+          "ref": "S15:AF15",
+          "location": "Consulta_Veíc_ou_Cliente!A1",
+          "display": "Consulta Integrada (Veículos/Clientes)"
+        },
+        {
+          "ref": "S13:AF13",
+          "location": "Cad_Veículos!A1",
+          "display": "Cadastro de Veículos"
+        },
+        {
+          "ref": "S17:AF17",
+          "location": "Ctrl_Multas!A1",
+          "display": "Ctrl Integrado de Multas"
+        },
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:O17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        },
+        {
+          "ref": "AY13:BL13",
+          "location": "Relação_Veículos!A1",
+          "display": "Relação Integrada de Veículos"
+        },
+        {
+          "ref": "AY17:BL17",
+          "location": "Status_Veículos!A1",
+          "display": "Status Integrado de Veículos"
+        },
+        {
+          "ref": "AY15:BL15",
+          "location": "Acomp._Transf._Propriedade!A1",
+          "display": "Acomp. de Transf. de Propriedade"
+        },
+        {
+          "ref": "AY21:BL21",
+          "location": "'ID_Chaveiros_(Motos)'!A1",
+          "display": "Etiquetas dos Chaveiros (Motos)"
+        },
+        {
+          "ref": "AY27:BL27",
+          "location": "Pendências_Cad_Clientes!A1",
+          "display": "Pendências Administrativas"
+        },
+        {
+          "ref": "AY25:BL25",
+          "location": "Relatório_de_Status_CNH_e_EAR!A1",
+          "display": "Relatório de Status da CNH / EAR"
+        },
+        {
+          "ref": "AY23:BL23",
+          "location": "'ID_Chaveiros_(Carros)'!A1",
+          "display": "Etiquetas dos Chaveiros (Carros)"
+        },
+        {
+          "ref": "AY19:BL19",
+          "location": "Relação_de_Motos_Vendidas!A1",
+          "display": "Relação de Motos Vendidas"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Cad_Clientes",
+        "Consulta_Veíc_ou_Cliente",
+        "Cad_Veículos",
+        "Ctrl_Multas",
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Planejamento",
+        "Gráficos",
+        "Dashboard",
+        "Procedimentos",
+        "Relação_Veículos",
+        "Status_Veículos",
+        "Acomp._Transf._Propriedade",
+        "ID_Chaveiros_(Motos)",
+        "Pendências_Cad_Clientes",
+        "Relatório_de_Status_CNH_e_EAR",
+        "ID_Chaveiros_(Carros)",
+        "Relação_de_Motos_Vendidas"
+      ]
+    },
+    {
+      "index": 4,
+      "name": "Financeiro",
+      "sheetId": "42",
+      "rId": "rId4",
+      "xml": "sheet4.xml",
+      "id": "financeiro",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 19,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "S11:AF11",
+          "location": "Recibo_de_Pagto_Locação!A1",
+          "display": "Recibo de Pagto de Locação/Plano"
+        },
+        {
+          "ref": "S15:AF15",
+          "location": "Fundo_Fixo!A1",
+          "display": "Prest. de Contas (Fundo Fixo)"
+        },
+        {
+          "ref": "S13:AF13",
+          "location": "'Recebimentos_(Locações)'!A1",
+          "display": "Recebimentos (Locações)"
+        },
+        {
+          "ref": "S17:AF17",
+          "location": "Acopanhamento_do_Seguro_Lider!A1",
+          "display": "Acompanhamento do Seguro Lider"
+        },
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:O19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "S23:AF23",
+          "location": "'Ctrl_de_Pagto_(Licenc._2026)'!A1",
+          "display": "Ctrl de Pagto (Licenc._2026)"
+        },
+        {
+          "ref": "S19:AF19",
+          "location": "Recibo_de_Pagto_Vendas!A1",
+          "display": "Recibo de Pagto (Venda de Veículos)"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "S21:AF21",
+          "location": "Lançamentos_de_Loc._Recebidas!A1",
+          "display": "Lançamentos de Locações Recebidas"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        },
+        {
+          "ref": "S25:AF25",
+          "location": "Contas_a_Pagar!A1",
+          "display": "Contas a Pagar"
+        },
+        {
+          "ref": "AY13:BL13",
+          "location": "Tabela_DK_Locadora!A1",
+          "display": "Tabela DK Locadora"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Recibo_de_Pagto_Locação",
+        "Fundo_Fixo",
+        "Recebimentos_(Locações)",
+        "Acopanhamento_do_Seguro_Lider",
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Ctrl_de_Pagto_(Licenc._2026)",
+        "Recibo_de_Pagto_Vendas",
+        "Planejamento",
+        "Gráficos",
+        "Dashboard",
+        "Lançamentos_de_Loc._Recebidas",
+        "Procedimentos",
+        "Contas_a_Pagar",
+        "Tabela_DK_Locadora"
+      ]
+    },
+    {
+      "index": 5,
+      "name": "Dpto_Pessoal",
+      "sheetId": "58",
+      "rId": "rId5",
+      "xml": "sheet5.xml",
+      "id": "dpto-pessoal",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 10,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:O19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Planejamento",
+        "Gráficos",
+        "Dashboard",
+        "Procedimentos"
+      ]
+    },
+    {
+      "index": 6,
+      "name": "Locação_de_Veículos",
+      "sheetId": "43",
+      "rId": "rId6",
+      "xml": "sheet6.xml",
+      "id": "locacao-de-veiculos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 20,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "S11:AF11",
+          "location": "Emissão_de_Protocolos!A1",
+          "display": "Emissão de Protocolos"
+        },
+        {
+          "ref": "S19:AF19",
+          "location": "Termo_de_Vistoria!A1",
+          "display": "Termo de Vistoria"
+        },
+        {
+          "ref": "S13:AF13",
+          "location": "Opção_Contratada!A1",
+          "display": "Opção Contratada"
+        },
+        {
+          "ref": "S15:AF15",
+          "location": "Contrato_de_Locação!A1",
+          "display": "Contrato de Locação"
+        },
+        {
+          "ref": "S17:AF17",
+          "location": "Promessa_Compra_Venda!A1",
+          "display": "Promessa de Compra e Venda"
+        },
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:O23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "S21:AF21",
+          "location": "Aditivo_ao_Contrato_Vigente!A1",
+          "display": "Aditivo ao Contrato Vigente"
+        },
+        {
+          "ref": "S23:AF23",
+          "location": "Distrato_de_Locação!A1",
+          "display": "Termo de Distrato de Locação"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        },
+        {
+          "ref": "AY11:BL11",
+          "location": "Relação_Protocolos_Emitidos!A1",
+          "display": "Relação de Protocolos Emitidos"
+        },
+        {
+          "ref": "AY13:BL13",
+          "location": "'Anotações_(Protocolos)'!A1",
+          "display": "Anotações (Emissão de Protocolos)"
+        },
+        {
+          "ref": "AY15:BL15",
+          "location": "Relat_Acomp_Contrato!A1",
+          "display": "Relatório de Acompanhamento de Contrato"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Emissão_de_Protocolos",
+        "Termo_de_Vistoria",
+        "Opção_Contratada",
+        "Contrato_de_Locação",
+        "Promessa_Compra_Venda",
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Aditivo_ao_Contrato_Vigente",
+        "Distrato_de_Locação",
+        "Dashboard",
+        "Planejamento",
+        "Gráficos",
+        "Procedimentos",
+        "Relação_Protocolos_Emitidos",
+        "Anotações_(Protocolos)",
+        "Relat_Acomp_Contrato"
+      ]
+    },
+    {
+      "index": 7,
+      "name": "Ctrl_de_Manutenção",
+      "sheetId": "44",
+      "rId": "rId7",
+      "xml": "sheet7.xml",
+      "id": "ctrl-de-manutencao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 17,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "S13:AF13",
+          "location": "Ctrl_de_Troca_de_Óleo!A1",
+          "display": "Ctrl de Troca de Óleo"
+        },
+        {
+          "ref": "S11:AF11",
+          "location": "'Anotações de_Km_Atual'!A1",
+          "display": "Anotações de Km Atual"
+        },
+        {
+          "ref": "S15:AF15",
+          "location": "Termo_de_Insp_e_Troca_de_Óleo!A1",
+          "display": "Termo_de_Insp_e_Troca_de_Óleo"
+        },
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:O25",
+          "location": "Controle_de_Manutenção!A1",
+          "display": "Controle de Manutenção"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "S17:AF17",
+          "location": "'Check-List_para_Manutenção'!A1",
+          "display": "Check-List para Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "S19:AF19",
+          "location": "Termo_de_Subst._Provisória!A1",
+          "display": "Termo_de_Subst._Provis._(Motos)"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        },
+        {
+          "ref": "S21:AF21",
+          "location": "Ctrl_de_Movimentações_Diárias!A1",
+          "display": "Ctrl_de_Movimentações_Diárias"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Ctrl_de_Troca_de_Óleo",
+        "Anotações de_Km_Atual",
+        "Termo_de_Insp_e_Troca_de_Óleo",
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Controle_de_Manutenção",
+        "Ctrl_de_Manutenção",
+        "Check-List_para_Manutenção",
+        "Dpto_Pessoal",
+        "Planejamento",
+        "Gráficos",
+        "Dashboard",
+        "Termo_de_Subst._Provisória",
+        "Procedimentos",
+        "Ctrl_de_Movimentações_Diárias"
+      ]
+    },
+    {
+      "index": 8,
+      "name": "Gráficos",
+      "sheetId": "45",
+      "rId": "rId8",
+      "xml": "sheet8.xml",
+      "id": "graficos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 10,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C27:O27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Gráficos",
+        "Planejamento",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Dashboard",
+        "Procedimentos"
+      ]
+    },
+    {
+      "index": 9,
+      "name": "Planejamento",
+      "sheetId": "47",
+      "rId": "rId9",
+      "xml": "sheet9.xml",
+      "id": "planejamento",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 10,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C29:O29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Gráficos",
+        "Planejamento",
+        "Ctrl_de_Manutenção",
+        "Dpto_Pessoal",
+        "Dashboard",
+        "Procedimentos"
+      ]
+    },
+    {
+      "index": 10,
+      "name": "Procedimentos",
+      "sheetId": "46",
+      "rId": "rId10",
+      "xml": "sheet10.xml",
+      "id": "procedimentos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG77",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 10,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [
+        {
+          "ref": "C9:P9",
+          "location": "Página_Inicial!A1",
+          "display": "Página Inicial"
+        },
+        {
+          "ref": "C17:P17",
+          "location": "Administrativo!A1",
+          "display": "Administrativo"
+        },
+        {
+          "ref": "C19:P19",
+          "location": "Financeiro!A1",
+          "display": "Financeiro"
+        },
+        {
+          "ref": "C23:P23",
+          "location": "Locação_de_Veículos!A1",
+          "display": "Locação de Veículos"
+        },
+        {
+          "ref": "C25:P25",
+          "location": "Ctrl_de_Manutenção!A1",
+          "display": "Ctrl de Manutenção"
+        },
+        {
+          "ref": "C27:P27",
+          "location": "Gráficos!A1",
+          "display": "Gráficos"
+        },
+        {
+          "ref": "C29:P29",
+          "location": "Planejamento!A1",
+          "display": "Planejamento"
+        },
+        {
+          "ref": "C21:P21",
+          "location": "Dpto_Pessoal!A1",
+          "display": "Depto Pessoal"
+        },
+        {
+          "ref": "C11:P11",
+          "location": "Dashboard!A1",
+          "display": "DASHBOARD"
+        },
+        {
+          "ref": "C35:P35",
+          "location": "Procedimentos!A1",
+          "display": "Procedimentos"
+        }
+      ],
+      "drawings": [],
+      "destinations": [
+        "Página_Inicial",
+        "Administrativo",
+        "Financeiro",
+        "Locação_de_Veículos",
+        "Ctrl_de_Manutenção",
+        "Gráficos",
+        "Planejamento",
+        "Dpto_Pessoal",
+        "Dashboard",
+        "Procedimentos"
+      ]
+    },
+    {
+      "index": 11,
+      "name": "Consulta_Veíc_ou_Cliente",
+      "sheetId": "3",
+      "rId": "rId11",
+      "xml": "sheet11.xml",
+      "id": "consulta-veic-ou-cliente",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CB64",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 33,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Agrupar 6",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 7",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 11",
+          "text": "",
+          "href": "'Cad_Clientes_(Loc.)'!A1",
+          "image": "image46.png"
+        },
+        {
+          "name": "Retângulo 12",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 13",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 14",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 15",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 16",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 17",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 18",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 19",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 20",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 21",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 22",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 23",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 24",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 25",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 26",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 27",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 28",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 29",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Retângulo 1",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "",
+          "image": "image47.png"
+        },
+        {
+          "name": "Imagem 30",
+          "text": "",
+          "href": "",
+          "image": "image48.png"
+        },
+        {
+          "name": "Imagem 32",
+          "text": "",
+          "href": "",
+          "image": "image49.png"
+        },
+        {
+          "name": "Imagem 34",
+          "text": "",
+          "href": "",
+          "image": "image50.png"
+        },
+        {
+          "name": "Imagem 36",
+          "text": "",
+          "href": "",
+          "image": "image51.png"
+        },
+        {
+          "name": "Imagem 38",
+          "text": "",
+          "href": "",
+          "image": "image52.png"
+        },
+        {
+          "name": "Imagem 40",
+          "text": "",
+          "href": "",
+          "image": "image53.png"
+        },
+        {
+          "name": "Imagem 42",
+          "text": "",
+          "href": "",
+          "image": "image54.png"
+        },
+        {
+          "name": "Imagem 44",
+          "text": "",
+          "href": "",
+          "image": "image55.png"
+        },
+        {
+          "name": "Imagem 46",
+          "text": "",
+          "href": "",
+          "image": "image56.png"
+        },
+        {
+          "name": "Imagem 9",
+          "text": "",
+          "href": "",
+          "image": "image57.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Cad_Clientes_(Loc.)"
+      ]
+    },
+    {
+      "index": 12,
+      "name": "Cad_Clientes",
+      "sheetId": "4",
+      "rId": "rId12",
+      "xml": "sheet12.xml",
+      "id": "cad-clientes",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U1008",
+      "zoom": 71,
+      "hiddenCols": 5,
+      "hyperlinkCount": 3,
+      "drawingCount": 4,
+      "drawingLinks": 4,
+      "hyperlinks": [
+        {
+          "ref": "B4",
+          "location": "Emissão_de_Protocolos!A1",
+          "display": "Protocolos"
+        },
+        {
+          "ref": "B5",
+          "location": "Emissão_de_Protocolos!A1",
+          "display": "Protocolos"
+        },
+        {
+          "ref": "B5:C5",
+          "location": "Termo_de_Subst._Provisória!A1",
+          "display": "Ctrl de Uso Provisório"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Imagem 5",
+          "text": "",
+          "href": "'Cad_Veículos_(Loc.)'!A1",
+          "image": "image48.png"
+        },
+        {
+          "name": "Imagem 6",
+          "text": "",
+          "href": "'Cad_Clientes_(Loc.)'!A1",
+          "image": "image46.png"
+        }
+      ],
+      "destinations": [
+        "Emissão_de_Protocolos",
+        "Termo_de_Subst._Provisória",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente",
+        "Cad_Veículos_(Loc.)",
+        "Cad_Clientes_(Loc.)"
+      ]
+    },
+    {
+      "index": 13,
+      "name": "Cad_Veículos",
+      "sheetId": "5",
+      "rId": "rId13",
+      "xml": "sheet13.xml",
+      "id": "cad-veiculos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:AI1015",
+      "zoom": 90,
+      "hiddenCols": 10,
+      "hyperlinkCount": 3,
+      "drawingCount": 4,
+      "drawingLinks": 4,
+      "hyperlinks": [
+        {
+          "ref": "B4",
+          "location": "Emissão_de_Protocolos!A1",
+          "display": "Protocolos"
+        },
+        {
+          "ref": "B6",
+          "location": "Emissão_de_Protocolos!A1",
+          "display": "Protocolos"
+        },
+        {
+          "ref": "B6:C6",
+          "location": "Termo_de_Subst._Provisória!A1",
+          "display": "Ctrl de Uso Provisório"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Imagem 5",
+          "text": "",
+          "href": "'Cad_Veículos_(Loc.)'!A1",
+          "image": "image48.png"
+        },
+        {
+          "name": "Imagem 6",
+          "text": "",
+          "href": "'Cad_Clientes_(Loc.)'!A1",
+          "image": "image46.png"
+        }
+      ],
+      "destinations": [
+        "Emissão_de_Protocolos",
+        "Termo_de_Subst._Provisória",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente",
+        "Cad_Veículos_(Loc.)",
+        "Cad_Clientes_(Loc.)"
+      ]
+    },
+    {
+      "index": 14,
+      "name": "Chassi's pra Márcio Santos",
+      "sheetId": "82",
+      "rId": "rId14",
+      "xml": "sheet14.xml",
+      "id": "chassis-pra-marcio-santos",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "B1:H24",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 15,
+      "name": "Relação_Clientes",
+      "sheetId": "6",
+      "rId": "rId15",
+      "xml": "sheet15.xml",
+      "id": "relacao-clientes",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:T999",
+      "zoom": 80,
+      "hiddenCols": 7,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 4,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "'Cad_Veículos_(Loc.)'!A1",
+          "image": "image48.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "'Cad_Clientes_(Loc.)'!A1",
+          "image": "image46.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente",
+        "Cad_Veículos_(Loc.)",
+        "Cad_Clientes_(Loc.)"
+      ]
+    },
+    {
+      "index": 16,
+      "name": "Relação_Veículos",
+      "sheetId": "7",
+      "rId": "rId16",
+      "xml": "sheet16.xml",
+      "id": "relacao-veiculos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:P1007",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 4,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "'Cad_Veículos_(Loc.)'!A1",
+          "image": "image48.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "'Cad_Clientes_(Loc.)'!A1",
+          "image": "image46.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente",
+        "Cad_Veículos_(Loc.)",
+        "Cad_Clientes_(Loc.)"
+      ]
+    },
+    {
+      "index": 17,
+      "name": "Status_Veículos",
+      "sheetId": "8",
+      "rId": "rId17",
+      "xml": "sheet17.xml",
+      "id": "status-veiculos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:N1007",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 18,
+      "name": "Acomp._Transf._Propriedade",
+      "sheetId": "9",
+      "rId": "rId18",
+      "xml": "sheet18.xml",
+      "id": "acomp-transf-propriedade",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:AB1008",
+      "zoom": 90,
+      "hiddenCols": 7,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 19,
+      "name": "Distrib._de_Rastreadores",
+      "sheetId": "93",
+      "rId": "rId19",
+      "xml": "sheet19.xml",
+      "id": "distrib-de-rastreadores",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:Q1007",
+      "zoom": 92,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 4,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "'Cad_Veículos_(Loc.)'!A1",
+          "image": "image48.png"
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "'Cad_Clientes_(Loc.)'!A1",
+          "image": "image46.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente",
+        "Cad_Veículos_(Loc.)",
+        "Cad_Clientes_(Loc.)"
+      ]
+    },
+    {
+      "index": 20,
+      "name": "Fundo_Fixo",
+      "sheetId": "10",
+      "rId": "rId20",
+      "xml": "sheet20.xml",
+      "id": "fundo-fixo",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:AK100",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 21,
+      "name": "Passivo_para_Cobrança",
+      "sheetId": "49",
+      "rId": "rId21",
+      "xml": "sheet21.xml",
+      "id": "passivo-para-cobranca",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CB85",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 22,
+      "name": "Panfleto_Padrão",
+      "sheetId": "81",
+      "rId": "rId22",
+      "xml": "sheet22.xml",
+      "id": "panfleto-padrao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CG78",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 5",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 23,
+      "name": "Recibo_de_Pagto_Locação",
+      "sheetId": "11",
+      "rId": "rId23",
+      "xml": "sheet23.xml",
+      "id": "recibo-de-pagto-locacao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CH32",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 11,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Check Box 34",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Check Box 25",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Check Box 19",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Check Box 18",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Check Box 32",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Check Box 33",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Smiley: Correção do VExtenso",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 23",
+          "text": "",
+          "href": "",
+          "image": "image60.emf"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Check Box 38",
+          "text": "",
+          "href": "",
+          "image": ""
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 24,
+      "name": "Recibo_de_Pagto_Manutenção",
+      "sheetId": "54",
+      "rId": "rId24",
+      "xml": "sheet24.xml",
+      "id": "recibo-de-pagto-manutencao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CH45",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 5,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "",
+          "image": "image62.jpeg"
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "",
+          "image": "image60.emf"
+        },
+        {
+          "name": "Smiley: Correção do VExtenso",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 25,
+      "name": "Recibo_de_Pagto_Vendas",
+      "sheetId": "68",
+      "rId": "rId25",
+      "xml": "sheet25.xml",
+      "id": "recibo-de-pagto-vendas",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CH44",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 26,
+      "name": "Relação_de_Motos_Vendidas",
+      "sheetId": "69",
+      "rId": "rId26",
+      "xml": "sheet26.xml",
+      "id": "relacao-de-motos-vendidas",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CR51",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 5",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 27,
+      "name": "Tabela_DK_Locadora",
+      "sheetId": "75",
+      "rId": "rId27",
+      "xml": "sheet27.xml",
+      "id": "tabela-dk-locadora",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:X75",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 28,
+      "name": "Tab_Config",
+      "sheetId": "1",
+      "rId": "rId28",
+      "xml": "sheet28.xml",
+      "id": "tab-config",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:IW1000",
+      "zoom": 90,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 29,
+      "name": "Lançamentos_de_Loc._Recebidas",
+      "sheetId": "62",
+      "rId": "rId29",
+      "xml": "sheet29.xml",
+      "id": "lancamentos-de-loc-recebidas",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:ZF1004",
+      "zoom": 90,
+      "hiddenCols": 4,
+      "hyperlinkCount": 0,
+      "drawingCount": 3,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        },
+        {
+          "name": "Círculo: Vazio 3",
+          "text": "",
+          "href": "",
+          "image": ""
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 30,
+      "name": "Planilha1",
+      "sheetId": "67",
+      "rId": "rId30",
+      "xml": "sheet30.xml",
+      "id": "planilha1",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:UG1",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 31,
+      "name": "Recebimentos_(Locações)",
+      "sheetId": "20",
+      "rId": "rId31",
+      "xml": "sheet31.xml",
+      "id": "recebimentos-locacoes",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:UG2208",
+      "zoom": 90,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "'Página Inicial'!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 32,
+      "name": "Relat_Acomp_Contrato",
+      "sheetId": "57",
+      "rId": "rId32",
+      "xml": "sheet32.xml",
+      "id": "relat-acomp-contrato",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CI186",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 33,
+      "name": "Planilha3",
+      "sheetId": "79",
+      "rId": "rId33",
+      "xml": "sheet33.xml",
+      "id": "planilha3",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "B1:M21",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 34,
+      "name": "Planilha3 (2)",
+      "sheetId": "80",
+      "rId": "rId34",
+      "xml": "sheet34.xml",
+      "id": "planilha3-2",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "B1:G40",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 35,
+      "name": "Vencimentos_Protocolos",
+      "sheetId": "94",
+      "rId": "rId35",
+      "xml": "sheet35.xml",
+      "id": "vencimentos-protocolos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:IS1000",
+      "zoom": 100,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 36,
+      "name": "Emissão_de_Protocolos",
+      "sheetId": "12",
+      "rId": "rId36",
+      "xml": "sheet36.xml",
+      "id": "emissao-de-protocolos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:X10018",
+      "zoom": 90,
+      "hiddenCols": 5,
+      "hyperlinkCount": 2,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B7:C7",
+          "location": "Cad_Clientes!A1",
+          "display": "Cadastro de Clientes"
+        },
+        {
+          "ref": "B8:C8",
+          "location": "Cad_Veículos!A1",
+          "display": "Cadastro de Veículos"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Cad_Clientes",
+        "Cad_Veículos",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 37,
+      "name": "Opção_Contratada",
+      "sheetId": "14",
+      "rId": "rId37",
+      "xml": "sheet37.xml",
+      "id": "opcao-contratada",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CB68",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 5,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Smiley: Correção do VExtenso",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 38,
+      "name": "Contrato_de_Locação",
+      "sheetId": "15",
+      "rId": "rId38",
+      "xml": "sheet38.xml",
+      "id": "contrato-de-locacao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CL683",
+      "zoom": 90,
+      "hiddenCols": 3,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image63.png"
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 39,
+      "name": "Promessa_Compra_Venda",
+      "sheetId": "16",
+      "rId": "rId39",
+      "xml": "sheet39.xml",
+      "id": "promessa-compra-venda",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CL104",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 40,
+      "name": "Termo_de_Vistoria",
+      "sheetId": "56",
+      "rId": "rId40",
+      "xml": "sheet40.xml",
+      "id": "termo-de-vistoria",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CK163",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 41,
+      "name": "Aditivo_ao_Contrato_Vigente",
+      "sheetId": "59",
+      "rId": "rId41",
+      "xml": "sheet41.xml",
+      "id": "aditivo-ao-contrato-vigente",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CD1048566",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 42,
+      "name": "Distrato_de_Locação",
+      "sheetId": "66",
+      "rId": "rId42",
+      "xml": "sheet42.xml",
+      "id": "distrato-de-locacao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CJ90",
+      "zoom": 90,
+      "hiddenCols": 3,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 43,
+      "name": "Termo_de_Subst._Provisória",
+      "sheetId": "61",
+      "rId": "rId43",
+      "xml": "sheet43.xml",
+      "id": "termo-de-subst-provisoria",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CB1040",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 44,
+      "name": "Registros_de_Motos_Provisórias",
+      "sheetId": "72",
+      "rId": "rId44",
+      "xml": "sheet44.xml",
+      "id": "registros-de-motos-provisorias",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:CB891",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 45,
+      "name": "Check-List_para_Manutenção",
+      "sheetId": "53",
+      "rId": "rId45",
+      "xml": "sheet45.xml",
+      "id": "check-list-para-manutencao",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CJ1048561",
+      "zoom": 90,
+      "hiddenCols": 3,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 46,
+      "name": "Relação_Protocolos_Emitidos",
+      "sheetId": "19",
+      "rId": "rId46",
+      "xml": "sheet46.xml",
+      "id": "relacao-protocolos-emitidos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:P1007",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 47,
+      "name": "Relação_Condutor_Principal",
+      "sheetId": "70",
+      "rId": "rId47",
+      "xml": "sheet47.xml",
+      "id": "relacao-condutor-principal",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:AJ200",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 48,
+      "name": "Relat_Receb_Semanal",
+      "sheetId": "22",
+      "rId": "rId48",
+      "xml": "sheet48.xml",
+      "id": "relat-receb-semanal",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:HR1008",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 49,
+      "name": "Relat_Receb_Mensal - 2025",
+      "sheetId": "23",
+      "rId": "rId49",
+      "xml": "sheet49.xml",
+      "id": "relat-receb-mensal-2025",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:HS379",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 3,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Gráfico 3",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 50,
+      "name": "Form_de_Lista_de_Espera",
+      "sheetId": "24",
+      "rId": "rId50",
+      "xml": "sheet50.xml",
+      "id": "form-de-lista-de-espera",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CD76",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 51,
+      "name": "ID_Chaveiros_(Carros)",
+      "sheetId": "77",
+      "rId": "rId51",
+      "xml": "sheet51.xml",
+      "id": "id-chaveiros-carros",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CB1062",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 3,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "",
+          "image": "image65.png"
+        },
+        {
+          "name": "Imagem 418",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 52,
+      "name": "ID_Chaveiros_(Motos)",
+      "sheetId": "25",
+      "rId": "rId52",
+      "xml": "sheet52.xml",
+      "id": "id-chaveiros-motos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CB1062",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 3,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "",
+          "image": "image65.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 53,
+      "name": "Anotações_de_Km_Atual",
+      "sheetId": "26",
+      "rId": "rId53",
+      "xml": "sheet53.xml",
+      "id": "anotacoes-de-km-atual",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:BV1002",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 54,
+      "name": "Ctrl_de_Troca_de_Óleo",
+      "sheetId": "27",
+      "rId": "rId54",
+      "xml": "sheet54.xml",
+      "id": "ctrl-de-troca-de-oleo",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:DA1002",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 55,
+      "name": "Termo_de_Manut_(Prev_-_Corret)",
+      "sheetId": "18",
+      "rId": "rId55",
+      "xml": "sheet55.xml",
+      "id": "termo-de-manut-prev-corret",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:DG86",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "'Página Inicial'!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 56,
+      "name": "Ctrl_Multas",
+      "sheetId": "28",
+      "rId": "rId56",
+      "xml": "sheet56.xml",
+      "id": "ctrl-multas",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U1007",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 57,
+      "name": "Plano_de_Manut_(Motos_Honda)",
+      "sheetId": "29",
+      "rId": "rId57",
+      "xml": "sheet57.xml",
+      "id": "plano-de-manut-motos-honda",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 58,
+      "name": "Plano_de_Manut_(Motos_Yamaha)",
+      "sheetId": "31",
+      "rId": "rId58",
+      "xml": "sheet58.xml",
+      "id": "plano-de-manut-motos-yamaha",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 59,
+      "name": "Plano_de_Manut_(Motos_Shineray)",
+      "sheetId": "30",
+      "rId": "rId59",
+      "xml": "sheet59.xml",
+      "id": "plano-de-manut-motos-shineray",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "C1:C18",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 60,
+      "name": "Pendências_Cad_Clientes",
+      "sheetId": "32",
+      "rId": "rId60",
+      "xml": "sheet60.xml",
+      "id": "pendencias-cad-clientes",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:R1007",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 61,
+      "name": "Relatório_de_Status_CNH_e_EAR",
+      "sheetId": "33",
+      "rId": "rId61",
+      "xml": "sheet61.xml",
+      "id": "relatorio-de-status-cnh-e-ear",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:Q1006",
+      "zoom": 90,
+      "hiddenCols": 3,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 62,
+      "name": "Consórcios",
+      "sheetId": "34",
+      "rId": "rId62",
+      "xml": "sheet62.xml",
+      "id": "consorcios",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:T115",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 63,
+      "name": "Lucros_e_Dividendos",
+      "sheetId": "35",
+      "rId": "rId63",
+      "xml": "sheet63.xml",
+      "id": "lucros-e-dividendos",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:H7",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 64,
+      "name": "Resumo",
+      "sheetId": "36",
+      "rId": "rId64",
+      "xml": "sheet64.xml",
+      "id": "resumo",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 65,
+      "name": "Receitas",
+      "sheetId": "37",
+      "rId": "rId65",
+      "xml": "sheet65.xml",
+      "id": "receitas",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 66,
+      "name": "Despesas",
+      "sheetId": "38",
+      "rId": "rId66",
+      "xml": "sheet66.xml",
+      "id": "despesas",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1",
+      "zoom": 100,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 67,
+      "name": "Acopanhamento_do_Seguro_Lider",
+      "sheetId": "48",
+      "rId": "rId67",
+      "xml": "sheet67.xml",
+      "id": "acopanhamento-do-seguro-lider",
+      "state": "hidden",
+      "exists": true,
+      "dimension": "A1:S1006",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "'Página Inicial'!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 68,
+      "name": "Contas_a_Pagar",
+      "sheetId": "50",
+      "rId": "rId68",
+      "xml": "sheet68.xml",
+      "id": "contas-a-pagar",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:X1164",
+      "zoom": 90,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 69,
+      "name": "Ctrl_de_Pagto_(Licenc._2026)",
+      "sheetId": "60",
+      "rId": "rId69",
+      "xml": "sheet69.xml",
+      "id": "ctrl-de-pagto-licenc-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:BA1006",
+      "zoom": 90,
+      "hiddenCols": 3,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 70,
+      "name": "Anotações_(Protocolos)",
+      "sheetId": "63",
+      "rId": "rId70",
+      "xml": "sheet70.xml",
+      "id": "anotacoes-protocolos",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:K37",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 71,
+      "name": "Ctrl_de_Movimentações_Diárias",
+      "sheetId": "64",
+      "rId": "rId71",
+      "xml": "sheet71.xml",
+      "id": "ctrl-de-movimentacoes-diarias",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:V39",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 0,
+      "drawingLinks": 0,
+      "hyperlinks": [],
+      "drawings": [],
+      "destinations": []
+    },
+    {
+      "index": 72,
+      "name": "Saídas_do_Estoque",
+      "sheetId": "71",
+      "rId": "rId72",
+      "xml": "sheet72.xml",
+      "id": "saidas-do-estoque",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:Q48",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 73,
+      "name": "B_D_V_(Operacional)",
+      "sheetId": "74",
+      "rId": "rId73",
+      "xml": "sheet73.xml",
+      "id": "b-d-v-operacional",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:Q50",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 74,
+      "name": "Pagamentos_Diários",
+      "sheetId": "83",
+      "rId": "rId74",
+      "xml": "sheet74.xml",
+      "id": "pagamentos-diarios",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:IL1010",
+      "zoom": 90,
+      "hiddenCols": 0,
+      "hyperlinkCount": 0,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 75,
+      "name": "Resultados_2026",
+      "sheetId": "84",
+      "rId": "rId75",
+      "xml": "sheet75.xml",
+      "id": "resultados-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:IL36",
+      "zoom": 90,
+      "hiddenCols": 0,
+      "hyperlinkCount": 8,
+      "drawingCount": 3,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "E18",
+          "location": "Mai.2026!C4",
+          "display": "Mai.2026!C4"
+        },
+        {
+          "ref": "E20",
+          "location": "Jun.2026!C4",
+          "display": "Jun.2026!C4"
+        },
+        {
+          "ref": "E22",
+          "location": "Jul.2026!C4",
+          "display": "Jul.2026!C4"
+        },
+        {
+          "ref": "E24",
+          "location": "Ago.2026!C4",
+          "display": "Ago.2026!C4"
+        },
+        {
+          "ref": "E26",
+          "location": "Set.2026!C4",
+          "display": "Set.2026!C4"
+        },
+        {
+          "ref": "E28",
+          "location": "Out.2026!C4",
+          "display": "Out.2026!C4"
+        },
+        {
+          "ref": "E30",
+          "location": "Nov.2026!C4",
+          "display": "Nov.2026!C4"
+        },
+        {
+          "ref": "E32",
+          "location": "Dez.2026!C4",
+          "display": "Dez.2026!C4"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Gráfico 1",
+          "text": "",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Mai.2026",
+        "Jun.2026",
+        "Jul.2026",
+        "Ago.2026",
+        "Set.2026",
+        "Out.2026",
+        "Nov.2026",
+        "Dez.2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 76,
+      "name": "Mai.2026",
+      "sheetId": "85",
+      "rId": "rId76",
+      "xml": "sheet76.xml",
+      "id": "mai-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Maio de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 77,
+      "name": "Jun.2026",
+      "sheetId": "86",
+      "rId": "rId77",
+      "xml": "sheet77.xml",
+      "id": "jun-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U41",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Junho de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 78,
+      "name": "Jul.2026",
+      "sheetId": "87",
+      "rId": "rId78",
+      "xml": "sheet78.xml",
+      "id": "jul-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Julho de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 79,
+      "name": "Ago.2026",
+      "sheetId": "88",
+      "rId": "rId79",
+      "xml": "sheet79.xml",
+      "id": "ago-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Junho de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 80,
+      "name": "Set.2026",
+      "sheetId": "89",
+      "rId": "rId80",
+      "xml": "sheet80.xml",
+      "id": "set-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Setembro de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 81,
+      "name": "Out.2026",
+      "sheetId": "90",
+      "rId": "rId81",
+      "xml": "sheet81.xml",
+      "id": "out-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Outubro de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 82,
+      "name": "Nov.2026",
+      "sheetId": "91",
+      "rId": "rId82",
+      "xml": "sheet82.xml",
+      "id": "nov-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Novembro de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 83,
+      "name": "Dez.2026",
+      "sheetId": "92",
+      "rId": "rId83",
+      "xml": "sheet83.xml",
+      "id": "dez-2026",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:U39",
+      "zoom": 90,
+      "hiddenCols": 1,
+      "hyperlinkCount": 1,
+      "drawingCount": 2,
+      "drawingLinks": 2,
+      "hyperlinks": [
+        {
+          "ref": "B3:R3",
+          "location": "Resultados_2026!B1",
+          "display": "Metas do Mês de Dezembro de 2026"
+        }
+      ],
+      "drawings": [
+        {
+          "name": "Imagem 1",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 2",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Resultados_2026",
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    },
+    {
+      "index": 84,
+      "name": "Informativo_(Pendências_Financ)",
+      "sheetId": "95",
+      "rId": "rId84",
+      "xml": "sheet84.xml",
+      "id": "informativo-pendencias-financ",
+      "state": "visible",
+      "exists": true,
+      "dimension": "A1:CD1048560",
+      "zoom": 90,
+      "hiddenCols": 2,
+      "hyperlinkCount": 0,
+      "drawingCount": 4,
+      "drawingLinks": 2,
+      "hyperlinks": [],
+      "drawings": [
+        {
+          "name": "Legenda (Salvar PDF)",
+          "text": "Salvar PDF",
+          "href": "",
+          "image": ""
+        },
+        {
+          "name": "Ícone (Gerar PDF)",
+          "text": "",
+          "href": "",
+          "image": "image61.png"
+        },
+        {
+          "name": "Imagem 3",
+          "text": "",
+          "href": "Página_Inicial!A1",
+          "image": "image45.png"
+        },
+        {
+          "name": "Imagem 4",
+          "text": "",
+          "href": "Consulta_Veíc_ou_Cliente!A1",
+          "image": "image58.png"
+        }
+      ],
+      "destinations": [
+        "Página_Inicial",
+        "Consulta_Veíc_ou_Cliente"
+      ]
+    }
+  ],
+  "linkGraph": [
+    {
+      "from": "Dashboard",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C9:O9",
+      "to": "Página Inicial",
+      "display": "Página Inicial",
+      "location": "'Página Inicial'!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Página_Inicial",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "S11:AF11",
+      "to": "Cad_Clientes",
+      "display": "Cadastro de Clientes",
+      "location": "Cad_Clientes!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "S15:AF15",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "display": "Consulta Integrada (Veículos/Clientes)",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "S13:AF13",
+      "to": "Cad_Veículos",
+      "display": "Cadastro de Veículos",
+      "location": "Cad_Veículos!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "S17:AF17",
+      "to": "Ctrl_Multas",
+      "display": "Ctrl Integrado de Multas",
+      "location": "Ctrl_Multas!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C17:O17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY13:BL13",
+      "to": "Relação_Veículos",
+      "display": "Relação Integrada de Veículos",
+      "location": "Relação_Veículos!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY17:BL17",
+      "to": "Status_Veículos",
+      "display": "Status Integrado de Veículos",
+      "location": "Status_Veículos!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY15:BL15",
+      "to": "Acomp._Transf._Propriedade",
+      "display": "Acomp. de Transf. de Propriedade",
+      "location": "Acomp._Transf._Propriedade!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY21:BL21",
+      "to": "ID_Chaveiros_(Motos)",
+      "display": "Etiquetas dos Chaveiros (Motos)",
+      "location": "'ID_Chaveiros_(Motos)'!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY27:BL27",
+      "to": "Pendências_Cad_Clientes",
+      "display": "Pendências Administrativas",
+      "location": "Pendências_Cad_Clientes!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY25:BL25",
+      "to": "Relatório_de_Status_CNH_e_EAR",
+      "display": "Relatório de Status da CNH / EAR",
+      "location": "Relatório_de_Status_CNH_e_EAR!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY23:BL23",
+      "to": "ID_Chaveiros_(Carros)",
+      "display": "Etiquetas dos Chaveiros (Carros)",
+      "location": "'ID_Chaveiros_(Carros)'!A1"
+    },
+    {
+      "from": "Administrativo",
+      "kind": "cell",
+      "ref": "AY19:BL19",
+      "to": "Relação_de_Motos_Vendidas",
+      "display": "Relação de Motos Vendidas",
+      "location": "Relação_de_Motos_Vendidas!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S11:AF11",
+      "to": "Recibo_de_Pagto_Locação",
+      "display": "Recibo de Pagto de Locação/Plano",
+      "location": "Recibo_de_Pagto_Locação!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S15:AF15",
+      "to": "Fundo_Fixo",
+      "display": "Prest. de Contas (Fundo Fixo)",
+      "location": "Fundo_Fixo!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S13:AF13",
+      "to": "Recebimentos_(Locações)",
+      "display": "Recebimentos (Locações)",
+      "location": "'Recebimentos_(Locações)'!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S17:AF17",
+      "to": "Acopanhamento_do_Seguro_Lider",
+      "display": "Acompanhamento do Seguro Lider",
+      "location": "Acopanhamento_do_Seguro_Lider!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C19:O19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S23:AF23",
+      "to": "Ctrl_de_Pagto_(Licenc._2026)",
+      "display": "Ctrl de Pagto (Licenc._2026)",
+      "location": "'Ctrl_de_Pagto_(Licenc._2026)'!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S19:AF19",
+      "to": "Recibo_de_Pagto_Vendas",
+      "display": "Recibo de Pagto (Venda de Veículos)",
+      "location": "Recibo_de_Pagto_Vendas!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S21:AF21",
+      "to": "Lançamentos_de_Loc._Recebidas",
+      "display": "Lançamentos de Locações Recebidas",
+      "location": "Lançamentos_de_Loc._Recebidas!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "S25:AF25",
+      "to": "Contas_a_Pagar",
+      "display": "Contas a Pagar",
+      "location": "Contas_a_Pagar!A1"
+    },
+    {
+      "from": "Financeiro",
+      "kind": "cell",
+      "ref": "AY13:BL13",
+      "to": "Tabela_DK_Locadora",
+      "display": "Tabela DK Locadora",
+      "location": "Tabela_DK_Locadora!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C19:O19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Dpto_Pessoal",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S11:AF11",
+      "to": "Emissão_de_Protocolos",
+      "display": "Emissão de Protocolos",
+      "location": "Emissão_de_Protocolos!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S19:AF19",
+      "to": "Termo_de_Vistoria",
+      "display": "Termo de Vistoria",
+      "location": "Termo_de_Vistoria!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S13:AF13",
+      "to": "Opção_Contratada",
+      "display": "Opção Contratada",
+      "location": "Opção_Contratada!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S15:AF15",
+      "to": "Contrato_de_Locação",
+      "display": "Contrato de Locação",
+      "location": "Contrato_de_Locação!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S17:AF17",
+      "to": "Promessa_Compra_Venda",
+      "display": "Promessa de Compra e Venda",
+      "location": "Promessa_Compra_Venda!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C23:O23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S21:AF21",
+      "to": "Aditivo_ao_Contrato_Vigente",
+      "display": "Aditivo ao Contrato Vigente",
+      "location": "Aditivo_ao_Contrato_Vigente!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "S23:AF23",
+      "to": "Distrato_de_Locação",
+      "display": "Termo de Distrato de Locação",
+      "location": "Distrato_de_Locação!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "AY11:BL11",
+      "to": "Relação_Protocolos_Emitidos",
+      "display": "Relação de Protocolos Emitidos",
+      "location": "Relação_Protocolos_Emitidos!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "AY13:BL13",
+      "to": "Anotações_(Protocolos)",
+      "display": "Anotações (Emissão de Protocolos)",
+      "location": "'Anotações_(Protocolos)'!A1"
+    },
+    {
+      "from": "Locação_de_Veículos",
+      "kind": "cell",
+      "ref": "AY15:BL15",
+      "to": "Relat_Acomp_Contrato",
+      "display": "Relatório de Acompanhamento de Contrato",
+      "location": "Relat_Acomp_Contrato!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "S13:AF13",
+      "to": "Ctrl_de_Troca_de_Óleo",
+      "display": "Ctrl de Troca de Óleo",
+      "location": "Ctrl_de_Troca_de_Óleo!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "S11:AF11",
+      "to": "Anotações de_Km_Atual",
+      "display": "Anotações de Km Atual",
+      "location": "'Anotações de_Km_Atual'!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "S15:AF15",
+      "to": "Termo_de_Insp_e_Troca_de_Óleo",
+      "display": "Termo_de_Insp_e_Troca_de_Óleo",
+      "location": "Termo_de_Insp_e_Troca_de_Óleo!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C25:O25",
+      "to": "Controle_de_Manutenção",
+      "display": "Controle de Manutenção",
+      "location": "Controle_de_Manutenção!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "S17:AF17",
+      "to": "Check-List_para_Manutenção",
+      "display": "Check-List para Manutenção",
+      "location": "'Check-List_para_Manutenção'!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "S19:AF19",
+      "to": "Termo_de_Subst._Provisória",
+      "display": "Termo_de_Subst._Provis._(Motos)",
+      "location": "Termo_de_Subst._Provisória!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Ctrl_de_Manutenção",
+      "kind": "cell",
+      "ref": "S21:AF21",
+      "to": "Ctrl_de_Movimentações_Diárias",
+      "display": "Ctrl_de_Movimentações_Diárias",
+      "location": "Ctrl_de_Movimentações_Diárias!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C27:O27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Gráficos",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C29:O29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Planejamento",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C9:P9",
+      "to": "Página_Inicial",
+      "display": "Página Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C17:P17",
+      "to": "Administrativo",
+      "display": "Administrativo",
+      "location": "Administrativo!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C19:P19",
+      "to": "Financeiro",
+      "display": "Financeiro",
+      "location": "Financeiro!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C23:P23",
+      "to": "Locação_de_Veículos",
+      "display": "Locação de Veículos",
+      "location": "Locação_de_Veículos!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C25:P25",
+      "to": "Ctrl_de_Manutenção",
+      "display": "Ctrl de Manutenção",
+      "location": "Ctrl_de_Manutenção!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C27:P27",
+      "to": "Gráficos",
+      "display": "Gráficos",
+      "location": "Gráficos!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C29:P29",
+      "to": "Planejamento",
+      "display": "Planejamento",
+      "location": "Planejamento!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C21:P21",
+      "to": "Dpto_Pessoal",
+      "display": "Depto Pessoal",
+      "location": "Dpto_Pessoal!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C11:P11",
+      "to": "Dashboard",
+      "display": "DASHBOARD",
+      "location": "Dashboard!A1"
+    },
+    {
+      "from": "Procedimentos",
+      "kind": "cell",
+      "ref": "C35:P35",
+      "to": "Procedimentos",
+      "display": "Procedimentos",
+      "location": "Procedimentos!A1"
+    },
+    {
+      "from": "Consulta_Veíc_ou_Cliente",
+      "kind": "shape",
+      "name": "Imagem 7",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Consulta_Veíc_ou_Cliente",
+      "kind": "shape",
+      "name": "Imagem 11",
+      "to": "Cad_Clientes_(Loc.)",
+      "location": "'Cad_Clientes_(Loc.)'!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "cell",
+      "ref": "B4",
+      "to": "Emissão_de_Protocolos",
+      "display": "Protocolos",
+      "location": "Emissão_de_Protocolos!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "cell",
+      "ref": "B5",
+      "to": "Emissão_de_Protocolos",
+      "display": "Protocolos",
+      "location": "Emissão_de_Protocolos!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "cell",
+      "ref": "B5:C5",
+      "to": "Termo_de_Subst._Provisória",
+      "display": "Ctrl de Uso Provisório",
+      "location": "Termo_de_Subst._Provisória!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "shape",
+      "name": "Imagem 5",
+      "to": "Cad_Veículos_(Loc.)",
+      "location": "'Cad_Veículos_(Loc.)'!A1"
+    },
+    {
+      "from": "Cad_Clientes",
+      "kind": "shape",
+      "name": "Imagem 6",
+      "to": "Cad_Clientes_(Loc.)",
+      "location": "'Cad_Clientes_(Loc.)'!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "cell",
+      "ref": "B4",
+      "to": "Emissão_de_Protocolos",
+      "display": "Protocolos",
+      "location": "Emissão_de_Protocolos!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "cell",
+      "ref": "B6",
+      "to": "Emissão_de_Protocolos",
+      "display": "Protocolos",
+      "location": "Emissão_de_Protocolos!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "cell",
+      "ref": "B6:C6",
+      "to": "Termo_de_Subst._Provisória",
+      "display": "Ctrl de Uso Provisório",
+      "location": "Termo_de_Subst._Provisória!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "shape",
+      "name": "Imagem 5",
+      "to": "Cad_Veículos_(Loc.)",
+      "location": "'Cad_Veículos_(Loc.)'!A1"
+    },
+    {
+      "from": "Cad_Veículos",
+      "kind": "shape",
+      "name": "Imagem 6",
+      "to": "Cad_Clientes_(Loc.)",
+      "location": "'Cad_Clientes_(Loc.)'!A1"
+    },
+    {
+      "from": "Relação_Clientes",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relação_Clientes",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relação_Clientes",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Cad_Veículos_(Loc.)",
+      "location": "'Cad_Veículos_(Loc.)'!A1"
+    },
+    {
+      "from": "Relação_Clientes",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Cad_Clientes_(Loc.)",
+      "location": "'Cad_Clientes_(Loc.)'!A1"
+    },
+    {
+      "from": "Relação_Veículos",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relação_Veículos",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relação_Veículos",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Cad_Veículos_(Loc.)",
+      "location": "'Cad_Veículos_(Loc.)'!A1"
+    },
+    {
+      "from": "Relação_Veículos",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Cad_Clientes_(Loc.)",
+      "location": "'Cad_Clientes_(Loc.)'!A1"
+    },
+    {
+      "from": "Status_Veículos",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Status_Veículos",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Acomp._Transf._Propriedade",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Acomp._Transf._Propriedade",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Distrib._de_Rastreadores",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Distrib._de_Rastreadores",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Distrib._de_Rastreadores",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Cad_Veículos_(Loc.)",
+      "location": "'Cad_Veículos_(Loc.)'!A1"
+    },
+    {
+      "from": "Distrib._de_Rastreadores",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Cad_Clientes_(Loc.)",
+      "location": "'Cad_Clientes_(Loc.)'!A1"
+    },
+    {
+      "from": "Fundo_Fixo",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Fundo_Fixo",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Panfleto_Padrão",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Panfleto_Padrão",
+      "kind": "shape",
+      "name": "Imagem 5",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Recibo_de_Pagto_Locação",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Recibo_de_Pagto_Locação",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Recibo_de_Pagto_Manutenção",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Recibo_de_Pagto_Manutenção",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relação_de_Motos_Vendidas",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relação_de_Motos_Vendidas",
+      "kind": "shape",
+      "name": "Imagem 5",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Tabela_DK_Locadora",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Tabela_DK_Locadora",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Lançamentos_de_Loc._Recebidas",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Lançamentos_de_Loc._Recebidas",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Recebimentos_(Locações)",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página Inicial",
+      "location": "'Página Inicial'!A1"
+    },
+    {
+      "from": "Recebimentos_(Locações)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Emissão_de_Protocolos",
+      "kind": "cell",
+      "ref": "B7:C7",
+      "to": "Cad_Clientes",
+      "display": "Cadastro de Clientes",
+      "location": "Cad_Clientes!A1"
+    },
+    {
+      "from": "Emissão_de_Protocolos",
+      "kind": "cell",
+      "ref": "B8:C8",
+      "to": "Cad_Veículos",
+      "display": "Cadastro de Veículos",
+      "location": "Cad_Veículos!A1"
+    },
+    {
+      "from": "Emissão_de_Protocolos",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Emissão_de_Protocolos",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Opção_Contratada",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Opção_Contratada",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Contrato_de_Locação",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Contrato_de_Locação",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Promessa_Compra_Venda",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Promessa_Compra_Venda",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Aditivo_ao_Contrato_Vigente",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Aditivo_ao_Contrato_Vigente",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relação_Protocolos_Emitidos",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relação_Protocolos_Emitidos",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relação_Condutor_Principal",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relação_Condutor_Principal",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relat_Receb_Semanal",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relat_Receb_Semanal",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relat_Receb_Mensal - 2025",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relat_Receb_Mensal - 2025",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Form_de_Lista_de_Espera",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Form_de_Lista_de_Espera",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "ID_Chaveiros_(Carros)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "ID_Chaveiros_(Carros)",
+      "kind": "shape",
+      "name": "Imagem 418",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "ID_Chaveiros_(Motos)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "ID_Chaveiros_(Motos)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Anotações_de_Km_Atual",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Anotações_de_Km_Atual",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Ctrl_de_Troca_de_Óleo",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Ctrl_de_Troca_de_Óleo",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Termo_de_Manut_(Prev_-_Corret)",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Página Inicial",
+      "location": "'Página Inicial'!A1"
+    },
+    {
+      "from": "Termo_de_Manut_(Prev_-_Corret)",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Ctrl_Multas",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Ctrl_Multas",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Pendências_Cad_Clientes",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Pendências_Cad_Clientes",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Relatório_de_Status_CNH_e_EAR",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Relatório_de_Status_CNH_e_EAR",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Acopanhamento_do_Seguro_Lider",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página Inicial",
+      "location": "'Página Inicial'!A1"
+    },
+    {
+      "from": "Acopanhamento_do_Seguro_Lider",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Ctrl_de_Pagto_(Licenc._2026)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Ctrl_de_Pagto_(Licenc._2026)",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Anotações_(Protocolos)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Anotações_(Protocolos)",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Saídas_do_Estoque",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Saídas_do_Estoque",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "B_D_V_(Operacional)",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "B_D_V_(Operacional)",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Pagamentos_Diários",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Pagamentos_Diários",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E18",
+      "to": "Mai.2026",
+      "display": "Mai.2026!C4",
+      "location": "Mai.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E20",
+      "to": "Jun.2026",
+      "display": "Jun.2026!C4",
+      "location": "Jun.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E22",
+      "to": "Jul.2026",
+      "display": "Jul.2026!C4",
+      "location": "Jul.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E24",
+      "to": "Ago.2026",
+      "display": "Ago.2026!C4",
+      "location": "Ago.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E26",
+      "to": "Set.2026",
+      "display": "Set.2026!C4",
+      "location": "Set.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E28",
+      "to": "Out.2026",
+      "display": "Out.2026!C4",
+      "location": "Out.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E30",
+      "to": "Nov.2026",
+      "display": "Nov.2026!C4",
+      "location": "Nov.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "cell",
+      "ref": "E32",
+      "to": "Dez.2026",
+      "display": "Dez.2026!C4",
+      "location": "Dez.2026!C4"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Resultados_2026",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Mai.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Maio de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Mai.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Mai.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Jun.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Junho de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Jun.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Jun.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Jul.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Julho de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Jul.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Jul.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Ago.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Junho de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Ago.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Ago.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Set.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Setembro de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Set.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Set.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Out.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Outubro de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Out.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Out.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Nov.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Novembro de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Nov.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Nov.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Dez.2026",
+      "kind": "cell",
+      "ref": "B3:R3",
+      "to": "Resultados_2026",
+      "display": "Metas do Mês de Dezembro de 2026",
+      "location": "Resultados_2026!B1"
+    },
+    {
+      "from": "Dez.2026",
+      "kind": "shape",
+      "name": "Imagem 1",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Dez.2026",
+      "kind": "shape",
+      "name": "Imagem 2",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    },
+    {
+      "from": "Informativo_(Pendências_Financ)",
+      "kind": "shape",
+      "name": "Imagem 3",
+      "to": "Página_Inicial",
+      "location": "Página_Inicial!A1"
+    },
+    {
+      "from": "Informativo_(Pendências_Financ)",
+      "kind": "shape",
+      "name": "Imagem 4",
+      "to": "Consulta_Veíc_ou_Cliente",
+      "location": "Consulta_Veíc_ou_Cliente!A1"
+    }
+  ],
+  "unknownTargets": [
+    "Página Inicial",
+    "Anotações de_Km_Atual",
+    "Termo_de_Insp_e_Troca_de_Óleo",
+    "Controle_de_Manutenção",
+    "Cad_Clientes_(Loc.)",
+    "Cad_Veículos_(Loc.)"
+  ],
+  "definedNames": [
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "'Acomp._Transf._Propriedade'!$B$12:$K$1006"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Acopanhamento_do_Seguro_Lider!$C$11:$L$1005"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Aditivo_ao_Contrato_Vigente!#REF!"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Anotações_de_Km_Atual!$B$12:$BU$1000"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Cad_Clientes!$B$11:$R$1007"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Cad_Veículos!$B$17:$V$1014"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "'Check-List_para_Manutenção'!#REF!"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Contas_a_Pagar!$C$15:$W$15"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "'Ctrl_de_Pagto_(Licenc._2026)'!$C$11:$AV$1005"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Ctrl_de_Troca_de_Óleo!$B$12:$CZ$1001"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Ctrl_Multas!$C$12:$T$12"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Distrib._de_Rastreadores!$C$11:$L$1005"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Emissão_de_Protocolos!$B$11:$V$10016"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Fundo_Fixo!$D$12:$L$82"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "'Informativo_(Pendências_Financ)'!#REF!"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Lançamentos_de_Loc._Recebidas!$C$9:$T$1003"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Pagamentos_Diários!$AG$9:$AI$13"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Passivo_para_Cobrança!$AM$13:$BZ$13"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Pendências_Cad_Clientes!$C$11:$P$1005"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "'Recebimentos_(Locações)'!$B$13:$UF$13"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Registros_de_Motos_Provisórias!$AM$10:$BZ$10"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relação_Clientes!$B$4:$J$998"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relação_Condutor_Principal!$C$3:$I$190"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relação_Protocolos_Emitidos!$C$4:$N$4"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relação_Veículos!$C$4:$N$998"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relat_Acomp_Contrato!$K$20:$AS$61"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "'Relat_Receb_Mensal - 2025'!$C$12:$N$12"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relat_Receb_Semanal!$C$12:$M$12"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Relatório_de_Status_CNH_e_EAR!$B$10:$K$1005"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Status_Veículos!$C$4:$L$998"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Tab_Config!$AC$5:$AM$5"
+    },
+    {
+      "name": "_xlnm._FilterDatabase",
+      "ref": "Termo_de_Subst._Provisória!$AM$11:$BZ$205"
+    },
+    {
+      "name": "_xleta.ADDRESS",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.AND",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.CODE",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.DAY",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.IF",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.IFERROR",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.INDEX",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.N",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xleta.T",
+      "ref": "#NAME?"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Acopanhamento_do_Seguro_Lider!$B$11:$L$1005"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Aditivo_ao_Contrato_Vigente!$B$4:$AK$51"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Anotações_(Protocolos)'!$B$4:$I$36"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Anotações_de_Km_Atual!$B$11:$K$1000"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'B_D_V_(Operacional)'!$B$4:$E$49"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Check-List_para_Manutenção'!$B$4:$AL$111"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Contas_a_Pagar!$B$15:$Q$1162"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Contrato_de_Locação!$B$4:$AM$652"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Ctrl_de_Movimentações_Diárias!$B$4:$O$38"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Ctrl_de_Pagto_(Licenc._2026)'!$B$11:$AV$1005"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Ctrl_Multas!$B$12:$L$1006"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Distrato_de_Locação!$B$4:$AM$60"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Distrib._de_Rastreadores!$B$11:$M$1005"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Form_de_Lista_de_Espera!$B$4:$BL$53"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Fundo_Fixo!$B$4:$M$90"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'ID_Chaveiros_(Carros)'!$B$4:$H$526"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'ID_Chaveiros_(Motos)'!$B$4:$H$486"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Informativo_(Pendências_Financ)'!$B$4:$AK$45"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Lançamentos_de_Loc._Recebidas!$B$9:$ME$1003"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Opção_Contratada!$B$4:$AK$67"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Panfleto_Padrão!$B$4:$AP$75"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Passivo_para_Cobrança!$B$10:$AK$68"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Pendências_Cad_Clientes!$B$11:$P$1005"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Promessa_Compra_Venda!$B$4:$AM$103"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Recebimentos_(Locações)'!$B$13:$LZ$1007"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Recibo_de_Pagto_Locação!$B$4:$AK$31"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Recibo_de_Pagto_Manutenção!$B$4:$AK$36"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Recibo_de_Pagto_Vendas!$B$4:$AK$36"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Registros_de_Motos_Provisórias!$B$3:$AK$60"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relação_Clientes!$B$4:$L$998"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relação_Condutor_Principal!$B$3:$I$190"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relação_de_Motos_Vendidas!$B$9:$AF$45"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relação_Protocolos_Emitidos!$B$4:$N$998"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relação_Veículos!$B$4:$N$998"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relat_Acomp_Contrato!$B$7:$BM$171"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Relat_Receb_Mensal - 2025'!$B$11:$HO$377"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relat_Receb_Semanal!$B$11:$HN$1006"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Relatório_de_Status_CNH_e_EAR!$B$10:$K$1005"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Saídas_do_Estoque!$B$4:$E$46"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Status_Veículos!$B$4:$L$998"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Tabela_DK_Locadora!$B$4:$S$74"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "'Termo_de_Manut_(Prev_-_Corret)'!$B$11:$AM$85"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Termo_de_Subst._Provisória!$B$4:$AK$61"
+    },
+    {
+      "name": "_xlnm.Print_Area",
+      "ref": "Termo_de_Vistoria!$B$4:$AQ$162"
+    },
+    {
+      "name": "Jan.2022",
+      "ref": "Contas_a_Pagar!$I$15:$Q$1035"
+    },
+    {
+      "name": "Jan.2022",
+      "ref": "Contas_a_Pagar!$I$15:$Q$1035"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Acopanhamento_do_Seguro_Lider!$11:$11"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Anotações_de_Km_Atual!$11:$11"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "'Ctrl_de_Pagto_(Licenc._2026)'!$11:$11"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Ctrl_Multas!$12:$12"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Distrib._de_Rastreadores!$11:$11"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Fundo_Fixo!$12:$12"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Pendências_Cad_Clientes!$11:$11"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Relação_Clientes!$4:$4"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Relação_Condutor_Principal!$3:$3"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Relação_Protocolos_Emitidos!$4:$4"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Relação_Veículos!$4:$4"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Relat_Acomp_Contrato!$20:$20"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Relatório_de_Status_CNH_e_EAR!$10:$10"
+    },
+    {
+      "name": "_xlnm.Print_Titles",
+      "ref": "Status_Veículos!$4:$4"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Acomp._Transf._Propriedade'!$M:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Acopanhamento_do_Seguro_Lider!$N:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Aditivo_ao_Contrato_Vigente!#REF!,Aditivo_ao_Contrato_Vigente!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Administrativo!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Anotações_de_Km_Atual!$BW:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Cad_Clientes!$T:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Cad_Veículos!$E:$E,Cad_Veículos!$T:$U,Cad_Veículos!$X:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Check-List_para_Manutenção'!$CD:$CD,'Check-List_para_Manutenção'!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Consulta_Veíc_ou_Cliente!$CB:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Contrato_de_Locação!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Ctrl_de_Manutenção!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Ctrl_de_Pagto_(Licenc._2026)'!$AY:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Ctrl_de_Troca_de_Óleo!$DB:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Ctrl_Multas!$V:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Distrato_de_Locação!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Distrib._de_Rastreadores!$O:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Dpto_Pessoal!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Emissão_de_Protocolos!$H:$H"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Financeiro!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Form_de_Lista_de_Espera!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Fundo_Fixo!$Z:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Gráficos!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'ID_Chaveiros_(Carros)'!$AX:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'ID_Chaveiros_(Motos)'!$AX:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Informativo_(Pendências_Financ)'!#REF!,'Informativo_(Pendências_Financ)'!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Lançamentos_de_Loc._Recebidas!$TD:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Locação_de_Veículos!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Opção_Contratada!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Página_Inicial!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Panfleto_Padrão!$CH:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Passivo_para_Cobrança!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Pendências_Cad_Clientes!$R:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Planejamento!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Procedimentos!$CF:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Promessa_Compra_Venda!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Recebimentos_(Locações)'!$TB:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Recibo_de_Pagto_Locação!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Recibo_de_Pagto_Manutenção!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Recibo_de_Pagto_Vendas!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relação_Clientes!$O:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relação_Condutor_Principal!$AD:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relação_de_Motos_Vendidas!$CC:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relação_Protocolos_Emitidos!$Q:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relação_Veículos!$P:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relat_Acomp_Contrato!$CE:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Relat_Receb_Mensal - 2025'!$P:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relat_Receb_Semanal!$O:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Relatório_de_Status_CNH_e_EAR!$N:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Status_Veículos!$N:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "Tab_Config!$AF:$AF"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.Cols",
+      "ref": "'Termo_de_Manut_(Prev_-_Corret)'!$CD:$XFD"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "'Acomp._Transf._Propriedade'!$B$12:$K$1006"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Acopanhamento_do_Seguro_Lider!$D$11:$L$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Aditivo_ao_Contrato_Vigente!#REF!"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Anotações_de_Km_Atual!$B$12:$BU$1000"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Cad_Clientes!$B$11:$R$1007"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Cad_Veículos!$B$17:$V$1014"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "'Check-List_para_Manutenção'!#REF!"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "'Ctrl_de_Pagto_(Licenc._2026)'!$C$11:$AV$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Ctrl_de_Troca_de_Óleo!$B$12:$CZ$1001"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Ctrl_Multas!$C$12:$T$12"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Distrib._de_Rastreadores!$C$11:$M$11"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Emissão_de_Protocolos!$B$11:$V$11"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Fundo_Fixo!$D$12:$L$82"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "'Informativo_(Pendências_Financ)'!#REF!"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Lançamentos_de_Loc._Recebidas!$C$9:$MC$1003"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Pendências_Cad_Clientes!$C$11:$P$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "'Recebimentos_(Locações)'!$B$13:$LX$1007"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relação_Clientes!$B$4:$J$998"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relação_Condutor_Principal!$C$3:$I$190"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relação_Protocolos_Emitidos!$C$4:$N$998"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relação_Veículos!$C$4:$N$4"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relat_Acomp_Contrato!$K$20:$AS$61"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "'Relat_Receb_Mensal - 2025'!$C$12:$N$12"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relat_Receb_Semanal!$C$12:$M$12"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Relatório_de_Status_CNH_e_EAR!$B$10:$I$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Status_Veículos!$C$4:$L$998"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.FilterData",
+      "ref": "Tab_Config!$AC$5:$AM$5"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Acopanhamento_do_Seguro_Lider!$B$11:$L$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Aditivo_ao_Contrato_Vigente!$B$4:$AK$51"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Anotações_de_Km_Atual!$B$11:$K$1000"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "'Check-List_para_Manutenção'!$B$4:$AL$52"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Consulta_Veíc_ou_Cliente!$B$8:$AP$33"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Contrato_de_Locação!$B$4:$AM$652"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "'Ctrl_de_Pagto_(Licenc._2026)'!$B$11:$AV$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Ctrl_Multas!$B$12:$L$1006"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Distrato_de_Locação!$B$4:$AM$60"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Distrib._de_Rastreadores!$B$11:$M$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Form_de_Lista_de_Espera!$B$4:$BL$53"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Fundo_Fixo!$B$4:$M$90"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "'ID_Chaveiros_(Carros)'!$B$4:$H$482"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "'ID_Chaveiros_(Motos)'!$B$4:$H$442"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "'Informativo_(Pendências_Financ)'!$B$4:$AK$45"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Lançamentos_de_Loc._Recebidas!$B$9:$ME$1003"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Opção_Contratada!$B$4:$AK$67"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Panfleto_Padrão!$B$4:$AP$75"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Passivo_para_Cobrança!$B$10:$AK$37"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Pendências_Cad_Clientes!$B$11:$P$1005"
+    },
+    {
+      "name": "Z_96C06CF9_3F62_4FC8_A2FA_A10C53A3F2F8_.wvu.PrintArea",
+      "ref": "Promessa_Compra_Venda!$B$4:$AM$103"
+    }
+  ],
+  "slugMap": {
+    "Dashboard": "dashboard",
+    "Página_Inicial": "pagina-inicial",
+    "Administrativo": "administrativo",
+    "Financeiro": "financeiro",
+    "Dpto_Pessoal": "dpto-pessoal",
+    "Locação_de_Veículos": "locacao-de-veiculos",
+    "Ctrl_de_Manutenção": "ctrl-de-manutencao",
+    "Gráficos": "graficos",
+    "Planejamento": "planejamento",
+    "Procedimentos": "procedimentos",
+    "Consulta_Veíc_ou_Cliente": "consulta-veic-ou-cliente",
+    "Cad_Clientes": "cad-clientes",
+    "Cad_Veículos": "cad-veiculos",
+    "Chassi's pra Márcio Santos": "chassis-pra-marcio-santos",
+    "Relação_Clientes": "relacao-clientes",
+    "Relação_Veículos": "relacao-veiculos",
+    "Status_Veículos": "status-veiculos",
+    "Acomp._Transf._Propriedade": "acomp-transf-propriedade",
+    "Distrib._de_Rastreadores": "distrib-de-rastreadores",
+    "Fundo_Fixo": "fundo-fixo",
+    "Passivo_para_Cobrança": "passivo-para-cobranca",
+    "Panfleto_Padrão": "panfleto-padrao",
+    "Recibo_de_Pagto_Locação": "recibo-de-pagto-locacao",
+    "Recibo_de_Pagto_Manutenção": "recibo-de-pagto-manutencao",
+    "Recibo_de_Pagto_Vendas": "recibo-de-pagto-vendas",
+    "Relação_de_Motos_Vendidas": "relacao-de-motos-vendidas",
+    "Tabela_DK_Locadora": "tabela-dk-locadora",
+    "Tab_Config": "tab-config",
+    "Lançamentos_de_Loc._Recebidas": "lancamentos-de-loc-recebidas",
+    "Planilha1": "planilha1",
+    "Recebimentos_(Locações)": "recebimentos-locacoes",
+    "Relat_Acomp_Contrato": "relat-acomp-contrato",
+    "Planilha3": "planilha3",
+    "Planilha3 (2)": "planilha3-2",
+    "Vencimentos_Protocolos": "vencimentos-protocolos",
+    "Emissão_de_Protocolos": "emissao-de-protocolos",
+    "Opção_Contratada": "opcao-contratada",
+    "Contrato_de_Locação": "contrato-de-locacao",
+    "Promessa_Compra_Venda": "promessa-compra-venda",
+    "Termo_de_Vistoria": "termo-de-vistoria",
+    "Aditivo_ao_Contrato_Vigente": "aditivo-ao-contrato-vigente",
+    "Distrato_de_Locação": "distrato-de-locacao",
+    "Termo_de_Subst._Provisória": "termo-de-subst-provisoria",
+    "Registros_de_Motos_Provisórias": "registros-de-motos-provisorias",
+    "Check-List_para_Manutenção": "check-list-para-manutencao",
+    "Relação_Protocolos_Emitidos": "relacao-protocolos-emitidos",
+    "Relação_Condutor_Principal": "relacao-condutor-principal",
+    "Relat_Receb_Semanal": "relat-receb-semanal",
+    "Relat_Receb_Mensal - 2025": "relat-receb-mensal-2025",
+    "Form_de_Lista_de_Espera": "form-de-lista-de-espera",
+    "ID_Chaveiros_(Carros)": "id-chaveiros-carros",
+    "ID_Chaveiros_(Motos)": "id-chaveiros-motos",
+    "Anotações_de_Km_Atual": "anotacoes-de-km-atual",
+    "Ctrl_de_Troca_de_Óleo": "ctrl-de-troca-de-oleo",
+    "Termo_de_Manut_(Prev_-_Corret)": "termo-de-manut-prev-corret",
+    "Ctrl_Multas": "ctrl-multas",
+    "Plano_de_Manut_(Motos_Honda)": "plano-de-manut-motos-honda",
+    "Plano_de_Manut_(Motos_Yamaha)": "plano-de-manut-motos-yamaha",
+    "Plano_de_Manut_(Motos_Shineray)": "plano-de-manut-motos-shineray",
+    "Pendências_Cad_Clientes": "pendencias-cad-clientes",
+    "Relatório_de_Status_CNH_e_EAR": "relatorio-de-status-cnh-e-ear",
+    "Consórcios": "consorcios",
+    "Lucros_e_Dividendos": "lucros-e-dividendos",
+    "Resumo": "resumo",
+    "Receitas": "receitas",
+    "Despesas": "despesas",
+    "Acopanhamento_do_Seguro_Lider": "acopanhamento-do-seguro-lider",
+    "Contas_a_Pagar": "contas-a-pagar",
+    "Ctrl_de_Pagto_(Licenc._2026)": "ctrl-de-pagto-licenc-2026",
+    "Anotações_(Protocolos)": "anotacoes-protocolos",
+    "Ctrl_de_Movimentações_Diárias": "ctrl-de-movimentacoes-diarias",
+    "Saídas_do_Estoque": "saidas-do-estoque",
+    "B_D_V_(Operacional)": "b-d-v-operacional",
+    "Pagamentos_Diários": "pagamentos-diarios",
+    "Resultados_2026": "resultados-2026",
+    "Mai.2026": "mai-2026",
+    "Jun.2026": "jun-2026",
+    "Jul.2026": "jul-2026",
+    "Ago.2026": "ago-2026",
+    "Set.2026": "set-2026",
+    "Out.2026": "out-2026",
+    "Nov.2026": "nov-2026",
+    "Dez.2026": "dez-2026",
+    "Informativo_(Pendências_Financ)": "informativo-pendencias-financ"
+  }
+}
