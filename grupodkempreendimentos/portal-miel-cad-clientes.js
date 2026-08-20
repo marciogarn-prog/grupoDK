@@ -1,49 +1,49 @@
 /**
- * Sistema MIEL — Etapa 03: Cadastro de Clientes (aba Cad_Clientes).
- * Réplica visual da planilha: painel estatístico + tabela de dados (não formulário web).
+ * Sistema MIEL — Cadastro de Clientes (aba Cad_Clientes).
+ * Renderização célula-a-célula via portal-miel-sheet-engine.js + layout exportado da planilha.
  */
 (function portalMielCadClientes() {
   const PANEL_ID = "mielPanelCadClientes";
-  const STORAGE_KEY = "dk_miel_clientes_v1";
+  const LAYOUT_KEY = "__DK_MIEL_LAYOUT_CAD_CLIENTES_LAYOUT";
+
+  const FIELD_BY_COL = {
+    A: "cod",
+    B: "cod",
+    C: "analise",
+    D: "statusProtocolo",
+    E: "dataCadastro",
+    F: "cnpjCpf",
+    G: "cliente",
+    H: "celular",
+    I: "recados01",
+    J: "recados02",
+    K: "cnh",
+    L: "categoria",
+    M: "vencimento",
+    N: "validacao",
+    O: "ear",
+    P: "cep",
+    Q: "municipioUf",
+    R: "endereco",
+  };
 
   const SIDE_TARGETS = {
     "# Consulta de Clientes": { id: "consulta-clientes", label: "Consulta de Clientes", piece: 11 },
     "# Cadastro de Veículos": { id: "cad-veiculos", label: "Cadastro de Veículos", piece: 13 },
   };
 
-  /** Cabeçalhos linha 11 — aba Cad_Clientes (colunas A..R, sem B). */
-  const TABLE_COLS = [
-    { key: "cod", label: "Cód.", cls: "miel-cc__cell--cod" },
-    { key: "analise", label: "Análise" },
-    { key: "statusProtocolo", label: "Status do Protocolo" },
-    { key: "dataCadastro", label: "Data do Cadastro" },
-    { key: "cnpjCpf", label: "CNPJ/CPF" },
-    { key: "cliente", label: "Cliente", cls: "miel-cc__cell--nome" },
-    { key: "celular", label: "Nº do Celular" },
-    { key: "recados01", label: "Recados 01" },
-    { key: "recados02", label: "Recados 02" },
-    { key: "cnh", label: "Nº da CNH-e" },
-    { key: "categoria", label: "Categoria" },
-    { key: "vencimento", label: "Vencimento" },
-    { key: "validacao", label: "Validação" },
-    { key: "ear", label: "EAR", cls: "miel-cc__cell--ear" },
-    { key: "cep", label: "Cep" },
-    { key: "municipioUf", label: "Município/UF" },
-    { key: "endereco", label: "Endereço", cls: "miel-cc__cell--end" },
-  ];
-
   let rows = [];
+
+  function layout() {
+    return window[LAYOUT_KEY] || null;
+  }
+
+  function engine() {
+    return window.__DK_mielSheetEngine || null;
+  }
 
   function planilhaClientes() {
     return (window.__DK_MIEL_CADASTROS && window.__DK_MIEL_CADASTROS.clientes) || [];
-  }
-
-  function esc(s) {
-    return String(s ?? "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
   }
 
   function fmtDate(iso) {
@@ -55,25 +55,8 @@
     return `${dias[d.getDay()]}, ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   }
 
-  function loadStore() {
+  function loadRows() {
     rows = planilhaClientes().map((r) => ({ ...r }));
-    if (!rows.length) {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        const local = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(local)) rows = local;
-      } catch {
-        rows = [];
-      }
-    }
-  }
-
-  function saveStore() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
-    } catch {
-      /* ignore */
-    }
   }
 
   function stats() {
@@ -100,90 +83,72 @@
     return { total, byCity, ativosCompra, ativosMt, ativosCr, cnhAlerta, inativos };
   }
 
-  function renderStats(st) {
-    return `<div class="miel-cc__stats" aria-label="Resumo cadastro clientes">
-      <div class="miel-cc__stats-left">
-        <div class="miel-cc__stats-row"><span class="miel-cc__stats-label">Protocolos Emitidos</span></div>
-        <div class="miel-cc__stats-row"><span class="miel-cc__stats-label miel-cc__stats-label--green">Ctrl de Uso Provisório</span></div>
-        <div class="miel-cc__stats-block">
-          <div class="miel-cc__stats-subtitle">Distribuição de Clientes</div>
-          <div class="miel-cc__stats-line">Petrolina/PE</div>
-          <div class="miel-cc__stats-line">Juazeiro/BA</div>
-          <div class="miel-cc__stats-line">Outras/UF's</div>
-          <div class="miel-cc__stats-line">Não Definidas</div>
-        </div>
-      </div>
-      <div class="miel-cc__stats-mid">
-        <div class="miel-cc__stats-counts">
-          <div></div><div></div><div>${st.byCity.petrolina}</div><div>${st.byCity.juazeiro}</div>
-          <div>${st.byCity.outras}</div><div>${st.byCity.indef}</div>
-        </div>
-      </div>
-      <div class="miel-cc__stats-right">
-        <div class="miel-cc__stats-kpi">Quantidade de Clientes Cadastrados &gt;&gt; <strong>${st.total}</strong></div>
-        <div class="miel-cc__stats-kpi">Clientes Ativos (Compra) &gt;&gt; <strong>${st.ativosCompra}</strong></div>
-        <div class="miel-cc__stats-kpi">Clientes Ativos (Locação - MT) &gt;&gt; <strong>${st.ativosMt}</strong></div>
-        <div class="miel-cc__stats-kpi">Clientes Ativos (Locação - CR) &gt;&gt; <strong>${st.ativosCr}</strong></div>
-        <div class="miel-cc__stats-kpi">Clientes com CNH em "Alerta" &gt;&gt; <strong>${st.cnhAlerta}</strong></div>
-        <div class="miel-cc__stats-kpi">Clientes Inativos &gt;&gt; <strong>${st.inativos}</strong></div>
-      </div>
-    </div>`;
+  function patchHeaderCell(cell, rowNum) {
+    const st = stats();
+    const ref = cell.ref || "";
+    const patches = {
+      O4: { text: String(st.total) },
+      K5: { text: String(st.byCity.petrolina) },
+      K6: { text: String(st.byCity.juazeiro) },
+      K7: { text: String(st.byCity.outras) },
+      K8: { text: String(st.byCity.indef) },
+      O5: { text: String(st.ativosCompra) },
+      O6: { text: String(st.ativosMt) },
+      O7: { text: String(st.ativosCr) },
+      O8: { text: String(st.cnhAlerta) },
+      O9: { text: String(st.inativos) },
+    };
+    if (ref === "B1" && !cell.text) return { text: "# Cadastro de Clientes" };
+    if (ref === "A1" && cell.text?.includes("Cadastro")) return { text: "" };
+    if (patches[ref]) return patches[ref];
+    if (ref === "J4" && !cell.text) return { text: "Quantidade de Clientes Cadastrados  >>" };
+    if (ref === "B4" && !cell.text) return { text: "Distribuição de Clientes" };
+    return null;
   }
 
-  function renderTableBody() {
-    return rows
-      .map((r, idx) => {
-        const alt = idx % 2 === 1 ? " miel-cc__row--alt" : "";
-        const alert = r.alert ? " miel-cc__row--alert" : "";
-        const cells = TABLE_COLS.map((col) => {
-          let val = r[col.key] ?? "";
-          if (col.key === "dataCadastro" || col.key === "vencimento") val = fmtDate(val) || val;
-          let extra = col.cls ? ` ${col.cls}` : "";
-          if (col.key === "ear") {
-            const u = String(val).toUpperCase();
-            if (u === "NÃO" || u === "NAO") extra += " miel-cc__cell--ear-nao";
-            if (u === "SIM") extra += " miel-cc__cell--ear-sim";
-          }
-          return `<td class="miel-cc__cell${extra}">${esc(val)}</td>`;
-        }).join("");
-        return `<tr class="miel-cc__row${alt}${alert}" data-miel-cc-row="${esc(r.id)}">${cells}</tr>`;
-      })
-      .join("");
+  function rowToCells(record) {
+    const out = {};
+    Object.entries(FIELD_BY_COL).forEach(([col, key]) => {
+      let val = record[key] ?? "";
+      if (key === "dataCadastro" || key === "vencimento") val = fmtDate(val) || val;
+      if (key === "cod") val = record.cod || record.codigo || val;
+      out[col] = val;
+    });
+    return out;
   }
 
   function renderPanel(container) {
-    const st = stats();
-    const headCells = TABLE_COLS.map((c) => `<th scope="col">${esc(c.label)}</th>`).join("");
+    const lay = layout();
+    const eng = engine();
+    if (!lay || !eng) {
+      container.innerHTML = `<p class="miel-cc__err">Layout Cad_Clientes não carregou. Recarregue a página (Ctrl+F5).</p>`;
+      return;
+    }
+
     const sideHtml = Object.entries(SIDE_TARGETS)
       .map(
         ([label, t]) =>
-          `<button type="button" class="miel-admin-side-btn" data-miel-cad-side="${esc(t.id)}" data-miel-cad-side-label="${esc(t.label)}" data-miel-cad-side-piece="${t.piece}">${esc(label)}</button>`
+          `<button type="button" class="miel-admin-side-btn" data-miel-cad-side="${t.id}" data-miel-cad-side-label="${label.replace(/^#\s*/, "")}" data-miel-cad-side-piece="${t.piece}">${label}</button>`
       )
       .join("");
 
-    container.innerHTML = `<div class="miel-cc__layout">
-      <div class="miel-cc__main">
-        <h2 class="miel-cc__title"># Cadastro de Clientes</h2>
-        ${renderStats(st)}
-        <div class="miel-cc__table-wrap">
-          <table class="miel-cc__table" aria-label="Tabela cadastro de clientes">
-            <thead><tr class="miel-cc__head">${headCells}</tr></thead>
-            <tbody id="mielCadClientesBody">${renderTableBody()}</tbody>
-          </table>
-        </div>
-      </div>
+    const sheetHtml = eng.renderSheet(lay, {
+      patchHeaderCell(cell, rowNum) {
+        const p = patchHeaderCell(cell, rowNum);
+        return p || undefined;
+      },
+      dataRows() {
+        return rows.map((r) => rowToCells(r));
+      },
+    });
+
+    container.innerHTML = `<div class="miel-cc__layout miel-cc__layout--sheet">
+      <div class="miel-cc__main">${sheetHtml}</div>
       <aside class="miel-cc__side" aria-label="Atalhos cadastro cliente">
         <button type="button" class="miel-nav-btn miel-stub-back" data-miel-cad-back="administrativo">← Voltar ao Administrativo</button>
         ${sideHtml}
       </aside>
     </div>`;
-  }
-
-  function refreshTable(container) {
-    const statsEl = container.querySelector(".miel-cc__stats");
-    const body = container.querySelector("#mielCadClientesBody");
-    if (statsEl) statsEl.outerHTML = renderStats(stats());
-    if (body) body.innerHTML = renderTableBody();
   }
 
   function bindPanel(container) {
@@ -205,17 +170,30 @@
   function init() {
     const container = document.getElementById(PANEL_ID);
     if (!container) return;
-    loadStore();
-    if (container.dataset.mielCadClientesReady !== "1") {
-      renderPanel(container);
-      bindPanel(container);
-      container.dataset.mielCadClientesReady = "1";
-    } else {
-      refreshTable(container);
-    }
+    loadRows();
+    renderPanel(container);
+    bindPanel(container);
+    container.dataset.mielCadClientesReady = "1";
   }
 
   window.__DK_mielInitCadClientes = init;
-  window.__DK_mielCadClientesHeaders = TABLE_COLS.map((c) => c.label);
-  window.__DK_mielCadClientesTitle = "# Cadastro de Clientes";
+  window.__DK_mielCadClientesHeaders = [
+    "Cód.",
+    "Análise",
+    "Status do Protocolo",
+    "Data do Cadastro",
+    "CNPJ/CPF",
+    "Cliente",
+    "Nº do Celular",
+    "Recados 01",
+    "Recados 02",
+    "Nº da CNH-e",
+    "Categoria",
+    "Vencimento",
+    "Validação",
+    "EAR",
+    "Cep",
+    "Município/UF",
+    "Endereço",
+  ];
 })();

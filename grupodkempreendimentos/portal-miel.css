@@ -653,3 +653,53 @@
     grid-column: 1 / -1;
   }
 }
+
+/* Motor célula-a-célula (export planilha Excel) */
+.miel-cc__layout--sheet .miel-cc__main {
+  overflow: auto;
+  background: #fff;
+}
+
+.miel-sheet {
+  transform-origin: top left;
+  min-width: min-content;
+}
+
+.miel-sheet__scroll {
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+}
+
+.miel-sheet__grid {
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-family: Calibri, "Segoe UI", Arial, sans-serif;
+  background: #fff;
+}
+
+.miel-sheet__grid--no-lines td {
+  border: none;
+  outline: none;
+}
+
+.miel-sheet__grid td {
+  padding: 1px 4px;
+  vertical-align: bottom;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.miel-sheet__row--h11 td {
+  font-weight: 700;
+}
+
+.miel-sheet__row--data td {
+  height: 15pt;
+}
+
+.miel-cc__err {
+  color: #c00000;
+  padding: 1rem;
+}
