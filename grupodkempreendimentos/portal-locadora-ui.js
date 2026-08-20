@@ -1000,7 +1000,7 @@
 
   function refreshPortalMielHomeAcesso() {
     const allow = portalPodeAcessarSistemaMiel();
-    document.querySelectorAll('#view-home [data-go="miel"], #view-home [data-go="miel-xls"]').forEach((btn) => {
+    document.querySelectorAll('#view-home [data-go="miel"]').forEach((btn) => {
       btn.classList.toggle("hidden", !allow);
       btn.setAttribute("aria-hidden", allow ? "false" : "true");
       btn.toggleAttribute("disabled", !allow);
@@ -1412,23 +1412,6 @@
     if (typeof window.__DK_mielOnShow === "function") window.__DK_mielOnShow();
   }
 
-  async function openMielXlsSistema() {
-    if (!portalPodeAcessarSistemaMiel()) {
-      refreshPortalMielHomeAcesso();
-      showView("home");
-      setPortalHash("");
-      portalAlertSemAcessoMiel();
-      return;
-    }
-    if (typeof window.__DK_openMielXls === "function") {
-      await window.__DK_openMielXls();
-      return;
-    }
-    window.alert(
-      "Módulo MIEL XLS não carregou. Recarregue a página (Ctrl+F5).\n\nSe persistir, contacte o suporte."
-    );
-  }
-
   function openUnit(go) {
     if (go === "locadora") {
       openLocadoraHub();
@@ -1436,10 +1419,6 @@
     }
     if (go === "miel") {
       openMielSistema();
-      return;
-    }
-    if (go === "miel-xls") {
-      openMielXlsSistema();
       return;
     }
     currentUnit = go;
