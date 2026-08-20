@@ -167,31 +167,33 @@
 @page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; background: #1a1a1a; color: #111; font-family: "Times New Roman", Times, serif; }
-body.kit-preview { padding-top: 56px; }
+body.kit-preview { padding-top: 58px; }
 .barra-acoes {
   position: fixed; top: 0; left: 0; right: 0; z-index: 999;
   background: #1a1a1a; color: #fff; padding: 10px 14px;
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
 }
 .barra-acoes button {
-  padding: 8px 12px; cursor: pointer; border: 0; border-radius: 4px;
+  padding: 8px 14px; cursor: pointer; border: 0; border-radius: 4px;
   background: #e85d04; color: #fff; font-weight: 600; font-size: 13px;
 }
 .barra-acoes button.sec { background: #444; }
 .barra-acoes button:disabled { opacity: 0.5; cursor: wait; }
-.barra-msg { font-size: 13px; color: #ddd; }
-.kit-nav { display: flex; flex-wrap: wrap; gap: 6px; width: 100%; }
-.kit-nav button {
-  background: #333; border: 1px solid #555; color: #fff; padding: 6px 10px;
-  border-radius: 4px; cursor: pointer; font-size: 12px;
+.barra-msg { font-size: 13px; color: #ddd; flex: 1 1 220px; }
+.kit-shell { width: 210mm; margin: 12px auto 28px; }
+.kit-secao-titulo {
+  width: 210mm; margin: 18px auto 8px; padding: 8px 12px;
+  background: #111; color: #fff; font-family: system-ui, sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.03em;
+  border-radius: 4px;
 }
-.kit-nav button.active { background: #b91c1c; border-color: #ef4444; }
-.kit-shell { width: 210mm; margin: 12px auto 24px; }
 .pagina {
   position: relative; width: 210mm; min-height: 297mm; margin: 0 auto 14px;
   padding: 14mm 14mm 18mm; background: #fff; color: #111;
   box-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  page-break-after: always; break-after: page;
 }
+.pagina:last-child { page-break-after: auto; break-after: auto; }
 .kit-doc { font-size: 10.5pt; line-height: 1.35; }
 .kit-title { text-align: center; font-size: 13pt; margin: 0 0 10px; text-decoration: underline; }
 .kit-proto { text-align: right; margin: 0 0 12px; }
@@ -222,23 +224,20 @@ body.kit-preview { padding-top: 56px; }
   display: flex; justify-content: space-between; font-size: 8pt; color: #444;
   border-top: 1px solid #ccc; padding-top: 3px;
 }
-.hidden { display: none !important; }
 @media print {
   body.kit-preview { padding-top: 0; background: #fff; }
-  .barra-acoes { display: none !important; }
-  .pagina { box-shadow: none; margin: 0; page-break-after: always; }
-  .pagina:last-child { page-break-after: auto; }
-  .kit-panel { display: block !important; }
+  .barra-acoes, .kit-secao-titulo { display: none !important; }
+  .pagina {
+    box-shadow: none; margin: 0;
+    page-break-after: always; break-after: page;
+  }
+  .pagina:last-child { page-break-after: auto; break-after: auto; }
 }
 `;
   }
 
   function buildPaginasDoc(docId, d) {
     if (docId === "contrato") {
-      if (typeof window.__DK_contratoLocacaoBuildHtml !== "function") {
-        throw new Error("Contrato principal indisponível.");
-      }
-      /* reusa páginas do contrato já existente via corpos */
       const corpos = window.__DK_CONTRATO_LOCACAO_CORPOS;
       if (!Array.isArray(corpos) || corpos.length !== 10) {
         throw new Error("Modelo de contrato (10 páginas) indisponível.");
@@ -280,19 +279,18 @@ body.kit-preview { padding-top: 56px; }
   function buildPacoteHtml(dados) {
     const d = enriquecerDadosPacote(dados);
     const proto = normProtocolo(d.protocolo);
-    const nav = DOCS.map(
-      (doc, i) =>
-        `<button type="button" class="kit-tab${i === 0 ? " active" : ""}" data-kit-doc="${doc.id}">${esc(doc.titulo)}</button>`
-    ).join("");
 
-    const panels = DOCS.map((doc, i) => {
+    const sequencia = DOCS.map((doc) => {
       let pagesHtml = "";
       try {
         pagesHtml = buildPaginasDoc(doc.id, d).join("");
       } catch (err) {
         pagesHtml = `<div class="pagina"><p>Erro: ${esc(err.message || err)}</p></div>`;
       }
-      return `<div class="kit-panel${i === 0 ? "" : " hidden"}" id="kitPanel-${doc.id}" data-kit-doc="${doc.id}">${pagesHtml}</div>`;
+      return `<section class="kit-bloco" id="kitBloco-${doc.id}" data-kit-doc="${doc.id}">
+  <div class="kit-secao-titulo">${esc(doc.titulo)}</div>
+  ${pagesHtml}
+</section>`;
     }).join("");
 
     const metaDocs = JSON.stringify(
@@ -308,48 +306,36 @@ body.kit-preview { padding-top: 56px; }
       statusLocacao: d.statusLocacao,
       fim: d.fim || "",
       pastaContrato: "ativo",
-      contratoDados: typeof window.__DK_contratoLocacaoSnapshotDados === "function"
-        ? window.__DK_contratoLocacaoSnapshotDados(d)
-        : {
-            protocolo: proto,
-            nome: d.nome,
-            cpf: d.cpfFmt,
-            placa: d.placa,
-            modalidade: d.modalidade,
-          },
+      contratoDados:
+        typeof window.__DK_contratoLocacaoSnapshotDados === "function"
+          ? window.__DK_contratoLocacaoSnapshotDados(d)
+          : {
+              protocolo: proto,
+              nome: d.nome,
+              cpf: d.cpfFmt,
+              placa: d.placa,
+              modalidade: d.modalidade,
+            },
     });
 
     const html2canvasUrl = vendorUrl("vendor/html2canvas.min.js");
     const jspdfUrl = vendorUrl("vendor/jspdf.umd.min.js");
 
-    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pacote ${esc(proto)}</title><style>${cssKit()}</style></head>
+    return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pacote ${esc(proto)} — assinatura</title><style>${cssKit()}</style></head>
 <body class="kit-preview">
 <div class="barra-acoes">
-  <div class="kit-nav">${nav}</div>
-  <button type="button" id="btnGerarDoc">Gerar PDF deste documento</button>
+  <button type="button" id="btnImprimir">Imprimir os 4 documentos</button>
   <button type="button" id="btnGerarTodos" class="sec">Gerar e guardar os 4 PDFs</button>
-  <button type="button" id="btnImprimir" class="sec">Imprimir documento</button>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(proto)} — 4 documentos preenchidos com a locação</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(proto)} — contrato, opção, promessa e requerimento em sequência para assinatura</span>
 </div>
-<div class="kit-shell">${panels}</div>
+<div class="kit-shell">${sequencia}</div>
 <script>
 (function(){
   var META = ${meta};
   var DOCS_META = ${metaDocs};
   var html2canvasUrl = ${JSON.stringify(html2canvasUrl)};
   var jspdfUrl = ${JSON.stringify(jspdfUrl)};
-  var ativo = "contrato";
   var msg = document.getElementById("barraMsg");
-
-  document.querySelectorAll(".kit-tab").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      ativo = btn.getAttribute("data-kit-doc");
-      document.querySelectorAll(".kit-tab").forEach(function(b){ b.classList.toggle("active", b === btn); });
-      document.querySelectorAll(".kit-panel").forEach(function(p){
-        p.classList.toggle("hidden", p.getAttribute("data-kit-doc") !== ativo);
-      });
-    });
-  });
 
   function loadScript(src){
     return new Promise(function(res, rej){
@@ -367,10 +353,10 @@ body.kit-preview { padding-top: 56px; }
     if (n < 1048576) return (n/1024).toFixed(1).replace(".", ",") + " KB";
     return (n/1048576).toFixed(2).replace(".", ",") + " MB";
   }
-  async function pdfDoPainel(panel){
+  async function pdfDoBloco(bloco){
     await ensureLibs();
     var JsPDF = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : window.jsPDF;
-    var paginas = panel.querySelectorAll(".pagina");
+    var paginas = bloco.querySelectorAll(".pagina");
     if (!paginas.length) throw new Error("Sem páginas");
     var pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
     for (var i = 0; i < paginas.length; i++) {
@@ -418,24 +404,7 @@ body.kit-preview { padding-top: 56px; }
     }, { b64: b64, type: "application/pdf" }, { substituirConfirmado: true, kitAnexo: docMeta.kitTipo !== "contrato" });
   }
 
-  document.getElementById("btnGerarDoc").addEventListener("click", async function(){
-    var btn = this;
-    btn.disabled = true;
-    msg.textContent = "A gerar PDF…";
-    try {
-      var panel = document.getElementById("kitPanel-" + ativo);
-      var meta = DOCS_META.find(function(x){ return x.id === ativo; });
-      var blob = await pdfDoPainel(panel);
-      downloadBlob(blob, meta.nomeArquivo);
-      var r = await salvarNoPortal(meta, blob);
-      msg.textContent = r && r.ok
-        ? ("PDF «" + meta.nomeArquivo + "» gerado (" + fmtTam(blob.size) + ") e guardado no depósito.")
-        : ("PDF descarregado (" + fmtTam(blob.size) + "). " + ((r && r.msg) || "Depósito: verifique o portal."));
-    } catch (e) {
-      msg.textContent = "Erro: " + (e && e.message ? e.message : e);
-    }
-    btn.disabled = false;
-  });
+  document.getElementById("btnImprimir").addEventListener("click", function(){ window.print(); });
 
   document.getElementById("btnGerarTodos").addEventListener("click", async function(){
     var btn = this;
@@ -445,8 +414,8 @@ body.kit-preview { padding-top: 56px; }
       var meta = DOCS_META[i];
       msg.textContent = "A gerar " + (i+1) + "/4 — " + meta.nomeArquivo + "…";
       try {
-        var panel = document.getElementById("kitPanel-" + meta.id);
-        var blob = await pdfDoPainel(panel);
+        var bloco = document.getElementById("kitBloco-" + meta.id);
+        var blob = await pdfDoBloco(bloco);
         downloadBlob(blob, meta.nomeArquivo);
         var r = await salvarNoPortal(meta, blob);
         if (r && r.ok) ok += 1;
@@ -456,12 +425,10 @@ body.kit-preview { padding-top: 56px; }
         return;
       }
     }
-    msg.textContent = "Pacote concluído: 4 PDFs descarregados; " + ok + " guardado(s) em Contratos ATIVOS.";
+    msg.textContent = "Pacote concluído: 4 PDFs descarregados; " + ok + " guardado(s) em Contratos ATIVOS. Use «Imprimir» para o cliente assinar.";
     if (window.opener && window.opener.__DK_contratoLocacaoRefreshBotao) window.opener.__DK_contratoLocacaoRefreshBotao();
     btn.disabled = false;
   });
-
-  document.getElementById("btnImprimir").addEventListener("click", function(){ window.print(); });
 })();
 <\/script>
 </body></html>`;
