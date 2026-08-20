@@ -1,13 +1,13 @@
 {
-  "updatedAt": "2026-08-20T04:30:00-03:00",
+  "updatedAt": "2026-08-20T04:45:00-03:00",
   "targetReview": "2026-08-20T07:00:00-03:00",
   "method": "Motor célula-a-célula (export-miel-sheet-layout.mjs + portal-miel-sheet-engine.js)",
   "completed": [
     { "step": 3, "sheet": "Cad_Clientes", "commit": "9128812", "verify": "32/32 OK", "engine": true },
     { "step": 4, "sheet": "Cad_Veículos", "engine": true, "rows": 186 },
     { "step": 5, "sheet": "Relacao_Clientes", "engine": true, "rows": 366 },
-    { "step": 6, "sheet": "Relacao_Veiculos", "engine": true, "rows": 186 },
-    { "step": 7, "sheet": "Status_Veiculos", "engine": true, "rows": 186 },
+    { "step": 6, "sheet": "Relacao_Veiculos", "engine": true, "rows": 186, "commit": "74762f8" },
+    { "step": 7, "sheet": "Status_Veiculos", "engine": true, "rows": 186, "commit": "74762f8" },
     { "step": "static", "sheets": ["consulta-integrada", "acomp-transf", "motos-vendidas", "form-lista-espera", "id-chaveiros-carros", "id-chaveiros-motos", "ctrl-multas", "relatorio-ear"], "engine": "layout-only" }
   ],
   "inProgress": ["Administrativo (grid HTML + layout exportado disponível)", "Pagina_Inicial (layout exportado)"],
@@ -19,5 +19,10 @@
     "Verificação visual pixel-a-pixel"
   ],
   "counts": { "implementedPanels": 15, "totalSheets": 84, "layoutExports": 15 },
+  "deploy": {
+    "main": "74762f8",
+    "demo": "13ac747",
+    "tests": { "mielEtapas": "62/62", "portalDemo": "100/103", "portalOficial": "94/96" }
+  },
   "blockers": "Ver data/miel/miel-blockers.json"
 }
