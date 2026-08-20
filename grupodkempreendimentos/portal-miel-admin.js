@@ -1,34 +1,42 @@
 /**
  * Sistema MIEL — Etapa 02/84: aba Administrativo (planilha miel-sistema.xlsm).
- * Réplica do grid Excel: 3 colunas (Página Inicial | Formulários | Relatórios).
+ * Área principal = 2 colunas (Formulários | Relatórios). Coluna A = menu lateral (index.html).
  */
 (function portalMielAdmin() {
   const PANEL_ID = "mielPanelAdministrativo";
 
-  /** Cabeçalhos linha 9 — colunas A, D, T (sharedStrings). */
-  const COL_HEADERS = ["Página Inicial", "Formulários", "Relatórios"];
+  /** Cabeçalhos D9 e T9 — coluna A9 é menu lateral, não entra no grid principal. */
+  const COL_HEADERS = ["Formulários", "Relatórios"];
 
   /**
-   * Linhas ímpares 11–35 — valores extraídos da aba Administrativo (A | D | T).
-   * null = célula vazia / linha espaçadora.
+   * Itens visíveis na planilha (conferência verify-miel-admin-planilha.mjs).
+   * Formulários: D11, A13, D15, D17, D19
+   * Relatórios: T11–T19 + D21–D29
    */
-  const MENU_ROWS = [
-    { a: "DASHBOARD", d: "Cadastro de Clientes", t: "Relação de Clientes" },
-    { a: "Cadastro de Veículos", d: null, t: "Relação de Veículos" },
-    { a: "Módulos", d: "Consulta Integrada (Veículos/Clientes)", t: "Acomp. de Transf. de Propriedade" },
-    { a: "Administrativo", d: "Ctrl Integrado de Multas", t: "Status de Veículos" },
-    { a: "Financeiro", d: "Formulário de Lista de Espera", t: "Relação de Motos Vendidas" },
-    { a: "Depto Pessoal", d: "Etiquetas dos Chaveiros (Motos)", t: null },
-    { a: "Ctrl de Locação de Veículos", d: "Etiquetas dos Chaveiros (Carros)", t: null },
-    { a: "Ctrl de Manutenção", d: "Relatório de Status da CNH / EAR", t: null },
-    { a: "Gráficos", d: "Pendências Administrativas", t: null },
-    { a: "Planejamento", d: "Acomp. de CRLVs Anuais dos Veículos", t: null },
-    { a: null, d: null, t: null },
-    { a: "Documentos Gerais", d: null, t: null },
-    { a: "Procedimentos", d: null, t: null },
+  const FORM_ITEMS = [
+    "Cadastro de Clientes",
+    "Cadastro de Veículos",
+    "Consulta Integrada (Veículos/Clientes)",
+    "Ctrl Integrado de Multas",
+    "Formulário de Lista de Espera",
   ];
 
-  /** Destinos ao clicar — id, label e peça (stub). */
+  const REL_ITEMS = [
+    "Relação de Clientes",
+    "Relação de Veículos",
+    "Acomp. de Transf. de Propriedade",
+    "Status de Veículos",
+    "Relação de Motos Vendidas",
+    "Etiquetas dos Chaveiros (Motos)",
+    "Etiquetas dos Chaveiros (Carros)",
+    "Relatório de Status da CNH / EAR",
+    "Pendências Administrativas",
+    "Acomp. de CRLVs Anuais dos Veículos",
+  ];
+
+  /** Último botão desativado na planilha (texto acinzentado). */
+  const DISABLED_LABELS = new Set(["Acomp. de CRLVs Anuais dos Veículos"]);
+
   const TARGETS = {
     DASHBOARD: { id: "dashboard", label: "Dashboard", piece: 3 },
     "Cadastro de Veículos": { id: "cad-veiculos", label: "Cadastro de Veículos", piece: 13 },
@@ -83,16 +91,19 @@
   }
 
   function cellBtn(label, col, rowIdx) {
-    if (!label) return `<td class="miel-admin-grid__gap" colspan="1" aria-hidden="true"></td>`;
+    if (!label) {
+      return `<td class="miel-admin-grid__gap miel-admin-grid__gap--${col}" aria-hidden="true"></td>`;
+    }
     const target = TARGETS[label];
+    const disabled = DISABLED_LABELS.has(label);
     const cls =
-      col === "a"
-        ? "miel-admin-grid__btn miel-admin-grid__btn--col-a"
-        : col === "d"
-          ? "miel-admin-grid__btn miel-admin-grid__btn--col-d"
-          : "miel-admin-grid__btn miel-admin-grid__btn--col-t";
-    if (!target) {
-      return `<td class="${cls} miel-admin-grid__btn--static"><span>${esc(label)}</span></td>`;
+      col === "form"
+        ? "miel-admin-grid__btn miel-admin-grid__btn--form"
+        : "miel-admin-grid__btn miel-admin-grid__btn--rel";
+    if (!target || disabled) {
+      return `<td class="${cls} miel-admin-grid__btn--static${disabled ? " miel-admin-grid__btn--disabled" : ""}">
+        <span${disabled ? ' aria-disabled="true"' : ""}>${esc(label)}</span>
+      </td>`;
     }
     return `<td class="${cls}">
       <button type="button" class="miel-admin-grid__hit"
@@ -103,32 +114,28 @@
   }
 
   function renderPanel(container) {
-    const headerCells = COL_HEADERS.map(
-      (h, i) => {
-        const col = i === 0 ? "a" : i === 1 ? "d" : "t";
-        const extra = i === 1 ? " miel-admin-grid__head--form" : i === 2 ? " miel-admin-grid__head--rel" : "";
-        return `<td class="miel-admin-grid__head${extra}">${esc(h)}</td>`;
-      }
-    ).join("");
-
-    const bodyRows = MENU_ROWS.map((row, idx) => {
-      if (!row.a && !row.d && !row.t) {
-        return `<tr class="miel-admin-grid__spacer" aria-hidden="true"><td colspan="3"></td></tr>`;
-      }
-      return `<tr class="miel-admin-grid__row">
-        ${cellBtn(row.a, "a", idx)}
-        ${cellBtn(row.d, "d", idx)}
-        ${cellBtn(row.t, "t", idx)}
-      </tr>`;
+    const rowCount = Math.max(FORM_ITEMS.length, REL_ITEMS.length);
+    const headerCells = COL_HEADERS.map((h, i) => {
+      const extra = i === 0 ? " miel-admin-grid__head--form" : " miel-admin-grid__head--rel";
+      return `<td class="miel-admin-grid__head${extra}">${esc(h)}</td>`;
     }).join("");
 
+    const bodyParts = [];
+    for (let i = 0; i < rowCount; i++) {
+      if (i > 0) bodyParts.push('<tr class="miel-admin-grid__spacer" aria-hidden="true"><td colspan="2"></td></tr>');
+      bodyParts.push(`<tr class="miel-admin-grid__row">
+        ${cellBtn(FORM_ITEMS[i] || null, "form", i)}
+        ${cellBtn(REL_ITEMS[i] || null, "rel", i)}
+      </tr>`);
+    }
+
     container.innerHTML = `<div class="miel-admin">
-      <table class="miel-admin-grid" aria-label="Administrativo — menu planilha">
+      <table class="miel-admin-grid miel-admin-grid--2col" aria-label="Administrativo — Formulários e Relatórios">
         <tbody>
-          <tr class="miel-admin-grid__banner"><td colspan="3">ADMINISTRATIVO</td></tr>
-          <tr class="miel-admin-grid__spacer" aria-hidden="true"><td colspan="3"></td></tr>
+          <tr class="miel-admin-grid__banner"><td colspan="2">Administrativo</td></tr>
+          <tr class="miel-admin-grid__spacer" aria-hidden="true"><td colspan="2"></td></tr>
           <tr class="miel-admin-grid__headers">${headerCells}</tr>
-          ${bodyRows}
+          ${bodyParts.join("")}
         </tbody>
       </table>
     </div>`;
@@ -136,7 +143,7 @@
 
   function openTarget(label) {
     const target = TARGETS[label];
-    if (!target) return;
+    if (!target || DISABLED_LABELS.has(label)) return;
     if (NAV_SHEET_IDS.has(target.id) && typeof window.__DK_mielShowSheet === "function") {
       window.__DK_mielShowSheet(target.id);
       return;
@@ -149,8 +156,7 @@
   function bindPanel(container) {
     container.querySelectorAll("[data-miel-admin-target]").forEach((btn) => {
       btn.addEventListener("click", () => {
-        const label = btn.getAttribute("data-miel-admin-action") || "";
-        openTarget(label);
+        openTarget(btn.getAttribute("data-miel-admin-action") || "");
       });
     });
   }
@@ -164,6 +170,8 @@
   }
 
   window.__DK_mielInitAdministrativo = init;
+  window.__DK_mielAdminFormItems = FORM_ITEMS.slice();
+  window.__DK_mielAdminRelItems = REL_ITEMS.slice();
   window.__DK_mielAdminTargets = TARGETS;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);

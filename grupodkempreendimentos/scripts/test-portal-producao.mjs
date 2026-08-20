@@ -193,15 +193,17 @@ async function runSuite() {
         title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
         banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim(),
         headers: [...document.querySelectorAll(".miel-admin-grid__headers td")].map((el) => el.textContent?.trim()),
+        gridCols: document.querySelector(".miel-admin-grid")?.classList.contains("miel-admin-grid--2col") ? 2 : 0,
         gridBtns: document.querySelectorAll(".miel-admin-grid__hit").length,
         panelVisible: !document.getElementById("mielPanelAdministrativo")?.classList.contains("hidden"),
       }));
       record(
         "demo: MIEL etapa 2 Administrativo",
         admState.title === "Administrativo" &&
-          admState.banner === "ADMINISTRATIVO" &&
-          admState.headers.length === 3 &&
-          admState.gridBtns >= 20 &&
+          admState.banner === "Administrativo" &&
+          admState.headers.length === 2 &&
+          admState.gridCols === 2 &&
+          admState.gridBtns >= 14 &&
           admState.panelVisible,
         `btns=${admState.gridBtns}`
       );
