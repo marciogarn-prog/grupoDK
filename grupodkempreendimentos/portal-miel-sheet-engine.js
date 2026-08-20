@@ -53,7 +53,10 @@
 
   function renderCell(cell, extraStyle) {
     if (!cell) return "";
-    const cs = cellStyleCss(cell) + (extraStyle ? `;${extraStyle}` : "");
+    let cs = cellStyleCss(cell) + (extraStyle ? `;${extraStyle}` : "");
+    if (String(cell.text || "").includes("\n") && !/white-space/.test(cs)) {
+      cs = (cs ? cs + ";" : "") + "white-space:pre-line";
+    }
     const attrs = [];
     if (cell.colspan > 1) attrs.push(`colspan="${cell.colspan}"`);
     if (cell.rowspan > 1) attrs.push(`rowspan="${cell.rowspan}"`);

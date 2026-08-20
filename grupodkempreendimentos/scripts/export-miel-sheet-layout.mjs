@@ -83,14 +83,26 @@ function parseAttrs(tag) {
   return attrs;
 }
 
+function decodeXml(s) {
+  return String(s ?? "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#10;/g, "\n")
+    .replace(/&#13;/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+}
+
 function resolve(v, attrs, inner) {
   if (attrs.t === "inlineStr") {
     const t = inner.match(/<t[^>]*>([\s\S]*?)<\/t>/);
-    return t ? t[1] : "";
+    return decodeXml(t ? t[1] : "");
   }
   if (v === "" || v == null) return "";
-  if (attrs.t === "s") return strings[+v] ?? "";
-  if (attrs.t === "str") return v;
+  if (attrs.t === "s") return decodeXml(strings[+v] ?? "");
+  if (attrs.t === "str") return decodeXml(v);
   if (attrs.t === "b") return v === "1" || v === "true" ? "TRUE" : "FALSE";
   return v;
 }
@@ -161,12 +173,13 @@ for (let rn = rowStart; rn <= parseThrough; rn++) {
   const row = sheetXml.match(new RegExp(`<row r="${rn}"[^>]*>[\\s\\S]*?</row>`))?.[0];
   if (!row) continue;
   rowHeights[rn] = row.match(/ht="([^"]+)"/)?.[1] ? +row.match(/ht="([^"]+)"/)[1] : null;
-  for (const cTag of row.match(/<c [^>]*(?:\/>|[\s\S]*?<\/c>)/g) || []) {
-    const open = cTag.match(/^<c ([^>]*)/)?.[1] || "";
+  for (const cTag of row.match(/<c\b[^>]*\/>|<c\b[^>]*>[\s\S]*?<\/c>/g) || []) {
+    const open = cTag.match(/^<c\b([^>]*)/)?.[1] || "";
     const attrs = parseAttrs(open);
     const ref = attrs.r;
-    const inner = cTag.replace(/^<c [^>]*>/, "").replace(/<\/c>$/, "");
-    const v = inner.match(/<v>([^<]*)<\/v>/)?.[1] ?? "";
+    const selfClose = /\/\s*>$/.test(cTag);
+    const inner = selfClose ? "" : cTag.replace(/^<c\b[^>]*>/, "").replace(/<\/c>$/, "");
+    const v = selfClose ? "" : inner.match(/<v>([^<]*)<\/v>/)?.[1] ?? "";
     cells[ref] = {
       text: resolve(v, attrs, inner),
       style: cellStyle(attrs.s ? +attrs.s : 0),
