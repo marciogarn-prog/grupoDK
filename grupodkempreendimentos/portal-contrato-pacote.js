@@ -6,11 +6,25 @@
   "use strict";
 
   const CNPJ_DK = "59.665.734/0001-32";
+  /** Requerimento = PDF modelo oficial (sem edição de layout). */
+  const REQUERIMENTO_MODELO_URL = (() => {
+    try {
+      return new URL("modelos/requerimento-padrao-detran.pdf", window.location.href).href;
+    } catch {
+      return "modelos/requerimento-padrao-detran.pdf";
+    }
+  })();
   const DOCS = [
     { id: "contrato", titulo: "1. Contrato de locação (10 págs)", kitTipo: "contrato", arquivo: (p) => `${p}.pdf` },
     { id: "opcao", titulo: "2. Opção contratada", kitTipo: "opcao", arquivo: (p) => `${p}-opcao-contratada.pdf` },
     { id: "promessa", titulo: "3. Promessa de compra e venda", kitTipo: "promessa", arquivo: (p) => `${p}-promessa-compra.pdf` },
-    { id: "requerimento", titulo: "4. Requerimento padrão DETRAN", kitTipo: "requerimento", arquivo: (p) => `${p}-requerimento.pdf` },
+    {
+      id: "requerimento",
+      titulo: "4. Requerimento padrão DETRAN (modelo oficial)",
+      kitTipo: "requerimento",
+      arquivo: (p) => `${p}-requerimento.pdf`,
+      modeloPdf: true,
+    },
   ];
 
   function esc(s) {
@@ -224,6 +238,25 @@ body.kit-preview { padding-top: 58px; }
   display: flex; justify-content: space-between; font-size: 8pt; color: #444;
   border-top: 1px solid #ccc; padding-top: 3px;
 }
+.pagina.kit-pdf-pagina {
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  overflow: hidden;
+}
+.pagina.kit-pdf-pagina canvas {
+  display: block;
+  width: 210mm;
+  height: 297mm;
+}
+.kit-pdf-loading {
+  margin: 40% auto 0;
+  text-align: center;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: #444;
+}
 @media print {
   body.kit-preview { padding-top: 0; background: #fff; }
   .barra-acoes, .kit-secao-titulo { display: none !important; }
@@ -255,8 +288,10 @@ body.kit-preview { padding-top: 58px; }
       return arr.map((c, i) => wrapPagina(substituirPacote(c, d), i + 1, arr.length, d, "Promessa"));
     }
     if (docId === "requerimento") {
-      const arr = window.__DK_CONTRATO_PACOTE_REQUERIMENTO || [];
-      return arr.map((c, i) => wrapPagina(substituirPacote(c, d), i + 1, arr.length, d, "Requerimento"));
+      /* PDF modelo oficial — páginas preenchidas em runtime (sem alterar layout). */
+      return [
+        `<div class="pagina kit-pdf-pagina" data-pdf-mount="requerimento"><p class="kit-pdf-loading">A carregar modelo oficial DETRAN…</p></div>`,
+      ];
     }
     return [];
   }
@@ -320,13 +355,16 @@ body.kit-preview { padding-top: 58px; }
 
     const html2canvasUrl = vendorUrl("vendor/html2canvas.min.js");
     const jspdfUrl = vendorUrl("vendor/jspdf.umd.min.js");
+    const reqModeloUrl = REQUERIMENTO_MODELO_URL;
+    const pdfJsUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+    const pdfWorkerUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Pacote ${esc(proto)} — assinatura</title><style>${cssKit()}</style></head>
 <body class="kit-preview">
 <div class="barra-acoes">
   <button type="button" id="btnImprimir">Imprimir os 4 documentos</button>
   <button type="button" id="btnGerarTodos" class="sec">Gerar e guardar os 4 PDFs</button>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(proto)} — contrato, opção, promessa e requerimento em sequência para assinatura</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(proto)} — contrato, opção, promessa + requerimento (modelo oficial DETRAN, sem alteração)</span>
 </div>
 <div class="kit-shell">${sequencia}</div>
 <script>
@@ -335,7 +373,11 @@ body.kit-preview { padding-top: 58px; }
   var DOCS_META = ${metaDocs};
   var html2canvasUrl = ${JSON.stringify(html2canvasUrl)};
   var jspdfUrl = ${JSON.stringify(jspdfUrl)};
+  var reqModeloUrl = ${JSON.stringify(reqModeloUrl)};
+  var pdfJsUrl = ${JSON.stringify(pdfJsUrl)};
+  var pdfWorkerUrl = ${JSON.stringify(pdfWorkerUrl)};
   var msg = document.getElementById("barraMsg");
+  var reqPronto = false;
 
   function loadScript(src){
     return new Promise(function(res, rej){
@@ -352,6 +394,37 @@ body.kit-preview { padding-top: 58px; }
     if (!n) return "0 B";
     if (n < 1048576) return (n/1024).toFixed(1).replace(".", ",") + " KB";
     return (n/1048576).toFixed(2).replace(".", ",") + " MB";
+  }
+  async function carregarRequerimentoModelo(){
+    var bloco = document.getElementById("kitBloco-requerimento");
+    if (!bloco) return;
+    var titulo = bloco.querySelector(".kit-secao-titulo");
+    try {
+      if (!window.pdfjsLib) await loadScript(pdfJsUrl);
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+      var pdf = await window.pdfjsLib.getDocument({ url: reqModeloUrl, withCredentials: false }).promise;
+      while (bloco.lastChild && bloco.lastChild !== titulo) bloco.removeChild(bloco.lastChild);
+      for (var n = 1; n <= pdf.numPages; n++) {
+        var page = await pdf.getPage(n);
+        var viewport = page.getViewport({ scale: 2 });
+        var wrap = document.createElement("div");
+        wrap.className = "pagina kit-pdf-pagina";
+        wrap.setAttribute("data-pagina", String(n));
+        wrap.setAttribute("data-kit-label", "Requerimento DETRAN");
+        var canvas = document.createElement("canvas");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        await page.render({ canvasContext: canvas.getContext("2d"), viewport: viewport }).promise;
+        wrap.appendChild(canvas);
+        bloco.appendChild(wrap);
+      }
+      reqPronto = true;
+      msg.textContent = "Protocolo " + META.protocolo + " — 4 documentos em sequência (requerimento = modelo oficial DETRAN).";
+    } catch (e) {
+      msg.textContent = "Não foi possível carregar o modelo DETRAN: " + (e && e.message ? e.message : e);
+      var mount = bloco.querySelector("[data-pdf-mount]");
+      if (mount) mount.innerHTML = "<p class=\\"kit-pdf-loading\\">Erro ao carregar o PDF modelo. Verifique modelos/requerimento-padrao-detran.pdf</p>";
+    }
   }
   async function pdfDoBloco(bloco){
     await ensureLibs();
@@ -404,18 +477,32 @@ body.kit-preview { padding-top: 58px; }
     }, { b64: b64, type: "application/pdf" }, { substituirConfirmado: true, kitAnexo: docMeta.kitTipo !== "contrato" });
   }
 
-  document.getElementById("btnImprimir").addEventListener("click", function(){ window.print(); });
+  document.getElementById("btnImprimir").addEventListener("click", async function(){
+    if (!reqPronto) {
+      msg.textContent = "Aguarde o modelo DETRAN carregar…";
+      await carregarRequerimentoModelo();
+    }
+    window.print();
+  });
 
   document.getElementById("btnGerarTodos").addEventListener("click", async function(){
     var btn = this;
     btn.disabled = true;
+    if (!reqPronto) await carregarRequerimentoModelo();
     var ok = 0;
     for (var i = 0; i < DOCS_META.length; i++) {
       var meta = DOCS_META[i];
       msg.textContent = "A gerar " + (i+1) + "/4 — " + meta.nomeArquivo + "…";
       try {
-        var bloco = document.getElementById("kitBloco-" + meta.id);
-        var blob = await pdfDoBloco(bloco);
+        var blob;
+        if (meta.kitTipo === "requerimento") {
+          var res = await fetch(reqModeloUrl, { credentials: "same-origin" });
+          if (!res.ok) throw new Error("Modelo DETRAN HTTP " + res.status);
+          blob = await res.blob();
+        } else {
+          var bloco = document.getElementById("kitBloco-" + meta.id);
+          blob = await pdfDoBloco(bloco);
+        }
         downloadBlob(blob, meta.nomeArquivo);
         var r = await salvarNoPortal(meta, blob);
         if (r && r.ok) ok += 1;
@@ -425,10 +512,12 @@ body.kit-preview { padding-top: 58px; }
         return;
       }
     }
-    msg.textContent = "Pacote concluído: 4 PDFs descarregados; " + ok + " guardado(s) em Contratos ATIVOS. Use «Imprimir» para o cliente assinar.";
+    msg.textContent = "Pacote concluído: 4 PDFs descarregados; " + ok + " guardado(s). Requerimento = modelo oficial sem alteração.";
     if (window.opener && window.opener.__DK_contratoLocacaoRefreshBotao) window.opener.__DK_contratoLocacaoRefreshBotao();
     btn.disabled = false;
   });
+
+  carregarRequerimentoModelo();
 })();
 <\/script>
 </body></html>`;
