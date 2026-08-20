@@ -26,10 +26,22 @@ function parseAttrs(tag) {
   return attrs;
 }
 
+function decodeXml(s) {
+  return String(s ?? "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#10;/g, "\n")
+    .replace(/&#13;/g, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+}
+
 function resolve(v, attrs) {
   if (v === "" || v == null) return "";
-  if (attrs.t === "s") return strings[+v] ?? "";
-  if (attrs.t === "str") return v;
+  if (attrs.t === "s") return decodeXml(strings[+v] ?? "");
+  if (attrs.t === "str") return decodeXml(v);
   if (attrs.t === "b") return v === "1" || v === "true" ? "TRUE" : "FALSE";
   return v;
 }
@@ -47,13 +59,14 @@ function parseSheetRows(file) {
   for (const row of sheet.match(/<row[^>]*>[\s\S]*?<\/row>/g) || []) {
     const rn = +(row.match(/r="(\d+)"/)?.[1] || 0);
     const cells = {};
-    for (const cTag of row.match(/<c [^>]*(?:\/>|[\s\S]*?<\/c>)/g) || []) {
-      const open = cTag.match(/^<c ([^>]*)/)?.[1] || "";
+    for (const cTag of row.match(/<c\b[^>]*\/>|<c\b[^>]*>[\s\S]*?<\/c>/g) || []) {
+      const open = cTag.match(/^<c\b([^>]*)/)?.[1] || "";
       const attrs = parseAttrs(open);
       const ref = attrs.r || "";
       const col = ref.replace(/\d+$/, "");
-      const inner = cTag.replace(/^<c [^>]*>/, "").replace(/<\/c>$/, "");
-      const v = inner.match(/<v>([^<]*)<\/v>/)?.[1] ?? "";
+      const selfClose = /\/\s*>$/.test(cTag);
+      const inner = selfClose ? "" : cTag.replace(/^<c\b[^>]*>/, "").replace(/<\/c>$/, "");
+      const v = selfClose ? "" : inner.match(/<v>([^<]*)<\/v>/)?.[1] ?? "";
       cells[col] = resolve(v, attrs);
     }
     byRow.set(rn, cells);
@@ -68,7 +81,7 @@ function hasCliente(c) {
 }
 
 function hasVeiculo(c) {
-  const cod = String(c.A || "").trim();
+  const cod = String(c.B || c.A || "").trim();
   const placa = String(c.G || "").trim();
   return Boolean(cod && (placa || c.I) && !/^Cód/i.test(cod));
 }
@@ -85,7 +98,7 @@ for (const [rn, c] of clientesRows) {
   clientes.push({
     id: `mc_xl_${rn}`,
     sheetRow: rn,
-    cod: String(c.A || "").trim(),
+    cod: String(c.B || c.A || "").trim(),
     analise: String(c.C || "").trim(),
     statusProtocolo: String(c.D || "").trim(),
     dataCadastro: cad,
@@ -113,10 +126,11 @@ for (const [rn, c] of veiculosRows) {
   veiculos.push({
     id: `mv_xl_${rn}`,
     sheetRow: rn,
-    codigo: String(c.A || "").trim(),
+    codigo: String(c.B || c.A || "").trim(),
     dataCadastro: excelSerialToIso(c.C),
     status: String(c.D || "").trim(),
-    observacao: String(c.E || "").trim(),
+    observacao: String(c.F || "").trim(),
+    statusObs: String(c.E || "").trim(),
     placa: String(c.G || "").trim(),
     categoria: String(c.H || "").trim(),
     marca: String(c.I || "").trim(),
@@ -157,7 +171,7 @@ const locRows = parseSheetRows("sheet36.xml");
 const locacoes = [];
 for (const [rn, c] of locRows) {
   if (rn < 12) continue;
-  const protocolo = String(c.A || "").trim();
+  const protocolo = String(c.B || c.A || "").trim();
   if (!/^20\d{8}$/.test(protocolo)) continue;
   locacoes.push({
     id: `ml_xl_${rn}`,

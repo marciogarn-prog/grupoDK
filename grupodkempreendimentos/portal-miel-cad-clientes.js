@@ -7,8 +7,7 @@
   const LAYOUT_KEY = "__DK_MIEL_LAYOUT_CAD_CLIENTES_LAYOUT";
 
   const FIELD_BY_COL = {
-    A: "cod",
-    B: "codB",
+    B: "cod",
     C: "analise",
     D: "statusProtocolo",
     E: "dataCadastro",
@@ -97,11 +96,11 @@
   }
 
   function rowToCells(record) {
-    const out = {};
+    const out = { A: "" };
     Object.entries(FIELD_BY_COL).forEach(([col, key]) => {
       let val = record[key] ?? "";
       if (key === "dataCadastro" || key === "vencimento") val = fmtDate(val) || val;
-      if (col === "A") val = record.cod || record.sheetRow - 11;
+      if (key === "cod") val = record.cod || "";
       out[col] = val;
     });
     return out;
