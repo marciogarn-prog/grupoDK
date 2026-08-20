@@ -438,8 +438,17 @@
 <p class="cl-n">13.20. As cláusulas e condições do presente Contrato poderão ser alteradas sem prévio aviso e cabe ao Locatário se</p>
 <p class="cl">manter atualizado pelo site oficial da Locadora.</p>
 <p class="cl">{{MUNICIPIO_DATA}}</p>
-<p class="cl sig-line">__________________________________________ __________________________________________</p>
-<p class="cl sig-block"><span>DK LOCADORA LTDA</span> <span>{{LOCATARIO}}</span></p>
-<p class="cl sig-block"><span>CNPJ: 59.665.734/0001-32</span> <span>{{CPF_LOCATARIO}}</span></p>`
+<div class="sig-area">
+  <div class="sig-col">
+    <div class="sig-rule" aria-hidden="true"></div>
+    <p class="sig-name">{{LOCATARIO}}</p>
+    <p class="sig-id">{{CPF_LOCATARIO}}</p>
+  </div>
+  <div class="sig-col">
+    <div class="sig-rule" aria-hidden="true"></div>
+    <p class="sig-name">DK LOCADORA LTDA</p>
+    <p class="sig-id">CNPJ: 59.665.734/0001-32</p>
+  </div>
+</div>`
   ];
 })();

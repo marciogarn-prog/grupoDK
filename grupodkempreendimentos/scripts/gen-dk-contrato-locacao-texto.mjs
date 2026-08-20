@@ -85,21 +85,24 @@ function pageToHtml(lines, pageNum) {
         continue;
       }
       if (line.includes("__________________________________________")) {
-        html.push(
-          '<p class="cl sig-line">__________________________________________ __________________________________________</p>'
-        );
+        html.push(`<div class="sig-area">
+  <div class="sig-col">
+    <div class="sig-rule" aria-hidden="true"></div>
+    <p class="sig-name">{{LOCATARIO}}</p>
+    <p class="sig-id">{{CPF_LOCATARIO}}</p>
+  </div>
+  <div class="sig-col">
+    <div class="sig-rule" aria-hidden="true"></div>
+    <p class="sig-name">DK LOCADORA LTDA</p>
+    <p class="sig-id">CNPJ: 59.665.734/0001-32</p>
+  </div>
+</div>`);
         continue;
       }
       if (line.includes("[LOCATÁRIO]") && line.includes("DK LOCADORA")) {
-        html.push(
-          '<p class="cl sig-block"><span>DK LOCADORA LTDA</span> <span>{{LOCATARIO}}</span></p>'
-        );
         continue;
       }
       if (line.includes("[CPF do LOCATÁRIO]")) {
-        html.push(
-          '<p class="cl sig-block"><span>CNPJ: 59.665.734/0001-32</span> <span>{{CPF_LOCATARIO}}</span></p>'
-        );
         continue;
       }
       html.push(lineToHtml(line));
