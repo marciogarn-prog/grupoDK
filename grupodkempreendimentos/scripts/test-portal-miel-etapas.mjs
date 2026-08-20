@@ -147,13 +147,28 @@ async function openMielFromHome(page) {
   });
   record("acesso: colaborador com permissão vê MIEL", colabComVe);
 
+  await page.evaluate(() => {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "admin", role: "owner", cpf: "06523244440", nome: "Outro Admin" })
+    );
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+  });
+  await page.waitForTimeout(150);
+  const outroOwnerNaoVe = await page.evaluate(() => {
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    return !btn || btn.classList.contains("hidden");
+  });
+  record("acesso: outro administrador (não 03037897430) não vê MIEL", outroOwnerNaoVe);
+
   await grantMielOwnerSession(page);
   await page.waitForTimeout(150);
   const ownerVe = await page.evaluate(() => {
     const btn = document.querySelector('#view-home [data-go="miel"]');
     return Boolean(btn && !btn.classList.contains("hidden"));
   });
-  record("acesso: administrador titular vê botão MIEL", ownerVe);
+  record("acesso: administrador CPF 03037897430 vê botão MIEL", ownerVe);
 
   const mielBtn = page.locator('#view-home [data-go="miel"]').first();
   await mielBtn.click({ timeout: 10000 });
