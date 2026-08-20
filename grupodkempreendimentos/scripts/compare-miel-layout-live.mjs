@@ -21,6 +21,7 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendi
 
 /** Células com valores dinâmicos (stats, fórmulas) — não comparar texto. */
 const SKIP_TEXT_REFS = new Set([
+  "O4",
   "O5",
   "O6",
   "O7",
