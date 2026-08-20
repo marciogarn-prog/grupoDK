@@ -217,33 +217,42 @@ async function runSuite() {
 
       await page.locator('[data-miel-admin-action="Cadastro de Clientes"]').first().click().catch(() => null);
       await page.waitForTimeout(500);
-      const cadState = await page.evaluate(() => ({
-        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        sheetTitle: document.querySelector(".miel-cc__title")?.textContent?.trim() || "",
-        table: Boolean(document.querySelector(".miel-cc__table")),
-        headers: document.querySelectorAll("#mielPanelCadClientes:not(.hidden) .miel-cc__head th").length,
-        panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
-      }));
+      const cadState = await page.evaluate(() => {
+        const panel = document.getElementById("mielPanelCadClientes");
+        const visible = Boolean(panel && !panel.classList.contains("hidden"));
+        const grid = visible ? panel.querySelector(".miel-sheet__grid") : null;
+        return {
+          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+          sheetTitle: grid?.textContent?.includes("# Cadastro de Clientes") ? "# Cadastro de Clientes" : "",
+          table: Boolean(grid),
+          rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
+          panelVisible: visible,
+        };
+      });
       record(
         "demo: MIEL etapa 3 Cadastro Clientes",
         cadState.title === "Cadastro de Clientes" &&
           cadState.sheetTitle === "# Cadastro de Clientes" &&
           cadState.table &&
-          cadState.headers === 17 &&
+          cadState.rows >= 300 &&
           cadState.panelVisible,
         cadState.title
       );
 
+      await page.locator('[data-miel-nav="administrativo"]').first().click().catch(() => null);
+      await page.waitForTimeout(300);
       await page.locator('[data-miel-admin-action="Cadastro de Veículos"]').first().click().catch(() => null);
       await page.waitForTimeout(500);
       const veicState = await page.evaluate(() => {
         const panel = document.getElementById("mielPanelCadVeiculos");
+        const visible = Boolean(panel && !panel.classList.contains("hidden"));
+        const grid = visible ? panel?.querySelector(".miel-sheet__grid") : null;
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          sheetTitle: (panel?.querySelector(".miel-cv__title, .miel-cc__title")?.textContent || "").trim(),
-          table: Boolean(panel?.querySelector(".miel-cc__table")),
-          rows: panel?.querySelectorAll(".miel-cc__row").length || 0,
-          panelVisible: !panel?.classList.contains("hidden"),
+          sheetTitle: grid?.textContent?.includes("# Cadastro de Veículos") ? "# Cadastro de Veículos" : "",
+          table: Boolean(grid),
+          rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
+          panelVisible: visible,
           veicCount: (window.__DK_MIEL_CADASTROS?.veiculos || []).length,
         };
       });
@@ -258,15 +267,21 @@ async function runSuite() {
         veicState.title
       );
 
+      await page.locator('[data-miel-nav="administrativo"]').first().click().catch(() => null);
+      await page.waitForTimeout(300);
       await page.locator('[data-miel-admin-action="Relação de Clientes"]').first().click().catch(() => null);
       await page.waitForTimeout(500);
       const relState = await page.evaluate(() => {
         const panel = document.getElementById("mielPanelRelacaoClientes");
+        const visible = Boolean(panel && !panel.classList.contains("hidden"));
+        const grid = visible ? panel?.querySelector(".miel-sheet__grid") : null;
         return {
           title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          sheetTitle: (panel?.querySelector(".miel-cc__title")?.textContent || "").trim(),
-          rows: panel?.querySelectorAll(".miel-cc__row").length || 0,
-          panelVisible: !panel?.classList.contains("hidden"),
+          sheetTitle: grid?.textContent?.includes("# Relação de Clientes Cadastrados no Sistema")
+            ? "# Relação de Clientes Cadastrados no Sistema"
+            : "",
+          rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
+          panelVisible: visible,
         };
       });
       record(
