@@ -446,9 +446,13 @@ async function testEtapa4(page) {
   await page.waitForTimeout(300);
   const cli = await page.evaluate(() => ({
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    nome: Boolean(document.getElementById("mielCadCliente_nome")),
+    table: Boolean(document.querySelector(".miel-cc__table")),
+    sheetTitle: document.querySelector(".miel-cc__title")?.textContent?.trim() || "",
   }));
-  record("regressão: etapa 3 após etapa 4", cli.title === "Cadastro de Clientes" && cli.nome);
+  record(
+    "regressão: etapa 3 após etapa 4",
+    cli.title === "Cadastro de Clientes" && cli.table && cli.sheetTitle === "# Cadastro de Clientes"
+  );
 
   await page.locator('[data-miel-nav="pagina-inicial"]').first().click();
   await page.waitForTimeout(200);
