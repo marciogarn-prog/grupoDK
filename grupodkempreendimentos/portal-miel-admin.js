@@ -1,72 +1,79 @@
 /**
  * Sistema MIEL — Etapa 02/84: aba Administrativo (planilha miel-sistema.xlsm).
- * Dados isolados: dk_miel_* (sem interferência no portal Locadora).
+ * Réplica do grid Excel: 3 colunas (Página Inicial | Formulários | Relatórios).
  */
 (function portalMielAdmin() {
   const PANEL_ID = "mielPanelAdministrativo";
-  const STORAGE_KEY = "dk_miel_admin_busca";
 
-  /** Linhas extraídas da aba Administrativo (colunas D | AZ | T). */
-  const ADMIN_ROWS = [
-    { d: "99HSHF175TS001379", az: "Maio/2021", t: "Município/UF" },
-    { d: "Volante", az: "Rodas", t: "IPVA (Parc. 08)" },
-    { d: "WY164FML17605304", az: "", t: "ADMINISTRATIVO", banner: true },
-    { d: "Locada para", az: "DKMT - 032", t: "RUA FRANCISCO TEIXEIRA, 31 - VILA LIONS" },
-    { d: "JABOATÃO DOS GUARARAPES/PE", az: "DKMT - 034", t: "Veículos" },
-    { d: "074.409.644-89", az: "", t: "Triâng/Macaco/Ch. Rodas", search: true },
-    { d: "9C2KC2500TR145254", az: "CONTRATO DE LOCAÇÃO DE VEÍCULO", t: "" },
-    { d: "KC25E0T145158", az: "Outubro/2025", t: "" },
-    { d: "108.311.074-80", az: "Km Próx. Manutenção", t: "" },
-    { d: "Fe,2025", az: "XNKAJ8462899", t: "" },
-    { d: "Relação de Veículos", az: "053.196.314-48", t: "" },
-    { d: "99HSHF175TS007486", az: "", t: "" },
+  /** Cabeçalhos linha 9 — colunas A, D, T (sharedStrings). */
+  const COL_HEADERS = ["Página Inicial", "Formulários", "Relatórios"];
+
+  /**
+   * Linhas ímpares 11–35 — valores extraídos da aba Administrativo (A | D | T).
+   * null = célula vazia / linha espaçadora.
+   */
+  const MENU_ROWS = [
+    { a: "DASHBOARD", d: "Cadastro de Clientes", t: "Relação de Clientes" },
+    { a: "Cadastro de Veículos", d: null, t: "Relação de Veículos" },
+    { a: "Módulos", d: "Consulta Integrada (Veículos/Clientes)", t: "Acomp. de Transf. de Propriedade" },
+    { a: "Administrativo", d: "Ctrl Integrado de Multas", t: "Status de Veículos" },
+    { a: "Financeiro", d: "Formulário de Lista de Espera", t: "Relação de Motos Vendidas" },
+    { a: "Depto Pessoal", d: "Etiquetas dos Chaveiros (Motos)", t: null },
+    { a: "Ctrl de Locação de Veículos", d: "Etiquetas dos Chaveiros (Carros)", t: null },
+    { a: "Ctrl de Manutenção", d: "Relatório de Status da CNH / EAR", t: null },
+    { a: "Gráficos", d: "Pendências Administrativas", t: null },
+    { a: "Planejamento", d: "Acomp. de CRLVs Anuais dos Veículos", t: null },
+    { a: null, d: null, t: null },
+    { a: "Documentos Gerais", d: null, t: null },
+    { a: null, d: null, t: null },
+    { a: "Procedimentos", d: null, t: null },
   ];
 
-  /** Botões laterais → destinos (abas da planilha). */
-  const ADMIN_SIDE_TARGETS = {
-    "Cadastro de Clientes": { id: "cad-clientes", label: "Cadastro de Clientes", piece: 12 },
+  /** Destinos ao clicar — id, label e peça (stub). */
+  const TARGETS = {
+    DASHBOARD: { id: "dashboard", label: "Dashboard", piece: 3 },
     "Cadastro de Veículos": { id: "cad-veiculos", label: "Cadastro de Veículos", piece: 13 },
-    "Consulta de Clientes": { id: "consulta-clientes", label: "Consulta de Clientes", piece: 11 },
-    "Consulta de Veículos": { id: "consulta-veiculos", label: "Consulta de Veículos", piece: 11 },
-    "Relação de Clientes Cadastrados no Sistema": {
-      id: "relacao-clientes",
-      label: "Relação de Clientes",
-      piece: 15,
+    Módulos: { id: "modulos-hub", label: "Módulos", piece: 2 },
+    Administrativo: { id: "administrativo", label: "Administrativo", piece: 2 },
+    Financeiro: { id: "financeiro", label: "Financeiro", piece: 4 },
+    "Depto Pessoal": { id: "depto-pessoal", label: "Depto Pessoal", piece: 5 },
+    "Ctrl de Locação de Veículos": { id: "locacao-veiculos", label: "Ctrl de Locação de Veículos", piece: 6 },
+    "Ctrl de Manutenção": { id: "ctrl-manutencao", label: "Ctrl de Manutenção", piece: 7 },
+    Gráficos: { id: "graficos", label: "Gráficos", piece: 8 },
+    Planejamento: { id: "planejamento", label: "Planejamento", piece: 9 },
+    "Documentos Gerais": { id: "documentos-gerais", label: "Documentos Gerais", piece: 2 },
+    Procedimentos: { id: "procedimentos", label: "Procedimentos", piece: 10 },
+    "Cadastro de Clientes": { id: "cad-clientes", label: "Cadastro de Clientes", piece: 12 },
+    "Consulta Integrada (Veículos/Clientes)": {
+      id: "consulta-integrada",
+      label: "Consulta Integrada (Veículos/Clientes)",
+      piece: 11,
     },
-    "Relação de Veículos Cadastrados no Sistema": {
-      id: "relacao-veiculos",
-      label: "Relação de Veículos",
-      piece: 16,
-    },
-    "Relação de Status de Veículos": { id: "status-veiculos", label: "Status Veículos", piece: 17 },
-    "Emissão de Protocolos": { id: "emissao-protocolos", label: "Emissão de Protocolos", piece: 36 },
-    "Relação de Protocolos Emitidos": {
-      id: "relacao-protocolos",
-      label: "Relação Protocolos Emitidos",
-      piece: 46,
-    },
-    "Relatório de Pendências no Cadastro dos Clientes": {
-      id: "pendencias-clientes",
-      label: "Pendências Cad. Clientes",
-      piece: 60,
-    },
-    "Relatório de Clientes por EAR": { id: "relatorio-ear", label: "Relatório CNH/EAR", piece: 61 },
-    "Formulário de Prestação de Contas (Fundo Fixo)": {
-      id: "fundo-fixo",
-      label: "Fundo Fixo",
-      piece: 20,
-    },
-    "Recibo e Lista de Valores PASSIVOS para Cobrança Ostensiva": {
-      id: "passivo-cobranca",
-      label: "Passivo para Cobrança",
-      piece: 21,
-    },
-    "Panfleto Padrão": { id: "panfleto-padrao", label: "Panfleto Padrão", piece: 22 },
+    "Ctrl Integrado de Multas": { id: "ctrl-multas", label: "Ctrl Integrado de Multas", piece: 56 },
+    "Formulário de Lista de Espera": { id: "form-lista-espera", label: "Formulário de Lista de Espera", piece: 50 },
+    "Etiquetas dos Chaveiros (Motos)": { id: "id-chaveiros-motos", label: "ID Chaveiros (Motos)", piece: 52 },
+    "Etiquetas dos Chaveiros (Carros)": { id: "id-chaveiros-carros", label: "ID Chaveiros (Carros)", piece: 51 },
+    "Relatório de Status da CNH / EAR": { id: "relatorio-ear", label: "Relatório CNH/EAR", piece: 61 },
+    "Pendências Administrativas": { id: "pendencias-admin", label: "Pendências Administrativas", piece: 2 },
+    "Acomp. de CRLVs Anuais dos Veículos": { id: "acomp-crlvs", label: "Acomp. CRLVs Anuais", piece: 2 },
+    "Relação de Clientes": { id: "relacao-clientes", label: "Relação de Clientes", piece: 15 },
+    "Relação de Veículos": { id: "relacao-veiculos", label: "Relação de Veículos", piece: 16 },
+    "Acomp. de Transf. de Propriedade": { id: "acomp-transf", label: "Acomp. Transf. Propriedade", piece: 18 },
+    "Status de Veículos": { id: "status-veiculos", label: "Status Veículos", piece: 17 },
     "Relação de Motos Vendidas": { id: "motos-vendidas", label: "Motos Vendidas", piece: 26 },
-    "Tabela Oficial": { id: "tabela-dk-locadora", label: "Tabela DK Locadora", piece: 27 },
   };
 
-  const ADMIN_SIDE_BUTTONS = Object.keys(ADMIN_SIDE_TARGETS);
+  const NAV_SHEET_IDS = new Set([
+    "dashboard",
+    "financeiro",
+    "depto-pessoal",
+    "locacao-veiculos",
+    "ctrl-manutencao",
+    "graficos",
+    "planejamento",
+    "procedimentos",
+    "administrativo",
+  ]);
 
   function esc(s) {
     return String(s || "")
@@ -76,77 +83,75 @@
       .replace(/"/g, "&quot;");
   }
 
+  function cellBtn(label, col, rowIdx) {
+    if (!label) return `<td class="miel-admin-grid__gap" colspan="1" aria-hidden="true"></td>`;
+    const target = TARGETS[label];
+    const cls =
+      col === "a"
+        ? "miel-admin-grid__btn miel-admin-grid__btn--col-a"
+        : col === "d"
+          ? "miel-admin-grid__btn miel-admin-grid__btn--col-d"
+          : "miel-admin-grid__btn miel-admin-grid__btn--col-t";
+    if (!target) {
+      return `<td class="${cls} miel-admin-grid__btn--static"><span>${esc(label)}</span></td>`;
+    }
+    return `<td class="${cls}">
+      <button type="button" class="miel-admin-grid__hit"
+        data-miel-admin-action="${esc(label)}"
+        data-miel-admin-target="${esc(target.id)}"
+        data-miel-admin-row="${rowIdx}">${esc(label)}</button>
+    </td>`;
+  }
+
   function renderPanel(container) {
-    const rowsHtml = ADMIN_ROWS.map((row) => {
-      if (row.banner) {
-        return `<tr class="miel-admin-table__banner"><td colspan="3">ADMINISTRATIVO</td></tr>`;
+    const headerCells = COL_HEADERS.map(
+      (h, i) => {
+        const col = i === 0 ? "a" : i === 1 ? "d" : "t";
+        const extra = i === 1 ? " miel-admin-grid__head--form" : i === 2 ? " miel-admin-grid__head--rel" : "";
+        return `<td class="miel-admin-grid__head${extra}">${esc(h)}</td>`;
       }
-      if (row.search) {
-        return `<tr class="miel-admin-table__search">
-          <td>${esc(row.d)}</td>
-          <td colspan="2">
-            <input type="search" class="miel-admin-search" id="mielAdminBuscaCliente"
-              placeholder="Digite o nome para Pesquisar o Cliente..." autocomplete="off"
-              aria-label="Pesquisar cliente pelo nome">
-          </td>
-        </tr>`;
+    ).join("");
+
+    const bodyRows = MENU_ROWS.map((row, idx) => {
+      if (!row.a && !row.d && !row.t) {
+        return `<tr class="miel-admin-grid__spacer" aria-hidden="true"><td colspan="3"></td></tr>`;
       }
-      return `<tr>
-        <td class="miel-admin-table__d">${esc(row.d)}</td>
-        <td class="miel-admin-table__az">${esc(row.az)}</td>
-        <td class="miel-admin-table__t">${esc(row.t)}</td>
+      return `<tr class="miel-admin-grid__row">
+        ${cellBtn(row.a, "a", idx)}
+        ${cellBtn(row.d, "d", idx)}
+        ${cellBtn(row.t, "t", idx)}
       </tr>`;
     }).join("");
 
-    const sideHtml = ADMIN_SIDE_BUTTONS.map((label) => {
-      const t = ADMIN_SIDE_TARGETS[label];
-      return `<button type="button" class="miel-admin-side-btn" data-miel-admin-action="${esc(label)}" data-miel-admin-target="${esc(t.id)}" title="Ir para ${esc(t.label)}">${esc(label)}</button>`;
-    }).join("");
+    container.innerHTML = `<div class="miel-admin">
+      <table class="miel-admin-grid" aria-label="Administrativo — menu planilha">
+        <tbody>
+          <tr class="miel-admin-grid__banner"><td colspan="3">ADMINISTRATIVO</td></tr>
+          <tr class="miel-admin-grid__spacer" aria-hidden="true"><td colspan="3"></td></tr>
+          <tr class="miel-admin-grid__headers">${headerCells}</tr>
+          ${bodyRows}
+        </tbody>
+      </table>
+    </div>`;
+  }
 
-    container.innerHTML = `<div class="miel-admin__layout">
-      <div class="miel-admin__form-area">
-        <table class="miel-admin-table" aria-label="Consulta administrativa">
-          <tbody>${rowsHtml}</tbody>
-        </table>
-      </div>
-      <aside class="miel-admin__side-btns" aria-label="Ações administrativas">
-        ${sideHtml}
-      </aside>
-    </div>
-    <p class="miel-admin__hint" id="mielAdminFeedback" role="status"></p>`;
+  function openTarget(label) {
+    const target = TARGETS[label];
+    if (!target) return;
+    if (NAV_SHEET_IDS.has(target.id) && typeof window.__DK_mielShowSheet === "function") {
+      window.__DK_mielShowSheet(target.id);
+      return;
+    }
+    if (typeof window.__DK_mielOpenDestino === "function") {
+      window.__DK_mielOpenDestino(target.id, target.label, target.piece);
+    }
   }
 
   function bindPanel(container) {
-    const input = container.querySelector("#mielAdminBuscaCliente");
-    const feedback = container.querySelector("#mielAdminFeedback");
-    if (!input) return;
-
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) input.value = saved;
-    } catch {
-      /* ignore */
-    }
-
-    input.addEventListener("input", () => {
-      try {
-        localStorage.setItem(STORAGE_KEY, input.value);
-      } catch {
-        /* ignore */
-      }
-      if (feedback) {
-        feedback.textContent = input.value.trim()
-          ? `Pesquisa: «${input.value.trim()}»`
-          : "";
-      }
-    });
-
     container.querySelectorAll("[data-miel-admin-target]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const label = btn.getAttribute("data-miel-admin-action") || "";
-        const target = ADMIN_SIDE_TARGETS[label];
-        if (!target || typeof window.__DK_mielOpenDestino !== "function") return;
-        window.__DK_mielOpenDestino(target.id, target.label, target.piece);
+        openTarget(label);
       });
     });
   }
@@ -160,6 +165,7 @@
   }
 
   window.__DK_mielInitAdministrativo = init;
+  window.__DK_mielAdminTargets = TARGETS;
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", init);
   } else {

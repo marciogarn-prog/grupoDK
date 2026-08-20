@@ -14,24 +14,15 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendi
 /** Etapas implementadas — incrementar a cada nova peça. */
 export const MIEL_ETAPAS_IMPLEMENTADAS = 3;
 
-/** Destinos esperados dos 16 botões laterais do Administrativo. */
-const ADMIN_SIDE_EXPECTED = [
+/** Destinos principais do grid Administrativo (coluna Formulários / Relatórios). */
+const ADMIN_GRID_EXPECTED = [
   { btn: "Cadastro de Clientes", title: "Cadastro de Clientes", panel: "cad-clientes", implemented: true },
   { btn: "Cadastro de Veículos", title: "Cadastro de Veículos", panel: "cad-veiculos" },
-  { btn: "Consulta de Clientes", title: "Consulta de Clientes", panel: "consulta-clientes" },
-  { btn: "Consulta de Veículos", title: "Consulta de Veículos", panel: "consulta-veiculos" },
-  { btn: "Relação de Clientes Cadastrados no Sistema", title: "Relação de Clientes", panel: "relacao-clientes" },
-  { btn: "Relação de Veículos Cadastrados no Sistema", title: "Relação de Veículos", panel: "relacao-veiculos" },
-  { btn: "Relação de Status de Veículos", title: "Status Veículos", panel: "status-veiculos" },
-  { btn: "Emissão de Protocolos", title: "Emissão de Protocolos", panel: "emissao-protocolos" },
-  { btn: "Relação de Protocolos Emitidos", title: "Relação Protocolos Emitidos", panel: "relacao-protocolos" },
-  { btn: "Relatório de Pendências no Cadastro dos Clientes", title: "Pendências Cad. Clientes", panel: "pendencias-clientes" },
-  { btn: "Relatório de Clientes por EAR", title: "Relatório CNH/EAR", panel: "relatorio-ear" },
-  { btn: "Formulário de Prestação de Contas (Fundo Fixo)", title: "Fundo Fixo", panel: "fundo-fixo" },
-  { btn: "Recibo e Lista de Valores PASSIVOS para Cobrança Ostensiva", title: "Passivo para Cobrança", panel: "passivo-cobranca" },
-  { btn: "Panfleto Padrão", title: "Panfleto Padrão", panel: "panfleto-padrao" },
+  { btn: "Relação de Clientes", title: "Relação de Clientes", panel: "relacao-clientes" },
+  { btn: "Relação de Veículos", title: "Relação de Veículos", panel: "relacao-veiculos" },
+  { btn: "Status de Veículos", title: "Status Veículos", panel: "status-veiculos" },
   { btn: "Relação de Motos Vendidas", title: "Motos Vendidas", panel: "motos-vendidas" },
-  { btn: "Tabela Oficial", title: "Tabela DK Locadora", panel: "tabela-dk-locadora" },
+  { btn: "Relatório de Status da CNH / EAR", title: "Relatório CNH/EAR", panel: "relatorio-ear" },
 ];
 
 const results = [];
@@ -235,21 +226,31 @@ async function testEtapa2(page) {
 
   const s = await page.evaluate(() => ({
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    banner: Boolean(document.querySelector(".miel-admin-table__banner")),
-    search: Boolean(document.getElementById("mielAdminBuscaCliente")),
+    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim(),
+    headers: [...document.querySelectorAll(".miel-admin-grid__headers td")].map((el) => el.textContent?.trim()),
+    gridBtns: document.querySelectorAll(".miel-admin-grid__hit").length,
     panelVisible: !document.getElementById("mielPanelAdministrativo")?.classList.contains("hidden"),
-    sideBtns: document.querySelectorAll(".miel-admin-side-btn").length,
     navActive: document.querySelector('[data-miel-nav="administrativo"]')?.classList.contains("miel-nav-btn--active"),
+    cadClientes: Boolean(document.querySelector('[data-miel-admin-action="Cadastro de Clientes"]')),
+    relClientes: Boolean(document.querySelector('[data-miel-admin-action="Relação de Clientes"]')),
   }));
 
   record(
     "etapa 2: botão Administrativo abre aba correta",
-    s.title === "Administrativo" && s.banner && s.search && s.panelVisible && s.navActive,
-    `btns=${s.sideBtns}`
+    s.title === "Administrativo" && s.banner === "ADMINISTRATIVO" && s.panelVisible && s.navActive,
+    `btns=${s.gridBtns}`
   );
-  record("etapa 2: 16 botões laterais presentes", s.sideBtns === 16, `count=${s.sideBtns}`);
+  record(
+    "etapa 2: grid 3 colunas (Página Inicial | Formulários | Relatórios)",
+    s.headers.length === 3 &&
+      s.headers[0] === "Página Inicial" &&
+      s.headers[1] === "Formulários" &&
+      s.headers[2] === "Relatórios",
+    s.headers.join(" | ")
+  );
+  record("etapa 2: itens principais visíveis no grid", s.cadClientes && s.relClientes && s.gridBtns >= 20, `count=${s.gridBtns}`);
 
-  for (const exp of ADMIN_SIDE_EXPECTED) {
+  for (const exp of ADMIN_GRID_EXPECTED) {
     await page.locator(`[data-miel-admin-action="${exp.btn}"]`).first().click();
     await page.waitForTimeout(250);
     const sub = await page.evaluate(
@@ -267,7 +268,7 @@ async function testEtapa2(page) {
       { panelId: exp.panel, implemented: Boolean(exp.implemented) }
     );
     record(
-      `etapa 2: lateral «${exp.btn.slice(0, 28)}…» → destino`,
+      `etapa 2: grid «${exp.btn.slice(0, 28)}…» → destino`,
       sub.title === exp.title && sub.ok,
       `title=${sub.title}`
     );
@@ -282,16 +283,20 @@ async function testEtapa2(page) {
       const admTitle = await page.evaluate(
         () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
       );
-      record(`etapa 2: stub voltar ao Administrativo (${exp.panel})`, admTitle === "Administrativo", admTitle);
+      record(`etapa 2: voltar ao Administrativo (${exp.panel})`, admTitle === "Administrativo", admTitle);
     }
     await page.locator('[data-miel-nav="administrativo"]').first().click();
     await page.waitForTimeout(200);
   }
 
-  await page.locator("#mielAdminBuscaCliente").fill("TERIVALDO");
+  await page.locator('[data-miel-admin-action="DASHBOARD"]').first().click();
+  await page.waitForTimeout(250);
+  const dash = await page.evaluate(
+    () => document.getElementById("mielMainTitle")?.textContent?.trim() || ""
+  );
+  record("etapa 2: coluna A «DASHBOARD» abre Dashboard", dash === "Dashboard", dash);
+  await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(200);
-  const searchVal = await page.locator("#mielAdminBuscaCliente").inputValue();
-  record("etapa 2: campo pesquisa funcional", searchVal === "TERIVALDO");
 }
 
 async function testEtapa3(page) {
@@ -359,7 +364,7 @@ async function testEtapa3(page) {
   await page.waitForTimeout(200);
   const p2 = await page.evaluate(() => ({
     title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-    banner: Boolean(document.querySelector(".miel-admin-table__banner")),
+    banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim() === "ADMINISTRATIVO",
   }));
   record("regressão: etapa 2 após etapa 3", p2.title === "Administrativo" && p2.banner);
 }
