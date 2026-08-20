@@ -140,6 +140,13 @@ async function runSuite() {
       IS_DEMO_TEST ? "demo" : "html"
     );
     record(
+      "Sistema MIEL etapa 5 Relação Clientes no HTML",
+      html.includes("portal-miel-relacao-clientes.js") &&
+        html.includes("mielPanelRelacaoClientes") &&
+        html.includes('data-miel-panel="relacao-clientes"'),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "Sistema MIEL permissão colaborador no HTML",
       html.includes("portalColabAceSistemaMiel") && html.includes("Acesso ao sistema MIEL"),
       IS_DEMO_TEST ? "demo" : "html"
@@ -249,6 +256,26 @@ async function runSuite() {
           veicState.veicCount >= 150 &&
           veicState.panelVisible,
         veicState.title
+      );
+
+      await page.locator('[data-miel-admin-action="Relação de Clientes"]').first().click().catch(() => null);
+      await page.waitForTimeout(500);
+      const relState = await page.evaluate(() => {
+        const panel = document.getElementById("mielPanelRelacaoClientes");
+        return {
+          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+          sheetTitle: (panel?.querySelector(".miel-cc__title")?.textContent || "").trim(),
+          rows: panel?.querySelectorAll(".miel-cc__row").length || 0,
+          panelVisible: !panel?.classList.contains("hidden"),
+        };
+      });
+      record(
+        "demo: MIEL etapa 5 Relação Clientes",
+        relState.title === "Relação de Clientes" &&
+          relState.sheetTitle === "# Relação de Clientes Cadastrados no Sistema" &&
+          relState.rows >= 300 &&
+          relState.panelVisible,
+        relState.title
       );
 
       await page.locator("#view-miel [data-inicio]").first().click().catch(() => null);
