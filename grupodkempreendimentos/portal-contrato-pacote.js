@@ -469,15 +469,21 @@ body.kit-preview { padding-top: 56px; }
 
   function abrirPacoteContrato(dados) {
     const html = buildPacoteHtml(dados);
-    const w = window.open("", "_blank", "noopener,noreferrer,width=980,height=900");
+    const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const w = window.open(url, "_blank", "noopener,noreferrer,width=980,height=900");
     if (!w) {
-      const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
+      URL.revokeObjectURL(url);
       if (msgEl) msgEl.textContent = "Permita pop-ups para abrir o pacote de contratos.";
       return false;
     }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+    try {
+      w.focus();
+    } catch {
+      /* ignore */
+    }
     return true;
   }
 
