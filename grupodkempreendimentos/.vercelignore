@@ -1,0 +1,8 @@
+# PDFs locais de referência não sobem; o modelo DETRAN do pacote de contrato sobe.
+*.pdf
+!modelos/
+!modelos/requerimento-padrao-detran.pdf
+*.xlsx
+*.xlsm
+*.docx
+data/miel/planilha/_tmp-admin/
