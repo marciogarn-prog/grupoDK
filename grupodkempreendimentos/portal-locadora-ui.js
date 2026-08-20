@@ -2961,6 +2961,7 @@ ${printable.innerHTML}
             </div>
           </div>
         </div>
+        <div class="portal-checklist-inspection-wrap">
         <table class="portal-checklist-inspection" aria-label="Itens de inspeção">
           <thead>
             <tr>
@@ -2973,6 +2974,7 @@ ${printable.innerHTML}
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
+        </div>
         <div class="portal-checklist-staff-row">
           <label>Mecânico
             <select id="portalChecklistMecanico"><option value="">— Selecione —</option></select>
@@ -3004,29 +3006,41 @@ ${printable.innerHTML}
     portalChecklistUiBuilt = true;
   }
 
-  function portalFitChecklistClipboardScale() {
+  /** Ajusta densidade do check-list à viewport (sem zoom/scale). */
+  function portalFitChecklistClipboardLayout() {
     const root = document.getElementById("portalChecklistPrintArea");
     const body = document.getElementById("portalChecklistClipboardBody");
-    const header = root?.querySelector(".portal-checklist-print-header");
     if (!root || !body) return;
+
+    body.style.transform = "";
+    body.style.transformOrigin = "";
+    body.style.width = "";
+    body.style.height = "";
+    body.style.maxWidth = "";
+
     if (!document.body.classList.contains("portal-checklist-clipboard-mode")) {
-      body.style.transform = "";
-      body.style.width = "";
-      body.style.height = "";
+      root.style.removeProperty("--cl-compact");
       return;
     }
-    body.style.transform = "none";
+
     body.style.width = "100%";
-    body.style.height = "auto";
-    const availH = Math.max(120, root.clientHeight - (header?.offsetHeight || 0) - 10);
-    const availW = Math.max(200, root.clientWidth - 12);
-    const needH = Math.max(1, body.scrollHeight);
-    const needW = Math.max(1, body.scrollWidth);
-    const scale = Math.min(1, availH / needH, availW / needW);
-    body.style.transformOrigin = "top center";
-    body.style.transform = `scale(${scale})`;
-    body.style.width = `${100 / scale}%`;
-    body.style.height = `${needH}px`;
+    let lo = 0.58;
+    let hi = 1;
+    let best = 0.72;
+    for (let i = 0; i < 10; i += 1) {
+      const mid = (lo + hi) / 2;
+      root.style.setProperty("--cl-compact", String(mid));
+      void body.offsetHeight;
+      const fits =
+        body.scrollHeight <= body.clientHeight + 2 && body.scrollWidth <= body.clientWidth + 2;
+      if (fits) {
+        best = mid;
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    root.style.setProperty("--cl-compact", String(best));
   }
 
   let portalChecklistClipboardHost = null;
@@ -3065,11 +3079,11 @@ ${printable.innerHTML}
     if (icon) icon.textContent = on ? "↙" : "↗";
     if (on) {
       requestAnimationFrame(() => {
-        portalFitChecklistClipboardScale();
-        requestAnimationFrame(portalFitChecklistClipboardScale);
+        portalFitChecklistClipboardLayout();
+        requestAnimationFrame(portalFitChecklistClipboardLayout);
       });
     } else {
-      portalFitChecklistClipboardScale();
+      portalFitChecklistClipboardLayout();
     }
   }
 
@@ -3085,7 +3099,7 @@ ${printable.innerHTML}
       "resize",
       () => {
         if (document.body.classList.contains("portal-checklist-clipboard-mode")) {
-          portalFitChecklistClipboardScale();
+          portalFitChecklistClipboardLayout();
         }
       },
       { passive: true }
