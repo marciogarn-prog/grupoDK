@@ -1444,6 +1444,7 @@ function buildFullOperacaoAccess() {
     comunicacaoManutencao: false,
     lancamentoDespesa: false,
     funcionario: false,
+    sistemaMiel: true,
   };
 }
 
@@ -1462,6 +1463,7 @@ function normalizeOperacaoAccess(acessos, role) {
     comunicacaoManutencao: acessos?.comunicacaoManutencao ?? fallback.comunicacaoManutencao,
     lancamentoDespesa: acessos?.lancamentoDespesa ?? fallback.lancamentoDespesa,
     funcionario: false,
+    sistemaMiel: Boolean(acessos?.sistemaMiel),
   };
 }
 

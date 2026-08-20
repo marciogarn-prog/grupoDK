@@ -133,12 +133,26 @@ async function runSuite() {
       IS_DEMO_TEST ? "demo" : "html"
     );
     record(
+      "Sistema MIEL permissão colaborador no HTML",
+      html.includes("portalColabAceSistemaMiel") && html.includes("Acesso ao sistema MIEL"),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "secção comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
     );
 
     if (IS_DEMO_TEST) {
+      await page.evaluate(() => {
+        localStorage.setItem(
+          "dk_sessao_cliente",
+          JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
+        );
+        localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+        if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+      });
+      await page.waitForTimeout(200);
       const mielBtn = page.locator('#view-home [data-go="miel"]').first();
       if (await mielBtn.isVisible().catch(() => false)) await mielBtn.click();
       await page.waitForTimeout(700);
