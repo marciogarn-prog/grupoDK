@@ -214,7 +214,7 @@ async function runSuite() {
         title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
         sheetTitle: document.querySelector(".miel-cc__title")?.textContent?.trim() || "",
         table: Boolean(document.querySelector(".miel-cc__table")),
-        headers: document.querySelectorAll(".miel-cc__head th").length,
+        headers: document.querySelectorAll("#mielPanelCadClientes:not(.hidden) .miel-cc__head th").length,
         panelVisible: !document.getElementById("mielPanelCadClientes")?.classList.contains("hidden"),
       }));
       record(
