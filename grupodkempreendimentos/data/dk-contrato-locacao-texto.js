@@ -440,6 +440,6 @@
 <p class="cl">{{MUNICIPIO_DATA}}</p>
 <p class="cl sig-line">__________________________________________ __________________________________________</p>
 <p class="cl sig-block"><span>DK LOCADORA LTDA</span> <span>{{LOCATARIO}}</span></p>
-<p class="cl sig-block"><span>CNPJ: 073.297.874-26</span> <span>{{CPF_LOCATARIO}}</span></p>`
+<p class="cl sig-block"><span>CNPJ: 59.665.734/0001-32</span> <span>{{CPF_LOCATARIO}}</span></p>`
   ];
 })();
