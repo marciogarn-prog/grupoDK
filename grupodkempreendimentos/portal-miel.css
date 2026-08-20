@@ -306,8 +306,21 @@
   font-weight: 700;
   text-align: center;
   line-height: 1.2;
-  cursor: not-allowed;
-  opacity: 0.92;
+  cursor: pointer;
+}
+
+.miel-admin-side-btn:hover {
+  background: linear-gradient(180deg, #f5f3ea 0%, #dedad2 100%);
+}
+
+.miel-admin-side-btn:active {
+  border-color: #404040 #fff #fff #404040;
+  transform: translate(1px, 1px);
+}
+
+.miel-stub-back {
+  margin-top: 1rem;
+  max-width: 280px;
 }
 
 .miel-admin__hint {

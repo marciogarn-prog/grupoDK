@@ -24,5 +24,12 @@ const r = spawnSync(process.execPath, [prodTest], {
 });
 if (r.status !== 0) process.exit(typeof r.status === "number" ? r.status : 1);
 
+const mielTest = path.join(scriptDir, "test-portal-miel-etapas.mjs");
+const m = spawnSync(process.execPath, [mielTest], {
+  stdio: "inherit",
+  env: { ...process.env, DK_TEST_BASE_URL: base },
+});
+if (m.status !== 0) process.exit(typeof m.status === "number" ? m.status : 1);
+
 const p = spawnSync(process.execPath, [parityTest], { stdio: "inherit" });
 process.exit(typeof p.status === "number" ? p.status : 1);
