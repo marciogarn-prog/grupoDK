@@ -119,6 +119,13 @@ async function runSuite() {
       IS_DEMO_TEST ? "demo" : "html"
     );
     record(
+      "Sistema MIEL etapa 2 Administrativo no HTML",
+      html.includes("portal-miel-admin.js") &&
+        html.includes("mielPanelAdministrativo") &&
+        html.includes('data-miel-panel="administrativo"'),
+      IS_DEMO_TEST ? "demo" : "html"
+    );
+    record(
       "secção comprovantes app cliente no portal",
       html.includes("portalComprovanteClienteLista") &&
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
@@ -150,6 +157,27 @@ async function runSuite() {
         mielState.diretoria === 3,
         `linhas=${mielState.diretoria}`
       );
+
+      const admBtn = page.locator('[data-miel-nav="administrativo"]').first();
+      if (await admBtn.isVisible().catch(() => false)) await admBtn.click();
+      await page.waitForTimeout(600);
+      const admState = await page.evaluate(() => ({
+        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+        banner: Boolean(document.querySelector(".miel-admin-table__banner")),
+        search: Boolean(document.getElementById("mielAdminBuscaCliente")),
+        sideBtns: document.querySelectorAll(".miel-admin-side-btn").length,
+        panelVisible: !document.getElementById("mielPanelAdministrativo")?.classList.contains("hidden"),
+      }));
+      record(
+        "demo: MIEL etapa 2 Administrativo",
+        admState.title === "Administrativo" &&
+          admState.banner &&
+          admState.search &&
+          admState.sideBtns >= 10 &&
+          admState.panelVisible,
+        `btns=${admState.sideBtns}`
+      );
+
       await page.locator("#view-miel [data-inicio]").first().click().catch(() => null);
       await page.waitForTimeout(500);
     }
