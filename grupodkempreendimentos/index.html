@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260820check-n2">
+  <link rel="stylesheet" href="styles.css?v=20260821admin-cpf-cores">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -196,10 +196,28 @@
         <h2 id="portal-admin-cliente-title" class="portal-panel__title">Pré-visualizar app do cliente</h2>
         <p class="subtext">Digite o CPF — surgem sugestões com o nome. Escolha o protocolo e abra o app como o cliente vê (desenvolvimento).</p>
         <div class="portal-form">
-          <label class="portal-field">
+          <label class="portal-field portal-field--combobox">
             <span>CPF do cliente</span>
-            <input type="text" id="portal-admin-cliente-cpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="portal-admin-cliente-cpf-sugestoes" aria-autocomplete="list">
-            <datalist id="portal-admin-cliente-cpf-sugestoes"></datalist>
+            <div class="portal-combobox">
+              <input
+                type="text"
+                id="portal-admin-cliente-cpf"
+                inputmode="numeric"
+                maxlength="14"
+                autocomplete="off"
+                placeholder="000.000.000-00"
+                aria-autocomplete="list"
+                aria-expanded="false"
+                aria-controls="portal-admin-cliente-cpf-lista"
+              >
+              <div
+                id="portal-admin-cliente-cpf-lista"
+                class="portal-placa-dropdown portal-admin-cpf-dropdown hidden"
+                role="listbox"
+                aria-label="Clientes cadastrados"
+                hidden
+              ></div>
+            </div>
           </label>
           <label class="portal-field">
             <span>Protocolo da locação</span>
@@ -2116,11 +2134,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260820promessa-exata" defer></script>
+  <script src="app.js?v=20260821admin-cpf-cores" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260820promessa-exata" defer></script>
+  <script src="portal-locadora-ui.js?v=20260821admin-cpf-cores" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
