@@ -101,11 +101,68 @@
     window.addEventListener("resize", () => portalSyncAdminBannerLayout());
   }
 
+  /** Cor da lista CPF (pré-visualizar app): azul/verde/marrom/preto. */
+  function portalAdminPreviewCpfCorClasse(loc) {
+    if (!loc) return "portal-admin-cpf-opt--inativo";
+    const vehicleMap =
+      typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+    const cls =
+      typeof getPortalLancPesquisaLinhaCorClasseFast === "function"
+        ? getPortalLancPesquisaLinhaCorClasseFast(loc, vehicleMap)
+        : "";
+    if (cls === "portal-lanc-pesquisa-linha--azul") return "portal-admin-cpf-opt--minha-moto";
+    if (cls === "portal-lanc-pesquisa-linha--verde") return "portal-admin-cpf-opt--meu-transporte";
+    if (cls === "portal-lanc-pesquisa-linha--amarelo") return "portal-admin-cpf-opt--carro";
+    const ativo =
+      typeof isPortalLocacaoAtiva === "function"
+        ? isPortalLocacaoAtiva(loc)
+        : !String(loc.dataFim || loc.fim || "").trim();
+    if (!ativo) return "portal-admin-cpf-opt--inativo";
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const isCarro =
+      typeof portalInferTipoVeiculoLocacao === "function"
+        ? portalInferTipoVeiculoLocacao(loc) === "CARRO"
+        : nk(String(loc.modalidade || "")).includes("CARRO");
+    if (isCarro) return "portal-admin-cpf-opt--carro";
+    const planoKey = nk(String(loc.plano || loc.opcaoContrato || ""));
+    if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) {
+      return "portal-admin-cpf-opt--minha-moto";
+    }
+    if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) {
+      return "portal-admin-cpf-opt--meu-transporte";
+    }
+    return "portal-admin-cpf-opt--meu-transporte";
+  }
+
+  function portalLocacaoRepresentativaAdminPreview(cpfDigits, locsByCpf) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    const locs = locsByCpf?.get(cpf) || [];
+    if (!locs.length) return null;
+    const ativas = locs.filter((l) =>
+      typeof isPortalLocacaoAtiva === "function"
+        ? isPortalLocacaoAtiva(l)
+        : !String(l.dataFim || l.fim || "").trim()
+    );
+    const pool = ativas.length ? ativas : locs;
+    /* Prioridade visual: carro > minha moto > meu transporte */
+    for (const l of pool) {
+      if (portalAdminPreviewCpfCorClasse(l) === "portal-admin-cpf-opt--carro") return l;
+    }
+    for (const l of pool) {
+      if (portalAdminPreviewCpfCorClasse(l) === "portal-admin-cpf-opt--minha-moto") return l;
+    }
+    return pool[0] || null;
+  }
+
   function portalColetarClientesParaAdminPreview(prefixDigits) {
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const prefix = dig(String(prefixDigits || "")).slice(0, 11);
     const byCpf = new Map();
+    const locsByCpf = new Map();
     const addRow = (cpfRaw, nomeRaw) => {
       const cpf = dig(String(cpfRaw || "")).slice(0, 11);
       if (cpf.length !== 11) return;
@@ -119,6 +176,11 @@
     }
     if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
       loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        const cpf = dig(String(l.cpf || "")).slice(0, 11);
+        if (cpf.length === 11) {
+          if (!locsByCpf.has(cpf)) locsByCpf.set(cpf, []);
+          locsByCpf.get(cpf).push(l);
+        }
         addRow(l.cpf, l.nome || l.cliente);
       });
     }
@@ -129,28 +191,78 @@
         if (c?.nome) row.nome = String(c.nome).trim();
       });
     }
-    return Array.from(byCpf.values()).sort((a, b) => {
-      const an = String(a.nome || "").trim();
-      const bn = String(b.nome || "").trim();
-      if (an && !bn) return -1;
-      if (!an && bn) return 1;
-      return an.localeCompare(bn, "pt-BR") || a.cpf.localeCompare(b.cpf);
-    });
+    return Array.from(byCpf.values())
+      .map((row) => {
+        const loc = portalLocacaoRepresentativaAdminPreview(row.cpf, locsByCpf);
+        return {
+          ...row,
+          corClasse: portalAdminPreviewCpfCorClasse(loc),
+        };
+      })
+      .sort((a, b) => {
+        const an = String(a.nome || "").trim();
+        const bn = String(b.nome || "").trim();
+        if (an && !bn) return -1;
+        if (!an && bn) return 1;
+        return an.localeCompare(bn, "pt-BR") || a.cpf.localeCompare(b.cpf);
+      });
   }
 
-  function refreshPortalAdminClienteCpfDatalist() {
-    const dl = document.getElementById("portal-admin-cliente-cpf-sugestoes");
+  function hidePortalAdminClienteCpfLista() {
+    const panel = document.getElementById("portal-admin-cliente-cpf-lista");
     const inp = document.getElementById("portal-admin-cliente-cpf");
-    if (!dl) return;
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function refreshPortalAdminClienteCpfDatalist(opts = {}) {
+    const open = opts.open !== false;
+    const panel = document.getElementById("portal-admin-cliente-cpf-lista");
+    const inp = document.getElementById("portal-admin-cliente-cpf");
+    if (!panel || !inp) return;
+    if (!open) {
+      hidePortalAdminClienteCpfLista();
+      return;
+    }
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
-    const rows = portalColetarClientesParaAdminPreview(inp?.value || "");
-    dl.innerHTML = rows
-      .slice(0, 120)
-      .map((row) => {
-        const lbl = row.nome ? `${row.nome}` : "Cliente cadastrado";
-        return `<option value="${portalEscapeHtml(fmt(row.cpf))}" label="${portalEscapeHtml(lbl)}"></option>`;
-      })
-      .join("");
+    const rows = portalColetarClientesParaAdminPreview(inp.value || "");
+    const slice = rows.slice(0, 120);
+    if (!slice.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhum cliente encontrado.</div>';
+    } else {
+      panel.innerHTML = slice
+        .map((row) => {
+          const cor = portalEscapeHtml(row.corClasse || "portal-admin-cpf-opt--inativo");
+          const nome = portalEscapeHtml(row.nome || "Cliente cadastrado");
+          const cpfFmt = portalEscapeHtml(fmt(row.cpf));
+          return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-cpf="${portalEscapeHtml(row.cpf)}">
+              <span class="portal-placa-dropdown__plate">${cpfFmt}</span>
+              <span class="portal-placa-dropdown__model">${nome}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function portalAdminClienteCpfEscolher(cpfDigits) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const inp = document.getElementById("portal-admin-cliente-cpf");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (!inp || cpf.length !== 11) return;
+    inp.value = typeof formatCpf === "function" ? formatCpf(cpf) : cpf;
+    hidePortalAdminClienteCpfLista();
+    refreshPortalAdminClienteProtocoloSelect();
+    const fb = document.getElementById("portal-admin-cliente-feedback");
+    if (fb) fb.textContent = "";
   }
 
   function refreshPortalAdminClienteProtocoloSelect() {
@@ -204,7 +316,7 @@
     if (propaganda) propaganda.classList.toggle("hidden", adminOn);
     if (appSection) appSection.classList.toggle("hidden", adminOn);
     if (adminOn) {
-      refreshPortalAdminClienteCpfDatalist();
+      refreshPortalAdminClienteCpfDatalist({ open: false });
       refreshPortalAdminClienteProtocoloSelect();
     }
   }
@@ -12915,8 +13027,30 @@ ${printable.innerHTML}
     const fb = document.getElementById("portal-admin-cliente-feedback");
     if (fb) fb.textContent = "";
   });
+  document.getElementById("portal-admin-cliente-cpf")?.addEventListener("focus", () => {
+    refreshPortalAdminClienteCpfDatalist();
+  });
+  document.getElementById("portal-admin-cliente-cpf")?.addEventListener("click", () => {
+    refreshPortalAdminClienteCpfDatalist();
+  });
   document.getElementById("portal-admin-cliente-cpf")?.addEventListener("change", () => {
     refreshPortalAdminClienteProtocoloSelect();
+  });
+  document.getElementById("portal-admin-cliente-cpf")?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hidePortalAdminClienteCpfLista();
+  });
+  document.getElementById("portal-admin-cliente-cpf-lista")?.addEventListener("mousedown", (e) => {
+    const btn = e.target.closest(".portal-placa-dropdown__opt[data-cpf]");
+    if (!btn) return;
+    e.preventDefault();
+    portalAdminClienteCpfEscolher(btn.getAttribute("data-cpf") || "");
+  });
+  document.addEventListener("mousedown", (e) => {
+    const panel = document.getElementById("portal-admin-cliente-cpf-lista");
+    const inp = document.getElementById("portal-admin-cliente-cpf");
+    if (!panel || panel.hidden || panel.classList.contains("hidden")) return;
+    if (panel.contains(e.target) || inp?.contains(e.target) || e.target === inp) return;
+    hidePortalAdminClienteCpfLista();
   });
   document.getElementById("portal-admin-cliente-abrir")?.addEventListener("click", () => {
     portalAdminAbrirAppCliente();
