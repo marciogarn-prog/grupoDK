@@ -351,7 +351,8 @@
     });
     sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
     try {
-      localStorage.setItem("dk_cliente_gate_persist", gatePayload);
+      /* Preview: só session — não deixar CPF no localStorage do PWA. */
+      localStorage.removeItem("dk_cliente_gate_persist");
     } catch {
       /* ignore */
     }
@@ -1896,9 +1897,9 @@
     });
   });
 
-  function buildClienteInstalarUrl(cpf, proto) {
-    const q = new URLSearchParams({ instalar: "1", cpf, proto });
-    return `/cliente?${q.toString()}`;
+  /** URL de instalação sem CPF, protocolo ou senha (credenciais nunca na query). */
+  function buildClienteInstalarUrl() {
+    return "/instalar";
   }
 
   function showPortalInstallPanel(cpf, v) {
@@ -1906,7 +1907,7 @@
     const msg = document.getElementById("locadora-install-msg");
     const link = document.getElementById("locadora-install-open");
     const nome = String(v.cliente?.nome || "").trim();
-    const url = buildClienteInstalarUrl(cpf, v.proto);
+    const url = buildClienteInstalarUrl();
     if (msg) {
       msg.textContent = nome
         ? `${nome}: toque no botão abaixo para instalar o app DK Cliente.`
@@ -1922,23 +1923,29 @@
   }
 
   function redirectParaInstalarAppCliente(cpf, v) {
-    const gatePayload = JSON.stringify({
-      cpf,
-      proto: v.proto,
-      nome: String(v.cliente?.nome || "").trim(),
-      at: Date.now(),
-    });
-    sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
+    /* Autorização de instalação: só sessionStorage, sem senha e sem localStorage
+       (evita CPF/senha no PWA e na URL partilhável). */
+    const installAuth = JSON.stringify({ ok: 1, at: Date.now() });
     try {
-      localStorage.setItem("dk_cliente_gate_persist", gatePayload);
+      sessionStorage.setItem("dk_cliente_install_auth", installAuth);
+      sessionStorage.setItem(
+        CLIENTE_APP_GATE_KEY,
+        JSON.stringify({
+          cpf: String(cpf || "").replace(/\D/g, "").slice(0, 11),
+          proto: v.proto,
+          nome: String(v.cliente?.nome || "").trim(),
+          at: Date.now(),
+        })
+      );
+      localStorage.removeItem("dk_cliente_gate_persist");
     } catch {
       /* ignore */
     }
     showPortalInstallPanel(cpf, v);
-    const url = buildClienteInstalarUrl(cpf, v.proto);
+    const url = buildClienteInstalarUrl();
     if (locadoraAppFeedback) {
       locadoraAppFeedback.textContent =
-        "CPF e protocolo validados. A abrir instalação em 2 segundos… (ou use o botão abaixo).";
+        "Validado. A abrir instalação em 2 segundos… (ou use o botão abaixo). Depois entre com CPF e senha no app.";
     }
     window.setTimeout(() => {
       window.location.assign(url);
