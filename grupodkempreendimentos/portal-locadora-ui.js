@@ -258,8 +258,35 @@
     if (inp) inp.setAttribute("aria-expanded", "false");
   }
 
+  async function portalAdminPreviewEnsureLocacoes(ms = 12000) {
+    if (portalAdminPreviewTemLocacoesParaCores()) return true;
+    const pull = window.__DK_pullCloudSnapshotSilentMerge;
+    if (typeof pull !== "function") return false;
+    let timer = 0;
+    const pullPromise = Promise.resolve(pull({ force: true })).catch(() => null);
+    try {
+      await Promise.race([
+        pullPromise,
+        new Promise((resolve) => {
+          timer = window.setTimeout(resolve, ms);
+        }),
+      ]);
+    } finally {
+      if (timer) window.clearTimeout(timer);
+    }
+    /* Se o pull ainda estiver a correr, atualiza a lista quando terminar. */
+    void pullPromise.then(() => {
+      if (!portalAdminPreviewTemLocacoesParaCores()) return;
+      const panel = document.getElementById("portal-admin-cliente-cpf-lista");
+      const open = panel && !panel.hidden && !panel.classList.contains("hidden");
+      if (open) void refreshPortalAdminClienteCpfDatalist({ open: true, skipPull: true });
+    });
+    return portalAdminPreviewTemLocacoesParaCores();
+  }
+
   async function refreshPortalAdminClienteCpfDatalist(opts = {}) {
     const open = opts.open !== false;
+    const skipPull = opts.skipPull === true;
     const panel = document.getElementById("portal-admin-cliente-cpf-lista");
     const inp = document.getElementById("portal-admin-cliente-cpf");
     if (!panel || !inp) return;
@@ -268,17 +295,13 @@
       return;
     }
     /* Cores dependem das locações (plano/status) — puxar nuvem se o browser ainda não tiver. */
-    if (!portalAdminPreviewTemLocacoesParaCores() && typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+    if (!skipPull && !portalAdminPreviewTemLocacoesParaCores()) {
       panel.classList.remove("hidden");
       panel.hidden = false;
       panel.innerHTML =
         '<div class="portal-placa-dropdown__empty">A sincronizar clientes e contratos…</div>';
       inp.setAttribute("aria-expanded", "true");
-      try {
-        await window.__DK_pullCloudSnapshotSilentMerge();
-      } catch {
-        /* ignore */
-      }
+      await portalAdminPreviewEnsureLocacoes(12000);
     }
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
     const rows = portalColetarClientesParaAdminPreview(inp.value || "");
@@ -1518,6 +1541,13 @@
     if (locadoraAppFeedback) locadoraAppFeedback.textContent = "";
     portalRenderAdminClientePreviewUi();
     portalAtualizarBannerAdmin();
+    if (
+      isPortalAdministradorLogado() &&
+      !portalAdminPreviewTemLocacoesParaCores() &&
+      typeof window.__DK_pullCloudSnapshotSilentMerge === "function"
+    ) {
+      void window.__DK_pullCloudSnapshotSilentMerge({ force: true }).catch(() => null);
+    }
   }
 
   function openLocadoraEmpresa() {
