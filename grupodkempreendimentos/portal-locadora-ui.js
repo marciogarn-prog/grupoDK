@@ -266,7 +266,7 @@
     let timer = 0;
     try {
       if (ctrl) timer = window.setTimeout(() => ctrl.abort(), ms);
-      const q = typeof dkPortalChannelQuery === "function" ? dkPortalChannelQuery() : "";
+      const q = typeof dkPortalCloudChannelQuery === "function" ? dkPortalCloudChannelQuery() : "";
       const headers =
         typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
       const res = await fetch(`/api/dk-cloud-snapshot${q}`, {
