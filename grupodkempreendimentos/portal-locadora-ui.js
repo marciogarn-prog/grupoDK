@@ -258,8 +258,41 @@
     if (inp) inp.setAttribute("aria-expanded", "false");
   }
 
+  async function portalAdminPreviewPullLocacoesLight(ms = 10000) {
+    if (portalAdminPreviewTemLocacoesParaCores()) return true;
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return false;
+    if (typeof CAD_LOCACOES_KEY === "undefined") return false;
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    let timer = 0;
+    try {
+      if (ctrl) timer = window.setTimeout(() => ctrl.abort(), ms);
+      const q = typeof dkPortalChannelQuery === "function" ? dkPortalChannelQuery() : "";
+      const headers =
+        typeof dkPortalCloudFetchHeaders === "function" ? dkPortalCloudFetchHeaders() : {};
+      const res = await fetch(`/api/dk-cloud-snapshot${q}`, {
+        cache: "no-store",
+        headers,
+        signal: ctrl?.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      const locs = data?.payload?.dk_locacoes_cadastro;
+      if (!Array.isArray(locs) || !locs.length) return false;
+      const local = loadCadastro(CAD_LOCACOES_KEY);
+      if (local.length) return true;
+      saveCadastro(CAD_LOCACOES_KEY, locs);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      if (timer) window.clearTimeout(timer);
+    }
+  }
+
   async function portalAdminPreviewEnsureLocacoes(ms = 12000) {
     if (portalAdminPreviewTemLocacoesParaCores()) return true;
+    /* Pull leve só das locações (o merge completo pode travar no Supabase). */
+    const lightOk = await portalAdminPreviewPullLocacoesLight(Math.min(ms, 10000));
+    if (lightOk || portalAdminPreviewTemLocacoesParaCores()) return true;
     const pull = window.__DK_pullCloudSnapshotSilentMerge;
     if (typeof pull !== "function") return false;
     let timer = 0;
@@ -268,13 +301,12 @@
       await Promise.race([
         pullPromise,
         new Promise((resolve) => {
-          timer = window.setTimeout(resolve, ms);
+          timer = window.setTimeout(resolve, Math.min(ms, 4000));
         }),
       ]);
     } finally {
       if (timer) window.clearTimeout(timer);
     }
-    /* Se o pull ainda estiver a correr, atualiza a lista quando terminar. */
     void pullPromise.then(() => {
       if (!portalAdminPreviewTemLocacoesParaCores()) return;
       const panel = document.getElementById("portal-admin-cliente-cpf-lista");
@@ -1541,12 +1573,8 @@
     if (locadoraAppFeedback) locadoraAppFeedback.textContent = "";
     portalRenderAdminClientePreviewUi();
     portalAtualizarBannerAdmin();
-    if (
-      isPortalAdministradorLogado() &&
-      !portalAdminPreviewTemLocacoesParaCores() &&
-      typeof window.__DK_pullCloudSnapshotSilentMerge === "function"
-    ) {
-      void window.__DK_pullCloudSnapshotSilentMerge({ force: true }).catch(() => null);
+    if (isPortalAdministradorLogado() && !portalAdminPreviewTemLocacoesParaCores()) {
+      void portalAdminPreviewPullLocacoesLight(10000).catch(() => null);
     }
   }
 
