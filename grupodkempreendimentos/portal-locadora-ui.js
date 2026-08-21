@@ -101,9 +101,48 @@
     window.addEventListener("resize", () => portalSyncAdminBannerLayout());
   }
 
+  function portalAdminPreviewTemLocacoesParaCores() {
+    try {
+      if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return false;
+      return loadCadastro(CAD_LOCACOES_KEY).length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Cor a partir do cadastro do cliente quando ainda não há locação local. */
+  function portalAdminPreviewCpfCorClasseFromCliente(cpfDigits) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (cpf.length !== 11) return "portal-admin-cpf-opt--inativo";
+    let rec = null;
+    if (typeof findClienteByCpfCadastro === "function") rec = findClienteByCpfCadastro(cpf);
+    if (!rec && typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      rec = loadCadastro(CAD_CLIENTES_KEY).find((c) => dig(c.cpf) === cpf) || null;
+    }
+    if (!rec) return "portal-admin-cpf-opt--inativo";
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const st = nk(String(rec.status || rec.statusProtocolo || rec.situacao || ""));
+    if (st.includes("INATIV")) return "portal-admin-cpf-opt--inativo";
+    if (st.includes("CARRO") || st.includes(" - CR") || st.includes("LOCACAO - CR") || st.includes("LOCAÇÃO - CR")) {
+      return "portal-admin-cpf-opt--carro";
+    }
+    if (st.includes("MINHA") && st.includes("MOTO")) return "portal-admin-cpf-opt--minha-moto";
+    if (st.includes("MEU") && st.includes("TRANSPORTE")) return "portal-admin-cpf-opt--meu-transporte";
+    if (st.includes(" - MT") || st.includes("LOCACAO - MT") || st.includes("LOCAÇÃO - MT")) {
+      return "portal-admin-cpf-opt--meu-transporte";
+    }
+    if (st.includes("COMPRA") || (st.includes("MINHA") && st.includes("MOTO"))) {
+      return "portal-admin-cpf-opt--minha-moto";
+    }
+    return "portal-admin-cpf-opt--inativo";
+  }
+
   /** Cor da lista CPF (pré-visualizar app): azul/verde/marrom/preto. */
-  function portalAdminPreviewCpfCorClasse(loc) {
-    if (!loc) return "portal-admin-cpf-opt--inativo";
+  function portalAdminPreviewCpfCorClasse(loc, cpfDigits) {
+    if (!loc) return portalAdminPreviewCpfCorClasseFromCliente(cpfDigits);
     const vehicleMap =
       typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
     const cls =
@@ -149,10 +188,10 @@
     const pool = ativas.length ? ativas : locs;
     /* Prioridade visual: carro > minha moto > meu transporte */
     for (const l of pool) {
-      if (portalAdminPreviewCpfCorClasse(l) === "portal-admin-cpf-opt--carro") return l;
+      if (portalAdminPreviewCpfCorClasse(l, dig(l.cpf)) === "portal-admin-cpf-opt--carro") return l;
     }
     for (const l of pool) {
-      if (portalAdminPreviewCpfCorClasse(l) === "portal-admin-cpf-opt--minha-moto") return l;
+      if (portalAdminPreviewCpfCorClasse(l, dig(l.cpf)) === "portal-admin-cpf-opt--minha-moto") return l;
     }
     return pool[0] || null;
   }
@@ -196,7 +235,7 @@
         const loc = portalLocacaoRepresentativaAdminPreview(row.cpf, locsByCpf);
         return {
           ...row,
-          corClasse: portalAdminPreviewCpfCorClasse(loc),
+          corClasse: portalAdminPreviewCpfCorClasse(loc, row.cpf),
         };
       })
       .sort((a, b) => {
@@ -219,7 +258,7 @@
     if (inp) inp.setAttribute("aria-expanded", "false");
   }
 
-  function refreshPortalAdminClienteCpfDatalist(opts = {}) {
+  async function refreshPortalAdminClienteCpfDatalist(opts = {}) {
     const open = opts.open !== false;
     const panel = document.getElementById("portal-admin-cliente-cpf-lista");
     const inp = document.getElementById("portal-admin-cliente-cpf");
@@ -227,6 +266,19 @@
     if (!open) {
       hidePortalAdminClienteCpfLista();
       return;
+    }
+    /* Cores dependem das locações (plano/status) — puxar nuvem se o browser ainda não tiver. */
+    if (!portalAdminPreviewTemLocacoesParaCores() && typeof window.__DK_pullCloudSnapshotSilentMerge === "function") {
+      panel.classList.remove("hidden");
+      panel.hidden = false;
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">A sincronizar clientes e contratos…</div>';
+      inp.setAttribute("aria-expanded", "true");
+      try {
+        await window.__DK_pullCloudSnapshotSilentMerge();
+      } catch {
+        /* ignore */
+      }
     }
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
     const rows = portalColetarClientesParaAdminPreview(inp.value || "");
@@ -13029,16 +13081,16 @@ ${printable.innerHTML}
       const d = onlyDigits(String(inp.value || "")).slice(0, 11);
       inp.value = formatCpf(d);
     }
-    refreshPortalAdminClienteCpfDatalist();
+    void refreshPortalAdminClienteCpfDatalist();
     refreshPortalAdminClienteProtocoloSelect();
     const fb = document.getElementById("portal-admin-cliente-feedback");
     if (fb) fb.textContent = "";
   });
   document.getElementById("portal-admin-cliente-cpf")?.addEventListener("focus", () => {
-    refreshPortalAdminClienteCpfDatalist();
+    void refreshPortalAdminClienteCpfDatalist();
   });
   document.getElementById("portal-admin-cliente-cpf")?.addEventListener("click", () => {
-    refreshPortalAdminClienteCpfDatalist();
+    void refreshPortalAdminClienteCpfDatalist();
   });
   document.getElementById("portal-admin-cliente-cpf")?.addEventListener("change", () => {
     refreshPortalAdminClienteProtocoloSelect();
