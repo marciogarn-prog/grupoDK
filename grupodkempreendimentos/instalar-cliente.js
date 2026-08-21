@@ -1,30 +1,46 @@
 /**
- * Página dedicada só à instalação PWA (sem redirect para o portal).
+ * Página dedicada só à instalação PWA (sem CPF/senha na URL nem no localStorage).
  */
 (function () {
-  const GATE_KEY = "dk_cliente_app_gate";
-  const GATE_PERSIST = "dk_cliente_gate_persist";
+  const INSTALL_AUTH_KEY = "dk_cliente_install_auth";
 
-  function onlyDigits(s) {
-    return String(s ?? "").replace(/\D/g, "");
-  }
-
-  function normProto(value) {
-    return String(value ?? "")
-      .trim()
-      .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
-  }
-
-  function persistGateFromUrl() {
+  function stripSensitiveQueryFromUrl() {
     try {
-      const q = new URLSearchParams(location.search);
-      const cpf = onlyDigits(q.get("cpf") || "").slice(0, 11);
-      const proto = normProto(q.get("proto") || q.get("protocolo") || "");
-      if (cpf.length !== 11 || !proto) return;
-      const payload = JSON.stringify({ cpf, proto, at: Date.now() });
-      sessionStorage.setItem(GATE_KEY, payload);
-      localStorage.setItem(GATE_PERSIST, payload);
+      const u = new URL(location.href);
+      let dirty = false;
+      ["cpf", "proto", "protocolo", "senha", "password", "pass"].forEach((k) => {
+        if (u.searchParams.has(k)) {
+          u.searchParams.delete(k);
+          dirty = true;
+        }
+      });
+      if (dirty) {
+        history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Aceita autorização da sessão; nunca grava CPF/senha no localStorage. */
+  function consumeInstallAuthFromSession() {
+    try {
+      const raw = sessionStorage.getItem(INSTALL_AUTH_KEY);
+      if (!raw) return;
+      const g = JSON.parse(raw);
+      if (!g?.ok) return;
+      /* Mantém só o flag de instalação autorizada (sem identidade). */
+      sessionStorage.setItem(INSTALL_AUTH_KEY, JSON.stringify({ ok: 1, at: Date.now() }));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function clearCredentialCaches() {
+    try {
+      localStorage.removeItem("dk_cliente_gate_persist");
+      sessionStorage.removeItem("dk_cliente_app_gate");
+      sessionStorage.removeItem("dk_cliente_app_gate_v1");
     } catch {
       /* ignore */
     }
@@ -59,9 +75,11 @@
 
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
-    setStatus("App instalado! A abrir…");
+    setStatus("App instalado! A abrir… Entre com CPF e senha.");
+    clearCredentialCaches();
     try {
       localStorage.setItem("dk_cliente_pwa_installed", "1");
+      sessionStorage.removeItem(INSTALL_AUTH_KEY);
     } catch {
       /* ignore */
     }
@@ -95,7 +113,10 @@
     );
   });
 
-  persistGateFromUrl();
+  stripSensitiveQueryFromUrl();
+  consumeInstallAuthFromSession();
+  /* Nunca gravar CPF/senha vindos de URL antiga no localStorage do PWA. */
+  clearCredentialCaches();
 
   if (isStandalone()) {
     window.location.replace("/cliente");

@@ -9,6 +9,7 @@
   const SESSAO_KEY = "dk_sessao_cliente_app";
   const CLIENTE_APP_GATE_KEY = "dk_cliente_app_gate";
   const GATE_PERSIST_KEY = "dk_cliente_gate_persist";
+  const INSTALL_AUTH_KEY = "dk_cliente_install_auth";
   const SHARE_CACHE_KEY = "dk-shared-comprovante";
   const PENDING_SHARE_SESSION_KEY = "dk_cliente_share_pending";
   const COMPROVANTES_KEY = "dk_cliente_comprovantes_enviados";
@@ -252,10 +253,23 @@
     try {
       sessionStorage.removeItem(CLIENTE_APP_GATE_KEY);
       sessionStorage.removeItem("dk_cliente_app_gate_v1");
+      sessionStorage.removeItem(INSTALL_AUTH_KEY);
       localStorage.removeItem(GATE_PERSIST_KEY);
     } catch {
       /* ignore */
     }
+  }
+
+  /** Gate sem senha — nunca persistir password no browser. */
+  function sanitizeGatePayload(obj) {
+    const cpf = onlyDigits(obj?.cpf || "").slice(0, 11);
+    const proto = normProtoGate(obj?.proto || "");
+    const nome = String(obj?.nome || "").trim();
+    const out = { at: Number(obj?.at) || Date.now() };
+    if (cpf.length === 11) out.cpf = cpf;
+    if (proto) out.proto = proto;
+    if (nome) out.nome = nome;
+    return out;
   }
 
   function setClienteGate(cpf, proto) {
@@ -263,8 +277,9 @@
     const nc = normProtoGate(proto);
     if (dig.length !== 11 || !nc) return false;
     try {
-      const gatePayload = JSON.stringify({ cpf: dig, proto: nc, at: Date.now() });
+      const gatePayload = JSON.stringify(sanitizeGatePayload({ cpf: dig, proto: nc, at: Date.now() }));
       sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
+      /* Persistência só após login explícito — sem senha. */
       localStorage.setItem(GATE_PERSIST_KEY, gatePayload);
       return true;
     } catch {
@@ -509,15 +524,72 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
+  function stripSensitiveQueryFromUrl() {
+    try {
+      const u = new URL(location.href);
+      const adminPreview = u.searchParams.get("adminPreview") === "1";
+      let dirty = false;
+      ["senha", "password", "pass"].forEach((k) => {
+        if (u.searchParams.has(k)) {
+          u.searchParams.delete(k);
+          dirty = true;
+        }
+      });
+      if (!adminPreview) {
+        ["cpf", "proto", "protocolo"].forEach((k) => {
+          if (u.searchParams.has(k)) {
+            u.searchParams.delete(k);
+            dirty = true;
+          }
+        });
+      }
+      if (dirty) {
+        const qs = u.searchParams.toString();
+        history.replaceState(null, "", u.pathname + (qs ? `?${qs}` : "") + u.hash);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function isInstallQueryFlow() {
+    try {
+      return new URLSearchParams(location.search).get("instalar") === "1";
+    } catch {
+      return false;
+    }
+  }
+
   function persistGateFromQuery() {
     try {
       const q = new URLSearchParams(location.search);
+      const adminPreview = q.get("adminPreview") === "1";
       const cpf = onlyDigits(q.get("cpf") || "").slice(0, 11);
       const proto = normProtoGate(q.get("proto") || q.get("protocolo") || "");
-      if (cpf.length !== 11 || !proto) return;
-      const gatePayload = JSON.stringify({ cpf, proto, at: Date.now() });
+      const senhaLeak = q.get("senha") || q.get("password") || q.get("pass");
+      if (senhaLeak) {
+        /* Nunca aceitar senha na URL. */
+        stripSensitiveQueryFromUrl();
+      }
+      if (cpf.length !== 11 || !proto) {
+        if (!adminPreview) stripSensitiveQueryFromUrl();
+        return;
+      }
+      const gatePayload = JSON.stringify(sanitizeGatePayload({ cpf, proto, at: Date.now() }));
       sessionStorage.setItem(CLIENTE_APP_GATE_KEY, gatePayload);
-      localStorage.setItem(GATE_PERSIST_KEY, gatePayload);
+      if (adminPreview) {
+        /* Preview admin: session only — sem localStorage. */
+        localStorage.removeItem(GATE_PERSIST_KEY);
+      } else if (isInstallQueryFlow()) {
+        /* Install: não gravar identidade no localStorage (iria para o PWA). */
+        localStorage.removeItem(GATE_PERSIST_KEY);
+        sessionStorage.setItem(INSTALL_AUTH_KEY, JSON.stringify({ ok: 1, at: Date.now() }));
+        stripSensitiveQueryFromUrl();
+      } else {
+        /* URL antiga com cpf (legado): session only + limpar URL. */
+        localStorage.removeItem(GATE_PERSIST_KEY);
+        stripSensitiveQueryFromUrl();
+      }
     } catch {
       /* ignore */
     }
@@ -529,11 +601,28 @@
       if (sessionStorage.getItem(CLIENTE_APP_GATE_KEY)) return;
       const legacy = sessionStorage.getItem("dk_cliente_app_gate_v1");
       if (legacy) {
-        sessionStorage.setItem(CLIENTE_APP_GATE_KEY, legacy);
+        try {
+          const g = sanitizeGatePayload(JSON.parse(legacy));
+          sessionStorage.setItem(CLIENTE_APP_GATE_KEY, JSON.stringify(g));
+        } catch {
+          sessionStorage.setItem(CLIENTE_APP_GATE_KEY, legacy);
+        }
         return;
       }
+      /* Em fluxo de instalação: não restaurar CPF do localStorage para o formulário/PWA. */
+      if (isInstallQueryFlow() || sessionStorage.getItem(INSTALL_AUTH_KEY)) return;
       const p = localStorage.getItem(GATE_PERSIST_KEY);
-      if (p) sessionStorage.setItem(CLIENTE_APP_GATE_KEY, p);
+      if (p) {
+        try {
+          const g = sanitizeGatePayload(JSON.parse(p));
+          if (g.senha) delete g.senha;
+          sessionStorage.setItem(CLIENTE_APP_GATE_KEY, JSON.stringify(g));
+          /* Regrava limpo (sem senha) se o legado tinha campos a mais. */
+          localStorage.setItem(GATE_PERSIST_KEY, JSON.stringify(g));
+        } catch {
+          sessionStorage.setItem(CLIENTE_APP_GATE_KEY, p);
+        }
+      }
     } catch {
       /* ignore */
     }
@@ -541,8 +630,11 @@
 
   function persistGateFromSession() {
     try {
+      if (isInstallQueryFlow() || sessionStorage.getItem(INSTALL_AUTH_KEY)) return;
       const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY);
-      if (raw) localStorage.setItem(GATE_PERSIST_KEY, raw);
+      if (!raw) return;
+      const g = sanitizeGatePayload(JSON.parse(raw));
+      localStorage.setItem(GATE_PERSIST_KEY, JSON.stringify(g));
     } catch {
       /* ignore */
     }
@@ -2035,7 +2127,16 @@
       /* ignore */
     }
     try {
-      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+      const auth = sessionStorage.getItem(INSTALL_AUTH_KEY);
+      if (auth) {
+        const a = JSON.parse(auth);
+        if (a?.ok && Date.now() - Number(a.at || 0) < 15 * 60 * 1000) return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY);
       if (raw) {
         const g = JSON.parse(raw);
         if (Date.now() - Number(g.at || 0) < 15 * 60 * 1000) return true;
@@ -2083,10 +2184,14 @@
       deferredInstallPrompt = null;
       try {
         localStorage.setItem("dk_cliente_pwa_installed", "1");
+        localStorage.removeItem(GATE_PERSIST_KEY);
+        sessionStorage.removeItem(CLIENTE_APP_GATE_KEY);
+        sessionStorage.removeItem(INSTALL_AUTH_KEY);
       } catch {
         /* ignore */
       }
-      updateInstallPanelUi("App instalado com sucesso. Abra pelo ícone DK no ecrã inicial.");
+      resetLoginForm();
+      updateInstallPanelUi("App instalado com sucesso. Abra pelo ícone DK e entre com CPF e senha.");
       panel?.classList.add("hidden");
       const fb = $("login-feedback");
       if (fb) fb.textContent = "App instalado. Entre com CPF e senha.";
@@ -2134,10 +2239,14 @@
 
   function hasClienteAppDownloadGate() {
     try {
+      const authRaw = sessionStorage.getItem(INSTALL_AUTH_KEY);
+      if (authRaw) {
+        const a = JSON.parse(authRaw);
+        if (a?.ok && Date.now() - Number(a.at || 0) < 15 * 60 * 1000) return true;
+      }
       const raw =
         sessionStorage.getItem(CLIENTE_APP_GATE_KEY) ||
-        sessionStorage.getItem("dk_cliente_app_gate_v1") ||
-        localStorage.getItem(GATE_PERSIST_KEY);
+        sessionStorage.getItem("dk_cliente_app_gate_v1");
       if (!raw) return false;
       const g = JSON.parse(raw);
       const cpf = onlyDigits(String(g?.cpf || "")).slice(0, 11);
@@ -2438,15 +2547,27 @@
     updateLoginProtocoloUi();
 
     if (!getSessao()?.cpf) {
-      const gateRaw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
-      try {
-        const g = gateRaw ? JSON.parse(gateRaw) : null;
-        const gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
-        const gateProto = normProtoGate(g?.proto || "");
-        if (gateCpf && cpfIn && !cpfIn.value) cpfIn.value = formatCpf(gateCpf);
-        if (gateProto && protoIn && !protoIn.value) protoIn.value = gateProto;
-      } catch {
-        /* ignore */
+      const installFlow = isInstallQueryFlow() || Boolean(sessionStorage.getItem(INSTALL_AUTH_KEY));
+      if (!installFlow) {
+        const gateRaw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
+        try {
+          const g = gateRaw ? sanitizeGatePayload(JSON.parse(gateRaw)) : null;
+          const gateCpf = onlyDigits(g?.cpf || "").slice(0, 11);
+          const gateProto = normProtoGate(g?.proto || "");
+          if (gateCpf && cpfIn && !cpfIn.value) cpfIn.value = formatCpf(gateCpf);
+          if (gateProto && protoIn && !protoIn.value) protoIn.value = gateProto;
+        } catch {
+          /* ignore */
+        }
+      } else {
+        /* Download/instalação: formulário vazio — utilizador digita CPF e senha depois. */
+        resetLoginForm();
+        const cpfEl = $("login-cpf");
+        const senhaEl = $("login-senha");
+        const protoEl = $("login-protocolo");
+        if (cpfEl) cpfEl.setAttribute("autocomplete", "off");
+        if (senhaEl) senhaEl.setAttribute("autocomplete", "off");
+        if (protoEl) protoEl.setAttribute("autocomplete", "off");
       }
     }
 

@@ -357,6 +357,35 @@ async function runSuite() {
         html.includes("Baixar app operação") &&
         html.includes("dk-pwa-update.js")
     );
+    {
+      const portalUiVerInstall = (html.match(/portal-locadora-ui\.js\?v=([^"'&]+)/) || [])[1] || "latest";
+      const clienteAppVerInstall =
+        (await fetch(new URL("cliente.html", BASE_URL).href, { cache: "no-store" })
+          .then((r) => (r.ok ? r.text() : ""))
+          .then((t) => (t.match(/cliente-app\.js\?v=([^"'&]+)/) || [])[1])) || "latest";
+      const portalUiInstallJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiVerInstall}`, {
+        cache: "no-store",
+      }).then((r) => (r.ok ? r.text() : ""));
+      const clienteAppInstallJs = await fetch(`${BASE_URL}cliente-app.js?v=${clienteAppVerInstall}`, {
+        cache: "no-store",
+      }).then((r) => (r.ok ? r.text() : ""));
+      const instalarJs = await fetch(`${BASE_URL}instalar-cliente.js?v=20260821install-no-creds`, {
+        cache: "no-store",
+      }).then((r) => (r.ok ? r.text() : ""));
+      record(
+        "install app sem CPF/senha na URL nem localStorage",
+        portalUiInstallJs.includes('return "/instalar"') &&
+          portalUiInstallJs.includes("dk_cliente_install_auth") &&
+          portalUiInstallJs.includes('localStorage.removeItem("dk_cliente_gate_persist")') &&
+          !portalUiInstallJs.includes('instalar: "1", cpf') &&
+          clienteAppInstallJs.includes("stripSensitiveQueryFromUrl") &&
+          clienteAppInstallJs.includes("INSTALL_AUTH_KEY") &&
+          clienteAppInstallJs.includes("sanitizeGatePayload") &&
+          instalarJs.includes("stripSensitiveQueryFromUrl") &&
+          instalarJs.includes("clearCredentialCaches"),
+        "URL /instalar · gate só session · sem senha"
+      );
+    }
     record(
       "depósito documentos CRLV contratos multas (sem IA)",
       html.includes("btn-locadora-documentos") &&
