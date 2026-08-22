@@ -902,7 +902,6 @@ body {
 }
 
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt {
-  color: #111;
   border-bottom-color: rgba(0, 0, 0, 0.08);
 }
 
@@ -921,27 +920,27 @@ body {
   opacity: 0.92;
 }
 
-.portal-admin-cpf-opt--minha-moto,
-.portal-admin-cpf-opt--minha-moto .portal-placa-dropdown__plate,
-.portal-admin-cpf-opt--minha-moto .portal-placa-dropdown__model {
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--minha-moto,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--minha-moto .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--minha-moto .portal-placa-dropdown__model {
   color: #1565c0;
 }
 
-.portal-admin-cpf-opt--meu-transporte,
-.portal-admin-cpf-opt--meu-transporte .portal-placa-dropdown__plate,
-.portal-admin-cpf-opt--meu-transporte .portal-placa-dropdown__model {
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--meu-transporte,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--meu-transporte .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--meu-transporte .portal-placa-dropdown__model {
   color: #2e7d32;
 }
 
-.portal-admin-cpf-opt--carro,
-.portal-admin-cpf-opt--carro .portal-placa-dropdown__plate,
-.portal-admin-cpf-opt--carro .portal-placa-dropdown__model {
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--carro,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--carro .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--carro .portal-placa-dropdown__model {
   color: #6d4c41;
 }
 
-.portal-admin-cpf-opt--inativo,
-.portal-admin-cpf-opt--inativo .portal-placa-dropdown__plate,
-.portal-admin-cpf-opt--inativo .portal-placa-dropdown__model {
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--inativo,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--inativo .portal-placa-dropdown__plate,
+.portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--inativo .portal-placa-dropdown__model {
   color: #111;
 }
 
