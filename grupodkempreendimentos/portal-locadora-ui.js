@@ -2973,6 +2973,42 @@
     if (msg) msg.textContent = `${rows.length} veículo(s) listado(s).`;
   }
 
+  /** Placas sem contrato ativo (não locados) — frota de reserva. */
+  function portalRefreshManutencaoReservaPlacas() {
+    const grid = document.getElementById("portalReservaPlacasGrid");
+    const msg = document.getElementById("portalReservaPlacasMsg");
+    if (!grid) return;
+    const livres =
+      typeof getVeiculosSemProtocoloAtivo === "function" ? getVeiculosSemProtocoloAtivo() : [];
+    const filtro = portalNkPlate(String(document.getElementById("portalReservaPlacaFiltro")?.value || ""));
+    let rows = livres
+      .map((v) => ({
+        placa: portalNkPlate(v.placa),
+        modelo: String(v.modelo || "").trim() || "—",
+        tipo: String(v.tipo || "").trim().toUpperCase() || "",
+      }))
+      .filter((r) => r.placa);
+    if (filtro) rows = rows.filter((r) => r.placa.includes(filtro));
+    rows.sort((a, b) => a.placa.localeCompare(b.placa, "en"));
+    if (!rows.length) {
+      grid.innerHTML = `<p class="portal-manutencao-empty">Nenhuma placa disponível (sem contrato ativo)${filtro ? " para esta busca" : ""}.</p>`;
+      if (msg) msg.textContent = "";
+      return;
+    }
+    grid.innerHTML = rows
+      .map((r) => {
+        const modelo = portalEscapeHtml(r.modelo);
+        const tipo = portalEscapeHtml(r.tipo || "");
+        const title = tipo ? `${r.placa} · ${r.modelo} · ${r.tipo}` : `${r.placa} · ${r.modelo}`;
+        return `<button type="button" class="portal-reserva-placa-btn" role="listitem" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
+          <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(r.placa)}</span>
+          <span class="portal-reserva-placa-btn__model">${modelo}</span>
+        </button>`;
+      })
+      .join("");
+    if (msg) msg.textContent = `${rows.length} placa(s) sem locação ativa.`;
+  }
+
   function portalBindManutencaoListaOnce() {
     if (window.__dkPortalManutencaoListaBound) return;
     window.__dkPortalManutencaoListaBound = true;
@@ -2980,6 +3016,11 @@
     inp?.addEventListener("input", () => {
       inp.value = String(inp.value || "").toUpperCase();
       portalRefreshManutencaoVeiculosLista();
+    });
+    const inpReserva = document.getElementById("portalReservaPlacaFiltro");
+    inpReserva?.addEventListener("input", () => {
+      inpReserva.value = String(inpReserva.value || "").toUpperCase();
+      portalRefreshManutencaoReservaPlacas();
     });
   }
 
@@ -3418,6 +3459,9 @@ ${printable.innerHTML}
       }
       if (panel === "manutencaoInlineEmManutencao") {
         portalRefreshManutencaoVeiculosLista();
+      }
+      if (panel === "manutencaoInlineReserva") {
+        portalRefreshManutencaoReservaPlacas();
       }
     });
   });
@@ -8181,8 +8225,9 @@ ${printable.innerHTML}
   /**
    * Preenche os datalists do formulário de locação (portal): mesmas regras que o painel DK —
    * placas de `getVeiculosSemProtocoloAtivo()`, clientes de `getPortalCadastroLocacaoClienteCandidates()`.
+   * @param {{ openCpfLista?: boolean, skipCpfLista?: boolean }} opts
    */
-  function refreshOperacaoLocacaoDatalists() {
+  function refreshOperacaoLocacaoDatalists(opts = {}) {
     const dlPlaca = document.getElementById("operacaoLocacaoPlacaSugestoes");
     const dlCpf = document.getElementById("operacaoLocacaoCpfSugestoes");
     const dlNome = document.getElementById("operacaoLocacaoClienteSugestoes");
@@ -8209,37 +8254,134 @@ ${printable.innerHTML}
       }
     }
 
-    if (
-      dlCpf &&
-      dlNome &&
-      typeof getPortalCadastroLocacaoClienteCandidates === "function"
-    ) {
+    let candidatos = [];
+    if (typeof getPortalCadastroLocacaoClienteCandidates === "function") {
       const dig =
         typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
       const prefix = dig(prevCpf).slice(0, 11);
-      let candidatos = getPortalCadastroLocacaoClienteCandidates();
+      candidatos = getPortalCadastroLocacaoClienteCandidates();
       if (prefix.length) {
         candidatos = candidatos.filter((c) => dig(String(c.cpf || "")).startsWith(prefix));
       }
       candidatos = candidatos.slice(0, 200);
       const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
-      dlCpf.innerHTML = candidatos
-        .map(
-          (c) =>
-            `<option value="${fmt(c.cpf)}" label="${portalEscapeHtml(String(c.nome || "").trim())}"></option>`
-        )
-        .join("");
-      dlNome.innerHTML = candidatos
-        .map(
-          (c) =>
-            `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
-        )
-        .join("");
+      if (dlCpf) dlCpf.innerHTML = "";
+      if (dlNome) {
+        dlNome.innerHTML = candidatos
+          .map(
+            (c) =>
+              `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
+          )
+          .join("");
+      }
     }
 
     if (inpPlaca) inpPlaca.value = prevPlaca;
     if (inpCpf) inpCpf.value = prevCpf;
     if (inpNome) inpNome.value = prevNome;
+
+    const cpfPanel = document.getElementById("operacaoLocacaoCpfLista");
+    const cpfListaJaAberta =
+      cpfPanel && !cpfPanel.hidden && !cpfPanel.classList.contains("hidden");
+    const openCpfLista =
+      opts.skipCpfLista === true
+        ? false
+        : opts.openCpfLista === true ||
+          (cpfListaJaAberta && document.activeElement === inpCpf);
+    if (openCpfLista) renderOperacaoLocacaoCpfLista(candidatos, { open: true });
+    else if (opts.skipCpfLista === true || document.activeElement !== inpCpf) {
+      hideOperacaoLocacaoCpfLista();
+    }
+  }
+
+  function hideOperacaoLocacaoCpfLista() {
+    const panel = document.getElementById("operacaoLocacaoCpfLista");
+    const inp = document.getElementById("operacaoLocacaoCpf");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function portalLocacaoCpfCorClasse(cpfDigits) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (cpf.length !== 11) return "portal-admin-cpf-opt--inativo";
+    const linhas = (typeof collectOperacaoLancAluguelPesquisaLinhas === "function"
+      ? collectOperacaoLancAluguelPesquisaLinhas()
+      : []
+    ).filter((r) => r.cpf === cpf);
+    if (linhas.length) return portalLancAluguelCpfCorClasseFromLinhas(linhas);
+    if (typeof portalAdminPreviewCpfCorClasse === "function") {
+      return portalAdminPreviewCpfCorClasse(null, cpf);
+    }
+    return "portal-admin-cpf-opt--inativo";
+  }
+
+  function renderOperacaoLocacaoCpfLista(candidatos, opts = {}) {
+    const open = opts.open !== false;
+    const panel = document.getElementById("operacaoLocacaoCpfLista");
+    const inp = document.getElementById("operacaoLocacaoCpf");
+    if (!panel || !inp) return;
+    if (!open) {
+      hideOperacaoLocacaoCpfLista();
+      return;
+    }
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const rows = (Array.isArray(candidatos) ? candidatos : [])
+      .map((c) => ({
+        cpf: dig(String(c.cpf || "")).slice(0, 11),
+        nome: String(c.nome || "").trim() || "Cliente cadastrado",
+      }))
+      .filter((r) => r.cpf.length === 11)
+      .slice(0, 120);
+    if (!rows.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhum CPF cadastrado encontrado.</div>';
+    } else {
+      panel.innerHTML = rows
+        .map((row) => {
+          const cor = portalEscapeHtml(portalLocacaoCpfCorClasse(row.cpf));
+          const nomeLbl = portalEscapeHtml(row.nome);
+          const cpfFmt = portalEscapeHtml(fmt(row.cpf));
+          return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${nomeLbl}">
+              <span class="portal-placa-dropdown__plate">${cpfFmt}</span>
+              <span class="portal-placa-dropdown__model">${nomeLbl}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function operacaoLocacaoCpfEscolher(cpfDigits, nomeHint) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const inpCpf = document.getElementById("operacaoLocacaoCpf");
+    const inpNome = document.getElementById("operacaoLocacaoCliente");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (!inpCpf || cpf.length !== 11) return;
+    inpCpf.value = typeof formatCpf === "function" ? formatCpf(cpf) : cpf;
+    hideOperacaoLocacaoCpfLista();
+    if (inpNome) {
+      const nome =
+        String(nomeHint || "").trim() ||
+        (typeof resolveOperacaoLancAluguelNomePorCpf === "function"
+          ? resolveOperacaoLancAluguelNomePorCpf(cpf)
+          : String(findClienteByCpfCadastro?.(cpf)?.nome || "").trim());
+      if (nome && nome !== "(sem nome)") inpNome.value = nome;
+    }
+    refreshOperacaoLocacaoDatalists({ skipCpfLista: true });
+    void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+    });
   }
 
   /**
@@ -11976,12 +12118,39 @@ ${printable.innerHTML}
       }
     });
 
-    [inpCpf, inpNome].filter(Boolean).forEach((el) => {
-      el.addEventListener("focus", () => refreshOperacaoLocacaoDatalists(), { passive: true });
+    [inpNome].filter(Boolean).forEach((el) => {
+      el.addEventListener("focus", () => refreshOperacaoLocacaoDatalists({ skipCpfLista: true }), {
+        passive: true,
+      });
+    });
+
+    function openOperacaoLocacaoCpfListaSoon() {
+      window.setTimeout(() => {
+        if (document.activeElement !== document.getElementById("operacaoLocacaoCpf")) return;
+        refreshOperacaoLocacaoDatalists({ openCpfLista: true });
+      }, 0);
+    }
+    inpCpf?.addEventListener("focus", () => openOperacaoLocacaoCpfListaSoon());
+    inpCpf?.addEventListener("click", () => openOperacaoLocacaoCpfListaSoon());
+    inpCpf?.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") hideOperacaoLocacaoCpfLista();
+    });
+    document.getElementById("operacaoLocacaoCpfLista")?.addEventListener("mousedown", (e) => {
+      const btn = e.target.closest(".portal-placa-dropdown__opt[data-cpf]");
+      if (!btn) return;
+      e.preventDefault();
+      operacaoLocacaoCpfEscolher(btn.getAttribute("data-cpf") || "", btn.getAttribute("data-nome") || "");
+    });
+    document.addEventListener("mousedown", (e) => {
+      const panel = document.getElementById("operacaoLocacaoCpfLista");
+      const inp = document.getElementById("operacaoLocacaoCpf");
+      if (!panel || panel.hidden || panel.classList.contains("hidden")) return;
+      if (panel.contains(e.target) || inp?.contains(e.target) || e.target === inp) return;
+      hideOperacaoLocacaoCpfLista();
     });
 
     inpPlaca?.addEventListener("focus", () => {
-      refreshOperacaoLocacaoDatalists();
+      refreshOperacaoLocacaoDatalists({ skipCpfLista: true });
       const val = String(inpPlaca.value || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
       if (val === "ABC1D23" && !portalLocacaoPlacasLivresCache.some((x) => x.placa === val)) {
         inpPlaca.value = "";
@@ -12036,6 +12205,7 @@ ${printable.innerHTML}
 
     inpCpf?.addEventListener("blur", () => {
       if (!inpCpf) return;
+      hideOperacaoLocacaoCpfLista();
       const digits =
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
       if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
@@ -12057,35 +12227,7 @@ ${printable.innerHTML}
         typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "")
       ).slice(0, 11);
       if (typeof formatCpf === "function") inpCpf.value = formatCpf(digits);
-      const dlCpf = document.getElementById("operacaoLocacaoCpfSugestoes");
-      const dlNome = document.getElementById("operacaoLocacaoClienteSugestoes");
-      const dig = typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-      const candidatos =
-        typeof getLancamentoClienteCandidates === "function" && digits.length
-          ? getLancamentoClienteCandidates()
-              .filter((c) => dig(String(c.cpf || "")).startsWith(digits))
-              .slice(0, 50)
-          : [];
-        const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
-      if (digits.length) {
-        const opts = candidatos
-          .map(
-            (c) =>
-              `<option value="${fmt(c.cpf)}" label="${portalEscapeHtml(String(c.nome || "").trim())}"></option>`
-          )
-          .join("");
-        if (dlCpf) dlCpf.innerHTML = opts;
-        if (dlNome) {
-        dlNome.innerHTML = candidatos
-          .map(
-            (c) =>
-              `<option value="${portalEscapeHtml(String(c.nome || "").trim())}" label="${fmt(c.cpf)}"></option>`
-          )
-          .join("");
-        }
-      } else if (!digits.length) {
-        refreshOperacaoLocacaoDatalists();
-      }
+      refreshOperacaoLocacaoDatalists({ openCpfLista: true });
       if (digits.length === 11 && inpNome) {
         const nome =
           typeof resolveOperacaoLancAluguelNomePorCpf === "function"
@@ -12093,7 +12235,13 @@ ${printable.innerHTML}
             : String(findClienteByCpfCadastro?.(digits)?.nome || "").trim();
         if (nome) inpNome.value = nome;
       }
-      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      if (digits.length === 11) {
+        void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+          refreshOperacaoLocacaoProtocoloPicker({ force: true });
+        });
+      } else {
+        refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      }
     });
 
     inpNome?.addEventListener("change", () => syncPortalLocacaoCpfFromNomeField());
@@ -13990,6 +14138,7 @@ ${printable.innerHTML}
   window.__DK_filterLancPesquisaLinhas = filterOperacaoLancAluguelPesquisaLinhas;
   window.__DK_resolveLancNomePorCpf = resolveOperacaoLancAluguelNomePorCpf;
   window.__DK_getPortalLancPesquisaLinhaCorClasse = getPortalLancPesquisaLinhaCorClasse;
+  window.__DK_portalLancAluguelCpfCorClasseFromLinhas = portalLancAluguelCpfCorClasseFromLinhas;
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
   window.__DK_getPortalLancamentosAluguelDoContrato = getPortalLancamentosAluguelDoContrato;

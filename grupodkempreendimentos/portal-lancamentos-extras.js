@@ -934,6 +934,91 @@
     hideDetalhe(cfg);
   }
 
+  function hideCpfLista(cfg) {
+    const panel = document.getElementById(`${cfg.prefix}CpfLista`);
+    const inp = $(cfg, "Cpf");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function cpfCorClasseFromLinhas(rows) {
+    if (typeof window.__DK_portalLancAluguelCpfCorClasseFromLinhas === "function") {
+      return window.__DK_portalLancAluguelCpfCorClasseFromLinhas(rows);
+    }
+    if (!rows?.length) return "portal-admin-cpf-opt--inativo";
+    const ativas = rows.filter((r) => r.ativo);
+    const pool = ativas.length ? ativas : rows;
+    const rank = (cls) => {
+      if (cls === "portal-lanc-pesquisa-linha--amarelo") return 3;
+      if (cls === "portal-lanc-pesquisa-linha--azul") return 2;
+      if (cls === "portal-lanc-pesquisa-linha--verde") return 1;
+      return 0;
+    };
+    let best = pool[0];
+    for (const r of pool) {
+      if (rank(r.corClasse) > rank(best.corClasse)) best = r;
+    }
+    if (!best.ativo) return "portal-admin-cpf-opt--inativo";
+    if (best.corClasse === "portal-lanc-pesquisa-linha--azul") return "portal-admin-cpf-opt--minha-moto";
+    if (best.corClasse === "portal-lanc-pesquisa-linha--verde") return "portal-admin-cpf-opt--meu-transporte";
+    if (best.corClasse === "portal-lanc-pesquisa-linha--amarelo") return "portal-admin-cpf-opt--carro";
+    return "portal-admin-cpf-opt--inativo";
+  }
+
+  function renderCpfLista(cfg, cpfsMap, linhasByCpf, opts = {}) {
+    const open = opts.open !== false;
+    const panel = document.getElementById(`${cfg.prefix}CpfLista`);
+    const inp = $(cfg, "Cpf");
+    if (!panel || !inp) return;
+    if (!open) {
+      hideCpfLista(cfg);
+      return;
+    }
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const entries = Array.from(cpfsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(0, 120);
+    if (!entries.length) {
+      panel.innerHTML = '<div class="portal-placa-dropdown__empty">Nenhum CPF encontrado.</div>';
+    } else {
+      panel.innerHTML = entries
+        .map(([cpf, nome]) => {
+          const cor = escHtml(cpfCorClasseFromLinhas(linhasByCpf.get(cpf) || []));
+          const nomeLbl = escHtml(nome || "Cliente cadastrado");
+          const cpfFmt = escHtml(fmt(cpf));
+          return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-cpf="${escHtml(cpf)}" data-nome="${nomeLbl}">
+              <span class="portal-placa-dropdown__plate">${cpfFmt}</span>
+              <span class="portal-placa-dropdown__model">${nomeLbl}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function escolherCpfLista(cfg, cpfDigits, nomeHint) {
+    const inpCpf = $(cfg, "Cpf");
+    const inpNome = $(cfg, "NomeBusca");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (!inpCpf || cpf.length !== 11) return;
+    inpCpf.value = typeof formatCpf === "function" ? formatCpf(cpf) : cpf;
+    hideCpfLista(cfg);
+    if (inpNome) {
+      const nome =
+        String(nomeHint || "").trim() ||
+        resolveNomePorCpf(cpf);
+      if (nome && nome !== "(sem nome)") inpNome.value = nome;
+    }
+    refreshPesquisaAvancada(cfg, { source: "cpf", skipCpfLista: true });
+    hideDetalhe(cfg);
+  }
+
   function refreshPesquisaAvancada(cfg, opts = {}) {
     const source = String(opts.source || "");
     const inpCpf = $(cfg, "Cpf");
@@ -944,7 +1029,7 @@
     const dlNome = document.getElementById(`${cfg.prefix}NomeSugestoes`);
     const dlProto = document.getElementById(`${cfg.prefix}ProtocoloSugestoes`);
     const dlPlaca = document.getElementById(`${cfg.prefix}PlacaSugestoes`);
-    if (!dlCpf || !dlNome || !dlProto) return;
+    if (!dlNome || !dlProto) return;
 
     const prevCpf = String(inpCpf?.value || "").trim();
     const prevNome = String(inpNome?.value || "").trim();
@@ -964,8 +1049,11 @@
     const nomesMap = new Map();
     const protosSet = new Map();
     const placasMap = new Map();
+    const linhasByCpf = new Map();
     filtradas.forEach((row) => {
       if (!cpfsMap.has(row.cpf)) cpfsMap.set(row.cpf, row.nome);
+      if (!linhasByCpf.has(row.cpf)) linhasByCpf.set(row.cpf, []);
+      linhasByCpf.get(row.cpf).push(row);
       const nk = nomeChave(row.nome);
       if (!nomesMap.has(nk)) nomesMap.set(nk, { nome: row.nome, cpf: row.cpf });
       if (!protosSet.has(row.proto)) protosSet.set(row.proto, { cpf: row.cpf, nome: row.nome, placa: row.placa, ativo: row.ativo });
@@ -983,11 +1071,22 @@
         .join("");
     }
 
-    dlCpf.innerHTML = Array.from(cpfsMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(0, 120)
-      .map(([cpf, nome]) => `<option value="${escHtml(fmt(cpf))}" label="${escHtml(nome)}"></option>`)
-      .join("");
+    if (dlCpf) dlCpf.innerHTML = "";
+
+    const cpfPanel = document.getElementById(`${cfg.prefix}CpfLista`);
+    const cpfListaJaAberta =
+      cpfPanel && !cpfPanel.hidden && !cpfPanel.classList.contains("hidden");
+    const openCpfLista =
+      opts.skipCpfLista === true
+        ? false
+        : opts.openCpfLista === true ||
+          source === "cpf" ||
+          (cpfListaJaAberta && document.activeElement === inpCpf);
+    if (openCpfLista) {
+      renderCpfLista(cfg, cpfsMap, linhasByCpf, { open: true });
+    } else if (opts.skipCpfLista === true || source !== "cpf") {
+      if (document.activeElement !== inpCpf) hideCpfLista(cfg);
+    }
 
     dlNome.innerHTML = Array.from(nomesMap.values())
       .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"))
@@ -1197,7 +1296,22 @@
       refreshPesquisaAvancada(cfg, { source: "cpf" });
       hideDetalhe(cfg);
     });
-    $(cfg, "Cpf")?.addEventListener("blur", () => refreshPesquisaAvancada(cfg, { source: "cpf" }));
+    $(cfg, "Cpf")?.addEventListener("focus", () => {
+      refreshPesquisaAvancada(cfg, { source: "cpf", openCpfLista: true });
+    });
+    $(cfg, "Cpf")?.addEventListener("blur", () => {
+      window.setTimeout(() => {
+        if (document.activeElement?.closest?.(`#${cfg.prefix}CpfLista`)) return;
+        hideCpfLista(cfg);
+        refreshPesquisaAvancada(cfg, { source: "cpf", skipCpfLista: true });
+      }, 150);
+    });
+    document.getElementById(`${cfg.prefix}CpfLista`)?.addEventListener("mousedown", (e) => {
+      const btn = e.target.closest("button[data-cpf]");
+      if (!btn) return;
+      e.preventDefault();
+      escolherCpfLista(cfg, btn.getAttribute("data-cpf"), btn.getAttribute("data-nome"));
+    });
 
     $(cfg, "NomeBusca")?.addEventListener("input", () => {
       const msg = $(cfg, "InlineMsg");

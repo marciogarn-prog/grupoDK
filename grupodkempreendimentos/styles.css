@@ -3274,6 +3274,51 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   color: var(--muted);
 }
 
+.portal-reserva-placas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.portal-reserva-placa-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: var(--radius, 8px);
+  background: rgba(220, 38, 38, 0.08);
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.portal-reserva-placa-btn:hover,
+.portal-reserva-placa-btn:focus-visible {
+  background: rgba(220, 38, 38, 0.22);
+  border-color: #dc2626;
+  outline: none;
+}
+
+.portal-reserva-placa-btn__plate {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  font-size: 0.98rem;
+}
+
+.portal-reserva-placa-btn__model {
+  font-size: 0.72rem;
+  color: var(--muted, #a8b0bc);
+  line-height: 1.2;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Operação — WhatsApp clientes ativos */
 .portal-whatsapp-linha-dk {
   margin: 0.35rem 0 0.75rem;
