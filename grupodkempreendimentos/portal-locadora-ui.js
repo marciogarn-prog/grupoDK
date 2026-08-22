@@ -2343,6 +2343,82 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
+    const showSub = activeButtonId === "btn-manutencao-em-manutencao";
+    syncManutEmManutencaoSubnavVisible(showSub);
+    if (!showSub) syncManutEmManutencaoSubButtons(null);
+  }
+
+  const MANUT_EM_MANUT_SUB_META = {
+    "oficina-propria": {
+      title: "Veículos em manutenção — Oficina própria",
+      lead: "Oficina própria DK. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+    "oficina-terceiros": {
+      title: "Veículos em manutenção — Oficina de terceiros",
+      lead: "Oficina de terceiros. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+    "enviado-seguro": {
+      title: "Veículos em manutenção — Enviado para seguro",
+      lead: "Enviado para seguro. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+    "sinistrado-roubo": {
+      title: "Veículos em manutenção — Sinistrado Roubo",
+      lead: "Sinistrado / roubo. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+  };
+
+  let portalManutEmManutSubAtivo = "oficina-propria";
+
+  function syncManutEmManutencaoSubnavVisible(visible) {
+    const nav = document.getElementById("manutencaoEmManutencaoSubnav");
+    if (!nav) return;
+    nav.classList.toggle("hidden", !visible);
+    if (visible) nav.removeAttribute("hidden");
+    else nav.setAttribute("hidden", "");
+  }
+
+  function syncManutEmManutencaoSubButtons(activeSub) {
+    const sub = activeSub && MANUT_EM_MANUT_SUB_META[activeSub] ? activeSub : "";
+    if (sub) portalManutEmManutSubAtivo = sub;
+    document.querySelectorAll("[data-manut-sub]").forEach((b) => {
+      const on = Boolean(sub) && b.getAttribute("data-manut-sub") === sub;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+  }
+
+  function portalNormManutCategoria(raw) {
+    const k = String(raw || "")
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+    if (MANUT_EM_MANUT_SUB_META[k]) return k;
+    return "";
+  }
+
+  function portalManutRegistroNaCategoria(m, sub) {
+    const cat = portalNormManutCategoria(m?.categoriaManutencao || m?.categoria || "");
+    const alvo = portalNormManutCategoria(sub) || "oficina-propria";
+    if (cat) return cat === alvo;
+    /* Registos antigos sem categoria → Oficina própria */
+    return alvo === "oficina-propria";
+  }
+
+  function openManutencaoEmManutencaoSub(subRaw) {
+    const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "oficina-propria";
+    portalManutEmManutSubAtivo = sub;
+    portalRefreshOperacaoLocal();
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(false);
+    document.getElementById("manutencaoInlineEmManutencao")?.classList.remove("hidden");
+    syncManutencaoSidebarButtons("btn-manutencao-em-manutencao");
+    syncManutEmManutencaoSubButtons(sub);
+    const meta = MANUT_EM_MANUT_SUB_META[sub];
+    const titleEl = document.getElementById("manutencao-title-em-manutencao");
+    const leadEl = document.getElementById("portalChecklistLeadManutencao");
+    if (titleEl) titleEl.textContent = meta.title;
+    if (leadEl) leadEl.textContent = meta.lead;
+    portalAttachChecklistWorkspace("manutencao");
   }
 
   btnManutencao?.addEventListener("click", () => {
@@ -2435,8 +2511,10 @@
     if (portalChecklistIsManutencaoMode()) {
       if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
         const seen = new Set();
+        const sub = portalManutEmManutSubAtivo || "oficina-propria";
         loadCadastro(CAD_MANUTENCOES_KEY)
           .filter((m) => !String(m.dataRealSaida || "").trim())
+          .filter((m) => portalManutRegistroNaCategoria(m, sub))
           .forEach((m) => {
             const plateKey = portalNkPlate(m.placa);
             if (!plateKey || seen.has(plateKey)) return;
@@ -3010,6 +3088,7 @@
       dataRealSaida: "",
       valor: "",
       origemPortalChecklist: true,
+      categoriaManutencao: "oficina-propria",
     });
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
     if (typeof addAuditLog === "function") {
@@ -3752,7 +3831,6 @@
 
   [
     { btn: "btn-manutencao-em-operacao", panel: "manutencaoInlineEmOperacao" },
-    { btn: "btn-manutencao-em-manutencao", panel: "manutencaoInlineEmManutencao" },
     { btn: "btn-manutencao-reserva", panel: "manutencaoInlineReserva" },
     { btn: "btn-manutencao-operacionais", panel: "manutencaoInlineOperacionais" },
   ].forEach(({ btn, panel }) => {
@@ -3765,12 +3843,20 @@
       if (panel === "manutencaoInlineEmOperacao") {
         portalAttachChecklistWorkspace("operacao");
       }
-      if (panel === "manutencaoInlineEmManutencao") {
-        portalAttachChecklistWorkspace("manutencao");
-      }
       if (panel === "manutencaoInlineReserva") {
         portalRefreshManutencaoReservaPlacas();
       }
+    });
+  });
+
+  document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
+    openManutencaoEmManutencaoSub(portalManutEmManutSubAtivo || "oficina-propria");
+  });
+
+  document.querySelectorAll("[data-manut-sub]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const sub = btn.getAttribute("data-manut-sub") || "oficina-propria";
+      openManutencaoEmManutencaoSub(sub);
     });
   });
 
@@ -14438,6 +14524,10 @@
     syncManutencaoSidebarButtons(null);
   };
   window.__DK_showManutencaoInlinePanel = (panelId, btnId) => {
+    if (panelId === "manutencaoInlineEmManutencao" || btnId === "btn-manutencao-em-manutencao") {
+      openManutencaoEmManutencaoSub(portalManutEmManutSubAtivo || "oficina-propria");
+      return;
+    }
     hideManutencaoInlineFormsCore();
     setManutencaoFormPlaceholderVisible(false);
     document.getElementById(panelId)?.classList.remove("hidden");
