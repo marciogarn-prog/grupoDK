@@ -13014,19 +13014,21 @@ ${printable.innerHTML}
     });
     hideOperacaoLancAluguelDetalhePanels();
   });
+  function openOperacaoLancAluguelProtoListaSoon() {
+    window.setTimeout(() => {
+      if (document.activeElement !== document.getElementById("operacaoLancAluguelProtocoloBusca")) return;
+      refreshOperacaoLancAluguelPesquisaDatalists({
+        source: "proto",
+        openProtoLista: true,
+        skipCpfLista: true,
+      });
+    }, 0);
+  }
   document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("focus", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({
-      source: "proto",
-      openProtoLista: true,
-      skipCpfLista: true,
-    });
+    openOperacaoLancAluguelProtoListaSoon();
   });
   document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("click", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({
-      source: "proto",
-      openProtoLista: true,
-      skipCpfLista: true,
-    });
+    openOperacaoLancAluguelProtoListaSoon();
   });
   document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideOperacaoLancAluguelProtoLista();
