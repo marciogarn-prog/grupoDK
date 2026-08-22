@@ -2973,25 +2973,37 @@
     if (msg) msg.textContent = `${rows.length} veículo(s) listado(s).`;
   }
 
-  /** Placas sem contrato ativo (não locados) — frota de reserva. */
+  /** Mesmas placas «Disponível» (vermelho) da Frota cadastrada — Cadastro de veículo. */
+  function portalColetarVeiculosDisponiveisFrota() {
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      refreshOperacaoVeiculoPlacasCache();
+    }
+    const veiculos = (portalVeiculoPlacasCache || []).map((x) => x.record).filter(Boolean);
+    return veiculos.filter((v) => {
+      const d = getPortalResumoVeiculoCardData(v);
+      return d.statusText === "Disponível";
+    });
+  }
+
+  /** Placas disponíveis (= frota com status vermelho «Disponível»). */
   function portalRefreshManutencaoReservaPlacas() {
     const grid = document.getElementById("portalReservaPlacasGrid");
     const msg = document.getElementById("portalReservaPlacasMsg");
     if (!grid) return;
-    const livres =
-      typeof getVeiculosSemProtocoloAtivo === "function" ? getVeiculosSemProtocoloAtivo() : [];
+    const livres = portalColetarVeiculosDisponiveisFrota();
     const filtro = portalNkPlate(String(document.getElementById("portalReservaPlacaFiltro")?.value || ""));
     let rows = livres
       .map((v) => ({
         placa: portalNkPlate(v.placa),
         modelo: String(v.modelo || "").trim() || "—",
         tipo: String(v.tipo || "").trim().toUpperCase() || "",
+        codigo: String(v.codigo || v.tag || "").trim() || "",
       }))
       .filter((r) => r.placa);
-    if (filtro) rows = rows.filter((r) => r.placa.includes(filtro));
+    if (filtro) rows = rows.filter((r) => r.placa.includes(filtro) || r.codigo.toUpperCase().includes(filtro));
     rows.sort((a, b) => a.placa.localeCompare(b.placa, "en"));
     if (!rows.length) {
-      grid.innerHTML = `<p class="portal-manutencao-empty">Nenhuma placa disponível (sem contrato ativo)${filtro ? " para esta busca" : ""}.</p>`;
+      grid.innerHTML = `<p class="portal-manutencao-empty">Nenhuma placa disponível (igual à frota vermelha)${filtro ? " para esta busca" : ""}.</p>`;
       if (msg) msg.textContent = "";
       return;
     }
@@ -2999,14 +3011,14 @@
       .map((r) => {
         const modelo = portalEscapeHtml(r.modelo);
         const tipo = portalEscapeHtml(r.tipo || "");
-        const title = tipo ? `${r.placa} · ${r.modelo} · ${r.tipo}` : `${r.placa} · ${r.modelo}`;
+        const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
         return `<button type="button" class="portal-reserva-placa-btn" role="listitem" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
           <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(r.placa)}</span>
           <span class="portal-reserva-placa-btn__model">${modelo}</span>
         </button>`;
       })
       .join("");
-    if (msg) msg.textContent = `${rows.length} placa(s) sem locação ativa.`;
+    if (msg) msg.textContent = `${rows.length} placa(s) disponíveis (mesma lista da frota).`;
   }
 
   function portalBindManutencaoListaOnce() {

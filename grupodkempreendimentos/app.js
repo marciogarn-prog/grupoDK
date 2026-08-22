@@ -4098,12 +4098,16 @@ function refreshLocacaoPlacaOptions() {
 }
 
 /**
- * Veículos elegíveis para **nova** locação: placa sem protocolo ativo (contrato sem data fim).
- * Não limita por CPF — o cliente pode já ter outra locação ativa noutra placa.
+ * Veículos elegíveis para **nova** locação / reserva: mesma regra da frota «Disponível»
+ * (sem protocolo ativo, fora de manutenção aberta, status não indisponível).
+ * Fonte de veículos: cadastro unificado (`loadAllVeiculosCadastro`).
  * Fonte de placas ocupadas: cadastro local + Receita 2026 (`getActivePlatesSet`).
  */
 function getVeiculosSemProtocoloAtivo() {
-  const allVeiculos = loadCadastro(CAD_VEICULOS_KEY);
+  const allVeiculos =
+    typeof loadAllVeiculosCadastro === "function"
+      ? loadAllVeiculosCadastro()
+      : loadCadastro(CAD_VEICULOS_KEY);
   const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
   const placasEmManutencao = new Set(
     manutencoes
@@ -4112,22 +4116,21 @@ function getVeiculosSemProtocoloAtivo() {
       .filter(Boolean)
   );
   const placasComProtocoloAtivo = getActivePlatesSet();
-  return allVeiculos
-    .filter((v) => {
-      const plate = normalizePlate(v.placa);
-      const indisponivel = normalizeKey(v.status).includes("INDISPONIVEL POR");
-      return (
-        plate &&
-        !indisponivel &&
-        !placasEmManutencao.has(plate) &&
-        !placasComProtocoloAtivo.has(plate)
-      );
-    })
-    .sort((a, b) => {
-      const byModelo = String(a.modelo || "").localeCompare(String(b.modelo || ""), "pt-BR");
-      if (byModelo !== 0) return byModelo;
-      return normalizePlate(a.placa).localeCompare(normalizePlate(b.placa));
-    });
+  const byPlate = new Map();
+  allVeiculos.forEach((v) => {
+    const plate = normalizePlate(v.placa);
+    if (!plate || byPlate.has(plate)) return;
+    const indisponivel = normalizeKey(v.status).includes("INDISPONIVEL");
+    if (indisponivel || placasEmManutencao.has(plate) || placasComProtocoloAtivo.has(plate)) {
+      return;
+    }
+    byPlate.set(plate, v);
+  });
+  return Array.from(byPlate.values()).sort((a, b) => {
+    const byModelo = String(a.modelo || "").localeCompare(String(b.modelo || ""), "pt-BR");
+    if (byModelo !== 0) return byModelo;
+    return normalizePlate(a.placa).localeCompare(normalizePlate(b.placa));
+  });
 }
 
 function refreshLocacaoClienteSugestoes() {
