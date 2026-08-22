@@ -10719,6 +10719,17 @@ ${printable.innerHTML}
     if (inp) inp.setAttribute("aria-expanded", "false");
   }
 
+  function hideOperacaoLancAluguelProtoLista() {
+    const panel = document.getElementById("operacaoLancAluguelProtoLista");
+    const inp = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
   function renderOperacaoLancAluguelCpfLista(cpfsMap, linhasByCpf, opts = {}) {
     const open = opts.open !== false;
     const panel = document.getElementById("operacaoLancAluguelCpfLista");
@@ -10728,6 +10739,7 @@ ${printable.innerHTML}
       hideOperacaoLancAluguelCpfLista();
       return;
     }
+    hideOperacaoLancAluguelProtoLista();
     const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
     const entries = Array.from(cpfsMap.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
@@ -10755,6 +10767,44 @@ ${printable.innerHTML}
     inp.setAttribute("aria-expanded", "true");
   }
 
+  function renderOperacaoLancAluguelProtoLista(protosSet, opts = {}) {
+    const open = opts.open !== false;
+    const panel = document.getElementById("operacaoLancAluguelProtoLista");
+    const inp = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    if (!panel || !inp) return;
+    if (!open) {
+      hideOperacaoLancAluguelProtoLista();
+      return;
+    }
+    hideOperacaoLancAluguelCpfLista();
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const entries = Array.from(protosSet.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(0, 120);
+    if (!entries.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhum protocolo encontrado.</div>';
+    } else {
+      panel.innerHTML = entries
+        .map(([proto, meta]) => {
+          const cor = portalEscapeHtml(
+            meta.ativo === false
+              ? "portal-admin-cpf-opt--inativo"
+              : portalLancPesquisaLinhaCorParaCpfOpt(meta.corClasse || "")
+          );
+          const sub = `${fmt(meta.cpf)} · ${meta.nome || "Cliente"}${meta.placa ? ` · ${meta.placa}` : ""}`;
+          return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-proto="${portalEscapeHtml(proto)}" data-cpf="${portalEscapeHtml(meta.cpf || "")}" data-nome="${portalEscapeHtml(meta.nome || "")}" data-placa="${portalEscapeHtml(meta.placa || "")}">
+              <span class="portal-placa-dropdown__plate">${portalEscapeHtml(proto)}</span>
+              <span class="portal-placa-dropdown__model">${portalEscapeHtml(sub)}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
   function operacaoLancAluguelCpfEscolher(cpfDigits, nomeHint) {
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
@@ -10763,10 +10813,15 @@ ${printable.innerHTML}
     if (!inp || cpf.length !== 11) return;
     inp.value = typeof formatCpf === "function" ? formatCpf(cpf) : cpf;
     hideOperacaoLancAluguelCpfLista();
+    hideOperacaoLancAluguelProtoLista();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     clearOperacaoLancAluguelPesquisaConfirmada();
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", skipCpfLista: true });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "cpf",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
     if (nomeHint) {
       const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
       if (inpNome && String(nomeHint).trim() && String(nomeHint).trim() !== "(sem nome)") {
@@ -10779,9 +10834,45 @@ ${printable.innerHTML}
     hideOperacaoLancAluguelDetalhePanels();
   }
 
+  function operacaoLancAluguelProtoEscolher(protoRaw, meta = {}) {
+    const inp = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    const proto = normPortalNumeroContrato(String(protoRaw || "").trim());
+    if (!inp || !proto) return;
+    inp.value = proto;
+    hideOperacaoLancAluguelProtoLista();
+    hideOperacaoLancAluguelCpfLista();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
+    clearOperacaoLancAluguelPesquisaConfirmada();
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const cpf = dig(String(meta.cpf || "")).slice(0, 11);
+    if (cpf.length === 11) {
+      const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+      if (inpCpf) inpCpf.value = fmt(cpf);
+    }
+    if (meta.nome) {
+      const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
+      if (inpNome && String(meta.nome).trim() && String(meta.nome).trim() !== "(sem nome)") {
+        inpNome.value = String(meta.nome).trim();
+      }
+    }
+    if (meta.placa) {
+      const inpPlaca = document.getElementById("operacaoLancAluguelPlacaBusca");
+      if (inpPlaca) inpPlaca.value = String(meta.placa).trim();
+    }
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "proto",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
+    hideOperacaoLancAluguelDetalhePanels();
+  }
+
   /**
    * Atualiza datalists de nome, CPF e protocolo com filtro cruzado em tempo real.
-   * @param {{ source?: 'cpf'|'nome'|'proto'|'placa', skipCpfLista?: boolean, openCpfLista?: boolean }} opts
+   * @param {{ source?: 'cpf'|'nome'|'proto'|'placa', skipCpfLista?: boolean, openCpfLista?: boolean, skipProtoLista?: boolean, openProtoLista?: boolean }} opts
    */
   function refreshOperacaoLancAluguelPesquisaDatalists(opts = {}) {
     const source = String(opts.source || "");
@@ -10793,7 +10884,7 @@ ${printable.innerHTML}
     const dlNome = document.getElementById("operacaoLancAluguelNomeSugestoes");
     const dlProto = document.getElementById("operacaoLancAluguelProtocoloSugestoes");
     const dlPlaca = document.getElementById("operacaoLancAluguelPlacaSugestoes");
-    if (!dlNome || !dlProto) return;
+    if (!dlNome) return;
 
     const prevCpf = String(inpCpf?.value || "").trim();
     const prevNome = String(inpNome?.value || "").trim();
@@ -10823,11 +10914,20 @@ ${printable.innerHTML}
       linhasByCpf.get(row.cpf).push(row);
       const nk = portalNomeChaveBusca(row.nome);
       if (!nomesMap.has(nk)) nomesMap.set(nk, { nome: row.nome, cpf: row.cpf });
-      if (!protosSet.has(row.proto)) protosSet.set(row.proto, { cpf: row.cpf, nome: row.nome, placa: row.placa });
+      if (!protosSet.has(row.proto)) {
+        protosSet.set(row.proto, {
+          cpf: row.cpf,
+          nome: row.nome,
+          placa: row.placa,
+          corClasse: row.corClasse,
+          ativo: row.ativo,
+        });
+      }
       if (row.placa && !placasSet.has(row.placa)) placasSet.set(row.placa, { cpf: row.cpf, nome: row.nome, proto: row.proto });
     });
 
     if (dlCpf) dlCpf.innerHTML = "";
+    if (dlProto) dlProto.innerHTML = "";
 
     const cpfPanel = document.getElementById("operacaoLancAluguelCpfLista");
     const cpfListaJaAberta =
@@ -10844,6 +10944,21 @@ ${printable.innerHTML}
       if (document.activeElement !== inpCpf) hideOperacaoLancAluguelCpfLista();
     }
 
+    const protoPanel = document.getElementById("operacaoLancAluguelProtoLista");
+    const protoListaJaAberta =
+      protoPanel && !protoPanel.hidden && !protoPanel.classList.contains("hidden");
+    const openProtoLista =
+      opts.skipProtoLista === true
+        ? false
+        : opts.openProtoLista === true ||
+          source === "proto" ||
+          (protoListaJaAberta && document.activeElement === inpProto);
+    if (openProtoLista) {
+      renderOperacaoLancAluguelProtoLista(protosSet, { open: true });
+    } else if (opts.skipProtoLista === true || source !== "proto") {
+      if (document.activeElement !== inpProto) hideOperacaoLancAluguelProtoLista();
+    }
+
     dlNome.innerHTML = Array.from(nomesMap.values())
       .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"))
       .slice(0, 120)
@@ -10851,15 +10966,6 @@ ${printable.innerHTML}
         (row) =>
           `<option value="${portalEscapeHtml(row.nome)}" label="${portalEscapeHtml(fmt(row.cpf))}"></option>`
       )
-      .join("");
-
-    dlProto.innerHTML = Array.from(protosSet.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(0, 120)
-      .map(([proto, meta]) => {
-        const lbl = `${fmt(meta.cpf)} · ${meta.nome}${meta.placa ? ` · ${meta.placa}` : ""}`;
-        return `<option value="${portalEscapeHtml(proto)}" label="${portalEscapeHtml(lbl)}"></option>`;
-      })
       .join("");
 
     if (dlPlaca) {
@@ -12816,22 +12922,38 @@ ${printable.innerHTML}
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => {
     syncOperacaoLancamentoAluguelAfterCpfEdit();
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", skipCpfLista: true });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "cpf",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     clearOperacaoLancAluguelPesquisaConfirmada();
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", openCpfLista: true });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "cpf",
+      openCpfLista: true,
+      skipProtoLista: true,
+    });
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     hideOperacaoLancAluguelDetalhePanels();
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("focus", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", openCpfLista: true });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "cpf",
+      openCpfLista: true,
+      skipProtoLista: true,
+    });
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("click", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", openCpfLista: true });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "cpf",
+      openCpfLista: true,
+      skipProtoLista: true,
+    });
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("keydown", (e) => {
     if (e.key === "Escape") hideOperacaoLancAluguelCpfLista();
@@ -12849,6 +12971,13 @@ ${printable.innerHTML}
     if (panel.contains(e.target) || inp?.contains(e.target) || e.target === inp) return;
     hideOperacaoLancAluguelCpfLista();
   });
+  document.addEventListener("mousedown", (e) => {
+    const panel = document.getElementById("operacaoLancAluguelProtoLista");
+    const inp = document.getElementById("operacaoLancAluguelProtocoloBusca");
+    if (!panel || panel.hidden || panel.classList.contains("hidden")) return;
+    if (panel.contains(e.target) || inp?.contains(e.target) || e.target === inp) return;
+    hideOperacaoLancAluguelProtoLista();
+  });
 
   document.getElementById("operacaoLancAluguelConfirmarPesquisaBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
@@ -12861,29 +12990,80 @@ ${printable.innerHTML}
   document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "nome" });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "nome",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
     hideOperacaoLancAluguelDetalhePanels();
   });
   document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("change", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "nome" });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "nome",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
   });
   document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "proto" });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "proto",
+      openProtoLista: true,
+      skipCpfLista: true,
+    });
     hideOperacaoLancAluguelDetalhePanels();
   });
+  document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("focus", () => {
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "proto",
+      openProtoLista: true,
+      skipCpfLista: true,
+    });
+  });
+  document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("click", () => {
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "proto",
+      openProtoLista: true,
+      skipCpfLista: true,
+    });
+  });
+  document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideOperacaoLancAluguelProtoLista();
+  });
   document.getElementById("operacaoLancAluguelProtocoloBusca")?.addEventListener("change", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "proto" });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "proto",
+      skipProtoLista: true,
+      skipCpfLista: true,
+    });
+  });
+  document.getElementById("operacaoLancAluguelProtoLista")?.addEventListener("mousedown", (e) => {
+    const btn = e.target.closest(".portal-placa-dropdown__opt[data-proto]");
+    if (!btn) return;
+    e.preventDefault();
+    operacaoLancAluguelProtoEscolher(btn.getAttribute("data-proto") || "", {
+      cpf: btn.getAttribute("data-cpf") || "",
+      nome: btn.getAttribute("data-nome") || "",
+      placa: btn.getAttribute("data-placa") || "",
+    });
   });
   document.getElementById("operacaoLancAluguelPlacaBusca")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "placa" });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "placa",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
     hideOperacaoLancAluguelDetalhePanels();
   });
   document.getElementById("operacaoLancAluguelPlacaBusca")?.addEventListener("change", () => {
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "placa" });
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      source: "placa",
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
   });
 
   // Ligado ao contentor inteiro do Lançamento de aluguel: a lista de sugestões
