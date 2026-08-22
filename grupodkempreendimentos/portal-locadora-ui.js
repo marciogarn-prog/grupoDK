@@ -83,12 +83,24 @@
 
   window.__DK_portalSyncComunicacaoBarLayout = portalSyncComunicacaoBarLayout;
 
+  function portalTemSessaoEquipaAtiva() {
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return false;
+      const s = JSON.parse(raw);
+      return s?.tipo === "admin";
+    } catch {
+      return false;
+    }
+  }
+
   function portalAtualizarBannerAdmin() {
     const banner = document.getElementById("portal-admin-banner");
     if (!banner) return;
     const on = isPortalAdministradorLogado();
     banner.classList.toggle("hidden", !on);
     document.body.classList.toggle("portal-body--admin-logado", on);
+    document.body.classList.toggle("portal-body--equipa-sessao", portalTemSessaoEquipaAtiva());
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
     portalSyncAmbienteCadastroAdminUi();
@@ -486,6 +498,10 @@
   function portalAdminNav(dest) {
     if (dest === "sair") {
       btnSair?.click();
+      return;
+    }
+    if (dest === "voltar") {
+      portalAcaoVoltarTela();
       return;
     }
     if (dest === "home") {
