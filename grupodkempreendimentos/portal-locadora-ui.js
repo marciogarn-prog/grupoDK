@@ -152,6 +152,7 @@
     if (cls === "portal-lanc-pesquisa-linha--azul") return "portal-admin-cpf-opt--minha-moto";
     if (cls === "portal-lanc-pesquisa-linha--verde") return "portal-admin-cpf-opt--meu-transporte";
     if (cls === "portal-lanc-pesquisa-linha--amarelo") return "portal-admin-cpf-opt--carro";
+    if (cls === "portal-lanc-pesquisa-linha--vermelho") return "portal-admin-cpf-opt--inativo";
     const ativo =
       typeof isPortalLocacaoAtiva === "function"
         ? isPortalLocacaoAtiva(loc)
@@ -258,6 +259,12 @@
     if (inp) inp.setAttribute("aria-expanded", "false");
   }
 
+  function portalAdminPreviewRefreshCpfListaSeAberta() {
+    const panel = document.getElementById("portal-admin-cliente-cpf-lista");
+    const open = panel && !panel.hidden && !panel.classList.contains("hidden");
+    if (open) void refreshPortalAdminClienteCpfDatalist({ open: true, skipPull: true });
+  }
+
   async function portalAdminPreviewPullLocacoesLight(ms = 10000) {
     if (portalAdminPreviewTemLocacoesParaCores()) return true;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return false;
@@ -276,13 +283,14 @@
       });
       const data = await res.json().catch(() => ({}));
       const locs = data?.payload?.dk_locacoes_cadastro;
-      if (!Array.isArray(locs) || !locs.length) return false;
+      if (!Array.isArray(locs) || !locs.length) return portalAdminPreviewTemLocacoesParaCores();
       const local = loadCadastro(CAD_LOCACOES_KEY);
-      if (local.length) return true;
-      saveCadastro(CAD_LOCACOES_KEY, locs);
-      return true;
+      if (!local.length || locs.length > local.length) {
+        saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
+      }
+      return portalAdminPreviewTemLocacoesParaCores();
     } catch {
-      return false;
+      return portalAdminPreviewTemLocacoesParaCores();
     } finally {
       if (timer) window.clearTimeout(timer);
     }
@@ -309,9 +317,7 @@
     }
     void pullPromise.then(() => {
       if (!portalAdminPreviewTemLocacoesParaCores()) return;
-      const panel = document.getElementById("portal-admin-cliente-cpf-lista");
-      const open = panel && !panel.hidden && !panel.classList.contains("hidden");
-      if (open) void refreshPortalAdminClienteCpfDatalist({ open: true, skipPull: true });
+      portalAdminPreviewRefreshCpfListaSeAberta();
     });
     return portalAdminPreviewTemLocacoesParaCores();
   }
@@ -425,6 +431,11 @@
     if (adminOn) {
       refreshPortalAdminClienteCpfDatalist({ open: false });
       refreshPortalAdminClienteProtocoloSelect();
+      if (!portalAdminPreviewTemLocacoesParaCores()) {
+        void portalAdminPreviewEnsureLocacoes(12000).then((ok) => {
+          if (ok) portalAdminPreviewRefreshCpfListaSeAberta();
+        });
+      }
     }
   }
 
@@ -1574,7 +1585,9 @@
     portalRenderAdminClientePreviewUi();
     portalAtualizarBannerAdmin();
     if (isPortalAdministradorLogado() && !portalAdminPreviewTemLocacoesParaCores()) {
-      void portalAdminPreviewPullLocacoesLight(10000).catch(() => null);
+      void portalAdminPreviewEnsureLocacoes(12000).then((ok) => {
+        if (ok) portalAdminPreviewRefreshCpfListaSeAberta();
+      });
     }
   }
 
