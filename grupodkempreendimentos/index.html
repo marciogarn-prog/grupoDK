@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260822lanc-proto-cores2">
+  <link rel="stylesheet" href="styles.css?v=20260822reserva-placas">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -704,9 +704,31 @@
                 <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLocacaoProtocoloAdminCarregarBtn">Carregar protocolo</button>
               </div>
             </label>
-            <label class="portal-field">
+            <label class="portal-field portal-field--combobox">
               <span>CPF</span>
-              <input type="text" id="operacaoLocacaoCpf" name="cpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF" list="operacaoLocacaoCpfSugestoes" aria-autocomplete="list">
+              <div class="portal-combobox">
+                <input
+                  type="text"
+                  id="operacaoLocacaoCpf"
+                  name="cpf"
+                  inputmode="numeric"
+                  maxlength="14"
+                  autocomplete="off"
+                  required
+                  placeholder="000.000.000-00"
+                  aria-label="CPF"
+                  aria-autocomplete="list"
+                  aria-expanded="false"
+                  aria-controls="operacaoLocacaoCpfLista"
+                >
+                <div
+                  id="operacaoLocacaoCpfLista"
+                  class="portal-placa-dropdown portal-admin-cpf-dropdown hidden"
+                  role="listbox"
+                  aria-label="CPFs cadastrados"
+                  hidden
+                ></div>
+              </div>
             </label>
             <label class="portal-field">
               <span>CLIENTE</span>
@@ -835,7 +857,7 @@
               <input type="text" id="operacaoLocacaoTotalPagoAno2025" name="totalPagoAno2025" readonly tabindex="-1">
             </div>
             <datalist id="operacaoLocacaoPlacaSugestoes"></datalist>
-            <datalist id="operacaoLocacaoCpfSugestoes"></datalist>
+            <datalist id="operacaoLocacaoCpfSugestoes" hidden></datalist>
             <datalist id="operacaoLocacaoClienteSugestoes"></datalist>
 
             <div id="operacaoLocacaoDocumentosWrap" class="portal-field portal-field--wide portal-loc-docs portal-loc-docs--cadastro hidden" aria-live="polite">
@@ -1341,11 +1363,14 @@
                   <input type="text" id="operacaoLancMultasNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancMultasNomeSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancMultasNomeSugestoes"></datalist>
                 </label>
-                <label class="portal-field">
-                  <span>CPF</span>
-                  <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancMultasCpfSugestoes" aria-autocomplete="list">
-                  <datalist id="operacaoLancMultasCpfSugestoes"></datalist>
-                </label>
+                  <label class="portal-field portal-field--combobox">
+                    <span>CPF</span>
+                    <div class="portal-combobox">
+                      <input type="text" id="operacaoLancMultasCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" aria-autocomplete="list" aria-expanded="false" aria-controls="operacaoLancMultasCpfLista">
+                      <div id="operacaoLancMultasCpfLista" class="portal-placa-dropdown portal-admin-cpf-dropdown hidden" role="listbox" aria-label="CPFs com contrato" hidden></div>
+                    </div>
+                    <datalist id="operacaoLancMultasCpfSugestoes" hidden></datalist>
+                  </label>
                 <label class="portal-field">
                   <span>Nº do protocolo</span>
                   <input type="text" id="operacaoLancMultasProtocoloBusca" autocomplete="off" maxlength="40" placeholder="Ex.: 2026011601" list="operacaoLancMultasProtocoloSugestoes" aria-autocomplete="list">
@@ -1572,10 +1597,13 @@
                   <input type="text" id="operacaoLancManutencaoNomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" list="operacaoLancManutencaoNomeSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancManutencaoNomeSugestoes"></datalist>
                 </label>
-                <label class="portal-field">
+                <label class="portal-field portal-field--combobox">
                   <span>CPF</span>
-                  <input type="text" id="operacaoLancManutencaoCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" list="operacaoLancManutencaoCpfSugestoes" aria-autocomplete="list">
-                  <datalist id="operacaoLancManutencaoCpfSugestoes"></datalist>
+                  <div class="portal-combobox">
+                    <input type="text" id="operacaoLancManutencaoCpf" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00" aria-autocomplete="list" aria-expanded="false" aria-controls="operacaoLancManutencaoCpfLista">
+                    <div id="operacaoLancManutencaoCpfLista" class="portal-placa-dropdown portal-admin-cpf-dropdown hidden" role="listbox" aria-label="CPFs com contrato" hidden></div>
+                  </div>
+                  <datalist id="operacaoLancManutencaoCpfSugestoes" hidden></datalist>
                 </label>
                 <label class="portal-field">
                   <span>Nº do protocolo</span>
@@ -1796,8 +1824,22 @@
             </div>
             <div id="manutencaoInlineReserva" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-reserva">
               <h3 id="manutencao-title-reserva" class="operacao-inline-form__title">Veículos reserva</h3>
-              <p class="subtext operacao-inline-form__lead">área para veículos de reserva.</p>
-              <p class="portal-feedback" role="status">Conteúdo em preparação &mdash; será ligado aos dados da frota.</p>
+              <p class="subtext operacao-inline-form__lead">Placas sem contrato ativo (não locados) — disponíveis para nova locação.</p>
+              <div class="portal-manutencao-busca">
+                <label class="portal-field portal-manutencao-busca__field">
+                  <span>Filtrar por placa</span>
+                  <input
+                    type="text"
+                    id="portalReservaPlacaFiltro"
+                    maxlength="10"
+                    autocomplete="off"
+                    placeholder="Digite para filtrar"
+                    aria-label="Filtrar placas reserva"
+                  >
+                </label>
+              </div>
+              <div id="portalReservaPlacasGrid" class="portal-reserva-placas" role="list" aria-live="polite"></div>
+              <p id="portalReservaPlacasMsg" class="portal-feedback" role="status"></p>
             </div>
             <div id="manutencaoInlineOperacionais" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-operacionais">
               <h3 id="manutencao-title-operacionais" class="operacao-inline-form__title">Veículos operacionais</h3>
@@ -2175,11 +2217,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260822lanc-proto-cores2" defer></script>
+  <script src="app.js?v=20260822reserva-placas" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260822lanc-proto-cores2" defer></script>
+  <script src="portal-locadora-ui.js?v=20260822reserva-placas" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -2215,7 +2257,7 @@
   <script src="portal-contrato-locacao.js?v=20260820req-modelo" defer></script>
   <script src="portal-contrato-pacote.js?v=20260820promessa-exata" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260611manut-area" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260822reserva-placas" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260611layout-papel" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
   <script src="portal-supabase-sync.js?v=20260612deposito-bidir-sync" defer></script>
