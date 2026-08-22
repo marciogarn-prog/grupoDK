@@ -293,11 +293,17 @@
   function buildChecklistPrintHtml(dados, form) {
     const tons = tonsDoPlano(dados.plano, dados.isCarro);
     const agora = new Date();
-    const horaEntrada = `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
-    const dataEntrada = fmtDataSemana(agora);
+    const horaEntrada = String(form.horaEntrada || "").trim()
+      || `${String(agora.getHours()).padStart(2, "0")}:${String(agora.getMinutes()).padStart(2, "0")}`;
+    const dataEntrada = String(form.dataEntradaFmt || "").trim() || fmtDataSemana(agora);
     const inicioContrato = dados.inicio ? fmtDataSemana(dados.inicio) : "";
+    const horaSaida = String(form.horaSaida || "").trim();
+    const dataSaidaFmt = String(form.dataSaidaFmt || "").trim();
+    const saidaHoraTxt = horaSaida || "___:___";
+    const saidaDataTxt = dataSaidaFmt || "_____ / _____ / _____";
 
-    const itensRows = form.itens
+    const itensLista = Array.isArray(form.itens) ? form.itens : [];
+    const itensRows = itensLista
       .map(
         (it) => `<tr>
           <td class="num">${it.n}</td>
@@ -318,9 +324,13 @@
       </tr>`
     ).join("");
 
-    const mecanicosHtml = MECANICOS.map(
-      (m) => `<p class="mec-linha"><span class="cb">${marcado(form.mecanico === m)}</span> ${esc(m)}</p>`
+    const mecNome = String(form.mecanico || "").trim();
+    let mecanicosHtml = MECANICOS.map(
+      (m) => `<p class="mec-linha"><span class="cb">${marcado(mecNome === m)}</span> ${esc(m)}</p>`
     ).join("");
+    if (mecNome && !MECANICOS.includes(mecNome)) {
+      mecanicosHtml += `<p class="mec-linha"><span class="cb">${marcado(true)}</span> ${esc(mecNome)}</p>`;
+    }
 
     const assinaturaClienteImg = form.assinaturaCliente
       ? `<img class="assinatura-img" src="${form.assinaturaCliente}" alt="Assinatura do cliente">`
@@ -426,8 +436,8 @@
           <table>
             <tr class="cab-entrada"><td style="border-left:none;border-top:none"><strong>Entrada:</strong></td><td><strong>Hora:</strong> ${esc(horaEntrada)}</td></tr>
             <tr class="cab-entrada"><td colspan="2" class="entrada-data">${esc(dataEntrada)}</td></tr>
-            <tr class="cab-entrada"><td><strong>Saída:</strong></td><td><strong>Hora:</strong> ___:___</td></tr>
-            <tr class="cab-entrada"><td colspan="2" style="text-align:center">_____ / _____ / _____</td></tr>
+            <tr class="cab-entrada"><td><strong>Saída:</strong></td><td><strong>Hora:</strong> ${esc(saidaHoraTxt)}</td></tr>
+            <tr class="cab-entrada"><td colspan="2" class="entrada-data" style="text-align:center">${esc(saidaDataTxt)}</td></tr>
           </table>
         </td>
       </tr>
@@ -489,7 +499,7 @@
         <td class="ass-box">
           <p class="ass-nome">Cliente:&nbsp; ${esc(dados.nomeCliente || "—")}</p>
           <div class="ass-area">${assinaturaClienteImg}</div>
-          <p class="ass-nome">Supervisor:&nbsp; ${esc(SUPERVISOR_PADRAO)}</p>
+          <p class="ass-nome">Supervisor:&nbsp; ${esc(String(form.supervisor || "").trim() || SUPERVISOR_PADRAO)}</p>
           <div class="ass-area">${assinaturaSupervisorImg}</div>
         </td>
         <td class="mec-box">
@@ -537,16 +547,33 @@
       assinaturaSupervisor: assinaturaDataUrl("manutChecklistAssinaturaSupervisor"),
     };
 
-    const html = buildChecklistPrintHtml(dados, form);
-    const popup = window.open("", "_blank", "width=900,height=1000");
-    if (!popup) {
-      if (msg) msg.textContent = "O navegador bloqueou a janela do PDF — permita pop-ups para este site.";
+    const r = openChecklistPrint(dados, form);
+    if (!r.ok) {
+      if (msg) {
+        msg.textContent =
+          r.erro === "Pop-up bloqueado pelo navegador."
+            ? "O navegador bloqueou a janela do PDF — permita pop-ups para este site."
+            : r.erro || "Não foi possível gerar o PDF.";
+      }
       return;
     }
+    if (msg) msg.textContent = `Check-list do protocolo ${dados.protocolo} gerado — confira a janela de impressão.`;
+  }
+
+  /**
+   * Abre o mesmo PDF do papel «CHECK-LIST PARA MANUTENÇÃO / REPARAÇÕES»
+   * a partir de dados + formulário já montados (ex.: Veículos em operação).
+   * @returns {{ ok: boolean, protocolo?: string, erro?: string }}
+   */
+  function openChecklistPrint(dados, form) {
+    if (!dados?.protocolo) return { ok: false, erro: "Protocolo em falta." };
+    const html = buildChecklistPrintHtml(dados, form || {});
+    const popup = window.open("", "_blank", "width=900,height=1000");
+    if (!popup) return { ok: false, erro: "Pop-up bloqueado pelo navegador." };
     popup.document.write(html);
     popup.document.close();
     popup.focus();
-    if (msg) msg.textContent = `Check-list do protocolo ${dados.protocolo} gerado — confira a janela de impressão.`;
+    return { ok: true, protocolo: String(dados.protocolo) };
   }
 
   /* ---------------- visibilidade / refresh ---------------- */
@@ -644,4 +671,5 @@
   window.__DK_refreshLancManutencaoChecklist = refreshChecklist;
   window.__DK_hideLancManutencaoChecklist = esconderChecklist;
   window.__DK_buildManutChecklistPrintHtml = buildChecklistPrintHtml;
+  window.__DK_openManutChecklistPrint = openChecklistPrint;
 })();

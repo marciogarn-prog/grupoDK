@@ -3086,52 +3086,201 @@
     return ok;
   }
 
-  function portalExportChecklistPdf() {
-    const root = document.getElementById("portalChecklistPrintArea");
-    if (!root) return;
-    const printable = root.cloneNode(true);
-    printable.querySelectorAll(".portal-checklist-export-footer").forEach((node) => node.remove());
-    printable.querySelectorAll(".portal-checklist-disposition-msg").forEach((node) => node.remove());
-    printable.querySelectorAll(".portal-checklist-print-header").forEach((node) => node.remove());
-    printable.querySelectorAll(".portal-checklist-clipboard-btn").forEach((node) => node.remove());
-    const body = printable.querySelector(".portal-checklist-clipboard-body");
-    if (body) {
-      body.style.transform = "";
-      body.style.width = "";
-      body.style.height = "";
+  function portalFmtChecklistDataSemana(dateRaw) {
+    const s = String(dateRaw || "").trim();
+    let d = null;
+    let m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    else {
+      m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
     }
-    const title = "Check-list manutenção";
-    const popup = window.open("", "_blank", "width=1100,height=800");
-    if (!popup) return;
-    popup.document.write(`<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="utf-8">
-<title>${title}</title>
-<style>
-  body { font-family: Arial, Helvetica, sans-serif; padding: 16px; color: #111; font-size: 12px; }
-  table { width: 100%; border-collapse: collapse; margin: 8px 0; }
-  th, td { border: 1px solid #bbb; padding: 5px 6px; vertical-align: middle; }
-  th { background: #f3f3f3; }
-  h2, h4 { margin: 0 0 10px; }
-  .portal-checklist-meta-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; margin-bottom: 12px; }
-  .portal-checklist-meta-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
-  .portal-checklist-meta-grid input { padding: 4px; font-size: 12px; }
-  .portal-checklist-dates { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
-  .portal-checklist-dates label { display: flex; flex-direction: column; gap: 4px; font-size: 11px; }
-  .portal-checklist-inline-row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; margin-bottom: 12px; }
-  .portal-checklist-toggle-options label { margin-right: 8px; }
-  input, select { border: 1px solid #999; }
-</style>
-</head>
-<body>
-<h2>${title}</h2>
-${printable.innerHTML}
-</body>
-</html>`);
-    popup.document.close();
-    popup.focus();
-    popup.print();
+    if (!d || Number.isNaN(d.getTime())) return "";
+    const semana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][d.getDay()];
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${semana}, ${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  function portalParseChecklistInicioDate(raw) {
+    const s = String(raw || "").trim();
+    let m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    return null;
+  }
+
+  /** Rótulos do papel (iguais ao PDF de Lançamento de manutenção). */
+  const PORTAL_CHECKLIST_PDF_ITENS = [
+    "Condição do Kit de Transmissão",
+    "Condição do disco de freio trazeiro",
+    "Condição das pastilhas de freio trazeiro",
+    "Condição das lonas de freio trazeiro",
+    "Condição do disco de freio dianteiro",
+    "Condição das pastilhas de freio dianteiro",
+    "Condição do pneu dianteiro",
+    "Condição do pneu trazeiro",
+    "Condição da câmara de ar (pneu dianteiro)",
+    "Condição da câmara de ar (pneu trazeiro)",
+    "Condição da mesa de direção",
+    "Condição do sistema elétrico",
+    "Condição da placa",
+    "Condição do suporte de placa",
+    "Condição da luz de freio",
+    "Condição do Acelerador",
+    "Condição do cabo do acelerador",
+    "Condição do cabo de embreagem",
+    "Condição do cabo de velocímetro",
+    "Condição da capa do banco",
+    "Condição do banco",
+    "Condição da vela de ignição",
+    "Condição da Ignição",
+    "Condição do Painel",
+    "Condição dos rolamentos (roda dianteira)",
+    "Condição dos rolamentos (roda trazeira)",
+    "Condição da buzina",
+    "Condição do Kit de Embreagem",
+    "Condição da Junta do Motor",
+  ];
+
+  function portalSelectTexto(id) {
+    const sel = document.getElementById(id);
+    if (!sel || sel.selectedIndex < 0) return "";
+    return String(sel.options[sel.selectedIndex]?.textContent || "").trim();
+  }
+
+  function portalBuildChecklistPrintPayload() {
+    const val = (id) => String(document.getElementById(id)?.value || "").trim();
+    const protocolo = val("portalChecklistFieldProtocolo");
+    const placa = val("portalChecklistFieldPlaca");
+    const plano = val("portalChecklistFieldPlano");
+    const marcaModelo = val("portalChecklistFieldMarcaModelo");
+    const anoModelo = val("portalChecklistFieldAnoModelo");
+    const corVeiculo = val("portalChecklistFieldCor");
+    const celular = val("portalChecklistFieldCelular");
+    const clienteLinha = val("portalChecklistFieldCliente");
+    const inicioRaw = val("portalChecklistFieldInicioContrato");
+
+    let codCliente = "";
+    let nomeCliente = "";
+    const cm = clienteLinha.match(/^(.+?)\s*[—\-–]\s*(.+)$/);
+    if (cm) {
+      codCliente = cm[1].replace(/^Cód\.?:?\s*/i, "").trim();
+      nomeCliente = cm[2].trim();
+    } else {
+      nomeCliente = clienteLinha;
+    }
+
+    const loc = typeof portalResolveChecklistLocacaoPorPlaca === "function"
+      ? portalResolveChecklistLocacaoPorPlaca(placa)
+      : null;
+    const cpfDigits =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(loc?.cpf || ""))
+        : String(loc?.cpf || "").replace(/\D/g, "");
+
+    const nk =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (p) =>
+            String(p || "")
+              .replace(/\s+/g, "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+    const plateKey = nk(placa);
+    let veiculo = null;
+    if (typeof getVehicleMapByPlate === "function") {
+      veiculo = getVehicleMapByPlate().get(plateKey) || null;
+    }
+    const tipoV = String(veiculo?.tipo || "").toUpperCase();
+    const isCarro = tipoV.includes("CARRO") || String(veiculo?.tag || "").toUpperCase().includes("DKCR");
+
+    let imgVeiculo = "";
+    if (/SHI\s*175/i.test(marcaModelo) && /VERMELH/i.test(corVeiculo)) {
+      imgVeiculo = "images/manutencao/shineray-shi-175-vermelha.png";
+    }
+
+    const itens = PORTAL_CHECKLIST_PDF_ITENS.map((label, i) => {
+      const n = i + 1;
+      const estado =
+        document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
+      const obs = String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
+      return { n, label, estado, obs };
+    });
+
+    const oleo = document.querySelector('input[name="portalChecklistOleo"]:checked')?.value || "";
+    const pagou = document.querySelector('input[name="portalChecklistPagou"]:checked')?.value || "";
+    const odometro =
+      typeof onlyDigits === "function"
+        ? onlyDigits(document.getElementById("portalChecklistOdometro")?.value)
+        : String(document.getElementById("portalChecklistOdometro")?.value || "").replace(/\D/g, "");
+    const proximaTroca =
+      typeof onlyDigits === "function"
+        ? onlyDigits(document.getElementById("portalChecklistProximaTroca")?.value)
+        : String(document.getElementById("portalChecklistProximaTroca")?.value || "").replace(/\D/g, "");
+
+    const dados = {
+      protocolo: protocolo || "—",
+      plano,
+      isCarro,
+      inicio: portalParseChecklistInicioDate(inicioRaw) || portalParseChecklistInicioDate(loc?.inicio),
+      codCliente,
+      nomeCliente,
+      cpf: cpfDigits,
+      celular,
+      placa: plateKey || placa,
+      anoModelo,
+      corVeiculo,
+      marcaModelo,
+      imgVeiculo,
+    };
+
+    const form = {
+      oleo,
+      pagou,
+      mecanico: portalSelectTexto("portalChecklistMecanico"),
+      supervisor: portalSelectTexto("portalChecklistSupervisor"),
+      odometro,
+      proximaTroca,
+      itens,
+      horaEntrada: val("portalChecklistEntradaHora"),
+      dataEntradaFmt: portalFmtChecklistDataSemana(val("portalChecklistEntradaData")),
+      horaSaida: val("portalChecklistSaidaHora"),
+      dataSaidaFmt: portalFmtChecklistDataSemana(val("portalChecklistSaidaData")),
+      assinaturaCliente: "",
+      assinaturaSupervisor: "",
+    };
+
+    return { dados, form };
+  }
+
+  function portalExportChecklistPdf() {
+    const openFn = window.__DK_openManutChecklistPrint;
+    if (typeof openFn !== "function") {
+      const hint = document.getElementById("portalChecklistExportHint");
+      if (hint) {
+        hint.textContent =
+          "Não foi possível abrir o relatório oficial do check-list. Recarregue a página e tente de novo.";
+      }
+      return;
+    }
+    const { dados, form } = portalBuildChecklistPrintPayload();
+    if (!dados.protocolo || dados.protocolo === "—") {
+      const hint = document.getElementById("portalChecklistExportHint");
+      if (hint) hint.textContent = "Preencha o protocolo antes de imprimir / guardar o PDF.";
+      return;
+    }
+    const r = openFn(dados, form);
+    if (!r?.ok) {
+      const hint = document.getElementById("portalChecklistExportHint");
+      if (hint) {
+        hint.textContent =
+          r?.erro === "Pop-up bloqueado pelo navegador."
+            ? "O navegador bloqueou a janela do PDF — permita pop-ups para este site."
+            : r?.erro || "Não foi possível gerar o PDF.";
+      }
+    }
   }
 
   function portalBindInnerChecklistEvents() {
