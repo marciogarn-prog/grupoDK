@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260822manut-checklist-vendas">
+  <link rel="stylesheet" href="styles.css?v=20260822sidebar-sticky-voltar">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -413,6 +413,7 @@
                 <span class="btn-operacao-cmd__hint">CPF, função, permissóes &mdash; formulário à direita (só administrador)</span>
               </button>
             </div>
+            <button type="button" class="btn-primary btn-secondary-outline portal-operacao-layout__sidebar-voltar" id="btn-voltar-operacao-locadora">Voltar</button>
           </aside>
           <div class="portal-operacao-layout__main" id="operacaoPainelDireito">
             <div id="operacaoFormPlaceholder" class="operacao-form-placeholder" role="status">
@@ -1549,10 +1550,6 @@
 
           </div>
         </div>
-
-        <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-operacao-locadora">Voltar</button>
-        </div>
       </section>
 
       <section id="panel-manutencao-locadora" class="portal-panel hidden" aria-live="polite">
@@ -1583,6 +1580,7 @@
                 <span class="btn-operacao-cmd__hint">Prontos para operação</span>
               </button>
             </div>
+            <button type="button" class="btn-primary btn-secondary-outline portal-operacao-layout__sidebar-voltar" id="btn-voltar-manutencao-locadora">Voltar</button>
           </aside>
           <div class="portal-operacao-layout__main" id="manutencaoPainelDireito">
             <div id="manutencaoFormPlaceholder" class="operacao-form-placeholder" role="status">
@@ -1841,9 +1839,6 @@
               <p class="portal-feedback" role="status">Conteúdo em preparação &mdash; será ligado aos dados da frota.</p>
             </div>
           </div>
-        </div>
-        <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-manutencao-locadora">Voltar</button>
         </div>
       </section>
 
@@ -2211,11 +2206,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260822manut-checklist-vendas" defer></script>
+  <script src="app.js?v=20260822sidebar-sticky-voltar" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260822manut-checklist-vendas" defer></script>
+  <script src="portal-locadora-ui.js?v=20260822sidebar-sticky-voltar" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

@@ -701,14 +701,30 @@ body {
 }
 
 .portal-panel {
+  position: relative;
   margin-top: 1.25rem;
   padding: 1.25rem;
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-accent);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  /* backdrop-filter no próprio painel quebra position:sticky dos menus laterais */
+}
+
+.portal-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+.portal-panel > * {
+  position: relative;
+  z-index: 1;
 }
 
 @media (min-width: 1024px) {
@@ -1045,11 +1061,25 @@ body {
 .portal-operacao-layout__sidebar .operacao-comandos {
   margin-top: 1rem;
   margin-bottom: 0;
+  flex: 1 1 auto;
 }
 
 .portal-operacao-layout__sidebar {
   position: sticky;
-  top: 0.75rem;
+  top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px) + 0.5rem);
+  align-self: start;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px) - 1rem);
+  overflow: visible;
+}
+
+.portal-operacao-layout__sidebar-voltar {
+  margin-top: 0.35rem;
+  width: 100%;
+  flex: 0 0 auto;
 }
 
 .portal-operacao-layout__main {
@@ -1087,7 +1117,10 @@ body {
   }
 
   .portal-operacao-layout__sidebar {
-    position: static;
+    position: sticky;
+    top: calc(var(--dk-demo-env-banner-h, 0px) + var(--portal-admin-banner-h, 0px) + 0.35rem);
+    max-height: none;
+    z-index: 30;
   }
 }
 
