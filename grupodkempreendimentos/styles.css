@@ -5333,6 +5333,25 @@ table.validados-app .lnk-comprovante {
   margin-left: auto;
 }
 
+/* Admin logado: barra vermelha já tem Voltar + Início — esconde o cabeçalho grande da unidade. */
+body.portal-body--admin-logado #view-unit .portal-unit-bar,
+body.portal-body--admin-logado #view-unit .portal-unit-heading {
+  display: none !important;
+}
+
+/* Colaborador com sessão: só Voltar + Início (sem tipo de acesso nem título/boas-vindas). */
+body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .portal-unit-bar__left,
+body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .portal-unit-heading {
+  display: none !important;
+}
+
+body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .portal-unit-bar {
+  justify-content: flex-end;
+  min-height: 0;
+  margin-bottom: 0.45rem;
+  padding: 0.25rem 0.5rem;
+}
+
 .portal-admin-banner__link {
   margin: 0;
   padding: 0.28rem 0.55rem;
