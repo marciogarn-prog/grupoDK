@@ -10682,9 +10682,106 @@ ${printable.innerHTML}
       .join("")}</ul>`;
   }
 
+  function portalLancPesquisaLinhaCorParaCpfOpt(corCls) {
+    if (corCls === "portal-lanc-pesquisa-linha--azul") return "portal-admin-cpf-opt--minha-moto";
+    if (corCls === "portal-lanc-pesquisa-linha--verde") return "portal-admin-cpf-opt--meu-transporte";
+    if (corCls === "portal-lanc-pesquisa-linha--amarelo") return "portal-admin-cpf-opt--carro";
+    return "portal-admin-cpf-opt--inativo";
+  }
+
+  /** Cor da fonte na lista CPF (lançamento): prioriza contrato ativo carro > minha moto > meu transporte. */
+  function portalLancAluguelCpfCorClasseFromLinhas(rows) {
+    if (!rows?.length) return "portal-admin-cpf-opt--inativo";
+    const ativas = rows.filter((r) => r.ativo);
+    const pool = ativas.length ? ativas : rows;
+    const rank = (cls) => {
+      if (cls === "portal-lanc-pesquisa-linha--amarelo") return 3;
+      if (cls === "portal-lanc-pesquisa-linha--azul") return 2;
+      if (cls === "portal-lanc-pesquisa-linha--verde") return 1;
+      return 0;
+    };
+    let best = pool[0];
+    for (const r of pool) {
+      if (rank(r.corClasse) > rank(best.corClasse)) best = r;
+    }
+    if (!best.ativo) return "portal-admin-cpf-opt--inativo";
+    return portalLancPesquisaLinhaCorParaCpfOpt(best.corClasse);
+  }
+
+  function hideOperacaoLancAluguelCpfLista() {
+    const panel = document.getElementById("operacaoLancAluguelCpfLista");
+    const inp = document.getElementById("operacaoLancAluguelCpf");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function renderOperacaoLancAluguelCpfLista(cpfsMap, linhasByCpf, opts = {}) {
+    const open = opts.open !== false;
+    const panel = document.getElementById("operacaoLancAluguelCpfLista");
+    const inp = document.getElementById("operacaoLancAluguelCpf");
+    if (!panel || !inp) return;
+    if (!open) {
+      hideOperacaoLancAluguelCpfLista();
+      return;
+    }
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const entries = Array.from(cpfsMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(0, 120);
+    if (!entries.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhum CPF encontrado.</div>';
+    } else {
+      panel.innerHTML = entries
+        .map(([cpf, nome]) => {
+          const cor = portalEscapeHtml(
+            portalLancAluguelCpfCorClasseFromLinhas(linhasByCpf.get(cpf) || [])
+          );
+          const nomeLbl = portalEscapeHtml(nome || "Cliente cadastrado");
+          const cpfFmt = portalEscapeHtml(fmt(cpf));
+          return `<button type="button" class="portal-placa-dropdown__opt ${cor}" role="option" tabindex="-1" data-cpf="${portalEscapeHtml(cpf)}" data-nome="${nomeLbl}">
+              <span class="portal-placa-dropdown__plate">${cpfFmt}</span>
+              <span class="portal-placa-dropdown__model">${nomeLbl}</span>
+            </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function operacaoLancAluguelCpfEscolher(cpfDigits, nomeHint) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const inp = document.getElementById("operacaoLancAluguelCpf");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    if (!inp || cpf.length !== 11) return;
+    inp.value = typeof formatCpf === "function" ? formatCpf(cpf) : cpf;
+    hideOperacaoLancAluguelCpfLista();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (msg) msg.textContent = "";
+    clearOperacaoLancAluguelPesquisaConfirmada();
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", skipCpfLista: true });
+    if (nomeHint) {
+      const inpNome = document.getElementById("operacaoLancAluguelNomeBusca");
+      if (inpNome && String(nomeHint).trim() && String(nomeHint).trim() !== "(sem nome)") {
+        inpNome.value = String(nomeHint).trim();
+      }
+    }
+    syncOperacaoLancamentoAluguelAfterCpfEdit();
+    refreshPortalRelClienteCpfDatalist();
+    refreshPortalRelPlacaDatalist();
+    hideOperacaoLancAluguelDetalhePanels();
+  }
+
   /**
    * Atualiza datalists de nome, CPF e protocolo com filtro cruzado em tempo real.
-   * @param {{ source?: 'cpf'|'nome'|'proto' }} opts — campo que o utilizador está a editar (evita sobrescrever esse campo).
+   * @param {{ source?: 'cpf'|'nome'|'proto'|'placa', skipCpfLista?: boolean, openCpfLista?: boolean }} opts
    */
   function refreshOperacaoLancAluguelPesquisaDatalists(opts = {}) {
     const source = String(opts.source || "");
@@ -10696,7 +10793,7 @@ ${printable.innerHTML}
     const dlNome = document.getElementById("operacaoLancAluguelNomeSugestoes");
     const dlProto = document.getElementById("operacaoLancAluguelProtocoloSugestoes");
     const dlPlaca = document.getElementById("operacaoLancAluguelPlacaSugestoes");
-    if (!dlCpf || !dlNome || !dlProto) return;
+    if (!dlNome || !dlProto) return;
 
     const prevCpf = String(inpCpf?.value || "").trim();
     const prevNome = String(inpNome?.value || "").trim();
@@ -10716,25 +10813,36 @@ ${printable.innerHTML}
     });
 
     const cpfsMap = new Map();
+    const linhasByCpf = new Map();
     const nomesMap = new Map();
     const protosSet = new Map();
     const placasSet = new Map();
     filtradas.forEach((row) => {
       if (!cpfsMap.has(row.cpf)) cpfsMap.set(row.cpf, row.nome);
+      if (!linhasByCpf.has(row.cpf)) linhasByCpf.set(row.cpf, []);
+      linhasByCpf.get(row.cpf).push(row);
       const nk = portalNomeChaveBusca(row.nome);
       if (!nomesMap.has(nk)) nomesMap.set(nk, { nome: row.nome, cpf: row.cpf });
       if (!protosSet.has(row.proto)) protosSet.set(row.proto, { cpf: row.cpf, nome: row.nome, placa: row.placa });
       if (row.placa && !placasSet.has(row.placa)) placasSet.set(row.placa, { cpf: row.cpf, nome: row.nome, proto: row.proto });
     });
 
-    dlCpf.innerHTML = Array.from(cpfsMap.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(0, 120)
-      .map(
-        ([cpf, nome]) =>
-          `<option value="${portalEscapeHtml(fmt(cpf))}" label="${portalEscapeHtml(nome)}"></option>`
-      )
-      .join("");
+    if (dlCpf) dlCpf.innerHTML = "";
+
+    const cpfPanel = document.getElementById("operacaoLancAluguelCpfLista");
+    const cpfListaJaAberta =
+      cpfPanel && !cpfPanel.hidden && !cpfPanel.classList.contains("hidden");
+    const openCpfLista =
+      opts.skipCpfLista === true
+        ? false
+        : opts.openCpfLista === true ||
+          source === "cpf" ||
+          (cpfListaJaAberta && document.activeElement === inpCpf);
+    if (openCpfLista) {
+      renderOperacaoLancAluguelCpfLista(cpfsMap, linhasByCpf, { open: true });
+    } else if (opts.skipCpfLista === true || source !== "cpf") {
+      if (document.activeElement !== inpCpf) hideOperacaoLancAluguelCpfLista();
+    }
 
     dlNome.innerHTML = Array.from(nomesMap.values())
       .sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"))
@@ -12708,16 +12816,38 @@ ${printable.innerHTML}
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => {
     syncOperacaoLancamentoAluguelAfterCpfEdit();
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf" });
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", skipCpfLista: true });
   });
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("input", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
     clearOperacaoLancAluguelPesquisaConfirmada();
-    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf" });
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", openCpfLista: true });
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     hideOperacaoLancAluguelDetalhePanels();
+  });
+  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("focus", () => {
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", openCpfLista: true });
+  });
+  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("click", () => {
+    refreshOperacaoLancAluguelPesquisaDatalists({ source: "cpf", openCpfLista: true });
+  });
+  document.getElementById("operacaoLancAluguelCpf")?.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") hideOperacaoLancAluguelCpfLista();
+  });
+  document.getElementById("operacaoLancAluguelCpfLista")?.addEventListener("mousedown", (e) => {
+    const btn = e.target.closest(".portal-placa-dropdown__opt[data-cpf]");
+    if (!btn) return;
+    e.preventDefault();
+    operacaoLancAluguelCpfEscolher(btn.getAttribute("data-cpf") || "", btn.getAttribute("data-nome") || "");
+  });
+  document.addEventListener("mousedown", (e) => {
+    const panel = document.getElementById("operacaoLancAluguelCpfLista");
+    const inp = document.getElementById("operacaoLancAluguelCpf");
+    if (!panel || panel.hidden || panel.classList.contains("hidden")) return;
+    if (panel.contains(e.target) || inp?.contains(e.target) || e.target === inp) return;
+    hideOperacaoLancAluguelCpfLista();
   });
 
   document.getElementById("operacaoLancAluguelConfirmarPesquisaBtn")?.addEventListener("click", (e) => {
