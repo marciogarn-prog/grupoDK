@@ -3306,6 +3306,32 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   color: #fca5a5;
 }
 
+.portal-checklist-categoria-move {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.portal-checklist-categoria-move__label {
+  display: block;
+  font-size: 0.82rem;
+  color: #fecaca;
+  margin-bottom: 0.4rem;
+}
+
+.portal-checklist-categoria-move__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.portal-checklist-categoria-move__btns .btn-primary {
+  font-size: 0.72rem;
+  padding: 0.4rem 0.55rem;
+  line-height: 1.2;
+  max-width: none;
+}
+
 .portal-manutencao-busca {
   margin-bottom: 1rem;
 }
