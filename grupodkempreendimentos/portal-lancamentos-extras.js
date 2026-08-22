@@ -1175,6 +1175,14 @@
 
     if (dlProto) dlProto.innerHTML = "";
 
+    const protosParaDropdown = (() => {
+      const map = new Map();
+      filtradas.forEach((row) => {
+        if (row.proto && !map.has(row.proto)) map.set(row.proto, row);
+      });
+      return Array.from(map.values());
+    })();
+
     const protoPanel = document.getElementById(`${cfg.prefix}ProtoLista`);
     const protoListaJaAberta =
       protoPanel && !protoPanel.hidden && !protoPanel.classList.contains("hidden");
@@ -1185,7 +1193,7 @@
           source === "proto" ||
           (protoListaJaAberta && document.activeElement === inpProto);
     if (openProtoLista) {
-      renderProtoLista(cfg, protosParaDatalist, { open: true });
+      renderProtoLista(cfg, protosParaDropdown, { open: true });
     } else if (opts.skipProtoLista === true || source !== "proto") {
       if (document.activeElement !== inpProto) hideProtoLista(cfg);
     }
