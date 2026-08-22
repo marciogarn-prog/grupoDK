@@ -2439,6 +2439,16 @@
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
     portalAttachChecklistWorkspace("manutencao");
+    /* Abre já a área do check-list (placa + formulário) nas 4 opções. */
+    portalEnsureChecklistUiBuilt();
+    const mount = document.getElementById("portalChecklistMount");
+    mount?.classList.remove("hidden");
+    mount?.classList.add("portal-checklist-mount--tablet");
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    window.setTimeout(() => {
+      inp?.focus();
+      if (inp) renderPortalChecklistPlacaDropdown(String(inp.value || ""));
+    }, 40);
   }
 
   btnManutencao?.addEventListener("click", () => {
@@ -2588,7 +2598,18 @@
       btnDev.disabled = true;
     }
     if (btnDisp) {
-      btnDisp.textContent = isManut ? "ENVIAR PARA VENDAS" : "ENVIADO PARA MANUTENÇÃO";
+      btnDisp.textContent = isManut ? "ENVIAR PARA VENDAS" : "ENVIAR PARA MANUTENÇÃO";
+    }
+    const placaInp = document.getElementById("portalChecklistPlacaInput");
+    if (placaInp) {
+      placaInp.placeholder = isManut
+        ? "Escolha ou digite a placa"
+        : "Digite ou escolha na lista";
+    }
+    const catWrap = document.getElementById("portalChecklistCategoriaMove");
+    if (catWrap) {
+      catWrap.classList.toggle("hidden", !isManut);
+      catWrap.hidden = !isManut;
     }
     portalValidateChecklistCompleto();
   }
@@ -2660,9 +2681,13 @@
     const panel = document.getElementById("portalChecklistPlacaLista");
     const inp = document.getElementById("portalChecklistPlacaInput");
     if (!panel || !inp) return;
+    if (!portalChecklistPlacasAtivasCache.length) refreshPortalChecklistPlacasAtivasCache();
     const items = filterPlacasAtivasChecklistDropdown(queryRaw);
     if (!items.length) {
-      panel.innerHTML = `<div class="portal-placa-dropdown__empty">Nenhuma placa em operação (cadastre uma locação ativa primeiro).</div>`;
+      const emptyMsg = portalChecklistIsManutencaoMode()
+        ? `Nenhuma placa nesta categoria${queryRaw ? " para esta busca" : ""}. Envie uma placa em «Veículos em operação» com «ENVIAR PARA MANUTENÇÃO».`
+        : "Nenhuma placa em operação (cadastre uma locação ativa primeiro).";
+      panel.innerHTML = `<div class="portal-placa-dropdown__empty">${emptyMsg}</div>`;
     } else {
       panel.innerHTML = items
         .map(
@@ -2713,7 +2738,7 @@
       if (!placa) return;
       inp.value = placa;
       hidePortalChecklistPlacaDropdown();
-      inp.focus();
+      portalCarregarChecklistPorPlaca(placa);
     });
 
     document.addEventListener(
@@ -3080,13 +3105,14 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  function portalEnviarChecklistParaManutencao() {
+  function portalEnviarChecklistParaManutencao(categoriaRaw) {
     const placaRaw = portalGetPlacaChecklistAtual();
     if (!placaRaw) return { ok: false, message: "Placa em falta." };
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
       return { ok: false, message: "Cadastro indisponível neste ambiente." };
     }
     const placaKey = portalNkPlate(placaRaw);
+    const categoria = portalNormManutCategoria(categoriaRaw) || "oficina-propria";
     const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
     const jaEmManutencao = manutencoes.some(
       (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
@@ -3100,7 +3126,7 @@
     const servico = "Portal check-list — enviado para manutenção";
     manutencoes.push({
       id: Date.now(),
-      placa: String(placaRaw).trim().toUpperCase(),
+      placa: placaKey || String(placaRaw).trim().toUpperCase(),
       servicos: servicosSelecionados,
       servico,
       data,
@@ -3108,7 +3134,7 @@
       dataRealSaida: "",
       valor: "",
       origemPortalChecklist: true,
-      categoriaManutencao: "oficina-propria",
+      categoriaManutencao: categoria,
     });
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
     if (typeof addAuditLog === "function") {
@@ -3121,7 +3147,39 @@
         /* ignore */
       }
     }
-    return { ok: true };
+    return { ok: true, placa: placaKey, categoria };
+  }
+
+  /** Move a placa do check-list para outra das 4 categorias de manutenção. */
+  function portalMoverChecklistCategoriaManutencao(categoriaRaw) {
+    const placaRaw = portalGetPlacaChecklistAtual();
+    if (!placaRaw) return { ok: false, message: "Placa em falta." };
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return { ok: false, message: "Cadastro indisponível neste ambiente." };
+    }
+    const placaKey = portalNkPlate(placaRaw);
+    const categoria = portalNormManutCategoria(categoriaRaw);
+    if (!categoria) return { ok: false, message: "Categoria inválida." };
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+    const idx = manutencoes.findIndex(
+      (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
+    );
+    if (idx < 0) {
+      return { ok: false, message: "Não há manutenção ativa para esta placa." };
+    }
+    manutencoes[idx] = { ...manutencoes[idx], categoriaManutencao: categoria };
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_checklist_mover_categoria", "manutencao", `${placaKey}:${categoria}`);
+    }
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      try {
+        portalPushCloudSnapshotAfterPersist();
+      } catch {
+        /* ignore */
+      }
+    }
+    return { ok: true, placa: placaKey, categoria };
   }
 
   function portalEnviarChecklistParaVendas() {
@@ -3563,17 +3621,78 @@
         portalValidateChecklistCompleto();
         return;
       }
-      const r = portalEnviarChecklistParaManutencao();
+      const r = portalEnviarChecklistParaManutencao("oficina-propria");
       if (!r.ok) {
         if (msg) msg.textContent = r.message || "Não foi possível registar.";
         return;
       }
       if (msg) {
         msg.textContent =
-          "Veículo registado em manutenção. Consulte a lista em «Veículos em manutenção» à esquerda.";
+          `Placa ${r.placa || ""} enviada para «Veículos em manutenção → 1 — Oficina própria». Abra essa opção e escolha a placa na lista.`;
       }
       portalRefreshManutencaoVeiculosLista();
     });
+
+    document.getElementById("portalChecklistCategoriaMove")?.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-manut-move-cat]");
+      if (!btn || !portalChecklistIsManutencaoMode()) return;
+      const cat = btn.getAttribute("data-manut-move-cat") || "";
+      const msg = document.getElementById("portalChecklistDispositionMsg");
+      const r = portalMoverChecklistCategoriaManutencao(cat);
+      if (!r.ok) {
+        if (msg) msg.textContent = r.message || "Não foi possível mover a placa.";
+        return;
+      }
+      const meta = MANUT_EM_MANUT_SUB_META[r.categoria] || {};
+      if (msg) {
+        msg.textContent = `Placa ${r.placa} movida para «${meta.title || r.categoria}».`;
+      }
+      if (r.categoria !== portalManutEmManutSubAtivo) {
+        portalClearChecklistInspection();
+        document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
+        const placaInp = document.getElementById("portalChecklistPlacaInput");
+        if (placaInp) placaInp.value = "";
+        refreshPortalChecklistPlacasAtivasCache();
+        portalValidateChecklistCompleto();
+        if (placaInp) renderPortalChecklistPlacaDropdown("");
+      }
+    });
+  }
+
+  function portalCarregarChecklistPorPlaca(rawPlaca) {
+    portalEnsureChecklistUiBuilt();
+    refreshPortalChecklistPlacasAtivasCache();
+    const raw = String(rawPlaca || document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
+    const msgEl = document.getElementById("portalChecklistLoadMsg");
+    const mount = document.getElementById("portalChecklistMount");
+    const fotosGrid = document.getElementById("portalChecklistFotosGrid");
+    if (!raw) {
+      fotosGrid?.classList.add("hidden");
+      if (msgEl) msgEl.textContent = "Informe a placa.";
+      return { ok: false };
+    }
+    const plateFmt =
+      typeof normalizePlate === "function"
+        ? normalizePlate(raw)
+        : String(raw)
+            .replace(/\s+/g, "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (!plateFmt) {
+      fotosGrid?.classList.add("hidden");
+      if (msgEl) msgEl.textContent = "Placa inválida.";
+      return { ok: false };
+    }
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    if (inp) inp.value = plateFmt;
+    portalClearChecklistInspection();
+    const res = portalFillChecklistFromCadastro(plateFmt);
+    if (msgEl) msgEl.textContent = res.message;
+    mount?.classList.remove("hidden");
+    mount?.classList.add("portal-checklist-mount--tablet");
+    fotosGrid?.classList.remove("hidden");
+    portalValidateChecklistCompleto();
+    return { ok: true, placa: plateFmt };
   }
 
   function portalEnsureChecklistUiBuilt() {
@@ -3682,7 +3801,16 @@
           </div>
           <div class="portal-checklist-disposition-actions">
             <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnDevolvido" disabled>DEVOLVIDO AO CLIENTE</button>
-            <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnManutencao" disabled>ENVIADO PARA MANUTENÇÃO</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistBtnManutencao" disabled>ENVIAR PARA MANUTENÇÃO</button>
+          </div>
+        </div>
+        <div id="portalChecklistCategoriaMove" class="portal-checklist-categoria-move hidden" hidden>
+          <span class="portal-checklist-categoria-move__label">Mover placa para:</span>
+          <div class="portal-checklist-categoria-move__btns" role="group" aria-label="Categoria de manutenção">
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria">1 — Oficina própria</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros">2 — Oficina de terceiros</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro">3 — Enviado para seguro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo">4 — Sinistrado Roubo</button>
           </div>
         </div>
         <p id="portalChecklistDispositionMsg" class="portal-checklist-disposition-msg" role="status"></p>
@@ -3814,39 +3942,7 @@
   });
 
   document.getElementById("portalChecklistCarregarBtn")?.addEventListener("click", () => {
-    portalEnsureChecklistUiBuilt();
-    refreshPortalChecklistPlacasAtivasCache();
-    const raw = String(document.getElementById("portalChecklistPlacaInput")?.value || "").trim();
-    const msgEl = document.getElementById("portalChecklistLoadMsg");
-    const mount = document.getElementById("portalChecklistMount");
-    const fotosGrid = document.getElementById("portalChecklistFotosGrid");
-    if (!raw) {
-      fotosGrid?.classList.add("hidden");
-      if (msgEl) msgEl.textContent = "Informe a placa.";
-      return;
-    }
-    const plateFmt =
-      typeof normalizePlate === "function"
-        ? normalizePlate(raw)
-        : String(raw)
-            .replace(/\s+/g, "")
-            .toUpperCase()
-            .replace(/[^A-Z0-9]/g, "");
-    if (!plateFmt) {
-      fotosGrid?.classList.add("hidden");
-      if (msgEl) msgEl.textContent = "Placa inválida.";
-      return;
-    }
-    if (document.getElementById("portalChecklistPlacaInput")) {
-      document.getElementById("portalChecklistPlacaInput").value = plateFmt;
-    }
-    portalClearChecklistInspection();
-    const res = portalFillChecklistFromCadastro(plateFmt);
-    if (msgEl) msgEl.textContent = res.message;
-    mount?.classList.remove("hidden");
-    mount?.classList.add("portal-checklist-mount--tablet");
-    fotosGrid?.classList.remove("hidden");
-    portalValidateChecklistCompleto();
+    portalCarregarChecklistPorPlaca();
   });
 
   [
