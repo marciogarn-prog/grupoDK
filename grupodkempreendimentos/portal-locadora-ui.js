@@ -2404,6 +2404,25 @@
     return alvo === "oficina-propria";
   }
 
+  function expandManutencaoEmManutencaoMenuOnly() {
+    portalRefreshOperacaoLocal();
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(true);
+    const ph = document.getElementById("manutencaoFormPlaceholder");
+    const phText = ph?.querySelector(".operacao-form-placeholder__text");
+    if (phText) {
+      phText.textContent = "Escolha uma das 4 opções em «Veículos em manutenção» à esquerda.";
+    }
+    syncManutencaoSidebarButtons("btn-manutencao-em-manutencao");
+    syncManutEmManutencaoSubButtons(null);
+    syncManutEmManutencaoSubnavVisible(true);
+    const parentBtn = document.getElementById("btn-manutencao-em-manutencao");
+    if (parentBtn) {
+      parentBtn.classList.add("is-active");
+      parentBtn.setAttribute("aria-expanded", "true");
+    }
+  }
+
   function openManutencaoEmManutencaoSub(subRaw) {
     const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "oficina-propria";
     portalManutEmManutSubAtivo = sub;
@@ -2413,6 +2432,7 @@
     document.getElementById("manutencaoInlineEmManutencao")?.classList.remove("hidden");
     syncManutencaoSidebarButtons("btn-manutencao-em-manutencao");
     syncManutEmManutencaoSubButtons(sub);
+    syncManutEmManutencaoSubnavVisible(true);
     const meta = MANUT_EM_MANUT_SUB_META[sub];
     const titleEl = document.getElementById("manutencao-title-em-manutencao");
     const leadEl = document.getElementById("portalChecklistLeadManutencao");
@@ -3850,11 +3870,12 @@
   });
 
   document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
-    openManutencaoEmManutencaoSub(portalManutEmManutSubAtivo || "oficina-propria");
+    expandManutencaoEmManutencaoMenuOnly();
   });
 
   document.querySelectorAll("[data-manut-sub]").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       const sub = btn.getAttribute("data-manut-sub") || "oficina-propria";
       openManutencaoEmManutencaoSub(sub);
     });
@@ -14525,7 +14546,7 @@
   };
   window.__DK_showManutencaoInlinePanel = (panelId, btnId) => {
     if (panelId === "manutencaoInlineEmManutencao" || btnId === "btn-manutencao-em-manutencao") {
-      openManutencaoEmManutencaoSub(portalManutEmManutSubAtivo || "oficina-propria");
+      expandManutencaoEmManutencaoMenuOnly();
       return;
     }
     hideManutencaoInlineFormsCore();
