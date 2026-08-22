@@ -2599,6 +2599,15 @@ body {
 }
 
 /* Check-list manutenção — Veículos em operação (tablet / SPen) */
+.portal-checklist-host {
+  min-width: 0;
+}
+
+.portal-checklist-workspace[hidden],
+.portal-checklist-workspace.hidden {
+  display: none !important;
+}
+
 .portal-checklist-toolbar {
   margin: 0.75rem 0 0.5rem;
 }
