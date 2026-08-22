@@ -6065,8 +6065,8 @@ ${printable.innerHTML}
   function portalCompareVeiculoResumoFrota(a, b) {
     const da = getPortalResumoVeiculoCardData(a);
     const db = getPortalResumoVeiculoCardData(b);
-    const locA = da.statusClass === "locado" ? 0 : 1;
-    const locB = db.statusClass === "locado" ? 0 : 1;
+    const locA = String(da.statusClass || "").startsWith("locado") ? 0 : 1;
+    const locB = String(db.statusClass || "").startsWith("locado") ? 0 : 1;
     if (locA !== locB) return locA - locB;
     return portalCompareVeiculoPorCodigo(a, b);
   }
@@ -6195,28 +6195,34 @@ ${printable.innerHTML}
 
     let cliente = "—";
     let statusText = "Disponível";
+    let statusClass = "livre";
+    let locAtiva = null;
     if (locado) {
-      const loc = getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
+      locAtiva = getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
       const cpf =
         typeof onlyDigits === "function"
-          ? onlyDigits(String(loc?.cpf || ""))
-          : String(loc?.cpf || "").replace(/\D/g, "");
-      let nome = String(loc?.nome || "").trim();
+          ? onlyDigits(String(locAtiva?.cpf || ""))
+          : String(locAtiva?.cpf || "").replace(/\D/g, "");
+      let nome = String(locAtiva?.nome || "").trim();
       if (cpf.length === 11 && typeof findClienteByCpfCadastro === "function") {
         const cli = findClienteByCpfCadastro(cpf);
         if (cli?.nome) nome = String(cli.nome).trim();
       }
       cliente = nome || "Cliente cadastrado";
       statusText = "Em locação";
+      statusClass = portalFrotaStatusClassEmLocacao(locAtiva, veiculo);
     } else if (emManutencao) {
       cliente = "—";
       statusText = "Em manutenção";
+      statusClass = "manutencao";
     } else if (indisponivel) {
       cliente = "—";
       statusText = "Indisponível";
+      statusClass = "indisponivel";
     } else {
       cliente = "Disponível";
       statusText = "Disponível";
+      statusClass = "livre";
     }
 
     const codigo =
@@ -6228,9 +6234,57 @@ ${printable.innerHTML}
       ultimoKm: getPortalUltimoKmPorPlaca(plateKey),
       cliente,
       statusText,
-      statusClass: locado ? "locado" : "livre",
+      statusClass,
       record: veiculo,
     };
+  }
+
+  /**
+   * Cor de «Em locação» na frota: azul minha moto · verde meu transporte · marrom carro.
+   */
+  function portalFrotaStatusClassEmLocacao(loc, veiculo) {
+    const vehicleMap = new Map();
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(loc?.placa || veiculo?.placa || ""))
+        : String(loc?.placa || veiculo?.placa || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+    if (plate && veiculo) vehicleMap.set(plate, veiculo);
+    let corCls =
+      typeof getPortalLancPesquisaLinhaCorClasseFast === "function"
+        ? getPortalLancPesquisaLinhaCorClasseFast(loc, vehicleMap)
+        : "";
+    if (corCls === "portal-lanc-pesquisa-linha--azul") return "locado-minha-moto";
+    if (corCls === "portal-lanc-pesquisa-linha--verde") return "locado-meu-transporte";
+    if (corCls === "portal-lanc-pesquisa-linha--amarelo") return "locado-carro";
+
+    /* Fallback por código/tag/tipo do veículo quando o plano da locação não veio preenchido. */
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (x) => String(x || "").trim().toUpperCase();
+    const codigo = nk(String(veiculo?.codigo || veiculo?.tag || ""));
+    const tipo = nk(String(veiculo?.tipo || ""));
+    const plano = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    if (tipo.includes("CARRO") || codigo.includes("DKCR") || codigo.startsWith("DKCA")) {
+      return "locado-carro";
+    }
+    if (
+      (plano.includes("MINHA") && plano.includes("MOTO")) ||
+      codigo.includes("DKMM") ||
+      (codigo.includes("DK") && codigo.includes("MINHA"))
+    ) {
+      return "locado-minha-moto";
+    }
+    if (
+      (plano.includes("MEU") && plano.includes("TRANSPORTE")) ||
+      codigo.includes("DKMT")
+    ) {
+      return "locado-meu-transporte";
+    }
+    if (Number(loc?.valorInvestimento || loc?.investimento || 0) > 0) {
+      return "locado-minha-moto";
+    }
+    return "locado-meu-transporte";
   }
 
   function renderOperacaoVeiculoResumoFrota() {
