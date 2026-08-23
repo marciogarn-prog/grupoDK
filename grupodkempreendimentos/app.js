@@ -2200,6 +2200,9 @@ function loadCadastro(key) {
   } catch {
     arr = [];
   }
+  if (typeof window.__DK_filterOficialCadastroArray === "function") {
+    arr = window.__DK_filterOficialCadastroArray(key, arr);
+  }
   __dkCadastroParseCache[key] = { raw, arr };
   return arr;
 }
@@ -2742,8 +2745,31 @@ function cloudSnapshotWouldMutateLocal(cloudPayload) {
     const v = cloudPayload[k];
     if (v === undefined) continue;
     if (mergeKeys.has(k)) {
-      const prev = loadCadastro(k);
+      let prevRaw = [];
+      try {
+        const raw = localStorage.getItem(k);
+        prevRaw = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(prevRaw)) prevRaw = [];
+      } catch {
+        prevRaw = [];
+      }
       const inc = Array.isArray(v) ? v : [];
+      if (k === CAD_LOCACOES_KEY) {
+        const filterFn =
+          typeof window.__DK_filterOficialCadastroArray === "function"
+            ? window.__DK_filterOficialCadastroArray
+            : (key, arr) => arr;
+        const prevF = filterFn(k, prevRaw);
+        const incF = filterFn(k, inc);
+        if (prevF.length !== prevRaw.length) return true;
+        if (cloudPayload.dk_oficial_sem_protocolos_v1 && prevRaw.length > 0 && incF.length === 0) {
+          return true;
+        }
+        const merged = mergeCadastroHistoricoImutavel(k, prevF, incF);
+        if (JSON.stringify(merged) !== JSON.stringify(prevF)) return true;
+        continue;
+      }
+      const prev = loadCadastro(k);
       const merged = mergeCadastroHistoricoImutavel(k, prev, inc);
       if (JSON.stringify(merged) !== JSON.stringify(prev)) return true;
       continue;
@@ -16089,6 +16115,9 @@ clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
 ensureNumeroContratoForLocacoes();
 fixKnownRentalValueOverrides();
+if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
+  window.__DK_purgeOficialLocalCadastrosAntigos();
+}
 if (cadManutencaoDataInput) cadManutencaoDataInput.value = todayBrDate();
 setupDateMasks();
 observeDkDateMaskFields();

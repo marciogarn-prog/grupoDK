@@ -338,6 +338,9 @@
         payload[k] = raw;
       }
     }
+    if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+      Object.assign(payload, window.__DK_sanitizeOficialCloudPayload(payload) || payload);
+    }
     if (payload.dk_patrimonio_crlv_v1) {
       payload.dk_patrimonio_crlv_v1 = normalizePatrimonioPayloadForSync(
         payload.dk_patrimonio_crlv_v1,

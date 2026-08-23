@@ -1,6 +1,6 @@
 /**
- * Oficial = 0 protocolos. Demo = exactamente os 10 da imagem Locados.
- * Nuvem (Redis) + browser limpo (localStorage após pull).
+ * Oficial: 0 protocolos mesmo com localStorage sujo (os 7 da captura).
+ * Demo: exactamente os 10 da imagem Locados.
  *
  *   node grupodkempreendimentos/scripts/test-oficial-zero-demo-10-protocolos.mjs
  *   node grupodkempreendimentos/scripts/test-oficial-zero-demo-10-protocolos.mjs --oficial
@@ -23,6 +23,15 @@ const DEMO_10 = [
   "2026031704",
 ];
 const DEMO_10_SET = new Set(DEMO_10);
+const SUJOS = [
+  { numeroContrato: "2026081201", cpf: "70506946495", nome: "DIEGO CORREIA DIAS", placa: "UIA1J86", status: "inativo" },
+  { numeroContrato: "2026081901", cpf: "04115684500", nome: "UELTON DE ALMEIDA SANTOS", placa: "UHK4C39", status: "ativo" },
+  { numeroContrato: "2026082001", cpf: "08360620431", nome: "MAGNO LOPES FERREIRA", placa: "QYI3E13", status: "ativo" },
+  { numeroContrato: "2026082002", cpf: "71361906499", nome: "NATANAEL DA SILVA SAMPAIO", placa: "SOY2B04", status: "ativo" },
+  { numeroContrato: "2026082003", cpf: "33838390378", nome: "ADRIANO CARDOSO RIBEIRO", placa: "UHQ1A58", status: "ativo" },
+  { numeroContrato: "2026082004", cpf: "11111111111", nome: "PROTOCOLO SUJO 6", placa: "AAA0A00", status: "ativo" },
+  { numeroContrato: "2026082101", cpf: "22222222222", nome: "PROTOCOLO SUJO 7", placa: "BBB0B00", status: "ativo" },
+];
 
 const only = process.argv.includes("--oficial")
   ? "oficial"
@@ -50,17 +59,52 @@ async function cloud(url) {
   };
 }
 
-async function browserLocacoes(page, base) {
+function loginAdmin(page) {
+  return page.evaluate(() => {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Teste protocolos" })
+    );
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
+  });
+}
+
+async function seedOficialSujo(page) {
+  const now = Date.now();
+  const locs = SUJOS.map((l, i) => ({
+    ...l,
+    numeroContrato: l.numeroContrato,
+    createdAt: now,
+    updatedAt: now,
+    dataCadastro: "23/08/2026",
+    inicio: "23/08/2026",
+    ativo: l.status === "ativo",
+    id: now + i,
+  }));
+  await page.goto(OFICIAL, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.evaluate((payload) => {
+    localStorage.clear();
+    sessionStorage.clear();
+    localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(payload.locs));
+    localStorage.setItem("dk_clear_locacoes_once_v1", "done");
+    localStorage.setItem("dk_reset_locacao_stack_site_v2", "done");
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Teste protocolos" })
+    );
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
+  }, { locs });
+  await page.reload({ waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.waitForTimeout(5000);
+}
+
+async function browserLocacoesClean(page, base) {
   await page.goto(base, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
-    localStorage.setItem(
-      "dk_sessao_cliente",
-      JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Teste 5x protocolos" })
-    );
-    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
   });
+  await loginAdmin(page);
   await page.goto(`${base}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForTimeout(12000);
   return page.evaluate(() => {
@@ -85,10 +129,77 @@ try {
   if (only !== "demo") {
     const ofCloud = await cloud(`${OFICIAL}api/dk-cloud-snapshot?n=${Date.now()}`);
     record("oficial nuvem: 0 protocolos", ofCloud.label === "default" && ofCloud.n === 0, `n=${ofCloud.n}`);
+
     const pageOf = await browser.newPage();
-    const ofBr = await browserLocacoes(pageOf, OFICIAL);
-    record("oficial browser: não é demo", ofBr.demo === false, `demo=${ofBr.demo}`);
-    record("oficial browser: 0 protocolos", ofBr.n === 0, `n=${ofBr.n} ${ofBr.pr.join(",")}`);
+    await seedOficialSujo(pageOf);
+    const afterSeed = await pageOf.evaluate(() => {
+      let raw = [];
+      try {
+        raw = JSON.parse(localStorage.getItem("dk_locacoes_cadastro") || "[]");
+      } catch {
+        raw = [];
+      }
+      const loaded =
+        typeof loadCadastro === "function" ? loadCadastro("dk_locacoes_cadastro") : raw;
+      const pr = (Array.isArray(raw) ? raw : []).map((l) =>
+        String(l.numeroContrato || l.protocolo || "").replace(/\D/g, "")
+      );
+      return {
+        rawN: Array.isArray(raw) ? raw.length : -1,
+        loadN: Array.isArray(loaded) ? loaded.length : -1,
+        pr,
+        guard: window.__DK_OFICIAL_LOCACOES_CUTOFF_YMD || "",
+      };
+    });
+    record(
+      "oficial browser sujo: localStorage sem os 7",
+      afterSeed.rawN === 0,
+      `raw=${afterSeed.rawN} pr=${afterSeed.pr.join(",")} corte=${afterSeed.guard}`
+    );
+    record(
+      "oficial browser sujo: loadCadastro sem os 7",
+      afterSeed.loadN === 0,
+      `load=${afterSeed.loadN}`
+    );
+
+    await pageOf.goto(`${OFICIAL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await pageOf.waitForTimeout(2500);
+    await pageOf.locator("#btn-operacao-lancamento-aluguel").click({ timeout: 20000 });
+    await pageOf.waitForSelector("#operacaoLancAluguelNomeBusca", { timeout: 20000 });
+    await pageOf.fill("#operacaoLancAluguelNomeBusca", "A");
+    await pageOf.dispatchEvent("#operacaoLancAluguelNomeBusca", "input");
+    await pageOf.waitForTimeout(800);
+    const lancUi = await pageOf.evaluate(() => {
+      const lista = document.getElementById("operacaoLancAluguelPesquisaLista");
+      const txt = String(lista?.innerText || "");
+      const n = document.querySelectorAll("#operacaoLancAluguelPesquisaLista .portal-lanc-pesquisa-linha").length;
+      return { txt, n, hidden: !lista || lista.hidden || lista.classList.contains("hidden") };
+    });
+    record(
+      "oficial lançamento avulso: lista sem protocolos sujos",
+      lancUi.n === 0 && !/202608(12|19|20|21)/.test(lancUi.txt),
+      `linhas=${lancUi.n} hidden=${lancUi.hidden}`
+    );
+
+    await pageOf.locator("#btn-operacao-cadastro-locacao").click({ timeout: 20000 });
+    await pageOf.waitForSelector("#operacaoLocacaoGerarRelatorioBtn", { timeout: 20000 });
+    await pageOf.locator("#operacaoLocacaoGerarRelatorioBtn").click({ timeout: 20000 });
+    await pageOf.waitForTimeout(1200);
+    const relUi = await pageOf.evaluate(() => {
+      const body = document.body?.innerText || "";
+      const hasProto = /202608(12|19|20|21)\d*/.test(body);
+      const zero =
+        /0 registro/i.test(body) ||
+        /nenhum regist/i.test(body) ||
+        /0 contrato/i.test(body);
+      const sete = /7 registro/i.test(body) || /6 registros ativos/i.test(body);
+      return { hasProto, zero, sete, snippet: body.slice(0, 400) };
+    });
+    record(
+      "oficial relatório locações: 0 registos (não 7/6 activos)",
+      !relUi.hasProto && !relUi.sete,
+      `proto=${relUi.hasProto} sete=${relUi.sete} zeroHint=${relUi.zero}`
+    );
     await pageOf.close();
   }
 
@@ -101,7 +212,7 @@ try {
       DEMO_10.every((p) => deCloud.pr.includes(p));
     record("demo nuvem: 10 protocolos da imagem", demoCloudOk, `n=${deCloud.n} ${deCloud.pr.join(",")}`);
     const pageDe = await browser.newPage();
-    const deBr = await browserLocacoes(pageDe, DEMO);
+    const deBr = await browserLocacoesClean(pageDe, DEMO);
     record("demo browser: é demo", deBr.demo === true, `demo=${deBr.demo}`);
     const demoBrOk =
       deBr.n === 10 &&
