@@ -594,7 +594,19 @@
     bindOnce();
   }
 
+  function findLatestMovimentacao(placaRaw, categoriaRaw) {
+    const placa = nkPlate(placaRaw);
+    const categoria = String(categoriaRaw || "").trim().toLowerCase();
+    if (!placa || !CATEGORIA_LABEL[categoria]) return null;
+    const rows = loadLista()
+      .filter((r) => nkPlate(r.placa) === placa && r.categoria === categoria)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    return rows[0] || null;
+  }
+
   window.__DK_openPortalMovManutModal = openModal;
   window.__DK_portalSaveChecklistMovimentacao = portalSaveChecklistMovimentacao;
   window.__DK_portalLoadChecklistMovimentacoes = loadLista;
+  window.__DK_portalCollectChecklistSnapshot = collectChecklistSnapshot;
+  window.__DK_portalFindChecklistMovimentacao = findLatestMovimentacao;
 })();

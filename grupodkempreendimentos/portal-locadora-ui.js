@@ -3769,6 +3769,7 @@
         : "Digite ou escolha a placa";
     }
     portalSyncChecklistEncaminharBtns();
+    portalSyncChecklistRelogioAoModo();
     if (isChecklist) {
       portalEnsureManutSimplesActionsVisible(false);
       portalValidateChecklistCompleto();
@@ -4588,6 +4589,7 @@
   function portalPrefillChecklistEntradaAgora() {
     const dataEl = document.getElementById("portalChecklistEntradaData");
     const horaEl = document.getElementById("portalChecklistEntradaHora");
+    if (dataEl?.readOnly) return;
     if (dataEl) dataEl.value = portalBrDatePlusDays(0);
     if (horaEl) {
       const d = new Date();
@@ -4595,7 +4597,123 @@
     }
   }
 
+  /** Preenche Saída (data/hora) com o momento atual — só em 7+ (não triagem). */
+  function portalPrefillChecklistSaidaAgora() {
+    if (portalChecklistIsTriagemMode()) return;
+    const dataEl = document.getElementById("portalChecklistSaidaData");
+    const horaEl = document.getElementById("portalChecklistSaidaHora");
+    if (dataEl) dataEl.value = portalBrDatePlusDays(0);
+    if (horaEl) {
+      const d = new Date();
+      horaEl.value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+  }
+
+  let portalChecklistRelogioTimer = null;
+
+  function portalStopChecklistRelogio() {
+    if (portalChecklistRelogioTimer) {
+      clearInterval(portalChecklistRelogioTimer);
+      portalChecklistRelogioTimer = null;
+    }
+  }
+
+  /** Triagem: entrada ao vivo · 7: entrada congelada + saída ao vivo. */
+  function portalSyncChecklistRelogioAoModo() {
+    portalStopChecklistRelogio();
+    const mount = document.getElementById("portalChecklistMount");
+    if (!mount || mount.classList.contains("hidden") || !portalChecklistIsManutencaoMode()) return;
+    if (portalChecklistIsTriagemMode()) {
+      portalPrefillChecklistEntradaAgora();
+      portalChecklistRelogioTimer = setInterval(() => portalPrefillChecklistEntradaAgora(), 60000);
+      return;
+    }
+    if (portalChecklistIsOficinaPropriaMode()) {
+      portalPrefillChecklistSaidaAgora();
+      portalChecklistRelogioTimer = setInterval(() => portalPrefillChecklistSaidaAgora(), 60000);
+    }
+  }
+
+  function portalSetChecklistEntradaTriagemCongelada(congelada) {
+    ["portalChecklistEntradaData", "portalChecklistEntradaHora", "portalChecklistOdometro"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (congelada) {
+        el.setAttribute("readonly", "readonly");
+        if (id === "portalChecklistOdometro") el.readOnly = true;
+      } else {
+        el.removeAttribute("readonly");
+        if (id === "portalChecklistOdometro") el.readOnly = false;
+      }
+    });
+    document
+      .getElementById("portalChecklistOpsGrid")
+      ?.classList.toggle("portal-checklist-ops-grid--triagem-congelada", Boolean(congelada));
+  }
+
+  function portalFindChecklistTriagemCongelado(placaRaw, manutRecord) {
+    const snap = manutRecord?.checklistTriagemSnapshot;
+    if (snap && typeof snap === "object" && snap.entradaData) return snap;
+    const fn = window.__DK_portalFindChecklistMovimentacao;
+    if (typeof fn === "function") {
+      const hit = fn(placaRaw, "triagem");
+      if (hit) return hit;
+    }
+    return null;
+  }
+
+  /** Restaura snapshot da triagem ao abrir em 7 — Oficina própria. */
+  function portalApplyChecklistTriagemCongelado(snap) {
+    if (!snap) return false;
+    const assign = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val != null ? String(val) : "";
+    };
+    assign("portalChecklistEntradaData", snap.entradaData);
+    assign("portalChecklistEntradaHora", snap.entradaHora);
+    assign("portalChecklistOdometro", snap.odometro);
+    assign("portalChecklistProximaTroca", snap.proximaTroca);
+    if (snap.oleo) {
+      const oleo = document.querySelector(`input[name="portalChecklistOleo"][value="${snap.oleo}"]`);
+      if (oleo) oleo.checked = true;
+    }
+    if (snap.pagou) {
+      const pagou = document.querySelector(`input[name="portalChecklistPagou"][value="${snap.pagou}"]`);
+      if (pagou) pagou.checked = true;
+    }
+    (snap.itens || []).forEach((it) => {
+      const n = Number(it.n);
+      if (!Number.isFinite(n) || n < 1) return;
+      const a = document.querySelector(`input[name="portalChecklistItem${n}"][value="A"]`);
+      const r = document.querySelector(`input[name="portalChecklistItem${n}"][value="R"]`);
+      if (it.estado === "R") {
+        if (r) r.checked = true;
+        if (a) a.checked = false;
+        const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+        const obs = String(it.obs || "").trim();
+        if (sel && obs) {
+          const opt = [...sel.options].find((o) => o.value === obs);
+          if (opt) sel.value = obs;
+          else if (obs) {
+            sel.value = "OUTRO";
+            const inp = document.getElementById(`portalChecklistObs${n}`);
+            if (inp) inp.value = obs;
+          }
+        }
+      } else {
+        if (a) a.checked = true;
+        if (r) r.checked = false;
+      }
+      portalSyncChecklistObsUi(n);
+    });
+    portalSetChecklistEntradaTriagemCongelada(true);
+    portalUpdateProximaTrocaKm();
+    return true;
+  }
+
   function portalClearChecklistInspection() {
+    portalStopChecklistRelogio();
+    portalSetChecklistEntradaTriagemCongelada(false);
     for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
       const a = document.querySelector(`input[name="portalChecklistItem${n}"][value="A"]`);
       const r = document.querySelector(`input[name="portalChecklistItem${n}"][value="R"]`);
@@ -4619,7 +4737,9 @@
         if (el) el.value = "";
       }
     );
-    portalPrefillChecklistEntradaAgora();
+    if (portalChecklistIsTriagemMode()) {
+      portalPrefillChecklistEntradaAgora();
+    }
     const od = document.getElementById("portalChecklistOdometro");
     if (od) od.value = "";
     const px = document.getElementById("portalChecklistProximaTroca");
@@ -5193,10 +5313,19 @@
     if (idx < 0) {
       return { ok: false, message: "Não há manutenção ativa para esta placa." };
     }
+    const origemSub = portalManutEmManutSubAtivo;
+    let triagemSnap = null;
+    if (origemSub === "triagem" && categoria === "oficina-propria") {
+      const collectFn = window.__DK_portalCollectChecklistSnapshot;
+      if (typeof collectFn === "function") {
+        triagemSnap = collectFn("triagem", "oficina-propria");
+      }
+    }
     manutencoes[idx] = {
       ...manutencoes[idx],
       categoriaManutencao: categoria,
       encaminhadoDeTriagem: categoria !== "triagem",
+      ...(triagemSnap ? { checklistTriagemSnapshot: triagemSnap, checklistTriagemCongeladoEm: Date.now() } : {}),
     };
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
     if (typeof addAuditLog === "function") {
@@ -6475,7 +6604,30 @@
     if (inp) inp.value = plateFmt;
     portalClearChecklistInspection();
     const res = portalFillChecklistFromCadastro(plateFmt);
-    if (msgEl) msgEl.textContent = res.message;
+    if (portalChecklistIsOficinaPropriaMode()) {
+      let manutRec = null;
+      if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
+        manutRec =
+          loadCadastro(CAD_MANUTENCOES_KEY).find(
+            (m) => portalNkPlate(m.placa) === plateFmt && !String(m.dataRealSaida || "").trim()
+          ) || null;
+      }
+      const triagemSnap = portalFindChecklistTriagemCongelado(plateFmt, manutRec);
+      if (triagemSnap) {
+        portalApplyChecklistTriagemCongelado(triagemSnap);
+        if (msgEl) {
+          msgEl.textContent =
+            "Dados da triagem congelados (entrada, km e itens em R). Saída atualiza automaticamente.";
+        }
+      } else if (msgEl) {
+        msgEl.textContent = res.message;
+      }
+    } else if (portalChecklistIsTriagemMode()) {
+      portalPrefillChecklistEntradaAgora();
+      if (msgEl) msgEl.textContent = res.message;
+    } else if (msgEl) {
+      msgEl.textContent = res.message;
+    }
     mount?.classList.remove("hidden");
     mount?.classList.add("portal-checklist-mount--tablet");
     fotosGrid?.classList.remove("hidden");
@@ -6483,6 +6635,7 @@
     portalRefreshChecklistOdometroUltimo(plateFmt);
     portalApplyChecklistPlanoCores(plateFmt);
     portalValidateChecklistCompleto();
+    portalSyncChecklistRelogioAoModo();
     portalSyncManutPlacaBarVisibility();
     return { ok: true, placa: plateFmt };
   }
@@ -6545,7 +6698,7 @@
           <label>Celular do cliente <input type="text" id="portalChecklistFieldCelular" autocomplete="off"></label>
           <label>Placa <input type="text" id="portalChecklistFieldPlaca" readonly tabindex="-1"></label>
         </div>
-        <div class="portal-checklist-meta-grid portal-checklist-ops-grid">
+        <div class="portal-checklist-meta-grid portal-checklist-ops-grid" id="portalChecklistOpsGrid">
           <label>Entrada (data) <input type="text" id="portalChecklistEntradaData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
           <label>Entrada (hora) <input type="time" id="portalChecklistEntradaHora"></label>
           <label class="portal-checklist-saida-field">Saída (data) <input type="text" id="portalChecklistSaidaData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>

@@ -3175,6 +3175,15 @@ body {
   display: none !important;
 }
 
+/* Oficina 7: entrada/km da triagem congelados (readonly). */
+.portal-checklist-ops-grid--triagem-congelada #portalChecklistEntradaData,
+.portal-checklist-ops-grid--triagem-congelada #portalChecklistEntradaHora,
+.portal-checklist-ops-grid--triagem-congelada #portalChecklistOdometro {
+  opacity: 0.92;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .portal-checklist-workspace--placas-grid #portalChecklistPlacaLinhaTopo {
   display: none !important;
 }
