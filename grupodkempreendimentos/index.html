@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260823placa-z">
+  <link rel="stylesheet" href="styles.css?v=20260823sem-autofill">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -246,7 +246,7 @@
         <form id="form-locadora-app-download" class="portal-form" novalidate>
           <label class="portal-field">
             <span>CPF</span>
-            <input type="text" id="locadora-app-cpf" name="cpf" inputmode="numeric" autocomplete="username" maxlength="14" required placeholder="000.000.000-00">
+            <input type="text" id="locadora-app-cpf" name="locadora_app_cpf" inputmode="numeric" autocomplete="off" maxlength="14" required placeholder="000.000.000-00" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
           </label>
           <label class="portal-field">
             <span>Protocolo</span>
@@ -1559,30 +1559,22 @@
             <label class="portal-manut-placa-lookup__field" for="portalManutPlacaLookup">
               <span class="portal-manut-placa-lookup__label">Onde está a placa?</span>
               <div class="portal-combobox" id="portalManutPlacaLookupCombo">
-                <!-- autocomplete/readonly: evita o Chrome tratar como campo de login CPF -->
-                <input
-                  type="search"
+                <!-- contenteditable: Chrome não mostra autofill de CPF/senha neste campo -->
+                <div
                   id="portalManutPlacaLookup"
-                  name="dk_manut_placa_onde_esta"
                   class="portal-manut-placa-lookup__input"
-                  maxlength="10"
-                  autocomplete="off"
-                  autocorrect="off"
-                  autocapitalize="characters"
-                  spellcheck="false"
-                  inputmode="text"
-                  enterkeyhint="search"
-                  data-lpignore="true"
-                  data-1p-ignore="true"
-                  data-bwignore="true"
-                  data-form-type="other"
-                  readonly
-                  placeholder="Digite ou escolha a placa"
+                  contenteditable="true"
+                  role="combobox"
                   aria-autocomplete="list"
                   aria-expanded="false"
                   aria-controls="portalManutPlacaLookupLista"
                   aria-describedby="portalManutPlacaLookupResult"
-                >
+                  aria-label="Digite ou escolha a placa"
+                  data-placeholder="Digite ou escolha a placa"
+                  spellcheck="false"
+                  inputmode="text"
+                  tabindex="0"
+                ></div>
                 <div
                   id="portalManutPlacaLookupLista"
                   class="portal-placa-dropdown portal-manut-placa-lookup__lista hidden"
@@ -2335,11 +2327,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260823placa-z" defer></script>
+  <script src="app.js?v=20260823sem-autofill" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260823placa-z" defer></script>
+  <script src="portal-locadora-ui.js?v=20260823sem-autofill" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

@@ -892,6 +892,21 @@ body {
   border: 1px solid rgba(248, 113, 113, 0.55);
   background: rgba(0, 0, 0, 0.35);
   color: #fff;
+  box-sizing: border-box;
+  min-height: 2.65rem;
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow-x: auto;
+  cursor: text;
+}
+
+.portal-manut-placa-lookup__input:empty::before {
+  content: attr(data-placeholder);
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  pointer-events: none;
 }
 
 .portal-manut-placa-lookup__input:focus {
