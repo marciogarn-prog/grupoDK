@@ -3619,6 +3619,94 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   margin-bottom: 1rem;
 }
 
+.portal-checklist-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin-bottom: 1rem;
+  align-items: start;
+}
+
+.portal-checklist-ops-grid > label,
+.portal-checklist-toggle-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.88rem;
+}
+
+.portal-checklist-ops-grid input,
+.portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
+.portal-checklist-obs-select {
+  padding: 0.45rem 0.55rem;
+  font-size: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.portal-checklist-odometro-ultimo {
+  min-width: 0;
+}
+
+.portal-checklist-odometro-ultimo__box {
+  margin-top: 0;
+  min-height: 2.35rem;
+  display: flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-checklist-odometro-ultimo__data {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--muted, #a8b0bc);
+}
+
+.portal-checklist-toggle-field .portal-checklist-toggle-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  padding: 0.45rem 0.55rem;
+  min-height: 2.35rem;
+  align-items: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.portal-checklist-toggle-field .portal-checklist-toggle-options label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.portal-checklist-obs-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 7rem;
+}
+
+.portal-checklist-obs-select.hidden,
+.portal-checklist-obs-input--outro.hidden {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .portal-checklist-ops-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .portal-checklist-inline-row {
   display: flex;
   flex-wrap: wrap;

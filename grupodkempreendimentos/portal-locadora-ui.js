@@ -4353,17 +4353,21 @@
 
   function portalClearChecklistInspection() {
     for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
-      document.querySelectorAll(`input[name="portalChecklistItem${n}"]`).forEach((r) => {
-        r.checked = false;
-      });
+      const a = document.querySelector(`input[name="portalChecklistItem${n}"][value="A"]`);
+      const r = document.querySelector(`input[name="portalChecklistItem${n}"][value="R"]`);
+      if (a) a.checked = true;
+      if (r) r.checked = false;
+      const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+      if (sel) sel.value = "";
       const o = document.getElementById(`portalChecklistObs${n}`);
       if (o) o.value = "";
+      portalSyncChecklistObsUi(n);
     }
-    document.querySelectorAll('input[name="portalChecklistOleo"]').forEach((r) => {
-      r.checked = false;
+    document.querySelectorAll('input[name="portalChecklistOleo"]').forEach((el) => {
+      el.checked = false;
     });
-    document.querySelectorAll('input[name="portalChecklistPagou"]').forEach((r) => {
-      r.checked = false;
+    document.querySelectorAll('input[name="portalChecklistPagou"]').forEach((el) => {
+      el.checked = false;
     });
     ["portalChecklistEntradaData", "portalChecklistEntradaHora", "portalChecklistSaidaData", "portalChecklistSaidaHora"].forEach(
       (id) => {
@@ -4381,6 +4385,51 @@
     if (m) m.value = "";
     if (s) s.value = "";
     portalRefreshChecklistOdometroUltimo(portalGetPlacaChecklistAtual());
+  }
+
+  /** Obs. do item: só com R; lista SUBSTITUIR/REGULAR/OUTRO; OUTRO libera digitação. */
+  function portalSyncChecklistObsUi(n) {
+    const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
+    const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+    const inp = document.getElementById(`portalChecklistObs${n}`);
+    if (!sel || !inp) return;
+    const isR = estado === "R";
+    sel.classList.toggle("hidden", !isR);
+    sel.hidden = !isR;
+    if (!isR) {
+      sel.value = "";
+      inp.value = "";
+      inp.classList.add("hidden");
+      inp.hidden = true;
+      inp.readOnly = true;
+      return;
+    }
+    const v = String(sel.value || "");
+    const isOutro = v === "OUTRO";
+    if (v && v !== "OUTRO") {
+      inp.value = v;
+      inp.classList.add("hidden");
+      inp.hidden = true;
+      inp.readOnly = true;
+    } else {
+      inp.classList.toggle("hidden", !isOutro);
+      inp.hidden = !isOutro;
+      inp.readOnly = !isOutro;
+      if (!isOutro) inp.value = "";
+      if (isOutro) inp.placeholder = "Descreva…";
+    }
+  }
+
+  function portalGetChecklistObsValor(n) {
+    const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
+    if (estado !== "R") return "";
+    const sel = document.getElementById(`portalChecklistObsSelect${n}`);
+    const v = String(sel?.value || "").trim();
+    if (!v) return "";
+    if (v === "OUTRO") {
+      return String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
+    }
+    return v;
   }
 
   function portalUpdateProximaTrocaKm() {
@@ -5291,19 +5340,40 @@
     if (!ed || !eh) req.push("entrada (data e hora)");
     if (!isTriagem && (!sd || !sh)) req.push("saída (data e hora)");
 
-    if (!document.querySelector('input[name="portalChecklistOleo"]:checked')) req.push("troca de óleo (Sim/Não)");
-    if (!document.querySelector('input[name="portalChecklistPagou"]:checked')) req.push("Pagou (S/N/N/A)");
-
-    if (portalChecklistOleoSim()) {
+    if (!document.querySelector('input[name="portalChecklistOleo"]:checked')) {
+      req.push("troca de óleo (Sim/Não)");
+    } else if (portalChecklistOleoSim()) {
+      if (!document.querySelector('input[name="portalChecklistPagou"]:checked')) {
+        req.push("Pagou (S/N/N/A)");
+      }
       const odVal = document.getElementById("portalChecklistOdometro")?.value;
       const n = parseInt(String(odVal || "").replace(/\D/g, ""), 10);
       if (!Number.isFinite(n) || n < 0) req.push("odômetro (obrigatório se troca de óleo = Sim)");
+    } else {
+      /* Troca de óleo = Não → Pagou não bloqueia o envio (assume N/A). */
+      const pagou = document.querySelector('input[name="portalChecklistPagou"]:checked');
+      if (!pagou) {
+        const na = document.querySelector('input[name="portalChecklistPagou"][value="NA"]');
+        if (na) na.checked = true;
+      }
     }
 
     for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
       if (!document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)) {
         req.push(`itens 1–29 (falta item ${n}: A ou R)`);
         break;
+      }
+      const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value;
+      if (estado === "R") {
+        const sel = String(document.getElementById(`portalChecklistObsSelect${n}`)?.value || "").trim();
+        if (!sel) {
+          req.push(`obs. do item ${n} (SUBSTITUIR / REGULAR / OUTRO)`);
+          break;
+        }
+        if (sel === "OUTRO" && !String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim()) {
+          req.push(`obs. do item ${n} (digite o detalhe de OUTRO)`);
+          break;
+        }
       }
     }
 
@@ -5464,7 +5534,7 @@
       const n = i + 1;
       const estado =
         document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value || "";
-      const obs = String(document.getElementById(`portalChecklistObs${n}`)?.value || "").trim();
+      const obs = portalGetChecklistObsValor(n);
       return { n, label, estado, obs };
     });
 
@@ -5636,7 +5706,24 @@
     });
 
     const root = document.getElementById("portalChecklistPrintArea");
-    root?.addEventListener("change", () => portalValidateChecklistCompleto());
+    root?.addEventListener("change", (e) => {
+      const t = e.target;
+      if (t && t.name === "portalChecklistOleo") {
+        if (String(t.value || "") === "nao") {
+          const na = document.querySelector('input[name="portalChecklistPagou"][value="NA"]');
+          if (na) na.checked = true;
+        }
+      }
+      if (t && t.name && String(t.name).startsWith("portalChecklistItem")) {
+        const n = parseInt(String(t.name).replace(/\D/g, ""), 10);
+        if (Number.isFinite(n)) portalSyncChecklistObsUi(n);
+      }
+      if (t && t.id && String(t.id).startsWith("portalChecklistObsSelect")) {
+        const n = parseInt(String(t.id).replace(/\D/g, ""), 10);
+        if (Number.isFinite(n)) portalSyncChecklistObsUi(n);
+      }
+      portalValidateChecklistCompleto();
+    });
     root?.addEventListener("input", () => portalValidateChecklistCompleto());
 
     document.getElementById("portalChecklistBtnImprimir")?.addEventListener("click", () => {
@@ -5840,9 +5927,19 @@
       return `<tr class="portal-checklist-inspection-row">
         <td class="portal-checklist-num">${n}</td>
         <td class="portal-checklist-desc">${portalEscapeHtml(label)}</td>
-        <td class="portal-checklist-ar"><label><input type="radio" name="portalChecklistItem${n}" value="A" autocomplete="off"></label></td>
+        <td class="portal-checklist-ar"><label><input type="radio" name="portalChecklistItem${n}" value="A" autocomplete="off" checked></label></td>
         <td class="portal-checklist-ar"><label><input type="radio" name="portalChecklistItem${n}" value="R" autocomplete="off"></label></td>
-        <td class="portal-checklist-obs"><input type="text" class="portal-checklist-obs-input" id="portalChecklistObs${n}" maxlength="160" autocomplete="off"></td>
+        <td class="portal-checklist-obs">
+          <div class="portal-checklist-obs-wrap">
+            <select id="portalChecklistObsSelect${n}" class="portal-checklist-obs-select hidden" hidden aria-label="Observação item ${n}">
+              <option value="">— Escolha —</option>
+              <option value="SUBSTITUIR">SUBSTITUIR</option>
+              <option value="REGULAR">REGULAR</option>
+              <option value="OUTRO">OUTRO</option>
+            </select>
+            <input type="text" class="portal-checklist-obs-input portal-checklist-obs-input--outro hidden" id="portalChecklistObs${n}" maxlength="160" autocomplete="off" hidden placeholder="Descreva…">
+          </div>
+        </td>
       </tr>`;
     }).join("");
 
@@ -5875,32 +5972,26 @@
           <label>Celular do cliente <input type="text" id="portalChecklistFieldCelular" autocomplete="off"></label>
           <label>Placa <input type="text" id="portalChecklistFieldPlaca" readonly tabindex="-1"></label>
         </div>
-        <div class="portal-checklist-dates">
+        <div class="portal-checklist-meta-grid portal-checklist-ops-grid">
           <label>Entrada (data) <input type="text" id="portalChecklistEntradaData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
           <label>Entrada (hora) <input type="time" id="portalChecklistEntradaHora"></label>
           <label class="portal-checklist-saida-field">Saída (data) <input type="text" id="portalChecklistSaidaData" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA"></label>
           <label class="portal-checklist-saida-field">Saída (hora) <input type="time" id="portalChecklistSaidaHora"></label>
-        </div>
-        <div class="portal-checklist-inline-row">
-          <div class="portal-checklist-toggle-group">
+          <label>Odômetro (km) <input type="number" inputmode="numeric" min="0" step="1" id="portalChecklistOdometro" placeholder="km"></label>
+          <label class="portal-checklist-odometro-ultimo" aria-live="polite">
+            <span>Último check-list (km)</span>
+            <span class="portal-checklist-odometro-ultimo__box" id="portalChecklistOdometroUltimo">—</span>
+            <span class="portal-checklist-odometro-ultimo__data" id="portalChecklistOdometroUltimoData"></span>
+          </label>
+          <label>Próxima troca (km) <input type="text" id="portalChecklistProximaTroca" readonly tabindex="-1"></label>
+          <div class="portal-checklist-toggle-field">
             <span>Troca de óleo</span>
             <div class="portal-checklist-toggle-options" role="group" aria-label="Troca de óleo">
               <label><input type="radio" name="portalChecklistOleo" value="sim"> Sim</label>
               <label><input type="radio" name="portalChecklistOleo" value="nao"> Não</label>
             </div>
           </div>
-          <div class="portal-checklist-inline-field">
-            <label>Odômetro (km) <input type="number" inputmode="numeric" min="0" step="1" id="portalChecklistOdometro" placeholder="km"></label>
-          </div>
-          <div class="portal-checklist-inline-field portal-checklist-odometro-ultimo" aria-live="polite">
-            <span class="portal-checklist-odometro-ultimo__label">Último check-list (km)</span>
-            <div class="portal-checklist-odometro-ultimo__box" id="portalChecklistOdometroUltimo">—</div>
-            <span class="portal-checklist-odometro-ultimo__data" id="portalChecklistOdometroUltimoData"></span>
-          </div>
-          <div class="portal-checklist-inline-field">
-            <label>Próxima troca (km) <input type="text" id="portalChecklistProximaTroca" readonly tabindex="-1"></label>
-          </div>
-          <div class="portal-checklist-toggle-group">
+          <div class="portal-checklist-toggle-field">
             <span>Pagou</span>
             <div class="portal-checklist-toggle-options" role="group" aria-label="Pagou">
               <label><input type="radio" name="portalChecklistPagou" value="S"> S</label>
