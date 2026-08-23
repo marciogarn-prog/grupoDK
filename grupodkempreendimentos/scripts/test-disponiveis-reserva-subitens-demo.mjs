@@ -37,7 +37,7 @@ async function run() {
       const s = [...document.scripts].find((x) => (x.src || "").includes("portal-locadora-ui.js"));
       return s?.src || "";
     });
-    record("cache-bust reserva-subitens", /reserva-subitens|reserva-audit/.test(cacheBust), cacheBust.split("?")[1] || cacheBust);
+    record("cache-bust reserva-subitens", /reserva-subitens|reserva-audit|prontos-sem-mover/.test(cacheBust), cacheBust.split("?")[1] || cacheBust);
 
     await page.locator("#btn-locadora-manutencao").click({ timeout: 15000 });
     await page.waitForTimeout(500);
@@ -104,114 +104,102 @@ async function run() {
     await page.locator("#btn-disp-sub-prontos").click({ timeout: 15000 });
     await page.waitForTimeout(700);
 
-    const moveResult = await page.evaluate(() => {
+    const prontosUi = await page.evaluate(() => {
       const grid = document.getElementById("portalDisponiveisPlacasGrid");
-      const firstMove = grid?.querySelector("[data-disp-move='reserva-patio']");
-      if (!firstMove) {
-        return { ok: false, reason: "sem botão MOVER PARA RESERVA NO PÁTIO em prontos" };
-      }
-      const placa = firstMove.getAttribute("data-placa") || "";
-      firstMove.click();
-      return { ok: true, placa, clicked: "reserva-patio" };
+      const moves = grid?.querySelectorAll("[data-disp-move]")?.length || 0;
+      const cards = grid?.querySelectorAll(".portal-reserva-placa-item")?.length || 0;
+      const lead = document.getElementById("portalDisponiveisLead")?.textContent || "";
+      return { moves, cards, lead };
     });
-    record("prontos tem botão mover para pátio", moveResult.ok, moveResult.reason || moveResult.placa);
-    await page.waitForTimeout(900);
+    record("prontos sem botões de mover", prontosUi.moves === 0, `moves=${prontosUi.moves} cards=${prontosUi.cards}`);
+    record(
+      "prontos: texto diz que saem ao locar",
+      /locad/i.test(prontosUi.lead),
+      prontosUi.lead.slice(0, 80)
+    );
 
-    if (moveResult.ok && moveResult.placa) {
-      const afterMove = await page.evaluate((placa) => {
+    /* Reserva 2.1 ↔ 2.2: define categoria no cadastro e testa o botão de mover. */
+    const crossMove = await page.evaluate(() => {
+      const grid = document.getElementById("portalDisponiveisPlacasGrid");
+      const placa = grid?.querySelector(".portal-reserva-placa-btn")?.getAttribute("data-placa") || "";
+      if (!placa) return { ok: false, reason: "sem placa" };
+      if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_VEICULOS_KEY === "undefined") {
+        return { ok: false, reason: "cadastro API indisponível", placa };
+      }
+      const list = loadCadastro(CAD_VEICULOS_KEY);
+      const nk = (p) =>
+        String(p || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+      const idx = list.findIndex((v) => nk(v.placa) === nk(placa));
+      if (idx < 0) return { ok: false, reason: "placa não no cadastro", placa };
+      list[idx] = { ...list[idx], disponivelCategoria: "reserva-operacao", updatedAt: Date.now() };
+      saveCadastro(CAD_VEICULOS_KEY, list, { bypassImmutabilidadeCadastro: true });
+      return { ok: true, placa };
+    });
+    record("seed placa em reserva-operacao", crossMove.ok, crossMove.reason || crossMove.placa);
+
+    if (crossMove.ok) {
+      await page.locator("#btn-disp-sub-reserva").click({ timeout: 15000 });
+      await page.waitForTimeout(200);
+      await page.locator("#btn-disp-sub-reserva-operacao").click({ timeout: 15000 });
+      await page.waitForTimeout(700);
+      const opMove = await page.evaluate((placa) => {
         const title = document.getElementById("manutencao-title-disponiveis")?.textContent || "";
-        const msg = document.getElementById("portalDisponiveisPlacasMsg")?.textContent || "";
         const items = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]")].map((b) =>
           b.getAttribute("data-placa")
         );
-        const inGrid = items.includes(placa);
-        return { title, msg, inGrid, itemsCount: items.length };
-      }, moveResult.placa);
+        const btn = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']")].find(
+          (b) => b.getAttribute("data-placa") === placa
+        );
+        const prontosBtns = document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='prontos']").length;
+        return {
+          title,
+          inGrid: items.includes(placa),
+          hasPatioBtn: Boolean(btn),
+          prontosBtns,
+        };
+      }, crossMove.placa);
       record(
-        "após mover, abre lista destino com a placa",
-        /pátio|patio|2\.2/i.test(afterMove.title) && afterMove.inGrid,
-        `${afterMove.title} | ${afterMove.msg} | inGrid=${afterMove.inGrid}`
+        "2.1 mostra placa e só botão para pátio",
+        /2\.1|operação/i.test(opMove.title) && opMove.inGrid && opMove.hasPatioBtn && opMove.prontosBtns === 0,
+        opMove.title
       );
-
-      const moveBack = await page.evaluate((placa) => {
-        const btn = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='prontos']")].find(
+      await page.evaluate((placa) => {
+        const btn = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']")].find(
           (b) => b.getAttribute("data-placa") === placa
         );
-        if (!btn) return { ok: false, reason: "sem botão voltar para prontos" };
-        btn.click();
-        return { ok: true };
-      }, moveResult.placa);
-      record("pátio tem botão voltar para prontos", moveBack.ok, moveBack.reason || "");
-      await page.waitForTimeout(900);
-
-      if (moveBack.ok) {
-        const back = await page.evaluate((placa) => {
-          const title = document.getElementById("manutencao-title-disponiveis")?.textContent || "";
-          const items = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]")].map((b) =>
-            b.getAttribute("data-placa")
-          );
-          return { title, inGrid: items.includes(placa) };
-        }, moveResult.placa);
-        record(
-          "placa volta para prontos",
-          /prontos/i.test(back.title) && back.inGrid,
-          `${back.title} | inGrid=${back.inGrid}`
-        );
-      }
-
-      const cross = await page.evaluate((placa) => {
-        const toOp = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-operacao']")].find(
-          (b) => b.getAttribute("data-placa") === placa
-        );
-        if (!toOp) return { ok: false, reason: "sem botão para operação" };
-        toOp.click();
-        return { ok: true };
-      }, moveResult.placa);
+        btn?.click();
+      }, crossMove.placa);
       await page.waitForTimeout(800);
-      if (cross.ok) {
-        const opState = await page.evaluate((placa) => {
-          const title = document.getElementById("manutencao-title-disponiveis")?.textContent || "";
-          const items = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]")].map((b) =>
-            b.getAttribute("data-placa")
-          );
-          return { title, inGrid: items.includes(placa) };
-        }, moveResult.placa);
-        record(
-          "mover prontos → 2.1 operação",
-          /2\.1|operação/i.test(opState.title) && opState.inGrid,
-          opState.title
+      const patioState = await page.evaluate((placa) => {
+        const title = document.getElementById("manutencao-title-disponiveis")?.textContent || "";
+        const items = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]")].map((b) =>
+          b.getAttribute("data-placa")
         );
-
-        await page.evaluate((placa) => {
-          const toPatio = [
-            ...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']"),
-          ].find((b) => b.getAttribute("data-placa") === placa);
-          toPatio?.click();
-        }, moveResult.placa);
-        await page.waitForTimeout(800);
-        const patioState = await page.evaluate((placa) => {
-          const title = document.getElementById("manutencao-title-disponiveis")?.textContent || "";
-          const items = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]")].map((b) =>
-            b.getAttribute("data-placa")
-          );
-          return { title, inGrid: items.includes(placa) };
-        }, moveResult.placa);
-        record(
-          "mover 2.1 → 2.2 pátio",
-          /2\.2|pátio|patio/i.test(patioState.title) && patioState.inGrid,
-          patioState.title
-        );
-
-        await page.evaluate((placa) => {
-          const toProntos = [
-            ...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='prontos']"),
-          ].find((b) => b.getAttribute("data-placa") === placa);
-          toProntos?.click();
-        }, moveResult.placa);
-        await page.waitForTimeout(600);
-      } else {
-        record("mover prontos → 2.1 operação", false, cross.reason);
-      }
+        return { title, inGrid: items.includes(placa) };
+      }, crossMove.placa);
+      record(
+        "mover 2.1 → 2.2 pátio",
+        /2\.2|pátio|patio/i.test(patioState.title) && patioState.inGrid,
+        patioState.title
+      );
+      /* Restaura para prontos (sem botão na UI — via cadastro). */
+      await page.evaluate((placa) => {
+        if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_VEICULOS_KEY === "undefined") {
+          return;
+        }
+        const list = loadCadastro(CAD_VEICULOS_KEY);
+        const nk = (p) =>
+          String(p || "")
+            .toUpperCase()
+            .replace(/[^A-Z0-9]/g, "");
+        const idx = list.findIndex((v) => nk(v.placa) === nk(placa));
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], disponivelCategoria: "prontos", updatedAt: Date.now() };
+          saveCadastro(CAD_VEICULOS_KEY, list, { bypassImmutabilidadeCadastro: true });
+        }
+      }, crossMove.placa);
     }
 
     const lookup = await page.evaluate(() => {
