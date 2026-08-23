@@ -2429,7 +2429,7 @@
   const MANUT_DISP_SUB_META = {
     prontos: {
       title: "Disponíveis — 4 Pronto para alugar",
-      lead: "Veículos livres, prontos para nova locação. Saem desta lista automaticamente quando forem locados.",
+      lead: "Veículos livres, prontos para nova locação. Saem desta lista automaticamente quando forem locados. Use «ENVIAR PARA 5.2» para disponibilizar como reserva no pátio.",
     },
     "reserva-operacao": {
       title: "Disponíveis — 5.1 Reserva em operação",
@@ -4874,13 +4874,13 @@
       if (msg) msg.textContent = "";
       return;
     }
-    /* «Prontos»: só placa (saem ao locar). «Reserva» 5.1/5.2: caixinhas + 2 botões para transitar. */
+    /* «4 Pronto»: botão ENVIAR PARA 5.2. «Reserva» 5.1/5.2: botões para transitar. */
     const moveTargets =
       sub === "prontos"
-        ? []
+        ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }]
         : [
-            { dest: "reserva-operacao", label: "MOVER PARA RESERVA EM OPERAÇÃO" },
-            { dest: "reserva-patio", label: "MOVER PARA RESERVA NO PÁTIO" },
+            { dest: "reserva-operacao", label: "MOVER PARA 5.1 — RESERVA EM OPERAÇÃO" },
+            { dest: "reserva-patio", label: "MOVER PARA 5.2 — RESERVA NO PÁTIO" },
           ];
     grid.innerHTML = rows
       .map((r) => {
