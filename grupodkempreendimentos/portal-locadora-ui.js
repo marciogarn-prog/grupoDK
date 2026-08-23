@@ -2421,22 +2421,22 @@
       lead: "Pesquise a placa e encaminhe para manutenção.",
     },
     carros: {
-      title: "Locados — 3 Plano Carros",
+      title: "Locados — 3 Plano Carro",
       lead: "Pesquise a placa e encaminhe para manutenção.",
     },
   };
 
   const MANUT_DISP_SUB_META = {
     prontos: {
-      title: "Disponíveis — 1 Prontos para alugar",
+      title: "Disponíveis — 4 Pronto para alugar",
       lead: "Veículos livres, prontos para nova locação. Saem desta lista automaticamente quando forem locados.",
     },
     "reserva-operacao": {
-      title: "Disponíveis — 2.1 Reserva em operação",
+      title: "Disponíveis — 5.1 Reserva em operação",
       lead: "Mesmas caixinhas de placa. Use os botões para enviar à reserva no pátio (ou manter em operação).",
     },
     "reserva-patio": {
-      title: "Disponíveis — 2.2 Reserva no pátio",
+      title: "Disponíveis — 5.2 Reserva no pátio",
       lead: "Mesmas caixinhas de placa. Use os botões para enviar à reserva em operação (ou manter no pátio).",
     },
   };
@@ -2448,31 +2448,31 @@
   }
 
   function portalLabelDisponivelSub(sub) {
-    if (sub === "reserva-operacao") return "2.1 — Reserva em operação";
-    if (sub === "reserva-patio") return "2.2 — Reserva no pátio";
-    if (sub === "prontos") return "1 — Prontos para alugar";
+    if (sub === "reserva-operacao") return "5.1 — Reserva em operação";
+    if (sub === "reserva-patio") return "5.2 — Reserva no pátio";
+    if (sub === "prontos") return "4 — Pronto para alugar";
     return "Disponíveis";
   }
 
   const MANUT_EM_MANUT_SUB_META = {
     triagem: {
-      title: "Em manutenção — 0 Triagem",
-      lead: "Check-list tablet: fotos, inspeção A/R e impressão. No final, encaminhe para 1 Oficina própria, 2 Oficina de terceiro, 3 Seguro ou 4 Sinistro Roubo.",
+      title: "Em manutenção — 6 Triagem",
+      lead: "Check-list tablet: fotos, inspeção A/R e impressão. No final, encaminhe para 7 Oficina própria, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.",
     },
     "oficina-propria": {
-      title: "Em manutenção — 1 Oficina própria",
+      title: "Em manutenção — 7 Oficina própria",
       lead: "Pesquise a placa nesta categoria. Pode mover entre categorias ou enviar para vendas.",
     },
     "oficina-terceiros": {
-      title: "Em manutenção — 2 Oficina de terceiro",
+      title: "Em manutenção — 8 Oficina de terceiro",
       lead: "Pesquise a placa nesta categoria. Pode mover entre categorias ou enviar para vendas.",
     },
     "enviado-seguro": {
-      title: "Em manutenção — 3 Seguro",
+      title: "Em manutenção — 9 Seguro",
       lead: "Pesquise a placa nesta categoria. Pode mover entre categorias ou enviar para vendas.",
     },
     "sinistrado-roubo": {
-      title: "Em manutenção — 4 Sinistro Roubo",
+      title: "Em manutenção — 10 Sinistro Roubo",
       lead: "Pesquise a placa nesta categoria. Pode mover entre categorias ou enviar para vendas.",
     },
   };
@@ -2696,11 +2696,11 @@
     if (manutSet.has(plateKey)) {
       const cat = getPortalManutCategoriaPorPlaca(plateKey) || "triagem";
       const labels = {
-        triagem: "EM MANUTENÇÃO → 0 — Triagem",
-        "oficina-propria": "EM MANUTENÇÃO → 1 — Oficina própria",
-        "oficina-terceiros": "EM MANUTENÇÃO → 2 — Oficina de terceiro",
-        "enviado-seguro": "EM MANUTENÇÃO → 3 — Seguro",
-        "sinistrado-roubo": "EM MANUTENÇÃO → 4 — Sinistro Roubo",
+        triagem: "EM MANUTENÇÃO → 6 — Triagem",
+        "oficina-propria": "EM MANUTENÇÃO → 7 — Oficina própria",
+        "oficina-terceiros": "EM MANUTENÇÃO → 8 — Oficina de terceiro",
+        "enviado-seguro": "EM MANUTENÇÃO → 9 — Seguro",
+        "sinistrado-roubo": "EM MANUTENÇÃO → 10 — Sinistro Roubo",
       };
       return {
         ok: true,
@@ -2719,7 +2719,7 @@
       const labels = {
         "minha-moto": "LOCADOS → 1 — Plano DK Minha Moto",
         "meu-transporte": "LOCADOS → 2 — Plano DK Meu Transporte",
-        carros: "LOCADOS → 3 — Plano Carros",
+        carros: "LOCADOS → 3 — Plano Carro",
       };
       return {
         ok: true,
@@ -2749,9 +2749,9 @@
     if (veiculo) {
       const disp = portalNormDisponivelCategoria(veiculo);
       const labelMap = {
-        prontos: "DISPONÍVEIS → 1 — Prontos para alugar",
-        "reserva-operacao": "DISPONÍVEIS → 2.1 — Reserva em operação",
-        "reserva-patio": "DISPONÍVEIS → 2.2 — Reserva no pátio",
+        prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
+        "reserva-operacao": "DISPONÍVEIS → 5.1 — Reserva em operação",
+        "reserva-patio": "DISPONÍVEIS → 5.2 — Reserva no pátio",
       };
       return {
         ok: true,
@@ -3067,7 +3067,7 @@
   }
 
   function expandManutencaoDisponiveisReservaMenuOnly() {
-    /* Abre logo a grelha 2.1 com caixinhas + botões (mesmo sistema visual). */
+    /* Abre logo a grelha 5.1 com caixinhas + botões (mesmo sistema visual). */
     openManutencaoDisponivelSub("reserva-operacao");
   }
 
@@ -3187,7 +3187,7 @@
     return portalChecklistMode === "manutencao";
   }
 
-  /** Check-list completo (tablet/fotos) só em Em manutenção → 0 Triagem. */
+  /** Check-list completo (tablet/fotos) só em Em manutenção → 6 Triagem. */
   function portalChecklistIsOficinaPropriaMode() {
     return portalChecklistIsManutencaoMode() && portalManutEmManutSubAtivo === "triagem";
   }
@@ -3295,7 +3295,7 @@
     btn.disabled = !(inList && reservaOk.ok);
   }
 
-  /** Placas só de Disponíveis → 2.2 Reserva no pátio (elegíveis como veículo reserva). */
+  /** Placas só de Disponíveis → 5.2 Reserva no pátio (elegíveis como veículo reserva). */
   let portalChecklistReservaPlacasCache = [];
 
   function portalRefreshChecklistReservaPlacasCache() {
@@ -3309,7 +3309,7 @@
       const placa = portalNkPlate(v?.placa);
       if (!placa || seen.has(placa) || (excluir && placa === excluir)) return;
       const sub = portalNormDisponivelCategoria(v);
-      /* Só 2.2 — Reserva no pátio. */
+      /* Só 5.2 — Reserva no pátio. */
       if (sub !== "reserva-patio") return;
       seen.add(placa);
       const modelo = String(v?.marcaModelo || v?.modelo || "").trim() || "Reserva no pátio";
@@ -3355,8 +3355,8 @@
         return {
           ok: false,
           message: est.ok
-            ? `A placa reserva precisa estar em «Disponíveis → 2.2 — Reserva no pátio» (agora: ${est.label}).`
-            : "Placa reserva inválida. Escolha um veículo de «2.2 — Reserva no pátio».",
+            ? `A placa reserva precisa estar em «Disponíveis → 5.2 — Reserva no pátio» (agora: ${est.label}).`
+            : "Placa reserva inválida. Escolha um veículo de «5.2 — Reserva no pátio».",
         };
       }
     }
@@ -3412,7 +3412,7 @@
     const items = portalFilterReservaPlacas(queryRaw);
     if (!items.length) {
       panel.innerHTML =
-        '<div class="portal-placa-dropdown__empty">Nenhum veículo em «2.2 — Reserva no pátio».</div>';
+        '<div class="portal-placa-dropdown__empty">Nenhum veículo em «5.2 — Reserva no pátio».</div>';
     } else {
       panel.innerHTML = items
         .map((r) => {
@@ -3627,10 +3627,10 @@
         <div class="portal-checklist-categoria-move" role="group" aria-label="Categoria de manutenção">
           <span class="portal-checklist-categoria-move__label">Mover placa para:</span>
           <div class="portal-checklist-categoria-move__btns">
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria">1 — Oficina própria</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros">2 — Oficina de terceiro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro">3 — Seguro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo">4 — Sinistro Roubo</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria">7 — Oficina própria</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros">8 — Oficina de terceiro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro">9 — Seguro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo">10 — Sinistro Roubo</button>
           </div>
         </div>
         <button type="button" class="btn-primary" id="portalChecklistBtnEnviarVendasSimples" disabled>ENVIAR PARA VENDAS</button>
@@ -4401,8 +4401,8 @@
         return {
           ok: false,
           message: estReserva.ok
-            ? `A placa reserva precisa estar em «Disponíveis → 2.2 — Reserva no pátio» (agora: ${estReserva.label}).`
-            : "Placa reserva inválida. Escolha um veículo de «2.2 — Reserva no pátio».",
+            ? `A placa reserva precisa estar em «Disponíveis → 5.2 — Reserva no pátio» (agora: ${estReserva.label}).`
+            : "Placa reserva inválida. Escolha um veículo de «5.2 — Reserva no pátio».",
         };
       }
     }
@@ -4444,7 +4444,7 @@
         saveCadastro(CAD_MANUTENCOES_KEY, reverted);
         return {
           ok: false,
-          message: move.message || `Não foi possível mover ${placaReserva} de 2.2 para 2.1 Reserva em operação.`,
+          message: move.message || `Não foi possível mover ${placaReserva} de 5.2 para 5.1 Reserva em operação.`,
         };
       }
       reservaMovida = true;
@@ -4474,7 +4474,7 @@
 
   /**
    * Ao concluir envio Locados→manutenção com placa reserva:
-   * sai de Disponíveis 2.2 (pátio) e entra em 2.1 (em operação).
+   * sai de Disponíveis 5.2 (pátio) e entra em 5.1 (em operação).
    */
   function portalMoverReservaPatioParaOperacao(placaReservaRaw) {
     const plateKey = portalNkPlate(placaReservaRaw);
@@ -4497,7 +4497,7 @@
       return {
         ok: false,
         message: est.ok
-          ? `A reserva ${plateKey} precisa estar em «2.2 — Reserva no pátio» (agora: ${est.label}).`
+          ? `A reserva ${plateKey} precisa estar em «5.2 — Reserva no pátio» (agora: ${est.label}).`
           : `Placa reserva ${plateKey} não encontrada em Disponíveis.`,
       };
     }
@@ -4557,7 +4557,7 @@
     if (conf.grupo !== "disponiveis" || conf.sub !== "reserva-operacao") {
       return {
         ok: false,
-        message: `Falha ao confirmar ${plateKey} em «2.1 — Reserva em operação» (agora: ${conf.label || "desconhecido"}).`,
+        message: `Falha ao confirmar ${plateKey} em «5.1 — Reserva em operação» (agora: ${conf.label || "desconhecido"}).`,
       };
     }
     if (typeof addAuditLog === "function") {
@@ -4624,8 +4624,8 @@
         extra = ` Veículo reserva: <strong>${portalEscapeHtml(reserva.placaReserva)}</strong> (irá para Disponíveis → Reserva em operação).`;
       }
       info.innerHTML = placa
-        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`
-        : `O veículo será enviado para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`;
+        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 6 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`
+        : `O veículo será enviado para <strong>Em manutenção → 6 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`;
     }
     const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
     if (motivo) motivo.value = "";
@@ -4673,14 +4673,14 @@
       const reservaTxt = r.reservaNaoDisponibilizada
         ? "Sem veículo reserva."
         : r.placaReserva
-          ? `Reserva ${r.placaReserva}: saiu de 2.2 (pátio) → 2.1 Reserva em operação.`
+          ? `Reserva ${r.placaReserva}: saiu de 5.2 (pátio) → 5.1 Reserva em operação.`
           : "Reserva: —.";
       if (dispMsg) {
-        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». Motivo: ${r.motivo}. ${reservaTxt}`;
+        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 6 — Triagem». Motivo: ${r.motivo}. ${reservaTxt}`;
       }
       const locMsg = document.getElementById("portalChecklistLocadosMsg");
       if (locMsg) {
-        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». ${reservaTxt}`;
+        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 6 — Triagem». ${reservaTxt}`;
       }
       portalClearChecklistInspection();
       document.getElementById("portalChecklistMount")?.classList.add("hidden");
@@ -4866,15 +4866,15 @@
       const emptyHints = {
         prontos: "Nenhuma placa pronta para alugar.",
         "reserva-operacao":
-          "Nenhuma placa em reserva em operação. Em «2.2 — Reserva no pátio», use o botão de mover.",
+          "Nenhuma placa em reserva em operação. Em «5.2 — Reserva no pátio», use o botão de mover.",
         "reserva-patio":
-          "Nenhuma placa em reserva no pátio. Em «2.1 — Reserva em operação», use o botão de mover.",
+          "Nenhuma placa em reserva no pátio. Em «5.1 — Reserva em operação», use o botão de mover.",
       };
       grid.innerHTML = `<p class="portal-manutencao-empty">${emptyHints[sub] || "Nenhuma placa."}${filtro ? " (filtro)" : ""}</p>`;
       if (msg) msg.textContent = "";
       return;
     }
-    /* «Prontos»: só placa (saem ao locar). «Reserva» 2.1/2.2: caixinhas + 2 botões para transitar. */
+    /* «Prontos»: só placa (saem ao locar). «Reserva» 5.1/5.2: caixinhas + 2 botões para transitar. */
     const moveTargets =
       sub === "prontos"
         ? []
@@ -5055,10 +5055,10 @@
         hint.textContent = `Complete para ativar os botões: ${req.join("; ")}.`;
       } else if (isManut && !printOk) {
         hint.textContent =
-          "Formulário completo. Imprimir / Guardar PDF só com todos os itens em A. Encaminhar (1–4) já pode ser usado; ou enviar para vendas.";
+          "Formulário completo. Imprimir / Guardar PDF só com todos os itens em A. Encaminhar (7–10) já pode ser usado; ou enviar para vendas.";
       } else if (isManut) {
         hint.textContent =
-          "Todos os itens estão aprovados (A). Pode imprimir, guardar PDF, encaminhar para 1–4 ou enviar para vendas.";
+          "Todos os itens estão aprovados (A). Pode imprimir, guardar PDF, encaminhar para 7–10 ou enviar para vendas.";
       } else {
         hint.textContent =
           "Todos os campos obrigatórios estão preenchidos. Pode imprimir, guardar PDF e escolher o destino do veículo em baixo.";
@@ -5547,10 +5547,10 @@
         <div id="portalChecklistCategoriaMove" class="portal-checklist-categoria-move hidden" hidden>
           <span class="portal-checklist-categoria-move__label">Encaminhar após check-list:</span>
           <div class="portal-checklist-categoria-move__btns" role="group" aria-label="Encaminhar para categoria de manutenção">
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria" disabled>1 — Oficina própria</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros" disabled>2 — Oficina de terceiro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro" disabled>3 — Seguro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo" disabled>4 — Sinistro Roubo</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria" disabled>7 — Oficina própria</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros" disabled>8 — Oficina de terceiro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro" disabled>9 — Seguro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo" disabled>10 — Sinistro Roubo</button>
           </div>
         </div>
         <p id="portalChecklistDispositionMsg" class="portal-checklist-disposition-msg" role="status"></p>
@@ -5699,7 +5699,7 @@
   document.getElementById("btn-manutencao-disponiveis")?.addEventListener("click", () => {
     expandManutencaoParentMenuOnly(
       "btn-manutencao-disponiveis",
-      "Escolha em «Disponíveis»: 1 Prontos para alugar ou 2 Veículo reserva (2.1 / 2.2)."
+      "Escolha em «Disponíveis»: 4 Pronto para alugar ou 5 Veículo reserva (5.1 / 5.2)."
     );
     syncManutDispSubButtons(null);
     syncManutDispReservaSubnav(false);
@@ -16466,7 +16466,7 @@
     if (panelId === "manutencaoInlineDisponiveis" || btnId === "btn-manutencao-disponiveis") {
       expandManutencaoParentMenuOnly(
         "btn-manutencao-disponiveis",
-        "Escolha em «Disponíveis»: 1 Prontos para alugar ou 2 Veículo reserva (2.1 / 2.2)."
+        "Escolha em «Disponíveis»: 4 Pronto para alugar ou 5 Veículo reserva (5.1 / 5.2)."
       );
       return;
     }
