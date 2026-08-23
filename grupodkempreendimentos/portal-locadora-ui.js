@@ -3169,8 +3169,13 @@
     }
     const toolbar = document.getElementById("portalChecklistToolbar");
     if (toolbar) {
-      toolbar.classList.toggle("hidden", !isOficina);
-      toolbar.hidden = !isOficina;
+      toolbar.classList.add("hidden");
+      toolbar.hidden = true;
+    }
+    const btnAbrir = document.getElementById("btnPortalChecklistAbrir");
+    if (btnAbrir) {
+      btnAbrir.classList.toggle("hidden", !isOficina);
+      btnAbrir.hidden = !isOficina;
     }
     const labelTxt = document.getElementById("portalChecklistPlacaLabelText");
     if (labelTxt) {
@@ -3696,17 +3701,9 @@
     const txt = document.getElementById("portalChecklistMotivoPrincipalTexto");
     if (txt) txt.textContent = "";
     if (box) {
-      /* Em modo edição de layout, mantém a caixa visível para posicionar. */
-      if (portalCanEditChecklistLayout()) {
-        txt.textContent = "(sem motivo ainda)";
-        box.classList.remove("hidden");
-        box.hidden = false;
-      } else {
-        box.classList.add("hidden");
-        box.hidden = true;
-      }
+      box.classList.add("hidden");
+      box.hidden = true;
     }
-    portalSyncChecklistLayoutUi();
   }
 
   function portalFillMotivoPrincipalChecklist(plateKey) {
@@ -3721,352 +3718,89 @@
     txt.textContent = motivo;
     box.classList.remove("hidden");
     box.hidden = false;
-    portalApplyChecklistLayoutFromStorage();
-    portalSyncChecklistLayoutUi();
   }
 
+  const PORTAL_CHECKLIST_LAYOUT_CLEAN_KEY = "dk_portal_checklist_oficina_layout_clean_v3";
   const PORTAL_CHECKLIST_LAYOUT_KEY = "dk_portal_checklist_oficina_layout_v2";
   const PORTAL_CHECKLIST_LAYOUT_LOCKED_KEY = "dk_portal_checklist_oficina_layout_locked_v2";
   const PORTAL_CHECKLIST_MOTIVO_LAYOUT_KEY_LEGACY = "dk_portal_checklist_motivo_layout_v1";
   const PORTAL_CHECKLIST_MOTIVO_LAYOUT_LOCKED_KEY_LEGACY = "dk_portal_checklist_motivo_layout_locked_v1";
-  let portalChecklistLayoutDrag = null;
-  let portalChecklistLayoutBound = false;
 
-  function portalIsChecklistLayoutLocked() {
-    try {
-      return localStorage.getItem(PORTAL_CHECKLIST_LAYOUT_LOCKED_KEY) === "1";
-    } catch {
-      return false;
+  function portalRestoreChecklistLayoutDomOrder() {
+    const row = document.getElementById("portalChecklistPlacaRow");
+    const actions = document.getElementById("portalChecklistPlacaActionsManut");
+    const label = document.getElementById("portalChecklistPlacaLabel");
+    const btnOpen = document.getElementById("btnPortalChecklistAbrir");
+    const btnLoad = document.getElementById("portalChecklistCarregarBtn");
+    const fotos = document.getElementById("portalChecklistFotosGrid");
+    const motivo = document.getElementById("portalChecklistMotivoPrincipalBox");
+    const fileInp = document.getElementById("portalChecklistFotoFile");
+    if (row && label && label.parentElement !== row) row.insertBefore(label, row.firstChild);
+    if (row && actions && actions.parentElement !== row) row.appendChild(actions);
+    if (!actions) return;
+    const order = [btnOpen, btnLoad, fotos, motivo, fileInp].filter(Boolean);
+    order.forEach((el) => {
+      el.classList.remove("is-layout-custom", "is-layout-edit", "is-layout-edit-force-show");
+      el.style.left = "";
+      el.style.top = "";
+      el.style.width = "";
+      el.style.height = "";
+      el.removeAttribute("title");
+      if (el.parentElement !== actions) actions.appendChild(el);
+    });
+    if (label) {
+      label.classList.remove("is-layout-custom", "is-layout-edit");
+      label.style.left = "";
+      label.style.top = "";
+      label.style.width = "";
+      label.style.height = "";
+      label.removeAttribute("title");
     }
+    document.getElementById("portalChecklistWorkspace")?.classList.remove("layout-edit-mode");
+    const saveBtn = document.getElementById("portalChecklistMotivoLayoutSaveBtn");
+    if (saveBtn) {
+      saveBtn.classList.add("hidden");
+      saveBtn.hidden = true;
+    }
+    const hint = document.getElementById("portalChecklistLayoutEditHint");
+    if (hint) {
+      hint.classList.add("hidden");
+      hint.hidden = true;
+    }
+  }
+
+  function portalClearChecklistLayoutStorage() {
+    try {
+      localStorage.removeItem(PORTAL_CHECKLIST_LAYOUT_KEY);
+      localStorage.removeItem(PORTAL_CHECKLIST_MOTIVO_LAYOUT_KEY_LEGACY);
+      localStorage.setItem(PORTAL_CHECKLIST_LAYOUT_LOCKED_KEY, "1");
+      localStorage.setItem(PORTAL_CHECKLIST_MOTIVO_LAYOUT_LOCKED_KEY_LEGACY, "1");
+      localStorage.setItem(PORTAL_CHECKLIST_LAYOUT_CLEAN_KEY, "1");
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalApplyChecklistLayoutCleanOnce() {
+    portalRestoreChecklistLayoutDomOrder();
+    portalClearChecklistLayoutStorage();
   }
 
   function portalCanEditChecklistLayout() {
-    return portalChecklistIsOficinaPropriaMode() && !portalIsChecklistLayoutLocked();
+    return false;
   }
-
-  function portalReadChecklistLayout() {
-    try {
-      const raw = localStorage.getItem(PORTAL_CHECKLIST_LAYOUT_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && parsed.items && typeof parsed.items === "object") {
-          return parsed;
-        }
-      }
-      /* Migra layout legado só do motivo. */
-      const legacyRaw = localStorage.getItem(PORTAL_CHECKLIST_MOTIVO_LAYOUT_KEY_LEGACY);
-      if (!legacyRaw) return null;
-      const legacy = JSON.parse(legacyRaw);
-      const left = Number(legacy?.left);
-      const top = Number(legacy?.top);
-      if (!Number.isFinite(left) || !Number.isFinite(top)) return null;
-      return { items: { "motivo-principal": { left: Math.round(left), top: Math.round(top) } } };
-    } catch {
-      return null;
-    }
+  function portalIsChecklistLayoutLocked() {
+    return true;
   }
-
-  function portalGetChecklistLayoutItems() {
-    const ws = document.getElementById("portalChecklistWorkspace");
-    if (!ws) return [];
-    return Array.from(ws.querySelectorAll("[data-checklist-layout-item]"));
-  }
-
-  function portalEnsureChecklistLayoutItemAbsolute(el) {
-    const ws = document.getElementById("portalChecklistWorkspace");
-    if (!ws || !el) return;
-    const wsRect = ws.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    if (el.parentElement !== ws) {
-      ws.appendChild(el);
-    }
-    if (!el.classList.contains("is-layout-custom")) {
-      const left = Math.max(0, Math.round(rect.left - wsRect.left));
-      const top = Math.max(0, Math.round(rect.top - wsRect.top));
-      el.classList.add("is-layout-custom");
-      el.style.left = `${left}px`;
-      el.style.top = `${top}px`;
-    }
-  }
-
   function portalApplyChecklistLayoutFromStorage() {
-    const ws = document.getElementById("portalChecklistWorkspace");
-    if (!ws) return;
-    const layout = portalReadChecklistLayout();
-    if (!layout?.items) return;
-    Object.keys(layout.items).forEach((id) => {
-      const el = ws.querySelector(`[data-checklist-layout-item="${id}"]`);
-      const pos = layout.items[id];
-      if (!el || !pos) return;
-      const left = Number(pos.left);
-      const top = Number(pos.top);
-      if (!Number.isFinite(left) || !Number.isFinite(top)) return;
-      if (el.parentElement !== ws) ws.appendChild(el);
-      el.classList.add("is-layout-custom");
-      el.style.left = `${Math.round(left)}px`;
-      el.style.top = `${Math.round(top)}px`;
-      if (Number.isFinite(Number(pos.width)) && Number(pos.width) > 0) {
-        el.style.width = `${Math.round(Number(pos.width))}px`;
-      }
-    });
+    portalRestoreChecklistLayoutDomOrder();
   }
-
-  function portalCollectChecklistLayoutFromScreen() {
-    const ws = document.getElementById("portalChecklistWorkspace");
-    if (!ws) return { items: {} };
-    const wsRect = ws.getBoundingClientRect();
-    const items = {};
-    portalGetChecklistLayoutItems().forEach((el) => {
-      const id = el.getAttribute("data-checklist-layout-item");
-      if (!id) return;
-      if (el.classList.contains("hidden") && el.id === "portalChecklistMotivoPrincipalBox") {
-        /* ainda coleta se estiver em edição forçada */
-      }
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 2 && rect.height < 2) return;
-      items[id] = {
-        left: Math.max(0, Math.round(rect.left - wsRect.left)),
-        top: Math.max(0, Math.round(rect.top - wsRect.top)),
-      };
-      if (id === "placa-field" && rect.width > 0) {
-        items[id].width = Math.round(rect.width);
-      }
-    });
-    return { items };
-  }
-
-  function portalPersistChecklistLayoutFromScreen() {
-    const layout = portalCollectChecklistLayoutFromScreen();
-    try {
-      localStorage.setItem(PORTAL_CHECKLIST_LAYOUT_KEY, JSON.stringify(layout));
-    } catch {
-      /* ignore */
-    }
-    Object.keys(layout.items || {}).forEach((id) => {
-      const el = document.querySelector(`[data-checklist-layout-item="${id}"]`);
-      const pos = layout.items[id];
-      if (!el || !pos) return;
-      const ws = document.getElementById("portalChecklistWorkspace");
-      if (ws && el.parentElement !== ws) ws.appendChild(el);
-      el.classList.add("is-layout-custom");
-      el.style.left = `${pos.left}px`;
-      el.style.top = `${pos.top}px`;
-    });
-    return layout;
-  }
-
-  function portalRevealChecklistLayoutEditTargets() {
-    if (!portalCanEditChecklistLayout()) return;
-    const fotos = document.getElementById("portalChecklistFotosGrid");
-    fotos?.classList.remove("hidden");
-    fotos?.classList.add("is-layout-edit-force-show");
-    const box = document.getElementById("portalChecklistMotivoPrincipalBox");
-    const txt = document.getElementById("portalChecklistMotivoPrincipalTexto");
-    if (box) {
-      box.classList.remove("hidden");
-      box.hidden = false;
-      box.classList.add("is-layout-edit-force-show");
-      if (txt && !String(txt.textContent || "").trim()) {
-        txt.textContent = "(sem motivo ainda)";
-      }
-    }
-    const mount = document.getElementById("portalChecklistMount");
-    if (mount) {
-      mount.classList.remove("hidden");
-      mount.classList.add("portal-checklist-mount--tablet");
-    }
-    portalEnsureChecklistUiBuilt();
-  }
-
-  function portalFreezeChecklistLayoutItemsForEdit() {
-    const ws = document.getElementById("portalChecklistWorkspace");
-    if (!ws) return;
-    /* Congela posições atuais em absolute para poder arrastar sem o flex “puxar” os outros. */
-    const snapshot = portalGetChecklistLayoutItems().map((el) => {
-      const rect = el.getBoundingClientRect();
-      const wsRect = ws.getBoundingClientRect();
-      return {
-        el,
-        left: Math.max(0, Math.round(rect.left - wsRect.left)),
-        top: Math.max(0, Math.round(rect.top - wsRect.top)),
-        width: Math.round(rect.width),
-      };
-    });
-    snapshot.forEach(({ el, left, top, width }) => {
-      if (el.parentElement !== ws) ws.appendChild(el);
-      el.classList.add("is-layout-custom");
-      el.style.left = `${left}px`;
-      el.style.top = `${top}px`;
-      if (width > 0 && el.getAttribute("data-checklist-layout-item") === "placa-field") {
-        el.style.width = `${width}px`;
-      }
-    });
-  }
-
   function portalSyncChecklistLayoutUi() {
-    const ws = document.getElementById("portalChecklistWorkspace");
-    const btn = document.getElementById("portalChecklistMotivoLayoutSaveBtn");
-    const hint = document.getElementById("portalChecklistLayoutEditHint");
-    const canEdit = portalCanEditChecklistLayout();
-    ws?.classList.toggle("layout-edit-mode", canEdit);
-    if (btn) {
-      btn.classList.toggle("hidden", !canEdit);
-      btn.hidden = !canEdit;
-      /* Mantém o botão fora da caixa (placa-bar), no canto do workspace. */
-      if (canEdit && ws && btn.parentElement !== ws) {
-        ws.insertBefore(btn, ws.firstChild);
-      }
-    }
-    if (hint) {
-      hint.classList.toggle("hidden", !canEdit);
-      hint.hidden = !canEdit;
-    }
-    if (canEdit) {
-      portalRevealChecklistLayoutEditTargets();
-      requestAnimationFrame(() => {
-        portalFreezeChecklistLayoutItemsForEdit();
-        portalGetChecklistLayoutItems().forEach((el) => {
-          el.classList.add("is-layout-edit");
-          el.title = "Arraste para reposicionar";
-        });
-      });
-    } else {
-      document.getElementById("portalChecklistFotosGrid")?.classList.remove("is-layout-edit-force-show");
-      document.getElementById("portalChecklistMotivoPrincipalBox")?.classList.remove("is-layout-edit-force-show");
-      portalGetChecklistLayoutItems().forEach((el) => {
-        el.classList.remove("is-layout-edit");
-        if (el.getAttribute("data-checklist-layout-item") === "motivo-principal") {
-          el.title = "Motivo principal";
-        } else {
-          el.removeAttribute("title");
-        }
-      });
-    }
+    portalRestoreChecklistLayoutDomOrder();
   }
-
-  function portalSalvarChecklistLayout() {
-    if (portalIsChecklistLayoutLocked()) return;
-    portalGetChecklistLayoutItems().forEach((el) => portalEnsureChecklistLayoutItemAbsolute(el));
-    portalPersistChecklistLayoutFromScreen();
-    try {
-      localStorage.setItem(PORTAL_CHECKLIST_LAYOUT_LOCKED_KEY, "1");
-      localStorage.setItem(PORTAL_CHECKLIST_MOTIVO_LAYOUT_LOCKED_KEY_LEGACY, "1");
-    } catch {
-      /* ignore */
-    }
-    portalChecklistLayoutDrag = null;
-    portalSyncChecklistLayoutUi();
-    const msg = document.getElementById("portalChecklistLoadMsg");
-    if (msg) msg.textContent = "Layout salvo. Botões travados na posição escolhida.";
-  }
-
   function portalBindChecklistLayoutEditorOnce() {
-    if (portalChecklistLayoutBound) return;
-    portalChecklistLayoutBound = true;
-    const ws = document.getElementById("portalChecklistWorkspace");
-    const btn = document.getElementById("portalChecklistMotivoLayoutSaveBtn");
-    if (!ws) return;
-
-    btn?.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      portalSalvarChecklistLayout();
-    });
-
-    ws.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (!portalCanEditChecklistLayout()) return;
-        if (event.button != null && event.button !== 0) return;
-        const target = event.target instanceof Element ? event.target : null;
-        if (!target) return;
-        if (target.closest("#portalChecklistMotivoLayoutSaveBtn")) return;
-        const item = target.closest("[data-checklist-layout-item]");
-        if (!item || !ws.contains(item)) return;
-        /* Digitar na placa: só arrasta se pegar no grip ou no rótulo. */
-        if (
-          item.getAttribute("data-checklist-layout-item") === "placa-field" &&
-          target.closest("input, textarea, select") &&
-          !target.closest(".portal-checklist-layout-drag-grip")
-        ) {
-          return;
-        }
-
-        portalEnsureChecklistLayoutItemAbsolute(item);
-        const originLeft = parseFloat(item.style.left || "0") || 0;
-        const originTop = parseFloat(item.style.top || "0") || 0;
-        const rect = item.getBoundingClientRect();
-        portalChecklistLayoutDrag = {
-          el: item,
-          pointerId: event.pointerId,
-          startX: event.clientX,
-          startY: event.clientY,
-          originLeft,
-          originTop,
-          boxWidth: rect.width,
-          boxHeight: rect.height,
-          moved: false,
-        };
-        try {
-          item.setPointerCapture(event.pointerId);
-        } catch {
-          /* ignore */
-        }
-        event.preventDefault();
-        event.stopPropagation();
-      },
-      true
-    );
-
-    ws.addEventListener(
-      "pointermove",
-      (event) => {
-        const drag = portalChecklistLayoutDrag;
-        if (!drag || drag.pointerId !== event.pointerId) return;
-        const dx = event.clientX - drag.startX;
-        const dy = event.clientY - drag.startY;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
-        const maxLeft = Math.max(0, ws.clientWidth - drag.boxWidth);
-        const maxTop = Math.max(0, Math.max(ws.scrollHeight, ws.clientHeight, 640) - drag.boxHeight);
-        const nextLeft = Math.max(0, Math.min(maxLeft, drag.originLeft + dx));
-        const nextTop = Math.max(0, Math.min(maxTop, drag.originTop + dy));
-        drag.el.style.left = `${Math.round(nextLeft)}px`;
-        drag.el.style.top = `${Math.round(nextTop)}px`;
-      },
-      true
-    );
-
-    const finishDrag = (event) => {
-      const drag = portalChecklistLayoutDrag;
-      if (!drag) return;
-      if (event && drag.pointerId !== event.pointerId) return;
-      if (drag.moved) {
-        drag.el.dataset.layoutSuppressClick = "1";
-        window.setTimeout(() => {
-          delete drag.el.dataset.layoutSuppressClick;
-        }, 280);
-      }
-      portalChecklistLayoutDrag = null;
-    };
-    ws.addEventListener("pointerup", finishDrag, true);
-    ws.addEventListener("pointercancel", finishDrag, true);
-
-    ws.addEventListener(
-      "click",
-      (event) => {
-        const target = event.target instanceof Element ? event.target : null;
-        const item = target?.closest("[data-checklist-layout-item]");
-        if (item?.dataset.layoutSuppressClick === "1") {
-          event.preventDefault();
-          event.stopPropagation();
-          delete item.dataset.layoutSuppressClick;
-        }
-      },
-      true
-    );
+    portalApplyChecklistLayoutCleanOnce();
   }
-
-  /* Compat: nomes antigos usados em outras chamadas. */
   function portalSyncMotivoPrincipalLayoutUi() {
     portalSyncChecklistLayoutUi();
   }
