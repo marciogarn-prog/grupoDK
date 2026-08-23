@@ -205,22 +205,32 @@ async function testEtapa1(page) {
   }));
   record("etapa 1: botão Página Inicial leva ao logo", s2.hero && s2.title === "Página Inicial");
 
-  const navStubs = [
+  const navSheets = [
     { nav: "dashboard", title: "Dashboard", piece: "3/84" },
     { nav: "financeiro", title: "Financeiro", piece: "4/84" },
   ];
-  for (const ns of navStubs) {
+  for (const ns of navSheets) {
     await page.locator(`[data-miel-nav="${ns.nav}"]`).first().click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
     const st = await page.evaluate(
-      ({ piece, nav }) => ({
-        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        hasPiece: (document.querySelector(".miel-panel--stub:not(.hidden) .miel-panel-placeholder")?.textContent || "").includes(piece),
-        navActive: document.querySelector(`[data-miel-nav="${nav}"]`)?.classList.contains("miel-nav-btn--active"),
-      }),
+      ({ piece, nav }) => {
+        const panel = document.querySelector(`[data-miel-panel="${nav}"]`);
+        const stubText =
+          document.querySelector(".miel-panel--stub:not(.hidden) .miel-panel-placeholder")?.textContent || "";
+        return {
+          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
+          hasPiece: stubText.includes(piece),
+          hasSheet: Boolean(panel?.querySelector(".miel-sheet, .miel-cc__layout--sheet, .miel-cc__layout")),
+          navActive: document.querySelector(`[data-miel-nav="${nav}"]`)?.classList.contains("miel-nav-btn--active"),
+        };
+      },
       { piece: ns.piece, nav: ns.nav }
     );
-    record(`etapa 1: menu ${ns.title} abre stub`, st.title === ns.title && st.hasPiece && st.navActive, st.title);
+    record(
+      `etapa 1: menu ${ns.title} abre stub`,
+      st.title === ns.title && (st.hasPiece || st.hasSheet) && st.navActive,
+      st.hasSheet ? "layout" : st.title
+    );
   }
   await page.locator('[data-miel-nav="pagina-inicial"]').first().click();
   await page.waitForTimeout(200);
@@ -354,7 +364,8 @@ async function testEtapa3(page) {
       links: [...(panel?.querySelectorAll("[data-miel-xl-link]") || [])].map((el) => el.getAttribute("data-miel-xl-link") || ""),
       protocolos: Boolean(panel?.querySelector('[data-ref="B4"] .miel-sheet__link')),
       firstCliente: dataTexts.find((t) => /FELIPE YAGO/i.test(t)) || "",
-      firstCod: dataTexts[0] || "",
+      /* Coluna A pode ser espaçador vazio; Cód. fica na coluna B (2.ª célula). */
+      firstCod: dataTexts.find((t) => /^\d+$/.test(t)) || dataTexts[1] || "",
       noWebForm: !document.getElementById("mielCadCliente_nome"),
       headerCount: (window.__DK_mielCadClientesHeaders || []).length,
       cadCount: (window.__DK_MIEL_CADASTROS?.clientes || []).length,

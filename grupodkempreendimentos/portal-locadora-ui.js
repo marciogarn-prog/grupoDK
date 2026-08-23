@@ -2536,18 +2536,34 @@
     )
       .trim()
       .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, "-");
-    if (raw === "reserva-operacao" || raw.includes("operacao") || raw.includes("operação")) {
+    if (
+      raw === "reserva-operacao" ||
+      raw === "reserva-em-operacao" ||
+      raw.endsWith("-operacao") ||
+      raw.includes("reserva-operacao")
+    ) {
       return "reserva-operacao";
     }
-    if (raw === "reserva-patio" || raw.includes("patio") || raw.includes("pátio")) {
+    if (
+      raw === "reserva-patio" ||
+      raw === "reserva-no-patio" ||
+      raw.endsWith("-patio") ||
+      raw.includes("reserva-patio")
+    ) {
       return "reserva-patio";
     }
     /* Legado «reserva» → pátio */
     if (raw === "reserva" || raw.includes("reserva")) return "reserva-patio";
-    const st = String(veiculo?.status || "").toUpperCase();
-    if (st.includes("OPERACAO") || st.includes("OPERAÇÃO")) return "reserva-operacao";
-    if (st.includes("PATIO") || st.includes("PÁTIO") || st.includes("RESERVA")) return "reserva-patio";
+    const st = String(veiculo?.status || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (st.includes("RESERVA") && st.includes("OPERACAO")) return "reserva-operacao";
+    if (st.includes("RESERVA") && (st.includes("PATIO") || st.includes("PÁTIO"))) return "reserva-patio";
+    if (st.includes("RESERVA")) return "reserva-patio";
     return "prontos";
   }
 
