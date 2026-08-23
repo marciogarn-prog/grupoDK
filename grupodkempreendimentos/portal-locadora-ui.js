@@ -3985,7 +3985,7 @@
     });
     document.getElementById("portalDisponiveisPlacasGrid")?.addEventListener("click", (e) => {
       const moveBtn = e.target.closest("[data-disp-move]");
-      if (!moveBtn) return;
+      if (!moveBtn || moveBtn.disabled) return;
       const placa = moveBtn.getAttribute("data-placa") || "";
       const dest = moveBtn.getAttribute("data-disp-move") || "prontos";
       const r = portalSetDisponivelCategoriaPlaca(placa, dest);
