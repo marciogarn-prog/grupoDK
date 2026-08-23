@@ -1640,6 +1640,62 @@
         if (p) p.classList.add("hidden");
       }
     );
+    portalSyncAuthAutofillState();
+  }
+
+  /** Enquanto o login não está visível, remove type=password/username da DOM — senão o Chrome sugere CPF+senha em outros campos (ex.: busca de placa). */
+  function portalSyncAuthAutofillState() {
+    const loginVisivel = Boolean(panelLogin && !panelLogin.classList.contains("hidden"));
+    const senhaVisivel = Boolean(panelSenha && !panelSenha.classList.contains("hidden"));
+    const cpf = document.getElementById("login-cpf");
+    const senha = document.getElementById("login-senha");
+    const n1 = document.getElementById("nova-senha");
+    const n2 = document.getElementById("nova-senha-2");
+    const form = document.getElementById("form-login");
+    const formNova = document.getElementById("form-nova-senha");
+
+    if (form) form.setAttribute("autocomplete", loginVisivel ? "on" : "off");
+    if (formNova) formNova.setAttribute("autocomplete", senhaVisivel ? "on" : "off");
+
+    if (cpf) {
+      if (loginVisivel) {
+        cpf.disabled = false;
+        cpf.name = "cpf";
+        cpf.setAttribute("autocomplete", "username");
+      } else {
+        cpf.disabled = true;
+        cpf.removeAttribute("name");
+        cpf.setAttribute("autocomplete", "off");
+        cpf.value = "";
+      }
+    }
+    if (senha) {
+      if (loginVisivel) {
+        senha.disabled = false;
+        senha.name = "senha";
+        senha.type = "password";
+        senha.setAttribute("autocomplete", "current-password");
+      } else {
+        senha.disabled = true;
+        senha.removeAttribute("name");
+        senha.type = "text";
+        senha.setAttribute("autocomplete", "off");
+        senha.value = "";
+      }
+    }
+    [n1, n2].forEach((el) => {
+      if (!el) return;
+      if (senhaVisivel) {
+        el.disabled = false;
+        el.type = "password";
+        el.setAttribute("autocomplete", "new-password");
+      } else {
+        el.disabled = true;
+        el.type = "text";
+        el.setAttribute("autocomplete", "off");
+        el.value = "";
+      }
+    });
   }
 
   function portalAlertSemAcessoMiel() {
@@ -1770,6 +1826,7 @@
     btnLocalizacao?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
     panelLogin?.classList.remove("hidden");
+    portalSyncAuthAutofillState();
     if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
     clearPortalUnitDadosAtualizados();
     portalAtualizarBannerAdmin();
@@ -1925,6 +1982,7 @@
     if (panelSenha && !panelSenha.classList.contains("hidden")) {
       panelSenha.classList.add("hidden");
       panelLogin?.classList.remove("hidden");
+      portalSyncAuthAutofillState();
       return;
     }
     if (panelLogin && !panelLogin.classList.contains("hidden") && viewUnit?.classList.contains("view--active")) {
@@ -1997,6 +2055,7 @@
     if (panelSenha && !panelSenha.classList.contains("hidden")) {
       panelSenha.classList.add("hidden");
       panelLogin?.classList.remove("hidden");
+      portalSyncAuthAutofillState();
       e.preventDefault();
       e.stopPropagation();
       return;
@@ -2152,6 +2211,7 @@
       btn.setAttribute("aria-selected", "true");
       hideAllPanels();
       if (panelLogin) panelLogin.classList.remove("hidden");
+      portalSyncAuthAutofillState();
       const loginPanelTitle = document.getElementById("login-panel-title");
       if (loginPanelTitle) {
         loginPanelTitle.textContent =
@@ -2260,6 +2320,7 @@
         portalColaboradorSenhaPendente = funcionario;
         hideAllPanels();
         panelSenha?.classList.remove("hidden");
+        portalSyncAuthAutofillState();
         const n1 = document.getElementById("nova-senha");
         const n2 = document.getElementById("nova-senha-2");
         const sf = document.getElementById("senha-feedback");
@@ -2713,11 +2774,28 @@
     };
   }
 
+  function portalManutPlacaLookupGet() {
+    const el = document.getElementById("portalManutPlacaLookup");
+    if (!el) return "";
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") return String(el.value || "");
+    return String(el.textContent || "");
+  }
+
+  function portalManutPlacaLookupSet(raw) {
+    const el = document.getElementById("portalManutPlacaLookup");
+    if (!el) return;
+    const v = String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "")
+      .slice(0, 10);
+    if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") el.value = v;
+    else el.textContent = v;
+  }
+
   function portalRenderManutPlacaLookupResult() {
-    const inp = document.getElementById("portalManutPlacaLookup");
     const out = document.getElementById("portalManutPlacaLookupResult");
     if (!out) return;
-    const raw = String(inp?.value || "").trim();
+    const raw = portalManutPlacaLookupGet().trim();
     out.className = "portal-manut-placa-lookup__result";
     if (!raw) {
       out.classList.add("portal-manut-placa-lookup__result--muted");
@@ -2827,21 +2905,43 @@
     if (!inp || !panel || !combo) return;
 
     inp.addEventListener("focus", () => {
-      /* Chrome: readonly no HTML + remoção no foco evita sugestão de login/CPF. */
-      if (inp.hasAttribute("readonly")) {
-        inp.removeAttribute("readonly");
-      }
-      inp.setAttribute("autocomplete", "off");
+      portalSyncAuthAutofillState();
       portalColetarPlacasLookupFrota();
-      portalRenderManutPlacaLookupDropdown(String(inp.value || ""));
+      portalRenderManutPlacaLookupDropdown(portalManutPlacaLookupGet());
     });
 
     inp.addEventListener("input", () => {
-      inp.value = String(inp.value || "")
+      const caret = (() => {
+        try {
+          const sel = window.getSelection();
+          if (!sel || !sel.rangeCount || !inp.contains(sel.anchorNode)) return null;
+          return sel.getRangeAt(0).startOffset;
+        } catch {
+          return null;
+        }
+      })();
+      const clean = portalManutPlacaLookupGet()
         .toUpperCase()
-        .replace(/[^A-Z0-9]/g, "");
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 10);
+      if (clean !== portalManutPlacaLookupGet()) {
+        portalManutPlacaLookupSet(clean);
+        if (caret != null && inp.firstChild) {
+          try {
+            const range = document.createRange();
+            const pos = Math.min(caret, clean.length);
+            range.setStart(inp.firstChild, pos);
+            range.collapse(true);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
       portalRenderManutPlacaLookupResult();
-      portalRenderManutPlacaLookupDropdown(inp.value);
+      portalRenderManutPlacaLookupDropdown(clean);
     });
 
     inp.addEventListener("keydown", (e) => {
@@ -2856,6 +2956,17 @@
       }
     });
 
+    inp.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const text = String(e.clipboardData?.getData("text") || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 10);
+      portalManutPlacaLookupSet(text);
+      portalRenderManutPlacaLookupResult();
+      portalRenderManutPlacaLookupDropdown(text);
+    });
+
     panel.addEventListener("mousedown", (e) => {
       if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
     });
@@ -2865,7 +2976,7 @@
       if (!btn) return;
       const placa = String(btn.getAttribute("data-placa") || "").trim();
       if (!placa) return;
-      inp.value = placa;
+      portalManutPlacaLookupSet(placa);
       portalHideManutPlacaLookupDropdown();
       portalRenderManutPlacaLookupResult();
       inp.focus();
@@ -2893,6 +3004,7 @@
   }
 
   portalBindManutPlacaLookupOnce();
+  portalSyncAuthAutofillState();
 
   function expandManutencaoParentMenuOnly(parentBtnId, placeholderText) {
     portalRefreshOperacaoLocal();
@@ -5757,6 +5869,7 @@
       return;
     }
     panelLogin?.classList.remove("hidden");
+    portalSyncAuthAutofillState();
     setPortalHash("");
   });
 
