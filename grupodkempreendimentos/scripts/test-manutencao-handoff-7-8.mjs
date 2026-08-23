@@ -39,18 +39,20 @@ function moveAlvos(page) {
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
 try {
-  await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.goto(BASE, { waitUntil: "networkidle", timeout: 120000 });
   await page.evaluate(() => {
+    sessionStorage.removeItem("dk_portal_area_ativa");
     localStorage.setItem(
       "dk_sessao_cliente",
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Teste handoff" })
     );
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
     sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
   });
-  await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
-  await page.waitForTimeout(8000);
+  await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 120000 });
+  await page.waitForTimeout(3500);
 
-  await page.locator("#btn-locadora-manutencao").click({ timeout: 15000 });
+  await page.locator("#btn-locadora-manutencao").click({ timeout: 20000 });
   await page.waitForTimeout(400);
   await page.locator("#btn-manutencao-em-manutencao").click({ timeout: 15000 });
   await page.waitForTimeout(400);
