@@ -31,5 +31,12 @@ const m = spawnSync(process.execPath, [mielTest], {
 });
 if (m.status !== 0) process.exit(typeof m.status === "number" ? m.status : 1);
 
+const cad10Test = path.join(scriptDir, "test-demo-cadastro-10.mjs");
+const c10 = spawnSync(process.execPath, [cad10Test], {
+  stdio: "inherit",
+  env: { ...process.env, DK_TEST_BASE_URL: base },
+});
+if (c10.status !== 0) process.exit(typeof c10.status === "number" ? c10.status : 1);
+
 const p = spawnSync(process.execPath, [parityTest], { stdio: "inherit" });
 process.exit(typeof p.status === "number" ? p.status : 1);

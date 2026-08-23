@@ -9029,6 +9029,11 @@
     } else if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
       loadCadastro(CAD_VEICULOS_KEY).forEach(add);
     }
+    if (window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_PLACAS) {
+      for (const placa of [...byPlate.keys()]) {
+        if (!window.__DK_DEMO_CADASTRO_10_PLACAS.has(placa)) byPlate.delete(placa);
+      }
+    }
     portalVeiculoPlacasCache = Array.from(byPlate.values()).sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
     const dl = document.getElementById("operacaoVeiculoPlacaSugestoes");
     if (dl) {
@@ -12222,10 +12227,15 @@
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return [];
+    const allowCpfs =
+      window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_CPFS
+        ? window.__DK_DEMO_CADASTRO_10_CPFS
+        : null;
     const byCpf = new Map();
     loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
       const cpf = dig(String(c.cpf || "")).slice(0, 11);
       if (cpf.length !== 11) return;
+      if (allowCpfs && !allowCpfs.has(cpf)) return;
       const nome = String(c.nome || "").trim();
       const prev = byCpf.get(cpf);
       if (!prev || (nome && !prev.nome)) byCpf.set(cpf, { cpf, nome: nome || prev?.nome || "" });
@@ -12261,6 +12271,11 @@
           modelo: String(v.modelo || "").trim() || "Modelo nao informado",
         }))
         .filter((v) => v.placa);
+      if (window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_PLACAS) {
+        portalLocacaoPlacasLivresCache = portalLocacaoPlacasLivresCache.filter((v) =>
+          window.__DK_DEMO_CADASTRO_10_PLACAS.has(v.placa)
+        );
+      }
       if (dlPlaca) {
         dlPlaca.innerHTML = portalLocacaoPlacasLivresCache
           .map((v) => `<option value="${v.placa}" label="${portalEscapeHtml(v.modelo)}"></option>`)
@@ -14774,9 +14789,14 @@
     const vehicleMap =
       typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
     const linhas = [];
+    const allowPrs =
+      window.__DK_IS_DEMO_DEPLOY__ === true && window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
+        ? window.__DK_DEMO_CADASTRO_10_PROTOCOLOS
+        : null;
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
       const proto = normPortalNumeroContrato(l.numeroContrato || "");
       if (!proto) return;
+      if (allowPrs && !allowPrs.has(String(proto).replace(/\D/g, ""))) return;
       const cpf = dig(String(l.cpf || ""));
       if (cpf.length !== 11) return;
       let nome = String(l.nome || l.cliente || "").trim();
