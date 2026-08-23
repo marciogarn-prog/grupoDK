@@ -975,7 +975,7 @@ body {
   color: var(--muted);
 }
 
-.portal-field input,
+.portal-field input:not([type="radio"]):not([type="checkbox"]),
 .portal-field select {
   font: inherit;
   padding: 0.65rem 0.75rem;
@@ -996,7 +996,7 @@ body {
   box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.28);
 }
 
-.portal-field input:focus,
+.portal-field input:not([type="radio"]):not([type="checkbox"]):focus,
 .portal-field select:focus {
   outline: none;
   border-color: rgba(220, 38, 38, 0.55);
@@ -1744,15 +1744,99 @@ body {
   color: #ffffff;
 }
 
-/* Cadastro locação — protocolos ativos (sem data fim) em verde no select */
+/* Cadastro locação — protocolo ativo: azul minha moto · verde meu transporte · marrom carro */
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--ativo {
+  font-weight: 600;
+}
+
+#operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--meu-transporte,
+#operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--meu-transporte {
   color: #6ee7a0;
   font-weight: 600;
 }
 
-#operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--ativo {
-  color: #6ee7a0;
+#operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--minha-moto,
+#operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--minha-moto {
+  color: #5eb8ff;
   font-weight: 600;
+}
+
+#operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--carro,
+#operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--carro {
+  color: #c4a484;
+  font-weight: 600;
+}
+
+.portal-locacao-tipo-plano-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.portal-locacao-tipo-plano-row > input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.portal-locacao-modalidade-bolas {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.12rem;
+  margin: 0;
+  padding: 0;
+  border: none;
+  min-width: 5.4rem;
+  flex-shrink: 0;
+}
+
+.portal-locacao-modalidade-bolas__legenda {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.portal-locacao-modalidade-bola {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  user-select: none;
+}
+
+.portal-locacao-modalidade-bola input[type="radio"] {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.portal-locacao-modalidade-bola--carro {
+  color: #c4a484;
+}
+
+.portal-locacao-modalidade-bola--carro input[type="radio"] {
+  accent-color: #c4a484;
+}
+
+.portal-locacao-modalidade-bola--moto {
+  color: #6ee7a0;
+}
+
+.portal-locacao-modalidade-bola--moto input[type="radio"] {
+  accent-color: #6ee7a0;
 }
 
 @media (min-width: 520px) {
