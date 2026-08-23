@@ -5189,6 +5189,35 @@
     return matches[0];
   }
 
+  /** Locação vinculada à placa (contrato directo ou placaLocadaOriginal) para devolução pós-manutenção. */
+  function portalFindLocacaoParaDevolucao(placaRaw) {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return null;
+    const plateKey = portalNkPlate(placaRaw);
+    if (!plateKey) return null;
+    const direct = portalFindLocacaoPorPlaca(plateKey);
+    if (direct) return direct;
+    const matches = (loadCadastro(CAD_LOCACOES_KEY) || []).filter(
+      (l) => portalNkPlate(l?.placaLocadaOriginal) === plateKey
+    );
+    if (!matches.length) return null;
+    matches.sort((a, b) => Number(b.updatedAt || b.id || 0) - Number(a.updatedAt || a.id || 0));
+    return matches[0];
+  }
+
+  function portalBuildLocacaoReativadaDevolucao(loc) {
+    const next = { ...loc };
+    next.fim = "";
+    next.dataFim = "";
+    next.placaReserva = "";
+    next.reservaNaoDisponibilizada = false;
+    next.statusLocacao = "ATIVO";
+    delete next.portalLocacaoFinalizadoEmMs;
+    delete next.portalLocacaoFinalizadoPorCpf;
+    delete next.portalLocacaoFinalizadoPorNome;
+    next.updatedAt = Date.now();
+    return next;
+  }
+
   function portalResolverReservaPosManutencao(placaLocadaRaw) {
     const placaLocada = portalNkPlate(placaLocadaRaw);
     if (!placaLocada || typeof loadCadastro !== "function") return "";
@@ -5217,41 +5246,38 @@
       return { ok: false, message: "Cadastro de locações indisponível." };
     }
     const placaLocada = portalNkPlate(placaLocadaRaw);
-    const locRef = portalFindLocacaoPorPlaca(placaLocada);
+    const locRef = portalFindLocacaoParaDevolucao(placaLocada);
     if (!locRef) {
       return { ok: false, message: `Não há locação/protocolo registado para a placa ${placaLocada}.` };
     }
+    const locPlacaContrato = portalNkPlate(locRef.placa);
     const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const ncNorm = (v) =>
+      typeof normalizeNumeroContratoKey === "function"
+        ? String(normalizeNumeroContratoKey(v || "")).trim()
+        : String(v || "").trim();
+    const matchLoc = (l) => {
+      const ncA = ncNorm(l?.numeroContrato);
+      const ncB = ncNorm(locRef?.numeroContrato);
+      if (ncA && ncB && ncA === ncB) return true;
+      return portalNkPlate(l?.placa) === locPlacaContrato;
+    };
     if (portalLocacaoEstaAtiva(locRef)) {
       let changed = false;
       const next = locs.map((l) => {
-        if (portalNkPlate(l?.placa) !== placaLocada) return l;
+        if (!matchLoc(l)) return l;
         if (!String(l.placaReserva || "").trim() && !l.reservaNaoDisponibilizada) return l;
         changed = true;
-        return {
-          ...l,
-          placaReserva: "",
-          reservaNaoDisponibilizada: false,
-          statusLocacao: "ATIVO",
-          updatedAt: Date.now(),
-        };
+        return portalBuildLocacaoReativadaDevolucao(l);
       });
       if (changed) saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
       return { ok: true, placa: placaLocada, alreadyActive: true };
     }
     let changed = false;
     const next = locs.map((l) => {
-      if (portalNkPlate(l?.placa) !== placaLocada) return l;
+      if (!matchLoc(l)) return l;
       changed = true;
-      return {
-        ...l,
-        fim: "",
-        dataFim: "",
-        placaReserva: "",
-        reservaNaoDisponibilizada: false,
-        statusLocacao: "ATIVO",
-        updatedAt: Date.now(),
-      };
+      return portalBuildLocacaoReativadaDevolucao(l);
     });
     if (!changed) return { ok: false, message: "Locação não actualizada." };
     saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
@@ -5328,16 +5354,23 @@
     const placaReserva = portalResolverReservaPosManutencao(placaKey);
     const loc = portalReativarLocacaoDevolucaoCliente(placaKey);
     if (!loc.ok) return loc;
-    const patch = portalClearVeiculoMarcadoresDisponivel(placaKey);
-    if (!patch.found) {
-      return { ok: false, message: `Placa ${placaKey} não encontrada no cadastro de veículos.` };
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
     }
     const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
     if (!activeSet.has(placaKey)) {
       return {
         ok: false,
-        message: `Locação reactivada, mas a placa ${placaKey} ainda não aparece como locada. Verifique o protocolo/contrato.`,
+        message: `Não foi possível reactivar o protocolo da placa ${placaKey}. Verifique o contrato de locação.`,
       };
+    }
+    const patch = portalClearVeiculoMarcadoresDisponivel(placaKey);
+    if (!patch.found) {
+      return { ok: false, message: `Placa ${placaKey} não encontrada no cadastro de veículos.` };
     }
     let triagemReserva = null;
     if (placaReserva) {
@@ -5395,7 +5428,7 @@
     if (!plano) return;
     portalDevolverClientePlacaPendente = placaKey;
     const placaReserva = portalResolverReservaPosManutencao(placaKey);
-    const locRef = portalFindLocacaoPorPlaca(placaKey);
+    const locRef = portalFindLocacaoParaDevolucao(placaKey);
     let nomeCliente = "";
     if (locRef) {
       const cpf =
@@ -6083,11 +6116,13 @@
       modelo = portalResolveModeloVeiculoPorPlaca(placa, veiculo, null);
     }
     const plano =
-      (typeof portalClassificarPlanoLocado === "function" ? portalClassificarPlanoLocado(placa, veiculo) : "") ||
-      (() => {
-        const stored = String(veiculo?.planoUltimaLocacao || "").trim();
-        return stored === "minha-moto" || stored === "meu-transporte" || stored === "carros" ? stored : "";
-      })();
+      opts && Object.prototype.hasOwnProperty.call(opts, "planoOverride")
+        ? String(opts.planoOverride || "").trim()
+        : (typeof portalClassificarPlanoLocado === "function" ? portalClassificarPlanoLocado(placa, veiculo) : "") ||
+          (() => {
+            const stored = String(veiculo?.planoUltimaLocacao || "").trim();
+            return stored === "minha-moto" || stored === "meu-transporte" || stored === "carros" ? stored : "";
+          })();
     const corCls = plano ? ` portal-reserva-placa-btn--${plano}` : "";
     const title =
       titleOverride || [placa, modelo !== "—" ? modelo : ""].filter(Boolean).join(" · ");
@@ -6227,7 +6262,12 @@
         const plateBtnExtraAttrs = planoPosManut
           ? ` data-disp-pronto-pos-manut="1" data-disp-plano="${portalEscapeHtml(planoPosManut)}"`
           : "";
-        return portalHtmlCaixinhaPlacaVeiculo(r, "data-placa", { extraHtml, title, plateBtnExtraAttrs });
+        return portalHtmlCaixinhaPlacaVeiculo(r, "data-placa", {
+          extraHtml,
+          title,
+          plateBtnExtraAttrs,
+          planoOverride: planoPosManut,
+        });
       })
       .join("");
     if (msg) {
