@@ -4298,6 +4298,7 @@
       assign("portalChecklistFieldCor", veiculo?.cor || "");
       assign("portalChecklistFieldMarcaModelo", String(veiculo?.marcaModelo || veiculo?.modelo || "").trim());
       assign("portalChecklistFieldCelular", "");
+      portalApplyChecklistPlanoCores(plateKey);
       return {
         ok: false,
         message:
@@ -4337,7 +4338,43 @@
     );
     assign("portalChecklistFieldCelular", String(cliente?.celular || "").trim());
 
+    portalApplyChecklistPlanoCores(plateKey);
     return { ok: true, message: "Dados carregados a partir do cadastro." };
+  }
+
+  /** Cor da fonte nas caixinhas do check-list conforme o plano de origem. */
+  function portalNormPlanoChecklistCor(planoRaw, plateKey) {
+    const fromPlate = plateKey ? portalClassificarPlanoLocado(plateKey) : "";
+    if (fromPlate === "meu-transporte" || fromPlate === "carros" || fromPlate === "minha-moto") {
+      return fromPlate;
+    }
+    const p = String(planoRaw || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (p.includes("TRANSPORTE")) return "meu-transporte";
+    if (p.includes("CARRO")) return "carros";
+    if ((p.includes("MINHA") && p.includes("MOTO")) || p.includes("DK MINHA")) return "minha-moto";
+    if (portalManutLocadoSubAtivo === "meu-transporte" || portalManutLocadoSubAtivo === "carros") {
+      return portalManutLocadoSubAtivo;
+    }
+    return "minha-moto";
+  }
+
+  function portalApplyChecklistPlanoCores(plateKeyOpt) {
+    const root =
+      document.getElementById("portalChecklistPrintArea") ||
+      document.getElementById("portalChecklistMount");
+    if (!root) return;
+    const plano = String(document.getElementById("portalChecklistFieldPlano")?.value || "").trim();
+    const plateKey = portalNkPlate(plateKeyOpt || portalGetPlacaChecklistAtual() || "");
+    const cor = portalNormPlanoChecklistCor(plano, plateKey);
+    root.classList.remove(
+      "portal-checklist--minha-moto",
+      "portal-checklist--meu-transporte",
+      "portal-checklist--carros"
+    );
+    root.classList.add(`portal-checklist--${cor}`);
   }
 
   /** Preenche Entrada (data/hora) com o momento atual (fuso local do operador). */
@@ -5708,6 +5745,9 @@
     const root = document.getElementById("portalChecklistPrintArea");
     root?.addEventListener("change", (e) => {
       const t = e.target;
+      if (t && t.id === "portalChecklistFieldPlano") {
+        portalApplyChecklistPlanoCores();
+      }
       if (t && t.name === "portalChecklistOleo") {
         if (String(t.value || "") === "nao") {
           const na = document.querySelector('input[name="portalChecklistPagou"][value="NA"]');
@@ -5910,6 +5950,7 @@
     fotosGrid?.classList.remove("hidden");
     portalFillMotivoPrincipalChecklist(plateFmt);
     portalRefreshChecklistOdometroUltimo(plateFmt);
+    portalApplyChecklistPlanoCores(plateFmt);
     portalValidateChecklistCompleto();
     return { ok: true, placa: plateFmt };
   }
