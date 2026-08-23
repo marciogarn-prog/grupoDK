@@ -5115,6 +5115,53 @@
   }
 
   /**
+   * Ao liberar da oficina para «4 — Pronto»: tira a placa do contrato ativo
+   * (transfere locação para a reserva ou encerra se não houver reserva).
+   */
+  function portalFinalizarLocacaoAoLiberarParaProntos(placaLocadaRaw, manutRecord) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return { ok: false, transferred: false, ended: false };
+    }
+    const placaLocada = portalNkPlate(placaLocadaRaw);
+    if (!placaLocada) return { ok: false, transferred: false, ended: false };
+    const placaReserva = portalNkPlate(manutRecord?.placaReserva || "");
+    const reservaNaoDisp = Boolean(manutRecord?.reservaNaoDisponibilizada);
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    let changed = false;
+    let transferred = false;
+    let ended = false;
+    const dataFim = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
+    const next = locs.map((loc) => {
+      if (portalNkPlate(loc?.placa) !== placaLocada) return loc;
+      const fim = String(loc?.fim || loc?.dataFim || "").trim();
+      if (fim && fim !== "...") return loc;
+      changed = true;
+      if (placaReserva && !reservaNaoDisp) {
+        transferred = true;
+        return {
+          ...loc,
+          placa: placaReserva,
+          placaLocadaOriginal: placaLocada,
+          placaReserva: "",
+          reservaNaoDisponibilizada: false,
+          updatedAt: Date.now(),
+        };
+      }
+      ended = true;
+      return {
+        ...loc,
+        fim: dataFim,
+        dataFim: dataFim,
+        updatedAt: Date.now(),
+      };
+    });
+    if (changed) {
+      saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
+    }
+    return { ok: changed, transferred, ended, placaReserva: transferred ? placaReserva : "" };
+  }
+
+  /**
    * Encerra manutenção ativa e coloca a placa em Disponíveis (prontos | reserva-patio).
    */
   function portalLiberarManutencaoParaDisponivel(categoriaDispRaw) {
@@ -5143,6 +5190,14 @@
     }
     const data = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
     const prev = manutencoes[idx] || {};
+    const planoLocacao =
+      cat === "prontos" && typeof portalClassificarPlanoLocado === "function"
+        ? portalClassificarPlanoLocado(placaKey)
+        : "";
+    let locacaoAjuste = null;
+    if (cat === "prontos") {
+      locacaoAjuste = portalFinalizarLocacaoAoLiberarParaProntos(placaKey, prev);
+    }
     manutencoes[idx] = {
       ...prev,
       dataRealSaida: data,
@@ -5157,17 +5212,26 @@
     if (typeof PORTAL_VEICULOS_KEY !== "undefined" && !keys.includes(PORTAL_VEICULOS_KEY)) {
       keys.push(PORTAL_VEICULOS_KEY);
     }
+    if (typeof FROTA_VEICULOS_KEY !== "undefined" && !keys.includes(FROTA_VEICULOS_KEY)) {
+      keys.push(FROTA_VEICULOS_KEY);
+    }
     let found = false;
     keys.forEach((key) => {
       const veiculos = loadCadastro(key);
       const vIdx = veiculos.findIndex((v) => portalNkPlate(v.placa) === placaKey);
       if (vIdx < 0) return;
       found = true;
-      veiculos[vIdx] = {
-        ...veiculos[vIdx],
+      const patch = {
         disponivelCategoria: cat,
         categoriaDisponivel: cat,
         updatedAt: Date.now(),
+      };
+      if (cat === "prontos" && planoLocacao) {
+        patch.planoUltimaLocacao = planoLocacao;
+      }
+      veiculos[vIdx] = {
+        ...veiculos[vIdx],
+        ...patch,
       };
       saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
     });
@@ -5192,8 +5256,9 @@
       placa: placaKey,
       de: "manutencao",
       para: cat === "prontos" ? "4-prontos" : "5.2-reserva-patio",
+      locacaoTransferida: locacaoAjuste?.transferred ? locacaoAjuste.placaReserva : "",
     });
-    return { ok: true, placa: placaKey, categoria: cat };
+    return { ok: true, placa: placaKey, categoria: cat, locacaoAjuste };
   }
 
   /** Grelha de placas (caixinhas) nas telas 6–10 de Em manutenção. */
@@ -5405,7 +5470,11 @@
       modelo = portalResolveModeloVeiculoPorPlaca(placa, veiculo, null);
     }
     const plano =
-      typeof portalClassificarPlanoLocado === "function" ? portalClassificarPlanoLocado(placa) : "";
+      (typeof portalClassificarPlanoLocado === "function" ? portalClassificarPlanoLocado(placa, veiculo) : "") ||
+      (() => {
+        const stored = String(veiculo?.planoUltimaLocacao || "").trim();
+        return stored === "minha-moto" || stored === "meu-transporte" || stored === "carros" ? stored : "";
+      })();
     const corCls = plano ? ` portal-reserva-placa-btn--${plano}` : "";
     const title =
       titleOverride || [placa, modelo !== "—" ? modelo : ""].filter(Boolean).join(" · ");
@@ -6176,7 +6245,13 @@
           return;
         }
         if (msg) {
-          msg.textContent = `Placa ${r.placa} liberada para «${portalLabelDisponivelSub(r.categoria)}».`;
+          let extra = "";
+          if (r.locacaoAjuste?.transferred && r.locacaoAjuste.placaReserva) {
+            extra = ` Contrato transferido para a reserva ${r.locacaoAjuste.placaReserva} (Locados).`;
+          } else if (r.locacaoAjuste?.ended) {
+            extra = " Locação encerrada.";
+          }
+          msg.textContent = `Placa ${r.placa} liberada para «${portalLabelDisponivelSub(r.categoria)}».${extra}`;
         }
         portalClearChecklistInspection();
         document.getElementById("portalChecklistMount")?.classList.add("hidden");
