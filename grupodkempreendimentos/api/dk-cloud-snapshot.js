@@ -132,6 +132,22 @@ const CADASTRO_KEYS = [
   "dk_lancamentos_aluguel_cadastro",
 ];
 
+/** Demo reduzido a 10 protocolos: estes arrays não podem voltar a crescer por push do browser. */
+const DEMO_TEN_CAP_KEYS = [
+  ...CADASTRO_KEYS,
+  "dk_clientes_validacao_pendente",
+  "dk_locacoes_quadro_geral",
+  "dk_manutencoes_cadastro",
+  "dk_portal_checklist_historico_v1",
+  "dk_portal_checklist_movimentacoes_v1",
+  "dk_comprovantes_cliente_pendentes",
+  "dk_cliente_notificacoes",
+  "dk_comunicacao_operacao_v1",
+  "dk_locacao_documentos_v1",
+  "dk_audit_log",
+  "dk_patrimonio_fotos_excluidas_v1",
+];
+
 function applyCors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -304,6 +320,8 @@ function applyCadastroLock(existing, incoming) {
 /** Demo: push parcial com local vazio não pode apagar clientes/veículos já na nuvem. */
 function applyDemoCadastroNoShrink(existing, merged) {
   if (!isObject(existing) || !isObject(merged)) return merged;
+  /* Conjunto de 10 protocolos: o encolhimento é intencional e não pode ser revertido. */
+  if (existing.dk_demo_cadastro_10_v1) return merged;
   const out = { ...merged };
   for (const k of CADASTRO_KEYS) {
     const ex = existing[k];
@@ -311,6 +329,21 @@ function applyDemoCadastroNoShrink(existing, merged) {
     if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
     if (ex.length > 0 && inc.length < ex.length) out[k] = ex;
   }
+  return out;
+}
+
+/** Impede o browser antigo de repor centenas de cadastros no demo de 10 protocolos. */
+function capDemoTenPayload(existing, merged) {
+  if (!isObject(existing) || !existing.dk_demo_cadastro_10_v1 || !isObject(merged)) return merged;
+  const out = { ...merged };
+  for (const k of DEMO_TEN_CAP_KEYS) {
+    const ex = existing[k];
+    const inc = out[k];
+    if (Array.isArray(ex) && Array.isArray(inc) && inc.length > ex.length) out[k] = ex;
+  }
+  out.dk_demo_cadastro_10_v1 = existing.dk_demo_cadastro_10_v1;
+  out.dk_cadastro_manual_portal_v1 = true;
+  if (existing.dk_cadastro_lock_v1) out.dk_cadastro_lock_v1 = existing.dk_cadastro_lock_v1;
   return out;
 }
 
@@ -615,6 +648,12 @@ module.exports = async function handler(req, res) {
         if (channel === "default") {
           payload.dk_cadastro_manual_portal_v1 = true;
           payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+        } else if (incoming.dk_demo_cadastro_10_v1) {
+          payload.dk_cadastro_manual_portal_v1 = true;
+          payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
+            ? String(incoming.dk_cadastro_lock_v1)
+            : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+          payload.dk_demo_cadastro_10_v1 = incoming.dk_demo_cadastro_10_v1;
         } else {
           delete payload.dk_cadastro_manual_portal_v1;
           delete payload.dk_cadastro_lock_v1;
@@ -632,6 +671,7 @@ module.exports = async function handler(req, res) {
         }
         if (channel === "demo" && existingPayload) {
           payload = applyDemoCadastroNoShrink(existingPayload, payload);
+          payload = capDemoTenPayload(existingPayload, payload);
         }
       }
       if (channel === "default") {

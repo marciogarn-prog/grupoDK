@@ -39,7 +39,7 @@ async function run() {
     });
     record(
       "cache-bust disponíveis / devolver cliente",
-      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente|devolver-locados|devolver-fix2/.test(cacheBust),
+      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente|devolver-locados|devolver-fix2|demo-10only/.test(cacheBust),
       cacheBust.split("?")[1] || cacheBust
     );
 

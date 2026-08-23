@@ -3433,31 +3433,9 @@ function bootstrapFromDkBancoCadastroOnce() {
   }
 }
 
-/** Demo: planilha completa no bundle + nuvem — preenche localStorage se ainda vazio. */
+/** Demo: cadastro vem da nuvem (conjunto de 10 protocolos). Não repor a planilha completa. */
 function bootstrapDemoCadastrosIfEmpty() {
-  if (window.__DK_IS_DEMO_DEPLOY__ !== true) return;
-  const banco =
-    typeof window !== "undefined" && window.DK_BANCO_CADASTRO && typeof window.DK_BANCO_CADASTRO === "object"
-      ? window.DK_BANCO_CADASTRO
-      : null;
-  if (!banco) return;
-  const veiculos = Array.isArray(banco.veiculos) ? banco.veiculos : [];
-  const clientes = Array.isArray(banco.clientes) ? banco.clientes : [];
-  if (!veiculos.length && !clientes.length) return;
-  const bypass = { bypassImmutabilidadeCadastro: true };
-  if (!loadCadastro(CAD_VEICULOS_KEY).length && veiculos.length) {
-    saveCadastro(CAD_VEICULOS_KEY, veiculos, bypass);
-  }
-  if (!loadCadastro(CAD_CLIENTES_KEY).length && clientes.length) {
-    saveCadastro(CAD_CLIENTES_KEY, clientes, bypass);
-  }
-  if (veiculos.length || clientes.length) {
-    try {
-      localStorage.setItem("dk_banco_cadastro_embedded_v1", "1");
-    } catch {
-      /* ignore */
-    }
-  }
+  return;
 }
 
 /**

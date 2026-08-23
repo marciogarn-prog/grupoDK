@@ -734,7 +734,7 @@
       payload.dk_cadastro_manual_portal_v1 === true ||
       (typeof window.__DK_isCadastroManualPortalMode === "function" &&
         window.__DK_isCadastroManualPortalMode());
-    const replace = Boolean(opts && opts.replace);
+    const replace = Boolean(opts && opts.replace) || Boolean(payload.dk_demo_cadastro_10_v1);
     const forceCadastroReplace = replace || cadastroLocked || manualMode;
 
     for (const k of DK_STORAGE_KEYS) {
@@ -2231,6 +2231,19 @@
       }
       out.dk_cadastro_manual_portal_v1 = true;
       out.dk_cadastro_lock_v1 = cloudPayload.dk_cadastro_lock_v1;
+    }
+    if (cloudPayload.dk_demo_cadastro_10_v1) {
+      for (const k of DK_STORAGE_KEYS) {
+        if (!Object.prototype.hasOwnProperty.call(cloudPayload, k)) continue;
+        const v = cloudPayload[k];
+        out[k] = Array.isArray(v) ? [...v] : v && typeof v === "object" ? { ...v } : v;
+      }
+      out.dk_demo_cadastro_10_v1 = cloudPayload.dk_demo_cadastro_10_v1;
+      out.dk_cadastro_manual_portal_v1 = true;
+      if (cloudPayload.dk_cadastro_lock_v1) out.dk_cadastro_lock_v1 = cloudPayload.dk_cadastro_lock_v1;
+      delete out.dk_patrimonio_crlv_v1;
+      delete out.dk_patrimonio_fotos_excluidas_v1;
+      return out;
     }
     if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_locacoes_cadastro") ||
