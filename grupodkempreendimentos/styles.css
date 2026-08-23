@@ -3178,6 +3178,7 @@ body {
 
 .portal-oficina-propria-placas {
   margin: 0 0 0.85rem;
+  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
 }
 
 .portal-oficina-propria-placas.hidden {
@@ -4031,7 +4032,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
 .portal-reserva-placas {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
   gap: 0.55rem;
   margin-top: 0.35rem;
 }
@@ -4087,13 +4088,30 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 }
 
 .portal-reserva-placa-btn__model {
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   color: var(--muted, #a8b0bc);
-  line-height: 1.2;
+  line-height: 1.25;
   max-width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  word-break: break-word;
+}
+
+.portal-reserva-placa-btn--minha-moto .portal-reserva-placa-btn__plate,
+.portal-reserva-placa-btn--minha-moto .portal-reserva-placa-btn__model {
+  color: #5eb8ff;
+}
+
+.portal-reserva-placa-btn--meu-transporte .portal-reserva-placa-btn__plate,
+.portal-reserva-placa-btn--meu-transporte .portal-reserva-placa-btn__model {
+  color: #6ee7a0;
+}
+
+.portal-reserva-placa-btn--carros .portal-reserva-placa-btn__plate,
+.portal-reserva-placa-btn--carros .portal-reserva-placa-btn__model {
+  color: #c4a574;
 }
 
 /* 5.1 Reserva em operação — cartão informativo: reserva (laranja) ⇒ locada (cor do plano) */

@@ -3259,10 +3259,7 @@
             if (!plateKey || seen.has(plateKey)) return;
             seen.add(plateKey);
             const v = vmap?.get(plateKey);
-            const modelo =
-              String(v?.marcaModelo || v?.modelo || "").trim() ||
-              String(m.servico || "").trim() ||
-              "Em manutenção";
+            const modelo = portalResolveModeloVeiculoPorPlaca(plateKey, v, m);
             portalChecklistPlacasAtivasCache.push({ placa: plateKey, modelo });
           });
       }
@@ -5037,17 +5034,7 @@
         '<p class="portal-manutencao-empty">Nenhuma placa em oficina própria. Envie da Triagem com «ENVIAR PARA MANUTENÇÃO OFICINA PRÓPRIA».</p>';
       return;
     }
-    grid.innerHTML = rows
-      .map((r) => {
-        const modelo = portalEscapeHtml(r.modelo || "—");
-        return `<div class="portal-reserva-placa-item" role="listitem">
-          <button type="button" class="portal-reserva-placa-btn" data-oficina-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(r.placa)}">
-            <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(r.placa)}</span>
-            <span class="portal-reserva-placa-btn__model">${modelo}</span>
-          </button>
-        </div>`;
-      })
-      .join("");
+    grid.innerHTML = rows.map((r) => portalHtmlCaixinhaPlacaVeiculo(r, "data-oficina-placa")).join("");
   }
 
   function portalEnviarChecklistParaVendas() {
@@ -5149,12 +5136,62 @@
     return { placaReserva, placaLocada, plano, nomeCliente };
   }
 
+  /** Marca/modelo do veículo (cadastro, locação ou manutenção). */
+  function portalResolveModeloVeiculoPorPlaca(plateKeyRaw, veiculoOpt, manutOpt) {
+    const key = portalNkPlate(plateKeyRaw);
+    if (!key) return "—";
+    const vmap = typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+    const v = veiculoOpt || vmap?.get(key) || null;
+    let modelo = String(v?.marcaModelo || v?.modelo || "").trim();
+    if (!modelo) {
+      if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+        refreshOperacaoVeiculoPlacasCache();
+      }
+      modelo = portalModeloVeiculoPorPlaca(key);
+    }
+    if (!modelo) {
+      const loc =
+        typeof getPortalLocacaoAtivaDetalhePorPlaca === "function"
+          ? getPortalLocacaoAtivaDetalhePorPlaca(key)
+          : null;
+      modelo = String(loc?.marcaModelo || loc?.modelo || "").trim();
+    }
+    if (!modelo && manutOpt) {
+      modelo = String(manutOpt.marcaModelo || manutOpt.modelo || manutOpt.servico || "").trim();
+    }
+    return modelo || "—";
+  }
+
   function portalModeloVeiculoPorPlaca(plateKey) {
     const key = portalNkPlate(plateKey);
     if (!key) return "";
     const hit = (portalVeiculoPlacasCache || []).find((x) => portalNkPlate(x.placa) === key);
     const v = hit?.record;
     return String(v?.modelo || v?.marcaModelo || "").trim();
+  }
+
+  /** Caixinha placa + modelo (telas 4 e 7). */
+  function portalHtmlCaixinhaPlacaVeiculo(row, dataAttrName, opts) {
+    const extra = opts && opts.extraHtml ? String(opts.extraHtml) : "";
+    const titleOverride = opts && opts.title ? String(opts.title) : "";
+    const placa = String(row?.placa || "").trim();
+    const veiculo = row?.record || null;
+    let modelo = String(row?.modelo || "").trim();
+    if (!modelo || modelo === "—") {
+      modelo = portalResolveModeloVeiculoPorPlaca(placa, veiculo, null);
+    }
+    const plano =
+      typeof portalClassificarPlanoLocado === "function" ? portalClassificarPlanoLocado(placa) : "";
+    const corCls = plano ? ` portal-reserva-placa-btn--${plano}` : "";
+    const title =
+      titleOverride || [placa, modelo !== "—" ? modelo : ""].filter(Boolean).join(" · ");
+    const attr = dataAttrName || "data-placa";
+    return `<div class="portal-reserva-placa-item" role="listitem">
+          <button type="button" class="portal-reserva-placa-btn${corCls}" ${attr}="${portalEscapeHtml(placa)}" title="${portalEscapeHtml(title)}">
+            <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(placa)}</span>
+            <span class="portal-reserva-placa-btn__model">${portalEscapeHtml(modelo)}</span>
+          </button>${extra}
+        </div>`;
   }
 
   /** Nome do cliente da locação da placa (ainda ativa / em manutenção). */
@@ -5259,20 +5296,13 @@
       sub === "prontos" ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }] : [];
     grid.innerHTML = rows
       .map((r) => {
-        const modelo = portalEscapeHtml(r.modelo);
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
         const moves = moveTargets
           .map((t) => {
             return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
           })
           .join("");
-        return `<div class="portal-reserva-placa-item" role="listitem">
-          <button type="button" class="portal-reserva-placa-btn" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
-            <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(r.placa)}</span>
-            <span class="portal-reserva-placa-btn__model">${modelo}</span>
-          </button>
-          ${moves}
-        </div>`;
+        return portalHtmlCaixinhaPlacaVeiculo(r, "data-placa", { extraHtml: moves, title });
       })
       .join("");
     if (msg) {
