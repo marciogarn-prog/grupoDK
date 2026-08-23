@@ -3655,9 +3655,14 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   font-size: 1rem;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
-  color: inherit;
+  background: #fff;
+  color: #111;
   min-height: 2.75rem;
+}
+
+.portal-checklist-staff-row select option {
+  color: #111;
+  background: #fff;
 }
 
 .portal-checklist-export-hint {
