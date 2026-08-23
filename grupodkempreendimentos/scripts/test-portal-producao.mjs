@@ -28,10 +28,10 @@ async function runSuite() {
     }).then((r) => (r.ok ? r.json() : {}));
     const pPre = cloudDemoPre.payload || {};
     record(
-      "demo: nuvem com clientes veículos e locações",
-      (pPre.dk_clientes_cadastro || []).length >= 300 &&
-        (pPre.dk_veiculos_cadastro || []).length >= 150 &&
-        (pPre.dk_locacoes_cadastro || []).length >= 300,
+      "demo: nuvem com exactamente 10 clientes, veículos e protocolos activos",
+      (pPre.dk_clientes_cadastro || []).length === 10 &&
+        (pPre.dk_veiculos_cadastro || []).length === 10 &&
+        (pPre.dk_locacoes_cadastro || []).length === 10,
       `c=${(pPre.dk_clientes_cadastro || []).length} v=${(pPre.dk_veiculos_cadastro || []).length} l=${(pPre.dk_locacoes_cadastro || []).length}`
     );
   }
@@ -83,7 +83,7 @@ async function runSuite() {
     record(
       IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local sem veículos/locações",
       IS_DEMO_TEST
-        ? storageInicial.clientes >= 300 && storageInicial.veiculos >= 150
+        ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
         : storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
@@ -233,7 +233,8 @@ async function runSuite() {
         "demo: MIEL etapa 3 Cadastro Clientes",
         cadState.title === "Cadastro de Clientes" &&
           cadState.table &&
-          cadState.rows >= 300 &&
+          cadState.rows >= 9 &&
+          cadState.rows <= 11 &&
           cadState.shapes >= 4 &&
           cadState.panelVisible,
         cadState.title
@@ -259,8 +260,10 @@ async function runSuite() {
         "demo: MIEL etapa 4 Cadastro Veículos",
         veicState.title === "Cadastro de Veículos" &&
           veicState.table &&
-          veicState.rows >= 150 &&
-          veicState.veicCount >= 150 &&
+          veicState.rows >= 9 &&
+          veicState.rows <= 11 &&
+          veicState.veicCount >= 9 &&
+          veicState.veicCount <= 11 &&
           veicState.panelVisible,
         veicState.title
       );
@@ -286,7 +289,8 @@ async function runSuite() {
         "demo: MIEL etapa 5 Relação Clientes",
         relState.title === "Relação de Clientes" &&
           relState.sheetTitle === "# Relação de Clientes Cadastrados no Sistema" &&
-          relState.rows >= 300 &&
+          relState.rows >= 9 &&
+          relState.rows <= 11 &&
           relState.panelVisible,
         relState.title
       );
