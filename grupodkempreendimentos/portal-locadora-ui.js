@@ -2812,7 +2812,27 @@
       };
     }
 
-    /* Disponíveis explícito (4 / 5.1 / 5.2) tem prioridade sobre locação stale. */
+    /* Locação/protocolo activo vence marca «Disponíveis» stale no cadastro de veículos. */
+    const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    if (activeSet.has(plateKey)) {
+      const plano = portalClassificarPlanoLocado(plateKey, veiculo) || "meu-transporte";
+      const labels = {
+        "minha-moto": "LOCADOS → 1 — Plano DK Minha Moto",
+        "meu-transporte": "LOCADOS → 2 — Plano DK Meu Transporte",
+        carros: "LOCADOS → 3 — Plano Carro",
+      };
+      return {
+        ok: true,
+        placa: plateKey,
+        grupo: "locados",
+        sub: plano,
+        corCls: plano,
+        label: labels[plano] || "LOCADOS",
+        veiculo,
+      };
+    }
+
+    /* Disponíveis explícito (4 / 5.1 / 5.2) — só sem locação activa. */
     if (veiculo) {
       const dispMarcado = String(veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || "").trim();
       if (dispMarcado) {
@@ -2836,25 +2856,6 @@
           veiculo,
         };
       }
-    }
-
-    const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
-    if (activeSet.has(plateKey)) {
-      const plano = portalClassificarPlanoLocado(plateKey, veiculo) || "meu-transporte";
-      const labels = {
-        "minha-moto": "LOCADOS → 1 — Plano DK Minha Moto",
-        "meu-transporte": "LOCADOS → 2 — Plano DK Meu Transporte",
-        carros: "LOCADOS → 3 — Plano Carro",
-      };
-      return {
-        ok: true,
-        placa: plateKey,
-        grupo: "locados",
-        sub: plano,
-        corCls: plano,
-        label: labels[plano] || "LOCADOS",
-        veiculo,
-      };
     }
 
     const nk =
@@ -5118,15 +5119,39 @@
 
   /** Veículo em 4 — Pronto com cor de plano (pós-manutenção, aguardando devolução ao cliente). */
   function portalPlanoProntosPosManutencao(placaRaw, veiculoOpt) {
-    const plateKey = portalNkPlate(placaRaw);
     const stored = String(veiculoOpt?.planoUltimaLocacao || "").trim();
     if (stored === "minha-moto" || stored === "meu-transporte" || stored === "carros") return stored;
-    if (!plateKey) return "";
-    if (typeof portalClassificarPlanoLocado === "function") {
-      const fromLoc = portalClassificarPlanoLocado(plateKey, veiculoOpt);
-      if (fromLoc === "minha-moto" || fromLoc === "meu-transporte" || fromLoc === "carros") return fromLoc;
-    }
     return "";
+  }
+
+  function portalClearVeiculoMarcadoresDisponivel(placaRaw) {
+    const plateKey = portalNkPlate(placaRaw);
+    if (!plateKey || typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false, found: false, placa: plateKey };
+    }
+    const keys = [];
+    if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
+    if (typeof PORTAL_VEICULOS_KEY !== "undefined" && !keys.includes(PORTAL_VEICULOS_KEY)) {
+      keys.push(PORTAL_VEICULOS_KEY);
+    }
+    if (typeof FROTA_VEICULOS_KEY !== "undefined" && !keys.includes(FROTA_VEICULOS_KEY)) {
+      keys.push(FROTA_VEICULOS_KEY);
+    }
+    let found = false;
+    keys.forEach((key) => {
+      const veiculos = loadCadastro(key);
+      const idx = veiculos.findIndex((v) => portalNkPlate(v.placa) === plateKey);
+      if (idx < 0) return;
+      found = true;
+      const next = { ...veiculos[idx], updatedAt: Date.now() };
+      delete next.disponivelCategoria;
+      delete next.categoriaDisponivel;
+      delete next.estadoDisponivel;
+      delete next.planoUltimaLocacao;
+      veiculos[idx] = next;
+      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
+    });
+    return { ok: found, found, placa: plateKey };
   }
 
   function portalPatchVeiculoCadastro(placaRaw, patch) {
@@ -5181,16 +5206,39 @@
     return "";
   }
 
+  function portalLocacaoEstaAtiva(loc) {
+    if (!loc || typeof loc !== "object") return false;
+    const fim = String(loc.fim || loc.dataFim || "").trim();
+    return !fim || fim === "...";
+  }
+
   function portalReativarLocacaoDevolucaoCliente(placaLocadaRaw) {
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return { ok: false, message: "Cadastro de locações indisponível." };
     }
     const placaLocada = portalNkPlate(placaLocadaRaw);
-    const loc = portalFindLocacaoPorPlaca(placaLocada);
-    if (!loc) {
-      return { ok: false, message: `Não há locação registada para a placa ${placaLocada}.` };
+    const locRef = portalFindLocacaoPorPlaca(placaLocada);
+    if (!locRef) {
+      return { ok: false, message: `Não há locação/protocolo registado para a placa ${placaLocada}.` };
     }
     const locs = loadCadastro(CAD_LOCACOES_KEY);
+    if (portalLocacaoEstaAtiva(locRef)) {
+      let changed = false;
+      const next = locs.map((l) => {
+        if (portalNkPlate(l?.placa) !== placaLocada) return l;
+        if (!String(l.placaReserva || "").trim() && !l.reservaNaoDisponibilizada) return l;
+        changed = true;
+        return {
+          ...l,
+          placaReserva: "",
+          reservaNaoDisponibilizada: false,
+          statusLocacao: "ATIVO",
+          updatedAt: Date.now(),
+        };
+      });
+      if (changed) saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
+      return { ok: true, placa: placaLocada, alreadyActive: true };
+    }
     let changed = false;
     const next = locs.map((l) => {
       if (portalNkPlate(l?.placa) !== placaLocada) return l;
@@ -5201,12 +5249,13 @@
         dataFim: "",
         placaReserva: "",
         reservaNaoDisponibilizada: false,
+        statusLocacao: "ATIVO",
         updatedAt: Date.now(),
       };
     });
-    if (!changed) return { ok: false, message: "Locação não atualizada." };
+    if (!changed) return { ok: false, message: "Locação não actualizada." };
     saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
-    return { ok: true, placa: placaLocada };
+    return { ok: true, placa: placaLocada, reactivated: true };
   }
 
   /** Envia placa (ex.: reserva) directamente para 6 — Triagem com check-list. */
@@ -5238,10 +5287,7 @@
       origemDevolucaoCliente: portalNkPlate(opts?.origemDevolucaoCliente || ""),
     });
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
-    portalPatchVeiculoCadastro(placaKey, {
-      disponivelCategoria: "",
-      categoriaDisponivel: "",
-    });
+    portalClearVeiculoMarcadoresDisponivel(placaKey);
     if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
       try {
         refreshOperacaoVeiculoPlacasCache();
@@ -5282,13 +5328,16 @@
     const placaReserva = portalResolverReservaPosManutencao(placaKey);
     const loc = portalReativarLocacaoDevolucaoCliente(placaKey);
     if (!loc.ok) return loc;
-    const patch = portalPatchVeiculoCadastro(placaKey, {
-      disponivelCategoria: "",
-      categoriaDisponivel: "",
-      planoUltimaLocacao: "",
-    });
+    const patch = portalClearVeiculoMarcadoresDisponivel(placaKey);
     if (!patch.found) {
       return { ok: false, message: `Placa ${placaKey} não encontrada no cadastro de veículos.` };
+    }
+    const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    if (!activeSet.has(placaKey)) {
+      return {
+        ok: false,
+        message: `Locação reactivada, mas a placa ${placaKey} ainda não aparece como locada. Verifique o protocolo/contrato.`,
+      };
     }
     let triagemReserva = null;
     if (placaReserva) {
@@ -5399,6 +5448,9 @@
       refreshPortalChecklistPlacasAtivasCache();
       if (typeof portalRefreshManutencaoPlacasGrid === "function") {
         portalRefreshManutencaoPlacasGrid(true);
+      }
+      if (typeof openManutencaoLocadoSub === "function" && r.plano) {
+        openManutencaoLocadoSub(r.plano);
       }
       const ext = document.getElementById("portalDisponiveisPlacasMsg");
       if (ext) {
