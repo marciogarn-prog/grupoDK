@@ -37,7 +37,7 @@ async function run() {
       const s = [...document.scripts].find((x) => (x.src || "").includes("portal-locadora-ui.js"));
       return s?.src || "";
     });
-    record("cache-bust reserva-subitens", /reserva-subitens|reserva-audit|prontos-sem-mover/.test(cacheBust), cacheBust.split("?")[1] || cacheBust);
+    record("cache-bust reserva-subitens", /reserva-subitens|reserva-audit|prontos-sem-mover|reserva-caixinhas/.test(cacheBust), cacheBust.split("?")[1] || cacheBust);
 
     await page.locator("#btn-locadora-manutencao").click({ timeout: 15000 });
     await page.waitForTimeout(500);
@@ -149,26 +149,34 @@ async function run() {
         const items = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]")].map((b) =>
           b.getAttribute("data-placa")
         );
-        const btn = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']")].find(
+        const patioBtn = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']:not([disabled])")].find(
+          (b) => b.getAttribute("data-placa") === placa
+        );
+        const opBtnDisabled = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-operacao'][disabled]")].some(
           (b) => b.getAttribute("data-placa") === placa
         );
         const prontosBtns = document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='prontos']").length;
         return {
           title,
           inGrid: items.includes(placa),
-          hasPatioBtn: Boolean(btn),
+          hasPatioBtn: Boolean(patioBtn),
+          opBtnDisabled,
           prontosBtns,
         };
       }, crossMove.placa);
       record(
         "2.1 mostra placa e só botão para pátio",
-        /2\.1|operação/i.test(opMove.title) && opMove.inGrid && opMove.hasPatioBtn && opMove.prontosBtns === 0,
+        /2\.1|operação/i.test(opMove.title) &&
+          opMove.inGrid &&
+          opMove.hasPatioBtn &&
+          opMove.opBtnDisabled &&
+          opMove.prontosBtns === 0,
         opMove.title
       );
       await page.evaluate((placa) => {
-        const btn = [...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']")].find(
-          (b) => b.getAttribute("data-placa") === placa
-        );
+        const btn = [
+          ...document.querySelectorAll("#portalDisponiveisPlacasGrid [data-disp-move='reserva-patio']:not([disabled])"),
+        ].find((b) => b.getAttribute("data-placa") === placa);
         btn?.click();
       }, crossMove.placa);
       await page.waitForTimeout(800);

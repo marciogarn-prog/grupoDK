@@ -3646,6 +3646,11 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   line-height: 1.2;
 }
 
+.portal-disp-move-btn--current {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .portal-reserva-placa-btn {
   display: flex;
   flex-direction: column;

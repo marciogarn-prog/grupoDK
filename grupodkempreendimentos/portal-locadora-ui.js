@@ -2371,11 +2371,11 @@
     },
     "reserva-operacao": {
       title: "Disponíveis — 2.1 Reserva em operação",
-      lead: "Veículos reserva em operação. Pode mover para reserva no pátio.",
+      lead: "Mesmas caixinhas de placa. Use os botões para enviar à reserva no pátio (ou manter em operação).",
     },
     "reserva-patio": {
       title: "Disponíveis — 2.2 Reserva no pátio",
-      lead: "Veículos reserva no pátio. Pode mover para reserva em operação.",
+      lead: "Mesmas caixinhas de placa. Use os botões para enviar à reserva em operação (ou manter no pátio).",
     },
   };
 
@@ -2910,27 +2910,8 @@
   }
 
   function expandManutencaoDisponiveisReservaMenuOnly() {
-    portalRefreshOperacaoLocal();
-    hideManutencaoInlineFormsCore();
-    setManutencaoFormPlaceholderVisible(true);
-    const ph = document.getElementById("manutencaoFormPlaceholder");
-    const phText = ph?.querySelector(".operacao-form-placeholder__text");
-    if (phText) {
-      phText.textContent =
-        "Escolha em «Veículo reserva»: 2.1 Reserva em operação ou 2.2 Reserva no pátio.";
-    }
-    syncManutencaoSidebarButtons("btn-manutencao-disponiveis");
-    syncManutSubnavVisible("manutencaoDisponiveisSubnav", true);
-    syncManutDispReservaSubnav(true);
-    document.querySelectorAll("[data-disp-sub]").forEach((b) => {
-      b.classList.remove("is-active");
-      b.setAttribute("aria-expanded", "false");
-    });
-    const parent = document.getElementById("btn-disp-sub-reserva");
-    if (parent) {
-      parent.classList.add("is-active");
-      parent.setAttribute("aria-expanded", "true");
-    }
+    /* Abre logo a grelha 2.1 com caixinhas + botões (mesmo sistema visual). */
+    openManutencaoDisponivelSub("reserva-operacao");
   }
 
   function openManutencaoEmManutencaoSub(subRaw) {
@@ -3893,22 +3874,27 @@
       if (msg) msg.textContent = "";
       return;
     }
-    /* «Prontos para alugar»: só grelha — saem quando forem locados (sem botões de mover). */
+    /* «Prontos»: só placa (saem ao locar). «Reserva» 2.1/2.2: caixinhas + 2 botões para transitar. */
     const moveTargets =
       sub === "prontos"
         ? []
-        : sub === "reserva-operacao"
-          ? [{ dest: "reserva-patio", label: "MOVER PARA RESERVA NO PÁTIO" }]
-          : [{ dest: "reserva-operacao", label: "MOVER PARA RESERVA EM OPERAÇÃO" }];
+        : [
+            { dest: "reserva-operacao", label: "MOVER PARA RESERVA EM OPERAÇÃO" },
+            { dest: "reserva-patio", label: "MOVER PARA RESERVA NO PÁTIO" },
+          ];
     grid.innerHTML = rows
       .map((r) => {
         const modelo = portalEscapeHtml(r.modelo);
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
         const moves = moveTargets
-          .map(
-            (t) =>
-              `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`
-          )
+          .map((t) => {
+            const current = t.dest === sub;
+            const cls = current
+              ? "btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-move-btn--current"
+              : "btn-primary btn-secondary-outline portal-disp-move-btn";
+            const disabled = current ? " aria-current=\"true\" disabled" : "";
+            return `<button type="button" class="${cls}" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}"${disabled}>${t.label}</button>`;
+          })
           .join("");
         return `<div class="portal-reserva-placa-item" role="listitem">
           <button type="button" class="portal-reserva-placa-btn" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
