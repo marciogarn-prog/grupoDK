@@ -116,10 +116,11 @@
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
+    if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
     const cutoff = cutoffYmd || cutoffForKey(key);
     const protoYmd = locacaoProtocolYmd(record);
     if (cadastroKeyFamily(key) === "locacao" && protoYmd && protoYmd < locacoesCutoffYmd()) return false;
-    if (record && typeof record === "object" && (record.cadastroRetroativo === true || record.origemPortal === true)) {
+    if (record && typeof record === "object" && record.origemPortal === true) {
       if (cadastroKeyFamily(key) === "locacao") return protoYmd ? protoYmd >= locacoesCutoffYmd() : false;
       return true;
     }

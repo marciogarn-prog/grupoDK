@@ -15486,6 +15486,7 @@ if (locacaoCadastroForm) {
     tabela,
     valorParcela: currencyBRL(valorParcelaNum),
     clienteCodigo,
+    origemPortal: true,
   });
   saveCadastro(CAD_LOCACOES_KEY, locacoes);
   addAuditLog(

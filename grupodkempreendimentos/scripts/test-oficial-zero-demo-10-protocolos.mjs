@@ -1,5 +1,5 @@
 /**
- * Oficial: 0 protocolos mesmo com localStorage sujo (os 7 da captura).
+ * Oficial: 526 protocolos da planilha; os 6 protocolos sujos (19–21/08) não voltam.
  * Demo: exactamente os 10 da imagem Locados.
  *
  *   node grupodkempreendimentos/scripts/test-oficial-zero-demo-10-protocolos.mjs
@@ -23,6 +23,7 @@ const DEMO_10 = [
   "2026031704",
 ];
 const DEMO_10_SET = new Set(DEMO_10);
+const FAKES = new Set(["2026081901", "2026082001", "2026082002", "2026082003", "2026082004", "2026082101"]);
 const SUJOS = [
   { numeroContrato: "2026081201", cpf: "70506946495", nome: "DIEGO CORREIA DIAS", placa: "UIA1J86", status: "inativo" },
   { numeroContrato: "2026081901", cpf: "04115684500", nome: "UELTON DE ALMEIDA SANTOS", placa: "UHK4C39", status: "ativo" },
@@ -56,6 +57,7 @@ async function cloud(url) {
     label: d.label,
     n: locs.length,
     pr: locs.map((l) => nc(l.numeroContrato || l.protocolo)).filter(Boolean),
+    diego: locs.find((l) => nc(l.numeroContrato || l.protocolo) === "2026081201") || null,
   };
 }
 
@@ -128,10 +130,37 @@ const browser = await chromium.launch({ headless: true });
 try {
   if (only !== "demo") {
     const ofCloud = await cloud(`${OFICIAL}api/dk-cloud-snapshot?n=${Date.now()}`);
-    record("oficial nuvem: 0 protocolos", ofCloud.label === "default" && ofCloud.n === 0, `n=${ofCloud.n}`);
+    const uniq = new Set(ofCloud.pr);
+    const fakesInCloud = ofCloud.pr.filter((p) => FAKES.has(p));
+    const diegoPlaca = String(ofCloud.diego?.placa || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    record(
+      "oficial nuvem: 526 protocolos da planilha",
+      ofCloud.label === "default" && ofCloud.n === 526 && uniq.size === 526,
+      `n=${ofCloud.n} unique=${uniq.size}`
+    );
+    record(
+      "oficial nuvem: sem os 6 protocolos sujos",
+      fakesInCloud.length === 0,
+      fakesInCloud.join(",")
+    );
+    record(
+      "oficial nuvem: 2026081201 DIEGO / SOZ5C50",
+      Boolean(ofCloud.diego) && diegoPlaca === "SOZ5C50",
+      `placa=${diegoPlaca || "-"}`
+    );
 
     const pageOf = await browser.newPage();
     await seedOficialSujo(pageOf);
+    await pageOf.goto(`${OFICIAL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await pageOf
+      .waitForFunction(() => {
+        const panel = document.getElementById("panel-logado");
+        return panel && !panel.classList.contains("hidden");
+      }, { timeout: 45000 })
+      .catch(() => null);
+    await pageOf.waitForTimeout(12000);
     const afterSeed = await pageOf.evaluate(() => {
       let raw = [];
       try {
@@ -141,34 +170,31 @@ try {
       }
       const loaded =
         typeof loadCadastro === "function" ? loadCadastro("dk_locacoes_cadastro") : raw;
-      const pr = (Array.isArray(raw) ? raw : []).map((l) =>
-        String(l.numeroContrato || l.protocolo || "").replace(/\D/g, "")
-      );
+      const list = Array.isArray(loaded) ? loaded : [];
+      const nc = (v) => String(v || "").replace(/\D/g, "");
+      const diego = list.find((l) => nc(l.numeroContrato || l.protocolo) === "2026081201");
       return {
         rawN: Array.isArray(raw) ? raw.length : -1,
-        loadN: Array.isArray(loaded) ? loaded.length : -1,
-        pr,
+        loadN: list.length,
+        pr: list.map((l) => nc(l.numeroContrato || l.protocolo)),
+        diegoPlaca: String(diego?.placa || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, ""),
         guard: window.__DK_OFICIAL_LOCACOES_CUTOFF_YMD || "",
       };
     });
+    const fakesLocal = afterSeed.pr.filter((p) => FAKES.has(p));
     record(
-      "oficial browser sujo: localStorage sem os 7",
-      afterSeed.rawN === 0,
-      `raw=${afterSeed.rawN} pr=${afterSeed.pr.join(",")} corte=${afterSeed.guard}`
+      "oficial browser: os 6 sujos não entram",
+      fakesLocal.length === 0,
+      `fakes=${fakesLocal.join(",")} load=${afterSeed.loadN} corte=${afterSeed.guard}`
     );
     record(
-      "oficial browser sujo: loadCadastro sem os 7",
-      afterSeed.loadN === 0,
-      `load=${afterSeed.loadN}`
+      "oficial browser: 2026081201 da planilha (não UIA1J86)",
+      afterSeed.loadN === 0 || afterSeed.diegoPlaca === "" || afterSeed.diegoPlaca === "SOZ5C50",
+      `placa=${afterSeed.diegoPlaca || "-"} n=${afterSeed.loadN}`
     );
 
-    await pageOf.goto(`${OFICIAL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
-    await pageOf
-      .waitForFunction(() => {
-        const panel = document.getElementById("panel-logado");
-        return panel && !panel.classList.contains("hidden");
-      }, { timeout: 45000 })
-      .catch(() => null);
     const pesquisaFn = await pageOf.evaluate(() => {
       const fn = window.__DK_collectLancPesquisaLinhas;
       const linhas = typeof fn === "function" ? fn() : [];
@@ -176,9 +202,9 @@ try {
       return { n: linhas.length, pr };
     });
     record(
-      "oficial lançamento: fonte da lista sem os 7",
-      pesquisaFn.n === 0 && !pesquisaFn.pr.some((p) => /^202608(12|19|20|21)/.test(p)),
-      `n=${pesquisaFn.n} ${pesquisaFn.pr.join(",")}`
+      "oficial lançamento: sem os 6 protocolos sujos",
+      !pesquisaFn.pr.some((p) => FAKES.has(p)),
+      `n=${pesquisaFn.n}`
     );
 
     const relUi = await pageOf.evaluate(() => {
@@ -188,10 +214,8 @@ try {
       return { titulo, resumo };
     });
     record(
-      "oficial relatório locações: 0 registos (não 7/6 activos)",
-      /locações cadastradas/i.test(relUi.titulo) &&
-        /0 registro/i.test(relUi.resumo) &&
-        !/7 registro/i.test(relUi.resumo),
+      "oficial relatório locações: 526 registos",
+      /locações cadastradas/i.test(relUi.titulo) && /526 registro/i.test(relUi.resumo),
       `${relUi.titulo} | ${relUi.resumo}`
     );
     await pageOf.close();
