@@ -5295,9 +5295,7 @@
             : `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
             <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--muted">—</span>`;
           const modeloReserva = portalResolveModeloVeiculoPorPlaca(r.placa, r.record);
-          const modeloLocada = locada
-            ? portalResolveModeloVeiculoPorPlaca(locada) || modeloLoc || "—"
-            : "";
+          const modeloLocada = locada ? portalResolveModeloVeiculoPorPlaca(locada) : "";
           const modelosHtml = `<div class="portal-reserva-operacao-card__models">
             <span class="portal-reserva-operacao-card__reserva">${portalEscapeHtml(modeloReserva)}</span>
             <span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
