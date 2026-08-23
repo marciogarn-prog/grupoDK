@@ -2827,6 +2827,11 @@
     if (!inp || !panel || !combo) return;
 
     inp.addEventListener("focus", () => {
+      /* Chrome: readonly no HTML + remoção no foco evita sugestão de login/CPF. */
+      if (inp.hasAttribute("readonly")) {
+        inp.removeAttribute("readonly");
+      }
+      inp.setAttribute("autocomplete", "off");
       portalColetarPlacasLookupFrota();
       portalRenderManutPlacaLookupDropdown(String(inp.value || ""));
     });
