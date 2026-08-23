@@ -3295,7 +3295,7 @@
     btn.disabled = !(inList && reservaOk.ok);
   }
 
-  /** Placas livres (Disponíveis) para oferecer como veículo reserva. */
+  /** Placas só de Disponíveis → 2.2 Reserva no pátio (elegíveis como veículo reserva). */
   let portalChecklistReservaPlacasCache = [];
 
   function portalRefreshChecklistReservaPlacasCache() {
@@ -3308,29 +3308,19 @@
     livres.forEach((v) => {
       const placa = portalNkPlate(v?.placa);
       if (!placa || seen.has(placa) || (excluir && placa === excluir)) return;
-      seen.add(placa);
       const sub = portalNormDisponivelCategoria(v);
-      const subLabel =
-        sub === "reserva-operacao"
-          ? "Reserva em operação"
-          : sub === "reserva-patio"
-            ? "Reserva no pátio"
-            : "Prontos para alugar";
-      const modelo =
-        String(v?.marcaModelo || v?.modelo || "").trim() || subLabel;
+      /* Só 2.2 — Reserva no pátio. */
+      if (sub !== "reserva-patio") return;
+      seen.add(placa);
+      const modelo = String(v?.marcaModelo || v?.modelo || "").trim() || "Reserva no pátio";
       portalChecklistReservaPlacasCache.push({
         placa,
         modelo,
-        sub,
-        label: `${modelo} · ${subLabel}`,
+        sub: "reserva-patio",
+        label: `${modelo} · Reserva no pátio`,
       });
     });
-    portalChecklistReservaPlacasCache.sort((a, b) => {
-      const rank = (s) => (s === "prontos" ? 0 : s === "reserva-patio" ? 1 : 2);
-      const d = rank(a.sub) - rank(b.sub);
-      if (d) return d;
-      return a.placa.localeCompare(b.placa, "pt-BR");
-    });
+    portalChecklistReservaPlacasCache.sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
   }
 
   function portalLocadosReservaNaoDisponibilizada() {
@@ -3360,12 +3350,13 @@
     const hit = portalChecklistReservaPlacasCache.some((x) => x.placa === placaReserva);
     if (!hit) {
       const est = portalResolverEstadoExclusivoPlaca(placaReserva);
-      if (est.grupo !== "disponiveis") {
+      const noPatio = est.grupo === "disponiveis" && est.sub === "reserva-patio";
+      if (!noPatio) {
         return {
           ok: false,
           message: est.ok
-            ? `A placa reserva está em «${est.label}» — escolha um veículo em Disponíveis.`
-            : "Placa reserva inválida. Escolha um veículo disponível.",
+            ? `A placa reserva precisa estar em «Disponíveis → 2.2 — Reserva no pátio» (agora: ${est.label}).`
+            : "Placa reserva inválida. Escolha um veículo de «2.2 — Reserva no pátio».",
         };
       }
     }
@@ -3421,15 +3412,11 @@
     const items = portalFilterReservaPlacas(queryRaw);
     if (!items.length) {
       panel.innerHTML =
-        '<div class="portal-placa-dropdown__empty">Nenhum veículo disponível corresponde à busca.</div>';
+        '<div class="portal-placa-dropdown__empty">Nenhum veículo em «2.2 — Reserva no pátio».</div>';
     } else {
       panel.innerHTML = items
         .map((r) => {
-          const cor =
-            r.sub === "prontos" ? "prontos" : r.sub === "reserva-operacao" ? "reserva-operacao" : "reserva-patio";
-          return `<button type="button" class="portal-placa-dropdown__opt portal-placa-opt--${portalEscapeHtml(
-            cor
-          )}" role="option" tabindex="-1" data-placa="${portalEscapeHtml(r.placa)}">
+          return `<button type="button" class="portal-placa-dropdown__opt portal-placa-opt--reserva-patio" role="option" tabindex="-1" data-placa="${portalEscapeHtml(r.placa)}">
             <span class="portal-placa-dropdown__plate">${portalEscapeHtml(r.placa)}</span>
             <span class="portal-placa-dropdown__model">${portalEscapeHtml(r.label || r.modelo)}</span>
           </button>`;
@@ -4410,12 +4397,12 @@
         return { ok: false, message: "A placa reserva não pode ser a mesma do veículo em manutenção." };
       }
       const estReserva = portalResolverEstadoExclusivoPlaca(placaReserva);
-      if (estReserva.grupo !== "disponiveis") {
+      if (estReserva.grupo !== "disponiveis" || estReserva.sub !== "reserva-patio") {
         return {
           ok: false,
           message: estReserva.ok
-            ? `A placa reserva está em «${estReserva.label}» — escolha um veículo em Disponíveis.`
-            : "Placa reserva inválida.",
+            ? `A placa reserva precisa estar em «Disponíveis → 2.2 — Reserva no pátio» (agora: ${estReserva.label}).`
+            : "Placa reserva inválida. Escolha um veículo de «2.2 — Reserva no pátio».",
         };
       }
     }
