@@ -2367,15 +2367,15 @@
   const MANUT_DISP_SUB_META = {
     prontos: {
       title: "Disponíveis — 1 Prontos para alugar",
-      lead: "Veículos livres, prontos para nova locação. Mova para 2.1 Reserva em operação ou 2.2 Reserva no pátio.",
+      lead: "Veículos livres, prontos para nova locação. Saem desta lista automaticamente quando forem locados.",
     },
     "reserva-operacao": {
       title: "Disponíveis — 2.1 Reserva em operação",
-      lead: "Veículos reserva em operação. Pode mover para prontos ou para reserva no pátio.",
+      lead: "Veículos reserva em operação. Pode mover para reserva no pátio.",
     },
     "reserva-patio": {
       title: "Disponíveis — 2.2 Reserva no pátio",
-      lead: "Veículos reserva no pátio. Pode mover para prontos ou para reserva em operação.",
+      lead: "Veículos reserva no pátio. Pode mover para reserva em operação.",
     },
   };
 
@@ -3885,29 +3885,21 @@
       const emptyHints = {
         prontos: "Nenhuma placa pronta para alugar.",
         "reserva-operacao":
-          "Nenhuma placa em reserva em operação. Em «1 — Prontos» ou «2.2 — Pátio», use o botão de mover.",
+          "Nenhuma placa em reserva em operação. Em «2.2 — Reserva no pátio», use o botão de mover.",
         "reserva-patio":
-          "Nenhuma placa em reserva no pátio. Em «1 — Prontos» ou «2.1 — Operação», use o botão de mover.",
+          "Nenhuma placa em reserva no pátio. Em «2.1 — Reserva em operação», use o botão de mover.",
       };
       grid.innerHTML = `<p class="portal-manutencao-empty">${emptyHints[sub] || "Nenhuma placa."}${filtro ? " (filtro)" : ""}</p>`;
       if (msg) msg.textContent = "";
       return;
     }
+    /* «Prontos para alugar»: só grelha — saem quando forem locados (sem botões de mover). */
     const moveTargets =
       sub === "prontos"
-        ? [
-            { dest: "reserva-operacao", label: "MOVER PARA RESERVA EM OPERAÇÃO" },
-            { dest: "reserva-patio", label: "MOVER PARA RESERVA NO PÁTIO" },
-          ]
+        ? []
         : sub === "reserva-operacao"
-          ? [
-              { dest: "prontos", label: "MOVER PARA PRONTOS PARA ALUGAR" },
-              { dest: "reserva-patio", label: "MOVER PARA RESERVA NO PÁTIO" },
-            ]
-          : [
-              { dest: "prontos", label: "MOVER PARA PRONTOS PARA ALUGAR" },
-              { dest: "reserva-operacao", label: "MOVER PARA RESERVA EM OPERAÇÃO" },
-            ];
+          ? [{ dest: "reserva-patio", label: "MOVER PARA RESERVA NO PÁTIO" }]
+          : [{ dest: "reserva-operacao", label: "MOVER PARA RESERVA EM OPERAÇÃO" }];
     grid.innerHTML = rows
       .map((r) => {
         const modelo = portalEscapeHtml(r.modelo);
