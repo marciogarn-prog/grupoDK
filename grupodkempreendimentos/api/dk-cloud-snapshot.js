@@ -332,7 +332,27 @@ function applyDemoCadastroNoShrink(existing, merged) {
   return out;
 }
 
-/** Impede o browser antigo de repor centenas de cadastros no demo de 10 protocolos. */
+/** Oficial virgem: locações/protocolos apagados não podem voltar por push do browser. */
+function capOficialVirginProtocolos(existing, merged) {
+  if (!isObject(existing) || !existing.dk_oficial_sem_protocolos_v1 || !isObject(merged)) return merged;
+  const out = { ...merged };
+  const keys = [
+    "dk_locacoes_cadastro",
+    "dk_lancamentos_aluguel",
+    "dk_lancamentos_aluguel_cadastro",
+    "dk_locacoes_quadro_geral",
+    "dk_locacao_documentos_v1",
+  ];
+  for (const k of keys) {
+    const ex = existing[k];
+    const inc = out[k];
+    if (Array.isArray(ex) && Array.isArray(inc) && inc.length > ex.length) out[k] = ex;
+  }
+  out.dk_oficial_sem_protocolos_v1 = existing.dk_oficial_sem_protocolos_v1;
+  out.dk_cadastro_manual_portal_v1 = true;
+  if (existing.dk_cadastro_lock_v1) out.dk_cadastro_lock_v1 = existing.dk_cadastro_lock_v1;
+  return out;
+}
 function capDemoTenPayload(existing, merged) {
   if (!isObject(existing) || !existing.dk_demo_cadastro_10_v1 || !isObject(merged)) return merged;
   const out = { ...merged };
@@ -647,7 +667,10 @@ module.exports = async function handler(req, res) {
         }
         if (channel === "default") {
           payload.dk_cadastro_manual_portal_v1 = true;
-          payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+          payload.dk_oficial_sem_protocolos_v1 = true;
+          payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
+            ? String(incoming.dk_cadastro_lock_v1)
+            : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
         } else if (incoming.dk_demo_cadastro_10_v1) {
           payload.dk_cadastro_manual_portal_v1 = true;
           payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
@@ -672,6 +695,9 @@ module.exports = async function handler(req, res) {
         if (channel === "demo" && existingPayload) {
           payload = applyDemoCadastroNoShrink(existingPayload, payload);
           payload = capDemoTenPayload(existingPayload, payload);
+        }
+        if (channel === "default" && existingPayload) {
+          payload = capOficialVirginProtocolos(existingPayload, payload);
         }
       }
       if (channel === "default") {
