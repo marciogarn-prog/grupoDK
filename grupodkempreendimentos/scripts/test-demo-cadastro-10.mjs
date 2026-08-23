@@ -272,6 +272,23 @@ async function verifyBrowserScreens(page) {
     assertTokens(`tela Operação ${sel.replace("#btn-operacao-", "")}`, await scrapeVisibleTokens(page));
   }
 
+  await clickIfVisible(page, "#btn-operacao-cadastro-locacao");
+  await clickIfVisible(page, "#operacaoLocacaoCpf");
+  await page.waitForTimeout(500);
+  const cpfLista = await page.evaluate(() => {
+    const btns = [...document.querySelectorAll("#operacaoLocacaoCpfLista [data-cpf]")];
+    return {
+      n: btns.length,
+      cpfs: btns.map((b) => String(b.getAttribute("data-cpf") || "")),
+    };
+  });
+  record("lista CPF locação: 10 itens", cpfLista.n === 10, `n=${cpfLista.n}`);
+  record(
+    "lista CPF locação: só os 10 da imagem",
+    cpfLista.n === 10 && cpfLista.cpfs.every((c) => ALLOWED_CPFS.has(c)),
+    cpfLista.cpfs.filter((c) => !ALLOWED_CPFS.has(c)).join(",") || "ok"
+  );
+
   await clickIfVisible(page, "#btn-voltar-operacao-locadora");
   await clickIfVisible(page, "#btn-locadora-localizacao");
   assertTokens("tela Localização", await scrapeVisibleTokens(page));
