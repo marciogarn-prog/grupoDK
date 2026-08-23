@@ -3291,8 +3291,240 @@
     }
     const placa = portalNkPlate(document.getElementById("portalChecklistPlacaInput")?.value || "");
     const inList = Boolean(placa) && (portalChecklistPlacasAtivasCache || []).some((x) => x.placa === placa);
-    btn.disabled = !inList;
+    const reservaOk = portalLocadosReservaEscolhaValida(placa);
+    btn.disabled = !(inList && reservaOk.ok);
   }
+
+  /** Placas livres (Disponíveis) para oferecer como veículo reserva. */
+  let portalChecklistReservaPlacasCache = [];
+
+  function portalRefreshChecklistReservaPlacasCache() {
+    portalChecklistReservaPlacasCache = [];
+    const excluir = portalNkPlate(document.getElementById("portalChecklistPlacaInput")?.value || "");
+    const livres = typeof portalColetarVeiculosDisponiveisFrota === "function"
+      ? portalColetarVeiculosDisponiveisFrota()
+      : [];
+    const seen = new Set();
+    livres.forEach((v) => {
+      const placa = portalNkPlate(v?.placa);
+      if (!placa || seen.has(placa) || (excluir && placa === excluir)) return;
+      seen.add(placa);
+      const sub = portalNormDisponivelCategoria(v);
+      const subLabel =
+        sub === "reserva-operacao"
+          ? "Reserva em operação"
+          : sub === "reserva-patio"
+            ? "Reserva no pátio"
+            : "Prontos para alugar";
+      const modelo =
+        String(v?.marcaModelo || v?.modelo || "").trim() || subLabel;
+      portalChecklistReservaPlacasCache.push({
+        placa,
+        modelo,
+        sub,
+        label: `${modelo} · ${subLabel}`,
+      });
+    });
+    portalChecklistReservaPlacasCache.sort((a, b) => {
+      const rank = (s) => (s === "prontos" ? 0 : s === "reserva-patio" ? 1 : 2);
+      const d = rank(a.sub) - rank(b.sub);
+      if (d) return d;
+      return a.placa.localeCompare(b.placa, "pt-BR");
+    });
+  }
+
+  function portalLocadosReservaNaoDisponibilizada() {
+    return Boolean(document.getElementById("portalChecklistReservaNaoDisp")?.checked);
+  }
+
+  function portalGetPlacaReservaLocados() {
+    return portalNkPlate(document.getElementById("portalChecklistReservaPlacaInput")?.value || "");
+  }
+
+  function portalLocadosReservaEscolhaValida(placaLocadaRaw) {
+    if (portalLocadosReservaNaoDisponibilizada()) {
+      return { ok: true, placaReserva: "", reservaNaoDisponibilizada: true };
+    }
+    const placaReserva = portalGetPlacaReservaLocados();
+    if (!placaReserva) {
+      return {
+        ok: false,
+        message: "Informe a placa do veículo reserva ou marque «VEÍCULO RESERVA NÃO DISPONIBILIZADO».",
+      };
+    }
+    const placaLocada = portalNkPlate(placaLocadaRaw);
+    if (placaLocada && placaReserva === placaLocada) {
+      return { ok: false, message: "A placa reserva não pode ser a mesma do veículo em manutenção." };
+    }
+    if (!portalChecklistReservaPlacasCache.length) portalRefreshChecklistReservaPlacasCache();
+    const hit = portalChecklistReservaPlacasCache.some((x) => x.placa === placaReserva);
+    if (!hit) {
+      const est = portalResolverEstadoExclusivoPlaca(placaReserva);
+      if (est.grupo !== "disponiveis") {
+        return {
+          ok: false,
+          message: est.ok
+            ? `A placa reserva está em «${est.label}» — escolha um veículo em Disponíveis.`
+            : "Placa reserva inválida. Escolha um veículo disponível.",
+        };
+      }
+    }
+    return { ok: true, placaReserva, reservaNaoDisponibilizada: false };
+  }
+
+  function portalClearLocadosReservaUi() {
+    const inp = document.getElementById("portalChecklistReservaPlacaInput");
+    const chk = document.getElementById("portalChecklistReservaNaoDisp");
+    if (inp) {
+      inp.value = "";
+      inp.disabled = false;
+    }
+    if (chk) chk.checked = false;
+    portalHideReservaPlacaDropdown();
+  }
+
+  function portalApplyReservaNaoDispUi() {
+    const chk = document.getElementById("portalChecklistReservaNaoDisp");
+    const inp = document.getElementById("portalChecklistReservaPlacaInput");
+    const on = Boolean(chk?.checked);
+    if (inp) {
+      inp.disabled = on;
+      if (on) inp.value = "";
+    }
+    if (on) portalHideReservaPlacaDropdown();
+    portalSyncLocadosEnviarManutBtn();
+  }
+
+  function portalHideReservaPlacaDropdown() {
+    const panel = document.getElementById("portalChecklistReservaPlacaLista");
+    const inp = document.getElementById("portalChecklistReservaPlacaInput");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function portalFilterReservaPlacas(queryRaw) {
+    if (!portalChecklistReservaPlacasCache.length) portalRefreshChecklistReservaPlacasCache();
+    const q = portalNkPlate(queryRaw);
+    if (!q) return portalChecklistReservaPlacasCache.slice(0, 80);
+    return portalChecklistReservaPlacasCache.filter((r) => r.placa.includes(q)).slice(0, 80);
+  }
+
+  function portalRenderReservaPlacaDropdown(queryRaw) {
+    const panel = document.getElementById("portalChecklistReservaPlacaLista");
+    const inp = document.getElementById("portalChecklistReservaPlacaInput");
+    if (!panel || !inp || inp.disabled) return;
+    if (!portalChecklistReservaPlacasCache.length) portalRefreshChecklistReservaPlacasCache();
+    const items = portalFilterReservaPlacas(queryRaw);
+    if (!items.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhum veículo disponível corresponde à busca.</div>';
+    } else {
+      panel.innerHTML = items
+        .map((r) => {
+          const cor =
+            r.sub === "prontos" ? "prontos" : r.sub === "reserva-operacao" ? "reserva-operacao" : "reserva-patio";
+          return `<button type="button" class="portal-placa-dropdown__opt portal-placa-opt--${portalEscapeHtml(
+            cor
+          )}" role="option" tabindex="-1" data-placa="${portalEscapeHtml(r.placa)}">
+            <span class="portal-placa-dropdown__plate">${portalEscapeHtml(r.placa)}</span>
+            <span class="portal-placa-dropdown__model">${portalEscapeHtml(r.label || r.modelo)}</span>
+          </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
+  function portalSelectPlacaReservaLocados(placaRaw) {
+    const placa = portalNkPlate(placaRaw);
+    const inp = document.getElementById("portalChecklistReservaPlacaInput");
+    const chk = document.getElementById("portalChecklistReservaNaoDisp");
+    if (chk) chk.checked = false;
+    if (inp) {
+      inp.disabled = false;
+      inp.value = placa;
+    }
+    portalHideReservaPlacaDropdown();
+    portalSyncLocadosEnviarManutBtn();
+  }
+
+  function portalBindLocadosReservaUiOnce() {
+    if (window.__dkPortalLocadosReservaBound) return;
+    window.__dkPortalLocadosReservaBound = true;
+    const inp = document.getElementById("portalChecklistReservaPlacaInput");
+    const panel = document.getElementById("portalChecklistReservaPlacaLista");
+    const combo = document.getElementById("portalChecklistReservaPlacaCombo");
+    const chk = document.getElementById("portalChecklistReservaNaoDisp");
+    if (!inp || !panel || !combo) return;
+
+    chk?.addEventListener("change", () => {
+      portalApplyReservaNaoDispUi();
+      const msg = document.getElementById("portalChecklistLocadosMsg");
+      if (msg && chk.checked) {
+        msg.textContent = "Veículo reserva não será disponibilizado neste envio.";
+      }
+    });
+
+    inp.addEventListener("focus", () => {
+      if (inp.disabled) return;
+      portalRefreshChecklistReservaPlacasCache();
+      portalRenderReservaPlacaDropdown(inp.value);
+    });
+
+    inp.addEventListener("input", () => {
+      if (chk?.checked) {
+        chk.checked = false;
+        inp.disabled = false;
+      }
+      inp.value = String(inp.value || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "")
+        .slice(0, 10);
+      portalRenderReservaPlacaDropdown(inp.value);
+      portalSyncLocadosEnviarManutBtn();
+    });
+
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        portalHideReservaPlacaDropdown();
+        return;
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const first = panel.querySelector(".portal-placa-dropdown__opt[data-placa]");
+        if (first) portalSelectPlacaReservaLocados(first.getAttribute("data-placa"));
+        else portalHideReservaPlacaDropdown();
+      }
+    });
+
+    panel.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
+    });
+
+    panel.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-placa-dropdown__opt");
+      if (!btn) return;
+      portalSelectPlacaReservaLocados(btn.getAttribute("data-placa"));
+    });
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (panel.classList.contains("hidden")) return;
+        if (combo.contains(e.target)) return;
+        portalHideReservaPlacaDropdown();
+      },
+      true
+    );
+  }
+
+  portalBindLocadosReservaUiOnce();
 
   function portalSelectPlacaLocados(placaRaw) {
     const placa = portalNkPlate(placaRaw);
@@ -3301,10 +3533,15 @@
     const field = document.getElementById("portalChecklistFieldPlaca");
     if (field) field.value = placa;
     hidePortalChecklistPlacaDropdown();
+    portalRefreshChecklistReservaPlacasCache();
+    const reservaAtual = portalGetPlacaReservaLocados();
+    if (reservaAtual && reservaAtual === placa) {
+      portalClearLocadosReservaUi();
+    }
     const msg = document.getElementById("portalChecklistLocadosMsg");
     if (msg) {
       msg.textContent = placa
-        ? `Placa ${placa} selecionada. Pode encaminhar para manutenção.`
+        ? `Placa ${placa} selecionada. Informe o veículo reserva ou marque que não será disponibilizado.`
         : "";
     }
     portalSyncLocadosEnviarManutBtn();
@@ -3480,6 +3717,8 @@
     portalApplyChecklistModeUi();
     refreshPortalChecklistPlacasAtivasCache();
     portalClearChecklistInspection();
+    portalClearLocadosReservaUi();
+    portalRefreshChecklistReservaPlacasCache();
     document.getElementById("portalChecklistMount")?.classList.add("hidden");
     document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
     portalClearMotivoPrincipalChecklist();
@@ -3494,6 +3733,7 @@
     const locMsg = document.getElementById("portalChecklistLocadosMsg");
     if (locMsg) locMsg.textContent = "";
     hidePortalChecklistPlacaDropdown();
+    portalHideReservaPlacaDropdown();
     portalSyncLocadosEnviarManutBtn();
   }
 
@@ -4148,7 +4388,7 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  function portalEnviarChecklistParaManutencao(categoriaRaw, motivoRaw) {
+  function portalEnviarChecklistParaManutencao(categoriaRaw, motivoRaw, reservaOpts) {
     const placaRaw = portalGetPlacaChecklistAtual();
     if (!placaRaw) return { ok: false, message: "Placa em falta." };
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
@@ -4157,6 +4397,28 @@
     const motivo = String(motivoRaw || "").trim();
     if (!motivo) return { ok: false, message: "Informe o motivo principal." };
     const placaKey = portalNkPlate(placaRaw);
+    const reservaNaoDisponibilizada = Boolean(reservaOpts?.reservaNaoDisponibilizada);
+    const placaReserva = reservaNaoDisponibilizada ? "" : portalNkPlate(reservaOpts?.placaReserva || "");
+    if (!reservaNaoDisponibilizada) {
+      if (!placaReserva) {
+        return {
+          ok: false,
+          message: "Informe a placa do veículo reserva ou marque «VEÍCULO RESERVA NÃO DISPONIBILIZADO».",
+        };
+      }
+      if (placaReserva === placaKey) {
+        return { ok: false, message: "A placa reserva não pode ser a mesma do veículo em manutenção." };
+      }
+      const estReserva = portalResolverEstadoExclusivoPlaca(placaReserva);
+      if (estReserva.grupo !== "disponiveis") {
+        return {
+          ok: false,
+          message: estReserva.ok
+            ? `A placa reserva está em «${estReserva.label}» — escolha um veículo em Disponíveis.`
+            : "Placa reserva inválida.",
+        };
+      }
+    }
     const categoria = portalNormManutCategoria(categoriaRaw) || "triagem";
     const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
     const jaEmManutencao = manutencoes.some(
@@ -4181,8 +4443,20 @@
       valor: "",
       origemPortalChecklist: true,
       categoriaManutencao: categoria,
+      placaReserva: placaReserva || "",
+      reservaNaoDisponibilizada: reservaNaoDisponibilizada,
     });
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+
+    if (!reservaNaoDisponibilizada && placaReserva) {
+      const move = portalSetDisponivelCategoriaPlaca(placaReserva, "reserva-operacao");
+      if (!move.ok) {
+        /* Manutenção já gravada; avisa mas não reverte o envio. */
+        console.warn("[DK] reserva não movida:", move.message || move);
+      }
+    }
+    portalVincularReservaNaLocacaoAtiva(placaKey, placaReserva, reservaNaoDisponibilizada);
+
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_checklist_envio_manutencao", "manutencao", placaKey);
     }
@@ -4193,7 +4467,39 @@
         /* ignore */
       }
     }
-    return { ok: true, placa: placaKey, categoria, motivo };
+    return {
+      ok: true,
+      placa: placaKey,
+      categoria,
+      motivo,
+      placaReserva,
+      reservaNaoDisponibilizada,
+    };
+  }
+
+  /** Guarda na locação ativa o veículo reserva (ou a opção de não disponibilizar). */
+  function portalVincularReservaNaLocacaoAtiva(placaLocadaRaw, placaReservaRaw, naoDisponibilizada) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return;
+    }
+    const placaLocada = portalNkPlate(placaLocadaRaw);
+    const placaReserva = portalNkPlate(placaReservaRaw);
+    if (!placaLocada) return;
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    let changed = false;
+    const next = locs.map((loc) => {
+      if (portalNkPlate(loc?.placa) !== placaLocada) return loc;
+      const fim = String(loc?.fim || loc?.dataFim || "").trim();
+      if (fim && fim !== "...") return loc;
+      changed = true;
+      return {
+        ...loc,
+        placaReserva: naoDisponibilizada ? "" : placaReserva,
+        reservaNaoDisponibilizada: Boolean(naoDisponibilizada),
+        updatedAt: Date.now(),
+      };
+    });
+    if (changed) saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
   }
 
   function portalCloseChecklistEnvioManutModal() {
@@ -4219,11 +4525,18 @@
     const modal = document.getElementById("portalChecklistEnvioManutModal");
     if (!modal) return;
     const placa = portalNkPlate(portalGetPlacaChecklistAtual());
+    const reserva = portalLocadosReservaEscolhaValida(placa);
     const info = document.getElementById("portalChecklistEnvioManutInfo");
     if (info) {
+      let extra = "";
+      if (reserva.ok && reserva.reservaNaoDisponibilizada) {
+        extra = ` <strong>Veículo reserva não disponibilizado.</strong>`;
+      } else if (reserva.ok && reserva.placaReserva) {
+        extra = ` Veículo reserva: <strong>${portalEscapeHtml(reserva.placaReserva)}</strong> (irá para Disponíveis → Reserva em operação).`;
+      }
       info.innerHTML = placa
-        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.`
-        : `O veículo será enviado para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.`;
+        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`
+        : `O veículo será enviado para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`;
     }
     const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
     if (motivo) motivo.value = "";
@@ -4256,18 +4569,27 @@
         portalSyncChecklistEnvioManutEnviarBtn();
         return;
       }
-      const r = portalEnviarChecklistParaManutencao("triagem", motivo);
+      const placaAtual = portalNkPlate(portalGetPlacaChecklistAtual());
+      const reserva = portalLocadosReservaEscolhaValida(placaAtual);
+      if (!reserva.ok) {
+        if (modalMsg) modalMsg.textContent = reserva.message || "Defina o veículo reserva.";
+        return;
+      }
+      const r = portalEnviarChecklistParaManutencao("triagem", motivo, reserva);
       if (!r.ok) {
         if (modalMsg) modalMsg.textContent = r.message || "Não foi possível registar.";
         return;
       }
       portalCloseChecklistEnvioManutModal();
+      const reservaTxt = r.reservaNaoDisponibilizada
+        ? "Sem veículo reserva."
+        : `Reserva: ${r.placaReserva || "—"}.`;
       if (dispMsg) {
-        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». Motivo: ${r.motivo}.`;
+        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». Motivo: ${r.motivo}. ${reservaTxt}`;
       }
       const locMsg = document.getElementById("portalChecklistLocadosMsg");
       if (locMsg) {
-        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem».`;
+        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». ${reservaTxt}`;
       }
       portalClearChecklistInspection();
       document.getElementById("portalChecklistMount")?.classList.add("hidden");
@@ -4277,13 +4599,16 @@
       if (placaInp) placaInp.value = "";
       const fieldPlaca = document.getElementById("portalChecklistFieldPlaca");
       if (fieldPlaca) fieldPlaca.value = "";
+      portalClearLocadosReservaUi();
       refreshPortalChecklistPlacasAtivasCache();
+      portalRefreshChecklistReservaPlacasCache();
       if (portalChecklistIsManutencaoMode()) {
         portalValidateChecklistCompleto();
       } else {
         portalSyncLocadosEnviarManutBtn();
       }
       portalRefreshManutencaoVeiculosLista();
+      portalRefreshManutencaoDisponiveisPlacas();
     });
     document.addEventListener("keydown", (ev) => {
       const modal = document.getElementById("portalChecklistEnvioManutModal");
@@ -4307,6 +4632,12 @@
       const msg = document.getElementById("portalChecklistLocadosMsg");
       if (!inList) {
         if (msg) msg.textContent = "Escolha uma placa da lista deste plano.";
+        portalSyncLocadosEnviarManutBtn();
+        return;
+      }
+      const reserva = portalLocadosReservaEscolhaValida(placa);
+      if (!reserva.ok) {
+        if (msg) msg.textContent = reserva.message;
         portalSyncLocadosEnviarManutBtn();
         return;
       }
