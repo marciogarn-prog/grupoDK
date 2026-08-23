@@ -3825,6 +3825,9 @@
         left: Math.max(0, Math.round(rect.left - wsRect.left)),
         top: Math.max(0, Math.round(rect.top - wsRect.top)),
       };
+      if (id === "placa-field" && rect.width > 0) {
+        items[id].width = Math.round(rect.width);
+      }
     });
     return { items };
   }
@@ -3872,20 +3875,57 @@
     portalEnsureChecklistUiBuilt();
   }
 
+  function portalFreezeChecklistLayoutItemsForEdit() {
+    const ws = document.getElementById("portalChecklistWorkspace");
+    if (!ws) return;
+    /* Congela posições atuais em absolute para poder arrastar sem o flex “puxar” os outros. */
+    const snapshot = portalGetChecklistLayoutItems().map((el) => {
+      const rect = el.getBoundingClientRect();
+      const wsRect = ws.getBoundingClientRect();
+      return {
+        el,
+        left: Math.max(0, Math.round(rect.left - wsRect.left)),
+        top: Math.max(0, Math.round(rect.top - wsRect.top)),
+        width: Math.round(rect.width),
+      };
+    });
+    snapshot.forEach(({ el, left, top, width }) => {
+      if (el.parentElement !== ws) ws.appendChild(el);
+      el.classList.add("is-layout-custom");
+      el.style.left = `${left}px`;
+      el.style.top = `${top}px`;
+      if (width > 0 && el.getAttribute("data-checklist-layout-item") === "placa-field") {
+        el.style.width = `${width}px`;
+      }
+    });
+  }
+
   function portalSyncChecklistLayoutUi() {
     const ws = document.getElementById("portalChecklistWorkspace");
     const btn = document.getElementById("portalChecklistMotivoLayoutSaveBtn");
+    const hint = document.getElementById("portalChecklistLayoutEditHint");
     const canEdit = portalCanEditChecklistLayout();
     ws?.classList.toggle("layout-edit-mode", canEdit);
     if (btn) {
       btn.classList.toggle("hidden", !canEdit);
       btn.hidden = !canEdit;
+      /* Mantém o botão fora da caixa (placa-bar), no canto do workspace. */
+      if (canEdit && ws && btn.parentElement !== ws) {
+        ws.insertBefore(btn, ws.firstChild);
+      }
+    }
+    if (hint) {
+      hint.classList.toggle("hidden", !canEdit);
+      hint.hidden = !canEdit;
     }
     if (canEdit) {
       portalRevealChecklistLayoutEditTargets();
-      portalGetChecklistLayoutItems().forEach((el) => {
-        el.classList.add("is-layout-edit");
-        el.title = "Arraste para reposicionar. Depois clique em Salvar Layout.";
+      requestAnimationFrame(() => {
+        portalFreezeChecklistLayoutItemsForEdit();
+        portalGetChecklistLayoutItems().forEach((el) => {
+          el.classList.add("is-layout-edit");
+          el.title = "Arraste para reposicionar";
+        });
       });
     } else {
       document.getElementById("portalChecklistFotosGrid")?.classList.remove("is-layout-edit-force-show");
@@ -3940,8 +3980,12 @@
         if (target.closest("#portalChecklistMotivoLayoutSaveBtn")) return;
         const item = target.closest("[data-checklist-layout-item]");
         if (!item || !ws.contains(item)) return;
-        /* Permite digitar na placa sem iniciar drag pelo input. */
-        if (target.closest("input, textarea, select") && item.getAttribute("data-checklist-layout-item") === "placa-field") {
+        /* Digitar na placa: só arrasta se pegar no grip ou no rótulo. */
+        if (
+          item.getAttribute("data-checklist-layout-item") === "placa-field" &&
+          target.closest("input, textarea, select") &&
+          !target.closest(".portal-checklist-layout-drag-grip")
+        ) {
           return;
         }
 
@@ -3980,7 +4024,7 @@
         const dy = event.clientY - drag.startY;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
         const maxLeft = Math.max(0, ws.clientWidth - drag.boxWidth);
-        const maxTop = Math.max(0, Math.max(ws.clientHeight, 480) - drag.boxHeight);
+        const maxTop = Math.max(0, Math.max(ws.scrollHeight, ws.clientHeight, 640) - drag.boxHeight);
         const nextLeft = Math.max(0, Math.min(maxLeft, drag.originLeft + dx));
         const nextTop = Math.max(0, Math.min(maxTop, drag.originTop + dy));
         drag.el.style.left = `${Math.round(nextLeft)}px`;
