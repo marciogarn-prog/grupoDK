@@ -464,7 +464,9 @@ async function testEtapa4(page) {
   record("etapa 4: veículos da planilha carregados", s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS && s.veicCount >= MIEL_MIN_VEICULOS && s.veicCount <= MIEL_MAX_VEICULOS, `rows=${s.rows}`);
   record(
     "etapa 4: locações e vínculos importados",
-    s.locCount >= 400 && s.vincCount >= 400,
+    IS_DEMO
+      ? s.locCount >= 9 && s.locCount <= 11 && s.vincCount >= 9 && s.vincCount <= 11
+      : s.locCount >= 400 && s.vincCount >= 400,
     `loc=${s.locCount} vinc=${s.vincCount}`
   );
 
