@@ -2503,6 +2503,144 @@
     return "prontos";
   }
 
+  /**
+   * Estado exclusivo da placa (nunca em dois sítios).
+   * Prioridade: Em manutenção → Locados → Disponíveis → Indisponível / não encontrada.
+   */
+  function portalResolverEstadoExclusivoPlaca(placaRaw) {
+    const plateKey = portalNkPlate(placaRaw);
+    if (!plateKey) {
+      return {
+        ok: false,
+        placa: "",
+        grupo: "",
+        sub: "",
+        corCls: "muted",
+        label: "Digite uma placa para localizar.",
+      };
+    }
+
+    const vmap = typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+    let veiculo = vmap?.get(plateKey) || null;
+    if (!veiculo && typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      veiculo =
+        loadCadastro(CAD_VEICULOS_KEY).find((v) => portalNkPlate(v.placa) === plateKey) || null;
+    }
+
+    const manutSet = getPortalPlacasEmManutencaoSet();
+    if (manutSet.has(plateKey)) {
+      const cat = getPortalManutCategoriaPorPlaca(plateKey) || "oficina-propria";
+      const labels = {
+        "oficina-propria": "EM MANUTENÇÃO → 1 — Oficina própria",
+        "oficina-terceiros": "EM MANUTENÇÃO → 2 — Oficina de terceiro",
+        "enviado-seguro": "EM MANUTENÇÃO → 3 — Seguro",
+        "sinistrado-roubo": "EM MANUTENÇÃO → 4 — Sinistro Roubo",
+      };
+      return {
+        ok: true,
+        placa: plateKey,
+        grupo: "manutencao",
+        sub: cat,
+        corCls: cat === "sinistrado-roubo" ? "sinistro-roubo" : "manutencao",
+        label: labels[cat] || "EM MANUTENÇÃO",
+        veiculo,
+      };
+    }
+
+    const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
+    if (activeSet.has(plateKey)) {
+      const plano = portalClassificarPlanoLocado(plateKey, veiculo) || "meu-transporte";
+      const labels = {
+        "minha-moto": "LOCADOS → 1 — Plano DK Minha Moto",
+        "meu-transporte": "LOCADOS → 2 — Plano DK Meu Transporte",
+        carros: "LOCADOS → 3 — Plano Carros",
+      };
+      return {
+        ok: true,
+        placa: plateKey,
+        grupo: "locados",
+        sub: plano,
+        corCls: plano,
+        label: labels[plano] || "LOCADOS",
+        veiculo,
+      };
+    }
+
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (x) => String(x || "").trim().toUpperCase();
+    if (veiculo && nk(veiculo.status).includes("INDISPONIVEL")) {
+      return {
+        ok: true,
+        placa: plateKey,
+        grupo: "indisponivel",
+        sub: "indisponivel",
+        corCls: "indisponivel",
+        label: "Indisponível (fora da frota operacional)",
+        veiculo,
+      };
+    }
+
+    if (veiculo) {
+      const disp = portalNormDisponivelCategoria(veiculo);
+      return {
+        ok: true,
+        placa: plateKey,
+        grupo: "disponiveis",
+        sub: disp,
+        corCls: disp,
+        label:
+          disp === "reserva"
+            ? "DISPONÍVEIS → 2 — Veículo reserva"
+            : "DISPONÍVEIS → 1 — Prontos para alugar",
+        veiculo,
+      };
+    }
+
+    return {
+      ok: false,
+      placa: plateKey,
+      grupo: "",
+      sub: "",
+      corCls: "muted",
+      label: `Placa ${plateKey} não encontrada no cadastro.`,
+    };
+  }
+
+  function portalRenderManutPlacaLookupResult() {
+    const inp = document.getElementById("portalManutPlacaLookup");
+    const out = document.getElementById("portalManutPlacaLookupResult");
+    if (!out) return;
+    const raw = String(inp?.value || "").trim();
+    out.className = "portal-manut-placa-lookup__result";
+    if (!raw) {
+      out.classList.add("portal-manut-placa-lookup__result--muted");
+      out.textContent = "";
+      return;
+    }
+    const r = portalResolverEstadoExclusivoPlaca(raw);
+    out.classList.add(`portal-manut-placa-lookup__result--${r.corCls || "muted"}`);
+    out.textContent = r.label;
+  }
+
+  function portalBindManutPlacaLookupOnce() {
+    if (window.__dkPortalManutPlacaLookupBound) return;
+    window.__dkPortalManutPlacaLookupBound = true;
+    const inp = document.getElementById("portalManutPlacaLookup");
+    if (!inp) return;
+    inp.addEventListener("input", () => {
+      inp.value = String(inp.value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      portalRenderManutPlacaLookupResult();
+    });
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        portalRenderManutPlacaLookupResult();
+      }
+    });
+  }
+
+  portalBindManutPlacaLookupOnce();
+
   function expandManutencaoParentMenuOnly(parentBtnId, placeholderText) {
     portalRefreshOperacaoLocal();
     hideManutencaoInlineFormsCore();
@@ -3549,6 +3687,16 @@
     if (!plateKey || typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
       return { ok: false, message: "Cadastro indisponível." };
     }
+    const estado = portalResolverEstadoExclusivoPlaca(plateKey);
+    if (estado.grupo === "manutencao" || estado.grupo === "locados") {
+      return {
+        ok: false,
+        message: `Não é possível mover: a placa está em «${estado.label}».`,
+      };
+    }
+    if (estado.grupo !== "disponiveis") {
+      return { ok: false, message: estado.label || "Placa não está disponível." };
+    }
     const key =
       typeof PORTAL_VEICULOS_KEY !== "undefined"
         ? PORTAL_VEICULOS_KEY
@@ -4001,6 +4149,35 @@
       if (msgEl) msgEl.textContent = "Placa inválida.";
       return { ok: false };
     }
+
+    /* Só aceita placas do estado/categoria aberta (segregação). */
+    const estado = portalResolverEstadoExclusivoPlaca(plateFmt);
+    if (portalChecklistIsManutencaoMode()) {
+      const sub = portalManutEmManutSubAtivo || "oficina-propria";
+      if (estado.grupo !== "manutencao" || estado.sub !== sub) {
+        fotosGrid?.classList.add("hidden");
+        mount?.classList.add("hidden");
+        if (msgEl) {
+          msgEl.textContent = estado.ok
+            ? `Esta placa está em «${estado.label}» — não neste tipo de manutenção.`
+            : "Placa não está em manutenção nesta categoria.";
+        }
+        return { ok: false };
+      }
+    } else {
+      const plano = portalManutLocadoSubAtivo || "minha-moto";
+      if (estado.grupo !== "locados" || estado.sub !== plano) {
+        fotosGrid?.classList.add("hidden");
+        mount?.classList.add("hidden");
+        if (msgEl) {
+          msgEl.textContent = estado.ok
+            ? `Esta placa está em «${estado.label}» — não neste plano de locados.`
+            : "Placa não está locada neste plano.";
+        }
+        return { ok: false };
+      }
+    }
+
     const inp = document.getElementById("portalChecklistPlacaInput");
     if (inp) inp.value = plateFmt;
     portalClearChecklistInspection();
@@ -7060,7 +7237,13 @@
     let statusText = "Disponível";
     let statusClass = "livre";
     let locAtiva = null;
-    if (locado) {
+    /* Segregação: Em manutenção tem prioridade sobre Locados. */
+    if (emManutencao) {
+      cliente = "—";
+      const catManut = getPortalManutCategoriaPorPlaca(plateKey);
+      statusClass = portalFrotaStatusClassEmManutencao(catManut);
+      statusText = portalStatusTextEmManutencao(catManut);
+    } else if (locado) {
       locAtiva = getPortalLocacaoAtivaDetalhePorPlaca(plateKey);
       const cpf =
         typeof onlyDigits === "function"
@@ -7074,18 +7257,15 @@
       cliente = nome || "Cliente cadastrado";
       statusClass = portalFrotaStatusClassEmLocacao(locAtiva, veiculo);
       statusText = portalStatusTextEmLocacao(statusClass);
-    } else if (emManutencao) {
-      cliente = "—";
-      const catManut = getPortalManutCategoriaPorPlaca(plateKey);
-      statusClass = portalFrotaStatusClassEmManutencao(catManut);
-      statusText = portalStatusTextEmManutencao(catManut);
     } else if (indisponivel) {
       cliente = "—";
       statusText = "Indisponível";
       statusClass = "indisponivel";
     } else {
-      cliente = "Disponível";
-      statusText = "Disponível";
+      const disp = portalNormDisponivelCategoria(veiculo);
+      cliente = disp === "reserva" ? "Reserva" : "Disponível";
+      statusText =
+        disp === "reserva" ? "Disponível — Veículo reserva" : "Disponível — Prontos para alugar";
       statusClass = "livre";
     }
 
