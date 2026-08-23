@@ -1165,6 +1165,13 @@ async function runSuite() {
       "cliente recebe CRLV/contrato enviados via sync da nuvem"
     );
     record(
+      "app cliente login valida senha na nuvem",
+      clienteAppJs.includes("__DK_upsertClienteCadastroFromCloud") &&
+        syncDocEnviarJs.includes("upsertClienteCadastroFromCloud") &&
+        syncDocEnviarJs.includes('"dk_clientes_cadastro"'),
+      "cadastro/senha do app vêm da nuvem no Entrar"
+    );
+    record(
       "cliente.html sync documentos locação",
       clienteHtml.includes("portal-supabase-sync.js?v="),
       "app cliente carrega sync com pull de dk_locacao_documentos_v1"

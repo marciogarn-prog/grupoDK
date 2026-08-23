@@ -678,7 +678,16 @@
             .slice(0, 11) === dig
       );
     }
-    delete out.dk_clientes_cadastro;
+    if (Array.isArray(out.dk_clientes_cadastro)) {
+      out.dk_clientes_cadastro = out.dk_clientes_cadastro.filter(
+        (c) =>
+          String(c?.cpf || "")
+            .replace(/\D/g, "")
+            .slice(0, 11) === dig
+      );
+    } else {
+      delete out.dk_clientes_cadastro;
+    }
     delete out.dk_portal_clientes_cadastro;
     delete out.dk_veiculos_cadastro;
     delete out.dk_portal_veiculos_cadastro;
@@ -687,6 +696,7 @@
   }
 
   const CLIENTE_CLOUD_PULL_KEYS = new Set([
+    "dk_clientes_cadastro",
     "dk_locacoes_cadastro",
     "dk_locacao_documentos_v1",
     "dk_comunicacao_operacao_v1",
@@ -3077,6 +3087,35 @@
     }
   }
 
+  async function upsertClienteCadastroFromCloud(cpf) {
+    const dig = String(cpf || "")
+      .replace(/\D/g, "")
+      .slice(0, 11);
+    if (dig.length !== 11) return { ok: false, reason: "cpf" };
+    const data = await fetchCloudSnapshotPayload();
+    const list = Array.isArray(data?.payload?.dk_clientes_cadastro) ? data.payload.dk_clientes_cadastro : [];
+    const row = list.find((c) => String(c?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig);
+    if (!row || typeof row !== "object") return { ok: false, reason: "not_found" };
+    let local = [];
+    try {
+      const raw = localStorage.getItem("dk_clientes_cadastro");
+      local = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(local)) local = [];
+    } catch {
+      local = [];
+    }
+    const idx = local.findIndex((c) => String(c?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig);
+    const next = { ...(idx >= 0 ? local[idx] : {}), ...row };
+    if (idx >= 0) local[idx] = next;
+    else local.push(next);
+    if (typeof saveCadastro === "function") {
+      saveCadastro("dk_clientes_cadastro", local, { bypassImmutabilidadeCadastro: true });
+    } else {
+      localStorage.setItem("dk_clientes_cadastro", JSON.stringify(local));
+    }
+    return { ok: true };
+  }
+
   try {
     window.__DK_pullCloudSnapshotSilentMerge = pullCloudSnapshotSilentMerge;
     window.__DK_pullClienteCloudSnapshotLight = pullClienteCloudSnapshotLight;
@@ -3092,6 +3131,7 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_upsertClienteCadastroFromCloud = upsertClienteCadastroFromCloud;
     window.__DK_fetchRedundantSnapshotPayload = fetchRedundantSnapshotPayload;
     window.__DK_pushLocacaoDocumentoNuvem = pushLocacaoDocumentoNuvem;
     window.__DK_docsLocacaoMerge = mergeLocacaoDocumentosV1;
