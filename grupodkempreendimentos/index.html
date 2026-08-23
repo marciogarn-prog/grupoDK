@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260823motivo-layout-edit">
+  <link rel="stylesheet" href="styles.css?v=20260823layout-botoes">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -1852,10 +1852,11 @@
             </div>
             <div id="portalChecklistWorkspace" class="portal-checklist-workspace hidden" hidden>
               <div class="portal-checklist-toolbar portal-checklist-no-print" id="portalChecklistToolbar">
-                <button type="button" class="btn-primary" id="btnPortalChecklistAbrir">Check-list</button>
+                <button type="button" class="btn-primary" id="btnPortalChecklistAbrir" data-checklist-layout-item="btn-checklist">Check-list</button>
+                <button type="button" class="btn-primary btn-secondary-outline portal-checklist-layout-save hidden" id="portalChecklistMotivoLayoutSaveBtn" hidden>Salvar Layout</button>
               </div>
               <div class="portal-checklist-placa-bar portal-checklist-no-print">
-                <label class="portal-checklist-placa-label portal-field--combobox">
+                <label class="portal-checklist-placa-label portal-field--combobox" id="portalChecklistPlacaLabel" data-checklist-layout-item="placa-field">
                   <span id="portalChecklistPlacaLabelText">Placa da moto</span>
                   <div class="portal-combobox" id="portalChecklistPlacaCombo">
                     <input
@@ -1881,18 +1882,17 @@
                   </div>
                 </label>
                 <div class="portal-checklist-placa-actions-row" id="portalChecklistPlacaActionsManut">
-                  <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn">Carregar dados</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="portalChecklistCarregarBtn" data-checklist-layout-item="btn-carregar">Carregar dados</button>
                   <div id="portalChecklistFotosGrid" class="portal-checklist-fotos-grid hidden" role="group" aria-label="Fotos do veículo (após carregar dados)">
-                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnDireita">Foto direita</button>
-                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnFrente">Foto frente</button>
-                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnEsquerda">Foto esquerda</button>
-                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnTraseira">Foto traseira</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnDireita" data-checklist-layout-item="foto-direita">Foto direita</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnFrente" data-checklist-layout-item="foto-frente">Foto frente</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnEsquerda" data-checklist-layout-item="foto-esquerda">Foto esquerda</button>
+                    <button type="button" class="btn-primary btn-secondary-outline btn-checklist-foto" id="portalChecklistFotoBtnTraseira" data-checklist-layout-item="foto-traseira">Foto traseira</button>
                   </div>
-                  <div id="portalChecklistMotivoPrincipalBox" class="portal-checklist-motivo-principal hidden" hidden role="status" aria-live="polite" title="Arraste para reposicionar (enquanto o layout não estiver salvo)">
+                  <div id="portalChecklistMotivoPrincipalBox" class="portal-checklist-motivo-principal hidden" hidden role="status" aria-live="polite" data-checklist-layout-item="motivo-principal">
                     <span class="portal-checklist-motivo-principal__label">Motivo principal</span>
                     <p id="portalChecklistMotivoPrincipalTexto" class="portal-checklist-motivo-principal__text"></p>
                   </div>
-                  <button type="button" class="btn-primary btn-secondary-outline portal-checklist-motivo-layout-save hidden" id="portalChecklistMotivoLayoutSaveBtn" hidden>Salvar Layout</button>
                   <input type="file" id="portalChecklistFotoFile" class="hidden" accept="image/*" capture="environment" tabindex="-1" aria-hidden="true">
                 </div>
                 <div id="portalChecklistLocadosActions" class="portal-checklist-locados-actions hidden" hidden>
@@ -2317,11 +2317,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260823motivo-layout-edit" defer></script>
+  <script src="app.js?v=20260823layout-botoes" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260823motivo-layout-edit" defer></script>
+  <script src="portal-locadora-ui.js?v=20260823layout-botoes" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
