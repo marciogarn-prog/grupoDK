@@ -120,18 +120,21 @@ try {
         }
       }
 
-      const estLocada =
-        typeof portalResolverEstadoExclusivoPlaca === "function"
-          ? portalResolverEstadoExclusivoPlaca(locada)
-          : null;
-      const estReserva =
-        typeof portalResolverEstadoExclusivoPlaca === "function"
-          ? portalResolverEstadoExclusivoPlaca(reserva)
-          : null;
-      const cob =
-        typeof portalResolverCoberturaReservaOperacao === "function"
-          ? portalResolverCoberturaReservaOperacao(reserva)
-          : null;
+      const veiculos = typeof CAD_VEICULOS_KEY !== "undefined" ? loadCadastro(CAD_VEICULOS_KEY) : [];
+      const vLocada = veiculos.find((v) => nk(v.placa) === locada);
+      const vReserva = veiculos.find((v) => nk(v.placa) === reserva);
+      const catLocada = String(vLocada?.disponivelCategoria || vLocada?.categoriaDisponivel || "");
+      const catReserva = String(vReserva?.disponivelCategoria || vReserva?.categoriaDisponivel || "");
+
+      const locsAtivas = (typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : []).filter(
+        (l) => {
+          const fim = String(l.fim || l.dataFim || "").trim();
+          return (!fim || fim === "...") && (nk(l.placa) === locada || nk(l.placa) === reserva);
+        }
+      );
+      const manutAtiva = (typeof CAD_MANUTENCOES_KEY !== "undefined" ? loadCadastro(CAD_MANUTENCOES_KEY) : []).filter(
+        (m) => nk(m.placa) === locada && !String(m.dataRealSaida || "").trim()
+      );
 
       let pushOk = false;
       if (typeof window.__DK_pushCloudSnapshotNow === "function") {
@@ -142,9 +145,10 @@ try {
       return {
         okLocada,
         okReserva,
-        estLocada: estLocada?.label || "",
-        estReserva: estReserva?.label || "",
-        cobertura51: cob?.placaLocada || "",
+        catLocada,
+        catReserva,
+        locsAtivas: locsAtivas.length,
+        manutAtiva: manutAtiva.length,
         pushOk,
       };
     },
@@ -156,9 +160,10 @@ try {
   const ok =
     resultado.okLocada &&
     resultado.okReserva &&
-    /4.*Pronto|DISPONÍVEIS.*4/i.test(resultado.estLocada) &&
-    /5\.2|pátio|patio/i.test(resultado.estReserva) &&
-    !resultado.cobertura51;
+    resultado.catLocada === "prontos" &&
+    resultado.catReserva === "reserva-patio" &&
+    resultado.locsAtivas === 0 &&
+    resultado.manutAtiva === 0;
 
   if (!ok) {
     console.error("Verificação falhou — estado ainda inconsistente.");
