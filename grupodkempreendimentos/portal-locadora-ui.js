@@ -2433,11 +2433,12 @@
     },
     "reserva-operacao": {
       title: "Disponíveis — 5.1 Reserva em operação",
-      lead: "Mesmas caixinhas de placa. Use os botões para enviar à reserva no pátio (ou manter em operação).",
+      lead:
+        "Só informativo: placa reserva (laranja) ⇒ placa locada que foi para manutenção (azul = DK Minha Moto, verde = DK Meu Transporte, marrom = Carro). Entram aqui automaticamente ao enviar Locados → manutenção com veículo reserva.",
     },
     "reserva-patio": {
       title: "Disponíveis — 5.2 Reserva no pátio",
-      lead: "Mesmas caixinhas de placa. Use os botões para enviar à reserva em operação (ou manter no pátio).",
+      lead: "Veículos reserva no pátio, prontos para cobrir uma locação em manutenção. Use «ENVIAR PARA 5.2» em Pronto para alugar, ou escolha esta placa no envio Locados → manutenção.",
     },
   };
 
@@ -3063,11 +3064,15 @@
     const leadEl = document.getElementById("portalDisponiveisLead");
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
+    const busca = document.querySelector("#manutencaoInlineDisponiveis .portal-manutencao-busca");
+    if (busca) busca.classList.toggle("hidden", sub === "reserva-operacao");
+    const grid = document.getElementById("portalDisponiveisPlacasGrid");
+    grid?.classList.toggle("portal-reserva-placas--operacao-info", sub === "reserva-operacao");
     portalRefreshManutencaoDisponiveisPlacas();
   }
 
   function expandManutencaoDisponiveisReservaMenuOnly() {
-    /* Abre logo a grelha 5.1 com caixinhas + botões (mesmo sistema visual). */
+    /* Abre a grelha 5.1 (informativa: reserva ⇒ placa em manutenção). */
     openManutencaoDisponivelSub("reserva-operacao");
   }
 
@@ -4841,6 +4846,47 @@
     });
   }
 
+  /**
+   * Para uma placa em 5.1 (reserva em operação): encontra a placa locada coberta
+   * (manutenção ativa com placaReserva, ou locação ativa com o mesmo vínculo).
+   */
+  function portalResolverCoberturaReservaOperacao(placaReservaRaw) {
+    const placaReserva = portalNkPlate(placaReservaRaw);
+    if (!placaReserva) return null;
+    let placaLocada = "";
+    if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
+      const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY) || [];
+      const ativa = [...manutencoes]
+        .reverse()
+        .find(
+          (m) =>
+            portalNkPlate(m?.placaReserva) === placaReserva && !String(m?.dataRealSaida || "").trim()
+        );
+      if (ativa) placaLocada = portalNkPlate(ativa.placa);
+    }
+    if (!placaLocada && typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      const locs = loadCadastro(CAD_LOCACOES_KEY) || [];
+      const loc = locs.find((l) => {
+        if (portalNkPlate(l?.placaReserva) !== placaReserva) return false;
+        if (l?.reservaNaoDisponibilizada) return false;
+        const fim = String(l?.fim || l?.dataFim || "").trim();
+        return !fim || fim === "...";
+      });
+      if (loc) placaLocada = portalNkPlate(loc.placa);
+    }
+    if (!placaLocada) return { placaReserva, placaLocada: "", plano: "" };
+    const plano = portalClassificarPlanoLocado(placaLocada) || "minha-moto";
+    return { placaReserva, placaLocada, plano };
+  }
+
+  function portalModeloVeiculoPorPlaca(plateKey) {
+    const key = portalNkPlate(plateKey);
+    if (!key) return "";
+    const hit = (portalVeiculoPlacasCache || []).find((x) => portalNkPlate(x.placa) === key);
+    const v = hit?.record;
+    return String(v?.modelo || v?.marcaModelo || "").trim();
+  }
+
   /** Placas em Disponíveis (prontos | reserva-operacao | reserva-patio). */
   function portalRefreshManutencaoDisponiveisPlacas() {
     const grid = document.getElementById("portalDisponiveisPlacasGrid");
@@ -4850,7 +4896,10 @@
     const livres = portalColetarVeiculosDisponiveisFrota().filter(
       (v) => portalNormDisponivelCategoria(v) === sub
     );
-    const filtro = portalNkPlate(String(document.getElementById("portalDisponiveisPlacaFiltro")?.value || ""));
+    const filtro =
+      sub === "reserva-operacao"
+        ? ""
+        : portalNkPlate(String(document.getElementById("portalDisponiveisPlacaFiltro")?.value || ""));
     let rows = livres
       .map((v) => ({
         placa: portalNkPlate(v.placa),
@@ -4866,34 +4915,54 @@
       const emptyHints = {
         prontos: "Nenhuma placa pronta para alugar.",
         "reserva-operacao":
-          "Nenhuma placa em reserva em operação. Em «5.2 — Reserva no pátio», use o botão de mover.",
+          "Nenhuma reserva em operação. Aparecem aqui quando Locados envia um veículo à manutenção com placa reserva de «5.2 — Reserva no pátio».",
         "reserva-patio":
-          "Nenhuma placa em reserva no pátio. Em «5.1 — Reserva em operação», use o botão de mover.",
+          "Nenhuma placa em reserva no pátio. Em «4 — Pronto para alugar», use «ENVIAR PARA 5.2».",
       };
       grid.innerHTML = `<p class="portal-manutencao-empty">${emptyHints[sub] || "Nenhuma placa."}${filtro ? " (filtro)" : ""}</p>`;
       if (msg) msg.textContent = "";
       return;
     }
-    /* «4 Pronto»: botão ENVIAR PARA 5.2. «Reserva» 5.1/5.2: botões para transitar. */
+    /* 5.1: só informativo (reserva ⇒ locada). 4: ENVIAR 5.2. 5.2: mover para 5.1 se necessário. */
+    if (sub === "reserva-operacao") {
+      grid.innerHTML = rows
+        .map((r) => {
+          const cob = portalResolverCoberturaReservaOperacao(r.placa);
+          const locada = cob?.placaLocada || "";
+          const plano = cob?.plano || "minha-moto";
+          const modeloLoc = locada ? portalModeloVeiculoPorPlaca(locada) : "";
+          const title = locada
+            ? `${r.placa} (reserva) ⇒ ${locada} (em manutenção)`
+            : `${r.placa} — reserva em operação (sem vínculo de cobertura)`;
+          const locadaHtml = locada
+            ? `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
+            <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--${portalEscapeHtml(plano)}">${portalEscapeHtml(locada)}</span>`
+            : `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
+            <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--muted">—</span>`;
+          const modelLine = [r.modelo !== "—" ? r.modelo : "", modeloLoc]
+            .filter(Boolean)
+            .join(" · ");
+          return `<div class="portal-reserva-placa-item portal-reserva-operacao-card" role="listitem" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
+          <div class="portal-reserva-operacao-card__body">
+            <span class="portal-reserva-operacao-card__reserva">${portalEscapeHtml(r.placa)}</span>
+            ${locadaHtml}
+          </div>
+          ${modelLine ? `<span class="portal-reserva-operacao-card__models">${portalEscapeHtml(modelLine)}</span>` : ""}
+        </div>`;
+        })
+        .join("");
+      if (msg) msg.textContent = `${rows.length} cobertura(s) de reserva em operação.`;
+      return;
+    }
     const moveTargets =
-      sub === "prontos"
-        ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }]
-        : [
-            { dest: "reserva-operacao", label: "MOVER PARA 5.1 — RESERVA EM OPERAÇÃO" },
-            { dest: "reserva-patio", label: "MOVER PARA 5.2 — RESERVA NO PÁTIO" },
-          ];
+      sub === "prontos" ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }] : [];
     grid.innerHTML = rows
       .map((r) => {
         const modelo = portalEscapeHtml(r.modelo);
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
         const moves = moveTargets
           .map((t) => {
-            const current = t.dest === sub;
-            const cls = current
-              ? "btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-move-btn--current"
-              : "btn-primary btn-secondary-outline portal-disp-move-btn";
-            const disabled = current ? " aria-current=\"true\" disabled" : "";
-            return `<button type="button" class="${cls}" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}"${disabled}>${t.label}</button>`;
+            return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
           })
           .join("");
         return `<div class="portal-reserva-placa-item" role="listitem">
@@ -4908,7 +4977,6 @@
     if (msg) {
       const countHints = {
         prontos: `${rows.length} placa(s) prontas para alugar.`,
-        "reserva-operacao": `${rows.length} veículo(s) em reserva em operação.`,
         "reserva-patio": `${rows.length} veículo(s) em reserva no pátio.`,
       };
       msg.textContent = countHints[sub] || `${rows.length} veículo(s).`;

@@ -3867,6 +3867,10 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   margin-top: 0.35rem;
 }
 
+.portal-reserva-placas--operacao-info {
+  grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr));
+}
+
 .portal-reserva-placa-item {
   display: flex;
   flex-direction: column;
@@ -3921,6 +3925,62 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* 5.1 Reserva em operação — cartão informativo: reserva (laranja) ⇒ locada (cor do plano) */
+.portal-reserva-operacao-card {
+  padding: 0.65rem 0.7rem;
+  border: 1px solid rgba(249, 115, 22, 0.45);
+  border-radius: var(--radius, 8px);
+  background: rgba(249, 115, 22, 0.08);
+}
+
+.portal-reserva-operacao-card__body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  font-size: 0.92rem;
+  line-height: 1.25;
+}
+
+.portal-reserva-operacao-card__reserva {
+  color: #fb923c;
+}
+
+.portal-reserva-operacao-card__arrow {
+  color: #fb923c;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.portal-reserva-operacao-card__locada--minha-moto {
+  color: #5eb8ff;
+}
+
+.portal-reserva-operacao-card__locada--meu-transporte {
+  color: #6ee7a0;
+}
+
+.portal-reserva-operacao-card__locada--carros {
+  color: #c4a484;
+}
+
+.portal-reserva-operacao-card__locada--muted {
+  color: var(--muted, #a8b0bc);
+  font-weight: 600;
+}
+
+.portal-reserva-operacao-card__models {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--muted, #a8b0bc);
+  line-height: 1.2;
 }
 
 /* Operação — WhatsApp clientes ativos */
