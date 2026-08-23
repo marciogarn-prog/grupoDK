@@ -2907,6 +2907,41 @@ body {
   display: none !important;
 }
 
+.portal-checklist-motivo-principal {
+  flex: 1 1 14rem;
+  min-width: 12rem;
+  max-width: 28rem;
+  min-height: 4.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 2px solid #22c55e;
+  border-radius: var(--radius);
+  background: rgba(34, 197, 94, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.portal-checklist-motivo-principal.hidden {
+  display: none !important;
+}
+
+.portal-checklist-motivo-principal__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #86efac;
+}
+
+.portal-checklist-motivo-principal__text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  color: #f0fdf4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .btn-checklist-foto {
   font-size: 0.82rem;
   padding: 0.42rem 0.55rem;
