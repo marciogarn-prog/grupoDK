@@ -6,42 +6,21 @@
   const src = window.__DK_MIEL_CADASTROS;
   if (!src || typeof src !== "object") return;
 
-  const ALLOWED_PLATES = new Set([
-    "UHQ1B38",
-    "UHQ1B08",
-    "SOR1I03",
-    "SOU2I56",
-    "UHQ1C68",
-    "UHR0G21",
-    "UHQ8D58",
-    "UHQ1E58",
-    "UHR0E91",
-    "UHQ8G38",
-  ]);
-  const ALLOWED_CPFS = new Set([
-    "06843309461",
-    "09505434464",
-    "11512850489",
-    "07534147409",
-    "05705186444",
-    "03793589307",
-    "07795468497",
-    "07771412564",
-    "08350435410",
-    "70274179440",
-  ]);
-  const ALLOWED_PRS = new Set([
-    "2026031302",
-    "2026031303",
-    "2026031304",
-    "2026031305",
-    "2026031601",
-    "2026031602",
-    "2026031701",
-    "2026031702",
-    "2026031703",
-    "2026031704",
-  ]);
+  const PROTOCOLOS = [
+    { protocolo: "2026031302", cpf: "06843309461", placa: "UHQ1B38" },
+    { protocolo: "2026031303", cpf: "09505434464", placa: "UHQ1B08" },
+    { protocolo: "2026031304", cpf: "11512850489", placa: "SOR1I03" },
+    { protocolo: "2026031305", cpf: "07534147409", placa: "SOU2I56" },
+    { protocolo: "2026031601", cpf: "05705186444", placa: "UHQ1C68" },
+    { protocolo: "2026031602", cpf: "03793589307", placa: "UHR0G21" },
+    { protocolo: "2026031701", cpf: "07795468497", placa: "UHQ8D58" },
+    { protocolo: "2026031702", cpf: "07771412564", placa: "UHQ1E58" },
+    { protocolo: "2026031703", cpf: "08350435410", placa: "UHR0E91" },
+    { protocolo: "2026031704", cpf: "70274179440", placa: "UHQ8G38" },
+  ];
+  const ALLOWED_PLATES = new Set(PROTOCOLOS.map((p) => p.placa));
+  const ALLOWED_CPFS = new Set(PROTOCOLOS.map((p) => p.cpf));
+  const ALLOWED_PRS = new Set(PROTOCOLOS.map((p) => p.protocolo));
 
   const nk = (v) =>
     String(v || "")
@@ -55,13 +34,10 @@
   const locacoes = (src.locacoes || []).filter((l) =>
     ALLOWED_PRS.has(nc(l.protocolo || l.numeroContrato))
   );
-  const keepCliente = new Set(clientes.map((c) => c.id));
-  const keepVeiculo = new Set(veiculos.map((v) => v.id));
-  const vinculos = (src.vinculos || []).filter(
-    (x) =>
-      ALLOWED_PRS.has(nc(x.protocolo || x.numeroContrato)) ||
-      (keepCliente.has(x.clienteId) && keepVeiculo.has(x.veiculoId))
-  );
+  locacoes.forEach((l) => {
+    l.status = "ATIVO";
+    l.dataFim = "";
+  });
 
   const haveCpf = new Set(clientes.map((c) => dig(c.cnpjCpf || c.cpf)));
   ALLOWED_CPFS.forEach((cpf) => {
@@ -74,6 +50,39 @@
       cnpjCpf: cpf,
       cliente: "",
       alert: false,
+    });
+  });
+
+  const veicByPlate = new Map(veiculos.map((v) => [nk(v.placa), v]));
+  const cliByCpf = new Map(clientes.map((c) => [dig(c.cnpjCpf || c.cpf), c]));
+  const havePr = new Set(locacoes.map((l) => nc(l.protocolo)));
+  PROTOCOLOS.forEach((p) => {
+    if (havePr.has(p.protocolo)) return;
+    const cli = cliByCpf.get(p.cpf);
+    const veic = veicByPlate.get(p.placa);
+    locacoes.push({
+      id: `demo10_loc_${p.protocolo}`,
+      protocolo: p.protocolo,
+      status: "ATIVO",
+      placa: p.placa,
+      clienteId: cli?.id || `demo10_${p.cpf}`,
+      veiculoId: veic?.id || "",
+      clienteNome: cli?.cliente || "",
+    });
+  });
+
+  const vinculos = (src.vinculos || []).filter((x) => ALLOWED_PRS.has(nc(x.protocolo || x.numeroContrato)));
+  const haveVinc = new Set(vinculos.map((x) => nc(x.protocolo)));
+  PROTOCOLOS.forEach((p) => {
+    if (haveVinc.has(p.protocolo)) return;
+    const cli = cliByCpf.get(p.cpf);
+    const veic = veicByPlate.get(p.placa);
+    vinculos.push({
+      id: `demo10_vinc_${p.protocolo}`,
+      protocolo: p.protocolo,
+      placa: p.placa,
+      clienteId: cli?.id,
+      veiculoId: veic?.id,
     });
   });
 
