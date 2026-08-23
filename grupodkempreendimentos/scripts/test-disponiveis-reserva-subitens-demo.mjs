@@ -38,8 +38,8 @@ async function run() {
       return s?.src || "";
     });
     record(
-      "cache-bust disponíveis 5.2→5.1",
-      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas/.test(cacheBust),
+      "cache-bust disponíveis / devolver cliente",
+      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente/.test(cacheBust),
       cacheBust.split("?")[1] || cacheBust
     );
 
