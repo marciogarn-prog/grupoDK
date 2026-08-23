@@ -5138,28 +5138,15 @@
     if (!document.getElementById("portalChecklistSupervisor")?.value) req.push("supervisor");
 
     const formOk = req.length === 0;
-    let allApproved = formOk;
-    if (isManut && formOk) {
-      for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
-        const estado = document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value;
-        if (estado !== "A") {
-          allApproved = false;
-          break;
-        }
-      }
-    }
-
-    const printOk = isManut ? allApproved : formOk;
+    /* Imprimir / Guardar PDF: check-list completo (itens A ou R). Encaminhar 7–10 usa o mesmo critério. */
+    const printOk = formOk;
 
     if (hint) {
       if (!formOk) {
         hint.textContent = `Complete para ativar os botões: ${req.join("; ")}.`;
-      } else if (isManut && !printOk) {
-        hint.textContent =
-          "Formulário completo. Imprimir / Guardar PDF só com todos os itens em A. Encaminhar (7–10) já pode ser usado; ou enviar para vendas.";
       } else if (isManut) {
         hint.textContent =
-          "Todos os itens estão aprovados (A). Pode imprimir, guardar PDF, encaminhar para 7–10 ou enviar para vendas.";
+          "Formulário completo. Pode imprimir, guardar PDF, encaminhar para 7–10 ou enviar para vendas.";
       } else {
         hint.textContent =
           "Todos os campos obrigatórios estão preenchidos. Pode imprimir, guardar PDF e escolher o destino do veículo em baixo.";
