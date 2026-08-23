@@ -2619,13 +2619,7 @@
     }
     if (!changed) return false;
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
-      try {
-        portalPushCloudSnapshotAfterPersist();
-      } catch {
-        /* ignore */
-      }
-    }
+    portalSyncFluxoVeiculoNuvem({ acao: "migrar_triagem", motivo: "legado→triagem" });
     return true;
   }
 
@@ -4657,13 +4651,13 @@
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_checklist_envio_manutencao", "manutencao", placaKey);
     }
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
-      try {
-        portalPushCloudSnapshotAfterPersist();
-      } catch {
-        /* ignore */
-      }
-    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "locados_para_manutencao",
+      placa: placaKey,
+      de: "locados",
+      para: `6-triagem${reservaMovida ? "+5.1-reserva" : ""}`,
+      motivo,
+    });
     return {
       ok: true,
       placa: placaKey,
@@ -4766,6 +4760,12 @@
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_reserva_patio_para_operacao", "veiculo", plateKey);
     }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "disponivel_mover",
+      placa: plateKey,
+      de: "5.2-reserva-patio",
+      para: "5.1-reserva-operacao",
+    });
     return { ok: true, placa: plateKey, categoria: "reserva-operacao" };
   }
 
@@ -4969,13 +4969,11 @@
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_checklist_mover_categoria", "manutencao", `${placaKey}:${categoria}`);
     }
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
-      try {
-        portalPushCloudSnapshotAfterPersist();
-      } catch {
-        /* ignore */
-      }
-    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "manutencao_mover",
+      placa: placaKey,
+      para: categoria,
+    });
     return { ok: true, placa: placaKey, categoria };
   }
 
@@ -5047,13 +5045,12 @@
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_checklist_liberar_disponivel", "manutencao", `${placaKey}:${cat}`);
     }
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
-      try {
-        portalPushCloudSnapshotAfterPersist();
-      } catch {
-        /* ignore */
-      }
-    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "manutencao_para_disponivel",
+      placa: placaKey,
+      de: "manutencao",
+      para: cat === "prontos" ? "4-prontos" : "5.2-reserva-patio",
+    });
     return { ok: true, placa: placaKey, categoria: cat };
   }
 
@@ -5147,13 +5144,12 @@
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_checklist_envio_vendas", "manutencao", placaKey);
     }
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
-      try {
-        portalPushCloudSnapshotAfterPersist();
-      } catch {
-        /* ignore */
-      }
-    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "manutencao_para_vendas",
+      placa: placaKey,
+      de: "manutencao",
+      para: "vendas",
+    });
     return { ok: true };
   }
 
@@ -5449,13 +5445,11 @@
         /* ignore */
       }
     }
-    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
-      try {
-        portalPushCloudSnapshotAfterPersist();
-      } catch {
-        /* ignore */
-      }
-    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "disponivel_mover",
+      placa: plateKey,
+      para: cat === "prontos" ? "4-prontos" : cat === "reserva-patio" ? "5.2-reserva-patio" : cat,
+    });
     return { ok: true, placa: plateKey, categoria: cat };
   }
 
@@ -11189,14 +11183,22 @@
         /* ignore */
       }
     }
-    if (typeof window.__DK_pushToCloudAfterSave === "function") {
-      window.__DK_pushToCloudAfterSave();
-      return;
-    }
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") return;
     window.__DK_pushCloudSnapshotNow({ force: true }).catch((err) => {
       console.warn("[DK portal] enviar snapshot nuvem", err);
     });
+  }
+
+  /**
+   * Após mudança de estado do veículo (Locados 1–3, Disponíveis 4/5.1/5.2, Manutenção 6–10):
+   * envia snapshot imediato para Supabase + Redis.
+   */
+  function portalSyncFluxoVeiculoNuvem(meta) {
+    if (meta && typeof addAuditLog === "function") {
+      const det = [meta.placa, meta.de, meta.para, meta.motivo].filter(Boolean).join(" · ");
+      addAuditLog("portal_fluxo_veiculo", String(meta.acao || "mover"), det || "fluxo");
+    }
+    portalPushCloudSnapshotAfterPersist();
   }
 
   function portalRefreshOperacaoDadosAposNuvem() {
