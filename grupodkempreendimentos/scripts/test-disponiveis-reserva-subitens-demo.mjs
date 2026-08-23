@@ -257,9 +257,9 @@ async function run() {
       }));
     });
     record(
-      "5.2: botão ENVIAR PARA 5.1",
-      patioMoves.length > 0 && patioMoves.every((m) => m.dest === "reserva-operacao"),
-      `moves=${patioMoves.length} ${patioMoves.map((m) => m.label).join(", ")}`
+      "5.2 sem botões de mover (→5.1 só via Locados)",
+      patioMoves.length === 0,
+      `moves=${patioMoves.length}`
     );
 
     await page.locator("#btn-disp-sub-prontos").click({ timeout: 15000 });
