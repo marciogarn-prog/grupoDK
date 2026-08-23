@@ -37,7 +37,7 @@ async function run() {
       const s = [...document.scripts].find((x) => (x.src || "").includes("portal-locadora-ui.js"));
       return s?.src || "";
     });
-    record("cache-bust reserva-subitens", /reserva-subitens/.test(cacheBust), cacheBust.split("?")[1] || cacheBust);
+    record("cache-bust reserva-subitens", /reserva-subitens|reserva-audit/.test(cacheBust), cacheBust.split("?")[1] || cacheBust);
 
     await page.locator("#btn-locadora-manutencao").click({ timeout: 15000 });
     await page.waitForTimeout(500);
