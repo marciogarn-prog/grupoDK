@@ -2967,6 +2967,27 @@ body {
   display: none !important;
 }
 
+.portal-checklist-workspace--manut-simples .portal-checklist-toolbar,
+.portal-checklist-workspace--manut-simples #portalChecklistPlacaActionsManut,
+.portal-checklist-workspace--manut-simples #portalChecklistMount,
+.portal-checklist-workspace--manut-simples #portalChecklistLoadMsg,
+.portal-checklist-workspace--manut-simples #portalChecklistFotoMsg {
+  display: none !important;
+}
+
+.portal-checklist-manut-simples-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.portal-checklist-manut-simples-actions.hidden {
+  display: none;
+}
+
 .portal-checklist-placa-label {
   display: flex;
   flex-direction: column;
