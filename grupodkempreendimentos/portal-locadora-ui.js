@@ -3805,6 +3805,9 @@
       el.classList.add("is-layout-custom");
       el.style.left = `${Math.round(left)}px`;
       el.style.top = `${Math.round(top)}px`;
+      if (Number.isFinite(Number(pos.width)) && Number(pos.width) > 0) {
+        el.style.width = `${Math.round(Number(pos.width))}px`;
+      }
     });
   }
 
