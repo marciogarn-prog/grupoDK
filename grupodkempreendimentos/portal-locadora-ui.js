@@ -2513,7 +2513,7 @@
     { cat: "sinistrado-roubo", label: "10 — Sinistro Roubo" },
   ];
 
-  /** Caminho padronizado: 6→7 · 7→4/8/9/10 · 8|9→7 */
+  /** Caminho padronizado: 6→7 · 7→4/8/9/10 · 8|9|10→7 */
   function portalManutDestinosPermitidos(origemSub) {
     const o = portalNormManutCategoria(origemSub) || String(origemSub || "").trim().toLowerCase();
     if (o === "triagem") return { cats: ["oficina-propria"], dests: [] };
@@ -2523,10 +2523,15 @@
         dests: ["prontos"],
       };
     }
-    if (o === "oficina-terceiros" || o === "enviado-seguro") {
+    if (o === "oficina-terceiros" || o === "enviado-seguro" || o === "sinistrado-roubo") {
       return { cats: ["oficina-propria"], dests: [] };
     }
     return { cats: [], dests: [] };
+  }
+
+  function portalChecklistIsEtapaExternaOficina(subOpt) {
+    const sub = subOpt || portalManutEmManutSubAtivo;
+    return sub === "oficina-terceiros" || sub === "enviado-seguro" || sub === "sinistrado-roubo";
   }
 
   function portalLabelManutSub(sub) {
@@ -2553,7 +2558,7 @@
     if (!perm.cats.includes(cat)) {
       return {
         ok: false,
-        message: `De «${portalLabelManutSub(origem)}» não pode encaminhar para «${portalLabelManutSub(cat)}». Fluxo: 6→7 · 7→4/8/9/10 · 8|9→7 · 4→5.2→5.1.`,
+        message: `De «${portalLabelManutSub(origem)}» não pode encaminhar para «${portalLabelManutSub(cat)}». Fluxo: 6→7 · 7→4/8/9/10 · 8|9|10→7 · 4→5.2→5.1.`,
       };
     }
     return { ok: true, tipo: "categoria", destino: cat };
@@ -2570,15 +2575,15 @@
     },
     "oficina-terceiros": {
       title: "Em manutenção — 8 Oficina de terceiro",
-      lead: "Escolha a placa na grelha para editar o check-list. Depois volte para 7 — Oficina própria ou envie para vendas.",
+      lead: "Escolha a placa na grelha para editar o check-list. Só pode voltar para 7 — Oficina própria. Entrada, km e itens em R vêm da saída da oficina própria.",
     },
     "enviado-seguro": {
       title: "Em manutenção — 9 Seguro",
-      lead: "Escolha a placa na grelha para editar o check-list. Depois volte para 7 — Oficina própria ou envie para vendas.",
+      lead: "Escolha a placa na grelha para editar o check-list. Só pode voltar para 7 — Oficina própria. Entrada, km e itens em R vêm da saída da oficina própria.",
     },
     "sinistrado-roubo": {
       title: "Em manutenção — 10 Sinistro Roubo",
-      lead: "Escolha a placa na grelha para editar o check-list. Depois envie para vendas.",
+      lead: "Escolha a placa na grelha para editar o check-list. Só pode voltar para 7 — Oficina própria. Entrada, km e itens em R vêm da saída da oficina própria.",
     },
   };
 
@@ -3340,10 +3345,10 @@
     return portalChecklistIsManutencaoMode() && portalManutEmManutSubAtivo === "oficina-propria";
   }
 
-  /** Pode encaminhar/mover após check-list (7, 8, 9 — não Triagem nem 10). */
+  /** Pode encaminhar/mover após check-list (7, 8, 9 e 10 — não Triagem). */
   function portalChecklistPodeEncaminharAposChecklist() {
     const sub = portalManutEmManutSubAtivo;
-    return sub === "oficina-propria" || sub === "oficina-terceiros" || sub === "enviado-seguro";
+    return sub === "oficina-propria" || portalChecklistIsEtapaExternaOficina(sub);
   }
 
   function portalChecklistShowsFullForm() {
@@ -3760,6 +3765,9 @@
       } else if (isOficina) {
         btnDisp.classList.add("hidden");
         btnDisp.hidden = true;
+      } else if (portalChecklistIsEtapaExternaOficina()) {
+        btnDisp.classList.add("hidden");
+        btnDisp.hidden = true;
       } else if (usesGrid) {
         btnDisp.textContent = "ENVIAR PARA VENDAS";
         btnDisp.classList.remove("hidden");
@@ -3800,13 +3808,13 @@
     portalSyncManutPlacaBarVisibility();
   }
 
-  /** Botões «Encaminhar após check-list» conforme fluxo 6→7→4/8/9/10 e 8|9→7. */
+  /** Botões «Encaminhar após check-list» conforme fluxo 6→7→4/8/9/10 e 8|9|10→7. */
   function portalSyncChecklistEncaminharBtns() {
     const catWrap = document.getElementById("portalChecklistCategoriaMove");
     if (!catWrap) return;
     const sub = portalManutEmManutSubAtivo;
     const isOficina = sub === "oficina-propria";
-    const isRetorno = sub === "oficina-terceiros" || sub === "enviado-seguro";
+    const isRetorno = portalChecklistIsEtapaExternaOficina(sub);
     const show = isOficina || isRetorno;
     catWrap.classList.toggle("hidden", !show);
     catWrap.hidden = !show;
@@ -4626,7 +4634,7 @@
     }
   }
 
-  /** Triagem: entrada ao vivo · 7: entrada congelada + saída ao vivo. */
+  /** Triagem: entrada ao vivo · 7/8/9/10: entrada congelada da etapa anterior + saída ao vivo. */
   function portalSyncChecklistRelogioAoModo() {
     portalStopChecklistRelogio();
     const mount = document.getElementById("portalChecklistMount");
@@ -4636,7 +4644,7 @@
       portalChecklistRelogioTimer = setInterval(() => portalPrefillChecklistEntradaAgora(), 60000);
       return;
     }
-    if (portalChecklistIsOficinaPropriaMode()) {
+    if (portalChecklistIsOficinaPropriaMode() || portalChecklistIsEtapaExternaOficina()) {
       portalPrefillChecklistSaidaAgora();
       portalChecklistRelogioTimer = setInterval(() => portalPrefillChecklistSaidaAgora(), 60000);
     }
@@ -4657,6 +4665,67 @@
     document
       .getElementById("portalChecklistOpsGrid")
       ?.classList.toggle("portal-checklist-ops-grid--triagem-congelada", Boolean(congelada));
+  }
+
+  function portalChecklistSnapEntradaDaSaida(snap) {
+    if (!snap || typeof snap !== "object") return null;
+    const entradaData = String(snap.saidaData || "").trim() || String(snap.entradaData || "").trim();
+    const entradaHora = String(snap.saidaHora || "").trim() || String(snap.entradaHora || "").trim();
+    return {
+      ...snap,
+      entradaData,
+      entradaHora,
+    };
+  }
+
+  function portalFindChecklistHandoffParaEtapa(placaRaw, manutRecord, etapaAtual) {
+    const etapa = String(etapaAtual || "").trim().toLowerCase();
+    const stored = manutRecord?.checklistHandoffSnapshot;
+    if (stored && typeof stored === "object") {
+      const to = String(stored.to || stored.destino || "").toLowerCase();
+      if (to === etapa && (stored.entradaData || stored.odometro || (stored.itens || []).length)) {
+        return stored;
+      }
+    }
+    const placa = portalNkPlate(placaRaw);
+    const load = window.__DK_portalLoadChecklistMovimentacoes;
+    const list = typeof load === "function" ? load() : [];
+    const rows = Array.isArray(list) ? list : [];
+    const byDest = rows
+      .filter((r) => portalNkPlate(r.placa) === placa && String(r.destino || "").toLowerCase() === etapa)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    if (byDest[0]) return portalChecklistSnapEntradaDaSaida(byDest[0]);
+    if (portalChecklistIsEtapaExternaOficina(etapa)) {
+      const from7 = rows
+        .filter((r) => portalNkPlate(r.placa) === placa && r.categoria === "oficina-propria")
+        .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      if (from7[0]) return portalChecklistSnapEntradaDaSaida(from7[0]);
+      const fn = window.__DK_portalFindChecklistMovimentacao;
+      if (typeof fn === "function") {
+        const hit = fn(placaRaw, "oficina-propria");
+        if (hit) return portalChecklistSnapEntradaDaSaida(hit);
+      }
+    }
+    if (etapa === "oficina-propria") {
+      const fromExt = rows
+        .filter(
+          (r) =>
+            portalNkPlate(r.placa) === placa &&
+            (r.categoria === "oficina-terceiros" ||
+              r.categoria === "enviado-seguro" ||
+              r.categoria === "sinistrado-roubo")
+        )
+        .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+      if (fromExt[0]) return portalChecklistSnapEntradaDaSaida(fromExt[0]);
+    }
+    return null;
+  }
+
+  function portalHandoffVeioDeEtapaExterna(snap) {
+    const origem = String(snap?.from || snap?.categoria || "").toLowerCase();
+    return (
+      origem === "oficina-terceiros" || origem === "enviado-seguro" || origem === "sinistrado-roubo"
+    );
   }
 
   function portalFindChecklistTriagemCongelado(placaRaw, manutRecord) {
@@ -5700,6 +5769,9 @@
     if (!categoria) return { ok: false, message: "Categoria inválida." };
     const valFluxo = portalValidarTransicaoManutencao(portalManutEmManutSubAtivo, categoria);
     if (!valFluxo.ok) return { ok: false, message: valFluxo.message || "Transição não permitida." };
+    if (!portalChecklistIsTriagemMode()) {
+      portalPrefillChecklistSaidaAgora();
+    }
     if (portalChecklistIsManutencaoMode() && portalManutEmManutSubAtivo) {
       portalTrySaveChecklistMovimentacao(portalManutEmManutSubAtivo, categoria);
     }
@@ -5712,10 +5784,21 @@
     }
     const origemSub = portalManutEmManutSubAtivo;
     let triagemSnap = null;
-    if (origemSub === "triagem" && categoria === "oficina-propria") {
-      const collectFn = window.__DK_portalCollectChecklistSnapshot;
-      if (typeof collectFn === "function") {
+    let handoffSnap = null;
+    const collectFn = window.__DK_portalCollectChecklistSnapshot;
+    if (typeof collectFn === "function") {
+      if (origemSub === "triagem" && categoria === "oficina-propria") {
         triagemSnap = collectFn("triagem", "oficina-propria");
+      }
+      const origemColeta = collectFn(origemSub, categoria);
+      if (origemColeta) {
+        handoffSnap = {
+          ...portalChecklistSnapEntradaDaSaida(origemColeta),
+          from: origemSub,
+          to: categoria,
+          categoria: origemSub,
+          destino: categoria,
+        };
       }
     }
     manutencoes[idx] = {
@@ -5723,6 +5806,7 @@
       categoriaManutencao: categoria,
       encaminhadoDeTriagem: categoria !== "triagem",
       ...(triagemSnap ? { checklistTriagemSnapshot: triagemSnap, checklistTriagemCongeladoEm: Date.now() } : {}),
+      ...(handoffSnap ? { checklistHandoffSnapshot: handoffSnap, checklistHandoffEm: Date.now() } : {}),
     };
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
     if (typeof addAuditLog === "function") {
@@ -5959,6 +6043,9 @@
   function portalEnviarChecklistParaVendas() {
     const placaRaw = portalGetPlacaChecklistAtual();
     if (!placaRaw) return { ok: false, message: "Placa em falta." };
+    if (portalChecklistIsEtapaExternaOficina()) {
+      return { ok: false, message: "Desta etapa o veículo só pode voltar para 7 — Oficina própria." };
+    }
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
       return { ok: false, message: "Cadastro indisponível neste ambiente." };
     }
@@ -6221,28 +6308,22 @@
           const title = locada
             ? `${r.placa} (reserva) ⇒ ${locada} (em manutenção)${nomeCliente ? ` · ${nomeCliente}` : ""}`
             : `${r.placa} — reserva em operação (sem vínculo de cobertura)`;
-          const locadaHtml = locada
-            ? `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
-            <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--${portalEscapeHtml(plano)}">${portalEscapeHtml(locada)}</span>`
-            : `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
-            <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--muted">—</span>`;
           const modeloReserva = portalResolveModeloVeiculoPorPlaca(r.placa, r.record);
           const modeloLocada = locada ? portalResolveModeloVeiculoPorPlaca(locada) : "";
-          const modelosHtml = `<div class="portal-reserva-operacao-card__models">
-            <span class="portal-reserva-operacao-card__reserva">${portalEscapeHtml(modeloReserva)}</span>
-            <span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
-            ${
-              locada
-                ? `<span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--${portalEscapeHtml(plano)}">${portalEscapeHtml(modeloLocada || "—")}</span>`
-                : `<span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--muted">—</span>`
-            }
-          </div>`;
+          const locadaCol = locada
+            ? `<span class="portal-reserva-operacao-card__plate">${portalEscapeHtml(locada)}</span>
+            <span class="portal-reserva-operacao-card__model">${portalEscapeHtml(modeloLocada || "—")}</span>`
+            : `<span class="portal-reserva-operacao-card__plate">—</span>
+            <span class="portal-reserva-operacao-card__model">—</span>`;
           return `<div class="portal-reserva-placa-item portal-reserva-operacao-card" role="listitem" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
-          <div class="portal-reserva-operacao-card__body">
-            <span class="portal-reserva-operacao-card__reserva">${portalEscapeHtml(r.placa)}</span>
-            ${locadaHtml}
+          <div class="portal-reserva-operacao-card__grid">
+            <div class="portal-reserva-operacao-card__col portal-reserva-operacao-card__col--reserva">
+              <span class="portal-reserva-operacao-card__plate">${portalEscapeHtml(r.placa)}</span>
+              <span class="portal-reserva-operacao-card__model">${portalEscapeHtml(modeloReserva)}</span>
+            </div>
+            <div class="portal-reserva-operacao-card__arrows" aria-hidden="true"><span>⇒</span><span>⇒</span></div>
+            <div class="portal-reserva-operacao-card__col portal-reserva-operacao-card__col--locada portal-reserva-operacao-card__locada--${portalEscapeHtml(locada ? plano : "muted")}">${locadaCol}</div>
           </div>
-          ${modelosHtml}
           ${nomeCliente ? `<span class="portal-reserva-operacao-card__cliente">${portalEscapeHtml(nomeCliente)}</span>` : ""}
         </div>`;
         })
@@ -6483,9 +6564,9 @@
       } else if (portalChecklistIsOficinaPropriaMode()) {
         hint.textContent =
           "Formulário completo. Pode imprimir, guardar PDF ou encaminhar para 4 Pronto, 8 Oficina de terceiro, 9 Seguro ou 10 Sinistro Roubo.";
-      } else if (portalManutEmManutSubAtivo === "oficina-terceiros" || portalManutEmManutSubAtivo === "enviado-seguro") {
+      } else if (portalChecklistIsEtapaExternaOficina()) {
         hint.textContent =
-          "Formulário completo. Pode imprimir, guardar PDF, voltar para 7 — Oficina própria ou enviar para vendas.";
+          "Formulário completo. Pode imprimir, guardar PDF ou voltar para 7 — Oficina própria.";
       } else if (portalChecklistPodeEncaminharAposChecklist()) {
         hint.textContent =
           "Formulário completo. Pode imprimir, guardar PDF, mover de categoria ou enviar para vendas.";
@@ -7030,23 +7111,43 @@
     if (inp) inp.value = plateFmt;
     portalClearChecklistInspection();
     const res = portalFillChecklistFromCadastro(plateFmt);
-    if (portalChecklistIsOficinaPropriaMode()) {
-      let manutRec = null;
-      if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
-        manutRec =
-          loadCadastro(CAD_MANUTENCOES_KEY).find(
-            (m) => portalNkPlate(m.placa) === plateFmt && !String(m.dataRealSaida || "").trim()
-          ) || null;
-      }
-      const triagemSnap = portalFindChecklistTriagemCongelado(plateFmt, manutRec);
-      if (triagemSnap) {
-        portalApplyChecklistTriagemCongelado(triagemSnap);
+    let manutRec = null;
+    if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
+      manutRec =
+        loadCadastro(CAD_MANUTENCOES_KEY).find(
+          (m) => portalNkPlate(m.placa) === plateFmt && !String(m.dataRealSaida || "").trim()
+        ) || null;
+    }
+    if (portalChecklistIsEtapaExternaOficina()) {
+      const handoff = portalFindChecklistHandoffParaEtapa(plateFmt, manutRec, portalManutEmManutSubAtivo);
+      if (handoff) {
+        portalApplyChecklistTriagemCongelado(handoff);
         if (msgEl) {
           msgEl.textContent =
-            "Dados da triagem congelados (entrada, km e itens em R). Saída atualiza automaticamente.";
+            "Entrada, odômetro e itens em R vieram da saída da oficina própria. Saída atualiza automaticamente.";
         }
       } else if (msgEl) {
         msgEl.textContent = res.message;
+      }
+    } else if (portalChecklistIsOficinaPropriaMode()) {
+      const retorno = portalFindChecklistHandoffParaEtapa(plateFmt, manutRec, "oficina-propria");
+      if (retorno && portalHandoffVeioDeEtapaExterna(retorno)) {
+        portalApplyChecklistTriagemCongelado(retorno);
+        if (msgEl) {
+          msgEl.textContent =
+            "Entrada, odômetro e itens em R vieram da saída de 8, 9 ou 10. Saída atualiza automaticamente.";
+        }
+      } else {
+        const triagemSnap = portalFindChecklistTriagemCongelado(plateFmt, manutRec);
+        if (triagemSnap) {
+          portalApplyChecklistTriagemCongelado(triagemSnap);
+          if (msgEl) {
+            msgEl.textContent =
+              "Dados da triagem congelados (entrada, km e itens em R). Saída atualiza automaticamente.";
+          }
+        } else if (msgEl) {
+          msgEl.textContent = res.message;
+        }
       }
     } else if (portalChecklistIsTriagemMode()) {
       portalPrefillChecklistEntradaAgora();
