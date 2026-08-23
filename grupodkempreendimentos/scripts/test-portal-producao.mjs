@@ -81,10 +81,10 @@ async function runSuite() {
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local sem veículos/locações",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 369 clientes, 186 veículos, 0 protocolos",
       IS_DEMO_TEST
         ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
-        : storageInicial.veiculos === 0 && storageInicial.locacoes === 0,
+        : storageInicial.clientes === 369 && storageInicial.veiculos === 186 && storageInicial.locacoes === 0,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
