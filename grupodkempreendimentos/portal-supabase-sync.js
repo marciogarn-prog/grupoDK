@@ -2984,7 +2984,7 @@
 
   function pushToCloudAfterSave() {
     if (typeof window.__DK_pushCloudSnapshotNow !== "function") return Promise.resolve();
-    return window.__DK_pushCloudSnapshotNow().catch((e) => {
+    return window.__DK_pushCloudSnapshotNow({ force: true }).catch((e) => {
       console.warn("[DK cloud] push após guardar", e);
     });
   }
