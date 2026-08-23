@@ -2622,20 +2622,161 @@
     out.textContent = r.label;
   }
 
+  let portalManutPlacaLookupCache = [];
+
+  function portalColetarPlacasLookupFrota() {
+    const seen = new Set();
+    const rows = [];
+    const push = (placaRaw) => {
+      const placa = portalNkPlate(placaRaw);
+      if (!placa || seen.has(placa)) return;
+      seen.add(placa);
+      const est = portalResolverEstadoExclusivoPlaca(placa);
+      if (!est.ok && est.grupo !== "indisponivel") return;
+      const modelo =
+        String(est.veiculo?.marcaModelo || est.veiculo?.modelo || "").trim() || est.label || "—";
+      rows.push({
+        placa,
+        modelo,
+        label: est.label,
+        corCls: est.corCls || "muted",
+        grupo: est.grupo,
+      });
+    };
+
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    (portalVeiculoPlacasCache || []).forEach((x) => push(x?.placa || x?.record?.placa));
+
+    if (typeof getActivePlatesSet === "function") {
+      getActivePlatesSet().forEach((p) => push(p));
+    }
+    getPortalPlacasEmManutencaoSet().forEach((p) => push(p));
+
+    if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      loadCadastro(CAD_VEICULOS_KEY).forEach((v) => push(v?.placa));
+    }
+
+    rows.sort((a, b) => a.placa.localeCompare(b.placa, "pt-BR"));
+    portalManutPlacaLookupCache = rows;
+    return rows;
+  }
+
+  function portalHideManutPlacaLookupDropdown() {
+    const panel = document.getElementById("portalManutPlacaLookupLista");
+    const inp = document.getElementById("portalManutPlacaLookup");
+    if (panel) {
+      panel.classList.add("hidden");
+      panel.hidden = true;
+      panel.innerHTML = "";
+    }
+    if (inp) inp.setAttribute("aria-expanded", "false");
+  }
+
+  function portalFilterManutPlacaLookup(queryRaw) {
+    if (!portalManutPlacaLookupCache.length) portalColetarPlacasLookupFrota();
+    const q = portalNkPlate(queryRaw);
+    if (!q) return portalManutPlacaLookupCache.slice(0, 80);
+    return portalManutPlacaLookupCache.filter((r) => r.placa.includes(q)).slice(0, 80);
+  }
+
+  function portalRenderManutPlacaLookupDropdown(queryRaw) {
+    const panel = document.getElementById("portalManutPlacaLookupLista");
+    const inp = document.getElementById("portalManutPlacaLookup");
+    if (!panel || !inp) return;
+    const items = portalFilterManutPlacaLookup(queryRaw);
+    if (!items.length) {
+      panel.innerHTML =
+        '<div class="portal-placa-dropdown__empty">Nenhuma placa corresponde ao texto digitado.</div>';
+    } else {
+      panel.innerHTML = items
+        .map((r) => {
+          const cor = r.corCls || "muted";
+          return `<button type="button" class="portal-placa-dropdown__opt portal-placa-opt--${portalEscapeHtml(
+            cor
+          )}" role="option" tabindex="-1" data-placa="${portalEscapeHtml(r.placa)}">
+            <span class="portal-placa-dropdown__plate">${portalEscapeHtml(r.placa)}</span>
+            <span class="portal-placa-dropdown__model">${portalEscapeHtml(r.label || r.modelo)}</span>
+          </button>`;
+        })
+        .join("");
+    }
+    panel.classList.remove("hidden");
+    panel.hidden = false;
+    inp.setAttribute("aria-expanded", "true");
+  }
+
   function portalBindManutPlacaLookupOnce() {
     if (window.__dkPortalManutPlacaLookupBound) return;
     window.__dkPortalManutPlacaLookupBound = true;
     const inp = document.getElementById("portalManutPlacaLookup");
-    if (!inp) return;
-    inp.addEventListener("input", () => {
-      inp.value = String(inp.value || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-      portalRenderManutPlacaLookupResult();
+    const panel = document.getElementById("portalManutPlacaLookupLista");
+    const combo = document.getElementById("portalManutPlacaLookupCombo");
+    if (!inp || !panel || !combo) return;
+
+    inp.addEventListener("focus", () => {
+      portalColetarPlacasLookupFrota();
+      portalRenderManutPlacaLookupDropdown(String(inp.value || ""));
     });
+
+    inp.addEventListener("input", () => {
+      inp.value = String(inp.value || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+      portalRenderManutPlacaLookupResult();
+      portalRenderManutPlacaLookupDropdown(inp.value);
+    });
+
     inp.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        portalHideManutPlacaLookupDropdown();
+        return;
+      }
       if (e.key === "Enter") {
         e.preventDefault();
+        portalHideManutPlacaLookupDropdown();
         portalRenderManutPlacaLookupResult();
       }
+    });
+
+    panel.addEventListener("mousedown", (e) => {
+      if (e.target.closest(".portal-placa-dropdown__opt")) e.preventDefault();
+    });
+
+    panel.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-placa-dropdown__opt");
+      if (!btn) return;
+      const placa = String(btn.getAttribute("data-placa") || "").trim();
+      if (!placa) return;
+      inp.value = placa;
+      portalHideManutPlacaLookupDropdown();
+      portalRenderManutPlacaLookupResult();
+      inp.focus();
+    });
+
+    document.addEventListener(
+      "click",
+      (e) => {
+        if (panel.classList.contains("hidden")) return;
+        if (combo.contains(e.target)) return;
+        portalHideManutPlacaLookupDropdown();
+      },
+      true
+    );
+
+    inp.addEventListener("focusout", (e) => {
+      const rt = e.relatedTarget;
+      if (rt && combo.contains(rt)) return;
+      window.setTimeout(() => {
+        if (!document.activeElement || !combo.contains(document.activeElement)) {
+          portalHideManutPlacaLookupDropdown();
+        }
+      }, 180);
     });
   }
 
