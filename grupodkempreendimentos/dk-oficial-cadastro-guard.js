@@ -1,11 +1,14 @@
 /**
  * Oficial: data de corte fixa — só valem cadastros/lançamentos criados a partir de 10/06/2026.
- * Bloqueia qualquer recarga de dados antigos (nuvem, backup, merge local, seeds de planilha).
+ * Locações: corte 23/08/2026 pelo número do protocolo (AAAAMMDD…). Os 7 protocolos
+ * de 12–21/08/2026 não podem voltar pelo localStorage nem pelo merge append-only.
  * Demo: sem bloqueio.
  */
 (function dkOficialCadastroGuard() {
   /** Data de corte FIXA (não rolante): registos >= esta data ficam guardados para sempre. */
   const OFICIAL_CUTOFF_YMD = "2026-06-10";
+  /** Oficial virgem de protocolos: locações com protocolo anterior a esta data saem do browser. */
+  const OFICIAL_LOCACOES_CUTOFF_YMD = "2026-08-23";
 
   const CADASTRO_GUARD_KEYS = [
     "dk_clientes_cadastro",
@@ -34,6 +37,24 @@
   }
 
   function cutoffYmdFixed() {
+    return OFICIAL_CUTOFF_YMD;
+  }
+
+  function locacoesCutoffYmd() {
+    return OFICIAL_LOCACOES_CUTOFF_YMD;
+  }
+
+  function locacaoProtocolYmd(record) {
+    const n = String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
+    if (n.length < 8) return null;
+    const ymd = `${n.slice(0, 4)}-${n.slice(4, 6)}-${n.slice(6, 8)}`;
+    if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(ymd)) return null;
+    return ymd;
+  }
+
+  function cutoffForKey(key) {
+    const k = String(key || "");
+    if (k.includes("locacoes") || k.includes("locacao")) return OFICIAL_LOCACOES_CUTOFF_YMD;
     return OFICIAL_CUTOFF_YMD;
   }
 
@@ -95,10 +116,16 @@
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
-    if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
-    const ymd = extractRecordYmd(record, key);
+    const cutoff = cutoffYmd || cutoffForKey(key);
+    const protoYmd = locacaoProtocolYmd(record);
+    if (protoYmd && protoYmd < locacoesCutoffYmd()) return false;
+    if (record && typeof record === "object" && record.cadastroRetroativo === true) {
+      if (cadastroKeyFamily(key) === "locacao") return protoYmd ? protoYmd >= locacoesCutoffYmd() : false;
+      return true;
+    }
+    const ymd = protoYmd && cadastroKeyFamily(key) === "locacao" ? protoYmd : extractRecordYmd(record, key);
     if (!ymd) return false;
-    return ymd >= (cutoffYmd || OFICIAL_CUTOFF_YMD);
+    return ymd >= cutoff;
   }
 
   function filterCadastroArray(key, arr, cutoffYmd) {
@@ -118,25 +145,27 @@
     return out;
   }
 
-  /** Corre em todos os arranques do site oficial: remove do navegador tudo anterior ao corte. */
+  function readRawCadastroArray(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Corre em todos os arranques do site oficial: lê o JSON cru (não o load filtrado). */
   function purgeLocalCadastrosAntigos() {
     if (!isOficialOnly()) return { purged: false };
     let removed = 0;
-    const canCadastroApi = typeof loadCadastro === "function" && typeof saveCadastro === "function";
+    const canCadastroApi = typeof saveCadastro === "function";
     const bypass = { bypassImmutabilidadeCadastro: true };
     CADASTRO_GUARD_KEYS.forEach((k) => {
       try {
-        let prev;
-        if (canCadastroApi) {
-          prev = loadCadastro(k);
-        } else {
-          const raw = localStorage.getItem(k);
-          if (!raw) return;
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) return;
-          prev = parsed;
-        }
-        if (!Array.isArray(prev) || !prev.length) return;
+        const prev = readRawCadastroArray(k);
+        if (!prev.length) return;
         const next = filterCadastroArray(k, prev);
         if (next.length === prev.length) return;
         removed += prev.length - next.length;
@@ -145,11 +174,14 @@
         } else {
           localStorage.setItem(k, JSON.stringify(next));
         }
+        if (typeof invalidateCadastroParseCache === "function") {
+          invalidateCadastroParseCache(k);
+        }
       } catch {
         /* ignore */
       }
     });
-    return { purged: true, removed, cutoff: OFICIAL_CUTOFF_YMD };
+    return { purged: true, removed, cutoff: OFICIAL_CUTOFF_YMD, locacoesCutoff: OFICIAL_LOCACOES_CUTOFF_YMD };
   }
 
   window.__DK_isOficialCadastroGuardActive = isOficialOnly;
@@ -157,5 +189,7 @@
   window.__DK_sanitizeOficialCloudPayload = sanitizeCloudPayload;
   window.__DK_purgeOficialLocalCadastrosAntigos = purgeLocalCadastrosAntigos;
   window.__DK_oficialCadastroTodayYmd = cutoffYmdFixed;
+  window.__DK_oficialLocacoesCutoffYmd = locacoesCutoffYmd;
   window.__DK_OFICIAL_CUTOFF_YMD = OFICIAL_CUTOFF_YMD;
+  window.__DK_OFICIAL_LOCACOES_CUTOFF_YMD = OFICIAL_LOCACOES_CUTOFF_YMD;
 })();

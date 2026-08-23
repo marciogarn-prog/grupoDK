@@ -12,6 +12,8 @@ const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
+/** Locações/protocolos no oficial: anterior a 23/08/2026 não volta (browser sujo nem push). */
+const OFICIAL_LOCACOES_CUTOFF_YMD = "2026-08-23";
 
 const OFICIAL_GUARD_KEYS = [
   "dk_clientes_cadastro",
@@ -61,8 +63,24 @@ function oficialParseYmd(value) {
   return null;
 }
 
+function locacaoProtocolYmd(record) {
+  const n = String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
+  if (n.length < 8) return null;
+  const ymd = `${n.slice(0, 4)}-${n.slice(4, 6)}-${n.slice(6, 8)}`;
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(ymd)) return null;
+  return ymd;
+}
+
+function oficialCutoffForKey(key) {
+  const k = String(key || "");
+  if (k.includes("locacoes") || k.includes("locacao")) return OFICIAL_LOCACOES_CUTOFF_YMD;
+  return OFICIAL_CUTOFF_YMD;
+}
+
 function oficialRecordYmd(record, key) {
   if (!record || typeof record !== "object") return null;
+  const protoYmd = locacaoProtocolYmd(record);
+  if (protoYmd && String(key || "").includes("locac")) return protoYmd;
   const k = String(key);
   const fields = k.includes("locacoes")
     ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
@@ -85,11 +103,17 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
   const out = { ...payload };
   for (const k of OFICIAL_GUARD_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
+    const keyCutoff = oficialCutoffForKey(k);
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
-      if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
+      const protoYmd = locacaoProtocolYmd(r);
+      if (protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
+      if (r && typeof r === "object" && r.cadastroRetroativo === true) {
+        if (String(k).includes("locac")) return protoYmd ? protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD : false;
+        return true;
+      }
       const ymd = oficialRecordYmd(r, k);
-      return ymd && ymd >= cutoffYmd;
+      return ymd && ymd >= keyCutoff;
     });
   }
   out.dk_oficial_cadastro_guard_v1 = cutoffYmd;
@@ -332,7 +356,7 @@ function applyDemoCadastroNoShrink(existing, merged) {
   return out;
 }
 
-/** Oficial virgem: locações/protocolos apagados não podem voltar por push do browser. */
+/** Oficial virgem: protocolos anteriores a 23/08/2026 não voltam; locações novas (>= corte) entram. */
 function capOficialVirginProtocolos(existing, merged) {
   if (!isObject(existing) || !existing.dk_oficial_sem_protocolos_v1 || !isObject(merged)) return merged;
   const out = { ...merged };
@@ -344,9 +368,12 @@ function capOficialVirginProtocolos(existing, merged) {
     "dk_locacao_documentos_v1",
   ];
   for (const k of keys) {
-    const ex = existing[k];
-    const inc = out[k];
-    if (Array.isArray(ex) && Array.isArray(inc) && inc.length > ex.length) out[k] = ex;
+    if (!Array.isArray(out[k])) continue;
+    out[k] = out[k].filter((r) => {
+      const protoYmd = locacaoProtocolYmd(r);
+      if (protoYmd) return protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD;
+      return true;
+    });
   }
   out.dk_oficial_sem_protocolos_v1 = existing.dk_oficial_sem_protocolos_v1;
   out.dk_cadastro_manual_portal_v1 = true;
