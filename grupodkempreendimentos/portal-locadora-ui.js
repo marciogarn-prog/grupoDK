@@ -3212,6 +3212,11 @@
       manutActions.classList.toggle("hidden", !isOficina);
       manutActions.hidden = !isOficina;
     }
+    const btnsTopo = document.getElementById("portalChecklistPlacaBtnsTopo");
+    if (btnsTopo) {
+      btnsTopo.classList.toggle("hidden", !isOficina);
+      btnsTopo.hidden = !isOficina;
+    }
     const toolbar = document.getElementById("portalChecklistToolbar");
     if (toolbar) {
       toolbar.classList.add("hidden");
@@ -3773,25 +3778,36 @@
 
   function portalRestoreChecklistLayoutDomOrder() {
     const row = document.getElementById("portalChecklistPlacaRow");
-    const actions = document.getElementById("portalChecklistPlacaActionsManut");
+    const topo = document.getElementById("portalChecklistPlacaLinhaTopo");
+    const btnsTopo = document.getElementById("portalChecklistPlacaBtnsTopo");
+    const base = document.getElementById("portalChecklistPlacaActionsManut");
     const label = document.getElementById("portalChecklistPlacaLabel");
     const btnOpen = document.getElementById("btnPortalChecklistAbrir");
     const btnLoad = document.getElementById("portalChecklistCarregarBtn");
     const fotos = document.getElementById("portalChecklistFotosGrid");
     const motivo = document.getElementById("portalChecklistMotivoPrincipalBox");
     const fileInp = document.getElementById("portalChecklistFotoFile");
-    if (row && label && label.parentElement !== row) row.insertBefore(label, row.firstChild);
-    if (row && actions && actions.parentElement !== row) row.appendChild(actions);
-    if (!actions) return;
-    const order = [btnOpen, btnLoad, fotos, motivo, fileInp].filter(Boolean);
-    order.forEach((el) => {
+    if (row && topo && topo.parentElement !== row) row.insertBefore(topo, row.firstChild);
+    if (row && base && base.parentElement !== row) row.appendChild(base);
+    if (topo && label && label.parentElement !== topo) topo.insertBefore(label, topo.firstChild);
+    if (topo && btnsTopo && btnsTopo.parentElement !== topo) topo.appendChild(btnsTopo);
+    [btnOpen, btnLoad].filter(Boolean).forEach((el) => {
       el.classList.remove("is-layout-custom", "is-layout-edit", "is-layout-edit-force-show");
       el.style.left = "";
       el.style.top = "";
       el.style.width = "";
       el.style.height = "";
       el.removeAttribute("title");
-      if (el.parentElement !== actions) actions.appendChild(el);
+      if (btnsTopo && el.parentElement !== btnsTopo) btnsTopo.appendChild(el);
+    });
+    [fotos, motivo, fileInp].filter(Boolean).forEach((el) => {
+      el.classList.remove("is-layout-custom", "is-layout-edit", "is-layout-edit-force-show");
+      el.style.left = "";
+      el.style.top = "";
+      el.style.width = "";
+      el.style.height = "";
+      el.removeAttribute("title");
+      if (base && el.parentElement !== base) base.appendChild(el);
     });
     if (label) {
       label.classList.remove("is-layout-custom", "is-layout-edit");

@@ -2905,17 +2905,18 @@ body {
 }
 
 .portal-checklist-fotos-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
-  padding: 0.4rem;
-  width: 11.5rem;
-  max-width: 11.5rem;
-  border: 1px solid rgba(220, 38, 38, 0.55);
-  border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.25);
-  flex: 0 0 auto;
-  align-self: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0;
+  width: auto;
+  max-width: none;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  flex: 1 1 auto;
+  align-self: center;
+  min-width: 0;
 }
 
 .portal-checklist-fotos-grid.hidden {
@@ -2923,19 +2924,19 @@ body {
 }
 
 .portal-checklist-motivo-principal {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
   width: fit-content;
-  max-width: 16rem;
+  max-width: min(100%, 18rem);
   min-height: 0;
-  padding: 0.28rem 0.5rem;
+  padding: 0.28rem 0.55rem;
   border: 1.5px solid #22c55e;
   border-radius: 6px;
   background: rgba(34, 197, 94, 0.1);
   display: inline-flex;
   flex-direction: row;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: baseline;
-  align-self: flex-end;
+  align-self: center;
   gap: 0.3rem 0.4rem;
 }
 
@@ -2949,36 +2950,54 @@ body {
 
 .portal-checklist-placa-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.75rem 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
   width: 100%;
 }
 
-.portal-checklist-placa-actions-row {
+.portal-checklist-placa-linha {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.65rem 0.85rem;
-  flex: 1 1 auto;
-  min-width: 0;
+  gap: 0.5rem 0.75rem;
+  width: 100%;
 }
 
-.portal-checklist-placa-actions-row > .btn-primary {
-  align-self: flex-end;
-  height: 2.55rem;
-  padding-left: 1rem;
-  padding-right: 1rem;
+.portal-checklist-placa-btns-topo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.45rem 0.55rem;
+}
+
+.portal-checklist-placa-btns-topo.hidden {
+  display: none !important;
+}
+
+.portal-checklist-placa-btns-topo > .btn-primary {
+  height: 2.45rem;
+  padding-left: 0.9rem;
+  padding-right: 0.9rem;
   white-space: nowrap;
+}
+
+.portal-checklist-placa-linha--base {
+  align-items: center;
+  min-height: 0;
+}
+
+.portal-checklist-placa-linha--base.hidden {
+  display: none !important;
 }
 
 .portal-checklist-placa-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 0.55rem 0.85rem;
-  margin-bottom: 1rem;
-  padding: 0.85rem 1rem;
+  gap: 0.4rem 0.65rem;
+  margin-bottom: 0.75rem;
+  padding: 0.65rem 0.85rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: rgba(255, 255, 255, 0.03);
@@ -2987,10 +3006,10 @@ body {
 .portal-checklist-placa-label {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  font-size: 0.95rem;
-  min-width: 11.5rem;
-  max-width: 14rem;
+  gap: 0.28rem;
+  font-size: 0.9rem;
+  min-width: 10.5rem;
+  max-width: 13rem;
   flex: 0 0 auto;
   margin: 0;
 }
@@ -3001,7 +3020,7 @@ body {
 }
 
 .portal-checklist-motivo-principal__label {
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -3015,17 +3034,20 @@ body {
 
 .portal-checklist-motivo-principal__text {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   line-height: 1.25;
   color: #f0fdf4;
-  white-space: pre-wrap;
-  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 14rem;
 }
 
 .btn-checklist-foto {
-  font-size: 0.78rem;
-  padding: 0.38rem 0.45rem;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.5rem;
   white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .portal-checklist-foto-msg {
@@ -3057,6 +3079,7 @@ body {
 
 .portal-checklist-workspace--locados-simples .portal-checklist-toolbar,
 .portal-checklist-workspace--locados-simples #portalChecklistPlacaActionsManut,
+.portal-checklist-workspace--locados-simples #portalChecklistPlacaBtnsTopo,
 .portal-checklist-workspace--locados-simples #portalChecklistMount,
 .portal-checklist-workspace--locados-simples #portalChecklistLoadMsg,
 .portal-checklist-workspace--locados-simples #portalChecklistFotoMsg {
@@ -3065,6 +3088,7 @@ body {
 
 .portal-checklist-workspace--manut-simples .portal-checklist-toolbar,
 .portal-checklist-workspace--manut-simples #portalChecklistPlacaActionsManut,
+.portal-checklist-workspace--manut-simples #portalChecklistPlacaBtnsTopo,
 .portal-checklist-workspace--manut-simples #portalChecklistMount,
 .portal-checklist-workspace--manut-simples #portalChecklistLoadMsg,
 .portal-checklist-workspace--manut-simples #portalChecklistFotoMsg {
