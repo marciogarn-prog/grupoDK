@@ -5708,7 +5708,7 @@
   document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
     expandManutencaoParentMenuOnly(
       "btn-manutencao-em-manutencao",
-      "Escolha uma das opções em «Em manutenção» à esquerda (0 Triagem, 1–4)."
+      "Escolha uma das opções em «Em manutenção» à esquerda (6 Triagem, 7–10)."
     );
   });
 
@@ -16452,7 +16452,7 @@
     if (panelId === "manutencaoInlineEmManutencao" || btnId === "btn-manutencao-em-manutencao") {
       expandManutencaoParentMenuOnly(
         "btn-manutencao-em-manutencao",
-        "Escolha uma das opções em «Em manutenção» à esquerda (0 Triagem, 1–4)."
+        "Escolha uma das opções em «Em manutenção» à esquerda (6 Triagem, 7–10)."
       );
       return;
     }
