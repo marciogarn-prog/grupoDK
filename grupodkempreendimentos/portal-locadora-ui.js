@@ -2394,9 +2394,13 @@
   }
 
   const MANUT_EM_MANUT_SUB_META = {
+    triagem: {
+      title: "Em manutenção — 0 Triagem",
+      lead: "Check-list tablet: fotos, inspeção A/R e impressão. No final, encaminhe para 1 Oficina própria, 2 Oficina de terceiro, 3 Seguro ou 4 Sinistro Roubo.",
+    },
     "oficina-propria": {
       title: "Em manutenção — 1 Oficina própria",
-      lead: "Check-list em formato tablet: fotos, inspeção A/R e impressão com todos os itens em A. Destino: enviar para vendas.",
+      lead: "Pesquise a placa nesta categoria. Pode mover entre categorias ou enviar para vendas.",
     },
     "oficina-terceiros": {
       title: "Em manutenção — 2 Oficina de terceiro",
@@ -2414,7 +2418,7 @@
 
   let portalManutLocadoSubAtivo = "minha-moto";
   let portalManutDispSubAtivo = "prontos";
-  let portalManutEmManutSubAtivo = "oficina-propria";
+  let portalManutEmManutSubAtivo = "triagem";
 
   function syncManutSubnavVisible(navId, visible) {
     const nav = document.getElementById(navId);
@@ -2596,6 +2600,7 @@
     if (manutSet.has(plateKey)) {
       const cat = getPortalManutCategoriaPorPlaca(plateKey) || "oficina-propria";
       const labels = {
+        triagem: "EM MANUTENÇÃO → 0 — Triagem",
         "oficina-propria": "EM MANUTENÇÃO → 1 — Oficina própria",
         "oficina-terceiros": "EM MANUTENÇÃO → 2 — Oficina de terceiro",
         "enviado-seguro": "EM MANUTENÇÃO → 3 — Seguro",
@@ -2915,7 +2920,7 @@
   }
 
   function openManutencaoEmManutencaoSub(subRaw) {
-    const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "oficina-propria";
+    const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "triagem";
     portalManutEmManutSubAtivo = sub;
     portalRefreshOperacaoLocal();
     hideManutencaoInlineFormsCore();
@@ -2931,7 +2936,7 @@
     if (leadEl) leadEl.textContent = meta.lead;
     portalAttachChecklistWorkspace("manutencao");
     const mount = document.getElementById("portalChecklistMount");
-    if (sub === "oficina-propria") {
+    if (sub === "triagem") {
       portalEnsureChecklistUiBuilt();
       mount?.classList.remove("hidden");
       mount?.classList.add("portal-checklist-mount--tablet");
@@ -3029,9 +3034,13 @@
     return portalChecklistMode === "manutencao";
   }
 
-  /** Check-list completo (tablet/fotos) só em Em manutenção → 1 Oficina própria. */
+  /** Check-list completo (tablet/fotos) só em Em manutenção → 0 Triagem. */
   function portalChecklistIsOficinaPropriaMode() {
-    return portalChecklistIsManutencaoMode() && portalManutEmManutSubAtivo === "oficina-propria";
+    return portalChecklistIsManutencaoMode() && portalManutEmManutSubAtivo === "triagem";
+  }
+
+  function portalChecklistIsTriagemMode() {
+    return portalChecklistIsOficinaPropriaMode();
   }
 
   function portalSyncManutSimplesEnviarVendasBtn() {
@@ -3068,7 +3077,7 @@
     if (portalChecklistIsManutencaoMode()) {
       if (typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined") {
         const seen = new Set();
-        const sub = portalManutEmManutSubAtivo || "oficina-propria";
+        const sub = portalManutEmManutSubAtivo || "triagem";
         loadCadastro(CAD_MANUTENCOES_KEY)
           .filter((m) => !String(m.dataRealSaida || "").trim())
           .filter((m) => portalManutRegistroNaCategoria(m, sub))
@@ -3967,7 +3976,7 @@
     const motivo = String(motivoRaw || "").trim();
     if (!motivo) return { ok: false, message: "Informe o motivo principal." };
     const placaKey = portalNkPlate(placaRaw);
-    const categoria = portalNormManutCategoria(categoriaRaw) || "oficina-propria";
+    const categoria = portalNormManutCategoria(categoriaRaw) || "triagem";
     const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
     const jaEmManutencao = manutencoes.some(
       (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
@@ -4032,8 +4041,8 @@
     const info = document.getElementById("portalChecklistEnvioManutInfo");
     if (info) {
       info.innerHTML = placa
-        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 1 — Oficina própria</strong> e deixará de aparecer na lista de placas locadas.`
-        : `O veículo será enviado para <strong>Em manutenção → 1 — Oficina própria</strong> e deixará de aparecer na lista de placas locadas.`;
+        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.`
+        : `O veículo será enviado para <strong>Em manutenção → 0 — Triagem</strong> e deixará de aparecer na lista de placas locadas.`;
     }
     const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
     if (motivo) motivo.value = "";
@@ -4066,18 +4075,18 @@
         portalSyncChecklistEnvioManutEnviarBtn();
         return;
       }
-      const r = portalEnviarChecklistParaManutencao("oficina-propria", motivo);
+      const r = portalEnviarChecklistParaManutencao("triagem", motivo);
       if (!r.ok) {
         if (modalMsg) modalMsg.textContent = r.message || "Não foi possível registar.";
         return;
       }
       portalCloseChecklistEnvioManutModal();
       if (dispMsg) {
-        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 1 — Oficina própria». Motivo: ${r.motivo}.`;
+        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». Motivo: ${r.motivo}.`;
       }
       const locMsg = document.getElementById("portalChecklistLocadosMsg");
       if (locMsg) {
-        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 1 — Oficina própria».`;
+        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem».`;
       }
       portalClearChecklistInspection();
       document.getElementById("portalChecklistMount")?.classList.add("hidden");
@@ -4438,10 +4447,10 @@
         hint.textContent = `Complete para ativar os botões: ${req.join("; ")}.`;
       } else if (isManut && !printOk) {
         hint.textContent =
-          "Formulário completo. Imprimir / Guardar PDF só são liberados com todos os itens em A (aprovado). Pode enviar para vendas.";
+          "Formulário completo. Imprimir / Guardar PDF só com todos os itens em A. Encaminhar (1–4) já pode ser usado; ou enviar para vendas.";
       } else if (isManut) {
         hint.textContent =
-          "Todos os itens estão aprovados (A). Pode imprimir, guardar PDF ou enviar para vendas.";
+          "Todos os itens estão aprovados (A). Pode imprimir, guardar PDF, encaminhar para 1–4 ou enviar para vendas.";
       } else {
         hint.textContent =
           "Todos os campos obrigatórios estão preenchidos. Pode imprimir, guardar PDF e escolher o destino do veículo em baixo.";
@@ -4456,6 +4465,9 @@
     if (b2) b2.disabled = !printOk;
     if (b3) b3.disabled = !formOk || isManut;
     if (b4) b4.disabled = !formOk;
+    document.querySelectorAll("#portalChecklistCategoriaMove [data-manut-move-cat]").forEach((btn) => {
+      btn.disabled = isManut ? !formOk : false;
+    });
     return formOk;
   }
 
@@ -4730,7 +4742,7 @@
       }
       const meta = MANUT_EM_MANUT_SUB_META[r.categoria] || {};
       if (msg) {
-        msg.textContent = `Placa ${r.placa} movida para «${meta.title || r.categoria}».`;
+        msg.textContent = `Placa ${r.placa} encaminhada para «${meta.title || r.categoria}».`;
       }
       if (r.categoria !== portalManutEmManutSubAtivo) {
         portalClearChecklistInspection();
@@ -4774,7 +4786,7 @@
     /* Só aceita placas do estado/categoria aberta (segregação). */
     const estado = portalResolverEstadoExclusivoPlaca(plateFmt);
     if (portalChecklistIsManutencaoMode()) {
-      const sub = portalManutEmManutSubAtivo || "oficina-propria";
+      const sub = portalManutEmManutSubAtivo || "triagem";
       if (estado.grupo !== "manutencao" || estado.sub !== sub) {
         fotosGrid?.classList.add("hidden");
         portalClearMotivoPrincipalChecklist();
@@ -4925,12 +4937,12 @@
           </div>
         </div>
         <div id="portalChecklistCategoriaMove" class="portal-checklist-categoria-move hidden" hidden>
-          <span class="portal-checklist-categoria-move__label">Mover placa para:</span>
-          <div class="portal-checklist-categoria-move__btns" role="group" aria-label="Categoria de manutenção">
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria" data-checklist-layout-item="cat-oficina-propria">1 — Oficina própria</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros" data-checklist-layout-item="cat-oficina-terceiros">2 — Oficina de terceiro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro" data-checklist-layout-item="cat-seguro">3 — Seguro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo" data-checklist-layout-item="cat-sinistro">4 — Sinistro Roubo</button>
+          <span class="portal-checklist-categoria-move__label">Encaminhar após check-list:</span>
+          <div class="portal-checklist-categoria-move__btns" role="group" aria-label="Encaminhar para categoria de manutenção">
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria" disabled>1 — Oficina própria</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros" disabled>2 — Oficina de terceiro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro" disabled>3 — Seguro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo" disabled>4 — Sinistro Roubo</button>
           </div>
         </div>
         <p id="portalChecklistDispositionMsg" class="portal-checklist-disposition-msg" role="status"></p>
@@ -5088,7 +5100,7 @@
   document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
     expandManutencaoParentMenuOnly(
       "btn-manutencao-em-manutencao",
-      "Escolha uma das 4 opções em «Em manutenção» à esquerda."
+      "Escolha uma das opções em «Em manutenção» à esquerda (0 Triagem, 1–4)."
     );
   });
 
@@ -5114,7 +5126,7 @@
   document.querySelectorAll("[data-manut-sub]").forEach((btn) => {
     btn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      const sub = btn.getAttribute("data-manut-sub") || "oficina-propria";
+      const sub = btn.getAttribute("data-manut-sub") || "triagem";
       openManutencaoEmManutencaoSub(sub);
     });
   });
@@ -7774,6 +7786,7 @@
 
   function portalStatusTextEmManutencao(categoria) {
     const cat = portalNormManutCategoria(categoria) || "oficina-propria";
+    if (cat === "triagem") return "Em manutenção — Triagem";
     if (cat === "sinistrado-roubo") return "Sinistro Roubo";
     if (cat === "oficina-terceiros") return "Em manutenção — Oficina de terceiro";
     if (cat === "enviado-seguro") return "Em manutenção — Seguro";
@@ -15830,7 +15843,7 @@
     if (panelId === "manutencaoInlineEmManutencao" || btnId === "btn-manutencao-em-manutencao") {
       expandManutencaoParentMenuOnly(
         "btn-manutencao-em-manutencao",
-        "Escolha uma das 4 opções em «Em manutenção» à esquerda."
+        "Escolha uma das opções em «Em manutenção» à esquerda (0 Triagem, 1–4)."
       );
       return;
     }

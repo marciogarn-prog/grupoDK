@@ -1931,6 +1931,10 @@ body {
 #btn-locado-sub-carros.is-active {
   color: #c4a484;
 }
+#btn-manut-sub-triagem .btn-operacao-cmd__title,
+#btn-manut-sub-triagem.is-active {
+  color: #86efac;
+}
 #btn-manut-sub-oficina-propria .btn-operacao-cmd__title,
 #btn-manut-sub-oficina-terceiros .btn-operacao-cmd__title,
 #btn-manut-sub-enviado-seguro .btn-operacao-cmd__title,
