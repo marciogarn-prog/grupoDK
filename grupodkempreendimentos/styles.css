@@ -3715,6 +3715,34 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   }
 }
 
+/* Fonte das caixinhas conforme origem da locação */
+.portal-checklist--minha-moto .portal-checklist-meta-grid input,
+.portal-checklist--minha-moto .portal-checklist-ops-grid input,
+.portal-checklist--minha-moto .portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
+.portal-checklist--minha-moto .portal-checklist-ops-grid .portal-checklist-toggle-options,
+.portal-checklist--minha-moto .portal-checklist-toggle-field .portal-checklist-toggle-options label,
+.portal-checklist--minha-moto .portal-checklist-odometro-ultimo__data {
+  color: #5eb8ff;
+}
+
+.portal-checklist--meu-transporte .portal-checklist-meta-grid input,
+.portal-checklist--meu-transporte .portal-checklist-ops-grid input,
+.portal-checklist--meu-transporte .portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
+.portal-checklist--meu-transporte .portal-checklist-ops-grid .portal-checklist-toggle-options,
+.portal-checklist--meu-transporte .portal-checklist-toggle-field .portal-checklist-toggle-options label,
+.portal-checklist--meu-transporte .portal-checklist-odometro-ultimo__data {
+  color: #6ee7a0;
+}
+
+.portal-checklist--carros .portal-checklist-meta-grid input,
+.portal-checklist--carros .portal-checklist-ops-grid input,
+.portal-checklist--carros .portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
+.portal-checklist--carros .portal-checklist-ops-grid .portal-checklist-toggle-options,
+.portal-checklist--carros .portal-checklist-toggle-field .portal-checklist-toggle-options label,
+.portal-checklist--carros .portal-checklist-odometro-ultimo__data {
+  color: #c4a484;
+}
+
 .portal-checklist-inline-row {
   display: flex;
   flex-wrap: wrap;
