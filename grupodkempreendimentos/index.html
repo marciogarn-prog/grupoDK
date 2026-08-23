@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260822enviar-manut-checklist">
+  <link rel="stylesheet" href="styles.css?v=20260822estados-cores-frota">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -1563,12 +1563,43 @@
                 <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
                 <span class="btn-operacao-cmd__hint">Custos de manutenção do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-operacao" aria-expanded="false" aria-controls="manutencaoInlineEmOperacao">
-                <span class="btn-operacao-cmd__title">Veículos em operação</span>
-                <span class="btn-operacao-cmd__hint">Em uso ou com locação ativa</span>
+
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-locados" aria-expanded="false" aria-controls="manutencaoLocadosSubnav">
+                <span class="btn-operacao-cmd__title">Locados</span>
+                <span class="btn-operacao-cmd__hint">Veículos com locação ativa, por plano</span>
               </button>
+              <nav id="manutencaoLocadosSubnav" class="operacao-lanc-aluguel-subnav portal-manutencao-subnav hidden" aria-label="Planos de veículos locados" hidden>
+                <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-locado-sub-minha-moto" data-locado-sub="minha-moto">
+                  <span class="btn-operacao-cmd__title">1 — Plano DK Minha Moto</span>
+                  <span class="btn-operacao-cmd__hint">Locação ativa neste plano</span>
+                </button>
+                <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-locado-sub-meu-transporte" data-locado-sub="meu-transporte">
+                  <span class="btn-operacao-cmd__title">2 — Plano DK Meu Transporte</span>
+                  <span class="btn-operacao-cmd__hint">Locação ativa neste plano</span>
+                </button>
+                <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-locado-sub-carros" data-locado-sub="carros">
+                  <span class="btn-operacao-cmd__title">3 — Plano Carros</span>
+                  <span class="btn-operacao-cmd__hint">Locação ativa de carro</span>
+                </button>
+              </nav>
+
+              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-disponiveis" aria-expanded="false" aria-controls="manutencaoDisponiveisSubnav">
+                <span class="btn-operacao-cmd__title">Disponíveis</span>
+                <span class="btn-operacao-cmd__hint">Sem locação ativa e fora de manutenção</span>
+              </button>
+              <nav id="manutencaoDisponiveisSubnav" class="operacao-lanc-aluguel-subnav portal-manutencao-subnav hidden" aria-label="Tipos de veículos disponíveis" hidden>
+                <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-disp-sub-prontos" data-disp-sub="prontos">
+                  <span class="btn-operacao-cmd__title">1 — Prontos para alugar</span>
+                  <span class="btn-operacao-cmd__hint">Livres para nova locação</span>
+                </button>
+                <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-disp-sub-reserva" data-disp-sub="reserva">
+                  <span class="btn-operacao-cmd__title">2 — Veículo reserva</span>
+                  <span class="btn-operacao-cmd__hint">Frota de reserva</span>
+                </button>
+              </nav>
+
               <button type="button" class="btn-operacao-cmd" id="btn-manutencao-em-manutencao" aria-expanded="false" aria-controls="manutencaoEmManutencaoSubnav">
-                <span class="btn-operacao-cmd__title">Veículos em manutenção</span>
+                <span class="btn-operacao-cmd__title">Em manutenção</span>
                 <span class="btn-operacao-cmd__hint">Oficina, seguro ou sinistro</span>
               </button>
               <nav id="manutencaoEmManutencaoSubnav" class="operacao-lanc-aluguel-subnav portal-manutencao-subnav hidden" aria-label="Tipos de veículos em manutenção" hidden>
@@ -1577,26 +1608,18 @@
                   <span class="btn-operacao-cmd__hint">Manutenção na oficina DK</span>
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-manut-sub-oficina-terceiros" data-manut-sub="oficina-terceiros">
-                  <span class="btn-operacao-cmd__title">2 — Oficina de terceiros</span>
+                  <span class="btn-operacao-cmd__title">2 — Oficina de terceiro</span>
                   <span class="btn-operacao-cmd__hint">Serviço em oficina externa</span>
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-manut-sub-enviado-seguro" data-manut-sub="enviado-seguro">
-                  <span class="btn-operacao-cmd__title">3 — Enviado para seguro</span>
+                  <span class="btn-operacao-cmd__title">3 — Seguro</span>
                   <span class="btn-operacao-cmd__hint">Aguardo / processo de seguro</span>
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-manut-sub-sinistrado-roubo" data-manut-sub="sinistrado-roubo">
-                  <span class="btn-operacao-cmd__title">4 — Sinistrado Roubo</span>
+                  <span class="btn-operacao-cmd__title">4 — Sinistro Roubo</span>
                   <span class="btn-operacao-cmd__hint">Sinistro ou roubo</span>
                 </button>
               </nav>
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-reserva" aria-expanded="false" aria-controls="manutencaoInlineReserva">
-                <span class="btn-operacao-cmd__title">Veículos reserva</span>
-                <span class="btn-operacao-cmd__hint">Reserva da frota</span>
-              </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-manutencao-operacionais" aria-expanded="false" aria-controls="manutencaoInlineOperacionais">
-                <span class="btn-operacao-cmd__title">Veículos operacionais</span>
-                <span class="btn-operacao-cmd__hint">Prontos para operação</span>
-              </button>
             </div>
             <button type="button" class="btn-primary btn-secondary-outline portal-operacao-layout__sidebar-voltar" id="btn-voltar-manutencao-locadora">Voltar</button>
           </aside>
@@ -1777,12 +1800,12 @@
           <p id="operacaoLancManutencaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
             <div id="manutencaoInlineEmOperacao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-operacao">
-              <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Veículos em operação</h3>
-              <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadOperacao">Check-list de manutenção / reparações para veículos em operação (tablet).</p>
+              <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Locados</h3>
+              <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadOperacao">Check-list de manutenção / reparações para veículos locados (tablet).</p>
               <div id="portalChecklistHostOperacao" class="portal-checklist-host"></div>
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
-              <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Veículos em manutenção</h3>
+              <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Em manutenção</h3>
               <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadManutencao">Check-list para veículos em manutenção (tablet). Impressão só com todos os itens aprovados (A). Destino: enviar para vendas.</p>
               <div id="portalChecklistHostManutencao" class="portal-checklist-host"></div>
             </div>
@@ -1832,29 +1855,24 @@
               <datalist id="portalChecklistPlacaSugestoes"></datalist>
               <div id="portalChecklistMount" class="portal-checklist-mount hidden" aria-live="polite"></div>
             </div>
-            <div id="manutencaoInlineReserva" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-reserva">
-              <h3 id="manutencao-title-reserva" class="operacao-inline-form__title">Veículos reserva</h3>
-              <p class="subtext operacao-inline-form__lead">Mesmas placas da frota com status <strong>Disponível</strong> (vermelho) no Cadastro de veículo — sem locação ativa, fora de manutenção e não indisponíveis.</p>
+            <div id="manutencaoInlineDisponiveis" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-disponiveis">
+              <h3 id="manutencao-title-disponiveis" class="operacao-inline-form__title">Disponíveis</h3>
+              <p class="subtext operacao-inline-form__lead" id="portalDisponiveisLead">Veículos livres (sem locação ativa e fora de manutenção).</p>
               <div class="portal-manutencao-busca">
                 <label class="portal-field portal-manutencao-busca__field">
                   <span>Filtrar por placa</span>
                   <input
                     type="text"
-                    id="portalReservaPlacaFiltro"
+                    id="portalDisponiveisPlacaFiltro"
                     maxlength="10"
                     autocomplete="off"
                     placeholder="Digite para filtrar"
-                    aria-label="Filtrar placas reserva"
+                    aria-label="Filtrar placas disponíveis"
                   >
                 </label>
               </div>
-              <div id="portalReservaPlacasGrid" class="portal-reserva-placas" role="list" aria-live="polite"></div>
-              <p id="portalReservaPlacasMsg" class="portal-feedback" role="status"></p>
-            </div>
-            <div id="manutencaoInlineOperacionais" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-operacionais">
-              <h3 id="manutencao-title-operacionais" class="operacao-inline-form__title">Veículos operacionais</h3>
-              <p class="subtext operacao-inline-form__lead">área para frota considerada operacional.</p>
-              <p class="portal-feedback" role="status">Conteúdo em preparação &mdash; será ligado aos dados da frota.</p>
+              <div id="portalDisponiveisPlacasGrid" class="portal-reserva-placas" role="list" aria-live="polite"></div>
+              <p id="portalDisponiveisPlacasMsg" class="portal-feedback" role="status"></p>
             </div>
           </div>
         </div>
@@ -2224,11 +2242,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260822enviar-manut-checklist" defer></script>
+  <script src="app.js?v=20260822estados-cores-frota" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260822enviar-manut-checklist" defer></script>
+  <script src="portal-locadora-ui.js?v=20260822estados-cores-frota" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
