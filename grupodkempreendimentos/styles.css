@@ -820,6 +820,13 @@ body {
   margin: 0 0 1rem;
 }
 
+/* Lista de placas deve flutuar por cima da caixa de operação (irmão seguinte no painel). */
+#panel-manutencao-locadora > .portal-manutencao-panel-head {
+  position: relative;
+  z-index: 60;
+  overflow: visible;
+}
+
 #panel-manutencao-locadora > .portal-manutencao-panel-head > .portal-panel__title {
   margin: 0;
   flex: 0 0 auto;
@@ -844,7 +851,7 @@ body {
 }
 
 .portal-manut-placa-lookup__lista {
-  z-index: 80;
+  z-index: 120;
   max-height: min(280px, 45vh);
 }
 
