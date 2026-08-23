@@ -382,7 +382,7 @@ async function runE2E() {
       );
     }
 
-    /* Lançamento de manutenção vive agora na área Manutenção */
+    /* Movimentações da manutenção — modal na área Manutenção */
     await ensureEquipaNavVisible(page);
     await page.locator("#btn-locadora-manutencao").click({ timeout: 8000 }).catch(() => null);
     await page.waitForTimeout(700);
@@ -390,27 +390,25 @@ async function runE2E() {
       const cmd = page.locator("#btn-operacao-lancamento-manutencao");
       const cmdVis = await cmd.isVisible().catch(() => false);
       if (!cmdVis) {
-        record("E2E: painel Lançamento manutenção (área Manutenção)", false, "comando oculto");
+        record("E2E: Movimentações manutenção (área Manutenção)", false, "comando oculto");
       } else {
         await cmd.click();
         await page.waitForTimeout(600);
-        const panelVis = await page
-          .locator("#operacaoInlineLancamentoManutencao:not(.hidden)")
+        const modalVis = await page
+          .locator("#portalMovManutModal:not(.hidden)")
           .isVisible()
           .catch(() => false);
-        const missingBtns = [];
-        for (const bid of [
-          "operacaoLancManutencaoConfirmarPesquisaBtn",
-          "operacaoLancManutencaoGerarRelatorioBtn",
-        ]) {
-          const n = await page.locator(`#${bid}`).count();
-          if (!n) missingBtns.push(bid);
-        }
+        const filtrosOk = (await page.locator("#portalMovManutFiltros .portal-mov-manut-filtro-btn").count()) >= 6;
+        const modosOk = (await page.locator(".portal-mov-manut-modo-btn").count()) >= 2;
+        await page.locator("[data-mov-manut-modo='placa']").click({ force: true }).catch(() => null);
+        await page.waitForTimeout(300);
+        const placaModo = await page.locator("#portalMovManutPlacasPick:not(.hidden)").isVisible().catch(() => false);
         record(
-          "E2E: painel Lançamento manutenção (área Manutenção)",
-          panelVis && missingBtns.length === 0,
-          panelVis ? (missingBtns.length ? `faltam: ${missingBtns.join(", ")}` : "ok") : "painel oculto"
+          "E2E: Movimentações manutenção (área Manutenção)",
+          modalVis && filtrosOk && modosOk && placaModo,
+          modalVis ? (placaModo ? "modal + por placa ok" : "modo placa oculto") : "modal oculto"
         );
+        await page.locator("#portalMovManutFecharBtn").click({ force: true }).catch(() => null);
       }
     }
     await ensureEquipaNavVisible(page);

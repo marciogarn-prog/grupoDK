@@ -232,7 +232,18 @@ async function run() {
       return { title, moves };
     });
     record("5.2 abre painel Reserva no pátio", /5\.2|pátio|patio/i.test(painelPatio.title), painelPatio.title);
-    record("5.2 sem botões de mover", painelPatio.moves === 0, `moves=${painelPatio.moves}`);
+    const patioMoves = await page.evaluate(() => {
+      const grid = document.getElementById("portalDisponiveisPlacasGrid");
+      return [...(grid?.querySelectorAll("[data-disp-move]") || [])].map((b) => ({
+        dest: b.getAttribute("data-disp-move"),
+        label: (b.textContent || "").trim(),
+      }));
+    });
+    record(
+      "5.2: botão ENVIAR PARA 5.1",
+      patioMoves.length > 0 && patioMoves.every((m) => m.dest === "reserva-operacao"),
+      `moves=${patioMoves.length} ${patioMoves.map((m) => m.label).join(", ")}`
+    );
 
     await page.locator("#btn-disp-sub-prontos").click({ timeout: 15000 });
     await page.waitForTimeout(700);

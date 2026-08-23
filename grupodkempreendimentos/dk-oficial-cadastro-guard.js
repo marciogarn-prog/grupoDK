@@ -18,6 +18,7 @@
     "dk_locacoes_quadro_geral",
     "dk_manutencoes_cadastro",
     "dk_portal_checklist_historico_v1",
+    "dk_portal_checklist_movimentacoes_v1",
     "dk_lancamentos_aluguel",
     "dk_lancamentos_aluguel_cadastro",
     "dk_comprovantes_banco",

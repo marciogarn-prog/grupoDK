@@ -1306,6 +1306,7 @@
   }
 
   function bindTipo(cfg) {
+    if (cfg.key === "lancamentoManutencao") return;
     if (state.get(cfg.key)) return;
     state.set(cfg.key, true);
 

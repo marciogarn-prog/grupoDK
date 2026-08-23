@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260823fluxo-nuvem">
+  <link rel="stylesheet" href="styles.css?v=20260823mov-placa">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -1515,7 +1515,7 @@
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLocacao" checked> Cadastro de locação</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancAluguel" checked> Lançamento de aluguel</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancMultas" checked> Lançamento de multas</label>
-              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Lançamento de manutenção</label>
+              <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Movimentações da manutenção</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceSistemaMiel"> Acesso ao sistema MIEL</label>
             </div>
             <div class="operacao-inline-form__actions portal-colab-actions-row">
@@ -1592,9 +1592,9 @@
             <p class="subpage__lead">Gestáo da frota por estado.</p>
             <p class="subtext">Escolha uma categoria à esquerda; o detalhe aparece à direita.</p>
             <div class="operacao-comandos">
-              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="operacaoInlineLancamentoManutencao">
-                <span class="btn-operacao-cmd__title">Lançamento de manutenção</span>
-                <span class="btn-operacao-cmd__hint">Custos de manutenção do protocolo &mdash; pesquisa por CPF, nome ou protocolo</span>
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-manutencao" aria-expanded="false" aria-controls="portalMovManutModal">
+                <span class="btn-operacao-cmd__title">Movimentações da manutenção</span>
+                <span class="btn-operacao-cmd__hint">Consultar check-lists por etapa (Triagem, Oficina, Seguro, Sinistro)</span>
               </button>
 
               <button type="button" class="btn-operacao-cmd" id="btn-manutencao-locados" aria-expanded="false" aria-controls="manutencaoLocadosSubnav">
@@ -1675,7 +1675,7 @@
               <p class="operacao-form-placeholder__text">Escolha uma área à esquerda.</p>
             </div>
         <div id="operacaoInlineLancamentoManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-manutencao-title">
-          <h3 id="operacao-inline-lanc-manutencao-title" class="operacao-inline-form__title">Lançamento de manutenção</h3>
+          <h3 id="operacao-inline-lanc-manutencao-title" class="operacao-inline-form__title">Movimentações da manutenção</h3>
           <p class="subtext operacao-inline-form__lead">Registe <strong>manuten&ccedil;&otilde;es</strong> do cliente no protocolo. As parcelas s&atilde;o a cada <strong>7 dias</strong>; a <strong>data da &uacute;ltima parcela</strong> &eacute; calculada automaticamente.</p>
           <form id="formOperacaoLancamentoManutencaoInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-manutencao-pesquisa-title">
@@ -2272,6 +2272,33 @@
     </div>
   </div>
 
+  <div id="portalMovManutModal" class="portal-modal portal-mov-manut-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMovManutTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalMovManutBackdrop"></div>
+    <div class="portal-modal__card portal-modal__card--wide portal-mov-manut-modal__card">
+      <h3 id="portalMovManutTitulo" class="portal-modal__title">Movimentações da manutenção</h3>
+      <p class="portal-modal__text subtext">Consulte check-lists por <strong>etapa</strong> ou acompanhe o <strong>fluxo cronológico por placa</strong> (Triagem → Oficina → Terceiros/Seguro/Disponível e retorno).</p>
+      <div class="portal-mov-manut-modos" role="tablist" aria-label="Modo de consulta">
+        <button type="button" class="btn-primary btn-secondary-outline portal-mov-manut-modo-btn is-active" data-mov-manut-modo="etapa" role="tab" aria-selected="true">Por etapa</button>
+        <button type="button" class="btn-primary btn-secondary-outline portal-mov-manut-modo-btn" data-mov-manut-modo="placa" role="tab" aria-selected="false">Por placa</button>
+      </div>
+      <div id="portalMovManutPainelEtapa">
+      <div id="portalMovManutFiltros" class="portal-mov-manut-filtros" role="group" aria-label="Filtrar por etapa"></div>
+      </div>
+      <label class="portal-field portal-mov-manut-placa-filtro">
+        <span id="portalMovManutPlacaFiltroLabel">Filtrar por placa</span>
+        <input type="text" id="portalMovManutPlacaFiltro" maxlength="8" autocomplete="off" placeholder="Ex.: ABC1D23" autocapitalize="characters">
+      </label>
+      <div id="portalMovManutPlacasPick" class="portal-mov-manut-placas-pick hidden" hidden role="list" aria-label="Placas com movimentações"></div>
+      <div id="portalMovManutTimeline" class="portal-mov-manut-timeline hidden" hidden aria-live="polite"></div>
+      <p id="portalMovManutEmpty" class="portal-mov-manut-empty subtext hidden" role="status"></p>
+      <div id="portalMovManutLista" class="portal-mov-manut-lista"></div>
+      <div id="portalMovManutDetalhe" class="portal-mov-manut-detalhe hidden" hidden aria-live="polite"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalMovManutFecharBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalLancAluguelConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelConfirmTitulo">
     <div class="portal-modal__backdrop" data-close-lanc-aluguel-confirm></div>
     <div class="portal-modal__card">
@@ -2361,11 +2388,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260608cliente-sync-perf" defer></script>
-  <script src="app.js?v=20260823fluxo-nuvem" defer></script>
+  <script src="app.js?v=20260823mov-manut-modal" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260823fluxo-nuvem" defer></script>
+  <script src="portal-locadora-ui.js?v=20260823disp-52-51" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
@@ -2401,9 +2428,10 @@
   <script src="portal-contrato-locacao.js?v=20260820req-modelo" defer></script>
   <script src="portal-contrato-pacote.js?v=20260820promessa-exata" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260822cpf-cores-final2" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260823mov-manut-modal" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260822checklist-pdf-operacao" defer></script>
+  <script src="portal-movimentacoes-manutencao.js?v=20260823mov-placa" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260823fluxo-nuvem" defer></script>
+  <script src="portal-supabase-sync.js?v=20260823mov-manut-modal" defer></script>
 </body>
 </html>
