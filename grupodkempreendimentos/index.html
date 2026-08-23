@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260823locados-check-col">
+  <link rel="stylesheet" href="styles.css?v=20260823devolver-cliente">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -2272,6 +2272,21 @@
     </div>
   </div>
 
+  <div id="portalDevolverClienteModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalDevolverClienteTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalDevolverClienteBackdrop"></div>
+    <div class="portal-modal__card portal-devolver-cliente-card">
+      <h3 id="portalDevolverClienteTitulo" class="portal-modal__title">Devolver ao cliente</h3>
+      <p id="portalDevolverClienteInfo" class="portal-modal__text">
+        O veículo reparado voltará à lista de Locados conforme o plano da locação.
+      </p>
+      <p id="portalDevolverClienteMsg" class="portal-feedback" role="status"></p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalDevolverClienteConfirmarBtn">DEVOLVER AO CLIENTE</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalDevolverClienteCancelarBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalMovManutModal" class="portal-modal portal-mov-manut-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMovManutTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" id="portalMovManutBackdrop"></div>
     <div class="portal-modal__card portal-modal__card--wide portal-mov-manut-modal__card">
@@ -2392,7 +2407,7 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260823mov-ver-pdf" defer></script>
+  <script src="portal-locadora-ui.js?v=20260823devolver-cliente" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

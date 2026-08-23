@@ -4072,6 +4072,31 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   cursor: default;
 }
 
+.portal-disp-devolver-btn {
+  margin-top: 0.35rem;
+  width: 100%;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  border-color: rgba(110, 231, 160, 0.55);
+  color: #6ee7a0;
+}
+
+.portal-disp-devolver-btn:hover,
+.portal-disp-devolver-btn:focus-visible {
+  border-color: #6ee7a0;
+  color: #052e16;
+  background: rgba(110, 231, 160, 0.18);
+}
+
+.portal-reserva-placa-btn[data-disp-pronto-pos-manut] {
+  cursor: pointer;
+}
+
+.portal-devolver-cliente-card .portal-modal__actions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .portal-reserva-placa-btn {
   display: flex;
   flex-direction: column;
