@@ -2908,17 +2908,20 @@ body {
 }
 
 .portal-checklist-motivo-principal {
-  flex: 1 1 14rem;
-  min-width: 12rem;
-  max-width: 28rem;
-  min-height: 4.5rem;
-  padding: 0.55rem 0.7rem;
-  border: 2px solid #22c55e;
-  border-radius: var(--radius);
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: min(100%, 22rem);
+  min-height: 0;
+  padding: 0.28rem 0.5rem;
+  border: 1.5px solid #22c55e;
+  border-radius: 6px;
   background: rgba(34, 197, 94, 0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: inline-flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  align-self: center;
+  gap: 0.35rem 0.45rem;
 }
 
 .portal-checklist-motivo-principal.hidden {
@@ -2926,17 +2929,22 @@ body {
 }
 
 .portal-checklist-motivo-principal__label {
-  font-size: 0.72rem;
+  font-size: 0.65rem;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #86efac;
+  white-space: nowrap;
+}
+
+.portal-checklist-motivo-principal__label::after {
+  content: ":";
 }
 
 .portal-checklist-motivo-principal__text {
   margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  line-height: 1.25;
   color: #f0fdf4;
   white-space: pre-wrap;
   word-break: break-word;
