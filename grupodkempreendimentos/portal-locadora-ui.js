@@ -2429,7 +2429,7 @@
   const MANUT_DISP_SUB_META = {
     prontos: {
       title: "Disponíveis — 4 Pronto para alugar",
-      lead: "Veículos livres para nova locação. Podem ir para «5.2 — Reserva no pátio» com «ENVIAR PARA 5.2» (fluxo: 7→4→5.2→5.1). Saem da lista ao serem locados.",
+      lead: "Veículos livres para nova locação. Podem ir para «5.2 — Reserva no pátio» com «ENVIAR PARA 5.2». Saem da lista ao serem locados.",
     },
     "reserva-operacao": {
       title: "Disponíveis — 5.1 Reserva em operação",
@@ -2438,7 +2438,7 @@
     },
     "reserva-patio": {
       title: "Disponíveis — 5.2 Reserva no pátio",
-      lead: "Veículos reserva no pátio. Use «ENVIAR PARA 5.1» para Reserva em operação, ou escolha esta placa no envio Locados → manutenção (move automaticamente para 5.1).",
+      lead: "Veículos reserva no pátio. Entram em «5.1 — Reserva em operação» automaticamente ao enviar um locado (1, 2 ou 3) para manutenção e escolher a placa reserva aqui.",
     },
   };
 
@@ -2455,7 +2455,7 @@
     return "Disponíveis";
   }
 
-  /** Disponíveis: 4→5.2 · 5.2→5.1 */
+  /** Disponíveis: 4→5.2 · 5.2→5.1 só via Locados→manutenção */
   function portalValidarTransicaoDisponivel(origemSub, destinoSub) {
     let origem = String(origemSub || "").trim().toLowerCase();
     let destino = String(destinoSub || "").trim().toLowerCase();
@@ -2465,7 +2465,11 @@
       return { ok: true, destino: "reserva-patio" };
     }
     if (origem === "reserva-patio" && destino === "reserva-operacao") {
-      return { ok: true, destino: "reserva-operacao" };
+      return {
+        ok: false,
+        message:
+          "De «5.2 — Reserva no pátio» não há botão manual para 5.1 — use «Locados → ENVIAR PARA MANUTENÇÃO» e escolha a placa reserva.",
+      };
     }
     if (origem === "reserva-patio" && destino === "prontos") {
       return {
@@ -2476,13 +2480,15 @@
     if (origem === "reserva-patio") {
       return {
         ok: false,
-        message: "De «5.2 — Reserva no pátio» só pode ir para «5.1 — Reserva em operação» (use «ENVIAR PARA 5.1»).",
+        message:
+          "«5.2 — Reserva no pátio» só muda para 5.1 via Locados (1, 2 ou 3) → manutenção com placa reserva.",
       };
     }
     if (origem === "reserva-operacao") {
       return {
         ok: false,
-        message: "«5.1 — Reserva em operação» é informativo — a placa reserva entra aqui ao sair de 5.2 ou via Locados → manutenção.",
+        message:
+          "«5.1 — Reserva em operação» é informativo — entra aqui ao enviar Locados → manutenção com veículo reserva de 5.2.",
       };
     }
     return {
@@ -5669,13 +5675,13 @@
         "reserva-operacao":
           "Nenhuma reserva em operação. Aparecem aqui quando Locados envia um veículo à manutenção com placa reserva de «5.2 — Reserva no pátio».",
         "reserva-patio":
-          "Nenhuma placa em reserva no pátio. Em «4 — Pronto para alugar», use «ENVIAR PARA 5.2»; aqui use «ENVIAR PARA 5.1».",
+          "Nenhuma placa em reserva no pátio. Em «4 — Pronto para alugar», use «ENVIAR PARA 5.2».",
       };
       grid.innerHTML = `<p class="portal-manutencao-empty">${emptyHints[sub] || "Nenhuma placa."}${filtro ? " (filtro)" : ""}</p>`;
       if (msg) msg.textContent = "";
       return;
     }
-    /* 5.1: só informativo (reserva ⇒ locada). 4: ENVIAR 5.2. 5.2: mover para 5.1 se necessário. */
+    /* 5.1: só informativo (reserva ⇒ locada). 4: ENVIAR 5.2. 5.2: sem botões (→5.1 via Locados). */
     if (sub === "reserva-operacao") {
       grid.innerHTML = rows
         .map((r) => {
@@ -5715,12 +5721,7 @@
       if (msg) msg.textContent = `${rows.length} cobertura(s) de reserva em operação.`;
       return;
     }
-    const moveTargets =
-      sub === "prontos"
-        ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }]
-        : sub === "reserva-patio"
-          ? [{ dest: "reserva-operacao", label: "ENVIAR PARA 5.1" }]
-          : [];
+    const moveTargets = sub === "prontos" ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }] : [];
     grid.innerHTML = rows
       .map((r) => {
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
