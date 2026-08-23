@@ -3949,6 +3949,17 @@
     return { ok: true, message: "Dados carregados a partir do cadastro." };
   }
 
+  /** Preenche Entrada (data/hora) com o momento atual (fuso local do operador). */
+  function portalPrefillChecklistEntradaAgora() {
+    const dataEl = document.getElementById("portalChecklistEntradaData");
+    const horaEl = document.getElementById("portalChecklistEntradaHora");
+    if (dataEl) dataEl.value = portalBrDatePlusDays(0);
+    if (horaEl) {
+      const d = new Date();
+      horaEl.value = `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+    }
+  }
+
   function portalClearChecklistInspection() {
     for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
       document.querySelectorAll(`input[name="portalChecklistItem${n}"]`).forEach((r) => {
@@ -3969,6 +3980,7 @@
         if (el) el.value = "";
       }
     );
+    portalPrefillChecklistEntradaAgora();
     const od = document.getElementById("portalChecklistOdometro");
     if (od) od.value = "";
     const px = document.getElementById("portalChecklistProximaTroca");
