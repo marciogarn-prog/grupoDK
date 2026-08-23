@@ -7375,3 +7375,275 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   font-size: 0.8rem;
   padding: 0.3rem 0.7rem;
 }
+
+/* ===== Movimentações da manutenção (modal consulta check-lists) ===== */
+
+.portal-mov-manut-modal__card {
+  max-width: min(960px, 96vw);
+  max-height: min(92vh, 920px);
+  overflow: auto;
+}
+
+.portal-mov-manut-filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.75rem 0 0.65rem;
+}
+
+.portal-mov-manut-filtro-btn.is-active {
+  background: var(--dk-red, #dc2626);
+  color: #fff;
+  border-color: var(--dk-red, #dc2626);
+}
+
+.portal-mov-manut-placa-filtro {
+  margin-bottom: 0.65rem;
+  max-width: 220px;
+}
+
+.portal-mov-manut-lista {
+  max-height: min(42vh, 360px);
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+
+.portal-mov-manut-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.portal-mov-manut-tabela th,
+.portal-mov-manut-tabela td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: left;
+  vertical-align: top;
+}
+
+.portal-mov-manut-tabela th {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.portal-mov-manut-row.is-selected {
+  background: rgba(220, 38, 38, 0.06);
+}
+
+.portal-mov-manut-motivo {
+  max-width: 180px;
+}
+
+.portal-mov-manut-empty {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.portal-mov-manut-detalhe {
+  margin-top: 0.85rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.portal-mov-manut-detalhe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+
+.portal-mov-manut-detalhe-header h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.portal-mov-manut-detalhe-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.45rem 0.75rem;
+  font-size: 0.88rem;
+}
+
+.portal-mov-manut-detalhe-wide {
+  grid-column: 1 / -1;
+}
+
+.portal-mov-manut-detalhe-label {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.72;
+  margin-bottom: 0.1rem;
+}
+
+.portal-mov-manut-detalhe-itens ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.portal-mov-manut-item--r {
+  color: #ea580c;
+}
+
+.portal-mov-manut-item--a {
+  color: #ca8a04;
+}
+
+.portal-mov-manut-ver-btn {
+  font-size: 0.78rem;
+  padding: 0.25rem 0.55rem;
+}
+
+.portal-mov-manut-modos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.65rem 0 0.5rem;
+}
+
+.portal-mov-manut-modo-btn.is-active {
+  background: var(--dk-red, #dc2626);
+  color: #fff;
+  border-color: var(--dk-red, #dc2626);
+}
+
+.portal-mov-manut-placas-pick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.5rem 0 0.75rem;
+  max-height: 140px;
+  overflow: auto;
+}
+
+.portal-mov-manut-placa-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 120px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.portal-mov-manut-placa-card.is-active {
+  border-color: var(--dk-red, #dc2626);
+  background: rgba(220, 38, 38, 0.06);
+  box-shadow: 0 0 0 1px rgba(220, 38, 38, 0.25);
+}
+
+.portal-mov-manut-placa-card__placa {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.portal-mov-manut-placa-card__modelo {
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+
+.portal-mov-manut-placa-card__meta {
+  font-size: 0.72rem;
+  opacity: 0.7;
+}
+
+.portal-mov-manut-timeline {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  max-height: min(44vh, 380px);
+  overflow: auto;
+}
+
+.portal-mov-manut-timeline-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+}
+
+.portal-mov-manut-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 0.35rem;
+}
+
+.portal-mov-manut-timeline-step {
+  position: relative;
+  padding: 0 0 1rem 1.65rem;
+  border-left: 2px solid rgba(220, 38, 38, 0.35);
+  margin-left: 0.55rem;
+}
+
+.portal-mov-manut-timeline-step:last-child {
+  padding-bottom: 0.25rem;
+  border-left-color: transparent;
+}
+
+.portal-mov-manut-timeline-step__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.portal-mov-manut-timeline-step__num {
+  position: absolute;
+  left: -0.62rem;
+  top: 0.1rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: var(--dk-red, #dc2626);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.portal-mov-manut-timeline-step__when {
+  display: block;
+  font-size: 0.78rem;
+  opacity: 0.75;
+  font-weight: 400;
+}
+
+.portal-mov-manut-timeline-step__dest {
+  margin: 0.35rem 0 0.25rem;
+  font-size: 0.86rem;
+  color: #c2410c;
+}
+
+.portal-mov-manut-timeline-step__resumo,
+.portal-mov-manut-timeline-step__motivo {
+  margin: 0.2rem 0;
+  font-size: 0.82rem;
+}
+
+.portal-mov-manut-timeline-step--triagem .portal-mov-manut-timeline-step__num {
+  background: #ea580c;
+}
+
+.portal-mov-manut-timeline-step--oficina-propria .portal-mov-manut-timeline-step__num {
+  background: #ca8a04;
+}
+
+.portal-mov-manut-detalhe-dest {
+  margin: 0 0 0.55rem;
+  font-size: 0.88rem;
+  color: #c2410c;
+}
