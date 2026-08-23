@@ -4435,12 +4435,19 @@
     });
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
 
+    let reservaMovida = false;
     if (!reservaNaoDisponibilizada && placaReserva) {
-      const move = portalSetDisponivelCategoriaPlaca(placaReserva, "reserva-operacao");
+      const move = portalMoverReservaPatioParaOperacao(placaReserva);
       if (!move.ok) {
-        /* Manutenção já gravada; avisa mas não reverte o envio. */
-        console.warn("[DK] reserva não movida:", move.message || move);
+        /* Reverte o registo de manutenção — sem reserva em operação o envio não fica a meio. */
+        const reverted = loadCadastro(CAD_MANUTENCOES_KEY).filter((m) => Number(m.id) !== Number(manutencoes[manutencoes.length - 1]?.id));
+        saveCadastro(CAD_MANUTENCOES_KEY, reverted);
+        return {
+          ok: false,
+          message: move.message || `Não foi possível mover ${placaReserva} de 2.2 para 2.1 Reserva em operação.`,
+        };
       }
+      reservaMovida = true;
     }
     portalVincularReservaNaLocacaoAtiva(placaKey, placaReserva, reservaNaoDisponibilizada);
 
@@ -4461,7 +4468,102 @@
       motivo,
       placaReserva,
       reservaNaoDisponibilizada,
+      reservaMovida,
     };
+  }
+
+  /**
+   * Ao concluir envio Locados→manutenção com placa reserva:
+   * sai de Disponíveis 2.2 (pátio) e entra em 2.1 (em operação).
+   */
+  function portalMoverReservaPatioParaOperacao(placaReservaRaw) {
+    const plateKey = portalNkPlate(placaReservaRaw);
+    if (!plateKey) return { ok: false, message: "Placa reserva em falta." };
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false, message: "Cadastro indisponível." };
+    }
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    const est = portalResolverEstadoExclusivoPlaca(plateKey);
+    if (est.grupo === "disponiveis" && est.sub === "reserva-operacao") {
+      return { ok: true, placa: plateKey, already: true };
+    }
+    if (est.grupo !== "disponiveis" || est.sub !== "reserva-patio") {
+      return {
+        ok: false,
+        message: est.ok
+          ? `A reserva ${plateKey} precisa estar em «2.2 — Reserva no pátio» (agora: ${est.label}).`
+          : `Placa reserva ${plateKey} não encontrada em Disponíveis.`,
+      };
+    }
+
+    const patch = {
+      disponivelCategoria: "reserva-operacao",
+      categoriaDisponivel: "reserva-operacao",
+      updatedAt: Date.now(),
+    };
+    const keys = [];
+    if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
+    if (typeof PORTAL_VEICULOS_KEY !== "undefined" && !keys.includes(PORTAL_VEICULOS_KEY)) {
+      keys.push(PORTAL_VEICULOS_KEY);
+    }
+    if (typeof FROTA_VEICULOS_KEY !== "undefined" && !keys.includes(FROTA_VEICULOS_KEY)) {
+      keys.push(FROTA_VEICULOS_KEY);
+    }
+
+    let found = false;
+    keys.forEach((key) => {
+      const veiculos = loadCadastro(key);
+      const idx = veiculos.findIndex((v) => portalNkPlate(v.placa) === plateKey);
+      if (idx < 0) return;
+      found = true;
+      veiculos[idx] = { ...veiculos[idx], ...patch };
+      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
+    });
+
+    if (!found) {
+      const cached =
+        (portalVeiculoPlacasCache || []).find((x) => portalNkPlate(x.placa) === plateKey)?.record ||
+        est.veiculo ||
+        null;
+      if (!cached || typeof CAD_VEICULOS_KEY === "undefined") {
+        return { ok: false, message: `Placa ${plateKey} não encontrada no cadastro de veículos.` };
+      }
+      const veiculos = loadCadastro(CAD_VEICULOS_KEY);
+      veiculos.push({
+        ...cached,
+        placa: plateKey,
+        ...patch,
+        origemPortal: true,
+        id: Number(cached.id) || Date.now(),
+      });
+      saveCadastro(CAD_VEICULOS_KEY, veiculos, { bypassImmutabilidadeCadastro: true });
+      found = true;
+    }
+
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    const conf = portalResolverEstadoExclusivoPlaca(plateKey);
+    if (conf.grupo !== "disponiveis" || conf.sub !== "reserva-operacao") {
+      return {
+        ok: false,
+        message: `Falha ao confirmar ${plateKey} em «2.1 — Reserva em operação» (agora: ${conf.label || "desconhecido"}).`,
+      };
+    }
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_reserva_patio_para_operacao", "veiculo", plateKey);
+    }
+    return { ok: true, placa: plateKey, categoria: "reserva-operacao" };
   }
 
   /** Guarda na locação ativa o veículo reserva (ou a opção de não disponibilizar). */
@@ -4570,7 +4672,9 @@
       portalCloseChecklistEnvioManutModal();
       const reservaTxt = r.reservaNaoDisponibilizada
         ? "Sem veículo reserva."
-        : `Reserva: ${r.placaReserva || "—"}.`;
+        : r.placaReserva
+          ? `Reserva ${r.placaReserva}: saiu de 2.2 (pátio) → 2.1 Reserva em operação.`
+          : "Reserva: —.";
       if (dispMsg) {
         dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 0 — Triagem». Motivo: ${r.motivo}. ${reservaTxt}`;
       }
