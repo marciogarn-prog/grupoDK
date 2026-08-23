@@ -4338,6 +4338,7 @@
     const s = document.getElementById("portalChecklistSupervisor");
     if (m) m.value = "";
     if (s) s.value = "";
+    portalRefreshChecklistOdometroUltimo(portalGetPlacaChecklistAtual());
   }
 
   function portalUpdateProximaTrocaKm() {
@@ -5373,7 +5374,93 @@
             ? "O navegador bloqueou a janela do PDF — permita pop-ups para este site."
             : r?.erro || "Não foi possível gerar o PDF.";
       }
+      return;
     }
+    /* Guarda odômetro/data deste check-list para a caixa «Último check-list». */
+    const dataEntrada = String(document.getElementById("portalChecklistEntradaData")?.value || "").trim();
+    portalRegistarChecklistHistorico(dados.placa, form.odometro, dataEntrada);
+    portalRefreshChecklistOdometroUltimo(dados.placa);
+  }
+
+  const PORTAL_CHECKLIST_HISTORICO_KEY = "dk_portal_checklist_historico_v1";
+
+  function portalLoadChecklistHistorico() {
+    if (typeof loadCadastro === "function") return loadCadastro(PORTAL_CHECKLIST_HISTORICO_KEY) || [];
+    try {
+      const raw = localStorage.getItem(PORTAL_CHECKLIST_HISTORICO_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function portalUltimoChecklistPorPlaca(placaRaw) {
+    const plateKey = portalNkPlate(placaRaw);
+    if (!plateKey) return null;
+    const hits = portalLoadChecklistHistorico()
+      .filter((h) => portalNkPlate(h?.placa) === plateKey)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    return hits[0] || null;
+  }
+
+  function portalRegistarChecklistHistorico(placaRaw, odometroRaw, dataRaw) {
+    const plateKey = portalNkPlate(placaRaw);
+    const odometro = String(odometroRaw || "").replace(/\D/g, "");
+    if (!plateKey || !odometro) return { ok: false };
+    let data = String(dataRaw || "").trim();
+    if (!data) {
+      const now = new Date();
+      data = `${String(now.getDate()).padStart(2, "0")}/${String(now.getMonth() + 1).padStart(2, "0")}/${now.getFullYear()}`;
+    }
+    const list = portalLoadChecklistHistorico().filter((h) => portalNkPlate(h?.placa) !== plateKey);
+    list.push({
+      placa: plateKey,
+      odometro,
+      data,
+      createdAt: Date.now(),
+    });
+    /* Mantém histórico recente (outras placas) sem crescer sem limite. */
+    list.sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
+    const trimmed = list.length > 800 ? list.slice(list.length - 800) : list;
+    if (typeof saveCadastro === "function") {
+      saveCadastro(PORTAL_CHECKLIST_HISTORICO_KEY, trimmed, { bypassImmutabilidadeCadastro: true });
+    } else {
+      try {
+        localStorage.setItem(PORTAL_CHECKLIST_HISTORICO_KEY, JSON.stringify(trimmed));
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      try {
+        portalPushCloudSnapshotAfterPersist();
+      } catch {
+        /* ignore */
+      }
+    }
+    return { ok: true, placa: plateKey, odometro, data };
+  }
+
+  function portalFmtOdometroChecklistKm(raw) {
+    const n = parseInt(String(raw || "").replace(/\D/g, ""), 10);
+    if (!Number.isFinite(n) || n < 0) return "";
+    return `${n.toLocaleString("pt-BR")} km`;
+  }
+
+  function portalRefreshChecklistOdometroUltimo(placaRaw) {
+    const box = document.getElementById("portalChecklistOdometroUltimo");
+    const dataEl = document.getElementById("portalChecklistOdometroUltimoData");
+    if (!box) return;
+    const plateKey = portalNkPlate(placaRaw || portalGetPlacaChecklistAtual() || "");
+    const hit = plateKey ? portalUltimoChecklistPorPlaca(plateKey) : null;
+    if (!hit || !hit.odometro) {
+      box.textContent = "—";
+      if (dataEl) dataEl.textContent = plateKey ? "Sem check-list anterior" : "";
+      return;
+    }
+    box.textContent = portalFmtOdometroChecklistKm(hit.odometro) || hit.odometro;
+    if (dataEl) dataEl.textContent = String(hit.data || "").trim() || "";
   }
 
   function portalBindInnerChecklistEvents() {
@@ -5530,6 +5617,7 @@
     mount?.classList.add("portal-checklist-mount--tablet");
     fotosGrid?.classList.remove("hidden");
     portalFillMotivoPrincipalChecklist(plateFmt);
+    portalRefreshChecklistOdometroUltimo(plateFmt);
     portalValidateChecklistCompleto();
     return { ok: true, placa: plateFmt };
   }
@@ -5598,6 +5686,11 @@
           </div>
           <div class="portal-checklist-inline-field">
             <label>Odômetro (km) <input type="number" inputmode="numeric" min="0" step="1" id="portalChecklistOdometro" placeholder="km"></label>
+          </div>
+          <div class="portal-checklist-inline-field portal-checklist-odometro-ultimo" aria-live="polite">
+            <span class="portal-checklist-odometro-ultimo__label">Último check-list (km)</span>
+            <div class="portal-checklist-odometro-ultimo__box" id="portalChecklistOdometroUltimo">—</div>
+            <span class="portal-checklist-odometro-ultimo__data" id="portalChecklistOdometroUltimoData"></span>
           </div>
           <div class="portal-checklist-inline-field">
             <label>Próxima troca (km) <input type="text" id="portalChecklistProximaTroca" readonly tabindex="-1"></label>

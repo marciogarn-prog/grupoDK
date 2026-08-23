@@ -23,6 +23,7 @@ const OFICIAL_GUARD_KEYS = [
   "dk_locacoes_cadastro",
   "dk_locacoes_quadro_geral",
   "dk_manutencoes_cadastro",
+  "dk_portal_checklist_historico_v1",
   "dk_lancamentos_aluguel",
   "dk_lancamentos_aluguel_cadastro",
   "dk_comprovantes_banco",
@@ -85,6 +86,7 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
+      if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       const ymd = oficialRecordYmd(r, k);
       return ymd && ymd >= cutoffYmd;
     });
@@ -311,6 +313,22 @@ function applyDemoCadastroNoShrink(existing, merged) {
   return out;
 }
 
+/** Push parcial: catálogo de documentos nunca encolhe (tombstones preservados). */
+function applyDepositNoShrink(existing, merged) {
+  if (!isObject(existing) || !isObject(merged)) return merged;
+  const out = { ...merged };
+  if (
+    Object.prototype.hasOwnProperty.call(out, "dk_documentos_deposito_v1") &&
+    Object.prototype.hasOwnProperty.call(existing, "dk_documentos_deposito_v1")
+  ) {
+    out.dk_documentos_deposito_v1 = mergeDocumentosDepositoRedis(
+      existing.dk_documentos_deposito_v1,
+      out.dk_documentos_deposito_v1
+    );
+  }
+  return out;
+}
+
 function mergeLocacoesCadastroArrays(existingArr, incomingArr) {
   return mergeLocacoesCadastro(existingArr, incomingArr);
 }
@@ -334,6 +352,54 @@ function mergeComunicacaoOperacaoRedisRecord(prev, next) {
 }
 
 /** Merge documentos CRLV/contrato por id — push parcial não pode apagar outros protocolos. */
+function parseDocumentosDeposito(raw) {
+  if (!raw) return { crlv: [], contrato: [], multa: [] };
+  if (typeof raw === "string") {
+    try {
+      const p = JSON.parse(raw);
+      return p && typeof p === "object" ? p : { crlv: [], contrato: [], multa: [] };
+    } catch {
+      return { crlv: [], contrato: [], multa: [] };
+    }
+  }
+  return raw && typeof raw === "object" ? raw : { crlv: [], contrato: [], multa: [] };
+}
+
+/** Merge CRLV/contrato/multa por id — tombstone e nuvem:true nunca regridem (push parcial). */
+function mergeDocumentosDepositoRedis(existing, incoming) {
+  const ex = parseDocumentosDeposito(existing);
+  const inc = parseDocumentosDeposito(incoming);
+  const out = { crlv: [], contrato: [], multa: [] };
+  for (const cat of ["crlv", "contrato", "multa"]) {
+    const byId = new Map();
+    const push = (e) => {
+      if (!e?.id) return;
+      const prev = byId.get(e.id);
+      if (!prev) {
+        byId.set(e.id, { ...e });
+        return;
+      }
+      const novo =
+        (Date.parse(e.criadoEm || 0) || 0) >= (Date.parse(prev.criadoEm || 0) || 0) ? { ...e } : { ...prev };
+      if (prev.nuvem === true || e.nuvem === true) novo.nuvem = true;
+      if (!novo.statusContrato && (prev.statusContrato || e.statusContrato)) {
+        novo.statusContrato = prev.statusContrato || e.statusContrato;
+      }
+      if (prev.excluido === true || e.excluido === true) {
+        novo.excluido = true;
+        novo.excluidoEm = novo.excluidoEm || prev.excluidoEm || e.excluidoEm;
+      }
+      byId.set(e.id, novo);
+    };
+    (Array.isArray(ex[cat]) ? ex[cat] : []).forEach(push);
+    (Array.isArray(inc[cat]) ? inc[cat] : []).forEach(push);
+    out[cat] = Array.from(byId.values()).sort(
+      (a, b) => (Date.parse(a.criadoEm || 0) || 0) - (Date.parse(b.criadoEm || 0) || 0)
+    );
+  }
+  return out;
+}
+
 function mergeLocacaoDocumentosRedis(existing, incoming) {
   const byId = new Map();
   const pick = (rec) => {
@@ -430,6 +496,15 @@ function mergePayloads(existing, incoming) {
     out.dk_locacao_documentos_v1 = mergeLocacaoDocumentosRedis(
       existing.dk_locacao_documentos_v1,
       incoming.dk_locacao_documentos_v1
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_documentos_deposito_v1") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_documentos_deposito_v1")
+  ) {
+    out.dk_documentos_deposito_v1 = mergeDocumentosDepositoRedis(
+      existing.dk_documentos_deposito_v1,
+      incoming.dk_documentos_deposito_v1
     );
   }
   if (
@@ -551,6 +626,9 @@ module.exports = async function handler(req, res) {
         payload = existingPayload
           ? mergePayloads(existingPayload, lockedIncoming)
           : stripInternalPayloadKeys(lockedIncoming);
+        if (existingPayload) {
+          payload = applyDepositNoShrink(existingPayload, payload);
+        }
         if (channel === "demo" && existingPayload) {
           payload = applyDemoCadastroNoShrink(existingPayload, payload);
         }
