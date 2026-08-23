@@ -38,8 +38,8 @@ async function run() {
       return s?.src || "";
     });
     record(
-      "cache-bust reserva-51-info",
-      /reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas/.test(cacheBust),
+      "cache-bust disponíveis 5.2→5.1",
+      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas/.test(cacheBust),
       cacheBust.split("?")[1] || cacheBust
     );
 
@@ -126,29 +126,40 @@ async function run() {
       const veiculos = loadCadastro(CAD_VEICULOS_KEY);
       const livre = veiculos.find((v) => {
         const placa = nk(v.placa);
-        return placa && String(v.disponivelCategoria || "").includes("reserva") === false;
+        if (!placa || String(v.disponivelCategoria || "").includes("reserva")) return false;
+        if (typeof getPortalResumoVeiculoCardData === "function") {
+          const d = getPortalResumoVeiculoCardData(v);
+          return d?.statusClass === "livre";
+        }
+        return true;
       });
       const placaReserva = nk(livre?.placa) || "TST0A01";
       const placaLocada = "LOC0A99";
-      const idx = veiculos.findIndex((v) => nk(v.placa) === placaReserva);
-      if (idx >= 0) {
-        veiculos[idx] = {
-          ...veiculos[idx],
-          disponivelCategoria: "reserva-operacao",
-          categoriaDisponivel: "reserva-operacao",
-          updatedAt: Date.now(),
-        };
-        saveCadastro(CAD_VEICULOS_KEY, veiculos, { bypassImmutabilidadeCadastro: true });
-      } else {
-        veiculos.push({
-          id: Date.now(),
-          placa: placaReserva,
-          modelo: "RESERVA TESTE",
-          disponivelCategoria: "reserva-operacao",
-          origemPortal: true,
-        });
-        saveCadastro(CAD_VEICULOS_KEY, veiculos, { bypassImmutabilidadeCadastro: true });
-      }
+      const patchReservaOp = {
+        disponivelCategoria: "reserva-operacao",
+        categoriaDisponivel: "reserva-operacao",
+        updatedAt: Date.now(),
+      };
+      const keys = [CAD_VEICULOS_KEY];
+      if (typeof PORTAL_VEICULOS_KEY !== "undefined") keys.push(PORTAL_VEICULOS_KEY);
+      if (typeof FROTA_VEICULOS_KEY !== "undefined") keys.push(FROTA_VEICULOS_KEY);
+      keys.forEach((key) => {
+        const list = loadCadastro(key);
+        const idx = list.findIndex((v) => nk(v.placa) === placaReserva);
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...patchReservaOp };
+          saveCadastro(key, list, { bypassImmutabilidadeCadastro: true });
+        } else if (key === CAD_VEICULOS_KEY) {
+          list.push({
+            id: Date.now(),
+            placa: placaReserva,
+            modelo: "RESERVA TESTE",
+            origemPortal: true,
+            ...patchReservaOp,
+          });
+          saveCadastro(key, list, { bypassImmutabilidadeCadastro: true });
+        }
+      });
       const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
       manutencoes.push({
         id: Date.now() + 1,
@@ -183,23 +194,29 @@ async function run() {
 
     if (seed.ok) {
       await page.locator("#btn-disp-sub-reserva-operacao").click({ timeout: 15000 });
-      await page.waitForTimeout(700);
-      const card = await page.evaluate((placaReserva) => {
-        const el = document.querySelector(
-          `#portalDisponiveisPlacasGrid .portal-reserva-operacao-card[data-placa="${placaReserva}"]`
-        );
+      await page.waitForTimeout(900);
+      const card = await page.evaluate(({ placaReserva, placaLocada }) => {
+        const cards = [...document.querySelectorAll("#portalDisponiveisPlacasGrid .portal-reserva-operacao-card")];
+        const allCards = cards.map((el) => el.getAttribute("data-placa"));
+        const el =
+          cards.find((node) => node.getAttribute("data-placa") === placaReserva) || cards[0] || null;
+        const locada = el?.querySelector(".portal-reserva-operacao-card__locada")?.textContent?.trim() || "";
+        const seeded = Boolean(cards.find((node) => node.getAttribute("data-placa") === placaReserva));
         return {
           found: Boolean(el),
+          seeded,
+          allCards,
           text: el?.textContent?.replace(/\s+/g, " ").trim() || "",
           hasArrow: Boolean(el?.querySelector(".portal-reserva-operacao-card__arrow")),
           reservaOrange: Boolean(el?.querySelector(".portal-reserva-operacao-card__reserva")),
-          locada: el?.querySelector(".portal-reserva-operacao-card__locada")?.textContent?.trim() || "",
+          locada,
+          locadaOk: seeded ? locada === placaLocada : Boolean(locada && locada !== "—"),
         };
-      }, seed.placaReserva);
+      }, { placaReserva: seed.placaReserva, placaLocada: seed.placaLocada });
       record(
         "5.1 cartão reserva ⇒ locada",
-        card.found && card.hasArrow && card.reservaOrange && card.locada === seed.placaLocada,
-        card.text.slice(0, 80)
+        card.found && card.hasArrow && card.reservaOrange && card.locadaOk,
+        card.found ? card.text.slice(0, 80) : `cards=${card.allCards.join(",") || "nenhum"}`
       );
       /* Limpa seed. */
       await page.evaluate((seedData) => {
