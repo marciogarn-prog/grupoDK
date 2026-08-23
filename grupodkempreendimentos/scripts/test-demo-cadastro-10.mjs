@@ -289,6 +289,30 @@ async function verifyBrowserScreens(page) {
     cpfLista.cpfs.filter((c) => !ALLOWED_CPFS.has(c)).join(",") || "ok"
   );
 
+  await clickIfVisible(page, "#operacaoLocacaoPlaca");
+  await page.waitForTimeout(500);
+  const placaLista = await page.evaluate(() => {
+    const btns = [...document.querySelectorAll("#operacaoLocacaoPlacaLista [data-placa]")];
+    return {
+      n: btns.length,
+      placas: btns.map((b) =>
+        String(b.getAttribute("data-placa") || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+      ),
+    };
+  });
+  record(
+    "lista PLACA locação: 10 itens",
+    placaLista.n === 10,
+    `n=${placaLista.n} ${placaLista.placas.slice(0, 12).join(",")}`
+  );
+  record(
+    "lista PLACA locação: só as 10 da imagem",
+    placaLista.n === 10 && placaLista.placas.every((p) => ALLOWED_PLATES.has(p)),
+    placaLista.placas.filter((p) => !ALLOWED_PLATES.has(p)).join(",") || "ok"
+  );
+
   await clickIfVisible(page, "#btn-voltar-operacao-locadora");
   await clickIfVisible(page, "#btn-locadora-localizacao");
   assertTokens("tela Localização", await scrapeVisibleTokens(page));

@@ -3211,6 +3211,7 @@ function getPlanilhaVeiculosEmbutidos() {
 }
 
 function bootstrapCadastroFromBundledSheets() {
+  if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
   try {
     const planilhaClientes = getPlanilhaClientesEmbutidos();
     if (planilhaClientes.length) {
@@ -3256,6 +3257,7 @@ function bootstrapCadastroFromBundledSheets() {
  * Corre depois do seed em veiculos-seed.js para a planilha prevalecer por placa.
  */
 function bootstrapVeiculosFromFinanceiro2026(options) {
+  if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
   const opts = options && typeof options === "object" ? options : {};
   try {
     const planilhaVeiculos = getPlanilhaVeiculosEmbutidos();
@@ -3409,6 +3411,7 @@ const PORTAL_CADASTRO_RECUPERACAO_NOTEBOOK = {
 
 /** Importa o banco único embutido (data/dk-banco-cadastro.js) se o cadastro estiver vazio. */
 function bootstrapFromDkBancoCadastroOnce() {
+  if (window.__DK_IS_DEMO_DEPLOY__ === true) return;
   try {
     if (localStorage.getItem("dk_banco_cadastro_embedded_v1")) return;
     const banco =
@@ -3438,7 +3441,100 @@ function bootstrapDemoCadastrosIfEmpty() {
   return;
 }
 
-const DEMO_CADASTRO_10_LOCAL_KEY = "dk_demo_cadastro_10_local_v1";
+const DEMO_CADASTRO_10_LOCAL_KEY = "dk_demo_cadastro_10_local_v2";
+
+const DEMO_CADASTRO_10_PLACAS = new Set([
+  "UHQ1B38",
+  "UHQ1B08",
+  "SOR1I03",
+  "SOU2I56",
+  "UHQ1C68",
+  "UHR0G21",
+  "UHQ8D58",
+  "UHQ1E58",
+  "UHR0E91",
+  "UHQ8G38",
+]);
+const DEMO_CADASTRO_10_CPFS = new Set([
+  "06843309461",
+  "09505434464",
+  "11512850489",
+  "07534147409",
+  "05705186444",
+  "03793589307",
+  "07795468497",
+  "07771412564",
+  "08350435410",
+  "70274179440",
+]);
+const DEMO_CADASTRO_10_PROTOCOLOS = new Set([
+  "2026031302",
+  "2026031303",
+  "2026031304",
+  "2026031305",
+  "2026031601",
+  "2026031602",
+  "2026031701",
+  "2026031702",
+  "2026031703",
+  "2026031704",
+]);
+const DEMO_CADASTRO_10_MODELOS = {
+  UHQ1B38: "CG 160 START",
+  UHQ1B08: "CG 160 START",
+  SOR1I03: "CG 160 TITAN",
+  SOU2I56: "XY 150-5 JEF S EFI",
+  UHQ1C68: "CG 160 START",
+  UHR0G21: "CG 160 START",
+  UHQ8D58: "CG 160 START",
+  UHQ1E58: "CG 160 START",
+  UHR0E91: "CG 160 START",
+  UHQ8G38: "CG 160 START",
+};
+
+function isDemoCadastro10Mode() {
+  return window.__DK_IS_DEMO_DEPLOY__ === true;
+}
+
+function demoCadastro10ProtocoloKey(value) {
+  return String(value || "").replace(/\D/g, "");
+}
+
+/** Demo: descarta clientes/veículos/locações que não são os 10 da imagem Locados. */
+function capDemoCadastro10LocalArrays() {
+  if (!isDemoCadastro10Mode()) return;
+  const bypass = { bypassImmutabilidadeCadastro: true };
+  const cap = (key, keep) => {
+    const list = loadCadastro(key);
+    if (!Array.isArray(list) || !list.length) return;
+    const next = list.filter(keep);
+    if (next.length !== list.length) saveCadastro(key, next, bypass);
+  };
+  cap(CAD_CLIENTES_KEY, (c) => DEMO_CADASTRO_10_CPFS.has(onlyDigits(String(c.cpf || ""))));
+  cap(CAD_VEICULOS_KEY, (v) => DEMO_CADASTRO_10_PLACAS.has(normalizePlate(v.placa)));
+  cap(CAD_LOCACOES_KEY, (l) =>
+    DEMO_CADASTRO_10_PROTOCOLOS.has(demoCadastro10ProtocoloKey(l.numeroContrato || l.protocolo || ""))
+  );
+  if (typeof PORTAL_CLIENTES_KEY !== "undefined") {
+    cap(PORTAL_CLIENTES_KEY, (c) => DEMO_CADASTRO_10_CPFS.has(onlyDigits(String(c.cpf || ""))));
+  }
+  if (typeof PORTAL_VEICULOS_KEY !== "undefined") {
+    cap(PORTAL_VEICULOS_KEY, (v) => DEMO_CADASTRO_10_PLACAS.has(normalizePlate(v.placa)));
+  }
+  if (typeof FROTA_VEICULOS_KEY !== "undefined") {
+    cap(FROTA_VEICULOS_KEY, (v) => DEMO_CADASTRO_10_PLACAS.has(normalizePlate(v.placa)));
+  }
+}
+
+try {
+  window.__DK_isDemoCadastro10Mode = isDemoCadastro10Mode;
+  window.__DK_DEMO_CADASTRO_10_PLACAS = DEMO_CADASTRO_10_PLACAS;
+  window.__DK_DEMO_CADASTRO_10_CPFS = DEMO_CADASTRO_10_CPFS;
+  window.__DK_DEMO_CADASTRO_10_PROTOCOLOS = DEMO_CADASTRO_10_PROTOCOLOS;
+  window.__DK_capDemoCadastro10LocalArrays = capDemoCadastro10LocalArrays;
+} catch {
+  /* ignore */
+}
 
 /** Uma vez por browser: apaga o cadastro local antigo (planilha) para a nuvem demo de 10 prevalecer. */
 function applyDemoCadastro10LocalWipeOnce() {
@@ -3448,26 +3544,14 @@ function applyDemoCadastro10LocalWipeOnce() {
   } catch {
     return;
   }
-  const bypass = { bypassImmutabilidadeCadastro: true };
   [
-    CAD_CLIENTES_KEY,
     CAD_CLIENTES_VALIDACAO_KEY,
-    CAD_VEICULOS_KEY,
-    PORTAL_CLIENTES_KEY,
-    PORTAL_VEICULOS_KEY,
-    FROTA_VEICULOS_KEY,
-    CAD_LOCACOES_KEY,
     CAD_MANUTENCOES_KEY,
-    CAD_LANCAMENTOS_ALUGUEL_KEY,
   ].forEach((k) => {
     try {
-      saveCadastro(k, [], bypass);
+      localStorage.removeItem(k);
     } catch {
-      try {
-        localStorage.removeItem(k);
-      } catch {
-        /* ignore */
-      }
+      /* ignore */
     }
   });
   [
@@ -4141,6 +4225,26 @@ function refreshLocacaoPlacaOptions() {
  * Fonte de placas ocupadas: cadastro local + Receita 2026 (`getActivePlatesSet`).
  */
 function getVeiculosSemProtocoloAtivo() {
+  if (isDemoCadastro10Mode()) {
+    const byPlate = new Map();
+    loadCadastro(CAD_VEICULOS_KEY).forEach((v) => {
+      const plate = normalizePlate(v.placa);
+      if (!plate || !DEMO_CADASTRO_10_PLACAS.has(plate) || byPlate.has(plate)) return;
+      byPlate.set(plate, v);
+    });
+    DEMO_CADASTRO_10_PLACAS.forEach((plate) => {
+      if (byPlate.has(plate)) return;
+      byPlate.set(plate, {
+        placa: plate,
+        modelo: DEMO_CADASTRO_10_MODELOS[plate] || "",
+      });
+    });
+    return Array.from(byPlate.values()).sort((a, b) => {
+      const byModelo = String(a.modelo || "").localeCompare(String(b.modelo || ""), "pt-BR");
+      if (byModelo !== 0) return byModelo;
+      return normalizePlate(a.placa).localeCompare(normalizePlate(b.placa));
+    });
+  }
   const allVeiculos =
     typeof loadAllVeiculosCadastro === "function"
       ? loadAllVeiculosCadastro()
@@ -5133,7 +5237,11 @@ function getLancamentoClienteCandidates() {
       placa: normalizePlate(String(l.placa || prev.placa || "").trim()) || prev.placa,
     });
   });
-  return Array.from(byCpf.values()).filter((x) => onlyDigits(String(x.cpf || "")).length === 11);
+  let out = Array.from(byCpf.values()).filter((x) => onlyDigits(String(x.cpf || "")).length === 11);
+  if (isDemoCadastro10Mode()) {
+    out = out.filter((x) => DEMO_CADASTRO_10_CPFS.has(onlyDigits(String(x.cpf || ""))));
+  }
+  return out;
 }
 
 function renderLancamentoClienteSugestoes(queryRaw) {
@@ -8009,7 +8117,7 @@ function ensureVeiculosCadastroPopulated() {
   unifyCadastroSingleDatabaseOnce();
   invalidateCadastroParseCache(CAD_VEICULOS_KEY);
   let list = loadCadastro(CAD_VEICULOS_KEY);
-  if (!list.length) {
+  if (!list.length && window.__DK_IS_DEMO_DEPLOY__ !== true) {
     bootstrapFromDkBancoCadastroOnce();
     bootstrapVeiculosFromFinanceiro2026({ force: true });
     invalidateCadastroParseCache(CAD_VEICULOS_KEY);
@@ -15956,6 +16064,7 @@ resetProjetoSomenteCadastrosV3Once();
 enableCadastroManualPortalMode();
 applyInstalacaoLimpaOnce();
 applyDemoCadastro10LocalWipeOnce();
+capDemoCadastro10LocalArrays();
 bootstrapDemoCadastrosIfEmpty();
 if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
   window.__DK_purgeOficialLocalCadastrosAntigos();

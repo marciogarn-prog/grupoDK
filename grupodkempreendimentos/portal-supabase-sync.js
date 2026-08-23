@@ -991,6 +991,13 @@
     }
     normalizeLocacoesContratoAtivoStore();
     runLocacoesSanitizeAfterCloudApply({ light: lightSanitize });
+    if (typeof window.__DK_capDemoCadastro10LocalArrays === "function") {
+      try {
+        window.__DK_capDemoCadastro10LocalArrays();
+      } catch {
+        /* ignore */
+      }
+    }
     if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
       try {
         window.__DK_invalidatePesquisaLinhasCache();
