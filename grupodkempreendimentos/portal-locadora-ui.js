@@ -2562,7 +2562,7 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "");
     if (st.includes("RESERVA") && st.includes("OPERACAO")) return "reserva-operacao";
-    if (st.includes("RESERVA") && (st.includes("PATIO") || st.includes("PÁTIO"))) return "reserva-patio";
+    if (st.includes("RESERVA") && st.includes("PATIO")) return "reserva-patio";
     if (st.includes("RESERVA")) return "reserva-patio";
     return "prontos";
   }
