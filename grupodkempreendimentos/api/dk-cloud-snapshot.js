@@ -107,8 +107,8 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       const protoYmd = locacaoProtocolYmd(r);
-      if (protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
-      if (r && typeof r === "object" && r.cadastroRetroativo === true) {
+      if (String(k).includes("locac") && protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
+      if (r && typeof r === "object" && (r.cadastroRetroativo === true || r.origemPortal === true)) {
         if (String(k).includes("locac")) return protoYmd ? protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD : false;
         return true;
       }
@@ -352,6 +352,25 @@ function applyDemoCadastroNoShrink(existing, merged) {
     const inc = out[k];
     if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
     if (ex.length > 0 && inc.length < ex.length) out[k] = ex;
+  }
+  return out;
+}
+
+/** Oficial: browser com lista vazia não pode apagar clientes/veículos já na nuvem. */
+function applyOficialClientesVeiculosNoShrink(existing, merged) {
+  if (!isObject(existing) || !isObject(merged)) return merged;
+  const out = { ...merged };
+  const keys = [
+    "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_portal_veiculos_cadastro",
+  ];
+  for (const k of keys) {
+    const ex = existing[k];
+    const inc = out[k];
+    if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
+    if (ex.length > inc.length) out[k] = ex;
   }
   return out;
 }
@@ -724,6 +743,7 @@ module.exports = async function handler(req, res) {
           payload = capDemoTenPayload(existingPayload, payload);
         }
         if (channel === "default" && existingPayload) {
+          payload = applyOficialClientesVeiculosNoShrink(existingPayload, payload);
           payload = capOficialVirginProtocolos(existingPayload, payload);
         }
       }

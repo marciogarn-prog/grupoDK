@@ -118,8 +118,8 @@
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
     const cutoff = cutoffYmd || cutoffForKey(key);
     const protoYmd = locacaoProtocolYmd(record);
-    if (protoYmd && protoYmd < locacoesCutoffYmd()) return false;
-    if (record && typeof record === "object" && record.cadastroRetroativo === true) {
+    if (cadastroKeyFamily(key) === "locacao" && protoYmd && protoYmd < locacoesCutoffYmd()) return false;
+    if (record && typeof record === "object" && (record.cadastroRetroativo === true || record.origemPortal === true)) {
       if (cadastroKeyFamily(key) === "locacao") return protoYmd ? protoYmd >= locacoesCutoffYmd() : false;
       return true;
     }
