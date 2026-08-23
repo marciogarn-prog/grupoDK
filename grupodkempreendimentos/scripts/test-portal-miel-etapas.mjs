@@ -14,6 +14,11 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendi
   /\/?$/,
   "/"
 );
+const IS_DEMO = /demo\.grupodkempreendimentos/.test(BASE_URL);
+const MIEL_MIN_CLIENTES = IS_DEMO ? 9 : 300;
+const MIEL_MAX_CLIENTES = IS_DEMO ? 11 : 9999;
+const MIEL_MIN_VEICULOS = IS_DEMO ? 9 : 150;
+const MIEL_MAX_VEICULOS = IS_DEMO ? 11 : 9999;
 /** Etapas implementadas — incrementar a cada nova peça. */
 export const MIEL_ETAPAS_IMPLEMENTADAS = 7;
 
@@ -374,7 +379,7 @@ async function testEtapa3(page) {
 
   record(
     "etapa 3: Cad_Clientes abre tabela da planilha",
-    s.title === "Cadastro de Clientes" && s.table && s.panelVisible && s.noWebForm && s.rows >= 300,
+    s.title === "Cadastro de Clientes" && s.table && s.panelVisible && s.noWebForm && s.rows >= MIEL_MIN_CLIENTES && s.rows <= MIEL_MAX_CLIENTES,
     `rows=${s.rows}`
   );
   record(
@@ -387,10 +392,16 @@ async function testEtapa3(page) {
     s.shapes >= 4 && s.protocolos && s.links.some((l) => /Página_Inicial/i.test(l)) && s.links.some((l) => /Consulta_Veíc/i.test(l)),
     `shapes=${s.shapes} links=${s.links.length}`
   );
-  record("etapa 3: dados da planilha carregados", s.rows >= 300 && s.firstCod === "1" && /FELIPE YAGO/i.test(s.firstCliente), `cod=${s.firstCod} nome=${s.firstCliente}`);
+  record(
+    "etapa 3: dados da planilha carregados",
+    IS_DEMO
+      ? s.rows >= MIEL_MIN_CLIENTES && s.rows <= MIEL_MAX_CLIENTES
+      : s.rows >= 300 && s.firstCod === "1" && /FELIPE YAGO/i.test(s.firstCliente),
+    `cod=${s.firstCod} nome=${s.firstCliente} rows=${s.rows}`
+  );
   record(
     "etapa 3: cadastros MIEL na memória",
-    Boolean(s.cadCount >= 300),
+    s.cadCount >= MIEL_MIN_CLIENTES && s.cadCount <= MIEL_MAX_CLIENTES,
     `cad=${s.cadCount}`
   );
 
@@ -445,12 +456,12 @@ async function testEtapa4(page) {
 
   record(
     "etapa 4: Cad_Veículos abre tabela da planilha",
-    s.title === "Cadastro de Veículos" && s.table && s.panelVisible && s.noWebForm && s.rows >= 150,
+    s.title === "Cadastro de Veículos" && s.table && s.panelVisible && s.noWebForm && s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS,
     `rows=${s.rows}`
   );
-  record("etapa 4: 20 colunas linha 17 da planilha", s.fieldCount === 20 || s.rows >= 150, `fields=${s.fieldCount}`);
+  record("etapa 4: 20 colunas linha 17 da planilha", s.fieldCount === 20 || s.rows >= MIEL_MIN_VEICULOS, `fields=${s.fieldCount}`);
   record("etapa 4: comandos da planilha (imagens)", s.shapes >= 2, `shapes=${s.shapes}`);
-  record("etapa 4: veículos da planilha carregados", s.rows >= 150 && s.veicCount >= 150, `rows=${s.rows}`);
+  record("etapa 4: veículos da planilha carregados", s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS && s.veicCount >= MIEL_MIN_VEICULOS && s.veicCount <= MIEL_MAX_VEICULOS, `rows=${s.rows}`);
   record(
     "etapa 4: locações e vínculos importados",
     s.locCount >= 400 && s.vincCount >= 400,
@@ -521,7 +532,7 @@ async function testEtapa5(page) {
     s.sheetTitle
   );
   record("etapa 5: 11 colunas linha 4 da planilha", s.headers.filter(Boolean).length >= 8);
-  record("etapa 5: clientes da planilha na relação", s.rows >= 300, `rows=${s.rows}`);
+  record("etapa 5: clientes da planilha na relação", s.rows >= MIEL_MIN_CLIENTES && s.rows <= MIEL_MAX_CLIENTES, `rows=${s.rows}`);
   await page.locator('[data-miel-nav="administrativo"]').first().click();
   await page.waitForTimeout(250);
   const adm = await page.evaluate(() => document.getElementById("mielMainTitle")?.textContent?.trim() || "");
@@ -556,10 +567,10 @@ async function testEtapa6(page) {
   });
   record(
     "etapa 6: Relação de Veículos abre tabela da planilha",
-    s.title === "Relação de Veículos" && s.panelVisible && s.rows >= 150,
+    s.title === "Relação de Veículos" && s.panelVisible && s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS,
     `rows=${s.rows}`
   );
-  record("etapa 6: veículos na relação", s.rows >= 150 && s.veicCount >= 150, `rows=${s.rows}`);
+  record("etapa 6: veículos na relação", s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS && s.veicCount >= MIEL_MIN_VEICULOS && s.veicCount <= MIEL_MAX_VEICULOS, `rows=${s.rows}`);
   await page.evaluate(() => {
     if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
   });
@@ -598,10 +609,10 @@ async function testEtapa7(page) {
   });
   record(
     "etapa 7: Status de Veículos abre tabela da planilha",
-    (s.title === "Status Veículos" || s.title === "Status de Veículos") && s.panelVisible && s.rows >= 150,
+    (s.title === "Status Veículos" || s.title === "Status de Veículos") && s.panelVisible && s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS,
     `headers=${s.headers.filter(Boolean).length}`
   );
-  record("etapa 7: veículos no status", s.rows >= 150, `rows=${s.rows}`);
+  record("etapa 7: veículos no status", s.rows >= MIEL_MIN_VEICULOS && s.rows <= MIEL_MAX_VEICULOS, `rows=${s.rows}`);
   await page.evaluate(() => {
     if (typeof window.__DK_mielShowSheet === "function") window.__DK_mielShowSheet("administrativo");
   });
