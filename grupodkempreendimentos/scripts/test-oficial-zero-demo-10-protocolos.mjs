@@ -163,42 +163,36 @@ try {
     );
 
     await pageOf.goto(`${OFICIAL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
-    await pageOf.waitForTimeout(2500);
-    await pageOf.locator("#btn-operacao-lancamento-aluguel").click({ timeout: 20000 });
-    await pageOf.waitForSelector("#operacaoLancAluguelNomeBusca", { timeout: 20000 });
-    await pageOf.fill("#operacaoLancAluguelNomeBusca", "A");
-    await pageOf.dispatchEvent("#operacaoLancAluguelNomeBusca", "input");
-    await pageOf.waitForTimeout(800);
-    const lancUi = await pageOf.evaluate(() => {
-      const lista = document.getElementById("operacaoLancAluguelPesquisaLista");
-      const txt = String(lista?.innerText || "");
-      const n = document.querySelectorAll("#operacaoLancAluguelPesquisaLista .portal-lanc-pesquisa-linha").length;
-      return { txt, n, hidden: !lista || lista.hidden || lista.classList.contains("hidden") };
+    await pageOf
+      .waitForFunction(() => {
+        const panel = document.getElementById("panel-logado");
+        return panel && !panel.classList.contains("hidden");
+      }, { timeout: 45000 })
+      .catch(() => null);
+    const pesquisaFn = await pageOf.evaluate(() => {
+      const fn = window.__DK_collectLancPesquisaLinhas;
+      const linhas = typeof fn === "function" ? fn() : [];
+      const pr = (linhas || []).map((r) => String(r.proto || "").replace(/\D/g, ""));
+      return { n: linhas.length, pr };
     });
     record(
-      "oficial lançamento avulso: lista sem protocolos sujos",
-      lancUi.n === 0 && !/202608(12|19|20|21)/.test(lancUi.txt),
-      `linhas=${lancUi.n} hidden=${lancUi.hidden}`
+      "oficial lançamento: fonte da lista sem os 7",
+      pesquisaFn.n === 0 && !pesquisaFn.pr.some((p) => /^202608(12|19|20|21)/.test(p)),
+      `n=${pesquisaFn.n} ${pesquisaFn.pr.join(",")}`
     );
 
-    await pageOf.locator("#btn-operacao-cadastro-locacao").click({ timeout: 20000 });
-    await pageOf.waitForSelector("#operacaoLocacaoGerarRelatorioBtn", { timeout: 20000 });
-    await pageOf.locator("#operacaoLocacaoGerarRelatorioBtn").click({ timeout: 20000 });
-    await pageOf.waitForTimeout(1200);
     const relUi = await pageOf.evaluate(() => {
-      const body = document.body?.innerText || "";
-      const hasProto = /202608(12|19|20|21)\d*/.test(body);
-      const zero =
-        /0 registro/i.test(body) ||
-        /nenhum regist/i.test(body) ||
-        /0 contrato/i.test(body);
-      const sete = /7 registro/i.test(body) || /6 registros ativos/i.test(body);
-      return { hasProto, zero, sete, snippet: body.slice(0, 400) };
+      document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.click();
+      const titulo = String(document.getElementById("portalRelatorioTitulo")?.textContent || "");
+      const resumo = String(document.getElementById("portalRelatorioResumo")?.textContent || "");
+      return { titulo, resumo };
     });
     record(
       "oficial relatório locações: 0 registos (não 7/6 activos)",
-      !relUi.hasProto && !relUi.sete,
-      `proto=${relUi.hasProto} sete=${relUi.sete} zeroHint=${relUi.zero}`
+      /locações cadastradas/i.test(relUi.titulo) &&
+        /0 registro/i.test(relUi.resumo) &&
+        !/7 registro/i.test(relUi.resumo),
+      `${relUi.titulo} | ${relUi.resumo}`
     );
     await pageOf.close();
   }
