@@ -2352,15 +2352,15 @@
   const MANUT_LOCADO_SUB_META = {
     "minha-moto": {
       title: "Locados — 1 Plano DK Minha Moto",
-      lead: "Check-list para veículos locados no plano DK Minha Moto.",
+      lead: "Pesquise a placa e encaminhe para manutenção.",
     },
     "meu-transporte": {
       title: "Locados — 2 Plano DK Meu Transporte",
-      lead: "Check-list para veículos locados no plano DK Meu Transporte.",
+      lead: "Pesquise a placa e encaminhe para manutenção.",
     },
     carros: {
       title: "Locados — 3 Plano Carros",
-      lead: "Check-list para veículos locados no plano Carros.",
+      lead: "Pesquise a placa e encaminhe para manutenção.",
     },
   };
 
@@ -2879,10 +2879,9 @@
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
     portalAttachChecklistWorkspace("operacao");
-    portalEnsureChecklistUiBuilt();
-    const mount = document.getElementById("portalChecklistMount");
-    mount?.classList.remove("hidden");
-    mount?.classList.add("portal-checklist-mount--tablet");
+    /* Locados: só pesquisa de placa + enviar para manutenção (sem check-list). */
+    document.getElementById("portalChecklistMount")?.classList.add("hidden");
+    document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
     const inp = document.getElementById("portalChecklistPlacaInput");
     window.setTimeout(() => {
       inp?.focus();
@@ -3083,10 +3082,59 @@
     }
   }
 
+  function portalSyncLocadosEnviarManutBtn() {
+    const btn = document.getElementById("portalChecklistBtnEnviarManutLocados");
+    if (!btn) return;
+    if (portalChecklistIsManutencaoMode()) {
+      btn.disabled = true;
+      return;
+    }
+    const placa = portalNkPlate(document.getElementById("portalChecklistPlacaInput")?.value || "");
+    const inList = Boolean(placa) && (portalChecklistPlacasAtivasCache || []).some((x) => x.placa === placa);
+    btn.disabled = !inList;
+  }
+
+  function portalSelectPlacaLocados(placaRaw) {
+    const placa = portalNkPlate(placaRaw);
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    if (inp) inp.value = placa;
+    const field = document.getElementById("portalChecklistFieldPlaca");
+    if (field) field.value = placa;
+    hidePortalChecklistPlacaDropdown();
+    const msg = document.getElementById("portalChecklistLocadosMsg");
+    if (msg) {
+      msg.textContent = placa
+        ? `Placa ${placa} selecionada. Pode encaminhar para manutenção.`
+        : "";
+    }
+    portalSyncLocadosEnviarManutBtn();
+  }
+
   function portalApplyChecklistModeUi() {
     const btnDev = document.getElementById("portalChecklistBtnDevolvido");
     const btnDisp = document.getElementById("portalChecklistBtnManutencao");
     const isManut = portalChecklistIsManutencaoMode();
+    const ws = document.getElementById("portalChecklistWorkspace");
+    ws?.classList.toggle("portal-checklist-workspace--locados-simples", !isManut);
+    const locadosActions = document.getElementById("portalChecklistLocadosActions");
+    if (locadosActions) {
+      locadosActions.classList.toggle("hidden", isManut);
+      locadosActions.hidden = isManut;
+    }
+    const manutActions = document.getElementById("portalChecklistPlacaActionsManut");
+    if (manutActions) {
+      manutActions.classList.toggle("hidden", !isManut);
+      manutActions.hidden = !isManut;
+    }
+    const toolbar = document.getElementById("portalChecklistToolbar");
+    if (toolbar) {
+      toolbar.classList.toggle("hidden", !isManut);
+      toolbar.hidden = !isManut;
+    }
+    const labelTxt = document.getElementById("portalChecklistPlacaLabelText");
+    if (labelTxt) {
+      labelTxt.textContent = isManut ? "Placa da moto" : "Pesquisar placa";
+    }
     if (btnDev) {
       btnDev.classList.toggle("hidden", isManut);
       btnDev.hidden = isManut;
@@ -3099,14 +3147,20 @@
     if (placaInp) {
       placaInp.placeholder = isManut
         ? "Escolha ou digite a placa"
-        : "Digite ou escolha na lista";
+        : "Digite ou escolha a placa";
     }
     const catWrap = document.getElementById("portalChecklistCategoriaMove");
     if (catWrap) {
       catWrap.classList.toggle("hidden", !isManut);
       catWrap.hidden = !isManut;
     }
-    portalValidateChecklistCompleto();
+    if (isManut) {
+      portalValidateChecklistCompleto();
+    } else {
+      document.getElementById("portalChecklistMount")?.classList.add("hidden");
+      document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
+      portalSyncLocadosEnviarManutBtn();
+    }
   }
 
   function portalAttachChecklistWorkspace(mode) {
@@ -3138,7 +3192,10 @@
     if (fotoMsg) fotoMsg.textContent = "";
     const disp = document.getElementById("portalChecklistDispositionMsg");
     if (disp) disp.textContent = "";
+    const locMsg = document.getElementById("portalChecklistLocadosMsg");
+    if (locMsg) locMsg.textContent = "";
     hidePortalChecklistPlacaDropdown();
+    portalSyncLocadosEnviarManutBtn();
   }
 
   function hidePortalChecklistPlacaDropdown() {
@@ -3223,10 +3280,21 @@
       inp.value = String(inp.value || "").toUpperCase();
       if (!portalChecklistPlacasAtivasCache.length) refreshPortalChecklistPlacasAtivasCache();
       renderPortalChecklistPlacaDropdown(inp.value);
+      if (!portalChecklistIsManutencaoMode()) {
+        portalSyncLocadosEnviarManutBtn();
+        const msg = document.getElementById("portalChecklistLocadosMsg");
+        if (msg && !portalNkPlate(inp.value)) msg.textContent = "";
+      }
     });
 
     inp.addEventListener("keydown", (e) => {
       if (e.key === "Escape") hidePortalChecklistPlacaDropdown();
+      if (e.key === "Enter" && !portalChecklistIsManutencaoMode()) {
+        e.preventDefault();
+        const placa = portalNkPlate(inp.value);
+        const hit = (portalChecklistPlacasAtivasCache || []).find((x) => x.placa === placa);
+        if (hit) portalSelectPlacaLocados(hit.placa);
+      }
     });
 
     panel.addEventListener("mousedown", (e) => {
@@ -3238,9 +3306,13 @@
       if (!btn || !inp) return;
       const placa = String(btn.getAttribute("data-placa") || "").trim();
       if (!placa) return;
-      inp.value = placa;
-      hidePortalChecklistPlacaDropdown();
-      portalCarregarChecklistPorPlaca(placa);
+      if (portalChecklistIsManutencaoMode()) {
+        inp.value = placa;
+        hidePortalChecklistPlacaDropdown();
+        portalCarregarChecklistPorPlaca(placa);
+      } else {
+        portalSelectPlacaLocados(placa);
+      }
     });
 
     document.addEventListener(
@@ -3724,13 +3796,23 @@
       if (dispMsg) {
         dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 1 — Oficina própria». Motivo: ${r.motivo}.`;
       }
+      const locMsg = document.getElementById("portalChecklistLocadosMsg");
+      if (locMsg) {
+        locMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 1 — Oficina própria».`;
+      }
       portalClearChecklistInspection();
       document.getElementById("portalChecklistMount")?.classList.add("hidden");
       document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
       const placaInp = document.getElementById("portalChecklistPlacaInput");
       if (placaInp) placaInp.value = "";
+      const fieldPlaca = document.getElementById("portalChecklistFieldPlaca");
+      if (fieldPlaca) fieldPlaca.value = "";
       refreshPortalChecklistPlacasAtivasCache();
-      portalValidateChecklistCompleto();
+      if (portalChecklistIsManutencaoMode()) {
+        portalValidateChecklistCompleto();
+      } else {
+        portalSyncLocadosEnviarManutBtn();
+      }
       portalRefreshManutencaoVeiculosLista();
     });
     document.addEventListener("keydown", (ev) => {
@@ -3744,6 +3826,27 @@
   }
 
   portalBindChecklistEnvioManutModalOnce();
+
+  function portalBindLocadosEnviarManutOnce() {
+    if (window.__dkPortalLocadosEnviarManutBound) return;
+    window.__dkPortalLocadosEnviarManutBound = true;
+    document.getElementById("portalChecklistBtnEnviarManutLocados")?.addEventListener("click", () => {
+      if (portalChecklistIsManutencaoMode()) return;
+      const placa = portalNkPlate(document.getElementById("portalChecklistPlacaInput")?.value || "");
+      const inList = Boolean(placa) && (portalChecklistPlacasAtivasCache || []).some((x) => x.placa === placa);
+      const msg = document.getElementById("portalChecklistLocadosMsg");
+      if (!inList) {
+        if (msg) msg.textContent = "Escolha uma placa da lista deste plano.";
+        portalSyncLocadosEnviarManutBtn();
+        return;
+      }
+      const field = document.getElementById("portalChecklistFieldPlaca");
+      if (field) field.value = placa;
+      portalOpenChecklistEnvioManutModal();
+    });
+  }
+
+  portalBindLocadosEnviarManutOnce();
 
   /** Move a placa do check-list para outra das 4 categorias de manutenção. */
   function portalMoverChecklistCategoriaManutencao(categoriaRaw) {
