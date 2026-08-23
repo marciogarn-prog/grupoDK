@@ -564,9 +564,10 @@ async function runSuite() {
       const clientesOf = pOf.dk_clientes_cadastro || [];
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
-        "oficial: nuvem com clientes retroativos (sem veículos/locações)",
-        retroOf.length >= 200 &&
-          (pOf.dk_veiculos_cadastro || []).length === 0 &&
+        "oficial: nuvem 369 clientes, 186 veículos, 0 protocolos",
+        clientesOf.length === 369 &&
+          retroOf.length >= 20 &&
+          (pOf.dk_veiculos_cadastro || []).length === 186 &&
           (pOf.dk_locacoes_cadastro || []).length === 0,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
