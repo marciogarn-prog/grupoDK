@@ -4164,19 +4164,26 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   font-weight: 600;
 }
 
-.portal-reserva-operacao-card__models,
+.portal-reserva-operacao-card__models {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.45rem;
+  margin-top: 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.25;
+}
+
 .portal-reserva-operacao-card__cliente {
   display: block;
-  margin-top: 0.25rem;
+  margin-top: 0.12rem;
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0;
   color: var(--muted, #a8b0bc);
   line-height: 1.2;
-}
-
-.portal-reserva-operacao-card__cliente {
-  margin-top: 0.12rem;
 }
 
 /* Operação — WhatsApp clientes ativos */

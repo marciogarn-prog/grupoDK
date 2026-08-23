@@ -5285,7 +5285,6 @@
           const cob = portalResolverCoberturaReservaOperacao(r.placa);
           const locada = cob?.placaLocada || "";
           const plano = cob?.plano || "minha-moto";
-          const modeloLoc = locada ? portalModeloVeiculoPorPlaca(locada) : "";
           const nomeCliente = String(cob?.nomeCliente || "").trim();
           const title = locada
             ? `${r.placa} (reserva) ⇒ ${locada} (em manutenção)${nomeCliente ? ` · ${nomeCliente}` : ""}`
@@ -5295,15 +5294,25 @@
             <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--${portalEscapeHtml(plano)}">${portalEscapeHtml(locada)}</span>`
             : `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
             <span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--muted">—</span>`;
-          const modelLine = [r.modelo !== "—" ? r.modelo : "", modeloLoc]
-            .filter(Boolean)
-            .join(" · ");
+          const modeloReserva = portalResolveModeloVeiculoPorPlaca(r.placa, r.record);
+          const modeloLocada = locada
+            ? portalResolveModeloVeiculoPorPlaca(locada) || modeloLoc || "—"
+            : "";
+          const modelosHtml = `<div class="portal-reserva-operacao-card__models">
+            <span class="portal-reserva-operacao-card__reserva">${portalEscapeHtml(modeloReserva)}</span>
+            <span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
+            ${
+              locada
+                ? `<span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--${portalEscapeHtml(plano)}">${portalEscapeHtml(modeloLocada || "—")}</span>`
+                : `<span class="portal-reserva-operacao-card__locada portal-reserva-operacao-card__locada--muted">—</span>`
+            }
+          </div>`;
           return `<div class="portal-reserva-placa-item portal-reserva-operacao-card" role="listitem" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
           <div class="portal-reserva-operacao-card__body">
             <span class="portal-reserva-operacao-card__reserva">${portalEscapeHtml(r.placa)}</span>
             ${locadaHtml}
           </div>
-          ${modelLine ? `<span class="portal-reserva-operacao-card__models">${portalEscapeHtml(modelLine)}</span>` : ""}
+          ${modelosHtml}
           ${nomeCliente ? `<span class="portal-reserva-operacao-card__cliente">${portalEscapeHtml(nomeCliente)}</span>` : ""}
         </div>`;
         })
