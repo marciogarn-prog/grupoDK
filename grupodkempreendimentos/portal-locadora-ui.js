@@ -3551,6 +3551,23 @@
     portalSyncLocadosEnviarManutBtn();
   }
 
+  function portalSyncOficinaPlacaBarVisibility() {
+    const isOficina = portalChecklistIsOficinaPropriaMode();
+    const linhaTopo = document.getElementById("portalChecklistPlacaLinhaTopo");
+    const placaBar = document.getElementById("portalChecklistPlacaBar");
+    const mount = document.getElementById("portalChecklistMount");
+    const mountOpen = mount && !mount.classList.contains("hidden");
+    if (linhaTopo) {
+      linhaTopo.classList.toggle("hidden", isOficina);
+      linhaTopo.hidden = isOficina;
+    }
+    if (placaBar) {
+      const hideBar = isOficina && !mountOpen;
+      placaBar.classList.toggle("hidden", hideBar);
+      placaBar.hidden = hideBar;
+    }
+  }
+
   function portalApplyChecklistModeUi() {
     const btnDev = document.getElementById("portalChecklistBtnDevolvido");
     const btnDisp = document.getElementById("portalChecklistBtnManutencao");
@@ -3637,6 +3654,7 @@
       portalEnsureManutSimplesActionsVisible(false);
       portalSyncLocadosEnviarManutBtn();
     }
+    portalSyncOficinaPlacaBarVisibility();
   }
 
   /** Botões «Encaminhar após check-list»: só em Oficina própria (não em Triagem). */
@@ -3766,6 +3784,7 @@
     hidePortalChecklistPlacaDropdown();
     portalHideReservaPlacaDropdown();
     portalSyncLocadosEnviarManutBtn();
+    portalSyncOficinaPlacaBarVisibility();
   }
 
   function hidePortalChecklistPlacaDropdown() {
@@ -6013,6 +6032,7 @@
     portalRefreshChecklistOdometroUltimo(plateFmt);
     portalApplyChecklistPlanoCores(plateFmt);
     portalValidateChecklistCompleto();
+    portalSyncOficinaPlacaBarVisibility();
     return { ok: true, placa: plateFmt };
   }
 

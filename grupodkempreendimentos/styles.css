@@ -3176,6 +3176,10 @@ body {
   display: none !important;
 }
 
+.portal-checklist-workspace--oficina-propria #portalChecklistPlacaLinhaTopo {
+  display: none !important;
+}
+
 .portal-oficina-propria-placas {
   margin: 0 0 0.85rem;
   grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
