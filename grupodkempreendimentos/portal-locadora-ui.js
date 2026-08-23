@@ -2940,7 +2940,7 @@
     const rows = [];
     const push = (placaRaw) => {
       const placa = portalNkPlate(placaRaw);
-      if (!placa || seen.has(placa)) return;
+      if (!placa || seen.has(placa) || !portalDemoCadastro10AllowPlate(placa)) return;
       seen.add(placa);
       const est = portalResolverEstadoExclusivoPlaca(placa);
       if (!est.ok && est.grupo !== "indisponivel") return;
@@ -3317,6 +3317,12 @@
   /** Placas do check-list (locados = locação ativa filtrada por plano; manutenção = manutenção aberta). */
   let portalChecklistPlacasAtivasCache = [];
 
+  /** Demo: só as 10 placas da imagem Locados. Oficial não filtra. */
+  function portalDemoCadastro10AllowPlate(placaRaw) {
+    if (window.__DK_IS_DEMO_DEPLOY__ !== true || !window.__DK_DEMO_CADASTRO_10_PLACAS) return true;
+    return window.__DK_DEMO_CADASTRO_10_PLACAS.has(portalNkPlate(placaRaw));
+  }
+
   function portalChecklistIsManutencaoMode() {
     return portalChecklistMode === "manutencao";
   }
@@ -3384,7 +3390,7 @@
           .filter((m) => portalManutRegistroNaCategoria(m, sub))
           .forEach((m) => {
             const plateKey = portalNkPlate(m.placa);
-            if (!plateKey || seen.has(plateKey)) return;
+            if (!plateKey || seen.has(plateKey) || !portalDemoCadastro10AllowPlate(plateKey)) return;
             seen.add(plateKey);
             const v = vmap?.get(plateKey);
             const modelo = portalResolveModeloVeiculoPorPlaca(plateKey, v, m);
@@ -3397,7 +3403,7 @@
       const planoFiltro = portalManutLocadoSubAtivo || "minha-moto";
       activeSet.forEach((plateKey) => {
         /* Já em manutenção → sai da lista de Locados (área da placa). */
-        if (manutSet.has(plateKey)) return;
+        if (manutSet.has(plateKey) || !portalDemoCadastro10AllowPlate(plateKey)) return;
         const est = portalResolverEstadoExclusivoPlaca(plateKey);
         if (est.grupo !== "locados") return;
         const v = vmap?.get(plateKey) || est.veiculo;
@@ -6014,7 +6020,7 @@
     const veiculos = (portalVeiculoPlacasCache || []).map((x) => x.record).filter(Boolean);
     return veiculos.filter((v) => {
       const plateKey = portalNkPlate(v?.placa);
-      if (!plateKey || manutSet.has(plateKey)) return false;
+      if (!plateKey || manutSet.has(plateKey) || !portalDemoCadastro10AllowPlate(plateKey)) return false;
       const est = portalResolverEstadoExclusivoPlaca(plateKey);
       return est.grupo === "disponiveis";
     });
