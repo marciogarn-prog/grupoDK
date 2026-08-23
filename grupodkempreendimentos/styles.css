@@ -3383,7 +3383,8 @@ body.portal-checklist-clipboard-mode .portal-checklist-clipboard-body {
   transform: none !important;
 }
 
-body.portal-checklist-clipboard-mode .portal-checklist-meta-grid {
+body.portal-checklist-clipboard-mode .portal-checklist-meta-grid,
+body.portal-checklist-clipboard-mode .portal-checklist-ops-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: calc(0.22rem * var(--cl-compact)) calc(0.45rem * var(--cl-compact));
@@ -3394,7 +3395,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-meta-grid {
 
 body.portal-checklist-clipboard-mode .portal-checklist-dates {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: calc(0.22rem * var(--cl-compact)) calc(0.45rem * var(--cl-compact));
   margin-bottom: calc(0.28rem * var(--cl-compact));
   width: 100%;
@@ -3402,6 +3403,8 @@ body.portal-checklist-clipboard-mode .portal-checklist-dates {
 }
 
 body.portal-checklist-clipboard-mode .portal-checklist-meta-grid label,
+body.portal-checklist-clipboard-mode .portal-checklist-ops-grid label,
+body.portal-checklist-clipboard-mode .portal-checklist-ops-grid .portal-checklist-toggle-field,
 body.portal-checklist-clipboard-mode .portal-checklist-dates label,
 body.portal-checklist-clipboard-mode .portal-checklist-inline-field label {
   font-size: calc(0.72rem * var(--cl-compact));
@@ -3409,11 +3412,17 @@ body.portal-checklist-clipboard-mode .portal-checklist-inline-field label {
 }
 
 body.portal-checklist-clipboard-mode .portal-checklist-meta-grid input,
+body.portal-checklist-clipboard-mode .portal-checklist-ops-grid input,
+body.portal-checklist-clipboard-mode .portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
+body.portal-checklist-clipboard-mode .portal-checklist-ops-grid .portal-checklist-toggle-options,
 body.portal-checklist-clipboard-mode .portal-checklist-dates input,
 body.portal-checklist-clipboard-mode .portal-checklist-inline-field input,
 body.portal-checklist-clipboard-mode .portal-checklist-obs-input,
 body.portal-checklist-clipboard-mode .portal-checklist-staff-row select {
-  padding: calc(0.22rem * var(--cl-compact)) calc(0.35rem * var(--cl-compact));
+  height: calc(2.15rem * var(--cl-compact));
+  min-height: calc(2.15rem * var(--cl-compact));
+  max-height: calc(2.15rem * var(--cl-compact));
+  padding: 0 calc(0.35rem * var(--cl-compact));
   font-size: calc(0.85rem * var(--cl-compact));
   width: 100%;
   min-width: 0;
@@ -3584,68 +3593,66 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   }
 }
 
-.portal-checklist-meta-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-  gap: 0.65rem 1rem;
-  margin-bottom: 1rem;
-}
-
-.portal-checklist-meta-grid label,
-.portal-checklist-dates label,
-.portal-checklist-inline-field label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 0.88rem;
-}
-
-.portal-checklist-meta-grid input,
-.portal-checklist-dates input,
-.portal-checklist-inline-field input,
-.portal-checklist-obs-input {
-  padding: 0.45rem 0.55rem;
-  font-size: 1rem;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
-  color: inherit;
-}
-
-.portal-checklist-dates {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
-  gap: 0.65rem 1rem;
-  margin-bottom: 1rem;
-}
-
+.portal-checklist-meta-grid,
 .portal-checklist-ops-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.65rem 1rem;
   margin-bottom: 1rem;
   align-items: start;
+  width: 100%;
 }
 
+.portal-checklist-meta-grid > label,
 .portal-checklist-ops-grid > label,
-.portal-checklist-toggle-field {
+.portal-checklist-ops-grid > .portal-checklist-toggle-field,
+.portal-checklist-dates label,
+.portal-checklist-inline-field label {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
   font-size: 0.88rem;
+  min-width: 0;
+  width: 100%;
 }
 
+/* Mesma altura/largura da caixinha «Plano» em todo o bloco do check-list. */
+.portal-checklist-meta-grid input,
 .portal-checklist-ops-grid input,
+.portal-checklist-ops-grid select,
+.portal-checklist-dates input,
+.portal-checklist-inline-field input,
+.portal-checklist-obs-input,
 .portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
-.portal-checklist-obs-select {
-  padding: 0.45rem 0.55rem;
+.portal-checklist-ops-grid .portal-checklist-toggle-options {
+  height: 2.5rem;
+  min-height: 2.5rem;
+  max-height: 2.5rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 0.55rem;
   font-size: 1rem;
+  line-height: 1.2;
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: rgba(255, 255, 255, 0.06);
   color: inherit;
-  width: 100%;
-  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.portal-checklist-meta-grid input[type="time"],
+.portal-checklist-ops-grid input[type="time"] {
+  padding-right: 0.35rem;
+}
+
+.portal-checklist-dates {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin-bottom: 1rem;
 }
 
 .portal-checklist-odometro-ultimo {
@@ -3654,7 +3661,6 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
 .portal-checklist-odometro-ultimo__box {
   margin-top: 0;
-  min-height: 2.35rem;
   display: flex;
   align-items: center;
   font-variant-numeric: tabular-nums;
@@ -3666,18 +3672,17 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   font-size: 0.72rem;
   line-height: 1.2;
   color: var(--muted, #a8b0bc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .portal-checklist-toggle-field .portal-checklist-toggle-options {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 0.55rem 0.85rem;
-  padding: 0.45rem 0.55rem;
-  min-height: 2.35rem;
   align-items: center;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
 }
 
 .portal-checklist-toggle-field .portal-checklist-toggle-options label {
@@ -3687,6 +3692,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   gap: 0.35rem;
   margin: 0;
   font-size: 0.92rem;
+  white-space: nowrap;
 }
 
 .portal-checklist-obs-wrap {
@@ -3702,7 +3708,9 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 }
 
 @media (max-width: 900px) {
-  .portal-checklist-ops-grid {
+  .portal-checklist-meta-grid,
+  .portal-checklist-ops-grid,
+  .portal-checklist-dates {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
