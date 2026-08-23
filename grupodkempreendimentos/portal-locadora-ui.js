@@ -9510,7 +9510,7 @@
     } else if (context.fileSlug === "veiculos" && context.stats) {
       const tot = (context.stats.inativos || 0) + (context.stats.ativos || 0);
       resumo.textContent = tot
-        ? `Inativos: ${context.stats.inativos} · Locados: ${context.stats.ativos}. Lista abaixo; exportar em PDF ou Excel.`
+        ? `${tot} veículo(s) no cadastro · Inativos: ${context.stats.inativos} · Locados: ${context.stats.ativos}. Exportar em PDF ou Excel.`
         : "Nenhum veículo neste navegador. Use Guardar veículo, Carregar da nuvem ou importar backup JSON.";
     } else {
       resumo.textContent = `${context.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
@@ -9783,10 +9783,17 @@
   }
 
   function getPortalRelatorioClienteContext() {
-    // Lista única: dados dos bundles (cresce a cada export/sync para o site) fundidos com dk_clientes_cadastro deste navegador.
-    const bundledSnapshot = getPortalClientesBundledSnapshot();
+    const isOficial =
+      typeof window.__DK_isOficialCadastroGuardActive === "function"
+        ? window.__DK_isOficialCadastroGuardActive()
+        : window.__DK_IS_DEMO_DEPLOY__ !== true;
+    const bundledSnapshot = isOficial ? [] : getPortalClientesBundledSnapshot();
     const bundledFallbackSeed =
-      typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData) ? clientesSeedData : [];
+      isOficial
+        ? []
+        : typeof clientesSeedData !== "undefined" && Array.isArray(clientesSeedData)
+          ? clientesSeedData
+          : [];
     const bundledRows =
       bundledSnapshot.length > 0
         ? bundledSnapshot
@@ -10559,7 +10566,7 @@
       .portal-relatorio-veiculos-vazio{font-style:italic;color:#666}
     </style></head><body>
       <h1>Relatório da frota — veículos por tag</h1>
-      <p class="meta">Emitido em ${eh(quando)} · Inativos: ${eh(String(nIn))} · Locados: ${eh(String(nAt))}</p>
+      <p class="meta">Emitido em ${eh(quando)} · ${eh(String(nIn + nAt))} veículo(s) · Inativos: ${eh(String(nIn))} · Locados: ${eh(String(nAt))}</p>
       ${inner}
     </body></html>`;
       },
