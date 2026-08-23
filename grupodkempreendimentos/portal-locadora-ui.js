@@ -2698,8 +2698,11 @@
       }
     } else if (typeof getActivePlatesSet === "function") {
       const activeSet = getActivePlatesSet();
+      const manutSet = getPortalPlacasEmManutencaoSet();
       const planoFiltro = portalManutLocadoSubAtivo || "minha-moto";
       activeSet.forEach((plateKey) => {
+        /* Já em manutenção → sai da lista de Locados (área da placa). */
+        if (manutSet.has(plateKey)) return;
         const v = vmap?.get(plateKey);
         if (portalClassificarPlanoLocado(plateKey, v) !== planoFiltro) return;
         const modelo =
@@ -3253,12 +3256,14 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  function portalEnviarChecklistParaManutencao(categoriaRaw) {
+  function portalEnviarChecklistParaManutencao(categoriaRaw, motivoRaw) {
     const placaRaw = portalGetPlacaChecklistAtual();
     if (!placaRaw) return { ok: false, message: "Placa em falta." };
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
       return { ok: false, message: "Cadastro indisponível neste ambiente." };
     }
+    const motivo = String(motivoRaw || "").trim();
+    if (!motivo) return { ok: false, message: "Informe o motivo principal." };
     const placaKey = portalNkPlate(placaRaw);
     const categoria = portalNormManutCategoria(categoriaRaw) || "oficina-propria";
     const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
@@ -3271,12 +3276,13 @@
     const data = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
     const dataPrevistaSaida = portalBrDatePlusDays(7);
     const servicosSelecionados = ["PORTAL_CHECKLIST"];
-    const servico = "Portal check-list — enviado para manutenção";
+    const servico = `Portal check-list — ${motivo}`;
     manutencoes.push({
       id: Date.now(),
       placa: placaKey || String(placaRaw).trim().toUpperCase(),
       servicos: servicosSelecionados,
       servico,
+      motivoPrincipal: motivo,
       data,
       dataPrevistaSaida,
       dataRealSaida: "",
@@ -3295,8 +3301,98 @@
         /* ignore */
       }
     }
-    return { ok: true, placa: placaKey, categoria };
+    return { ok: true, placa: placaKey, categoria, motivo };
   }
+
+  function portalCloseChecklistEnvioManutModal() {
+    const modal = document.getElementById("portalChecklistEnvioManutModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
+    if (motivo) motivo.value = "";
+    const msg = document.getElementById("portalChecklistEnvioManutMsg");
+    if (msg) msg.textContent = "";
+    const btn = document.getElementById("portalChecklistEnvioManutEnviarBtn");
+    if (btn) btn.disabled = true;
+  }
+
+  function portalSyncChecklistEnvioManutEnviarBtn() {
+    const motivo = String(document.getElementById("portalChecklistEnvioManutMotivo")?.value || "").trim();
+    const btn = document.getElementById("portalChecklistEnvioManutEnviarBtn");
+    if (btn) btn.disabled = !motivo;
+  }
+
+  function portalOpenChecklistEnvioManutModal() {
+    const modal = document.getElementById("portalChecklistEnvioManutModal");
+    if (!modal) return;
+    const placa = portalNkPlate(portalGetPlacaChecklistAtual());
+    const info = document.getElementById("portalChecklistEnvioManutInfo");
+    if (info) {
+      info.innerHTML = placa
+        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 1 — Oficina própria</strong> e deixará de aparecer na lista de placas locadas.`
+        : `O veículo será enviado para <strong>Em manutenção → 1 — Oficina própria</strong> e deixará de aparecer na lista de placas locadas.`;
+    }
+    const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
+    if (motivo) motivo.value = "";
+    const msg = document.getElementById("portalChecklistEnvioManutMsg");
+    if (msg) msg.textContent = "";
+    portalSyncChecklistEnvioManutEnviarBtn();
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    window.setTimeout(() => motivo?.focus(), 40);
+  }
+
+  function portalBindChecklistEnvioManutModalOnce() {
+    if (window.__dkPortalChecklistEnvioManutBound) return;
+    window.__dkPortalChecklistEnvioManutBound = true;
+    document.getElementById("portalChecklistEnvioManutMotivo")?.addEventListener("input", () => {
+      portalSyncChecklistEnvioManutEnviarBtn();
+    });
+    document.getElementById("portalChecklistEnvioManutCancelarBtn")?.addEventListener("click", () => {
+      portalCloseChecklistEnvioManutModal();
+    });
+    document.getElementById("portalChecklistEnvioManutBackdrop")?.addEventListener("click", () => {
+      portalCloseChecklistEnvioManutModal();
+    });
+    document.getElementById("portalChecklistEnvioManutEnviarBtn")?.addEventListener("click", () => {
+      const motivo = String(document.getElementById("portalChecklistEnvioManutMotivo")?.value || "").trim();
+      const modalMsg = document.getElementById("portalChecklistEnvioManutMsg");
+      const dispMsg = document.getElementById("portalChecklistDispositionMsg");
+      if (!motivo) {
+        if (modalMsg) modalMsg.textContent = "Escreva o motivo principal para ativar o envio.";
+        portalSyncChecklistEnvioManutEnviarBtn();
+        return;
+      }
+      const r = portalEnviarChecklistParaManutencao("oficina-propria", motivo);
+      if (!r.ok) {
+        if (modalMsg) modalMsg.textContent = r.message || "Não foi possível registar.";
+        return;
+      }
+      portalCloseChecklistEnvioManutModal();
+      if (dispMsg) {
+        dispMsg.textContent = `Placa ${r.placa || ""} enviada para «Em manutenção → 1 — Oficina própria». Motivo: ${r.motivo}.`;
+      }
+      portalClearChecklistInspection();
+      document.getElementById("portalChecklistMount")?.classList.add("hidden");
+      document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
+      const placaInp = document.getElementById("portalChecklistPlacaInput");
+      if (placaInp) placaInp.value = "";
+      refreshPortalChecklistPlacasAtivasCache();
+      portalValidateChecklistCompleto();
+      portalRefreshManutencaoVeiculosLista();
+    });
+    document.addEventListener("keydown", (ev) => {
+      const modal = document.getElementById("portalChecklistEnvioManutModal");
+      if (!modal || modal.classList.contains("hidden")) return;
+      if (ev.key === "Escape") {
+        ev.preventDefault();
+        portalCloseChecklistEnvioManutModal();
+      }
+    });
+  }
+
+  portalBindChecklistEnvioManutModalOnce();
 
   /** Move a placa do check-list para outra das 4 categorias de manutenção. */
   function portalMoverChecklistCategoriaManutencao(categoriaRaw) {
@@ -3852,16 +3948,7 @@
         portalValidateChecklistCompleto();
         return;
       }
-      const r = portalEnviarChecklistParaManutencao("oficina-propria");
-      if (!r.ok) {
-        if (msg) msg.textContent = r.message || "Não foi possível registar.";
-        return;
-      }
-      if (msg) {
-        msg.textContent =
-          `Placa ${r.placa || ""} enviada para «Veículos em manutenção → 1 — Oficina própria». Abra essa opção e escolha a placa na lista.`;
-      }
-      portalRefreshManutencaoVeiculosLista();
+      portalOpenChecklistEnvioManutModal();
     });
 
     document.getElementById("portalChecklistCategoriaMove")?.addEventListener("click", (e) => {
