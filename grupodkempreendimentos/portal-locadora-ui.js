@@ -12219,18 +12219,21 @@
    * (não CPF órfão de protocolos/planilha sem cadastro de cliente).
    */
   function getPortalCadastroLocacaoClienteCandidates() {
-    if (typeof getLancamentoClienteCandidates !== "function") return [];
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const cadastroCpfs = new Set();
-    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
-      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
-        const cpf = dig(String(c.cpf || ""));
-        if (cpf.length === 11 && String(c.nome || "").trim().length >= 2) cadastroCpfs.add(cpf);
-      });
-    }
-    if (!cadastroCpfs.size) return [];
-    return getLancamentoClienteCandidates().filter((c) => cadastroCpfs.has(dig(String(c.cpf || ""))));
+    if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return [];
+    const byCpf = new Map();
+    loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11) return;
+      const nome = String(c.nome || "").trim();
+      const prev = byCpf.get(cpf);
+      if (!prev || (nome && !prev.nome)) byCpf.set(cpf, { cpf, nome: nome || prev?.nome || "" });
+    });
+    return Array.from(byCpf.values()).sort(
+      (a, b) =>
+        String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR") || a.cpf.localeCompare(b.cpf)
+    );
   }
 
   /**

@@ -3438,6 +3438,59 @@ function bootstrapDemoCadastrosIfEmpty() {
   return;
 }
 
+const DEMO_CADASTRO_10_LOCAL_KEY = "dk_demo_cadastro_10_local_v1";
+
+/** Uma vez por browser: apaga o cadastro local antigo (planilha) para a nuvem demo de 10 prevalecer. */
+function applyDemoCadastro10LocalWipeOnce() {
+  if (window.__DK_IS_DEMO_DEPLOY__ !== true) return;
+  try {
+    if (localStorage.getItem(DEMO_CADASTRO_10_LOCAL_KEY) === "1") return;
+  } catch {
+    return;
+  }
+  const bypass = { bypassImmutabilidadeCadastro: true };
+  [
+    CAD_CLIENTES_KEY,
+    CAD_CLIENTES_VALIDACAO_KEY,
+    CAD_VEICULOS_KEY,
+    PORTAL_CLIENTES_KEY,
+    PORTAL_VEICULOS_KEY,
+    FROTA_VEICULOS_KEY,
+    CAD_LOCACOES_KEY,
+    CAD_MANUTENCOES_KEY,
+    CAD_LANCAMENTOS_ALUGUEL_KEY,
+  ].forEach((k) => {
+    try {
+      saveCadastro(k, [], bypass);
+    } catch {
+      try {
+        localStorage.removeItem(k);
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+  [
+    "dk_comunicacao_operacao_v1",
+    "dk_comprovantes_cliente_pendentes",
+    "dk_locacao_documentos_v1",
+    "dk_cliente_notificacoes",
+    "dk_audit_log",
+    "dk_documentos_deposito_v1",
+  ].forEach((k) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      /* ignore */
+    }
+  });
+  try {
+    localStorage.setItem(DEMO_CADASTRO_10_LOCAL_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
 /**
  * Unifica planilha + portal + chaves legadas num único banco (dk_*_cadastro).
  * Cadastros do portal (origemPortal) prevalecem sobre a planilha na mesma placa/CPF.
@@ -5015,24 +5068,29 @@ function autoFillLancamentoFromPlaca(placaRaw) {
 /** Candidatos a nome/CPF para lançamentos; `placa` é apenas referência (ex.: uma vigência), não implica «só uma locação por cliente». */
 function getLancamentoClienteCandidates() {
   const byCpf = new Map();
-  const bundledFinanceiro =
-    typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026) && CLIENTES_DK_FINANCEIRO_2026.length
-      ? CLIENTES_DK_FINANCEIRO_2026
-      : [];
-  const bundledPrincipal = bundledFinanceiro.length ? bundledFinanceiro : clientesSeedData;
-  const bundledExtras =
-    typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
-      ? CLIENTES_EXTRA_SYNC_DATA
-      : [];
-  const baseComposta = [...bundledPrincipal, ...bundledExtras];
-  baseComposta.forEach((c) => {
-    const cpf = onlyDigits(String(c.cpf || ""));
-    if (cpf.length !== 11) return;
-    const nome = String(c.nome || "").trim();
-    if (!byCpf.has(cpf)) {
-      byCpf.set(cpf, { nome, cpf, placa: "" });
-    }
-  });
+  const skipBundled =
+    (typeof isCadastroManualPortalMode === "function" && isCadastroManualPortalMode()) ||
+    window.__DK_IS_DEMO_DEPLOY__ === true;
+  if (!skipBundled) {
+    const bundledFinanceiro =
+      typeof CLIENTES_DK_FINANCEIRO_2026 !== "undefined" && Array.isArray(CLIENTES_DK_FINANCEIRO_2026) && CLIENTES_DK_FINANCEIRO_2026.length
+        ? CLIENTES_DK_FINANCEIRO_2026
+        : [];
+    const bundledPrincipal = bundledFinanceiro.length ? bundledFinanceiro : clientesSeedData;
+    const bundledExtras =
+      typeof CLIENTES_EXTRA_SYNC_DATA !== "undefined" && Array.isArray(CLIENTES_EXTRA_SYNC_DATA)
+        ? CLIENTES_EXTRA_SYNC_DATA
+        : [];
+    const baseComposta = [...bundledPrincipal, ...bundledExtras];
+    baseComposta.forEach((c) => {
+      const cpf = onlyDigits(String(c.cpf || ""));
+      if (cpf.length !== 11) return;
+      const nome = String(c.nome || "").trim();
+      if (!byCpf.has(cpf)) {
+        byCpf.set(cpf, { nome, cpf, placa: "" });
+      }
+    });
+  }
   loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
     const cpf = onlyDigits(String(c.cpf || ""));
     if (cpf.length !== 11) return;
@@ -5044,24 +5102,26 @@ function getLancamentoClienteCandidates() {
       placa: prev.placa || "",
     });
   });
-  const adminByCpf = new Map();
-  getAdminDataset().forEach((r) => {
-    const cpf = onlyDigits(String(r.cpf || ""));
-    if (cpf.length !== 11) return;
-    if (!adminByCpf.has(cpf)) adminByCpf.set(cpf, []);
-    adminByCpf.get(cpf).push(r);
-  });
-  adminByCpf.forEach((rows, cpf) => {
-    const prev = byCpf.get(cpf) || { nome: "", cpf, placa: "" };
-    const best = pickActiveOrLatestLocacaoRow(rows);
-    if (!best) return;
-    const nomeFromReceita = rows.map((x) => String(x.nome || "").trim()).find((n) => n);
-    byCpf.set(cpf, {
-      nome: String(prev.nome || nomeFromReceita || best.nome || "").trim(),
-      cpf,
-      placa: normalizePlate(best.placa || ""),
+  if (!skipBundled) {
+    const adminByCpf = new Map();
+    getAdminDataset().forEach((r) => {
+      const cpf = onlyDigits(String(r.cpf || ""));
+      if (cpf.length !== 11) return;
+      if (!adminByCpf.has(cpf)) adminByCpf.set(cpf, []);
+      adminByCpf.get(cpf).push(r);
     });
-  });
+    adminByCpf.forEach((rows, cpf) => {
+      const prev = byCpf.get(cpf) || { nome: "", cpf, placa: "" };
+      const best = pickActiveOrLatestLocacaoRow(rows);
+      if (!best) return;
+      const nomeFromReceita = rows.map((x) => String(x.nome || "").trim()).find((n) => n);
+      byCpf.set(cpf, {
+        nome: String(prev.nome || nomeFromReceita || best.nome || "").trim(),
+        cpf,
+        placa: normalizePlate(best.placa || ""),
+      });
+    });
+  }
   loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
     const cpf = onlyDigits(String(l.cpf || ""));
     if (cpf.length !== 11) return;
@@ -15895,6 +15955,7 @@ if (window.location.protocol === "file:") {
 resetProjetoSomenteCadastrosV3Once();
 enableCadastroManualPortalMode();
 applyInstalacaoLimpaOnce();
+applyDemoCadastro10LocalWipeOnce();
 bootstrapDemoCadastrosIfEmpty();
 if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
   window.__DK_purgeOficialLocalCadastrosAntigos();
