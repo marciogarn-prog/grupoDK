@@ -39,7 +39,7 @@ async function run() {
     });
     record(
       "cache-bust disponíveis / devolver cliente",
-      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente/.test(cacheBust),
+      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente|devolver-locados/.test(cacheBust),
       cacheBust.split("?")[1] || cacheBust
     );
 
@@ -291,6 +291,42 @@ async function run() {
       prontosUi.lead.slice(0, 90)
     );
     record("modal Devolver ao cliente no HTML", prontosUi.modalDevolver === true);
+
+    if (prontosUi.devolver.length > 0) {
+      const placaDevolver = await page.evaluate(() => {
+        const btn = document.querySelector("[data-disp-devolver]");
+        return btn?.getAttribute("data-disp-devolver") || "";
+      });
+      if (placaDevolver) {
+        await page.locator(`[data-disp-devolver="${placaDevolver}"]`).click({ timeout: 10000 });
+        await page.waitForTimeout(500);
+        await page.locator("#portalDevolverClienteConfirmarBtn").click({ timeout: 10000 });
+        await page.waitForTimeout(2500);
+        const pos = await page.evaluate((placa) => {
+          const nk = (p) =>
+            String(p || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+          const key = nk(placa);
+          const inProntos = [
+            ...(document.querySelectorAll("#portalDisponiveisPlacasGrid [data-placa]") || []),
+          ].some((b) => nk(b.getAttribute("data-placa")) === key);
+          const est =
+            typeof portalResolverEstadoExclusivoPlaca === "function"
+              ? portalResolverEstadoExclusivoPlaca(key)
+              : null;
+          const active =
+            typeof getActivePlatesSet === "function" ? getActivePlatesSet().has(key) : false;
+          return { inProntos, grupo: est?.grupo || "", active };
+        }, placaDevolver);
+        record("devolver E2E: placa sai de 4 Pronto", pos.inProntos === false, placaDevolver);
+        record(
+          "devolver E2E: passa a Locados (protocolo activo)",
+          pos.grupo === "locados" && pos.active === true,
+          `grupo=${pos.grupo} active=${pos.active}`
+        );
+      }
+    }
 
     const lookup = await page.evaluate(() => {
       const html = document.documentElement.innerHTML;

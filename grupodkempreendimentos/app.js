@@ -10086,7 +10086,10 @@ function buildLatestReceita2026RowByPlateMap() {
  */
 function getActivePlatesSet() {
   const fromCadastro = loadCadastro(CAD_LOCACOES_KEY)
-    .filter((l) => !String(l.fim || "").trim())
+    .filter((l) => {
+      const fim = String(l.fim || l.dataFim || "").trim();
+      return !fim || fim === "...";
+    })
     .map((l) => normalizePlate(l.placa))
     .filter(Boolean);
   const plates = new Set(fromCadastro);
