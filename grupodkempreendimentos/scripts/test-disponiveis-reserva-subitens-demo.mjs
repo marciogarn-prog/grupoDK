@@ -267,24 +267,30 @@ async function run() {
     const prontosUi = await page.evaluate(() => {
       const grid = document.getElementById("portalDisponiveisPlacasGrid");
       const moves = [...(grid?.querySelectorAll("[data-disp-move]") || [])].map((b) => b.getAttribute("data-disp-move"));
+      const devolver = [...(grid?.querySelectorAll("[data-disp-devolver]") || [])].map((b) =>
+        (b.textContent || "").trim()
+      );
       const cards = grid?.querySelectorAll(".portal-reserva-placa-item")?.length || 0;
       const lead = document.getElementById("portalDisponiveisLead")?.textContent || "";
       const filtroHidden = document
         .querySelector("#manutencaoInlineDisponiveis .portal-manutencao-busca")
         ?.classList.contains("hidden");
-      return { moves, cards, lead, filtroHidden };
+      const modalDevolver = Boolean(document.getElementById("portalDevolverClienteModal"));
+      return { moves, devolver, cards, lead, filtroHidden, modalDevolver };
     });
     record(
-      "prontos: botão ENVIAR PARA 5.2",
-      prontosUi.moves.length > 0 && prontosUi.moves.every((m) => m === "reserva-patio"),
-      `moves=${prontosUi.moves.length} cards=${prontosUi.cards}`
+      "prontos: ENVIAR 5.2 (brancas) ou DEVOLVER (coloridas)",
+      (prontosUi.devolver.length > 0 || prontosUi.moves.length > 0) &&
+        prontosUi.moves.every((m) => m === "reserva-patio"),
+      `devolver=${prontosUi.devolver.length} moves=${prontosUi.moves.length} cards=${prontosUi.cards}`
     );
     record("prontos: filtro visível", prontosUi.filtroHidden === false);
     record(
-      "prontos: texto diz que saem ao locar",
-      /locad/i.test(prontosUi.lead),
-      prontosUi.lead.slice(0, 80)
+      "prontos: texto devolver / placas coloridas",
+      /devolver|colorid/i.test(prontosUi.lead),
+      prontosUi.lead.slice(0, 90)
     );
+    record("modal Devolver ao cliente no HTML", prontosUi.modalDevolver === true);
 
     const lookup = await page.evaluate(() => {
       const html = document.documentElement.innerHTML;

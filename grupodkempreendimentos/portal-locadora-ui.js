@@ -2429,7 +2429,8 @@
   const MANUT_DISP_SUB_META = {
     prontos: {
       title: "Disponíveis — 4 Pronto para alugar",
-      lead: "Veículos livres para nova locação. Podem ir para «5.2 — Reserva no pátio» com «ENVIAR PARA 5.2». Saem da lista ao serem locados.",
+      lead:
+        "Placas coloridas (azul, verde ou marrom) passaram pela manutenção: clique para «Devolver ao cliente» — voltam a Locados (1, 2 ou 3) e o veículo reserva vai para Triagem. Demais placas podem ir para «5.2 — Reserva no pátio» ou saem ao locar.",
     },
     "reserva-operacao": {
       title: "Disponíveis — 5.1 Reserva em operação",
@@ -2809,6 +2810,32 @@
         label: labels[cat] || "EM MANUTENÇÃO",
         veiculo,
       };
+    }
+
+    /* Disponíveis explícito (4 / 5.1 / 5.2) tem prioridade sobre locação stale. */
+    if (veiculo) {
+      const dispMarcado = String(veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || "").trim();
+      if (dispMarcado) {
+        let disp = portalNormDisponivelCategoria(veiculo);
+        if (disp === "reserva-operacao") {
+          const cob = portalResolverCoberturaReservaOperacao(plateKey);
+          if (!cob?.placaLocada) disp = "reserva-patio";
+        }
+        const labelMap = {
+          prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
+          "reserva-operacao": "DISPONÍVEIS → 5.1 — Reserva em operação",
+          "reserva-patio": "DISPONÍVEIS → 5.2 — Reserva no pátio",
+        };
+        return {
+          ok: true,
+          placa: plateKey,
+          grupo: "disponiveis",
+          sub: disp,
+          corCls: disp,
+          label: labelMap[disp] || "DISPONÍVEIS",
+          veiculo,
+        };
+      }
     }
 
     const activeSet = typeof getActivePlatesSet === "function" ? getActivePlatesSet() : new Set();
@@ -3370,7 +3397,9 @@
       activeSet.forEach((plateKey) => {
         /* Já em manutenção → sai da lista de Locados (área da placa). */
         if (manutSet.has(plateKey)) return;
-        const v = vmap?.get(plateKey);
+        const est = portalResolverEstadoExclusivoPlaca(plateKey);
+        if (est.grupo !== "locados") return;
+        const v = vmap?.get(plateKey) || est.veiculo;
         if (portalClassificarPlanoLocado(plateKey, v) !== planoFiltro) return;
         const modelo =
           String(v?.marcaModelo || v?.modelo || "").trim() || "Modelo não informado";
@@ -5014,6 +5043,373 @@
     return { ok: true, placa: plateKey, categoria: "reserva-operacao" };
   }
 
+  /** Devolve reserva de 5.1 (em operação) para 5.2 (pátio). */
+  function portalMoverReservaOperacaoParaPatio(placaReservaRaw) {
+    const plateKey = portalNkPlate(placaReservaRaw);
+    if (!plateKey) return { ok: false, message: "Placa reserva em falta." };
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false, message: "Cadastro indisponível." };
+    }
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    const est = portalResolverEstadoExclusivoPlaca(plateKey);
+    if (est.grupo === "disponiveis" && est.sub === "reserva-patio") {
+      return { ok: true, placa: plateKey, already: true, categoria: "reserva-patio" };
+    }
+    const patch = {
+      disponivelCategoria: "reserva-patio",
+      categoriaDisponivel: "reserva-patio",
+      updatedAt: Date.now(),
+    };
+    const keys = [];
+    if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
+    if (typeof PORTAL_VEICULOS_KEY !== "undefined" && !keys.includes(PORTAL_VEICULOS_KEY)) {
+      keys.push(PORTAL_VEICULOS_KEY);
+    }
+    if (typeof FROTA_VEICULOS_KEY !== "undefined" && !keys.includes(FROTA_VEICULOS_KEY)) {
+      keys.push(FROTA_VEICULOS_KEY);
+    }
+    let found = false;
+    keys.forEach((key) => {
+      const veiculos = loadCadastro(key);
+      const idx = veiculos.findIndex((v) => portalNkPlate(v.placa) === plateKey);
+      if (idx < 0) return;
+      found = true;
+      veiculos[idx] = { ...veiculos[idx], ...patch };
+      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
+    });
+    if (!found) {
+      return { ok: false, message: `Placa reserva ${plateKey} não encontrada no cadastro de veículos.` };
+    }
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_reserva_operacao_para_patio", "veiculo", plateKey);
+    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "disponivel_mover",
+      placa: plateKey,
+      de: "5.1-reserva-operacao",
+      para: "5.2-reserva-patio",
+    });
+    return { ok: true, placa: plateKey, categoria: "reserva-patio" };
+  }
+
+  const PLANO_LOCADO_SUB_LABEL = {
+    "minha-moto": "1 — Plano DK Minha Moto",
+    "meu-transporte": "2 — Plano DK Meu Transporte",
+    carros: "3 — Plano Carro",
+  };
+
+  function portalLabelPlanoLocadoSub(planoRaw) {
+    const p = String(planoRaw || "").trim();
+    return PLANO_LOCADO_SUB_LABEL[p] || p || "Locados";
+  }
+
+  /** Veículo em 4 — Pronto com cor de plano (pós-manutenção, aguardando devolução ao cliente). */
+  function portalPlanoProntosPosManutencao(placaRaw, veiculoOpt) {
+    const plateKey = portalNkPlate(placaRaw);
+    const stored = String(veiculoOpt?.planoUltimaLocacao || "").trim();
+    if (stored === "minha-moto" || stored === "meu-transporte" || stored === "carros") return stored;
+    if (!plateKey) return "";
+    if (typeof portalClassificarPlanoLocado === "function") {
+      const fromLoc = portalClassificarPlanoLocado(plateKey, veiculoOpt);
+      if (fromLoc === "minha-moto" || fromLoc === "meu-transporte" || fromLoc === "carros") return fromLoc;
+    }
+    return "";
+  }
+
+  function portalPatchVeiculoCadastro(placaRaw, patch) {
+    const plateKey = portalNkPlate(placaRaw);
+    if (!plateKey || typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false, found: false, placa: plateKey };
+    }
+    const keys = [];
+    if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
+    if (typeof PORTAL_VEICULOS_KEY !== "undefined" && !keys.includes(PORTAL_VEICULOS_KEY)) {
+      keys.push(PORTAL_VEICULOS_KEY);
+    }
+    if (typeof FROTA_VEICULOS_KEY !== "undefined" && !keys.includes(FROTA_VEICULOS_KEY)) {
+      keys.push(FROTA_VEICULOS_KEY);
+    }
+    let found = false;
+    keys.forEach((key) => {
+      const veiculos = loadCadastro(key);
+      const idx = veiculos.findIndex((v) => portalNkPlate(v.placa) === plateKey);
+      if (idx < 0) return;
+      found = true;
+      veiculos[idx] = { ...veiculos[idx], ...patch, updatedAt: Date.now() };
+      saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
+    });
+    return { ok: found, found, placa: plateKey };
+  }
+
+  function portalFindLocacaoPorPlaca(placaRaw) {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return null;
+    const plateKey = portalNkPlate(placaRaw);
+    if (!plateKey) return null;
+    const matches = (loadCadastro(CAD_LOCACOES_KEY) || []).filter((l) => portalNkPlate(l?.placa) === plateKey);
+    if (!matches.length) return null;
+    matches.sort((a, b) => Number(b.updatedAt || b.id || 0) - Number(a.updatedAt || a.id || 0));
+    return matches[0];
+  }
+
+  function portalResolverReservaPosManutencao(placaLocadaRaw) {
+    const placaLocada = portalNkPlate(placaLocadaRaw);
+    if (!placaLocada || typeof loadCadastro !== "function") return "";
+    if (typeof CAD_MANUTENCOES_KEY !== "undefined") {
+      const manut = loadCadastro(CAD_MANUTENCOES_KEY) || [];
+      const last = [...manut]
+        .filter((m) => portalNkPlate(m.placa) === placaLocada && String(m.dataRealSaida || "").trim())
+        .sort((a, b) => Number(b.id || b.createdAt || 0) - Number(a.id || a.createdAt || 0))[0];
+      if (last && !last.reservaNaoDisponibilizada && portalNkPlate(last.placaReserva)) {
+        return portalNkPlate(last.placaReserva);
+      }
+    }
+    const loc = portalFindLocacaoPorPlaca(placaLocada);
+    if (loc && portalNkPlate(loc.placaReserva)) return portalNkPlate(loc.placaReserva);
+    return "";
+  }
+
+  function portalReativarLocacaoDevolucaoCliente(placaLocadaRaw) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return { ok: false, message: "Cadastro de locações indisponível." };
+    }
+    const placaLocada = portalNkPlate(placaLocadaRaw);
+    const loc = portalFindLocacaoPorPlaca(placaLocada);
+    if (!loc) {
+      return { ok: false, message: `Não há locação registada para a placa ${placaLocada}.` };
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    let changed = false;
+    const next = locs.map((l) => {
+      if (portalNkPlate(l?.placa) !== placaLocada) return l;
+      changed = true;
+      return {
+        ...l,
+        fim: "",
+        dataFim: "",
+        placaReserva: "",
+        reservaNaoDisponibilizada: false,
+        updatedAt: Date.now(),
+      };
+    });
+    if (!changed) return { ok: false, message: "Locação não atualizada." };
+    saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
+    return { ok: true, placa: placaLocada };
+  }
+
+  /** Envia placa (ex.: reserva) directamente para 6 — Triagem com check-list. */
+  function portalEnviarPlacaDiretoTriagem(placaRaw, opts) {
+    const placaKey = portalNkPlate(placaRaw);
+    if (!placaKey) return { ok: false, message: "Placa em falta." };
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return { ok: false, message: "Cadastro indisponível neste ambiente." };
+    }
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+    const jaAtiva = manutencoes.some(
+      (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
+    );
+    if (jaAtiva) return { ok: false, message: "Esta placa já está em manutenção ativa." };
+    const motivo = String(opts?.motivo || "Check-list — veículo reserva").trim();
+    const data = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
+    manutencoes.push({
+      id: Date.now(),
+      placa: placaKey,
+      servicos: ["PORTAL_CHECKLIST"],
+      servico: `Portal check-list — ${motivo}`,
+      motivoPrincipal: motivo,
+      data,
+      dataPrevistaSaida: portalBrDatePlusDays(7),
+      dataRealSaida: "",
+      valor: "",
+      origemPortalChecklist: true,
+      categoriaManutencao: "triagem",
+      origemDevolucaoCliente: portalNkPlate(opts?.origemDevolucaoCliente || ""),
+    });
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    portalPatchVeiculoCadastro(placaKey, {
+      disponivelCategoria: "",
+      categoriaDisponivel: "",
+    });
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_reserva_triagem_pos_devolucao", "manutencao", placaKey);
+    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "reserva_para_triagem",
+      placa: placaKey,
+      de: "disponiveis-reserva",
+      para: "6-triagem",
+      motivo,
+    });
+    return { ok: true, placa: placaKey, categoria: "triagem" };
+  }
+
+  /**
+   * 4 — Pronto (placa colorida): devolve ao cliente → Locados 1/2/3; reserva → Triagem.
+   */
+  function portalDevolverProntoAoCliente(placaRaw) {
+    const placaKey = portalNkPlate(placaRaw);
+    if (!placaKey) return { ok: false, message: "Placa em falta." };
+    const est = portalResolverEstadoExclusivoPlaca(placaKey);
+    if (est.grupo !== "disponiveis" || est.sub !== "prontos") {
+      return { ok: false, message: "A placa precisa estar em «4 — Pronto para alugar»." };
+    }
+    const plano = portalPlanoProntosPosManutencao(placaKey, est.veiculo);
+    if (!plano) {
+      return {
+        ok: false,
+        message: "Só placas coloridas (pós-manutenção) podem ser devolvidas ao cliente por aqui.",
+      };
+    }
+    const placaReserva = portalResolverReservaPosManutencao(placaKey);
+    const loc = portalReativarLocacaoDevolucaoCliente(placaKey);
+    if (!loc.ok) return loc;
+    const patch = portalPatchVeiculoCadastro(placaKey, {
+      disponivelCategoria: "",
+      categoriaDisponivel: "",
+      planoUltimaLocacao: "",
+    });
+    if (!patch.found) {
+      return { ok: false, message: `Placa ${placaKey} não encontrada no cadastro de veículos.` };
+    }
+    let triagemReserva = null;
+    if (placaReserva) {
+      triagemReserva = portalEnviarPlacaDiretoTriagem(placaReserva, {
+        motivo: `Check-list reserva após devolução de ${placaKey} ao cliente`,
+        origemDevolucaoCliente: placaKey,
+      });
+    }
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_devolver_pronto_cliente", "locacao", `${placaKey}:${plano}`);
+    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "devolver_pronto_cliente",
+      placa: placaKey,
+      de: "4-prontos",
+      para: `locados-${plano}`,
+      placaReserva: placaReserva || "",
+    });
+    return {
+      ok: true,
+      placa: placaKey,
+      plano,
+      planoLabel: portalLabelPlanoLocadoSub(plano),
+      placaReserva,
+      triagemReserva,
+    };
+  }
+
+  let portalDevolverClientePlacaPendente = "";
+
+  function portalCloseDevolverClienteModal() {
+    const modal = document.getElementById("portalDevolverClienteModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    portalDevolverClientePlacaPendente = "";
+    const msg = document.getElementById("portalDevolverClienteMsg");
+    if (msg) msg.textContent = "";
+  }
+
+  function portalOpenDevolverClienteModal(placaRaw) {
+    const modal = document.getElementById("portalDevolverClienteModal");
+    if (!modal) return;
+    const placaKey = portalNkPlate(placaRaw);
+    if (!placaKey) return;
+    const est = portalResolverEstadoExclusivoPlaca(placaKey);
+    const plano = portalPlanoProntosPosManutencao(placaKey, est.veiculo);
+    if (!plano) return;
+    portalDevolverClientePlacaPendente = placaKey;
+    const placaReserva = portalResolverReservaPosManutencao(placaKey);
+    const locRef = portalFindLocacaoPorPlaca(placaKey);
+    let nomeCliente = "";
+    if (locRef) {
+      const cpf =
+        typeof onlyDigits === "function"
+          ? onlyDigits(String(locRef.cpf || ""))
+          : String(locRef.cpf || "").replace(/\D/g, "");
+      const cliente =
+        cpf.length === 11 && typeof findClienteByCpfCadastro === "function"
+          ? findClienteByCpfCadastro(cpf)
+          : null;
+      nomeCliente = String(cliente?.nome || locRef.nome || locRef.cliente || locRef.nomeCliente || "").trim();
+    }
+    if (!nomeCliente) nomeCliente = portalNomeClientePorPlacaLocada(placaKey);
+    const info = document.getElementById("portalDevolverClienteInfo");
+    if (info) {
+      let extra = nomeCliente ? ` Cliente: <strong>${portalEscapeHtml(nomeCliente)}</strong>.` : "";
+      if (placaReserva) {
+        extra += ` O veículo reserva <strong>${portalEscapeHtml(placaReserva)}</strong> irá para <strong>Em manutenção → 6 — Triagem</strong> (check-list).`;
+      } else {
+        extra += " Nenhum veículo reserva vinculado — só a placa reparada volta ao cliente.";
+      }
+      info.innerHTML = `A placa <strong>${portalEscapeHtml(placaKey)}</strong> sairá de «4 — Pronto para alugar» e voltará a <strong>Locados → ${portalEscapeHtml(portalLabelPlanoLocadoSub(plano))}</strong>.${extra}`;
+    }
+    const msg = document.getElementById("portalDevolverClienteMsg");
+    if (msg) msg.textContent = "";
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function portalBindDevolverClienteModalOnce() {
+    if (window.__dkPortalDevolverClienteBound) return;
+    window.__dkPortalDevolverClienteBound = true;
+    document.getElementById("portalDevolverClienteCancelarBtn")?.addEventListener("click", () => {
+      portalCloseDevolverClienteModal();
+    });
+    document.getElementById("portalDevolverClienteBackdrop")?.addEventListener("click", () => {
+      portalCloseDevolverClienteModal();
+    });
+    document.getElementById("portalDevolverClienteConfirmarBtn")?.addEventListener("click", () => {
+      const placa = portalDevolverClientePlacaPendente;
+      if (!placa) return;
+      const r = portalDevolverProntoAoCliente(placa);
+      const msg = document.getElementById("portalDevolverClienteMsg");
+      if (!r.ok) {
+        if (msg) msg.textContent = r.message || "Não foi possível devolver ao cliente.";
+        return;
+      }
+      portalCloseDevolverClienteModal();
+      portalRefreshManutencaoDisponiveisPlacas();
+      refreshPortalChecklistPlacasAtivasCache();
+      if (typeof portalRefreshManutencaoPlacasGrid === "function") {
+        portalRefreshManutencaoPlacasGrid(true);
+      }
+      const ext = document.getElementById("portalDisponiveisPlacasMsg");
+      if (ext) {
+        const tri = r.triagemReserva?.ok ? ` Reserva ${r.placaReserva} → Triagem.` : "";
+        ext.textContent = `${r.placa} devolvida ao cliente (${r.planoLabel}).${tri}`;
+      }
+    });
+  }
+
+  portalBindDevolverClienteModalOnce();
+
   /** Guarda na locação ativa o veículo reserva (ou a opção de não disponibilizar). */
   function portalVincularReservaNaLocacaoAtiva(placaLocadaRaw, placaReservaRaw, naoDisponibilizada) {
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -5250,50 +5646,57 @@
   }
 
   /**
-   * Ao liberar da oficina para «4 — Pronto»: tira a placa do contrato ativo
-   * (transfere locação para a reserva ou encerra se não houver reserva).
+   * Ao liberar da oficina para «4 — Pronto»: encerra locação da placa reparada
+   * e devolve o veículo reserva (se houver) para 5.2 — Pátio.
    */
   function portalFinalizarLocacaoAoLiberarParaProntos(placaLocadaRaw, manutRecord) {
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
-      return { ok: false, transferred: false, ended: false };
+      return { ok: false, transferred: false, ended: false, placaReserva: "" };
     }
     const placaLocada = portalNkPlate(placaLocadaRaw);
-    if (!placaLocada) return { ok: false, transferred: false, ended: false };
+    if (!placaLocada) return { ok: false, transferred: false, ended: false, placaReserva: "" };
     const placaReserva = portalNkPlate(manutRecord?.placaReserva || "");
     const reservaNaoDisp = Boolean(manutRecord?.reservaNaoDisponibilizada);
     const locs = loadCadastro(CAD_LOCACOES_KEY);
     let changed = false;
-    let transferred = false;
     let ended = false;
     const dataFim = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
     const next = locs.map((loc) => {
-      if (portalNkPlate(loc?.placa) !== placaLocada) return loc;
+      const placaContrato = portalNkPlate(loc?.placa);
       const fim = String(loc?.fim || loc?.dataFim || "").trim();
-      if (fim && fim !== "...") return loc;
+      const ativa = !fim || fim === "...";
+      if (!ativa) return loc;
+      const reservaVinc = portalNkPlate(loc?.placaReserva || "");
+      const locadaOriginal = portalNkPlate(loc?.placaLocadaOriginal || "");
+      const encerraLocada =
+        placaContrato === placaLocada ||
+        (placaReserva && !reservaNaoDisp && placaContrato === placaReserva && locadaOriginal === placaLocada);
+      const limpaVinculoReserva =
+        placaReserva &&
+        !reservaNaoDisp &&
+        reservaVinc === placaReserva &&
+        placaContrato === placaLocada;
+      if (!encerraLocada && !limpaVinculoReserva) return loc;
       changed = true;
-      if (placaReserva && !reservaNaoDisp) {
-        transferred = true;
-        return {
-          ...loc,
-          placa: placaReserva,
-          placaLocadaOriginal: placaLocada,
-          placaReserva: "",
-          reservaNaoDisponibilizada: false,
-          updatedAt: Date.now(),
-        };
-      }
       ended = true;
       return {
         ...loc,
-        fim: dataFim,
-        dataFim: dataFim,
+        fim: encerraLocada ? dataFim : loc.fim,
+        dataFim: encerraLocada ? dataFim : loc.dataFim,
+        placaReserva: "",
+        reservaNaoDisponibilizada: false,
         updatedAt: Date.now(),
       };
     });
     if (changed) {
       saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
     }
-    return { ok: changed, transferred, ended, placaReserva: transferred ? placaReserva : "" };
+    return {
+      ok: changed,
+      transferred: false,
+      ended,
+      placaReserva: placaReserva && !reservaNaoDisp ? placaReserva : "",
+    };
   }
 
   /**
@@ -5376,6 +5779,9 @@
         message: `Manutenção encerrada, mas a placa ${placaKey} não foi encontrada no cadastro de veículos.`,
       };
     }
+    if (cat === "prontos" && locacaoAjuste?.placaReserva) {
+      portalMoverReservaOperacaoParaPatio(locacaoAjuste.placaReserva);
+    }
     if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
       try {
         refreshOperacaoVeiculoPlacasCache();
@@ -5391,7 +5797,7 @@
       placa: placaKey,
       de: "manutencao",
       para: cat === "prontos" ? "4-prontos" : "5.2-reserva-patio",
-      locacaoTransferida: locacaoAjuste?.transferred ? locacaoAjuste.placaReserva : "",
+      locacaoTransferida: locacaoAjuste?.placaReserva || "",
     });
     return { ok: true, placa: placaKey, categoria: cat, locacaoAjuste };
   }
@@ -5519,16 +5925,45 @@
     if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
       refreshOperacaoVeiculoPlacasCache();
     }
+    const manutSet = getPortalPlacasEmManutencaoSet();
     const veiculos = (portalVeiculoPlacasCache || []).map((x) => x.record).filter(Boolean);
     return veiculos.filter((v) => {
-      const d = getPortalResumoVeiculoCardData(v);
-      return d.statusClass === "livre" || String(d.statusText || "").startsWith("Disponível");
+      const plateKey = portalNkPlate(v?.placa);
+      if (!plateKey || manutSet.has(plateKey)) return false;
+      const est = portalResolverEstadoExclusivoPlaca(plateKey);
+      return est.grupo === "disponiveis";
+    });
+  }
+
+  /** Reserva em 5.1 sem manutenção ativa → devolve para 5.2. */
+  function portalSanearReservaOperacaoOrfas() {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return;
+    const keys = [];
+    if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
+    if (typeof PORTAL_VEICULOS_KEY !== "undefined") keys.push(PORTAL_VEICULOS_KEY);
+    if (typeof FROTA_VEICULOS_KEY !== "undefined") keys.push(FROTA_VEICULOS_KEY);
+    keys.forEach((key) => {
+      const list = loadCadastro(key);
+      let changed = false;
+      const next = list.map((v) => {
+        if (portalNormDisponivelCategoria(v) !== "reserva-operacao") return v;
+        const cob = portalResolverCoberturaReservaOperacao(v.placa);
+        if (cob?.placaLocada) return v;
+        changed = true;
+        return {
+          ...v,
+          disponivelCategoria: "reserva-patio",
+          categoriaDisponivel: "reserva-patio",
+          updatedAt: Date.now(),
+        };
+      });
+      if (changed) saveCadastro(key, next, { bypassImmutabilidadeCadastro: true });
     });
   }
 
   /**
    * Para uma placa em 5.1 (reserva em operação): encontra a placa locada coberta
-   * (manutenção ativa com placaReserva, ou locação ativa com o mesmo vínculo).
+   * apenas por manutenção ativa com placaReserva (5.1 é informativo).
    */
   function portalResolverCoberturaReservaOperacao(placaReservaRaw) {
     const placaReserva = portalNkPlate(placaReservaRaw);
@@ -5543,16 +5978,6 @@
             portalNkPlate(m?.placaReserva) === placaReserva && !String(m?.dataRealSaida || "").trim()
         );
       if (ativa) placaLocada = portalNkPlate(ativa.placa);
-    }
-    if (!placaLocada && typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
-      const locs = loadCadastro(CAD_LOCACOES_KEY) || [];
-      const loc = locs.find((l) => {
-        if (portalNkPlate(l?.placaReserva) !== placaReserva) return false;
-        if (l?.reservaNaoDisponibilizada) return false;
-        const fim = String(l?.fim || l?.dataFim || "").trim();
-        return !fim || fim === "...";
-      });
-      if (loc) placaLocada = portalNkPlate(loc.placa);
     }
     if (!placaLocada) return { placaReserva, placaLocada: "", plano: "", nomeCliente: "" };
     const plano = portalClassificarPlanoLocado(placaLocada) || "minha-moto";
@@ -5598,6 +6023,7 @@
   function portalHtmlCaixinhaPlacaVeiculo(row, dataAttrName, opts) {
     const extra = opts && opts.extraHtml ? String(opts.extraHtml) : "";
     const titleOverride = opts && opts.title ? String(opts.title) : "";
+    const plateBtnExtraAttrs = opts && opts.plateBtnExtraAttrs ? String(opts.plateBtnExtraAttrs) : "";
     const placa = String(row?.placa || "").trim();
     const veiculo = row?.record || null;
     let modelo = String(row?.modelo || "").trim();
@@ -5615,7 +6041,7 @@
       titleOverride || [placa, modelo !== "—" ? modelo : ""].filter(Boolean).join(" · ");
     const attr = dataAttrName || "data-placa";
     return `<div class="portal-reserva-placa-item" role="listitem">
-          <button type="button" class="portal-reserva-placa-btn${corCls}" ${attr}="${portalEscapeHtml(placa)}" title="${portalEscapeHtml(title)}">
+          <button type="button" class="portal-reserva-placa-btn${corCls}" ${attr}="${portalEscapeHtml(placa)}"${plateBtnExtraAttrs} title="${portalEscapeHtml(title)}">
             <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(placa)}</span>
             <span class="portal-reserva-placa-btn__model">${portalEscapeHtml(modelo)}</span>
           </button>${extra}
@@ -5653,6 +6079,7 @@
 
   /** Placas em Disponíveis (prontos | reserva-operacao | reserva-patio). */
   function portalRefreshManutencaoDisponiveisPlacas() {
+    portalSanearReservaOperacaoOrfas();
     const grid = document.getElementById("portalDisponiveisPlacasGrid");
     const msg = document.getElementById("portalDisponiveisPlacasMsg");
     if (!grid) return;
@@ -5674,6 +6101,9 @@
       }))
       .filter((r) => r.placa);
     if (filtro) rows = rows.filter((r) => r.placa.includes(filtro) || r.codigo.toUpperCase().includes(filtro));
+    if (sub === "reserva-operacao") {
+      rows = rows.filter((r) => portalResolverCoberturaReservaOperacao(r.placa)?.placaLocada);
+    }
     rows.sort((a, b) => a.placa.localeCompare(b.placa, "en"));
     if (!rows.length) {
       const emptyHints = {
@@ -5730,13 +6160,22 @@
     const moveTargets = sub === "prontos" ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }] : [];
     grid.innerHTML = rows
       .map((r) => {
+        const planoPosManut = sub === "prontos" ? portalPlanoProntosPosManutencao(r.placa, r.record) : "";
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
-        const moves = moveTargets
-          .map((t) => {
-            return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
-          })
-          .join("");
-        return portalHtmlCaixinhaPlacaVeiculo(r, "data-placa", { extraHtml: moves, title });
+        let extraHtml = "";
+        if (planoPosManut) {
+          extraHtml = `<button type="button" class="btn-primary portal-disp-devolver-btn" data-disp-devolver="${portalEscapeHtml(r.placa)}">DEVOLVER AO CLIENTE</button>`;
+        } else if (moveTargets.length) {
+          extraHtml = moveTargets
+            .map((t) => {
+              return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
+            })
+            .join("");
+        }
+        const plateBtnExtraAttrs = planoPosManut
+          ? ` data-disp-pronto-pos-manut="1" data-disp-plano="${portalEscapeHtml(planoPosManut)}"`
+          : "";
+        return portalHtmlCaixinhaPlacaVeiculo(r, "data-placa", { extraHtml, title, plateBtnExtraAttrs });
       })
       .join("");
     if (msg) {
@@ -5831,6 +6270,18 @@
       portalRefreshManutencaoDisponiveisPlacas();
     });
     document.getElementById("portalDisponiveisPlacasGrid")?.addEventListener("click", (e) => {
+      const devolverBtn = e.target.closest("[data-disp-devolver]");
+      if (devolverBtn) {
+        e.preventDefault();
+        portalOpenDevolverClienteModal(devolverBtn.getAttribute("data-disp-devolver") || "");
+        return;
+      }
+      const plateBtn = e.target.closest(".portal-reserva-placa-btn[data-disp-pronto-pos-manut]");
+      if (plateBtn && portalManutDispSubAtivo === "prontos") {
+        e.preventDefault();
+        portalOpenDevolverClienteModal(plateBtn.getAttribute("data-placa") || "");
+        return;
+      }
       const moveBtn = e.target.closest("[data-disp-move]");
       if (!moveBtn || moveBtn.disabled) return;
       const placa = moveBtn.getAttribute("data-placa") || "";
@@ -6376,8 +6827,8 @@
         }
         if (msg) {
           let extra = "";
-          if (r.locacaoAjuste?.transferred && r.locacaoAjuste.placaReserva) {
-            extra = ` Contrato transferido para a reserva ${r.locacaoAjuste.placaReserva} (Locados).`;
+          if (r.locacaoAjuste?.placaReserva) {
+            extra = ` Reserva ${r.locacaoAjuste.placaReserva} devolvida para «5.2 — Reserva no pátio».`;
           } else if (r.locacaoAjuste?.ended) {
             extra = " Locação encerrada.";
           }
