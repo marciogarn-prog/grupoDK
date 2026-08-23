@@ -2510,11 +2510,46 @@
   }
 
   function portalManutRegistroNaCategoria(m, sub) {
+    const cat = portalManutCategoriaEfetiva(m);
+    const alvo = portalNormManutCategoria(sub) || "triagem";
+    return cat === alvo;
+  }
+
+  /** Categoria efetiva: entrada nova = Triagem; legado sem categoria = Triagem. */
+  function portalManutCategoriaEfetiva(m) {
     const cat = portalNormManutCategoria(m?.categoriaManutencao || m?.categoria || "");
-    const alvo = portalNormManutCategoria(sub) || "oficina-propria";
-    if (cat) return cat === alvo;
-    /* Registos antigos sem categoria → Oficina própria */
-    return alvo === "oficina-propria";
+    if (!cat) return "triagem";
+    /* Oficina própria só se já foi encaminhada após Triagem (ou move explícito pós-feature). */
+    if (cat === "oficina-propria" && !m?.encaminhadoDeTriagem) return "triagem";
+    return cat;
+  }
+
+  /** Persiste placas que ainda estão na Oficina própria pelo fluxo antigo → Triagem. */
+  function portalMigrateManutencaoEntradaParaTriagem() {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return false;
+    }
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+    let changed = false;
+    for (let i = 0; i < manutencoes.length; i++) {
+      const m = manutencoes[i];
+      if (String(m?.dataRealSaida || "").trim()) continue;
+      const cat = portalNormManutCategoria(m?.categoriaManutencao || m?.categoria || "");
+      if (!cat || (cat === "oficina-propria" && !m?.encaminhadoDeTriagem)) {
+        manutencoes[i] = { ...m, categoriaManutencao: "triagem" };
+        changed = true;
+      }
+    }
+    if (!changed) return false;
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      try {
+        portalPushCloudSnapshotAfterPersist();
+      } catch {
+        /* ignore */
+      }
+    }
+    return true;
   }
 
   /** Classifica placa locada: minha-moto | meu-transporte | carros | "". */
@@ -2598,7 +2633,7 @@
 
     const manutSet = getPortalPlacasEmManutencaoSet();
     if (manutSet.has(plateKey)) {
-      const cat = getPortalManutCategoriaPorPlaca(plateKey) || "oficina-propria";
+      const cat = getPortalManutCategoriaPorPlaca(plateKey) || "triagem";
       const labels = {
         triagem: "EM MANUTENÇÃO → 0 — Triagem",
         "oficina-propria": "EM MANUTENÇÃO → 1 — Oficina própria",
@@ -2920,6 +2955,7 @@
   }
 
   function openManutencaoEmManutencaoSub(subRaw) {
+    portalMigrateManutencaoEntradaParaTriagem();
     const sub = MANUT_EM_MANUT_SUB_META[subRaw] ? subRaw : "triagem";
     portalManutEmManutSubAtivo = sub;
     portalRefreshOperacaoLocal();
@@ -4154,7 +4190,11 @@
     if (idx < 0) {
       return { ok: false, message: "Não há manutenção ativa para esta placa." };
     }
-    manutencoes[idx] = { ...manutencoes[idx], categoriaManutencao: categoria };
+    manutencoes[idx] = {
+      ...manutencoes[idx],
+      categoriaManutencao: categoria,
+      encaminhadoDeTriagem: categoria !== "triagem",
+    };
     saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
     if (typeof addAuditLog === "function") {
       addAuditLog("portal_checklist_mover_categoria", "manutencao", `${placaKey}:${categoria}`);
@@ -4216,6 +4256,7 @@
   }
 
   function portalRefreshManutencaoVeiculosLista() {
+    portalMigrateManutencaoEntradaParaTriagem();
     if (portalChecklistIsManutencaoMode()) {
       refreshPortalChecklistPlacasAtivasCache();
     }
@@ -7775,17 +7816,17 @@
     });
     if (!rows.length) return "";
     rows.sort((a, b) => Number(b.id || b.createdAt || 0) - Number(a.id || a.createdAt || 0));
-    return portalNormManutCategoria(rows[0]?.categoriaManutencao || rows[0]?.categoria || "") || "oficina-propria";
+    return portalManutCategoriaEfetiva(rows[0]) || "triagem";
   }
 
   function portalFrotaStatusClassEmManutencao(categoria) {
-    const cat = portalNormManutCategoria(categoria) || "oficina-propria";
+    const cat = portalNormManutCategoria(categoria) || "triagem";
     if (cat === "sinistrado-roubo") return "sinistro-roubo";
     return "manutencao";
   }
 
   function portalStatusTextEmManutencao(categoria) {
-    const cat = portalNormManutCategoria(categoria) || "oficina-propria";
+    const cat = portalNormManutCategoria(categoria) || "triagem";
     if (cat === "triagem") return "Em manutenção — Triagem";
     if (cat === "sinistrado-roubo") return "Sinistro Roubo";
     if (cat === "oficina-terceiros") return "Em manutenção — Oficina de terceiro";
