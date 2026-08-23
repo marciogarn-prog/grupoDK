@@ -734,7 +734,10 @@
       payload.dk_cadastro_manual_portal_v1 === true ||
       (typeof window.__DK_isCadastroManualPortalMode === "function" &&
         window.__DK_isCadastroManualPortalMode());
-    const replace = Boolean(opts && opts.replace) || Boolean(payload.dk_demo_cadastro_10_v1);
+    const replace =
+      Boolean(opts && opts.replace) ||
+      Boolean(payload.dk_demo_cadastro_10_v1) ||
+      Boolean(payload.dk_oficial_sem_protocolos_v1);
     const forceCadastroReplace = replace || cadastroLocked || manualMode;
 
     for (const k of DK_STORAGE_KEYS) {
@@ -2252,7 +2255,21 @@
       delete out.dk_patrimonio_fotos_excluidas_v1;
       return out;
     }
-    if (
+    const oficialVirgin = Boolean(
+      cloudPayload.dk_oficial_sem_protocolos_v1 || localPayload.dk_oficial_sem_protocolos_v1
+    );
+    if (oficialVirgin) {
+      out.dk_locacoes_cadastro = [];
+      out.dk_lancamentos_aluguel = [];
+      out.dk_lancamentos_aluguel_cadastro = [];
+      out.dk_locacoes_quadro_geral = [];
+      out.dk_locacao_documentos_v1 = [];
+      out.dk_oficial_sem_protocolos_v1 =
+        cloudPayload.dk_oficial_sem_protocolos_v1 || localPayload.dk_oficial_sem_protocolos_v1;
+      out.dk_cadastro_manual_portal_v1 = true;
+      const lock = cloudPayload.dk_cadastro_lock_v1 || localPayload.dk_cadastro_lock_v1;
+      if (lock) out.dk_cadastro_lock_v1 = lock;
+    } else if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_locacoes_cadastro") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacoes_cadastro")
     ) {
@@ -2302,8 +2319,9 @@
       );
     }
     if (
-      Object.prototype.hasOwnProperty.call(localPayload, "dk_locacao_documentos_v1") ||
-      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacao_documentos_v1")
+      !oficialVirgin &&
+      (Object.prototype.hasOwnProperty.call(localPayload, "dk_locacao_documentos_v1") ||
+        Object.prototype.hasOwnProperty.call(cloudPayload, "dk_locacao_documentos_v1"))
     ) {
       out.dk_locacao_documentos_v1 = mergeLocacaoDocumentosV1(
         localPayload.dk_locacao_documentos_v1,
