@@ -3619,6 +3619,38 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   min-width: 8rem;
 }
 
+.portal-checklist-odometro-ultimo {
+  min-width: 8.5rem;
+}
+
+.portal-checklist-odometro-ultimo__label {
+  font-size: 0.88rem;
+  line-height: 1.2;
+}
+
+.portal-checklist-odometro-ultimo__box {
+  margin-top: 0.3rem;
+  padding: 0.45rem 0.55rem;
+  font-size: 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.06);
+  color: inherit;
+  min-height: 2.35rem;
+  display: flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-checklist-odometro-ultimo__data {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  color: var(--muted, #a8b0bc);
+  letter-spacing: 0.01em;
+}
+
 .portal-checklist-toggle-group {
   display: flex;
   flex-wrap: wrap;

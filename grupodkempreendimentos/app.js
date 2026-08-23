@@ -494,6 +494,8 @@ const DK_BANCO_UNIFICADO_FLAG = "dk_banco_cadastro_unificado_v2";
 const CAD_LOCACOES_KEY = "dk_locacoes_cadastro";
 const LOCACAO_DATABASE_KEY = "dk_locacoes_quadro_geral";
 const CAD_MANUTENCOES_KEY = "dk_manutencoes_cadastro";
+/** Últimos odômetros/datas de check-list por placa (portal Manutenção). */
+const CAD_CHECKLIST_HISTORICO_KEY = "dk_portal_checklist_historico_v1";
 const CAD_LANCAMENTOS_ALUGUEL_KEY = "dk_lancamentos_aluguel";
 /** Sobrescritas manuais do quadro RECEITA por célula SEM (persistido no backup). */
 const CAD_QUADRO_RECEITA_OVERRIDES_KEY = "dk_quadro_receita_overrides";
@@ -512,6 +514,7 @@ const BACKUP_KEYS = [
   CAD_LOCACOES_KEY,
   LOCACAO_DATABASE_KEY,
   CAD_MANUTENCOES_KEY,
+  CAD_CHECKLIST_HISTORICO_KEY,
   CAD_LANCAMENTOS_ALUGUEL_KEY,
   CAD_QUADRO_RECEITA_OVERRIDES_KEY,
   CAD_COMPROVANTES_BANCO_KEY,
