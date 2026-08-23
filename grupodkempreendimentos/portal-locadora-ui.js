@@ -5429,13 +5429,26 @@
 
     const formOk = req.length === 0;
     const printOk = formOk;
+    let temItemR = false;
+    for (let n = 1; n <= PORTAL_CHECKLIST_ITENS.length; n++) {
+      if (document.querySelector(`input[name="portalChecklistItem${n}"]:checked`)?.value === "R") {
+        temItemR = true;
+        break;
+      }
+    }
+    const precisaManutencao = portalChecklistOleoSim() || temItemR;
+    /* Triagem: só envia à oficina se houver troca de óleo ou algum item em R. */
+    const enviarOficinaOk = isTriagem ? formOk && precisaManutencao : formOk;
 
     if (hint) {
       if (!formOk) {
         hint.textContent = `Complete para ativar os botões: ${req.join("; ")}.`;
+      } else if (isTriagem && !precisaManutencao) {
+        hint.textContent =
+          "Check-list OK (tudo em A e sem troca de óleo). Não precisa enviar para oficina. Pode imprimir / guardar PDF.";
       } else if (isTriagem) {
         hint.textContent =
-          "Formulário completo. Pode imprimir, guardar PDF ou enviar para 7 — Oficina própria.";
+          "Há serviço necessário (troca de óleo e/ou item em R). Pode imprimir, guardar PDF ou enviar para 7 — Oficina própria.";
       } else if (portalChecklistIsOficinaPropriaMode()) {
         hint.textContent =
           "Formulário completo. Pode imprimir, guardar PDF ou encaminhar (4 / 5.2 / 8 / 9 / 10).";
@@ -5455,7 +5468,7 @@
     if (b1) b1.disabled = !printOk;
     if (b2) b2.disabled = !printOk;
     if (b3) b3.disabled = !formOk || isManut;
-    if (b4) b4.disabled = !formOk;
+    if (b4) b4.disabled = isTriagem ? !enviarOficinaOk : !formOk;
     document.querySelectorAll("#portalChecklistCategoriaMove [data-manut-move-cat], #portalChecklistCategoriaMove [data-manut-move-dest]").forEach((btn) => {
       btn.disabled = portalChecklistIsOficinaPropriaMode() ? !formOk : true;
     });
@@ -5806,6 +5819,14 @@
       if (!portalValidateChecklistCompleto()) return;
       const msg = document.getElementById("portalChecklistDispositionMsg");
       if (portalChecklistIsTriagemMode()) {
+        const btn = document.getElementById("portalChecklistBtnManutencao");
+        if (btn?.disabled) {
+          if (msg) {
+            msg.textContent =
+              "Só envia para oficina se houver troca de óleo = Sim ou algum item marcado em R.";
+          }
+          return;
+        }
         const r = portalMoverChecklistCategoriaManutencao("oficina-propria");
         if (!r.ok) {
           if (msg) msg.textContent = r.message || "Não foi possível enviar para oficina própria.";
