@@ -7505,6 +7505,15 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #ca8a04;
 }
 
+.portal-mov-manut-detalhe-erro {
+  margin: 0 0 0.65rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  color: #fecaca;
+  font-size: 0.88rem;
+}
+
 .portal-mov-manut-ver-btn {
   font-size: 0.78rem;
   padding: 0.25rem 0.55rem;

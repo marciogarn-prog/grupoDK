@@ -672,4 +672,7 @@
   window.__DK_hideLancManutencaoChecklist = esconderChecklist;
   window.__DK_buildManutChecklistPrintHtml = buildChecklistPrintHtml;
   window.__DK_openManutChecklistPrint = openChecklistPrint;
+  window.__DK_manutChecklistPdfItens = ITENS;
+  window.__DK_manutChecklistParseDataBr = parseDataBr;
+  window.__DK_manutChecklistFmtDataSemana = fmtDataSemana;
 })();

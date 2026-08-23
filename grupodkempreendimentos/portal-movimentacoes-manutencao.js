@@ -491,9 +491,171 @@
     placaSelecionada = "";
   }
 
+  function parseDataBrMov(raw) {
+    const fn = window.__DK_manutChecklistParseDataBr;
+    if (typeof fn === "function") return fn(raw);
+    const s = String(raw || "").trim();
+    let m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    m = s.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return null;
+  }
+
+  function fmtDataSemanaMov(dateRaw) {
+    const fn = window.__DK_manutChecklistFmtDataSemana;
+    const d = dateRaw instanceof Date ? dateRaw : parseDataBrMov(dateRaw);
+    if (typeof fn === "function" && d) return fn(d);
+    if (!d || Number.isNaN(d.getTime())) return String(dateRaw || "").trim();
+    const semana = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][d.getDay()];
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    return `${semana}, ${dd}/${mm}/${d.getFullYear()}`;
+  }
+
+  function resolveImgVeiculoChecklist(marcaModelo, cor) {
+    const mm = String(marcaModelo || "");
+    const c = String(cor || "");
+    if (/SHI\s*175/i.test(mm) && /VERMELH/i.test(c)) {
+      return "images/manutencao/shineray-shi-175-vermelha.png";
+    }
+    return "";
+  }
+
+  function resolveCpfLocacaoPorProtocolo(protocoloRaw, placaRaw) {
+    const proto = String(protocoloRaw || "").trim();
+    const placa = nkPlate(placaRaw);
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return "";
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    let hit = null;
+    if (proto) {
+      hit =
+        locs.find((l) => String(l.numeroContrato || "").trim() === proto) ||
+        locs
+          .filter((l) => String(l.numeroContrato || "").trim() === proto)
+          .sort((a, b) => Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0))[0] ||
+        null;
+    }
+    if (!hit && placa) {
+      hit =
+        locs
+          .filter((l) => nkPlate(l.placa) === placa)
+          .sort((a, b) => Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0))[0] || null;
+    }
+    const cpf = String(hit?.cpf || "").replace(/\D/g, "");
+    return cpf.length === 11 ? cpf : "";
+  }
+
+  /** Converte registo de movimentação → payload do PDF oficial (papel 2 páginas). */
+  function buildPrintPayloadFromMovimentacao(row) {
+    if (!row) return null;
+    const meta = row.meta || {};
+    const labels = Array.isArray(window.__DK_manutChecklistPdfItens) ? window.__DK_manutChecklistPdfItens : [];
+    const clienteLinha = String(meta.cliente || "").trim();
+    let codCliente = "";
+    let nomeCliente = "";
+    const cm = clienteLinha.match(/^(.+?)\s*[—\-–]\s*(.+)$/);
+    if (cm) {
+      codCliente = cm[1].replace(/^Cód\.?:?\s*/i, "").trim();
+      nomeCliente = cm[2].trim();
+    } else {
+      nomeCliente = clienteLinha;
+    }
+
+    const placa = nkPlate(row.placa);
+    const plano = String(meta.plano || "").trim();
+    const marcaModelo = String(meta.marcaModelo || "").trim();
+    const corVeiculo = String(meta.cor || "").trim();
+    const isCarro = /carro/i.test(plano);
+
+    const byN = new Map((row.itens || []).map((it) => [Number(it.n), it]));
+    const itens = [];
+    for (let n = 1; n <= CHECKLIST_ITENS_COUNT; n++) {
+      const it = byN.get(n);
+      itens.push({
+        n,
+        label: labels[n - 1] || `Item ${n}`,
+        estado: it?.estado === "R" ? "R" : "A",
+        obs: String(it?.obs || "").trim(),
+      });
+    }
+
+    const odometro = String(row.odometro || "").replace(/\D/g, "");
+    let proximaTroca = String(row.proximaTroca || "").replace(/\D/g, "");
+    if (!proximaTroca && odometro) {
+      const n = parseInt(odometro, 10);
+      if (Number.isFinite(n)) proximaTroca = String(n + 1000);
+    }
+
+    const dados = {
+      protocolo: String(meta.protocolo || "").trim() || "—",
+      plano,
+      isCarro,
+      inicio: parseDataBrMov(meta.inicioContrato),
+      codCliente,
+      nomeCliente,
+      cpf: resolveCpfLocacaoPorProtocolo(meta.protocolo, placa),
+      celular: String(meta.celular || "").trim(),
+      placa,
+      anoModelo: String(meta.anoModelo || "").trim(),
+      corVeiculo,
+      marcaModelo,
+      imgVeiculo: resolveImgVeiculoChecklist(marcaModelo, corVeiculo),
+    };
+
+    const form = {
+      oleo: String(row.oleo || "").trim(),
+      pagou: String(row.pagou || "").trim(),
+      mecanico: String(row.mecanico || "").trim(),
+      supervisor: String(row.supervisor || "").trim(),
+      odometro,
+      proximaTroca,
+      itens,
+      horaEntrada: String(row.entradaHora || "").trim(),
+      dataEntradaFmt: fmtDataSemanaMov(row.entradaData),
+      horaSaida: String(row.saidaHora || "").trim(),
+      dataSaidaFmt: fmtDataSemanaMov(row.saidaData),
+      assinaturaCliente: "",
+      assinaturaSupervisor: "",
+    };
+
+    return { dados, form };
+  }
+
+  function openChecklistPdfFromMovimentacao(row) {
+    const openFn = window.__DK_openManutChecklistPrint;
+    if (typeof openFn !== "function") {
+      return { ok: false, erro: "Módulo de impressão do check-list indisponível. Recarregue a página." };
+    }
+    const payload = buildPrintPayloadFromMovimentacao(row);
+    if (!payload) return { ok: false, erro: "Registo não encontrado." };
+    if (!payload.dados.protocolo || payload.dados.protocolo === "—") {
+      return { ok: false, erro: "Check-list sem protocolo — complete o cadastro da locação." };
+    }
+    return openFn(payload.dados, payload.form);
+  }
+
   function onVerChecklist(id) {
     const row = loadLista().find((r) => Number(r.id) === Number(id));
-    renderDetalhe(row || null);
+    if (!row) {
+      renderDetalhe(null);
+      return;
+    }
+    const catLabel = CATEGORIA_LABEL[row.categoria] || row.categoria;
+    const r = openChecklistPdfFromMovimentacao(row);
+    if (r?.ok) {
+      renderDetalhe(null);
+      if (modoVista === "etapa") renderLista();
+      return;
+    }
+    renderDetalhe(row);
+    const host = document.getElementById("portalMovManutDetalhe");
+    if (host && r?.erro) {
+      const aviso = document.createElement("p");
+      aviso.className = "portal-mov-manut-detalhe-erro";
+      aviso.textContent = `${r.erro} Etapa: ${catLabel}.`;
+      host.insertBefore(aviso, host.firstChild?.nextSibling || host.firstChild);
+    }
     if (modoVista === "etapa") renderLista();
   }
 
@@ -609,4 +771,6 @@
   window.__DK_portalLoadChecklistMovimentacoes = loadLista;
   window.__DK_portalCollectChecklistSnapshot = collectChecklistSnapshot;
   window.__DK_portalFindChecklistMovimentacao = findLatestMovimentacao;
+  window.__DK_portalOpenChecklistPdfFromMovimentacao = openChecklistPdfFromMovimentacao;
+  window.__DK_portalBuildPrintPayloadFromMovimentacao = buildPrintPayloadFromMovimentacao;
 })();
