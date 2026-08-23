@@ -3171,6 +3171,19 @@ body {
   display: none !important;
 }
 
+/* Triagem: sem campos de saída (check-list segue para oficina própria). */
+.portal-checklist-workspace--triagem .portal-checklist-saida-field {
+  display: none !important;
+}
+
+.portal-oficina-propria-placas {
+  margin: 0 0 0.85rem;
+}
+
+.portal-oficina-propria-placas.hidden {
+  display: none !important;
+}
+
 .portal-checklist-manut-simples-actions {
   display: flex;
   flex-direction: column;
