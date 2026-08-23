@@ -939,19 +939,19 @@ body {
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--minha-moto,
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--minha-moto .portal-placa-dropdown__plate,
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--minha-moto .portal-placa-dropdown__model {
-  color: #1565c0;
+  color: #5eb8ff;
 }
 
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--meu-transporte,
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--meu-transporte .portal-placa-dropdown__plate,
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--meu-transporte .portal-placa-dropdown__model {
-  color: #2e7d32;
+  color: #6ee7a0;
 }
 
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--carro,
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--carro .portal-placa-dropdown__plate,
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--carro .portal-placa-dropdown__model {
-  color: #6d4c41;
+  color: #c4a484;
 }
 
 .portal-admin-cpf-dropdown .portal-placa-dropdown__opt.portal-admin-cpf-opt--inativo,
@@ -1559,8 +1559,9 @@ body {
   color: #6ee7a0;
 }
 
+/* Plano Carros — marrom (mesmo tom da frota locada) */
 .portal-lanc-pesquisa-linha--amarelo {
-  color: #f5d76e;
+  color: #c4a484;
 }
 
 .portal-lanc-pesquisa-linha--vermelho {
@@ -1699,14 +1700,21 @@ body {
 }
 
 .operacao-veiculo-resumo-card--locado-carro {
-  border-color: rgba(109, 76, 65, 0.55);
+  border-color: rgba(196, 164, 132, 0.55);
 }
 
 .operacao-veiculo-resumo-card--livre {
   border-color: rgba(239, 83, 80, 0.45);
 }
 
-.operacao-veiculo-resumo-card--manutencao,
+.operacao-veiculo-resumo-card--manutencao {
+  border-color: rgba(245, 215, 110, 0.55);
+}
+
+.operacao-veiculo-resumo-card--sinistro-roubo {
+  border-color: rgba(255, 107, 107, 0.65);
+}
+
 .operacao-veiculo-resumo-card--indisponivel {
   border-color: rgba(158, 158, 158, 0.45);
 }
@@ -1733,24 +1741,78 @@ body {
 }
 
 .operacao-veiculo-resumo-card__status--locado-minha-moto {
-  color: #1565c0;
+  color: #5eb8ff;
 }
 
 .operacao-veiculo-resumo-card__status--locado-meu-transporte {
-  color: #2e7d32;
+  color: #6ee7a0;
 }
 
 .operacao-veiculo-resumo-card__status--locado-carro {
-  color: #6d4c41;
+  color: #c4a484;
 }
 
 .operacao-veiculo-resumo-card__status--livre {
   color: #ef5350;
 }
 
-.operacao-veiculo-resumo-card__status--manutencao,
+.operacao-veiculo-resumo-card__status--manutencao {
+  color: #f5d76e;
+}
+
+.operacao-veiculo-resumo-card__status--sinistro-roubo {
+  color: #ff6b6b;
+}
+
 .operacao-veiculo-resumo-card__status--indisponivel {
   color: #9e9e9e;
+}
+
+/* Sidebar Manutenção — cores dos planos locados e estados de manutenção */
+#btn-locado-sub-minha-moto .btn-operacao-cmd__title,
+#btn-locado-sub-minha-moto.is-active {
+  color: #5eb8ff;
+}
+#btn-locado-sub-meu-transporte .btn-operacao-cmd__title,
+#btn-locado-sub-meu-transporte.is-active {
+  color: #6ee7a0;
+}
+#btn-locado-sub-carros .btn-operacao-cmd__title,
+#btn-locado-sub-carros.is-active {
+  color: #c4a484;
+}
+#btn-manut-sub-oficina-propria .btn-operacao-cmd__title,
+#btn-manut-sub-oficina-terceiros .btn-operacao-cmd__title,
+#btn-manut-sub-enviado-seguro .btn-operacao-cmd__title,
+#btn-manut-sub-oficina-propria.is-active,
+#btn-manut-sub-oficina-terceiros.is-active,
+#btn-manut-sub-enviado-seguro.is-active {
+  color: #f5d76e;
+}
+#btn-manut-sub-sinistrado-roubo .btn-operacao-cmd__title,
+#btn-manut-sub-sinistrado-roubo.is-active {
+  color: #ff6b6b;
+}
+
+.portal-placa-dropdown__opt.portal-placa-opt--minha-moto .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--minha-moto .portal-placa-dropdown__model {
+  color: #5eb8ff;
+}
+.portal-placa-dropdown__opt.portal-placa-opt--meu-transporte .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--meu-transporte .portal-placa-dropdown__model {
+  color: #6ee7a0;
+}
+.portal-placa-dropdown__opt.portal-placa-opt--carros .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--carros .portal-placa-dropdown__model {
+  color: #c4a484;
+}
+.portal-placa-dropdown__opt.portal-placa-opt--manutencao .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--manutencao .portal-placa-dropdown__model {
+  color: #f5d76e;
+}
+.portal-placa-dropdown__opt.portal-placa-opt--sinistro-roubo .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--sinistro-roubo .portal-placa-dropdown__model {
+  color: #ff6b6b;
 }
 
 .operacao-inline-form__footnote {
@@ -3384,6 +3446,19 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
   gap: 0.55rem;
   margin-top: 0.35rem;
+}
+
+.portal-reserva-placa-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: stretch;
+}
+
+.portal-disp-move-btn {
+  font-size: 0.72rem !important;
+  padding: 0.35rem 0.45rem !important;
+  line-height: 1.2;
 }
 
 .portal-reserva-placa-btn {

@@ -2322,7 +2322,14 @@
   });
 
   function hideManutencaoInlineFormsCore() {
-    ["operacaoInlineLancamentoManutencao", "manutencaoInlineEmOperacao", "manutencaoInlineEmManutencao", "manutencaoInlineReserva", "manutencaoInlineOperacionais"].forEach((id) => {
+    [
+      "operacaoInlineLancamentoManutencao",
+      "manutencaoInlineEmOperacao",
+      "manutencaoInlineEmManutencao",
+      "manutencaoInlineDisponiveis",
+      "manutencaoInlineReserva",
+      "manutencaoInlineOperacionais",
+    ].forEach((id) => {
       document.getElementById(id)?.classList.add("hidden");
     });
     document.getElementById("portalChecklistFotosGrid")?.classList.add("hidden");
@@ -2335,46 +2342,107 @@
     el.setAttribute("aria-hidden", visible ? "false" : "true");
   }
 
+  const MANUT_SIDEBAR_PARENT_IDS = [
+    "btn-operacao-lancamento-manutencao",
+    "btn-manutencao-locados",
+    "btn-manutencao-disponiveis",
+    "btn-manutencao-em-manutencao",
+  ];
+
+  const MANUT_LOCADO_SUB_META = {
+    "minha-moto": {
+      title: "Locados — 1 Plano DK Minha Moto",
+      lead: "Check-list para veículos locados no plano DK Minha Moto.",
+    },
+    "meu-transporte": {
+      title: "Locados — 2 Plano DK Meu Transporte",
+      lead: "Check-list para veículos locados no plano DK Meu Transporte.",
+    },
+    carros: {
+      title: "Locados — 3 Plano Carros",
+      lead: "Check-list para veículos locados no plano Carros.",
+    },
+  };
+
+  const MANUT_DISP_SUB_META = {
+    prontos: {
+      title: "Disponíveis — 1 Prontos para alugar",
+      lead: "Veículos livres, prontos para nova locação. Clique numa placa para marcar como reserva.",
+    },
+    reserva: {
+      title: "Disponíveis — 2 Veículo reserva",
+      lead: "Frota de reserva. Clique numa placa para devolver a «Prontos para alugar».",
+    },
+  };
+
+  const MANUT_EM_MANUT_SUB_META = {
+    "oficina-propria": {
+      title: "Em manutenção — 1 Oficina própria",
+      lead: "Oficina própria DK. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+    "oficina-terceiros": {
+      title: "Em manutenção — 2 Oficina de terceiro",
+      lead: "Oficina de terceiro. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+    "enviado-seguro": {
+      title: "Em manutenção — 3 Seguro",
+      lead: "Seguro. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+    "sinistrado-roubo": {
+      title: "Em manutenção — 4 Sinistro Roubo",
+      lead: "Sinistro / roubo. Impressão só com todos os itens em A. Destino: enviar para vendas.",
+    },
+  };
+
+  let portalManutLocadoSubAtivo = "minha-moto";
+  let portalManutDispSubAtivo = "prontos";
+  let portalManutEmManutSubAtivo = "oficina-propria";
+
+  function syncManutSubnavVisible(navId, visible) {
+    const nav = document.getElementById(navId);
+    if (!nav) return;
+    nav.classList.toggle("hidden", !visible);
+    if (visible) nav.removeAttribute("hidden");
+    else nav.setAttribute("hidden", "");
+  }
+
   function syncManutencaoSidebarButtons(activeButtonId) {
-    ["btn-operacao-lancamento-manutencao", "btn-manutencao-em-operacao", "btn-manutencao-em-manutencao", "btn-manutencao-reserva", "btn-manutencao-operacionais"].forEach((id) => {
+    MANUT_SIDEBAR_PARENT_IDS.forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
       const on = Boolean(activeButtonId && id === activeButtonId);
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
-    const showSub = activeButtonId === "btn-manutencao-em-manutencao";
-    syncManutEmManutencaoSubnavVisible(showSub);
-    if (!showSub) syncManutEmManutencaoSubButtons(null);
+    const showLoc = activeButtonId === "btn-manutencao-locados";
+    const showDisp = activeButtonId === "btn-manutencao-disponiveis";
+    const showManut = activeButtonId === "btn-manutencao-em-manutencao";
+    syncManutSubnavVisible("manutencaoLocadosSubnav", showLoc);
+    syncManutSubnavVisible("manutencaoDisponiveisSubnav", showDisp);
+    syncManutSubnavVisible("manutencaoEmManutencaoSubnav", showManut);
+    if (!showLoc) syncManutLocadoSubButtons(null);
+    if (!showDisp) syncManutDispSubButtons(null);
+    if (!showManut) syncManutEmManutencaoSubButtons(null);
   }
 
-  const MANUT_EM_MANUT_SUB_META = {
-    "oficina-propria": {
-      title: "Veículos em manutenção — Oficina própria",
-      lead: "Oficina própria DK. Impressão só com todos os itens em A. Destino: enviar para vendas.",
-    },
-    "oficina-terceiros": {
-      title: "Veículos em manutenção — Oficina de terceiros",
-      lead: "Oficina de terceiros. Impressão só com todos os itens em A. Destino: enviar para vendas.",
-    },
-    "enviado-seguro": {
-      title: "Veículos em manutenção — Enviado para seguro",
-      lead: "Enviado para seguro. Impressão só com todos os itens em A. Destino: enviar para vendas.",
-    },
-    "sinistrado-roubo": {
-      title: "Veículos em manutenção — Sinistrado Roubo",
-      lead: "Sinistrado / roubo. Impressão só com todos os itens em A. Destino: enviar para vendas.",
-    },
-  };
+  function syncManutLocadoSubButtons(activeSub) {
+    const sub = activeSub && MANUT_LOCADO_SUB_META[activeSub] ? activeSub : "";
+    if (sub) portalManutLocadoSubAtivo = sub;
+    document.querySelectorAll("[data-locado-sub]").forEach((b) => {
+      const on = Boolean(sub) && b.getAttribute("data-locado-sub") === sub;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+  }
 
-  let portalManutEmManutSubAtivo = "oficina-propria";
-
-  function syncManutEmManutencaoSubnavVisible(visible) {
-    const nav = document.getElementById("manutencaoEmManutencaoSubnav");
-    if (!nav) return;
-    nav.classList.toggle("hidden", !visible);
-    if (visible) nav.removeAttribute("hidden");
-    else nav.setAttribute("hidden", "");
+  function syncManutDispSubButtons(activeSub) {
+    const sub = activeSub && MANUT_DISP_SUB_META[activeSub] ? activeSub : "";
+    if (sub) portalManutDispSubAtivo = sub;
+    document.querySelectorAll("[data-disp-sub]").forEach((b) => {
+      const on = Boolean(sub) && b.getAttribute("data-disp-sub") === sub;
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
   }
 
   function syncManutEmManutencaoSubButtons(activeSub) {
@@ -2404,23 +2472,95 @@
     return alvo === "oficina-propria";
   }
 
-  function expandManutencaoEmManutencaoMenuOnly() {
+  /** Classifica placa locada: minha-moto | meu-transporte | carros | "". */
+  function portalClassificarPlanoLocado(plateKey, veiculoOpt, locOpt) {
+    const loc =
+      locOpt ||
+      (typeof getPortalLocacaoAtivaDetalhePorPlaca === "function"
+        ? getPortalLocacaoAtivaDetalhePorPlaca(plateKey)
+        : null);
+    if (!loc) return "";
+    const vmap = typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null;
+    const veiculo = veiculoOpt || vmap?.get(plateKey) || null;
+    const cls = portalFrotaStatusClassEmLocacao(loc, veiculo);
+    if (cls === "locado-minha-moto") return "minha-moto";
+    if (cls === "locado-meu-transporte") return "meu-transporte";
+    if (cls === "locado-carro") return "carros";
+    return "";
+  }
+
+  /** prontos | reserva — default prontos. */
+  function portalNormDisponivelCategoria(veiculo) {
+    const raw = String(
+      veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || veiculo?.estadoDisponivel || ""
+    )
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "-");
+    if (raw === "reserva" || raw.includes("reserva")) return "reserva";
+    const st = String(veiculo?.status || "").toUpperCase();
+    if (st.includes("RESERVA")) return "reserva";
+    return "prontos";
+  }
+
+  function expandManutencaoParentMenuOnly(parentBtnId, placeholderText) {
     portalRefreshOperacaoLocal();
     hideManutencaoInlineFormsCore();
     setManutencaoFormPlaceholderVisible(true);
     const ph = document.getElementById("manutencaoFormPlaceholder");
     const phText = ph?.querySelector(".operacao-form-placeholder__text");
-    if (phText) {
-      phText.textContent = "Escolha uma das 4 opções em «Veículos em manutenção» à esquerda.";
-    }
-    syncManutencaoSidebarButtons("btn-manutencao-em-manutencao");
-    syncManutEmManutencaoSubButtons(null);
-    syncManutEmManutencaoSubnavVisible(true);
-    const parentBtn = document.getElementById("btn-manutencao-em-manutencao");
+    if (phText) phText.textContent = placeholderText;
+    syncManutencaoSidebarButtons(parentBtnId);
+    const parentBtn = document.getElementById(parentBtnId);
     if (parentBtn) {
       parentBtn.classList.add("is-active");
       parentBtn.setAttribute("aria-expanded", "true");
     }
+  }
+
+  function openManutencaoLocadoSub(subRaw) {
+    const sub = MANUT_LOCADO_SUB_META[subRaw] ? subRaw : "minha-moto";
+    portalManutLocadoSubAtivo = sub;
+    portalRefreshOperacaoLocal();
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(false);
+    document.getElementById("manutencaoInlineEmOperacao")?.classList.remove("hidden");
+    syncManutencaoSidebarButtons("btn-manutencao-locados");
+    syncManutLocadoSubButtons(sub);
+    syncManutSubnavVisible("manutencaoLocadosSubnav", true);
+    const meta = MANUT_LOCADO_SUB_META[sub];
+    const titleEl = document.getElementById("manutencao-title-em-operacao");
+    const leadEl = document.getElementById("portalChecklistLeadOperacao");
+    if (titleEl) titleEl.textContent = meta.title;
+    if (leadEl) leadEl.textContent = meta.lead;
+    portalAttachChecklistWorkspace("operacao");
+    portalEnsureChecklistUiBuilt();
+    const mount = document.getElementById("portalChecklistMount");
+    mount?.classList.remove("hidden");
+    mount?.classList.add("portal-checklist-mount--tablet");
+    const inp = document.getElementById("portalChecklistPlacaInput");
+    window.setTimeout(() => {
+      inp?.focus();
+      if (inp) renderPortalChecklistPlacaDropdown(String(inp.value || ""));
+    }, 40);
+  }
+
+  function openManutencaoDisponivelSub(subRaw) {
+    const sub = MANUT_DISP_SUB_META[subRaw] ? subRaw : "prontos";
+    portalManutDispSubAtivo = sub;
+    portalRefreshOperacaoLocal();
+    hideManutencaoInlineFormsCore();
+    setManutencaoFormPlaceholderVisible(false);
+    document.getElementById("manutencaoInlineDisponiveis")?.classList.remove("hidden");
+    syncManutencaoSidebarButtons("btn-manutencao-disponiveis");
+    syncManutDispSubButtons(sub);
+    syncManutSubnavVisible("manutencaoDisponiveisSubnav", true);
+    const meta = MANUT_DISP_SUB_META[sub];
+    const titleEl = document.getElementById("manutencao-title-disponiveis");
+    const leadEl = document.getElementById("portalDisponiveisLead");
+    if (titleEl) titleEl.textContent = meta.title;
+    if (leadEl) leadEl.textContent = meta.lead;
+    portalRefreshManutencaoDisponiveisPlacas();
   }
 
   function openManutencaoEmManutencaoSub(subRaw) {
@@ -2432,14 +2572,13 @@
     document.getElementById("manutencaoInlineEmManutencao")?.classList.remove("hidden");
     syncManutencaoSidebarButtons("btn-manutencao-em-manutencao");
     syncManutEmManutencaoSubButtons(sub);
-    syncManutEmManutencaoSubnavVisible(true);
+    syncManutSubnavVisible("manutencaoEmManutencaoSubnav", true);
     const meta = MANUT_EM_MANUT_SUB_META[sub];
     const titleEl = document.getElementById("manutencao-title-em-manutencao");
     const leadEl = document.getElementById("portalChecklistLeadManutencao");
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
     portalAttachChecklistWorkspace("manutencao");
-    /* Abre já a área do check-list (placa + formulário) nas 4 opções. */
     portalEnsureChecklistUiBuilt();
     const mount = document.getElementById("portalChecklistMount");
     mount?.classList.remove("hidden");
@@ -2524,10 +2663,10 @@
 
   let portalChecklistUiBuilt = false;
 
-  /** «operacao» = Veículos em operação · «manutencao» = Veículos em manutenção (mesma UI). */
+  /** «operacao» = Locados · «manutencao» = Em manutenção (mesma UI). */
   let portalChecklistMode = "operacao";
 
-  /** Placas do check-list (operação = locação ativa; manutenção = manutenção aberta). */
+  /** Placas do check-list (locados = locação ativa filtrada por plano; manutenção = manutenção aberta). */
   let portalChecklistPlacasAtivasCache = [];
 
   function portalChecklistIsManutencaoMode() {
@@ -2559,8 +2698,10 @@
       }
     } else if (typeof getActivePlatesSet === "function") {
       const activeSet = getActivePlatesSet();
+      const planoFiltro = portalManutLocadoSubAtivo || "minha-moto";
       activeSet.forEach((plateKey) => {
         const v = vmap?.get(plateKey);
+        if (portalClassificarPlanoLocado(plateKey, v) !== planoFiltro) return;
         const modelo =
           String(v?.marcaModelo || v?.modelo || "").trim() || "Modelo não informado";
         portalChecklistPlacasAtivasCache.push({ placa: plateKey, modelo });
@@ -2583,7 +2724,7 @@
         "aria-label",
         portalChecklistIsManutencaoMode()
           ? "Placas em manutenção (sem saída)"
-          : "Placas em operação (locação ativa)"
+          : "Placas locadas neste plano"
       );
     }
   }
@@ -2685,18 +2826,25 @@
     const items = filterPlacasAtivasChecklistDropdown(queryRaw);
     if (!items.length) {
       const emptyMsg = portalChecklistIsManutencaoMode()
-        ? `Nenhuma placa nesta categoria${queryRaw ? " para esta busca" : ""}. Envie uma placa em «Veículos em operação» com «ENVIAR PARA MANUTENÇÃO».`
-        : "Nenhuma placa em operação (cadastre uma locação ativa primeiro).";
+        ? `Nenhuma placa nesta categoria${queryRaw ? " para esta busca" : ""}. Envie uma placa em «Locados» com «ENVIAR PARA MANUTENÇÃO».`
+        : "Nenhuma placa locada neste plano (cadastre uma locação ativa primeiro).";
       panel.innerHTML = `<div class="portal-placa-dropdown__empty">${emptyMsg}</div>`;
     } else {
       panel.innerHTML = items
-        .map(
-          (v) =>
-            `<button type="button" class="portal-placa-dropdown__opt" role="option" tabindex="-1" data-placa="${v.placa}">
+        .map((v) => {
+          let corCls = "manutencao";
+          if (portalChecklistIsManutencaoMode()) {
+            const cat = getPortalManutCategoriaPorPlaca(v.placa);
+            corCls = cat === "sinistrado-roubo" ? "sinistro-roubo" : "manutencao";
+          } else {
+            const plano = portalClassificarPlanoLocado(v.placa) || portalManutLocadoSubAtivo || "minha-moto";
+            corCls = plano === "meu-transporte" ? "meu-transporte" : plano === "carros" ? "carros" : "minha-moto";
+          }
+          return `<button type="button" class="portal-placa-dropdown__opt portal-placa-opt--${corCls}" role="option" tabindex="-1" data-placa="${v.placa}">
               <span class="portal-placa-dropdown__plate">${v.placa}</span>
               <span class="portal-placa-dropdown__model">${portalEscapeHtml(v.modelo)}</span>
-            </button>`
-        )
+            </button>`;
+        })
         .join("");
     }
     panel.classList.remove("hidden");
@@ -3242,53 +3390,136 @@
     const veiculos = (portalVeiculoPlacasCache || []).map((x) => x.record).filter(Boolean);
     return veiculos.filter((v) => {
       const d = getPortalResumoVeiculoCardData(v);
-      return d.statusText === "Disponível";
+      return d.statusClass === "livre" || String(d.statusText || "").startsWith("Disponível");
     });
   }
 
-  /** Placas disponíveis (= frota com status vermelho «Disponível»). */
-  function portalRefreshManutencaoReservaPlacas() {
-    const grid = document.getElementById("portalReservaPlacasGrid");
-    const msg = document.getElementById("portalReservaPlacasMsg");
+  /** Placas em Disponíveis (prontos | reserva). */
+  function portalRefreshManutencaoDisponiveisPlacas() {
+    const grid = document.getElementById("portalDisponiveisPlacasGrid");
+    const msg = document.getElementById("portalDisponiveisPlacasMsg");
     if (!grid) return;
-    const livres = portalColetarVeiculosDisponiveisFrota();
-    const filtro = portalNkPlate(String(document.getElementById("portalReservaPlacaFiltro")?.value || ""));
+    const sub = portalManutDispSubAtivo || "prontos";
+    const livres = portalColetarVeiculosDisponiveisFrota().filter(
+      (v) => portalNormDisponivelCategoria(v) === sub
+    );
+    const filtro = portalNkPlate(String(document.getElementById("portalDisponiveisPlacaFiltro")?.value || ""));
     let rows = livres
       .map((v) => ({
         placa: portalNkPlate(v.placa),
-        modelo: String(v.modelo || "").trim() || "—",
+        modelo: String(v.modelo || v.marcaModelo || "").trim() || "—",
         tipo: String(v.tipo || "").trim().toUpperCase() || "",
         codigo: String(v.codigo || v.tag || "").trim() || "",
+        record: v,
       }))
       .filter((r) => r.placa);
     if (filtro) rows = rows.filter((r) => r.placa.includes(filtro) || r.codigo.toUpperCase().includes(filtro));
     rows.sort((a, b) => a.placa.localeCompare(b.placa, "en"));
     if (!rows.length) {
-      grid.innerHTML = `<p class="portal-manutencao-empty">Nenhuma placa disponível (igual à frota vermelha)${filtro ? " para esta busca" : ""}.</p>`;
+      const emptyHint =
+        sub === "reserva"
+          ? "Nenhuma placa marcada como veículo reserva."
+          : "Nenhuma placa pronta para alugar.";
+      grid.innerHTML = `<p class="portal-manutencao-empty">${emptyHint}${filtro ? " (filtro)" : ""}</p>`;
       if (msg) msg.textContent = "";
       return;
     }
+    const moveLabel = sub === "reserva" ? "Mover para prontos" : "Mover para reserva";
+    const moveTo = sub === "reserva" ? "prontos" : "reserva";
     grid.innerHTML = rows
       .map((r) => {
         const modelo = portalEscapeHtml(r.modelo);
-        const tipo = portalEscapeHtml(r.tipo || "");
         const title = [r.placa, r.modelo, r.codigo, r.tipo].filter(Boolean).join(" · ");
-        return `<button type="button" class="portal-reserva-placa-btn" role="listitem" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
-          <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(r.placa)}</span>
-          <span class="portal-reserva-placa-btn__model">${modelo}</span>
-        </button>`;
+        return `<div class="portal-reserva-placa-item" role="listitem">
+          <button type="button" class="portal-reserva-placa-btn" data-placa="${portalEscapeHtml(r.placa)}" title="${portalEscapeHtml(title)}">
+            <span class="portal-reserva-placa-btn__plate">${portalEscapeHtml(r.placa)}</span>
+            <span class="portal-reserva-placa-btn__model">${modelo}</span>
+          </button>
+          <button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${moveTo}">${moveLabel}</button>
+        </div>`;
       })
       .join("");
-    if (msg) msg.textContent = `${rows.length} placa(s) disponíveis (mesma lista da frota).`;
+    if (msg) {
+      msg.textContent =
+        sub === "reserva"
+          ? `${rows.length} veículo(s) reserva.`
+          : `${rows.length} placa(s) prontas para alugar.`;
+    }
+  }
+
+  function portalSetDisponivelCategoriaPlaca(placaRaw, categoria) {
+    const plateKey = portalNkPlate(placaRaw);
+    const cat = categoria === "reserva" ? "reserva" : "prontos";
+    if (!plateKey || typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
+      return { ok: false, message: "Cadastro indisponível." };
+    }
+    const key =
+      typeof PORTAL_VEICULOS_KEY !== "undefined"
+        ? PORTAL_VEICULOS_KEY
+        : typeof CAD_VEICULOS_KEY !== "undefined"
+          ? CAD_VEICULOS_KEY
+          : null;
+    if (!key) return { ok: false, message: "Chave de veículos indisponível." };
+    const veiculos = loadCadastro(key);
+    const idx = veiculos.findIndex((v) => portalNkPlate(v.placa) === plateKey);
+    if (idx < 0) return { ok: false, message: "Placa não encontrada no cadastro." };
+    veiculos[idx] = { ...veiculos[idx], disponivelCategoria: cat };
+    saveCadastro(key, veiculos);
+    if (typeof CAD_VEICULOS_KEY !== "undefined" && key !== CAD_VEICULOS_KEY) {
+      try {
+        const cad = loadCadastro(CAD_VEICULOS_KEY);
+        const i2 = cad.findIndex((v) => portalNkPlate(v.placa) === plateKey);
+        if (i2 >= 0) {
+          cad[i2] = { ...cad[i2], disponivelCategoria: cat };
+          saveCadastro(CAD_VEICULOS_KEY, cad);
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      try {
+        portalPushCloudSnapshotAfterPersist();
+      } catch {
+        /* ignore */
+      }
+    }
+    return { ok: true, placa: plateKey, categoria: cat };
+  }
+
+  /** Placas disponíveis (= frota com status vermelho «Disponível»). */
+  function portalRefreshManutencaoReservaPlacas() {
+    portalRefreshManutencaoDisponiveisPlacas();
   }
 
   function portalBindManutencaoListaOnce() {
     if (window.__dkPortalManutencaoListaBound) return;
     window.__dkPortalManutencaoListaBound = true;
-    const inpReserva = document.getElementById("portalReservaPlacaFiltro");
-    inpReserva?.addEventListener("input", () => {
-      inpReserva.value = String(inpReserva.value || "").toUpperCase();
-      portalRefreshManutencaoReservaPlacas();
+    const inpDisp = document.getElementById("portalDisponiveisPlacaFiltro");
+    inpDisp?.addEventListener("input", () => {
+      inpDisp.value = String(inpDisp.value || "").toUpperCase();
+      portalRefreshManutencaoDisponiveisPlacas();
+    });
+    document.getElementById("portalDisponiveisPlacasGrid")?.addEventListener("click", (e) => {
+      const moveBtn = e.target.closest("[data-disp-move]");
+      if (moveBtn) {
+        const placa = moveBtn.getAttribute("data-placa") || "";
+        const dest = moveBtn.getAttribute("data-disp-move") || "prontos";
+        const r = portalSetDisponivelCategoriaPlaca(placa, dest);
+        const msg = document.getElementById("portalDisponiveisPlacasMsg");
+        if (!r.ok) {
+          if (msg) msg.textContent = r.message || "Não foi possível mover.";
+          return;
+        }
+        if (msg) {
+          msg.textContent =
+            dest === "reserva"
+              ? `Placa ${r.placa} marcada como veículo reserva.`
+              : `Placa ${r.placa} marcada como pronta para alugar.`;
+        }
+        portalRefreshManutencaoDisponiveisPlacas();
+        return;
+      }
     });
   }
 
@@ -3808,9 +4039,9 @@
           <span class="portal-checklist-categoria-move__label">Mover placa para:</span>
           <div class="portal-checklist-categoria-move__btns" role="group" aria-label="Categoria de manutenção">
             <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-propria">1 — Oficina própria</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros">2 — Oficina de terceiros</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro">3 — Enviado para seguro</button>
-            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo">4 — Sinistrado Roubo</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="oficina-terceiros">2 — Oficina de terceiro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="enviado-seguro">3 — Seguro</button>
+            <button type="button" class="btn-primary btn-secondary-outline" data-manut-move-cat="sinistrado-roubo">4 — Sinistro Roubo</button>
           </div>
         </div>
         <p id="portalChecklistDispositionMsg" class="portal-checklist-disposition-msg" role="status"></p>
@@ -3945,28 +4176,39 @@
     portalCarregarChecklistPorPlaca();
   });
 
-  [
-    { btn: "btn-manutencao-em-operacao", panel: "manutencaoInlineEmOperacao" },
-    { btn: "btn-manutencao-reserva", panel: "manutencaoInlineReserva" },
-    { btn: "btn-manutencao-operacionais", panel: "manutencaoInlineOperacionais" },
-  ].forEach(({ btn, panel }) => {
-    document.getElementById(btn)?.addEventListener("click", async () => {
-      portalRefreshOperacaoLocal();
-      hideManutencaoInlineFormsCore();
-      setManutencaoFormPlaceholderVisible(false);
-      document.getElementById(panel)?.classList.remove("hidden");
-      syncManutencaoSidebarButtons(btn);
-      if (panel === "manutencaoInlineEmOperacao") {
-        portalAttachChecklistWorkspace("operacao");
-      }
-      if (panel === "manutencaoInlineReserva") {
-        portalRefreshManutencaoReservaPlacas();
-      }
-    });
+  document.getElementById("btn-manutencao-locados")?.addEventListener("click", () => {
+    expandManutencaoParentMenuOnly(
+      "btn-manutencao-locados",
+      "Escolha o plano em «Locados» à esquerda (1 Minha Moto, 2 Meu Transporte ou 3 Carros)."
+    );
+  });
+
+  document.getElementById("btn-manutencao-disponiveis")?.addEventListener("click", () => {
+    expandManutencaoParentMenuOnly(
+      "btn-manutencao-disponiveis",
+      "Escolha em «Disponíveis»: 1 Prontos para alugar ou 2 Veículo reserva."
+    );
   });
 
   document.getElementById("btn-manutencao-em-manutencao")?.addEventListener("click", () => {
-    expandManutencaoEmManutencaoMenuOnly();
+    expandManutencaoParentMenuOnly(
+      "btn-manutencao-em-manutencao",
+      "Escolha uma das 4 opções em «Em manutenção» à esquerda."
+    );
+  });
+
+  document.querySelectorAll("[data-locado-sub]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      openManutencaoLocadoSub(btn.getAttribute("data-locado-sub") || "minha-moto");
+    });
+  });
+
+  document.querySelectorAll("[data-disp-sub]").forEach((btn) => {
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      openManutencaoDisponivelSub(btn.getAttribute("data-disp-sub") || "prontos");
+    });
   });
 
   document.querySelectorAll("[data-manut-sub]").forEach((btn) => {
@@ -6611,6 +6853,41 @@
     return set;
   }
 
+  function getPortalManutCategoriaPorPlaca(plateKey) {
+    if (!plateKey || typeof loadCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return "";
+    }
+    const rows = loadCadastro(CAD_MANUTENCOES_KEY).filter((m) => {
+      const pl = portalNkPlate(m.placa);
+      return pl === plateKey && !String(m.dataRealSaida || "").trim();
+    });
+    if (!rows.length) return "";
+    rows.sort((a, b) => Number(b.id || b.createdAt || 0) - Number(a.id || a.createdAt || 0));
+    return portalNormManutCategoria(rows[0]?.categoriaManutencao || rows[0]?.categoria || "") || "oficina-propria";
+  }
+
+  function portalFrotaStatusClassEmManutencao(categoria) {
+    const cat = portalNormManutCategoria(categoria) || "oficina-propria";
+    if (cat === "sinistrado-roubo") return "sinistro-roubo";
+    return "manutencao";
+  }
+
+  function portalStatusTextEmManutencao(categoria) {
+    const cat = portalNormManutCategoria(categoria) || "oficina-propria";
+    if (cat === "sinistrado-roubo") return "Sinistro Roubo";
+    if (cat === "oficina-terceiros") return "Em manutenção — Oficina de terceiro";
+    if (cat === "enviado-seguro") return "Em manutenção — Seguro";
+    if (cat === "oficina-propria") return "Em manutenção — Oficina própria";
+    return "Em manutenção";
+  }
+
+  function portalStatusTextEmLocacao(statusClass) {
+    if (statusClass === "locado-minha-moto") return "Locado — DK Minha Moto";
+    if (statusClass === "locado-meu-transporte") return "Locado — DK Meu Transporte";
+    if (statusClass === "locado-carro") return "Locado — Carros";
+    return "Em locação";
+  }
+
   function getPortalLocacaoAtivaDetalhePorPlaca(plateKey) {
     if (!plateKey) return null;
     if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
@@ -6708,12 +6985,13 @@
         if (cli?.nome) nome = String(cli.nome).trim();
       }
       cliente = nome || "Cliente cadastrado";
-      statusText = "Em locação";
       statusClass = portalFrotaStatusClassEmLocacao(locAtiva, veiculo);
+      statusText = portalStatusTextEmLocacao(statusClass);
     } else if (emManutencao) {
       cliente = "—";
-      statusText = "Em manutenção";
-      statusClass = "manutencao";
+      const catManut = getPortalManutCategoriaPorPlaca(plateKey);
+      statusClass = portalFrotaStatusClassEmManutencao(catManut);
+      statusText = portalStatusTextEmManutencao(catManut);
     } else if (indisponivel) {
       cliente = "—";
       statusText = "Indisponível";
@@ -14642,7 +14920,24 @@
   };
   window.__DK_showManutencaoInlinePanel = (panelId, btnId) => {
     if (panelId === "manutencaoInlineEmManutencao" || btnId === "btn-manutencao-em-manutencao") {
-      expandManutencaoEmManutencaoMenuOnly();
+      expandManutencaoParentMenuOnly(
+        "btn-manutencao-em-manutencao",
+        "Escolha uma das 4 opções em «Em manutenção» à esquerda."
+      );
+      return;
+    }
+    if (panelId === "manutencaoInlineEmOperacao" || btnId === "btn-manutencao-locados") {
+      expandManutencaoParentMenuOnly(
+        "btn-manutencao-locados",
+        "Escolha o plano em «Locados» à esquerda (1 Minha Moto, 2 Meu Transporte ou 3 Carros)."
+      );
+      return;
+    }
+    if (panelId === "manutencaoInlineDisponiveis" || btnId === "btn-manutencao-disponiveis") {
+      expandManutencaoParentMenuOnly(
+        "btn-manutencao-disponiveis",
+        "Escolha em «Disponíveis»: 1 Prontos para alugar ou 2 Veículo reserva."
+      );
       return;
     }
     hideManutencaoInlineFormsCore();
