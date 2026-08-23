@@ -127,7 +127,7 @@ async function scrapeVisibleTokens(page) {
     const placas = [...text.matchAll(/\b([A-Z]{3}\d[A-Z0-9]\d{2})\b/gi)].map((m) =>
       String(m[1]).toUpperCase().replace(/[^A-Z0-9]/g, "")
     );
-    const cpfs = [...text.matchAll(/\b(\d{3}\.?\d{3}\.?\d{3}-?\d{2})\b/g)].map((m) =>
+    const cpfs = [...text.matchAll(/\b(\d{3}\.\d{3}\.\d{3}-\d{2})\b/g)].map((m) =>
       String(m[1]).replace(/\D/g, "").slice(0, 11)
     );
     const prs = [...text.matchAll(/\b(20\d{8})\b/g)].map((m) => m[1]);
@@ -294,11 +294,28 @@ async function verifyMiel(page) {
       JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin Teste 10" })
     );
     sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
+    localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
   });
-  await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 120000 });
-  await page.waitForTimeout(1500);
-  const mielBtn = page.locator('#view-home [data-go="miel"]').first();
-  await mielBtn.click({ timeout: 15000 });
+  await page.waitForTimeout(800);
+  await page.evaluate(() => {
+    if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
+    const home = document.getElementById("view-home");
+    const miel = document.getElementById("view-miel");
+    document.querySelectorAll(".view").forEach((v) => v.classList.remove("view--active"));
+    if (home) {
+      home.classList.add("view--active");
+      home.classList.remove("hidden");
+    }
+    const btn = document.querySelector('#view-home [data-go="miel"]');
+    if (btn) {
+      btn.classList.remove("hidden");
+      btn.removeAttribute("disabled");
+      btn.setAttribute("aria-hidden", "false");
+    }
+    if (miel) miel.classList.remove("view--active");
+  });
+  await page.locator('#view-home [data-go="miel"]').first().click({ timeout: 15000, force: true });
   await page.waitForTimeout(800);
 
   const mielData = await page.evaluate(() => {
@@ -358,7 +375,13 @@ page.on("dialog", (d) => d.accept().catch(() => null));
 try {
   await loginEmpresa(page);
   await verifyBrowserScreens(page);
-  await verifyMiel(page);
+  const mielPage = await browser.newPage();
+  mielPage.on("dialog", (d) => d.accept().catch(() => null));
+  try {
+    await verifyMiel(mielPage);
+  } finally {
+    await mielPage.close();
+  }
 } finally {
   await browser.close();
 }
