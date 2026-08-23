@@ -2890,6 +2890,10 @@ body {
 
 .portal-checklist-toolbar {
   margin: 0.75rem 0 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
 }
 
 .portal-checklist-fotos-grid {
@@ -2928,25 +2932,36 @@ body {
   display: none !important;
 }
 
-.portal-checklist-motivo-principal.is-layout-custom {
+.portal-checklist-workspace {
+  position: relative;
+  min-height: 12rem;
+}
+
+.portal-checklist-workspace.layout-edit-mode [data-checklist-layout-item] {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  outline: 1px dashed rgba(34, 197, 94, 0.85);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+  z-index: 7;
+}
+
+.portal-checklist-workspace.layout-edit-mode [data-checklist-layout-item]:active {
+  cursor: grabbing;
+}
+
+[data-checklist-layout-item].is-layout-custom {
   position: absolute;
   z-index: 6;
   margin: 0;
   align-self: auto;
 }
 
-.portal-checklist-motivo-principal.is-layout-edit {
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  outline: 1px dashed rgba(34, 197, 94, 0.85);
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+.portal-checklist-workspace.layout-edit-mode #portalChecklistFotosGrid.is-layout-edit-force-show {
+  display: contents;
 }
 
-.portal-checklist-motivo-principal.is-layout-edit:active {
-  cursor: grabbing;
-}
-
+.portal-checklist-layout-save,
 .portal-checklist-motivo-layout-save {
   font-size: 0.78rem;
   padding: 0.35rem 0.65rem;
@@ -2954,12 +2969,9 @@ body {
   white-space: nowrap;
 }
 
+.portal-checklist-layout-save.hidden,
 .portal-checklist-motivo-layout-save.hidden {
   display: none !important;
-}
-
-.portal-checklist-workspace {
-  position: relative;
 }
 
 .portal-checklist-motivo-principal__label {
