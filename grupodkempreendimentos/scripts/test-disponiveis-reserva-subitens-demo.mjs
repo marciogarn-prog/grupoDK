@@ -200,15 +200,17 @@ async function run() {
         const allCards = cards.map((el) => el.getAttribute("data-placa"));
         const el =
           cards.find((node) => node.getAttribute("data-placa") === placaReserva) || cards[0] || null;
-        const locada = el?.querySelector(".portal-reserva-operacao-card__locada")?.textContent?.trim() || "";
+        const locada =
+          el?.querySelector(".portal-reserva-operacao-card__col--locada .portal-reserva-operacao-card__plate")
+            ?.textContent?.trim() || "";
         const seeded = Boolean(cards.find((node) => node.getAttribute("data-placa") === placaReserva));
         return {
           found: Boolean(el),
           seeded,
           allCards,
           text: el?.textContent?.replace(/\s+/g, " ").trim() || "",
-          hasArrow: Boolean(el?.querySelector(".portal-reserva-operacao-card__arrow")),
-          reservaOrange: Boolean(el?.querySelector(".portal-reserva-operacao-card__reserva")),
+          hasArrow: Boolean(el?.querySelector(".portal-reserva-operacao-card__arrows")),
+          reservaOrange: Boolean(el?.querySelector(".portal-reserva-operacao-card__col--reserva")),
           locada,
           locadaOk: seeded ? locada === placaLocada : Boolean(locada && locada !== "—"),
         };

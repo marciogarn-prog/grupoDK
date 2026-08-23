@@ -38,5 +38,12 @@ const c10 = spawnSync(process.execPath, [cad10Test], {
 });
 if (c10.status !== 0) process.exit(typeof c10.status === "number" ? c10.status : 1);
 
+const handoffTest = path.join(scriptDir, "test-manutencao-handoff-7-8.mjs");
+const h = spawnSync(process.execPath, [handoffTest], {
+  stdio: "inherit",
+  env: { ...process.env, DK_TEST_BASE_URL: base },
+});
+if (h.status !== 0) process.exit(typeof h.status === "number" ? h.status : 1);
+
 const p = spawnSync(process.execPath, [parityTest], { stdio: "inherit" });
 process.exit(typeof p.status === "number" ? p.status : 1);
