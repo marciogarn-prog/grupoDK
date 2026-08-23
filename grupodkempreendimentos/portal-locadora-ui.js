@@ -9381,21 +9381,41 @@
     const mod = nk(String(locacao.modalidade || ""));
     if (mod.includes("CARRO")) return "CARRO";
     if (mod.includes("MOTO")) return "MOTO";
+    const marca = String(locacao.marcaModelo || locacao.modelo || "");
+    if (portalTextoSugereVeiculoCarro(marca)) return "CARRO";
     const plate =
       typeof normalizePlate === "function"
         ? normalizePlate(String(locacao.placa || ""))
         : nk(String(locacao.placa || "")).replace(/[^A-Z0-9]/g, "");
     if (!plate) return "MOTO";
-    if (typeof getVehicleMapByPlate !== "function") return "MOTO";
-    const v = getVehicleMapByPlate().get(plate);
-    if (!v) return "MOTO";
-    const tipo = nk(String(v.tipo || ""));
-    if (tipo.includes("CARRO")) return "CARRO";
-    if (tipo.includes("MOTO")) return "MOTO";
-    const tag = nk(String(v.tag || ""));
-    if (tag.includes("DKCR")) return "CARRO";
-    if (tag.includes("DKMT")) return "MOTO";
-    return tipo.includes("CARRO") ? "CARRO" : "MOTO";
+    if (typeof getVehicleMapByPlate === "function") {
+      const v = getVehicleMapByPlate().get(plate);
+      if (v) {
+        const tipo = nk(String(v.tipo || ""));
+        if (tipo.includes("CARRO")) return "CARRO";
+        if (tipo.includes("MOTO")) return "MOTO";
+        const tag = nk(String(v.tag || v.codigo || ""));
+        if (tag.includes("DKCR")) return "CARRO";
+        if (tag.includes("DKMT")) return "MOTO";
+        if (portalTextoSugereVeiculoCarro(v.modelo || v.marcaModelo || v.marca)) return "CARRO";
+      }
+    }
+    return "MOTO";
+  }
+
+  function portalTextoSugereVeiculoCarro(value) {
+    const t =
+      typeof normalizeKey === "function"
+        ? normalizeKey(value)
+        : String(value || "")
+            .trim()
+            .toUpperCase();
+    if (!t) return false;
+    if (t.includes("MOTO") || t.includes("SCOOTER") || t.includes("CG ") || t.includes("BIZ")) return false;
+    if (t.includes("CARRO") || t.includes("DKCR")) return true;
+    return /VOLKSWAGEN|VOLKSWAGEM|CHEVROLET|TOYOTA|HYUNDAI|RENAULT|NISSAN|JEEP|PEUGEOT|CITROEN|\bFORD\b|\bFIAT\b|\bGOL\b|VOYAGE|ONIX|ARGO|MOBI|KWID|HB20|COROLLA|CIVIC|\bPOLO\b|JETTA|VIRTUS|CRETA|STRADA|SAVEIRO|HILUX|AMAROK/.test(
+      t
+    );
   }
 
   function isPortalLocacaoMoto(locacao) {
@@ -12739,6 +12759,98 @@
           };
     const inv = parse(inpInv?.value ?? "");
     inpTipo.value = Number(inv) > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE";
+    syncOperacaoLocacaoModalidadeBolas();
+  }
+
+  function isPortalPlanoMeuTransporteKey(plano) {
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const k = nk(plano);
+    return k.includes("MEU") && k.includes("TRANSPORTE");
+  }
+
+  function getOperacaoLocacaoModalidadeMarcada() {
+    const el = document.querySelector(
+      '#operacaoLocacaoModalidadeWrap input[name="operacaoLocacaoModalidade"]:checked'
+    );
+    const v = String(el?.value || "").trim().toUpperCase();
+    if (v.includes("CARRO")) return "CARRO";
+    if (v.includes("MOTO")) return "MOTO";
+    return "";
+  }
+
+  function setOperacaoLocacaoModalidadeMarcada(tipo) {
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const k = nk(tipo);
+    const carro = document.getElementById("operacaoLocacaoModalidadeCarro");
+    const moto = document.getElementById("operacaoLocacaoModalidadeMoto");
+    if (!carro || !moto) return;
+    if (k.includes("CARRO")) {
+      carro.checked = true;
+      moto.checked = false;
+    } else if (k.includes("MOTO")) {
+      moto.checked = true;
+      carro.checked = false;
+    } else {
+      carro.checked = false;
+      moto.checked = false;
+    }
+  }
+
+  function inferOperacaoLocacaoModalidadeDoFormulario() {
+    const plateRaw = String(document.getElementById("operacaoLocacaoPlaca")?.value || "").trim();
+    const modelo = String(document.getElementById("operacaoLocacaoModelo")?.value || "").trim();
+    return portalInferTipoVeiculoLocacao({ placa: plateRaw, marcaModelo: modelo, modalidade: "" });
+  }
+
+  function paintOperacaoLocacaoProtocoloSelectFromModalidade() {
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!sel) return;
+    const tipoPlano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
+    if (!isPortalPlanoMeuTransporteKey(tipoPlano)) {
+      syncOperacaoLocacaoProtocoloSelectAtivoUi();
+      return;
+    }
+    const opt = sel.selectedOptions && sel.selectedOptions[0];
+    const v = getOperacaoLocacaoModalidadeMarcada();
+    if (opt && opt.value && opt.value !== "__PORTAL_PROTO_NOVO__") {
+      opt.classList.remove(
+        "portal-locacao-proto-opt--carro",
+        "portal-locacao-proto-opt--minha-moto",
+        "portal-locacao-proto-opt--meu-transporte"
+      );
+      if (v === "CARRO") opt.classList.add("portal-locacao-proto-opt--carro");
+      else if (v === "MOTO") opt.classList.add("portal-locacao-proto-opt--meu-transporte");
+    }
+    syncOperacaoLocacaoProtocoloSelectAtivoUi();
+  }
+
+  function syncOperacaoLocacaoModalidadeBolas(opts = {}) {
+    const wrap = document.getElementById("operacaoLocacaoModalidadeWrap");
+    if (!wrap) return;
+    const tipo = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
+    const show = isPortalPlanoMeuTransporteKey(tipo);
+    wrap.classList.toggle("hidden", !show);
+    wrap.hidden = !show;
+    wrap.setAttribute("aria-hidden", show ? "false" : "true");
+    if (!show) {
+      setOperacaoLocacaoModalidadeMarcada("");
+      syncOperacaoLocacaoProtocoloSelectAtivoUi();
+      return;
+    }
+    const rawMod = String(opts.modalidade || "").trim();
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const modKey = nk(rawMod);
+    const fromOpts = modKey.includes("CARRO") ? "CARRO" : modKey.includes("MOTO") ? "MOTO" : "";
+    if (fromOpts) {
+      setOperacaoLocacaoModalidadeMarcada(fromOpts);
+    } else if (opts.infer || !getOperacaoLocacaoModalidadeMarcada()) {
+      const fromLoc = opts.locacao ? portalInferTipoVeiculoLocacao(opts.locacao) : "";
+      setOperacaoLocacaoModalidadeMarcada(fromLoc || inferOperacaoLocacaoModalidadeDoFormulario() || "MOTO");
+    }
+    paintOperacaoLocacaoProtocoloSelectFromModalidade();
   }
 
   /** Valor devido do plano = tempo em dias × (valor do plano ÷ 7). Exibido em R$. */
@@ -13057,6 +13169,7 @@
     portalApplyAmbienteVisualForm("Locacao", loc);
     refreshOperacaoLocacaoApagarProtocoloBtn();
     refreshOperacaoLocacaoVisualizarContratoBtn();
+    syncOperacaoLocacaoModalidadeBolas({ modalidade: loc.modalidade, locacao: loc, infer: true });
     if (loc?.numeroContrato && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
       void window.__DK_contratoLocacaoSincronizarPasta(normPortalNumeroContrato(loc.numeroContrato), loc.statusLocacao, {
         fim: loc.fim,
@@ -13152,6 +13265,16 @@
       const ini = String(l.inicio || "").trim();
       opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
       if (isPortalLocacaoAtiva(l)) opt.classList.add("portal-locacao-proto-opt--ativo");
+      const corCls =
+        typeof getPortalLancPesquisaLinhaCorClasseFast === "function"
+          ? getPortalLancPesquisaLinhaCorClasseFast(
+              l,
+              typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null
+            )
+          : "";
+      if (corCls === "portal-lanc-pesquisa-linha--amarelo") opt.classList.add("portal-locacao-proto-opt--carro");
+      else if (corCls === "portal-lanc-pesquisa-linha--azul") opt.classList.add("portal-locacao-proto-opt--minha-moto");
+      else if (corCls === "portal-lanc-pesquisa-linha--verde") opt.classList.add("portal-locacao-proto-opt--meu-transporte");
       sel.appendChild(opt);
     });
     const optNovo = document.createElement("option");
@@ -13178,17 +13301,37 @@
     }
   }
 
-  /** Verde no select fechado quando o protocolo escolhido está ativo (sem data fim). */
+  /** Cor no select fechado: marrom carro · azul minha moto · verde meu transporte. */
+  const PORTAL_LOCACAO_PROTO_SELECT_COR_CLASSES = [
+    "portal-locacao-proto-select--ativo",
+    "portal-locacao-proto-select--carro",
+    "portal-locacao-proto-select--minha-moto",
+    "portal-locacao-proto-select--meu-transporte",
+  ];
+
   function syncOperacaoLocacaoProtocoloSelectAtivoUi() {
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     if (!sel) return;
+    PORTAL_LOCACAO_PROTO_SELECT_COR_CLASSES.forEach((c) => sel.classList.remove(c));
     const v = String(sel.value || "").trim();
-    if (!v || v === PORTAL_PROTO_NOVO || sel.disabled) {
-      sel.classList.remove("portal-locacao-proto-select--ativo");
+    if (!v || v === PORTAL_PROTO_NOVO || sel.disabled) return;
+    const opt = Array.from(sel.options).find((o) => o.value === v);
+    if (!opt) return;
+    if (opt.classList.contains("portal-locacao-proto-opt--carro")) {
+      sel.classList.add("portal-locacao-proto-select--carro");
       return;
     }
-    const opt = Array.from(sel.options).find((o) => o.value === v);
-    sel.classList.toggle("portal-locacao-proto-select--ativo", Boolean(opt?.classList.contains("portal-locacao-proto-opt--ativo")));
+    if (opt.classList.contains("portal-locacao-proto-opt--minha-moto")) {
+      sel.classList.add("portal-locacao-proto-select--minha-moto");
+      return;
+    }
+    if (opt.classList.contains("portal-locacao-proto-opt--meu-transporte")) {
+      sel.classList.add("portal-locacao-proto-select--meu-transporte");
+      return;
+    }
+    if (opt.classList.contains("portal-locacao-proto-opt--ativo")) {
+      sel.classList.add("portal-locacao-proto-select--ativo");
+    }
   }
 
   function onOperacaoLocacaoProtocoloSelectChange() {
@@ -13221,6 +13364,7 @@
       refreshOperacaoLocacaoSubmitBtn();
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoApagarProtocoloBtn();
+      syncOperacaoLocacaoModalidadeBolas({ infer: true });
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
       if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
         window.__DK_refreshOperacaoLocacaoDocumentosUi();
@@ -13758,9 +13902,19 @@
       typeof findPortalVeiculoByPlaca === "function"
         ? findPortalVeiculoByPlaca(plate)
         : null;
-    const modalidade = veiculoCad?.tipo
-      ? String(veiculoCad.tipo).trim()
-      : portalInferTipoVeiculoLocacao({ placa: plate, modalidade: "" });
+    let modalidade = "";
+    if (isPortalPlanoMeuTransporteKey(planoNome)) {
+      modalidade = getOperacaoLocacaoModalidadeMarcada();
+      if (!modalidade) {
+        if (msg) msg.textContent = "No plano DK MEU TRANSPORTE, marque CARRO ou MOTO ao lado do tipo de plano.";
+        return;
+      }
+    } else {
+      modalidade = veiculoCad?.tipo
+        ? String(veiculoCad.tipo).trim()
+        : "MOTO";
+      if (!nk(modalidade).includes("CARRO")) modalidade = "MOTO";
+    }
     const statusLocacao = fimBr ? "FINALIZADO" : "ATIVO";
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
@@ -14862,9 +15016,16 @@
         const tipo = nk(String(v.tipo || ""));
         const tag = nk(String(v.tag || ""));
         isCarro = tipo.includes("CARRO") || tag.includes("DKCR");
-        isMoto = !isCarro;
+        isMoto = !isCarro && (tipo.includes("MOTO") || tag.includes("DKMT") || tag.includes("DKMM"));
+        if (!isCarro && !isMoto) {
+          const inf = portalInferTipoVeiculoLocacao(loc);
+          isCarro = inf === "CARRO";
+          isMoto = inf === "MOTO";
+        }
       } else {
-        isMoto = true;
+        const inf = portalInferTipoVeiculoLocacao(loc);
+        isCarro = inf === "CARRO";
+        isMoto = inf === "MOTO";
       }
     } else {
       const tipo = portalInferTipoVeiculoLocacao(loc);
@@ -14872,12 +15033,17 @@
       isMoto = tipo === "MOTO";
     }
     const planoKey = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    if (!isCarro && !isMoto) {
+      const inf = portalInferTipoVeiculoLocacao(loc);
+      isCarro = inf === "CARRO";
+      isMoto = inf === "MOTO";
+    }
     if (!ativo && (isMoto || isCarro)) return "portal-lanc-pesquisa-linha--vermelho";
+    if (ativo && isCarro) return "portal-lanc-pesquisa-linha--amarelo";
     if (ativo && isMoto) {
       if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) return "portal-lanc-pesquisa-linha--azul";
       if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) return "portal-lanc-pesquisa-linha--verde";
     }
-    if (ativo && isCarro) return "portal-lanc-pesquisa-linha--amarelo";
     return "portal-lanc-pesquisa-linha--branco";
   }
 
@@ -16254,6 +16420,9 @@
     const comboPlaca = document.getElementById("operacaoLocacaoPlacaCombo");
 
     document.getElementById("operacaoLocacaoProtocoloSelect")?.addEventListener("change", onOperacaoLocacaoProtocoloSelectChange);
+    document.getElementById("operacaoLocacaoModalidadeWrap")?.addEventListener("change", () => {
+      paintOperacaoLocacaoProtocoloSelectFromModalidade();
+    });
     document.getElementById("operacaoLocacaoProtocoloAdminCarregarBtn")?.addEventListener("click", () => {
       const raw = String(document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.value || "").trim();
       loadOperacaoLocacaoByProtocoloNumero(raw);
@@ -16329,6 +16498,7 @@
       if (hit && inpModelo) inpModelo.value = hit.modelo;
       hideOperacaoLocacaoPlacaDropdown();
       inpPlaca.focus();
+      syncOperacaoLocacaoModalidadeBolas({ infer: true });
     });
 
     document.addEventListener(

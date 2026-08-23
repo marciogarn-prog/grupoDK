@@ -645,8 +645,31 @@ async function runSuite() {
       portalUiProto.includes("portalLocacaoCpfDigitsMatch") &&
         portalUiProto.includes("refreshOperacaoLocacaoProtocoloPicker({ force: true })") &&
         portalUiProto.includes("portal-locacao-proto-opt--ativo") &&
+        portalUiProto.includes("portal-locacao-proto-opt--carro") &&
         cloudSyncJs.includes("__DK_portalRefreshOperacaoDeferred"),
       "CPF + sync nuvem atualiza select"
+    );
+    const cssProto = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
+    record(
+      "picker protocolo carro marrom (nao verde generico)",
+      portalUiProto.includes("portal-locacao-proto-select--carro") &&
+        portalUiProto.includes("portalTextoSugereVeiculoCarro") &&
+        cssProto.includes("portal-locacao-proto-select--carro") &&
+        cssProto.includes("#c4a484") &&
+        !cssProto.includes("portal-locacao-proto-select--ativo"),
+      "modalidade carro = marrom"
+    );
+    record(
+      "DK MEU TRANSPORTE: bolinhas CARRO (marrom) e MOTO (verde)",
+      html.includes("operacaoLocacaoModalidadeWrap") &&
+        html.includes("operacaoLocacaoModalidadeCarro") &&
+        html.includes("operacaoLocacaoModalidadeMoto") &&
+        portalUiProto.includes("syncOperacaoLocacaoModalidadeBolas") &&
+        cssProto.includes("portal-locacao-modalidade-bola--carro") &&
+        cssProto.includes("portal-locacao-modalidade-bola--moto"),
+      "marcar modalidade no cadastro de locação"
     );
     record(
       "locacao CPF preenche nome (cadastro + planilha)",
