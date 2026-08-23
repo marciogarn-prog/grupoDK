@@ -3973,7 +3973,8 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   font-weight: 600;
 }
 
-.portal-reserva-operacao-card__models {
+.portal-reserva-operacao-card__models,
+.portal-reserva-operacao-card__cliente {
   display: block;
   margin-top: 0.25rem;
   font-size: 0.72rem;
@@ -3981,6 +3982,10 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   letter-spacing: 0;
   color: var(--muted, #a8b0bc);
   line-height: 1.2;
+}
+
+.portal-reserva-operacao-card__cliente {
+  margin-top: 0.12rem;
 }
 
 /* Operação — WhatsApp clientes ativos */

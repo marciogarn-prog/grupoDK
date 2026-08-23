@@ -4874,9 +4874,10 @@
       });
       if (loc) placaLocada = portalNkPlate(loc.placa);
     }
-    if (!placaLocada) return { placaReserva, placaLocada: "", plano: "" };
+    if (!placaLocada) return { placaReserva, placaLocada: "", plano: "", nomeCliente: "" };
     const plano = portalClassificarPlanoLocado(placaLocada) || "minha-moto";
-    return { placaReserva, placaLocada, plano };
+    const nomeCliente = portalNomeClientePorPlacaLocada(placaLocada);
+    return { placaReserva, placaLocada, plano, nomeCliente };
   }
 
   function portalModeloVeiculoPorPlaca(plateKey) {
@@ -4885,6 +4886,35 @@
     const hit = (portalVeiculoPlacasCache || []).find((x) => portalNkPlate(x.placa) === key);
     const v = hit?.record;
     return String(v?.modelo || v?.marcaModelo || "").trim();
+  }
+
+  /** Nome do cliente da locação da placa (ainda ativa / em manutenção). */
+  function portalNomeClientePorPlacaLocada(plateKeyRaw) {
+    const plateKey = portalNkPlate(plateKeyRaw);
+    if (!plateKey) return "";
+    let loc =
+      typeof getPortalLocacaoAtivaDetalhePorPlaca === "function"
+        ? getPortalLocacaoAtivaDetalhePorPlaca(plateKey)
+        : null;
+    if (!loc && typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      const locs = (loadCadastro(CAD_LOCACOES_KEY) || []).filter((l) => {
+        if (portalNkPlate(l?.placa) !== plateKey) return false;
+        const fim = String(l?.fim || l?.dataFim || "").trim();
+        return !fim || fim === "...";
+      });
+      locs.sort((a, b) => Number(b.createdAt || b.id || 0) - Number(a.createdAt || a.id || 0));
+      loc = locs[0] || null;
+    }
+    if (!loc) return "";
+    const cpf =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(loc.cpf || ""))
+        : String(loc.cpf || "").replace(/\D/g, "");
+    const cliente =
+      cpf.length === 11 && typeof findClienteByCpfCadastro === "function"
+        ? findClienteByCpfCadastro(cpf)
+        : null;
+    return String(cliente?.nome || loc.nome || loc.cliente || loc.nomeCliente || "").trim();
   }
 
   /** Placas em Disponíveis (prontos | reserva-operacao | reserva-patio). */
@@ -4931,8 +4961,9 @@
           const locada = cob?.placaLocada || "";
           const plano = cob?.plano || "minha-moto";
           const modeloLoc = locada ? portalModeloVeiculoPorPlaca(locada) : "";
+          const nomeCliente = String(cob?.nomeCliente || "").trim();
           const title = locada
-            ? `${r.placa} (reserva) ⇒ ${locada} (em manutenção)`
+            ? `${r.placa} (reserva) ⇒ ${locada} (em manutenção)${nomeCliente ? ` · ${nomeCliente}` : ""}`
             : `${r.placa} — reserva em operação (sem vínculo de cobertura)`;
           const locadaHtml = locada
             ? `<span class="portal-reserva-operacao-card__arrow" aria-hidden="true">⇒</span>
@@ -4948,6 +4979,7 @@
             ${locadaHtml}
           </div>
           ${modelLine ? `<span class="portal-reserva-operacao-card__models">${portalEscapeHtml(modelLine)}</span>` : ""}
+          ${nomeCliente ? `<span class="portal-reserva-operacao-card__cliente">${portalEscapeHtml(nomeCliente)}</span>` : ""}
         </div>`;
         })
         .join("");
