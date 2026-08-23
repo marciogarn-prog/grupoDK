@@ -851,7 +851,11 @@ body {
 .portal-placa-dropdown__opt.portal-placa-opt--prontos .portal-placa-dropdown__plate,
 .portal-placa-dropdown__opt.portal-placa-opt--prontos .portal-placa-dropdown__model,
 .portal-placa-dropdown__opt.portal-placa-opt--reserva .portal-placa-dropdown__plate,
-.portal-placa-dropdown__opt.portal-placa-opt--reserva .portal-placa-dropdown__model {
+.portal-placa-dropdown__opt.portal-placa-opt--reserva .portal-placa-dropdown__model,
+.portal-placa-dropdown__opt.portal-placa-opt--reserva-operacao .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--reserva-operacao .portal-placa-dropdown__model,
+.portal-placa-dropdown__opt.portal-placa-opt--reserva-patio .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--reserva-patio .portal-placa-dropdown__model {
   color: #ef5350;
 }
 
@@ -914,7 +918,9 @@ body {
 }
 
 .portal-manut-placa-lookup__result--prontos,
-.portal-manut-placa-lookup__result--reserva {
+.portal-manut-placa-lookup__result--reserva,
+.portal-manut-placa-lookup__result--reserva-operacao,
+.portal-manut-placa-lookup__result--reserva-patio {
   color: #ef5350;
 }
 
@@ -1325,6 +1331,31 @@ body {
 .btn-operacao-cmd--sub.is-active {
   border-color: var(--accent);
   background: var(--accent-dim);
+}
+
+.portal-manutencao-subnav-nested {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0.25rem 0.55rem;
+  padding: 0.2rem 0 0.15rem 0.55rem;
+  border-left: 2px solid rgba(220, 38, 38, 0.35);
+}
+
+.portal-manutencao-subnav-nested.hidden {
+  display: none;
+}
+
+.btn-operacao-cmd--sub2 {
+  padding: 0.42rem 0.5rem;
+}
+
+.btn-operacao-cmd--sub2 .btn-operacao-cmd__title {
+  font-size: 0.78rem;
+}
+
+.btn-operacao-cmd--sub2 .btn-operacao-cmd__hint {
+  font-size: 0.68rem;
 }
 
 .operacao-lanc-aluguel-pane.hidden {
