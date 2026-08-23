@@ -10210,6 +10210,10 @@ function isAtivoByFim(reg) {
 /** Última linha por placa em RECEITA_2026_DATA (espelho da planilha «dados de locação»). */
 function buildLatestReceita2026RowByPlateMap() {
   const latestByPlate = new Map();
+  /* Demo: só os 10 protocolos da imagem Locados — a Receita 2026 não entra na frota. */
+  if (typeof isDemoCadastro10Mode === "function" ? isDemoCadastro10Mode() : window.__DK_IS_DEMO_DEPLOY__ === true) {
+    return latestByPlate;
+  }
   if (!receita2026Data.length) return latestByPlate;
   receita2026Data.forEach((row) => {
     const plate = getCorrectedPlate(row.placa);
@@ -10239,6 +10243,12 @@ function getActivePlatesSet() {
     .map((l) => normalizePlate(l.placa))
     .filter(Boolean);
   const plates = new Set(fromCadastro);
+  if (isDemoCadastro10Mode()) {
+    for (const p of [...plates]) {
+      if (!DEMO_CADASTRO_10_PLACAS.has(p)) plates.delete(p);
+    }
+    return plates;
+  }
 
   const latestByPlate = buildLatestReceita2026RowByPlateMap();
   latestByPlate.forEach(({ row }, plate) => {

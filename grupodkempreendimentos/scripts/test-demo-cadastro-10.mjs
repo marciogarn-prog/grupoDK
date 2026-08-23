@@ -226,6 +226,20 @@ async function verifyBrowserScreens(page) {
   );
   record("browser: chaves laterais vazias", pulled.extraKeys.length === 0, pulled.extraKeys.join("; "));
 
+  const activePlates = await page.evaluate(() => {
+    const nk = (p) =>
+      String(p || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    if (typeof getActivePlatesSet !== "function") return [];
+    return [...getActivePlatesSet()].map(nk);
+  });
+  record(
+    "demo manutenção: placas locadas só as 10",
+    activePlates.length <= 10 && activePlates.every((p) => ALLOWED_PLATES.has(p)),
+    `n=${activePlates.length} ${activePlates.join(",")}`
+  );
+
   await clickIfVisible(page, "#btn-locadora-manutencao");
   const locadoSubs = ["#btn-locado-sub-minha-moto", "#btn-locado-sub-meu-transporte", "#btn-locado-sub-carros"];
   await clickIfVisible(page, "#btn-manutencao-locados");
@@ -272,25 +286,53 @@ async function verifyBrowserScreens(page) {
     assertTokens(`tela Operação ${sel.replace("#btn-operacao-", "")}`, await scrapeVisibleTokens(page));
   }
 
-  await clickIfVisible(page, "#btn-operacao-cadastro-locacao");
-  await clickIfVisible(page, "#operacaoLocacaoCpf");
-  await page.waitForTimeout(500);
-  const cpfLista = await page.evaluate(() => {
-    const btns = [...document.querySelectorAll("#operacaoLocacaoCpfLista [data-cpf]")];
-    return {
-      n: btns.length,
-      cpfs: btns.map((b) => String(b.getAttribute("data-cpf") || "")),
-    };
+  await page.evaluate(() => {
+    document.getElementById("btn-operacao-cadastro-locacao")?.click();
   });
-  record("lista CPF locação: 10 itens", cpfLista.n === 10, `n=${cpfLista.n}`);
+  await page.waitForTimeout(800);
+
+  const fonte = await page.evaluate(() => {
+    const nk = (p) =>
+      String(p || "")
+        .toUpperCase()
+        .replace(/[^A-Z0-9]/g, "");
+    const dig = (v) => String(v || "").replace(/\D/g, "").slice(0, 11);
+    const placas = (
+      typeof getVeiculosSemProtocoloAtivo === "function" ? getVeiculosSemProtocoloAtivo() : []
+    ).map((v) => nk(v.placa));
+    const cpfs = (
+      typeof getLancamentoClienteCandidates === "function" ? getLancamentoClienteCandidates() : []
+    ).map((c) => dig(c.cpf));
+    return { placas, cpfs };
+  });
   record(
-    "lista CPF locação: só os 10 da imagem",
-    cpfLista.n === 10 && cpfLista.cpfs.every((c) => ALLOWED_CPFS.has(c)),
-    cpfLista.cpfs.filter((c) => !ALLOWED_CPFS.has(c)).join(",") || "ok"
+    "fonte PLACA locação: 10 itens",
+    fonte.placas.length === 10,
+    `n=${fonte.placas.length} ${fonte.placas.join(",")}`
+  );
+  record(
+    "fonte PLACA locação: só as 10 da imagem",
+    fonte.placas.length === 10 && fonte.placas.every((p) => ALLOWED_PLATES.has(p)),
+    fonte.placas.filter((p) => !ALLOWED_PLATES.has(p)).join(",") || "ok"
+  );
+  record("fonte CPF locação: 10 itens", fonte.cpfs.length === 10, `n=${fonte.cpfs.length}`);
+  record(
+    "fonte CPF locação: só os 10 da imagem",
+    fonte.cpfs.length === 10 && fonte.cpfs.every((c) => ALLOWED_CPFS.has(c)),
+    fonte.cpfs.filter((c) => !ALLOWED_CPFS.has(c)).join(",") || "ok"
   );
 
-  await clickIfVisible(page, "#operacaoLocacaoPlaca");
-  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    const cpf = document.getElementById("operacaoLocacaoCpf");
+    const placa = document.getElementById("operacaoLocacaoPlaca");
+    cpf?.focus();
+    cpf?.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+    cpf?.click();
+    placa?.focus();
+    placa?.dispatchEvent(new FocusEvent("focus", { bubbles: true }));
+    placa?.click();
+  });
+  await page.waitForTimeout(600);
   const placaLista = await page.evaluate(() => {
     const btns = [...document.querySelectorAll("#operacaoLocacaoPlacaLista [data-placa]")];
     return {
