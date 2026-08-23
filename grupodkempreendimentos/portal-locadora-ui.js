@@ -4375,6 +4375,7 @@
       "portal-checklist--carros"
     );
     root.classList.add(`portal-checklist--${cor}`);
+    portalUpdateProximaTrocaKm();
   }
 
   /** Preenche Entrada (data/hora) com o momento atual (fuso local do operador). */
@@ -4469,6 +4470,15 @@
     return v;
   }
 
+  function portalIntervaloTrocaOleoKm() {
+    const root = document.getElementById("portalChecklistPrintArea");
+    if (root?.classList.contains("portal-checklist--carros")) return 10000;
+    const plano = String(document.getElementById("portalChecklistFieldPlano")?.value || "");
+    const plate = portalNkPlate(portalGetPlacaChecklistAtual());
+    const cor = portalNormPlanoChecklistCor(plano, plate);
+    return cor === "carros" ? 10000 : 1000;
+  }
+
   function portalUpdateProximaTrocaKm() {
     const od = document.getElementById("portalChecklistOdometro");
     const px = document.getElementById("portalChecklistProximaTroca");
@@ -4478,7 +4488,7 @@
       px.value = "";
       return;
     }
-    px.value = String(n + 1000);
+    px.value = String(n + portalIntervaloTrocaOleoKm());
   }
 
   function portalChecklistOleoSim() {
