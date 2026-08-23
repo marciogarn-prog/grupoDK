@@ -38,6 +38,8 @@ async function runSuite() {
 
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
+  page.setDefaultNavigationTimeout(180000);
+  page.setDefaultTimeout(45000);
 
   try {
     await page.goto(BASE_URL, { waitUntil: "networkidle", timeout: 60000 });
@@ -1357,11 +1359,11 @@ async function runSuite() {
     );
 
     const clienteBtn = page.locator("text=Cadastro de cliente").first();
-    if (await clienteBtn.isVisible().catch(() => false)) {
+    if (await clienteBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await clienteBtn.click();
       await page.waitForTimeout(800);
       const cpfField = page.locator("#operacaoClienteCpf");
-      if (await cpfField.isVisible().catch(() => false)) {
+      if (await cpfField.isVisible({ timeout: 3000 }).catch(() => false)) {
         await cpfField.fill("000.000.000-01");
         await cpfField.dispatchEvent("input");
         await page.waitForTimeout(600);
@@ -1371,11 +1373,11 @@ async function runSuite() {
     }
 
     const locacaoBtn = page.locator("text=Cadastro de locação").first();
-    if (await locacaoBtn.isVisible().catch(() => false)) {
+    if (await locacaoBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
       await locacaoBtn.click();
       await page.waitForTimeout(800);
       const dataInicio = page.locator("#operacaoLocacaoDataInicio");
-      if (await dataInicio.isVisible().catch(() => false)) {
+      if (await dataInicio.isVisible({ timeout: 3000 }).catch(() => false)) {
         await dataInicio.fill("");
         await dataInicio.type("19052026", { delay: 30 });
         await page.waitForTimeout(300);
@@ -1383,7 +1385,7 @@ async function runSuite() {
         record("mascara data DD/MM/AAAA", dataVal === "19/05/2026", dataVal);
       }
       const valAluguel = page.locator("#operacaoLocacaoValorAluguel");
-      if (await valAluguel.isVisible().catch(() => false)) {
+      if (await valAluguel.isVisible({ timeout: 3000 }).catch(() => false)) {
         await valAluguel.fill("");
         await valAluguel.type("12345", { delay: 30 });
         await page.waitForTimeout(300);
@@ -1393,9 +1395,14 @@ async function runSuite() {
       }
     }
 
+    const pageE2e = await browser.newPage();
+    pageE2e.setDefaultNavigationTimeout(120000);
+    pageE2e.setDefaultTimeout(30000);
     try {
-      await page.evaluate(() => {
-        sessionStorage.removeItem("dk_portal_area_ativa");
+      await pageE2e.goto(BASE_URL, { waitUntil: "domcontentloaded", timeout: 120000 });
+      await pageE2e.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
         localStorage.setItem(
           "dk_sessao_cliente",
           JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
@@ -1403,62 +1410,79 @@ async function runSuite() {
         localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
         sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
       });
-      await page.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 90000 });
-      await page
+      await pageE2e.goto(`${BASE_URL}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
+      await pageE2e.waitForTimeout(14000);
+      await pageE2e
         .waitForFunction(
           () => {
             const btn = document.getElementById("btn-locadora-documentos");
             const panel = document.getElementById("panel-logado");
             return btn && panel && !btn.classList.contains("hidden") && !panel.classList.contains("hidden");
           },
-          { timeout: 35000 }
+          { timeout: 20000 }
         )
         .catch(() => null);
-      const docBtn = page.locator("#btn-locadora-documentos");
-      if (await docBtn.isVisible().catch(() => false)) {
+      const diag = await pageE2e.evaluate(() => {
+        const btn = document.getElementById("btn-locadora-documentos");
+        const panel = document.getElementById("panel-logado");
+        return {
+          hash: String(location.hash || ""),
+          btnHidden: !btn || btn.classList.contains("hidden"),
+          panelHidden: !panel || panel.classList.contains("hidden"),
+          adminBanner: Boolean(document.getElementById("portal-admin-banner") && !document.getElementById("portal-admin-banner")?.classList.contains("hidden")),
+        };
+      });
+      const docBtn = pageE2e.locator("#btn-locadora-documentos");
+      if (await docBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
         await docBtn.click();
-        await page.waitForSelector("#panel-documentos-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
-        const ok = await page.evaluate(() => {
+        await pageE2e.waitForSelector("#panel-documentos-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
+        const ok = await pageE2e.evaluate(() => {
           const el = document.getElementById("panel-documentos-locadora");
           return Boolean(el && !el.classList.contains("hidden") && document.getElementById("documentosBuscaBtn"));
         });
         record("documentos E2E: painel abre com busca", ok);
       } else {
-        record("documentos E2E: painel abre com busca", false, "botão Documentos oculto");
+        record(
+          "documentos E2E: painel abre com busca",
+          false,
+          `botão Documentos oculto hash=${diag.hash} btnHidden=${diag.btnHidden} panelHidden=${diag.panelHidden} banner=${diag.adminBanner}`
+        );
+      }
+
+      const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
+      if (await veiculoBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await veiculoBtn.click();
+        await pageE2e.waitForTimeout(800);
+        const placaField = pageE2e.locator("#operacaoVeiculoPlaca");
+        if (await placaField.isVisible({ timeout: 5000 }).catch(() => false)) {
+          await placaField.fill("AAA0A00");
+          await placaField.dispatchEvent("input");
+          await pageE2e.waitForTimeout(600);
+          const modelo = await pageE2e.locator("#operacaoVeiculoModelo").inputValue().catch(() => "");
+          const tag = await pageE2e.locator("#operacaoVeiculoTag").inputValue().catch(() => "");
+          record(
+            "form veículo reconhece AAA0A00",
+            /ferrari/i.test(modelo) || tag === "DKCR013",
+            `modelo=${modelo} tag=${tag}`
+          );
+          await pageE2e.selectOption("#operacaoVeiculoTipo", "CARRO").catch(() => {});
+          await placaField.fill("ABC1D23");
+          await placaField.dispatchEvent("input");
+          await pageE2e.locator("#operacaoVeiculoModelo").fill("VEICULO TESTE MERCOSUL");
+          await pageE2e.locator("#formOperacaoVeiculoInline button[type=submit]").click();
+          await pageE2e.waitForTimeout(700);
+          const veiculoMsg = await pageE2e.locator("#operacaoVeiculoInlineMsg").textContent().catch(() => "");
+          record(
+            "cadastro veículo aceita Mercosul ABC1D23",
+            !/placa inválida/i.test(String(veiculoMsg || "")),
+            String(veiculoMsg || "").slice(0, 90)
+          );
+        }
       }
     } catch (e) {
       record("documentos E2E: painel abre com busca", false, String(e?.message || e).slice(0, 120));
-    }
-
-    const veiculoBtn = page.locator("text=Cadastro de veículo").first();
-    if (await veiculoBtn.isVisible().catch(() => false)) {
-      await veiculoBtn.click();
-      await page.waitForTimeout(800);
-      const placaField = page.locator("#operacaoVeiculoPlaca");
-      if (await placaField.isVisible().catch(() => false)) {
-        await placaField.fill("AAA0A00");
-        await placaField.dispatchEvent("input");
-        await page.waitForTimeout(600);
-        const modelo = await page.locator("#operacaoVeiculoModelo").inputValue().catch(() => "");
-        const tag = await page.locator("#operacaoVeiculoTag").inputValue().catch(() => "");
-        record(
-          "form veículo reconhece AAA0A00",
-          /ferrari/i.test(modelo) || tag === "DKCR013",
-          `modelo=${modelo} tag=${tag}`
-        );
-        await page.selectOption("#operacaoVeiculoTipo", "CARRO").catch(() => {});
-        await placaField.fill("ABC1D23");
-        await placaField.dispatchEvent("input");
-        await page.locator("#operacaoVeiculoModelo").fill("VEICULO TESTE MERCOSUL");
-        await page.locator("#formOperacaoVeiculoInline button[type=submit]").click();
-        await page.waitForTimeout(700);
-        const veiculoMsg = await page.locator("#operacaoVeiculoInlineMsg").textContent().catch(() => "");
-        record(
-          "cadastro veículo aceita Mercosul ABC1D23",
-          !/placa inválida/i.test(String(veiculoMsg || "")),
-          String(veiculoMsg || "").slice(0, 90)
-        );
-      }
+    } finally {
+      await pageE2e.close().catch(() => null);
     }
   } catch (e) {
     record("execução sem erro fatal", false, String(e.message || e));
