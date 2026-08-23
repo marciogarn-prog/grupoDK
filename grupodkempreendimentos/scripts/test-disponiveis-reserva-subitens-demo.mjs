@@ -20,7 +20,7 @@ async function run() {
   page.on("dialog", (d) => d.accept().catch(() => null));
 
   try {
-    await page.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
+    await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.evaluate(() => {
       sessionStorage.removeItem("dk_portal_area_ativa");
       localStorage.setItem(
@@ -30,8 +30,8 @@ async function run() {
       localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
       sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     });
-    await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
-    await page.waitForTimeout(2000);
+    await page.goto(`${BASE}#locadora/empresa`, { waitUntil: "domcontentloaded", timeout: 120000 });
+    await page.waitForTimeout(3500);
 
     const cacheBust = await page.evaluate(() => {
       const s = [...document.scripts].find((x) => (x.src || "").includes("portal-locadora-ui.js"));
