@@ -170,6 +170,11 @@
   ];
 
   const DK_CLOUD_KEYS = new Set(DK_STORAGE_KEYS);
+  /** Movimentações / histórico de check-list: espelham a nuvem (inclui limpar local quando cloud = []). */
+  const DK_CONSULTA_SYNC_KEYS = [
+    "dk_portal_checklist_movimentacoes_v1",
+    "dk_portal_checklist_historico_v1",
+  ];
   const DK_CLOUD_RELOAD_GUARD_KEY = "dkCloudAutopullReloadCount";
   /** Após importar backup: não sobrescrever local com nuvem/Redis antigos (ms desde epoch). */
   const DK_LOCAL_AUTHORITY_KEY = "dkLocalDataAuthorityUntil";
@@ -2879,14 +2884,42 @@
     return { ok: true, applied: true, source: data.source || "cloud" };
   }
 
+  function syncConsultaKeysFromCloudPayload(cloudPayload) {
+    if (!cloudPayload || typeof cloudPayload !== "object") return false;
+    let changed = false;
+    for (const k of DK_CONSULTA_SYNC_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(cloudPayload, k)) continue;
+      const next = Array.isArray(cloudPayload[k]) ? cloudPayload[k] : [];
+      const cur = readLocalJsonArray(k);
+      if (JSON.stringify(cur) !== JSON.stringify(next)) {
+        if (typeof saveCadastro === "function") {
+          saveCadastro(k, next, { bypassImmutabilidadeCadastro: true });
+        } else {
+          localStorage.setItem(k, JSON.stringify(next));
+        }
+        changed = true;
+      }
+    }
+    return changed;
+  }
+
+  async function pullConsultaKeysFromCloud() {
+    const data = await fetchCloudSnapshotPayload();
+    if (!data?.payload) return { ok: false, skipped: true, reason: "no_cloud_snapshot" };
+    const changed = syncConsultaKeysFromCloudPayload(data.payload);
+    return { ok: true, changed, source: data.source || "cloud" };
+  }
+
   async function pullCloudSnapshotSilentMerge(opts) {
     const force = Boolean(opts && opts.force);
     const clientePage = isClienteAppPage();
     if (clientePage) {
       return pullClienteCloudSnapshotLight(opts);
     }
+    const consultaSync = await pullConsultaKeysFromCloud();
     if (isLocalDataAuthorityActive() && !clientePage) {
-      return pullAppendOnlyKeysFromCloud();
+      const com = await pullAppendOnlyKeysFromCloud();
+      return { ...com, consultaSync };
     }
     const data = await fetchCloudSnapshotPayload();
     if (!data || !data.payload || !isMeaningfulCloudPayload(data.payload)) {
@@ -3450,18 +3483,35 @@
   }
 
   function autoPullFromCloudOnStartup() {
-    if (isLocalDataAuthorityActive()) return;
     if (isClienteAppPage() && clienteAppSessaoCpf()) {
       return pullClienteCloudSnapshotLight().catch((e) => {
         console.warn("[DK cloud] cliente pull leve", e);
         return { ok: false, error: e };
       });
     }
-    if (window.__DK_IS_DEMO_DEPLOY__ === true) {
-      return bootstrapDemoCadastrosFromCloudIfEmpty().catch((e) => {
-        console.warn("[DK cloud] demo bootstrap", e);
-        return { ok: false, error: e };
+    window.setTimeout(() => {
+      pullConsultaKeysFromCloud().catch((e) => {
+        console.warn("[DK cloud] consulta sync arranque", e);
       });
+    }, 800);
+    if (isLocalDataAuthorityActive()) return;
+    if (window.__DK_IS_DEMO_DEPLOY__ === true) {
+      return bootstrapDemoCadastrosFromCloudIfEmpty()
+        .catch((e) => {
+          console.warn("[DK cloud] demo bootstrap", e);
+          return { ok: false, error: e };
+        })
+        .then(() => {
+          window.setTimeout(() => {
+            pullCloudSnapshotSilentMerge({ force: true })
+              .then((r) => {
+                if (r && r.applied && typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+                  window.__DK_portalRefreshOperacaoLocal();
+                }
+              })
+              .catch((e) => console.warn("[DK cloud] demo startup pull", e));
+          }, 2000);
+        });
     }
     const client = window.__DK_SUPABASE_CLIENT__;
     if (!client) return;
