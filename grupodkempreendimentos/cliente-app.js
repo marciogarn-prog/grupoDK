@@ -2413,12 +2413,13 @@
     }
     void registerClienteServiceWorker();
 
-    $("form-login")?.addEventListener("submit", (e) => {
+    $("form-login")?.addEventListener("submit", async (e) => {
       e.preventDefault();
       const cpf = onlyDigits($("login-cpf")?.value).slice(0, 11);
       const proto = normProtoGate($("login-protocolo")?.value || "");
       const senha = String($("login-senha")?.value || "").trim();
       const fb = $("login-feedback");
+      const submitBtn = $("form-login")?.querySelector('button[type="submit"]');
       if (cpf.length !== 11) {
         if (fb) fb.textContent = "Informe um CPF válido.";
         return;
@@ -2430,6 +2431,17 @@
       if (!setClienteGate(cpf, proto)) {
         if (fb) fb.textContent = "Protocolo inválido.";
         return;
+      }
+      if (fb) fb.textContent = "A verificar cadastro na nuvem…";
+      if (submitBtn) submitBtn.disabled = true;
+      try {
+        if (typeof window.__DK_upsertClienteCadastroFromCloud === "function") {
+          await window.__DK_upsertClienteCadastroFromCloud(cpf);
+        }
+      } catch {
+        /* usa cadastro local se a nuvem falhar */
+      } finally {
+        if (submitBtn) submitBtn.disabled = false;
       }
       const hit = findClienteLogin(cpf, senha);
       if (!hit) {
