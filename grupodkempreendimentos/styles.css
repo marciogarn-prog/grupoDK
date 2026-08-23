@@ -3097,16 +3097,15 @@ body {
 
 .portal-checklist-locados-reserva {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 0.65rem 1rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.55rem;
   width: 100%;
-  max-width: 42rem;
+  max-width: 22rem;
 }
 
 .portal-checklist-locados-reserva__placa {
-  flex: 1 1 14rem;
-  min-width: 12rem;
+  width: 100%;
   margin: 0;
 }
 
@@ -3124,8 +3123,8 @@ body {
   display: inline-flex;
   align-items: flex-start;
   gap: 0.45rem;
-  margin: 0 0 0.35rem;
-  max-width: 16rem;
+  margin: 0;
+  max-width: 100%;
   font-size: 0.78rem;
   font-weight: 700;
   line-height: 1.25;
