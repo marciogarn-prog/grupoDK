@@ -106,9 +106,10 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
     const keyCutoff = oficialCutoffForKey(k);
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
+      if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       const protoYmd = locacaoProtocolYmd(r);
       if (String(k).includes("locac") && protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
-      if (r && typeof r === "object" && (r.cadastroRetroativo === true || r.origemPortal === true)) {
+      if (r && typeof r === "object" && r.origemPortal === true) {
         if (String(k).includes("locac")) return protoYmd ? protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD : false;
         return true;
       }
@@ -331,7 +332,14 @@ function applyCadastroLock(existing, incoming) {
   const lockUntil = Date.parse(String(existing.dk_cadastro_lock_v1 || "")) || 0;
   if (!lockUntil || Date.now() >= lockUntil) return incoming;
   const out = { ...incoming };
-  for (const k of CADASTRO_KEYS) {
+  const lockKeys = [
+    "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
+  ];
+  for (const k of lockKeys) {
     if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
     const inc = incoming[k];
     const ex = existing[k];
@@ -365,6 +373,7 @@ function applyOficialClientesVeiculosNoShrink(existing, merged) {
     "dk_portal_clientes_cadastro",
     "dk_veiculos_cadastro",
     "dk_portal_veiculos_cadastro",
+    "dk_locacoes_cadastro",
   ];
   for (const k of keys) {
     const ex = existing[k];
@@ -389,6 +398,7 @@ function capOficialVirginProtocolos(existing, merged) {
   for (const k of keys) {
     if (!Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
+      if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       const protoYmd = locacaoProtocolYmd(r);
       if (protoYmd) return protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD;
       return true;
@@ -713,7 +723,7 @@ module.exports = async function handler(req, res) {
         }
         if (channel === "default") {
           payload.dk_cadastro_manual_portal_v1 = true;
-          payload.dk_oficial_sem_protocolos_v1 = true;
+          payload.dk_oficial_sem_protocolos_v1 = incoming.dk_oficial_sem_protocolos_v1 !== false;
           payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
             ? String(incoming.dk_cadastro_lock_v1)
             : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();

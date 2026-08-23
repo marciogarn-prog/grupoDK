@@ -2258,17 +2258,17 @@
       delete out.dk_patrimonio_fotos_excluidas_v1;
       return out;
     }
-    const oficialVirgin = Boolean(
-      cloudPayload.dk_oficial_sem_protocolos_v1 || localPayload.dk_oficial_sem_protocolos_v1
-    );
+    const oficialVirgin = cloudPayload.dk_oficial_sem_protocolos_v1 === true;
+    if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_oficial_sem_protocolos_v1")) {
+      out.dk_oficial_sem_protocolos_v1 = cloudPayload.dk_oficial_sem_protocolos_v1 === true;
+    }
     if (oficialVirgin) {
       out.dk_locacoes_cadastro = [];
       out.dk_lancamentos_aluguel = [];
       out.dk_lancamentos_aluguel_cadastro = [];
       out.dk_locacoes_quadro_geral = [];
       out.dk_locacao_documentos_v1 = [];
-      out.dk_oficial_sem_protocolos_v1 =
-        cloudPayload.dk_oficial_sem_protocolos_v1 || localPayload.dk_oficial_sem_protocolos_v1;
+      out.dk_oficial_sem_protocolos_v1 = true;
       out.dk_cadastro_manual_portal_v1 = true;
       const lock = cloudPayload.dk_cadastro_lock_v1 || localPayload.dk_cadastro_lock_v1;
       if (lock) out.dk_cadastro_lock_v1 = lock;

@@ -1,5 +1,5 @@
 /**
- * Oficial: relatório de clientes = 369; relatório de veículos = 186; 0 protocolos.
+ * Oficial: relatório de clientes = 369; relatório de veículos = 186; 526 protocolos.
  * node grupodkempreendimentos/scripts/test-oficial-relatorios-totais.mjs
  */
 import { chromium } from "playwright";
@@ -18,7 +18,7 @@ const vCloud = (p.dk_veiculos_cadastro || []).length;
 const lCloud = (p.dk_locacoes_cadastro || []).length;
 record("oficial nuvem: 369 clientes", cCloud === 369, `c=${cCloud}`);
 record("oficial nuvem: 186 veículos", vCloud === 186, `v=${vCloud}`);
-record("oficial nuvem: 0 protocolos", lCloud === 0, `l=${lCloud}`);
+record("oficial nuvem: 526 protocolos", lCloud === 526, `l=${lCloud}`);
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage();
@@ -46,17 +46,19 @@ try {
     };
     const loadC = typeof loadCadastro === "function" ? loadCadastro("dk_clientes_cadastro").length : -1;
     const loadV = typeof loadCadastro === "function" ? loadCadastro("dk_veiculos_cadastro").length : -1;
+    const loadL = typeof loadCadastro === "function" ? loadCadastro("dk_locacoes_cadastro").length : -1;
     return {
       rawC: len("dk_clientes_cadastro"),
       rawV: len("dk_veiculos_cadastro"),
       rawL: len("dk_locacoes_cadastro"),
       loadC,
       loadV,
+      loadL,
     };
   });
   record("browser: 369 clientes", local.loadC === 369 || local.rawC === 369, `load=${local.loadC} raw=${local.rawC}`);
   record("browser: 186 veículos", local.loadV === 186 || local.rawV === 186, `load=${local.loadV} raw=${local.rawV}`);
-  record("browser: 0 protocolos", local.rawL === 0, `l=${local.rawL}`);
+  record("browser: 526 protocolos", local.loadL === 526 || local.rawL === 526, `l=${local.rawL} load=${local.loadL}`);
 
   const relCli = await page.evaluate(() => {
     document.getElementById("operacaoClienteGerarRelatorioBtn")?.click();
@@ -80,6 +82,18 @@ try {
     "relatório veículos: 186 no cadastro",
     /186 veículo/i.test(relVei.resumo),
     `${relVei.titulo} | ${relVei.resumo}`
+  );
+
+  const relLoc = await page.evaluate(() => {
+    document.getElementById("operacaoLocacaoGerarRelatorioBtn")?.click();
+    const titulo = String(document.getElementById("portalRelatorioTitulo")?.textContent || "");
+    const resumo = String(document.getElementById("portalRelatorioResumo")?.textContent || "");
+    return { titulo, resumo };
+  });
+  record(
+    "relatório locações: 526 registros",
+    /526 registro/i.test(relLoc.resumo),
+    `${relLoc.titulo} | ${relLoc.resumo}`
   );
 } finally {
   await browser.close();
