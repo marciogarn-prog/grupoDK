@@ -2641,8 +2641,13 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
         ex?.portalLancamentosManutencao,
         l?.portalLancamentosManutencao,
       ]);
+      const anexarAluguel =
+        typeof window.__DK_anexarLancamentosMergeNaLocacao === "function"
+          ? window.__DK_anexarLancamentosMergeNaLocacao
+          : null;
       const merged = { ...ex, ...l, numeroContrato: ex.numeroContrato || l.numeroContrato };
-      if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+      if (anexarAluguel) anexarAluguel(merged, ex, l, mergedPl);
+      else if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
       if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
       if (mergedMultasTransito.length) merged.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
@@ -2651,7 +2656,8 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       if (score(l) > score(ex)) return merged;
       if (score(l) === score(ex) && JSON.stringify(l).length >= JSON.stringify(ex).length) return merged;
       const stay = { ...ex };
-      if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+      if (anexarAluguel) anexarAluguel(stay, ex, l, mergedPl);
+      else if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
       if (mergedPlMultas.length) stay.portalLancamentosMultas = mergedPlMultas;
       if (mergedMultasTransito.length) stay.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) stay.portalLancamentosManutencao = mergedPlManut;
@@ -6542,7 +6548,11 @@ function enforceReceita2026OfficialLocacoesBase() {
     merged.placa = target.placa;
     merged.inicio = target.inicio;
     merged.fim = target.fim;
-    if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+    if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+      window.__DK_anexarLancamentosMergeNaLocacao(merged, target, loc, mergedPl);
+    } else if (mergedPl.length) {
+      merged.portalLancamentosAluguel = mergedPl;
+    }
     return merged;
   };
 

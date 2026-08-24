@@ -6489,6 +6489,11 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   z-index: 10050;
 }
 
+#portalLancAluguelConfirmModal.portal-modal,
+#portalLancAluguelEditModal.portal-modal {
+  z-index: 10120;
+}
+
 .portal-lanc-cal-modal__card {
   position: relative;
   max-width: min(96vw, 920px);

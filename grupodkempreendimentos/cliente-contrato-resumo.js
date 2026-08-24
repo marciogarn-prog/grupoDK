@@ -166,10 +166,18 @@
       ...incoming,
       numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
     };
-    if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+    if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+      window.__DK_anexarLancamentosMergeNaLocacao(merged, ex, incoming, mergedPl);
+    } else if (mergedPl.length) {
+      merged.portalLancamentosAluguel = mergedPl;
+    }
     if (score(incoming) >= score(ex)) return merged;
     const stay = { ...ex, ...merged };
-    if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+    if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+      window.__DK_anexarLancamentosMergeNaLocacao(stay, ex, incoming, mergedPl);
+    } else if (mergedPl.length) {
+      stay.portalLancamentosAluguel = mergedPl;
+    }
     return stay;
   }
 
