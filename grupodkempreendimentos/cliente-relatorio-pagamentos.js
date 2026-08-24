@@ -258,9 +258,13 @@
 
   function computeResumoProtocolo(loc) {
     const parseCur = (v) => Number(parsePortalLancamentoValorRaw(v));
-    const valLoc = parseCur(loc?.valorLocacao ?? "0");
+    let valLoc = parseCur(loc?.valorLocacao ?? "0");
     const valInv = parseCur(loc?.valorInvestimento ?? "0");
-    const plano = valLoc + valInv;
+    const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
+    if (valLoc <= 0 && valSemanalCampo > 0) {
+      valLoc = Math.max(0, valSemanalCampo - valInv);
+    }
+    const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
     const tempo = computeTempoDiasLoc(loc);
     const custoDiaNum = plano / 7;
     const valorDevidoPlanoNum = tempo * (plano / 7);

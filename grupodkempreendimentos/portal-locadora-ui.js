@@ -15963,6 +15963,11 @@
         registradoPorNome: String(x.registradoPorNome || "").trim(),
         protocoloLancamento: String(x.protocoloLancamento || "").trim(),
       };
+      if (!row.protocoloLancamento && typeof window.__DK_gerarProtocoloLancamento === "function") {
+        row.protocoloLancamento = String(
+          window.__DK_gerarProtocoloLancamento(row.registradoPorCpf, row.createdAt) || ""
+        ).trim();
+      }
       if (Object.prototype.hasOwnProperty.call(x, "valorEspecie")) {
         row.valorEspecie = Number(x.valorEspecie) || 0;
         row.valorPix = Number(x.valorPix) || 0;

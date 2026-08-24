@@ -1108,6 +1108,13 @@ async function runSuite() {
       "placa, semanal, pago, investimento, último pagamento"
     );
     record(
+      "app cliente sincroniza valor semanal e pagamentos da nuvem",
+      clienteResumoJs.includes("resolveValoresContrato") &&
+        clienteResumoJs.includes("valorSemanal ?? loc?.valorParcela") &&
+        cloudSyncJs.includes('localStorage.setItem("dk_locacoes_cadastro"'),
+      "semanal da locação + pull substitui contratos do CPF"
+    );
+    record(
       "app cliente sem detalhamento pagamentos",
       !clienteHtml.includes("cliente-pagamentos-calendario.js") &&
         !clienteHtml.includes("clienteCalPagamentosModal") &&
