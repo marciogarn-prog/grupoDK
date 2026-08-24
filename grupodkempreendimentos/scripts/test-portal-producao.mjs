@@ -1284,6 +1284,16 @@ async function runSuite() {
       "locação ganha timestamp ao gravar pagamentos"
     );
     record(
+      "histórico aluguel: Apagar/Editar pelo protocolo gerado",
+      portalUiLancPersistJs.includes("portalProtocoloLancamentoKey") &&
+        portalUiLancPersistJs.includes("onOperacaoLancAluguelHistoricoClick") &&
+        portalUiLancPersistJs.includes("stampPortalLancamentoRemovido") &&
+        portalUiLancPersistJs.includes("operacaoLancAluguelHistorico") &&
+        lancProtoJs.includes("filtrarPortalLancamentosPorRemovidos") &&
+        html.includes("operacaoLancAluguelHistorico"),
+      "titular apaga o pagamento visível na tabela"
+    );
+    record(
       "calendário portal envia nuvem após salvar",
       calPortalJs.includes("await fn(") &&
         calPortalJs.includes("res.notify") &&

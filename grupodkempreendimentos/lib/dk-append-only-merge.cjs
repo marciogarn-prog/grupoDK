@@ -141,6 +141,66 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
   return Array.from(byKey.values()).sort((a, b) => Number(a.createdAt || 0) - Number(b.createdAt || 0));
 }
 
+function portalLancamentoRemocaoKeys(x) {
+  const keys = [];
+  const proto = String(x?.protocoloLancamento || x?.protocolo || "").trim();
+  if (/^\d{14}-\d{3}$/.test(proto)) keys.push("p:" + proto);
+  const data = String(x?.data || x?.dataPagamento || "").trim();
+  const valor = Number(x?.valor);
+  const ca = Number(x?.createdAt || x?.id || 0);
+  const rp = onlyDigits(x?.registradoPorCpf).slice(0, 11);
+  if (data && Number.isFinite(valor) && valor > 0) {
+    keys.push("l:" + data + "|" + valor.toFixed(2) + "|" + (Number.isFinite(ca) ? ca : 0) + "|" + rp);
+  }
+  return keys;
+}
+
+function mergePortalLancamentosRemovidos(arrays) {
+  const byId = new Map();
+  for (const arr of arrays || []) {
+    if (!Array.isArray(arr)) continue;
+    for (const raw of arr) {
+      if (!raw || typeof raw !== "object") continue;
+      const keys = portalLancamentoRemocaoKeys(raw);
+      if (!keys.length) continue;
+      const row = {
+        protocoloLancamento: String(raw.protocoloLancamento || raw.protocolo || "").trim(),
+        data: String(raw.data || raw.dataPagamento || "").trim(),
+        valor: Number(raw.valor),
+        createdAt: Number(raw.createdAt || 0),
+        registradoPorCpf: onlyDigits(raw.registradoPorCpf).slice(0, 11),
+        removedAt: Number(raw.removedAt || 0) || Date.now(),
+      };
+      const id = keys.join("|");
+      if (!byId.has(id)) byId.set(id, row);
+    }
+  }
+  return Array.from(byId.values());
+}
+
+function filtrarPortalLancamentosPorRemovidos(payments, removidos) {
+  const list = Array.isArray(payments) ? payments : [];
+  if (!list.length) return list;
+  const rem = Array.isArray(removidos) ? removidos : [];
+  if (!rem.length) return list;
+  const tomb = new Set();
+  for (const t of rem) {
+    for (const k of portalLancamentoRemocaoKeys(t)) tomb.add(k);
+  }
+  return list.filter((row) => !portalLancamentoRemocaoKeys(row).some((k) => tomb.has(k)));
+}
+
+function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
+  if (!target || typeof target !== "object") return target;
+  const mergedRem = mergePortalLancamentosRemovidos([
+    ex?.portalLancamentosAluguelRemovidos,
+    incoming?.portalLancamentosAluguelRemovidos,
+  ]);
+  target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
+  if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
+  return target;
+}
+
 function mergeLocacaoCadastroPar(ex, incoming) {
   const mergedPl = mergePortalLancamentosAluguelEmbutidos([
     ex?.portalLancamentosAluguel,
@@ -152,10 +212,10 @@ function mergeLocacaoCadastroPar(ex, incoming) {
     ...incoming,
     numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
   };
-  if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
+  anexarLancamentosMergeNaLocacao(merged, ex, incoming, mergedPl);
   if (score(incoming) >= score(ex)) return merged;
   const stay = { ...ex, ...merged };
-  if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
+  anexarLancamentosMergeNaLocacao(stay, ex, incoming, mergedPl);
   return stay;
 }
 
@@ -187,4 +247,6 @@ module.exports = {
   mergeVeiculosCadastro,
   mergeLocacoesCadastro,
   mergePortalLancamentosAluguelEmbutidos,
+  mergePortalLancamentosRemovidos,
+  filtrarPortalLancamentosPorRemovidos,
 };

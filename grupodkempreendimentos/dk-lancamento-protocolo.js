@@ -94,6 +94,68 @@
     return PROTO_RE.test(String(s || "").trim());
   }
 
+  function portalLancamentoRemocaoKeys(x) {
+    const keys = [];
+    const proto = String(x?.protocoloLancamento || x?.protocolo || "").trim();
+    if (PROTO_RE.test(proto)) keys.push("p:" + proto);
+    const data = String(x?.data || x?.dataPagamento || "").trim();
+    const valor = Number(x?.valor);
+    const ca = Number(x?.createdAt || x?.id || 0);
+    const rp = onlyDigits(x?.registradoPorCpf || "").slice(0, 11);
+    if (data && Number.isFinite(valor) && valor > 0) {
+      keys.push(
+        "l:" + data + "|" + valor.toFixed(2) + "|" + (Number.isFinite(ca) ? ca : 0) + "|" + rp
+      );
+    }
+    return keys;
+  }
+
+  function mergePortalLancamentosRemovidos(arrays) {
+    const byId = new Map();
+    for (const arr of arrays || []) {
+      if (!Array.isArray(arr)) continue;
+      for (const raw of arr) {
+        if (!raw || typeof raw !== "object") continue;
+        const keys = portalLancamentoRemocaoKeys(raw);
+        if (!keys.length) continue;
+        const row = {
+          protocoloLancamento: String(raw.protocoloLancamento || raw.protocolo || "").trim(),
+          data: String(raw.data || raw.dataPagamento || "").trim(),
+          valor: Number(raw.valor),
+          createdAt: Number(raw.createdAt || 0),
+          registradoPorCpf: onlyDigits(raw.registradoPorCpf || "").slice(0, 11),
+          removedAt: Number(raw.removedAt || 0) || Date.now(),
+        };
+        const id = keys.join("|");
+        if (!byId.has(id)) byId.set(id, row);
+      }
+    }
+    return Array.from(byId.values());
+  }
+
+  function filtrarPortalLancamentosPorRemovidos(payments, removidos) {
+    const list = Array.isArray(payments) ? payments : [];
+    if (!list.length) return list;
+    const rem = Array.isArray(removidos) ? removidos : [];
+    if (!rem.length) return list;
+    const tomb = new Set();
+    for (const t of rem) {
+      for (const k of portalLancamentoRemocaoKeys(t)) tomb.add(k);
+    }
+    return list.filter((row) => !portalLancamentoRemocaoKeys(row).some((k) => tomb.has(k)));
+  }
+
+  function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
+    if (!target || typeof target !== "object") return target;
+    const mergedRem = mergePortalLancamentosRemovidos([
+      ex?.portalLancamentosAluguelRemovidos,
+      incoming?.portalLancamentosAluguelRemovidos,
+    ]);
+    target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
+    if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
+    return target;
+  }
+
   /** Oficial: rejeita fantasma, legado -000, teste e lançamento sem operador identificado. */
   function isLancamentoOficialAceite(row) {
     if (!row || row.pagamentoInvalidado) return false;
@@ -312,7 +374,10 @@
   function consolidarLancamentosAluguelLoc(loc, opts) {
     if (!loc || typeof loc !== "object") return [];
     const mutate = Boolean(opts && opts.mutate);
-    const merged = ensureUniqueProtocols(mergeRows(collectLegacySources(loc)));
+    const merged = filtrarPortalLancamentosPorRemovidos(
+      ensureUniqueProtocols(mergeRows(collectLegacySources(loc))),
+      loc.portalLancamentosAluguelRemovidos
+    );
     if (mutate) {
       loc.portalLancamentosAluguel = merged.map((x) => ({ ...x }));
       if (Object.prototype.hasOwnProperty.call(loc, "lancamentosAluguel")) delete loc.lancamentosAluguel;
@@ -334,7 +399,7 @@
   function getLancamentosAluguelCanonico(loc) {
     if (isClienteAppContext()) {
       const embedded = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
-      return embedded.map(normalizeRow).filter(Boolean);
+      return filtrarPortalLancamentosPorRemovidos(embedded.map(normalizeRow).filter(Boolean), loc?.portalLancamentosAluguelRemovidos);
     }
     if (isOficialDeploy()) {
       return consolidarLancamentosAluguelLoc(loc, { mutate: false });
@@ -347,7 +412,7 @@
     if (hasLegacy || embedded.some((x) => !isProtocoloLancamentoValid(x?.protocoloLancamento))) {
       return consolidarLancamentosAluguelLoc(loc, { mutate: false });
     }
-    return embedded.map(normalizeRow).filter(Boolean);
+    return filtrarPortalLancamentosPorRemovidos(embedded.map(normalizeRow).filter(Boolean), loc?.portalLancamentosAluguelRemovidos);
   }
 
   function purgeGlobalLancamentoKeysOficial() {
@@ -421,8 +486,11 @@
         : (n) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     const rows = arr
       .map((x) => {
-        const proto = esc(String(x.protocoloLancamento || "—"));
-        const protoAttr = esc(String(x.protocoloLancamento || ""));
+        const protoGerado =
+          String(x.protocoloLancamento || "").trim() ||
+          gerarProtocoloLancamento(x.registradoPorCpf || x.registradoPor, x.createdAt);
+        const proto = esc(protoGerado || "—");
+        const protoAttr = esc(protoGerado || "");
         const quem = esc(x.registradoPorNome || x.registradoPorCpf || "—");
         const fict = x.ficticio ? ' <span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
         const actions = owner
@@ -451,6 +519,9 @@
   window.__DK_consolidarLancamentosAluguelLoc = consolidarLancamentosAluguelLoc;
   window.__DK_getLancamentosAluguelCanonico = getLancamentosAluguelCanonico;
   window.__DK_renderHistoricoLancamentosHtml = renderHistoricoLancamentosHtml;
+  window.__DK_mergePortalLancamentosRemovidos = mergePortalLancamentosRemovidos;
+  window.__DK_filtrarPortalLancamentosPorRemovidos = filtrarPortalLancamentosPorRemovidos;
+  window.__DK_anexarLancamentosMergeNaLocacao = anexarLancamentosMergeNaLocacao;
   window.__DK_purgeGlobalLancamentoKeysOficial = purgeGlobalLancamentoKeysOficial;
   window.__DK_sanitizeCloudPayloadLancamentosOficial = sanitizeCloudPayloadLancamentosOficial;
 

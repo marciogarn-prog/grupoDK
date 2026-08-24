@@ -15939,11 +15939,19 @@
         registradoPorCpf: String(v.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
         registradoPorNome: String(v.registradoPorNome || "").trim(),
       };
+      const proto = portalProtocoloLancamentoKey(v);
+      if (proto) base.protocoloLancamento = proto;
       if (["valorEspecie", "valorPix", "valorCartao"].some((k) => Object.prototype.hasOwnProperty.call(v, k))) {
         base.valorEspecie = Number(parsePortalLancamentoValorRaw(v.valorEspecie ?? 0));
         base.valorPix = Number(parsePortalLancamentoValorRaw(v.valorPix ?? 0));
         base.valorCartao = Number(parsePortalLancamentoValorRaw(v.valorCartao ?? 0));
       }
+      const oid = String(v.origemComprovanteClienteId || "").trim();
+      if (oid) base.origemComprovanteClienteId = oid;
+      const fp = String(v.comprovanteFp || "").trim();
+      if (fp) base.comprovanteFp = fp;
+      if (v.confirmadoViaAppCliente) base.confirmadoViaAppCliente = true;
+      if (v.ficticio) base.ficticio = true;
       return base;
     });
     return loc.portalLancamentosAluguel;
@@ -16061,8 +16069,47 @@
     const loc = locs[idx];
     const arr = materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     if (!arr || indice < 0 || indice >= arr.length) return false;
+    stampPortalLancamentoRemovido(loc, arr[indice]);
     arr.splice(indice, 1);
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
+  }
+
+  function portalProtocoloLancamentoKey(x) {
+    const p = String(x?.protocoloLancamento || x?.protocolo || "").trim();
+    if (p) return p;
+    if (typeof window.__DK_gerarProtocoloLancamento === "function") {
+      return String(
+        window.__DK_gerarProtocoloLancamento(x?.registradoPorCpf || x?.registradoPor, x?.createdAt) || ""
+      ).trim();
+    }
+    return "";
+  }
+
+  function stampPortalLancamentoRemovido(loc, row) {
+    if (!loc || !row) return;
+    const item = {
+      protocoloLancamento: portalProtocoloLancamentoKey(row),
+      data: String(row.data || "").trim(),
+      valor: Number(row.valor),
+      createdAt: Number(row.createdAt || 0),
+      registradoPorCpf: String(row.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+      removedAt: Date.now(),
+    };
+    const prev = Array.isArray(loc.portalLancamentosAluguelRemovidos)
+      ? loc.portalLancamentosAluguelRemovidos.slice()
+      : [];
+    const dup = prev.some((x) => {
+      const sameProto =
+        item.protocoloLancamento &&
+        String(x.protocoloLancamento || "").trim() === item.protocoloLancamento;
+      const sameLegado =
+        item.data &&
+        Number(x.createdAt || 0) === item.createdAt &&
+        Number(x.valor) === item.valor;
+      return sameProto || sameLegado;
+    });
+    if (!dup) prev.push(item);
+    loc.portalLancamentosAluguelRemovidos = prev;
   }
 
   function apagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento) {
@@ -16081,12 +16128,19 @@
     );
     if (idx === -1) return false;
     const loc = locs[idx];
-    materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
-    const before = (loc.portalLancamentosAluguel || []).length;
-    loc.portalLancamentosAluguel = (loc.portalLancamentosAluguel || []).filter(
-      (x) => String(x.protocoloLancamento || "").trim() !== proto
-    );
-    if (loc.portalLancamentosAluguel.length === before) return false;
+    const takeRemoved = (arr) => (arr || []).filter((x) => portalProtocoloLancamentoKey(x) === proto);
+    const arr0 = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    let removed = takeRemoved(arr0);
+    let next = arr0.filter((x) => portalProtocoloLancamentoKey(x) !== proto);
+    if (next.length === arr0.length) {
+      materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
+      const arr1 = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+      removed = takeRemoved(arr1);
+      next = arr1.filter((x) => portalProtocoloLancamentoKey(x) !== proto);
+      if (next.length === arr1.length) return false;
+    }
+    removed.forEach((row) => stampPortalLancamentoRemovido(loc, row));
+    loc.portalLancamentosAluguel = next;
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
@@ -16121,6 +16175,7 @@
       createdAt: typeof prev?.createdAt === "number" && Number.isFinite(prev.createdAt) ? prev.createdAt : Date.now(),
       registradoPorCpf: String(prev?.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
       registradoPorNome: String(prev?.registradoPorNome || "").trim(),
+      protocoloLancamento: String(prev?.protocoloLancamento || portalProtocoloLancamentoKey(prev) || "").trim(),
       ...(Object.prototype.hasOwnProperty.call(merged, "valorEspecie")
         ? {
             valorEspecie: merged.valorEspecie,
@@ -16151,39 +16206,55 @@
     wrap.innerHTML = html;
     wrap.classList.remove("hidden");
     wrap.removeAttribute("hidden");
-    wrap.querySelectorAll("[data-lanc-aluguel-del]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const proto = String(btn.getAttribute("data-lanc-aluguel-del") || "").trim();
-        if (!proto) return;
-        const cpf = (
-          typeof onlyDigits === "function"
-            ? onlyDigits(document.getElementById("operacaoLancAluguelCpf")?.value || "")
-            : String(document.getElementById("operacaoLancAluguelCpf")?.value || "").replace(/\D/g, "")
-        ).slice(0, 11);
-        const nc = normPortalNumeroContrato(
-          document.getElementById("operacaoLancAluguelProtocoloSelect")?.value ||
-            operacaoLancAluguelProtocoloAtual() ||
-            ""
-        );
-        openPortalLancAluguelConfirmModal("Apagar este lançamento?", () => {
-          if (apagarPortalLancamentoAluguelPorProtocolo(cpf, nc, proto)) {
-            const refreshed = getPortalLocacaoLancAluguelAtual();
-            if (refreshed) applyOperacaoLancamentoAluguelFromLoc(refreshed);
-          }
-        });
+  }
+
+  function onOperacaoLancAluguelHistoricoClick(e) {
+    const t = e.target instanceof Element ? e.target : e.target && e.target.parentElement;
+    if (!(t instanceof Element)) return;
+    const del = t.closest("[data-lanc-aluguel-del]");
+    const edit = t.closest("[data-lanc-aluguel-edit]");
+    if (!del && !edit) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!isPortalTitularAdministrador()) {
+      window.alert("Apenas o administrador pode alterar ou apagar pagamentos já registados.");
+      return;
+    }
+    const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
+    if (String(cpf || "").length !== 11 || !nc) {
+      if (msg) msg.textContent = "Informe CPF e protocolo.";
+      return;
+    }
+    const loc = getPortalLocacaoLancAluguelAtual();
+    const lancs = loc ? getPortalLancamentosAluguelContabilizaveisDoContrato(loc) : [];
+    if (del) {
+      const proto = String(del.getAttribute("data-lanc-aluguel-del") || "").trim();
+      if (!proto) {
+        if (msg) msg.textContent = "Não foi possível identificar o pagamento.";
+        return;
+      }
+      openPortalLancAluguelConfirmModal("Apagar este lançamento?", () => {
+        if (apagarPortalLancamentoAluguelPorProtocolo(cpf, nc, proto)) {
+          const refreshed = getPortalLocacaoLancAluguelAtual();
+          if (refreshed) applyOperacaoLancamentoAluguelFromLoc(refreshed);
+          if (msg) msg.textContent = "Pagamento removido.";
+        } else if (msg) {
+          msg.textContent = "Não foi possível apagar o pagamento.";
+        }
       });
-    });
-    wrap.querySelectorAll("[data-lanc-aluguel-edit]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const proto = String(btn.getAttribute("data-lanc-aluguel-edit") || "").trim();
-        const row = lancs.find((x) => String(x.protocoloLancamento || "").trim() === proto);
-        if (!row) return;
-        const idx = (loc.portalLancamentosAluguel || []).findIndex(
-          (x) => String(x.protocoloLancamento || "").trim() === proto
-        );
-        openPortalLancAluguelEditModal(idx, row.valor, row.data);
-      });
-    });
+      return;
+    }
+    const proto = String(edit.getAttribute("data-lanc-aluguel-edit") || "").trim();
+    const row = lancs.find((x) => portalProtocoloLancamentoKey(x) === proto);
+    if (!row) {
+      if (msg) msg.textContent = "Não foi possível abrir este pagamento.";
+      return;
+    }
+    const stored = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    let idx = stored.findIndex((x) => portalProtocoloLancamentoKey(x) === proto);
+    if (idx < 0) idx = lancs.findIndex((x) => portalProtocoloLancamentoKey(x) === proto);
+    openPortalLancAluguelEditModal(idx, row.valor, row.data);
   }
 
   function getPortalLocacaoLancAluguelAtual() {
@@ -16193,9 +16264,7 @@
     const digits =
       typeof onlyDigits === "function" ? onlyDigits(inpCpf.value) : String(inpCpf.value || "").replace(/\D/g, "");
     if (digits.length !== 11) return null;
-    const nc = normPortalNumeroContrato(
-      (sel && !sel.disabled && sel.value) || operacaoLancAluguelProtocoloAtual() || ""
-    );
+    const nc = operacaoLancAluguelProtocoloAtual().nc;
     if (!nc) return null;
     return collectPortalLocacoesComProtocoloByCpf(digits).find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) || null;
   }
@@ -17626,6 +17695,11 @@
   document.querySelectorAll("[data-close-lanc-aluguel-confirm]").forEach((el) => {
     el.addEventListener("click", () => closePortalLancAluguelConfirmModal());
   });
+  document.getElementById("operacaoLancAluguelHistorico")?.addEventListener(
+    "click",
+    onOperacaoLancAluguelHistoricoClick,
+    true
+  );
 
   document.getElementById("portalLancAluguelEditCancelarBtn")?.addEventListener("click", () => closePortalLancAluguelEditModal());
   document.querySelectorAll("[data-close-lanc-aluguel-edit]").forEach((el) => {
@@ -17651,7 +17725,7 @@
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const digits = dig(String(inpCpf?.value || ""));
-    const proto = normPortalNumeroContrato(sel?.value || "");
+    const proto = normPortalNumeroContrato(sel?.value || "") || operacaoLancAluguelProtocoloAtual().nc;
     const parseVal =
       typeof parseCurrencyBR === "function"
         ? parseCurrencyBR
@@ -17734,7 +17808,7 @@
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const digits = dig(String(inpCpf?.value || ""));
-    const proto = normPortalNumeroContrato(sel?.value || "");
+    const proto = normPortalNumeroContrato(sel?.value || "") || operacaoLancAluguelProtocoloAtual().nc;
     if (digits.length !== 11 || !proto) {
       if (msg) msg.textContent = "Informe CPF e protocolo.";
       return;
@@ -18193,7 +18267,11 @@
           l?.portalLancamentosManutencao,
         ]);
         const attachEmb = (row) => {
-          if (mergedPl.length) row.portalLancamentosAluguel = mergedPl;
+          if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
+            window.__DK_anexarLancamentosMergeNaLocacao(row, prev || {}, l, mergedPl);
+          } else if (mergedPl.length) {
+            row.portalLancamentosAluguel = mergedPl;
+          }
           if (mergedPlMultas.length) row.portalLancamentosMultas = mergedPlMultas;
           if (mergedMultasTransito.length) row.portalMultasTransito = mergedMultasTransito;
           if (mergedPlManut.length) row.portalLancamentosManutencao = mergedPlManut;
