@@ -1138,6 +1138,14 @@ async function runSuite() {
       "placa, semanal, pago, investimento, último pagamento"
     );
     record(
+      "app cliente PARABÉNS só no plano DK Minha Moto",
+      clienteAppJs.includes("locEhPlanoDkMinhaMoto") &&
+        clienteAppJs.includes("PLANO DK MINHA MOTO") &&
+        clienteAppJs.includes('resumo.plano === "MINHA_MOTO"') &&
+        clienteAppJs.includes("badge?.variant === \"carro\""),
+      "semanas pagas ocultas em Meu Transporte e carro"
+    );
+    record(
       "app cliente sincroniza valor semanal e pagamentos da nuvem",
       clienteResumoJs.includes("resolveValoresContrato") &&
         clienteResumoJs.includes("valorSemanal ?? loc?.valorParcela") &&
@@ -1348,7 +1356,7 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824contrato-app`, {
+    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824parabens-mm`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1360,7 +1368,7 @@ async function runSuite() {
         portalSyncLancJs.includes("mergeRemoteSnapshotsForClienteApp") &&
         clienteAppJs.includes("45000") &&
         !clienteAppJs.includes("consolidarLancamentosClienteLogado(sessao.cpf)") &&
-        swClienteJs.includes("dk-cliente-v20260824contrato-app"),
+        swClienteJs.includes("dk-cliente-v20260824parabens-mm"),
       "Supabase sem lançamentos não apaga pagamentos do Redis no app"
     );
     record(

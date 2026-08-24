@@ -1340,6 +1340,19 @@
     if (sessao?.cpf) scheduleClienteRender(sessao);
   }
 
+  function locEhPlanoDkMinhaMoto(loc, resumo) {
+    if (resumo?.badge?.variant === "carro") return false;
+    if (resumo?.plano) return resumo.plano === "MINHA_MOTO";
+    const key = String(loc?.plano || loc?.opcaoContrato || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "");
+    if (key.includes("MINHA") && key.includes("MOTO")) return true;
+    if (key.includes("MEU") && key.includes("TRANSPORTE")) return false;
+    if (key.includes("CARRO")) return false;
+    return parseCurrencyBR(loc?.valorInvestimento ?? 0) > 0;
+  }
+
   function renderApp(sessao, opts) {
     const renderKey = clienteRenderKey(sessao);
     if (!opts?.force && renderKey && renderKey === lastClienteRenderKey) {
@@ -1364,14 +1377,12 @@
 
     const resumo = $("cliente-resumo");
     if (resumo) {
-      /* PARABÉNS — semanas pagas = total pago ÷ valor do plano (arredondado para baixo) */
+      /* PARABÉNS — só plano DK Minha Moto; semanas pagas = total pago ÷ valor do plano (chão). */
       const nomeCliente = (String(sessao.nome || "").trim() || "Cliente").toUpperCase();
       const linhas = locAtivas
         .map((loc) => {
-          const r =
-            typeof window.__DK_clienteComputeResumoContrato === "function"
-              ? window.__DK_clienteComputeResumoContrato(loc)
-              : null;
+          const r = resumoFn ? resumoFn(loc) : null;
+          if (!locEhPlanoDkMinhaMoto(loc, r)) return "";
           const plano = r
             ? parseCurrencyBR(r.valorSemanal)
             : parseCurrencyBR(loc.valorSemanal || loc.valorParcela) ||
@@ -1382,8 +1393,17 @@
             locAtivas.length > 1 ? ` (${escapeHtml(String(loc.placa || "").trim().toUpperCase())})` : "";
           return `<p class="cliente-parabens__texto">PARABÉNS, <strong>${escapeHtml(nomeCliente)}</strong>! VOCÊ JÁ PAGOU <strong>${semanas}</strong> ${semanas === 1 ? "SEMANA" : "SEMANAS"} DO SEU PLANO DK MINHA MOTO${placaInfo}.</p>`;
         })
+        .filter(Boolean)
         .join("");
-      resumo.innerHTML = linhas ? `<div class="cliente-parabens">${linhas}</div>` : "";
+      if (!linhas) {
+        resumo.innerHTML = "";
+        resumo.hidden = true;
+        resumo.setAttribute("hidden", "");
+      } else {
+        resumo.hidden = false;
+        resumo.removeAttribute("hidden");
+        resumo.innerHTML = `<div class="cliente-parabens">${linhas}</div>`;
+      }
     }
 
     renderNotificacoes(cpf);
@@ -1586,7 +1606,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824contrato-app", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824parabens-mm", {
         scope: "/",
         updateViaCache: "none",
       });
