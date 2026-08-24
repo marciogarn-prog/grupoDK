@@ -209,22 +209,116 @@
   color: var(--accent);
 }
 
-.cliente-parabens {
-  text-align: center;
-  padding: 0.35rem 0.2rem;
+.cliente-premio-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
 }
 
-.cliente-parabens__texto {
-  margin: 0.3rem 0;
-  font-size: 1.02rem;
-  line-height: 1.5;
+.cliente-premio {
+  --pct: 0%;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0 -0.15rem;
+  padding-bottom: 0.65rem;
+}
+
+.cliente-premio__scene {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.cliente-premio__scene img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 128%;
+  object-fit: cover;
+  object-position: center 8%;
+}
+
+.cliente-premio__bar {
+  padding: 0.2rem 0.9rem 0.15rem;
+}
+
+.cliente-premio__track {
+  position: relative;
+  height: 7px;
+  margin: 0 0.45rem;
+  border-radius: 99px;
+  background: #e10600;
+}
+
+.cliente-premio__fill {
+  height: 100%;
+  width: var(--pct);
+  max-width: 100%;
+  border-radius: 99px;
+  background: #2f6bff;
+}
+
+.cliente-premio__marker {
+  position: absolute;
+  top: 50%;
+  left: var(--pct);
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #2f6bff;
+  border: 2px solid #f4f7ff;
+  box-shadow: 0 0 0 2px rgba(47, 107, 255, 0.35);
+  transform: translate(-50%, -50%);
+}
+
+.cliente-premio__labels {
+  position: relative;
+  height: 1.45rem;
+  margin-top: 0.4rem;
+}
+
+.cliente-premio__pct,
+.cliente-premio__fim {
+  position: absolute;
+  top: 0;
+  font-weight: 800;
+  font-style: italic;
   letter-spacing: 0.02em;
-  color: var(--text, #fff);
+  line-height: 1;
+  font-size: 1.05rem;
 }
 
-.cliente-parabens__texto strong {
-  color: var(--accent);
-  font-size: 1.12em;
+.cliente-premio__pct {
+  left: var(--pct);
+  color: #3b82ff;
+  transform: translateX(-50%);
+}
+
+.cliente-premio__fim {
+  right: 0;
+  color: #e10600;
+}
+
+.cliente-premio__meta,
+.cliente-premio__contrato {
+  margin: 0.45rem 0.9rem 0;
+  text-align: center;
+  font-size: 0.82rem;
+  letter-spacing: 0.03em;
+  color: #e8e8e8;
+}
+
+.cliente-premio__meta strong {
+  color: #3b82ff;
+}
+
+.cliente-premio__contrato {
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  opacity: 0.85;
 }
 
 .cliente-sync-status {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260824parabens-mm";
+const CACHE_NAME = "dk-cliente-v20260824premio-mm";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -16,6 +16,7 @@ const ASSETS = [
   "./portal-supabase-sync.js",
   "./styles.css",
   "./dk-deploy-channel.js",
+  "./images/dk-minha-moto-premio.png",
   "./manifest-cliente.webmanifest",
   "./manifest-cliente-demo.webmanifest",
   "./icons/icon-cliente-192.png",

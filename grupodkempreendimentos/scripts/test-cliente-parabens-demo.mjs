@@ -1,7 +1,6 @@
 /**
- * E2E demo: app cliente — mensagem PARABÉNS com semanas pagas
- * (X = floor(total pago / valor do plano)), sem botão «Atualizar da nuvem»,
- * sync automático ao abrir e gesto puxar-para-baixo ligado.
+ * E2E demo: app cliente — gráfico DK Minha Moto (150 semanas).
+ * Progresso = round((semanas pagas / 150) * 100). Semanas = floor(total pago / valor do plano).
  * node grupodkempreendimentos/scripts/test-cliente-parabens-demo.mjs
  */
 import { chromium } from "playwright";
@@ -31,20 +30,30 @@ try {
   }, { cpf: CPF, proto: PROTO });
   await app.goto(`${BASE}cliente?adminPreview=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
 
-  /* sync automático ao abrir deve preencher os dados e a mensagem */
+  /* sync automático ao abrir deve preencher o gráfico */
   const estado = await app
     .waitForFunction(
       () => {
-        const resumo = document.getElementById("cliente-resumo");
-        const txt = (resumo?.textContent || "").replace(/\s+/g, " ").trim();
-        if (!txt.includes("PARABÉNS")) return false;
-        return { txt };
+        const card = document.querySelector("#cliente-resumo .cliente-premio");
+        if (!card) return false;
+        const img = card.querySelector("img");
+        return {
+          semanas: Number(card.getAttribute("data-semanas") || ""),
+          pct: Number(card.getAttribute("data-pct") || ""),
+          src: img?.getAttribute("src") || "",
+          txt: (document.getElementById("cliente-resumo")?.textContent || "").replace(/\s+/g, " ").trim(),
+        };
       },
       { timeout: 60000 }
     )
     .then((h) => h.jsonValue())
     .catch(() => null);
-  record("mensagem PARABÉNS aparece após abrir (sync automático)", Boolean(estado), String(estado?.txt || "").slice(0, 160));
+  record("gráfico DK Minha Moto aparece após abrir", Boolean(estado), String(estado?.txt || "").slice(0, 160));
+  record(
+    "imagem do motoqueiro no progresso",
+    Boolean(estado?.src && /dk-minha-moto-premio/.test(estado.src)),
+    String(estado?.src || "")
+  );
 
   /* esperar o sync terminar para os valores estarem na máquina */
   await app
@@ -73,22 +82,27 @@ try {
       ? window.__DK_clienteGetLancamentosAluguelContrato(loc)
       : [];
     const totalPago = lancs.reduce((s, p) => s + Number(p.valor || 0), 0);
-    const esperado = plano > 0 ? Math.floor(totalPago / plano) : 0;
+    const esperadoSemanas = plano > 0 ? Math.floor(totalPago / plano) : 0;
+    const esperadoPct = Math.min(100, Math.round((esperadoSemanas * 100) / 150));
+    const card = document.querySelector("#cliente-resumo .cliente-premio");
+    const mostradoSemanas = Number(card?.getAttribute("data-semanas") || "");
+    const mostradoPct = Number(card?.getAttribute("data-pct") || "");
     const txt = (document.getElementById("cliente-resumo")?.textContent || "").replace(/\s+/g, " ");
-    const m = txt.match(/PAGOU\s+(\d+)\s+SEMANA/i);
     return {
-      ok: Boolean(m) && Number(m[1]) === esperado,
+      ok: mostradoSemanas === esperadoSemanas && mostradoPct === esperadoPct,
       plano,
       totalPago,
-      esperado,
-      mostrado: m ? Number(m[1]) : null,
+      esperadoSemanas,
+      esperadoPct,
+      mostradoSemanas,
+      mostradoPct,
       txt: txt.slice(0, 160),
     };
   }, { cpf: CPF, proto: PROTO });
   record(
-    "X = floor(total pago / valor do plano)",
+    "X = floor(total pago / valor do plano); barra = round(X/150*100)",
     conta.ok === true,
-    `plano=${conta.plano} pago=${conta.totalPago} esperado=${conta.esperado} mostrado=${conta.mostrado}`
+    `plano=${conta.plano} pago=${conta.totalPago} semanas=${conta.esperadoSemanas} pct=${conta.esperadoPct} mostrado=${conta.mostradoSemanas}/${conta.mostradoPct}`
   );
   record(
     "caso com plano e pagamentos reais (não 0/0)",
@@ -96,9 +110,13 @@ try {
     `plano=${conta.plano} pago=${conta.totalPago}`
   );
 
-  /* nome do cliente na mensagem */
-  record("nome do cliente na mensagem", String(estado?.txt || "").includes("CLIENTE TESTE PARABÉNS"), "");
-  record("texto PLANO DK MINHA MOTO presente", String(estado?.txt || "").includes("PLANO DK MINHA MOTO"), "");
+  /* nome do cliente no cabeçalho (o gráfico já não usa PARABÉNS) */
+  record(
+    "cabeçalho com nome do cliente",
+    String(await app.locator("#cliente-nome").textContent()).toUpperCase().includes("CLIENTE TESTE PARABÉNS"),
+    ""
+  );
+  record("texto DK MINHA MOTO e 150 semanas", String(estado?.txt || "").includes("DK MINHA MOTO") && String(estado?.txt || "").includes("150"), "");
 
   /* botão antigo removido + pull-to-refresh ligado */
   const ui = await app.evaluate(() => ({
