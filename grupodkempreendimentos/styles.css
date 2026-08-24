@@ -4156,6 +4156,11 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   cursor: default;
 }
 
+.portal-disp-enviar-manut-btn {
+  margin-top: 0.35rem;
+  width: 100%;
+}
+
 .portal-disp-devolver-btn {
   margin-top: 0.35rem;
   width: 100%;

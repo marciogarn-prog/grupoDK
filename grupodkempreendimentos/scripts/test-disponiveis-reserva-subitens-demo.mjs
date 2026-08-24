@@ -1,6 +1,7 @@
 /**
  * Disponíveis → Veículo reserva 5.1 / 5.2 — demo.
  * 5.1 é só informativo (reserva ⇒ locada). 4 Pronto tem ENVIAR PARA 5.2.
+ * 5.2 tem ENVIAR PARA MANUTENÇÃO (Triagem).
  * node grupodkempreendimentos/scripts/test-disponiveis-reserva-subitens-demo.mjs
  */
 import { chromium } from "playwright";
@@ -39,7 +40,7 @@ async function run() {
     });
     record(
       "cache-bust disponíveis / devolver cliente",
-      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente|devolver-locados|devolver-fix2|demo-10only|demo-10list/.test(cacheBust),
+      /disp-52-51|reserva-51-info|enviar-52|reserva-subitens|reserva-caixinhas|devolver-cliente|devolver-locados|devolver-fix2|demo-10only|demo-10list|patio-manut|limpar-pesquisa/.test(cacheBust),
       cacheBust.split("?")[1] || cacheBust
     );
 
@@ -259,9 +260,25 @@ async function run() {
       }));
     });
     record(
-      "5.2 sem botões de mover (→5.1 só via Locados)",
+      "5.2 sem botões de mover para 5.1 (só via Locados)",
       patioMoves.length === 0,
       `moves=${patioMoves.length}`
+    );
+    const patioManut = await page.evaluate(() => {
+      const grid = document.getElementById("portalDisponiveisPlacasGrid");
+      const cards = grid?.querySelectorAll(".portal-reserva-placa-item")?.length || 0;
+      const btns = [...(grid?.querySelectorAll("[data-disp-enviar-manut]") || [])].map((b) => ({
+        placa: b.getAttribute("data-disp-enviar-manut"),
+        label: (b.textContent || "").trim(),
+      }));
+      return { cards, btns };
+    });
+    record(
+      "5.2 botão ENVIAR PARA MANUTENÇÃO em cada placa",
+      patioManut.cards === 0 ||
+        (patioManut.btns.length === patioManut.cards &&
+          patioManut.btns.every((b) => /enviar para manuten/i.test(b.label))),
+      `cards=${patioManut.cards} btns=${patioManut.btns.length}`
     );
 
     await page.locator("#btn-disp-sub-prontos").click({ timeout: 15000 });
