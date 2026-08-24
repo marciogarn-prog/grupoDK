@@ -76,6 +76,7 @@
     }
     if (!Number.isFinite(valor) || valor <= 0) return null;
     return {
+      ...x,
       data,
       valor,
       createdAt: Number(x.createdAt || x.id || 0),
@@ -83,6 +84,8 @@
       origemComprovanteClienteId: oid,
       comprovanteFp: String(x.comprovanteFp || "").trim(),
       registradoPorNome: String(x.registradoPorNome || "").trim(),
+      registradoPorCpf: onlyDigits(x.registradoPorCpf || x.registradoPor || "").slice(0, 11),
+      protocoloLancamento: String(x.protocoloLancamento || x.protocolo || "").trim(),
       origem: "DK",
     };
   }
@@ -95,10 +98,27 @@
     for (const arr of arrays || []) {
       if (!Array.isArray(arr)) continue;
       for (const raw of arr) {
-        const row = normalizeLancamentoEntry(raw);
-        if (!row) continue;
-        const key = `${row.data}|${Number(row.valor).toFixed(2)}|${row.createdAt}|${row.origemComprovanteClienteId}`;
-        if (!byKey.has(key)) byKey.set(key, row);
+        if (!raw || typeof raw !== "object" || raw.pagamentoInvalidado) continue;
+        const data = String(raw.data || raw.dataPagamento || raw.semanaInicio || "").trim();
+        if (!data) continue;
+        const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+        const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(raw, k));
+        let valor =
+          typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
+            ? raw.valor
+            : parseCur(raw.valor ?? raw.valorPago ?? 0);
+        if (hasMeios) {
+          const sum = MEIOS.reduce((s, k) => s + parseCur(raw[k]), 0);
+          if (sum > 0) valor = sum;
+        }
+        if (!Number.isFinite(valor) || valor <= 0) continue;
+        const proto = String(raw.protocoloLancamento || raw.protocolo || "").trim();
+        const ca = Number(raw.createdAt || raw.id || 0);
+        const key = /^\d{14}-\d{3}$/.test(proto) ? `p:${proto}` : `${data}|${Number(valor).toFixed(2)}|${ca}`;
+        const row = { ...raw, data, valor };
+        if (Number.isFinite(ca) && ca > 0) row.createdAt = ca;
+        const prev = byKey.get(key);
+        if (!prev || JSON.stringify(row).length >= JSON.stringify(prev).length) byKey.set(key, row);
       }
     }
     return Array.from(byKey.values());
@@ -280,7 +300,7 @@
   function getLancamentosAluguelContrato(loc) {
     if (typeof window.__DK_getLancamentosAluguelCanonico === "function") {
       const rows = window.__DK_getLancamentosAluguelCanonico(loc);
-      return dedupeLancamentosPagamento(rows);
+      if (Array.isArray(rows) && rows.length) return dedupeLancamentosPagamento(rows);
     }
     if (!loc || typeof loc !== "object") return [];
     const chunks = [];

@@ -1306,6 +1306,21 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
+    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824pag-app`, {
+      cache: "no-store",
+    }).then((r) => r.text());
+    record(
+      "app cliente mostra pagamentos Redis (sem filtro estrito)",
+      lancProtoJs.includes("isClienteAppContext") &&
+        clienteResumoJs.includes("protocoloLancamento") &&
+        clienteResumoJs.includes("registradoPorCpf") &&
+        portalSyncLancJs.includes("fetchCloudSnapshotPayloadClienteApp") &&
+        portalSyncLancJs.includes("mergeRemoteSnapshotsForClienteApp") &&
+        clienteAppJs.includes("45000") &&
+        !clienteAppJs.includes("consolidarLancamentosClienteLogado(sessao.cpf)") &&
+        swClienteJs.includes("dk-cliente-v20260824pag-app"),
+      "Supabase sem lançamentos não apaga pagamentos do Redis no app"
+    );
     const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());

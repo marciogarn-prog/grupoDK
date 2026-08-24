@@ -1245,7 +1245,7 @@
         await Promise.race([
           window.__DK_pullCloudSnapshotSilentMerge({ force: true }),
           new Promise((_, reject) => {
-            window.setTimeout(() => reject(new Error("timeout")), 12000);
+            window.setTimeout(() => reject(new Error("timeout")), 45000);
           }),
         ]);
       } else {
@@ -1257,7 +1257,7 @@
           await Promise.race([
             pullFn({ force: false }),
             new Promise((_, reject) => {
-              window.setTimeout(() => reject(new Error("timeout")), 12000);
+              window.setTimeout(() => reject(new Error("timeout")), 45000);
             }),
           ]);
         }
@@ -1279,7 +1279,6 @@
       syncOk = true;
       if (sessao?.cpf) {
         lastClienteRenderKey = "";
-        window.setTimeout(() => consolidarLancamentosClienteLogado(sessao.cpf), 0);
       }
       if (msg && !silent) {
         const pend =
@@ -1586,7 +1585,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824pag-app", {
         scope: "/",
         updateViaCache: "none",
       });

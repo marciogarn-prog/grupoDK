@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-cliente-v20260610avisos-check";
+const CACHE_NAME = "dk-cliente-v20260824pag-app";
 const SHARE_CACHE = "dk-cliente-share-v1";
 const ASSETS = [
   "/cliente",
@@ -11,6 +11,7 @@ const ASSETS = [
   "./cliente-notificacoes.js",
   "./cliente-push-notificacoes.js",
   "./cliente-contrato-resumo.js",
+  "./dk-lancamento-protocolo.js",
   "./cliente-documentos-locacao.js",
   "./portal-supabase-sync.js",
   "./styles.css",
