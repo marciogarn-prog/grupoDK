@@ -2439,7 +2439,7 @@
     },
     "reserva-patio": {
       title: "Disponíveis — 5.2 Reserva no pátio",
-      lead: "Veículos reserva no pátio. Entram em «5.1 — Reserva em operação» automaticamente ao enviar um locado (1, 2 ou 3) para manutenção e escolher a placa reserva aqui.",
+      lead: "Veículos reserva no pátio. Use «ENVIAR PARA MANUTENÇÃO» na caixinha para ir à Triagem. Também entram em «5.1 — Reserva em operação» automaticamente ao enviar um locado (1, 2 ou 3) para manutenção e escolher a placa reserva aqui.",
     },
   };
 
@@ -5595,11 +5595,16 @@
     if (changed) saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
   }
 
+  let portalEnvioManutModo = "locados";
+  let portalEnvioManutPlacaPatio = "";
+
   function portalCloseChecklistEnvioManutModal() {
     const modal = document.getElementById("portalChecklistEnvioManutModal");
     if (!modal) return;
     modal.classList.add("hidden");
     modal.setAttribute("aria-hidden", "true");
+    portalEnvioManutModo = "locados";
+    portalEnvioManutPlacaPatio = "";
     const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
     if (motivo) motivo.value = "";
     const msg = document.getElementById("portalChecklistEnvioManutMsg");
@@ -5614,22 +5619,35 @@
     if (btn) btn.disabled = !motivo;
   }
 
-  function portalOpenChecklistEnvioManutModal() {
+  function portalOpenChecklistEnvioManutModal(opts = {}) {
     const modal = document.getElementById("portalChecklistEnvioManutModal");
     if (!modal) return;
-    const placa = portalNkPlate(portalGetPlacaChecklistAtual());
-    const reserva = portalLocadosReservaEscolhaValida(placa);
+    const modo = String(opts.modo || "locados").trim() || "locados";
+    portalEnvioManutModo = modo === "reserva-patio" ? "reserva-patio" : "locados";
+    portalEnvioManutPlacaPatio =
+      portalEnvioManutModo === "reserva-patio" ? portalNkPlate(opts.placa || "") : "";
+    const placa =
+      portalEnvioManutModo === "reserva-patio"
+        ? portalEnvioManutPlacaPatio
+        : portalNkPlate(portalGetPlacaChecklistAtual());
     const info = document.getElementById("portalChecklistEnvioManutInfo");
     if (info) {
-      let extra = "";
-      if (reserva.ok && reserva.reservaNaoDisponibilizada) {
-        extra = ` <strong>Veículo reserva não disponibilizado.</strong>`;
-      } else if (reserva.ok && reserva.placaReserva) {
-        extra = ` Veículo reserva: <strong>${portalEscapeHtml(reserva.placaReserva)}</strong> (irá para Disponíveis → Reserva em operação).`;
+      if (portalEnvioManutModo === "reserva-patio") {
+        info.innerHTML = placa
+          ? `A placa <strong>${portalEscapeHtml(placa)}</strong> sairá de «5.2 — Reserva no pátio» e irá para <strong>Em manutenção → 6 — Triagem</strong>.`
+          : `O veículo sairá de «5.2 — Reserva no pátio» e irá para <strong>Em manutenção → 6 — Triagem</strong>.`;
+      } else {
+        const reserva = portalLocadosReservaEscolhaValida(placa);
+        let extra = "";
+        if (reserva.ok && reserva.reservaNaoDisponibilizada) {
+          extra = ` <strong>Veículo reserva não disponibilizado.</strong>`;
+        } else if (reserva.ok && reserva.placaReserva) {
+          extra = ` Veículo reserva: <strong>${portalEscapeHtml(reserva.placaReserva)}</strong> (irá para Disponíveis → Reserva em operação).`;
+        }
+        info.innerHTML = placa
+          ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 6 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`
+          : `O veículo será enviado para <strong>Em manutenção → 6 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`;
       }
-      info.innerHTML = placa
-        ? `A placa <strong>${portalEscapeHtml(placa)}</strong> será enviada para <strong>Em manutenção → 6 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`
-        : `O veículo será enviado para <strong>Em manutenção → 6 — Triagem</strong> e deixará de aparecer na lista de placas locadas.${extra}`;
     }
     const motivo = document.getElementById("portalChecklistEnvioManutMotivo");
     if (motivo) motivo.value = "";
@@ -5660,6 +5678,34 @@
       if (!motivo) {
         if (modalMsg) modalMsg.textContent = "Escreva o motivo principal para ativar o envio.";
         portalSyncChecklistEnvioManutEnviarBtn();
+        return;
+      }
+      if (portalEnvioManutModo === "reserva-patio") {
+        const placaPatio = portalEnvioManutPlacaPatio;
+        const est = portalResolverEstadoExclusivoPlaca(placaPatio);
+        if (!placaPatio || est.grupo !== "disponiveis" || est.sub !== "reserva-patio") {
+          if (modalMsg) {
+            modalMsg.textContent = est.ok
+              ? `A placa precisa estar em «5.2 — Reserva no pátio» (agora: ${est.label}).`
+              : "Placa inválida para envio à manutenção.";
+          }
+          return;
+        }
+        const rPatio = portalEnviarPlacaDiretoTriagem(placaPatio, {
+          motivo: motivo || "Check-list — reserva no pátio",
+        });
+        if (!rPatio.ok) {
+          if (modalMsg) modalMsg.textContent = rPatio.message || "Não foi possível registar.";
+          return;
+        }
+        portalCloseChecklistEnvioManutModal();
+        portalRefreshManutencaoDisponiveisPlacas();
+        portalRefreshManutencaoVeiculosLista();
+        openManutencaoEmManutencaoSub("triagem");
+        const dispMsgPatio = document.getElementById("portalChecklistDispositionMsg");
+        if (dispMsgPatio) {
+          dispMsgPatio.textContent = `Placa ${rPatio.placa || ""} saiu de «5.2 — Reserva no pátio» e está em «Em manutenção → 6 — Triagem». Motivo: ${motivo}.`;
+        }
         return;
       }
       const placaAtual = portalNkPlate(portalGetPlacaChecklistAtual());
@@ -6021,7 +6067,7 @@
     grid.hidden = false;
     const emptyHints = {
       triagem:
-        "Nenhuma placa em triagem. Envie de «Locados» com «ENVIAR PARA MANUTENÇÃO» (com veículo reserva de 5.2, se aplicável).",
+        "Nenhuma placa em triagem. Envie de «Locados» ou de «Disponíveis → 5.2 — Reserva no pátio» com «ENVIAR PARA MANUTENÇÃO».",
       "oficina-propria":
         "Nenhuma placa em oficina própria. Envie da Triagem com «ENVIAR PARA MANUTENÇÃO OFICINA PRÓPRIA».",
       "oficina-terceiros": "Nenhuma placa em oficina de terceiro.",
@@ -6297,7 +6343,7 @@
       if (msg) msg.textContent = "";
       return;
     }
-    /* 5.1: só informativo (reserva ⇒ locada). 4: ENVIAR 5.2. 5.2: sem botões (→5.1 via Locados). */
+    /* 5.1: só informativo (reserva ⇒ locada). 4: ENVIAR 5.2. 5.2: ENVIAR PARA MANUTENÇÃO (Triagem). */
     if (sub === "reserva-operacao") {
       grid.innerHTML = rows
         .map((r) => {
@@ -6345,6 +6391,8 @@
               return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
             })
             .join("");
+        } else if (sub === "reserva-patio") {
+          extraHtml = `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-enviar-manut-btn" data-disp-enviar-manut="${portalEscapeHtml(r.placa)}">ENVIAR PARA MANUTENÇÃO</button>`;
         }
         const plateBtnExtraAttrs = planoPosManut
           ? ` data-disp-pronto-pos-manut="1" data-disp-plano="${portalEscapeHtml(planoPosManut)}"`
@@ -6453,6 +6501,16 @@
       if (devolverBtn) {
         e.preventDefault();
         portalOpenDevolverClienteModal(devolverBtn.getAttribute("data-disp-devolver") || "");
+        return;
+      }
+      const enviarManutBtn = e.target.closest("[data-disp-enviar-manut]");
+      if (enviarManutBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        portalOpenChecklistEnvioManutModal({
+          modo: "reserva-patio",
+          placa: enviarManutBtn.getAttribute("data-disp-enviar-manut") || "",
+        });
         return;
       }
       const plateBtn = e.target.closest(".portal-reserva-placa-btn[data-disp-pronto-pos-manut]");
