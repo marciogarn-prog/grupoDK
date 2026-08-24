@@ -166,6 +166,7 @@
     "dk_audit_log",
     "dk_funcionarios_access",
     "dk_locacao_documentos_v1",
+    "dk_pagamentos_auditoria_v1",
     "dk_comunicacao_operacao_v1",
   ];
 
@@ -741,28 +742,23 @@
         /* ignore */
       }
     }
-    const lockUntil = Date.parse(String(payload.dk_cadastro_lock_v1 || "")) || 0;
-    const cadastroLocked = lockUntil > Date.now();
-    const manualMode =
-      payload.dk_cadastro_manual_portal_v1 === true ||
-      (typeof window.__DK_isCadastroManualPortalMode === "function" &&
-        window.__DK_isCadastroManualPortalMode());
     const replace =
       Boolean(opts && opts.replace) ||
       Boolean(payload.dk_demo_cadastro_10_v1) ||
       Boolean(payload.dk_oficial_sem_protocolos_v1);
-    const forceCadastroReplace = replace || cadastroLocked || manualMode;
+    const demoTenReplace = Boolean(payload.dk_demo_cadastro_10_v1);
 
     for (const k of DK_STORAGE_KEYS) {
       if (clientePage && !CLIENTE_CLOUD_PULL_KEYS.has(k)) continue;
       if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
+        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace) continue;
         localStorage.removeItem(k);
         continue;
       }
       if (!Object.prototype.hasOwnProperty.call(payload, k)) continue;
       const v = payload[k];
       if (v === undefined || v === null) {
-        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !replace) continue;
+        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace) continue;
         localStorage.removeItem(k);
         continue;
       }
@@ -779,10 +775,18 @@
         }
         if (k === "dk_locacoes_cadastro") {
           arr = normalizeLocacoesContratoAtivoList(arr);
+          const localArr = readLocalJsonArray(k);
+          const mergeFn =
+            typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+              ? window.__DK_mergeLocacoesCadastroCliente
+              : mergeLocacoesCadastroBeforePush;
+          arr = mergeFn(localArr, arr);
           consolidateLocacoesPagamentosInPlace(arr, opts);
+        } else if (typeof mergeCadastroHistoricoImutavel === "function") {
+          arr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), arr);
         }
-        if (forceCadastroReplace) {
-          saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true });
+        if (demoTenReplace) {
+          saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true, allowShrink: true });
         } else {
           saveCadastro(k, arr);
         }
@@ -801,22 +805,27 @@
         }
         if (k === "dk_locacoes_cadastro") {
           cloudArr = normalizeLocacoesContratoAtivoList(cloudArr);
-          consolidateLocacoesPagamentosInPlace(cloudArr, opts);
-        }
-        if (forceCadastroReplace) {
-          localStorage.setItem(k, JSON.stringify(cloudArr));
-        } else if (k === "dk_locacoes_cadastro") {
           const localArr = readLocalJsonArray(k);
           const mergeFn =
             typeof window.__DK_mergeLocacoesCadastroCliente === "function"
               ? window.__DK_mergeLocacoesCadastroCliente
               : mergeLocacoesCadastroBeforePush;
-          const mergedLocs = mergeFn(localArr, cloudArr);
-          consolidateLocacoesPagamentosInPlace(mergedLocs, opts);
-          localStorage.setItem(k, JSON.stringify(mergedLocs));
+          cloudArr = mergeFn(localArr, cloudArr);
+          consolidateLocacoesPagamentosInPlace(cloudArr, opts);
+        } else if (typeof mergeCadastroHistoricoImutavel === "function") {
+          cloudArr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), cloudArr);
+        }
+        if (demoTenReplace) {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
+        } else if (k === "dk_locacoes_cadastro") {
+          localStorage.setItem(k, JSON.stringify(cloudArr));
         } else {
           const localArr = readLocalJsonArray(k);
-          localStorage.setItem(k, JSON.stringify([...(localArr || []), ...cloudArr]));
+          const mergedCli =
+            typeof mergeCadastroHistoricoImutavel === "function"
+              ? mergeCadastroHistoricoImutavel(k, localArr, cloudArr)
+              : [...(localArr || []), ...cloudArr];
+          localStorage.setItem(k, JSON.stringify(mergedCli));
         }
         continue;
       }
@@ -879,6 +888,21 @@
           const localArr = readLocalJsonArray(k);
           localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
         }
+        continue;
+      }
+      if (k === "dk_pagamentos_auditoria_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const localArr = readLocalJsonArray(k);
+        localStorage.setItem(k, JSON.stringify(mergePagamentosAuditoriaArrays(localArr, cloudArr)));
         continue;
       }
       if (k === "dk_financeiro_extratos_v1") {
@@ -2247,6 +2271,23 @@
     return merged;
   }
 
+  function mergePagamentosAuditoriaArrays(localArr, cloudArr) {
+    if (typeof window.__DK_mergePagamentosAuditoria === "function") {
+      return window.__DK_mergePagamentosAuditoria([localArr, cloudArr]);
+    }
+    const byId = new Map();
+    for (const arr of [localArr, cloudArr]) {
+      if (!Array.isArray(arr)) continue;
+      for (const row of arr) {
+        if (!row || typeof row !== "object") continue;
+        const id = String(row.id || [row.at, row.acao, row.protocoloLancamento, row.numeroContrato].join("|"));
+        if (!id || byId.has(id)) continue;
+        byId.set(id, row);
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => Number(a.at || 0) - Number(b.at || 0));
+  }
+
   function mergeLocacoesCadastroBeforePush(localArr, cloudArr) {
     if (typeof window.__DK_mergeLocacoesCadastroCliente === "function") {
       return window.__DK_mergeLocacoesCadastroCliente(localArr, cloudArr);
@@ -2292,11 +2333,6 @@
     const out = { ...localPayload };
     if (!cloudPayload || typeof cloudPayload !== "object") return out;
     if (isCloudCadastroLockedEmpty(cloudPayload)) {
-      for (const k of DK_IMMUTABLE_CADASTRO_KEYS) {
-        if (Object.prototype.hasOwnProperty.call(cloudPayload, k)) {
-          out[k] = Array.isArray(cloudPayload[k]) ? [...cloudPayload[k]] : [];
-        }
-      }
       out.dk_cadastro_manual_portal_v1 = true;
       out.dk_cadastro_lock_v1 = cloudPayload.dk_cadastro_lock_v1;
     }
@@ -2318,11 +2354,23 @@
       out.dk_oficial_sem_protocolos_v1 = cloudPayload.dk_oficial_sem_protocolos_v1 === true;
     }
     if (oficialVirgin) {
-      out.dk_locacoes_cadastro = [];
+      const localLocs = Array.isArray(localPayload.dk_locacoes_cadastro)
+        ? localPayload.dk_locacoes_cadastro
+        : [];
+      const cloudLocs = Array.isArray(cloudPayload.dk_locacoes_cadastro)
+        ? cloudPayload.dk_locacoes_cadastro
+        : [];
+      const filterFn =
+        typeof window.__DK_filterOficialCadastroArray === "function"
+          ? window.__DK_filterOficialCadastroArray
+          : (_k, a) => a;
+      out.dk_locacoes_cadastro = mergeLocacoesCadastroBeforePush(
+        filterFn("dk_locacoes_cadastro", localLocs),
+        cloudLocs
+      );
       out.dk_lancamentos_aluguel = [];
       out.dk_lancamentos_aluguel_cadastro = [];
       out.dk_locacoes_quadro_geral = [];
-      out.dk_locacao_documentos_v1 = [];
       out.dk_oficial_sem_protocolos_v1 = true;
       out.dk_cadastro_manual_portal_v1 = true;
       const lock = cloudPayload.dk_cadastro_lock_v1 || localPayload.dk_cadastro_lock_v1;
@@ -2335,6 +2383,18 @@
         localPayload.dk_locacoes_cadastro,
         cloudPayload.dk_locacoes_cadastro
       );
+    }
+    if (!cloudPayload.dk_demo_cadastro_10_v1 && typeof mergeCadastroHistoricoImutavel === "function") {
+      for (const k of DK_IMMUTABLE_CADASTRO_KEYS) {
+        if (k === "dk_locacoes_cadastro") continue;
+        if (
+          !Object.prototype.hasOwnProperty.call(localPayload, k) &&
+          !Object.prototype.hasOwnProperty.call(cloudPayload, k)
+        ) {
+          continue;
+        }
+        out[k] = mergeCadastroHistoricoImutavel(k, localPayload[k], cloudPayload[k]);
+      }
     }
     if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_comprovantes_cliente_pendentes")) {
       out.dk_comprovantes_cliente_pendentes = mergeComprovantesClientePendentes(
@@ -2386,8 +2446,18 @@
         cloudPayload.dk_locacao_documentos_v1
       );
     }
+    if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_pagamentos_auditoria_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_pagamentos_auditoria_v1")
+    ) {
+      out.dk_pagamentos_auditoria_v1 = mergePagamentosAuditoriaArrays(
+        localPayload.dk_pagamentos_auditoria_v1,
+        cloudPayload.dk_pagamentos_auditoria_v1
+      );
+    }
     delete out.dk_patrimonio_crlv_v1;
     delete out.dk_patrimonio_fotos_excluidas_v1;
+    out.dk_dados_seguros_v1 = true;
     return out;
   }
 
@@ -2410,6 +2480,13 @@
         localStorage.setItem(
           "dk_comunicacao_operacao_v1",
           JSON.stringify(mergedPayload.dk_comunicacao_operacao_v1)
+        );
+      }
+      if (mergedPayload.dk_pagamentos_auditoria_v1) {
+        const atual = readLocalJsonArray("dk_pagamentos_auditoria_v1");
+        localStorage.setItem(
+          "dk_pagamentos_auditoria_v1",
+          JSON.stringify(mergePagamentosAuditoriaArrays(atual, mergedPayload.dk_pagamentos_auditoria_v1))
         );
       }
       if (mergedPayload.dk_financeiro_extratos_v1) {
@@ -2962,9 +3039,6 @@
     suppressCloudHook = true;
     try {
       applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: !force });
-      if (Array.isArray(filtered.dk_locacoes_cadastro) && filtered.dk_locacoes_cadastro.length) {
-        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(filtered.dk_locacoes_cadastro));
-      }
       sanitizeLocacaoDocumentosLocalStorage();
       trimLocalLocacoesToClienteCpf();
     } finally {

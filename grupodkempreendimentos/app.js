@@ -2563,7 +2563,8 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
 /**
  * Regra de negócio: clientes, veículos e locações cadastrados não são removidos
  * do armazenamento — apenas novos registos ou atualizações (mesma chave natural).
- * `bypassImmutabilidadeCadastro` em saveCadastro() só para migrações internas pontuais.
+ * `allowShrink` em saveCadastro() só para purga de planilha ou teto demo 10/10/10.
+ * `bypassImmutabilidadeCadastro` já não apaga cliente/veículo/locação.
  */
 function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
   const prev = Array.isArray(previousList) ? previousList : [];
@@ -2689,25 +2690,27 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
 }
 
 function saveCadastro(key, list, opts) {
-  const bypass =
-    opts && typeof opts === "object" && opts.bypassImmutabilidadeCadastro === true;
+  const allowShrink = opts && typeof opts === "object" && opts.allowShrink === true;
+  const isProtectedCadastroKey =
+    key === CAD_CLIENTES_KEY ||
+    key === PORTAL_CLIENTES_KEY ||
+    key === CAD_VEICULOS_KEY ||
+    key === PORTAL_VEICULOS_KEY ||
+    key === FROTA_VEICULOS_KEY ||
+    key === CAD_LOCACOES_KEY;
   let next = Array.isArray(list) ? list : [];
   if (typeof window.__DK_filterOficialCadastroArray === "function") {
     next = window.__DK_filterOficialCadastroArray(key, next);
   }
   let toStore = next;
-  if (
-    !bypass &&
-    (key === CAD_CLIENTES_KEY ||
-      key === PORTAL_CLIENTES_KEY ||
-      key === CAD_VEICULOS_KEY ||
-      key === PORTAL_VEICULOS_KEY ||
-      key === FROTA_VEICULOS_KEY ||
-      key === CAD_LOCACOES_KEY)
-  ) {
-    let prev = loadCadastro(key);
-    if (typeof window.__DK_filterOficialCadastroArray === "function") {
-      prev = window.__DK_filterOficialCadastroArray(key, prev);
+  if (isProtectedCadastroKey && !allowShrink) {
+    let prev = [];
+    try {
+      const raw = localStorage.getItem(key);
+      prev = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(prev)) prev = [];
+    } catch {
+      prev = [];
     }
     toStore = mergeCadastroHistoricoImutavel(key, prev, next);
     if (typeof window.__DK_filterOficialCadastroArray === "function") {

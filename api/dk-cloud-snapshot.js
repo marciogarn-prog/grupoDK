@@ -8,10 +8,12 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
+const { mergeLocacoesCadastro, neverLoseCadastroPayload } = require("../lib/dk-append-only-merge.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
+/** Locações/protocolos no oficial: anterior a 23/08/2026 não volta (browser sujo nem push). */
+const OFICIAL_LOCACOES_CUTOFF_YMD = "2026-08-23";
 
 const OFICIAL_GUARD_KEYS = [
   "dk_clientes_cadastro",
@@ -24,6 +26,7 @@ const OFICIAL_GUARD_KEYS = [
   "dk_locacoes_quadro_geral",
   "dk_manutencoes_cadastro",
   "dk_portal_checklist_historico_v1",
+  "dk_portal_checklist_movimentacoes_v1",
   "dk_lancamentos_aluguel",
   "dk_lancamentos_aluguel_cadastro",
   "dk_comprovantes_banco",
@@ -60,8 +63,24 @@ function oficialParseYmd(value) {
   return null;
 }
 
+function locacaoProtocolYmd(record) {
+  const n = String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
+  if (n.length < 8) return null;
+  const ymd = `${n.slice(0, 4)}-${n.slice(4, 6)}-${n.slice(6, 8)}`;
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(ymd)) return null;
+  return ymd;
+}
+
+function oficialCutoffForKey(key) {
+  const k = String(key || "");
+  if (k.includes("locacoes") || k.includes("locacao")) return OFICIAL_LOCACOES_CUTOFF_YMD;
+  return OFICIAL_CUTOFF_YMD;
+}
+
 function oficialRecordYmd(record, key) {
   if (!record || typeof record !== "object") return null;
+  const protoYmd = locacaoProtocolYmd(record);
+  if (protoYmd && String(key || "").includes("locac")) return protoYmd;
   const k = String(key);
   const fields = k.includes("locacoes")
     ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
@@ -79,16 +98,98 @@ function oficialRecordYmd(record, key) {
   return null;
 }
 
-function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
+function locacaoNcKey(record) {
+  return String(record?.numeroContrato || record?.protocolo || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+}
+
+function locacaoNcSetFromPayload(payload) {
+  const set = new Set();
+  const arr = payload && Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
+  for (const r of arr) {
+    const nc = locacaoNcKey(r);
+    if (nc) set.add(nc);
+  }
+  return set;
+}
+
+function cpfDigitsKey(record) {
+  return String(record?.cpf || "").replace(/\D/g, "");
+}
+
+function placaNormKey(record) {
+  return String(record?.placa || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function cadastroKeepSetsFromPayload(payload) {
+  const cpf = new Set();
+  const placa = new Set();
+  const nc = locacaoNcSetFromPayload(payload);
+  if (!payload || typeof payload !== "object") return { cpf, placa, nc };
+  for (const k of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+    for (const r of Array.isArray(payload[k]) ? payload[k] : []) {
+      const d = cpfDigitsKey(r);
+      if (d.length === 11) cpf.add(d);
+    }
+  }
+  for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
+    for (const r of Array.isArray(payload[k]) ? payload[k] : []) {
+      const p = placaNormKey(r);
+      if (p) placa.add(p);
+    }
+  }
+  return { cpf, placa, nc };
+}
+
+function normalizeKeepSets(keepLocacaoNc) {
+  if (keepLocacaoNc instanceof Set) {
+    return { nc: keepLocacaoNc, cpf: new Set(), placa: new Set() };
+  }
+  if (keepLocacaoNc && typeof keepLocacaoNc === "object") {
+    return {
+      nc: keepLocacaoNc.nc instanceof Set ? keepLocacaoNc.nc : new Set(),
+      cpf: keepLocacaoNc.cpf instanceof Set ? keepLocacaoNc.cpf : new Set(),
+      placa: keepLocacaoNc.placa instanceof Set ? keepLocacaoNc.placa : new Set(),
+    };
+  }
+  return { nc: new Set(), cpf: new Set(), placa: new Set() };
+}
+
+function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepLocacaoNc) {
   if (!payload || typeof payload !== "object") return payload;
+  const { nc: keepNc, cpf: keepCpf, placa: keepPlaca } = normalizeKeepSets(keepLocacaoNc);
   const out = { ...payload };
   for (const k of OFICIAL_GUARD_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
+    const keyCutoff = oficialCutoffForKey(k);
+    const isLoc = String(k).includes("locac");
+    const isCli = String(k).includes("cliente");
+    const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
+      if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (
+        isLoc &&
+        ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
+          (Array.isArray(r?.portalPagamentosAuditoria) && r.portalPagamentosAuditoria.length))
+      ) {
+        return true;
+      }
+      const protoYmd = locacaoProtocolYmd(r);
+      const nc = locacaoNcKey(r);
+      const cpf = cpfDigitsKey(r);
+      const placa = placaNormKey(r);
+      if (isLoc && nc && keepNc.has(nc)) return true;
+      if (isCli && cpf.length === 11 && keepCpf.has(cpf)) return true;
+      if (isVei && placa && keepPlaca.has(placa)) return true;
+      if (isLoc && protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
       const ymd = oficialRecordYmd(r, k);
-      return ymd && ymd >= cutoffYmd;
+      return ymd && ymd >= keyCutoff;
     });
   }
   out.dk_oficial_cadastro_guard_v1 = cutoffYmd;
@@ -129,6 +230,22 @@ const CADASTRO_KEYS = [
   "dk_locacoes_cadastro",
   "dk_lancamentos_aluguel",
   "dk_lancamentos_aluguel_cadastro",
+];
+
+/** Demo reduzido a 10 protocolos: estes arrays não podem voltar a crescer por push do browser. */
+const DEMO_TEN_CAP_KEYS = [
+  ...CADASTRO_KEYS,
+  "dk_clientes_validacao_pendente",
+  "dk_locacoes_quadro_geral",
+  "dk_manutencoes_cadastro",
+  "dk_portal_checklist_historico_v1",
+  "dk_portal_checklist_movimentacoes_v1",
+  "dk_comprovantes_cliente_pendentes",
+  "dk_cliente_notificacoes",
+  "dk_comunicacao_operacao_v1",
+  "dk_locacao_documentos_v1",
+  "dk_audit_log",
+  "dk_patrimonio_fotos_excluidas_v1",
 ];
 
 function applyCors(res) {
@@ -290,7 +407,14 @@ function applyCadastroLock(existing, incoming) {
   const lockUntil = Date.parse(String(existing.dk_cadastro_lock_v1 || "")) || 0;
   if (!lockUntil || Date.now() >= lockUntil) return incoming;
   const out = { ...incoming };
-  for (const k of CADASTRO_KEYS) {
+  const lockKeys = [
+    "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
+  ];
+  for (const k of lockKeys) {
     if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
     const inc = incoming[k];
     const ex = existing[k];
@@ -303,6 +427,8 @@ function applyCadastroLock(existing, incoming) {
 /** Demo: push parcial com local vazio não pode apagar clientes/veículos já na nuvem. */
 function applyDemoCadastroNoShrink(existing, merged) {
   if (!isObject(existing) || !isObject(merged)) return merged;
+  /* Conjunto de 10 protocolos: o encolhimento é intencional e não pode ser revertido. */
+  if (existing.dk_demo_cadastro_10_v1) return merged;
   const out = { ...merged };
   for (const k of CADASTRO_KEYS) {
     const ex = existing[k];
@@ -310,6 +436,62 @@ function applyDemoCadastroNoShrink(existing, merged) {
     if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
     if (ex.length > 0 && inc.length < ex.length) out[k] = ex;
   }
+  return out;
+}
+
+/** Oficial: union por chave natural — lista menor no browser não apaga a nuvem. */
+function applyOficialClientesVeiculosNoShrink(existing, merged) {
+  return neverLoseCadastroPayload(existing, merged);
+}
+
+/** Oficial virgem: planilha/junk sai; locação do portal, com pagamento ou já na nuvem fica. */
+function capOficialVirginProtocolos(existing, merged) {
+  if (!isObject(existing) || !existing.dk_oficial_sem_protocolos_v1 || !isObject(merged)) return merged;
+  const out = { ...merged };
+  const keepNc = locacaoNcSetFromPayload(existing);
+  const keys = [
+    "dk_locacoes_cadastro",
+    "dk_lancamentos_aluguel",
+    "dk_lancamentos_aluguel_cadastro",
+    "dk_locacoes_quadro_geral",
+    "dk_locacao_documentos_v1",
+  ];
+  for (const k of keys) {
+    if (!Array.isArray(out[k])) continue;
+    out[k] = out[k].filter((r) => {
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
+      if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
+      if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (
+        String(k).includes("locac") &&
+        ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
+          (Array.isArray(r?.portalPagamentosAuditoria) && r.portalPagamentosAuditoria.length))
+      ) {
+        return true;
+      }
+      const nc = locacaoNcKey(r);
+      if (nc && keepNc.has(nc)) return true;
+      const protoYmd = locacaoProtocolYmd(r);
+      if (protoYmd) return protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD;
+      return true;
+    });
+  }
+  out.dk_oficial_sem_protocolos_v1 = existing.dk_oficial_sem_protocolos_v1;
+  out.dk_cadastro_manual_portal_v1 = true;
+  if (existing.dk_cadastro_lock_v1) out.dk_cadastro_lock_v1 = existing.dk_cadastro_lock_v1;
+  return out;
+}
+function capDemoTenPayload(existing, merged) {
+  if (!isObject(existing) || !existing.dk_demo_cadastro_10_v1 || !isObject(merged)) return merged;
+  const out = { ...merged };
+  for (const k of DEMO_TEN_CAP_KEYS) {
+    const ex = existing[k];
+    const inc = out[k];
+    if (Array.isArray(ex) && Array.isArray(inc) && inc.length > ex.length) out[k] = ex;
+  }
+  out.dk_demo_cadastro_10_v1 = existing.dk_demo_cadastro_10_v1;
+  out.dk_cadastro_manual_portal_v1 = true;
+  if (existing.dk_cadastro_lock_v1) out.dk_cadastro_lock_v1 = existing.dk_cadastro_lock_v1;
   return out;
 }
 
@@ -455,6 +637,15 @@ function mergePayloads(existing, incoming) {
   const fullReplaceKeys = Array.isArray(incoming._dkFullReplaceKeys)
     ? incoming._dkFullReplaceKeys.filter((k) => typeof k === "string")
     : [];
+  const neverLoseReplace = new Set([
+    "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
+    "dk_locacoes_cadastro",
+    "dk_pagamentos_auditoria_v1",
+  ]);
   const out = { ...existing, ...incoming };
   if (
     Object.prototype.hasOwnProperty.call(incoming, "dk_locacoes_cadastro") ||
@@ -467,7 +658,7 @@ function mergePayloads(existing, incoming) {
   }
   for (const k of fullReplaceKeys) {
     if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
-    if (k === "dk_locacoes_cadastro") continue;
+    if (neverLoseReplace.has(k)) continue;
     out[k] = incoming[k];
   }
   if (
@@ -526,10 +717,10 @@ function mergePayloads(existing, incoming) {
       incoming.dk_patrimonio_fotos_excluidas_v1
     );
   }
-  return stripInternalPayloadKeys(out);
+  return stripInternalPayloadKeys(neverLoseCadastroPayload(existing, out));
 }
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   applyCors(res);
   res.setHeader("Content-Type", "application/json");
 
@@ -568,7 +759,9 @@ module.exports = async function handler(req, res) {
       }
       const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
       const safePayload =
-        channel === "default" && payload ? sanitizePayloadForOficial(payload) : payload;
+        channel === "default" && payload
+          ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
+          : payload;
       return res.status(200).json({
         ok: true,
         label: LABEL,
@@ -584,9 +777,6 @@ module.exports = async function handler(req, res) {
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
       }
-      if (channel === "default") {
-        incoming = sanitizePayloadForOficial(incoming);
-      }
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const existingRaw = await redis.get(REDIS_KEY);
       let existingPayload = null;
@@ -601,6 +791,13 @@ module.exports = async function handler(req, res) {
         }
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
       }
+      if (channel === "default") {
+        incoming = sanitizePayloadForOficial(
+          incoming,
+          oficialTodayYmd(),
+          cadastroKeepSetsFromPayload(existingPayload)
+        );
+      }
       const replace = body.replace === true || body.mode === "replace";
       const wipeKeys = Array.isArray(body.wipe_keys)
         ? body.wipe_keys.filter((k) => typeof k === "string")
@@ -613,7 +810,16 @@ module.exports = async function handler(req, res) {
         }
         if (channel === "default") {
           payload.dk_cadastro_manual_portal_v1 = true;
-          payload.dk_cadastro_lock_v1 = new Date(Date.now() + 20 * 60 * 1000).toISOString();
+          payload.dk_oficial_sem_protocolos_v1 = incoming.dk_oficial_sem_protocolos_v1 !== false;
+          payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
+            ? String(incoming.dk_cadastro_lock_v1)
+            : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+        } else if (incoming.dk_demo_cadastro_10_v1) {
+          payload.dk_cadastro_manual_portal_v1 = true;
+          payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
+            ? String(incoming.dk_cadastro_lock_v1)
+            : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+          payload.dk_demo_cadastro_10_v1 = incoming.dk_demo_cadastro_10_v1;
         } else {
           delete payload.dk_cadastro_manual_portal_v1;
           delete payload.dk_cadastro_lock_v1;
@@ -631,10 +837,24 @@ module.exports = async function handler(req, res) {
         }
         if (channel === "demo" && existingPayload) {
           payload = applyDemoCadastroNoShrink(existingPayload, payload);
+          payload = capDemoTenPayload(existingPayload, payload);
+        }
+        if (channel === "default" && existingPayload) {
+          payload = applyOficialClientesVeiculosNoShrink(existingPayload, payload);
+          payload = capOficialVirginProtocolos(existingPayload, payload);
+          payload = neverLoseCadastroPayload(existingPayload, payload);
         }
       }
       if (channel === "default") {
-        payload = sanitizePayloadForOficial(payload);
+        payload = sanitizePayloadForOficial(
+          payload,
+          oficialTodayYmd(),
+          cadastroKeepSetsFromPayload(existingPayload || payload)
+        );
+        if (existingPayload && !wipeKeys.length) {
+          payload = neverLoseCadastroPayload(existingPayload, payload);
+        }
+        payload.dk_dados_seguros_v1 = true;
       }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
@@ -655,4 +875,10 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ ok: false, reason: "method" });
-};
+}
+
+module.exports = handler;
+module.exports.sanitizePayloadForOficial = sanitizePayloadForOficial;
+module.exports.cadastroKeepSetsFromPayload = cadastroKeepSetsFromPayload;
+module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;
+module.exports.neverLoseCadastroPayload = neverLoseCadastroPayload;

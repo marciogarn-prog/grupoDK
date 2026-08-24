@@ -117,13 +117,17 @@
     if (!isOficialOnly()) return true;
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
     if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
+    if (record && typeof record === "object" && record.origemPortal === true) return true;
+    if (
+      cadastroKeyFamily(key) === "locacao" &&
+      ((Array.isArray(record?.portalLancamentosAluguel) && record.portalLancamentosAluguel.length) ||
+        (Array.isArray(record?.portalPagamentosAuditoria) && record.portalPagamentosAuditoria.length))
+    ) {
+      return true;
+    }
     const cutoff = cutoffYmd || cutoffForKey(key);
     const protoYmd = locacaoProtocolYmd(record);
     if (cadastroKeyFamily(key) === "locacao" && protoYmd && protoYmd < locacoesCutoffYmd()) return false;
-    if (record && typeof record === "object" && record.origemPortal === true) {
-      if (cadastroKeyFamily(key) === "locacao") return protoYmd ? protoYmd >= locacoesCutoffYmd() : false;
-      return true;
-    }
     const ymd = protoYmd && cadastroKeyFamily(key) === "locacao" ? protoYmd : extractRecordYmd(record, key);
     if (!ymd) return false;
     return ymd >= cutoff;
@@ -162,7 +166,7 @@
     if (!isOficialOnly()) return { purged: false };
     let removed = 0;
     const canCadastroApi = typeof saveCadastro === "function";
-    const bypass = { bypassImmutabilidadeCadastro: true };
+    const bypass = { bypassImmutabilidadeCadastro: true, allowShrink: true };
     CADASTRO_GUARD_KEYS.forEach((k) => {
       try {
         const prev = readRawCadastroArray(k);

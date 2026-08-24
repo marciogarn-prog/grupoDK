@@ -190,6 +190,45 @@ function filtrarPortalLancamentosPorRemovidos(payments, removidos) {
   return list.filter((row) => !portalLancamentoRemocaoKeys(row).some((k) => tomb.has(k)));
 }
 
+function pagamentoAuditoriaId(ev) {
+  if (ev?.id) return String(ev.id).trim();
+  const at = Number(ev?.at || ev?.createdAt || 0);
+  const acao = String(ev?.acao || "").trim().toLowerCase();
+  const proto = String(ev?.protocoloLancamento || "").trim();
+  const nc = ncNorm(ev?.numeroContrato);
+  const cpf = onlyDigits(ev?.operadorCpf).slice(0, 11);
+  return [at, acao, proto, nc, cpf].join("|");
+}
+
+function mergePagamentosAuditoria(arrays) {
+  const byId = new Map();
+  for (const arr of arrays || []) {
+    if (!Array.isArray(arr)) continue;
+    for (const raw of arr) {
+      if (!raw || typeof raw !== "object") continue;
+      const acao = String(raw.acao || "").trim().toLowerCase();
+      if (!acao) continue;
+      const id = pagamentoAuditoriaId(raw);
+      if (!id) continue;
+      if (byId.has(id)) continue;
+      byId.set(id, {
+        id,
+        at: Number(raw.at || raw.createdAt || 0) || Date.now(),
+        acao,
+        numeroContrato: String(raw.numeroContrato || "").trim(),
+        cpfCliente: onlyDigits(raw.cpfCliente).slice(0, 11),
+        protocoloLancamento: String(raw.protocoloLancamento || "").trim(),
+        dataPagamento: String(raw.dataPagamento || raw.data || "").trim(),
+        valor: Number(raw.valor) || 0,
+        operadorCpf: onlyDigits(raw.operadorCpf).slice(0, 11),
+        operadorNome: String(raw.operadorNome || "").trim(),
+        detalhe: String(raw.detalhe || "").trim(),
+      });
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => Number(a.at || 0) - Number(b.at || 0));
+}
+
 function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
   if (!target || typeof target !== "object") return target;
   const mergedRem = mergePortalLancamentosRemovidos([
@@ -198,6 +237,11 @@ function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
   ]);
   target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
   if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
+  const mergedAud = mergePagamentosAuditoria([
+    ex?.portalPagamentosAuditoria,
+    incoming?.portalPagamentosAuditoria,
+  ]);
+  if (mergedAud.length) target.portalPagamentosAuditoria = mergedAud;
   syncResumoPagamentosNaLocacao(target);
   return target;
 }
@@ -266,6 +310,40 @@ function mergeLocacoesCadastro(previousList, incomingList) {
   return [...byNc.values(), ...noNc];
 }
 
+/**
+ * União irreversível dos cadastros operacionais: CPF, placa, protocolo e
+ * lançamentos/auditoria nunca saem porque o snapshot incoming veio menor.
+ */
+function neverLoseCadastroPayload(existing, incoming) {
+  if (!existing || typeof existing !== "object") {
+    return incoming && typeof incoming === "object" ? incoming : existing;
+  }
+  if (!incoming || typeof incoming !== "object") return existing;
+  const out = { ...incoming };
+  const pairs = [
+    ["dk_clientes_cadastro", mergeClientesCadastro],
+    ["dk_portal_clientes_cadastro", mergeClientesCadastro],
+    ["dk_veiculos_cadastro", mergeVeiculosCadastro],
+    ["dk_portal_veiculos_cadastro", mergeVeiculosCadastro],
+    ["dk_veiculos_frota_planilha", mergeVeiculosCadastro],
+    ["dk_locacoes_cadastro", mergeLocacoesCadastro],
+  ];
+  for (const [k, fn] of pairs) {
+    const hasEx = Array.isArray(existing[k]);
+    const hasIn = Array.isArray(incoming[k]);
+    if (!hasEx && !hasIn) continue;
+    out[k] = fn(hasEx ? existing[k] : [], hasIn ? incoming[k] : []);
+  }
+  if (Array.isArray(existing.dk_pagamentos_auditoria_v1) || Array.isArray(incoming.dk_pagamentos_auditoria_v1)) {
+    out.dk_pagamentos_auditoria_v1 = mergePagamentosAuditoria([
+      existing.dk_pagamentos_auditoria_v1,
+      incoming.dk_pagamentos_auditoria_v1,
+    ]);
+  }
+  out.dk_dados_seguros_v1 = true;
+  return out;
+}
+
 module.exports = {
   mergeClientesCadastro,
   mergeVeiculosCadastro,
@@ -273,4 +351,6 @@ module.exports = {
   mergePortalLancamentosAluguelEmbutidos,
   mergePortalLancamentosRemovidos,
   filtrarPortalLancamentosPorRemovidos,
+  mergePagamentosAuditoria,
+  neverLoseCadastroPayload,
 };

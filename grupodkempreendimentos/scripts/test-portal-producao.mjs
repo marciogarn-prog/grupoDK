@@ -642,6 +642,20 @@ async function runSuite() {
     const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
+    const guardVer = html.match(/dk-oficial-cadastro-guard\.js\?v=([^"]+)/)?.[1] || "latest";
+    const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=${guardVer}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "cadastros operacionais nunca somem (origemPortal + merge)",
+      appJsProto.includes("isProtectedCadastroKey") &&
+        appJsProto.includes("allowShrink === true") &&
+        (guardJs.includes("origemPortal === true) return true") ||
+          /origemPortal === true\) return true/.test(guardJs)) &&
+        cloudSyncJs.includes("demoTenReplace") &&
+        cloudSyncJs.includes("DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace"),
+      "saveCadastro une historico; guarda mantem portal; pull nao substitui"
+    );
     record(
       "picker protocolo locacao apos CPF e nuvem",
       portalUiProto.includes("portalLocacaoCpfDigitsMatch") &&

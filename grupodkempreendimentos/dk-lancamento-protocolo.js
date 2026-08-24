@@ -153,8 +153,55 @@
     ]);
     target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
     if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
+    const mergedAud = mergePagamentosAuditoria([
+      ex?.portalPagamentosAuditoria,
+      incoming?.portalPagamentosAuditoria,
+    ]);
+    if (mergedAud.length) target.portalPagamentosAuditoria = mergedAud;
     syncResumoPagamentosNaLocacao(target);
     return target;
+  }
+
+  function pagamentoAuditoriaId(ev) {
+    if (ev?.id) return String(ev.id).trim();
+    const at = Number(ev?.at || ev?.createdAt || 0);
+    const acao = String(ev?.acao || "").trim().toLowerCase();
+    const proto = String(ev?.protocoloLancamento || "").trim();
+    const nc = String(ev?.numeroContrato || "")
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, "");
+    const cpf = onlyDigits(ev?.operadorCpf).slice(0, 11);
+    return [at, acao, proto, nc, cpf].join("|");
+  }
+
+  function mergePagamentosAuditoria(arrays) {
+    const byId = new Map();
+    for (const arr of arrays || []) {
+      if (!Array.isArray(arr)) continue;
+      for (const raw of arr) {
+        if (!raw || typeof raw !== "object") continue;
+        const acao = String(raw.acao || "").trim().toLowerCase();
+        if (!acao) continue;
+        const id = pagamentoAuditoriaId(raw);
+        if (!id) continue;
+        if (byId.has(id)) continue;
+        byId.set(id, {
+          id,
+          at: Number(raw.at || raw.createdAt || 0) || Date.now(),
+          acao,
+          numeroContrato: String(raw.numeroContrato || "").trim(),
+          cpfCliente: onlyDigits(raw.cpfCliente).slice(0, 11),
+          protocoloLancamento: String(raw.protocoloLancamento || "").trim(),
+          dataPagamento: String(raw.dataPagamento || raw.data || "").trim(),
+          valor: Number(raw.valor) || 0,
+          operadorCpf: onlyDigits(raw.operadorCpf).slice(0, 11),
+          operadorNome: String(raw.operadorNome || "").trim(),
+          detalhe: String(raw.detalhe || "").trim(),
+        });
+      }
+    }
+    return Array.from(byId.values()).sort((a, b) => Number(a.at || 0) - Number(b.at || 0));
   }
 
   function syncResumoPagamentosNaLocacao(loc) {
@@ -552,6 +599,7 @@
   window.__DK_filtrarPortalLancamentosPorRemovidos = filtrarPortalLancamentosPorRemovidos;
   window.__DK_anexarLancamentosMergeNaLocacao = anexarLancamentosMergeNaLocacao;
   window.__DK_syncResumoPagamentosNaLocacao = syncResumoPagamentosNaLocacao;
+  window.__DK_mergePagamentosAuditoria = mergePagamentosAuditoria;
   window.__DK_purgeGlobalLancamentoKeysOficial = purgeGlobalLancamentoKeysOficial;
   window.__DK_sanitizeCloudPayloadLancamentosOficial = sanitizeCloudPayloadLancamentosOficial;
 
