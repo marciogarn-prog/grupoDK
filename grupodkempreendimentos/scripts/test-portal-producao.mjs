@@ -338,6 +338,13 @@ async function runSuite() {
         portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno") &&
         portalUiLancJs.includes("portalLancAluguelDiaPagamentoColIdx")
     );
+    record(
+      "sugestão de pagamento = valor do plano",
+      portalUiLancJs.includes("portalValorPlanoPagamentoSugeridoFmt") &&
+        portalUiLancJs.includes("valSimples.value = valPlano") &&
+        portalUiLancJs.includes("resumo?.valorPlano"),
+      "VALOR (R$) no lançamento avulso usa aluguel + investimento"
+    );
     const calJsVer = html.match(/portal-lanc-aluguel-calendario\.js\?v=([^"]+)/)?.[1] || "";
     const calJs = await fetch(`${BASE_URL}portal-lanc-aluguel-calendario.js?v=${calJsVer || "latest"}`, {
       cache: "no-store",
