@@ -1639,7 +1639,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-mm", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-1bar", {
         scope: "/",
         updateViaCache: "none",
       });
