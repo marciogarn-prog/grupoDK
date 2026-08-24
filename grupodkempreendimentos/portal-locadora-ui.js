@@ -1344,9 +1344,9 @@
         cpf: funcionario.cpf,
         nome: funcionario.nome,
         role: funcionario.role,
+        loginAt: Date.now(),
       })
     );
-    /* sessão vale só nesta janela do navegador — ver dkExigirLoginEquipaPorJanela (app.js) */
     try {
       sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
     } catch {
@@ -12404,6 +12404,7 @@
     window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
     window.__DK_portalRefreshOperacaoDeferred = portalRefreshOperacaoDeferred;
     window.__DK_invalidatePesquisaLinhasCache = invalidatePesquisaLinhasCache;
+    window.__DK_portalRenderColaboradoresLista = portalRenderColaboradoresLista;
   } catch {
     /* ignore */
   }

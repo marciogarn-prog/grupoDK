@@ -8,7 +8,11 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeLocacoesCadastro, neverLoseCadastroPayload } = require("../lib/dk-append-only-merge.cjs");
+const {
+  mergeLocacoesCadastro,
+  mergeFuncionariosAccess,
+  neverLoseCadastroPayload,
+} = require("../lib/dk-append-only-merge.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -649,6 +653,7 @@ function mergePayloads(existing, incoming) {
     "dk_veiculos_frota_planilha",
     "dk_locacoes_cadastro",
     "dk_pagamentos_auditoria_v1",
+    "dk_funcionarios_access",
   ]);
   const out = { ...existing, ...incoming };
   if (
@@ -658,6 +663,15 @@ function mergePayloads(existing, incoming) {
     out.dk_locacoes_cadastro = mergeLocacoesCadastroArrays(
       existing.dk_locacoes_cadastro,
       incoming.dk_locacoes_cadastro
+    );
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(incoming, "dk_funcionarios_access") ||
+    Object.prototype.hasOwnProperty.call(existing, "dk_funcionarios_access")
+  ) {
+    out.dk_funcionarios_access = mergeFuncionariosAccess(
+      existing.dk_funcionarios_access,
+      incoming.dk_funcionarios_access
     );
   }
   for (const k of fullReplaceKeys) {
