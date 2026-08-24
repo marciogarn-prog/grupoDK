@@ -115,6 +115,8 @@ function locacaoNcSetFromPayload(payload) {
   return set;
 }
 
+const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
+
 function cpfDigitsKey(record) {
   return String(record?.cpf || "").replace(/\D/g, "");
 }
@@ -133,7 +135,7 @@ function cadastroKeepSetsFromPayload(payload) {
   for (const k of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
     for (const r of Array.isArray(payload[k]) ? payload[k] : []) {
       const d = cpfDigitsKey(r);
-      if (d.length === 11) cpf.add(d);
+      if (d.length === 11 && !OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(d)) cpf.add(d);
     }
   }
   for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
@@ -170,6 +172,8 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
     const isCli = String(k).includes("cliente");
     const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
+      const cpfEarly = cpfDigitsKey(r);
+      if (isCli && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
@@ -854,6 +858,11 @@ async function handler(req, res) {
         if (existingPayload && !wipeKeys.length) {
           payload = neverLoseCadastroPayload(existingPayload, payload);
         }
+        payload = sanitizePayloadForOficial(
+          payload,
+          oficialTodayYmd(),
+          cadastroKeepSetsFromPayload(payload)
+        );
         payload.dk_dados_seguros_v1 = true;
       }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
