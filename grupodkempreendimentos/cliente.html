@@ -32,7 +32,7 @@
           }
         } catch (e) {}
         try {
-          await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824pag-app", { scope: "/" });
+          await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824pag-sync", { scope: "/" });
         } catch (e) {}
       })();
       try {
@@ -282,15 +282,15 @@
 
   <script src="portal-cliente-geolocalizacao.js?v=20260521geo-v3" defer></script>
   <script type="module" src="supabase-init.js?v=20260520cliente-v3"></script>
-  <script src="dk-lancamento-protocolo.js?v=20260824apagar-lanc" defer></script>
-  <script src="cliente-contrato-resumo.js?v=20260824apagar-lanc" defer></script>
-  <script src="portal-supabase-sync.js?v=20260824apagar-lanc" defer></script>
+  <script src="dk-lancamento-protocolo.js?v=20260824pag-sync" defer></script>
+  <script src="cliente-contrato-resumo.js?v=20260824pag-sync" defer></script>
+  <script src="portal-supabase-sync.js?v=20260824pag-sync" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="cliente-documentos-locacao.js?v=20260521crlv-unico" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260522jose-040-fix" defer></script>
-  <script src="cliente-relatorio-pagamentos.js?v=20260824pag-app" defer></script>
+  <script src="cliente-relatorio-pagamentos.js?v=20260824pag-sync" defer></script>
   <script src="vendor/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
   <script src="cliente-push-notificacoes.js?v=20260609avisos-dk" defer></script>
-  <script src="cliente-app.js?v=20260824pag-app" defer></script>
+  <script src="cliente-app.js?v=20260824pag-sync" defer></script>
 </body>
 </html>

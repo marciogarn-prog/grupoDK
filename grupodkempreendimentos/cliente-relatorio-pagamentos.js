@@ -215,7 +215,7 @@
       chunks.push(loc.lancamentos);
     }
     const legado = Number(parsePortalLancamentoValorRaw(loc.totalPagoAno2025 ?? "0"));
-    if (legado > 0 && !chunks.length) {
+    if (legado > 0 && !chunks.length && !Array.isArray(loc.portalLancamentosAluguel)) {
       chunks.push([
         {
           data: String(loc.ultimoLancamentoAluguelData || "").trim() || "01/01/2025",

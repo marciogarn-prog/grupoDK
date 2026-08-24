@@ -161,24 +161,16 @@
       incoming?.portalLancamentosAluguel,
     ]);
     const score = (x) => Number(x?.updatedAt || x?.createdAt || x?.id || 0);
-    const merged = {
-      ...ex,
-      ...incoming,
-      numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
-    };
+    const keepIncoming = score(incoming) >= score(ex);
+    const merged = keepIncoming
+      ? { ...ex, ...incoming, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato }
+      : { ...incoming, ...ex, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato };
     if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
       window.__DK_anexarLancamentosMergeNaLocacao(merged, ex, incoming, mergedPl);
     } else if (mergedPl.length) {
       merged.portalLancamentosAluguel = mergedPl;
     }
-    if (score(incoming) >= score(ex)) return merged;
-    const stay = { ...ex, ...merged };
-    if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
-      window.__DK_anexarLancamentosMergeNaLocacao(stay, ex, incoming, mergedPl);
-    } else if (mergedPl.length) {
-      stay.portalLancamentosAluguel = mergedPl;
-    }
-    return stay;
+    return merged;
   }
 
   function mergeLocacoesCadastroCliente(localArr, cloudArr) {
@@ -279,6 +271,7 @@
     });
     const seenOid = new Set();
     const seenFp = new Set();
+    const seenProto = new Set();
     const seenDataValor = new Set();
     const out = [];
     for (const row of sorted) {
@@ -286,15 +279,19 @@
       const oid = String(row.origemComprovanteClienteId || "").trim();
       if (oid && comprovanteInvalidadoPorId(oid, invalidados)) continue;
       const fp = String(row.comprovanteFp || "").trim();
+      const proto = String(row.protocoloLancamento || row.protocolo || "").trim();
+      const protoOk = /^\d{14}-\d{3}$/.test(proto);
       const data = String(row.data || "").trim();
       const valor = Number(row.valor);
       const dvKey = `${data}|${Number.isFinite(valor) ? valor.toFixed(2) : ""}`;
       if (oid && seenOid.has(oid)) continue;
       if (fp && seenFp.has(fp)) continue;
-      if (data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
+      if (protoOk && seenProto.has(proto)) continue;
+      if (!protoOk && data && Number.isFinite(valor) && valor > 0 && seenDataValor.has(dvKey)) continue;
       if (oid) seenOid.add(oid);
       if (fp) seenFp.add(fp);
-      if (data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
+      if (protoOk) seenProto.add(proto);
+      if (!protoOk && data && Number.isFinite(valor) && valor > 0) seenDataValor.add(dvKey);
       out.push(row);
     }
     out.sort((a, b) => {
@@ -308,7 +305,7 @@
   function getLancamentosAluguelContrato(loc) {
     if (typeof window.__DK_getLancamentosAluguelCanonico === "function") {
       const rows = window.__DK_getLancamentosAluguelCanonico(loc);
-      if (Array.isArray(rows) && rows.length) return dedupeLancamentosPagamento(rows);
+      if (Array.isArray(rows)) return dedupeLancamentosPagamento(rows);
     }
     if (!loc || typeof loc !== "object") return [];
     const chunks = [];
@@ -322,7 +319,7 @@
     const globalRows = readGlobalLancamentosAluguel(loc);
     if (globalRows.length) chunks.push(globalRows);
     const legado = parseCur(loc.totalPagoAno2025 ?? "0");
-    if (legado > 0 && chunks.length === 0) {
+    if (legado > 0 && chunks.length === 0 && !Array.isArray(loc.portalLancamentosAluguel)) {
       chunks.push([
         normalizeLancamentoEntry({
           data: String(loc.ultimoLancamentoAluguelData || "").trim() || "01/01/2025",

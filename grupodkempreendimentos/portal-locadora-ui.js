@@ -14118,8 +14118,10 @@
     return collectPortalLocacoesByCpf(cpfDigits).filter((l) => Boolean(normPortalNumeroContrato(l.numeroContrato)));
   }
 
-  /** Ano da coluna «TOTAL PAGO NO ANO DE 2025» (soma das datas de pagamento neste ano). */
-  const PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO = 2025;
+  /** Ano da coluna «TOTAL PAGO NO ANO» (soma das datas de pagamento neste ano). */
+  function portalAnoResumoLancamentoAluguel() {
+    return new Date().getFullYear();
+  }
 
   function formatPortalLancamentoSumBrl(n) {
     if (typeof currencyBRL === "function") return currencyBRL(Number(n || 0));
@@ -14415,9 +14417,13 @@
       typeof parseCurrencyBR === "function"
         ? (v) => Number(parseCurrencyBR(String(v ?? "")))
         : (v) => Number(parsePortalLancamentoValorRaw(v));
-    const valLoc = parseCur(loc?.valorLocacao ?? "0");
+    let valLoc = parseCur(loc?.valorLocacao ?? "0");
     const valInv = parseCur(loc?.valorInvestimento ?? "0");
-    const plano = valLoc + valInv;
+    const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
+    if (valLoc <= 0 && valSemanalCampo > 0) {
+      valLoc = Math.max(0, valSemanalCampo - valInv);
+    }
+    const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
     const tempo = computePortalTempoDiasLoc(loc);
     const custoDiaNum = plano / 7;
     const valorDevidoPlanoNum = tempo * (plano / 7);
@@ -14729,7 +14735,7 @@
     const tp = document.getElementById("operacaoLocacaoTotalPago");
     const tp25 = document.getElementById("operacaoLocacaoTotalPagoAno2025");
     if (tp) tp.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelTotal(arr));
-    if (tp25) tp25.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelNoAno(arr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO));
+    if (tp25) tp25.value = formatPortalLancamentoSumBrl(sumPortalLancamentosAluguelNoAno(arr, portalAnoResumoLancamentoAluguel()));
     syncOperacaoLocacaoInvestimentoAcumuladoEAlertaDevido();
   }
 
@@ -14923,8 +14929,10 @@
     const resumo = computePortalProtocoloResumoFromLoc(loc);
     const lancs = getPortalLancamentosAluguelDoContrato(loc);
     const totalAnoFmt = formatPortalLancamentoSumBrl(
-      sumPortalLancamentosAluguelNoAno(lancs, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
+      sumPortalLancamentosAluguelNoAno(lancs, portalAnoResumoLancamentoAluguel())
     );
+    const anoLbl = document.getElementById("operacaoLancAluguelSitTotalPagoAnoLabel");
+    if (anoLbl) anoLbl.textContent = `TOTAL PAGO NO ANO DE ${portalAnoResumoLancamentoAluguel()}`;
     const setVal = (id, v) => {
       const el = document.getElementById(id);
       if (el) el.textContent = v;
@@ -15984,7 +15992,7 @@
       return row;
     });
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
-      sumPortalLancamentosAluguelNoAno(normArr, PORTAL_LANCAMENTO_ALUGUEL_ANO_RESUMO)
+      sumPortalLancamentosAluguelNoAno(normArr, portalAnoResumoLancamentoAluguel())
     );
     if (normArr.length) {
       const last = normArr[normArr.length - 1];
