@@ -1340,6 +1340,8 @@
     if (sessao?.cpf) scheduleClienteRender(sessao);
   }
 
+  const DK_MINHA_MOTO_SEMANAS_PLANO = 150;
+
   function locEhPlanoDkMinhaMoto(loc, resumo) {
     if (resumo?.badge?.variant === "carro") return false;
     if (resumo?.plano) return resumo.plano === "MINHA_MOTO";
@@ -1351,6 +1353,49 @@
     if (key.includes("MEU") && key.includes("TRANSPORTE")) return false;
     if (key.includes("CARRO")) return false;
     return parseCurrencyBR(loc?.valorInvestimento ?? 0) > 0;
+  }
+
+  function computeSemanasPagasMinhaMoto(loc, resumo) {
+    const plano = resumo
+      ? parseCurrencyBR(resumo.valorSemanal)
+      : parseCurrencyBR(loc.valorSemanal || loc.valorParcela) ||
+        parseCurrencyBR(loc.valorLocacao) + parseCurrencyBR(loc.valorInvestimento);
+    const totalPago = getLancamentosFromLoc(loc).reduce((s, p) => s + p.valor, 0);
+    const semanas = plano > 0 ? Math.floor(totalPago / plano) : 0;
+    return { semanas, plano, totalPago };
+  }
+
+  function pctProgressoMinhaMoto(semanas) {
+    const n = Math.max(0, Number(semanas) || 0);
+    return Math.min(100, Math.round((n * 100) / DK_MINHA_MOTO_SEMANAS_PLANO));
+  }
+
+  function renderPremioMinhaMotoHtml(loc, resumo, multi) {
+    const { semanas } = computeSemanasPagasMinhaMoto(loc, resumo);
+    const pct = pctProgressoMinhaMoto(semanas);
+    const placa = String(loc.placa || "").trim().toUpperCase();
+    const proto = String(loc.numeroContrato || "").trim();
+    const extra =
+      multi && (placa || proto)
+        ? `<p class="cliente-premio__contrato">${escapeHtml([placa, proto].filter(Boolean).join(" · "))}</p>`
+        : "";
+    return `<article class="cliente-premio" data-semanas="${semanas}" data-pct="${pct}" style="--pct:${pct}%">
+      <div class="cliente-premio__scene">
+        <img src="/images/dk-minha-moto-premio.png?v=20260824premio" alt="DK Minha Moto — seu prêmio te espera" width="1200" height="675" decoding="async">
+      </div>
+      <div class="cliente-premio__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso do plano DK Minha Moto">
+        <div class="cliente-premio__track">
+          <div class="cliente-premio__fill"></div>
+          <span class="cliente-premio__marker" aria-hidden="true"></span>
+        </div>
+        <div class="cliente-premio__labels">
+          <span class="cliente-premio__pct">${pct}%</span>
+          <span class="cliente-premio__fim">100%</span>
+        </div>
+      </div>
+      <p class="cliente-premio__meta">DK MINHA MOTO · <strong>${semanas}</strong> de ${DK_MINHA_MOTO_SEMANAS_PLANO} semanas</p>
+      ${extra}
+    </article>`;
   }
 
   function renderApp(sessao, opts) {
@@ -1377,32 +1422,20 @@
 
     const resumo = $("cliente-resumo");
     if (resumo) {
-      /* PARABÉNS — só plano DK Minha Moto; semanas pagas = total pago ÷ valor do plano (chão). */
-      const nomeCliente = (String(sessao.nome || "").trim() || "Cliente").toUpperCase();
-      const linhas = locAtivas
-        .map((loc) => {
-          const r = resumoFn ? resumoFn(loc) : null;
-          if (!locEhPlanoDkMinhaMoto(loc, r)) return "";
-          const plano = r
-            ? parseCurrencyBR(r.valorSemanal)
-            : parseCurrencyBR(loc.valorSemanal || loc.valorParcela) ||
-              parseCurrencyBR(loc.valorLocacao) + parseCurrencyBR(loc.valorInvestimento);
-          const totalPago = getLancamentosFromLoc(loc).reduce((s, p) => s + p.valor, 0);
-          const semanas = plano > 0 ? Math.floor(totalPago / plano) : 0;
-          const placaInfo =
-            locAtivas.length > 1 ? ` (${escapeHtml(String(loc.placa || "").trim().toUpperCase())})` : "";
-          return `<p class="cliente-parabens__texto">PARABÉNS, <strong>${escapeHtml(nomeCliente)}</strong>! VOCÊ JÁ PAGOU <strong>${semanas}</strong> ${semanas === 1 ? "SEMANA" : "SEMANAS"} DO SEU PLANO DK MINHA MOTO${placaInfo}.</p>`;
-        })
-        .filter(Boolean)
+      const minhasMotos = locAtivas.filter((loc) => locEhPlanoDkMinhaMoto(loc, resumoFn ? resumoFn(loc) : null));
+      const linhas = minhasMotos
+        .map((loc) => renderPremioMinhaMotoHtml(loc, resumoFn ? resumoFn(loc) : null, minhasMotos.length > 1))
         .join("");
       if (!linhas) {
         resumo.innerHTML = "";
         resumo.hidden = true;
         resumo.setAttribute("hidden", "");
+        resumo.classList.add("subtext");
       } else {
         resumo.hidden = false;
         resumo.removeAttribute("hidden");
-        resumo.innerHTML = `<div class="cliente-parabens">${linhas}</div>`;
+        resumo.classList.remove("subtext");
+        resumo.innerHTML = `<div class="cliente-premio-wrap">${linhas}</div>`;
       }
     }
 
@@ -1606,7 +1639,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824parabens-mm", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-mm", {
         scope: "/",
         updateViaCache: "none",
       });
