@@ -4455,19 +4455,64 @@ function corrigirPlacaMercosul(value) {
   return "";
 }
 
+/** Compacta `DKCR - 015`, `DKCR-015` e `DKCR015` para parsing. */
+function compactDkVeiculoTag(raw) {
+  return String(raw || "")
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, "");
+}
+
+function parseDkVeiculoTag(raw) {
+  const m = compactDkVeiculoTag(raw).match(/^(DKCR|DKMT)(\d+)$/);
+  if (!m) return null;
+  return { prefix: m[1], num: parseInt(m[2], 10) || 0 };
+}
+
+/** Padrão de tag: DK + CR|MT + espaço-hífen-espaço + contador 3 dígitos (ex.: DKCR - 016). */
+function formatDkVeiculoTag(prefix, num) {
+  const p = prefix === "DKMT" ? "DKMT" : "DKCR";
+  const n = Math.max(1, Number(num) || 1);
+  return `${p} - ${String(n).padStart(3, "0")}`;
+}
+
+function displayDkVeiculoTag(raw) {
+  const parsed = parseDkVeiculoTag(raw);
+  if (!parsed) return String(raw || "").trim();
+  return formatDkVeiculoTag(parsed.prefix, parsed.num);
+}
+
+function dkVeiculoTagPrefixFromTipo(tipo) {
+  return String(tipo || "")
+    .trim()
+    .toUpperCase()
+    .includes("CARRO")
+    ? "DKCR"
+    : "DKMT";
+}
+
+function dkVeiculoKindForTag(v) {
+  const t = String(v?.tipo || "")
+    .trim()
+    .toUpperCase();
+  if (t.includes("CARRO")) return "DKCR";
+  if (t.includes("MOTO")) return "DKMT";
+  const parsed = parseDkVeiculoTag(v?.tag) || parseDkVeiculoTag(v?.codigo);
+  return parsed?.prefix || "";
+}
+
 function nextTagByTipo(tipo, veiculos) {
-  const prefix = tipo === "CARRO" ? "DKCR" : "DKMT";
+  const prefix = dkVeiculoTagPrefixFromTipo(tipo);
   let maxNum = 0;
-  let pad = 3;
-  veiculos.forEach((v) => {
-    const tag = normalizeKey(v.tag);
-    const m = tag.match(new RegExp(`^${prefix}(\\d+)$`));
-    if (!m) return;
-    pad = Math.max(pad, m[1].length);
-    const n = Number(m[1]);
-    if (Number.isFinite(n) && n > maxNum) maxNum = n;
+  let countTipo = 0;
+  (Array.isArray(veiculos) ? veiculos : []).forEach((v) => {
+    const parsedTag = parseDkVeiculoTag(v?.tag);
+    const parsedCod = parseDkVeiculoTag(v?.codigo);
+    if (parsedTag?.prefix === prefix) maxNum = Math.max(maxNum, parsedTag.num);
+    if (parsedCod?.prefix === prefix) maxNum = Math.max(maxNum, parsedCod.num);
+    if (dkVeiculoKindForTag(v) === prefix) countTipo += 1;
   });
-  return `${prefix}${String(maxNum + 1).padStart(pad, "0")}`;
+  return formatDkVeiculoTag(prefix, Math.max(maxNum, countTipo) + 1);
 }
 
 function refreshTagPreview() {
@@ -16146,6 +16191,10 @@ window.corrigirPlacaMercosul = corrigirPlacaMercosul;
 window.convertPlacaAntigaParaMercosul = convertPlacaAntigaParaMercosul;
 window.normalizePlacaParaCadastro = normalizePlacaParaCadastro;
 window.normalizePlate = normalizePlate;
+window.nextTagByTipo = nextTagByTipo;
+window.parseDkVeiculoTag = parseDkVeiculoTag;
+window.formatDkVeiculoTag = formatDkVeiculoTag;
+window.displayDkVeiculoTag = displayDkVeiculoTag;
 window.isDkDateFieldInput = isDkDateFieldInput;
 window.formatCurrencyMask = formatCurrencyMask;
 window.formatCurrencyInputBlur = formatCurrencyInputBlur;
