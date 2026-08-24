@@ -484,14 +484,15 @@
   }
 
   function clienteTemLocacaoAtiva(cpfDigits) {
-    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => onlyDigits(l.cpf) === cpfDigits);
+    const all = loadCadastro(CAD_LOCACOES_KEY);
+    const locs = all.filter((l) => onlyDigits(l.cpf) === cpfDigits);
     if (filterLocacoesAtivas(locs).length > 0) return true;
     try {
       const raw = sessionStorage.getItem(CLIENTE_APP_GATE_KEY) || localStorage.getItem(GATE_PERSIST_KEY);
       const g = raw ? JSON.parse(raw) : null;
       const protoGate = normProtoGate(g?.proto);
       if (protoGate && onlyDigits(g?.cpf).slice(0, 11) === cpfDigits) {
-        const hit = locs.find((l) => normProtoGate(l.numeroContrato) === protoGate);
+        const hit = all.find((l) => normProtoGate(l.numeroContrato) === protoGate);
         if (hit && !isLocacaoFinalizada(hit)) return true;
       }
     } catch {
@@ -1585,7 +1586,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824pag-sync", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824contrato-app", {
         scope: "/",
         updateViaCache: "none",
       });
@@ -2443,7 +2444,7 @@
       if (submitBtn) submitBtn.disabled = true;
       try {
         if (typeof window.__DK_upsertClienteCadastroFromCloud === "function") {
-          await window.__DK_upsertClienteCadastroFromCloud(cpf);
+          await window.__DK_upsertClienteCadastroFromCloud(cpf, proto);
         }
       } catch {
         /* usa cadastro local se a nuvem falhar */

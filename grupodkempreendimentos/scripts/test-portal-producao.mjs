@@ -1334,7 +1334,7 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824pag-sync`, {
+    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824contrato-app`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1346,8 +1346,16 @@ async function runSuite() {
         portalSyncLancJs.includes("mergeRemoteSnapshotsForClienteApp") &&
         clienteAppJs.includes("45000") &&
         !clienteAppJs.includes("consolidarLancamentosClienteLogado(sessao.cpf)") &&
-        swClienteJs.includes("dk-cliente-v20260824pag-sync"),
+        swClienteJs.includes("dk-cliente-v20260824contrato-app"),
       "Supabase sem lançamentos não apaga pagamentos do Redis no app"
+    );
+    record(
+      "app cliente recebe contrato sem corte oficial",
+      portalSyncLancJs.includes("__DK_sanitizeOficialCloudPayload === \"function\" && !isClienteAppPage()") &&
+        portalSyncLancJs.includes("isClienteAppPage() && !arr.length") &&
+        portalSyncLancJs.includes("filterCloudLocacoesForCliente") &&
+        clienteAppJs.includes("upsertClienteCadastroFromCloud(cpf, proto)"),
+      "CPF+protocolo no telemovel nao perdem a locacao"
     );
     record(
       "merge nuvem recalcula valor pago (não usa último lançamento apagado)",
