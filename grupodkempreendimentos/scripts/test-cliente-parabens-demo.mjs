@@ -146,6 +146,42 @@ try {
   record("puxar para baixo dispara atualização", Boolean(pullMsg), String(pullMsg || "sem reação").slice(0, 120));
 
   await ctx.close();
+
+  /* cliente sem DK Minha Moto: mesmo gráfico em 0% + convite */
+  const ctxConvite = await browser.newContext();
+  const appConvite = await ctxConvite.newPage();
+  await appConvite.goto(BASE, { waitUntil: "domcontentloaded", timeout: 90000 });
+  await appConvite.evaluate(({ cpf, proto }) => {
+    localStorage.setItem(
+      "dk_sessao_cliente_app",
+      JSON.stringify({ cpf, nome: "Cliente Teste Convite", loginEm: new Date().toISOString() })
+    );
+    sessionStorage.setItem("dk_cliente_app_gate", JSON.stringify({ cpf, proto, ok: true, ts: Date.now() }));
+  }, { cpf: "07534147409", proto: "2026031305" });
+  await appConvite.goto(`${BASE}cliente?adminPreview=1`, { waitUntil: "domcontentloaded", timeout: 90000 });
+  const convite = await appConvite
+    .waitForFunction(
+      () => {
+        const card = document.querySelector("#cliente-resumo .cliente-premio");
+        if (!card) return false;
+        return {
+          pct: Number(card.getAttribute("data-pct") || ""),
+          modo: card.getAttribute("data-modo") || "",
+          txt: (document.getElementById("cliente-resumo")?.textContent || "").replace(/\s+/g, " ").trim(),
+        };
+      },
+      { timeout: 60000 }
+    )
+    .then((h) => h.jsonValue())
+    .catch(() => null);
+  record("convite DK Minha Moto para quem não tem o plano", Boolean(convite), String(convite?.txt || "").slice(0, 160));
+  record("convite mostra 0%", convite?.pct === 0 && convite?.modo === "convite", JSON.stringify(convite || {}));
+  record(
+    "frase VENHA REALIZAR SEU SONHO",
+    String(convite?.txt || "").includes("VENHA REALIZAR SEU SONHO NO PLANO DK MINHA MOTO"),
+    String(convite?.txt || "").slice(0, 160)
+  );
+  await ctxConvite.close();
 } catch (e) {
   record("erro inesperado", false, String(e?.message || e).slice(0, 200));
 } finally {
