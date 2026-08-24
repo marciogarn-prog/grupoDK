@@ -110,6 +110,25 @@ async function runSuite() {
       html.includes("data-auto") ||
       html.includes("mascaras");
     record("HTML com cache app/portal atualizado", cacheOk, "app.js + portal-locadora-ui.js");
+    const tagSeq = await page.evaluate(() => {
+      if (typeof nextTagByTipo !== "function") return { ok: false, got: "sem nextTagByTipo" };
+      const fromFmt = nextTagByTipo("CARRO", [
+        { tipo: "CARRO", tag: "DKCR - 015" },
+        { tipo: "CARRO", codigo: "DKCR-014" },
+        { tipo: "MOTO", tag: "DKMT - 171" },
+      ]);
+      const fromCount = nextTagByTipo(
+        "CARRO",
+        Array.from({ length: 15 }, (_, i) => ({ tipo: "CARRO", placa: `AAA0A${String(i).padStart(2, "0")}` }))
+      );
+      const moto = nextTagByTipo("MOTO", [{ tipo: "MOTO", tag: "DKMT001" }]);
+      return { ok: fromFmt === "DKCR - 016" && fromCount === "DKCR - 016" && moto === "DKMT - 002", fromFmt, fromCount, moto };
+    });
+    record(
+      "tag veículo DK+XX - YYY (CR carro / MT moto, próximo número)",
+      tagSeq.ok === true,
+      `fmt=${tagSeq.fromFmt} count=${tagSeq.fromCount} moto=${tagSeq.moto}`
+    );
     record(
       "views hub locadora no HTML",
       html.includes("view-locadora-hub") && html.includes("view-locadora-cliente")
@@ -1610,7 +1629,7 @@ async function runSuite() {
           const tag = await pageE2e.locator("#operacaoVeiculoTag").inputValue().catch(() => "");
           record(
             "form veículo reconhece AAA0A00",
-            /ferrari/i.test(modelo) || tag === "DKCR013",
+            /ferrari/i.test(modelo) || tag === "DKCR013" || tag === "DKCR - 013",
             `modelo=${modelo} tag=${tag}`
           );
           await pageE2e.selectOption("#operacaoVeiculoTipo", "CARRO").catch(() => {});

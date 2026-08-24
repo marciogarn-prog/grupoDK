@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260824excluir-cpf-fake";
+const CACHE_NAME = "dk-corporativo-v20260824tag-dkcr";
 const ASSETS = [
   "./",
   "./index.html",

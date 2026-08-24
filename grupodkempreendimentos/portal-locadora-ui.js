@@ -9240,9 +9240,7 @@
       .toUpperCase();
     if (t.includes("CARRO")) return "CARRO";
     if (t.includes("MOTO")) return "MOTO";
-    const tag = String(v?.tag || "")
-      .trim()
-      .toUpperCase();
+    const tag = `${v?.tag || ""} ${v?.codigo || ""}`.trim().toUpperCase();
     if (tag.includes("DKCR")) return "CARRO";
     if (tag.includes("DKMT")) return "MOTO";
     return "";
@@ -9266,7 +9264,12 @@
     const tipo = portalInferTipoVeiculoFromRecord(veiculo);
     const tipoEl = document.getElementById("operacaoVeiculoTipo");
     if (tipoEl) tipoEl.value = tipo;
-    set("operacaoVeiculoTag", veiculo.tag);
+    set(
+      "operacaoVeiculoTag",
+      typeof displayDkVeiculoTag === "function"
+        ? displayDkVeiculoTag(veiculo.tag || veiculo.codigo)
+        : String(veiculo.tag || veiculo.codigo || "").trim()
+    );
     set("operacaoVeiculoCodigo", veiculo.codigo);
     set("operacaoVeiculoMarca", veiculo.marca);
     set("operacaoVeiculoModelo", veiculo.modelo);
@@ -13641,7 +13644,7 @@
     }
   }
 
-  /** Atualiza a tag sugerida (DKCR/DKMT + sequência) conforme CARRO ou MOTO. */
+  /** Atualiza a tag sugerida (DKCR - 016 / DKMT - YYY) conforme CARRO ou MOTO. */
   function refreshOperacaoVeiculoTagPreview() {
     const tipoEl = document.getElementById("operacaoVeiculoTipo");
     const tagEl = document.getElementById("operacaoVeiculoTag");
@@ -13652,6 +13655,20 @@
       return;
     }
     if (typeof seedVeiculosDatabaseIfNeeded === "function") seedVeiculosDatabaseIfNeeded();
+    const plateRaw = String(document.getElementById("operacaoVeiculoPlaca")?.value || "");
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(plateRaw)
+        : plateRaw.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const existing =
+      (plate && typeof findPortalVeiculoByPlaca === "function" && findPortalVeiculoByPlaca(plate)) ||
+      (plate && typeof findVeiculoByPlaca === "function" && findVeiculoByPlaca(plate)) ||
+      null;
+    const prevTag = String(existing?.tag || existing?.codigo || "").trim();
+    if (existing && prevTag) {
+      tagEl.value = typeof displayDkVeiculoTag === "function" ? displayDkVeiculoTag(prevTag) : prevTag;
+      return;
+    }
     const veiculos =
       typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
         ? loadCadastro(CAD_VEICULOS_KEY)
@@ -13729,9 +13746,18 @@
       if (msg) msg.textContent = "Selecione CARRO ou MOTO.";
       return;
     }
-    let tag = getVal("operacaoVeiculoTag");
+    const allVeiculos =
+      typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+        ? loadCadastro(CAD_VEICULOS_KEY)
+        : veiculos;
+    let tag = "";
+    if (existenteVeiculoPre) {
+      tag = String(existenteVeiculoPre.tag || existenteVeiculoPre.codigo || "").trim();
+    }
     if (!tag && typeof nextTagByTipo === "function") {
-      tag = nextTagByTipo(tipo, veiculos);
+      tag = nextTagByTipo(tipo, allVeiculos);
+    } else if (!tag) {
+      tag = getVal("operacaoVeiculoTag");
     }
     if (!tag) {
       if (msg) msg.textContent = "Não foi possível gerar a tag. Selecione o tipo novamente.";
