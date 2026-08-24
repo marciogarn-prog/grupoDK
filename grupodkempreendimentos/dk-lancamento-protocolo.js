@@ -232,8 +232,7 @@
   function mergeRows(chunks) {
     if (typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function") {
       const merged = window.__DK_mergePortalLancamentosAluguelEmbutidos(chunks);
-      if (isOficialDeploy()) return merged.filter(isLancamentoOficialAceite);
-      return merged;
+      return (merged || []).map(normalizeRow).filter(Boolean);
     }
     const byProto = new Map();
     const byLegacy = new Map();
@@ -245,6 +244,15 @@
         const proto = String(row.protocoloLancamento || "").trim();
         if (isProtocoloLancamentoValid(proto)) {
           if (!byProto.has(proto)) byProto.set(proto, row);
+          continue;
+        }
+        const generated = gerarProtocoloLancamento(
+          row.registradoPorCpf || row.comprovanteValidadoPorCpf,
+          new Date(row.createdAt || Date.now())
+        );
+        if (generated && isProtocoloLancamentoValid(generated)) {
+          row.protocoloLancamento = generated;
+          if (!byProto.has(generated)) byProto.set(generated, row);
           continue;
         }
         if (isOficialDeploy()) continue;

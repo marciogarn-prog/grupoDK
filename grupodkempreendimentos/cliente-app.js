@@ -1278,6 +1278,7 @@
       }
       syncOk = true;
       if (sessao?.cpf) {
+        lastClienteRenderKey = "";
         window.setTimeout(() => consolidarLancamentosClienteLogado(sessao.cpf), 0);
       }
       if (msg && !silent) {
@@ -1367,7 +1368,14 @@
       const nomeCliente = (String(sessao.nome || "").trim() || "Cliente").toUpperCase();
       const linhas = locAtivas
         .map((loc) => {
-          const plano = parseCurrencyBR(loc.valorLocacao) + parseCurrencyBR(loc.valorInvestimento);
+          const r =
+            typeof window.__DK_clienteComputeResumoContrato === "function"
+              ? window.__DK_clienteComputeResumoContrato(loc)
+              : null;
+          const plano = r
+            ? parseCurrencyBR(r.valorSemanal)
+            : parseCurrencyBR(loc.valorSemanal || loc.valorParcela) ||
+              parseCurrencyBR(loc.valorLocacao) + parseCurrencyBR(loc.valorInvestimento);
           const totalPago = getLancamentosFromLoc(loc).reduce((s, p) => s + p.valor, 0);
           const semanas = plano > 0 ? Math.floor(totalPago / plano) : 0;
           const placaInfo =

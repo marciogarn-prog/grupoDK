@@ -500,10 +500,19 @@
     };
   }
 
-  function computeResumoContrato(loc) {
-    const valLoc = parseCur(loc?.valorLocacao ?? 0);
+  function resolveValoresContrato(loc) {
+    let valLoc = parseCur(loc?.valorLocacao ?? 0);
     const valInv = parseCur(loc?.valorInvestimento ?? 0);
-    const plano = valLoc + valInv;
+    const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? 0);
+    if (valLoc <= 0 && valSemanalCampo > 0) {
+      valLoc = Math.max(0, valSemanalCampo - valInv);
+    }
+    const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
+    return { valLoc, valInv, plano };
+  }
+
+  function computeResumoContrato(loc) {
+    const { valLoc, valInv, plano } = resolveValoresContrato(loc);
     const tempoDias = computeTempoDiasLoc(loc);
     const valorDevidoPlanoNum = tempoDias * (plano / 7);
     const valorDevidoAluguelNum = tempoDias * (valLoc / 7);
@@ -546,7 +555,7 @@
       protocolo: normNc(loc.numeroContrato),
       placa: String(loc.placa || "").trim(),
       modeloVeiculo: lookupModeloVeiculo(loc),
-      valorSemanal: currencyBRL(valLoc + valInv),
+      valorSemanal: currencyBRL(plano),
       plano: planoTipo,
       investimentoAcumulado: currencyBRL(investimentoAcumuladoNum),
       ultimoPagamento: pickUltimoPagamento(lancs),

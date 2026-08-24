@@ -2917,6 +2917,9 @@
     suppressCloudHook = true;
     try {
       applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: !force });
+      if (Array.isArray(filtered.dk_locacoes_cadastro)) {
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(filtered.dk_locacoes_cadastro));
+      }
       sanitizeLocacaoDocumentosLocalStorage();
       trimLocalLocacoesToClienteCpf();
     } finally {
