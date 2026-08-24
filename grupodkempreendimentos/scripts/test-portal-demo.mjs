@@ -18,6 +18,12 @@ const parityTest = path.join(scriptDir, "compare-demo-oficial-ui.mjs");
 const base =
   process.env.DK_TEST_BASE_URL || "https://demo.grupodkempreendimentos.com.br/";
 
+const neverLoseTest = path.join(scriptDir, "test-never-lose-cadastro.mjs");
+const n = spawnSync(process.execPath, [neverLoseTest], {
+  stdio: "inherit",
+});
+if (n.status !== 0) process.exit(typeof n.status === "number" ? n.status : 1);
+
 const r = spawnSync(process.execPath, [prodTest], {
   stdio: "inherit",
   env: { ...process.env, DK_TEST_BASE_URL: base },

@@ -8,7 +8,7 @@
  * POST /api/dk-cloud-snapshot → body { payload, updated_at? }
  */
 const { isRedisKvConfigured, createRedisClient } = require("../lib/dk-redis-env.cjs");
-const { mergeLocacoesCadastro } = require("../lib/dk-append-only-merge.cjs");
+const { mergeLocacoesCadastro, neverLoseCadastroPayload } = require("../lib/dk-append-only-merge.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
 const OFICIAL_CUTOFF_YMD = "2026-06-10";
@@ -98,21 +98,96 @@ function oficialRecordYmd(record, key) {
   return null;
 }
 
-function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd()) {
+function locacaoNcKey(record) {
+  return String(record?.numeroContrato || record?.protocolo || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+}
+
+function locacaoNcSetFromPayload(payload) {
+  const set = new Set();
+  const arr = payload && Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
+  for (const r of arr) {
+    const nc = locacaoNcKey(r);
+    if (nc) set.add(nc);
+  }
+  return set;
+}
+
+function cpfDigitsKey(record) {
+  return String(record?.cpf || "").replace(/\D/g, "");
+}
+
+function placaNormKey(record) {
+  return String(record?.placa || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+}
+
+function cadastroKeepSetsFromPayload(payload) {
+  const cpf = new Set();
+  const placa = new Set();
+  const nc = locacaoNcSetFromPayload(payload);
+  if (!payload || typeof payload !== "object") return { cpf, placa, nc };
+  for (const k of ["dk_clientes_cadastro", "dk_portal_clientes_cadastro"]) {
+    for (const r of Array.isArray(payload[k]) ? payload[k] : []) {
+      const d = cpfDigitsKey(r);
+      if (d.length === 11) cpf.add(d);
+    }
+  }
+  for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
+    for (const r of Array.isArray(payload[k]) ? payload[k] : []) {
+      const p = placaNormKey(r);
+      if (p) placa.add(p);
+    }
+  }
+  return { cpf, placa, nc };
+}
+
+function normalizeKeepSets(keepLocacaoNc) {
+  if (keepLocacaoNc instanceof Set) {
+    return { nc: keepLocacaoNc, cpf: new Set(), placa: new Set() };
+  }
+  if (keepLocacaoNc && typeof keepLocacaoNc === "object") {
+    return {
+      nc: keepLocacaoNc.nc instanceof Set ? keepLocacaoNc.nc : new Set(),
+      cpf: keepLocacaoNc.cpf instanceof Set ? keepLocacaoNc.cpf : new Set(),
+      placa: keepLocacaoNc.placa instanceof Set ? keepLocacaoNc.placa : new Set(),
+    };
+  }
+  return { nc: new Set(), cpf: new Set(), placa: new Set() };
+}
+
+function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepLocacaoNc) {
   if (!payload || typeof payload !== "object") return payload;
+  const { nc: keepNc, cpf: keepCpf, placa: keepPlaca } = normalizeKeepSets(keepLocacaoNc);
   const out = { ...payload };
   for (const k of OFICIAL_GUARD_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
     const keyCutoff = oficialCutoffForKey(k);
+    const isLoc = String(k).includes("locac");
+    const isCli = String(k).includes("cliente");
+    const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
-      const protoYmd = locacaoProtocolYmd(r);
-      if (String(k).includes("locac") && protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
-      if (r && typeof r === "object" && r.origemPortal === true) {
-        if (String(k).includes("locac")) return protoYmd ? protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD : false;
+      if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (
+        isLoc &&
+        ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
+          (Array.isArray(r?.portalPagamentosAuditoria) && r.portalPagamentosAuditoria.length))
+      ) {
         return true;
       }
+      const protoYmd = locacaoProtocolYmd(r);
+      const nc = locacaoNcKey(r);
+      const cpf = cpfDigitsKey(r);
+      const placa = placaNormKey(r);
+      if (isLoc && nc && keepNc.has(nc)) return true;
+      if (isCli && cpf.length === 11 && keepCpf.has(cpf)) return true;
+      if (isVei && placa && keepPlaca.has(placa)) return true;
+      if (isLoc && protoYmd && protoYmd < OFICIAL_LOCACOES_CUTOFF_YMD) return false;
       const ymd = oficialRecordYmd(r, k);
       return ymd && ymd >= keyCutoff;
     });
@@ -364,30 +439,16 @@ function applyDemoCadastroNoShrink(existing, merged) {
   return out;
 }
 
-/** Oficial: browser com lista vazia não pode apagar clientes/veículos já na nuvem. */
+/** Oficial: union por chave natural — lista menor no browser não apaga a nuvem. */
 function applyOficialClientesVeiculosNoShrink(existing, merged) {
-  if (!isObject(existing) || !isObject(merged)) return merged;
-  const out = { ...merged };
-  const keys = [
-    "dk_clientes_cadastro",
-    "dk_portal_clientes_cadastro",
-    "dk_veiculos_cadastro",
-    "dk_portal_veiculos_cadastro",
-    "dk_locacoes_cadastro",
-  ];
-  for (const k of keys) {
-    const ex = existing[k];
-    const inc = out[k];
-    if (!Array.isArray(ex) || !Array.isArray(inc)) continue;
-    if (ex.length > inc.length) out[k] = ex;
-  }
-  return out;
+  return neverLoseCadastroPayload(existing, merged);
 }
 
-/** Oficial virgem: protocolos anteriores a 23/08/2026 não voltam; locações novas (>= corte) entram. */
+/** Oficial virgem: planilha/junk sai; locação do portal, com pagamento ou já na nuvem fica. */
 function capOficialVirginProtocolos(existing, merged) {
   if (!isObject(existing) || !existing.dk_oficial_sem_protocolos_v1 || !isObject(merged)) return merged;
   const out = { ...merged };
+  const keepNc = locacaoNcSetFromPayload(existing);
   const keys = [
     "dk_locacoes_cadastro",
     "dk_lancamentos_aluguel",
@@ -398,7 +459,18 @@ function capOficialVirginProtocolos(existing, merged) {
   for (const k of keys) {
     if (!Array.isArray(out[k])) continue;
     out[k] = out[k].filter((r) => {
+      if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
+      if (r && typeof r === "object" && r.origemPortal === true) return true;
+      if (
+        String(k).includes("locac") &&
+        ((Array.isArray(r?.portalLancamentosAluguel) && r.portalLancamentosAluguel.length) ||
+          (Array.isArray(r?.portalPagamentosAuditoria) && r.portalPagamentosAuditoria.length))
+      ) {
+        return true;
+      }
+      const nc = locacaoNcKey(r);
+      if (nc && keepNc.has(nc)) return true;
       const protoYmd = locacaoProtocolYmd(r);
       if (protoYmd) return protoYmd >= OFICIAL_LOCACOES_CUTOFF_YMD;
       return true;
@@ -565,6 +637,15 @@ function mergePayloads(existing, incoming) {
   const fullReplaceKeys = Array.isArray(incoming._dkFullReplaceKeys)
     ? incoming._dkFullReplaceKeys.filter((k) => typeof k === "string")
     : [];
+  const neverLoseReplace = new Set([
+    "dk_clientes_cadastro",
+    "dk_portal_clientes_cadastro",
+    "dk_veiculos_cadastro",
+    "dk_portal_veiculos_cadastro",
+    "dk_veiculos_frota_planilha",
+    "dk_locacoes_cadastro",
+    "dk_pagamentos_auditoria_v1",
+  ]);
   const out = { ...existing, ...incoming };
   if (
     Object.prototype.hasOwnProperty.call(incoming, "dk_locacoes_cadastro") ||
@@ -577,7 +658,7 @@ function mergePayloads(existing, incoming) {
   }
   for (const k of fullReplaceKeys) {
     if (!Object.prototype.hasOwnProperty.call(incoming, k)) continue;
-    if (k === "dk_locacoes_cadastro") continue;
+    if (neverLoseReplace.has(k)) continue;
     out[k] = incoming[k];
   }
   if (
@@ -636,10 +717,10 @@ function mergePayloads(existing, incoming) {
       incoming.dk_patrimonio_fotos_excluidas_v1
     );
   }
-  return stripInternalPayloadKeys(out);
+  return stripInternalPayloadKeys(neverLoseCadastroPayload(existing, out));
 }
 
-module.exports = async function handler(req, res) {
+async function handler(req, res) {
   applyCors(res);
   res.setHeader("Content-Type", "application/json");
 
@@ -678,7 +759,9 @@ module.exports = async function handler(req, res) {
       }
       const payload = row?.payload && typeof row.payload === "object" ? row.payload : null;
       const safePayload =
-        channel === "default" && payload ? sanitizePayloadForOficial(payload) : payload;
+        channel === "default" && payload
+          ? sanitizePayloadForOficial(payload, oficialTodayYmd(), cadastroKeepSetsFromPayload(payload))
+          : payload;
       return res.status(200).json({
         ok: true,
         label: LABEL,
@@ -694,9 +777,6 @@ module.exports = async function handler(req, res) {
       if (!isObject(incoming)) {
         return res.status(400).json({ ok: false, reason: "payload_required" });
       }
-      if (channel === "default") {
-        incoming = sanitizePayloadForOficial(incoming);
-      }
       const updatedAt = String(body.updated_at || new Date().toISOString());
       const existingRaw = await redis.get(REDIS_KEY);
       let existingPayload = null;
@@ -710,6 +790,13 @@ module.exports = async function handler(req, res) {
           }
         }
         if (row?.payload && typeof row.payload === "object") existingPayload = row.payload;
+      }
+      if (channel === "default") {
+        incoming = sanitizePayloadForOficial(
+          incoming,
+          oficialTodayYmd(),
+          cadastroKeepSetsFromPayload(existingPayload)
+        );
       }
       const replace = body.replace === true || body.mode === "replace";
       const wipeKeys = Array.isArray(body.wipe_keys)
@@ -755,10 +842,19 @@ module.exports = async function handler(req, res) {
         if (channel === "default" && existingPayload) {
           payload = applyOficialClientesVeiculosNoShrink(existingPayload, payload);
           payload = capOficialVirginProtocolos(existingPayload, payload);
+          payload = neverLoseCadastroPayload(existingPayload, payload);
         }
       }
       if (channel === "default") {
-        payload = sanitizePayloadForOficial(payload);
+        payload = sanitizePayloadForOficial(
+          payload,
+          oficialTodayYmd(),
+          cadastroKeepSetsFromPayload(existingPayload || payload)
+        );
+        if (existingPayload && !wipeKeys.length) {
+          payload = neverLoseCadastroPayload(existingPayload, payload);
+        }
+        payload.dk_dados_seguros_v1 = true;
       }
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
@@ -779,4 +875,10 @@ module.exports = async function handler(req, res) {
   }
 
   return res.status(405).json({ ok: false, reason: "method" });
-};
+}
+
+module.exports = handler;
+module.exports.sanitizePayloadForOficial = sanitizePayloadForOficial;
+module.exports.cadastroKeepSetsFromPayload = cadastroKeepSetsFromPayload;
+module.exports.capOficialVirginProtocolos = capOficialVirginProtocolos;
+module.exports.neverLoseCadastroPayload = neverLoseCadastroPayload;
