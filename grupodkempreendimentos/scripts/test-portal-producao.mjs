@@ -1358,7 +1358,7 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824premio-mm`, {
+    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824premio-1bar`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1370,7 +1370,7 @@ async function runSuite() {
         portalSyncLancJs.includes("mergeRemoteSnapshotsForClienteApp") &&
         clienteAppJs.includes("45000") &&
         !clienteAppJs.includes("consolidarLancamentosClienteLogado(sessao.cpf)") &&
-        swClienteJs.includes("dk-cliente-v20260824premio-mm"),
+        swClienteJs.includes("dk-cliente-v20260824premio-1bar"),
       "Supabase sem lançamentos não apaga pagamentos do Redis no app"
     );
     record(
