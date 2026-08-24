@@ -346,7 +346,9 @@ async function runSuite() {
       "calendário aluguel dia pagamento por cliente",
       calJs.includes("portal-lanc-cal-val--dia-pagamento") &&
         calJs.includes("diaPagamentoCol") &&
-        calJs.includes("portal-lanc-cal-dow--pagamento")
+        calJs.includes("portal-lanc-cal-dow--pagamento") &&
+        calJs.includes("askConfirmAlteracoesCalendario") &&
+        htmlLancAluguel.includes("portalLancAluguelCalConfirm")
     );
     record(
       "PDF partilhar e-mail WhatsApp",
@@ -1283,8 +1285,10 @@ async function runSuite() {
     );
     record(
       "calendário portal envia nuvem após salvar",
-      calPortalJs.includes("await fn(") && calPortalJs.includes("res.notify"),
-      "salvar calendário confirma aviso ao cliente"
+      calPortalJs.includes("await fn(") &&
+        calPortalJs.includes("res.notify") &&
+        calPortalJs.includes("askConfirmAlteracoesCalendario"),
+      "salvar calendário pede confirmação e envia aviso ao cliente"
     );
     record(
       "app cliente sync mostra contagem pagamentos",

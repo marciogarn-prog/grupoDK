@@ -222,6 +222,7 @@
   }
 
   function fecharModal() {
+    fecharConfirmAlteracoesCalendario();
     const modal = document.getElementById("portalLancAluguelCalModal");
     if (modal) {
       modal.classList.add("hidden");
@@ -229,16 +230,61 @@
     }
   }
 
-  async function salvarCalendarioAno() {
-    const corpo = document.getElementById("portalLancAluguelCalCorpo");
+  function montarTextoConfirmacaoCalendario(ano, ctx, celulas) {
+    const linhas = [];
+    let total = 0;
+    let n = 0;
+    const isos = [...celulas.keys()].sort();
+    for (const iso of isos) {
+      const v = Number(celulas.get(iso)) || 0;
+      if (v <= 0) continue;
+      n += 1;
+      total += v;
+      linhas.push(`${brFromIso(iso)}  ${fmtVal(v)}`);
+    }
+    const proto = String(ctx?.proto || "").trim() || "—";
+    const cab = `Confirma guardar as alterações do calendário ${ano}?\n\nProtocolo ${proto}\n${n} pagamento(s) · total ${fmtVal(total)}`;
+    if (!linhas.length) {
+      return `${cab}\n\nNenhum valor preenchido. Os lançamentos manuais deste ano serão removidos.`;
+    }
+    const extra = linhas.length > 14 ? `\n… e mais ${linhas.length - 14} dia(s)` : "";
+    return `${cab}\n\n${linhas.slice(0, 14).join("\n")}${extra}`;
+  }
+
+  function fecharConfirmAlteracoesCalendario() {
+    const wrap = document.getElementById("portalLancAluguelCalConfirm");
+    if (!wrap) return;
+    wrap.classList.add("hidden");
+    wrap.setAttribute("aria-hidden", "true");
+  }
+
+  function askConfirmAlteracoesCalendario(texto) {
+    const wrap = document.getElementById("portalLancAluguelCalConfirm");
+    const p = document.getElementById("portalLancAluguelCalConfirmTexto");
+    if (!wrap || !p) return Promise.resolve(window.confirm(texto));
+    p.textContent = texto;
+    wrap.classList.remove("hidden");
+    wrap.setAttribute("aria-hidden", "false");
+    document.getElementById("portalLancAluguelCalConfirmSimBtn")?.focus();
+    return new Promise((resolve) => {
+      const sim = document.getElementById("portalLancAluguelCalConfirmSimBtn");
+      const nao = document.getElementById("portalLancAluguelCalConfirmNaoBtn");
+      const close = (ok) => {
+        fecharConfirmAlteracoesCalendario();
+        sim?.removeEventListener("click", onSim);
+        nao?.removeEventListener("click", onNao);
+        resolve(ok);
+      };
+      const onSim = () => close(true);
+      const onNao = () => close(false);
+      sim?.addEventListener("click", onSim);
+      nao?.addEventListener("click", onNao);
+    });
+  }
+
+  async function executarSalvarCalendarioAno(ano, ctx, celulas) {
     const msg = document.getElementById("portalLancAluguelCalMsg");
     const btn = document.getElementById("portalLancAluguelCalSalvarBtn");
-    if (!corpo || corpo.classList.contains("hidden")) return;
-    const ano = Number(corpo.dataset.ano);
-    if (!Number.isFinite(ano)) return;
-    const ctx = readLancAluguelCalCtx();
-    if (!ctx?.cpfDigits || !ctx?.proto) return;
-    const celulas = coletarCelulasAno(corpo);
     const fn = window.__DK_persistPortalLancAluguelCalendarioAno;
     if (typeof fn !== "function") {
       if (msg) msg.textContent = "Função de gravação indisponível.";
@@ -258,8 +304,7 @@
     if (msg) {
       if (notify?.ok && notify.count > 0) {
         msg.textContent =
-          notify.msg ||
-          `Pagamentos de ${ano} guardados. Informação já enviada para o cliente.`;
+          notify.msg || `Pagamentos de ${ano} guardados. Informação já enviada para o cliente.`;
       } else if (notify?.ok === false) {
         msg.textContent =
           notify.msg ||
@@ -271,6 +316,21 @@
     if (btn) btn.disabled = false;
   }
 
+  async function salvarCalendarioAno() {
+    const corpo = document.getElementById("portalLancAluguelCalCorpo");
+    const confirmEl = document.getElementById("portalLancAluguelCalConfirm");
+    if (!corpo || corpo.classList.contains("hidden")) return;
+    if (confirmEl && !confirmEl.classList.contains("hidden")) return;
+    const ano = Number(corpo.dataset.ano);
+    if (!Number.isFinite(ano)) return;
+    const ctx = readLancAluguelCalCtx();
+    if (!ctx?.cpfDigits || !ctx?.proto) return;
+    const celulas = coletarCelulasAno(corpo);
+    const ok = await askConfirmAlteracoesCalendario(montarTextoConfirmacaoCalendario(ano, ctx, celulas));
+    if (!ok) return;
+    await executarSalvarCalendarioAno(ano, ctx, celulas);
+  }
+
   function bindUi() {
     document.getElementById("operacaoLancAluguelLancBlocoBtn")?.addEventListener("click", () => {
       const msg = document.getElementById("operacaoLancAluguelInlineMsg");
@@ -280,6 +340,7 @@
     });
     document.getElementById("portalLancAluguelCalFecharBtn")?.addEventListener("click", fecharModal);
     document.getElementById("portalLancAluguelCalVoltarAnosBtn")?.addEventListener("click", () => {
+      fecharConfirmAlteracoesCalendario();
       document.getElementById("portalLancAluguelCalVoltarAnosBtn")?.classList.add("hidden");
       abrirModalAnoPick();
     });
