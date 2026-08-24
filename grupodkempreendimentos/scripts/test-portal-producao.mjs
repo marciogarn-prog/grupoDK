@@ -1345,6 +1345,17 @@ async function runSuite() {
         html.includes("operacaoLancAluguelSitTotalPagoAnoLabel"),
       "portal e app cliente somam o mesmo array de pagamentos"
     );
+    record(
+      "lançamento aluguel mostra devido e pago até hoje",
+      html.includes("operacaoLancAluguelTotalDevidoHoje") &&
+        html.includes("operacaoLancAluguelTotalPagoHoje") &&
+        html.includes("TOTAL DEVIDO ATÉ HOJE") &&
+        html.includes("TOTAL PAGO ATÉ HOJE") &&
+        portalUiLancPersistJs.includes("refreshOperacaoLancAluguelSaldosHoje") &&
+        portalUiLancPersistJs.includes("computePortalDiasAteHoje") &&
+        portalUiLancPersistJs.includes("valorDevidoAteHoje"),
+      "caixas ao lado da data/valor no registrar pagamento"
+    );
     const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
