@@ -6490,11 +6490,39 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 
 .portal-lanc-cal-modal__card {
+  position: relative;
   max-width: min(96vw, 920px);
   max-height: 92vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.portal-lanc-cal-confirm {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.portal-lanc-cal-confirm.hidden {
+  display: none;
+}
+
+.portal-lanc-cal-confirm__card {
+  max-width: 28rem;
+  width: 100%;
+  max-height: 85%;
+  overflow: auto;
+}
+
+.portal-lanc-cal-confirm__texto {
+  white-space: pre-wrap;
+  line-height: 1.45;
 }
 
 .portal-lanc-cal-corpo {

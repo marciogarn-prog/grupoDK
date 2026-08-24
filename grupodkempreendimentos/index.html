@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260823mt-bolas">
+  <link rel="stylesheet" href="styles.css?v=20260824cal-confirm">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -2351,6 +2351,16 @@
         <button type="button" class="btn-primary btn-secondary-outline hidden" id="portalLancAluguelCalVoltarAnosBtn">Escolher outro ano</button>
         <button type="button" class="btn-primary btn-secondary-outline" id="portalLancAluguelCalFecharBtn">Fechar</button>
       </div>
+      <div id="portalLancAluguelCalConfirm" class="portal-lanc-cal-confirm hidden" role="alertdialog" aria-modal="true" aria-labelledby="portalLancAluguelCalConfirmTitulo" aria-hidden="true">
+        <div class="portal-modal__card portal-lanc-cal-confirm__card">
+          <h4 id="portalLancAluguelCalConfirmTitulo" class="portal-modal__title">Confirmar alterações</h4>
+          <p id="portalLancAluguelCalConfirmTexto" class="portal-modal__text portal-lanc-cal-confirm__texto"></p>
+          <div class="portal-modal__actions">
+            <button type="button" class="btn-primary" id="portalLancAluguelCalConfirmSimBtn">Confirmar</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="portalLancAluguelCalConfirmNaoBtn">Cancelar</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -2450,7 +2460,7 @@
   <script src="portal-miel-workbook.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-ui.js?v=20260820check-n2" defer></script>
   <script src="portal-locacao-documentos.js?v=20260612loc-docs-import-sem-blob3" defer></script>
-  <script src="portal-lanc-aluguel-calendario.js?v=20260610avisos-check" defer></script>
+  <script src="portal-lanc-aluguel-calendario.js?v=20260824cal-confirm" defer></script>
   <script src="portal-documentos.js?v=20260820req-modelo" defer></script>
   <script src="data/dk-contrato-locacao-texto.js?v=20260820req-modelo" defer></script>
   <script src="data/dk-contrato-pacote-textos.js?v=20260820promessa-exata" defer></script>
