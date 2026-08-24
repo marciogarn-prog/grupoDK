@@ -1,10 +1,11 @@
 /**
  * Oficial: importa CADASTRO DE LOCAÇÕES(PROTOCOLOS).xlsx (protocolo único).
+ * Coluna «Locação» da planilha = valor do aluguel no sistema (`valorLocacao`).
  * Não altera clientes/veículos nem o canal demo. Depois da importação, locações novas
  * entram pelo cadastro do portal.
  *
  *   node grupodkempreendimentos/scripts/import-xlsx-locacoes-oficial.mjs
- *   node grupodkempreendimentos/scripts/import-xlsx-locacoes-oficial.mjs --confirm
+ *   node grupodkempreendimentos/scripts/import-xlsx-locacoes-oficial.mjs --patch-aluguel --confirm
  */
 import { createRequire } from "module";
 import path from "path";
@@ -117,13 +118,16 @@ function pick(row, ...names) {
   const norm = (s) =>
     String(s || "")
       .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
       .replace(/[\r\n]+/g, " ")
       .replace(/\s+/g, " ")
       .trim();
+  const mapped = keys.map((k) => ({ k, n: norm(k) }));
   for (const n of names) {
     const want = norm(n);
-    const hit = keys.find((k) => norm(k) === want || norm(k).includes(want));
-    if (hit && row[hit] != null && String(row[hit]).trim() !== "") return row[hit];
+    const hit = mapped.find((x) => x.n === want);
+    if (hit && row[hit.k] != null && String(row[hit.k]).trim() !== "") return row[hit.k];
   }
   return "";
 }
@@ -220,7 +224,7 @@ function locacoesFromXlsx(clientes) {
     const inicio = toBrDate(pick(row, "Data Inicio", "Data Início"));
     let fim = toBrDate(pick(row, "Data Fim"));
     if (status === "ATIVO") fim = "";
-    const locacao = parseMoney(pick(row, "Locação", "Locacao"));
+    const locacao = parseMoney(pick(row, "Locação", "Locacao", "Valor do Aluguel", "Valor Aluguel"));
     const investimento = parseMoney(pick(row, "Investimento"));
     const parcela = parseMoney(pick(row, "Valor da Parcela")) || locacao + investimento;
     const opcao = String(pick(row, "Opção de Contrato", "Opcao de Contrato")).trim();
@@ -282,10 +286,101 @@ if (u.size !== parsed.list.length) {
   process.exit(1);
 }
 
+const probe = parsed.list.find((l) => onlyDigits(l.numeroContrato) === "2026070201");
+if (!probe || parseMoney(probe.valorLocacao) < 300) {
+  console.error("Falha: coluna Locação da planilha não mapeou para valor do aluguel", probe);
+  process.exit(1);
+}
+
+const existing = payload.dk_locacoes_cadastro || [];
+const byXlsx = new Map(parsed.list.map((l) => [onlyDigits(l.numeroContrato), l]));
+let wouldPatchAluguel = 0;
+for (const loc of existing) {
+  const x = byXlsx.get(onlyDigits(loc.numeroContrato));
+  if (!x) continue;
+  if (parseMoney(loc.valorLocacao) <= 0 && parseMoney(x.valorLocacao) > 0) wouldPatchAluguel += 1;
+}
+console.log(
+  "Nuvem oficial:",
+  existing.length,
+  "protocolos com valor do aluguel vazio a preencher da coluna Locação:",
+  wouldPatchAluguel
+);
+
+if (process.argv.includes("--patch-aluguel")) {
+  if (!process.argv.includes("--confirm")) {
+    console.log("Dry-run. Para gravar o valor do aluguel (coluna Locação): --patch-aluguel --confirm");
+    process.exit(0);
+  }
+  const now = Date.now();
+  const patched = existing.map((loc) => {
+    const x = byXlsx.get(onlyDigits(loc.numeroContrato));
+    if (!x) return loc;
+    const curLoc = parseMoney(loc.valorLocacao);
+    const nextLoc = parseMoney(x.valorLocacao);
+    const curInv = parseMoney(loc.valorInvestimento);
+    const nextInv = parseMoney(x.valorInvestimento);
+    if ((curLoc > 0 || nextLoc <= 0) && (curInv > 0 || nextInv <= 0)) return loc;
+    return {
+      ...loc,
+      valorLocacao: curLoc > 0 ? loc.valorLocacao : x.valorLocacao,
+      valorInvestimento: curInv > 0 ? loc.valorInvestimento : x.valorInvestimento,
+      updatedAt: now,
+    };
+  });
+  if (patched.length !== existing.length) {
+    console.error("Recusa: o patch não pode alterar a quantidade de locações.");
+    process.exit(1);
+  }
+  await postRedis({
+    payload: { dk_locacoes_cadastro: patched },
+    updated_at: new Date().toISOString(),
+  });
+  const afterRedis = await getRedis();
+  const afterP = afterRedis.payload || {};
+  try {
+    const rows = await supabaseFetch(`dk_cloud_snapshots?label=eq.${LABEL}&select=label`);
+    if (rows.length) {
+      await supabaseFetch(`dk_cloud_snapshots?label=eq.${LABEL}`, {
+        method: "PATCH",
+        headers: { Prefer: "return=minimal" },
+        body: JSON.stringify({ payload: afterP, updated_at: new Date().toISOString() }),
+      });
+      console.log("Supabase default actualizado");
+    }
+  } catch (e) {
+    console.warn("Supabase:", e.message || e);
+  }
+  const lAfter = afterP.dk_locacoes_cadastro || [];
+  const filled = lAfter.filter((l) => parseMoney(l.valorLocacao) > 0).length;
+  const stillZero = lAfter.filter((l) => {
+    const x = byXlsx.get(onlyDigits(l.numeroContrato));
+    return x && parseMoney(x.valorLocacao) > 0 && parseMoney(l.valorLocacao) <= 0;
+  }).length;
+  const cAfter = (afterP.dk_clientes_cadastro || []).length;
+  const vAfter = (afterP.dk_veiculos_cadastro || []).length;
+  console.log("Locações:", lAfter.length, "com valor do aluguel preenchido:", filled, "ainda vazio:", stillZero);
+  console.log("Clientes/veículos intactos:", cAfter, vAfter);
+  const probeAfter = lAfter.find((l) => onlyDigits(l.numeroContrato) === "2026070201");
+  const ok =
+    lAfter.length === existing.length &&
+    stillZero === 0 &&
+    parseMoney(probeAfter?.valorLocacao) >= 300 &&
+    cAfter === 369 &&
+    vAfter === 186;
+  if (!ok) {
+    console.error("Falha na verificação do patch de valor do aluguel.");
+    process.exit(1);
+  }
+  console.log("OK — valor do aluguel = coluna Locação da planilha, sem apagar protocolos.");
+  process.exit(0);
+}
+
 if (!process.argv.includes("--confirm")) {
   const ativos = parsed.list.filter((l) => l.statusLocacao === "ATIVO").length;
   console.log("Dry-run. ATIVO:", ativos, "FINALIZADO:", parsed.list.filter((l) => l.statusLocacao === "FINALIZADO").length);
-  console.log("Para gravar na nuvem oficial: --confirm");
+  console.log("Para preencher valor do aluguel na nuvem: --patch-aluguel --confirm");
+  console.log("Para reimportar a lista inteira (não use se já houver protocolos no portal): --confirm");
   process.exit(0);
 }
 

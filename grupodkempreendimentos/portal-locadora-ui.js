@@ -13214,7 +13214,7 @@
         .replace(/R\$\s?/gi, "")
         .trim();
     };
-    if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
+    if (valLocEl) valLocEl.value = fmtValor(portalValorAluguelNumFromLoc(loc));
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
     if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
     syncOperacaoLocacaoFromDataInicio();
@@ -14489,8 +14489,8 @@
     return collectPortalLocacoesByCpf(digits).find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) || null;
   }
 
-  /** Valores do bloco «resumo» do protocolo (alinhado ao painel Cadastro de locação). */
-  function computePortalProtocoloResumoFromLoc(loc) {
+  /** Valor do aluguel no sistema = coluna Locação da planilha (`valorLocacao`). */
+  function portalValorAluguelNumFromLoc(loc) {
     const parseCur =
       typeof parseCurrencyBR === "function"
         ? (v) => Number(parseCurrencyBR(String(v ?? "")))
@@ -14498,9 +14498,19 @@
     let valLoc = parseCur(loc?.valorLocacao ?? "0");
     const valInv = parseCur(loc?.valorInvestimento ?? "0");
     const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
-    if (valLoc <= 0 && valSemanalCampo > 0) {
-      valLoc = Math.max(0, valSemanalCampo - valInv);
-    }
+    if (valLoc <= 0 && valSemanalCampo > 0) valLoc = Math.max(0, valSemanalCampo - valInv);
+    return valLoc;
+  }
+
+  /** Valores do bloco «resumo» do protocolo (alinhado ao painel Cadastro de locação). */
+  function computePortalProtocoloResumoFromLoc(loc) {
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? (v) => Number(parseCurrencyBR(String(v ?? "")))
+        : (v) => Number(parsePortalLancamentoValorRaw(v));
+    const valLoc = portalValorAluguelNumFromLoc(loc);
+    const valInv = parseCur(loc?.valorInvestimento ?? "0");
+    const valSemanalCampo = parseCur(loc?.valorSemanal ?? loc?.valorParcela ?? "0");
     const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
     const tempo = computePortalTempoDiasLoc(loc);
     const custoDiaNum = plano / 7;
@@ -15838,7 +15848,7 @@
     } else if (placaEl) placaEl.value = String(loc.placa || "").trim() || "—";
     if (diEl) diEl.value = fmtDate(loc.inicio);
     if (dfEl) dfEl.value = fmtDate(loc.fim);
-    if (valLocEl) valLocEl.value = fmtValor(loc.valorLocacao);
+    if (valLocEl) valLocEl.value = fmtValor(portalValorAluguelNumFromLoc(loc));
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
     const resumo = computePortalProtocoloResumoFromLoc(loc);
     const assign = (id, val) => {
