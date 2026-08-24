@@ -14980,12 +14980,31 @@
     if (pagoEl) pagoEl.textContent = resumo.totalPago || zero;
   }
 
+  function portalValorPlanoPagamentoSugeridoFmt(loc) {
+    if (loc) {
+      const resumo = computePortalProtocoloResumoFromLoc(loc);
+      const plano = String(resumo?.valorPlano || "").trim();
+      if (plano) return plano;
+    }
+    const parse =
+      typeof parseCurrencyBR === "function"
+        ? (v) => Number(parseCurrencyBR(String(v ?? ""))) || 0
+        : (v) => Number(parsePortalLancamentoValorRaw(v ?? "")) || 0;
+    const alug = parse(document.getElementById("operacaoLancAluguelValorAluguel")?.value);
+    const inv = parse(document.getElementById("operacaoLancAluguelValorInvestimento")?.value);
+    const planoCad = String(document.getElementById("operacaoLocacaoValorPlano")?.value || "").trim();
+    if (planoCad) return planoCad;
+    const soma = alug + inv;
+    return soma > 0 ? formatPortalLancamentoSumBrl(soma) : "";
+  }
+
   function preencherLancAluguelFormSimples() {
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     if (dataEl) dataEl.value = formatPortalDataBr(new Date());
-    const valContrato = String(document.getElementById("operacaoLancAluguelValorAluguel")?.value || "").trim();
-    if (valSimples && valContrato) valSimples.value = valContrato;
+    const loc = resolveLocOperacaoLancAluguelAtual();
+    const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
+    if (valSimples && valPlano) valSimples.value = valPlano;
     if (typeof normalizePortalMaskedFieldValues === "function") normalizePortalMaskedFieldValues();
   }
 
