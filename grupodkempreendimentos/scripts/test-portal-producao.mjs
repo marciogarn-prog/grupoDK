@@ -837,6 +837,9 @@ async function runSuite() {
         contratoJs.includes("coletarFontesEnderecoCliente") &&
         contratoJs.includes("montarEnderecoContratoDeFontes") &&
         contratoJs.includes("garantirDadosContratoComEndereco") &&
+        contratoJs.includes("pagina-contrato") &&
+        contratoJs.includes("__DK_contratoLocacaoCssPagina") &&
+        contratoJs.includes("writing-mode: vertical-rl") &&
         contratoJs.includes("clienteEmbutidoPorCpf") &&
         uiContratoJs.includes("window.__DK_getClienteByCpfAny = getClienteByCpfAny") &&
         uiContratoJs.includes("portalEnderecoContratoValido") &&
@@ -849,6 +852,17 @@ async function runSuite() {
         vendorHtml2canvas &&
         contratoJs.includes("__DK_contratoLocacaoSincronizarPasta") &&
         contratoJs.includes("__DK_documentosObterContratoPorProtocolo")
+    );
+    const pacoteJs = await fetch(`${BASE_URL}portal-contrato-pacote.js?v=20260824layout-sisloc`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "impressao do pacote usa layout A4 do modelo SISLOC",
+      pacoteJs.includes("__DK_contratoLocacaoCssPagina") &&
+        pacoteJs.includes("cssContratoPag") &&
+        contratoJs.includes("pagina pagina-contrato") &&
+        contratoJs.includes("Arial, Helvetica"),
+      "logo esquerda, titulo direita, faixa vertical"
     );
     const syncJs = await page.evaluate(async () => {
       const r = await fetch("portal-supabase-sync.js?v=20260609docs-auto", { cache: "no-store" });

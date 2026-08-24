@@ -416,6 +416,106 @@
       .replace(/\{\{MUNICIPIO_DATA\}\}/g, esc(dados.municipioData));
   }
 
+  /** Folha A4 do modelo SISLOC (logo à esquerda, título à direita, faixa vertical). */
+  function cssContratoPagina() {
+    return `
+.pagina.pagina-contrato {
+  position: relative;
+  width: 210mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  padding: 11mm 24mm 16mm 12mm;
+  background: #fff;
+  color: #000;
+  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
+  font-size: 8.6pt;
+  line-height: 1.22;
+  page-break-after: always;
+  break-after: page;
+}
+.pagina.pagina-contrato .cabecalho {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8mm;
+  margin: 0 0 4.5mm;
+}
+.pagina.pagina-contrato .cabecalho img {
+  display: block;
+  height: 14mm;
+  width: auto;
+  max-width: 44mm;
+  object-fit: contain;
+  object-position: left top;
+  flex: 0 0 auto;
+}
+.pagina.pagina-contrato .cabecalho-titulo {
+  text-align: right;
+  flex: 1 1 auto;
+  padding-top: 0.4mm;
+}
+.pagina.pagina-contrato .cabecalho-titulo h1 {
+  margin: 0;
+  font-size: 12pt;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 1.5px;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  text-align: right;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.pagina.pagina-contrato .cabecalho-titulo .proto {
+  margin: 2mm 0 0;
+  font-size: 10pt;
+  font-weight: 700;
+  text-align: right;
+}
+.pagina.pagina-contrato .partes { margin: 0 0 4mm; text-align: justify; }
+.pagina.pagina-contrato .partes p { margin: 0 0 2.4mm; text-align: justify; }
+.pagina.pagina-contrato .hl { background: #fff3a0; padding: 0 1px; }
+.pagina.pagina-contrato .sidebar {
+  position: absolute;
+  top: 12mm;
+  right: 3.2mm;
+  bottom: 14mm;
+  width: 14mm;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 6.2pt;
+  color: #222;
+  text-align: center;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.pagina.pagina-contrato .corpo { text-align: justify; }
+.pagina.pagina-contrato .cl,
+.pagina.pagina-contrato .cl-n { margin: 0 0 1.6px; text-align: justify; }
+.pagina.pagina-contrato .cl-t {
+  font-weight: 700;
+  margin: 3.2mm 0 1.4mm;
+  font-size: 9pt;
+  text-align: left;
+}
+.pagina.pagina-contrato .pe-pagina {
+  position: absolute;
+  bottom: 6.5mm;
+  left: 12mm;
+  right: 24mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt;
+  color: #333;
+  border-top: 1px solid #bbb;
+  padding-top: 2.5px;
+  font-family: Arial, Helvetica, sans-serif;
+}`;
+  }
+
   /** CSS A4 — exactamente 1 ecrã = 1 página (10 páginas no total). */
   function cssContrato() {
     return `
@@ -432,33 +532,12 @@ body.contrato-preview { padding-top: 52px; }
   overflow: hidden;
   background: #fff;
   margin: 0 auto 8px;
-  padding: 10mm 26mm 12mm 10mm;
-  font-family: "Times New Roman", Times, serif;
-  font-size: 8.25pt;
-  line-height: 1.2;
-  color: #111;
   page-break-after: always;
   break-after: page;
 }
 .pagina:last-child { page-break-after: auto; margin-bottom: 0; }
-.cabecalho { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-.cabecalho img { height: 38px; width: auto; object-fit: contain; }
-.cabecalho-titulo { text-align: right; flex: 1; }
-.cabecalho-titulo h1 { margin: 0; font-size: 12pt; text-decoration: underline; letter-spacing: 0.02em; font-weight: bold; }
-.cabecalho-titulo .proto { margin: 4px 0 0; font-size: 9.5pt; font-weight: 600; }
-.partes { margin: 4px 0 8px; text-align: justify; }
-.partes p { margin: 0 0 5px; }
-.hl { background: #fff3a0; padding: 0 1px; }
-.sidebar {
-  position: absolute; top: 10mm; right: 3mm; bottom: 12mm; width: 18mm;
-  writing-mode: vertical-rl; transform: rotate(180deg);
-  font-size: 6pt; color: #333; text-align: center; letter-spacing: 0.01em; line-height: 1.15;
-  overflow: hidden;
-}
-.corpo { text-align: justify; }
-.cl, .cl-n { margin: 0 0 2px; text-align: justify; }
-.cl-t { font-weight: bold; margin: 5px 0 2px; font-size: 8.5pt; }
-.cl-n { margin-bottom: 1px; }
+${cssContratoPagina()}
+.sig-area {
 .sig-area {
   display: flex;
   justify-content: space-between;
@@ -739,7 +818,7 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   </div>
 </div>`
         : "";
-    return `<div class="pagina" data-pagina="${num}">
+    return `<div class="pagina pagina-contrato" data-pagina="${num}">
   <div class="sidebar">${esc(dados.sidebar)}</div>
   ${titulo}
   ${capa}
@@ -1260,6 +1339,7 @@ ${scriptPreviewInline(dados)}
   window.__DK_contratoLocacaoResolverFromLoc = resolverDadosFromLoc;
   window.__DK_resolverEnderecoClienteContrato = resolverEnderecoContrato;
   window.__DK_formatEnderecoContratoLocatario = formatEnderecoContratoLocatario;
+  window.__DK_contratoLocacaoCssPagina = cssContratoPagina;
   window.__DK_contratoLocacaoBuildHtml = buildContratoPreviewHtml;
   window.__DK_contratoLocacaoBuildPaginasKit = buildPaginasHtml;
   window.__DK_contratoLocacaoSnapshotDados = snapshotContratoDados;
