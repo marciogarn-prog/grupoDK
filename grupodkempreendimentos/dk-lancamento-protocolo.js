@@ -25,6 +25,17 @@
     return window.__DK_IS_DEMO_DEPLOY__ !== true;
   }
 
+  /** App do cliente: mostra o que o operador gravou na nuvem, sem o filtro estrito do portal. */
+  function isClienteAppContext() {
+    try {
+      const p = String(window.location.pathname || "").toLowerCase();
+      if (p === "/cliente" || p.endsWith("/cliente") || p.endsWith("/cliente.html")) return true;
+    } catch {
+      /* ignore */
+    }
+    return Boolean(window.__DK_CLIENTE_APP);
+  }
+
   function normNc(v) {
     return String(v ?? "")
       .trim()
@@ -86,14 +97,15 @@
   /** Oficial: rejeita fantasma, legado -000, teste e lançamento sem operador identificado. */
   function isLancamentoOficialAceite(row) {
     if (!row || row.pagamentoInvalidado) return false;
-    if (!isOficialDeploy()) return true;
+    if (!isOficialDeploy() || isClienteAppContext()) return true;
     if (row.ficticio) return false;
     const proto = String(row.protocoloLancamento || "").trim();
     if (!isProtocoloLancamentoValid(proto)) return false;
     if (proto.endsWith("-000")) return false;
     const cpfOp = onlyDigits(row.registradoPorCpf || row.comprovanteValidadoPorCpf || "").slice(0, 11);
     if (cpfOp.length !== 11) return false;
-    if (typeof row.createdAt !== "number" || !Number.isFinite(row.createdAt) || row.createdAt <= 0) return false;
+    const ca = Number(row.createdAt);
+    if (!Number.isFinite(ca) || ca <= 0) return false;
     return true;
   }
 
@@ -120,9 +132,10 @@
           : parseValorRaw(raw.valor ?? raw.valorPago ?? 0);
     }
     if (!Number.isFinite(valor) || valor <= 0) return null;
+    const createdAtRaw = Number(raw.createdAt);
     const createdAt =
-      typeof raw.createdAt === "number" && Number.isFinite(raw.createdAt)
-        ? raw.createdAt
+      Number.isFinite(createdAtRaw) && createdAtRaw > 0
+        ? createdAtRaw
         : Number(raw.id || 0) || Date.now();
     const registradoPorCpf = onlyDigits(String(raw.registradoPorCpf || raw.registradoPor || "")).slice(0, 11);
     const registradoPorNome = String(raw.registradoPorNome || raw.comprovanteValidadoPorNome || "").trim();
@@ -149,7 +162,7 @@
       const proto = gerarProtocoloLancamento(cpfProto, new Date(createdAt));
       if (proto) row.protocoloLancamento = proto;
     }
-    if (isOficialDeploy() && !isLancamentoOficialAceite(row)) return null;
+    if (isOficialDeploy() && !isClienteAppContext() && !isLancamentoOficialAceite(row)) return null;
     return row;
   }
 
@@ -255,7 +268,7 @@
           if (!byProto.has(generated)) byProto.set(generated, row);
           continue;
         }
-        if (isOficialDeploy()) continue;
+        if (isOficialDeploy() && !isClienteAppContext()) continue;
         const legacyKey = `${row.data}|${Number(row.valor).toFixed(2)}|${row.createdAt}|${row.registradoPorCpf}`;
         if (!byLegacy.has(legacyKey)) byLegacy.set(legacyKey, row);
       }
@@ -290,7 +303,7 @@
           row.protocoloLancamento = proto;
           seen.add(proto);
         }
-        if (isOficialDeploy() && !isLancamentoOficialAceite(row)) return null;
+        if (isOficialDeploy() && !isClienteAppContext() && !isLancamentoOficialAceite(row)) return null;
         return row;
       })
       .filter(Boolean);
@@ -319,6 +332,10 @@
   }
 
   function getLancamentosAluguelCanonico(loc) {
+    if (isClienteAppContext()) {
+      const embedded = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+      return embedded.map(normalizeRow).filter(Boolean);
+    }
     if (isOficialDeploy()) {
       return consolidarLancamentosAluguelLoc(loc, { mutate: false });
     }

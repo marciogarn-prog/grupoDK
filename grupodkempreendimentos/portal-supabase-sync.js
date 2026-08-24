@@ -704,9 +704,9 @@
     "dk_comprovantes_cliente_pendentes",
   ]);
 
-  /** App cliente: não consolidar centenas de locações da demo no pull (travava a UI). */
-  function shouldSkipConsolidateLocacoesOnApply(opts) {
-    return Boolean(opts && opts.lightSanitize && isClienteAppPage());
+  /** App cliente: nunca consolidar no pull — o filtro estrito do oficial apagava pagamentos sem protocolo. */
+  function shouldSkipConsolidateLocacoesOnApply() {
+    return isClienteAppPage();
   }
 
   function consolidateLocacoesPagamentosInPlace(arr, opts) {
@@ -1313,7 +1313,55 @@
     return { ...data, source: "supabase" };
   }
 
+  let clienteSnapshotCache = { at: 0, data: null };
+
+  function mergeRemoteSnapshotsForClienteApp(supa, redis) {
+    const a = supa?.payload;
+    const b = redis?.payload;
+    if (!a && !b) return null;
+    if (!a) return b;
+    if (!b) return a;
+    const out = { ...a, ...b };
+    const mergeFn =
+      typeof window.__DK_mergeLocacoesCadastroCliente === "function"
+        ? window.__DK_mergeLocacoesCadastroCliente
+        : mergeLocacoesCadastroBeforePush;
+    out.dk_locacoes_cadastro = mergeFn(
+      Array.isArray(a.dk_locacoes_cadastro) ? a.dk_locacoes_cadastro : [],
+      Array.isArray(b.dk_locacoes_cadastro) ? b.dk_locacoes_cadastro : []
+    );
+    return out;
+  }
+
+  async function fetchCloudSnapshotPayloadClienteApp() {
+    if (clienteSnapshotCache.data && Date.now() - clienteSnapshotCache.at < 30000) {
+      return clienteSnapshotCache.data;
+    }
+    const redisP = fetchRedundantSnapshotPayload();
+    const supaP = withCloudTimeout(fetchSupabaseSnapshotPayload(), 8000, "supabase_timeout").catch(() => null);
+    const redis = await redisP;
+    let supa = null;
+    try {
+      supa = await supaP;
+    } catch {
+      supa = null;
+    }
+    const payload = mergeRemoteSnapshotsForClienteApp(supa, redis);
+    if (!payload) return null;
+    const newest = pickNewestCloudRow([supa, redis].filter(Boolean));
+    const data = {
+      payload,
+      updated_at: newest?.updated_at || redis?.updated_at || supa?.updated_at || null,
+      source: redis ? "redis+cliente" : "supabase+cliente",
+    };
+    clienteSnapshotCache = { at: Date.now(), data };
+    return data;
+  }
+
   async function fetchCloudSnapshotPayload() {
+    if (isClienteAppPage()) {
+      return fetchCloudSnapshotPayloadClienteApp();
+    }
     const supa = await fetchSupabaseSnapshotPayload();
     const redis = await fetchRedundantSnapshotPayload();
     const mergedPayload = mergeRemoteSnapshotsBeforePush(supa, redis);
@@ -2190,13 +2238,13 @@
       numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
     };
     if (mergedPl.length) merged.portalLancamentosAluguel = mergedPl;
-    if (typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
+    if (!isClienteAppPage() && typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
       window.__DK_consolidarLancamentosAluguelLoc(merged, { mutate: true });
     }
     if (score(incoming) >= score(ex)) return merged;
     const stay = { ...ex, ...merged };
     if (mergedPl.length) stay.portalLancamentosAluguel = mergedPl;
-    if (typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
+    if (!isClienteAppPage() && typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
       window.__DK_consolidarLancamentosAluguelLoc(stay, { mutate: true });
     }
     return stay;
@@ -2917,7 +2965,7 @@
     suppressCloudHook = true;
     try {
       applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: !force });
-      if (Array.isArray(filtered.dk_locacoes_cadastro)) {
+      if (Array.isArray(filtered.dk_locacoes_cadastro) && filtered.dk_locacoes_cadastro.length) {
         localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(filtered.dk_locacoes_cadastro));
       }
       sanitizeLocacaoDocumentosLocalStorage();
@@ -3115,6 +3163,14 @@
       saveCadastro("dk_clientes_cadastro", local, { bypassImmutabilidadeCadastro: true });
     } else {
       localStorage.setItem("dk_clientes_cadastro", JSON.stringify(local));
+    }
+    const locs = filterCloudLocacoesForCliente(dig, data?.payload?.dk_locacoes_cadastro);
+    if (locs.length) {
+      if (typeof saveCadastro === "function") {
+        saveCadastro("dk_locacoes_cadastro", locs, { bypassImmutabilidadeCadastro: true });
+      } else {
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(locs));
+      }
     }
     return { ok: true };
   }

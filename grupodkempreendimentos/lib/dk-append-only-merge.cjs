@@ -120,13 +120,12 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       const ca = Number(raw.createdAt || raw.id || 0);
       const key = `${data}|${valor}|${ca}`;
       if (byKey.has(key)) continue;
-      const row = {
-        data,
-        valor,
-        createdAt: ca || Date.now(),
-        registradoPorCpf: onlyDigits(raw.registradoPorCpf).slice(0, 11),
-        registradoPorNome: String(raw.registradoPorNome || "").trim(),
-      };
+      const row = { ...raw, data, valor, createdAt: ca || Date.now() };
+      row.registradoPorCpf = onlyDigits(raw.registradoPorCpf).slice(0, 11);
+      row.registradoPorNome = String(raw.registradoPorNome || "").trim();
+      if (raw.protocoloLancamento || raw.protocolo) {
+        row.protocoloLancamento = String(raw.protocoloLancamento || raw.protocolo || "").trim();
+      }
       if (hasMeios(raw)) {
         row.valorEspecie = parseVal(raw.valorEspecie);
         row.valorPix = parseVal(raw.valorPix);
