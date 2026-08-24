@@ -339,7 +339,7 @@
         payload[k] = raw;
       }
     }
-    if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+    if (typeof window.__DK_sanitizeOficialCloudPayload === "function" && !isClienteAppPage()) {
       Object.assign(payload, window.__DK_sanitizeOficialCloudPayload(payload) || payload);
     }
     if (payload.dk_patrimonio_crlv_v1) {
@@ -633,14 +633,35 @@
     return "";
   }
 
-  function filterCloudLocacoesForCliente(cpf, cloudArr) {
+  function filterCloudLocacoesForCliente(cpf, cloudArr, proto) {
     const dig = String(cpf || "")
       .replace(/\D/g, "")
       .slice(0, 11);
-    if (!dig || !Array.isArray(cloudArr)) return [];
-    return cloudArr.filter(
-      (l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig
-    );
+    const protoFull = String(proto || "").replace(/\D/g, "");
+    if ((!dig || dig.length !== 11) && !protoFull) return [];
+    if (!Array.isArray(cloudArr)) return [];
+    return cloudArr.filter((l) => {
+      const c = String(l?.cpf || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
+      if (dig.length === 11 && c === dig) return true;
+      const nc = String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
+      if (protoFull && nc === protoFull) return true;
+      return false;
+    });
+  }
+
+  function clienteAppSessaoProto() {
+    if (!isClienteAppPage()) return "";
+    try {
+      const raw =
+        sessionStorage.getItem("dk_cliente_app_gate") ||
+        localStorage.getItem("dk_cliente_gate_persist");
+      const g = raw ? JSON.parse(raw) : null;
+      return String(g?.proto || g?.protocolo || "").replace(/\D/g, "");
+    } catch {
+      return "";
+    }
   }
 
   /** App cliente: não baixar frota inteira da demo — só dados do CPF logado. */
@@ -652,7 +673,11 @@
     if (!dig) return payload;
     const out = { ...payload };
     if (Array.isArray(out.dk_locacoes_cadastro)) {
-      out.dk_locacoes_cadastro = filterCloudLocacoesForCliente(dig, out.dk_locacoes_cadastro);
+      out.dk_locacoes_cadastro = filterCloudLocacoesForCliente(
+        dig,
+        out.dk_locacoes_cadastro,
+        clienteAppSessaoProto()
+      );
     }
     if (Array.isArray(out.dk_comunicacao_operacao_v1)) {
       out.dk_comunicacao_operacao_v1 = out.dk_comunicacao_operacao_v1.filter(
@@ -726,7 +751,7 @@
 
   function applyPayloadToLocalStorage(payload, opts) {
     if (!payload || typeof payload !== "object") return;
-    if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
+    if (typeof window.__DK_sanitizeOficialCloudPayload === "function" && !isClienteAppPage()) {
       payload = window.__DK_sanitizeOficialCloudPayload(payload);
     }
     const lightSanitize = Boolean(opts && opts.lightSanitize);
@@ -774,6 +799,7 @@
           }
         }
         if (k === "dk_locacoes_cadastro") {
+          if (isClienteAppPage() && !arr.length) continue;
           arr = normalizeLocacoesContratoAtivoList(arr);
           const localArr = readLocalJsonArray(k);
           const mergeFn =
@@ -804,6 +830,7 @@
           }
         }
         if (k === "dk_locacoes_cadastro") {
+          if (isClienteAppPage() && !cloudArr.length) continue;
           cloudArr = normalizeLocacoesContratoAtivoList(cloudArr);
           const localArr = readLocalJsonArray(k);
           const mergeFn =
@@ -3012,9 +3039,16 @@
     if (!cpf || !isClienteAppPage()) return false;
     const arr = readLocalJsonArray("dk_locacoes_cadastro");
     if (!arr.length) return false;
-    const kept = arr.filter(
-      (l) => String(l?.cpf || "").replace(/\D/g, "").slice(0, 11) === cpf
-    );
+    const proto = clienteAppSessaoProto();
+    const kept = arr.filter((l) => {
+      const c = String(l?.cpf || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
+      if (c === cpf) return true;
+      const nc = String(l?.numeroContrato || l?.protocolo || "").replace(/\D/g, "");
+      if (proto && nc === proto) return true;
+      return false;
+    });
     if (kept.length === arr.length) return false;
     localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(kept));
     return true;
@@ -3038,7 +3072,7 @@
     if (!Object.keys(mini).length) return { ok: true, skipped: true, reason: "empty_filtered" };
     suppressCloudHook = true;
     try {
-      applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: !force });
+      applyPayloadToLocalStorage(mini, { replace: false, lightSanitize: true });
       sanitizeLocacaoDocumentosLocalStorage();
       trimLocalLocacoesToClienteCpf();
     } finally {
@@ -3209,7 +3243,7 @@
     }
   }
 
-  async function upsertClienteCadastroFromCloud(cpf) {
+  async function upsertClienteCadastroFromCloud(cpf, proto) {
     const dig = String(cpf || "")
       .replace(/\D/g, "")
       .slice(0, 11);
@@ -3231,19 +3265,25 @@
     if (idx >= 0) local[idx] = next;
     else local.push(next);
     if (typeof saveCadastro === "function") {
-      saveCadastro("dk_clientes_cadastro", local, { bypassImmutabilidadeCadastro: true });
+      saveCadastro("dk_clientes_cadastro", local);
     } else {
       localStorage.setItem("dk_clientes_cadastro", JSON.stringify(local));
     }
-    const locs = filterCloudLocacoesForCliente(dig, data?.payload?.dk_locacoes_cadastro);
-    if (locs.length) {
+    const locs = filterCloudLocacoesForCliente(
+      dig,
+      data?.payload?.dk_locacoes_cadastro,
+      proto || clienteAppSessaoProto()
+    );
+    const localLocs = readLocalJsonArray("dk_locacoes_cadastro");
+    const mergedLocs = mergeLocacoesCadastroBeforePush(localLocs, locs);
+    if (mergedLocs.length) {
       if (typeof saveCadastro === "function") {
-        saveCadastro("dk_locacoes_cadastro", locs, { bypassImmutabilidadeCadastro: true });
+        saveCadastro("dk_locacoes_cadastro", mergedLocs);
       } else {
-        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(locs));
+        localStorage.setItem("dk_locacoes_cadastro", JSON.stringify(mergedLocs));
       }
     }
-    return { ok: true };
+    return { ok: true, locacoes: mergedLocs.length };
   }
 
   try {
