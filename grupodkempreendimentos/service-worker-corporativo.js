@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260824sugestao-plano";
+const CACHE_NAME = "dk-corporativo-v20260824excluir-cpf-fake";
 const ASSETS = [
   "./",
   "./index.html",

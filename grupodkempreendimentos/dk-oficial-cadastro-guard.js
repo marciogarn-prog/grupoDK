@@ -113,8 +113,23 @@
     return null;
   }
 
+  function cpfDigits(record) {
+    return String(record?.cpf || "").replace(/\D/g, "");
+  }
+
+  /** Placeholders 000.000.000-01 / -03 (JEFERSON / MARCIO) — não entram no oficial. */
+  const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
+
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
+    if (
+      record &&
+      typeof record === "object" &&
+      cadastroKeyFamily(key) === "cliente" &&
+      OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfDigits(record))
+    ) {
+      return false;
+    }
     if (record && typeof record === "object" && record.origemPlanilha === true) return false;
     if (record && typeof record === "object" && record.cadastroRetroativo === true) return true;
     if (record && typeof record === "object" && record.origemPortal === true) return true;
