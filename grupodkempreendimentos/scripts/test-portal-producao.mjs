@@ -693,6 +693,12 @@ async function runSuite() {
         portalUiProto.includes("bindOperacaoLocacaoAutofill"),
       "autofill usa resolucao completa"
     );
+    record(
+      "valor do aluguel = coluna Locação da planilha",
+      portalUiProto.includes("portalValorAluguelNumFromLoc") &&
+        portalUiProto.includes("fmtValor(portalValorAluguelNumFromLoc(loc))"),
+      "cadastro de locação lê valorLocacao (Locação)"
+    );
     const gateApiSrc = fs.readFileSync(
       path.join(REPO_ROOT, "grupodkempreendimentos/api/cadastro-clientes.js"),
       "utf8"
