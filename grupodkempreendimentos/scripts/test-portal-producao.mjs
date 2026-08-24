@@ -1320,7 +1320,7 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824pag-app`, {
+    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824pag-sync`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1332,8 +1332,18 @@ async function runSuite() {
         portalSyncLancJs.includes("mergeRemoteSnapshotsForClienteApp") &&
         clienteAppJs.includes("45000") &&
         !clienteAppJs.includes("consolidarLancamentosClienteLogado(sessao.cpf)") &&
-        swClienteJs.includes("dk-cliente-v20260824pag-app"),
+        swClienteJs.includes("dk-cliente-v20260824pag-sync"),
       "Supabase sem lançamentos não apaga pagamentos do Redis no app"
+    );
+    record(
+      "merge nuvem recalcula valor pago (não usa último lançamento apagado)",
+      lancProtoJs.includes("syncResumoPagamentosNaLocacao") &&
+        lancProtoJs.includes("__DK_syncResumoPagamentosNaLocacao") &&
+        clienteResumoJs.includes("keepIncoming") &&
+        portalSyncLancJs.includes("keepIncoming") &&
+        portalUiLancPersistJs.includes("portalAnoResumoLancamentoAluguel") &&
+        html.includes("operacaoLancAluguelSitTotalPagoAnoLabel"),
+      "portal e app cliente somam o mesmo array de pagamentos"
     );
     const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260610avisos-check`, {
       cache: "no-store",

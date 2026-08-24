@@ -2232,11 +2232,10 @@
       incoming?.portalLancamentosAluguel,
     ]);
     const score = (l) => Number(l?.updatedAt || l?.createdAt || l?.id || 0);
-    const merged = {
-      ...ex,
-      ...incoming,
-      numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
-    };
+    const keepIncoming = score(incoming) >= score(ex);
+    const merged = keepIncoming
+      ? { ...ex, ...incoming, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato }
+      : { ...incoming, ...ex, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato };
     if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
       window.__DK_anexarLancamentosMergeNaLocacao(merged, ex, incoming, mergedPl);
     } else if (mergedPl.length) {
@@ -2245,17 +2244,7 @@
     if (!isClienteAppPage() && typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
       window.__DK_consolidarLancamentosAluguelLoc(merged, { mutate: true });
     }
-    if (score(incoming) >= score(ex)) return merged;
-    const stay = { ...ex, ...merged };
-    if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
-      window.__DK_anexarLancamentosMergeNaLocacao(stay, ex, incoming, mergedPl);
-    } else if (mergedPl.length) {
-      stay.portalLancamentosAluguel = mergedPl;
-    }
-    if (!isClienteAppPage() && typeof window.__DK_consolidarLancamentosAluguelLoc === "function") {
-      window.__DK_consolidarLancamentosAluguelLoc(stay, { mutate: true });
-    }
-    return stay;
+    return merged;
   }
 
   function mergeLocacoesCadastroBeforePush(localArr, cloudArr) {

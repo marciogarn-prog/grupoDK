@@ -153,7 +153,35 @@
     ]);
     target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
     if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
+    syncResumoPagamentosNaLocacao(target);
     return target;
+  }
+
+  function syncResumoPagamentosNaLocacao(loc) {
+    if (!loc || typeof loc !== "object") return loc;
+    const arr = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+    const sum = arr.reduce((s, x) => s + Number(x.valor || 0), 0);
+    loc.totalPagoAno2025 = sum.toLocaleString("pt-BR", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    const maxCa = arr.reduce((m, x) => Math.max(m, Number(x.createdAt || 0)), 0);
+    const cur = Number(loc.updatedAt || loc.createdAt || 0);
+    if (Number.isFinite(maxCa) && maxCa > cur) loc.updatedAt = maxCa;
+    if (!arr.length) {
+      loc.ultimoLancamentoAluguelData = "";
+      loc.ultimoLancamentoAluguelValor = "";
+      return loc;
+    }
+    const last = arr.reduce(
+      (a, b) => (Number(b.createdAt || 0) >= Number(a.createdAt || 0) ? b : a),
+      arr[0]
+    );
+    loc.ultimoLancamentoAluguelData = String(last.data || "").trim();
+    loc.ultimoLancamentoAluguelValor =
+      "R$\u00a0" +
+      Number(last.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return loc;
   }
 
   /** Oficial: rejeita fantasma, legado -000, teste e lançamento sem operador identificado. */
@@ -392,6 +420,7 @@
             )
           : "0,00";
       }
+      syncResumoPagamentosNaLocacao(loc);
     }
     return merged;
   }
@@ -522,6 +551,7 @@
   window.__DK_mergePortalLancamentosRemovidos = mergePortalLancamentosRemovidos;
   window.__DK_filtrarPortalLancamentosPorRemovidos = filtrarPortalLancamentosPorRemovidos;
   window.__DK_anexarLancamentosMergeNaLocacao = anexarLancamentosMergeNaLocacao;
+  window.__DK_syncResumoPagamentosNaLocacao = syncResumoPagamentosNaLocacao;
   window.__DK_purgeGlobalLancamentoKeysOficial = purgeGlobalLancamentoKeysOficial;
   window.__DK_sanitizeCloudPayloadLancamentosOficial = sanitizeCloudPayloadLancamentosOficial;
 

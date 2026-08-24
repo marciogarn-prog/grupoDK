@@ -198,7 +198,35 @@ function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
   ]);
   target.portalLancamentosAluguel = filtrarPortalLancamentosPorRemovidos(mergedPl, mergedRem);
   if (mergedRem.length) target.portalLancamentosAluguelRemovidos = mergedRem;
+  syncResumoPagamentosNaLocacao(target);
   return target;
+}
+
+function syncResumoPagamentosNaLocacao(loc) {
+  if (!loc || typeof loc !== "object") return loc;
+  const arr = Array.isArray(loc.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
+  const sum = arr.reduce((s, x) => s + Number(x.valor || 0), 0);
+  loc.totalPagoAno2025 = sum.toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const maxCa = arr.reduce((m, x) => Math.max(m, Number(x.createdAt || 0)), 0);
+  const cur = Number(loc.updatedAt || loc.createdAt || 0);
+  if (Number.isFinite(maxCa) && maxCa > cur) loc.updatedAt = maxCa;
+  if (!arr.length) {
+    loc.ultimoLancamentoAluguelData = "";
+    loc.ultimoLancamentoAluguelValor = "";
+    return loc;
+  }
+  const last = arr.reduce(
+    (a, b) => (Number(b.createdAt || 0) >= Number(a.createdAt || 0) ? b : a),
+    arr[0]
+  );
+  loc.ultimoLancamentoAluguelData = String(last.data || "").trim();
+  loc.ultimoLancamentoAluguelValor =
+    "R$\u00a0" +
+    Number(last.valor || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return loc;
 }
 
 function mergeLocacaoCadastroPar(ex, incoming) {
@@ -207,16 +235,12 @@ function mergeLocacaoCadastroPar(ex, incoming) {
     incoming?.portalLancamentosAluguel,
   ]);
   const score = (l) => Number(l?.updatedAt || l?.createdAt || l?.id || 0);
-  const merged = {
-    ...ex,
-    ...incoming,
-    numeroContrato: ex?.numeroContrato || incoming?.numeroContrato,
-  };
+  const keepIncoming = score(incoming) >= score(ex);
+  const merged = keepIncoming
+    ? { ...ex, ...incoming, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato }
+    : { ...incoming, ...ex, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato };
   anexarLancamentosMergeNaLocacao(merged, ex, incoming, mergedPl);
-  if (score(incoming) >= score(ex)) return merged;
-  const stay = { ...ex, ...merged };
-  anexarLancamentosMergeNaLocacao(stay, ex, incoming, mergedPl);
-  return stay;
+  return merged;
 }
 
 function mergeLocacoesCadastro(previousList, incomingList) {

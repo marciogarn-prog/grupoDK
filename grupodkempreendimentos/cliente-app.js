@@ -1585,7 +1585,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824pag-app", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824pag-sync", {
         scope: "/",
         updateViaCache: "none",
       });
