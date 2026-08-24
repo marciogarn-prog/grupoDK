@@ -15171,6 +15171,20 @@
     });
   }
 
+  function operacaoLancAluguelPesquisaTemFiltro(filtros) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cpfPrefix = dig(String(filtros.cpfRaw || "")).slice(0, 11);
+    const nomeKey = portalNomeChaveBusca(filtros.nomeRaw || "");
+    const protoQ = normPortalNumeroContrato(String(filtros.protoRaw || "").trim());
+    const placaQ = np(String(filtros.placaRaw || "").trim());
+    return Boolean(cpfPrefix.length || nomeKey.length >= 2 || protoQ.length || placaQ.length >= 3);
+  }
+
   function renderOperacaoLancAluguelPesquisaLista(linhas) {
     const panel = document.getElementById("operacaoLancAluguelPesquisaLista");
     if (!panel) return;
@@ -15492,7 +15506,24 @@
         .join("");
     }
 
-    renderOperacaoLancAluguelPesquisaLista(filtradas);
+    const hasFiltro = operacaoLancAluguelPesquisaTemFiltro({
+      cpfRaw: prevCpf,
+      nomeRaw: prevNome,
+      protoRaw: prevProto,
+      placaRaw: prevPlaca,
+    });
+    const skipAutoFill = opts.skipAutoFill === true || !hasFiltro;
+    renderOperacaoLancAluguelPesquisaLista(hasFiltro && opts.hideLista !== true ? filtradas : []);
+
+    if (skipAutoFill) {
+      if (opts.skipAutoFill === true) {
+        if (inpNome) inpNome.value = "";
+        if (inpCpf) inpCpf.value = "";
+        if (inpProto) inpProto.value = "";
+        if (inpPlaca) inpPlaca.value = "";
+      }
+      return;
+    }
 
     const cpfsUnicos = [...cpfsMap.keys()];
     const nomesUnicos = [...nomesMap.values()];
@@ -16502,6 +16533,26 @@
     refreshPortalRelPlacaDatalist();
   }
 
+  function clearOperacaoLancAluguelCamposPesquisa() {
+    [
+      "operacaoLancAluguelNomeBusca",
+      "operacaoLancAluguelCpf",
+      "operacaoLancAluguelProtocoloBusca",
+      "operacaoLancAluguelPlacaBusca",
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    hideOperacaoLancAluguelCpfLista();
+    hideOperacaoLancAluguelProtoLista();
+    const lista = document.getElementById("operacaoLancAluguelPesquisaLista");
+    if (lista) {
+      lista.classList.add("hidden");
+      lista.setAttribute("hidden", "");
+      lista.innerHTML = "";
+    }
+  }
+
   function clearOperacaoLancamentoAluguelForm(opts = {}) {
     const voltarPesquisa = opts.voltarPesquisa !== false;
     hideOperacaoLancAluguelDetalhePanels();
@@ -16510,6 +16561,7 @@
       hist.classList.add("hidden");
       hist.replaceChildren();
     }
+    clearOperacaoLancAluguelCamposPesquisa();
     const blocoPesquisa = document.getElementById("operacaoLancAluguelBlocoPesquisaRef");
     blocoPesquisa?.querySelectorAll("input").forEach((inp) => {
       inp.value = "";
@@ -16538,11 +16590,19 @@
     clearOperacaoLancAluguelPesquisaConfirmada();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (msg) msg.textContent = "";
-    refreshOperacaoLancAluguelPesquisaDatalists();
+    refreshOperacaoLancAluguelPesquisaDatalists({
+      skipAutoFill: true,
+      hideLista: true,
+      skipCpfLista: true,
+      skipProtoLista: true,
+    });
     refreshPortalRelClienteCpfDatalist();
     refreshPortalRelPlacaDatalist();
     refreshOperacaoLancAluguelAdminControlsVisibility();
     if (voltarPesquisa) voltarParaPesquisaLancAluguel();
+    window.requestAnimationFrame(() => {
+      clearOperacaoLancAluguelCamposPesquisa();
+    });
   }
 
   function bindOperacaoLocacaoAutofill() {
@@ -17585,6 +17645,7 @@
   });
   document.getElementById("operacaoLancAluguelLimparPesquisaBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
+    e.stopPropagation();
     clearOperacaoLancamentoAluguelForm({ voltarPesquisa: true });
   });
   document.getElementById("operacaoLancAluguelNomeBusca")?.addEventListener("input", () => {
