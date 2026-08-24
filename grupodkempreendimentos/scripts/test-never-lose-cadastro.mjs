@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const { neverLoseCadastroPayload } = require(path.join(root, "lib/dk-append-only-merge.cjs"));
+const { neverLoseCadastroPayload, mergeFuncionariosAccess } = require(path.join(root, "lib/dk-append-only-merge.cjs"));
 const api = require(path.join(root, "api/dk-cloud-snapshot.js"));
 
 let failed = 0;
@@ -60,6 +60,31 @@ check(
   "pagamento nao some",
   Array.isArray(out.dk_locacoes_cadastro[0]?.portalLancamentosAluguel) &&
     out.dk_locacoes_cadastro[0].portalLancamentosAluguel.length === 1
+);
+
+const colabExisting = {
+  dk_funcionarios_access: [
+    { cpf: "03037897430", nome: "Márcio Santos", role: "owner", senha: "x" },
+    { cpf: "80163513104", nome: "JESIMIEL DE LIMA MATIAS", role: "operacao", senha: "a" },
+    { cpf: "09831728548", nome: "WYLKALINE CONCEIÇÃO", role: "operacao", senha: "b" },
+  ],
+};
+const colabIncoming = {
+  dk_funcionarios_access: [
+    { cpf: "03037897430", nome: "Márcio Santos", role: "owner", senha: "x" },
+    { cpf: "00445040556", nome: "Nilza Santos", role: "operacao", senha: "c" },
+    { cpf: "06523244440", nome: "Marcus Santos", role: "owner", senha: "d" },
+  ],
+};
+const colabOut = neverLoseCadastroPayload(colabExisting, colabIncoming);
+const colabCpfs = (colabOut.dk_funcionarios_access || []).map((f) => String(f.cpf || "").replace(/\D/g, ""));
+check("colaborador Jesimiel nao some no snapshot menor", colabCpfs.includes("80163513104"));
+check("colaborador Wylkaline nao some no snapshot menor", colabCpfs.includes("09831728548"));
+check("semente Nilza entra na uniao", colabCpfs.includes("00445040556"));
+const mergedColab = mergeFuncionariosAccess(colabExisting.dk_funcionarios_access, colabIncoming.dk_funcionarios_access);
+check(
+  "merge por CPF une 5 colaboradores",
+  mergedColab.length === 5
 );
 
 const locPortal = {

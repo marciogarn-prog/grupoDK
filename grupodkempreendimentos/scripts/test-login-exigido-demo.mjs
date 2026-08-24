@@ -1,8 +1,6 @@
 /**
- * E2E demo: SEGURANÇA — sessão da equipa não sobrevive a navegador fechado/reaberto.
- * 1. Sessão admin antiga em localStorage SEM marcador de janela → site exige login.
- * 2. Sessão com marcador (login real nesta janela) → área da equipa restaurada.
- * 3. Sair limpa sessão e marcador.
+ * E2E demo: sessão da equipa permanece neste browser (novo separador / reload)
+ * até «Sair» ou 12 h após loginAt.
  * node grupodkempreendimentos/scripts/test-login-exigido-demo.mjs
  */
 import { chromium } from "playwright";
@@ -17,42 +15,84 @@ function record(name, ok, detail = "") {
 
 const browser = await chromium.launch({ headless: true });
 try {
-  /* 1. sessão antiga sem marcador (browser "reaberto") → login exigido */
+  /* 1. sessão em localStorage sem marcador de janela (novo separador) → continua logado */
   const ctx1 = await browser.newContext();
   const p1 = await ctx1.newPage();
   await p1.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
   await p1.evaluate(() => {
     localStorage.setItem(
       "dk_sessao_cliente",
-      JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Sessao Antiga" })
+      JSON.stringify({
+        tipo: "admin",
+        role: "owner",
+        cpf: "03037897430",
+        nome: "Sessao Outro Separador",
+        loginAt: Date.now(),
+      })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
     sessionStorage.clear();
   });
-  /* novo separador no mesmo contexto = sessionStorage vazio (igual a browser reaberto) */
   const p1b = await ctx1.newPage();
   await p1b.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
   await p1b.waitForTimeout(3500);
   const estado1 = await p1b.evaluate(() => ({
-    sessao: localStorage.getItem("dk_sessao_cliente"),
+    sessao: Boolean(localStorage.getItem("dk_sessao_cliente")),
+    viva: sessionStorage.getItem("dk_portal_sessao_viva_v1") === "1",
     logadoVisivel: !document.getElementById("panel-logado")?.classList.contains("hidden"),
-    bannerVisivel: !document.getElementById("portal-admin-banner")?.classList.contains("hidden"),
   }));
   record(
-    "sessão antiga descartada — login exigido",
-    estado1.sessao === null && !estado1.logadoVisivel && !estado1.bannerVisivel,
-    JSON.stringify(estado1).slice(0, 160)
+    "novo separador mantém sessão da equipa",
+    estado1.sessao && estado1.viva && estado1.logadoVisivel,
+    JSON.stringify(estado1)
   );
   await ctx1.close();
 
-  /* 2. sessão com marcador de janela (login real) → área restaurada */
+  /* 2. sessão com mais de 12 h → login exigido */
+  const ctxExp = await browser.newContext();
+  const pExp = await ctxExp.newPage();
+  await pExp.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
+  await pExp.evaluate(() => {
+    localStorage.setItem(
+      "dk_sessao_cliente",
+      JSON.stringify({
+        tipo: "admin",
+        role: "owner",
+        cpf: "03037897430",
+        nome: "Sessao Expirada",
+        loginAt: Date.now() - 13 * 60 * 60 * 1000,
+      })
+    );
+    sessionStorage.clear();
+  });
+  const pExp2 = await ctxExp.newPage();
+  await pExp2.goto(`${BASE}#locadora/empresa`, { waitUntil: "networkidle", timeout: 90000 });
+  await pExp2.waitForTimeout(2500);
+  const estadoExp = await pExp2.evaluate(() => ({
+    sessao: localStorage.getItem("dk_sessao_cliente"),
+    logadoVisivel: !document.getElementById("panel-logado")?.classList.contains("hidden"),
+  }));
+  record(
+    "sessão com mais de 12 h é descartada",
+    estadoExp.sessao === null && !estadoExp.logadoVisivel,
+    JSON.stringify(estadoExp).slice(0, 160)
+  );
+  await ctxExp.close();
+
+  /* 3. sessão com marcador de janela (login real) → área restaurada */
   const ctx2 = await browser.newContext();
   const p2 = await ctx2.newPage();
   await p2.goto(BASE, { waitUntil: "networkidle", timeout: 90000 });
   await p2.evaluate(() => {
     localStorage.setItem(
       "dk_sessao_cliente",
-      JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Administrador E2E" })
+      JSON.stringify({
+        tipo: "admin",
+        role: "owner",
+        cpf: "03037897430",
+        nome: "Administrador E2E",
+        loginAt: Date.now(),
+      })
     );
     localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
     sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
@@ -65,7 +105,7 @@ try {
   }, { timeout: 45000 });
   record("sessão na mesma janela mantém área da equipa", true);
 
-  /* 3. reload na mesma janela continua logado (marcador persiste) */
+  /* 4. reload na mesma janela continua logado */
   await p2.reload({ waitUntil: "networkidle", timeout: 90000 });
   await p2.waitForTimeout(3000);
   const estado3 = await p2.evaluate(() => ({

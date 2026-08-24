@@ -777,6 +777,7 @@
       if (clientePage && !CLIENTE_CLOUD_PULL_KEYS.has(k)) continue;
       if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
         if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace) continue;
+        if (k === "dk_funcionarios_access") continue;
         localStorage.removeItem(k);
         continue;
       }
@@ -784,6 +785,7 @@
       const v = payload[k];
       if (v === undefined || v === null) {
         if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace) continue;
+        if (k === "dk_funcionarios_access") continue;
         localStorage.removeItem(k);
         continue;
       }
@@ -854,6 +856,37 @@
               : [...(localArr || []), ...cloudArr];
           localStorage.setItem(k, JSON.stringify(mergedCli));
         }
+        continue;
+      }
+      if (k === "dk_funcionarios_access") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const localArr = readLocalJsonArray(k);
+        const mergeFn =
+          typeof window.__DK_mergeFuncionariosAccess === "function"
+            ? window.__DK_mergeFuncionariosAccess
+            : (prev, inc) => {
+                const byCpf = new Map();
+                const put = (f) => {
+                  if (!f || typeof f !== "object") return;
+                  const cpf = String(f.cpf || "").replace(/\D/g, "").slice(0, 11);
+                  if (cpf.length !== 11) return;
+                  const ex = byCpf.get(cpf);
+                  byCpf.set(cpf, ex ? { ...ex, ...f, cpf } : { ...f, cpf });
+                };
+                (Array.isArray(prev) ? prev : []).forEach(put);
+                (Array.isArray(inc) ? inc : []).forEach(put);
+                return Array.from(byCpf.values());
+              };
+        localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
         continue;
       }
       if (k === "dk_comprovantes_cliente_pendentes") {
@@ -1089,6 +1122,7 @@
     if (Object.prototype.hasOwnProperty.call(payload, "dk_funcionarios_access")) {
       try {
         window.__DK_hydrateFuncionariosAccess?.();
+        window.__DK_portalRenderColaboradoresLista?.();
       } catch {
         /* ignore */
       }
@@ -3746,48 +3780,42 @@
       });
     }, 800);
     if (isLocalDataAuthorityActive()) return;
+    const startSilentPull = () => {
+      window.setTimeout(() => {
+        pullCloudSnapshotSilentMerge({ force: true })
+          .then((r) => {
+            if (r && r.applied) {
+              try {
+                window.__DK_hydrateFuncionariosAccess?.();
+                window.__DK_portalRenderColaboradoresLista?.();
+              } catch {
+                /* ignore */
+              }
+              if (window.__DK_IS_DEMO_DEPLOY__ !== true) {
+                scheduleDepositoSyncAfterCloudPull("startup");
+              }
+            }
+            if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
+              window.__DK_portalRefreshOperacaoLocal();
+            }
+          })
+          .catch((e) => console.warn("[DK cloud] arranque pull", e));
+      }, window.__DK_IS_DEMO_DEPLOY__ === true ? 2000 : 1500);
+    };
     if (window.__DK_IS_DEMO_DEPLOY__ === true) {
       return bootstrapDemoCadastrosFromCloudIfEmpty()
         .catch((e) => {
           console.warn("[DK cloud] demo bootstrap", e);
           return { ok: false, error: e };
         })
-        .then(() => {
-          window.setTimeout(() => {
-            pullCloudSnapshotSilentMerge({ force: true })
-              .then((r) => {
-                if (r && r.applied && typeof window.__DK_portalRefreshOperacaoLocal === "function") {
-                  window.__DK_portalRefreshOperacaoLocal();
-                }
-              })
-              .catch((e) => console.warn("[DK cloud] demo startup pull", e));
-          }, 2000);
-        });
+        .then(() => startSilentPull());
     }
-    const client = window.__DK_SUPABASE_CLIENT__;
-    if (!client) return;
     try {
       sessionStorage.removeItem(DK_CLOUD_RELOAD_GUARD_KEY);
     } catch {
       /* ignore */
     }
-    window.setTimeout(() => {
-      scheduleBackgroundCloudPullIfStale()
-        .then((r) => {
-          if (r && r.applied) {
-            try {
-              window.__DK_hydrateFuncionariosAccess?.();
-            } catch {
-              /* ignore */
-            }
-            scheduleDepositoSyncAfterCloudPull("startup");
-          }
-          if (typeof window.__DK_portalRefreshOperacaoLocal === "function") {
-            window.__DK_portalRefreshOperacaoLocal();
-          }
-        })
-        .catch((e) => console.warn("[DK cloud] arranque pull", e));
-    }, 1500);
+    startSilentPull();
   }
 
   function bind() {
@@ -3844,9 +3872,7 @@
     window.addEventListener("load", refreshCloudBarVisibility);
     setTimeout(refreshCloudBarVisibility, 800);
 
-    if (window.__DK_SUPABASE_CONFIGURED__) {
-      runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
-    }
+    runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
   }
 
   if (document.readyState === "loading") {

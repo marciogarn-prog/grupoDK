@@ -1,20 +1,28 @@
 /**
- * Segurança: sessão da equipa (tipo "admin") só vale enquanto o navegador/janela
- * estiver aberto. Ao abrir o site de novo (browser fechado/reaberto, novo separador),
- * a sessão antiga em localStorage é descartada e o login volta a ser exigido.
- * O marcador vive em sessionStorage e é criado apenas no login real
- * (finalizarLoginEquipaPortal em portal-locadora-ui.js).
+ * Sessão da equipa (tipo "admin"): mantém-se neste browser (localStorage)
+ * até «Sair» ou até 12 h após o login. Novo separador / recarregar não desloga.
+ * O marcador em sessionStorage é recriado se a sessão em localStorage ainda for válida.
  */
-(function dkExigirLoginEquipaPorJanela() {
+(function dkManterSessaoEquipa() {
   try {
     const raw = localStorage.getItem("dk_sessao_cliente");
     if (!raw) return;
     const s = JSON.parse(raw);
     if (s?.tipo !== "admin") return;
-    if (sessionStorage.getItem("dk_portal_sessao_viva_v1") === "1") return;
-    localStorage.removeItem("dk_sessao_cliente");
-    localStorage.removeItem("dk_portal_sessao_build");
-    sessionStorage.removeItem("dk_portal_area_ativa");
+    const MAX_MS = 12 * 60 * 60 * 1000;
+    const ts = Number(s.loginAt || 0);
+    if (ts > 0 && Date.now() - ts > MAX_MS) {
+      localStorage.removeItem("dk_sessao_cliente");
+      localStorage.removeItem("dk_portal_sessao_build");
+      sessionStorage.removeItem("dk_portal_sessao_viva_v1");
+      sessionStorage.removeItem("dk_portal_area_ativa");
+      return;
+    }
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
+    if (!ts) {
+      s.loginAt = Date.now();
+      localStorage.setItem("dk_sessao_cliente", JSON.stringify(s));
+    }
   } catch {
     /* ignore */
   }
@@ -1650,40 +1658,97 @@ function saveFuncionariosAccess() {
   localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
 }
 
+function persistFuncionariosAccessLocalOnly() {
+  try {
+    localStorage.setItem(FUNCIONARIOS_ACCESS_KEY, JSON.stringify(funcionariosAccess));
+  } catch {
+    /* ignore */
+  }
+}
+
 function isOperacaoPasswordValid(value) {
   return /^\d{6}$/.test(String(value || "").trim());
 }
 
+/** União por CPF: semente local + nuvem. Nunca descarta um colaborador. */
+function mergeFuncionariosAccessByCpf(previousList, incomingList) {
+  const byCpf = new Map();
+  const put = (f) => {
+    if (!f || typeof f !== "object") return;
+    const cpf = String(f.cpf || "").replace(/\D/g, "").slice(0, 11);
+    if (cpf.length !== 11) return;
+    const prev = byCpf.get(cpf);
+    if (!prev) {
+      byCpf.set(cpf, { ...f, cpf });
+      return;
+    }
+    const senha = String(f.senha || "").trim() || String(prev.senha || "").trim();
+    const nome = String(f.nome || "").trim() || String(prev.nome || "").trim();
+    const funcao = String(f.funcao || "").trim() || String(prev.funcao || "").trim();
+    const dataIngresso = String(f.dataIngresso || "").trim() || String(prev.dataIngresso || "").trim();
+    const acessos =
+      f.acessos && typeof f.acessos === "object"
+        ? { ...(prev.acessos && typeof prev.acessos === "object" ? prev.acessos : {}), ...f.acessos }
+        : prev.acessos;
+    const rolePrev = String(prev.role || "").trim() === "owner" ? "owner" : "operacao";
+    const roleInc = String(f.role || "").trim() === "owner" ? "owner" : "operacao";
+    const role = rolePrev === "owner" || roleInc === "owner" ? "owner" : "operacao";
+    const blocked = Object.prototype.hasOwnProperty.call(f, "blocked")
+      ? Boolean(f.blocked)
+      : Boolean(prev.blocked);
+    const mustChangePassword = Object.prototype.hasOwnProperty.call(f, "mustChangePassword")
+      ? Boolean(f.mustChangePassword)
+      : Boolean(prev.mustChangePassword);
+    byCpf.set(cpf, {
+      ...prev,
+      ...f,
+      cpf,
+      senha,
+      nome,
+      funcao,
+      dataIngresso,
+      acessos,
+      role,
+      blocked,
+      mustChangePassword,
+    });
+  };
+  (Array.isArray(previousList) ? previousList : []).forEach(put);
+  (Array.isArray(incomingList) ? incomingList : []).forEach(put);
+  return Array.from(byCpf.values());
+}
+
 function hydrateFuncionariosAccess() {
   const raw = localStorage.getItem(FUNCIONARIOS_ACCESS_KEY);
-  if (!raw) {
-    saveFuncionariosAccess();
-    return;
+  let parsed = [];
+  if (raw) {
+    try {
+      const p = JSON.parse(raw);
+      if (Array.isArray(p)) parsed = p;
+    } catch {
+      parsed = [];
+    }
   }
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return;
-    const normalized = parsed
-      .map((f) => ({
-        cpf: onlyDigits(String(f?.cpf || "")),
-        senha: String(f?.senha || "").trim(),
-        nome: String(f?.nome || "").trim(),
-        role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
-        blocked: Boolean(f?.blocked),
-        mustChangePassword: Boolean(f?.mustChangePassword),
-        funcao: String(f?.funcao || "").trim(),
-        dataIngresso: String(f?.dataIngresso || "").trim(),
-        acessos: normalizeOperacaoAccess(
-          f?.acessos || null,
-          String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
-        ),
-      }))
-      .filter((f) => f.cpf.length === 11 && f.senha && f.nome);
-    if (!normalized.length) return;
-    funcionariosAccess.splice(0, funcionariosAccess.length, ...normalized);
-  } catch {
-    // Mantém fallback em memória se armazenamento estiver inválido.
-  }
+  const merged = mergeFuncionariosAccessByCpf(funcionariosAccess, parsed);
+  const normalized = merged
+    .map((f) => ({
+      cpf: onlyDigits(String(f?.cpf || "")),
+      senha: String(f?.senha || "").trim(),
+      nome: String(f?.nome || "").trim(),
+      role: String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao",
+      blocked: Boolean(f?.blocked),
+      mustChangePassword: Boolean(f?.mustChangePassword),
+      funcao: String(f?.funcao || "").trim(),
+      dataIngresso: String(f?.dataIngresso || "").trim(),
+      acessos: normalizeOperacaoAccess(
+        f?.acessos || null,
+        String(f?.role || "operacao").trim() === "owner" ? "owner" : "operacao"
+      ),
+    }))
+    .filter((f) => f.cpf.length === 11 && f.nome);
+  if (!normalized.length) return;
+  funcionariosAccess.splice(0, funcionariosAccess.length, ...normalized);
+  persistFuncionariosAccessLocalOnly();
 }
 
 function onlyDigits(value) {
@@ -1709,6 +1774,7 @@ function getMaxClienteCodigoFromBundledSnapshots() {
 hydrateFuncionariosAccess();
 try {
   window.__DK_hydrateFuncionariosAccess = hydrateFuncionariosAccess;
+  window.__DK_mergeFuncionariosAccess = mergeFuncionariosAccessByCpf;
 } catch {
   /* ignore */
 }
@@ -1718,7 +1784,7 @@ if (adminSecundario) {
   adminSecundario.nome = "Marcus Santos";
   adminSecundario.acessos = buildFullOperacaoAccess();
 }
-saveFuncionariosAccess();
+persistFuncionariosAccessLocalOnly();
 refreshFuncionarioAccessInputsByRole();
 refreshFuncionarioAdminActionButtons();
 
@@ -1935,8 +2001,14 @@ function saveAdminSession() {
       cpf: principal?.cpf || "",
       nome: principal?.nome || "Funcionario DK",
       role: principal?.role || "operacao",
+      loginAt: Date.now(),
     })
   );
+  try {
+    sessionStorage.setItem("dk_portal_sessao_viva_v1", "1");
+  } catch {
+    /* ignore */
+  }
 }
 
 function getSession() {

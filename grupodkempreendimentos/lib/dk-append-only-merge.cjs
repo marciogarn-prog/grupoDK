@@ -311,8 +311,59 @@ function mergeLocacoesCadastro(previousList, incomingList) {
 }
 
 /**
- * União irreversível dos cadastros operacionais: CPF, placa, protocolo e
- * lançamentos/auditoria nunca saem porque o snapshot incoming veio menor.
+ * União de colaboradores por CPF (11 dígitos). Nunca remove um CPF que já
+ * existia: uma máquina com a semente de 3 pessoas não apaga Jesimiel/Wylkaline.
+ */
+function mergeFuncionariosAccess(previousList, incomingList) {
+  const byCpf = new Map();
+  const put = (f) => {
+    if (!f || typeof f !== "object") return;
+    const cpf = onlyDigits(f.cpf).slice(0, 11);
+    if (cpf.length !== 11) return;
+    const prev = byCpf.get(cpf);
+    if (!prev) {
+      byCpf.set(cpf, { ...f, cpf });
+      return;
+    }
+    const senha = String(f.senha || "").trim() || String(prev.senha || "").trim();
+    const nome = String(f.nome || "").trim() || String(prev.nome || "").trim();
+    const funcao = String(f.funcao || "").trim() || String(prev.funcao || "").trim();
+    const dataIngresso = String(f.dataIngresso || "").trim() || String(prev.dataIngresso || "").trim();
+    const acessos =
+      f.acessos && typeof f.acessos === "object"
+        ? { ...(prev.acessos && typeof prev.acessos === "object" ? prev.acessos : {}), ...f.acessos }
+        : prev.acessos;
+    const rolePrev = String(prev.role || "").trim() === "owner" ? "owner" : "operacao";
+    const roleInc = String(f.role || "").trim() === "owner" ? "owner" : "operacao";
+    const role = rolePrev === "owner" || roleInc === "owner" ? "owner" : "operacao";
+    const blocked = Object.prototype.hasOwnProperty.call(f, "blocked")
+      ? Boolean(f.blocked)
+      : Boolean(prev.blocked);
+    const mustChangePassword = Object.prototype.hasOwnProperty.call(f, "mustChangePassword")
+      ? Boolean(f.mustChangePassword)
+      : Boolean(prev.mustChangePassword);
+    byCpf.set(cpf, {
+      ...prev,
+      ...f,
+      cpf,
+      senha,
+      nome,
+      funcao,
+      dataIngresso,
+      acessos,
+      role,
+      blocked,
+      mustChangePassword,
+    });
+  };
+  (Array.isArray(previousList) ? previousList : []).forEach(put);
+  (Array.isArray(incomingList) ? incomingList : []).forEach(put);
+  return Array.from(byCpf.values());
+}
+
+/**
+ * União irreversível dos cadastros operacionais: CPF, placa, protocolo,
+ * colaboradores e lançamentos/auditoria nunca saem porque o snapshot incoming veio menor.
  */
 function neverLoseCadastroPayload(existing, incoming) {
   if (!existing || typeof existing !== "object") {
@@ -327,6 +378,7 @@ function neverLoseCadastroPayload(existing, incoming) {
     ["dk_portal_veiculos_cadastro", mergeVeiculosCadastro],
     ["dk_veiculos_frota_planilha", mergeVeiculosCadastro],
     ["dk_locacoes_cadastro", mergeLocacoesCadastro],
+    ["dk_funcionarios_access", mergeFuncionariosAccess],
   ];
   for (const [k, fn] of pairs) {
     const hasEx = Array.isArray(existing[k]);
@@ -348,6 +400,7 @@ module.exports = {
   mergeClientesCadastro,
   mergeVeiculosCadastro,
   mergeLocacoesCadastro,
+  mergeFuncionariosAccess,
   mergePortalLancamentosAluguelEmbutidos,
   mergePortalLancamentosRemovidos,
   filtrarPortalLancamentosPorRemovidos,

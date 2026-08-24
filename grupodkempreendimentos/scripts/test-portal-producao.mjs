@@ -683,6 +683,18 @@ async function runSuite() {
       "saveCadastro une historico; guarda mantem portal; pull nao substitui"
     );
     record(
+      "colaboradores nunca somem (merge CPF + pull Redis sem Supabase)",
+      appJsProto.includes("mergeFuncionariosAccessByCpf") &&
+        appJsProto.includes("dkManterSessaoEquipa") &&
+        appJsProto.includes("persistFuncionariosAccessLocalOnly") &&
+        cloudSyncJs.includes('k === "dk_funcionarios_access"') &&
+        cloudSyncJs.includes("__DK_portalRenderColaboradoresLista") &&
+        cloudSyncJs.includes("runAutoPullFromCloudOnce") &&
+        portalUiProto.includes("__DK_portalRenderColaboradoresLista") &&
+        portalUiProto.includes("loginAt: Date.now()"),
+      "uniao por CPF; novo separador nao desloga"
+    );
+    record(
       "picker protocolo locacao apos CPF e nuvem",
       portalUiProto.includes("portalLocacaoCpfDigitsMatch") &&
         portalUiProto.includes("refreshOperacaoLocacaoProtocoloPicker({ force: true })") &&
@@ -1613,6 +1625,28 @@ async function runSuite() {
           "documentos E2E: painel abre com busca",
           false,
           `botão Documentos oculto hash=${diag.hash} btnHidden=${diag.btnHidden} panelHidden=${diag.panelHidden} banner=${diag.adminBanner}`
+        );
+      }
+
+      if (!IS_DEMO_TEST) {
+        const colabsNuvem = await pageE2e.evaluate(() => {
+          let list = [];
+          try {
+            list = JSON.parse(localStorage.getItem("dk_funcionarios_access") || "[]");
+          } catch {
+            list = [];
+          }
+          const names = list.map((f) => String(f?.nome || "").toUpperCase());
+          return {
+            n: list.length,
+            jesimiel: names.some((n) => n.includes("JESIMIEL")),
+            wylkaline: names.some((n) => n.includes("WYLKALINE")),
+          };
+        });
+        record(
+          "oficial: Jesimiel e Wylkaline chegam da nuvem noutro browser",
+          colabsNuvem.jesimiel && colabsNuvem.wylkaline,
+          JSON.stringify(colabsNuvem)
         );
       }
 
