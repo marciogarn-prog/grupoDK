@@ -187,6 +187,8 @@
   }
 
   function cssKit() {
+    const cssContratoPag =
+      typeof window.__DK_contratoLocacaoCssPagina === "function" ? window.__DK_contratoLocacaoCssPagina() : "";
     return `
 @page { size: A4 portrait; margin: 0; }
 * { box-sizing: border-box; }
@@ -394,9 +396,12 @@ body.kit-preview { padding-top: 58px; }
   font-size: 14px;
   color: #444;
 }
+${cssContratoPag}
 @media print {
-  body.kit-preview { padding-top: 0; background: #fff; }
+  html, body { background: #fff !important; }
+  body.kit-preview { padding-top: 0 !important; background: #fff; }
   .barra-acoes, .kit-secao-titulo { display: none !important; }
+  .kit-shell { width: auto; margin: 0; }
   .pagina {
     box-shadow: none; margin: 0;
     page-break-after: always; break-after: page;
