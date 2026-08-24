@@ -14390,6 +14390,26 @@
     return Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
   }
 
+  /** Dias do início do contrato até hoje (se já encerrado, até a data fim). */
+  function computePortalDiasAteHoje(loc) {
+    const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
+    const inicio = parseD(String(loc?.inicio || "").trim());
+    if (!inicio || Number.isNaN(inicio.getTime())) return 0;
+    const start = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
+    const now = new Date();
+    let end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const rawFim = String(loc?.fim || "").trim();
+    if (rawFim) {
+      const fim = parseD(rawFim);
+      if (fim && !Number.isNaN(fim.getTime())) {
+        const tFim = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
+        if (tFim.getTime() < end.getTime()) end = tFim;
+      }
+    }
+    if (end.getTime() < start.getTime()) return 0;
+    return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
+  }
+
   /** Investimento acumulado = total pago − (devido aluguel + devido multas + devido manutenção). */
   function computePortalInvestimentoAcumuladoNum(devidoAluguel, devidoMultas, devidoManutencao, totalPago) {
     return (
@@ -14426,7 +14446,9 @@
     const plano = valLoc + valInv > 0 ? valLoc + valInv : valSemanalCampo;
     const tempo = computePortalTempoDiasLoc(loc);
     const custoDiaNum = plano / 7;
+    const diasAteHoje = computePortalDiasAteHoje(loc);
     const valorDevidoPlanoNum = tempo * (plano / 7);
+    const valorDevidoAteHojeNum = diasAteHoje * (plano / 7);
     const valorDevidoAluguelNum = tempo * (valLoc / 7);
     const valorDevidoManutencaoNum = (() => {
       const arrManut = Array.isArray(loc?.portalManutencoesRegistro) ? loc.portalManutencoesRegistro : [];
@@ -14473,6 +14495,7 @@
       valorInvestimento: fmtBrl(valInv),
       valorPlano: fmtBrl(plano),
       valorDevidoPlano: fmtBrl(valorDevidoPlanoNum),
+      valorDevidoAteHoje: fmtBrl(valorDevidoAteHojeNum),
       totalPago: fmtBrl(totalPagoNum),
       tipoPlano: tipoPlanoStr,
       valorDevidoAluguel: fmtBrl(valorDevidoAluguelNum),
@@ -14865,6 +14888,30 @@
     box.classList.remove("hidden");
   }
 
+  function resolveLocOperacaoLancAluguelAtual() {
+    const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
+    if (!nc || cpf.length !== 11) return null;
+    return (
+      collectPortalLocacoesComProtocoloByCpf(cpf).find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) || null
+    );
+  }
+
+  function refreshOperacaoLancAluguelSaldosHoje(loc) {
+    const devidoEl = document.getElementById("operacaoLancAluguelTotalDevidoHoje");
+    const pagoEl = document.getElementById("operacaoLancAluguelTotalPagoHoje");
+    if (!devidoEl && !pagoEl) return;
+    const target = loc && typeof loc === "object" ? loc : resolveLocOperacaoLancAluguelAtual();
+    const zero = formatPortalLancamentoSumBrl(0);
+    if (!target) {
+      if (devidoEl) devidoEl.textContent = zero;
+      if (pagoEl) pagoEl.textContent = zero;
+      return;
+    }
+    const resumo = computePortalProtocoloResumoFromLoc(target);
+    if (devidoEl) devidoEl.textContent = resumo.valorDevidoAteHoje || zero;
+    if (pagoEl) pagoEl.textContent = resumo.totalPago || zero;
+  }
+
   function preencherLancAluguelFormSimples() {
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
@@ -14896,6 +14943,7 @@
       if (showPag) {
         pag.removeAttribute("hidden");
         preencherLancAluguelFormSimples();
+        refreshOperacaoLancAluguelSaldosHoje();
       } else pag.setAttribute("hidden", "");
     }
     esconderOperacaoLancAluguelSituacao();
@@ -14941,6 +14989,7 @@
     setVal("operacaoLancAluguelSitTotalPago", resumo.totalPago);
     setVal("operacaoLancAluguelSitDevidoAluguel", resumo.valorDevidoAluguel);
     setVal("operacaoLancAluguelSitTotalPagoAno", totalAnoFmt);
+    refreshOperacaoLancAluguelSaldosHoje(loc);
     const acumEl = document.getElementById("operacaoLancAluguelSitInvestAcumulado");
     if (acumEl) {
       acumEl.textContent = resumo.investimentoAcumulado;
@@ -15658,6 +15707,7 @@
       if (el) el.value = "";
     });
     syncOperacaoLancAluguelValorPagoFromMeios();
+    refreshOperacaoLancAluguelSaldosHoje(null);
   }
 
   function applyOperacaoLancamentoAluguelFromLoc(loc) {
@@ -15725,6 +15775,7 @@
     });
     syncOperacaoLancAluguelValorPagoFromMeios();
     preencherLancAluguelFormSimples();
+    refreshOperacaoLancAluguelSaldosHoje(loc);
     refreshOperacaoLancAluguelAdminControlsVisibility();
   }
 
@@ -16013,6 +16064,7 @@
     refreshOperacaoLocacaoTotaisPortalLancamentoUi(cpfDigits, ncNorm);
     refreshOperacaoLocacaoLancamentosHistorico(cpfDigits, ncNorm);
     refreshOperacaoLancAluguelAdminControlsVisibility();
+    refreshOperacaoLancAluguelSaldosHoje(loc);
     return true;
   }
 
