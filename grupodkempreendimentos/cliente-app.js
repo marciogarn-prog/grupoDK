@@ -1370,6 +1370,19 @@
     return Math.min(100, Math.round((n * 100) / DK_MINHA_MOTO_SEMANAS_PLANO));
   }
 
+  function renderPremioMinhaMotoBarHtml(pct, ariaLabel) {
+    return `<div class="cliente-premio__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escapeHtml(ariaLabel)}">
+        <div class="cliente-premio__track">
+          <div class="cliente-premio__fill"></div>
+          <span class="cliente-premio__marker" aria-hidden="true"></span>
+        </div>
+        <div class="cliente-premio__labels">
+          <span class="cliente-premio__pct">${pct}%</span>
+          <span class="cliente-premio__fim">100%</span>
+        </div>
+      </div>`;
+  }
+
   function renderPremioMinhaMotoHtml(loc, resumo, multi) {
     const { semanas } = computeSemanasPagasMinhaMoto(loc, resumo);
     const pct = pctProgressoMinhaMoto(semanas);
@@ -1383,18 +1396,19 @@
       <div class="cliente-premio__scene">
         <img src="/images/dk-minha-moto-premio.png?v=20260824premio" alt="DK Minha Moto — seu prêmio te espera" width="1200" height="675" decoding="async">
       </div>
-      <div class="cliente-premio__bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Progresso do plano DK Minha Moto">
-        <div class="cliente-premio__track">
-          <div class="cliente-premio__fill"></div>
-          <span class="cliente-premio__marker" aria-hidden="true"></span>
-        </div>
-        <div class="cliente-premio__labels">
-          <span class="cliente-premio__pct">${pct}%</span>
-          <span class="cliente-premio__fim">100%</span>
-        </div>
-      </div>
+      ${renderPremioMinhaMotoBarHtml(pct, "Progresso do plano DK Minha Moto")}
       <p class="cliente-premio__meta">DK MINHA MOTO · <strong>${semanas}</strong> de ${DK_MINHA_MOTO_SEMANAS_PLANO} semanas</p>
       ${extra}
+    </article>`;
+  }
+
+  function renderPremioMinhaMotoConviteHtml() {
+    return `<article class="cliente-premio cliente-premio--convite" data-semanas="0" data-pct="0" data-modo="convite" style="--pct:0%">
+      <div class="cliente-premio__scene">
+        <img src="/images/dk-minha-moto-premio.png?v=20260824premio" alt="DK Minha Moto — seu prêmio te espera" width="1200" height="675" decoding="async">
+      </div>
+      ${renderPremioMinhaMotoBarHtml(0, "Convite para o plano DK Minha Moto")}
+      <p class="cliente-premio__cta">VENHA REALIZAR SEU SONHO NO PLANO DK MINHA MOTO</p>
     </article>`;
   }
 
@@ -1423,20 +1437,15 @@
     const resumo = $("cliente-resumo");
     if (resumo) {
       const minhasMotos = locAtivas.filter((loc) => locEhPlanoDkMinhaMoto(loc, resumoFn ? resumoFn(loc) : null));
-      const linhas = minhasMotos
-        .map((loc) => renderPremioMinhaMotoHtml(loc, resumoFn ? resumoFn(loc) : null, minhasMotos.length > 1))
-        .join("");
-      if (!linhas) {
-        resumo.innerHTML = "";
-        resumo.hidden = true;
-        resumo.setAttribute("hidden", "");
-        resumo.classList.add("subtext");
-      } else {
-        resumo.hidden = false;
-        resumo.removeAttribute("hidden");
-        resumo.classList.remove("subtext");
-        resumo.innerHTML = `<div class="cliente-premio-wrap">${linhas}</div>`;
-      }
+      const linhas = minhasMotos.length
+        ? minhasMotos
+            .map((loc) => renderPremioMinhaMotoHtml(loc, resumoFn ? resumoFn(loc) : null, minhasMotos.length > 1))
+            .join("")
+        : renderPremioMinhaMotoConviteHtml();
+      resumo.hidden = false;
+      resumo.removeAttribute("hidden");
+      resumo.classList.remove("subtext");
+      resumo.innerHTML = `<div class="cliente-premio-wrap">${linhas}</div>`;
     }
 
     renderNotificacoes(cpf);
@@ -1639,7 +1648,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-1bar", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-convite", {
         scope: "/",
         updateViaCache: "none",
       });

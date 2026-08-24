@@ -322,6 +322,25 @@
   opacity: 0.85;
 }
 
+.cliente-premio[data-pct="0"] .cliente-premio__marker {
+  transform: translate(0, -50%);
+}
+
+.cliente-premio[data-pct="0"] .cliente-premio__pct {
+  left: 0;
+  transform: none;
+}
+
+.cliente-premio__cta {
+  margin: 0.55rem 0.9rem 0.1rem;
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1.35;
+  color: #fff;
+}
+
 .cliente-sync-status {
   margin: 0.5rem 0 0;
   text-align: center;
