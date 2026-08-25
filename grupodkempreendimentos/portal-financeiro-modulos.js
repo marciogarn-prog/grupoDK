@@ -2054,72 +2054,167 @@
     return lancsDaLoc(loc).reduce((s, x) => s + (Number(x?.valor) || 0), 0);
   }
 
+  function valorInvestimentoNum(loc) {
+    return Math.max(0, parseValor(loc?.valorInvestimento));
+  }
+
+  /** Reparte o total pago na proporção semanal locação × investimento. */
+  function rateioPagoAluguelInvestimento(loc, pagoTotal) {
+    const pago = Math.max(0, Number(pagoTotal) || 0);
+    const alug = valorLocacaoNum(loc);
+    const inv = valorInvestimentoNum(loc);
+    const base = alug + inv;
+    if (pago <= 0) return { aluguelPago: 0, investimentoPago: 0 };
+    if (base <= 0) return { aluguelPago: pago, investimentoPago: 0 };
+    const aluguelPago = pago * (alug / base);
+    const investimentoPago = pago * (inv / base);
+    return { aluguelPago, investimentoPago };
+  }
+
+  function fmtBrlAssinado(n) {
+    const v = Number(n) || 0;
+    if (v < 0) return `−${brl(Math.abs(v))}`;
+    return brl(v);
+  }
+
+  function celulaValorAssinado(n) {
+    const v = Number(n) || 0;
+    if (v < 0) {
+      return `<td class="fin-rel-val fin-rel-val--neg">−${esc(brl(Math.abs(v)))}</td>`;
+    }
+    return `<td class="fin-rel-val">${esc(brl(v))}</td>`;
+  }
+
   function coletarRelacaoPagamentoPorCliente() {
+    const vmap = mapaVeiculosPorPlaca();
     const rows = [];
     locacoesCadastro().forEach((loc) => {
-      if (!locacaoEstaAtiva(loc)) return;
+      const proto = String(loc?.numeroContrato || "").trim();
+      if (!proto && !String(loc?.cpf || "").trim()) return;
+      const ativo = locacaoEstaAtiva(loc);
       const cpf = String(loc?.cpf || "").replace(/\D/g, "").slice(0, 11);
       const cli = clientePorCpf(cpf);
+      const placa = nkPlate(loc?.placa);
+      const veiculo = placa ? vmap.get(placa) : null;
+      const plano = planoDeLocacao(loc, veiculo);
       const nome = String(cli?.nome || loc?.nomeCliente || loc?.cliente || "").trim() || "—";
       const telefone = telefoneDoCliente(cli, loc);
       const valorLocacao = valorLocacaoNum(loc);
       const devido = valorDevidoAteHojeNum(loc);
       const pago = valorPagoLocNum(loc);
+      const atraso = pago - devido;
+      const rateio = rateioPagoAluguelInvestimento(loc, pago);
       rows.push({
         nome,
         telefone,
         cpf,
-        protocolo: String(loc?.numeroContrato || "").trim(),
+        protocolo: proto,
+        placa,
+        plano,
+        ativo,
         valorLocacao,
         devido,
         pago,
-        saldo: pago - devido,
+        atraso,
+        investimentoPago: rateio.investimentoPago,
+        aluguelPago: rateio.aluguelPago,
       });
     });
-    rows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.protocolo.localeCompare(b.protocolo, "en"));
+    rows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || String(a.protocolo).localeCompare(String(b.protocolo), "en"));
     return rows;
   }
 
+  function filtrosRelacaoPagamento() {
+    return {
+      ativo: Boolean(document.getElementById("finRelStatusAtivo")?.checked),
+      inativo: Boolean(document.getElementById("finRelStatusInativo")?.checked),
+      planos: {
+        "minha-moto": Boolean(document.getElementById("finRelPlanoMinhaMoto")?.checked),
+        "meu-transporte": Boolean(document.getElementById("finRelPlanoMeuTransporte")?.checked),
+        carro: Boolean(document.getElementById("finRelPlanoCarro")?.checked),
+      },
+      saldoNeg: Boolean(document.getElementById("finRelSaldoNegativo")?.checked),
+      saldoPos: Boolean(document.getElementById("finRelSaldoPositivo")?.checked),
+    };
+  }
+
+  function filtrarRelacaoPagamento(rows) {
+    const f = filtrosRelacaoPagamento();
+    return (rows || []).filter((r) => {
+      if (r.ativo && !f.ativo) return false;
+      if (!r.ativo && !f.inativo) return false;
+      if (!f.planos[r.plano]) return false;
+      const sal = Number(r.atraso) || 0;
+      if (sal < 0 && !f.saldoNeg) return false;
+      if (sal >= 0 && !f.saldoPos) return false;
+      return true;
+    });
+  }
+
   function renderRelacaoPagamento() {
-    const rows = coletarRelacaoPagamentoPorCliente();
+    const all = coletarRelacaoPagamentoPorCliente();
+    const rows = filtrarRelacaoPagamento(all);
     const kpis = document.getElementById("finRelacaoPagamentoKpis");
     if (kpis) {
-      const totLoc = rows.reduce((s, r) => s + r.valorLocacao, 0);
       const totDev = rows.reduce((s, r) => s + r.devido, 0);
       const totPago = rows.reduce((s, r) => s + r.pago, 0);
-      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Clientes / contratos</span><strong>${rows.length}</strong></div>
-        <div class="fin-kpi"><span class="fin-kpi__lab">Soma locações (semanal)</span><strong>${esc(brl(totLoc))}</strong></div>
-        <div class="fin-kpi"><span class="fin-kpi__lab">Total devido até hoje</span><strong>${esc(brl(totDev))}</strong></div>
-        <div class="fin-kpi"><span class="fin-kpi__lab">Total pago</span><strong>${esc(brl(totPago))}</strong></div>`;
+      const totAtraso = rows.reduce((s, r) => s + r.atraso, 0);
+      const atrasados = rows.filter((r) => r.pago < r.devido).length;
+      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Contratos filtrados</span><strong>${rows.length}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Total devido</span><strong>${esc(brl(totDev))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Total pago</span><strong>${esc(brl(totPago))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Saldo (pago − devido)</span><strong class="${totAtraso < 0 ? "fin-rel-val--neg" : ""}">${esc(fmtBrlAssinado(totAtraso))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Com atraso (pago &lt; devido)</span><strong>${atrasados}</strong></div>`;
     }
     const tab = document.getElementById("finRelacaoPagamentoTabela");
     if (!tab) return;
     if (!rows.length) {
-      tab.innerHTML = `<p class="subtext">Nenhum contrato ativo encontrado.</p>`;
+      tab.innerHTML = `<p class="subtext">Nenhum contrato no filtro selecionado.</p>`;
       return;
     }
-    tab.innerHTML = `<table class="fin-table"><thead><tr>
+    tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>
       <th>Nome do cliente</th>
       <th>Telefone do cliente</th>
       <th>Valor da locação</th>
       <th>Valor devido</th>
       <th>Valor pago</th>
+      <th>Valor em atraso</th>
+      <th>Total de investimento</th>
+      <th>Total de aluguel</th>
     </tr></thead><tbody>${rows
-      .map(
-        (r) => `<tr>
-        <td>${esc(r.nome)}${r.protocolo ? `<br><span class="subtext">${esc(r.protocolo)}</span>` : ""}</td>
+      .map((r) => {
+        const atrasado = r.pago < r.devido;
+        const planoCls = `fin-rel-row--${r.plano || "minha-moto"}`;
+        const nomeCls = atrasado ? "fin-rel-nome fin-rel-nome--atraso" : "fin-rel-nome";
+        const meta = [r.protocolo, r.placa].filter(Boolean).join(" · ");
+        return `<tr class="${planoCls}">
+        <td><span class="${nomeCls}">${esc(r.nome)}</span>${meta ? `<br><span class="subtext">${esc(meta)}</span>` : ""}</td>
         <td>${esc(r.telefone)}</td>
-        <td>${esc(brl(r.valorLocacao))}</td>
-        <td>${esc(brl(r.devido))}</td>
-        <td>${esc(brl(r.pago))}</td>
-      </tr>`
-      )
+        ${celulaValorAssinado(r.valorLocacao)}
+        ${celulaValorAssinado(r.devido)}
+        ${celulaValorAssinado(r.pago)}
+        ${celulaValorAssinado(r.atraso)}
+        ${celulaValorAssinado(r.investimentoPago)}
+        ${celulaValorAssinado(r.aluguelPago)}
+      </tr>`;
+      })
       .join("")}</tbody></table>`;
   }
 
+  let relacaoPagamentoBound = false;
+  function bindRelacaoPagamento() {
+    if (relacaoPagamentoBound) return;
+    relacaoPagamentoBound = true;
+    const box = document.getElementById("finFiltrosRelacaoPagamento");
+    box?.addEventListener("change", () => renderRelacaoPagamento());
+    document.getElementById("finRelacaoPagamentoAplicar")?.addEventListener("click", () => renderRelacaoPagamento());
+  }
+
   function renderModulo(id) {
-    if (id === "relacao-pagamento") renderRelacaoPagamento();
-    else if (id === "quantitativo") renderQuantitativo();
+    if (id === "relacao-pagamento") {
+      bindRelacaoPagamento();
+      renderRelacaoPagamento();
+    } else if (id === "quantitativo") renderQuantitativo();
     else if (id === "receita-plano") renderReceitaPlano();
     else if (id === "receita-modelo") renderReceitaModelo();
     else if (id === "localizacao") renderLocalizacao();

@@ -454,6 +454,9 @@ async function runSuite() {
         html.includes("btn-fin-mod-relacao-pagamento") &&
         html.includes("financeiroPaneRelacaoPagamento") &&
         html.includes("Relação de pagamento por cliente") &&
+        html.includes("finRelStatusAtivo") &&
+        html.includes("finRelSaldoNegativo") &&
+        html.includes("finRelPlanoMinhaMoto") &&
         html.includes("btn-fin-mod-receita-plano") &&
         html.includes("btn-fin-mod-receita-modelo") &&
         html.includes("btn-fin-mod-localizacao") &&
@@ -493,9 +496,12 @@ async function runSuite() {
         portalFinModJs.includes('"0": "relacao-pagamento"') &&
         portalFinModJs.includes('"1": "quantitativo"') &&
         portalFinModJs.includes("renderRelacaoPagamento") &&
+        portalFinModJs.includes("filtrarRelacaoPagamento") &&
+        portalFinModJs.includes("rateioPagoAluguelInvestimento") &&
+        portalFinModJs.includes("fin-rel-nome--atraso") &&
         portalFinModJs.includes("valorDevidoAteHojeNum") &&
         portalFinModJs.includes("financeiroModulosVisivel"),
-      "0 = relação por cliente; 1–9 = módulos; 10 e extratos só clique"
+      "0 = relação; filtros situação/plano/saldo; atraso e rateio"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
@@ -1741,13 +1747,18 @@ async function runSuite() {
           const relOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPaneRelacaoPagamento");
             const tab = document.getElementById("finRelacaoPagamentoTabela");
+            const filtros = document.getElementById("finFiltrosRelacaoPagamento");
             const txt = String(tab?.textContent || "");
             return Boolean(
               pane &&
                 !pane.classList.contains("hidden") &&
+                filtros &&
+                document.getElementById("finRelStatusAtivo") &&
+                document.getElementById("finRelSaldoNegativo") &&
                 tab &&
-                (/Nome do cliente/i.test(txt) || /Nenhum contrato ativo/i.test(txt)) &&
-                (/Valor devido/i.test(txt) || /Nenhum contrato ativo/i.test(txt))
+                (/Nome do cliente/i.test(txt) || /Nenhum contrato/i.test(txt)) &&
+                (/Valor em atraso/i.test(txt) || /Nenhum contrato/i.test(txt)) &&
+                (/Total de investimento/i.test(txt) || /Nenhum contrato/i.test(txt))
             );
           });
           record("financeiro E2E: módulo Relação de pagamento por cliente abre", relOk);

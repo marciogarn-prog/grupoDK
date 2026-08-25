@@ -4951,6 +4951,41 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   vertical-align: top;
 }
 
+.fin-table--relacao td.fin-rel-val {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.fin-table--relacao .fin-rel-row--minha-moto td {
+  color: #5eb8ff;
+}
+
+.fin-table--relacao .fin-rel-row--meu-transporte td {
+  color: #6ee7a0;
+}
+
+.fin-table--relacao .fin-rel-row--carro td {
+  color: #c4a484;
+}
+
+.fin-table--relacao .fin-rel-row--minha-moto .subtext,
+.fin-table--relacao .fin-rel-row--meu-transporte .subtext,
+.fin-table--relacao .fin-rel-row--carro .subtext {
+  color: inherit;
+  opacity: 0.72;
+}
+
+.fin-table--relacao .fin-rel-nome--atraso {
+  color: #ff5252 !important;
+  font-weight: 700;
+}
+
+.fin-table--relacao .fin-rel-val--neg,
+.fin-kpi .fin-rel-val--neg {
+  color: #ff5252 !important;
+  font-weight: 700;
+}
+
 .fin-table--compact th,
 .fin-table--compact td {
   padding: 0.28rem 0.35rem;
