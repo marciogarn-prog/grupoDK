@@ -4986,6 +4986,33 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   font-weight: 700;
 }
 
+#financeiroPaneRelacaoPagamento .fin-relacao-sticky-head {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  margin: 0 0 0.15rem;
+  padding: 0 0 0.4rem;
+  background: rgba(8, 8, 10, 0.98);
+  border-bottom: 1px solid rgba(220, 38, 38, 0.45);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.42);
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-sticky-head .fin-kpis {
+  margin-bottom: 0;
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-scroll {
+  margin-bottom: 0.5rem;
+}
+
+#financeiroPaneRelacaoPagamento .fin-table--relacao thead th {
+  position: sticky;
+  top: var(--fin-relacao-sticky-h, 11rem);
+  z-index: 30;
+  background: #101012;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
 .fin-table--relacao .fin-excel-th {
   white-space: nowrap;
   vertical-align: middle;
