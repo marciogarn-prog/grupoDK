@@ -1481,6 +1481,14 @@ async function runSuite() {
         portalUiLancPersistJs.includes("valorDevidoAteHoje"),
       "caixas ao lado da data/valor no registrar pagamento"
     );
+    record(
+      "lançamento aluguel avisa pagamento duplicado na mesma data",
+      portalUiLancJs.includes("textoAvisoLancamentoDuplicadoMesmaData") &&
+        portalUiLancJs.includes("findPortalLancamentosMesmaData") &&
+        portalUiLancJs.includes("na data de hoje realizou um lançamento de") &&
+        portalUiLancJs.includes("Você confirma o lançamento atual?"),
+      "mesmo protocolo + mesma data pede confirmação extra"
+    );
     const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
