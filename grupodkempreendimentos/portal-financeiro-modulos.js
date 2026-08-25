@@ -41,7 +41,8 @@
     { id: "MULTAS", label: "05-MULTAS" },
     { id: "SALARIOS", label: "06-SALARIOS" },
     { id: "CONT_ADV_PROP", label: "07-CONT+ADV+PROP" },
-    { id: "MANUTENCAO", label: "08-MANUTENCAO" },
+    { id: "MANUTENCAO", label: "08-MANUTENÇÃO" },
+    { id: "ALUGUEL", label: "09-ALUGUEL" },
   ];
   const MODELO_COLORS = ["#5eb8ff", "#6ee7a0", "#c4a484", "#f5d76e", "#ce93d8", "#ffb74d", "#80cbc4", "#ef9a9a", "#90caf9", "#a5d6a7"];
 
