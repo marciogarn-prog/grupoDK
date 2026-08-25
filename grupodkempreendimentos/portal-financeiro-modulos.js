@@ -43,6 +43,8 @@
     { id: "CONT_ADV_PROP", label: "07-CONT+ADV+PROP" },
     { id: "MANUTENCAO", label: "08-MANUTENÇÃO" },
     { id: "ALUGUEL", label: "09-ALUGUEL" },
+    { id: "COMPRA_OLEO", label: "10-COMPRA DE ÓLEO" },
+    { id: "TROCA_OLEO", label: "11-TROCA DE ÓLEO" },
   ];
   const MODELO_COLORS = ["#5eb8ff", "#6ee7a0", "#c4a484", "#f5d76e", "#ce93d8", "#ffb74d", "#80cbc4", "#ef9a9a", "#90caf9", "#a5d6a7"];
 
