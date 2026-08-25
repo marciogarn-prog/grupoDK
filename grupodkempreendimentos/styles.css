@@ -5031,8 +5031,21 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   width: 11rem;
 }
 
+.fin-despesas-table td:nth-child(5) {
+  width: 8.5rem;
+}
+
 .fin-despesas-table td:last-child {
   width: 5.5rem;
+}
+
+.fin-despesas-table tr:not(.fin-despesa-row--manut) .fin-despesa-placa {
+  visibility: hidden;
+}
+
+.fin-despesas-table .fin-despesa-placa:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 #finReceitaModeloSelect,

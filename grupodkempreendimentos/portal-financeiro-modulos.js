@@ -41,6 +41,7 @@
     { id: "MULTAS", label: "05-MULTAS" },
     { id: "SALARIOS", label: "06-SALARIOS" },
     { id: "CONT_ADV_PROP", label: "07-CONT+ADV+PROP" },
+    { id: "MANUTENCAO", label: "08-MANUTENCAO" },
   ];
   const MODELO_COLORS = ["#5eb8ff", "#6ee7a0", "#c4a484", "#f5d76e", "#ce93d8", "#ffb74d", "#80cbc4", "#ef9a9a", "#90caf9", "#a5d6a7"];
 
@@ -816,16 +817,63 @@
     }
   }
 
+  function isDespesaManutencao(cat) {
+    return String(cat || "").trim().toUpperCase() === "MANUTENCAO";
+  }
+
+  function normDespesaPlaca(raw) {
+    const p = nkPlate(raw);
+    if (!p) return "";
+    if (typeof window.normalizePlacaParaCadastro === "function") {
+      return window.normalizePlacaParaCadastro(p) || p;
+    }
+    return p;
+  }
+
+  function placasFrotaLista() {
+    const seen = new Set();
+    const out = [];
+    veiculosCadastro().forEach((v) => {
+      const p = nkPlate(v?.placa);
+      if (!p || seen.has(p)) return;
+      seen.add(p);
+      out.push(p);
+    });
+    out.sort();
+    return out;
+  }
+
+  function fillPlacasDatalist() {
+    const dl = document.getElementById("finDespesaPlacasList");
+    if (!dl) return;
+    dl.innerHTML = placasFrotaLista()
+      .map((p) => `<option value="${esc(p)}"></option>`)
+      .join("");
+  }
+
   function catOptions(selected) {
     return DESPESA_CATS.map((c) => `<option value="${c.id}"${c.id === selected ? " selected" : ""}>${esc(c.label)}</option>`).join("");
   }
 
+  function syncDespesaPlacaCell(tr) {
+    if (!tr) return;
+    const manut = isDespesaManutencao(tr.querySelector(".fin-despesa-cat")?.value);
+    tr.classList.toggle("fin-despesa-row--manut", manut);
+    const inp = tr.querySelector(".fin-despesa-placa");
+    if (!inp) return;
+    inp.disabled = !manut;
+    inp.setAttribute("aria-required", manut ? "true" : "false");
+    if (!manut) inp.value = "";
+  }
+
   function rowHtml(d) {
-    return `<tr data-despesa-id="${esc(d.id)}">
+    const manut = isDespesaManutencao(d.categoria);
+    return `<tr data-despesa-id="${esc(d.id)}" class="${manut ? "fin-despesa-row--manut" : ""}">
       <td><input type="text" class="fin-despesa-valor" inputmode="decimal" value="${esc(d.valorFmt || (d.valor ? brl(d.valor).replace("R$", "").trim() : ""))}" aria-label="Valor"></td>
       <td><input type="text" class="fin-despesa-desc" maxlength="240" value="${esc(d.descricao || "")}" aria-label="Descrição"></td>
       <td><input type="text" class="fin-despesa-data" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" value="${esc(d.data || "")}" aria-label="Data"></td>
       <td><select class="fin-despesa-cat" aria-label="Categoria">${catOptions(d.categoria)}</select></td>
+      <td class="fin-despesa-placa-cell"><input type="text" class="fin-despesa-placa" maxlength="8" placeholder="Qual a placa?" list="finDespesaPlacasList" value="${esc(d.placa || "")}" aria-label="Placa" ${manut ? "" : "disabled"}></td>
       <td><button type="button" class="btn-primary btn-secondary-outline fin-despesa-del">Apagar</button></td>
     </tr>`;
   }
@@ -836,6 +884,7 @@
     const descricao = String(tr.querySelector(".fin-despesa-desc")?.value || "").trim();
     const data = String(tr.querySelector(".fin-despesa-data")?.value || "").trim();
     const categoria = String(tr.querySelector(".fin-despesa-cat")?.value || "").trim();
+    const placa = isDespesaManutencao(categoria) ? normDespesaPlaca(tr.querySelector(".fin-despesa-placa")?.value) : "";
     return {
       id,
       valor: parseValor(valorFmt),
@@ -843,6 +892,7 @@
       descricao,
       data,
       categoria,
+      placa,
       updatedAt: Date.now(),
     };
   }
@@ -854,7 +904,9 @@
     saveDespesas(list);
     renderDespesasResumo(list);
     const msg = document.getElementById("finDespesaMsg");
-    if (msg) msg.textContent = "Despesas guardadas.";
+    if (!msg) return;
+    const faltaPlaca = list.some((d) => isDespesaManutencao(d.categoria) && !nkPlate(d.placa));
+    msg.textContent = faltaPlaca ? "Manutenção: informe a placa do veículo." : "Despesas guardadas.";
   }
 
   function renderDespesasResumo(list) {
@@ -869,19 +921,35 @@
       by[d.categoria] += Number(d.valor) || 0;
     });
     const tot = Object.values(by).reduce((a, b) => a + b, 0);
+    const porPlaca = {};
+    (list || []).forEach((d) => {
+      if (!isDespesaManutencao(d.categoria)) return;
+      const p = nkPlate(d.placa) || "(sem placa)";
+      porPlaca[p] = (porPlaca[p] || 0) + (Number(d.valor) || 0);
+    });
+    const placasRows = Object.keys(porPlaca)
+      .sort()
+      .map((p) => `<tr><td>${esc(p)}</td><td>${esc(brl(porPlaca[p]))}</td></tr>`)
+      .join("");
     el.innerHTML = `<table class="fin-table"><thead><tr><th>Categoria</th><th>Total</th></tr></thead><tbody>${DESPESA_CATS.map(
       (c) => `<tr><td>${esc(c.label)}</td><td>${esc(brl(by[c.id] || 0))}</td></tr>`
-    ).join("")}<tr><td><strong>Total</strong></td><td><strong>${esc(brl(tot))}</strong></td></tr></tbody></table>`;
+    ).join("")}<tr><td><strong>Total</strong></td><td><strong>${esc(brl(tot))}</strong></td></tr></tbody></table>${
+      placasRows
+        ? `<h4 class="fin-subh">Manutenção por placa</h4><table class="fin-table"><thead><tr><th>Placa</th><th>Total</th></tr></thead><tbody>${placasRows}</tbody></table>`
+        : ""
+    }`;
   }
 
   function renderDespesas() {
     const body = document.getElementById("finDespesasBody");
     if (!body) return;
+    fillPlacasDatalist();
     const list = loadDespesas();
     body.innerHTML = list.length ? list.map(rowHtml).join("") : rowHtml({ id: newDespesaId(), categoria: "ADM", data: fmtBrDate(new Date()) });
     body.querySelectorAll(".fin-despesa-data").forEach((inp) => {
       if (typeof window.bindDateMaskInput === "function") window.bindDateMaskInput(inp);
     });
+    body.querySelectorAll("tr[data-despesa-id]").forEach((tr) => syncDespesaPlacaCell(tr));
     renderDespesasResumo(list);
     const msg = document.getElementById("finDespesaMsg");
     if (msg) msg.textContent = "";
@@ -896,7 +964,9 @@
       body.insertAdjacentHTML("beforeend", rowHtml({ id: newDespesaId(), categoria: "ADM", data: fmtBrDate(new Date()) }));
       const last = body.querySelector("tr:last-child .fin-despesa-data");
       if (last && typeof window.bindDateMaskInput === "function") window.bindDateMaskInput(last);
-      last?.closest("tr")?.querySelector(".fin-despesa-valor")?.focus();
+      const tr = last?.closest("tr");
+      syncDespesaPlacaCell(tr);
+      tr?.querySelector(".fin-despesa-valor")?.focus();
     });
     document.getElementById("finDespesasTable")?.addEventListener("click", (e) => {
       const del = e.target.closest(".fin-despesa-del");
@@ -905,7 +975,25 @@
       tr?.remove();
       persistDespesasDaTabela();
     });
-    document.getElementById("finDespesasTable")?.addEventListener("change", () => persistDespesasDaTabela());
+    document.getElementById("finDespesasTable")?.addEventListener("change", (e) => {
+      const cat = e.target.closest?.(".fin-despesa-cat");
+      if (cat) {
+        const tr = cat.closest("tr");
+        syncDespesaPlacaCell(tr);
+        if (isDespesaManutencao(cat.value)) {
+          const placaInp = tr?.querySelector(".fin-despesa-placa");
+          placaInp?.focus();
+          const msg = document.getElementById("finDespesaMsg");
+          if (msg) msg.textContent = "Manutenção: informe a placa do veículo.";
+        }
+      }
+      const placaInp = e.target.closest?.(".fin-despesa-placa");
+      if (placaInp) {
+        const n = normDespesaPlaca(placaInp.value);
+        if (n) placaInp.value = n;
+      }
+      persistDespesasDaTabela();
+    });
     document.getElementById("finDespesasTable")?.addEventListener("focusout", (e) => {
       if (e.currentTarget.contains(e.relatedTarget)) return;
       persistDespesasDaTabela();
@@ -1219,5 +1307,10 @@
       }
     }
     return Array.from(byId.values()).filter((x) => !x.deleted);
+  };
+  const prevFinRefresh = window.__DK_financeiroRefreshFromStorage;
+  window.__DK_financeiroRefreshFromStorage = () => {
+    if (typeof prevFinRefresh === "function") prevFinRefresh();
+    if (moduloAberto === "despesas") renderDespesas();
   };
 })();

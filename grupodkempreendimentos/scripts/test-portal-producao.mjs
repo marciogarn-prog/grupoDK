@@ -458,6 +458,8 @@ async function runSuite() {
         html.includes("btn-fin-mod-intervalo") &&
         html.includes("btn-fin-mod-despesas") &&
         html.includes("financeiroPaneDespesas") &&
+        html.includes("05 Placa") &&
+        html.includes("finDespesaPlacasList") &&
         html.includes("btn-fin-mod-previsao") &&
         html.includes("financeiroPanePrevisao") &&
         html.includes("btn-financeiro-santander") &&
@@ -1721,9 +1723,31 @@ async function runSuite() {
             );
           });
           record("financeiro E2E: módulo Previsão de receita abre", pOk);
+          await pageE2e.locator("#btn-fin-mod-despesas").click().catch(() => null);
+          await pageE2e.waitForSelector("#financeiroPaneDespesas:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          const dOk = await pageE2e.evaluate(() => {
+            const pane = document.getElementById("financeiroPaneDespesas");
+            const sel = pane?.querySelector(".fin-despesa-cat");
+            const hasManut = Boolean(sel && Array.from(sel.options).some((o) => o.value === "MANUTENCAO"));
+            return Boolean(pane && !pane.classList.contains("hidden") && document.getElementById("finDespesaPlacasList") && hasManut);
+          });
+          record("financeiro E2E: despesa manutenção pede placa", dOk);
+          if (dOk) {
+            await pageE2e.locator("#financeiroPaneDespesas .fin-despesa-cat").first().selectOption("MANUTENCAO").catch(() => null);
+            const placaPede = await pageE2e.evaluate(() => {
+              const tr = document.querySelector("#finDespesasBody tr");
+              const inp = tr?.querySelector(".fin-despesa-placa");
+              return Boolean(tr?.classList.contains("fin-despesa-row--manut") && inp && !inp.disabled);
+            });
+            record("financeiro E2E: categoria manutenção mostra campo placa", placaPede);
+          } else {
+            record("financeiro E2E: categoria manutenção mostra campo placa", false, "módulo despesas não abriu");
+          }
         } else {
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Previsão de receita abre", false, "tela financeiro não abriu");
+          record("financeiro E2E: despesa manutenção pede placa", false, "tela financeiro não abriu");
+          record("financeiro E2E: categoria manutenção mostra campo placa", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
@@ -1731,6 +1755,8 @@ async function runSuite() {
         record("financeiro E2E: abre tela nova com Santander e Sicredi", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Previsão de receita abre", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: despesa manutenção pede placa", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: categoria manutenção mostra campo placa", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
