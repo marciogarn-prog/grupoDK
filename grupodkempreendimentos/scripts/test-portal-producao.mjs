@@ -474,8 +474,23 @@ async function runSuite() {
         html.includes("btn-financeiro-sicredi") &&
         html.includes("portal-financeiro.js") &&
         html.includes("portal-financeiro-modulos.js") &&
+        html.includes("Teclas") &&
+        html.includes("Extratos Santander e Sicredi só pelo clique") &&
         html.indexOf("btn-locadora-documentos") < html.indexOf("btn-locadora-financeiro") &&
         html.indexOf("btn-locadora-financeiro") < html.indexOf("btn-locadora-preview-cliente")
+    );
+    const portalFinModVer = html.match(/portal-financeiro-modulos\.js\?v=([^"]+)/)?.[1] || "";
+    const portalFinModJs = await fetch(`${BASE_URL}portal-financeiro-modulos.js?v=${portalFinModVer || "latest"}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "financeiro atalhos teclado 1–0 nos módulos numerados",
+      portalFinModJs.includes("FIN_MOD_ATALLHO") &&
+        portalFinModJs.includes("bindAtalhosTecladoModulos") &&
+        portalFinModJs.includes('"0": "previsao"') &&
+        portalFinModJs.includes('"1": "quantitativo"') &&
+        portalFinModJs.includes("financeiroModulosVisivel"),
+      "1–9 e 0; extratos só no clique"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
@@ -1714,9 +1729,9 @@ async function runSuite() {
               String(location.hash || "").toLowerCase().includes("locadora/financeiro")
           );
         });
-        record("financeiro E2E: abre tela nova com Santander e Sicredi", finOk);
+          record("financeiro E2E: abre tela nova com Santander e Sicredi", finOk);
         if (finOk) {
-          await pageE2e.locator("#btn-fin-mod-quantitativo").click().catch(() => null);
+          await pageE2e.keyboard.press("1").catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneQuantitativo:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const qOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPaneQuantitativo");
@@ -1724,7 +1739,7 @@ async function runSuite() {
             return Boolean(pane && !pane.classList.contains("hidden") && String(titulo?.textContent || "").includes("quantitativo"));
           });
           record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
-          await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
+          await pageE2e.keyboard.press("0").catch(() => null);
           await pageE2e.waitForSelector("#financeiroPanePrevisao:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const pOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPanePrevisao");

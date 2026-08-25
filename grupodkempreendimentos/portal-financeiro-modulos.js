@@ -2003,10 +2003,56 @@
     else if (id === "previsao") renderPrevisaoReceita();
   }
 
+  const FIN_MOD_ATALLHO = {
+    "1": "quantitativo",
+    "2": "receita-plano",
+    "3": "receita-modelo",
+    "4": "localizacao",
+    "5": "dia-semana",
+    "6": "intervalo",
+    "7": "despesas",
+    "8": "despesas-graf",
+    "9": "analise",
+    "0": "previsao",
+  };
+
+  function financeiroModulosVisivel() {
+    const view = document.getElementById("view-financeiro");
+    return Boolean(
+      view?.classList.contains("view--active") &&
+        panel &&
+        !panel.classList.contains("hidden")
+    );
+  }
+
+  function alvoTecladoEhCampoEditavel(el) {
+    if (!el || !(el instanceof Element)) return false;
+    const tag = String(el.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
+    if (el.isContentEditable) return true;
+    return Boolean(el.closest("input, textarea, select, [contenteditable='true']"));
+  }
+
+  function bindAtalhosTecladoModulos() {
+    if (document.documentElement.dataset.dkFinModAtalhosBound === "1") return;
+    document.documentElement.dataset.dkFinModAtalhosBound = "1";
+    document.addEventListener("keydown", (e) => {
+      if (!financeiroModulosVisivel()) return;
+      if (e.altKey || e.ctrlKey || e.metaKey) return;
+      if (alvoTecladoEhCampoEditavel(e.target)) return;
+      const key = e.key === "Digit0" || e.code === "Digit0" || e.key === "Numpad0" ? "0" : String(e.key || "");
+      const modId = FIN_MOD_ATALLHO[key];
+      if (!modId) return;
+      e.preventDefault();
+      abrirModulo(modId);
+    });
+  }
+
   function bindNav() {
     document.querySelectorAll("#financeiroModulosNav [data-fin-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirModulo(btn.getAttribute("data-fin-mod") || ""));
     });
+    bindAtalhosTecladoModulos();
     document.getElementById("finReceitaPlanoAplicar")?.addEventListener("click", () => renderReceitaPlano());
     document.getElementById("finReceitaModeloAplicar")?.addEventListener("click", () => renderReceitaModelo());
     document.getElementById("finLocalAplicar")?.addEventListener("click", () => renderLocalizacao());

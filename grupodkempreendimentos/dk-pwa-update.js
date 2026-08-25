@@ -5,10 +5,10 @@
 (function dkPwaUpdate() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
 
-  const SW_BUILD = "20260825lanc-dup";
+  const SW_BUILD = "20260825fin-keys";
   const SW_URL = `/service-worker-corporativo.js?v=${SW_BUILD}`;
   const CACHE_PREFIX = "dk-corporativo-v";
-  const ACTIVE_CACHE = `${CACHE_PREFIX}20260825lanc-dup`;
+  const ACTIVE_CACHE = `${CACHE_PREFIX}20260825fin-keys`;
 
   const path = (location.pathname || "/").replace(/\/$/, "") || "/";
   const isClienteApp =
