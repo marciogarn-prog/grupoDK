@@ -451,6 +451,9 @@ async function runSuite() {
         html.includes('id="view-financeiro"') &&
         html.includes("panel-financeiro-locadora") &&
         html.includes("btn-fin-mod-quantitativo") &&
+        html.includes("btn-fin-mod-relacao-pagamento") &&
+        html.includes("financeiroPaneRelacaoPagamento") &&
+        html.includes("Valor devido") &&
         html.includes("btn-fin-mod-receita-plano") &&
         html.includes("btn-fin-mod-receita-modelo") &&
         html.includes("btn-fin-mod-localizacao") &&
@@ -475,7 +478,7 @@ async function runSuite() {
         html.includes("portal-financeiro.js") &&
         html.includes("portal-financeiro-modulos.js") &&
         html.includes("Teclas") &&
-        html.includes("Extratos Santander e Sicredi só pelo clique") &&
+        html.includes("relação por cliente") &&
         html.indexOf("btn-locadora-documentos") < html.indexOf("btn-locadora-financeiro") &&
         html.indexOf("btn-locadora-financeiro") < html.indexOf("btn-locadora-preview-cliente")
     );
@@ -487,10 +490,12 @@ async function runSuite() {
       "financeiro atalhos teclado 1–0 nos módulos numerados",
       portalFinModJs.includes("FIN_MOD_ATALLHO") &&
         portalFinModJs.includes("bindAtalhosTecladoModulos") &&
-        portalFinModJs.includes('"0": "previsao"') &&
+        portalFinModJs.includes('"0": "relacao-pagamento"') &&
         portalFinModJs.includes('"1": "quantitativo"') &&
+        portalFinModJs.includes("renderRelacaoPagamento") &&
+        portalFinModJs.includes("valorDevidoAteHojeNum") &&
         portalFinModJs.includes("financeiroModulosVisivel"),
-      "1–9 e 0; extratos só no clique"
+      "0 = relação por cliente; 1–9 = módulos; 10 e extratos só clique"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
@@ -1731,6 +1736,21 @@ async function runSuite() {
         });
           record("financeiro E2E: abre tela nova com Santander e Sicredi", finOk);
         if (finOk) {
+          await pageE2e.keyboard.press("0").catch(() => null);
+          await pageE2e.waitForSelector("#financeiroPaneRelacaoPagamento:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          const relOk = await pageE2e.evaluate(() => {
+            const pane = document.getElementById("financeiroPaneRelacaoPagamento");
+            const tab = document.getElementById("finRelacaoPagamentoTabela");
+            const txt = String(tab?.textContent || "");
+            return Boolean(
+              pane &&
+                !pane.classList.contains("hidden") &&
+                tab &&
+                (/Nome do cliente/i.test(txt) || /Nenhum contrato ativo/i.test(txt)) &&
+                (/Valor devido/i.test(txt) || /Nenhum contrato ativo/i.test(txt))
+            );
+          });
+          record("financeiro E2E: módulo Relação de pagamento por cliente abre", relOk);
           await pageE2e.keyboard.press("1").catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneQuantitativo:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const qOk = await pageE2e.evaluate(() => {
@@ -1739,7 +1759,7 @@ async function runSuite() {
             return Boolean(pane && !pane.classList.contains("hidden") && String(titulo?.textContent || "").includes("quantitativo"));
           });
           record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
-          await pageE2e.keyboard.press("0").catch(() => null);
+          await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPanePrevisao:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const pOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPanePrevisao");
@@ -1900,6 +1920,7 @@ async function runSuite() {
           });
           record("financeiro E2E: análise inteligente com projeção e alertas", aOk);
         } else {
+          record("financeiro E2E: módulo Relação de pagamento por cliente abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Previsão de receita abre", false, "tela financeiro não abriu");
           record("financeiro E2E: despesa manutenção pede placa", false, "tela financeiro não abriu");
@@ -1913,6 +1934,7 @@ async function runSuite() {
         await pageE2e.waitForTimeout(400);
       } else {
         record("financeiro E2E: abre tela nova com Santander e Sicredi", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: módulo Relação de pagamento por cliente abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Previsão de receita abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: despesa manutenção pede placa", false, "botão FINANCEIRO oculto");

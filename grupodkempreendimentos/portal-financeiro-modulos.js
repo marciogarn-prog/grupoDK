@@ -1986,8 +1986,140 @@
     }
   }
 
+  function clientesCadastro() {
+    const key = typeof window.CAD_CLIENTES_KEY === "string" ? window.CAD_CLIENTES_KEY : "dk_clientes_cadastro";
+    return loadArr(key);
+  }
+
+  function clientePorCpf(cpfDigits) {
+    const dig = String(cpfDigits || "").replace(/\D/g, "").slice(0, 11);
+    if (dig.length !== 11) return null;
+    if (typeof window.findClienteByCpfCadastro === "function") {
+      return window.findClienteByCpfCadastro(dig) || null;
+    }
+    return (
+      clientesCadastro().find((c) => String(c?.cpf || "").replace(/\D/g, "").slice(0, 11) === dig) || null
+    );
+  }
+
+  function telefoneDoCliente(cli, loc) {
+    const raw = String(
+      cli?.celular ||
+        cli?.telefone ||
+        cli?.fone ||
+        cli?.telefoneCelular ||
+        loc?.celular ||
+        loc?.telefone ||
+        ""
+    ).trim();
+    if (!raw) return "—";
+    if (typeof window.formatPhoneBR === "function") {
+      const d = String(raw).replace(/\D/g, "");
+      return d ? window.formatPhoneBR(d) || raw : raw;
+    }
+    return raw;
+  }
+
+  function valorLocacaoNum(loc) {
+    const locacao = parseValor(loc?.valorLocacao);
+    if (locacao > 0) return locacao;
+    const sem = parseValor(loc?.valorSemanal || loc?.valorParcela);
+    const inv = parseValor(loc?.valorInvestimento);
+    if (sem > 0 && sem >= inv) return Math.max(0, sem - inv);
+    return 0;
+  }
+
+  function diasContratoAteHoje(loc) {
+    const inicio = locInicio(loc);
+    if (!inicio) return 0;
+    const now = new Date();
+    let end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const fim = parseLocCampoData(loc, ["fim", "dataFim", "termino"]);
+    if (fim && fim.getTime() < end.getTime()) end = fim;
+    if (end.getTime() < inicio.getTime()) return 0;
+    return Math.max(0, daysBetween(inicio, end));
+  }
+
+  function valorDevidoAteHojeNum(loc) {
+    if (typeof window.__DK_computePortalProtocoloResumoFromLoc === "function") {
+      const r = window.__DK_computePortalProtocoloResumoFromLoc(loc);
+      const n = parseValor(r?.valorDevidoAteHoje);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+    const semanal = valorSemanalContrato(loc);
+    return diasContratoAteHoje(loc) * (semanal / 7);
+  }
+
+  function valorPagoLocNum(loc) {
+    return lancsDaLoc(loc).reduce((s, x) => s + (Number(x?.valor) || 0), 0);
+  }
+
+  function coletarRelacaoPagamentoPorCliente() {
+    const rows = [];
+    locacoesCadastro().forEach((loc) => {
+      if (!locacaoEstaAtiva(loc)) return;
+      const cpf = String(loc?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      const cli = clientePorCpf(cpf);
+      const nome = String(cli?.nome || loc?.nomeCliente || loc?.cliente || "").trim() || "—";
+      const telefone = telefoneDoCliente(cli, loc);
+      const valorLocacao = valorLocacaoNum(loc);
+      const devido = valorDevidoAteHojeNum(loc);
+      const pago = valorPagoLocNum(loc);
+      rows.push({
+        nome,
+        telefone,
+        cpf,
+        protocolo: String(loc?.numeroContrato || "").trim(),
+        valorLocacao,
+        devido,
+        pago,
+        saldo: pago - devido,
+      });
+    });
+    rows.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") || a.protocolo.localeCompare(b.protocolo, "en"));
+    return rows;
+  }
+
+  function renderRelacaoPagamento() {
+    const rows = coletarRelacaoPagamentoPorCliente();
+    const kpis = document.getElementById("finRelacaoPagamentoKpis");
+    if (kpis) {
+      const totLoc = rows.reduce((s, r) => s + r.valorLocacao, 0);
+      const totDev = rows.reduce((s, r) => s + r.devido, 0);
+      const totPago = rows.reduce((s, r) => s + r.pago, 0);
+      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Clientes / contratos</span><strong>${rows.length}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Soma locações (semanal)</span><strong>${esc(brl(totLoc))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Total devido até hoje</span><strong>${esc(brl(totDev))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Total pago</span><strong>${esc(brl(totPago))}</strong></div>`;
+    }
+    const tab = document.getElementById("finRelacaoPagamentoTabela");
+    if (!tab) return;
+    if (!rows.length) {
+      tab.innerHTML = `<p class="subtext">Nenhum contrato ativo encontrado.</p>`;
+      return;
+    }
+    tab.innerHTML = `<table class="fin-table"><thead><tr>
+      <th>Nome do cliente</th>
+      <th>Telefone do cliente</th>
+      <th>Valor da locação</th>
+      <th>Valor devido</th>
+      <th>Valor pago</th>
+    </tr></thead><tbody>${rows
+      .map(
+        (r) => `<tr>
+        <td>${esc(r.nome)}${r.protocolo ? `<br><span class="subtext">${esc(r.protocolo)}</span>` : ""}</td>
+        <td>${esc(r.telefone)}</td>
+        <td>${esc(brl(r.valorLocacao))}</td>
+        <td>${esc(brl(r.devido))}</td>
+        <td>${esc(brl(r.pago))}</td>
+      </tr>`
+      )
+      .join("")}</tbody></table>`;
+  }
+
   function renderModulo(id) {
-    if (id === "quantitativo") renderQuantitativo();
+    if (id === "relacao-pagamento") renderRelacaoPagamento();
+    else if (id === "quantitativo") renderQuantitativo();
     else if (id === "receita-plano") renderReceitaPlano();
     else if (id === "receita-modelo") renderReceitaModelo();
     else if (id === "localizacao") renderLocalizacao();
@@ -2004,6 +2136,7 @@
   }
 
   const FIN_MOD_ATALLHO = {
+    "0": "relacao-pagamento",
     "1": "quantitativo",
     "2": "receita-plano",
     "3": "receita-modelo",
@@ -2013,7 +2146,6 @@
     "7": "despesas",
     "8": "despesas-graf",
     "9": "analise",
-    "0": "previsao",
   };
 
   function financeiroModulosVisivel() {
