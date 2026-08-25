@@ -9,6 +9,7 @@
   const viewLocadoraHub = document.getElementById("view-locadora-hub");
   const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
   const viewMiel = document.getElementById("view-miel");
+  const viewFinanceiro = document.getElementById("view-financeiro");
   if (!viewHome || !viewUnit) return;
 
   /** Único CPF com acesso «Administrador» no portal DK Locadora. */
@@ -1380,7 +1381,7 @@
     refreshOperacaoClienteCodigoEditavel();
   }
 
-  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente, viewMiel].filter(Boolean);
+  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente, viewMiel, viewFinanceiro].filter(Boolean);
 
   function showView(which) {
     const map = {
@@ -1389,6 +1390,7 @@
       hub: viewLocadoraHub,
       cliente: viewLocadoraCliente,
       miel: viewMiel,
+      financeiro: viewFinanceiro,
     };
     portalViews.forEach((v) => {
       v.classList.remove("view--active");
@@ -1638,6 +1640,29 @@
     portalAtualizarBannerAdmin();
   }
 
+  function portalPodeAcessarFinanceiro() {
+    const func = portalObterFuncionarioDaSessaoRestauracao();
+    if (!func) return false;
+    return func.role === "operacao" || func.role === "owner";
+  }
+
+  function openLocadoraFinanceiro() {
+    currentUnit = "locadora";
+    const func = portalObterFuncionarioDaSessaoRestauracao();
+    if (!func || !portalPodeAcessarFinanceiro()) {
+      openLocadoraEmpresa();
+      return;
+    }
+    finalizarLoginEquipaPortal(func);
+    hideAllPanels();
+    panelFinanceiro?.classList.remove("hidden");
+    showView("financeiro");
+    setPortalHash("locadora/financeiro");
+    if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
+    portalPersistirAreaAtiva("financeiro");
+    portalAtualizarBannerAdmin();
+  }
+
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro].forEach(
@@ -1802,11 +1827,16 @@
     if (typeof window.__DK_documentosReset === "function") window.__DK_documentosReset();
     if (typeof window.__DK_financeiroReset === "function") window.__DK_financeiroReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
+    const vinhaFinanceiro = Boolean(viewFinanceiro?.classList.contains("view--active"));
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
     panelLocalizacao?.classList.add("hidden");
     panelDocumentos?.classList.add("hidden");
     panelFinanceiro?.classList.add("hidden");
+    if (vinhaFinanceiro) {
+      showView("unit");
+      setPortalHash("locadora/empresa");
+    }
     panelLogado?.classList.remove("hidden");
     portalPersistirAreaAtiva("equipa");
   }
@@ -1889,12 +1919,16 @@
     const h = (window.location.hash || "").toLowerCase();
     if (h.startsWith("#locadora/cliente")) return;
     if (area === "documentos" && panelDocumentos && !panelDocumentos.classList.contains("hidden")) return;
-    if (area === "financeiro" && panelFinanceiro && !panelFinanceiro.classList.contains("hidden")) return;
+    if (area === "financeiro" && viewFinanceiro?.classList.contains("view--active")) return;
     if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
     if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
     if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
     const func = portalObterFuncionarioDaSessaoRestauracao();
     if (!func) return;
+    if (area === "financeiro") {
+      openLocadoraFinanceiro();
+      return;
+    }
     currentUnit = "locadora";
     showView("unit");
     finalizarLoginEquipaPortal(func);
@@ -1902,9 +1936,6 @@
     if (area === "documentos" && isPortalDocumentosAcesso()) {
       panelDocumentos?.classList.remove("hidden");
       if (typeof window.__DK_documentosOnShow === "function") window.__DK_documentosOnShow();
-    } else if (area === "financeiro") {
-      panelFinanceiro?.classList.remove("hidden");
-      if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
     } else if (area === "localizacao") {
       panelLocalizacao?.classList.remove("hidden");
       if (typeof window.__DK_clienteGeoMapaOnShow === "function") window.__DK_clienteGeoMapaOnShow();
@@ -1979,6 +2010,10 @@
   /** Botão «Voltar» (data-back) — tela anterior no fluxo do portal (não vai ao início). */
   function portalAcaoVoltarTela() {
     if (typeof window.__DK_documentosEscapeBack === "function" && window.__DK_documentosEscapeBack()) {
+      return;
+    }
+    if (viewFinanceiro?.classList.contains("view--active")) {
+      portalVoltarEquipaLocadora();
       return;
     }
     const emOperacao = panelOperacao && !panelOperacao.classList.contains("hidden");
@@ -3287,10 +3322,7 @@
   });
 
   btnFinanceiro?.addEventListener("click", () => {
-    hideAllPanels();
-    if (typeof window.__DK_financeiroOnShow === "function") window.__DK_financeiroOnShow();
-    panelFinanceiro?.classList.remove("hidden");
-    portalPersistirAreaAtiva("financeiro");
+    openLocadoraFinanceiro();
   });
 
   btnLocalizacao?.addEventListener("click", () => {
@@ -18250,6 +18282,10 @@
     }
     if (rest === "cliente" || rest.startsWith("cliente/")) {
       openLocadoraClienteArea();
+      return;
+    }
+    if (rest === "financeiro" || rest.startsWith("financeiro/")) {
+      openLocadoraFinanceiro();
       return;
     }
     if (rest === "empresa" || rest.startsWith("empresa/")) {

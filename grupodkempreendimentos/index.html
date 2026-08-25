@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260824patio-manut">
+  <link rel="stylesheet" href="styles.css?v=20260824financeiro-tela">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260824excluir-cpf-fake"></script>
-  <script src="dk-pwa-update.js?v=20260824financeiro-btn"></script>
+  <script src="dk-pwa-update.js?v=20260824financeiro-tela"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -2110,8 +2110,21 @@
         </div>
       </section>
 
+    </div>
+  </div>
+
+  <div id="view-financeiro" class="view view--locadora-sub view--financeiro" role="region" aria-labelledby="financeiro-page-title" aria-hidden="true">
+    <div class="subpage">
+      <header class="portal-unit-bar portal-unit-bar--simple" aria-label="Navegação">
+        <div class="portal-unit-bar__nav">
+          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="financeiro-view-back-btn" data-back>&larr; Voltar</button>
+          <button type="button" class="btn-back btn-back--compact btn-back--inicio" data-inicio>Início</button>
+        </div>
+      </header>
+      <h1 id="financeiro-page-title" class="subpage__title">FINANCEIRO</h1>
+      <p class="subpage__lead">Extratos e relatórios das contas Santander e Sicredi.</p>
+
       <section id="panel-financeiro-locadora" class="portal-panel hidden" aria-live="polite">
-        <h2 class="portal-panel__title">Financeiro</h2>
         <div class="portal-operacao-layout">
           <aside class="portal-operacao-layout__sidebar" aria-label="contas bancárias">
             <p class="subpage__lead">Extratos e relatórios.</p>
@@ -2174,7 +2187,6 @@
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-financeiro-locadora">Voltar</button>
         </div>
       </section>
-
     </div>
   </div>
   <div id="documentosViewerModal" class="portal-modal documentos-viewer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="documentosViewerTitulo" aria-hidden="true">
@@ -2562,8 +2574,8 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260824financeiro-btn" defer></script>
-  <script src="portal-financeiro.js?v=20260824financeiro-btn" defer></script>
+  <script src="portal-locadora-ui.js?v=20260824financeiro-tela" defer></script>
+  <script src="portal-financeiro.js?v=20260824financeiro-tela" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
