@@ -2357,6 +2357,13 @@
     search?.focus();
   }
 
+  function syncRelacaoStickyHeadHeight() {
+    const pane = document.getElementById("financeiroPaneRelacaoPagamento");
+    const head = pane?.querySelector(".fin-relacao-sticky-head");
+    if (!pane || !head || pane.classList.contains("hidden")) return;
+    pane.style.setProperty("--fin-relacao-sticky-h", `${head.offsetHeight}px`);
+  }
+
   function renderRelacaoPagamento() {
     fecharExcelFiltroPopup();
     const all = coletarRelacaoPagamentoPorCliente();
@@ -2378,6 +2385,7 @@
     if (!tab) return;
     if (!base.length) {
       tab.innerHTML = `<p class="subtext">Nenhum contrato no filtro selecionado.</p>`;
+      requestAnimationFrame(syncRelacaoStickyHeadHeight);
       return;
     }
     const head = REL_COLS.map((col) => {
@@ -2391,6 +2399,7 @@
       tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>
         <tr><td colspan="${REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>
       </tbody></table>`;
+      requestAnimationFrame(syncRelacaoStickyHeadHeight);
       return;
     }
     tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>${rows
@@ -2411,9 +2420,11 @@
       </tr>`;
       })
       .join("")}</tbody></table>`;
+    requestAnimationFrame(syncRelacaoStickyHeadHeight);
   }
 
   let relacaoPagamentoBound = false;
+  let relacaoStickyResizeBound = false;
   function bindRelacaoPagamento() {
     if (relacaoPagamentoBound) return;
     relacaoPagamentoBound = true;
@@ -2449,6 +2460,10 @@
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && relacaoExcelOpenKey) fecharExcelFiltroPopup();
       });
+    }
+    if (!relacaoStickyResizeBound) {
+      relacaoStickyResizeBound = true;
+      window.addEventListener("resize", () => requestAnimationFrame(syncRelacaoStickyHeadHeight));
     }
   }
 

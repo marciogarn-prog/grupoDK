@@ -453,6 +453,7 @@ async function runSuite() {
         html.includes("btn-fin-mod-quantitativo") &&
         html.includes("btn-fin-mod-relacao-pagamento") &&
         html.includes("financeiroPaneRelacaoPagamento") &&
+        html.includes("fin-relacao-sticky-head") &&
         html.includes("Relação de pagamento por cliente") &&
         html.includes("finRelStatusAtivo") &&
         html.includes("finRelSaldoNegativo") &&

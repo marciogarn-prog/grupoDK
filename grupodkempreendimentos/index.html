@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260825fin-rel2">
+  <link rel="stylesheet" href="styles.css?v=20260825fin-rel3">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260824excluir-cpf-fake"></script>
-  <script src="dk-pwa-update.js?v=20260825fin-rel2"></script>
+  <script src="dk-pwa-update.js?v=20260825fin-rel3"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -2190,30 +2190,32 @@
               <p class="operacao-form-placeholder__text">Escolha um módulo à esquerda.</p>
             </div>
 
-            <div id="financeiroPaneRelacaoPagamento" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="relacao-pagamento" role="region" aria-labelledby="finRelacaoPagamentoTitulo">
-              <h3 id="finRelacaoPagamentoTitulo" class="operacao-inline-form__title">0 — Relação de pagamento por cliente</h3>
-              <p class="subtext">Nome, telefone, locação, devido até hoje, pago, atraso (pago − devido), investimento e aluguel já pagos. Nome em vermelho se pago &lt; devido.</p>
-              <div class="fin-filtros" id="finFiltrosRelacaoPagamento">
-                <fieldset class="fin-filtros__planos">
-                  <legend>Situação</legend>
-                  <label><input type="checkbox" id="finRelStatusAtivo" checked> Ativos</label>
-                  <label><input type="checkbox" id="finRelStatusInativo" checked> Inativos</label>
-                </fieldset>
-                <fieldset class="fin-filtros__planos">
-                  <legend>Plano</legend>
-                  <label><input type="checkbox" id="finRelPlanoMinhaMoto" checked> DK Minha Moto</label>
-                  <label><input type="checkbox" id="finRelPlanoMeuTransporte" checked> DK Meu Transporte</label>
-                  <label><input type="checkbox" id="finRelPlanoCarro" checked> Carro</label>
-                </fieldset>
-                <fieldset class="fin-filtros__planos">
-                  <legend>Saldo (pago − devido)</legend>
-                  <label><input type="checkbox" id="finRelSaldoNegativo" checked> Saldo negativo</label>
-                  <label><input type="checkbox" id="finRelSaldoPositivo" checked> Saldo positivo</label>
-                </fieldset>
-                <button type="button" class="btn-primary" id="finRelacaoPagamentoAplicar">Atualizar</button>
+            <div id="financeiroPaneRelacaoPagamento" class="operacao-inline-form fin-mod-pane fin-relacao-pane hidden" data-fin-pane="relacao-pagamento" role="region" aria-labelledby="finRelacaoPagamentoTitulo">
+              <div class="fin-relacao-sticky-head">
+                <h3 id="finRelacaoPagamentoTitulo" class="operacao-inline-form__title">0 — Relação de pagamento por cliente</h3>
+                <p class="subtext">Nome, telefone, locação, devido até hoje, pago, atraso (pago − devido), investimento e aluguel já pagos. Nome em vermelho se pago &lt; devido.</p>
+                <div class="fin-filtros" id="finFiltrosRelacaoPagamento">
+                  <fieldset class="fin-filtros__planos">
+                    <legend>Situação</legend>
+                    <label><input type="checkbox" id="finRelStatusAtivo" checked> Ativos</label>
+                    <label><input type="checkbox" id="finRelStatusInativo" checked> Inativos</label>
+                  </fieldset>
+                  <fieldset class="fin-filtros__planos">
+                    <legend>Plano</legend>
+                    <label><input type="checkbox" id="finRelPlanoMinhaMoto" checked> DK Minha Moto</label>
+                    <label><input type="checkbox" id="finRelPlanoMeuTransporte" checked> DK Meu Transporte</label>
+                    <label><input type="checkbox" id="finRelPlanoCarro" checked> Carro</label>
+                  </fieldset>
+                  <fieldset class="fin-filtros__planos">
+                    <legend>Saldo (pago − devido)</legend>
+                    <label><input type="checkbox" id="finRelSaldoNegativo" checked> Saldo negativo</label>
+                    <label><input type="checkbox" id="finRelSaldoPositivo" checked> Saldo positivo</label>
+                  </fieldset>
+                  <button type="button" class="btn-primary" id="finRelacaoPagamentoAplicar">Atualizar</button>
+                </div>
+                <div id="finRelacaoPagamentoKpis" class="fin-kpis"></div>
               </div>
-              <div id="finRelacaoPagamentoKpis" class="fin-kpis"></div>
-              <div id="finRelacaoPagamentoTabela" class="fin-table-wrap"></div>
+              <div id="finRelacaoPagamentoTabela" class="fin-table-wrap fin-relacao-scroll"></div>
             </div>
 
             <div id="financeiroPaneQuantitativo" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="quantitativo" role="region" aria-labelledby="finQuantitativoTitulo">
@@ -2810,14 +2812,14 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260824pag-sync" defer></script>
-  <script src="app.js?v=20260825fin-rel2" defer></script>
+  <script src="app.js?v=20260825fin-rel3" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260825fin-rel2" defer></script>
+  <script src="portal-locadora-ui.js?v=20260825fin-rel3" defer></script>
   <script src="portal-financeiro.js?v=20260824fin-prev" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260825fin-rel2" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260825fin-rel3" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
