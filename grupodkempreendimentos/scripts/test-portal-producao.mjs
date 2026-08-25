@@ -461,6 +461,10 @@ async function runSuite() {
         html.includes("05 Placa") &&
         html.includes("finDespesaPlacasList") &&
         html.includes("08-MANUTENÇÃO") &&
+        html.includes("btn-fin-mod-despesas-graf") &&
+        html.includes("financeiroPaneDespesasGraf") &&
+        html.includes("finDespOleoChart") &&
+        html.includes("dk-despesas-historico.js") &&
         html.includes("btn-fin-mod-previsao") &&
         html.includes("financeiroPanePrevisao") &&
         html.includes("btn-financeiro-santander") &&
@@ -1739,7 +1743,23 @@ async function runSuite() {
             return Boolean(pane && !pane.classList.contains("hidden") && document.getElementById("finDespesaPlacasList") && hasManut && hasAluguel && hasOleo);
           });
           record("financeiro E2E: despesa manutenção pede placa", dOk);
+          const histOk = await pageE2e.evaluate(() => {
+            const seed = window.__DK_DESPESAS_HISTORICO;
+            let arr = [];
+            try {
+              arr = JSON.parse(localStorage.getItem("dk_financeiro_despesas_v1") || "[]");
+            } catch {
+              arr = [];
+            }
+            const vivos = arr.filter((x) => x && !x.deleted);
+            const withPlaca = vivos.filter(
+              (d) => (d.categoria === "MANUTENCAO" || d.categoria === "TROCA_OLEO") && String(d.placa || "").length >= 7
+            ).length;
+            return Boolean(Array.isArray(seed) && seed.length > 500 && vivos.length >= 500 && withPlaca > 50);
+          });
+          record("financeiro E2E: histórico da planilha alimenta despesas", histOk);
           if (dOk) {
+            await pageE2e.locator("#finDespesaAddBtn").click().catch(() => null);
             await pageE2e.locator("#financeiroPaneDespesas .fin-despesa-cat").first().selectOption("MANUTENCAO").catch(() => null);
             const placaPede = await pageE2e.evaluate(() => {
               const tr = document.querySelector("#finDespesasBody tr");
@@ -1747,14 +1767,35 @@ async function runSuite() {
               return Boolean(tr?.classList.contains("fin-despesa-row--manut") && inp && !inp.disabled);
             });
             record("financeiro E2E: categoria manutenção mostra campo placa", placaPede);
+            await pageE2e.locator("#finDespesasBody tr:first-child .fin-despesa-del").click().catch(() => null);
           } else {
             record("financeiro E2E: categoria manutenção mostra campo placa", false, "módulo despesas não abriu");
           }
+          await pageE2e.locator("#btn-fin-mod-despesas-graf").click().catch(() => null);
+          await pageE2e.waitForSelector("#financeiroPaneDespesasGraf:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          const gOk = await pageE2e.evaluate(() => {
+            const pane = document.getElementById("financeiroPaneDespesasGraf");
+            const chart = document.getElementById("finDespGrafChart");
+            const oleo = document.getElementById("finDespOleoChart");
+            const cats = document.querySelectorAll("#finDespGrafCats input[type=checkbox]");
+            const gran = document.querySelector('input[name="finDespGrafGran"]');
+            return Boolean(
+              pane &&
+                !pane.classList.contains("hidden") &&
+                chart?.querySelector("svg") &&
+                oleo?.querySelector("svg") &&
+                cats.length >= 11 &&
+                gran
+            );
+          });
+          record("financeiro E2E: gráficos de despesas com filtros", gOk);
         } else {
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Previsão de receita abre", false, "tela financeiro não abriu");
           record("financeiro E2E: despesa manutenção pede placa", false, "tela financeiro não abriu");
+          record("financeiro E2E: histórico da planilha alimenta despesas", false, "tela financeiro não abriu");
           record("financeiro E2E: categoria manutenção mostra campo placa", false, "tela financeiro não abriu");
+          record("financeiro E2E: gráficos de despesas com filtros", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
@@ -1763,7 +1804,9 @@ async function runSuite() {
         record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Previsão de receita abre", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: despesa manutenção pede placa", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: histórico da planilha alimenta despesas", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: categoria manutenção mostra campo placa", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: gráficos de despesas com filtros", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();

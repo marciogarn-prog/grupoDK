@@ -5003,9 +5003,29 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
 .fin-despesas-toolbar {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
   margin-bottom: 0.75rem;
+}
+
+#finDespesaListaInfo {
+  margin: 0;
+  flex: 1 1 12rem;
+}
+
+#finDespGrafCats {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.65rem;
+  align-items: center;
+}
+
+#view-financeiro .fin-chart-svg--bars {
+  width: max(100%, 64rem);
+  max-width: none;
+  min-height: 18rem;
 }
 
 .fin-despesas-table input,

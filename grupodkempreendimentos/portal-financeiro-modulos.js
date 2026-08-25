@@ -34,17 +34,17 @@
     "#ff6b6b",
   ];
   const DESPESA_CATS = [
-    { id: "SEGURO", label: "01-SEGURO" },
-    { id: "ADM", label: "02-ADM" },
-    { id: "IMPOSTO", label: "03-IMPOSTO" },
-    { id: "DOCUMENTOS", label: "04-DOCUMENTOS" },
-    { id: "MULTAS", label: "05-MULTAS" },
-    { id: "SALARIOS", label: "06-SALARIOS" },
-    { id: "CONT_ADV_PROP", label: "07-CONT+ADV+PROP" },
-    { id: "MANUTENCAO", label: "08-MANUTENÇÃO" },
-    { id: "ALUGUEL", label: "09-ALUGUEL" },
-    { id: "COMPRA_OLEO", label: "10-COMPRA DE ÓLEO" },
-    { id: "TROCA_OLEO", label: "11-TROCA DE ÓLEO" },
+    { id: "SEGURO", label: "01-SEGURO", color: "#90caf9" },
+    { id: "ADM", label: "02-ADM", color: "#f5d76e" },
+    { id: "IMPOSTO", label: "03-IMPOSTO", color: "#ce93d8" },
+    { id: "DOCUMENTOS", label: "04-DOCUMENTOS", color: "#80cbc4" },
+    { id: "MULTAS", label: "05-MULTAS", color: "#ef9a9a" },
+    { id: "SALARIOS", label: "06-SALARIOS", color: "#a5d6a7" },
+    { id: "CONT_ADV_PROP", label: "07-CONT+ADV+PROP", color: "#c4a484" },
+    { id: "MANUTENCAO", label: "08-MANUTENÇÃO", color: "#ffb74d" },
+    { id: "ALUGUEL", label: "09-ALUGUEL", color: "#5eb8ff" },
+    { id: "COMPRA_OLEO", label: "10-COMPRA DE ÓLEO", color: "#6ee7a0" },
+    { id: "TROCA_OLEO", label: "11-TROCA DE ÓLEO", color: "#ff6b6b" },
   ];
   const MODELO_COLORS = ["#5eb8ff", "#6ee7a0", "#c4a484", "#f5d76e", "#ce93d8", "#ffb74d", "#80cbc4", "#ef9a9a", "#90caf9", "#a5d6a7"];
 
@@ -53,6 +53,8 @@
 
   let moduloAberto = "";
   let despesasBound = false;
+  let despesasGrafBound = false;
+  let despesasRenderedIds = new Set();
 
   function esc(s) {
     return String(s ?? "")
@@ -385,6 +387,92 @@
       })
       .join("");
     return `<svg class="fin-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras">${bars}</svg>`;
+  }
+
+  function svgStackedBarChart(labels, series) {
+    const n = Math.max(1, labels.length);
+    const w = Math.max(1100, n * 34 + 90);
+    const h = 380;
+    const padL = 62;
+    const padR = 12;
+    const padT = 18;
+    const padB = 48;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const totals = labels.map((_, i) => series.reduce((s, ser) => s + (Number(ser.values[i]) || 0), 0));
+    const max = Math.max(1, ...totals);
+    const bw = innerW / n;
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+      .map((p) => {
+        const y = padT + innerH * (1 - p);
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(max * p))}</text>`;
+      })
+      .join("");
+    const stacks = labels
+      .map((_, i) => {
+        let y = padT + innerH;
+        const rects = series
+          .map((ser) => {
+            const v = Number(ser.values[i]) || 0;
+            const bh = (v / max) * innerH;
+            y -= bh;
+            if (bh < 0.6) return "";
+            return `<rect x="${padL + i * bw + bw * 0.18}" y="${y}" width="${bw * 0.64}" height="${bh}" fill="${ser.color}"/>`;
+          })
+          .join("");
+        const lab = labels[i];
+        const show = n <= 18 || i % Math.ceil(n / 12) === 0 || i === n - 1;
+        const labEl = show
+          ? `<text x="${padL + i * bw + bw * 0.5}" y="${h - 14}" text-anchor="middle" fill="#e0e0e0" font-size="10">${esc(lab)}</text>`
+          : "";
+        return rects + labEl;
+      })
+      .join("");
+    return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras empilhadas">${grid}${stacks}</svg>`;
+  }
+
+  function svgGroupedBarChart(labels, series) {
+    const n = Math.max(1, labels.length);
+    const k = Math.max(1, series.length);
+    const w = Math.max(1100, n * 48 + 90);
+    const h = 360;
+    const padL = 62;
+    const padR = 12;
+    const padT = 18;
+    const padB = 48;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const max = Math.max(1, ...series.flatMap((s) => s.values));
+    const groupW = innerW / n;
+    const barW = (groupW * 0.7) / k;
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+      .map((p) => {
+        const y = padT + innerH * (1 - p);
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(max * p))}</text>`;
+      })
+      .join("");
+    const bars = labels
+      .map((lab, i) => {
+        const groupX = padL + i * groupW + groupW * 0.15;
+        const rects = series
+          .map((ser, si) => {
+            const v = Number(ser.values[i]) || 0;
+            const bh = (v / max) * innerH;
+            const x = groupX + si * barW;
+            const y = padT + innerH - bh;
+            return `<rect x="${x}" y="${y}" width="${Math.max(barW * 0.9, 4)}" height="${Math.max(bh, 1)}" fill="${ser.color}" rx="2"/>`;
+          })
+          .join("");
+        const show = n <= 18 || i % Math.ceil(n / 12) === 0 || i === n - 1;
+        const labEl = show
+          ? `<text x="${padL + i * groupW + groupW * 0.5}" y="${h - 14}" text-anchor="middle" fill="#e0e0e0" font-size="10">${esc(lab)}</text>`
+          : "";
+        return rects + labEl;
+      })
+      .join("");
+    return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras agrupadas">${grid}${bars}</svg>`;
   }
 
   function svgHBar(rows) {
@@ -787,14 +875,18 @@
     return `dsp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  function loadDespesas() {
+  function loadDespesasAll() {
     try {
       const raw = localStorage.getItem(DESPESAS_KEY);
       const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr.filter((x) => x && !x.deleted) : [];
+      return Array.isArray(arr) ? arr.filter((x) => x && typeof x === "object") : [];
     } catch {
       return [];
     }
+  }
+
+  function loadDespesas() {
+    return loadDespesasAll().filter((x) => !x.deleted);
   }
 
   function saveDespesas(list) {
@@ -820,8 +912,33 @@
     }
   }
 
+  function isDespesaComPlaca(cat) {
+    const c = String(cat || "").trim().toUpperCase();
+    return c === "MANUTENCAO" || c === "TROCA_OLEO" || c === "COMPRA_OLEO";
+  }
+
+  function isDespesaPlacaObrigatoria(cat) {
+    const c = String(cat || "").trim().toUpperCase();
+    return c === "MANUTENCAO" || c === "TROCA_OLEO";
+  }
+
+  function extractPlacaDaDescricao(desc) {
+    const t = String(desc || "").toUpperCase();
+    const merc = t.match(/[A-Z]{3}[0-9][A-Z][0-9]{2}/g) || [];
+    if (merc.length) return normDespesaPlaca(merc[merc.length - 1]);
+    const old = t.match(/[A-Z]{3}[0-9]{4}/g) || [];
+    if (!old.length) return "";
+    const raw = old[old.length - 1];
+    if (typeof window.convertPlacaAntigaParaMercosul === "function") {
+      return window.convertPlacaAntigaParaMercosul(raw) || raw;
+    }
+    const letters = "ABCDEFGHIJ";
+    const letter = letters[Number(raw[4])];
+    return letter ? raw.slice(0, 4) + letter + raw.slice(5) : raw;
+  }
+
   function isDespesaManutencao(cat) {
-    return String(cat || "").trim().toUpperCase() === "MANUTENCAO";
+    return isDespesaComPlaca(cat);
   }
 
   function normDespesaPlaca(raw) {
@@ -860,13 +977,18 @@
 
   function syncDespesaPlacaCell(tr) {
     if (!tr) return;
-    const manut = isDespesaManutencao(tr.querySelector(".fin-despesa-cat")?.value);
-    tr.classList.toggle("fin-despesa-row--manut", manut);
+    const cat = tr.querySelector(".fin-despesa-cat")?.value;
+    const precisa = isDespesaComPlaca(cat);
+    tr.classList.toggle("fin-despesa-row--manut", precisa);
     const inp = tr.querySelector(".fin-despesa-placa");
     if (!inp) return;
-    inp.disabled = !manut;
-    inp.setAttribute("aria-required", manut ? "true" : "false");
-    if (!manut) inp.value = "";
+    inp.disabled = !precisa;
+    inp.setAttribute("aria-required", isDespesaPlacaObrigatoria(cat) ? "true" : "false");
+    if (!precisa) inp.value = "";
+    if (precisa && !nkPlate(inp.value)) {
+      const fromDesc = extractPlacaDaDescricao(tr.querySelector(".fin-despesa-desc")?.value);
+      if (fromDesc) inp.value = fromDesc;
+    }
   }
 
   function rowHtml(d) {
@@ -887,7 +1009,9 @@
     const descricao = String(tr.querySelector(".fin-despesa-desc")?.value || "").trim();
     const data = String(tr.querySelector(".fin-despesa-data")?.value || "").trim();
     const categoria = String(tr.querySelector(".fin-despesa-cat")?.value || "").trim();
-    const placa = isDespesaManutencao(categoria) ? normDespesaPlaca(tr.querySelector(".fin-despesa-placa")?.value) : "";
+    const placaRaw = tr.querySelector(".fin-despesa-placa")?.value;
+    let placa = isDespesaComPlaca(categoria) ? normDespesaPlaca(placaRaw) : "";
+    if (isDespesaComPlaca(categoria) && !placa) placa = extractPlacaDaDescricao(descricao);
     return {
       id,
       valor: parseValor(valorFmt),
@@ -903,13 +1027,31 @@
   function persistDespesasDaTabela() {
     const body = document.getElementById("finDespesasBody");
     if (!body) return;
-    const list = Array.from(body.querySelectorAll("tr[data-despesa-id]")).map(readRow);
-    saveDespesas(list);
+    const byId = new Map(loadDespesasAll().map((x) => [String(x.id), { ...x }]));
+    const nowVisible = new Set();
+    Array.from(body.querySelectorAll("tr[data-despesa-id]")).forEach((tr) => {
+      const row = readRow(tr);
+      nowVisible.add(row.id);
+      const prev = byId.get(row.id) || {};
+      byId.set(row.id, { ...prev, ...row, deleted: false, origem: prev.origem || row.origem });
+    });
+    for (const id of despesasRenderedIds) {
+      if (!nowVisible.has(id)) {
+        const prev = byId.get(id);
+        if (prev) byId.set(id, { ...prev, deleted: true, updatedAt: Date.now() });
+      }
+    }
+    despesasRenderedIds = nowVisible;
+    const all = Array.from(byId.values());
+    saveDespesas(all);
+    const list = all.filter((x) => !x.deleted);
     renderDespesasResumo(list);
     const msg = document.getElementById("finDespesaMsg");
     if (!msg) return;
-    const faltaPlaca = list.some((d) => isDespesaManutencao(d.categoria) && !nkPlate(d.placa));
-    msg.textContent = faltaPlaca ? "Manutenção: informe a placa do veículo." : "Despesas guardadas.";
+    const faltaPlaca = list.some((d) => isDespesaPlacaObrigatoria(d.categoria) && !nkPlate(d.placa));
+    msg.textContent = faltaPlaca
+      ? "Manutenção / troca de óleo: informe a placa do veículo (ou deixe na descrição)."
+      : "Despesas guardadas.";
   }
 
   function renderDespesasResumo(list) {
@@ -926,8 +1068,8 @@
     const tot = Object.values(by).reduce((a, b) => a + b, 0);
     const porPlaca = {};
     (list || []).forEach((d) => {
-      if (!isDespesaManutencao(d.categoria)) return;
-      const p = nkPlate(d.placa) || "(sem placa)";
+      if (!isDespesaComPlaca(d.categoria)) return;
+      const p = nkPlate(d.placa) || extractPlacaDaDescricao(d.descricao) || "(sem placa)";
       porPlaca[p] = (porPlaca[p] || 0) + (Number(d.valor) || 0);
     });
     const placasRows = Object.keys(porPlaca)
@@ -938,22 +1080,71 @@
       (c) => `<tr><td>${esc(c.label)}</td><td>${esc(brl(by[c.id] || 0))}</td></tr>`
     ).join("")}<tr><td><strong>Total</strong></td><td><strong>${esc(brl(tot))}</strong></td></tr></tbody></table>${
       placasRows
-        ? `<h4 class="fin-subh">Manutenção por placa</h4><table class="fin-table"><thead><tr><th>Placa</th><th>Total</th></tr></thead><tbody>${placasRows}</tbody></table>`
+        ? `<h4 class="fin-subh">Manutenção e óleo por placa</h4><table class="fin-table"><thead><tr><th>Placa</th><th>Total</th></tr></thead><tbody>${placasRows}</tbody></table>`
         : ""
     }`;
+  }
+
+  function parseDespesaData(d) {
+    const dt = parseBrDate(d?.data);
+    return dt;
+  }
+
+  function sortDespesas(list) {
+    return [...(list || [])].sort((a, b) => {
+      const da = parseDespesaData(a);
+      const db = parseDespesaData(b);
+      const ta = da ? da.getTime() : 0;
+      const tb = db ? db.getTime() : 0;
+      if (tb !== ta) return tb - ta;
+      return String(b.id).localeCompare(String(a.id));
+    });
+  }
+
+  function ensureDespesasHistorico() {
+    const seed = window.__DK_DESPESAS_HISTORICO;
+    if (!Array.isArray(seed) || !seed.length) return 0;
+    const list = loadDespesasAll();
+    const ids = new Set(list.map((x) => String(x.id)));
+    let added = 0;
+    seed.forEach((row) => {
+      if (!row || !row.id || ids.has(String(row.id))) return;
+      ids.add(String(row.id));
+      list.push({ ...row, updatedAt: Number(row.updatedAt) || 1 });
+      added += 1;
+    });
+    if (added) saveDespesas(list);
+    return added;
   }
 
   function renderDespesas() {
     const body = document.getElementById("finDespesasBody");
     if (!body) return;
+    ensureDespesasHistorico();
     fillPlacasDatalist();
-    const list = loadDespesas();
-    body.innerHTML = list.length ? list.map(rowHtml).join("") : rowHtml({ id: newDespesaId(), categoria: "ADM", data: fmtBrDate(new Date()) });
+    const list = sortDespesas(loadDespesas());
+    const q = nk(document.getElementById("finDespesaBusca")?.value || "");
+    const qCompact = q.replace(/ /g, "");
+    const filtered = qCompact
+      ? list.filter((d) =>
+          nk(`${d.descricao} ${d.placa} ${d.categoria} ${d.data}`).replace(/ /g, "").includes(qCompact)
+        )
+      : list;
+    const vis = filtered.slice(0, 80);
+    body.innerHTML = vis.length ? vis.map(rowHtml).join("") : rowHtml({ id: newDespesaId(), categoria: "ADM", data: fmtBrDate(new Date()) });
+    despesasRenderedIds = new Set(Array.from(body.querySelectorAll("tr[data-despesa-id]")).map((tr) => tr.getAttribute("data-despesa-id")));
     body.querySelectorAll(".fin-despesa-data").forEach((inp) => {
       if (typeof window.bindDateMaskInput === "function") window.bindDateMaskInput(inp);
     });
     body.querySelectorAll("tr[data-despesa-id]").forEach((tr) => syncDespesaPlacaCell(tr));
     renderDespesasResumo(list);
+    const info = document.getElementById("finDespesaListaInfo");
+    if (info) {
+      info.textContent =
+        list.length > vis.length
+          ? `A mostrar ${vis.length} de ${list.length} lançamentos (os mais recentes). Use a busca ou o gráfico.`
+          : `${list.length} lançamento(s).`;
+    }
     const msg = document.getElementById("finDespesaMsg");
     if (msg) msg.textContent = "";
   }
@@ -962,14 +1153,21 @@
     if (despesasBound) return;
     despesasBound = true;
     document.getElementById("finDespesaAddBtn")?.addEventListener("click", () => {
+      persistDespesasDaTabela();
       const body = document.getElementById("finDespesasBody");
       if (!body) return;
-      body.insertAdjacentHTML("beforeend", rowHtml({ id: newDespesaId(), categoria: "ADM", data: fmtBrDate(new Date()) }));
-      const last = body.querySelector("tr:last-child .fin-despesa-data");
-      if (last && typeof window.bindDateMaskInput === "function") window.bindDateMaskInput(last);
-      const tr = last?.closest("tr");
-      syncDespesaPlacaCell(tr);
-      tr?.querySelector(".fin-despesa-valor")?.focus();
+      body.insertAdjacentHTML("afterbegin", rowHtml({ id: newDespesaId(), categoria: "ADM", data: fmtBrDate(new Date()) }));
+      const first = body.querySelector("tr:first-child");
+      const dataInp = first?.querySelector(".fin-despesa-data");
+      if (dataInp && typeof window.bindDateMaskInput === "function") window.bindDateMaskInput(dataInp);
+      const id = first?.getAttribute("data-despesa-id");
+      if (id) despesasRenderedIds.add(id);
+      syncDespesaPlacaCell(first);
+      first?.querySelector(".fin-despesa-valor")?.focus();
+    });
+    document.getElementById("finDespesaBusca")?.addEventListener("input", () => {
+      persistDespesasDaTabela();
+      renderDespesas();
     });
     document.getElementById("finDespesasTable")?.addEventListener("click", (e) => {
       const del = e.target.closest(".fin-despesa-del");
@@ -983,12 +1181,17 @@
       if (cat) {
         const tr = cat.closest("tr");
         syncDespesaPlacaCell(tr);
-        if (isDespesaManutencao(cat.value)) {
+        if (isDespesaPlacaObrigatoria(cat.value)) {
           const placaInp = tr?.querySelector(".fin-despesa-placa");
           placaInp?.focus();
           const msg = document.getElementById("finDespesaMsg");
-          if (msg) msg.textContent = "Manutenção: informe a placa do veículo.";
+          if (msg) msg.textContent = "Informe a placa do veículo (também pode estar na descrição).";
         }
+      }
+      const desc = e.target.closest?.(".fin-despesa-desc");
+      if (desc) {
+        const tr = desc.closest("tr");
+        syncDespesaPlacaCell(tr);
       }
       const placaInp = e.target.closest?.(".fin-despesa-placa");
       if (placaInp) {
@@ -1001,6 +1204,188 @@
       if (e.currentTarget.contains(e.relatedTarget)) return;
       persistDespesasDaTabela();
     });
+  }
+
+  function despesaGrafGran() {
+    return String(document.querySelector('input[name="finDespGrafGran"]:checked')?.value || "mensal");
+  }
+
+  function isoWeekKey(d) {
+    const x = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const day = x.getUTCDay() || 7;
+    x.setUTCDate(x.getUTCDate() + 4 - day);
+    const yearStart = new Date(Date.UTC(x.getUTCFullYear(), 0, 1));
+    const week = Math.ceil(((x - yearStart) / 86400000 + 1) / 7);
+    return `${x.getUTCFullYear()}-S${String(week).padStart(2, "0")}`;
+  }
+
+  function bucketKeyForDate(d, gran) {
+    if (gran === "diaria") return ymd(d);
+    if (gran === "semanal") return isoWeekKey(d);
+    if (gran === "anual") return String(d.getFullYear());
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function bucketLabel(key, gran) {
+    if (gran === "diaria") {
+      const [y, m, d] = key.split("-");
+      return `${d}/${m}`;
+    }
+    if (gran === "semanal") return key.replace("-", " ");
+    if (gran === "anual") return key;
+    const [y, m] = key.split("-");
+    return `${m}/${y}`;
+  }
+
+  function filtrarDespesasGrafico(list) {
+    const de = parseBrDate(document.getElementById("finDespGrafDe")?.value);
+    const ate = parseBrDate(document.getElementById("finDespGrafAte")?.value);
+    const placaF = nkPlate(document.getElementById("finDespGrafPlaca")?.value);
+    const catInputs = Array.from(document.querySelectorAll("#finDespGrafCats input[type=checkbox]"));
+    const cats = new Set(catInputs.filter((el) => el.checked).map((el) => el.value));
+    return (list || []).filter((d) => {
+      if (catInputs.length && !cats.has(d.categoria)) return false;
+      const dt = parseDespesaData(d);
+      if (de && (!dt || dt < de)) return false;
+      if (ate && (!dt || dt > ate)) return false;
+      if (placaF) {
+        const p = nkPlate(d.placa) || extractPlacaDaDescricao(d.descricao);
+        if (p !== placaF) return false;
+      }
+      return true;
+    });
+  }
+
+  function agregarDespesasPorBucket(rows, gran, catIds) {
+    const keys = new Set();
+    const byCat = {};
+    catIds.forEach((id) => {
+      byCat[id] = {};
+    });
+    rows.forEach((d) => {
+      const dt = parseDespesaData(d);
+      if (!dt) return;
+      const k = bucketKeyForDate(dt, gran);
+      keys.add(k);
+      const cat = d.categoria || "ADM";
+      if (!byCat[cat]) byCat[cat] = {};
+      byCat[cat][k] = (byCat[cat][k] || 0) + (Number(d.valor) || 0);
+    });
+    const labelsKeys = [...keys].sort();
+    return {
+      labels: labelsKeys.map((k) => bucketLabel(k, gran)),
+      keys: labelsKeys,
+      byCat,
+    };
+  }
+
+  function syncDespGrafCats() {
+    const wrap = document.getElementById("finDespGrafCats");
+    if (!wrap || wrap.dataset.ready === "1") return;
+    wrap.innerHTML = DESPESA_CATS.map(
+      (c) =>
+        `<label><input type="checkbox" value="${esc(c.id)}" checked> ${esc(c.label)}</label>`
+    ).join("");
+    wrap.dataset.ready = "1";
+  }
+
+  function fillDespGrafPeriodoDefault(list) {
+    const deEl = document.getElementById("finDespGrafDe");
+    const ateEl = document.getElementById("finDespGrafAte");
+    if (!deEl || !ateEl) return;
+    if (deEl.value && ateEl.value) return;
+    const dates = (list || []).map(parseDespesaData).filter(Boolean).sort((a, b) => a - b);
+    if (!dates.length) {
+      fillPeriodo("finDespGrafDe", "finDespGrafAte");
+      return;
+    }
+    if (!deEl.value) deEl.value = fmtBrDate(dates[0]);
+    if (!ateEl.value) ateEl.value = fmtBrDate(dates[dates.length - 1]);
+    if (typeof window.bindDateMaskInput === "function") {
+      window.bindDateMaskInput(deEl);
+      window.bindDateMaskInput(ateEl);
+    }
+  }
+
+  function renderDespesasGraficos() {
+    ensureDespesasHistorico();
+    fillPlacasDatalist();
+    syncDespGrafCats();
+    const all = loadDespesas();
+    fillDespGrafPeriodoDefault(all);
+    const gran = despesaGrafGran();
+    const rows = filtrarDespesasGrafico(all);
+    const catIds = DESPESA_CATS.map((c) => c.id);
+    const agg = agregarDespesasPorBucket(rows, gran, catIds);
+    const series = DESPESA_CATS.map((c) => ({
+      id: c.id,
+      label: c.label,
+      color: c.color,
+      values: agg.keys.map((k) => Number(agg.byCat[c.id]?.[k]) || 0),
+    })).filter((s) => s.values.some((v) => v > 0));
+    const chart = document.getElementById("finDespGrafChart");
+    if (chart) {
+      chart.innerHTML = agg.labels.length
+        ? svgStackedBarChart(agg.labels, series)
+        : `<p class="subtext">Sem despesas no filtro.</p>`;
+    }
+    const leg = document.getElementById("finDespGrafLegenda");
+    if (leg) {
+      leg.innerHTML = series
+        .map((s) => {
+          const tot = s.values.reduce((a, b) => a + b, 0);
+          return `<span class="fin-legenda__item"><i style="background:${s.color}"></i>${esc(s.label)} · ${esc(brl(tot))}</span>`;
+        })
+        .join("");
+    }
+    const kpis = document.getElementById("finDespGrafKpis");
+    if (kpis) {
+      const tot = rows.reduce((s, d) => s + (Number(d.valor) || 0), 0);
+      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Lançamentos</span><strong>${rows.length}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Total filtrado</span><strong>${esc(brl(tot))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Períodos</span><strong>${agg.labels.length}</strong></div>`;
+    }
+
+    const oleoRows = rows.filter((d) => d.categoria === "COMPRA_OLEO" || d.categoria === "TROCA_OLEO");
+    const oleoAgg = agregarDespesasPorBucket(oleoRows, gran, ["COMPRA_OLEO", "TROCA_OLEO"]);
+    const oleoSeries = [
+      {
+        id: "COMPRA_OLEO",
+        label: "10-COMPRA DE ÓLEO",
+        color: "#6ee7a0",
+        values: oleoAgg.keys.map((k) => Number(oleoAgg.byCat.COMPRA_OLEO?.[k]) || 0),
+      },
+      {
+        id: "TROCA_OLEO",
+        label: "11-TROCA DE ÓLEO",
+        color: "#ff6b6b",
+        values: oleoAgg.keys.map((k) => Number(oleoAgg.byCat.TROCA_OLEO?.[k]) || 0),
+      },
+    ];
+    const oleoChart = document.getElementById("finDespOleoChart");
+    if (oleoChart) {
+      oleoChart.innerHTML = oleoAgg.labels.length
+        ? svgGroupedBarChart(oleoAgg.labels, oleoSeries)
+        : `<p class="subtext">Sem compra/troca de óleo no filtro.</p>`;
+    }
+    const oleoLeg = document.getElementById("finDespOleoLegenda");
+    if (oleoLeg) {
+      oleoLeg.innerHTML = oleoSeries
+        .map((s) => {
+          const tot = s.values.reduce((a, b) => a + b, 0);
+          return `<span class="fin-legenda__item"><i style="background:${s.color}"></i>${esc(s.label)} · ${esc(brl(tot))}</span>`;
+        })
+        .join("");
+    }
+  }
+
+  function bindDespesasGraficos() {
+    if (despesasGrafBound) return;
+    despesasGrafBound = true;
+    const box = document.getElementById("finFiltrosDespGraf");
+    box?.addEventListener("change", () => renderDespesasGraficos());
+    box?.addEventListener("input", () => renderDespesasGraficos());
+    document.getElementById("finDespGrafAplicar")?.addEventListener("click", () => renderDespesasGraficos());
   }
 
   function locacaoEstaAtiva(loc) {
@@ -1267,6 +1652,9 @@
     else if (id === "despesas") {
       bindDespesas();
       renderDespesas();
+    } else if (id === "despesas-graf") {
+      bindDespesasGraficos();
+      renderDespesasGraficos();
     } else if (id === "previsao") renderPrevisaoReceita();
   }
 
@@ -1279,6 +1667,7 @@
     document.getElementById("finLocalAplicar")?.addEventListener("click", () => renderLocalizacao());
     document.getElementById("finDiaAplicar")?.addEventListener("click", () => renderDiaSemana());
     document.getElementById("finPrevAplicar")?.addEventListener("click", () => renderPrevisaoReceita());
+    document.getElementById("finDespGrafAplicar")?.addEventListener("click", () => renderDespesasGraficos());
   }
 
   bindNav();
@@ -1315,5 +1704,6 @@
   window.__DK_financeiroRefreshFromStorage = () => {
     if (typeof prevFinRefresh === "function") prevFinRefresh();
     if (moduloAberto === "despesas") renderDespesas();
+    if (moduloAberto === "despesas-graf") renderDespesasGraficos();
   };
 })();
