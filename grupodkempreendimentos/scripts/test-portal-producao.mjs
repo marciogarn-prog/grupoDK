@@ -1639,14 +1639,20 @@ async function runSuite() {
         );
       }
 
+      const docVoltar = pageE2e.locator("#btn-voltar-documentos-locadora");
+      if (await docVoltar.isVisible({ timeout: 3000 }).catch(() => false)) {
+        await docVoltar.click();
+        await pageE2e.waitForSelector("#panel-logado:not(.hidden)", { timeout: 8000 }).catch(() => null);
+      }
       const finBtn = pageE2e.locator("#btn-locadora-financeiro");
-      if (await finBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+      if (await finBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
         await finBtn.click();
         await pageE2e.waitForSelector("#panel-financeiro-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
         const finOk = await pageE2e.evaluate(() => {
           const el = document.getElementById("panel-financeiro-locadora");
           const santander = document.getElementById("btn-financeiro-santander");
-          return Boolean(el && !el.classList.contains("hidden") && santander);
+          const sicredi = document.getElementById("btn-financeiro-sicredi");
+          return Boolean(el && !el.classList.contains("hidden") && santander && sicredi);
         });
         record("financeiro E2E: painel abre com Santander e Sicredi", finOk);
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
