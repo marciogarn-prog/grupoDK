@@ -5028,6 +5028,33 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   min-height: 18rem;
 }
 
+.fin-analise-alertas {
+  margin-top: 1.1rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(220, 38, 38, 0.55);
+  border-radius: var(--radius);
+  background: rgba(8, 8, 10, 0.72);
+}
+
+.fin-analise-alerta {
+  margin: 0.35rem 0;
+  padding: 0.45rem 0.55rem 0.45rem 0.7rem;
+  border-left: 3px solid #f59e0b;
+  font-size: 0.88rem;
+}
+
+.fin-analise-alerta--alta {
+  border-left-color: #ef4444;
+}
+
+.fin-analise-alerta--baixa {
+  border-left-color: #38bdf8;
+}
+
+.fin-analise-alerta--ok {
+  border-left-color: #22c55e;
+}
+
 .fin-despesas-table input,
 .fin-despesas-table select {
   width: 100%;

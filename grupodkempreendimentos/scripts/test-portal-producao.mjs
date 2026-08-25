@@ -465,6 +465,9 @@ async function runSuite() {
         html.includes("financeiroPaneDespesasGraf") &&
         html.includes("finDespOleoChart") &&
         html.includes("dk-despesas-historico.js") &&
+        html.includes("btn-fin-mod-analise") &&
+        html.includes("financeiroPaneAnalise") &&
+        html.includes("01/09/2026") &&
         html.includes("btn-fin-mod-previsao") &&
         html.includes("financeiroPanePrevisao") &&
         html.includes("btn-financeiro-santander") &&
@@ -1797,6 +1800,24 @@ async function runSuite() {
             );
           });
           record("financeiro E2E: gráficos de despesas com filtros", gOk);
+          await pageE2e.locator("#btn-fin-mod-analise").click().catch(() => null);
+          await pageE2e.waitForSelector("#financeiroPaneAnalise:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          await pageE2e.waitForSelector("#finAnaliseChart svg", { timeout: 8000 }).catch(() => null);
+          const aOk = await pageE2e.evaluate(() => {
+            const pane = document.getElementById("financeiroPaneAnalise");
+            const kpis = document.getElementById("finAnaliseKpis");
+            const alertas = document.getElementById("finAnaliseAlertas");
+            const chart = document.getElementById("finAnaliseChart");
+            return Boolean(
+              pane &&
+                !pane.classList.contains("hidden") &&
+                chart?.querySelector("svg") &&
+                String(kpis?.textContent || "").includes("Viabilidade") &&
+                alertas &&
+                String(alertas.textContent || "").length > 10
+            );
+          });
+          record("financeiro E2E: análise inteligente com projeção e alertas", aOk);
         } else {
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
           record("financeiro E2E: módulo Previsão de receita abre", false, "tela financeiro não abriu");
@@ -1804,6 +1825,7 @@ async function runSuite() {
           record("financeiro E2E: histórico da planilha alimenta despesas", false, "tela financeiro não abriu");
           record("financeiro E2E: categoria manutenção mostra campo placa", false, "tela financeiro não abriu");
           record("financeiro E2E: gráficos de despesas com filtros", false, "tela financeiro não abriu");
+          record("financeiro E2E: análise inteligente com projeção e alertas", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
@@ -1815,6 +1837,7 @@ async function runSuite() {
         record("financeiro E2E: histórico da planilha alimenta despesas", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: categoria manutenção mostra campo placa", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: gráficos de despesas com filtros", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: análise inteligente com projeção e alertas", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
