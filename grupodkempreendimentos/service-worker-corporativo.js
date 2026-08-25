@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260824colab-nuvem";
+const CACHE_NAME = "dk-corporativo-v20260824financeiro-btn";
 const ASSETS = [
   "./",
   "./index.html",
@@ -16,6 +16,7 @@ const ASSETS = [
   "./portal-lancamentos-extras.js",
   "./portal-locacao-documentos.js",
   "./portal-documentos.js",
+  "./portal-financeiro.js",
   "./portal-multas-relatorio.js",
   "./portal-manutencao-checklist.js",
   "./portal-contrato-locacao.js",

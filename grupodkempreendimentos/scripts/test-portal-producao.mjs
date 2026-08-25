@@ -444,6 +444,17 @@ async function runSuite() {
         !html.includes("patrimonioIaBgBadge") &&
         !html.includes("patrimonioRelatorioModal")
     );
+    record(
+      "botão FINANCEIRO entre Documentos e Área do cliente",
+      html.includes("btn-locadora-financeiro") &&
+        html.includes(">FINANCEIRO</button>") &&
+        html.includes("panel-financeiro-locadora") &&
+        html.includes("btn-financeiro-santander") &&
+        html.includes("btn-financeiro-sicredi") &&
+        html.includes("portal-financeiro.js") &&
+        html.indexOf("btn-locadora-documentos") < html.indexOf("btn-locadora-financeiro") &&
+        html.indexOf("btn-locadora-financeiro") < html.indexOf("btn-locadora-preview-cliente")
+    );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
@@ -1626,6 +1637,22 @@ async function runSuite() {
           false,
           `botão Documentos oculto hash=${diag.hash} btnHidden=${diag.btnHidden} panelHidden=${diag.panelHidden} banner=${diag.adminBanner}`
         );
+      }
+
+      const finBtn = pageE2e.locator("#btn-locadora-financeiro");
+      if (await finBtn.isVisible({ timeout: 5000 }).catch(() => false)) {
+        await finBtn.click();
+        await pageE2e.waitForSelector("#panel-financeiro-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
+        const finOk = await pageE2e.evaluate(() => {
+          const el = document.getElementById("panel-financeiro-locadora");
+          const santander = document.getElementById("btn-financeiro-santander");
+          return Boolean(el && !el.classList.contains("hidden") && santander);
+        });
+        record("financeiro E2E: painel abre com Santander e Sicredi", finOk);
+        await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
+        await pageE2e.waitForTimeout(400);
+      } else {
+        record("financeiro E2E: painel abre com Santander e Sicredi", false, "botão FINANCEIRO oculto");
       }
 
       if (!IS_DEMO_TEST) {
