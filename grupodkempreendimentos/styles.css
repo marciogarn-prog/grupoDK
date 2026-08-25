@@ -4625,17 +4625,222 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 }
 
 #view-financeiro.view--active {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
   justify-content: flex-start;
-  padding-top: 1rem;
+  overflow: hidden;
+  height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px));
+  min-height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px));
 }
 
-#view-financeiro .subpage__title {
-  margin-top: 0;
-  letter-spacing: 0.06em;
+#view-financeiro .subpage.fin-pptx {
+  display: grid;
+  grid-template-columns: 13.25rem minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  justify-content: stretch;
+  overflow: hidden;
 }
 
-#view-financeiro .portal-panel {
-  margin-top: 0.75rem;
+#view-financeiro .fin-pptx__page-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#view-financeiro .fin-pptx__page-lead {
+  display: none;
+}
+
+#view-financeiro #panel-financeiro-locadora:not(.hidden) {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+}
+
+#view-financeiro #panel-financeiro-locadora::before {
+  display: none;
+}
+
+#view-financeiro .fin-pptx__layout {
+  display: contents;
+}
+
+#view-financeiro .fin-pptx__rail {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: auto;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.5rem 0.4rem 0.7rem;
+  background: rgba(6, 6, 8, 0.94);
+  border: 0;
+  border-right: 2px solid #dc2626;
+  border-radius: 0;
+}
+
+.fin-pptx__brand {
+  margin: 0 0 0.25rem;
+  padding: 0.35rem 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #fff;
+  border-bottom: 1px solid rgba(220, 38, 38, 0.5);
+}
+
+#view-financeiro .fin-pptx__rail .operacao-comandos {
+  margin: 0.25rem 0 0;
+  gap: 0.22rem;
+  flex: 1 1 auto;
+}
+
+#view-financeiro .fin-pptx__rail .btn-operacao-cmd {
+  padding: 0.34rem 0.45rem;
+  border-radius: 6px;
+}
+
+#view-financeiro .fin-pptx__rail .btn-operacao-cmd__title {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
+#view-financeiro .fin-pptx__top {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0;
+  min-height: 2rem;
+  padding: 0.15rem 0.55rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+#view-financeiro .fin-pptx__slide {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.35rem 1.05rem 0.7rem;
+  overflow: auto;
+  background: rgba(8, 8, 10, 0.62);
+}
+
+#view-financeiro .fin-pptx__slide .operacao-inline-form {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-height: 100%;
+}
+
+#view-financeiro .fin-pptx__slide .operacao-inline-form__title {
+  font-size: 1.2rem;
+  letter-spacing: 0.03em;
+  margin: 0 0 0.2rem;
+}
+
+#view-financeiro .fin-pptx__slide .fin-mod-pane > .subtext,
+#view-financeiro .fin-pptx__slide .operacao-inline-form__lead {
+  font-size: 0.78rem;
+  margin: 0 0 0.45rem;
+  max-width: none;
+}
+
+#view-financeiro .fin-kpis {
+  margin: 0.35rem 0 0.55rem;
+}
+
+#view-financeiro .fin-filtros {
+  margin: 0.2rem 0 0.5rem;
+  gap: 0.45rem 0.85rem;
+}
+
+#view-financeiro .fin-chart-wrap {
+  margin: 0.15rem 0 0.55rem;
+}
+
+#view-financeiro .fin-chart-svg {
+  width: 100%;
+  max-width: none;
+  min-height: min(48vh, 26rem);
+  height: auto;
+}
+
+#view-financeiro .operacao-form-placeholder {
+  min-height: min(58vh, 28rem);
+  margin: 0.5rem 0;
+  border-style: solid;
+  background: rgba(8, 8, 10, 0.55);
+}
+
+@media (max-width: 900px) {
+  #view-financeiro .subpage.fin-pptx {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  #view-financeiro .fin-pptx__rail {
+    grid-column: 1;
+    grid-row: 2;
+    height: auto;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 2px solid #dc2626;
+    padding: 0.4rem 0.5rem 0.55rem;
+  }
+
+  #view-financeiro .fin-pptx__rail .operacao-comandos {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  #view-financeiro .fin-pptx__rail .btn-operacao-cmd {
+    min-width: 10.5rem;
+    flex: 0 0 auto;
+  }
+
+  #view-financeiro .fin-pptx__top {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #view-financeiro .fin-pptx__slide {
+    grid-column: 1;
+    grid-row: 3;
+  }
 }
 
 .fin-kpis {

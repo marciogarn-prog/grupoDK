@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260824fin-prev">
+  <link rel="stylesheet" href="styles.css?v=20260824fin-pptx">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260824excluir-cpf-fake"></script>
-  <script src="dk-pwa-update.js?v=20260824fin-prev"></script>
+  <script src="dk-pwa-update.js?v=20260824fin-pptx"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -2113,20 +2113,21 @@
     </div>
   </div>
 
-  <div id="view-financeiro" class="view view--locadora-sub view--financeiro" role="region" aria-labelledby="financeiro-page-title" aria-hidden="true">
-    <div class="subpage">
-      <header class="portal-unit-bar portal-unit-bar--simple" aria-label="Navegação">
+  <div id="view-financeiro" class="view view--locadora-sub view--financeiro view--fin-pptx" role="region" aria-labelledby="financeiro-page-title" aria-hidden="true">
+    <div class="subpage fin-pptx">
+      <header class="portal-unit-bar portal-unit-bar--simple fin-pptx__top" aria-label="Navegação">
         <div class="portal-unit-bar__nav">
-          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="financeiro-view-back-btn" data-back>&larr; Voltar</button>
+          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="btn-voltar-financeiro-locadora" data-back>&larr; Voltar</button>
           <button type="button" class="btn-back btn-back--compact btn-back--inicio" data-inicio>Início</button>
         </div>
       </header>
-      <h1 id="financeiro-page-title" class="subpage__title">FINANCEIRO</h1>
-      <p class="subpage__lead">Indicadores da frota, receitas, localização e despesas.</p>
+      <h1 id="financeiro-page-title" class="subpage__title fin-pptx__page-title">FINANCEIRO</h1>
+      <p class="subpage__lead fin-pptx__page-lead">Indicadores da frota, receitas, localização e despesas.</p>
 
       <section id="panel-financeiro-locadora" class="portal-panel hidden" aria-live="polite">
-        <div class="portal-operacao-layout">
-          <aside class="portal-operacao-layout__sidebar" aria-label="módulos financeiros">
+        <div class="portal-operacao-layout fin-pptx__layout">
+          <aside class="portal-operacao-layout__sidebar fin-pptx__rail" aria-label="módulos financeiros">
+            <p class="fin-pptx__brand">FINANCEIRO</p>
             <p class="subpage__lead">Módulos</p>
             <p class="subtext">Escolha um relatório à esquerda. Os números vêm dos cadastros, pagamentos e da manutenção.</p>
             <div class="operacao-comandos" id="financeiroModulosNav">
@@ -2172,7 +2173,7 @@
               </button>
             </div>
           </aside>
-          <div class="portal-operacao-layout__main" id="financeiroPainelDireito">
+          <div class="portal-operacao-layout__main fin-pptx__slide" id="financeiroPainelDireito">
             <div id="financeiroFormPlaceholder" class="operacao-form-placeholder" role="status">
               <p class="operacao-form-placeholder__text">Escolha um módulo à esquerda.</p>
             </div>
@@ -2344,9 +2345,6 @@
               </div>
             </div>
           </div>
-        </div>
-        <div class="logado-actions">
-          <button type="button" class="btn-primary btn-secondary-outline" id="btn-voltar-financeiro-locadora">Voltar</button>
         </div>
       </section>
     </div>
@@ -2736,9 +2734,9 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260824fin-prev" defer></script>
+  <script src="portal-locadora-ui.js?v=20260824fin-pptx" defer></script>
   <script src="portal-financeiro.js?v=20260824fin-prev" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260824fin-prev" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260824fin-pptx" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>

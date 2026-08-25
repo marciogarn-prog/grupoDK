@@ -318,8 +318,8 @@
   }
 
   function svgLineChart(days, series, axisLabs) {
-    const w = 760;
-    const h = 280;
+    const w = 1100;
+    const h = 380;
     const padL = 58;
     const padR = 12;
     const padT = 16;
@@ -357,8 +357,8 @@
   }
 
   function svgBarChart(labels, values, colors, asMoney) {
-    const w = 760;
-    const h = 260;
+    const w = 1100;
+    const h = 340;
     const padL = 58;
     const padR = 12;
     const padT = 16;
