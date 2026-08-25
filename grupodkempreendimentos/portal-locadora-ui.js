@@ -603,7 +603,6 @@
   const btnVoltarOp = document.getElementById("btn-voltar-operacao-locadora");
   const btnVoltarManutencao = document.getElementById("btn-voltar-manutencao-locadora");
   const btnVoltarDocumentos = document.getElementById("btn-voltar-documentos-locadora");
-  const btnVoltarFinanceiro = document.getElementById("btn-voltar-financeiro-locadora");
   const btnVoltarLocalizacao = document.getElementById("btn-voltar-localizacao-locadora");
   const formNovaSenha = document.getElementById("form-nova-senha");
   const formPortalCadastroColaborador = document.getElementById("formPortalCadastroColaborador");
@@ -3333,10 +3332,6 @@
   });
 
   btnVoltarDocumentos?.addEventListener("click", () => {
-    portalVoltarEquipaLocadora();
-  });
-
-  btnVoltarFinanceiro?.addEventListener("click", () => {
     portalVoltarEquipaLocadora();
   });
 
