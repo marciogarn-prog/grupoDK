@@ -1800,6 +1800,43 @@ async function runSuite() {
             );
           });
           record("financeiro E2E: gráficos de despesas com filtros", gOk);
+          if (gOk) {
+            await pageE2e.evaluate(() => {
+              document.querySelectorAll("#finDespGrafCats input[type=checkbox]").forEach((el) => {
+                el.checked = el.value === "TROCA_OLEO";
+              });
+            });
+            await pageE2e.locator("#finDespGrafAplicar").click().catch(() => null);
+            await pageE2e.waitForTimeout(400);
+            const oleoPivot = await pageE2e.evaluate(() => {
+              const kpis = Array.from(document.querySelectorAll("#finDespGrafKpis .fin-kpi")).map((el) => ({
+                lab: String(el.querySelector(".fin-kpi__lab")?.textContent || ""),
+                val: String(el.querySelector("strong")?.textContent || ""),
+              }));
+              const lanc = kpis.find((k) => /lançamento/i.test(k.lab))?.val || "";
+              const tot = kpis.find((k) => /total/i.test(k.lab))?.val || "";
+              const per = kpis.find((k) => /per[ií]odo/i.test(k.lab))?.val || "";
+              const svg = document.querySelector("#finDespGrafChart svg");
+              const axis = Array.from(svg?.querySelectorAll("text") || []).map((t) => t.textContent || "");
+              const hasNegScale = axis.some((t) => /-/.test(t) && /R\$|8\.|4\.|6\.|7\./.test(t));
+              const rects = svg?.querySelectorAll("rect").length || 0;
+              return {
+                lanc,
+                tot,
+                per,
+                hasNegScale,
+                rects,
+                ok: lanc === "719" && /26\.858/.test(tot) && per === "7" && hasNegScale && rects >= 7,
+              };
+            });
+            record(
+              "financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)",
+              Boolean(oleoPivot.ok),
+              JSON.stringify(oleoPivot)
+            );
+          } else {
+            record("financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)", false, "gráficos não abriram");
+          }
           await pageE2e.locator("#btn-fin-mod-analise").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneAnalise:not(.hidden)", { timeout: 8000 }).catch(() => null);
           await pageE2e.waitForSelector("#finAnaliseChart svg", { timeout: 8000 }).catch(() => null);
@@ -1825,6 +1862,7 @@ async function runSuite() {
           record("financeiro E2E: histórico da planilha alimenta despesas", false, "tela financeiro não abriu");
           record("financeiro E2E: categoria manutenção mostra campo placa", false, "tela financeiro não abriu");
           record("financeiro E2E: gráficos de despesas com filtros", false, "tela financeiro não abriu");
+          record("financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)", false, "tela financeiro não abriu");
           record("financeiro E2E: análise inteligente com projeção e alertas", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
@@ -1837,6 +1875,7 @@ async function runSuite() {
         record("financeiro E2E: histórico da planilha alimenta despesas", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: categoria manutenção mostra campo placa", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: gráficos de despesas com filtros", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: análise inteligente com projeção e alertas", false, "botão FINANCEIRO oculto");
       }
 
