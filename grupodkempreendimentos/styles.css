@@ -4830,7 +4830,8 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   width: 5.5rem;
 }
 
-#finReceitaModeloSelect {
+#finReceitaModeloSelect,
+#finPrevModeloSelect {
   min-width: 16rem;
   background: var(--bg-elevated);
   color: inherit;

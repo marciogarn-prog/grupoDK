@@ -458,6 +458,8 @@ async function runSuite() {
         html.includes("btn-fin-mod-intervalo") &&
         html.includes("btn-fin-mod-despesas") &&
         html.includes("financeiroPaneDespesas") &&
+        html.includes("btn-fin-mod-previsao") &&
+        html.includes("financeiroPanePrevisao") &&
         html.includes("btn-financeiro-santander") &&
         html.includes("btn-financeiro-sicredi") &&
         html.includes("portal-financeiro.js") &&
@@ -1704,14 +1706,31 @@ async function runSuite() {
             return Boolean(pane && !pane.classList.contains("hidden") && String(titulo?.textContent || "").includes("quantitativo"));
           });
           record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
+          await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
+          await pageE2e.waitForSelector("#financeiroPanePrevisao:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          const pOk = await pageE2e.evaluate(() => {
+            const pane = document.getElementById("financeiroPanePrevisao");
+            const gran = document.querySelector('input[name="finPrevGran"]');
+            const modelo = document.getElementById("finPrevModeloSelect");
+            return Boolean(
+              pane &&
+                !pane.classList.contains("hidden") &&
+                gran &&
+                modelo &&
+                document.getElementById("finPrevPlanoMinhaMoto")
+            );
+          });
+          record("financeiro E2E: módulo Previsão de receita abre", pOk);
         } else {
           record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
+          record("financeiro E2E: módulo Previsão de receita abre", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
       } else {
         record("financeiro E2E: abre tela nova com Santander e Sicredi", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: módulo Previsão de receita abre", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
