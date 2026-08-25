@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260824fin-oleo";
+const CACHE_NAME = "dk-corporativo-v20260824fin-desp-hist";
 const ASSETS = [
   "./",
   "./index.html",
@@ -18,6 +18,7 @@ const ASSETS = [
   "./portal-documentos.js",
   "./portal-financeiro.js",
   "./portal-financeiro-modulos.js",
+  "./data/dk-despesas-historico.js",
   "./portal-multas-relatorio.js",
   "./portal-manutencao-checklist.js",
   "./portal-contrato-locacao.js",
