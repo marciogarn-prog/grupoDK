@@ -453,7 +453,7 @@ async function runSuite() {
         html.includes("btn-fin-mod-quantitativo") &&
         html.includes("btn-fin-mod-relacao-pagamento") &&
         html.includes("financeiroPaneRelacaoPagamento") &&
-        html.includes("Valor devido") &&
+        html.includes("Relação de pagamento por cliente") &&
         html.includes("btn-fin-mod-receita-plano") &&
         html.includes("btn-fin-mod-receita-modelo") &&
         html.includes("btn-fin-mod-localizacao") &&
