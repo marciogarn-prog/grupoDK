@@ -450,9 +450,19 @@ async function runSuite() {
         html.includes(">FINANCEIRO</button>") &&
         html.includes('id="view-financeiro"') &&
         html.includes("panel-financeiro-locadora") &&
+        html.includes("btn-fin-mod-quantitativo") &&
+        html.includes("btn-fin-mod-receita-plano") &&
+        html.includes("btn-fin-mod-receita-modelo") &&
+        html.includes("btn-fin-mod-localizacao") &&
+        html.includes("btn-fin-mod-dia-semana") &&
+        html.includes("btn-fin-mod-intervalo") &&
+        html.includes("btn-fin-mod-despesas") &&
+        html.includes("01-SEGURO") &&
+        html.includes("07-CONT+ADV+PROP") &&
         html.includes("btn-financeiro-santander") &&
         html.includes("btn-financeiro-sicredi") &&
         html.includes("portal-financeiro.js") &&
+        html.includes("portal-financeiro-modulos.js") &&
         html.indexOf("btn-locadora-documentos") < html.indexOf("btn-locadora-financeiro") &&
         html.indexOf("btn-locadora-financeiro") < html.indexOf("btn-locadora-preview-cliente")
     );
@@ -1686,10 +1696,23 @@ async function runSuite() {
           );
         });
         record("financeiro E2E: abre tela nova com Santander e Sicredi", finOk);
+        if (finOk) {
+          await pageE2e.locator("#btn-fin-mod-quantitativo").click().catch(() => null);
+          await pageE2e.waitForSelector("#financeiroPaneQuantitativo:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          const qOk = await pageE2e.evaluate(() => {
+            const pane = document.getElementById("financeiroPaneQuantitativo");
+            const titulo = document.getElementById("finQuantitativoTitulo");
+            return Boolean(pane && !pane.classList.contains("hidden") && String(titulo?.textContent || "").includes("quantitativo"));
+          });
+          record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
+        } else {
+          record("financeiro E2E: módulo Resumo de quantitativo abre", false, "tela financeiro não abriu");
+        }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
       } else {
         record("financeiro E2E: abre tela nova com Santander e Sicredi", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: módulo Resumo de quantitativo abre", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
