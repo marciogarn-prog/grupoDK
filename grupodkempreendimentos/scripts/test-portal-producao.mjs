@@ -457,8 +457,7 @@ async function runSuite() {
         html.includes("btn-fin-mod-dia-semana") &&
         html.includes("btn-fin-mod-intervalo") &&
         html.includes("btn-fin-mod-despesas") &&
-        html.includes("01-SEGURO") &&
-        html.includes("07-CONT+ADV+PROP") &&
+        html.includes("financeiroPaneDespesas") &&
         html.includes("btn-financeiro-santander") &&
         html.includes("btn-financeiro-sicredi") &&
         html.includes("portal-financeiro.js") &&
