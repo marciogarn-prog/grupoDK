@@ -16156,6 +16156,34 @@
     operacaoLancAluguelPesquisaConfirmada = null;
   }
 
+  function portalDataPagamentoChave(raw) {
+    const s = String(raw || "").trim();
+    const d = typeof parseBrDate === "function" ? parseBrDate(s) : null;
+    if (d && !Number.isNaN(d.getTime())) {
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    }
+    return s.replace(/\s+/g, "");
+  }
+
+  function findPortalLancamentosMesmaData(loc, dataPagamentoBr) {
+    const key = portalDataPagamentoChave(dataPagamentoBr);
+    if (!key) return [];
+    return getPortalLancamentosAluguelDoContrato(loc)
+      .filter(isLancamentoAluguelContabilizavel)
+      .filter((lan) => portalDataPagamentoChave(lan.data) === key)
+      .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+  }
+
+  function textoAvisoLancamentoDuplicadoMesmaData(loc, dataPagamentoBr) {
+    const hits = findPortalLancamentosMesmaData(loc, dataPagamentoBr);
+    if (!hits.length) return "";
+    const lan = hits[0];
+    const nome = String(lan.registradoPorNome || "").trim() || "Um colaborador";
+    const valorJa = formatPortalLancamentoSumBrl(lan.valor);
+    return `${nome} na data de hoje realizou um lançamento de ${valorJa}. Você confirma o lançamento atual?`;
+  }
+
   function openPortalLancAluguelConfirmModal(texto, onConfirm) {
     const modal = document.getElementById("portalLancAluguelConfirmModal");
     const p = document.getElementById("portalLancAluguelConfirmTexto");
@@ -18177,6 +18205,10 @@
       return;
     }
     if (msg) msg.textContent = "";
+    const locAtualConfirm = collectPortalLocacoesComProtocoloByCpf(digits).find(
+      (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+    );
+    const avisoDup = locAtualConfirm ? textoAvisoLancamentoDuplicadoMesmaData(locAtualConfirm, dataStr) : "";
     const nome =
       typeof findClienteByCpfCadastro === "function"
         ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
@@ -18187,7 +18219,8 @@
       typeof currencyBRL === "function"
         ? currencyBRL(valorNum)
         : Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const texto = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
+    const textoPadrao = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
+    const texto = avisoDup || textoPadrao;
     openPortalLancAluguelConfirmModal(texto, () => {
       void (async () => {
         const res = persistPortalLancamentoAluguelPagamento(digits, proto, valorNum, dataStr, {
