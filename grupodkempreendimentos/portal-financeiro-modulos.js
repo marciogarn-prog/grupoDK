@@ -332,34 +332,51 @@
     const padB = 40;
     const innerW = w - padL - padR;
     const innerH = h - padT - padB;
-    const max = Math.max(1, ...series.flatMap((s) => s.values));
+    const allVals = series.flatMap((s) => s.values || []);
+    const rawMax = Math.max(0, ...allVals);
+    const rawMin = Math.min(0, ...allVals);
+    const span = Math.max(1, rawMax - rawMin);
     const n = Math.max(1, days.length - 1);
     const xAt = (i) => padL + (days.length <= 1 ? innerW / 2 : (i / n) * innerW);
-    const yAt = (v) => padT + innerH - (v / max) * innerH;
+    const yAt = (v) => padT + innerH - ((v - rawMin) / span) * innerH;
     const grid = [0, 0.25, 0.5, 0.75, 1]
       .map((p) => {
-        const y = padT + innerH * (1 - p);
-        const val = brl(max * p);
+        const val = rawMin + span * p;
+        const y = yAt(val);
         return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
-          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(val)}</text>`;
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
       })
       .join("");
+    const zero =
+      rawMin < 0
+        ? `<line x1="${padL}" y1="${yAt(0)}" x2="${w - padR}" y2="${yAt(0)}" stroke="rgba(255,255,255,0.35)" stroke-dasharray="4 4"/>`
+        : "";
     const step = days.length > 20 ? Math.ceil(days.length / 8) : 1;
     const axis = days
       .map((d, i) => {
         if (i % step !== 0 && i !== days.length - 1) return "";
-        const lab = axisLabs && axisLabs[i] ? axisLabs[i] : fmtBrDate(d).slice(0, 5);
+        const lab = axisLabs ? String(axisLabs[i] || "") : fmtBrDate(d).slice(0, 5);
+        if (!lab) return "";
         return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lab)}</text>`;
       })
       .join("");
     const lines = series
       .map((s) => {
         if (!s.values.length) return "";
-        const pts = s.values.map((v, i) => `${xAt(i)},${yAt(v)}`).join(" ");
-        return `<polyline fill="none" stroke="${s.color}" stroke-width="2.2" points="${pts}"/>`;
+        const split = Number.isFinite(s.forecastFrom) ? Math.max(0, Math.min(s.values.length - 1, s.forecastFrom)) : -1;
+        const mk = (from, to, dashed) => {
+          if (to < from) return "";
+          const pts = [];
+          for (let i = from; i <= to; i += 1) pts.push(`${xAt(i)},${yAt(s.values[i] || 0)}`);
+          return `<polyline fill="none" stroke="${s.color}" stroke-width="2.2" ${dashed ? 'stroke-dasharray="7 5"' : ""} points="${pts.join(" ")}"/>`;
+        };
+        if (split >= 0 && split < s.values.length - 1) {
+          return mk(0, split, false) + mk(split, s.values.length - 1, true);
+        }
+        return mk(0, s.values.length - 1, Boolean(s.dashed));
       })
       .join("");
-    return `<svg class="fin-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de linhas">${grid}${lines}${axis}</svg>`;
+    return `<svg class="fin-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de linhas">${grid}${zero}${lines}${axis}</svg>`;
   }
 
   function svgBarChart(labels, values, colors, asMoney) {
@@ -1668,6 +1685,213 @@
     }
   }
 
+  const ANALISE_INICIO = new Date(2026, 8, 1);
+  const ANALISE_HORIZONTE = new Date(2031, 8, 1);
+  const ANALISE_DESVIO = 0.35;
+
+  function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  }
+
+  function monthKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  function somaPorDia(items, getDt, getVal) {
+    const map = new Map();
+    (items || []).forEach((it) => {
+      const dt = getDt(it);
+      if (!dt) return;
+      const k = ymd(dt);
+      map.set(k, (map.get(k) || 0) + (Number(getVal(it)) || 0));
+    });
+    return map;
+  }
+
+  function mediaDiariaReceitaPraticada() {
+    const ativos = contratosComModelo().filter((c) => locacaoEstaAtiva(c.loc));
+    const run = ativos.reduce((s, c) => s + (c.semanal > 0 ? c.semanal / 7 : 0), 0);
+    const pags = coletarPagamentos();
+    const today = startOfDay(new Date());
+    const de = addDays(today, -89);
+    const soma = pags.filter((p) => p.dt >= de && p.dt <= today).reduce((s, p) => s + p.valor, 0);
+    const obs = soma / 90;
+    return run > 0 ? run : obs;
+  }
+
+  function mediaDiariaDespesaPraticada() {
+    const list = loadDespesas();
+    const dates = list.map(parseDespesaData).filter(Boolean).sort((a, b) => a - b);
+    if (!dates.length) return 0;
+    const de = dates[0];
+    const ate = dates[dates.length - 1] < ANALISE_INICIO ? dates[dates.length - 1] : addDays(ANALISE_INICIO, -1);
+    if (!ate || ate < de) {
+      const tot = list.reduce((s, d) => s + (Number(d.valor) || 0), 0);
+      const n = Math.max(1, daysBetween(dates[0], dates[dates.length - 1]) + 1);
+      return tot / n;
+    }
+    const tot = list.reduce((s, d) => {
+      const dt = parseDespesaData(d);
+      if (!dt || dt < de || dt > ate) return s;
+      return s + (Number(d.valor) || 0);
+    }, 0);
+    return tot / Math.max(1, daysBetween(de, ate) + 1);
+  }
+
+  function alertasDespesaForaDaMedia() {
+    const list = loadDespesas();
+    const today = startOfDay(new Date());
+    const byCatMonth = {};
+    DESPESA_CATS.forEach((c) => {
+      byCatMonth[c.id] = {};
+    });
+    list.forEach((d) => {
+      const dt = parseDespesaData(d);
+      if (!dt) return;
+      const cat = d.categoria || "ADM";
+      if (!byCatMonth[cat]) byCatMonth[cat] = {};
+      const k = monthKey(dt);
+      byCatMonth[cat][k] = (byCatMonth[cat][k] || 0) + (Number(d.valor) || 0);
+    });
+    const inicioKey = monthKey(ANALISE_INICIO);
+    const atualKey = monthKey(today);
+    const out = [];
+    DESPESA_CATS.forEach((c) => {
+      const months = byCatMonth[c.id] || {};
+      const keys = Object.keys(months).sort();
+      const pool =
+        today >= ANALISE_INICIO
+          ? keys.filter((k) => k < inicioKey)
+          : keys.filter((k) => k < atualKey);
+      const base = pool.length >= 2 ? pool : keys.filter((k) => k !== atualKey);
+      if (!base.length) return;
+      const vals = base.map((k) => months[k] || 0);
+      const media = vals.reduce((a, b) => a + b, 0) / vals.length;
+      if (!(media > 0)) return;
+      let atual = 0;
+      let janela = "mês corrente";
+      if (today >= ANALISE_INICIO) {
+        const days = Math.max(1, daysBetween(ANALISE_INICIO, today) + 1);
+        const soma = list
+          .filter((d) => {
+            const dt = parseDespesaData(d);
+            return dt && d.categoria === c.id && dt >= ANALISE_INICIO && dt <= today;
+          })
+          .reduce((s, d) => s + (Number(d.valor) || 0), 0);
+        atual = (soma / days) * 30.44;
+        janela = `desde ${fmtBrDate(ANALISE_INICIO)} (base mensal)`;
+      } else {
+        atual = months[atualKey] || 0;
+        if (!atual && keys.length) atual = months[keys[keys.length - 1]] || 0;
+      }
+      const lim = media * ANALISE_DESVIO;
+      if (atual > media + lim) {
+        const pct = ((atual / media - 1) * 100).toFixed(0);
+        out.push({
+          cat: c,
+          tipo: "alta",
+          texto: `${c.label} está ${pct}% acima da média praticada (${brl(atual)} vs ${brl(media)} / mês). Janela: ${janela}.`,
+        });
+      } else if (atual < media - lim && atual < media * 0.65) {
+        const pct = ((1 - atual / media) * 100).toFixed(0);
+        out.push({
+          cat: c,
+          tipo: "baixa",
+          texto: `${c.label} está ${pct}% abaixo da média praticada (${brl(atual)} vs ${brl(media)} / mês). Janela: ${janela}.`,
+        });
+      }
+    });
+    return out;
+  }
+
+  function renderAnaliseInteligente() {
+    const today = startOfDay(new Date());
+    const recMap = somaPorDia(coletarPagamentos(), (p) => p.dt, (p) => p.valor);
+    const despMap = somaPorDia(loadDespesas(), parseDespesaData, (d) => d.valor);
+    const recDia = mediaDiariaReceitaPraticada();
+    const despDia = mediaDiariaDespesaPraticada();
+    const days = eachDay(ANALISE_INICIO, ANALISE_HORIZONTE);
+    let accR = 0;
+    let accD = 0;
+    const recVals = [];
+    const despVals = [];
+    const salVals = [];
+    let forecastFrom = 0;
+    let cruzouNeg = null;
+    days.forEach((d, i) => {
+      const k = ymd(d);
+      const real = d <= today;
+      if (real && i > forecastFrom) forecastFrom = i;
+      const r = real ? recMap.get(k) || 0 : recDia;
+      const e = real ? despMap.get(k) || 0 : despDia;
+      accR += r;
+      accD += e;
+      recVals.push(accR);
+      despVals.push(accD);
+      salVals.push(accR - accD);
+      if (cruzouNeg == null && accR - accD < 0) cruzouNeg = d;
+    });
+    if (today < ANALISE_INICIO) forecastFrom = 0;
+    const series = [
+      { id: "rec", label: "Receita acumulada", color: "#6ee7a0", values: recVals, forecastFrom },
+      { id: "desp", label: "Despesa acumulada", color: "#ff6b6b", values: despVals, forecastFrom },
+      { id: "sal", label: "Resultado acumulado", color: "#5eb8ff", values: salVals, forecastFrom },
+    ];
+    const axisLabs = days.map((d, i) => {
+      const step = Math.ceil(days.length / 8);
+      if (i % step !== 0 && i !== days.length - 1) return "";
+      return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+    });
+    const chart = document.getElementById("finAnaliseChart");
+    if (chart) chart.innerHTML = svgLineChart(days, series, axisLabs);
+    const leg = document.getElementById("finAnaliseLegenda");
+    if (leg) {
+      const last = recVals.length - 1;
+      leg.innerHTML = series
+        .map((s) => `<span class="fin-legenda__item"><i style="background:${s.color}"></i>${esc(s.label)} · ${esc(brl(s.values[last] || 0))}</span>`)
+        .join("");
+    }
+    const saldo5 = salVals[salVals.length - 1] || 0;
+    const viavel = saldo5 >= 0 && recDia >= despDia;
+    const kpis = document.getElementById("finAnaliseKpis");
+    if (kpis) {
+      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Início do acompanhamento</span><strong>01/09/2026</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Receita média / dia</span><strong>${esc(brl(recDia))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Despesa média / dia</span><strong>${esc(brl(despDia))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Resultado em 5 anos</span><strong>${esc(brl(saldo5))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Viabilidade</span><strong>${viavel ? "Viável" : "Em risco"}</strong></div>`;
+    }
+    const nota = document.getElementById("finAnaliseNota");
+    if (nota) {
+      const parts = [];
+      if (today < ANALISE_INICIO) {
+        parts.push("O acompanhamento oficial começa em 01/09/2026. Até lá a linha contínua ainda não tem realizado; o tracejado projeta os 5 anos com a média praticada (contratos ativos e histórico de despesas).");
+      } else {
+        parts.push("Linha contínua = acumulado real desde 01/09/2026. Tracejado = projeção até 01/09/2031 com a média praticada.");
+      }
+      if (cruzouNeg && cruzouNeg > today) {
+        parts.push(`No ritmo actual o resultado acumulado fica negativo em ${fmtBrDate(cruzouNeg)}.`);
+      } else if (cruzouNeg && cruzouNeg <= today) {
+        parts.push(`O resultado acumulado já está negativo desde ${fmtBrDate(cruzouNeg)}.`);
+      }
+      nota.textContent = parts.join(" ");
+    }
+    const box = document.getElementById("finAnaliseAlertas");
+    if (box) {
+      const alertas = alertasDespesaForaDaMedia();
+      if (!alertas.length) {
+        box.innerHTML = `<p class="fin-analise-alerta fin-analise-alerta--ok">Nenhuma categoria se distanciou da média praticada${today < ANALISE_INICIO ? " no histórico recente" : " desde 01/09/2026"}.</p>`;
+      } else {
+        box.innerHTML = alertas
+          .map(
+            (a) =>
+              `<p class="fin-analise-alerta ${a.tipo === "alta" ? "fin-analise-alerta--alta" : "fin-analise-alerta--baixa"}">${esc(a.texto)}</p>`
+          )
+          .join("");
+      }
+    }
+  }
+
   function renderModulo(id) {
     if (id === "quantitativo") renderQuantitativo();
     else if (id === "receita-plano") renderReceitaPlano();
@@ -1681,7 +1905,8 @@
     } else if (id === "despesas-graf") {
       bindDespesasGraficos();
       renderDespesasGraficos();
-    } else if (id === "previsao") renderPrevisaoReceita();
+    } else if (id === "analise") renderAnaliseInteligente();
+    else if (id === "previsao") renderPrevisaoReceita();
   }
 
   function bindNav() {
@@ -1731,5 +1956,6 @@
     if (typeof prevFinRefresh === "function") prevFinRefresh();
     if (moduloAberto === "despesas") renderDespesas();
     if (moduloAberto === "despesas-graf") renderDespesasGraficos();
+    if (moduloAberto === "analise") renderAnaliseInteligente();
   };
 })();

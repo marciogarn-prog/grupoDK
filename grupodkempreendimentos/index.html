@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260824fin-desp-ovl">
+  <link rel="stylesheet" href="styles.css?v=20260825fin-analise">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260824excluir-cpf-fake"></script>
-  <script src="dk-pwa-update.js?v=20260824fin-desp-ovl"></script>
+  <script src="dk-pwa-update.js?v=20260825fin-analise"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -2163,8 +2163,12 @@
                 <span class="btn-operacao-cmd__title">8 — Gráficos de despesas</span>
                 <span class="btn-operacao-cmd__hint">Barras por categoria e óleo</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-analise" data-fin-mod="analise" aria-expanded="false" aria-controls="financeiroPaneAnalise">
+                <span class="btn-operacao-cmd__title">9 — Análise inteligente</span>
+                <span class="btn-operacao-cmd__hint">Receita vs despesa acumulada e viabilidade</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-previsao" data-fin-mod="previsao" aria-expanded="false" aria-controls="financeiroPanePrevisao">
-                <span class="btn-operacao-cmd__title">9 — Previsão de receita</span>
+                <span class="btn-operacao-cmd__title">10 — Previsão de receita</span>
                 <span class="btn-operacao-cmd__hint">Contratos ativos, receita real e variação</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-financeiro-santander" aria-expanded="false" aria-controls="financeiroPaneBanco">
@@ -2312,6 +2316,16 @@
               <h4 class="fin-subh">Compra de óleo vs troca de óleo</h4>
               <div id="finDespOleoChart" class="fin-chart-wrap"></div>
               <div id="finDespOleoLegenda" class="fin-legenda"></div>
+            </div>
+
+            <div id="financeiroPaneAnalise" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="analise" role="region" aria-labelledby="finAnaliseTitulo">
+              <h3 id="finAnaliseTitulo" class="operacao-inline-form__title">Análise inteligente</h3>
+              <p class="subtext">Receita acumulada dia a dia contra despesa acumulada, a partir de <strong>01/09/2026</strong>, com projeção de viabilidade até <strong>01/09/2031</strong>. O tracejado é a média praticada. Alertas de categoria fora da média aparecem no rodapé.</p>
+              <div id="finAnaliseKpis" class="fin-kpis"></div>
+              <p id="finAnaliseNota" class="subtext"></p>
+              <div id="finAnaliseChart" class="fin-chart-wrap"></div>
+              <div id="finAnaliseLegenda" class="fin-legenda"></div>
+              <div id="finAnaliseAlertas" class="fin-analise-alertas" role="status" aria-live="polite"></div>
             </div>
 
             <div id="financeiroPanePrevisao" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="previsao" role="region" aria-labelledby="finPrevisaoTitulo">
@@ -2772,8 +2786,8 @@
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
   <script src="portal-locadora-ui.js?v=20260824fin-pptx" defer></script>
   <script src="portal-financeiro.js?v=20260824fin-prev" defer></script>
-  <script src="data/dk-despesas-historico.js?v=20260824fin-desp-ovl" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260824fin-desp-ovl" defer></script>
+  <script src="data/dk-despesas-historico.js?v=20260825fin-analise" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260825fin-analise" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
