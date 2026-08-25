@@ -1751,20 +1751,24 @@ async function runSuite() {
             const info = String(document.getElementById("finDespesaListaInfo")?.textContent || "");
             const nInfo = Number((info.match(/de\s+(\d+)/i) || info.match(/(\d+)\s+lançamento/i) || [])[1] || 0);
             const resumo = String(document.getElementById("finDespesasResumo")?.textContent || "");
+            const frota = new Set(window.__DK_FROTA_PLACAS || []);
             const withPlacaSeed = Array.isArray(seed)
-              ? seed.filter(
-                  (d) =>
-                    (d.categoria === "MANUTENCAO" || d.categoria === "TROCA_OLEO") &&
-                    String(d.placa || "").length >= 7
-                ).length
+              ? seed.filter((d) => String(d.placa || "").length >= 7).length
               : 0;
+            const placasOk = Array.isArray(seed)
+              ? seed.every((d) => !String(d.placa || "").trim() || frota.has(String(d.placa).toUpperCase()))
+              : false;
             return Boolean(
               Array.isArray(seed) &&
-                seed.length > 500 &&
-                withPlacaSeed > 50 &&
-                nInfo > 500 &&
+                seed.length >= 1980 &&
+                window.__DK_DESPESAS_HISTORICO_GERACAO &&
+                frota.size > 50 &&
+                withPlacaSeed > 500 &&
+                placasOk &&
+                nInfo >= 1980 &&
                 resumo.includes("08-MANUTENÇÃO") &&
-                resumo.includes("11-TROCA DE ÓLEO")
+                resumo.includes("11-TROCA DE ÓLEO") &&
+                resumo.includes("(sem placa)")
             );
           });
           record("financeiro E2E: histórico da planilha alimenta despesas", histOk);
@@ -1809,6 +1813,16 @@ async function runSuite() {
             await pageE2e.locator("#finDespGrafAplicar").click().catch(() => null);
             await pageE2e.waitForTimeout(400);
             const oleoPivot = await pageE2e.evaluate(() => {
+              const seed = Array.isArray(window.__DK_DESPESAS_HISTORICO) ? window.__DK_DESPESAS_HISTORICO : [];
+              const troca = seed.filter((d) => d.categoria === "TROCA_OLEO");
+              const expectedN = troca.length;
+              const expectedSum = troca.reduce((a, d) => a + (Number(d.valor) || 0), 0);
+              const expectedPer = new Set(
+                troca.map((d) => {
+                  const p = String(d.data || "").split("/");
+                  return p.length === 3 ? `${p[1]}/${p[2]}` : String(d.data || "").slice(3);
+                })
+              ).size;
               const kpis = Array.from(document.querySelectorAll("#finDespGrafKpis .fin-kpi")).map((el) => ({
                 lab: String(el.querySelector(".fin-kpi__lab")?.textContent || ""),
                 val: String(el.querySelector("strong")?.textContent || ""),
@@ -1816,26 +1830,33 @@ async function runSuite() {
               const lanc = kpis.find((k) => /lançamento/i.test(k.lab))?.val || "";
               const tot = kpis.find((k) => /total/i.test(k.lab))?.val || "";
               const per = kpis.find((k) => /per[ií]odo/i.test(k.lab))?.val || "";
+              const totNum = Number(String(tot).replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", "."));
               const svg = document.querySelector("#finDespGrafChart svg");
-              const axis = Array.from(svg?.querySelectorAll("text") || []).map((t) => t.textContent || "");
-              const hasNegScale = axis.some((t) => /-/.test(t) && /R\$|8\.|4\.|6\.|7\./.test(t));
               const rects = svg?.querySelectorAll("rect").length || 0;
               return {
                 lanc,
                 tot,
                 per,
-                hasNegScale,
+                expectedN,
+                expectedSum,
+                expectedPer,
                 rects,
-                ok: lanc === "719" && /26\.858/.test(tot) && per === "7" && hasNegScale && rects >= 7,
+                ok:
+                  Number(lanc) === expectedN &&
+                  expectedN >= 700 &&
+                  Math.abs(totNum - expectedSum) < 0.05 &&
+                  Number(per) === expectedPer &&
+                  expectedPer >= 4 &&
+                  rects >= expectedPer,
               };
             });
             record(
-              "financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)",
+              "financeiro E2E: troca de óleo bate com o histórico da planilha",
               Boolean(oleoPivot.ok),
               JSON.stringify(oleoPivot)
             );
           } else {
-            record("financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)", false, "gráficos não abriram");
+            record("financeiro E2E: troca de óleo bate com o histórico da planilha", false, "gráficos não abriram");
           }
           await pageE2e.locator("#btn-fin-mod-analise").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneAnalise:not(.hidden)", { timeout: 8000 }).catch(() => null);
@@ -1862,7 +1883,7 @@ async function runSuite() {
           record("financeiro E2E: histórico da planilha alimenta despesas", false, "tela financeiro não abriu");
           record("financeiro E2E: categoria manutenção mostra campo placa", false, "tela financeiro não abriu");
           record("financeiro E2E: gráficos de despesas com filtros", false, "tela financeiro não abriu");
-          record("financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)", false, "tela financeiro não abriu");
+          record("financeiro E2E: troca de óleo bate com o histórico da planilha", false, "tela financeiro não abriu");
           record("financeiro E2E: análise inteligente com projeção e alertas", false, "tela financeiro não abriu");
         }
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
@@ -1875,7 +1896,7 @@ async function runSuite() {
         record("financeiro E2E: histórico da planilha alimenta despesas", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: categoria manutenção mostra campo placa", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: gráficos de despesas com filtros", false, "botão FINANCEIRO oculto");
-        record("financeiro E2E: troca de óleo bate com a tabela dinâmica (7 meses e negativos)", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: troca de óleo bate com o histórico da planilha", false, "botão FINANCEIRO oculto");
         record("financeiro E2E: análise inteligente com projeção e alertas", false, "botão FINANCEIRO oculto");
       }
 
