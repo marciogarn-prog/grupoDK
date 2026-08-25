@@ -943,13 +943,41 @@
     }
   }
 
+  function isPlanilhaDespesaId(id, row) {
+    return String(row?.origem || "") === "planilha" || /^dsp-xlsx/.test(String(id || ""));
+  }
+
+  function isObsoletePlanilhaDespesa(row, seed) {
+    const id = String(row?.id || "");
+    if (!id) return true;
+    return isPlanilhaDespesaId(id, row) && !(seed || seedDespesasById()).has(id);
+  }
+
   function loadDespesasAll() {
     const byId = seedDespesasById();
-    loadStoredDespesas().forEach((row) => {
+    const stored = loadStoredDespesas();
+    const kept = [];
+    stored.forEach((row) => {
       const id = String(row.id || "");
       if (!id) return;
+      if (isObsoletePlanilhaDespesa(row, byId)) return;
       byId.set(id, { ...(byId.get(id) || {}), ...row });
+      kept.push(row);
     });
+    if (kept.length !== stored.length) {
+      try {
+        localStorage.setItem(DESPESAS_KEY, JSON.stringify(kept));
+      } catch {
+        /* ignore */
+      }
+      if (typeof window.saveCadastro === "function") {
+        try {
+          window.saveCadastro(DESPESAS_KEY, kept, { bypassImmutabilidadeCadastro: true });
+        } catch {
+          /* ignore */
+        }
+      }
+    }
     return Array.from(byId.values());
   }
 
@@ -961,6 +989,7 @@
     const seed = seedDespesasById();
     return (list || []).filter((row) => {
       if (!row || !row.id) return false;
+      if (isObsoletePlanilhaDespesa(row, seed)) return false;
       if (row.deleted) return true;
       const s = seed.get(String(row.id));
       if (!s) return true;
@@ -1007,19 +1036,62 @@
     return c === "MANUTENCAO" || c === "TROCA_OLEO";
   }
 
+  function convertPlacaAntigaLocal(raw) {
+    const p = nkPlate(raw);
+    if (typeof window.convertPlacaAntigaParaMercosul === "function") {
+      const conv = nkPlate(window.convertPlacaAntigaParaMercosul(p));
+      if (conv) return conv;
+    }
+    if (!/^[A-Z]{3}[0-9]{4}$/.test(p)) return "";
+    const letter = "ABCDEFGHIJ"[Number(p[4])];
+    return letter ? p.slice(0, 4) + letter + p.slice(5) : "";
+  }
+
+  function frotaPlacasSet() {
+    const s = new Set();
+    const add = (raw) => {
+      const p = nkPlate(raw);
+      if (!p) return;
+      s.add(p);
+      const conv = convertPlacaAntigaLocal(p);
+      if (conv) s.add(conv);
+    };
+    (window.__DK_FROTA_PLACAS || []).forEach(add);
+    veiculosCadastro().forEach((v) => add(v?.placa));
+    return s;
+  }
+
+  function placaPertenceAFrota(raw) {
+    const p = nkPlate(raw);
+    if (!p) return false;
+    const frota = frotaPlacasSet();
+    if (frota.has(p)) return true;
+    const conv = convertPlacaAntigaLocal(p);
+    return Boolean(conv && frota.has(conv));
+  }
+
   function extractPlacaDaDescricao(desc) {
     const t = String(desc || "").toUpperCase();
-    const merc = t.match(/[A-Z]{3}[0-9][A-Z][0-9]{2}/g) || [];
-    if (merc.length) return normDespesaPlaca(merc[merc.length - 1]);
-    const old = t.match(/[A-Z]{3}[0-9]{4}/g) || [];
-    if (!old.length) return "";
-    const raw = old[old.length - 1];
-    if (typeof window.convertPlacaAntigaParaMercosul === "function") {
-      return window.convertPlacaAntigaParaMercosul(raw) || raw;
+    const frota = frotaPlacasSet();
+    const cands = [];
+    const seen = new Set();
+    const add = (raw) => {
+      const n = nkPlate(raw);
+      if (!n || seen.has(n)) return;
+      seen.add(n);
+      cands.push(n);
+      const conv = convertPlacaAntigaLocal(n);
+      if (conv && !seen.has(conv)) {
+        seen.add(conv);
+        cands.push(conv);
+      }
+    };
+    (t.match(/[A-Z]{3}[0-9][A-Z][0-9]{2}/g) || []).forEach(add);
+    (t.match(/[A-Z]{3}[0-9]{4}/g) || []).forEach(add);
+    for (let i = cands.length - 1; i >= 0; i -= 1) {
+      if (frota.has(cands[i])) return cands[i];
     }
-    const letters = "ABCDEFGHIJ";
-    const letter = letters[Number(raw[4])];
-    return letter ? raw.slice(0, 4) + letter + raw.slice(5) : raw;
+    return "";
   }
 
   function isDespesaManutencao(cat) {
@@ -1036,16 +1108,7 @@
   }
 
   function placasFrotaLista() {
-    const seen = new Set();
-    const out = [];
-    veiculosCadastro().forEach((v) => {
-      const p = nkPlate(v?.placa);
-      if (!p || seen.has(p)) return;
-      seen.add(p);
-      out.push(p);
-    });
-    out.sort();
-    return out;
+    return Array.from(frotaPlacasSet()).sort();
   }
 
   function fillPlacasDatalist() {
@@ -1097,6 +1160,7 @@
     const placaRaw = tr.querySelector(".fin-despesa-placa")?.value;
     let placa = isDespesaComPlaca(categoria) ? normDespesaPlaca(placaRaw) : "";
     if (isDespesaComPlaca(categoria) && !placa) placa = extractPlacaDaDescricao(descricao);
+    if (placa && !placaPertenceAFrota(placa)) placa = "";
     return {
       id,
       valor: parseValor(valorFmt),
@@ -1968,6 +2032,7 @@
     showPlaceholder();
   };
   window.__DK_mergeFinanceiroDespesas = (localArr, cloudArr) => {
+    const seed = seedDespesasById();
     const byId = new Map();
     for (const arr of [localArr, cloudArr]) {
       if (!Array.isArray(arr)) continue;
@@ -1975,6 +2040,7 @@
         if (!row || typeof row !== "object") continue;
         const id = String(row.id || "");
         if (!id) continue;
+        if (isObsoletePlanilhaDespesa(row, seed)) continue;
         const prev = byId.get(id);
         if (!prev || Number(row.updatedAt || 0) >= Number(prev.updatedAt || 0)) byId.set(id, row);
       }
