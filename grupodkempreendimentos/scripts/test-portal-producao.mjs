@@ -1745,17 +1745,24 @@ async function runSuite() {
           record("financeiro E2E: despesa manutenção pede placa", dOk);
           const histOk = await pageE2e.evaluate(() => {
             const seed = window.__DK_DESPESAS_HISTORICO;
-            let arr = [];
-            try {
-              arr = JSON.parse(localStorage.getItem("dk_financeiro_despesas_v1") || "[]");
-            } catch {
-              arr = [];
-            }
-            const vivos = arr.filter((x) => x && !x.deleted);
-            const withPlaca = vivos.filter(
-              (d) => (d.categoria === "MANUTENCAO" || d.categoria === "TROCA_OLEO") && String(d.placa || "").length >= 7
-            ).length;
-            return Boolean(Array.isArray(seed) && seed.length > 500 && vivos.length >= 500 && withPlaca > 50);
+            const info = String(document.getElementById("finDespesaListaInfo")?.textContent || "");
+            const nInfo = Number((info.match(/de\s+(\d+)/i) || info.match(/(\d+)\s+lançamento/i) || [])[1] || 0);
+            const resumo = String(document.getElementById("finDespesasResumo")?.textContent || "");
+            const withPlacaSeed = Array.isArray(seed)
+              ? seed.filter(
+                  (d) =>
+                    (d.categoria === "MANUTENCAO" || d.categoria === "TROCA_OLEO") &&
+                    String(d.placa || "").length >= 7
+                ).length
+              : 0;
+            return Boolean(
+              Array.isArray(seed) &&
+                seed.length > 500 &&
+                withPlacaSeed > 50 &&
+                nInfo > 500 &&
+                resumo.includes("08-MANUTENÇÃO") &&
+                resumo.includes("11-TROCA DE ÓLEO")
+            );
           });
           record("financeiro E2E: histórico da planilha alimenta despesas", histOk);
           if (dOk) {
@@ -1773,6 +1780,7 @@ async function runSuite() {
           }
           await pageE2e.locator("#btn-fin-mod-despesas-graf").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPaneDespesasGraf:not(.hidden)", { timeout: 8000 }).catch(() => null);
+          await pageE2e.waitForSelector("#finDespGrafChart svg, #finDespOleoChart svg", { timeout: 8000 }).catch(() => null);
           const gOk = await pageE2e.evaluate(() => {
             const pane = document.getElementById("financeiroPaneDespesasGraf");
             const chart = document.getElementById("finDespGrafChart");

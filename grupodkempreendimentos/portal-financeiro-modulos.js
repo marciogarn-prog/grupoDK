@@ -875,7 +875,18 @@
     return `dsp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  function loadDespesasAll() {
+  function seedDespesasById() {
+    const m = new Map();
+    const seed = window.__DK_DESPESAS_HISTORICO;
+    if (!Array.isArray(seed)) return m;
+    seed.forEach((row) => {
+      if (!row || !row.id) return;
+      m.set(String(row.id), { ...row });
+    });
+    return m;
+  }
+
+  function loadStoredDespesas() {
     try {
       const raw = localStorage.getItem(DESPESAS_KEY);
       const arr = raw ? JSON.parse(raw) : [];
@@ -885,12 +896,39 @@
     }
   }
 
+  function loadDespesasAll() {
+    const byId = seedDespesasById();
+    loadStoredDespesas().forEach((row) => {
+      const id = String(row.id || "");
+      if (!id) return;
+      byId.set(id, { ...(byId.get(id) || {}), ...row });
+    });
+    return Array.from(byId.values());
+  }
+
   function loadDespesas() {
     return loadDespesasAll().filter((x) => !x.deleted);
   }
 
+  function overlayDespesas(list) {
+    const seed = seedDespesasById();
+    return (list || []).filter((row) => {
+      if (!row || !row.id) return false;
+      if (row.deleted) return true;
+      const s = seed.get(String(row.id));
+      if (!s) return true;
+      return (
+        Number(row.valor) !== Number(s.valor) ||
+        String(row.descricao || "") !== String(s.descricao || "") ||
+        String(row.data || "") !== String(s.data || "") ||
+        String(row.categoria || "") !== String(s.categoria || "") ||
+        String(row.placa || "") !== String(s.placa || "")
+      );
+    });
+  }
+
   function saveDespesas(list) {
-    const payload = list.map((x) => ({ ...x, updatedAt: x.updatedAt || Date.now() }));
+    const payload = overlayDespesas(list).map((x) => ({ ...x, updatedAt: x.updatedAt || Date.now() }));
     try {
       localStorage.setItem(DESPESAS_KEY, JSON.stringify(payload));
     } catch {
@@ -1102,19 +1140,7 @@
   }
 
   function ensureDespesasHistorico() {
-    const seed = window.__DK_DESPESAS_HISTORICO;
-    if (!Array.isArray(seed) || !seed.length) return 0;
-    const list = loadDespesasAll();
-    const ids = new Set(list.map((x) => String(x.id)));
-    let added = 0;
-    seed.forEach((row) => {
-      if (!row || !row.id || ids.has(String(row.id))) return;
-      ids.add(String(row.id));
-      list.push({ ...row, updatedAt: Number(row.updatedAt) || 1 });
-      added += 1;
-    });
-    if (added) saveDespesas(list);
-    return added;
+    return Array.isArray(window.__DK_DESPESAS_HISTORICO) ? window.__DK_DESPESAS_HISTORICO.length : 0;
   }
 
   function renderDespesas() {
