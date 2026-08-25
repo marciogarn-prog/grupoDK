@@ -2151,9 +2151,217 @@
     });
   }
 
+  const REL_COLS = [
+    { key: "nome", label: "Nome do cliente", type: "text" },
+    { key: "telefone", label: "Telefone do cliente", type: "text" },
+    { key: "valorLocacao", label: "Valor da locação", type: "num" },
+    { key: "devido", label: "Valor devido", type: "num" },
+    { key: "pago", label: "Valor pago", type: "num" },
+    { key: "atraso", label: "Valor em atraso", type: "num" },
+    { key: "investimentoPago", label: "Total de investimento", type: "num" },
+    { key: "aluguelPago", label: "Total de aluguel", type: "num" },
+  ];
+
+  let relacaoExcelState = {
+    sortKey: "nome",
+    sortDir: "asc",
+    cols: {},
+  };
+  let relacaoExcelBoundDoc = false;
+  let relacaoExcelOpenKey = "";
+
+  function relCellDisplay(row, key) {
+    const col = REL_COLS.find((c) => c.key === key);
+    if (!col) return "";
+    if (col.type === "num") return fmtBrlAssinado(row[key]);
+    return String(row[key] ?? "—");
+  }
+
+  function relCellSortValue(row, key) {
+    const col = REL_COLS.find((c) => c.key === key);
+    if (col?.type === "num") return Number(row[key]) || 0;
+    return nk(String(row[key] ?? ""));
+  }
+
+  function relColFilterActive(key) {
+    return relacaoExcelState.cols[key] instanceof Set;
+  }
+
+  function aplicarExcelFiltroSort(rows) {
+    let out = (rows || []).slice();
+    REL_COLS.forEach((col) => {
+      const set = relacaoExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(relCellDisplay(r, col.key)));
+    });
+    const sk = relacaoExcelState.sortKey || "nome";
+    const dir = relacaoExcelState.sortDir === "desc" ? -1 : 1;
+    out.sort((a, b) => {
+      const va = relCellSortValue(a, sk);
+      const vb = relCellSortValue(b, sk);
+      if (typeof va === "number" && typeof vb === "number") {
+        if (va !== vb) return (va - vb) * dir;
+      } else {
+        const cmp = String(va).localeCompare(String(vb), "pt-BR");
+        if (cmp) return cmp * dir;
+      }
+      return String(a.protocolo || "").localeCompare(String(b.protocolo || ""), "en");
+    });
+    return out;
+  }
+
+  function valoresUnicosColuna(rows, key) {
+    const map = new Map();
+    (rows || []).forEach((r) => {
+      const label = relCellDisplay(r, key);
+      if (!map.has(label)) map.set(label, relCellSortValue(r, key));
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => {
+        const col = REL_COLS.find((c) => c.key === key);
+        if (col?.type === "num") return (Number(a[1]) || 0) - (Number(b[1]) || 0);
+        return String(a[0]).localeCompare(String(b[0]), "pt-BR");
+      })
+      .map(([label]) => label);
+  }
+
+  function fecharExcelFiltroPopup() {
+    relacaoExcelOpenKey = "";
+    document.querySelectorAll(".fin-excel-filter-pop").forEach((el) => el.remove());
+    document.querySelectorAll(".fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
+  }
+
+  function linhasBaseAntesDaColuna(openKey) {
+    const all = filtrarRelacaoPagamento(coletarRelacaoPagamentoPorCliente());
+    let out = all.slice();
+    REL_COLS.forEach((col) => {
+      if (col.key === openKey) return;
+      const set = relacaoExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(relCellDisplay(r, col.key)));
+    });
+    return out;
+  }
+
+  function abrirExcelFiltroPopup(btn, key) {
+    fecharExcelFiltroPopup();
+    const col = REL_COLS.find((c) => c.key === key);
+    if (!col || !btn) return;
+    relacaoExcelOpenKey = key;
+    btn.classList.add("is-open");
+    const baseRows = linhasBaseAntesDaColuna(key);
+    const uniques = valoresUnicosColuna(baseRows, key);
+    const selected = relacaoExcelState.cols[key];
+    const isAll = !(selected instanceof Set);
+    const pop = document.createElement("div");
+    pop.className = "fin-excel-filter-pop";
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", `Filtro ${col.label}`);
+    pop.innerHTML = `
+      <div class="fin-excel-filter-pop__sort">
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="asc">↑ Ordenar A a Z</button>
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="desc">↓ Ordenar Z a A</button>
+      </div>
+      <label class="fin-excel-filter-pop__search">
+        <input type="search" placeholder="Pesquisar…" autocomplete="off" aria-label="Pesquisar valores" data-excel-search>
+      </label>
+      <label class="fin-excel-filter-pop__all"><input type="checkbox" data-excel-all ${isAll ? "checked" : ""}> (Selecionar tudo)</label>
+      <div class="fin-excel-filter-pop__list" data-excel-list>
+        ${uniques
+          .map((v, i) => {
+            const checked = isAll || selected.has(v) ? "checked" : "";
+            return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${esc(v)}</span></label>`;
+          })
+          .join("") || `<p class="subtext">Sem valores.</p>`}
+      </div>
+      <div class="fin-excel-filter-pop__actions">
+        <button type="button" class="btn-primary" data-excel-ok>OK</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-cancel>Cancelar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-clear>Limpar</button>
+      </div>`;
+    document.body.appendChild(pop);
+    const rect = btn.getBoundingClientRect();
+    const popW = Math.max(260, Math.min(340, window.innerWidth - 16));
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popW - 8);
+    const top = rect.bottom + 4;
+    pop.style.width = `${popW}px`;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    requestAnimationFrame(() => {
+      const h = pop.offsetHeight;
+      if (top + h > window.innerHeight - 8) {
+        pop.style.top = `${Math.max(8, rect.top - h - 4)}px`;
+      }
+    });
+
+    const search = pop.querySelector("[data-excel-search]");
+    const allCb = pop.querySelector("[data-excel-all]");
+    const syncAll = () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
+    };
+    search?.addEventListener("input", () => {
+      const q = nk(search.value);
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        const t = nk(lab.textContent || "");
+        lab.style.display = !q || t.includes(q) ? "" : "none";
+      });
+      syncAll();
+    });
+    allCb?.addEventListener("change", () => {
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        if (lab.style.display === "none") return;
+        const cb = lab.querySelector("[data-excel-idx]");
+        if (cb) cb.checked = allCb.checked;
+      });
+    });
+    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
+      relacaoExcelState.sortKey = key;
+      relacaoExcelState.sortDir = "asc";
+      fecharExcelFiltroPopup();
+      renderRelacaoPagamento();
+    });
+    pop.querySelector("[data-excel-sort='desc']")?.addEventListener("click", () => {
+      relacaoExcelState.sortKey = key;
+      relacaoExcelState.sortDir = "desc";
+      fecharExcelFiltroPopup();
+      renderRelacaoPagamento();
+    });
+    pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const checked = boxes
+        .filter((el) => el.checked)
+        .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
+        .filter((v) => v != null);
+      if (!checked.length || checked.length === boxes.length) {
+        delete relacaoExcelState.cols[key];
+      } else {
+        relacaoExcelState.cols[key] = new Set(checked);
+      }
+      fecharExcelFiltroPopup();
+      renderRelacaoPagamento();
+    });
+    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharExcelFiltroPopup());
+    pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
+      delete relacaoExcelState.cols[key];
+      if (relacaoExcelState.sortKey === key) {
+        relacaoExcelState.sortKey = "nome";
+        relacaoExcelState.sortDir = "asc";
+      }
+      fecharExcelFiltroPopup();
+      renderRelacaoPagamento();
+    });
+    search?.focus();
+  }
+
   function renderRelacaoPagamento() {
+    fecharExcelFiltroPopup();
     const all = coletarRelacaoPagamentoPorCliente();
-    const rows = filtrarRelacaoPagamento(all);
+    const base = filtrarRelacaoPagamento(all);
+    const rows = aplicarExcelFiltroSort(base);
     const kpis = document.getElementById("finRelacaoPagamentoKpis");
     if (kpis) {
       const totDev = rows.reduce((s, r) => s + r.devido, 0);
@@ -2168,20 +2376,24 @@
     }
     const tab = document.getElementById("finRelacaoPagamentoTabela");
     if (!tab) return;
-    if (!rows.length) {
+    if (!base.length) {
       tab.innerHTML = `<p class="subtext">Nenhum contrato no filtro selecionado.</p>`;
       return;
     }
-    tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>
-      <th>Nome do cliente</th>
-      <th>Telefone do cliente</th>
-      <th>Valor da locação</th>
-      <th>Valor devido</th>
-      <th>Valor pago</th>
-      <th>Valor em atraso</th>
-      <th>Total de investimento</th>
-      <th>Total de aluguel</th>
-    </tr></thead><tbody>${rows
+    const head = REL_COLS.map((col) => {
+      const active = relColFilterActive(col.key) || relacaoExcelState.sortKey === col.key;
+      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
+        <span class="fin-excel-th__label">${esc(col.label)}</span>
+        <button type="button" class="fin-excel-filter-btn${relColFilterActive(col.key) ? " is-filtered" : ""}" data-excel-col="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
+      </th>`;
+    }).join("");
+    if (!rows.length) {
+      tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>
+        <tr><td colspan="${REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>
+      </tbody></table>`;
+      return;
+    }
+    tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>${rows
       .map((r) => {
         const atrasado = r.pago < r.devido;
         const planoCls = `fin-rel-row--${r.plano || "minha-moto"}`;
@@ -2206,8 +2418,38 @@
     if (relacaoPagamentoBound) return;
     relacaoPagamentoBound = true;
     const box = document.getElementById("finFiltrosRelacaoPagamento");
-    box?.addEventListener("change", () => renderRelacaoPagamento());
+    box?.addEventListener("change", () => {
+      relacaoExcelState.cols = {};
+      renderRelacaoPagamento();
+    });
     document.getElementById("finRelacaoPagamentoAplicar")?.addEventListener("click", () => renderRelacaoPagamento());
+    const tab = document.getElementById("finRelacaoPagamentoTabela");
+    tab?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-excel-col]");
+      if (!btn || !tab.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-excel-col") || "";
+      if (relacaoExcelOpenKey === key) {
+        fecharExcelFiltroPopup();
+        return;
+      }
+      abrirExcelFiltroPopup(btn, key);
+    });
+    if (!relacaoExcelBoundDoc) {
+      relacaoExcelBoundDoc = true;
+      document.addEventListener("mousedown", (e) => {
+        if (!relacaoExcelOpenKey) return;
+        const pop = document.querySelector(".fin-excel-filter-pop");
+        const t = e.target;
+        if (pop?.contains(t)) return;
+        if (t?.closest?.("[data-excel-col]")) return;
+        fecharExcelFiltroPopup();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && relacaoExcelOpenKey) fecharExcelFiltroPopup();
+      });
+    }
   }
 
   function renderModulo(id) {

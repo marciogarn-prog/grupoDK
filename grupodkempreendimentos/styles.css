@@ -4986,6 +4986,129 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   font-weight: 700;
 }
 
+.fin-table--relacao .fin-excel-th {
+  white-space: nowrap;
+  vertical-align: middle;
+  padding-right: 0.25rem;
+}
+
+.fin-table--relacao .fin-excel-th__label {
+  margin-right: 0.15rem;
+}
+
+.fin-table--relacao .fin-excel-th--active .fin-excel-th__label {
+  color: #ffd54f;
+}
+
+.fin-excel-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.2rem;
+  padding: 0;
+  margin: 0;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 2px;
+  background: #1a1a1a;
+  color: #f0f0f0;
+  font-size: 0.72rem;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.fin-excel-filter-btn:hover,
+.fin-excel-filter-btn.is-open {
+  background: #c62828;
+  border-color: #ef5350;
+  color: #fff;
+}
+
+.fin-excel-filter-btn.is-filtered {
+  background: #1565c0;
+  border-color: #42a5f5;
+  color: #fff;
+}
+
+.fin-excel-filter-pop {
+  position: fixed;
+  z-index: 12000;
+  max-height: min(420px, calc(100vh - 16px));
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.55rem 0.6rem 0.65rem;
+  background: #1e1e1e;
+  border: 1px solid #5a5a5a;
+  border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  color: #f2f2f2;
+  font-size: 0.82rem;
+}
+
+.fin-excel-filter-pop__sort {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid #444;
+}
+
+.fin-excel-filter-pop__sort-btn {
+  text-align: left;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  padding: 0.28rem 0.35rem;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.fin-excel-filter-pop__sort-btn:hover {
+  background: #333;
+}
+
+.fin-excel-filter-pop__search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #666;
+  border-radius: 3px;
+  background: #111;
+  color: #fff;
+}
+
+.fin-excel-filter-pop__all,
+.fin-excel-filter-pop__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.15rem 0.1rem;
+  cursor: pointer;
+}
+
+.fin-excel-filter-pop__list {
+  overflow: auto;
+  max-height: 220px;
+  border: 1px solid #444;
+  border-radius: 3px;
+  padding: 0.25rem 0.35rem;
+  background: #151515;
+}
+
+.fin-excel-filter-pop__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-top: 0.2rem;
+}
+
+.fin-excel-filter-pop__actions .btn-primary {
+  padding: 0.28rem 0.7rem;
+  font-size: 0.78rem;
+}
+
 .fin-table--compact th,
 .fin-table--compact td {
   padding: 0.28rem 0.35rem;

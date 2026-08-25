@@ -500,8 +500,11 @@ async function runSuite() {
         portalFinModJs.includes("rateioPagoAluguelInvestimento") &&
         portalFinModJs.includes("fin-rel-nome--atraso") &&
         portalFinModJs.includes("valorDevidoAteHojeNum") &&
+        portalFinModJs.includes("abrirExcelFiltroPopup") &&
+        portalFinModJs.includes("aplicarExcelFiltroSort") &&
+        portalFinModJs.includes("fin-excel-filter-btn") &&
         portalFinModJs.includes("financeiroModulosVisivel"),
-      "0 = relação; filtros situação/plano/saldo; atraso e rateio"
+      "0 = relação; filtros Excel no cabeçalho; situação/plano/saldo; atraso e rateio"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
