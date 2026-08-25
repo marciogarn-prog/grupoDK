@@ -1612,6 +1612,23 @@ async function runSuite() {
           { timeout: 20000 }
         )
         .catch(() => null);
+
+      if (!IS_DEMO_TEST) {
+        const cloudColab = await fetch(
+          new URL(`api/dk-cloud-snapshot?nocache=${Date.now()}`, BASE_URL).href,
+          { cache: "no-store" }
+        ).then((r) => (r.ok ? r.json() : {}));
+        const list = Array.isArray(cloudColab?.payload?.dk_funcionarios_access)
+          ? cloudColab.payload.dk_funcionarios_access
+          : [];
+        const names = list.map((f) => String(f?.nome || "").toUpperCase());
+        record(
+          "oficial: Jesimiel e Wylkaline na nuvem",
+          names.some((n) => n.includes("JESIMIEL")) && names.some((n) => n.includes("WYLKALINE")),
+          `n=${list.length}`
+        );
+      }
+
       const diag = await pageE2e.evaluate(() => {
         const btn = document.getElementById("btn-locadora-documentos");
         const panel = document.getElementById("panel-logado");
@@ -1659,28 +1676,6 @@ async function runSuite() {
         await pageE2e.waitForTimeout(400);
       } else {
         record("financeiro E2E: painel abre com Santander e Sicredi", false, "botão FINANCEIRO oculto");
-      }
-
-      if (!IS_DEMO_TEST) {
-        const colabsNuvem = await pageE2e.evaluate(() => {
-          let list = [];
-          try {
-            list = JSON.parse(localStorage.getItem("dk_funcionarios_access") || "[]");
-          } catch {
-            list = [];
-          }
-          const names = list.map((f) => String(f?.nome || "").toUpperCase());
-          return {
-            n: list.length,
-            jesimiel: names.some((n) => n.includes("JESIMIEL")),
-            wylkaline: names.some((n) => n.includes("WYLKALINE")),
-          };
-        });
-        record(
-          "oficial: Jesimiel e Wylkaline chegam da nuvem noutro browser",
-          colabsNuvem.jesimiel && colabsNuvem.wylkaline,
-          JSON.stringify(colabsNuvem)
-        );
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
