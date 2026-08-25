@@ -1731,7 +1731,12 @@ async function runSuite() {
             const sel = pane?.querySelector(".fin-despesa-cat");
             const hasManut = Boolean(sel && Array.from(sel.options).some((o) => o.value === "MANUTENCAO"));
             const hasAluguel = Boolean(sel && Array.from(sel.options).some((o) => o.value === "ALUGUEL"));
-            return Boolean(pane && !pane.classList.contains("hidden") && document.getElementById("finDespesaPlacasList") && hasManut && hasAluguel);
+            const hasOleo = Boolean(
+              sel &&
+                Array.from(sel.options).some((o) => o.value === "COMPRA_OLEO") &&
+                Array.from(sel.options).some((o) => o.value === "TROCA_OLEO")
+            );
+            return Boolean(pane && !pane.classList.contains("hidden") && document.getElementById("finDespesaPlacasList") && hasManut && hasAluguel && hasOleo);
           });
           record("financeiro E2E: despesa manutenção pede placa", dOk);
           if (dOk) {
