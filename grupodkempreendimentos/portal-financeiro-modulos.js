@@ -406,35 +406,60 @@
     return `<svg class="fin-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras">${bars}</svg>`;
   }
 
+  function barAxisRange(vals) {
+    const nums = (vals || []).map((v) => Number(v) || 0);
+    const max = Math.max(0, ...nums);
+    const min = Math.min(0, ...nums);
+    const span = Math.max(1, max - min);
+    return { min, max, span };
+  }
+
   function svgStackedBarChart(labels, series) {
     const n = Math.max(1, labels.length);
     const w = Math.max(1100, n * 34 + 90);
     const h = 380;
-    const padL = 62;
+    const padL = 72;
     const padR = 12;
     const padT = 18;
     const padB = 48;
     const innerW = w - padL - padR;
     const innerH = h - padT - padB;
-    const totals = labels.map((_, i) => series.reduce((s, ser) => s + (Number(ser.values[i]) || 0), 0));
-    const max = Math.max(1, ...totals);
+    const posTot = labels.map((_, i) =>
+      series.reduce((s, ser) => s + Math.max(0, Number(ser.values[i]) || 0), 0)
+    );
+    const negTot = labels.map((_, i) =>
+      series.reduce((s, ser) => s + Math.min(0, Number(ser.values[i]) || 0), 0)
+    );
+    const { min, span } = barAxisRange([...posTot, ...negTot]);
+    const yAt = (v) => padT + innerH - ((v - min) / span) * innerH;
+    const zeroY = yAt(0);
     const bw = innerW / n;
     const grid = [0, 0.25, 0.5, 0.75, 1]
       .map((p) => {
-        const y = padT + innerH * (1 - p);
+        const val = min + span * p;
+        const y = yAt(val);
         return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
-          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(max * p))}</text>`;
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
       })
       .join("");
+    const zero = `<line x1="${padL}" y1="${zeroY}" x2="${w - padR}" y2="${zeroY}" stroke="rgba(255,255,255,0.4)"/>`;
     const stacks = labels
       .map((_, i) => {
-        let y = padT + innerH;
+        let yPos = zeroY;
+        let yNeg = zeroY;
         const rects = series
           .map((ser) => {
             const v = Number(ser.values[i]) || 0;
-            const bh = (v / max) * innerH;
-            y -= bh;
-            if (bh < 0.6) return "";
+            if (!v) return "";
+            const bh = Math.max((Math.abs(v) / span) * innerH, 0.8);
+            let y;
+            if (v > 0) {
+              yPos -= bh;
+              y = yPos;
+            } else {
+              y = yNeg;
+              yNeg += bh;
+            }
             return `<rect x="${padL + i * bw + bw * 0.18}" y="${y}" width="${bw * 0.64}" height="${bh}" fill="${ser.color}"/>`;
           })
           .join("");
@@ -446,7 +471,7 @@
         return rects + labEl;
       })
       .join("");
-    return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras empilhadas">${grid}${stacks}</svg>`;
+    return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras empilhadas">${grid}${zero}${stacks}</svg>`;
   }
 
   function svgGroupedBarChart(labels, series) {
@@ -454,32 +479,37 @@
     const k = Math.max(1, series.length);
     const w = Math.max(1100, n * 48 + 90);
     const h = 360;
-    const padL = 62;
+    const padL = 72;
     const padR = 12;
     const padT = 18;
     const padB = 48;
     const innerW = w - padL - padR;
     const innerH = h - padT - padB;
-    const max = Math.max(1, ...series.flatMap((s) => s.values));
+    const { min, span } = barAxisRange(series.flatMap((s) => s.values));
+    const yAt = (v) => padT + innerH - ((v - min) / span) * innerH;
     const groupW = innerW / n;
     const barW = (groupW * 0.7) / k;
     const grid = [0, 0.25, 0.5, 0.75, 1]
       .map((p) => {
-        const y = padT + innerH * (1 - p);
+        const val = min + span * p;
+        const y = yAt(val);
         return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
-          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(max * p))}</text>`;
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
       })
       .join("");
+    const zero = `<line x1="${padL}" y1="${yAt(0)}" x2="${w - padR}" y2="${yAt(0)}" stroke="rgba(255,255,255,0.4)"/>`;
     const bars = labels
       .map((lab, i) => {
         const groupX = padL + i * groupW + groupW * 0.15;
         const rects = series
           .map((ser, si) => {
             const v = Number(ser.values[i]) || 0;
-            const bh = (v / max) * innerH;
+            if (!v) return "";
+            const yTop = yAt(Math.max(0, v));
+            const yBot = yAt(Math.min(0, v));
+            const bh = Math.max(yBot - yTop, 0.8);
             const x = groupX + si * barW;
-            const y = padT + innerH - bh;
-            return `<rect x="${x}" y="${y}" width="${Math.max(barW * 0.9, 4)}" height="${Math.max(bh, 1)}" fill="${ser.color}" rx="2"/>`;
+            return `<rect x="${x}" y="${yTop}" width="${Math.max(barW * 0.9, 4)}" height="${bh}" fill="${ser.color}" rx="2"/>`;
           })
           .join("");
         const show = n <= 18 || i % Math.ceil(n / 12) === 0 || i === n - 1;
@@ -489,7 +519,7 @@
         return rects + labEl;
       })
       .join("");
-    return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras agrupadas">${grid}${bars}</svg>`;
+    return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras agrupadas">${grid}${zero}${bars}</svg>`;
   }
 
   function svgHBar(rows) {
@@ -1365,7 +1395,7 @@
       label: c.label,
       color: c.color,
       values: agg.keys.map((k) => Number(agg.byCat[c.id]?.[k]) || 0),
-    })).filter((s) => s.values.some((v) => v > 0));
+    })).filter((s) => s.values.some((v) => v !== 0));
     const chart = document.getElementById("finDespGrafChart");
     if (chart) {
       chart.innerHTML = agg.labels.length
