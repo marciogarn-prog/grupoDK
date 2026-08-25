@@ -317,7 +317,7 @@
     renderModulo(id);
   }
 
-  function svgLineChart(days, series) {
+  function svgLineChart(days, series, axisLabs) {
     const w = 760;
     const h = 280;
     const padL = 58;
@@ -339,10 +339,11 @@
       })
       .join("");
     const step = days.length > 20 ? Math.ceil(days.length / 8) : 1;
-    const labels = days
+    const axis = days
       .map((d, i) => {
         if (i % step !== 0 && i !== days.length - 1) return "";
-        return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(fmtBrDate(d).slice(0, 5))}</text>`;
+        const lab = axisLabs && axisLabs[i] ? axisLabs[i] : fmtBrDate(d).slice(0, 5);
+        return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lab)}</text>`;
       })
       .join("");
     const lines = series
@@ -352,7 +353,7 @@
         return `<polyline fill="none" stroke="${s.color}" stroke-width="2.2" points="${pts}"/>`;
       })
       .join("");
-    return `<svg class="fin-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de linhas">${grid}${lines}${labels}</svg>`;
+    return `<svg class="fin-chart-svg" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de linhas">${grid}${lines}${axis}</svg>`;
   }
 
   function svgBarChart(labels, values, colors, asMoney) {
@@ -911,6 +912,260 @@
     });
   }
 
+  function locacaoEstaAtiva(loc) {
+    if (typeof window.__DK_isPortalLocacaoAtiva === "function") {
+      return Boolean(window.__DK_isPortalLocacaoAtiva(loc));
+    }
+    return !String(loc?.fim || loc?.dataFim || "").trim();
+  }
+
+  function valorSemanalContrato(loc) {
+    const locacao = parseValor(loc?.valorLocacao);
+    const inv = parseValor(loc?.valorInvestimento);
+    const sem = parseValor(loc?.valorSemanal || loc?.valorParcela);
+    if (locacao + inv > 0) return locacao + inv;
+    return sem > 0 ? sem : locacao;
+  }
+
+  function parseLocCampoData(loc, keys) {
+    for (const k of keys) {
+      const d = parseBrDate(loc?.[k]);
+      if (d) return d;
+    }
+    const ms = Number(loc?.createdAt || loc?.id || 0);
+    if (Number.isFinite(ms) && ms > 100000) {
+      const d = new Date(ms);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
+
+  function locInicio(loc) {
+    return parseLocCampoData(loc, ["inicio", "dataInicio", "inicioContrato", "data"]);
+  }
+
+  function locFim(loc) {
+    return parseBrDate(loc?.fim) || parseBrDate(loc?.dataFim) || parseBrDate(loc?.dataTermino) || null;
+  }
+
+  function locAtivaNoDia(loc, day) {
+    const ini = locInicio(loc);
+    const fim = locFim(loc);
+    if (ini && day < ini) return false;
+    if (fim && day > fim) return false;
+    if (!ini && fim && day > fim) return false;
+    if (!ini && !fim) return locacaoEstaAtiva(loc);
+    return true;
+  }
+
+  function addMonths(d, n) {
+    return new Date(d.getFullYear(), d.getMonth() + n, 1);
+  }
+
+  function lastDayOfMonth(y, m) {
+    return new Date(y, m + 1, 0);
+  }
+
+  function prevGranularidade() {
+    return String(document.querySelector('input[name="finPrevGran"]:checked')?.value || "diaria");
+  }
+
+  function buildPrevBuckets(kind, future) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (kind === "diaria") {
+      return Array.from({ length: 30 }, (_, i) => {
+        const d = addDays(today, future ? i : -(i + 1));
+        return { start: d, end: d, label: fmtBrDate(d).slice(0, 5), days: 1, mid: d };
+      }).sort((a, b) => a.start - b.start);
+    }
+    if (kind === "semanal") {
+      return Array.from({ length: 12 }, (_, i) => {
+        const start = addDays(today, (future ? i : -(i + 1)) * 7);
+        const end = addDays(start, 6);
+        return { start, end, label: fmtBrDate(start).slice(0, 5), days: 7, mid: addDays(start, 3) };
+      }).sort((a, b) => a.start - b.start);
+    }
+    if (kind === "mensal") {
+      const base = new Date(today.getFullYear(), today.getMonth(), 1);
+      return Array.from({ length: 12 }, (_, i) => {
+        const start = addMonths(base, future ? i : -(i + 1));
+        const end = lastDayOfMonth(start.getFullYear(), start.getMonth());
+        return {
+          start,
+          end,
+          label: `${String(start.getMonth() + 1).padStart(2, "0")}/${start.getFullYear()}`,
+          days: end.getDate(),
+          mid: new Date(start.getFullYear(), start.getMonth(), 15),
+        };
+      }).sort((a, b) => a.start - b.start);
+    }
+    if (kind === "trimestral") {
+      const q0 = Math.floor(today.getMonth() / 3);
+      return Array.from({ length: 8 }, (_, i) => {
+        const qAbs = future ? q0 + i : q0 - (i + 1);
+        const y = today.getFullYear() + Math.floor(qAbs / 4);
+        const q = ((qAbs % 4) + 4) % 4;
+        const start = new Date(y, q * 3, 1);
+        const end = lastDayOfMonth(y, q * 3 + 2);
+        const days = Math.round((end - start) / 86400000) + 1;
+        return { start, end, label: `T${q + 1}/${y}`, days, mid: new Date(y, q * 3 + 1, 15) };
+      }).sort((a, b) => a.start - b.start);
+    }
+    const y0 = today.getFullYear();
+    return Array.from({ length: 5 }, (_, i) => {
+      const y = future ? y0 + i : y0 - (i + 1);
+      const start = new Date(y, 0, 1);
+      const end = new Date(y, 11, 31);
+      const days = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0)) ? 366 : 365;
+      return { start, end, label: String(y), days, mid: new Date(y, 6, 1) };
+    }).sort((a, b) => a.start - b.start);
+  }
+
+  function contratosComModelo() {
+    const vmap = mapaVeiculosPorPlaca();
+    return locacoesCadastro().map((loc) => {
+      const placa = nkPlate(loc?.placa);
+      const veiculo = placa ? vmap.get(placa) : null;
+      return {
+        loc,
+        placa,
+        veiculo,
+        plano: planoDeLocacao(loc, veiculo),
+        modelo: modeloDeVeiculo(veiculo, loc),
+        semanal: valorSemanalContrato(loc),
+      };
+    });
+  }
+
+  function syncPrevModeloSelect() {
+    const sel = document.getElementById("finPrevModeloSelect");
+    if (!sel) return;
+    const prev = new Set(Array.from(sel.selectedOptions).map((o) => o.value));
+    const had = sel.options.length > 0;
+    const modelos = [...new Set(contratosComModelo().map((c) => c.modelo))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+    sel.innerHTML = modelos.map((m) => `<option value="${esc(m)}">${esc(m)}</option>`).join("");
+    Array.from(sel.options).forEach((o) => {
+      o.selected = had ? prev.has(o.value) : true;
+    });
+  }
+
+  function filtrarContratosPrevisao(rows) {
+    const planos = [];
+    if (document.getElementById("finPrevPlanoMinhaMoto")?.checked) planos.push("minha-moto");
+    if (document.getElementById("finPrevPlanoMeuTransporte")?.checked) planos.push("meu-transporte");
+    if (document.getElementById("finPrevPlanoCarro")?.checked) planos.push("carro");
+    const sel = document.getElementById("finPrevModeloSelect");
+    const modelos = new Set(Array.from(sel?.selectedOptions || []).map((o) => o.value));
+    const allModelos = !modelos.size;
+    return rows.filter((c) => {
+      if (planos.length && !planos.includes(c.plano)) return false;
+      if (!allModelos && !modelos.has(c.modelo)) return false;
+      return true;
+    });
+  }
+
+  function receitaContratosNoBucket(contratos, bucket) {
+    let tot = 0;
+    contratos.forEach((c) => {
+      if (!(c.semanal > 0)) return;
+      const daily = c.semanal / 7;
+      let n = 0;
+      for (let d = new Date(bucket.start.getTime()); d <= bucket.end; d = addDays(d, 1)) {
+        if (locAtivaNoDia(c.loc, d)) n += 1;
+      }
+      tot += daily * n;
+    });
+    return tot;
+  }
+
+  function receitaRealNoBucket(pags, bucket) {
+    return pags
+      .filter((p) => p.dt >= bucket.start && p.dt <= bucket.end)
+      .reduce((s, p) => s + p.valor, 0);
+  }
+
+  function renderPrevisaoReceita() {
+    syncPrevModeloSelect();
+    const kind = prevGranularidade();
+    const future = buildPrevBuckets(kind, true);
+    const past = buildPrevBuckets(kind, false);
+    const rows = filtrarContratosPrevisao(contratosComModelo());
+    const ativosAgora = rows.filter((c) => locacaoEstaAtiva(c.loc));
+    const planosSel = [];
+    if (document.getElementById("finPrevPlanoMinhaMoto")?.checked) planosSel.push("minha-moto");
+    if (document.getElementById("finPrevPlanoMeuTransporte")?.checked) planosSel.push("meu-transporte");
+    if (document.getElementById("finPrevPlanoCarro")?.checked) planosSel.push("carro");
+    const modelosSel = new Set(
+      Array.from(document.getElementById("finPrevModeloSelect")?.selectedOptions || []).map((o) => o.value)
+    );
+    const pags = coletarPagamentos().filter((p) => {
+      if (planosSel.length && !planosSel.includes(p.plano)) return false;
+      if (modelosSel.size && !modelosSel.has(p.modelo)) return false;
+      return true;
+    });
+
+    const line01 = future.map((b) => receitaContratosNoBucket(ativosAgora, b));
+    const pastReal = past.map((b) => receitaRealNoBucket(pags, b));
+    const mediaReal = pastReal.length ? pastReal.reduce((a, b) => a + b, 0) / pastReal.length : 0;
+    const line02 = future.map(() => mediaReal);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const countNow = ativosAgora.length;
+    const lookStart = past[0]?.start || addDays(today, -30);
+    const countThen = rows.filter((c) => locAtivaNoDia(c.loc, lookStart)).length;
+    const daysLook = Math.max(1, daysBetween(lookStart, today));
+    let rDay = 0;
+    if (countThen > 0 && countNow > 0 && daysLook > 0) {
+      rDay = Math.pow(countNow / countThen, 1 / daysLook) - 1;
+    }
+    const runRateDia = ativosAgora.reduce((s, c) => s + (c.semanal > 0 ? c.semanal / 7 : 0), 0);
+    const line03 = future.map((b) => {
+      const daysAhead = Math.max(0, daysBetween(today, b.mid));
+      const fator = Math.pow(1 + rDay, daysAhead);
+      return runRateDia * b.days * fator;
+    });
+
+    const series = [
+      { id: "contratos", label: "01 — Contratos ativos", color: "#5eb8ff", values: line01 },
+      { id: "real", label: "02 — Receita real", color: "#6ee7a0", values: line02 },
+      { id: "variacao", label: "03 — Variação de quantitativo", color: "#f5d76e", values: line03 },
+    ];
+    const days = future.map((b) => b.start);
+    const labels = future.map((b) => b.label);
+    const chart = document.getElementById("finPrevChart");
+    if (chart) chart.innerHTML = svgLineChart(days, series, labels);
+    const leg = document.getElementById("finPrevLegenda");
+    if (leg) {
+      leg.innerHTML = series
+        .map((s) => {
+          const tot = s.values.reduce((a, b) => a + b, 0);
+          return `<span class="fin-legenda__item"><i style="background:${s.color}"></i>${esc(s.label)} · ${esc(brl(tot))}</span>`;
+        })
+        .join("");
+    }
+    const kpis = document.getElementById("finPrevKpis");
+    if (kpis) {
+      const varPct = countThen > 0 ? ((countNow / countThen - 1) * 100).toFixed(1) : "—";
+      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Contratos ativos</span><strong>${countNow}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Run-rate semanal</span><strong>${esc(brl(runRateDia * 7))}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Variação do quantitativo</span><strong>${varPct === "—" ? "—" : varPct + "%"}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Média real / período</span><strong>${esc(brl(mediaReal))}</strong></div>`;
+    }
+    const tab = document.getElementById("finPrevTabela");
+    if (tab) {
+      const head = `<th>Período</th>${series.map((s) => `<th>${esc(s.label)}</th>`).join("")}`;
+      const body = future
+        .map(
+          (b, i) =>
+            `<tr><td>${esc(b.label)}</td>${series.map((s) => `<td>${esc(brl(s.values[i] || 0))}</td>`).join("")}</tr>`
+        )
+        .join("");
+      tab.innerHTML = `<table class="fin-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+    }
+  }
+
   function renderModulo(id) {
     if (id === "quantitativo") renderQuantitativo();
     else if (id === "receita-plano") renderReceitaPlano();
@@ -921,7 +1176,7 @@
     else if (id === "despesas") {
       bindDespesas();
       renderDespesas();
-    }
+    } else if (id === "previsao") renderPrevisaoReceita();
   }
 
   function bindNav() {
@@ -932,6 +1187,7 @@
     document.getElementById("finReceitaModeloAplicar")?.addEventListener("click", () => renderReceitaModelo());
     document.getElementById("finLocalAplicar")?.addEventListener("click", () => renderLocalizacao());
     document.getElementById("finDiaAplicar")?.addEventListener("click", () => renderDiaSemana());
+    document.getElementById("finPrevAplicar")?.addEventListener("click", () => renderPrevisaoReceita());
   }
 
   bindNav();

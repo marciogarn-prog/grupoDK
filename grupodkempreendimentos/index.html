@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260824fin-modulos">
+  <link rel="stylesheet" href="styles.css?v=20260824fin-prev">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260824excluir-cpf-fake"></script>
-  <script src="dk-pwa-update.js?v=20260824fin-modulos"></script>
+  <script src="dk-pwa-update.js?v=20260824fin-prev"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -2158,6 +2158,10 @@
                 <span class="btn-operacao-cmd__title">7 — Lançamento de despesas</span>
                 <span class="btn-operacao-cmd__hint">Valor, descrição, data e categoria</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-mod-previsao" data-fin-mod="previsao" aria-expanded="false" aria-controls="financeiroPanePrevisao">
+                <span class="btn-operacao-cmd__title">8 — Previsão de receita</span>
+                <span class="btn-operacao-cmd__hint">Contratos ativos, receita real e variação</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-financeiro-santander" aria-expanded="false" aria-controls="financeiroPaneBanco">
                 <span class="btn-operacao-cmd__title">Extrato Santander</span>
                 <span class="btn-operacao-cmd__hint">IA de movimentação bancária</span>
@@ -2271,6 +2275,35 @@
                 </table>
               </div>
               <div id="finDespesasResumo" class="fin-table-wrap"></div>
+            </div>
+
+            <div id="financeiroPanePrevisao" class="operacao-inline-form fin-mod-pane hidden" data-fin-pane="previsao" role="region" aria-labelledby="finPrevisaoTitulo">
+              <h3 id="finPrevisaoTitulo" class="operacao-inline-form__title">Previsão de receita</h3>
+              <p class="subtext">Três linhas: <strong>01</strong> contratos ativos (valor do plano), <strong>02</strong> o que realmente entrou, <strong>03</strong> a mesma base ajustada pela variação do número de contratos ativos.</p>
+              <div class="fin-filtros" id="finFiltrosPrevisao">
+                <label class="portal-field portal-field--wide"><span>Tipo de moto / modelo</span>
+                  <select id="finPrevModeloSelect" multiple size="6" aria-label="Tipo de moto"></select>
+                </label>
+                <fieldset class="fin-filtros__planos">
+                  <legend>Tipo de plano</legend>
+                  <label><input type="checkbox" id="finPrevPlanoMinhaMoto" checked> DK Minha Moto</label>
+                  <label><input type="checkbox" id="finPrevPlanoMeuTransporte" checked> DK Meu Transporte</label>
+                  <label><input type="checkbox" id="finPrevPlanoCarro" checked> Carro</label>
+                </fieldset>
+                <fieldset class="fin-filtros__planos" id="finPrevGranField">
+                  <legend>Previsão</legend>
+                  <label><input type="radio" name="finPrevGran" value="diaria" checked> Diária</label>
+                  <label><input type="radio" name="finPrevGran" value="semanal"> Semanal</label>
+                  <label><input type="radio" name="finPrevGran" value="mensal"> Mensal</label>
+                  <label><input type="radio" name="finPrevGran" value="trimestral"> Trimestral</label>
+                  <label><input type="radio" name="finPrevGran" value="anual"> Anual</label>
+                </fieldset>
+                <button type="button" class="btn-primary" id="finPrevAplicar">Atualizar</button>
+              </div>
+              <div id="finPrevKpis" class="fin-kpis"></div>
+              <div id="finPrevChart" class="fin-chart-wrap"></div>
+              <div id="finPrevLegenda" class="fin-legenda"></div>
+              <div id="finPrevTabela" class="fin-table-wrap"></div>
             </div>
 
             <div id="financeiroPaneBanco" class="operacao-inline-form hidden" role="region" aria-labelledby="financeiroBancoTitulo">
@@ -2703,9 +2736,9 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260812codigo-admin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260824fin-modulos" defer></script>
-  <script src="portal-financeiro.js?v=20260824fin-modulos" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260824fin-modulos" defer></script>
+  <script src="portal-locadora-ui.js?v=20260824fin-prev" defer></script>
+  <script src="portal-financeiro.js?v=20260824fin-prev" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260824fin-prev" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
