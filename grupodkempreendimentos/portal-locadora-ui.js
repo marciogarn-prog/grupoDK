@@ -18854,6 +18854,7 @@
     return { ok: true, operador };
   }
 
+  window.__DK_portalResolverEstadoExclusivoPlaca = portalResolverEstadoExclusivoPlaca;
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_getPortalSessaoEquipaFuncionario = getPortalSessaoEquipaFuncionario;
   window.__DK_getPortalOperacaoAcessosEfetivos = getPortalOperacaoAcessosEfetivos;

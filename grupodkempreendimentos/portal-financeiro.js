@@ -2373,6 +2373,9 @@ Regras rigorosas:
     bancoAtivo = banco;
     limparArquivoPendente();
     setFinanceiroPlaceholderVisible(false);
+    if (typeof window.__DK_financeiroHideModulos === "function") {
+      window.__DK_financeiroHideModulos({ keepBanco: true });
+    }
     syncFinanceiroSidebarButtons(btnId);
     if (tituloBanco) tituloBanco.textContent = BANCOS[banco];
     void refreshFinanceiroOpenAIStatus();
@@ -2524,6 +2527,9 @@ Regras rigorosas:
       fecharRelatorioModal();
       return true;
     }
+    if (typeof window.__DK_financeiroModuloEscapeBack === "function" && window.__DK_financeiroModuloEscapeBack()) {
+      return true;
+    }
     if (!bancoAtivo) return false;
     bancoAtivo = "";
     limparArquivoPendente();
@@ -2533,6 +2539,7 @@ Regras rigorosas:
   };
   window.__DK_financeiroOnShow = () => {
     resetFinanceiroUi();
+    if (typeof window.__DK_financeiroModulosOnShow === "function") window.__DK_financeiroModulosOnShow();
     void refreshFinanceiroOpenAIStatus();
   };
   window.__DK_financeiroRefreshFromStorage = () => {
