@@ -448,6 +448,7 @@ async function runSuite() {
       "botão FINANCEIRO entre Documentos e Área do cliente",
       html.includes("btn-locadora-financeiro") &&
         html.includes(">FINANCEIRO</button>") &&
+        html.includes('id="view-financeiro"') &&
         html.includes("panel-financeiro-locadora") &&
         html.includes("btn-financeiro-santander") &&
         html.includes("btn-financeiro-sicredi") &&
@@ -1664,18 +1665,31 @@ async function runSuite() {
       const finBtn = pageE2e.locator("#btn-locadora-financeiro");
       if (await finBtn.isVisible({ timeout: 8000 }).catch(() => false)) {
         await finBtn.click();
-        await pageE2e.waitForSelector("#panel-financeiro-locadora:not(.hidden)", { timeout: 10000 }).catch(() => null);
+        await pageE2e.waitForSelector("#view-financeiro.view--active", { timeout: 10000 }).catch(() => null);
         const finOk = await pageE2e.evaluate(() => {
+          const view = document.getElementById("view-financeiro");
+          const unit = document.getElementById("view-unit");
           const el = document.getElementById("panel-financeiro-locadora");
           const santander = document.getElementById("btn-financeiro-santander");
           const sicredi = document.getElementById("btn-financeiro-sicredi");
-          return Boolean(el && !el.classList.contains("hidden") && santander && sicredi);
+          const titulo = document.getElementById("financeiro-page-title");
+          return Boolean(
+            view?.classList.contains("view--active") &&
+              unit &&
+              !unit.classList.contains("view--active") &&
+              el &&
+              !el.classList.contains("hidden") &&
+              santander &&
+              sicredi &&
+              String(titulo?.textContent || "").includes("FINANCEIRO") &&
+              String(location.hash || "").toLowerCase().includes("locadora/financeiro")
+          );
         });
-        record("financeiro E2E: painel abre com Santander e Sicredi", finOk);
+        record("financeiro E2E: abre tela nova com Santander e Sicredi", finOk);
         await pageE2e.locator("#btn-voltar-financeiro-locadora").click().catch(() => null);
         await pageE2e.waitForTimeout(400);
       } else {
-        record("financeiro E2E: painel abre com Santander e Sicredi", false, "botão FINANCEIRO oculto");
+        record("financeiro E2E: abre tela nova com Santander e Sicredi", false, "botão FINANCEIRO oculto");
       }
 
       const veiculoBtn = pageE2e.locator("text=Cadastro de veículo").first();
