@@ -779,11 +779,22 @@
       Boolean(payload.dk_demo_cadastro_10_v1) ||
       Boolean(payload.dk_oficial_sem_protocolos_v1);
     const demoTenReplace = Boolean(payload.dk_demo_cadastro_10_v1);
+    const oficialFrotaPlanilha =
+      Boolean(payload.dk_oficial_frota_planilha_v1) && window.__DK_IS_DEMO_DEPLOY__ !== true;
+    const veiculoKeysReplace = new Set([
+      "dk_veiculos_cadastro",
+      "dk_portal_veiculos_cadastro",
+      "dk_veiculos_frota_planilha",
+    ]);
 
     for (const k of DK_STORAGE_KEYS) {
       if (clientePage && !CLIENTE_CLOUD_PULL_KEYS.has(k)) continue;
       if (replace && !Object.prototype.hasOwnProperty.call(payload, k)) {
-        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace) continue;
+        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace && !oficialFrotaPlanilha) continue;
+        if (oficialFrotaPlanilha && veiculoKeysReplace.has(k)) {
+          localStorage.removeItem(k);
+          continue;
+        }
         if (k === "dk_funcionarios_access") continue;
         localStorage.removeItem(k);
         continue;
@@ -791,7 +802,8 @@
       if (!Object.prototype.hasOwnProperty.call(payload, k)) continue;
       const v = payload[k];
       if (v === undefined || v === null) {
-        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace) continue;
+        if (DK_IMMUTABLE_CADASTRO_KEYS.has(k) && !demoTenReplace && !(oficialFrotaPlanilha && veiculoKeysReplace.has(k)))
+          continue;
         if (k === "dk_funcionarios_access") continue;
         localStorage.removeItem(k);
         continue;
@@ -817,10 +829,12 @@
               : mergeLocacoesCadastroBeforePush;
           arr = mergeFn(localArr, arr);
           consolidateLocacoesPagamentosInPlace(arr, opts);
+        } else if (oficialFrotaPlanilha && veiculoKeysReplace.has(k) && Array.isArray(arr)) {
+          /* Oficial: frota = exactamente a nuvem/planilha — não acumula fantasmas locais. */
         } else if (typeof mergeCadastroHistoricoImutavel === "function") {
           arr = mergeCadastroHistoricoImutavel(k, readLocalJsonArray(k), arr);
         }
-        if (demoTenReplace) {
+        if (demoTenReplace || (oficialFrotaPlanilha && veiculoKeysReplace.has(k))) {
           saveCadastro(k, arr, { bypassImmutabilidadeCadastro: true, allowShrink: true });
         } else {
           saveCadastro(k, arr);
@@ -2506,6 +2520,30 @@
       delete out.dk_patrimonio_crlv_v1;
       delete out.dk_patrimonio_fotos_excluidas_v1;
       return out;
+    }
+    if (cloudPayload.dk_oficial_frota_planilha_v1 === true && window.__DK_IS_DEMO_DEPLOY__ !== true) {
+      out.dk_oficial_frota_planilha_v1 = true;
+      for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
+        if (!Object.prototype.hasOwnProperty.call(cloudPayload, k)) continue;
+        const cloudV = Array.isArray(cloudPayload[k]) ? cloudPayload[k] : [];
+        const localV = Array.isArray(localPayload[k]) ? localPayload[k] : [];
+        /* Nuvem/planilha é autoridade: só atualiza placas já na frota; não reintroduz fantasmas locais. */
+        if (typeof mergeCadastroHistoricoImutavel === "function") {
+          out[k] = mergeCadastroHistoricoImutavel(k, cloudV, localV.filter((v) => {
+            const pl = String(v?.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+            const cloudPlates = new Set(
+              cloudV.map((x) => String(x?.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "")).filter(Boolean)
+            );
+            const tip = String(v?.codigo || "").trim().toUpperCase();
+            if (tip === "Z1" || tip === "HR70") return false;
+            if (/^(AAA|BBB|CCC)0/i.test(pl)) return false;
+            /* placa nova manual (não na nuvem) só se não for fantasma — ainda assim preferimos nuvem até sync */
+            return cloudPlates.has(pl) || cloudPlates.size === 0;
+          }));
+        } else {
+          out[k] = cloudV;
+        }
+      }
     }
     const oficialVirgin = cloudPayload.dk_oficial_sem_protocolos_v1 === true;
     if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_oficial_sem_protocolos_v1")) {

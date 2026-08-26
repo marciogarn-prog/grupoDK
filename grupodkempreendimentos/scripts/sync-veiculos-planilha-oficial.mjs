@@ -167,6 +167,7 @@ async function main() {
     dk_veiculos_cadastro: veiculos,
     dk_portal_veiculos_cadastro: veiculos,
     dk_veiculos_frota_planilha: [],
+    dk_oficial_frota_planilha_v1: true,
   };
   const updated_at = new Date().toISOString();
   const post = await fetch(REDIS_URL, {

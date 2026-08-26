@@ -2863,19 +2863,38 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
   }
 
   if (key === CAD_VEICULOS_KEY || key === PORTAL_VEICULOS_KEY || key === FROTA_VEICULOS_KEY) {
-    const plateNorm = (p) => normalizePlate(String(p || ""));
+    const plateKey = (p) => {
+      if (typeof normalizePlacaParaCadastro === "function") {
+        return normalizePlacaParaCadastro(p) || normalizePlate(String(p || ""));
+      }
+      return normalizePlate(String(p || ""));
+    };
     const keyOf = (v) => {
-      const pl = plateNorm(v.placa);
+      const pl = plateKey(v.placa);
       if (pl) return pl;
       const idn = Number(v.id || v.createdAt || 0);
       return idn ? `id:${idn}` : "";
     };
+    const isFantasma = (v) => {
+      if (!v || typeof v !== "object") return true;
+      const pl = plateKey(v.placa);
+      const tip = String(v.codigo || v.tipoPlanilha || "").trim().toUpperCase();
+      const modelo = String(v.modelo || "").trim().toUpperCase();
+      if (/^(AAA|BBB|CCC)0/i.test(pl)) return true;
+      if (tip === "Z1" || tip === "HR70") return true;
+      if (/FERRARI|BUGATTI|PORSCHE|FUSCA/.test(modelo)) return true;
+      return false;
+    };
     const byK = new Map();
     const add = (v) => {
+      if (isFantasma(v)) return;
       const k = keyOf(v);
       if (!k) return;
       const ex = byK.get(k);
-      byK.set(k, ex ? mergeCadastroVeiculoHistorico(ex, v) : { ...v });
+      const next = ex ? mergeCadastroVeiculoHistorico(ex, v) : { ...v };
+      const canon = plateKey(next.placa);
+      if (canon) next.placa = canon;
+      byK.set(k, next);
     };
     prev.forEach(add);
     incoming.forEach(add);
