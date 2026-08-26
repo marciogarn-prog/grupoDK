@@ -178,16 +178,24 @@ async function run() {
       saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
       if (typeof CAD_LOCACOES_KEY !== "undefined") {
         const locs = loadCadastro(CAD_LOCACOES_KEY);
-        locs.push({
-          id: Date.now() + 2,
-          placa: placaLocada,
-          plano: "DK Minha Moto",
-          tipoPlano: "minha-moto",
-          fim: "...",
-          placaReserva,
-          updatedAt: Date.now(),
-        });
-        saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
+        /* Seed local só para o teste — sem CPF/protocolo e SEM push para a nuvem. */
+        const prevSuppress = window.__DK_suppressPortalCadastroPush;
+        window.__DK_suppressPortalCadastroPush = true;
+        try {
+          locs.push({
+            id: Date.now() + 2,
+            placa: placaLocada,
+            plano: "DK Minha Moto",
+            tipoPlano: "minha-moto",
+            fim: "...",
+            placaReserva,
+            updatedAt: Date.now(),
+            __dkSeedTesteReserva: true,
+          });
+          saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
+        } finally {
+          window.__DK_suppressPortalCadastroPush = prevSuppress;
+        }
       }
       return { ok: true, placaReserva, placaLocada };
     });

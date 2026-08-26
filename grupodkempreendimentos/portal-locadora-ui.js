@@ -19193,7 +19193,7 @@
     const DK_PORTAL_SNAPSHOT_TIMER_KEY = "__full_snapshot__";
 
     async function dkPortalPushCadastroSnapshotNow() {
-      if (dkPortalCadastroSyncSuppressPush) return;
+      if (dkPortalCadastroSyncSuppressPush || window.__DK_suppressPortalCadastroPush === true) return;
       const clientes = loadCadastro(CAD_CLIENTES_KEY);
       const veiculos = loadCadastro(CAD_VEICULOS_KEY);
       const locacoes = loadCadastro(CAD_LOCACOES_KEY);
@@ -19232,7 +19232,7 @@
       typeof saveFuncionariosAccess === "function" ? saveFuncionariosAccess : null;
     window.saveCadastro = function dkPortalSaveCadastroWrapped(key, list) {
       origSave(key, list);
-      if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush) return;
+      if (!Array.isArray(list) || dkPortalCadastroSyncSuppressPush || window.__DK_suppressPortalCadastroPush === true) return;
       if (
         key === CAD_CLIENTES_KEY ||
         key === PORTAL_CLIENTES_KEY ||

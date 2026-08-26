@@ -1562,7 +1562,7 @@
   }
 
   function scheduleCloudPushDebounced() {
-    if (suppressCloudHook) return;
+    if (suppressCloudHook || window.__DK_suppressPortalCadastroPush === true) return;
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
