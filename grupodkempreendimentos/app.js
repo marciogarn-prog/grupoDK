@@ -1894,6 +1894,7 @@ function normalizeDateMaskValues(rootOrIds) {
 
 function setupDateMasks() {
   bindDateMasksInContainer(document);
+  bindDkIntervaloCalendarios(document);
 }
 
 function observeDkDateMaskFields() {
@@ -1903,11 +1904,216 @@ function observeDkDateMaskFields() {
       for (const node of m.addedNodes) {
         if (node.nodeType !== 1) continue;
         bindDateMasksInContainer(node);
+        bindDkIntervaloCalendarios(node);
       }
     }
   });
   obs.observe(document.documentElement, { childList: true, subtree: true });
   window.__dkDateMaskObserver = obs;
+}
+
+const DK_CAL_MIN = "2025-01-01";
+const DK_CAL_MAX = "2050-12-31";
+
+function dkBrDateToIso(br) {
+  const m = String(br || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return "";
+  const y = Number(m[3]);
+  if (y < 2025 || y > 2050) return "";
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+function dkIsoDateToBr(iso) {
+  const m = String(iso || "")
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return "";
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+function dkClampBrDateYear(br) {
+  const m = String(br || "")
+    .trim()
+    .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return String(br || "").trim();
+  let y = Number(m[3]);
+  if (y < 2025) y = 2025;
+  if (y > 2050) y = 2050;
+  return `${m[1]}/${m[2]}/${String(y).padStart(4, "0")}`;
+}
+
+/**
+ * Calendário nativo ao clicar (anos 2025–2050).
+ * Usar em campos de intervalo (De/Até, início/fim).
+ */
+function bindDkDateCalendario(input) {
+  if (!input || input.readOnly || input.disabled) return;
+  if (input.dataset.dkCalBound === "1") return;
+  input.dataset.dkCalBound = "1";
+  const parent = input.parentNode;
+  if (!parent) return;
+  let wrap = input.closest(".dk-date-cal, .fin-date-cal");
+  if (!wrap) {
+    wrap = document.createElement("span");
+    wrap.className = "dk-date-cal fin-date-cal";
+    parent.insertBefore(wrap, input);
+    wrap.appendChild(input);
+  } else {
+    wrap.classList.add("dk-date-cal", "fin-date-cal");
+  }
+  let native = wrap.querySelector('input[type="date"].dk-date-cal__native, input[type="date"].fin-date-cal__native');
+  if (!native) {
+    native = document.createElement("input");
+    native.type = "date";
+    native.className = "dk-date-cal__native fin-date-cal__native";
+    native.min = DK_CAL_MIN;
+    native.max = DK_CAL_MAX;
+    native.tabIndex = -1;
+    native.setAttribute("aria-label", input.getAttribute("aria-label") || "Escolher data");
+    wrap.appendChild(native);
+  }
+
+  const syncNativeFromText = () => {
+    const iso = dkBrDateToIso(input.value);
+    if (iso) {
+      native.value = iso;
+      return;
+    }
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    let y = t.getFullYear();
+    if (y < 2025) y = 2025;
+    if (y > 2050) y = 2050;
+    native.value = `${y}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
+  };
+
+  const applyNativeToText = () => {
+    const br = dkIsoDateToBr(native.value);
+    if (!br || input.value === br) return;
+    input.value = br;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+
+  const openCal = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    syncNativeFromText();
+    try {
+      if (typeof native.showPicker === "function") native.showPicker();
+      else native.focus();
+    } catch {
+      try {
+        native.focus();
+      } catch {
+        /* ignore */
+      }
+    }
+  };
+
+  syncNativeFromText();
+  input.addEventListener("mousedown", openCal);
+  input.addEventListener("click", openCal);
+  input.addEventListener("focus", () => syncNativeFromText());
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowDown" || e.key === "F4" || e.key === "Enter") openCal(e);
+  });
+  input.addEventListener("blur", () => {
+    const v = String(input.value || "").trim();
+    if (!v) return;
+    const clamped = dkClampBrDateYear(v);
+    if (clamped !== v) input.value = clamped;
+    syncNativeFromText();
+  });
+  native.addEventListener("mousedown", (e) => {
+    syncNativeFromText();
+    try {
+      if (typeof native.showPicker === "function") {
+        e.preventDefault();
+        native.showPicker();
+      }
+    } catch {
+      /* clique nativo */
+    }
+  });
+  native.addEventListener("change", applyNativeToText);
+  native.addEventListener("input", applyNativeToText);
+}
+
+function isDkIntervaloDateInput(el) {
+  if (!el || el.tagName !== "INPUT") return false;
+  if (el.type === "date" || el.type === "hidden") return false;
+  if (el.getAttribute("data-dk-cal") === "intervalo") return true;
+  const id = String(el.id || "");
+  if (
+    /^(fin\w*(De|Ate)|financeiroFiltro(De|Ate)|portalRelPagamentos(Inicio|Fim))$/i.test(id) ||
+    (/(De|Ate|Inicio|Fim)$/.test(id) && /fin|Filtro|RelPagamentos|Periodo|periodo/i.test(id))
+  ) {
+    return true;
+  }
+  const lab = el.closest("label");
+  const labText = String(lab?.querySelector("span")?.textContent || lab?.textContent || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  if (
+    labText === "de" ||
+    labText === "ate" ||
+    labText.startsWith("de ") ||
+    labText.startsWith("ate ") ||
+    labText.includes("data inicio") ||
+    labText.includes("data fim") ||
+    (labText.includes("periodo") && (labText.includes("inicio") || labText.includes("fim")))
+  ) {
+    const ph = String(el.getAttribute("placeholder") || "");
+    if (/DD\/MM/i.test(ph) || el.inputMode === "numeric" || el.maxLength === 10) return true;
+  }
+  return false;
+}
+
+function collectDkIntervaloDateInputs(root) {
+  const rootEl = root && root.querySelectorAll ? root : document;
+  const seen = new Set();
+  const out = [];
+  const add = (el) => {
+    if (!el || seen.has(el) || el.readOnly || el.disabled) return;
+    if (el.getAttribute("data-dk-cal") !== "intervalo" && !isDkIntervaloDateInput(el)) return;
+    seen.add(el);
+    out.push(el);
+  };
+  if (rootEl.querySelectorAll) {
+    rootEl.querySelectorAll('input[data-dk-cal="intervalo"]').forEach(add);
+    rootEl.querySelectorAll('input[type="text"][placeholder="DD/MM/AAAA"]').forEach(add);
+  }
+  [
+    "financeiroFiltroDe",
+    "financeiroFiltroAte",
+    "portalRelPagamentosInicio",
+    "portalRelPagamentosFim",
+    "finReceitaPlanoDe",
+    "finReceitaPlanoAte",
+    "finReceitaModeloDe",
+    "finReceitaModeloAte",
+    "finLocalDe",
+    "finLocalAte",
+    "finDiaDe",
+    "finDiaAte",
+    "finDespGrafDe",
+    "finDespGrafAte",
+  ].forEach((id) => add(document.getElementById(id)));
+  return out;
+}
+
+function bindDkIntervaloCalendarios(root) {
+  collectDkIntervaloDateInputs(root).forEach((el) => {
+    bindDateMaskInput(el);
+    bindDkDateCalendario(el);
+  });
 }
 
 /** Máscara monetária: só dígitos → centavos → R$ xxx,xx (barras/símbolos automáticos). */
@@ -16361,6 +16567,8 @@ window.normalizeCurrencyMaskValues = normalizeCurrencyMaskValues;
 window.bindDateMaskInput = bindDateMaskInput;
 window.bindDateMasksInContainer = bindDateMasksInContainer;
 window.setupDateMasks = setupDateMasks;
+window.bindDkDateCalendario = bindDkDateCalendario;
+window.bindDkIntervaloCalendarios = bindDkIntervaloCalendarios;
 window.bindCurrencyMaskInput = bindCurrencyMaskInput;
 ensureLocacaoInicioDefault();
 setHomeLayoutToolbarState();
