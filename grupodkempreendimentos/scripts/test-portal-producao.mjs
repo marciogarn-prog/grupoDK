@@ -511,6 +511,9 @@ async function runSuite() {
         portalFinModJs.includes('"1": "quantitativo"') &&
         portalFinModJs.includes("renderRelacaoPagamento") &&
         portalFinModJs.includes("filtrarRelacaoPagamento") &&
+        portalFinModJs.includes("tipoPlanilhaDeVeiculo") &&
+        portalFinModJs.includes(">TIPOS<") &&
+        portalFinModJs.includes("<th>TIPO</th>") &&
         portalFinModJs.includes("rateioPagoAluguelInvestimento") &&
         portalFinModJs.includes("fin-rel-nome--atraso") &&
         portalFinModJs.includes("valorDevidoAteHojeNum") &&
@@ -518,7 +521,7 @@ async function runSuite() {
         portalFinModJs.includes("aplicarExcelFiltroSort") &&
         portalFinModJs.includes("fin-excel-filter-btn") &&
         portalFinModJs.includes("financeiroModulosVisivel"),
-      "0 = relação; filtros Excel no cabeçalho; situação/plano/saldo; atraso e rateio"
+      "0 = relação; quantitativo por TIPO; filtros Excel"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""

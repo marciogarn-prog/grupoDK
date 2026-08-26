@@ -195,6 +195,27 @@
     return raw || "Modelo não informado";
   }
 
+  /** Coluna TIPO da planilha (CG, BROS, KWID…) — gravada em veiculo.codigo. */
+  function tipoPlanilhaDeVeiculo(v) {
+    const tip = String(v?.codigo || v?.tipoPlanilha || v?.tipoLinha || "").trim();
+    if (tip && !/^DK(CR|MT)/i.test(tip)) return tip.toUpperCase();
+    const modelo = String(v?.modelo || "").trim().toUpperCase();
+    if (!modelo) return "SEM TIPO";
+    if (modelo.includes("BROS")) return "BROS";
+    if (modelo.includes("CG")) return "CG";
+    if (modelo.includes("KWID")) return "KWID";
+    if (modelo.includes("YBR") || modelo.includes("FACTOR")) return "YBR";
+    if (modelo.includes("SHI")) return "SHI";
+    if (modelo.includes("JEF") || modelo.includes("XY")) return "JEF";
+    if (modelo.includes("ETIOS")) return "ETIOS";
+    if (modelo.includes("PRISMA")) return "PRISMA";
+    if (modelo.includes("CLASSIC")) return "CLASSIC";
+    if (modelo.includes("HB20")) return "HB20";
+    if (modelo.includes("GOL")) return "GOL";
+    if (/\bKA\b/.test(modelo) || modelo.startsWith("KA ")) return "KA";
+    return modelo.split(/\s+/)[0] || "SEM TIPO";
+  }
+
   function planoDeLocacao(loc, veiculo) {
     const raw = nk(loc?.plano || loc?.opcaoContrato || "");
     if (raw.includes("TRANSPORTE")) return "meu-transporte";
@@ -539,8 +560,8 @@
   function renderQuantitativo() {
     const counts = new Map();
     veiculosCadastro().forEach((v) => {
-      const m = modeloDeVeiculo(v, null);
-      counts.set(m, (counts.get(m) || 0) + 1);
+      const t = tipoPlanilhaDeVeiculo(v);
+      counts.set(t, (counts.get(t) || 0) + 1);
     });
     const rows = [...counts.entries()]
       .map(([label, value]) => ({ label, value }))
@@ -549,14 +570,14 @@
     const kpis = document.getElementById("finQuantitativoKpis");
     if (kpis) {
       kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Veículos</span><strong>${total}</strong></div>
-        <div class="fin-kpi"><span class="fin-kpi__lab">Modelos</span><strong>${rows.length}</strong></div>`;
+        <div class="fin-kpi"><span class="fin-kpi__lab">TIPOS</span><strong>${rows.length}</strong></div>`;
     }
     const chart = document.getElementById("finQuantitativoChart");
     if (chart) chart.innerHTML = rows.length ? svgHBar(rows) : '<p class="subtext">Nenhum veículo no cadastro.</p>';
     const tab = document.getElementById("finQuantitativoTabela");
     if (tab) {
       tab.innerHTML = rows.length
-        ? `<table class="fin-table"><thead><tr><th>Modelo</th><th>Quantidade</th><th>%</th></tr></thead><tbody>${rows
+        ? `<table class="fin-table"><thead><tr><th>TIPO</th><th>Quantidade</th><th>%</th></tr></thead><tbody>${rows
             .map((r) => `<tr><td>${esc(r.label)}</td><td>${r.value}</td><td>${total ? ((r.value / total) * 100).toFixed(1) : "0"}%</td></tr>`)
             .join("")}</tbody></table>`
         : "";
