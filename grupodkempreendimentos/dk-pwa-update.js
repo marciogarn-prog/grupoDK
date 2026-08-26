@@ -21,6 +21,20 @@
     path.startsWith("/instalar/");
   if (isClienteApp) return;
 
+  const isStandaloneEarly =
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  if (
+    /[?&]instalar=1/.test(location.search) &&
+    (path === "/" || path === "/index.html") &&
+    !isStandaloneEarly
+  ) {
+    const u = new URL("/app.html", location.origin);
+    u.searchParams.set("instalar", "1");
+    u.searchParams.set("source", "portal");
+    location.replace(u.pathname + u.search);
+    return;
+  }
+
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
   const forceApply =

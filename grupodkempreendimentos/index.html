@@ -30,7 +30,7 @@
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260826relacao-cols"></script>
-  <script src="dk-pwa-update.js?v=20260826relacao-cols"></script>
+  <script src="dk-pwa-update.js?v=20260826app-operacao-install"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -60,7 +60,7 @@
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
       <div class="home-app-downloads" role="group" aria-label="Baixar aplicativos">
         <a href="/instalar" class="home-app-btn home-app-btn--cliente" id="homeBaixarAppCliente">Baixar app cliente</a>
-        <a href="./?instalar=1#locadora" class="home-app-btn home-app-btn--operacao" id="homeBaixarAppOperacao">Baixar app operação</a>
+        <a href="/app.html?instalar=1" class="home-app-btn home-app-btn--operacao" id="homeBaixarAppOperacao">Baixar app operação</a>
       </div>
     </header>
 
@@ -2862,7 +2862,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="home-install-pwa.js?v=20260608home-app-botoes" defer></script>
+  <script src="home-install-pwa.js?v=20260826app-operacao-install" defer></script>
   <script>
     (function () {
       var src =

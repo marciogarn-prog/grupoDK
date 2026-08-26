@@ -147,7 +147,7 @@
       e.preventDefault();
       deferred = e;
       panel.classList.remove("hidden");
-      if (status) status.textContent = "Toque em «Instalar app Grupo DK».";
+      if (status) status.textContent = "Clique em «Instalar app Grupo DK» ou use a instalação manual abaixo.";
     });
 
     window.addEventListener("appinstalled", () => {
@@ -162,14 +162,14 @@
       }
       if (deferred) {
         deferred.prompt();
-        await deferred.userChoice.catch(() => {});
+        const choice = await deferred.userChoice.catch(() => ({ outcome: "dismissed" }));
         deferred = null;
-        return;
+        if (choice.outcome === "accepted") return;
       }
       if (manual) manual.open = true;
       if (status) {
         status.textContent =
-          "Se o botão automático não aparecer, use a instalação manual abaixo (Chrome ⋮ ou Safari partilhar).";
+          "Se o botão automático não aparecer, use a instalação manual abaixo (Windows: ícone ⊕ na barra; Android/iPhone: instruções no painel).";
       }
     });
   }
