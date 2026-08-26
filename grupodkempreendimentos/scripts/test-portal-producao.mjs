@@ -772,6 +772,15 @@ async function runSuite() {
       "campo CÓD. entre CPF e CLIENTE"
     );
     record(
+      "cadastro locação confirmação com resumo",
+      html.includes("portalLocacaoConfirmModal") &&
+        html.includes("portalLocacaoConfirmResumo") &&
+        portalUiProto.includes("openPortalLocacaoConfirmModal") &&
+        portalUiProto.includes("Confirmar cadastro de locação") &&
+        portalUiProto.includes("Confirmar finalização da locação"),
+      "modal com protocolo, cliente, placa, plano e valor"
+    );
+    record(
       "protocolo = data inicio AAAAMMDDXX (nunca data de hoje)",
       portalUiProto.includes("portalIsProtocoloAlignedWithInicio") &&
         portalUiProto.includes("portalProtocoloPrefixFromInicioBr") &&

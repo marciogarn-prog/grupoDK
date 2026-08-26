@@ -2581,6 +2581,31 @@ body {
   margin-top: 1rem;
 }
 
+.portal-locacao-confirm-resumo {
+  margin: 0.85rem 0 0;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  background: rgba(8, 10, 14, 0.72);
+  display: grid;
+  grid-template-columns: minmax(7rem, auto) 1fr;
+  gap: 0.45rem 0.85rem;
+  font-size: 0.95rem;
+}
+
+.portal-locacao-confirm-resumo dt {
+  margin: 0;
+  color: var(--text-muted, #a8b0bc);
+  font-weight: 500;
+}
+
+.portal-locacao-confirm-resumo dd {
+  margin: 0;
+  color: #f5f7fa;
+  font-weight: 600;
+  word-break: break-word;
+}
+
 .portal-modal__actions .btn-primary {
   width: 100%;
   justify-content: center;
