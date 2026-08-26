@@ -177,18 +177,27 @@ function clientesFromXlsx() {
 function veiculosFromXlsx() {
   const rows = readSheet("CADASTRO DE VEICULOS.xlsx");
   const byPlaca = new Map();
-  const skipped = { semPlaca: 0, dup: 0 };
+  const skipped = { semPlaca: 0, dup: 0, placaCorrigida: 0 };
   rows.forEach((row, idx) => {
-    const placa = placaParaCadastro(pick(row, "Placa"));
+    let placaRaw = pick(row, "Placa");
+    let cat = String(pick(row, "Categoria")).trim().toUpperCase();
+    /* Linha deslocada (ex. DKCR-016): placa vazia e Categoria = placa. */
+    if (!normalizePlate(placaRaw) && /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/i.test(normalizePlate(cat))) {
+      placaRaw = cat;
+      cat = String(pick(row, "TAG", "Tag")).toUpperCase().includes("DKCR") ? "CARRO" : "MOTO";
+      skipped.placaCorrigida += 1;
+    }
+    const placa = placaParaCadastro(placaRaw);
     if (!placa) {
       skipped.semPlaca += 1;
       return;
     }
     if (byPlaca.has(placa)) skipped.dup += 1;
-    const cat = String(pick(row, "Categoria")).trim().toUpperCase();
     const tipo = cat.includes("CARRO") ? "CARRO" : cat.includes("MOTO") ? "MOTO" : cat || "MOTO";
     const now = Date.now() - (rows.length - idx) * 1000;
     const tag = String(pick(row, "TAG", "Tag")).trim();
+    /* Coluna TIPO da planilha (CG, BROS, KWID…) → campo TIPO no formulário (gravado em codigo). */
+    const tipoPlanilha = String(pick(row, "TIPO", "Tipo")).trim();
     byPlaca.set(placa, {
       id: now,
       createdAt: now,
@@ -198,7 +207,7 @@ function veiculosFromXlsx() {
       tipo,
       tag,
       placa,
-      codigo: tag || padCodigo(idx + 1),
+      codigo: tipoPlanilha,
       marca: String(pick(row, "Marca")).trim(),
       modelo: String(pick(row, "Modelo")).trim(),
       valor: String(pick(row, "Valor de Aquisição", "Valor")).trim(),
@@ -315,8 +324,8 @@ if (clientesX.unique !== 369) {
   console.error("Esperado 369 clientes únicos, obtido", clientesX.unique);
   process.exit(1);
 }
-if (veiculosX.unique !== 186) {
-  console.error("Esperado 186 veículos únicos, obtido", veiculosX.unique);
+if (veiculosX.unique !== 187) {
+  console.error("Esperado 187 veículos únicos, obtido", veiculosX.unique);
   process.exit(1);
 }
 

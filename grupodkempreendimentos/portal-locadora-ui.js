@@ -1007,7 +1007,7 @@
     tipo: "Tipo",
     tag: "Tag",
     placa: "Placa",
-    codigo: "Código",
+    codigo: "TIPO",
     marca: "Marca",
     modelo: "Modelo",
     valor: "Valor",
@@ -10682,7 +10682,7 @@
         )}${testeCls}" role="listitem" data-placa="${eh(d.placa)}" data-tag="${eh(tag)}">
           <p class="operacao-veiculo-resumo-card__linha"><strong>Tag:</strong> ${eh(tag)}</p>
           <p class="operacao-veiculo-resumo-card__linha"><strong>Placa:</strong> ${eh(d.placa)}</p>
-          <p class="operacao-veiculo-resumo-card__linha"><strong>Código:</strong> ${eh(d.codigo)}</p>
+          <p class="operacao-veiculo-resumo-card__linha"><strong>TIPO:</strong> ${eh(d.codigo)}</p>
           <p class="operacao-veiculo-resumo-card__linha"><strong>Cliente:</strong> ${eh(d.cliente)}</p>
           <p class="operacao-veiculo-resumo-card__status operacao-veiculo-resumo-card__status--${eh(
             d.statusClass

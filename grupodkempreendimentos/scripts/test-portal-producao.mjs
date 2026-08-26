@@ -83,11 +83,11 @@ async function runSuite() {
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 189 veículos, 526 protocolos",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 187 veículos, 526 protocolos",
       IS_DEMO_TEST
         ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
         : storageInicial.clientes === 385 &&
-          storageInicial.veiculos === 189 &&
+          storageInicial.veiculos === 187 &&
           storageInicial.locacoes === 526,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
@@ -550,6 +550,14 @@ async function runSuite() {
       "totais ao lado de Dados do veículo"
     );
     record(
+      "cadastro veículo campo TIPO (planilha)",
+      indexFresh.includes('aria-label="TIPO"') &&
+        indexFresh.includes("operacaoVeiculoCodigo") &&
+        indexFresh.includes("Ex.: CG, BROS, KWID") &&
+        portalUiCliTotJs.includes("<strong>TIPO:</strong>"),
+      "rótulo TIPO = coluna TIPO do CADASTRO DE VEICULOS"
+    );
+    record(
       "cadastro sem opção real/teste (demo é o ambiente de testes)",
       !indexFresh.includes("operacaoClienteAmbienteWrap") &&
         !indexFresh.includes('name="operacaoClienteAmbiente"') &&
@@ -703,10 +711,10 @@ async function runSuite() {
       const clientesOf = pOf.dk_clientes_cadastro || [];
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
-        "oficial: nuvem 385 clientes, 189 veículos, 526 protocolos",
+        "oficial: nuvem 385 clientes, 187 veículos, 526 protocolos",
         clientesOf.length === 385 &&
           retroOf.length >= 20 &&
-          (pOf.dk_veiculos_cadastro || []).length === 189 &&
+          (pOf.dk_veiculos_cadastro || []).length === 187 &&
           (pOf.dk_locacoes_cadastro || []).length === 526,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
