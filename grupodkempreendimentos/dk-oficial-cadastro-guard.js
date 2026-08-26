@@ -120,11 +120,14 @@
   /** Placeholders 000.000.000-01 / -03 (JEFERSON / MARCIO) — não entram no oficial. */
   const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
   /**
-   * Protocolos inválidos (typo / duplicata) — saem do localStorage e não voltam pelo merge.
-   * 2026122501 era duplicata de Adriano/SOY5D66; o correto é 2025122201.
+   * Protocolos inválidos (typo / duplicata / prefixo ≠ data início) — saem do localStorage
+   * e não voltam pelo merge. Remap aponta para o protocolo canónico da mesma locação.
    */
-  const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501"]);
-  const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({ "2026122501": "2025122201" });
+  const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501", "2026082801"]);
+  const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({
+    "2026122501": "2025122201",
+    "2026082801": "2026011601",
+  });
 
   function locacaoNcDigits(record) {
     return String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
