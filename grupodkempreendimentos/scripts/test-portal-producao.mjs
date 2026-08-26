@@ -811,24 +811,6 @@ async function runSuite() {
         !/proximoProtocoloPortalAaaammddXX\(date = new Date\(\)\)/.test(portalUiProto),
       "bloqueia prefixo desalinhado no cadastro"
     );
-    const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js`, { cache: "no-store" }).then((r) =>
-      r.ok ? r.text() : ""
-    );
-    const mergeLib = fs.readFileSync(
-      path.join(REPO_ROOT, "grupodkempreendimentos", "lib", "dk-append-only-merge.cjs"),
-      "utf8"
-    );
-    record(
-      "não inventa protocolo para locação fantasma (LOC*/sem CPF)",
-      appJsProto.includes("isLocacaoElegivelParaProtocoloAutomatico") &&
-        appJsProto.includes("purgeLocacoesFantasmaCadastro") &&
-        appJsProto.includes("isLocacaoFantasmaCadastro") &&
-        appJsProto.includes("/^LOC\\d/i") &&
-        portalUiProto.includes("__DK_suppressPortalCadastroPush") &&
-        guardJs.includes("isLocacaoFantasmaCadastro") &&
-        mergeLib.includes("isLocacaoFantasmaCadastro"),
-      "bloqueia seed LOC0A99 e limpa fantasmas no arranque"
-    );
     const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
@@ -861,6 +843,21 @@ async function runSuite() {
     const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=${guardVer}`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
+    const mergeLib = fs.readFileSync(
+      path.join(REPO_ROOT, "grupodkempreendimentos", "lib", "dk-append-only-merge.cjs"),
+      "utf8"
+    );
+    record(
+      "não inventa protocolo para locação fantasma (LOC*/sem CPF)",
+      appJsProto.includes("isLocacaoElegivelParaProtocoloAutomatico") &&
+        appJsProto.includes("purgeLocacoesFantasmaCadastro") &&
+        appJsProto.includes("isLocacaoFantasmaCadastro") &&
+        appJsProto.includes("/^LOC\\d/i") &&
+        portalUiProto.includes("__DK_suppressPortalCadastroPush") &&
+        guardJs.includes("isLocacaoFantasmaCadastro") &&
+        mergeLib.includes("isLocacaoFantasmaCadastro"),
+      "bloqueia seed LOC0A99 e limpa fantasmas no arranque"
+    );
     record(
       "cadastros operacionais nunca somem (origemPortal + merge)",
       appJsProto.includes("isProtectedCadastroKey") &&
