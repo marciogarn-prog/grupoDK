@@ -977,6 +977,15 @@
               >
                 Finalizar locação
               </button>
+              <button
+                type="button"
+                class="btn-primary btn-secondary-outline hidden"
+                id="operacaoLocacaoCancelarBtn"
+                disabled
+                title="Só administrador — desistência antes de iniciar: data fim = início, sem débito."
+              >
+                Cancelar contrato
+              </button>
             </div>
           </form>
           <div id="operacaoLocacaoLancamentosHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos do protocolo" hidden></div>
@@ -2874,11 +2883,11 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260824pag-sync" defer></script>
-  <script src="app.js?v=20260826relacao-cols" defer></script>
+  <script src="app.js?v=20260826cancelar-contrato" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-locadora-ui.js?v=20260826relacao-cols" defer></script>
+  <script src="portal-locadora-ui.js?v=20260826cancelar-contrato" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260826relacao-cols" defer></script>
@@ -2915,13 +2924,13 @@
   <script src="portal-documentos.js?v=20260820req-modelo" defer></script>
   <script src="data/dk-contrato-locacao-texto.js?v=20260820req-modelo" defer></script>
   <script src="data/dk-contrato-pacote-textos.js?v=20260820promessa-exata" defer></script>
-  <script src="portal-contrato-locacao.js?v=20260824layout-sisloc" defer></script>
+  <script src="portal-contrato-locacao.js?v=20260826cancelar-contrato" defer></script>
   <script src="portal-contrato-pacote.js?v=20260824layout-sisloc" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
   <script src="portal-lancamentos-extras.js?v=20260826relacao-cols" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-supabase-sync.js?v=20260826relacao-cols" defer></script>
+  <script src="portal-supabase-sync.js?v=20260826cancelar-contrato" defer></script>
 </body>
 </html>

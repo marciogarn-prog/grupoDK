@@ -9781,7 +9781,17 @@
     return portalInferTipoVeiculoLocacao(locacao) === "MOTO";
   }
 
+  function isPortalLocacaoCancelada(locacao) {
+    if (!locacao || typeof locacao !== "object") return false;
+    if (locacao.contratoCancelado === true) return true;
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const s = nk(String(locacao.statusLocacao || locacao.status || ""));
+    return s.includes("CANCEL");
+  }
+
   function portalLocacaoTemDataFim(locacao) {
+    if (isPortalLocacaoCancelada(locacao)) return true;
     const fim = String(locacao?.fim || "").trim();
     if (!fim || fim === "—" || fim === "-") return false;
     if (typeof parseBrDate === "function") {
@@ -9791,7 +9801,21 @@
     return /^\d{2}\/\d{2}\/\d{4}$/.test(fim);
   }
 
+  function portalLocacaoPodeCancelar(locacao) {
+    if (!locacao || isPortalLocacaoCancelada(locacao)) return false;
+    const st = String(locacao.statusLocacao || locacao.status || "")
+      .trim()
+      .toUpperCase();
+    if (st.includes("FINALIZ")) {
+      const inicio = String(locacao.inicio || "").trim();
+      const fim = String(locacao.fim || "").trim();
+      return Boolean(inicio && fim && inicio === fim);
+    }
+    return true;
+  }
+
   function isPortalLocacaoFinalizada(locacao) {
+    if (isPortalLocacaoCancelada(locacao)) return true;
     const nk =
       typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
     if (portalLocacaoTemDataFim(locacao)) return true;
@@ -12279,6 +12303,11 @@
     persistPortalLocacaoFinalizar();
   });
 
+  document.getElementById("operacaoLocacaoCancelarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    persistPortalLocacaoCancelar();
+  });
+
   document.getElementById("portalRelClienteGerarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
@@ -13308,6 +13337,12 @@
           typeof toDateOnly === "function"
             ? toDateOnly(fim).getTime()
             : new Date(fim.getFullYear(), fim.getMonth(), fim.getDate()).getTime();
+        const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+        const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+        if (loc && isPortalLocacaoCancelada(loc)) {
+          inpTempo.value = "0";
+          return;
+        }
         const dias = Math.max(1, Math.round((t1 - t0) / 86400000));
         inpTempo.value = String(dias);
         return;
@@ -13341,6 +13376,15 @@
     const inp = document.getElementById("operacaoLocacaoDataFim");
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     if (!btn || !inp) return;
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    if (loc && isPortalLocacaoCancelada(loc)) {
+      btn.disabled = true;
+      btn.title = "Contrato cancelado — não pode finalizar.";
+      refreshOperacaoLocacaoVisualizarContratoBtn();
+      refreshOperacaoLocacaoCancelarBtn();
+      return;
+    }
     const raw = String(inp.value || "").trim();
     let okDate = false;
     if (raw.length >= 8 && typeof parseBrDate === "function") {
@@ -13358,6 +13402,34 @@
       btn.title = "Gravar data fim e marcar a locação como finalizada.";
     }
     refreshOperacaoLocacaoVisualizarContratoBtn();
+    refreshOperacaoLocacaoCancelarBtn();
+  }
+
+  /** Só administrador — cancelar desistência antes de iniciar (sem débito). */
+  function refreshOperacaoLocacaoCancelarBtn() {
+    const btn = document.getElementById("operacaoLocacaoCancelarBtn");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!btn) return;
+    const admin = isPortalTitularAdministrador();
+    btn.classList.toggle("hidden", !admin);
+    if (!admin) return;
+    const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    const can = !isNovo && Boolean(loc && portalLocacaoPodeCancelar(loc));
+    btn.disabled = !can;
+    if (!can) {
+      if (loc && isPortalLocacaoCancelada(loc)) {
+        btn.title = "Contrato já cancelado.";
+      } else if (loc && !portalLocacaoPodeCancelar(loc)) {
+        btn.title = "Contrato já finalizado com vigência — use «Finalizar locação» ou corrija manualmente.";
+      } else {
+        btn.title = "Selecione um protocolo cadastrado para cancelar (desistência antes de iniciar).";
+      }
+    } else {
+      btn.title =
+        "Cancelar contrato: data fim = data início, sem débito e receita prevista zero. Só administrador.";
+    }
   }
 
   /** «Gerar contrato» ou «Visualizar contrato» conforme existência no depósito (chave = protocolo). */
@@ -13812,6 +13884,10 @@
     if (valInvEl) valInvEl.value = fmtValor(loc.valorInvestimento);
     if (tipoPlanoEl) tipoPlanoEl.value = String(loc.plano || loc.opcaoContrato || "").trim();
     syncOperacaoLocacaoFromDataInicio();
+    if (isPortalLocacaoCancelada(loc)) {
+      const tempoEl = document.getElementById("operacaoLocacaoTempoDias");
+      if (tempoEl) tempoEl.value = "0";
+    }
     syncOperacaoLocacaoValorPlano();
     fillOperacaoLocacaoTotaisLancamentoPortal(loc);
     refreshOperacaoLocacaoLancamentosHistorico(
@@ -14087,6 +14163,7 @@
     portalSyncAmbienteCadastroAdminUi();
     refreshOperacaoLocacaoApagarProtocoloBtn();
     refreshOperacaoLocacaoProtocoloAdminPlaceholder();
+    refreshOperacaoLocacaoCancelarBtn();
   }
 
   function refreshOperacaoLocacaoApagarProtocoloBtn() {
@@ -14293,6 +14370,140 @@
         ],
       },
       finalizarLocacao
+    );
+  }
+
+  function persistPortalLocacaoCancelar() {
+    if (!isPortalTitularAdministrador()) {
+      portalLocacaoFeedback("Apenas o administrador pode cancelar um contrato.");
+      return;
+    }
+    if (
+      typeof loadCadastro !== "function" ||
+      typeof saveCadastro !== "function" ||
+      typeof CAD_LOCACOES_KEY === "undefined"
+    ) {
+      portalLocacaoFeedback("Cadastro indisponível neste ambiente.");
+      return;
+    }
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!sel || String(sel.value || "") === "__PORTAL_PROTO_NOVO__") {
+      portalLocacaoFeedback("Selecione um protocolo já cadastrado para cancelar.");
+      return;
+    }
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const ncNorm = normPortalNumeroContrato(String(hid?.value || ""));
+    if (!ncNorm) {
+      portalLocacaoFeedback("Protocolo inválido.");
+      return;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idx = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === ncNorm);
+    if (idx === -1) {
+      portalLocacaoFeedback("Locação não encontrada na base deste navegador.");
+      return;
+    }
+    const prev = locs[idx];
+    if (!portalLocacaoPodeCancelar(prev)) {
+      portalLocacaoFeedback("Este contrato não pode ser cancelado (já cancelado ou finalizado com vigência).");
+      return;
+    }
+    const rawInicio = String(prev.inicio || document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    const inicioDt = typeof parseBrDate === "function" ? parseBrDate(rawInicio) : null;
+    if (!inicioDt || Number.isNaN(inicioDt.getTime())) {
+      portalLocacaoFeedback("Data de início inválida — não foi possível cancelar.");
+      return;
+    }
+    const inicioBr = formatPortalDataBr(inicioDt);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpfDigits = dig(String(prev.cpf || document.getElementById("operacaoLocacaoCpf")?.value || ""));
+    const nomeCliente =
+      String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim() ||
+      String(prev.nome || "").trim();
+    const placa =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(document.getElementById("operacaoLocacaoPlaca")?.value || prev.placa || ""))
+        : String(document.getElementById("operacaoLocacaoPlaca")?.value || prev.placa || "").trim();
+    const plano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || prev.plano || "").trim();
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(prev);
+    const totalPago = sumPortalLancamentosAluguelTotal(lancs);
+
+    const cancelarContrato = () => {
+      const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
+      const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
+      const finNow = Date.now();
+      locs[idx] = {
+        ...prev,
+        inicio: inicioBr,
+        fim: inicioBr,
+        statusLocacao: "CANCELADO",
+        contratoCancelado: true,
+        tempoDiasContrato: 0,
+        portalLocacaoCanceladoPorCpf: finCpf,
+        portalLocacaoCanceladoPorNome: String(regFin?.nome || "").trim(),
+        portalLocacaoCanceladoEmMs: finNow,
+        updatedAt: finNow,
+      };
+      try {
+        saveCadastro(CAD_LOCACOES_KEY, locs);
+      } catch (err) {
+        console.error(err);
+        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
+        return;
+      }
+      portalPushCloudSnapshotAfterPersist();
+      if (typeof addAuditLog === "function") {
+        try {
+          addAuditLog("cancelar_contrato_portal", "locacao", `${ncNorm} · CPF ${cpfDigits} · desistência`);
+        } catch {
+          /* ignore */
+        }
+      }
+      const dfEl = document.getElementById("operacaoLocacaoDataFim");
+      const tempoEl = document.getElementById("operacaoLocacaoTempoDias");
+      if (dfEl) dfEl.value = inicioBr;
+      if (tempoEl) tempoEl.value = "0";
+      portalLocacaoFeedback("Contrato cancelado — data fim = início, sem débito e receita prevista zero.");
+      refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      applyPortalLocacaoRowFromRecord(locs[idx]);
+      refreshOperacaoLocacaoDatalists();
+      refreshOperacaoLocacaoFinalizarBtn();
+      refreshOperacaoLocacaoCancelarBtn();
+      if (typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+        void window.__DK_contratoLocacaoSincronizarPasta(ncNorm, "CANCELADO", { fim: inicioBr }).then((r) => {
+          if (!r?.moved && r?.msg === "nao_encontrado") return;
+          if (r?.moved) {
+            portalLocacaoFeedback("Contrato cancelado. PDF movido para Contratos INATIVOS (nuvem).");
+          }
+        });
+      }
+    };
+
+    const rows = [
+      { label: "Protocolo", value: ncNorm },
+      { label: "Cliente", value: nomeCliente || "—" },
+      { label: "Placa", value: placa || "—" },
+      { label: "Tipo de plano", value: plano || "—" },
+      { label: "Data início / fim", value: `${inicioBr} (mesmo dia)` },
+      { label: "Débito", value: "R$ 0,00" },
+      { label: "Receita prevista", value: "R$ 0,00" },
+    ];
+    if (totalPago > 0) {
+      rows.push({
+        label: "Atenção",
+        value: `Existem ${lancs.length} pagamento(s) registados (${typeof currencyBRL === "function" ? currencyBRL(totalPago) : totalPago}). O cancelamento zera o devido, mas não apaga pagamentos.`,
+      });
+    }
+
+    openPortalLocacaoConfirmModal(
+      {
+        titulo: "Confirmar cancelamento do contrato",
+        lead: "Desistência antes de iniciar — diferente de finalizar. O protocolo fica sem débito.",
+        confirmLabel: "Confirmar cancelamento",
+        rows,
+      },
+      cancelarContrato
     );
   }
 
@@ -15147,6 +15358,7 @@
 
   /** Dias do contrato (mesma lógica que o formulário de locação no portal). */
   function computePortalTempoDiasLoc(loc) {
+    if (isPortalLocacaoCancelada(loc)) return 0;
     const rawInicio = String(loc?.inicio || "").trim();
     if (!rawInicio) return 0;
     const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
@@ -15170,6 +15382,7 @@
 
   /** Dias do início do contrato até hoje (se já encerrado, até a data fim). */
   function computePortalDiasAteHoje(loc) {
+    if (isPortalLocacaoCancelada(loc)) return 0;
     const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
     const inicio = parseD(String(loc?.inicio || "").trim());
     if (!inicio || Number.isNaN(inicio.getTime())) return 0;
@@ -19585,6 +19798,7 @@
   window.__DK_portalLancAluguelCpfCorClasseFromLinhas = portalLancAluguelCpfCorClasseFromLinhas;
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
+  window.__DK_isPortalLocacaoCancelada = isPortalLocacaoCancelada;
   window.__DK_getPortalLancamentosAluguelDoContrato = getPortalLancamentosAluguelDoContrato;
 
   window.__DK_refreshOperacaoLancAluguelFromComprovante = function refreshOperacaoLancAluguelFromComprovante(rec) {

@@ -2682,6 +2682,29 @@ try {
 function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
   const out = {};
   if (!ex || typeof ex !== "object" || !l || typeof l !== "object") return out;
+  const isCancelRec = (r) => {
+    const s = String(r?.statusLocacao || r?.status || "")
+      .trim()
+      .toUpperCase();
+    return s.includes("CANCEL") || Boolean(r?.contratoCancelado);
+  };
+  if (isCancelRec(ex) || isCancelRec(l)) {
+    const msA = Number(ex.portalLocacaoCanceladoEmMs || 0);
+    const msB = Number(l.portalLocacaoCanceladoEmMs || 0);
+    const src = isCancelRec(l) && isCancelRec(ex) ? (msB >= msA ? l : ex) : isCancelRec(l) ? l : ex;
+    const inicioBr = String(src.inicio || "").trim();
+    out.statusLocacao = "CANCELADO";
+    out.contratoCancelado = true;
+    out.fim = inicioBr || String(src.fim || "").trim();
+    out.tempoDiasContrato = 0;
+    const dig = (s) => onlyDigits(String(s || ""));
+    const cpfC = dig(String(src.portalLocacaoCanceladoPorCpf || "")).slice(0, 11);
+    if (cpfC.length >= 3) out.portalLocacaoCanceladoPorCpf = cpfC;
+    out.portalLocacaoCanceladoPorNome = String(src.portalLocacaoCanceladoPorNome || "").trim();
+    const emC = Number(src.portalLocacaoCanceladoEmMs || 0);
+    if (emC > 0) out.portalLocacaoCanceladoEmMs = emC;
+    return out;
+  }
   const parseD = (raw) => {
     const s = String(raw || "").trim();
     if (!s) return null;

@@ -1078,10 +1078,9 @@ ${scriptPreviewInline(dados)}
   }
 
   function pastaContratoParaLocacao(statusLocacao, fim) {
+    const st = String(statusLocacao || "").toUpperCase();
     const fin =
-      String(statusLocacao || "")
-        .toUpperCase()
-        .includes("FINAL") || Boolean(String(fim || "").trim());
+      st.includes("FINAL") || st.includes("CANCEL") || Boolean(String(fim || "").trim());
     return fin ? "inativo" : "ativo";
   }
 
