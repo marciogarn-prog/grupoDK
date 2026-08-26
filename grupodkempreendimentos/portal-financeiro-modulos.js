@@ -152,129 +152,20 @@
     return { de: de || fb.de, ate: ate || fb.ate };
   }
 
-  const FIN_CAL_MIN = "2025-01-01";
-  const FIN_CAL_MAX = "2050-12-31";
-
-  function brDateToIso(br) {
-    const m = String(br || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!m) return "";
-    const y = Number(m[3]);
-    if (y < 2025 || y > 2050) return "";
-    return `${m[3]}-${m[2]}-${m[1]}`;
-  }
-
-  function isoDateToBr(iso) {
-    const m = String(iso || "").trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!m) return "";
-    return `${m[3]}/${m[2]}/${m[1]}`;
-  }
-
-  function clampBrDateYear(br) {
-    const m = String(br || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!m) return String(br || "").trim();
-    let y = Number(m[3]);
-    if (y < 2025) y = 2025;
-    if (y > 2050) y = 2050;
-    return `${m[1]}/${m[2]}/${String(y).padStart(4, "0")}`;
-  }
-
-  /** Calendário nativo ao clicar no campo De/Até (anos 2025–2050). */
   function bindFinDateCalendario(input) {
-    if (!input || input.dataset.finCal === "1") return;
-    input.dataset.finCal = "1";
-    const parent = input.parentNode;
-    if (!parent) return;
-    let wrap = input.closest(".fin-date-cal");
-    if (!wrap) {
-      wrap = document.createElement("span");
-      wrap.className = "fin-date-cal";
-      parent.insertBefore(wrap, input);
-      wrap.appendChild(input);
+    if (typeof window.bindDkDateCalendario === "function") {
+      window.bindDkDateCalendario(input);
+      return;
     }
-    let native = wrap.querySelector('input[type="date"].fin-date-cal__native');
-    if (!native) {
-      native = document.createElement("input");
-      native.type = "date";
-      native.className = "fin-date-cal__native";
-      native.min = FIN_CAL_MIN;
-      native.max = FIN_CAL_MAX;
-      native.tabIndex = -1;
-      native.setAttribute("aria-label", input.getAttribute("aria-label") || "Escolher data");
-      wrap.appendChild(native);
-    }
-
-    const syncNativeFromText = () => {
-      const iso = brDateToIso(input.value);
-      if (iso) {
-        native.value = iso;
-        return;
-      }
-      const t = new Date();
-      t.setHours(0, 0, 0, 0);
-      let y = t.getFullYear();
-      if (y < 2025) y = 2025;
-      if (y > 2050) y = 2050;
-      native.value = `${y}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-    };
-
-    const applyNativeToText = () => {
-      const br = isoDateToBr(native.value);
-      if (!br) return;
-      if (input.value === br) return;
-      input.value = br;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-    };
-
-    const openCal = (e) => {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-      syncNativeFromText();
-      try {
-        if (typeof native.showPicker === "function") native.showPicker();
-        else native.focus();
-      } catch {
-        try {
-          native.focus();
-        } catch {
-          /* ignore */
-        }
-      }
-    };
-
-    syncNativeFromText();
-    /* Clique no campo = calendário (camada date por cima). Digitação continua no text via teclado. */
-    input.addEventListener("mousedown", openCal);
-    input.addEventListener("click", openCal);
-    input.addEventListener("focus", () => syncNativeFromText());
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown" || e.key === "F4" || e.key === "Enter") openCal(e);
-    });
-    input.addEventListener("blur", () => {
-      const v = String(input.value || "").trim();
-      if (!v) return;
-      const clamped = clampBrDateYear(v);
-      if (clamped !== v) input.value = clamped;
-      syncNativeFromText();
-    });
-    native.addEventListener("mousedown", (e) => {
-      syncNativeFromText();
-      try {
-        if (typeof native.showPicker === "function") {
-          e.preventDefault();
-          native.showPicker();
-        }
-      } catch {
-        /* deixa o clique nativo abrir */
-      }
-    });
-    native.addEventListener("change", applyNativeToText);
-    native.addEventListener("input", applyNativeToText);
+    /* fallback mínimo se app.js ainda não carregou */
+    if (!input || input.dataset.dkCalBound === "1") return;
   }
 
   function bindFinDateCalendariosInView() {
+    if (typeof window.bindDkIntervaloCalendarios === "function") {
+      window.bindDkIntervaloCalendarios(document);
+      return;
+    }
     const ids = [
       "finReceitaPlanoDe",
       "finReceitaPlanoAte",
@@ -286,6 +177,10 @@
       "finDiaAte",
       "finDespGrafDe",
       "finDespGrafAte",
+      "financeiroFiltroDe",
+      "financeiroFiltroAte",
+      "portalRelPagamentosInicio",
+      "portalRelPagamentosFim",
     ];
     ids.forEach((id) => {
       const el = document.getElementById(id);

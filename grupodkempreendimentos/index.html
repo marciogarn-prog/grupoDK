@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260826fin-cal2">
+  <link rel="stylesheet" href="styles.css?v=20260826intervalo-cal">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
-  <script src="dk-oficial-cadastro-guard.js?v=20260826fin-cal2"></script>
-  <script src="dk-pwa-update.js?v=20260826fin-cal2"></script>
+  <script src="dk-oficial-cadastro-guard.js?v=20260826intervalo-cal"></script>
+  <script src="dk-pwa-update.js?v=20260826intervalo-cal"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -1317,7 +1317,7 @@
                 <span>Data início (relatório)</span>
                 <input
                   type="text"
-                  id="portalRelPagamentosInicio"
+                  id="portalRelPagamentosInicio" data-dk-cal="intervalo"
                   inputmode="numeric"
                   maxlength="10"
                   autocomplete="off"
@@ -1329,7 +1329,7 @@
                 <span>Data fim (relatório)</span>
                 <input
                   type="text"
-                  id="portalRelPagamentosFim"
+                  id="portalRelPagamentosFim" data-dk-cal="intervalo"
                   inputmode="numeric"
                   maxlength="10"
                   autocomplete="off"
@@ -2278,8 +2278,8 @@
               <h3 id="finReceitaPlanoTitulo" class="operacao-inline-form__title">Receita por modelo de contrato</h3>
               <p class="subtext">Montante recebido por dia em cada plano: DK Minha Moto, DK Meu Transporte e Carro.</p>
               <div class="fin-filtros" id="finFiltrosReceitaPlano">
-                <label class="portal-field"><span>De</span><input type="text" id="finReceitaPlanoDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
-                <label class="portal-field"><span>Até</span><input type="text" id="finReceitaPlanoAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>De</span><input type="text" id="finReceitaPlanoDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>Até</span><input type="text" id="finReceitaPlanoAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <fieldset class="fin-filtros__planos">
                   <legend>Planos</legend>
                   <label><input type="checkbox" id="finPlanoMinhaMoto" checked> DK Minha Moto</label>
@@ -2297,8 +2297,8 @@
               <h3 id="finReceitaModeloTitulo" class="operacao-inline-form__title">Receita por modelo de veículo</h3>
               <p class="subtext">Mesmo gráfico diário, agrupado pelo modelo do veículo em vez do plano.</p>
               <div class="fin-filtros" id="finFiltrosReceitaModelo">
-                <label class="portal-field"><span>De</span><input type="text" id="finReceitaModeloDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
-                <label class="portal-field"><span>Até</span><input type="text" id="finReceitaModeloAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>De</span><input type="text" id="finReceitaModeloDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>Até</span><input type="text" id="finReceitaModeloAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <label class="portal-field portal-field--wide"><span>Modelos</span>
                   <select id="finReceitaModeloSelect" multiple size="6" aria-label="Modelos de veículo"></select>
                 </label>
@@ -2313,8 +2313,8 @@
               <h3 id="finLocalizacaoTitulo" class="operacao-inline-form__title">Quantitativo vs localização vs tempo</h3>
               <p class="subtext">Onde está cada veículo agora (locais 1 a 10 da manutenção) e por onde passaram em cada dia, conforme as movimentações.</p>
               <div class="fin-filtros">
-                <label class="portal-field"><span>De</span><input type="text" id="finLocalDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
-                <label class="portal-field"><span>Até</span><input type="text" id="finLocalAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>De</span><input type="text" id="finLocalDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>Até</span><input type="text" id="finLocalAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <button type="button" class="btn-primary" id="finLocalAplicar">Atualizar</button>
               </div>
               <div id="finLocalAgora" class="fin-table-wrap"></div>
@@ -2326,8 +2326,8 @@
               <h3 id="finDiaSemanaTitulo" class="operacao-inline-form__title">Pagamentos vs dia da semana</h3>
               <p class="subtext">Total recebido em cada dia da semana no período escolhido.</p>
               <div class="fin-filtros">
-                <label class="portal-field"><span>De</span><input type="text" id="finDiaDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
-                <label class="portal-field"><span>Até</span><input type="text" id="finDiaAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>De</span><input type="text" id="finDiaDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>Até</span><input type="text" id="finDiaAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <button type="button" class="btn-primary" id="finDiaAplicar">Atualizar</button>
               </div>
               <div id="finDiaChart" class="fin-chart-wrap"></div>
@@ -2374,8 +2374,8 @@
               <h3 id="finDespesasGrafTitulo" class="operacao-inline-form__title">Gráficos de despesas</h3>
               <p class="subtext">Barras por categoria no tempo. O segundo gráfico compara só <strong>compra de óleo</strong> e <strong>troca de óleo</strong>. Altere os filtros para o gráfico mudar.</p>
               <div class="fin-filtros" id="finFiltrosDespGraf">
-                <label class="portal-field"><span>De</span><input type="text" id="finDespGrafDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
-                <label class="portal-field"><span>Até</span><input type="text" id="finDespGrafAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>De</span><input type="text" id="finDespGrafDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
+                <label class="portal-field"><span>Até</span><input type="text" id="finDespGrafAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></label>
                 <label class="portal-field"><span>Placa</span><input type="text" id="finDespGrafPlaca" maxlength="8" placeholder="opcional" list="finDespesaPlacasList" autocomplete="off"></label>
                 <fieldset class="fin-filtros__planos">
                   <legend>Período</legend>
@@ -2797,11 +2797,11 @@
       <div class="financeiro-relatorio-filtros" role="search">
         <label class="portal-field">
           <span>De</span>
-          <input type="text" id="financeiroFiltroDe" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
+          <input type="text" id="financeiroFiltroDe" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
         </label>
         <label class="portal-field">
           <span>Até</span>
-          <input type="text" id="financeiroFiltroAte" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
+          <input type="text" id="financeiroFiltroAte" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
         </label>
         <label class="portal-field portal-field--grow">
           <span>Tipo de relatório</span>
@@ -2873,14 +2873,14 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260824pag-sync" defer></script>
-  <script src="app.js?v=20260826fin-cal2" defer></script>
+  <script src="app.js?v=20260826intervalo-cal" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-cliente-codigo-admin.js?v=20260826fin-cal2" defer></script>
-  <script src="portal-locadora-ui.js?v=20260826fin-cal2" defer></script>
-  <script src="portal-financeiro.js?v=20260824fin-prev" defer></script>
+  <script src="portal-cliente-codigo-admin.js?v=20260826intervalo-cal" defer></script>
+  <script src="portal-locadora-ui.js?v=20260826intervalo-cal" defer></script>
+  <script src="portal-financeiro.js?v=20260826intervalo-cal" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260826fin-cal2" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260826intervalo-cal" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
@@ -2909,7 +2909,7 @@
   <script src="portal-miel-static-sheets.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-workbook.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-ui.js?v=20260820check-n2" defer></script>
-  <script src="portal-locacao-documentos.js?v=20260826fin-cal2" defer></script>
+  <script src="portal-locacao-documentos.js?v=20260826intervalo-cal" defer></script>
   <script src="portal-lanc-aluguel-calendario.js?v=20260824cal-confirm" defer></script>
   <script src="portal-documentos.js?v=20260820req-modelo" defer></script>
   <script src="data/dk-contrato-locacao-texto.js?v=20260820req-modelo" defer></script>
@@ -2917,10 +2917,10 @@
   <script src="portal-contrato-locacao.js?v=20260824layout-sisloc" defer></script>
   <script src="portal-contrato-pacote.js?v=20260824layout-sisloc" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260826fin-cal2" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260826intervalo-cal" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260823mov-ver-pdf" defer></script>
-  <script src="portal-comprovantes-cliente.js?v=20260826fin-cal2" defer></script>
-  <script src="portal-supabase-sync.js?v=20260826fin-cal2" defer></script>
+  <script src="portal-comprovantes-cliente.js?v=20260826intervalo-cal" defer></script>
+  <script src="portal-supabase-sync.js?v=20260826intervalo-cal" defer></script>
 </body>
 </html>

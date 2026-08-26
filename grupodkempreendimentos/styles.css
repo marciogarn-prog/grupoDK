@@ -5421,7 +5421,8 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   overflow-x: auto;
 }
 
-.fin-date-cal {
+.fin-date-cal,
+.dk-date-cal {
   position: relative;
   display: inline-block;
   width: 100%;
@@ -5429,13 +5430,15 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   vertical-align: middle;
 }
 
-.fin-date-cal input[type="text"] {
+.fin-date-cal input[type="text"],
+.dk-date-cal input[type="text"] {
   width: 100%;
   position: relative;
   z-index: 1;
 }
 
-.fin-date-cal__native {
+.fin-date-cal__native,
+.dk-date-cal__native {
   position: absolute;
   inset: 0;
   z-index: 2;

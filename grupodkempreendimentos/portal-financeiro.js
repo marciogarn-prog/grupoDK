@@ -2495,6 +2495,12 @@ Regras rigorosas:
 
     if (filtroDe && typeof bindDateMaskInput === "function") bindDateMaskInput(filtroDe);
     if (filtroAte && typeof bindDateMaskInput === "function") bindDateMaskInput(filtroAte);
+    if (typeof window.bindDkIntervaloCalendarios === "function") {
+      window.bindDkIntervaloCalendarios(document);
+    } else {
+      if (filtroDe && typeof window.bindDkDateCalendario === "function") window.bindDkDateCalendario(filtroDe);
+      if (filtroAte && typeof window.bindDkDateCalendario === "function") window.bindDkDateCalendario(filtroAte);
+    }
   }
 
   function migrarStorageLegado() {
