@@ -16493,6 +16493,13 @@ function setUpdateButtonState(label, disabled) {
 
 function revealUpdateButton(label) {
   if (!updateButton) return;
+  if (typeof window.__DK_revealPwaUpdateUi === "function") {
+    window.__DK_revealPwaUpdateUi(label);
+    return;
+  }
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+  if (!standalone && document.documentElement.dataset.dkPwaForce !== "1") return;
   updateButton.classList.remove("hidden");
   setUpdateButtonState(label || "Buscar atualizações", false);
 }
@@ -16580,6 +16587,10 @@ if ("serviceWorker" in navigator && window.location.protocol !== "file:") {
 
   if (updateButton) {
     updateButton.addEventListener("click", () => {
+      if (typeof window.__DK_checkPwaUpdate === "function") {
+        void window.__DK_checkPwaUpdate();
+        return;
+      }
       checkForAppUpdate(true);
     });
   }

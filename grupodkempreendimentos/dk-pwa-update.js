@@ -201,11 +201,93 @@
   window.__DK_pwaForceApply = forceApply;
   window.__DK_pwaScheduleSessionSafeReload = scheduleSessionSafeReload;
 
+  function pwaUpdateUiAllowed() {
+    return isStandalone || forceApply;
+  }
+
+  function setPwaUpdateBtnState(btn, label, disabled) {
+    if (!btn) return;
+    btn.textContent = label;
+    btn.disabled = Boolean(disabled);
+  }
+
+  function revealPwaUpdateUi(label) {
+    if (!pwaUpdateUiAllowed()) return;
+    const bar = document.getElementById("dk-pwa-update-bar");
+    const btn = document.getElementById("dkPwaUpdateBtn") || document.getElementById("updateButton");
+    bar?.classList.remove("hidden");
+    btn?.classList.remove("hidden");
+    if (btn && label) setPwaUpdateBtnState(btn, label, false);
+    document.body.classList.add("dk-pwa-update-bar-visible");
+    if (bar) {
+      requestAnimationFrame(() => {
+        document.documentElement.style.setProperty("--dk-pwa-update-bar-h", `${bar.offsetHeight}px`);
+      });
+    }
+  }
+
+  function wirePwaUpdateSignals(reg) {
+    if (!reg) return;
+    if (reg.waiting && navigator.serviceWorker.controller) {
+      revealPwaUpdateUi("Atualização pronta — aplicar");
+      return;
+    }
+    reg.addEventListener("updatefound", () => {
+      const w = reg.installing;
+      if (!w) return;
+      w.addEventListener("statechange", () => {
+        if (w.state === "installed" && navigator.serviceWorker.controller) {
+          revealPwaUpdateUi("Atualização pronta — aplicar");
+        }
+      });
+    });
+  }
+
+  async function checkPwaUpdateManual() {
+    const btn = document.getElementById("dkPwaUpdateBtn") || document.getElementById("updateButton");
+    setPwaUpdateBtnState(btn, "Verificando…", true);
+    try {
+      const reg = registrationRef || (await ensureLatestPwa({ force: true }));
+      await reg?.update();
+      if (reg?.waiting && navigator.serviceWorker.controller) {
+        setPwaUpdateBtnState(btn, "Aplicando…", true);
+        reloadPending = true;
+        reg.waiting.postMessage({ type: "SKIP_WAITING" });
+        return;
+      }
+      setPwaUpdateBtnState(btn, "App já atualizado", true);
+      setTimeout(() => setPwaUpdateBtnState(btn, "Atualizar app", false), 2000);
+    } catch {
+      setPwaUpdateBtnState(btn, "Falha ao verificar", true);
+      setTimeout(() => setPwaUpdateBtnState(btn, "Atualizar app", false), 2200);
+    }
+  }
+
+  function wirePwaUpdateUi(reg) {
+    if (!pwaUpdateUiAllowed()) return;
+    const btn = document.getElementById("dkPwaUpdateBtn") || document.getElementById("updateButton");
+    if (!btn || btn.dataset.dkPwaUpdateWired === "1") return;
+    btn.dataset.dkPwaUpdateWired = "1";
+    revealPwaUpdateUi("Atualizar app");
+    wirePwaUpdateSignals(reg || registrationRef);
+    btn.addEventListener("click", () => {
+      void checkPwaUpdateManual();
+    });
+  }
+
+  window.__DK_checkPwaUpdate = checkPwaUpdateManual;
+  window.__DK_revealPwaUpdateUi = revealPwaUpdateUi;
+
+  async function bootPwaUpdate() {
+    const reg = await ensureLatestPwa({ force: forceApply });
+    wirePwaUpdateUi(reg);
+  }
+
   if (forceApply) {
-    void ensureLatestPwa({ force: true });
+    void bootPwaUpdate();
   } else {
     window.addEventListener("load", () => {
-      void ensureLatestPwa({ force: false });
+      void bootPwaUpdate();
     });
   }
 })();
