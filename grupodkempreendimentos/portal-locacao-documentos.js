@@ -526,8 +526,12 @@
       mimeType,
       tamanho,
       createdAt: Date.now(),
-      registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
-      registradoPorNome: String(reg.nome || "").trim() || "Importação do depósito",
+      ...(typeof window.__DK_portalStampRegistradoPor === "function"
+        ? window.__DK_portalStampRegistradoPor(reg)
+        : {
+            registradoPorCpf: onlyDigits(reg.cpf).slice(0, 11),
+            registradoPorNome: String(reg.nome || "").trim() || "Importação do depósito",
+          }),
       arquivoBase64: dataUrl,
       tipo: categoria,
       origemDepositoId: depositEntry.id,
@@ -1173,7 +1177,13 @@
     const quando = Number.isFinite(dt.getTime())
       ? dt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
       : "—";
-    const quem = String(d.registradoPorNome || d.registradoPorCpf || "—").trim();
+    const quemRaw =
+      String(d.registradoPorLabel || "").trim() ||
+      (typeof window.__DK_portalFormatOperadorNomeXxx === "function"
+        ? window.__DK_portalFormatOperadorNomeXxx(d.registradoPorNome, d.registradoPorCpf)
+        : "") ||
+      String(d.registradoPorNome || d.registradoPorCpf || "—").trim();
+    const quem = quemRaw;
     const tipo = inferDocTipo(d);
     const dest = DOC_DESTINO_APP[tipo] || { rotulo: "Documento", botaoApp: "app" };
     const enviado = isDocEnviadoCliente(d);

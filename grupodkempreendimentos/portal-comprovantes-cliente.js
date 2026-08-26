@@ -2697,14 +2697,21 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
 
   function baseMetaPagamentoComprovante(rec, regCpf, regNome) {
     const now = Date.now();
+    const stamp =
+      typeof window.__DK_portalStampRegistradoPor === "function"
+        ? window.__DK_portalStampRegistradoPor({ cpf: regCpf, nome: regNome })
+        : {
+            registradoPorCpf: regCpf,
+            registradoPorNome: regNome,
+            registradoPorLabel: "",
+          };
     return {
       data: rec.dataPagamento,
       createdAt: now,
-      registradoPorCpf: regCpf,
-      registradoPorNome: regNome,
+      ...stamp,
       protocoloLancamento:
         typeof window.__DK_gerarProtocoloLancamento === "function"
-          ? window.__DK_gerarProtocoloLancamento(regCpf, now)
+          ? window.__DK_gerarProtocoloLancamento(stamp.registradoPorCpf || regCpf, now)
           : "",
       valorEspecie: 0,
       valorPix: 0,
@@ -2714,8 +2721,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       confirmadoViaAppCliente: true,
       comprovanteClienteEnviadoEm: rec.enviadoEm || "",
       comprovanteClienteConfirmadoEm: new Date().toISOString(),
-      comprovanteValidadoPorNome: regNome,
-      comprovanteValidadoPorCpf: regCpf,
+      comprovanteValidadoPorNome: stamp.registradoPorNome || regNome,
+      comprovanteValidadoPorCpf: stamp.registradoPorCpf || regCpf,
       valorInformadoCliente: roundCentavos(rec.valor),
       valorLidoIA: rec.iaValidacao ? roundCentavos(rec.iaValidacao.valor) : undefined,
       idTransacaoComprovante: idTransacaoDoRec(rec),
@@ -2884,12 +2891,19 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
     if (!Number.isFinite(valorNum) || valorNum <= 0) {
       return { ok: false, msg: "Valor do pagamento inválido." };
     }
+    const stamp =
+      typeof window.__DK_portalStampRegistradoPor === "function"
+        ? window.__DK_portalStampRegistradoPor({ cpf: regCpf, nome: regNome })
+        : {
+            registradoPorCpf: regCpf,
+            registradoPorNome: regNome,
+            registradoPorLabel: "",
+          };
     const entry = {
       data: rec.dataPagamento,
       valor: valorNum,
       createdAt: Date.now(),
-      registradoPorCpf: regCpf,
-      registradoPorNome: regNome,
+      ...stamp,
       valorEspecie: 0,
       valorPix: valorNum,
       valorCartao: 0,
@@ -2898,8 +2912,8 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
       confirmadoViaAppCliente: true,
       comprovanteClienteEnviadoEm: rec.enviadoEm || "",
       comprovanteClienteConfirmadoEm: new Date().toISOString(),
-      comprovanteValidadoPorNome: regNome,
-      comprovanteValidadoPorCpf: regCpf,
+      comprovanteValidadoPorNome: stamp.registradoPorNome || regNome,
+      comprovanteValidadoPorCpf: stamp.registradoPorCpf || regCpf,
       valorInformadoCliente: Number(rec.valor),
       valorLidoIA: rec.iaValidacao ? Number(rec.iaValidacao.valor) : undefined,
       idTransacaoComprovante: idTransacaoDoRec(rec),

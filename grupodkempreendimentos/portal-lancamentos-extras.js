@@ -181,7 +181,14 @@
       createdAt: Number(x.createdAt) || Date.now(),
       registradoPorCpf: dig(x.registradoPorCpf).slice(0, 11),
       registradoPorNome: String(x.registradoPorNome || "").trim(),
+      registradoPorLabel: String(x.registradoPorLabel || "").trim(),
     };
+    if (!row.registradoPorLabel && (row.registradoPorNome || row.registradoPorCpf)) {
+      row.registradoPorLabel =
+        typeof window.__DK_portalFormatOperadorNomeXxx === "function"
+          ? window.__DK_portalFormatOperadorNomeXxx(row.registradoPorNome, row.registradoPorCpf)
+          : row.registradoPorNome;
+    }
     if (["valorEspecie", "valorPix", "valorCartao"].some((k) => Object.prototype.hasOwnProperty.call(x, k))) {
       row.valorEspecie = ve >= 0 ? ve : 0;
       row.valorPix = vp >= 0 ? vp : 0;
@@ -365,7 +372,14 @@
       createdAt: Number(x.createdAt) || Date.now(),
       registradoPorCpf: dig(x.registradoPorCpf).slice(0, 11),
       registradoPorNome: String(x.registradoPorNome || "").trim(),
+      registradoPorLabel: String(x.registradoPorLabel || "").trim(),
     };
+    if (!row.registradoPorLabel && (row.registradoPorNome || row.registradoPorCpf)) {
+      row.registradoPorLabel =
+        typeof window.__DK_portalFormatOperadorNomeXxx === "function"
+          ? window.__DK_portalFormatOperadorNomeXxx(row.registradoPorNome, row.registradoPorCpf)
+          : row.registradoPorNome;
+    }
     /* preservar vínculo ao PDF importado do depósito (multas) */
     if (x.locacaoDocumentoId) row.locacaoDocumentoId = String(x.locacaoDocumentoId);
     if (x.origemDepositoId) row.origemDepositoId = String(x.origemDepositoId);
@@ -759,11 +773,18 @@
       typeof window.__DK_getPortalSessaoParaRegistroLancamento === "function"
         ? window.__DK_getPortalSessaoParaRegistroLancamento()
         : { cpf: "", nome: "" };
+    const stamp =
+      typeof window.__DK_portalStampRegistradoPor === "function"
+        ? window.__DK_portalStampRegistradoPor(reg)
+        : {
+            registradoPorCpf: reg.cpf || "",
+            registradoPorNome: reg.nome || "",
+            registradoPorLabel: "",
+          };
     loc[cfg.arrayField].push({
       ...entry,
       createdAt: Date.now(),
-      registradoPorCpf: reg.cpf || "",
-      registradoPorNome: reg.nome || "",
+      ...stamp,
     });
     const ok = persistLancamentos(cfg, locs, loc, cpfDigits, nc);
     if (ok) notifyClienteAvisoLancamento(cfg, cpfDigits, nc, loc, entry);
@@ -781,12 +802,19 @@
       typeof window.__DK_getPortalSessaoParaRegistroLancamento === "function"
         ? window.__DK_getPortalSessaoParaRegistroLancamento()
         : { cpf: "", nome: "" };
+    const stamp =
+      typeof window.__DK_portalStampRegistradoPor === "function"
+        ? window.__DK_portalStampRegistradoPor(reg)
+        : {
+            registradoPorCpf: reg.cpf || "",
+            registradoPorNome: reg.nome || "",
+            registradoPorLabel: "",
+          };
     loc[cfg.arrayField].push({
       data: dataStr,
       valor: valorNum,
       createdAt: Date.now(),
-      registradoPorCpf: reg.cpf || "",
-      registradoPorNome: reg.nome || "",
+      ...stamp,
       valorEspecie: meios.valorEspecie,
       valorPix: meios.valorPix,
       valorCartao: meios.valorCartao,
