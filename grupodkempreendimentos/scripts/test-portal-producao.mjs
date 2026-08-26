@@ -743,6 +743,22 @@ async function runSuite() {
           (pOf.dk_locacoes_cadastro || []).length === 526,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
+      const veiculosOf = pOf.dk_veiculos_cadastro || [];
+      const carrosOf = veiculosOf.filter((v) => String(v?.tipo || "").toUpperCase() === "CARRO");
+      const z1Of = veiculosOf.filter((v) => {
+        const tip = String(v?.codigo || v?.tipoPlanilha || "")
+          .trim()
+          .toUpperCase();
+        return tip === "Z1" || tip === "HR70";
+      });
+      record(
+        "oficial: frota planilha 16 carros + 171 motos (sem Z1)",
+        Boolean(pOf.dk_oficial_frota_planilha_v1) &&
+          veiculosOf.length === 187 &&
+          carrosOf.length === 16 &&
+          z1Of.length === 0,
+        `flag=${Boolean(pOf.dk_oficial_frota_planilha_v1)} v=${veiculosOf.length} carros=${carrosOf.length} z1=${z1Of.length}`
+      );
       const locsOf = pOf.dk_locacoes_cadastro || [];
       const ghostsOf = locsOf.filter((l) => {
         const placa = String(l?.placa || "")
@@ -1935,6 +1951,56 @@ async function runSuite() {
             return Boolean(pane && !pane.classList.contains("hidden") && String(titulo?.textContent || "").includes("quantitativo"));
           });
           record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
+          if (!IS_DEMO_TEST) {
+            /* Injeta fantasma Z1 no browser e confirma que o quantitativo ignora / o guard remove. */
+            const frotaUi = await pageE2e.evaluate(() => {
+              try {
+                const key = "dk_veiculos_cadastro";
+                const raw = localStorage.getItem(key);
+                const arr = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(arr)) return { ok: false, reason: "not-array" };
+                arr.push({
+                  id: Date.now(),
+                  placa: "ZZZ9Z99",
+                  tipo: "CARRO",
+                  codigo: "Z1",
+                  modelo: "Z1 FANTASMA",
+                  origemPortal: true,
+                  cadastroRetroativo: true,
+                });
+                localStorage.setItem(key, JSON.stringify(arr));
+                if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
+                  window.__DK_purgeOficialLocalCadastrosAntigos();
+                }
+                if (typeof invalidateCadastroParseCache === "function") invalidateCadastroParseCache(key);
+                const filtrados =
+                  typeof loadCadastro === "function" ? loadCadastro(key) : [];
+                const z1 = filtrados.filter((v) => String(v?.codigo || "").toUpperCase() === "Z1");
+                const carros = filtrados.filter((v) => String(v?.tipo || "").toUpperCase() === "CARRO");
+                const kpis = document.getElementById("finQuantitativoKpis");
+                if (typeof window.__DK_financeiroRenderQuantitativo === "function") {
+                  window.__DK_financeiroRenderQuantitativo();
+                } else {
+                  document.getElementById("btn-fin-mod-quantitativo")?.click();
+                }
+                const kpiTxt = String(kpis?.textContent || "");
+                const chartTxt = String(document.getElementById("finQuantitativoChart")?.textContent || "");
+                return {
+                  ok: z1.length === 0 && carros.length === 16 && !/\bZ1\b/.test(kpiTxt + chartTxt),
+                  z1: z1.length,
+                  carros: carros.length,
+                  kpiTxt: kpiTxt.slice(0, 120),
+                };
+              } catch (e) {
+                return { ok: false, reason: String(e?.message || e) };
+              }
+            });
+            record(
+              "oficial: quantitativo ignora Z1 fantasma local (16 carros)",
+              Boolean(frotaUi?.ok),
+              `z1=${frotaUi?.z1} carros=${frotaUi?.carros} ${frotaUi?.reason || frotaUi?.kpiTxt || ""}`
+            );
+          }
           await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPanePrevisao:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const pOk = await pageE2e.evaluate(() => {
