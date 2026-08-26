@@ -1952,7 +1952,7 @@ async function runSuite() {
           });
           record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
           if (!IS_DEMO_TEST) {
-            /* Injeta fantasma Z1 no browser e confirma que o quantitativo ignora / o guard remove. */
+            /* Fantasma sem operador (regra: sem quem cadastrou = não existe). */
             const frotaUi = await pageE2e.evaluate(() => {
               try {
                 const key = "dk_veiculos_cadastro";
@@ -1967,6 +1967,7 @@ async function runSuite() {
                   modelo: "Z1 FANTASMA",
                   origemPortal: true,
                   cadastroRetroativo: true,
+                  /* sem cadastradoPor* de propósito */
                 });
                 localStorage.setItem(key, JSON.stringify(arr));
                 if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
@@ -1976,6 +1977,12 @@ async function runSuite() {
                 const filtrados =
                   typeof loadCadastro === "function" ? loadCadastro(key) : [];
                 const z1 = filtrados.filter((v) => String(v?.codigo || "").toUpperCase() === "Z1");
+                const semOp = filtrados.filter((v) => {
+                  const cpf = String(v?.cadastradoPorCpf || "").replace(/\D/g, "");
+                  const nome = String(v?.cadastradoPorNome || "").trim();
+                  const label = String(v?.cadastradoPorLabel || "").trim();
+                  return !cpf && !nome && !label;
+                });
                 const carros = filtrados.filter((v) => String(v?.tipo || "").toUpperCase() === "CARRO");
                 const kpis = document.getElementById("finQuantitativoKpis");
                 if (typeof window.__DK_financeiroRenderQuantitativo === "function") {
@@ -1986,8 +1993,13 @@ async function runSuite() {
                 const kpiTxt = String(kpis?.textContent || "");
                 const chartTxt = String(document.getElementById("finQuantitativoChart")?.textContent || "");
                 return {
-                  ok: z1.length === 0 && carros.length === 16 && !/\bZ1\b/.test(kpiTxt + chartTxt),
+                  ok:
+                    z1.length === 0 &&
+                    semOp.length === 0 &&
+                    carros.length === 16 &&
+                    !/\bZ1\b/.test(kpiTxt + chartTxt),
                   z1: z1.length,
+                  semOp: semOp.length,
                   carros: carros.length,
                   kpiTxt: kpiTxt.slice(0, 120),
                 };
@@ -1996,9 +2008,9 @@ async function runSuite() {
               }
             });
             record(
-              "oficial: quantitativo ignora Z1 fantasma local (16 carros)",
+              "oficial: veículo sem operador não existe (Z1 some; 16 carros)",
               Boolean(frotaUi?.ok),
-              `z1=${frotaUi?.z1} carros=${frotaUi?.carros} ${frotaUi?.reason || frotaUi?.kpiTxt || ""}`
+              `z1=${frotaUi?.z1} semOp=${frotaUi?.semOp} carros=${frotaUi?.carros} ${frotaUi?.reason || frotaUi?.kpiTxt || ""}`
             );
           }
           await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
