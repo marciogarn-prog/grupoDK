@@ -1559,16 +1559,18 @@ async function runSuite() {
         clienteHtml.includes("cliente-documentos-locacao.js"),
       "cada botão filtra tipo; só docs enviados pelo operador"
     );
+    const lancProtoJs = await fetch(`${BASE_URL}dk-lancamento-protocolo.js?v=20260608oficial-lanc-strict`, {
+      cache: "no-store",
+    }).then((r) => r.text());
     record(
       "protocolo lançamento + sincronismo (dk-lancamento-protocolo)",
       html.includes("dk-lancamento-protocolo.js") &&
         html.includes("operacaoLocacaoLancamentosHistorico") &&
-        html.includes("lanc-proto"),
+        lancProtoJs.includes("__DK_gerarProtocoloLancamento") &&
+        lancProtoJs.includes("PROTO_RE") &&
+        /\\d\{14\}-\\d\{3\}/.test(lancProtoJs),
       "AAAAMMDDHHMMSS-NNN"
     );
-    const lancProtoJs = await fetch(`${BASE_URL}dk-lancamento-protocolo.js?v=20260608oficial-lanc-strict`, {
-      cache: "no-store",
-    }).then((r) => r.text());
     record(
       "oficial: lançamentos modo estrito (sem legado global)",
       !IS_DEMO_TEST
