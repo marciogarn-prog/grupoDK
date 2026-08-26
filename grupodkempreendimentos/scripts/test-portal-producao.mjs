@@ -812,10 +812,12 @@ async function runSuite() {
       stylesFitCss.includes("#panel-operacao-locadora:not(.hidden)") &&
         stylesFitCss.includes("sem «rodar a bolinha»") &&
         stylesFitCss.includes("operacao-veiculo-split") &&
+        stylesFitCss.includes("max-width: none") &&
+        stylesFitCss.includes("portal-body--equipa-sessao #view-unit") &&
         html.includes("operacaoVeiculoFrotaFiltro") &&
         portalUiProto.includes("portalVeiculoMatchesFrotaFiltro") &&
         html.includes("styles.css?v="),
-      "layout compacto + frota ao lado com filtro placa/tag"
+      "largura total do monitor + frota ao lado com filtro"
     );
     const guardVer = html.match(/dk-oficial-cadastro-guard\.js\?v=([^"]+)/)?.[1] || "latest";
     const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=${guardVer}`, {
