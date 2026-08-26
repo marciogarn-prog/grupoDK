@@ -1194,6 +1194,20 @@
     };
   }
 
+  function stampDespesaResponsavel(prev, row) {
+    if (prev?.registradoPorCpf || prev?.cadastradoPorCpf) {
+      return {
+        registradoPorCpf: String(prev.registradoPorCpf || prev.cadastradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
+        registradoPorNome: String(prev.registradoPorNome || prev.cadastradoPorNome || "").trim(),
+        registradoPorLabel: String(prev.registradoPorLabel || prev.cadastradoPorLabel || "").trim(),
+      };
+    }
+    if (typeof window.__DK_portalStampRegistradoPor === "function") {
+      return window.__DK_portalStampRegistradoPor();
+    }
+    return {};
+  }
+
   function persistDespesasDaTabela() {
     const body = document.getElementById("finDespesasBody");
     if (!body) return;
@@ -1203,7 +1217,14 @@
       const row = readRow(tr);
       nowVisible.add(row.id);
       const prev = byId.get(row.id) || {};
-      byId.set(row.id, { ...prev, ...row, deleted: false, origem: prev.origem || row.origem });
+      const stamp = stampDespesaResponsavel(prev, row);
+      byId.set(row.id, {
+        ...prev,
+        ...row,
+        ...stamp,
+        deleted: false,
+        origem: prev.origem || row.origem,
+      });
     });
     for (const id of despesasRenderedIds) {
       if (!nowVisible.has(id)) {

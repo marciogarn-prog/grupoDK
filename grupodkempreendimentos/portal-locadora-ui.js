@@ -19573,6 +19573,11 @@
   window.__DK_portalOperadorPodeConferirComprovanteCliente = portalOperadorPodeConferirComprovanteCliente;
   window.__DK_operacaoLancAluguelProtocoloAtual = operacaoLancAluguelProtocoloAtual;
   window.__DK_getPortalSessaoParaRegistroLancamento = getPortalSessaoParaRegistroLancamentoAluguel;
+  window.__DK_portalFormatOperadorNomeXxx = portalFormatOperadorNomeXxx;
+  window.__DK_portalFormatCadastradoPorLabel = portalFormatCadastradoPorLabel;
+  window.__DK_portalFormatRegistradoPorLabel = portalFormatRegistradoPorLabel;
+  window.__DK_portalStampRegistradoPor = portalStampRegistradoPor;
+  window.__DK_portalResolveResponsavelStamp = portalResolveResponsavelStamp;
   window.__DK_collectLancPesquisaLinhas = collectOperacaoLancAluguelPesquisaLinhas;
   window.__DK_filterLancPesquisaLinhas = filterOperacaoLancAluguelPesquisaLinhas;
   window.__DK_resolveLancNomePorCpf = resolveOperacaoLancAluguelNomePorCpf;
