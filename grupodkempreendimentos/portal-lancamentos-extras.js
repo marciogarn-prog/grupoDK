@@ -1311,6 +1311,9 @@
     state.set(cfg.key, true);
 
     document.getElementById(cfg.btnId)?.addEventListener("click", () => {
+      if (typeof window.__DK_portalOperacaoOnScreenChange === "function") {
+        window.__DK_portalOperacaoOnScreenChange();
+      }
       showPanel(cfg);
       hideDetalhe(cfg);
       bindPesquisaLazyRefresh(cfg);
