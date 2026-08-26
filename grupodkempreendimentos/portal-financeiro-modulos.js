@@ -2800,6 +2800,7 @@
     document.getElementById("finDiaAplicar")?.addEventListener("click", () => renderDiaSemana());
     document.getElementById("finPrevAplicar")?.addEventListener("click", () => renderPrevisaoReceita());
     document.getElementById("finDespGrafAplicar")?.addEventListener("click", () => renderDespesasGraficos());
+    bindFinDateCalendariosInView();
   }
 
   bindNav();
