@@ -5539,26 +5539,44 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   top: 0;
   z-index: 35;
   margin: 0 0 0.15rem;
-  padding: 0 0 0.4rem;
+  padding: 0 0 0.35rem;
   background: rgba(8, 8, 10, 0.98);
   border-bottom: 1px solid rgba(220, 38, 38, 0.45);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.42);
 }
 
 #financeiroPaneRelacaoPagamento .fin-relacao-sticky-head .fin-kpis {
-  margin-bottom: 0;
+  margin-bottom: 0.35rem;
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-colhead {
+  margin: 0.15rem 0 0;
+  overflow-x: auto;
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-colhead[hidden] {
+  display: none !important;
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-colhead .fin-table--relacao {
+  margin: 0;
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-colhead .fin-table--relacao thead th {
+  position: static;
+  top: auto;
+  box-shadow: none;
+  background: #161618;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 #financeiroPaneRelacaoPagamento .fin-relacao-scroll {
   margin-bottom: 0.5rem;
 }
 
-#financeiroPaneRelacaoPagamento .fin-table--relacao thead th {
-  position: sticky;
-  top: var(--fin-relacao-sticky-h, 11rem);
-  z-index: 30;
-  background: #101012;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+/* Cabeçalho das colunas fica no bloco sticky; na tabela só o corpo. */
+#financeiroPaneRelacaoPagamento .fin-relacao-scroll .fin-table--relacao thead {
+  display: none;
 }
 
 .fin-table--relacao .fin-excel-th {
