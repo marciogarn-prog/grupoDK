@@ -10218,6 +10218,43 @@
     return "outro";
   }
 
+  function countOperacaoVeiculosMotosCarros() {
+    const seen = new Map();
+    if (typeof loadCadastro !== "function" || typeof CAD_VEICULOS_KEY === "undefined") {
+      return { motos: 0, carros: 0 };
+    }
+    try {
+      loadCadastro(CAD_VEICULOS_KEY).forEach((v) => {
+        const placa =
+          typeof normalizePlate === "function"
+            ? normalizePlate(v?.placa)
+            : String(v?.placa || "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+        if (!placa || placa.length < 7) return;
+        const grupo = portalVeiculoGrupoCarroMoto(v);
+        if (grupo !== "moto" && grupo !== "carro") return;
+        if (!seen.has(placa)) seen.set(placa, grupo);
+      });
+    } catch {
+      /* ignore */
+    }
+    let motos = 0;
+    let carros = 0;
+    seen.forEach((g) => {
+      if (g === "moto") motos += 1;
+      else if (g === "carro") carros += 1;
+    });
+    return { motos, carros };
+  }
+
+  function refreshOperacaoVeiculoTotalCadastrados() {
+    const el = document.getElementById("operacaoVeiculoTotalCadastrados");
+    if (!el) return;
+    const { motos, carros } = countOperacaoVeiculosMotosCarros();
+    el.textContent = `${motos} moto${motos === 1 ? "" : "s"} · ${carros} carro${carros === 1 ? "" : "s"}`;
+  }
+
   function portalVeiculoTagSortKey(tagRaw) {
     const t = String(tagRaw || "")
       .trim()
@@ -10526,6 +10563,7 @@
 
   function renderOperacaoVeiculoResumoFrota() {
     const grid = document.getElementById("operacaoVeiculoResumoGrid");
+    refreshOperacaoVeiculoTotalCadastrados();
     if (!grid) return;
     refreshOperacaoVeiculoPlacasCache();
     const veiculos = portalVeiculoPlacasCache.map((x) => x.record).filter(Boolean);
@@ -17751,7 +17789,7 @@
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
     refreshOperacaoClienteCodigoEditavel();
   });
-  document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
+    document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -17759,6 +17797,7 @@
     refreshOperacaoVeiculoPlacasCache();
     refreshOperacaoVeiculoTagPreview();
     renderOperacaoVeiculoResumoFrota();
+    refreshOperacaoVeiculoTotalCadastrados();
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
     hideOperacaoInlineFormsCore();

@@ -530,6 +530,13 @@ async function runSuite() {
       "total ao lado do título; placeholder Cód. = total+1"
     );
     record(
+      "cadastro veículo total motos e carros no formulário",
+      indexFresh.includes("operacaoVeiculoTotalCadastrados") &&
+        portalUiCliTotJs.includes("refreshOperacaoVeiculoTotalCadastrados") &&
+        portalUiCliTotJs.includes("countOperacaoVeiculosMotosCarros"),
+      "totais ao lado de Dados do veículo"
+    );
+    record(
       "cadastro sem opção real/teste (demo é o ambiente de testes)",
       !indexFresh.includes("operacaoClienteAmbienteWrap") &&
         !indexFresh.includes('name="operacaoClienteAmbiente"') &&
