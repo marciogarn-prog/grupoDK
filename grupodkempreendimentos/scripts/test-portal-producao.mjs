@@ -752,6 +752,13 @@ async function runSuite() {
       "nuvem/local + busca admin"
     );
     record(
+      "cadastro locação busca cliente por código",
+      html.includes("operacaoLocacaoClienteCodigo") &&
+        portalUiProto.includes("applyOperacaoLocacaoClienteFromCodigo") &&
+        portalUiProto.includes("findPortalClienteByCodigoBusca"),
+      "campo CÓD. entre CPF e CLIENTE"
+    );
+    record(
       "protocolo = data inicio AAAAMMDDXX (nunca data de hoje)",
       portalUiProto.includes("portalIsProtocoloAlignedWithInicio") &&
         portalUiProto.includes("portalProtocoloPrefixFromInicioBr") &&
