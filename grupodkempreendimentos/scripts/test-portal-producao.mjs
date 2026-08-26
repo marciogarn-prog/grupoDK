@@ -570,6 +570,16 @@ async function runSuite() {
       "pesquisa veículo: CADASTRADO POR Nome-030"
     );
     record(
+      "rastreio global Nome-xxx em cadastros e lançamentos",
+      portalUiCliTotJs.includes("portalFormatOperadorNomeXxx") &&
+        portalUiCliTotJs.includes("portalResolveResponsavelStamp") &&
+        portalUiCliTotJs.includes("portalStampRegistradoPor") &&
+        indexFresh.includes("operacaoClienteCadastradoPor") &&
+        indexFresh.includes("operacaoLocacaoCadastradoPor") &&
+        indexFresh.includes("operacaoColaboradorCadastradoPor"),
+      "cliente/veículo/locação/colaborador/lançamento"
+    );
+    record(
       "cadastro sem opção real/teste (demo é o ambiente de testes)",
       !indexFresh.includes("operacaoClienteAmbienteWrap") &&
         !indexFresh.includes('name="operacaoClienteAmbiente"') &&

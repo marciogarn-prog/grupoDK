@@ -2044,7 +2044,8 @@ body {
   margin: 0 0 1rem;
 }
 
-.operacao-veiculo-cadastrado-por {
+.operacao-veiculo-cadastrado-por,
+.operacao-responsavel-por {
   margin: -0.35rem 0 0.85rem;
   padding: 0.45rem 0.65rem;
   font-size: 0.92rem;

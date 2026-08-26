@@ -25,12 +25,12 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260826quant-tipo">
+  <link rel="stylesheet" href="styles.css?v=20260826rastreio-global">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
-  <script src="dk-oficial-cadastro-guard.js?v=20260826quant-tipo"></script>
-  <script src="dk-pwa-update.js?v=20260826quant-tipo"></script>
+  <script src="dk-oficial-cadastro-guard.js?v=20260826rastreio-global"></script>
+  <script src="dk-pwa-update.js?v=20260826rastreio-global"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -483,6 +483,7 @@
             <p id="operacaoClienteTotalCadastrados" class="operacao-cliente-total" aria-live="polite">— clientes cadastrados</p>
           </div>
           <p class="subtext operacao-inline-form__lead" id="operacaoClienteLead">Preencha os dados do cliente abaixo.</p>
+          <p id="operacaoClienteCadastradoPor" class="operacao-responsavel-por" role="status" aria-live="polite" hidden></p>
           <form id="formOperacaoClienteInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Cód.</span>
@@ -581,7 +582,7 @@
                 <p id="operacaoVeiculoTotalCadastrados" class="operacao-cliente-total" aria-live="polite">— motos · — carros</p>
               </div>
               <p class="subtext operacao-inline-form__lead">Preencha os campos do veículo. Tudo fica em <code>dk_veiculos_cadastro</code>.</p>
-              <p id="operacaoVeiculoCadastradoPor" class="operacao-veiculo-cadastrado-por" role="status" aria-live="polite" hidden></p>
+              <p id="operacaoVeiculoCadastradoPor" class="operacao-responsavel-por operacao-veiculo-cadastrado-por" role="status" aria-live="polite" hidden></p>
               <form id="formOperacaoVeiculoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>Tipo</span>
@@ -708,6 +709,7 @@
         <div id="operacaoInlineLocacao" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-locacao-title">
           <h3 id="operacao-inline-locacao-title" class="operacao-inline-form__title">Cadastro de locação</h3>
           <p class="subtext operacao-inline-form__lead">&Eacute; necess&aacute;rio <strong>cliente</strong> e <strong>veículo</strong> já cadastrados neste navegador. O <strong>protocolo</strong>, depois de criado, <strong>nunca é apagado</strong> &mdash; pode ser <strong>encerrado</strong> (data fim) pelo administrador. Colaboradores só cadastram contratos novos; <strong>alterar dados</strong> (cliente, veículo, datas, valores) &eacute; exclusivo do <strong>administrador</strong>.</p>
+          <p id="operacaoLocacaoCadastradoPor" class="operacao-responsavel-por" role="status" aria-live="polite" hidden></p>
           <form id="formOperacaoLocacaoInline" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>PROTOCOLO</span>
@@ -1556,6 +1558,7 @@
             Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
             Marque quais operações este utilizador poderá aceder. Ao editar um colaborador existente, o <strong>CPF também pode ser corrigido</strong> — use «Salvar alterações».
           </p>
+          <p id="operacaoColaboradorCadastradoPor" class="operacao-responsavel-por" role="status" aria-live="polite" hidden></p>
           <form id="formPortalCadastroColaborador" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
               <span>CPF</span>
@@ -2866,14 +2869,14 @@
   </script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260824pag-sync" defer></script>
-  <script src="app.js?v=20260826quant-tipo" defer></script>
+  <script src="app.js?v=20260826rastreio-global" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-cliente-codigo-admin.js?v=20260826quant-tipo" defer></script>
-  <script src="portal-locadora-ui.js?v=20260826quant-tipo" defer></script>
+  <script src="portal-cliente-codigo-admin.js?v=20260826rastreio-global" defer></script>
+  <script src="portal-locadora-ui.js?v=20260826rastreio-global" defer></script>
   <script src="portal-financeiro.js?v=20260824fin-prev" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260826quant-tipo" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260826rastreio-global" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
@@ -2910,10 +2913,10 @@
   <script src="portal-contrato-locacao.js?v=20260824layout-sisloc" defer></script>
   <script src="portal-contrato-pacote.js?v=20260824layout-sisloc" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260826quant-tipo" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260826rastreio-global" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260608lanc-proto" defer></script>
-  <script src="portal-supabase-sync.js?v=20260826quant-tipo" defer></script>
+  <script src="portal-supabase-sync.js?v=20260826rastreio-global" defer></script>
 </body>
 </html>
