@@ -7903,6 +7903,7 @@
     if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
     if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
     if (c7) c7.checked = Boolean(a.sistemaMiel);
+    setOperacaoResponsavelPorDisplay("operacaoColaboradorCadastradoPor", f);
   }
 
   function setPortalColaboradorModoCadastroOuEdicao(modoCadastroNovo) {
@@ -8027,6 +8028,7 @@
       funcao,
       dataIngresso,
       acessos,
+      ...portalResolveResponsavelStamp(null),
     });
     saveFuncionariosAccess();
     portalPushCloudSnapshotAfterPersist();
@@ -8037,6 +8039,7 @@
     portalColabCpfEdicaoOriginal = "";
     syncPortalColaboradorFormFromCpf();
     portalRenderColaboradoresLista();
+    setOperacaoResponsavelPorDisplay("operacaoColaboradorCadastradoPor", "");
     if (fb) {
       fb.textContent =
         "Colaborador cadastrado. Senha inicial 123456 — no primeiro login será pedida a nova senha (6 números).";
@@ -8658,6 +8661,7 @@
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
         ambiente: PORTAL_AMBIENTE_REAL,
+        ...portalResolveResponsavelStamp(existenteLocal || fonte),
       };
       if (isPortalTitularAdministrador()) {
         const senhaVal = getVal("operacaoClienteSenha").replace(/\s*\(.*\)\s*$/, "");
@@ -8871,6 +8875,7 @@
       portalApplyAmbienteVisualForm("Cliente", cliente);
       portalRefreshOperacaoClienteSenhaField(cpfDigits, cliente);
       refreshOperacaoClienteApagarBtn(cpfDigits);
+      setOperacaoResponsavelPorDisplay("operacaoClienteCadastradoPor", cliente);
     }
 
     function getPrimeiraLocacaoDateLabelByCpf(cpfDigits) {
@@ -9045,6 +9050,7 @@
         municipioUf: getVal("operacaoClienteMunicipioUf"),
         endereco: getVal("operacaoClienteEndereco"),
         ambiente: PORTAL_AMBIENTE_REAL,
+        ...portalResolveResponsavelStamp(null),
       };
       if (typeof upsertPortalClienteByCpf === "function") {
         try {
@@ -9399,38 +9405,90 @@
       .slice(0, 80);
   }
 
-  function portalFormatCadastradoPorLabel(nomeCompleto, cpfDigits) {
+  /**
+   * Padrão de rastreio: «Nome Completo-030» (nome do operador + 3 primeiros dígitos do CPF).
+   */
+  function portalFormatOperadorNomeXxx(nomeCompleto, cpfDigits) {
     const dig =
       typeof onlyDigits === "function"
         ? onlyDigits(String(cpfDigits || ""))
         : String(cpfDigits || "").replace(/\D/g, "");
     const xxx = dig.slice(0, 3);
     const nome = String(nomeCompleto || "").trim() || "—";
-    if (!xxx) return `CADASTRADO POR ${nome}`;
-    return `CADASTRADO POR ${nome}-${xxx}`;
+    if (!xxx) return nome;
+    return `${nome}-${xxx}`;
   }
 
-  function portalResolveCadastradoPorFromVeiculo(veiculo) {
-    if (!veiculo || typeof veiculo !== "object") return "";
-    const labelDireto = String(veiculo.cadastradoPorLabel || "").trim();
+  function portalFormatCadastradoPorLabel(nomeCompleto, cpfDigits) {
+    return `CADASTRADO POR ${portalFormatOperadorNomeXxx(nomeCompleto, cpfDigits)}`;
+  }
+
+  function portalFormatRegistradoPorLabel(nomeCompleto, cpfDigits) {
+    return `REGISTRADO POR ${portalFormatOperadorNomeXxx(nomeCompleto, cpfDigits)}`;
+  }
+
+  function portalResolveResponsavelStamp(record, opts = {}) {
+    const verb = opts.verb === "registrado" ? "registrado" : "cadastrado";
+    const cpfKey = verb === "registrado" ? "registradoPorCpf" : "cadastradoPorCpf";
+    const nomeKey = verb === "registrado" ? "registradoPorNome" : "cadastradoPorNome";
+    const labelKey = verb === "registrado" ? "registradoPorLabel" : "cadastradoPorLabel";
+    const prevCpf = String(record?.[cpfKey] || "").replace(/\D/g, "").slice(0, 11);
+    const prevNome = String(record?.[nomeKey] || "").trim();
+    const prevLabel = String(record?.[labelKey] || "").trim();
+    if (prevCpf.length === 11 && prevNome) {
+      const label =
+        prevLabel ||
+        portalFormatOperadorNomeXxx(prevNome, prevCpf);
+      return {
+        [cpfKey]: prevCpf,
+        [nomeKey]: prevNome,
+        [labelKey]: label.replace(/^(CADASTRADO|REGISTRADO) POR\s+/i, ""),
+      };
+    }
+    const sessao =
+      typeof getPortalSessaoParaRegistroLancamentoAluguel === "function"
+        ? getPortalSessaoParaRegistroLancamentoAluguel()
+        : null;
+    const cpf = String(sessao?.cpf || "03037897430").replace(/\D/g, "").slice(0, 11);
+    const nome = String(sessao?.nome || "").trim() || "Márcio Santos";
+    return {
+      [cpfKey]: cpf,
+      [nomeKey]: nome,
+      [labelKey]: portalFormatOperadorNomeXxx(nome, cpf),
+    };
+  }
+
+  function portalResolveCadastradoPorFromRecord(record) {
+    if (!record || typeof record !== "object") return "";
+    const labelDireto = String(record.cadastradoPorLabel || "").trim();
     if (labelDireto) {
       return /^CADASTRADO POR\b/i.test(labelDireto)
         ? labelDireto
         : `CADASTRADO POR ${labelDireto}`;
     }
-    const nome = String(veiculo.cadastradoPorNome || "").trim();
-    const cpf = String(veiculo.cadastradoPorCpf || "").trim();
-    if (!nome && !cpf) return "";
+    const nome = String(record.cadastradoPorNome || "").trim();
+    const cpf = String(record.cadastradoPorCpf || "").trim();
+    if (!nome && !cpf) {
+      /* Locação: quem executou o cadastro. */
+      const n2 = String(record.portalLocacaoExecutadoPorNome || "").trim();
+      const c2 = String(record.portalLocacaoExecutadoPorCpf || "").trim();
+      if (n2 || c2) return portalFormatCadastradoPorLabel(n2 || "—", c2);
+      return "";
+    }
     return portalFormatCadastradoPorLabel(nome || "—", cpf);
   }
 
-  function setOperacaoVeiculoCadastradoPorDisplay(veiculoOrLabel) {
-    const el = document.getElementById("operacaoVeiculoCadastradoPor");
+  function portalResolveCadastradoPorFromVeiculo(veiculo) {
+    return portalResolveCadastradoPorFromRecord(veiculo);
+  }
+
+  function setOperacaoResponsavelPorDisplay(elId, recordOrLabel) {
+    const el = document.getElementById(elId);
     if (!el) return;
     const text =
-      typeof veiculoOrLabel === "string"
-        ? String(veiculoOrLabel || "").trim()
-        : portalResolveCadastradoPorFromVeiculo(veiculoOrLabel);
+      typeof recordOrLabel === "string"
+        ? String(recordOrLabel || "").trim()
+        : portalResolveCadastradoPorFromRecord(recordOrLabel);
     if (!text) {
       el.textContent = "";
       el.hidden = true;
@@ -9438,6 +9496,39 @@
     }
     el.textContent = text;
     el.hidden = false;
+  }
+
+  function setOperacaoVeiculoCadastradoPorDisplay(veiculoOrLabel) {
+    setOperacaoResponsavelPorDisplay("operacaoVeiculoCadastradoPor", veiculoOrLabel);
+  }
+
+  function portalStampRegistradoPor(regOrRecord) {
+    if (regOrRecord && (regOrRecord.registradoPorCpf || regOrRecord.cadastradoPorCpf)) {
+      const cpf = String(regOrRecord.registradoPorCpf || regOrRecord.cadastradoPorCpf || "")
+        .replace(/\D/g, "")
+        .slice(0, 11);
+      const nome = String(regOrRecord.registradoPorNome || regOrRecord.cadastradoPorNome || "").trim();
+      if (cpf.length === 11 || nome) {
+        return {
+          registradoPorCpf: cpf,
+          registradoPorNome: nome,
+          registradoPorLabel: portalFormatOperadorNomeXxx(nome || "—", cpf),
+        };
+      }
+    }
+    const sessao =
+      regOrRecord && regOrRecord.cpf
+        ? regOrRecord
+        : typeof getPortalSessaoParaRegistroLancamentoAluguel === "function"
+          ? getPortalSessaoParaRegistroLancamentoAluguel()
+          : null;
+    const cpf = String(sessao?.cpf || "03037897430").replace(/\D/g, "").slice(0, 11);
+    const nome = String(sessao?.nome || "").trim() || "Márcio Santos";
+    return {
+      registradoPorCpf: cpf,
+      registradoPorNome: nome,
+      registradoPorLabel: portalFormatOperadorNomeXxx(nome, cpf),
+    };
   }
 
   function portalInferTipoVeiculoFromRecord(v) {
@@ -13731,6 +13822,7 @@
     refreshOperacaoLocacaoApagarProtocoloBtn();
     refreshOperacaoLocacaoVisualizarContratoBtn();
     syncOperacaoLocacaoModalidadeBolas({ modalidade: loc.modalidade, locacao: loc, infer: true });
+    setOperacaoResponsavelPorDisplay("operacaoLocacaoCadastradoPor", loc);
     if (loc?.numeroContrato && typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
       void window.__DK_contratoLocacaoSincronizarPasta(normPortalNumeroContrato(loc.numeroContrato), loc.statusLocacao, {
         fim: loc.fim,
@@ -14324,22 +14416,7 @@
       return;
     }
     const existenteVeiculo = existenteVeiculoPre;
-    const sessaoReg = getPortalSessaoParaRegistroLancamentoAluguel();
-    const cadastradoPorCpfPrev = String(existenteVeiculo?.cadastradoPorCpf || "").replace(/\D/g, "").slice(0, 11);
-    const cadastradoPorNomePrev = String(existenteVeiculo?.cadastradoPorNome || "").trim();
-    const cadastradoPorLabelPrev = String(existenteVeiculo?.cadastradoPorLabel || "").trim();
-    const cadastradoPorCpf =
-      cadastradoPorCpfPrev.length === 11
-        ? cadastradoPorCpfPrev
-        : String(sessaoReg?.cpf || "").replace(/\D/g, "").slice(0, 11);
-    const cadastradoPorNome =
-      cadastradoPorNomePrev || String(sessaoReg?.nome || "").trim() || "Márcio Santos";
-    const cadastradoPorLabel =
-      cadastradoPorLabelPrev ||
-      portalFormatCadastradoPorLabel(cadastradoPorNome, cadastradoPorCpf || "030").replace(
-        /^CADASTRADO POR\s+/i,
-        ""
-      );
+    const stamp = portalResolveResponsavelStamp(existenteVeiculo);
     const novo = {
       id: existenteVeiculo?.id ?? Date.now(),
       createdAt: existenteVeiculo?.createdAt ?? Date.now(),
@@ -14362,9 +14439,7 @@
       local: getVal("operacaoVeiculoLocal"),
       status: String(existenteVeiculo?.status || "DISPONIVEL").trim() || "DISPONIVEL",
       ambiente: PORTAL_AMBIENTE_REAL,
-      cadastradoPorCpf: cadastradoPorCpf || "03037897430",
-      cadastradoPorNome,
-      cadastradoPorLabel,
+      ...stamp,
     };
     const snapshotVeiculo = (v) => ({
       tipo: portalNormDiffVal(v?.tipo),
@@ -14732,6 +14807,7 @@
       valorParcela: valorSemanal,
       clienteCodigo,
       ambiente: PORTAL_AMBIENTE_REAL,
+      ...portalResolveResponsavelStamp(prev),
     };
 
     const doSaveLocacao = () => {
@@ -14926,18 +15002,9 @@
     }
   }
 
-  /** CPF (3 dígitos) + 2 letras do primeiro nome — ex.: 12345678901 + «teste 1» → 123TE. */
+  /** Nome do operador + 3 primeiros dígitos do CPF — ex.: Márcio Santos-030. */
   function portalCodigoUsuarioRegistroLancamento(cpfDigits11, nomeCompleto) {
-    const dig = String(cpfDigits11 || "").replace(/\D/g, "").slice(0, 11);
-    if (dig.length < 3) return "";
-    const primeiroToken = String(nomeCompleto || "").trim().split(/\s+/)[0] || "";
-    const letras = primeiroToken
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-zA-Z]/g, "")
-      .toUpperCase()
-      .slice(0, 2);
-    return `${dig.slice(0, 3)}${letras}`;
+    return portalFormatOperadorNomeXxx(nomeCompleto, cpfDigits11);
   }
 
   function formatPortalHoraLancamentoMs(ms) {
@@ -15273,7 +15340,10 @@
             typeof currencyBRL === "function"
               ? currencyBRL(lan.valor)
               : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-          body += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(String(lan.registradoPorNome || lan.registradoPorCpf || "—"))}</td></tr>`;
+          body += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(
+            portalFormatOperadorNomeXxx(lan.registradoPorNome || lan.registradoPorLabel, lan.registradoPorCpf) ||
+              String(lan.registradoPorLabel || lan.registradoPorNome || lan.registradoPorCpf || "—")
+          )}</td></tr>`;
         }
       }
       body += `</tbody></table>`;
@@ -15437,7 +15507,10 @@
             typeof currencyBRL === "function"
               ? currencyBRL(lan.valor)
               : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-          blocks += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(String(lan.registradoPorNome || lan.registradoPorCpf || "—"))}</td></tr>`;
+          blocks += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(
+            portalFormatOperadorNomeXxx(lan.registradoPorNome || lan.registradoPorLabel, lan.registradoPorCpf) ||
+              String(lan.registradoPorLabel || lan.registradoPorNome || lan.registradoPorCpf || "—")
+          )}</td></tr>`;
         }
       }
       blocks += `</tbody></table>`;
@@ -16690,8 +16763,7 @@
           valorPix: 0,
           valorCartao: 0,
           createdAt: Date.now(),
-          registradoPorCpf: reg?.cpf || "",
-          registradoPorNome: reg?.nome || "",
+          ...portalStampRegistradoPor(reg),
           protocoloLancamento:
             typeof window.__DK_gerarProtocoloLancamento === "function"
               ? window.__DK_gerarProtocoloLancamento(reg?.cpf || "", Date.now())
@@ -16895,8 +16967,7 @@
       data: dataStr,
       valor: valorNum,
       createdAt: Date.now(),
-      registradoPorCpf: reg?.cpf || "",
-      registradoPorNome: reg?.nome || "",
+      ...portalStampRegistradoPor(reg),
       protocoloLancamento:
         typeof window.__DK_gerarProtocoloLancamento === "function"
           ? window.__DK_gerarProtocoloLancamento(reg?.cpf || "", Date.now())
