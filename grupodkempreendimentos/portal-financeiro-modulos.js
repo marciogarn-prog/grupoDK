@@ -220,7 +220,24 @@
 
   function veiculosCadastro() {
     const key = typeof window.CAD_VEICULOS_KEY === "string" ? window.CAD_VEICULOS_KEY : "dk_veiculos_cadastro";
-    return loadArr(key);
+    /* Usa loadCadastro (com filtro oficial) — raw localStorage ainda pode ter Z1 fantasma. */
+    if (typeof loadCadastro === "function") {
+      return loadCadastro(key).filter((v) => {
+        if (typeof window.__DK_isVeiculoFantasmaCadastro === "function") {
+          return !window.__DK_isVeiculoFantasmaCadastro(v);
+        }
+        const tip = String(v?.codigo || v?.tipoPlanilha || "")
+          .trim()
+          .toUpperCase();
+        return tip !== "Z1" && tip !== "HR70";
+      });
+    }
+    return loadArr(key).filter((v) => {
+      const tip = String(v?.codigo || v?.tipoPlanilha || "")
+        .trim()
+        .toUpperCase();
+      return tip !== "Z1" && tip !== "HR70";
+    });
   }
 
   function locacoesCadastro() {
@@ -2736,6 +2753,7 @@
   bindNav();
 
   window.__DK_financeiroHideModulos = hideModulos;
+  window.__DK_financeiroRenderQuantitativo = renderQuantitativo;
   window.__DK_financeiroModuloEscapeBack = () => {
     if (!moduloAberto) return false;
     showPlaceholder();

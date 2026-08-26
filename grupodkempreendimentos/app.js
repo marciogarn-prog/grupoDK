@@ -3079,10 +3079,17 @@ function cloudSnapshotWouldMutateLocal(cloudPayload) {
       }
       const inc = Array.isArray(v) ? v : [];
       if (frotaLock && veiculoKeys.has(k)) {
+        const fantasmaFn =
+          typeof window.__DK_isVeiculoFantasmaCadastro === "function"
+            ? window.__DK_isVeiculoFantasmaCadastro
+            : null;
+        if (fantasmaFn && prevRaw.some((v) => fantasmaFn(v))) return true;
+        if (prevRaw.length !== inc.length) return true;
         const a = plateSetOf(prevRaw);
         const b = plateSetOf(inc);
         if (a.size !== b.size) return true;
         for (const p of b) if (!a.has(p)) return true;
+        for (const p of a) if (!b.has(p)) return true;
         continue;
       }
       if (k === CAD_LOCACOES_KEY) {

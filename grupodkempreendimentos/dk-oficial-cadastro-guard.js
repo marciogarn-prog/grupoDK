@@ -176,6 +176,24 @@
     return false;
   }
 
+  /** Seeds/fantasmas que nunca existiram na planilha CADASTRO DE VEICULOS (ex.: Z1). */
+  function isVeiculoFantasmaCadastro(record) {
+    if (!record || typeof record !== "object") return true;
+    const placa = normalizePlateLocal(record.placa);
+    const tip = String(record.codigo || record.tipoPlanilha || "")
+      .trim()
+      .toUpperCase();
+    const modelo = String(record.modelo || record.marcaModelo || "")
+      .trim()
+      .toUpperCase();
+    if (OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa) || /^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) {
+      return true;
+    }
+    if (tip === "Z1" || tip === "HR70") return true;
+    if (/FERRARI|BUGATTI|PORSCHE|FUSCA/.test(modelo)) return true;
+    return false;
+  }
+
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
     if (
@@ -185,6 +203,9 @@
       OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfDigits(record))
     ) {
       return false;
+    }
+    if (record && typeof record === "object" && cadastroKeyFamily(key) === "veiculo") {
+      if (isVeiculoFantasmaCadastro(record)) return false;
     }
     if (
       record &&
@@ -300,4 +321,5 @@
     return OFICIAL_LOCACOES_NC_REMAP[nc] || String(raw || "").trim();
   };
   window.__DK_isLocacaoFantasmaCadastro = isLocacaoFantasmaCadastro;
+  window.__DK_isVeiculoFantasmaCadastro = isVeiculoFantasmaCadastro;
 })();
