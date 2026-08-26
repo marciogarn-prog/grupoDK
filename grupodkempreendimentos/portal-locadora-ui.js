@@ -13127,10 +13127,31 @@
     inp.placeholder = "DD/MM/AAAA";
   }
 
+  /** Prefixo AAAAMMDD a partir de DD/MM/AAAA (regra rígida do protocolo de locação). */
+  function portalProtocoloPrefixFromInicioBr(inicioBr) {
+    const m = String(inicioBr || "")
+      .trim()
+      .match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return "";
+    return `${m[3]}${m[2]}${m[1]}`;
+  }
+
+  function portalIsProtocoloAlignedWithInicio(ncRaw, inicioBr) {
+    const prefix = portalProtocoloPrefixFromInicioBr(inicioBr);
+    if (!prefix) return false;
+    const nc = normPortalNumeroContrato(ncRaw);
+    if (!nc.startsWith(prefix)) return false;
+    const seq = nc.slice(prefix.length);
+    return /^\d{2,}$/.test(seq);
+  }
+
   function isPortalProtocoloAlignedWithInicioForm(ncRaw) {
     const inicioBr = String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
-    if (!inicioBr || typeof isProtocoloAlignedWithLocacaoInicio !== "function") return true;
-    return isProtocoloAlignedWithLocacaoInicio(ncRaw, { inicio: inicioBr });
+    if (!inicioBr) return false;
+    if (typeof isProtocoloAlignedWithLocacaoInicio === "function") {
+      return isProtocoloAlignedWithLocacaoInicio(ncRaw, { inicio: inicioBr });
+    }
+    return portalIsProtocoloAlignedWithInicio(ncRaw, inicioBr);
   }
 
   const PORTAL_PROTO_NOVO = "__PORTAL_PROTO_NOVO__";
@@ -13224,7 +13245,8 @@
       const d = parseBrDate(raw);
       if (d && !Number.isNaN(d.getTime())) return d;
     }
-    return new Date();
+    /* Sem data de início não há protocolo — nunca usar a data de hoje. */
+    return null;
   }
 
   function syncOperacaoLocacaoProtocoloComDataInicio() {
@@ -13255,8 +13277,12 @@
     if (nc && isPortalProtocoloAlignedWithInicioForm(nc)) return;
   }
 
-  /** Próximo protocolo AAAAMMDDXX (XX = sequência do dia, 2 dígitos até 99). */
-  function proximoProtocoloPortalAaaammddXX(date = new Date()) {
+  /**
+   * Próximo protocolo AAAAMMDDXX (XX = sequência do dia).
+   * A data DEVE ser a data de início do contrato — nunca a data de hoje/cadastro.
+   */
+  function proximoProtocoloPortalAaaammddXX(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
     const y = date.getFullYear();
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
@@ -14089,19 +14115,59 @@
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const isNovo = sel && String(sel.value || "") === PORTAL_PROTO_NOVO;
+    const expectedPrefix = portalProtocoloPrefixFromInicioBr(inicioBr);
+    if (!expectedPrefix) {
+      if (msg) msg.textContent = "Data de início inválida para gerar o protocolo (DD/MM/AAAA).";
+      return;
+    }
     let nc = normPortalNumeroContrato(String(hid?.value || ""));
+    const ncOriginal = nc;
     if (isNovo) {
       nc = normPortalNumeroContrato(proximoProtocoloPortalAaaammddXX(inicioDt));
       if (hid) hid.value = nc;
     } else if (!nc) {
       if (msg) msg.textContent = "Protocolo inválido. Escolha «NOVO» ou um contrato existente.";
       return;
-    } else if (
-      typeof isProtocoloAlignedWithLocacaoInicio === "function" &&
-      !isProtocoloAlignedWithLocacaoInicio(nc, { inicio: inicioBr })
-    ) {
-      nc = normPortalNumeroContrato(proximoProtocoloPortalAaaammddXX(inicioDt));
+    } else if (!portalIsProtocoloAlignedWithInicio(nc, inicioBr)) {
+      /* Protocolo desalinhado: preferir o canónico do mesmo CPF+placa+início, senão renumerar. */
+      const digAlign =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const plateAlign =
+        typeof normalizePlate === "function"
+          ? normalizePlate
+          : (s) =>
+              String(s || "")
+                .trim()
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+      const allLocs =
+        typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+          ? loadCadastro(CAD_LOCACOES_KEY)
+          : [];
+      const canonical = allLocs.find((l) => {
+        const lnc = normPortalNumeroContrato(l.numeroContrato);
+        return (
+          digAlign(String(l.cpf || "")) === cpfDigits &&
+          plateAlign(String(l.placa || "")) === plate &&
+          String(l.inicio || "").trim() === inicioBr &&
+          portalIsProtocoloAlignedWithInicio(lnc, inicioBr)
+        );
+      });
+      if (canonical) {
+        nc = normPortalNumeroContrato(canonical.numeroContrato);
+      } else {
+        nc = normPortalNumeroContrato(proximoProtocoloPortalAaaammddXX(inicioDt));
+      }
       if (hid) hid.value = nc;
+      if (msg) {
+        msg.textContent = `Protocolo ${ncOriginal} inválido (deve ser ${expectedPrefix}XX pela data de início). Usando ${nc}.`;
+      }
+    }
+    if (!portalIsProtocoloAlignedWithInicio(nc, inicioBr)) {
+      if (msg) {
+        msg.textContent = `Protocolo bloqueado: deve começar com ${expectedPrefix} (data de início ${inicioBr}). Ex.: ${expectedPrefix}01.`;
+      }
+      return;
     }
     const parseVal =
       typeof parseCurrencyBR === "function"
@@ -14174,7 +14240,10 @@
     const statusLocacao = fimBr ? "FINALIZADO" : "ATIVO";
 
     const locs = loadCadastro(CAD_LOCACOES_KEY);
-    const idxAll = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === nc);
+    let idxAll = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === nc);
+    if (idxAll < 0 && ncOriginal && ncOriginal !== nc) {
+      idxAll = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === ncOriginal);
+    }
     const prev = idxAll >= 0 ? locs[idxAll] : null;
     if (!prev && !isNovo) {
       if (msg) msg.textContent = "Contrato não encontrado para atualizar. Use «NOVO» para criar um protocolo.";
@@ -14305,6 +14374,14 @@
         portalLocacaoExecutadoEmMs: nowMs,
         updatedAt: nowMs,
       });
+    }
+    /* Remove protocolo desalinhado antigo se o cadastro foi corrigido para o canónico. */
+    if (ncOriginal && ncOriginal !== nc) {
+      for (let i = locs.length - 1; i >= 0; i--) {
+        if (normPortalNumeroContrato(locs[i]?.numeroContrato) === ncOriginal) {
+          locs.splice(i, 1);
+        }
+      }
     }
 
     const snapshotLoc = (rec) => ({

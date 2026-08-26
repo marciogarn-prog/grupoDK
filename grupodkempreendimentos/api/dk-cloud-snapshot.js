@@ -120,8 +120,8 @@ function locacaoNcSetFromPayload(payload) {
 }
 
 const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
-/** Duplicata inválida Adriano/SOY5D66 — o protocolo correto é 2025122201. */
-const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501"]);
+/** Protocolos inválidos (prefixo ≠ data início / duplicata). */
+const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501", "2026082801"]);
 
 function cpfDigitsKey(record) {
   return String(record?.cpf || "").replace(/\D/g, "");

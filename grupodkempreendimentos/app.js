@@ -6401,7 +6401,7 @@ function isProtocoloAlignedWithLocacaoInicio(ncRaw, loc) {
 function getProtocoloDateForCadastroLocacao() {
   const inicioDate = parseBrDate(String(cadLocacaoInicioInput?.value || "").trim());
   if (inicioDate instanceof Date && !Number.isNaN(inicioDate.getTime())) return inicioDate;
-  return new Date();
+  return null;
 }
 
 function allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix) {
@@ -6423,8 +6423,10 @@ function allocProximoProtocoloForPrefix(prefix, used, maxSeqByPrefix) {
  * Gravado em `numeroContrato`. O mesmo CPF pode ter vários protocolos ativos (veículos diferentes).
  * Uma mesma placa só pode ter um contrato sem data fim — ver `getActivePlatesSet` / `getVeiculosSemProtocoloAtivo`.
  */
-function proximoProtocoloLocacaoNumero(date = new Date()) {
+function proximoProtocoloLocacaoNumero(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
   const prefix = protocoloLocacaoDatePrefix(date);
+  if (!prefix) return "";
   const locs = loadCadastro(CAD_LOCACOES_KEY);
   let maxSeq = 0;
   locs.forEach((l) => {
@@ -6932,21 +6934,26 @@ function syncCadLocacaoProtocoloComDataInicio() {
   if (!cadLocacaoContratoInput || !cadLocacaoInicioInput) return;
   const inicio = String(cadLocacaoInicioInput.value || "").trim();
   if (!inicio) return;
+  const dt = getProtocoloDateForCadastroLocacao();
+  if (!dt) return;
   const nc = String(normalizeNumeroContratoKey(cadLocacaoContratoInput.value || "")).replace(/\s+/g, "");
   if (!nc || !isProtocoloAlignedWithLocacaoInicio(nc, { inicio })) {
-    cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
+    const next = proximoProtocoloLocacaoNumero(dt);
+    if (next) cadLocacaoContratoInput.value = next;
   }
 }
 
 function preencherProtocoloLocacaoSeCampoVazio() {
   if (!cadLocacaoContratoInput) return;
   if (String(cadLocacaoContratoInput.value || "").trim()) return;
-  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
+  const next = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
+  if (next) cadLocacaoContratoInput.value = next;
 }
 
 function aplicarNovoProtocoloLocacaoNoFormulario() {
   if (!cadLocacaoContratoInput) return;
-  cadLocacaoContratoInput.value = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
+  const next = proximoProtocoloLocacaoNumero(getProtocoloDateForCadastroLocacao());
+  if (next) cadLocacaoContratoInput.value = next;
 }
 
 /** Verifica se já existe outra locação com o mesmo número de contrato. */
@@ -15450,6 +15457,12 @@ if (locacaoCadastroForm) {
     numeroContratoNorm = normalizeNumeroContratoKey(proximoProtocoloLocacaoNumero(inicioDate));
     numeroContratoRaw = numeroContratoNorm;
     if (cadLocacaoContratoInput) cadLocacaoContratoInput.value = numeroContratoNorm;
+  }
+  if (!numeroContratoNorm || !isProtocoloAlignedWithLocacaoInicio(numeroContratoNorm, { inicio })) {
+    window.alert(
+      "Protocolo inválido. O número deve ser AAAAMMDDXX com a data de início do contrato (ex.: 16/01/2026 → 2026011601)."
+    );
+    return;
   }
   const fimCalculado =
     plano === "DK MINHA MOTO"
