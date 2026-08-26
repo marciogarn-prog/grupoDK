@@ -10626,31 +10626,57 @@
     return "locado-meu-transporte";
   }
 
+  function portalNormVeiculoFrotaFiltro(raw) {
+    return String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  function portalVeiculoMatchesFrotaFiltro(veiculo, cardData, filtroRaw) {
+    const q = portalNormVeiculoFrotaFiltro(filtroRaw);
+    if (!q) return true;
+    const bits = [
+      cardData?.placa,
+      cardData?.codigo,
+      veiculo?.tag,
+      veiculo?.placa,
+      veiculo?.codigo,
+      veiculo?.modelo,
+    ];
+    return bits.some((b) => portalNormVeiculoFrotaFiltro(b).includes(q));
+  }
+
   function renderOperacaoVeiculoResumoFrota() {
     const grid = document.getElementById("operacaoVeiculoResumoGrid");
     refreshOperacaoVeiculoTotalCadastrados();
     if (!grid) return;
     refreshOperacaoVeiculoPlacasCache();
-    const veiculos = portalVeiculoPlacasCache.map((x) => x.record).filter(Boolean);
+    const filtroRaw = String(document.getElementById("operacaoVeiculoFrotaFiltro")?.value || "").trim();
+    const veiculos = portalVeiculoPlacasCache
+      .map((x) => x.record)
+      .filter(Boolean)
+      .filter((v) => portalVeiculoMatchesFrotaFiltro(v, getPortalResumoVeiculoCardData(v), filtroRaw));
     veiculos.sort(portalCompareVeiculoResumoFrota);
 
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
     if (!veiculos.length) {
-      grid.innerHTML =
-        '<p class="subtext" role="listitem">Nenhum veículo cadastrado neste navegador.</p>';
+      grid.innerHTML = filtroRaw
+        ? `<p class="subtext" role="listitem">Nenhum veículo com «${eh(filtroRaw)}».</p>`
+        : '<p class="subtext" role="listitem">Nenhum veículo cadastrado neste navegador.</p>';
       return;
     }
 
-    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
     grid.innerHTML = veiculos
       .map((v) => {
         const d = getPortalResumoVeiculoCardData(v);
+        const tag = String(v?.tag || "").trim() || "—";
         const testeCls = portalRegistroEhTeste(v) ? " operacao-veiculo-resumo-card--teste" : "";
         return `<button type="button" class="operacao-veiculo-resumo-card operacao-veiculo-resumo-card--${eh(
           d.statusClass
-        )}${testeCls}" role="listitem" data-placa="${eh(d.placa)}">
-          <p class="operacao-veiculo-resumo-card__linha"><strong>Código:</strong> ${eh(d.codigo)}</p>
+        )}${testeCls}" role="listitem" data-placa="${eh(d.placa)}" data-tag="${eh(tag)}">
+          <p class="operacao-veiculo-resumo-card__linha"><strong>Tag:</strong> ${eh(tag)}</p>
           <p class="operacao-veiculo-resumo-card__linha"><strong>Placa:</strong> ${eh(d.placa)}</p>
-          <p class="operacao-veiculo-resumo-card__linha"><strong>Último km:</strong> ${eh(d.ultimoKm)}</p>
+          <p class="operacao-veiculo-resumo-card__linha"><strong>Código:</strong> ${eh(d.codigo)}</p>
           <p class="operacao-veiculo-resumo-card__linha"><strong>Cliente:</strong> ${eh(d.cliente)}</p>
           <p class="operacao-veiculo-resumo-card__status operacao-veiculo-resumo-card__status--${eh(
             d.statusClass
@@ -17543,6 +17569,12 @@
     refreshOperacaoVeiculoApagarBtn("");
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (msg) msg.textContent = "";
+  });
+  document.getElementById("operacaoVeiculoFrotaFiltro")?.addEventListener("input", () => {
+    renderOperacaoVeiculoResumoFrota();
+  });
+  document.getElementById("operacaoVeiculoFrotaFiltro")?.addEventListener("search", () => {
+    renderOperacaoVeiculoResumoFrota();
   });
   document.getElementById("operacaoVeiculoApagarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();

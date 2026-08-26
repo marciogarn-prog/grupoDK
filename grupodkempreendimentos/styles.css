@@ -1364,6 +1364,17 @@ body {
     flex: 0 0 auto;
   }
 
+  /* Textos longos: esconder para caber sem scroll; título + campos bastam. */
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineCliente .operacao-inline-form__lead,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineVeiculo .operacao-inline-form__lead,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao .operacao-inline-form__lead {
+    display: none;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-inline-form__footnote {
+    display: none;
+  }
+
   #panel-operacao-locadora:not(.hidden) .operacao-inline-form__grid {
     flex: 1 1 auto;
     min-height: 0;
@@ -1397,16 +1408,102 @@ body {
     margin-top: 0;
   }
 
-  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-frota {
-    margin-top: 0.45rem;
-    padding-top: 0.4rem;
+  #panel-operacao-locadora:not(.hidden) .portal-inline-actions {
+    gap: 0.35rem;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .portal-inline-actions .btn-primary {
+    padding: 0.28rem 0.55rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+  }
+
+  /* Cadastro de veículo: formulário à esquerda + frota à direita */
+  #panel-operacao-locadora:not(.hidden) .operacao-inline-form--veiculo-split:not(.hidden) {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(200px, 0.85fr);
+    gap: 0.55rem 0.75rem;
+    flex: 1 1 auto;
     min-height: 0;
-    flex: 0 1 auto;
+    align-items: stretch;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-split__form {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
     overflow: hidden;
   }
 
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-split__form .operacao-inline-form__grid {
+    flex: 1 1 auto;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-split__frota {
+    min-width: 0;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-frota {
+    margin: 0;
+    padding: 0.4rem 0.45rem;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 8px;
+    border-top: 1px solid rgba(220, 38, 38, 0.3);
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-frota__titulo {
+    margin: 0 0 0.25rem;
+    font-size: 0.86rem;
+    flex: 0 0 auto;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-frota__filtro {
+    margin: 0 0 0.3rem;
+    flex: 0 0 auto;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-frota__filtro input {
+    width: 100%;
+    padding: 0.28rem 0.45rem;
+    font-size: 0.8rem;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-frota__lead {
+    margin: 0 0 0.3rem;
+    font-size: 0.68rem;
+    line-height: 1.25;
+    flex: 0 0 auto;
+  }
+
   #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-grid {
-    max-height: min(18vh, 160px);
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  #panel-operacao-locadora:not(.hidden) .operacao-veiculo-resumo-card {
+    padding: 0.35rem 0.45rem;
+    font-size: 0.7rem;
+    line-height: 1.3;
   }
 
   #panel-operacao-locadora:not(.hidden) .operacao-lanc-aluguel-subnav {
@@ -2141,6 +2238,32 @@ body {
   margin-top: 1.25rem;
   padding-top: 1rem;
   border-top: 1px solid rgba(220, 38, 38, 0.25);
+}
+
+.operacao-veiculo-split {
+  display: block;
+}
+
+.operacao-veiculo-resumo-frota__filtro {
+  margin: 0 0 0.5rem;
+}
+
+.operacao-veiculo-resumo-frota__filtro .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 899px) {
+  .operacao-veiculo-split__frota {
+    margin-top: 0.75rem;
+  }
 }
 
 .operacao-veiculo-resumo-frota__titulo {
