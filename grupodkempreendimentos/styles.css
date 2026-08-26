@@ -7471,6 +7471,50 @@ table.validados-app .lnk-comprovante {
   --portal-admin-banner-h: 0px;
   --dk-demo-env-banner-h: 0px;
   --portal-comunicacao-bar-h: 0px;
+  --dk-pwa-update-bar-h: 0px;
+}
+
+.dk-pwa-update-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 0.85rem;
+  padding: 0.45rem 0.85rem;
+  background: rgba(5, 5, 5, 0.94);
+  border-top: 1px solid rgba(220, 38, 38, 0.5);
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.dk-pwa-update-bar.hidden {
+  display: none;
+}
+
+.dk-pwa-update-bar__hint {
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.dk-pwa-update-bar__btn {
+  font-size: 0.82rem;
+  padding: 0.35rem 0.85rem;
+  min-height: auto;
+}
+
+body.dk-pwa-update-bar-visible {
+  padding-bottom: var(--dk-pwa-update-bar-h, 0px);
+}
+
+.dk-app-entry .site-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
 .dk-demo-env-banner {
