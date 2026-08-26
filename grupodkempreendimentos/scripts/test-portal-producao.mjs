@@ -83,12 +83,12 @@ async function runSuite() {
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 369 clientes, 186 veículos, 526 protocolos",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 186 veículos, 528 protocolos",
       IS_DEMO_TEST
         ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
-        : storageInicial.clientes === 369 &&
+        : storageInicial.clientes === 385 &&
           storageInicial.veiculos === 186 &&
-          storageInicial.locacoes === 526,
+          storageInicial.locacoes === 528,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
@@ -690,11 +690,11 @@ async function runSuite() {
       const clientesOf = pOf.dk_clientes_cadastro || [];
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
-        "oficial: nuvem 369 clientes, 186 veículos, 526 protocolos",
-        clientesOf.length === 369 &&
+        "oficial: nuvem 385 clientes, 186 veículos, 528 protocolos",
+        clientesOf.length === 385 &&
           retroOf.length >= 20 &&
           (pOf.dk_veiculos_cadastro || []).length === 186 &&
-          (pOf.dk_locacoes_cadastro || []).length === 526,
+          (pOf.dk_locacoes_cadastro || []).length === 528,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
     }
