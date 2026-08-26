@@ -1,14 +1,17 @@
 /**
- * PWA Grupo DK — registo do SW, verificação de atualização e aplicação automática.
- * Ao abrir/instalar no telemóvel, força a última versão do service worker e recarrega se necessário.
+ * PWA Grupo DK — registo do SW, verificação de atualização e aplicação.
+ * Nunca desloga o utilizador: a sessão em localStorage sobrevive à atualização.
+ * Se houver SW novo enquanto o operador trabalha, adia o reload até o separador
+ * ficar em segundo plano ou 2 min sem interação.
  */
 (function dkPwaUpdate() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
 
-  const SW_BUILD = "20260826loc-cod1";
+  const SW_BUILD = "20260826sessao1";
   const SW_URL = `/service-worker-corporativo.js?v=${SW_BUILD}`;
   const CACHE_PREFIX = "dk-corporativo-v";
-  const ACTIVE_CACHE = `${CACHE_PREFIX}20260826loc-cod1`;
+  const ACTIVE_CACHE = `${CACHE_PREFIX}20260826sessao1`;
+  const IDLE_RELOAD_MS = 2 * 60 * 1000;
 
   const path = (location.pathname || "/").replace(/\/$/, "") || "/";
   const isClienteApp =
@@ -26,7 +29,9 @@
     document.documentElement.dataset.dkPwaForce === "1";
 
   let reloadPending = false;
+  let softReloadScheduled = false;
   let registrationRef = null;
+  let idleTimer = null;
 
   function waitForWorkerState(worker, state) {
     return new Promise((resolve) => {
@@ -59,6 +64,66 @@
           .filter((k) => k.startsWith(CACHE_PREFIX) && k !== ACTIVE_CACHE)
           .map((k) => caches.delete(k))
       );
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function performVersionReload() {
+    const url = new URL(location.href);
+    if (!url.searchParams.has("_")) {
+      url.searchParams.set("_", String(Date.now()));
+      location.replace(url.toString());
+      return;
+    }
+    location.reload();
+  }
+
+  function cancelSoftReloadListeners() {
+    document.removeEventListener("visibilitychange", onVisibilityForSoftReload);
+    ["pointerdown", "keydown", "input", "change"].forEach((ev) => {
+      document.removeEventListener(ev, bumpSoftReloadIdle);
+    });
+    if (idleTimer) {
+      clearTimeout(idleTimer);
+      idleTimer = null;
+    }
+  }
+
+  function bumpSoftReloadIdle() {
+    if (!softReloadScheduled) return;
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => {
+      cancelSoftReloadListeners();
+      softReloadScheduled = false;
+      performVersionReload();
+    }, IDLE_RELOAD_MS);
+  }
+
+  function onVisibilityForSoftReload() {
+    if (!softReloadScheduled) return;
+    if (document.visibilityState !== "hidden") return;
+    cancelSoftReloadListeners();
+    softReloadScheduled = false;
+    performVersionReload();
+  }
+
+  /** Recarrega sem apagar login; se o operador está a trabalhar, espera. */
+  function scheduleSessionSafeReload() {
+    if (softReloadScheduled) return;
+    softReloadScheduled = true;
+    if (document.visibilityState === "hidden") {
+      softReloadScheduled = false;
+      performVersionReload();
+      return;
+    }
+    document.addEventListener("visibilitychange", onVisibilityForSoftReload);
+    ["pointerdown", "keydown", "input", "change"].forEach((ev) => {
+      document.addEventListener(ev, bumpSoftReloadIdle, { passive: true });
+    });
+    bumpSoftReloadIdle();
+    try {
+      console.info("[DK PWA] Nova versão pronta — atualiza ao mudar de separador ou após 2 min sem uso (sessão mantida).");
     } catch {
       /* ignore */
     }
@@ -108,19 +173,8 @@
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!reloadPending) return;
     reloadPending = false;
-    try {
-      localStorage.removeItem("dk_sessao_cliente");
-      localStorage.removeItem("dk_portal_sessao_build");
-    } catch {
-      /* ignore */
-    }
-    const url = new URL(location.href);
-    if (!url.searchParams.has("_")) {
-      url.searchParams.set("_", String(Date.now()));
-      location.replace(url.toString());
-      return;
-    }
-    location.reload();
+    /* NÃO apagar dk_sessao_cliente / dk_portal_sessao_build — isso deslogava no meio do trabalho. */
+    scheduleSessionSafeReload();
   });
 
   document.addEventListener("visibilitychange", () => {
@@ -131,6 +185,7 @@
   window.__DK_ensureLatestPwa = ensureLatestPwa;
   window.__DK_getPwaRegistration = () => registrationRef;
   window.__DK_pwaForceApply = forceApply;
+  window.__DK_pwaScheduleSessionSafeReload = scheduleSessionSafeReload;
 
   if (forceApply) {
     void ensureLatestPwa({ force: true });

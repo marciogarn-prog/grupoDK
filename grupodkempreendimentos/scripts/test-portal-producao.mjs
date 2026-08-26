@@ -394,6 +394,19 @@ async function runSuite() {
         html.includes("dk-pwa-update.js")
     );
     {
+      const pwaVer = (html.match(/dk-pwa-update\.js\?v=([^"'&]+)/) || [])[1] || "latest";
+      const pwaJs = await fetch(`${BASE_URL}dk-pwa-update.js?v=${pwaVer}`, { cache: "no-store" }).then((r) =>
+        r.ok ? r.text() : ""
+      );
+      record(
+        "PWA atualiza sem deslogar a equipa",
+        pwaJs.includes("scheduleSessionSafeReload") &&
+          pwaJs.includes("NÃO apagar dk_sessao_cliente") &&
+          !/controllerchange[\s\S]{0,400}removeItem\(["']dk_sessao_cliente["']\)/.test(pwaJs),
+        "reload adiado; sessão preservada"
+      );
+    }
+    {
       const portalUiVerInstall = (html.match(/portal-locadora-ui\.js\?v=([^"'&]+)/) || [])[1] || "latest";
       const clienteAppVerInstall =
         (await fetch(new URL("cliente.html", BASE_URL).href, { cache: "no-store" })

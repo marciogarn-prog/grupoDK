@@ -54,8 +54,16 @@
     }
   }
 
+  /** Limpa só sessão de cliente do app; nunca desloga equipa (admin/colaborador). */
   function portalResetSessaoSeNaoAdmin() {
-    if (isPortalAdministradorLogado()) return;
+    try {
+      const raw = localStorage.getItem("dk_sessao_cliente");
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      if (s?.tipo === "admin") return;
+    } catch {
+      /* ignore */
+    }
     if (typeof clearSession === "function") clearSession();
   }
 
