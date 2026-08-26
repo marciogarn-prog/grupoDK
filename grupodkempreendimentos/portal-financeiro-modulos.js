@@ -2533,10 +2533,29 @@
   }
 
   function syncRelacaoStickyHeadHeight() {
-    const pane = document.getElementById("financeiroPaneRelacaoPagamento");
-    const head = pane?.querySelector(".fin-relacao-sticky-head");
-    if (!pane || !head || pane.classList.contains("hidden")) return;
-    pane.style.setProperty("--fin-relacao-sticky-h", `${head.offsetHeight}px`);
+    /* Cabeçalho de colunas vive no sticky-head; não precisa offset de thead. */
+  }
+
+  function buildRelacaoHeadHtml() {
+    return REL_COLS.map((col) => {
+      const active = relColFilterActive(col.key) || relacaoExcelState.sortKey === col.key;
+      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
+        <span class="fin-excel-th__label">${esc(col.label)}</span>
+        <button type="button" class="fin-excel-filter-btn${relColFilterActive(col.key) ? " is-filtered" : ""}" data-excel-col="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
+      </th>`;
+    }).join("");
+  }
+
+  function renderRelacaoColHead(headHtml, visible) {
+    const colHead = document.getElementById("finRelacaoPagamentoColHead");
+    if (!colHead) return;
+    if (!visible) {
+      colHead.hidden = true;
+      colHead.innerHTML = "";
+      return;
+    }
+    colHead.hidden = false;
+    colHead.innerHTML = `<table class="fin-table fin-table--relacao fin-table--relacao-head"><thead><tr>${headHtml}</tr></thead></table>`;
   }
 
   function renderRelacaoPagamento() {
@@ -2559,22 +2578,16 @@
     const tab = document.getElementById("finRelacaoPagamentoTabela");
     if (!tab) return;
     if (!base.length) {
+      renderRelacaoColHead("", false);
       tab.innerHTML = `<p class="subtext">Nenhum contrato no filtro selecionado.</p>`;
-      requestAnimationFrame(syncRelacaoStickyHeadHeight);
       return;
     }
-    const head = REL_COLS.map((col) => {
-      const active = relColFilterActive(col.key) || relacaoExcelState.sortKey === col.key;
-      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
-        <span class="fin-excel-th__label">${esc(col.label)}</span>
-        <button type="button" class="fin-excel-filter-btn${relColFilterActive(col.key) ? " is-filtered" : ""}" data-excel-col="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
-      </th>`;
-    }).join("");
+    const head = buildRelacaoHeadHtml();
+    renderRelacaoColHead(head, true);
     if (!rows.length) {
       tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>
         <tr><td colspan="${REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>
       </tbody></table>`;
-      requestAnimationFrame(syncRelacaoStickyHeadHeight);
       return;
     }
     tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>${rows
@@ -2595,7 +2608,6 @@
       </tr>`;
       })
       .join("")}</tbody></table>`;
-    requestAnimationFrame(syncRelacaoStickyHeadHeight);
   }
 
   let relacaoPagamentoBound = false;
@@ -2609,10 +2621,10 @@
       renderRelacaoPagamento();
     });
     document.getElementById("finRelacaoPagamentoAplicar")?.addEventListener("click", () => renderRelacaoPagamento());
-    const tab = document.getElementById("finRelacaoPagamentoTabela");
-    tab?.addEventListener("click", (e) => {
+    const pane = document.getElementById("financeiroPaneRelacaoPagamento");
+    pane?.addEventListener("click", (e) => {
       const btn = e.target?.closest?.("[data-excel-col]");
-      if (!btn || !tab.contains(btn)) return;
+      if (!btn || !pane.contains(btn)) return;
       e.preventDefault();
       e.stopPropagation();
       const key = btn.getAttribute("data-excel-col") || "";
