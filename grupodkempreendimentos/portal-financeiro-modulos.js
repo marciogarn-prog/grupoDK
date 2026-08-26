@@ -2353,6 +2353,18 @@
     { key: "investimentoPago", label: "Total de investimento", type: "num" },
     { key: "aluguelPago", label: "Total de aluguel", type: "num" },
   ];
+  /* Mesmas larguras no cabeçalho sticky e no corpo — evita deslocamento. */
+  const REL_COL_WIDTHS = ["24%", "11%", "10%", "10%", "10%", "10%", "12%", "13%"];
+
+  function buildRelacaoColgroupHtml() {
+    return `<colgroup>${REL_COL_WIDTHS.map(
+      (w, i) => `<col class="fin-rel-col fin-rel-col--${REL_COLS[i].key}" style="width:${w}">`
+    ).join("")}</colgroup>`;
+  }
+
+  function buildRelacaoTableOpen(colgroupHtml, inner) {
+    return `<table class="fin-table fin-table--relacao">${colgroupHtml}${inner}</table>`;
+  }
 
   let relacaoExcelState = {
     sortKey: "nome",
@@ -2524,11 +2536,13 @@
     });
     pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
       const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
-      const checked = boxes
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const pool = visible.length ? visible : boxes;
+      const checked = pool
         .filter((el) => el.checked)
         .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
         .filter((v) => v != null);
-      if (!checked.length || checked.length === boxes.length) {
+      if (!checked.length || checked.length === pool.length) {
         delete relacaoExcelState.cols[key];
       } else {
         relacaoExcelState.cols[key] = new Set(checked);
@@ -2553,6 +2567,24 @@
     /* Cabeçalho de colunas vive no sticky-head; não precisa offset de thead. */
   }
 
+  let relacaoScrollSyncBound = false;
+  function syncRelacaoColScroll(fromBody) {
+    const colHead = document.getElementById("finRelacaoPagamentoColHead");
+    const body = document.getElementById("finRelacaoPagamentoTabela");
+    if (!colHead || !body || colHead.hidden) return;
+    if (fromBody !== false) colHead.scrollLeft = body.scrollLeft;
+    else body.scrollLeft = colHead.scrollLeft;
+  }
+
+  function bindRelacaoColScrollSync() {
+    if (relacaoScrollSyncBound) return;
+    relacaoScrollSyncBound = true;
+    const colHead = document.getElementById("finRelacaoPagamentoColHead");
+    const body = document.getElementById("finRelacaoPagamentoTabela");
+    colHead?.addEventListener("scroll", () => syncRelacaoColScroll(false), { passive: true });
+    body?.addEventListener("scroll", () => syncRelacaoColScroll(true), { passive: true });
+  }
+
   function buildRelacaoHeadHtml() {
     return REL_COLS.map((col) => {
       const active = relColFilterActive(col.key) || relacaoExcelState.sortKey === col.key;
@@ -2572,7 +2604,10 @@
       return;
     }
     colHead.hidden = false;
-    colHead.innerHTML = `<table class="fin-table fin-table--relacao fin-table--relacao-head"><thead><tr>${headHtml}</tr></thead></table>`;
+    colHead.innerHTML = buildRelacaoTableOpen(
+      buildRelacaoColgroupHtml(),
+      `<thead><tr>${headHtml}</tr></thead>`
+    );
   }
 
   function renderRelacaoPagamento() {
@@ -2601,13 +2636,18 @@
     }
     const head = buildRelacaoHeadHtml();
     renderRelacaoColHead(head, true);
+    const colgroup = buildRelacaoColgroupHtml();
     if (!rows.length) {
-      tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>
-        <tr><td colspan="${REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>
-      </tbody></table>`;
+      tab.innerHTML = buildRelacaoTableOpen(
+        colgroup,
+        `<tbody><tr><td colspan="${REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr></tbody>`
+      );
+      syncRelacaoColScroll(true);
       return;
     }
-    tab.innerHTML = `<table class="fin-table fin-table--relacao"><thead><tr>${head}</tr></thead><tbody>${rows
+    tab.innerHTML = buildRelacaoTableOpen(
+      colgroup,
+      `<tbody>${rows
       .map((r) => {
         const atrasado = r.pago < r.devido;
         const planoCls = `fin-rel-row--${r.plano || "minha-moto"}`;
@@ -2624,7 +2664,9 @@
         ${celulaValorAssinado(r.aluguelPago)}
       </tr>`;
       })
-      .join("")}</tbody></table>`;
+      .join("")}</tbody>`
+    );
+    syncRelacaoColScroll(true);
   }
 
   let relacaoPagamentoBound = false;
@@ -2667,8 +2709,9 @@
     }
     if (!relacaoStickyResizeBound) {
       relacaoStickyResizeBound = true;
-      window.addEventListener("resize", () => requestAnimationFrame(syncRelacaoStickyHeadHeight));
+      window.addEventListener("resize", () => requestAnimationFrame(() => syncRelacaoColScroll(true)));
     }
+    bindRelacaoColScrollSync();
   }
 
   function renderModulo(id) {
