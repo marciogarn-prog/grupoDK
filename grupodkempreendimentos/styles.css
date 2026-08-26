@@ -5426,22 +5426,27 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   display: inline-block;
   width: 100%;
   max-width: 11rem;
+  vertical-align: middle;
 }
 
 .fin-date-cal input[type="text"] {
   width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .fin-date-cal__native {
   position: absolute;
   inset: 0;
+  z-index: 2;
   width: 100%;
   height: 100%;
-  opacity: 0;
-  pointer-events: none;
-  border: 0;
-  padding: 0;
   margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0.011;
+  cursor: pointer;
+  color-scheme: dark;
 }
 
 .fin-chart-svg {
