@@ -13,7 +13,7 @@
   <title>Grupo DK — App</title>
   <link rel="stylesheet" href="styles.css?v=20260608app-demo-banner">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
-  <script src="dk-pwa-update.js?v=20260608cliente-resume"></script>
+  <script src="dk-pwa-update.js?v=20260826app-operacao-install"></script>
 </head>
 <body>
   <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
@@ -33,17 +33,18 @@
     </header>
 
     <div id="dkAppInstallPanel" class="cliente-install-panel hidden" aria-live="polite">
-      <h2 class="cliente-install-panel__title">Instalar app no telemóvel</h2>
-      <p id="dkAppInstallStatus" class="subtext">Toque no botão para instalar. Use Chrome (Android) ou Safari (iPhone).</p>
+      <h2 class="cliente-install-panel__title">Instalar app Grupo DK</h2>
+      <p id="dkAppInstallStatus" class="subtext">Clique no botão abaixo ou use a instalação manual (Windows, Android ou iPhone).</p>
       <button type="button" id="dkAppInstallBtn" class="btn-primary btn-primary--with-logo" style="width:100%">
         <img class="btn-app-logo" src="/images/dk-locadora-logo.png" alt="" width="72" height="28" decoding="async" aria-hidden="true">
         <span>Instalar app Grupo DK</span>
       </button>
       <details class="cliente-install-manual" id="dkAppInstallManual">
         <summary>Instalação manual</summary>
+        <p class="subtext"><strong>Windows (PC):</strong> Chrome ou Edge → ícone «Instalar» (⊕) na barra de endereço, ou menu ⋮ → «Instalar Grupo DK» / «Aplicativos» → «Instalar este site como aplicativo».</p>
         <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → «Instalar app» ou «Adicionar ao ecrã inicial».</p>
         <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → «Adicionar à Tela de Início».</p>
-        <p class="subtext">Não use o browser dentro do WhatsApp — abra no Chrome ou Safari.</p>
+        <p class="subtext">Não use o browser dentro do WhatsApp — abra no Chrome, Edge ou Safari.</p>
       </details>
     </div>
 
@@ -106,6 +107,6 @@
     </div>
   </div>
 
-  <script src="dk-app-entry.js?v=20260608cliente-resume" defer></script>
+  <script src="dk-app-entry.js?v=20260826app-operacao-install" defer></script>
 </body>
 </html>

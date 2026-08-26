@@ -28,8 +28,10 @@
   }
 
   function operacaoInstallUrl() {
-    const base = `${location.pathname || "/"}?instalar=1`;
-    return `${base}#locadora`;
+    const u = new URL("/app.html", location.origin);
+    u.searchParams.set("instalar", "1");
+    u.searchParams.set("source", "home");
+    return u.pathname + u.search;
   }
 
   btnCliente?.addEventListener("click", (e) => {
@@ -45,9 +47,9 @@
     await ensureLatest();
     if (deferred && !standalone) {
       deferred.prompt();
-      await deferred.userChoice.catch(() => {});
+      const choice = await deferred.userChoice.catch(() => ({ outcome: "dismissed" }));
       deferred = null;
-      return;
+      if (choice.outcome === "accepted") return;
     }
     window.location.href = operacaoInstallUrl();
   });
