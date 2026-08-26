@@ -580,6 +580,19 @@
     if (!Array.isArray(arr)) return [];
     return arr.map((loc) => {
       if (!loc || typeof loc !== "object") return loc;
+      const st = String(loc.statusLocacao || loc.status || "")
+        .trim()
+        .toUpperCase();
+      if (st.includes("CANCEL") || loc.contratoCancelado) {
+        const inicio = String(loc.inicio || "").trim();
+        return {
+          ...loc,
+          statusLocacao: "CANCELADO",
+          contratoCancelado: true,
+          fim: String(loc.fim || inicio || "").trim(),
+          tempoDiasContrato: 0,
+        };
+      }
       const fim = String(loc.fim || loc.dataFim || "").trim();
       if (!fim || fim === "...") {
         return { ...loc, fim: "", statusLocacao: "ATIVO" };
