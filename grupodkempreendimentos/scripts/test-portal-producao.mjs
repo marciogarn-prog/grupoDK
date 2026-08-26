@@ -562,7 +562,8 @@ async function runSuite() {
       indexFresh.includes("operacaoVeiculoCadastradoPor") &&
         portalUiCliTotJs.includes("portalFormatCadastradoPorLabel") &&
         portalUiCliTotJs.includes("setOperacaoVeiculoCadastradoPorDisplay") &&
-        portalUiCliTotJs.includes("Márcio Santos-030"),
+        portalUiCliTotJs.includes("CADASTRADO POR") &&
+        portalUiCliTotJs.includes("cadastradoPorLabel"),
       "pesquisa veículo: CADASTRADO POR Nome-030"
     );
     record(
