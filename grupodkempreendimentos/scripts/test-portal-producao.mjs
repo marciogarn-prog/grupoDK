@@ -794,6 +794,26 @@ async function runSuite() {
     const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
     );
+    record(
+      "trocar tela: pull só após upload confirmado neste PC",
+      cloudSyncJs.includes("awaitAutoCloudPushConfirmed") &&
+        cloudSyncJs.includes("runTrackedCloudPush") &&
+        cloudSyncJs.includes("await_push_failed") &&
+        cloudSyncJs.includes("bypassLocalAuthority") &&
+        portalUiProto.includes("portalOperacaoOnScreenChange") &&
+        portalUiProto.includes("__DK_pullFromCloudOnScreenChange"),
+      "salvar=upload; trocar tela espera push OK antes do download"
+    );
+    const stylesFitCss = await fetch(`${BASE_URL}styles.css`, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
+    record(
+      "operação cabe na viewport sem scroll da página",
+      stylesFitCss.includes("#panel-operacao-locadora:not(.hidden)") &&
+        stylesFitCss.includes("sem «rodar a bolinha»") &&
+        html.includes("styles.css?v="),
+      "layout compacto sob o banner admin"
+    );
     const guardVer = html.match(/dk-oficial-cadastro-guard\.js\?v=([^"]+)/)?.[1] || "latest";
     const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=${guardVer}`, {
       cache: "no-store",

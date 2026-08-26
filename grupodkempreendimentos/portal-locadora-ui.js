@@ -2526,7 +2526,7 @@
   });
 
   btnOperacao?.addEventListener("click", () => {
-    portalRefreshOperacaoLocal();
+    portalOperacaoOnScreenChange();
     portalScheduleBackgroundCloudPullOnce();
     hideOperacaoInlineFormsCore();
     setOperacaoFormPlaceholderVisible(true);
@@ -12462,6 +12462,7 @@
   function openOperacaoLancamentoAluguel(subRaw) {
     const pedido = subRaw || operacaoLancAluguelSubAtivo || "avulso";
     const sub = operacaoLancAluguelSubPermitido(pedido) ? pedido : "avulso";
+    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     syncOperacaoLancAluguelSubnavVisible(true);
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.remove("hidden");
@@ -12603,8 +12604,24 @@
       .catch(() => {});
   }
 
+  /**
+   * Trocar de tela na Operação: UI local na hora; download da nuvem só depois
+   * do upload automático (se houver) confirmar sucesso neste PC.
+   */
+  function portalOperacaoOnScreenChange() {
+    portalRefreshOperacaoLocal();
+    if (typeof window.__DK_pullFromCloudOnScreenChange !== "function") return;
+    window
+      .__DK_pullFromCloudOnScreenChange()
+      .then((r) => {
+        if (r && (r.applied || r.changed)) portalRefreshOperacaoLocal();
+      })
+      .catch(() => {});
+  }
+
   try {
     window.__DK_portalRefreshOperacaoLocal = portalRefreshOperacaoLocal;
+    window.__DK_portalOperacaoOnScreenChange = portalOperacaoOnScreenChange;
     window.__DK_portalRefreshOperacaoDeferred = portalRefreshOperacaoDeferred;
     window.__DK_invalidatePesquisaLinhasCache = invalidatePesquisaLinhasCache;
     window.__DK_portalRenderColaboradoresLista = portalRenderColaboradoresLista;
@@ -18157,6 +18174,7 @@
 
   document.getElementById("btn-operacao-falar-cliente")?.addEventListener("click", () => {
     if (!DK_PORTAL_WA_CLIENTE_ATIVO) return;
+    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     portalWaRebuildDatasetCache();
     portalWaClearForm();
@@ -18167,13 +18185,15 @@
   });
 
   document.getElementById("btn-operacao-cadastro-cliente")?.addEventListener("click", () => {
+    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineCliente")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
     syncOperacaoCadastroButtons("btn-operacao-cadastro-cliente");
     refreshOperacaoClienteCodigoEditavel();
   });
-    document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
+  document.getElementById("btn-operacao-cadastro-veiculo")?.addEventListener("click", () => {
+    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineVeiculo")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -18184,6 +18204,7 @@
     refreshOperacaoVeiculoTotalCadastrados();
   });
   document.getElementById("btn-operacao-cadastro-locacao")?.addEventListener("click", () => {
+    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineLocacao")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -18229,6 +18250,7 @@
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
     if (!isPortalTitularAdministrador()) return;
+    portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);

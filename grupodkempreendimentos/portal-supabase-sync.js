@@ -209,11 +209,17 @@
 
   const CLOUD_PUSH_DEBOUNCE_MS = 2500;
   const BACKGROUND_PULL_MIN_INTERVAL_MS = 5 * 60 * 1000;
+  /** Evita vários pulls seguidos ao clicar rápido entre menus da Operação. */
+  const SCREEN_PULL_MIN_INTERVAL_MS = 4000;
 
   let backgroundPullLastAt = 0;
   let backgroundPullInFlight = null;
+  let screenPullLastAt = 0;
+  let screenPullInFlight = null;
 
   let cloudPushTimer = null;
+  /** Promise do upload automático em curso (ou a última cadeia ainda a concluir). */
+  let cloudPushInFlight = null;
   let suppressCloudHook = false;
   let autoPullFromCloudRan = false;
 
@@ -1560,11 +1566,58 @@
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
-      pushSnapshotQuiet().catch((e) => {
+      runTrackedCloudPush(() => pushSnapshotQuiet()).catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e), null);
       });
     }, CLOUD_PUSH_DEBOUNCE_MS);
+  }
+
+  /**
+   * Encadeia uploads para o pull ao trocar de tela poder esperar a confirmação.
+   * Vários saves seguidos partilham a mesma cadeia (o último estado local é enviado).
+   */
+  function runTrackedCloudPush(runFn) {
+    const prev = cloudPushInFlight;
+    const p = Promise.resolve(prev)
+      .catch(() => null)
+      .then(() => runFn())
+      .then((r) => {
+        if (r && r.ok === false) return r;
+        return r || { ok: true };
+      })
+      .catch((e) => {
+        console.warn("[DK cloud] push rastreado", e);
+        return { ok: false, error: e };
+      });
+    cloudPushInFlight = p.finally(() => {
+      if (cloudPushInFlight === p) cloudPushInFlight = null;
+    });
+    return cloudPushInFlight;
+  }
+
+  /**
+   * Antes de carregar da nuvem neste PC: se houver upload pendente/debounce,
+   * força o envio e só continua após confirmação de sucesso.
+   */
+  async function awaitAutoCloudPushConfirmed() {
+    if (cloudPushTimer) {
+      clearTimeout(cloudPushTimer);
+      cloudPushTimer = null;
+      const flushed = await runTrackedCloudPush(() => pushSnapshotQuiet({ force: true }));
+      if (!flushed || flushed.ok === false) {
+        return { ok: false, reason: "push_failed", result: flushed };
+      }
+      return { ok: true, reason: "flushed", result: flushed };
+    }
+    if (cloudPushInFlight) {
+      const r = await cloudPushInFlight;
+      if (!r || r.ok === false) {
+        return { ok: false, reason: "push_failed", result: r };
+      }
+      return { ok: true, reason: "awaited", result: r };
+    }
+    return { ok: true, reason: "idle" };
   }
 
   function installLocalStorageCloudHook() {
@@ -3110,11 +3163,12 @@
     }
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
-    return pushSnapshotQuiet(opts);
+    return runTrackedCloudPush(() => pushSnapshotQuiet(opts));
   }
 
   try {
     window.__DK_pushCloudSnapshotNow = pushCloudSnapshotNow;
+    window.__DK_awaitAutoCloudPushConfirmed = awaitAutoCloudPushConfirmed;
   } catch {
     /* ignore */
   }
@@ -3208,12 +3262,13 @@
 
   async function pullCloudSnapshotSilentMerge(opts) {
     const force = Boolean(opts && opts.force);
+    const bypassLocalAuthority = Boolean(opts && opts.bypassLocalAuthority);
     const clientePage = isClienteAppPage();
     if (clientePage) {
       return pullClienteCloudSnapshotLight(opts);
     }
     const consultaSync = await pullConsultaKeysFromCloud();
-    if (isLocalDataAuthorityActive() && !clientePage) {
+    if (isLocalDataAuthorityActive() && !clientePage && !bypassLocalAuthority) {
       const com = await pullAppendOnlyKeysFromCloud();
       return { ...com, consultaSync };
     }
@@ -3284,9 +3339,44 @@
     return { ok: true, applied: true, source: data.source || "cloud" };
   }
 
-  /** Não bloqueia a UI — mudança de ecrã usa só localStorage. */
+  /**
+   * Download da nuvem ao trocar de ecrã na Operação (ex.: cliente → veículo).
+   * Neste PC: só após o upload automático (se houver) terminar com sucesso —
+   * evita carregar snapshot antigo por cima do lançamento ainda a subir.
+   */
+  async function pullFromCloudOnScreenChangeCore() {
+    const gate = await awaitAutoCloudPushConfirmed();
+    if (!gate.ok) {
+      console.warn("[DK cloud] pull ao mudar ecrã adiado: upload não confirmado", gate.reason);
+      return { ok: false, skipped: true, reason: "await_push_failed", gate };
+    }
+    if (typeof window.__DK_portalPullCadastroFromCloud === "function") {
+      try {
+        await window.__DK_portalPullCadastroFromCloud();
+      } catch (e) {
+        console.warn("[DK cloud] pull cadastro API ao mudar ecrã", e);
+      }
+    }
+    // Após upload confirmado neste PC, o merge da nuvem é seguro (já inclui o que enviámos).
+    return pullCloudSnapshotSilentMerge({ force: true, bypassLocalAuthority: true });
+  }
+
   function pullFromCloudOnScreenChange() {
-    return Promise.resolve({ ok: true, skipped: true, reason: "instant_local_ui" });
+    const now = Date.now();
+    if (now - screenPullLastAt < SCREEN_PULL_MIN_INTERVAL_MS) {
+      return screenPullInFlight || Promise.resolve({ ok: true, skipped: true, reason: "throttled" });
+    }
+    if (screenPullInFlight) return screenPullInFlight;
+    screenPullLastAt = now;
+    screenPullInFlight = pullFromCloudOnScreenChangeCore()
+      .catch((e) => {
+        console.warn("[DK cloud] pull ao mudar ecrã", e);
+        return { ok: false, error: e };
+      })
+      .finally(() => {
+        screenPullInFlight = null;
+      });
+    return screenPullInFlight;
   }
 
   /** Supabase em segundo plano (máx. 1× / 5 min), sem Redis nem recarregar página. */
@@ -3383,6 +3473,7 @@
     window.__DK_pullFromCloudOnScreenChange = pullFromCloudOnScreenChange;
     window.__DK_scheduleBackgroundCloudPull = scheduleBackgroundCloudPullIfStale;
     window.__DK_pushToCloudAfterSave = pushToCloudAfterSave;
+    window.__DK_awaitAutoCloudPushConfirmed = awaitAutoCloudPushConfirmed;
     window.__DK_pullComunicacaoOperacaoFromCloudMerge = pullComunicacaoOperacaoFromCloudMerge;
     window.__DK_pushComunicacaoSnapshotNow = pushComunicacaoSnapshotNow;
     window.__DK_pushComunicacaoMensagemNow = pushComunicacaoMensagemNow;
@@ -3403,8 +3494,8 @@
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
     setMsg("A guardar na nuvem (Supabase + cópia Redis)…", "muted");
-    const r = await upsertSnapshotRow(true);
-    if (!r.ok) return;
+    const r = await runTrackedCloudPush(() => upsertSnapshotRow(true));
+    if (!r || !r.ok) return;
     if (r.supaOk && r.redisOk) {
     setMsg(
         "Dados guardados. Noutro aparelho abra o site ou use «Carregar da nuvem» — se o Supabase falhar, a cópia Redis atende.",
