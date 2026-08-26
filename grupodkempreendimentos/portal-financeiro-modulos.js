@@ -216,6 +216,25 @@
     return modelo.split(/\s+/)[0] || "SEM TIPO";
   }
 
+  /** Categoria operacional: MOTO (cinza) ou CARRO (laranja). */
+  function categoriaFrotaVeiculo(v) {
+    const t = String(v?.tipo || v?.categoria || "").trim().toUpperCase();
+    if (t.includes("CARRO")) return "CARRO";
+    if (t.includes("MOTO")) return "MOTO";
+    const tag = String(v?.tag || "").trim().toUpperCase();
+    if (tag.includes("DKCR")) return "CARRO";
+    if (tag.includes("DKMT")) return "MOTO";
+    const tip = tipoPlanilhaDeVeiculo(v);
+    const carros = new Set(["KWID", "CLASSIC", "KA", "PRISMA", "ETIOS", "GOL", "HB20"]);
+    return carros.has(tip) ? "CARRO" : "MOTO";
+  }
+
+  function valorAquisicaoVeiculo(v) {
+    const raw = v?.valor ?? v?.valorAquisicao ?? v?.valorCompra ?? 0;
+    if (typeof raw === "number" && Number.isFinite(raw)) return Math.max(0, raw);
+    return Math.max(0, parseValor(raw));
+  }
+
   function planoDeLocacao(loc, veiculo) {
     const raw = nk(loc?.plano || loc?.opcaoContrato || "");
     if (raw.includes("TRANSPORTE")) return "meu-transporte";
@@ -543,44 +562,117 @@
     return `<svg class="fin-chart-svg fin-chart-svg--bars" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico de barras agrupadas">${grid}${zero}${bars}</svg>`;
   }
 
-  function svgHBar(rows) {
-    const max = Math.max(1, ...rows.map((r) => r.value));
-    return `<div class="fin-hbar">${rows
-      .map((r) => {
-        const pct = Math.max(2, (r.value / max) * 100);
-        return `<div class="fin-hbar__row">
+  function svgHBar(rows, opts = {}) {
+    const formatVal =
+      typeof opts.formatVal === "function" ? opts.formatVal : (n) => String(n);
+    const money = Boolean(opts.money);
+    const max = Math.max(1, ...rows.map((r) => Number(r.value) || 0));
+    const blocks = [];
+    let lastCat = "";
+    rows.forEach((r) => {
+      const cat = r.categoria === "CARRO" ? "CARRO" : "MOTO";
+      if (cat !== lastCat) {
+        lastCat = cat;
+        blocks.push(
+          `<div class="fin-hbar__group" data-cat="${cat}">${cat === "MOTO" ? "Motos" : "Carros"}</div>`
+        );
+      }
+      const pct = Math.max(2, ((Number(r.value) || 0) / max) * 100);
+      const fillClass = cat === "CARRO" ? "fin-hbar__fill--carro" : "fin-hbar__fill--moto";
+      blocks.push(`<div class="fin-hbar__row" data-cat="${cat}">
           <span class="fin-hbar__lab" title="${esc(r.label)}">${esc(r.label)}</span>
-          <span class="fin-hbar__track"><span class="fin-hbar__fill" style="width:${pct}%"></span></span>
-          <span class="fin-hbar__val">${esc(String(r.value))}</span>
-        </div>`;
+          <span class="fin-hbar__track"><span class="fin-hbar__fill ${fillClass}" style="width:${pct}%"></span></span>
+          <span class="fin-hbar__val${money ? " fin-hbar__val--money" : ""}">${esc(formatVal(r.value))}</span>
+        </div>`);
+    });
+    return `<div class="fin-hbar${money ? " fin-hbar--money" : ""}">${blocks.join("")}</div>`;
+  }
+
+  function agregarQuantitativoPorTipo() {
+    const byTipo = new Map();
+    veiculosCadastro().forEach((v) => {
+      const label = tipoPlanilhaDeVeiculo(v);
+      const categoria = categoriaFrotaVeiculo(v);
+      const valor = valorAquisicaoVeiculo(v);
+      const prev = byTipo.get(label);
+      if (!prev) {
+        byTipo.set(label, { label, categoria, qtd: 1, valor });
+        return;
+      }
+      prev.qtd += 1;
+      prev.valor += valor;
+      /* Se houver divergência, CARRO vence só se a maioria for carro — mantém 1.ª categoria. */
+    });
+    return [...byTipo.values()];
+  }
+
+  function ordenarTiposMotoDepoisCarro(rows, valueKey) {
+    const rank = (c) => (c === "MOTO" ? 0 : 1);
+    return [...rows].sort((a, b) => {
+      const rc = rank(a.categoria) - rank(b.categoria);
+      if (rc) return rc;
+      const va = Number(a[valueKey]) || 0;
+      const vb = Number(b[valueKey]) || 0;
+      if (vb !== va) return vb - va;
+      return a.label.localeCompare(b.label, "pt-BR");
+    });
+  }
+
+  function tabelaQuantitativo(rows, valueKey, valueHeader, total, formatCell) {
+    if (!rows.length) return "";
+    const fmt = typeof formatCell === "function" ? formatCell : (n) => String(n);
+    const body = rows
+      .map((r) => {
+        const v = Number(r[valueKey]) || 0;
+        const pct = total ? ((v / total) * 100).toFixed(1) : "0";
+        const cat = r.categoria === "CARRO" ? "Carro" : "Moto";
+        return `<tr data-cat="${esc(r.categoria)}"><td>${esc(r.label)}</td><td>${esc(cat)}</td><td>${esc(fmt(v))}</td><td>${pct}%</td></tr>`;
       })
-      .join("")}</div>`;
+      .join("");
+    return `<table class="fin-table"><thead><tr><th>TIPO</th><th>Categoria</th><th>${esc(valueHeader)}</th><th>%</th></tr></thead><tbody>${body}</tbody></table>`;
   }
 
   function renderQuantitativo() {
-    const counts = new Map();
-    veiculosCadastro().forEach((v) => {
-      const t = tipoPlanilhaDeVeiculo(v);
-      counts.set(t, (counts.get(t) || 0) + 1);
-    });
-    const rows = [...counts.entries()]
-      .map(([label, value]) => ({ label, value }))
-      .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label, "pt-BR"));
-    const total = rows.reduce((s, r) => s + r.value, 0);
+    const agg = agregarQuantitativoPorTipo();
+    const rowsQtd = ordenarTiposMotoDepoisCarro(agg, "qtd").map((r) => ({
+      label: r.label,
+      value: r.qtd,
+      categoria: r.categoria,
+    }));
+    const rowsVal = ordenarTiposMotoDepoisCarro(agg, "valor").map((r) => ({
+      label: r.label,
+      value: r.valor,
+      categoria: r.categoria,
+    }));
+    const totalQtd = rowsQtd.reduce((s, r) => s + (Number(r.value) || 0), 0);
+    const totalVal = rowsVal.reduce((s, r) => s + (Number(r.value) || 0), 0);
+    const nMotos = agg.filter((r) => r.categoria === "MOTO").reduce((s, r) => s + r.qtd, 0);
+    const nCarros = agg.filter((r) => r.categoria === "CARRO").reduce((s, r) => s + r.qtd, 0);
     const kpis = document.getElementById("finQuantitativoKpis");
     if (kpis) {
-      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Veículos</span><strong>${total}</strong></div>
-        <div class="fin-kpi"><span class="fin-kpi__lab">TIPOS</span><strong>${rows.length}</strong></div>`;
+      kpis.innerHTML = `<div class="fin-kpi"><span class="fin-kpi__lab">Veículos</span><strong>${totalQtd}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Motos</span><strong>${nMotos}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Carros</span><strong>${nCarros}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">TIPOS</span><strong>${agg.length}</strong></div>
+        <div class="fin-kpi"><span class="fin-kpi__lab">Aquisição</span><strong>${esc(brl(totalVal))}</strong></div>`;
     }
     const chart = document.getElementById("finQuantitativoChart");
-    if (chart) chart.innerHTML = rows.length ? svgHBar(rows) : '<p class="subtext">Nenhum veículo no cadastro.</p>';
+    if (chart) {
+      chart.innerHTML = rowsQtd.length
+        ? svgHBar(rowsQtd)
+        : '<p class="subtext">Nenhum veículo no cadastro.</p>';
+    }
     const tab = document.getElementById("finQuantitativoTabela");
-    if (tab) {
-      tab.innerHTML = rows.length
-        ? `<table class="fin-table"><thead><tr><th>TIPO</th><th>Quantidade</th><th>%</th></tr></thead><tbody>${rows
-            .map((r) => `<tr><td>${esc(r.label)}</td><td>${r.value}</td><td>${total ? ((r.value / total) * 100).toFixed(1) : "0"}%</td></tr>`)
-            .join("")}</tbody></table>`
+    if (tab) tab.innerHTML = tabelaQuantitativo(rowsQtd, "value", "Quantidade", totalQtd);
+    const chartVal = document.getElementById("finQuantitativoValorChart");
+    if (chartVal) {
+      chartVal.innerHTML = rowsVal.length
+        ? svgHBar(rowsVal, { money: true, formatVal: (n) => brl(n) })
         : "";
+    }
+    const tabVal = document.getElementById("finQuantitativoValorTabela");
+    if (tabVal) {
+      tabVal.innerHTML = tabelaQuantitativo(agg.length ? ordenarTiposMotoDepoisCarro(agg, "valor") : [], "valor", "Valor aquisição", totalVal, (n) => brl(n));
     }
   }
 
