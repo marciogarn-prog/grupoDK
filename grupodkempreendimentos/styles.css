@@ -5551,7 +5551,12 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
 #financeiroPaneRelacaoPagamento .fin-relacao-colhead {
   margin: 0.15rem 0 0;
-  overflow-x: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+#financeiroPaneRelacaoPagamento .fin-relacao-colhead::-webkit-scrollbar {
+  display: none;
 }
 
 #financeiroPaneRelacaoPagamento .fin-relacao-colhead[hidden] {
@@ -5572,9 +5577,34 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 
 #financeiroPaneRelacaoPagamento .fin-relacao-scroll {
   margin-bottom: 0.5rem;
+  overflow-x: auto;
 }
 
-/* Cabeçalho das colunas fica no bloco sticky; na tabela só o corpo. */
+.fin-table--relacao {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 980px;
+}
+
+.fin-table--relacao .fin-rel-col--valorLocacao,
+.fin-table--relacao .fin-rel-col--devido,
+.fin-table--relacao .fin-rel-col--pago,
+.fin-table--relacao .fin-rel-col--atraso,
+.fin-table--relacao .fin-rel-col--investimentoPago,
+.fin-table--relacao .fin-rel-col--aluguelPago {
+  width: 10%;
+}
+
+.fin-table--relacao th:nth-child(n + 3),
+.fin-table--relacao td.fin-rel-val {
+  text-align: right;
+}
+
+.fin-table--relacao td:first-child {
+  word-break: break-word;
+}
+
+/* Corpo sem thead duplicado — cabeçalho fica só no bloco sticky. */
 #financeiroPaneRelacaoPagamento .fin-relacao-scroll .fin-table--relacao thead {
   display: none;
 }
