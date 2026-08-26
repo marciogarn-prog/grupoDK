@@ -811,8 +811,11 @@ async function runSuite() {
       "operação cabe na viewport sem scroll da página",
       stylesFitCss.includes("#panel-operacao-locadora:not(.hidden)") &&
         stylesFitCss.includes("sem «rodar a bolinha»") &&
+        stylesFitCss.includes("operacao-veiculo-split") &&
+        html.includes("operacaoVeiculoFrotaFiltro") &&
+        portalUiProto.includes("portalVeiculoMatchesFrotaFiltro") &&
         html.includes("styles.css?v="),
-      "layout compacto sob o banner admin"
+      "layout compacto + frota ao lado com filtro placa/tag"
     );
     const guardVer = html.match(/dk-oficial-cadastro-guard\.js\?v=([^"]+)/)?.[1] || "latest";
     const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=${guardVer}`, {
