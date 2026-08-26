@@ -12923,24 +12923,62 @@
 
   function refreshOperacaoLocacaoCodigoDatalist() {
     const dl = document.getElementById("operacaoLocacaoClienteCodigoSugestoes");
-    if (!dl) return;
     const seen = new Set();
     const opts = [];
+    let maxNum = 0;
+    let lastCodigo = "";
     collectPortalClientesParaBuscaCodigo().forEach((c) => {
       const dig =
         typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
       const cpf = dig(String(c.cpf || "")).slice(0, 11);
       const codigo = resolvePortalClienteCodigoDisplay(cpf, c);
-      if (!codigo || seen.has(codigo)) return;
+      if (!codigo) return;
+      const n = Number(portalClienteCodigoDigitsKey(codigo) || 0);
+      if (Number.isFinite(n) && n > maxNum) {
+        maxNum = n;
+        lastCodigo = codigo;
+      }
+      if (seen.has(codigo)) return;
       seen.add(codigo);
       const nome = String(c.nome || "").trim();
       opts.push({ codigo, label: nome ? `${codigo} — ${nome}` : codigo });
     });
     opts.sort((a, b) => Number(portalClienteCodigoDigitsKey(a.codigo) || 0) - Number(portalClienteCodigoDigitsKey(b.codigo) || 0));
-    dl.innerHTML = opts
-      .slice(0, 500)
-      .map((o) => `<option value="${String(o.codigo).replace(/"/g, "&quot;")}" label="${String(o.label).replace(/"/g, "&quot;")}"></option>`)
-      .join("");
+    if (dl) {
+      dl.innerHTML = opts
+        .slice(0, 500)
+        .map((o) => `<option value="${String(o.codigo).replace(/"/g, "&quot;")}" label="${String(o.label).replace(/"/g, "&quot;")}"></option>`)
+        .join("");
+    }
+    refreshOperacaoLocacaoCodigoPlaceholder(lastCodigo);
+  }
+
+  /** Placeholder do CÓD. = código do último cliente cadastrado (maior número). */
+  function refreshOperacaoLocacaoCodigoPlaceholder(lastCodigoOpt) {
+    const el = document.getElementById("operacaoLocacaoClienteCodigo");
+    if (!el) return;
+    let last = String(lastCodigoOpt || "").trim();
+    if (!last) {
+      let maxNum = 0;
+      collectPortalClientesParaBuscaCodigo().forEach((c) => {
+        const dig =
+          typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+        const cpf = dig(String(c.cpf || "")).slice(0, 11);
+        const codigo = resolvePortalClienteCodigoDisplay(cpf, c);
+        const n = Number(portalClienteCodigoDigitsKey(codigo) || 0);
+        if (Number.isFinite(n) && n > maxNum) {
+          maxNum = n;
+          last = codigo;
+        }
+      });
+    }
+    if (last) {
+      el.placeholder = last;
+      el.setAttribute("title", `Último cliente cadastrado: ${last}`);
+    } else {
+      el.placeholder = "Ex.: 0003";
+      el.setAttribute("title", "Código do cliente");
+    }
   }
 
   /**
