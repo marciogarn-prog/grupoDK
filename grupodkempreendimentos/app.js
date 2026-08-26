@@ -6888,9 +6888,33 @@ function parseLocacaoProtocolDateCandidate(locacao) {
 /**
  * Garante protocolo em locações reais incompletas (migração).
  * NÃO inventa protocolo para registos fantasma (sem CPF, placa de teste LOC*, etc.).
+ * No oficial, também bloqueia seeds da demo (AAA/BBB/CCC, TESTE-*, protocolos 20250101xx).
  */
+function isLocacaoSeedDemoOficialProibida(loc) {
+  if (!loc || typeof loc !== "object") return false;
+  if (typeof window !== "undefined" && window.__DK_IS_DEMO_DEPLOY__ === true) return false;
+  const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
+  const placa = normalizePlate(String(loc.placa || ""));
+  const nc = String(normalizeNumeroContratoKey(loc.numeroContrato || "")).replace(/\D/g, "");
+  const demoNc = new Set([
+    "2025010101",
+    "2025010102",
+    "2025010103",
+    "2026010101",
+    "2026010102",
+    "2026010104",
+  ]);
+  const demoPlacas = new Set(["AAA0A00", "AAA0A01", "AAA0A02", "BBB0B00", "CCC0C00"]);
+  if (demoNc.has(nc)) return true;
+  if (demoPlacas.has(placa) || /^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
+  if (cpf === "00000000001" || cpf === "00000000003" || cpf === "00000000004") return true;
+  if (/^TESTE[- ]?\d/i.test(String(loc.nome || "").trim())) return true;
+  return false;
+}
+
 function isLocacaoFantasmaCadastro(loc) {
   if (!loc || typeof loc !== "object") return true;
+  if (isLocacaoSeedDemoOficialProibida(loc)) return true;
   const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
   const placa = normalizePlate(String(loc.placa || ""));
   if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;

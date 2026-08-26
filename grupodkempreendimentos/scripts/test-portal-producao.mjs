@@ -83,12 +83,12 @@ async function runSuite() {
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 194 veículos, 532 protocolos",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 189 veículos, 526 protocolos",
       IS_DEMO_TEST
         ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
         : storageInicial.clientes === 385 &&
-          storageInicial.veiculos === 194 &&
-          storageInicial.locacoes === 532,
+          storageInicial.veiculos === 189 &&
+          storageInicial.locacoes === 526,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
@@ -703,11 +703,11 @@ async function runSuite() {
       const clientesOf = pOf.dk_clientes_cadastro || [];
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
-        "oficial: nuvem 385 clientes, 194 veículos, 532 protocolos",
+        "oficial: nuvem 385 clientes, 189 veículos, 526 protocolos",
         clientesOf.length === 385 &&
           retroOf.length >= 20 &&
-          (pOf.dk_veiculos_cadastro || []).length === 194 &&
-          (pOf.dk_locacoes_cadastro || []).length === 532,
+          (pOf.dk_veiculos_cadastro || []).length === 189 &&
+          (pOf.dk_locacoes_cadastro || []).length === 526,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
       const locsOf = pOf.dk_locacoes_cadastro || [];
@@ -716,7 +716,12 @@ async function runSuite() {
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "");
         const cpf = String(l?.cpf || "").replace(/\D/g, "").slice(0, 11);
+        const nc = String(l?.numeroContrato || "").replace(/\D/g, "");
         if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+        if (/^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
+        if (["2025010101", "2025010102", "2025010103", "2026010101", "2026010102", "2026010104"].includes(nc)) {
+          return true;
+        }
         if (l?.__dkSeedTesteReserva) return true;
         if (cpf.length !== 11) {
           const nome = String(l?.nome || "").trim();
@@ -726,7 +731,7 @@ async function runSuite() {
         return false;
       });
       record(
-        "oficial: nuvem sem protocolos fantasma (LOC*/sem CPF)",
+        "oficial: nuvem sem seeds demo nem fantasmas",
         ghostsOf.length === 0,
         `fantasmas=${ghostsOf.length} de ${locsOf.length}`
       );
