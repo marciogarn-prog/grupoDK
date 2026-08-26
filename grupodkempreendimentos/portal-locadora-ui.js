@@ -12655,6 +12655,7 @@
     else if (opts.skipCpfLista === true || document.activeElement !== inpCpf) {
       hideOperacaoLocacaoCpfLista();
     }
+    refreshOperacaoLocacaoCodigoDatalist();
   }
 
   function hideOperacaoLocacaoCpfLista() {
@@ -12741,10 +12742,140 @@
           : String(findClienteByCpfCadastro?.(cpf)?.nome || "").trim());
       if (nome && nome !== "(sem nome)") inpNome.value = nome;
     }
+    syncOperacaoLocacaoCodigoFromCpf(cpf);
     refreshOperacaoLocacaoDatalists({ skipCpfLista: true });
     void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
     });
+  }
+
+  function portalClienteCodigoDigitsKey(raw) {
+    return String(raw ?? "").replace(/\D/g, "");
+  }
+
+  function collectPortalClientesParaBuscaCodigo() {
+    const byCpf = new Map();
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const add = (c) => {
+      if (!c || typeof c !== "object") return;
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11) return;
+      if (!byCpf.has(cpf)) byCpf.set(cpf, c);
+    };
+    if (typeof loadPortalClientesCadastro === "function") {
+      loadPortalClientesCadastro().forEach(add);
+    } else if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      loadCadastro(CAD_CLIENTES_KEY).forEach(add);
+    }
+    if (typeof getLancamentoClienteCandidates === "function") {
+      getLancamentoClienteCandidates().forEach(add);
+    }
+    return Array.from(byCpf.values());
+  }
+
+  function resolvePortalClienteCodigoDisplay(cpfDigits, clienteHint) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(cpfDigits || "")).slice(0, 11);
+    const fromHint = String(clienteHint?.codigo || "").trim();
+    if (fromHint) return fromHint;
+    if (cpf.length === 11 && typeof getPortalCanonicalClienteCodeByCpf === "function") {
+      const canon = String(getPortalCanonicalClienteCodeByCpf(cpf) || "").trim();
+      if (canon) {
+        const n = portalClienteCodigoDigitsKey(canon);
+        return n ? n.padStart(Math.max(4, n.length), "0") : canon;
+      }
+    }
+    const known = cpf.length === 11 ? getPortalClienteKnownRecord(cpf) : null;
+    return String(known?.codigo || "").trim();
+  }
+
+  function findPortalClienteByCodigoBusca(raw) {
+    const want = portalClienteCodigoDigitsKey(raw);
+    if (!want) return null;
+    const wantNum = Number(want);
+    const list = collectPortalClientesParaBuscaCodigo();
+    const scored = [];
+    for (const c of list) {
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      const codes = [
+        String(c.codigo || "").trim(),
+        typeof getPortalCanonicalClienteCodeByCpf === "function"
+          ? String(getPortalCanonicalClienteCodeByCpf(cpf) || "").trim()
+          : "",
+      ]
+        .map(portalClienteCodigoDigitsKey)
+        .filter(Boolean);
+      if (!codes.length) continue;
+      const exact = codes.some((d) => d === want);
+      const numeric = Number.isFinite(wantNum) && codes.some((d) => Number(d) === wantNum);
+      if (exact || numeric) scored.push({ c, exact });
+    }
+    if (!scored.length) return null;
+    scored.sort((a, b) => Number(b.exact) - Number(a.exact));
+    return scored[0].c;
+  }
+
+  function syncOperacaoLocacaoCodigoFromCpf(cpfDigitsOpt) {
+    const inpCod = document.getElementById("operacaoLocacaoClienteCodigo");
+    if (!inpCod) return;
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf =
+      dig(String(cpfDigitsOpt || document.getElementById("operacaoLocacaoCpf")?.value || "")).slice(0, 11);
+    if (cpf.length !== 11) {
+      return;
+    }
+    const known = getPortalClienteKnownRecord(cpf);
+    const display = resolvePortalClienteCodigoDisplay(cpf, known);
+    if (display) inpCod.value = display;
+  }
+
+  function applyOperacaoLocacaoClienteFromCodigo(rawOpt) {
+    const inpCod = document.getElementById("operacaoLocacaoClienteCodigo");
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    const raw = rawOpt != null ? String(rawOpt) : String(inpCod?.value || "");
+    const hit = findPortalClienteByCodigoBusca(raw);
+    if (!hit) {
+      if (msg && portalClienteCodigoDigitsKey(raw)) {
+        msg.textContent = `Nenhum cliente encontrado com o código «${String(raw).trim()}».`;
+      }
+      return { ok: false };
+    }
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const cpf = dig(String(hit.cpf || "")).slice(0, 11);
+    const nome = String(hit.nome || "").trim();
+    const codigoDisplay = resolvePortalClienteCodigoDisplay(cpf, hit) || String(raw).trim();
+    if (inpCod) inpCod.value = codigoDisplay;
+    operacaoLocacaoCpfEscolher(cpf, nome);
+    if (msg) msg.textContent = `Cliente ${codigoDisplay} — ${nome || cpf} carregado.`;
+    return { ok: true, cliente: hit };
+  }
+
+  function refreshOperacaoLocacaoCodigoDatalist() {
+    const dl = document.getElementById("operacaoLocacaoClienteCodigoSugestoes");
+    if (!dl) return;
+    const seen = new Set();
+    const opts = [];
+    collectPortalClientesParaBuscaCodigo().forEach((c) => {
+      const dig =
+        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      const codigo = resolvePortalClienteCodigoDisplay(cpf, c);
+      if (!codigo || seen.has(codigo)) return;
+      seen.add(codigo);
+      const nome = String(c.nome || "").trim();
+      opts.push({ codigo, label: nome ? `${codigo} — ${nome}` : codigo });
+    });
+    opts.sort((a, b) => Number(portalClienteCodigoDigitsKey(a.codigo) || 0) - Number(portalClienteCodigoDigitsKey(b.codigo) || 0));
+    dl.innerHTML = opts
+      .slice(0, 500)
+      .map((o) => `<option value="${String(o.codigo).replace(/"/g, "&quot;")}" label="${String(o.label).replace(/"/g, "&quot;")}"></option>`)
+      .join("");
   }
 
   /**
@@ -12800,6 +12931,7 @@
     if (!resolved) return;
     if (digits.length === 11 && digits !== resolved) return;
     inpCpf.value = formatCpf(resolved);
+    syncOperacaoLocacaoCodigoFromCpf(resolved);
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
   }
 
@@ -13718,6 +13850,12 @@
         typeof formatCpf === "function" ? formatCpf(cpfDigits) : cpfDigits;
     }
     if (cliEl) cliEl.value = String(loc.nome || "").trim();
+    syncOperacaoLocacaoCodigoFromCpf(cpfDigits);
+    if (!String(document.getElementById("operacaoLocacaoClienteCodigo")?.value || "").trim()) {
+      const codEl = document.getElementById("operacaoLocacaoClienteCodigo");
+      const fromLoc = String(loc.clienteCodigo || "").trim();
+      if (codEl && fromLoc) codEl.value = fromLoc;
+    }
     portalLocacaoProtocoloPickerCpf = "";
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
@@ -17119,6 +17257,7 @@
             : String(findClienteByCpfCadastro?.(digits)?.nome || "").trim();
         if (nome) inpNome.value = nome;
       }
+      if (digits.length === 11) syncOperacaoLocacaoCodigoFromCpf(digits);
       void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
         refreshOperacaoLocacaoProtocoloPicker({ force: true });
       });
@@ -17139,12 +17278,28 @@
         if (nome) inpNome.value = nome;
       }
       if (digits.length === 11) {
+        syncOperacaoLocacaoCodigoFromCpf(digits);
         void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
           refreshOperacaoLocacaoProtocoloPicker({ force: true });
         });
       } else {
         refreshOperacaoLocacaoProtocoloPicker({ force: true });
       }
+    });
+
+    const inpCodigo = document.getElementById("operacaoLocacaoClienteCodigo");
+    inpCodigo?.addEventListener("focus", () => refreshOperacaoLocacaoCodigoDatalist(), { passive: true });
+    inpCodigo?.addEventListener("change", () => applyOperacaoLocacaoClienteFromCodigo());
+    inpCodigo?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        applyOperacaoLocacaoClienteFromCodigo();
+      }
+    });
+    inpCodigo?.addEventListener("blur", () => {
+      const raw = String(inpCodigo.value || "").trim();
+      if (!raw) return;
+      applyOperacaoLocacaoClienteFromCodigo(raw);
     });
 
     inpNome?.addEventListener("change", () => syncPortalLocacaoCpfFromNomeField());

@@ -1690,6 +1690,16 @@ body {
   min-width: 0;
 }
 
+.portal-field--locacao-codigo {
+  max-width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .portal-field--locacao-codigo {
+    max-width: 9.5rem;
+  }
+}
+
 .operacao-inline-form__grid > .portal-cliente-prefix-list--grid {
   grid-column: 1 / -1;
 }
