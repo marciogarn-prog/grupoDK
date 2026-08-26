@@ -199,7 +199,7 @@
       native.min = FIN_CAL_MIN;
       native.max = FIN_CAL_MAX;
       native.tabIndex = -1;
-      native.setAttribute("aria-hidden", "true");
+      native.setAttribute("aria-label", input.getAttribute("aria-label") || "Escolher data");
       wrap.appendChild(native);
     }
 
@@ -217,39 +217,61 @@
       native.value = `${y}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
     };
 
+    const applyNativeToText = () => {
+      const br = isoDateToBr(native.value);
+      if (!br) return;
+      if (input.value === br) return;
+      input.value = br;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+
     const openCal = (e) => {
-      if (e) e.preventDefault();
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
       syncNativeFromText();
       try {
         if (typeof native.showPicker === "function") native.showPicker();
-        else native.click();
+        else native.focus();
       } catch {
         try {
           native.focus();
-          native.click();
         } catch {
           /* ignore */
         }
       }
     };
 
+    syncNativeFromText();
+    /* Clique no campo = calendário (camada date por cima). Digitação continua no text via teclado. */
+    input.addEventListener("mousedown", openCal);
     input.addEventListener("click", openCal);
+    input.addEventListener("focus", () => syncNativeFromText());
     input.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowDown" || e.key === "F4") openCal(e);
+      if (e.key === "ArrowDown" || e.key === "F4" || e.key === "Enter") openCal(e);
     });
     input.addEventListener("blur", () => {
       const v = String(input.value || "").trim();
       if (!v) return;
       const clamped = clampBrDateYear(v);
       if (clamped !== v) input.value = clamped;
+      syncNativeFromText();
     });
-    native.addEventListener("change", () => {
-      const br = isoDateToBr(native.value);
-      if (!br) return;
-      input.value = br;
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      input.dispatchEvent(new Event("change", { bubbles: true }));
+    native.addEventListener("mousedown", (e) => {
+      syncNativeFromText();
+      try {
+        if (typeof native.showPicker === "function") {
+          e.preventDefault();
+          native.showPicker();
+        }
+      } catch {
+        /* deixa o clique nativo abrir */
+      }
     });
+    native.addEventListener("change", applyNativeToText);
+    native.addEventListener("input", applyNativeToText);
   }
 
   function bindFinDateCalendariosInView() {
@@ -484,6 +506,7 @@
     btn?.setAttribute("aria-expanded", "true");
     moduloAberto = id;
     renderModulo(id);
+    bindFinDateCalendariosInView();
   }
 
   function svgLineChart(days, series, axisLabs) {
