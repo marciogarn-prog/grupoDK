@@ -9399,6 +9399,47 @@
       .slice(0, 80);
   }
 
+  function portalFormatCadastradoPorLabel(nomeCompleto, cpfDigits) {
+    const dig =
+      typeof onlyDigits === "function"
+        ? onlyDigits(String(cpfDigits || ""))
+        : String(cpfDigits || "").replace(/\D/g, "");
+    const xxx = dig.slice(0, 3);
+    const nome = String(nomeCompleto || "").trim() || "—";
+    if (!xxx) return `CADASTRADO POR ${nome}`;
+    return `CADASTRADO POR ${nome}-${xxx}`;
+  }
+
+  function portalResolveCadastradoPorFromVeiculo(veiculo) {
+    if (!veiculo || typeof veiculo !== "object") return "";
+    const labelDireto = String(veiculo.cadastradoPorLabel || "").trim();
+    if (labelDireto) {
+      return /^CADASTRADO POR\b/i.test(labelDireto)
+        ? labelDireto
+        : `CADASTRADO POR ${labelDireto}`;
+    }
+    const nome = String(veiculo.cadastradoPorNome || "").trim();
+    const cpf = String(veiculo.cadastradoPorCpf || "").trim();
+    if (!nome && !cpf) return "";
+    return portalFormatCadastradoPorLabel(nome || "—", cpf);
+  }
+
+  function setOperacaoVeiculoCadastradoPorDisplay(veiculoOrLabel) {
+    const el = document.getElementById("operacaoVeiculoCadastradoPor");
+    if (!el) return;
+    const text =
+      typeof veiculoOrLabel === "string"
+        ? String(veiculoOrLabel || "").trim()
+        : portalResolveCadastradoPorFromVeiculo(veiculoOrLabel);
+    if (!text) {
+      el.textContent = "";
+      el.hidden = true;
+      return;
+    }
+    el.textContent = text;
+    el.hidden = false;
+  }
+
   function portalInferTipoVeiculoFromRecord(v) {
     const t = String(v?.tipo || "")
       .trim()
@@ -9446,6 +9487,7 @@
     set("operacaoVeiculoMotor", veiculo.motor);
     set("operacaoVeiculoProprietario", veiculo.proprietario);
     set("operacaoVeiculoLocal", veiculo.local);
+    setOperacaoVeiculoCadastradoPorDisplay(veiculo);
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (msg) msg.textContent = plate ? `Dados do veículo ${plate} carregados.` : "";
     portalApplyAmbienteVisualForm("Veiculo", veiculo);
@@ -14282,6 +14324,22 @@
       return;
     }
     const existenteVeiculo = existenteVeiculoPre;
+    const sessaoReg = getPortalSessaoParaRegistroLancamentoAluguel();
+    const cadastradoPorCpfPrev = String(existenteVeiculo?.cadastradoPorCpf || "").replace(/\D/g, "").slice(0, 11);
+    const cadastradoPorNomePrev = String(existenteVeiculo?.cadastradoPorNome || "").trim();
+    const cadastradoPorLabelPrev = String(existenteVeiculo?.cadastradoPorLabel || "").trim();
+    const cadastradoPorCpf =
+      cadastradoPorCpfPrev.length === 11
+        ? cadastradoPorCpfPrev
+        : String(sessaoReg?.cpf || "").replace(/\D/g, "").slice(0, 11);
+    const cadastradoPorNome =
+      cadastradoPorNomePrev || String(sessaoReg?.nome || "").trim() || "Márcio Santos";
+    const cadastradoPorLabel =
+      cadastradoPorLabelPrev ||
+      portalFormatCadastradoPorLabel(cadastradoPorNome, cadastradoPorCpf || "030").replace(
+        /^CADASTRADO POR\s+/i,
+        ""
+      );
     const novo = {
       id: existenteVeiculo?.id ?? Date.now(),
       createdAt: existenteVeiculo?.createdAt ?? Date.now(),
@@ -14304,6 +14362,9 @@
       local: getVal("operacaoVeiculoLocal"),
       status: String(existenteVeiculo?.status || "DISPONIVEL").trim() || "DISPONIVEL",
       ambiente: PORTAL_AMBIENTE_REAL,
+      cadastradoPorCpf: cadastradoPorCpf || "03037897430",
+      cadastradoPorNome,
+      cadastradoPorLabel,
     };
     const snapshotVeiculo = (v) => ({
       tipo: portalNormDiffVal(v?.tipo),
@@ -14353,11 +14414,13 @@
       }
       portalApplyAmbienteVisualForm("Veiculo", novo);
       refreshOperacaoVeiculoApagarBtn(plate);
+      setOperacaoVeiculoCadastradoPorDisplay(novo);
       const form = document.getElementById("formOperacaoVeiculoInline");
       if (form && typeof form.reset === "function" && !existenteVeiculo) {
         form.reset();
         portalResetAmbienteForm("Veiculo");
         refreshOperacaoVeiculoTagPreview();
+        setOperacaoVeiculoCadastradoPorDisplay("");
       }
       renderOperacaoVeiculoResumoFrota();
     };
@@ -17582,6 +17645,7 @@
     refreshOperacaoVeiculoTagPreview();
     portalResetAmbienteForm("Veiculo");
     refreshOperacaoVeiculoApagarBtn("");
+    setOperacaoVeiculoCadastradoPorDisplay("");
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
     if (msg) msg.textContent = "";
   });

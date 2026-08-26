@@ -558,6 +558,14 @@ async function runSuite() {
       "rótulo TIPO = coluna TIPO do CADASTRO DE VEICULOS"
     );
     record(
+      "cadastro veículo mostra CADASTRADO POR nome-xxx",
+      indexFresh.includes("operacaoVeiculoCadastradoPor") &&
+        portalUiCliTotJs.includes("portalFormatCadastradoPorLabel") &&
+        portalUiCliTotJs.includes("setOperacaoVeiculoCadastradoPorDisplay") &&
+        portalUiCliTotJs.includes("Márcio Santos-030"),
+      "pesquisa veículo: CADASTRADO POR Nome-030"
+    );
+    record(
       "cadastro sem opção real/teste (demo é o ambiente de testes)",
       !indexFresh.includes("operacaoClienteAmbienteWrap") &&
         !indexFresh.includes('name="operacaoClienteAmbiente"') &&
