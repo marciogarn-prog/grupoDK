@@ -81,6 +81,39 @@ body {
   }
 }
 
+/* Área da equipa / Operação: usar a largura total do monitor (sem faixas laterais vazias). */
+@media (min-width: 900px) {
+  body.portal-body--equipa-sessao #view-unit.view--active,
+  body.portal-body--admin-logado #view-unit.view--active {
+    max-width: none;
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: clamp(0.65rem, 1.2vw, 1.15rem);
+    padding-right: clamp(0.65rem, 1.2vw, 1.15rem);
+  }
+
+  body.portal-body--equipa-sessao #view-unit.view--active > .subpage--wide,
+  body.portal-body--admin-logado #view-unit.view--active > .subpage--wide {
+    max-width: none;
+    width: 100%;
+  }
+
+  body.portal-body--equipa-sessao #view-unit #panel-operacao-locadora:not(.hidden),
+  body.portal-body--admin-logado #view-unit #panel-operacao-locadora:not(.hidden),
+  body.portal-body--equipa-sessao #view-unit #panel-manutencao-locadora:not(.hidden),
+  body.portal-body--admin-logado #view-unit #panel-manutencao-locadora:not(.hidden) {
+    width: 100%;
+    max-width: none;
+  }
+
+  body.portal-body--equipa-sessao #view-unit .portal-operacao-layout,
+  body.portal-body--admin-logado #view-unit .portal-operacao-layout {
+    grid-template-columns: minmax(168px, 200px) minmax(0, 1fr);
+    gap: 0.75rem 1.25rem;
+  }
+}
+
 .site-header {
   text-align: center;
   padding-top: clamp(0.5rem, 3vh, 2rem);
@@ -1285,6 +1318,17 @@ body {
     grid-template-columns: minmax(150px, 178px) minmax(0, 1fr);
   }
 
+  @media (min-width: 1280px) {
+    #panel-operacao-locadora:not(.hidden) .portal-operacao-layout {
+      grid-template-columns: minmax(170px, 210px) minmax(0, 1fr);
+      gap: 0.65rem 1.35rem;
+    }
+
+    #panel-operacao-locadora:not(.hidden) .operacao-veiculo-split {
+      grid-template-columns: minmax(0, 1.2fr) minmax(260px, 0.9fr);
+    }
+  }
+
   #panel-operacao-locadora:not(.hidden) .portal-operacao-layout__sidebar {
     position: static;
     top: auto;
@@ -1367,7 +1411,8 @@ body {
   /* Textos longos: esconder para caber sem scroll; título + campos bastam. */
   #panel-operacao-locadora:not(.hidden) #operacaoInlineCliente .operacao-inline-form__lead,
   #panel-operacao-locadora:not(.hidden) #operacaoInlineVeiculo .operacao-inline-form__lead,
-  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao .operacao-inline-form__lead {
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao .operacao-inline-form__lead,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador .operacao-inline-form__lead {
     display: none;
   }
 
@@ -3216,6 +3261,63 @@ body {
   margin-top: 1.35rem;
   padding-top: 1.1rem;
   border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+
+/* Colaborador: formulário à esquerda + lista à direita (usa a largura do monitor). */
+@media (min-width: 900px) {
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador:not(.hidden) {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.95fr);
+    grid-template-rows: auto auto auto minmax(0, 1fr);
+    gap: 0.35rem 1rem;
+    align-items: stretch;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador > .operacao-inline-form__title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador > .operacao-inline-form__lead {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador > #formPortalCadastroColaborador {
+    grid-column: 1;
+    grid-row: 3;
+    align-content: start;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador > #portalCadastroColaboradorFeedback {
+    grid-column: 1;
+    grid-row: 4;
+    align-self: start;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador > .portal-colab-lista-wrap {
+    grid-column: 2;
+    grid-row: 1 / -1;
+    margin: 0;
+    padding: 0.5rem 0.55rem;
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 8px;
+    border-top: 1px solid rgba(220, 38, 38, 0.3);
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador .portal-colab-lista {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador .portal-colab-lista__hint {
+    display: none;
+  }
 }
 
 .portal-colab-lista__titulo {
