@@ -1615,19 +1615,24 @@
    * força o envio e só continua após confirmação de sucesso.
    */
   async function awaitAutoCloudPushConfirmed() {
+    const withTimeout = (p, ms) =>
+      Promise.race([
+        Promise.resolve(p),
+        new Promise((resolve) => setTimeout(() => resolve({ ok: false, reason: "push_timeout" }), ms)),
+      ]);
     if (cloudPushTimer) {
       clearTimeout(cloudPushTimer);
       cloudPushTimer = null;
-      const flushed = await runTrackedCloudPush(() => pushSnapshotQuiet({ force: true }));
+      const flushed = await withTimeout(runTrackedCloudPush(() => pushSnapshotQuiet({ force: true })), 12000);
       if (!flushed || flushed.ok === false) {
-        return { ok: false, reason: "push_failed", result: flushed };
+        return { ok: false, reason: flushed?.reason || "push_failed", result: flushed };
       }
       return { ok: true, reason: "flushed", result: flushed };
     }
     if (cloudPushInFlight) {
-      const r = await cloudPushInFlight;
+      const r = await withTimeout(cloudPushInFlight, 12000);
       if (!r || r.ok === false) {
-        return { ok: false, reason: "push_failed", result: r };
+        return { ok: false, reason: r?.reason || "push_failed", result: r };
       }
       return { ok: true, reason: "awaited", result: r };
     }
@@ -2525,24 +2530,8 @@
       out.dk_oficial_frota_planilha_v1 = true;
       for (const k of ["dk_veiculos_cadastro", "dk_portal_veiculos_cadastro", "dk_veiculos_frota_planilha"]) {
         if (!Object.prototype.hasOwnProperty.call(cloudPayload, k)) continue;
-        const cloudV = Array.isArray(cloudPayload[k]) ? cloudPayload[k] : [];
-        const localV = Array.isArray(localPayload[k]) ? localPayload[k] : [];
-        /* Nuvem/planilha é autoridade: só atualiza placas já na frota; não reintroduz fantasmas locais. */
-        if (typeof mergeCadastroHistoricoImutavel === "function") {
-          out[k] = mergeCadastroHistoricoImutavel(k, cloudV, localV.filter((v) => {
-            const pl = String(v?.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-            const cloudPlates = new Set(
-              cloudV.map((x) => String(x?.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "")).filter(Boolean)
-            );
-            const tip = String(v?.codigo || "").trim().toUpperCase();
-            if (tip === "Z1" || tip === "HR70") return false;
-            if (/^(AAA|BBB|CCC)0/i.test(pl)) return false;
-            /* placa nova manual (não na nuvem) só se não for fantasma — ainda assim preferimos nuvem até sync */
-            return cloudPlates.has(pl) || cloudPlates.size === 0;
-          }));
-        } else {
-          out[k] = cloudV;
-        }
+        /* Autoridade da planilha: nuvem ganha — sem reintroduzir fantasmas do browser. */
+        out[k] = Array.isArray(cloudPayload[k]) ? cloudPayload[k].slice() : [];
       }
     }
     const oficialVirgin = cloudPayload.dk_oficial_sem_protocolos_v1 === true;
@@ -2581,8 +2570,16 @@
       );
     }
     if (!cloudPayload.dk_demo_cadastro_10_v1 && typeof mergeCadastroHistoricoImutavel === "function") {
+      const frotaLock =
+        cloudPayload.dk_oficial_frota_planilha_v1 === true && window.__DK_IS_DEMO_DEPLOY__ !== true;
+      const veiculoKeys = new Set([
+        "dk_veiculos_cadastro",
+        "dk_portal_veiculos_cadastro",
+        "dk_veiculos_frota_planilha",
+      ]);
       for (const k of DK_IMMUTABLE_CADASTRO_KEYS) {
         if (k === "dk_locacoes_cadastro") continue;
+        if (frotaLock && veiculoKeys.has(k)) continue;
         if (
           !Object.prototype.hasOwnProperty.call(localPayload, k) &&
           !Object.prototype.hasOwnProperty.call(cloudPayload, k)
