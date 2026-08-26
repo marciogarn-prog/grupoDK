@@ -6886,9 +6886,20 @@ function parseLocacaoProtocolDateCandidate(locacao) {
 }
 
 /**
- * Garante protocolo em todas as locações existentes (migração para bases antigas/importadas).
- * Regra: AAAAMMDD + sequência do dia, sem duplicidade.
+ * Garante protocolo em locações reais incompletas (migração).
+ * NÃO inventa protocolo para registos fantasma (sem CPF, placa de teste LOC*, etc.).
  */
+function isLocacaoElegivelParaProtocoloAutomatico(loc) {
+  if (!loc || typeof loc !== "object") return false;
+  const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
+  if (cpf.length !== 11) return false;
+  const placa = normalizePlate(String(loc.placa || ""));
+  if (!placa || placa.length < 7) return false;
+  /* Placas de seed/teste (LOC0A99, etc.) — nunca viram protocolo real. */
+  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return false;
+  return true;
+}
+
 function ensureNumeroContratoForLocacoes() {
   const locs = loadCadastro(CAD_LOCACOES_KEY);
   if (!locs.length) return;
@@ -6911,12 +6922,16 @@ function ensureNumeroContratoForLocacoes() {
   const updated = locs.map((l) => {
     const current = normalizeNumeroContratoKey(l.numeroContrato || "");
     if (current) return l;
+    if (!isLocacaoElegivelParaProtocoloAutomatico(l)) return l;
     const prefix = protocoloLocacaoDatePrefix(parseLocacaoProtocolDateCandidate(l));
+    if (!prefix) return l;
     let seq = Number(maxSeqByPrefix.get(prefix) || 0) + 1;
-    let protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+    let pad = seq <= 99 ? 2 : String(seq).length;
+    let protocolo = `${prefix}${String(seq).padStart(pad, "0")}`;
     while (used.has(protocolo)) {
       seq += 1;
-      protocolo = `${prefix}${String(seq).padStart(3, "0")}`;
+      pad = seq <= 99 ? 2 : String(seq).length;
+      protocolo = `${prefix}${String(seq).padStart(pad, "0")}`;
     }
     used.add(protocolo);
     maxSeqByPrefix.set(prefix, seq);
@@ -6928,6 +6943,32 @@ function ensureNumeroContratoForLocacoes() {
   });
 
   if (changed) saveCadastro(CAD_LOCACOES_KEY, updated);
+}
+
+/** Remove locações fantasma (sem CPF / placa de teste) que poluem relatórios e a nuvem. */
+function purgeLocacoesFantasmaCadastro() {
+  if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return 0;
+  if (typeof CAD_LOCACOES_KEY === "undefined") return 0;
+  const locs = loadCadastro(CAD_LOCACOES_KEY);
+  if (!Array.isArray(locs) || !locs.length) return 0;
+  const next = locs.filter((l) => {
+    const cpf = onlyDigits(String(l?.cpf || "")).slice(0, 11);
+    const placa = normalizePlate(String(l?.placa || ""));
+    if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return false;
+    if (cpf.length !== 11 && !normalizeNumeroContratoKey(l?.numeroContrato || "")) return false;
+    /* Sem CPF mas com protocolo «inventado» e sem cliente/nome — lixo. */
+    if (cpf.length !== 11) {
+      const nome = String(l?.nome || "").trim();
+      const inicio = String(l?.inicio || l?.dataInicio || "").trim();
+      if (!nome && !inicio) return false;
+    }
+    return true;
+  });
+  const removed = locs.length - next.length;
+  if (removed > 0) {
+    saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
+  }
+  return removed;
 }
 
 function syncCadLocacaoProtocoloComDataInicio() {
@@ -16258,6 +16299,7 @@ normalizeClienteCodigos();
 clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
 ensureNumeroContratoForLocacoes();
+purgeLocacoesFantasmaCadastro();
 fixKnownRentalValueOverrides();
 if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
   window.__DK_purgeOficialLocalCadastrosAntigos();

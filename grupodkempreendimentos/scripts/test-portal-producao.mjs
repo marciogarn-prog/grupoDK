@@ -83,12 +83,12 @@ async function runSuite() {
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 194 veículos, 541 protocolos",
+      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 194 veículos, 532 protocolos",
       IS_DEMO_TEST
         ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
         : storageInicial.clientes === 385 &&
           storageInicial.veiculos === 194 &&
-          storageInicial.locacoes === 541,
+          storageInicial.locacoes === 532,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
@@ -703,11 +703,11 @@ async function runSuite() {
       const clientesOf = pOf.dk_clientes_cadastro || [];
       const retroOf = clientesOf.filter((c) => c?.cadastroRetroativo === true);
       record(
-        "oficial: nuvem 385 clientes, 194 veículos, 541 protocolos",
+        "oficial: nuvem 385 clientes, 194 veículos, 532 protocolos",
         clientesOf.length === 385 &&
           retroOf.length >= 20 &&
           (pOf.dk_veiculos_cadastro || []).length === 194 &&
-          (pOf.dk_locacoes_cadastro || []).length === 541,
+          (pOf.dk_locacoes_cadastro || []).length === 532,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
     }
@@ -790,6 +790,14 @@ async function runSuite() {
         appJsProto.includes("Protocolo inválido. O número deve ser AAAAMMDDXX") &&
         !/proximoProtocoloPortalAaaammddXX\(date = new Date\(\)\)/.test(portalUiProto),
       "bloqueia prefixo desalinhado no cadastro"
+    );
+    record(
+      "não inventa protocolo para locação fantasma (LOC*/sem CPF)",
+      appJsProto.includes("isLocacaoElegivelParaProtocoloAutomatico") &&
+        appJsProto.includes("purgeLocacoesFantasmaCadastro") &&
+        appJsProto.includes("/^LOC\\d/i") &&
+        portalUiProto.includes("__DK_suppressPortalCadastroPush"),
+      "bloqueia seed LOC0A99 e limpa fantasmas no arranque"
     );
     const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
