@@ -746,6 +746,8 @@ async function runSuite() {
         appJsProto.includes("isCadastroManualPortalMode") &&
         portalUiProto.includes("findPortalLocacaoByProtocolo") &&
         portalUiProto.includes("operacaoLocacaoProtocoloAdminBusca") &&
+        portalUiProto.includes("getOperacaoProtocoloMaisRecente") &&
+        portalUiProto.includes("refreshOperacaoLocacaoProtocoloAdminPlaceholder") &&
         html.includes("operacaoLocacaoProtocoloAdminBusca"),
       "nuvem/local + busca admin"
     );

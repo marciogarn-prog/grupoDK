@@ -13604,12 +13604,36 @@
     );
   }
 
+  function getOperacaoProtocoloMaisRecente() {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return "";
+    let best = "";
+    try {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
+        const nc = normPortalNumeroContrato(l.numeroContrato || l.protocolo || "");
+        if (!/^\d{8,}$/.test(nc)) return;
+        if (!best || nc > best) best = nc;
+      });
+    } catch {
+      /* ignore */
+    }
+    return best;
+  }
+
+  function refreshOperacaoLocacaoProtocoloAdminPlaceholder() {
+    const el = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
+    if (!el) return;
+    const latest = getOperacaoProtocoloMaisRecente();
+    el.placeholder = latest || "Ex.: 2026010104";
+    el.setAttribute("title", latest ? `Protocolo mais recente: ${latest}` : "Buscar protocolo");
+  }
+
   function refreshOperacaoLocacaoAdminProtocoloUi() {
     const wrap = document.getElementById("operacaoLocacaoProtocoloAdminWrap");
     if (!wrap) return;
     wrap.classList.toggle("hidden", !isPortalTitularAdministrador());
     portalSyncAmbienteCadastroAdminUi();
     refreshOperacaoLocacaoApagarProtocoloBtn();
+    refreshOperacaoLocacaoProtocoloAdminPlaceholder();
   }
 
   function refreshOperacaoLocacaoApagarProtocoloBtn() {
@@ -14312,6 +14336,7 @@
       }
       if (msg) msg.textContent = prev ? "Locação atualizada." : "Locação cadastrada.";
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      refreshOperacaoLocacaoProtocoloAdminPlaceholder();
       const selAfter = document.getElementById("operacaoLocacaoProtocoloSelect");
       const hidAfter = document.getElementById("operacaoLocacaoProtocolo");
       if (selAfter && hidAfter) {
@@ -17812,6 +17837,7 @@
     refreshOperacaoLocacaoDatalists();
     void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
+      refreshOperacaoLocacaoProtocoloAdminPlaceholder();
     });
   });
 
