@@ -5670,6 +5670,31 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   gap: 0.4rem;
 }
 
+.fin-hbar--money .fin-hbar__row {
+  grid-template-columns: minmax(7rem, 14rem) 1fr minmax(5.5rem, 7.5rem);
+}
+
+.fin-hbar__group {
+  margin-top: 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.fin-hbar__group:first-child {
+  margin-top: 0;
+}
+
+.fin-hbar__group[data-cat="MOTO"] {
+  color: #c4c4c4;
+}
+
+.fin-hbar__group[data-cat="CARRO"] {
+  color: #fb923c;
+}
+
 .fin-hbar__row {
   display: grid;
   grid-template-columns: minmax(7rem, 14rem) 1fr 3.2rem;
@@ -5698,9 +5723,21 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   border-radius: 99px;
 }
 
+.fin-hbar__fill--moto {
+  background: #9ca3af;
+}
+
+.fin-hbar__fill--carro {
+  background: #f97316;
+}
+
 .fin-hbar__val {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.fin-hbar__val--money {
+  font-size: 0.78rem;
 }
 
 .fin-despesas-toolbar {

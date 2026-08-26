@@ -514,6 +514,9 @@ async function runSuite() {
         portalFinModJs.includes("tipoPlanilhaDeVeiculo") &&
         portalFinModJs.includes(">TIPOS<") &&
         portalFinModJs.includes("<th>TIPO</th>") &&
+        portalFinModJs.includes("fin-hbar__fill--moto") &&
+        portalFinModJs.includes("fin-hbar__fill--carro") &&
+        portalFinModJs.includes("finQuantitativoValorChart") &&
         portalFinModJs.includes("rateioPagoAluguelInvestimento") &&
         portalFinModJs.includes("fin-rel-nome--atraso") &&
         portalFinModJs.includes("valorDevidoAteHojeNum") &&
@@ -521,7 +524,7 @@ async function runSuite() {
         portalFinModJs.includes("aplicarExcelFiltroSort") &&
         portalFinModJs.includes("fin-excel-filter-btn") &&
         portalFinModJs.includes("financeiroModulosVisivel"),
-      "0 = relação; quantitativo por TIPO; filtros Excel"
+      "0 = relação; quantitativo por TIPO moto/carro + valor aquisição; filtros Excel"
     );
     const indexFresh = await fetch(BASE_URL, { cache: "no-store" }).then((r) =>
       r.ok ? r.text() : ""
