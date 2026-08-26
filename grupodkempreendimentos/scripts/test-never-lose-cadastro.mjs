@@ -25,6 +25,10 @@ const existing = {
     {
       numeroContrato: "2026072401",
       origemPortal: true,
+      cpf: "02357896582",
+      placa: "QYR9B66",
+      nome: "HEMERSON",
+      inicio: "24/07/2026",
       portalLancamentosAluguel: [
         {
           data: "31/07/2026",
@@ -40,7 +44,13 @@ const incoming = {
   dk_clientes_cadastro: [],
   dk_veiculos_cadastro: [],
   dk_locacoes_cadastro: [
-    { numeroContrato: "2026072401", origemPortal: true, portalLancamentosAluguel: [] },
+    {
+      numeroContrato: "2026072401",
+      origemPortal: true,
+      cpf: "02357896582",
+      placa: "QYR9B66",
+      portalLancamentosAluguel: [],
+    },
   ],
 };
 const out = neverLoseCadastroPayload(existing, incoming);
@@ -91,6 +101,10 @@ const locPortal = {
   numeroContrato: "2026072401",
   origemPortal: true,
   dataCadastro: "24/07/2026",
+  cpf: "02357896582",
+  placa: "QYR9B66",
+  nome: "HEMERSON",
+  inicio: "24/07/2026",
 };
 const sanitized = api.sanitizePayloadForOficial({ dk_locacoes_cadastro: [locPortal] });
 check("sanitize mantem locacao origemPortal", sanitized.dk_locacoes_cadastro.length === 1);
@@ -110,7 +124,16 @@ check("virgin cap remove planilha", cappedPlanilha.dk_locacoes_cadastro.length =
 
 const keepExisting = api.sanitizePayloadForOficial(
   {
-    dk_locacoes_cadastro: [{ numeroContrato: "2026072401", dataCadastro: "24/07/2026" }],
+    dk_locacoes_cadastro: [
+      {
+        numeroContrato: "2026072401",
+        dataCadastro: "24/07/2026",
+        cpf: "02357896582",
+        placa: "QYR9B66",
+        nome: "HEMERSON",
+        inicio: "24/07/2026",
+      },
+    ],
   },
   "2026-06-10",
   api.cadastroKeepSetsFromPayload({
