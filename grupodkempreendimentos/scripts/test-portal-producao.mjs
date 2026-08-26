@@ -768,8 +768,10 @@ async function runSuite() {
       "cadastro locação busca cliente por código",
       html.includes("operacaoLocacaoClienteCodigo") &&
         portalUiProto.includes("applyOperacaoLocacaoClienteFromCodigo") &&
-        portalUiProto.includes("findPortalClienteByCodigoBusca"),
-      "campo CÓD. entre CPF e CLIENTE"
+        portalUiProto.includes("findPortalClienteByCodigoBusca") &&
+        portalUiProto.includes("refreshOperacaoLocacaoCodigoPlaceholder") &&
+        portalUiProto.includes("Último cliente cadastrado"),
+      "campo CÓD. + placeholder do último cliente"
     );
     record(
       "cadastro locação confirmação com resumo",
