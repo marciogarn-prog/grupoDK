@@ -1101,6 +1101,63 @@
     }
   }
 
+  let portalLocacaoConfirmCallback = null;
+
+  function portalLocacaoFeedback(text) {
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (!msg) return;
+    msg.textContent = String(text || "");
+    try {
+      msg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function closePortalLocacaoConfirmModal() {
+    const modal = document.getElementById("portalLocacaoConfirmModal");
+    portalLocacaoConfirmCallback = null;
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function openPortalLocacaoConfirmModal(opts, onConfirm) {
+    const modal = document.getElementById("portalLocacaoConfirmModal");
+    const tituloEl = document.getElementById("portalLocacaoConfirmTitulo");
+    const leadEl = document.getElementById("portalLocacaoConfirmLead");
+    const resumoEl = document.getElementById("portalLocacaoConfirmResumo");
+    const simBtn = document.getElementById("portalLocacaoConfirmSimBtn");
+    if (!modal || !resumoEl) {
+      if (typeof onConfirm === "function" && window.confirm(String(opts?.titulo || "Confirmar locação?"))) {
+        onConfirm();
+      }
+      return;
+    }
+    const rows = Array.isArray(opts?.rows) ? opts.rows : [];
+    portalLocacaoConfirmCallback = typeof onConfirm === "function" ? onConfirm : null;
+    if (tituloEl) tituloEl.textContent = String(opts?.titulo || "Confirmar locação");
+    if (leadEl) {
+      leadEl.textContent = String(opts?.lead || "Revise o resumo e confirme para guardar.");
+    }
+    if (simBtn) simBtn.textContent = String(opts?.confirmLabel || "Confirmar");
+    resumoEl.innerHTML = rows
+      .map((r) => {
+        const label = portalEscAlteracaoHtml(String(r?.label || ""));
+        const value = portalEscAlteracaoHtml(String(r?.value || "—"));
+        return `<dt>${label}</dt><dd>${value}</dd>`;
+      })
+      .join("");
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    try {
+      simBtn?.focus();
+    } catch {
+      /* ignore */
+    }
+  }
+
   /** Só para administrador titular: confirma quando há diferenças em registo já existente. */
   function portalConfirmarAlteracaoAdministrador(opts, onConfirm) {
     if (!isPortalTitularAdministrador()) {
@@ -13882,7 +13939,7 @@
   function persistPortalLocacaoFinalizar() {
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (!isPortalTitularAdministrador()) {
-      if (msg) msg.textContent = "Apenas o administrador pode encerrar (finalizar) uma locação.";
+      portalLocacaoFeedback("Apenas o administrador pode encerrar (finalizar) uma locação.");
       return;
     }
     if (
@@ -13890,18 +13947,18 @@
       typeof saveCadastro !== "function" ||
       typeof CAD_LOCACOES_KEY === "undefined"
     ) {
-      if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
+      portalLocacaoFeedback("Cadastro indisponível neste ambiente.");
       return;
     }
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     if (!sel || String(sel.value || "") === "__PORTAL_PROTO_NOVO__") {
-      if (msg) msg.textContent = "Selecione um protocolo já cadastrado para finalizar.";
+      portalLocacaoFeedback("Selecione um protocolo já cadastrado para finalizar.");
       return;
     }
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     const ncNorm = normPortalNumeroContrato(String(hid?.value || ""));
     if (!ncNorm) {
-      if (msg) msg.textContent = "Protocolo inválido.";
+      portalLocacaoFeedback("Protocolo inválido.");
       return;
     }
     const inpCpf = document.getElementById("operacaoLocacaoCpf");
@@ -13909,13 +13966,13 @@
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const cpfDigits = dig(String(inpCpf?.value || ""));
     if (cpfDigits.length !== 11) {
-      if (msg) msg.textContent = "Informe um CPF cadastrado (11 dígitos).";
+      portalLocacaoFeedback("Informe um CPF cadastrado (11 dígitos).");
       return;
     }
     const rawFim = String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim();
     const fimDt = typeof parseBrDate === "function" ? parseBrDate(rawFim) : null;
     if (!fimDt || Number.isNaN(fimDt.getTime())) {
-      if (msg) msg.textContent = "Informe a data fim válida (DD/MM/AAAA).";
+      portalLocacaoFeedback("Informe a data fim válida (DD/MM/AAAA).");
       return;
     }
     const fimBr = formatPortalDataBr(fimDt);
@@ -13923,10 +13980,23 @@
     const locs = loadCadastro(CAD_LOCACOES_KEY);
     const idx = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === ncNorm);
     if (idx === -1) {
-      if (msg) msg.textContent = "Locação não encontrada na base deste navegador.";
+      portalLocacaoFeedback("Locação não encontrada na base deste navegador.");
       return;
     }
     const prev = locs[idx];
+    const nomeCliente =
+      String(document.getElementById("operacaoLocacaoCliente")?.value || "").trim() ||
+      String(prev.nome || "").trim();
+    const placa =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(document.getElementById("operacaoLocacaoPlaca")?.value || prev.placa || ""))
+        : String(document.getElementById("operacaoLocacaoPlaca")?.value || prev.placa || "").trim();
+    const plano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || prev.plano || "").trim();
+    const valorLoc =
+      String(document.getElementById("operacaoLocacaoValorAluguel")?.value || "").trim() ||
+      String(prev.valorLocacao || "").trim() ||
+      "—";
+
     const finalizarLocacao = () => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
       const finCpf = String(regFin?.cpf || "").replace(/\D/g, "").slice(0, 11);
@@ -13944,7 +14014,7 @@
         saveCadastro(CAD_LOCACOES_KEY, locs);
       } catch (err) {
         console.error(err);
-        if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
         return;
       }
       portalPushCloudSnapshotAfterPersist();
@@ -13955,7 +14025,7 @@
           /* ignore */
         }
       }
-      if (msg) msg.textContent = "Locação finalizada e guardada.";
+      portalLocacaoFeedback("Locação finalizada e guardada.");
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       applyPortalLocacaoRowFromRecord(locs[idx]);
       refreshOperacaoLocacaoDatalists();
@@ -13964,28 +14034,36 @@
         void window.__DK_contratoLocacaoSincronizarPasta(ncNorm, "FINALIZADO", { fim: fimBr }).then((r) => {
           if (!msg) return;
           if (r?.moved) {
-            msg.textContent =
-              "Locação finalizada. Contrato transferido para Documentos → Contratos INATIVOS (nuvem).";
+            portalLocacaoFeedback(
+              "Locação finalizada. Contrato transferido para Documentos → Contratos INATIVOS (nuvem)."
+            );
           } else if (r?.ok && r?.naNuvem) {
-            msg.textContent = "Locação finalizada. Contrato confirmado em Contratos INATIVOS (nuvem).";
+            portalLocacaoFeedback("Locação finalizada. Contrato confirmado em Contratos INATIVOS (nuvem).");
           } else if (r?.msg === "nao_encontrado") {
-            msg.textContent =
-              "Locação finalizada. Gere o contrato deste protocolo se ainda não existir no depósito.";
+            portalLocacaoFeedback(
+              "Locação finalizada. Gere o contrato deste protocolo se ainda não existir no depósito."
+            );
           }
         });
       }
     };
-    const changesFim = portalBuildAlteracoesLista(
-      { fim: portalNormDiffVal(prev.fim), status: portalNormDiffVal(prev.statusLocacao) },
-      { fim: fimBr, status: "FINALIZADO" },
-      { fim: "Data fim", status: "Status" }
+
+    openPortalLocacaoConfirmModal(
+      {
+        titulo: "Confirmar finalização da locação",
+        lead: "Revise o resumo e confirme para encerrar o protocolo.",
+        confirmLabel: "Confirmar finalização",
+        rows: [
+          { label: "Protocolo", value: ncNorm },
+          { label: "Cliente", value: nomeCliente || "—" },
+          { label: "Placa", value: placa || "—" },
+          { label: "Tipo de plano", value: plano || "—" },
+          { label: "Valor da locação", value: valorLoc },
+          { label: "Data fim", value: fimBr },
+        ],
+      },
+      finalizarLocacao
     );
-    if (isPortalTitularAdministrador()) {
-      portalConfirmarAlteracaoAdministrador(
-        { titulo: `Confirmar finalização — locação ${ncNorm}`, changes: changesFim },
-        finalizarLocacao
-      );
-    }
   }
 
   /** Atualiza a tag sugerida (DKCR - 016 / DKMT - YYY) conforme CARRO ou MOTO. */
@@ -14451,9 +14529,9 @@
           : "";
     const mesmoContratoPlaca = prev && prevPlate === plate;
     if (!plateFree && !mesmoContratoPlaca) {
-      if (msg)
-        msg.textContent =
-          "Esta placa não está disponível (já existe contrato ativo). Finalize a locação anterior ou escolha outra placa.";
+      portalLocacaoFeedback(
+        "Esta placa não está disponível (já existe contrato ativo). Finalize a locação anterior ou escolha outra placa."
+      );
       return;
     }
 
@@ -14497,61 +14575,43 @@
       ambiente: PORTAL_AMBIENTE_REAL,
     };
 
-    if (prev) {
-      locs[idxAll] = {
-        ...prev,
-        ...baseRecord,
-        portalLancamentosAluguel: prev.portalLancamentosAluguel,
-        portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
-        portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
-        portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
-        portalLocacaoFinalizadoPorCpf: prev.portalLocacaoFinalizadoPorCpf,
-        portalLocacaoFinalizadoPorNome: prev.portalLocacaoFinalizadoPorNome,
-        portalLocacaoFinalizadoEmMs: prev.portalLocacaoFinalizadoEmMs,
-        updatedAt: nowMs,
-      };
-    } else {
-      locs.push({
-        id: nowMs,
-        createdAt: nowMs,
-        ...baseRecord,
-        portalLocacaoExecutadoPorCpf: execCpf,
-        portalLocacaoExecutadoPorNome: execNome,
-        portalLocacaoExecutadoEmMs: nowMs,
-        updatedAt: nowMs,
-      });
-    }
-    /* Remove protocolo desalinhado antigo se o cadastro foi corrigido para o canónico. */
-    if (ncOriginal && ncOriginal !== nc) {
-      for (let i = locs.length - 1; i >= 0; i--) {
-        if (normPortalNumeroContrato(locs[i]?.numeroContrato) === ncOriginal) {
-          locs.splice(i, 1);
+    const doSaveLocacao = () => {
+      if (prev) {
+        locs[idxAll] = {
+          ...prev,
+          ...baseRecord,
+          portalLancamentosAluguel: prev.portalLancamentosAluguel,
+          portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
+          portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
+          portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
+          portalLocacaoFinalizadoPorCpf: prev.portalLocacaoFinalizadoPorCpf,
+          portalLocacaoFinalizadoPorNome: prev.portalLocacaoFinalizadoPorNome,
+          portalLocacaoFinalizadoEmMs: prev.portalLocacaoFinalizadoEmMs,
+          updatedAt: nowMs,
+        };
+      } else {
+        locs.push({
+          id: nowMs,
+          createdAt: nowMs,
+          ...baseRecord,
+          portalLocacaoExecutadoPorCpf: execCpf,
+          portalLocacaoExecutadoPorNome: execNome,
+          portalLocacaoExecutadoEmMs: nowMs,
+          updatedAt: nowMs,
+        });
+      }
+      if (ncOriginal && ncOriginal !== nc) {
+        for (let i = locs.length - 1; i >= 0; i--) {
+          if (normPortalNumeroContrato(locs[i]?.numeroContrato) === ncOriginal) {
+            locs.splice(i, 1);
+          }
         }
       }
-    }
-
-    const snapshotLoc = (rec) => ({
-      numeroContrato: portalNormDiffVal(rec?.numeroContrato),
-      placa: portalNormDiffVal(rec?.placa),
-      inicio: portalNormDiffVal(rec?.inicio),
-      fim: portalNormDiffVal(rec?.fim),
-      plano: portalNormDiffVal(rec?.plano),
-      valorLocacao: portalNormDiffVal(rec?.valorLocacao),
-      valorInvestimento: portalNormDiffVal(rec?.valorInvestimento),
-      valorSemanal: portalNormDiffVal(rec?.valorSemanal),
-      statusLocacao: portalNormDiffVal(rec?.statusLocacao),
-      diaPagto: portalNormDiffVal(rec?.diaPagto),
-      periodoLocacao: portalNormDiffVal(rec?.periodoLocacao),
-      marcaModelo: portalNormDiffVal(rec?.marcaModelo),
-      modalidade: portalNormDiffVal(rec?.modalidade),
-    });
-    const registroNovo = snapshotLoc({ ...baseRecord, numeroContrato: nc });
-    const doSaveLocacao = () => {
       try {
         saveCadastro(CAD_LOCACOES_KEY, locs);
       } catch (err) {
         console.error(err);
-        if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+        portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
         return;
       }
       portalPushCloudSnapshotAfterPersist();
@@ -14566,7 +14626,7 @@
           /* ignore */
         }
       }
-      if (msg) msg.textContent = prev ? "Locação atualizada." : "Locação cadastrada.";
+      portalLocacaoFeedback(prev ? "Locação atualizada." : "Locação cadastrada.");
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();
       const selAfter = document.getElementById("operacaoLocacaoProtocoloSelect");
@@ -14586,12 +14646,24 @@
         void window.__DK_contratoLocacaoSincronizarPasta(nc, saved.statusLocacao, { fim: fimBr, silent: true });
       }
     };
-    if (prev && isPortalTitularAdministrador()) {
-      const changes = portalBuildAlteracoesLista(snapshotLoc(prev), registroNovo, PORTAL_LOCACAO_DIFF_LABELS);
-      portalConfirmarAlteracaoAdministrador({ titulo: "Confirmar alteração — locação", changes }, doSaveLocacao);
-      return;
-    }
-    doSaveLocacao();
+
+    openPortalLocacaoConfirmModal(
+      {
+        titulo: prev ? "Confirmar atualização da locação" : "Confirmar cadastro de locação",
+        lead: prev
+          ? "Revise o resumo e confirme para atualizar o protocolo."
+          : "Revise o resumo e confirme para cadastrar o protocolo.",
+        confirmLabel: prev ? "Confirmar atualização" : "Confirmar cadastro",
+        rows: [
+          { label: "Protocolo", value: nc },
+          { label: "Cliente", value: nomeCliente || "—" },
+          { label: "Placa", value: plate },
+          { label: "Tipo de plano", value: planoNome || "—" },
+          { label: "Valor da locação", value: cb(valorLocNum) },
+        ],
+      },
+      doSaveLocacao
+    );
   }
 
   function collectPortalLocacoesComProtocoloByCpf(cpfDigits) {
@@ -18371,6 +18443,16 @@
   document.getElementById("portalLancAluguelConfirmNaoBtn")?.addEventListener("click", () => closePortalLancAluguelConfirmModal());
   document.querySelectorAll("[data-close-lanc-aluguel-confirm]").forEach((el) => {
     el.addEventListener("click", () => closePortalLancAluguelConfirmModal());
+  });
+
+  document.getElementById("portalLocacaoConfirmSimBtn")?.addEventListener("click", () => {
+    const fn = portalLocacaoConfirmCallback;
+    closePortalLocacaoConfirmModal();
+    if (typeof fn === "function") fn();
+  });
+  document.getElementById("portalLocacaoConfirmNaoBtn")?.addEventListener("click", () => closePortalLocacaoConfirmModal());
+  document.querySelectorAll("[data-close-locacao-confirm]").forEach((el) => {
+    el.addEventListener("click", () => closePortalLocacaoConfirmModal());
   });
   document.getElementById("operacaoLancAluguelHistorico")?.addEventListener(
     "click",
