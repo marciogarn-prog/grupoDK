@@ -13663,10 +13663,19 @@
       if (msg) msg.textContent = "Apenas o administrador pode carregar e editar um protocolo pelo número.";
       return { ok: false };
     }
-    const nc = normPortalNumeroContrato(rawNc);
+    let nc = normPortalNumeroContrato(rawNc);
     if (!nc) {
       if (msg) msg.textContent = "Informe um número de protocolo válido.";
       return { ok: false };
+    }
+    const remapped =
+      typeof window.__DK_remapOficialProtocoloNc === "function"
+        ? normPortalNumeroContrato(window.__DK_remapOficialProtocoloNc(nc))
+        : nc;
+    if (remapped && remapped !== nc) {
+      nc = remapped;
+      const busca = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
+      if (busca) busca.value = nc;
     }
     const loc = findPortalLocacaoByProtocolo(nc);
     if (!loc) {
