@@ -119,6 +119,16 @@
 
   /** Placeholders 000.000.000-01 / -03 (JEFERSON / MARCIO) — não entram no oficial. */
   const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
+  /**
+   * Protocolos inválidos (typo / duplicata) — saem do localStorage e não voltam pelo merge.
+   * 2026122501 era duplicata de Adriano/SOY5D66; o correto é 2025122201.
+   */
+  const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501"]);
+  const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({ "2026122501": "2025122201" });
+
+  function locacaoNcDigits(record) {
+    return String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
+  }
 
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
@@ -127,6 +137,14 @@
       typeof record === "object" &&
       cadastroKeyFamily(key) === "cliente" &&
       OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfDigits(record))
+    ) {
+      return false;
+    }
+    if (
+      record &&
+      typeof record === "object" &&
+      cadastroKeyFamily(key) === "locacao" &&
+      OFICIAL_LOCACOES_NC_EXCLUIDOS.has(locacaoNcDigits(record))
     ) {
       return false;
     }
@@ -212,4 +230,11 @@
   window.__DK_oficialLocacoesCutoffYmd = locacoesCutoffYmd;
   window.__DK_OFICIAL_CUTOFF_YMD = OFICIAL_CUTOFF_YMD;
   window.__DK_OFICIAL_LOCACOES_CUTOFF_YMD = OFICIAL_LOCACOES_CUTOFF_YMD;
+  window.__DK_OFICIAL_LOCACOES_NC_EXCLUIDOS = OFICIAL_LOCACOES_NC_EXCLUIDOS;
+  window.__DK_OFICIAL_LOCACOES_NC_REMAP = OFICIAL_LOCACOES_NC_REMAP;
+  window.__DK_remapOficialProtocoloNc = function remapOficialProtocoloNc(raw) {
+    const nc = String(raw || "").replace(/\D/g, "");
+    if (!nc) return String(raw || "").trim();
+    return OFICIAL_LOCACOES_NC_REMAP[nc] || String(raw || "").trim();
+  };
 })();
