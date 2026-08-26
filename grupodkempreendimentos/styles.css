@@ -1654,6 +1654,28 @@ body {
   color: var(--accent);
 }
 
+.operacao-inline-form__title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin: 0 0 0.35rem;
+}
+
+.operacao-inline-form__title-row .operacao-inline-form__title {
+  margin: 0;
+}
+
+.operacao-cliente-total {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fff;
+  white-space: nowrap;
+}
+
 .operacao-inline-form__lead {
   margin: 0 0 1rem;
 }

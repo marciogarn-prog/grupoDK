@@ -29,7 +29,13 @@
     el.readOnly = false;
     el.disabled = false;
     el.removeAttribute("readonly");
-    el.placeholder = "Ex.: CLIENTE 42";
+    el.placeholder =
+      typeof window.__DK_proximoClientePlaceholder === "function"
+        ? window.__DK_proximoClientePlaceholder()
+        : "proximo cliente";
+    if (typeof window.__DK_refreshOperacaoClienteTotalCadastrados === "function") {
+      window.__DK_refreshOperacaoClienteTotalCadastrados();
+    }
     el.classList.remove("portal-input-immutable");
     el.setAttribute("aria-readonly", "false");
     return true;

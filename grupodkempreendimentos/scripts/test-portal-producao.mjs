@@ -515,6 +515,20 @@ async function runSuite() {
       indexFresh.includes("operacaoVeiculoResumoGrid") &&
         indexFresh.includes("operacao-veiculo-resumo-frota")
     );
+    const portalUiCliTotVer =
+      (indexFresh.match(/portal-locadora-ui\.js\?v=([^"'&]+)/) || [])[1] || "latest";
+    const portalUiCliTotJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=${portalUiCliTotVer}`, {
+      cache: "no-store",
+    }).then((r) => (r.ok ? r.text() : ""));
+    record(
+      "cadastro cliente total e próximo código no formulário",
+      indexFresh.includes("operacaoClienteTotalCadastrados") &&
+        indexFresh.includes("operacao-cliente-total") &&
+        portalUiCliTotJs.includes("getOperacaoProximoClientePlaceholder") &&
+        portalUiCliTotJs.includes("proximo cliente") &&
+        portalUiCliTotJs.includes("refreshOperacaoClienteTotalCadastrados"),
+      "total ao lado do título; placeholder Cód. = total+1"
+    );
     record(
       "cadastro sem opção real/teste (demo é o ambiente de testes)",
       !indexFresh.includes("operacaoClienteAmbienteWrap") &&
