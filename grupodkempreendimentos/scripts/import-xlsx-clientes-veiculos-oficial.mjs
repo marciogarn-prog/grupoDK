@@ -221,6 +221,9 @@ function veiculosFromXlsx() {
       status: "DISPONIVEL",
       ambiente: "real",
       dataCadastro: toBrDate(pick(row, "Data do Cadastro")),
+      cadastradoPorCpf: "03037897430",
+      cadastradoPorNome: "Márcio Santos",
+      cadastradoPorLabel: "Márcio Santos-030",
     });
   });
   return { list: [...byPlaca.values()], skipped, rows: rows.length, unique: byPlaca.size };
