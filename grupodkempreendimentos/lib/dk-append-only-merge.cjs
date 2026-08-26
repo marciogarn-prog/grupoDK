@@ -27,6 +27,24 @@ function ncNorm(v) {
     .replace(/\s+/g, "");
 }
 
+/**
+ * Locação fantasma (seed LOC0A99 / sem CPF) — nunca entra no merge append-only
+ * nem volta à nuvem oficial por push de browser sujo.
+ */
+function isLocacaoFantasmaCadastro(l) {
+  if (!l || typeof l !== "object") return true;
+  const placa = normalizePlate(l.placa);
+  const cpf = onlyDigits(l.cpf).slice(0, 11);
+  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+  if (l.__dkSeedTesteReserva === true) return true;
+  if (cpf.length !== 11) {
+    const nome = String(l.nome || "").trim();
+    const inicio = String(l.inicio || l.dataInicio || "").trim();
+    if (!nome && !inicio) return true;
+  }
+  return false;
+}
+
 function mergeClientesCadastro(previousList, incomingList) {
   const prev = Array.isArray(previousList) ? previousList : [];
   const incoming = Array.isArray(incomingList) ? incomingList : [];
@@ -288,11 +306,12 @@ function mergeLocacaoCadastroPar(ex, incoming) {
 }
 
 function mergeLocacoesCadastro(previousList, incomingList) {
-  const prev = Array.isArray(previousList) ? previousList : [];
-  const incoming = Array.isArray(incomingList) ? incomingList : [];
+  const prev = (Array.isArray(previousList) ? previousList : []).filter((l) => !isLocacaoFantasmaCadastro(l));
+  const incoming = (Array.isArray(incomingList) ? incomingList : []).filter((l) => !isLocacaoFantasmaCadastro(l));
   const byNc = new Map();
   const noNc = [];
   const add = (l) => {
+    if (isLocacaoFantasmaCadastro(l)) return;
     const nc = ncNorm(l.numeroContrato);
     if (!nc) {
       noNc.push({ ...l });
@@ -406,4 +425,5 @@ module.exports = {
   filtrarPortalLancamentosPorRemovidos,
   mergePagamentosAuditoria,
   neverLoseCadastroPayload,
+  isLocacaoFantasmaCadastro,
 };

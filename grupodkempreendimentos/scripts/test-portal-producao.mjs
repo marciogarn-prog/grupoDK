@@ -710,6 +710,26 @@ async function runSuite() {
           (pOf.dk_locacoes_cadastro || []).length === 532,
         `c=${clientesOf.length} retro=${retroOf.length} v=${(pOf.dk_veiculos_cadastro || []).length} l=${(pOf.dk_locacoes_cadastro || []).length}`
       );
+      const locsOf = pOf.dk_locacoes_cadastro || [];
+      const ghostsOf = locsOf.filter((l) => {
+        const placa = String(l?.placa || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+        const cpf = String(l?.cpf || "").replace(/\D/g, "").slice(0, 11);
+        if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+        if (l?.__dkSeedTesteReserva) return true;
+        if (cpf.length !== 11) {
+          const nome = String(l?.nome || "").trim();
+          const inicio = String(l?.inicio || l?.dataInicio || "").trim();
+          if (!nome && !inicio) return true;
+        }
+        return false;
+      });
+      record(
+        "oficial: nuvem sem protocolos fantasma (LOC*/sem CPF)",
+        ghostsOf.length === 0,
+        `fantasmas=${ghostsOf.length} de ${locsOf.length}`
+      );
     }
     if (IS_DEMO_TEST) {
       const demoUi = await page.evaluate(() => ({
@@ -791,12 +811,22 @@ async function runSuite() {
         !/proximoProtocoloPortalAaaammddXX\(date = new Date\(\)\)/.test(portalUiProto),
       "bloqueia prefixo desalinhado no cadastro"
     );
+    const guardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js`, { cache: "no-store" }).then((r) =>
+      r.ok ? r.text() : ""
+    );
+    const mergeLib = fs.readFileSync(
+      path.join(REPO_ROOT, "grupodkempreendimentos", "lib", "dk-append-only-merge.cjs"),
+      "utf8"
+    );
     record(
       "não inventa protocolo para locação fantasma (LOC*/sem CPF)",
       appJsProto.includes("isLocacaoElegivelParaProtocoloAutomatico") &&
         appJsProto.includes("purgeLocacoesFantasmaCadastro") &&
+        appJsProto.includes("isLocacaoFantasmaCadastro") &&
         appJsProto.includes("/^LOC\\d/i") &&
-        portalUiProto.includes("__DK_suppressPortalCadastroPush"),
+        portalUiProto.includes("__DK_suppressPortalCadastroPush") &&
+        guardJs.includes("isLocacaoFantasmaCadastro") &&
+        mergeLib.includes("isLocacaoFantasmaCadastro"),
       "bloqueia seed LOC0A99 e limpa fantasmas no arranque"
     );
     const cloudSyncJs = await fetch(`${BASE_URL}portal-supabase-sync.js`, { cache: "no-store" }).then((r) =>

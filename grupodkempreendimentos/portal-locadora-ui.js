@@ -9674,7 +9674,13 @@
 
   function getPortalMotosLocacaoDataset(escopo) {
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
-    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : typeof isLocacaoFantasmaCadastro === "function"
+          ? isLocacaoFantasmaCadastro
+          : () => false;
+    const locs = loadCadastro(CAD_LOCACOES_KEY).filter((l) => !isGhost(l));
     const motos = locs.filter(isPortalLocacaoMoto);
     if (escopo === "ativas") return motos.filter(isPortalLocacaoAtiva);
     return motos.filter(isPortalLocacaoFinalizada);
@@ -11027,8 +11033,17 @@
   }
 
   function getPortalRelatorioLocacaoContext() {
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : typeof isLocacaoFantasmaCadastro === "function"
+          ? isLocacaoFantasmaCadastro
+          : () => false;
     const rowsRaw = sortPortalLocacoesPorProtocoloAsc(
-      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined" ? loadCadastro(CAD_LOCACOES_KEY) : []
+      (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : []
+      ).filter((l) => !isGhost(l))
     );
     const headers = [
       "Protocolo",

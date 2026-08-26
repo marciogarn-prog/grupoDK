@@ -12,6 +12,7 @@ const {
   mergeLocacoesCadastro,
   mergeFuncionariosAccess,
   neverLoseCadastroPayload,
+  isLocacaoFantasmaCadastro,
 } = require("../lib/dk-append-only-merge.cjs");
 
 /** Data de corte FIXA do oficial: só valem registos criados a partir de 10/06/2026. */
@@ -181,6 +182,8 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       const cpfEarly = cpfDigitsKey(r);
       if (isCli && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
       if (isLoc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(locacaoNcKey(r))) return false;
+      /* Fantasmas (LOC*/sem CPF) nunca passam — mesmo com origemPortal ou keepNc. */
+      if (isLoc && isLocacaoFantasmaCadastro(r)) return false;
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
