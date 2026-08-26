@@ -1903,6 +1903,10 @@ function observeDkDateMaskFields() {
     for (const m of mutations) {
       for (const node of m.addedNodes) {
         if (node.nodeType !== 1) continue;
+        if (node.classList?.contains("dk-date-cal") || node.classList?.contains("fin-date-cal")) continue;
+        if (node.classList?.contains("dk-date-cal__native") || node.classList?.contains("fin-date-cal__native"))
+          continue;
+        if (node.closest?.(".dk-date-cal, .fin-date-cal")) continue;
         bindDateMasksInContainer(node);
         bindDkIntervaloCalendarios(node);
       }
@@ -3039,6 +3043,20 @@ function cloudSnapshotWouldMutateLocal(cloudPayload) {
   if (typeof window.__DK_sanitizeOficialCloudPayload === "function") {
     cloudPayload = window.__DK_sanitizeOficialCloudPayload(cloudPayload);
   }
+  const frotaLock =
+    cloudPayload.dk_oficial_frota_planilha_v1 === true && window.__DK_IS_DEMO_DEPLOY__ !== true;
+  const veiculoKeys = new Set([CAD_VEICULOS_KEY, PORTAL_VEICULOS_KEY, FROTA_VEICULOS_KEY]);
+  const plateSetOf = (arr) => {
+    const s = new Set();
+    for (const v of arr || []) {
+      const pl =
+        typeof normalizePlacaParaCadastro === "function"
+          ? normalizePlacaParaCadastro(v?.placa)
+          : normalizePlate(String(v?.placa || ""));
+      if (pl) s.add(pl);
+    }
+    return s;
+  };
   const mergeKeys = new Set([
     CAD_CLIENTES_KEY,
     PORTAL_CLIENTES_KEY,
@@ -3060,6 +3078,13 @@ function cloudSnapshotWouldMutateLocal(cloudPayload) {
         prevRaw = [];
       }
       const inc = Array.isArray(v) ? v : [];
+      if (frotaLock && veiculoKeys.has(k)) {
+        const a = plateSetOf(prevRaw);
+        const b = plateSetOf(inc);
+        if (a.size !== b.size) return true;
+        for (const p of b) if (!a.has(p)) return true;
+        continue;
+      }
       if (k === CAD_LOCACOES_KEY) {
         const filterFn =
           typeof window.__DK_filterOficialCadastroArray === "function"
