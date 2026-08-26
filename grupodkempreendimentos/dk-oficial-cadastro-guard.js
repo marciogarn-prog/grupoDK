@@ -176,7 +176,7 @@
     return false;
   }
 
-  /** Seeds/fantasmas que nunca existiram na planilha CADASTRO DE VEICULOS (ex.: Z1). */
+  /** Fantasma: sem operador que cadastrou, ou seed (Z1/AAA/FERRARI). Sem operador = não existe. */
   function isVeiculoFantasmaCadastro(record) {
     if (!record || typeof record !== "object") return true;
     const placa = normalizePlateLocal(record.placa);
@@ -186,6 +186,10 @@
     const modelo = String(record.modelo || record.marcaModelo || "")
       .trim()
       .toUpperCase();
+    const opCpf = String(record.cadastradoPorCpf || record.registradoPorCpf || "").replace(/\D/g, "");
+    const opNome = String(record.cadastradoPorNome || record.registradoPorNome || "").trim();
+    const opLabel = String(record.cadastradoPorLabel || record.registradoPorLabel || "").trim();
+    if (!opCpf && !opNome && !opLabel) return true;
     if (OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa) || /^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) {
       return true;
     }

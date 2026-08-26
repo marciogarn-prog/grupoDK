@@ -36,6 +36,10 @@ function isVeiculoFantasmaCadastro(v) {
   const pl = normalizePlacaParaCadastro(v.placa);
   const tip = String(v.codigo || v.tipoPlanilha || "").trim().toUpperCase();
   const modelo = String(v.modelo || "").trim().toUpperCase();
+  const opCpf = String(v.cadastradoPorCpf || v.registradoPorCpf || "").replace(/\D/g, "");
+  const opNome = String(v.cadastradoPorNome || v.registradoPorNome || "").trim();
+  const opLabel = String(v.cadastradoPorLabel || v.registradoPorLabel || "").trim();
+  if (!opCpf && !opNome && !opLabel) return true;
   if (/^(AAA|BBB|CCC)0/i.test(pl)) return true;
   if (tip === "Z1" || tip === "HR70") return true;
   if (/FERRARI|BUGATTI|PORSCHE|FUSCA/.test(modelo)) return true;
