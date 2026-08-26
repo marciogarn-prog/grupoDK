@@ -2445,6 +2445,10 @@
     if (typeof window.__DK_mergeLocacoesCadastroCliente === "function") {
       return window.__DK_mergeLocacoesCadastroCliente(localArr, cloudArr);
     }
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : () => false;
     const byNc = new Map();
     const noNc = [];
     const normNc = (v) =>
@@ -2454,6 +2458,7 @@
         .replace(/[^A-Z0-9]/g, "");
     const add = (loc) => {
       if (!loc || typeof loc !== "object") return;
+      if (isGhost(loc)) return;
       const nc = normNc(loc.numeroContrato);
       if (!nc) {
         noNc.push({ ...loc });

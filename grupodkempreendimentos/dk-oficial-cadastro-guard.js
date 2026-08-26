@@ -133,6 +133,27 @@
     return String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
   }
 
+  function normalizePlateLocal(p) {
+    return String(p ?? "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+  }
+
+  /** Seed LOC0A99 / sem CPF — nunca no oficial (localStorage, pull ou push). */
+  function isLocacaoFantasmaCadastro(record) {
+    if (!record || typeof record !== "object") return true;
+    const placa = normalizePlateLocal(record.placa);
+    const cpf = cpfDigits(record).slice(0, 11);
+    if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+    if (record.__dkSeedTesteReserva === true) return true;
+    if (cpf.length !== 11) {
+      const nome = String(record.nome || "").trim();
+      const inicio = String(record.inicio || record.dataInicio || "").trim();
+      if (!nome && !inicio) return true;
+    }
+    return false;
+  }
+
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
     if (
@@ -148,6 +169,14 @@
       typeof record === "object" &&
       cadastroKeyFamily(key) === "locacao" &&
       OFICIAL_LOCACOES_NC_EXCLUIDOS.has(locacaoNcDigits(record))
+    ) {
+      return false;
+    }
+    if (
+      record &&
+      typeof record === "object" &&
+      cadastroKeyFamily(key) === "locacao" &&
+      isLocacaoFantasmaCadastro(record)
     ) {
       return false;
     }
@@ -240,4 +269,5 @@
     if (!nc) return String(raw || "").trim();
     return OFICIAL_LOCACOES_NC_REMAP[nc] || String(raw || "").trim();
   };
+  window.__DK_isLocacaoFantasmaCadastro = isLocacaoFantasmaCadastro;
 })();

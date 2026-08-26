@@ -6889,14 +6889,27 @@ function parseLocacaoProtocolDateCandidate(locacao) {
  * Garante protocolo em locações reais incompletas (migração).
  * NÃO inventa protocolo para registos fantasma (sem CPF, placa de teste LOC*, etc.).
  */
+function isLocacaoFantasmaCadastro(loc) {
+  if (!loc || typeof loc !== "object") return true;
+  const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
+  const placa = normalizePlate(String(loc.placa || ""));
+  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+  if (loc.__dkSeedTesteReserva === true) return true;
+  if (cpf.length !== 11) {
+    const nome = String(loc.nome || "").trim();
+    const inicio = String(loc.inicio || loc.dataInicio || "").trim();
+    if (!nome && !inicio) return true;
+  }
+  return false;
+}
+
 function isLocacaoElegivelParaProtocoloAutomatico(loc) {
   if (!loc || typeof loc !== "object") return false;
+  if (isLocacaoFantasmaCadastro(loc)) return false;
   const cpf = onlyDigits(String(loc.cpf || "")).slice(0, 11);
   if (cpf.length !== 11) return false;
   const placa = normalizePlate(String(loc.placa || ""));
   if (!placa || placa.length < 7) return false;
-  /* Placas de seed/teste (LOC0A99, etc.) — nunca viram protocolo real. */
-  if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return false;
   return true;
 }
 
@@ -6951,19 +6964,7 @@ function purgeLocacoesFantasmaCadastro() {
   if (typeof CAD_LOCACOES_KEY === "undefined") return 0;
   const locs = loadCadastro(CAD_LOCACOES_KEY);
   if (!Array.isArray(locs) || !locs.length) return 0;
-  const next = locs.filter((l) => {
-    const cpf = onlyDigits(String(l?.cpf || "")).slice(0, 11);
-    const placa = normalizePlate(String(l?.placa || ""));
-    if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return false;
-    if (cpf.length !== 11 && !normalizeNumeroContratoKey(l?.numeroContrato || "")) return false;
-    /* Sem CPF mas com protocolo «inventado» e sem cliente/nome — lixo. */
-    if (cpf.length !== 11) {
-      const nome = String(l?.nome || "").trim();
-      const inicio = String(l?.inicio || l?.dataInicio || "").trim();
-      if (!nome && !inicio) return false;
-    }
-    return true;
-  });
+  const next = locs.filter((l) => !isLocacaoFantasmaCadastro(l));
   const removed = locs.length - next.length;
   if (removed > 0) {
     saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true });
@@ -9355,9 +9356,10 @@ async function renderRelatorioLocacao(tipo) {
         .map((c) => [onlyDigits(String(c.cpf || "")), c])
         .filter(([cpf]) => cpf.length === 11)
     );
-    const sourceRows = locacoes.length
+    const sourceRows = (locacoes.length
       ? locacoes
-      : [...snapshot.activeRecords, ...snapshot.inactiveRecords];
+      : [...snapshot.activeRecords, ...snapshot.inactiveRecords]
+    ).filter((l) => !isLocacaoFantasmaCadastro(l));
 
     const rows = sourceRows
       .map((l) => {
@@ -9517,6 +9519,7 @@ async function renderRelatorioLocacao(tipo) {
       );
     } else {
       rows = snapshot.activeRecords
+        .filter((r) => !isLocacaoFantasmaCadastro(r))
         .map((r) => {
           const placaKey = normalizePlate(r.placa);
           const cad = veiculoByPlaca.get(placaKey);
@@ -16300,6 +16303,10 @@ clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
 ensureNumeroContratoForLocacoes();
 purgeLocacoesFantasmaCadastro();
+if (typeof window !== "undefined") {
+  window.__DK_isLocacaoFantasmaCadastro = isLocacaoFantasmaCadastro;
+  window.__DK_purgeLocacoesFantasmaCadastro = purgeLocacoesFantasmaCadastro;
+}
 fixKnownRentalValueOverrides();
 if (typeof window.__DK_purgeOficialLocalCadastrosAntigos === "function") {
   window.__DK_purgeOficialLocalCadastrosAntigos();
