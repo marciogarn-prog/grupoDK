@@ -117,13 +117,30 @@
     return String(record?.cpf || "").replace(/\D/g, "");
   }
 
-  /** Placeholders 000.000.000-01 / -03 (JEFERSON / MARCIO) — não entram no oficial. */
-  const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
+  /** Placeholders 000.000.000-01 / -03 / -04 (TESTE demo) — não entram no oficial. */
+  const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003", "00000000004"]);
   /**
    * Protocolos inválidos (typo / duplicata / prefixo ≠ data início) — saem do localStorage
    * e não voltam pelo merge. Remap aponta para o protocolo canónico da mesma locação.
+   * Inclui seeds da demo (caderno teste AAA/BBB/CCC).
    */
-  const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501", "2026082801"]);
+  const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
+    "2026122501",
+    "2026082801",
+    "2025010101",
+    "2025010102",
+    "2025010103",
+    "2026010101",
+    "2026010102",
+    "2026010104",
+  ]);
+  const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
+    "AAA0A00",
+    "AAA0A01",
+    "AAA0A02",
+    "BBB0B00",
+    "CCC0C00",
+  ]);
   const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({
     "2026122501": "2025122201",
     "2026082801": "2026011601",
@@ -139,12 +156,17 @@
       .replace(/[^A-Z0-9]/g, "");
   }
 
-  /** Seed LOC0A99 / sem CPF — nunca no oficial (localStorage, pull ou push). */
+  /** Seed LOC0A99 / sem CPF / placas demo AAA·BBB·CCC — nunca no oficial. */
   function isLocacaoFantasmaCadastro(record) {
     if (!record || typeof record !== "object") return true;
     const placa = normalizePlateLocal(record.placa);
     const cpf = cpfDigits(record).slice(0, 11);
     if (/^LOC\d/i.test(placa) || /^TST\d/i.test(placa)) return true;
+    if (OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa) || /^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) {
+      return true;
+    }
+    if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpf)) return true;
+    if (/^TESTE[- ]?\d/i.test(String(record.nome || "").trim())) return true;
     if (record.__dkSeedTesteReserva === true) return true;
     if (cpf.length !== 11) {
       const nome = String(record.nome || "").trim();
@@ -161,6 +183,14 @@
       typeof record === "object" &&
       cadastroKeyFamily(key) === "cliente" &&
       OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfDigits(record))
+    ) {
+      return false;
+    }
+    if (
+      record &&
+      typeof record === "object" &&
+      cadastroKeyFamily(key) === "veiculo" &&
+      OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(normalizePlateLocal(record.placa))
     ) {
       return false;
     }

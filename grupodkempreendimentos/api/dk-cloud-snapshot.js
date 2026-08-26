@@ -120,9 +120,40 @@ function locacaoNcSetFromPayload(payload) {
   return set;
 }
 
-const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003"]);
+const OFICIAL_CLIENTES_CPF_EXCLUIDOS = new Set(["00000000001", "00000000003", "00000000004"]);
 /** Protocolos inválidos (prefixo ≠ data início / duplicata). */
-const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set(["2026122501", "2026082801"]);
+const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
+  "2026122501",
+  "2026082801",
+  /* Seeds da demo (caderno teste / AAA·BBB·CCC) — nunca no oficial. */
+  "2025010101",
+  "2025010102",
+  "2025010103",
+  "2026010101",
+  "2026010102",
+  "2026010104",
+]);
+/** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
+const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
+  "AAA0A00",
+  "AAA0A01",
+  "AAA0A02",
+  "BBB0B00",
+  "CCC0C00",
+]);
+
+function isLocacaoSeedDemoOficialProibida(r) {
+  if (!r || typeof r !== "object") return false;
+  const nc = locacaoNcKey(r);
+  if (nc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return true;
+  const placa = placaNormKey(r);
+  if (placa && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa)) return true;
+  if (/^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
+  const cpf = cpfDigitsKey(r);
+  if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpf)) return true;
+  if (/^TESTE[- ]?\d/i.test(String(r.nome || "").trim())) return true;
+  return false;
+}
 
 function cpfDigitsKey(record) {
   return String(record?.cpf || "").replace(/\D/g, "");
@@ -184,6 +215,9 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
       if (isLoc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(locacaoNcKey(r))) return false;
       /* Fantasmas (placa LOC/TST ou sem CPF) nunca passam — mesmo com origemPortal ou keepNc. */
       if (isLoc && isLocacaoFantasmaCadastro(r)) return false;
+      /* Seeds da demo (AAA/BBB/CCC, TESTE-*, protocolos 20250101xx / 202601010x). */
+      if (isLoc && isLocacaoSeedDemoOficialProibida(r)) return false;
+      if (isVei && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placaNormKey(r))) return false;
       if (r && typeof r === "object" && r.origemPlanilha === true) return false;
       if (r && typeof r === "object" && r.cadastroRetroativo === true) return true;
       if (r && typeof r === "object" && r.origemPortal === true) return true;
