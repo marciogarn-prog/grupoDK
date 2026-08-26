@@ -709,28 +709,66 @@
     return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
   }
 
+  function countOperacaoClientesCadastrados() {
+    const seen = new Set();
+    if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return 0;
+    try {
+      loadCadastro(CAD_CLIENTES_KEY).forEach((c) => {
+        const cpf =
+          typeof onlyDigits === "function" ? onlyDigits(String(c.cpf || "")) : String(c.cpf || "").replace(/\D/g, "");
+        if (cpf.length === 11) seen.add(cpf);
+      });
+    } catch {
+      /* ignore */
+    }
+    return seen.size;
+  }
+
+  function getOperacaoProximoClienteNumero() {
+    return countOperacaoClientesCadastrados() + 1;
+  }
+
+  function getOperacaoProximoClientePlaceholder() {
+    return `proximo cliente ${getOperacaoProximoClienteNumero()}`;
+  }
+
+  function refreshOperacaoClienteTotalCadastrados() {
+    const total = countOperacaoClientesCadastrados();
+    const el = document.getElementById("operacaoClienteTotalCadastrados");
+    if (el) {
+      el.textContent =
+        total === 1 ? "1 cliente cadastrado" : `${total} clientes cadastrados`;
+    }
+    return total;
+  }
+
   function refreshOperacaoClienteCodigoEditavel() {
     if (typeof window.__DK_unlockClienteCodigoAdmin === "function") {
       window.__DK_unlockClienteCodigoAdmin();
     }
     const codigo = document.getElementById("operacaoClienteCodigo");
     if (!codigo) return;
+    refreshOperacaoClienteTotalCadastrados();
+    const proximoPh = getOperacaoProximoClientePlaceholder();
     const podeEditar = portalAdminPodeEditarCodigoCliente();
     if (podeEditar) {
       codigo.readOnly = false;
       codigo.disabled = false;
       codigo.removeAttribute("readonly");
-      codigo.placeholder = "Ex.: CLIENTE 42";
+      codigo.placeholder = proximoPh;
       codigo.classList.remove("portal-input-immutable");
       codigo.setAttribute("aria-readonly", "false");
     } else {
       codigo.readOnly = true;
       codigo.setAttribute("readonly", "");
-      codigo.placeholder = "Automático";
+      codigo.placeholder = proximoPh;
       codigo.classList.add("portal-input-immutable");
       codigo.setAttribute("aria-readonly", "true");
     }
   }
+
+  window.__DK_proximoClientePlaceholder = getOperacaoProximoClientePlaceholder;
+  window.__DK_refreshOperacaoClienteTotalCadastrados = refreshOperacaoClienteTotalCadastrados;
 
   function portalResolveClienteCodigoFromForm(fallback) {
     const codigoForm = String(document.getElementById("operacaoClienteCodigo")?.value || "").trim();
@@ -8578,6 +8616,7 @@
       portalPushCloudSnapshotAfterPersist();
       if (msg) msg.textContent = "Dados do cliente guardados com sucesso.";
       portalApplyAmbienteVisualForm("Cliente", payloadPortal);
+      refreshOperacaoClienteCodigoEditavel();
       return true;
     }
 
@@ -8971,6 +9010,7 @@
       portalApplyAmbienteVisualForm("Cliente", novo);
       portalRefreshOperacaoClienteSenhaField(digits, novo);
       refreshOperacaoClienteApagarBtn(digits);
+      refreshOperacaoClienteCodigoEditavel();
       const modalRel = document.getElementById("portalRelatorioModal");
       const resumoEl = document.getElementById("portalRelatorioResumo");
       if (
@@ -9119,6 +9159,7 @@
       });
       portalResetAmbienteForm("Cliente");
       refreshOperacaoClienteApagarBtn("");
+      refreshOperacaoClienteCodigoEditavel();
       if (msg) {
         msg.textContent =
           nLoc > 0
