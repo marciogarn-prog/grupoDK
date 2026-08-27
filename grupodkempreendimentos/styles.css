@@ -7779,6 +7779,37 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
+.portal-lanc-comentario-pagamento {
+  display: block;
+  width: 100%;
+  margin: 0.35rem 0 0.15rem;
+}
+
+.portal-lanc-comentario-pagamento textarea {
+  width: 100%;
+  min-height: 3.2rem;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.35;
+}
+
+.portal-lanc-hist__valor--comentario {
+  cursor: help;
+  text-decoration: underline dotted rgba(255, 255, 255, 0.35);
+  text-underline-offset: 2px;
+}
+
+.portal-lanc-hist__comentario {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.25;
+  max-width: 14rem;
+  white-space: normal;
+}
+
 @media (min-width: 720px) {
   .portal-lanc-aluguel-pagamento.portal-lanc-aluguel-pagamento--simples .portal-lanc-aluguel-pagamento-simples__grid {
     grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1fr) minmax(14rem, 1.2fr);
