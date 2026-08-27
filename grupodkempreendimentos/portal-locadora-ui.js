@@ -15983,12 +15983,73 @@
       if (devidoLbl) devidoLbl.textContent = "TOTAL DEVIDO ATÉ HOJE";
       if (devidoEl) devidoEl.textContent = zero;
       if (pagoEl) pagoEl.textContent = zero;
+      refreshOperacaoLancAluguelSugestaoDevolucao(null);
       return;
     }
     const resumo = computePortalProtocoloResumoFromLoc(target);
     if (devidoLbl) devidoLbl.textContent = resumo.devidoAteLabel || "TOTAL DEVIDO ATÉ HOJE";
     if (devidoEl) devidoEl.textContent = resumo.valorDevidoAteHoje || zero;
     if (pagoEl) pagoEl.textContent = resumo.totalPago || zero;
+    refreshOperacaoLancAluguelSugestaoDevolucao(target);
+  }
+
+  /**
+   * Saldo sugestão devolução = total pago − devido só de aluguel (início→hoje ou →fim).
+   * Positivo = a devolver; negativo = cliente não cobre nem o aluguel.
+   */
+  function computePortalSaldoDevolucaoInvestimento(loc) {
+    if (!loc || typeof loc !== "object" || isPortalLocacaoCancelada(loc)) {
+      return { saldo: 0, devidoAluguel: 0, totalPago: 0, negativo: false };
+    }
+    const valLoc = portalValorAluguelNumFromLoc(loc);
+    const dias = computePortalDiasAteHoje(loc);
+    const devidoAluguel = dias * (Number(valLoc) / 7);
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
+    const totalPago = sumPortalLancamentosAluguelTotal(lancs);
+    const saldo = Number(totalPago) - Number(devidoAluguel);
+    return {
+      saldo: Number.isFinite(saldo) ? saldo : 0,
+      devidoAluguel: Number.isFinite(devidoAluguel) ? devidoAluguel : 0,
+      totalPago: Number.isFinite(totalPago) ? totalPago : 0,
+      negativo: Number.isFinite(saldo) && saldo < -0.009,
+    };
+  }
+
+  function formatPortalSaldoDevolucaoBrl(n) {
+    const v = Number(n) || 0;
+    const absFmt = formatPortalLancamentoSumBrl(Math.abs(v));
+    if (v < -0.009) return `−${absFmt}`;
+    return absFmt;
+  }
+
+  function refreshOperacaoLancAluguelSugestaoDevolucao(loc) {
+    const valDevEl = document.getElementById("operacaoLancAluguelValorDevolucao");
+    const aviso = document.getElementById("operacaoLancAluguelDevolucaoAvisoNegativo");
+    const col = document.querySelector(".portal-lanc-dual-col--devolucao");
+    const target = loc && typeof loc === "object" ? loc : resolveLocOperacaoLancAluguelAtual();
+    if (!target) {
+      if (valDevEl) {
+        valDevEl.value = "";
+        valDevEl.classList.remove("portal-lanc-devolucao-valor--negativo");
+      }
+      if (aviso) {
+        aviso.classList.add("hidden");
+        aviso.setAttribute("hidden", "");
+      }
+      if (col) col.classList.remove("portal-lanc-dual-col--devolucao-negativo");
+      return;
+    }
+    const info = computePortalSaldoDevolucaoInvestimento(target);
+    if (valDevEl) {
+      valDevEl.value = formatPortalSaldoDevolucaoBrl(info.saldo);
+      valDevEl.classList.toggle("portal-lanc-devolucao-valor--negativo", info.negativo);
+    }
+    if (aviso) {
+      aviso.classList.toggle("hidden", !info.negativo);
+      if (info.negativo) aviso.removeAttribute("hidden");
+      else aviso.setAttribute("hidden", "");
+    }
+    if (col) col.classList.toggle("portal-lanc-dual-col--devolucao-negativo", info.negativo);
   }
 
   function portalValorPlanoPagamentoSugeridoFmt(loc) {
@@ -16014,17 +16075,16 @@
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const comEl = document.getElementById("operacaoLancAluguelComentarioPagamento");
     const dataDevEl = document.getElementById("operacaoLancAluguelDataDevolucao");
-    const valDevEl = document.getElementById("operacaoLancAluguelValorDevolucao");
     const comDevEl = document.getElementById("operacaoLancAluguelComentarioDevolucao");
     const hoje = formatPortalDataBr(new Date());
     if (dataEl) dataEl.value = hoje;
     if (dataDevEl) dataDevEl.value = hoje;
     if (comEl) comEl.value = "";
     if (comDevEl) comDevEl.value = "";
-    if (valDevEl) valDevEl.value = "";
     const loc = resolveLocOperacaoLancAluguelAtual();
     const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
     if (valSimples && valPlano) valSimples.value = valPlano;
+    refreshOperacaoLancAluguelSugestaoDevolucao(loc);
     if (typeof normalizePortalMaskedFieldValues === "function") normalizePortalMaskedFieldValues();
   }
 
@@ -19326,14 +19386,35 @@
             const n = Number(cleaned);
             return Number.isFinite(n) ? n : 0;
           };
-    const valorAbs = Number(parseVal(String(inpValor?.value || "")));
+    const rawValor = String(inpValor?.value || "").trim();
+    const negativoVisivel =
+      rawValor.includes("−") ||
+      rawValor.startsWith("-") ||
+      inpValor?.classList.contains("portal-lanc-devolucao-valor--negativo");
+    const valorAbs = Math.abs(
+      Number(
+        parseVal(
+          rawValor
+            .replace(/−/g, "-")
+            .replace(/[^\d,.\-]/g, "")
+            .replace(/-(?=.*-)/g, "")
+        )
+      )
+    );
     const dataStr = String(inpData?.value || "").trim();
     if (digits.length !== 11 || !proto) {
       if (msg) msg.textContent = "Informe CPF e protocolo com locação.";
       return;
     }
+    if (negativoVisivel) {
+      if (msg) {
+        msg.textContent =
+          "Cliente negativo — bloquear moto. Não é possível registar devolução enquanto o saldo for negativo.";
+      }
+      return;
+    }
     if (!Number.isFinite(valorAbs) || valorAbs <= 0) {
-      if (msg) msg.textContent = "Informe o valor da devolução.";
+      if (msg) msg.textContent = "Informe o valor da devolução (saldo positivo a devolver).";
       return;
     }
     const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;

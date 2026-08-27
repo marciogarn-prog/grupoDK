@@ -7955,6 +7955,11 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   border-color: rgba(255, 180, 80, 0.28);
 }
 
+.portal-lanc-dual-col--devolucao-negativo {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: rgba(80, 16, 16, 0.28);
+}
+
 .portal-lanc-aluguel-section__title--devolucao {
   color: #ffb84d;
 }
@@ -7962,6 +7967,29 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 .portal-lanc-devolucao-hint {
   margin: -0.15rem 0 0.45rem;
   font-size: 0.72rem;
+}
+
+.portal-lanc-devolucao-aviso-negativo {
+  margin: 0 0 0.55rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 6px;
+  border: 1px solid rgba(248, 113, 113, 0.65);
+  background: rgba(185, 28, 28, 0.35);
+  color: #fecaca;
+  font-weight: 700;
+  font-size: 0.86rem;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.portal-lanc-devolucao-aviso-negativo.hidden {
+  display: none;
+}
+
+#operacaoLancAluguelValorDevolucao.portal-lanc-devolucao-valor--negativo {
+  color: #f87171;
+  font-weight: 700;
+  border-color: rgba(248, 113, 113, 0.7);
 }
 
 .portal-lanc-dual-col__grid {
