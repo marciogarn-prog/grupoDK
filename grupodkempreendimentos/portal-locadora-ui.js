@@ -19453,8 +19453,8 @@
       if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
       refreshOperacaoLancAluguelResumoCompacto();
       refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
+      renderOperacaoLancAluguelHistorico();
       if (inpComentario) inpComentario.value = "";
-      if (inpValor) inpValor.value = "";
       if (msg) msg.textContent = "Devolução de investimento registada. Totais atualizados.";
     });
   });

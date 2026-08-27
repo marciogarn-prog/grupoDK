@@ -2503,8 +2503,16 @@ function invalidateCadastroParseCache(key) {
  */
 function mergePortalLancamentosAluguelEmbutidos(arrays) {
   const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+  const TIPO_DEV = "DEVOLUCAO_INVESTIMENTO";
   const rawHasMeios = (o) =>
     o && typeof o === "object" && MEIOS.some((k) => Object.prototype.hasOwnProperty.call(o, k));
+  const ehDevolucaoRaw = (o) => {
+    if (!o || typeof o !== "object") return false;
+    const t = String(o.tipoMovimento || "").trim().toUpperCase();
+    if (t === TIPO_DEV) return true;
+    if (!rawHasMeios(o) && Number(o.valor) < 0) return true;
+    return false;
+  };
   const dig = (s) => onlyDigits(String(s || ""));
   const byKey = new Map();
 
@@ -2512,10 +2520,22 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     if (!raw || typeof raw !== "object") return null;
     const data = String(raw.data || "").trim();
     if (!data) return null;
-    let valor =
-      typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
-        ? raw.valor
-        : parseCurrencyBR(raw.valor ?? raw.valorPago ?? "");
+    const ehDev = ehDevolucaoRaw(raw);
+    let valor;
+    if (ehDev) {
+      valor =
+        typeof raw.valor === "number" && Number.isFinite(raw.valor)
+          ? raw.valor
+          : parseCurrencyBR(raw.valor ?? raw.valorPago ?? "");
+      const abs = Math.abs(Number(valor));
+      if (!Number.isFinite(abs) || abs <= 0) return null;
+      valor = -abs;
+    } else {
+      valor =
+        typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
+          ? raw.valor
+          : parseCurrencyBR(raw.valor ?? raw.valorPago ?? "");
+    }
     const ca = Number(raw.createdAt || raw.id || 0);
     const rp = dig(String(raw.registradoPorCpf || "")).slice(0, 11);
     const row = {
@@ -2529,7 +2549,9 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       comprovanteFp: String(raw.comprovanteFp || "").trim(),
       confirmadoViaAppCliente: Boolean(raw.confirmadoViaAppCliente),
     };
-    if (rawHasMeios(raw)) {
+    if (ehDev) {
+      row.tipoMovimento = TIPO_DEV;
+    } else if (rawHasMeios(raw)) {
       const ve = Number(parseCurrencyBR(raw.valorEspecie ?? 0));
       const vp = Number(parseCurrencyBR(raw.valorPix ?? 0));
       const vc = Number(parseCurrencyBR(raw.valorCartao ?? 0));
@@ -2539,8 +2561,12 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       const sum = row.valorEspecie + row.valorPix + row.valorCartao;
       if (sum > 0) row.valor = sum;
     }
-    if (!Number.isFinite(row.valor) || row.valor <= 0) return null;
-    const key = `${row.data}|${row.valor}|${ca}|${rp}`;
+    if (!Number.isFinite(row.valor) || (!ehDev && row.valor <= 0)) return null;
+    if (ehDev && row.valor >= 0) return null;
+    const coment = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
+    if (coment) row.comentarioPagamento = coment;
+    if (raw.ficticio) row.ficticio = true;
+    const key = `${row.data}|${row.valor}|${ca}|${rp}|${ehDev ? "DEV" : "PAG"}`;
     return { key, row };
   }
 
