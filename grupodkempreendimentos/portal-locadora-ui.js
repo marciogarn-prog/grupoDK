@@ -15439,7 +15439,11 @@
     return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
   }
 
-  /** Rótulo do total devido conforme situação do contrato (ativo → hoje; com fim → data fim). */
+  /**
+   * Rótulo do total devido:
+   * - ativo → até hoje (plano com investimento);
+   * - com data fim → até a data fim, só aluguel (investimento devolvido).
+   */
   function portalDevidoAteReferenciaFromLoc(loc) {
     if (!loc || isPortalLocacaoCancelada(loc)) {
       return { label: "TOTAL DEVIDO ATÉ HOJE", ateDataFim: false, dataFimBr: "" };
@@ -15447,7 +15451,7 @@
     if (portalLocacaoTemDataFim(loc)) {
       const fimBr = String(loc.fim || "").trim();
       return {
-        label: fimBr ? `TOTAL DEVIDO ATÉ ${fimBr}` : "TOTAL DEVIDO ATÉ A DATA FIM",
+        label: fimBr ? `TOTAL DEVIDO (ALUGUEL) ATÉ ${fimBr}` : "TOTAL DEVIDO (ALUGUEL) ATÉ A DATA FIM",
         ateDataFim: true,
         dataFimBr: fimBr,
       };
@@ -15503,7 +15507,12 @@
     const custoDiaNum = plano / 7;
     const diasAteHoje = computePortalDiasAteHoje(loc);
     const valorDevidoPlanoNum = tempo * (plano / 7);
-    const valorDevidoAteHojeNum = diasAteHoje * (plano / 7);
+    const temDataFim = portalLocacaoTemDataFim(loc);
+    // Ativo: plano (aluguel+investimento) até hoje.
+    // Com data fim: só aluguel do início ao fim (investimento devolvido, não entra no devido).
+    const valorDevidoAteHojeNum = temDataFim
+      ? diasAteHoje * (valLoc / 7)
+      : diasAteHoje * (plano / 7);
     const valorDevidoAluguelNum = tempo * (valLoc / 7);
     const valorDevidoManutencaoNum = (() => {
       const arrManut = Array.isArray(loc?.portalManutencoesRegistro) ? loc.portalManutencoesRegistro : [];
