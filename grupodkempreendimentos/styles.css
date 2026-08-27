@@ -7779,10 +7779,77 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
+/* Lançamento avulso: formulários à esquerda, histórico à direita com scroll */
+.portal-lanc-avulso-workspace {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.85rem 1rem;
+  align-items: start;
+  width: 100%;
+}
+
+.portal-lanc-avulso-workspace__forms {
+  min-width: 0;
+}
+
+.portal-lanc-avulso-workspace__hist {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 42rem);
+  border: 1px solid rgba(120, 180, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(40, 70, 120, 0.12);
+  overflow: hidden;
+}
+
+.portal-lanc-avulso-workspace__hist .operacao-lanc-historico {
+  margin-top: 0;
+  padding: 0.65rem 0.75rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  max-height: inherit;
+}
+
+.portal-lanc-avulso-workspace__hist .operacao-lanc-historico.hidden {
+  display: none;
+}
+
+.portal-lanc-avulso-workspace__hist .portal-lanc-hist {
+  font-size: 0.82rem;
+}
+
+.portal-lanc-avulso-workspace__hist .portal-lanc-hist th,
+.portal-lanc-avulso-workspace__hist .portal-lanc-hist td {
+  padding: 0.3rem 0.4rem;
+  white-space: nowrap;
+}
+
+.portal-lanc-avulso-workspace__hist .portal-lanc-hist__actions .btn-primary {
+  font-size: 0.78rem;
+  padding: 0.28rem 0.5rem;
+}
+
+@media (min-width: 1100px) {
+  .portal-lanc-avulso-workspace {
+    grid-template-columns: minmax(18rem, 0.95fr) minmax(20rem, 1.15fr);
+  }
+
+  .portal-lanc-avulso-workspace__hist {
+    position: sticky;
+    top: 0.35rem;
+    align-self: stretch;
+    max-height: min(78vh, 48rem);
+  }
+}
+
 .portal-lanc-dual-cols {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 1rem 1.25rem;
+  gap: 0.75rem;
   width: 100%;
   margin-bottom: 0.75rem;
 }
@@ -7835,13 +7902,6 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #ffb84d;
   font-weight: 600;
   font-size: 0.78rem;
-}
-
-@media (min-width: 900px) {
-  .portal-lanc-dual-cols {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
 }
 
 @media (max-width: 520px) {

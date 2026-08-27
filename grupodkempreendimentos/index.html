@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260826devolucao-investimento">
+  <link rel="stylesheet" href="styles.css?v=20260826lanc-layout-lr">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -1165,121 +1165,127 @@
           </div>
 
           <div id="operacaoLancAluguelPaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento avulso pelo operador">
-            <section id="operacaoLancAluguelResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" aria-live="polite">
-              <p id="operacaoLancAluguelResumoTexto" class="portal-lanc-aluguel-resumo-compact__text"></p>
-            </section>
-            <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
-            <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento portal-lanc-aluguel-pagamento--simples hidden" aria-label="Registro de pagamento e devolução de investimento" hidden>
-              <div class="portal-lanc-dual-cols">
-                <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento">
-                  <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
-                  <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
-                    <label class="portal-field">
-                      <span>DATA DO PAGAMENTO</span>
-                      <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
-                    </label>
-                    <label class="portal-field">
-                      <span>VALOR (R$)</span>
-                      <input type="text" id="operacaoLancAluguelValorSimples" name="valorSimples" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento">
-                    </label>
+            <div class="portal-lanc-avulso-workspace">
+              <div class="portal-lanc-avulso-workspace__forms">
+                <section id="operacaoLancAluguelResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" aria-live="polite">
+                  <p id="operacaoLancAluguelResumoTexto" class="portal-lanc-aluguel-resumo-compact__text"></p>
+                </section>
+                <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
+                <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento portal-lanc-aluguel-pagamento--simples hidden" aria-label="Registro de pagamento e devolução de investimento" hidden>
+                  <div class="portal-lanc-dual-cols">
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento">
+                      <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
+                      <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
+                        <label class="portal-field">
+                          <span>DATA DO PAGAMENTO</span>
+                          <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
+                        </label>
+                        <label class="portal-field">
+                          <span>VALOR (R$)</span>
+                          <input type="text" id="operacaoLancAluguelValorSimples" name="valorSimples" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento">
+                        </label>
+                      </div>
+                      <label class="portal-field portal-lanc-comentario-pagamento">
+                        <span>COMENTÁRIO (opcional)</span>
+                        <textarea
+                          id="operacaoLancAluguelComentarioPagamento"
+                          name="comentarioPagamento"
+                          rows="2"
+                          maxlength="500"
+                          placeholder="Observação sobre este pagamento…"
+                          aria-label="Comentário do pagamento"
+                        ></textarea>
+                      </label>
+                      <div class="portal-lanc-dual-col__actions">
+                        <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
+                      </div>
+                    </div>
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao">
+                      <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
+                      <p class="subtext portal-lanc-devolucao-hint">Valor registado como saída do caixa (negativo no total pago).</p>
+                      <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
+                        <label class="portal-field">
+                          <span>DATA DA DEVOLUÇÃO</span>
+                          <input type="text" id="operacaoLancAluguelDataDevolucao" name="dataDevolucao" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DEVOLUÇÃO">
+                        </label>
+                        <label class="portal-field">
+                          <span>VALOR DEVOLVIDO (R$)</span>
+                          <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da devolução de investimento">
+                        </label>
+                      </div>
+                      <label class="portal-field portal-lanc-comentario-pagamento">
+                        <span>COMENTÁRIO (opcional)</span>
+                        <textarea
+                          id="operacaoLancAluguelComentarioDevolucao"
+                          name="comentarioDevolucao"
+                          rows="2"
+                          maxlength="500"
+                          placeholder="Observação sobre esta devolução…"
+                          aria-label="Comentário da devolução"
+                        ></textarea>
+                      </label>
+                      <div class="portal-lanc-dual-col__actions">
+                        <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelConfirmarDevolucaoBtn">Confirmar devolução</button>
+                      </div>
+                    </div>
                   </div>
-                  <label class="portal-field portal-lanc-comentario-pagamento">
-                    <span>COMENTÁRIO (opcional)</span>
-                    <textarea
-                      id="operacaoLancAluguelComentarioPagamento"
-                      name="comentarioPagamento"
-                      rows="2"
-                      maxlength="500"
-                      placeholder="Observação sobre este pagamento…"
-                      aria-label="Comentário do pagamento"
-                    ></textarea>
-                  </label>
-                  <div class="portal-lanc-dual-col__actions">
-                    <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
+                  <div class="portal-lanc-aluguel-pagamento-saldos portal-lanc-aluguel-pagamento-saldos--dual" aria-live="polite">
+                    <div class="portal-lanc-aluguel-pagamento-saldo">
+                      <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL DEVIDO ATÉ HOJE</span>
+                      <strong id="operacaoLancAluguelTotalDevidoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor">R$ 0,00</strong>
+                    </div>
+                    <div class="portal-lanc-aluguel-pagamento-saldo">
+                      <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL PAGO ATÉ HOJE</span>
+                      <strong id="operacaoLancAluguelTotalPagoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--pago">R$ 0,00</strong>
+                    </div>
+                  </div>
+                  <div class="operacao-inline-form__actions">
+                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLancBlocoBtn">Lançamento em bloco</button>
+                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
+                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar à pesquisa</button>
+                  </div>
+                  <!-- Campos legados (compatibilidade interna) -->
+                  <div class="hidden" aria-hidden="true">
+                    <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" tabindex="-1">
+                    <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" tabindex="-1">
+                    <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" tabindex="-1">
+                    <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" tabindex="-1">
+                  </div>
+                </section>
+              </form>
+              <section id="operacaoLancAluguelSituacaoPanel" class="portal-lanc-situacao hidden" aria-live="polite" hidden>
+                <h4 class="portal-lanc-aluguel-section__title">Situação do protocolo após o pagamento</h4>
+                <div class="portal-lanc-situacao__grid">
+                  <div class="portal-lanc-situacao__item">
+                    <span class="portal-lanc-situacao__label">VALOR DEVIDO DO PLANO</span>
+                    <strong id="operacaoLancAluguelSitDevidoPlano" class="portal-lanc-situacao__valor">R$ 0,00</strong>
+                  </div>
+                  <div class="portal-lanc-situacao__item">
+                    <span class="portal-lanc-situacao__label">TOTAL PAGO</span>
+                    <strong id="operacaoLancAluguelSitTotalPago" class="portal-lanc-situacao__valor portal-lanc-situacao__valor--pago">R$ 0,00</strong>
+                  </div>
+                  <div class="portal-lanc-situacao__item">
+                    <span class="portal-lanc-situacao__label">VALOR DEVIDO DO ALUGUEL</span>
+                    <strong id="operacaoLancAluguelSitDevidoAluguel" class="portal-lanc-situacao__valor">R$ 0,00</strong>
+                  </div>
+                  <div class="portal-lanc-situacao__item">
+                    <span class="portal-lanc-situacao__label">INVESTIMENTO ACUMULADO</span>
+                    <strong id="operacaoLancAluguelSitInvestAcumulado" class="portal-lanc-situacao__valor">R$ 0,00</strong>
+                  </div>
+                  <div class="portal-lanc-situacao__item portal-lanc-situacao__item--wide">
+                    <span id="operacaoLancAluguelSitTotalPagoAnoLabel" class="portal-lanc-situacao__label">TOTAL PAGO NO ANO DE 2026</span>
+                    <strong id="operacaoLancAluguelSitTotalPagoAno" class="portal-lanc-situacao__valor">R$ 0,00</strong>
                   </div>
                 </div>
-                <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao">
-                  <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
-                  <p class="subtext portal-lanc-devolucao-hint">Valor registado como saída do caixa (negativo no total pago).</p>
-                  <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
-                    <label class="portal-field">
-                      <span>DATA DA DEVOLUÇÃO</span>
-                      <input type="text" id="operacaoLancAluguelDataDevolucao" name="dataDevolucao" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DEVOLUÇÃO">
-                    </label>
-                    <label class="portal-field">
-                      <span>VALOR DEVOLVIDO (R$)</span>
-                      <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da devolução de investimento">
-                    </label>
-                  </div>
-                  <label class="portal-field portal-lanc-comentario-pagamento">
-                    <span>COMENTÁRIO (opcional)</span>
-                    <textarea
-                      id="operacaoLancAluguelComentarioDevolucao"
-                      name="comentarioDevolucao"
-                      rows="2"
-                      maxlength="500"
-                      placeholder="Observação sobre esta devolução…"
-                      aria-label="Comentário da devolução"
-                    ></textarea>
-                  </label>
-                  <div class="portal-lanc-dual-col__actions">
-                    <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelConfirmarDevolucaoBtn">Confirmar devolução</button>
-                  </div>
-                </div>
+              </section>
+              <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note" hidden>
+                Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela ao lado.
+              </p>
               </div>
-              <div class="portal-lanc-aluguel-pagamento-saldos portal-lanc-aluguel-pagamento-saldos--dual" aria-live="polite">
-                <div class="portal-lanc-aluguel-pagamento-saldo">
-                  <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL DEVIDO ATÉ HOJE</span>
-                  <strong id="operacaoLancAluguelTotalDevidoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor">R$ 0,00</strong>
-                </div>
-                <div class="portal-lanc-aluguel-pagamento-saldo">
-                  <span class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL PAGO ATÉ HOJE</span>
-                  <strong id="operacaoLancAluguelTotalPagoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--pago">R$ 0,00</strong>
-                </div>
-              </div>
-              <div class="operacao-inline-form__actions">
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLancBlocoBtn">Lançamento em bloco</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
-                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar à pesquisa</button>
-              </div>
-              <!-- Campos legados (compatibilidade interna) -->
-              <div class="hidden" aria-hidden="true">
-                <input type="text" id="operacaoLancAluguelValorPago" name="valorPago" tabindex="-1">
-                <input type="text" id="operacaoLancAluguelValorEspecie" name="valorEspecie" tabindex="-1">
-                <input type="text" id="operacaoLancAluguelValorPix" name="valorPix" tabindex="-1">
-                <input type="text" id="operacaoLancAluguelValorCartao" name="valorCartao" tabindex="-1">
-              </div>
-            </section>
-          </form>
-          <section id="operacaoLancAluguelSituacaoPanel" class="portal-lanc-situacao hidden" aria-live="polite" hidden>
-            <h4 class="portal-lanc-aluguel-section__title">Situação do protocolo após o pagamento</h4>
-            <div class="portal-lanc-situacao__grid">
-              <div class="portal-lanc-situacao__item">
-                <span class="portal-lanc-situacao__label">VALOR DEVIDO DO PLANO</span>
-                <strong id="operacaoLancAluguelSitDevidoPlano" class="portal-lanc-situacao__valor">R$ 0,00</strong>
-              </div>
-              <div class="portal-lanc-situacao__item">
-                <span class="portal-lanc-situacao__label">TOTAL PAGO</span>
-                <strong id="operacaoLancAluguelSitTotalPago" class="portal-lanc-situacao__valor portal-lanc-situacao__valor--pago">R$ 0,00</strong>
-              </div>
-              <div class="portal-lanc-situacao__item">
-                <span class="portal-lanc-situacao__label">VALOR DEVIDO DO ALUGUEL</span>
-                <strong id="operacaoLancAluguelSitDevidoAluguel" class="portal-lanc-situacao__valor">R$ 0,00</strong>
-              </div>
-              <div class="portal-lanc-situacao__item">
-                <span class="portal-lanc-situacao__label">INVESTIMENTO ACUMULADO</span>
-                <strong id="operacaoLancAluguelSitInvestAcumulado" class="portal-lanc-situacao__valor">R$ 0,00</strong>
-              </div>
-              <div class="portal-lanc-situacao__item portal-lanc-situacao__item--wide">
-                <span id="operacaoLancAluguelSitTotalPagoAnoLabel" class="portal-lanc-situacao__label">TOTAL PAGO NO ANO DE 2026</span>
-                <strong id="operacaoLancAluguelSitTotalPagoAno" class="portal-lanc-situacao__valor">R$ 0,00</strong>
-              </div>
+              <aside class="portal-lanc-avulso-workspace__hist" aria-label="Lançamentos registados">
+                <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos e devoluções do protocolo" hidden></div>
+              </aside>
             </div>
-          </section>
-          <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos e devoluções do protocolo" hidden></div>
-          <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note" hidden>
-            Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela abaixo.
-          </p>
           </div>
 
           <div id="operacaoLancAluguelPaneComprovante" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento com comprovante pelo operador">
