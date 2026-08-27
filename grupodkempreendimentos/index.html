@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260826lanc-layout-lr">
+  <link rel="stylesheet" href="styles.css?v=20260826lanc-campos-compactos">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -1028,13 +1028,13 @@
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-aluguel-pesquisa-title">
               <h4 id="portal-lanc-aluguel-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
               <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong>, <strong>protocolo</strong> ou <strong>placa</strong> — as sugestões aparecem enquanto escreve. Confirme para carregar o protocolo.</p>
-              <div class="operacao-inline-form__grid portal-lanc-aluguel-pesquisa__grid">
-                <label class="portal-field portal-field--wide">
+              <div class="portal-lanc-aluguel-pesquisa__row">
+                <label class="portal-field portal-lanc-field--nome">
                   <span>Nome do cliente</span>
-                  <input type="text" id="operacaoLancAluguelNomeBusca" name="nomeBusca" autocomplete="off" maxlength="120" placeholder="Nome completo ou parte do nome" aria-label="Nome do cliente" list="operacaoLancAluguelNomeSugestoes" aria-autocomplete="list">
+                  <input type="text" id="operacaoLancAluguelNomeBusca" name="nomeBusca" autocomplete="off" maxlength="120" size="28" placeholder="Nome do cliente" aria-label="Nome do cliente" list="operacaoLancAluguelNomeSugestoes" aria-autocomplete="list">
                   <datalist id="operacaoLancAluguelNomeSugestoes"></datalist>
                 </label>
-                <label class="portal-field portal-field--combobox">
+                <label class="portal-field portal-lanc-field--cpf">
                   <span>CPF</span>
                   <div class="portal-combobox">
                     <input
@@ -1043,6 +1043,7 @@
                       name="cpf"
                       inputmode="numeric"
                       maxlength="14"
+                      size="14"
                       autocomplete="off"
                       placeholder="000.000.000-00"
                       aria-label="CPF"
@@ -1060,7 +1061,7 @@
                   </div>
                   <datalist id="operacaoLancAluguelCpfSugestoes" hidden></datalist>
                 </label>
-                <label class="portal-field portal-field--combobox">
+                <label class="portal-field portal-lanc-field--protocolo">
                   <span>Nº do protocolo</span>
                   <div class="portal-combobox">
                     <input
@@ -1068,8 +1069,9 @@
                       id="operacaoLancAluguelProtocoloBusca"
                       name="protocoloBusca"
                       autocomplete="off"
-                      maxlength="40"
-                      placeholder="Ex.: 2026010101"
+                      maxlength="12"
+                      size="12"
+                      placeholder="2026010101"
                       aria-label="Número do protocolo"
                       aria-autocomplete="list"
                       aria-expanded="false"
@@ -1085,17 +1087,17 @@
                   </div>
                   <datalist id="operacaoLancAluguelProtocoloSugestoes" hidden></datalist>
                 </label>
-                <label class="portal-field">
-                  <span>Placa do veículo</span>
-                  <input type="text" id="operacaoLancAluguelPlacaBusca" name="placaBusca" autocomplete="off" maxlength="8" placeholder="Ex.: ABC1D23" aria-label="Placa do veículo" list="operacaoLancAluguelPlacaSugestoes" aria-autocomplete="list" autocapitalize="characters">
+                <label class="portal-field portal-lanc-field--placa">
+                  <span>Placa</span>
+                  <input type="text" id="operacaoLancAluguelPlacaBusca" name="placaBusca" autocomplete="off" maxlength="7" size="7" placeholder="ABC1D23" aria-label="Placa do veículo" list="operacaoLancAluguelPlacaSugestoes" aria-autocomplete="list" autocapitalize="characters">
                   <datalist id="operacaoLancAluguelPlacaSugestoes"></datalist>
                 </label>
-                <div id="operacaoLancAluguelPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões filtradas de contrato" hidden></div>
                 <div class="operacao-inline-form__actions portal-lanc-aluguel-pesquisa__actions">
                   <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPesquisaBtn">Confirmar pesquisa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparPesquisaBtn">Limpar dados</button>
                 </div>
               </div>
+              <div id="operacaoLancAluguelPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões filtradas de contrato" hidden></div>
             </section>
             <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
@@ -1176,13 +1178,13 @@
                     <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento">
                       <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
                       <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
-                        <label class="portal-field">
+                        <label class="portal-field portal-lanc-field--data">
                           <span>DATA DO PAGAMENTO</span>
-                          <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
+                          <input type="text" id="operacaoLancAluguelDataPagamento" name="dataPagamento" inputmode="numeric" maxlength="10" size="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO">
                         </label>
-                        <label class="portal-field">
+                        <label class="portal-field portal-lanc-field--valor">
                           <span>VALOR (R$)</span>
-                          <input type="text" id="operacaoLancAluguelValorSimples" name="valorSimples" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento">
+                          <input type="text" id="operacaoLancAluguelValorSimples" name="valorSimples" maxlength="16" size="12" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor do pagamento">
                         </label>
                       </div>
                       <label class="portal-field portal-lanc-comentario-pagamento">
@@ -1204,13 +1206,13 @@
                       <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
                       <p class="subtext portal-lanc-devolucao-hint">Valor registado como saída do caixa (negativo no total pago).</p>
                       <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
-                        <label class="portal-field">
+                        <label class="portal-field portal-lanc-field--data">
                           <span>DATA DA DEVOLUÇÃO</span>
-                          <input type="text" id="operacaoLancAluguelDataDevolucao" name="dataDevolucao" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DEVOLUÇÃO">
+                          <input type="text" id="operacaoLancAluguelDataDevolucao" name="dataDevolucao" inputmode="numeric" maxlength="10" size="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DEVOLUÇÃO">
                         </label>
-                        <label class="portal-field">
+                        <label class="portal-field portal-lanc-field--valor">
                           <span>VALOR DEVOLVIDO (R$)</span>
-                          <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="32" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da devolução de investimento">
+                          <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="16" size="12" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da devolução de investimento">
                         </label>
                       </div>
                       <label class="portal-field portal-lanc-comentario-pagamento">
