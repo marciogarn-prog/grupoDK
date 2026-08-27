@@ -2222,12 +2222,19 @@
   }
 
   function diasContratoAteHoje(loc) {
+    if (typeof window.__DK_computePortalDiasAteHoje === "function") {
+      return window.__DK_computePortalDiasAteHoje(loc);
+    }
     const inicio = locInicio(loc);
     if (!inicio) return 0;
-    const now = new Date();
-    let end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const fim = parseLocCampoData(loc, ["fim", "dataFim", "termino"]);
-    if (fim && fim.getTime() < end.getTime()) end = fim;
+    let end;
+    if (fim) {
+      end = fim;
+    } else {
+      const now = new Date();
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
     if (end.getTime() < inicio.getTime()) return 0;
     return Math.max(0, daysBetween(inicio, end));
   }

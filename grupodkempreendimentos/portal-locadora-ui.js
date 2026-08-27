@@ -15419,25 +15419,40 @@
     return Math.max(0, Math.round(diffMs / (24 * 60 * 60 * 1000)));
   }
 
-  /** Dias do início do contrato até hoje (se já encerrado, até a data fim). */
+  /** Dias do início do contrato até hoje (ativo) ou até a data fim (contrato encerrado). */
   function computePortalDiasAteHoje(loc) {
     if (isPortalLocacaoCancelada(loc)) return 0;
     const parseD = typeof parseBrDate === "function" ? parseBrDate : () => null;
     const inicio = parseD(String(loc?.inicio || "").trim());
     if (!inicio || Number.isNaN(inicio.getTime())) return 0;
     const start = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate());
-    const now = new Date();
-    let end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const rawFim = String(loc?.fim || "").trim();
-    if (rawFim) {
-      const fim = parseD(rawFim);
-      if (fim && !Number.isNaN(fim.getTime())) {
-        const tFim = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
-        if (tFim.getTime() < end.getTime()) end = tFim;
-      }
+    let end;
+    if (portalLocacaoTemDataFim(loc)) {
+      const fim = parseD(String(loc?.fim || "").trim());
+      if (!fim || Number.isNaN(fim.getTime())) return 0;
+      end = new Date(fim.getFullYear(), fim.getMonth(), fim.getDate());
+    } else {
+      const now = new Date();
+      end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     }
     if (end.getTime() < start.getTime()) return 0;
     return Math.max(0, Math.round((end.getTime() - start.getTime()) / 86400000));
+  }
+
+  /** Rótulo do total devido conforme situação do contrato (ativo → hoje; com fim → data fim). */
+  function portalDevidoAteReferenciaFromLoc(loc) {
+    if (!loc || isPortalLocacaoCancelada(loc)) {
+      return { label: "TOTAL DEVIDO ATÉ HOJE", ateDataFim: false, dataFimBr: "" };
+    }
+    if (portalLocacaoTemDataFim(loc)) {
+      const fimBr = String(loc.fim || "").trim();
+      return {
+        label: fimBr ? `TOTAL DEVIDO ATÉ ${fimBr}` : "TOTAL DEVIDO ATÉ A DATA FIM",
+        ateDataFim: true,
+        dataFimBr: fimBr,
+      };
+    }
+    return { label: "TOTAL DEVIDO ATÉ HOJE", ateDataFim: false, dataFimBr: "" };
   }
 
   /** Investimento acumulado = total pago − (devido aluguel + devido multas + devido manutenção). */
@@ -15525,6 +15540,7 @@
     const tipoPlanoStr =
       String(loc?.plano || loc?.opcaoContrato || "").trim() ||
       (valInv > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE");
+    const devidoRef = portalDevidoAteReferenciaFromLoc(loc);
     const fmtBrl = (n) =>
       typeof currencyBRL === "function"
         ? currencyBRL(n)
@@ -15536,6 +15552,9 @@
       valorPlano: fmtBrl(plano),
       valorDevidoPlano: fmtBrl(valorDevidoPlanoNum),
       valorDevidoAteHoje: fmtBrl(valorDevidoAteHojeNum),
+      devidoAteLabel: devidoRef.label,
+      devidoAteDataFim: devidoRef.ateDataFim,
+      devidoAteDataFimBr: devidoRef.dataFimBr,
       totalPago: fmtBrl(totalPagoNum),
       tipoPlano: tipoPlanoStr,
       valorDevidoAluguel: fmtBrl(valorDevidoAluguelNum),
@@ -15946,16 +15965,19 @@
 
   function refreshOperacaoLancAluguelSaldosHoje(loc) {
     const devidoEl = document.getElementById("operacaoLancAluguelTotalDevidoHoje");
+    const devidoLbl = document.getElementById("operacaoLancAluguelTotalDevidoHojeLabel");
     const pagoEl = document.getElementById("operacaoLancAluguelTotalPagoHoje");
     if (!devidoEl && !pagoEl) return;
     const target = loc && typeof loc === "object" ? loc : resolveLocOperacaoLancAluguelAtual();
     const zero = formatPortalLancamentoSumBrl(0);
     if (!target) {
+      if (devidoLbl) devidoLbl.textContent = "TOTAL DEVIDO ATÉ HOJE";
       if (devidoEl) devidoEl.textContent = zero;
       if (pagoEl) pagoEl.textContent = zero;
       return;
     }
     const resumo = computePortalProtocoloResumoFromLoc(target);
+    if (devidoLbl) devidoLbl.textContent = resumo.devidoAteLabel || "TOTAL DEVIDO ATÉ HOJE";
     if (devidoEl) devidoEl.textContent = resumo.valorDevidoAteHoje || zero;
     if (pagoEl) pagoEl.textContent = resumo.totalPago || zero;
   }
@@ -19880,6 +19902,7 @@
   })();
 
   window.__DK_computePortalProtocoloResumoFromLoc = computePortalProtocoloResumoFromLoc;
+  window.__DK_computePortalDiasAteHoje = computePortalDiasAteHoje;
   window.__DK_refreshLancAluguelSituacao = refreshOperacaoLancAluguelSituacaoAposPagamento;
   window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
