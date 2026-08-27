@@ -11232,6 +11232,13 @@
    */
   function portalLancamentoAluguelPartesRelatorioPeriodo(lan) {
     if (!lan || typeof lan !== "object") return [];
+    if (portalLancamentoEhDevolucaoInvestimento(lan)) {
+      const v = Number(lan.valor || 0);
+      if (Number.isFinite(v) && v < 0) {
+        return [{ valor: v, tipo: "devolução investimento", tipoOrder: 3 }];
+      }
+      return [];
+    }
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(lan, k));
     const parseV = (raw) => Number(parsePortalLancamentoValorRaw(raw ?? ""));
@@ -15157,10 +15164,28 @@
     return Number.isFinite(n) ? n : 0;
   }
 
+  const PORTAL_LANC_TIPO_PAGAMENTO = "PAGAMENTO";
+  const PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO = "DEVOLUCAO_INVESTIMENTO";
+
+  function portalLancamentoTipoMovimento(x) {
+    const t = String(x?.tipoMovimento || "").trim().toUpperCase();
+    if (t === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+    const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x || {}, k));
+    if (!hasMeios && Number(x?.valor) < 0) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    return PORTAL_LANC_TIPO_PAGAMENTO;
+  }
+
+  function portalLancamentoEhDevolucaoInvestimento(x) {
+    return portalLancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+  }
+
   function normalizePortalLancamentoAluguelEntry(x) {
     if (!x || typeof x !== "object") return null;
     const data = String(x.data || "").trim();
     if (!data) return null;
+    const tipoMovimento = portalLancamentoTipoMovimento(x);
+    const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const registradoPorCpf = dig(String(x.registradoPorCpf ?? x.registradoPor ?? "")).slice(0, 11);
@@ -15173,7 +15198,13 @@
     let valorEspecie;
     let valorPix;
     let valorCartao;
-    if (anyMeiosKeys) {
+    if (ehDevolucao) {
+      valor =
+        typeof x.valor === "number" && Number.isFinite(x.valor) ? x.valor : Number(parsePortalLancamentoValorRaw(x.valor ?? ""));
+      const abs = Math.abs(Number(valor));
+      if (!Number.isFinite(abs) || abs <= 0) return null;
+      valor = -abs;
+    } else if (anyMeiosKeys) {
       valorEspecie = Number(parsePortalLancamentoValorRaw(x.valorEspecie ?? 0));
       valorPix = Number(parsePortalLancamentoValorRaw(x.valorPix ?? 0));
       valorCartao = Number(parsePortalLancamentoValorRaw(x.valorCartao ?? 0));
@@ -15186,9 +15217,10 @@
       if (!Number.isFinite(valor) || valor <= 0) return null;
     }
     const out = { data, valor, createdAt, registradoPorCpf, registradoPorNome };
+    if (ehDevolucao) out.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const proto = String(x.protocoloLancamento || x.protocolo || "").trim();
     if (proto) out.protocoloLancamento = proto;
-    if (anyMeiosKeys) {
+    if (!ehDevolucao && anyMeiosKeys) {
       out.valorEspecie = valorEspecie;
       out.valorPix = valorPix;
       out.valorCartao = valorCartao;
@@ -15950,8 +15982,15 @@
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const comEl = document.getElementById("operacaoLancAluguelComentarioPagamento");
-    if (dataEl) dataEl.value = formatPortalDataBr(new Date());
+    const dataDevEl = document.getElementById("operacaoLancAluguelDataDevolucao");
+    const valDevEl = document.getElementById("operacaoLancAluguelValorDevolucao");
+    const comDevEl = document.getElementById("operacaoLancAluguelComentarioDevolucao");
+    const hoje = formatPortalDataBr(new Date());
+    if (dataEl) dataEl.value = hoje;
+    if (dataDevEl) dataDevEl.value = hoje;
     if (comEl) comEl.value = "";
+    if (comDevEl) comDevEl.value = "";
+    if (valDevEl) valDevEl.value = "";
     const loc = resolveLocOperacaoLancAluguelAtual();
     const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
     if (valSimples && valPlano) valSimples.value = valPlano;
@@ -17108,6 +17147,7 @@
       if (v.ficticio) base.ficticio = true;
       const comentarioPagamento = String(v.comentarioPagamento || v.comentario || "").trim().slice(0, 500);
       if (comentarioPagamento) base.comentarioPagamento = comentarioPagamento;
+      if (portalLancamentoEhDevolucaoInvestimento(v)) base.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
       return base;
     });
     return loc.portalLancamentosAluguel;
@@ -17139,6 +17179,7 @@
       }
       const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
       if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
+      if (portalLancamentoEhDevolucaoInvestimento(x)) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
       return row;
     });
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
@@ -17191,26 +17232,42 @@
     const ve = Number(parsePortalLancamentoValorRaw(meios?.valorEspecie ?? 0));
     const vp = Number(parsePortalLancamentoValorRaw(meios?.valorPix ?? 0));
     const vc = Number(parsePortalLancamentoValorRaw(meios?.valorCartao ?? 0));
+    const tipoMovimento = String(meios?.tipoMovimento || PORTAL_LANC_TIPO_PAGAMENTO).trim();
+    const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    const valorFinal = ehDevolucao ? -Math.abs(Number(valorNum)) : Number(valorNum);
     const entry = {
       data: dataStr,
-      valor: valorNum,
+      valor: valorFinal,
       createdAt: Date.now(),
       ...portalStampRegistradoPor(reg),
       protocoloLancamento:
         typeof window.__DK_gerarProtocoloLancamento === "function"
           ? window.__DK_gerarProtocoloLancamento(reg?.cpf || "", Date.now())
           : "",
-      valorEspecie: Number.isFinite(ve) && ve >= 0 ? ve : 0,
-      valorPix: Number.isFinite(vp) && vp >= 0 ? vp : 0,
-      valorCartao: Number.isFinite(vc) && vc >= 0 ? vc : 0,
       ficticio: portalRegistroEhTeste(loc),
     };
+    if (ehDevolucao) {
+      entry.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    } else {
+      entry.valorEspecie = Number.isFinite(ve) && ve >= 0 ? ve : 0;
+      entry.valorPix = Number.isFinite(vp) && vp >= 0 ? vp : 0;
+      entry.valorCartao = Number.isFinite(vc) && vc >= 0 ? vc : 0;
+    }
     const comentarioPagamento = String(meios?.comentarioPagamento || meios?.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) entry.comentarioPagamento = comentarioPagamento;
     loc.portalLancamentosAluguel.push(entry);
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false };
     return { ok: true, entry, cpfDigits, nc, loc };
+  }
+
+  function persistPortalLancamentoAluguelDevolucao(cpfDigits, numeroContratoNorm, valorAbsNum, dataDevolucaoBr, extras) {
+    const abs = Math.abs(Number(valorAbsNum));
+    if (!Number.isFinite(abs) || abs <= 0) return { ok: false };
+    return persistPortalLancamentoAluguelPagamento(cpfDigits, numeroContratoNorm, abs, dataDevolucaoBr, {
+      ...(extras || {}),
+      tipoMovimento: PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO,
+    });
   }
 
   function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
@@ -17320,15 +17377,23 @@
     const loc = locs[idx];
     const arr = materializarPortalLancamentosAluguelMutaveisNoLoc(loc);
     if (!arr || indice < 0 || indice >= arr.length) return false;
+    const prev = arr[indice];
+    const tipo = portalLancamentoTipoMovimento(prev);
+    const ehDevolucao = tipo === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    const valorFinal = ehDevolucao ? -Math.abs(Number(valorNum)) : Number(valorNum);
     const merged = normalizePortalLancamentoAluguelEntry({
       data: String(dataPagamentoBr || "").trim(),
-      valor: valorNum,
-      valorEspecie: valorNum,
-      valorPix: 0,
-      valorCartao: 0,
+      valor: valorFinal,
+      tipoMovimento: tipo,
+      ...(ehDevolucao
+        ? {}
+        : {
+            valorEspecie: valorNum,
+            valorPix: 0,
+            valorCartao: 0,
+          }),
     });
     if (!merged) return false;
-    const prev = arr[indice];
     const coment = String(comentarioPagamento ?? prev?.comentarioPagamento ?? prev?.comentario ?? "")
       .trim()
       .slice(0, 500);
@@ -17339,13 +17404,15 @@
       registradoPorCpf: String(prev?.registradoPorCpf || "").replace(/\D/g, "").slice(0, 11),
       registradoPorNome: String(prev?.registradoPorNome || "").trim(),
       protocoloLancamento: String(prev?.protocoloLancamento || portalProtocoloLancamentoKey(prev) || "").trim(),
-      ...(Object.prototype.hasOwnProperty.call(merged, "valorEspecie")
-        ? {
-            valorEspecie: merged.valorEspecie,
-            valorPix: merged.valorPix,
-            valorCartao: merged.valorCartao,
-          }
-        : {}),
+      ...(ehDevolucao
+        ? { tipoMovimento: PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO }
+        : Object.prototype.hasOwnProperty.call(merged, "valorEspecie")
+          ? {
+              valorEspecie: merged.valorEspecie,
+              valorPix: merged.valorPix,
+              valorCartao: merged.valorCartao,
+            }
+          : {}),
       ...(coment ? { comentarioPagamento: coment } : {}),
     };
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
@@ -17418,7 +17485,7 @@
     const stored = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
     let idx = stored.findIndex((x) => portalProtocoloLancamentoKey(x) === proto);
     if (idx < 0) idx = lancs.findIndex((x) => portalProtocoloLancamentoKey(x) === proto);
-    openPortalLancAluguelEditModal(idx, row.valor, row.data, row.comentarioPagamento || row.comentario);
+    openPortalLancAluguelEditModal(idx, row.valor, row.data, row.comentarioPagamento || row.comentario, portalLancamentoTipoMovimento(row));
   }
 
   function getPortalLocacaoLancAluguelAtual() {
@@ -17472,18 +17539,31 @@
   }
 
   let portalLancAluguelEditIndice = -1;
+  let portalLancAluguelEditTipoMovimento = PORTAL_LANC_TIPO_PAGAMENTO;
 
-  function openPortalLancAluguelEditModal(indice, valorNum, dataStr, comentarioPagamento) {
+  function openPortalLancAluguelEditModal(indice, valorNum, dataStr, comentarioPagamento, tipoMovimento) {
     portalLancAluguelEditIndice = indice;
+    portalLancAluguelEditTipoMovimento = String(tipoMovimento || PORTAL_LANC_TIPO_PAGAMENTO).trim();
+    const ehDevolucao = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const modal = document.getElementById("portalLancAluguelEditModal");
+    const titulo = document.getElementById("portalLancAluguelEditTitulo");
+    const texto = modal?.querySelector(".portal-modal__text");
+    const lblValor = modal?.querySelector("label.portal-field span");
+    if (titulo) titulo.textContent = ehDevolucao ? "Editar devolução de investimento" : "Editar pagamento";
+    if (texto) {
+      texto.textContent = ehDevolucao
+        ? "Altere o valor ou a data da devolução selecionada (valor positivo; será registado como saída)."
+        : "Altere o valor ou a data do pagamento selecionado.";
+    }
     const inpV = document.getElementById("portalLancAluguelEditValor");
     const inpD = document.getElementById("portalLancAluguelEditData");
     const inpC = document.getElementById("portalLancAluguelEditComentario");
+    const displayVal = ehDevolucao ? Math.abs(Number(valorNum || 0)) : Number(valorNum || 0);
     if (inpV) {
       inpV.value =
         typeof currencyBRL === "function"
-          ? currencyBRL(Number(valorNum || 0))
-          : Number(valorNum || 0).toLocaleString("pt-BR", {
+          ? currencyBRL(displayVal)
+          : displayVal.toLocaleString("pt-BR", {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             });
@@ -17503,6 +17583,7 @@
 
   function closePortalLancAluguelEditModal() {
     portalLancAluguelEditIndice = -1;
+    portalLancAluguelEditTipoMovimento = PORTAL_LANC_TIPO_PAGAMENTO;
     const modal = document.getElementById("portalLancAluguelEditModal");
     if (modal) {
       modal.classList.add("hidden");
@@ -18977,17 +19058,20 @@
           };
     const valorNum = Number(parseVal(String(inpV?.value || "")));
     const dataStr = String(inpD?.value || "").trim();
+    const ehDevolucao = portalLancAluguelEditTipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (digits.length !== 11 || !proto) {
       if (msg) msg.textContent = "Informe CPF e protocolo.";
       return;
     }
     if (!Number.isFinite(valorNum) || valorNum <= 0) {
-      if (msg) msg.textContent = "Informe um valor pago válido.";
+      if (msg) msg.textContent = ehDevolucao ? "Informe um valor devolvido válido." : "Informe um valor pago válido.";
       return;
     }
     const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
     if (!dataStr || !dtp || Number.isNaN(dtp.getTime())) {
-      if (msg) msg.textContent = "Informe a data do pagamento (DD/MM/AAAA).";
+      if (msg) msg.textContent = ehDevolucao
+        ? "Informe a data da devolução (DD/MM/AAAA)."
+        : "Informe a data do pagamento (DD/MM/AAAA).";
       return;
     }
     if (msg) msg.textContent = "";
@@ -19004,7 +19088,7 @@
           (l) => normPortalNumeroContrato(l.numeroContrato) === proto
         );
         if (loc2) applyOperacaoLancamentoAluguelFromLoc(loc2);
-        if (msg) msg.textContent = "Pagamento atualizado. Totais recalculados.";
+        if (msg) msg.textContent = ehDevolucao ? "Devolução atualizada. Totais recalculados." : "Pagamento atualizado. Totais recalculados.";
       } else if (msg) {
         msg.textContent = "Não foi possível guardar a alteração.";
       }
@@ -19022,7 +19106,10 @@
         { valor: "Valor pago", data: "Data do pagamento" }
       );
       portalConfirmarAlteracaoAdministrador(
-        { titulo: "Confirmar alteração — pagamento de aluguel", changes },
+        {
+          titulo: ehDevolucao ? "Confirmar alteração — devolução de investimento" : "Confirmar alteração — pagamento de aluguel",
+          changes,
+        },
         doSaveLancEdit
       );
     } else {
@@ -19061,13 +19148,14 @@
     if (!Number.isInteger(indice) || indice < 0 || indice >= arr.length) return;
     if (editEl) {
       const row = arr[indice];
-      openPortalLancAluguelEditModal(indice, row.valor, row.data);
+      openPortalLancAluguelEditModal(indice, row.valor, row.data, row.comentarioPagamento || row.comentario, portalLancamentoTipoMovimento(row));
       return;
     }
     const row = arr[indice];
+    const ehDevApagar = portalLancamentoEhDevolucaoInvestimento(row);
     if (
       !window.confirm(
-        `Apagar o pagamento de ${formatPortalLancamentoSumBrl(row.valor)} em ${row.data}? Só o administrador pode fazer esta operação.`
+        `Apagar ${ehDevApagar ? "a devolução" : "o pagamento"} de ${formatPortalLancamentoSumBrl(row.valor)} em ${row.data}? Só o administrador pode fazer esta operação.`
       )
     ) {
       return;
@@ -19178,6 +19266,84 @@
             : notify.msg || "Pagamento guardado, mas o aviso ao cliente não foi confirmado na nuvem.";
         }
       })();
+    });
+  });
+
+  document.getElementById("operacaoLancAluguelConfirmarDevolucaoBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    const inpCpf = document.getElementById("operacaoLancAluguelCpf");
+    const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
+    const inpValor = document.getElementById("operacaoLancAluguelValorDevolucao");
+    const inpData = document.getElementById("operacaoLancAluguelDataDevolucao");
+    const inpComentario = document.getElementById("operacaoLancAluguelComentarioDevolucao");
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    if (!getPortalSessaoAdminRole()) {
+      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar devoluções.";
+      return;
+    }
+    const digits =
+      typeof onlyDigits === "function" ? onlyDigits(inpCpf?.value || "") : String(inpCpf?.value || "").replace(/\D/g, "");
+    const proto = normPortalNumeroContrato(sel?.value || "");
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const valorAbs = Number(parseVal(String(inpValor?.value || "")));
+    const dataStr = String(inpData?.value || "").trim();
+    if (digits.length !== 11 || !proto) {
+      if (msg) msg.textContent = "Informe CPF e protocolo com locação.";
+      return;
+    }
+    if (!Number.isFinite(valorAbs) || valorAbs <= 0) {
+      if (msg) msg.textContent = "Informe o valor da devolução.";
+      return;
+    }
+    const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
+    if (!dataStr || !dtp || Number.isNaN(dtp.getTime())) {
+      if (msg) msg.textContent = "Informe a data da devolução (DD/MM/AAAA).";
+      return;
+    }
+    if (msg) msg.textContent = "";
+    const nome =
+      typeof findClienteByCpfCadastro === "function"
+        ? String(findClienteByCpfCadastro(digits)?.nome || "").trim()
+        : resolveOperacaoLancAluguelNomePorCpf(digits);
+    const nomeExibir = nome || "—";
+    const cpfFmt = typeof formatCpf === "function" ? formatCpf(digits) : digits;
+    const valorFmt =
+      typeof currencyBRL === "function"
+        ? currencyBRL(valorAbs)
+        : Number(valorAbs).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
+    const texto = `Devolução de investimento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
+    openPortalLancAluguelConfirmModal(texto, () => {
+      const res = persistPortalLancamentoAluguelDevolucao(digits, proto, valorAbs, dataStr, {
+        comentarioPagamento: comentario,
+      });
+      if (!res?.ok) {
+        if (msg) {
+          msg.textContent = !getPortalSessaoAdminRole()
+            ? "Sessão expirada ou sem permissão. Inicie sessão novamente."
+            : "Não foi possível guardar a devolução.";
+        }
+        return;
+      }
+      const locAtual = collectPortalLocacoesComProtocoloByCpf(digits).find(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === proto
+      );
+      if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
+      refreshOperacaoLancAluguelResumoCompacto();
+      refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
+      if (inpComentario) inpComentario.value = "";
+      if (inpValor) inpValor.value = "";
+      if (msg) msg.textContent = "Devolução de investimento registada. Totais atualizados.";
     });
   });
 

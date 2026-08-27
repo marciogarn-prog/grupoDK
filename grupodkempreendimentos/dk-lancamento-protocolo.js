@@ -246,29 +246,54 @@
     return true;
   }
 
+  const PORTAL_LANC_TIPO_PAGAMENTO = "PAGAMENTO";
+  const PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO = "DEVOLUCAO_INVESTIMENTO";
+
+  function lancamentoTipoMovimento(x) {
+    const t = String(x?.tipoMovimento || "").trim().toUpperCase();
+    if (t === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+    const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(x || {}, k));
+    if (!hasMeios && Number(x?.valor) < 0) return PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    return PORTAL_LANC_TIPO_PAGAMENTO;
+  }
+
+  function lancamentoEhDevolucaoInvestimento(x) {
+    return lancamentoTipoMovimento(x) === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+  }
+
   function normalizeRow(raw) {
     if (!raw || typeof raw !== "object") return null;
     if (raw.pagamentoInvalidado) return null;
     const data = String(raw.data || raw.dataPagamento || raw.semanaInicio || "").trim();
     if (!data) return null;
+    const tipoMovimento = lancamentoTipoMovimento(raw);
+    const ehDevolucao = tipoMovimento === PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
     const hasMeios = MEIOS.some((k) => Object.prototype.hasOwnProperty.call(raw, k));
     let valor;
     let valorEspecie;
     let valorPix;
     let valorCartao;
-    if (hasMeios) {
+    if (ehDevolucao) {
+      valor =
+        typeof raw.valor === "number" && Number.isFinite(raw.valor) ? raw.valor : parseValorRaw(raw.valor ?? raw.valorPago ?? 0);
+      const abs = Math.abs(Number(valor));
+      if (!Number.isFinite(abs) || abs <= 0) return null;
+      valor = -abs;
+    } else if (hasMeios) {
       valorEspecie = parseValorRaw(raw.valorEspecie ?? 0);
       valorPix = parseValorRaw(raw.valorPix ?? 0);
       valorCartao = parseValorRaw(raw.valorCartao ?? 0);
       valor = valorEspecie + valorPix + valorCartao;
+      if (!Number.isFinite(valor) || valor <= 0) return null;
     } else {
       valor =
         typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
           ? raw.valor
           : parseValorRaw(raw.valor ?? raw.valorPago ?? 0);
+      if (!Number.isFinite(valor) || valor <= 0) return null;
     }
-    if (!Number.isFinite(valor) || valor <= 0) return null;
     const createdAtRaw = Number(raw.createdAt);
     const createdAt =
       Number.isFinite(createdAtRaw) && createdAtRaw > 0
@@ -291,7 +316,8 @@
     };
     const comentarioPagamento = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
-    if (hasMeios) {
+    if (ehDevolucao) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
+    if (!ehDevolucao && hasMeios) {
       row.valorEspecie = valorEspecie;
       row.valorPix = valorPix;
       row.valorCartao = valorCartao;
@@ -552,12 +578,12 @@
       return tb - ta;
     });
     if (!arr.length) {
-      return '<p class="subtext">Nenhum pagamento registado neste protocolo.</p>';
+      return '<p class="subtext">Nenhum lançamento registado neste protocolo.</p>';
     }
     const esc = escapeHtml;
     const thead = owner
-      ? `<thead><tr><th>Protocolo</th><th>Data pag.</th><th>Valor</th><th>Registado por</th><th>Instante</th><th>Ações</th></tr></thead>`
-      : `<thead><tr><th>Protocolo</th><th>Data pag.</th><th>Valor</th><th>Registado por</th><th>Instante</th></tr></thead>`;
+      ? `<thead><tr><th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th><th>Ações</th></tr></thead>`
+      : `<thead><tr><th>Protocolo</th><th>Tipo</th><th>Data</th><th>Valor</th><th>Registado por</th><th>Instante</th></tr></thead>`;
     const fmtBrl =
       typeof window.currencyBRL === "function"
         ? (n) => window.currencyBRL(Number(n || 0))
@@ -571,17 +597,23 @@
         const protoAttr = esc(protoGerado || "");
         const quem = esc(x.registradoPorNome || x.registradoPorCpf || "—");
         const fict = x.ficticio ? ' <span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
+        const ehDev = lancamentoEhDevolucaoInvestimento(x);
+        const tipoHtml = ehDev
+          ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--devolucao">Devolução invest.</span></td>`
+          : `<td>Pagamento</td>`;
         const coment = String(x.comentarioPagamento || x.comentario || "").trim();
+        const valorClass =
+          (ehDev ? " portal-lanc-hist__valor--devolucao" : "") + (coment ? " portal-lanc-hist__valor--comentario" : "");
         const valorHtml = coment
-          ? `<td class="portal-lanc-hist__valor portal-lanc-hist__valor--comentario" title="${esc(coment)}">${esc(fmtBrl(x.valor))}${fict}<span class="portal-lanc-hist__comentario">${esc(coment)}</span></td>`
-          : `<td>${esc(fmtBrl(x.valor))}${fict}</td>`;
+          ? `<td class="portal-lanc-hist__valor${valorClass}" title="${esc(coment)}">${esc(fmtBrl(x.valor))}${fict}<span class="portal-lanc-hist__comentario">${esc(coment)}</span></td>`
+          : `<td class="portal-lanc-hist__valor${valorClass}">${esc(fmtBrl(x.valor))}${fict}</td>`;
         const actions = owner
           ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
           : "";
-        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}><td>${proto}</td><td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
+        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}><td>${proto}</td>${tipoHtml}<td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
       })
       .join("");
-    return `<p class="subtext"><strong>Pagamentos registados (${arr.length})</strong></p><table class="portal-lanc-hist">${thead}<tbody>${rows}</tbody></table>`;
+    return `<p class="subtext"><strong>Lançamentos registados (${arr.length})</strong></p><table class="portal-lanc-hist">${thead}<tbody>${rows}</tbody></table>`;
   }
 
   window.__DK_clearGlobalLancamentosStorageCache = clearGlobalLancamentosStorageCache;
