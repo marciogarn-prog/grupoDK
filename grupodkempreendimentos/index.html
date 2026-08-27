@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260826lanc-campos-compactos">
+  <link rel="stylesheet" href="styles.css?v=20260826saldo-devolucao">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -1204,15 +1204,18 @@
                     </div>
                     <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao">
                       <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
-                      <p class="subtext portal-lanc-devolucao-hint">Valor registado como saída do caixa (negativo no total pago).</p>
+                      <p class="subtext portal-lanc-devolucao-hint">Sugestão = total pago − devido só de aluguel. Valor registado como saída do caixa.</p>
+                      <p id="operacaoLancAluguelDevolucaoAvisoNegativo" class="portal-lanc-devolucao-aviso-negativo hidden" role="alert" hidden>
+                        Cliente negativo — bloquear moto
+                      </p>
                       <div class="operacao-inline-form__grid portal-lanc-dual-col__grid">
                         <label class="portal-field portal-lanc-field--data">
                           <span>DATA DA DEVOLUÇÃO</span>
                           <input type="text" id="operacaoLancAluguelDataDevolucao" name="dataDevolucao" inputmode="numeric" maxlength="10" size="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DEVOLUÇÃO">
                         </label>
                         <label class="portal-field portal-lanc-field--valor">
-                          <span>VALOR DEVOLVIDO (R$)</span>
-                          <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="16" size="12" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da devolução de investimento">
+                          <span>SALDO / VALOR DEVOLVIDO (R$)</span>
+                          <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="18" size="14" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Saldo ou valor da devolução de investimento">
                         </label>
                       </div>
                       <label class="portal-field portal-lanc-comentario-pagamento">
@@ -2948,7 +2951,7 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-locadora-ui.js?v=20260826devido-so-aluguel" defer></script>
+  <script src="portal-locadora-ui.js?v=20260826saldo-devolucao" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260826devido-ate-ref" defer></script>
