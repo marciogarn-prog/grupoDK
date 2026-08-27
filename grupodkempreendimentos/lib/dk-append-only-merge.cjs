@@ -144,8 +144,16 @@ function mergeVeiculosCadastro(previousList, incomingList) {
 
 function mergePortalLancamentosAluguelEmbutidos(arrays) {
   const MEIOS = ["valorEspecie", "valorPix", "valorCartao"];
+  const TIPO_DEV = "DEVOLUCAO_INVESTIMENTO";
   const hasMeios = (o) =>
     o && typeof o === "object" && MEIOS.some((k) => Object.prototype.hasOwnProperty.call(o, k));
+  const ehDevolucao = (o) => {
+    if (!o || typeof o !== "object") return false;
+    const t = String(o.tipoMovimento || "").trim().toUpperCase();
+    if (t === TIPO_DEV) return true;
+    if (!hasMeios(o) && Number(o.valor) < 0) return true;
+    return false;
+  };
   const parseVal = (v) => {
     if (typeof v === "number" && Number.isFinite(v)) return v;
     const s = String(v ?? "")
@@ -162,17 +170,23 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       if (!raw || typeof raw !== "object") continue;
       const data = String(raw.data || raw.dataPagamento || raw.semanaInicio || "").trim();
       if (!data) continue;
+      const isDev = ehDevolucao(raw);
       let valor =
-        typeof raw.valor === "number" && Number.isFinite(raw.valor) && raw.valor > 0
+        typeof raw.valor === "number" && Number.isFinite(raw.valor)
           ? raw.valor
           : parseVal(raw.valor ?? raw.valorPago);
-      if (hasMeios(raw)) {
+      if (isDev) {
+        const abs = Math.abs(Number(valor));
+        if (!Number.isFinite(abs) || abs <= 0) continue;
+        valor = -abs;
+      } else if (hasMeios(raw)) {
         const sum = MEIOS.reduce((s, k) => s + parseVal(raw[k]), 0);
         if (sum > 0) valor = sum;
       }
-      if (!Number.isFinite(valor) || valor <= 0) continue;
+      if (!Number.isFinite(valor)) continue;
+      if (isDev ? valor >= 0 : valor <= 0) continue;
       const ca = Number(raw.createdAt || raw.id || 0);
-      const key = `${data}|${valor}|${ca}`;
+      const key = `${data}|${valor}|${ca}|${isDev ? "DEV" : "PAG"}`;
       if (byKey.has(key)) continue;
       const row = { ...raw, data, valor, createdAt: ca || Date.now() };
       row.registradoPorCpf = onlyDigits(raw.registradoPorCpf).slice(0, 11);
@@ -180,7 +194,12 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       if (raw.protocoloLancamento || raw.protocolo) {
         row.protocoloLancamento = String(raw.protocoloLancamento || raw.protocolo || "").trim();
       }
-      if (hasMeios(raw)) {
+      if (isDev) {
+        row.tipoMovimento = TIPO_DEV;
+        delete row.valorEspecie;
+        delete row.valorPix;
+        delete row.valorCartao;
+      } else if (hasMeios(raw)) {
         row.valorEspecie = parseVal(raw.valorEspecie);
         row.valorPix = parseVal(raw.valorPix);
         row.valorCartao = parseVal(raw.valorCartao);
@@ -189,6 +208,8 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
         row.origemComprovanteClienteId = String(raw.origemComprovanteClienteId).trim();
       }
       if (raw.confirmadoViaAppCliente) row.confirmadoViaAppCliente = true;
+      const coment = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
+      if (coment) row.comentarioPagamento = coment;
       byKey.set(key, row);
     }
   }
@@ -203,7 +224,7 @@ function portalLancamentoRemocaoKeys(x) {
   const valor = Number(x?.valor);
   const ca = Number(x?.createdAt || x?.id || 0);
   const rp = onlyDigits(x?.registradoPorCpf).slice(0, 11);
-  if (data && Number.isFinite(valor) && valor > 0) {
+  if (data && Number.isFinite(valor) && valor !== 0) {
     keys.push("l:" + data + "|" + valor.toFixed(2) + "|" + (Number.isFinite(ca) ? ca : 0) + "|" + rp);
   }
   return keys;

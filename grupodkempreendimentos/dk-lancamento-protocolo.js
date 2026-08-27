@@ -604,9 +604,16 @@
         const coment = String(x.comentarioPagamento || x.comentario || "").trim();
         const valorClass =
           (ehDev ? " portal-lanc-hist__valor--devolucao" : "") + (coment ? " portal-lanc-hist__valor--comentario" : "");
+        const valorFmt = ehDev
+          ? (() => {
+              const abs = Math.abs(Number(x.valor) || 0);
+              const base = fmtBrl(abs);
+              return `−${base}`;
+            })()
+          : fmtBrl(x.valor);
         const valorHtml = coment
-          ? `<td class="portal-lanc-hist__valor${valorClass}" title="${esc(coment)}">${esc(fmtBrl(x.valor))}${fict}<span class="portal-lanc-hist__comentario">${esc(coment)}</span></td>`
-          : `<td class="portal-lanc-hist__valor${valorClass}">${esc(fmtBrl(x.valor))}${fict}</td>`;
+          ? `<td class="portal-lanc-hist__valor${valorClass}" title="${esc(coment)}">${esc(valorFmt)}${fict}<span class="portal-lanc-hist__comentario">${esc(coment)}</span></td>`
+          : `<td class="portal-lanc-hist__valor${valorClass}">${esc(valorFmt)}${fict}</td>`;
         const actions = owner
           ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
           : "";

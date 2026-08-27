@@ -8021,7 +8021,8 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 
 .portal-lanc-hist__valor--devolucao {
-  color: #ff9a6b;
+  color: #f87171 !important;
+  font-weight: 700;
 }
 
 .portal-lanc-hist__tipo--devolucao {
