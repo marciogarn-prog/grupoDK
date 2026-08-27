@@ -289,6 +289,8 @@
       comprovanteValidadoPorCpf: onlyDigits(String(raw.comprovanteValidadoPorCpf || "")).slice(0, 11),
       ficticio: Boolean(raw.ficticio),
     };
+    const comentarioPagamento = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
+    if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
     if (hasMeios) {
       row.valorEspecie = valorEspecie;
       row.valorPix = valorPix;
@@ -569,10 +571,14 @@
         const protoAttr = esc(protoGerado || "");
         const quem = esc(x.registradoPorNome || x.registradoPorCpf || "—");
         const fict = x.ficticio ? ' <span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
+        const coment = String(x.comentarioPagamento || x.comentario || "").trim();
+        const valorHtml = coment
+          ? `<td class="portal-lanc-hist__valor portal-lanc-hist__valor--comentario" title="${esc(coment)}">${esc(fmtBrl(x.valor))}${fict}<span class="portal-lanc-hist__comentario">${esc(coment)}</span></td>`
+          : `<td>${esc(fmtBrl(x.valor))}${fict}</td>`;
         const actions = owner
           ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
           : "";
-        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}><td>${proto}</td><td>${esc(x.data)}</td><td>${esc(fmtBrl(x.valor))}${fict}</td><td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
+        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}><td>${proto}</td><td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
       })
       .join("");
     return `<p class="subtext"><strong>Pagamentos registados (${arr.length})</strong></p><table class="portal-lanc-hist">${thead}<tbody>${rows}</tbody></table>`;

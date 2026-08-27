@@ -11457,6 +11457,7 @@
           "Data do pagamento",
           "Tipo",
           "Valor pago",
+          "Comentário",
         ],
         rows: [],
         fileSlug: "pagamentos-periodo",
@@ -11523,6 +11524,7 @@
             lancMs: ca,
             codigoUsuario,
             horaLancamento,
+            comentario: String(lan.comentarioPagamento || lan.comentario || "").trim(),
           });
         }
       }
@@ -11578,6 +11580,7 @@
       r.dataPagamentoBr,
       r.tipo,
       fmtBrl(r.valor),
+      r.comentario || "—",
     ]);
     return {
       title: "Relatório 1 — Pagamentos por período",
@@ -11595,10 +11598,11 @@
         "Data do pagamento",
         "Tipo",
         "Valor pago",
+        "Comentário",
       ],
       rows,
       fileSlug: "pagamentos-periodo",
-      textColumns: [0, 3, 4, 5, 6, 7],
+      textColumns: [0, 3, 4, 5, 6, 7, 8],
       periodoInicioBr: sIn,
       periodoFimBr: sFi,
       totalRecebido,
@@ -11620,12 +11624,13 @@
           "Data do pagamento",
           "Tipo",
           "Valor pago",
+          "Comentário",
         ];
         const rowsPdf = collected.map((r) => {
           const gkey = `${r.lancMs}|${r.cpfExib}|${r.proto}|${r.dataPagamentoBr}`;
           const rid = groupKeyToReciboId.get(gkey) ?? "";
           const link = `<a href="#" class="portal-recibo-link" data-recibo-id="${eh(rid)}">${eh(r.horaLancamento)}</a>`;
-          return [r.cpfExib, r.nome, r.placa, r.proto, r.codigoUsuario, link, r.dataPagamentoBr, eh(String(r.tipo)), fmtBrl(r.valor)];
+          return [r.cpfExib, r.nome, r.placa, r.proto, r.codigoUsuario, link, r.dataPagamentoBr, eh(String(r.tipo)), fmtBrl(r.valor), r.comentario || "—"];
         });
         const extraMeta = [`Período: ${inicioFmt} a ${fimFmt}`, `Total recebido no período: ${fmtBrl(totalRecebido)}`]
           .map((line) => `<p class="meta"><strong>${eh(line)}</strong></p>`)
@@ -15193,6 +15198,8 @@
     if (oid) out.origemComprovanteClienteId = oid;
     if (fp) out.comprovanteFp = fp;
     if (x.confirmadoViaAppCliente) out.confirmadoViaAppCliente = true;
+    const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
+    if (comentarioPagamento) out.comentarioPagamento = comentarioPagamento;
     return out;
   }
 
@@ -15544,16 +15551,17 @@
         : `Protocolo ${proto} · Placa ${placa}`;
       body += `<h2>${eh(tituloBloco)}</h2>`;
       body += `<p class="meta">${eh("Pagamentos")}</p>`;
-      body += `<table><thead><tr><th>${eh("Protocolo lanç.")}</th><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th><th>${eh("Registado por")}</th></tr></thead><tbody>`;
+      body += `<table><thead><tr><th>${eh("Protocolo lanç.")}</th><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th><th>${eh("Comentário")}</th><th>${eh("Registado por")}</th></tr></thead><tbody>`;
       if (!lancs.length) {
-        body += `<tr><td colspan="4">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
+        body += `<tr><td colspan="5">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
       } else {
         for (const lan of lancs) {
           const vf =
             typeof currencyBRL === "function"
               ? currencyBRL(lan.valor)
               : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-          body += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(
+          const coment = String(lan.comentarioPagamento || lan.comentario || "").trim() || "—";
+          body += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(coment)}</td><td>${eh(
             portalFormatOperadorNomeXxx(lan.registradoPorNome || lan.registradoPorLabel, lan.registradoPorCpf) ||
               String(lan.registradoPorLabel || lan.registradoPorNome || lan.registradoPorCpf || "—")
           )}</td></tr>`;
@@ -15711,16 +15719,17 @@
         ? fnSecTitulo(sec)
         : `Protocolo ${proto} · Placa ${placa}`;
       blocks += `<h3>${eh(tituloBloco)}</h3>`;
-      blocks += `<table><thead><tr><th>${eh("Protocolo lanç.")}</th><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th><th>${eh("Registado por")}</th></tr></thead><tbody>`;
+      blocks += `<table><thead><tr><th>${eh("Protocolo lanç.")}</th><th>${eh("Data do pagamento")}</th><th>${eh("Valor")}</th><th>${eh("Comentário")}</th><th>${eh("Registado por")}</th></tr></thead><tbody>`;
       if (!lancs.length) {
-        blocks += `<tr><td colspan="4">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
+        blocks += `<tr><td colspan="5">${eh("Nenhum lançamento registado neste protocolo.")}</td></tr>`;
       } else {
         for (const lan of lancs) {
           const vf =
             typeof currencyBRL === "function"
               ? currencyBRL(lan.valor)
               : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-          blocks += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(
+          const coment = String(lan.comentarioPagamento || lan.comentario || "").trim() || "—";
+          blocks += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(coment)}</td><td>${eh(
             portalFormatOperadorNomeXxx(lan.registradoPorNome || lan.registradoPorLabel, lan.registradoPorCpf) ||
               String(lan.registradoPorLabel || lan.registradoPorNome || lan.registradoPorCpf || "—")
           )}</td></tr>`;
@@ -15940,7 +15949,9 @@
   function preencherLancAluguelFormSimples() {
     const dataEl = document.getElementById("operacaoLancAluguelDataPagamento");
     const valSimples = document.getElementById("operacaoLancAluguelValorSimples");
+    const comEl = document.getElementById("operacaoLancAluguelComentarioPagamento");
     if (dataEl) dataEl.value = formatPortalDataBr(new Date());
+    if (comEl) comEl.value = "";
     const loc = resolveLocOperacaoLancAluguelAtual();
     const valPlano = portalValorPlanoPagamentoSugeridoFmt(loc);
     if (valSimples && valPlano) valSimples.value = valPlano;
@@ -17095,6 +17106,8 @@
       if (fp) base.comprovanteFp = fp;
       if (v.confirmadoViaAppCliente) base.confirmadoViaAppCliente = true;
       if (v.ficticio) base.ficticio = true;
+      const comentarioPagamento = String(v.comentarioPagamento || v.comentario || "").trim().slice(0, 500);
+      if (comentarioPagamento) base.comentarioPagamento = comentarioPagamento;
       return base;
     });
     return loc.portalLancamentosAluguel;
@@ -17124,6 +17137,8 @@
         row.valorPix = Number(x.valorPix) || 0;
         row.valorCartao = Number(x.valorCartao) || 0;
       }
+      const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
+      if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
       return row;
     });
     loc.totalPagoAno2025 = formatPortalLancamentoSumBrl(
@@ -17190,6 +17205,8 @@
       valorCartao: Number.isFinite(vc) && vc >= 0 ? vc : 0,
       ficticio: portalRegistroEhTeste(loc),
     };
+    const comentarioPagamento = String(meios?.comentarioPagamento || meios?.comentario || "").trim().slice(0, 500);
+    if (comentarioPagamento) entry.comentarioPagamento = comentarioPagamento;
     loc.portalLancamentosAluguel.push(entry);
     const ok = finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
     if (!ok) return { ok: false };
@@ -17287,7 +17304,7 @@
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
 
-  function atualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr) {
+  function atualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr, comentarioPagamento) {
     if (!isPortalTitularAdministrador()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
@@ -17312,6 +17329,9 @@
     });
     if (!merged) return false;
     const prev = arr[indice];
+    const coment = String(comentarioPagamento ?? prev?.comentarioPagamento ?? prev?.comentario ?? "")
+      .trim()
+      .slice(0, 500);
     arr[indice] = {
       data: merged.data,
       valor: merged.valor,
@@ -17326,6 +17346,7 @@
             valorCartao: merged.valorCartao,
           }
         : {}),
+      ...(coment ? { comentarioPagamento: coment } : {}),
     };
     return finalizarPersistPortalLancamentosLoc(locs, loc, cpfDigits, nc);
   }
@@ -17397,7 +17418,7 @@
     const stored = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : [];
     let idx = stored.findIndex((x) => portalProtocoloLancamentoKey(x) === proto);
     if (idx < 0) idx = lancs.findIndex((x) => portalProtocoloLancamentoKey(x) === proto);
-    openPortalLancAluguelEditModal(idx, row.valor, row.data);
+    openPortalLancAluguelEditModal(idx, row.valor, row.data, row.comentarioPagamento || row.comentario);
   }
 
   function getPortalLocacaoLancAluguelAtual() {
@@ -17452,11 +17473,12 @@
 
   let portalLancAluguelEditIndice = -1;
 
-  function openPortalLancAluguelEditModal(indice, valorNum, dataStr) {
+  function openPortalLancAluguelEditModal(indice, valorNum, dataStr, comentarioPagamento) {
     portalLancAluguelEditIndice = indice;
     const modal = document.getElementById("portalLancAluguelEditModal");
     const inpV = document.getElementById("portalLancAluguelEditValor");
     const inpD = document.getElementById("portalLancAluguelEditData");
+    const inpC = document.getElementById("portalLancAluguelEditComentario");
     if (inpV) {
       inpV.value =
         typeof currencyBRL === "function"
@@ -17471,6 +17493,7 @@
       inpD.value =
         typeof formatDateMask === "function" ? formatDateMask(rawD) : rawD;
     }
+    if (inpC) inpC.value = String(comentarioPagamento || "").trim().slice(0, 500);
     if (typeof normalizePortalMaskedFieldValues === "function") normalizePortalMaskedFieldValues();
     if (modal) {
       modal.classList.remove("hidden");
@@ -18936,6 +18959,7 @@
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
     const inpV = document.getElementById("portalLancAluguelEditValor");
     const inpD = document.getElementById("portalLancAluguelEditData");
+    const inpCom = document.getElementById("portalLancAluguelEditComentario");
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const digits = dig(String(inpCpf?.value || ""));
@@ -18973,7 +18997,8 @@
     const arrEdit = locAtualEdit ? getPortalLancamentosAluguelDoContrato(locAtualEdit) : [];
     const rowPrev = arrEdit[indice];
     const doSaveLancEdit = () => {
-      if (atualizarPortalLancamentoAluguelPorIndice(digits, proto, indice, valorNum, dataStr)) {
+      const coment = String(inpCom?.value || "").trim().slice(0, 500);
+      if (atualizarPortalLancamentoAluguelPorIndice(digits, proto, indice, valorNum, dataStr, coment)) {
         closePortalLancAluguelEditModal();
         const loc2 = collectPortalLocacoesComProtocoloByCpf(digits).find(
           (l) => normPortalNumeroContrato(l.numeroContrato) === proto
@@ -19062,6 +19087,7 @@
     const sel = document.getElementById("operacaoLancAluguelProtocoloSelect");
     const inpValorSimples = document.getElementById("operacaoLancAluguelValorSimples");
     const inpData = document.getElementById("operacaoLancAluguelDataPagamento");
+    const inpComentario = document.getElementById("operacaoLancAluguelComentarioPagamento");
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
     if (!getPortalSessaoAdminRole()) {
       if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar pagamentos.";
@@ -19111,6 +19137,7 @@
       typeof currencyBRL === "function"
         ? currencyBRL(valorNum)
         : Number(valorNum).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const comentario = String(inpComentario?.value || "").trim().slice(0, 500);
     const textoPadrao = `Pagamento de ${valorFmt} na data de ${dataStr} para o cliente ${nomeExibir} CPF ${cpfFmt} protocolo ${proto}.`;
     const texto = avisoDup || textoPadrao;
     openPortalLancAluguelConfirmModal(texto, () => {
@@ -19119,6 +19146,7 @@
           valorEspecie: valorNum,
           valorPix: 0,
           valorCartao: 0,
+          comentarioPagamento: comentario,
         });
         if (!res?.ok) {
           if (msg) {
@@ -19134,6 +19162,7 @@
         if (locAtual) applyOperacaoLancamentoAluguelFromLoc(locAtual);
         refreshOperacaoLancAluguelResumoCompacto();
         refreshOperacaoLancAluguelSituacaoAposPagamento(locAtual || null);
+        if (inpComentario) inpComentario.value = "";
         if (msg) msg.textContent = "A enviar aviso ao cliente…";
         const notify = await portalNotificarClientePagamentosLancados(
           res.cpfDigits,
