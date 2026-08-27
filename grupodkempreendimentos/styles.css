@@ -2627,57 +2627,60 @@ body {
   font-size: 0.78rem;
 }
 
-/* Campos de pesquisa compactos, alinhados à esquerda, largura pelo conteúdo */
+/* Campos de pesquisa: usam a largura total da caixa (sem cortar CPF/protocolo/placa/nome) */
 .portal-lanc-aluguel-pesquisa__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: flex-start;
-  gap: 0.45rem 0.55rem;
+  display: grid;
+  grid-template-columns:
+    minmax(14rem, 2.4fr)
+    minmax(11.75rem, 0.95fr)
+    minmax(9.75rem, 0.85fr)
+    minmax(6.75rem, 0.55fr)
+    auto;
+  gap: 0.45rem 0.65rem;
+  align-items: end;
   width: 100%;
 }
 
 .portal-lanc-aluguel-pesquisa__row > .portal-field {
-  flex: 0 0 auto;
-  width: auto;
+  width: 100%;
   min-width: 0;
   margin: 0;
 }
 
 .portal-lanc-aluguel-pesquisa__row .portal-field input,
 .portal-lanc-aluguel-pesquisa__row .portal-combobox {
-  width: auto;
-  max-width: 100%;
-  box-sizing: content-box;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
 }
 
 .portal-lanc-field--nome input {
-  width: 28ch;
-  max-width: 28ch;
+  width: 100%;
+  max-width: none;
 }
 
 .portal-lanc-field--cpf .portal-combobox,
 .portal-lanc-field--cpf input {
-  width: 14ch;
-  max-width: 14ch;
+  width: 100%;
+  max-width: none;
 }
 
 .portal-lanc-field--protocolo .portal-combobox,
 .portal-lanc-field--protocolo input {
-  width: 12ch;
-  max-width: 12ch;
+  width: 100%;
+  max-width: none;
 }
 
 .portal-lanc-field--cpf .portal-combobox input,
 .portal-lanc-field--protocolo .portal-combobox input {
   width: 100%;
-  max-width: 100%;
+  max-width: none;
   box-sizing: border-box;
 }
 
 .portal-lanc-field--placa input {
-  width: 7.5ch;
-  max-width: 7.5ch;
+  width: 100%;
+  max-width: none;
   text-align: center;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2696,11 +2699,36 @@ body {
 
 .portal-lanc-aluguel-pesquisa__actions {
   margin-top: 0;
-  flex: 0 0 auto;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+@media (max-width: 1100px) {
+  .portal-lanc-aluguel-pesquisa__row {
+    grid-template-columns:
+      minmax(12rem, 1.8fr)
+      minmax(11.5rem, 1fr)
+      minmax(9.5rem, 0.9fr)
+      minmax(6.5rem, 0.6fr);
+  }
+
+  .portal-lanc-aluguel-pesquisa__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 720px) {
+  .portal-lanc-aluguel-pesquisa__row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .portal-lanc-field--nome {
+    grid-column: 1 / -1;
+  }
 }
 
 .portal-lanc-aluguel-pesquisa > #operacaoLancAluguelPesquisaLista,
@@ -8047,11 +8075,6 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 
 @media (max-width: 520px) {
-  .portal-lanc-field--nome input {
-    width: min(28ch, 100%);
-    max-width: 100%;
-  }
-
   .portal-lanc-aluguel-pagamento-saldos--dual {
     grid-template-columns: 1fr;
   }
