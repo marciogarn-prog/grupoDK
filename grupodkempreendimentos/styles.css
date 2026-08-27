@@ -2616,14 +2616,97 @@ body {
 }
 
 .portal-lanc-aluguel-pesquisa {
-  padding: 0.85rem 1rem;
+  padding: 0.65rem 0.85rem;
   border-radius: 10px;
   border: 1px solid rgba(220, 38, 38, 0.4);
   background: rgba(8, 10, 14, 0.6);
 }
 
+.portal-lanc-aluguel-pesquisa .portal-lanc-aluguel-section__hint {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+}
+
+/* Campos de pesquisa compactos, alinhados à esquerda, largura pelo conteúdo */
+.portal-lanc-aluguel-pesquisa__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 0.45rem 0.55rem;
+  width: 100%;
+}
+
+.portal-lanc-aluguel-pesquisa__row > .portal-field {
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.portal-lanc-aluguel-pesquisa__row .portal-field input,
+.portal-lanc-aluguel-pesquisa__row .portal-combobox {
+  width: auto;
+  max-width: 100%;
+  box-sizing: content-box;
+}
+
+.portal-lanc-field--nome input {
+  width: 28ch;
+  max-width: 28ch;
+}
+
+.portal-lanc-field--cpf .portal-combobox,
+.portal-lanc-field--cpf input {
+  width: 14ch;
+  max-width: 14ch;
+}
+
+.portal-lanc-field--protocolo .portal-combobox,
+.portal-lanc-field--protocolo input {
+  width: 12ch;
+  max-width: 12ch;
+}
+
+.portal-lanc-field--cpf .portal-combobox input,
+.portal-lanc-field--protocolo .portal-combobox input {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.portal-lanc-field--placa input {
+  width: 7.5ch;
+  max-width: 7.5ch;
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.portal-lanc-field--data input {
+  width: 10.5ch;
+  max-width: 10.5ch;
+  text-align: center;
+}
+
+.portal-lanc-field--valor input {
+  width: 12ch;
+  max-width: 12ch;
+}
+
 .portal-lanc-aluguel-pesquisa__actions {
-  margin-top: 0.15rem;
+  margin-top: 0;
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.portal-lanc-aluguel-pesquisa > #operacaoLancAluguelPesquisaLista,
+.portal-lanc-aluguel-pesquisa > #operacaoLancMultasPesquisaLista,
+.portal-lanc-aluguel-pesquisa > #operacaoLancManutencaoPesquisaLista {
+  margin-top: 0.45rem;
 }
 
 .portal-lanc-aluguel-pesquisa__grid > #operacaoLancAluguelPesquisaLista,
@@ -7779,7 +7862,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
-/* Lançamento avulso: formulários à esquerda, histórico à direita com scroll */
+/* Lançamento avulso: pagamento + devolução à esquerda; histórico à direita com scroll */
 .portal-lanc-avulso-workspace {
   display: grid;
   grid-template-columns: 1fr;
@@ -7835,7 +7918,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 @media (min-width: 1100px) {
   .portal-lanc-avulso-workspace {
-    grid-template-columns: minmax(18rem, 0.95fr) minmax(20rem, 1.15fr);
+    grid-template-columns: minmax(22rem, 1.35fr) minmax(18rem, 1fr);
   }
 
   .portal-lanc-avulso-workspace__hist {
@@ -7849,13 +7932,20 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 .portal-lanc-dual-cols {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 0.75rem;
+  gap: 0.65rem;
   width: 100%;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+@media (min-width: 720px) {
+  .portal-lanc-dual-cols {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
 }
 
 .portal-lanc-dual-col {
-  padding: 0.85rem 0.95rem;
+  padding: 0.65rem 0.75rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.22);
@@ -7870,25 +7960,33 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 
 .portal-lanc-devolucao-hint {
-  margin: -0.15rem 0 0.55rem;
-  font-size: 0.78rem;
+  margin: -0.15rem 0 0.45rem;
+  font-size: 0.72rem;
 }
 
 .portal-lanc-dual-col__grid {
-  grid-template-columns: 1fr 1fr;
-  gap: 0.65rem 0.85rem;
+  display: flex !important;
+  flex-wrap: wrap;
+  grid-template-columns: unset;
+  gap: 0.45rem 0.55rem;
+  align-items: flex-end;
+}
+
+.portal-lanc-dual-col__grid > .portal-field {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 .portal-lanc-dual-col__actions {
-  margin-top: 0.55rem;
+  margin-top: 0.45rem;
 }
 
 .portal-lanc-aluguel-pagamento-saldos--dual {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.75rem 1rem;
-  margin: 0.35rem 0 0.85rem;
-  padding: 0.65rem 0.85rem;
+  gap: 0.55rem 0.75rem;
+  margin: 0.25rem 0 0.65rem;
+  padding: 0.5rem 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
@@ -7904,25 +8002,30 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   font-size: 0.78rem;
 }
 
-@media (max-width: 520px) {
-  .portal-lanc-dual-col__grid,
-  .portal-lanc-aluguel-pagamento-saldos--dual {
-    grid-template-columns: 1fr;
-  }
-}
-
 .portal-lanc-comentario-pagamento {
   display: block;
   width: 100%;
-  margin: 0.35rem 0 0.15rem;
+  margin: 0.3rem 0 0.1rem;
 }
 
 .portal-lanc-comentario-pagamento textarea {
   width: 100%;
-  min-height: 3.2rem;
+  min-height: 2.6rem;
   resize: vertical;
   font: inherit;
-  line-height: 1.35;
+  line-height: 1.3;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 520px) {
+  .portal-lanc-field--nome input {
+    width: min(28ch, 100%);
+    max-width: 100%;
+  }
+
+  .portal-lanc-aluguel-pagamento-saldos--dual {
+    grid-template-columns: 1fr;
+  }
 }
 
 .portal-lanc-hist__valor--comentario {
