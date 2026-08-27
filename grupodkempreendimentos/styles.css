@@ -8021,16 +8021,37 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 
 .portal-lanc-dual-col__grid {
-  display: flex !important;
-  flex-wrap: wrap;
-  grid-template-columns: unset;
-  gap: 0.45rem 0.55rem;
-  align-items: flex-end;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  gap: 0.45rem 0.65rem;
+  align-items: end;
+  width: 100%;
 }
 
 .portal-lanc-dual-col__grid > .portal-field {
-  flex: 0 0 auto;
-  width: auto;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.portal-lanc-dual-col__grid .portal-lanc-field--data input,
+.portal-lanc-dual-col__grid .portal-lanc-field--valor input {
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.portal-lanc-dual-col__grid .portal-lanc-field--data input {
+  text-align: center;
+}
+
+.portal-lanc-dual-col .portal-lanc-comentario-pagamento {
+  width: 100%;
+}
+
+.portal-lanc-dual-col .portal-lanc-comentario-pagamento textarea {
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .portal-lanc-dual-col__actions {
