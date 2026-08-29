@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260829fin-ceo">
+  <link rel="stylesheet" href="styles.css?v=20260829offline-op">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -3076,6 +3076,38 @@
     </div>
   </div>
 
+  <div id="dkOfflinePromptModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="dkOfflinePromptTitulo">
+    <div class="portal-modal__backdrop"></div>
+    <div class="portal-modal__card">
+      <h3 id="dkOfflinePromptTitulo" class="portal-modal__title">Sistema off-line</h3>
+      <p class="portal-modal__text">SISTEMA OFF-LINE, DESEJA TRABALHAR OFF-LINE?</p>
+      <p class="subtext">Os dados serão guardados neste computador (pasta local segura do app) até a ligação voltar.</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="dkOfflinePromptSim">Sim, trabalhar off-line</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="dkOfflinePromptNao">Não</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dkOnlineUploadModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="dkOnlineUploadTitulo">
+    <div class="portal-modal__backdrop"></div>
+    <div class="portal-modal__card">
+      <h3 id="dkOnlineUploadTitulo" class="portal-modal__title">Sistema online</h3>
+      <p class="portal-modal__text">SISTEMA ONLINE, REALIZANDO UP-LOAD DAS INFORMAÇÕES GERADAS E ARMAZENADAS OFF-LINE</p>
+      <p class="subtext">Aguarde — o sistema ficará indisponível até concluir o envio.</p>
+      <div class="dk-offline-upload-spinner" aria-hidden="true"></div>
+    </div>
+  </div>
+
+  <div id="dkOfflineBlockOverlay" class="dk-offline-block-overlay hidden" aria-live="assertive" aria-hidden="true">
+    <div class="dk-offline-block-overlay__card">
+      <p id="dkOfflineBlockMsg" class="dk-offline-block-overlay__title">Aguarde…</p>
+      <p id="dkOfflineBlockSub" class="subtext dk-offline-block-overlay__sub"></p>
+      <div class="dk-offline-upload-spinner" aria-hidden="true"></div>
+      <button type="button" class="btn-primary btn-secondary-outline hidden" id="dkOfflineRetryBtn">Tentar novamente</button>
+    </div>
+  </div>
+
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260826app-operacao-install" defer></script>
   <script>
@@ -3138,6 +3170,7 @@
   <script src="portal-manutencao-checklist.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-supabase-sync.js?v=20260829fin-ceo" defer></script>
+  <script src="portal-supabase-sync.js?v=20260829offline-op" defer></script>
+  <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

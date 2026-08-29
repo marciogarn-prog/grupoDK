@@ -1606,6 +1606,12 @@
 
   function scheduleCloudPushDebounced() {
     if (suppressCloudHook || window.__DK_suppressPortalCadastroPush === true) return;
+    if (window.__DK_IS_OFFLINE_MODE__ === true) {
+      if (typeof window.__DK_offlineOnLocalChange === "function") {
+        window.__DK_offlineOnLocalChange();
+      }
+      return;
+    }
     clearTimeout(cloudPushTimer);
     cloudPushTimer = setTimeout(() => {
       cloudPushTimer = null;
@@ -1631,6 +1637,9 @@
       })
       .catch((e) => {
         console.warn("[DK cloud] push rastreado", e);
+        if (window.__DK_IS_OFFLINE_MODE__ === true && typeof window.__DK_offlineOnLocalChange === "function") {
+          window.__DK_offlineOnLocalChange();
+        }
         return { ok: false, error: e };
       });
     cloudPushInFlight = p.finally(() => {
@@ -3259,6 +3268,12 @@
 
   /** Cancela o debounce do hook e envia o snapshot já (útil após ações explícitas «Guardar»). */
   async function pushCloudSnapshotNow(opts) {
+    if (window.__DK_IS_OFFLINE_MODE__ === true && !(opts && opts.force)) {
+      if (typeof window.__DK_offlineOnLocalChange === "function") {
+        window.__DK_offlineOnLocalChange();
+      }
+      return { ok: true, skipped: true, reason: "offline_mode" };
+    }
     if (window.__DK_IS_DEMO_DEPLOY__ === true && !(opts && opts.force)) {
       if (typeof loadCadastro === "function") {
         const c = (loadCadastro("dk_clientes_cadastro") || []).length;
@@ -3588,6 +3603,8 @@
     window.__DK_isLocalDataAuthorityActive = isLocalDataAuthorityActive;
     window.__DK_normalizeLocacoesContratoAtivoStore = normalizeLocacoesContratoAtivoStore;
     window.__DK_fetchCloudSnapshotPayload = fetchCloudSnapshotPayload;
+    window.__DK_collectPayloadFromLocalStorage = collectPayloadFromLocalStorage;
+    window.__DK_applyPayloadToLocalStorage = applyPayloadToLocalStorage;
     window.__DK_upsertClienteCadastroFromCloud = upsertClienteCadastroFromCloud;
     window.__DK_fetchRedundantSnapshotPayload = fetchRedundantSnapshotPayload;
     window.__DK_pushLocacaoDocumentoNuvem = pushLocacaoDocumentoNuvem;
