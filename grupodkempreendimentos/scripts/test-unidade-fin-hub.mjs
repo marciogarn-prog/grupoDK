@@ -10,6 +10,7 @@ import vm from "node:vm";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const html = fs.readFileSync(path.join(root, "index.html"), "utf8");
 const locadoraUi = fs.readFileSync(path.join(root, "portal-locadora-ui.js"), "utf8");
+const homeInstall = fs.readFileSync(path.join(root, "home-install-pwa.js"), "utf8");
 const finJs = fs.readFileSync(path.join(root, "portal-unidade-financeiro.js"), "utf8");
 const scopeJs = fs.readFileSync(path.join(root, "dk-app-scope.js"), "utf8");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
@@ -43,6 +44,15 @@ record(
     css.includes("border-color: #c8c8c8") &&
     css.includes("minmax(0, 1fr)") &&
     css.includes("min-height: 15.5rem")
+);
+record(
+  "Pedido de autorização do ícone na área de trabalho",
+  html.includes('id="dkInstallDesktopModal"') &&
+    html.includes("AUTORIZA ACRESCENTAR UM ÍCONE DE ACESSO NA ÁREA DE TRABALHO") &&
+    html.includes("dkInstallDesktopSim") &&
+    homeInstall.includes("showAuthModal") &&
+    homeInstall.includes("beforeinstallprompt") &&
+    homeInstall.includes("dk_desktop_icon_auth")
 );
 record(
   "Contornos dos botões de acesso ao site",

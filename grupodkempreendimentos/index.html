@@ -45,7 +45,7 @@
     <button type="button" id="dkAppInstallBtn" class="btn-primary" style="width:100%">Instalar neste computador</button>
     <details class="cliente-install-manual" id="dkAppInstallManual">
       <summary>Instalação manual</summary>
-      <p class="subtext"><strong>Windows:</strong> Chrome ou Edge → ícone Instalar (⊕) na barra de endereço.</p>
+      <p class="subtext"><strong>Windows:</strong> Chrome ou Edge → ícone Instalar (⊕) na barra de endereço. Isso cria o atalho na área de trabalho ou no menu Iniciar.</p>
       <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → Instalar app.</p>
       <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → Adicionar à Tela de Início.</p>
     </details>
@@ -3240,6 +3240,19 @@
     </div>
   </div>
 
+  <div id="dkInstallDesktopModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="dkInstallDesktopTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop"></div>
+    <div class="portal-modal__card">
+      <h3 id="dkInstallDesktopTitulo" class="portal-modal__title">Instalar aplicativo</h3>
+      <p class="portal-modal__text" id="dkInstallDesktopTexto">AUTORIZA ACRESCENTAR UM ÍCONE DE ACESSO NA ÁREA DE TRABALHO?</p>
+      <p class="subtext" id="dkInstallDesktopSub">O Windows vai criar o atalho deste aplicativo na área de trabalho ou no menu Iniciar.</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="dkInstallDesktopSim">Sim, autorizar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="dkInstallDesktopNao">Não</button>
+      </div>
+    </div>
+  </div>
+
   <div id="dkOfflinePromptModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="dkOfflinePromptTitulo">
     <div class="portal-modal__backdrop"></div>
     <div class="portal-modal__card">
@@ -3273,7 +3286,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="home-install-pwa.js?v=20260829icon-cores" defer></script>
+  <script src="home-install-pwa.js?v=20260829icon-desktop" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260826devolucao-hist" defer></script>
