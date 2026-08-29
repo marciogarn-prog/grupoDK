@@ -1,0 +1,16 @@
+---
+description: Comunicação 100% em português do Brasil
+alwaysApply: true
+---
+
+# Idioma
+
+Responda e escreva **sempre em português do Brasil**. Sem inglês.
+
+Aplique a todas as saídas geradas pelo agente:
+
+- respostas e comentários na conversa
+- atualizações de progresso e status
+- commits, PRs, documentação e comentários de código novos
+
+Não misture idiomas. Frases de status curtas também devem ser em português.
