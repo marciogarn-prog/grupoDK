@@ -25,7 +25,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260827lanc-campos-largura">
+  <link rel="stylesheet" href="styles.css?v=20260829fin-ceo">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
   <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
@@ -338,6 +338,7 @@
           <button type="button" class="btn-primary hidden" id="btn-locadora-localizacao">Localização clientes</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-documentos">Documentos</button>
           <button type="button" class="btn-primary hidden" id="btn-locadora-financeiro">FINANCEIRO</button>
+          <button type="button" class="btn-primary hidden" id="btn-locadora-financeiro-ceo">FINANCEIRO CEO</button>
           <button type="button" class="btn-primary btn-secondary-outline hidden" id="btn-locadora-preview-cliente">Área do cliente (pré-visualizar)</button>
           <button type="button" class="btn-primary btn-secondary-outline" id="btn-sair">Sair</button>
         </div>
@@ -416,6 +417,10 @@
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
                 <span class="btn-operacao-cmd__hint">CPF, função, permissóes &mdash; formulário à direita (só administrador)</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-administrador" aria-expanded="false" aria-controls="operacaoInlineAdministrador">
+                <span class="btn-operacao-cmd__title">Cadastro de administrador</span>
+                <span class="btn-operacao-cmd__hint">Administrador 2 &mdash; acesso FINANCEIRO sem FINANCEIRO CEO (só titular)</span>
               </button>
             </div>
             <button type="button" class="btn-primary btn-secondary-outline portal-operacao-layout__sidebar-voltar" id="btn-voltar-operacao-locadora">Voltar</button>
@@ -1685,6 +1690,36 @@
           </div>
         </div>
 
+<div id="operacaoInlineAdministrador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-admin-title">
+          <h3 id="operacao-inline-admin-title" class="operacao-inline-form__title">Cadastro de administrador</h3>
+          <p class="subtext operacao-inline-form__lead">
+            <strong>Administrador 1</strong> (titular CPF 030.378.974-30) tem acesso a FINANCEIRO e FINANCEIRO CEO.
+            <strong>Administrador 2</strong> acede a FINANCEIRO, mas <strong>não</strong> a FINANCEIRO CEO. Só pode existir um Administrador 2 além do titular.
+          </p>
+          <form id="formPortalCadastroAdministrador" class="operacao-inline-form__grid" novalidate>
+            <label class="portal-field">
+              <span>CPF do administrador 2</span>
+              <input type="text" id="portalAdminCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do administrador">
+            </label>
+            <label class="portal-field">
+              <span>Nome completo</span>
+              <input type="text" id="portalAdminNome" maxlength="120" required autocomplete="name" aria-label="Nome do administrador">
+            </label>
+            <label class="portal-field">
+              <span>Senha inicial</span>
+              <input type="password" id="portalAdminSenha" maxlength="32" autocomplete="new-password" placeholder="Senha de acesso" aria-label="Senha inicial">
+            </label>
+            <div class="operacao-inline-form__actions">
+              <button type="submit" id="portalAdminBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar administrador 2</button>
+            </div>
+          </form>
+          <p id="portalCadastroAdministradorFeedback" class="portal-feedback" role="status"></p>
+          <div id="portalAdminListaWrap" class="portal-colab-lista-wrap">
+            <h4 class="portal-colab-lista__titulo">Administradores</h4>
+            <ul id="portalAdminLista" class="portal-colab-lista" role="list"></ul>
+          </div>
+        </div>
+
           </div>
         </div>
       </section>
@@ -2549,6 +2584,113 @@
       </section>
     </div>
   </div>
+
+  <div id="view-financeiro-ceo" class="view view--locadora-sub view--financeiro view--fin-pptx view--fin-ceo" role="region" aria-labelledby="financeiro-ceo-page-title" aria-hidden="true">
+    <div class="subpage fin-pptx">
+      <header class="portal-unit-bar portal-unit-bar--simple fin-pptx__top" aria-label="Navegação">
+        <div class="portal-unit-bar__nav">
+          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" id="btn-voltar-financeiro-ceo-locadora" data-back>&larr; Voltar</button>
+          <button type="button" class="btn-back btn-back--compact btn-back--inicio" data-inicio>Início</button>
+        </div>
+      </header>
+      <h1 id="financeiro-ceo-page-title" class="subpage__title fin-pptx__page-title">FINANCEIRO CEO</h1>
+      <p class="subpage__lead fin-pptx__page-lead">Endividamento, receita prevista e projeção de saldo (24 meses).</p>
+
+      <section id="panel-financeiro-ceo-locadora" class="portal-panel hidden" aria-live="polite">
+        <div class="portal-operacao-layout fin-pptx__layout">
+          <aside class="portal-operacao-layout__sidebar fin-pptx__rail" aria-label="módulos CEO">
+            <p class="fin-pptx__brand">FINANCEIRO CEO</p>
+            <div class="operacao-comandos" id="finCeoModulosNav">
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-dashboard" data-ceo-mod="dashboard" aria-expanded="false" aria-controls="finCeoPaneDashboard">
+                <span class="btn-operacao-cmd__title">Painel executivo</span>
+                <span class="btn-operacao-cmd__hint">Endividamento, receita e gráficos</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-despesas" data-ceo-mod="despesas" aria-expanded="false" aria-controls="finCeoPaneDespesas">
+                <span class="btn-operacao-cmd__title">Cadastro de despesas</span>
+                <span class="btn-operacao-cmd__hint">Categorias, periodicidade e parcelas</span>
+              </button>
+            </div>
+          </aside>
+          <div class="portal-operacao-layout__main fin-pptx__slide" id="finCeoPainelDireito">
+            <div id="finCeoFormPlaceholder" class="operacao-form-placeholder" role="status">
+              <p class="operacao-form-placeholder__text">Escolha um módulo à esquerda.</p>
+            </div>
+
+            <div id="finCeoPaneDashboard" class="operacao-inline-form fin-ceo-pane hidden" data-ceo-pane="dashboard" role="region">
+              <h3 class="operacao-inline-form__title">Painel executivo</h3>
+              <p class="subtext">Projeção sempre <strong>24 meses à frente</strong> a partir do mês actual.</p>
+              <div class="fin-ceo-kpis" id="finCeoKpis">
+                <div class="fin-kpi"><span class="fin-kpi__lab">Taxa mensal de endividamento</span><strong id="finCeoKpiEndividamento">—</strong></div>
+                <div class="fin-kpi"><span class="fin-kpi__lab">Receita prevista do mês</span><strong id="finCeoKpiReceita">—</strong></div>
+              </div>
+              <h4 class="fin-subh">Saldo mês a mês</h4>
+              <div id="finCeoChartSaldoMes" class="fin-chart-wrap"></div>
+              <div id="finCeoLegendaSaldo" class="fin-legenda"></div>
+              <h4 class="fin-subh">Saldo acumulado</h4>
+              <div id="finCeoChartSaldoAcc" class="fin-chart-wrap"></div>
+              <div id="finCeoLegendaAcc" class="fin-legenda"></div>
+              <div id="finCeoTabelaProjecao" class="fin-table-wrap"></div>
+            </div>
+
+            <div id="finCeoPaneDespesas" class="operacao-inline-form fin-ceo-pane hidden" data-ceo-pane="despesas" role="region">
+              <h3 class="operacao-inline-form__title">Cadastro de despesas</h3>
+              <form id="finCeoDespForm" class="operacao-inline-form__grid fin-ceo-desp-form" novalidate>
+                <label class="portal-field">
+                  <span>Categoria da despesa</span>
+                  <select id="finCeoDespCategoria" required>
+                    <option value="FINANCIAMENTO">Financiamento</option>
+                    <option value="CONSORCIO">Consórcio</option>
+                    <option value="PESSOAIS">Pessoais</option>
+                    <option value="DK_CONSTRUTORA">DK Construtora</option>
+                    <option value="DK_OFICINA">DK Oficina</option>
+                    <option value="DK_LOCADORA">DK Locadora</option>
+                  </select>
+                </label>
+                <label class="portal-field">
+                  <span>Subcategoria (descrição)</span>
+                  <input type="text" id="finCeoDespSubcategoria" list="finCeoSubcategoriaLista" maxlength="120" required placeholder="Ex.: Parcela moto, IPTU…">
+                  <datalist id="finCeoSubcategoriaLista"></datalist>
+                </label>
+                <label class="portal-field">
+                  <span>Periódico?</span>
+                  <select id="finCeoDespPeriodico">
+                    <option value="sim">Sim — repetições mensais</option>
+                    <option value="nao">Não — parcelas em dias/meses específicos</option>
+                  </select>
+                </label>
+                <div id="finCeoCamposPeriodico" class="portal-field portal-field--wide fin-ceo-campos-periodico">
+                  <div class="fin-ceo-campos-grid">
+                    <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" inputmode="decimal" placeholder="0,00"></label>
+                    <label class="portal-field"><span>Nº repetições</span><input type="number" id="finCeoDespRepeticoes" min="1" max="360" value="12"></label>
+                    <label class="portal-field"><span>Data do evento</span><input type="text" id="finCeoDespDataEvento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"></label>
+                  </div>
+                </div>
+                <div id="finCeoCamposAvulso" class="portal-field portal-field--wide fin-ceo-campos-avulso hidden">
+                  <span class="portal-field__label">Parcelas avulsas (valor + dia + mês)</span>
+                  <div id="finCeoParcelasAvulsas" class="fin-ceo-parcelas-wrap"></div>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="finCeoAddParcela">+ Adicionar parcela</button>
+                </div>
+                <div class="operacao-inline-form__actions">
+                  <button type="submit" class="btn-primary">Cadastrar despesa</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="finCeoDespLimpar">Limpar</button>
+                </div>
+              </form>
+              <p id="finCeoDespFeedback" class="portal-feedback" role="status"></p>
+              <h4 class="fin-subh">Despesas cadastradas</h4>
+              <p id="finCeoDespesasVazia" class="subtext hidden">Nenhuma despesa cadastrada.</p>
+              <div class="fin-table-wrap">
+                <table class="fin-table" id="finCeoDespesasTable">
+                  <thead><tr><th>Categoria</th><th>Subcategoria</th><th>Periódico</th><th>Detalhe</th><th></th></tr></thead>
+                  <tbody id="finCeoDespesasBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
   <div id="documentosViewerModal" class="portal-modal documentos-viewer-modal hidden" role="dialog" aria-modal="true" aria-labelledby="documentosViewerTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-documentos-viewer></div>
     <div class="portal-modal__card portal-modal__card--wide documentos-viewer-card">
@@ -2951,10 +3093,11 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-locadora-ui.js?v=20260826devolucao-hist" defer></script>
+  <script src="portal-locadora-ui.js?v=20260829fin-ceo" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
-  <script src="portal-financeiro-modulos.js?v=20260826devido-ate-ref" defer></script>
+  <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
+  <script src="portal-financeiro-ceo.js?v=20260829fin-ceo" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
@@ -2995,6 +3138,6 @@
   <script src="portal-manutencao-checklist.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260823mov-ver-pdf" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-supabase-sync.js?v=20260826cancelar-contrato" defer></script>
+  <script src="portal-supabase-sync.js?v=20260829fin-ceo" defer></script>
 </body>
 </html>

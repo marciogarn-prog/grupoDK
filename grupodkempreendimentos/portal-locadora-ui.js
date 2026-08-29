@@ -10,6 +10,7 @@
   const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
   const viewMiel = document.getElementById("view-miel");
   const viewFinanceiro = document.getElementById("view-financeiro");
+  const viewFinanceiroCeo = document.getElementById("view-financeiro-ceo");
   if (!viewHome || !viewUnit) return;
 
   /** Único CPF com acesso «Administrador» no portal DK Locadora. */
@@ -594,6 +595,7 @@
   const panelDocumentos = document.getElementById("panel-documentos-locadora");
   const panelLocalizacao = document.getElementById("panel-localizacao-locadora");
   const panelFinanceiro = document.getElementById("panel-financeiro-locadora");
+  const panelFinanceiroCeo = document.getElementById("panel-financeiro-ceo-locadora");
   const formLogin = document.getElementById("form-login");
   const loginFeedback = document.getElementById("login-feedback");
   const logadoTitulo = document.getElementById("logado-titulo");
@@ -602,6 +604,7 @@
   const btnManutencao = document.getElementById("btn-locadora-manutencao");
   const btnDocumentos = document.getElementById("btn-locadora-documentos");
   const btnFinanceiro = document.getElementById("btn-locadora-financeiro");
+  const btnFinanceiroCeo = document.getElementById("btn-locadora-financeiro-ceo");
   const btnLocalizacao = document.getElementById("btn-locadora-localizacao");
   const btnSair = document.getElementById("btn-sair");
   const portalUnitBackBtn = document.getElementById("portal-unit-back-btn");
@@ -694,6 +697,46 @@
   /** Administrador titular (`owner`) — pode editar ou apagar lançamentos já registados; colaboradores (`operacao`) só lançam novos. */
   function isPortalTitularAdministrador() {
     return getPortalSessaoAdminRole() === "owner";
+  }
+
+  /** CPF titular com acesso FINANCEIRO CEO. */
+  function isPortalAdministradorTitularCeo() {
+    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF && isPortalTitularAdministrador();
+  }
+
+  function countPortalAdministradoresSecundarios() {
+    if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) return 0;
+    return funcionariosAccess.filter(
+      (f) =>
+        String(f.role || "").trim() === "owner" &&
+        onlyDigits(String(f.cpf || "")) !== DK_LOCADORA_ADMIN_CPF
+    ).length;
+  }
+
+  function findFuncionarioOwnerPortalPorCpf(cpfDig) {
+    const dig = onlyDigits(String(cpfDig || "")).slice(0, 11);
+    if (dig.length !== 11 || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) {
+      return null;
+    }
+    return (
+      funcionariosAccess.find(
+        (f) => onlyDigits(String(f.cpf || "")) === dig && String(f.role || "").trim() === "owner"
+      ) || null
+    );
+  }
+
+  function portalRenderAdministradoresLista() {
+    const ul = document.getElementById("portalAdminLista");
+    if (!ul || typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess)) return;
+    const owners = funcionariosAccess.filter((f) => String(f.role || "").trim() === "owner");
+    ul.innerHTML = owners
+      .map((f) => {
+        const cpf = onlyDigits(String(f.cpf || ""));
+        const titular = cpf === DK_LOCADORA_ADMIN_CPF;
+        const label = titular ? "Administrador 1 (titular · FINANCEIRO CEO)" : "Administrador 2 (FINANCEIRO)";
+        return `<li><strong>${portalEscapeHtml(String(f.nome || "").trim() || "—")}</strong> · ${portalColabFormatCpfExibicao(cpf)} · ${portalEscapeHtml(label)}</li>`;
+      })
+      .join("");
   }
 
   /** Titular (CPF autorizado) pode digitar o Cód. manualmente — útil para cadastros retroativos. */
@@ -1369,6 +1412,9 @@
     if (!isPortalTitularAdministrador()) {
       document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
     }
+    if (!isPortalAdministradorTitularCeo()) {
+      document.getElementById("operacaoInlineAdministrador")?.classList.add("hidden");
+    }
 
     const f = getPortalSessaoEquipaFuncionario();
     const role = f ? String(f.role || "").trim() : "";
@@ -1418,6 +1464,8 @@
 
     const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
     if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
+    const btnAdmin = document.getElementById("btn-operacao-cadastro-administrador");
+    if (btnAdmin) btnAdmin.classList.toggle("hidden", !isPortalAdministradorTitularCeo());
 
     const btnWaTodos = document.getElementById("portalWaBtnTodosAtivos");
     if (btnWaTodos) btnWaTodos.classList.toggle("hidden", !isPortalTitularAdministrador() || !DK_PORTAL_WA_CLIENTE_ATIVO);
@@ -1469,7 +1517,9 @@
     btnManutencao?.classList.toggle("hidden", !allowOp);
     btnLocalizacao?.classList.toggle("hidden", !allowOp);
     btnDocumentos?.classList.toggle("hidden", !isPortalDocumentosAcesso());
-    btnFinanceiro?.classList.toggle("hidden", !allowOp);
+    const allowFin = currentUnit === "locadora" && funcionario.role === "owner";
+    btnFinanceiro?.classList.toggle("hidden", !allowFin);
+    btnFinanceiroCeo?.classList.toggle("hidden", !isPortalAdministradorTitularCeo());
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
     }
@@ -1483,7 +1533,7 @@
     refreshOperacaoClienteCodigoEditavel();
   }
 
-  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente, viewMiel, viewFinanceiro].filter(Boolean);
+  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente, viewMiel, viewFinanceiro, viewFinanceiroCeo].filter(Boolean);
 
   function showView(which) {
     const map = {
@@ -1493,6 +1543,7 @@
       cliente: viewLocadoraCliente,
       miel: viewMiel,
       financeiro: viewFinanceiro,
+      financeiroCeo: viewFinanceiroCeo,
     };
     portalViews.forEach((v) => {
       v.classList.remove("view--active");
@@ -1695,6 +1746,7 @@
       btnLocalizacao?.classList.add("hidden");
       btnDocumentos?.classList.add("hidden");
       btnFinanceiro?.classList.add("hidden");
+      btnFinanceiroCeo?.classList.add("hidden");
     }
     showView("hub");
     setPortalHash("locadora");
@@ -1745,7 +1797,11 @@
   function portalPodeAcessarFinanceiro() {
     const func = portalObterFuncionarioDaSessaoRestauracao();
     if (!func) return false;
-    return func.role === "operacao" || func.role === "owner";
+    return func.role === "owner";
+  }
+
+  function portalPodeAcessarFinanceiroCeo() {
+    return portalPodeAcessarFinanceiro() && portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
   }
 
   function openLocadoraFinanceiro() {
@@ -1765,9 +1821,30 @@
     portalAtualizarBannerAdmin();
   }
 
+  function openLocadoraFinanceiroCeo() {
+    currentUnit = "locadora";
+    if (!portalPodeAcessarFinanceiroCeo()) {
+      openLocadoraEmpresa();
+      return;
+    }
+    const func = portalObterFuncionarioDaSessaoRestauracao();
+    if (!func) {
+      openLocadoraEmpresa();
+      return;
+    }
+    finalizarLoginEquipaPortal(func);
+    hideAllPanels();
+    panelFinanceiroCeo?.classList.remove("hidden");
+    showView("financeiroCeo");
+    setPortalHash("locadora/financeiro-ceo");
+    if (typeof window.__DK_financeiroCeoOnShow === "function") window.__DK_financeiroCeoOnShow();
+    portalPersistirAreaAtiva("financeiro-ceo");
+    portalAtualizarBannerAdmin();
+  }
+
   function hideAllPanels() {
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
-    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro].forEach(
+    [panelLogin, panelSenha, panelLogado, panelOperacao, panelManutencao, panelLocalizacao, panelDocumentos, panelFinanceiro, panelFinanceiroCeo].forEach(
       (p) => {
         if (p) p.classList.add("hidden");
       }
@@ -1905,6 +1982,7 @@
       btnLocalizacao?.classList.add("hidden");
       btnDocumentos?.classList.add("hidden");
       btnFinanceiro?.classList.add("hidden");
+      btnFinanceiroCeo?.classList.add("hidden");
       refreshPortalUnitLeadForSession();
       clearPortalUnitDadosAtualizados();
     }
@@ -1928,14 +2006,17 @@
     syncManutencaoSidebarButtons(null);
     if (typeof window.__DK_documentosReset === "function") window.__DK_documentosReset();
     if (typeof window.__DK_financeiroReset === "function") window.__DK_financeiroReset();
+    if (typeof window.__DK_financeiroCeoReset === "function") window.__DK_financeiroCeoReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     const vinhaFinanceiro = Boolean(viewFinanceiro?.classList.contains("view--active"));
+    const vinhaFinanceiroCeo = Boolean(viewFinanceiroCeo?.classList.contains("view--active"));
     panelOperacao?.classList.add("hidden");
     panelManutencao?.classList.add("hidden");
     panelLocalizacao?.classList.add("hidden");
     panelDocumentos?.classList.add("hidden");
     panelFinanceiro?.classList.add("hidden");
-    if (vinhaFinanceiro) {
+    panelFinanceiroCeo?.classList.add("hidden");
+    if (vinhaFinanceiro || vinhaFinanceiroCeo) {
       showView("unit");
       setPortalHash("locadora/empresa");
     }
@@ -1959,6 +2040,7 @@
     syncManutencaoSidebarButtons(null);
     if (typeof window.__DK_documentosReset === "function") window.__DK_documentosReset();
     if (typeof window.__DK_financeiroReset === "function") window.__DK_financeiroReset();
+    if (typeof window.__DK_financeiroCeoReset === "function") window.__DK_financeiroCeoReset();
     if (typeof window.__DK_clienteGeoMapaOnHide === "function") window.__DK_clienteGeoMapaOnHide();
     if (typeof clearSession === "function") clearSession();
     hideAllPanels();
@@ -1967,6 +2049,7 @@
     btnLocalizacao?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
+    btnFinanceiroCeo?.classList.add("hidden");
     panelLogin?.classList.remove("hidden");
     portalSyncAuthAutofillState();
     if (unitLead && currentUnit === "locadora") unitLead.textContent = LOCADORA_LEAD_SEM_SESSAO;
@@ -2022,6 +2105,7 @@
     if (h.startsWith("#locadora/cliente")) return;
     if (area === "documentos" && panelDocumentos && !panelDocumentos.classList.contains("hidden")) return;
     if (area === "financeiro" && viewFinanceiro?.classList.contains("view--active")) return;
+    if (area === "financeiro-ceo" && viewFinanceiroCeo?.classList.contains("view--active")) return;
     if (area === "localizacao" && panelLocalizacao && !panelLocalizacao.classList.contains("hidden")) return;
     if (area === "operacao" && panelOperacao && !panelOperacao.classList.contains("hidden")) return;
     if (area === "manutencao" && panelManutencao && !panelManutencao.classList.contains("hidden")) return;
@@ -2029,6 +2113,10 @@
     if (!func) return;
     if (area === "financeiro") {
       openLocadoraFinanceiro();
+      return;
+    }
+    if (area === "financeiro-ceo") {
+      openLocadoraFinanceiroCeo();
       return;
     }
     currentUnit = "locadora";
@@ -2114,7 +2202,7 @@
     if (typeof window.__DK_documentosEscapeBack === "function" && window.__DK_documentosEscapeBack()) {
       return;
     }
-    if (viewFinanceiro?.classList.contains("view--active")) {
+    if (viewFinanceiro?.classList.contains("view--active") || viewFinanceiroCeo?.classList.contains("view--active")) {
       portalVoltarEquipaLocadora();
       return;
     }
@@ -2122,8 +2210,9 @@
     const emManutencao = panelManutencao && !panelManutencao.classList.contains("hidden");
     const emDocumentos = panelDocumentos && !panelDocumentos.classList.contains("hidden");
     const emFinanceiro = panelFinanceiro && !panelFinanceiro.classList.contains("hidden");
+    const emFinanceiroCeo = panelFinanceiroCeo && !panelFinanceiroCeo.classList.contains("hidden");
     const emLocalizacao = panelLocalizacao && !panelLocalizacao.classList.contains("hidden");
-    if (emOperacao || emManutencao || emDocumentos || emFinanceiro || emLocalizacao) {
+    if (emOperacao || emManutencao || emDocumentos || emFinanceiro || emFinanceiroCeo || emLocalizacao) {
       portalVoltarEquipaLocadora();
       return;
     }
@@ -2458,10 +2547,6 @@
     }
 
     if (role === "colaborador" || role === "administrador") {
-      if (role === "administrador" && cpf !== DK_LOCADORA_ADMIN_CPF) {
-        loginFeedback.textContent = "Acesso de administrador restrito ao titular autorizado.";
-        return;
-      }
       portalHydrateFuncionariosForLogin();
       let auth = portalAutenticarEquipaPorCpfSenha(role, cpf, senha);
       if (!auth.ok) {
@@ -3425,6 +3510,14 @@
 
   btnFinanceiro?.addEventListener("click", () => {
     openLocadoraFinanceiro();
+  });
+
+  btnFinanceiroCeo?.addEventListener("click", () => {
+    openLocadoraFinanceiroCeo();
+  });
+
+  document.getElementById("btn-voltar-financeiro-ceo-locadora")?.addEventListener("click", () => {
+    portalVoltarEquipaLocadora();
   });
 
   btnLocalizacao?.addEventListener("click", () => {
@@ -8244,6 +8337,7 @@
     btnLocalizacao?.classList.add("hidden");
     btnDocumentos?.classList.add("hidden");
     btnFinanceiro?.classList.add("hidden");
+    btnFinanceiroCeo?.classList.add("hidden");
     portalAtualizarBannerAdmin();
     refreshPortalUnitLeadForSession();
     if (currentUnit === "locadora") {
@@ -12706,6 +12800,7 @@
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
+    document.getElementById("operacaoInlineAdministrador")?.classList.add("hidden");
     syncOperacaoLancAluguelSubnavVisible(false);
     syncOperacaoLancAluguelSubButtons(null);
   }
@@ -12726,6 +12821,7 @@
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
       "btn-operacao-cadastro-colaborador",
+      "btn-operacao-cadastro-administrador",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -18849,6 +18945,68 @@
     portalRenderColaboradoresLista();
   });
 
+  document.getElementById("btn-operacao-cadastro-administrador")?.addEventListener("click", () => {
+    if (!isPortalAdministradorTitularCeo()) return;
+    hideOperacaoInlineFormsCore();
+    document.getElementById("operacaoInlineAdministrador")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-cadastro-administrador");
+    portalRenderAdministradoresLista();
+  });
+
+  document.getElementById("formPortalCadastroAdministrador")?.addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    const fb = document.getElementById("portalCadastroAdministradorFeedback");
+    if (!isPortalAdministradorTitularCeo()) {
+      if (fb) fb.textContent = "Apenas o administrador titular pode cadastrar administradores.";
+      return;
+    }
+    if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess) || typeof saveFuncionariosAccess !== "function") {
+      if (fb) fb.textContent = "Cadastro indisponível neste ambiente.";
+      return;
+    }
+    const cpfRaw = onlyDigits(String(document.getElementById("portalAdminCpf")?.value || "")).slice(0, 11);
+    const nome = String(document.getElementById("portalAdminNome")?.value || "").trim();
+    const senha = String(document.getElementById("portalAdminSenha")?.value || "").trim();
+    if (cpfRaw.length !== 11) {
+      if (fb) fb.textContent = "Informe um CPF válido (11 dígitos).";
+      return;
+    }
+    if (cpfRaw === DK_LOCADORA_ADMIN_CPF) {
+      if (fb) fb.textContent = "O CPF do titular (Administrador 1) já está cadastrado.";
+      return;
+    }
+    if (!nome) {
+      if (fb) fb.textContent = "Informe o nome completo.";
+      return;
+    }
+    if (!senha || senha.length < 6) {
+      if (fb) fb.textContent = "Informe uma senha com pelo menos 6 caracteres.";
+      return;
+    }
+    if (funcionariosAccess.some((x) => onlyDigits(String(x.cpf || "")) === cpfRaw)) {
+      if (fb) fb.textContent = "Já existe cadastro com este CPF.";
+      return;
+    }
+    if (countPortalAdministradoresSecundarios() >= 1) {
+      if (fb) fb.textContent = "Já existe um Administrador 2 cadastrado. Só são permitidos dois administradores.";
+      return;
+    }
+    funcionariosAccess.push({
+      cpf: cpfRaw,
+      senha,
+      nome,
+      role: "owner",
+      blocked: false,
+      adminNivel: 2,
+    });
+    saveFuncionariosAccess();
+    portalPushCloudSnapshotAfterPersist();
+    document.getElementById("formPortalCadastroAdministrador")?.reset();
+    portalRenderAdministradoresLista();
+    if (fb) fb.textContent = "Administrador 2 cadastrado. Acesso a FINANCEIRO (sem FINANCEIRO CEO).";
+  });
+
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>
     onOperacaoLancamentoAluguelProtocoloSelectChange()
   );
@@ -19509,6 +19667,10 @@
     }
     if (rest === "cliente" || rest.startsWith("cliente/")) {
       openLocadoraClienteArea();
+      return;
+    }
+    if (rest === "financeiro-ceo" || rest.startsWith("financeiro-ceo/")) {
+      openLocadoraFinanceiroCeo();
       return;
     }
     if (rest === "financeiro" || rest.startsWith("financeiro/")) {
