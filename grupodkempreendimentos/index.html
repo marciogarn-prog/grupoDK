@@ -22,17 +22,27 @@
   <meta property="og:locale" content="pt_BR">
   <link rel="canonical" href="https://grupodkempreendimentos.com.br/">
   <title>Grupo DK Empreendimentos</title>
-  <link rel="manifest" href="manifest-corporativo.webmanifest">
+  <script>
+    (function () {
+      var p = String(location.pathname || "/").toLowerCase();
+      var href = "/manifest-corporativo.webmanifest";
+      if (p.indexOf("dklocadora") !== -1) href = "/manifest-locadora.webmanifest";
+      else if (p.indexOf("dkcentroautomotivo") !== -1) href = "/manifest-centro.webmanifest";
+      else if (p.indexOf("dkconstrutora") !== -1) href = "/manifest-construtora.webmanifest";
+      document.write('<link rel="manifest" href="' + href + '">');
+    })();
+  </script>
+  <noscript><link rel="manifest" href="/manifest-corporativo.webmanifest"></noscript>
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
   <link rel="stylesheet" href="styles.css?v=20260829acesso-contorno">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
-  <script src="dk-app-scope.js?v=20260829pwa-4scopes"></script>
+  <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260826relacao-cols"></script>
-  <script src="dk-pwa-update.js?v=20260829pwa-4scopes"></script>
+  <script src="dk-pwa-update.js?v=20260829icones-4apps"></script>
 </head>
 <body>
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
@@ -100,7 +110,7 @@
 
     <section class="home-install-apps" id="homeInstallApps" aria-label="Instalar aplicativos">
       <h2 class="home-install-apps__title">Instalar aplicativo nesta máquina</h2>
-      <p class="subtext home-install-apps__lead">Instale os quatro na mesma máquina de testes, cada um no seu endereço. Se o Chrome só mostrar «Abrir no app», desinstale o app antigo do Grupo DK (ele cobria o site inteiro) e instale de novo um a um.</p>
+      <p class="subtext home-install-apps__lead">Instale os quatro na mesma máquina, cada um no seu endereço. O Chrome precisa instalar cada app na página dele (não de dentro do app Grupo DK já aberto). Se só aparecer o ícone branco do Grupo DK, desinstale esse app em Configurações do Windows → Aplicativos, feche o Chrome e instale de novo um a um. No diálogo do Chrome, marque criar atalho na área de trabalho.</p>
       <div class="grid-choices home-install-apps__grid">
         <a class="choice-card" href="/grupodk?instalar=1" data-app-install="grupodk">
           <img class="choice-card__app-icon" src="/icons/icon-grupodk-192.png" alt="" width="56" height="56" decoding="async">
@@ -3286,7 +3296,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="home-install-pwa.js?v=20260829pwa-4scopes" defer></script>
+  <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260826devolucao-hist" defer></script>

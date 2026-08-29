@@ -99,6 +99,17 @@
     });
   }
 
+  function openInstallInBrowser(href) {
+    try {
+      const url = new URL(href, location.origin);
+      url.searchParams.set("instalar", "1");
+      window.open(url.toString(), "_blank", "noopener");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function showBlockedByOldApp() {
     panel?.classList.remove("hidden");
     if (title) title.textContent = `Instalar ${scopeTitle()}`;
@@ -111,7 +122,7 @@
 
   async function runBrowserInstall() {
     await ensureLatest();
-    await waitForDeferred(2800);
+    await waitForDeferred(5000);
     if (deferred) {
       try {
         deferred.prompt();
@@ -119,11 +130,17 @@
         deferred = null;
         if (choice.outcome === "accepted") {
           if (status) {
-            status.textContent = "Ícone autorizado. Use o atalho na área de trabalho ou no menu Iniciar.";
+            status.textContent =
+              "App instalado. Se o ícone não estiver na área de trabalho, abra o Menu Iniciar, pesquise o nome do app e arraste para a área de trabalho. No Chrome, marque «criar atalho na área de trabalho» na próxima instalação.";
           }
           panel?.classList.add("hidden");
           return true;
         }
+        if (status) {
+          status.textContent = "Instalação cancelada. Clique em Instalar neste computador para tentar de novo.";
+        }
+        panel?.classList.remove("hidden");
+        return false;
       } catch {
         deferred = null;
       }
@@ -188,8 +205,9 @@
       skipAuthOnce = true;
       panel.classList.remove("hidden");
       if (status) {
-        status.textContent = "Clique abaixo para o Windows criar o ícone na área de trabalho.";
+        status.textContent = "A abrir o instalador do Windows/Chrome para criar o ícone…";
       }
+      void runBrowserInstall();
     } else {
       showAuthModal(scopeTitle());
     }
@@ -213,10 +231,18 @@
 
   document.querySelectorAll("[data-app-install]").forEach((a) => {
     a.addEventListener("click", (e) => {
-      if (standalone) return;
       e.preventDefault();
       pendingHref = a.getAttribute("href") || "";
       const key = a.getAttribute("data-app-install") || "";
+      if (standalone) {
+        if (status) {
+          panel?.classList.remove("hidden");
+          status.textContent =
+            "A instalação dos outros apps precisa ser feita no Chrome (não de dentro deste app). Abri a página no navegador.";
+        }
+        openInstallInBrowser(pendingHref);
+        return;
+      }
       showAuthModal(appNameFromKey(key));
       void ensureLatest();
     });
