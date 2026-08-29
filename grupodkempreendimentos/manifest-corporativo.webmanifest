@@ -6,31 +6,31 @@
   "start_url": "/?source=pwa",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#050505",
-  "theme_color": "#dc2626",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "lang": "pt-BR",
   "orientation": "any",
   "icons": [
     {
-      "src": "/icons/icon-cliente-192.png",
+      "src": "/icons/icon-grupodk-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-cliente-512.png",
+      "src": "/icons/icon-grupodk-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-cliente-192.png",
+      "src": "/icons/icon-grupodk-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "maskable"
     },
     {
-      "src": "/icons/icon-cliente-512.png",
+      "src": "/icons/icon-grupodk-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

@@ -26,6 +26,47 @@ record("Área empresa com 3 botões", html.includes('id="view-unidade-empresa"')
 record("Botão RECEITA", /data-unidade-fin="receita"[\s\S]*?>[\s\S]*RECEITA/.test(html));
 record("Botão DESPESA", /data-unidade-fin="despesa"[\s\S]*?>[\s\S]*DESPESA/.test(html));
 record("Botão BALANÇO", /data-unidade-fin="balanco"[\s\S]*?>[\s\S]*BALANÇO/.test(html));
+record("Ícone Grupo DK fundo branco", html.includes("icon-grupodk-192.png") && html.includes("Ícone fundo branco"));
+record("Ícone Locadora fundo preto", html.includes("icon-locadora-192.png") && html.includes("Ícone fundo preto"));
+record("Ícone Centro fundo azul", html.includes("icon-centro-192.png") && html.includes("Ícone fundo azul"));
+record("Ícone Construtora fundo cinza", html.includes("icon-construtora-192.png") && html.includes("Ícone fundo cinza"));
+
+function readJson(name) {
+  return JSON.parse(fs.readFileSync(path.join(root, name), "utf8"));
+}
+const manifests = {
+  grupodk: readJson("manifest-corporativo.webmanifest"),
+  locadora: readJson("manifest-locadora.webmanifest"),
+  centro: readJson("manifest-centro.webmanifest"),
+  construtora: readJson("manifest-construtora.webmanifest"),
+};
+record(
+  "Manifests com id e start_url distintos",
+  manifests.grupodk.id === "/" &&
+    manifests.locadora.id === "/dklocadora" &&
+    manifests.centro.id === "/dkcentroautomotivo" &&
+    manifests.construtora.id === "/dkconstrutora" &&
+    new Set(Object.values(manifests).map((m) => m.start_url)).size === 4
+);
+record(
+  "Manifests com ícone e fundo por app",
+  manifests.grupodk.background_color === "#ffffff" &&
+    (manifests.grupodk.icons || []).some((i) => String(i.src).includes("icon-grupodk-")) &&
+    manifests.locadora.background_color === "#000000" &&
+    (manifests.locadora.icons || []).some((i) => String(i.src).includes("icon-locadora-")) &&
+    manifests.centro.background_color === "#1565c0" &&
+    (manifests.centro.icons || []).some((i) => String(i.src).includes("icon-centro-")) &&
+    manifests.construtora.background_color === "#6b7280" &&
+    (manifests.construtora.icons || []).some((i) => String(i.src).includes("icon-construtora-"))
+);
+record(
+  "PNG dos 4 ícones no disco",
+  ["grupodk", "locadora", "centro", "construtora"].every((n) =>
+    fs.existsSync(path.join(root, "icons", `icon-${n}-192.png`)) &&
+    fs.existsSync(path.join(root, "icons", `icon-${n}-512.png`))
+  )
+);
+
 record("Instalar 4 apps na home", html.includes('data-app-install="grupodk"') && html.includes('href="/dklocadora?instalar=1"'));
 record("Endereço /dkcentroautomotivo", html.includes("/dkcentroautomotivo"));
 record("Endereço /dkconstrutora", html.includes("/dkconstrutora"));
@@ -54,6 +95,7 @@ record("Scope / = Grupo DK", fromPath("/") === "grupodk" && fromPath("/index.htm
 record("Scope /dklocadora", fromPath("/dklocadora") === "locadora" && fromPath("/DKLOCADORA") === "locadora");
 record("Scope /dkcentroautomotivo", fromPath("/dkcentroautomotivo") === "centro");
 record("Scope /dkconstrutora", fromPath("/dkconstrutora") === "construtora");
+record("Ícones exportados por app", sandbox.window.__DK_appScopeIcon?.grupodk?.includes("icon-grupodk") && sandbox.window.__DK_appScopeTheme?.locadora === "#000000");
 
 vm.runInNewContext(finJs, sandbox);
 const merge = sandbox.window.__DK_mergeUnidadeFinanceiro;

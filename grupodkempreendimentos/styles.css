@@ -384,6 +384,19 @@ body {
   opacity: 0.9;
 }
 
+.choice-card__app-icon {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 0.9rem;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.choice-card[data-app-install="grupodk"] .choice-card__app-icon {
+  border-color: rgba(0, 0, 0, 0.28);
+}
+
 .choice-card__label {
   font-size: 1.15rem;
   font-weight: 700;
