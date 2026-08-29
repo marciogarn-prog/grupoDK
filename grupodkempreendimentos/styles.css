@@ -9601,3 +9601,63 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 .fin-ceo-desp-form .operacao-inline-form__actions {
   grid-column: 1 / -1;
 }
+
+/* Offline operação (PWA Windows) */
+body.dk-offline-blocked {
+  overflow: hidden;
+  pointer-events: none;
+}
+
+body.dk-offline-blocked .dk-offline-block-overlay {
+  pointer-events: auto;
+}
+
+.dk-offline-block-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 1.5rem;
+}
+
+.dk-offline-block-overlay__card {
+  max-width: 28rem;
+  width: 100%;
+  text-align: center;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 1.5rem 1.25rem;
+}
+
+.dk-offline-block-overlay__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.dk-offline-block-overlay__sub {
+  margin: 0 0 1rem;
+}
+
+.dk-offline-upload-spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  margin: 0.75rem auto 0;
+  border: 3px solid rgba(255, 255, 255, 0.15);
+  border-top-color: #e53935;
+  border-radius: 50%;
+  animation: dk-offline-spin 0.85s linear infinite;
+}
+
+@keyframes dk-offline-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
