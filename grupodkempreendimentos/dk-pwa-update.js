@@ -7,10 +7,10 @@
 (function dkPwaUpdate() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
 
-  const SW_BUILD = "20260829unid-fin";
+  const SW_BUILD = "20260829apps-4";
   const SW_URL = `/service-worker-corporativo.js?v=${SW_BUILD}`;
   const CACHE_PREFIX = "dk-corporativo-v";
-  const ACTIVE_CACHE = `${CACHE_PREFIX}20260826fantasma1`;
+  const ACTIVE_CACHE = `${CACHE_PREFIX}20260829apps-4`;
   const IDLE_RELOAD_MS = 2 * 60 * 1000;
 
   const path = (location.pathname || "/").replace(/\/$/, "") || "/";
@@ -23,17 +23,6 @@
 
   const isStandaloneEarly =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
-  if (
-    /[?&]instalar=1/.test(location.search) &&
-    (path === "/" || path === "/index.html") &&
-    !isStandaloneEarly
-  ) {
-    const u = new URL("/app.html", location.origin);
-    u.searchParams.set("instalar", "1");
-    u.searchParams.set("source", "portal");
-    location.replace(u.pathname + u.search);
-    return;
-  }
 
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;

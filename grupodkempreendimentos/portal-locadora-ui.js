@@ -9,6 +9,8 @@
   const viewLocadoraHub = document.getElementById("view-locadora-hub");
   const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
   const viewUnidadeHub = document.getElementById("view-unidade-hub");
+  const viewUnidadeCliente = document.getElementById("view-unidade-cliente");
+  const viewUnidadeEmpresa = document.getElementById("view-unidade-empresa");
   const viewUnidadeFin = document.getElementById("view-unidade-fin");
   const viewMiel = document.getElementById("view-miel");
   const viewFinanceiro = document.getElementById("view-financeiro");
@@ -517,21 +519,22 @@
       return;
     }
     if (dest === "home") {
-      showView("home");
-      setPortalHash("");
-      portalAtualizarBannerAdmin();
+      portalVoltarInicio();
       return;
     }
     if (dest === "hub") {
-      openLocadoraHub();
+      if (currentUnit === "centro" || currentUnit === "construtora") openUnidadeHub(currentUnit);
+      else openLocadoraHub();
       return;
     }
     if (dest === "empresa") {
-      openLocadoraEmpresa();
+      if (currentUnit === "centro" || currentUnit === "construtora") openUnidadeEmpresa(currentUnit);
+      else openLocadoraEmpresa();
       return;
     }
     if (dest === "cliente") {
-      openLocadoraClienteArea();
+      if (currentUnit === "centro" || currentUnit === "construtora") openUnidadeCliente(currentUnit);
+      else openLocadoraClienteArea();
     }
   }
 
@@ -1541,6 +1544,8 @@
     viewLocadoraHub,
     viewLocadoraCliente,
     viewUnidadeHub,
+    viewUnidadeCliente,
+    viewUnidadeEmpresa,
     viewUnidadeFin,
     viewMiel,
     viewFinanceiro,
@@ -1554,6 +1559,8 @@
       hub: viewLocadoraHub,
       cliente: viewLocadoraCliente,
       unidadeHub: viewUnidadeHub,
+      unidadeCliente: viewUnidadeCliente,
+      unidadeEmpresa: viewUnidadeEmpresa,
       unidadeFin: viewUnidadeFin,
       miel: viewMiel,
       financeiro: viewFinanceiro,
@@ -1749,7 +1756,12 @@
   }
 
   function openLocadoraHub() {
+    if (!portalAppScopeAllowsUnit("locadora")) {
+      portalBootAppScopeHome();
+      return;
+    }
     currentUnit = "locadora";
+    portalAtualizarBannerHubLabel();
     portalColaboradorSenhaPendente = null;
     portalResetSessaoSeNaoAdmin();
     if (!isPortalAdministradorLogado()) {
@@ -1943,6 +1955,51 @@
     if (typeof window.__DK_mielOnShow === "function") window.__DK_mielOnShow();
   }
 
+  const UNIDADE_LABEL = {
+    locadora: "DK Locadora",
+    centro: "DK Centro Automotivo",
+    construtora: "DK Construtora",
+  };
+
+  function portalAppScope() {
+    return typeof window.__DK_appScope === "function" ? window.__DK_appScope() : "grupodk";
+  }
+
+  function portalAppScopeIsCentral() {
+    return typeof window.__DK_appScopeIsCentral === "function"
+      ? window.__DK_appScopeIsCentral()
+      : portalAppScope() === "grupodk";
+  }
+
+  function portalAppScopeAllowsUnit(unit) {
+    if (typeof window.__DK_appScopeAllowsUnit === "function") return window.__DK_appScopeAllowsUnit(unit);
+    return portalAppScopeIsCentral() || portalAppScope() === unit;
+  }
+
+  function portalAtualizarBannerHubLabel() {
+    const btn = document.getElementById("portal-admin-nav-hub");
+    if (btn) btn.textContent = UNIDADE_LABEL[currentUnit] || UNIDADE_LABEL.locadora;
+  }
+
+  function portalAplicarAppScopeUi() {
+    const scope = portalAppScope();
+    const central = portalAppScopeIsCentral();
+    document.body.classList.toggle("portal-body--app-central", central);
+    document.body.classList.toggle("portal-body--app-locadora", scope === "locadora");
+    document.body.classList.toggle("portal-body--app-centro", scope === "centro");
+    document.body.classList.toggle("portal-body--app-construtora", scope === "construtora");
+    const install = document.getElementById("homeInstallApps");
+    if (install) install.classList.toggle("hidden", !central);
+    document.querySelectorAll("#main-choices [data-go]").forEach((btn) => {
+      const go = btn.getAttribute("data-go") || "";
+      if (go === "miel") return;
+      const show = central || go === scope;
+      btn.classList.toggle("hidden", !show);
+      btn.hidden = !show;
+    });
+    if (typeof window.__DK_syncAppManifest === "function") window.__DK_syncAppManifest();
+  }
+
   function unidadeFinHashPane(pane) {
     if (pane === "despesa") return "despesa";
     if (pane === "balanco") return "balanco";
@@ -1951,27 +2008,77 @@
 
   function openUnidadeHub(go) {
     currentUnit = go === "construtora" ? "construtora" : "centro";
+    if (!portalAppScopeAllowsUnit(currentUnit)) {
+      portalBootAppScopeHome();
+      return;
+    }
     portalColaboradorSenhaPendente = null;
     portalResetSessaoSeNaoAdmin();
     const titleEl = document.getElementById("unidade-hub-title");
-    if (titleEl) {
-      titleEl.textContent = currentUnit === "centro" ? "DK Centro Automotivo" : "DK Construtora";
-    }
+    if (titleEl) titleEl.textContent = UNIDADE_LABEL[currentUnit];
+    portalAtualizarBannerHubLabel();
     showView("unidadeHub");
     setPortalHash(currentUnit);
     portalAtualizarBannerAdmin();
   }
 
+  function openUnidadeCliente(go) {
+    currentUnit = go === "construtora" ? "construtora" : "centro";
+    if (!portalAppScopeAllowsUnit(currentUnit)) {
+      portalBootAppScopeHome();
+      return;
+    }
+    const titleEl = document.getElementById("unidade-cliente-title");
+    if (titleEl) titleEl.textContent = `Área do Cliente — ${UNIDADE_LABEL[currentUnit]}`;
+    portalAtualizarBannerHubLabel();
+    showView("unidadeCliente");
+    setPortalHash(`${currentUnit}/cliente`);
+    portalAtualizarBannerAdmin();
+  }
+
+  function openUnidadeEmpresa(go) {
+    currentUnit = go === "construtora" ? "construtora" : "centro";
+    if (!portalAppScopeAllowsUnit(currentUnit)) {
+      portalBootAppScopeHome();
+      return;
+    }
+    const titleEl = document.getElementById("unidade-empresa-title");
+    if (titleEl) titleEl.textContent = UNIDADE_LABEL[currentUnit];
+    portalAtualizarBannerHubLabel();
+    showView("unidadeEmpresa");
+    setPortalHash(`${currentUnit}/empresa`);
+    portalAtualizarBannerAdmin();
+  }
+
   function openUnidadeFin(go, pane) {
     currentUnit = go === "construtora" ? "construtora" : "centro";
+    if (!portalAppScopeAllowsUnit(currentUnit)) {
+      portalBootAppScopeHome();
+      return;
+    }
     const p = unidadeFinHashPane(pane);
     portalColaboradorSenhaPendente = null;
+    portalAtualizarBannerHubLabel();
     showView("unidadeFin");
-    setPortalHash(`${currentUnit}/${p}`);
+    setPortalHash(`${currentUnit}/empresa/${p}`);
     if (typeof window.__DK_unidadeFinOnShow === "function") {
       window.__DK_unidadeFinOnShow(currentUnit, p);
     }
     portalAtualizarBannerAdmin();
+  }
+
+  function portalBootAppScopeHome() {
+    portalAplicarAppScopeUi();
+    const scope = portalAppScope();
+    if (scope === "locadora") {
+      openLocadoraHub();
+      return true;
+    }
+    if (scope === "centro" || scope === "construtora") {
+      openUnidadeHub(scope);
+      return true;
+    }
+    return false;
   }
 
   function openUnit(go) {
@@ -1984,6 +2091,10 @@
       return;
     }
     if (go === "centro" || go === "construtora") {
+      if (!portalAppScopeAllowsUnit(go)) {
+        portalBootAppScopeHome();
+        return;
+      }
       openUnidadeHub(go);
       return;
     }
@@ -2020,6 +2131,15 @@
     });
   });
 
+  document.querySelectorAll("[data-unidade-go]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const dest = btn.getAttribute("data-unidade-go") || "";
+      const unit = currentUnit === "construtora" ? "construtora" : "centro";
+      if (dest === "cliente") openUnidadeCliente(unit);
+      else if (dest === "empresa") openUnidadeEmpresa(unit);
+    });
+  });
+
   document.querySelectorAll("[data-unidade-fin]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const pane = btn.getAttribute("data-unidade-fin") || "receita";
@@ -2042,6 +2162,15 @@
       btnFinanceiroCeo?.classList.add("hidden");
       refreshPortalUnitLeadForSession();
       clearPortalUnitDadosAtualizados();
+    }
+    const scope = portalAppScope();
+    if (scope === "locadora") {
+      openLocadoraHub();
+      return;
+    }
+    if (scope === "centro" || scope === "construtora") {
+      openUnidadeHub(scope);
+      return;
     }
     showView("home");
     setPortalHash("");
@@ -2296,6 +2425,10 @@
       return;
     }
     if (viewUnidadeFin?.classList.contains("view--active")) {
+      openUnidadeEmpresa(currentUnit === "construtora" ? "construtora" : "centro");
+      return;
+    }
+    if (viewUnidadeEmpresa?.classList.contains("view--active") || viewUnidadeCliente?.classList.contains("view--active")) {
       openUnidadeHub(currentUnit === "construtora" ? "construtora" : "centro");
       return;
     }
@@ -19714,9 +19847,26 @@
     const h = (window.location.hash || "").toLowerCase();
     if (!h.startsWith("#centro") && !h.startsWith("#construtora")) return false;
     const unit = h.startsWith("#construtora") ? "construtora" : "centro";
+    if (!portalAppScopeAllowsUnit(unit)) {
+      portalBootAppScopeHome();
+      return true;
+    }
     const rest = h.replace(/^#(centro|construtora)\/?/, "").trim();
     if (!rest || rest === "hub") {
       openUnidadeHub(unit);
+      return true;
+    }
+    if (rest === "cliente" || rest.startsWith("cliente/")) {
+      openUnidadeCliente(unit);
+      return true;
+    }
+    if (rest === "empresa" || rest === "empresa/") {
+      openUnidadeEmpresa(unit);
+      return true;
+    }
+    const empPane = rest.replace(/^empresa\/?/, "");
+    if (empPane === "receita" || empPane === "despesa" || empPane === "balanco" || empPane.startsWith("balan")) {
+      openUnidadeFin(unit, empPane.startsWith("balan") ? "balanco" : empPane);
       return true;
     }
     if (rest === "receita" || rest === "despesa" || rest === "balanco" || rest.startsWith("balan")) {
@@ -19728,13 +19878,24 @@
   }
 
   function applyPortalLocadoraHash() {
+    portalAplicarAppScopeUi();
     const h = (window.location.hash || "").toLowerCase();
     if (h === "#miel" || h.startsWith("#miel/")) {
-      openMielSistema();
+      if (portalAppScopeIsCentral()) openMielSistema();
+      else portalBootAppScopeHome();
       return;
     }
     if (applyPortalUnidadeHash()) return;
-    if (!h.startsWith("#locadora")) return;
+    if (!h.startsWith("#locadora")) {
+      if ((!h || h === "#") && !portalAppScopeIsCentral()) {
+        portalBootAppScopeHome();
+      }
+      return;
+    }
+    if (!portalAppScopeAllowsUnit("locadora")) {
+      portalBootAppScopeHome();
+      return;
+    }
     try {
       if (sessionStorage.getItem("dk_from_pwa_app") === "1") {
         sessionStorage.removeItem("dk_from_pwa_app");

@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260829unid-fin";
+const CACHE_NAME = "dk-corporativo-v20260829apps-4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,6 +12,7 @@ const ASSETS = [
   "./app.js",
   "./portal-cliente-codigo-admin.js",
   "./portal-locadora-ui.js",
+  "./dk-app-scope.js",
   "./portal-unidade-financeiro.js",
   "./portal-lanc-aluguel-calendario.js",
   "./portal-lancamentos-extras.js",
@@ -34,6 +35,9 @@ const ASSETS = [
   "./supabase-init.js",
   "./data/dk-banco-cadastro-vazio.js",
   "./manifest-corporativo.webmanifest",
+  "./manifest-locadora.webmanifest",
+  "./manifest-centro.webmanifest",
+  "./manifest-construtora.webmanifest",
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
 ];

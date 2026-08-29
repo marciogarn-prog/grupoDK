@@ -10,14 +10,14 @@
     "api/openai-extrato.js": { "maxDuration": 60 }
   },
   "rewrites": [
-    {
-      "source": "/app",
-      "destination": "/app.html"
-    },
-    {
-      "source": "/instalar",
-      "destination": "/instalar.html"
-    }
+    { "source": "/app", "destination": "/app.html" },
+    { "source": "/instalar", "destination": "/instalar.html" },
+    { "source": "/dklocadora", "destination": "/index.html" },
+    { "source": "/DKLOCADORA", "destination": "/index.html" },
+    { "source": "/dkcentroautomotivo", "destination": "/index.html" },
+    { "source": "/DKCENTROAUTOMOTIVO", "destination": "/index.html" },
+    { "source": "/dkconstrutora", "destination": "/index.html" },
+    { "source": "/DKCONSTRUTORA", "destination": "/index.html" }
   ],
   "crons": [
     {
@@ -32,6 +32,27 @@
     },
     {
       "source": "/manifest-corporativo.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/manifest-locadora.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/manifest-centro.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/manifest-construtora.webmanifest",
       "headers": [
         { "key": "Content-Type", "value": "application/manifest+json" },
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }

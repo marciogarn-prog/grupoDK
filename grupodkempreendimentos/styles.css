@@ -226,6 +226,43 @@ body {
   color: var(--accent);
 }
 
+.home-install-apps {
+  width: 100%;
+  margin: 0.5rem 0 2rem;
+}
+
+.home-install-apps__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.home-install-apps__lead {
+  margin: 0 0 0.75rem;
+}
+
+.unidade-cliente-dev {
+  margin: 3rem 0 2rem;
+  text-align: center;
+  font-size: clamp(1.35rem, 4.2vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+@media (min-width: 640px) {
+  .home-install-apps__grid.grid-choices {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .home-install-apps__grid.grid-choices {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .btn-app-logo {
   display: block;
   height: 1.55rem;

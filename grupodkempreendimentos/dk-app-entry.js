@@ -170,7 +170,7 @@
     } catch {
       /* ignore */
     }
-    window.location.replace("/#locadora/empresa/colaborador");
+    window.location.replace("/dklocadora");
   });
 
   if (tryResumeClienteApp()) return;
@@ -185,7 +185,7 @@
       const s = JSON.parse(raw);
       if (s?.tipo !== "admin") return;
       const sub = s.role === "owner" ? "administrador" : "colaborador";
-      window.location.replace(`/#locadora/empresa/${sub}`);
+      window.location.replace("/dklocadora");
     } catch {
       /* ignore */
     }

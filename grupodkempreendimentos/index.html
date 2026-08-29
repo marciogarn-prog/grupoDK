@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
+  <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#050505">
   <!-- URL absoluto do index.html do sistema DK (só no deploy onde portal e DK não ficam em pastas pai/filho). Deixe vazio para usar ../index.html no mesmo projeto. -->
@@ -25,24 +26,36 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" href="/icons/icon-cliente-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260829unid-fin">
+  <link rel="stylesheet" href="styles.css?v=20260829apps-4">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
+  <script src="dk-app-scope.js?v=20260829apps-4"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260826relacao-cols"></script>
-  <script src="dk-pwa-update.js?v=20260829unid-fin"></script>
+  <script src="dk-pwa-update.js?v=20260829apps-4"></script>
 </head>
 <body>
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
     <span class="dk-pwa-update-bar__hint">App instalado — mantenha a versão em dia</span>
     <button type="button" id="updateButton" class="dk-pwa-update-bar__btn btn-primary btn-secondary-outline hidden">Atualizar app</button>
   </div>
+  <div id="dkAppInstallPanel" class="cliente-install-panel hidden" aria-live="polite">
+    <h2 class="cliente-install-panel__title" id="dkAppInstallTitle">Instalar aplicativo</h2>
+    <p id="dkAppInstallStatus" class="subtext">Use o botão abaixo ou a instalação manual (Windows, Android ou iPhone).</p>
+    <button type="button" id="dkAppInstallBtn" class="btn-primary" style="width:100%">Instalar neste computador</button>
+    <details class="cliente-install-manual" id="dkAppInstallManual">
+      <summary>Instalação manual</summary>
+      <p class="subtext"><strong>Windows:</strong> Chrome ou Edge → ícone Instalar (⊕) na barra de endereço.</p>
+      <p class="subtext"><strong>Android:</strong> Chrome → menu ⋮ → Instalar app.</p>
+      <p class="subtext"><strong>iPhone:</strong> Safari → partilhar ↑ → Adicionar à Tela de Início.</p>
+    </details>
+  </div>
   <div id="portal-admin-banner" class="portal-admin-banner hidden" role="status" aria-live="polite">
     <span class="portal-admin-banner__label">LOGADO COMO ADMINISTRADOR</span>
     <nav class="portal-admin-banner__nav" aria-label="Navegação administrador">
       <button type="button" class="portal-admin-banner__link" data-admin-nav="voltar">Voltar</button>
       <button type="button" class="portal-admin-banner__link" data-admin-nav="home">Início</button>
-      <button type="button" class="portal-admin-banner__link" data-admin-nav="hub">DK Locadora</button>
+      <button type="button" class="portal-admin-banner__link" data-admin-nav="hub" id="portal-admin-nav-hub">DK Locadora</button>
       <button type="button" class="portal-admin-banner__link" data-admin-nav="empresa">Área empresa</button>
       <button type="button" class="portal-admin-banner__link" data-admin-nav="cliente">Área cliente</button>
       <button type="button" class="portal-admin-banner__link portal-admin-banner__link--sair" data-admin-nav="sair">Sair</button>
@@ -58,10 +71,6 @@
         </div>
       </div>
       <p class="header-lead">Escolha uma unidade de negócio para continuar.</p>
-      <div class="home-app-downloads" role="group" aria-label="Baixar aplicativos">
-        <a href="/instalar" class="home-app-btn home-app-btn--cliente" id="homeBaixarAppCliente">Baixar app cliente</a>
-        <a href="/app.html?instalar=1" class="home-app-btn home-app-btn--operacao" id="homeBaixarAppOperacao">Baixar app operação</a>
-      </div>
     </header>
 
     <main class="grid-choices" id="main-choices" aria-label="Unidades de negócio">
@@ -88,6 +97,33 @@
         <span class="choice-card__hint">Gestão e controlo (planilha em migração)</span>
       </button>
     </main>
+
+    <section class="home-install-apps" id="homeInstallApps" aria-label="Instalar aplicativos">
+      <h2 class="home-install-apps__title">Instalar aplicativo nesta máquina</h2>
+      <p class="subtext home-install-apps__lead">Grupo DK (central) vê as três empresas. Cada empresa instala o seu próprio app.</p>
+      <div class="grid-choices home-install-apps__grid">
+        <a class="choice-card" href="/?instalar=1" data-app-install="grupodk">
+          <span class="choice-card__icon" aria-hidden="true">&#9734;</span>
+          <span class="choice-card__label">Grupo DK</span>
+          <span class="choice-card__hint">App central · grupodkempreendimentos.com.br</span>
+        </a>
+        <a class="choice-card" href="/dklocadora?instalar=1" data-app-install="locadora">
+          <span class="choice-card__icon" aria-hidden="true">&#9670;</span>
+          <span class="choice-card__label">DK Locadora</span>
+          <span class="choice-card__hint">grupodkempreendimentos.com.br/dklocadora</span>
+        </a>
+        <a class="choice-card" href="/dkcentroautomotivo?instalar=1" data-app-install="centro">
+          <span class="choice-card__icon" aria-hidden="true">&#9671;</span>
+          <span class="choice-card__label">DK Centro Automotivo</span>
+          <span class="choice-card__hint">grupodkempreendimentos.com.br/dkcentroautomotivo</span>
+        </a>
+        <a class="choice-card" href="/dkconstrutora?instalar=1" data-app-install="construtora">
+          <span class="choice-card__icon" aria-hidden="true">&#9635;</span>
+          <span class="choice-card__label">DK Construtora</span>
+          <span class="choice-card__hint">grupodkempreendimentos.com.br/dkconstrutora</span>
+        </a>
+      </div>
+    </section>
 
     <footer class="site-footer">
       <p>Petrolina — PE · <a href="https://grupodkempreendimentos.com.br/">grupodkempreendimentos.com.br</a></p>
@@ -188,6 +224,48 @@
         <img class="brand__logo" src="/images/dk-locadora-logo.png" alt="Grupo DK" width="140" height="56" decoding="async">
         <div class="brand__text">
           <span class="brand__title" id="unidade-hub-title">Unidade</span>
+          <span class="brand__subtitle">Grupo DK</span>
+        </div>
+      </div>
+      <p class="header-lead">Escolha como deseja continuar.</p>
+    </header>
+    <main class="grid-choices" aria-label="Área do cliente ou da empresa">
+      <button type="button" class="choice-card" data-unidade-go="cliente">
+        <span class="choice-card__icon" aria-hidden="true">&#9670;</span>
+        <span class="choice-card__label">Área do Cliente</span>
+        <span class="choice-card__hint">Baixar app cliente</span>
+      </button>
+      <button type="button" class="choice-card" data-unidade-go="empresa">
+        <span class="choice-card__icon" aria-hidden="true">&#9671;</span>
+        <span class="choice-card__label">Área da Empresa</span>
+        <span class="choice-card__hint">Baixar app operação</span>
+      </button>
+    </main>
+    <footer class="site-footer site-footer--nav-dupla">
+      <button type="button" class="btn-back" data-back>&larr; Voltar</button>
+      <button type="button" class="btn-back btn-back--inicio" data-inicio>Início</button>
+    </footer>
+  </div>
+
+  <div id="view-unidade-cliente" class="view view--locadora-sub" role="region" aria-labelledby="unidade-cliente-title" aria-hidden="true">
+    <div class="subpage">
+      <header class="portal-unit-bar portal-unit-bar--simple" aria-label="Navegação">
+        <div class="portal-unit-bar__nav">
+          <button type="button" class="portal-unit-bar__back btn-back btn-back--compact" data-back>&larr; Voltar</button>
+          <button type="button" class="btn-back btn-back--compact btn-back--inicio" data-inicio>Início</button>
+        </div>
+      </header>
+      <h1 id="unidade-cliente-title" class="subpage__title">Área do Cliente</h1>
+      <p class="unidade-cliente-dev" role="status">SISTEMA EM DESENVOLVIMENTO</p>
+    </div>
+  </div>
+
+  <div id="view-unidade-empresa" class="view view--locadora-sub" role="region" aria-labelledby="unidade-empresa-title" aria-hidden="true">
+    <header class="site-header site-header--sub">
+      <div class="brand">
+        <img class="brand__logo" src="/images/dk-locadora-logo.png" alt="Grupo DK" width="140" height="56" decoding="async">
+        <div class="brand__text">
+          <span class="brand__title" id="unidade-empresa-title">Área da Empresa</span>
           <span class="brand__subtitle">Grupo DK</span>
         </div>
       </div>
@@ -3195,7 +3273,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="home-install-pwa.js?v=20260826app-operacao-install" defer></script>
+  <script src="home-install-pwa.js?v=20260829apps-4" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260826devolucao-hist" defer></script>
@@ -3203,8 +3281,8 @@
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-unidade-financeiro.js?v=20260829unid-fin" defer></script>
-  <script src="portal-locadora-ui.js?v=20260829unid-fin" defer></script>
+  <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
+  <script src="portal-locadora-ui.js?v=20260829apps-4" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
