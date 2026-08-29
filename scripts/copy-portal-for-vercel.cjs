@@ -9,6 +9,7 @@
  */
 const fs = require("fs");
 const path = require("path");
+const { applyAppHtmlIdentity } = require("../grupodkempreendimentos/lib/dk-app-html-identity.cjs");
 
 function escHtmlAttrValue(s) {
   return String(s ?? "")
@@ -144,8 +145,14 @@ if (fs.existsSync(indexHtml)) {
     );
   }
   fs.writeFileSync(indexHtml, html);
-  for (const name of ["grupodk.html", "dklocadora.html", "dkcentroautomotivo.html", "dkconstrutora.html"]) {
-    fs.copyFileSync(indexHtml, path.join(outDir, name));
+  const unitCopies = [
+    ["grupodk.html", "grupodk"],
+    ["dklocadora.html", "locadora"],
+    ["dkcentroautomotivo.html", "centro"],
+    ["dkconstrutora.html", "construtora"],
+  ];
+  for (const [name, key] of unitCopies) {
+    fs.writeFileSync(path.join(outDir, name), applyAppHtmlIdentity(html, key));
   }
   console.log(
     "copy-portal-for-vercel: Supabase meta injetadas (chave:",

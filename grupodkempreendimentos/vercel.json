@@ -12,14 +12,14 @@
   "rewrites": [
     { "source": "/app", "destination": "/app.html" },
     { "source": "/instalar", "destination": "/instalar.html" },
-    { "source": "/grupodk", "destination": "/index.html" },
-    { "source": "/GRUPODK", "destination": "/index.html" },
-    { "source": "/dklocadora", "destination": "/index.html" },
-    { "source": "/DKLOCADORA", "destination": "/index.html" },
-    { "source": "/dkcentroautomotivo", "destination": "/index.html" },
-    { "source": "/DKCENTROAUTOMOTIVO", "destination": "/index.html" },
-    { "source": "/dkconstrutora", "destination": "/index.html" },
-    { "source": "/DKCONSTRUTORA", "destination": "/index.html" }
+    { "source": "/grupodk", "destination": "/grupodk.html" },
+    { "source": "/GRUPODK", "destination": "/grupodk.html" },
+    { "source": "/dklocadora", "destination": "/dklocadora.html" },
+    { "source": "/DKLOCADORA", "destination": "/dklocadora.html" },
+    { "source": "/dkcentroautomotivo", "destination": "/dkcentroautomotivo.html" },
+    { "source": "/DKCENTROAUTOMOTIVO", "destination": "/dkcentroautomotivo.html" },
+    { "source": "/dkconstrutora", "destination": "/dkconstrutora.html" },
+    { "source": "/DKCONSTRUTORA", "destination": "/dkconstrutora.html" }
   ],
   "crons": [
     {

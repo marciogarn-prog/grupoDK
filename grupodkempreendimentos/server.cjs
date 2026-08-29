@@ -7,6 +7,7 @@
 const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const { appKeyFromPath, applyAppHtmlIdentity } = require("./lib/dk-app-html-identity.cjs");
 
 const PORT = Number(process.env.PORT) || 3000;
 const ROOT = __dirname;
@@ -71,6 +72,31 @@ function writeLocalClientesSync(list) {
   fs.writeFileSync(LOCAL_CLIENTES_SYNC_FILE, JSON.stringify(safe), "utf8");
 }
 
+function isUnitAppPath(pathname) {
+  const p = String(pathname || "/").toLowerCase().replace(/\/$/, "") || "/";
+  return (
+    p === "/grupodk" ||
+    p === "/grupodk.html" ||
+    p === "/dklocadora" ||
+    p === "/dklocadora.html" ||
+    p === "/dkcentroautomotivo" ||
+    p === "/dkcentroautomotivo.html" ||
+    p === "/dkconstrutora" ||
+    p === "/dkconstrutora.html"
+  );
+}
+
+function sendPortalIndex(res, pathname) {
+  const indexPath = path.join(ROOT, "index.html");
+  let html = fs.readFileSync(indexPath, "utf8");
+  html = applyAppHtmlIdentity(html, appKeyFromPath(pathname));
+  res.writeHead(200, {
+    "Content-Type": MIME[".html"],
+    "Cache-Control": "no-store",
+  });
+  res.end(html);
+}
+
 const server = http.createServer((req, res) => {
   const pathname = toPathname(req.url);
 
@@ -118,6 +144,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  if (isUnitAppPath(pathname)) {
+    try {
+      sendPortalIndex(res, pathname);
+    } catch {
+      res.writeHead(500, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Falha ao abrir o app.");
+    }
+    return;
+  }
+
   const wantedPath = pathname === "/" ? "/index.html" : pathname;
   let filePath = safeJoin(ROOT, wantedPath);
   if (!filePath) {
@@ -137,16 +173,12 @@ const server = http.createServer((req, res) => {
 
     // Fallback SPA: para rotas sem extensão, devolve o index.
     if (!path.extname(pathname)) {
-      const indexPath = path.join(ROOT, "index.html");
-      fs.stat(indexPath, (indexErr, indexSt) => {
-        if (indexErr || !indexSt.isFile()) {
-          res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-          res.end("Não encontrado — confira se abriu http://localhost:" + PORT + "/ e se o servidor está rodando nesta pasta.");
-          return;
-        }
-        res.writeHead(200, { "Content-Type": MIME[".html"] });
-        fs.createReadStream(indexPath).pipe(res);
-      });
+      try {
+        sendPortalIndex(res, pathname);
+      } catch {
+        res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Não encontrado — confira se abriu http://localhost:" + PORT + "/ e se o servidor está rodando nesta pasta.");
+      }
       return;
     }
 

@@ -7,10 +7,10 @@
 (function dkPwaUpdate() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
 
-  const SW_BUILD = "20260829pwa-4scopes";
+  const SW_BUILD = "20260829icones-4apps";
   const SW_URL = `/service-worker-corporativo.js?v=${SW_BUILD}`;
   const CACHE_PREFIX = "dk-corporativo-v";
-  const ACTIVE_CACHE = `${CACHE_PREFIX}20260829pwa-4scopes`;
+  const ACTIVE_CACHE = `${CACHE_PREFIX}20260829icones-4apps`;
   const IDLE_RELOAD_MS = 2 * 60 * 1000;
 
   const path = (location.pathname || "/").replace(/\/$/, "") || "/";
@@ -56,6 +56,43 @@
         }
       });
     });
+  }
+
+  function swScopeForCurrentApp() {
+    const key = typeof window.__DK_appScope === "function" ? window.__DK_appScope() : "grupodk";
+    const paths = window.__DK_appScopePath || {
+      grupodk: "/grupodk",
+      locadora: "/dklocadora",
+      centro: "/dkcentroautomotivo",
+      construtora: "/dkconstrutora",
+    };
+    return paths[key] || "/grupodk";
+  }
+
+  async function unregisterRootCorporativoSw() {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        regs.map(async (reg) => {
+          const script =
+            (reg.active && reg.active.scriptURL) ||
+            (reg.installing && reg.installing.scriptURL) ||
+            (reg.waiting && reg.waiting.scriptURL) ||
+            "";
+          let scopePath = "/";
+          try {
+            scopePath = new URL(reg.scope).pathname.replace(/\/$/, "") || "/";
+          } catch {
+            scopePath = "/";
+          }
+          if (script.indexOf("service-worker-corporativo") !== -1 && scopePath === "/") {
+            await reg.unregister();
+          }
+        })
+      );
+    } catch {
+      /* ignore */
+    }
   }
 
   async function purgeStaleCorporativoCaches() {
@@ -142,8 +179,9 @@
   async function ensureLatestPwa(opts) {
     const force = Boolean(opts?.force ?? forceApply);
     try {
+      await unregisterRootCorporativoSw();
       const reg = await navigator.serviceWorker.register(SW_URL, {
-        scope: "/",
+        scope: swScopeForCurrentApp(),
         updateViaCache: "none",
       });
       registrationRef = reg;
