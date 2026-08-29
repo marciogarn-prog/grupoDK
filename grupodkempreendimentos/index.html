@@ -29,10 +29,10 @@
   <link rel="stylesheet" href="styles.css?v=20260829acesso-contorno">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
-  <script src="dk-app-scope.js?v=20260829icon-cores"></script>
+  <script src="dk-app-scope.js?v=20260829pwa-4scopes"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260826relacao-cols"></script>
-  <script src="dk-pwa-update.js?v=20260829icon-cores"></script>
+  <script src="dk-pwa-update.js?v=20260829pwa-4scopes"></script>
 </head>
 <body>
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
@@ -100,12 +100,12 @@
 
     <section class="home-install-apps" id="homeInstallApps" aria-label="Instalar aplicativos">
       <h2 class="home-install-apps__title">Instalar aplicativo nesta máquina</h2>
-      <p class="subtext home-install-apps__lead">Grupo DK (central) vê as três empresas. Cada empresa instala o seu próprio app.</p>
+      <p class="subtext home-install-apps__lead">Instale os quatro na mesma máquina de testes, cada um no seu endereço. Se o Chrome só mostrar «Abrir no app», desinstale o app antigo do Grupo DK (ele cobria o site inteiro) e instale de novo um a um.</p>
       <div class="grid-choices home-install-apps__grid">
-        <a class="choice-card" href="/?instalar=1" data-app-install="grupodk">
+        <a class="choice-card" href="/grupodk?instalar=1" data-app-install="grupodk">
           <img class="choice-card__app-icon" src="/icons/icon-grupodk-192.png" alt="" width="56" height="56" decoding="async">
           <span class="choice-card__label">Grupo DK</span>
-          <span class="choice-card__hint">Ícone fundo branco · grupodkempreendimentos.com.br</span>
+          <span class="choice-card__hint">Ícone fundo branco · grupodkempreendimentos.com.br/grupodk</span>
         </a>
         <a class="choice-card" href="/dklocadora?instalar=1" data-app-install="locadora">
           <img class="choice-card__app-icon" src="/icons/icon-locadora-192.png" alt="" width="56" height="56" decoding="async">
@@ -3286,7 +3286,7 @@
   </div>
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
-  <script src="home-install-pwa.js?v=20260829icon-desktop" defer></script>
+  <script src="home-install-pwa.js?v=20260829pwa-4scopes" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260826devolucao-hist" defer></script>

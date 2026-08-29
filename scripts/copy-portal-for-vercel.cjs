@@ -144,7 +144,7 @@ if (fs.existsSync(indexHtml)) {
     );
   }
   fs.writeFileSync(indexHtml, html);
-  for (const name of ["dklocadora.html", "dkcentroautomotivo.html", "dkconstrutora.html"]) {
+  for (const name of ["grupodk.html", "dklocadora.html", "dkcentroautomotivo.html", "dkconstrutora.html"]) {
     fs.copyFileSync(indexHtml, path.join(outDir, name));
   }
   console.log(

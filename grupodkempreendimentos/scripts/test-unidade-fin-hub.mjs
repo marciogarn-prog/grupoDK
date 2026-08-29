@@ -74,12 +74,17 @@ const manifests = {
   construtora: readJson("manifest-construtora.webmanifest"),
 };
 record(
-  "Manifests com id e start_url distintos",
-  manifests.grupodk.id === "/" &&
+  "Manifests com id, start_url e scope distintos",
+  manifests.grupodk.id === "/grupodk" &&
+    manifests.grupodk.scope === "/grupodk" &&
     manifests.locadora.id === "/dklocadora" &&
+    manifests.locadora.scope === "/dklocadora" &&
     manifests.centro.id === "/dkcentroautomotivo" &&
+    manifests.centro.scope === "/dkcentroautomotivo" &&
     manifests.construtora.id === "/dkconstrutora" &&
-    new Set(Object.values(manifests).map((m) => m.start_url)).size === 4
+    manifests.construtora.scope === "/dkconstrutora" &&
+    new Set(Object.values(manifests).map((m) => m.start_url)).size === 4 &&
+    new Set(Object.values(manifests).map((m) => m.scope)).size === 4
 );
 record(
   "Manifests com ícone e fundo por app",
@@ -100,10 +105,12 @@ record(
   )
 );
 
-record("Instalar 4 apps na home", html.includes('data-app-install="grupodk"') && html.includes('href="/dklocadora?instalar=1"'));
+record("Instalar 4 apps na home", html.includes('data-app-install="grupodk"') && html.includes('href="/grupodk?instalar=1"') && html.includes('href="/dklocadora?instalar=1"'));
 record("Endereço /dkcentroautomotivo", html.includes("/dkcentroautomotivo"));
 record("Endereço /dkconstrutora", html.includes("/dkconstrutora"));
 record("Rewrite Vercel /dklocadora", vercel.includes('"/dklocadora"'));
+record("Rewrite Vercel /grupodk", vercel.includes('"/grupodk"'));
+record("Apps com escopo próprio para instalar os 4", homeInstall.includes("showBlockedByOldApp") && homeInstall.includes("/grupodk?instalar=1"));
 record("openUnidadeHub no portal", locadoraUi.includes("function openUnidadeHub"));
 record("App isolado por endereço", locadoraUi.includes("function portalAppScopeAllowsUnit"));
 
@@ -124,7 +131,7 @@ sandbox.window = sandbox;
 sandbox.window.location = { pathname: "/" };
 vm.runInNewContext(scopeJs, sandbox);
 const fromPath = sandbox.window.__DK_appScopeFromPath;
-record("Scope / = Grupo DK", fromPath("/") === "grupodk" && fromPath("/index.html") === "grupodk");
+record("Scope / = Grupo DK", fromPath("/") === "grupodk" && fromPath("/index.html") === "grupodk" && fromPath("/grupodk") === "grupodk");
 record("Scope /dklocadora", fromPath("/dklocadora") === "locadora" && fromPath("/DKLOCADORA") === "locadora");
 record("Scope /dkcentroautomotivo", fromPath("/dkcentroautomotivo") === "centro");
 record("Scope /dkconstrutora", fromPath("/dkconstrutora") === "construtora");

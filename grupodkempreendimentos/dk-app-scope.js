@@ -1,6 +1,6 @@
 /**
- * Quatro apps no mesmo site:
- *   /                      → Grupo DK (central)
+ * Quatro apps no mesmo site (escopos separados para o Windows instalar os 4):
+ *   / e /grupodk           → Grupo DK (central)
  *   /dklocadora            → DK Locadora
  *   /dkcentroautomotivo    → DK Centro Automotivo
  *   /dkconstrutora         → DK Construtora
@@ -19,7 +19,7 @@
     construtora: "DK Construtora",
   };
   const PATH = {
-    grupodk: "/",
+    grupodk: "/grupodk",
     locadora: "/dklocadora",
     centro: "/dkcentroautomotivo",
     construtora: "/dkconstrutora",
@@ -46,6 +46,7 @@
     if (parts.includes("dklocadora")) return "locadora";
     if (parts.includes("dkcentroautomotivo")) return "centro";
     if (parts.includes("dkconstrutora")) return "construtora";
+    if (parts.includes("grupodk")) return "grupodk";
     return "grupodk";
   }
 

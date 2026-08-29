@@ -13,6 +13,8 @@
   },
   "rewrites": [
     { "source": "/instalar", "destination": "/instalar.html" },
+    { "source": "/grupodk", "destination": "/index.html" },
+    { "source": "/GRUPODK", "destination": "/index.html" },
     { "source": "/dklocadora", "destination": "/index.html" },
     { "source": "/DKLOCADORA", "destination": "/index.html" },
     { "source": "/dkcentroautomotivo", "destination": "/index.html" },
