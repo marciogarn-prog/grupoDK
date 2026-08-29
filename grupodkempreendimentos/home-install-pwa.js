@@ -1,4 +1,4 @@
-/** Instalar os 4 apps (Grupo DK, Locadora, Centro, Construtora). */
+/** Instalar os 4 apps (Grupo DK, Locadora, Centro, Construtora) com escopos separados. */
 (function homeInstallPwa() {
   const panel = document.getElementById("dkAppInstallPanel");
   const btn = document.getElementById("dkAppInstallBtn");
@@ -26,6 +26,12 @@
   let pendingHref = "";
   let pendingName = "";
   let skipAuthOnce = false;
+
+  const pathNow = (location.pathname.replace(/\/$/, "") || "/").toLowerCase();
+  if (!standalone && /[?&]instalar=1/.test(location.search) && (pathNow === "/" || pathNow === "/index.html")) {
+    location.replace("/grupodk?instalar=1");
+    return;
+  }
 
   function scopeTitle() {
     const scope = typeof window.__DK_appScope === "function" ? window.__DK_appScope() : "grupodk";
@@ -58,7 +64,7 @@
     }
     if (authSub) {
       authSub.textContent =
-        "O Windows vai criar o atalho deste aplicativo na área de trabalho ou no menu Iniciar.";
+        "O Windows vai criar o atalho deste aplicativo na área de trabalho ou no menu Iniciar. Os quatro apps podem ficar instalados ao mesmo tempo.";
     }
     if (!authModal) return;
     authModal.classList.remove("hidden");
@@ -77,18 +83,35 @@
     }
   }
 
-  function showManualFallback() {
+  function waitForDeferred(ms) {
+    if (deferred) return Promise.resolve(true);
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const id = window.setInterval(() => {
+        if (deferred) {
+          window.clearInterval(id);
+          resolve(true);
+        } else if (Date.now() - start >= ms) {
+          window.clearInterval(id);
+          resolve(false);
+        }
+      }, 120);
+    });
+  }
+
+  function showBlockedByOldApp() {
     panel?.classList.remove("hidden");
     if (title) title.textContent = `Instalar ${scopeTitle()}`;
     if (manual) manual.open = true;
     if (status) {
       status.textContent =
-        "Autorize no Windows o ícone na área de trabalho. Se o pedido automático não aparecer: Chrome ou Edge → ícone Instalar (⊕) na barra de endereço.";
+        "O Chrome ainda vê um app antigo que cobre o site inteiro (por isso aparece «Abrir no app» e não deixa instalar Locadora, Centro ou Construtora). Nesta máquina de testes: Configurações do Windows → Aplicativos → desinstale Grupo DK / DK Locadora / qualquer app deste site. Feche o Chrome. Depois instale de novo um a um, cada um no seu endereço. Os dados continuam a sincronizar entre os quatro.";
     }
   }
 
   async function runBrowserInstall() {
     await ensureLatest();
+    await waitForDeferred(2800);
     if (deferred) {
       try {
         deferred.prompt();
@@ -105,7 +128,7 @@
         deferred = null;
       }
     }
-    showManualFallback();
+    showBlockedByOldApp();
     return false;
   }
 

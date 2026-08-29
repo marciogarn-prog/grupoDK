@@ -4,7 +4,7 @@
   "description": "App da DK Construtora — área do cliente e área da empresa.",
   "id": "/dkconstrutora",
   "start_url": "/dkconstrutora?source=pwa",
-  "scope": "/",
+  "scope": "/dkconstrutora",
   "display": "standalone",
   "background_color": "#6b7280",
   "theme_color": "#6b7280",
