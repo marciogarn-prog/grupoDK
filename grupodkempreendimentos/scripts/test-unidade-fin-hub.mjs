@@ -44,6 +44,15 @@ record(
     css.includes("minmax(0, 1fr)") &&
     css.includes("min-height: 15.5rem")
 );
+record(
+  "Contornos dos botões de acesso ao site",
+  css.includes('#main-choices [data-go="locadora"]') &&
+    css.includes('#main-choices [data-go="centro"]') &&
+    css.includes('#main-choices [data-go="construtora"]') &&
+    /#main-choices \[data-go="locadora"\][\s\S]{0,80}border-color: #e10600/.test(css) &&
+    /#main-choices \[data-go="centro"\][\s\S]{0,80}border-color: #2b7de9/.test(css) &&
+    /#main-choices \[data-go="construtora"\][\s\S]{0,80}border-color: #c8c8c8/.test(css)
+);
 
 function readJson(name) {
   return JSON.parse(fs.readFileSync(path.join(root, name), "utf8"));
