@@ -13,6 +13,7 @@ const locadoraUi = fs.readFileSync(path.join(root, "portal-locadora-ui.js"), "ut
 const finJs = fs.readFileSync(path.join(root, "portal-unidade-financeiro.js"), "utf8");
 const scopeJs = fs.readFileSync(path.join(root, "dk-app-scope.js"), "utf8");
 const vercel = fs.readFileSync(path.join(root, "vercel.json"), "utf8");
+const css = fs.readFileSync(path.join(root, "styles.css"), "utf8");
 
 const results = [];
 function record(name, ok, detail = "") {
@@ -30,6 +31,19 @@ record("Ícone Grupo DK fundo branco", html.includes("icon-grupodk-192.png") && 
 record("Ícone Locadora fundo preto", html.includes("icon-locadora-192.png") && html.includes("Ícone fundo preto"));
 record("Ícone Centro fundo azul", html.includes("icon-centro-192.png") && html.includes("Ícone fundo azul"));
 record("Ícone Construtora fundo cinza", html.includes("icon-construtora-192.png") && html.includes("Ícone fundo cinza"));
+record(
+  "Contornos dos 4 cards de instalar",
+  css.includes('[data-app-install="grupodk"]') &&
+    css.includes("border-color: #ffffff") &&
+    css.includes('[data-app-install="locadora"]') &&
+    css.includes("border-color: #e10600") &&
+    css.includes('[data-app-install="centro"]') &&
+    css.includes("border-color: #2b7de9") &&
+    css.includes('[data-app-install="construtora"]') &&
+    css.includes("border-color: #c8c8c8") &&
+    css.includes("minmax(0, 1fr)") &&
+    css.includes("min-height: 15.5rem")
+);
 
 function readJson(name) {
   return JSON.parse(fs.readFileSync(path.join(root, name), "utf8"));
