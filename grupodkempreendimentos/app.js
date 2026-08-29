@@ -2053,6 +2053,7 @@ function isDkIntervaloDateInput(el) {
   if (el.type === "date" || el.type === "hidden") return false;
   if (el.getAttribute("data-dk-cal") === "intervalo") return true;
   const id = String(el.id || "");
+  if (id === "operacaoLancAluguelDataPagamento" || id === "operacaoLancAluguelDataDevolucao") return true;
   if (
     /^(fin\w*(De|Ate)|financeiroFiltro(De|Ate)|portalRelPagamentos(Inicio|Fim))$/i.test(id) ||
     (/(De|Ate|Inicio|Fim)$/.test(id) && /fin|Filtro|RelPagamentos|Periodo|periodo/i.test(id))
@@ -2109,6 +2110,8 @@ function collectDkIntervaloDateInputs(root) {
     "finDiaAte",
     "finDespGrafDe",
     "finDespGrafAte",
+    "operacaoLancAluguelDataPagamento",
+    "operacaoLancAluguelDataDevolucao",
   ].forEach((id) => add(document.getElementById(id)));
   return out;
 }

@@ -2863,7 +2863,7 @@ body {
   text-transform: uppercase;
 }
 
-.portal-lanc-field--data input {
+.portal-lanc-field--data input[type="text"] {
   width: 10.5ch;
   max-width: 10.5ch;
   text-align: center;
@@ -8239,11 +8239,18 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0;
 }
 
-.portal-lanc-dual-col__grid .portal-lanc-field--data input,
+.portal-lanc-dual-col__grid .portal-lanc-field--data input[type="text"],
 .portal-lanc-dual-col__grid .portal-lanc-field--valor input {
   width: 100%;
   max-width: none;
   box-sizing: border-box;
+}
+
+.portal-lanc-dual-col__grid .portal-lanc-field--data .dk-date-cal,
+.portal-lanc-dual-col__grid .portal-lanc-field--data .fin-date-cal {
+  display: block;
+  width: 100%;
+  max-width: none;
 }
 
 .portal-lanc-dual-col__grid .portal-lanc-field--data input {
