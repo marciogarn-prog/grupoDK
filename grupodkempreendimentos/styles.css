@@ -330,6 +330,58 @@ body {
   border-color: #c8c8c8;
 }
 
+#main-choices.grid-choices {
+  align-items: stretch;
+  grid-auto-rows: 1fr;
+}
+
+@media (min-width: 640px) {
+  #main-choices.grid-choices {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #main-choices.grid-choices:has(.choice-card--miel:not(.hidden)) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+#main-choices .choice-card[data-go]:not(.choice-card--miel) {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 11.5rem;
+  border-width: 3px;
+  border-style: solid;
+  box-sizing: border-box;
+}
+
+#main-choices [data-go="locadora"] {
+  border-color: #e10600;
+}
+
+#main-choices [data-go="centro"] {
+  border-color: #2b7de9;
+}
+
+#main-choices [data-go="construtora"] {
+  border-color: #c8c8c8;
+}
+
+#main-choices [data-go="locadora"]:hover,
+#main-choices [data-go="locadora"]:focus-visible {
+  border-color: #e10600;
+}
+
+#main-choices [data-go="centro"]:hover,
+#main-choices [data-go="centro"]:focus-visible {
+  border-color: #2b7de9;
+}
+
+#main-choices [data-go="construtora"]:hover,
+#main-choices [data-go="construtora"]:focus-visible {
+  border-color: #c8c8c8;
+}
+
 .btn-app-logo {
   display: block;
   height: 1.55rem;
@@ -391,7 +443,11 @@ body {
 
 @media (min-width: 960px) {
   #main-choices.grid-choices {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #main-choices.grid-choices:has(.choice-card--miel:not(.hidden)) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
