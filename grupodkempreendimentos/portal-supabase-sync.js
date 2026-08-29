@@ -163,6 +163,7 @@
     "dk_cliente_notificacoes",
     "dk_financeiro_extratos_v1",
     "dk_financeiro_despesas_v1",
+    "dk_financeiro_ceo_despesas_v1",
     "dk_documentos_deposito_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
@@ -1014,6 +1015,21 @@
         localStorage.setItem(k, JSON.stringify(mergeFinanceiroDespesasArrays(localArr, cloudArr)));
         continue;
       }
+      if (k === "dk_financeiro_ceo_despesas_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const localArr = readLocalJsonArray(k);
+        localStorage.setItem(k, JSON.stringify(mergeFinanceiroCeoDespesasArrays(localArr, cloudArr)));
+        continue;
+      }
       if (k === "dk_financeiro_extratos_v1") {
         let cloudObj = v;
         if (typeof v === "string") {
@@ -1759,6 +1775,11 @@
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
+      if (k === "dk_financeiro_ceo_despesas_v1") {
+        const merged = mergeFinanceiroCeoDespesasArrays(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
       if (k === "dk_financeiro_extratos_v1") {
         let localObj = b;
         if (typeof b === "string") {
@@ -2473,6 +2494,23 @@
     return Array.from(byId.values()).filter((x) => !x.deleted);
   }
 
+  function mergeFinanceiroCeoDespesasArrays(localArr, cloudArr) {
+    if (typeof window.__DK_mergeFinanceiroCeoDespesas === "function") {
+      return window.__DK_mergeFinanceiroCeoDespesas(localArr, cloudArr);
+    }
+    const byId = new Map();
+    for (const arr of [localArr, cloudArr]) {
+      if (!Array.isArray(arr)) continue;
+      for (const row of arr) {
+        if (!row || typeof row !== "object") continue;
+        const id = String(row.id || "");
+        if (!id) continue;
+        byId.set(id, row);
+      }
+    }
+    return Array.from(byId.values());
+  }
+
   function mergeLocacoesCadastroBeforePush(localArr, cloudArr) {
     if (typeof window.__DK_mergeLocacoesCadastroCliente === "function") {
       return window.__DK_mergeLocacoesCadastroCliente(localArr, cloudArr);
@@ -2639,6 +2677,15 @@
       );
     }
     if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_financeiro_ceo_despesas_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_financeiro_ceo_despesas_v1")
+    ) {
+      out.dk_financeiro_ceo_despesas_v1 = mergeFinanceiroCeoDespesasArrays(
+        localPayload.dk_financeiro_ceo_despesas_v1,
+        cloudPayload.dk_financeiro_ceo_despesas_v1
+      );
+    }
+    if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_documentos_deposito_v1") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_documentos_deposito_v1")
     ) {
@@ -2715,6 +2762,13 @@
         localStorage.setItem(
           "dk_financeiro_despesas_v1",
           JSON.stringify(mergeFinanceiroDespesasArrays(atual, mergedPayload.dk_financeiro_despesas_v1))
+        );
+      }
+      if (mergedPayload.dk_financeiro_ceo_despesas_v1) {
+        const atual = readLocalJsonArray("dk_financeiro_ceo_despesas_v1");
+        localStorage.setItem(
+          "dk_financeiro_ceo_despesas_v1",
+          JSON.stringify(mergeFinanceiroCeoDespesasArrays(atual, mergedPayload.dk_financeiro_ceo_despesas_v1))
         );
       }
       if (mergedPayload.dk_documentos_deposito_v1) {
