@@ -1,10 +1,7 @@
 /**
- * Canal demo vs oficial nas APIs Vercel (Redis / gate app cliente).
+ * Canal oficial nas APIs Vercel (Redis / gate app cliente).
  */
-const REDIS_SNAPSHOT_KEYS = {
-  default: "dk:portal:cloud_snapshot:v1",
-  demo: "dk:portal:cloud_snapshot:demo:v1",
-};
+const REDIS_SNAPSHOT_KEY = "dk:portal:cloud_snapshot:v1";
 
 const LEGACY_CLIENTES_KEY = "dk:portal:clientes_cadastro:v1";
 const LEGACY_LOCACOES_KEY = "dk:portal:locacoes_cadastro:v1";
@@ -50,28 +47,18 @@ function parseSnapshotPayload(raw) {
   return null;
 }
 
-function resolveDeployChannel(req) {
-  const q = String(req.query?.channel || "").trim().toLowerCase();
-  if (q === "demo") return "demo";
-  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
-  if (hdr === "demo") return "demo";
-  const origin = String(req.headers.origin || req.headers.referer || "");
-  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
-  if (/^https?:\/\/demo\./i.test(origin)) return "demo";
-  const env = String(process.env.DK_DEPLOY_CHANNEL || "").trim().toLowerCase();
-  if (env === "demo") return "demo";
+function resolveDeployChannel() {
   return "default";
 }
 
-async function fetchPortalCadastrosFromRedis(redis, channel) {
-  const snapKey = channel === "demo" ? REDIS_SNAPSHOT_KEYS.demo : REDIS_SNAPSHOT_KEYS.default;
-  const rawSnap = await redis.get(snapKey);
+async function fetchPortalCadastrosFromRedis(redis) {
+  const rawSnap = await redis.get(REDIS_SNAPSHOT_KEY);
   const payload = parseSnapshotPayload(rawSnap);
   if (payload) {
     const clientes = Array.isArray(payload.dk_clientes_cadastro) ? payload.dk_clientes_cadastro : [];
     const locs = Array.isArray(payload.dk_locacoes_cadastro) ? payload.dk_locacoes_cadastro : [];
     if (clientes.length || locs.length) {
-      return { clientes, locs, source: "snapshot", channel };
+      return { clientes, locs, source: "snapshot", channel: "default" };
     }
   }
   const [rawClientes, rawLocs] = await Promise.all([
@@ -82,7 +69,7 @@ async function fetchPortalCadastrosFromRedis(redis, channel) {
     clientes: parseRedisArray(rawClientes),
     locs: parseRedisArray(rawLocs),
     source: "legacy",
-    channel,
+    channel: "default",
   };
 }
 

@@ -33,11 +33,8 @@ const ASSETS = [
   "./supabase-init.js",
   "./data/dk-banco-cadastro-vazio.js",
   "./manifest-corporativo.webmanifest",
-  "./manifest-corporativo-demo.webmanifest",
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
-  "./icons/icon-cliente-demo-192.png",
-  "./icons/icon-cliente-demo-512.png",
 ];
 
 self.addEventListener("message", (event) => {

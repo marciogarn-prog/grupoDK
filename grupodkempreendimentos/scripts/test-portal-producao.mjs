@@ -13,7 +13,6 @@ const BASE_URL = (process.env.DK_TEST_BASE_URL || "https://grupodkempreendimento
   /\/?$/,
   "/"
 );
-const IS_DEMO_TEST = /demo\.grupodkempreendimentos|git-demo-/i.test(BASE_URL);
 const results = [];
 
 function record(name, ok, detail = "") {
@@ -22,20 +21,6 @@ function record(name, ok, detail = "") {
 }
 
 async function runSuite() {
-  if (IS_DEMO_TEST) {
-    const cloudDemoPre = await fetch("https://grupodkempreendimentos.com.br/api/dk-cloud-snapshot?channel=demo", {
-      cache: "no-store",
-    }).then((r) => (r.ok ? r.json() : {}));
-    const pPre = cloudDemoPre.payload || {};
-    record(
-      "demo: nuvem com exactamente 10 clientes, veículos e protocolos activos",
-      (pPre.dk_clientes_cadastro || []).length === 10 &&
-        (pPre.dk_veiculos_cadastro || []).length === 10 &&
-        (pPre.dk_locacoes_cadastro || []).length === 10,
-      `c=${(pPre.dk_clientes_cadastro || []).length} v=${(pPre.dk_veiculos_cadastro || []).length} l=${(pPre.dk_locacoes_cadastro || []).length}`
-    );
-  }
-
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage();
   page.setDefaultNavigationTimeout(180000);
@@ -76,19 +61,15 @@ async function runSuite() {
     });
     record("modo cadastro manual ativo", storageInicial.manual === "1", `manual=${storageInicial.manual}`);
     record(
-      IS_DEMO_TEST ? "demo: instalação limpa não aplicada" : "instalação limpa aplicada no browser",
-      IS_DEMO_TEST
-        ? storageInicial.instalacaoLimpa !== "done"
-        : storageInicial.instalacaoLimpa === "done",
+      "instalação limpa aplicada no browser",
+      storageInicial.instalacaoLimpa === "done",
       `flag=${storageInicial.instalacaoLimpa}`
     );
     record(
-      IS_DEMO_TEST ? "demo: cadastros carregados no browser" : "oficial: cadastro local 385 clientes, 187 veículos, 553 protocolos",
-      IS_DEMO_TEST
-        ? storageInicial.clientes === 10 && storageInicial.veiculos === 10 && storageInicial.locacoes === 10
-        : storageInicial.clientes === 385 &&
-          storageInicial.veiculos === 187 &&
-          storageInicial.locacoes === 553,
+      "oficial: cadastro local 385 clientes, 187 veículos, 553 protocolos",
+      storageInicial.clientes === 385 &&
+        storageInicial.veiculos === 187 &&
+        storageInicial.locacoes === 553,
       `c=${storageInicial.clientes} v=${storageInicial.veiculos} l=${storageInicial.locacoes}`
     );
 
@@ -97,10 +78,8 @@ async function runSuite() {
     const appJsVer = html.match(/app\.js\?v=([^"]+)/)?.[1] || "";
     const documentosJsVer = html.match(/portal-documentos\.js\?v=([^"]+)/)?.[1] || "";
     record(
-      IS_DEMO_TEST ? "HTML demo com banco planilha completo" : "HTML com instalação limpa (sem Excel)",
-      IS_DEMO_TEST
-        ? html.includes("dk-banco-cadastro.js") && html.includes("demo-cadastros")
-        : html.includes("dk-banco-cadastro-vazio") && html.includes("instalacao-limpa"),
+      "HTML com instalação limpa (sem Excel)",
+      html.includes("dk-banco-cadastro-vazio") && html.includes("instalacao-limpa"),
       "scripts"
     );
     const cacheOk =
@@ -139,40 +118,40 @@ async function runSuite() {
         html.includes("portal-miel-ui.js") &&
         html.includes("miel-pagina-inicial") &&
         html.includes("miel-app__diretoria"),
-      IS_DEMO_TEST ? "demo" : "html"
+      "html"
     );
     record(
       "Sistema MIEL etapa 2 Administrativo no HTML",
       html.includes("portal-miel-admin.js") &&
         html.includes("mielPanelAdministrativo") &&
         html.includes('data-miel-panel="administrativo"'),
-      IS_DEMO_TEST ? "demo" : "html"
+      "html"
     );
     record(
       "Sistema MIEL etapa 3 Cadastro Clientes no HTML",
       html.includes("portal-miel-cad-clientes.js") &&
         html.includes("mielPanelCadClientes") &&
         html.includes('data-miel-panel="cad-clientes"'),
-      IS_DEMO_TEST ? "demo" : "html"
+      "html"
     );
     record(
       "Sistema MIEL etapa 4 Cadastro Veículos no HTML",
       html.includes("portal-miel-cad-veiculos.js") &&
         html.includes("mielPanelCadVeiculos") &&
         html.includes('data-miel-panel="cad-veiculos"'),
-      IS_DEMO_TEST ? "demo" : "html"
+      "html"
     );
     record(
       "Sistema MIEL etapa 5 Relação Clientes no HTML",
       html.includes("portal-miel-relacao-clientes.js") &&
         html.includes("mielPanelRelacaoClientes") &&
         html.includes('data-miel-panel="relacao-clientes"'),
-      IS_DEMO_TEST ? "demo" : "html"
+      "html"
     );
     record(
       "Sistema MIEL permissão colaborador no HTML",
       html.includes("portalColabAceSistemaMiel") && html.includes("Acesso ao sistema MIEL"),
-      IS_DEMO_TEST ? "demo" : "html"
+      "html"
     );
     record(
       "secção comprovantes app cliente no portal",
@@ -180,147 +159,6 @@ async function runSuite() {
         (html.includes("App cliente") || html.includes("portal-lanc-cliente-comprovacao"))
     );
 
-    if (IS_DEMO_TEST) {
-      await page.evaluate(() => {
-        localStorage.setItem(
-          "dk_sessao_cliente",
-          JSON.stringify({ tipo: "admin", role: "owner", cpf: "03037897430", nome: "Admin E2E" })
-        );
-        localStorage.setItem("dk_portal_sessao_build", "20260521admin-nav");
-        if (typeof window.__DK_portalRefreshMielAcesso === "function") window.__DK_portalRefreshMielAcesso();
-      });
-      await page.waitForTimeout(200);
-      const mielBtn = page.locator('#view-home [data-go="miel"]').first();
-      if (await mielBtn.isVisible().catch(() => false)) await mielBtn.click();
-      await page.waitForTimeout(700);
-      const mielState = await page.evaluate(() => ({
-        active: document.getElementById("view-miel")?.classList.contains("view--active"),
-        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        hero: Boolean(document.querySelector(".miel-pagina-inicial__hero")),
-        nav: document.querySelectorAll("[data-miel-nav]").length,
-        diretoria: document.querySelectorAll(".miel-app__diretoria tbody tr").length,
-        dateOk: (document.getElementById("mielAppDataLocal")?.textContent || "").includes("Petrolina-PE"),
-      }));
-      record(
-        "demo: MIEL peça 1 Página Inicial aberta",
-        mielState.active &&
-          mielState.title === "Página Inicial" &&
-          mielState.hero &&
-          mielState.nav >= 10 &&
-          mielState.dateOk,
-        `nav=${mielState.nav}`
-      );
-      record(
-        "demo: MIEL diretoria (3 cargos)",
-        mielState.diretoria === 3,
-        `linhas=${mielState.diretoria}`
-      );
-
-      const admBtn = page.locator('[data-miel-nav="administrativo"]').first();
-      if (await admBtn.isVisible().catch(() => false)) await admBtn.click();
-      await page.waitForTimeout(600);
-      const admState = await page.evaluate(() => ({
-        title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-        banner: (document.querySelector(".miel-admin-grid__banner td")?.textContent || "").trim(),
-        headers: [...document.querySelectorAll(".miel-admin-grid__headers td")].map((el) => el.textContent?.trim()),
-        gridCols: document.querySelector(".miel-admin-grid")?.classList.contains("miel-admin-grid--2col") ? 2 : 0,
-        gridBtns: document.querySelectorAll(".miel-admin-grid__hit").length,
-        panelVisible: !document.getElementById("mielPanelAdministrativo")?.classList.contains("hidden"),
-      }));
-      record(
-        "demo: MIEL etapa 2 Administrativo",
-        admState.title === "Administrativo" &&
-          admState.banner === "Administrativo" &&
-          admState.headers.length === 2 &&
-          admState.gridCols === 2 &&
-          admState.gridBtns >= 14 &&
-          admState.panelVisible,
-        `btns=${admState.gridBtns}`
-      );
-
-      await page.locator('[data-miel-admin-action="Cadastro de Clientes"]').first().click().catch(() => null);
-      await page.waitForTimeout(500);
-      const cadState = await page.evaluate(() => {
-        const panel = document.getElementById("mielPanelCadClientes");
-        const visible = Boolean(panel && !panel.classList.contains("hidden"));
-        const grid = visible ? panel.querySelector(".miel-sheet__grid") : null;
-        return {
-          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          table: Boolean(grid),
-          rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
-          shapes: visible ? panel.querySelectorAll(".miel-sheet__shape").length : 0,
-          panelVisible: visible,
-        };
-      });
-      record(
-        "demo: MIEL etapa 3 Cadastro Clientes",
-        cadState.title === "Cadastro de Clientes" &&
-          cadState.table &&
-          cadState.rows >= 9 &&
-          cadState.rows <= 11 &&
-          cadState.shapes >= 4 &&
-          cadState.panelVisible,
-        cadState.title
-      );
-
-      await page.locator('[data-miel-nav="administrativo"]').first().click().catch(() => null);
-      await page.waitForTimeout(300);
-      await page.locator('[data-miel-admin-action="Cadastro de Veículos"]').first().click().catch(() => null);
-      await page.waitForTimeout(500);
-      const veicState = await page.evaluate(() => {
-        const panel = document.getElementById("mielPanelCadVeiculos");
-        const visible = Boolean(panel && !panel.classList.contains("hidden"));
-        const grid = visible ? panel?.querySelector(".miel-sheet__grid") : null;
-        return {
-          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          table: Boolean(grid),
-          rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
-          panelVisible: visible,
-          veicCount: (window.__DK_MIEL_CADASTROS?.veiculos || []).length,
-        };
-      });
-      record(
-        "demo: MIEL etapa 4 Cadastro Veículos",
-        veicState.title === "Cadastro de Veículos" &&
-          veicState.table &&
-          veicState.rows >= 9 &&
-          veicState.rows <= 11 &&
-          veicState.veicCount >= 9 &&
-          veicState.veicCount <= 11 &&
-          veicState.panelVisible,
-        veicState.title
-      );
-
-      await page.locator('[data-miel-nav="administrativo"]').first().click().catch(() => null);
-      await page.waitForTimeout(300);
-      await page.locator('[data-miel-admin-action="Relação de Clientes"]').first().click().catch(() => null);
-      await page.waitForTimeout(500);
-      const relState = await page.evaluate(() => {
-        const panel = document.getElementById("mielPanelRelacaoClientes");
-        const visible = Boolean(panel && !panel.classList.contains("hidden"));
-        const grid = visible ? panel?.querySelector(".miel-sheet__grid") : null;
-        return {
-          title: document.getElementById("mielMainTitle")?.textContent?.trim() || "",
-          sheetTitle: grid?.textContent?.includes("# Relação de Clientes Cadastrados no Sistema")
-            ? "# Relação de Clientes Cadastrados no Sistema"
-            : "",
-          rows: visible ? panel.querySelectorAll(".miel-sheet__row--data").length : 0,
-          panelVisible: visible,
-        };
-      });
-      record(
-        "demo: MIEL etapa 5 Relação Clientes",
-        relState.title === "Relação de Clientes" &&
-          relState.sheetTitle === "# Relação de Clientes Cadastrados no Sistema" &&
-          relState.rows >= 9 &&
-          relState.rows <= 11 &&
-          relState.panelVisible,
-        relState.title
-      );
-
-      await page.locator("#view-miel [data-inicio]").first().click().catch(() => null);
-      await page.waitForTimeout(500);
-    }
 
     record(
       "lançamento com comprovante operador (extrair + confirmar)",
@@ -604,25 +442,20 @@ async function runSuite() {
         }
       }))
     );
-    const temaHtmlOk = IS_DEMO_TEST
-      ? html.includes("demo-cadastros") || html.includes("__DK_IS_DEMO_DEPLOY__")
-      : html.includes("demo-cadastros") ||
-        html.includes("20260607virgem") ||
-        html.includes("instalacao-limpa");
-    const temaImgOk = IS_DEMO_TEST
-      ? true
-      : await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then((r) => r.ok);
+    const temaHtmlOk =
+      html.includes("20260607virgem") || html.includes("instalacao-limpa");
+    const temaImgOk = await fetch(`${BASE_URL}images/dk-locadora-showroom-bg.png`, { cache: "no-store" }).then(
+      (r) => r.ok
+    );
     const temaColorMeta = await page.evaluate(() => {
       const m = document.querySelector('meta[name="theme-color"]');
       return m ? String(m.getAttribute("content") || "").toLowerCase() : "";
     });
-    const temaColorOk = IS_DEMO_TEST
-      ? temaColorMeta === "#f97316" || temaColorMeta === "#050505"
-      : temaColorMeta === "#050505";
+    const temaColorOk = temaColorMeta === "#050505";
     record(
       "tema vermelho preto + fundo showroom",
       temaHtmlOk && temaColorOk && temaImgOk,
-      IS_DEMO_TEST ? `theme-color=${temaColorMeta}` : ""
+      ""
     );
     record(
       "logo DK Locadora no site e botao app",
@@ -649,41 +482,31 @@ async function runSuite() {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "login empresa: demo sem bloqueio manutenção + aviso no portal",
-      appLoginJs.includes("__DK_IS_DEMO_DEPLOY__") &&
-        appLoginJs.includes("getMaintenanceNotice") &&
+      "login empresa: aviso manutenção no portal",
+      appLoginJs.includes("getMaintenanceNotice") &&
         portalLoginUiJs.includes("getMaintenanceNotice") &&
         portalLoginUiJs.includes("login-feedback"),
-      "demo 24h; oficial 02h–03h com mensagem visível"
+      "oficial 02h–03h com mensagem visível"
     );
-    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260521demo-icon`, {
+    const deployChannelJs = await fetch(`${BASE_URL}dk-deploy-channel.js?v=20260829sem-demo`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     const oficialGuardJs = await fetch(`${BASE_URL}dk-oficial-cadastro-guard.js?v=20260607oficial-guard`, {
       cache: "no-store",
     }).then((r) => (r.ok ? r.text() : ""));
     record(
-      "ambiente demo/oficial (dk-deploy-channel + faixa)",
+      "ambiente oficial sem demo (dk-deploy-channel)",
       html.includes("dk-deploy-channel.js") &&
-        html.includes("dk-demo-env-banner") &&
-        deployChannelJs.includes("__DK_IS_DEMO_DEPLOY__") &&
-        deployChannelJs.includes("demo.grupodkempreendimentos.com.br")
+        !html.includes("dk-demo-env-banner") &&
+        deployChannelJs.includes("__DK_IS_DEMO_DEPLOY__ = false") &&
+        !deployChannelJs.includes("demo.grupodkempreendimentos.com.br")
     );
     record(
-      "icone PWA demo com contorno laranja",
-      deployChannelJs.includes("applyDemoPwaBranding") &&
-        deployChannelJs.includes("icon-cliente-demo-192.png") &&
-        deployChannelJs.includes("manifest-cliente-demo.webmanifest") &&
-        (IS_DEMO_TEST
-          ? await fetch(`${BASE_URL}icons/icon-cliente-demo-192.png`, { cache: "no-store" }).then(
-              async (r) => r.ok && (await r.arrayBuffer()).byteLength > 15000
-            )
-          : await fetch(`${BASE_URL}icons/icon-cliente-demo-192.png`, { cache: "no-store" }).then(
-              (r) => r.ok
-            ))
+      "sem icone PWA demo",
+      !deployChannelJs.includes("icon-cliente-demo-192.png") &&
+        !deployChannelJs.includes("manifest-cliente-demo.webmanifest")
     );
-    if (!IS_DEMO_TEST) {
-      const guardUi = await page.evaluate(() => ({
+    const guardUi = await page.evaluate(() => ({
         guardLoaded: typeof window.__DK_sanitizeOficialCloudPayload === "function",
         guardActive: window.__DK_isOficialCadastroGuardActive?.() === true,
         blockedOld: (() => {
@@ -784,28 +607,6 @@ async function runSuite() {
         ghostsOf.length === 0,
         `fantasmas=${ghostsOf.length} de ${locsOf.length}`
       );
-    }
-    if (IS_DEMO_TEST) {
-      const demoUi = await page.evaluate(() => ({
-        channel: window.__DK_DEPLOY_CHANNEL__,
-        isDemo: window.__DK_IS_DEMO_DEPLOY__,
-        snapshotLabel:
-          typeof window.__DK_deploySnapshotLabel === "function"
-            ? window.__DK_deploySnapshotLabel()
-            : "",
-        bannerVisible: !document.getElementById("dk-demo-env-banner")?.classList.contains("hidden"),
-      }));
-      record(
-        "demo: canal e faixa amarela activos",
-        demoUi.channel === "demo" && demoUi.isDemo === true && demoUi.bannerVisible,
-        `channel=${demoUi.channel}`
-      );
-      record(
-        "demo: nuvem separada do oficial (snapshot demo)",
-        demoUi.snapshotLabel === "demo",
-        `label=${demoUi.snapshotLabel}`
-      );
-    }
     record(
       "admin logado banner e preview cliente",
       html.includes("portal-admin-banner") &&
@@ -1228,14 +1029,9 @@ async function runSuite() {
       currencyMask: typeof window.formatCurrencyMask === "function",
     }));
     record(
-      IS_DEMO_TEST ? "demo: banco planilha + manual" : "app.js instalacao limpa (banco vazio + manual)",
-      IS_DEMO_TEST
-        ? hasPortalFns.unify &&
-          hasPortalFns.upsert &&
-          hasPortalFns.manual &&
-          hasPortalFns.bancoClientes >= 300
-        : hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.bancoVazio && hasPortalFns.manual,
-      IS_DEMO_TEST ? `clientes=${hasPortalFns.bancoClientes}` : ""
+      "app.js instalacao limpa (banco vazio + manual)",
+      hasPortalFns.unify && hasPortalFns.upsert && hasPortalFns.bancoVazio && hasPortalFns.manual,
+      ""
     );
     record(
       "mascaras globais carregadas",
@@ -1573,12 +1369,10 @@ async function runSuite() {
     );
     record(
       "oficial: lançamentos modo estrito (sem legado global)",
-      !IS_DEMO_TEST
-        ? lancProtoJs.includes("__DK_isOficialLancamentosStrict") &&
-            lancProtoJs.includes("__DK_isLancamentoOficialAceite") &&
-            lancProtoJs.includes("purgeGlobalLancamentoKeysOficial")
-        : lancProtoJs.includes("__DK_getLancamentosAluguelCanonico"),
-      IS_DEMO_TEST ? "demo: consolidação completa" : "oficial: só portalLancamentosAluguel auditável"
+      lancProtoJs.includes("__DK_isOficialLancamentosStrict") &&
+        lancProtoJs.includes("__DK_isLancamentoOficialAceite") &&
+        lancProtoJs.includes("purgeGlobalLancamentoKeysOficial"),
+      "oficial: só portalLancamentosAluguel auditável"
     );
     record(
       "app cliente lancamentos alinhados ao portal",
@@ -1852,8 +1646,7 @@ async function runSuite() {
         )
         .catch(() => null);
 
-      if (!IS_DEMO_TEST) {
-        const cloudColab = await fetch(
+      const cloudColab = await fetch(
           new URL(`api/dk-cloud-snapshot?nocache=${Date.now()}`, BASE_URL).href,
           { cache: "no-store" }
         ).then((r) => (r.ok ? r.json() : {}));
@@ -1866,7 +1659,6 @@ async function runSuite() {
           names.some((n) => n.includes("JESIMIEL")) && names.some((n) => n.includes("WYLKALINE")),
           `n=${list.length}`
         );
-      }
 
       const diag = await pageE2e.evaluate(() => {
         const btn = document.getElementById("btn-locadora-documentos");
@@ -1953,7 +1745,6 @@ async function runSuite() {
             return Boolean(pane && !pane.classList.contains("hidden") && String(titulo?.textContent || "").includes("quantitativo"));
           });
           record("financeiro E2E: módulo Resumo de quantitativo abre", qOk);
-          if (!IS_DEMO_TEST) {
             /* Fantasma sem operador (regra: sem quem cadastrou = não existe). */
             const frotaUi = await pageE2e.evaluate(() => {
               try {
@@ -2014,7 +1805,6 @@ async function runSuite() {
               Boolean(frotaUi?.ok),
               `z1=${frotaUi?.z1} semOp=${frotaUi?.semOp} carros=${frotaUi?.carros} ${frotaUi?.reason || frotaUi?.kpiTxt || ""}`
             );
-          }
           await pageE2e.locator("#btn-fin-mod-previsao").click().catch(() => null);
           await pageE2e.waitForSelector("#financeiroPanePrevisao:not(.hidden)", { timeout: 8000 }).catch(() => null);
           const pOk = await pageE2e.evaluate(() => {

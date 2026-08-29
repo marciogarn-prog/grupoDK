@@ -201,25 +201,16 @@ const REDIS_KEYS = {
   demo: "dk:portal:cloud_snapshot:demo:v1",
 };
 
-function resolveDeployChannel(req) {
-  const q = String(req.query?.channel || "").trim().toLowerCase();
-  if (q === "demo") return "demo";
-  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
-  if (hdr === "demo") return "demo";
-  const origin = String(req.headers.origin || req.headers.referer || "");
-  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
-  if (/^https?:\/\/demo\./i.test(origin)) return "demo";
-  const env = String(process.env.DK_DEPLOY_CHANNEL || "").trim().toLowerCase();
-  if (env === "demo") return "demo";
+function resolveDeployChannel() {
   return "default";
 }
 
-function redisKeyForChannel(channel) {
-  return channel === "demo" ? REDIS_KEYS.demo : REDIS_KEYS.default;
+function redisKeyForChannel() {
+  return REDIS_KEYS.default;
 }
 
-function labelForChannel(channel) {
-  return channel === "demo" ? "demo" : "default";
+function labelForChannel() {
+  return "default";
 }
 const CADASTRO_KEYS = [
   "dk_clientes_cadastro",
@@ -808,22 +799,11 @@ async function handler(req, res) {
         for (const k of wipeKeys) {
           payload[k] = Object.prototype.hasOwnProperty.call(incoming, k) ? incoming[k] : [];
         }
-        if (channel === "default") {
-          payload.dk_cadastro_manual_portal_v1 = true;
-          payload.dk_oficial_sem_protocolos_v1 = incoming.dk_oficial_sem_protocolos_v1 !== false;
-          payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
-            ? String(incoming.dk_cadastro_lock_v1)
-            : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-        } else if (incoming.dk_demo_cadastro_10_v1) {
-          payload.dk_cadastro_manual_portal_v1 = true;
-          payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
-            ? String(incoming.dk_cadastro_lock_v1)
-            : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-          payload.dk_demo_cadastro_10_v1 = incoming.dk_demo_cadastro_10_v1;
-        } else {
-          delete payload.dk_cadastro_manual_portal_v1;
-          delete payload.dk_cadastro_lock_v1;
-        }
+        payload.dk_cadastro_manual_portal_v1 = true;
+        payload.dk_oficial_sem_protocolos_v1 = incoming.dk_oficial_sem_protocolos_v1 !== false;
+        payload.dk_cadastro_lock_v1 = incoming.dk_cadastro_lock_v1
+          ? String(incoming.dk_cadastro_lock_v1)
+          : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
         payload = stripInternalPayloadKeys(payload);
       } else {
         const lockedIncoming = existingPayload
@@ -834,28 +814,20 @@ async function handler(req, res) {
           : stripInternalPayloadKeys(lockedIncoming);
         if (existingPayload) {
           payload = applyDepositNoShrink(existingPayload, payload);
-        }
-        if (channel === "demo" && existingPayload) {
-          payload = applyDemoCadastroNoShrink(existingPayload, payload);
-          payload = capDemoTenPayload(existingPayload, payload);
-        }
-        if (channel === "default" && existingPayload) {
           payload = applyOficialClientesVeiculosNoShrink(existingPayload, payload);
           payload = capOficialVirginProtocolos(existingPayload, payload);
           payload = neverLoseCadastroPayload(existingPayload, payload);
         }
       }
-      if (channel === "default") {
-        payload = sanitizePayloadForOficial(
-          payload,
-          oficialTodayYmd(),
-          cadastroKeepSetsFromPayload(existingPayload || payload)
-        );
-        if (existingPayload && !wipeKeys.length) {
-          payload = neverLoseCadastroPayload(existingPayload, payload);
-        }
-        payload.dk_dados_seguros_v1 = true;
+      payload = sanitizePayloadForOficial(
+        payload,
+        oficialTodayYmd(),
+        cadastroKeepSetsFromPayload(existingPayload || payload)
+      );
+      if (existingPayload && !wipeKeys.length) {
+        payload = neverLoseCadastroPayload(existingPayload, payload);
       }
+      payload.dk_dados_seguros_v1 = true;
       const stored = { label: LABEL, payload, updated_at: updatedAt };
       await redis.set(REDIS_KEY, JSON.stringify(stored));
       return res.status(200).json({

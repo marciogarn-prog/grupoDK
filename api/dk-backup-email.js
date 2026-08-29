@@ -24,7 +24,6 @@ function isOriginAllowed(origin) {
   const allowed = new Set([
     "https://grupodkempreendimentos.com.br",
     "https://www.grupodkempreendimentos.com.br",
-    "https://demo.grupodkempreendimentos.com.br",
     "http://localhost:5173",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
@@ -51,13 +50,7 @@ function applyCors(res, origin) {
   }
 }
 
-function resolveChannel(req) {
-  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
-  if (hdr === "demo") return "demo";
-  const origin = String(req.headers.origin || "");
-  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
-  const bodyChannel = String(req.body?.channel || "").trim().toLowerCase();
-  if (bodyChannel === "demo") return "demo";
+function resolveChannel() {
   return "default";
 }
 
@@ -102,7 +95,7 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  const channel = normalizeChannel(resolveChannel(req));
+  const channel = normalizeChannel(resolveChannel());
 
   try {
     const browserData = body?.browserData;
@@ -111,9 +104,9 @@ module.exports = async function handler(req, res) {
     const payload = fromBrowser
       ? buildBrowserBackupPayload(browserData, channel)
       : await collectDkBackupPayload({ channel });
-    const suffix = channel === "demo" ? "demo" : fromBrowser ? "manual-browser" : "manual-server";
-    const baseName = backupFileBaseName(payload, suffix === "demo" ? "demo" : suffix);
-    const label = channel === "demo" ? "DEMO" : "oficial";
+    const suffix = fromBrowser ? "manual-browser" : "manual-server";
+    const baseName = backupFileBaseName(payload, suffix);
+    const label = "oficial";
     const email = await sendBackupEmail(payload, baseName, {
       subject: `DK Backup manual ${label} — ${baseName}`,
     });

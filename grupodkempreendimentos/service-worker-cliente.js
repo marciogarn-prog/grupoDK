@@ -18,11 +18,8 @@ const ASSETS = [
   "./dk-deploy-channel.js",
   "./images/dk-minha-moto-premio.png",
   "./manifest-cliente.webmanifest",
-  "./manifest-cliente-demo.webmanifest",
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
-  "./icons/icon-cliente-demo-192.png",
-  "./icons/icon-cliente-demo-512.png",
   "./icons/icon-cliente-192.svg",
   "./icons/icon-cliente-512.svg",
 ];

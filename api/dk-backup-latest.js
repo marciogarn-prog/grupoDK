@@ -1,7 +1,7 @@
 /**
  * Último backup enviado por e-mail (metadados + importação).
  *
- * GET /api/dk-backup-latest?channel=demo|default
+ * GET /api/dk-backup-latest?channel=default
  *   — metadados (data, contagens) sem autenticação
  *
  * GET /api/dk-backup-latest?full=1
@@ -14,7 +14,6 @@ function isOriginAllowed(origin) {
   const allowed = new Set([
     "https://grupodkempreendimentos.com.br",
     "https://www.grupodkempreendimentos.com.br",
-    "https://demo.grupodkempreendimentos.com.br",
     "http://localhost:5173",
     "http://127.0.0.1:5500",
     "http://localhost:5500",
@@ -38,13 +37,7 @@ function applyCors(res, origin) {
   }
 }
 
-function resolveChannel(req) {
-  const q = String(req.query?.channel || "").trim().toLowerCase();
-  if (q === "demo") return "demo";
-  const hdr = String(req.headers["x-dk-deploy-channel"] || "").trim().toLowerCase();
-  if (hdr === "demo") return "demo";
-  const origin = String(req.headers.origin || req.headers.referer || "");
-  if (/demo\.grupodkempreendimentos\.com\.br/i.test(origin)) return "demo";
+function resolveChannel() {
   return "default";
 }
 
@@ -70,7 +63,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ ok: false, reason: "method" });
   }
 
-  const channel = normalizeChannel(resolveChannel(req));
+  const channel = normalizeChannel(resolveChannel());
   const wantFull =
     String(req.query?.full || "").trim() === "1" ||
     String(req.query?.full || "").trim().toLowerCase() === "true";

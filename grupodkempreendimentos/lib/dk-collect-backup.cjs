@@ -3,7 +3,6 @@
  */
 const CLOUD_SNAPSHOT_REDIS_KEYS = {
   default: "dk:portal:cloud_snapshot:v1",
-  demo: "dk:portal:cloud_snapshot:demo:v1",
 };
 
 const SNAPSHOT_STORAGE_KEYS = [
@@ -21,8 +20,8 @@ const SNAPSHOT_STORAGE_KEYS = [
   "dk_comunicacao_operacao_v1",
 ];
 
-function normalizeChannel(channel) {
-  return channel === "demo" ? "demo" : "default";
+function normalizeChannel() {
+  return "default";
 }
 
 function countRecords(data) {

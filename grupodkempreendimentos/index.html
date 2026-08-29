@@ -28,7 +28,7 @@
   <link rel="stylesheet" href="styles.css?v=20260829offline-op">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" href="/icons/icon-cliente-192.png" type="image/png">
-  <script src="dk-deploy-channel.js?v=20260608oficial-channel-lock"></script>
+  <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260826relacao-cols"></script>
   <script src="dk-pwa-update.js?v=20260826pwa-update-btn"></script>
 </head>
@@ -36,10 +36,6 @@
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
     <span class="dk-pwa-update-bar__hint">App instalado — mantenha a versão em dia</span>
     <button type="button" id="updateButton" class="dk-pwa-update-bar__btn btn-primary btn-secondary-outline hidden">Atualizar app</button>
-  </div>
-  <div id="dk-demo-env-banner" class="dk-demo-env-banner hidden" role="alert" aria-live="assertive">
-    <strong>AMBIENTE DEMO</strong>
-    <span>Dados de teste separados do oficial — cadastros e lançamentos só neste ambiente.</span>
   </div>
   <div id="portal-admin-banner" class="portal-admin-banner hidden" role="status" aria-live="polite">
     <span class="portal-admin-banner__label">LOGADO COMO ADMINISTRADOR</span>
@@ -3110,15 +3106,7 @@
 
   <!-- Bundles na mesma pasta: funcionam com servidor só em grupodkempreendimentos (ex.: npx serve .). Após regenerar no root, execute scripts/sync-portal-bundles.ps1 -->
   <script src="home-install-pwa.js?v=20260826app-operacao-install" defer></script>
-  <script>
-    (function () {
-      var src =
-        window.__DK_IS_DEMO_DEPLOY__ === true
-          ? "data/dk-banco-cadastro.js?v=20260608demo-cadastros"
-          : "data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa";
-      document.write('<script src="' + src + '"><\/script>');
-    })();
-  </script>
+  <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260826devolucao-hist" defer></script>
   <script src="app.js?v=20260826devolucao-hist" defer></script>
@@ -3131,7 +3119,6 @@
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
   <script src="portal-financeiro-ceo.js?v=20260829fin-ceo" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
-  <script src="portal-miel-demo-filter.js?v=20260823demo-10only-b" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-veiculos-layout.js?v=20260820check-n2" defer></script>

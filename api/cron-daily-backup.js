@@ -1,12 +1,12 @@
 /**
  * Backup diário por e-mail (cron Vercel — 02:00 America/Sao_Paulo).
- * Envia backup do canal oficial (default) e do demo.
+ * Envia backup do canal oficial (default).
  */
 const { collectDkBackupPayload, backupFileBaseName } = require("../lib/dk-collect-backup.cjs");
 const { sendBackupEmail } = require("../lib/dk-send-backup-email.cjs");
 const { storeLastBackup } = require("../lib/dk-store-last-backup.cjs");
 
-const BACKUP_CHANNELS = ["default", "demo"];
+const BACKUP_CHANNELS = ["default"];
 
 function authorizeCron(req) {
   const secret = process.env.CRON_SECRET;
@@ -16,15 +16,14 @@ function authorizeCron(req) {
   return { ok: false, reason: "unauthorized" };
 }
 
-function channelLabel(channel) {
-  return channel === "demo" ? "DEMO" : "oficial";
+function channelLabel() {
+  return "oficial";
 }
 
-async function runChannelBackup(channel) {
-  const payload = await collectDkBackupPayload({ channel });
-  const suffix = channel === "demo" ? "demo" : undefined;
-  const baseName = backupFileBaseName(payload, suffix);
-  const label = channelLabel(channel);
+async function runChannelBackup() {
+  const payload = await collectDkBackupPayload({ channel: "default" });
+  const baseName = backupFileBaseName(payload);
+  const label = channelLabel();
   const email = await sendBackupEmail(payload, baseName, {
     subject: `DK Backup diário ${label} — ${baseName}`,
     footerNote: `Gerado por cron Vercel (02:00 Brasília) — ambiente ${label}.`,
@@ -33,7 +32,7 @@ async function runChannelBackup(channel) {
   if (!email.ok) {
     return {
       ok: false,
-      channel,
+      channel: "default",
       reason: email.reason,
       attempts: email.attempts,
       backup: {
@@ -44,14 +43,14 @@ async function runChannelBackup(channel) {
     };
   }
 
-  const stored = await storeLastBackup(channel, payload, {
+  const stored = await storeLastBackup("default", payload, {
     emailTo: email.to,
     filename: `${baseName}.json`,
   });
 
   return {
     ok: true,
-    channel,
+    channel: "default",
     provider: email.provider,
     to: email.to,
     exportedAtBr: payload.exportedAtBr,
@@ -78,7 +77,7 @@ module.exports = async function handler(req, res) {
   try {
     const results = [];
     for (const channel of BACKUP_CHANNELS) {
-      results.push(await runChannelBackup(channel));
+      results.push(await runChannelBackup());
     }
 
     const allOk = results.every((r) => r.ok);
