@@ -1,8 +1,10 @@
-/** Dois botões na home: app cliente (/instalar) e app operação (portal + PWA). */
+/** Instalar os 4 apps (Grupo DK, Locadora, Centro, Construtora). */
 (function homeInstallPwa() {
-  const btnCliente = document.getElementById("homeBaixarAppCliente");
-  const btnOperacao = document.getElementById("homeBaixarAppOperacao");
-  if (!btnCliente && !btnOperacao) return;
+  const panel = document.getElementById("dkAppInstallPanel");
+  const btn = document.getElementById("dkAppInstallBtn");
+  const status = document.getElementById("dkAppInstallStatus");
+  const title = document.getElementById("dkAppInstallTitle");
+  const manual = document.getElementById("dkAppInstallManual");
 
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -11,10 +13,13 @@
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferred = e;
+    if (/[?&]instalar=1/.test(location.search) && panel) panel.classList.remove("hidden");
   });
 
   window.addEventListener("appinstalled", () => {
     deferred = null;
+    if (status) status.textContent = "App instalado. Use o ícone no ambiente de trabalho ou no ecrã inicial.";
+    panel?.classList.add("hidden");
   });
 
   async function ensureLatest() {
@@ -23,34 +28,35 @@
     }
   }
 
-  function clienteInstallUrl() {
-    return `/instalar?_=${Date.now()}`;
+  function scopeTitle() {
+    const scope = typeof window.__DK_appScope === "function" ? window.__DK_appScope() : "grupodk";
+    const titles = window.__DK_appScopeTitle || {};
+    return titles[scope] || "Grupo DK";
   }
 
-  function operacaoInstallUrl() {
-    const u = new URL("/app.html", location.origin);
-    u.searchParams.set("instalar", "1");
-    u.searchParams.set("source", "home");
-    return u.pathname + u.search;
+  if (panel && /[?&]instalar=1/.test(location.search) && !standalone) {
+    panel.classList.remove("hidden");
+    if (title) title.textContent = `Instalar ${scopeTitle()}`;
   }
 
-  btnCliente?.addEventListener("click", (e) => {
-    e.preventDefault();
-    void (async () => {
-      await ensureLatest();
-      window.location.href = clienteInstallUrl();
-    })();
-  });
-
-  btnOperacao?.addEventListener("click", async (e) => {
-    e.preventDefault();
+  btn?.addEventListener("click", async () => {
     await ensureLatest();
-    if (deferred && !standalone) {
+    if (deferred) {
       deferred.prompt();
       const choice = await deferred.userChoice.catch(() => ({ outcome: "dismissed" }));
       deferred = null;
       if (choice.outcome === "accepted") return;
     }
-    window.location.href = operacaoInstallUrl();
+    if (manual) manual.open = true;
+    if (status) {
+      status.textContent =
+        "Se o botão automático não aparecer, use a instalação manual (Windows: ícone ⊕ na barra de endereço).";
+    }
+  });
+
+  document.querySelectorAll("[data-app-install]").forEach((a) => {
+    a.addEventListener("click", () => {
+      void ensureLatest();
+    });
   });
 })();

@@ -12,10 +12,13 @@
     "SUPABASE_ANON_KEY": "sb_publishable_Nm-Et1yeL66vgoA2rqD__w_CLtGauk3"
   },
   "rewrites": [
-    {
-      "source": "/instalar",
-      "destination": "/instalar.html"
-    }
+    { "source": "/instalar", "destination": "/instalar.html" },
+    { "source": "/dklocadora", "destination": "/index.html" },
+    { "source": "/DKLOCADORA", "destination": "/index.html" },
+    { "source": "/dkcentroautomotivo", "destination": "/index.html" },
+    { "source": "/DKCENTROAUTOMOTIVO", "destination": "/index.html" },
+    { "source": "/dkconstrutora", "destination": "/index.html" },
+    { "source": "/DKCONSTRUTORA", "destination": "/index.html" }
   ],
   "crons": [
     {

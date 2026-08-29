@@ -226,6 +226,43 @@ body {
   color: var(--accent);
 }
 
+.home-install-apps {
+  width: 100%;
+  margin: 0.5rem 0 2rem;
+}
+
+.home-install-apps__title {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.home-install-apps__lead {
+  margin: 0 0 0.75rem;
+}
+
+.unidade-cliente-dev {
+  margin: 3rem 0 2rem;
+  text-align: center;
+  font-size: clamp(1.35rem, 4.2vw, 2.1rem);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+@media (min-width: 640px) {
+  .home-install-apps__grid.grid-choices {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .home-install-apps__grid.grid-choices {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
 .btn-app-logo {
   display: block;
   height: 1.55rem;
@@ -278,6 +315,10 @@ body {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.25rem;
     margin: 2.5rem 0 3rem;
+  }
+
+  .grid-choices--tres {
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
@@ -5852,6 +5893,34 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 .fin-subh {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
+}
+
+.unidade-fin-form {
+  display: grid;
+  gap: 0.85rem 1rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .unidade-fin-form {
+    grid-template-columns: minmax(8rem, 12rem) minmax(8rem, 12rem) minmax(0, 1fr);
+    align-items: end;
+  }
+
+  .unidade-fin-form .portal-field--wide,
+  .unidade-fin-form .unidade-fin-form__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+.unidade-fin-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.view--unidade-fin.view--active {
+  justify-content: flex-start;
 }
 
 .fin-hbar {
