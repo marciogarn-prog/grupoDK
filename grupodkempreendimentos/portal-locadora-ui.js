@@ -8,6 +8,8 @@
   const viewUnit = document.getElementById("view-unit");
   const viewLocadoraHub = document.getElementById("view-locadora-hub");
   const viewLocadoraCliente = document.getElementById("view-locadora-cliente");
+  const viewUnidadeHub = document.getElementById("view-unidade-hub");
+  const viewUnidadeFin = document.getElementById("view-unidade-fin");
   const viewMiel = document.getElementById("view-miel");
   const viewFinanceiro = document.getElementById("view-financeiro");
   const viewFinanceiroCeo = document.getElementById("view-financeiro-ceo");
@@ -1533,7 +1535,17 @@
     refreshOperacaoClienteCodigoEditavel();
   }
 
-  const portalViews = [viewHome, viewUnit, viewLocadoraHub, viewLocadoraCliente, viewMiel, viewFinanceiro, viewFinanceiroCeo].filter(Boolean);
+  const portalViews = [
+    viewHome,
+    viewUnit,
+    viewLocadoraHub,
+    viewLocadoraCliente,
+    viewUnidadeHub,
+    viewUnidadeFin,
+    viewMiel,
+    viewFinanceiro,
+    viewFinanceiroCeo,
+  ].filter(Boolean);
 
   function showView(which) {
     const map = {
@@ -1541,6 +1553,8 @@
       unit: viewUnit,
       hub: viewLocadoraHub,
       cliente: viewLocadoraCliente,
+      unidadeHub: viewUnidadeHub,
+      unidadeFin: viewUnidadeFin,
       miel: viewMiel,
       financeiro: viewFinanceiro,
       financeiroCeo: viewFinanceiroCeo,
@@ -1929,6 +1943,37 @@
     if (typeof window.__DK_mielOnShow === "function") window.__DK_mielOnShow();
   }
 
+  function unidadeFinHashPane(pane) {
+    if (pane === "despesa") return "despesa";
+    if (pane === "balanco") return "balanco";
+    return "receita";
+  }
+
+  function openUnidadeHub(go) {
+    currentUnit = go === "construtora" ? "construtora" : "centro";
+    portalColaboradorSenhaPendente = null;
+    portalResetSessaoSeNaoAdmin();
+    const titleEl = document.getElementById("unidade-hub-title");
+    if (titleEl) {
+      titleEl.textContent = currentUnit === "centro" ? "DK Centro Automotivo" : "DK Construtora";
+    }
+    showView("unidadeHub");
+    setPortalHash(currentUnit);
+    portalAtualizarBannerAdmin();
+  }
+
+  function openUnidadeFin(go, pane) {
+    currentUnit = go === "construtora" ? "construtora" : "centro";
+    const p = unidadeFinHashPane(pane);
+    portalColaboradorSenhaPendente = null;
+    showView("unidadeFin");
+    setPortalHash(`${currentUnit}/${p}`);
+    if (typeof window.__DK_unidadeFinOnShow === "function") {
+      window.__DK_unidadeFinOnShow(currentUnit, p);
+    }
+    portalAtualizarBannerAdmin();
+  }
+
   function openUnit(go) {
     if (go === "locadora") {
       openLocadoraHub();
@@ -1936,6 +1981,10 @@
     }
     if (go === "miel") {
       openMielSistema();
+      return;
+    }
+    if (go === "centro" || go === "construtora") {
+      openUnidadeHub(go);
       return;
     }
     currentUnit = go;
@@ -1968,6 +2017,14 @@
       const dest = btn.getAttribute("data-locadora-go") || "";
       if (dest === "cliente") openLocadoraClienteArea();
       else if (dest === "empresa") openLocadoraEmpresa();
+    });
+  });
+
+  document.querySelectorAll("[data-unidade-fin]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const pane = btn.getAttribute("data-unidade-fin") || "receita";
+      const unit = currentUnit === "construtora" ? "construtora" : "centro";
+      openUnidadeFin(unit, pane);
     });
   });
 
@@ -2235,6 +2292,14 @@
       return;
     }
     if (viewLocadoraHub?.classList.contains("view--active")) {
+      portalVoltarInicio();
+      return;
+    }
+    if (viewUnidadeFin?.classList.contains("view--active")) {
+      openUnidadeHub(currentUnit === "construtora" ? "construtora" : "centro");
+      return;
+    }
+    if (viewUnidadeHub?.classList.contains("view--active")) {
       portalVoltarInicio();
       return;
     }
@@ -19645,12 +19710,30 @@
     });
   });
 
+  function applyPortalUnidadeHash() {
+    const h = (window.location.hash || "").toLowerCase();
+    if (!h.startsWith("#centro") && !h.startsWith("#construtora")) return false;
+    const unit = h.startsWith("#construtora") ? "construtora" : "centro";
+    const rest = h.replace(/^#(centro|construtora)\/?/, "").trim();
+    if (!rest || rest === "hub") {
+      openUnidadeHub(unit);
+      return true;
+    }
+    if (rest === "receita" || rest === "despesa" || rest === "balanco" || rest.startsWith("balan")) {
+      openUnidadeFin(unit, rest.startsWith("balan") ? "balanco" : rest);
+      return true;
+    }
+    openUnidadeHub(unit);
+    return true;
+  }
+
   function applyPortalLocadoraHash() {
     const h = (window.location.hash || "").toLowerCase();
     if (h === "#miel" || h.startsWith("#miel/")) {
       openMielSistema();
       return;
     }
+    if (applyPortalUnidadeHash()) return;
     if (!h.startsWith("#locadora")) return;
     try {
       if (sessionStorage.getItem("dk_from_pwa_app") === "1") {

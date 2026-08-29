@@ -279,6 +279,10 @@ body {
     gap: 1.25rem;
     margin: 2.5rem 0 3rem;
   }
+
+  .grid-choices--tres {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (min-width: 960px) {
@@ -5852,6 +5856,34 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 .fin-subh {
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
+}
+
+.unidade-fin-form {
+  display: grid;
+  gap: 0.85rem 1rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .unidade-fin-form {
+    grid-template-columns: minmax(8rem, 12rem) minmax(8rem, 12rem) minmax(0, 1fr);
+    align-items: end;
+  }
+
+  .unidade-fin-form .portal-field--wide,
+  .unidade-fin-form .unidade-fin-form__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+.unidade-fin-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.view--unidade-fin.view--active {
+  justify-content: flex-start;
 }
 
 .fin-hbar {

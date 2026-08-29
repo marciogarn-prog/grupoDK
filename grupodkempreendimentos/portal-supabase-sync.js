@@ -164,6 +164,7 @@
     "dk_financeiro_extratos_v1",
     "dk_financeiro_despesas_v1",
     "dk_financeiro_ceo_despesas_v1",
+    "dk_unidade_financeiro_v1",
     "dk_documentos_deposito_v1",
     "dk_audit_log",
     "dk_funcionarios_access",
@@ -1030,6 +1031,25 @@
         localStorage.setItem(k, JSON.stringify(mergeFinanceiroCeoDespesasArrays(localArr, cloudArr)));
         continue;
       }
+      if (k === "dk_unidade_financeiro_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const localArr = readLocalJsonArray(k);
+        const mergeUf =
+          typeof window.__DK_mergeUnidadeFinanceiro === "function"
+            ? window.__DK_mergeUnidadeFinanceiro
+            : mergeFinanceiroCeoDespesasArrays;
+        localStorage.setItem(k, JSON.stringify(mergeUf(localArr, cloudArr)));
+        continue;
+      }
       if (k === "dk_financeiro_extratos_v1") {
         let cloudObj = v;
         if (typeof v === "string") {
@@ -1786,6 +1806,15 @@
       }
       if (k === "dk_financeiro_ceo_despesas_v1") {
         const merged = mergeFinanceiroCeoDespesasArrays(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
+      if (k === "dk_unidade_financeiro_v1") {
+        const mergeUf =
+          typeof window.__DK_mergeUnidadeFinanceiro === "function"
+            ? window.__DK_mergeUnidadeFinanceiro
+            : mergeFinanceiroCeoDespesasArrays;
+        const merged = mergeUf(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
@@ -2695,6 +2724,19 @@
       );
     }
     if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_unidade_financeiro_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_unidade_financeiro_v1")
+    ) {
+      const mergeUf =
+        typeof window.__DK_mergeUnidadeFinanceiro === "function"
+          ? window.__DK_mergeUnidadeFinanceiro
+          : mergeFinanceiroCeoDespesasArrays;
+      out.dk_unidade_financeiro_v1 = mergeUf(
+        localPayload.dk_unidade_financeiro_v1,
+        cloudPayload.dk_unidade_financeiro_v1
+      );
+    }
+    if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_documentos_deposito_v1") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_documentos_deposito_v1")
     ) {
@@ -2778,6 +2820,17 @@
         localStorage.setItem(
           "dk_financeiro_ceo_despesas_v1",
           JSON.stringify(mergeFinanceiroCeoDespesasArrays(atual, mergedPayload.dk_financeiro_ceo_despesas_v1))
+        );
+      }
+      if (mergedPayload.dk_unidade_financeiro_v1) {
+        const atual = readLocalJsonArray("dk_unidade_financeiro_v1");
+        const mergeUf =
+          typeof window.__DK_mergeUnidadeFinanceiro === "function"
+            ? window.__DK_mergeUnidadeFinanceiro
+            : mergeFinanceiroCeoDespesasArrays;
+        localStorage.setItem(
+          "dk_unidade_financeiro_v1",
+          JSON.stringify(mergeUf(atual, mergedPayload.dk_unidade_financeiro_v1))
         );
       }
       if (mergedPayload.dk_documentos_deposito_v1) {
