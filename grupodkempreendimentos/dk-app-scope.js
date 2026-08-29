@@ -24,6 +24,18 @@
     centro: "/dkcentroautomotivo",
     construtora: "/dkconstrutora",
   };
+  const ICON = {
+    grupodk: "/icons/icon-grupodk-192.png",
+    locadora: "/icons/icon-locadora-192.png",
+    centro: "/icons/icon-centro-192.png",
+    construtora: "/icons/icon-construtora-192.png",
+  };
+  const THEME = {
+    grupodk: "#ffffff",
+    locadora: "#000000",
+    centro: "#1565c0",
+    construtora: "#6b7280",
+  };
 
   function appScopeFromPath(pathname) {
     const parts = String(pathname || "/")
@@ -51,13 +63,45 @@
     return scope === unit;
   }
 
+  function setLinkHref(rel, href) {
+    let link = null;
+    try {
+      if (typeof document.getElementById === "function") link = document.getElementById(`dk-${rel}`);
+      if (!link) link = document.querySelector(`link[rel="${rel}"]`);
+    } catch {
+      link = null;
+    }
+    if (link && href && link.getAttribute("href") !== href) link.setAttribute("href", href);
+  }
+
   function syncAppManifest() {
     const scope = appScope();
     const href = MANIFEST[scope] || MANIFEST.grupodk;
-    const link = document.querySelector('link[rel="manifest"]');
+    let link = null;
+    try {
+      link = document.querySelector('link[rel="manifest"]');
+    } catch {
+      link = null;
+    }
     if (link && link.getAttribute("href") !== href) link.setAttribute("href", href);
-    const apple = document.querySelector('meta[name="apple-mobile-web-app-title"]');
-    if (apple) apple.setAttribute("content", TITLE[scope] || TITLE.grupodk);
+    try {
+      const apple = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (apple) apple.setAttribute("content", TITLE[scope] || TITLE.grupodk);
+    } catch {
+      /* ignore */
+    }
+    const icon = ICON[scope] || ICON.grupodk;
+    setLinkHref("icon", icon);
+    setLinkHref("apple-touch-icon", icon);
+    const theme = THEME[scope] || THEME.grupodk;
+    try {
+      const themeMeta =
+        (typeof document.getElementById === "function" && document.getElementById("dk-theme-color")) ||
+        document.querySelector('meta[name="theme-color"]');
+      if (themeMeta) themeMeta.setAttribute("content", theme);
+    } catch {
+      /* ignore */
+    }
     try {
       if (scope !== "grupodk") document.title = TITLE[scope];
     } catch {
@@ -71,6 +115,8 @@
   w.__DK_appScopeAllowsUnit = appScopeAllowsUnit;
   w.__DK_appScopePath = PATH;
   w.__DK_appScopeTitle = TITLE;
+  w.__DK_appScopeIcon = ICON;
+  w.__DK_appScopeTheme = THEME;
   w.__DK_syncAppManifest = syncAppManifest;
 
   if (document.readyState === "loading") {

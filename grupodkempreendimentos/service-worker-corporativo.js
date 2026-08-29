@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260829apps-4";
+const CACHE_NAME = "dk-corporativo-v20260829icon-cores";
 const ASSETS = [
   "./",
   "./index.html",
@@ -40,6 +40,14 @@ const ASSETS = [
   "./manifest-construtora.webmanifest",
   "./icons/icon-cliente-192.png",
   "./icons/icon-cliente-512.png",
+  "./icons/icon-grupodk-192.png",
+  "./icons/icon-grupodk-512.png",
+  "./icons/icon-locadora-192.png",
+  "./icons/icon-locadora-512.png",
+  "./icons/icon-centro-192.png",
+  "./icons/icon-centro-512.png",
+  "./icons/icon-construtora-192.png",
+  "./icons/icon-construtora-512.png",
 ];
 
 self.addEventListener("message", (event) => {
