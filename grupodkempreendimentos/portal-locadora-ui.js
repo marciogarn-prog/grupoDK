@@ -420,7 +420,8 @@
       .map((l) => ({
         proto: normPortalNumeroContrato(l.numeroContrato),
         placa: String(l.placa || "").trim(),
-        ativo: typeof isPortalLocacaoAtiva === "function" ? isPortalLocacaoAtiva(l) : !String(l.dataFim || "").trim(),
+        ativo: typeof isPortalLocacaoAtiva === "function" ? isPortalLocacaoAtiva(l) : !String(l.dataFim || l.fim || "").trim(),
+        fimBr: portalFormatDataFinalizacaoLocacao(l),
       }))
       .filter((x) => x.proto);
     protos.sort((a, b) => {
@@ -435,7 +436,9 @@
       `<option value="">— escolha —</option>` +
       protos
         .map((p) => {
-          const lbl = `${p.proto}${p.placa ? ` · ${p.placa}` : ""}${p.ativo ? " · ativo" : ""}`;
+          const lbl = `${p.proto}${p.placa ? ` · ${p.placa}` : ""}${
+            p.ativo ? " · ativo" : ` · inativo${p.fimBr ? ` · ${p.fimBr}` : ""}`
+          }`;
           return `<option value="${portalEscapeHtml(p.proto)}">${portalEscapeHtml(lbl)}</option>`;
         })
         .join("");
@@ -10123,6 +10126,12 @@
     return "";
   }
 
+  function portalLabelInativoComData(locacao) {
+    if (isPortalLocacaoAtiva(locacao)) return "";
+    const fimBr = portalFormatDataFinalizacaoLocacao(locacao);
+    return fimBr ? ` · inativo · ${fimBr}` : " · inativo";
+  }
+
   function portalLocacaoPodeCancelar(locacao) {
     if (!locacao || isPortalLocacaoCancelada(locacao)) return false;
     const st = String(locacao.statusLocacao || locacao.status || "")
@@ -14328,7 +14337,7 @@
       const placa =
         typeof normalizePlate === "function" ? normalizePlate(String(l.placa || "")) : String(l.placa || "").trim();
       const ini = String(l.inicio || "").trim();
-      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
+      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}${portalLabelInativoComData(l)}`;
       if (isPortalLocacaoAtiva(l)) opt.classList.add("portal-locacao-proto-opt--ativo");
       const corCls =
         typeof getPortalLancPesquisaLinhaCorClasseFast === "function"
@@ -18063,7 +18072,7 @@
       const placa =
         typeof normalizePlate === "function" ? normalizePlate(String(l.placa || "")) : String(l.placa || "").trim();
       const ini = String(l.inicio || "").trim();
-      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
+      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}${portalLabelInativoComData(l)}`;
       sel.appendChild(opt);
     });
     sel.disabled = false;
@@ -20544,6 +20553,7 @@
   window.__DK_portalLancAluguelCpfCorClasseFromLinhas = portalLancAluguelCpfCorClasseFromLinhas;
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
+  window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
   window.__DK_isPortalLocacaoCancelada = isPortalLocacaoCancelada;
   window.__DK_getPortalLancamentosAluguelDoContrato = getPortalLancamentosAluguelDoContrato;
 

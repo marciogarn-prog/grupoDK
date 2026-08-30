@@ -659,7 +659,15 @@
       const pl = typeof normalizePlate === "function" ? normalizePlate(l.placa) : l.placa;
       const ativo =
         typeof window.__DK_isPortalLocacaoAtiva === "function" ? window.__DK_isPortalLocacaoAtiva(l) : !String(l.fim || "").trim();
-      opt.textContent = `${nc} · ${pl || "—"} · ${fmtDateLoc(l.inicio)} · ${ativo ? "ativo" : "inativo"}`;
+      const fimBr =
+        !ativo && typeof window.__DK_portalFormatDataFinalizacaoLocacao === "function"
+          ? window.__DK_portalFormatDataFinalizacaoLocacao(l)
+          : !ativo
+            ? fmtDateLoc(l.fim)
+            : "";
+      opt.textContent = `${nc} · ${pl || "—"} · ${fmtDateLoc(l.inicio)} · ${ativo ? "ativo" : "inativo"}${
+        !ativo && fimBr ? ` · ${fimBr}` : ""
+      }`;
       sel.appendChild(opt);
     });
     sel.disabled = false;
@@ -875,6 +883,10 @@
         placa: np(String(l.placa || "")),
         corClasse: typeof corFn === "function" ? corFn(l) : "portal-lanc-pesquisa-linha--branco",
         ativo: typeof window.__DK_isPortalLocacaoAtiva === "function" ? window.__DK_isPortalLocacaoAtiva(l) : !String(l.fim || "").trim(),
+        fimBr:
+          typeof window.__DK_portalFormatDataFinalizacaoLocacao === "function"
+            ? window.__DK_portalFormatDataFinalizacaoLocacao(l)
+            : fmtDateLoc(l.fim),
       });
     });
     return linhas;
@@ -944,8 +956,9 @@
       .map((row) => {
         const placaLbl = row.placa ? ` · ${escHtml(row.placa)}` : "";
         const status = row.ativo ? "ativo" : "inativo";
+        const fimLbl = !row.ativo && row.fimBr ? ` · ${escHtml(row.fimBr)}` : "";
         const corCls = escHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
-        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-lanc-pesquisa-key="${cfg.key}" data-cpf="${escHtml(row.cpf)}" data-nome="${escHtml(row.nome)}" data-proto="${escHtml(row.proto)}" data-placa="${escHtml(row.placa || "")}">${escHtml(row.nome)} · ${escHtml(fmt(row.cpf))} · ${escHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-lanc-pesquisa-key="${cfg.key}" data-cpf="${escHtml(row.cpf)}" data-nome="${escHtml(row.nome)}" data-proto="${escHtml(row.proto)}" data-placa="${escHtml(row.placa || "")}">${escHtml(row.nome)} · ${escHtml(fmt(row.cpf))} · ${escHtml(row.proto)}${placaLbl} · <strong>${status}</strong>${fimLbl}</button></li>`;
       })
       .join("")}</ul>`;
   }
