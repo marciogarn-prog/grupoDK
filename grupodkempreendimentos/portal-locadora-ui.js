@@ -16355,6 +16355,79 @@
     return absFmt;
   }
 
+  /** Prazo legal/operacional: 40 dias corridos após o fim do contrato. */
+  const PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = 40;
+
+  function portalSomarDiasCorridos(date, dias) {
+    const src = date instanceof Date ? date : null;
+    if (!src || Number.isNaN(src.getTime())) return null;
+    const d = new Date(src.getFullYear(), src.getMonth(), src.getDate());
+    d.setDate(d.getDate() + (Number(dias) || 0));
+    return d;
+  }
+
+  function formatPortalDataLimiteDevolucao40d(loc) {
+    const fimBr = portalFormatDataFinalizacaoLocacao(loc);
+    if (!fimBr) return "";
+    const d = typeof parseBrDate === "function" ? parseBrDate(fimBr) : null;
+    const limite = portalSomarDiasCorridos(d, PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS);
+    if (!limite) return "";
+    return formatPortalDataBr(limite);
+  }
+
+  function parsePortalValorDevolucaoCampo(el) {
+    if (!el) return 0;
+    const raw = String(el.value || "").trim();
+    if (!raw) return 0;
+    if (el.classList.contains("portal-lanc-devolucao-valor--negativo")) return 0;
+    if (raw.includes("−") || raw.startsWith("-")) return 0;
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const n = Number(parseVal(raw));
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function portalPainelLimiteDevolucaoState(valor, dataLimiteBr) {
+    if (!(Number(valor) > 0.009)) {
+      return { modo: "sem", texto: "NÃO EXISTE DEVOLUÇÃO" };
+    }
+    return {
+      modo: "com",
+      titulo: "DATA LIMITE",
+      data: String(dataLimiteBr || "").trim() || "—",
+    };
+  }
+
+  function refreshOperacaoLancAluguelDataLimiteDevolucao(loc) {
+    const box = document.getElementById("operacaoLancAluguelDevolucaoLimiteBox");
+    if (!box) return;
+    const valDevEl = document.getElementById("operacaoLancAluguelValorDevolucao");
+    const valor = parsePortalValorDevolucaoCampo(valDevEl);
+    const target = loc && typeof loc === "object" ? loc : resolveLocOperacaoLancAluguelAtual();
+    const dataLimite = formatPortalDataLimiteDevolucao40d(target);
+    const state = portalPainelLimiteDevolucaoState(valor, dataLimite);
+    if (state.modo === "sem") {
+      box.classList.add("portal-lanc-devolucao-limite--sem");
+      box.classList.remove("portal-lanc-devolucao-limite--com");
+      box.innerHTML = `<span class="portal-lanc-devolucao-limite-msg">${portalEscapeHtml(state.texto)}</span>`;
+      return;
+    }
+    box.classList.remove("portal-lanc-devolucao-limite--sem");
+    box.classList.add("portal-lanc-devolucao-limite--com");
+    box.innerHTML =
+      `<span class="portal-lanc-devolucao-limite-titulo">${portalEscapeHtml(state.titulo)}</span>` +
+      `<span class="portal-lanc-devolucao-limite-data">${portalEscapeHtml(state.data)}</span>`;
+  }
+
   function refreshOperacaoLancAluguelSugestaoDevolucao(loc) {
     const valDevEl = document.getElementById("operacaoLancAluguelValorDevolucao");
     const aviso = document.getElementById("operacaoLancAluguelDevolucaoAvisoNegativo");
@@ -16370,6 +16443,7 @@
         aviso.setAttribute("hidden", "");
       }
       if (col) col.classList.remove("portal-lanc-dual-col--devolucao-negativo");
+      refreshOperacaoLancAluguelDataLimiteDevolucao(null);
       return;
     }
     const info = computePortalSaldoDevolucaoInvestimento(target);
@@ -16383,6 +16457,7 @@
       else aviso.setAttribute("hidden", "");
     }
     if (col) col.classList.toggle("portal-lanc-dual-col--devolucao-negativo", info.negativo);
+    refreshOperacaoLancAluguelDataLimiteDevolucao(target);
   }
 
   function portalValorPlanoPagamentoSugeridoFmt(loc) {
@@ -19255,6 +19330,9 @@
     el.addEventListener("input", () => syncOperacaoLancAluguelValorPagoFromMeios());
     el.addEventListener("blur", () => syncOperacaoLancAluguelValorPagoFromMeios());
   });
+  const inpValorDevolucaoLimite = document.getElementById("operacaoLancAluguelValorDevolucao");
+  inpValorDevolucaoLimite?.addEventListener("input", () => refreshOperacaoLancAluguelDataLimiteDevolucao());
+  inpValorDevolucaoLimite?.addEventListener("blur", () => refreshOperacaoLancAluguelDataLimiteDevolucao());
   document.getElementById("operacaoLancAluguelCpf")?.addEventListener("blur", () => {
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelPesquisaDatalists({
@@ -20554,6 +20632,11 @@
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
   window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
+  window.__DK_PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS;
+  window.__DK_portalSomarDiasCorridos = portalSomarDiasCorridos;
+  window.__DK_formatPortalDataLimiteDevolucao40d = formatPortalDataLimiteDevolucao40d;
+  window.__DK_portalPainelLimiteDevolucaoState = portalPainelLimiteDevolucaoState;
+  window.__DK_refreshOperacaoLancAluguelDataLimiteDevolucao = refreshOperacaoLancAluguelDataLimiteDevolucao;
   window.__DK_isPortalLocacaoCancelada = isPortalLocacaoCancelada;
   window.__DK_getPortalLancamentosAluguelDoContrato = getPortalLancamentosAluguelDoContrato;
 
