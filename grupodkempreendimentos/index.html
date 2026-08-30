@@ -36,13 +36,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260829cal-pag-dev">
+  <link rel="stylesheet" href="styles.css?v=20260830data-fim-lock">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260826relacao-cols"></script>
-  <script src="dk-pwa-update.js?v=20260829icones-4apps"></script>
+  <script src="dk-pwa-update.js?v=20260830data-fim-lock"></script>
 </head>
 <body>
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
@@ -1392,10 +1392,19 @@
                           <span>DATA DA DEVOLUÇÃO</span>
                           <input type="text" id="operacaoLancAluguelDataDevolucao" name="dataDevolucao" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" size="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DA DEVOLUÇÃO">
                         </label>
-                        <label class="portal-field portal-lanc-field--valor">
-                          <span>SALDO / VALOR DEVOLVIDO (R$)</span>
-                          <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="18" size="14" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Saldo ou valor da devolução de investimento">
-                        </label>
+                        <div class="portal-lanc-devolucao-valor-com-limite">
+                          <label class="portal-field portal-lanc-field--valor">
+                            <span>SALDO / VALOR DEVOLVIDO (R$)</span>
+                            <input type="text" id="operacaoLancAluguelValorDevolucao" name="valorDevolucao" maxlength="18" size="14" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Saldo ou valor da devolução de investimento">
+                          </label>
+                          <div
+                            class="portal-lanc-devolucao-limite portal-lanc-devolucao-limite--sem"
+                            id="operacaoLancAluguelDevolucaoLimiteBox"
+                            aria-live="polite"
+                          >
+                            <span class="portal-lanc-devolucao-limite-msg">NÃO EXISTE DEVOLUÇÃO</span>
+                          </div>
+                        </div>
                       </div>
                       <label class="portal-field portal-lanc-comentario-pagamento">
                         <span>COMENTÁRIO (opcional)</span>
@@ -3305,7 +3314,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260830inativo-datafim-2" defer></script>
+  <script src="portal-locadora-ui.js?v=20260830data-fim-lock" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

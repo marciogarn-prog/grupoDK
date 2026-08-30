@@ -2327,7 +2327,13 @@ body {
 }
 
 .portal-lanc-pesquisa-linha--branco {
-  color: #ffffff;
+  color: #f8fafc;
+}
+
+.portal-lanc-pesquisa-linha__fim {
+  font-weight: 800;
+  white-space: nowrap;
+  color: inherit;
 }
 
 /* Cadastro locação — protocolo ativo: azul minha moto · verde meu transporte · marrom carro */
@@ -8223,6 +8229,85 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #f87171;
   font-weight: 700;
   border-color: rgba(248, 113, 113, 0.7);
+}
+
+.portal-lanc-devolucao-valor-com-limite {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, auto);
+  gap: 0.45rem 0.7rem;
+  align-items: end;
+  width: 100%;
+  min-width: 0;
+}
+
+.portal-lanc-dual-col__grid > .portal-lanc-devolucao-valor-com-limite {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.portal-lanc-devolucao-valor-com-limite > .portal-field {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+
+.portal-lanc-devolucao-limite {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 2.7rem;
+  padding: 0.12rem 0.15rem 0.08rem 0.5rem;
+  border-left: 2px solid rgba(96, 165, 250, 0.9);
+  color: #dbeafe;
+}
+
+.portal-lanc-devolucao-limite-titulo {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(191, 219, 254, 0.9);
+  line-height: 1.2;
+}
+
+.portal-lanc-devolucao-limite-data {
+  font-size: 0.98rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #fff;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-lanc-devolucao-limite-msg {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.25;
+  color: rgba(226, 232, 240, 0.95);
+  max-width: 11rem;
+}
+
+.portal-lanc-devolucao-limite--sem {
+  border-left-color: rgba(148, 163, 184, 0.75);
+}
+
+@media (max-width: 420px) {
+  .portal-lanc-devolucao-valor-com-limite {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .portal-lanc-devolucao-limite {
+    min-height: 0;
+    padding-left: 0.35rem;
+  }
+
+  .portal-lanc-devolucao-limite-msg {
+    max-width: none;
+  }
 }
 
 .portal-lanc-dual-col__grid {
