@@ -8110,6 +8110,15 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   max-width: 100%;
 }
 
+@media (min-width: 900px) {
+  #panel-operacao-locadora:not(.hidden) .operacao-lanc-aluguel-pane {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 .portal-lanc-avulso-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

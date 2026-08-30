@@ -278,6 +278,12 @@ async function main() {
         const shown = await cdpEval(
           session,
           `(() => {
+            document.getElementById("view-home")?.classList.remove("view--active");
+            const unit = document.getElementById("view-unit");
+            if (!unit) return { ok: false, reason: "view-unit" };
+            unit.classList.add("view--active");
+            unit.setAttribute("aria-hidden", "false");
+            document.body.classList.add("portal-body--equipa-sessao", "portal-body--admin-logado");
             const ids = [
               "panel-operacao-locadora",
               "operacaoInlineLancamentoAluguel",
