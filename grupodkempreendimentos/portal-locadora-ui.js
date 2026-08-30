@@ -10093,6 +10093,36 @@
     return /^\d{2}\/\d{2}\/\d{4}$/.test(fim);
   }
 
+  /** Data em que o protocolo foi finalizado (dia/mês/ano), para a lista de pesquisa. */
+  function portalFormatDataFinalizacaoLocacao(locacao) {
+    const raw = String(locacao?.fim || locacao?.dataFim || "").trim();
+    if (raw && raw !== "—" && raw !== "-" && raw !== "...") {
+      if (typeof formatDateMask === "function") {
+        const f = String(formatDateMask(raw) || "").trim();
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(f)) return f;
+      }
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+      if (typeof parseBrDate === "function") {
+        const dt = parseBrDate(raw);
+        if (dt instanceof Date && !Number.isNaN(dt.getTime())) {
+          const dd = String(dt.getDate()).padStart(2, "0");
+          const mm = String(dt.getMonth() + 1).padStart(2, "0");
+          return `${dd}/${mm}/${dt.getFullYear()}`;
+        }
+      }
+    }
+    const ms = Number(locacao?.portalLocacaoFinalizadoEmMs || 0);
+    if (Number.isFinite(ms) && ms > 0) {
+      const dt = new Date(ms);
+      if (!Number.isNaN(dt.getTime())) {
+        const dd = String(dt.getDate()).padStart(2, "0");
+        const mm = String(dt.getMonth() + 1).padStart(2, "0");
+        return `${dd}/${mm}/${dt.getFullYear()}`;
+      }
+    }
+    return "";
+  }
+
   function portalLocacaoPodeCancelar(locacao) {
     if (!locacao || isPortalLocacaoCancelada(locacao)) return false;
     const st = String(locacao.statusLocacao || locacao.status || "")
@@ -16606,6 +16636,7 @@
         placa: np(String(l.placa || "")),
         corClasse: getPortalLancPesquisaLinhaCorClasseFast(l, vehicleMap),
         ativo: isPortalLocacaoAtiva(l),
+        fimBr: portalFormatDataFinalizacaoLocacao(l),
       });
     });
     portalPesquisaLinhasCache = linhas;
@@ -16665,7 +16696,8 @@
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
         const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
         const status = row.ativo ? "ativo" : "inativo";
-        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}" data-placa="${portalEscapeHtml(row.placa || "")}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl} · <strong>${status}</strong></button></li>`;
+        const fimLbl = !row.ativo && row.fimBr ? ` · ${portalEscapeHtml(row.fimBr)}` : "";
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}" data-placa="${portalEscapeHtml(row.placa || "")}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl} · <strong>${status}</strong>${fimLbl}</button></li>`;
       })
       .join("")}</ul>`;
   }
