@@ -1,0 +1,11 @@
+{
+  "name": "Grupo DK Portal",
+  "install": "npm install",
+  "terminals": [
+    {
+      "name": "portal",
+      "command": "node grupodkempreendimentos/server.cjs"
+    }
+  ],
+  "ports": [{ "name": "portal", "port": 3000 }]
+}

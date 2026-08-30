@@ -1,7 +1,10 @@
 backups/
 *.zip
 node_modules/
-.cursor/
+.cursor/*
+!.cursor/environment.json
+!.cursor/rules/
+!.cursor/rules/**
 .vercel-portal-dist/
 .vercel
 .env*
