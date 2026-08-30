@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260830layout-zoom";
+const CACHE_NAME = "dk-corporativo-v20260830scroll-loc";
 const ASSETS = [
   "./",
   "./index.html",

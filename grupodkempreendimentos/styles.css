@@ -1444,8 +1444,8 @@ body {
 }
 
 /*
- * Operação (desktop): sidebar + formulário cabem na área útil sob o banner
- * sem scroll da página (sem «rodar a bolinha»).
+ * Operação (desktop): a vista cabe na janela. Cadastro de locação é mais alto
+ * que o ecrã — nessa tela a bola do mouse rola o formulário (não corta botões).
  */
 @media (min-width: 900px) {
   body.portal-body--equipa-sessao #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) {
@@ -1731,6 +1731,25 @@ body {
   #panel-operacao-locadora:not(.hidden) .operacao-lanc-aluguel-subnav {
     gap: 0.25rem;
     margin: 0.1rem 0 0.25rem 0.4rem;
+  }
+
+  /* Cadastro de locação: a bola do mouse move o conteúdo (campos, documentos, botões, histórico). */
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao.operacao-inline-form--rodar-mouse:not(.hidden) {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao.operacao-inline-form--rodar-mouse .operacao-inline-form__grid {
+    flex: 0 0 auto;
+    min-height: min-content;
+    overflow: visible;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoLocacaoLancamentosHistorico {
+    flex: 0 0 auto;
+    min-width: 0;
   }
 }
 

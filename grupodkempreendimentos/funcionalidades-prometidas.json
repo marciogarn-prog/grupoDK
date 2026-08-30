@@ -42,6 +42,17 @@
           "portal-lanc-dual-col__grid"
         ]
       }
+    },
+    {
+      "id": "cadastro-locacao-scroll-mouse",
+      "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
+      "ficheiros": {
+        "styles.css": [
+          "operacao-inline-form--rodar-mouse",
+          "a bola do mouse move o conteúdo"
+        ],
+        "index.html": ["operacao-inline-form--rodar-mouse"]
+      }
     }
   ]
 }
