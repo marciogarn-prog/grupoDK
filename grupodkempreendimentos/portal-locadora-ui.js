@@ -16407,12 +16407,23 @@
     };
   }
 
+  /** Última locação usada no painel, para o operador editar o valor sem perder a data limite. */
+  let locacaoRefDataLimiteDevolucao = null;
+
   function refreshOperacaoLancAluguelDataLimiteDevolucao(loc) {
     const box = document.getElementById("operacaoLancAluguelDevolucaoLimiteBox");
     if (!box) return;
+    if (loc === null) {
+      locacaoRefDataLimiteDevolucao = null;
+    } else if (loc && typeof loc === "object") {
+      locacaoRefDataLimiteDevolucao = loc;
+    }
     const valDevEl = document.getElementById("operacaoLancAluguelValorDevolucao");
     const valor = parsePortalValorDevolucaoCampo(valDevEl);
-    const target = loc && typeof loc === "object" ? loc : resolveLocOperacaoLancAluguelAtual();
+    const target =
+      (loc && typeof loc === "object" ? loc : null) ||
+      resolveLocOperacaoLancAluguelAtual() ||
+      locacaoRefDataLimiteDevolucao;
     const dataLimite = formatPortalDataLimiteDevolucao40d(target);
     const state = portalPainelLimiteDevolucaoState(valor, dataLimite);
     if (state.modo === "sem") {
