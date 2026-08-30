@@ -251,6 +251,19 @@ async function main() {
         );
         record("Browser: 19/08/2026 + 40 = 28/09/2026", limite === "28/09/2026", String(limite));
 
+        const fimFmt = await cdpEval(
+          session,
+          `({
+            br: window.__DK_portalFormatDataFinalizacaoLocacao({ fim: "19/08/2026" }),
+            iso: window.__DK_portalFormatDataFinalizacaoLocacao({ fim: "2026-08-19" }),
+            abr: window.__DK_portalFormatDataFinalizacaoLocacao({ fim: "22/jan", numeroContrato: "2025122902" }),
+            label: window.__DK_portalFormatDataFinalizacaoLocacao({ fim: "22/jan", numeroContrato: "2025122902", statusLocacao: "FINALIZADO" }),
+          })`
+        );
+        record("Browser: data fim 19/08/2026", fimFmt?.br === "19/08/2026", String(fimFmt?.br));
+        record("Browser: data fim ISO → 19/08/2026", fimFmt?.iso === "19/08/2026", String(fimFmt?.iso));
+        record("Browser: data fim 22/jan → 22/01/2026", fimFmt?.abr === "22/01/2026", String(fimFmt?.abr));
+
         const ui = await cdpEval(session, PREPARE_AND_READ_UI);
         record("Browser: caixa existe", Boolean(ui?.ok), ui?.reason || "");
         record("Browser: sem valor mostra NÃO EXISTE DEVOLUÇÃO", ui?.semTxt === "NÃO EXISTE DEVOLUÇÃO", ui?.semTxt);

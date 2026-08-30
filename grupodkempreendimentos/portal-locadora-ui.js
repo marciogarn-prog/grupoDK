@@ -10085,43 +10085,119 @@
     return s.includes("CANCEL");
   }
 
+  function portalFormatDiaMesAno(dt) {
+    if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return "";
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${dt.getFullYear()}`;
+  }
+
+  const PORTAL_MESES_PT = {
+    jan: 1,
+    janeiro: 1,
+    fev: 2,
+    fevereiro: 2,
+    mar: 3,
+    marco: 3,
+    abr: 4,
+    abril: 4,
+    mai: 5,
+    maio: 5,
+    jun: 6,
+    junho: 6,
+    jul: 7,
+    julho: 7,
+    ago: 8,
+    agosto: 8,
+    set: 9,
+    setembro: 9,
+    out: 10,
+    outubro: 10,
+    nov: 11,
+    novembro: 11,
+    dez: 12,
+    dezembro: 12,
+  };
+
+  function portalMesPtParaNumero(token) {
+    const t = String(token || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\./g, "");
+    return PORTAL_MESES_PT[t] || PORTAL_MESES_PT[t.slice(0, 3)] || 0;
+  }
+
+  function portalAnoRefDataFim(locacao, mes) {
+    const month = Number(mes) || 0;
+    const inicio = String(locacao?.inicio || locacao?.dataInicio || "").trim();
+    if (typeof parseBrDate === "function" && inicio) {
+      const dIni = parseBrDate(inicio);
+      if (dIni instanceof Date && !Number.isNaN(dIni.getTime())) {
+        let y = dIni.getFullYear();
+        if (month && month < dIni.getMonth() + 1) y += 1;
+        return y;
+      }
+    }
+    const nc = String(locacao?.numeroContrato || "").replace(/\D/g, "");
+    if (nc.length >= 6) {
+      const y = Number(nc.slice(0, 4));
+      const m = Number(nc.slice(4, 6));
+      if (y >= 2020 && y <= 2100) return month && month < m ? y + 1 : y;
+    }
+    return new Date().getFullYear();
+  }
+
+  /** Converte fim/dataFim (DD/MM/AAAA, ISO, 22/jan, serial Excel) para DD/MM/AAAA. */
+  function portalCoerceDataFimBr(raw, locacao) {
+    const s = String(raw || "").trim();
+    if (!s || s === "—" || s === "-" || s === "...") return "";
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
+    const abr = s.match(
+      /^(\d{1,2})\s*[\/.\-]\s*([A-Za-zçÇáàâãéêíóôõúÁÀÂÃÉÊÍÓÔÕÚ.]+)(?:\s*[\/.\-]\s*(\d{2,4}))?$/
+    );
+    if (abr) {
+      const day = Number(abr[1]);
+      const month = portalMesPtParaNumero(abr[2]);
+      let year = abr[3] ? Number(abr[3]) : 0;
+      if (year > 0 && year < 100) year += 2000;
+      if (!year) year = portalAnoRefDataFim(locacao, month);
+      if (day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2020 && year <= 2100) {
+        return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
+      }
+    }
+    if (typeof parseBrDate === "function") {
+      const br = portalFormatDiaMesAno(parseBrDate(s));
+      if (br) return br;
+    }
+    const n = Number(String(s).replace(",", "."));
+    if (Number.isFinite(n) && n > 20000 && n < 80000) {
+      const excelEpoch = new Date(1899, 11, 30);
+      const br = portalFormatDiaMesAno(new Date(excelEpoch.getTime() + Math.round(n) * 86400000));
+      if (br) return br;
+    }
+    return "";
+  }
+
   function portalLocacaoTemDataFim(locacao) {
     if (isPortalLocacaoCancelada(locacao)) return true;
-    const fim = String(locacao?.fim || "").trim();
-    if (!fim || fim === "—" || fim === "-") return false;
-    if (typeof parseBrDate === "function") {
-      const dt = parseBrDate(fim);
-      if (dt && !Number.isNaN(dt.getTime())) return true;
-    }
-    return /^\d{2}\/\d{2}\/\d{4}$/.test(fim);
+    return Boolean(portalCoerceDataFimBr(locacao?.fim || locacao?.dataFim || "", locacao));
   }
 
   /** Data em que o protocolo foi finalizado (dia/mês/ano), para a lista de pesquisa. */
   function portalFormatDataFinalizacaoLocacao(locacao) {
-    const raw = String(locacao?.fim || locacao?.dataFim || "").trim();
-    if (raw && raw !== "—" && raw !== "-" && raw !== "...") {
-      if (typeof formatDateMask === "function") {
-        const f = String(formatDateMask(raw) || "").trim();
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(f)) return f;
-      }
-      if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
-      if (typeof parseBrDate === "function") {
-        const dt = parseBrDate(raw);
-        if (dt instanceof Date && !Number.isNaN(dt.getTime())) {
-          const dd = String(dt.getDate()).padStart(2, "0");
-          const mm = String(dt.getMonth() + 1).padStart(2, "0");
-          return `${dd}/${mm}/${dt.getFullYear()}`;
-        }
-      }
+    const campos = [locacao?.fim, locacao?.dataFim, locacao?.dataFinalizacao, locacao?.dtFim];
+    for (let i = 0; i < campos.length; i += 1) {
+      const br = portalCoerceDataFimBr(campos[i], locacao);
+      if (br) return br;
     }
     const ms = Number(locacao?.portalLocacaoFinalizadoEmMs || 0);
     if (Number.isFinite(ms) && ms > 0) {
-      const dt = new Date(ms);
-      if (!Number.isNaN(dt.getTime())) {
-        const dd = String(dt.getDate()).padStart(2, "0");
-        const mm = String(dt.getMonth() + 1).padStart(2, "0");
-        return `${dd}/${mm}/${dt.getFullYear()}`;
-      }
+      const br = portalFormatDiaMesAno(new Date(ms));
+      if (br) return br;
     }
     return "";
   }
@@ -16791,7 +16867,10 @@
         const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
         const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
         const status = row.ativo ? "ativo" : "inativo";
-        const fimLbl = !row.ativo && row.fimBr ? ` · ${portalEscapeHtml(row.fimBr)}` : "";
+        const fimLbl =
+          !row.ativo && row.fimBr
+            ? ` · <span class="portal-lanc-pesquisa-linha__fim">${portalEscapeHtml(row.fimBr)}</span>`
+            : "";
         return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto)}" data-placa="${portalEscapeHtml(row.placa || "")}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))} · ${portalEscapeHtml(row.proto)}${placaLbl} · <strong>${status}</strong>${fimLbl}</button></li>`;
       })
       .join("")}</ul>`;
@@ -20643,6 +20722,7 @@
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
   window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
+  window.__DK_portalCoerceDataFimBr = portalCoerceDataFimBr;
   window.__DK_PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS;
   window.__DK_portalSomarDiasCorridos = portalSomarDiasCorridos;
   window.__DK_formatPortalDataLimiteDevolucao40d = formatPortalDataLimiteDevolucao40d;

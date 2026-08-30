@@ -2327,7 +2327,13 @@ body {
 }
 
 .portal-lanc-pesquisa-linha--branco {
-  color: #ffffff;
+  color: #f8fafc;
+}
+
+.portal-lanc-pesquisa-linha__fim {
+  font-weight: 800;
+  white-space: nowrap;
+  color: inherit;
 }
 
 /* Cadastro locação — protocolo ativo: azul minha moto · verde meu transporte · marrom carro */
