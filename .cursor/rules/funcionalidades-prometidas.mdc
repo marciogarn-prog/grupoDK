@@ -1,0 +1,21 @@
+---
+description: Funcionalidades pedidas pelo titular não podem desaparecer sem comando explícito.
+alwaysApply: true
+---
+
+# Funcionalidades prometidas (não remover)
+
+O titular do Grupo DK pede alterações na linha de comando desta conversa. **Uma funcionalidade já pedida e publicada não pode deixar de aparecer** só porque outra alteração mexeu no mesmo ecrã, no cache do PWA ou no JavaScript.
+
+Só pode remover, esconder ou desligar um item de `grupodkempreendimentos/funcionalidades-prometidas.json` se o titular **pedir isso explicitamente nesta conversa** (comando claro do tipo «tire a data fim» / «remova a data limite»). Silêncio, refactor, «limpar código» ou um pedido novo noutro sítio da UI **não** autorizam a remoção.
+
+Antes de cada commit que altere HTML/JS/CSS do portal:
+
+1. Ler `grupodkempreendimentos/funcionalidades-prometidas.json`.
+2. Confirmar que cada `deveConter` continua no código.
+3. Correr `node grupodkempreendimentos/scripts/test-funcionalidades-prometidas.mjs`.
+
+Itens actualmente travados:
+
+- Lista de pesquisa do Lançamento de aluguel: após **inativo** mostra a **data fim** do contrato.
+- Painel de devolução: **DATA LIMITE** (40 dias corridos após o fim) ou **NÃO EXISTE DEVOLUÇÃO**.

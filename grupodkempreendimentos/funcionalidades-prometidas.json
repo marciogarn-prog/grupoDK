@@ -1,0 +1,32 @@
+{
+  "aviso": "Não remover estes itens sem comando explícito do titular na conversa.",
+  "itens": [
+    {
+      "id": "pesquisa-inativo-data-fim",
+      "descricao": "Na lista de pesquisa do Lançamento de aluguel, depois de inativo deve aparecer a data fim do contrato (ex.: inativo · 22/01/2026).",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalFormatDataFinalizacaoLocacao",
+          "portal-lanc-pesquisa-linha__fim",
+          "portalCoerceDataFimBr"
+        ],
+        "styles.css": ["portal-lanc-pesquisa-linha__fim"]
+      }
+    },
+    {
+      "id": "devolucao-data-limite-40d",
+      "descricao": "No painel Registrar devolução de investimento: se há valor a devolver, DATA LIMITE e a data 40 dias corridos após o fim do contrato; se não há valor, NÃO EXISTE DEVOLUÇÃO.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = 40",
+          "DATA LIMITE",
+          "NÃO EXISTE DEVOLUÇÃO"
+        ],
+        "index.html": [
+          "operacaoLancAluguelDevolucaoLimiteBox",
+          "NÃO EXISTE DEVOLUÇÃO"
+        ]
+      }
+    }
+  ]
+}
