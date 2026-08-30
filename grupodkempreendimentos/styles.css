@@ -1733,20 +1733,22 @@ body {
     margin: 0.1rem 0 0.25rem 0.4rem;
   }
 
-  /* Cadastro de locação: a bola do mouse move o conteúdo (campos, documentos, botões, histórico). */
-  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao.operacao-inline-form--rodar-mouse:not(.hidden) {
+  /* Cadastro de locação e Lançamento de multas: a bola do mouse move o conteúdo. */
+  #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
   }
 
-  #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao.operacao-inline-form--rodar-mouse .operacao-inline-form__grid {
+  #panel-operacao-locadora:not(.hidden) .operacao-inline-form--rodar-mouse .operacao-inline-form__grid,
+  #panel-operacao-locadora:not(.hidden) .operacao-inline-form--rodar-mouse .portal-lanc-aluguel-form {
     flex: 0 0 auto;
     min-height: min-content;
     overflow: visible;
   }
 
+  #panel-operacao-locadora:not(.hidden) .operacao-inline-form--rodar-mouse .operacao-lanc-historico,
   #panel-operacao-locadora:not(.hidden) #operacaoLocacaoLancamentosHistorico {
     flex: 0 0 auto;
     min-width: 0;

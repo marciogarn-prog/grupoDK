@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260830scroll-loc";
+const CACHE_NAME = "dk-corporativo-v20260830scroll-multas";
 const ASSETS = [
   "./",
   "./index.html",

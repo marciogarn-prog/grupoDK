@@ -53,6 +53,16 @@
         ],
         "index.html": ["operacao-inline-form--rodar-mouse"]
       }
+    },
+    {
+      "id": "lancamento-multas-scroll-mouse",
+      "descricao": "Na tela Lançamento de multas, rodar a bola do mouse move o conteúdo (pesquisa, dados do protocolo, documentos e formulário da multa).",
+      "ficheiros": {
+        "index.html": [
+          "operacaoInlineLancamentoMultas",
+          "operacao-inline-form operacao-inline-form--rodar-mouse"
+        ]
+      }
     }
   ]
 }
