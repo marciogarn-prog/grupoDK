@@ -27,6 +27,21 @@
           "NÃO EXISTE DEVOLUÇÃO"
         ]
       }
+    },
+    {
+      "id": "lanc-devolucao-layout-zoom",
+      "descricao": "No lançamento avulso, pagamento e devolução ficam empilhados (nunca 3 colunas espremidas) e a DATA LIMITE ocupa faixa própria abaixo do valor, para lançar dados em qualquer zoom.",
+      "ficheiros": {
+        "styles.css": [
+          "portal-lanc-avulso-workspace",
+          "@container lanc-pane (min-width: 72rem)",
+          "portal-lanc-devolucao-limite"
+        ],
+        "index.html": [
+          "operacaoLancAluguelDevolucaoLimiteBox",
+          "portal-lanc-dual-col__grid"
+        ]
+      }
     }
   ]
 }

@@ -121,7 +121,7 @@ async function withChromePage(fn) {
       "--disable-gpu",
       "--no-sandbox",
       "--disable-dev-shm-usage",
-      `--window-size=1280,900`,
+      `--window-size=1600,1400`,
       `--remote-debugging-port=${debugPort}`,
       `--user-data-dir=${userDir}`,
       "about:blank",
@@ -211,13 +211,24 @@ async function main() {
   const js = readLocal("portal-locadora-ui.js");
 
   record(
-    "HTML tem o espaço da data limite ao lado do valor",
+    "HTML tem a data limite no painel de devolução",
     html.includes('id="operacaoLancAluguelDevolucaoLimiteBox"') &&
-      html.includes("portal-lanc-devolucao-valor-com-limite") &&
-      /operacaoLancAluguelValorDevolucao[\s\S]{0,800}operacaoLancAluguelDevolucaoLimiteBox/.test(html)
+      html.includes("portal-lanc-devolucao-limite") &&
+      /operacaoLancAluguelValorDevolucao[\s\S]{0,1200}operacaoLancAluguelDevolucaoLimiteBox/.test(html)
   );
   record("HTML texto NÃO EXISTE DEVOLUÇÃO", html.includes("NÃO EXISTE DEVOLUÇÃO"));
-  record("CSS posiciona o aviso à direita do valor", css.includes(".portal-lanc-devolucao-valor-com-limite"));
+  record("CSS data limite em faixa própria (não espremida ao lado do valor)", css.includes(".portal-lanc-devolucao-limite") && !css.includes(".portal-lanc-devolucao-valor-com-limite"));
+  record(
+    "CSS nunca coloca pagamento e devolução em colunas lado a lado",
+    css.includes("portal-lanc-dual-cols") &&
+      !css.includes("@container lanc-forms") &&
+      /portal-lanc-dual-cols \{[\s\S]{0,280}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css)
+  );
+  record("CSS histórico só ao lado com folga (72rem)", css.includes("@container lanc-pane (min-width: 72rem)"));
+  record(
+    "HTML grids de lançamento sem o grid 3 colunas da locadora",
+    !/operacao-inline-form__grid\s+portal-lanc-dual-col__grid/.test(html)
+  );
   record("JS prazo de 40 dias corridos", js.includes("PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = 40"));
   record("JS texto DATA LIMITE", js.includes('titulo: "DATA LIMITE"'));
   record("JS texto NÃO EXISTE DEVOLUÇÃO", js.includes('texto: "NÃO EXISTE DEVOLUÇÃO"'));
@@ -264,6 +275,162 @@ async function main() {
         record("Browser: data fim ISO → 19/08/2026", fimFmt?.iso === "19/08/2026", String(fimFmt?.iso));
         record("Browser: data fim 22/jan → 22/01/2026", fimFmt?.abr === "22/01/2026", String(fimFmt?.abr));
 
+        const shown = await cdpEval(
+          session,
+          `(() => {
+            const ids = [
+              "panel-operacao-locadora",
+              "operacaoInlineLancamentoAluguel",
+              "operacaoLancAluguelPaneAvulso",
+              "operacaoLancAluguelPagamentoPanel",
+            ];
+            for (const id of ids) {
+              const el = document.getElementById(id);
+              if (!el) return { ok: false, reason: id };
+              el.classList.remove("hidden");
+              el.removeAttribute("hidden");
+              el.hidden = false;
+            }
+            const hist = document.getElementById("operacaoLancAluguelHistorico");
+            if (hist) {
+              hist.classList.remove("hidden");
+              hist.removeAttribute("hidden");
+              hist.hidden = false;
+              hist.innerHTML = "<p>Lançamentos registrados (1)</p>";
+            }
+            const inp = document.getElementById("operacaoLancAluguelValorDevolucao");
+            if (inp) inp.value = "R$ 1.862,86";
+            window.__DK_refreshOperacaoLancAluguelDataLimiteDevolucao({ fim: "19/08/2026" });
+            document.body.style.background = "#111";
+            return { ok: true };
+          })()`
+        );
+        record("Browser: painel de lançamento visível para o layout", Boolean(shown?.ok), shown?.reason || "");
+
+        const WORKSPACE_JS = `(() => {
+          const hit = (a, b) =>
+            a && b && !(a.right <= b.left + 1 || a.left >= b.right - 1 || a.bottom <= b.top + 1 || a.top >= b.bottom - 1);
+          const r = (sel) => document.querySelector(sel)?.getBoundingClientRect();
+          const pag = r(".portal-lanc-dual-col--pagamento");
+          const dev = r(".portal-lanc-dual-col--devolucao");
+          const data = r("#operacaoLancAluguelDataDevolucao");
+          const valor = r("#operacaoLancAluguelValorDevolucao");
+          const box = r("#operacaoLancAluguelDevolucaoLimiteBox");
+          const btn = r("#operacaoLancAluguelConfirmarDevolucaoBtn");
+          const comment = r("#operacaoLancAluguelComentarioDevolucao");
+          const title = r("#portal-lanc-aluguel-devolucao-title");
+          const hint = r(".portal-lanc-devolucao-hint");
+          const stacked = Boolean(pag && dev && dev.top >= pag.bottom - 4);
+          const sideBySide = Boolean(
+            pag && dev && Math.abs(pag.top - dev.top) < 12 && pag.right <= dev.left + 4 && dev.left >= pag.right - 4
+          );
+          return {
+            paneW: Math.round(r("#operacaoLancAluguelPaneAvulso")?.width || 0),
+            pagW: Math.round(pag?.width || 0),
+            devW: Math.round(dev?.width || 0),
+            dataW: Math.round(data?.width || 0),
+            valorW: Math.round(valor?.width || 0),
+            stacked,
+            sideBySide,
+            dataValor: hit(data, valor),
+            valorBox: hit(valor, box),
+            dataBox: hit(data, box),
+            titleHint: hit(title, hint),
+            boxComment: hit(box, comment),
+            commentBtn: hit(comment, btn),
+            boxBelow: Boolean(box && data && valor && box.top >= Math.max(data.bottom, valor.bottom) - 2),
+          };
+        })()`;
+
+        async function assertWorkspace(label, paneWidth) {
+          await session.send("Emulation.setDeviceMetricsOverride", {
+            width: Math.max(paneWidth + 48, 900),
+            height: 1600,
+            deviceScaleFactor: 1,
+            mobile: false,
+          });
+          await cdpEval(
+            session,
+            `(() => {
+              const pane = document.getElementById("operacaoLancAluguelPaneAvulso");
+              pane.style.width = "${paneWidth}px";
+              pane.style.maxWidth = "${paneWidth}px";
+              pane.style.minWidth = "${paneWidth}px";
+              pane.scrollIntoView();
+              return true;
+            })()`
+          );
+          const lay = await cdpEval(session, WORKSPACE_JS);
+          const ok =
+            lay &&
+            lay.stacked &&
+            !lay.sideBySide &&
+            !lay.dataValor &&
+            !lay.valorBox &&
+            !lay.dataBox &&
+            !lay.titleHint &&
+            !lay.boxComment &&
+            !lay.commentBtn &&
+            lay.boxBelow &&
+            lay.dataW >= 140 &&
+            lay.valorW >= 140;
+          record(`${label}: empilhado e sem sobreposição`, ok, JSON.stringify(lay));
+          return lay;
+        }
+
+        await assertWorkspace("Painel 360px (zoom alto)", 360);
+        await assertWorkspace("Painel 768px", 768);
+        await assertWorkspace("Painel 1024px", 1024);
+        await assertWorkspace("Painel 1280px", 1280);
+        await assertWorkspace("Painel 1400px (zoom baixo)", 1400);
+
+        async function capturePane(filename) {
+          const clip = await cdpEval(
+            session,
+            `(() => {
+              const el = document.getElementById("operacaoLancAluguelPaneAvulso");
+              el.scrollIntoView();
+              const r = el.getBoundingClientRect();
+              return {
+                x: Math.max(0, r.x),
+                y: Math.max(0, r.y),
+                width: Math.max(1, Math.min(r.width, 1400)),
+                height: Math.max(1, Math.min(r.height, 980)),
+                scale: 1,
+              };
+            })()`
+          );
+          const shot = await session.send("Page.captureScreenshot", { format: "png", clip });
+          if (!shot?.data) return;
+          fs.mkdirSync(ARTIFACTS, { recursive: true });
+          fs.writeFileSync(path.join(ARTIFACTS, filename), Buffer.from(shot.data, "base64"));
+        }
+
+        await cdpEval(
+          session,
+          `(() => {
+            const pane = document.getElementById("operacaoLancAluguelPaneAvulso");
+            pane.style.width = "900px";
+            pane.style.maxWidth = "900px";
+            pane.style.minWidth = "900px";
+            pane.scrollIntoView();
+            return true;
+          })()`
+        );
+        await capturePane("layout_lancamento_900px.png");
+        await cdpEval(
+          session,
+          `(() => {
+            const pane = document.getElementById("operacaoLancAluguelPaneAvulso");
+            pane.style.width = "1280px";
+            pane.style.maxWidth = "1280px";
+            pane.style.minWidth = "1280px";
+            pane.scrollIntoView();
+            return true;
+          })()`
+        );
+        await capturePane("layout_lancamento_1280px.png");
+
         const ui = await cdpEval(session, PREPARE_AND_READ_UI);
         record("Browser: caixa existe", Boolean(ui?.ok), ui?.reason || "");
         record("Browser: sem valor mostra NÃO EXISTE DEVOLUÇÃO", ui?.semTxt === "NÃO EXISTE DEVOLUÇÃO", ui?.semTxt);
@@ -288,6 +455,64 @@ async function main() {
           aposEdicao?.data === "28/09/2026" && aposEdicao?.titulo === "DATA LIMITE",
           aposEdicao?.txt
         );
+
+        const LAYOUT_JS = `(() => {
+          const hit = (a, b) =>
+            a && b && !(a.right <= b.left + 1 || a.left >= b.right - 1 || a.bottom <= b.top + 1 || a.top >= b.bottom - 1);
+          const r = (sel) => document.querySelector(sel)?.getBoundingClientRect();
+          const data = r("#operacaoLancAluguelDataDevolucao");
+          const valor = r("#operacaoLancAluguelValorDevolucao");
+          const box = r("#operacaoLancAluguelDevolucaoLimiteBox");
+          const btn = r("#operacaoLancAluguelConfirmarDevolucaoBtn");
+          const comment = r("#operacaoLancAluguelComentarioDevolucao");
+          const title = r("#portal-lanc-aluguel-devolucao-title");
+          const hint = r(".portal-lanc-devolucao-hint");
+          return {
+            w: Math.round(r(".portal-lanc-dual-col--devolucao")?.width || 0),
+            dataW: Math.round(data?.width || 0),
+            valorW: Math.round(valor?.width || 0),
+            dataValor: hit(data, valor),
+            valorBox: hit(valor, box),
+            dataBox: hit(data, box),
+            titleHint: hit(title, hint),
+            boxComment: hit(box, comment),
+            commentBtn: hit(comment, btn),
+            boxBtn: hit(box, btn),
+            boxBelow: Boolean(box && data && valor && box.top >= Math.max(data.bottom, valor.bottom) - 2),
+          };
+        })()`;
+
+        async function assertLayout(label) {
+          const lay = await cdpEval(session, LAYOUT_JS);
+          record(
+            `${label}: campos sem sobreposição`,
+            lay &&
+              !lay.dataValor &&
+              !lay.valorBox &&
+              !lay.dataBox &&
+              !lay.titleHint &&
+              !lay.boxComment &&
+              !lay.commentBtn &&
+              !lay.boxBtn &&
+              lay.boxBelow &&
+              lay.dataW >= 140 &&
+              lay.valorW >= 140,
+            JSON.stringify(lay)
+          );
+        }
+
+        await cdpEval(
+          session,
+          `document.querySelector(".portal-lanc-dual-col--devolucao").style.width = "320px"; true;`
+        );
+        await assertLayout("Painel estreito 320px");
+        await captureState(session, "layout_devolucao_estreito.png", "true");
+
+        await cdpEval(
+          session,
+          `document.querySelector(".portal-lanc-dual-col--devolucao").style.width = "640px"; true;`
+        );
+        await assertLayout("Painel largo 640px");
 
         await captureState(
           session,

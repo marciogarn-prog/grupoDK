@@ -7,10 +7,10 @@
 (function dkPwaUpdate() {
   if (!("serviceWorker" in navigator) || location.protocol === "file:") return;
 
-  const SW_BUILD = "20260830data-fim-lock";
+  const SW_BUILD = "20260830layout-zoom";
   const SW_URL = `/service-worker-corporativo.js?v=${SW_BUILD}`;
   const CACHE_PREFIX = "dk-corporativo-v";
-  const ACTIVE_CACHE = `${CACHE_PREFIX}20260830data-fim-lock`;
+  const ACTIVE_CACHE = `${CACHE_PREFIX}20260830layout-zoom`;
   const IDLE_RELOAD_MS = 2 * 60 * 1000;
 
   const path = (location.pathname || "/").replace(/\/$/, "") || "/";

@@ -8101,17 +8101,27 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
-/* Lançamento avulso: pagamento + devolução à esquerda; histórico à direita com scroll */
+/* Lançamento avulso: nunca 3 colunas. Zoom altera CSS px — empilhar pagamento
+   e devolução garante campos usáveis; histórico só ao lado com folga de largura. */
+.operacao-lanc-aluguel-pane {
+  container-type: inline-size;
+  container-name: lanc-pane;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .portal-lanc-avulso-workspace {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.85rem 1rem;
   align-items: start;
   width: 100%;
+  min-width: 0;
 }
 
 .portal-lanc-avulso-workspace__forms {
   min-width: 0;
+  max-width: 100%;
 }
 
 .portal-lanc-avulso-workspace__hist {
@@ -8155,9 +8165,9 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   padding: 0.28rem 0.5rem;
 }
 
-@media (min-width: 1100px) {
+@container lanc-pane (min-width: 72rem) {
   .portal-lanc-avulso-workspace {
-    grid-template-columns: minmax(22rem, 1.35fr) minmax(18rem, 1fr);
+    grid-template-columns: minmax(28rem, 1.55fr) minmax(18rem, 0.95fr);
   }
 
   .portal-lanc-avulso-workspace__hist {
@@ -8170,24 +8180,26 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .portal-lanc-dual-cols {
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.65rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
   width: 100%;
+  min-width: 0;
   margin-bottom: 0.65rem;
 }
 
-@media (min-width: 720px) {
-  .portal-lanc-dual-cols {
-    grid-template-columns: 1fr 1fr;
-    align-items: start;
-  }
-}
-
 .portal-lanc-dual-col {
-  padding: 0.65rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.75rem 0.85rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.22);
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  container-type: inline-size;
+  container-name: lanc-card;
 }
 
 .portal-lanc-dual-col--devolucao {
@@ -8201,15 +8213,19 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .portal-lanc-aluguel-section__title--devolucao {
   color: #ffb84d;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .portal-lanc-devolucao-hint {
-  margin: -0.15rem 0 0.45rem;
-  font-size: 0.72rem;
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .portal-lanc-devolucao-aviso-negativo {
-  margin: 0 0 0.55rem;
+  margin: 0;
   padding: 0.4rem 0.55rem;
   border-radius: 6px;
   border: 1px solid rgba(248, 113, 113, 0.65);
@@ -8231,91 +8247,78 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   border-color: rgba(248, 113, 113, 0.7);
 }
 
-.portal-lanc-devolucao-valor-com-limite {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, auto);
-  gap: 0.45rem 0.7rem;
-  align-items: end;
-  width: 100%;
-  min-width: 0;
-}
-
-.portal-lanc-dual-col__grid > .portal-lanc-devolucao-valor-com-limite {
-  width: 100%;
-  min-width: 0;
-  margin: 0;
-}
-
-.portal-lanc-devolucao-valor-com-limite > .portal-field {
-  width: 100%;
-  min-width: 0;
-  margin: 0;
+.portal-lanc-devolucao-limite:empty {
+  display: none;
 }
 
 .portal-lanc-devolucao-limite {
   display: flex;
   flex-direction: column;
   justify-content: center;
-  min-height: 2.7rem;
-  padding: 0.12rem 0.15rem 0.08rem 0.5rem;
-  border-left: 2px solid rgba(96, 165, 250, 0.9);
-  color: #dbeafe;
+  align-items: center;
+  gap: 0.15rem;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(96, 165, 250, 0.55);
+  border-radius: 8px;
+  background: #1e3a8a;
+  color: #fff;
+  text-align: center;
 }
 
 .portal-lanc-devolucao-limite-titulo {
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: rgba(191, 219, 254, 0.9);
+  color: #bfdbfe;
   line-height: 1.2;
 }
 
 .portal-lanc-devolucao-limite-data {
-  font-size: 0.98rem;
+  font-size: 1.1rem;
   font-weight: 800;
   letter-spacing: 0.02em;
   color: #fff;
-  line-height: 1.25;
+  line-height: 1.3;
   font-variant-numeric: tabular-nums;
 }
 
 .portal-lanc-devolucao-limite-msg {
-  font-size: 0.72rem;
+  font-size: 0.86rem;
   font-weight: 800;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  line-height: 1.25;
-  color: rgba(226, 232, 240, 0.95);
-  max-width: 11rem;
+  line-height: 1.35;
+  color: rgba(226, 232, 240, 0.98);
+  max-width: none;
 }
 
 .portal-lanc-devolucao-limite--sem {
-  border-left-color: rgba(148, 163, 184, 0.75);
+  border-color: rgba(148, 163, 184, 0.45);
+  background: rgba(51, 65, 85, 0.85);
 }
 
-@media (max-width: 420px) {
-  .portal-lanc-devolucao-valor-com-limite {
-    grid-template-columns: 1fr;
-    align-items: start;
-  }
-
-  .portal-lanc-devolucao-limite {
-    min-height: 0;
-    padding-left: 0.35rem;
-  }
-
-  .portal-lanc-devolucao-limite-msg {
-    max-width: none;
-  }
-}
-
+#panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col__grid,
+#panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col__grid.operacao-inline-form__grid,
 .portal-lanc-dual-col__grid {
   display: grid !important;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  gap: 0.45rem 0.65rem;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) !important;
+  gap: 0.55rem 0.75rem;
+  align-items: stretch;
   width: 100%;
+  min-width: 0;
+}
+
+@container lanc-card (min-width: 28rem) {
+  #panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col__grid,
+  #panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col__grid.operacao-inline-form__grid,
+  .portal-lanc-dual-col__grid {
+    grid-template-columns: minmax(12rem, 0.95fr) minmax(13rem, 1.15fr) !important;
+  }
 }
 
 .portal-lanc-dual-col__grid > .portal-field {
@@ -8324,11 +8327,29 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0;
 }
 
+.portal-lanc-dual-col .portal-field > span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+#panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col .portal-field {
+  font-size: 0.86rem;
+  gap: 0.28rem;
+}
+
+#panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col .portal-field input:not([type="radio"]):not([type="checkbox"]),
+#panel-operacao-locadora:not(.hidden) .portal-lanc-dual-col .portal-field textarea,
 .portal-lanc-dual-col__grid .portal-lanc-field--data input[type="text"],
 .portal-lanc-dual-col__grid .portal-lanc-field--valor input {
   width: 100%;
   max-width: none;
+  min-width: 0;
+  min-height: 2.5rem;
   box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  font-size: 1rem;
+  line-height: 1.3;
 }
 
 .portal-lanc-dual-col__grid .portal-lanc-field--data .dk-date-cal,
@@ -8344,26 +8365,42 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .portal-lanc-dual-col .portal-lanc-comentario-pagamento {
   width: 100%;
+  margin: 0;
 }
 
 .portal-lanc-dual-col .portal-lanc-comentario-pagamento textarea {
   width: 100%;
   box-sizing: border-box;
+  min-height: 3rem;
+  max-height: 8rem;
 }
 
 .portal-lanc-dual-col__actions {
-  margin-top: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.portal-lanc-dual-col__actions .btn-primary {
+  width: 100%;
+  min-height: 2.6rem;
+  white-space: normal;
+  box-sizing: border-box;
 }
 
 .portal-lanc-aluguel-pagamento-saldos--dual {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.55rem 0.75rem;
   margin: 0.25rem 0 0.65rem;
   padding: 0.5rem 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
+}
+
+@container lanc-pane (min-width: 36rem) {
+  .portal-lanc-aluguel-pagamento-saldos--dual {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
 }
 
 .portal-lanc-hist__valor--devolucao {
