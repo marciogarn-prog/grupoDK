@@ -367,7 +367,12 @@
         placa: normPlaca(loc.placa),
         marcaModelo: String(loc.marcaModelo || loc.modelo || "").trim(),
         modalidade,
-        codigoCliente: String(loc.clienteCodigo || cliente?.codigo || "").trim() || "0000",
+        codigoCliente:
+          (typeof formatClienteCodigoPadrao === "function"
+            ? formatClienteCodigoPadrao(loc.clienteCodigo || cliente?.codigo)
+            : "") ||
+          String(loc.clienteCodigo || cliente?.codigo || "").trim() ||
+          "0000",
         endereco: "",
         municipioUf: String(cliente?.municipioUf || "Petrolina/PE").trim(),
         inicioDt,

@@ -1,7 +1,7 @@
 /**
  * E2E oficial: simula navegador poluído (clientes de planilha no localStorage),
  * carrega o site e verifica que a purga com data de corte limpa tudo:
- * - clientes antigos removidos (Cód. volta a CLIENTE 1)
+ * - clientes antigos removidos (Cód. volta a 0001)
  * - dropdown de CPF no cadastro de locação sem clientes antigos
  * - nuvem oficial sem cadastros
  * node grupodkempreendimentos/scripts/test-oficial-corte-limpo.mjs
@@ -91,7 +91,7 @@ try {
     `restaram=${aposPurga.clientes} cutoff=${aposPurga.cutoff} guard=${aposPurga.guardAtivo}`
   );
 
-  // painel logado + cadastro de cliente: código deve ser CLIENTE 1
+  // painel logado + cadastro de cliente: código deve ser 0001
   await page.waitForFunction(
     () => {
       const panel = document.getElementById("panel-logado");
@@ -119,8 +119,8 @@ try {
     return el ? el.value : null;
   });
   record(
-    "novo cadastro começa em CLIENTE 1",
-    codigoCliente === "CLIENTE 1",
+    "novo cadastro começa em 0001",
+    codigoCliente === "0001",
     `codigo=${codigoCliente}`
   );
 

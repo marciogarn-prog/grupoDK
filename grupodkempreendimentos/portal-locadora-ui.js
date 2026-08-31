@@ -831,8 +831,10 @@
 
   function portalResolveClienteCodigoFromForm(fallback) {
     const codigoForm = String(document.getElementById("operacaoClienteCodigo")?.value || "").trim();
-    if (portalAdminPodeEditarCodigoCliente() && codigoForm) return codigoForm;
-    return String(fallback || "").trim();
+    if (portalAdminPodeEditarCodigoCliente() && codigoForm) {
+      return formatPortalClienteCodigoPadrao(codigoForm) || codigoForm;
+    }
+    return formatPortalClienteCodigoPadrao(fallback) || String(fallback || "").trim();
   }
 
   function isPortalDocumentosAcesso() {
@@ -8727,6 +8729,21 @@
   window.__DK_getClienteByCpfAny = getClienteByCpfAny;
   window.__DK_portalEnderecoContratoValido = portalEnderecoContratoValido;
 
+  /**
+   * Cód. do cliente: 4 dígitos (CLIENTE 386 → 0386), igual à planilha 0373, 0374…
+   */
+  function formatPortalClienteCodigoPadrao(raw) {
+    if (typeof window.formatClienteCodigoPadrao === "function") {
+      return window.formatClienteCodigoPadrao(raw);
+    }
+    const digits = String(raw ?? "").replace(/\D/g, "");
+    if (!digits) return "";
+    const n = Number(digits);
+    if (!Number.isFinite(n) || n <= 0) return "";
+    return String(Math.trunc(n)).padStart(4, "0");
+  }
+  window.__DK_formatPortalClienteCodigoPadrao = formatPortalClienteCodigoPadrao;
+
   function getPortalBundledClienteCodeByCpf(cpfDigits) {
     const hit = getPortalBundledClienteByCpf(cpfDigits);
     if (!hit) return "";
@@ -8736,10 +8753,10 @@
           ? onlyDigits(String(hit.codigo || ""))
           : String(hit.codigo || "").replace(/\D/g, "")
       ) || 0;
-    if (codeNum > 0) return `CLIENTE ${codeNum}`;
+    if (codeNum > 0) return formatPortalClienteCodigoPadrao(codeNum);
     const base = getPortalClientesBundledSnapshot();
     const idx = base.indexOf(hit);
-    return idx >= 0 ? `CLIENTE ${idx + 1}` : "";
+    return idx >= 0 ? formatPortalClienteCodigoPadrao(idx + 1) : "";
   }
 
   function getPortalLocalExtraClientesOrdered() {
@@ -8778,15 +8795,19 @@
       return cpf === cpfDigits;
     });
     if (idx < 0) return "";
+    const stored = formatPortalClienteCodigoPadrao(extras[idx]?.codigo);
+    if (stored) return stored;
     const anchor = portalBundledClienteMaxNum();
-    return `CLIENTE ${anchor + idx + 1}`;
+    return formatPortalClienteCodigoPadrao(anchor + idx + 1);
   }
 
   function getPortalNextClienteCode() {
-    if (typeof nextClienteCodigo === "function") return nextClienteCodigo();
+    if (typeof nextClienteCodigo === "function") {
+      return formatPortalClienteCodigoPadrao(nextClienteCodigo()) || nextClienteCodigo();
+    }
     const anchor = portalBundledClienteMaxNum();
     const extras = getPortalLocalExtraClientesOrdered();
-    return `CLIENTE ${anchor + extras.length + 1}`;
+    return formatPortalClienteCodigoPadrao(anchor + extras.length + 1);
   }
 
   /** Cliente reconhecido no portal: cadastro local, bundle do site ou seed. */
@@ -8842,13 +8863,13 @@
     const xi = extraIdxByCpf.get(cpfDigits);
     if (xi === undefined) return "";
     const anchor = portalBundledClienteMaxNum();
-    return `CLIENTE ${anchor + xi + 1}`;
+    return formatPortalClienteCodigoPadrao(anchor + xi + 1);
   }
 
   function portalClienteCodigoRelatorioPreferido(cliente, cpfDigits, extraIdxByCpf) {
-    const stored = String(cliente?.codigo || "").trim();
+    const stored = formatPortalClienteCodigoPadrao(cliente?.codigo);
     if (stored) return stored;
-    return resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf) || "—";
+    return formatPortalClienteCodigoPadrao(resolvePortalClienteCodigoRelatorio(cpfDigits, extraIdxByCpf)) || "—";
   }
 
   function portalClienteCodigoSortKey(codigoRaw) {
@@ -9186,8 +9207,10 @@
         if (!el) return;
         el.value = String(value || "").trim();
       };
-      const codigoCanon = getPortalCanonicalClienteCodeByCpf(cpfDigits);
-      assign("operacaoClienteCodigo", codigoCanon || cliente.codigo);
+      const codigoCanon = formatPortalClienteCodigoPadrao(
+        getPortalCanonicalClienteCodeByCpf(cpfDigits) || cliente.codigo
+      );
+      assign("operacaoClienteCodigo", codigoCanon || formatPortalClienteCodigoPadrao(cliente.codigo) || cliente.codigo);
       assign("operacaoClienteCelular", cliente.celular);
       assign("operacaoClienteRecado1", cliente.recado1);
       assign("operacaoClienteRecado2", cliente.recado2);
@@ -10887,6 +10910,7 @@
         buildPortalRelatorioHtml("Relatório de clientes — lista unificada", headers, rows, reportOpts),
     };
   }
+  window.__DK_getPortalRelatorioClienteContext = getPortalRelatorioClienteContext;
 
   function portalVeiculoGrupoCarroMoto(v) {
     const nk =
@@ -13527,17 +13551,14 @@
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
     const cpf = dig(String(cpfDigits || "")).slice(0, 11);
-    const fromHint = String(clienteHint?.codigo || "").trim();
+    const fromHint = formatPortalClienteCodigoPadrao(clienteHint?.codigo);
     if (fromHint) return fromHint;
     if (cpf.length === 11 && typeof getPortalCanonicalClienteCodeByCpf === "function") {
-      const canon = String(getPortalCanonicalClienteCodeByCpf(cpf) || "").trim();
-      if (canon) {
-        const n = portalClienteCodigoDigitsKey(canon);
-        return n ? n.padStart(Math.max(4, n.length), "0") : canon;
-      }
+      const canon = formatPortalClienteCodigoPadrao(getPortalCanonicalClienteCodeByCpf(cpf));
+      if (canon) return canon;
     }
     const known = cpf.length === 11 ? getPortalClienteKnownRecord(cpf) : null;
-    return String(known?.codigo || "").trim();
+    return formatPortalClienteCodigoPadrao(known?.codigo) || String(known?.codigo || "").trim();
   }
 
   function findPortalClienteByCodigoBusca(raw) {
@@ -15711,7 +15732,10 @@
       window.alert("IMPEDITIVO DE LOCAÇÃO: cadastro não aprovado.");
       return;
     }
-    const clienteCodigo = String(cliente?.codigo || "").trim();
+    const clienteCodigo =
+      formatPortalClienteCodigoPadrao(document.getElementById("operacaoLocacaoClienteCodigo")?.value) ||
+      formatPortalClienteCodigoPadrao(cliente?.codigo) ||
+      String(cliente?.codigo || "").trim();
 
     const nowMs = Date.now();
     const execCpf = String(reg.cpf || "").replace(/\D/g, "").slice(0, 11);

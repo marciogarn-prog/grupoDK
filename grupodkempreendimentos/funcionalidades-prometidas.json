@@ -137,6 +137,20 @@
           "isLocacaoNcOficialmenteBloqueado"
         ]
       }
+    },
+    {
+      "id": "codigo-cliente-4-digitos",
+      "descricao": "Cód. do cliente no padrão de 4 dígitos: CLIENTE 386 vira 0386; cadastros novos continuam 0387, 0388…",
+      "ficheiros": {
+        "app.js": [
+          "function formatClienteCodigoPadrao",
+          "CLIENTE 386» e «386» viram «0386"
+        ],
+        "portal-locadora-ui.js": [
+          "formatPortalClienteCodigoPadrao",
+          "CLIENTE 386 → 0386"
+        ]
+      }
     }
   ]
 }

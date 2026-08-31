@@ -1755,7 +1755,51 @@ function onlyDigits(value) {
   return String(value ?? "").replace(/\D/g, "");
 }
 
-/** Maior número em `codigo` (ex.: CLIENTE 412 → 412) nos dados dos bundles JS (financeiro, seed, extra-sync). */
+/**
+ * Cód. do cliente no padrão da planilha: 4 dígitos com zeros à esquerda.
+ * «CLIENTE 386» e «386» viram «0386»; «0373» mantém-se; acima de 9999 não corta.
+ */
+function formatClienteCodigoPadrao(raw) {
+  const digits = onlyDigits(String(raw ?? ""));
+  if (!digits) return "";
+  const n = Number(digits);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return String(Math.trunc(n)).padStart(4, "0");
+}
+
+function applyClienteCodigoPadraoNaLista(key, list) {
+  if (!Array.isArray(list)) return list;
+  const isCli = key === CAD_CLIENTES_KEY || key === PORTAL_CLIENTES_KEY;
+  const isLoc = key === CAD_LOCACOES_KEY;
+  if (!isCli && !isLoc) return list;
+  let changed = false;
+  const next = list.map((row) => {
+    if (!row || typeof row !== "object") return row;
+    if (isCli) {
+      const codigo = formatClienteCodigoPadrao(row.codigo);
+      if (codigo && codigo !== String(row.codigo || "").trim()) {
+        changed = true;
+        return { ...row, codigo };
+      }
+      return row;
+    }
+    const clienteCodigo = formatClienteCodigoPadrao(row.clienteCodigo);
+    if (clienteCodigo && clienteCodigo !== String(row.clienteCodigo || "").trim()) {
+      changed = true;
+      return { ...row, clienteCodigo };
+    }
+    return row;
+  });
+  return changed ? next : list;
+}
+
+try {
+  window.formatClienteCodigoPadrao = formatClienteCodigoPadrao;
+} catch {
+  /* ignore */
+}
+
+/** Maior número em `codigo` (ex.: 0386 ou CLIENTE 386 → 386) nos dados dos bundles JS (financeiro, seed, extra-sync). */
 function getMaxClienteCodigoFromBundledSnapshots() {
   let max = 0;
   const bump = (c) => {
@@ -2488,6 +2532,7 @@ function loadCadastro(key) {
   if (typeof window.__DK_filterOficialCadastroArray === "function") {
     arr = window.__DK_filterOficialCadastroArray(key, arr);
   }
+  arr = applyClienteCodigoPadraoNaLista(key, arr);
   __dkCadastroParseCache[key] = { raw, arr };
   return arr;
 }
@@ -2837,6 +2882,17 @@ function mergeCadastroClienteHistorico(ex, incoming) {
   const pick = (field) => {
     const a = String(ex?.[field] ?? "").trim();
     const b = String(incoming?.[field] ?? "").trim();
+    if (field === "codigo") {
+      const fa = formatClienteCodigoPadrao(a);
+      const fb = formatClienteCodigoPadrao(b);
+      if (fa && fb) {
+        const na = Number(onlyDigits(fa));
+        const nb = Number(onlyDigits(fb));
+        if (na === nb) return fa;
+        return cadastroRecordScore(incoming) >= cadastroRecordScore(ex) ? fb : fa;
+      }
+      return fb || fa || b || a;
+    }
     if (a && !b) return ex[field];
     if (b && !a) return incoming[field];
     if (a && b) return cadastroRecordScore(incoming) >= cadastroRecordScore(ex) ? incoming[field] : ex[field];
@@ -3058,7 +3114,7 @@ function saveCadastro(key, list, opts) {
     key === PORTAL_VEICULOS_KEY ||
     key === FROTA_VEICULOS_KEY ||
     key === CAD_LOCACOES_KEY;
-  let next = Array.isArray(list) ? list : [];
+  let next = applyClienteCodigoPadraoNaLista(key, Array.isArray(list) ? list : []);
   if (typeof window.__DK_filterOficialCadastroArray === "function") {
     next = window.__DK_filterOficialCadastroArray(key, next);
   }
@@ -3076,6 +3132,7 @@ function saveCadastro(key, list, opts) {
     if (typeof window.__DK_filterOficialCadastroArray === "function") {
       toStore = window.__DK_filterOficialCadastroArray(key, toStore);
     }
+    toStore = applyClienteCodigoPadraoNaLista(key, toStore);
   }
   const json = JSON.stringify(toStore);
   localStorage.setItem(key, json);
@@ -4077,7 +4134,7 @@ function unifyCadastroSingleDatabaseOnce() {
         mergeCadastroClienteHistorico(ex, {
           ...row,
           cpf,
-          codigo: `CLIENTE ${String(row.cpf).slice(-2)}`,
+          codigo: formatClienteCodigoPadrao(String(row.cpf).slice(-2)),
           origemPortal: true,
           status: "ATIVO",
         })
@@ -8604,8 +8661,8 @@ function getBundledClienteCpfSet() {
 }
 
 /**
- * Próximo CLIENTE N: teto da base embarcada + extras locais com nome (≥3 chars), ignorando fantasmas no
- * localStorage sem nome (menos de 3 letras) — evita CLIENTE 700+ com fantasmas no storage.
+ * Próximo Cód. no padrão de 4 dígitos (0386, 0387…): teto da base embarcada + extras locais
+ * com nome (≥3 chars), ignorando fantasmas no localStorage sem nome.
  */
 function nextClienteCodigo() {
   const bundledMax = getMaxClienteCodigoFromBundledSnapshots();
@@ -8634,7 +8691,7 @@ function nextClienteCodigo() {
 
   let next = bundledMax + extrasComNome + 1;
   while (used.has(next)) next += 1;
-  return `CLIENTE ${next}`;
+  return formatClienteCodigoPadrao(next);
 }
 
 function refreshClienteCodigoByCpf(cpfDigits) {
@@ -8647,7 +8704,8 @@ function refreshClienteCodigoByCpf(cpfDigits) {
   }
   const existente = findClienteByCpfCadastro(cpf);
   if (existente) {
-    codigoInput.value = String(existente.codigo || "").trim() || nextClienteCodigo();
+    codigoInput.value =
+      formatClienteCodigoPadrao(existente.codigo) || String(existente.codigo || "").trim() || nextClienteCodigo();
     return;
   }
   codigoInput.value = nextClienteCodigo();
@@ -8747,7 +8805,7 @@ function getClientesReportData() {
     if (codigoAtual) return c;
     const seedCode = seedCodeByCpf.get(cpf);
     if (seedCode) {
-      return { ...c, codigo: `CLIENTE ${seedCode}` };
+      return { ...c, codigo: formatClienteCodigoPadrao(seedCode) };
     }
     return c;
   });
@@ -10414,7 +10472,10 @@ function normalizeClienteCodigos() {
 
   const newClients = [];
   const byCode = new Map();
-  const result = clientes.map((c) => ({ ...c }));
+  const result = clientes.map((c) => {
+    const codigo = formatClienteCodigoPadrao(c.codigo) || String(c.codigo || "").trim();
+    return { ...c, codigo };
+  });
   result.forEach((c, idx) => {
     const cpf = onlyDigits(String(c.cpf || ""));
     if (cpf.length !== 11) return;
@@ -10455,7 +10516,7 @@ function normalizeClienteCodigos() {
       return;
     }
     while (used.has(seq)) seq += 1;
-    result[idx].codigo = `CLIENTE ${seq}`;
+    result[idx].codigo = formatClienteCodigoPadrao(seq);
     used.add(seq);
     seq += 1;
   });
@@ -10466,6 +10527,21 @@ function normalizeClienteCodigos() {
   if (changed) {
     saveCadastro(CAD_CLIENTES_KEY, result);
   }
+}
+
+function normalizeLocacaoClienteCodigos() {
+  const locacoes = loadCadastro(CAD_LOCACOES_KEY);
+  if (!locacoes.length) return;
+  let changed = false;
+  const next = locacoes.map((l) => {
+    const formatted = formatClienteCodigoPadrao(l?.clienteCodigo);
+    if (formatted && formatted !== String(l.clienteCodigo || "").trim()) {
+      changed = true;
+      return { ...l, clienteCodigo: formatted, updatedAt: Date.now() };
+    }
+    return l;
+  });
+  if (changed) saveCadastro(CAD_LOCACOES_KEY, next);
 }
 
 function migratePlacaInLocalStorage() {
@@ -15954,11 +16030,11 @@ if (locacaoCadastroForm) {
     return;
   }
 
-  let clienteCodigo = String(cadLocacaoClienteCodigoInput?.value || "").trim();
-  if (!clienteCodigo) {
-    clienteCodigo = String(cliente?.codigo || "").trim();
-    if (cadLocacaoClienteCodigoInput && clienteCodigo) cadLocacaoClienteCodigoInput.value = clienteCodigo;
-  }
+  let clienteCodigo =
+    formatClienteCodigoPadrao(cadLocacaoClienteCodigoInput?.value) ||
+    formatClienteCodigoPadrao(cliente?.codigo) ||
+    String(cadLocacaoClienteCodigoInput?.value || cliente?.codigo || "").trim();
+  if (cadLocacaoClienteCodigoInput && clienteCodigo) cadLocacaoClienteCodigoInput.value = clienteCodigo;
 
   const confirmado = await askLocacaoCadastroConfirmation({
     cpf,
@@ -16650,6 +16726,7 @@ migratePlacaInLocalStorage();
 sanitizeVeiculosDatabase();
 applyClienteCpfFixes();
 normalizeClienteCodigos();
+normalizeLocacaoClienteCodigos();
 clearAllLocacoesOnce();
 resetLocacaoStackForSiteEntryOnce();
 ensureNumeroContratoForLocacoes();
