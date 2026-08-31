@@ -14185,12 +14185,13 @@
   }
 
   function getOperacaoLocacaoModalidadeMarcada() {
-    const el = document.querySelector(
-      '#operacaoLocacaoModalidadeWrap input[name="operacaoLocacaoModalidade"]:checked'
-    );
-    const v = String(el?.value || "").trim().toUpperCase();
-    if (v.includes("CARRO")) return "CARRO";
-    if (v.includes("MOTO")) return "MOTO";
+    const carro = document.getElementById("operacaoLocacaoModalidadeCarro");
+    const moto = document.getElementById("operacaoLocacaoModalidadeMoto");
+    /* Limpar chegava a apagar value="CARRO"/"MOTO"; o rádio ficava marcado e o cadastro lia vazio. */
+    if (carro && String(carro.value || "").toUpperCase() !== "CARRO") carro.value = "CARRO";
+    if (moto && String(moto.value || "").toUpperCase() !== "MOTO") moto.value = "MOTO";
+    if (carro?.checked) return "CARRO";
+    if (moto?.checked) return "MOTO";
     return "";
   }
 
@@ -14201,6 +14202,8 @@
     const carro = document.getElementById("operacaoLocacaoModalidadeCarro");
     const moto = document.getElementById("operacaoLocacaoModalidadeMoto");
     if (!carro || !moto) return;
+    if (carro && String(carro.value || "").toUpperCase() !== "CARRO") carro.value = "CARRO";
+    if (moto && String(moto.value || "").toUpperCase() !== "MOTO") moto.value = "MOTO";
     if (k.includes("CARRO")) {
       carro.checked = true;
       moto.checked = false;
@@ -15615,7 +15618,7 @@
         : null;
     let modalidade = "";
     if (isPortalPlanoMeuTransporteKey(planoNome)) {
-      modalidade = getOperacaoLocacaoModalidadeMarcada();
+      modalidade = getOperacaoLocacaoModalidadeMarcada() || inferOperacaoLocacaoModalidadeDoFormulario();
       if (!modalidade) {
         if (msg) msg.textContent = "No plano DK MEU TRANSPORTE, marque CARRO ou MOTO ao lado do tipo de plano.";
         return;
@@ -19128,12 +19131,28 @@
     syncOperacaoLocacaoValorPlano();
   });
 
+  function portalEsvaziarCamposTextoDoFormulario(root) {
+    root?.querySelectorAll("input").forEach((inp) => {
+      const t = String(inp.type || "text").toLowerCase();
+      if (t === "radio" || t === "checkbox" || t === "button" || t === "submit" || t === "file") return;
+      inp.value = "";
+    });
+  }
+
   function clearOperacaoLocacaoInlineForm() {
     const form = document.getElementById("formOperacaoLocacaoInline");
     if (form && typeof form.reset === "function") form.reset();
-    form?.querySelectorAll("input").forEach((inp) => {
-      inp.value = "";
-    });
+    portalEsvaziarCamposTextoDoFormulario(form);
+    const carro = document.getElementById("operacaoLocacaoModalidadeCarro");
+    const moto = document.getElementById("operacaoLocacaoModalidadeMoto");
+    if (carro) {
+      carro.value = "CARRO";
+      carro.checked = false;
+    }
+    if (moto) {
+      moto.value = "MOTO";
+      moto.checked = false;
+    }
     const codEl = document.getElementById("operacaoLocacaoClienteCodigo");
     if (codEl) {
       codEl.value = "";
@@ -21182,6 +21201,9 @@
   window.__DK_collectPortalSugestoesClienteUnico = collectPortalSugestoesClienteUnico;
   window.__DK_collectOperacaoLocacaoSugestoesLinhas = collectOperacaoLocacaoSugestoesLinhas;
   window.__DK_findPortalClientesByCodigoBusca = findPortalClientesByCodigoBusca;
+  window.__DK_getOperacaoLocacaoModalidadeMarcada = getOperacaoLocacaoModalidadeMarcada;
+  window.__DK_setOperacaoLocacaoModalidadeMarcada = setOperacaoLocacaoModalidadeMarcada;
+  window.__DK_portalEsvaziarCamposTextoDoFormulario = portalEsvaziarCamposTextoDoFormulario;
   window.__DK_portalClienteCodigoEmUsoPorOutroCpf = portalClienteCodigoEmUsoPorOutroCpf;
   window.__DK_applyOperacaoLocacaoClienteFromCodigo = applyOperacaoLocacaoClienteFromCodigo;
   window.__DK_collectOperacaoLocacaoSugestoesClientesPorCodigo = collectOperacaoLocacaoSugestoesClientesPorCodigo;

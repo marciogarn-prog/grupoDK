@@ -112,6 +112,18 @@
           "collectOperacaoLocacaoSugestoesClientesPorCodigo"
         ]
       }
+    },
+    {
+      "id": "locacao-modalidade-carro-moto",
+      "descricao": "No plano DK MEU TRANSPORTE, marcar CARRO ou MOTO tem de cadastrar a locação. Limpar não apaga o value dos rádios.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "operacaoLocacaoModalidadeCarro",
+          "portalEsvaziarCamposTextoDoFormulario",
+          "t === \"radio\"",
+          "getOperacaoLocacaoModalidadeMarcada"
+        ]
+      }
     }
   ]
 }

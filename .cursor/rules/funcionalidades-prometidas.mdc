@@ -25,3 +25,4 @@ Itens actualmente travados:
 - FINANCEIRO CEO → Cadastro de despesas no Windows: ecrã à largura do monitor, campos sem sobreposição, bola do mouse move o conteúdo.
 - Lista suspensa ao digitar nome, CPF, placa, protocolo ou número do cliente já cadastrado (Cadastro de cliente, Cadastro de locação e restantes telas de operação).
 - Cadastro de locação: Cód. do cliente **é único** — pesquisar pelo Cód. traz um cliente; locação de outra pessoa não inventa segundo cliente; não existe a mensagem «Há 2 clientes com o código»; Limpar esvazia o Cód.
+- Cadastro de locação: no plano DK MEU TRANSPORTE, marcar **CARRO** ou **MOTO** tem de cadastrar; Limpar não apaga o value dos rádios.
