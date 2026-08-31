@@ -2294,6 +2294,15 @@ body {
   display: none;
 }
 
+/* lista suspensa de confirmação ao digitar cadastro (nome, CPF, placa, protocolo, código) */
+.portal-sugestoes-cadastro:not(.hidden) {
+  margin: 0.15rem 0 0.45rem;
+}
+
+.portal-sugestoes-cadastro .portal-cliente-prefix-list__ul {
+  max-height: min(42vh, 16.5rem);
+}
+
 .portal-cliente-prefix-list__title {
   margin: 0 0 0.5rem;
   color: var(--text-muted, #a8b0bc);

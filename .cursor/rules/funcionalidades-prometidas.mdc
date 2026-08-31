@@ -23,3 +23,4 @@ Itens actualmente travados:
 - Cadastro de locação: **rodar a bola do mouse** move o conteúdo da tela.
 - Lançamento de multas: **rodar a bola do mouse** move o conteúdo da tela.
 - FINANCEIRO CEO → Cadastro de despesas no Windows: ecrã à largura do monitor, campos sem sobreposição, bola do mouse move o conteúdo.
+- Lista suspensa ao digitar nome, CPF, placa, protocolo ou número do cliente já cadastrado (Cadastro de cliente, Cadastro de locação e restantes telas de operação).

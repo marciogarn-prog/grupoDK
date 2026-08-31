@@ -9038,34 +9038,60 @@
       return raw.slice(0, 80);
     }
 
+    function refreshOperacaoClienteSugestoesLista() {
+      const panel = document.getElementById("operacaoClienteNomeListaPrefixo");
+      const codEl = document.getElementById("operacaoClienteCodigo");
+      const codigoBruto = String(codEl?.value || "").trim();
+      const codigoRaw =
+        /proximo\s+cliente/i.test(codigoBruto) || document.activeElement !== codEl ? "" : codigoBruto;
+      const filtros = {
+        nomeRaw: inpNome?.value || "",
+        cpfRaw: inpCpf?.value || "",
+        codigoRaw,
+      };
+      const q =
+        typeof portalSugestoesFiltrosAtivos === "function"
+          ? portalSugestoesFiltrosAtivos(filtros)
+          : { ativo: false };
+      if (!q.ativo) {
+        if (typeof hidePortalSugestoesLista === "function") hidePortalSugestoesLista(panel);
+        else if (panel) {
+          panel.classList.add("hidden");
+          panel.innerHTML = "";
+        }
+        return;
+      }
+      const linhas = filterPortalSugestoesLinhas(collectPortalSugestoesClienteUnico(), filtros);
+      if (!linhas.length) {
+        if (!panel) return;
+        panel.classList.remove("hidden");
+        panel.removeAttribute("hidden");
+        panel.innerHTML =
+          '<p class="portal-cliente-prefix-list__title">Nenhum cadastro encontrado com esse texto — continue a digitar ou confirme o dado.</p>';
+        return;
+      }
+      renderPortalSugestoesLista(panel, linhas, "cadastro");
+    }
+
     function renderOperacaoClienteNomeListaPrefixo(prefixDigits, candidatos) {
-      const nomeListaPanel = document.getElementById("operacaoClienteNomeListaPrefixo");
-      if (!nomeListaPanel) return;
-      if (!prefixDigits) {
-        nomeListaPanel.classList.add("hidden");
-        nomeListaPanel.innerHTML = "";
-        return;
+      refreshOperacaoClienteSugestoesLista();
+      if (!prefixDigits) return;
+      if (candidatos && !candidatos.length && prefixDigits) {
+        const nomeListaPanel = document.getElementById("operacaoClienteNomeListaPrefixo");
+        if (!nomeListaPanel) return;
+        const q = portalSugestoesFiltrosAtivos({
+          nomeRaw: inpNome?.value || "",
+          cpfRaw: inpCpf?.value || "",
+          codigoRaw: document.getElementById("operacaoClienteCodigo")?.value || "",
+        });
+        if (q.nomeKey.length < 2 && !q.codigoQ) {
+          nomeListaPanel.classList.remove("hidden");
+          nomeListaPanel.removeAttribute("hidden");
+          nomeListaPanel.innerHTML = `<p class="portal-cliente-prefix-list__title">Nenhum cliente com CPF começando por <strong>${portalEscapeHtml(
+            prefixDigits
+          )}</strong> neste navegador (base + cadastro local). Cadastre de novo ou abra o relatório para confirmar se o CPF foi guardado.</p>`;
+        }
       }
-      if (!candidatos.length) {
-        nomeListaPanel.classList.remove("hidden");
-        nomeListaPanel.innerHTML = `<p class="portal-cliente-prefix-list__title">Nenhum cliente com CPF começando por <strong>${portalEscapeHtml(
-          prefixDigits
-        )}</strong> neste navegador (base + cadastro local). Cadastre de novo ou abra o relatório para confirmar se o CPF foi guardado.</p>`;
-        return;
-      }
-      const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
-      nomeListaPanel.classList.remove("hidden");
-      nomeListaPanel.innerHTML = `<p class="portal-cliente-prefix-list__title">Quem tem CPF começando por <strong>${portalEscapeHtml(
-        prefixDigits
-      )}</strong> (${candidatos.length}) — clique numa linha:</p><ul class="portal-cliente-prefix-list__ul">${candidatos
-        .map((c) => {
-          const cpf = String(c.cpf || "").replace(/\D/g, "");
-          const nome = String(c.nome || "").trim() || "(sem nome no cadastro — pode editar)";
-          return `<li><button type="button" class="portal-cliente-prefix-list__btn" data-cpf-digits="${cpf}">${portalEscapeHtml(
-            nome
-          )} · ${portalEscapeHtml(fmt(cpf))}</button></li>`;
-        })
-        .join("")}</ul>`;
     }
 
     form?.addEventListener("click", (e) => {
@@ -9271,6 +9297,11 @@
       const digits =
         typeof onlyDigits === "function" ? onlyDigits(String(inpCpf.value || "")) : String(inpCpf.value || "").replace(/\D/g, "");
       if (digits.length === 11) refreshOperacaoClienteApagarBtn(digits);
+      refreshOperacaoClienteSugestoesLista();
+    });
+
+    document.getElementById("operacaoClienteCodigo")?.addEventListener("input", () => {
+      refreshOperacaoClienteSugestoesLista();
     });
 
     form?.addEventListener("submit", (e) => {
@@ -13638,6 +13669,187 @@
       .toUpperCase()
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  function portalSugestoesFiltrosAtivos(filtros) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const np =
+      typeof normalizePlate === "function"
+        ? normalizePlate
+        : (x) => String(x || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const cpfPrefix = dig(String(filtros?.cpfRaw || "")).slice(0, 11);
+    const nomeKey = portalNomeChaveBusca(filtros?.nomeRaw || "");
+    const protoQ = normPortalNumeroContrato(String(filtros?.protoRaw || "").trim());
+    const placaQ = np(String(filtros?.placaRaw || "").trim());
+    const codigoQ = portalClienteCodigoDigitsKey(filtros?.codigoRaw || "");
+    return {
+      cpfPrefix,
+      nomeKey,
+      protoQ,
+      placaQ,
+      codigoQ,
+      ativo: Boolean(
+        cpfPrefix.length ||
+          nomeKey.length >= 2 ||
+          protoQ.length ||
+          placaQ.length >= 3 ||
+          codigoQ.length >= 1
+      ),
+    };
+  }
+
+  function filterPortalSugestoesLinhas(linhas, filtros) {
+    const q = portalSugestoesFiltrosAtivos(filtros);
+    if (!q.ativo) return [];
+    return (linhas || []).filter((row) => {
+      if (q.cpfPrefix.length && !String(row.cpf || "").startsWith(q.cpfPrefix)) return false;
+      if (q.nomeKey.length >= 2 && !portalNomeChaveBusca(row.nome).includes(q.nomeKey)) return false;
+      if (q.protoQ.length && !String(row.proto || "").includes(q.protoQ)) return false;
+      if (q.placaQ.length >= 3 && !String(row.placa || "").includes(q.placaQ)) return false;
+      if (q.codigoQ.length) {
+        const rowCod = portalClienteCodigoDigitsKey(row.codigo || "");
+        const rowNum = String(Number(rowCod) || "");
+        const wantNum = String(Number(q.codigoQ) || "");
+        if (!rowCod.includes(q.codigoQ) && !(wantNum && rowNum === wantNum)) return false;
+      }
+      return true;
+    });
+  }
+
+  function collectPortalSugestoesClienteUnico() {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const byCpf = new Map();
+    const add = (c) => {
+      if (!c || typeof c !== "object") return;
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11) return;
+      const nome = String(c.nome || c.cliente || "").trim();
+      const codigo =
+        typeof resolvePortalClienteCodigoDisplay === "function"
+          ? resolvePortalClienteCodigoDisplay(cpf, c)
+          : String(c.codigo || "").trim();
+      const prev = byCpf.get(cpf);
+      if (!prev) {
+        byCpf.set(cpf, {
+          cpf,
+          nome: nome || "(sem nome)",
+          codigo,
+          placa: "",
+          proto: "",
+          ativo: false,
+          corClasse: "portal-lanc-pesquisa-linha--branco",
+          fimBr: "",
+        });
+        return;
+      }
+      if (nome && (!prev.nome || prev.nome === "(sem nome)")) prev.nome = nome;
+      if (codigo && !prev.codigo) prev.codigo = codigo;
+    };
+    try {
+      if (typeof getLancamentoClienteCandidates === "function") {
+        getLancamentoClienteCandidates().forEach(add);
+      }
+    } catch (err) {
+      console.warn("[DK portal] sugestões clientes:", err);
+    }
+    if (typeof getPortalClientesBundledSnapshot === "function") {
+      getPortalClientesBundledSnapshot().forEach(add);
+    }
+    if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      loadCadastro(CAD_CLIENTES_KEY).forEach(add);
+    }
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) =>
+        add({ cpf: l.cpf, nome: l.nome || l.cliente, codigo: l.clienteCodigo })
+      );
+    }
+    (typeof collectOperacaoLancAluguelPesquisaLinhas === "function"
+      ? collectOperacaoLancAluguelPesquisaLinhas()
+      : []
+    ).forEach((row) => {
+      const prev = byCpf.get(row.cpf);
+      const codigo =
+        (prev && prev.codigo) ||
+        (typeof resolvePortalClienteCodigoDisplay === "function"
+          ? resolvePortalClienteCodigoDisplay(row.cpf)
+          : "");
+      if (!prev) {
+        byCpf.set(row.cpf, { ...row, codigo });
+        return;
+      }
+      if (row.nome && (!prev.nome || prev.nome === "(sem nome)")) prev.nome = row.nome;
+      if (!prev.codigo && codigo) prev.codigo = codigo;
+      if (row.ativo && !prev.ativo) {
+        prev.placa = row.placa;
+        prev.proto = row.proto;
+        prev.ativo = true;
+        prev.corClasse = row.corClasse;
+        prev.fimBr = row.fimBr;
+      } else if (!prev.proto) {
+        prev.placa = row.placa;
+        prev.proto = row.proto;
+        prev.corClasse = row.corClasse;
+        prev.fimBr = row.fimBr;
+        prev.ativo = row.ativo;
+      }
+    });
+    return Array.from(byCpf.values());
+  }
+
+  function collectOperacaoLocacaoSugestoesLinhas() {
+    const contratos = (
+      typeof collectOperacaoLancAluguelPesquisaLinhas === "function"
+        ? collectOperacaoLancAluguelPesquisaLinhas()
+        : []
+    ).map((row) => ({
+      ...row,
+      codigo:
+        typeof resolvePortalClienteCodigoDisplay === "function"
+          ? resolvePortalClienteCodigoDisplay(row.cpf)
+          : "",
+    }));
+    const seen = new Set(contratos.map((r) => r.cpf));
+    const extra = collectPortalSugestoesClienteUnico().filter((r) => !seen.has(r.cpf));
+    return contratos.concat(extra);
+  }
+
+  function hidePortalSugestoesLista(panel) {
+    if (!panel) return;
+    panel.classList.add("hidden");
+    panel.setAttribute("hidden", "");
+    panel.innerHTML = "";
+  }
+
+  function renderPortalSugestoesLista(panel, linhas, tituloItem) {
+    if (!panel) return;
+    if (!linhas || !linhas.length) {
+      hidePortalSugestoesLista(panel);
+      return;
+    }
+    const fmt = typeof formatCpf === "function" ? formatCpf : (d) => d;
+    const max = 40;
+    const slice = linhas.slice(0, max);
+    const item = tituloItem || "cadastro";
+    const countLbl =
+      slice.length === linhas.length ? `${slice.length}` : `${slice.length} de ${linhas.length}`;
+    panel.classList.remove("hidden");
+    panel.removeAttribute("hidden");
+    panel.innerHTML = `<p class="portal-cliente-prefix-list__title">${countLbl} ${item}(s) — clique numa linha para confirmar:</p><ul class="portal-cliente-prefix-list__ul">${slice
+      .map((row) => {
+        const placaLbl = row.placa ? ` · ${portalEscapeHtml(row.placa)}` : "";
+        const protoLbl = row.proto ? ` · ${portalEscapeHtml(row.proto)}` : "";
+        const codLbl = row.codigo ? ` · cód. ${portalEscapeHtml(row.codigo)}` : "";
+        const corCls = portalEscapeHtml(row.corClasse || "portal-lanc-pesquisa-linha--branco");
+        const status = row.proto ? (row.ativo ? "ativo" : "inativo") : "cadastro";
+        const fimLbl =
+          row.proto && !row.ativo && row.fimBr
+            ? ` · <span class="portal-lanc-pesquisa-linha__fim">${portalEscapeHtml(row.fimBr)}</span>`
+            : "";
+        return `<li><button type="button" class="portal-cliente-prefix-list__btn portal-lanc-pesquisa-linha ${corCls}" data-cpf-digits="${portalEscapeHtml(row.cpf)}" data-cpf="${portalEscapeHtml(row.cpf)}" data-nome="${portalEscapeHtml(row.nome)}" data-proto="${portalEscapeHtml(row.proto || "")}" data-placa="${portalEscapeHtml(row.placa || "")}" data-codigo="${portalEscapeHtml(row.codigo || "")}">${portalEscapeHtml(row.nome)} · ${portalEscapeHtml(fmt(row.cpf))}${codLbl}${protoLbl}${placaLbl} · <strong>${status}</strong>${fimLbl}</button></li>`;
+      })
+      .join("")}</ul>`;
   }
 
   /**
@@ -18376,10 +18588,82 @@
       }
     });
 
+    function refreshOperacaoLocacaoSugestoesLista() {
+      const panel = document.getElementById("operacaoLocacaoPesquisaLista");
+      const filtros = {
+        nomeRaw: inpNome?.value || "",
+        cpfRaw: inpCpf?.value || "",
+        codigoRaw: document.getElementById("operacaoLocacaoClienteCodigo")?.value || "",
+        placaRaw: inpPlaca?.value || "",
+        protoRaw: document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.value || "",
+      };
+      const q =
+        typeof portalSugestoesFiltrosAtivos === "function"
+          ? portalSugestoesFiltrosAtivos(filtros)
+          : { ativo: false };
+      if (!q.ativo) {
+        hidePortalSugestoesLista(panel);
+        return;
+      }
+      const linhas = filterPortalSugestoesLinhas(collectOperacaoLocacaoSugestoesLinhas(), filtros);
+      if (!linhas.length) {
+        if (!panel) return;
+        panel.classList.remove("hidden");
+        panel.removeAttribute("hidden");
+        panel.innerHTML =
+          '<p class="portal-cliente-prefix-list__title">Nenhum cadastro encontrado com esse texto — clique numa linha para confirmar quando aparecer.</p>';
+        return;
+      }
+      renderPortalSugestoesLista(panel, linhas, "contrato");
+    }
+
+    function aplicarSugestaoOperacaoLocacao(btn) {
+      if (!btn) return;
+      const cpf = String(btn.getAttribute("data-cpf") || btn.getAttribute("data-cpf-digits") || "").replace(/\D/g, "");
+      const nome = String(btn.getAttribute("data-nome") || "").trim();
+      const proto = String(btn.getAttribute("data-proto") || "").trim();
+      const placa = String(btn.getAttribute("data-placa") || "").trim();
+      if (proto && isPortalTitularAdministrador()) {
+        const busca = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
+        if (busca) busca.value = proto;
+        loadOperacaoLocacaoByProtocoloNumero(proto);
+      } else {
+        if (cpf.length === 11) operacaoLocacaoCpfEscolher(cpf, nome);
+        if (placa && inpPlaca) {
+          inpPlaca.value = placa;
+          const hit = portalLocacaoPlacasLivresCache.find((x) => x.placa === placa);
+          if (hit && inpModelo) inpModelo.value = hit.modelo;
+          else if (
+            typeof loadCadastro === "function" &&
+            typeof CAD_VEICULOS_KEY !== "undefined" &&
+            typeof normalizePlate === "function" &&
+            inpModelo
+          ) {
+            const v = loadCadastro(CAD_VEICULOS_KEY).find(
+              (x) => normalizePlate(x.placa) === normalizePlate(placa)
+            );
+            if (v) inpModelo.value = String(v.modelo || "").trim();
+          }
+        }
+      }
+      hidePortalSugestoesLista(document.getElementById("operacaoLocacaoPesquisaLista"));
+    }
+
+    document.getElementById("operacaoLocacaoPesquisaLista")?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".portal-cliente-prefix-list__btn");
+      if (!btn) return;
+      e.preventDefault();
+      aplicarSugestaoOperacaoLocacao(btn);
+    });
+
     [inpNome].filter(Boolean).forEach((el) => {
       el.addEventListener("focus", () => refreshOperacaoLocacaoDatalists({ skipCpfLista: true }), {
         passive: true,
       });
+      el.addEventListener("input", () => refreshOperacaoLocacaoSugestoesLista());
+    });
+    document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.addEventListener("input", () => {
+      refreshOperacaoLocacaoSugestoesLista();
     });
 
     function openOperacaoLocacaoCpfListaSoon() {
@@ -18419,6 +18703,7 @@
     inpPlaca?.addEventListener("input", () => {
       inpPlaca.value = String(inpPlaca.value || "").toUpperCase();
       renderOperacaoLocacaoPlacaDropdown(inpPlaca.value);
+      refreshOperacaoLocacaoSugestoesLista();
     });
 
     inpPlaca?.addEventListener("keydown", (e) => {
@@ -18503,10 +18788,12 @@
       } else {
         refreshOperacaoLocacaoProtocoloPicker({ force: true });
       }
+      refreshOperacaoLocacaoSugestoesLista();
     });
 
     const inpCodigo = document.getElementById("operacaoLocacaoClienteCodigo");
     inpCodigo?.addEventListener("focus", () => refreshOperacaoLocacaoCodigoDatalist(), { passive: true });
+    inpCodigo?.addEventListener("input", () => refreshOperacaoLocacaoSugestoesLista());
     inpCodigo?.addEventListener("change", () => applyOperacaoLocacaoClienteFromCodigo());
     inpCodigo?.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter") {
@@ -20720,6 +21007,9 @@
   window.__DK_getPortalLancPesquisaLinhaCorClasse = getPortalLancPesquisaLinhaCorClasse;
   window.__DK_portalLancAluguelCpfCorClasseFromLinhas = portalLancAluguelCpfCorClasseFromLinhas;
   window.__DK_portalNomeChaveBusca = portalNomeChaveBusca;
+  window.__DK_filterPortalSugestoesLinhas = filterPortalSugestoesLinhas;
+  window.__DK_collectPortalSugestoesClienteUnico = collectPortalSugestoesClienteUnico;
+  window.__DK_collectOperacaoLocacaoSugestoesLinhas = collectOperacaoLocacaoSugestoesLinhas;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
   window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
   window.__DK_portalCoerceDataFimBr = portalCoerceDataFimBr;

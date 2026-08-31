@@ -78,6 +78,25 @@
           "fin-ceo-desp-form--windows"
         ]
       }
+    },
+    {
+      "id": "lista-suspensa-cadastros",
+      "descricao": "Em todas as telas de operação, ao digitar nome, CPF, placa, protocolo ou número do cliente já cadastrado aparece a lista suspensa para confirmar o registo (igual ao Lançamento de aluguel).",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoPesquisaLista",
+          "portal-sugestoes-cadastro",
+          "Sugestões de cliente já cadastrado"
+        ],
+        "portal-locadora-ui.js": [
+          "filterPortalSugestoesLinhas",
+          "clique numa linha para confirmar",
+          "refreshOperacaoLocacaoSugestoesLista"
+        ],
+        "styles.css": [
+          "lista suspensa de confirmação ao digitar cadastro"
+        ]
+      }
     }
   ]
 }
