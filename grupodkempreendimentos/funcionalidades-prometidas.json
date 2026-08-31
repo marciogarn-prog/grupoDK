@@ -151,6 +151,23 @@
           "CLIENTE 386 → 0386"
         ]
       }
+    },
+    {
+      "id": "relatorio-ordem-setas-cadastro",
+      "descricao": "Na pré-visualização do relatório, duas setas (↓ primeiro→último e ↑ último→primeiro) ordenam os cadastros.",
+      "ficheiros": {
+        "index.html": [
+          "portalPdfOrdemPrimeiroBtn",
+          "portalPdfOrdemUltimoBtn"
+        ],
+        "portal-locadora-ui.js": [
+          "applyPortalRelatorioOrdemCadastro",
+          "sortPortalRelatorioRowsCadastro"
+        ],
+        "styles.css": [
+          "portal-pdf-viewer__sort-btn"
+        ]
+      }
     }
   ]
 }

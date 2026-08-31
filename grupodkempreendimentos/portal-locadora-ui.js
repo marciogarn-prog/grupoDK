@@ -10672,18 +10672,108 @@
     return String(html).replace(/<title>[\s\S]*?<\/title>/i, `<title>${eh(base)}</title>`);
   }
 
+  /** asc = primeiro cadastro → último (↓); desc = último → primeiro (↑). */
+  let portalRelatorioOrdemCadastro = "asc";
+
+  function portalRelatorioCadastroColIndex(context) {
+    const headers = (context?.headers || []).map((h) =>
+      String(h || "")
+        .trim()
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/\p{M}/gu, "")
+    );
+    const proto = headers.findIndex((h) => h.startsWith("protocolo"));
+    if (proto >= 0) return proto;
+    const cod = headers.findIndex((h) => h === "cod." || h.startsWith("cod"));
+    if (cod >= 0) return cod;
+    return 0;
+  }
+
+  function comparePortalRelatorioCadastroCell(a, b) {
+    const sa = String(a ?? "").trim();
+    const sb = String(b ?? "").trim();
+    const da = sa.replace(/\D/g, "");
+    const db = sb.replace(/\D/g, "");
+    if (da && db) {
+      if (da.length === db.length) return da < db ? -1 : da > db ? 1 : 0;
+      const na = Number(da);
+      const nb = Number(db);
+      if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+      return da < db ? -1 : da > db ? 1 : 0;
+    }
+    return sa.localeCompare(sb, "pt-BR", { numeric: true, sensitivity: "base" });
+  }
+
+  function sortPortalRelatorioRowsCadastro(rows, headers, ordem) {
+    if (!Array.isArray(rows) || !rows.length) return rows || [];
+    const col = portalRelatorioCadastroColIndex({ headers });
+    const dir = ordem === "desc" ? -1 : 1;
+    return rows.slice().sort((ra, rb) => {
+      const a = Array.isArray(ra) ? ra[col] : ra;
+      const b = Array.isArray(rb) ? rb[col] : rb;
+      return dir * comparePortalRelatorioCadastroCell(a, b);
+    });
+  }
+
+  function syncPortalRelatorioOrdemBotoes() {
+    const primeiro = document.getElementById("portalPdfOrdemPrimeiroBtn");
+    const ultimo = document.getElementById("portalPdfOrdemUltimoBtn");
+    const asc = portalRelatorioOrdemCadastro !== "desc";
+    primeiro?.setAttribute("aria-pressed", asc ? "true" : "false");
+    ultimo?.setAttribute("aria-pressed", asc ? "false" : "true");
+  }
+
+  function applyPortalRelatorioOrdemCadastro(ordem) {
+    portalRelatorioOrdemCadastro = ordem === "desc" ? "desc" : "asc";
+    syncPortalRelatorioOrdemBotoes();
+    if (portalRelatorioAtual) {
+      const ctx =
+        typeof getPortalRelatorioContextFresh === "function"
+          ? getPortalRelatorioContextFresh(portalRelatorioAtual)
+          : portalRelatorioAtual;
+      portalRelatorioAtual = ctx;
+      emitPortalRelatorioPdf(ctx);
+      return true;
+    }
+    if (portalLocacaoRelatorioModo) {
+      emitPortalRelatorioLocacaoPdf(portalLocacaoRelatorioModo);
+      return true;
+    }
+    return false;
+  }
+  window.__DK_applyPortalRelatorioOrdemCadastro = applyPortalRelatorioOrdemCadastro;
+
   function emitPortalRelatorioPdf(context) {
     const iframe = document.getElementById("portalPdfIframe");
     const viewer = document.getElementById("portalRelatorioPdfViewer");
-    if (!iframe || !viewer) return;
-    let html =
-      typeof context.buildPdfHtml === "function"
-        ? context.buildPdfHtml()
-        : buildPortalRelatorioHtml(context.title, context.headers, context.rows, {
-            statusColumnIndex: context.statusColumnIndex,
-            headerSubtitleLines: context.headerSubtitleLines,
-            compactTable: context.compactTable,
-          });
+    if (!iframe || !viewer || !context) return;
+    portalRelatorioAtual = context;
+    const rowsSorted = sortPortalRelatorioRowsCadastro(
+      context.rows || [],
+      context.headers,
+      portalRelatorioOrdemCadastro
+    );
+    const ctxView = { ...context, rows: rowsSorted };
+    const temTabela = Array.isArray(ctxView.headers) && ctxView.headers.length && Array.isArray(ctxView.rows);
+    const slugsTabela = new Set(["locacoes", "clientes", "pagamentos-periodo"]);
+    const slug = String(context.fileSlug || "");
+    let html;
+    if (slugsTabela.has(slug) || (!context.buildPdfHtml && temTabela)) {
+      html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, {
+        statusColumnIndex: ctxView.statusColumnIndex,
+        headerSubtitleLines: ctxView.headerSubtitleLines,
+        compactTable: ctxView.compactTable,
+      });
+    } else if (typeof context.buildPdfHtml === "function") {
+      html = context.buildPdfHtml();
+    } else {
+      html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, {
+        statusColumnIndex: ctxView.statusColumnIndex,
+        headerSubtitleLines: ctxView.headerSubtitleLines,
+        compactTable: ctxView.compactTable,
+      });
+    }
     html = applyPortalPdfDocumentTitle(html, getPortalRelatorioPdfSaveSuggestedBaseName(context));
     hideRelatorioLocacaoPdfViewer();
     window.__DK_portalPdfShareMeta = context.shareMeta || {
@@ -10736,6 +10826,7 @@
     viewer.classList.remove("hidden");
     viewer.setAttribute("aria-hidden", "false");
     portalSyncAdminBannerLayout();
+    syncPortalRelatorioOrdemBotoes();
   }
 
   function emitPortalRelatorioExcel(context) {
@@ -12649,8 +12740,6 @@
   function emitPortalRelatorioLocacaoPdf(escopo) {
     const titulo =
       escopo === "ativas" ? "Locações de motos — ativas" : "Locações de motos — finalizadas";
-    const raw = sortPortalLocacoesPorProtocoloAsc(getPortalMotosLocacaoDataset(escopo));
-    const rows = raw.map(rowPortalRelatorioLocacao);
     const headers = [
       "Protocolo",
       "CPF",
@@ -12665,6 +12754,12 @@
       "Status",
       "Modalidade",
     ];
+    const raw = sortPortalLocacoesPorProtocoloAsc(getPortalMotosLocacaoDataset(escopo));
+    const rows = sortPortalRelatorioRowsCadastro(
+      raw.map(rowPortalRelatorioLocacao),
+      headers,
+      portalRelatorioOrdemCadastro
+    );
     const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
     const statusIdx = 10;
     const statusFn =
@@ -12721,6 +12816,7 @@
     const viewer = document.getElementById("portalRelatorioPdfViewer");
     if (!iframe || !viewer) return;
 
+    portalRelatorioAtual = null;
     hideRelatorioLocacaoPdfViewer();
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     portalLocacaoRelatorioPdfBlobUrl = URL.createObjectURL(blob);
@@ -12728,6 +12824,7 @@
     viewer.classList.remove("hidden");
     viewer.setAttribute("aria-hidden", "false");
     portalSyncAdminBannerLayout();
+    syncPortalRelatorioOrdemBotoes();
   }
 
   function emitPortalRelatorioLocacaoExcel(escopo) {
@@ -12984,6 +13081,13 @@
     const wrap = document.querySelector(".portal-pdf-viewer__share-wrap");
     if (!wrap || wrap.contains(e.target)) return;
     hidePortalPdfShareMenu();
+  });
+
+  document.getElementById("portalPdfOrdemPrimeiroBtn")?.addEventListener("click", () => {
+    applyPortalRelatorioOrdemCadastro("asc");
+  });
+  document.getElementById("portalPdfOrdemUltimoBtn")?.addEventListener("click", () => {
+    applyPortalRelatorioOrdemCadastro("desc");
   });
 
   document.getElementById("portalPdfImprimirBtn")?.addEventListener("click", () => {
@@ -21290,6 +21394,8 @@
   );
 
   window.__DK_emitPortalRelatorioPdf = emitPortalRelatorioPdf;
+  window.__DK_getPortalRelatorioLocacaoContext = getPortalRelatorioLocacaoContext;
+  window.__DK_sortPortalRelatorioRowsCadastro = sortPortalRelatorioRowsCadastro;
   window.__DK_emitPortalRelatorioExcel = emitPortalRelatorioExcel;
   window.__DK_portalLancAluguelCalCtx = () => {
     const { nc, cpf } = operacaoLancAluguelProtocoloAtual();

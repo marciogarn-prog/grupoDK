@@ -3417,6 +3417,27 @@ body {
   gap: 0.5rem;
 }
 
+.portal-pdf-viewer__sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.portal-pdf-viewer__sort-btn {
+  min-width: 2.45rem;
+  width: 2.45rem;
+  height: 2.45rem;
+  padding: 0;
+  font-size: 1.45rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.portal-pdf-viewer__sort-btn[aria-pressed="true"] {
+  background: var(--accent-dim);
+  color: #fff;
+}
+
 .portal-pdf-viewer__share-wrap {
   position: relative;
   display: inline-flex;

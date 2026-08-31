@@ -28,3 +28,4 @@ Itens actualmente travados:
 - Cadastro de locação: no plano DK MEU TRANSPORTE, marcar **CARRO** ou **MOTO** tem de cadastrar; Limpar não apaga o value dos rádios.
 - Protocolo **2026082801** com data início 28/08/2026 grava a locação (o bloqueio antigo era um typo de 16/01).
 - Cód. do cliente no padrão de **4 dígitos** (`CLIENTE 386` → `0386`); cadastros novos continuam `0387`, `0388`…
+- Pré-visualização do relatório: setas **↓** (primeiro → último cadastro) e **↑** (último → primeiro).
