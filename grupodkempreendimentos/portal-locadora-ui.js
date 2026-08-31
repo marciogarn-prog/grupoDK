@@ -15741,6 +15741,7 @@
       valorParcela: valorSemanal,
       clienteCodigo,
       ambiente: PORTAL_AMBIENTE_REAL,
+      origemPortal: true,
       ...portalResolveResponsavelStamp(prev),
     };
 
@@ -15781,6 +15782,15 @@
       } catch (err) {
         console.error(err);
         portalLocacaoFeedback(`Não foi possível guardar: ${err && err.message ? err.message : err}.`);
+        return;
+      }
+      const gravou = loadCadastro(CAD_LOCACOES_KEY).some(
+        (l) => normPortalNumeroContrato(l.numeroContrato) === nc
+      );
+      if (!gravou) {
+        portalLocacaoFeedback(
+          `O protocolo ${nc} não ficou gravado. Clique em Cadastrar locação de novo — o sistema gera o próximo número.`
+        );
         return;
       }
       portalPushCloudSnapshotAfterPersist();

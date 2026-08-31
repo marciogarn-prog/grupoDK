@@ -143,11 +143,36 @@
   ]);
   const OFICIAL_LOCACOES_NC_REMAP = Object.freeze({
     "2026122501": "2025122201",
-    "2026082801": "2026011601",
   });
+  const OFICIAL_LOCACOES_NC_SEEDS = new Set([
+    "2025010101",
+    "2025010102",
+    "2025010103",
+    "2026010101",
+    "2026010102",
+    "2026010104",
+  ]);
 
   function locacaoNcDigits(record) {
     return String(record?.numeroContrato || record?.protocolo || "").replace(/\D/g, "");
+  }
+
+  function locacaoInicioYmd(record) {
+    return parseAnyDateToYmd(record?.inicio || record?.dataInicio);
+  }
+
+  /**
+   * 2026082801 foi um typo antigo (início 16/01 → canónico 2026011601).
+   * Em 28/08/2026 o primeiro protocolo do dia É 2026082801 — tem de gravar.
+   */
+  function isLocacaoNcOficialmenteBloqueado(record) {
+    const nc = locacaoNcDigits(record);
+    if (!nc || !OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
+    if (OFICIAL_LOCACOES_NC_SEEDS.has(nc)) return true;
+    const protoYmd = locacaoProtocolYmd(record);
+    const inicioYmd = locacaoInicioYmd(record);
+    if (protoYmd && inicioYmd && protoYmd === inicioYmd) return false;
+    return true;
   }
 
   function normalizePlateLocal(p) {
@@ -223,7 +248,7 @@
       record &&
       typeof record === "object" &&
       cadastroKeyFamily(key) === "locacao" &&
-      OFICIAL_LOCACOES_NC_EXCLUIDOS.has(locacaoNcDigits(record))
+      isLocacaoNcOficialmenteBloqueado(record)
     ) {
       return false;
     }
@@ -318,6 +343,7 @@
   window.__DK_OFICIAL_CUTOFF_YMD = OFICIAL_CUTOFF_YMD;
   window.__DK_OFICIAL_LOCACOES_CUTOFF_YMD = OFICIAL_LOCACOES_CUTOFF_YMD;
   window.__DK_OFICIAL_LOCACOES_NC_EXCLUIDOS = OFICIAL_LOCACOES_NC_EXCLUIDOS;
+  window.__DK_isLocacaoNcOficialmenteBloqueado = isLocacaoNcOficialmenteBloqueado;
   window.__DK_OFICIAL_LOCACOES_NC_REMAP = OFICIAL_LOCACOES_NC_REMAP;
   window.__DK_remapOficialProtocoloNc = function remapOficialProtocoloNc(raw) {
     const nc = String(raw || "").replace(/\D/g, "");

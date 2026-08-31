@@ -133,6 +133,14 @@ const OFICIAL_LOCACOES_NC_EXCLUIDOS = new Set([
   "2026010102",
   "2026010104",
 ]);
+const OFICIAL_LOCACOES_NC_SEEDS = new Set([
+  "2025010101",
+  "2025010102",
+  "2025010103",
+  "2026010101",
+  "2026010102",
+  "2026010104",
+]);
 /** Placas de veículo de teste da demo (FERRARI/BUGATTI/PORSCHE/FUSCA). */
 const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
   "AAA0A00",
@@ -142,10 +150,20 @@ const OFICIAL_VEICULOS_PLACA_EXCLUIDOS = new Set([
   "CCC0C00",
 ]);
 
+function isLocacaoNcOficialmenteBloqueado(r) {
+  const nc = String(r?.numeroContrato || r?.protocolo || "").replace(/\D/g, "");
+  if (!nc || !OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return false;
+  if (OFICIAL_LOCACOES_NC_SEEDS.has(nc)) return true;
+  const protoYmd = locacaoProtocolYmd(r);
+  const inicioYmd = oficialParseYmd(r?.inicio || r?.dataInicio);
+  if (protoYmd && inicioYmd && protoYmd === inicioYmd) return false;
+  return true;
+}
+
 function isLocacaoSeedDemoOficialProibida(r) {
   if (!r || typeof r !== "object") return false;
-  const nc = locacaoNcKey(r);
-  if (nc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(nc)) return true;
+  const nc = String(r?.numeroContrato || r?.protocolo || "").replace(/\D/g, "");
+  if (nc && OFICIAL_LOCACOES_NC_SEEDS.has(nc)) return true;
   const placa = placaNormKey(r);
   if (placa && OFICIAL_VEICULOS_PLACA_EXCLUIDOS.has(placa)) return true;
   if (/^(AAA|BBB|CCC)0[A-C]\d{2}$/i.test(placa)) return true;
@@ -212,7 +230,7 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
     out[k] = out[k].filter((r) => {
       const cpfEarly = cpfDigitsKey(r);
       if (isCli && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
-      if (isLoc && OFICIAL_LOCACOES_NC_EXCLUIDOS.has(locacaoNcKey(r))) return false;
+      if (isLoc && isLocacaoNcOficialmenteBloqueado(r)) return false;
       /* Fantasmas (placa LOC/TST ou sem CPF) nunca passam — mesmo com origemPortal ou keepNc. */
       if (isLoc && isLocacaoFantasmaCadastro(r)) return false;
       /* Seeds da demo (AAA/BBB/CCC, TESTE-*, protocolos 20250101xx / 202601010x). */
