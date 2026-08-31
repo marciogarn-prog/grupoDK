@@ -253,7 +253,11 @@ async function main() {
 
   record("HTML tem Gerar contrato", html.includes("operacaoLocacaoVisualizarContratoBtn") && html.includes("Gerar contrato"));
   record("JS escreve o HTML do contrato na janela", contrato.includes("popup.document.write(html)"));
-  record("JS não desvia Gerar contrato para o pacote", !contrato.includes("__DK_contratoPacoteAbrir === \\"function\\"") && contrato.includes("modelo 10 páginas formatado para impressão"));
+  record(
+    "JS não desvia Gerar contrato para o pacote",
+    !contrato.includes("__DK_contratoPacoteAbrir === \"function\"") &&
+      contrato.includes("modelo 10 páginas formatado para impressão")
+  );
   record("Preview tem botão Imprimir visível", contrato.includes('id="btnImprimir">Imprimir'));
   record("Protocolo carregado fica seleccionado", ui.includes("pinOperacaoLocacaoProtocoloCarregado"));
   record("CPF/CNPJ do proprietário no cadastro", html.includes("operacaoVeiculoProprietarioCpfCnpj"));
