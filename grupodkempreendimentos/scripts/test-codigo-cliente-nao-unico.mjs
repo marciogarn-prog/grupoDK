@@ -161,6 +161,8 @@ const SEED = `(() => {
     placa: "UHQ1C08",
     inicio: "20/07/2026",
     fim: "",
+    origemPortal: true,
+    createdAt: Date.now(),
   };
   const veiculo = {
     id: 9104,
@@ -168,10 +170,30 @@ const SEED = `(() => {
     modelo: "CG 160",
     tipo: "MOTO",
     origemPortal: true,
+    createdAt: Date.now(),
+    cadastradoPorCpf: "03037897430",
+    cadastradoPorNome: "Marcio Santos",
   };
-  localStorage.setItem("dk_clientes_cadastro", JSON.stringify([marcelo, debora]));
-  localStorage.setItem("dk_locacoes_cadastro", JSON.stringify([locDebora]));
-  localStorage.setItem("dk_veiculos_cadastro", JSON.stringify([veiculo]));
+  const mergeBy = (key, rows, idFn) => {
+    let cur = [];
+    try {
+      cur = JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      cur = [];
+    }
+    if (!Array.isArray(cur)) cur = [];
+    rows.forEach((r) => {
+      const id = idFn(r);
+      const idx = cur.findIndex((x) => idFn(x) === id);
+      if (idx >= 0) cur[idx] = { ...cur[idx], ...r };
+      else cur.push(r);
+    });
+    localStorage.setItem(key, JSON.stringify(cur));
+  };
+  mergeBy("dk_clientes_cadastro", [marcelo, debora], (c) => String(c.cpf || "").replace(/\\D/g, ""));
+  mergeBy("dk_locacoes_cadastro", [locDebora], (l) => String(l.numeroContrato || ""));
+  mergeBy("dk_veiculos_cadastro", [veiculo], (v) => String(v.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, ""));
+  if (typeof invalidateCadastroParseCache === "function") invalidateCadastroParseCache();
   localStorage.setItem(
     "dk_sessao_cliente",
     JSON.stringify({ tipo: "admin", cpf: "03037897430", nome: "Marcio Santos" })
@@ -261,7 +283,14 @@ const SAVE = `(() => {
   set("operacaoLocacaoValorInvestimento", "0,00");
   set("operacaoLocacaoTipoPlano", "DK MEU TRANSPORTE");
   set("operacaoLocacaoModelo", "CG 160");
-  const placaOk = set("operacaoLocacaoPlaca", "QWE1A23");
+  const placaLivre = (() => {
+    const livres = typeof getVeiculosSemProtocoloAtivo === "function" ? getVeiculosSemProtocoloAtivo() : [];
+    const nrm = typeof normalizePlate === "function" ? normalizePlate : (p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const qwe = livres.find((v) => nrm(v.placa) === "QWE1A23");
+    const pick = qwe || livres[0];
+    return { placa: pick ? nrm(pick.placa) : "QWE1A23", nLivres: livres.length };
+  })();
+  const placaOk = set("operacaoLocacaoPlaca", placaLivre.placa);
   const moto = document.getElementById("operacaoLocacaoModalidadeMoto");
   if (moto) moto.checked = true;
   if (typeof window.refreshOperacaoLocacaoProtocoloPicker === "function") {
@@ -284,6 +313,10 @@ const SAVE = `(() => {
   const placaAntes = String(document.getElementById("operacaoLocacaoPlaca")?.value || "");
   const form = document.getElementById("formOperacaoLocacaoInline");
   form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  const modal = document.getElementById("portalLocacaoConfirmModal");
+  const resumo = String(document.getElementById("portalLocacaoConfirmResumo")?.innerText || "");
+  const modalAberta = Boolean(modal && !modal.classList.contains("hidden") && modal.getAttribute("aria-hidden") !== "true");
+  document.getElementById("portalLocacaoConfirmSimBtn")?.click();
   const msg = String(document.getElementById("operacaoLocacaoInlineMsg")?.textContent || "");
   let locs = [];
   try {
@@ -299,6 +332,8 @@ const SAVE = `(() => {
   const deboraAindaLa = locs.some((l) => onlyDig(l.cpf) === "03102535518" && String(l.numeroContrato || "") === "2026072001");
   return {
     msg,
+    placaLivre: placaLivre.placa,
+    nLivres: placaLivre.nLivres,
     placaOk,
     placaAntes,
     placaDepois: String(document.getElementById("operacaoLocacaoPlaca")?.value || ""),
@@ -320,6 +355,10 @@ const SAVE = `(() => {
     marceloProto: String(marceloLocs[marceloLocs.length - 1]?.numeroContrato || ""),
     misturouDebora,
     deboraAindaLa,
+    modalAberta,
+    resumo,
+    resumoTemMarcelo: /MARCELO/i.test(resumo),
+    resumoTemDebora: /DEBORA/i.test(resumo),
   };
 })()`;
 
@@ -381,13 +420,23 @@ async function main() {
               saved.nMarcelo >= 1 &&
               /MARCELO/i.test(saved.marceloNome || "") &&
               !saved.misturouDebora &&
-              saved.deboraAindaLa
+              saved.deboraAindaLa &&
+              saved.resumoTemMarcelo &&
+              !saved.resumoTemDebora
           ),
           JSON.stringify(saved)
         );
+        await capture(session, "locacao_marcelo_guardada.png");
         browserOk =
           Boolean(after && !after.hasDebora && after.filtroSoMarcelo && !after.hasDeboraProto) &&
-          Boolean(saved && saved.nMarcelo >= 1 && !saved.misturouDebora && saved.deboraAindaLa);
+          Boolean(
+            saved &&
+              saved.nMarcelo >= 1 &&
+              !saved.misturouDebora &&
+              saved.deboraAindaLa &&
+              saved.resumoTemMarcelo &&
+              !saved.resumoTemDebora
+          );
       });
     });
   } catch (err) {

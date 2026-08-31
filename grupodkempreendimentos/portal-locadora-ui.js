@@ -18632,32 +18632,33 @@
       const searchingCodigo = active === codigoEl;
       const searchingNome = active === inpNome;
       const searchingCpf = active === inpCpf;
-      const searchingPlaca = active === inpPlaca;
       const searchingProto = active === protoEl;
       const dig =
         typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
       const cpfDigits = dig(String(inpCpf?.value || "")).slice(0, 11);
       const nomeKey = portalNomeChaveBusca(inpNome?.value || "");
       const clienteConfirmado = cpfDigits.length === 11 && nomeKey.length >= 2;
-      /* Cliente já escolhido (CPF+nome): não mostrar locação de outra pessoa com o mesmo Cód.
-         (o código não é único — o foco no Cód. não pode reabrir a lista da Débora se o Marcelo já está escolhido). */
-      if (clienteConfirmado && !searchingNome && !searchingCpf && !searchingProto) {
-        hidePortalSugestoesLista(panel);
-        return;
-      }
       const placaRaw = String(inpPlaca?.value || "").trim();
       const placaNorm =
         typeof normalizePlate === "function"
           ? normalizePlate(placaRaw)
           : placaRaw.toUpperCase().replace(/[^A-Z0-9]/g, "");
       const placaEhPlaceholder = !placaNorm || placaNorm === "ABC1D23";
+      const temPlacaBusca = !placaEhPlaceholder && placaNorm.length >= 3;
+      const temCodigoBusca = Boolean(portalClienteCodigoDigitsKey(codigoEl?.value || ""));
+      /* Cliente já escolhido: esconder a lista, excepto se estiver a procurar nome/CPF/placa/protocolo.
+         O Cód. focado NÃO reabre a locação de outra pessoa com o mesmo código. */
+      if (clienteConfirmado && !searchingNome && !searchingCpf && !searchingProto && !temPlacaBusca) {
+        hidePortalSugestoesLista(panel);
+        return;
+      }
       const filtros = {
-        nomeRaw: searchingNome ? String(inpNome?.value || "") : clienteConfirmado ? "" : String(inpNome?.value || ""),
+        nomeRaw: searchingNome || (!clienteConfirmado && nomeKey.length >= 2) ? String(inpNome?.value || "") : "",
         cpfRaw: searchingProto ? "" : String(inpCpf?.value || ""),
-        codigoRaw: searchingCodigo && !clienteConfirmado ? String(codigoEl?.value || "") : "",
-        placaRaw: searchingPlaca && !placaEhPlaceholder ? placaRaw : "",
+        codigoRaw: !clienteConfirmado && temCodigoBusca ? String(codigoEl?.value || "") : "",
+        placaRaw: temPlacaBusca ? placaRaw : "",
         protoRaw: searchingProto ? String(protoEl?.value || "") : "",
-        ignorarCodigoSeCpfCompleto: cpfDigits.length === 11 && !searchingCodigo,
+        ignorarCodigoSeCpfCompleto: cpfDigits.length === 11,
       };
       const q =
         typeof portalSugestoesFiltrosAtivos === "function"

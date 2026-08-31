@@ -161,9 +161,14 @@ const SEED = `(() => {
     placa: "PET6I93",
     inicio: "11/08/2026",
     fim: "",
+    origemPortal: true,
+    createdAt: Date.now(),
   };
   localStorage.setItem("dk_clientes_cadastro", JSON.stringify([cliente]));
   localStorage.setItem("dk_locacoes_cadastro", JSON.stringify([loc]));
+  if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") {
+    window.__DK_invalidatePesquisaLinhasCache();
+  }
   return { ok: true };
 })()`;
 
