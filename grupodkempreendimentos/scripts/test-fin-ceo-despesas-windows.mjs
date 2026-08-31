@@ -199,6 +199,7 @@ const MEASURE = `(() => {
     slideScrollTop: Math.round(slide?.scrollTop || 0),
     canScroll: Boolean(slide && slide.scrollHeight > slide.clientHeight + 8),
     formCols: csForm?.gridTemplateColumns || "",
+    formW: Math.round(form?.getBoundingClientRect().width || 0),
     overlapCatSub: overlap(cat, sub) || overlap(catLab, subLab),
     overlapSubPer: overlap(sub, per) || overlap(subLab, perLab),
     overlapCatPer: overlap(cat, per) || overlap(catLab, perLab),
@@ -280,6 +281,11 @@ async function main() {
           "Browser 1920: ecrã usa a largura do monitor",
           Number(wide?.viewW) >= 1800 && (wide?.viewMaxW === "none" || wide?.viewMaxW === "100%"),
           JSON.stringify({ viewW: wide?.viewW, viewMaxW: wide?.viewMaxW })
+        );
+        record(
+          "Browser 1920: formulário usa a área útil à direita do menu",
+          Number(wide?.formW) >= 1200,
+          JSON.stringify({ formW: wide?.formW, formCols: wide?.formCols })
         );
         record(
           "Browser 1920: Categoria / Subcategoria / Periódico não se sobrepõem",
@@ -376,6 +382,7 @@ async function main() {
         browserOk =
           Boolean(wide?.canScroll) &&
           Number(afterWheel?.slideScrollTop) >= 80 &&
+          Number(wide?.formW) >= 1200 &&
           !wide?.overlapCatSub &&
           !wide?.overlapSubPer &&
           !mid?.overlapCatSub &&
