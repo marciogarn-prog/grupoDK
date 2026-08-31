@@ -24,4 +24,4 @@ Itens actualmente travados:
 - Lançamento de multas: **rodar a bola do mouse** move o conteúdo da tela.
 - FINANCEIRO CEO → Cadastro de despesas no Windows: ecrã à largura do monitor, campos sem sobreposição, bola do mouse move o conteúdo.
 - Lista suspensa ao digitar nome, CPF, placa, protocolo ou número do cliente já cadastrado (Cadastro de cliente, Cadastro de locação e restantes telas de operação).
-- Cadastro de locação: Cód. do cliente **não é único** — digitar o Cód. lista as pessoas com esse número (não a locação de outra); Limpar esvazia o Cód.
+- Cadastro de locação: Cód. do cliente **é único** — pesquisar pelo Cód. traz um cliente; locação de outra pessoa não inventa segundo cliente; não existe a mensagem «Há 2 clientes com o código»; Limpar esvazia o Cód.

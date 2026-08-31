@@ -1,5 +1,5 @@
 /**
- * Cód. partilhado não pode mostrar locação de outro cliente já escolhido.
+ * Cód. do cliente é único: locação de outra pessoa não inventa segundo cliente.
  * node grupodkempreendimentos/scripts/test-codigo-cliente-nao-unico.mjs
  */
 import fs from "fs";
@@ -149,7 +149,7 @@ const SEED = `(() => {
     id: 9102,
     cpf: "03102535518",
     nome: "DEBORA MORENO DOS SANTOS",
-    codigo: "0363",
+    codigo: "0364",
     origemPortal: true,
   };
   const joana = {
@@ -163,7 +163,7 @@ const SEED = `(() => {
     id: 9106,
     cpf: "09284384494",
     nome: "HELDER SOUZA CAMPOS",
-    codigo: "0370",
+    codigo: "0371",
     origemPortal: true,
   };
   const locHelder = {
@@ -277,8 +277,50 @@ const TYPE_CODIGO = `(() => {
     hasHelder: /HELDER/i.test(text),
     temLocacaoDebora: /2026072001|UHQ1C08/.test(text),
     temLocacaoHelder: /2026081702|QYJ3J11/.test(text),
+    dizDoisClientes: /Há \\d+ clientes com o código/i.test(text),
     dizContrato: /contrato\\(s\\)/i.test(text),
     dizCadastro: /cadastro\\(s\\)/i.test(text),
+  };
+})()`;
+
+const APPLY_CODIGO = `(() => {
+  const inp = document.getElementById("operacaoLocacaoClienteCodigo");
+  if (!inp) return { ok: false };
+  inp.value = __DK_COD__;
+  inp.dispatchEvent(new Event("change", { bubbles: true }));
+  inp.dispatchEvent(new Event("blur", { bubbles: true }));
+  if (typeof window.__DK_applyOperacaoLocacaoClienteFromCodigo === "function") {
+    window.__DK_applyOperacaoLocacaoClienteFromCodigo(__DK_COD__);
+  }
+  const msg = String(document.getElementById("operacaoLocacaoInlineMsg")?.textContent || "");
+  return {
+    ok: true,
+    nome: String(document.getElementById("operacaoLocacaoCliente")?.value || ""),
+    cpf: String(document.getElementById("operacaoLocacaoCpf")?.value || ""),
+    placa: String(document.getElementById("operacaoLocacaoPlaca")?.value || ""),
+    proto: String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""),
+    protoSel: String(document.getElementById("operacaoLocacaoProtocoloSelect")?.value || ""),
+    msg,
+    dizDoisClientes: /Há \\d+ clientes com o código/i.test(msg),
+  };
+})()`;
+
+const HITS_CODIGO = `(() => {
+  const hits363 = typeof window.__DK_findPortalClientesByCodigoBusca === "function"
+    ? window.__DK_findPortalClientesByCodigoBusca("0363")
+    : [];
+  const hits370 = typeof window.__DK_findPortalClientesByCodigoBusca === "function"
+    ? window.__DK_findPortalClientesByCodigoBusca("0370")
+    : [];
+  const dupe = typeof window.__DK_portalClienteCodigoEmUsoPorOutroCpf === "function"
+    ? window.__DK_portalClienteCodigoEmUsoPorOutroCpf("0363", "03102535518")
+    : null;
+  return {
+    n363: Array.isArray(hits363) ? hits363.length : -1,
+    nomes363: (hits363 || []).map((c) => String(c.nome || "")),
+    n370: Array.isArray(hits370) ? hits370.length : -1,
+    nomes370: (hits370 || []).map((c) => String(c.nome || "")),
+    dupeNome: String(dupe?.nome || ""),
   };
 })()`;
 
@@ -497,9 +539,20 @@ async function capture(session, filename) {
 
 async function main() {
   const js = readLocal("portal-locadora-ui.js");
-  record("JS trava pelo CPF quando o código não é único", js.includes("código do cliente não é único") && js.includes("ignorarCodigoSeCpfCompleto") && js.includes("contrato de outro CPF nunca entra"));
-  record("JS não escolhe o primeiro cliente cego pelo código", js.includes("findPortalClientesByCodigoBusca"));
-  record("JS ao digitar o Cód. lista pessoas e não a locação alheia", js.includes("lista ao digitar o Cód. mostra PESSOAS") && js.includes("collectOperacaoLocacaoSugestoesClientesPorCodigo"));
+  record(
+    "JS trata o Cód. do cliente como único",
+    js.includes("Cód. do cliente é único") &&
+      js.includes("portalClienteCodigoEmUsoPorOutroCpf") &&
+      js.includes("O código do cliente não se repete") &&
+      js.includes("findPortalClientesByCodigoBusca") &&
+      js.includes("collectOperacaoLocacaoSugestoesClientesPorCodigo")
+  );
+  record(
+    "JS não mostra a mensagem de 2 clientes com o mesmo código",
+    !js.includes("Há ${hits.length} clientes com o código") &&
+      !js.includes("Clique na lista para confirmar o certo")
+  );
+  record("JS trava o contrato pelo CPF do cliente", js.includes("ignorarCodigoSeCpfCompleto") && js.includes("contrato de outro CPF nunca entra"));
 
   let browserOk = false;
   try {
@@ -512,40 +565,71 @@ async function main() {
           deviceScaleFactor: 1,
           mobile: false,
         });
-        record("Browser: dados Marcelo/Débora com o mesmo Cód. 0363", Boolean((await cdpEval(session, SEED))?.ok));
+        record("Browser: dados Marcelo/Débora (Cód. únicos; locação dela ainda copia 0363)", Boolean((await cdpEval(session, SEED))?.ok));
         record("Browser: cadastro de locação visível", Boolean((await cdpEval(session, SHOW))?.ok));
+
+        const hits = await cdpEval(session, HITS_CODIGO);
+        record(
+          "Browser: busca pelo Cód. 0363/0370 devolve 1 cliente cada",
+          Boolean(
+            hits &&
+              hits.n363 === 1 &&
+              hits.n370 === 1 &&
+              /MARCELO/i.test(String(hits.nomes363 || "")) &&
+              !/DEBORA/i.test(String(hits.nomes363 || "")) &&
+              /JOANA/i.test(String(hits.nomes370 || "")) &&
+              !/HELDER/i.test(String(hits.nomes370 || "")) &&
+              /MARCELO/i.test(String(hits.dupeNome || ""))
+          ),
+          JSON.stringify(hits)
+        );
 
         const typed0363 = await cdpEval(session, TYPE_CODIGO.replace("__DK_COD__", JSON.stringify("0363")));
         record(
-          "Browser: digitar Cód. 0363 lista Marcelo e Débora, sem o contrato dela",
+          "Browser: digitar Cód. 0363 lista só o Marcelo, sem a Débora nem o contrato dela",
           Boolean(
             typed0363 &&
               !typed0363.hidden &&
               typed0363.hasMarcelo &&
-              typed0363.hasDebora &&
+              !typed0363.hasDebora &&
               !typed0363.temLocacaoDebora &&
-              typed0363.dizCadastro &&
-              !typed0363.dizContrato
+              !typed0363.dizDoisClientes
           ),
           JSON.stringify(typed0363)
         );
-        await capture(session, "locacao_cod_0363_pessoas.png");
+        await capture(session, "locacao_cod_0363_unico.png");
 
+        const applied0363 = await cdpEval(session, APPLY_CODIGO.replace(/__DK_COD__/g, JSON.stringify("0363")));
+        record(
+          "Browser: confirmar o Cód. 0363 carrega o Marcelo e não diz que há 2 clientes",
+          Boolean(
+            applied0363 &&
+              applied0363.ok &&
+              /MARCELO/i.test(applied0363.nome || "") &&
+              String(applied0363.cpf || "").includes("053") &&
+              !applied0363.dizDoisClientes &&
+              !/Há 2 clientes/i.test(applied0363.msg || "") &&
+              String(applied0363.protoSel || "") !== "2026072001" &&
+              !/UHQ1C08/i.test(applied0363.placa || "")
+          ),
+          JSON.stringify(applied0363)
+        );
+
+        await cdpEval(session, SHOW);
         const typed0370 = await cdpEval(session, TYPE_CODIGO.replace("__DK_COD__", JSON.stringify("0370")));
         record(
-          "Browser: digitar Cód. 0370 lista Joana e Helder, sem o contrato dele",
+          "Browser: digitar Cód. 0370 lista só a Joana, sem o Helder nem o contrato dele",
           Boolean(
             typed0370 &&
               !typed0370.hidden &&
               typed0370.hasJoana &&
-              typed0370.hasHelder &&
+              !typed0370.hasHelder &&
               !typed0370.temLocacaoHelder &&
-              typed0370.dizCadastro &&
-              !typed0370.dizContrato
+              !typed0370.dizDoisClientes
           ),
           JSON.stringify(typed0370)
         );
-        await capture(session, "locacao_cod_0370_pessoas.png");
+        await capture(session, "locacao_cod_0370_unico.png");
 
         await cdpEval(session, TYPE_CODIGO.replace("__DK_COD__", JSON.stringify("0363")));
         const clicked = await cdpEval(session, CLICK_LISTA_NOME.replace("__DK_NOME_RE__", JSON.stringify("MARCELO")));
@@ -596,8 +680,10 @@ async function main() {
         );
         await capture(session, "locacao_limpar_esvazia_cod.png");
         browserOk =
-          Boolean(typed0363 && typed0363.hasMarcelo && typed0363.hasDebora && !typed0363.temLocacaoDebora) &&
-          Boolean(typed0370 && typed0370.hasJoana && typed0370.hasHelder && !typed0370.temLocacaoHelder) &&
+          Boolean(hits && hits.n363 === 1 && hits.n370 === 1) &&
+          Boolean(typed0363 && typed0363.hasMarcelo && !typed0363.hasDebora && !typed0363.temLocacaoDebora && !typed0363.dizDoisClientes) &&
+          Boolean(applied0363 && /MARCELO/i.test(applied0363.nome || "") && !applied0363.dizDoisClientes) &&
+          Boolean(typed0370 && typed0370.hasJoana && !typed0370.hasHelder && !typed0370.temLocacaoHelder) &&
           Boolean(clicked && clicked.ok && /MARCELO/i.test(clicked.nome || "")) &&
           Boolean(limpo && limpo.codigo === "") &&
           Boolean(after && !after.hasDebora && after.filtroSoMarcelo && !after.hasDeboraProto) &&
@@ -616,7 +702,7 @@ async function main() {
   }
 
   const pass = results.filter((r) => r.ok).length;
-  console.log(`\n--- ${pass}/${results.length} testes código cliente não único ---`);
+  console.log(`\n--- ${pass}/${results.length} testes código cliente único ---`);
   process.exit(pass === results.length && browserOk ? 0 : 1);
 }
 

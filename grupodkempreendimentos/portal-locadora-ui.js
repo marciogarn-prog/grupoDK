@@ -8932,6 +8932,13 @@
           "08/05/2026";
       const canonCode = getPortalCanonicalClienteCodeByCpf(cpfDigits) || String(fonte?.codigo || "").trim();
       const codigoFinal = portalResolveClienteCodigoFromForm(canonCode);
+      const codigoDuplicado = portalClienteCodigoEmUsoPorOutroCpf(codigoFinal, cpfDigits);
+      if (codigoDuplicado) {
+        if (msg) {
+          msg.textContent = `Este Cód. já pertence a ${String(codigoDuplicado.nome || "").trim() || "outro cliente"}. O código do cliente não se repete.`;
+        }
+        return false;
+      }
       const existenteLocal =
         typeof findPortalClienteByCpf === "function"
           ? findPortalClienteByCpf(cpfDigits)
@@ -9355,6 +9362,13 @@
 
       const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
       const nextCode = portalResolveClienteCodigoFromForm(getPortalNextClienteCode());
+      const codigoDuplicado = portalClienteCodigoEmUsoPorOutroCpf(nextCode, digits);
+      if (codigoDuplicado) {
+        if (msg) {
+          msg.textContent = `Este Cód. já pertence a ${String(codigoDuplicado.nome || "").trim() || "outro cliente"}. O código do cliente não se repete.`;
+        }
+        return;
+      }
       const dataCadastro = getVal("operacaoClienteDataCadastro") || new Date().toLocaleDateString("pt-BR");
       const novo = {
         id: Date.now(),
@@ -13506,14 +13520,6 @@
     } else if (typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
       loadCadastro(CAD_CLIENTES_KEY).forEach(add);
     }
-    if (typeof getLancamentoClienteCandidates === "function") {
-      getLancamentoClienteCandidates().forEach(add);
-    }
-    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
-      loadCadastro(CAD_LOCACOES_KEY).forEach((l) =>
-        add({ cpf: l.cpf, nome: l.nome || l.cliente, codigo: l.clienteCodigo || l.codigo })
-      );
-    }
     return Array.from(byCpf.values());
   }
 
@@ -13539,69 +13545,92 @@
     return hits[0] || null;
   }
 
+  /**
+   * Cód. do cliente é único (cadastro de cliente). Locação.clienteCodigo de outra pessoa
+   * não conta como segundo cliente — o sistema não repete cliente, placa nem protocolo.
+   */
   function findPortalClientesByCodigoBusca(raw) {
     const want = portalClienteCodigoDigitsKey(raw);
     if (!want) return [];
     const wantNum = Number(want);
     const list = collectPortalClientesParaBuscaCodigo();
-    const scored = [];
+    let exact = null;
+    let numeric = null;
     for (const c of list) {
-      const dig =
-        typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+      const stored = portalClienteCodigoDigitsKey(c.codigo);
+      if (!stored) continue;
+      if (stored === want) {
+        exact = c;
+        break;
+      }
+      if (
+        !numeric &&
+        Number.isFinite(wantNum) &&
+        wantNum > 0 &&
+        Number(stored) === wantNum
+      ) {
+        numeric = c;
+      }
+    }
+    const hit = exact || numeric;
+    return hit ? [hit] : [];
+  }
+
+  function portalClienteCodigoEmUsoPorOutroCpf(codigoRaw, cpfDigits) {
+    const want = portalClienteCodigoDigitsKey(codigoRaw);
+    const wantNum = Number(want);
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const self = dig(String(cpfDigits || "")).slice(0, 11);
+    if (!want) return null;
+    for (const c of collectPortalClientesParaBuscaCodigo()) {
       const cpf = dig(String(c.cpf || "")).slice(0, 11);
-      const codes = [
-        String(c.codigo || "").trim(),
-        typeof getPortalCanonicalClienteCodeByCpf === "function"
-          ? String(getPortalCanonicalClienteCodeByCpf(cpf) || "").trim()
-          : "",
-      ]
-        .map(portalClienteCodigoDigitsKey)
-        .filter(Boolean);
-      if (!codes.length) continue;
-      const exact = codes.some((d) => d === want);
-      const numeric = Number.isFinite(wantNum) && codes.some((d) => Number(d) === wantNum);
-      if (exact || numeric) scored.push({ c, exact, cpf });
+      if (!cpf || cpf === self) continue;
+      const stored = portalClienteCodigoDigitsKey(c.codigo);
+      if (!stored) continue;
+      if (stored === want) return c;
+      if (Number.isFinite(wantNum) && wantNum > 0 && Number(stored) === wantNum) return c;
     }
-    scored.sort((a, b) => Number(b.exact) - Number(a.exact));
-    const seen = new Set();
-    const uniq = [];
-    for (const row of scored) {
-      if (seen.has(row.cpf)) continue;
-      seen.add(row.cpf);
-      uniq.push(row.c);
-    }
-    return uniq;
+    return null;
   }
 
   /**
-   * Cód. do cliente não é único: a lista ao digitar o Cód. mostra PESSOAS, nunca a locação
-   * de outra pessoa que partilha o mesmo número.
+   * Cód. do cliente é único: a lista ao digitar o Cód. mostra esse cliente
+   * (e as locações DELE, pelo CPF), nunca a locação de outra pessoa.
    */
   function collectOperacaoLocacaoSugestoesClientesPorCodigo(raw) {
+    const hit = findPortalClienteByCodigoBusca(raw);
+    if (!hit) return [];
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const byCpf = new Map();
-    findPortalClientesByCodigoBusca(raw).forEach((c) => {
-      const cpf = dig(String(c.cpf || "")).slice(0, 11);
-      if (cpf.length !== 11) return;
-      const nome = String(c.nome || c.cliente || "").trim() || "(sem nome)";
-      const codigo = resolvePortalClienteCodigoDisplay(cpf, c) || String(c.codigo || c.clienteCodigo || "").trim();
-      if (!byCpf.has(cpf)) {
-        byCpf.set(cpf, {
-          cpf,
-          nome,
-          codigo,
-          placa: "",
-          proto: "",
-          ativo: false,
-          corClasse: "portal-lanc-pesquisa-linha--branco",
-          fimBr: "",
-        });
-      }
-    });
-    return Array.from(byCpf.values()).sort((a, b) =>
-      String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR")
-    );
+    const cpf = dig(String(hit.cpf || "")).slice(0, 11);
+    if (cpf.length !== 11) return [];
+    const nome = String(hit.nome || hit.cliente || "").trim() || "(sem nome)";
+    const codigo =
+      resolvePortalClienteCodigoDisplay(cpf, hit) || String(hit.codigo || "").trim();
+    const contratos = (
+      typeof collectOperacaoLancAluguelPesquisaLinhas === "function"
+        ? collectOperacaoLancAluguelPesquisaLinhas()
+        : []
+    )
+      .filter((row) => String(row.cpf || "") === cpf)
+      .map((row) => ({
+        ...row,
+        codigo,
+      }));
+    if (contratos.length) return contratos;
+    return [
+      {
+        cpf,
+        nome,
+        codigo,
+        placa: "",
+        proto: "",
+        ativo: false,
+        corClasse: "portal-lanc-pesquisa-linha--branco",
+        fimBr: "",
+      },
+    ];
   }
 
   function syncOperacaoLocacaoCodigoFromCpf(cpfDigitsOpt) {
@@ -13623,8 +13652,8 @@
     const inpCod = document.getElementById("operacaoLocacaoClienteCodigo");
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     const raw = rawOpt != null ? String(rawOpt) : String(inpCod?.value || "");
-    const hits = findPortalClientesByCodigoBusca(raw);
-    if (!hits.length) {
+    const hit = findPortalClienteByCodigoBusca(raw);
+    if (!hit) {
       if (msg && portalClienteCodigoDigitsKey(raw)) {
         msg.textContent = `Nenhum cliente encontrado com o código «${String(raw).trim()}».`;
       }
@@ -13632,20 +13661,6 @@
     }
     const dig =
       typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
-    const cpfAtual = dig(String(document.getElementById("operacaoLocacaoCpf")?.value || "")).slice(0, 11);
-    if (hits.length > 1 && cpfAtual.length === 11 && hits.some((c) => dig(String(c.cpf || "")) === cpfAtual)) {
-      hidePortalSugestoesLista(document.getElementById("operacaoLocacaoPesquisaLista"));
-      return { ok: true, cliente: hits.find((c) => dig(String(c.cpf || "")) === cpfAtual), ambiguous: true };
-    }
-    if (hits.length > 1) {
-      if (msg) {
-        msg.textContent = `Há ${hits.length} clientes com o código «${String(raw).trim()}». Clique na lista para confirmar o certo.`;
-      }
-      inpCod?.focus();
-      inpCod?.dispatchEvent(new Event("input", { bubbles: true }));
-      return { ok: false, ambiguous: true };
-    }
-    const hit = hits[0];
     const cpf = dig(String(hit.cpf || "")).slice(0, 11);
     const nome = String(hit.nome || "").trim();
     const codigoDisplay = resolvePortalClienteCodigoDisplay(cpf, hit) || String(raw).trim();
@@ -13764,7 +13779,7 @@
   function filterPortalSugestoesLinhas(linhas, filtros) {
     const q = portalSugestoesFiltrosAtivos(filtros);
     if (!q.ativo) return [];
-    /* código do cliente não é único: com CPF completo só mostra esse cliente */
+    /* Cód. do cliente é único: com CPF completo só mostra esse cliente */
     const cpfTrava = q.cpfPrefix.length === 11 ? q.cpfPrefix : "";
     const ignorarCodigo = Boolean(cpfTrava && filtros?.ignorarCodigoSeCpfCompleto);
     return (linhas || []).filter((row) => {
@@ -14421,7 +14436,7 @@
     const byKey = new Map();
     loadCadastro(CAD_LOCACOES_KEY).forEach((l) => {
       const locCpf = dig(String(l.cpf || "")).slice(0, 11);
-      /* Cód. do cliente não é único: contrato de outro CPF nunca entra na lista deste cliente. */
+      /* Cód. do cliente é único: contrato de outro CPF nunca entra na lista deste cliente. */
       if (locCpf.length === 11 && locCpf !== cpfNorm) return;
       let match = locCpf.length === 11 && locCpf === cpfNorm;
       if (!match && codKeys.size) {
@@ -18688,7 +18703,7 @@
         hidePortalSugestoesLista(panel);
         return;
       }
-      /* Digitar só o Cód.: listar clientes (todas as pessoas com esse número), não um contrato alheio. */
+      /* Digitar só o Cód.: um código = um cliente (cadastro). Locações só desse CPF. */
       const buscaSoCodigo =
         temCodigoBusca &&
         cpfDigits.length !== 11 &&
@@ -21167,6 +21182,8 @@
   window.__DK_collectPortalSugestoesClienteUnico = collectPortalSugestoesClienteUnico;
   window.__DK_collectOperacaoLocacaoSugestoesLinhas = collectOperacaoLocacaoSugestoesLinhas;
   window.__DK_findPortalClientesByCodigoBusca = findPortalClientesByCodigoBusca;
+  window.__DK_portalClienteCodigoEmUsoPorOutroCpf = portalClienteCodigoEmUsoPorOutroCpf;
+  window.__DK_applyOperacaoLocacaoClienteFromCodigo = applyOperacaoLocacaoClienteFromCodigo;
   window.__DK_collectOperacaoLocacaoSugestoesClientesPorCodigo = collectOperacaoLocacaoSugestoesClientesPorCodigo;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
   window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
