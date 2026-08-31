@@ -152,6 +152,32 @@ const SEED = `(() => {
     codigo: "0363",
     origemPortal: true,
   };
+  const joana = {
+    id: 9105,
+    cpf: "15488766532",
+    nome: "JOANA DARC SOUZA SANTANA",
+    codigo: "0370",
+    origemPortal: true,
+  };
+  const helder = {
+    id: 9106,
+    cpf: "09284384494",
+    nome: "HELDER SOUZA CAMPOS",
+    codigo: "0370",
+    origemPortal: true,
+  };
+  const locHelder = {
+    id: 9107,
+    numeroContrato: "2026081702",
+    cpf: "09284384494",
+    nome: "HELDER SOUZA CAMPOS",
+    clienteCodigo: "0370",
+    placa: "QYJ3J11",
+    inicio: "17/08/2026",
+    fim: "",
+    origemPortal: true,
+    createdAt: Date.now(),
+  };
   const locDebora = {
     id: 9103,
     numeroContrato: "2026072001",
@@ -190,10 +216,11 @@ const SEED = `(() => {
     });
     localStorage.setItem(key, JSON.stringify(cur));
   };
-  mergeBy("dk_clientes_cadastro", [marcelo, debora], (c) => String(c.cpf || "").replace(/\\D/g, ""));
-  mergeBy("dk_locacoes_cadastro", [locDebora], (l) => String(l.numeroContrato || ""));
+  mergeBy("dk_clientes_cadastro", [marcelo, debora, joana, helder], (c) => String(c.cpf || "").replace(/\\D/g, ""));
+  mergeBy("dk_locacoes_cadastro", [locDebora, locHelder], (l) => String(l.numeroContrato || ""));
   mergeBy("dk_veiculos_cadastro", [veiculo], (v) => String(v.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, ""));
   if (typeof invalidateCadastroParseCache === "function") invalidateCadastroParseCache();
+  if (typeof window.__DK_invalidatePesquisaLinhasCache === "function") window.__DK_invalidatePesquisaLinhasCache();
   localStorage.setItem(
     "dk_sessao_cliente",
     JSON.stringify({ tipo: "admin", cpf: "03037897430", nome: "Marcio Santos" })
@@ -219,6 +246,75 @@ const SHOW = `(() => {
     if (el.id !== "operacaoInlineLocacao") el.classList.add("hidden");
   });
   return { ok: true };
+})()`;
+
+const TYPE_CODIGO = `(() => {
+  const clearIds = [
+    "operacaoLocacaoCpf",
+    "operacaoLocacaoCliente",
+    "operacaoLocacaoPlaca",
+    "operacaoLocacaoProtocoloAdminBusca",
+  ];
+  clearIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  });
+  const inp = document.getElementById("operacaoLocacaoClienteCodigo");
+  if (!inp) return { ok: false };
+  inp.value = __DK_COD__;
+  inp.focus();
+  inp.dispatchEvent(new Event("input", { bubbles: true }));
+  const panel = document.getElementById("operacaoLocacaoPesquisaLista");
+  const text = String(panel?.innerText || "");
+  const hidden = !panel || panel.classList.contains("hidden") || panel.hasAttribute("hidden") || !text.trim();
+  return {
+    ok: true,
+    hidden,
+    text,
+    hasDebora: /DEBORA/i.test(text),
+    hasMarcelo: /MARCELO/i.test(text),
+    hasJoana: /JOANA/i.test(text),
+    hasHelder: /HELDER/i.test(text),
+    temLocacaoDebora: /2026072001|UHQ1C08/.test(text),
+    temLocacaoHelder: /2026081702|QYJ3J11/.test(text),
+    dizContrato: /contrato\\(s\\)/i.test(text),
+    dizCadastro: /cadastro\\(s\\)/i.test(text),
+  };
+})()`;
+
+const CLICK_LISTA_NOME = `(() => {
+  const re = new RegExp(__DK_NOME_RE__, "i");
+  const btns = Array.from(document.querySelectorAll("#operacaoLocacaoPesquisaLista .portal-cliente-prefix-list__btn"));
+  const btn = btns.find((b) => re.test(b.textContent || ""));
+  if (!btn) return { ok: false, reason: "sem botão", n: btns.length };
+  btn.click();
+  return {
+    ok: true,
+    nome: String(document.getElementById("operacaoLocacaoCliente")?.value || ""),
+    cpf: String(document.getElementById("operacaoLocacaoCpf")?.value || ""),
+    proto: String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""),
+    protoSel: String(document.getElementById("operacaoLocacaoProtocoloSelect")?.value || ""),
+    placa: String(document.getElementById("operacaoLocacaoPlaca")?.value || ""),
+  };
+})()`;
+
+const LIMPAR = `(() => {
+  const cod = document.getElementById("operacaoLocacaoClienteCodigo");
+  if (cod) cod.value = "0363";
+  const busca = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
+  if (busca) busca.value = "2026082501";
+  document.getElementById("operacaoLocacaoLimparBtn")?.click();
+  const panel = document.getElementById("operacaoLocacaoPesquisaLista");
+  return {
+    codigo: String(document.getElementById("operacaoLocacaoClienteCodigo")?.value || ""),
+    placeholder: String(document.getElementById("operacaoLocacaoClienteCodigo")?.placeholder || ""),
+    adminBusca: String(document.getElementById("operacaoLocacaoProtocoloAdminBusca")?.value || ""),
+    listaEscondida:
+      !panel ||
+      panel.classList.contains("hidden") ||
+      panel.hasAttribute("hidden") ||
+      !String(panel.innerText || "").trim(),
+  };
 })()`;
 
 const SELECT_MARCELO = `(() => {
@@ -292,6 +388,14 @@ const SAVE = `(() => {
   })();
   const placaOk = set("operacaoLocacaoPlaca", placaLivre.placa);
   const moto = document.getElementById("operacaoLocacaoModalidadeMoto");
+  const carro = document.getElementById("operacaoLocacaoModalidadeCarro");
+  const wrap = document.getElementById("operacaoLocacaoModalidadeWrap");
+  if (wrap) {
+    wrap.classList.remove("hidden");
+    wrap.hidden = false;
+    wrap.setAttribute("aria-hidden", "false");
+  }
+  if (carro) carro.checked = false;
   if (moto) moto.checked = true;
   if (typeof window.refreshOperacaoLocacaoProtocoloPicker === "function") {
     window.refreshOperacaoLocacaoProtocoloPicker({ force: true });
@@ -311,6 +415,13 @@ const SAVE = `(() => {
     if (hid) hid.value = "";
   }
   const placaAntes = String(document.getElementById("operacaoLocacaoPlaca")?.value || "");
+  const wrap2 = document.getElementById("operacaoLocacaoModalidadeWrap");
+  if (wrap2) {
+    wrap2.classList.remove("hidden");
+    wrap2.hidden = false;
+  }
+  const moto2 = document.getElementById("operacaoLocacaoModalidadeMoto");
+  if (moto2) moto2.checked = true;
   const form = document.getElementById("formOperacaoLocacaoInline");
   form?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
   const modal = document.getElementById("portalLocacaoConfirmModal");
@@ -388,6 +499,7 @@ async function main() {
   const js = readLocal("portal-locadora-ui.js");
   record("JS trava pelo CPF quando o código não é único", js.includes("código do cliente não é único") && js.includes("ignorarCodigoSeCpfCompleto") && js.includes("contrato de outro CPF nunca entra"));
   record("JS não escolhe o primeiro cliente cego pelo código", js.includes("findPortalClientesByCodigoBusca"));
+  record("JS ao digitar o Cód. lista pessoas e não a locação alheia", js.includes("lista ao digitar o Cód. mostra PESSOAS") && js.includes("collectOperacaoLocacaoSugestoesClientesPorCodigo"));
 
   let browserOk = false;
   try {
@@ -402,6 +514,54 @@ async function main() {
         });
         record("Browser: dados Marcelo/Débora com o mesmo Cód. 0363", Boolean((await cdpEval(session, SEED))?.ok));
         record("Browser: cadastro de locação visível", Boolean((await cdpEval(session, SHOW))?.ok));
+
+        const typed0363 = await cdpEval(session, TYPE_CODIGO.replace("__DK_COD__", JSON.stringify("0363")));
+        record(
+          "Browser: digitar Cód. 0363 lista Marcelo e Débora, sem o contrato dela",
+          Boolean(
+            typed0363 &&
+              !typed0363.hidden &&
+              typed0363.hasMarcelo &&
+              typed0363.hasDebora &&
+              !typed0363.temLocacaoDebora &&
+              typed0363.dizCadastro &&
+              !typed0363.dizContrato
+          ),
+          JSON.stringify(typed0363)
+        );
+        await capture(session, "locacao_cod_0363_pessoas.png");
+
+        const typed0370 = await cdpEval(session, TYPE_CODIGO.replace("__DK_COD__", JSON.stringify("0370")));
+        record(
+          "Browser: digitar Cód. 0370 lista Joana e Helder, sem o contrato dele",
+          Boolean(
+            typed0370 &&
+              !typed0370.hidden &&
+              typed0370.hasJoana &&
+              typed0370.hasHelder &&
+              !typed0370.temLocacaoHelder &&
+              typed0370.dizCadastro &&
+              !typed0370.dizContrato
+          ),
+          JSON.stringify(typed0370)
+        );
+        await capture(session, "locacao_cod_0370_pessoas.png");
+
+        await cdpEval(session, TYPE_CODIGO.replace("__DK_COD__", JSON.stringify("0363")));
+        const clicked = await cdpEval(session, CLICK_LISTA_NOME.replace("__DK_NOME_RE__", JSON.stringify("MARCELO")));
+        record(
+          "Browser: clicar no Marcelo na lista preenche o Marcelo e não carrega a locação da Débora",
+          Boolean(
+            clicked &&
+              clicked.ok &&
+              /MARCELO/i.test(clicked.nome || "") &&
+              String(clicked.cpf || "").includes("053") &&
+              String(clicked.protoSel || "") !== "2026072001" &&
+              !/UHQ1C08/i.test(clicked.placa || "")
+          ),
+          JSON.stringify(clicked)
+        );
+
         await cdpEval(session, SELECT_MARCELO);
         await new Promise((r) => setTimeout(r, 250));
         const after = await cdpEval(session, MEASURE);
@@ -427,7 +587,19 @@ async function main() {
           JSON.stringify(saved)
         );
         await capture(session, "locacao_marcelo_guardada.png");
+
+        const limpo = await cdpEval(session, LIMPAR);
+        record(
+          "Browser: Limpar esvazia o Cód. do cliente",
+          Boolean(limpo && limpo.codigo === "" && limpo.adminBusca === "" && limpo.listaEscondida),
+          JSON.stringify(limpo)
+        );
+        await capture(session, "locacao_limpar_esvazia_cod.png");
         browserOk =
+          Boolean(typed0363 && typed0363.hasMarcelo && typed0363.hasDebora && !typed0363.temLocacaoDebora) &&
+          Boolean(typed0370 && typed0370.hasJoana && typed0370.hasHelder && !typed0370.temLocacaoHelder) &&
+          Boolean(clicked && clicked.ok && /MARCELO/i.test(clicked.nome || "")) &&
+          Boolean(limpo && limpo.codigo === "") &&
           Boolean(after && !after.hasDebora && after.filtroSoMarcelo && !after.hasDeboraProto) &&
           Boolean(
             saved &&

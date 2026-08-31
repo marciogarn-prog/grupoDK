@@ -13509,6 +13509,11 @@
     if (typeof getLancamentoClienteCandidates === "function") {
       getLancamentoClienteCandidates().forEach(add);
     }
+    if (typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined") {
+      loadCadastro(CAD_LOCACOES_KEY).forEach((l) =>
+        add({ cpf: l.cpf, nome: l.nome || l.cliente, codigo: l.clienteCodigo || l.codigo })
+      );
+    }
     return Array.from(byCpf.values());
   }
 
@@ -13566,6 +13571,37 @@
       uniq.push(row.c);
     }
     return uniq;
+  }
+
+  /**
+   * Cód. do cliente não é único: a lista ao digitar o Cód. mostra PESSOAS, nunca a locação
+   * de outra pessoa que partilha o mesmo número.
+   */
+  function collectOperacaoLocacaoSugestoesClientesPorCodigo(raw) {
+    const dig =
+      typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
+    const byCpf = new Map();
+    findPortalClientesByCodigoBusca(raw).forEach((c) => {
+      const cpf = dig(String(c.cpf || "")).slice(0, 11);
+      if (cpf.length !== 11) return;
+      const nome = String(c.nome || c.cliente || "").trim() || "(sem nome)";
+      const codigo = resolvePortalClienteCodigoDisplay(cpf, c) || String(c.codigo || c.clienteCodigo || "").trim();
+      if (!byCpf.has(cpf)) {
+        byCpf.set(cpf, {
+          cpf,
+          nome,
+          codigo,
+          placa: "",
+          proto: "",
+          ativo: false,
+          corClasse: "portal-lanc-pesquisa-linha--branco",
+          fimBr: "",
+        });
+      }
+    });
+    return Array.from(byCpf.values()).sort((a, b) =>
+      String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR")
+    );
   }
 
   function syncOperacaoLocacaoCodigoFromCpf(cpfDigitsOpt) {
@@ -18652,10 +18688,32 @@
         hidePortalSugestoesLista(panel);
         return;
       }
+      /* Digitar só o Cód.: listar clientes (todas as pessoas com esse número), não um contrato alheio. */
+      const buscaSoCodigo =
+        temCodigoBusca &&
+        cpfDigits.length !== 11 &&
+        nomeKey.length < 2 &&
+        !temPlacaBusca &&
+        !searchingProto &&
+        !searchingNome &&
+        !searchingCpf;
+      if (buscaSoCodigo) {
+        const linhas = collectOperacaoLocacaoSugestoesClientesPorCodigo(codigoEl?.value || "");
+        if (!linhas.length) {
+          if (!panel) return;
+          panel.classList.remove("hidden");
+          panel.removeAttribute("hidden");
+          panel.innerHTML =
+            '<p class="portal-cliente-prefix-list__title">Nenhum cadastro encontrado com esse código — clique numa linha para confirmar quando aparecer.</p>';
+          return;
+        }
+        renderPortalSugestoesLista(panel, linhas, "cadastro");
+        return;
+      }
       const filtros = {
         nomeRaw: searchingNome || (!clienteConfirmado && nomeKey.length >= 2) ? String(inpNome?.value || "") : "",
         cpfRaw: searchingProto ? "" : String(inpCpf?.value || ""),
-        codigoRaw: !clienteConfirmado && temCodigoBusca ? String(codigoEl?.value || "") : "",
+        codigoRaw: "",
         placaRaw: temPlacaBusca ? placaRaw : "",
         protoRaw: searchingProto ? String(protoEl?.value || "") : "",
         ignorarCodigoSeCpfCompleto: cpfDigits.length === 11,
@@ -18695,6 +18753,12 @@
       const nome = String(btn.getAttribute("data-nome") || "").trim();
       const proto = String(btn.getAttribute("data-proto") || "").trim();
       const placa = String(btn.getAttribute("data-placa") || "").trim();
+      /* Lista do Cód. = só cliente; não carregar locação de outra pessoa com o mesmo código. */
+      if (!proto && cpf.length === 11) {
+        operacaoLocacaoCpfEscolher(cpf, nome);
+        hidePortalSugestoesLista(document.getElementById("operacaoLocacaoPesquisaLista"));
+        return;
+      }
       if (proto && isPortalTitularAdministrador()) {
         const busca = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
         if (busca) busca.value = proto;
@@ -19055,12 +19119,27 @@
     form?.querySelectorAll("input").forEach((inp) => {
       inp.value = "";
     });
+    const codEl = document.getElementById("operacaoLocacaoClienteCodigo");
+    if (codEl) {
+      codEl.value = "";
+      codEl.placeholder = "Ex.: 0003";
+      codEl.setAttribute("title", "Código do cliente");
+    }
+    const adminBusca = document.getElementById("operacaoLocacaoProtocoloAdminBusca");
+    if (adminBusca) adminBusca.value = "";
     hideOperacaoLocacaoPlacaDropdown();
+    hideOperacaoLocacaoCpfLista();
+    hidePortalSugestoesLista(document.getElementById("operacaoLocacaoPesquisaLista"));
     const placaInp = document.getElementById("operacaoLocacaoPlaca");
     if (placaInp) placaInp.setAttribute("aria-expanded", "false");
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (msg) msg.textContent = "";
     refreshOperacaoLocacaoDatalists();
+    if (codEl) {
+      codEl.value = "";
+      codEl.placeholder = "Ex.: 0003";
+      codEl.setAttribute("title", "Código do cliente");
+    }
     resetOperacaoLocacaoRelatorioPanel();
     syncOperacaoLocacaoValorPlano();
     syncOperacaoLocacaoFromDataInicio();
@@ -19068,6 +19147,7 @@
     refreshOperacaoLocacaoProtocoloPicker({ force: true });
     portalResetAmbienteForm("Locacao");
     refreshOperacaoLocacaoApagarProtocoloBtn();
+    hidePortalSugestoesLista(document.getElementById("operacaoLocacaoPesquisaLista"));
   }
 
   document.getElementById("operacaoLocacaoLimparBtn")?.addEventListener("click", (e) => {
@@ -21087,6 +21167,7 @@
   window.__DK_collectPortalSugestoesClienteUnico = collectPortalSugestoesClienteUnico;
   window.__DK_collectOperacaoLocacaoSugestoesLinhas = collectOperacaoLocacaoSugestoesLinhas;
   window.__DK_findPortalClientesByCodigoBusca = findPortalClientesByCodigoBusca;
+  window.__DK_collectOperacaoLocacaoSugestoesClientesPorCodigo = collectOperacaoLocacaoSugestoesClientesPorCodigo;
   window.__DK_isPortalLocacaoAtiva = isPortalLocacaoAtiva;
   window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
   window.__DK_portalCoerceDataFimBr = portalCoerceDataFimBr;

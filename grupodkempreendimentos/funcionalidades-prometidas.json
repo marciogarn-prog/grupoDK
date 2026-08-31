@@ -100,13 +100,15 @@
     },
     {
       "id": "codigo-cliente-nao-unico",
-      "descricao": "No Cadastro de locação, o Cód. do cliente não é único: com o cliente já escolhido (CPF+nome) a lista não pode mostrar a locação de outra pessoa que partilha o mesmo código.",
+      "descricao": "No Cadastro de locação, o Cód. do cliente não é único: digitar o Cód. lista as pessoas com esse número (não a locação de outra); Limpar esvazia o Cód.",
       "ficheiros": {
         "portal-locadora-ui.js": [
           "código do cliente não é único",
           "ignorarCodigoSeCpfCompleto",
           "findPortalClientesByCodigoBusca",
-          "contrato de outro CPF nunca entra"
+          "contrato de outro CPF nunca entra",
+          "lista ao digitar o Cód. mostra PESSOAS",
+          "collectOperacaoLocacaoSugestoesClientesPorCodigo"
         ]
       }
     }
