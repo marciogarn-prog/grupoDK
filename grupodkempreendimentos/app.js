@@ -2924,6 +2924,7 @@ function mergeCadastroVeiculoHistorico(ex, incoming) {
     "renavam",
     "motor",
     "proprietario",
+    "proprietarioCpfCnpj",
     "local",
     "status",
     "numLinha",

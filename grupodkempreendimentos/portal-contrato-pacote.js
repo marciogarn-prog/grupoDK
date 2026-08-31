@@ -678,11 +678,30 @@ ${cssContratoPag}
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const w = window.open(url, "_blank", "noopener,noreferrer,width=980,height=900");
+    /* Chrome devolve null se window.open(..., "noopener") — a janela até abre,
+       mas o código revogava o blob e o pacote ficava em branco. Abrir about:blank
+       primeiro permite detectar bloqueio de pop-up de verdade. */
+    const w = window.open("about:blank", "_blank", "width=980,height=900");
     if (!w) {
       URL.revokeObjectURL(url);
       if (msgEl) msgEl.textContent = "Permita pop-ups para abrir o pacote de contratos.";
       return false;
+    }
+    try {
+      w.opener = null;
+    } catch {
+      /* ignore */
+    }
+    try {
+      w.location.replace(url);
+    } catch {
+      try {
+        w.location.href = url;
+      } catch {
+        URL.revokeObjectURL(url);
+        if (msgEl) msgEl.textContent = "Não foi possível abrir o pacote de contratos neste navegador.";
+        return false;
+      }
     }
     setTimeout(() => URL.revokeObjectURL(url), 60000);
     try {

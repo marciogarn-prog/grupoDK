@@ -168,6 +168,51 @@
           "portal-pdf-viewer__sort-btn"
         ]
       }
+    },
+    {
+      "id": "veiculo-proprietario-cpf-cnpj",
+      "descricao": "No Cadastro de veículo, ao lado do nome do proprietário existe o campo CPF OU CNPJ DO PROPRIETÁRIO; o relatório da frota mostra Proprietário e CPF/CNPJ.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoVeiculoProprietarioCpfCnpj",
+          "CPF OU CNPJ DO PROPRIETÁRIO"
+        ],
+        "portal-locadora-ui.js": [
+          "formatPortalCpfCnpjInput",
+          "proprietarioCpfCnpj"
+        ]
+      }
+    },
+    {
+      "id": "locacao-odometro-inicio-fim",
+      "descricao": "No Cadastro de locação existem ODOMETRO INICIO e ODOMETRO FIM, gravados em kmInicial e kmFinal.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoOdometroInicio",
+          "ODOMETRO INICIO",
+          "operacaoLocacaoOdometroFim",
+          "ODOMETRO FIM"
+        ],
+        "portal-locadora-ui.js": [
+          "digitsPortalOdometro",
+          "kmFinal"
+        ]
+      }
+    },
+    {
+      "id": "gerar-contrato-protocolo-carregado",
+      "descricao": "No Cadastro de locação, Gerar contrato abre o contrato de 10 páginas já formatado para impressão (Imprimir), com o protocolo carregado (não preso em NOVO).",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "pinOperacaoLocacaoProtocoloCarregado",
+          "Protocolo carregado fica seleccionado"
+        ],
+        "portal-contrato-locacao.js": [
+          "popup.document.write(html)",
+          "modelo 10 páginas formatado para impressão",
+          "id=\"btnImprimir\">Imprimir"
+        ]
+      }
     }
   ]
 }

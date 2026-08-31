@@ -29,3 +29,6 @@ Itens actualmente travados:
 - Protocolo **2026082801** com data início 28/08/2026 grava a locação (o bloqueio antigo era um typo de 16/01).
 - Cód. do cliente no padrão de **4 dígitos** (`CLIENTE 386` → `0386`); cadastros novos continuam `0387`, `0388`…
 - Pré-visualização do relatório: setas **↓** (primeiro → último cadastro) e **↑** (último → primeiro).
+- Cadastro de veículo: campo **CPF OU CNPJ DO PROPRIETÁRIO** ao lado do nome; o relatório da frota mostra Proprietário e CPF/CNPJ.
+- Cadastro de locação: campos **ODOMETRO INICIO** e **ODOMETRO FIM**.
+- Cadastro de locação: **Gerar contrato** abre o contrato de **10 páginas formatado para impressão** (botão Imprimir) e não fica preso em NOVO.

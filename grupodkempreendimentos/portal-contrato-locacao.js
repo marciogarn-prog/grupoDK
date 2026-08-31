@@ -1047,12 +1047,12 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
     const paginas = buildPaginasHtml(dados);
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
+  <button type="button" id="btnImprimir">Imprimir</button>
   <span id="barraInicial"><button type="button" id="btnGerarPdf">Gerar PDF</button></span>
   <span id="barraPosPdf" class="hidden">
-    <button type="button" id="btnImprimir">Imprimir</button>
     <button type="button" id="btnSalvar">Salvar</button>
   </span>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão</span>
 </div>
 <div id="contratoSalvarDialog" class="contrato-salvar-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="contratoSalvarTitulo">
   <div class="contrato-salvar-dialog__box">
@@ -1202,14 +1202,9 @@ ${scriptPreviewInline(dados)}
   function abrirPreviewContrato(dados) {
     const msgEl = document.getElementById("operacaoLocacaoInlineMsg");
     const dadosFinal = garantirDadosContratoComEndereco(dados);
-    if (typeof window.__DK_contratoPacoteAbrir === "function") {
-      const ok = window.__DK_contratoPacoteAbrir(dadosFinal);
-      if (ok && msgEl) {
-        msgEl.textContent = `Pacote ${dadosFinal.protocolo} — 4 documentos preenchidos (contrato, opção, promessa e requerimento). Gere os PDFs na janela.`;
-      }
-      return ok;
-    }
     const html = buildContratoPreviewHtml(dadosFinal);
+    /* Volta o fluxo original: janela com o contrato de 10 páginas já formatado
+       para impressão (document.write). O pacote de 4 docs não substitui isto. */
     const popup = window.open("", "_blank", "width=920,height=1000");
     if (!popup) {
       if (msgEl) msgEl.textContent = "O navegador bloqueou a janela — permita pop-ups para gerar o contrato.";
@@ -1219,7 +1214,7 @@ ${scriptPreviewInline(dados)}
     popup.document.close();
     popup.focus();
     if (msgEl) {
-      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — clique «Gerar PDF» na janela; depois «Salvar» para a pasta Contratos ATIVOS.`;
+      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — 10 páginas formatadas. Clique «Imprimir» na janela.`;
     }
     return true;
   }
@@ -1277,29 +1272,21 @@ ${scriptPreviewInline(dados)}
 
   function atualizarBotaoContratoLocacao() {
     const btn = document.getElementById("operacaoLocacaoVisualizarContratoBtn");
-    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");
     if (!btn) return;
-    const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
     const proto = normProtocolo(hid?.value);
-    const can = Boolean(proto) && !isNovo;
+    const dados = resolverDadosFromForm();
+    const can = Boolean(proto) && !validarDados(dados);
     btn.disabled = !can;
     if (!can) {
       btn.textContent = "Gerar contrato";
       btn.dataset.dkModo = "gerar";
-      btn.title = "Cadastre a locação ou carregue um protocolo existente (não «NOVO»).";
+      btn.title = "Preencha protocolo, CPF, cliente e placa para gerar o contrato.";
       return;
     }
-    const existe = contratoExisteParaProtocolo(proto);
-    if (existe) {
-      btn.textContent = "Visualizar contrato";
-      btn.dataset.dkModo = "visualizar";
-      btn.title = `Abrir o PDF guardado para o protocolo ${proto}.`;
-    } else {
-      btn.textContent = "Gerar contrato";
-      btn.dataset.dkModo = "gerar";
-      btn.title = `Abrir o modelo (10 páginas), gerar PDF e guardar em Contratos ATIVOS.`;
-    }
+    btn.textContent = "Gerar contrato";
+    btn.dataset.dkModo = "gerar";
+    btn.title = `Abrir o contrato formatado (10 páginas) do protocolo ${proto} para imprimir.`;
   }
 
   function hidratarCamposClienteParaContrato(cpfDigits) {
@@ -1365,11 +1352,6 @@ ${scriptPreviewInline(dados)}
     const err = validarDados(dados);
     if (err) {
       if (msgEl) msgEl.textContent = err;
-      return;
-    }
-    const modo = String(e.currentTarget?.dataset?.dkModo || "").trim();
-    if (modo === "visualizar" || contratoExisteParaProtocolo(dados.protocolo)) {
-      void visualizarContratoArmazenado(dados.protocolo);
       return;
     }
     abrirPreviewContrato(dados);

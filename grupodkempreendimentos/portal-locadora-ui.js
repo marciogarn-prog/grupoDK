@@ -1070,6 +1070,7 @@
     renavam: "Renavam",
     motor: "Motor",
     proprietario: "Proprietário",
+    proprietarioCpfCnpj: "CPF/CNPJ do proprietário",
     local: "Local",
   };
 
@@ -1087,6 +1088,8 @@
     periodoLocacao: "Período",
     marcaModelo: "Marca/modelo",
     modalidade: "Modalidade",
+    kmInicial: "Odômetro início",
+    kmFinal: "Odômetro fim",
   };
 
   let portalAdminAlteracaoConfirmCallback = null;
@@ -9906,6 +9909,73 @@
     return "";
   }
 
+  function digitsPortalCpfCnpj(raw) {
+    return String(raw || "").replace(/\D/g, "").slice(0, 14);
+  }
+
+  function formatPortalCpfCnpjInput(raw) {
+    const d = digitsPortalCpfCnpj(raw);
+    if (!d) return "";
+    if (d.length <= 11) {
+      const a = d.slice(0, 3);
+      const b = d.slice(3, 6);
+      const c = d.slice(6, 9);
+      const e = d.slice(9, 11);
+      if (d.length <= 3) return a;
+      if (d.length <= 6) return `${a}.${b}`;
+      if (d.length <= 9) return `${a}.${b}.${c}`;
+      return `${a}.${b}.${c}-${e}`;
+    }
+    const a = d.slice(0, 2);
+    const b = d.slice(2, 5);
+    const c = d.slice(5, 8);
+    const e = d.slice(8, 12);
+    const f = d.slice(12, 14);
+    if (d.length <= 8) return `${a}.${b}.${c}`;
+    if (d.length <= 12) return `${a}.${b}.${c}/${e}`;
+    return `${a}.${b}.${c}/${e}-${f}`;
+  }
+
+  function formatPortalCpfCnpjExibicao(raw) {
+    const d = digitsPortalCpfCnpj(raw);
+    if (d.length === 11 || d.length === 14) return formatPortalCpfCnpjInput(d);
+    return String(raw || "").trim();
+  }
+
+  function digitsPortalOdometro(raw) {
+    return String(raw || "").replace(/\D/g, "").slice(0, 9);
+  }
+
+  function formatPortalOdometroKm(raw) {
+    const d = digitsPortalOdometro(raw);
+    if (!d) return "";
+    const n = Number(d);
+    return Number.isFinite(n) ? n.toLocaleString("pt-BR") : d;
+  }
+
+  function bindOperacaoVeiculoProprietarioCpfCnpjMask() {
+    const inp = document.getElementById("operacaoVeiculoProprietarioCpfCnpj");
+    if (!inp || inp.dataset.dkCpfCnpjMask === "1") return;
+    inp.dataset.dkCpfCnpjMask = "1";
+    inp.addEventListener("input", () => {
+      inp.value = formatPortalCpfCnpjInput(inp.value);
+    });
+  }
+
+  function bindOperacaoLocacaoOdometroMask() {
+    ["operacaoLocacaoOdometroInicio", "operacaoLocacaoOdometroFim"].forEach((id) => {
+      const inp = document.getElementById(id);
+      if (!inp || inp.dataset.dkOdometroMask === "1") return;
+      inp.dataset.dkOdometroMask = "1";
+      inp.addEventListener("input", () => {
+        inp.value = formatPortalOdometroKm(inp.value);
+      });
+    });
+  }
+
+  window.__DK_formatPortalCpfCnpjInput = formatPortalCpfCnpjInput;
+  window.__DK_formatPortalCpfCnpjExibicao = formatPortalCpfCnpjExibicao;
+
   function fillOperacaoVeiculoFormFromRecord(veiculo) {
     if (!veiculo) return;
     const getVal = (id) => document.getElementById(id);
@@ -9940,6 +10010,10 @@
     set("operacaoVeiculoRenavam", veiculo.renavam);
     set("operacaoVeiculoMotor", veiculo.motor);
     set("operacaoVeiculoProprietario", veiculo.proprietario);
+    set(
+      "operacaoVeiculoProprietarioCpfCnpj",
+      formatPortalCpfCnpjInput(veiculo.proprietarioCpfCnpj || veiculo.cpfCnpjProprietario || veiculo.cpfCnpj)
+    );
     set("operacaoVeiculoLocal", veiculo.local);
     setOperacaoVeiculoCadastradoPorDisplay(veiculo);
     const msg = document.getElementById("operacaoVeiculoInlineMsg");
@@ -11225,7 +11299,10 @@
                   .replace(/[^A-Z0-9]/g, "");
           return pl === plateKey;
         })
-        .forEach((l) => consider(l.kmInicial));
+        .forEach((l) => {
+          consider(l.kmInicial);
+          consider(l.kmFinal);
+        });
     }
     if (typeof buildLatestReceita2026RowByPlateMap === "function") {
       const hit = buildLatestReceita2026RowByPlateMap().get(plateKey);
@@ -11477,6 +11554,8 @@
       protocolo,
       String(v.anoModelo || "").trim() || "—",
       String(v.cor || "").trim() || "—",
+      String(v.proprietario || "").trim() || "—",
+      formatPortalCpfCnpjExibicao(v.proprietarioCpfCnpj || v.cpfCnpjProprietario || v.cpfCnpj) || "—",
     ];
   }
 
@@ -11662,7 +11741,7 @@
   }
 
   function getPortalRelatorioVeiculoContext() {
-    const headers = ["Tag", "Placa", "Tipo", "Marca", "Modelo", "Protocolo", "Ano/Modelo", "Cor"];
+    const headers = ["Tag", "Placa", "Tipo", "Marca", "Modelo", "Protocolo", "Ano/Modelo", "Cor", "Proprietário", "CPF/CNPJ"];
     const sections = buildPortalRelatorioVeiculoFrotaSections();
     const nInativos = portalCountVeiculosGrupos(sections.inativos);
     const nAtivos = portalCountVeiculosGrupos(sections.ativos);
@@ -14614,6 +14693,12 @@
     }
     const novo = proximoProtocoloPortalAaaammddXX(inicioDt);
     if (isNovo) {
+      const hidNc = normPortalNumeroContrato(hid.value);
+      if (hidNc && findPortalLocacaoByProtocolo(hidNc)) {
+        /* Protocolo carregado: não trocar pelo próximo NOVO (ex. 2026083102 → 2026083103). */
+        pinOperacaoLocacaoProtocoloCarregado(hidNc);
+        return;
+      }
       hid.value = novo;
       const optNovo = Array.from(sel.options || []).find((o) => o.value === PORTAL_PROTO_NOVO);
       if (optNovo) optNovo.textContent = `NOVO — ${novo}`;
@@ -14716,6 +14801,10 @@
     if (diEl) diEl.value = fmtDate(loc.inicio);
     if (dfEl) dfEl.value = fmtDate(loc.fim);
     if (diaPagEl) diaPagEl.value = String(loc.diaPagto || loc.diaPagamento || "").trim();
+    const odIni = document.getElementById("operacaoLocacaoOdometroInicio");
+    const odFim = document.getElementById("operacaoLocacaoOdometroFim");
+    if (odIni) odIni.value = formatPortalOdometroKm(loc.kmInicial || loc.odometroInicio);
+    if (odFim) odFim.value = formatPortalOdometroKm(loc.kmFinal || loc.odometroFim);
     const fmtValor = (raw) => {
       if (typeof parseCurrencyBR === "function" && typeof currencyBRL === "function") {
         return currencyBRL(parseCurrencyBR(String(raw || "")));
@@ -14755,6 +14844,8 @@
     }
     const lancForm = document.getElementById("formOperacaoLancAluguel");
     if (lancForm) lancForm.classList.toggle("portal-registro-teste", portalRegistroEhTeste(loc));
+    /* Depois de sync/refresh do picker: o protocolo carregado fica seleccionado (não NOVO). */
+    pinOperacaoLocacaoProtocoloCarregado(nc);
   }
 
   function clearPortalLocacaoCamposParaNovoContrato() {
@@ -14787,6 +14878,16 @@
       digits.length === 11 &&
       (Boolean(getPortalClienteKnownRecord(digits)) || locs.some((l) => Boolean(normPortalNumeroContrato(l.numeroContrato))));
     if (!known) {
+      const keepNc =
+        typeof normalizeNumeroContratoKey === "function"
+          ? normalizeNumeroContratoKey(String(hid.value || ""))
+          : String(hid.value || "").trim();
+      const keepLoc = keepNc ? findPortalLocacaoByProtocolo(keepNc) : null;
+      if (keepLoc) {
+        portalLocacaoProtocoloPickerCpf = digits;
+        pinOperacaoLocacaoProtocoloCarregado(keepNc);
+        return;
+      }
       portalLocacaoProtocoloPickerCpf = "";
       sel.disabled = true;
       sel.replaceChildren();
@@ -14815,6 +14916,13 @@
       const nc = norm(l.numeroContrato || "");
       if (nc) byNc.set(nc, l);
     });
+    /* Protocolo já no campo (Carregar / cadastro) não pode cair em NOVO só porque o CPF
+       ainda não listou essa locação — senão «Gerar contrato» fica desligado. */
+    const preserveNorm = preserve ? norm(preserve) : "";
+    if (preserveNorm && !byNc.has(preserveNorm)) {
+      const extra = findPortalLocacaoByProtocolo(preserveNorm);
+      if (extra) byNc.set(preserveNorm, extra);
+    }
     const sorted = Array.from(byNc.keys()).sort((a, b) => a.localeCompare(b, "en"));
     if (!sorted.length && digits.length === 11 && !opts.syncingCloud) {
       if (msgEl) msgEl.textContent = "A carregar protocolos da nuvem…";
@@ -14863,7 +14971,7 @@
     const protoNovo = inicioOk ? proximoProtocoloPortalAaaammddXX(inicioDt) : "";
     optNovo.textContent = protoNovo ? `NOVO — ${protoNovo}` : "NOVO — (informe data de início)";
     sel.appendChild(optNovo);
-    const pNorm = preserve ? norm(preserve) : "";
+    const pNorm = preserveNorm;
     if (pNorm && sorted.includes(pNorm)) {
       sel.value = pNorm;
       hid.value = pNorm;
@@ -14981,6 +15089,38 @@
     );
   }
 
+  /** Protocolo carregado fica seleccionado — Gerar contrato não fica preso em NOVO. */
+  function pinOperacaoLocacaoProtocoloCarregado(ncRaw) {
+    const nc = normPortalNumeroContrato(ncRaw);
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!nc || !hid || !sel) return;
+    hid.value = nc;
+    if (sel.disabled) sel.disabled = false;
+    const has = Array.from(sel.options).some((o) => o.value === nc);
+    if (!has) {
+      const loc = findPortalLocacaoByProtocolo(nc);
+      const opt = document.createElement("option");
+      opt.value = nc;
+      const placa =
+        loc && typeof normalizePlate === "function"
+          ? normalizePlate(String(loc.placa || ""))
+          : String(loc?.placa || "").trim();
+      const ini = String(loc?.inicio || "").trim();
+      opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}`;
+      const novo = Array.from(sel.options).find((o) => o.value === PORTAL_PROTO_NOVO);
+      if (novo) sel.insertBefore(opt, novo);
+      else sel.appendChild(opt);
+    }
+    sel.value = nc;
+    syncOperacaoLocacaoProtocoloSelectAtivoUi();
+    refreshOperacaoLocacaoSubmitBtn();
+    refreshOperacaoLocacaoVisualizarContratoBtn();
+    if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
+      window.__DK_refreshOperacaoLocacaoDocumentosUi();
+    }
+  }
+
   function getOperacaoProtocoloMaisRecente() {
     if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return "";
     let best = "";
@@ -15077,12 +15217,14 @@
       if (codEl && fromLoc) codEl.value = fromLoc;
     }
     portalLocacaoProtocoloPickerCpf = "";
-    refreshOperacaoLocacaoProtocoloPicker({ force: true });
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
     const hid = document.getElementById("operacaoLocacaoProtocolo");
+    if (hid) hid.value = nc;
+    refreshOperacaoLocacaoProtocoloPicker({ force: true });
     if (sel) sel.value = nc;
     if (hid) hid.value = nc;
     applyPortalLocacaoRowFromRecord(loc);
+    pinOperacaoLocacaoProtocoloCarregado(nc);
     refreshOperacaoLocacaoDatalists();
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoFinalizarBtn();
@@ -15495,6 +15637,7 @@
       renavam,
       motor,
       proprietario: getVal("operacaoVeiculoProprietario"),
+      proprietarioCpfCnpj: digitsPortalCpfCnpj(getVal("operacaoVeiculoProprietarioCpfCnpj")),
       local: getVal("operacaoVeiculoLocal"),
       status: String(existenteVeiculo?.status || "DISPONIVEL").trim() || "DISPONIVEL",
       ambiente: PORTAL_AMBIENTE_REAL,
@@ -15514,6 +15657,7 @@
       renavam: portalNormDiffVal(v?.renavam),
       motor: portalNormDiffVal(v?.motor),
       proprietario: portalNormDiffVal(v?.proprietario),
+      proprietarioCpfCnpj: portalNormDiffVal(v?.proprietarioCpfCnpj),
       local: portalNormDiffVal(v?.local),
     });
     const doSaveVeiculo = () => {
@@ -15863,11 +16007,12 @@
       marcaModelo,
       opcaoContrato: tipoPlanoStr,
       periodoContrato: "",
-      kmInicial: "",
       configPrecoKm: "",
       tabela: "",
       valorParcela: valorSemanal,
       clienteCodigo,
+      kmInicial: digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroInicio")?.value),
+      kmFinal: digitsPortalOdometro(document.getElementById("operacaoLocacaoOdometroFim")?.value),
       ambiente: PORTAL_AMBIENTE_REAL,
       origemPortal: true,
       ...portalResolveResponsavelStamp(prev),
@@ -15936,16 +16081,11 @@
       portalLocacaoFeedback(prev ? "Locação atualizada." : "Locação cadastrada.");
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();
-      const selAfter = document.getElementById("operacaoLocacaoProtocoloSelect");
-      const hidAfter = document.getElementById("operacaoLocacaoProtocolo");
-      if (selAfter && hidAfter) {
-        selAfter.value = nc;
-        hidAfter.value = nc;
-      }
       const saved = locs.find(
         (l) => dig(String(l.cpf || "")) === cpfDigits && normPortalNumeroContrato(l.numeroContrato) === nc
       );
       if (saved) applyPortalLocacaoRowFromRecord(saved);
+      pinOperacaoLocacaoProtocoloCarregado(nc);
       refreshOperacaoLocacaoDatalists();
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoVisualizarContratoBtn();
@@ -19197,6 +19337,8 @@
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
   bindOperacaoVeiculoPlacaAssist();
+  bindOperacaoVeiculoProprietarioCpfCnpjMask();
+  bindOperacaoLocacaoOdometroMask();
   document.getElementById("formOperacaoVeiculoInline")?.addEventListener("submit", persistPortalOperacaoVeiculoInlineSubmit);
   document.getElementById("operacaoVeiculoTipo")?.addEventListener("change", refreshOperacaoVeiculoTagPreview);
   document.getElementById("operacaoVeiculoLimparBtn")?.addEventListener("click", (e) => {
@@ -20884,6 +21026,8 @@
       dataInicio: "operacaoLocacaoDataInicio",
       diaPagamento: "operacaoLocacaoDiaPagamento",
       dataFim: "operacaoLocacaoDataFim",
+      odometroInicio: "operacaoLocacaoOdometroInicio",
+      odometroFim: "operacaoLocacaoOdometroFim",
       tempoDias: "operacaoLocacaoTempoDias",
       custoDia: "operacaoLocacaoCustoDia",
       valorAluguel: "operacaoLocacaoValorAluguel",
