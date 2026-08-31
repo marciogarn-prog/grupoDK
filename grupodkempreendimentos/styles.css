@@ -9927,7 +9927,165 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #c2410c;
 }
 
-/* FINANCEIRO CEO */
+/* FINANCEIRO CEO — ecrã completo no Windows (não o bloco estreito de 36rem). */
+#view-financeiro-ceo.view--active {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  justify-content: flex-start;
+  overflow: hidden;
+  height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px));
+  min-height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px));
+}
+
+#view-financeiro-ceo .subpage.fin-pptx {
+  display: grid;
+  grid-template-columns: 14.5rem minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+  max-width: none;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  justify-content: stretch;
+  overflow: hidden;
+}
+
+#view-financeiro-ceo .fin-pptx__page-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#view-financeiro-ceo .fin-pptx__page-lead {
+  display: none;
+}
+
+#view-financeiro-ceo #panel-financeiro-ceo-locadora:not(.hidden) {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  min-height: 0;
+}
+
+#view-financeiro-ceo #panel-financeiro-ceo-locadora::before {
+  display: none;
+}
+
+#view-financeiro-ceo .fin-pptx__layout {
+  display: contents;
+}
+
+#view-financeiro-ceo .fin-pptx__rail {
+  grid-column: 1;
+  grid-row: 1 / -1;
+  position: relative;
+  top: auto;
+  align-self: stretch;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  height: auto;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.5rem 0.45rem 0.7rem;
+  background: rgba(6, 6, 8, 0.94);
+  border: 0;
+  border-right: 2px solid #dc2626;
+  border-radius: 0;
+}
+
+#view-financeiro-ceo .fin-pptx__rail .operacao-comandos {
+  margin: 0.25rem 0 0;
+  gap: 0.22rem;
+  flex: 1 1 auto;
+}
+
+#view-financeiro-ceo .fin-pptx__rail .btn-operacao-cmd {
+  padding: 0.42rem 0.5rem;
+  border-radius: 6px;
+}
+
+#view-financeiro-ceo .fin-pptx__rail .btn-operacao-cmd__title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
+#view-financeiro-ceo .fin-pptx__top {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin: 0;
+  min-height: 2rem;
+  padding: 0.15rem 0.7rem;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* a bola do mouse move o cadastro de despesas */
+#view-financeiro-ceo .fin-pptx__slide {
+  grid-column: 2;
+  grid-row: 2;
+  min-width: 0;
+  min-height: 0;
+  padding: 0.45rem 1.25rem 1rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  background: rgba(8, 8, 10, 0.62);
+}
+
+#view-financeiro-ceo .fin-pptx__slide .operacao-inline-form {
+  margin: 0;
+  padding: 0 0 1.5rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-height: min-content;
+  overflow: visible;
+}
+
+#view-financeiro-ceo .fin-pptx__slide .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
+  overflow: visible;
+}
+
+#view-financeiro-ceo .fin-pptx__slide .operacao-inline-form__title {
+  font-size: 1.35rem;
+  letter-spacing: 0.03em;
+  margin: 0 0 0.65rem;
+}
+
+#view-financeiro-ceo .operacao-form-placeholder {
+  min-height: min(58vh, 28rem);
+  margin: 0.5rem 0;
+  border-style: solid;
+  background: rgba(8, 8, 10, 0.55);
+}
+
+#view-financeiro-ceo .fin-ceo-pane .fin-table-wrap {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
 .view--fin-ceo .fin-ceo-kpis {
   display: flex;
   flex-wrap: wrap;
@@ -9935,10 +10093,47 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 1rem 0 1.25rem;
 }
 
+/* Nunca 3 colunas espremidas: labels e selects não se sobrepõem no Windows. */
+#view-financeiro-ceo .fin-ceo-desp-form.operacao-inline-form__grid,
+#view-financeiro-ceo .fin-ceo-desp-form--windows {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.95rem 1.25rem;
+  width: 100%;
+  max-width: 62rem;
+  align-items: start;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-form .portal-field,
+#view-financeiro-ceo .fin-ceo-desp-form .portal-field--wide,
+#view-financeiro-ceo .fin-ceo-desp-form .fin-ceo-campos-periodico,
+#view-financeiro-ceo .fin-ceo-desp-form .fin-ceo-campos-avulso,
+#view-financeiro-ceo .fin-ceo-desp-form .operacao-inline-form__actions {
+  grid-column: 1 / -1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-form .portal-field span {
+  display: block;
+  white-space: normal;
+  overflow: visible;
+  line-height: 1.3;
+  margin-bottom: 0.15rem;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-form input:not([type="radio"]):not([type="checkbox"]),
+#view-financeiro-ceo .fin-ceo-desp-form select {
+  width: 100%;
+  min-height: 2.65rem;
+  font-size: 1rem;
+  box-sizing: border-box;
+}
+
 .fin-ceo-campos-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.85rem 1rem;
   width: 100%;
 }
 
@@ -9951,7 +10146,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .fin-ceo-parcela-row {
   display: grid;
-  grid-template-columns: 1fr 5rem 5rem auto;
+  grid-template-columns: minmax(12rem, 1fr) 6.5rem 6.5rem auto;
   gap: 0.65rem;
   align-items: end;
 }
@@ -9964,6 +10159,54 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .fin-ceo-desp-form .operacao-inline-form__actions {
   grid-column: 1 / -1;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-form .operacao-inline-form__actions {
+  margin-top: 0.5rem;
+  padding-bottom: 0.35rem;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-form .operacao-inline-form__actions .btn-primary {
+  min-height: 2.75rem;
+  padding: 0.7rem 1.35rem;
+}
+
+@media (max-width: 900px) {
+  #view-financeiro-ceo .subpage.fin-pptx {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  #view-financeiro-ceo .fin-pptx__rail {
+    grid-column: 1;
+    grid-row: 2;
+    height: auto;
+    max-height: none;
+    border-right: 0;
+    border-bottom: 2px solid #dc2626;
+    padding: 0.4rem 0.5rem 0.55rem;
+  }
+
+  #view-financeiro-ceo .fin-pptx__rail .operacao-comandos {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  #view-financeiro-ceo .fin-pptx__rail .btn-operacao-cmd {
+    min-width: 10.5rem;
+    flex: 0 0 auto;
+  }
+
+  #view-financeiro-ceo .fin-pptx__top {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  #view-financeiro-ceo .fin-pptx__slide {
+    grid-column: 1;
+    grid-row: 3;
+  }
 }
 
 /* Offline operação (PWA Windows) */

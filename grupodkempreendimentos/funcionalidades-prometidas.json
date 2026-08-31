@@ -63,6 +63,21 @@
           "operacao-inline-form operacao-inline-form--rodar-mouse"
         ]
       }
+    },
+    {
+      "id": "fin-ceo-despesas-windows",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas no Windows: o ecrã usa a largura do monitor, Categoria/Subcategoria/Periódico não se sobrepõem, e a bola do mouse move o conteúdo.",
+      "ficheiros": {
+        "styles.css": [
+          "fin-ceo-desp-form--windows",
+          "#view-financeiro-ceo .fin-pptx__slide",
+          "a bola do mouse move o cadastro de despesas"
+        ],
+        "index.html": [
+          "id=\"finCeoPaneDespesas\" class=\"operacao-inline-form operacao-inline-form--rodar-mouse",
+          "fin-ceo-desp-form--windows"
+        ]
+      }
     }
   ]
 }
