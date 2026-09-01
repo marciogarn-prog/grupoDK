@@ -613,6 +613,8 @@
 .pe-pagina.pe-opcao {
   position: absolute;
   left: 12mm; right: 12mm; bottom: 6.5mm;
+  display: flex;
+  justify-content: space-between;
   font-size: 7.5pt; color: #333;
   font-family: Arial, Helvetica, sans-serif;
   border-top: 0;
@@ -782,6 +784,8 @@ ${cssVistoria()}
 .pe-pagina.pe-vistoria {
   position: absolute;
   left: 12mm; right: 12mm; bottom: 6.5mm;
+  display: flex;
+  justify-content: space-between;
   font-size: 7.5pt; color: #333;
   font-family: Arial, Helvetica, sans-serif;
   border-top: 0;

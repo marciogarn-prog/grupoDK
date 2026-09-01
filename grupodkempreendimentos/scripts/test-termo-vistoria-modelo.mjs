@@ -300,7 +300,8 @@ async function main() {
   await withLocalServer(async (base) => {
     for (const c of CORES) {
       const res = await fetch(`${base}images/modelos/${c.file}`);
-      record(`HTTP ${c.file}`, res.ok && Number(res.headers.get("content-length") || 0) > 50000, String(res.status));
+      const buf = Buffer.from(await res.arrayBuffer());
+      record(`HTTP ${c.file}`, res.ok && buf.length > 50000, `${res.status} ${buf.length}b`);
     }
 
     await withChromePage(async (session) => {
