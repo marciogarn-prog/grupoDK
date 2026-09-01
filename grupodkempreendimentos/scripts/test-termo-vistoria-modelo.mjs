@@ -56,6 +56,11 @@ const CORES_KWID = [
 
 const CORES_ETIOS = [{ cor: "BRANCA", file: "etios-branco.png", rotulo: "branco" }];
 
+const CORES_GOL = [
+  { cor: "CINZA", file: "gol-cinza.png", rotulo: "cinza" },
+  { cor: "PRATA", file: "gol-cinza.png", rotulo: "prata" },
+];
+
 const VEICULO_SHI = { marca: "SHINERAY", modelo: "SHI 175 S EFI", marcaModelo: "SHI 175 S EFI" };
 const VEICULO_BROS = { marca: "HONDA", modelo: "NXR 160 BROS ESDD", marcaModelo: "NXR 160 BROS ESDD" };
 const VEICULO_YBR = { marca: "YAMAHA", modelo: "YBR 150 FACTOR", marcaModelo: "YBR 150 FACTOR" };
@@ -63,8 +68,9 @@ const VEICULO_YBR_DX = { marca: "YAMAHA", modelo: "YBR 150 FACTOR DX FLEX", marc
 const VEICULO_START = { marca: "HONDA", modelo: "CG 160 START", marcaModelo: "CG 160 START" };
 const VEICULO_KWID = { marca: "RENAULT", modelo: "KWID ZEN 1.0 FLEX 12V 5P MEC", marcaModelo: "KWID ZEN 1.0" };
 const VEICULO_ETIOS = { marca: "TOYOTA", modelo: "ETIOS XS 1.5 FLEX 16V 5P MEC", marcaModelo: "ETIOS XS" };
+const VEICULO_GOL = { marca: "VOLKSWAGEN", modelo: "GOL 1.0", marcaModelo: "VOLKSWAGEN GOL" };
 
-const TODAS_CORES = [...CORES_SHI, ...CORES_BROS, ...CORES_YBR, ...CORES_YBR_DX, ...CORES_START, ...CORES_KWID, ...CORES_ETIOS];
+const TODAS_CORES = [...CORES_SHI, ...CORES_BROS, ...CORES_YBR, ...CORES_YBR_DX, ...CORES_START, ...CORES_KWID, ...CORES_ETIOS, ...CORES_GOL];
 
 function record(name, ok, detail = "") {
   results.push({ name, ok, detail });
@@ -438,6 +444,7 @@ async function main() {
   record("Resolver Honda Start", ["start-160-prata.png", "start-160-vermelho.png", "start-160-preto.png", "start-160-azul.png"].every((f) => modelos.includes(f)));
   record("Resolver Renault Kwid", ["kwid-branco.png", "kwid-vermelho.png", "kwid-preto.png", "kwid-bege.png", "kwid-laranja.png"].every((f) => modelos.includes(f)));
   record("Resolver Toyota Etios", modelos.includes("etios-branco.png"));
+  record("Resolver Volkswagen Gol", modelos.includes("gol-cinza.png"));
   record("Script do catálogo no index", indexHtml.includes("data/dk-modelos-veiculo.js"));
 
   for (const c of TODAS_CORES) {
@@ -467,6 +474,7 @@ async function main() {
       await assertCores(session, base, "Start", CORES_START, VEICULO_START, "termo_vistoria_start");
       await assertCores(session, base, "Kwid", CORES_KWID, VEICULO_KWID, "termo_vistoria_kwid");
       await assertCores(session, base, "Etios", CORES_ETIOS, VEICULO_ETIOS, "termo_vistoria_etios");
+      await assertCores(session, base, "Gol", CORES_GOL, VEICULO_GOL, "termo_vistoria_gol");
 
       await cdpGoto(session, base);
       const seededWalk = await cdpEval(session, seedExpr("AZUL", VEICULO_SHI));
@@ -553,6 +561,16 @@ async function main() {
         "Etios VERMELHA não usa foto de outra cor",
         !/etios-/.test(String(builtEtiosVerm?.imgSrc || "")),
         builtEtiosVerm?.imgSrc || "(vazio)"
+      );
+
+      await cdpGoto(session, base);
+      const seededGolVerm = await cdpEval(session, seedExpr("VERMELHA", VEICULO_GOL));
+      record("seed Gol vermelha", Boolean(seededGolVerm?.ok));
+      const builtGolVerm = await cdpEval(session, BUILD);
+      record(
+        "Gol VERMELHA não usa foto de outra cor",
+        !/gol-/.test(String(builtGolVerm?.imgSrc || "")),
+        builtGolVerm?.imgSrc || "(vazio)"
       );
     });
   });
