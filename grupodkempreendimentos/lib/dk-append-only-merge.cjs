@@ -366,6 +366,19 @@ function mergeLocacaoCadastroPar(ex, incoming) {
     ? { ...ex, ...incoming, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato }
     : { ...incoming, ...ex, numeroContrato: ex?.numeroContrato || incoming?.numeroContrato };
   anexarLancamentosMergeNaLocacao(merged, ex, incoming, mergedPl);
+  const winner = keepIncoming ? incoming : ex;
+  const wFim = String(winner?.fim || winner?.dataFim || "").trim();
+  const wSt = String(winner?.statusLocacao || winner?.status || "")
+    .trim()
+    .toUpperCase();
+  const wCancel = wSt.includes("CANCEL") || Boolean(winner?.contratoCancelado);
+  if (!wCancel && (!wFim || wFim === "...") && wSt !== "FINALIZADO" && !wSt.includes("INATIV")) {
+    merged.fim = "";
+    merged.statusLocacao = "ATIVO";
+    merged.portalLocacaoFinalizadoEmMs = 0;
+    merged.portalLocacaoFinalizadoPorCpf = "";
+    merged.portalLocacaoFinalizadoPorNome = "";
+  }
   return merged;
 }
 

@@ -36,7 +36,7 @@ record("grava portalLancamentosCaucao", ui.includes("loc.portalLancamentosCaucao
 record("preserva no save", ui.includes("portalLancamentosCaucao: prev.portalLancamentosCaucao"));
 record("merge nuvem cjs", mergeSrc.includes("portalLancamentosCaucao"));
 record("merge protocolo js", protoSrc.includes("portalLancamentosCaucao"));
-record("cache pwa", html.includes("20260901janela-caucao"));
+record("cache pwa", html.includes("20260901reativa-0303") || html.includes("20260901janela-caucao"));
 record("mascara valor", ui.includes('"portalCaucaoValor"'));
 
 const merge = require(path.join(ROOT, "lib/dk-append-only-merge.cjs"));
