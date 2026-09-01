@@ -71,6 +71,8 @@
     { match: /KWID/i, cor: /BEGE|CHAMPAGNE|AREIA|CREME/i, src: "images/modelos/kwid-bege.png" },
     { match: /KWID/i, cor: /LARANJA|ORANGE/i, src: "images/modelos/kwid-laranja.png" },
     { match: /ETIOS/i, cor: /BRANC[OA]|WHITE/i, src: "images/modelos/etios-branco.png" },
+    { match: /\bKA\b/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/ka-vermelho.png" },
+    { match: /\bKA\b/i, cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, src: "images/modelos/ka-cinza.png" },
     { match: /\bGOL\b/i, cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, src: "images/modelos/gol-cinza.png" },
     { match: /HB20/i, cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, src: "images/modelos/hb20-cinza.png" },
   ];
