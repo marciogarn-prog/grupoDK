@@ -2613,6 +2613,9 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
     if (ehDev && row.valor >= 0) return null;
     const coment = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
     if (coment) row.comentarioPagamento = coment;
+    if (raw.fonteAzul === true || String(raw.corFonte || "").trim().toLowerCase() === "azul") {
+      row.fonteAzul = true;
+    }
     if (raw.ficticio) row.ficticio = true;
     const key = `${row.data}|${row.valor}|${ca}|${rp}|${ehDev ? "DEV" : "PAG"}`;
     return { key, row };

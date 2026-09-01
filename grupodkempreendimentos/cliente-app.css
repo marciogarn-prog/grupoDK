@@ -379,6 +379,12 @@
   border-top: none;
 }
 
+.cliente-pagamento-row--fonte-azul,
+.cliente-pagamento-row--fonte-azul span {
+  color: #1565c0;
+  font-weight: 600;
+}
+
 /* Envios do app: azul = na nuvem; vermelho = só no telemóvel */
 .cliente-sync-nuvem--ok,
 .cliente-sync-nuvem--ok span {
