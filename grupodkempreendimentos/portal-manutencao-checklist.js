@@ -45,7 +45,7 @@
   const SUPERVISOR_PADRAO = "IRINALDO TORRES";
   const MECANICOS = ["TALISON CAMARGO", "SAMUEL VICTOR", "Mecânico II"];
 
-  /* Imagens dos veículos por marca/modelo + cor (SHI 175 e Honda Bros 160). */
+  /* Imagens de catálogo: o resolver em dk-modelos-veiculo.js tem prioridade. */
   const IMAGENS_VEICULO = [
     { match: /SHI\s*175/i, cor: /PRET[OA]|BLACK/i, src: "images/modelos/shi-175-preto.png" },
     { match: /SHI\s*175/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/shi-175-vermelho.png" },
@@ -55,6 +55,16 @@
     { match: /BROS|NXR\s*160/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/bros-160-vermelho.png" },
     { match: /BROS|NXR\s*160/i, cor: /BRANC[OA]|WHITE/i, src: "images/modelos/bros-160-branco.png" },
     { match: /BROS|NXR\s*160/i, cor: /CINZ[AO]|PRATA|GRAY|GREY|SILVER/i, src: "images/modelos/bros-160-cinza.png" },
+    { match: /FACTOR\s*DX|YBR.*\bDX\b/i, cor: /AZUL|BLUE|RACING/i, src: "images/modelos/ybr-150-dx-azul.png" },
+    { match: /FACTOR\s*DX|YBR.*\bDX\b/i, cor: /FOSCO|MATT/i, src: "images/modelos/ybr-150-dx-preto-fosco.png" },
+    { match: /FACTOR\s*DX|YBR.*\bDX\b/i, cor: /MET[AÁ]LIC|MIDNIGHT|PRET[OA]|BLACK/i, src: "images/modelos/ybr-150-dx-preto-metalico.png" },
+    { match: /YBR|FACTOR/i, cor: /BRANC[OA]|WHITE/i, src: "images/modelos/ybr-150-branco.png" },
+    { match: /YBR|FACTOR/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/ybr-150-vermelho.png" },
+    { match: /YBR|FACTOR/i, cor: /PRET[OA]|BLACK/i, src: "images/modelos/ybr-150-preto.png" },
+    { match: /START/i, cor: /PRATA|PRATEAD|SILVER|CINZ[AO]/i, src: "images/modelos/start-160-prata.png" },
+    { match: /START/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/start-160-vermelho.png" },
+    { match: /START/i, cor: /PRET[OA]|BLACK/i, src: "images/modelos/start-160-preto.png" },
+    { match: /START/i, cor: /AZUL|BLUE/i, src: "images/modelos/start-160-azul.png" },
   ];
 
   const esc = (s) =>

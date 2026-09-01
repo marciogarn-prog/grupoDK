@@ -254,7 +254,7 @@
     },
     {
       "id": "termo-vistoria-modelo-contratado",
-      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175 (preto, vermelho, azul ou cinza) e Honda Bros 160 (preto, vermelho, branco ou cinza).",
+      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX) e Honda Start.",
       "ficheiros": {
         "data/dk-contrato-pacote-textos.js": [
           "TERMO DE VISTORIA",
@@ -269,6 +269,16 @@
           "bros-160-vermelho.png",
           "bros-160-branco.png",
           "bros-160-cinza.png",
+          "ybr-150-branco.png",
+          "ybr-150-vermelho.png",
+          "ybr-150-preto.png",
+          "ybr-150-dx-azul.png",
+          "ybr-150-dx-preto-fosco.png",
+          "ybr-150-dx-preto-metalico.png",
+          "start-160-prata.png",
+          "start-160-vermelho.png",
+          "start-160-preto.png",
+          "start-160-azul.png",
           "__DK_resolveModeloContratadoFoto"
         ],
         "portal-contrato-pacote.js": [

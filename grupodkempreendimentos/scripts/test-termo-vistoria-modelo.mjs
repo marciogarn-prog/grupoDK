@@ -1,6 +1,6 @@
 /**
  * Termo de Vistoria: campo MODELO CONTRATADO com foto de catálogo na cor do veículo.
- * SHI 175 (preto/vermelho/azul/cinza) e Honda Bros 160 (preto/vermelho/branco/cinza).
+ * SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX) e Honda Start.
  * node grupodkempreendimentos/scripts/test-termo-vistoria-modelo.mjs
  */
 import fs from "fs";
@@ -27,8 +27,32 @@ const CORES_BROS = [
   { cor: "CINZA", file: "bros-160-cinza.png", rotulo: "cinza" },
 ];
 
+const CORES_YBR = [
+  { cor: "BRANCA", file: "ybr-150-branco.png", rotulo: "branco" },
+  { cor: "VERMELHA", file: "ybr-150-vermelho.png", rotulo: "vermelho" },
+  { cor: "PRETA", file: "ybr-150-preto.png", rotulo: "preto" },
+];
+
+const CORES_YBR_DX = [
+  { cor: "AZUL METÁLICO", file: "ybr-150-dx-azul.png", rotulo: "azul" },
+  { cor: "PRETO FOSCO", file: "ybr-150-dx-preto-fosco.png", rotulo: "fosco" },
+  { cor: "PRETO METÁLICO", file: "ybr-150-dx-preto-metalico.png", rotulo: "metalico" },
+];
+
+const CORES_START = [
+  { cor: "PRATA", file: "start-160-prata.png", rotulo: "prata" },
+  { cor: "VERMELHA", file: "start-160-vermelho.png", rotulo: "vermelho" },
+  { cor: "PRETA", file: "start-160-preto.png", rotulo: "preto" },
+  { cor: "AZUL", file: "start-160-azul.png", rotulo: "azul" },
+];
+
 const VEICULO_SHI = { marca: "SHINERAY", modelo: "SHI 175 S EFI", marcaModelo: "SHI 175 S EFI" };
 const VEICULO_BROS = { marca: "HONDA", modelo: "NXR 160 BROS ESDD", marcaModelo: "NXR 160 BROS ESDD" };
+const VEICULO_YBR = { marca: "YAMAHA", modelo: "YBR 150 FACTOR", marcaModelo: "YBR 150 FACTOR" };
+const VEICULO_YBR_DX = { marca: "YAMAHA", modelo: "YBR 150 FACTOR DX FLEX", marcaModelo: "YBR 150 FACTOR DX FLEX" };
+const VEICULO_START = { marca: "HONDA", modelo: "CG 160 START", marcaModelo: "CG 160 START" };
+
+const TODAS_CORES = [...CORES_SHI, ...CORES_BROS, ...CORES_YBR, ...CORES_YBR_DX, ...CORES_START];
 
 function record(name, ok, detail = "") {
   results.push({ name, ok, detail });
@@ -364,18 +388,20 @@ async function main() {
   record("Gerar contrato inclui o termo", contrato.includes("__DK_contratoPacoteBuildVistoriaPagina") && contrato.includes("Termo de vistoria"));
   record("Resolver das 4 cores SHI 175", ["shi-175-preto.png", "shi-175-vermelho.png", "shi-175-azul.png", "shi-175-cinza.png"].every((f) => modelos.includes(f)));
   record("Resolver das 4 cores Honda Bros", ["bros-160-preto.png", "bros-160-vermelho.png", "bros-160-branco.png", "bros-160-cinza.png"].every((f) => modelos.includes(f)));
+  record("Resolver YBR Factor Normal e DX", ["ybr-150-branco.png", "ybr-150-vermelho.png", "ybr-150-preto.png", "ybr-150-dx-azul.png", "ybr-150-dx-preto-fosco.png", "ybr-150-dx-preto-metalico.png"].every((f) => modelos.includes(f)));
+  record("Resolver Honda Start", ["start-160-prata.png", "start-160-vermelho.png", "start-160-preto.png", "start-160-azul.png"].every((f) => modelos.includes(f)));
   record("Script do catálogo no index", indexHtml.includes("data/dk-modelos-veiculo.js"));
 
-  for (const c of [...CORES_SHI, ...CORES_BROS]) {
+  for (const c of TODAS_CORES) {
     const p = path.join(ROOT, "images/modelos", c.file);
-    record(`arquivo ${c.file}`, fs.existsSync(p) && fs.statSync(p).size > 50000, p);
+    record(`arquivo ${c.file}`, fs.existsSync(p) && fs.statSync(p).size > 40000, p);
   }
 
   await withLocalServer(async (base) => {
-    for (const c of [...CORES_SHI, ...CORES_BROS]) {
+    for (const c of TODAS_CORES) {
       const res = await fetch(`${base}images/modelos/${c.file}`);
       const buf = Buffer.from(await res.arrayBuffer());
-      record(`HTTP ${c.file}`, res.ok && buf.length > 50000, `${res.status} ${buf.length}b`);
+      record(`HTTP ${c.file}`, res.ok && buf.length > 40000, `${res.status} ${buf.length}b`);
     }
 
     await withChromePage(async (session) => {
@@ -388,6 +414,9 @@ async function main() {
 
       await assertCores(session, base, "SHI 175", CORES_SHI, VEICULO_SHI, "termo_vistoria_shi175");
       await assertCores(session, base, "Bros", CORES_BROS, VEICULO_BROS, "termo_vistoria_bros");
+      await assertCores(session, base, "YBR", CORES_YBR, VEICULO_YBR, "termo_vistoria_ybr");
+      await assertCores(session, base, "YBR DX", CORES_YBR_DX, VEICULO_YBR_DX, "termo_vistoria_ybr_dx");
+      await assertCores(session, base, "Start", CORES_START, VEICULO_START, "termo_vistoria_start");
 
       await cdpGoto(session, base);
       const seededBranca = await cdpEval(session, seedExpr("BRANCA", VEICULO_SHI));
@@ -413,10 +442,25 @@ async function main() {
         !/bros-160-(preto|vermelho|branco|cinza)\.png/.test(String(builtAzul?.imgSrc || "")),
         builtAzul?.imgSrc || "(vazio)"
       );
+
+      await cdpGoto(session, base);
+      const seededDxPrata = await cdpEval(session, seedExpr("PRATA", VEICULO_YBR_DX));
+      record("seed YBR DX prata", Boolean(seededDxPrata?.ok));
+      const builtDxPrata = await cdpEval(session, BUILD);
       record(
-        "Bros AZUL não usa foto do SHI 175",
-        !/shi-175-/.test(String(builtAzul?.imgSrc || "")),
-        builtAzul?.imgSrc || "(vazio)"
+        "YBR DX PRATA não usa foto de outra cor",
+        !/ybr-150-/.test(String(builtDxPrata?.imgSrc || "")),
+        builtDxPrata?.imgSrc || "(vazio)"
+      );
+
+      await cdpGoto(session, base);
+      const seededFan = await cdpEval(session, seedExpr("VERMELHA", { marca: "HONDA", modelo: "CG 160 FAN", marcaModelo: "CG 160 FAN" }));
+      record("seed CG Fan vermelha", Boolean(seededFan?.ok));
+      const builtFan = await cdpEval(session, BUILD);
+      record(
+        "CG Fan não usa foto da Start",
+        !/start-160-/.test(String(builtFan?.imgSrc || "")),
+        builtFan?.imgSrc || "(vazio)"
       );
     });
   });

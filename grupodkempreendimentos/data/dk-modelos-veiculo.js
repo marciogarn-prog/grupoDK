@@ -1,7 +1,6 @@
 /**
  * Foto de catálogo do modelo contratado (Termo de Vistoria / Opção Contratada).
- * SHI 175: preto, vermelho, azul e cinza.
- * Honda Bros 160: preto, vermelho, branco e cinza.
+ * SHI 175, Honda Bros 160, Yamaha YBR 150 Factor (Normal e DX) e Honda CG 160 Start.
  * A cor do cadastro escolhe a imagem; cor desconhecida não usa foto de outra cor.
  */
 (function dkModelosVeiculo() {
@@ -24,6 +23,32 @@
         { cor: /VERMELH[OA]|RED/i, file: "bros-160-vermelho.png", rotulo: "VERMELHO" },
         { cor: /BRANC[OA]|WHITE/i, file: "bros-160-branco.png", rotulo: "BRANCO" },
         { cor: /CINZ[AO]|PRATA|GRAY|GREY|SILVER/i, file: "bros-160-cinza.png", rotulo: "CINZA" },
+      ],
+    },
+    {
+      match: /FACTOR\s*DX|YBR.*\bDX\b|\bDX\b.*FACTOR/i,
+      cores: [
+        { cor: /AZUL|BLUE|RACING/i, file: "ybr-150-dx-azul.png", rotulo: "AZUL METÁLICO" },
+        { cor: /FOSCO|MATT/i, file: "ybr-150-dx-preto-fosco.png", rotulo: "PRETO FOSCO" },
+        { cor: /MET[AÁ]LIC|MIDNIGHT/i, file: "ybr-150-dx-preto-metalico.png", rotulo: "PRETO METÁLICO" },
+        { cor: /PRET[OA]|BLACK/i, file: "ybr-150-dx-preto-metalico.png", rotulo: "PRETO METÁLICO" },
+      ],
+    },
+    {
+      match: /YBR|FACTOR/i,
+      cores: [
+        { cor: /BRANC[OA]|WHITE/i, file: "ybr-150-branco.png", rotulo: "BRANCO" },
+        { cor: /VERMELH[OA]|RED/i, file: "ybr-150-vermelho.png", rotulo: "VERMELHO" },
+        { cor: /PRET[OA]|BLACK/i, file: "ybr-150-preto.png", rotulo: "PRETO" },
+      ],
+    },
+    {
+      match: /START/i,
+      cores: [
+        { cor: /PRATA|PRATEAD|SILVER|CINZ[AO]|GRAY|GREY/i, file: "start-160-prata.png", rotulo: "PRATA" },
+        { cor: /VERMELH[OA]|RED/i, file: "start-160-vermelho.png", rotulo: "VERMELHO" },
+        { cor: /PRET[OA]|BLACK/i, file: "start-160-preto.png", rotulo: "PRETO" },
+        { cor: /AZUL|BLUE/i, file: "start-160-azul.png", rotulo: "AZUL" },
       ],
     },
   ];
