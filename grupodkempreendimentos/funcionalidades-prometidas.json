@@ -366,6 +366,19 @@
           "portal-caucao-lista"
         ]
       }
+    },
+    {
+      "id": "reativar-locacao-updatedAt-vence",
+      "descricao": "Se o administrador reativa um protocolo (apaga a data fim, status ATIVO) com updatedAt mais novo, o merge da nuvem não devolve a data fim antiga de outro PC.",
+      "ficheiros": {
+        "app.js": [
+          "newerReativado",
+          "Recorde mais novo sem data fim = reativação"
+        ],
+        "lib/dk-append-only-merge.cjs": [
+          "portalLocacaoFinalizadoEmMs = 0"
+        ]
+      }
     }
   ]
 }

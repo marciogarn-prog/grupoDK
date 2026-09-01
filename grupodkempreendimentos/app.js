@@ -2762,6 +2762,16 @@ function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
       .toUpperCase();
     return s.includes("CANCEL") || Boolean(r?.contratoCancelado);
   };
+  const scoreRec = (r) => Number(r?.updatedAt || r?.createdAt || r?.id || 0);
+  const newer = scoreRec(l) >= scoreRec(ex) ? l : ex;
+  const newerFimRaw = String(newer.fim || newer.dataFim || "").trim();
+  const newerSemFim = !newerFimRaw || newerFimRaw === "...";
+  const newerSt = String(newer.statusLocacao || newer.status || "")
+    .trim()
+    .toUpperCase();
+  /** Recorde mais novo sem data fim = reativação (ex.: finalizado por engano). Não herdamos a data fim antiga. */
+  const newerReativado = newerSemFim && !isCancelRec(newer) && newerSt !== "FINALIZADO" && !newerSt.includes("INATIV");
+
   if (isCancelRec(ex) || isCancelRec(l)) {
     const msA = Number(ex.portalLocacaoCanceladoEmMs || 0);
     const msB = Number(l.portalLocacaoCanceladoEmMs || 0);
@@ -2777,6 +2787,30 @@ function mergeLocacaoCamposSincronizacaoPortal(ex, l) {
     out.portalLocacaoCanceladoPorNome = String(src.portalLocacaoCanceladoPorNome || "").trim();
     const emC = Number(src.portalLocacaoCanceladoEmMs || 0);
     if (emC > 0) out.portalLocacaoCanceladoEmMs = emC;
+    return out;
+  }
+  if (newerReativado) {
+    out.fim = "";
+    out.statusLocacao = "ATIVO";
+    out.portalLocacaoFinalizadoEmMs = 0;
+    out.portalLocacaoFinalizadoPorCpf = "";
+    out.portalLocacaoFinalizadoPorNome = "";
+    const digR = (s) => onlyDigits(String(s || ""));
+    const exMsA = Number(ex.portalLocacaoExecutadoEmMs || 0);
+    const exMsB = Number(l.portalLocacaoExecutadoEmMs || 0);
+    const exHasA = exMsA > 0 || digR(String(ex.portalLocacaoExecutadoPorCpf || "")).length >= 3;
+    const exHasB = exMsB > 0 || digR(String(l.portalLocacaoExecutadoPorCpf || "")).length >= 3;
+    let exSrc = null;
+    if (exHasB && exHasA) exSrc = exMsB >= exMsA ? l : ex;
+    else if (exHasB) exSrc = l;
+    else if (exHasA) exSrc = ex;
+    if (exSrc) {
+      const cpfE = digR(String(exSrc.portalLocacaoExecutadoPorCpf || "")).slice(0, 11);
+      if (cpfE.length >= 3) out.portalLocacaoExecutadoPorCpf = cpfE;
+      out.portalLocacaoExecutadoPorNome = String(exSrc.portalLocacaoExecutadoPorNome || "").trim();
+      const emx = Number(exSrc.portalLocacaoExecutadoEmMs || 0);
+      if (emx > 0) out.portalLocacaoExecutadoEmMs = emx;
+    }
     return out;
   }
   const parseD = (raw) => {
