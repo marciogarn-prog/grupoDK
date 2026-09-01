@@ -65,6 +65,12 @@
     { match: /START/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/start-160-vermelho.png" },
     { match: /START/i, cor: /PRET[OA]|BLACK/i, src: "images/modelos/start-160-preto.png" },
     { match: /START/i, cor: /AZUL|BLUE/i, src: "images/modelos/start-160-azul.png" },
+    { match: /KWID/i, cor: /BRANC[OA]|WHITE/i, src: "images/modelos/kwid-branco.png" },
+    { match: /KWID/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/kwid-vermelho.png" },
+    { match: /KWID/i, cor: /PRET[OA]|BLACK/i, src: "images/modelos/kwid-preto.png" },
+    { match: /KWID/i, cor: /BEGE|CHAMPAGNE|AREIA|CREME/i, src: "images/modelos/kwid-bege.png" },
+    { match: /KWID/i, cor: /LARANJA|ORANGE/i, src: "images/modelos/kwid-laranja.png" },
+    { match: /ETIOS/i, cor: /BRANC[OA]|WHITE/i, src: "images/modelos/etios-branco.png" },
   ];
 
   const esc = (s) =>

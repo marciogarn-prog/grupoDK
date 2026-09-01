@@ -1,6 +1,7 @@
 /**
  * Foto de catálogo do modelo contratado (Termo de Vistoria / Opção Contratada).
- * SHI 175, Honda Bros 160, Yamaha YBR 150 Factor (Normal e DX) e Honda CG 160 Start.
+ * SHI 175, Honda Bros 160, Yamaha YBR 150 Factor (Normal e DX), Honda CG 160 Start,
+ * Renault Kwid e Toyota Etios.
  * A cor do cadastro escolhe a imagem; cor desconhecida não usa foto de outra cor.
  */
 (function dkModelosVeiculo() {
@@ -49,6 +50,22 @@
         { cor: /VERMELH[OA]|RED/i, file: "start-160-vermelho.png", rotulo: "VERMELHO" },
         { cor: /PRET[OA]|BLACK/i, file: "start-160-preto.png", rotulo: "PRETO" },
         { cor: /AZUL|BLUE/i, file: "start-160-azul.png", rotulo: "AZUL" },
+      ],
+    },
+    {
+      match: /KWID/i,
+      cores: [
+        { cor: /BRANC[OA]|WHITE/i, file: "kwid-branco.png", rotulo: "BRANCO" },
+        { cor: /VERMELH[OA]|RED/i, file: "kwid-vermelho.png", rotulo: "VERMELHO" },
+        { cor: /PRET[OA]|BLACK/i, file: "kwid-preto.png", rotulo: "PRETO" },
+        { cor: /BEGE|CHAMPAGNE|AREIA|CREME/i, file: "kwid-bege.png", rotulo: "BEGE" },
+        { cor: /LARANJA|ORANGE/i, file: "kwid-laranja.png", rotulo: "LARANJA" },
+      ],
+    },
+    {
+      match: /ETIOS/i,
+      cores: [
+        { cor: /BRANC[OA]|WHITE/i, file: "etios-branco.png", rotulo: "BRANCO" },
       ],
     },
   ];

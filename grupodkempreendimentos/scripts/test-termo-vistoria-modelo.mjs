@@ -46,13 +46,25 @@ const CORES_START = [
   { cor: "AZUL", file: "start-160-azul.png", rotulo: "azul" },
 ];
 
+const CORES_KWID = [
+  { cor: "BRANCA", file: "kwid-branco.png", rotulo: "branco" },
+  { cor: "VERMELHA", file: "kwid-vermelho.png", rotulo: "vermelho" },
+  { cor: "PRETA", file: "kwid-preto.png", rotulo: "preto" },
+  { cor: "BEGE", file: "kwid-bege.png", rotulo: "bege" },
+  { cor: "LARANJA", file: "kwid-laranja.png", rotulo: "laranja" },
+];
+
+const CORES_ETIOS = [{ cor: "BRANCA", file: "etios-branco.png", rotulo: "branco" }];
+
 const VEICULO_SHI = { marca: "SHINERAY", modelo: "SHI 175 S EFI", marcaModelo: "SHI 175 S EFI" };
 const VEICULO_BROS = { marca: "HONDA", modelo: "NXR 160 BROS ESDD", marcaModelo: "NXR 160 BROS ESDD" };
 const VEICULO_YBR = { marca: "YAMAHA", modelo: "YBR 150 FACTOR", marcaModelo: "YBR 150 FACTOR" };
 const VEICULO_YBR_DX = { marca: "YAMAHA", modelo: "YBR 150 FACTOR DX FLEX", marcaModelo: "YBR 150 FACTOR DX FLEX" };
 const VEICULO_START = { marca: "HONDA", modelo: "CG 160 START", marcaModelo: "CG 160 START" };
+const VEICULO_KWID = { marca: "RENAULT", modelo: "KWID ZEN 1.0 FLEX 12V 5P MEC", marcaModelo: "KWID ZEN 1.0" };
+const VEICULO_ETIOS = { marca: "TOYOTA", modelo: "ETIOS XS 1.5 FLEX 16V 5P MEC", marcaModelo: "ETIOS XS" };
 
-const TODAS_CORES = [...CORES_SHI, ...CORES_BROS, ...CORES_YBR, ...CORES_YBR_DX, ...CORES_START];
+const TODAS_CORES = [...CORES_SHI, ...CORES_BROS, ...CORES_YBR, ...CORES_YBR_DX, ...CORES_START, ...CORES_KWID, ...CORES_ETIOS];
 
 function record(name, ok, detail = "") {
   results.push({ name, ok, detail });
@@ -326,8 +338,8 @@ const BUILD = `(() => {
     nVistoria: document.querySelectorAll(".pagina.pagina-vistoria").length,
     temTitulo: /termo de vistoria/i.test(txt),
     temCampo: /modelo contratado/i.test(txt),
-    temEntrega: /\bENTREGA\b/.test(txt),
-    temDevolucao: /\bDEVOLUÇÃO\b/.test(txtDev),
+    temEntrega: String(vis?.querySelector(".vistoria-fase")?.textContent || "").includes("ENTREGA"),
+    temDevolucao: String(visDev?.querySelector(".vistoria-fase")?.textContent || "").includes("DEVOLUÇÃO"),
     temPag1: (vis?.querySelector(".pe-vistoria")?.innerText || "").includes("Pág.: 1 / 2"),
     temPag2: (visDev?.querySelector(".pe-vistoria")?.innerText || "").includes("Pág.: 2 / 2"),
     temItens: txt.includes("Visor do Painel") && txt.includes("Banco"),
@@ -424,6 +436,8 @@ async function main() {
   record("Resolver das 4 cores Honda Bros", ["bros-160-preto.png", "bros-160-vermelho.png", "bros-160-branco.png", "bros-160-cinza.png"].every((f) => modelos.includes(f)));
   record("Resolver YBR Factor Normal e DX", ["ybr-150-branco.png", "ybr-150-vermelho.png", "ybr-150-preto.png", "ybr-150-dx-azul.png", "ybr-150-dx-preto-fosco.png", "ybr-150-dx-preto-metalico.png"].every((f) => modelos.includes(f)));
   record("Resolver Honda Start", ["start-160-prata.png", "start-160-vermelho.png", "start-160-preto.png", "start-160-azul.png"].every((f) => modelos.includes(f)));
+  record("Resolver Renault Kwid", ["kwid-branco.png", "kwid-vermelho.png", "kwid-preto.png", "kwid-bege.png", "kwid-laranja.png"].every((f) => modelos.includes(f)));
+  record("Resolver Toyota Etios", modelos.includes("etios-branco.png"));
   record("Script do catálogo no index", indexHtml.includes("data/dk-modelos-veiculo.js"));
 
   for (const c of TODAS_CORES) {
@@ -451,8 +465,25 @@ async function main() {
       await assertCores(session, base, "YBR", CORES_YBR, VEICULO_YBR, "termo_vistoria_ybr");
       await assertCores(session, base, "YBR DX", CORES_YBR_DX, VEICULO_YBR_DX, "termo_vistoria_ybr_dx");
       await assertCores(session, base, "Start", CORES_START, VEICULO_START, "termo_vistoria_start");
+      await assertCores(session, base, "Kwid", CORES_KWID, VEICULO_KWID, "termo_vistoria_kwid");
+      await assertCores(session, base, "Etios", CORES_ETIOS, VEICULO_ETIOS, "termo_vistoria_etios");
 
+      await cdpGoto(session, base);
+      const seededWalk = await cdpEval(session, seedExpr("AZUL", VEICULO_SHI));
+      record("seed walkthrough SHI 175 azul", Boolean(seededWalk?.ok));
+      const builtWalk = await cdpEval(session, BUILD);
+      record(
+        "walkthrough 2 páginas ENTREGA e DEVOLUÇÃO",
+        Boolean(builtWalk?.nVistoria === 2 && builtWalk?.temEntrega && builtWalk?.temDevolucao),
+        JSON.stringify({ n: builtWalk?.nVistoria, e: builtWalk?.temEntrega, d: builtWalk?.temDevolucao })
+      );
+      const shotEnt = await saveClip(session, ".pagina-vistoria[data-vistoria='entrega']", "termo_vistoria_entrega.png");
       const shotDev = await saveClip(session, ".pagina-vistoria[data-vistoria='devolucao']", "termo_vistoria_devolucao.png");
+      record(
+        "captura termo ENTREGA",
+        Boolean(shotEnt) && fs.statSync(shotEnt).size > 20000,
+        shotEnt ? `${shotEnt} ${fs.statSync(shotEnt).size}b` : ""
+      );
       record(
         "captura termo DEVOLUÇÃO",
         Boolean(shotDev) && fs.statSync(shotDev).size > 20000,
@@ -502,6 +533,26 @@ async function main() {
         "CG Fan não usa foto da Start",
         !/start-160-/.test(String(builtFan?.imgSrc || "")),
         builtFan?.imgSrc || "(vazio)"
+      );
+
+      await cdpGoto(session, base);
+      const seededKwidAzul = await cdpEval(session, seedExpr("AZUL", VEICULO_KWID));
+      record("seed Kwid azul", Boolean(seededKwidAzul?.ok));
+      const builtKwidAzul = await cdpEval(session, BUILD);
+      record(
+        "Kwid AZUL não usa foto de outra cor",
+        !/kwid-/.test(String(builtKwidAzul?.imgSrc || "")),
+        builtKwidAzul?.imgSrc || "(vazio)"
+      );
+
+      await cdpGoto(session, base);
+      const seededEtiosVerm = await cdpEval(session, seedExpr("VERMELHA", VEICULO_ETIOS));
+      record("seed Etios vermelha", Boolean(seededEtiosVerm?.ok));
+      const builtEtiosVerm = await cdpEval(session, BUILD);
+      record(
+        "Etios VERMELHA não usa foto de outra cor",
+        !/etios-/.test(String(builtEtiosVerm?.imgSrc || "")),
+        builtEtiosVerm?.imgSrc || "(vazio)"
       );
     });
   });

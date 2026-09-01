@@ -697,9 +697,9 @@ ${cssVistoria()}
 .vistoria-doc { width: 100%; }
 .vistoria-cab {
   display: grid;
-  grid-template-columns: 28mm 1fr auto;
-  gap: 2.5mm;
-  align-items: start;
+  grid-template-columns: 26mm minmax(0, 1fr) 36mm;
+  gap: 2mm;
+  align-items: center;
   margin: 0 0 2mm;
 }
 .vistoria-logo {
@@ -713,9 +713,10 @@ ${cssVistoria()}
 .vistoria-cab-centro { text-align: center; padding-top: 0.4mm; }
 .vistoria-cab-centro h1 {
   margin: 0;
-  font-size: 12.5pt;
+  font-size: 11pt;
   font-weight: 700;
   letter-spacing: 0.01em;
+  white-space: nowrap;
 }
 .vistoria-plano {
   margin: 1.6mm auto 0;
@@ -728,12 +729,13 @@ ${cssVistoria()}
   font-size: 9pt;
 }
 .vistoria-fase {
-  font-size: 13pt;
+  font-size: 12pt;
   font-weight: 800;
-  letter-spacing: 0.04em;
-  padding: 2mm 1mm 0 0;
+  letter-spacing: 0.03em;
+  padding: 0;
   text-align: right;
   white-space: nowrap;
+  min-width: 32mm;
 }
 .vistoria-grid {
   display: grid;
