@@ -441,15 +441,71 @@
       "{{DATA_FIM}}": d.dataFim,
       "{{FOTO_VEICULO}}": d.fotoVeiculoHtml,
       "{{FOTO_MODELO_CONTRATADO}}": d.fotoModeloContratadoHtml,
+      "{{ITENS_VISTORIA}}": d.itensVistoriaHtml,
+      "{{FASE}}": d.fase,
+      "{{DATA_LINHA}}": d.dataLinha,
+      "{{KM_CAMPO}}": d.kmCampo,
       "{{LOGO_URL}}": logoPacoteUrl(),
     };
     let out = String(html || "");
     for (const [k, v] of Object.entries(map)) {
-      /* LOGO_URL and FOTO_* are trusted same-origin HTML/URL — do not escape. */
-      const raw = k === "{{LOGO_URL}}" || k === "{{FOTO_VEICULO}}" || k === "{{FOTO_MODELO_CONTRATADO}}";
+      /* LOGO_URL, FOTO_* and ITENS_VISTORIA are trusted same-origin HTML/URL — do not escape. */
+      const raw =
+        k === "{{LOGO_URL}}" ||
+        k === "{{FOTO_VEICULO}}" ||
+        k === "{{FOTO_MODELO_CONTRATADO}}" ||
+        k === "{{ITENS_VISTORIA}}";
       out = out.split(k).join(raw ? String(v || "") : esc(v));
     }
     return out;
+  }
+
+  const ITENS_VISTORIA_MOTO = [
+    "Visor do Painel",
+    "Guidão",
+    "Caren. Frontal",
+    "Paralama Diant.",
+    "Carenagem L.D.",
+    "Carenagem L.E.",
+    "Rabeta L.D.",
+    "Rabeta L.E.",
+    "Buzina",
+    "Farol (Alto/Baixo)",
+    "Pisca D.D.",
+    "Pisca D.E.",
+    "Pisca T.D.",
+    "Pisca T.E.",
+    "Acionador F.D.",
+    "Acion. Embreag.",
+    "Luz de Freio",
+    "Acionador F.T.",
+    "Manopla Dir.",
+    "Manopla Esq.",
+    "Retrov. Direito",
+    "Retrov. Esquerdo",
+    "Protetor Escape",
+    "Escapamento",
+    "Bengalas",
+    "Roda Dianteira",
+    "Roda Traseira",
+    "Disco de freio D",
+    "Disco de freio T",
+    "Estribo",
+    "Tanque",
+    "Banco",
+  ];
+
+  function htmlItensVistoriaMoto() {
+    const cols = [0, 8, 16, 24].map((start) => {
+      const rows = ITENS_VISTORIA_MOTO.slice(start, start + 8)
+        .map((nome, i) => {
+          const n = start + i + 1;
+          return `<div class="vistoria-item"><span class="vistoria-item__n">${n}</span><span class="vistoria-item__nome">${esc(nome)}</span><span class="vistoria-item__marks"><i class="mk mk-a">A</i><i class="mk mk-r">R</i><i class="mk mk-s">S</i></span></div>`;
+        })
+        .join("");
+      return `<div class="vistoria-itens-col">${rows}</div>`;
+    });
+    return cols.join("");
   }
 
   function cssOpcao() {
@@ -626,57 +682,58 @@ ${cssVistoria()}
   function cssVistoria() {
     return `
 .pagina.pagina-vistoria {
-  padding: 8mm 12mm 16mm;
+  padding: 6mm 8mm 14mm;
   height: 297mm;
   min-height: 297mm;
   max-height: 297mm;
   overflow: hidden;
   font-family: Arial, Helvetica, sans-serif;
-  font-size: 8.8pt;
-  line-height: 1.25;
+  font-size: 7.6pt;
+  line-height: 1.2;
   color: #000;
   background: #fff;
 }
+.pagina.pagina-vistoria .corpo { height: 100%; }
 .vistoria-doc { width: 100%; }
 .vistoria-cab {
   display: grid;
-  grid-template-columns: 38mm 1fr;
-  gap: 4mm;
+  grid-template-columns: 28mm 1fr auto;
+  gap: 2.5mm;
   align-items: start;
-  margin: 0 0 3mm;
+  margin: 0 0 2mm;
 }
 .vistoria-logo {
   display: block;
-  width: 36mm;
+  width: 26mm;
   height: auto;
-  max-height: 18mm;
+  max-height: 16mm;
   object-fit: contain;
   object-position: left top;
 }
-.vistoria-cab-centro { text-align: center; padding-top: 0.5mm; }
+.vistoria-cab-centro { text-align: center; padding-top: 0.4mm; }
 .vistoria-cab-centro h1 {
   margin: 0;
-  font-size: 16pt;
+  font-size: 12.5pt;
   font-weight: 700;
-  letter-spacing: 0.04em;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  letter-spacing: 0.01em;
 }
 .vistoria-plano {
-  margin: 2.2mm auto 0;
+  margin: 1.6mm auto 0;
   display: inline-block;
-  min-width: 62mm;
-  padding: 1.4mm 5mm;
+  min-width: 58mm;
+  padding: 1.1mm 4mm;
   background: #1b5e20;
   color: #fff;
   font-weight: 700;
-  font-size: 10pt;
-  letter-spacing: 0.02em;
+  font-size: 9pt;
 }
-.vistoria-proto {
-  margin: 2mm 0 0;
-  font-size: 10pt;
-  font-weight: 400;
+.vistoria-fase {
+  font-size: 13pt;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 2mm 1mm 0 0;
+  text-align: right;
+  white-space: nowrap;
 }
 .vistoria-grid {
   display: grid;
@@ -685,108 +742,234 @@ ${cssVistoria()}
   border-left: 1px solid #111;
   border-top: 1px solid #111;
 }
-.vistoria-grid--2 { grid-template-columns: 1fr 1fr; }
-.vistoria-grid--3 { grid-template-columns: 1fr 1fr 1fr; }
-.vistoria-grid--veic1 { grid-template-columns: 0.9fr 0.8fr 1.6fr 0.9fr; }
-.vistoria-grid--veic2 { grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr; }
+.vistoria-grid--cli { grid-template-columns: 1.5fr 0.85fr 1fr; }
+.vistoria-grid--veic { grid-template-columns: 0.7fr 0.7fr 1.5fr 0.7fr 0.55fr; }
+.vistoria-grid--prop { grid-template-columns: 1.5fr 0.9fr 0.8fr; }
 .vistoria-cell {
   border-right: 1px solid #111;
   border-bottom: 1px solid #111;
-  padding: 1.2mm 2mm;
-  min-height: 7.2mm;
+  padding: 0.7mm 1.4mm 1mm;
+  min-height: 8.4mm;
 }
 .vistoria-cell span {
-  display: inline;
+  display: block;
   font-weight: 700;
-  margin-right: 1.5mm;
+  font-size: 6.4pt;
+  margin: 0 0 0.4mm;
+  line-height: 1.1;
 }
-.vistoria-cell--span { grid-column: 1 / -1; }
+.vistoria-legenda {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  margin: 1.6mm 0 1.4mm;
+  border: 1px solid #111;
+}
+.vistoria-leg {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4mm;
+  padding: 1mm 1mm;
+  font-size: 7.4pt;
+  font-weight: 700;
+  border-right: 1px solid #111;
+}
+.vistoria-leg:last-child { border-right: 0; }
+.vistoria-leg b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.2mm;
+  height: 5.2mm;
+  border: 1px solid #111;
+  font-size: 8pt;
+}
+.vistoria-leg--n b { background: #548235; color: #fff; }
+.vistoria-leg--b b { background: #5b5fc7; color: #fff; }
+.vistoria-leg--m b { background: #7f7f7f; color: #fff; }
+.vistoria-leg--a b { background: #5b9bd5; color: #fff; }
+.vistoria-leg--r b { background: #ffc000; color: #111; }
+.vistoria-leg--s b { background: #c00000; color: #fff; }
+.vistoria-sec {
+  margin: 1.4mm 0 0.8mm;
+  font-size: 8pt;
+  font-weight: 700;
+}
+.vistoria-basicas {
+  display: grid;
+  grid-template-columns: 46mm 1fr 46mm;
+  gap: 2mm;
+  align-items: stretch;
+  margin: 0 0 1.6mm;
+}
 .vistoria-modelo {
-  margin: 4mm 0 3mm;
-  border: 1.4px solid #111;
-  padding: 2.5mm 3mm 3mm;
+  border: 1px solid #111;
+  padding: 1.2mm 1.4mm 1.4mm;
   background: #fff;
+  min-height: 42mm;
 }
 .vistoria-modelo h2 {
-  margin: 0 0 2mm;
+  margin: 0 0 1mm;
   text-align: center;
-  font-size: 11pt;
+  font-size: 8pt;
   font-weight: 700;
-  letter-spacing: 0.12em;
 }
 .vistoria-modelo__foto {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 58mm;
+  min-height: 32mm;
   background: #fff;
 }
 .vistoria-modelo__foto:empty {
-  min-height: 58mm;
+  min-height: 32mm;
   border: 1px dashed #999;
   color: #777;
-  font-size: 9pt;
+  font-size: 7pt;
   font-weight: 700;
-  letter-spacing: 0.04em;
 }
 .vistoria-modelo__foto:empty::after { content: "FOTO DO MODELO CONTRATADO"; }
 .vistoria-modelo__foto img {
   display: block;
   max-width: 100%;
-  max-height: 62mm;
+  max-height: 34mm;
   width: auto;
   height: auto;
   object-fit: contain;
   background: #fff;
 }
-.vistoria-legenda {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 3.5mm;
-  margin: 0 0 3mm;
-  font-size: 8.5pt;
+.vistoria-modelo__leg {
+  margin: 0.6mm 0 0;
+  text-align: center;
+  font-size: 6.5pt;
+  color: #444;
 }
-.vistoria-legenda__tit { font-weight: 700; }
-.vistoria-box {
-  display: inline-block;
-  width: 3.2mm;
-  height: 3.2mm;
+.vistoria-status { display: flex; flex-direction: column; gap: 1.4mm; min-width: 0; }
+.vistoria-odo span, .vistoria-comb span {
+  display: block;
+  font-weight: 700;
+  font-size: 7pt;
+  margin: 0 0 0.6mm;
+}
+.vistoria-odo__val {
   border: 1px solid #111;
-  margin-right: 1.2mm;
-  vertical-align: -0.4mm;
+  min-height: 7.5mm;
+  padding: 1mm 2mm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 9pt;
+}
+.vistoria-odo__val i { font-style: normal; font-weight: 700; font-size: 8pt; }
+.vistoria-comb__bar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  border: 1px solid #111;
+  height: 6.5mm;
+}
+.vistoria-comb__bar i {
+  display: block;
+  border-right: 1px solid #111;
+}
+.vistoria-comb__bar i:last-child { border-right: 0; }
+.vistoria-moto, .vistoria-acess {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 6.6pt;
+}
+.vistoria-moto th, .vistoria-moto td,
+.vistoria-acess th, .vistoria-acess td {
+  border: 1px solid #111;
+  padding: 0.7mm 1mm;
+  text-align: center;
+}
+.vistoria-moto td:first-child, .vistoria-acess td:first-child { text-align: left; font-weight: 700; }
+.vistoria-moto .mk, .vistoria-acess .mk {
+  width: 5.2mm;
+  height: 5mm;
   background: #fff;
 }
+.vistoria-moto .th-a, .vistoria-itens .mk-a { color: #1f4e79; }
+.vistoria-moto .th-b { color: #3b3f9a; }
+.vistoria-moto .th-r, .vistoria-itens .mk-r { color: #7a5b00; }
+.vistoria-moto .th-s, .vistoria-itens .mk-s { color: #9b0000; }
+.vistoria-acess { align-self: start; }
+.vistoria-itens {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 0 2mm;
+  margin: 0 0 1.2mm;
+}
+.vistoria-itens-col { border: 1px solid #111; }
+.vistoria-item {
+  display: grid;
+  grid-template-columns: 5mm 1fr auto;
+  align-items: center;
+  gap: 0.8mm;
+  border-bottom: 1px solid #111;
+  padding: 0.55mm 0.8mm;
+  min-height: 5.8mm;
+}
+.vistoria-itens-col .vistoria-item:last-child { border-bottom: 0; }
+.vistoria-item__n { font-weight: 700; font-size: 6.5pt; }
+.vistoria-item__nome { font-size: 6.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vistoria-item__marks { display: flex; gap: 0.6mm; }
+.vistoria-item__marks .mk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4mm;
+  height: 4.4mm;
+  border: 1px solid #111;
+  font-size: 5.6pt;
+  font-weight: 700;
+  line-height: 1;
+}
+.vistoria-item__marks .mk-a { background: #deecf8; }
+.vistoria-item__marks .mk-r { background: #fff2cc; }
+.vistoria-item__marks .mk-s { background: #f8d7da; }
+.vistoria-notas { margin: 0 0 2mm; }
+.vistoria-notas span { display: block; font-weight: 700; font-size: 7.4pt; margin: 0 0 0.6mm; }
+.vistoria-notas i {
+  display: block;
+  font-style: normal;
+  border-bottom: 1px solid #111;
+  height: 4.6mm;
+}
 .vistoria-decl {
-  margin: 0 0 8mm;
+  margin: 0 0 3mm;
   text-align: justify;
+  font-size: 7.4pt;
 }
 .vistoria-data {
-  margin: 10mm 0 0;
+  margin: 0;
   text-align: center;
-  font-size: 10pt;
+  font-size: 8.5pt;
 }
 .vistoria-sigs {
   display: flex;
   justify-content: space-between;
-  gap: 16mm;
-  margin-top: 14mm;
+  gap: 14mm;
+  margin-top: 6mm;
 }
 .vistoria-sig { flex: 1 1 0; text-align: center; min-width: 0; }
 .vistoria-sig-line {
   width: 100%;
   border-bottom: 1.1pt solid #111;
-  height: 10mm;
-  margin: 0 0 2mm;
+  height: 8mm;
+  margin: 0 0 1.4mm;
 }
-.vistoria-sig-name { margin: 0; font-weight: 700; font-size: 9pt; }
-.vistoria-sig-id { margin: 1mm 0 0; font-weight: 700; font-size: 8.5pt; }
+.vistoria-sig-name { margin: 0; font-weight: 700; font-size: 8pt; }
+.vistoria-sig-id { margin: 0.6mm 0 0; font-weight: 700; font-size: 7.5pt; }
 .pe-pagina.pe-vistoria {
   position: absolute;
-  left: 12mm; right: 12mm; bottom: 6.5mm;
+  left: 8mm; right: 8mm; bottom: 5mm;
   display: flex;
   justify-content: space-between;
-  font-size: 7.5pt; color: #333;
+  font-size: 7pt; color: #333;
   font-family: Arial, Helvetica, sans-serif;
   border-top: 0;
 }
@@ -1053,10 +1236,12 @@ ${cssOpcao()}
 </div>`;
   }
 
-  function wrapPaginaVistoria(corpoHtml) {
-    return `<div class="pagina pagina-vistoria" data-pagina="1" data-kit-label="Termo de vistoria">
+  function wrapPaginaVistoria(corpoHtml, num, total, fase) {
+    const slug = fase === "DEVOLUÇÃO" ? "devolucao" : "entrega";
+    const label = fase === "DEVOLUÇÃO" ? "Termo de vistoria — Devolução" : "Termo de vistoria — Entrega";
+    return `<div class="pagina pagina-vistoria" data-pagina="${num}" data-vistoria="${slug}" data-kit-label="${esc(label)}">
   <div class="corpo">${corpoHtml}</div>
-  <div class="pe-pagina pe-vistoria"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: 1 / 1</span></div>
+  <div class="pe-pagina pe-vistoria"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: ${num} / ${total}</span></div>
 </div>`;
   }
 
@@ -1342,8 +1527,26 @@ ${cssOpcao()}
 
   function buildVistoriaPaginaHtml(dados) {
     const d = enriquecerDadosPacote(dados);
-    const html = substituirPacote(window.__DK_CONTRATO_PACOTE_VISTORIA || "", d);
-    return wrapPaginaVistoria(html);
+    const itens = htmlItensVistoriaMoto();
+    const tpl = window.__DK_CONTRATO_PACOTE_VISTORIA || "";
+    const cidade = String(d.cidade || "Petrolina").trim() || "Petrolina";
+    const uf = String(d.uf || "PE").trim() || "PE";
+    const kmNum = String(d.km || "").replace(/\D/g, "");
+    const entrega = substituirPacote(tpl, {
+      ...d,
+      itensVistoriaHtml: itens,
+      fase: "ENTREGA",
+      dataLinha: d.municipioData || `${cidade}/${uf}`,
+      kmCampo: kmNum ? kmNum.padStart(6, "0") : "",
+    });
+    const devolucao = substituirPacote(tpl, {
+      ...d,
+      itensVistoriaHtml: itens,
+      fase: "DEVOLUÇÃO",
+      dataLinha: `${cidade}/${uf}, _______, _______ de _____________________ de _________.`,
+      kmCampo: "",
+    });
+    return wrapPaginaVistoria(entrega, 1, 2, "ENTREGA") + wrapPaginaVistoria(devolucao, 2, 2, "DEVOLUÇÃO");
   }
 
   window.__DK_contratoPacoteEnriquecer = enriquecerDadosPacote;

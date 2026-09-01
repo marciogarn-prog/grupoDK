@@ -310,21 +310,34 @@ const BUILD = `(() => {
   document.open();
   document.write(html);
   document.close();
-  const vis = document.querySelector(".pagina-vistoria");
+  const vis = document.querySelector(".pagina-vistoria[data-vistoria='entrega']") || document.querySelector(".pagina-vistoria");
+  const visDev = document.querySelector(".pagina-vistoria[data-vistoria='devolucao']");
   const txt = vis ? vis.innerText : "";
+  const txtDev = visDev ? visDev.innerText : "";
   const img = vis?.querySelector(".vistoria-modelo__foto img");
+  const imgDev = visDev?.querySelector(".vistoria-modelo__foto img");
   const opcaoImg = document.querySelector(".pagina-opcao .opcao-foto img");
   const cor = JSON.parse(localStorage.getItem("dk_veiculos_cadastro") || "[]")[0]?.cor || "";
+  const kmEnt = vis?.querySelector(".vistoria-odo__val")?.innerText || "";
+  const kmDev = visDev?.querySelector(".vistoria-odo__val")?.innerText || "";
   return {
     nContrato: document.querySelectorAll(".pagina.pagina-contrato").length,
     nOpcao: document.querySelectorAll(".pagina.pagina-opcao").length,
     nVistoria: document.querySelectorAll(".pagina.pagina-vistoria").length,
-    temTitulo: txt.includes("TERMO DE VISTORIA"),
-    temCampo: txt.includes("MODELO CONTRATADO"),
+    temTitulo: /termo de vistoria/i.test(txt),
+    temCampo: /modelo contratado/i.test(txt),
+    temEntrega: /\bENTREGA\b/.test(txt),
+    temDevolucao: /\bDEVOLUÇÃO\b/.test(txtDev),
+    temPag1: (vis?.querySelector(".pe-vistoria")?.innerText || "").includes("Pág.: 1 / 2"),
+    temPag2: (visDev?.querySelector(".pe-vistoria")?.innerText || "").includes("Pág.: 2 / 2"),
+    temItens: txt.includes("Visor do Painel") && txt.includes("Banco"),
     temPlano: txt.includes("DK MINHA MOTO"),
     temProto: txt.includes("2026083102"),
     temCor: txt.includes(cor),
+    kmEnt,
+    kmDev,
     imgSrc: img?.getAttribute("src") || "",
+    imgDevSrc: imgDev?.getAttribute("src") || "",
     opcaoImgSrc: opcaoImg?.getAttribute("src") || "",
   };
 })()`;
@@ -347,8 +360,24 @@ async function assertCores(session, base, label, cores, veiculo, shotPrefix) {
     const built = await cdpEval(session, BUILD);
     record(
       `termo ${label} ${c.rotulo} tem título e MODELO CONTRATADO`,
-      Boolean(built?.temTitulo && built?.temCampo && built?.nVistoria === 1),
+      Boolean(built?.temTitulo && built?.temCampo && built?.nVistoria === 2),
       JSON.stringify({ nVistoria: built?.nVistoria, temTitulo: built?.temTitulo, temCampo: built?.temCampo })
+    );
+    record(
+      `termo ${label} ${c.rotulo} tem ENTREGA e DEVOLUÇÃO`,
+      Boolean(built?.temEntrega && built?.temDevolucao && built?.temPag1 && built?.temPag2 && built?.temItens),
+      JSON.stringify({
+        entrega: built?.temEntrega,
+        devolucao: built?.temDevolucao,
+        pag1: built?.temPag1,
+        pag2: built?.temPag2,
+        itens: built?.temItens,
+      })
+    );
+    record(
+      `termo ${label} ${c.rotulo} odômetro só na ENTREGA`,
+      /\d/.test(String(built?.kmEnt || "")) && !/\d{3,}/.test(String(built?.kmDev || "")),
+      JSON.stringify({ kmEnt: built?.kmEnt, kmDev: built?.kmDev })
     );
     record(
       `termo ${label} ${c.rotulo} usa ${c.file}`,
@@ -360,6 +389,11 @@ async function assertCores(session, base, label, cores, veiculo, shotPrefix) {
       String(built?.opcaoImgSrc || "").includes(c.file),
       built?.opcaoImgSrc || ""
     );
+    record(
+      `devolução ${label} ${c.rotulo} usa a mesma foto`,
+      String(built?.imgDevSrc || "").includes(c.file),
+      built?.imgDevSrc || ""
+    );
     let imgs = { ok: false };
     for (let i = 0; i < 20; i += 1) {
       imgs = await cdpEval(session, IMGS_READY);
@@ -367,7 +401,7 @@ async function assertCores(session, base, label, cores, veiculo, shotPrefix) {
       await new Promise((r) => setTimeout(r, 150));
     }
     record(`foto ${label} ${c.rotulo} carregou`, Boolean(imgs?.ok), JSON.stringify(imgs));
-    const shot = await saveClip(session, ".pagina-vistoria", `${shotPrefix}_${c.rotulo}.png`);
+    const shot = await saveClip(session, ".pagina-vistoria[data-vistoria='entrega']", `${shotPrefix}_${c.rotulo}.png`);
     record(
       `captura termo ${label} ${c.rotulo}`,
       Boolean(shot) && fs.statSync(shot).size > 20000,
@@ -383,7 +417,7 @@ async function main() {
   const modelos = readLocal("data/dk-modelos-veiculo.js");
   const indexHtml = readLocal("index.html");
 
-  record("HTML do Termo de Vistoria", textos.includes("TERMO DE VISTORIA") && textos.includes("MODELO CONTRATADO"));
+  record("HTML do Termo de Vistoria", textos.includes("Termo de Vistoria") && textos.includes("Modelo Contratado") && textos.includes("ENTREGA") && textos.includes("DEVOLUÇÃO"));
   record("Builder do termo exportado", pacote.includes("__DK_contratoPacoteBuildVistoriaPagina"));
   record("Gerar contrato inclui o termo", contrato.includes("__DK_contratoPacoteBuildVistoriaPagina") && contrato.includes("Termo de vistoria"));
   record("Resolver das 4 cores SHI 175", ["shi-175-preto.png", "shi-175-vermelho.png", "shi-175-azul.png", "shi-175-cinza.png"].every((f) => modelos.includes(f)));
@@ -417,6 +451,13 @@ async function main() {
       await assertCores(session, base, "YBR", CORES_YBR, VEICULO_YBR, "termo_vistoria_ybr");
       await assertCores(session, base, "YBR DX", CORES_YBR_DX, VEICULO_YBR_DX, "termo_vistoria_ybr_dx");
       await assertCores(session, base, "Start", CORES_START, VEICULO_START, "termo_vistoria_start");
+
+      const shotDev = await saveClip(session, ".pagina-vistoria[data-vistoria='devolucao']", "termo_vistoria_devolucao.png");
+      record(
+        "captura termo DEVOLUÇÃO",
+        Boolean(shotDev) && fs.statSync(shotDev).size > 20000,
+        shotDev ? `${shotDev} ${fs.statSync(shotDev).size}b` : ""
+      );
 
       await cdpGoto(session, base);
       const seededBranca = await cdpEval(session, seedExpr("BRANCA", VEICULO_SHI));

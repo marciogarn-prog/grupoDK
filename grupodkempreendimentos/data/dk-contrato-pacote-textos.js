@@ -216,65 +216,94 @@
   /** Requerimento: o pacote usa o PDF oficial (modelos/requerimento-padrao-detran.pdf); HTML legado não é renderizado. */
   window.__DK_CONTRATO_PACOTE_REQUERIMENTO = [];
 
+  /* TERMO DE VISTORIA — duas páginas SISLOC: ENTREGA e DEVOLUÇÃO. MODELO CONTRATADO na cor do veículo. */
   window.__DK_CONTRATO_PACOTE_VISTORIA = `
 <div class="vistoria-doc">
   <header class="vistoria-cab">
     <img class="vistoria-logo" src="{{LOGO_URL}}" alt="DK Locadora" crossorigin="anonymous">
     <div class="vistoria-cab-centro">
-      <h1>TERMO DE VISTORIA</h1>
-      <div class="vistoria-plano">Locação: {{MODALIDADE}}</div>
-      <p class="vistoria-proto">Protocolo Nº: {{PROTOCOLO}}</p>
+      <h1>Termo de Vistoria  -  Protocolo Nº: {{PROTOCOLO}}</h1>
+      <div class="vistoria-plano">Plano: {{MODALIDADE}}</div>
     </div>
+    <div class="vistoria-fase">{{FASE}}</div>
   </header>
 
-  <div class="vistoria-grid vistoria-grid--2">
-    <div class="vistoria-cell vistoria-cell--span"><span>Cliente:</span> Cód.: {{CODIGO_CLIENTE}} — {{NOME}}</div>
+  <div class="vistoria-grid vistoria-grid--cli">
+    <div class="vistoria-cell"><span>Código - Nome do Cliente</span> Cód.: {{CODIGO_CLIENTE}} - {{NOME}}</div>
+    <div class="vistoria-cell"><span>Nº do Celular</span> {{CELULAR}}</div>
+    <div class="vistoria-cell"><span>Nº da CNH / Categoria</span> {{CNH}} - Cat.: {{CNH_CATEGORIA}}</div>
   </div>
-  <div class="vistoria-grid vistoria-grid--3">
-    <div class="vistoria-cell"><span>CPF/CNPJ:</span> {{CPF}}</div>
-    <div class="vistoria-cell"><span>Celular:</span> {{CELULAR}}</div>
-    <div class="vistoria-cell"><span>CNH:</span> {{CNH}}</div>
+  <div class="vistoria-grid vistoria-grid--veic">
+    <div class="vistoria-cell"><span>Código</span> {{CODIGO_VEICULO}}</div>
+    <div class="vistoria-cell"><span>Placa</span> {{PLACA}}</div>
+    <div class="vistoria-cell"><span>Marca / Modelo</span> {{MARCA_MODELO}}</div>
+    <div class="vistoria-cell"><span>Ano/Modelo</span> {{ANO_MODELO}}</div>
+    <div class="vistoria-cell"><span>Cor</span> {{COR}}</div>
   </div>
-  <div class="vistoria-grid">
-    <div class="vistoria-cell vistoria-cell--span"><span>Endereço:</span> {{ENDERECO}}</div>
-  </div>
-
-  <div class="vistoria-grid vistoria-grid--veic1">
-    <div class="vistoria-cell"><span>Código:</span> {{CODIGO_VEICULO}}</div>
-    <div class="vistoria-cell"><span>Placa:</span> {{PLACA}}</div>
-    <div class="vistoria-cell"><span>Marca / Modelo:</span> {{MARCA_MODELO}}</div>
-    <div class="vistoria-cell"><span>Odômetro:</span> {{KM}}</div>
-  </div>
-  <div class="vistoria-grid vistoria-grid--veic2">
-    <div class="vistoria-cell"><span>Chassi:</span> {{CHASSI}}</div>
-    <div class="vistoria-cell"><span>Renavam:</span> {{RENAVAM}}</div>
-    <div class="vistoria-cell"><span>Cor:</span> {{COR}}</div>
-    <div class="vistoria-cell"><span>Ano/Modelo:</span> {{ANO_MODELO}}</div>
+  <div class="vistoria-grid vistoria-grid--prop">
+    <div class="vistoria-cell"><span>Proprietário do Veículo</span> {{PROPRIETARIO}}</div>
+    <div class="vistoria-cell"><span>CPF/CNPJ</span> {{CPF_CNPJ_PROP}}</div>
+    <div class="vistoria-cell"><span>Município/UF</span> {{MUNICIPIO_VEICULO}}</div>
   </div>
 
-  <section class="vistoria-modelo" aria-label="Modelo contratado">
-    <h2>MODELO CONTRATADO</h2>
-    <div class="vistoria-modelo__foto">{{FOTO_MODELO_CONTRATADO}}</div>
-  </section>
+  <div class="vistoria-legenda" aria-label="Legenda">
+    <span class="vistoria-leg vistoria-leg--n"><b>N</b> Novo</span>
+    <span class="vistoria-leg vistoria-leg--b"><b>B</b> Bom</span>
+    <span class="vistoria-leg vistoria-leg--m"><b>M</b> Médio</span>
+    <span class="vistoria-leg vistoria-leg--a"><b>A</b> Aprovado</span>
+    <span class="vistoria-leg vistoria-leg--r"><b>R</b> Reparar</span>
+    <span class="vistoria-leg vistoria-leg--s"><b>S</b> Substituir</span>
+  </div>
 
-  <p class="vistoria-legenda">
-    <span class="vistoria-legenda__tit">Legenda:</span>
-    <span><i class="vistoria-box"></i> Novo</span>
-    <span><i class="vistoria-box"></i> Bom</span>
-    <span><i class="vistoria-box"></i> Médio</span>
-    <span><i class="vistoria-box"></i> Aprovado</span>
-    <span><i class="vistoria-box"></i> Reparar</span>
-    <span><i class="vistoria-box"></i> Substituir</span>
-  </p>
+  <p class="vistoria-sec">Anotações Básicas</p>
+  <div class="vistoria-basicas">
+    <section class="vistoria-modelo" aria-label="MODELO CONTRATADO">
+      <h2>Modelo Contratado</h2>
+      <div class="vistoria-modelo__foto">{{FOTO_MODELO_CONTRATADO}}</div>
+      <p class="vistoria-modelo__leg">imagem ilustrativa</p>
+    </section>
+    <div class="vistoria-status">
+      <div class="vistoria-odo">
+        <span>Odômetro</span>
+        <div class="vistoria-odo__val">{{KM_CAMPO}}<i>Km(s)</i></div>
+      </div>
+      <div class="vistoria-comb">
+        <span>Combustível</span>
+        <div class="vistoria-comb__bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <table class="vistoria-moto">
+        <thead><tr><th>MOTO</th><th>N</th><th class="th-a">A</th><th class="th-b">B</th><th>M</th><th class="th-r">R</th><th class="th-s">S</th></tr></thead>
+        <tbody>
+          <tr><td>Placa (Trazeira)</td><td class="mk mk-n"></td><td class="mk mk-a"></td><td></td><td></td><td class="mk mk-r"></td><td class="mk mk-s"></td></tr>
+          <tr><td>Pneus (Trazeiro)</td><td class="mk mk-n"></td><td></td><td class="mk mk-b"></td><td class="mk mk-m"></td><td></td><td class="mk mk-s"></td></tr>
+          <tr><td>Pneus (Dianteiro)</td><td class="mk mk-n"></td><td></td><td class="mk mk-b"></td><td class="mk mk-m"></td><td></td><td class="mk mk-s"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <table class="vistoria-acess">
+      <thead><tr><th></th><th colspan="2">Instalado?</th></tr><tr><th></th><th>Sim</th><th>Não</th></tr></thead>
+      <tbody>
+        <tr><td>Suporte para o Celular</td><td class="mk"></td><td class="mk"></td></tr>
+        <tr><td>Carregador para o Celular</td><td class="mk"></td><td class="mk"></td></tr>
+        <tr><td>Suporte da Placa</td><td class="mk"></td><td class="mk"></td></tr>
+      </tbody>
+    </table>
+  </div>
 
-  <p class="vistoria-decl">Declaro ter vistoriado o veículo acima identificado, na cor e no modelo contratados, no ato da entrega, concordando com as condições verificadas neste termo.</p>
+  <p class="vistoria-sec">Inspeção de Acessórios / Itens de Segurança / Outros</p>
+  <div class="vistoria-itens">{{ITENS_VISTORIA}}</div>
+  <div class="vistoria-notas">
+    <span>Anotações</span>
+    <i></i><i></i><i></i><i></i><i></i>
+  </div>
 
-  <p class="vistoria-data">{{MUNICIPIO_DATA}}</p>
+  <p class="vistoria-decl">Declaramos que recebemos o veículo de Placa: {{PLACA}}, nas condições acima citadas e estamos de acordo com as informações contidas neste documento.</p>
+  <p class="vistoria-data">{{DATA_LINHA}}</p>
   <div class="vistoria-sigs">
     <div class="vistoria-sig">
       <div class="vistoria-sig-line" aria-hidden="true"></div>
       <p class="vistoria-sig-name">{{NOME}}</p>
-      <p class="vistoria-sig-id">CPF: {{CPF}}</p>
+      <p class="vistoria-sig-id">CPF/CNPJ: {{CPF}}</p>
     </div>
     <div class="vistoria-sig">
       <div class="vistoria-sig-line" aria-hidden="true"></div>

@@ -254,11 +254,14 @@
     },
     {
       "id": "termo-vistoria-modelo-contratado",
-      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX) e Honda Start.",
+      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX) e Honda Start. O termo tem duas páginas SISLOC: ENTREGA (locadora entrega ao cliente) e DEVOLUÇÃO (cliente devolve à locadora).",
       "ficheiros": {
         "data/dk-contrato-pacote-textos.js": [
           "TERMO DE VISTORIA",
-          "MODELO CONTRATADO"
+          "MODELO CONTRATADO",
+          "ENTREGA",
+          "DEVOLUÇÃO",
+          "Anotações Básicas"
         ],
         "data/dk-modelos-veiculo.js": [
           "shi-175-preto.png",
@@ -283,7 +286,10 @@
         ],
         "portal-contrato-pacote.js": [
           "pagina-vistoria",
-          "__DK_contratoPacoteBuildVistoriaPagina"
+          "__DK_contratoPacoteBuildVistoriaPagina",
+          "ENTREGA",
+          "DEVOLUÇÃO",
+          "Pág.: ${num} / ${total}"
         ],
         "portal-contrato-locacao.js": [
           "__DK_contratoPacoteBuildVistoriaPagina",
