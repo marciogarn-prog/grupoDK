@@ -1,8 +1,10 @@
 /**
- * Termo de Vistoria: campo MODELO CONTRATADO com SHI 175 na cor do veículo.
+ * Termo de Vistoria: campo MODELO CONTRATADO com foto de catálogo na cor do veículo.
+ * SHI 175 (preto/vermelho/azul/cinza) e Honda Bros 160 (preto/vermelho/branco/cinza).
  * node grupodkempreendimentos/scripts/test-termo-vistoria-modelo.mjs
  */
 import fs from "fs";
+import net from "net";
 import path from "path";
 import { spawn } from "child_process";
 import { fileURLToPath } from "url";
@@ -11,12 +13,22 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ART = "/opt/cursor/artifacts";
 const results = [];
 
-const CORES = [
+const CORES_SHI = [
   { cor: "PRETA", file: "shi-175-preto.png", rotulo: "preto" },
   { cor: "VERMELHA", file: "shi-175-vermelho.png", rotulo: "vermelho" },
   { cor: "AZUL", file: "shi-175-azul.png", rotulo: "azul" },
   { cor: "CINZA", file: "shi-175-cinza.png", rotulo: "cinza" },
 ];
+
+const CORES_BROS = [
+  { cor: "PRETA", file: "bros-160-preto.png", rotulo: "preto" },
+  { cor: "VERMELHA", file: "bros-160-vermelho.png", rotulo: "vermelho" },
+  { cor: "BRANCA", file: "bros-160-branco.png", rotulo: "branco" },
+  { cor: "CINZA", file: "bros-160-cinza.png", rotulo: "cinza" },
+];
+
+const VEICULO_SHI = { marca: "SHINERAY", modelo: "SHI 175 S EFI", marcaModelo: "SHI 175 S EFI" };
+const VEICULO_BROS = { marca: "HONDA", modelo: "NXR 160 BROS ESDD", marcaModelo: "NXR 160 BROS ESDD" };
 
 function record(name, ok, detail = "") {
   results.push({ name, ok, detail });
@@ -25,6 +37,27 @@ function record(name, ok, detail = "") {
 
 function readLocal(rel) {
   return fs.readFileSync(path.join(ROOT, rel), "utf8");
+}
+
+function findFreePort(preferred) {
+  return new Promise((resolve, reject) => {
+    const tryListen = (port) => {
+      const srv = net.createServer();
+      srv.unref();
+      srv.on("error", () => {
+        if (port === preferred) {
+          tryListen(0);
+          return;
+        }
+        reject(new Error("Não foi possível obter porta livre"));
+      });
+      srv.listen(port, "127.0.0.1", () => {
+        const p = srv.address().port;
+        srv.close(() => resolve(p));
+      });
+    };
+    tryListen(preferred);
+  });
 }
 
 async function waitHttpOk(url, tries = 40) {
@@ -41,7 +74,7 @@ async function waitHttpOk(url, tries = 40) {
 }
 
 async function withLocalServer(fn) {
-  const port = 3056;
+  const port = await findFreePort(3056);
   const child = spawn(process.execPath, ["server.cjs"], {
     cwd: ROOT,
     env: { ...process.env, PORT: String(port) },
@@ -87,7 +120,7 @@ async function withChromePage(fn) {
     (p) => fs.existsSync(p)
   );
   if (!chromeBin) throw new Error("Chrome não encontrado");
-  const debugPort = 9239;
+  const debugPort = await findFreePort(9239);
   const userDir = fs.mkdtempSync("/tmp/dk-chrome-termo-vistoria-");
   const child = spawn(
     chromeBin,
@@ -178,7 +211,10 @@ async function saveClip(session, selector, destName) {
   return dest;
 }
 
-function seedExpr(cor) {
+function seedExpr(cor, opts = {}) {
+  const marca = opts.marca || "SHINERAY";
+  const modelo = opts.modelo || "SHI 175 S EFI";
+  const marcaModelo = opts.marcaModelo || modelo;
   return `(() => {
     const cliente = {
       id: 9392,
@@ -204,7 +240,7 @@ function seedExpr(cor) {
       nome: "JOSIVAN DA CONCEICAO SANTOS",
       clienteCodigo: "0392",
       placa: "UHJ1D50",
-      marcaModelo: "SHI 175 S EFI",
+      marcaModelo: ${JSON.stringify(marcaModelo)},
       inicio: "31/08/2026",
       fim: "",
       statusLocacao: "ATIVO",
@@ -221,8 +257,8 @@ function seedExpr(cor) {
       id: 8801,
       placa: "UHJ1D50",
       tipo: "MOTO",
-      modelo: "SHI 175 S EFI",
-      marca: "SHINERAY",
+      modelo: ${JSON.stringify(modelo)},
+      marca: ${JSON.stringify(marca)},
       tag: "DKMT - 168",
       chassi: "9C2KD0810RR105086",
       renavam: "1392546254",
@@ -237,7 +273,7 @@ function seedExpr(cor) {
     localStorage.setItem("dk_locacoes_cadastro", JSON.stringify([loc]));
     localStorage.setItem("dk_veiculos_cadastro", JSON.stringify([veiculo]));
     if (typeof invalidateCadastroParseCache === "function") invalidateCadastroParseCache();
-    return { ok: true, cor: veiculo.cor };
+    return { ok: true, cor: veiculo.cor, marca: veiculo.marca, modelo: veiculo.modelo };
   })()`;
 }
 
@@ -279,6 +315,43 @@ const IMGS_READY = `(() => {
   };
 })()`;
 
+async function assertCores(session, base, label, cores, veiculo, shotPrefix) {
+  for (const c of cores) {
+    await cdpGoto(session, base);
+    const seeded = await cdpEval(session, seedExpr(c.cor, veiculo));
+    record(`seed ${label} ${c.rotulo}`, Boolean(seeded?.ok), seeded?.cor);
+    const built = await cdpEval(session, BUILD);
+    record(
+      `termo ${label} ${c.rotulo} tem título e MODELO CONTRATADO`,
+      Boolean(built?.temTitulo && built?.temCampo && built?.nVistoria === 1),
+      JSON.stringify({ nVistoria: built?.nVistoria, temTitulo: built?.temTitulo, temCampo: built?.temCampo })
+    );
+    record(
+      `termo ${label} ${c.rotulo} usa ${c.file}`,
+      String(built?.imgSrc || "").includes(c.file),
+      built?.imgSrc || ""
+    );
+    record(
+      `opção ${label} ${c.rotulo} usa a mesma foto`,
+      String(built?.opcaoImgSrc || "").includes(c.file),
+      built?.opcaoImgSrc || ""
+    );
+    let imgs = { ok: false };
+    for (let i = 0; i < 20; i += 1) {
+      imgs = await cdpEval(session, IMGS_READY);
+      if (imgs?.ok) break;
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    record(`foto ${label} ${c.rotulo} carregou`, Boolean(imgs?.ok), JSON.stringify(imgs));
+    const shot = await saveClip(session, ".pagina-vistoria", `${shotPrefix}_${c.rotulo}.png`);
+    record(
+      `captura termo ${label} ${c.rotulo}`,
+      Boolean(shot) && fs.statSync(shot).size > 20000,
+      shot ? `${shot} ${fs.statSync(shot).size}b` : ""
+    );
+  }
+}
+
 async function main() {
   const textos = readLocal("data/dk-contrato-pacote-textos.js");
   const pacote = readLocal("portal-contrato-pacote.js");
@@ -290,15 +363,16 @@ async function main() {
   record("Builder do termo exportado", pacote.includes("__DK_contratoPacoteBuildVistoriaPagina"));
   record("Gerar contrato inclui o termo", contrato.includes("__DK_contratoPacoteBuildVistoriaPagina") && contrato.includes("Termo de vistoria"));
   record("Resolver das 4 cores SHI 175", ["shi-175-preto.png", "shi-175-vermelho.png", "shi-175-azul.png", "shi-175-cinza.png"].every((f) => modelos.includes(f)));
+  record("Resolver das 4 cores Honda Bros", ["bros-160-preto.png", "bros-160-vermelho.png", "bros-160-branco.png", "bros-160-cinza.png"].every((f) => modelos.includes(f)));
   record("Script do catálogo no index", indexHtml.includes("data/dk-modelos-veiculo.js"));
 
-  for (const c of CORES) {
+  for (const c of [...CORES_SHI, ...CORES_BROS]) {
     const p = path.join(ROOT, "images/modelos", c.file);
     record(`arquivo ${c.file}`, fs.existsSync(p) && fs.statSync(p).size > 50000, p);
   }
 
   await withLocalServer(async (base) => {
-    for (const c of CORES) {
+    for (const c of [...CORES_SHI, ...CORES_BROS]) {
       const res = await fetch(`${base}images/modelos/${c.file}`);
       const buf = Buffer.from(await res.arrayBuffer());
       record(`HTTP ${c.file}`, res.ok && buf.length > 50000, `${res.status} ${buf.length}b`);
@@ -312,49 +386,37 @@ async function main() {
         mobile: false,
       });
 
-      for (const c of CORES) {
-        await cdpGoto(session, base);
-        const seeded = await cdpEval(session, seedExpr(c.cor));
-        record(`seed SHI 175 ${c.rotulo}`, Boolean(seeded?.ok), seeded?.cor);
-        const built = await cdpEval(session, BUILD);
-        record(
-          `termo ${c.rotulo} tem título e MODELO CONTRATADO`,
-          Boolean(built?.temTitulo && built?.temCampo && built?.nVistoria === 1),
-          JSON.stringify({ nVistoria: built?.nVistoria, temTitulo: built?.temTitulo, temCampo: built?.temCampo })
-        );
-        record(
-          `termo ${c.rotulo} usa ${c.file}`,
-          String(built?.imgSrc || "").includes(c.file),
-          built?.imgSrc || ""
-        );
-        record(
-          `opção ${c.rotulo} usa a mesma foto`,
-          String(built?.opcaoImgSrc || "").includes(c.file),
-          built?.opcaoImgSrc || ""
-        );
-        let imgs = { ok: false };
-        for (let i = 0; i < 20; i += 1) {
-          imgs = await cdpEval(session, IMGS_READY);
-          if (imgs?.ok) break;
-          await new Promise((r) => setTimeout(r, 150));
-        }
-        record(`foto ${c.rotulo} carregou`, Boolean(imgs?.ok), JSON.stringify(imgs));
-        const shot = await saveClip(session, ".pagina-vistoria", `termo_vistoria_shi175_${c.rotulo}.png`);
-        record(
-          `captura termo ${c.rotulo}`,
-          Boolean(shot) && fs.statSync(shot).size > 20000,
-          shot ? `${shot} ${fs.statSync(shot).size}b` : ""
-        );
-      }
+      await assertCores(session, base, "SHI 175", CORES_SHI, VEICULO_SHI, "termo_vistoria_shi175");
+      await assertCores(session, base, "Bros", CORES_BROS, VEICULO_BROS, "termo_vistoria_bros");
 
       await cdpGoto(session, base);
-      const seededBranca = await cdpEval(session, seedExpr("BRANCA"));
+      const seededBranca = await cdpEval(session, seedExpr("BRANCA", VEICULO_SHI));
       record("seed SHI 175 branca", Boolean(seededBranca?.ok));
       const builtBranca = await cdpEval(session, BUILD);
       record(
         "SHI 175 branca não usa foto de outra cor",
         !/shi-175-(preto|vermelho|azul|cinza)\.png/.test(String(builtBranca?.imgSrc || "")),
         builtBranca?.imgSrc || "(vazio)"
+      );
+      record(
+        "SHI 175 branca não usa foto da Bros",
+        !/bros-160-/.test(String(builtBranca?.imgSrc || "")),
+        builtBranca?.imgSrc || "(vazio)"
+      );
+
+      await cdpGoto(session, base);
+      const seededAzul = await cdpEval(session, seedExpr("AZUL", VEICULO_BROS));
+      record("seed Bros azul", Boolean(seededAzul?.ok));
+      const builtAzul = await cdpEval(session, BUILD);
+      record(
+        "Bros AZUL não usa foto de outra cor",
+        !/bros-160-(preto|vermelho|branco|cinza)\.png/.test(String(builtAzul?.imgSrc || "")),
+        builtAzul?.imgSrc || "(vazio)"
+      );
+      record(
+        "Bros AZUL não usa foto do SHI 175",
+        !/shi-175-/.test(String(builtAzul?.imgSrc || "")),
+        builtAzul?.imgSrc || "(vazio)"
       );
     });
   });

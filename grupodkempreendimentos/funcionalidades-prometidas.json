@@ -254,7 +254,7 @@
     },
     {
       "id": "termo-vistoria-modelo-contratado",
-      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto do SHI 175 na cor do veículo (preto, vermelho, azul ou cinza).",
+      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175 (preto, vermelho, azul ou cinza) e Honda Bros 160 (preto, vermelho, branco ou cinza).",
       "ficheiros": {
         "data/dk-contrato-pacote-textos.js": [
           "TERMO DE VISTORIA",
@@ -265,6 +265,10 @@
           "shi-175-vermelho.png",
           "shi-175-azul.png",
           "shi-175-cinza.png",
+          "bros-160-preto.png",
+          "bros-160-vermelho.png",
+          "bros-160-branco.png",
+          "bros-160-cinza.png",
           "__DK_resolveModeloContratadoFoto"
         ],
         "portal-contrato-pacote.js": [
