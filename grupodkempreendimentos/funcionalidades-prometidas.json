@@ -345,6 +345,27 @@
           "4. Requerimento padrão"
         ]
       }
+    },
+    {
+      "id": "janela-pagamento-caucao",
+      "descricao": "No Cadastro de locação, o botão Pagamento de caução abre uma janela para registrar data, valor e comentário da caução do protocolo, com histórico das cauções já gravadas.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoCaucaoBtn",
+          "portalCaucaoModal",
+          "portalCaucaoConfirmarBtn",
+          "Pagamento de caução"
+        ],
+        "portal-locadora-ui.js": [
+          "abrirPortalCaucaoModal",
+          "persistPortalLancamentoCaucao",
+          "portalLancamentosCaucao"
+        ],
+        "styles.css": [
+          "portal-modal__card--caucao",
+          "portal-caucao-lista"
+        ]
+      }
     }
   ]
 }

@@ -317,6 +317,13 @@ function anexarLancamentosMergeNaLocacao(target, ex, incoming, mergedPl) {
     incoming?.portalPagamentosAuditoria,
   ]);
   if (mergedAud.length) target.portalPagamentosAuditoria = mergedAud;
+  const mergedCaucao = mergePortalLancamentosAluguelEmbutidos([
+    ex?.portalLancamentosCaucao,
+    incoming?.portalLancamentosCaucao,
+  ]);
+  if (mergedCaucao.length || Array.isArray(ex?.portalLancamentosCaucao) || Array.isArray(incoming?.portalLancamentosCaucao)) {
+    target.portalLancamentosCaucao = mergedCaucao;
+  }
   syncResumoPagamentosNaLocacao(target);
   return target;
 }

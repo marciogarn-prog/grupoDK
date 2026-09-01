@@ -158,6 +158,21 @@
       incoming?.portalPagamentosAuditoria,
     ]);
     if (mergedAud.length) target.portalPagamentosAuditoria = mergedAud;
+    const mergeEmb =
+      typeof window.__DK_mergePortalLancamentosAluguelEmbutidos === "function"
+        ? window.__DK_mergePortalLancamentosAluguelEmbutidos
+        : (arrays) =>
+            (arrays || [])
+              .flat()
+              .filter((x) => x && typeof x === "object");
+    const mergedCaucao = mergeEmb([ex?.portalLancamentosCaucao, incoming?.portalLancamentosCaucao]);
+    if (
+      mergedCaucao.length ||
+      Array.isArray(ex?.portalLancamentosCaucao) ||
+      Array.isArray(incoming?.portalLancamentosCaucao)
+    ) {
+      target.portalLancamentosCaucao = mergedCaucao;
+    }
     syncResumoPagamentosNaLocacao(target);
     return target;
   }

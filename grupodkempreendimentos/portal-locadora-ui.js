@@ -12978,6 +12978,29 @@
     persistPortalLocacaoCancelar();
   });
 
+  document.getElementById("operacaoLocacaoCaucaoBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    abrirPortalCaucaoModal();
+  });
+
+  document.getElementById("portalCaucaoConfirmarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    persistPortalLancamentoCaucao();
+  });
+
+  document.querySelectorAll("[data-close-caucao]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      fecharPortalCaucaoModal();
+    });
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const modal = document.getElementById("portalCaucaoModal");
+    if (modal && !modal.classList.contains("hidden")) fecharPortalCaucaoModal();
+  });
+
   document.getElementById("portalRelClienteGerarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
@@ -14330,6 +14353,21 @@
     }
     refreshOperacaoLocacaoVisualizarContratoBtn();
     refreshOperacaoLocacaoCancelarBtn();
+    refreshOperacaoLocacaoCaucaoBtn();
+  }
+
+  function refreshOperacaoLocacaoCaucaoBtn() {
+    const btn = document.getElementById("operacaoLocacaoCaucaoBtn");
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    if (!btn) return;
+    const isNovo = sel && String(sel.value || "") === "__PORTAL_PROTO_NOVO__";
+    const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    const can = !isNovo && Boolean(loc);
+    btn.disabled = !can;
+    btn.title = can
+      ? "Abrir a janela para registrar pagamento de caução deste protocolo."
+      : "Carregue um protocolo já cadastrado para registrar o pagamento de caução.";
   }
 
   /** Só administrador — cancelar desistência antes de iniciar (sem débito). */
@@ -14364,6 +14402,173 @@
     if (typeof window.__DK_contratoLocacaoRefreshBotao === "function") {
       window.__DK_contratoLocacaoRefreshBotao();
     }
+  }
+
+  function portalCaucaoModalEl() {
+    return document.getElementById("portalCaucaoModal");
+  }
+
+  function locacaoCaucaoProtocoloAtual() {
+    return normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
+  }
+
+  function formatPortalCaucaoValorBr(n) {
+    const v = Number(n) || 0;
+    if (typeof currencyBRL === "function") return currencyBRL(v);
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function renderPortalCaucaoLista(loc) {
+    const ul = document.getElementById("portalCaucaoLista");
+    if (!ul) return;
+    const arr = Array.isArray(loc?.portalLancamentosCaucao) ? loc.portalLancamentosCaucao.slice() : [];
+    arr.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
+    if (!arr.length) {
+      ul.innerHTML = `<li class="portal-caucao-lista__vazio">Nenhuma caução registada neste protocolo.</li>`;
+      return;
+    }
+    ul.innerHTML = arr
+      .map((row) => {
+        const data = String(row.data || "").trim() || "—";
+        const valor = formatPortalCaucaoValorBr(row.valor);
+        const por = String(row.registradoPorNome || row.registradoPorLabel || "").trim();
+        const proto = String(row.protocoloLancamento || "").trim();
+        const com = String(row.comentarioPagamento || row.comentario || "").trim();
+        const extra = com ? `<br>${portalEscapeHtml(com)}` : "";
+        const quem = por ? ` · ${portalEscapeHtml(por)}` : "";
+        const pLbl = proto ? ` · ${portalEscapeHtml(proto)}` : "";
+        return `<li><strong>${portalEscapeHtml(data)}</strong> · ${portalEscapeHtml(valor)}${pLbl}${quem}${extra}</li>`;
+      })
+      .join("");
+  }
+
+  function fecharPortalCaucaoModal() {
+    const modal = portalCaucaoModalEl();
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+  }
+
+  function abrirPortalCaucaoModal() {
+    const modal = portalCaucaoModalEl();
+    const msg = document.getElementById("portalCaucaoMsg");
+    const resumo = document.getElementById("portalCaucaoResumo");
+    const inpData = document.getElementById("portalCaucaoData");
+    const inpValor = document.getElementById("portalCaucaoValor");
+    const inpCom = document.getElementById("portalCaucaoComentario");
+    if (!modal) return;
+    const nc = locacaoCaucaoProtocoloAtual();
+    const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    if (!loc) {
+      const fb = document.getElementById("operacaoLocacaoInlineMsg");
+      if (fb) fb.textContent = "Carregue um protocolo cadastrado para registrar a caução.";
+      return;
+    }
+    const nome = String(loc.nome || loc.cliente || "").trim() || "—";
+    const placa = String(loc.placa || "").trim() || "—";
+    const proto = String(loc.numeroContrato || nc).trim();
+    if (resumo) {
+      resumo.textContent = `${nome} · ${proto} · ${placa}`;
+    }
+    if (msg) msg.textContent = "";
+    if (inpValor) inpValor.value = "";
+    if (inpCom) inpCom.value = "";
+    if (inpData) {
+      inpData.value =
+        typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays ? portalBrDatePlusDays(0) : "";
+    }
+    renderPortalCaucaoLista(loc);
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    inpValor?.focus();
+  }
+
+  function persistPortalLancamentoCaucao() {
+    const msg = document.getElementById("portalCaucaoMsg");
+    if (!getPortalSessaoAdminRole()) {
+      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar a caução.";
+      return;
+    }
+    const nc = locacaoCaucaoProtocoloAtual();
+    const loc0 = nc ? findPortalLocacaoByProtocolo(nc) : null;
+    if (!loc0) {
+      if (msg) msg.textContent = "Protocolo não encontrado. Carregue a locação no cadastro.";
+      return;
+    }
+    const parseVal =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const cleaned = String(v ?? "")
+              .replace(/[R$\s]/g, "")
+              .replace(/\./g, "")
+              .replace(",", ".");
+            const n = Number(cleaned);
+            return Number.isFinite(n) ? n : 0;
+          };
+    const dataStr = String(document.getElementById("portalCaucaoData")?.value || "").trim();
+    const valorNum = Number(parseVal(String(document.getElementById("portalCaucaoValor")?.value || "")));
+    const dtp = typeof parseBrDate === "function" ? parseBrDate(dataStr) : null;
+    if (!dataStr || !dtp || Number.isNaN(dtp.getTime())) {
+      if (msg) msg.textContent = "Informe a data do pagamento (DD/MM/AAAA).";
+      return;
+    }
+    if (!Number.isFinite(valorNum) || valorNum <= 0) {
+      if (msg) msg.textContent = "Informe o valor da caução.";
+      return;
+    }
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      if (msg) msg.textContent = "Cadastro de locações indisponível.";
+      return;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idx = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === nc);
+    if (idx < 0) {
+      if (msg) msg.textContent = "Protocolo não encontrado no cadastro.";
+      return;
+    }
+    const loc = locs[idx];
+    const sessao =
+      typeof getPortalSessaoParaRegistroLancamentoAluguel === "function"
+        ? getPortalSessaoParaRegistroLancamentoAluguel()
+        : null;
+    const stamp = portalStampRegistradoPor(sessao);
+    const comentario = String(document.getElementById("portalCaucaoComentario")?.value || "")
+      .trim()
+      .slice(0, 500);
+    const nowMs = Date.now();
+    const entry = {
+      data: dataStr,
+      valor: valorNum,
+      createdAt: nowMs,
+      tipoMovimento: "CAUCAO",
+      ...stamp,
+      protocoloLancamento:
+        typeof window.__DK_gerarProtocoloLancamento === "function"
+          ? window.__DK_gerarProtocoloLancamento(stamp.registradoPorCpf || "", nowMs)
+          : "",
+    };
+    if (comentario) entry.comentarioPagamento = comentario;
+    const arr = Array.isArray(loc.portalLancamentosCaucao) ? loc.portalLancamentosCaucao.slice() : [];
+    arr.push(entry);
+    loc.portalLancamentosCaucao = arr;
+    loc.updatedAt = nowMs;
+    locs[idx] = loc;
+    try {
+      saveCadastro(CAD_LOCACOES_KEY, locs);
+    } catch (err) {
+      if (msg) msg.textContent = `Não foi possível guardar: ${err && err.message ? err.message : err}.`;
+      return;
+    }
+    if (typeof portalPushCloudSnapshotAfterPersist === "function") {
+      portalPushCloudSnapshotAfterPersist();
+    }
+    if (msg) msg.textContent = `Caução de ${formatPortalCaucaoValorBr(valorNum)} registada.`;
+    const inpValor = document.getElementById("portalCaucaoValor");
+    const inpCom = document.getElementById("portalCaucaoComentario");
+    if (inpValor) inpValor.value = "";
+    if (inpCom) inpCom.value = "";
+    renderPortalCaucaoLista(findPortalLocacaoByProtocolo(nc));
   }
 
   /** Com investimento > 0: DK MINHA MOTO; caso contrário: DK MEU TRANSPORTE (mesma regra do painel DK). */
@@ -16093,6 +16298,7 @@
           ...prev,
           ...baseRecord,
           portalLancamentosAluguel: prev.portalLancamentosAluguel,
+          portalLancamentosCaucao: prev.portalLancamentosCaucao,
           portalLocacaoExecutadoPorCpf: prev.portalLocacaoExecutadoPorCpf,
           portalLocacaoExecutadoPorNome: prev.portalLocacaoExecutadoPorNome,
           portalLocacaoExecutadoEmMs: prev.portalLocacaoExecutadoEmMs,
@@ -21241,6 +21447,7 @@
           prev?.portalLancamentosManutencao,
           l?.portalLancamentosManutencao,
         ]);
+        const mergedCaucao = mergePlEmb([prev?.portalLancamentosCaucao, l?.portalLancamentosCaucao]);
         const attachEmb = (row) => {
           if (typeof window.__DK_anexarLancamentosMergeNaLocacao === "function") {
             window.__DK_anexarLancamentosMergeNaLocacao(row, prev || {}, l, mergedPl);
@@ -21250,6 +21457,7 @@
           if (mergedPlMultas.length) row.portalLancamentosMultas = mergedPlMultas;
           if (mergedMultasTransito.length) row.portalMultasTransito = mergedMultasTransito;
           if (mergedPlManut.length) row.portalLancamentosManutencao = mergedPlManut;
+          if (mergedCaucao.length) row.portalLancamentosCaucao = mergedCaucao;
           return row;
         };
         if (!prev) {
