@@ -32,7 +32,10 @@
     <div class="opcao-cell"><span>CPF/CNPJ:</span> {{CPF}}</div>
   </div>
   <div class="opcao-grid opcao-grid--cnh">
-    <div class="opcao-cell opcao-cell--span"><span>Nº da CNH | Categoria | Validade | EAR?</span> {{CNH}} | {{CNH_CATEGORIA}} | {{CNH_VALIDADE}} | {{EAR}}</div>
+    <div class="opcao-cell"><span>Nº da CNH:</span> {{CNH}}</div>
+    <div class="opcao-cell"><span>Categoria:</span> {{CNH_CATEGORIA}}</div>
+    <div class="opcao-cell"><span>Validade:</span> {{CNH_VALIDADE}}</div>
+    <div class="opcao-cell"><span>EAR?:</span> {{EAR}}</div>
   </div>
   <div class="opcao-grid opcao-grid--3">
     <div class="opcao-cell"><span>Nº do Celular:</span> {{CELULAR}}</div>
