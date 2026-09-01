@@ -254,7 +254,7 @@
     },
     {
       "id": "termo-vistoria-modelo-contratado",
-      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX), Honda Start, Renault Kwid, Toyota Etios e Volkswagen Gol. O termo tem duas páginas SISLOC: ENTREGA (locadora entrega ao cliente) e DEVOLUÇÃO (cliente devolve à locadora).",
+      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX), Honda Start, Renault Kwid, Toyota Etios, Volkswagen Gol e Hyundai HB20. O termo tem duas páginas SISLOC: ENTREGA (locadora entrega ao cliente) e DEVOLUÇÃO (cliente devolve à locadora).",
       "ficheiros": {
         "data/dk-contrato-pacote-textos.js": [
           "TERMO DE VISTORIA",
@@ -289,6 +289,7 @@
           "kwid-laranja.png",
           "etios-branco.png",
           "gol-cinza.png",
+          "hb20-cinza.png",
           "__DK_resolveModeloContratadoFoto"
         ],
         "portal-contrato-pacote.js": [

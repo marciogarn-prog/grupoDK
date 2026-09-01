@@ -1,7 +1,7 @@
 /**
  * Foto de catálogo do modelo contratado (Termo de Vistoria / Opção Contratada).
  * SHI 175, Honda Bros 160, Yamaha YBR 150 Factor (Normal e DX), Honda CG 160 Start,
- * Renault Kwid, Toyota Etios e Volkswagen Gol.
+ * Renault Kwid, Toyota Etios, Volkswagen Gol e Hyundai HB20.
  * A cor do cadastro escolhe a imagem; cor desconhecida não usa foto de outra cor.
  */
 (function dkModelosVeiculo() {
@@ -72,6 +72,12 @@
       match: /\bGOL\b/i,
       cores: [
         { cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, file: "gol-cinza.png", rotulo: "CINZA" },
+      ],
+    },
+    {
+      match: /HB20/i,
+      cores: [
+        { cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, file: "hb20-cinza.png", rotulo: "CINZA" },
       ],
     },
   ];

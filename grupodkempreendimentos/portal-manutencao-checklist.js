@@ -72,6 +72,7 @@
     { match: /KWID/i, cor: /LARANJA|ORANGE/i, src: "images/modelos/kwid-laranja.png" },
     { match: /ETIOS/i, cor: /BRANC[OA]|WHITE/i, src: "images/modelos/etios-branco.png" },
     { match: /\bGOL\b/i, cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, src: "images/modelos/gol-cinza.png" },
+    { match: /HB20/i, cor: /CINZ[AO]|PRATA|PRATEAD|GRAY|GREY|SILVER/i, src: "images/modelos/hb20-cinza.png" },
   ];
 
   const esc = (s) =>
