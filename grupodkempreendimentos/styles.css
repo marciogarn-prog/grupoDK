@@ -2377,20 +2377,48 @@ body {
 
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--meu-transporte,
 #operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--meu-transporte {
-  color: #6ee7a0;
+  color: #6ee7a0 !important;
+  -webkit-text-fill-color: #6ee7a0;
   font-weight: 600;
 }
 
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--minha-moto,
 #operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--minha-moto {
-  color: #5eb8ff;
+  color: #5eb8ff !important;
+  -webkit-text-fill-color: #5eb8ff;
   font-weight: 600;
 }
 
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--carro,
 #operacaoLocacaoProtocoloSelect.portal-locacao-proto-select--carro {
-  color: #c4a484;
+  color: #c4a484 !important;
+  -webkit-text-fill-color: #c4a484;
   font-weight: 600;
+}
+
+/* TIPO DE PLANO: azul Minha Moto · verde Meu Transporte moto · marrom carro */
+#operacaoLocacaoTipoPlano.portal-tipo-plano--minha-moto,
+#operacaoLancAluguelTipoPlano.portal-tipo-plano--minha-moto {
+  color: #5eb8ff !important;
+  -webkit-text-fill-color: #5eb8ff;
+  font-weight: 700;
+  opacity: 1;
+}
+
+#operacaoLocacaoTipoPlano.portal-tipo-plano--meu-transporte,
+#operacaoLancAluguelTipoPlano.portal-tipo-plano--meu-transporte {
+  color: #6ee7a0 !important;
+  -webkit-text-fill-color: #6ee7a0;
+  font-weight: 700;
+  opacity: 1;
+}
+
+#operacaoLocacaoTipoPlano.portal-tipo-plano--carro,
+#operacaoLancAluguelTipoPlano.portal-tipo-plano--carro {
+  color: #c4a484 !important;
+  -webkit-text-fill-color: #c4a484;
+  font-weight: 700;
+  opacity: 1;
 }
 
 .portal-locacao-tipo-plano-row {
