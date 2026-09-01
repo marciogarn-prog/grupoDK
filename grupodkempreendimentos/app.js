@@ -3069,6 +3069,11 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       if (mergedPlMultas.length) merged.portalLancamentosMultas = mergedPlMultas;
       if (mergedMultasTransito.length) merged.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) merged.portalLancamentosManutencao = mergedPlManut;
+      const mergedCaucao = mergePortalLancamentosAluguelEmbutidos([
+        ex?.portalLancamentosCaucao,
+        l?.portalLancamentosCaucao,
+      ]);
+      if (mergedCaucao.length) merged.portalLancamentosCaucao = mergedCaucao;
       Object.assign(merged, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       const score = (x) => Number(x.updatedAt || x.createdAt || x.id || 0);
       if (score(l) > score(ex)) return merged;
@@ -3079,6 +3084,7 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
       if (mergedPlMultas.length) stay.portalLancamentosMultas = mergedPlMultas;
       if (mergedMultasTransito.length) stay.portalMultasTransito = mergedMultasTransito;
       if (mergedPlManut.length) stay.portalLancamentosManutencao = mergedPlManut;
+      if (mergedCaucao.length) stay.portalLancamentosCaucao = mergedCaucao;
       Object.assign(stay, mergeLocacaoCamposSincronizacaoPortal(ex, l));
       return stay;
     };
