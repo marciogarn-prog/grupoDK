@@ -57,6 +57,62 @@
     return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
   }
 
+  function formatCpfCnpjContrato(raw) {
+    const d = onlyDigits(raw);
+    if (d.length === 11) return formatCpf(d);
+    if (d.length === 14) {
+      return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+    }
+    return String(raw || "").trim();
+  }
+
+  function formatOdometroContrato(raw) {
+    const d = String(raw || "").replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+    if (!d) return "";
+    const grouped = d.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `${grouped} km`;
+  }
+
+  function loadVeiculoByPlaca(placa) {
+    const p = normPlaca(placa);
+    if (!p) return null;
+    try {
+      if (typeof window.findVeiculoByPlaca === "function") {
+        const hit = window.findVeiculoByPlaca(p);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+        const hit = loadCadastro(CAD_VEICULOS_KEY).find((v) => normPlaca(v?.placa) === p);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const raw = localStorage.getItem("dk_veiculos_cadastro");
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) {
+        const hit = arr.find((v) => normPlaca(v?.placa) === p);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function valorNaoVazio(...values) {
+    for (const value of values) {
+      const text = String(value ?? "").trim();
+      if (text) return text;
+    }
+    return "";
+  }
+
   function normProtocolo(raw) {
     if (typeof window.__DK_documentosNormProtocolo === "function") {
       return window.__DK_documentosNormProtocolo(raw);
@@ -332,8 +388,30 @@
     const rawFim = String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim();
     const statusLocacao = rawFim ? "FINALIZADO" : "ATIVO";
     const cliente = loadCliente(cpfDigits);
+    const veiculo = loadVeiculoByPlaca(placa);
     const codigoCliente = String(cliente?.codigo || "").trim() || "0000";
     const municipioUf = String(cliente?.municipioUf || "Petrolina/PE").trim();
+    const proprietario = valorNaoVazio(
+      document.getElementById("operacaoVeiculoProprietario")?.value,
+      veiculo?.proprietario
+    );
+    const proprietarioCpfCnpj = formatCpfCnpjContrato(
+      valorNaoVazio(
+        document.getElementById("operacaoVeiculoProprietarioCpfCnpj")?.value,
+        veiculo?.proprietarioCpfCnpj,
+        veiculo?.cpfCnpjProprietario,
+        veiculo?.cpfCnpj
+      )
+    );
+    const odometroInicio = formatOdometroContrato(
+      valorNaoVazio(
+        document.getElementById("operacaoLocacaoOdometroInicio")?.value,
+        document.getElementById("operacaoLocacaoKmInicial")?.value
+      )
+    );
+    const odometroFim = formatOdometroContrato(
+      valorNaoVazio(document.getElementById("operacaoLocacaoOdometroFim")?.value)
+    );
     return garantirDadosContratoComEndereco(
       montarDadosContrato({
         protocolo,
@@ -348,6 +426,10 @@
         inicioDt,
         statusLocacao,
         fim: rawFim,
+        proprietario,
+        proprietarioCpfCnpj,
+        odometroInicio,
+        odometroFim,
       })
     );
   }
@@ -359,13 +441,15 @@
     const inicioDt = parseBrDate(loc.inicio) || new Date();
     const nome = String(loc.nome || loc.cliente || cliente?.nome || "").trim();
     const modalidade = String(loc.plano || loc.opcaoContrato || loc.modalidade || "").trim() || "DK MEU TRANSPORTE";
+    const placa = normPlaca(loc.placa);
+    const veiculo = loadVeiculoByPlaca(placa);
     return garantirDadosContratoComEndereco(
       montarDadosContrato({
         protocolo: normProtocolo(loc.numeroContrato),
         cpfDigits,
         nome,
-        placa: normPlaca(loc.placa),
-        marcaModelo: String(loc.marcaModelo || loc.modelo || "").trim(),
+        placa,
+        marcaModelo: String(loc.marcaModelo || loc.modelo || veiculo?.marcaModelo || veiculo?.modelo || "").trim(),
         modalidade,
         codigoCliente:
           (typeof formatClienteCodigoPadrao === "function"
@@ -378,6 +462,17 @@
         inicioDt,
         statusLocacao: String(loc.statusLocacao || (String(loc.fim || "").trim() ? "FINALIZADO" : "ATIVO")).trim(),
         fim: String(loc.fim || "").trim(),
+        proprietario: valorNaoVazio(loc.proprietario, veiculo?.proprietario),
+        proprietarioCpfCnpj: formatCpfCnpjContrato(
+          valorNaoVazio(
+            loc.proprietarioCpfCnpj,
+            veiculo?.proprietarioCpfCnpj,
+            veiculo?.cpfCnpjProprietario,
+            veiculo?.cpfCnpj
+          )
+        ),
+        odometroInicio: formatOdometroContrato(valorNaoVazio(loc.kmInicial, loc.odometroInicio)),
+        odometroFim: formatOdometroContrato(valorNaoVazio(loc.kmFinal, loc.odometroFim)),
       })
     );
   }
@@ -385,6 +480,10 @@
   function montarDadosContrato(p) {
     const inicioDt = p.inicioDt || new Date();
     const protocolo = normProtocolo(p.protocolo);
+    const proprietario = String(p.proprietario || "").trim();
+    const proprietarioCpfCnpj = formatCpfCnpjContrato(p.proprietarioCpfCnpj);
+    const odometroInicio = String(p.odometroInicio || "").trim();
+    const odometroFim = String(p.odometroFim || "").trim();
     return {
       protocolo,
       cpfDigits: p.cpfDigits,
@@ -401,6 +500,10 @@
       municipioData: municipioDataLong(inicioDt, p.municipioUf),
       statusLocacao: p.statusLocacao,
       fim: p.fim,
+      proprietario,
+      proprietarioCpfCnpj,
+      odometroInicio,
+      odometroFim,
       sidebar: `Prot. Nº: ${p.protocolo} - ${DIAS_SEM[inicioDt.getDay()] || "dia"}, ${formatDataBr(inicioDt)} - ${p.modalidade} - Cód. Cliente: ${p.codigoCliente} - ${String(p.nome).toUpperCase()} - Placa: ${p.placa} - ${String(p.marcaModelo).toUpperCase()}`,
     };
   }
@@ -418,10 +521,16 @@
       .replace(/\{\{MODALIDADE\}\}/g, esc(dados.modalidade))
       .replace(/\{\{LOCATARIO\}\}/g, esc(dados.nome))
       .replace(/\{\{CPF_LOCATARIO\}\}/g, esc(dados.cpfFmt))
-      .replace(/\{\{MUNICIPIO_DATA\}\}/g, esc(dados.municipioData));
+      .replace(/\{\{MUNICIPIO_DATA\}\}/g, esc(dados.municipioData))
+      .replace(/\{\{PLACA\}\}/g, esc(dados.placa || ""))
+      .replace(/\{\{MARCA_MODELO\}\}/g, esc(dados.marcaModelo || ""))
+      .replace(/\{\{PROPRIETARIO\}\}/g, esc(dados.proprietario || "não informado"))
+      .replace(/\{\{CPF_CNPJ_PROP\}\}/g, esc(dados.proprietarioCpfCnpj || "não informado"))
+      .replace(/\{\{ODOMETRO_INICIO\}\}/g, esc(dados.odometroInicio || "não informado"))
+      .replace(/\{\{ODOMETRO_FIM\}\}/g, esc(dados.odometroFim || "não informado"));
   }
 
-  /** Folha A4 do modelo SISLOC (logo à esquerda, título à direita, faixa vertical). */
+  /** Folha A4 do modelo SISLOC (logo à esquerda, título à direita, faixa vertical, quadrado azul). */
   function cssContratoPagina() {
     return `
 .pagina.pagina-contrato {
@@ -431,27 +540,37 @@
   min-height: 297mm;
   max-height: 297mm;
   overflow: hidden;
-  padding: 11mm 24mm 16mm 12mm;
+  padding: 10mm 22mm 15mm 14mm;
   background: #fff;
   color: #000;
-  font-family: Arial, Helvetica, "Segoe UI", sans-serif;
-  font-size: 8.6pt;
-  line-height: 1.22;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.55pt;
+  line-height: 1.21;
   page-break-after: always;
   break-after: page;
+}
+.pagina.pagina-contrato .marcador-azul {
+  position: absolute;
+  top: 5.2mm;
+  right: 5.2mm;
+  width: 4.4mm;
+  height: 4.4mm;
+  background: #2b6cb0;
+  z-index: 4;
 }
 .pagina.pagina-contrato .cabecalho {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 8mm;
-  margin: 0 0 4.5mm;
+  gap: 6mm;
+  margin: 0 0 3.2mm;
+  padding-right: 6mm;
 }
 .pagina.pagina-contrato .cabecalho img {
   display: block;
-  height: 14mm;
+  height: 16mm;
   width: auto;
-  max-width: 44mm;
+  max-width: 46mm;
   object-fit: contain;
   object-position: left top;
   flex: 0 0 auto;
@@ -459,64 +578,115 @@
 .pagina.pagina-contrato .cabecalho-titulo {
   text-align: right;
   flex: 1 1 auto;
-  padding-top: 0.4mm;
+  padding-top: 1.2mm;
 }
 .pagina.pagina-contrato .cabecalho-titulo h1 {
   margin: 0;
-  font-size: 12pt;
+  font-size: 12.2pt;
   font-weight: 700;
   text-decoration: underline;
-  text-underline-offset: 1.5px;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
+  text-underline-offset: 1.6px;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
   text-align: right;
+  text-transform: uppercase;
   font-family: Arial, Helvetica, sans-serif;
 }
 .pagina.pagina-contrato .cabecalho-titulo .proto {
-  margin: 2mm 0 0;
+  margin: 1.8mm 0 0;
   font-size: 10pt;
   font-weight: 700;
   text-align: right;
 }
-.pagina.pagina-contrato .partes { margin: 0 0 4mm; text-align: justify; }
-.pagina.pagina-contrato .partes p { margin: 0 0 2.4mm; text-align: justify; }
-.pagina.pagina-contrato .hl { background: #fff3a0; padding: 0 1px; }
+.pagina.pagina-contrato .partes { margin: 0 0 2.6mm; text-align: justify; }
+.pagina.pagina-contrato .partes p { margin: 0 0 2mm; text-align: justify; }
+.pagina.pagina-contrato .acordo {
+  text-align: center;
+  font-weight: 700;
+  margin: 2.4mm 0 3mm;
+}
+.pagina.pagina-contrato .id-veiculo {
+  margin: 0 0 2mm;
+  text-align: justify;
+  font-size: 8pt;
+  line-height: 1.25;
+}
 .pagina.pagina-contrato .sidebar {
   position: absolute;
   top: 12mm;
-  right: 3.2mm;
-  bottom: 14mm;
-  width: 14mm;
+  right: 2.8mm;
+  bottom: 13mm;
+  width: 13mm;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
-  font-size: 6.2pt;
+  font-size: 6.1pt;
   color: #222;
   text-align: center;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
+  letter-spacing: 0.02em;
+  line-height: 1.15;
   overflow: hidden;
   white-space: nowrap;
+  font-family: Arial, Helvetica, sans-serif;
 }
 .pagina.pagina-contrato .corpo { text-align: justify; }
 .pagina.pagina-contrato .cl,
-.pagina.pagina-contrato .cl-n { margin: 0 0 1.6px; text-align: justify; }
+.pagina.pagina-contrato .cl-n { margin: 0 0 1.5px; text-align: justify; }
 .pagina.pagina-contrato .cl-t {
   font-weight: 700;
-  margin: 3.2mm 0 1.4mm;
+  margin: 2.8mm 0 1.2mm;
   font-size: 9pt;
   text-align: left;
 }
-.pagina.pagina-contrato .pe-pagina {
-  position: absolute;
-  bottom: 6.5mm;
-  left: 12mm;
-  right: 24mm;
+.pagina.pagina-contrato .sig-data {
+  text-align: center;
+  font-weight: 700;
+  margin: 12mm 0 8mm;
+  font-size: 9pt;
+}
+.pagina.pagina-contrato .sig-area {
   display: flex;
   justify-content: space-between;
-  font-size: 7.5pt;
+  align-items: flex-start;
+  gap: 16mm;
+  margin-top: 4mm;
+  width: 100%;
+  box-sizing: border-box;
+}
+.pagina.pagina-contrato .sig-col {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+.pagina.pagina-contrato .sig-rule {
+  width: 100%;
+  border-bottom: 1.1pt solid #111;
+  height: 18px;
+  margin: 0 0 5px;
+}
+.pagina.pagina-contrato .sig-name {
+  margin: 0;
+  font-size: 8.4pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.25;
+}
+.pagina.pagina-contrato .sig-id {
+  margin: 2px 0 0;
+  font-size: 8pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+.pagina.pagina-contrato .pe-pagina {
+  position: absolute;
+  bottom: 6mm;
+  left: 14mm;
+  right: 22mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.4pt;
   color: #333;
-  border-top: 1px solid #bbb;
-  padding-top: 2.5px;
+  padding-top: 1.5px;
   font-family: Arial, Helvetica, sans-serif;
 }`;
   }
@@ -542,46 +712,6 @@ body.contrato-preview { padding-top: 52px; }
 }
 .pagina:last-child { page-break-after: auto; margin-bottom: 0; }
 ${cssContratoPagina()}
-.sig-area {
-.sig-area {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 18mm;
-  margin-top: 28px;
-  width: 100%;
-  box-sizing: border-box;
-}
-.sig-col {
-  flex: 1 1 0;
-  min-width: 0;
-  text-align: center;
-}
-.sig-rule {
-  width: 100%;
-  border-bottom: 1.2pt solid #111;
-  height: 22px;
-  margin: 0 0 6px;
-}
-.sig-name {
-  margin: 0;
-  font-size: 8.5pt;
-  font-weight: 600;
-  text-align: center;
-  line-height: 1.25;
-}
-.sig-id {
-  margin: 2px 0 0;
-  font-size: 8pt;
-  text-align: center;
-  line-height: 1.2;
-}
-.sig-line, .sig-block { display: none; }
-.pe-pagina {
-  position: absolute; bottom: 6mm; left: 10mm; right: 26mm;
-  display: flex; justify-content: space-between; font-size: 7pt; color: #444;
-  border-top: 1px solid #ccc; padding-top: 3px;
-}
 .barra-acoes {
   position: fixed; top: 0; left: 0; right: 0; z-index: 999;
   background: #1a1a1a; color: #fff; padding: 10px 16px;
@@ -648,6 +778,10 @@ ${cssContratoPagina()}
       dataContrato: normCmpTexto(dados.dataContrato),
       fim: normCmpTexto(dados.fim),
       statusLocacao: normCmpTexto(dados.statusLocacao || "ATIVO"),
+      proprietario: normCmpTexto(dados.proprietario),
+      proprietarioCpfCnpj: normCmpTexto(dados.proprietarioCpfCnpj),
+      odometroInicio: normCmpTexto(dados.odometroInicio),
+      odometroFim: normCmpTexto(dados.odometroFim),
       geradoEm: new Date().toISOString(),
     };
   }
@@ -661,6 +795,10 @@ ${cssContratoPagina()}
     { key: "placa", label: "Placa", grupo: "Veículo", norm: (v) => normPlaca(v) },
     { key: "marcaModelo", label: "Marca / modelo", grupo: "Veículo" },
     { key: "modalidade", label: "Modalidade", grupo: "Veículo" },
+    { key: "proprietario", label: "Proprietário", grupo: "Veículo" },
+    { key: "proprietarioCpfCnpj", label: "CPF/CNPJ do proprietário", grupo: "Veículo" },
+    { key: "odometroInicio", label: "Odômetro início", grupo: "Veículo" },
+    { key: "odometroFim", label: "Odômetro fim", grupo: "Veículo" },
     { key: "dataContrato", label: "Data de início", grupo: "Contrato" },
     { key: "fim", label: "Data de término", grupo: "Contrato" },
     { key: "statusLocacao", label: "Status da locação", grupo: "Contrato" },
@@ -799,15 +937,19 @@ ${tabelas}
   }
 
   function paginaCapa(dados) {
+    const prop = String(dados.proprietario || "").trim() || "não informado";
+    const propDoc = String(dados.proprietarioCpfCnpj || "").trim() || "não informado";
+    const odIni = String(dados.odometroInicio || "").trim() || "não informado";
+    const odFim = String(dados.odometroFim || "").trim() || "não informado";
     return `<div class="partes">
 <p>De um lado, <strong>DK LOCADORA LTDA</strong>, pessoa jurídica de direito privado, devidamente inscrita no CNPJ/MF sob o nº
 59.665.734/0001-32, com sede na AV. DA REDENÇÃO, SN - ANTÔNIO CASSIMIRO - PETROLINA/PE - CEP: 56.321-440,
 representado na forma de seu Contrato Social, neste ato denominado <strong>LOCADOR</strong>.</p>
-<p>De outro lado, <span class="hl">${esc(dados.nome)}</span>, CPF: <span class="hl">${esc(dados.cpfFmt)}</span>,
-<span class="hl">residente e domiciliado no(a) ${esc(dados.endereco)}</span>,
+<p>De outro lado, ${esc(dados.nome)}, CPF: ${esc(dados.cpfFmt)},
+residente e domiciliado no(a) ${esc(dados.endereco)},
 neste ato denominado <strong>LOCATÁRIO</strong>.</p>
-<p>Têm entre si, de maneira justa e acordada, o presente <strong>INSTRUMENTO PARTICULAR DE CONTRATO DE LOCAÇÃO DE
-VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
+<p class="id-veiculo"><strong>Veículo:</strong> Placa ${esc(dados.placa)} — ${esc(dados.marcaModelo || "—")} — Proprietário: ${esc(prop)} — CPF/CNPJ do proprietário: ${esc(propDoc)} — Odômetro início: ${esc(odIni)} — Odômetro fim: ${esc(odFim)}.</p>
+<p class="acordo">Têm entre si, de maneira justa e acordada, o presente INSTRUMENTO PARTICULAR DE CONTRATO DE LOCAÇÃO DE VEÍCULO, que se regerá pelas cláusulas abaixo descritas.</p>
 </div>`;
   }
 
@@ -819,11 +961,12 @@ VEÍCULO</strong>, que se regerá pelas cláusulas abaixo descritas.</p>
   <img src="${esc(logoAbsUrl())}" alt="DK Locadora" crossorigin="anonymous">
   <div class="cabecalho-titulo">
     <h1>CONTRATO DE LOCAÇÃO DE VEÍCULO</h1>
-    <p class="proto">Protocolo nº <span class="hl">${esc(dados.protocolo)}</span></p>
+    <p class="proto">Protocolo nº ${esc(dados.protocolo)}</p>
   </div>
 </div>`
         : "";
     return `<div class="pagina pagina-contrato" data-pagina="${num}">
+  <div class="marcador-azul" aria-hidden="true"></div>
   <div class="sidebar">${esc(dados.sidebar)}</div>
   ${titulo}
   ${capa}

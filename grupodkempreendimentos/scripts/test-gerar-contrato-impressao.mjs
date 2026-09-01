@@ -163,6 +163,8 @@ const SEED = `(() => {
     valorInvestimento: "R$ 20,00",
     origemPortal: true,
     createdAt: Date.now(),
+    kmInicial: "18452",
+    kmFinal: "",
   };
   const veiculo = {
     id: 8801,
@@ -241,6 +243,13 @@ const LOAD_AND_CLICK = `(() => {
     tem10paginas: (html.match(/class="pagina/g) || []).length >= 10 || (html.match(/class='pagina/g) || []).length >= 10,
     temProtocolo: html.includes("2026083102"),
     temFormatado: html.includes("formatado para impressão"),
+    nMarcador: (html.match(/marcador-azul/g) || []).length,
+    temSidebar: html.includes("Prot. Nº:"),
+    temSisloc: html.includes("# DK - SISLOC - Sistema de Controle de Locações"),
+    temTitulo: html.includes("CONTRATO DE LOCAÇÃO DE VEÍCULO"),
+    temSig: html.includes("sig-area") && html.includes("DK LOCADORA LTDA"),
+    temProprietario: html.includes("GRUPO DK") && html.includes("CPF/CNPJ do proprietário"),
+    temOdometro: html.includes("Odômetro início") && html.includes("18.452 km"),
     msg: String(document.getElementById("operacaoLocacaoInlineMsg")?.textContent || ""),
     docsMsg: String(document.getElementById("operacaoLocacaoDocumentosMsg")?.textContent || ""),
   };
@@ -259,6 +268,10 @@ async function main() {
       contrato.includes("modelo 10 páginas formatado para impressão")
   );
   record("Preview tem botão Imprimir visível", contrato.includes('id="btnImprimir">Imprimir'));
+  record("Modelo SISLOC tem quadrado azul", contrato.includes("marcador-azul"));
+  record("Modelo SISLOC tem faixa Prot. Nº", contrato.includes("Prot. Nº:"));
+  record("Modelo SISLOC tem rodapé SISLOC", contrato.includes("# DK - SISLOC - Sistema de Controle de Locações"));
+  record("CSS assinatura sem chave duplicada", !/\.sig-area \{\s*\.sig-area \{/.test(contrato));
   record("Protocolo carregado fica seleccionado", ui.includes("pinOperacaoLocacaoProtocoloCarregado"));
   record("CPF/CNPJ do proprietário no cadastro", html.includes("operacaoVeiculoProprietarioCpfCnpj"));
   record("Odômetro início/fim na locação", html.includes("operacaoLocacaoOdometroInicio") && html.includes("ODOMETRO FIM"));
@@ -284,6 +297,22 @@ async function main() {
         htmlLen: clicked?.htmlLen,
       }));
       record("janela tem botão Imprimir", Boolean(clicked?.temImprimir), JSON.stringify({ temImprimir: clicked?.temImprimir, temFormatado: clicked?.temFormatado }));
+      record(
+        "janela replica o modelo SISLOC (azul, faixa, rodapé, 10 págs)",
+        clicked?.nMarcador >= 10 && clicked?.temSidebar && clicked?.temSisloc && clicked?.temTitulo && clicked?.temSig,
+        JSON.stringify({
+          nMarcador: clicked?.nMarcador,
+          temSidebar: clicked?.temSidebar,
+          temSisloc: clicked?.temSisloc,
+          temTitulo: clicked?.temTitulo,
+          temSig: clicked?.temSig,
+        })
+      );
+      record(
+        "janela traz proprietário, CPF/CNPJ e odômetro",
+        Boolean(clicked?.temProprietario && clicked?.temOdometro),
+        JSON.stringify({ temProprietario: clicked?.temProprietario, temOdometro: clicked?.temOdometro })
+      );
     });
   });
 

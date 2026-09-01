@@ -437,7 +437,7 @@
 <p class="cl">enquadrados no art. 101, inciso I, da Lei nº 8.078/90, ocasião em que poderá ser o do domicílio do Locatário.</p>
 <p class="cl-n">13.20. As cláusulas e condições do presente Contrato poderão ser alteradas sem prévio aviso e cabe ao Locatário se</p>
 <p class="cl">manter atualizado pelo site oficial da Locadora.</p>
-<p class="cl">{{MUNICIPIO_DATA}}</p>
+<p class="sig-data">{{MUNICIPIO_DATA}}</p>
 <div class="sig-area">
   <div class="sig-col">
     <div class="sig-rule" aria-hidden="true"></div>

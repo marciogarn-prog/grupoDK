@@ -213,6 +213,25 @@
           "id=\"btnImprimir\">Imprimir"
         ]
       }
+    },
+    {
+      "id": "contrato-modelo-sisloc-10p",
+      "descricao": "Gerar contrato usa a formatação do modelo SISLOC de 10 páginas: logo e título na capa, quadrado azul, faixa vertical Prot. Nº, rodapé SISLOC, assinaturas na pág. 10, com proprietário/CPF-CNPJ e odômetros.",
+      "ficheiros": {
+        "portal-contrato-locacao.js": [
+          "marcador-azul",
+          "Prot. Nº:",
+          "# DK - SISLOC - Sistema de Controle de Locações",
+          "CONTRATO DE LOCAÇÃO DE VEÍCULO",
+          "id=\"btnImprimir\">Imprimir",
+          "CPF/CNPJ do proprietário",
+          "Odômetro início"
+        ],
+        "data/dk-contrato-locacao-texto.js": [
+          "sig-data",
+          "Cláusula 1ª - Objeto do Contrato"
+        ]
+      }
     }
   ]
 }
