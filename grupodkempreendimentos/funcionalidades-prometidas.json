@@ -232,6 +232,25 @@
           "Cláusula 1ª - Objeto do Contrato"
         ]
       }
+    },
+    {
+      "id": "opcao-contratada-sisloc",
+      "descricao": "Gerar contrato imprime o contrato de 10 páginas e a Opção Contratada no modelo SISLOC (plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas).",
+      "ficheiros": {
+        "data/dk-contrato-pacote-textos.js": [
+          "OPÇÃO CONTRATADA",
+          "Termo de Compromisso"
+        ],
+        "portal-contrato-pacote.js": [
+          "pagina-opcao",
+          "opcao-plano",
+          "__DK_contratoPacoteBuildOpcaoPagina"
+        ],
+        "portal-contrato-locacao.js": [
+          "__DK_contratoPacoteBuildOpcaoPagina",
+          "Opção contratada"
+        ]
+      }
     }
   ]
 }

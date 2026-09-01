@@ -33,3 +33,4 @@ Itens actualmente travados:
 - Cadastro de locação: campos **ODOMETRO INICIO** e **ODOMETRO FIM**.
 - Cadastro de locação: **Gerar contrato** abre o contrato de **10 páginas formatado para impressão** (botão Imprimir) e não fica preso em NOVO.
 - Contrato gerado segue o **modelo SISLOC de 10 páginas** (logo/título na capa, quadrado azul, faixa vertical Prot. Nº, rodapé SISLOC, assinaturas) e inclui proprietário, CPF/CNPJ e odômetros.
+- Gerar contrato inclui a **Opção Contratada** no modelo SISLOC (1 página: plano, protocolo, locatário, veículo, termo de compromisso).

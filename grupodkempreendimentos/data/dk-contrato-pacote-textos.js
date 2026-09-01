@@ -3,63 +3,95 @@
  * Placeholders: {{NOME}}, {{CPF}}, {{ENDERECO}}, {{PROTOCOLO}}, {{PLACA}}, {{MARCA_MODELO}},
  * {{CHASSI}}, {{RENAVAM}}, {{COR}}, {{ANO_MODELO}}, {{MODALIDADE}}, {{CODIGO_CLIENTE}},
  * {{CELULAR}}, {{CNH}}, {{MUNICIPIO_DATA}}, {{VALOR_ALUGUEL}}, {{VALOR_INVESTIMENTO}},
- * {{KM}}, {{CODIGO_VEICULO}}, {{RG}}, {{CEP}}, {{BAIRRO}}, {{CIDADE}}, {{UF}}, {{EMAIL}}
+ * {{KM}}, {{CODIGO_VEICULO}}, {{RG}}, {{CEP}}, {{BAIRRO}}, {{CIDADE}}, {{UF}}, {{EMAIL}},
+ * {{CNH_CATEGORIA}}, {{CNH_VALIDADE}}, {{EAR}}, {{RECADO1}}, {{RECADO2}}, {{MARCA}}, {{MODELO}},
+ * {{PROPRIETARIO}}, {{CPF_CNPJ_PROP}}, {{MUNICIPIO_VEICULO}}, {{PERIODO_SEMANAS}},
+ * {{VALOR_ALUGUEL_EXTENSO}}, {{VALOR_INVESTIMENTO_EXTENSO}}, {{VALOR_SEMANAL}}, {{VALOR_SEMANAL_EXTENSO}},
+ * {{VALOR_COMPRA}}, {{VALOR_COMPRA_EXTENSO}}, {{DIA_PAGAMENTO}}, {{DATA_INICIO}}, {{DATA_FIM}}, {{FOTO_VEICULO}}
  */
 (function () {
   "use strict";
 
   window.__DK_CONTRATO_PACOTE_OPCAO = `
-<div class="kit-doc kit-opcao">
-  <header class="kit-opcao__head">
-    <h1>OPÇÃO CONTRATADA</h1>
-    <p class="kit-opcao__plano"><strong>Plano:</strong> {{MODALIDADE}}</p>
-    <p class="kit-opcao__proto"><strong>Protocolo:</strong> {{PROTOCOLO}}</p>
+<div class="opcao-doc">
+  <header class="opcao-cab">
+    <img class="opcao-logo" src="{{LOGO_URL}}" alt="DK Locadora" crossorigin="anonymous">
+    <div class="opcao-cab-centro">
+      <h1>OPÇÃO CONTRATADA</h1>
+      <div class="opcao-plano">Plano: {{MODALIDADE}}</div>
+      <p class="opcao-proto">Protocolo Nº: {{PROTOCOLO}}</p>
+    </div>
+    <div class="opcao-foto">{{FOTO_VEICULO}}</div>
   </header>
-  <section class="kit-box">
-    <h2>Locatário</h2>
-    <div class="kit-grid2">
-      <p><span>Nome</span><strong>{{NOME}}</strong></p>
-      <p><span>Cód. cliente</span><strong>{{CODIGO_CLIENTE}}</strong></p>
-      <p><span>CPF</span><strong>{{CPF}}</strong></p>
-      <p><span>CNH</span><strong>{{CNH}}</strong></p>
-      <p><span>Celular</span><strong>{{CELULAR}}</strong></p>
-      <p class="kit-span2"><span>Endereço</span><strong>{{ENDERECO}}</strong></p>
-    </div>
+
+  <p class="opcao-eu">Eu,</p>
+  <p class="opcao-nome">{{NOME}}</p>
+  <div class="opcao-grid opcao-grid--2">
+    <div class="opcao-cell"><span>Código:</span> {{CODIGO_CLIENTE}}</div>
+    <div class="opcao-cell"><span>CPF/CNPJ:</span> {{CPF}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--cnh">
+    <div class="opcao-cell opcao-cell--span"><span>Nº da CNH | Categoria | Validade | EAR?</span> {{CNH}} | {{CNH_CATEGORIA}} | {{CNH_VALIDADE}} | {{EAR}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--3">
+    <div class="opcao-cell"><span>Nº do Celular:</span> {{CELULAR}}</div>
+    <div class="opcao-cell"><span>Recados (1):</span> {{RECADO1}}</div>
+    <div class="opcao-cell"><span>Recados (2):</span> {{RECADO2}}</div>
+  </div>
+  <div class="opcao-grid">
+    <div class="opcao-cell opcao-cell--span"><span>Endereço:</span> {{ENDERECO}}</div>
+  </div>
+
+  <p class="opcao-frase">opto pelo plano acima sinalizado, referente a Locação do Veículo abaixo especificado:</p>
+  <div class="opcao-grid opcao-grid--veic1">
+    <div class="opcao-cell"><span>Código:</span> {{CODIGO_VEICULO}}</div>
+    <div class="opcao-cell"><span>Placa:</span> {{PLACA}}</div>
+    <div class="opcao-cell"><span>Marca / Modelo:</span> {{MARCA_MODELO}}</div>
+    <div class="opcao-cell"><span>Odometro:</span> {{KM}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--veic2">
+    <div class="opcao-cell"><span>Chassi:</span> {{CHASSI}}</div>
+    <div class="opcao-cell"><span>Renavam:</span> {{RENAVAM}}</div>
+    <div class="opcao-cell"><span>Cor:</span> {{COR}}</div>
+    <div class="opcao-cell"><span>Ano/Modelo:</span> {{ANO_MODELO}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--veic3">
+    <div class="opcao-cell"><span>Proprietário:</span> {{PROPRIETARIO}}</div>
+    <div class="opcao-cell"><span>CPF:</span> {{CPF_CNPJ_PROP}}</div>
+    <div class="opcao-cell"><span>Município:</span> {{MUNICIPIO_VEICULO}}</div>
+  </div>
+
+  <p class="opcao-frase">nas condições abaixo descritas:</p>
+  <ul class="opcao-cond">
+    <li><span class="opcao-chev">Período do Contrato &gt;&gt;</span> <span class="opcao-val">{{PERIODO_SEMANAS}} SEMANAS</span></li>
+    <li><span class="opcao-chev">Valor da Locação (Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}})</span></li>
+    <li><span class="opcao-chev">Valor do Investimento (Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}})</span></li>
+    <li><span class="opcao-chev">Totalizando (Valor Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}})</span></li>
+  </ul>
+  <p class="opcao-garantia">…referente à garantia de compra pelo valor de {{VALOR_COMPRA}} ({{VALOR_COMPRA_EXTENSO}}) do veículo identificado neste Anexo, ao final do período acima acordado.</p>
+  <div class="opcao-atencao">
+    <strong>ATENÇÃO:</strong> A garantia de compra prevista neste anexo será automaticamente cancelada na hipótese de descumprimento, pelo LOCATÁRIO, de quaisquer das cláusulas do Contrato de Locação de Veículo, em especial a <strong>Cláusula 10ª (Rescisão)</strong>.
+  </div>
+
+  <p class="opcao-obs-tit"><strong>Observações:</strong></p>
+  <p class="opcao-obs"><span class="opcao-chev-inline">&gt;</span> Na Troca periódica do Óleo do Motor, o valor do óleo será de responsabilidade do LOCATÁRIO.</p>
+
+  <section class="opcao-termo">
+    <h2>Termo de Compromisso</h2>
+    <p>Comprometo-me a realizar o pagamento no valor de {{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}}), semanalmente, rigorosamente no(a) {{DIA_PAGAMENTO}}, referente a Locação Semanal, no valor de {{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}}), acrescido do valor de {{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}}) referente a um investimento para aquisição do Veículo de Placa: {{PLACA}}, iniciando o contrato no dia {{DATA_INICIO}}, pelo período de {{PERIODO_SEMANAS}} semanas, que terminará no dia {{DATA_FIM}}.</p>
   </section>
-  <section class="kit-box">
-    <h2>Veículo</h2>
-    <div class="kit-grid2">
-      <p><span>Cód. veículo</span><strong>{{CODIGO_VEICULO}}</strong></p>
-      <p><span>Placa</span><strong>{{PLACA}}</strong></p>
-      <p><span>Marca / modelo</span><strong>{{MARCA_MODELO}}</strong></p>
-      <p><span>Km</span><strong>{{KM}}</strong></p>
-      <p><span>Chassi</span><strong>{{CHASSI}}</strong></p>
-      <p><span>Renavam</span><strong>{{RENAVAM}}</strong></p>
-      <p><span>Cor</span><strong>{{COR}}</strong></p>
-      <p><span>Ano / modelo</span><strong>{{ANO_MODELO}}</strong></p>
+
+  <p class="opcao-data">{{MUNICIPIO_DATA}}</p>
+  <div class="opcao-sigs">
+    <div class="opcao-sig">
+      <div class="opcao-sig-line" aria-hidden="true"></div>
+      <p class="opcao-sig-name">{{NOME}}</p>
+      <p class="opcao-sig-id">{{CPF}}</p>
     </div>
-  </section>
-  <section class="kit-box">
-    <h2>Condições financeiras</h2>
-    <div class="kit-grid2">
-      <p><span>Valor do aluguel</span><strong>{{VALOR_ALUGUEL}}</strong></p>
-      <p><span>Valor investimento</span><strong>{{VALOR_INVESTIMENTO}}</strong></p>
-      <p><span>Prazo</span><strong>150 semanas</strong></p>
-      <p><span>Opção de compra</span><strong>R$ 20,00</strong></p>
-    </div>
-  </section>
-  <p class="kit-termo">Declaro estar ciente das condições do plano {{MODALIDADE}}, protocolo {{PROTOCOLO}}, placa {{PLACA}}.</p>
-  <p class="kit-data">{{MUNICIPIO_DATA}}</p>
-  <div class="sig-area">
-    <div class="sig-col">
-      <div class="sig-rule" aria-hidden="true"></div>
-      <p class="sig-name">{{NOME}}</p>
-      <p class="sig-id">{{CPF}}</p>
-    </div>
-    <div class="sig-col">
-      <div class="sig-rule" aria-hidden="true"></div>
-      <p class="sig-name">DK LOCADORA LTDA</p>
-      <p class="sig-id">CNPJ: 59.665.734/0001-32</p>
+    <div class="opcao-sig">
+      <div class="opcao-sig-line" aria-hidden="true"></div>
+      <p class="opcao-sig-name">DK LOCADORA LTDA</p>
+      <p class="opcao-sig-id">CNPJ: 59.665.734/0001-32</p>
     </div>
   </div>
 </div>`;

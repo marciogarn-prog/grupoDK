@@ -712,6 +712,19 @@ body.contrato-preview { padding-top: 52px; }
 }
 .pagina:last-child { page-break-after: auto; margin-bottom: 0; }
 ${cssContratoPagina()}
+${typeof window.__DK_contratoPacoteCssOpcao === "function" ? window.__DK_contratoPacoteCssOpcao() : ""}
+.kit-secao-titulo-preview {
+  width: 210mm;
+  margin: 10px auto 8px;
+  padding: 8px 12px;
+  background: #111;
+  color: #fff;
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  border-radius: 4px;
+}
 .barra-acoes {
   position: fixed; top: 0; left: 0; right: 0; z-index: 999;
   background: #1a1a1a; color: #fff; padding: 10px 16px;
@@ -749,7 +762,7 @@ ${cssContratoPagina()}
 #btnContratoCancelarSalvar { background: #64748b; }
 @media print {
   html, body { background: #fff; padding: 0 !important; margin: 0 !important; }
-  .barra-acoes, .contrato-salvar-dialog { display: none !important; }
+  .barra-acoes, .contrato-salvar-dialog, .kit-secao-titulo-preview { display: none !important; }
   .contrato-doc { width: 100%; margin: 0; }
   .pagina { margin: 0; box-shadow: none; page-break-after: always; break-after: page; }
   .pagina:last-child { page-break-after: auto; }
@@ -1188,6 +1201,12 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
 
   function buildContratoPreviewHtml(dados) {
     const paginas = buildPaginasHtml(dados);
+    let extra = "";
+    if (typeof window.__DK_contratoPacoteBuildOpcaoPagina === "function") {
+      extra =
+        `<div class="kit-secao-titulo-preview">2. Opção contratada</div>` +
+        window.__DK_contratoPacoteBuildOpcaoPagina(dados);
+    }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
   <button type="button" id="btnImprimir">Imprimir</button>
@@ -1195,7 +1214,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
   <span id="barraPosPdf" class="hidden">
     <button type="button" id="btnSalvar">Salvar</button>
   </span>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão + Opção contratada</span>
 </div>
 <div id="contratoSalvarDialog" class="contrato-salvar-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="contratoSalvarTitulo">
   <div class="contrato-salvar-dialog__box">
@@ -1208,7 +1227,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
     </div>
   </div>
 </div>
-<div class="contrato-doc">${paginas.join("")}</div>
+<div class="contrato-doc">${paginas.join("")}${extra}</div>
 ${scriptPreviewInline(dados)}
 </body></html>`;
   }
