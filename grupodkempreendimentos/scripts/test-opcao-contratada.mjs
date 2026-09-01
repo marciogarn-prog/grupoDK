@@ -311,7 +311,7 @@ async function main() {
           /Validade/i.test(cnh[2] || "") &&
           (cnh[2] || "").includes("19/02/2036") &&
           /EAR/i.test(cnh[3] || "") &&
-          /NAO/i.test(cnh[3] || ""),
+          /N[AÃ]O/i.test(cnh[3] || ""),
         JSON.stringify(cnh)
       );
       const shot = await saveClip(session, ".pagina-opcao", "opcao_contratada_sisloc.png");
