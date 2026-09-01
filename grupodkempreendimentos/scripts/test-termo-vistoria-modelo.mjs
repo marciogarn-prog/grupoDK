@@ -355,6 +355,9 @@ const BUILD = `(() => {
     nContrato: document.querySelectorAll(".pagina.pagina-contrato").length,
     nOpcao: document.querySelectorAll(".pagina.pagina-opcao").length,
     nVistoria: document.querySelectorAll(".pagina.pagina-vistoria").length,
+    nRequerimento: document.querySelectorAll(".pagina.pagina-requerimento").length,
+    reqP1: document.querySelector(".pagina-requerimento[data-requerimento='p1'] img")?.getAttribute("src") || "",
+    reqP2: document.querySelector(".pagina-requerimento[data-requerimento='p2'] img")?.getAttribute("src") || "",
     temTitulo: /termo de vistoria/i.test(txt),
     temCampo: /modelo contratado/i.test(txt),
     temEntrega: String(vis?.querySelector(".vistoria-fase")?.textContent || "").includes("ENTREGA"),
@@ -451,6 +454,7 @@ async function main() {
   record("HTML do Termo de Vistoria", textos.includes("Termo de Vistoria") && textos.includes("Modelo Contratado") && textos.includes("ENTREGA") && textos.includes("DEVOLUÇÃO"));
   record("Builder do termo exportado", pacote.includes("__DK_contratoPacoteBuildVistoriaPagina"));
   record("Gerar contrato inclui o termo", contrato.includes("__DK_contratoPacoteBuildVistoriaPagina") && contrato.includes("Termo de vistoria"));
+  record("Gerar contrato inclui o requerimento", contrato.includes("__DK_contratoPacoteBuildRequerimentoPagina") && pacote.includes("pagina-requerimento"));
   record("Resolver das 4 cores SHI 175", ["shi-175-preto.png", "shi-175-vermelho.png", "shi-175-azul.png", "shi-175-cinza.png"].every((f) => modelos.includes(f)));
   record("Resolver das 4 cores Honda Bros", ["bros-160-preto.png", "bros-160-vermelho.png", "bros-160-branco.png", "bros-160-cinza.png"].every((f) => modelos.includes(f)));
   record("Resolver YBR Factor Normal e DX", ["ybr-150-branco.png", "ybr-150-vermelho.png", "ybr-150-preto.png", "ybr-150-dx-azul.png", "ybr-150-dx-preto-fosco.png", "ybr-150-dx-preto-metalico.png"].every((f) => modelos.includes(f)));
@@ -467,7 +471,15 @@ async function main() {
     record(`arquivo ${c.file}`, fs.existsSync(p) && fs.statSync(p).size > 40000, p);
   }
 
+  record("arquivo requerimento-padrao-p1.png", fs.existsSync(path.join(ROOT, "images/documentos/requerimento-padrao-p1.png")) && fs.statSync(path.join(ROOT, "images/documentos/requerimento-padrao-p1.png")).size > 40000);
+  record("arquivo requerimento-padrao-p2.png", fs.existsSync(path.join(ROOT, "images/documentos/requerimento-padrao-p2.png")) && fs.statSync(path.join(ROOT, "images/documentos/requerimento-padrao-p2.png")).size > 40000);
+
   await withLocalServer(async (base) => {
+    for (const f of ["requerimento-padrao-p1.png", "requerimento-padrao-p2.png"]) {
+      const res = await fetch(`${base}images/documentos/${f}`);
+      const buf = Buffer.from(await res.arrayBuffer());
+      record(`HTTP ${f}`, res.ok && buf.length > 40000, `${res.status} ${buf.length}b`);
+    }
     for (const c of TODAS_CORES) {
       const res = await fetch(`${base}images/modelos/${c.file}`);
       const buf = Buffer.from(await res.arrayBuffer());
@@ -502,8 +514,19 @@ async function main() {
         Boolean(builtWalk?.nVistoria === 2 && builtWalk?.temEntrega && builtWalk?.temDevolucao),
         JSON.stringify({ n: builtWalk?.nVistoria, e: builtWalk?.temEntrega, d: builtWalk?.temDevolucao })
       );
+      record(
+        "walkthrough 2 páginas Requerimento padrão",
+        Number(builtWalk?.nRequerimento) === 2 && /requerimento-padrao-p1/.test(String(builtWalk?.reqP1 || "")) && /requerimento-padrao-p2/.test(String(builtWalk?.reqP2 || "")),
+        JSON.stringify({ n: builtWalk?.nRequerimento, p1: builtWalk?.reqP1, p2: builtWalk?.reqP2 })
+      );
+      await cdpEval(
+        session,
+        `Promise.all([...document.querySelectorAll(".pagina-requerimento img, .pagina-vistoria img")].map((img) => img.complete ? true : new Promise((r) => { img.onload = () => r(true); img.onerror = () => r(false); })))`
+      );
       const shotEnt = await saveClip(session, ".pagina-vistoria[data-vistoria='entrega']", "termo_vistoria_entrega.png");
       const shotDev = await saveClip(session, ".pagina-vistoria[data-vistoria='devolucao']", "termo_vistoria_devolucao.png");
+      const shotReq1 = await saveClip(session, ".pagina-requerimento[data-requerimento='p1']", "requerimento_padrao_pagina1.png");
+      const shotReq2 = await saveClip(session, ".pagina-requerimento[data-requerimento='p2']", "requerimento_padrao_pagina2.png");
       record(
         "captura termo ENTREGA",
         Boolean(shotEnt) && fs.statSync(shotEnt).size > 20000,
@@ -513,6 +536,16 @@ async function main() {
         "captura termo DEVOLUÇÃO",
         Boolean(shotDev) && fs.statSync(shotDev).size > 20000,
         shotDev ? `${shotDev} ${fs.statSync(shotDev).size}b` : ""
+      );
+      record(
+        "captura requerimento pág. 1",
+        Boolean(shotReq1) && fs.statSync(shotReq1).size > 20000,
+        shotReq1 ? `${shotReq1} ${fs.statSync(shotReq1).size}b` : ""
+      );
+      record(
+        "captura requerimento pág. 2",
+        Boolean(shotReq2) && fs.statSync(shotReq2).size > 20000,
+        shotReq2 ? `${shotReq2} ${fs.statSync(shotReq2).size}b` : ""
       );
 
       await cdpGoto(session, base);

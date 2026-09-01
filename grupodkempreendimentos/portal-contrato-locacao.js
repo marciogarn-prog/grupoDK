@@ -1062,7 +1062,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
       var JsPDF = window.jspdf && window.jspdf.jsPDF ? window.jspdf.jsPDF : window.jsPDF;
       if (!JsPDF) throw new Error("jsPDF indisponível");
       var paginas = document.querySelectorAll(".pagina");
-      if (paginas.length !== 10) throw new Error("Contrato deve ter 10 páginas (encontradas: " + paginas.length + ")");
+      if (paginas.length < 10) throw new Error("Contrato deve ter pelo menos 10 páginas (encontradas: " + paginas.length + ")");
       var pdf = new JsPDF({ unit: "mm", format: "a4", orientation: "portrait", compress: true });
       for (var i = 0; i < paginas.length; i++) {
         var canvas = await html2canvas(paginas[i], {
@@ -1212,6 +1212,11 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
         `<div class="kit-secao-titulo-preview">3. Termo de vistoria</div>` +
         window.__DK_contratoPacoteBuildVistoriaPagina(dados);
     }
+    if (typeof window.__DK_contratoPacoteBuildRequerimentoPagina === "function") {
+      extra +=
+        `<div class="kit-secao-titulo-preview">4. Requerimento padrão</div>` +
+        window.__DK_contratoPacoteBuildRequerimentoPagina();
+    }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
   <button type="button" id="btnImprimir">Imprimir</button>
@@ -1219,7 +1224,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
   <span id="barraPosPdf" class="hidden">
     <button type="button" id="btnSalvar">Salvar</button>
   </span>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão + Opção contratada + Termo de vistoria</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão + Opção contratada + Termo de vistoria + Requerimento padrão</span>
 </div>
 <div id="contratoSalvarDialog" class="contrato-salvar-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="contratoSalvarTitulo">
   <div class="contrato-salvar-dialog__box">
@@ -1381,7 +1386,7 @@ ${scriptPreviewInline(dados)}
     popup.document.close();
     popup.focus();
     if (msgEl) {
-      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — 10 páginas + opção + termo de vistoria. Clique «Imprimir» na janela.`;
+      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — 10 págs + opção + termo de vistoria (2 págs) + requerimento padrão (2 págs). Clique «Imprimir» na janela.`;
     }
     return true;
   }

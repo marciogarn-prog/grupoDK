@@ -975,6 +975,18 @@ ${cssVistoria()}
   font-family: Arial, Helvetica, sans-serif;
   border-top: 0;
 }
+.pagina.pagina-requerimento {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.pagina-requerimento .requerimento-facsimile {
+  display: block;
+  width: 210mm;
+  height: 297mm;
+  object-fit: fill;
+  border: 0;
+}
 `;
   }
 
@@ -1527,6 +1539,30 @@ ${cssOpcao()}
     return wrapPaginaOpcao(html);
   }
 
+  function absRel(rel) {
+    try {
+      return new URL(rel, window.location.href).href;
+    } catch {
+      return rel;
+    }
+  }
+
+  /** Requerimento padrão DETRAN — 2 páginas em branco, fac-símile do PDF oficial. */
+  function buildRequerimentoPaginaHtml() {
+    const files = [
+      "images/documentos/requerimento-padrao-p1.png",
+      "images/documentos/requerimento-padrao-p2.png",
+    ];
+    return files
+      .map((rel, i) => {
+        const n = i + 1;
+        return `<div class="pagina pagina-requerimento" data-pagina="${n}" data-requerimento="p${n}">
+  <img class="requerimento-facsimile" src="${esc(absRel(rel))}" alt="Requerimento padrão — página ${n} de 2" width="1191" height="1684">
+</div>`;
+      })
+      .join("");
+  }
+
   function buildVistoriaPaginaHtml(dados) {
     const d = enriquecerDadosPacote(dados);
     const itens = htmlItensVistoriaMoto();
@@ -1556,4 +1592,5 @@ ${cssOpcao()}
   window.__DK_contratoPacoteCssOpcao = cssOpcao;
   window.__DK_contratoPacoteBuildOpcaoPagina = buildOpcaoPaginaHtml;
   window.__DK_contratoPacoteBuildVistoriaPagina = buildVistoriaPaginaHtml;
+  window.__DK_contratoPacoteBuildRequerimentoPagina = buildRequerimentoPaginaHtml;
 })();

@@ -306,6 +306,22 @@
           "Termo de vistoria"
         ]
       }
+    },
+    {
+      "id": "requerimento-padrao-em-branco",
+      "descricao": "Gerar contrato imprime quatro documentos: contrato de locação (10 páginas), Opção Contratada (1 página), Termo de Vistoria (2 páginas) e Requerimento Padrão DETRAN (2 páginas em branco, sem dados preenchidos).",
+      "ficheiros": {
+        "portal-contrato-pacote.js": [
+          "__DK_contratoPacoteBuildRequerimentoPagina",
+          "pagina-requerimento",
+          "requerimento-padrao-p1.png",
+          "requerimento-padrao-p2.png"
+        ],
+        "portal-contrato-locacao.js": [
+          "__DK_contratoPacoteBuildRequerimentoPagina",
+          "4. Requerimento padrão"
+        ]
+      }
     }
   ]
 }

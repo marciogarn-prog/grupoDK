@@ -266,6 +266,11 @@ const LOAD_AND_CLICK = `(() => {
     temOdometro: html.includes("Odômetro início") && html.includes("18.452 km"),
     temOpcao: html.includes("OPÇÃO CONTRATADA") && html.includes("Termo de Compromisso"),
     nOpcao: (html.match(/pagina-opcao/g) || []).length,
+    nVistoria: (html.match(/pagina-vistoria/g) || []).length,
+    nRequerimento: (html.match(/pagina-requerimento/g) || []).length,
+    temReqP1: html.includes("requerimento-padrao-p1.png"),
+    temReqP2: html.includes("requerimento-padrao-p2.png"),
+    reqEmBranco: html.includes("pagina-requerimento") && !/pagina-requerimento[\s\S]{0,400}JOSIVAN/.test(html),
     msg: String(document.getElementById("operacaoLocacaoInlineMsg")?.textContent || ""),
     docsMsg: String(document.getElementById("operacaoLocacaoDocumentosMsg")?.textContent || ""),
   };
@@ -333,6 +338,21 @@ async function main() {
         "janela inclui Opção Contratada",
         Boolean(clicked?.temOpcao),
         JSON.stringify({ temOpcao: clicked?.temOpcao, nOpcao: clicked?.nOpcao })
+      );
+      record(
+        "janela inclui Termo de Vistoria (2 págs)",
+        Number(clicked?.nVistoria) === 2,
+        JSON.stringify({ nVistoria: clicked?.nVistoria })
+      );
+      record(
+        "janela inclui Requerimento padrão (2 págs em branco)",
+        Number(clicked?.nRequerimento) === 2 && clicked?.temReqP1 && clicked?.temReqP2 && clicked?.reqEmBranco,
+        JSON.stringify({
+          nRequerimento: clicked?.nRequerimento,
+          temReqP1: clicked?.temReqP1,
+          temReqP2: clicked?.temReqP2,
+          reqEmBranco: clicked?.reqEmBranco,
+        })
       );
     });
   });

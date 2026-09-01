@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260901ka-vermelho-cinza";
+const CACHE_NAME = "dk-corporativo-v20260901requerimento-padrao";
 const ASSETS = [
   "./",
   "./index.html",
@@ -29,6 +29,8 @@ const ASSETS = [
   "./data/dk-contrato-pacote-textos.js",
   "./data/dk-modelos-veiculo.js",
   "./modelos/requerimento-padrao-detran.pdf",
+  "./images/documentos/requerimento-padrao-p1.png",
+  "./images/documentos/requerimento-padrao-p2.png",
   "./portal-patrimonio.js",
   "./portal-patrimonio-scan.js",
   "./portal-supabase-sync.js",
