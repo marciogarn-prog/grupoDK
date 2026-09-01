@@ -57,6 +57,14 @@
     const d = onlyDigits(cpfDigits);
     if (d.length !== 11) return null;
     try {
+      if (typeof window.__DK_getClienteByCpfAny === "function") {
+        const hit = window.__DK_getClienteByCpfAny(d);
+        if (hit) return hit;
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
       if (typeof window.loadCadastro === "function") {
         const list = window.loadCadastro("dk_clientes_cadastro") || [];
         return list.find((c) => onlyDigits(c.cpf) === d) || null;
@@ -70,12 +78,27 @@
   function loadVeiculo(placa) {
     const p = normPlaca(placa);
     if (!p) return null;
+    const lists = [];
+    try {
+      if (typeof window.loadCadastro === "function") {
+        lists.push(window.loadCadastro("dk_veiculos_cadastro") || []);
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const raw = localStorage.getItem("dk_veiculos_cadastro");
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) lists.push(arr);
+    } catch {
+      /* ignore */
+    }
+    for (const list of lists) {
+      const hit = (list || []).find((v) => normPlaca(v?.placa) === p);
+      if (hit) return hit;
+    }
     try {
       if (typeof window.findVeiculoByPlaca === "function") return window.findVeiculoByPlaca(p) || null;
-      if (typeof window.loadCadastro === "function") {
-        const list = window.loadCadastro("dk_veiculos_cadastro") || [];
-        return list.find((v) => normPlaca(v.placa) === p) || null;
-      }
     } catch {
       /* ignore */
     }
@@ -90,17 +113,206 @@
     return fallback;
   }
 
+  function parseReaisNum(raw) {
+    if (typeof window.parseCurrencyBR === "function") {
+      const n = window.parseCurrencyBR(raw);
+      if (Number.isFinite(n) && n >= 0) return n;
+    }
+    const s = String(raw || "")
+      .replace(/[^\d,.-]/g, "")
+      .replace(/\./g, "")
+      .replace(",", ".");
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatReaisBr(num) {
+    const n = Math.round((Number(num) || 0) * 100) / 100;
+    const [i, d] = n.toFixed(2).split(".");
+    return `R$ ${i.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${d}`;
+  }
+
+  function extensoInt(n) {
+    const u = [
+      "zero",
+      "um",
+      "dois",
+      "três",
+      "quatro",
+      "cinco",
+      "seis",
+      "sete",
+      "oito",
+      "nove",
+      "dez",
+      "onze",
+      "doze",
+      "treze",
+      "quatorze",
+      "quinze",
+      "dezesseis",
+      "dezessete",
+      "dezoito",
+      "dezenove",
+    ];
+    const d = ["", "", "vinte", "trinta", "quarenta", "cinquenta", "sessenta", "setenta", "oitenta", "noventa"];
+    const c = [
+      "",
+      "cento",
+      "duzentos",
+      "trezentos",
+      "quatrocentos",
+      "quinhentos",
+      "seiscentos",
+      "setecentos",
+      "oitocentos",
+      "novecentos",
+    ];
+    const x = Math.max(0, Math.floor(Number(n) || 0));
+    if (x < 20) return u[x];
+    if (x < 100) return d[Math.floor(x / 10)] + (x % 10 ? " e " + u[x % 10] : "");
+    if (x === 100) return "cem";
+    if (x < 1000) return c[Math.floor(x / 100)] + (x % 100 ? " e " + extensoInt(x % 100) : "");
+    const mil = Math.floor(x / 1000);
+    const rest = x % 1000;
+    const milTxt = mil === 1 ? "mil" : extensoInt(mil) + " mil";
+    if (!rest) return milTxt;
+    return milTxt + (rest < 100 ? " e " : " ") + extensoInt(rest);
+  }
+
+  function reaisPorExtenso(num) {
+    const n = Math.round((Number(num) || 0) * 100) / 100;
+    const inteiro = Math.floor(n);
+    const cents = Math.round((n - inteiro) * 100);
+    let s = extensoInt(inteiro) + (inteiro === 1 ? " real" : " reais");
+    if (cents) s += " e " + extensoInt(cents) + (cents === 1 ? " centavo" : " centavos");
+    return s;
+  }
+
+  function formatFoneOpcao(raw) {
+    const d = onlyDigits(raw);
+    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+    return String(raw || "").trim() || "—";
+  }
+
+  function formatOdometroOpcao(raw) {
+    const d = String(raw || "").replace(/\D/g, "");
+    if (!d) return "—";
+    return `${d.padStart(6, "0")} Km(s)`;
+  }
+
+  function formatTagOpcao(raw) {
+    if (typeof window.displayDkVeiculoTag === "function") {
+      const t = window.displayDkVeiculoTag(raw);
+      if (t) return t;
+    }
+    return String(raw || "").trim() || "—";
+  }
+
+  function formatEarOpcao(raw) {
+    const s = String(raw || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "");
+    if (s === "SIM" || s === "S") return "SIM";
+    if (s === "NAO" || s === "N") return "NÃO";
+    return String(raw || "").trim() || "—";
+  }
+
+  function parseBrDateOpcao(raw) {
+    if (typeof window.parseBrDate === "function") return window.parseBrDate(raw);
+    const m = String(raw || "").trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return null;
+    const dt = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+
+  function formatDataBrOpcao(dt) {
+    if (!dt || Number.isNaN(dt.getTime())) return "";
+    const dd = String(dt.getDate()).padStart(2, "0");
+    const mm = String(dt.getMonth() + 1).padStart(2, "0");
+    return `${dd}/${mm}/${dt.getFullYear()}`;
+  }
+
+  function somarSemanas(dt, semanas) {
+    const d = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    d.setDate(d.getDate() + Number(semanas) * 7);
+    return d;
+  }
+
+  function loadLocacaoByProtocolo(protocolo) {
+    const p = normProtocolo(protocolo);
+    if (!p) return null;
+    try {
+      if (typeof window.loadCadastro === "function") {
+        const list = window.loadCadastro("dk_locacoes_cadastro") || [];
+        return list.find((l) => normProtocolo(l.numeroContrato) === p) || null;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
   /** Enriquece dados do contrato com frota/cliente/valores da ficha de locação. */
   function enriquecerDadosPacote(dados) {
     const base = { ...(dados || {}) };
+    const loc = loadLocacaoByProtocolo(base.protocolo) || {};
     const cliente = loadCliente(base.cpfDigits);
     const veiculo = loadVeiculo(base.placa);
-    const valorAluguel =
-      String(document.getElementById("operacaoLocacaoValorAluguel")?.value || "").trim() ||
-      pick(base, ["valorAluguel", "valorLocacao"], "—");
-    const valorInvestimento =
-      String(document.getElementById("operacaoLocacaoValorInvestimento")?.value || "").trim() ||
-      pick(base, ["valorInvestimento"], "—");
+    const aluguelNum = parseReaisNum(
+      document.getElementById("operacaoLocacaoValorAluguel")?.value ||
+        pick(base, ["valorAluguel", "valorLocacao"]) ||
+        pick(loc, ["valorLocacao", "valorAluguel"])
+    );
+    const invNum = parseReaisNum(
+      document.getElementById("operacaoLocacaoValorInvestimento")?.value ||
+        pick(base, ["valorInvestimento"]) ||
+        pick(loc, ["valorInvestimento"])
+    );
+    const semanalNum = aluguelNum + invNum;
+    const inicioRaw =
+      pick(base, ["dataContrato"]) ||
+      pick(loc, ["inicio"]) ||
+      String(document.getElementById("operacaoLocacaoDataInicio")?.value || "").trim();
+    const inicioDt = parseBrDateOpcao(inicioRaw) || base.dataContratoDt || new Date();
+    const fimRaw =
+      String(document.getElementById("operacaoLocacaoDataFim")?.value || "").trim() ||
+      pick(base, ["fim"]) ||
+      pick(loc, ["fim"]);
+    const fimDt = parseBrDateOpcao(fimRaw) || somarSemanas(inicioDt, 150);
+    let periodo = 150;
+    if (parseBrDateOpcao(fimRaw)) {
+      const days = Math.round((fimDt.getTime() - inicioDt.getTime()) / 86400000);
+      periodo = Math.max(1, Math.round(days / 7));
+    }
+    const diaPag =
+      String(document.getElementById("operacaoLocacaoDiaPagamento")?.value || "").trim() ||
+      pick(loc, ["diaPagto", "diaPagamento"]) ||
+      (inicioDt ? ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"][inicioDt.getDay()] : "quinta-feira");
+
+    const marca = pick(veiculo, ["marca"], "");
+    const modelo = pick(veiculo, ["modelo"], "") || pick(base, ["marcaModelo"], "");
+    const marcaModelo = marca && modelo ? `${marca.toUpperCase()} / ${modelo.toUpperCase()}` : String(base.marcaModelo || modelo || marca || "—").toUpperCase();
+
+    const kmRaw =
+      String(document.getElementById("operacaoLocacaoOdometroInicio")?.value || "").trim() ||
+      pick(base, ["odometroInicio", "kmInicial"]) ||
+      pick(loc, ["kmInicial", "odometroInicio"]) ||
+      pick(veiculo, ["km", "odometro", "kmAtual"]);
+
+    const codigoVeiculo = formatTagOpcao(pick(veiculo, ["tag", "codigo", "idInterno", "codigoVeiculo"], "—"));
+    const corVeiculo = pick(veiculo, ["cor"], "—").toUpperCase();
+    const catalogoHtml =
+      typeof window.__DK_modeloContratadoFotoHtml === "function"
+        ? window.__DK_modeloContratadoFotoHtml(veiculo, marcaModelo)
+        : "";
+    const fotoCadastro = pick(veiculo, ["fotoUrl", "foto", "imagem", "photoUrl"], "");
+    const fotoHtml =
+      catalogoHtml ||
+      (fotoCadastro ? `<img src="${esc(fotoCadastro)}" alt="Veículo" crossorigin="anonymous">` : "");
 
     const enderecoParts = {
       logradouro: pick(cliente, ["logradouro", "endereco", "rua"], ""),
@@ -111,32 +323,65 @@
       uf: pick(cliente, ["uf", "estado"], "PE"),
     };
 
+    const codigoCliente =
+      (typeof window.formatClienteCodigoPadrao === "function"
+        ? window.formatClienteCodigoPadrao(base.codigoCliente || cliente?.codigo)
+        : "") ||
+      String(base.codigoCliente || cliente?.codigo || "0000").trim();
+
     return {
       ...base,
       nome: String(base.nome || "").toUpperCase(),
       cpfFmt: base.cpfFmt || "",
       endereco: base.endereco || "—",
       placa: normPlaca(base.placa),
-      marcaModelo: base.marcaModelo || pick(veiculo, ["marcaModelo", "modelo"], "—"),
-      modalidade: base.modalidade || "DK MEU TRANSPORTE",
-      codigoCliente: base.codigoCliente || "0000",
+      marcaModelo,
+      modalidade: base.modalidade || pick(loc, ["plano", "opcaoContrato"], "DK MEU TRANSPORTE"),
+      codigoCliente,
       municipioData: base.municipioData || "",
       chassi: pick(veiculo, ["chassi"], "—").toUpperCase(),
       renavam: pick(veiculo, ["renavam"], "—"),
-      cor: pick(veiculo, ["cor"], "—").toUpperCase(),
+      cor: corVeiculo,
       anoModelo: pick(veiculo, ["anoModelo", "ano"], "—"),
-      codigoVeiculo: pick(veiculo, ["codigo", "idInterno", "codigoVeiculo"], "—"),
-      km: pick(veiculo, ["km", "odometro", "kmAtual"], "—"),
-      celular: pick(cliente, ["celular", "telefone", "fone", "whatsapp"], "—"),
+      codigoVeiculo,
+      km: formatOdometroOpcao(kmRaw),
+      celular: formatFoneOpcao(pick(cliente, ["celular", "telefone", "fone", "whatsapp"], "—")),
+      recado1: formatFoneOpcao(pick(cliente, ["recado1", "recados01", "recado01"], "—")),
+      recado2: formatFoneOpcao(pick(cliente, ["recado2", "recados02", "recado02"], "—")),
       cnh: pick(cliente, ["cnh", "numeroCnh", "registroCnh"], "—"),
+      cnhCategoria: pick(cliente, ["categoria", "cnhCategoria", "categoriaCnh"], "—").toUpperCase(),
+      cnhValidade: pick(cliente, ["vencimento", "cnhValidade", "validadeCnh"], "—"),
+      ear: formatEarOpcao(pick(cliente, ["ear"], "—")),
       rg: pick(cliente, ["rg", "identidade"], "—"),
       email: pick(cliente, ["email", "eMail"], "—"),
       cep: enderecoParts.cep || "—",
       bairro: enderecoParts.bairro || "—",
       cidade: enderecoParts.cidade,
       uf: enderecoParts.uf,
-      valorAluguel,
-      valorInvestimento,
+      proprietario: pick(base, ["proprietario"]) || pick(veiculo, ["proprietario"], "—"),
+      proprietarioCpfCnpj:
+        pick(base, ["proprietarioCpfCnpj"]) ||
+        (typeof window.__DK_formatPortalCpfCnpjExibicao === "function"
+          ? window.__DK_formatPortalCpfCnpjExibicao(
+              pick(veiculo, ["proprietarioCpfCnpj", "cpfCnpjProprietario", "cpfCnpj"])
+            )
+          : pick(veiculo, ["proprietarioCpfCnpj", "cpfCnpjProprietario", "cpfCnpj"], "—")) ||
+        "—",
+      municipioVeiculo: pick(veiculo, ["local", "municipio", "municipioUf", "cidade"], "—"),
+      valorAluguel: formatReaisBr(aluguelNum),
+      valorInvestimento: formatReaisBr(invNum),
+      valorSemanal: formatReaisBr(semanalNum),
+      valorAluguelExtenso: reaisPorExtenso(aluguelNum),
+      valorInvestimentoExtenso: reaisPorExtenso(invNum),
+      valorSemanalExtenso: reaisPorExtenso(semanalNum),
+      valorCompra: "R$ 20,00",
+      valorCompraExtenso: "vinte reais",
+      periodoSemanas: String(periodo),
+      diaPagamento: diaPag || "quinta-feira",
+      dataInicio: formatDataBrOpcao(inicioDt),
+      dataFim: formatDataBrOpcao(fimDt),
+      fotoVeiculoHtml: fotoHtml,
+      fotoModeloContratadoHtml: catalogoHtml || fotoHtml,
       cnpjDk: CNPJ_DK,
     };
   }
@@ -176,14 +421,573 @@
       "{{CIDADE}}": d.cidade,
       "{{UF}}": d.uf,
       "{{EMAIL}}": d.email,
+      "{{CNH_CATEGORIA}}": d.cnhCategoria,
+      "{{CNH_VALIDADE}}": d.cnhValidade,
+      "{{EAR}}": d.ear,
+      "{{RECADO1}}": d.recado1,
+      "{{RECADO2}}": d.recado2,
+      "{{PROPRIETARIO}}": d.proprietario,
+      "{{CPF_CNPJ_PROP}}": d.proprietarioCpfCnpj,
+      "{{MUNICIPIO_VEICULO}}": d.municipioVeiculo,
+      "{{PERIODO_SEMANAS}}": d.periodoSemanas,
+      "{{VALOR_ALUGUEL_EXTENSO}}": d.valorAluguelExtenso,
+      "{{VALOR_INVESTIMENTO_EXTENSO}}": d.valorInvestimentoExtenso,
+      "{{VALOR_SEMANAL}}": d.valorSemanal,
+      "{{VALOR_SEMANAL_EXTENSO}}": d.valorSemanalExtenso,
+      "{{VALOR_COMPRA}}": d.valorCompra,
+      "{{VALOR_COMPRA_EXTENSO}}": d.valorCompraExtenso,
+      "{{DIA_PAGAMENTO}}": d.diaPagamento,
+      "{{DATA_INICIO}}": d.dataInicio,
+      "{{DATA_FIM}}": d.dataFim,
+      "{{FOTO_VEICULO}}": d.fotoVeiculoHtml,
+      "{{FOTO_MODELO_CONTRATADO}}": d.fotoModeloContratadoHtml,
+      "{{ITENS_VISTORIA}}": d.itensVistoriaHtml,
+      "{{FASE}}": d.fase,
+      "{{DATA_LINHA}}": d.dataLinha,
+      "{{KM_CAMPO}}": d.kmCampo,
       "{{LOGO_URL}}": logoPacoteUrl(),
     };
     let out = String(html || "");
     for (const [k, v] of Object.entries(map)) {
-      /* LOGO_URL is a trusted same-origin path — do not HTML-escape the URL. */
-      out = out.split(k).join(k === "{{LOGO_URL}}" ? String(v) : esc(v));
+      /* LOGO_URL, FOTO_* and ITENS_VISTORIA are trusted same-origin HTML/URL — do not escape. */
+      const raw =
+        k === "{{LOGO_URL}}" ||
+        k === "{{FOTO_VEICULO}}" ||
+        k === "{{FOTO_MODELO_CONTRATADO}}" ||
+        k === "{{ITENS_VISTORIA}}";
+      out = out.split(k).join(raw ? String(v || "") : esc(v));
     }
     return out;
+  }
+
+  const ITENS_VISTORIA_MOTO = [
+    "Visor do Painel",
+    "Guidão",
+    "Caren. Frontal",
+    "Paralama Diant.",
+    "Carenagem L.D.",
+    "Carenagem L.E.",
+    "Rabeta L.D.",
+    "Rabeta L.E.",
+    "Buzina",
+    "Farol (Alto/Baixo)",
+    "Pisca D.D.",
+    "Pisca D.E.",
+    "Pisca T.D.",
+    "Pisca T.E.",
+    "Acionador F.D.",
+    "Acion. Embreag.",
+    "Luz de Freio",
+    "Acionador F.T.",
+    "Manopla Dir.",
+    "Manopla Esq.",
+    "Retrov. Direito",
+    "Retrov. Esquerdo",
+    "Protetor Escape",
+    "Escapamento",
+    "Bengalas",
+    "Roda Dianteira",
+    "Roda Traseira",
+    "Disco de freio D",
+    "Disco de freio T",
+    "Estribo",
+    "Tanque",
+    "Banco",
+  ];
+
+  function htmlItensVistoriaMoto() {
+    const cols = [0, 8, 16, 24].map((start) => {
+      const rows = ITENS_VISTORIA_MOTO.slice(start, start + 8)
+        .map((nome, i) => {
+          const n = start + i + 1;
+          return `<div class="vistoria-item"><span class="vistoria-item__n">${n}</span><span class="vistoria-item__nome">${esc(nome)}</span><span class="vistoria-item__marks"><i class="mk mk-a">A</i><i class="mk mk-r">R</i><i class="mk mk-s">S</i></span></div>`;
+        })
+        .join("");
+      return `<div class="vistoria-itens-col">${rows}</div>`;
+    });
+    return cols.join("");
+  }
+
+  function cssOpcao() {
+    return `
+.pagina.pagina-opcao {
+  padding: 8mm 12mm 16mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.8pt;
+  line-height: 1.25;
+  color: #000;
+  background: #fff;
+}
+.opcao-doc { width: 100%; }
+.opcao-cab {
+  display: grid;
+  grid-template-columns: 38mm 1fr 42mm;
+  gap: 4mm;
+  align-items: start;
+  margin: 0 0 3mm;
+}
+.opcao-logo {
+  display: block;
+  width: 36mm;
+  height: auto;
+  max-height: 18mm;
+  object-fit: contain;
+  object-position: left top;
+}
+.opcao-cab-centro { text-align: center; padding-top: 0.5mm; }
+.opcao-cab-centro h1 {
+  margin: 0 0 2.2mm;
+  font-size: 16pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.opcao-plano {
+  background: linear-gradient(90deg, #7cb342 0%, #dcedc8 72%, #fff 100%);
+  border: 1px solid #558b2f;
+  font-weight: 700;
+  font-size: 11pt;
+  padding: 1.6mm 3mm;
+  text-align: center;
+}
+.opcao-proto {
+  margin: 2mm 0 0;
+  font-size: 10.5pt;
+  font-weight: 700;
+}
+.opcao-foto {
+  min-height: 22mm;
+  border: 1px solid #bbb;
+  background: #f7f7f7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.opcao-foto:empty { display: none; }
+.opcao-foto img { width: 100%; height: 22mm; object-fit: contain; display: block; background: #fff; }
+.opcao-eu { margin: 1.5mm 0 0.6mm; font-size: 10pt; }
+.opcao-nome {
+  margin: 0 0 1.6mm;
+  font-size: 13pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.opcao-grid {
+  display: grid;
+  gap: 0;
+  margin: 0 0 0;
+  border-left: 1px solid #111;
+  border-top: 1px solid #111;
+}
+.opcao-grid--2 { grid-template-columns: 1fr 1.4fr; }
+.opcao-grid--3 { grid-template-columns: 1fr 1fr 1fr; }
+.opcao-grid--cnh { grid-template-columns: 1fr; }
+.opcao-grid--veic1 { grid-template-columns: 0.9fr 0.8fr 1.6fr 0.9fr; }
+.opcao-grid--veic2 { grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr; }
+.opcao-grid--veic3 { grid-template-columns: 1.4fr 1fr 1fr; }
+.opcao-cell {
+  border-right: 1px solid #111;
+  border-bottom: 1px solid #111;
+  padding: 1.3mm 2mm;
+  min-height: 7.2mm;
+}
+.opcao-cell span {
+  font-weight: 700;
+  margin-right: 1.5mm;
+}
+.opcao-cell--span { grid-column: 1 / -1; }
+.opcao-frase { margin: 2.4mm 0 1.6mm; }
+.opcao-cond { list-style: none; margin: 0 0 2mm; padding: 0; }
+.opcao-cond li {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  margin: 0 0 1.4mm;
+}
+.opcao-chev {
+  color: #c62828;
+  font-weight: 700;
+  min-width: 78mm;
+}
+.opcao-chev::before { content: "▸ "; color: #c62828; }
+.opcao-val {
+  border: 1px solid #111;
+  padding: 1mm 2.5mm;
+  min-width: 62mm;
+  font-weight: 700;
+}
+.opcao-garantia { margin: 1mm 0 2mm; text-align: justify; }
+.opcao-atencao {
+  border: 1px solid #111;
+  padding: 2mm 3mm;
+  margin: 0 0 2.5mm;
+  text-align: justify;
+  font-size: 8.4pt;
+}
+.opcao-obs-tit { margin: 0 0 1mm; }
+.opcao-obs { margin: 0 0 3mm; }
+.opcao-chev-inline { color: #c62828; font-weight: 700; margin-right: 1.5mm; }
+.opcao-termo {
+  border: 1px solid #111;
+  padding: 2.5mm 3.5mm 3mm;
+  margin: 0 0 5mm;
+}
+.opcao-termo h2 {
+  margin: 0 0 2mm;
+  text-align: center;
+  text-decoration: underline;
+  font-size: 11pt;
+}
+.opcao-termo p { margin: 0; text-align: justify; }
+.opcao-data {
+  text-align: center;
+  font-weight: 700;
+  margin: 2mm 0 6mm;
+  font-size: 10pt;
+}
+.opcao-sigs {
+  display: flex;
+  justify-content: space-between;
+  gap: 16mm;
+  width: 100%;
+}
+.opcao-sig { flex: 1 1 0; text-align: center; min-width: 0; }
+.opcao-sig-line {
+  width: 100%;
+  border-bottom: 1.1pt solid #111;
+  height: 10mm;
+  margin: 0 0 2mm;
+}
+.opcao-sig-name { margin: 0; font-weight: 700; font-size: 9pt; }
+.opcao-sig-id { margin: 1mm 0 0; font-weight: 700; font-size: 8.5pt; }
+.pe-pagina.pe-opcao {
+  position: absolute;
+  left: 12mm; right: 12mm; bottom: 6.5mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5pt; color: #333;
+  font-family: Arial, Helvetica, sans-serif;
+  border-top: 0;
+}
+${cssVistoria()}
+`;
+  }
+
+  function cssVistoria() {
+    return `
+.pagina.pagina-vistoria {
+  padding: 6mm 8mm 14mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 7.6pt;
+  line-height: 1.2;
+  color: #000;
+  background: #fff;
+}
+.pagina.pagina-vistoria .corpo { height: 100%; }
+.vistoria-doc { width: 100%; }
+.vistoria-cab {
+  display: grid;
+  grid-template-columns: 26mm minmax(0, 1fr) 36mm;
+  gap: 2mm;
+  align-items: center;
+  margin: 0 0 2mm;
+}
+.vistoria-logo {
+  display: block;
+  width: 26mm;
+  height: auto;
+  max-height: 16mm;
+  object-fit: contain;
+  object-position: left top;
+}
+.vistoria-cab-centro { text-align: center; padding-top: 0.4mm; }
+.vistoria-cab-centro h1 {
+  margin: 0;
+  font-size: 11pt;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.vistoria-plano {
+  margin: 1.6mm auto 0;
+  display: inline-block;
+  min-width: 58mm;
+  padding: 1.1mm 4mm;
+  background: #1b5e20;
+  color: #fff;
+  font-weight: 700;
+  font-size: 9pt;
+}
+.vistoria-fase {
+  font-size: 12pt;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  padding: 0;
+  text-align: right;
+  white-space: nowrap;
+  min-width: 32mm;
+}
+.vistoria-grid {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-left: 1px solid #111;
+  border-top: 1px solid #111;
+}
+.vistoria-grid--cli { grid-template-columns: 1.5fr 0.85fr 1fr; }
+.vistoria-grid--veic { grid-template-columns: 0.7fr 0.7fr 1.5fr 0.7fr 0.55fr; }
+.vistoria-grid--prop { grid-template-columns: 1.5fr 0.9fr 0.8fr; }
+.vistoria-cell {
+  border-right: 1px solid #111;
+  border-bottom: 1px solid #111;
+  padding: 0.7mm 1.4mm 1mm;
+  min-height: 8.4mm;
+}
+.vistoria-cell span {
+  display: block;
+  font-weight: 700;
+  font-size: 6.4pt;
+  margin: 0 0 0.4mm;
+  line-height: 1.1;
+}
+.vistoria-legenda {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  margin: 1.6mm 0 1.4mm;
+  border: 1px solid #111;
+}
+.vistoria-leg {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4mm;
+  padding: 1mm 1mm;
+  font-size: 7.4pt;
+  font-weight: 700;
+  border-right: 1px solid #111;
+}
+.vistoria-leg:last-child { border-right: 0; }
+.vistoria-leg b {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 5.2mm;
+  height: 5.2mm;
+  border: 1px solid #111;
+  font-size: 8pt;
+}
+.vistoria-leg--n b { background: #548235; color: #fff; }
+.vistoria-leg--b b { background: #5b5fc7; color: #fff; }
+.vistoria-leg--m b { background: #7f7f7f; color: #fff; }
+.vistoria-leg--a b { background: #5b9bd5; color: #fff; }
+.vistoria-leg--r b { background: #ffc000; color: #111; }
+.vistoria-leg--s b { background: #c00000; color: #fff; }
+.vistoria-sec {
+  margin: 1.4mm 0 0.8mm;
+  font-size: 8pt;
+  font-weight: 700;
+}
+.vistoria-basicas {
+  display: grid;
+  grid-template-columns: 46mm 1fr 46mm;
+  gap: 2mm;
+  align-items: stretch;
+  margin: 0 0 1.6mm;
+}
+.vistoria-modelo {
+  border: 1px solid #111;
+  padding: 1.2mm 1.4mm 1.4mm;
+  background: #fff;
+  min-height: 42mm;
+}
+.vistoria-modelo h2 {
+  margin: 0 0 1mm;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 700;
+}
+.vistoria-modelo__foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32mm;
+  background: #fff;
+}
+.vistoria-modelo__foto:empty {
+  min-height: 32mm;
+  border: 1px dashed #999;
+  color: #777;
+  font-size: 7pt;
+  font-weight: 700;
+}
+.vistoria-modelo__foto:empty::after { content: "FOTO DO MODELO CONTRATADO"; }
+.vistoria-modelo__foto img {
+  display: block;
+  max-width: 100%;
+  max-height: 34mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+}
+.vistoria-modelo__leg {
+  margin: 0.6mm 0 0;
+  text-align: center;
+  font-size: 6.5pt;
+  color: #444;
+}
+.vistoria-status { display: flex; flex-direction: column; gap: 1.4mm; min-width: 0; }
+.vistoria-odo span, .vistoria-comb span {
+  display: block;
+  font-weight: 700;
+  font-size: 7pt;
+  margin: 0 0 0.6mm;
+}
+.vistoria-odo__val {
+  border: 1px solid #111;
+  min-height: 7.5mm;
+  padding: 1mm 2mm;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 9pt;
+}
+.vistoria-odo__val i { font-style: normal; font-weight: 700; font-size: 8pt; }
+.vistoria-comb__bar {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  border: 1px solid #111;
+  height: 6.5mm;
+}
+.vistoria-comb__bar i {
+  display: block;
+  border-right: 1px solid #111;
+}
+.vistoria-comb__bar i:last-child { border-right: 0; }
+.vistoria-moto, .vistoria-acess {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 6.6pt;
+}
+.vistoria-moto th, .vistoria-moto td,
+.vistoria-acess th, .vistoria-acess td {
+  border: 1px solid #111;
+  padding: 0.7mm 1mm;
+  text-align: center;
+}
+.vistoria-moto td:first-child, .vistoria-acess td:first-child { text-align: left; font-weight: 700; }
+.vistoria-moto .mk, .vistoria-acess .mk {
+  width: 5.2mm;
+  height: 5mm;
+  background: #fff;
+}
+.vistoria-moto .th-a, .vistoria-itens .mk-a { color: #1f4e79; }
+.vistoria-moto .th-b { color: #3b3f9a; }
+.vistoria-moto .th-r, .vistoria-itens .mk-r { color: #7a5b00; }
+.vistoria-moto .th-s, .vistoria-itens .mk-s { color: #9b0000; }
+.vistoria-acess { align-self: start; }
+.vistoria-itens {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 0 2mm;
+  margin: 0 0 1.2mm;
+}
+.vistoria-itens-col { border: 1px solid #111; }
+.vistoria-item {
+  display: grid;
+  grid-template-columns: 5mm 1fr auto;
+  align-items: center;
+  gap: 0.8mm;
+  border-bottom: 1px solid #111;
+  padding: 0.55mm 0.8mm;
+  min-height: 5.8mm;
+}
+.vistoria-itens-col .vistoria-item:last-child { border-bottom: 0; }
+.vistoria-item__n { font-weight: 700; font-size: 6.5pt; }
+.vistoria-item__nome { font-size: 6.5pt; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vistoria-item__marks { display: flex; gap: 0.6mm; }
+.vistoria-item__marks .mk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4mm;
+  height: 4.4mm;
+  border: 1px solid #111;
+  font-size: 5.6pt;
+  font-weight: 700;
+  line-height: 1;
+}
+.vistoria-item__marks .mk-a { background: #deecf8; }
+.vistoria-item__marks .mk-r { background: #fff2cc; }
+.vistoria-item__marks .mk-s { background: #f8d7da; }
+.vistoria-notas { margin: 0 0 2mm; }
+.vistoria-notas span { display: block; font-weight: 700; font-size: 7.4pt; margin: 0 0 0.6mm; }
+.vistoria-notas i {
+  display: block;
+  font-style: normal;
+  border-bottom: 1px solid #111;
+  height: 4.6mm;
+}
+.vistoria-decl {
+  margin: 0 0 3mm;
+  text-align: justify;
+  font-size: 7.4pt;
+}
+.vistoria-data {
+  margin: 0;
+  text-align: center;
+  font-size: 8.5pt;
+}
+.vistoria-sigs {
+  display: flex;
+  justify-content: space-between;
+  gap: 14mm;
+  margin-top: 6mm;
+}
+.vistoria-sig { flex: 1 1 0; text-align: center; min-width: 0; }
+.vistoria-sig-line {
+  width: 100%;
+  border-bottom: 1.1pt solid #111;
+  height: 8mm;
+  margin: 0 0 1.4mm;
+}
+.vistoria-sig-name { margin: 0; font-weight: 700; font-size: 8pt; }
+.vistoria-sig-id { margin: 0.6mm 0 0; font-weight: 700; font-size: 7.5pt; }
+.pe-pagina.pe-vistoria {
+  position: absolute;
+  left: 8mm; right: 8mm; bottom: 5mm;
+  display: flex;
+  justify-content: space-between;
+  font-size: 7pt; color: #333;
+  font-family: Arial, Helvetica, sans-serif;
+  border-top: 0;
+}
+.pagina.pagina-requerimento {
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+}
+.pagina-requerimento .requerimento-facsimile {
+  display: block;
+  width: 210mm;
+  height: 297mm;
+  object-fit: fill;
+  border: 0;
+}
+`;
   }
 
   function cssKit() {
@@ -397,6 +1201,7 @@ body.kit-preview { padding-top: 58px; }
   color: #444;
 }
 ${cssContratoPag}
+${cssOpcao()}
 @media print {
   html, body { background: #fff !important; }
   body.kit-preview { padding-top: 0 !important; background: #fff; }
@@ -423,7 +1228,7 @@ ${cssContratoPag}
     }
     if (docId === "opcao") {
       const html = substituirPacote(window.__DK_CONTRATO_PACOTE_OPCAO || "", d);
-      return [wrapPagina(html, 1, 1, d, "Opção contratada")];
+      return [wrapPaginaOpcao(html)];
     }
     if (docId === "promessa") {
       const arr = window.__DK_CONTRATO_PACOTE_PROMESSA || [];
@@ -436,6 +1241,22 @@ ${cssContratoPag}
       ];
     }
     return [];
+  }
+
+  function wrapPaginaOpcao(corpoHtml) {
+    return `<div class="pagina pagina-opcao" data-pagina="1" data-kit-label="Opção contratada">
+  <div class="corpo">${corpoHtml}</div>
+  <div class="pe-pagina pe-opcao"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: 1 / 1</span></div>
+</div>`;
+  }
+
+  function wrapPaginaVistoria(corpoHtml, num, total, fase) {
+    const slug = fase === "DEVOLUÇÃO" ? "devolucao" : "entrega";
+    const label = fase === "DEVOLUÇÃO" ? "Termo de vistoria — Devolução" : "Termo de vistoria — Entrega";
+    return `<div class="pagina pagina-vistoria" data-pagina="${num}" data-vistoria="${slug}" data-kit-label="${esc(label)}">
+  <div class="corpo">${corpoHtml}</div>
+  <div class="pe-pagina pe-vistoria"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: ${num} / ${total}</span></div>
+</div>`;
   }
 
   function wrapPagina(corpoHtml, num, total, d, label) {
@@ -712,6 +1533,64 @@ ${cssContratoPag}
     return true;
   }
 
+  function buildOpcaoPaginaHtml(dados) {
+    const d = enriquecerDadosPacote(dados);
+    const html = substituirPacote(window.__DK_CONTRATO_PACOTE_OPCAO || "", d);
+    return wrapPaginaOpcao(html);
+  }
+
+  function absRel(rel) {
+    try {
+      return new URL(rel, window.location.href).href;
+    } catch {
+      return rel;
+    }
+  }
+
+  /** Requerimento padrão DETRAN — 2 páginas em branco, fac-símile do PDF oficial. */
+  function buildRequerimentoPaginaHtml() {
+    const files = [
+      "images/documentos/requerimento-padrao-p1.png",
+      "images/documentos/requerimento-padrao-p2.png",
+    ];
+    return files
+      .map((rel, i) => {
+        const n = i + 1;
+        return `<div class="pagina pagina-requerimento" data-pagina="${n}" data-requerimento="p${n}">
+  <img class="requerimento-facsimile" src="${esc(absRel(rel))}" alt="Requerimento padrão — página ${n} de 2" width="1191" height="1684">
+</div>`;
+      })
+      .join("");
+  }
+
+  function buildVistoriaPaginaHtml(dados) {
+    const d = enriquecerDadosPacote(dados);
+    const itens = htmlItensVistoriaMoto();
+    const tpl = window.__DK_CONTRATO_PACOTE_VISTORIA || "";
+    const cidade = String(d.cidade || "Petrolina").trim() || "Petrolina";
+    const uf = String(d.uf || "PE").trim() || "PE";
+    const kmNum = String(d.km || "").replace(/\D/g, "");
+    const entrega = substituirPacote(tpl, {
+      ...d,
+      itensVistoriaHtml: itens,
+      fase: "ENTREGA",
+      dataLinha: d.municipioData || `${cidade}/${uf}`,
+      kmCampo: kmNum ? kmNum.padStart(6, "0") : "",
+    });
+    const devolucao = substituirPacote(tpl, {
+      ...d,
+      itensVistoriaHtml: itens,
+      fase: "DEVOLUÇÃO",
+      dataLinha: `${cidade}/${uf}, _______, _______ de _____________________ de _________.`,
+      kmCampo: "",
+    });
+    return wrapPaginaVistoria(entrega, 1, 2, "ENTREGA") + wrapPaginaVistoria(devolucao, 2, 2, "DEVOLUÇÃO");
+  }
+
   window.__DK_contratoPacoteEnriquecer = enriquecerDadosPacote;
   window.__DK_contratoPacoteAbrir = abrirPacoteContrato;
+  window.__DK_contratoPacoteCssOpcao = cssOpcao;
+  window.__DK_contratoPacoteBuildOpcaoPagina = buildOpcaoPaginaHtml;
+  window.__DK_contratoPacoteBuildVistoriaPagina = buildVistoriaPaginaHtml;
+  window.__DK_contratoPacoteBuildRequerimentoPagina = buildRequerimentoPaginaHtml;
 })();

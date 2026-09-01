@@ -7226,8 +7226,14 @@
     const isCarro = tipoV.includes("CARRO") || String(veiculo?.tag || "").toUpperCase().includes("DKCR");
 
     let imgVeiculo = "";
-    if (/SHI\s*175/i.test(marcaModelo) && /VERMELH/i.test(corVeiculo)) {
-      imgVeiculo = "images/manutencao/shineray-shi-175-vermelha.png";
+    if (typeof window.__DK_resolveModeloContratadoFoto === "function") {
+      imgVeiculo = window.__DK_resolveModeloContratadoFoto(
+        { cor: corVeiculo, modelo: marcaModelo },
+        marcaModelo
+      ) || "";
+    }
+    if (!imgVeiculo && /SHI\s*175/i.test(marcaModelo) && /VERMELH/i.test(corVeiculo)) {
+      imgVeiculo = "images/modelos/shi-175-vermelho.png";
     }
 
     const itens = PORTAL_CHECKLIST_PDF_ITENS.map((label, i) => {

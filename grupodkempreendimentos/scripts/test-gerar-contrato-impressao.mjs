@@ -146,6 +146,13 @@ const SEED = `(() => {
     origemPortal: true,
     endereco: "RUA TESTE, 100",
     municipioUf: "PETROLINA/PE",
+    celular: "87991839851",
+    recado1: "87981103670",
+    recado2: "87981353824",
+    cnh: "4988259603",
+    categoria: "AB",
+    vencimento: "19/02/2036",
+    ear: "NAO",
   };
   const loc = {
     id: 2026083102,
@@ -165,6 +172,7 @@ const SEED = `(() => {
     createdAt: Date.now(),
     kmInicial: "18452",
     kmFinal: "",
+    diaPagto: "segunda-feira",
   };
   const veiculo = {
     id: 8801,
@@ -172,8 +180,14 @@ const SEED = `(() => {
     tipo: "MOTO",
     modelo: "SHI 175 S EFI",
     marca: "HAOJUE",
+    tag: "DKMT - 168",
+    chassi: "9C2KD0810RR105086",
+    renavam: "1392546254",
+    cor: "BRANCA",
+    anoModelo: "2024/2024",
     proprietario: "GRUPO DK",
     proprietarioCpfCnpj: "59665734000132",
+    local: "JUAZEIRO/BA",
     origemPortal: true,
   };
   localStorage.setItem("dk_clientes_cadastro", JSON.stringify([cliente]));
@@ -250,6 +264,13 @@ const LOAD_AND_CLICK = `(() => {
     temSig: html.includes("sig-area") && html.includes("DK LOCADORA LTDA"),
     temProprietario: html.includes("GRUPO DK") && html.includes("CPF/CNPJ do proprietário"),
     temOdometro: html.includes("Odômetro início") && html.includes("18.452 km"),
+    temOpcao: html.includes("OPÇÃO CONTRATADA") && html.includes("Termo de Compromisso"),
+    nOpcao: (html.match(/class="pagina pagina-opcao"/g) || []).length,
+    nVistoria: (html.match(/data-vistoria="/g) || []).length,
+    nRequerimento: (html.match(/data-requerimento="/g) || []).length,
+    temReqP1: html.includes("requerimento-padrao-p1.png"),
+    temReqP2: html.includes("requerimento-padrao-p2.png"),
+    reqEmBranco: html.includes("pagina-requerimento") && !/pagina-requerimento[\s\S]{0,400}JOSIVAN/.test(html),
     msg: String(document.getElementById("operacaoLocacaoInlineMsg")?.textContent || ""),
     docsMsg: String(document.getElementById("operacaoLocacaoDocumentosMsg")?.textContent || ""),
   };
@@ -312,6 +333,26 @@ async function main() {
         "janela traz proprietário, CPF/CNPJ e odômetro",
         Boolean(clicked?.temProprietario && clicked?.temOdometro),
         JSON.stringify({ temProprietario: clicked?.temProprietario, temOdometro: clicked?.temOdometro })
+      );
+      record(
+        "janela inclui Opção Contratada",
+        Boolean(clicked?.temOpcao),
+        JSON.stringify({ temOpcao: clicked?.temOpcao, nOpcao: clicked?.nOpcao })
+      );
+      record(
+        "janela inclui Termo de Vistoria (2 págs)",
+        Number(clicked?.nVistoria) === 2,
+        JSON.stringify({ nVistoria: clicked?.nVistoria })
+      );
+      record(
+        "janela inclui Requerimento padrão (2 págs em branco)",
+        Number(clicked?.nRequerimento) === 2 && clicked?.temReqP1 && clicked?.temReqP2 && clicked?.reqEmBranco,
+        JSON.stringify({
+          nRequerimento: clicked?.nRequerimento,
+          temReqP1: clicked?.temReqP1,
+          temReqP2: clicked?.temReqP2,
+          reqEmBranco: clicked?.reqEmBranco,
+        })
       );
     });
   });

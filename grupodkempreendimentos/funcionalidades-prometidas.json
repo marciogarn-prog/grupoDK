@@ -232,6 +232,96 @@
           "Cláusula 1ª - Objeto do Contrato"
         ]
       }
+    },
+    {
+      "id": "opcao-contratada-sisloc",
+      "descricao": "Gerar contrato imprime o contrato de 10 páginas e a Opção Contratada no modelo SISLOC (plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas).",
+      "ficheiros": {
+        "data/dk-contrato-pacote-textos.js": [
+          "OPÇÃO CONTRATADA",
+          "Termo de Compromisso"
+        ],
+        "portal-contrato-pacote.js": [
+          "pagina-opcao",
+          "opcao-plano",
+          "__DK_contratoPacoteBuildOpcaoPagina"
+        ],
+        "portal-contrato-locacao.js": [
+          "__DK_contratoPacoteBuildOpcaoPagina",
+          "Opção contratada"
+        ]
+      }
+    },
+    {
+      "id": "termo-vistoria-modelo-contratado",
+      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto de catálogo na cor do veículo: SHI 175, Honda Bros, Yamaha YBR Factor (Normal/DX), Honda Start, Renault Kwid, Toyota Etios, Ford Ka, Volkswagen Gol e Hyundai HB20. O termo tem duas páginas SISLOC: ENTREGA (locadora entrega ao cliente) e DEVOLUÇÃO (cliente devolve à locadora).",
+      "ficheiros": {
+        "data/dk-contrato-pacote-textos.js": [
+          "TERMO DE VISTORIA",
+          "MODELO CONTRATADO",
+          "ENTREGA",
+          "DEVOLUÇÃO",
+          "Anotações Básicas"
+        ],
+        "data/dk-modelos-veiculo.js": [
+          "shi-175-preto.png",
+          "shi-175-vermelho.png",
+          "shi-175-azul.png",
+          "shi-175-cinza.png",
+          "bros-160-preto.png",
+          "bros-160-vermelho.png",
+          "bros-160-branco.png",
+          "bros-160-cinza.png",
+          "ybr-150-branco.png",
+          "ybr-150-vermelho.png",
+          "ybr-150-preto.png",
+          "ybr-150-dx-azul.png",
+          "ybr-150-dx-preto-fosco.png",
+          "ybr-150-dx-preto-metalico.png",
+          "start-160-prata.png",
+          "start-160-vermelho.png",
+          "start-160-preto.png",
+          "start-160-azul.png",
+          "kwid-branco.png",
+          "kwid-vermelho.png",
+          "kwid-preto.png",
+          "kwid-bege.png",
+          "kwid-laranja.png",
+          "etios-branco.png",
+          "ka-vermelho.png",
+          "ka-cinza.png",
+          "gol-cinza.png",
+          "hb20-cinza.png",
+          "__DK_resolveModeloContratadoFoto"
+        ],
+        "portal-contrato-pacote.js": [
+          "pagina-vistoria",
+          "__DK_contratoPacoteBuildVistoriaPagina",
+          "ENTREGA",
+          "DEVOLUÇÃO",
+          "Pág.: ${num} / ${total}"
+        ],
+        "portal-contrato-locacao.js": [
+          "__DK_contratoPacoteBuildVistoriaPagina",
+          "Termo de vistoria"
+        ]
+      }
+    },
+    {
+      "id": "requerimento-padrao-em-branco",
+      "descricao": "Gerar contrato imprime quatro documentos: contrato de locação (10 páginas), Opção Contratada (1 página), Termo de Vistoria (2 páginas) e Requerimento Padrão DETRAN (2 páginas em branco, sem dados preenchidos).",
+      "ficheiros": {
+        "portal-contrato-pacote.js": [
+          "__DK_contratoPacoteBuildRequerimentoPagina",
+          "pagina-requerimento",
+          "requerimento-padrao-p1.png",
+          "requerimento-padrao-p2.png"
+        ],
+        "portal-contrato-locacao.js": [
+          "__DK_contratoPacoteBuildRequerimentoPagina",
+          "4. Requerimento padrão"
+        ]
+      }
     }
   ]
 }

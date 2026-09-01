@@ -3,63 +3,96 @@
  * Placeholders: {{NOME}}, {{CPF}}, {{ENDERECO}}, {{PROTOCOLO}}, {{PLACA}}, {{MARCA_MODELO}},
  * {{CHASSI}}, {{RENAVAM}}, {{COR}}, {{ANO_MODELO}}, {{MODALIDADE}}, {{CODIGO_CLIENTE}},
  * {{CELULAR}}, {{CNH}}, {{MUNICIPIO_DATA}}, {{VALOR_ALUGUEL}}, {{VALOR_INVESTIMENTO}},
- * {{KM}}, {{CODIGO_VEICULO}}, {{RG}}, {{CEP}}, {{BAIRRO}}, {{CIDADE}}, {{UF}}, {{EMAIL}}
+ * {{KM}}, {{CODIGO_VEICULO}}, {{RG}}, {{CEP}}, {{BAIRRO}}, {{CIDADE}}, {{UF}}, {{EMAIL}},
+ * {{CNH_CATEGORIA}}, {{CNH_VALIDADE}}, {{EAR}}, {{RECADO1}}, {{RECADO2}}, {{MARCA}}, {{MODELO}},
+ * {{PROPRIETARIO}}, {{CPF_CNPJ_PROP}}, {{MUNICIPIO_VEICULO}}, {{PERIODO_SEMANAS}},
+ * {{VALOR_ALUGUEL_EXTENSO}}, {{VALOR_INVESTIMENTO_EXTENSO}}, {{VALOR_SEMANAL}}, {{VALOR_SEMANAL_EXTENSO}},
+ * {{VALOR_COMPRA}}, {{VALOR_COMPRA_EXTENSO}}, {{DIA_PAGAMENTO}}, {{DATA_INICIO}}, {{DATA_FIM}}, {{FOTO_VEICULO}},
+ * {{FOTO_MODELO_CONTRATADO}}
  */
 (function () {
   "use strict";
 
   window.__DK_CONTRATO_PACOTE_OPCAO = `
-<div class="kit-doc kit-opcao">
-  <header class="kit-opcao__head">
-    <h1>OPÇÃO CONTRATADA</h1>
-    <p class="kit-opcao__plano"><strong>Plano:</strong> {{MODALIDADE}}</p>
-    <p class="kit-opcao__proto"><strong>Protocolo:</strong> {{PROTOCOLO}}</p>
+<div class="opcao-doc">
+  <header class="opcao-cab">
+    <img class="opcao-logo" src="{{LOGO_URL}}" alt="DK Locadora" crossorigin="anonymous">
+    <div class="opcao-cab-centro">
+      <h1>OPÇÃO CONTRATADA</h1>
+      <div class="opcao-plano">Plano: {{MODALIDADE}}</div>
+      <p class="opcao-proto">Protocolo Nº: {{PROTOCOLO}}</p>
+    </div>
+    <div class="opcao-foto">{{FOTO_VEICULO}}</div>
   </header>
-  <section class="kit-box">
-    <h2>Locatário</h2>
-    <div class="kit-grid2">
-      <p><span>Nome</span><strong>{{NOME}}</strong></p>
-      <p><span>Cód. cliente</span><strong>{{CODIGO_CLIENTE}}</strong></p>
-      <p><span>CPF</span><strong>{{CPF}}</strong></p>
-      <p><span>CNH</span><strong>{{CNH}}</strong></p>
-      <p><span>Celular</span><strong>{{CELULAR}}</strong></p>
-      <p class="kit-span2"><span>Endereço</span><strong>{{ENDERECO}}</strong></p>
-    </div>
+
+  <p class="opcao-eu">Eu,</p>
+  <p class="opcao-nome">{{NOME}}</p>
+  <div class="opcao-grid opcao-grid--2">
+    <div class="opcao-cell"><span>Código:</span> {{CODIGO_CLIENTE}}</div>
+    <div class="opcao-cell"><span>CPF/CNPJ:</span> {{CPF}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--cnh">
+    <div class="opcao-cell opcao-cell--span"><span>Nº da CNH | Categoria | Validade | EAR?</span> {{CNH}} | {{CNH_CATEGORIA}} | {{CNH_VALIDADE}} | {{EAR}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--3">
+    <div class="opcao-cell"><span>Nº do Celular:</span> {{CELULAR}}</div>
+    <div class="opcao-cell"><span>Recados (1):</span> {{RECADO1}}</div>
+    <div class="opcao-cell"><span>Recados (2):</span> {{RECADO2}}</div>
+  </div>
+  <div class="opcao-grid">
+    <div class="opcao-cell opcao-cell--span"><span>Endereço:</span> {{ENDERECO}}</div>
+  </div>
+
+  <p class="opcao-frase">opto pelo plano acima sinalizado, referente a Locação do Veículo abaixo especificado:</p>
+  <div class="opcao-grid opcao-grid--veic1">
+    <div class="opcao-cell"><span>Código:</span> {{CODIGO_VEICULO}}</div>
+    <div class="opcao-cell"><span>Placa:</span> {{PLACA}}</div>
+    <div class="opcao-cell"><span>Marca / Modelo:</span> {{MARCA_MODELO}}</div>
+    <div class="opcao-cell"><span>Odometro:</span> {{KM}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--veic2">
+    <div class="opcao-cell"><span>Chassi:</span> {{CHASSI}}</div>
+    <div class="opcao-cell"><span>Renavam:</span> {{RENAVAM}}</div>
+    <div class="opcao-cell"><span>Cor:</span> {{COR}}</div>
+    <div class="opcao-cell"><span>Ano/Modelo:</span> {{ANO_MODELO}}</div>
+  </div>
+  <div class="opcao-grid opcao-grid--veic3">
+    <div class="opcao-cell"><span>Proprietário:</span> {{PROPRIETARIO}}</div>
+    <div class="opcao-cell"><span>CPF:</span> {{CPF_CNPJ_PROP}}</div>
+    <div class="opcao-cell"><span>Município:</span> {{MUNICIPIO_VEICULO}}</div>
+  </div>
+
+  <p class="opcao-frase">nas condições abaixo descritas:</p>
+  <ul class="opcao-cond">
+    <li><span class="opcao-chev">Período do Contrato &gt;&gt;</span> <span class="opcao-val">{{PERIODO_SEMANAS}} SEMANAS</span></li>
+    <li><span class="opcao-chev">Valor da Locação (Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}})</span></li>
+    <li><span class="opcao-chev">Valor do Investimento (Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}})</span></li>
+    <li><span class="opcao-chev">Totalizando (Valor Semanal) &gt;&gt;</span> <span class="opcao-val">{{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}})</span></li>
+  </ul>
+  <p class="opcao-garantia">…referente à garantia de compra pelo valor de {{VALOR_COMPRA}} ({{VALOR_COMPRA_EXTENSO}}) do veículo identificado neste Anexo, ao final do período acima acordado.</p>
+  <div class="opcao-atencao">
+    <strong>ATENÇÃO:</strong> A garantia de compra prevista neste anexo será automaticamente cancelada na hipótese de descumprimento, pelo LOCATÁRIO, de quaisquer das cláusulas do Contrato de Locação de Veículo, em especial a <strong>Cláusula 10ª (Rescisão)</strong>.
+  </div>
+
+  <p class="opcao-obs-tit"><strong>Observações:</strong></p>
+  <p class="opcao-obs"><span class="opcao-chev-inline">&gt;</span> Na Troca periódica do Óleo do Motor, o valor do óleo será de responsabilidade do LOCATÁRIO.</p>
+
+  <section class="opcao-termo">
+    <h2>Termo de Compromisso</h2>
+    <p>Comprometo-me a realizar o pagamento no valor de {{VALOR_SEMANAL}} ({{VALOR_SEMANAL_EXTENSO}}), semanalmente, rigorosamente no(a) {{DIA_PAGAMENTO}}, referente a Locação Semanal, no valor de {{VALOR_ALUGUEL}} ({{VALOR_ALUGUEL_EXTENSO}}), acrescido do valor de {{VALOR_INVESTIMENTO}} ({{VALOR_INVESTIMENTO_EXTENSO}}) referente a um investimento para aquisição do Veículo de Placa: {{PLACA}}, iniciando o contrato no dia {{DATA_INICIO}}, pelo período de {{PERIODO_SEMANAS}} semanas, que terminará no dia {{DATA_FIM}}.</p>
   </section>
-  <section class="kit-box">
-    <h2>Veículo</h2>
-    <div class="kit-grid2">
-      <p><span>Cód. veículo</span><strong>{{CODIGO_VEICULO}}</strong></p>
-      <p><span>Placa</span><strong>{{PLACA}}</strong></p>
-      <p><span>Marca / modelo</span><strong>{{MARCA_MODELO}}</strong></p>
-      <p><span>Km</span><strong>{{KM}}</strong></p>
-      <p><span>Chassi</span><strong>{{CHASSI}}</strong></p>
-      <p><span>Renavam</span><strong>{{RENAVAM}}</strong></p>
-      <p><span>Cor</span><strong>{{COR}}</strong></p>
-      <p><span>Ano / modelo</span><strong>{{ANO_MODELO}}</strong></p>
+
+  <p class="opcao-data">{{MUNICIPIO_DATA}}</p>
+  <div class="opcao-sigs">
+    <div class="opcao-sig">
+      <div class="opcao-sig-line" aria-hidden="true"></div>
+      <p class="opcao-sig-name">{{NOME}}</p>
+      <p class="opcao-sig-id">{{CPF}}</p>
     </div>
-  </section>
-  <section class="kit-box">
-    <h2>Condições financeiras</h2>
-    <div class="kit-grid2">
-      <p><span>Valor do aluguel</span><strong>{{VALOR_ALUGUEL}}</strong></p>
-      <p><span>Valor investimento</span><strong>{{VALOR_INVESTIMENTO}}</strong></p>
-      <p><span>Prazo</span><strong>150 semanas</strong></p>
-      <p><span>Opção de compra</span><strong>R$ 20,00</strong></p>
-    </div>
-  </section>
-  <p class="kit-termo">Declaro estar ciente das condições do plano {{MODALIDADE}}, protocolo {{PROTOCOLO}}, placa {{PLACA}}.</p>
-  <p class="kit-data">{{MUNICIPIO_DATA}}</p>
-  <div class="sig-area">
-    <div class="sig-col">
-      <div class="sig-rule" aria-hidden="true"></div>
-      <p class="sig-name">{{NOME}}</p>
-      <p class="sig-id">{{CPF}}</p>
-    </div>
-    <div class="sig-col">
-      <div class="sig-rule" aria-hidden="true"></div>
-      <p class="sig-name">DK LOCADORA LTDA</p>
-      <p class="sig-id">CNPJ: 59.665.734/0001-32</p>
+    <div class="opcao-sig">
+      <div class="opcao-sig-line" aria-hidden="true"></div>
+      <p class="opcao-sig-name">DK LOCADORA LTDA</p>
+      <p class="opcao-sig-id">CNPJ: 59.665.734/0001-32</p>
     </div>
   </div>
 </div>`;
@@ -182,4 +215,101 @@
 
   /** Requerimento: o pacote usa o PDF oficial (modelos/requerimento-padrao-detran.pdf); HTML legado não é renderizado. */
   window.__DK_CONTRATO_PACOTE_REQUERIMENTO = [];
+
+  /* TERMO DE VISTORIA — duas páginas SISLOC: ENTREGA e DEVOLUÇÃO. MODELO CONTRATADO na cor do veículo. */
+  window.__DK_CONTRATO_PACOTE_VISTORIA = `
+<div class="vistoria-doc">
+  <header class="vistoria-cab">
+    <img class="vistoria-logo" src="{{LOGO_URL}}" alt="DK Locadora" crossorigin="anonymous">
+    <div class="vistoria-cab-centro">
+      <h1>Termo de Vistoria  -  Protocolo Nº: {{PROTOCOLO}}</h1>
+      <div class="vistoria-plano">Plano: {{MODALIDADE}}</div>
+    </div>
+    <div class="vistoria-fase">{{FASE}}</div>
+  </header>
+
+  <div class="vistoria-grid vistoria-grid--cli">
+    <div class="vistoria-cell"><span>Código - Nome do Cliente</span> Cód.: {{CODIGO_CLIENTE}} - {{NOME}}</div>
+    <div class="vistoria-cell"><span>Nº do Celular</span> {{CELULAR}}</div>
+    <div class="vistoria-cell"><span>Nº da CNH / Categoria</span> {{CNH}} - Cat.: {{CNH_CATEGORIA}}</div>
+  </div>
+  <div class="vistoria-grid vistoria-grid--veic">
+    <div class="vistoria-cell"><span>Código</span> {{CODIGO_VEICULO}}</div>
+    <div class="vistoria-cell"><span>Placa</span> {{PLACA}}</div>
+    <div class="vistoria-cell"><span>Marca / Modelo</span> {{MARCA_MODELO}}</div>
+    <div class="vistoria-cell"><span>Ano/Modelo</span> {{ANO_MODELO}}</div>
+    <div class="vistoria-cell"><span>Cor</span> {{COR}}</div>
+  </div>
+  <div class="vistoria-grid vistoria-grid--prop">
+    <div class="vistoria-cell"><span>Proprietário do Veículo</span> {{PROPRIETARIO}}</div>
+    <div class="vistoria-cell"><span>CPF/CNPJ</span> {{CPF_CNPJ_PROP}}</div>
+    <div class="vistoria-cell"><span>Município/UF</span> {{MUNICIPIO_VEICULO}}</div>
+  </div>
+
+  <div class="vistoria-legenda" aria-label="Legenda">
+    <span class="vistoria-leg vistoria-leg--n"><b>N</b> Novo</span>
+    <span class="vistoria-leg vistoria-leg--b"><b>B</b> Bom</span>
+    <span class="vistoria-leg vistoria-leg--m"><b>M</b> Médio</span>
+    <span class="vistoria-leg vistoria-leg--a"><b>A</b> Aprovado</span>
+    <span class="vistoria-leg vistoria-leg--r"><b>R</b> Reparar</span>
+    <span class="vistoria-leg vistoria-leg--s"><b>S</b> Substituir</span>
+  </div>
+
+  <p class="vistoria-sec">Anotações Básicas</p>
+  <div class="vistoria-basicas">
+    <section class="vistoria-modelo" aria-label="MODELO CONTRATADO">
+      <h2>Modelo Contratado</h2>
+      <div class="vistoria-modelo__foto">{{FOTO_MODELO_CONTRATADO}}</div>
+      <p class="vistoria-modelo__leg">imagem ilustrativa</p>
+    </section>
+    <div class="vistoria-status">
+      <div class="vistoria-odo">
+        <span>Odômetro</span>
+        <div class="vistoria-odo__val">{{KM_CAMPO}}<i>Km(s)</i></div>
+      </div>
+      <div class="vistoria-comb">
+        <span>Combustível</span>
+        <div class="vistoria-comb__bar" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      </div>
+      <table class="vistoria-moto">
+        <thead><tr><th>MOTO</th><th>N</th><th class="th-a">A</th><th class="th-b">B</th><th>M</th><th class="th-r">R</th><th class="th-s">S</th></tr></thead>
+        <tbody>
+          <tr><td>Placa (Trazeira)</td><td class="mk mk-n"></td><td class="mk mk-a"></td><td></td><td></td><td class="mk mk-r"></td><td class="mk mk-s"></td></tr>
+          <tr><td>Pneus (Trazeiro)</td><td class="mk mk-n"></td><td></td><td class="mk mk-b"></td><td class="mk mk-m"></td><td></td><td class="mk mk-s"></td></tr>
+          <tr><td>Pneus (Dianteiro)</td><td class="mk mk-n"></td><td></td><td class="mk mk-b"></td><td class="mk mk-m"></td><td></td><td class="mk mk-s"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <table class="vistoria-acess">
+      <thead><tr><th></th><th colspan="2">Instalado?</th></tr><tr><th></th><th>Sim</th><th>Não</th></tr></thead>
+      <tbody>
+        <tr><td>Suporte para o Celular</td><td class="mk"></td><td class="mk"></td></tr>
+        <tr><td>Carregador para o Celular</td><td class="mk"></td><td class="mk"></td></tr>
+        <tr><td>Suporte da Placa</td><td class="mk"></td><td class="mk"></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="vistoria-sec">Inspeção de Acessórios / Itens de Segurança / Outros</p>
+  <div class="vistoria-itens">{{ITENS_VISTORIA}}</div>
+  <div class="vistoria-notas">
+    <span>Anotações</span>
+    <i></i><i></i><i></i><i></i><i></i>
+  </div>
+
+  <p class="vistoria-decl">Declaramos que recebemos o veículo de Placa: {{PLACA}}, nas condições acima citadas e estamos de acordo com as informações contidas neste documento.</p>
+  <p class="vistoria-data">{{DATA_LINHA}}</p>
+  <div class="vistoria-sigs">
+    <div class="vistoria-sig">
+      <div class="vistoria-sig-line" aria-hidden="true"></div>
+      <p class="vistoria-sig-name">{{NOME}}</p>
+      <p class="vistoria-sig-id">CPF/CNPJ: {{CPF}}</p>
+    </div>
+    <div class="vistoria-sig">
+      <div class="vistoria-sig-line" aria-hidden="true"></div>
+      <p class="vistoria-sig-name">DK LOCADORA LTDA</p>
+      <p class="vistoria-sig-id">CNPJ: 59.665.734/0001-32</p>
+    </div>
+  </div>
+</div>`;
 })();
