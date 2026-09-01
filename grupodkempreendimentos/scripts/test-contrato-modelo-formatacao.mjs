@@ -145,17 +145,23 @@ async function saveClip(session, selector, destName) {
       if (!el) return null;
       el.scrollIntoView({ block: "start" });
       const r = el.getBoundingClientRect();
-      return { x: r.x, y: r.y, width: r.width, height: r.height };
+      return {
+        x: r.x + window.scrollX,
+        y: r.y + window.scrollY,
+        width: r.width,
+        height: r.height,
+      };
     })()`
   );
   if (!box || box.width < 10 || box.height < 10) return null;
   const shot = await session.send("Page.captureScreenshot", {
     format: "png",
+    captureBeyondViewport: true,
     clip: {
       x: Math.max(0, box.x),
       y: Math.max(0, box.y),
-      width: Math.min(box.width, 900),
-      height: Math.min(box.height, 1280),
+      width: box.width,
+      height: box.height,
       scale: 1,
     },
   });
@@ -292,10 +298,14 @@ async function main() {
         JSON.stringify({ sidebar: built?.sidebar })
       );
 
-      const p1 = await saveClip(session, '.pagina[data-pagina="1"]', "contrato_modelo_pagina1.png");
-      const p10 = await saveClip(session, '.pagina[data-pagina="10"]', "contrato_modelo_pagina10.png");
+      const p1 = await saveClip(session, '.pagina[data-pagina="1"]', "contrato_sisloc_capa.png");
+      const p2 = await saveClip(session, '.pagina[data-pagina="2"]', "contrato_sisloc_pagina2.png");
+      const p10 = await saveClip(session, '.pagina[data-pagina="10"]', "contrato_sisloc_pagina10.png");
+      const sig = await saveClip(session, ".sig-area", "contrato_sisloc_assinaturas.png");
       record("captura pág. 1", Boolean(p1), p1 || "");
-      record("captura pág. 10", Boolean(p10), p10 || "");
+      record("captura pág. 2 (sem capa)", Boolean(p2), p2 || "");
+      record("captura pág. 10", Boolean(p10) && fs.statSync(p10).size > 20000, p10 ? `${p10} ${fs.statSync(p10).size}b` : "");
+      record("captura assinaturas", Boolean(sig) && fs.statSync(sig).size > 1000, sig || "");
     });
   });
 
