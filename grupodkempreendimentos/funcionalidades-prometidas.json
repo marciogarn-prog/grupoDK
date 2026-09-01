@@ -126,6 +126,24 @@
       }
     },
     {
+      "id": "tipo-plano-fonte-cores",
+      "descricao": "No cadastro de locação, a fonte de TIPO DE PLANO é azul no DK MINHA MOTO, verde no DK MEU TRANSPORTE moto e marrom no DK MEU TRANSPORTE carro.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "paintOperacaoLocacaoTipoPlanoFonte",
+          "portal-tipo-plano--minha-moto",
+          "portal-tipo-plano--meu-transporte",
+          "portal-tipo-plano--carro"
+        ],
+        "styles.css": [
+          "#operacaoLocacaoTipoPlano.portal-tipo-plano--minha-moto",
+          "color: #5eb8ff !important",
+          "color: #6ee7a0 !important",
+          "color: #c4a484 !important"
+        ]
+      }
+    },
+    {
       "id": "protocolo-2026082801-valido",
       "descricao": "Protocolo 2026082801 com data início 28/08/2026 grava a locação; o bloqueio antigo só vale se a data de início não for 28/08/2026.",
       "ficheiros": {

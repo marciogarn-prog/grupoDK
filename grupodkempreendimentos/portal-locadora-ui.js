@@ -14385,6 +14385,7 @@
     const inv = parse(inpInv?.value ?? "");
     inpTipo.value = Number(inv) > 0 ? "DK MINHA MOTO" : "DK MEU TRANSPORTE";
     syncOperacaoLocacaoModalidadeBolas();
+    paintOperacaoLocacaoTipoPlanoFonte();
   }
 
   function isPortalPlanoMeuTransporteKey(plano) {
@@ -14432,26 +14433,78 @@
     return portalInferTipoVeiculoLocacao({ placa: plateRaw, marcaModelo: modelo, modalidade: "" });
   }
 
+  const PORTAL_TIPO_PLANO_FONTE_CLASSES = [
+    "portal-tipo-plano--minha-moto",
+    "portal-tipo-plano--meu-transporte",
+    "portal-tipo-plano--carro",
+  ];
+
+  function portalTipoPlanoFonteClasse(plano, modalidade) {
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const p = nk(plano);
+    const m = nk(modalidade);
+    if (p.includes("MINHA") && p.includes("MOTO")) return "portal-tipo-plano--minha-moto";
+    if (p.includes("MEU") && p.includes("TRANSPORTE")) {
+      return m.includes("CARRO") ? "portal-tipo-plano--carro" : "portal-tipo-plano--meu-transporte";
+    }
+    return "";
+  }
+
+  function paintPortalTipoPlanoInput(el, plano, modalidade) {
+    if (!el) return;
+    PORTAL_TIPO_PLANO_FONTE_CLASSES.forEach((c) => el.classList.remove(c));
+    const cls = portalTipoPlanoFonteClasse(plano, modalidade);
+    if (cls) el.classList.add(cls);
+  }
+
+  /** Fonte do TIPO DE PLANO: azul Minha Moto · verde Meu Transporte moto · marrom carro. */
+  function paintOperacaoLocacaoTipoPlanoFonte() {
+    const inp = document.getElementById("operacaoLocacaoTipoPlano");
+    if (!inp) return;
+    const plano = String(inp.value || "").trim();
+    let mod = "";
+    if (isPortalPlanoMeuTransporteKey(plano)) {
+      mod = getOperacaoLocacaoModalidadeMarcada() || inferOperacaoLocacaoModalidadeDoFormulario();
+    }
+    paintPortalTipoPlanoInput(inp, plano, mod);
+  }
+
+  function paintOperacaoLancAluguelTipoPlanoFonte(loc) {
+    const inp = document.getElementById("operacaoLancAluguelTipoPlano");
+    if (!inp) return;
+    const plano = String(inp.value || loc?.plano || loc?.opcaoContrato || "").trim();
+    let mod = "";
+    if (isPortalPlanoMeuTransporteKey(plano)) {
+      mod = String(loc?.modalidade || "").trim() || (loc ? portalInferTipoVeiculoLocacao(loc) : "");
+    }
+    paintPortalTipoPlanoInput(inp, plano, mod);
+  }
+
   function paintOperacaoLocacaoProtocoloSelectFromModalidade() {
     const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
-    if (!sel) return;
-    const tipoPlano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
-    if (!isPortalPlanoMeuTransporteKey(tipoPlano)) {
-      syncOperacaoLocacaoProtocoloSelectAtivoUi();
+    if (!sel) {
+      paintOperacaoLocacaoTipoPlanoFonte();
       return;
     }
+    const tipoPlano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
     const opt = sel.selectedOptions && sel.selectedOptions[0];
-    const v = getOperacaoLocacaoModalidadeMarcada();
     if (opt && opt.value && opt.value !== "__PORTAL_PROTO_NOVO__") {
       opt.classList.remove(
         "portal-locacao-proto-opt--carro",
         "portal-locacao-proto-opt--minha-moto",
         "portal-locacao-proto-opt--meu-transporte"
       );
-      if (v === "CARRO") opt.classList.add("portal-locacao-proto-opt--carro");
-      else if (v === "MOTO") opt.classList.add("portal-locacao-proto-opt--meu-transporte");
+      if (isPortalPlanoMeuTransporteKey(tipoPlano)) {
+        const v = getOperacaoLocacaoModalidadeMarcada();
+        if (v === "CARRO") opt.classList.add("portal-locacao-proto-opt--carro");
+        else opt.classList.add("portal-locacao-proto-opt--meu-transporte");
+      } else if (portalTipoPlanoFonteClasse(tipoPlano, "") === "portal-tipo-plano--minha-moto") {
+        opt.classList.add("portal-locacao-proto-opt--minha-moto");
+      }
     }
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
+    paintOperacaoLocacaoTipoPlanoFonte();
   }
 
   function syncOperacaoLocacaoModalidadeBolas(opts = {}) {
@@ -14465,6 +14518,7 @@
     if (!show) {
       setOperacaoLocacaoModalidadeMarcada("");
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
+      paintOperacaoLocacaoTipoPlanoFonte();
       return;
     }
     const rawMod = String(opts.modalidade || "").trim();
@@ -14987,6 +15041,7 @@
         protoNovo || (pNorm && isPortalProtocoloAlignedWithInicioForm(pNorm) ? pNorm : "");
     }
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
+    paintOperacaoLocacaoProtocoloSelectFromModalidade();
     if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
       window.__DK_refreshOperacaoLocacaoDocumentosUi();
     }
@@ -15023,6 +15078,14 @@
     if (opt.classList.contains("portal-locacao-proto-opt--ativo")) {
       sel.classList.add("portal-locacao-proto-select--ativo");
     }
+    const tipoPlano = String(document.getElementById("operacaoLocacaoTipoPlano")?.value || "").trim();
+    const fonte = portalTipoPlanoFonteClasse(
+      tipoPlano,
+      isPortalPlanoMeuTransporteKey(tipoPlano) ? getOperacaoLocacaoModalidadeMarcada() : ""
+    );
+    if (fonte === "portal-tipo-plano--carro") sel.classList.add("portal-locacao-proto-select--carro");
+    else if (fonte === "portal-tipo-plano--minha-moto") sel.classList.add("portal-locacao-proto-select--minha-moto");
+    else if (fonte === "portal-tipo-plano--meu-transporte") sel.classList.add("portal-locacao-proto-select--meu-transporte");
   }
 
   function onOperacaoLocacaoProtocoloSelectChange() {
@@ -17991,6 +18054,7 @@
       if (el) el.value = "";
     });
     syncOperacaoLancAluguelValorPagoFromMeios();
+    paintOperacaoLancAluguelTipoPlanoFonte(null);
     refreshOperacaoLancAluguelSaldosHoje(null);
   }
 
@@ -18041,6 +18105,7 @@
       if (el) el.value = String(val ?? "").trim();
     };
     assign("operacaoLancAluguelTipoPlano", resumo.tipoPlano);
+    paintOperacaoLancAluguelTipoPlanoFonte(loc);
     assign("operacaoLancAluguelValorDevidoPlano", resumo.valorDevidoPlano);
     assign("operacaoLancAluguelValorDevidoAluguel", resumo.valorDevidoAluguel);
     assign("operacaoLancAluguelValorDevidoManutencao", resumo.valorDevidoManutencao);
@@ -21491,6 +21556,8 @@
   window.__DK_findPortalClientesByCodigoBusca = findPortalClientesByCodigoBusca;
   window.__DK_getOperacaoLocacaoModalidadeMarcada = getOperacaoLocacaoModalidadeMarcada;
   window.__DK_setOperacaoLocacaoModalidadeMarcada = setOperacaoLocacaoModalidadeMarcada;
+  window.__DK_paintOperacaoLocacaoTipoPlanoFonte = paintOperacaoLocacaoTipoPlanoFonte;
+  window.__DK_portalTipoPlanoFonteClasse = portalTipoPlanoFonteClasse;
   window.__DK_portalEsvaziarCamposTextoDoFormulario = portalEsvaziarCamposTextoDoFormulario;
   window.__DK_portalClienteCodigoEmUsoPorOutroCpf = portalClienteCodigoEmUsoPorOutroCpf;
   window.__DK_applyOperacaoLocacaoClienteFromCodigo = applyOperacaoLocacaoClienteFromCodigo;
