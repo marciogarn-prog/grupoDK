@@ -37,6 +37,7 @@ record("preserva no save", ui.includes("portalLancamentosCaucao: prev.portalLanc
 record("merge nuvem cjs", mergeSrc.includes("portalLancamentosCaucao"));
 record("merge protocolo js", protoSrc.includes("portalLancamentosCaucao"));
 record("cache pwa", html.includes("20260901janela-caucao"));
+record("mascara valor", ui.includes('"portalCaucaoValor"'));
 
 const merge = require(path.join(ROOT, "lib/dk-append-only-merge.cjs"));
 const a = [{ numeroContrato: "2026070801", placa: "UHY7B16", cpf: "35287865821", nome: "A", inicio: "08/07/2026" }];
@@ -57,6 +58,12 @@ record(
   "merge nao perde caução",
   Array.isArray(hit?.portalLancamentosCaucao) && hit.portalLancamentosCaucao.some((x) => Number(x.valor) === 500),
   `n=${hit?.portalLancamentosCaucao?.length || 0}`
+);
+const alug = Array.isArray(hit?.portalLancamentosAluguel) ? hit.portalLancamentosAluguel : [];
+record(
+  "caucao fora do aluguel",
+  !alug.some((x) => String(x?.tipoMovimento || "").toUpperCase() === "CAUCAO"),
+  `aluguel=${alug.length}`
 );
 
 const failed = results.filter((r) => !r.ok);

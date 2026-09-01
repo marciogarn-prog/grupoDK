@@ -14227,6 +14227,7 @@
     "operacaoLancMultasValorMulta",
     "operacaoLancManutencaoValorManutencao",
     "portalLancAluguelEditValor",
+    "portalCaucaoValor",
   ];
 
   /** Reaplica máscaras após preencher formulários (datas por convenção de nome — app.js). */
@@ -14424,7 +14425,7 @@
     const arr = Array.isArray(loc?.portalLancamentosCaucao) ? loc.portalLancamentosCaucao.slice() : [];
     arr.sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0));
     if (!arr.length) {
-      ul.innerHTML = `<li class="portal-caucao-lista__vazio">Nenhuma caução registada neste protocolo.</li>`;
+      ul.innerHTML = `<li class="portal-caucao-lista__vazio">Nenhuma caução registrada neste protocolo.</li>`;
       return;
     }
     ul.innerHTML = arr
@@ -14486,7 +14487,7 @@
   function persistPortalLancamentoCaucao() {
     const msg = document.getElementById("portalCaucaoMsg");
     if (!getPortalSessaoAdminRole()) {
-      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registar a caução.";
+      if (msg) msg.textContent = "Inicie sessão como colaborador ou administrador para registrar a caução.";
       return;
     }
     const nc = locacaoCaucaoProtocoloAtual();
@@ -14563,7 +14564,7 @@
     if (typeof portalPushCloudSnapshotAfterPersist === "function") {
       portalPushCloudSnapshotAfterPersist();
     }
-    if (msg) msg.textContent = `Caução de ${formatPortalCaucaoValorBr(valorNum)} registada.`;
+    if (msg) msg.textContent = `Caução de ${formatPortalCaucaoValorBr(valorNum)} registrada.`;
     const inpValor = document.getElementById("portalCaucaoValor");
     const inpCom = document.getElementById("portalCaucaoComentario");
     if (inpValor) inpValor.value = "";
