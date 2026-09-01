@@ -257,6 +257,9 @@ const BUILD = `(() => {
     temOdometro: txt.includes("018452 Km(s)") || txt.includes("18452"),
     temRodape: (opcao?.querySelector(".pe-pagina")?.textContent || "").includes("Pág.: 1 / 1"),
     temImprimir: Boolean(document.getElementById("btnImprimir")),
+    cnhCells: [...document.querySelectorAll(".opcao-grid--cnh .opcao-cell")].map((el) =>
+      el.innerText.replace(/\s+/g, " ").trim()
+    ),
   };
 })()`;
 
@@ -269,6 +272,15 @@ async function main() {
   record("Builder da opção exportado", pacote.includes("__DK_contratoPacoteBuildOpcaoPagina"));
   record("Gerar contrato inclui a opção", contrato.includes("__DK_contratoPacoteBuildOpcaoPagina") && contrato.includes("Opção contratada"));
   record("CSS da faixa verde do plano", pacote.includes("opcao-plano"));
+  record(
+    "CNH em pares rótulo+valor",
+    textos.includes("<span>Nº da CNH:</span> {{CNH}}") &&
+      textos.includes("<span>Categoria:</span> {{CNH_CATEGORIA}}") &&
+      textos.includes("<span>Validade:</span> {{CNH_VALIDADE}}") &&
+      textos.includes("<span>EAR?:</span> {{EAR}}") &&
+      !textos.includes("Nº da CNH | Categoria")
+  );
+  record("grelha CNH em 4 colunas", /opcao-grid--cnh \{ grid-template-columns: 1\.5fr/.test(pacote));
 
   await withLocalServer(async (base) => {
     await withChromePage(async (session) => {
@@ -287,8 +299,25 @@ async function main() {
       record("locatário, veículo e proprietário", Boolean(built?.temNome && built?.temPlaca && built?.temProp));
       record("valores semanais e termo", Boolean(built?.temValor && built?.temTermo));
       record("rodapé Pág.: 1 / 1 e Imprimir", Boolean(built?.temRodape && built?.temImprimir));
+      const cnh = built?.cnhCells || [];
+      record(
+        "linha CNH: 4 células com rótulo junto do valor",
+        cnh.length === 4 &&
+          /Nº da CNH/i.test(cnh[0] || "") &&
+          (cnh[0] || "").includes("4988259603") &&
+          !(cnh[0] || "").includes("Categoria") &&
+          /Categoria/i.test(cnh[1] || "") &&
+          (cnh[1] || "").includes("AB") &&
+          /Validade/i.test(cnh[2] || "") &&
+          (cnh[2] || "").includes("19/02/2036") &&
+          /EAR/i.test(cnh[3] || "") &&
+          /NAO/i.test(cnh[3] || ""),
+        JSON.stringify(cnh)
+      );
       const shot = await saveClip(session, ".pagina-opcao", "opcao_contratada_sisloc.png");
       record("captura da Opção Contratada", Boolean(shot) && fs.statSync(shot).size > 20000, shot ? `${shot} ${fs.statSync(shot).size}b` : "");
+      const shotCnh = await saveClip(session, ".opcao-grid--cnh", "opcao_cnh_pares.png");
+      record("captura da linha CNH", Boolean(shotCnh) && fs.statSync(shotCnh).size > 400, shotCnh ? `${shotCnh} ${fs.statSync(shotCnh).size}b` : "");
     });
   });
 

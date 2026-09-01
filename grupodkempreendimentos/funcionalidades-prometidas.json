@@ -235,16 +235,21 @@
     },
     {
       "id": "opcao-contratada-sisloc",
-      "descricao": "Gerar contrato imprime o contrato de 10 páginas e a Opção Contratada no modelo SISLOC (plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas).",
+      "descricao": "Gerar contrato imprime o contrato de 10 páginas e a Opção Contratada no modelo SISLOC (plano, protocolo, dados do locatário/veículo, termo de compromisso e assinaturas). Na linha da CNH, cada cabeçalho fica junto do valor (Nº da CNH, Categoria, Validade, EAR?).",
       "ficheiros": {
         "data/dk-contrato-pacote-textos.js": [
           "OPÇÃO CONTRATADA",
-          "Termo de Compromisso"
+          "Termo de Compromisso",
+          "<span>Nº da CNH:</span> {{CNH}}",
+          "<span>Categoria:</span> {{CNH_CATEGORIA}}",
+          "<span>Validade:</span> {{CNH_VALIDADE}}",
+          "<span>EAR?:</span> {{EAR}}"
         ],
         "portal-contrato-pacote.js": [
           "pagina-opcao",
           "opcao-plano",
-          "__DK_contratoPacoteBuildOpcaoPagina"
+          "__DK_contratoPacoteBuildOpcaoPagina",
+          "opcao-grid--cnh { grid-template-columns: 1.5fr"
         ],
         "portal-contrato-locacao.js": [
           "__DK_contratoPacoteBuildOpcaoPagina",

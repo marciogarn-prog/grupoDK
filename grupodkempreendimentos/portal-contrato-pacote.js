@@ -587,7 +587,7 @@
 }
 .opcao-grid--2 { grid-template-columns: 1fr 1.4fr; }
 .opcao-grid--3 { grid-template-columns: 1fr 1fr 1fr; }
-.opcao-grid--cnh { grid-template-columns: 1fr; }
+.opcao-grid--cnh { grid-template-columns: 1.5fr 0.85fr 1.15fr 0.7fr; }
 .opcao-grid--veic1 { grid-template-columns: 0.9fr 0.8fr 1.6fr 0.9fr; }
 .opcao-grid--veic2 { grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr; }
 .opcao-grid--veic3 { grid-template-columns: 1.4fr 1fr 1fr; }
