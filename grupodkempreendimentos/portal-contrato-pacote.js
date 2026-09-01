@@ -78,12 +78,27 @@
   function loadVeiculo(placa) {
     const p = normPlaca(placa);
     if (!p) return null;
+    const lists = [];
+    try {
+      if (typeof window.loadCadastro === "function") {
+        lists.push(window.loadCadastro("dk_veiculos_cadastro") || []);
+      }
+    } catch {
+      /* ignore */
+    }
+    try {
+      const raw = localStorage.getItem("dk_veiculos_cadastro");
+      const arr = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(arr)) lists.push(arr);
+    } catch {
+      /* ignore */
+    }
+    for (const list of lists) {
+      const hit = (list || []).find((v) => normPlaca(v?.placa) === p);
+      if (hit) return hit;
+    }
     try {
       if (typeof window.findVeiculoByPlaca === "function") return window.findVeiculoByPlaca(p) || null;
-      if (typeof window.loadCadastro === "function") {
-        const list = window.loadCadastro("dk_veiculos_cadastro") || [];
-        return list.find((v) => normPlaca(v.placa) === p) || null;
-      }
     } catch {
       /* ignore */
     }
