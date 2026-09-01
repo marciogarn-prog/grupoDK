@@ -514,10 +514,14 @@
   }
 
   function resolveImgVeiculoChecklist(marcaModelo, cor) {
+    if (typeof window.__DK_resolveModeloContratadoFoto === "function") {
+      const src = window.__DK_resolveModeloContratadoFoto({ cor, modelo: marcaModelo }, marcaModelo);
+      if (src) return src;
+    }
     const mm = String(marcaModelo || "");
     const c = String(cor || "");
     if (/SHI\s*175/i.test(mm) && /VERMELH/i.test(c)) {
-      return "images/manutencao/shineray-shi-175-vermelha.png";
+      return "images/modelos/shi-175-vermelho.png";
     }
     return "";
   }

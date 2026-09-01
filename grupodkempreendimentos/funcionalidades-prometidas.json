@@ -251,6 +251,31 @@
           "Opção contratada"
         ]
       }
+    },
+    {
+      "id": "termo-vistoria-modelo-contratado",
+      "descricao": "No Termo de Vistoria, o campo MODELO CONTRATADO mostra a foto do SHI 175 na cor do veículo (preto, vermelho, azul ou cinza).",
+      "ficheiros": {
+        "data/dk-contrato-pacote-textos.js": [
+          "TERMO DE VISTORIA",
+          "MODELO CONTRATADO"
+        ],
+        "data/dk-modelos-veiculo.js": [
+          "shi-175-preto.png",
+          "shi-175-vermelho.png",
+          "shi-175-azul.png",
+          "shi-175-cinza.png",
+          "__DK_resolveModeloContratadoFoto"
+        ],
+        "portal-contrato-pacote.js": [
+          "pagina-vistoria",
+          "__DK_contratoPacoteBuildVistoriaPagina"
+        ],
+        "portal-contrato-locacao.js": [
+          "__DK_contratoPacoteBuildVistoriaPagina",
+          "Termo de vistoria"
+        ]
+      }
     }
   ]
 }

@@ -7,7 +7,8 @@
  * {{CNH_CATEGORIA}}, {{CNH_VALIDADE}}, {{EAR}}, {{RECADO1}}, {{RECADO2}}, {{MARCA}}, {{MODELO}},
  * {{PROPRIETARIO}}, {{CPF_CNPJ_PROP}}, {{MUNICIPIO_VEICULO}}, {{PERIODO_SEMANAS}},
  * {{VALOR_ALUGUEL_EXTENSO}}, {{VALOR_INVESTIMENTO_EXTENSO}}, {{VALOR_SEMANAL}}, {{VALOR_SEMANAL_EXTENSO}},
- * {{VALOR_COMPRA}}, {{VALOR_COMPRA_EXTENSO}}, {{DIA_PAGAMENTO}}, {{DATA_INICIO}}, {{DATA_FIM}}, {{FOTO_VEICULO}}
+ * {{VALOR_COMPRA}}, {{VALOR_COMPRA_EXTENSO}}, {{DIA_PAGAMENTO}}, {{DATA_INICIO}}, {{DATA_FIM}}, {{FOTO_VEICULO}},
+ * {{FOTO_MODELO_CONTRATADO}}
  */
 (function () {
   "use strict";
@@ -214,4 +215,72 @@
 
   /** Requerimento: o pacote usa o PDF oficial (modelos/requerimento-padrao-detran.pdf); HTML legado não é renderizado. */
   window.__DK_CONTRATO_PACOTE_REQUERIMENTO = [];
+
+  window.__DK_CONTRATO_PACOTE_VISTORIA = `
+<div class="vistoria-doc">
+  <header class="vistoria-cab">
+    <img class="vistoria-logo" src="{{LOGO_URL}}" alt="DK Locadora" crossorigin="anonymous">
+    <div class="vistoria-cab-centro">
+      <h1>TERMO DE VISTORIA</h1>
+      <div class="vistoria-plano">Locação: {{MODALIDADE}}</div>
+      <p class="vistoria-proto">Protocolo Nº: {{PROTOCOLO}}</p>
+    </div>
+  </header>
+
+  <div class="vistoria-grid vistoria-grid--2">
+    <div class="vistoria-cell vistoria-cell--span"><span>Cliente:</span> Cód.: {{CODIGO_CLIENTE}} — {{NOME}}</div>
+  </div>
+  <div class="vistoria-grid vistoria-grid--3">
+    <div class="vistoria-cell"><span>CPF/CNPJ:</span> {{CPF}}</div>
+    <div class="vistoria-cell"><span>Celular:</span> {{CELULAR}}</div>
+    <div class="vistoria-cell"><span>CNH:</span> {{CNH}}</div>
+  </div>
+  <div class="vistoria-grid">
+    <div class="vistoria-cell vistoria-cell--span"><span>Endereço:</span> {{ENDERECO}}</div>
+  </div>
+
+  <div class="vistoria-grid vistoria-grid--veic1">
+    <div class="vistoria-cell"><span>Código:</span> {{CODIGO_VEICULO}}</div>
+    <div class="vistoria-cell"><span>Placa:</span> {{PLACA}}</div>
+    <div class="vistoria-cell"><span>Marca / Modelo:</span> {{MARCA_MODELO}}</div>
+    <div class="vistoria-cell"><span>Odômetro:</span> {{KM}}</div>
+  </div>
+  <div class="vistoria-grid vistoria-grid--veic2">
+    <div class="vistoria-cell"><span>Chassi:</span> {{CHASSI}}</div>
+    <div class="vistoria-cell"><span>Renavam:</span> {{RENAVAM}}</div>
+    <div class="vistoria-cell"><span>Cor:</span> {{COR}}</div>
+    <div class="vistoria-cell"><span>Ano/Modelo:</span> {{ANO_MODELO}}</div>
+  </div>
+
+  <section class="vistoria-modelo" aria-label="Modelo contratado">
+    <h2>MODELO CONTRATADO</h2>
+    <div class="vistoria-modelo__foto">{{FOTO_MODELO_CONTRATADO}}</div>
+  </section>
+
+  <p class="vistoria-legenda">
+    <span class="vistoria-legenda__tit">Legenda:</span>
+    <span><i class="vistoria-box"></i> Novo</span>
+    <span><i class="vistoria-box"></i> Bom</span>
+    <span><i class="vistoria-box"></i> Médio</span>
+    <span><i class="vistoria-box"></i> Aprovado</span>
+    <span><i class="vistoria-box"></i> Reparar</span>
+    <span><i class="vistoria-box"></i> Substituir</span>
+  </p>
+
+  <p class="vistoria-decl">Declaro ter vistoriado o veículo acima identificado, na cor e no modelo contratados, no ato da entrega, concordando com as condições verificadas neste termo.</p>
+
+  <p class="vistoria-data">{{MUNICIPIO_DATA}}</p>
+  <div class="vistoria-sigs">
+    <div class="vistoria-sig">
+      <div class="vistoria-sig-line" aria-hidden="true"></div>
+      <p class="vistoria-sig-name">{{NOME}}</p>
+      <p class="vistoria-sig-id">CPF: {{CPF}}</p>
+    </div>
+    <div class="vistoria-sig">
+      <div class="vistoria-sig-line" aria-hidden="true"></div>
+      <p class="vistoria-sig-name">DK LOCADORA LTDA</p>
+      <p class="vistoria-sig-id">CNPJ: 59.665.734/0001-32</p>
+    </div>
+  </div>
+</div>`;
 })();

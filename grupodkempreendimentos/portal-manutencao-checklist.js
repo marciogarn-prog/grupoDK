@@ -45,9 +45,12 @@
   const SUPERVISOR_PADRAO = "IRINALDO TORRES";
   const MECANICOS = ["TALISON CAMARGO", "SAMUEL VICTOR", "Mecânico II"];
 
-  /* Imagens dos veículos por marca/modelo + cor (mais imagens serão adicionadas). */
+  /* Imagens dos veículos por marca/modelo + cor (catálogo SHI 175: preto, vermelho, azul, cinza). */
   const IMAGENS_VEICULO = [
-    { match: /SHI\s*175/i, cor: /VERMELH/i, src: "images/manutencao/shineray-shi-175-vermelha.png" },
+    { match: /SHI\s*175/i, cor: /PRET[OA]|BLACK/i, src: "images/modelos/shi-175-preto.png" },
+    { match: /SHI\s*175/i, cor: /VERMELH[OA]|RED/i, src: "images/modelos/shi-175-vermelho.png" },
+    { match: /SHI\s*175/i, cor: /AZUL|BLUE/i, src: "images/modelos/shi-175-azul.png" },
+    { match: /SHI\s*175/i, cor: /CINZ[AO]|GRAY|GREY/i, src: "images/modelos/shi-175-cinza.png" },
   ];
 
   const esc = (s) =>
@@ -158,7 +161,14 @@
     const isCarro = tipoV.includes("CARRO") || String(veiculo?.tag || "").toUpperCase().includes("DKCR");
 
     const cor = String(veiculo?.cor || "").trim();
-    const img = IMAGENS_VEICULO.find((m) => m.match.test(marcaModelo) && m.cor.test(cor)) || null;
+    let imgSrc = "";
+    if (typeof window.__DK_resolveModeloContratadoFoto === "function") {
+      imgSrc = window.__DK_resolveModeloContratadoFoto({ cor, modelo: marcaModelo }, marcaModelo) || "";
+    }
+    if (!imgSrc) {
+      const img = IMAGENS_VEICULO.find((m) => m.match.test(marcaModelo) && m.cor.test(cor)) || null;
+      imgSrc = img ? img.src : "";
+    }
 
     return {
       protocolo: nc,
@@ -173,7 +183,7 @@
       anoModelo: String(veiculo?.anoModelo || "").trim(),
       corVeiculo: cor,
       marcaModelo,
-      imgVeiculo: img ? img.src : "",
+      imgVeiculo: imgSrc,
     };
   }
 

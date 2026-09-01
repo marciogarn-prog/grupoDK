@@ -1207,6 +1207,11 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
         `<div class="kit-secao-titulo-preview">2. Opção contratada</div>` +
         window.__DK_contratoPacoteBuildOpcaoPagina(dados);
     }
+    if (typeof window.__DK_contratoPacoteBuildVistoriaPagina === "function") {
+      extra +=
+        `<div class="kit-secao-titulo-preview">3. Termo de vistoria</div>` +
+        window.__DK_contratoPacoteBuildVistoriaPagina(dados);
+    }
     return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(dados.protocolo)}</title><style>${cssContrato()}</style></head><body class="contrato-preview">
 <div class="barra-acoes">
   <button type="button" id="btnImprimir">Imprimir</button>
@@ -1214,7 +1219,7 @@ neste ato denominado <strong>LOCATÁRIO</strong>.</p>
   <span id="barraPosPdf" class="hidden">
     <button type="button" id="btnSalvar">Salvar</button>
   </span>
-  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão + Opção contratada</span>
+  <span class="barra-msg" id="barraMsg">Protocolo ${esc(dados.protocolo)} — modelo 10 páginas formatado para impressão + Opção contratada + Termo de vistoria</span>
 </div>
 <div id="contratoSalvarDialog" class="contrato-salvar-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="contratoSalvarTitulo">
   <div class="contrato-salvar-dialog__box">
@@ -1376,7 +1381,7 @@ ${scriptPreviewInline(dados)}
     popup.document.close();
     popup.focus();
     if (msgEl) {
-      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — 10 páginas formatadas. Clique «Imprimir» na janela.`;
+      msgEl.textContent = `Contrato ${dadosFinal.protocolo} — 10 páginas + opção + termo de vistoria. Clique «Imprimir» na janela.`;
     }
     return true;
   }

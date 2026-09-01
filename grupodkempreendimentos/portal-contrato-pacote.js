@@ -304,10 +304,15 @@
       pick(veiculo, ["km", "odometro", "kmAtual"]);
 
     const codigoVeiculo = formatTagOpcao(pick(veiculo, ["tag", "codigo", "idInterno", "codigoVeiculo"], "—"));
-    const fotoSrc = pick(veiculo, ["fotoUrl", "foto", "imagem", "photoUrl"], "");
-    const fotoHtml = fotoSrc
-      ? `<img src="${esc(fotoSrc)}" alt="Veículo" crossorigin="anonymous">`
-      : "";
+    const corVeiculo = pick(veiculo, ["cor"], "—").toUpperCase();
+    const catalogoHtml =
+      typeof window.__DK_modeloContratadoFotoHtml === "function"
+        ? window.__DK_modeloContratadoFotoHtml(veiculo, marcaModelo)
+        : "";
+    const fotoCadastro = pick(veiculo, ["fotoUrl", "foto", "imagem", "photoUrl"], "");
+    const fotoHtml =
+      catalogoHtml ||
+      (fotoCadastro ? `<img src="${esc(fotoCadastro)}" alt="Veículo" crossorigin="anonymous">` : "");
 
     const enderecoParts = {
       logradouro: pick(cliente, ["logradouro", "endereco", "rua"], ""),
@@ -336,7 +341,7 @@
       municipioData: base.municipioData || "",
       chassi: pick(veiculo, ["chassi"], "—").toUpperCase(),
       renavam: pick(veiculo, ["renavam"], "—"),
-      cor: pick(veiculo, ["cor"], "—").toUpperCase(),
+      cor: corVeiculo,
       anoModelo: pick(veiculo, ["anoModelo", "ano"], "—"),
       codigoVeiculo,
       km: formatOdometroOpcao(kmRaw),
@@ -376,6 +381,7 @@
       dataInicio: formatDataBrOpcao(inicioDt),
       dataFim: formatDataBrOpcao(fimDt),
       fotoVeiculoHtml: fotoHtml,
+      fotoModeloContratadoHtml: catalogoHtml || fotoHtml,
       cnpjDk: CNPJ_DK,
     };
   }
@@ -434,12 +440,13 @@
       "{{DATA_INICIO}}": d.dataInicio,
       "{{DATA_FIM}}": d.dataFim,
       "{{FOTO_VEICULO}}": d.fotoVeiculoHtml,
+      "{{FOTO_MODELO_CONTRATADO}}": d.fotoModeloContratadoHtml,
       "{{LOGO_URL}}": logoPacoteUrl(),
     };
     let out = String(html || "");
     for (const [k, v] of Object.entries(map)) {
-      /* LOGO_URL and FOTO_VEICULO are trusted same-origin HTML/URL — do not escape. */
-      const raw = k === "{{LOGO_URL}}" || k === "{{FOTO_VEICULO}}";
+      /* LOGO_URL and FOTO_* are trusted same-origin HTML/URL — do not escape. */
+      const raw = k === "{{LOGO_URL}}" || k === "{{FOTO_VEICULO}}" || k === "{{FOTO_MODELO_CONTRATADO}}";
       out = out.split(k).join(raw ? String(v || "") : esc(v));
     }
     return out;
@@ -506,7 +513,7 @@
   overflow: hidden;
 }
 .opcao-foto:empty { display: none; }
-.opcao-foto img { width: 100%; height: 22mm; object-fit: cover; display: block; }
+.opcao-foto img { width: 100%; height: 22mm; object-fit: contain; display: block; background: #fff; }
 .opcao-eu { margin: 1.5mm 0 0.6mm; font-size: 10pt; }
 .opcao-nome {
   margin: 0 0 1.6mm;
@@ -604,6 +611,176 @@
 .opcao-sig-name { margin: 0; font-weight: 700; font-size: 9pt; }
 .opcao-sig-id { margin: 1mm 0 0; font-weight: 700; font-size: 8.5pt; }
 .pe-pagina.pe-opcao {
+  position: absolute;
+  left: 12mm; right: 12mm; bottom: 6.5mm;
+  font-size: 7.5pt; color: #333;
+  font-family: Arial, Helvetica, sans-serif;
+  border-top: 0;
+}
+${cssVistoria()}
+`;
+  }
+
+  function cssVistoria() {
+    return `
+.pagina.pagina-vistoria {
+  padding: 8mm 12mm 16mm;
+  height: 297mm;
+  min-height: 297mm;
+  max-height: 297mm;
+  overflow: hidden;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 8.8pt;
+  line-height: 1.25;
+  color: #000;
+  background: #fff;
+}
+.vistoria-doc { width: 100%; }
+.vistoria-cab {
+  display: grid;
+  grid-template-columns: 38mm 1fr;
+  gap: 4mm;
+  align-items: start;
+  margin: 0 0 3mm;
+}
+.vistoria-logo {
+  display: block;
+  width: 36mm;
+  height: auto;
+  max-height: 18mm;
+  object-fit: contain;
+  object-position: left top;
+}
+.vistoria-cab-centro { text-align: center; padding-top: 0.5mm; }
+.vistoria-cab-centro h1 {
+  margin: 0;
+  font-size: 16pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.vistoria-plano {
+  margin: 2.2mm auto 0;
+  display: inline-block;
+  min-width: 62mm;
+  padding: 1.4mm 5mm;
+  background: #1b5e20;
+  color: #fff;
+  font-weight: 700;
+  font-size: 10pt;
+  letter-spacing: 0.02em;
+}
+.vistoria-proto {
+  margin: 2mm 0 0;
+  font-size: 10pt;
+  font-weight: 400;
+}
+.vistoria-grid {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-left: 1px solid #111;
+  border-top: 1px solid #111;
+}
+.vistoria-grid--2 { grid-template-columns: 1fr 1fr; }
+.vistoria-grid--3 { grid-template-columns: 1fr 1fr 1fr; }
+.vistoria-grid--veic1 { grid-template-columns: 0.9fr 0.8fr 1.6fr 0.9fr; }
+.vistoria-grid--veic2 { grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr; }
+.vistoria-cell {
+  border-right: 1px solid #111;
+  border-bottom: 1px solid #111;
+  padding: 1.2mm 2mm;
+  min-height: 7.2mm;
+}
+.vistoria-cell span {
+  display: inline;
+  font-weight: 700;
+  margin-right: 1.5mm;
+}
+.vistoria-cell--span { grid-column: 1 / -1; }
+.vistoria-modelo {
+  margin: 4mm 0 3mm;
+  border: 1.4px solid #111;
+  padding: 2.5mm 3mm 3mm;
+  background: #fff;
+}
+.vistoria-modelo h2 {
+  margin: 0 0 2mm;
+  text-align: center;
+  font-size: 11pt;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+.vistoria-modelo__foto {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 58mm;
+  background: #fff;
+}
+.vistoria-modelo__foto:empty {
+  min-height: 58mm;
+  border: 1px dashed #999;
+  color: #777;
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.vistoria-modelo__foto:empty::after { content: "FOTO DO MODELO CONTRATADO"; }
+.vistoria-modelo__foto img {
+  display: block;
+  max-width: 100%;
+  max-height: 62mm;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  background: #fff;
+}
+.vistoria-legenda {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3.5mm;
+  margin: 0 0 3mm;
+  font-size: 8.5pt;
+}
+.vistoria-legenda__tit { font-weight: 700; }
+.vistoria-box {
+  display: inline-block;
+  width: 3.2mm;
+  height: 3.2mm;
+  border: 1px solid #111;
+  margin-right: 1.2mm;
+  vertical-align: -0.4mm;
+  background: #fff;
+}
+.vistoria-decl {
+  margin: 0 0 8mm;
+  text-align: justify;
+}
+.vistoria-data {
+  margin: 10mm 0 0;
+  text-align: center;
+  font-size: 10pt;
+}
+.vistoria-sigs {
+  display: flex;
+  justify-content: space-between;
+  gap: 16mm;
+  margin-top: 14mm;
+}
+.vistoria-sig { flex: 1 1 0; text-align: center; min-width: 0; }
+.vistoria-sig-line {
+  width: 100%;
+  border-bottom: 1.1pt solid #111;
+  height: 10mm;
+  margin: 0 0 2mm;
+}
+.vistoria-sig-name { margin: 0; font-weight: 700; font-size: 9pt; }
+.vistoria-sig-id { margin: 1mm 0 0; font-weight: 700; font-size: 8.5pt; }
+.pe-pagina.pe-vistoria {
+  position: absolute;
   left: 12mm; right: 12mm; bottom: 6.5mm;
   font-size: 7.5pt; color: #333;
   font-family: Arial, Helvetica, sans-serif;
@@ -869,6 +1046,13 @@ ${cssOpcao()}
     return `<div class="pagina pagina-opcao" data-pagina="1" data-kit-label="Opção contratada">
   <div class="corpo">${corpoHtml}</div>
   <div class="pe-pagina pe-opcao"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: 1 / 1</span></div>
+</div>`;
+  }
+
+  function wrapPaginaVistoria(corpoHtml) {
+    return `<div class="pagina pagina-vistoria" data-pagina="1" data-kit-label="Termo de vistoria">
+  <div class="corpo">${corpoHtml}</div>
+  <div class="pe-pagina pe-vistoria"><span>DK - SISLOC - Sistema de Controle de Locações</span><span>Pág.: 1 / 1</span></div>
 </div>`;
   }
 
@@ -1152,8 +1336,15 @@ ${cssOpcao()}
     return wrapPaginaOpcao(html);
   }
 
+  function buildVistoriaPaginaHtml(dados) {
+    const d = enriquecerDadosPacote(dados);
+    const html = substituirPacote(window.__DK_CONTRATO_PACOTE_VISTORIA || "", d);
+    return wrapPaginaVistoria(html);
+  }
+
   window.__DK_contratoPacoteEnriquecer = enriquecerDadosPacote;
   window.__DK_contratoPacoteAbrir = abrirPacoteContrato;
   window.__DK_contratoPacoteCssOpcao = cssOpcao;
   window.__DK_contratoPacoteBuildOpcaoPagina = buildOpcaoPaginaHtml;
+  window.__DK_contratoPacoteBuildVistoriaPagina = buildVistoriaPaginaHtml;
 })();
