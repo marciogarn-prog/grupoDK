@@ -497,53 +497,56 @@
     return sem > 0 ? sem : locacao;
   }
 
-  function parseLocCampoData(loc, keys) {
-    for (const k of keys) {
-      const d = parseBrDate(loc?.[k]);
-      if (d) return d;
-    }
-    return null;
+  const LOCACOES_CEO_KEY = "dk_locacoes_cadastro";
+  const PROTOCOLO_TESTE_CEO = "2099010199";
+
+  function protocoloLocacaoDigits(loc) {
+    return String(loc?.numeroContrato || loc?.protocolo || "").replace(/\D/g, "");
   }
 
-  function locInicio(loc) {
-    return parseLocCampoData(loc, ["inicio", "dataInicio", "inicioContrato", "data"]);
-  }
-
-  function locFim(loc) {
-    return parseBrDate(loc?.fim) || parseBrDate(loc?.dataFim) || parseBrDate(loc?.dataTermino) || null;
-  }
-
-  function locAtivaNoDia(loc, day) {
-    const ini = locInicio(loc);
-    const fim = locFim(loc);
-    if (ini && day < ini) return false;
-    if (fim && day > fim) return false;
-    if (!ini && fim && day > fim) return false;
-    if (!ini && !fim) return locacaoEstaAtiva(loc);
-    return true;
+  function locacaoExcluidaReceitaCeo(loc) {
+    if (!loc || typeof loc !== "object") return true;
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : () => false;
+    if (isGhost(loc)) return true;
+    if (protocoloLocacaoDigits(loc) === PROTOCOLO_TESTE_CEO) return true;
+    return false;
   }
 
   function carregarLocacoes() {
-    if (typeof window.loadCadastro !== "function" || typeof window.CAD_LOCACOES_KEY === "undefined") return [];
-    try {
-      return window.loadCadastro(window.CAD_LOCACOES_KEY) || [];
-    } catch {
-      return [];
+    const key =
+      typeof window.CAD_LOCACOES_KEY === "string" ? window.CAD_LOCACOES_KEY : LOCACOES_CEO_KEY;
+    let arr = [];
+    if (typeof window.loadCadastro === "function") {
+      try {
+        arr = window.loadCadastro(key) || [];
+      } catch {
+        arr = [];
+      }
+    } else {
+      try {
+        const raw = localStorage.getItem(key);
+        arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) arr = [];
+        if (typeof window.__DK_filterOficialCadastroArray === "function") {
+          arr = window.__DK_filterOficialCadastroArray(key, arr);
+        }
+      } catch {
+        arr = [];
+      }
     }
+    return arr.filter((loc) => !locacaoExcluidaReceitaCeo(loc));
   }
 
-  function receitaPrevistaMes(ano, mes, locs) {
-    const ini = new Date(ano, mes, 1);
-    const fim = new Date(ano, mes + 1, 0);
+  /** Soma semanal (valorLocacao + valorInvestimento) das locações ativas — mesma regra do portal. */
+  function receitaPrevistaMes(_ano, _mes, locs) {
     let total = 0;
     locs.forEach((loc) => {
+      if (!locacaoEstaAtiva(loc)) return;
       const sem = valorSemanalContrato(loc);
-      if (sem <= 0) return;
-      const diaRate = sem / 7;
-      for (let d = new Date(ini); d <= fim; d.setDate(d.getDate() + 1)) {
-        const day = startOfDay(d);
-        if (locAtivaNoDia(loc, day)) total += diaRate;
-      }
+      if (sem > 0) total += sem;
     });
     return total;
   }
