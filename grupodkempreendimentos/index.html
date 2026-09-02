@@ -2895,6 +2895,16 @@
                   <span class="fin-kpi__hint">receitas cadastradas no mês</span>
                 </div>
               </div>
+              <div class="fin-ceo-anos-filtro-wrap">
+                <span class="fin-ceo-anos-filtro__label">Anos no gráfico <span class="subtext">(clique para incluir ou retirar)</span></span>
+                <div class="fin-ceo-anos-filtro" id="finCeoDashAnosFiltro" role="group" aria-label="Selecionar anos para os gráficos">
+                  <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2026" aria-pressed="true">2026</button>
+                  <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2027" aria-pressed="true">2027</button>
+                  <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2028" aria-pressed="true">2028</button>
+                  <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2029" aria-pressed="true">2029</button>
+                  <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2030" aria-pressed="true">2030</button>
+                </div>
+              </div>
               <h4 class="fin-subh">Saldo mês a mês</h4>
               <div id="finCeoChartSaldoMes" class="fin-chart-wrap"></div>
               <div id="finCeoLegendaSaldo" class="fin-legenda"></div>
@@ -3507,7 +3517,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-rel-excel" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-anos-grafico" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

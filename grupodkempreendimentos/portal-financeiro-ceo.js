@@ -7,6 +7,8 @@
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const HORIZONTE_MESES = 24;
+  const CEO_ANO_FIM_PAINEL = 2030;
+  const CEO_ANOS_PAINEL = [2026, 2027, 2028, 2029, 2030];
 
   const CATEGORIAS_CEO = [
     { id: "DK_LOCADORA", label: "DK Locadora" },
@@ -62,6 +64,8 @@
   let finCeoDespConfirmPending = null;
   /** @type {{ mode: 'single'|'future', despesaId: string, pagamentoNumero: number } | null} */
   let finCeoDespEditState = null;
+  let ceoDashProjCache = null;
+  const ceoDashAnosAtivos = new Set(CEO_ANOS_PAINEL);
 
   function esc(s) {
     return String(s ?? "")
@@ -691,19 +695,28 @@
     return proj.recPorMes.get(k) || 0;
   }
 
+  function calcFimProjecaoPainel(inicio) {
+    const minFim = addMonths(inicio, HORIZONTE_MESES - 1);
+    const fim2030 = new Date(CEO_ANO_FIM_PAINEL, 11, 1);
+    return minFim.getTime() > fim2030.getTime() ? minFim : fim2030;
+  }
+
   function buildProjecao24Meses() {
     const hoje = startOfDay(new Date());
     const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    const fim = addMonths(inicio, HORIZONTE_MESES);
+    const fim = calcFimProjecaoPainel(inicio);
     const despesas = loadDespesasCeo().map(normalizeDespesa);
-    const debitos = gerarTodosDebitos(despesas, inicio, fim);
+    const debitos = gerarTodosDebitos(despesas, inicio, addMonths(fim, 1));
     const locs = carregarLocacoes();
     const uniRows = carregarUnidadeFinanceiro();
 
     const meses = [];
-    for (let i = 0; i < HORIZONTE_MESES; i += 1) {
-      const d = addMonths(inicio, i);
-      meses.push({ date: d, key: monthKey(d), label: `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}` });
+    for (let d = new Date(inicio); d <= fim; d = addMonths(d, 1)) {
+      meses.push({
+        date: new Date(d),
+        key: monthKey(d),
+        label: `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`,
+      });
     }
 
     const debPorMes = new Map();
@@ -791,9 +804,122 @@
     return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico">${grid}${zero}${lines}${axis}</svg>`;
   }
 
+  function filtrarProjecaoPorAnos(proj) {
+    const indices = [];
+    proj.meses.forEach((m, i) => {
+      if (ceoDashAnosAtivos.has(m.date.getFullYear())) indices.push(i);
+    });
+    const meses = indices.map((i) => proj.meses[i]);
+    const saldoMes = indices.map((i) => proj.saldoMes[i]);
+    let acc = 0;
+    const saldoAcc = saldoMes.map((s) => {
+      acc += s;
+      return acc;
+    });
+    return {
+      meses,
+      saldoMes,
+      saldoAcc,
+      labels: meses.map((m) => m.label),
+      debPorMes: proj.debPorMes,
+      recPorMes: proj.recPorMes,
+    };
+  }
+
+  function syncCeoDashAnosBotoes() {
+    document.querySelectorAll("#finCeoDashAnosFiltro [data-ceo-ano]").forEach((btn) => {
+      const ano = Number(btn.getAttribute("data-ceo-ano"));
+      const on = ceoDashAnosAtivos.has(ano);
+      btn.classList.toggle("is-active", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  function renderDashboardGraficos(proj) {
+    const view = filtrarProjecaoPorAnos(proj);
+    const { labels, meses, saldoMes, saldoAcc, debPorMes, recPorMes } = view;
+
+    const chartSaldo = document.getElementById("finCeoChartSaldoMes");
+    if (chartSaldo) {
+      if (!meses.length) {
+        chartSaldo.innerHTML = `<p class="subtext">Selecione pelo menos um ano nos botões acima.</p>`;
+      } else {
+        chartSaldo.innerHTML = svgLineChart(labels, [
+          { color: "#5eb8ff", values: saldoMes },
+          { color: "#6ee7a0", values: meses.map((m) => recPorMes.get(m.key) || 0) },
+          { color: "#ff6b6b", values: meses.map((m) => -(debPorMes.get(m.key) || 0)) },
+        ]);
+      }
+    }
+
+    const chartAcc = document.getElementById("finCeoChartSaldoAcc");
+    if (chartAcc) {
+      if (!meses.length) {
+        chartAcc.innerHTML = `<p class="subtext">—</p>`;
+      } else {
+        chartAcc.innerHTML = svgLineChart(labels, [{ color: "#f5d76e", values: saldoAcc }]);
+      }
+    }
+
+    const anosTxt = CEO_ANOS_PAINEL.filter((y) => ceoDashAnosAtivos.has(y)).join(", ");
+    const legSaldo = document.getElementById("finCeoLegendaSaldo");
+    if (legSaldo) {
+      legSaldo.innerHTML = [
+        { c: "#5eb8ff", t: "Saldo mensal (receita − despesas)" },
+        { c: "#6ee7a0", t: "Receita prevista" },
+        { c: "#ff6b6b", t: "Despesas (negativo)" },
+      ]
+        .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
+        .join("");
+      if (anosTxt) {
+        legSaldo.innerHTML += `<span class="fin-legenda__item fin-legenda__item--anos">Anos: ${esc(anosTxt)} · ${meses.length} mês(es)</span>`;
+      }
+    }
+
+    const legAcc = document.getElementById("finCeoLegendaAcc");
+    if (legAcc) {
+      const ult = saldoAcc[saldoAcc.length - 1] || 0;
+      legAcc.innerHTML = meses.length
+        ? `<span class="fin-legenda__item"><i style="background:#f5d76e"></i>Saldo acumulado no período · ${esc(brl(ult))}${anosTxt ? ` (${esc(anosTxt)})` : ""}</span>`
+        : `<span class="fin-legenda__item"><i style="background:#f5d76e"></i>Saldo acumulado — selecione um ano</span>`;
+    }
+
+    const tab = document.getElementById("finCeoTabelaProjecao");
+    if (tab) {
+      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Taxa endiv.</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
+      if (!meses.length) {
+        tab.innerHTML = `<p class="subtext">Nenhum mês nos anos seleccionados.</p>`;
+      } else {
+        const body = meses
+          .map((m, i) => {
+            const deb = debPorMes.get(m.key) || 0;
+            const rec = recPorMes.get(m.key) || 0;
+            const taxa = calcTaxaEndividamento(deb, rec);
+            const taxaTxt = rec <= 0 && deb > 0 ? "—" : fmtPct(taxa);
+            return `<tr><td>${esc(m.label)}</td><td>${esc(brl(deb))}</td><td>${esc(brl(rec))}</td><td>${esc(taxaTxt)}</td><td>${esc(brl(saldoMes[i] || 0))}</td><td>${esc(brl(saldoAcc[i] || 0))}</td></tr>`;
+          })
+          .join("");
+        tab.innerHTML = `<table class="fin-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+      }
+    }
+  }
+
+  function toggleCeoDashAno(ano) {
+    if (!CEO_ANOS_PAINEL.includes(ano)) return;
+    if (ceoDashAnosAtivos.has(ano)) {
+      if (ceoDashAnosAtivos.size <= 1) return;
+      ceoDashAnosAtivos.delete(ano);
+    } else {
+      ceoDashAnosAtivos.add(ano);
+    }
+    syncCeoDashAnosBotoes();
+    renderDashboardGraficos(ceoDashProjCache || buildProjecao24Meses());
+  }
+
   function renderDashboard() {
     const proj = buildProjecao24Meses();
-    const labels = proj.meses.map((m) => m.label);
+    ceoDashProjCache = proj;
+    syncCeoDashAnosBotoes();
 
     const kpiDesp = document.getElementById("finCeoKpiDespesas");
     const kpiReceita = document.getElementById("finCeoKpiReceita");
@@ -859,50 +985,7 @@
       }
     }
 
-    const chartSaldo = document.getElementById("finCeoChartSaldoMes");
-    if (chartSaldo) {
-      chartSaldo.innerHTML = svgLineChart(labels, [
-        { color: "#5eb8ff", values: proj.saldoMes },
-        { color: "#6ee7a0", values: proj.meses.map((m) => proj.recPorMes.get(m.key) || 0) },
-        { color: "#ff6b6b", values: proj.meses.map((m) => -(proj.debPorMes.get(m.key) || 0)) },
-      ]);
-    }
-
-    const chartAcc = document.getElementById("finCeoChartSaldoAcc");
-    if (chartAcc) {
-      chartAcc.innerHTML = svgLineChart(labels, [{ color: "#f5d76e", values: proj.saldoAcc }]);
-    }
-
-    const legSaldo = document.getElementById("finCeoLegendaSaldo");
-    if (legSaldo) {
-      legSaldo.innerHTML = [
-        { c: "#5eb8ff", t: "Saldo mensal (receita − despesas)" },
-        { c: "#6ee7a0", t: "Receita prevista" },
-        { c: "#ff6b6b", t: "Despesas (negativo)" },
-      ]
-        .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
-        .join("");
-    }
-
-    const legAcc = document.getElementById("finCeoLegendaAcc");
-    if (legAcc) {
-      legAcc.innerHTML = `<span class="fin-legenda__item"><i style="background:#f5d76e"></i>Saldo acumulado · ${esc(brl(proj.saldoAcc[proj.saldoAcc.length - 1] || 0))} em ${HORIZONTE_MESES} meses</span>`;
-    }
-
-    const tab = document.getElementById("finCeoTabelaProjecao");
-    if (tab) {
-      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Taxa endiv.</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
-      const body = proj.meses
-        .map((m, i) => {
-          const deb = proj.debPorMes.get(m.key) || 0;
-          const rec = proj.recPorMes.get(m.key) || 0;
-          const taxa = calcTaxaEndividamento(deb, rec);
-          const taxaTxt = rec <= 0 && deb > 0 ? "—" : fmtPct(taxa);
-          return `<tr><td>${esc(m.label)}</td><td>${esc(brl(deb))}</td><td>${esc(brl(rec))}</td><td>${esc(taxaTxt)}</td><td>${esc(brl(proj.saldoMes[i] || 0))}</td><td>${esc(brl(proj.saldoAcc[i] || 0))}</td></tr>`;
-        })
-        .join("");
-      tab.innerHTML = `<table class="fin-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-    }
+    renderDashboardGraficos(proj);
   }
 
   function renderResumoCadastroDespesas() {
@@ -1981,6 +2064,13 @@
 
     document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
+    });
+
+    document.getElementById("finCeoDashAnosFiltro")?.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-ceo-ano]");
+      if (!btn) return;
+      const ano = Number(btn.getAttribute("data-ceo-ano"));
+      if (ano) toggleCeoDashAno(ano);
     });
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);

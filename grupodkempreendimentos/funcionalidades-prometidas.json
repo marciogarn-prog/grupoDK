@@ -141,6 +141,27 @@
       }
     },
     {
+      "id": "fin-ceo-painel-anos-grafico",
+      "descricao": "No FINANCEIRO CEO → Painel executivo: botões 2026–2030 para incluir ou retirar anos dos gráficos Saldo mês a mês e Saldo acumulado (combinações livres; pelo menos um ano activo).",
+      "ficheiros": {
+        "index.html": [
+          "finCeoDashAnosFiltro",
+          "fin-ceo-ano-btn",
+          "data-ceo-ano=\"2026\""
+        ],
+        "portal-financeiro-ceo.js": [
+          "CEO_ANOS_PAINEL",
+          "toggleCeoDashAno",
+          "filtrarProjecaoPorAnos",
+          "renderDashboardGraficos"
+        ],
+        "styles.css": [
+          "fin-ceo-anos-filtro",
+          "fin-ceo-ano-btn"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-relatorio-filtro-excel",
       "descricao": "No FINANCEIRO CEO → Relatório de despesas: cada coluna da tabela (Pagamento, Data, Valor, Categoria, Rubrica / Tipo, Detalhe) tem filtro estilo Excel (▾) com ordenação A–Z, Z–A, menor/maior e seleção de valores.",
       "ficheiros": {
