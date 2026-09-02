@@ -287,8 +287,19 @@
     if (cart) cart.required = exigeCartao;
     const desc = document.getElementById("finCeoDespDescricao");
     const descLab = document.querySelector("#finCeoWrapDescricao span");
-    if (descLab) descLab.textContent = exigeCartao ? "Descrição" : "Descrição (opcional)";
-    if (desc) desc.placeholder = exigeCartao ? "Ex.: Supermercado, farmácia…" : "Complemento, se necessário…";
+    const hint = document.getElementById("finCeoDespDetalheHint");
+    if (descLab) descLab.textContent = exigeCartao ? "Descrição" : "Detalhe da despesa";
+    if (desc) {
+      desc.placeholder = exigeCartao
+        ? "Ex.: Supermercado, farmácia…"
+        : "Ex.: Parcela moto, conta de luz, complemento…";
+      desc.required = exigeCartao || tipo === "OUTROS";
+    }
+    if (hint) {
+      hint.textContent = exigeCartao
+        ? "Obrigatório para lançamento no cartão."
+        : "Opcional — identifica quem ou o quê da despesa (coluna Detalhe na tabela).";
+    }
   }
 
   function toggleCategoriaDespesaUi() {
@@ -296,17 +307,26 @@
     const particulares = isParticulares(cat);
     document.getElementById("finCeoWrapRubrica")?.classList.toggle("hidden", particulares);
     document.getElementById("finCeoWrapTipoParticular")?.classList.toggle("hidden", !particulares);
-    document.getElementById("finCeoWrapDescricao")?.classList.toggle("hidden", !particulares);
+    document.getElementById("finCeoWrapDescricao")?.classList.remove("hidden");
     const rub = document.getElementById("finCeoDespRubrica");
     const tipo = document.getElementById("finCeoDespTipoParticular");
     const desc = document.getElementById("finCeoDespDescricao");
+    const descLab = document.querySelector("#finCeoWrapDescricao span");
+    const hint = document.getElementById("finCeoDespDetalheHint");
     if (rub) rub.required = !particulares;
     if (tipo) tipo.required = particulares;
     if (particulares) {
       toggleTipoParticularUi();
     } else {
       document.getElementById("finCeoWrapCartao")?.classList.add("hidden");
-      if (desc) desc.required = false;
+      if (descLab) descLab.textContent = "Detalhe da despesa";
+      if (desc) {
+        desc.placeholder = "Ex.: Nome do funcionário (salários), imóvel ou contrato (aluguel)…";
+        desc.required = false;
+      }
+      if (hint) {
+        hint.textContent = "Opcional — ex.: nome do funcionário em salários (coluna Detalhe na tabela).";
+      }
     }
   }
 
@@ -322,7 +342,7 @@
       desc = partes.length ? partes.join(" · ") : "—";
     } else {
       tipo = labelRubrica(d.rubrica);
-      desc = "—";
+      desc = d.descricao ? String(d.descricao).trim() : "—";
     }
     const fin = d.periodic
       ? `${brl(d.valor)} · ${d.repeticoes}× · 1ª ${fmtBrDate(d.dataEvento)}`
@@ -397,7 +417,7 @@
     const descricao = String(raw?.descricao || raw?.subcategoria || "").trim();
     const subcategoria = isParticulares(categoria)
       ? [labelTipoParticular(tipoParticular), descricao].filter(Boolean).join(" — ")
-      : labelRubrica(rubrica);
+      : [labelRubrica(rubrica), descricao].filter(Boolean).join(" — ");
     const periodic = raw?.periodic !== false;
     const valor = parseValor(raw?.valor);
     const repeticoes = Math.max(1, Math.min(360, Number(raw?.repeticoes) || 1));
@@ -1021,7 +1041,7 @@
       rubrica: isParticulares(categoria) ? "" : rubrica,
       tipoParticular: isParticulares(categoria) ? tipoParticular : "",
       cartaoCredito: isParticulares(categoria) && tipoParticularExigeCartao(tipoParticular) ? cartaoCredito : "",
-      descricao: isParticulares(categoria) ? descricao : "",
+      descricao,
       periodic: true,
       valor,
       repeticoes,
@@ -1038,7 +1058,7 @@
       ["Categoria", labelCategoria(entry.categoria)],
       ["Rubrica / tipo", tipo],
     ];
-    if (isParticulares(entry.categoria) && desc && desc !== "—") {
+    if (desc && desc !== "—") {
       linhasDetalhe.push(["Detalhe", desc]);
     }
     linhasDetalhe.push(

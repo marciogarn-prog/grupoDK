@@ -10347,6 +10347,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 
 #view-financeiro-ceo .fin-ceo-desp-field-subcategoria,
+#view-financeiro-ceo .fin-ceo-desp-field-descricao,
 #view-financeiro-ceo .fin-ceo-desp-form .fin-ceo-campos-periodico,
 #view-financeiro-ceo .fin-ceo-desp-form .fin-ceo-campos-avulso,
 #view-financeiro-ceo .fin-ceo-desp-form .operacao-inline-form__actions {
@@ -10356,6 +10357,16 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 #view-financeiro-ceo .fin-ceo-desp-field-categoria,
 #view-financeiro-ceo .fin-ceo-desp-field-periodico {
   grid-column: auto;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-field-descricao input {
+  min-height: 2.85rem;
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+#view-financeiro-ceo .fin-ceo-desp-field-descricao .subtext {
+  margin-top: 0.35rem;
 }
 
 #view-financeiro-ceo .fin-ceo-desp-form .portal-field span {

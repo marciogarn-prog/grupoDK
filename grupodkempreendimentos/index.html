@@ -2906,7 +2906,7 @@
 
             <div id="finCeoPaneDespesas" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="despesas" role="region">
               <h3 class="operacao-inline-form__title">Cadastro de despesas</h3>
-              <p class="subtext">Escolha a <strong>categoria</strong>, depois a rubrica (unidades DK) ou o tipo de despesa em Particulares. Repetições mensais no mesmo dia.</p>
+              <p class="subtext">Escolha a <strong>categoria</strong>, depois a rubrica (unidades DK) ou o tipo de despesa em Particulares. Use <strong>Detalhe da despesa</strong> para identificar quem ou o quê (ex.: nome do funcionário). Repetições mensais no mesmo dia.</p>
               <p id="finCeoDespResumo" class="fin-ceo-desp-resumo" role="status">Nenhuma despesa cadastrada.</p>
               <form id="finCeoDespForm" class="operacao-inline-form__grid fin-ceo-desp-form fin-ceo-desp-form--windows" novalidate>
                 <label class="portal-field fin-ceo-desp-field-categoria">
@@ -2925,9 +2925,10 @@
                   <span>Cartão de crédito</span>
                   <select id="finCeoDespCartao"></select>
                 </label>
-                <label class="portal-field portal-field--wide fin-ceo-desp-field-descricao hidden" id="finCeoWrapDescricao">
-                  <span>Descrição</span>
-                  <input type="text" id="finCeoDespDescricao" maxlength="120" placeholder="Ex.: Parcela moto, supermercado…" autocomplete="off">
+                <label class="portal-field portal-field--wide fin-ceo-desp-field-descricao" id="finCeoWrapDescricao">
+                  <span>Detalhe da despesa</span>
+                  <input type="text" id="finCeoDespDescricao" maxlength="120" placeholder="Ex.: Nome do funcionário (salários), imóvel ou contrato (aluguel)…" autocomplete="off">
+                  <span class="subtext" id="finCeoDespDetalheHint">Opcional — identifica quem ou o quê da despesa (coluna Detalhe na tabela).</span>
                 </label>
                 <div id="finCeoCamposPeriodico" class="portal-field portal-field--wide fin-ceo-campos-periodico">
                   <div class="fin-ceo-campos-grid">
@@ -3506,7 +3507,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-rec-mes" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-desp-detalhe" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
