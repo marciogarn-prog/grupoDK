@@ -10577,7 +10577,9 @@
       });
       const label =
         context.fileSlug === "pagamentos-agregado-dia" ? "no dia" : "no período";
-      resumo.textContent = `${context.rows.length} protocolo(s) ${label} · Soma: ${tot}. Exportar em PDF ou Excel.`;
+      resumo.textContent = `${context.qtdPagamentos || context.rows.length} pagamento(s) · ${
+        context.qtdClientes || 0
+      } cliente(s) ${label} · Soma: ${tot}. Exportar em PDF ou Excel.`;
     } else if (
       (context.fileSlug === "relatorio-cliente-protocolos" || context.fileSlug === "relatorio-placa-protocolos") &&
       context.stats
@@ -10681,11 +10683,17 @@
       .portal-rel-table-compact th,.portal-rel-table-compact td{line-height:1.25}
       .portal-rel-status-ativo{background:#c8e6c9}
       .portal-rel-status-inativo{background:#fff9c4}
+      .portal-rel-resumo{margin:0.65rem 0 0.85rem;padding:0.55rem 0.7rem;border:1px solid #bbb;background:#f7f7f7;font-size:11px;line-height:1.45}
+      .portal-rel-resumo h2{font-size:12px;margin:0 0 0.35rem;text-transform:uppercase;letter-spacing:0.03em}
+      .portal-rel-resumo ul{margin:0.2rem 0 0.35rem 1.1rem;padding:0}
+      .portal-rel-resumo li,.portal-rel-resumo p{margin:0.12rem 0}
+      .portal-rel-resumo strong{font-weight:700}
       ${compact ? "@media print{@page{size:landscape;margin:8mm}body{margin:0.5rem}}" : ""}
     </style></head><body>
       <h1>${eh(title)}</h1>
       ${extraMeta}
       <p class="meta">Emitido em ${eh(quando)} · ${eh(String(rows.length))} registro(s)${metaAtivosSuffix}</p>
+      ${reportOptions.summaryHtml || ""}
       <table${tableClass}><thead><tr>${headCells}</tr></thead><tbody>${bodyCells || `<tr><td colspan="${headers.length}">${eh(
         "Nenhum registo."
       )}</td></tr>`}</tbody></table>
@@ -10855,6 +10863,7 @@
         statusColumnIndex: ctxView.statusColumnIndex,
         headerSubtitleLines: ctxView.headerSubtitleLines,
         compactTable: ctxView.compactTable,
+        summaryHtml: ctxView.summaryHtml,
       });
     } else if (typeof context.buildPdfHtml === "function") {
       html = context.buildPdfHtml();
@@ -10863,6 +10872,7 @@
         statusColumnIndex: ctxView.statusColumnIndex,
         headerSubtitleLines: ctxView.headerSubtitleLines,
         compactTable: ctxView.compactTable,
+        summaryHtml: ctxView.summaryHtml,
       });
     }
     html = applyPortalPdfDocumentTitle(html, getPortalRelatorioPdfSaveSuggestedBaseName(context));
@@ -13093,6 +13103,46 @@
    * valorFaixa = soma dos pagamentos (não devoluções) com data no intervalo;
    * valorTotal = soma de todos os pagamentos do protocolo.
    */
+  const PORTAL_REL_PAG_PLANOS = [
+    "DK MINHA MOTO",
+    "DK MEU TRANSPORTE-MOTO",
+    "DK MEU TRANSPORTE-CARRO",
+  ];
+
+  function portalRelPagAggClassificarPlano(loc) {
+    const nk =
+      typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const n = Number(
+              String(v ?? "")
+                .replace(/[R$\s]/g, "")
+                .replace(/\./g, "")
+                .replace(",", ".")
+            );
+            return Number.isFinite(n) ? n : 0;
+          };
+    const planoKey = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    const inv = Number(parseCur(loc?.valorInvestimento ?? loc?.investimento ?? 0));
+    const tipo =
+      typeof portalInferTipoVeiculoLocacao === "function"
+        ? portalInferTipoVeiculoLocacao(loc)
+        : "";
+    const mod = nk(String(loc?.modalidade || ""));
+    const isCarro = tipo === "CARRO" || mod.includes("CARRO");
+    if (isCarro) return "DK MEU TRANSPORTE-CARRO";
+    if (
+      (planoKey.includes("MINHA") && planoKey.includes("MOTO")) ||
+      planoKey.includes("DK MINHA") ||
+      inv > 0
+    ) {
+      return "DK MINHA MOTO";
+    }
+    return "DK MEU TRANSPORTE-MOTO";
+  }
+
   function collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr) {
     const parse = typeof parseBrDate === "function" ? parseBrDate : null;
     const sIn = String(inicioBr || "").trim();
@@ -13101,11 +13151,16 @@
     const d1 = parse ? parse(sFi) : null;
     const fmtBrl = (n) =>
       Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const porPlanoVazio = () =>
+      Object.fromEntries(PORTAL_REL_PAG_PLANOS.map((p) => [p, 0]));
     const empty = {
       ok: false,
       rows: [],
       totalFaixa: 0,
       totalGeral: 0,
+      qtdPagamentos: 0,
+      qtdClientes: 0,
+      porPlano: porPlanoVazio(),
       fmtBrl,
       inicioFmt: sIn,
       fimFmt: sFi,
@@ -13129,6 +13184,10 @@
         ? (x) => onlyDigits(String(x || ""))
         : (x) => String(x || "").replace(/\D/g, "");
     const map = new Map();
+    const clientes = new Set();
+    let qtdPagamentos = 0;
+    const porPlano = porPlanoVazio();
+
     for (const loc of locs || []) {
       const proto = normPortalNumeroContrato(loc.numeroContrato || "");
       if (!proto) continue;
@@ -13138,7 +13197,7 @@
       if (!lancs.length) continue;
       let valorFaixa = 0;
       let valorTotal = 0;
-      let temNaFaixa = false;
+      let qtdNaFaixa = 0;
       for (const lan of lancs) {
         const v = Number(lan.valor || 0);
         if (!Number.isFinite(v) || v <= 0) continue;
@@ -13148,19 +13207,25 @@
         const payMs = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate()).getTime();
         if (payMs >= startMs && payMs <= endMs) {
           valorFaixa += v;
-          temNaFaixa = true;
+          qtdNaFaixa += 1;
         }
       }
-      if (!temNaFaixa) continue;
+      if (!qtdNaFaixa) continue;
       const cpfDigits = dig(loc.cpf).slice(0, 11);
       let nome = String(loc.nome || loc.cliente || "").trim();
       if (!nome && cpfDigits.length === 11 && typeof findClienteByCpfCadastro === "function") {
         nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
       }
+      const plano = portalRelPagAggClassificarPlano(loc);
+      if (cpfDigits.length === 11) clientes.add(cpfDigits);
+      qtdPagamentos += qtdNaFaixa;
+      porPlano[plano] = (porPlano[plano] || 0) + qtdNaFaixa;
+
       const prev = map.get(proto);
       if (prev) {
         prev.valorFaixa += valorFaixa;
         prev.valorTotal = Math.max(prev.valorTotal, valorTotal);
+        prev.qtdPagamentos += qtdNaFaixa;
         if (!prev.nome || prev.nome === "—") prev.nome = nome || prev.nome;
       } else {
         map.set(proto, {
@@ -13168,6 +13233,9 @@
           nome: nome || "—",
           valorFaixa,
           valorTotal,
+          plano,
+          qtdPagamentos: qtdNaFaixa,
+          cpf: cpfDigits,
         });
       }
     }
@@ -13181,10 +13249,31 @@
       rows,
       totalFaixa,
       totalGeral,
+      qtdPagamentos,
+      qtdClientes: clientes.size,
+      porPlano,
       fmtBrl,
       inicioFmt: formatPortalDataBr(new Date(startMs)),
       fimFmt: formatPortalDataBr(new Date(endMs)),
     };
+  }
+
+  function buildPortalRelPagAggSummaryHtml(agg, modo) {
+    const eh = typeof escapeHtml === "function" ? escapeHtml : portalEscapeHtml;
+    const isDia = modo === "dia";
+    const labelFaixa = isDia ? "Soma dos valores do dia" : "Soma dos valores do período";
+    const linhasPlano = PORTAL_REL_PAG_PLANOS.map(
+      (p) => `<li>${eh(p)}: <strong>${eh(String(agg.porPlano?.[p] || 0))}</strong></li>`
+    ).join("");
+    return `<div class="portal-rel-resumo" role="region" aria-label="Resumo do relatório">
+      <h2>Resumo</h2>
+      <p>1 — Quantidade de pagamentos: <strong>${eh(String(agg.qtdPagamentos || 0))}</strong></p>
+      <p>2 — Quantidade de clientes: <strong>${eh(String(agg.qtdClientes || 0))}</strong></p>
+      <p>3 — Quantidade de pagamento por plano:</p>
+      <ul>${linhasPlano}</ul>
+      <p>4 — ${eh(labelFaixa)}: <strong>${eh(agg.fmtBrl(agg.totalFaixa || 0))}</strong></p>
+      <p>5 — Soma dos valores totais: <strong>${eh(agg.fmtBrl(agg.totalGeral || 0))}</strong></p>
+    </div>`;
   }
 
   function buildPortalRelPagAggContext(modo, inicioBr, fimBr) {
@@ -13204,6 +13293,7 @@
       agg.fmtBrl(r.valorFaixa),
       agg.fmtBrl(r.valorTotal),
     ]);
+    const summaryHtml = agg.ok ? buildPortalRelPagAggSummaryHtml(agg, modo) : "";
     return {
       title,
       fileSlug: isDia ? "pagamentos-agregado-dia" : "pagamentos-agregado-periodo",
@@ -13212,17 +13302,74 @@
       textColumns: [0, 1],
       totalFaixa: agg.totalFaixa,
       totalGeral: agg.totalGeral,
+      qtdPagamentos: agg.qtdPagamentos,
+      qtdClientes: agg.qtdClientes,
+      porPlano: agg.porPlano,
       ok: agg.ok,
       periodoLabel,
+      summaryHtml,
       headerSubtitleLines: [isDia ? `Dia: ${periodoLabel}` : `Período: ${periodoLabel}`],
       excelMetaPairs: [
         [isDia ? "Dia" : "Período", periodoLabel],
-        [isDia ? "Total do dia" : "Total do período", agg.fmtBrl(agg.totalFaixa)],
-        ["Soma dos totais de protocolo", agg.fmtBrl(agg.totalGeral)],
+        ["Quantidade de pagamentos", String(agg.qtdPagamentos || 0)],
+        ["Quantidade de clientes", String(agg.qtdClientes || 0)],
+        ...PORTAL_REL_PAG_PLANOS.map((p) => [`Pagamentos ${p}`, String(agg.porPlano?.[p] || 0)]),
+        [isDia ? "Soma valores do dia" : "Soma valores do período", agg.fmtBrl(agg.totalFaixa)],
+        ["Soma dos valores totais", agg.fmtBrl(agg.totalGeral)],
         ["Protocolos", String(rows.length)],
       ],
-      stats: { protocolos: rows.length },
+      stats: {
+        protocolos: rows.length,
+        pagamentos: agg.qtdPagamentos || 0,
+        clientes: agg.qtdClientes || 0,
+      },
     };
+  }
+
+  function renderPortalRelPagAggKpis(modo, ctx) {
+    const boxId = modo === "dia" ? "portalRelPagDiaKpis" : "portalRelPagPeriodoKpis";
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    if (!ctx?.ok || !ctx.rows?.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    const fmt = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const labelFaixa = modo === "dia" ? "Soma dos valores do dia" : "Soma dos valores do período";
+    const porPlano = ctx.porPlano || {};
+    box.classList.remove("hidden");
+    box.innerHTML = `
+      <div class="portal-rel-pag-agg-kpis__grid" role="list">
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">1 — Pagamentos</span>
+          <strong>${portalEscapeHtml(String(ctx.qtdPagamentos || 0))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">2 — Clientes</span>
+          <strong>${portalEscapeHtml(String(ctx.qtdClientes || 0))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi portal-rel-pag-agg-kpi--planos" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">3 — Pagamentos por plano</span>
+          <ul class="portal-rel-pag-agg-kpi__planos">
+            ${PORTAL_REL_PAG_PLANOS.map(
+              (p) =>
+                `<li><span>${portalEscapeHtml(p)}</span><strong>${portalEscapeHtml(
+                  String(porPlano[p] || 0)
+                )}</strong></li>`
+            ).join("")}
+          </ul>
+        </div>
+        <div class="portal-rel-pag-agg-kpi portal-rel-pag-agg-kpi--valor" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">4 — ${portalEscapeHtml(labelFaixa)}</span>
+          <strong>${portalEscapeHtml(fmt(ctx.totalFaixa))}</strong>
+        </div>
+        <div class="portal-rel-pag-agg-kpi portal-rel-pag-agg-kpi--valor" role="listitem">
+          <span class="portal-rel-pag-agg-kpi__lab">5 — Soma dos valores totais</span>
+          <strong>${portalEscapeHtml(fmt(ctx.totalGeral))}</strong>
+        </div>
+      </div>`;
   }
 
   function renderPortalRelPagAggTable(modo, ctx) {
@@ -13235,6 +13382,7 @@
     if (!ctx?.ok) {
       if (body) body.innerHTML = `<tr><td colspan="4" class="subtext">Informe data(s) válida(s) no formato DD/MM/AAAA.</td></tr>`;
       if (resumo) resumo.textContent = "Datas inválidas.";
+      renderPortalRelPagAggKpis(modo, ctx);
       return;
     }
     if (!ctx.rows.length) {
@@ -13249,6 +13397,7 @@
             ? `Dia ${ctx.periodoLabel}: nenhum pagamento.`
             : `Período ${ctx.periodoLabel}: nenhum pagamento.`;
       }
+      renderPortalRelPagAggKpis(modo, ctx);
       return;
     }
     if (body) {
@@ -13265,11 +13414,14 @@
         .join("");
     }
     if (resumo) {
-      const labelFaixa = modo === "dia" ? "Total do dia" : "Total do período";
-      resumo.textContent = `${ctx.rows.length} protocolo(s) · ${labelFaixa}: ${fmt(
+      const labelFaixa = modo === "dia" ? "valores do dia" : "valores do período";
+      resumo.textContent = `${ctx.qtdPagamentos || 0} pagamento(s) · ${
+        ctx.qtdClientes || 0
+      } cliente(s) · ${ctx.rows.length} protocolo(s) · Soma ${labelFaixa}: ${fmt(
         ctx.totalFaixa
       )} · ${modo === "dia" ? "Dia" : "Período"}: ${ctx.periodoLabel}`;
     }
+    renderPortalRelPagAggKpis(modo, ctx);
   }
 
   function gerarPortalRelPagAgg(modo) {
@@ -13301,7 +13453,7 @@
     }
     if (msg) {
       msg.textContent = ctx.rows.length
-        ? `${ctx.title}: ${ctx.rows.length} protocolo(s).`
+        ? `${ctx.title}: ${ctx.qtdPagamentos || 0} pagamento(s), ${ctx.qtdClientes || 0} cliente(s).`
         : `${ctx.title}: nenhum pagamento no intervalo.`;
     }
     openPortalRelatorioModal(ctx);

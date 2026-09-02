@@ -200,6 +200,8 @@ async function runSuite() {
         portalUiLancJs.includes('"rel-periodo"') &&
         portalUiLancJs.includes("collectPortalRelPagamentoAgregadoPorProtocolo") &&
         portalUiLancJs.includes("buildPortalRelPagAggContext") &&
+        portalUiLancJs.includes("buildPortalRelPagAggSummaryHtml") &&
+        portalUiLancJs.includes("DK MEU TRANSPORTE-CARRO") &&
         portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno") &&
         portalUiLancJs.includes("portalLancAluguelDiaPagamentoColIdx")
     );

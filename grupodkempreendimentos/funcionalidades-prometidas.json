@@ -54,17 +54,23 @@
           "portalRelPagDiaData",
           "portalRelPagPeriodoInicio",
           "operacaoLancAluguelPaneRelDia",
-          "operacaoLancAluguelPaneRelPeriodo"
+          "operacaoLancAluguelPaneRelPeriodo",
+          "portalRelPagDiaKpis",
+          "portalRelPagPeriodoKpis"
         ],
         "portal-locadora-ui.js": [
           "collectPortalRelPagamentoAgregadoPorProtocolo",
           "buildPortalRelPagAggContext",
+          "buildPortalRelPagAggSummaryHtml",
+          "portalRelPagAggClassificarPlano",
+          "DK MEU TRANSPORTE-CARRO",
           "gerarPortalRelPagAgg",
           "rel-dia",
           "rel-periodo"
         ],
         "styles.css": [
-          "portal-rel-pag-agg__table"
+          "portal-rel-pag-agg__table",
+          "portal-rel-pag-agg-kpis"
         ]
       }
     },
