@@ -1,6 +1,6 @@
 /**
- * Lançamento único 31/08/2026 (fonte azul, Márcio Santos) nos 19 protocolos
- * finalizados da planilha «TOTAL PAGO ATE 31/08/2026».
+ * Lançamento único 31/08/2026 (fonte azul, Márcio Santos) nos protocolos
+ * finalizados da planilha «TOTAL PAGO ATE 31/08/2026» (lotes 1 e 2).
  *
  *   node grupodkempreendimentos/scripts/lanc-unico-3108-finalizados.cjs
  *   node grupodkempreendimentos/scripts/lanc-unico-3108-finalizados.cjs --dry-run
@@ -39,6 +39,21 @@ const ROWS = [
   { protocolo: "2025080101", placa: "SOW0B92", cpf: "11121338445", nome: "JEFFERSON DOS SANTOS CARMO", fim: "07/08/2025", valor: 250 },
   { protocolo: "2025080102", placa: "RZP6J73", cpf: "11377276406", nome: "MIQUEIAS RODRIGUE MARTINS", fim: "12/08/2025", valor: 392.86 },
   { protocolo: "2025080201", placa: "QYU5H13", cpf: "05365443527", nome: "URIEL ALMEIDA SANTANA", fim: "26/05/2026", valor: 10392.84 },
+  { protocolo: "2025080701", placa: "SOW0B92", cpf: "70481459430", nome: "ERIK EMANOEL DA SILVA", fim: "13/08/2025", valor: 214.29 },
+  { protocolo: "2025080702", placa: "SOQ2D39", cpf: "71301840432", nome: "WANDERSON BARBOSA RODRIGUES", fim: "14/08/2025", valor: 971 },
+  { protocolo: "2025080802", placa: "SOX6I83", cpf: "08862744439", nome: "RENATO BRUNO PEREIRA RODRIGUES", fim: "08/09/2025", valor: 1072 },
+  { protocolo: "2025081202", placa: "PCK8G70", cpf: "11377276406", nome: "MIQUEIAS RODRIGUE MARTINS", fim: "14/08/2025", valor: 71.43 },
+  { protocolo: "2025081301", placa: "SOW0B92", cpf: "09135482435", nome: "FELIPE DE SOUZA LIMA", fim: "14/08/2025", valor: 35.71 },
+  { protocolo: "2025081401", placa: "SOX2A34", cpf: "09135482435", nome: "FELIPE DE SOUZA LIMA", fim: "18/08/2025", valor: 142.86 },
+  { protocolo: "2025081801", placa: "SOY4H40", cpf: "08424164474", nome: "DENILSON DOMINGOS DO NASCIMENTO", fim: "19/11/2025", valor: 3731.43 },
+  { protocolo: "2025081802", placa: "RZJ3D92", cpf: "09135482435", nome: "FELIPE DE SOUZA LIMA", fim: "18/09/2025", valor: 1286 },
+  { protocolo: "2025081804", placa: "SOX2B54", cpf: "70550550402", nome: "HILTON MAYCON DAS NEVES SANTOS", fim: "21/07/2026", valor: 11705.69 },
+  { protocolo: "2025081805", placa: "SOT1I98", cpf: "11239197470", nome: "ITALO SANTOS DE LIMA", fim: "03/07/2026", valor: 12990 },
+  { protocolo: "2025081901", placa: "RZP6J73", cpf: "11377276406", nome: "MIQUEIAS RODRIGUE MARTINS", fim: "22/08/2025", valor: 107.14 },
+  { protocolo: "2025082101", placa: "SOX2A94", cpf: "39339176898", nome: "ALEX RAONI DE SOUZA SANTOS", fim: "25/08/2025", valor: 142.86 },
+  { protocolo: "2025082102", placa: "PCK8G70", cpf: "12873371471", nome: "JOÃO PEDRO FRUTUOSO DA ROCHA", fim: "17/09/2025", valor: 1000 },
+  { protocolo: "2025082103", placa: "SOW0B92", cpf: "05135601309", nome: "LUAN CARLOS RAMALHO MENEZES", fim: "19/03/2026", valor: 7500 },
+  { protocolo: "2025082201", placa: "SOX6I44", cpf: "70274179440", nome: "ERICK SANTOS DO NASCIMENTO", fim: "17/03/2026", valor: 7392.86 },
 ];
 
 function digits(s) {
