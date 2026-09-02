@@ -541,14 +541,35 @@
   }
 
   /** Soma semanal (valorLocacao + valorInvestimento) das locações ativas — mesma regra do portal. */
-  function receitaPrevistaMes(_ano, _mes, locs) {
+  function receitaPrevistaLocadora(locs) {
     let total = 0;
-    locs.forEach((loc) => {
+    (locs || []).forEach((loc) => {
       if (!locacaoEstaAtiva(loc)) return;
       const sem = valorSemanalContrato(loc);
       if (sem > 0) total += sem;
     });
     return total;
+  }
+
+  /** Preparado para integração futura (módulo de previsão do Centro Automotivo). */
+  function receitaPrevistaCentroAutomotivo() {
+    return 0;
+  }
+
+  /** Preparado para integração futura (módulo de previsão da Construtora). */
+  function receitaPrevistaConstrutora() {
+    return 0;
+  }
+
+  function calcReceitasPorUnidade(locs) {
+    const locadora = receitaPrevistaLocadora(locs);
+    const centro = receitaPrevistaCentroAutomotivo();
+    const construtora = receitaPrevistaConstrutora();
+    return { locadora, centro, construtora, total: locadora + centro + construtora };
+  }
+
+  function receitaPrevistaMes(_ano, _mes, locs) {
+    return calcReceitasPorUnidade(locs).total;
   }
 
   function fmtPct(n) {
@@ -619,7 +640,8 @@
     });
 
     const endivMesAtual = debPorMes.get(monthKey(hoje)) || debPorMes.get(monthKey(inicio)) || 0;
-    const receitaMesAtual = recPorMes.get(monthKey(hoje)) || recPorMes.get(monthKey(inicio)) || 0;
+    const receitasUnidade = calcReceitasPorUnidade(locs);
+    const receitaMesAtual = receitasUnidade.total;
     const taxaMesAtual = calcTaxaEndividamento(endivMesAtual, receitaMesAtual);
     const capacidadeLivre = receitaMesAtual - endivMesAtual;
 
@@ -631,6 +653,7 @@
       saldoAcc,
       endivMesAtual,
       receitaMesAtual,
+      receitasUnidade,
       taxaMesAtual,
       capacidadeLivre,
       debitos,
@@ -694,8 +717,16 @@
     const kpiEndivHint = document.getElementById("finCeoKpiEndividamentoHint");
     const dashAlert = document.getElementById("finCeoDashAlert");
 
+    const kpiRecLoc = document.getElementById("finCeoKpiReceitaLocadora");
+    const kpiRecCentro = document.getElementById("finCeoKpiReceitaCentro");
+    const kpiRecConstr = document.getElementById("finCeoKpiReceitaConstrutora");
+    const recUn = proj.receitasUnidade || { locadora: 0, centro: 0, construtora: 0, total: 0 };
+
     if (kpiDesp) kpiDesp.textContent = brl(proj.endivMesAtual);
     if (kpiReceita) kpiReceita.textContent = brl(proj.receitaMesAtual);
+    if (kpiRecLoc) kpiRecLoc.textContent = brl(recUn.locadora);
+    if (kpiRecCentro) kpiRecCentro.textContent = brl(recUn.centro);
+    if (kpiRecConstr) kpiRecConstr.textContent = brl(recUn.construtora);
     if (kpiMargem) kpiMargem.textContent = brl(proj.capacidadeLivre);
 
     if (kpiEndiv) {

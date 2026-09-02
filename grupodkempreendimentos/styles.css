@@ -10215,6 +10215,37 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 1rem 0 1.25rem;
 }
 
+.view--fin-ceo .fin-kpi--unidade {
+  min-width: 10.5rem;
+}
+
+.view--fin-ceo .fin-kpi--unidade-locadora {
+  border-color: rgba(248, 113, 113, 0.55);
+  background: linear-gradient(145deg, rgba(127, 29, 29, 0.22), var(--bg-elevated));
+}
+
+.view--fin-ceo .fin-kpi--unidade-locadora strong {
+  color: #f87171;
+}
+
+.view--fin-ceo .fin-kpi--unidade-centro {
+  border-color: rgba(94, 184, 255, 0.55);
+  background: linear-gradient(145deg, rgba(30, 58, 138, 0.22), var(--bg-elevated));
+}
+
+.view--fin-ceo .fin-kpi--unidade-centro strong {
+  color: #5eb8ff;
+}
+
+.view--fin-ceo .fin-kpi--unidade-construtora {
+  border-color: rgba(212, 212, 216, 0.45);
+  background: linear-gradient(145deg, rgba(82, 82, 91, 0.2), var(--bg-elevated));
+}
+
+.view--fin-ceo .fin-kpi--unidade-construtora strong {
+  color: #e4e4e7;
+}
+
 .fin-kpi__hint {
   display: block;
   margin-top: 0.2rem;
