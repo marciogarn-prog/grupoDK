@@ -49,10 +49,10 @@ const {
   verifyLocacoes,
 } = require(path.join(ROOT, "scripts/lanc-unico-3108-finalizados.cjs"));
 
-record("planilha 70 linhas", ROWS.length === 70, `n=${ROWS.length}`);
+record("planilha 89 linhas", ROWS.length === 89, `n=${ROWS.length}`);
 record(
   "total pago planilha",
-  Math.abs(somaValoresPlanilha() - 232546.42) < 0.01,
+  Math.abs(somaValoresPlanilha() - 310826.12) < 0.01,
   `soma=${somaValoresPlanilha().toFixed(2)}`
 );
 
@@ -120,7 +120,7 @@ const cloudLike = [
 ];
 const all = applyLancamentosUnicos3108(cloudLike);
 const ver = verifyLocacoes(all.locacoes);
-record("70 protocolos ok", ver.every((x) => x.ok) && ver.length === 70, JSON.stringify(ver.filter((x) => !x.ok)));
+record("89 protocolos ok", ver.every((x) => x.ok) && ver.length === 89, JSON.stringify(ver.filter((x) => !x.ok)));
 
 const failed = results.filter((r) => !r.ok);
 if (failed.length) {
