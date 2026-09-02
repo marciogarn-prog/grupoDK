@@ -27,6 +27,7 @@ record("HTML: KPI receita total do mês", html.includes('id="finCeoKpiReceita"')
 
 const ceoJs = readLocal("portal-financeiro-ceo.js");
 record("JS: calcReceitasPorUnidade", ceoJs.includes("function calcReceitasPorUnidade"));
+record("JS: receitaSemanalParaMensal", ceoJs.includes("function receitaSemanalParaMensal"));
 record("JS: fonte dk_unidade_financeiro_v1", ceoJs.includes("dk_unidade_financeiro_v1"));
 record("JS: exclui protocolo teste", ceoJs.includes('PROTOCOLO_TESTE_CEO = "2099010199"'));
 
@@ -69,8 +70,21 @@ if (calc) {
     },
   ];
 
-  const locAtiva = calc.receitaPrevistaLocadora(locs);
-  record("Locadora: soma semanal locações ativas", locAtiva === 320, `esperado 320, obtido ${locAtiva}`);
+  const locSemanal = calc.receitaSemanalLocadora(locs);
+  record("Locadora: soma semanal locações ativas", locSemanal === 320, `esperado 320, obtido ${locSemanal}`);
+
+  const locSet = calc.receitaPrevistaLocadora(locs, 2026, 8);
+  const esperadoSet = (320 / 7) * 30;
+  record(
+    "Locadora: mensal set/2026 = semanal ÷ 7 × 30",
+    Math.abs(locSet - esperadoSet) < 0.01,
+    `esperado ${esperadoSet}, obtido ${locSet}`
+  );
+  record(
+    "Locadora: mensal jan/2026 = semanal ÷ 7 × 31",
+    Math.abs(calc.receitaPrevistaLocadora(locs, 2026, 0) - (320 / 7) * 31) < 0.01
+  );
+
   record("Locadora: exclui protocolo 2099010199", !calc.locacaoExcluidaReceitaCeo(locs[0]));
   record("Locadora: exclui teste 2099010199", calc.locacaoExcluidaReceitaCeo(locs[2]));
 
@@ -88,8 +102,15 @@ if (calc) {
   record("Centro: ignora mês diferente", calc.receitaPrevistaCentroAutomotivo(2026, 7, uniRows) === 200);
 
   const pack = calc.calcReceitasPorUnidade(locs, 2026, 8, uniRows);
-  record("Total = Locadora + Centro + Construtora", pack.total === locAtiva + centroSet + constrSet, String(pack.total));
-  record("calcReceitasPorUnidade devolve as 3 unidades", pack.locadora === locAtiva && pack.centro === centroSet && pack.construtora === constrSet);
+  record(
+    "Total = Locadora + Centro + Construtora",
+    Math.abs(pack.total - (locSet + centroSet + constrSet)) < 0.01,
+    String(pack.total)
+  );
+  record(
+    "calcReceitasPorUnidade devolve as 3 unidades",
+    Math.abs(pack.locadora - locSet) < 0.01 && pack.centro === centroSet && pack.construtora === constrSet
+  );
 }
 
 const pass = results.filter((r) => r.ok).length;

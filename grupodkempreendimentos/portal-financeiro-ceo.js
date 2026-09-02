@@ -541,8 +541,14 @@
     return arr.filter((loc) => !locacaoExcluidaReceitaCeo(loc));
   }
 
+  function diasNoMes(ano, mes) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    return new Date(y, m + 1, 0).getDate();
+  }
+
   /** Soma semanal (valorLocacao + valorInvestimento) das locações ativas — mesma regra do portal. */
-  function receitaPrevistaLocadora(locs) {
+  function receitaSemanalLocadora(locs) {
     let total = 0;
     (locs || []).forEach((loc) => {
       if (locacaoExcluidaReceitaCeo(loc)) return;
@@ -551,6 +557,19 @@
       if (sem > 0) total += sem;
     });
     return total;
+  }
+
+  /** Receita mensal da Locadora: total semanal ÷ 7 × dias do mês (30, 31, 28 ou 29). */
+  function receitaSemanalParaMensal(semanal, ano, mes) {
+    const sem = Number(semanal) || 0;
+    if (sem <= 0) return 0;
+    return (sem / 7) * diasNoMes(ano, mes);
+  }
+
+  function receitaPrevistaLocadora(locs, ano, mes) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    return receitaSemanalParaMensal(receitaSemanalLocadora(locs), y, m);
   }
 
   const UNIDADE_FIN_KEY = "dk_unidade_financeiro_v1";
@@ -605,7 +624,7 @@
     const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
     const m = Number.isFinite(mes) ? mes : new Date().getMonth();
     const rows = uniRows ?? carregarUnidadeFinanceiro();
-    const locadora = receitaPrevistaLocadora(locs);
+    const locadora = receitaPrevistaLocadora(locs, y, m);
     const centro = receitaPrevistaCentroAutomotivo(y, m, rows);
     const construtora = receitaPrevistaConstrutora(y, m, rows);
     return { locadora, centro, construtora, total: locadora + centro + construtora };
@@ -1452,6 +1471,9 @@
     PROTOCOLO_TESTE_CEO,
     locacaoExcluidaReceitaCeo,
     valorSemanalContrato,
+    diasNoMes,
+    receitaSemanalLocadora,
+    receitaSemanalParaMensal,
     receitaPrevistaLocadora,
     receitaPrevistaCentroAutomotivo,
     receitaPrevistaConstrutora,
