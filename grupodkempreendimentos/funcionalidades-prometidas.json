@@ -121,6 +121,26 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-editar-evento-futuro",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha tem botões cinza EDITAR EVENTO (só aquela parcela) e EDITAR FUTURO (desta parcela em diante na mesma série); carrega o formulário, confirma no modal e grava.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "EDITAR EVENTO",
+          "EDITAR FUTURO",
+          "fin-ceo-desp-editar-evento",
+          "fin-ceo-desp-editar-futuro",
+          "iniciarEdicaoDespesa",
+          "aplicarEditarEvento",
+          "aplicarEditarFuturo",
+          "persistirDespesaEdicao"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-row-acoes",
+          "fin-ceo-desp-confirm-escopo"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-receita-prevista-unidades",
       "descricao": "No FINANCEIRO CEO → Painel executivo: RECEITA PREVISTA DO MÊS é a soma da Locadora (semanal das locações ativas ÷ 7 × dias do mês, sem protocolo 2099010199), Centro Automotivo e Construtora; três caixas separadas mostram cada unidade.",
       "ficheiros": {

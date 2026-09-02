@@ -60,6 +60,8 @@
   let paneAberto = "";
   let ultimaDespesaSalvaId = "";
   let finCeoDespConfirmPending = null;
+  /** @type {{ mode: 'single'|'future', despesaId: string, pagamentoNumero: number } | null} */
+  let finCeoDespEditState = null;
 
   function esc(s) {
     return String(s ?? "")
@@ -920,7 +922,55 @@
     el.textContent = `${list.length} despesa(s) cadastrada(s) · compromissos deste mês: ${brl(debMes)} · receita prevista: ${brl(recMes)} · ${taxaTxt}.`;
   }
 
+  function novoIdDespesa() {
+    return `ceo-desp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  }
+
+  function serializarDespesa(d) {
+    const n = normalizeDespesa(d);
+    return {
+      id: n.id,
+      categoria: n.categoria,
+      rubrica: n.rubrica,
+      tipoParticular: n.tipoParticular,
+      cartaoCredito: n.cartaoCredito,
+      descricao: n.descricao,
+      periodic: n.periodic,
+      valor: n.valor,
+      repeticoes: n.repeticoes,
+      dataEvento: fmtBrDate(n.dataEvento),
+      cadastradoEm: n.cadastradoEm || new Date().toISOString(),
+      parcelas: n.parcelas,
+    };
+  }
+
+  function getPagamentoDespesa(d, numero) {
+    const pagos = expandirPagamentosDespesa(normalizeDespesa(d), normalizeDespesa(d).repeticoes);
+    return pagos.find((p) => p.numero === numero) || null;
+  }
+
+  function updateFormEditUi() {
+    const submitBtn = document.querySelector("#finCeoDespForm button[type='submit']");
+    const fb = document.getElementById("finCeoDespFeedback");
+    if (finCeoDespEditState) {
+      const pag = String(finCeoDespEditState.pagamentoNumero).padStart(2, "0");
+      if (submitBtn) {
+        submitBtn.textContent =
+          finCeoDespEditState.mode === "single" ? "Salvar evento editado" : "Salvar série futura";
+      }
+      if (fb) {
+        fb.textContent =
+          finCeoDespEditState.mode === "single"
+            ? `Editando pagamento ${pag} — altere os campos e confirme.`
+            : `Editando pagamentos ${pag} em diante — altere os campos e confirme.`;
+      }
+    } else {
+      if (submitBtn) submitBtn.textContent = "Cadastrar despesa";
+    }
+  }
+
   function limparFormDespesa() {
+    finCeoDespEditState = null;
     renderCategoriaSelect();
     renderRubricaSelect();
     renderTipoParticularSelect();
@@ -936,6 +986,155 @@
     if (dt) dt.value = fmtBrDate(new Date());
     const fb = document.getElementById("finCeoDespFeedback");
     if (fb) fb.textContent = "";
+    updateFormEditUi();
+  }
+
+  function preencherFormDespesaEdicao(d, pagNum, mode) {
+    const desp = normalizeDespesa(d);
+    const pag = getPagamentoDespesa(desp, pagNum);
+    if (!pag) return;
+
+    finCeoDespEditState = { mode, despesaId: desp.id, pagamentoNumero: pagNum };
+
+    renderCategoriaSelect();
+    renderRubricaSelect();
+    renderTipoParticularSelect();
+    renderCartaoSelect();
+
+    const cat = document.getElementById("finCeoDespCategoria");
+    if (cat) cat.value = desp.categoria;
+    toggleCategoriaDespesaUi();
+
+    if (isParticulares(desp.categoria)) {
+      const tipo = document.getElementById("finCeoDespTipoParticular");
+      if (tipo && tipoParticularValido(desp.tipoParticular)) tipo.value = desp.tipoParticular;
+      toggleTipoParticularUi();
+      const cart = document.getElementById("finCeoDespCartao");
+      if (cart && cartaoValido(desp.cartaoCredito)) cart.value = desp.cartaoCredito;
+    } else {
+      const rub = document.getElementById("finCeoDespRubrica");
+      if (rub && rubricaValida(desp.rubrica)) rub.value = desp.rubrica;
+    }
+
+    const desc = document.getElementById("finCeoDespDescricao");
+    if (desc) desc.value = desp.descricao || "";
+    const val = document.getElementById("finCeoDespValor");
+    if (val) val.value = brl(pag.valor);
+    const rep = document.getElementById("finCeoDespRepeticoes");
+    if (rep) {
+      rep.value =
+        mode === "single" ? "1" : String(Math.max(1, desp.repeticoes - pagNum + 1));
+    }
+    const dt = document.getElementById("finCeoDespDataEvento");
+    if (dt) dt.value = fmtBrDate(pag.data);
+
+    bindMascarasCeo(document.getElementById("finCeoPaneDespesas"));
+    updateFormEditUi();
+    document.getElementById("finCeoDespForm")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function iniciarEdicaoDespesa(id, pagNum, mode) {
+    const raw = loadDespesasCeo().find((d) => String(d.id) === String(id));
+    if (!raw) return;
+    preencherFormDespesaEdicao(raw, pagNum, mode);
+  }
+
+  function aplicarEditarEvento(list, despesaId, pagNum, newEntry) {
+    const idx = list.findIndex((d) => String(d.id) === String(despesaId));
+    if (idx < 0) return { list, ok: false };
+    const original = normalizeDespesa(list[idx]);
+    const R = original.repeticoes;
+    const pag = Math.max(1, Math.min(R, Number(pagNum) || 1));
+    const edited = normalizeDespesa({ ...newEntry, repeticoes: 1, periodic: true });
+
+    if (R === 1) {
+      const next = [...list];
+      next[idx] = serializarDespesa({ ...edited, id: original.id, cadastradoEm: original.cadastradoEm });
+      return { list: next, ok: true, savedId: original.id };
+    }
+
+    const replacement = [];
+    let savedId = original.id;
+    for (let i = 0; i < list.length; i++) {
+      if (i !== idx) {
+        replacement.push(list[i]);
+        continue;
+      }
+      if (pag > 1) {
+        replacement.push(
+          serializarDespesa({
+            ...original,
+            id: original.id,
+            repeticoes: pag - 1,
+            cadastradoEm: original.cadastradoEm,
+          })
+        );
+      }
+      const editedId = pag === 1 ? original.id : novoIdDespesa();
+      savedId = editedId;
+      replacement.push(
+        serializarDespesa({
+          ...edited,
+          id: editedId,
+          repeticoes: 1,
+          cadastradoEm: pag === 1 ? original.cadastradoEm : new Date().toISOString(),
+        })
+      );
+      if (pag < R) {
+        const futuro = getPagamentoDespesa(original, pag + 1);
+        replacement.push(
+          serializarDespesa({
+            ...original,
+            id: novoIdDespesa(),
+            repeticoes: R - pag,
+            dataEvento: futuro?.data || original.dataEvento,
+            cadastradoEm: new Date().toISOString(),
+          })
+        );
+      }
+    }
+    return { list: replacement, ok: true, savedId };
+  }
+
+  function aplicarEditarFuturo(list, despesaId, pagNum, newEntry) {
+    const idx = list.findIndex((d) => String(d.id) === String(despesaId));
+    if (idx < 0) return { list, ok: false };
+    const original = normalizeDespesa(list[idx]);
+    const R = original.repeticoes;
+    const pag = Math.max(1, Math.min(R, Number(pagNum) || 1));
+    const updated = normalizeDespesa(newEntry);
+
+    if (pag === 1) {
+      const next = [...list];
+      next[idx] = serializarDespesa({ ...updated, id: original.id, cadastradoEm: original.cadastradoEm });
+      return { list: next, ok: true, savedId: original.id };
+    }
+
+    const replacement = [];
+    let savedId = original.id;
+    for (let i = 0; i < list.length; i++) {
+      if (i !== idx) {
+        replacement.push(list[i]);
+        continue;
+      }
+      replacement.push(
+        serializarDespesa({
+          ...original,
+          id: original.id,
+          repeticoes: pag - 1,
+          cadastradoEm: original.cadastradoEm,
+        })
+      );
+      savedId = novoIdDespesa();
+      replacement.push(
+        serializarDespesa({
+          ...updated,
+          id: savedId,
+          cadastradoEm: new Date().toISOString(),
+        })
+      );
+    }
+    return { list: replacement, ok: true, savedId };
   }
 
   function renderListaDespesas() {
@@ -964,6 +1163,11 @@
         const excluir = primeiro
           ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button>`
           : "";
+        const acoes = `<div class="fin-ceo-desp-row-acoes">
+          <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-evento" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR EVENTO</button>
+          <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
+          ${excluir}
+        </div>`;
         return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
           <td><strong>${esc(rotulo)}</strong></td>
           <td>${esc(fmtBrDate(p.data))}</td>
@@ -971,7 +1175,7 @@
           <td>${esc(labelCategoria(d.categoria))}</td>
           <td>${esc(tipo)}</td>
           <td>${esc(desc)}</td>
-          <td>${excluir}</td>
+          <td>${acoes}</td>
         </tr>`;
       })
       .join("");
@@ -1050,10 +1254,16 @@
     });
   }
 
-  function montarHtmlResumoDespesaConfirm(entry) {
+  function montarHtmlResumoDespesaConfirm(entry, editMeta) {
     const { tipo, desc } = detalheDespesaLista(entry);
     const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
     const total = pagos.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+    let escopoHtml = "";
+    if (editMeta?.mode === "single") {
+      escopoHtml = `<p class="fin-ceo-desp-confirm-escopo"><strong>Escopo:</strong> apenas o pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")} — parcelas anteriores e posteriores permanecem inalteradas.</p>`;
+    } else if (editMeta?.mode === "future") {
+      escopoHtml = `<p class="fin-ceo-desp-confirm-escopo"><strong>Escopo:</strong> pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")} e todos os seguintes da mesma série — parcelas anteriores permanecem inalteradas.</p>`;
+    }
     const linhasDetalhe = [
       ["Categoria", labelCategoria(entry.categoria)],
       ["Rubrica / tipo", tipo],
@@ -1079,7 +1289,7 @@
           `<tr><td>PAGAMENTO ${String(p.numero).padStart(2, "0")}</td><td>${esc(fmtBrDate(p.data))}</td><td>${esc(brl(p.valor))}</td></tr>`
       )
       .join("");
-    return `<dl class="fin-ceo-desp-confirm-dl">${dl}</dl>
+    return `${escopoHtml}<dl class="fin-ceo-desp-confirm-dl">${dl}</dl>
       <h4 class="fin-ceo-desp-confirm-subh">Parcelas mensais</h4>
       <div class="fin-table-wrap fin-ceo-desp-confirm-table-wrap">
         <table class="fin-table fin-ceo-desp-confirm-table">
@@ -1096,20 +1306,68 @@
       modal.classList.add("hidden");
       modal.setAttribute("aria-hidden", "true");
     }
+    const titulo = document.getElementById("finCeoDespConfirmTitulo");
+    const lead = document.querySelector("#finCeoDespConfirmModal .fin-ceo-desp-confirm-lead");
+    if (titulo) titulo.textContent = "Confirmar cadastro de despesa";
+    if (lead) lead.textContent = "Revise os dados abaixo antes de gravar na nuvem.";
   }
 
-  function abrirModalConfirmDespesa(entry) {
-    finCeoDespConfirmPending = entry;
+  function abrirModalConfirmDespesa(entry, editMeta = null) {
+    finCeoDespConfirmPending = { entry, edit: editMeta };
     const resumo = document.getElementById("finCeoDespConfirmResumo");
-    if (resumo) resumo.innerHTML = montarHtmlResumoDespesaConfirm(entry);
+    if (resumo) resumo.innerHTML = montarHtmlResumoDespesaConfirm(entry, editMeta);
+    const titulo = document.getElementById("finCeoDespConfirmTitulo");
+    const lead = document.querySelector("#finCeoDespConfirmModal .fin-ceo-desp-confirm-lead");
+    if (editMeta?.mode === "single") {
+      if (titulo) {
+        titulo.textContent = `Confirmar edição — pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")}`;
+      }
+      if (lead) lead.textContent = "Revise os dados abaixo antes de gravar esta parcela alterada.";
+    } else if (editMeta?.mode === "future") {
+      if (titulo) titulo.textContent = "Confirmar edição — deste pagamento em diante";
+      if (lead) lead.textContent = "Revise os dados abaixo antes de gravar a série futura alterada.";
+    } else {
+      if (titulo) titulo.textContent = "Confirmar cadastro de despesa";
+      if (lead) lead.textContent = "Revise os dados abaixo antes de gravar na nuvem.";
+    }
     const modal = document.getElementById("finCeoDespConfirmModal");
     if (!modal) {
-      persistirDespesaEntry(entry);
+      if (editMeta) persistirDespesaEdicao(entry, editMeta);
+      else persistirDespesaEntry(entry);
       return;
     }
     modal.classList.remove("hidden");
     modal.setAttribute("aria-hidden", "false");
     document.getElementById("finCeoDespConfirmSimBtn")?.focus();
+  }
+
+  function persistirDespesaEdicao(entry, editMeta) {
+    const fb = document.getElementById("finCeoDespFeedback");
+    let list = loadDespesasCeo();
+    const result =
+      editMeta.mode === "single"
+        ? aplicarEditarEvento(list, editMeta.despesaId, editMeta.pagamentoNumero, entry)
+        : aplicarEditarFuturo(list, editMeta.despesaId, editMeta.pagamentoNumero, entry);
+    if (!result.ok) {
+      if (fb) fb.textContent = "Não foi possível aplicar a edição — despesa não encontrada.";
+      return;
+    }
+    ultimaDespesaSalvaId = result.savedId || entry.id;
+    saveDespesasCeo(result.list);
+    const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
+    const escopo =
+      editMeta.mode === "single"
+        ? `pagamento ${String(editMeta.pagamentoNumero).padStart(2, "0")} atualizado`
+        : `${pagos.length} pagamento(s) futuro(s) atualizado(s)`;
+    const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). Veja na tabela abaixo.`;
+    finCeoDespEditState = null;
+    limparFormDespesa();
+    if (fb) fb.textContent = msg;
+    renderListaDespesas();
+    renderResumoCadastroDespesas();
+    renderDashboard();
+    if (paneAberto === "relatorio") aplicarRelatorio();
+    document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function persistirDespesaEntry(entry) {
@@ -1135,19 +1393,22 @@
   }
 
   function confirmarDespesaModal() {
-    const entry = finCeoDespConfirmPending;
-    if (!entry) return;
+    const pending = finCeoDespConfirmPending;
+    if (!pending) return;
+    const entry = pending.entry || pending;
+    const editMeta = pending.edit || null;
     fecharModalConfirmDespesa();
-    persistirDespesaEntry(entry);
+    if (editMeta) persistirDespesaEdicao(entry, editMeta);
+    else persistirDespesaEntry(entry);
   }
 
   function salvarDespesaForm(ev) {
     ev?.preventDefault();
     const fb = document.getElementById("finCeoDespFeedback");
-    if (fb) fb.textContent = "";
+    if (fb && !finCeoDespEditState) fb.textContent = "";
     const entry = coletarEntryDespesaForm(fb);
     if (!entry) return;
-    abrirModalConfirmDespesa(entry);
+    abrirModalConfirmDespesa(entry, finCeoDespEditState ? { ...finCeoDespEditState } : null);
   }
 
   function filtroValorMonetarioAtivo(str) {
@@ -1443,10 +1704,25 @@
     });
 
     document.getElementById("finCeoDespesasBody")?.addEventListener("click", (ev) => {
-      const btn = ev.target.closest(".fin-ceo-desp-excluir");
-      if (!btn) return;
-      const id = btn.getAttribute("data-id");
-      if (id && window.confirm("Excluir esta despesa?")) excluirDespesa(id);
+      const btnExcluir = ev.target.closest(".fin-ceo-desp-excluir");
+      if (btnExcluir) {
+        const id = btnExcluir.getAttribute("data-id");
+        if (id && window.confirm("Excluir esta despesa?")) excluirDespesa(id);
+        return;
+      }
+      const btnEvento = ev.target.closest(".fin-ceo-desp-editar-evento");
+      if (btnEvento) {
+        const id = btnEvento.getAttribute("data-id");
+        const pag = Number(btnEvento.getAttribute("data-pag")) || 1;
+        if (id) iniciarEdicaoDespesa(id, pag, "single");
+        return;
+      }
+      const btnFuturo = ev.target.closest(".fin-ceo-desp-editar-futuro");
+      if (btnFuturo) {
+        const id = btnFuturo.getAttribute("data-id");
+        const pag = Number(btnFuturo.getAttribute("data-pag")) || 1;
+        if (id) iniciarEdicaoDespesa(id, pag, "future");
+      }
     });
   }
 
