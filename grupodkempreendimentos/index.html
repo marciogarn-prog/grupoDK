@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260901fin-ceo-relatorio">
+  <link rel="stylesheet" href="styles.css?v=20260901fin-ceo-moeda-lista">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2943,7 +2943,7 @@
                 </label>
                 <div id="finCeoCamposPeriodico" class="portal-field portal-field--wide fin-ceo-campos-periodico">
                   <div class="fin-ceo-campos-grid">
-                    <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" inputmode="decimal" placeholder="0,00"></label>
+                    <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off"></label>
                     <label class="portal-field"><span>Nº repetições</span><input type="number" id="finCeoDespRepeticoes" min="1" max="360" value="12"></label>
                     <label class="portal-field portal-field--wide fin-ceo-desp-field-data">
                       <span>Data da primeira repetição</span>
@@ -2962,9 +2962,8 @@
               </form>
               <p id="finCeoDespFeedback" class="portal-feedback" role="status"></p>
               <h4 class="fin-subh">Últimos lançamentos <span class="subtext">(mais recente no topo)</span></h4>
-              <p id="finCeoDespesasVazia" class="subtext hidden">Nenhuma despesa cadastrada.</p>
-              <div class="fin-table-wrap">
-                <table class="fin-table" id="finCeoDespesasTable">
+              <div class="fin-table-wrap fin-ceo-desp-lista" id="finCeoDespesasTableWrap">
+                <table class="fin-table fin-ceo-desp-lista__table" id="finCeoDespesasTable">
                   <thead><tr><th>Categoria</th><th>Rubrica / Tipo</th><th>Detalhe</th><th>Compromisso</th><th></th></tr></thead>
                   <tbody id="finCeoDespesasBody"></tbody>
                 </table>
@@ -2997,11 +2996,11 @@
                 </label>
                 <label class="portal-field">
                   <span>Valor mín. (R$)</span>
-                  <input type="text" id="finCeoRelValorMin" inputmode="decimal" placeholder="0,00">
+                  <input type="text" id="finCeoRelValorMin" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off">
                 </label>
                 <label class="portal-field">
                   <span>Valor máx. (R$)</span>
-                  <input type="text" id="finCeoRelValorMax" inputmode="decimal" placeholder="0,00">
+                  <input type="text" id="finCeoRelValorMax" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off">
                 </label>
                 <label class="portal-field portal-field--wide">
                   <span>Busca (descrição, cartão, rubrica…)</span>
@@ -3504,7 +3503,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-relatorio" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-moeda-lista" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

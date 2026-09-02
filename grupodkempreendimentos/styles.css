@@ -10411,6 +10411,30 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
+.fin-ceo-desp-lista {
+  margin-top: 0.35rem;
+  min-height: 8rem;
+}
+
+.fin-ceo-desp-lista__table {
+  width: 100%;
+}
+
+.fin-ceo-desp-lista__vazia {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.72);
+  padding: 1.25rem 0.75rem !important;
+  font-size: 0.92rem;
+}
+
+.fin-ceo-desp-lista--com-dados tbody tr:first-child {
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.fin-ceo-desp-lista--com-dados tbody tr:first-child td {
+  font-weight: 600;
+}
+
 @media (max-width: 900px) {
   .fin-ceo-rel-filtros {
     grid-template-columns: 1fr;

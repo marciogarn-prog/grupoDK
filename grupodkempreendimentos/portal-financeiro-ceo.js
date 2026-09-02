@@ -419,6 +419,13 @@
     }
   }
 
+  function bindMascarasCeo(root) {
+    const el = root || panel;
+    bindCalendariosCeo(el);
+    if (!el || typeof window.bindCurrencyMaskInput !== "function") return;
+    el.querySelectorAll('[data-dk-mask="currency"]').forEach((inp) => window.bindCurrencyMaskInput(inp));
+  }
+
   function gerarDebitosDespesa(desp, inicioHorizonte, fimHorizonte) {
     const out = [];
     if (desp.periodic) {
@@ -791,15 +798,16 @@
 
   function renderListaDespesas() {
     const body = document.getElementById("finCeoDespesasBody");
-    const vazia = document.getElementById("finCeoDespesasVazia");
+    const wrap = document.getElementById("finCeoDespesasTableWrap");
     if (!body) return;
     const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
     if (!list.length) {
-      body.innerHTML = "";
-      vazia?.classList.remove("hidden");
+      body.innerHTML =
+        '<tr><td colspan="5" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
+      wrap?.classList.remove("fin-ceo-desp-lista--com-dados");
       return;
     }
-    vazia?.classList.add("hidden");
+    wrap?.classList.add("fin-ceo-desp-lista--com-dados");
     body.innerHTML = list
       .map((d) => {
         const { tipo, desc, fin } = detalheDespesaLista(d);
@@ -891,7 +899,7 @@
     renderListaDespesas();
     const dt = document.getElementById("finCeoDespDataEvento");
     if (dt && !String(dt.value || "").trim()) dt.value = fmtBrDate(new Date());
-    bindCalendariosCeo(document.getElementById("finCeoPaneDespesas"));
+    bindMascarasCeo(document.getElementById("finCeoPaneDespesas"));
   }
 
   function salvarDespesaForm(ev) {
@@ -968,6 +976,7 @@
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
+    document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function despesaMatchesTipoFiltro(d, tipoFiltro) {
@@ -1099,7 +1108,7 @@
 
   function renderRelatorio() {
     renderRelatorioCategoriaSelect();
-    bindCalendariosCeo(document.getElementById("finCeoPaneRelatorio"));
+    bindMascarasCeo(document.getElementById("finCeoPaneRelatorio"));
     aplicarRelatorio();
   }
 
