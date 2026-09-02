@@ -237,10 +237,6 @@
     return getCartoesLista().some((c) => c.id === id);
   }
 
-  function contarDespesasPorCartao(cartaoId) {
-    return loadDespesasCeo().filter((d) => String(d.cartaoCredito) === String(cartaoId)).length;
-  }
-
   function renderCategoriaSelect() {
     const sel = document.getElementById("finCeoDespCategoria");
     if (!sel) return;
@@ -274,7 +270,7 @@
     const atual = sel.value;
     const cartoes = getCartoesLista();
     if (!cartoes.length) {
-      sel.innerHTML = `<option value="">— Cadastre um cartão primeiro —</option>`;
+      sel.innerHTML = `<option value="">— Nenhum cartão disponível —</option>`;
       return;
     }
     sel.innerHTML = cartoes.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
@@ -864,73 +860,6 @@
       .join("");
   }
 
-  function renderListaCartoes() {
-    const body = document.getElementById("finCeoCartoesBody");
-    const vazia = document.getElementById("finCeoCartoesVazia");
-    if (!body) return;
-    const cartoes = getCartoesLista();
-    if (!cartoes.length) {
-      body.innerHTML = "";
-      vazia?.classList.remove("hidden");
-      return;
-    }
-    vazia?.classList.add("hidden");
-    body.innerHTML = cartoes
-      .map((c) => {
-        const n = contarDespesasPorCartao(c.id);
-        const uso = n ? `${n} despesa(s)` : "sem despesas";
-        return `<tr data-ceo-cartao-id="${esc(c.id)}">
-          <td>${esc(c.label)}</td>
-          <td><code>${esc(c.id)}</code></td>
-          <td>${esc(uso)}</td>
-          <td><button type="button" class="btn-primary btn-secondary-outline fin-ceo-cartao-excluir" data-id="${esc(c.id)}" ${n ? "disabled title=\"Remova as despesas deste cartão primeiro\"" : ""}>Excluir</button></td>
-        </tr>`;
-      })
-      .join("");
-  }
-
-  function renderCadastroCartoes() {
-    renderListaCartoes();
-    const fb = document.getElementById("finCeoCartaoFeedback");
-    if (fb) fb.textContent = "";
-  }
-
-  function salvarCartaoForm(ev) {
-    ev?.preventDefault();
-    const fb = document.getElementById("finCeoCartaoFeedback");
-    const nome = String(document.getElementById("finCeoCartaoNome")?.value || "").trim();
-    if (!nome) {
-      if (fb) fb.textContent = "Informe o nome do cartão de crédito.";
-      return;
-    }
-    const id = slugId(nome, "CARTAO");
-    const list = loadCartoesCeoRaw().map(normalizeCartao);
-    if (list.some((c) => c.id === id || c.label.toLowerCase() === nome.toLowerCase())) {
-      if (fb) fb.textContent = "Já existe um cartão com este nome.";
-      return;
-    }
-    list.push(normalizeCartao({ id, label: nome }));
-    saveCartoesCeo(list);
-    const inp = document.getElementById("finCeoCartaoNome");
-    if (inp) inp.value = "";
-    if (fb) fb.textContent = `Cartão «${nome}» cadastrado.`;
-    renderListaCartoes();
-    renderCartaoSelect();
-  }
-
-  function excluirCartao(id) {
-    const n = contarDespesasPorCartao(id);
-    if (n > 0) {
-      window.alert(`Este cartão tem ${n} despesa(s) vinculada(s). Exclua-as antes de remover o cartão.`);
-      return;
-    }
-    if (!window.confirm("Excluir este cartão de crédito?")) return;
-    const list = loadCartoesCeoRaw().filter((c) => String(c.id) !== String(id));
-    saveCartoesCeo(list);
-    renderListaCartoes();
-    renderCartaoSelect();
-  }
-
   function renderCadastroDespesas() {
     renderCategoriaSelect();
     renderRubricaSelect();
@@ -960,7 +889,7 @@
       }
       if (tipoParticularExigeCartao(tipoParticular)) {
         if (!cartaoCredito || !cartaoValido(cartaoCredito)) {
-          if (fb) fb.textContent = "Cadastre e selecione o cartão de crédito (módulo Cartões de crédito).";
+          if (fb) fb.textContent = "Selecione um cartão de crédito cadastrado.";
           return;
         }
         if (!descricao) {
@@ -1278,7 +1207,6 @@
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
     if (id === "dashboard") renderDashboard();
-    if (id === "cartoes") renderCadastroCartoes();
     if (id === "despesas") renderCadastroDespesas();
     if (id === "relatorio") renderRelatorio();
   }
@@ -1289,14 +1217,6 @@
 
     document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
-    });
-
-    document.getElementById("finCeoCartaoForm")?.addEventListener("submit", salvarCartaoForm);
-    document.getElementById("finCeoCartoesBody")?.addEventListener("click", (ev) => {
-      const btn = ev.target.closest(".fin-ceo-cartao-excluir");
-      if (!btn || btn.disabled) return;
-      const id = btn.getAttribute("data-id");
-      if (id) excluirCartao(id);
     });
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);

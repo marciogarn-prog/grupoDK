@@ -2841,10 +2841,6 @@
                 <span class="btn-operacao-cmd__title">Painel executivo</span>
                 <span class="btn-operacao-cmd__hint">Endividamento, receita e gráficos</span>
               </button>
-              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-cartoes" data-ceo-mod="cartoes" aria-expanded="false" aria-controls="finCeoPaneCartoes">
-                <span class="btn-operacao-cmd__title">Cartões de crédito</span>
-                <span class="btn-operacao-cmd__hint">Particulares — cadastre os cartões</span>
-              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-despesas" data-ceo-mod="despesas" aria-expanded="false" aria-controls="finCeoPaneDespesas">
                 <span class="btn-operacao-cmd__title">Cadastro de despesas</span>
                 <span class="btn-operacao-cmd__hint">Categoria, rubrica e repetições</span>
@@ -2891,29 +2887,6 @@
               <div id="finCeoChartSaldoAcc" class="fin-chart-wrap"></div>
               <div id="finCeoLegendaAcc" class="fin-legenda"></div>
               <div id="finCeoTabelaProjecao" class="fin-table-wrap"></div>
-            </div>
-
-            <div id="finCeoPaneCartoes" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="cartoes" role="region">
-              <h3 class="operacao-inline-form__title">Cartões de crédito</h3>
-              <p class="subtext">Para despesas em <strong>Particulares</strong>, cadastre aqui cada cartão de crédito (ex.: Nubank, Sicredi, Visa corporativo…).</p>
-              <form id="finCeoCartaoForm" class="operacao-inline-form__grid fin-ceo-fonte-form" novalidate>
-                <label class="portal-field portal-field--wide">
-                  <span>Nome do cartão</span>
-                  <input type="text" id="finCeoCartaoNome" maxlength="80" required placeholder="Ex.: Cartão Nubank, Visa DK…" autocomplete="off">
-                </label>
-                <div class="operacao-inline-form__actions">
-                  <button type="submit" class="btn-primary">Cadastrar cartão</button>
-                </div>
-              </form>
-              <p id="finCeoCartaoFeedback" class="portal-feedback" role="status"></p>
-              <h4 class="fin-subh">Cartões cadastrados</h4>
-              <p id="finCeoCartoesVazia" class="subtext hidden">Nenhum cartão cadastrado.</p>
-              <div class="fin-table-wrap">
-                <table class="fin-table" id="finCeoCartoesTable">
-                  <thead><tr><th>Nome</th><th>Código</th><th>Uso</th><th></th></tr></thead>
-                  <tbody id="finCeoCartoesBody"></tbody>
-                </table>
-              </div>
             </div>
 
             <div id="finCeoPaneDespesas" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="despesas" role="region">
@@ -3505,7 +3478,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-achar" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-sem-cartoes" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
