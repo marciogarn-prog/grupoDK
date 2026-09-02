@@ -80,6 +80,28 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-confirm-modal",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas: ao clicar Cadastrar despesa abre janela com resumo do cadastro e botões Confirmar ou Cancelar antes de gravar.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoDespConfirmModal",
+          "Confirmar cadastro de despesa",
+          "finCeoDespConfirmSimBtn",
+          "finCeoDespConfirmNaoBtn"
+        ],
+        "portal-financeiro-ceo.js": [
+          "abrirModalConfirmDespesa",
+          "montarHtmlResumoDespesaConfirm",
+          "confirmarDespesaModal",
+          "fecharModalConfirmDespesa"
+        ],
+        "styles.css": [
+          "portal-modal__card--fin-ceo-desp",
+          "fin-ceo-desp-confirm-dl"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-receita-prevista-unidades",
       "descricao": "No FINANCEIRO CEO → Painel executivo: RECEITA PREVISTA DO MÊS é a soma da Locadora (semanal das locações ativas, sem protocolo 2099010199), Centro Automotivo e Construtora; três caixas separadas mostram cada unidade.",
       "ficheiros": {

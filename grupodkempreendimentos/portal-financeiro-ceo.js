@@ -59,6 +59,7 @@
   let bound = false;
   let paneAberto = "";
   let ultimaDespesaSalvaId = "";
+  let finCeoDespConfirmPending = null;
 
   function esc(s) {
     return String(s ?? "")
@@ -950,9 +951,7 @@
     bindMascarasCeo(document.getElementById("finCeoPaneDespesas"));
   }
 
-  function salvarDespesaForm(ev) {
-    ev?.preventDefault();
-    const fb = document.getElementById("finCeoDespFeedback");
+  function coletarEntryDespesaForm(fb) {
     const categoria = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS_CEO[0].id;
     const rubrica = document.getElementById("finCeoDespRubrica")?.value || "";
     const tipoParticular = document.getElementById("finCeoDespTipoParticular")?.value || "";
@@ -962,24 +961,24 @@
     if (isParticulares(categoria)) {
       if (!tipoParticularValido(tipoParticular)) {
         if (fb) fb.textContent = "Selecione o tipo de despesa.";
-        return;
+        return null;
       }
       if (tipoParticularExigeCartao(tipoParticular)) {
         if (!cartaoCredito || !cartaoValido(cartaoCredito)) {
           if (fb) fb.textContent = "Selecione um cartão de crédito cadastrado.";
-          return;
+          return null;
         }
         if (!descricao) {
           if (fb) fb.textContent = "Informe a descrição da despesa no cartão.";
-          return;
+          return null;
         }
       } else if (tipoParticular === "OUTROS" && !descricao) {
         if (fb) fb.textContent = "Informe a descrição para o tipo «Outros».";
-        return;
+        return null;
       }
     } else if (!rubricaValida(rubrica)) {
       if (fb) fb.textContent = "Selecione a rubrica da despesa.";
-      return;
+      return null;
     }
 
     const valor = parseValor(document.getElementById("finCeoDespValor")?.value);
@@ -987,18 +986,18 @@
     const dataEvento = parseBrDate(document.getElementById("finCeoDespDataEvento")?.value);
     if (valor <= 0) {
       if (fb) fb.textContent = "Informe um valor maior que zero.";
-      return;
+      return null;
     }
     if (repeticoes < 1) {
       if (fb) fb.textContent = "Informe o número de repetições.";
-      return;
+      return null;
     }
     if (!dataEvento) {
       if (fb) fb.textContent = "Informe a data da primeira repetição (DD/MM/AAAA).";
-      return;
+      return null;
     }
 
-    const entry = normalizeDespesa({
+    return normalizeDespesa({
       categoria,
       rubrica: isParticulares(categoria) ? "" : rubrica,
       tipoParticular: isParticulares(categoria) ? tipoParticular : "",
@@ -1010,7 +1009,72 @@
       dataEvento,
       cadastradoEm: new Date().toISOString(),
     });
+  }
 
+  function montarHtmlResumoDespesaConfirm(entry) {
+    const { tipo, desc } = detalheDespesaLista(entry);
+    const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
+    const total = pagos.reduce((s, p) => s + (Number(p.valor) || 0), 0);
+    const linhasDetalhe = [
+      ["Categoria", labelCategoria(entry.categoria)],
+      ["Rubrica / tipo", tipo],
+    ];
+    if (isParticulares(entry.categoria) && desc && desc !== "—") {
+      linhasDetalhe.push(["Detalhe", desc]);
+    }
+    linhasDetalhe.push(
+      ["Valor por mês", brl(entry.valor)],
+      ["Repetições", String(entry.repeticoes)],
+      ["1ª data", fmtBrDate(entry.dataEvento)],
+      ["Total do compromisso", brl(total)]
+    );
+    const dl = linhasDetalhe
+      .map(
+        ([k, v]) =>
+          `<div class="fin-ceo-desp-confirm-kv"><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`
+      )
+      .join("");
+    const rows = pagos
+      .map(
+        (p) =>
+          `<tr><td>PAGAMENTO ${String(p.numero).padStart(2, "0")}</td><td>${esc(fmtBrDate(p.data))}</td><td>${esc(brl(p.valor))}</td></tr>`
+      )
+      .join("");
+    return `<dl class="fin-ceo-desp-confirm-dl">${dl}</dl>
+      <h4 class="fin-ceo-desp-confirm-subh">Parcelas mensais</h4>
+      <div class="fin-table-wrap fin-ceo-desp-confirm-table-wrap">
+        <table class="fin-table fin-ceo-desp-confirm-table">
+          <thead><tr><th>Pagamento</th><th>Data</th><th>Valor</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  function fecharModalConfirmDespesa() {
+    finCeoDespConfirmPending = null;
+    const modal = document.getElementById("finCeoDespConfirmModal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function abrirModalConfirmDespesa(entry) {
+    finCeoDespConfirmPending = entry;
+    const resumo = document.getElementById("finCeoDespConfirmResumo");
+    if (resumo) resumo.innerHTML = montarHtmlResumoDespesaConfirm(entry);
+    const modal = document.getElementById("finCeoDespConfirmModal");
+    if (!modal) {
+      persistirDespesaEntry(entry);
+      return;
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.getElementById("finCeoDespConfirmSimBtn")?.focus();
+  }
+
+  function persistirDespesaEntry(entry) {
+    const fb = document.getElementById("finCeoDespFeedback");
     const list = loadDespesasCeo();
     list.push({
       ...entry,
@@ -1029,6 +1093,22 @@
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
     document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  function confirmarDespesaModal() {
+    const entry = finCeoDespConfirmPending;
+    if (!entry) return;
+    fecharModalConfirmDespesa();
+    persistirDespesaEntry(entry);
+  }
+
+  function salvarDespesaForm(ev) {
+    ev?.preventDefault();
+    const fb = document.getElementById("finCeoDespFeedback");
+    if (fb) fb.textContent = "";
+    const entry = coletarEntryDespesaForm(fb);
+    if (!entry) return;
+    abrirModalConfirmDespesa(entry);
   }
 
   function filtroValorMonetarioAtivo(str) {
@@ -1297,6 +1377,14 @@
     });
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
+    document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
+    document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
+    document
+      .querySelectorAll("[data-fin-ceo-desp-confirm-cancel]")
+      .forEach((el) => el.addEventListener("click", fecharModalConfirmDespesa));
+    document.getElementById("finCeoDespConfirmModal")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") fecharModalConfirmDespesa();
+    });
     document.getElementById("finCeoDespLimpar")?.addEventListener("click", limparFormDespesa);
     document.getElementById("finCeoDespVerRelatorio")?.addEventListener("click", abrirRelatorioUltimoCadastro);
     document.getElementById("finCeoRelVerTodos")?.addEventListener("click", () => {
