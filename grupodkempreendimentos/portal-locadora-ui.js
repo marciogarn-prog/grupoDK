@@ -8067,6 +8067,23 @@
     if (c7) c7.checked = false;
   }
 
+  /** Limpa o formulário completo (inclui CPF) e volta ao modo de novo cadastro. */
+  function limparPortalColaboradorFormularioCompleto() {
+    const cpf = document.getElementById("portalColabCpf");
+    if (cpf) cpf.value = "";
+    portalColabCpfPrevLen = 0;
+    portalColabCpfEdicaoOriginal = "";
+    portalColabListaCpfAtivo = "";
+    limparPortalColaboradorCamposParaNovo();
+    setPortalColaboradorModoCadastroOuEdicao(true);
+    refreshPortalColaboradorBloqueioUi();
+    setOperacaoResponsavelPorDisplay("operacaoColaboradorCadastradoPor", null);
+    portalRenderColaboradorPermissoesDetalhe(null);
+    portalRenderColaboradoresLista();
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (fb) fb.textContent = "Formulário limpo.";
+  }
+
   function portalColabPermissoesAtivas(f) {
     const a = f?.acessos || {};
     return PORTAL_COLAB_ACESSO_ITENS.filter((it) => Boolean(a[it.key]));
@@ -8136,6 +8153,10 @@
     }
     const list = funcionariosAccess
       .filter((f) => String(f.role || "").trim() === "operacao")
+      .filter((f) => {
+        const dig = onlyDigits(String(f.cpf || "")).slice(0, 11);
+        return dig.length === 11 && dig !== "12345678901";
+      })
       .slice()
       .sort((a, b) => String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR"));
     if (!list.length) {
@@ -8505,6 +8526,10 @@
     if (fb) {
       fb.textContent = `Senha de ${nomeColab} resetada para ${senhaIni} — no próximo login será pedida a nova senha (6 números).`;
     }
+  });
+
+  document.getElementById("portalColabBtnLimpar")?.addEventListener("click", () => {
+    limparPortalColaboradorFormularioCompleto();
   });
 
   PORTAL_COLAB_ACESSO_ITENS.forEach(({ key }) => {

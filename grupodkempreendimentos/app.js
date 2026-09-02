@@ -1670,13 +1670,18 @@ function isOperacaoPasswordValid(value) {
   return /^\d{6}$/.test(String(value || "").trim());
 }
 
-/** União por CPF: semente local + nuvem. Nunca descarta um colaborador. */
+/** União por CPF: semente local + nuvem. Nunca descarta um colaborador real. */
+const FUNCIONARIOS_CPF_EXCLUIDOS_DEFINITIVO = new Set([
+  "12345678901", // usuário de teste — não reaparece no merge
+]);
+
 function mergeFuncionariosAccessByCpf(previousList, incomingList) {
   const byCpf = new Map();
   const put = (f) => {
     if (!f || typeof f !== "object") return;
     const cpf = String(f.cpf || "").replace(/\D/g, "").slice(0, 11);
     if (cpf.length !== 11) return;
+    if (FUNCIONARIOS_CPF_EXCLUIDOS_DEFINITIVO.has(cpf)) return;
     const prev = byCpf.get(cpf);
     if (!prev) {
       byCpf.set(cpf, { ...f, cpf });
