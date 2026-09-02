@@ -21176,12 +21176,20 @@
     }
   }
 
-  applyPortalLocadoraHash();
+  function portalBootHashERestauracao() {
+    applyPortalLocadoraHash();
+    portalRestaurarAreaLogadaAposRecarga();
+  }
+
   window.addEventListener("hashchange", applyPortalLocadoraHash);
   window.addEventListener("pageshow", () => portalRestaurarAreaLogadaAposRecarga());
   portalInvalidarSessaoSeBuildAntigo();
   portalAtualizarBannerAdmin();
-  portalRestaurarAreaLogadaAposRecarga();
+  if (document.readyState === "complete") {
+    portalBootHashERestauracao();
+  } else {
+    window.addEventListener("load", portalBootHashERestauracao, { once: true });
+  }
 
   document.getElementById("portal-admin-cliente-cpf")?.addEventListener("input", () => {
     const inp = document.getElementById("portal-admin-cliente-cpf");

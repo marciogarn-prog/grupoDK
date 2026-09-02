@@ -2538,4 +2538,13 @@
     receitaPrevistaConstrutora,
     calcReceitasPorUnidade,
   };
+
+  /** Recarga F5: portal-locadora-ui pode abrir a view antes deste script — ligar botões e painel. */
+  function finCeoReconciliarSeVisivelAposBoot() {
+    const view = document.getElementById("view-financeiro-ceo");
+    if (!view?.classList.contains("view--active")) return;
+    if (panel.classList.contains("hidden")) return;
+    window.__DK_financeiroCeoOnShow();
+  }
+  finCeoReconciliarSeVisivelAposBoot();
 })();
