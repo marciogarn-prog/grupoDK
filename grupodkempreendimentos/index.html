@@ -2941,16 +2941,32 @@
                   <span class="subtext" id="finCeoDespDetalheHint">Opcional — identifica quem ou o quê da despesa (coluna Detalhe na tabela).</span>
                 </label>
                 <div id="finCeoCamposPeriodico" class="portal-field portal-field--wide fin-ceo-campos-periodico">
-                  <div class="fin-ceo-campos-grid">
-                    <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off"></label>
-                    <label class="portal-field"><span>Nº repetições</span><input type="number" id="finCeoDespRepeticoes" min="1" max="360" value="12"></label>
-                    <label class="portal-field portal-field--wide fin-ceo-desp-field-data">
-                      <span>Data da primeira repetição</span>
-                      <span class="dk-date-cal fin-date-cal fin-ceo-desp-data-cal">
-                        <input type="text" id="finCeoDespDataEvento" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off" title="Clique para abrir o calendário">
-                      </span>
-                      <span class="subtext">Clique no campo para abrir o <strong>calendário</strong>. Repetições mensais no mesmo dia.</span>
-                    </label>
+                  <div class="fin-ceo-desp-periodico-layout">
+                    <div class="fin-ceo-campos-grid">
+                      <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off"></label>
+                      <label class="portal-field"><span>Nº repetições</span><input type="number" id="finCeoDespRepeticoes" min="1" max="360" value="12"></label>
+                      <label class="portal-field portal-field--wide fin-ceo-desp-field-data">
+                        <span>Data da primeira repetição</span>
+                        <span class="dk-date-cal fin-date-cal fin-ceo-desp-data-cal">
+                          <input type="text" id="finCeoDespDataEvento" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off" title="Clique para abrir o calendário">
+                        </span>
+                        <span class="subtext">Clique no campo para abrir o <strong>calendário</strong>. Repetições mensais no mesmo dia.</span>
+                      </label>
+                    </div>
+                    <div class="fin-ceo-desp-endiv-kpis" id="finCeoDespEndivKpis" aria-live="polite">
+                      <div class="fin-ceo-desp-endiv-kpi fin-ceo-desp-endiv-kpi--total">
+                        <span class="fin-ceo-desp-endiv-kpi__lab">Endividamento total</span>
+                        <span class="fin-ceo-desp-endiv-kpi__sub">Pagos + a pagar (filtrado)</span>
+                        <strong id="finCeoDespEndivTotalValor">—</strong>
+                        <span class="fin-ceo-desp-endiv-kpi__hint" id="finCeoDespEndivTotalHint">—</span>
+                      </div>
+                      <div class="fin-ceo-desp-endiv-kpi fin-ceo-desp-endiv-kpi--aberto">
+                        <span class="fin-ceo-desp-endiv-kpi__lab">Em aberto</span>
+                        <span class="fin-ceo-desp-endiv-kpi__sub">Só a pagar (filtrado)</span>
+                        <strong id="finCeoDespEndivAbertoValor">—</strong>
+                        <span class="fin-ceo-desp-endiv-kpi__hint" id="finCeoDespEndivAbertoHint">—</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div class="operacao-inline-form__actions">
@@ -3530,7 +3546,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-situacao-pago" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-endiv-kpis" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

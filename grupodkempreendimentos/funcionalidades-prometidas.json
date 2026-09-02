@@ -141,6 +141,25 @@
       }
     },
     {
+      "id": "fin-ceo-lista-endividamento-kpis",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas: caixa azul com soma filtrada (pagos + a pagar) e caixa verde com soma filtrada só a pagar; atualizam com os filtros ▾ da tabela.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoDespEndivKpis",
+          "finCeoDespEndivTotalValor",
+          "finCeoDespEndivAbertoValor"
+        ],
+        "portal-financeiro-ceo.js": [
+          "renderTotaisEndividamentoLista",
+          "calcularTotaisEndividamentoLista"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-endiv-kpis",
+          "fin-ceo-desp-endiv-kpi--aberto"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-lista-situacao-pago",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): coluna Situação com botão A PAGAR (azul) ou PAGO; confirmação no modal antes de marcar pago; lista ordenada por vencimento em aberto (atrasadas primeiro, pagas no final).",
       "ficheiros": {

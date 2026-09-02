@@ -1368,6 +1368,70 @@
     return rows;
   }
 
+  function calcularTotaisEndividamentoLista(linhas) {
+    let total = 0;
+    let aberto = 0;
+    let qtdAberto = 0;
+    (linhas || []).forEach((r) => {
+      const v = Number(r.valor) || 0;
+      total += v;
+      if (r.situacao !== "PAGO") {
+        aberto += v;
+        qtdAberto += 1;
+      }
+    });
+    return { total, aberto, qtd: (linhas || []).length, qtdAberto };
+  }
+
+  function listaDespesaTemFiltroColunaAtivo() {
+    return CEO_LISTA_COLS.some((c) => ceoListaColFilterActive(c.key));
+  }
+
+  function renderTotaisEndividamentoLista(linhas, linhasBase) {
+    const totEl = document.getElementById("finCeoDespEndivTotalValor");
+    const abertoEl = document.getElementById("finCeoDespEndivAbertoValor");
+    const totHint = document.getElementById("finCeoDespEndivTotalHint");
+    const abertoHint = document.getElementById("finCeoDespEndivAbertoHint");
+    if (!totEl || !abertoEl) return;
+
+    const base = linhasBase || [];
+    const filtradas = linhas || [];
+    const totais = calcularTotaisEndividamentoLista(filtradas);
+
+    if (!base.length) {
+      totEl.textContent = "—";
+      abertoEl.textContent = "—";
+      if (totHint) totHint.textContent = "Cadastre despesas na tabela abaixo";
+      if (abertoHint) abertoHint.textContent = "—";
+      return;
+    }
+
+    totEl.textContent = brl(totais.total);
+    abertoEl.textContent = brl(totais.aberto);
+
+    const filtroCol = listaDespesaTemFiltroColunaAtivo();
+    const parcial = filtradas.length !== base.length || filtroCol;
+    if (!filtradas.length) {
+      if (totHint) {
+        totHint.textContent = parcial
+          ? "Nenhum lançamento no filtro ▾ — ajuste as colunas"
+          : "Nenhum lançamento";
+      }
+      if (abertoHint) abertoHint.textContent = "0 a pagar";
+      return;
+    }
+
+    if (totHint) {
+      totHint.textContent = parcial
+        ? `${filtradas.length} de ${base.length} lançamento(s) na tabela`
+        : `${filtradas.length} lançamento(s) na tabela`;
+    }
+    if (abertoHint) {
+      abertoHint.textContent =
+        totais.qtdAberto === 1 ? "1 parcela a pagar" : `${totais.qtdAberto} parcelas a pagar`;
+    }
+  }
+
   function renderListaDespesaRowHtml(row) {
     const d = row._d;
     const p = row._p;
@@ -1411,6 +1475,7 @@
       body.innerHTML =
         '<tr><td colspan="8" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
       wrap?.classList.remove("fin-ceo-desp-lista--com-dados");
+      renderTotaisEndividamentoLista([], []);
       return;
     }
     wrap?.classList.add("fin-ceo-desp-lista--com-dados");
@@ -1418,9 +1483,11 @@
     if (!linhas.length) {
       body.innerHTML =
         '<tr><td colspan="8" class="fin-ceo-desp-lista__vazia subtext">Nenhum lançamento corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho.</td></tr>';
+      renderTotaisEndividamentoLista([], linhasBase);
       return;
     }
     body.innerHTML = linhas.map(renderListaDespesaRowHtml).join("");
+    renderTotaisEndividamentoLista(linhas, linhasBase);
   }
 
   function renderCadastroDespesas() {
