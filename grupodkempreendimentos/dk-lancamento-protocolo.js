@@ -331,6 +331,9 @@
     };
     const comentarioPagamento = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
+    if (raw.fonteAzul === true || String(raw.corFonte || "").trim().toLowerCase() === "azul") {
+      row.fonteAzul = true;
+    }
     if (ehDevolucao) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
     if (!ehDevolucao && hasMeios) {
       row.valorEspecie = valorEspecie;
@@ -612,6 +615,8 @@
         const protoAttr = esc(protoGerado || "");
         const quem = esc(x.registradoPorNome || x.registradoPorCpf || "—");
         const fict = x.ficticio ? ' <span class="portal-lanc-ficticio-tag">(teste)</span>' : "";
+        const fonteAzul =
+          x.fonteAzul === true || String(x.corFonte || "").trim().toLowerCase() === "azul";
         const ehDev = lancamentoEhDevolucaoInvestimento(x);
         const tipoHtml = ehDev
           ? `<td><span class="portal-lanc-hist__tipo portal-lanc-hist__tipo--devolucao">Devolução invest.</span></td>`
@@ -632,7 +637,10 @@
         const actions = owner
           ? `<td class="portal-lanc-hist__actions"><button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-edit="${protoAttr}">Editar</button> <button type="button" class="btn-primary btn-secondary-outline" data-lanc-aluguel-del="${protoAttr}">Apagar</button></td>`
           : "";
-        return `<tr${x.ficticio ? ' class="portal-registro-teste"' : ""}><td>${proto}</td>${tipoHtml}<td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
+        const trCls = [x.ficticio ? "portal-registro-teste" : "", fonteAzul ? "portal-lanc-fonte-azul" : ""]
+          .filter(Boolean)
+          .join(" ");
+        return `<tr${trCls ? ` class="${trCls}"` : ""}><td>${proto}</td>${tipoHtml}<td>${esc(x.data)}</td>${valorHtml}<td>${quem}</td><td>${esc(formatHoraMs(x.createdAt))}</td>${actions}</tr>`;
       })
       .join("");
     return `<p class="subtext"><strong>Lançamentos registados (${arr.length})</strong></p><table class="portal-lanc-hist">${thead}<tbody>${rows}</tbody></table>`;
@@ -662,6 +670,9 @@
   window.__DK_mergePagamentosAuditoria = mergePagamentosAuditoria;
   window.__DK_purgeGlobalLancamentoKeysOficial = purgeGlobalLancamentoKeysOficial;
   window.__DK_sanitizeCloudPayloadLancamentosOficial = sanitizeCloudPayloadLancamentosOficial;
+  window.__DK_lancamentoFonteAzul = function lancamentoFonteAzul(x) {
+    return Boolean(x && (x.fonteAzul === true || String(x.corFonte || "").trim().toLowerCase() === "azul"));
+  };
 
   if (isOficialDeploy()) {
     const runPurge = () => purgeGlobalLancamentoKeysOficial();

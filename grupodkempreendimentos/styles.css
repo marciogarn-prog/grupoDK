@@ -3592,6 +3592,11 @@ body {
   font-weight: 600;
 }
 
+.portal-lanc-hist tr.portal-lanc-fonte-azul td {
+  color: #1565c0;
+  font-weight: 600;
+}
+
 .portal-lanc-hist__actions {
   white-space: normal;
 }

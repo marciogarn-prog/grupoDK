@@ -422,6 +422,7 @@
           origemComprovanteClienteId: String(x.origemComprovanteClienteId || "").trim(),
           comprovanteFp: String(x.comprovanteFp || "").trim(),
           registradoPorNome: String(x.registradoPorNome || "").trim(),
+          fonteAzul: Boolean(x.fonteAzul === true || String(x.corFonte || "").trim().toLowerCase() === "azul"),
         });
       });
     };
@@ -1000,7 +1001,12 @@
             : "Confirmado pela DK",
         data: p.data,
         valor: p.valor,
-        extraClass: p.confirmadoViaAppCliente ? "cliente-pagamento-row--envio" : "",
+        extraClass: [
+          p.confirmadoViaAppCliente ? "cliente-pagamento-row--envio" : "",
+          p.fonteAzul ? "cliente-pagamento-row--fonte-azul" : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
       });
     });
     listComprovantesCliente(cpf)
@@ -1648,7 +1654,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-convite", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260901lanc-azul-3108", {
         scope: "/",
         updateViaCache: "none",
       });

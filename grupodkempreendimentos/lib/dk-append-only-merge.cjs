@@ -210,6 +210,9 @@ function mergePortalLancamentosAluguelEmbutidos(arrays) {
       if (raw.confirmadoViaAppCliente) row.confirmadoViaAppCliente = true;
       const coment = String(raw.comentarioPagamento || raw.comentario || "").trim().slice(0, 500);
       if (coment) row.comentarioPagamento = coment;
+      if (raw.fonteAzul === true || String(raw.corFonte || "").trim().toLowerCase() === "azul") {
+        row.fonteAzul = true;
+      }
       byKey.set(key, row);
     }
   }

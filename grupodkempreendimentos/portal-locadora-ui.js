@@ -12184,6 +12184,7 @@
             codigoUsuario,
             horaLancamento,
             comentario: String(lan.comentarioPagamento || lan.comentario || "").trim(),
+            fonteAzul: portalLancamentoFonteAzul(lan),
           });
         }
       }
@@ -12295,8 +12296,12 @@
           .map((line) => `<p class="meta"><strong>${eh(line)}</strong></p>`)
           .join("");
         const headCells = headersPdf.map((h) => `<th>${eh(h)}</th>`).join("");
-        const bodyCells = rowsPdf
-          .map((row) => `<tr>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`)
+        const bodyCells = collected
+          .map((r, i) => {
+            const row = rowsPdf[i] || [];
+            const trCls = r.fonteAzul ? ' class="portal-lanc-fonte-azul"' : "";
+            return `<tr${trCls}>${row.map((c) => `<td>${c}</td>`).join("")}</tr>`;
+          })
           .join("");
         const jsonEsc = JSON.stringify(reciboPayloadById).replace(/</g, "\\u003c");
         return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>${eh(titulo)}</title><style>
@@ -12307,6 +12312,7 @@
       th,td{border:1px solid #333;padding:5px 7px;text-align:left}
       th{background:#eee;font-weight:600}
       .portal-recibo-link{color:#0d47a1;text-decoration:underline;cursor:pointer;font-weight:600}
+      .portal-lanc-fonte-azul td{color:#1565c0 !important;font-weight:600}
     </style></head><body>
       <h1>${eh(titulo)}</h1>
       ${extraMeta}
@@ -16497,7 +16503,19 @@
     if (x.confirmadoViaAppCliente) out.confirmadoViaAppCliente = true;
     const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
     if (comentarioPagamento) out.comentarioPagamento = comentarioPagamento;
+    if (x.fonteAzul === true || String(x.corFonte || "").trim().toLowerCase() === "azul") {
+      out.fonteAzul = true;
+    }
     return out;
+  }
+
+  function portalLancamentoFonteAzul(x) {
+    if (typeof window.__DK_lancamentoFonteAzul === "function") return window.__DK_lancamentoFonteAzul(x);
+    return Boolean(x && (x.fonteAzul === true || String(x.corFonte || "").trim().toLowerCase() === "azul"));
+  }
+
+  function portalLancamentoTrAttr(lan) {
+    return portalLancamentoFonteAzul(lan) ? ' class="portal-lanc-fonte-azul"' : "";
   }
 
   /** Sessão equipa no momento do lançamento (para relatório / auditoria). */
@@ -16886,7 +16904,7 @@
               ? currencyBRL(lan.valor)
               : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
           const coment = String(lan.comentarioPagamento || lan.comentario || "").trim() || "—";
-          body += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(coment)}</td><td>${eh(
+          body += `<tr${portalLancamentoTrAttr(lan)}><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(coment)}</td><td>${eh(
             portalFormatOperadorNomeXxx(lan.registradoPorNome || lan.registradoPorLabel, lan.registradoPorCpf) ||
               String(lan.registradoPorLabel || lan.registradoPorNome || lan.registradoPorCpf || "—")
           )}</td></tr>`;
@@ -16940,6 +16958,7 @@
       table.resumo .lbl{font-size:10px;color:#555;display:block;margin-bottom:3px}
       table.resumo .val{font-size:12px;font-weight:600}
       table.resumo .val.neg{color:#b71c1c}
+      .portal-lanc-fonte-azul td{color:#1565c0 !important;font-weight:600}
       table.validados-app{margin-top:0.75rem}
       table.validados-app .lnk-comprovante{color:#1565c0;font-weight:600;text-decoration:underline;cursor:pointer;background:none;border:none;padding:0;font:inherit}
       table.validados-app .btn-invalidate-pagamento{font-size:11px;padding:4px 8px;border:1px solid #b71c1c;color:#b71c1c;background:#fff;border-radius:4px;cursor:pointer;white-space:nowrap}
@@ -17054,7 +17073,7 @@
               ? currencyBRL(lan.valor)
               : Number(lan.valor || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
           const coment = String(lan.comentarioPagamento || lan.comentario || "").trim() || "—";
-          blocks += `<tr><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(coment)}</td><td>${eh(
+          blocks += `<tr${portalLancamentoTrAttr(lan)}><td>${eh(String(lan.protocoloLancamento || "—"))}</td><td>${eh(String(lan.data || ""))}</td><td>${eh(vf)}</td><td>${eh(coment)}</td><td>${eh(
             portalFormatOperadorNomeXxx(lan.registradoPorNome || lan.registradoPorLabel, lan.registradoPorCpf) ||
               String(lan.registradoPorLabel || lan.registradoPorNome || lan.registradoPorCpf || "—")
           )}</td></tr>`;
@@ -17091,6 +17110,7 @@
       th{font-weight:700;background:#efefef}
       .meta-key{font-weight:700;background:#efefef}
       h3{font-size:14px;margin:12px 0 6px}
+      .portal-lanc-fonte-azul td{color:#1565c0 !important;font-weight:700}
     </style></head><body>${blocks}</body></html>`;
   }
 
@@ -18596,6 +18616,7 @@
       if (v.ficticio) base.ficticio = true;
       const comentarioPagamento = String(v.comentarioPagamento || v.comentario || "").trim().slice(0, 500);
       if (comentarioPagamento) base.comentarioPagamento = comentarioPagamento;
+      if (portalLancamentoFonteAzul(v)) base.fonteAzul = true;
       if (portalLancamentoEhDevolucaoInvestimento(v)) base.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
       return base;
     });
@@ -18628,6 +18649,7 @@
       }
       const comentarioPagamento = String(x.comentarioPagamento || x.comentario || "").trim().slice(0, 500);
       if (comentarioPagamento) row.comentarioPagamento = comentarioPagamento;
+      if (portalLancamentoFonteAzul(x)) row.fonteAzul = true;
       if (portalLancamentoEhDevolucaoInvestimento(x)) row.tipoMovimento = PORTAL_LANC_TIPO_DEVOLUCAO_INVESTIMENTO;
       return row;
     });
