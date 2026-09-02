@@ -137,12 +137,13 @@
     const out = [];
     if (desp.periodic) {
       if (desp.valor <= 0) return out;
+      // Âncora: data do 1º evento; cada repetição cai no mesmo dia do mês seguinte.
       let dt = startOfDay(desp.dataEvento);
       for (let i = 0; i < desp.repeticoes; i += 1) {
         if (dt >= inicioHorizonte && dt <= fimHorizonte) {
           out.push({ data: new Date(dt), valor: desp.valor, categoria: desp.categoria, subcategoria: desp.subcategoria });
         }
-        dt = addMonths(dt, 1);
+        if (i < desp.repeticoes - 1) dt = addMonths(dt, 1);
         if (dt > fimHorizonte) break;
       }
     } else {
@@ -449,7 +450,7 @@
       .map((d) => {
         const cat = CATEGORIAS.find((c) => c.id === d.categoria)?.label || d.categoria;
         const det = d.periodic
-          ? `${brl(d.valor)} · ${d.repeticoes}× mensal · início ${fmtBrDate(d.dataEvento)}`
+          ? `${brl(d.valor)} · ${d.repeticoes}× mensal · 1º evento ${fmtBrDate(d.dataEvento)} (mesmo dia nos meses seguintes)`
           : `${d.parcelas.length} parcela(s) avulsa(s)`;
         return `<tr data-ceo-desp-id="${esc(d.id)}">
           <td>${esc(cat)}</td>
@@ -467,6 +468,11 @@
     renderParcelasAvulsas();
     togglePeriodicUi();
     renderListaDespesas();
+    const dt = document.getElementById("finCeoDespDataEvento");
+    if (dt && !String(dt.value || "").trim()) dt.value = fmtBrDate(new Date());
+    if (typeof window.bindDateMasksInContainer === "function") {
+      window.bindDateMasksInContainer(document.getElementById("finCeoCamposPeriodico") || panel);
+    }
   }
 
   function salvarDespesaForm(ev) {
@@ -495,7 +501,7 @@
         return;
       }
       if (!dataEvento) {
-        if (fb) fb.textContent = "Informe a data do evento (DD/MM/AAAA).";
+        if (fb) fb.textContent = "Informe a data do primeiro evento (DD/MM/AAAA).";
         return;
       }
       entry = normalizeDespesa({ categoria, subcategoria, periodic: true, valor, repeticoes, dataEvento });

@@ -2885,7 +2885,7 @@
                 <label class="portal-field fin-ceo-desp-field-periodico">
                   <span>Periódico?</span>
                   <select id="finCeoDespPeriodico">
-                    <option value="sim">Sim — repetições mensais</option>
+                    <option value="sim">Sim — repetições mensais (mesmo dia)</option>
                     <option value="nao">Não — parcelas em dias/meses específicos</option>
                   </select>
                 </label>
@@ -2898,7 +2898,11 @@
                   <div class="fin-ceo-campos-grid">
                     <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" inputmode="decimal" placeholder="0,00"></label>
                     <label class="portal-field"><span>Nº repetições</span><input type="number" id="finCeoDespRepeticoes" min="1" max="360" value="12"></label>
-                    <label class="portal-field"><span>Data do evento</span><input type="text" id="finCeoDespDataEvento" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA"></label>
+                    <label class="portal-field portal-field--wide">
+                      <span>Data do primeiro evento</span>
+                      <input type="text" id="finCeoDespDataEvento" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
+                      <span class="subtext">As repetições mensais ocorrem no <strong>mesmo dia</strong> nos meses seguintes (ex.: 06/09/2026 → 06/10, 06/11…).</span>
+                    </label>
                   </div>
                 </div>
                 <div id="finCeoCamposAvulso" class="portal-field portal-field--wide fin-ceo-campos-avulso hidden">
@@ -3404,7 +3408,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260831fin-ceo-win" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-primeiro-evento" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
