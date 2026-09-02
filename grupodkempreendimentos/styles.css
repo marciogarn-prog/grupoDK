@@ -10222,6 +10222,24 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #ffd54f;
 }
 
+#finCeoDespesasTable.fin-table--excel-cols .fin-excel-th {
+  white-space: nowrap;
+  vertical-align: middle;
+  padding-right: 0.25rem;
+}
+
+#finCeoDespesasTable.fin-table--excel-cols .fin-excel-th__label {
+  margin-right: 0.15rem;
+}
+
+#finCeoDespesasTable.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label {
+  color: #ffd54f;
+}
+
+.fin-ceo-desp-lista__col-acoes {
+  min-width: 11rem;
+}
+
 .view--fin-ceo .fin-ceo-kpis {
   display: flex;
   flex-wrap: wrap;

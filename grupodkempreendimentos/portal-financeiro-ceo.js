@@ -1220,48 +1220,84 @@
     return { list: replacement, ok: true, savedId };
   }
 
+  function ceoListaLinhaFromPagamento(d, p, tipo, desc, primeiro) {
+    return {
+      pagamento: p.numero,
+      pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}`,
+      data: p.data,
+      dataLabel: fmtBrDate(p.data),
+      valor: p.valor,
+      valorLabel: brl(p.valor),
+      categoria: labelCategoria(d.categoria),
+      rubrica: tipo,
+      detalhe: desc,
+      _d: d,
+      _p: p,
+      _primeiro: primeiro,
+    };
+  }
+
+  function coletarLinhasExcelListaDespesas() {
+    const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
+    const rows = [];
+    list.forEach((d) => {
+      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
+      const { tipo, desc } = detalheDespesaLista(d);
+      pagos.forEach((p, idx) => {
+        rows.push(ceoListaLinhaFromPagamento(d, p, tipo, desc, idx === 0));
+      });
+    });
+    return rows;
+  }
+
+  function renderListaDespesaRowHtml(row) {
+    const d = row._d;
+    const p = row._p;
+    const primeiro = row._primeiro;
+    const excluir = primeiro
+      ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button>`
+      : "";
+    const acoes = `<div class="fin-ceo-desp-row-acoes">
+          <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-evento" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR EVENTO</button>
+          <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
+          ${excluir}
+        </div>`;
+    return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
+          <td><strong>${esc(row.pagamentoLabel)}</strong></td>
+          <td>${esc(row.dataLabel)}</td>
+          <td>${esc(row.valorLabel)}</td>
+          <td>${esc(row.categoria)}</td>
+          <td>${esc(row.rubrica)}</td>
+          <td>${esc(row.detalhe)}</td>
+          <td>${acoes}</td>
+        </tr>`;
+  }
+
   function renderListaDespesas() {
+    fecharCeoPagExcelFiltroPopup();
+    ensureCeoPagExcelBound();
     const body = document.getElementById("finCeoDespesasBody");
+    const head = document.getElementById("finCeoDespesasHead");
     const wrap = document.getElementById("finCeoDespesasTableWrap");
     if (!body) return;
-    const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
-    if (!list.length) {
+
+    if (head) head.innerHTML = `<tr>${buildCeoListaHeadHtml()}</tr>`;
+
+    const linhasBase = coletarLinhasExcelListaDespesas();
+    if (!linhasBase.length) {
       body.innerHTML =
         '<tr><td colspan="7" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
       wrap?.classList.remove("fin-ceo-desp-lista--com-dados");
       return;
     }
     wrap?.classList.add("fin-ceo-desp-lista--com-dados");
-    const rows = [];
-    list.forEach((d) => {
-      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
-      const { tipo, desc } = detalheDespesaLista(d);
-      pagos.forEach((p, idx) => {
-        rows.push({ d, p, tipo, desc, primeiro: idx === 0 });
-      });
-    });
-    body.innerHTML = rows
-      .map(({ d, p, tipo, desc, primeiro }) => {
-        const rotulo = `PAGAMENTO ${String(p.numero).padStart(2, "0")}`;
-        const excluir = primeiro
-          ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button>`
-          : "";
-        const acoes = `<div class="fin-ceo-desp-row-acoes">
-          <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-evento" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR EVENTO</button>
-          <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
-          ${excluir}
-        </div>`;
-        return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
-          <td><strong>${esc(rotulo)}</strong></td>
-          <td>${esc(fmtBrDate(p.data))}</td>
-          <td>${esc(brl(p.valor))}</td>
-          <td>${esc(labelCategoria(d.categoria))}</td>
-          <td>${esc(tipo)}</td>
-          <td>${esc(desc)}</td>
-          <td>${acoes}</td>
-        </tr>`;
-      })
-      .join("");
+    const linhas = aplicarCeoPagExcelFiltroSort(linhasBase, ceoListaExcelState);
+    if (!linhas.length) {
+      body.innerHTML =
+        '<tr><td colspan="7" class="fin-ceo-desp-lista__vazia subtext">Nenhum lançamento corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho.</td></tr>';
+      return;
+    }
+    body.innerHTML = linhas.map(renderListaDespesaRowHtml).join("");
   }
 
   function renderCadastroDespesas() {
@@ -1578,7 +1614,7 @@
       .toLowerCase();
   }
 
-  const CEO_REL_COLS = [
+  const CEO_PAG_COLS = [
     { key: "pagamento", label: "Pagamento", type: "num" },
     { key: "data", label: "Data", type: "date" },
     { key: "valor", label: "Valor", type: "num" },
@@ -1586,14 +1622,20 @@
     { key: "rubrica", label: "Rubrica / Tipo", type: "text" },
     { key: "detalhe", label: "Detalhe", type: "text" },
   ];
+  const CEO_REL_COLS = CEO_PAG_COLS;
 
   let ceoRelExcelState = {
     sortKey: "data",
     sortDir: "desc",
     cols: {},
   };
-  let ceoRelExcelOpenKey = "";
-  let ceoRelExcelBoundDoc = false;
+  let ceoListaExcelState = {
+    sortKey: "data",
+    sortDir: "desc",
+    cols: {},
+  };
+  const ceoPagExcelOpen = { rel: "", lista: "" };
+  let ceoPagExcelBoundDoc = false;
 
   function resetCeoRelExcelFiltros() {
     ceoRelExcelState.cols = {};
@@ -1616,7 +1658,7 @@
   }
 
   function ceoRelCellDisplay(row, key) {
-    const col = CEO_REL_COLS.find((c) => c.key === key);
+    const col = CEO_PAG_COLS.find((c) => c.key === key);
     if (!col) return "";
     if (key === "pagamento") return row.pagamentoLabel;
     if (key === "data") return row.dataLabel;
@@ -1625,14 +1667,22 @@
   }
 
   function ceoRelCellSortValue(row, key) {
-    const col = CEO_REL_COLS.find((c) => c.key === key);
+    const col = CEO_PAG_COLS.find((c) => c.key === key);
     if (col?.type === "num") return Number(row[key]) || 0;
     if (col?.type === "date") return row.data?.getTime() || 0;
     return nkRel(String(row[key] ?? ""));
   }
 
+  function ceoPagColFilterActive(state, key) {
+    return state.cols[key] instanceof Set;
+  }
+
   function ceoRelColFilterActive(key) {
-    return ceoRelExcelState.cols[key] instanceof Set;
+    return ceoPagColFilterActive(ceoRelExcelState, key);
+  }
+
+  function ceoListaColFilterActive(key) {
+    return ceoPagColFilterActive(ceoListaExcelState, key);
   }
 
   function ceoRelSortLabels(col) {
@@ -1641,15 +1691,15 @@
     return { asc: "↑ Ordenar A a Z", desc: "↓ Ordenar Z a A" };
   }
 
-  function aplicarCeoRelExcelFiltroSort(rows) {
+  function aplicarCeoPagExcelFiltroSort(rows, state) {
     let out = (rows || []).slice();
-    CEO_REL_COLS.forEach((col) => {
-      const set = ceoRelExcelState.cols[col.key];
+    CEO_PAG_COLS.forEach((col) => {
+      const set = state.cols[col.key];
       if (!(set instanceof Set)) return;
       out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key)));
     });
-    const sk = ceoRelExcelState.sortKey || "data";
-    const dir = ceoRelExcelState.sortDir === "desc" ? -1 : 1;
+    const sk = state.sortKey || "data";
+    const dir = state.sortDir === "desc" ? -1 : 1;
     out.sort((a, b) => {
       const va = ceoRelCellSortValue(a, sk);
       const vb = ceoRelCellSortValue(b, sk);
@@ -1667,7 +1717,11 @@
     return out;
   }
 
-  function ceoRelValoresUnicosColuna(rows, key) {
+  function aplicarCeoRelExcelFiltroSort(rows) {
+    return aplicarCeoPagExcelFiltroSort(rows, ceoRelExcelState);
+  }
+
+  function ceoPagValoresUnicosColuna(rows, key) {
     const map = new Map();
     (rows || []).forEach((r) => {
       const label = ceoRelCellDisplay(r, key);
@@ -1675,39 +1729,52 @@
     });
     return Array.from(map.entries())
       .sort((a, b) => {
-        const col = CEO_REL_COLS.find((c) => c.key === key);
+        const col = CEO_PAG_COLS.find((c) => c.key === key);
         if (col?.type === "num" || col?.type === "date") return (Number(a[1]) || 0) - (Number(b[1]) || 0);
         return String(a[0]).localeCompare(String(b[0]), "pt-BR");
       })
       .map(([label]) => label);
   }
 
-  function fecharCeoRelExcelFiltroPopup() {
-    ceoRelExcelOpenKey = "";
+  function ceoRelValoresUnicosColuna(rows, key) {
+    return ceoPagValoresUnicosColuna(rows, key);
+  }
+
+  function fecharCeoPagExcelFiltroPopup() {
+    ceoPagExcelOpen.rel = "";
+    ceoPagExcelOpen.lista = "";
     document.querySelectorAll(".fin-excel-filter-pop").forEach((el) => el.remove());
     document.querySelectorAll(".fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
   }
 
-  function ceoRelLinhasBaseAntesDaColuna(openKey, rows) {
+  function fecharCeoRelExcelFiltroPopup() {
+    fecharCeoPagExcelFiltroPopup();
+  }
+
+  function ceoPagLinhasBaseAntesDaColuna(openKey, rows, state) {
     let out = (rows || []).slice();
-    CEO_REL_COLS.forEach((col) => {
+    CEO_PAG_COLS.forEach((col) => {
       if (col.key === openKey) return;
-      const set = ceoRelExcelState.cols[col.key];
+      const set = state.cols[col.key];
       if (!(set instanceof Set)) return;
       out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key)));
     });
     return out;
   }
 
-  function abrirCeoRelExcelFiltroPopup(btn, key, rows) {
-    fecharCeoRelExcelFiltroPopup();
-    const col = CEO_REL_COLS.find((c) => c.key === key);
+  function ceoRelLinhasBaseAntesDaColuna(openKey, rows) {
+    return ceoPagLinhasBaseAntesDaColuna(openKey, rows, ceoRelExcelState);
+  }
+
+  function abrirCeoPagExcelFiltroPopup(scope, btn, key, rows, state, onRerender) {
+    fecharCeoPagExcelFiltroPopup();
+    const col = CEO_PAG_COLS.find((c) => c.key === key);
     if (!col || !btn) return;
-    ceoRelExcelOpenKey = key;
+    ceoPagExcelOpen[scope] = key;
     btn.classList.add("is-open");
-    const baseRows = ceoRelLinhasBaseAntesDaColuna(key, rows);
-    const uniques = ceoRelValoresUnicosColuna(baseRows, key);
-    const selected = ceoRelExcelState.cols[key];
+    const baseRows = ceoPagLinhasBaseAntesDaColuna(key, rows, state);
+    const uniques = ceoPagValoresUnicosColuna(baseRows, key);
+    const selected = state.cols[key];
     const isAll = !(selected instanceof Set);
     const sortLbl = ceoRelSortLabels(col);
     const pop = document.createElement("div");
@@ -1753,8 +1820,8 @@
     });
 
     const rerender = () => {
-      fecharCeoRelExcelFiltroPopup();
-      aplicarRelatorio();
+      fecharCeoPagExcelFiltroPopup();
+      onRerender();
     };
 
     const search = pop.querySelector("[data-excel-search]");
@@ -1781,13 +1848,13 @@
     });
     pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
     pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
-      ceoRelExcelState.sortKey = key;
-      ceoRelExcelState.sortDir = "asc";
+      state.sortKey = key;
+      state.sortDir = "asc";
       rerender();
     });
     pop.querySelector("[data-excel-sort='desc']")?.addEventListener("click", () => {
-      ceoRelExcelState.sortKey = key;
-      ceoRelExcelState.sortDir = "desc";
+      state.sortKey = key;
+      state.sortDir = "desc";
       rerender();
     });
     pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
@@ -1799,72 +1866,111 @@
         .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
         .filter((v) => v != null);
       if (!checked.length || checked.length === pool.length) {
-        delete ceoRelExcelState.cols[key];
+        delete state.cols[key];
       } else {
-        ceoRelExcelState.cols[key] = new Set(checked);
+        state.cols[key] = new Set(checked);
       }
       rerender();
     });
-    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharCeoRelExcelFiltroPopup());
+    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharCeoPagExcelFiltroPopup());
     pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
-      delete ceoRelExcelState.cols[key];
-      if (ceoRelExcelState.sortKey === key) {
-        ceoRelExcelState.sortKey = "data";
-        ceoRelExcelState.sortDir = "desc";
+      delete state.cols[key];
+      if (state.sortKey === key) {
+        state.sortKey = "data";
+        state.sortDir = "desc";
       }
       rerender();
     });
     search?.focus();
   }
 
-  function buildCeoRelHeadHtml() {
-    return CEO_REL_COLS.map((col) => {
-      const active = ceoRelColFilterActive(col.key) || ceoRelExcelState.sortKey === col.key;
+  function abrirCeoRelExcelFiltroPopup(btn, key, rows) {
+    abrirCeoPagExcelFiltroPopup("rel", btn, key, rows, ceoRelExcelState, aplicarRelatorio);
+  }
+
+  function buildCeoPagHeadHtml(state, colAttr, colFilterFn) {
+    return CEO_PAG_COLS.map((col) => {
+      const active = colFilterFn(col.key) || state.sortKey === col.key;
       return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
         <span class="fin-excel-th__label">${esc(col.label)}</span>
-        <button type="button" class="fin-excel-filter-btn${ceoRelColFilterActive(col.key) ? " is-filtered" : ""}" data-ceo-rel-excel-col="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
+        <button type="button" class="fin-excel-filter-btn${colFilterFn(col.key) ? " is-filtered" : ""}" ${colAttr}="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
       </th>`;
     }).join("");
   }
 
-  function bindCeoRelExcelFiltros(rowsProvider) {
-    const pane = document.getElementById("finCeoPaneRelatorio");
-    pane?.addEventListener("click", (e) => {
+  function buildCeoRelHeadHtml() {
+    return buildCeoPagHeadHtml(ceoRelExcelState, "data-ceo-rel-excel-col", ceoRelColFilterActive);
+  }
+
+  function buildCeoListaHeadHtml() {
+    return (
+      buildCeoPagHeadHtml(ceoListaExcelState, "data-ceo-lista-excel-col", ceoListaColFilterActive) +
+      '<th class="fin-ceo-desp-lista__col-acoes" scope="col"><span class="fin-excel-th__label">Ações</span></th>'
+    );
+  }
+
+  function bindCeoPagExcelFiltros() {
+    const paneRel = document.getElementById("finCeoPaneRelatorio");
+    paneRel?.addEventListener("click", (e) => {
       const btn = e.target?.closest?.("[data-ceo-rel-excel-col]");
-      if (!btn || !pane.contains(btn)) return;
+      if (!btn || !paneRel.contains(btn)) return;
       e.preventDefault();
       e.stopPropagation();
       const key = btn.getAttribute("data-ceo-rel-excel-col") || "";
-      if (ceoRelExcelOpenKey === key) {
-        fecharCeoRelExcelFiltroPopup();
+      if (ceoPagExcelOpen.rel === key) {
+        fecharCeoPagExcelFiltroPopup();
         return;
       }
-      abrirCeoRelExcelFiltroPopup(btn, key, rowsProvider());
+      const despesas = filtrarDespesasRelatorio();
+      abrirCeoRelExcelFiltroPopup(
+        btn,
+        key,
+        montarPagamentosRelatorio(despesas).map(ceoRelLinhaFromPagamento)
+      );
     });
-    if (!ceoRelExcelBoundDoc) {
-      ceoRelExcelBoundDoc = true;
+
+    const paneLista = document.getElementById("finCeoPaneDespesas");
+    paneLista?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-ceo-lista-excel-col]");
+      if (!btn || !paneLista.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-ceo-lista-excel-col") || "";
+      if (ceoPagExcelOpen.lista === key) {
+        fecharCeoPagExcelFiltroPopup();
+        return;
+      }
+      abrirCeoPagExcelFiltroPopup("lista", btn, key, coletarLinhasExcelListaDespesas(), ceoListaExcelState, renderListaDespesas);
+    });
+
+    if (!ceoPagExcelBoundDoc) {
+      ceoPagExcelBoundDoc = true;
       document.addEventListener("mousedown", (e) => {
-        if (!ceoRelExcelOpenKey) return;
+        if (!ceoPagExcelOpen.rel && !ceoPagExcelOpen.lista) return;
         const pop = document.querySelector(".fin-excel-filter-pop");
         const t = e.target;
         if (pop?.contains(t)) return;
         if (t?.closest?.("[data-ceo-rel-excel-col]")) return;
-        fecharCeoRelExcelFiltroPopup();
+        if (t?.closest?.("[data-ceo-lista-excel-col]")) return;
+        fecharCeoPagExcelFiltroPopup();
       });
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && ceoRelExcelOpenKey) fecharCeoRelExcelFiltroPopup();
+        if (e.key === "Escape" && (ceoPagExcelOpen.rel || ceoPagExcelOpen.lista)) fecharCeoPagExcelFiltroPopup();
       });
     }
   }
 
+  let ceoPagExcelBound = false;
+  function ensureCeoPagExcelBound() {
+    if (ceoPagExcelBound) return;
+    ceoPagExcelBound = true;
+    bindCeoPagExcelFiltros();
+  }
+
   let ceoRelExcelPaneBound = false;
   function ensureCeoRelExcelPaneBound() {
-    if (ceoRelExcelPaneBound) return;
+    ensureCeoPagExcelBound();
     ceoRelExcelPaneBound = true;
-    bindCeoRelExcelFiltros(() => {
-      const despesas = filtrarDespesasRelatorio();
-      return montarPagamentosRelatorio(despesas).map(ceoRelLinhaFromPagamento);
-    });
   }
 
   function renderRelatorioTipoSelect() {
@@ -1919,7 +2025,7 @@
     if (head) head.innerHTML = `<tr>${buildCeoRelHeadHtml()}</tr>`;
 
     const totalPagamentos = linhas.reduce((s, r) => s + r.valor, 0);
-    const colFiltroAtivo = CEO_REL_COLS.some((c) => ceoRelColFilterActive(c.key));
+    const colFiltroAtivo = CEO_PAG_COLS.some((c) => ceoRelColFilterActive(c.key));
     const resumoFiltroCol = colFiltroAtivo && linhasBase.length !== linhas.length ? ` · ${linhas.length} de ${linhasBase.length} após filtro das colunas` : "";
 
     if (resumo) {
@@ -1940,7 +2046,7 @@
       return;
     }
     if (!linhas.length) {
-      body.innerHTML = `<tr><td colspan="${CEO_REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>`;
+      body.innerHTML = `<tr><td colspan="${CEO_PAG_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>`;
       vazia?.classList.add("hidden");
       return;
     }

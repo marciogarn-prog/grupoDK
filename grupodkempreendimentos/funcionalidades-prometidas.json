@@ -141,6 +141,25 @@
       }
     },
     {
+      "id": "fin-ceo-lista-filtro-excel",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada coluna da tabela tem filtro estilo Excel (▾) com ordenação e seleção de valores, igual ao Relatório de despesas.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "data-ceo-lista-excel-col",
+          "buildCeoListaHeadHtml",
+          "coletarLinhasExcelListaDespesas",
+          "ceoListaExcelState"
+        ],
+        "index.html": [
+          "finCeoDespesasHead",
+          "finCeoDespesasTable"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-lista__col-acoes"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-painel-anos-grafico",
       "descricao": "No FINANCEIRO CEO → Painel executivo: botões 2026–2030 para incluir ou retirar anos dos gráficos Saldo mês a mês e Saldo acumulado (combinações livres; pelo menos um ano activo).",
       "ficheiros": {
