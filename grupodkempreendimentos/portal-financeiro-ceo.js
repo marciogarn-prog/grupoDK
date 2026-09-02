@@ -573,7 +573,7 @@
     marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data);
     fecharModalConfirmPagoDespesa();
     renderListaDespesas();
-    if (paneAberto === "dashboard") renderResumoPeriodoCeo();
+    if (paneAberto === "dashboard" || paneAberto === "periodo") renderResumoPeriodoCeo();
   }
 
   function bindCalendariosCeo(root) {
@@ -2554,6 +2554,11 @@
     if (id === "dashboard") {
       bindMascarasCeo(document.getElementById("finCeoPaneDashboard"));
       renderDashboard();
+    }
+    if (id === "periodo") {
+      bindMascarasCeo(document.getElementById("finCeoPanePeriodo"));
+      bindCalendariosCeo(document.getElementById("finCeoPanePeriodo"));
+      renderResumoPeriodoCeo();
     }
     if (id === "despesas") renderCadastroDespesas();
     if (id === "relatorio") renderRelatorio();

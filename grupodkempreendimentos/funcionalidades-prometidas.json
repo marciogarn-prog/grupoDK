@@ -255,9 +255,15 @@
     },
     {
       "id": "fin-ceo-painel-resumo-periodo",
-      "descricao": "No FINANCEIRO CEO → Painel executivo: dois calendários (início/fim) e resumo do período com receita prevista, receita real, despesas previstas, despesas pagas, saldo previsto e saldo real.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo por período (menu abaixo do Painel executivo): Selecionar período com dois calendários (início/fim do período) e resumo com receita prevista, receita real, despesas previstas, despesas pagas, saldo previsto e saldo real.",
       "ficheiros": {
         "index.html": [
+          "btn-fin-ceo-periodo",
+          "finCeoPanePeriodo",
+          "Painel executivo por período",
+          "Selecionar período",
+          "Início do período",
+          "Fim do período",
           "finCeoPeriodoBox",
           "finCeoPeriodoInicio",
           "finCeoPeriodoFim",
@@ -272,11 +278,13 @@
           "calcResumoPeriodoCeo",
           "renderResumoPeriodoCeo",
           "obterPeriodoCeoDash",
-          "receitaRealLocadoraNoPeriodo"
+          "receitaRealLocadoraNoPeriodo",
+          "id === \"periodo\""
         ],
         "styles.css": [
           "fin-ceo-periodo",
-          "fin-ceo-periodo-kpis"
+          "fin-ceo-periodo-kpis",
+          "fin-ceo-periodo--destaque"
         ]
       }
     },

@@ -10426,6 +10426,13 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   background: rgba(10, 12, 18, 0.45);
 }
 
+.fin-ceo-periodo--destaque {
+  margin-top: 0;
+  padding: 1rem 1.05rem 1.15rem;
+  border-color: rgba(220, 38, 38, 0.42);
+  background: linear-gradient(180deg, rgba(40, 12, 14, 0.55) 0%, rgba(10, 12, 18, 0.5) 100%);
+}
+
 .fin-ceo-periodo .fin-subh {
   margin-top: 0;
 }
