@@ -551,25 +551,66 @@
     return total;
   }
 
-  /** Preparado para integração futura (módulo de previsão do Centro Automotivo). */
-  function receitaPrevistaCentroAutomotivo() {
-    return 0;
+  const UNIDADE_FIN_KEY = "dk_unidade_financeiro_v1";
+
+  function carregarUnidadeFinanceiro() {
+    const key =
+      typeof window.__DK_unidadeFinanceiroKey === "string" ? window.__DK_unidadeFinanceiroKey : UNIDADE_FIN_KEY;
+    let arr = [];
+    if (typeof window.loadCadastro === "function") {
+      try {
+        arr = window.loadCadastro(key) || [];
+      } catch {
+        arr = [];
+      }
+    } else {
+      try {
+        const raw = localStorage.getItem(key);
+        arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) arr = [];
+      } catch {
+        arr = [];
+      }
+    }
+    return arr;
   }
 
-  /** Preparado para integração futura (módulo de previsão da Construtora). */
-  function receitaPrevistaConstrutora() {
-    return 0;
+  /** Soma receitas cadastradas no mês (dk_unidade_financeiro_v1) para a unidade. */
+  function receitaPrevistaUnidadeMes(unit, ano, mes, rows) {
+    let total = 0;
+    (rows || []).forEach((r) => {
+      if (r?.unit !== unit || r?.tipo !== "receita") return;
+      const dt = parseBrDate(r.data);
+      if (!dt || dt.getFullYear() !== ano || dt.getMonth() !== mes) return;
+      total += Math.abs(parseValor(r.valor));
+    });
+    return total;
   }
 
-  function calcReceitasPorUnidade(locs) {
+  function receitaPrevistaCentroAutomotivo(ano, mes, uniRows) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    return receitaPrevistaUnidadeMes("centro", y, m, uniRows ?? carregarUnidadeFinanceiro());
+  }
+
+  function receitaPrevistaConstrutora(ano, mes, uniRows) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    return receitaPrevistaUnidadeMes("construtora", y, m, uniRows ?? carregarUnidadeFinanceiro());
+  }
+
+  function calcReceitasPorUnidade(locs, ano, mes, uniRows) {
+    const y = Number.isFinite(ano) ? ano : new Date().getFullYear();
+    const m = Number.isFinite(mes) ? mes : new Date().getMonth();
+    const rows = uniRows ?? carregarUnidadeFinanceiro();
     const locadora = receitaPrevistaLocadora(locs);
-    const centro = receitaPrevistaCentroAutomotivo();
-    const construtora = receitaPrevistaConstrutora();
+    const centro = receitaPrevistaCentroAutomotivo(y, m, rows);
+    const construtora = receitaPrevistaConstrutora(y, m, rows);
     return { locadora, centro, construtora, total: locadora + centro + construtora };
   }
 
-  function receitaPrevistaMes(_ano, _mes, locs) {
-    return calcReceitasPorUnidade(locs).total;
+  function receitaPrevistaMes(ano, mes, locs, uniRows) {
+    return calcReceitasPorUnidade(locs, ano, mes, uniRows).total;
   }
 
   function fmtPct(n) {
@@ -614,6 +655,7 @@
     const despesas = loadDespesasCeo().map(normalizeDespesa);
     const debitos = gerarTodosDebitos(despesas, inicio, fim);
     const locs = carregarLocacoes();
+    const uniRows = carregarUnidadeFinanceiro();
 
     const meses = [];
     for (let i = 0; i < HORIZONTE_MESES; i += 1) {
@@ -629,7 +671,7 @@
 
     const recPorMes = new Map();
     meses.forEach((m) => {
-      recPorMes.set(m.key, receitaPrevistaMes(m.date.getFullYear(), m.date.getMonth(), locs));
+      recPorMes.set(m.key, receitaPrevistaMes(m.date.getFullYear(), m.date.getMonth(), locs, uniRows));
     });
 
     const saldoMes = meses.map((m) => (recPorMes.get(m.key) || 0) - (debPorMes.get(m.key) || 0));
@@ -640,7 +682,7 @@
     });
 
     const endivMesAtual = debPorMes.get(monthKey(hoje)) || debPorMes.get(monthKey(inicio)) || 0;
-    const receitasUnidade = calcReceitasPorUnidade(locs);
+    const receitasUnidade = calcReceitasPorUnidade(locs, hoje.getFullYear(), hoje.getMonth(), uniRows);
     const receitaMesAtual = receitasUnidade.total;
     const taxaMesAtual = calcTaxaEndividamento(endivMesAtual, receitaMesAtual);
     const capacidadeLivre = receitaMesAtual - endivMesAtual;
@@ -1315,5 +1357,15 @@
       map.set(d.id, d);
     });
     return Array.from(map.values());
+  };
+
+  window.__DK_finCeoReceitaCalc = {
+    PROTOCOLO_TESTE_CEO,
+    locacaoExcluidaReceitaCeo,
+    valorSemanalContrato,
+    receitaPrevistaLocadora,
+    receitaPrevistaCentroAutomotivo,
+    receitaPrevistaConstrutora,
+    calcReceitasPorUnidade,
   };
 })();
