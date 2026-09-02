@@ -58,6 +58,7 @@
 
   let bound = false;
   let paneAberto = "";
+  let ultimaDespesaSalvaId = "";
 
   function esc(s) {
     return String(s ?? "")
@@ -333,13 +334,41 @@
   }
 
   function loadDespesasCeo() {
+    const map = new Map();
+    const ingest = (arr) => {
+      if (!Array.isArray(arr)) return;
+      arr.forEach((raw) => {
+        const d = normalizeDespesa(raw);
+        map.set(d.id, {
+          ...raw,
+          id: d.id,
+          categoria: d.categoria,
+          rubrica: d.rubrica,
+          tipoParticular: d.tipoParticular,
+          cartaoCredito: d.cartaoCredito,
+          descricao: d.descricao,
+          periodic: d.periodic,
+          valor: d.valor,
+          repeticoes: d.repeticoes,
+          dataEvento: d.dataEvento instanceof Date ? fmtBrDate(d.dataEvento) : raw?.dataEvento || fmtBrDate(d.dataEvento),
+          cadastradoEm: d.cadastradoEm || raw?.cadastradoEm || "",
+        });
+      });
+    };
+    if (typeof window.loadCadastro === "function") {
+      try {
+        ingest(window.loadCadastro(DESPESAS_CEO_KEY));
+      } catch {
+        /* ignore */
+      }
+    }
     try {
       const raw = localStorage.getItem(DESPESAS_CEO_KEY);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
+      ingest(raw ? JSON.parse(raw) : []);
     } catch {
-      return [];
+      /* ignore */
     }
+    return Array.from(map.values());
   }
 
   function saveDespesasCeo(list) {
@@ -803,20 +832,33 @@
     const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
     if (!list.length) {
       body.innerHTML =
-        '<tr><td colspan="5" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
+        '<tr><td colspan="7" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
       wrap?.classList.remove("fin-ceo-desp-lista--com-dados");
       return;
     }
     wrap?.classList.add("fin-ceo-desp-lista--com-dados");
-    body.innerHTML = list
-      .map((d) => {
-        const { tipo, desc, fin } = detalheDespesaLista(d);
-        return `<tr data-ceo-desp-id="${esc(d.id)}">
+    const rows = [];
+    list.forEach((d) => {
+      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
+      const { tipo, desc } = detalheDespesaLista(d);
+      pagos.forEach((p, idx) => {
+        rows.push({ d, p, tipo, desc, primeiro: idx === 0 });
+      });
+    });
+    body.innerHTML = rows
+      .map(({ d, p, tipo, desc, primeiro }) => {
+        const rotulo = `PAGAMENTO ${String(p.numero).padStart(2, "0")}`;
+        const excluir = primeiro
+          ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button>`
+          : "";
+        return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
+          <td><strong>${esc(rotulo)}</strong></td>
+          <td>${esc(fmtBrDate(p.data))}</td>
+          <td>${esc(brl(p.valor))}</td>
           <td>${esc(labelCategoria(d.categoria))}</td>
           <td>${esc(tipo)}</td>
           <td>${esc(desc)}</td>
-          <td>${esc(fin)}</td>
-          <td><button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button></td>
+          <td>${excluir}</td>
         </tr>`;
       })
       .join("");
@@ -969,8 +1011,12 @@
       cadastradoEm: entry.cadastradoEm,
       dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
     });
+    ultimaDespesaSalvaId = entry.id;
     saveDespesasCeo(list);
-    if (fb) fb.textContent = "Despesa cadastrada.";
+    const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
+    if (fb) {
+      fb.textContent = `Despesa cadastrada — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Veja na tabela abaixo.`;
+    }
     limparFormDespesa();
     renderListaDespesas();
     renderResumoCadastroDespesas();
@@ -979,14 +1025,25 @@
     document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
+  function filtroValorMonetarioAtivo(str) {
+    const s = String(str || "").trim();
+    if (!s) return false;
+    return parseValor(s) > 0;
+  }
+
   function despesaMatchesTipoFiltro(d, tipoFiltro) {
     if (!tipoFiltro) return true;
     if (tipoFiltro.startsWith("dk:")) {
-      return isCategoriaDk(d.categoria) && d.rubrica === tipoFiltro.slice(3);
+      const rub = tipoFiltro.slice(3);
+      if (isCategoriaDk(d.categoria) && d.rubrica === rub) return true;
+      if (rub === "ALUGUEL" && isParticulares(d.categoria) && inferirTipoParticularLegado(d) === "ALUGUEL") return true;
+      return false;
     }
     if (tipoFiltro.startsWith("part:")) {
-      const tp = inferirTipoParticularLegado(d);
-      return isParticulares(d.categoria) && tp === tipoFiltro.slice(5);
+      const tp = tipoFiltro.slice(5);
+      if (isParticulares(d.categoria) && inferirTipoParticularLegado(d) === tp) return true;
+      if (tp === "ALUGUEL" && isCategoriaDk(d.categoria) && d.rubrica === "ALUGUEL") return true;
+      return false;
     }
     return true;
   }
@@ -1018,18 +1075,19 @@
     const repFiltro = Math.max(0, Number(document.getElementById("finCeoRelRepeticoes")?.value) || 0);
     const vminStr = String(document.getElementById("finCeoRelValorMin")?.value || "").trim();
     const vmaxStr = String(document.getElementById("finCeoRelValorMax")?.value || "").trim();
-    const vmin = vminStr ? parseValor(vminStr) : 0;
-    const vmax = vmaxStr ? parseValor(vmaxStr) : 0;
+    const vmin = parseValor(vminStr);
+    const vmax = parseValor(vmaxStr);
     const busca = String(document.getElementById("finCeoRelBusca")?.value || "").trim().toLowerCase();
 
     return ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa)).filter((d) => {
       if (cat && d.categoria !== cat) return false;
       if (!despesaMatchesTipoFiltro(d, tipo)) return false;
       const dt = d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento);
-      if (de && dt && startOfDay(dt).getTime() !== startOfDay(de).getTime()) return false;
-      if (repFiltro > 0 && d.repeticoes !== repFiltro) return false;
-      if (vminStr && d.valor < vmin) return false;
-      if (vmaxStr && d.valor > vmax) return false;
+      if (de) {
+        if (!dt || fmtBrDate(dt) !== fmtBrDate(de)) return false;
+      }
+      if (filtroValorMonetarioAtivo(vminStr) && d.valor < vmin) return false;
+      if (filtroValorMonetarioAtivo(vmaxStr) && d.valor > vmax) return false;
       if (busca) {
         const { tipo: t, desc } = detalheDespesaLista(d);
         const blob = [labelCategoria(d.categoria), t, desc, d.descricao, d.subcategoria].join(" ").toLowerCase();
@@ -1101,7 +1159,9 @@
         ? `${pagamentos.length} pagamento(s) · ${despesas.length} lançamento(s) · total: ${brl(totalPagamentos)}`
         : despesas.length
           ? "Nenhum pagamento gerado com os filtros actuais."
-          : "Nenhum lançamento corresponde aos filtros.";
+          : loadDespesasCeo().length
+            ? "Nenhum lançamento corresponde aos filtros — clique em «Ver todos» ou «Limpar filtros»."
+            : "Nenhuma despesa cadastrada ainda — use Cadastro de despesas.";
     }
 
     if (!pagamentos.length) {
@@ -1126,7 +1186,7 @@
       .join("");
   }
 
-  function limparFiltrosRelatorio() {
+  function limparCamposFiltroRelatorio() {
     const cat = document.getElementById("finCeoRelCat");
     if (cat) cat.value = "";
     ["finCeoRelDe", "finCeoRelRepeticoes", "finCeoRelValorMin", "finCeoRelValorMax", "finCeoRelBusca"].forEach((id) => {
@@ -1134,10 +1194,64 @@
       if (el) el.value = "";
     });
     renderRelatorioTipoSelect();
+  }
+
+  function preencherRelatorioComDespesa(d) {
+    if (!d) return;
+    const cat = document.getElementById("finCeoRelCat");
+    if (cat) cat.value = d.categoria;
+    renderRelatorioTipoSelect();
+    const tipoSel = document.getElementById("finCeoRelTipo");
+    if (tipoSel) {
+      tipoSel.value = isParticulares(d.categoria)
+        ? `part:${inferirTipoParticularLegado(d)}`
+        : `dk:${d.rubrica}`;
+    }
+    const de = document.getElementById("finCeoRelDe");
+    if (de) de.value = fmtBrDate(d.dataEvento);
+    const rep = document.getElementById("finCeoRelRepeticoes");
+    if (rep) rep.value = String(d.repeticoes);
+    const vmin = document.getElementById("finCeoRelValorMin");
+    const vmax = document.getElementById("finCeoRelValorMax");
+    if (vmin) vmin.value = "";
+    if (vmax) vmax.value = "";
+  }
+
+  function abrirRelatorioComDespesa(d) {
+    paneAberto = "relatorio";
+    document.getElementById("finCeoFormPlaceholder")?.classList.add("hidden");
+    document.querySelectorAll(".fin-ceo-pane").forEach((p) => {
+      p.classList.toggle("hidden", p.getAttribute("data-ceo-pane") !== "relatorio");
+    });
+    document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((b) => {
+      const on = b.getAttribute("data-ceo-mod") === "relatorio";
+      b.classList.toggle("is-active", on);
+      b.setAttribute("aria-expanded", on ? "true" : "false");
+    });
+    renderRelatorioCategoriaSelect();
+    preencherRelatorioComDespesa(d);
+    bindMascarasCeo(document.getElementById("finCeoPaneRelatorio"));
     aplicarRelatorio();
   }
 
-  function renderRelatorio() {
+  function abrirRelatorioUltimoCadastro() {
+    const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
+    const alvo =
+      list.find((d) => d.id === ultimaDespesaSalvaId) ||
+      list[0] ||
+      null;
+    if (alvo) abrirRelatorioComDespesa(alvo);
+    else abrirPane("relatorio");
+  }
+
+  function limparFiltrosRelatorio() {
+    limparCamposFiltroRelatorio();
+    aplicarRelatorio();
+  }
+
+  function renderRelatorio(opcoes = {}) {
+    const { limparFiltros = true } = opcoes;
+    if (limparFiltros) limparCamposFiltroRelatorio();
     renderRelatorioCategoriaSelect();
     bindMascarasCeo(document.getElementById("finCeoPaneRelatorio"));
     aplicarRelatorio();
@@ -1187,7 +1301,10 @@
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespLimpar")?.addEventListener("click", limparFormDespesa);
-    document.getElementById("finCeoDespVerRelatorio")?.addEventListener("click", () => abrirPane("relatorio"));
+    document.getElementById("finCeoDespVerRelatorio")?.addEventListener("click", abrirRelatorioUltimoCadastro);
+    document.getElementById("finCeoRelVerTodos")?.addEventListener("click", () => {
+      limparFiltrosRelatorio();
+    });
     document.getElementById("finCeoRelForm")?.addEventListener("submit", aplicarRelatorio);
     document.getElementById("finCeoRelLimpar")?.addEventListener("click", limparFiltrosRelatorio);
     document.getElementById("finCeoRelCat")?.addEventListener("change", renderRelatorioTipoSelect);

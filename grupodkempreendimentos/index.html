@@ -2964,7 +2964,7 @@
               <h4 class="fin-subh">Últimos lançamentos <span class="subtext">(mais recente no topo)</span></h4>
               <div class="fin-table-wrap fin-ceo-desp-lista" id="finCeoDespesasTableWrap">
                 <table class="fin-table fin-ceo-desp-lista__table" id="finCeoDespesasTable">
-                  <thead><tr><th>Categoria</th><th>Rubrica / Tipo</th><th>Detalhe</th><th>Compromisso</th><th></th></tr></thead>
+                  <thead><tr><th>Pagamento</th><th>Data</th><th>Valor</th><th>Categoria</th><th>Rubrica / Tipo</th><th>Detalhe</th><th></th></tr></thead>
                   <tbody id="finCeoDespesasBody"></tbody>
                 </table>
               </div>
@@ -2972,7 +2972,7 @@
 
             <div id="finCeoPaneRelatorio" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="relatorio" role="region">
               <h3 class="operacao-inline-form__title">Relatório de despesas</h3>
-              <p class="subtext">Filtre por categoria, tipo/rubrica e valor. Informe a <strong>1ª data</strong> e o <strong>nº de repetições</strong> para ver cada pagamento mensal (mesmo dia nos meses seguintes).</p>
+              <p class="subtext">Deixe os filtros vazios para ver <strong>todos</strong> os pagamentos. O campo <strong>Nº repetições</strong> limita quantas parcelas mensais aparecem por lançamento.</p>
               <form id="finCeoRelForm" class="fin-ceo-rel-filtros" novalidate>
                 <label class="portal-field">
                   <span>Categoria</span>
@@ -3009,6 +3009,7 @@
                 </label>
                 <div class="operacao-inline-form__actions fin-ceo-rel-actions">
                   <button type="submit" class="btn-primary">Aplicar filtros</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="finCeoRelVerTodos">Ver todos</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="finCeoRelLimpar">Limpar filtros</button>
                 </div>
               </form>
@@ -3504,7 +3505,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-pagamentos" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-achar" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
