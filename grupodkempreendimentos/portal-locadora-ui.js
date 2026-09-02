@@ -17575,49 +17575,65 @@
     if (!loc) return "portal-lanc-pesquisa-linha--branco";
     const nk =
       typeof normalizeKey === "function" ? normalizeKey : (v) => String(v || "").trim().toUpperCase();
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? parseCurrencyBR
+        : (v) => {
+            const n = Number(
+              String(v ?? "")
+                .replace(/[R$\s]/g, "")
+                .replace(/\./g, "")
+                .replace(",", ".")
+            );
+            return Number.isFinite(n) ? n : 0;
+          };
     const ativo = isPortalLocacaoAtiva(loc);
     let isCarro = false;
     let isMoto = false;
-    const mod = nk(String(loc.modalidade || ""));
-    if (mod.includes("CARRO")) isCarro = true;
-    else if (mod.includes("MOTO")) isMoto = true;
-    else if (vehicleMap) {
-      const plate =
-        typeof normalizePlate === "function"
-          ? normalizePlate(String(loc.placa || ""))
-          : nk(String(loc.placa || "")).replace(/[^A-Z0-9]/g, "");
-      const v = plate ? vehicleMap.get(plate) : null;
-      if (v) {
-        const tipo = nk(String(v.tipo || ""));
-        const tag = nk(String(v.tag || ""));
-        isCarro = tipo.includes("CARRO") || tag.includes("DKCR");
-        isMoto = !isCarro && (tipo.includes("MOTO") || tag.includes("DKMT") || tag.includes("DKMM"));
-        if (!isCarro && !isMoto) {
-          const inf = portalInferTipoVeiculoLocacao(loc);
-          isCarro = inf === "CARRO";
-          isMoto = inf === "MOTO";
-        }
-      } else {
-        const inf = portalInferTipoVeiculoLocacao(loc);
-        isCarro = inf === "CARRO";
-        isMoto = inf === "MOTO";
-      }
-    } else {
-      const tipo = portalInferTipoVeiculoLocacao(loc);
-      isCarro = tipo === "CARRO";
-      isMoto = tipo === "MOTO";
+    let tagVeic = "";
+    const plate =
+      typeof normalizePlate === "function"
+        ? normalizePlate(String(loc.placa || ""))
+        : nk(String(loc.placa || "")).replace(/[^A-Z0-9]/g, "");
+    const v = vehicleMap && plate ? vehicleMap.get(plate) : null;
+    if (v) {
+      tagVeic = nk(String(v.tag || v.codigo || ""));
     }
-    const planoKey = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    const mod = nk(String(loc.modalidade || ""));
+    if (mod.includes("CARRO") || tagVeic.includes("DKCR") || tagVeic.startsWith("DKCA")) isCarro = true;
+    else if (mod.includes("MOTO") || tagVeic.includes("DKMT") || tagVeic.includes("DKMM")) isMoto = true;
+    else if (v) {
+      const tipo = nk(String(v.tipo || ""));
+      isCarro = tipo.includes("CARRO");
+      isMoto = !isCarro && tipo.includes("MOTO");
+    }
     if (!isCarro && !isMoto) {
       const inf = portalInferTipoVeiculoLocacao(loc);
       isCarro = inf === "CARRO";
       isMoto = inf === "MOTO";
     }
+    const planoKey = nk(String(loc?.plano || loc?.opcaoContrato || ""));
+    const temInvestimento = Number(parseCur(loc?.valorInvestimento ?? loc?.investimento ?? 0)) > 0;
+    const isMinhaMoto =
+      (planoKey.includes("MINHA") && planoKey.includes("MOTO")) ||
+      planoKey.includes("DK MINHA") ||
+      tagVeic.includes("DKMM") ||
+      (tagVeic.includes("DK") && tagVeic.includes("MINHA")) ||
+      temInvestimento;
+    const isMeuTransporte =
+      (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) || tagVeic.includes("DKMT");
+
     if (!ativo && (isMoto || isCarro)) return "portal-lanc-pesquisa-linha--vermelho";
     if (ativo && isCarro) return "portal-lanc-pesquisa-linha--amarelo";
     if (ativo && isMoto) {
-      if (planoKey.includes("MINHA") && planoKey.includes("MOTO")) return "portal-lanc-pesquisa-linha--azul";
-      if (planoKey.includes("MEU") && planoKey.includes("TRANSPORTE")) return "portal-lanc-pesquisa-linha--verde";
+      if (isMinhaMoto && !isMeuTransporte) return "portal-lanc-pesquisa-linha--azul";
+      if (isMeuTransporte && !isMinhaMoto) return "portal-lanc-pesquisa-linha--verde";
+      if (isMinhaMoto) return "portal-lanc-pesquisa-linha--azul";
+      if (isMeuTransporte) return "portal-lanc-pesquisa-linha--verde";
+      /* Moto ativa sem plano explícito: investimento → azul; senão verde (DK MEU TRANSPORTE). */
+      return temInvestimento
+        ? "portal-lanc-pesquisa-linha--azul"
+        : "portal-lanc-pesquisa-linha--verde";
     }
     return "portal-lanc-pesquisa-linha--branco";
   }

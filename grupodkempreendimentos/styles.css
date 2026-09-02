@@ -2343,23 +2343,28 @@ body {
   outline: none;
 }
 
+.portal-cliente-prefix-list__btn.portal-lanc-pesquisa-linha--azul,
 .portal-lanc-pesquisa-linha--azul {
   color: #5eb8ff;
 }
 
+.portal-cliente-prefix-list__btn.portal-lanc-pesquisa-linha--verde,
 .portal-lanc-pesquisa-linha--verde {
   color: #6ee7a0;
 }
 
 /* Plano Carros — marrom (mesmo tom da frota locada) */
+.portal-cliente-prefix-list__btn.portal-lanc-pesquisa-linha--amarelo,
 .portal-lanc-pesquisa-linha--amarelo {
   color: #c4a484;
 }
 
+.portal-cliente-prefix-list__btn.portal-lanc-pesquisa-linha--vermelho,
 .portal-lanc-pesquisa-linha--vermelho {
   color: #ff6b6b;
 }
 
+.portal-cliente-prefix-list__btn.portal-lanc-pesquisa-linha--branco,
 .portal-lanc-pesquisa-linha--branco {
   color: #f8fafc;
 }
