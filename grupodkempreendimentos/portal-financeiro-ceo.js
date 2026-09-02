@@ -385,7 +385,38 @@
           }))
           .filter((p) => p.valor > 0)
       : [];
-    return { id, categoria, rubrica, tipoParticular, cartaoCredito, descricao, subcategoria, periodic, valor, repeticoes, dataEvento, parcelas };
+    return { id, categoria, rubrica, tipoParticular, cartaoCredito, descricao, subcategoria, periodic, valor, repeticoes, dataEvento, parcelas, cadastradoEm: cadastradoEmDespesa(raw, id) };
+  }
+
+  function extrairTsDoId(id) {
+    const m = String(id).match(/ceo-desp-(\d+)/);
+    return m ? Number(m[1]) : 0;
+  }
+
+  function cadastradoEmDespesa(raw, id) {
+    const explicit = String(raw?.cadastradoEm || "").trim();
+    if (explicit) return explicit;
+    const ts = extrairTsDoId(id);
+    return ts ? new Date(ts).toISOString() : "";
+  }
+
+  function ordenarDespesasRecentes(list) {
+    return [...list].sort((a, b) => {
+      const ta = Date.parse(a.cadastradoEm) || extrairTsDoId(a.id) || 0;
+      const tb = Date.parse(b.cadastradoEm) || extrairTsDoId(b.id) || 0;
+      return tb - ta;
+    });
+  }
+
+  function bindCalendariosCeo(root) {
+    const el = root || panel;
+    if (!el) return;
+    if (typeof window.bindDkIntervaloCalendarios === "function") {
+      window.bindDkIntervaloCalendarios(el);
+    }
+    if (typeof window.bindDateMasksInContainer === "function") {
+      window.bindDateMasksInContainer(el);
+    }
   }
 
   function gerarDebitosDespesa(desp, inicioHorizonte, fimHorizonte) {
@@ -762,7 +793,7 @@
     const body = document.getElementById("finCeoDespesasBody");
     const vazia = document.getElementById("finCeoDespesasVazia");
     if (!body) return;
-    const list = loadDespesasCeo().map(normalizeDespesa);
+    const list = ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa));
     if (!list.length) {
       body.innerHTML = "";
       vazia?.classList.remove("hidden");
@@ -860,9 +891,7 @@
     renderListaDespesas();
     const dt = document.getElementById("finCeoDespDataEvento");
     if (dt && !String(dt.value || "").trim()) dt.value = fmtBrDate(new Date());
-    if (typeof window.bindDateMasksInContainer === "function") {
-      window.bindDateMasksInContainer(document.getElementById("finCeoCamposPeriodico") || panel);
-    }
+    bindCalendariosCeo(document.getElementById("finCeoPaneDespesas"));
   }
 
   function salvarDespesaForm(ev) {
@@ -923,11 +952,13 @@
       valor,
       repeticoes,
       dataEvento,
+      cadastradoEm: new Date().toISOString(),
     });
 
     const list = loadDespesasCeo();
     list.push({
       ...entry,
+      cadastradoEm: entry.cadastradoEm,
       dataEvento: entry.dataEvento instanceof Date ? fmtBrDate(entry.dataEvento) : entry.dataEvento,
     });
     saveDespesasCeo(list);
@@ -936,6 +967,140 @@
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
+    if (paneAberto === "relatorio") aplicarRelatorio();
+  }
+
+  function despesaMatchesTipoFiltro(d, tipoFiltro) {
+    if (!tipoFiltro) return true;
+    if (tipoFiltro.startsWith("dk:")) {
+      return isCategoriaDk(d.categoria) && d.rubrica === tipoFiltro.slice(3);
+    }
+    if (tipoFiltro.startsWith("part:")) {
+      const tp = inferirTipoParticularLegado(d);
+      return isParticulares(d.categoria) && tp === tipoFiltro.slice(5);
+    }
+    return true;
+  }
+
+  function filtrarDespesasRelatorio() {
+    const cat = document.getElementById("finCeoRelCat")?.value || "";
+    const tipo = document.getElementById("finCeoRelTipo")?.value || "";
+    const de = parseBrDate(document.getElementById("finCeoRelDe")?.value);
+    const ate = parseBrDate(document.getElementById("finCeoRelAte")?.value);
+    const vminStr = String(document.getElementById("finCeoRelValorMin")?.value || "").trim();
+    const vmaxStr = String(document.getElementById("finCeoRelValorMax")?.value || "").trim();
+    const vmin = vminStr ? parseValor(vminStr) : 0;
+    const vmax = vmaxStr ? parseValor(vmaxStr) : 0;
+    const busca = String(document.getElementById("finCeoRelBusca")?.value || "").trim().toLowerCase();
+
+    return ordenarDespesasRecentes(loadDespesasCeo().map(normalizeDespesa)).filter((d) => {
+      if (cat && d.categoria !== cat) return false;
+      if (!despesaMatchesTipoFiltro(d, tipo)) return false;
+      const dt = d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento);
+      if (de && dt && startOfDay(dt) < startOfDay(de)) return false;
+      if (ate && dt && startOfDay(dt) > startOfDay(ate)) return false;
+      if (vminStr && d.valor < vmin) return false;
+      if (vmaxStr && d.valor > vmax) return false;
+      if (busca) {
+        const { tipo: t, desc } = detalheDespesaLista(d);
+        const blob = [labelCategoria(d.categoria), t, desc, d.descricao, d.subcategoria].join(" ").toLowerCase();
+        if (!blob.includes(busca)) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderRelatorioTipoSelect() {
+    const catSel = document.getElementById("finCeoRelCat");
+    const tipoSel = document.getElementById("finCeoRelTipo");
+    if (!tipoSel) return;
+    const cat = catSel?.value || "";
+    const cur = tipoSel.value;
+    let opts = '<option value="">Todas</option>';
+    const mostrarDk = !cat || isCategoriaDk(cat);
+    const mostrarPart = !cat || isParticulares(cat);
+    if (mostrarDk) {
+      RUBRICAS_DK.forEach((r) => {
+        opts += `<option value="dk:${esc(r.id)}">${esc(r.label)}</option>`;
+      });
+    }
+    if (mostrarPart) {
+      TIPOS_PARTICULARES.forEach((t) => {
+        opts += `<option value="part:${esc(t.id)}">${esc(t.label)}</option>`;
+      });
+    }
+    tipoSel.innerHTML = opts;
+    if (cur && [...tipoSel.options].some((o) => o.value === cur)) tipoSel.value = cur;
+  }
+
+  function renderRelatorioCategoriaSelect() {
+    const sel = document.getElementById("finCeoRelCat");
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML =
+      '<option value="">Todas</option>' +
+      CATEGORIAS_CEO.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
+    if (cur) sel.value = cur;
+    renderRelatorioTipoSelect();
+  }
+
+  function aplicarRelatorio(ev) {
+    ev?.preventDefault();
+    const list = filtrarDespesasRelatorio();
+    const body = document.getElementById("finCeoRelBody");
+    const vazia = document.getElementById("finCeoRelVazia");
+    const resumo = document.getElementById("finCeoRelResumo");
+    if (!body) return;
+
+    const totalParcela = list.reduce((s, d) => s + d.valor, 0);
+    const totalComprometido = list.reduce((s, d) => s + d.valor * d.repeticoes, 0);
+
+    if (resumo) {
+      resumo.textContent = list.length
+        ? `${list.length} lançamento(s) · parcela: ${brl(totalParcela)} · total comprometido: ${brl(totalComprometido)}`
+        : "Nenhum lançamento corresponde aos filtros.";
+    }
+
+    if (!list.length) {
+      body.innerHTML = "";
+      vazia?.classList.remove("hidden");
+      return;
+    }
+    vazia?.classList.add("hidden");
+    body.innerHTML = list
+      .map((d) => {
+        const { tipo, desc } = detalheDespesaLista(d);
+        const cad = d.cadastradoEm ? fmtBrDate(new Date(d.cadastradoEm)) : "—";
+        const total = d.valor * d.repeticoes;
+        return `<tr>
+          <td>${esc(cad)}</td>
+          <td>${esc(labelCategoria(d.categoria))}</td>
+          <td>${esc(tipo)}</td>
+          <td>${esc(desc)}</td>
+          <td>${esc(brl(d.valor))}</td>
+          <td>${esc(String(d.repeticoes))}</td>
+          <td>${esc(fmtBrDate(d.dataEvento))}</td>
+          <td>${esc(brl(total))}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function limparFiltrosRelatorio() {
+    const cat = document.getElementById("finCeoRelCat");
+    if (cat) cat.value = "";
+    ["finCeoRelDe", "finCeoRelAte", "finCeoRelValorMin", "finCeoRelValorMax", "finCeoRelBusca"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+    renderRelatorioTipoSelect();
+    aplicarRelatorio();
+  }
+
+  function renderRelatorio() {
+    renderRelatorioCategoriaSelect();
+    bindCalendariosCeo(document.getElementById("finCeoPaneRelatorio"));
+    aplicarRelatorio();
   }
 
   function excluirDespesa(id) {
@@ -944,6 +1109,7 @@
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
+    if (paneAberto === "relatorio") aplicarRelatorio();
   }
 
   function abrirPane(id) {
@@ -960,6 +1126,7 @@
     if (id === "dashboard") renderDashboard();
     if (id === "cartoes") renderCadastroCartoes();
     if (id === "despesas") renderCadastroDespesas();
+    if (id === "relatorio") renderRelatorio();
   }
 
   function bindOnce() {
@@ -980,6 +1147,13 @@
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespLimpar")?.addEventListener("click", limparFormDespesa);
+    document.getElementById("finCeoDespVerRelatorio")?.addEventListener("click", () => abrirPane("relatorio"));
+    document.getElementById("finCeoRelForm")?.addEventListener("submit", aplicarRelatorio);
+    document.getElementById("finCeoRelLimpar")?.addEventListener("click", limparFiltrosRelatorio);
+    document.getElementById("finCeoRelCat")?.addEventListener("change", renderRelatorioTipoSelect);
+    document.getElementById("finCeoRelBusca")?.addEventListener("input", () => {
+      if (paneAberto === "relatorio") aplicarRelatorio();
+    });
     document.getElementById("finCeoDespCategoria")?.addEventListener("change", () => {
       toggleCategoriaDespesaUi();
     });

@@ -10384,6 +10384,39 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   padding: 0.7rem 1.35rem;
 }
 
+.fin-ceo-rel-filtros {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.65rem 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.fin-ceo-rel-filtros .portal-field--wide {
+  grid-column: 1 / -1;
+}
+
+.fin-ceo-rel-actions {
+  grid-column: 1 / -1;
+  margin-top: 0.15rem;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-field-data .dk-date-cal,
+#view-financeiro-ceo .fin-ceo-rel-filtros .dk-date-cal {
+  display: block;
+  width: 100%;
+}
+
+#view-financeiro-ceo .fin-ceo-desp-field-data .dk-date-cal input,
+#view-financeiro-ceo .fin-ceo-rel-filtros .dk-date-cal input {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .fin-ceo-rel-filtros {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   #view-financeiro-ceo .subpage.fin-pptx {
     grid-template-columns: 1fr;

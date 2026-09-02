@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260901fin-ceo-fontes">
+  <link rel="stylesheet" href="styles.css?v=20260901fin-ceo-relatorio">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2849,6 +2849,10 @@
                 <span class="btn-operacao-cmd__title">Cadastro de despesas</span>
                 <span class="btn-operacao-cmd__hint">Categoria, rubrica e repetições</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-relatorio" data-ceo-mod="relatorio" aria-expanded="false" aria-controls="finCeoPaneRelatorio">
+                <span class="btn-operacao-cmd__title">Relatório de despesas</span>
+                <span class="btn-operacao-cmd__hint">Filtros por categoria, período e valor</span>
+              </button>
             </div>
           </aside>
           <div class="portal-operacao-layout__main fin-pptx__slide" id="finCeoPainelDireito">
@@ -2941,20 +2945,23 @@
                   <div class="fin-ceo-campos-grid">
                     <label class="portal-field"><span>Valor (R$)</span><input type="text" id="finCeoDespValor" inputmode="decimal" placeholder="0,00"></label>
                     <label class="portal-field"><span>Nº repetições</span><input type="number" id="finCeoDespRepeticoes" min="1" max="360" value="12"></label>
-                    <label class="portal-field portal-field--wide">
+                    <label class="portal-field portal-field--wide fin-ceo-desp-field-data">
                       <span>Data da primeira repetição</span>
-                      <input type="text" id="finCeoDespDataEvento" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off">
-                      <span class="subtext">As repetições mensais ocorrem no <strong>mesmo dia</strong> nos meses seguintes.</span>
+                      <span class="dk-date-cal fin-date-cal fin-ceo-desp-data-cal">
+                        <input type="text" id="finCeoDespDataEvento" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off" title="Clique para abrir o calendário">
+                      </span>
+                      <span class="subtext">Clique no campo para abrir o <strong>calendário</strong>. Repetições mensais no mesmo dia.</span>
                     </label>
                   </div>
                 </div>
                 <div class="operacao-inline-form__actions">
                   <button type="submit" class="btn-primary">Cadastrar despesa</button>
                   <button type="button" class="btn-primary btn-secondary-outline" id="finCeoDespLimpar">Limpar</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="finCeoDespVerRelatorio">Ver relatório</button>
                 </div>
               </form>
               <p id="finCeoDespFeedback" class="portal-feedback" role="status"></p>
-              <h4 class="fin-subh">Despesas cadastradas</h4>
+              <h4 class="fin-subh">Últimos lançamentos <span class="subtext">(mais recente no topo)</span></h4>
               <p id="finCeoDespesasVazia" class="subtext hidden">Nenhuma despesa cadastrada.</p>
               <div class="fin-table-wrap">
                 <table class="fin-table" id="finCeoDespesasTable">
@@ -2962,6 +2969,57 @@
                   <tbody id="finCeoDespesasBody"></tbody>
                 </table>
               </div>
+            </div>
+
+            <div id="finCeoPaneRelatorio" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="relatorio" role="region">
+              <h3 class="operacao-inline-form__title">Relatório de despesas</h3>
+              <p class="subtext">Filtre os lançamentos cadastrados por categoria, tipo/rubrica, período da 1ª repetição, valor e texto livre.</p>
+              <form id="finCeoRelForm" class="fin-ceo-rel-filtros" novalidate>
+                <label class="portal-field">
+                  <span>Categoria</span>
+                  <select id="finCeoRelCat">
+                    <option value="">Todas</option>
+                  </select>
+                </label>
+                <label class="portal-field">
+                  <span>Rubrica / tipo</span>
+                  <select id="finCeoRelTipo">
+                    <option value="">Todas</option>
+                  </select>
+                </label>
+                <label class="portal-field">
+                  <span>1ª repetição — de</span>
+                  <span class="dk-date-cal fin-date-cal"><input type="text" id="finCeoRelDe" data-dk-cal="intervalo" data-dk-mask="date" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></span>
+                </label>
+                <label class="portal-field">
+                  <span>1ª repetição — até</span>
+                  <span class="dk-date-cal fin-date-cal"><input type="text" id="finCeoRelAte" data-dk-cal="intervalo" data-dk-mask="date" maxlength="10" placeholder="DD/MM/AAAA" autocomplete="off"></span>
+                </label>
+                <label class="portal-field">
+                  <span>Valor mín. (R$)</span>
+                  <input type="text" id="finCeoRelValorMin" inputmode="decimal" placeholder="0,00">
+                </label>
+                <label class="portal-field">
+                  <span>Valor máx. (R$)</span>
+                  <input type="text" id="finCeoRelValorMax" inputmode="decimal" placeholder="0,00">
+                </label>
+                <label class="portal-field portal-field--wide">
+                  <span>Busca (descrição, cartão, rubrica…)</span>
+                  <input type="text" id="finCeoRelBusca" maxlength="120" placeholder="Texto livre" autocomplete="off">
+                </label>
+                <div class="operacao-inline-form__actions fin-ceo-rel-actions">
+                  <button type="submit" class="btn-primary">Aplicar filtros</button>
+                  <button type="button" class="btn-primary btn-secondary-outline" id="finCeoRelLimpar">Limpar filtros</button>
+                </div>
+              </form>
+              <p id="finCeoRelResumo" class="fin-ceo-desp-resumo" role="status">—</p>
+              <div class="fin-table-wrap">
+                <table class="fin-table" id="finCeoRelTable">
+                  <thead><tr><th>Cadastro</th><th>Categoria</th><th>Rubrica / Tipo</th><th>Detalhe</th><th>Valor</th><th>Repet.</th><th>1ª data</th><th>Total</th></tr></thead>
+                  <tbody id="finCeoRelBody"></tbody>
+                </table>
+              </div>
+              <p id="finCeoRelVazia" class="subtext hidden">Nenhum lançamento corresponde aos filtros.</p>
             </div>
           </div>
         </div>
@@ -3446,7 +3504,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-tipos-part" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-relatorio" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
