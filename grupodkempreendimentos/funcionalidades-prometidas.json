@@ -80,6 +80,26 @@
       }
     },
     {
+      "id": "fin-ceo-receita-prevista-unidades",
+      "descricao": "No FINANCEIRO CEO → Painel executivo: RECEITA PREVISTA DO MÊS é a soma da Locadora (semanal das locações ativas, sem protocolo 2099010199), Centro Automotivo e Construtora; três caixas separadas mostram cada unidade.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoKpiReceitaLocadora",
+          "finCeoKpiReceitaCentro",
+          "finCeoKpiReceitaConstrutora",
+          "Receita prevista do mês"
+        ],
+        "portal-financeiro-ceo.js": [
+          "calcReceitasPorUnidade",
+          "receitaPrevistaLocadora",
+          "receitaPrevistaCentroAutomotivo",
+          "receitaPrevistaConstrutora",
+          "PROTOCOLO_TESTE_CEO",
+          "dk_unidade_financeiro_v1"
+        ]
+      }
+    },
+    {
       "id": "lista-suspensa-cadastros",
       "descricao": "Em todas as telas de operação, ao digitar nome, CPF, placa, protocolo ou número do cliente já cadastrado aparece a lista suspensa para confirmar o registo (igual ao Lançamento de aluguel).",
       "ficheiros": {

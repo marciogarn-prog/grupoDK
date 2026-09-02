@@ -544,6 +544,7 @@
   function receitaPrevistaLocadora(locs) {
     let total = 0;
     (locs || []).forEach((loc) => {
+      if (locacaoExcluidaReceitaCeo(loc)) return;
       if (!locacaoEstaAtiva(loc)) return;
       const sem = valorSemanalContrato(loc);
       if (sem > 0) total += sem;
