@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260902rel-pag-resumo">
+  <link rel="stylesheet" href="styles.css?v=20260902fin-ceo-periodo">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2988,6 +2988,62 @@
                   <span class="fin-kpi__hint">receitas cadastradas no mês</span>
                 </div>
               </div>
+
+              <section class="fin-ceo-periodo" id="finCeoPeriodoBox" aria-labelledby="finCeoPeriodoTitulo">
+                <h4 id="finCeoPeriodoTitulo" class="fin-subh">Resumo por período</h4>
+                <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários. Os valores abaixo atualizam conforme o intervalo filtrado.</p>
+                <div class="fin-ceo-periodo__filtros">
+                  <label class="portal-field">
+                    <span>Data início</span>
+                    <span class="dk-date-cal fin-date-cal">
+                      <input type="text" id="finCeoPeriodoInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do resumo por período" title="Clique para abrir o calendário">
+                    </span>
+                  </label>
+                  <label class="portal-field">
+                    <span>Data fim</span>
+                    <span class="dk-date-cal fin-date-cal">
+                      <input type="text" id="finCeoPeriodoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do resumo por período" title="Clique para abrir o calendário">
+                    </span>
+                  </label>
+                  <div class="fin-ceo-periodo__acoes">
+                    <button type="button" class="btn-primary" id="finCeoPeriodoAtualizarBtn">Atualizar período</button>
+                  </div>
+                </div>
+                <p id="finCeoPeriodoHint" class="fin-ceo-periodo__hint subtext" role="status">—</p>
+                <div class="fin-ceo-kpis fin-kpis fin-ceo-periodo-kpis" id="finCeoPeriodoKpis">
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev">
+                    <span class="fin-kpi__lab">Receita prevista no período</span>
+                    <strong id="finCeoPeriodoRecPrevista">—</strong>
+                    <span class="fin-kpi__hint">locadora (semanal ÷ 7 × dias) + unidades</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-real">
+                    <span class="fin-kpi__lab">Receita real ocorrida no período</span>
+                    <strong id="finCeoPeriodoRecReal">—</strong>
+                    <span class="fin-kpi__hint">pagamentos de aluguel + receitas das unidades</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev">
+                    <span class="fin-kpi__lab">Despesas previstas no período</span>
+                    <strong id="finCeoPeriodoDespPrevista">—</strong>
+                    <span class="fin-kpi__hint">parcelas com vencimento no intervalo</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-paga">
+                    <span class="fin-kpi__lab">Despesas pagas no período</span>
+                    <strong id="finCeoPeriodoDespPaga">—</strong>
+                    <span class="fin-kpi__hint">parcelas do intervalo marcadas PAGO</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev">
+                    <span class="fin-kpi__lab">Saldo previsto</span>
+                    <strong id="finCeoPeriodoSaldoPrevisto">—</strong>
+                    <span class="fin-kpi__hint">receita prevista − despesa prevista</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-real">
+                    <span class="fin-kpi__lab">Saldo real</span>
+                    <strong id="finCeoPeriodoSaldoReal">—</strong>
+                    <span class="fin-kpi__hint">receita real − despesas pagas</span>
+                  </div>
+                </div>
+              </section>
+
               <div class="fin-ceo-anos-filtro-wrap">
                 <span class="fin-ceo-anos-filtro__label">Anos no gráfico <span class="subtext">(clique para incluir ou retirar)</span></span>
                 <div class="fin-ceo-anos-filtro" id="finCeoDashAnosFiltro" role="group" aria-label="Selecionar anos para os gráficos">
@@ -3639,7 +3695,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-boot" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-periodo" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

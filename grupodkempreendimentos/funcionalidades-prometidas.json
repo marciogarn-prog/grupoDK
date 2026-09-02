@@ -254,6 +254,33 @@
       }
     },
     {
+      "id": "fin-ceo-painel-resumo-periodo",
+      "descricao": "No FINANCEIRO CEO → Painel executivo: dois calendários (início/fim) e resumo do período com receita prevista, receita real, despesas previstas, despesas pagas, saldo previsto e saldo real.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoPeriodoBox",
+          "finCeoPeriodoInicio",
+          "finCeoPeriodoFim",
+          "finCeoPeriodoRecPrevista",
+          "finCeoPeriodoRecReal",
+          "finCeoPeriodoDespPrevista",
+          "finCeoPeriodoDespPaga",
+          "finCeoPeriodoSaldoPrevisto",
+          "finCeoPeriodoSaldoReal"
+        ],
+        "portal-financeiro-ceo.js": [
+          "calcResumoPeriodoCeo",
+          "renderResumoPeriodoCeo",
+          "obterPeriodoCeoDash",
+          "receitaRealLocadoraNoPeriodo"
+        ],
+        "styles.css": [
+          "fin-ceo-periodo",
+          "fin-ceo-periodo-kpis"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-relatorio-filtro-excel",
       "descricao": "No FINANCEIRO CEO → Relatório de despesas: cada coluna da tabela (Pagamento, Data, Valor, Categoria, Rubrica / Tipo, Detalhe) tem filtro estilo Excel (▾) com ordenação A–Z, Z–A, menor/maior e seleção de valores.",
       "ficheiros": {

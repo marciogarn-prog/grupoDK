@@ -10418,6 +10418,73 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #e4e4e7;
 }
 
+.fin-ceo-periodo {
+  margin: 0.25rem 0 1.35rem;
+  padding: 0.85rem 0.95rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  background: rgba(10, 12, 18, 0.45);
+}
+
+.fin-ceo-periodo .fin-subh {
+  margin-top: 0;
+}
+
+.fin-ceo-periodo__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin: 0.65rem 0 0.35rem;
+}
+
+.fin-ceo-periodo__filtros .portal-field {
+  min-width: 10rem;
+  flex: 0 1 12rem;
+}
+
+.fin-ceo-periodo__acoes {
+  display: flex;
+  align-items: center;
+  padding-bottom: 0.15rem;
+}
+
+.fin-ceo-periodo__hint {
+  margin: 0.35rem 0 0.65rem;
+}
+
+.fin-ceo-periodo-kpis {
+  margin: 0.35rem 0 0 !important;
+}
+
+.view--fin-ceo .fin-kpi--periodo-rec-prev {
+  border-color: rgba(110, 231, 160, 0.45);
+}
+
+.view--fin-ceo .fin-kpi--periodo-rec-real {
+  border-color: rgba(94, 184, 255, 0.5);
+}
+
+.view--fin-ceo .fin-kpi--periodo-rec-real strong {
+  color: #93c5fd;
+}
+
+.view--fin-ceo .fin-kpi--periodo-desp-prev {
+  border-color: rgba(251, 191, 36, 0.45);
+}
+
+.view--fin-ceo .fin-kpi--periodo-desp-prev strong {
+  color: #fbbf24;
+}
+
+.view--fin-ceo .fin-kpi--periodo-desp-paga {
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.view--fin-ceo .fin-kpi--periodo-desp-paga strong {
+  color: #f87171;
+}
+
 .fin-kpi__hint {
   display: block;
   margin-top: 0.2rem;

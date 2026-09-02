@@ -573,6 +573,7 @@
     marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data);
     fecharModalConfirmPagoDespesa();
     renderListaDespesas();
+    if (paneAberto === "dashboard") renderResumoPeriodoCeo();
   }
 
   function bindCalendariosCeo(root) {
@@ -773,6 +774,176 @@
 
   function receitaPrevistaMes(ano, mes, locs, uniRows) {
     return calcReceitasPorUnidade(locs, ano, mes, uniRows).total;
+  }
+
+  function diasInclusiveEntre(d0, d1) {
+    const a = startOfDay(d0);
+    const b = startOfDay(d1);
+    if (!a || !b) return 0;
+    return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86400000) + 1);
+  }
+
+  function dataNoIntervaloMs(dt, startMs, endMs) {
+    if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return false;
+    const ms = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime();
+    return ms >= startMs && ms <= endMs;
+  }
+
+  function receitaUnidadesNoPeriodo(uniRows, startMs, endMs) {
+    let total = 0;
+    (uniRows || []).forEach((r) => {
+      if (r?.tipo !== "receita") return;
+      const dt = parseBrDate(r.data);
+      if (!dataNoIntervaloMs(dt, startMs, endMs)) return;
+      total += Math.abs(parseValor(r.valor));
+    });
+    return total;
+  }
+
+  function lancamentoCeoEhDevolucao(lan) {
+    if (!lan || typeof lan !== "object") return true;
+    const tipo = String(lan.tipoMovimento || lan.tipo || lan.movimento || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (tipo.includes("DEVOL")) return true;
+    const v = Number(lan.valor);
+    if (Number.isFinite(v) && v < 0) return true;
+    return false;
+  }
+
+  function receitaRealLocadoraNoPeriodo(locs, startMs, endMs) {
+    let total = 0;
+    const getLancs =
+      typeof window.__DK_getPortalLancamentosAluguelDoContrato === "function"
+        ? window.__DK_getPortalLancamentosAluguelDoContrato
+        : (loc) => (Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel : []);
+    (locs || []).forEach((loc) => {
+      if (locacaoExcluidaReceitaCeo(loc)) return;
+      const lancs = getLancs(loc) || [];
+      lancs.forEach((lan) => {
+        if (lancamentoCeoEhDevolucao(lan)) return;
+        const v = parseValor(lan.valor);
+        if (v <= 0) return;
+        const dt = parseBrDate(lan.data);
+        if (!dataNoIntervaloMs(dt, startMs, endMs)) return;
+        total += v;
+      });
+    });
+    return total;
+  }
+
+  function obterPeriodoCeoDash() {
+    const hoje = startOfDay(new Date());
+    const inpIni = document.getElementById("finCeoPeriodoInicio");
+    const inpFim = document.getElementById("finCeoPeriodoFim");
+    let d0 = parseBrDate(inpIni?.value);
+    let d1 = parseBrDate(inpFim?.value);
+    if (!d0 && !d1) {
+      d0 = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      d1 = hoje;
+      if (inpIni && !String(inpIni.value || "").trim()) inpIni.value = fmtBrDate(d0);
+      if (inpFim && !String(inpFim.value || "").trim()) inpFim.value = fmtBrDate(d1);
+    }
+    if (!d0 || !d1 || Number.isNaN(d0.getTime()) || Number.isNaN(d1.getTime())) {
+      return { ok: false, d0: null, d1: null, startMs: 0, endMs: 0, dias: 0 };
+    }
+    d0 = startOfDay(d0);
+    d1 = startOfDay(d1);
+    if (d0.getTime() > d1.getTime()) {
+      const t = d0;
+      d0 = d1;
+      d1 = t;
+    }
+    const startMs = d0.getTime();
+    const endMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate(), 23, 59, 59, 999).getTime();
+    return { ok: true, d0, d1, startMs, endMs, dias: diasInclusiveEntre(d0, d1) };
+  }
+
+  function calcResumoPeriodoCeo(periodo) {
+    const vazio = {
+      receitaPrevista: 0,
+      receitaReal: 0,
+      despesaPrevista: 0,
+      despesaPaga: 0,
+      saldoPrevisto: 0,
+      saldoReal: 0,
+      dias: 0,
+    };
+    if (!periodo?.ok) return vazio;
+    const { startMs, endMs, dias, d0, d1 } = periodo;
+    const locs = carregarLocacoes();
+    const uniRows = carregarUnidadeFinanceiro();
+    const despesas = loadDespesasCeo().map(normalizeDespesa);
+
+    const recLocPrev = (receitaSemanalLocadora(locs) / 7) * dias;
+    const recUni = receitaUnidadesNoPeriodo(uniRows, startMs, endMs);
+    const receitaPrevista = recLocPrev + recUni;
+    const receitaReal = receitaRealLocadoraNoPeriodo(locs, startMs, endMs) + recUni;
+
+    let despesaPrevista = 0;
+    let despesaPaga = 0;
+    despesas.forEach((d) => {
+      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
+      pagos.forEach((p) => {
+        if (!dataNoIntervaloMs(p.data, startMs, endMs)) return;
+        const v = Number(p.valor) || 0;
+        if (v <= 0) return;
+        despesaPrevista += v;
+        if (getSituacaoPagamentoLinha(d.id, p.numero, p.data) === "PAGO") despesaPaga += v;
+      });
+    });
+
+    return {
+      receitaPrevista,
+      receitaReal,
+      despesaPrevista,
+      despesaPaga,
+      saldoPrevisto: receitaPrevista - despesaPrevista,
+      saldoReal: receitaReal - despesaPaga,
+      dias,
+    };
+  }
+
+  function aplicarClasseSaldoPeriodo(el, valor) {
+    if (!el) return;
+    el.classList.remove("fin-kpi--ok", "fin-kpi--warn", "fin-kpi--crit");
+    if (valor > 0) el.classList.add("fin-kpi--ok");
+    else if (valor < 0) el.classList.add("fin-kpi--crit");
+    else el.classList.add("fin-kpi--warn");
+  }
+
+  function renderResumoPeriodoCeo() {
+    const hint = document.getElementById("finCeoPeriodoHint");
+    const setVal = (id, n) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = brl(n);
+    };
+    const periodo = obterPeriodoCeoDash();
+    if (!periodo.ok) {
+      ["finCeoPeriodoRecPrevista", "finCeoPeriodoRecReal", "finCeoPeriodoDespPrevista", "finCeoPeriodoDespPaga", "finCeoPeriodoSaldoPrevisto", "finCeoPeriodoSaldoReal"].forEach(
+        (id) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = "—";
+        }
+      );
+      if (hint) hint.textContent = "Informe data de início e fim válidas (DD/MM/AAAA).";
+      return;
+    }
+    const r = calcResumoPeriodoCeo(periodo);
+    setVal("finCeoPeriodoRecPrevista", r.receitaPrevista);
+    setVal("finCeoPeriodoRecReal", r.receitaReal);
+    setVal("finCeoPeriodoDespPrevista", r.despesaPrevista);
+    setVal("finCeoPeriodoDespPaga", r.despesaPaga);
+    setVal("finCeoPeriodoSaldoPrevisto", r.saldoPrevisto);
+    setVal("finCeoPeriodoSaldoReal", r.saldoReal);
+    aplicarClasseSaldoPeriodo(document.getElementById("finCeoPeriodoSaldoPrevisto")?.closest(".fin-kpi"), r.saldoPrevisto);
+    aplicarClasseSaldoPeriodo(document.getElementById("finCeoPeriodoSaldoReal")?.closest(".fin-kpi"), r.saldoReal);
+    if (hint) {
+      hint.textContent = `Período ${fmtBrDate(periodo.d0)} a ${fmtBrDate(periodo.d1)} · ${r.dias} dia(s) · saldo previsto ${brl(
+        r.saldoPrevisto
+      )} · saldo real ${brl(r.saldoReal)}.`;
+    }
   }
 
   function fmtPct(n) {
@@ -1101,6 +1272,7 @@
     }
 
     renderDashboardGraficos(proj);
+    renderResumoPeriodoCeo();
   }
 
   function renderResumoCadastroDespesas() {
@@ -2379,7 +2551,10 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
-    if (id === "dashboard") renderDashboard();
+    if (id === "dashboard") {
+      bindMascarasCeo(document.getElementById("finCeoPaneDashboard"));
+      renderDashboard();
+    }
     if (id === "despesas") renderCadastroDespesas();
     if (id === "relatorio") renderRelatorio();
   }
@@ -2397,6 +2572,16 @@
       if (!btn) return;
       const ano = Number(btn.getAttribute("data-ceo-ano"));
       if (ano) toggleCeoDashAno(ano);
+    });
+
+    document.getElementById("finCeoPeriodoAtualizarBtn")?.addEventListener("click", () => {
+      renderResumoPeriodoCeo();
+    });
+    ["finCeoPeriodoInicio", "finCeoPeriodoFim"].forEach((id) => {
+      const inp = document.getElementById(id);
+      if (!inp) return;
+      inp.addEventListener("change", () => renderResumoPeriodoCeo());
+      inp.addEventListener("blur", () => renderResumoPeriodoCeo());
     });
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
