@@ -165,6 +165,7 @@
     "dk_financeiro_despesas_v1",
     "dk_financeiro_ceo_despesas_v1",
     "dk_financeiro_ceo_fontes_v1",
+    "dk_financeiro_ceo_cartoes_v1",
     "dk_unidade_financeiro_v1",
     "dk_documentos_deposito_v1",
     "dk_audit_log",
@@ -1047,6 +1048,21 @@
         localStorage.setItem(k, JSON.stringify(mergeFinanceiroCeoFontesArrays(localArr, cloudArr)));
         continue;
       }
+      if (k === "dk_financeiro_ceo_cartoes_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const localArr = readLocalJsonArray(k);
+        localStorage.setItem(k, JSON.stringify(mergeFinanceiroCeoCartoesArrays(localArr, cloudArr)));
+        continue;
+      }
       if (k === "dk_unidade_financeiro_v1") {
         let cloudArr = [];
         if (Array.isArray(v)) cloudArr = v;
@@ -1830,6 +1846,11 @@
         if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
         continue;
       }
+      if (k === "dk_financeiro_ceo_cartoes_v1") {
+        const merged = mergeFinanceiroCeoCartoesArrays(Array.isArray(b) ? b : [], Array.isArray(a) ? a : []);
+        if (JSON.stringify(merged) !== JSON.stringify(Array.isArray(b) ? b : [])) return true;
+        continue;
+      }
       if (k === "dk_unidade_financeiro_v1") {
         const mergeUf =
           typeof window.__DK_mergeUnidadeFinanceiro === "function"
@@ -2566,6 +2587,13 @@
     return Array.from(byId.values()).filter((x) => !x.deleted);
   }
 
+  function mergeFinanceiroCeoCartoesArrays(localArr, cloudArr) {
+    if (typeof window.__DK_mergeFinanceiroCeoCartoes === "function") {
+      return window.__DK_mergeFinanceiroCeoCartoes(localArr, cloudArr);
+    }
+    return mergeFinanceiroCeoFontesArrays(localArr, cloudArr);
+  }
+
   function mergeFinanceiroCeoFontesArrays(localArr, cloudArr) {
     if (typeof window.__DK_mergeFinanceiroCeoFontes === "function") {
       return window.__DK_mergeFinanceiroCeoFontes(localArr, cloudArr);
@@ -2784,6 +2812,15 @@
       );
     }
     if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_financeiro_ceo_cartoes_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_financeiro_ceo_cartoes_v1")
+    ) {
+      out.dk_financeiro_ceo_cartoes_v1 = mergeFinanceiroCeoCartoesArrays(
+        localPayload.dk_financeiro_ceo_cartoes_v1,
+        cloudPayload.dk_financeiro_ceo_cartoes_v1
+      );
+    }
+    if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_unidade_financeiro_v1") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_unidade_financeiro_v1")
     ) {
@@ -2887,6 +2924,13 @@
         localStorage.setItem(
           "dk_financeiro_ceo_fontes_v1",
           JSON.stringify(mergeFinanceiroCeoFontesArrays(atual, mergedPayload.dk_financeiro_ceo_fontes_v1))
+        );
+      }
+      if (mergedPayload.dk_financeiro_ceo_cartoes_v1) {
+        const atual = readLocalJsonArray("dk_financeiro_ceo_cartoes_v1");
+        localStorage.setItem(
+          "dk_financeiro_ceo_cartoes_v1",
+          JSON.stringify(mergeFinanceiroCeoCartoesArrays(atual, mergedPayload.dk_financeiro_ceo_cartoes_v1))
         );
       }
       if (mergedPayload.dk_unidade_financeiro_v1) {

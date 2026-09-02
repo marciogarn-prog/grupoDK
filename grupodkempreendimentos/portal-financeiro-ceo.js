@@ -4,17 +4,54 @@
  */
 (function portalFinanceiroCeo() {
   const DESPESAS_CEO_KEY = "dk_financeiro_ceo_despesas_v1";
+  const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const HORIZONTE_MESES = 24;
 
-  const DEFAULT_FONTES = [
-    { id: "FINANCIAMENTO", label: "Financiamento" },
-    { id: "CONSORCIO", label: "Consórcio" },
-    { id: "PESSOAIS", label: "Pessoais" },
-    { id: "DK_CONSTRUTORA", label: "DK Construtora" },
-    { id: "DK_OFICINA", label: "DK Oficina" },
+  const CATEGORIAS_CEO = [
     { id: "DK_LOCADORA", label: "DK Locadora" },
+    { id: "DK_CONSTRUTORA", label: "DK Construtora" },
+    { id: "DK_CENTRO_AUTOMOTIVO", label: "DK Centro Automotivo" },
+    { id: "PARTICULARES", label: "Particulares" },
   ];
+
+  const RUBRICAS_DK = [
+    { id: "ALUGUEL", label: "ALUGUEL" },
+    { id: "DESPESAS_MANU", label: "DESPESAS MANU" },
+    { id: "CONT_PROP", label: "CONT+PROP" },
+    { id: "SEGURO", label: "SEGURO" },
+    { id: "ADM", label: "ADM" },
+    { id: "IMPOSTO", label: "IMPOSTO" },
+    { id: "DOCUMENTOS", label: "DOCUMENTOS" },
+    { id: "MULTAS", label: "MULTAS" },
+    { id: "SALARIOS", label: "SALARIOS" },
+  ];
+
+  const TIPOS_PARTICULARES = [
+    { id: "CARTAO_CREDITO", label: "Cartão de crédito", exigeCartao: true },
+    { id: "CONTA_ENERGIA", label: "Conta de energia" },
+    { id: "CONTA_AGUA", label: "Conta de água" },
+    { id: "ALUGUEL", label: "Aluguel" },
+    { id: "FINANCIAMENTO_VEICULO", label: "Financiamento de veículo" },
+    { id: "FINANCIAMENTO_IMOVEL", label: "Financiamento de imóvel" },
+    { id: "CONSORCIO", label: "Consórcio" },
+    { id: "EDUCACAO", label: "Educação" },
+    { id: "FEIRA", label: "Feira" },
+    { id: "PENSAO", label: "Pensão" },
+    { id: "SAUDE", label: "Saúde" },
+    { id: "INTERNET", label: "Internet" },
+    { id: "SEGUROS", label: "Seguros" },
+    { id: "OUTROS", label: "Outros" },
+  ];
+
+  const LEGADO_CATEGORIA_LABEL = {
+    FINANCIAMENTO: "Financiamento",
+    CONSORCIO: "Consórcio",
+    PESSOAIS: "Pessoais",
+    DK_CONSTRUTORA: "DK Construtora",
+    DK_OFICINA: "DK Oficina",
+    DK_LOCADORA: "DK Locadora",
+  };
 
   const panel = document.getElementById("panel-financeiro-ceo-locadora");
   if (!panel) return;
@@ -85,7 +122,7 @@
     return new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
   }
 
-  function slugFonteId(label) {
+  function slugId(label, prefix) {
     const base = String(label || "")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
@@ -93,18 +130,60 @@
       .replace(/[^A-Z0-9]+/g, "_")
       .replace(/^_+|_+$/g, "")
       .slice(0, 48);
-    return base || `FONTE_${Date.now()}`;
+    return base || `${prefix}_${Date.now()}`;
   }
 
-  function normalizeFonte(raw) {
+  function isParticulares(catId) {
+    return String(catId || "") === "PARTICULARES";
+  }
+
+  function isCategoriaDk(catId) {
+    return !isParticulares(catId) && CATEGORIAS_CEO.some((c) => c.id === catId && c.id !== "PARTICULARES");
+  }
+
+  function labelCategoria(id) {
+    return CATEGORIAS_CEO.find((c) => c.id === id)?.label || LEGADO_CATEGORIA_LABEL[id] || String(id || "—");
+  }
+
+  function categoriaValida(id) {
+    return CATEGORIAS_CEO.some((c) => c.id === id) || Boolean(LEGADO_CATEGORIA_LABEL[id]);
+  }
+
+  function labelRubrica(id) {
+    return RUBRICAS_DK.find((r) => r.id === id)?.label || String(id || "—");
+  }
+
+  function rubricaValida(id) {
+    return RUBRICAS_DK.some((r) => r.id === id);
+  }
+
+  function labelTipoParticular(id) {
+    return TIPOS_PARTICULARES.find((t) => t.id === id)?.label || String(id || "—");
+  }
+
+  function tipoParticularValido(id) {
+    return TIPOS_PARTICULARES.some((t) => t.id === id);
+  }
+
+  function tipoParticularExigeCartao(id) {
+    return Boolean(TIPOS_PARTICULARES.find((t) => t.id === id)?.exigeCartao);
+  }
+
+  function inferirTipoParticularLegado(d) {
+    if (d?.tipoParticular && tipoParticularValido(d.tipoParticular)) return d.tipoParticular;
+    if (d?.cartaoCredito) return "CARTAO_CREDITO";
+    return TIPOS_PARTICULARES[0].id;
+  }
+
+  function normalizeCartao(raw) {
     const label = String(raw?.label || "").trim();
-    const id = String(raw?.id || slugFonteId(label)).trim() || slugFonteId(label);
+    const id = String(raw?.id || slugId(label, "CARTAO")).trim() || slugId(label, "CARTAO");
     return { id, label: label || id };
   }
 
-  function loadFontesCeoRaw() {
+  function loadCartoesCeoRaw() {
     try {
-      const raw = localStorage.getItem(FONTES_CEO_KEY);
+      const raw = localStorage.getItem(CARTOES_CEO_KEY);
       const arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
     } catch {
@@ -112,16 +191,16 @@
     }
   }
 
-  function saveFontesCeo(list) {
-    const payload = Array.isArray(list) ? list.map(normalizeFonte).filter((f) => f.label) : [];
+  function saveCartoesCeo(list) {
+    const payload = Array.isArray(list) ? list.map(normalizeCartao).filter((c) => c.label) : [];
     try {
-      localStorage.setItem(FONTES_CEO_KEY, JSON.stringify(payload));
+      localStorage.setItem(CARTOES_CEO_KEY, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
     if (typeof window.saveCadastro === "function") {
       try {
-        window.saveCadastro(FONTES_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
+        window.saveCadastro(CARTOES_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
       } catch {
         /* ignore */
       }
@@ -131,40 +210,126 @@
     }
   }
 
-  function ensureFontesPadrao() {
-    const atual = loadFontesCeoRaw();
-    if (atual.length) return atual.map(normalizeFonte);
-    const seed = DEFAULT_FONTES.map(normalizeFonte);
-    saveFontesCeo(seed);
-    return seed;
+  function migrarFontesLegadoParaCartoes() {
+    if (loadCartoesCeoRaw().length) return;
+    try {
+      const raw = localStorage.getItem(FONTES_CEO_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr) || !arr.length) return;
+      saveCartoesCeo(arr.map(normalizeCartao));
+    } catch {
+      /* ignore */
+    }
   }
 
-  function getFontesLista() {
-    const list = loadFontesCeoRaw();
-    const fontes = (list.length ? list : DEFAULT_FONTES).map(normalizeFonte);
-    return fontes.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  function getCartoesLista() {
+    return loadCartoesCeoRaw()
+      .map(normalizeCartao)
+      .sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
   }
 
-  function labelFonte(id) {
-    return getFontesLista().find((f) => f.id === id)?.label || String(id || "—");
+  function labelCartao(id) {
+    return getCartoesLista().find((c) => c.id === id)?.label || String(id || "—");
   }
 
-  function fonteValida(id) {
-    return getFontesLista().some((f) => f.id === id);
+  function cartaoValido(id) {
+    return getCartoesLista().some((c) => c.id === id);
   }
 
-  function contarDespesasPorFonte(fonteId) {
-    return loadDespesasCeo().filter((d) => String(d.categoria) === String(fonteId)).length;
+  function contarDespesasPorCartao(cartaoId) {
+    return loadDespesasCeo().filter((d) => String(d.cartaoCredito) === String(cartaoId)).length;
   }
 
-  function renderFonteSelect() {
+  function renderCategoriaSelect() {
     const sel = document.getElementById("finCeoDespCategoria");
     if (!sel) return;
     const atual = sel.value;
-    const fontes = getFontesLista();
-    sel.innerHTML = fontes.map((f) => `<option value="${esc(f.id)}">${esc(f.label)}</option>`).join("");
-    if (fonteValida(atual)) sel.value = atual;
-    else if (fontes.length) sel.selectedIndex = 0;
+    sel.innerHTML = CATEGORIAS_CEO.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
+    if (categoriaValida(atual)) sel.value = atual;
+    else sel.selectedIndex = 0;
+  }
+
+  function renderRubricaSelect() {
+    const sel = document.getElementById("finCeoDespRubrica");
+    if (!sel) return;
+    const atual = sel.value;
+    sel.innerHTML = RUBRICAS_DK.map((r) => `<option value="${esc(r.id)}">${esc(r.label)}</option>`).join("");
+    if (rubricaValida(atual)) sel.value = atual;
+    else sel.selectedIndex = 0;
+  }
+
+  function renderTipoParticularSelect() {
+    const sel = document.getElementById("finCeoDespTipoParticular");
+    if (!sel) return;
+    const atual = sel.value;
+    sel.innerHTML = TIPOS_PARTICULARES.map((t) => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join("");
+    if (tipoParticularValido(atual)) sel.value = atual;
+    else sel.selectedIndex = 0;
+  }
+
+  function renderCartaoSelect() {
+    const sel = document.getElementById("finCeoDespCartao");
+    if (!sel) return;
+    const atual = sel.value;
+    const cartoes = getCartoesLista();
+    if (!cartoes.length) {
+      sel.innerHTML = `<option value="">— Cadastre um cartão primeiro —</option>`;
+      return;
+    }
+    sel.innerHTML = cartoes.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
+    if (cartaoValido(atual)) sel.value = atual;
+    else sel.selectedIndex = 0;
+  }
+
+  function toggleTipoParticularUi() {
+    const tipo = document.getElementById("finCeoDespTipoParticular")?.value || TIPOS_PARTICULARES[0].id;
+    const exigeCartao = tipoParticularExigeCartao(tipo);
+    document.getElementById("finCeoWrapCartao")?.classList.toggle("hidden", !exigeCartao);
+    const cart = document.getElementById("finCeoDespCartao");
+    if (cart) cart.required = exigeCartao;
+    const desc = document.getElementById("finCeoDespDescricao");
+    const descLab = document.querySelector("#finCeoWrapDescricao span");
+    if (descLab) descLab.textContent = exigeCartao ? "Descrição" : "Descrição (opcional)";
+    if (desc) desc.placeholder = exigeCartao ? "Ex.: Supermercado, farmácia…" : "Complemento, se necessário…";
+  }
+
+  function toggleCategoriaDespesaUi() {
+    const cat = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS_CEO[0].id;
+    const particulares = isParticulares(cat);
+    document.getElementById("finCeoWrapRubrica")?.classList.toggle("hidden", particulares);
+    document.getElementById("finCeoWrapTipoParticular")?.classList.toggle("hidden", !particulares);
+    document.getElementById("finCeoWrapDescricao")?.classList.toggle("hidden", !particulares);
+    const rub = document.getElementById("finCeoDespRubrica");
+    const tipo = document.getElementById("finCeoDespTipoParticular");
+    const desc = document.getElementById("finCeoDespDescricao");
+    if (rub) rub.required = !particulares;
+    if (tipo) tipo.required = particulares;
+    if (particulares) {
+      toggleTipoParticularUi();
+    } else {
+      document.getElementById("finCeoWrapCartao")?.classList.add("hidden");
+      if (desc) desc.required = false;
+    }
+  }
+
+  function detalheDespesaLista(d) {
+    let tipo;
+    let desc;
+    if (isParticulares(d.categoria)) {
+      const tp = inferirTipoParticularLegado(d);
+      tipo = labelTipoParticular(tp);
+      const partes = [];
+      if (tipoParticularExigeCartao(tp) && d.cartaoCredito) partes.push(labelCartao(d.cartaoCredito));
+      if (d.descricao) partes.push(d.descricao);
+      desc = partes.length ? partes.join(" · ") : "—";
+    } else {
+      tipo = labelRubrica(d.rubrica);
+      desc = "—";
+    }
+    const fin = d.periodic
+      ? `${brl(d.valor)} · ${d.repeticoes}× · 1ª ${fmtBrDate(d.dataEvento)}`
+      : `${d.parcelas?.length || 0} parcela(s) avulsa(s)`;
+    return { tipo, desc, fin };
   }
 
   function loadDespesasCeo() {
@@ -198,10 +363,16 @@
 
   function normalizeDespesa(raw) {
     const id = String(raw?.id || `ceo-desp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
-    const fontes = getFontesLista();
-    const categoria = fonteValida(raw?.categoria) ? raw.categoria : fontes[0]?.id || DEFAULT_FONTES[0].id;
-    const subcategoria = String(raw?.subcategoria || "").trim();
-    const periodic = Boolean(raw?.periodic);
+    const categoria = categoriaValida(raw?.categoria) ? raw.categoria : CATEGORIAS_CEO[0].id;
+    const rubrica = rubricaValida(raw?.rubrica) ? raw.rubrica : rubricaValida(raw?.subcategoria) ? raw.subcategoria : "";
+    const tipoParticular = isParticulares(categoria) ? inferirTipoParticularLegado(raw) : "";
+    const cartaoCredito =
+      isParticulares(categoria) && tipoParticularExigeCartao(tipoParticular) ? String(raw?.cartaoCredito || "").trim() : "";
+    const descricao = String(raw?.descricao || raw?.subcategoria || "").trim();
+    const subcategoria = isParticulares(categoria)
+      ? [labelTipoParticular(tipoParticular), descricao].filter(Boolean).join(" — ")
+      : labelRubrica(rubrica);
+    const periodic = raw?.periodic !== false;
     const valor = parseValor(raw?.valor);
     const repeticoes = Math.max(1, Math.min(360, Number(raw?.repeticoes) || 1));
     const dataEvento = parseBrDate(raw?.dataEvento) || new Date();
@@ -214,7 +385,7 @@
           }))
           .filter((p) => p.valor > 0)
       : [];
-    return { id, categoria, subcategoria, periodic, valor, repeticoes, dataEvento, parcelas };
+    return { id, categoria, rubrica, tipoParticular, cartaoCredito, descricao, subcategoria, periodic, valor, repeticoes, dataEvento, parcelas };
   }
 
   function gerarDebitosDespesa(desp, inicioHorizonte, fimHorizonte) {
@@ -486,7 +657,7 @@
         dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--warn", "fin-ceo-dash-alert--ok");
         dashAlert.classList.add("fin-ceo-dash-alert--info");
         dashAlert.textContent =
-          "Objetivo 01: crie as fontes de despesas e lance os compromissos em Cadastro de despesas para calcular o endividamento face à receita prevista.";
+          "Objetivo 01: cadastre despesas por categoria (DK Locadora, Construtora, Centro Automotivo ou Particulares) para calcular o endividamento face à receita prevista.";
       } else if (proj.taxaMesAtual === null) {
         dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--info", "fin-ceo-dash-alert--ok");
         dashAlert.classList.add("fin-ceo-dash-alert--warn");
@@ -557,7 +728,7 @@
     if (!el) return;
     const list = loadDespesasCeo();
     if (!list.length) {
-      el.textContent = "Nenhuma despesa cadastrada — use o formulário abaixo para lançar financiamentos, consórcios e demais compromissos.";
+      el.textContent = "Nenhuma despesa cadastrada — escolha a categoria e lance os compromissos abaixo.";
       return;
     }
     const proj = buildProjecao24Meses();
@@ -569,72 +740,20 @@
     el.textContent = `${list.length} despesa(s) cadastrada(s) · compromissos deste mês: ${brl(debMes)} · receita prevista: ${brl(recMes)} · ${taxaTxt}.`;
   }
 
-  function subcategoriasExistentes(catId) {
-    const set = new Set();
-    loadDespesasCeo().forEach((d) => {
-      if (d.categoria === catId && d.subcategoria) set.add(String(d.subcategoria).trim());
-    });
-    return Array.from(set).sort();
-  }
-
-  function renderSubcategoriaDatalist() {
-    const cat = document.getElementById("finCeoDespCategoria")?.value || getFontesLista()[0]?.id || DEFAULT_FONTES[0].id;
-    const dl = document.getElementById("finCeoSubcategoriaLista");
-    if (!dl) return;
-    dl.innerHTML = subcategoriasExistentes(cat)
-      .map((s) => `<option value="${esc(s)}"></option>`)
-      .join("");
-  }
-
-  function renderParcelasAvulsas() {
-    const wrap = document.getElementById("finCeoParcelasAvulsas");
-    if (!wrap) return;
-    const rows = wrap.querySelectorAll(".fin-ceo-parcela-row");
-    if (!rows.length) {
-      wrap.innerHTML = `
-        <div class="fin-ceo-parcela-row">
-          <label class="portal-field"><span>Valor (R$)</span><input type="text" class="fin-ceo-parc-valor" inputmode="decimal" placeholder="0,00"></label>
-          <label class="portal-field"><span>Dia</span><input type="number" class="fin-ceo-parc-dia" min="1" max="31" placeholder="DD"></label>
-          <label class="portal-field"><span>Mês</span><input type="number" class="fin-ceo-parc-mes" min="1" max="12" placeholder="MM"></label>
-        </div>`;
-    }
-  }
-
-  function togglePeriodicUi() {
-    const periodic = document.getElementById("finCeoDespPeriodico")?.value === "sim";
-    document.getElementById("finCeoCamposPeriodico")?.classList.toggle("hidden", !periodic);
-    document.getElementById("finCeoCamposAvulso")?.classList.toggle("hidden", periodic);
-  }
-
-  function lerParcelasDoForm() {
-    const rows = document.querySelectorAll("#finCeoParcelasAvulsas .fin-ceo-parcela-row");
-    return Array.from(rows)
-      .map((row) => ({
-        valor: parseValor(row.querySelector(".fin-ceo-parc-valor")?.value),
-        dia: Number(row.querySelector(".fin-ceo-parc-dia")?.value) || 0,
-        mes: Number(row.querySelector(".fin-ceo-parc-mes")?.value) || 0,
-      }))
-      .filter((p) => p.valor > 0 && p.dia >= 1 && p.dia <= 31 && p.mes >= 1 && p.mes <= 12);
-  }
-
   function limparFormDespesa() {
-    const cat = document.getElementById("finCeoDespCategoria");
-    if (cat) cat.selectedIndex = 0;
-    const sub = document.getElementById("finCeoDespSubcategoria");
-    if (sub) sub.value = "";
+    renderCategoriaSelect();
+    renderRubricaSelect();
+    renderTipoParticularSelect();
+    renderCartaoSelect();
+    toggleCategoriaDespesaUi();
+    const desc = document.getElementById("finCeoDespDescricao");
+    if (desc) desc.value = "";
     const val = document.getElementById("finCeoDespValor");
     if (val) val.value = "";
     const rep = document.getElementById("finCeoDespRepeticoes");
     if (rep) rep.value = "12";
     const dt = document.getElementById("finCeoDespDataEvento");
     if (dt) dt.value = fmtBrDate(new Date());
-    const per = document.getElementById("finCeoDespPeriodico");
-    if (per) per.value = "sim";
-    const wrap = document.getElementById("finCeoParcelasAvulsas");
-    if (wrap) wrap.innerHTML = "";
-    renderParcelasAvulsas();
-    togglePeriodicUi();
-    renderSubcategoriaDatalist();
     const fb = document.getElementById("finCeoDespFeedback");
     if (fb) fb.textContent = "";
   }
@@ -652,94 +771,92 @@
     vazia?.classList.add("hidden");
     body.innerHTML = list
       .map((d) => {
-        const cat = labelFonte(d.categoria);
-        const det = d.periodic
-          ? `${brl(d.valor)} · ${d.repeticoes}× mensal · 1º evento ${fmtBrDate(d.dataEvento)} (mesmo dia nos meses seguintes)`
-          : `${d.parcelas.length} parcela(s) avulsa(s)`;
+        const { tipo, desc, fin } = detalheDespesaLista(d);
         return `<tr data-ceo-desp-id="${esc(d.id)}">
-          <td>${esc(cat)}</td>
-          <td>${esc(d.subcategoria || "—")}</td>
-          <td>${d.periodic ? "Sim" : "Não"}</td>
-          <td>${esc(det)}</td>
+          <td>${esc(labelCategoria(d.categoria))}</td>
+          <td>${esc(tipo)}</td>
+          <td>${esc(desc)}</td>
+          <td>${esc(fin)}</td>
           <td><button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button></td>
         </tr>`;
       })
       .join("");
   }
 
-  function renderListaFontes() {
-    const body = document.getElementById("finCeoFontesBody");
-    const vazia = document.getElementById("finCeoFontesVazia");
+  function renderListaCartoes() {
+    const body = document.getElementById("finCeoCartoesBody");
+    const vazia = document.getElementById("finCeoCartoesVazia");
     if (!body) return;
-    const fontes = getFontesLista();
-    if (!fontes.length) {
+    const cartoes = getCartoesLista();
+    if (!cartoes.length) {
       body.innerHTML = "";
       vazia?.classList.remove("hidden");
       return;
     }
     vazia?.classList.add("hidden");
-    body.innerHTML = fontes
-      .map((f) => {
-        const n = contarDespesasPorFonte(f.id);
+    body.innerHTML = cartoes
+      .map((c) => {
+        const n = contarDespesasPorCartao(c.id);
         const uso = n ? `${n} despesa(s)` : "sem despesas";
-        return `<tr data-ceo-fonte-id="${esc(f.id)}">
-          <td>${esc(f.label)}</td>
-          <td><code>${esc(f.id)}</code></td>
+        return `<tr data-ceo-cartao-id="${esc(c.id)}">
+          <td>${esc(c.label)}</td>
+          <td><code>${esc(c.id)}</code></td>
           <td>${esc(uso)}</td>
-          <td><button type="button" class="btn-primary btn-secondary-outline fin-ceo-fonte-excluir" data-id="${esc(f.id)}" ${n ? "disabled title=\"Remova as despesas desta fonte primeiro\"" : ""}>Excluir</button></td>
+          <td><button type="button" class="btn-primary btn-secondary-outline fin-ceo-cartao-excluir" data-id="${esc(c.id)}" ${n ? "disabled title=\"Remova as despesas deste cartão primeiro\"" : ""}>Excluir</button></td>
         </tr>`;
       })
       .join("");
   }
 
-  function renderCadastroFontes() {
-    renderListaFontes();
-    const fb = document.getElementById("finCeoFonteFeedback");
+  function renderCadastroCartoes() {
+    renderListaCartoes();
+    const fb = document.getElementById("finCeoCartaoFeedback");
     if (fb) fb.textContent = "";
   }
 
-  function salvarFonteForm(ev) {
+  function salvarCartaoForm(ev) {
     ev?.preventDefault();
-    const fb = document.getElementById("finCeoFonteFeedback");
-    const nome = String(document.getElementById("finCeoFonteNome")?.value || "").trim();
+    const fb = document.getElementById("finCeoCartaoFeedback");
+    const nome = String(document.getElementById("finCeoCartaoNome")?.value || "").trim();
     if (!nome) {
-      if (fb) fb.textContent = "Informe o nome da fonte de despesa.";
+      if (fb) fb.textContent = "Informe o nome do cartão de crédito.";
       return;
     }
-    const id = slugFonteId(nome);
-    const list = loadFontesCeoRaw().map(normalizeFonte);
-    if (list.some((f) => f.id === id || f.label.toLowerCase() === nome.toLowerCase())) {
-      if (fb) fb.textContent = "Já existe uma fonte com este nome.";
+    const id = slugId(nome, "CARTAO");
+    const list = loadCartoesCeoRaw().map(normalizeCartao);
+    if (list.some((c) => c.id === id || c.label.toLowerCase() === nome.toLowerCase())) {
+      if (fb) fb.textContent = "Já existe um cartão com este nome.";
       return;
     }
-    list.push(normalizeFonte({ id, label: nome }));
-    saveFontesCeo(list);
-    const inp = document.getElementById("finCeoFonteNome");
+    list.push(normalizeCartao({ id, label: nome }));
+    saveCartoesCeo(list);
+    const inp = document.getElementById("finCeoCartaoNome");
     if (inp) inp.value = "";
-    if (fb) fb.textContent = `Fonte «${nome}» cadastrada.`;
-    renderListaFontes();
-    renderFonteSelect();
+    if (fb) fb.textContent = `Cartão «${nome}» cadastrado.`;
+    renderListaCartoes();
+    renderCartaoSelect();
   }
 
-  function excluirFonte(id) {
-    const n = contarDespesasPorFonte(id);
+  function excluirCartao(id) {
+    const n = contarDespesasPorCartao(id);
     if (n > 0) {
-      window.alert(`Esta fonte tem ${n} despesa(s) vinculada(s). Exclua-as antes de remover a fonte.`);
+      window.alert(`Este cartão tem ${n} despesa(s) vinculada(s). Exclua-as antes de remover o cartão.`);
       return;
     }
-    if (!window.confirm("Excluir esta fonte de despesa?")) return;
-    const list = loadFontesCeoRaw().filter((f) => String(f.id) !== String(id));
-    saveFontesCeo(list);
-    renderListaFontes();
-    renderFonteSelect();
+    if (!window.confirm("Excluir este cartão de crédito?")) return;
+    const list = loadCartoesCeoRaw().filter((c) => String(c.id) !== String(id));
+    saveCartoesCeo(list);
+    renderListaCartoes();
+    renderCartaoSelect();
   }
 
   function renderCadastroDespesas() {
-    renderFonteSelect();
+    renderCategoriaSelect();
+    renderRubricaSelect();
+    renderTipoParticularSelect();
+    renderCartaoSelect();
+    toggleCategoriaDespesaUi();
     renderResumoCadastroDespesas();
-    renderSubcategoriaDatalist();
-    renderParcelasAvulsas();
-    togglePeriodicUi();
     renderListaDespesas();
     const dt = document.getElementById("finCeoDespDataEvento");
     if (dt && !String(dt.value || "").trim()) dt.value = fmtBrDate(new Date());
@@ -751,41 +868,62 @@
   function salvarDespesaForm(ev) {
     ev?.preventDefault();
     const fb = document.getElementById("finCeoDespFeedback");
-    const categoria = document.getElementById("finCeoDespCategoria")?.value || getFontesLista()[0]?.id || DEFAULT_FONTES[0].id;
-    const subcategoria = String(document.getElementById("finCeoDespSubcategoria")?.value || "").trim();
-    const periodic = document.getElementById("finCeoDespPeriodico")?.value === "sim";
+    const categoria = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS_CEO[0].id;
+    const rubrica = document.getElementById("finCeoDespRubrica")?.value || "";
+    const tipoParticular = document.getElementById("finCeoDespTipoParticular")?.value || "";
+    const cartaoCredito = document.getElementById("finCeoDespCartao")?.value || "";
+    const descricao = String(document.getElementById("finCeoDespDescricao")?.value || "").trim();
 
-    if (!subcategoria) {
-      if (fb) fb.textContent = "Informe a subcategoria (descrição).";
+    if (isParticulares(categoria)) {
+      if (!tipoParticularValido(tipoParticular)) {
+        if (fb) fb.textContent = "Selecione o tipo de despesa.";
+        return;
+      }
+      if (tipoParticularExigeCartao(tipoParticular)) {
+        if (!cartaoCredito || !cartaoValido(cartaoCredito)) {
+          if (fb) fb.textContent = "Cadastre e selecione o cartão de crédito (módulo Cartões de crédito).";
+          return;
+        }
+        if (!descricao) {
+          if (fb) fb.textContent = "Informe a descrição da despesa no cartão.";
+          return;
+        }
+      } else if (tipoParticular === "OUTROS" && !descricao) {
+        if (fb) fb.textContent = "Informe a descrição para o tipo «Outros».";
+        return;
+      }
+    } else if (!rubricaValida(rubrica)) {
+      if (fb) fb.textContent = "Selecione a rubrica da despesa.";
       return;
     }
 
-    let entry;
-    if (periodic) {
-      const valor = parseValor(document.getElementById("finCeoDespValor")?.value);
-      const repeticoes = Number(document.getElementById("finCeoDespRepeticoes")?.value) || 0;
-      const dataEvento = parseBrDate(document.getElementById("finCeoDespDataEvento")?.value);
-      if (valor <= 0) {
-        if (fb) fb.textContent = "Informe um valor maior que zero.";
-        return;
-      }
-      if (repeticoes < 1) {
-        if (fb) fb.textContent = "Informe o número de repetições.";
-        return;
-      }
-      if (!dataEvento) {
-        if (fb) fb.textContent = "Informe a data do primeiro evento (DD/MM/AAAA).";
-        return;
-      }
-      entry = normalizeDespesa({ categoria, subcategoria, periodic: true, valor, repeticoes, dataEvento });
-    } else {
-      const parcelas = lerParcelasDoForm();
-      if (!parcelas.length) {
-        if (fb) fb.textContent = "Informe ao menos uma parcela com valor, dia e mês.";
-        return;
-      }
-      entry = normalizeDespesa({ categoria, subcategoria, periodic: false, parcelas });
+    const valor = parseValor(document.getElementById("finCeoDespValor")?.value);
+    const repeticoes = Number(document.getElementById("finCeoDespRepeticoes")?.value) || 0;
+    const dataEvento = parseBrDate(document.getElementById("finCeoDespDataEvento")?.value);
+    if (valor <= 0) {
+      if (fb) fb.textContent = "Informe um valor maior que zero.";
+      return;
     }
+    if (repeticoes < 1) {
+      if (fb) fb.textContent = "Informe o número de repetições.";
+      return;
+    }
+    if (!dataEvento) {
+      if (fb) fb.textContent = "Informe a data da primeira repetição (DD/MM/AAAA).";
+      return;
+    }
+
+    const entry = normalizeDespesa({
+      categoria,
+      rubrica: isParticulares(categoria) ? "" : rubrica,
+      tipoParticular: isParticulares(categoria) ? tipoParticular : "",
+      cartaoCredito: isParticulares(categoria) && tipoParticularExigeCartao(tipoParticular) ? cartaoCredito : "",
+      descricao: isParticulares(categoria) ? descricao : "",
+      periodic: true,
+      valor,
+      repeticoes,
+      dataEvento,
+    });
 
     const list = loadDespesasCeo();
     list.push({
@@ -820,7 +958,7 @@
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
     if (id === "dashboard") renderDashboard();
-    if (id === "fontes") renderCadastroFontes();
+    if (id === "cartoes") renderCadastroCartoes();
     if (id === "despesas") renderCadastroDespesas();
   }
 
@@ -832,30 +970,21 @@
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
     });
 
-    document.getElementById("finCeoFonteForm")?.addEventListener("submit", salvarFonteForm);
-    document.getElementById("finCeoFontesBody")?.addEventListener("click", (ev) => {
-      const btn = ev.target.closest(".fin-ceo-fonte-excluir");
+    document.getElementById("finCeoCartaoForm")?.addEventListener("submit", salvarCartaoForm);
+    document.getElementById("finCeoCartoesBody")?.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".fin-ceo-cartao-excluir");
       if (!btn || btn.disabled) return;
       const id = btn.getAttribute("data-id");
-      if (id) excluirFonte(id);
+      if (id) excluirCartao(id);
     });
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespLimpar")?.addEventListener("click", limparFormDespesa);
-    document.getElementById("finCeoDespPeriodico")?.addEventListener("change", togglePeriodicUi);
-    document.getElementById("finCeoDespCategoria")?.addEventListener("change", renderSubcategoriaDatalist);
-    document.getElementById("finCeoAddParcela")?.addEventListener("click", () => {
-      const wrap = document.getElementById("finCeoParcelasAvulsas");
-      if (!wrap) return;
-      const row = document.createElement("div");
-      row.className = "fin-ceo-parcela-row";
-      row.innerHTML = `
-        <label class="portal-field"><span>Valor (R$)</span><input type="text" class="fin-ceo-parc-valor" inputmode="decimal" placeholder="0,00"></label>
-        <label class="portal-field"><span>Dia</span><input type="number" class="fin-ceo-parc-dia" min="1" max="31" placeholder="DD"></label>
-        <label class="portal-field"><span>Mês</span><input type="number" class="fin-ceo-parc-mes" min="1" max="12" placeholder="MM"></label>
-        <button type="button" class="btn-primary btn-secondary-outline fin-ceo-parc-remover">Remover</button>`;
-      wrap.appendChild(row);
-      row.querySelector(".fin-ceo-parc-remover")?.addEventListener("click", () => row.remove());
+    document.getElementById("finCeoDespCategoria")?.addEventListener("change", () => {
+      toggleCategoriaDespesaUi();
+    });
+    document.getElementById("finCeoDespTipoParticular")?.addEventListener("change", () => {
+      toggleTipoParticularUi();
     });
 
     document.getElementById("finCeoDespesasBody")?.addEventListener("click", (ev) => {
@@ -868,7 +997,7 @@
 
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
     bindOnce();
-    ensureFontesPadrao();
+    migrarFontesLegadoParaCartoes();
     panel.classList.remove("hidden");
     abrirPane("dashboard");
   };
@@ -883,14 +1012,16 @@
     });
   };
 
-  window.__DK_mergeFinanceiroCeoFontes = function mergeFinanceiroCeoFontes(localArr, cloudArr) {
+  window.__DK_mergeFinanceiroCeoCartoes = function mergeFinanceiroCeoCartoes(localArr, cloudArr) {
     const map = new Map();
     [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
-      const f = normalizeFonte(raw);
-      if (f.label) map.set(f.id, f);
+      const c = normalizeCartao(raw);
+      if (c.label) map.set(c.id, c);
     });
     return Array.from(map.values());
   };
+
+  window.__DK_mergeFinanceiroCeoFontes = window.__DK_mergeFinanceiroCeoCartoes;
 
   window.__DK_mergeFinanceiroCeoDespesas = function mergeFinanceiroCeoDespesas(localArr, cloudArr) {
     const map = new Map();
