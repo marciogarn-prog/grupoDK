@@ -44,6 +44,31 @@
       }
     },
     {
+      "id": "lanc-aluguel-relatorio-pagamento-dia-periodo",
+      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período (protocolo, nome, valor do intervalo, valor total do protocolo).",
+      "ficheiros": {
+        "index.html": [
+          "btn-lanc-aluguel-rel-pag",
+          "btn-lanc-aluguel-rel-dia",
+          "btn-lanc-aluguel-rel-periodo",
+          "portalRelPagDiaData",
+          "portalRelPagPeriodoInicio",
+          "operacaoLancAluguelPaneRelDia",
+          "operacaoLancAluguelPaneRelPeriodo"
+        ],
+        "portal-locadora-ui.js": [
+          "collectPortalRelPagamentoAgregadoPorProtocolo",
+          "buildPortalRelPagAggContext",
+          "gerarPortalRelPagAgg",
+          "rel-dia",
+          "rel-periodo"
+        ],
+        "styles.css": [
+          "portal-rel-pag-agg__table"
+        ]
+      }
+    },
+    {
       "id": "cadastro-locacao-scroll-mouse",
       "descricao": "Na tela Cadastro de locação, rodar a bola do mouse move o conteúdo (campos, documentos, botões e histórico) em vez de cortar ou sobrepor.",
       "ficheiros": {

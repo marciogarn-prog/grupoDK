@@ -169,12 +169,17 @@ async function runSuite() {
     );
     const htmlLancAluguel = await fetch(BASE_URL, { cache: "no-store" }).then((r) => r.text());
     record(
-      "submenu lançamento aluguel (só avulso ativo)",
+      "submenu lançamento aluguel (avulso + relatórios 2.1/2.2)",
       htmlLancAluguel.includes("btn-lanc-aluguel-avulso") &&
-        htmlLancAluguel.includes('id="btn-lanc-aluguel-comprovante"') &&
+        htmlLancAluguel.includes("btn-lanc-aluguel-rel-pag") &&
+        htmlLancAluguel.includes("btn-lanc-aluguel-rel-dia") &&
+        htmlLancAluguel.includes("btn-lanc-aluguel-rel-periodo") &&
+        htmlLancAluguel.includes("portalRelPagDiaData") &&
+        htmlLancAluguel.includes("portalRelPagPeriodoInicio") &&
+        htmlLancAluguel.includes("operacaoLancAluguelPaneRelDia") &&
+        htmlLancAluguel.includes("operacaoLancAluguelPaneRelPeriodo") &&
         /btn-lanc-aluguel-comprovante[^>]*hidden/.test(htmlLancAluguel) &&
         /btn-lanc-aluguel-validacao[^>]*hidden/.test(htmlLancAluguel) &&
-        /btn-lanc-aluguel-relatorios[^>]*hidden/.test(htmlLancAluguel) &&
         !/btn-lanc-aluguel-avulso[^>]*hidden/.test(htmlLancAluguel)
     );
     const portalUiVerLanc = html.match(/portal-locadora-ui\.js\?v=([^"]+)/)?.[1] || "";
@@ -189,9 +194,12 @@ async function runSuite() {
         htmlLancAluguel.includes("portal-lanc-aluguel-calendario.js")
     );
     record(
-      "lançamento aluguel só avulso (flag JS)",
+      "lançamento aluguel avulso + relatórios por dia/período (flag JS)",
       portalUiLancJs.includes("OPERACAO_LANC_ALUGUEL_SUB_ATIVOS") &&
-        portalUiLancJs.includes('new Set(["avulso"])') &&
+        portalUiLancJs.includes('"rel-dia"') &&
+        portalUiLancJs.includes('"rel-periodo"') &&
+        portalUiLancJs.includes("collectPortalRelPagamentoAgregadoPorProtocolo") &&
+        portalUiLancJs.includes("buildPortalRelPagAggContext") &&
         portalUiLancJs.includes("__DK_persistPortalLancAluguelCalendarioAno") &&
         portalUiLancJs.includes("portalLancAluguelDiaPagamentoColIdx")
     );

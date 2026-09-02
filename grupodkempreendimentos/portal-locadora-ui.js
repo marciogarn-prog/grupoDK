@@ -10568,6 +10568,17 @@
       });
       resumo.textContent = `${context.rows.length} pagamento(s) no período · Total: ${tot}. Exportar em PDF ou Excel.`;
     } else if (
+      (context.fileSlug === "pagamentos-agregado-dia" || context.fileSlug === "pagamentos-agregado-periodo") &&
+      typeof context.totalFaixa === "number"
+    ) {
+      const tot = Number(context.totalFaixa || 0).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL",
+      });
+      const label =
+        context.fileSlug === "pagamentos-agregado-dia" ? "no dia" : "no período";
+      resumo.textContent = `${context.rows.length} protocolo(s) ${label} · Soma: ${tot}. Exportar em PDF ou Excel.`;
+    } else if (
       (context.fileSlug === "relatorio-cliente-protocolos" || context.fileSlug === "relatorio-placa-protocolos") &&
       context.stats
     ) {
@@ -13077,6 +13088,234 @@
     openPortalRelatorioModal(ctx);
   });
 
+  /**
+   * Relatórios 2.1 / 2.2: agregado por protocolo.
+   * valorFaixa = soma dos pagamentos (não devoluções) com data no intervalo;
+   * valorTotal = soma de todos os pagamentos do protocolo.
+   */
+  function collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr) {
+    const parse = typeof parseBrDate === "function" ? parseBrDate : null;
+    const sIn = String(inicioBr || "").trim();
+    const sFi = String(fimBr || "").trim();
+    const d0 = parse ? parse(sIn) : null;
+    const d1 = parse ? parse(sFi) : null;
+    const fmtBrl = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    const empty = {
+      ok: false,
+      rows: [],
+      totalFaixa: 0,
+      totalGeral: 0,
+      fmtBrl,
+      inicioFmt: sIn,
+      fimFmt: sFi,
+    };
+    if (!parse || !d0 || !d1 || Number.isNaN(d0.getTime()) || Number.isNaN(d1.getTime()) || !sIn || !sFi) {
+      return empty;
+    }
+    let startMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate()).getTime();
+    let endMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate(), 23, 59, 59, 999).getTime();
+    if (startMs > endMs) {
+      const t = startMs;
+      startMs = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate()).getTime();
+      endMs = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate(), 23, 59, 59, 999).getTime();
+    }
+    const locs =
+      typeof loadCadastro === "function" && typeof CAD_LOCACOES_KEY !== "undefined"
+        ? loadCadastro(CAD_LOCACOES_KEY)
+        : [];
+    const dig =
+      typeof onlyDigits === "function"
+        ? (x) => onlyDigits(String(x || ""))
+        : (x) => String(x || "").replace(/\D/g, "");
+    const map = new Map();
+    for (const loc of locs || []) {
+      const proto = normPortalNumeroContrato(loc.numeroContrato || "");
+      if (!proto) continue;
+      const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc).filter(
+        (lan) => !portalLancamentoEhDevolucaoInvestimento(lan)
+      );
+      if (!lancs.length) continue;
+      let valorFaixa = 0;
+      let valorTotal = 0;
+      let temNaFaixa = false;
+      for (const lan of lancs) {
+        const v = Number(lan.valor || 0);
+        if (!Number.isFinite(v) || v <= 0) continue;
+        valorTotal += v;
+        const dp = parse(String(lan.data || "").trim());
+        if (!dp || Number.isNaN(dp.getTime())) continue;
+        const payMs = new Date(dp.getFullYear(), dp.getMonth(), dp.getDate()).getTime();
+        if (payMs >= startMs && payMs <= endMs) {
+          valorFaixa += v;
+          temNaFaixa = true;
+        }
+      }
+      if (!temNaFaixa) continue;
+      const cpfDigits = dig(loc.cpf).slice(0, 11);
+      let nome = String(loc.nome || loc.cliente || "").trim();
+      if (!nome && cpfDigits.length === 11 && typeof findClienteByCpfCadastro === "function") {
+        nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
+      }
+      const prev = map.get(proto);
+      if (prev) {
+        prev.valorFaixa += valorFaixa;
+        prev.valorTotal = Math.max(prev.valorTotal, valorTotal);
+        if (!prev.nome || prev.nome === "—") prev.nome = nome || prev.nome;
+      } else {
+        map.set(proto, {
+          proto,
+          nome: nome || "—",
+          valorFaixa,
+          valorTotal,
+        });
+      }
+    }
+    const rows = Array.from(map.values()).sort((a, b) =>
+      String(a.proto).localeCompare(String(b.proto), "pt-BR")
+    );
+    const totalFaixa = rows.reduce((s, r) => s + r.valorFaixa, 0);
+    const totalGeral = rows.reduce((s, r) => s + r.valorTotal, 0);
+    return {
+      ok: true,
+      rows,
+      totalFaixa,
+      totalGeral,
+      fmtBrl,
+      inicioFmt: formatPortalDataBr(new Date(startMs)),
+      fimFmt: formatPortalDataBr(new Date(endMs)),
+    };
+  }
+
+  function buildPortalRelPagAggContext(modo, inicioBr, fimBr) {
+    const agg = collectPortalRelPagamentoAgregadoPorProtocolo(inicioBr, fimBr);
+    const isDia = modo === "dia";
+    const title = isDia
+      ? "2.1 — Relatório de pagamento por dia"
+      : "2.2 — Relatório de pagamento por período";
+    const colFaixa = isDia ? "Valor do dia" : "Valor do período";
+    const periodoLabel = isDia
+      ? agg.inicioFmt || String(inicioBr || "").trim() || "—"
+      : `${agg.inicioFmt || inicioBr || "—"} a ${agg.fimFmt || fimBr || "—"}`;
+    const headers = ["Protocolo", "Nome do cliente", colFaixa, "Valor total"];
+    const rows = agg.rows.map((r) => [
+      r.proto,
+      r.nome,
+      agg.fmtBrl(r.valorFaixa),
+      agg.fmtBrl(r.valorTotal),
+    ]);
+    return {
+      title,
+      fileSlug: isDia ? "pagamentos-agregado-dia" : "pagamentos-agregado-periodo",
+      headers,
+      rows,
+      textColumns: [0, 1],
+      totalFaixa: agg.totalFaixa,
+      totalGeral: agg.totalGeral,
+      ok: agg.ok,
+      periodoLabel,
+      headerSubtitleLines: [isDia ? `Dia: ${periodoLabel}` : `Período: ${periodoLabel}`],
+      excelMetaPairs: [
+        [isDia ? "Dia" : "Período", periodoLabel],
+        [isDia ? "Total do dia" : "Total do período", agg.fmtBrl(agg.totalFaixa)],
+        ["Soma dos totais de protocolo", agg.fmtBrl(agg.totalGeral)],
+        ["Protocolos", String(rows.length)],
+      ],
+      stats: { protocolos: rows.length },
+    };
+  }
+
+  function renderPortalRelPagAggTable(modo, ctx) {
+    const bodyId = modo === "dia" ? "portalRelPagDiaBody" : "portalRelPagPeriodoBody";
+    const resumoId = modo === "dia" ? "portalRelPagDiaResumo" : "portalRelPagPeriodoResumo";
+    const body = document.getElementById(bodyId);
+    const resumo = document.getElementById(resumoId);
+    const fmt = (n) =>
+      Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (!ctx?.ok) {
+      if (body) body.innerHTML = `<tr><td colspan="4" class="subtext">Informe data(s) válida(s) no formato DD/MM/AAAA.</td></tr>`;
+      if (resumo) resumo.textContent = "Datas inválidas.";
+      return;
+    }
+    if (!ctx.rows.length) {
+      if (body) {
+        body.innerHTML = `<tr><td colspan="4" class="subtext">Nenhum protocolo com pagamento ${
+          modo === "dia" ? "neste dia" : "neste período"
+        }.</td></tr>`;
+      }
+      if (resumo) {
+        resumo.textContent =
+          modo === "dia"
+            ? `Dia ${ctx.periodoLabel}: nenhum pagamento.`
+            : `Período ${ctx.periodoLabel}: nenhum pagamento.`;
+      }
+      return;
+    }
+    if (body) {
+      body.innerHTML = ctx.rows
+        .map((row) => {
+          const proto = String(row[0] || "");
+          const nome = String(row[1] || "");
+          const faixa = String(row[2] || "");
+          const total = String(row[3] || "");
+          return `<tr><td>${portalEscapeHtml(proto)}</td><td>${portalEscapeHtml(
+            nome
+          )}</td><td>${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(total)}</td></tr>`;
+        })
+        .join("");
+    }
+    if (resumo) {
+      const labelFaixa = modo === "dia" ? "Total do dia" : "Total do período";
+      resumo.textContent = `${ctx.rows.length} protocolo(s) · ${labelFaixa}: ${fmt(
+        ctx.totalFaixa
+      )} · ${modo === "dia" ? "Dia" : "Período"}: ${ctx.periodoLabel}`;
+    }
+  }
+
+  function gerarPortalRelPagAgg(modo) {
+    const msg = document.getElementById("operacaoLancAluguelInlineMsg");
+    let inicio = "";
+    let fim = "";
+    if (modo === "dia") {
+      inicio = String(document.getElementById("portalRelPagDiaData")?.value || "").trim();
+      fim = inicio;
+      if (!inicio) {
+        if (msg) msg.textContent = "Informe o dia do pagamento (DD/MM/AAAA).";
+        renderPortalRelPagAggTable("dia", { ok: false, rows: [] });
+        return;
+      }
+    } else {
+      inicio = String(document.getElementById("portalRelPagPeriodoInicio")?.value || "").trim();
+      fim = String(document.getElementById("portalRelPagPeriodoFim")?.value || "").trim();
+      if (!inicio || !fim) {
+        if (msg) msg.textContent = "Informe a data de início e a data de fim (DD/MM/AAAA).";
+        renderPortalRelPagAggTable("periodo", { ok: false, rows: [] });
+        return;
+      }
+    }
+    const ctx = buildPortalRelPagAggContext(modo, inicio, fim);
+    renderPortalRelPagAggTable(modo, ctx);
+    if (!ctx.ok) {
+      if (msg) msg.textContent = "Datas inválidas. Use o formato DD/MM/AAAA.";
+      return;
+    }
+    if (msg) {
+      msg.textContent = ctx.rows.length
+        ? `${ctx.title}: ${ctx.rows.length} protocolo(s).`
+        : `${ctx.title}: nenhum pagamento no intervalo.`;
+    }
+    openPortalRelatorioModal(ctx);
+  }
+
+  document.getElementById("portalRelPagDiaGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    gerarPortalRelPagAgg("dia");
+  });
+  document.getElementById("portalRelPagPeriodoGerarBtn")?.addEventListener("click", (e) => {
+    e.preventDefault();
+    gerarPortalRelPagAgg("periodo");
+  });
+
   document.getElementById("operacaoLocacaoRelAtivasBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
     portalLocacaoRelatorioModo = "ativas";
@@ -13209,26 +13448,33 @@
   });
 
   /** Submenus visíveis em «Lançamento de aluguel» — reactivar comprovante/validacao/relatorios quando necessário. */
-  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso"]);
+  const OPERACAO_LANC_ALUGUEL_SUB_ATIVOS = new Set(["avulso", "rel-dia", "rel-periodo"]);
 
   const OPERACAO_LANC_ALUGUEL_SUB_IDS = {
     avulso: "operacaoLancAluguelPaneAvulso",
     comprovante: "operacaoLancAluguelPaneComprovante",
     validacao: "operacaoLancAluguelPaneValidacao",
     relatorios: "operacaoLancAluguelPaneRelatorios",
+    "rel-dia": "operacaoLancAluguelPaneRelDia",
+    "rel-periodo": "operacaoLancAluguelPaneRelPeriodo",
   };
 
   const OPERACAO_LANC_ALUGUEL_SUB_LEADS = {
     avulso:
       "Pesquise o contrato, confirme e registe data + valor. Use «Lançamento em bloco» para o relatório em calendário (2025, 2026…).",
     comprovante:
-      "2 — Com comprovante: pesquise o contrato, cole o comprovante; a IA valida destino DK e o operador confirma.",
+      "Com comprovante: pesquise o contrato, cole o comprovante; a IA valida destino DK e o operador confirma.",
     validacao:
-      "3 — App cliente: comprovantes enviados pelo telemóvel do cliente — IA, conferência e devolução com motivo.",
+      "App cliente: comprovantes enviados pelo telemóvel do cliente — IA, conferência e devolução com motivo.",
     relatorios: "Relatórios por período, por cliente (CPF) ou por placa.",
+    "rel-dia":
+      "2.1 — Relatório por dia: escolha a data no calendário. Lista protocolo, cliente, valor do dia e valor total do protocolo.",
+    "rel-periodo":
+      "2.2 — Relatório por período: escolha início e fim. Lista protocolo, cliente, valor no período e valor total do protocolo.",
   };
 
   let operacaoLancAluguelSubAtivo = "avulso";
+  let operacaoLancAluguelRelPagSubnavAberto = false;
 
   function operacaoLancAluguelSubPermitido(sub) {
     return OPERACAO_LANC_ALUGUEL_SUB_ATIVOS.has(String(sub || "").trim());
@@ -13238,12 +13484,34 @@
     return OPERACAO_LANC_ALUGUEL_SUB_ATIVOS.size > 1;
   }
 
+  function syncOperacaoLancAluguelRelPagSubnavVisible(forceOpen) {
+    const nav = document.getElementById("operacaoLancAluguelRelPagSubnav");
+    const parent = document.getElementById("btn-lanc-aluguel-rel-pag");
+    if (!nav) return;
+    if (typeof forceOpen === "boolean") operacaoLancAluguelRelPagSubnavAberto = forceOpen;
+    const show =
+      operacaoLancAluguelRelPagSubnavAberto ||
+      operacaoLancAluguelSubAtivo === "rel-dia" ||
+      operacaoLancAluguelSubAtivo === "rel-periodo";
+    operacaoLancAluguelRelPagSubnavAberto = show;
+    nav.classList.toggle("hidden", !show);
+    if (show) nav.removeAttribute("hidden");
+    else nav.setAttribute("hidden", "");
+    parent?.setAttribute("aria-expanded", show ? "true" : "false");
+    parent?.classList.toggle(
+      "is-active",
+      show || operacaoLancAluguelSubAtivo === "rel-dia" || operacaoLancAluguelSubAtivo === "rel-periodo"
+    );
+  }
+
   function syncOperacaoLancAluguelSubnavItemsVisibility() {
     [
       "btn-lanc-aluguel-avulso",
       "btn-lanc-aluguel-comprovante",
       "btn-lanc-aluguel-validacao",
       "btn-lanc-aluguel-relatorios",
+      "btn-lanc-aluguel-rel-dia",
+      "btn-lanc-aluguel-rel-periodo",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -13255,6 +13523,16 @@
       b.tabIndex = show ? 0 : -1;
       b.disabled = !show;
     });
+    const parentRel = document.getElementById("btn-lanc-aluguel-rel-pag");
+    if (parentRel) {
+      const showParent =
+        operacaoLancAluguelSubPermitido("rel-dia") || operacaoLancAluguelSubPermitido("rel-periodo");
+      parentRel.classList.toggle("hidden", !showParent);
+      parentRel.toggleAttribute("hidden", !showParent);
+      parentRel.setAttribute("aria-hidden", showParent ? "false" : "true");
+      parentRel.tabIndex = showParent ? 0 : -1;
+      parentRel.disabled = !showParent;
+    }
   }
 
   function syncOperacaoLancAluguelSubnavVisible(visible) {
@@ -13302,6 +13580,8 @@
       "btn-lanc-aluguel-comprovante",
       "btn-lanc-aluguel-validacao",
       "btn-lanc-aluguel-relatorios",
+      "btn-lanc-aluguel-rel-dia",
+      "btn-lanc-aluguel-rel-periodo",
     ].forEach((id) => {
       const b = document.getElementById(id);
       if (!b) return;
@@ -13309,6 +13589,9 @@
       b.classList.toggle("is-active", on);
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
+    syncOperacaoLancAluguelRelPagSubnavVisible(
+      sub === "rel-dia" || sub === "rel-periodo"
+    );
     const main = document.getElementById("btn-operacao-lancamento-aluguel");
     if (main) {
       const aluguelAberto = !document
@@ -20381,12 +20664,21 @@
     "btn-lanc-aluguel-comprovante",
     "btn-lanc-aluguel-validacao",
     "btn-lanc-aluguel-relatorios",
+    "btn-lanc-aluguel-rel-dia",
+    "btn-lanc-aluguel-rel-periodo",
   ].forEach((id) => {
     document.getElementById(id)?.addEventListener("click", () => {
       const sub = document.getElementById(id)?.getAttribute("data-lanc-aluguel-sub") || "avulso";
       if (!operacaoLancAluguelSubPermitido(sub)) return;
       openOperacaoLancamentoAluguel(sub);
     });
+  });
+
+  document.getElementById("btn-lanc-aluguel-rel-pag")?.addEventListener("click", () => {
+    syncOperacaoLancAluguelRelPagSubnavVisible(true);
+    openOperacaoLancamentoAluguel(
+      operacaoLancAluguelSubPermitido("rel-dia") ? "rel-dia" : "rel-periodo"
+    );
   });
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {

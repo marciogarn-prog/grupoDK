@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260902lanc-cor-azul">
+  <link rel="stylesheet" href="styles.css?v=20260902rel-pag-agg">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -571,16 +571,30 @@
                   <span class="btn-operacao-cmd__title">1 — Lançamento avulso</span>
                   <span class="btn-operacao-cmd__hint">Operador regista data e valor (Pix, espécie, cartão)</span>
                 </button>
+                <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub" id="btn-lanc-aluguel-rel-pag" aria-expanded="false" aria-controls="operacaoLancAluguelRelPagSubnav">
+                  <span class="btn-operacao-cmd__title">2 — Relatório de pagamento</span>
+                  <span class="btn-operacao-cmd__hint">Por dia ou por período — protocolo, cliente e valores</span>
+                </button>
+                <nav id="operacaoLancAluguelRelPagSubnav" class="portal-manutencao-subnav-nested operacao-lanc-aluguel-rel-subnav hidden" aria-label="Relatórios de pagamento" hidden>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-dia" data-lanc-aluguel-sub="rel-dia">
+                    <span class="btn-operacao-cmd__title">2.1 — Relatório por dia</span>
+                    <span class="btn-operacao-cmd__hint">Escolha o dia no calendário</span>
+                  </button>
+                  <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub btn-operacao-cmd--sub2" id="btn-lanc-aluguel-rel-periodo" data-lanc-aluguel-sub="rel-periodo">
+                    <span class="btn-operacao-cmd__title">2.2 — Relatório por período</span>
+                    <span class="btn-operacao-cmd__hint">Escolha início e fim nos calendários</span>
+                  </button>
+                </nav>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub hidden" id="btn-lanc-aluguel-comprovante" data-lanc-aluguel-sub="comprovante" hidden aria-hidden="true" tabindex="-1">
-                  <span class="btn-operacao-cmd__title">2 — Lançamento com comprovante</span>
+                  <span class="btn-operacao-cmd__title">Lançamento com comprovante</span>
                   <span class="btn-operacao-cmd__hint">Colar imagem/PDF; IA valida destino DK</span>
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub hidden" id="btn-lanc-aluguel-validacao" data-lanc-aluguel-sub="validacao" hidden aria-hidden="true" tabindex="-1">
-                  <span class="btn-operacao-cmd__title">3 — App cliente (IA + comprovante)</span>
+                  <span class="btn-operacao-cmd__title">App cliente (IA + comprovante)</span>
                   <span class="btn-operacao-cmd__hint">Pagamentos enviados pelo cliente no telemóvel</span>
                 </button>
                 <button type="button" class="btn-operacao-cmd btn-operacao-cmd--sub hidden" id="btn-lanc-aluguel-relatorios" data-lanc-aluguel-sub="relatorios" hidden aria-hidden="true" tabindex="-1">
-                  <span class="btn-operacao-cmd__title">Relatórios</span>
+                  <span class="btn-operacao-cmd__title">Relatórios (legado)</span>
                   <span class="btn-operacao-cmd__hint">Período, CPF ou placa</span>
                 </button>
               </nav>
@@ -1606,6 +1620,83 @@
               <div id="portalComprovanteClienteListaRecusados" class="portal-comprovante-cliente-lista"></div>
             </div>
           </section>
+          </div>
+
+          <div id="operacaoLancAluguelPaneRelDia" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatório de pagamento por dia">
+            <h4 class="portal-lanc-aluguel-section__title">2.1 — Relatório por dia</h4>
+            <p class="subtext">Escolha o dia no calendário. O sistema lista os protocolos que <strong>pagaram nesse dia</strong>.</p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO DIA — VALOR TOTAL</strong>
+              (valor do dia = pago na data; valor total = tudo já pago no protocolo).
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field">
+                <span>Dia do pagamento</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelPagDiaData" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Dia do pagamento para o relatório" title="Clique para abrir o calendário">
+                </span>
+              </label>
+            </div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary" id="portalRelPagDiaGerarBtn">Gerar relatório</button>
+            </div>
+            <p id="portalRelPagDiaResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o dia e clique em Gerar relatório.</p>
+            <div class="fin-table-wrap portal-rel-pag-agg__table-wrap">
+              <table class="fin-table portal-rel-pag-agg__table" id="portalRelPagDiaTable">
+                <thead>
+                  <tr>
+                    <th>Protocolo</th>
+                    <th>Nome do cliente</th>
+                    <th>Valor do dia</th>
+                    <th>Valor total</th>
+                  </tr>
+                </thead>
+                <tbody id="portalRelPagDiaBody">
+                  <tr><td colspan="4" class="subtext">—</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="operacaoLancAluguelPaneRelPeriodo" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatório de pagamento por período">
+            <h4 class="portal-lanc-aluguel-section__title">2.2 — Relatório de pagamento por período</h4>
+            <p class="subtext">Escolha o <strong>início</strong> e o <strong>fim</strong> nos calendários. Para cada protocolo que pagou no intervalo, mostra o valor do período e o total do protocolo.</p>
+            <p class="subtext portal-relatorio-pagamentos-periodo__hint">
+              Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO PERÍODO — VALOR TOTAL</strong>
+            </p>
+            <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
+              <label class="portal-field">
+                <span>Data início</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelPagPeriodoInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data início do relatório por período" title="Clique para abrir o calendário">
+                </span>
+              </label>
+              <label class="portal-field">
+                <span>Data fim</span>
+                <span class="dk-date-cal fin-date-cal">
+                  <input type="text" id="portalRelPagPeriodoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Data fim do relatório por período" title="Clique para abrir o calendário">
+                </span>
+              </label>
+            </div>
+            <div class="portal-relatorio-pagamentos-periodo__actions">
+              <button type="button" class="btn-primary" id="portalRelPagPeriodoGerarBtn">Gerar relatório</button>
+            </div>
+            <p id="portalRelPagPeriodoResumo" class="fin-ceo-desp-resumo portal-rel-pag-agg__resumo" role="status">Escolha o período e clique em Gerar relatório.</p>
+            <div class="fin-table-wrap portal-rel-pag-agg__table-wrap">
+              <table class="fin-table portal-rel-pag-agg__table" id="portalRelPagPeriodoTable">
+                <thead>
+                  <tr>
+                    <th>Protocolo</th>
+                    <th>Nome do cliente</th>
+                    <th>Valor do período</th>
+                    <th>Valor total</th>
+                  </tr>
+                </thead>
+                <tbody id="portalRelPagPeriodoBody">
+                  <tr><td colspan="4" class="subtext">—</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div id="operacaoLancAluguelPaneRelatorios" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Relatórios de pagamentos">
@@ -3542,7 +3633,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260902lanc-cor-azul" defer></script>
+  <script src="portal-locadora-ui.js?v=20260902rel-pag-agg" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

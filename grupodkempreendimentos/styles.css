@@ -1950,6 +1950,26 @@ body {
   display: none;
 }
 
+.portal-rel-pag-agg__resumo {
+  margin: 0.85rem 0 0.5rem;
+}
+
+.portal-rel-pag-agg__table-wrap {
+  margin-top: 0.5rem;
+  max-height: min(55vh, 28rem);
+  overflow: auto;
+}
+
+.portal-rel-pag-agg__table th,
+.portal-rel-pag-agg__table td {
+  white-space: nowrap;
+}
+
+.portal-rel-pag-agg__table td:nth-child(2) {
+  white-space: normal;
+  min-width: 12rem;
+}
+
 .operacao-lanc-aluguel-bloco-pesquisa.hidden {
   display: none;
 }
