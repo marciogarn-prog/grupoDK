@@ -540,6 +540,66 @@
     if (hid) hid.value = "";
   }
 
+  function cartaoBateFinais(c, finais) {
+    const f = onlyDigitsCeo(finais).slice(0, 4);
+    if (f.length !== 4 || !c) return false;
+    if (onlyDigitsCeo(c.finais).slice(0, 4) === f) return true;
+    const m = String(c.label || "").match(/\*{4}(\d{4})/);
+    return Boolean(m && m[1] === f);
+  }
+
+  /** Último cartão do histórico com os mesmos 4 finais (preferência: uso recente em despesas). */
+  function buscarCartaoHistoricoPorFinais(finais) {
+    const f = onlyDigitsCeo(finais).slice(0, 4);
+    if (f.length !== 4) return null;
+    const raw = loadCartoesCeoRaw().map(normalizeCartao);
+    const matches = raw.filter((c) => cartaoBateFinais(c, f));
+    if (!matches.length) return null;
+
+    const byId = new Map(matches.map((c) => [c.id, c]));
+    let best = null;
+    let bestTs = -1;
+    loadDespesasCeo()
+      .map(normalizeDespesa)
+      .forEach((d) => {
+        const id = String(d.cartaoCredito || "").trim();
+        if (!id || !byId.has(id)) return;
+        const ts = Date.parse(String(d.cadastradoEm || "")) || 0;
+        if (ts >= bestTs) {
+          bestTs = ts;
+          best = byId.get(id);
+        }
+      });
+    if (best) return best;
+
+    for (let i = raw.length - 1; i >= 0; i -= 1) {
+      if (cartaoBateFinais(raw[i], f)) return raw[i];
+    }
+    return matches[matches.length - 1];
+  }
+
+  /** Se os 4 finais já existem, preenche banco e CPF/CNPJ do histórico. */
+  function aplicarHistoricoCartaoPorFinais() {
+    const fin = document.getElementById("finCeoDespCartaoFinais");
+    const ban = document.getElementById("finCeoDespCartaoBanco");
+    const doc = document.getElementById("finCeoDespCartaoDoc");
+    const hid = document.getElementById("finCeoDespCartao");
+    const f = onlyDigitsCeo(fin?.value).slice(0, 4);
+    if (f.length !== 4) return null;
+    const hist = buscarCartaoHistoricoPorFinais(f);
+    if (!hist) {
+      if (hid) hid.value = "";
+      return null;
+    }
+    if (ban && hist.banco) ban.value = hist.banco;
+    if (doc) {
+      if (hist.titularDoc) doc.value = formatCpfCnpjCeo(hist.titularDoc);
+      else if (hist.titularLabel) doc.value = hist.titularLabel;
+    }
+    if (hid) hid.value = hist.id;
+    return hist;
+  }
+
   function upsertCartaoFromForm(opts = {}) {
     const { silent = false } = opts;
     const { finais, banco, titularDoc, titularLabel } = lerCamposCartaoForm();
@@ -551,11 +611,15 @@
       if (!silent) return null;
       return null;
     }
-    const card = normalizeCartao({ finais, banco, titularDoc, titularLabel });
-    const list = getCartoesLista();
-    const idx = list.findIndex((c) => c.id === card.id);
-    if (idx >= 0) list[idx] = { ...list[idx], ...card };
-    else list.push(card);
+    const card = normalizeCartao({
+      finais,
+      banco,
+      titularDoc,
+      titularLabel,
+      usadoEm: new Date().toISOString(),
+    });
+    const list = getCartoesLista().filter((c) => c.id !== card.id);
+    list.push(card);
     saveCartoesCeo(list);
     const hid = document.getElementById("finCeoDespCartao");
     if (hid) hid.value = card.id;
@@ -2935,13 +2999,19 @@
     if (finaisInp) {
       finaisInp.addEventListener("input", () => {
         finaisInp.value = onlyDigitsCeo(finaisInp.value).slice(0, 4);
+        if (finaisInp.value.length === 4) {
+          aplicarHistoricoCartaoPorFinais();
+          memorizarFinaisCartao(finaisInp.value);
+        }
       });
       finaisInp.addEventListener("blur", () => {
         memorizarFinaisCartao(finaisInp.value);
+        aplicarHistoricoCartaoPorFinais();
         upsertCartaoFromForm({ silent: true });
       });
       finaisInp.addEventListener("change", () => {
         memorizarFinaisCartao(finaisInp.value);
+        aplicarHistoricoCartaoPorFinais();
         upsertCartaoFromForm({ silent: true });
       });
     }

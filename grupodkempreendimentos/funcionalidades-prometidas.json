@@ -290,7 +290,7 @@
     },
     {
       "id": "fin-ceo-cartao-finais-banco-doc",
-      "descricao": "No FINANCEIRO CEO → Cadastro de despesas → Cartão de crédito: caixa 1 com 4 números finais (memória + lista suspensa) e caixa 2 com banco (BB, Sicredi, Santander, Sicoob, Pan, Caixa, Nu, Itaú, Mercado Pago, CEA, Carrefour, Renner…) e CPF/CNPJ do cartão (DK Locadora/Construtora/Centro), memorizando cada opção nova.",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas → Cartão de crédito: caixa 1 com 4 números finais (memória + lista suspensa) e caixa 2 com banco e CPF/CNPJ; se os 4 finais já existirem no histórico, preenche automaticamente banco e CPF/CNPJ (aplicarHistoricoCartaoPorFinais).",
       "ficheiros": {
         "index.html": [
           "finCeoDespCartaoFinais",
@@ -305,6 +305,8 @@
           "memorizarBancoCartao",
           "memorizarDocCartao",
           "upsertCartaoFromForm",
+          "aplicarHistoricoCartaoPorFinais",
+          "buscarCartaoHistoricoPorFinais",
           "finCeoDespCartaoFinaisList"
         ],
         "styles.css": [
