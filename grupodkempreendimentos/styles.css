@@ -10715,6 +10715,71 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   }
 }
 
+#view-financeiro-ceo .fin-ceo-desp-field-cartao {
+  grid-column: 1 / -1;
+}
+
+#view-financeiro-ceo .fin-ceo-cartao-bloco__titulo {
+  display: block;
+  font-weight: 700;
+  color: #fca5a5;
+  margin-bottom: 0.45rem;
+}
+
+#view-financeiro-ceo .fin-ceo-cartao-bloco {
+  display: grid;
+  grid-template-columns: minmax(9rem, 11rem) minmax(0, 1fr);
+  gap: 0.85rem 1.1rem;
+  align-items: start;
+  padding: 0.75rem 0.85rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(15, 23, 42, 0.45);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.12);
+}
+
+@media (max-width: 900px) {
+  #view-financeiro-ceo .fin-ceo-cartao-bloco {
+    grid-template-columns: 1fr;
+  }
+}
+
+#view-financeiro-ceo .fin-ceo-cartao-caixa--banco-doc {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(12rem, 1.2fr);
+  gap: 0.65rem 0.85rem;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  #view-financeiro-ceo .fin-ceo-cartao-caixa--banco-doc {
+    grid-template-columns: 1fr;
+  }
+}
+
+#view-financeiro-ceo .fin-ceo-cartao-caixa--banco-doc > .subtext {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+#view-financeiro-ceo .fin-ceo-cartao-caixa--finais .subtext {
+  margin-top: 0.35rem;
+}
+
+#view-financeiro-ceo #finCeoDespCartaoFinais {
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  text-align: center;
+  max-width: 8.5rem;
+}
+
+@media (min-width: 1100px) {
+  #view-financeiro-ceo .fin-ceo-desp-form.operacao-inline-form__grid,
+  #view-financeiro-ceo .fin-ceo-desp-form--windows {
+    grid-template-columns: minmax(18rem, 0.85fr) minmax(22rem, 1.15fr);
+  }
+}
+
 #view-financeiro-ceo .fin-ceo-desp-form .portal-field,
 #view-financeiro-ceo .fin-ceo-desp-form .fin-ceo-campos-periodico,
 #view-financeiro-ceo .fin-ceo-desp-form .fin-ceo-campos-avulso,

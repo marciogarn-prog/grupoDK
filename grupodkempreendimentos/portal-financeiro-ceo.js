@@ -7,10 +7,34 @@
   const SITUACAO_PAG_CEO_KEY = "dk_financeiro_ceo_situacao_pag_v1";
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
+  const CARTAO_FINAIS_MEM_KEY = "dk_financeiro_ceo_cartao_finais_v1";
+  const CARTAO_BANCOS_MEM_KEY = "dk_financeiro_ceo_cartao_bancos_v1";
+  const CARTAO_DOCS_MEM_KEY = "dk_financeiro_ceo_cartao_docs_v1";
   const CEO_LISTA_SORT_VENCIMENTO = "__vencimento_ceo";
   const HORIZONTE_MESES = 24;
   const CEO_ANO_FIM_PAINEL = 2030;
   const CEO_ANOS_PAINEL = [2026, 2027, 2028, 2029, 2030];
+
+  const BANCOS_CARTAO_CEO = [
+    "BANCO DO BRASIL",
+    "SICREDI",
+    "SANTANDER",
+    "SICOOB",
+    "PAN",
+    "CAIXA",
+    "NU",
+    "ITAÚ",
+    "MERCADO PAGO",
+    "CEA",
+    "CARREFOUR",
+    "RENNER",
+  ];
+
+  const DOCS_CARTAO_CEO_SEED = [
+    { label: "DK Locadora — 59.665.734/0001-32", digits: "59665734000132" },
+    { label: "DK Construtora", digits: "" },
+    { label: "DK Centro Automotivo", digits: "" },
+  ];
 
   const CATEGORIAS_CEO = [
     { id: "DK_LOCADORA", label: "DK Locadora" },
@@ -187,15 +211,88 @@
     return TIPOS_PARTICULARES[0].id;
   }
 
-  function normalizeCartao(raw) {
-    const label = String(raw?.label || "").trim();
-    const id = String(raw?.id || slugId(label, "CARTAO")).trim() || slugId(label, "CARTAO");
-    return { id, label: label || id };
+  function onlyDigitsCeo(s) {
+    return String(s ?? "").replace(/\D/g, "");
   }
 
-  function loadCartoesCeoRaw() {
+  function formatCpfCnpjCeo(digits) {
+    const d = onlyDigitsCeo(digits);
+    if (d.length === 11) return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    if (d.length === 14) return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+    return String(digits || "").trim();
+  }
+
+  function normalizeBancoCartaoCeo(raw) {
+    const t = String(raw || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ");
+    if (!t) return "";
+    const alias = {
+      SICRED: "SICREDI",
+      ITAU: "ITAÚ",
+      "ITAU": "ITAÚ",
+      NUBANK: "NU",
+      CARREFUL: "CARREFOUR",
+      CARREFOUR: "CARREFOUR",
+      RENER: "RENNER",
+      RENNER: "RENNER",
+      "BANCO DO BRASIL": "BANCO DO BRASIL",
+      BB: "BANCO DO BRASIL",
+    };
+    if (alias[t]) return alias[t];
+    const found = BANCOS_CARTAO_CEO.find((b) => {
+      const nb = b
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toUpperCase();
+      return nb === t || b.toUpperCase() === String(raw || "").trim().toUpperCase();
+    });
+    return found || String(raw || "").trim().toUpperCase();
+  }
+
+  function montarLabelCartaoCeo(finais, banco, titularDoc, titularLabel) {
+    const f = onlyDigitsCeo(finais).slice(0, 4);
+    const b = normalizeBancoCartaoCeo(banco);
+    const docFmt = formatCpfCnpjCeo(titularDoc);
+    const extra = docFmt || String(titularLabel || "").trim();
+    if (!f && !b && !extra) return "";
+    const parts = [];
+    if (f) parts.push(`****${f}`);
+    if (b) parts.push(b);
+    if (extra) parts.push(extra);
+    return parts.join(" · ");
+  }
+
+  function normalizeCartao(raw) {
+    const finais = onlyDigitsCeo(raw?.finais || "").slice(0, 4);
+    const banco = normalizeBancoCartaoCeo(raw?.banco || "");
+    const titularDoc = onlyDigitsCeo(raw?.titularDoc || raw?.doc || "").slice(0, 14);
+    const titularLabel = String(raw?.titularLabel || "").trim();
+    let label = String(raw?.label || "").trim();
+    const composed = montarLabelCartaoCeo(finais, banco, titularDoc, titularLabel);
+    if (composed) label = composed;
+    if (!label && finais) label = `****${finais}`;
+    const idBase =
+      finais || banco || titularDoc
+        ? `CARTAO_${finais || "XXXX"}_${slugId(banco || "BANCO", "B")}_${titularDoc || "DOC"}`
+        : slugId(label, "CARTAO");
+    const id = String(raw?.id || idBase).trim() || idBase;
+    return {
+      id,
+      label: label || id,
+      finais,
+      banco,
+      titularDoc,
+      titularLabel,
+    };
+  }
+
+  function loadJsonArrayCeo(key) {
     try {
-      const raw = localStorage.getItem(CARTOES_CEO_KEY);
+      const raw = localStorage.getItem(key);
       const arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
     } catch {
@@ -203,20 +300,29 @@
     }
   }
 
-  function saveCartoesCeo(list) {
-    const payload = Array.isArray(list) ? list.map(normalizeCartao).filter((c) => c.label) : [];
+  function saveJsonArrayCeo(key, list) {
+    const payload = Array.isArray(list) ? list : [];
     try {
-      localStorage.setItem(CARTOES_CEO_KEY, JSON.stringify(payload));
+      localStorage.setItem(key, JSON.stringify(payload));
     } catch {
       /* ignore */
     }
     if (typeof window.saveCadastro === "function") {
       try {
-        window.saveCadastro(CARTOES_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
+        window.saveCadastro(key, payload, { bypassImmutabilidadeCadastro: true });
       } catch {
         /* ignore */
       }
     }
+  }
+
+  function loadCartoesCeoRaw() {
+    return loadJsonArrayCeo(CARTOES_CEO_KEY);
+  }
+
+  function saveCartoesCeo(list) {
+    const payload = Array.isArray(list) ? list.map(normalizeCartao).filter((c) => c.label) : [];
+    saveJsonArrayCeo(CARTOES_CEO_KEY, payload);
     if (typeof window.__DK_pushCloudSnapshotNow === "function") {
       window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
     }
@@ -248,6 +354,243 @@
     return getCartoesLista().some((c) => c.id === id);
   }
 
+  function getFinaisMemoria() {
+    const fromMem = loadJsonArrayCeo(CARTAO_FINAIS_MEM_KEY)
+      .map((x) => onlyDigitsCeo(x).slice(0, 4))
+      .filter((d) => d.length === 4);
+    const fromCards = getCartoesLista()
+      .map((c) => onlyDigitsCeo(c.finais).slice(0, 4))
+      .filter((d) => d.length === 4);
+    return Array.from(new Set([...fromMem, ...fromCards])).sort();
+  }
+
+  function memorizarFinaisCartao(finais) {
+    const d = onlyDigitsCeo(finais).slice(0, 4);
+    if (d.length !== 4) return false;
+    const list = getFinaisMemoria();
+    if (list.includes(d)) {
+      refreshCartaoDatalists();
+      return false;
+    }
+    saveJsonArrayCeo(CARTAO_FINAIS_MEM_KEY, [...list, d]);
+    refreshCartaoDatalists();
+    return true;
+  }
+
+  function getBancosMemoria() {
+    const fromMem = loadJsonArrayCeo(CARTAO_BANCOS_MEM_KEY)
+      .map(normalizeBancoCartaoCeo)
+      .filter(Boolean);
+    const fromCards = getCartoesLista()
+      .map((c) => normalizeBancoCartaoCeo(c.banco))
+      .filter(Boolean);
+    return Array.from(new Set([...BANCOS_CARTAO_CEO, ...fromMem, ...fromCards])).sort((a, b) =>
+      a.localeCompare(b, "pt-BR")
+    );
+  }
+
+  function memorizarBancoCartao(banco) {
+    const b = normalizeBancoCartaoCeo(banco);
+    if (!b) return false;
+    const custom = loadJsonArrayCeo(CARTAO_BANCOS_MEM_KEY).map(normalizeBancoCartaoCeo).filter(Boolean);
+    if (BANCOS_CARTAO_CEO.includes(b) || custom.includes(b)) {
+      refreshCartaoDatalists();
+      return false;
+    }
+    saveJsonArrayCeo(CARTAO_BANCOS_MEM_KEY, [...custom, b]);
+    refreshCartaoDatalists();
+    return true;
+  }
+
+  function normalizeDocMemoria(raw) {
+    if (raw && typeof raw === "object") {
+      const digits = onlyDigitsCeo(raw.digits || raw.doc || "").slice(0, 14);
+      const label = String(raw.label || "").trim() || formatCpfCnpjCeo(digits);
+      return { label, digits };
+    }
+    const s = String(raw || "").trim();
+    const digits = onlyDigitsCeo(s).slice(0, 14);
+    if (digits.length === 11 || digits.length === 14) {
+      return { label: formatCpfCnpjCeo(digits), digits };
+    }
+    return { label: s, digits: "" };
+  }
+
+  function getDocsMemoria() {
+    const map = new Map();
+    const put = (raw) => {
+      const n = normalizeDocMemoria(raw);
+      if (!n.label && !n.digits) return;
+      const key = n.digits || n.label.toLowerCase();
+      if (!map.has(key)) map.set(key, n);
+    };
+    DOCS_CARTAO_CEO_SEED.forEach(put);
+    loadJsonArrayCeo(CARTAO_DOCS_MEM_KEY).forEach(put);
+    getCartoesLista().forEach((c) => {
+      if (c.titularDoc || c.titularLabel) {
+        put({ digits: c.titularDoc, label: c.titularLabel || formatCpfCnpjCeo(c.titularDoc) });
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }
+
+  function memorizarDocCartao(raw) {
+    const n = normalizeDocMemoria(raw);
+    if (!n.label && !n.digits) return false;
+    if (!n.digits && DOCS_CARTAO_CEO_SEED.some((s) => s.label === n.label)) {
+      refreshCartaoDatalists();
+      return false;
+    }
+    const list = getDocsMemoria();
+    const exists = list.some(
+      (d) => (n.digits && d.digits === n.digits) || (!n.digits && d.label === n.label)
+    );
+    if (exists) {
+      refreshCartaoDatalists();
+      return false;
+    }
+    const custom = loadJsonArrayCeo(CARTAO_DOCS_MEM_KEY).map(normalizeDocMemoria);
+    custom.push(n);
+    saveJsonArrayCeo(CARTAO_DOCS_MEM_KEY, custom);
+    refreshCartaoDatalists();
+    return true;
+  }
+
+  function refreshCartaoDatalists() {
+    const dlFin = document.getElementById("finCeoDespCartaoFinaisList");
+    if (dlFin) {
+      dlFin.innerHTML = getFinaisMemoria()
+        .map((d) => `<option value="${esc(d)}"></option>`)
+        .join("");
+    }
+    const dlBan = document.getElementById("finCeoDespCartaoBancoList");
+    if (dlBan) {
+      dlBan.innerHTML = getBancosMemoria()
+        .map((b) => `<option value="${esc(b)}"></option>`)
+        .join("");
+    }
+    const dlDoc = document.getElementById("finCeoDespCartaoDocList");
+    if (dlDoc) {
+      dlDoc.innerHTML = getDocsMemoria()
+        .map((d) => {
+          const val = d.digits ? formatCpfCnpjCeo(d.digits) : d.label;
+          const lab = d.digits && d.label && d.label !== val ? d.label : "";
+          return lab
+            ? `<option value="${esc(val)}" label="${esc(lab)}"></option>`
+            : `<option value="${esc(val)}"></option>`;
+        })
+        .join("");
+    }
+  }
+
+  function lerCamposCartaoForm() {
+    const finais = onlyDigitsCeo(document.getElementById("finCeoDespCartaoFinais")?.value).slice(0, 4);
+    const banco = normalizeBancoCartaoCeo(document.getElementById("finCeoDespCartaoBanco")?.value);
+    const docRaw = String(document.getElementById("finCeoDespCartaoDoc")?.value || "").trim();
+    const digits = onlyDigitsCeo(docRaw).slice(0, 14);
+    let titularDoc = "";
+    let titularLabel = "";
+    if (digits.length === 11 || digits.length === 14) {
+      titularDoc = digits;
+      const known = getDocsMemoria().find((d) => d.digits === digits);
+      titularLabel = known?.label || formatCpfCnpjCeo(digits);
+    } else if (docRaw) {
+      const known = getDocsMemoria().find((d) => d.label === docRaw);
+      if (known?.digits) {
+        titularDoc = known.digits;
+        titularLabel = known.label;
+      } else {
+        titularLabel = docRaw;
+      }
+    }
+    return { finais, banco, titularDoc, titularLabel };
+  }
+
+  function preencherCamposCartaoForm(cartaoId) {
+    const c = getCartoesLista().find((x) => x.id === cartaoId);
+    const fin = document.getElementById("finCeoDespCartaoFinais");
+    const ban = document.getElementById("finCeoDespCartaoBanco");
+    const doc = document.getElementById("finCeoDespCartaoDoc");
+    const hid = document.getElementById("finCeoDespCartao");
+    if (!c) {
+      if (fin) fin.value = "";
+      if (ban) ban.value = "";
+      if (doc) doc.value = "";
+      if (hid) hid.value = "";
+      return;
+    }
+    if (fin) fin.value = c.finais || "";
+    if (ban) ban.value = c.banco || "";
+    if (doc) {
+      doc.value = c.titularDoc
+        ? formatCpfCnpjCeo(c.titularDoc)
+        : c.titularLabel || "";
+    }
+    if (hid) hid.value = c.id;
+  }
+
+  function limparCamposCartaoForm() {
+    const fin = document.getElementById("finCeoDespCartaoFinais");
+    const ban = document.getElementById("finCeoDespCartaoBanco");
+    const doc = document.getElementById("finCeoDespCartaoDoc");
+    const hid = document.getElementById("finCeoDespCartao");
+    if (fin) fin.value = "";
+    if (ban) ban.value = "";
+    if (doc) doc.value = "";
+    if (hid) hid.value = "";
+  }
+
+  function upsertCartaoFromForm(opts = {}) {
+    const { silent = false } = opts;
+    const { finais, banco, titularDoc, titularLabel } = lerCamposCartaoForm();
+    if (finais.length === 4) memorizarFinaisCartao(finais);
+    if (banco) memorizarBancoCartao(banco);
+    if (titularDoc || titularLabel) memorizarDocCartao({ digits: titularDoc, label: titularLabel });
+
+    if (finais.length !== 4 || !banco || (!titularDoc && !titularLabel)) {
+      if (!silent) return null;
+      return null;
+    }
+    const card = normalizeCartao({ finais, banco, titularDoc, titularLabel });
+    const list = getCartoesLista();
+    const idx = list.findIndex((c) => c.id === card.id);
+    if (idx >= 0) list[idx] = { ...list[idx], ...card };
+    else list.push(card);
+    saveCartoesCeo(list);
+    const hid = document.getElementById("finCeoDespCartao");
+    if (hid) hid.value = card.id;
+    refreshCartaoDatalists();
+    return card;
+  }
+
+  function formatarInputCartaoDocMask() {
+    const inp = document.getElementById("finCeoDespCartaoDoc");
+    if (!inp) return;
+    const d = onlyDigitsCeo(inp.value).slice(0, 14);
+    if (d.length <= 11) {
+      let out = d;
+      if (d.length > 9) out = d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, "$1.$2.$3-$4");
+      else if (d.length > 6) out = d.replace(/(\d{3})(\d{3})(\d{0,3})/, "$1.$2.$3");
+      else if (d.length > 3) out = d.replace(/(\d{3})(\d{0,3})/, "$1.$2");
+      inp.value = out;
+    } else {
+      let out = d;
+      if (d.length > 12) out = d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, "$1.$2.$3/$4-$5");
+      else if (d.length > 8) out = d.replace(/(\d{2})(\d{3})(\d{3})(\d{0,4})/, "$1.$2.$3/$4");
+      else if (d.length > 5) out = d.replace(/(\d{2})(\d{3})(\d{0,3})/, "$1.$2.$3");
+      else if (d.length > 2) out = d.replace(/(\d{2})(\d{0,3})/, "$1.$2");
+      inp.value = out;
+    }
+  }
+
+  function renderCartaoSelect() {
+    refreshCartaoDatalists();
+    const hid = document.getElementById("finCeoDespCartao");
+    if (hid && hid.value && cartaoValido(hid.value)) {
+      preencherCamposCartaoForm(hid.value);
+    }
+  }
+
   function renderCategoriaSelect() {
     const sel = document.getElementById("finCeoDespCategoria");
     if (!sel) return;
@@ -275,26 +618,19 @@
     else sel.selectedIndex = 0;
   }
 
-  function renderCartaoSelect() {
-    const sel = document.getElementById("finCeoDespCartao");
-    if (!sel) return;
-    const atual = sel.value;
-    const cartoes = getCartoesLista();
-    if (!cartoes.length) {
-      sel.innerHTML = `<option value="">— Nenhum cartão disponível —</option>`;
-      return;
-    }
-    sel.innerHTML = cartoes.map((c) => `<option value="${esc(c.id)}">${esc(c.label)}</option>`).join("");
-    if (cartaoValido(atual)) sel.value = atual;
-    else sel.selectedIndex = 0;
-  }
-
   function toggleTipoParticularUi() {
     const tipo = document.getElementById("finCeoDespTipoParticular")?.value || TIPOS_PARTICULARES[0].id;
     const exigeCartao = tipoParticularExigeCartao(tipo);
     document.getElementById("finCeoWrapCartao")?.classList.toggle("hidden", !exigeCartao);
     const cart = document.getElementById("finCeoDespCartao");
-    if (cart) cart.required = exigeCartao;
+    if (cart) cart.required = false;
+    const fin = document.getElementById("finCeoDespCartaoFinais");
+    const ban = document.getElementById("finCeoDespCartaoBanco");
+    const doc = document.getElementById("finCeoDespCartaoDoc");
+    if (fin) fin.required = exigeCartao;
+    if (ban) ban.required = exigeCartao;
+    if (doc) doc.required = exigeCartao;
+    if (exigeCartao) refreshCartaoDatalists();
     const desc = document.getElementById("finCeoDespDescricao");
     const descLab = document.querySelector("#finCeoWrapDescricao span");
     const hint = document.getElementById("finCeoDespDetalheHint");
@@ -1344,6 +1680,7 @@
     renderCategoriaSelect();
     renderRubricaSelect();
     renderTipoParticularSelect();
+    limparCamposCartaoForm();
     renderCartaoSelect();
     toggleCategoriaDespesaUi();
     const desc = document.getElementById("finCeoDespDescricao");
@@ -1379,8 +1716,8 @@
       const tipo = document.getElementById("finCeoDespTipoParticular");
       if (tipo && tipoParticularValido(desp.tipoParticular)) tipo.value = desp.tipoParticular;
       toggleTipoParticularUi();
-      const cart = document.getElementById("finCeoDespCartao");
-      if (cart && cartaoValido(desp.cartaoCredito)) cart.value = desp.cartaoCredito;
+      if (desp.cartaoCredito) preencherCamposCartaoForm(desp.cartaoCredito);
+      else limparCamposCartaoForm();
     } else {
       const rub = document.getElementById("finCeoDespRubrica");
       if (rub && rubricaValida(desp.rubrica)) rub.value = desp.rubrica;
@@ -1679,7 +2016,7 @@
     const categoria = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS_CEO[0].id;
     const rubrica = document.getElementById("finCeoDespRubrica")?.value || "";
     const tipoParticular = document.getElementById("finCeoDespTipoParticular")?.value || "";
-    const cartaoCredito = document.getElementById("finCeoDespCartao")?.value || "";
+    let cartaoCredito = document.getElementById("finCeoDespCartao")?.value || "";
     const descricao = String(document.getElementById("finCeoDespDescricao")?.value || "").trim();
 
     if (isParticulares(categoria)) {
@@ -1688,8 +2025,13 @@
         return null;
       }
       if (tipoParticularExigeCartao(tipoParticular)) {
-        if (!cartaoCredito || !cartaoValido(cartaoCredito)) {
-          if (fb) fb.textContent = "Selecione um cartão de crédito cadastrado.";
+        const card = upsertCartaoFromForm({ silent: true });
+        cartaoCredito = card?.id || "";
+        if (!card || !cartaoCredito) {
+          if (fb) {
+            fb.textContent =
+              "Informe os 4 números finais, o banco e o CPF/CNPJ do cartão.";
+          }
           return null;
         }
         if (!descricao) {
@@ -2589,6 +2931,52 @@
       inp.addEventListener("blur", () => renderResumoPeriodoCeo());
     });
 
+    const finaisInp = document.getElementById("finCeoDespCartaoFinais");
+    if (finaisInp) {
+      finaisInp.addEventListener("input", () => {
+        finaisInp.value = onlyDigitsCeo(finaisInp.value).slice(0, 4);
+      });
+      finaisInp.addEventListener("blur", () => {
+        memorizarFinaisCartao(finaisInp.value);
+        upsertCartaoFromForm({ silent: true });
+      });
+      finaisInp.addEventListener("change", () => {
+        memorizarFinaisCartao(finaisInp.value);
+        upsertCartaoFromForm({ silent: true });
+      });
+    }
+    const bancoInp = document.getElementById("finCeoDespCartaoBanco");
+    if (bancoInp) {
+      bancoInp.addEventListener("blur", () => {
+        const b = normalizeBancoCartaoCeo(bancoInp.value);
+        if (b) bancoInp.value = b;
+        memorizarBancoCartao(b);
+        upsertCartaoFromForm({ silent: true });
+      });
+      bancoInp.addEventListener("change", () => {
+        const b = normalizeBancoCartaoCeo(bancoInp.value);
+        if (b) bancoInp.value = b;
+        memorizarBancoCartao(b);
+        upsertCartaoFromForm({ silent: true });
+      });
+    }
+    const docInp = document.getElementById("finCeoDespCartaoDoc");
+    if (docInp) {
+      docInp.addEventListener("input", () => formatarInputCartaoDocMask());
+      docInp.addEventListener("blur", () => {
+        formatarInputCartaoDocMask();
+        const { titularDoc, titularLabel } = lerCamposCartaoForm();
+        memorizarDocCartao({ digits: titularDoc, label: titularLabel });
+        upsertCartaoFromForm({ silent: true });
+      });
+      docInp.addEventListener("change", () => {
+        formatarInputCartaoDocMask();
+        const { titularDoc, titularLabel } = lerCamposCartaoForm();
+        memorizarDocCartao({ digits: titularDoc, label: titularLabel });
+        upsertCartaoFromForm({ silent: true });
+      });
+    }
+
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
@@ -2681,7 +3069,9 @@
     const map = new Map();
     [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
       const c = normalizeCartao(raw);
-      if (c.label) map.set(c.id, c);
+      if (!c.label && !c.finais) return;
+      const prev = map.get(c.id);
+      map.set(c.id, prev ? { ...prev, ...c, label: c.label || prev.label } : c);
     });
     return Array.from(map.values());
   };

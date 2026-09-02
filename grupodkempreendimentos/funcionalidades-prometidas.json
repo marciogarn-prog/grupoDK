@@ -289,6 +289,32 @@
       }
     },
     {
+      "id": "fin-ceo-cartao-finais-banco-doc",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas → Cartão de crédito: caixa 1 com 4 números finais (memória + lista suspensa) e caixa 2 com banco (BB, Sicredi, Santander, Sicoob, Pan, Caixa, Nu, Itaú, Mercado Pago, CEA, Carrefour, Renner…) e CPF/CNPJ do cartão (DK Locadora/Construtora/Centro), memorizando cada opção nova.",
+      "ficheiros": {
+        "index.html": [
+          "finCeoDespCartaoFinais",
+          "finCeoDespCartaoBanco",
+          "finCeoDespCartaoDoc",
+          "4 números finais do cartão",
+          "CPF ou CNPJ do cartão"
+        ],
+        "portal-financeiro-ceo.js": [
+          "BANCOS_CARTAO_CEO",
+          "memorizarFinaisCartao",
+          "memorizarBancoCartao",
+          "memorizarDocCartao",
+          "upsertCartaoFromForm",
+          "finCeoDespCartaoFinaisList"
+        ],
+        "styles.css": [
+          "fin-ceo-cartao-bloco",
+          "fin-ceo-cartao-caixa--finais",
+          "fin-ceo-cartao-caixa--banco-doc"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-relatorio-filtro-excel",
       "descricao": "No FINANCEIRO CEO → Relatório de despesas: cada coluna da tabela (Pagamento, Data, Valor, Categoria, Rubrica / Tipo, Detalhe) tem filtro estilo Excel (▾) com ordenação A–Z, Z–A, menor/maior e seleção de valores.",
       "ficheiros": {
