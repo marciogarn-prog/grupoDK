@@ -230,6 +230,41 @@
     return total;
   }
 
+  function fmtPct(n) {
+    if (!Number.isFinite(n)) return "—";
+    return `${n.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  }
+
+  function calcTaxaEndividamento(despesas, receita) {
+    const d = Number(despesas) || 0;
+    const r = Number(receita) || 0;
+    if (r <= 0) return d > 0 ? null : 0;
+    return (d / r) * 100;
+  }
+
+  function classificarTaxaEndividamento(taxa) {
+    if (!Number.isFinite(taxa)) return "crit";
+    if (taxa <= 60) return "ok";
+    if (taxa <= 85) return "warn";
+    return "crit";
+  }
+
+  function aplicarClasseKpi(box, nivel) {
+    if (!box) return;
+    box.classList.remove("fin-kpi--ok", "fin-kpi--warn", "fin-kpi--crit");
+    if (nivel) box.classList.add(`fin-kpi--${nivel}`);
+  }
+
+  function compromissoMesRef(proj, refDate) {
+    const k = monthKey(refDate);
+    return proj.debPorMes.get(k) || 0;
+  }
+
+  function receitaMesRef(proj, refDate) {
+    const k = monthKey(refDate);
+    return proj.recPorMes.get(k) || 0;
+  }
+
   function buildProjecao24Meses() {
     const hoje = startOfDay(new Date());
     const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
@@ -264,8 +299,22 @@
 
     const endivMesAtual = debPorMes.get(monthKey(hoje)) || debPorMes.get(monthKey(inicio)) || 0;
     const receitaMesAtual = recPorMes.get(monthKey(hoje)) || recPorMes.get(monthKey(inicio)) || 0;
+    const taxaMesAtual = calcTaxaEndividamento(endivMesAtual, receitaMesAtual);
+    const capacidadeLivre = receitaMesAtual - endivMesAtual;
 
-    return { meses, debPorMes, recPorMes, saldoMes, saldoAcc, endivMesAtual, receitaMesAtual, debitos };
+    return {
+      meses,
+      debPorMes,
+      recPorMes,
+      saldoMes,
+      saldoAcc,
+      endivMesAtual,
+      receitaMesAtual,
+      taxaMesAtual,
+      capacidadeLivre,
+      debitos,
+      totalDespesasCadastradas: despesas.length,
+    };
   }
 
   function svgLineChart(labels, series) {
@@ -317,10 +366,61 @@
     const proj = buildProjecao24Meses();
     const labels = proj.meses.map((m) => m.label);
 
-    const kpiEndiv = document.getElementById("finCeoKpiEndividamento");
+    const kpiDesp = document.getElementById("finCeoKpiDespesas");
     const kpiReceita = document.getElementById("finCeoKpiReceita");
-    if (kpiEndiv) kpiEndiv.textContent = brl(proj.endivMesAtual);
+    const kpiEndiv = document.getElementById("finCeoKpiEndividamento");
+    const kpiMargem = document.getElementById("finCeoKpiCapacidadeLivre");
+    const kpiEndivHint = document.getElementById("finCeoKpiEndividamentoHint");
+    const dashAlert = document.getElementById("finCeoDashAlert");
+
+    if (kpiDesp) kpiDesp.textContent = brl(proj.endivMesAtual);
     if (kpiReceita) kpiReceita.textContent = brl(proj.receitaMesAtual);
+    if (kpiMargem) kpiMargem.textContent = brl(proj.capacidadeLivre);
+
+    if (kpiEndiv) {
+      if (proj.receitaMesAtual <= 0 && proj.endivMesAtual > 0) {
+        kpiEndiv.textContent = "—";
+        if (kpiEndivHint) kpiEndivHint.textContent = "sem receita prevista no mês";
+      } else if (proj.endivMesAtual <= 0 && proj.totalDespesasCadastradas === 0) {
+        kpiEndiv.textContent = "0%";
+        if (kpiEndivHint) kpiEndivHint.textContent = "cadastre as despesas";
+      } else {
+        kpiEndiv.textContent = fmtPct(proj.taxaMesAtual);
+        if (kpiEndivHint) kpiEndivHint.textContent = "despesas ÷ receita";
+      }
+    }
+
+    const nivelTaxa = classificarTaxaEndividamento(proj.taxaMesAtual);
+    aplicarClasseKpi(document.getElementById("finCeoKpiBoxTaxa"), nivelTaxa);
+    aplicarClasseKpi(
+      document.getElementById("finCeoKpiBoxMargem"),
+      proj.capacidadeLivre < 0 ? "crit" : proj.capacidadeLivre > 0 ? "ok" : "warn"
+    );
+
+    if (dashAlert) {
+      if (proj.totalDespesasCadastradas === 0) {
+        dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--warn", "fin-ceo-dash-alert--ok");
+        dashAlert.classList.add("fin-ceo-dash-alert--info");
+        dashAlert.textContent =
+          "Objetivo 01: cadastre todas as despesas (financiamentos, consórcios, pessoais e unidades DK) para calcular o endividamento face à receita prevista.";
+      } else if (proj.taxaMesAtual === null) {
+        dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--info", "fin-ceo-dash-alert--ok");
+        dashAlert.classList.add("fin-ceo-dash-alert--warn");
+        dashAlert.textContent = `Há ${proj.totalDespesasCadastradas} despesa(s) cadastrada(s), mas a receita prevista do mês está zerada — verifique as locações ativas.`;
+      } else if (proj.taxaMesAtual > 85) {
+        dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--info", "fin-ceo-dash-alert--ok");
+        dashAlert.classList.add("fin-ceo-dash-alert--warn");
+        dashAlert.textContent = `Endividamento elevado (${fmtPct(proj.taxaMesAtual)}): compromissos consomem quase toda a receita prevista.`;
+      } else if (proj.capacidadeLivre < 0) {
+        dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--info", "fin-ceo-dash-alert--ok");
+        dashAlert.classList.add("fin-ceo-dash-alert--warn");
+        dashAlert.textContent = `Déficit de ${brl(Math.abs(proj.capacidadeLivre))} neste mês — despesas superam a receita prevista.`;
+      } else {
+        dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--warn", "fin-ceo-dash-alert--info");
+        dashAlert.classList.add("fin-ceo-dash-alert--ok");
+        dashAlert.textContent = `${proj.totalDespesasCadastradas} despesa(s) cadastrada(s) · taxa ${fmtPct(proj.taxaMesAtual)} · capacidade livre ${brl(proj.capacidadeLivre)}.`;
+      }
+    }
 
     const chartSaldo = document.getElementById("finCeoChartSaldoMes");
     if (chartSaldo) {
@@ -354,15 +454,35 @@
 
     const tab = document.getElementById("finCeoTabelaProjecao");
     if (tab) {
-      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
+      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Taxa endiv.</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
       const body = proj.meses
-        .map(
-          (m, i) =>
-            `<tr><td>${esc(m.label)}</td><td>${esc(brl(proj.debPorMes.get(m.key) || 0))}</td><td>${esc(brl(proj.recPorMes.get(m.key) || 0))}</td><td>${esc(brl(proj.saldoMes[i] || 0))}</td><td>${esc(brl(proj.saldoAcc[i] || 0))}</td></tr>`
-        )
+        .map((m, i) => {
+          const deb = proj.debPorMes.get(m.key) || 0;
+          const rec = proj.recPorMes.get(m.key) || 0;
+          const taxa = calcTaxaEndividamento(deb, rec);
+          const taxaTxt = rec <= 0 && deb > 0 ? "—" : fmtPct(taxa);
+          return `<tr><td>${esc(m.label)}</td><td>${esc(brl(deb))}</td><td>${esc(brl(rec))}</td><td>${esc(taxaTxt)}</td><td>${esc(brl(proj.saldoMes[i] || 0))}</td><td>${esc(brl(proj.saldoAcc[i] || 0))}</td></tr>`;
+        })
         .join("");
       tab.innerHTML = `<table class="fin-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
     }
+  }
+
+  function renderResumoCadastroDespesas() {
+    const el = document.getElementById("finCeoDespResumo");
+    if (!el) return;
+    const list = loadDespesasCeo();
+    if (!list.length) {
+      el.textContent = "Nenhuma despesa cadastrada — use o formulário abaixo para lançar financiamentos, consórcios e demais compromissos.";
+      return;
+    }
+    const proj = buildProjecao24Meses();
+    const hoje = startOfDay(new Date());
+    const debMes = compromissoMesRef(proj, hoje);
+    const recMes = receitaMesRef(proj, hoje);
+    const taxa = calcTaxaEndividamento(debMes, recMes);
+    const taxaTxt = recMes <= 0 && debMes > 0 ? "sem receita no mês" : `taxa ${fmtPct(taxa)}`;
+    el.textContent = `${list.length} despesa(s) cadastrada(s) · compromissos deste mês: ${brl(debMes)} · receita prevista: ${brl(recMes)} · ${taxaTxt}.`;
   }
 
   function subcategoriasExistentes(catId) {
@@ -464,6 +584,7 @@
   }
 
   function renderCadastroDespesas() {
+    renderResumoCadastroDespesas();
     renderSubcategoriaDatalist();
     renderParcelasAvulsas();
     togglePeriodicUi();
@@ -523,6 +644,7 @@
     if (fb) fb.textContent = "Despesa cadastrada.";
     limparFormDespesa();
     renderListaDespesas();
+    renderResumoCadastroDespesas();
     renderDashboard();
   }
 
@@ -530,6 +652,7 @@
     const list = loadDespesasCeo().filter((d) => String(d.id) !== String(id));
     saveDespesasCeo(list);
     renderListaDespesas();
+    renderResumoCadastroDespesas();
     renderDashboard();
   }
 

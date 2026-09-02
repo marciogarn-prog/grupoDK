@@ -10215,6 +10215,75 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 1rem 0 1.25rem;
 }
 
+.fin-kpi__hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.fin-kpi--ok {
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.fin-kpi--ok strong {
+  color: #4ade80;
+}
+
+.fin-kpi--warn {
+  border-color: rgba(250, 204, 21, 0.45);
+}
+
+.fin-kpi--warn strong {
+  color: #facc15;
+}
+
+.fin-kpi--crit {
+  border-color: rgba(248, 113, 113, 0.5);
+}
+
+.fin-kpi--crit strong {
+  color: #f87171;
+}
+
+.fin-ceo-dash-alert {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.fin-ceo-dash-alert--info {
+  border: 1px solid rgba(94, 184, 255, 0.45);
+  background: rgba(94, 184, 255, 0.1);
+  color: #cfe9ff;
+}
+
+.fin-ceo-dash-alert--ok {
+  border: 1px solid rgba(74, 222, 128, 0.45);
+  background: rgba(74, 222, 128, 0.08);
+  color: #bbf7d0;
+}
+
+.fin-ceo-dash-alert--warn {
+  border: 1px solid rgba(250, 204, 21, 0.45);
+  background: rgba(250, 204, 21, 0.08);
+  color: #fde68a;
+}
+
+.fin-ceo-desp-resumo {
+  margin: 0.35rem 0 1rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.22);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 /* Nunca 3 colunas espremidas: labels e selects não se sobrepõem no Windows. */
 #view-financeiro-ceo .fin-ceo-desp-form.operacao-inline-form__grid,
 #view-financeiro-ceo .fin-ceo-desp-form--windows {
