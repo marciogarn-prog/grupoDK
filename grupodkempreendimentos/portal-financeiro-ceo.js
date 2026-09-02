@@ -4,8 +4,10 @@
  */
 (function portalFinanceiroCeo() {
   const DESPESAS_CEO_KEY = "dk_financeiro_ceo_despesas_v1";
+  const SITUACAO_PAG_CEO_KEY = "dk_financeiro_ceo_situacao_pag_v1";
   const CARTOES_CEO_KEY = "dk_financeiro_ceo_cartoes_v1";
   const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
+  const CEO_LISTA_SORT_VENCIMENTO = "__vencimento_ceo";
   const HORIZONTE_MESES = 24;
   const CEO_ANO_FIM_PAINEL = 2030;
   const CEO_ANOS_PAINEL = [2026, 2027, 2028, 2029, 2030];
@@ -62,6 +64,8 @@
   let paneAberto = "";
   let ultimaDespesaSalvaId = "";
   let finCeoDespConfirmPending = null;
+  /** @type {{ despesaId: string, pagNum: number, data: Date, row: object } | null} */
+  let finCeoDespPagoPending = null;
   /** @type {{ mode: 'single'|'future', despesaId: string, pagamentoNumero: number } | null} */
   let finCeoDespEditState = null;
   let ceoDashProjCache = null;
@@ -458,6 +462,117 @@
       const tb = Date.parse(b.cadastradoEm) || extrairTsDoId(b.id) || 0;
       return tb - ta;
     });
+  }
+
+  function chaveSituacaoPagamento(despesaId, pagNum, data) {
+    const dt = data instanceof Date ? data : parseBrDate(data);
+    return `${String(despesaId)}#${Number(pagNum) || 1}#${fmtBrDate(dt)}`;
+  }
+
+  function labelSituacaoPagamento(situacao) {
+    return situacao === "PAGO" ? "PAGO" : "A PAGAR";
+  }
+
+  function loadSituacaoPagamentosMap() {
+    const map = new Map();
+    const ingest = (arr) => {
+      if (!Array.isArray(arr)) return;
+      arr.forEach((raw) => {
+        const chave = String(raw?.chave || "").trim();
+        if (!chave) return;
+        map.set(chave, {
+          chave,
+          situacao: raw?.situacao === "PAGO" ? "PAGO" : "A_PAGAR",
+          pagoEm: String(raw?.pagoEm || "").trim(),
+        });
+      });
+    };
+    if (typeof window.loadCadastro === "function") {
+      try {
+        ingest(window.loadCadastro(SITUACAO_PAG_CEO_KEY));
+      } catch {
+        ingest([]);
+      }
+    } else {
+      try {
+        const raw = localStorage.getItem(SITUACAO_PAG_CEO_KEY);
+        ingest(raw ? JSON.parse(raw) : []);
+      } catch {
+        ingest([]);
+      }
+    }
+    return map;
+  }
+
+  function saveSituacaoPagamentosMap(map) {
+    const payload = Array.from(map.values());
+    try {
+      localStorage.setItem(SITUACAO_PAG_CEO_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
+    if (typeof window.saveCadastro === "function") {
+      try {
+        window.saveCadastro(SITUACAO_PAG_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    }
+  }
+
+  function getSituacaoPagamentoLinha(despesaId, pagNum, data) {
+    const map = loadSituacaoPagamentosMap();
+    const item = map.get(chaveSituacaoPagamento(despesaId, pagNum, data));
+    return item?.situacao === "PAGO" ? "PAGO" : "A_PAGAR";
+  }
+
+  function marcarPagamentoLinhaComoPago(despesaId, pagNum, data) {
+    const map = loadSituacaoPagamentosMap();
+    const chave = chaveSituacaoPagamento(despesaId, pagNum, data);
+    map.set(chave, { chave, situacao: "PAGO", pagoEm: new Date().toISOString() });
+    saveSituacaoPagamentosMap(map);
+  }
+
+  function abrirModalConfirmPagoDespesa(row) {
+    const modal = document.getElementById("finCeoDespPagoModal");
+    if (!modal || !row?._d || !row?._p) return;
+    finCeoDespPagoPending = {
+      despesaId: row._d.id,
+      pagNum: row._p.numero,
+      data: row._p.data,
+      row,
+    };
+    const resumo = document.getElementById("finCeoDespPagoResumo");
+    if (resumo) {
+      resumo.innerHTML = `<dl class="fin-ceo-desp-confirm-dl">
+        <div><dt>Data</dt><dd>${esc(row.dataLabel)}</dd></div>
+        <div><dt>Valor</dt><dd>${esc(row.valorLabel)}</dd></div>
+        <div><dt>Categoria</dt><dd>${esc(row.categoria)}</dd></div>
+        <div><dt>Rubrica / tipo</dt><dd>${esc(row.rubrica)}</dd></div>
+        <div><dt>Detalhe</dt><dd>${esc(row.detalhe)}</dd></div>
+      </dl>`;
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    document.getElementById("finCeoDespPagoSimBtn")?.focus();
+  }
+
+  function fecharModalConfirmPagoDespesa() {
+    finCeoDespPagoPending = null;
+    const modal = document.getElementById("finCeoDespPagoModal");
+    modal?.classList.add("hidden");
+    modal?.setAttribute("aria-hidden", "true");
+  }
+
+  function confirmarPagoDespesaModal() {
+    const pending = finCeoDespPagoPending;
+    if (!pending) return;
+    marcarPagamentoLinhaComoPago(pending.despesaId, pending.pagNum, pending.data);
+    fecharModalConfirmPagoDespesa();
+    renderListaDespesas();
   }
 
   function bindCalendariosCeo(root) {
@@ -1221,6 +1336,7 @@
   }
 
   function ceoListaLinhaFromPagamento(d, p, tipo, desc, primeiro) {
+    const situacao = getSituacaoPagamentoLinha(d.id, p.numero, p.data);
     return {
       pagamento: p.numero,
       pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}`,
@@ -1231,6 +1347,8 @@
       categoria: labelCategoria(d.categoria),
       rubrica: tipo,
       detalhe: desc,
+      situacao,
+      situacaoLabel: labelSituacaoPagamento(situacao),
       _d: d,
       _p: p,
       _primeiro: primeiro,
@@ -1262,6 +1380,10 @@
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
           ${excluir}
         </div>`;
+    const situacaoHtml =
+      row.situacao === "PAGO"
+        ? `<span class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--pago" aria-label="Pago">PAGO</span>`
+        : `<button type="button" class="fin-ceo-desp-situacao-btn fin-ceo-desp-situacao-btn--aberto" data-ceo-desp-marcar-pago="1" aria-label="Marcar como pago">A PAGAR</button>`;
     return `<tr data-ceo-desp-id="${esc(d.id)}" data-ceo-pag="${p.numero}">
           <td><strong>${esc(row.pagamentoLabel)}</strong></td>
           <td>${esc(row.dataLabel)}</td>
@@ -1269,6 +1391,7 @@
           <td>${esc(row.categoria)}</td>
           <td>${esc(row.rubrica)}</td>
           <td>${esc(row.detalhe)}</td>
+          <td class="fin-ceo-desp-lista__cel-situacao">${situacaoHtml}</td>
           <td>${acoes}</td>
         </tr>`;
   }
@@ -1286,15 +1409,15 @@
     const linhasBase = coletarLinhasExcelListaDespesas();
     if (!linhasBase.length) {
       body.innerHTML =
-        '<tr><td colspan="7" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
+        '<tr><td colspan="8" class="fin-ceo-desp-lista__vazia">Nenhuma despesa cadastrada — preencha o formulário acima e clique em <strong>Cadastrar despesa</strong>.</td></tr>';
       wrap?.classList.remove("fin-ceo-desp-lista--com-dados");
       return;
     }
     wrap?.classList.add("fin-ceo-desp-lista--com-dados");
-    const linhas = aplicarCeoPagExcelFiltroSort(linhasBase, ceoListaExcelState);
+    const linhas = aplicarCeoListaExcelFiltroSort(linhasBase);
     if (!linhas.length) {
       body.innerHTML =
-        '<tr><td colspan="7" class="fin-ceo-desp-lista__vazia subtext">Nenhum lançamento corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho.</td></tr>';
+        '<tr><td colspan="8" class="fin-ceo-desp-lista__vazia subtext">Nenhum lançamento corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho.</td></tr>';
       return;
     }
     body.innerHTML = linhas.map(renderListaDespesaRowHtml).join("");
@@ -1624,14 +1747,19 @@
   ];
   const CEO_REL_COLS = CEO_PAG_COLS;
 
+  const CEO_LISTA_COLS = [
+    ...CEO_PAG_COLS,
+    { key: "situacao", label: "Situação", type: "text" },
+  ];
+
   let ceoRelExcelState = {
     sortKey: "data",
     sortDir: "desc",
     cols: {},
   };
   let ceoListaExcelState = {
-    sortKey: "data",
-    sortDir: "desc",
+    sortKey: CEO_LISTA_SORT_VENCIMENTO,
+    sortDir: "asc",
     cols: {},
   };
   const ceoPagExcelOpen = { rel: "", lista: "" };
@@ -1657,17 +1785,19 @@
     };
   }
 
-  function ceoRelCellDisplay(row, key) {
-    const col = CEO_PAG_COLS.find((c) => c.key === key);
+  function ceoRelCellDisplay(row, key, cols = CEO_PAG_COLS) {
+    const col = cols.find((c) => c.key === key);
     if (!col) return "";
     if (key === "pagamento") return row.pagamentoLabel;
     if (key === "data") return row.dataLabel;
     if (key === "valor") return row.valorLabel;
+    if (key === "situacao") return row.situacaoLabel || labelSituacaoPagamento(row.situacao);
     return String(row[key] ?? "—");
   }
 
-  function ceoRelCellSortValue(row, key) {
-    const col = CEO_PAG_COLS.find((c) => c.key === key);
+  function ceoRelCellSortValue(row, key, cols = CEO_PAG_COLS) {
+    const col = cols.find((c) => c.key === key);
+    if (key === "situacao") return row.situacao === "PAGO" ? 1 : 0;
     if (col?.type === "num") return Number(row[key]) || 0;
     if (col?.type === "date") return row.data?.getTime() || 0;
     return nkRel(String(row[key] ?? ""));
@@ -1691,18 +1821,33 @@
     return { asc: "↑ Ordenar A a Z", desc: "↓ Ordenar Z a A" };
   }
 
-  function aplicarCeoPagExcelFiltroSort(rows, state) {
+  function ordenarLinhasListaPorVencimento(rows) {
+    return (rows || []).slice().sort((a, b) => {
+      const sa = a.situacao === "PAGO" ? 1 : 0;
+      const sb = b.situacao === "PAGO" ? 1 : 0;
+      if (sa !== sb) return sa - sb;
+      const ta = a.data?.getTime() || 0;
+      const tb = b.data?.getTime() || 0;
+      if (ta !== tb) return ta - tb;
+      return (a.pagamento || 0) - (b.pagamento || 0);
+    });
+  }
+
+  function aplicarCeoPagExcelFiltroSort(rows, state, cols = CEO_PAG_COLS) {
     let out = (rows || []).slice();
-    CEO_PAG_COLS.forEach((col) => {
+    cols.forEach((col) => {
       const set = state.cols[col.key];
       if (!(set instanceof Set)) return;
-      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key)));
+      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key, cols)));
     });
     const sk = state.sortKey || "data";
+    if (sk === CEO_LISTA_SORT_VENCIMENTO) {
+      return ordenarLinhasListaPorVencimento(out);
+    }
     const dir = state.sortDir === "desc" ? -1 : 1;
     out.sort((a, b) => {
-      const va = ceoRelCellSortValue(a, sk);
-      const vb = ceoRelCellSortValue(b, sk);
+      const va = ceoRelCellSortValue(a, sk, cols);
+      const vb = ceoRelCellSortValue(b, sk, cols);
       if (typeof va === "number" && typeof vb === "number") {
         if (va !== vb) return (va - vb) * dir;
       } else {
@@ -1717,20 +1862,25 @@
     return out;
   }
 
+  function aplicarCeoListaExcelFiltroSort(rows) {
+    return aplicarCeoPagExcelFiltroSort(rows, ceoListaExcelState, CEO_LISTA_COLS);
+  }
+
   function aplicarCeoRelExcelFiltroSort(rows) {
     return aplicarCeoPagExcelFiltroSort(rows, ceoRelExcelState);
   }
 
-  function ceoPagValoresUnicosColuna(rows, key) {
+  function ceoPagValoresUnicosColuna(rows, key, cols = CEO_PAG_COLS) {
     const map = new Map();
     (rows || []).forEach((r) => {
-      const label = ceoRelCellDisplay(r, key);
-      if (!map.has(label)) map.set(label, ceoRelCellSortValue(r, key));
+      const label = ceoRelCellDisplay(r, key, cols);
+      if (!map.has(label)) map.set(label, ceoRelCellSortValue(r, key, cols));
     });
     return Array.from(map.entries())
       .sort((a, b) => {
-        const col = CEO_PAG_COLS.find((c) => c.key === key);
+        const col = cols.find((c) => c.key === key);
         if (col?.type === "num" || col?.type === "date") return (Number(a[1]) || 0) - (Number(b[1]) || 0);
+        if (key === "situacao") return (Number(a[1]) || 0) - (Number(b[1]) || 0);
         return String(a[0]).localeCompare(String(b[0]), "pt-BR");
       })
       .map(([label]) => label);
@@ -1751,29 +1901,29 @@
     fecharCeoPagExcelFiltroPopup();
   }
 
-  function ceoPagLinhasBaseAntesDaColuna(openKey, rows, state) {
+  function ceoPagLinhasBaseAntesDaColuna(openKey, rows, state, cols = CEO_PAG_COLS) {
     let out = (rows || []).slice();
-    CEO_PAG_COLS.forEach((col) => {
+    cols.forEach((col) => {
       if (col.key === openKey) return;
       const set = state.cols[col.key];
       if (!(set instanceof Set)) return;
-      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key)));
+      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key, cols)));
     });
     return out;
   }
 
   function ceoRelLinhasBaseAntesDaColuna(openKey, rows) {
-    return ceoPagLinhasBaseAntesDaColuna(openKey, rows, ceoRelExcelState);
+    return ceoPagLinhasBaseAntesDaColuna(openKey, rows, ceoRelExcelState, CEO_PAG_COLS);
   }
 
-  function abrirCeoPagExcelFiltroPopup(scope, btn, key, rows, state, onRerender) {
+  function abrirCeoPagExcelFiltroPopup(scope, btn, key, rows, state, onRerender, cols = CEO_PAG_COLS) {
     fecharCeoPagExcelFiltroPopup();
-    const col = CEO_PAG_COLS.find((c) => c.key === key);
+    const col = cols.find((c) => c.key === key);
     if (!col || !btn) return;
     ceoPagExcelOpen[scope] = key;
     btn.classList.add("is-open");
-    const baseRows = ceoPagLinhasBaseAntesDaColuna(key, rows, state);
-    const uniques = ceoPagValoresUnicosColuna(baseRows, key);
+    const baseRows = ceoPagLinhasBaseAntesDaColuna(key, rows, state, cols);
+    const uniques = ceoPagValoresUnicosColuna(baseRows, key, cols);
     const selected = state.cols[key];
     const isAll = !(selected instanceof Set);
     const sortLbl = ceoRelSortLabels(col);
@@ -1876,8 +2026,8 @@
     pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
       delete state.cols[key];
       if (state.sortKey === key) {
-        state.sortKey = "data";
-        state.sortDir = "desc";
+        state.sortKey = scope === "lista" ? CEO_LISTA_SORT_VENCIMENTO : "data";
+        state.sortDir = scope === "lista" ? "asc" : "desc";
       }
       rerender();
     });
@@ -1888,14 +2038,17 @@
     abrirCeoPagExcelFiltroPopup("rel", btn, key, rows, ceoRelExcelState, aplicarRelatorio);
   }
 
-  function buildCeoPagHeadHtml(state, colAttr, colFilterFn) {
-    return CEO_PAG_COLS.map((col) => {
-      const active = colFilterFn(col.key) || state.sortKey === col.key;
-      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
+  function buildCeoPagHeadHtml(state, colAttr, colFilterFn, cols = CEO_PAG_COLS) {
+    return cols
+      .map((col) => {
+        const active = colFilterFn(col.key) || state.sortKey === col.key;
+        const situCls = col.key === "situacao" ? " fin-ceo-desp-lista__col-situacao" : "";
+        return `<th class="fin-excel-th${situCls}${active ? " fin-excel-th--active" : ""}" scope="col">
         <span class="fin-excel-th__label">${esc(col.label)}</span>
         <button type="button" class="fin-excel-filter-btn${colFilterFn(col.key) ? " is-filtered" : ""}" ${colAttr}="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
       </th>`;
-    }).join("");
+      })
+      .join("");
   }
 
   function buildCeoRelHeadHtml() {
@@ -1904,7 +2057,7 @@
 
   function buildCeoListaHeadHtml() {
     return (
-      buildCeoPagHeadHtml(ceoListaExcelState, "data-ceo-lista-excel-col", ceoListaColFilterActive) +
+      buildCeoPagHeadHtml(ceoListaExcelState, "data-ceo-lista-excel-col", ceoListaColFilterActive, CEO_LISTA_COLS) +
       '<th class="fin-ceo-desp-lista__col-acoes" scope="col"><span class="fin-excel-th__label">Ações</span></th>'
     );
   }
@@ -1940,7 +2093,7 @@
         fecharCeoPagExcelFiltroPopup();
         return;
       }
-      abrirCeoPagExcelFiltroPopup("lista", btn, key, coletarLinhasExcelListaDespesas(), ceoListaExcelState, renderListaDespesas);
+      abrirCeoPagExcelFiltroPopup("lista", btn, key, coletarLinhasExcelListaDespesas(), ceoListaExcelState, renderListaDespesas, CEO_LISTA_COLS);
     });
 
     if (!ceoPagExcelBoundDoc) {
@@ -2182,6 +2335,14 @@
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
     document.getElementById("finCeoDespConfirmSimBtn")?.addEventListener("click", confirmarDespesaModal);
     document.getElementById("finCeoDespConfirmNaoBtn")?.addEventListener("click", fecharModalConfirmDespesa);
+    document.getElementById("finCeoDespPagoSimBtn")?.addEventListener("click", confirmarPagoDespesaModal);
+    document.getElementById("finCeoDespPagoNaoBtn")?.addEventListener("click", fecharModalConfirmPagoDespesa);
+    document
+      .querySelectorAll("[data-fin-ceo-desp-pago-cancel]")
+      .forEach((el) => el.addEventListener("click", fecharModalConfirmPagoDespesa));
+    document.getElementById("finCeoDespPagoModal")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") fecharModalConfirmPagoDespesa();
+    });
     document
       .querySelectorAll("[data-fin-ceo-desp-confirm-cancel]")
       .forEach((el) => el.addEventListener("click", fecharModalConfirmDespesa));
@@ -2210,6 +2371,16 @@
     });
 
     document.getElementById("finCeoDespesasBody")?.addEventListener("click", (ev) => {
+      const btnPago = ev.target.closest("[data-ceo-desp-marcar-pago]");
+      if (btnPago) {
+        const tr = btnPago.closest("tr[data-ceo-desp-id]");
+        const id = tr?.getAttribute("data-ceo-desp-id");
+        const pag = Number(tr?.getAttribute("data-ceo-pag")) || 1;
+        const linhasAll = coletarLinhasExcelListaDespesas();
+        const row = linhasAll.find((r) => String(r._d?.id) === String(id) && r._p?.numero === pag);
+        if (row && row.situacao !== "PAGO") abrirModalConfirmPagoDespesa(row);
+        return;
+      }
       const btnExcluir = ev.target.closest(".fin-ceo-desp-excluir");
       if (btnExcluir) {
         const id = btnExcluir.getAttribute("data-id");
@@ -2265,6 +2436,25 @@
     [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
       const d = normalizeDespesa(raw);
       map.set(d.id, d);
+    });
+    return Array.from(map.values());
+  };
+
+  window.__DK_mergeFinanceiroCeoSituacaoPag = function mergeFinanceiroCeoSituacaoPag(localArr, cloudArr) {
+    const map = new Map();
+    [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
+      const chave = String(raw?.chave || "").trim();
+      if (!chave) return;
+      const prev = map.get(chave);
+      const pagoEm = String(raw?.pagoEm || "").trim();
+      const prevEm = String(prev?.pagoEm || "").trim();
+      if (!prev || Date.parse(pagoEm) >= Date.parse(prevEm)) {
+        map.set(chave, {
+          chave,
+          situacao: raw?.situacao === "PAGO" ? "PAGO" : "A_PAGAR",
+          pagoEm: pagoEm || prevEm,
+        });
+      }
     });
     return Array.from(map.values());
   };

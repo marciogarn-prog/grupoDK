@@ -141,6 +141,29 @@
       }
     },
     {
+      "id": "fin-ceo-lista-situacao-pago",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): coluna Situação com botão A PAGAR (azul) ou PAGO; confirmação no modal antes de marcar pago; lista ordenada por vencimento em aberto (atrasadas primeiro, pagas no final).",
+      "ficheiros": {
+        "index.html": [
+          "finCeoDespPagoModal",
+          "Confirmar pagamento",
+          "finCeoDespPagoSimBtn"
+        ],
+        "portal-financeiro-ceo.js": [
+          "fin-ceo-desp-situacao-btn--aberto",
+          "A PAGAR",
+          "getSituacaoPagamentoLinha",
+          "marcarPagamentoLinhaComoPago",
+          "ordenarLinhasListaPorVencimento",
+          "CEO_LISTA_SORT_VENCIMENTO"
+        ],
+        "styles.css": [
+          "fin-ceo-desp-situacao-btn",
+          "fin-ceo-desp-lista__col-situacao"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-lista-filtro-excel",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada coluna da tabela tem filtro estilo Excel (▾) com ordenação e seleção de valores, igual ao Relatório de despesas.",
       "ficheiros": {

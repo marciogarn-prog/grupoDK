@@ -166,6 +166,7 @@
     "dk_financeiro_ceo_despesas_v1",
     "dk_financeiro_ceo_fontes_v1",
     "dk_financeiro_ceo_cartoes_v1",
+    "dk_financeiro_ceo_situacao_pag_v1",
     "dk_unidade_financeiro_v1",
     "dk_documentos_deposito_v1",
     "dk_audit_log",
@@ -1061,6 +1062,25 @@
         }
         const localArr = readLocalJsonArray(k);
         localStorage.setItem(k, JSON.stringify(mergeFinanceiroCeoCartoesArrays(localArr, cloudArr)));
+        continue;
+      }
+      if (k === "dk_financeiro_ceo_situacao_pag_v1") {
+        let cloudArr = [];
+        if (Array.isArray(v)) cloudArr = v;
+        else if (typeof v === "string") {
+          try {
+            const p = JSON.parse(v);
+            cloudArr = Array.isArray(p) ? p : [];
+          } catch {
+            cloudArr = [];
+          }
+        }
+        const localArr = readLocalJsonArray(k);
+        const mergeFn =
+          typeof window.__DK_mergeFinanceiroCeoSituacaoPag === "function"
+            ? window.__DK_mergeFinanceiroCeoSituacaoPag
+            : mergeFinanceiroCeoDespesasArrays;
+        localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
         continue;
       }
       if (k === "dk_unidade_financeiro_v1") {
@@ -2821,6 +2841,19 @@
       );
     }
     if (
+      Object.prototype.hasOwnProperty.call(localPayload, "dk_financeiro_ceo_situacao_pag_v1") ||
+      Object.prototype.hasOwnProperty.call(cloudPayload, "dk_financeiro_ceo_situacao_pag_v1")
+    ) {
+      const mergeSit =
+        typeof window.__DK_mergeFinanceiroCeoSituacaoPag === "function"
+          ? window.__DK_mergeFinanceiroCeoSituacaoPag
+          : mergeFinanceiroCeoDespesasArrays;
+      out.dk_financeiro_ceo_situacao_pag_v1 = mergeSit(
+        localPayload.dk_financeiro_ceo_situacao_pag_v1,
+        cloudPayload.dk_financeiro_ceo_situacao_pag_v1
+      );
+    }
+    if (
       Object.prototype.hasOwnProperty.call(localPayload, "dk_unidade_financeiro_v1") ||
       Object.prototype.hasOwnProperty.call(cloudPayload, "dk_unidade_financeiro_v1")
     ) {
@@ -2931,6 +2964,17 @@
         localStorage.setItem(
           "dk_financeiro_ceo_cartoes_v1",
           JSON.stringify(mergeFinanceiroCeoCartoesArrays(atual, mergedPayload.dk_financeiro_ceo_cartoes_v1))
+        );
+      }
+      if (mergedPayload.dk_financeiro_ceo_situacao_pag_v1) {
+        const atual = readLocalJsonArray("dk_financeiro_ceo_situacao_pag_v1");
+        const mergeSit =
+          typeof window.__DK_mergeFinanceiroCeoSituacaoPag === "function"
+            ? window.__DK_mergeFinanceiroCeoSituacaoPag
+            : mergeFinanceiroCeoDespesasArrays;
+        localStorage.setItem(
+          "dk_financeiro_ceo_situacao_pag_v1",
+          JSON.stringify(mergeSit(atual, mergedPayload.dk_financeiro_ceo_situacao_pag_v1))
         );
       }
       if (mergedPayload.dk_unidade_financeiro_v1) {

@@ -3312,6 +3312,19 @@
     </div>
   </div>
 
+  <div id="finCeoDespPagoModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="finCeoDespPagoTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-fin-ceo-desp-pago-cancel></div>
+    <div class="portal-modal__card portal-modal__card--fin-ceo-desp">
+      <h3 id="finCeoDespPagoTitulo" class="portal-modal__title">Confirmar pagamento</h3>
+      <p class="subtext fin-ceo-desp-confirm-lead">Confirme que esta despesa foi paga. O lançamento irá para o final da lista.</p>
+      <div id="finCeoDespPagoResumo" class="fin-ceo-desp-confirm-resumo" role="region" aria-live="polite"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="finCeoDespPagoSimBtn">Confirmar pagamento</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="finCeoDespPagoNaoBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalLancAluguelConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLancAluguelConfirmTitulo">
     <div class="portal-modal__backdrop" data-close-lanc-aluguel-confirm></div>
     <div class="portal-modal__card">
@@ -3517,7 +3530,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-lista-excel" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260902fin-ceo-situacao-pago" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

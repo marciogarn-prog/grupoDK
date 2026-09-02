@@ -10236,6 +10236,49 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #ffd54f;
 }
 
+.fin-ceo-desp-lista__col-situacao,
+.fin-ceo-desp-lista__cel-situacao {
+  min-width: 6.5rem;
+  text-align: center;
+}
+
+#finCeoDespesasTable .fin-ceo-desp-lista__col-situacao {
+  border-color: rgba(110, 231, 160, 0.45);
+  background: rgba(6, 78, 59, 0.18);
+}
+
+.fin-ceo-desp-situacao-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5.75rem;
+  padding: 0.32rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.fin-ceo-desp-situacao-btn--aberto {
+  border: 2px solid rgba(94, 184, 255, 0.75);
+  background: linear-gradient(145deg, rgba(30, 58, 138, 0.45), rgba(15, 23, 42, 0.85));
+  color: #dbeafe;
+  cursor: pointer;
+}
+
+.fin-ceo-desp-situacao-btn--aberto:hover {
+  border-color: #5eb8ff;
+  background: linear-gradient(145deg, rgba(37, 99, 235, 0.55), rgba(15, 23, 42, 0.9));
+  color: #fff;
+}
+
+.fin-ceo-desp-situacao-btn--pago {
+  border: 1px solid rgba(110, 231, 160, 0.45);
+  background: rgba(6, 78, 59, 0.35);
+  color: #a7f3d0;
+}
+
 .fin-ceo-desp-lista__col-acoes {
   min-width: 11rem;
 }
