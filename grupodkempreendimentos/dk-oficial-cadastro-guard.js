@@ -280,6 +280,8 @@
 
   function filterCadastroArray(key, arr, cutoffYmd) {
     if (!isOficialOnly()) return Array.isArray(arr) ? arr : [];
+    /* Só cadastros operacionais (clientes, frota, locações…) — não FINANCEIRO CEO nem outros módulos. */
+    if (!CADASTRO_GUARD_KEYS.includes(String(key || ""))) return Array.isArray(arr) ? arr : [];
     return (Array.isArray(arr) ? arr : []).filter((r) => isRecordAllowed(r, key, cutoffYmd));
   }
 
