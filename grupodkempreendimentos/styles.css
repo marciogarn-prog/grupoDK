@@ -10208,6 +10208,20 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
+#finCeoRelTable.fin-table--excel-cols .fin-excel-th {
+  white-space: nowrap;
+  vertical-align: middle;
+  padding-right: 0.25rem;
+}
+
+#finCeoRelTable.fin-table--excel-cols .fin-excel-th__label {
+  margin-right: 0.15rem;
+}
+
+#finCeoRelTable.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label {
+  color: #ffd54f;
+}
+
 .view--fin-ceo .fin-ceo-kpis {
   display: flex;
   flex-wrap: wrap;

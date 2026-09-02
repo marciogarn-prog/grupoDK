@@ -1485,14 +1485,303 @@
 
   function montarPagamentosRelatorio(despesas) {
     const repFiltro = Math.max(0, Number(document.getElementById("finCeoRelRepeticoes")?.value) || 0);
-    const pagamentos = despesas.flatMap((d) => expandirPagamentosDespesa(d, repFiltro || d.repeticoes));
-    pagamentos.sort((a, b) => {
-      const ta = a.data?.getTime() || 0;
-      const tb = b.data?.getTime() || 0;
-      if (tb !== ta) return tb - ta;
-      return b.numero - a.numero;
+    return despesas.flatMap((d) => expandirPagamentosDespesa(d, repFiltro || d.repeticoes));
+  }
+
+  function nkRel(s) {
+    return String(s ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
+  }
+
+  const CEO_REL_COLS = [
+    { key: "pagamento", label: "Pagamento", type: "num" },
+    { key: "data", label: "Data", type: "date" },
+    { key: "valor", label: "Valor", type: "num" },
+    { key: "categoria", label: "Categoria", type: "text" },
+    { key: "rubrica", label: "Rubrica / Tipo", type: "text" },
+    { key: "detalhe", label: "Detalhe", type: "text" },
+  ];
+
+  let ceoRelExcelState = {
+    sortKey: "data",
+    sortDir: "desc",
+    cols: {},
+  };
+  let ceoRelExcelOpenKey = "";
+  let ceoRelExcelBoundDoc = false;
+
+  function resetCeoRelExcelFiltros() {
+    ceoRelExcelState.cols = {};
+  }
+
+  function ceoRelLinhaFromPagamento(p) {
+    const { tipo, desc } = detalheDespesaLista(p.despesa);
+    return {
+      pagamento: p.numero,
+      pagamentoLabel: `PAGAMENTO ${String(p.numero).padStart(2, "0")}`,
+      data: p.data,
+      dataLabel: fmtBrDate(p.data),
+      valor: p.valor,
+      valorLabel: brl(p.valor),
+      categoria: labelCategoria(p.despesa.categoria),
+      rubrica: tipo,
+      detalhe: desc,
+      _pag: p,
+    };
+  }
+
+  function ceoRelCellDisplay(row, key) {
+    const col = CEO_REL_COLS.find((c) => c.key === key);
+    if (!col) return "";
+    if (key === "pagamento") return row.pagamentoLabel;
+    if (key === "data") return row.dataLabel;
+    if (key === "valor") return row.valorLabel;
+    return String(row[key] ?? "—");
+  }
+
+  function ceoRelCellSortValue(row, key) {
+    const col = CEO_REL_COLS.find((c) => c.key === key);
+    if (col?.type === "num") return Number(row[key]) || 0;
+    if (col?.type === "date") return row.data?.getTime() || 0;
+    return nkRel(String(row[key] ?? ""));
+  }
+
+  function ceoRelColFilterActive(key) {
+    return ceoRelExcelState.cols[key] instanceof Set;
+  }
+
+  function ceoRelSortLabels(col) {
+    if (col.type === "num") return { asc: "↑ Do menor para o maior", desc: "↓ Do maior para o menor" };
+    if (col.type === "date") return { asc: "↑ Mais antigo primeiro", desc: "↓ Mais recente primeiro" };
+    return { asc: "↑ Ordenar A a Z", desc: "↓ Ordenar Z a A" };
+  }
+
+  function aplicarCeoRelExcelFiltroSort(rows) {
+    let out = (rows || []).slice();
+    CEO_REL_COLS.forEach((col) => {
+      const set = ceoRelExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key)));
     });
-    return pagamentos;
+    const sk = ceoRelExcelState.sortKey || "data";
+    const dir = ceoRelExcelState.sortDir === "desc" ? -1 : 1;
+    out.sort((a, b) => {
+      const va = ceoRelCellSortValue(a, sk);
+      const vb = ceoRelCellSortValue(b, sk);
+      if (typeof va === "number" && typeof vb === "number") {
+        if (va !== vb) return (va - vb) * dir;
+      } else {
+        const cmp = String(va).localeCompare(String(vb), "pt-BR");
+        if (cmp) return cmp * dir;
+      }
+      const pa = a.pagamento || 0;
+      const pb = b.pagamento || 0;
+      if (pa !== pb) return (pa - pb) * dir;
+      return (a.data?.getTime() || 0) - (b.data?.getTime() || 0);
+    });
+    return out;
+  }
+
+  function ceoRelValoresUnicosColuna(rows, key) {
+    const map = new Map();
+    (rows || []).forEach((r) => {
+      const label = ceoRelCellDisplay(r, key);
+      if (!map.has(label)) map.set(label, ceoRelCellSortValue(r, key));
+    });
+    return Array.from(map.entries())
+      .sort((a, b) => {
+        const col = CEO_REL_COLS.find((c) => c.key === key);
+        if (col?.type === "num" || col?.type === "date") return (Number(a[1]) || 0) - (Number(b[1]) || 0);
+        return String(a[0]).localeCompare(String(b[0]), "pt-BR");
+      })
+      .map(([label]) => label);
+  }
+
+  function fecharCeoRelExcelFiltroPopup() {
+    ceoRelExcelOpenKey = "";
+    document.querySelectorAll(".fin-excel-filter-pop").forEach((el) => el.remove());
+    document.querySelectorAll(".fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
+  }
+
+  function ceoRelLinhasBaseAntesDaColuna(openKey, rows) {
+    let out = (rows || []).slice();
+    CEO_REL_COLS.forEach((col) => {
+      if (col.key === openKey) return;
+      const set = ceoRelExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key)));
+    });
+    return out;
+  }
+
+  function abrirCeoRelExcelFiltroPopup(btn, key, rows) {
+    fecharCeoRelExcelFiltroPopup();
+    const col = CEO_REL_COLS.find((c) => c.key === key);
+    if (!col || !btn) return;
+    ceoRelExcelOpenKey = key;
+    btn.classList.add("is-open");
+    const baseRows = ceoRelLinhasBaseAntesDaColuna(key, rows);
+    const uniques = ceoRelValoresUnicosColuna(baseRows, key);
+    const selected = ceoRelExcelState.cols[key];
+    const isAll = !(selected instanceof Set);
+    const sortLbl = ceoRelSortLabels(col);
+    const pop = document.createElement("div");
+    pop.className = "fin-excel-filter-pop";
+    pop.setAttribute("role", "dialog");
+    pop.setAttribute("aria-label", `Filtro ${col.label}`);
+    pop.innerHTML = `
+      <div class="fin-excel-filter-pop__sort">
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="asc">${esc(sortLbl.asc)}</button>
+        <button type="button" class="fin-excel-filter-pop__sort-btn" data-excel-sort="desc">${esc(sortLbl.desc)}</button>
+      </div>
+      <label class="fin-excel-filter-pop__search">
+        <input type="search" placeholder="Pesquisar…" autocomplete="off" aria-label="Pesquisar valores" data-excel-search>
+      </label>
+      <label class="fin-excel-filter-pop__all"><input type="checkbox" data-excel-all ${isAll ? "checked" : ""}> (Selecionar tudo)</label>
+      <div class="fin-excel-filter-pop__list" data-excel-list>
+        ${uniques
+          .map((v, i) => {
+            const checked = isAll || selected.has(v) ? "checked" : "";
+            return `<label class="fin-excel-filter-pop__item"><input type="checkbox" data-excel-idx="${i}" ${checked}> <span>${esc(v)}</span></label>`;
+          })
+          .join("") || `<p class="subtext">Sem valores.</p>`}
+      </div>
+      <div class="fin-excel-filter-pop__actions">
+        <button type="button" class="btn-primary" data-excel-ok>OK</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-cancel>Cancelar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" data-excel-clear>Limpar</button>
+      </div>`;
+    document.body.appendChild(pop);
+    const rect = btn.getBoundingClientRect();
+    const popW = Math.max(260, Math.min(340, window.innerWidth - 16));
+    let left = rect.left;
+    if (left + popW > window.innerWidth - 8) left = Math.max(8, window.innerWidth - popW - 8);
+    const top = rect.bottom + 4;
+    pop.style.width = `${popW}px`;
+    pop.style.left = `${left}px`;
+    pop.style.top = `${top}px`;
+    requestAnimationFrame(() => {
+      const h = pop.offsetHeight;
+      if (top + h > window.innerHeight - 8) {
+        pop.style.top = `${Math.max(8, rect.top - h - 4)}px`;
+      }
+    });
+
+    const rerender = () => {
+      fecharCeoRelExcelFiltroPopup();
+      aplicarRelatorio();
+    };
+
+    const search = pop.querySelector("[data-excel-search]");
+    const allCb = pop.querySelector("[data-excel-all]");
+    const syncAll = () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      allCb.checked = visible.length > 0 && visible.every((el) => el.checked);
+    };
+    search?.addEventListener("input", () => {
+      const q = nkRel(search.value);
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        const t = nkRel(lab.textContent || "");
+        lab.style.display = !q || t.includes(q) ? "" : "none";
+      });
+      syncAll();
+    });
+    allCb?.addEventListener("change", () => {
+      pop.querySelectorAll(".fin-excel-filter-pop__item").forEach((lab) => {
+        if (lab.style.display === "none") return;
+        const cb = lab.querySelector("[data-excel-idx]");
+        if (cb) cb.checked = allCb.checked;
+      });
+    });
+    pop.querySelector("[data-excel-list]")?.addEventListener("change", syncAll);
+    pop.querySelector("[data-excel-sort='asc']")?.addEventListener("click", () => {
+      ceoRelExcelState.sortKey = key;
+      ceoRelExcelState.sortDir = "asc";
+      rerender();
+    });
+    pop.querySelector("[data-excel-sort='desc']")?.addEventListener("click", () => {
+      ceoRelExcelState.sortKey = key;
+      ceoRelExcelState.sortDir = "desc";
+      rerender();
+    });
+    pop.querySelector("[data-excel-ok]")?.addEventListener("click", () => {
+      const boxes = Array.from(pop.querySelectorAll("[data-excel-idx]"));
+      const visible = boxes.filter((el) => el.closest(".fin-excel-filter-pop__item")?.style.display !== "none");
+      const pool = visible.length ? visible : boxes;
+      const checked = pool
+        .filter((el) => el.checked)
+        .map((el) => uniques[Number(el.getAttribute("data-excel-idx"))])
+        .filter((v) => v != null);
+      if (!checked.length || checked.length === pool.length) {
+        delete ceoRelExcelState.cols[key];
+      } else {
+        ceoRelExcelState.cols[key] = new Set(checked);
+      }
+      rerender();
+    });
+    pop.querySelector("[data-excel-cancel]")?.addEventListener("click", () => fecharCeoRelExcelFiltroPopup());
+    pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
+      delete ceoRelExcelState.cols[key];
+      if (ceoRelExcelState.sortKey === key) {
+        ceoRelExcelState.sortKey = "data";
+        ceoRelExcelState.sortDir = "desc";
+      }
+      rerender();
+    });
+    search?.focus();
+  }
+
+  function buildCeoRelHeadHtml() {
+    return CEO_REL_COLS.map((col) => {
+      const active = ceoRelColFilterActive(col.key) || ceoRelExcelState.sortKey === col.key;
+      return `<th class="fin-excel-th${active ? " fin-excel-th--active" : ""}" scope="col">
+        <span class="fin-excel-th__label">${esc(col.label)}</span>
+        <button type="button" class="fin-excel-filter-btn${ceoRelColFilterActive(col.key) ? " is-filtered" : ""}" data-ceo-rel-excel-col="${esc(col.key)}" title="Filtro estilo Excel" aria-label="Filtro de ${esc(col.label)}">▾</button>
+      </th>`;
+    }).join("");
+  }
+
+  function bindCeoRelExcelFiltros(rowsProvider) {
+    const pane = document.getElementById("finCeoPaneRelatorio");
+    pane?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-ceo-rel-excel-col]");
+      if (!btn || !pane.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-ceo-rel-excel-col") || "";
+      if (ceoRelExcelOpenKey === key) {
+        fecharCeoRelExcelFiltroPopup();
+        return;
+      }
+      abrirCeoRelExcelFiltroPopup(btn, key, rowsProvider());
+    });
+    if (!ceoRelExcelBoundDoc) {
+      ceoRelExcelBoundDoc = true;
+      document.addEventListener("mousedown", (e) => {
+        if (!ceoRelExcelOpenKey) return;
+        const pop = document.querySelector(".fin-excel-filter-pop");
+        const t = e.target;
+        if (pop?.contains(t)) return;
+        if (t?.closest?.("[data-ceo-rel-excel-col]")) return;
+        fecharCeoRelExcelFiltroPopup();
+      });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && ceoRelExcelOpenKey) fecharCeoRelExcelFiltroPopup();
+      });
+    }
+  }
+
+  let ceoRelExcelPaneBound = false;
+  function ensureCeoRelExcelPaneBound() {
+    if (ceoRelExcelPaneBound) return;
+    ceoRelExcelPaneBound = true;
+    bindCeoRelExcelFiltros(() => {
+      const despesas = filtrarDespesasRelatorio();
+      return montarPagamentosRelatorio(despesas).map(ceoRelLinhaFromPagamento);
+    });
   }
 
   function renderRelatorioTipoSelect() {
@@ -1531,18 +1820,30 @@
 
   function aplicarRelatorio(ev) {
     ev?.preventDefault();
+    if (ev) resetCeoRelExcelFiltros();
+    fecharCeoRelExcelFiltroPopup();
+    ensureCeoRelExcelPaneBound();
     const despesas = filtrarDespesasRelatorio();
     const pagamentos = montarPagamentosRelatorio(despesas);
+    const linhasBase = pagamentos.map(ceoRelLinhaFromPagamento);
+    const linhas = aplicarCeoRelExcelFiltroSort(linhasBase);
     const body = document.getElementById("finCeoRelBody");
+    const head = document.getElementById("finCeoRelHead");
     const vazia = document.getElementById("finCeoRelVazia");
     const resumo = document.getElementById("finCeoRelResumo");
     if (!body) return;
 
-    const totalPagamentos = pagamentos.reduce((s, p) => s + p.valor, 0);
+    if (head) head.innerHTML = `<tr>${buildCeoRelHeadHtml()}</tr>`;
+
+    const totalPagamentos = linhas.reduce((s, r) => s + r.valor, 0);
+    const colFiltroAtivo = CEO_REL_COLS.some((c) => ceoRelColFilterActive(c.key));
+    const resumoFiltroCol = colFiltroAtivo && linhasBase.length !== linhas.length ? ` · ${linhas.length} de ${linhasBase.length} após filtro das colunas` : "";
 
     if (resumo) {
       resumo.textContent = pagamentos.length
-        ? `${pagamentos.length} pagamento(s) · ${despesas.length} lançamento(s) · total: ${brl(totalPagamentos)}`
+        ? linhas.length
+          ? `${linhas.length} pagamento(s) · ${despesas.length} lançamento(s) · total: ${brl(totalPagamentos)}${resumoFiltroCol}`
+          : "Nenhum valor corresponde ao filtro das colunas — ajuste os filtros ▾ no cabeçalho."
         : despesas.length
           ? "Nenhum pagamento gerado com os filtros actuais."
           : loadDespesasCeo().length
@@ -1555,18 +1856,21 @@
       vazia?.classList.remove("hidden");
       return;
     }
+    if (!linhas.length) {
+      body.innerHTML = `<tr><td colspan="${CEO_REL_COLS.length}" class="subtext">Nenhum valor corresponde ao filtro das colunas.</td></tr>`;
+      vazia?.classList.add("hidden");
+      return;
+    }
     vazia?.classList.add("hidden");
-    body.innerHTML = pagamentos
-      .map((p) => {
-        const { tipo, desc } = detalheDespesaLista(p.despesa);
-        const rotulo = `PAGAMENTO ${String(p.numero).padStart(2, "0")}`;
+    body.innerHTML = linhas
+      .map((r) => {
         return `<tr>
-          <td><strong>${esc(rotulo)}</strong></td>
-          <td>${esc(fmtBrDate(p.data))}</td>
-          <td>${esc(brl(p.valor))}</td>
-          <td>${esc(labelCategoria(p.despesa.categoria))}</td>
-          <td>${esc(tipo)}</td>
-          <td>${esc(desc)}</td>
+          <td><strong>${esc(r.pagamentoLabel)}</strong></td>
+          <td>${esc(r.dataLabel)}</td>
+          <td>${esc(r.valorLabel)}</td>
+          <td>${esc(r.categoria)}</td>
+          <td>${esc(r.rubrica)}</td>
+          <td>${esc(r.detalhe)}</td>
         </tr>`;
       })
       .join("");
@@ -1632,6 +1936,9 @@
 
   function limparFiltrosRelatorio() {
     limparCamposFiltroRelatorio();
+    resetCeoRelExcelFiltros();
+    ceoRelExcelState.sortKey = "data";
+    ceoRelExcelState.sortDir = "desc";
     aplicarRelatorio();
   }
 
@@ -1694,7 +2001,10 @@
     document.getElementById("finCeoRelLimpar")?.addEventListener("click", limparFiltrosRelatorio);
     document.getElementById("finCeoRelCat")?.addEventListener("change", renderRelatorioTipoSelect);
     document.getElementById("finCeoRelBusca")?.addEventListener("input", () => {
-      if (paneAberto === "relatorio") aplicarRelatorio();
+      if (paneAberto === "relatorio") {
+        resetCeoRelExcelFiltros();
+        aplicarRelatorio();
+      }
     });
     document.getElementById("finCeoDespCategoria")?.addEventListener("change", () => {
       toggleCategoriaDespesaUi();
