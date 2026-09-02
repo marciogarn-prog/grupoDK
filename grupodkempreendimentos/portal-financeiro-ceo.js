@@ -991,11 +991,31 @@
     return true;
   }
 
+  function expandirPagamentosDespesa(d, limiteRepeticoes) {
+    const out = [];
+    const max = limiteRepeticoes > 0 ? Math.min(limiteRepeticoes, d.repeticoes) : d.repeticoes;
+    if (d.periodic) {
+      let dt = startOfDay(d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento));
+      if (!dt) return out;
+      for (let i = 0; i < max; i += 1) {
+        out.push({ numero: i + 1, data: new Date(dt), valor: d.valor, despesa: d });
+        if (i < max - 1) dt = addMonths(dt, 1);
+      }
+      return out;
+    }
+    (d.parcelas || []).slice(0, max).forEach((p, i) => {
+      const y = new Date().getFullYear();
+      const dt = new Date(y, p.mes - 1, Math.min(p.dia, 28));
+      out.push({ numero: i + 1, data: dt, valor: p.valor, despesa: d });
+    });
+    return out;
+  }
+
   function filtrarDespesasRelatorio() {
     const cat = document.getElementById("finCeoRelCat")?.value || "";
     const tipo = document.getElementById("finCeoRelTipo")?.value || "";
     const de = parseBrDate(document.getElementById("finCeoRelDe")?.value);
-    const ate = parseBrDate(document.getElementById("finCeoRelAte")?.value);
+    const repFiltro = Math.max(0, Number(document.getElementById("finCeoRelRepeticoes")?.value) || 0);
     const vminStr = String(document.getElementById("finCeoRelValorMin")?.value || "").trim();
     const vmaxStr = String(document.getElementById("finCeoRelValorMax")?.value || "").trim();
     const vmin = vminStr ? parseValor(vminStr) : 0;
@@ -1006,8 +1026,8 @@
       if (cat && d.categoria !== cat) return false;
       if (!despesaMatchesTipoFiltro(d, tipo)) return false;
       const dt = d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento);
-      if (de && dt && startOfDay(dt) < startOfDay(de)) return false;
-      if (ate && dt && startOfDay(dt) > startOfDay(ate)) return false;
+      if (de && dt && startOfDay(dt).getTime() !== startOfDay(de).getTime()) return false;
+      if (repFiltro > 0 && d.repeticoes !== repFiltro) return false;
       if (vminStr && d.valor < vmin) return false;
       if (vmaxStr && d.valor > vmax) return false;
       if (busca) {
@@ -1017,6 +1037,18 @@
       }
       return true;
     });
+  }
+
+  function montarPagamentosRelatorio(despesas) {
+    const repFiltro = Math.max(0, Number(document.getElementById("finCeoRelRepeticoes")?.value) || 0);
+    const pagamentos = despesas.flatMap((d) => expandirPagamentosDespesa(d, repFiltro || d.repeticoes));
+    pagamentos.sort((a, b) => {
+      const ta = a.data?.getTime() || 0;
+      const tb = b.data?.getTime() || 0;
+      if (tb !== ta) return tb - ta;
+      return b.numero - a.numero;
+    });
+    return pagamentos;
   }
 
   function renderRelatorioTipoSelect() {
@@ -1055,41 +1087,40 @@
 
   function aplicarRelatorio(ev) {
     ev?.preventDefault();
-    const list = filtrarDespesasRelatorio();
+    const despesas = filtrarDespesasRelatorio();
+    const pagamentos = montarPagamentosRelatorio(despesas);
     const body = document.getElementById("finCeoRelBody");
     const vazia = document.getElementById("finCeoRelVazia");
     const resumo = document.getElementById("finCeoRelResumo");
     if (!body) return;
 
-    const totalParcela = list.reduce((s, d) => s + d.valor, 0);
-    const totalComprometido = list.reduce((s, d) => s + d.valor * d.repeticoes, 0);
+    const totalPagamentos = pagamentos.reduce((s, p) => s + p.valor, 0);
 
     if (resumo) {
-      resumo.textContent = list.length
-        ? `${list.length} lançamento(s) · parcela: ${brl(totalParcela)} · total comprometido: ${brl(totalComprometido)}`
-        : "Nenhum lançamento corresponde aos filtros.";
+      resumo.textContent = pagamentos.length
+        ? `${pagamentos.length} pagamento(s) · ${despesas.length} lançamento(s) · total: ${brl(totalPagamentos)}`
+        : despesas.length
+          ? "Nenhum pagamento gerado com os filtros actuais."
+          : "Nenhum lançamento corresponde aos filtros.";
     }
 
-    if (!list.length) {
+    if (!pagamentos.length) {
       body.innerHTML = "";
       vazia?.classList.remove("hidden");
       return;
     }
     vazia?.classList.add("hidden");
-    body.innerHTML = list
-      .map((d) => {
-        const { tipo, desc } = detalheDespesaLista(d);
-        const cad = d.cadastradoEm ? fmtBrDate(new Date(d.cadastradoEm)) : "—";
-        const total = d.valor * d.repeticoes;
+    body.innerHTML = pagamentos
+      .map((p) => {
+        const { tipo, desc } = detalheDespesaLista(p.despesa);
+        const rotulo = `PAGAMENTO ${String(p.numero).padStart(2, "0")}`;
         return `<tr>
-          <td>${esc(cad)}</td>
-          <td>${esc(labelCategoria(d.categoria))}</td>
+          <td><strong>${esc(rotulo)}</strong></td>
+          <td>${esc(fmtBrDate(p.data))}</td>
+          <td>${esc(brl(p.valor))}</td>
+          <td>${esc(labelCategoria(p.despesa.categoria))}</td>
           <td>${esc(tipo)}</td>
           <td>${esc(desc)}</td>
-          <td>${esc(brl(d.valor))}</td>
-          <td>${esc(String(d.repeticoes))}</td>
-          <td>${esc(fmtBrDate(d.dataEvento))}</td>
-          <td>${esc(brl(total))}</td>
         </tr>`;
       })
       .join("");
@@ -1098,7 +1129,7 @@
   function limparFiltrosRelatorio() {
     const cat = document.getElementById("finCeoRelCat");
     if (cat) cat.value = "";
-    ["finCeoRelDe", "finCeoRelAte", "finCeoRelValorMin", "finCeoRelValorMax", "finCeoRelBusca"].forEach((id) => {
+    ["finCeoRelDe", "finCeoRelRepeticoes", "finCeoRelValorMin", "finCeoRelValorMax", "finCeoRelBusca"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.value = "";
     });
