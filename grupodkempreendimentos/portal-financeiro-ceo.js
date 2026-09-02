@@ -4,9 +4,10 @@
  */
 (function portalFinanceiroCeo() {
   const DESPESAS_CEO_KEY = "dk_financeiro_ceo_despesas_v1";
+  const FONTES_CEO_KEY = "dk_financeiro_ceo_fontes_v1";
   const HORIZONTE_MESES = 24;
 
-  const CATEGORIAS = [
+  const DEFAULT_FONTES = [
     { id: "FINANCIAMENTO", label: "Financiamento" },
     { id: "CONSORCIO", label: "Consórcio" },
     { id: "PESSOAIS", label: "Pessoais" },
@@ -84,6 +85,88 @@
     return new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
   }
 
+  function slugFonteId(label) {
+    const base = String(label || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(0, 48);
+    return base || `FONTE_${Date.now()}`;
+  }
+
+  function normalizeFonte(raw) {
+    const label = String(raw?.label || "").trim();
+    const id = String(raw?.id || slugFonteId(label)).trim() || slugFonteId(label);
+    return { id, label: label || id };
+  }
+
+  function loadFontesCeoRaw() {
+    try {
+      const raw = localStorage.getItem(FONTES_CEO_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveFontesCeo(list) {
+    const payload = Array.isArray(list) ? list.map(normalizeFonte).filter((f) => f.label) : [];
+    try {
+      localStorage.setItem(FONTES_CEO_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
+    if (typeof window.saveCadastro === "function") {
+      try {
+        window.saveCadastro(FONTES_CEO_KEY, payload, { bypassImmutabilidadeCadastro: true });
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      window.__DK_pushCloudSnapshotNow({ force: true }).catch(() => {});
+    }
+  }
+
+  function ensureFontesPadrao() {
+    const atual = loadFontesCeoRaw();
+    if (atual.length) return atual.map(normalizeFonte);
+    const seed = DEFAULT_FONTES.map(normalizeFonte);
+    saveFontesCeo(seed);
+    return seed;
+  }
+
+  function getFontesLista() {
+    const list = loadFontesCeoRaw();
+    const fontes = (list.length ? list : DEFAULT_FONTES).map(normalizeFonte);
+    return fontes.sort((a, b) => a.label.localeCompare(b.label, "pt-BR"));
+  }
+
+  function labelFonte(id) {
+    return getFontesLista().find((f) => f.id === id)?.label || String(id || "—");
+  }
+
+  function fonteValida(id) {
+    return getFontesLista().some((f) => f.id === id);
+  }
+
+  function contarDespesasPorFonte(fonteId) {
+    return loadDespesasCeo().filter((d) => String(d.categoria) === String(fonteId)).length;
+  }
+
+  function renderFonteSelect() {
+    const sel = document.getElementById("finCeoDespCategoria");
+    if (!sel) return;
+    const atual = sel.value;
+    const fontes = getFontesLista();
+    sel.innerHTML = fontes.map((f) => `<option value="${esc(f.id)}">${esc(f.label)}</option>`).join("");
+    if (fonteValida(atual)) sel.value = atual;
+    else if (fontes.length) sel.selectedIndex = 0;
+  }
+
   function loadDespesasCeo() {
     try {
       const raw = localStorage.getItem(DESPESAS_CEO_KEY);
@@ -115,7 +198,8 @@
 
   function normalizeDespesa(raw) {
     const id = String(raw?.id || `ceo-desp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`);
-    const categoria = CATEGORIAS.some((c) => c.id === raw?.categoria) ? raw.categoria : CATEGORIAS[0].id;
+    const fontes = getFontesLista();
+    const categoria = fonteValida(raw?.categoria) ? raw.categoria : fontes[0]?.id || DEFAULT_FONTES[0].id;
     const subcategoria = String(raw?.subcategoria || "").trim();
     const periodic = Boolean(raw?.periodic);
     const valor = parseValor(raw?.valor);
@@ -402,7 +486,7 @@
         dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--warn", "fin-ceo-dash-alert--ok");
         dashAlert.classList.add("fin-ceo-dash-alert--info");
         dashAlert.textContent =
-          "Objetivo 01: cadastre todas as despesas (financiamentos, consórcios, pessoais e unidades DK) para calcular o endividamento face à receita prevista.";
+          "Objetivo 01: crie as fontes de despesas e lance os compromissos em Cadastro de despesas para calcular o endividamento face à receita prevista.";
       } else if (proj.taxaMesAtual === null) {
         dashAlert.classList.remove("hidden", "fin-ceo-dash-alert--info", "fin-ceo-dash-alert--ok");
         dashAlert.classList.add("fin-ceo-dash-alert--warn");
@@ -494,7 +578,7 @@
   }
 
   function renderSubcategoriaDatalist() {
-    const cat = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS[0].id;
+    const cat = document.getElementById("finCeoDespCategoria")?.value || getFontesLista()[0]?.id || DEFAULT_FONTES[0].id;
     const dl = document.getElementById("finCeoSubcategoriaLista");
     if (!dl) return;
     dl.innerHTML = subcategoriasExistentes(cat)
@@ -568,7 +652,7 @@
     vazia?.classList.add("hidden");
     body.innerHTML = list
       .map((d) => {
-        const cat = CATEGORIAS.find((c) => c.id === d.categoria)?.label || d.categoria;
+        const cat = labelFonte(d.categoria);
         const det = d.periodic
           ? `${brl(d.valor)} · ${d.repeticoes}× mensal · 1º evento ${fmtBrDate(d.dataEvento)} (mesmo dia nos meses seguintes)`
           : `${d.parcelas.length} parcela(s) avulsa(s)`;
@@ -583,7 +667,75 @@
       .join("");
   }
 
+  function renderListaFontes() {
+    const body = document.getElementById("finCeoFontesBody");
+    const vazia = document.getElementById("finCeoFontesVazia");
+    if (!body) return;
+    const fontes = getFontesLista();
+    if (!fontes.length) {
+      body.innerHTML = "";
+      vazia?.classList.remove("hidden");
+      return;
+    }
+    vazia?.classList.add("hidden");
+    body.innerHTML = fontes
+      .map((f) => {
+        const n = contarDespesasPorFonte(f.id);
+        const uso = n ? `${n} despesa(s)` : "sem despesas";
+        return `<tr data-ceo-fonte-id="${esc(f.id)}">
+          <td>${esc(f.label)}</td>
+          <td><code>${esc(f.id)}</code></td>
+          <td>${esc(uso)}</td>
+          <td><button type="button" class="btn-primary btn-secondary-outline fin-ceo-fonte-excluir" data-id="${esc(f.id)}" ${n ? "disabled title=\"Remova as despesas desta fonte primeiro\"" : ""}>Excluir</button></td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function renderCadastroFontes() {
+    renderListaFontes();
+    const fb = document.getElementById("finCeoFonteFeedback");
+    if (fb) fb.textContent = "";
+  }
+
+  function salvarFonteForm(ev) {
+    ev?.preventDefault();
+    const fb = document.getElementById("finCeoFonteFeedback");
+    const nome = String(document.getElementById("finCeoFonteNome")?.value || "").trim();
+    if (!nome) {
+      if (fb) fb.textContent = "Informe o nome da fonte de despesa.";
+      return;
+    }
+    const id = slugFonteId(nome);
+    const list = loadFontesCeoRaw().map(normalizeFonte);
+    if (list.some((f) => f.id === id || f.label.toLowerCase() === nome.toLowerCase())) {
+      if (fb) fb.textContent = "Já existe uma fonte com este nome.";
+      return;
+    }
+    list.push(normalizeFonte({ id, label: nome }));
+    saveFontesCeo(list);
+    const inp = document.getElementById("finCeoFonteNome");
+    if (inp) inp.value = "";
+    if (fb) fb.textContent = `Fonte «${nome}» cadastrada.`;
+    renderListaFontes();
+    renderFonteSelect();
+  }
+
+  function excluirFonte(id) {
+    const n = contarDespesasPorFonte(id);
+    if (n > 0) {
+      window.alert(`Esta fonte tem ${n} despesa(s) vinculada(s). Exclua-as antes de remover a fonte.`);
+      return;
+    }
+    if (!window.confirm("Excluir esta fonte de despesa?")) return;
+    const list = loadFontesCeoRaw().filter((f) => String(f.id) !== String(id));
+    saveFontesCeo(list);
+    renderListaFontes();
+    renderFonteSelect();
+  }
+
   function renderCadastroDespesas() {
+    renderFonteSelect();
     renderResumoCadastroDespesas();
     renderSubcategoriaDatalist();
     renderParcelasAvulsas();
@@ -599,7 +751,7 @@
   function salvarDespesaForm(ev) {
     ev?.preventDefault();
     const fb = document.getElementById("finCeoDespFeedback");
-    const categoria = document.getElementById("finCeoDespCategoria")?.value || CATEGORIAS[0].id;
+    const categoria = document.getElementById("finCeoDespCategoria")?.value || getFontesLista()[0]?.id || DEFAULT_FONTES[0].id;
     const subcategoria = String(document.getElementById("finCeoDespSubcategoria")?.value || "").trim();
     const periodic = document.getElementById("finCeoDespPeriodico")?.value === "sim";
 
@@ -668,6 +820,7 @@
       b.setAttribute("aria-expanded", on ? "true" : "false");
     });
     if (id === "dashboard") renderDashboard();
+    if (id === "fontes") renderCadastroFontes();
     if (id === "despesas") renderCadastroDespesas();
   }
 
@@ -677,6 +830,14 @@
 
     document.querySelectorAll("#finCeoModulosNav [data-ceo-mod]").forEach((btn) => {
       btn.addEventListener("click", () => abrirPane(btn.getAttribute("data-ceo-mod") || ""));
+    });
+
+    document.getElementById("finCeoFonteForm")?.addEventListener("submit", salvarFonteForm);
+    document.getElementById("finCeoFontesBody")?.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".fin-ceo-fonte-excluir");
+      if (!btn || btn.disabled) return;
+      const id = btn.getAttribute("data-id");
+      if (id) excluirFonte(id);
     });
 
     document.getElementById("finCeoDespForm")?.addEventListener("submit", salvarDespesaForm);
@@ -707,6 +868,7 @@
 
   window.__DK_financeiroCeoOnShow = function __DK_financeiroCeoOnShow() {
     bindOnce();
+    ensureFontesPadrao();
     panel.classList.remove("hidden");
     abrirPane("dashboard");
   };
@@ -719,6 +881,15 @@
       b.classList.remove("is-active");
       b.setAttribute("aria-expanded", "false");
     });
+  };
+
+  window.__DK_mergeFinanceiroCeoFontes = function mergeFinanceiroCeoFontes(localArr, cloudArr) {
+    const map = new Map();
+    [...(cloudArr || []), ...(localArr || [])].forEach((raw) => {
+      const f = normalizeFonte(raw);
+      if (f.label) map.set(f.id, f);
+    });
+    return Array.from(map.values());
   };
 
   window.__DK_mergeFinanceiroCeoDespesas = function mergeFinanceiroCeoDespesas(localArr, cloudArr) {

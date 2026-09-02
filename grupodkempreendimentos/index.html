@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260901fin-ceo-endividamento">
+  <link rel="stylesheet" href="styles.css?v=20260901fin-ceo-fontes">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2841,9 +2841,13 @@
                 <span class="btn-operacao-cmd__title">Painel executivo</span>
                 <span class="btn-operacao-cmd__hint">Endividamento, receita e gráficos</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-fontes" data-ceo-mod="fontes" aria-expanded="false" aria-controls="finCeoPaneFontes">
+                <span class="btn-operacao-cmd__title">Fontes de despesas</span>
+                <span class="btn-operacao-cmd__hint">Criar origens (financiamento, consórcio…)</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-despesas" data-ceo-mod="despesas" aria-expanded="false" aria-controls="finCeoPaneDespesas">
                 <span class="btn-operacao-cmd__title">Cadastro de despesas</span>
-                <span class="btn-operacao-cmd__hint">Categorias, periodicidade e parcelas</span>
+                <span class="btn-operacao-cmd__hint">Lançar compromissos por fonte</span>
               </button>
             </div>
           </aside>
@@ -2854,7 +2858,7 @@
 
             <div id="finCeoPaneDashboard" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="dashboard" role="region">
               <h3 class="operacao-inline-form__title">Painel executivo</h3>
-              <p class="subtext">Projeção sempre <strong>24 meses à frente</strong> a partir do mês actual. Cadastre todas as despesas em <strong>Cadastro de despesas</strong> para calcular o endividamento face à receita prevista das locações.</p>
+              <p class="subtext">Projeção sempre <strong>24 meses à frente</strong> a partir do mês actual. Crie as <strong>fontes de despesas</strong> e lance os compromissos em <strong>Cadastro de despesas</strong> para calcular o endividamento face à receita prevista das locações.</p>
               <p id="finCeoDashAlert" class="fin-ceo-dash-alert hidden" role="status"></p>
               <div class="fin-ceo-kpis fin-kpis" id="finCeoKpis">
                 <div class="fin-kpi" id="finCeoKpiBoxDespesas">
@@ -2885,21 +2889,37 @@
               <div id="finCeoTabelaProjecao" class="fin-table-wrap"></div>
             </div>
 
+            <div id="finCeoPaneFontes" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="fontes" role="region">
+              <h3 class="operacao-inline-form__title">Fontes de despesas</h3>
+              <p class="subtext">Todas as origens de despesa são criadas <strong>aqui</strong> — não vêm de planilha nem do financeiro operacional. Ex.: Financiamento, Consórcio, Pessoais, unidades DK ou qualquer outra fonte que quiser acompanhar.</p>
+              <form id="finCeoFonteForm" class="operacao-inline-form__grid fin-ceo-fonte-form" novalidate>
+                <label class="portal-field portal-field--wide">
+                  <span>Nome da fonte</span>
+                  <input type="text" id="finCeoFonteNome" maxlength="80" required placeholder="Ex.: Financiamento motos, IPTU sede…" autocomplete="off">
+                </label>
+                <div class="operacao-inline-form__actions">
+                  <button type="submit" class="btn-primary">Cadastrar fonte</button>
+                </div>
+              </form>
+              <p id="finCeoFonteFeedback" class="portal-feedback" role="status"></p>
+              <h4 class="fin-subh">Fontes cadastradas</h4>
+              <p id="finCeoFontesVazia" class="subtext hidden">Nenhuma fonte cadastrada.</p>
+              <div class="fin-table-wrap">
+                <table class="fin-table" id="finCeoFontesTable">
+                  <thead><tr><th>Nome</th><th>Código</th><th>Uso</th><th></th></tr></thead>
+                  <tbody id="finCeoFontesBody"></tbody>
+                </table>
+              </div>
+            </div>
+
             <div id="finCeoPaneDespesas" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="despesas" role="region">
               <h3 class="operacao-inline-form__title">Cadastro de despesas</h3>
-              <p class="subtext">Lance aqui <strong>todas</strong> as despesas estratégicas (financiamentos, consórcios, pessoais e unidades DK). O painel executivo calcula o endividamento mensal face à receita prevista das locações.</p>
+              <p class="subtext">Lance aqui os compromissos de cada fonte. O painel executivo calcula o endividamento mensal face à receita prevista das locações.</p>
               <p id="finCeoDespResumo" class="fin-ceo-desp-resumo" role="status">Nenhuma despesa cadastrada.</p>
               <form id="finCeoDespForm" class="operacao-inline-form__grid fin-ceo-desp-form fin-ceo-desp-form--windows" novalidate>
                 <label class="portal-field fin-ceo-desp-field-categoria">
-                  <span>Categoria da despesa</span>
-                  <select id="finCeoDespCategoria" required>
-                    <option value="FINANCIAMENTO">Financiamento</option>
-                    <option value="CONSORCIO">Consórcio</option>
-                    <option value="PESSOAIS">Pessoais</option>
-                    <option value="DK_CONSTRUTORA">DK Construtora</option>
-                    <option value="DK_OFICINA">DK Oficina</option>
-                    <option value="DK_LOCADORA">DK Locadora</option>
-                  </select>
+                  <span>Fonte da despesa</span>
+                  <select id="finCeoDespCategoria" required></select>
                 </label>
                 <label class="portal-field fin-ceo-desp-field-periodico">
                   <span>Periódico?</span>
@@ -2939,7 +2959,7 @@
               <p id="finCeoDespesasVazia" class="subtext hidden">Nenhuma despesa cadastrada.</p>
               <div class="fin-table-wrap">
                 <table class="fin-table" id="finCeoDespesasTable">
-                  <thead><tr><th>Categoria</th><th>Subcategoria</th><th>Periódico</th><th>Detalhe</th><th></th></tr></thead>
+                  <thead><tr><th>Fonte</th><th>Subcategoria</th><th>Periódico</th><th>Detalhe</th><th></th></tr></thead>
                   <tbody id="finCeoDespesasBody"></tbody>
                 </table>
               </div>
@@ -3427,7 +3447,7 @@
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-endividamento" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260901fin-ceo-fontes" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

@@ -10284,6 +10284,11 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   line-height: 1.45;
 }
 
+.fin-ceo-fonte-form {
+  max-width: 36rem;
+  margin-bottom: 0.5rem;
+}
+
 /* Nunca 3 colunas espremidas: labels e selects não se sobrepõem no Windows. */
 #view-financeiro-ceo .fin-ceo-desp-form.operacao-inline-form__grid,
 #view-financeiro-ceo .fin-ceo-desp-form--windows {
