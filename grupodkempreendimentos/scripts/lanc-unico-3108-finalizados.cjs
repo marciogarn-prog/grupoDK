@@ -322,7 +322,7 @@ async function main() {
   const fails = applied.report.filter((r) => !r.ok);
 
   console.log("Fonte:", source);
-  console.log("Planilha: 19 protocolos · total pago R$", somaValoresPlanilha().toFixed(2));
+  console.log("Planilha:", ROWS.length, "protocolos · total pago R$", somaValoresPlanilha().toFixed(2));
   console.log("Aplicação:", applied.report);
   if (fails.length) {
     console.error("Falhas:", fails);
