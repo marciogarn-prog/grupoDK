@@ -76,6 +76,18 @@ checks.push(["ícone B no início da infração é descartado", hitIcone.descric
 checks.push(["limpar B solto", limparSimboloInicioDescricao("B PARAR SOBRE FAIXA") === "PARAR SOBRE FAIXA"]);
 checks.push(["limpar D solto", limparSimboloInicioDescricao("D PARAR SOBRE FAIXA") === "PARAR SOBRE FAIXA"]);
 
+const sampleCifrao = SAMPLE.replace("R$ 130,16", "$ R$ 130,16");
+const hitCifrao = parseAutuacaoTransito(sampleCifrao);
+checks.push(["valor ignora símbolo de dinheiro", Math.abs(Number(hitCifrao.valor) - 130.16) < 0.001]);
+
+const sampleIconeValor = `
+Valor Original
+B
+R$ 130,16
+`;
+const hitIconeValor = parseAutuacaoTransito(sampleIconeValor);
+checks.push(["valor com ícone na linha de cima", Math.abs(Number(hitIconeValor.valor) - 130.16) < 0.001]);
+
 let fail = 0;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"} | ${name}${ok ? "" : ` | ${JSON.stringify(hit)}`}`);

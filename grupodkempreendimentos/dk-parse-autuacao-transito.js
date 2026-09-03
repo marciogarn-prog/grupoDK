@@ -84,29 +84,42 @@
   function parseValorNumero(raw) {
     if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
     const s = String(raw ?? "")
-      .replace(/R\$\s?/gi, "")
+      .replace(/[\u0000-\u001F\u007F-\u00A0\u20AC\u00A2-\u00A5\u25A0-\u25FF$€£¥]/g, " ")
+      .replace(/R\s*\$/gi, " ")
+      .replace(/[^\d.,]/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
-    if (!s) return 0;
-    if (/\d+,\d{2}$/.test(s)) {
-      const n = Number(s.replace(/\./g, "").replace(",", "."));
+    const m = s.match(/([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/);
+    if (!m) return 0;
+    const token = m[1];
+    if (/\d+,\d{2}$/.test(token)) {
+      const n = Number(token.replace(/\./g, "").replace(",", "."));
       return Number.isFinite(n) ? n : 0;
     }
-    if (/^\d+\.\d{1,2}$/.test(s)) {
-      const n = Number(s);
+    if (/^\d+\.\d{1,2}$/.test(token)) {
+      const n = Number(token);
       return Number.isFinite(n) ? n : 0;
     }
-    const n = Number(s.replace(",", "."));
+    const n = Number(token.replace(",", "."));
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
+  function blocoAposValorOriginal(text) {
+    const lines = norm(text).split("\n");
+    for (let i = 0; i < lines.length; i += 1) {
+      if (/valor\s+original|valor\s+da\s+infra/i.test(lines[i])) {
+        return [lines[i], lines[i + 1], lines[i + 2]].filter((l) => String(l || "").trim()).join(" ");
+      }
+    }
+    return "";
+  }
+
   function parseValor(text) {
+    const fromLabel = parseValorNumero(blocoAposValorOriginal(text));
+    if (fromLabel > 0) return fromLabel;
     const src = norm(text);
-    const labeled = src.match(
-      /valor(?:\s+original)?[^\n]{0,40}?R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/i
-    );
-    const any = src.match(/R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/);
-    const raw = labeled || any ? (labeled || any)[1] : "";
-    return parseValorNumero(raw);
+    const any = src.match(/R\s*\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/i);
+    return parseValorNumero(any ? any[1] : src);
   }
 
   function parseCodigo(text) {

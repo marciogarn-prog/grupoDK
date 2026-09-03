@@ -101,7 +101,7 @@
 
   async function ocrOpenAi(imgDataUrl) {
     const prompt =
-      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número, ex. 130.16), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
+      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número do Valor Original, ex. 130.16 — ignore ícone de dinheiro/$ à frente), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
     const content = [
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imgDataUrl } },
@@ -160,9 +160,14 @@
             const n = Number(v);
             return Number.isFinite(n) && n > 0 ? n : 0;
           };
-    if (parsed.valor != null && parsed.valor !== "") {
-      const n = parseVal(parsed.valor);
-      if (n > 0) out.valor = n;
+    const valorKeys = ["valor", "valorOriginal", "valorDaInfracao", "valor_original", "valorInfracao"];
+    for (const k of valorKeys) {
+      if (parsed[k] == null || parsed[k] === "") continue;
+      const n = parseVal(parsed[k]);
+      if (n > 0) {
+        out.valor = n;
+        break;
+      }
     }
     if (out.placa) out.placa = String(out.placa).toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (out.codigo) out.codigo = String(out.codigo).replace(/\s+/g, "").replace("–", "-");
