@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260902ceo-cartao-auto">
+  <link rel="stylesheet" href="styles.css?v=20260902rotatividade">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -561,6 +561,10 @@
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-locacao" aria-expanded="false" aria-controls="operacaoInlineLocacao">
                 <span class="btn-operacao-cmd__title">Cadastro de locação</span>
                 <span class="btn-operacao-cmd__hint">Protocolo automático, CPF, placa, plano, valores e datas</span>
+              </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-operacao-relatorio-rotatividade" aria-expanded="false" aria-controls="operacaoInlineRelatorioRotatividade">
+                <span class="btn-operacao-cmd__title">Relatório de rotatividade</span>
+                <span class="btn-operacao-cmd__hint">Novas locações × finalizadas por período</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-lancamento-aluguel" aria-expanded="false" aria-controls="operacaoLancAluguelSubnav">
                 <span class="btn-operacao-cmd__title">Lançamento de aluguel</span>
@@ -1266,6 +1270,52 @@
           <p class="operacao-inline-form__footnote">
             <button type="button" class="link-like" id="operacaoLocacaoAbrirSistemaBtn">Abrir painel completo DK (login funcionário)</button>
           </p>
+        </div>
+
+        <div id="operacaoInlineRelatorioRotatividade" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-labelledby="operacao-inline-rotatividade-title">
+          <h3 id="operacao-inline-rotatividade-title" class="operacao-inline-form__title">Relatório de rotatividade</h3>
+          <p class="subtext">Escolha o período nos calendários. À esquerda: <strong>novas locações</strong> (data início). À direita: <strong>locações finalizadas</strong> (data fim).</p>
+          <div class="portal-rotatividade__filtros">
+            <label class="portal-field">
+              <span>Início do período</span>
+              <span class="dk-date-cal">
+                <input type="text" id="operacaoRotatividadeInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Início do período do relatório de rotatividade" title="Clique para abrir o calendário">
+              </span>
+            </label>
+            <label class="portal-field">
+              <span>Fim do período</span>
+              <span class="dk-date-cal">
+                <input type="text" id="operacaoRotatividadeFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Fim do período do relatório de rotatividade" title="Clique para abrir o calendário">
+              </span>
+            </label>
+            <div class="portal-rotatividade__acoes">
+              <button type="button" class="btn-primary" id="operacaoRotatividadeAtualizarBtn">Atualizar relatório</button>
+            </div>
+          </div>
+          <p id="operacaoRotatividadeHint" class="subtext portal-rotatividade__hint" role="status">—</p>
+          <div class="portal-rotatividade__resumo" id="operacaoRotatividadeResumo" aria-live="polite">
+            <div class="portal-rotatividade-kpi">
+              <span class="portal-rotatividade-kpi__lab">Novos contratos</span>
+              <strong id="operacaoRotatividadeQtdNovos">—</strong>
+            </div>
+            <div class="portal-rotatividade-kpi">
+              <span class="portal-rotatividade-kpi__lab">Contratos finalizados</span>
+              <strong id="operacaoRotatividadeQtdFim">—</strong>
+            </div>
+            <div class="portal-rotatividade-kpi portal-rotatividade-kpi--ok">
+              <span class="portal-rotatividade-kpi__lab">Receita semanal novos</span>
+              <strong id="operacaoRotatividadeRecNovos">—</strong>
+            </div>
+            <div class="portal-rotatividade-kpi portal-rotatividade-kpi--warn">
+              <span class="portal-rotatividade-kpi__lab">Receita perdida (finalizados)</span>
+              <strong id="operacaoRotatividadeRecFim">—</strong>
+            </div>
+            <div class="portal-rotatividade-kpi portal-rotatividade-kpi--saldo" id="operacaoRotatividadeSaldoBox">
+              <span class="portal-rotatividade-kpi__lab" id="operacaoRotatividadeSaldoLab">Acréscimo / redução</span>
+              <strong id="operacaoRotatividadeSaldo">—</strong>
+            </div>
+          </div>
+          <div id="operacaoRotatividadeLista" class="portal-rotatividade__lista" role="region" aria-label="Rotatividade por dia"></div>
         </div>
 
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
@@ -3750,7 +3800,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260902colab-limpar" defer></script>
+  <script src="portal-locadora-ui.js?v=20260902rotatividade" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

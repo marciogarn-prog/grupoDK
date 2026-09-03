@@ -1439,6 +1439,7 @@
       ["btn-operacao-cadastro-cliente", "operacaoInlineCliente", "cliente"],
       ["btn-operacao-cadastro-veiculo", "operacaoInlineVeiculo", "veiculo"],
       ["btn-operacao-cadastro-locacao", "operacaoInlineLocacao", "locacao"],
+      ["btn-operacao-relatorio-rotatividade", "operacaoInlineRelatorioRotatividade", "locacao"],
       ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
       ["btn-operacao-lancamento-multas", "operacaoInlineLancamentoMultas", "lancamentoMultas"],
       ["btn-operacao-lancamento-manutencao", "operacaoInlineLancamentoManutencao", "lancamentoManutencao"],
@@ -13851,6 +13852,7 @@
     document.getElementById("operacaoInlineCliente")?.classList.add("hidden");
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
+    document.getElementById("operacaoInlineRelatorioRotatividade")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
@@ -13872,6 +13874,7 @@
       "btn-operacao-cadastro-cliente",
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
+      "btn-operacao-relatorio-rotatividade",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
       "btn-operacao-cadastro-colaborador",
@@ -20820,6 +20823,282 @@
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshOperacaoLocacaoProtocoloAdminPlaceholder();
     });
+  });
+
+  function portalBrToMsRotatividade(br) {
+    const s = String(br || "").trim();
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime();
+    if (typeof parseBrDate === "function") {
+      const d = parseBrDate(s);
+      if (d instanceof Date && !Number.isNaN(d.getTime())) {
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      }
+    }
+    return NaN;
+  }
+
+  function portalFmtBrlRotatividade(n) {
+    const v = Number(n) || 0;
+    return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function portalValorSemanalRotatividade(loc) {
+    const parseCur =
+      typeof parseCurrencyBR === "function"
+        ? (x) => Number(parseCurrencyBR(String(x ?? "")))
+        : (x) => Number(String(x ?? "").replace(/[^\d,.-]/g, "").replace(/\./g, "").replace(",", ".")) || 0;
+    const locacao = parseCur(loc?.valorLocacao);
+    const inv = parseCur(loc?.valorInvestimento ?? loc?.investimento);
+    if (locacao + inv > 0) return locacao + inv;
+    const sem = parseCur(loc?.valorSemanal ?? loc?.valorParcela);
+    return sem > 0 ? sem : 0;
+  }
+
+  function portalNomeClienteRotatividade(loc) {
+    const nome = String(loc?.nomeCliente || loc?.clienteNome || loc?.nome || loc?.cliente || "").trim();
+    if (nome) return nome.toUpperCase();
+    const cpf = String(loc?.cpf || "").replace(/\D/g, "");
+    if (cpf && typeof loadCadastro === "function" && typeof CAD_CLIENTES_KEY !== "undefined") {
+      try {
+        const hit = (loadCadastro(CAD_CLIENTES_KEY) || []).find(
+          (c) => String(c.cpf || "").replace(/\D/g, "") === cpf
+        );
+        if (hit?.nome) return String(hit.nome).trim().toUpperCase();
+      } catch {
+        /* ignore */
+      }
+    }
+    return cpf || "—";
+  }
+
+  function portalVeiculoRotatividade(loc) {
+    const placa = String(loc?.placa || "").trim().toUpperCase();
+    const modelo = String(loc?.modelo || loc?.marcaModelo || loc?.veiculo || "").trim();
+    if (placa && modelo) return `${placa} · ${modelo}`;
+    return placa || modelo || "—";
+  }
+
+  function portalInicioBrRotatividade(loc) {
+    const raw = String(loc?.inicio || loc?.dataInicio || "").trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return raw;
+    if (typeof formatPortalCadastroDateLabel === "function") {
+      const br = formatPortalCadastroDateLabel(raw);
+      if (br) return br;
+    }
+    if (typeof portalCoerceDataFimBr === "function") {
+      const br = portalCoerceDataFimBr(raw, loc);
+      if (br) return br;
+    }
+    return "";
+  }
+
+  function portalObterPeriodoRotatividade() {
+    const hoje =
+      typeof todayBrDate === "function"
+        ? todayBrDate()
+        : typeof portalBrDatePlusDays === "function"
+          ? portalBrDatePlusDays(0)
+          : "";
+    const inpIni = document.getElementById("operacaoRotatividadeInicio");
+    const inpFim = document.getElementById("operacaoRotatividadeFim");
+    let iniBr = String(inpIni?.value || "").trim();
+    let fimBr = String(inpFim?.value || "").trim();
+    if (!iniBr && !fimBr && hoje) {
+      const d = portalBrToMsRotatividade(hoje);
+      if (Number.isFinite(d)) {
+        const dt = new Date(d);
+        iniBr = `01/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
+        fimBr = hoje;
+        if (inpIni) inpIni.value = iniBr;
+        if (inpFim) inpFim.value = fimBr;
+      }
+    }
+    let startMs = portalBrToMsRotatividade(iniBr);
+    let endMs = portalBrToMsRotatividade(fimBr);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+      return { ok: false, startMs: 0, endMs: 0, iniBr, fimBr };
+    }
+    if (startMs > endMs) {
+      const t = startMs;
+      startMs = endMs;
+      endMs = t;
+      const tb = iniBr;
+      iniBr = fimBr;
+      fimBr = tb;
+    }
+    endMs = endMs + 86399999;
+    return { ok: true, startMs, endMs, iniBr, fimBr };
+  }
+
+  function portalColetarRotatividadePeriodo(periodo) {
+    const vazios = { entradas: [], saidas: [], byDay: new Map() };
+    if (!periodo?.ok || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return vazios;
+    }
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : () => false;
+    const locs = (loadCadastro(CAD_LOCACOES_KEY) || []).filter((l) => {
+      if (!l || typeof l !== "object") return false;
+      if (isGhost(l)) return false;
+      if (String(l.numeroContrato || "").replace(/\D/g, "") === "2099010199") return false;
+      if (typeof isPortalLocacaoCancelada === "function" && isPortalLocacaoCancelada(l)) return false;
+      return true;
+    });
+
+    const entradas = [];
+    const saidas = [];
+    locs.forEach((loc) => {
+      const proto = String(loc.numeroContrato || loc.protocolo || "").trim();
+      if (!proto) return;
+      const valor = portalValorSemanalRotatividade(loc);
+      const rowBase = {
+        protocolo: proto,
+        cliente: portalNomeClienteRotatividade(loc),
+        veiculo: portalVeiculoRotatividade(loc),
+        valor,
+      };
+      const iniBr = portalInicioBrRotatividade(loc);
+      const iniMs = portalBrToMsRotatividade(iniBr);
+      if (Number.isFinite(iniMs) && iniMs >= periodo.startMs && iniMs <= periodo.endMs) {
+        entradas.push({ ...rowBase, dataBr: iniBr, dataMs: iniMs, tipo: "ent" });
+      }
+      const fimBr = portalFormatDataFinalizacaoLocacao(loc);
+      const fimMs = portalBrToMsRotatividade(fimBr);
+      if (Number.isFinite(fimMs) && fimMs >= periodo.startMs && fimMs <= periodo.endMs) {
+        saidas.push({ ...rowBase, dataBr: fimBr, dataMs: fimMs, tipo: "sai" });
+      }
+    });
+
+    const byDay = new Map();
+    const ensure = (br, ms) => {
+      if (!byDay.has(br)) byDay.set(br, { dataBr: br, dataMs: ms, entradas: [], saidas: [] });
+      return byDay.get(br);
+    };
+    entradas.forEach((r) => ensure(r.dataBr, r.dataMs).entradas.push(r));
+    saidas.forEach((r) => ensure(r.dataBr, r.dataMs).saidas.push(r));
+    byDay.forEach((day) => {
+      day.entradas.sort((a, b) => String(a.protocolo).localeCompare(String(b.protocolo)));
+      day.saidas.sort((a, b) => String(a.protocolo).localeCompare(String(b.protocolo)));
+    });
+    return { entradas, saidas, byDay };
+  }
+
+  function portalHtmlLinhaRotatividade(row) {
+    return `<div class="portal-rotatividade-row">
+      <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.protocolo)}</span>
+      <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.cliente)}">${portalEscapeHtml(row.cliente)}</span>
+      <span class="portal-rotatividade-row__vei" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
+      <span class="portal-rotatividade-row__val">${portalEscapeHtml(portalFmtBrlRotatividade(row.valor))}</span>
+    </div>`;
+  }
+
+  function renderOperacaoRelatorioRotatividade() {
+    const hint = document.getElementById("operacaoRotatividadeHint");
+    const lista = document.getElementById("operacaoRotatividadeLista");
+    const periodo = portalObterPeriodoRotatividade();
+    const setTxt = (id, t) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = t;
+    };
+    if (!periodo.ok) {
+      setTxt("operacaoRotatividadeQtdNovos", "—");
+      setTxt("operacaoRotatividadeQtdFim", "—");
+      setTxt("operacaoRotatividadeRecNovos", "—");
+      setTxt("operacaoRotatividadeRecFim", "—");
+      setTxt("operacaoRotatividadeSaldo", "—");
+      setTxt("operacaoRotatividadeSaldoLab", "Acréscimo / redução");
+      if (hint) hint.textContent = "Informe início e fim válidos (DD/MM/AAAA).";
+      if (lista) lista.innerHTML = `<p class="portal-rotatividade-empty">Escolha o período para ver entradas e saídas.</p>`;
+      return;
+    }
+    const data = portalColetarRotatividadePeriodo(periodo);
+    const qNovos = data.entradas.length;
+    const qFim = data.saidas.length;
+    const recNovos = data.entradas.reduce((s, r) => s + (Number(r.valor) || 0), 0);
+    const recFim = data.saidas.reduce((s, r) => s + (Number(r.valor) || 0), 0);
+    const saldo = recNovos - recFim;
+    setTxt("operacaoRotatividadeQtdNovos", String(qNovos));
+    setTxt("operacaoRotatividadeQtdFim", String(qFim));
+    setTxt("operacaoRotatividadeRecNovos", portalFmtBrlRotatividade(recNovos));
+    setTxt("operacaoRotatividadeRecFim", portalFmtBrlRotatividade(recFim));
+    setTxt("operacaoRotatividadeSaldo", portalFmtBrlRotatividade(Math.abs(saldo)));
+    const lab = document.getElementById("operacaoRotatividadeSaldoLab");
+    const box = document.getElementById("operacaoRotatividadeSaldoBox");
+    if (lab) {
+      lab.textContent =
+        saldo > 0 ? "Acréscimo de receita" : saldo < 0 ? "Redução de receita" : "Receita estável";
+    }
+    if (box) {
+      box.classList.remove("is-up", "is-down", "is-flat");
+      box.classList.add(saldo > 0 ? "is-up" : saldo < 0 ? "is-down" : "is-flat");
+    }
+    if (hint) {
+      hint.textContent = `Período ${periodo.iniBr} a ${periodo.fimBr} · ${qNovos} entrada(s) · ${qFim} saída(s) · saldo semanal ${portalFmtBrlRotatividade(saldo)}.`;
+    }
+    if (!lista) return;
+    const days = Array.from(data.byDay.values()).sort((a, b) => a.dataMs - b.dataMs);
+    if (!days.length) {
+      lista.innerHTML = `<p class="portal-rotatividade-empty">Nenhuma entrada ou saída neste período.</p>`;
+      return;
+    }
+    lista.innerHTML = days
+      .map((day) => {
+        const entHtml = day.entradas.length
+          ? day.entradas.map(portalHtmlLinhaRotatividade).join("")
+          : `<p class="portal-rotatividade-empty">Sem novas locações</p>`;
+        const saiHtml = day.saidas.length
+          ? day.saidas.map(portalHtmlLinhaRotatividade).join("")
+          : `<p class="portal-rotatividade-empty">Sem finalizações</p>`;
+        return `<article class="portal-rotatividade-dia">
+          <h4 class="portal-rotatividade-dia__data">${portalEscapeHtml(day.dataBr)}</h4>
+          <div class="portal-rotatividade-dia__cols">
+            <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--ent">
+              <span class="portal-rotatividade-dia__col-title">Novas locações · Protocolo · Cliente · Veículo · Valor</span>
+              ${entHtml}
+            </div>
+            <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--sai">
+              <span class="portal-rotatividade-dia__col-title">Locações finalizadas · Protocolo · Cliente · Veículo · Valor</span>
+              ${saiHtml}
+            </div>
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  function openOperacaoRelatorioRotatividade() {
+    portalOperacaoOnScreenChange();
+    hideOperacaoInlineFormsCore();
+    document.getElementById("operacaoInlineRelatorioRotatividade")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-relatorio-rotatividade");
+    const pane = document.getElementById("operacaoInlineRelatorioRotatividade");
+    if (typeof window.bindDkIntervaloCalendarios === "function") {
+      window.bindDkIntervaloCalendarios(pane);
+    }
+    if (typeof window.bindDateMasksInContainer === "function") {
+      window.bindDateMasksInContainer(pane);
+    }
+    void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+      renderOperacaoRelatorioRotatividade();
+    });
+    renderOperacaoRelatorioRotatividade();
+  }
+
+  document.getElementById("btn-operacao-relatorio-rotatividade")?.addEventListener("click", () => {
+    openOperacaoRelatorioRotatividade();
+  });
+  document.getElementById("operacaoRotatividadeAtualizarBtn")?.addEventListener("click", () => {
+    renderOperacaoRelatorioRotatividade();
+  });
+  ["operacaoRotatividadeInicio", "operacaoRotatividadeFim"].forEach((id) => {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    inp.addEventListener("change", () => renderOperacaoRelatorioRotatividade());
+    inp.addEventListener("blur", () => renderOperacaoRelatorioRotatividade());
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {
