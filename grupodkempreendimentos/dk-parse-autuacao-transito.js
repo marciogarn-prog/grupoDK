@@ -16,10 +16,42 @@
 
   function afterLabel(text, labels) {
     const src = norm(text);
+    const lines = src.split("\n");
     for (const label of labels) {
-      const re = new RegExp(`${label}\\s*[:\\-]?\\s*([^\\n]+)`, "i");
+      const re = new RegExp(`^\\s*${label}\\s*[:\\-]?\\s*(.*)$`, "i");
+      for (let i = 0; i < lines.length; i += 1) {
+        const m = lines[i].match(re);
+        if (!m) continue;
+        const same = String(m[1] || "").trim();
+        if (same) return same;
+        const next = String(lines[i + 1] || "").trim();
+        if (next) return next;
+      }
+    }
+    return "";
+  }
+
+  function formatDataBr(raw) {
+    const p = String(raw || "").split("/");
+    if (p.length !== 3) return "";
+    return `${p[0].padStart(2, "0")}/${p[1].padStart(2, "0")}/${p[2]}`;
+  }
+
+  function parseDateAfter(text, labels) {
+    const src = norm(text);
+    for (const label of labels) {
+      const re = new RegExp(`${label}[^\\n]{0,90}?(\\d{1,2}\\/\\d{1,2}\\/\\d{4})`, "i");
       const m = src.match(re);
-      if (m && String(m[1] || "").trim()) return String(m[1]).trim();
+      if (m) return formatDataBr(m[1]);
+      const block = src.split("\n");
+      for (let i = 0; i < block.length; i += 1) {
+        if (new RegExp(label, "i").test(block[i])) {
+          const same = block[i].match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+          if (same) return formatDataBr(same[1]);
+          const next = String(block[i + 1] || "").match(/(\d{1,2}\/\d{1,2}\/\d{4})/);
+          if (next) return formatDataBr(next[1]);
+        }
+      }
     }
     return "";
   }
@@ -39,8 +71,7 @@
     const loose = src.match(/(\d{1,2}\/\d{1,2}\/\d{4})(?:\s+(\d{1,2}:\d{2}))?/);
     const hit = labeled || loose;
     if (!hit) return { data: "", hora: "" };
-    const p = String(hit[1]).split("/");
-    const data = `${p[0].padStart(2, "0")}/${p[1].padStart(2, "0")}/${p[2]}`;
+    const data = formatDataBr(hit[1]);
     const hora = hit[2] ? String(hit[2]).padStart(5, "0") : "";
     return { data, hora };
   }
@@ -91,28 +122,40 @@
     return afterLabel(src, ["Infra[cç][aã]o", "Descri[cç][aã]o"]).slice(0, 200);
   }
 
-  function parseOrgao(text) {
-    return afterLabel(text, ["[ÓO]rg[aã]o Autuador", "[ÓO]rg[aã]o Competente"]).slice(0, 120);
+  function parseOrgaoAutuador(text) {
+    return afterLabel(text, ["[ÓO]rg[aã]o Autuador"]).slice(0, 160);
+  }
+
+  function parseOrgaoCompetente(text) {
+    return afterLabel(text, ["[ÓO]rg[aã]o Competente(?:/Respons[aá]vel)?"]).slice(0, 160);
   }
 
   function parseLocal(text) {
-    return afterLabel(text, ["Local da Infra[cç][aã]o"]).slice(0, 160);
+    return afterLabel(text, ["Local da Infra[cç][aã]o"]).slice(0, 200);
   }
 
   function parseAutuacaoTransito(text) {
     const src = norm(text);
     const dh = parseDataHora(src);
+    const orgaoAutuador = parseOrgaoAutuador(src);
+    const orgaoCompetente = parseOrgaoCompetente(src);
     return {
       placa: parsePlaca(src),
       data: dh.data,
       hora: dh.hora,
+      dataHora: [dh.data, dh.hora].filter(Boolean).join(" "),
       codigo: parseCodigo(src),
       descricao: parseDescricao(src),
       valor: parseValor(src),
       auto: parseAuto(src),
       renainf: parseRenainf(src),
-      orgao: parseOrgao(src),
+      orgao: orgaoAutuador,
+      orgaoAutuador,
+      orgaoCompetente,
       local: parseLocal(src),
+      dataNotificacao: parseDateAfter(src, ["Notifica[cç][aã]o de Autua[cç][aã]o"]),
+      dataLimiteDefesa: parseDateAfter(src, ["Defesa Pr[eé]via"]),
+      dataLimiteCondutor: parseDateAfter(src, ["Identifica[cç][aã]o do Condutor"]),
     };
   }
 

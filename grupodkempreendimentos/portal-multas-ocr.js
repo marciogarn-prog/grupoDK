@@ -101,7 +101,7 @@
 
   async function ocrOpenAi(imgDataUrl) {
     const prompt =
-      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo, descricao, valor (número), auto, renainf, orgao, local. Sem texto extra.";
+      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo, descricao, valor (número), auto, renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
     const content = [
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imgDataUrl } },
@@ -131,7 +131,22 @@
       const s = String(v).trim();
       if (s) out[key] = key === "valor" ? Number(String(s).replace(/\./g, "").replace(",", ".")) || Number(s) || out[key] : s;
     };
-    ["placa", "data", "hora", "codigo", "descricao", "auto", "renainf", "orgao", "local"].forEach(pick);
+    [
+      "placa",
+      "data",
+      "hora",
+      "codigo",
+      "descricao",
+      "auto",
+      "renainf",
+      "orgao",
+      "orgaoAutuador",
+      "orgaoCompetente",
+      "local",
+      "dataNotificacao",
+      "dataLimiteDefesa",
+      "dataLimiteCondutor",
+    ].forEach(pick);
     if (parsed.valor != null && parsed.valor !== "") {
       const n =
         typeof parsed.valor === "number"

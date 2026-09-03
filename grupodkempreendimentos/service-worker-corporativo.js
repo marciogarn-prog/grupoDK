@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260903multa-ocr";
+const CACHE_NAME = "dk-corporativo-v20260903multa-form";
 const ASSETS = [
   "./",
   "./index.html",

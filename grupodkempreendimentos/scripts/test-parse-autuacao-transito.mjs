@@ -31,6 +31,10 @@ Valor Original
 R$ 130,16
 Data da Notificação de Autuação
 29/08/2026
+Data Limite para Interposição de Defesa Prévia
+12/10/2026
+Data Limite para Identificação do Condutor Infrator
+12/10/2026
 `;
 
 const hit = parseAutuacaoTransito(SAMPLE);
@@ -43,6 +47,11 @@ const checks = [
   ["auto MB00180959", hit.auto === "MB00180959"],
   ["renainf", hit.renainf === "11666113239"],
   ["descricao faixa", /FAIXA DE PEDESTRES/i.test(hit.descricao)],
+  ["orgao autuador", /PETROLINA/i.test(hit.orgaoAutuador)],
+  ["local avenida", /GUARARAPES/i.test(hit.local)],
+  ["notificacao 29/08/2026", hit.dataNotificacao === "29/08/2026"],
+  ["limite defesa 12/10/2026", hit.dataLimiteDefesa === "12/10/2026"],
+  ["limite condutor 12/10/2026", hit.dataLimiteCondutor === "12/10/2026"],
 ];
 
 let fail = 0;

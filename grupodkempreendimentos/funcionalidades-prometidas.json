@@ -234,6 +234,28 @@
       }
     },
     {
+      "id": "lancamento-multas-form-autuacao",
+      "descricao": "Abaixo da imagem da autuação existe o formulário com os cabeçalhos da multa (placa, órgãos, local, data/hora, auto, código, RENAINF, valor, prazos). A leitura preenche as caixas; placa+data+hora ligam ao protocolo; sem contrato ativo o Cliente mostra NESTE PERIODO VEICULO DISPONIVEL.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancMultasOcrForm",
+          "Placa à época da infração",
+          "Órgão Autuador",
+          "Número RENAINF",
+          "operacaoLancMultasOcrCliente"
+        ],
+        "portal-lancamentos-extras.js": [
+          "NESTE PERIODO VEICULO DISPONIVEL",
+          "preencherFormularioAutuacao",
+          "escolherLocacaoNaData"
+        ],
+        "styles.css": [
+          "portal-multas-ocr-form__row",
+          "color: #4ade80"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesas-windows",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas no Windows: o ecrã usa a largura do monitor, Categoria/Subcategoria/Periódico não se sobrepõem, e a bola do mouse move o conteúdo.",
       "ficheiros": {

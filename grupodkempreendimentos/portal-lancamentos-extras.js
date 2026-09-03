@@ -1789,14 +1789,69 @@
     return Number.isFinite(fim) ? alvo <= fim : true;
   }
 
+  const CLIENTE_VEICULO_DISPONIVEL = "NESTE PERIODO VEICULO DISPONIVEL";
+
+  function setOcrField(id, value) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = value == null ? "" : String(value);
+  }
+
+  function preencherFormularioAutuacao(dados, vinculo) {
+    const placa = normPlate(dados?.placa);
+    const data = String(dados?.data || "").trim();
+    const hora = String(dados?.hora || "").trim();
+    const dataHora = String(dados?.dataHora || "").trim() || [data, hora].filter(Boolean).join(" ");
+    const codigo = String(dados?.codigo || "").trim();
+    const descricao = String(dados?.descricao || "").trim();
+    const valor = Number(dados?.valor || 0);
+    setOcrField("operacaoLancMultasOcrDescricao", descricao);
+    setOcrField("operacaoLancMultasOcrPlaca", placa);
+    setOcrField("operacaoLancMultasOcrOrgaoAutuador", dados?.orgaoAutuador || dados?.orgao || "");
+    setOcrField("operacaoLancMultasOcrOrgaoCompetente", dados?.orgaoCompetente || dados?.orgao || "");
+    setOcrField("operacaoLancMultasOcrLocal", dados?.local || "");
+    setOcrField("operacaoLancMultasOcrDataHora", dataHora);
+    setOcrField("operacaoLancMultasOcrAuto", dados?.auto || "");
+    setOcrField("operacaoLancMultasOcrCodigo", codigo);
+    setOcrField("operacaoLancMultasOcrRenainf", dados?.renainf || "");
+    setOcrField("operacaoLancMultasOcrValor", valor > 0 ? fmtBrlNum(valor) : "");
+    setOcrField("operacaoLancMultasOcrNotificacao", dados?.dataNotificacao || "");
+    setOcrField("operacaoLancMultasOcrLimiteDefesa", dados?.dataLimiteDefesa || "");
+    setOcrField("operacaoLancMultasOcrLimiteCondutor", dados?.dataLimiteCondutor || "");
+    if (vinculo && vinculo.loc) {
+      setOcrField("operacaoLancMultasOcrCliente", vinculo.loc.nome || "");
+      setOcrField("operacaoLancMultasOcrProtocolo", vinculo.proto || "");
+    } else {
+      setOcrField("operacaoLancMultasOcrCliente", CLIENTE_VEICULO_DISPONIVEL);
+      setOcrField("operacaoLancMultasOcrProtocolo", "");
+    }
+  }
+
+  function escolherLocacaoNaData(locs, dataBr) {
+    const cobrindo = locs.filter((l) => locCobreData(l, dataBr));
+    if (!cobrindo.length) return null;
+    const ativos = cobrindo.filter((l) => {
+      const st = String(l.statusLocacao || l.status || "").toUpperCase();
+      const semFim = !String(l.fim || l.dataFim || "").trim();
+      return semFim || st === "ATIVO" || st === "ATIVA";
+    });
+    const lista = ativos.length ? ativos : cobrindo;
+    return lista.slice().sort((a, b) => parseDataMs(b.inicio) - parseDataMs(a.inicio))[0] || null;
+  }
+
   function aplicarLeituraMulta(dados) {
     const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
     if (!cfg) return { ok: false, aviso: "Tela de multas indisponível." };
     const placa = normPlate(dados?.placa);
     const data = String(dados?.data || "").trim();
+    const hora = String(dados?.hora || "").trim();
     const codigo = String(dados?.codigo || dados?.auto || "").trim();
     const descricao = String(dados?.descricao || "").trim();
     const valor = Number(dados?.valor || 0);
+    const locs = placa ? collectLocs().filter((l) => normPlate(l.placa) === placa) : [];
+    const escolhida = data ? escolherLocacaoNaData(locs, data) : null;
+    const proto = escolhida ? normNc(escolhida.numeroContrato) : "";
+    preencherFormularioAutuacao(dados, escolhida ? { loc: escolhida, proto } : null);
     if ($(cfg, "PlacaBusca") && placa) $(cfg, "PlacaBusca").value = placa;
     if ($(cfg, "DataMulta") && data) $(cfg, "DataMulta").value = data;
     if ($(cfg, "CodMulta") && codigo) $(cfg, "CodMulta").value = codigo;
@@ -1809,11 +1864,7 @@
     $(cfg, "ValorMulta")?.dispatchEvent(new Event("input", { bubbles: true }));
     $(cfg, "QtdParcelas")?.dispatchEvent(new Event("change", { bubbles: true }));
     refreshPesquisaAvancada(cfg);
-    const locs = collectLocs().filter((l) => normPlate(l.placa) === placa);
-    const cobrindo = locs.filter((l) => locCobreData(l, data));
-    const escolhida = cobrindo[0] || null;
     if (escolhida) {
-      const proto = normNc(escolhida.numeroContrato);
       if ($(cfg, "ProtocoloBusca") && proto) $(cfg, "ProtocoloBusca").value = proto;
       if ($(cfg, "NomeBusca") && escolhida.nome) $(cfg, "NomeBusca").value = String(escolhida.nome);
       if ($(cfg, "Cpf") && typeof formatCpf === "function") $(cfg, "Cpf").value = formatCpf(dig(escolhida.cpf));
@@ -1825,21 +1876,17 @@
       if ($(cfg, "Descricao") && descricao) $(cfg, "Descricao").value = descricao.slice(0, 200);
       if ($(cfg, "ValorMulta") && valor > 0) $(cfg, "ValorMulta").value = fmtBrlNum(valor);
       if ($(cfg, "DataPrimeiraParcela") && data) $(cfg, "DataPrimeiraParcela").value = data;
-      return { ok: true, proto, nome: escolhida.nome };
+      preencherFormularioAutuacao(dados, { loc: escolhida, proto });
+      return { ok: true, proto, nome: escolhida.nome, hora };
     }
     hideDetalhe(cfg);
-    if (!placa) return { ok: true, aviso: "Confira os campos e pesquise o contrato." };
-    const anteriores = locs
-      .filter((l) => Number.isFinite(parseDataMs(l.inicio)) && parseDataMs(l.inicio) <= parseDataMs(data || l.inicio))
-      .sort((a, b) => parseDataMs(b.inicio) - parseDataMs(a.inicio));
-    const ultimo = anteriores[0];
-    if (ultimo) {
-      return {
-        ok: true,
-        aviso: `Nenhum contrato ativo em ${data || "essa data"}. Último cliente desta placa: ${ultimo.nome} (${ultimo.inicio}${ultimo.fim ? ` a ${ultimo.fim}` : ""}).`,
-      };
-    }
-    return { ok: true, aviso: "Placa lida, mas não há locação desta placa no cadastro." };
+    if ($(cfg, "NomeBusca")) $(cfg, "NomeBusca").value = CLIENTE_VEICULO_DISPONIVEL;
+    if ($(cfg, "ProtocoloBusca")) $(cfg, "ProtocoloBusca").value = "";
+    return {
+      ok: true,
+      disponivel: true,
+      aviso: `${CLIENTE_VEICULO_DISPONIVEL}${data ? ` em ${data}${hora ? ` ${hora}` : ""}` : ""}.`,
+    };
   }
 
   window.__DK_aplicarLeituraMulta = aplicarLeituraMulta;
