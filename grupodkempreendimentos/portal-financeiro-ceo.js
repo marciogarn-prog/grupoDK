@@ -69,6 +69,7 @@
     { id: "SAUDE", label: "Saúde" },
     { id: "INTERNET", label: "Internet" },
     { id: "SEGUROS", label: "Seguros" },
+    { id: "EMPRESTIMO", label: "Empréstimo" },
     { id: "OUTROS", label: "Outros" },
   ];
 
