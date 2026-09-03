@@ -16012,7 +16012,11 @@
         typeof normalizePlate === "function" ? normalizePlate(String(l.placa || "")) : String(l.placa || "").trim();
       const ini = String(l.inicio || "").trim();
       opt.textContent = `${nc} · ${placa || "—"} · ${ini || "—"}${portalLabelInativoComData(l)}`;
-      if (isPortalLocacaoAtiva(l)) opt.classList.add("portal-locacao-proto-opt--ativo");
+      if (isPortalLocacaoAtiva(l)) {
+        opt.classList.add("portal-locacao-proto-opt--ativo");
+      } else {
+        opt.classList.add("portal-locacao-proto-opt--inativo");
+      }
       const corCls =
         typeof getPortalLancPesquisaLinhaCorClasseFast === "function"
           ? getPortalLancPesquisaLinhaCorClasseFast(
@@ -16020,9 +16024,11 @@
               typeof getVehicleMapByPlate === "function" ? getVehicleMapByPlate() : null
             )
           : "";
-      if (corCls === "portal-lanc-pesquisa-linha--amarelo") opt.classList.add("portal-locacao-proto-opt--carro");
-      else if (corCls === "portal-lanc-pesquisa-linha--azul") opt.classList.add("portal-locacao-proto-opt--minha-moto");
-      else if (corCls === "portal-lanc-pesquisa-linha--verde") opt.classList.add("portal-locacao-proto-opt--meu-transporte");
+      if (!opt.classList.contains("portal-locacao-proto-opt--inativo")) {
+        if (corCls === "portal-lanc-pesquisa-linha--amarelo") opt.classList.add("portal-locacao-proto-opt--carro");
+        else if (corCls === "portal-lanc-pesquisa-linha--azul") opt.classList.add("portal-locacao-proto-opt--minha-moto");
+        else if (corCls === "portal-lanc-pesquisa-linha--verde") opt.classList.add("portal-locacao-proto-opt--meu-transporte");
+      }
       sel.appendChild(opt);
     });
     const optNovo = document.createElement("option");
@@ -16050,9 +16056,10 @@
     }
   }
 
-  /** Cor no select fechado: marrom carro · azul minha moto · verde meu transporte. */
+  /** Cor no select fechado: marrom carro · azul minha moto · verde meu transporte · vermelho inativo. */
   const PORTAL_LOCACAO_PROTO_SELECT_COR_CLASSES = [
     "portal-locacao-proto-select--ativo",
+    "portal-locacao-proto-select--inativo",
     "portal-locacao-proto-select--carro",
     "portal-locacao-proto-select--minha-moto",
     "portal-locacao-proto-select--meu-transporte",
@@ -16076,6 +16083,10 @@
     }
     if (opt.classList.contains("portal-locacao-proto-opt--meu-transporte")) {
       sel.classList.add("portal-locacao-proto-select--meu-transporte");
+      return;
+    }
+    if (opt.classList.contains("portal-locacao-proto-opt--inativo")) {
+      sel.classList.add("portal-locacao-proto-select--inativo");
       return;
     }
     if (opt.classList.contains("portal-locacao-proto-opt--ativo")) {
