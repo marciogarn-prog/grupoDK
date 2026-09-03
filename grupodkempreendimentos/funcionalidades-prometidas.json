@@ -190,7 +190,8 @@
         "dk-relatorio-operacao-pdf.js": [
           "operacaoRotatividadePdfBtn",
           "operacaoInatividadePdfBtn",
-          "Relatório de rotatividade"
+          "Relatório de rotatividade",
+          "dkRelatorioOperacaoPdfFrame"
         ],
         "styles.css": [
           "portal-rotatividade__resumo",
