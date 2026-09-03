@@ -13888,8 +13888,7 @@
     refreshOperacaoLancAluguelAdminControlsVisibility();
     portalRefreshOperacaoDeferred(["aluguel", "rel"]);
     portalBindLancAluguelLayoutEditorOnce();
-    portalApplyLancAluguelLayoutFromStorage();
-    portalStopLancAluguelLayoutEdit();
+    portalDisableLancAluguelCustomLayout();
   }
 
   const PORTAL_LANC_ALUGUEL_LAYOUT_KEY = "dk_portal_lanc_aluguel_layout_v1";
@@ -14026,22 +14025,26 @@
   }
 
   function portalApplyLancAluguelLayoutFromStorage() {
-    const raw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
-    if (!raw) return;
+    /* Layout customizado desligado: causava caixas umas sobre as outras. */
+    portalDisableLancAluguelCustomLayout();
+  }
+
+  function portalDisableLancAluguelCustomLayout() {
     try {
-      const parsed = JSON.parse(raw);
-      if (!parsed || typeof parsed !== "object") return;
-      portalApplyLancAluguelLayout(parsed);
+      localStorage.removeItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
     } catch {
       /* ignore */
     }
+    portalStopLancAluguelLayoutEdit();
+    portalClearLancAluguelLayoutInlineStyles();
+    const spacer = document.getElementById("operacaoLancAluguelLayoutSpacer");
+    if (spacer) spacer.remove();
   }
 
   function portalPersistLancAluguelLayoutFromScreen() {
-    const layout = portalCollectLancAluguelLayout();
-    localStorage.setItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY, JSON.stringify(layout));
-    portalApplyLancAluguelLayout(layout);
-    return layout;
+    /* Sem gravação — editor de layout removido. */
+    portalDisableLancAluguelCustomLayout();
+    return {};
   }
 
   function portalSyncLancAluguelLayoutToolbar() {
@@ -14052,22 +14055,9 @@
     /* Editor de layout desligado a pedido do titular. */
   }
 
-  /** Se há layout salvo, posiciona caixas que acabaram de ficar visíveis. */
+  /** Layout customizado desligado — não reposiciona caixas. */
   function portalRefreshLancAluguelLayoutForVisibleBoxes() {
-    const root = portalLancAluguelLayoutRoot();
-    if (!root || !root.classList.contains("lanc-custom-layout")) return;
-    const raw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
-    if (!raw) return;
-    try {
-      const stored = JSON.parse(raw);
-      if (!stored || typeof stored !== "object") return;
-      root.classList.remove("lanc-custom-layout");
-      const missingSnapshot = portalCollectLancAluguelLayout();
-      root.classList.add("lanc-custom-layout");
-      portalApplyLancAluguelLayout({ ...missingSnapshot, ...stored });
-    } catch {
-      /* ignore */
-    }
+    portalDisableLancAluguelCustomLayout();
   }
 
   function portalStopLancAluguelLayoutEdit() {

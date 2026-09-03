@@ -3,15 +3,13 @@
   "itens": [
     {
       "id": "lanc-aluguel-layout-travado",
-      "descricao": "No Lançamento de aluguel o layout personalizado fica aplicado (localStorage) sem botão Editar layout (trabalho concluído a pedido do titular).",
+      "descricao": "No Lançamento de aluguel não há botão Editar layout; o layout customizado (absolute) fica desligado para não sobrepor caixas — fluxo normal da tela.",
       "ficheiros": {
-        "index.html": ["data-lanc-layout-box"],
         "portal-locadora-ui.js": [
-          "portalApplyLancAluguelLayoutFromStorage",
-          "PORTAL_LANC_ALUGUEL_LAYOUT_KEY",
-          "Editor de layout removido"
-        ],
-        "styles.css": ["lanc-custom-layout"]
+          "portalDisableLancAluguelCustomLayout",
+          "Layout customizado desligado",
+          "PORTAL_LANC_ALUGUEL_LAYOUT_KEY"
+        ]
       }
     },
     {
