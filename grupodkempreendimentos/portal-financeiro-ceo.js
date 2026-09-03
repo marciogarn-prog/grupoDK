@@ -1319,7 +1319,24 @@
     return `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
   }
 
-  /** Série do gráfico «Saldo mês a mês» filtrada pelo período (dia a dia se ≤ 62 dias). */
+  /** Soma acumulada: dia N = soma dos dias 1…N (receita, despesa e saldo). */
+  function acumularSeriesPeriodoCeo(receitaDia, despesaDia) {
+    const receita = [];
+    const despesaNeg = [];
+    const saldo = [];
+    let accRec = 0;
+    let accDeb = 0;
+    for (let i = 0; i < receitaDia.length; i += 1) {
+      accRec += Number(receitaDia[i]) || 0;
+      accDeb += Number(despesaDia[i]) || 0;
+      receita.push(accRec);
+      despesaNeg.push(-accDeb);
+      saldo.push(accRec - accDeb);
+    }
+    return { receita, despesaNeg, saldo };
+  }
+
+  /** Série do gráfico do período: valores acumulados (receita, despesa e saldo). */
   function buildProjecaoPeriodoCeo(periodo) {
     const vazio = { labels: [], saldo: [], receita: [], despesaNeg: [], modo: "mes", n: 0 };
     if (!periodo?.ok) return vazio;
@@ -1353,28 +1370,31 @@
     const useDaily = periodo.dias <= 62;
     if (useDaily) {
       const labels = [];
-      const saldo = [];
-      const receita = [];
-      const despesaNeg = [];
+      const receitaDia = [];
+      const despesaDia = [];
       for (let t = periodo.d0.getTime(); t <= periodo.d1.getTime(); t += 86400000) {
         const dt = startOfDay(new Date(t));
         const k = chaveDiaCeo(dt);
-        const rec = recDiaLoc + (recUniPorDia.get(k) || 0);
-        const deb = debPorDia.get(k) || 0;
         labels.push(
           `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}`
         );
-        receita.push(rec);
-        despesaNeg.push(-deb);
-        saldo.push(rec - deb);
+        receitaDia.push(recDiaLoc + (recUniPorDia.get(k) || 0));
+        despesaDia.push(debPorDia.get(k) || 0);
       }
-      return { labels, saldo, receita, despesaNeg, modo: "dia", n: labels.length };
+      const acum = acumularSeriesPeriodoCeo(receitaDia, despesaDia);
+      return {
+        labels,
+        saldo: acum.saldo,
+        receita: acum.receita,
+        despesaNeg: acum.despesaNeg,
+        modo: "dia",
+        n: labels.length,
+      };
     }
 
     const labels = [];
-    const saldo = [];
-    const receita = [];
-    const despesaNeg = [];
+    const receitaMes = [];
+    const despesaMes = [];
     let cur = new Date(periodo.d0.getFullYear(), periodo.d0.getMonth(), 1);
     const last = new Date(periodo.d1.getFullYear(), periodo.d1.getMonth(), 1);
     while (cur.getTime() <= last.getTime()) {
@@ -1391,12 +1411,19 @@
       }
       const rec = recDiaLoc * dias + receitaUnidadesNoPeriodo(uniRows, startMs, endMs);
       labels.push(`${String(cur.getMonth() + 1).padStart(2, "0")}/${cur.getFullYear()}`);
-      receita.push(rec);
-      despesaNeg.push(-deb);
-      saldo.push(rec - deb);
+      receitaMes.push(rec);
+      despesaMes.push(deb);
       cur = addMonths(cur, 1);
     }
-    return { labels, saldo, receita, despesaNeg, modo: "mes", n: labels.length };
+    const acum = acumularSeriesPeriodoCeo(receitaMes, despesaMes);
+    return {
+      labels,
+      saldo: acum.saldo,
+      receita: acum.receita,
+      despesaNeg: acum.despesaNeg,
+      modo: "mes",
+      n: labels.length,
+    };
   }
 
   function renderGraficoPeriodoCeo() {
@@ -1409,16 +1436,19 @@
     if (!periodo.ok) {
       chart.innerHTML = `<p class="subtext">Informe início e fim do período para ver o gráfico.</p>`;
       if (leg) leg.innerHTML = "";
-      if (tit) tit.textContent = "Saldo mês a mês";
+      if (tit) tit.textContent = "Saldo acumulado no período";
       return;
     }
     const view = buildProjecaoPeriodoCeo(periodo);
-    if (tit) tit.textContent = view.modo === "dia" ? "Saldo dia a dia" : "Saldo mês a mês";
+    if (tit) {
+      tit.textContent =
+        view.modo === "dia" ? "Saldo acumulado dia a dia" : "Saldo acumulado mês a mês";
+    }
     if (hint) {
       hint.textContent =
         view.modo === "dia"
-          ? "Período curto: o gráfico mostra um ponto por dia, alinhado às datas início/fim."
-          : "Período longo: o gráfico mostra um ponto por mês dentro do intervalo seleccionado.";
+          ? "Valores acumulados: cada dia soma a receita e a despesa desde o início do período (ex.: dia 1 = 8.000; dia 2 = 16.000 de receita)."
+          : "Valores acumulados: cada mês soma receita e despesa desde o início do período seleccionado.";
     }
     if (!view.labels.length) {
       chart.innerHTML = `<p class="subtext">Sem dados no período.</p>`;
@@ -1432,12 +1462,9 @@
     ]);
     if (leg) {
       leg.innerHTML = [
-        {
-          c: "#5eb8ff",
-          t: view.modo === "dia" ? "Saldo diário (receita − despesas)" : "Saldo mensal (receita − despesas)",
-        },
-        { c: "#6ee7a0", t: "Receita prevista" },
-        { c: "#ff6b6b", t: "Despesas (negativo)" },
+        { c: "#5eb8ff", t: "Saldo acumulado (receita − despesas)" },
+        { c: "#6ee7a0", t: "Receita acumulada" },
+        { c: "#ff6b6b", t: "Despesas acumuladas (negativo)" },
       ]
         .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
         .join("");

@@ -284,7 +284,8 @@
           "receitaRealLocadoraNoPeriodo",
           "id === \"periodo\"",
           "buildProjecaoPeriodoCeo",
-          "renderGraficoPeriodoCeo"
+          "renderGraficoPeriodoCeo",
+          "acumularSeriesPeriodoCeo"
         ],
         "styles.css": [
           "fin-ceo-periodo",
