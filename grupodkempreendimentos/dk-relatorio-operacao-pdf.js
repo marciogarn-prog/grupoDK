@@ -71,8 +71,11 @@
     body.inatividade .portal-rotatividade-dia__cols { display: flex; flex-direction: column; grid-template-columns: 1fr; }
     body.inatividade .portal-rotatividade-dia__col--ent { border-right: 0; }
     body.inatividade .portal-rotatividade-dia__col--sai { border-bottom: 1px solid #ccc; }
-    body.inatividade .portal-rotatividade-row { grid-template-columns: 5.8rem minmax(10rem, 2.6fr) 6.8rem 7.4rem 5rem; }
+    body.inatividade .portal-rotatividade-row { grid-template-columns: 5.4rem minmax(8rem, 2.2fr) 5.4rem 6.4rem 7rem 4.8rem; }
+    body.inatividade .portal-rotatividade-row__cor { text-transform: uppercase; }
     body.inatividade .portal-rotatividade-row__loc { font-size: 10px; text-transform: uppercase; }
+    body.inatividade .portal-inatividade-row--pronto,
+    body.inatividade .portal-inatividade-row--pronto span { color: #15803d; }
     body.um-dia { padding: 6px 8px; }
     body.um-dia h1 { font-size: 14px; margin-bottom: 2px; }
     body.um-dia .meta { font-size: 10px; margin-bottom: 6px; }

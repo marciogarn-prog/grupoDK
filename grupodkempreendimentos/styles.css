@@ -11659,13 +11659,20 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   border-right-color: transparent;
 }
 .portal-inatividade .portal-rotatividade-row {
-  grid-template-columns: 6.4rem minmax(14rem, 2.8fr) 7.6rem minmax(7.2rem, 1.1fr) 5.4rem;
+  grid-template-columns: 6.2rem minmax(12rem, 2.4fr) 6.4rem 7.4rem minmax(7rem, 1.1fr) 5.2rem;
   align-items: center;
 }
 .portal-inatividade .portal-rotatividade-row__cli {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+.portal-inatividade .portal-rotatividade-row__cor {
+  color: #e5e5e5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: uppercase;
 }
 .portal-inatividade .portal-rotatividade-row__loc {
   color: #fde68a;
@@ -11684,6 +11691,15 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   border-bottom-color: rgba(251, 191, 36, 0.28);
   padding-top: 0.15rem;
   padding-bottom: 0.3rem;
+}
+.portal-inatividade-row--pronto,
+.portal-inatividade-row--pronto .portal-rotatividade-row__proto,
+.portal-inatividade-row--pronto .portal-rotatividade-row__cli,
+.portal-inatividade-row--pronto .portal-rotatividade-row__cor,
+.portal-inatividade-row--pronto .portal-rotatividade-row__vei,
+.portal-inatividade-row--pronto .portal-rotatividade-row__loc,
+.portal-inatividade-row--pronto .portal-rotatividade-row__val {
+  color: #6ee7a0;
 }
 .portal-inatividade-folha--um-dia .portal-rotatividade-row {
   padding: 0.18rem 0;

@@ -89,6 +89,27 @@
     return rotuloCategoriaDisponivel(veiculo);
   }
 
+  function normLocalizacaoInatividade(loc) {
+    return String(loc || "")
+      .trim()
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+  }
+
+  function ehProntoParaAlugar(loc) {
+    return normLocalizacaoInatividade(loc) === "PRONTO PARA ALUGAR";
+  }
+
+  function sortInatividadePorLocalizacao(a, b) {
+    const aPronto = ehProntoParaAlugar(a?.localizacao);
+    const bPronto = ehProntoParaAlugar(b?.localizacao);
+    if (aPronto !== bPronto) return aPronto ? -1 : 1;
+    const locCmp = String(a?.localizacao || "").localeCompare(String(b?.localizacao || ""), "pt-BR");
+    if (locCmp) return locCmp;
+    return String(a?.placa || "").localeCompare(String(b?.placa || ""));
+  }
+
   function locCobreDia(loc, dayMs, getIniBr, getFimBr) {
     if (!loc || typeof loc !== "object") return false;
     const iniMs = brToMs(getIniBr(loc));
@@ -117,6 +138,9 @@
     const getLocalizacao = typeof opts.getLocalizacao === "function"
       ? opts.getLocalizacao
       : (placa, veiculo) => resolverLocalizacaoInatividade(placa, veiculo, opts);
+    const getCor = typeof opts.getCor === "function"
+      ? opts.getCor
+      : (v) => String(v?.cor || v?.corVeiculo || v?.corPredominante || "").trim() || "—";
 
     const byPlate = new Map();
     locacoes.forEach((loc) => {
@@ -175,15 +199,15 @@
           veiculo: getModelo(veiculo, last),
           valor: last ? Number(getValor(last)) || 0 : 0,
           localizacao: String(getLocalizacao(placa, veiculo, last) || "").trim() || "—",
+          cor: String(getCor(veiculo, last) || "").trim() || "—",
           tipo,
           dataBr,
           dataMs: dayMs,
         };
         (tipo === "CARRO" ? carros : motos).push(row);
       });
-      const sortPlaca = (a, b) => String(a.placa).localeCompare(String(b.placa));
-      motos.sort(sortPlaca);
-      carros.sort(sortPlaca);
+      motos.sort(sortInatividadePorLocalizacao);
+      carros.sort(sortInatividadePorLocalizacao);
       byDay.set(dataBr, { dataBr, dataMs: dayMs, motos, carros, inativas: motos.concat(carros) });
     });
 
@@ -212,6 +236,8 @@
     eachDayMs,
     locCobreDia,
     resolverLocalizacaoInatividade,
+    ehProntoParaAlugar,
+    sortInatividadePorLocalizacao,
     coletarInatividadePeriodo,
     contarLivresAgora,
   };

@@ -97,6 +97,24 @@ record(
       "VEICULOS VENDIDOS"
 );
 
+const sortData = api.coletarInatividadePeriodo({
+  periodo,
+  veiculos: [
+    { placa: "ZZZ9Z99", tipo: "CARRO", modelo: "ONIX", cor: "PRETO", disponivelCategoria: "reserva-patio" },
+    { placa: "AAA1A11", tipo: "CARRO", modelo: "KWID", cor: "BRANCO", disponivelCategoria: "prontos" },
+  ],
+  locacoes: [],
+  getTipo: () => "CARRO",
+});
+const sortCars = sortData.days[0]?.carros || [];
+record(
+  "PRONTO PARA ALUGAR fica em cima, com cor do veículo",
+  sortCars[0]?.localizacao === "PRONTO PARA ALUGAR" &&
+    sortCars[0]?.cor === "BRANCO" &&
+    sortCars[1]?.localizacao === "RESERVA PATIO" &&
+    sortCars[1]?.cor === "PRETO"
+);
+
 const html = read("index.html");
 const css = read("styles.css");
 const ui = read("portal-locadora-ui.js");
@@ -112,6 +130,13 @@ record(
   /col--sai[\s\S]{0,400}Carros sem protocolo[\s\S]{0,400}col--ent[\s\S]{0,400}Motos sem protocolo/.test(ui)
 );
 record("Coluna Localização no detalhado", ui.includes("Localização") && ui.includes("portal-rotatividade-row__loc") && ui.includes("portalLocalizacaoInatividade"));
+record(
+  "Coluna Cor entre Modelo e protocolo, PRONTO em verde",
+  ui.includes("portal-rotatividade-row__cor") &&
+    ui.includes("portal-inatividade-row--pronto") &&
+    css.includes("portal-inatividade-row--pronto") &&
+    /<span>Modelo<\/span><span>Cor<\/span><span>Último protocolo<\/span>/.test(ui)
+);
 record("PDF de um dia compacta a folha", read("dk-relatorio-operacao-pdf.js").includes("um-dia") && read("dk-relatorio-operacao-pdf.js").includes("modo: \"inatividade\""));
 
 const pass = results.filter((r) => r.ok).length;

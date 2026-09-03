@@ -216,25 +216,30 @@
           "carros sem protocolo em cima",
           "operacaoInatividadePdfBtn",
           "Gerar PDF",
-          "portal-inatividade-folha"
+          "portal-inatividade-folha",
+          "Modelo, Cor, Último protocolo"
         ],
         "portal-locadora-ui.js": [
           "renderOperacaoRelatorioInatividade",
           "portalColetarInatividadePeriodo",
           "openOperacaoRelatorioInatividade",
           "Localização",
-          "portalLocalizacaoInatividade"
+          "portalLocalizacaoInatividade",
+          "portal-rotatividade-row__cor",
+          "portal-inatividade-row--pronto"
         ],
         "dk-relatorio-inatividade.js": [
           "locCobreDia",
           "coletarInatividadePeriodo",
           "Placas da frota sem protocolo na data",
-          "resolverLocalizacaoInatividade"
+          "resolverLocalizacaoInatividade",
+          "sortInatividadePorLocalizacao"
         ],
         "styles.css": [
           "portal-inatividade",
           "portal-rotatividade-dia__cols",
-          "portal-inatividade-folha"
+          "portal-inatividade-folha",
+          "portal-inatividade-row--pronto"
         ]
       }
     },
