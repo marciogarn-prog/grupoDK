@@ -255,7 +255,7 @@
     },
     {
       "id": "fin-ceo-painel-resumo-periodo",
-      "descricao": "No FINANCEIRO CEO → Painel executivo por período (menu abaixo do Painel executivo): Selecionar período com dois calendários (início/fim do período) e resumo com receita prevista, receita real, despesas previstas, despesas pagas, saldo previsto e saldo real.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo por período: calendários início/fim, KPIs do intervalo e gráfico Saldo mês a mês / dia a dia (mesmas linhas azul/verde/vermelho do Painel executivo) que atualiza com as datas.",
       "ficheiros": {
         "index.html": [
           "btn-fin-ceo-periodo",
@@ -272,14 +272,19 @@
           "finCeoPeriodoDespPrevista",
           "finCeoPeriodoDespPaga",
           "finCeoPeriodoSaldoPrevisto",
-          "finCeoPeriodoSaldoReal"
+          "finCeoPeriodoSaldoReal",
+          "finCeoPeriodoChartSaldo",
+          "finCeoPeriodoLegendaSaldo",
+          "finCeoPeriodoChartTitulo"
         ],
         "portal-financeiro-ceo.js": [
           "calcResumoPeriodoCeo",
           "renderResumoPeriodoCeo",
           "obterPeriodoCeoDash",
           "receitaRealLocadoraNoPeriodo",
-          "id === \"periodo\""
+          "id === \"periodo\"",
+          "buildProjecaoPeriodoCeo",
+          "renderGraficoPeriodoCeo"
         ],
         "styles.css": [
           "fin-ceo-periodo",

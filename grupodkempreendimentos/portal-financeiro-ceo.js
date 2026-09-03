@@ -1314,6 +1314,139 @@
     else el.classList.add("fin-kpi--warn");
   }
 
+  function chaveDiaCeo(dt) {
+    if (!(dt instanceof Date) || Number.isNaN(dt.getTime())) return "";
+    return `${dt.getFullYear()}-${dt.getMonth()}-${dt.getDate()}`;
+  }
+
+  /** Série do gráfico «Saldo mês a mês» filtrada pelo período (dia a dia se ≤ 62 dias). */
+  function buildProjecaoPeriodoCeo(periodo) {
+    const vazio = { labels: [], saldo: [], receita: [], despesaNeg: [], modo: "mes", n: 0 };
+    if (!periodo?.ok) return vazio;
+    const locs = carregarLocacoes();
+    const uniRows = carregarUnidadeFinanceiro();
+    const despesas = loadDespesasCeo().map(normalizeDespesa);
+    const recDiaLoc = receitaSemanalLocadora(locs) / 7;
+
+    const debPorDia = new Map();
+    despesas.forEach((d) => {
+      expandirPagamentosDespesa(d, d.repeticoes).forEach((p) => {
+        if (!dataNoIntervaloMs(p.data, periodo.startMs, periodo.endMs)) return;
+        const v = Number(p.valor) || 0;
+        if (v <= 0) return;
+        const k = chaveDiaCeo(p.data);
+        if (!k) return;
+        debPorDia.set(k, (debPorDia.get(k) || 0) + v);
+      });
+    });
+
+    const recUniPorDia = new Map();
+    (uniRows || []).forEach((r) => {
+      if (r?.tipo !== "receita") return;
+      const dt = parseBrDate(r.data);
+      if (!dataNoIntervaloMs(dt, periodo.startMs, periodo.endMs)) return;
+      const k = chaveDiaCeo(dt);
+      if (!k) return;
+      recUniPorDia.set(k, (recUniPorDia.get(k) || 0) + Math.abs(parseValor(r.valor)));
+    });
+
+    const useDaily = periodo.dias <= 62;
+    if (useDaily) {
+      const labels = [];
+      const saldo = [];
+      const receita = [];
+      const despesaNeg = [];
+      for (let t = periodo.d0.getTime(); t <= periodo.d1.getTime(); t += 86400000) {
+        const dt = startOfDay(new Date(t));
+        const k = chaveDiaCeo(dt);
+        const rec = recDiaLoc + (recUniPorDia.get(k) || 0);
+        const deb = debPorDia.get(k) || 0;
+        labels.push(
+          `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}`
+        );
+        receita.push(rec);
+        despesaNeg.push(-deb);
+        saldo.push(rec - deb);
+      }
+      return { labels, saldo, receita, despesaNeg, modo: "dia", n: labels.length };
+    }
+
+    const labels = [];
+    const saldo = [];
+    const receita = [];
+    const despesaNeg = [];
+    let cur = new Date(periodo.d0.getFullYear(), periodo.d0.getMonth(), 1);
+    const last = new Date(periodo.d1.getFullYear(), periodo.d1.getMonth(), 1);
+    while (cur.getTime() <= last.getTime()) {
+      const mesIni = new Date(cur.getFullYear(), cur.getMonth(), 1);
+      const mesFim = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+      const slice0 = startOfDay(new Date(Math.max(mesIni.getTime(), periodo.d0.getTime())));
+      const slice1 = startOfDay(new Date(Math.min(mesFim.getTime(), periodo.d1.getTime())));
+      const dias = diasInclusiveEntre(slice0, slice1);
+      const startMs = slice0.getTime();
+      const endMs = new Date(slice1.getFullYear(), slice1.getMonth(), slice1.getDate(), 23, 59, 59, 999).getTime();
+      let deb = 0;
+      for (let t = slice0.getTime(); t <= slice1.getTime(); t += 86400000) {
+        deb += debPorDia.get(chaveDiaCeo(startOfDay(new Date(t)))) || 0;
+      }
+      const rec = recDiaLoc * dias + receitaUnidadesNoPeriodo(uniRows, startMs, endMs);
+      labels.push(`${String(cur.getMonth() + 1).padStart(2, "0")}/${cur.getFullYear()}`);
+      receita.push(rec);
+      despesaNeg.push(-deb);
+      saldo.push(rec - deb);
+      cur = addMonths(cur, 1);
+    }
+    return { labels, saldo, receita, despesaNeg, modo: "mes", n: labels.length };
+  }
+
+  function renderGraficoPeriodoCeo() {
+    const chart = document.getElementById("finCeoPeriodoChartSaldo");
+    const leg = document.getElementById("finCeoPeriodoLegendaSaldo");
+    const tit = document.getElementById("finCeoPeriodoChartTitulo");
+    const hint = document.getElementById("finCeoPeriodoChartHint");
+    if (!chart) return;
+    const periodo = obterPeriodoCeoDash();
+    if (!periodo.ok) {
+      chart.innerHTML = `<p class="subtext">Informe início e fim do período para ver o gráfico.</p>`;
+      if (leg) leg.innerHTML = "";
+      if (tit) tit.textContent = "Saldo mês a mês";
+      return;
+    }
+    const view = buildProjecaoPeriodoCeo(periodo);
+    if (tit) tit.textContent = view.modo === "dia" ? "Saldo dia a dia" : "Saldo mês a mês";
+    if (hint) {
+      hint.textContent =
+        view.modo === "dia"
+          ? "Período curto: o gráfico mostra um ponto por dia, alinhado às datas início/fim."
+          : "Período longo: o gráfico mostra um ponto por mês dentro do intervalo seleccionado.";
+    }
+    if (!view.labels.length) {
+      chart.innerHTML = `<p class="subtext">Sem dados no período.</p>`;
+      if (leg) leg.innerHTML = "";
+      return;
+    }
+    chart.innerHTML = svgLineChart(view.labels, [
+      { color: "#5eb8ff", values: view.saldo },
+      { color: "#6ee7a0", values: view.receita },
+      { color: "#ff6b6b", values: view.despesaNeg },
+    ]);
+    if (leg) {
+      leg.innerHTML = [
+        {
+          c: "#5eb8ff",
+          t: view.modo === "dia" ? "Saldo diário (receita − despesas)" : "Saldo mensal (receita − despesas)",
+        },
+        { c: "#6ee7a0", t: "Receita prevista" },
+        { c: "#ff6b6b", t: "Despesas (negativo)" },
+      ]
+        .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
+        .join("");
+      leg.innerHTML += `<span class="fin-legenda__item fin-legenda__item--anos">${esc(fmtBrDate(periodo.d0))} a ${esc(
+        fmtBrDate(periodo.d1)
+      )} · ${view.n} ${view.modo === "dia" ? "dia(s)" : "mês(es)"}</span>`;
+    }
+  }
+
   function renderResumoPeriodoCeo() {
     const hint = document.getElementById("finCeoPeriodoHint");
     const setVal = (id, n) => {
@@ -1329,6 +1462,7 @@
         }
       );
       if (hint) hint.textContent = "Informe data de início e fim válidas (DD/MM/AAAA).";
+      renderGraficoPeriodoCeo();
       return;
     }
     const r = calcResumoPeriodoCeo(periodo);
@@ -1345,6 +1479,7 @@
         r.saldoPrevisto
       )} · saldo real ${brl(r.saldoReal)}.`;
     }
+    renderGraficoPeriodoCeo();
   }
 
   function fmtPct(n) {
