@@ -1733,7 +1733,7 @@ body {
     margin: 0.1rem 0 0.25rem 0.4rem;
   }
 
-  /* Cadastro de locação e Lançamento de multas: a bola do mouse move o conteúdo. */
+  /* Cadastro de locação, Lançamento de aluguel e Lançamento de multas: a bola do mouse move o conteúdo. */
   #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
     overflow-x: hidden;
     overflow-y: auto;
@@ -1752,6 +1752,11 @@ body {
   #panel-operacao-locadora:not(.hidden) #operacaoLocacaoLancamentosHistorico {
     flex: 0 0 auto;
     min-width: 0;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
+    min-height: 0;
+    max-height: 100%;
   }
 }
 
@@ -8719,18 +8724,23 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 .portal-lanc-aluguel-pagamento-saldos--dual {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.55rem 0.75rem;
   margin: 0.25rem 0 0.65rem;
   padding: 0.5rem 0.65rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
+  align-items: stretch;
 }
 
-@container lanc-pane (min-width: 36rem) {
+.portal-lanc-aluguel-pagamento-saldos--dual > .portal-lanc-aluguel-pagamento-saldo {
+  min-width: 0;
+}
+
+@media (max-width: 420px) {
   .portal-lanc-aluguel-pagamento-saldos--dual {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -8758,12 +8768,6 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   font: inherit;
   line-height: 1.3;
   font-size: 0.85rem;
-}
-
-@media (max-width: 520px) {
-  .portal-lanc-aluguel-pagamento-saldos--dual {
-    grid-template-columns: 1fr;
-  }
 }
 
 .portal-lanc-hist__valor--comentario {
@@ -8795,6 +8799,14 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   flex-direction: column;
   gap: 0.5rem;
   min-width: 0;
+}
+
+/* TOTAL DEVIDO e TOTAL PAGO lado a lado (n�o um embaixo do outro) */
+.portal-lanc-aluguel-pagamento-saldos.portal-lanc-aluguel-pagamento-saldos--dual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  flex-direction: unset;
+  gap: 0.55rem 0.75rem;
 }
 
 @media (min-width: 520px) and (max-width: 719px) {
