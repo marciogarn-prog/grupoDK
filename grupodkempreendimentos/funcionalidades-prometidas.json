@@ -194,6 +194,34 @@
       }
     },
     {
+      "id": "relatorio-inatividade-operacao",
+      "descricao": "No menu Operação, abaixo de Relatório de rotatividade: Relatório de inatividade no mesmo padrão (dois calendários, Atualizar relatório, resumo e folha por dia). Em cada data lista as placas da frota que não estavam vinculadas a nenhum protocolo.",
+      "ficheiros": {
+        "index.html": [
+          "btn-operacao-relatorio-inatividade",
+          "operacaoInlineRelatorioInatividade",
+          "Relatório de inatividade",
+          "operacaoInatividadeInicio",
+          "operacaoInatividadeFim",
+          "Placas sem protocolo na data"
+        ],
+        "portal-locadora-ui.js": [
+          "renderOperacaoRelatorioInatividade",
+          "portalColetarInatividadePeriodo",
+          "openOperacaoRelatorioInatividade"
+        ],
+        "dk-relatorio-inatividade.js": [
+          "locCobreDia",
+          "coletarInatividadePeriodo",
+          "Placas da frota sem protocolo na data"
+        ],
+        "styles.css": [
+          "portal-inatividade",
+          "portal-rotatividade-dia__cols"
+        ]
+      }
+    },
+    {
       "id": "lancamento-multas-scroll-mouse",
       "descricao": "Na tela Lançamento de multas, rodar a bola do mouse move o conteúdo (pesquisa, dados do protocolo, documentos e formulário da multa).",
       "ficheiros": {

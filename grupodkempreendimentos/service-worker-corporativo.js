@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260903multa-scroll";
+const CACHE_NAME = "dk-corporativo-v20260903inatividade";
 const ASSETS = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const ASSETS = [
   "./styles.css",
   "./app.js",
   "./portal-cliente-codigo-admin.js",
+  "./dk-relatorio-inatividade.js",
   "./portal-locadora-ui.js",
   "./dk-app-scope.js",
   "./portal-unidade-financeiro.js",

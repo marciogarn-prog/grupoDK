@@ -1440,6 +1440,7 @@
       ["btn-operacao-cadastro-veiculo", "operacaoInlineVeiculo", "veiculo"],
       ["btn-operacao-cadastro-locacao", "operacaoInlineLocacao", "locacao"],
       ["btn-operacao-relatorio-rotatividade", "operacaoInlineRelatorioRotatividade", "locacao"],
+      ["btn-operacao-relatorio-inatividade", "operacaoInlineRelatorioInatividade", "locacao"],
       ["btn-operacao-lancamento-aluguel", "operacaoInlineLancamentoAluguel", "lancamentoAluguel"],
       ["btn-operacao-lancamento-multas", "operacaoInlineLancamentoMultas", "lancamentoMultas"],
       ["btn-operacao-lancamento-manutencao", "operacaoInlineLancamentoManutencao", "lancamentoManutencao"],
@@ -14132,6 +14133,7 @@
     document.getElementById("operacaoInlineVeiculo")?.classList.add("hidden");
     document.getElementById("operacaoInlineLocacao")?.classList.add("hidden");
     document.getElementById("operacaoInlineRelatorioRotatividade")?.classList.add("hidden");
+    document.getElementById("operacaoInlineRelatorioInatividade")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoAluguel")?.classList.add("hidden");
     document.getElementById("operacaoInlineLancamentoMultas")?.classList.add("hidden");
     document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
@@ -14154,6 +14156,7 @@
       "btn-operacao-cadastro-veiculo",
       "btn-operacao-cadastro-locacao",
       "btn-operacao-relatorio-rotatividade",
+      "btn-operacao-relatorio-inatividade",
       "btn-operacao-lancamento-aluguel",
       "btn-operacao-lancamento-multas",
       "btn-operacao-cadastro-colaborador",
@@ -21937,6 +21940,230 @@
     if (!inp) return;
     inp.addEventListener("change", () => renderOperacaoRelatorioRotatividade());
     inp.addEventListener("blur", () => renderOperacaoRelatorioRotatividade());
+  });
+
+  function portalObterPeriodoInatividade() {
+    const hoje =
+      typeof todayBrDate === "function"
+        ? todayBrDate()
+        : typeof portalBrDatePlusDays === "function"
+          ? portalBrDatePlusDays(0)
+          : "";
+    const inpIni = document.getElementById("operacaoInatividadeInicio");
+    const inpFim = document.getElementById("operacaoInatividadeFim");
+    let iniBr = String(inpIni?.value || "").trim();
+    let fimBr = String(inpFim?.value || "").trim();
+    if (!iniBr && !fimBr && hoje) {
+      const d = portalBrToMsRotatividade(hoje);
+      if (Number.isFinite(d)) {
+        const dt = new Date(d);
+        iniBr = `01/${String(dt.getMonth() + 1).padStart(2, "0")}/${dt.getFullYear()}`;
+        fimBr = hoje;
+        if (inpIni) inpIni.value = iniBr;
+        if (inpFim) inpFim.value = fimBr;
+      }
+    }
+    let startMs = portalBrToMsRotatividade(iniBr);
+    let endMs = portalBrToMsRotatividade(fimBr);
+    if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+      return { ok: false, startMs: 0, endMs: 0, iniBr, fimBr };
+    }
+    if (startMs > endMs) {
+      const t = startMs;
+      startMs = endMs;
+      endMs = t;
+      const tb = iniBr;
+      iniBr = fimBr;
+      fimBr = tb;
+    }
+    return { ok: true, startMs, endMs, iniBr, fimBr };
+  }
+
+  function portalLoadVeiculosParaInatividade() {
+    const raw =
+      typeof loadAllVeiculosCadastro === "function"
+        ? loadAllVeiculosCadastro()
+        : typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined"
+          ? loadCadastro(CAD_VEICULOS_KEY)
+          : [];
+    return Array.isArray(raw) ? raw : [];
+  }
+
+  function portalLoadLocacoesParaInatividade() {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") return [];
+    return loadCadastro(CAD_LOCACOES_KEY) || [];
+  }
+
+  function portalOptsColetarInatividade() {
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : () => false;
+    return {
+      veiculos: portalLoadVeiculosParaInatividade(),
+      locacoes: portalLoadLocacoesParaInatividade(),
+      nkPlate: (p) => portalNkPlate(p),
+      getIniBr: (loc) => portalInicioBrRotatividade(loc),
+      getFimBr: (loc) => portalFormatDataFinalizacaoLocacao(loc),
+      getValor: (loc) => portalValorSemanalRotatividade(loc),
+      getTipo: (v, loc) => {
+        const fromV = portalInferTipoVeiculoFromRecord(v);
+        if (fromV) return fromV;
+        return loc && portalInferTipoVeiculoLocacao(loc) === "CARRO" ? "CARRO" : fromV || "MOTO";
+      },
+      getModelo: (v, loc) => {
+        const modelo = String(v?.marcaModelo || v?.modelo || loc?.marcaModelo || loc?.modelo || "").trim();
+        return modelo || "—";
+      },
+      getCliente: (loc) => portalNomeClienteRotatividade(loc),
+      isGhost,
+      isCancelada: (loc) => (typeof isPortalLocacaoCancelada === "function" ? isPortalLocacaoCancelada(loc) : false),
+    };
+  }
+
+  function portalColetarInatividadePeriodo(periodo) {
+    const api = window.__DK_relatorioInatividade;
+    if (!api || typeof api.coletarInatividadePeriodo !== "function") {
+      return { frota: 0, days: [], byDay: new Map() };
+    }
+    return api.coletarInatividadePeriodo({
+      periodo,
+      ...portalOptsColetarInatividade(),
+    });
+  }
+
+  function portalAtualizarLivresAgoraInatividadeUi() {
+    const api = window.__DK_relatorioInatividade;
+    const valEl = document.getElementById("operacaoInatividadeLivresAgora");
+    const metaEl = document.getElementById("operacaoInatividadeLivresAgoraMeta");
+    const hoje =
+      typeof todayBrDate === "function"
+        ? todayBrDate()
+        : typeof portalBrDatePlusDays === "function"
+          ? portalBrDatePlusDays(0)
+          : "";
+    if (!api || typeof api.contarLivresAgora !== "function") {
+      if (valEl) valEl.textContent = "—";
+      return;
+    }
+    const { qtd, frota } = api.contarLivresAgora({
+      hojeBr: hoje,
+      ...portalOptsColetarInatividade(),
+    });
+    if (valEl) valEl.textContent = String(qtd);
+    if (metaEl) {
+      metaEl.textContent =
+        frota > 0 ? `${qtd} de ${frota} placa${frota === 1 ? "" : "s"} da frota` : "Frota sem placas";
+    }
+  }
+
+  function portalHtmlLinhaInatividade(row) {
+    return `<div class="portal-rotatividade-row">
+      <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.placa)}</span>
+      <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
+      <span class="portal-rotatividade-row__vei" title="${portalEscapeHtml(row.protocolo)}">${portalEscapeHtml(row.protocolo === "—" ? "sem histórico" : row.protocolo)}</span>
+      <span class="portal-rotatividade-row__val">${portalEscapeHtml(portalFmtBrlRotatividade(row.valor))}</span>
+    </div>`;
+  }
+
+  function renderOperacaoRelatorioInatividade() {
+    const hint = document.getElementById("operacaoInatividadeHint");
+    const lista = document.getElementById("operacaoInatividadeLista");
+    const periodo = portalObterPeriodoInatividade();
+    const setTxt = (id, t) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = t;
+    };
+    portalAtualizarLivresAgoraInatividadeUi();
+    if (!periodo.ok) {
+      setTxt("operacaoInatividadeQtdFrota", "—");
+      setTxt("operacaoInatividadeQtdInativas", "—");
+      setTxt("operacaoInatividadeQtdMotos", "—");
+      setTxt("operacaoInatividadeQtdCarros", "—");
+      setTxt("operacaoInatividadeSaldo", "—");
+      if (hint) hint.textContent = "Informe início e fim válidos (DD/MM/AAAA).";
+      if (lista) lista.innerHTML = `<p class="portal-rotatividade-empty">Escolha o período para ver as placas sem protocolo.</p>`;
+      return;
+    }
+    const data = portalColetarInatividadePeriodo(periodo);
+    const last = data.days.length ? data.days[data.days.length - 1] : null;
+    const qInat = last ? last.inativas.length : 0;
+    const qMotos = last ? last.motos.length : 0;
+    const qCarros = last ? last.carros.length : 0;
+    const pct = data.frota > 0 ? Math.round((qInat / data.frota) * 100) : 0;
+    setTxt("operacaoInatividadeQtdFrota", String(data.frota));
+    setTxt("operacaoInatividadeQtdInativas", String(qInat));
+    setTxt("operacaoInatividadeQtdMotos", String(qMotos));
+    setTxt("operacaoInatividadeQtdCarros", String(qCarros));
+    setTxt("operacaoInatividadeSaldo", `${pct}%`);
+    const box = document.getElementById("operacaoInatividadeSaldoBox");
+    if (box) {
+      box.classList.remove("is-up", "is-down", "is-flat");
+      box.classList.add(pct <= 20 ? "is-up" : pct >= 50 ? "is-down" : "is-flat");
+    }
+    if (hint) {
+      hint.textContent = `Período ${periodo.iniBr} a ${periodo.fimBr} · ${data.frota} placa(s) na frota · ${qInat} sem protocolo em ${periodo.fimBr} · ociosidade ${pct}%.`;
+    }
+    if (!lista) return;
+    if (!data.days.length) {
+      lista.innerHTML = `<p class="portal-rotatividade-empty">Nenhuma data no período.</p>`;
+      return;
+    }
+    lista.innerHTML = data.days
+      .map((day) => {
+        const motoHtml = day.motos.length
+          ? day.motos.map(portalHtmlLinhaInatividade).join("")
+          : `<p class="portal-rotatividade-empty">Sem motos inativas</p>`;
+        const carroHtml = day.carros.length
+          ? day.carros.map(portalHtmlLinhaInatividade).join("")
+          : `<p class="portal-rotatividade-empty">Sem carros inativos</p>`;
+        return `<article class="portal-rotatividade-dia">
+          <h4 class="portal-rotatividade-dia__data">${portalEscapeHtml(day.dataBr)}</h4>
+          <div class="portal-rotatividade-dia__cols">
+            <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--ent">
+              <span class="portal-rotatividade-dia__col-title">Motos sem protocolo · Placa · Modelo · Último protocolo · Valor</span>
+              ${motoHtml}
+            </div>
+            <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--sai">
+              <span class="portal-rotatividade-dia__col-title">Carros sem protocolo · Placa · Modelo · Último protocolo · Valor</span>
+              ${carroHtml}
+            </div>
+          </div>
+        </article>`;
+      })
+      .join("");
+  }
+
+  function openOperacaoRelatorioInatividade() {
+    portalOperacaoOnScreenChange();
+    hideOperacaoInlineFormsCore();
+    document.getElementById("operacaoInlineRelatorioInatividade")?.classList.remove("hidden");
+    setOperacaoFormPlaceholderVisible(false);
+    syncOperacaoCadastroButtons("btn-operacao-relatorio-inatividade");
+    const pane = document.getElementById("operacaoInlineRelatorioInatividade");
+    if (typeof window.bindDkIntervaloCalendarios === "function") {
+      window.bindDkIntervaloCalendarios(pane);
+    }
+    if (typeof window.bindDateMasksInContainer === "function") {
+      window.bindDateMasksInContainer(pane);
+    }
+    void portalEnsureLocacoesFromCloud({ force: false }).finally(() => {
+      renderOperacaoRelatorioInatividade();
+    });
+    renderOperacaoRelatorioInatividade();
+  }
+
+  document.getElementById("btn-operacao-relatorio-inatividade")?.addEventListener("click", () => {
+    openOperacaoRelatorioInatividade();
+  });
+  document.getElementById("operacaoInatividadeAtualizarBtn")?.addEventListener("click", () => {
+    renderOperacaoRelatorioInatividade();
+  });
+  ["operacaoInatividadeInicio", "operacaoInatividadeFim"].forEach((id) => {
+    const inp = document.getElementById(id);
+    if (!inp) return;
+    inp.addEventListener("change", () => renderOperacaoRelatorioInatividade());
+    inp.addEventListener("blur", () => renderOperacaoRelatorioInatividade());
   });
 
   document.getElementById("btn-operacao-lancamento-aluguel")?.addEventListener("click", () => {

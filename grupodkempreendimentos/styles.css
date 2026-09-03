@@ -11554,3 +11554,16 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   .portal-rotatividade-row { grid-template-columns: 1fr 1fr; }
   .portal-rotatividade-row__proto { grid-column: 1 / -1; }
 }
+
+/* Relatorio de inatividade: mesmo padrao da rotatividade (filtros, KPIs, folha por dia). */
+.portal-inatividade .portal-rotatividade-dia__data {
+  color: #fbbf24;
+  border-bottom-color: rgba(251, 191, 36, 0.4);
+  background: rgba(120, 53, 15, 0.28);
+}
+.portal-inatividade .portal-rotatividade-dia {
+  border-color: rgba(251, 191, 36, 0.4);
+}
+.portal-inatividade .portal-rotatividade-dia__col--ent {
+  border-right-color: rgba(251, 191, 36, 0.35);
+}
