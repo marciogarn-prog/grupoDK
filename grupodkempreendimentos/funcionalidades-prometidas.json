@@ -2,6 +2,33 @@
   "aviso": "Não remover estes itens sem comando explícito do titular na conversa.",
   "itens": [
     {
+      "id": "locacao-admin-alterar-protocolo",
+      "descricao": "No Cadastro de locação, o administrador CPF 03037897430 pode alterar o número do protocolo: caixa verde (atual), caixa azul (novo), botão Salvar alteração de protocolo; modal de confirmação ou aviso de duplicidade; não grava se o novo já existir; migra lançamentos financeiros e documentos do protocolo antigo para o novo.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLocacaoAlterarProtocoloWrap",
+          "operacaoLocacaoProtocoloAtual",
+          "operacaoLocacaoProtocoloNovo",
+          "operacaoLocacaoProtocoloSalvarAlteracaoBtn",
+          "portalAlterarProtocoloModal",
+          "Salvar alteração de protocolo"
+        ],
+        "portal-locadora-ui.js": [
+          "portalPodeAlterarNumeroProtocoloAdmin",
+          "executarAlteracaoNumeroProtocolo",
+          "iniciarSalvarAlteracaoProtocolo",
+          "portalMigrarDocumentosLocacaoNumeroProtocolo",
+          "portalMigrarLancamentosFinanceirosGlobaisProtocolo",
+          "DK_LOCADORA_ADMIN_CPF"
+        ],
+        "styles.css": [
+          "portal-locacao-alterar-proto",
+          "portal-locacao-proto-atual",
+          "portal-locacao-proto-novo"
+        ]
+      }
+    },
+    {
       "id": "lanc-aluguel-layout-travado",
       "descricao": "No Lançamento de aluguel não há botão Editar layout; o layout customizado (absolute) fica desligado para não sobrepor caixas — fluxo normal da tela.",
       "ficheiros": {

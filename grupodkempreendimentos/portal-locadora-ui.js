@@ -16035,6 +16035,7 @@
       refreshOperacaoLocacaoSubmitBtn();
       refreshOperacaoLocacaoFinalizarBtn();
       refreshOperacaoLocacaoApagarProtocoloBtn();
+      refreshOperacaoLocacaoAlterarProtocoloUi();
       syncOperacaoLocacaoModalidadeBolas({ infer: true });
       syncOperacaoLocacaoProtocoloSelectAtivoUi();
       if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
@@ -16051,6 +16052,7 @@
     if (loc) applyPortalLocacaoRowFromRecord(loc);
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoFinalizarBtn();
+    refreshOperacaoLocacaoAlterarProtocoloUi();
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
     if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
       window.__DK_refreshOperacaoLocacaoDocumentosUi();
@@ -16102,6 +16104,7 @@
     syncOperacaoLocacaoProtocoloSelectAtivoUi();
     refreshOperacaoLocacaoSubmitBtn();
     refreshOperacaoLocacaoVisualizarContratoBtn();
+    refreshOperacaoLocacaoAlterarProtocoloUi();
     if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
       window.__DK_refreshOperacaoLocacaoDocumentosUi();
     }
@@ -16138,6 +16141,311 @@
     refreshOperacaoLocacaoApagarProtocoloBtn();
     refreshOperacaoLocacaoProtocoloAdminPlaceholder();
     refreshOperacaoLocacaoCancelarBtn();
+    refreshOperacaoLocacaoAlterarProtocoloUi();
+  }
+
+  /** Só o CPF titular 030.378.974-30 pode alterar o número do protocolo. */
+  function portalPodeAlterarNumeroProtocoloAdmin() {
+    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
+  }
+
+  function syncOperacaoLocacaoProtocoloAtualCampo() {
+    const atualEl = document.getElementById("operacaoLocacaoProtocoloAtual");
+    if (!atualEl) return;
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const raw = String(hid?.value || sel?.value || "").trim();
+    const nc = raw === PORTAL_PROTO_NOVO ? "" : normPortalNumeroContrato(raw);
+    atualEl.value = nc || "";
+  }
+
+  function refreshOperacaoLocacaoAlterarProtocoloUi() {
+    const wrap = document.getElementById("operacaoLocacaoAlterarProtocoloWrap");
+    if (!wrap) return;
+    const pode = portalPodeAlterarNumeroProtocoloAdmin();
+    const sel = document.getElementById("operacaoLocacaoProtocoloSelect");
+    const hid = document.getElementById("operacaoLocacaoProtocolo");
+    const raw = String(hid?.value || sel?.value || "").trim();
+    const nc = raw === PORTAL_PROTO_NOVO ? "" : normPortalNumeroContrato(raw);
+    const show = pode && Boolean(nc) && Boolean(findPortalLocacaoByProtocolo(nc));
+    wrap.classList.toggle("hidden", !show);
+    wrap.hidden = !show;
+    syncOperacaoLocacaoProtocoloAtualCampo();
+    if (!show) {
+      const novoEl = document.getElementById("operacaoLocacaoProtocoloNovo");
+      if (novoEl) novoEl.value = "";
+    }
+  }
+
+  let portalAlterarProtocoloConfirmCallback = null;
+
+  function closePortalAlterarProtocoloModal() {
+    const modal = document.getElementById("portalAlterarProtocoloModal");
+    portalAlterarProtocoloConfirmCallback = null;
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.setAttribute("aria-hidden", "true");
+    }
+    const simBtn = document.getElementById("portalAlterarProtocoloSimBtn");
+    if (simBtn) {
+      simBtn.hidden = false;
+      simBtn.disabled = false;
+      simBtn.textContent = "Confirmar alteração";
+    }
+  }
+
+  function openPortalAlterarProtocoloModal(opts) {
+    const modal = document.getElementById("portalAlterarProtocoloModal");
+    const titulo = document.getElementById("portalAlterarProtocoloTitulo");
+    const label = document.getElementById("portalAlterarProtocoloTextoLabel");
+    const texto = document.getElementById("portalAlterarProtocoloTexto");
+    const msg = document.getElementById("portalAlterarProtocoloMsg");
+    const simBtn = document.getElementById("portalAlterarProtocoloSimBtn");
+    if (!modal || !texto) {
+      if (opts?.mode === "confirm" && typeof opts?.onConfirm === "function") {
+        if (window.confirm(String(opts?.texto || "Confirmar alteração de protocolo?"))) opts.onConfirm();
+      } else if (opts?.texto) {
+        window.alert(String(opts.texto));
+      }
+      return;
+    }
+    portalAlterarProtocoloConfirmCallback =
+      opts?.mode === "confirm" && typeof opts?.onConfirm === "function" ? opts.onConfirm : null;
+    if (titulo) {
+      titulo.textContent =
+        opts?.mode === "duplicado" ? "Protocolo já existe" : String(opts?.titulo || "Alteração de protocolo");
+    }
+    if (label) {
+      label.textContent = opts?.mode === "duplicado" ? "Aviso de duplicidade" : "Confirmação da alteração";
+    }
+    texto.value = String(opts?.texto || "");
+    if (msg) msg.textContent = "";
+    if (simBtn) {
+      const showConfirm = opts?.mode === "confirm";
+      simBtn.hidden = !showConfirm;
+      simBtn.disabled = !showConfirm;
+      simBtn.textContent = "Confirmar alteração";
+    }
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+  }
+
+  function portalMigrarDocumentosLocacaoNumeroProtocolo(oldNc, newNc) {
+    const de = normPortalNumeroContrato(oldNc);
+    const para = normPortalNumeroContrato(newNc);
+    if (!de || !para || de === para) return 0;
+    try {
+      const key = "dk_locacao_documentos_v1";
+      const raw = localStorage.getItem(key);
+      const arr = raw ? JSON.parse(raw) : [];
+      if (!Array.isArray(arr) || !arr.length) return 0;
+      let n = 0;
+      const next = arr.map((d) => {
+        if (normPortalNumeroContrato(d?.numeroContrato) !== de) return d;
+        n += 1;
+        return {
+          ...d,
+          numeroContrato: para,
+          protocoloAnterior: de,
+          updatedAt: Date.now(),
+        };
+      });
+      if (n) localStorage.setItem(key, JSON.stringify(next));
+      return n;
+    } catch {
+      return 0;
+    }
+  }
+
+  function portalMigrarLancamentosFinanceirosGlobaisProtocolo(oldNc, newNc) {
+    const de = normPortalNumeroContrato(oldNc);
+    const para = normPortalNumeroContrato(newNc);
+    if (!de || !para || de === para) return 0;
+    if (typeof remapReferenciasNumeroContrato === "function") {
+      const remap = new Map();
+      remap.set(de, para);
+      remapReferenciasNumeroContrato(remap);
+      return 1;
+    }
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function") return 0;
+    if (typeof CAD_LANCAMENTOS_ALUGUEL_KEY === "undefined") return 0;
+    const lancs = loadCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY);
+    if (!Array.isArray(lancs) || !lancs.length) return 0;
+    let n = 0;
+    const next = lancs.map((l) => {
+      if (normPortalNumeroContrato(l?.numeroContrato || l?.protocolo) !== de) return l;
+      n += 1;
+      return { ...l, numeroContrato: para, protocolo: para, protocoloAnterior: de };
+    });
+    if (n) saveCadastro(CAD_LANCAMENTOS_ALUGUEL_KEY, next);
+    return n;
+  }
+
+  function contarLancamentosFinanceirosDoProtocolo(loc) {
+    const aluguel = Array.isArray(loc?.portalLancamentosAluguel) ? loc.portalLancamentosAluguel.length : 0;
+    const caucao = Array.isArray(loc?.portalLancamentosCaucao) ? loc.portalLancamentosCaucao.length : 0;
+    const multas = Array.isArray(loc?.portalMultasTransito) ? loc.portalMultasTransito.length : 0;
+    return { aluguel, caucao, multas, total: aluguel + caucao + multas };
+  }
+
+  function executarAlteracaoNumeroProtocolo(oldNcRaw, newNcRaw) {
+    const msg = document.getElementById("operacaoLocacaoInlineMsg");
+    if (!portalPodeAlterarNumeroProtocoloAdmin()) {
+      if (msg) msg.textContent = "Apenas o administrador CPF 030.378.974-30 pode alterar o número do protocolo.";
+      return { ok: false };
+    }
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      if (msg) msg.textContent = "Cadastro de locações indisponível.";
+      return { ok: false };
+    }
+    const de = normPortalNumeroContrato(oldNcRaw);
+    const para = normPortalNumeroContrato(newNcRaw);
+    if (!de || !para) {
+      if (msg) msg.textContent = "Informe o protocolo atual e o novo número.";
+      return { ok: false };
+    }
+    if (de === para) {
+      if (msg) msg.textContent = "O novo número é igual ao atual.";
+      return { ok: false };
+    }
+    if (findPortalLocacaoByProtocolo(para)) {
+      return { ok: false, duplicado: true, de, para };
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const idx = locs.findIndex((l) => normPortalNumeroContrato(l.numeroContrato) === de);
+    if (idx < 0) {
+      if (msg) msg.textContent = `Protocolo ${de} não encontrado.`;
+      return { ok: false };
+    }
+    const loc = { ...locs[idx] };
+    const contagem = contarLancamentosFinanceirosDoProtocolo(loc);
+    loc.numeroContrato = para;
+    loc.protocoloAnterior = de;
+    loc.updatedAt = Date.now();
+    if (Array.isArray(loc.portalLancamentosAluguel)) {
+      loc.portalLancamentosAluguel = loc.portalLancamentosAluguel.map((e) =>
+        e && typeof e === "object"
+          ? { ...e, numeroContrato: para, protocoloContrato: para, protocoloAnterior: de }
+          : e
+      );
+    }
+    if (Array.isArray(loc.portalLancamentosCaucao)) {
+      loc.portalLancamentosCaucao = loc.portalLancamentosCaucao.map((e) =>
+        e && typeof e === "object" ? { ...e, numeroContrato: para, protocoloAnterior: de } : e
+      );
+    }
+    locs[idx] = loc;
+    // Remove qualquer duplicata residual do número antigo.
+    for (let i = locs.length - 1; i >= 0; i--) {
+      if (i === idx) continue;
+      if (normPortalNumeroContrato(locs[i]?.numeroContrato) === de) locs.splice(i, 1);
+    }
+    saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
+    const nDocs = portalMigrarDocumentosLocacaoNumeroProtocolo(de, para);
+    portalMigrarLancamentosFinanceirosGlobaisProtocolo(de, para);
+    if (typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
+      void window.__DK_contratoLocacaoSincronizarPasta(para, loc.statusLocacao, {
+        fim: loc.fim,
+        silent: true,
+      });
+    }
+    portalPushCloudSnapshotAfterPersist?.();
+    if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+      void window.__DK_pushCloudSnapshotNow({ force: true });
+    }
+    pinOperacaoLocacaoProtocoloCarregado(para);
+    loadOperacaoLocacaoByProtocoloNumero(para);
+    const novoEl = document.getElementById("operacaoLocacaoProtocoloNovo");
+    if (novoEl) novoEl.value = "";
+    refreshOperacaoLocacaoAlterarProtocoloUi();
+    if (typeof window.__DK_refreshOperacaoLocacaoDocumentosUi === "function") {
+      window.__DK_refreshOperacaoLocacaoDocumentosUi();
+    }
+    if (msg) {
+      msg.textContent = `Protocolo alterado de ${de} para ${para}. Migrados ${contagem.total} lançamento(s) financeiros do contrato${nDocs ? ` e ${nDocs} documento(s)` : ""}.`;
+    }
+    return { ok: true, de, para, contagem, nDocs };
+  }
+
+  function iniciarSalvarAlteracaoProtocolo() {
+    if (!portalPodeAlterarNumeroProtocoloAdmin()) {
+      openPortalAlterarProtocoloModal({
+        mode: "aviso",
+        titulo: "Sem permissão",
+        texto: "Apenas o administrador CPF 030.378.974-30 pode alterar o número do protocolo.",
+      });
+      return;
+    }
+    const atual = normPortalNumeroContrato(document.getElementById("operacaoLocacaoProtocoloAtual")?.value || "");
+    const novo = normPortalNumeroContrato(document.getElementById("operacaoLocacaoProtocoloNovo")?.value || "");
+    if (!atual) {
+      openPortalAlterarProtocoloModal({
+        mode: "aviso",
+        titulo: "Protocolo atual",
+        texto: "Carregue um protocolo existente antes de alterar o número.",
+      });
+      return;
+    }
+    if (!novo) {
+      openPortalAlterarProtocoloModal({
+        mode: "aviso",
+        titulo: "Novo protocolo",
+        texto: "Informe o novo número na caixa azul.",
+      });
+      return;
+    }
+    if (atual === novo) {
+      openPortalAlterarProtocoloModal({
+        mode: "aviso",
+        titulo: "Números iguais",
+        texto: `O novo número (${novo}) é igual ao protocolo atual.`,
+      });
+      return;
+    }
+    if (findPortalLocacaoByProtocolo(novo)) {
+      openPortalAlterarProtocoloModal({
+        mode: "duplicado",
+        titulo: "Protocolo já existe",
+        texto:
+          `NÃO É POSSÍVEL SALVAR.\n\n` +
+          `O novo número ${novo} já existe na base.\n` +
+          `Escolha outro número. O protocolo atual ${atual} não foi alterado.`,
+      });
+      return;
+    }
+    const loc = findPortalLocacaoByProtocolo(atual);
+    if (!loc) {
+      openPortalAlterarProtocoloModal({
+        mode: "aviso",
+        titulo: "Protocolo não encontrado",
+        texto: `O protocolo atual ${atual} não foi encontrado na base.`,
+      });
+      return;
+    }
+    const c = contarLancamentosFinanceirosDoProtocolo(loc);
+    const nome = String(loc.nome || "").trim() || "—";
+    const placa = String(loc.placa || "").trim() || "—";
+    openPortalAlterarProtocoloModal({
+      mode: "confirm",
+      titulo: "Confirmar alteração de protocolo",
+      texto:
+        `Confirma a alteração do protocolo?\n\n` +
+        `Atual (caixa verde): ${atual}\n` +
+        `Novo (caixa azul): ${novo}\n` +
+        `Cliente: ${nome}\n` +
+        `Placa: ${placa}\n\n` +
+        `Lançamentos financeiros que migram com o contrato:\n` +
+        `• Aluguel/devoluções: ${c.aluguel}\n` +
+        `• Cauções: ${c.caucao}\n` +
+        `• Multas no contrato: ${c.multas}\n` +
+        `• Total: ${c.total}\n\n` +
+        `Documentos do protocolo também passam a usar o novo número.\n` +
+        `Esta ação não pode ser desfeita automaticamente.`,
+      onConfirm: () => {
+        closePortalAlterarProtocoloModal();
+        executarAlteracaoNumeroProtocolo(atual, novo);
+      },
+    });
   }
 
   function refreshOperacaoLocacaoApagarProtocoloBtn() {
@@ -19960,6 +20268,25 @@
         const raw = String(ev.target?.value || "").trim();
         loadOperacaoLocacaoByProtocoloNumero(raw);
       }
+    });
+    document.getElementById("operacaoLocacaoProtocoloSalvarAlteracaoBtn")?.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      iniciarSalvarAlteracaoProtocolo();
+    });
+    document.getElementById("operacaoLocacaoProtocoloNovo")?.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        iniciarSalvarAlteracaoProtocolo();
+      }
+    });
+    document.getElementById("portalAlterarProtocoloSimBtn")?.addEventListener("click", () => {
+      const fn = portalAlterarProtocoloConfirmCallback;
+      if (typeof fn === "function") fn();
+      else closePortalAlterarProtocoloModal();
+    });
+    document.getElementById("portalAlterarProtocoloNaoBtn")?.addEventListener("click", () => closePortalAlterarProtocoloModal());
+    document.querySelectorAll("[data-close-alterar-protocolo]").forEach((el) => {
+      el.addEventListener("click", () => closePortalAlterarProtocoloModal());
     });
 
     function refreshOperacaoLocacaoSugestoesLista() {

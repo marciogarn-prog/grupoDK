@@ -1761,6 +1761,7 @@ body {
   /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
    * Pain?is internos N?O criam outro scroll que engole a roda.
    */
+  /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce). */
   /* Lan�amento de aluguel: um �nico scroll no formul�rio (bola do mouse sobe/desce). */
   /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce). */
   #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
@@ -3565,6 +3566,71 @@ body {
   color: #f5f7fa;
   font-weight: 600;
   word-break: break-word;
+}
+
+.portal-locacao-alterar-proto {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(9rem, 1fr) minmax(9rem, 1fr) auto;
+  gap: 0.55rem 0.75rem;
+  align-items: end;
+  margin: 0.15rem 0 0.35rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(220, 38, 38, 0.28);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.portal-locacao-alterar-proto.hidden {
+  display: none !important;
+}
+
+.portal-locacao-proto-atual input {
+  border-color: rgba(74, 222, 128, 0.65) !important;
+  background: rgba(22, 101, 52, 0.35) !important;
+  color: #bbf7d0 !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.portal-locacao-proto-novo input {
+  border-color: rgba(96, 165, 250, 0.75) !important;
+  background: rgba(30, 64, 175, 0.35) !important;
+  color: #bfdbfe !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.portal-locacao-alterar-proto__actions {
+  display: flex;
+  align-items: stretch;
+}
+
+.portal-locacao-alterar-proto__actions .btn-primary {
+  white-space: normal;
+  line-height: 1.25;
+  min-height: 2.55rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+.portal-alterar-protocolo-card textarea {
+  width: 100%;
+  min-height: 7.5rem;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.4;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.45);
+  color: #f5f5f5;
+}
+
+@media (max-width: 720px) {
+  .portal-locacao-alterar-proto {
+    grid-template-columns: 1fr;
+  }
 }
 
 .portal-modal__actions .btn-primary {

@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260903sem-sobrepor">
+  <link rel="stylesheet" href="styles.css?v=20260903alt-proto">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -934,6 +934,43 @@
                 aria-label="PROTOCOLO: contratos deste CPF ou NOVO"
               ></select>
             </label>
+            <div
+              id="operacaoLocacaoAlterarProtocoloWrap"
+              class="portal-locacao-alterar-proto hidden"
+              hidden
+              role="group"
+              aria-label="Alterar número do protocolo (administrador titular)"
+            >
+              <label class="portal-field portal-locacao-proto-atual">
+                <span>PROTOCOLO ATUAL</span>
+                <input
+                  type="text"
+                  id="operacaoLocacaoProtocoloAtual"
+                  readonly
+                  tabindex="-1"
+                  autocomplete="off"
+                  placeholder="—"
+                  aria-label="Número atual do protocolo"
+                >
+              </label>
+              <label class="portal-field portal-locacao-proto-novo">
+                <span>NOVO PROTOCOLO</span>
+                <input
+                  type="text"
+                  id="operacaoLocacaoProtocoloNovo"
+                  inputmode="numeric"
+                  maxlength="20"
+                  autocomplete="off"
+                  placeholder="Ex.: 2026090205"
+                  aria-label="Novo número do protocolo"
+                >
+              </label>
+              <div class="portal-locacao-alterar-proto__actions">
+                <button type="button" class="btn-primary" id="operacaoLocacaoProtocoloSalvarAlteracaoBtn">
+                  Salvar alteração de protocolo
+                </button>
+              </div>
+            </div>
             <label class="portal-field portal-field--wide hidden" id="operacaoLocacaoProtocoloAdminWrap">
               <span>BUSCAR POR PROTOCOLO (administrador)</span>
               <div class="portal-inline-actions">
@@ -3509,6 +3546,27 @@
     </div>
   </div>
 
+  <div id="portalAlterarProtocoloModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalAlterarProtocoloTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" data-close-alterar-protocolo></div>
+    <div class="portal-modal__card portal-alterar-protocolo-card">
+      <h3 id="portalAlterarProtocoloTitulo" class="portal-modal__title">Alteração de protocolo</h3>
+      <label class="portal-field portal-field--wide">
+        <span id="portalAlterarProtocoloTextoLabel">Mensagem</span>
+        <textarea
+          id="portalAlterarProtocoloTexto"
+          rows="6"
+          readonly
+          aria-label="Confirmação ou aviso de duplicidade do protocolo"
+        ></textarea>
+      </label>
+      <p id="portalAlterarProtocoloMsg" class="portal-feedback" role="status"></p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalAlterarProtocoloSimBtn">Confirmar alteração</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalAlterarProtocoloNaoBtn" data-close-alterar-protocolo>Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalChecklistEnvioManutModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalChecklistEnvioManutTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" id="portalChecklistEnvioManutBackdrop"></div>
     <div class="portal-modal__card portal-checklist-envio-manut-card">
@@ -3803,7 +3861,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260903sem-sobrepor" defer></script>
+  <script src="portal-locadora-ui.js?v=20260903alt-proto" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
