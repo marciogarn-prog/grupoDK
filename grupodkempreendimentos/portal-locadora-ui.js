@@ -9124,7 +9124,10 @@
         }
         return;
       }
-      const linhas = filterPortalSugestoesLinhas(collectPortalSugestoesClienteUnico(), filtros);
+      const linhas = portalOrdenarSugestoesPorNome(
+        filterPortalSugestoesLinhas(collectPortalSugestoesClienteUnico(), filtros),
+        filtros.nomeRaw
+      );
       if (!linhas.length) {
         if (!panel) return;
         panel.classList.remove("hidden");
@@ -14347,9 +14350,36 @@
       const dig =
         typeof onlyDigits === "function" ? onlyDigits : (s) => String(s ?? "").replace(/\D/g, "");
       const prefix = dig(prevCpf).slice(0, 11);
-      candidatos = getPortalCadastroLocacaoClienteCandidates();
-      if (prefix.length) {
-        candidatos = candidatos.filter((c) => dig(String(c.cpf || "")).startsWith(prefix));
+      const byCpf = new Map();
+      const addCand = (c) => {
+        const cpf = dig(String(c?.cpf || "")).slice(0, 11);
+        if (cpf.length !== 11) return;
+        if (prefix.length && !cpf.startsWith(prefix)) return;
+        const nome = String(c.nome || "").trim();
+        const prev = byCpf.get(cpf);
+        if (!prev) {
+          byCpf.set(cpf, { cpf, nome });
+          return;
+        }
+        if (nome && (!prev.nome || prev.nome === "(sem nome)")) prev.nome = nome;
+      };
+      getPortalCadastroLocacaoClienteCandidates().forEach(addCand);
+      /* Contratos também: MANOEL SOBREIRA tem de aparecer mesmo se o cadastro de cliente estiver depois do corte A–L. */
+      try {
+        collectOperacaoLocacaoSugestoesLinhas().forEach(addCand);
+      } catch {
+        /* ignore */
+      }
+      candidatos = Array.from(byCpf.values());
+      const nomeQ = portalNomeChaveBusca(prevNome);
+      if (nomeQ.length >= 2) {
+        candidatos = candidatos.filter((c) => portalNomeRankBusca(c.nome, nomeQ) < 99);
+        candidatos = portalOrdenarSugestoesPorNome(candidatos, prevNome);
+      } else {
+        candidatos.sort(
+          (a, b) =>
+            String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR") || a.cpf.localeCompare(b.cpf)
+        );
       }
       candidatos = candidatos.slice(0, 200);
       const fmt = typeof formatCpf === "function" ? formatCpf : (cpf) => String(cpf || "");
@@ -14717,6 +14747,35 @@
       .toUpperCase()
       .replace(/\s+/g, " ")
       .trim();
+  }
+
+  /**
+   * 0=igual, 1=nome começa, 2=uma palavra começa (MANOEL SOBREIRA ao digitar MANOEL),
+   * 3=só aparece no meio (ERIK EMANOEL), 99=não bate.
+   */
+  function portalNomeRankBusca(nomeRaw, queryKey) {
+    const n = portalNomeChaveBusca(nomeRaw);
+    const q = portalNomeChaveBusca(queryKey);
+    if (!q || !n) return 99;
+    if (n === q) return 0;
+    if (n.startsWith(q + " ") || n.startsWith(q)) return 1;
+    const palavras = n.split(" ").filter(Boolean);
+    if (palavras.some((w) => w === q || w.startsWith(q))) return 2;
+    if (n.includes(q)) return 3;
+    return 99;
+  }
+
+  function portalOrdenarSugestoesPorNome(linhas, nomeRaw) {
+    const q = portalNomeChaveBusca(nomeRaw);
+    if (!q || q.length < 2) return Array.isArray(linhas) ? linhas.slice() : [];
+    return (linhas || [])
+      .slice()
+      .sort((a, b) => {
+        const ra = portalNomeRankBusca(a?.nome, q);
+        const rb = portalNomeRankBusca(b?.nome, q);
+        if (ra !== rb) return ra - rb;
+        return String(a?.nome || "").localeCompare(String(b?.nome || ""), "pt-BR");
+      });
   }
 
   function portalSugestoesFiltrosAtivos(filtros) {
@@ -20489,7 +20548,10 @@
         hidePortalSugestoesLista(panel);
         return;
       }
-      const linhas = filterPortalSugestoesLinhas(collectOperacaoLocacaoSugestoesLinhas(), filtros);
+      const linhas = portalOrdenarSugestoesPorNome(
+        filterPortalSugestoesLinhas(collectOperacaoLocacaoSugestoesLinhas(), filtros),
+        filtros.nomeRaw
+      );
       const misturouOutroCpf =
         cpfDigits.length === 11 && linhas.some((row) => String(row.cpf || "") !== cpfDigits);
       if (misturouOutroCpf && !searchingCodigo) {
@@ -21565,6 +21627,44 @@
     return sem > 0 ? sem : 0;
   }
 
+  /** Soma semanal (aluguel + investimento) de todos os contratos ativos agora — independente do período. */
+  function portalReceitaSemanalAtualContratosAtivos() {
+    if (typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return { total: 0, qtd: 0 };
+    }
+    const isGhost =
+      typeof window.__DK_isLocacaoFantasmaCadastro === "function"
+        ? window.__DK_isLocacaoFantasmaCadastro
+        : () => false;
+    let total = 0;
+    let qtd = 0;
+    (loadCadastro(CAD_LOCACOES_KEY) || []).forEach((loc) => {
+      if (!loc || typeof loc !== "object") return;
+      if (isGhost(loc)) return;
+      if (String(loc.numeroContrato || "").replace(/\D/g, "") === "2099010199") return;
+      if (typeof isPortalLocacaoCancelada === "function" && isPortalLocacaoCancelada(loc)) return;
+      if (typeof isPortalLocacaoAtiva === "function" ? !isPortalLocacaoAtiva(loc) : false) return;
+      const v = portalValorSemanalRotatividade(loc);
+      if (!(v > 0)) return;
+      total += v;
+      qtd += 1;
+    });
+    return { total, qtd };
+  }
+
+  function portalAtualizarReceitaSemanalAtualRotatividadeUi() {
+    const { total, qtd } = portalReceitaSemanalAtualContratosAtivos();
+    const valEl = document.getElementById("operacaoRotatividadeReceitaAtual");
+    const metaEl = document.getElementById("operacaoRotatividadeReceitaAtualMeta");
+    if (valEl) valEl.textContent = portalFmtBrlRotatividade(total);
+    if (metaEl) {
+      metaEl.textContent =
+        qtd > 0
+          ? `${qtd} contrato${qtd === 1 ? "" : "s"} ativo${qtd === 1 ? "" : "s"}`
+          : "Nenhum contrato ativo";
+    }
+  }
+
   function portalNomeClienteRotatividade(loc) {
     const nome = String(loc?.nomeCliente || loc?.clienteNome || loc?.nome || loc?.cliente || "").trim();
     if (nome) return nome.toUpperCase();
@@ -21713,6 +21813,7 @@
       const el = document.getElementById(id);
       if (el) el.textContent = t;
     };
+    portalAtualizarReceitaSemanalAtualRotatividadeUi();
     if (!periodo.ok) {
       setTxt("operacaoRotatividadeQtdNovos", "—");
       setTxt("operacaoRotatividadeQtdFim", "—");

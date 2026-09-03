@@ -163,7 +163,7 @@
     },
     {
       "id": "relatorio-rotatividade-operacao",
-      "descricao": "No menu Operação, entre Cadastro de locação e Lançamento de aluguel: Relatório de rotatividade com dois calendários, resumo (novos/finalizados, receitas semanais, acréscimo/redução) e folha dividida por dia (esquerda novas, direita finalizadas: protocolo, cliente, veículo, valor).",
+      "descricao": "No menu Operação, entre Cadastro de locação e Lançamento de aluguel: Relatório de rotatividade com dois calendários, caixa Receita semanal atual (contratos ativos) ao lado de Atualizar relatório, resumo (novos/finalizados, receitas semanais, acréscimo/redução) e folha dividida por dia (esquerda novas, direita finalizadas: protocolo, cliente, veículo, valor).",
       "ficheiros": {
         "index.html": [
           "btn-operacao-relatorio-rotatividade",
@@ -173,18 +173,23 @@
           "operacaoRotatividadeFim",
           "operacaoRotatividadeQtdNovos",
           "operacaoRotatividadeRecNovos",
-          "operacaoRotatividadeSaldo"
+          "operacaoRotatividadeSaldo",
+          "operacaoRotatividadeReceitaAtual",
+          "Receita semanal atual (contratos ativos)"
         ],
         "portal-locadora-ui.js": [
           "renderOperacaoRelatorioRotatividade",
           "portalColetarRotatividadePeriodo",
           "openOperacaoRelatorioRotatividade",
-          "portalValorSemanalRotatividade"
+          "portalValorSemanalRotatividade",
+          "portalReceitaSemanalAtualContratosAtivos",
+          "portalAtualizarReceitaSemanalAtualRotatividadeUi"
         ],
         "styles.css": [
           "portal-rotatividade__resumo",
           "portal-rotatividade-dia__cols",
-          "portal-rotatividade-dia__col--ent"
+          "portal-rotatividade-dia__col--ent",
+          "portal-rotatividade-receita-atual"
         ]
       }
     },
@@ -480,7 +485,9 @@
         "portal-locadora-ui.js": [
           "filterPortalSugestoesLinhas",
           "clique numa linha para confirmar",
-          "refreshOperacaoLocacaoSugestoesLista"
+          "refreshOperacaoLocacaoSugestoesLista",
+          "portalOrdenarSugestoesPorNome",
+          "portalNomeRankBusca"
         ],
         "styles.css": [
           "lista suspensa de confirmação ao digitar cadastro"
