@@ -14164,6 +14164,11 @@
 
   function portalRefreshOperacaoDadosAposNuvem() {
     try {
+      portalPurgeLocacoesProtocoloSubstituido({ push: true });
+    } catch {
+      /* ignore */
+    }
+    try {
       refreshOperacaoLocacaoDatalists();
       refreshOperacaoLocacaoProtocoloPicker({ force: true });
       refreshPortalRelClienteCpfDatalist();
@@ -14244,6 +14249,16 @@
   } catch {
     /* ignore */
   }
+
+  setTimeout(() => {
+    try {
+      if (typeof portalPurgeLocacoesProtocoloSubstituido === "function") {
+        portalPurgeLocacoesProtocoloSubstituido({ push: true });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, 2800);
 
   function hideInlineForms() {
     hideOperacaoInlineFormsCore();
@@ -16230,6 +16245,56 @@
     modal.setAttribute("aria-hidden", "false");
   }
 
+  function portalLoadProtocoloNcRemap() {
+    try {
+      const raw = localStorage.getItem("dk_protocolo_nc_remap_v1");
+      const map = raw ? JSON.parse(raw) : {};
+      return map && typeof map === "object" && !Array.isArray(map) ? map : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function portalRegisterProtocoloNcRemap(oldNc, newNc) {
+    const de = normPortalNumeroContrato(oldNc);
+    const para = normPortalNumeroContrato(newNc);
+    if (!de || !para || de === para) return;
+    const map = portalLoadProtocoloNcRemap();
+    map[de] = para;
+    for (const k of Object.keys(map)) {
+      if (normPortalNumeroContrato(map[k]) === de) map[k] = para;
+    }
+    try {
+      localStorage.setItem("dk_protocolo_nc_remap_v1", JSON.stringify(map));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  /** Remove do cadastro local protocolos já substituídos (ex.: 04 após virar 05). */
+  function portalPurgeLocacoesProtocoloSubstituido(opts) {
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
+      return 0;
+    }
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    if (!Array.isArray(locs) || !locs.length) return 0;
+    const drop =
+      typeof window.__DK_dropLocacoesProtocoloSubstituido === "function"
+        ? window.__DK_dropLocacoesProtocoloSubstituido
+        : null;
+    if (!drop) return 0;
+    const next = drop(locs, portalLoadProtocoloNcRemap());
+    if (!Array.isArray(next) || next.length >= locs.length) return 0;
+    saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true, allowShrink: true });
+    if (opts?.push !== false) {
+      portalPushCloudSnapshotAfterPersist?.();
+      if (typeof window.__DK_pushCloudSnapshotNow === "function") {
+        void window.__DK_pushCloudSnapshotNow({ force: true });
+      }
+    }
+    return locs.length - next.length;
+  }
+
   function portalMigrarDocumentosLocacaoNumeroProtocolo(oldNc, newNc) {
     const de = normPortalNumeroContrato(oldNc);
     const para = normPortalNumeroContrato(newNc);
@@ -16340,7 +16405,17 @@
       if (i === idx) continue;
       if (normPortalNumeroContrato(locs[i]?.numeroContrato) === de) locs.splice(i, 1);
     }
-    saveCadastro(CAD_LOCACOES_KEY, locs, { bypassImmutabilidadeCadastro: true });
+    portalRegisterProtocoloNcRemap(de, para);
+    const drop =
+      typeof window.__DK_dropLocacoesProtocoloSubstituido === "function"
+        ? window.__DK_dropLocacoesProtocoloSubstituido
+        : null;
+    const locsLimpos = drop ? drop(locs, portalLoadProtocoloNcRemap()) : locs;
+    // allowShrink: sem isto o merge histórico reintroduz o protocolo antigo (04 + 05).
+    saveCadastro(CAD_LOCACOES_KEY, locsLimpos, {
+      bypassImmutabilidadeCadastro: true,
+      allowShrink: true,
+    });
     const nDocs = portalMigrarDocumentosLocacaoNumeroProtocolo(de, para);
     portalMigrarLancamentosFinanceirosGlobaisProtocolo(de, para);
     if (typeof window.__DK_contratoLocacaoSincronizarPasta === "function") {
@@ -16362,7 +16437,7 @@
       window.__DK_refreshOperacaoLocacaoDocumentosUi();
     }
     if (msg) {
-      msg.textContent = `Protocolo alterado de ${de} para ${para}. Migrados ${contagem.total} lançamento(s) financeiros do contrato${nDocs ? ` e ${nDocs} documento(s)` : ""}.`;
+      msg.textContent = `Protocolo alterado de ${de} para ${para}. O número ${de} deixou de existir. Migrados ${contagem.total} lançamento(s) financeiros do contrato${nDocs ? ` e ${nDocs} documento(s)` : ""}.`;
     }
     return { ok: true, de, para, contagem, nDocs };
   }
@@ -16440,6 +16515,7 @@
         `• Multas no contrato: ${c.multas}\n` +
         `• Total: ${c.total}\n\n` +
         `Documentos do protocolo também passam a usar o novo número.\n` +
+        `O protocolo ${atual} deixa de existir na base (não fica duplicado).\n` +
         `Esta ação não pode ser desfeita automaticamente.`,
       onConfirm: () => {
         closePortalAlterarProtocoloModal();

@@ -169,7 +169,21 @@ function mergeLocacoesCadastro(previousList, incomingList) {
   };
   prev.forEach(add);
   incoming.forEach(add);
-  return [...byNc.values(), ...noNc];
+  const list = [...byNc.values(), ...noNc];
+  const remap = Object.create(null);
+  for (const l of list) {
+    const ant = ncNorm(l?.protocoloAnterior);
+    const nc = ncNorm(l?.numeroContrato);
+    if (ant && nc && ant !== nc) remap[ant] = nc;
+  }
+  const present = new Set(list.map((l) => ncNorm(l?.numeroContrato)).filter(Boolean));
+  return list.filter((l) => {
+    const nc = ncNorm(l?.numeroContrato);
+    if (!nc || !remap[nc]) return true;
+    const dest = ncNorm(remap[nc]);
+    if (!dest || dest === nc) return true;
+    return !present.has(dest);
+  });
 }
 
 module.exports = {

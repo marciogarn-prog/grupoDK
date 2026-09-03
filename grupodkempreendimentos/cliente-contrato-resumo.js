@@ -188,7 +188,24 @@
     };
     (Array.isArray(localArr) ? localArr : []).forEach(add);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
-    return [...byNc.values(), ...noNc];
+    const merged = [...byNc.values(), ...noNc];
+    if (typeof window.__DK_dropLocacoesProtocoloSubstituido === "function") {
+      return window.__DK_dropLocacoesProtocoloSubstituido(merged);
+    }
+    const remap = Object.create(null);
+    for (const loc of merged) {
+      const ant = normNc(loc?.protocoloAnterior);
+      const nc = normNc(loc?.numeroContrato);
+      if (ant && nc && ant !== nc) remap[ant] = nc;
+    }
+    const present = new Set(merged.map((l) => normNc(l?.numeroContrato)).filter(Boolean));
+    return merged.filter((loc) => {
+      const nc = normNc(loc?.numeroContrato);
+      if (!nc || !remap[nc]) return true;
+      const dest = normNc(remap[nc]);
+      if (!dest || dest === nc) return true;
+      return !present.has(dest);
+    });
   }
 
   function comprovanteInvalidadoPorId(id, invalidados) {

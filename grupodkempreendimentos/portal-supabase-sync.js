@@ -174,6 +174,7 @@
     "dk_locacao_documentos_v1",
     "dk_pagamentos_auditoria_v1",
     "dk_comunicacao_operacao_v1",
+    "dk_protocolo_nc_remap_v1",
   ];
 
   const DK_CLOUD_KEYS = new Set(DK_STORAGE_KEYS);
@@ -987,6 +988,30 @@
           const localArr = readLocalJsonArray(k);
           localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
         }
+        continue;
+      }
+      if (k === "dk_protocolo_nc_remap_v1") {
+        const parseMap = (raw) => {
+          if (!raw) return {};
+          if (typeof raw === "object" && !Array.isArray(raw)) return { ...raw };
+          if (typeof raw === "string") {
+            try {
+              const p = JSON.parse(raw);
+              return p && typeof p === "object" && !Array.isArray(p) ? p : {};
+            } catch {
+              return {};
+            }
+          }
+          return {};
+        };
+        let localMap = {};
+        try {
+          localMap = parseMap(localStorage.getItem(k));
+        } catch {
+          localMap = {};
+        }
+        const cloudMap = parseMap(v);
+        localStorage.setItem(k, JSON.stringify({ ...cloudMap, ...localMap }));
         continue;
       }
       if (k === "dk_pagamentos_auditoria_v1") {
@@ -2681,7 +2706,11 @@
     };
     (Array.isArray(localArr) ? localArr : []).forEach(add);
     (Array.isArray(cloudArr) ? cloudArr : []).forEach(add);
-    return [...byNc.values(), ...noNc];
+    const merged = [...byNc.values(), ...noNc];
+    if (typeof window.__DK_dropLocacoesProtocoloSubstituido === "function") {
+      return window.__DK_dropLocacoesProtocoloSubstituido(merged);
+    }
+    return merged;
   }
 
   function isCloudCadastroLockedEmpty(cloudPayload) {
@@ -2797,6 +2826,19 @@
         localPayload.dk_comunicacao_operacao_v1,
         cloudPayload.dk_comunicacao_operacao_v1
       );
+    }
+    {
+      const asMap = (v) =>
+        v && typeof v === "object" && !Array.isArray(v) ? { ...v } : {};
+      if (
+        Object.prototype.hasOwnProperty.call(localPayload, "dk_protocolo_nc_remap_v1") ||
+        Object.prototype.hasOwnProperty.call(cloudPayload, "dk_protocolo_nc_remap_v1")
+      ) {
+        out.dk_protocolo_nc_remap_v1 = {
+          ...asMap(cloudPayload.dk_protocolo_nc_remap_v1),
+          ...asMap(localPayload.dk_protocolo_nc_remap_v1),
+        };
+      }
     }
     if (Object.prototype.hasOwnProperty.call(cloudPayload, "dk_financeiro_extratos_v1")) {
       out.dk_financeiro_extratos_v1 = mergeFinanceiroExtratos(

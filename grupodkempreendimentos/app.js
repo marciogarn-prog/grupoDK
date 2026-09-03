@@ -3145,10 +3145,70 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
     };
     prev.forEach(add);
     incoming.forEach(add);
-    return [...byNc.values(), ...byFallback.values()];
+    return dropLocacoesProtocoloSubstituido([...byNc.values(), ...byFallback.values()]);
   }
 
   return incoming;
+}
+
+/**
+ * Quando o protocolo é alterado (ex.: …04 → …05), a locação nova guarda
+ * `protocoloAnterior`. O número antigo não pode voltar no merge append-only.
+ */
+function dropLocacoesProtocoloSubstituido(list, extraRemap) {
+  const arr = Array.isArray(list) ? list : [];
+  const ncNormLocal = (v) =>
+    String(typeof normalizeNumeroContratoKey === "function" ? normalizeNumeroContratoKey(v || "") : String(v || ""))
+      .trim()
+      .replace(/\s+/g, "");
+  const remap = Object.create(null);
+  if (extraRemap && typeof extraRemap === "object") {
+    for (const [de, para] of Object.entries(extraRemap)) {
+      const d = ncNormLocal(de);
+      const p = ncNormLocal(para);
+      if (d && p && d !== p) remap[d] = p;
+    }
+  }
+  try {
+    if (typeof localStorage !== "undefined") {
+      const raw = localStorage.getItem("dk_protocolo_nc_remap_v1");
+      const map = raw ? JSON.parse(raw) : null;
+      if (map && typeof map === "object") {
+        for (const [de, para] of Object.entries(map)) {
+          const d = ncNormLocal(de);
+          const p = ncNormLocal(para);
+          if (d && p && d !== p) remap[d] = p;
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  for (const l of arr) {
+    if (!l || typeof l !== "object") continue;
+    const ant = ncNormLocal(l.protocoloAnterior);
+    const nc = ncNormLocal(l.numeroContrato);
+    if (ant && nc && ant !== nc) remap[ant] = nc;
+  }
+  const olds = Object.keys(remap);
+  if (!olds.length) return arr;
+  const present = new Set();
+  for (const l of arr) {
+    const nc = ncNormLocal(l?.numeroContrato);
+    if (nc) present.add(nc);
+  }
+  return arr.filter((l) => {
+    const nc = ncNormLocal(l?.numeroContrato);
+    if (!nc || !remap[nc]) return true;
+    const dest = ncNormLocal(remap[nc]);
+    if (!dest || dest === nc) return true;
+    return !present.has(dest);
+  });
+}
+try {
+  window.__DK_dropLocacoesProtocoloSubstituido = dropLocacoesProtocoloSubstituido;
+} catch {
+  /* ignore */
 }
 
 function saveCadastro(key, list, opts) {

@@ -3,7 +3,7 @@
   "itens": [
     {
       "id": "locacao-admin-alterar-protocolo",
-      "descricao": "No Cadastro de locação, o administrador CPF 03037897430 pode alterar o número do protocolo: caixa verde (atual), caixa azul (novo), botão Salvar alteração de protocolo; modal de confirmação ou aviso de duplicidade; não grava se o novo já existir; migra lançamentos financeiros e documentos do protocolo antigo para o novo.",
+      "descricao": "No Cadastro de locação, o administrador CPF 03037897430 pode alterar o número do protocolo: caixa verde (atual), caixa azul (novo), botão Salvar alteração de protocolo; modal de confirmação ou aviso de duplicidade; não grava se o novo já existir; migra lançamentos financeiros e documentos do protocolo antigo para o novo; o número antigo deixa de existir (não fica duplicado no cadastro nem no Relatório de rotatividade).",
       "ficheiros": {
         "index.html": [
           "operacaoLocacaoAlterarProtocoloWrap",
@@ -19,7 +19,13 @@
           "iniciarSalvarAlteracaoProtocolo",
           "portalMigrarDocumentosLocacaoNumeroProtocolo",
           "portalMigrarLancamentosFinanceirosGlobaisProtocolo",
+          "portalRegisterProtocoloNcRemap",
+          "portalPurgeLocacoesProtocoloSubstituido",
+          "allowShrink",
           "DK_LOCADORA_ADMIN_CPF"
+        ],
+        "app.js": [
+          "dropLocacoesProtocoloSubstituido"
         ],
         "styles.css": [
           "portal-locacao-alterar-proto",

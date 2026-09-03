@@ -382,6 +382,35 @@ function mergeLocacaoCadastroPar(ex, incoming) {
   return merged;
 }
 
+/**
+ * Protocolo renomeado: se alguma locação tem `protocoloAnterior`, o número antigo
+ * deixa de existir (não ressuscita no merge append-only).
+ */
+function dropLocacoesProtocoloSubstituido(list) {
+  const arr = Array.isArray(list) ? list : [];
+  const remap = Object.create(null);
+  for (const l of arr) {
+    if (!l || typeof l !== "object") continue;
+    const ant = ncNorm(l.protocoloAnterior);
+    const nc = ncNorm(l.numeroContrato);
+    if (ant && nc && ant !== nc) remap[ant] = nc;
+  }
+  const olds = Object.keys(remap);
+  if (!olds.length) return arr;
+  const present = new Set();
+  for (const l of arr) {
+    const nc = ncNorm(l?.numeroContrato);
+    if (nc) present.add(nc);
+  }
+  return arr.filter((l) => {
+    const nc = ncNorm(l?.numeroContrato);
+    if (!nc || !remap[nc]) return true;
+    const dest = ncNorm(remap[nc]);
+    if (!dest || dest === nc) return true;
+    return !present.has(dest);
+  });
+}
+
 function mergeLocacoesCadastro(previousList, incomingList) {
   const prev = (Array.isArray(previousList) ? previousList : []).filter((l) => !isLocacaoFantasmaCadastro(l));
   const incoming = (Array.isArray(incomingList) ? incomingList : []).filter((l) => !isLocacaoFantasmaCadastro(l));
@@ -403,7 +432,7 @@ function mergeLocacoesCadastro(previousList, incomingList) {
   };
   prev.forEach(add);
   incoming.forEach(add);
-  return [...byNc.values(), ...noNc];
+  return dropLocacoesProtocoloSubstituido([...byNc.values(), ...noNc]);
 }
 
 /**
@@ -496,6 +525,7 @@ module.exports = {
   mergeClientesCadastro,
   mergeVeiculosCadastro,
   mergeLocacoesCadastro,
+  dropLocacoesProtocoloSubstituido,
   mergeFuncionariosAccess,
   mergePortalLancamentosAluguelEmbutidos,
   mergePortalLancamentosRemovidos,
