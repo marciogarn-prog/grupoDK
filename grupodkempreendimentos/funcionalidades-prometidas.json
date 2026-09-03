@@ -25,7 +25,7 @@
     },
     {
       "id": "lanc-aluguel-scroll-saldos-lado",
-      "descricao": "No Lançamento de aluguel: a bola do mouse move o conteúdo para cima e para baixo; TOTAL DEVIDO ATÉ HOJE e TOTAL PAGO ATÉ HOJE ficam lado a lado (não empilhados).",
+      "descricao": "No Lançamento de aluguel: a bola do mouse move o conteúdo para cima e para baixo (formulário com overflow-y auto, sem scroll interno que engole a roda); TOTAL DEVIDO ATÉ HOJE e TOTAL PAGO ATÉ HOJE ficam lado a lado (não empilhados).",
       "ficheiros": {
         "index.html": [
           "operacaoInlineLancamentoAluguel",
@@ -34,7 +34,12 @@
         "styles.css": [
           "portal-lanc-aluguel-pagamento-saldos--dual",
           "TOTAL DEVIDO e TOTAL PAGO lado a lado",
-          "Lançamento de aluguel e Lançamento de multas: a bola do mouse move o conteúdo"
+          "um único scroll no formulário",
+          "a bola do mouse move o conteúdo"
+        ],
+        "portal-locadora-ui.js": [
+          "portalSyncLancAluguelLayoutScrollSpacer",
+          "root.scrollTop += event.deltaY"
         ]
       }
     },

@@ -13930,6 +13930,26 @@
     return Math.max(640, Math.ceil(maxBottom + 32));
   }
 
+  /** Espaçador interno: define a altura rolável sem expandir o formulário além do ecrã. */
+  function portalSyncLancAluguelLayoutScrollSpacer(layoutOrHeight) {
+    const root = portalLancAluguelLayoutRoot();
+    if (!root) return;
+    let spacer = document.getElementById("operacaoLancAluguelLayoutSpacer");
+    if (!spacer) {
+      spacer = document.createElement("div");
+      spacer.id = "operacaoLancAluguelLayoutSpacer";
+      spacer.className = "lanc-layout-scroll-spacer";
+      spacer.setAttribute("aria-hidden", "true");
+      root.appendChild(spacer);
+    }
+    const h =
+      typeof layoutOrHeight === "number"
+        ? layoutOrHeight
+        : portalComputeLancAluguelLayoutMinHeight(layoutOrHeight);
+    spacer.style.height = `${Math.max(0, h)}px`;
+    root.style.minHeight = "";
+  }
+
   function portalCollectLancAluguelLayout() {
     const root = portalLancAluguelLayoutRoot();
     const boxes = portalGetLancAluguelLayoutBoxes();
@@ -13942,8 +13962,8 @@
       const rect = box.getBoundingClientRect();
       if (rect.width < 2 && rect.height < 2) return;
       layout[key] = {
-        left: Math.max(0, Math.round(rect.left - rootRect.left)),
-        top: Math.max(0, Math.round(rect.top - rootRect.top)),
+        left: Math.max(0, Math.round(rect.left - rootRect.left + root.scrollLeft)),
+        top: Math.max(0, Math.round(rect.top - rootRect.top + root.scrollTop)),
         width: Math.max(120, Math.round(rect.width)),
         height: Math.max(36, Math.round(rect.height)),
       };
@@ -13957,6 +13977,7 @@
     const boxes = portalGetLancAluguelLayoutBoxes();
     if (!root || !boxes.length) return;
     root.classList.add("lanc-custom-layout");
+    root.style.minHeight = "";
     portalEnsureLancAluguelResizeHandles();
     boxes.forEach((box) => {
       const key = String(box.dataset.lancLayoutBox || "").trim();
@@ -13975,7 +13996,7 @@
       box.style.width = `${Math.max(120, Number(shape.width || 120))}px`;
       box.style.height = `${Math.max(36, Number(shape.height || 36))}px`;
     });
-    root.style.minHeight = `${portalComputeLancAluguelLayoutMinHeight(layout)}px`;
+    portalSyncLancAluguelLayoutScrollSpacer(layout);
   }
 
   function portalClearLancAluguelLayoutInlineStyles() {
@@ -13991,6 +14012,8 @@
       root.classList.remove("lanc-custom-layout", "layout-edit-mode");
       root.style.minHeight = "";
     }
+    const spacer = document.getElementById("operacaoLancAluguelLayoutSpacer");
+    if (spacer) spacer.style.height = "0px";
     portalLancAluguelLayoutEditMode = false;
     portalLancAluguelLayoutDrag = null;
   }
@@ -14175,7 +14198,7 @@
         drag.box.style.top = `${Math.round(nextTop)}px`;
       }
       const layout = portalCollectLancAluguelLayout();
-      root.style.minHeight = `${portalComputeLancAluguelLayoutMinHeight(layout)}px`;
+      portalSyncLancAluguelLayoutScrollSpacer(layout);
     });
 
     const finish = (event) => {
@@ -14186,6 +14209,23 @@
     };
     root.addEventListener("pointerup", finish);
     root.addEventListener("pointercancel", finish);
+
+    /* Garante que a bola do mouse sempre rola este ecrã (não fica presa em caixas internas). */
+    root.addEventListener(
+      "wheel",
+      (event) => {
+        if (event.ctrlKey) return;
+        if (root.classList.contains("hidden")) return;
+        const canScroll = root.scrollHeight > root.clientHeight + 2;
+        if (!canScroll) return;
+        const atTop = root.scrollTop <= 0;
+        const atBottom = root.scrollTop + root.clientHeight >= root.scrollHeight - 2;
+        if ((event.deltaY < 0 && atTop) || (event.deltaY > 0 && atBottom)) return;
+        root.scrollTop += event.deltaY;
+        event.preventDefault();
+      },
+      { passive: false }
+    );
   }
 
   function hideOperacaoInlineFormsCore() {

@@ -1448,7 +1448,8 @@ body {
  * que o ecr? ? nessa tela a bola do mouse rola o formul?rio (n?o corta bot?es).
  */
 @media (min-width: 900px) {
-  body.portal-body--equipa-sessao #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) {
+  body.portal-body--equipa-sessao #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)),
+  body.portal-body--admin-logado #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) {
     padding-top: 0.35rem;
     padding-bottom: 0;
     overflow: hidden;
@@ -1456,7 +1457,8 @@ body {
     max-height: calc(100vh - var(--dk-demo-env-banner-h, 0px) - var(--portal-admin-banner-h, 0px));
   }
 
-  body.portal-body--equipa-sessao #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) > .subpage--wide {
+  body.portal-body--equipa-sessao #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) > .subpage--wide,
+  body.portal-body--admin-logado #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) > .subpage--wide {
     display: flex;
     flex-direction: column;
     flex: 1 1 auto;
@@ -1754,9 +1756,36 @@ body {
     min-width: 0;
   }
 
-  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
-    min-height: 0;
+  /*
+   * Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
+   * Pain?is internos N?O criam outro scroll que engole a roda.
+   */
+  #panel-operacao-locadora:not(.hidden) 
+  /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce).
+   * Painéis internos NÃO criam outro scroll que engole a roda.
+   */
+  #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
+    flex: 1 1 auto;
+    min-height: 0 !important;
     max-height: 100%;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse .operacao-lanc-aluguel-pane {
+    flex: 0 0 auto !important;
+    min-height: 0;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse .portal-lanc-avulso-workspace__hist,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse .operacao-lanc-historico {
+    max-height: none !important;
+    overflow: visible !important;
+    position: static;
   }
 }
 
@@ -8402,7 +8431,18 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 }
 #operacaoInlineLancamentoAluguel.lanc-custom-layout {
   position: relative;
-  min-height: 640px;
+  /* N?O usar min-height aqui: sen?o o formul?rio cresce, o pai corta e a bola do mouse n?o rola. */
+}
+.lanc-layout-scroll-spacer {
+  display: block;
+  width: 1px;
+  pointer-events: none;
+  visibility: hidden;
+  flex: 0 0 auto;
+}
+#operacaoInlineLancamentoAluguel:not(.lanc-custom-layout) .lanc-layout-scroll-spacer {
+  display: none !important;
+  height: 0 !important;
 }
 #operacaoInlineLancamentoAluguel.lanc-custom-layout .operacao-lanc-aluguel-bloco-pesquisa,
 #operacaoInlineLancamentoAluguel.lanc-custom-layout #operacaoLancAluguelPaneAvulso,
@@ -8801,7 +8841,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   min-width: 0;
 }
 
-/* TOTAL DEVIDO e TOTAL PAGO lado a lado (n�o um embaixo do outro) */
+/* TOTAL DEVIDO e TOTAL PAGO lado a lado (n?o um embaixo do outro) */
 .portal-lanc-aluguel-pagamento-saldos.portal-lanc-aluguel-pagamento-saldos--dual {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
