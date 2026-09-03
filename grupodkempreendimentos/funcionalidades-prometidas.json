@@ -865,6 +865,23 @@
           "portalLocacaoFinalizadoEmMs = 0"
         ]
       }
+    },
+    {
+      "id": "nuvem-opcoes-apenas-administrador",
+      "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
+      "ficheiros": {
+        "index.html": [
+          "portal-cloud-sync-bar",
+          "data-apenas-administrador",
+          "btn-dk-cloud-push"
+        ],
+        "portal-supabase-sync.js": [
+          "portalSessaoEhAdministradorNuvem",
+          "recusarOpcaoNuvemSeNaoAdmin",
+          "__DK_isPortalTitularAdministrador",
+          "Estas opções da nuvem são só para administrador."
+        ]
+      }
     }
   ]
 }

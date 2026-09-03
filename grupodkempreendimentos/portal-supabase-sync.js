@@ -1352,13 +1352,35 @@
     else if (tone === "muted") el.classList.add("portal-feedback--cloud-muted");
   }
 
+  function portalSessaoEhAdministradorNuvem() {
+    if (typeof window.__DK_isPortalTitularAdministrador === "function") {
+      return Boolean(window.__DK_isPortalTitularAdministrador());
+    }
+    if (typeof window.__DK_getPortalSessaoAdminRole === "function") {
+      return window.__DK_getPortalSessaoAdminRole() === "owner";
+    }
+    return false;
+  }
+
+  function recusarOpcaoNuvemSeNaoAdmin() {
+    if (portalSessaoEhAdministradorNuvem()) return false;
+    setMsg("Estas opções da nuvem são só para administrador.", null);
+    return true;
+  }
+
   function refreshCloudBarVisibility() {
     const bar = document.getElementById("portal-cloud-sync-bar");
     if (!bar) return;
-    bar.classList.remove("hidden");
+    const admin = portalSessaoEhAdministradorNuvem();
+    bar.classList.toggle("hidden", !admin);
+    if (admin) bar.removeAttribute("hidden");
+    else bar.setAttribute("hidden", "");
+    if (!admin) return;
     refreshLastBackupPanel().catch((e) => console.warn("[DK backup] panel", e));
     probeSupabaseCloudHealth().catch((e) => console.warn("[DK cloud] health", e));
   }
+
+  window.__DK_refreshCloudBarVisibility = refreshCloudBarVisibility;
 
   async function probeSupabaseCloudHealth() {
     const client = window.__DK_SUPABASE_CLIENT__;
@@ -3865,6 +3887,7 @@
   }
 
   async function pushSnapshot() {
+    if (recusarOpcaoNuvemSeNaoAdmin()) return;
     clearTimeout(cloudPushTimer);
     cloudPushTimer = null;
     setMsg("A guardar na nuvem (Supabase + cópia Redis)…", "muted");
@@ -3997,6 +4020,7 @@
   }
 
   function promptImportBackupChoice() {
+    if (recusarOpcaoNuvemSeNaoAdmin()) return;
     if (lastBackupMetaCache) {
       openBackupImportChoiceModal();
       return;
@@ -4131,6 +4155,7 @@
   }
 
   async function applyImportedBackupFile(file) {
+    if (recusarOpcaoNuvemSeNaoAdmin()) return;
     if (!file) return;
     if (
       !window.confirm(
@@ -4159,6 +4184,7 @@
   }
 
   async function importLastStoredBackup() {
+    if (recusarOpcaoNuvemSeNaoAdmin()) return;
     closeBackupImportChoiceModal();
     const secret = readBackupSendSecret();
     if (!secret) {
@@ -4205,6 +4231,7 @@
   }
 
   async function sendBackupEmailFromBrowser() {
+    if (recusarOpcaoNuvemSeNaoAdmin()) return;
     const secret = readBackupSendSecret();
     if (!secret) {
       setMsg(
@@ -4252,6 +4279,7 @@
   }
 
   async function pullSnapshot() {
+    if (recusarOpcaoNuvemSeNaoAdmin()) return;
     if (
       !window.confirm(
         "Isto substitui os dados deste navegador pelos dados guardados na nuvem. Continuar?"
@@ -4342,24 +4370,28 @@
     installLocalStorageCloudHook();
 
     document.getElementById("btn-dk-cloud-push")?.addEventListener("click", () => {
+      if (recusarOpcaoNuvemSeNaoAdmin()) return;
       pushSnapshot().catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e));
       });
     });
     document.getElementById("btn-dk-cloud-pull")?.addEventListener("click", () => {
+      if (recusarOpcaoNuvemSeNaoAdmin()) return;
       pullSnapshot().catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e));
       });
     });
     document.getElementById("btn-dk-backup-email")?.addEventListener("click", () => {
+      if (recusarOpcaoNuvemSeNaoAdmin()) return;
       sendBackupEmailFromBrowser().catch((e) => {
         console.error(e);
         setMsg(String(e?.message || e));
       });
     });
     document.getElementById("btn-dk-backup-import")?.addEventListener("click", () => {
+      if (recusarOpcaoNuvemSeNaoAdmin()) return;
       promptImportBackupChoice();
     });
     document.getElementById("portalBackupImportUltimoBtn")?.addEventListener("click", () => {
@@ -4390,6 +4422,16 @@
       runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
     });
     window.addEventListener("load", refreshCloudBarVisibility);
+    window.addEventListener("storage", (ev) => {
+      if (!ev.key || ev.key === "dk_sessao_cliente") refreshCloudBarVisibility();
+    });
+    const panelLogado = document.getElementById("panel-logado");
+    if (panelLogado) {
+      new MutationObserver(refreshCloudBarVisibility).observe(panelLogado, {
+        attributes: true,
+        attributeFilter: ["class"],
+      });
+    }
     setTimeout(refreshCloudBarVisibility, 800);
 
     runAutoPullFromCloudOnce()?.catch((e) => console.warn("[DK cloud] auto pull", e));
