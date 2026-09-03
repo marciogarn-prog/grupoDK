@@ -213,22 +213,28 @@
           "operacaoInatividadeInicio",
           "operacaoInatividadeFim",
           "Placas sem protocolo na data",
+          "carros sem protocolo em cima",
           "operacaoInatividadePdfBtn",
-          "Gerar PDF"
+          "Gerar PDF",
+          "portal-inatividade-folha"
         ],
         "portal-locadora-ui.js": [
           "renderOperacaoRelatorioInatividade",
           "portalColetarInatividadePeriodo",
-          "openOperacaoRelatorioInatividade"
+          "openOperacaoRelatorioInatividade",
+          "Localização",
+          "portalLocalizacaoInatividade"
         ],
         "dk-relatorio-inatividade.js": [
           "locCobreDia",
           "coletarInatividadePeriodo",
-          "Placas da frota sem protocolo na data"
+          "Placas da frota sem protocolo na data",
+          "resolverLocalizacaoInatividade"
         ],
         "styles.css": [
           "portal-inatividade",
-          "portal-rotatividade-dia__cols"
+          "portal-rotatividade-dia__cols",
+          "portal-inatividade-folha"
         ]
       }
     },

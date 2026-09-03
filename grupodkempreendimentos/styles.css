@@ -11572,6 +11572,17 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 }
 
 /* Relatorio de inatividade: mesmo padrao da rotatividade (filtros, KPIs, folha por dia). */
+.portal-inatividade-folha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.portal-inatividade .portal-rotatividade__resumo {
+  margin-bottom: 0;
+}
+.portal-inatividade .portal-rotatividade__lista {
+  gap: 0.55rem;
+}
 .portal-inatividade .portal-rotatividade-dia__data {
   color: #fbbf24;
   border-bottom-color: rgba(251, 191, 36, 0.4);
@@ -11580,6 +11591,58 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 .portal-inatividade .portal-rotatividade-dia {
   border-color: rgba(251, 191, 36, 0.4);
 }
+.portal-inatividade .portal-rotatividade-dia__cols {
+  display: flex;
+  flex-direction: column;
+  grid-template-columns: 1fr;
+}
+.portal-inatividade .portal-rotatividade-dia__col--sai {
+  border-bottom: 1px solid rgba(251, 191, 36, 0.35);
+}
 .portal-inatividade .portal-rotatividade-dia__col--ent {
-  border-right-color: rgba(251, 191, 36, 0.35);
+  border-right: 0;
+  border-right-color: transparent;
+}
+.portal-inatividade .portal-rotatividade-row {
+  grid-template-columns: 6.4rem minmax(14rem, 2.8fr) 7.6rem minmax(7.2rem, 1.1fr) 5.4rem;
+  align-items: center;
+}
+.portal-inatividade .portal-rotatividade-row__cli {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.portal-inatividade .portal-rotatividade-row__loc {
+  color: #fde68a;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.portal-inatividade-row--head {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #a3a3a3;
+  border-bottom-color: rgba(251, 191, 36, 0.28);
+  padding-top: 0.15rem;
+  padding-bottom: 0.3rem;
+}
+.portal-inatividade-folha--um-dia .portal-rotatividade-row {
+  padding: 0.18rem 0;
+  font-size: 0.8rem;
+}
+.portal-inatividade-folha--um-dia .portal-rotatividade-dia__col {
+  padding: 0.4rem 0.55rem 0.5rem;
+}
+@media (max-width: 900px) {
+  .portal-inatividade .portal-rotatividade-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .portal-inatividade .portal-rotatividade-row__cli {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
 }

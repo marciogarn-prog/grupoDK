@@ -61,6 +61,35 @@ record("17/08 — SPA3F38 aparece como inativa (moto)", Boolean(day?.motos.some(
 record("17/08 — UIA1G56 não aparece (carro com protocolo ativo)", Boolean(day && !day.carros.some((r) => r.placa === "UIA1G56")));
 record("Último protocolo da placa inativa é o de Marcelo", day?.motos.find((r) => r.placa === "SPA3F38")?.protocolo === "2026080705");
 
+const locManut = api.coletarInatividadePeriodo({
+  periodo,
+  veiculos: [
+    { placa: "SPA3F38", tipo: "MOTO", modelo: "SHI 175" },
+    { placa: "XYZ1A11", tipo: "CARRO", modelo: "CLASSIC LIFE/LS 1.0 VHC FLEXPOWER 4P", disponivelCategoria: "reserva-patio" },
+  ],
+  locacoes: [locMarcelo],
+  getTipo: (v) => (String(v?.tipo || "").includes("CARRO") ? "CARRO" : "MOTO"),
+  manutencoes: [{ placa: "SPA3F38", categoriaManutencao: "triagem", dataRealSaida: "" }],
+});
+const locDay = locManut.days[0];
+record(
+  "Localização TRIAGEM vem da manutenção aberta",
+  locDay?.motos.find((r) => r.placa === "SPA3F38")?.localizacao === "TRIAGEM"
+);
+record(
+  "Localização RESERVA PATIO vem da categoria disponível",
+  locDay?.carros.find((r) => r.placa === "XYZ1A11")?.localizacao === "RESERVA PATIO"
+);
+record(
+  "API resolve oficina terceiro e reserva operação",
+  api.resolverLocalizacaoInatividade("AAA1B11", { disponivelCategoria: "reserva-operacao" }, {}) === "RESERVA OPERACAO" &&
+    api.resolverLocalizacaoInatividade(
+      "BBB2C22",
+      {},
+      { manutencoes: [{ placa: "BBB2C22", categoriaManutencao: "oficina-terceiros", dataRealSaida: "" }] }
+    ) === "OFICINA TERCEIRO"
+);
+
 const html = read("index.html");
 const css = read("styles.css");
 const ui = read("portal-locadora-ui.js");
@@ -70,6 +99,13 @@ record("Filtros iguais: início, fim e Atualizar relatório", html.includes("ope
 record("Apresentação por dia no mesmo padrão", html.includes("operacaoInatividadeLista") && html.includes("operacaoInatividadeResumo"));
 record("JS abre e renderiza o relatório", ui.includes("openOperacaoRelatorioInatividade") && ui.includes("renderOperacaoRelatorioInatividade") && ui.includes("portalColetarInatividadePeriodo"));
 record("CSS reutiliza o padrão da rotatividade", css.includes("portal-inatividade") && css.includes("portal-rotatividade-dia__cols"));
+record("Resumo e detalhado ficam na mesma folha", html.includes("portal-inatividade-folha") && css.includes("portal-inatividade-folha"));
+record(
+  "Carros em cima e motos embaixo no detalhado",
+  /col--sai[\s\S]{0,400}Carros sem protocolo[\s\S]{0,400}col--ent[\s\S]{0,400}Motos sem protocolo/.test(ui)
+);
+record("Coluna Localização no detalhado", ui.includes("Localização") && ui.includes("portal-rotatividade-row__loc") && ui.includes("portalLocalizacaoInatividade"));
+record("PDF de um dia compacta a folha", read("dk-relatorio-operacao-pdf.js").includes("um-dia") && read("dk-relatorio-operacao-pdf.js").includes("modo: \"inatividade\""));
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n--- ${pass}/${results.length} testes relatório de inatividade ---`);

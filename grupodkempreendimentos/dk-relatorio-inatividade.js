@@ -31,6 +31,60 @@
     return days;
   }
 
+  function normChaveLocalizacao(raw) {
+    return String(raw || "")
+      .trim()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, "-");
+  }
+
+  function rotuloCategoriaManutencao(cat) {
+    const k = normChaveLocalizacao(cat);
+    if (k === "triagem" || k.includes("triagem")) return "TRIAGEM";
+    if (k === "oficina-terceiros" || k.includes("terceir")) return "OFICINA TERCEIRO";
+    if (k === "oficina-propria" || (k.includes("oficina") && k.includes("propri"))) return "OFICINA PROPRIA";
+    if (k === "enviado-seguro" || k.includes("seguro")) return "SEGURO";
+    if (k === "sinistrado-roubo" || k.includes("sinistro") || k.includes("roubo")) return "SINISTRO ROUBO";
+    return "";
+  }
+
+  function rotuloCategoriaDisponivel(veiculo) {
+    const raw = normChaveLocalizacao(
+      veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || veiculo?.estadoDisponivel || veiculo?.status || ""
+    );
+    if ((raw.includes("reserva") && raw.includes("operacao")) || raw === "reserva-operacao") return "RESERVA OPERACAO";
+    if ((raw.includes("reserva") && raw.includes("patio")) || raw === "reserva-patio") return "RESERVA PATIO";
+    if (raw === "reserva" || raw.includes("reserva")) return "RESERVA PATIO";
+    const st = String(veiculo?.status || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (st.includes("INDISPONIVEL")) return "INDISPONIVEL";
+    return "PRONTO PARA ALUGAR";
+  }
+
+  function resolverLocalizacaoInatividade(placa, veiculo, opts) {
+    if (typeof opts?.getLocalizacao === "function") {
+      const custom = opts.getLocalizacao(placa, veiculo);
+      if (custom) return String(custom).trim();
+    }
+    const nkPlate = typeof opts?.nkPlate === "function"
+      ? opts.nkPlate
+      : (p) => String(p || "").replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    const mans = Array.isArray(opts?.manutencoes) ? opts.manutencoes : [];
+    const aberta = mans.find((m) => nkPlate(m?.placa) === placa && !String(m?.dataRealSaida || "").trim());
+    if (aberta) {
+      let cat = String(aberta.categoriaManutencao || aberta.categoria || "").trim();
+      if ((!cat || normChaveLocalizacao(cat) === "oficina-propria") && !aberta.encaminhadoDeTriagem) {
+        cat = "triagem";
+      }
+      return rotuloCategoriaManutencao(cat) || "TRIAGEM";
+    }
+    return rotuloCategoriaDisponivel(veiculo);
+  }
+
   function locCobreDia(loc, dayMs, getIniBr, getFimBr) {
     if (!loc || typeof loc !== "object") return false;
     const iniMs = brToMs(getIniBr(loc));
@@ -56,6 +110,9 @@
       String(loc?.nome || loc?.cliente || loc?.nomeCliente || "").trim() || "—";
     const isGhost = typeof opts.isGhost === "function" ? opts.isGhost : () => false;
     const isCancelada = typeof opts.isCancelada === "function" ? opts.isCancelada : () => false;
+    const getLocalizacao = typeof opts.getLocalizacao === "function"
+      ? opts.getLocalizacao
+      : (placa, veiculo) => resolverLocalizacaoInatividade(placa, veiculo, opts);
 
     const byPlate = new Map();
     locacoes.forEach((loc) => {
@@ -113,6 +170,7 @@
           cliente: last ? getCliente(last) : "SEM PROTOCOLO",
           veiculo: getModelo(veiculo, last),
           valor: last ? Number(getValor(last)) || 0 : 0,
+          localizacao: String(getLocalizacao(placa, veiculo, last) || "").trim() || "—",
           tipo,
           dataBr,
           dataMs: dayMs,
@@ -149,6 +207,7 @@
     msToBr,
     eachDayMs,
     locCobreDia,
+    resolverLocalizacaoInatividade,
     coletarInatividadePeriodo,
     contarLivresAgora,
   };

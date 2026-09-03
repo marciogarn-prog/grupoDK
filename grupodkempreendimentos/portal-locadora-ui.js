@@ -22018,6 +22018,11 @@
       getCliente: (loc) => portalNomeClienteRotatividade(loc),
       isGhost,
       isCancelada: (loc) => (typeof isPortalLocacaoCancelada === "function" ? isPortalLocacaoCancelada(loc) : false),
+      manutencoes:
+        typeof loadCadastro === "function" && typeof CAD_MANUTENCOES_KEY !== "undefined"
+          ? loadCadastro(CAD_MANUTENCOES_KEY) || []
+          : [],
+      getLocalizacao: (placa, veiculo) => portalLocalizacaoInatividade(placa, veiculo),
     };
   }
 
@@ -22057,11 +22062,34 @@
     }
   }
 
+  function portalLocalizacaoInatividade(placa, veiculo) {
+    const cat = getPortalManutCategoriaPorPlaca(placa);
+    if (cat) {
+      if (cat === "triagem") return "TRIAGEM";
+      if (cat === "oficina-propria") return "OFICINA PROPRIA";
+      if (cat === "oficina-terceiros") return "OFICINA TERCEIRO";
+      if (cat === "enviado-seguro") return "SEGURO";
+      if (cat === "sinistrado-roubo") return "SINISTRO ROUBO";
+      return String(cat).replace(/-/g, " ").toUpperCase();
+    }
+    const st = String(veiculo?.status || "")
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    if (st.includes("INDISPONIVEL")) return "INDISPONIVEL";
+    const disp = portalNormDisponivelCategoria(veiculo);
+    if (disp === "reserva-operacao") return "RESERVA OPERACAO";
+    if (disp === "reserva-patio") return "RESERVA PATIO";
+    return "PRONTO PARA ALUGAR";
+  }
+
   function portalHtmlLinhaInatividade(row) {
+    const loc = String(row.localizacao || "—").trim() || "—";
     return `<div class="portal-rotatividade-row">
       <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.placa)}</span>
       <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
       <span class="portal-rotatividade-row__vei" title="${portalEscapeHtml(row.protocolo)}">${portalEscapeHtml(row.protocolo === "—" ? "sem histórico" : row.protocolo)}</span>
+      <span class="portal-rotatividade-row__loc" title="${portalEscapeHtml(loc)}">${portalEscapeHtml(loc)}</span>
       <span class="portal-rotatividade-row__val">${portalEscapeHtml(portalFmtBrlRotatividade(row.valor))}</span>
     </div>`;
   }
@@ -22082,7 +22110,11 @@
       setTxt("operacaoInatividadeQtdCarros", "—");
       setTxt("operacaoInatividadeSaldo", "—");
       if (hint) hint.textContent = "Informe início e fim válidos (DD/MM/AAAA).";
-      if (lista) lista.innerHTML = `<p class="portal-rotatividade-empty">Escolha o período para ver as placas sem protocolo.</p>`;
+      if (lista) {
+        lista.classList.remove("portal-inatividade-lista--um-dia");
+        lista.innerHTML = `<p class="portal-rotatividade-empty">Escolha o período para ver as placas sem protocolo.</p>`;
+      }
+      document.getElementById("operacaoInatividadeFolha")?.classList.remove("portal-inatividade-folha--um-dia");
       return;
     }
     const data = portalColetarInatividadePeriodo(periodo);
@@ -22105,28 +22137,34 @@
       hint.textContent = `Período ${periodo.iniBr} a ${periodo.fimBr} · ${data.frota} placa(s) na frota · ${qInat} sem protocolo em ${periodo.fimBr} · ociosidade ${pct}%.`;
     }
     if (!lista) return;
+    lista.classList.toggle("portal-inatividade-lista--um-dia", data.days.length === 1);
+    const folha = document.getElementById("operacaoInatividadeFolha");
+    if (folha) folha.classList.toggle("portal-inatividade-folha--um-dia", data.days.length === 1);
     if (!data.days.length) {
       lista.innerHTML = `<p class="portal-rotatividade-empty">Nenhuma data no período.</p>`;
       return;
     }
+    const cab = `<div class="portal-rotatividade-row portal-inatividade-row--head">
+      <span>Placa</span><span>Modelo</span><span>Último protocolo</span><span>Localização</span><span>Valor</span>
+    </div>`;
     lista.innerHTML = data.days
       .map((day) => {
         const motoHtml = day.motos.length
-          ? day.motos.map(portalHtmlLinhaInatividade).join("")
+          ? cab + day.motos.map(portalHtmlLinhaInatividade).join("")
           : `<p class="portal-rotatividade-empty">Sem motos inativas</p>`;
         const carroHtml = day.carros.length
-          ? day.carros.map(portalHtmlLinhaInatividade).join("")
+          ? cab + day.carros.map(portalHtmlLinhaInatividade).join("")
           : `<p class="portal-rotatividade-empty">Sem carros inativos</p>`;
         return `<article class="portal-rotatividade-dia">
           <h4 class="portal-rotatividade-dia__data">${portalEscapeHtml(day.dataBr)}</h4>
           <div class="portal-rotatividade-dia__cols">
-            <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--ent">
-              <span class="portal-rotatividade-dia__col-title">Motos sem protocolo · Placa · Modelo · Último protocolo · Valor</span>
-              ${motoHtml}
-            </div>
             <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--sai">
-              <span class="portal-rotatividade-dia__col-title">Carros sem protocolo · Placa · Modelo · Último protocolo · Valor</span>
+              <span class="portal-rotatividade-dia__col-title">Carros sem protocolo · Placa · Modelo · Último protocolo · Localização · Valor</span>
               ${carroHtml}
+            </div>
+            <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--ent">
+              <span class="portal-rotatividade-dia__col-title">Motos sem protocolo · Placa · Modelo · Último protocolo · Localização · Valor</span>
+              ${motoHtml}
             </div>
           </div>
         </article>`;
