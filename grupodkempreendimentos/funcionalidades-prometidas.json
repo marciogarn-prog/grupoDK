@@ -200,6 +200,14 @@
         "index.html": [
           "operacaoInlineLancamentoMultas",
           "operacao-inline-form operacao-inline-form--rodar-mouse"
+        ],
+        "styles.css": [
+          "#operacaoInlineLancamentoMultas.operacao-inline-form--rodar-mouse:not(.hidden)",
+          "a bola do mouse move o conteúdo"
+        ],
+        "portal-locadora-ui.js": [
+          "portalBindLancMultasRodarMouseOnce",
+          "root.scrollTop += event.deltaY"
         ]
       }
     },

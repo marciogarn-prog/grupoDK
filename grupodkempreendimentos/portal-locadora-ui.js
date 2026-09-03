@@ -14083,17 +14083,18 @@
     portalGetLancAluguelLayoutBoxes().forEach((box) => box.classList.remove("is-lanc-layout-dragging"));
   }
 
-  function portalBindLancAluguelLayoutEditorOnce() {
-    if (portalLancAluguelLayoutBound) return;
-    const root = portalLancAluguelLayoutRoot();
-    if (!root) return;
-    portalLancAluguelLayoutBound = true;
-    /* Sem UI de edição; mantém rolagem com a bola do mouse. */
+  function portalBindRodarMouseNoPainel(root) {
+    if (!root || root.dataset.dkRodarMouseBound === "1") return;
+    root.dataset.dkRodarMouseBound = "1";
     root.addEventListener(
       "wheel",
       (event) => {
         if (event.ctrlKey) return;
         if (root.classList.contains("hidden")) return;
+        const nested = event.target?.closest?.(
+          ".portal-lanc-pesquisa-lista, .portal-sugestoes-cadastro, .portal-placa-dropdown"
+        );
+        if (nested && nested !== root && nested.scrollHeight > nested.clientHeight + 2) return;
         const canScroll = root.scrollHeight > root.clientHeight + 2;
         if (!canScroll) return;
         const atTop = root.scrollTop <= 0;
@@ -14102,9 +14103,24 @@
         root.scrollTop += event.deltaY;
         event.preventDefault();
       },
-      { passive: false }
+      { passive: false, capture: true }
     );
   }
+
+  function portalBindLancAluguelLayoutEditorOnce() {
+    if (portalLancAluguelLayoutBound) return;
+    const root = portalLancAluguelLayoutRoot();
+    if (!root) return;
+    portalLancAluguelLayoutBound = true;
+    /* Sem UI de edição; mantém rolagem com a bola do mouse. */
+    portalBindRodarMouseNoPainel(root);
+  }
+
+  function portalBindLancMultasRodarMouseOnce() {
+    portalBindRodarMouseNoPainel(document.getElementById("operacaoInlineLancamentoMultas"));
+  }
+
+  window.__DK_bindLancMultasRodarMouse = portalBindLancMultasRodarMouseOnce;
 
   function hideOperacaoInlineFormsCore() {
     hideOperacaoLocacaoPlacaDropdown();
@@ -22773,8 +22789,12 @@
   portalAtualizarBannerAdmin();
   if (document.readyState === "complete") {
     portalBootHashERestauracao();
+    portalBindLancMultasRodarMouseOnce();
   } else {
-    window.addEventListener("load", portalBootHashERestauracao, { once: true });
+    window.addEventListener("load", () => {
+      portalBootHashERestauracao();
+      portalBindLancMultasRodarMouseOnce();
+    }, { once: true });
   }
 
   document.getElementById("portal-admin-cliente-cpf")?.addEventListener("input", () => {

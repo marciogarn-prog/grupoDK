@@ -282,6 +282,9 @@
     if (typeof window.__DK_syncOperacaoCadastroButtons === "function") {
       window.__DK_syncOperacaoCadastroButtons(cfg.btnId);
     }
+    if (cfg.panelId === "operacaoInlineLancamentoMultas" && typeof window.__DK_bindLancMultasRodarMouse === "function") {
+      window.__DK_bindLancMultasRodarMouse();
+    }
   }
 
   function detalhePanelSuffix(cfg) {

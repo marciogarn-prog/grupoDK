@@ -1735,8 +1735,8 @@ body {
     margin: 0.1rem 0 0.25rem 0.4rem;
   }
 
-  /* Cadastro de loca??o, Lan?amento de aluguel e Lan?amento de multas: a bola do mouse move o conte?do. */
-  /* a bola do mouse move o conte�do */\r\n  /* um �nico scroll no formul�rio */\r\n  /* a bola do mouse move o conteúdo */
+  /* Cadastro de locação, Lançamento de aluguel e Lançamento de multas: a bola do mouse move o conteúdo. */
+  /* a bola do mouse move o conteúdo */
   /* um único scroll no formulário */
   #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
     overflow-x: hidden;
@@ -1758,12 +1758,8 @@ body {
     min-width: 0;
   }
 
-  null
-  #panel-operacao-locadora:not(.hidden) 
-  /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
-   * Pain?is internos N?O criam outro scroll que engole a roda.
-   */
-  #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
+  #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden),
+  #operacaoInlineLancamentoMultas.operacao-inline-form--rodar-mouse:not(.hidden) {
     flex: 1 1 auto;
     min-height: 0 !important;
     max-height: 100%;
@@ -1771,6 +1767,15 @@ body {
     overflow-y: auto !important;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
+  }
+
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoMultas.operacao-inline-form--rodar-mouse .portal-lanc-aluguel-form,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoMultas.operacao-inline-form--rodar-mouse .portal-multas-ocr,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoMultas.operacao-inline-form--rodar-mouse .portal-multas-ocr-form,
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoMultas.operacao-inline-form--rodar-mouse .operacao-lanc-historico {
+    flex: 0 0 auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse .operacao-lanc-aluguel-pane {
@@ -2440,8 +2445,7 @@ body {
   display: none;
 }
 
-/* lista suspensa de confirma??o ao digitar cadastro (nome, CPF, placa, protocolo, c?digo) */
-/* lista suspensa de confirma��o ao digitar cadastro */
+/* lista suspensa de confirmação ao digitar cadastro (nome, CPF, placa, protocolo, código) */
 /* lista suspensa de confirmação ao digitar cadastro */
 .portal-sugestoes-cadastro:not(.hidden) {
   margin: 0.15rem 0 0.45rem;
@@ -9955,6 +9959,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   background: #0a0a0a;
   cursor: pointer;
   overflow: hidden;
+  overscroll-behavior: contain;
 }
 
 .portal-multas-ocr__zone.is-drag {
