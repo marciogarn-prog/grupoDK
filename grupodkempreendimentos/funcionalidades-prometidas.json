@@ -2,27 +2,16 @@
   "aviso": "Não remover estes itens sem comando explícito do titular na conversa.",
   "itens": [
     {
-      "id": "lanc-aluguel-layout-editavel",
-      "descricao": "No Lançamento de aluguel: botões Editar layout / Salvar layout / Restaurar padrão; arrastar caixas (pesquisa, pagamento, devolução, saldos, histórico, etc.) e redimensionar largura/altura (canto ou Shift+arrastar); layout persistido em localStorage.",
+      "id": "lanc-aluguel-layout-travado",
+      "descricao": "No Lançamento de aluguel o layout personalizado fica aplicado (localStorage) sem botão Editar layout (trabalho concluído a pedido do titular).",
       "ficheiros": {
-        "index.html": [
-          "operacaoLancAluguelLayoutToolbar",
-          "operacaoLancAluguelLayoutEditBtn",
-          "operacaoLancAluguelLayoutSaveBtn",
-          "data-lanc-layout-box"
-        ],
+        "index.html": ["data-lanc-layout-box"],
         "portal-locadora-ui.js": [
-          "portalBindLancAluguelLayoutEditorOnce",
-          "portalPersistLancAluguelLayoutFromScreen",
-          "PORTAL_LANC_ALUGUEL_LAYOUT_KEY"
+          "portalApplyLancAluguelLayoutFromStorage",
+          "PORTAL_LANC_ALUGUEL_LAYOUT_KEY",
+          "Editor de layout removido"
         ],
-        "styles.css": [
-          "portal-lanc-layout-toolbar",
-          "lanc-custom-layout",
-          "lanc-layout-resize-handle",
-          "data-lanc-layout-box=\"historico\"",
-          "position: absolute !important"
-        ]
+        "styles.css": ["lanc-custom-layout"]
       }
     },
     {

@@ -13889,7 +13889,7 @@
     portalRefreshOperacaoDeferred(["aluguel", "rel"]);
     portalBindLancAluguelLayoutEditorOnce();
     portalApplyLancAluguelLayoutFromStorage();
-    portalSyncLancAluguelLayoutToolbar();
+    portalStopLancAluguelLayoutEdit();
   }
 
   const PORTAL_LANC_ALUGUEL_LAYOUT_KEY = "dk_portal_lanc_aluguel_layout_v1";
@@ -14045,74 +14045,26 @@
   }
 
   function portalSyncLancAluguelLayoutToolbar() {
-    const editBtn = document.getElementById("operacaoLancAluguelLayoutEditBtn");
-    const saveBtn = document.getElementById("operacaoLancAluguelLayoutSaveBtn");
-    const resetBtn = document.getElementById("operacaoLancAluguelLayoutResetBtn");
-    const hint = document.getElementById("operacaoLancAluguelLayoutHint");
-    if (editBtn) {
-      editBtn.textContent = portalLancAluguelLayoutEditMode ? "Sair edição" : "Editar layout";
-    }
-    const showSave = portalLancAluguelLayoutEditMode;
-    if (saveBtn) {
-      saveBtn.hidden = !showSave;
-      saveBtn.classList.toggle("hidden", !showSave);
-    }
-    if (resetBtn) {
-      resetBtn.hidden = !showSave;
-      resetBtn.classList.toggle("hidden", !showSave);
-    }
-    if (hint) {
-      hint.hidden = !showSave;
-      hint.classList.toggle("hidden", !showSave);
-    }
+    /* Editor de layout removido — trabalho concluído nesta tela. */
   }
 
   function portalStartLancAluguelLayoutEdit() {
-    const root = portalLancAluguelLayoutRoot();
-    if (!root) return;
-    portalEnsureLancAluguelResizeHandles();
-    let merged;
-    if (root.classList.contains("lanc-custom-layout")) {
-      merged = portalCollectLancAluguelLayout();
-    } else {
-      const snapshot = portalCollectLancAluguelLayout();
-      merged = { ...snapshot };
-      const storedRaw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
-      if (storedRaw) {
-        try {
-          const stored = JSON.parse(storedRaw);
-          if (stored && typeof stored === "object") merged = { ...snapshot, ...stored };
-        } catch {
-          /* ignore */
-        }
-      }
-    }
-    portalApplyLancAluguelLayout(merged);
-    portalLancAluguelLayoutEditMode = true;
-    root.classList.add("layout-edit-mode");
-    portalSyncLancAluguelLayoutToolbar();
+    /* Editor de layout desligado a pedido do titular. */
   }
 
   /** Se há layout salvo, posiciona caixas que acabaram de ficar visíveis. */
   function portalRefreshLancAluguelLayoutForVisibleBoxes() {
     const root = portalLancAluguelLayoutRoot();
     if (!root || !root.classList.contains("lanc-custom-layout")) return;
-    if (portalLancAluguelLayoutEditMode) {
-      const current = portalCollectLancAluguelLayout();
-      portalApplyLancAluguelLayout(current);
-      return;
-    }
     const raw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
     if (!raw) return;
     try {
       const stored = JSON.parse(raw);
       if (!stored || typeof stored !== "object") return;
-      // Congela caixas visíveis sem posição salva na posição atual do fluxo.
       root.classList.remove("lanc-custom-layout");
       const missingSnapshot = portalCollectLancAluguelLayout();
       root.classList.add("lanc-custom-layout");
-      const merged = { ...missingSnapshot, ...stored };
-      portalApplyLancAluguelLayout(merged);
+      portalApplyLancAluguelLayout({ ...missingSnapshot, ...stored });
     } catch {
       /* ignore */
     }
@@ -14124,7 +14076,6 @@
     portalLancAluguelLayoutDrag = null;
     root?.classList.remove("layout-edit-mode");
     portalGetLancAluguelLayoutBoxes().forEach((box) => box.classList.remove("is-lanc-layout-dragging"));
-    portalSyncLancAluguelLayoutToolbar();
   }
 
   function portalBindLancAluguelLayoutEditorOnce() {
@@ -14132,116 +14083,7 @@
     const root = portalLancAluguelLayoutRoot();
     if (!root) return;
     portalLancAluguelLayoutBound = true;
-    portalEnsureLancAluguelResizeHandles();
-
-    document.getElementById("operacaoLancAluguelLayoutEditBtn")?.addEventListener("click", () => {
-      if (portalLancAluguelLayoutEditMode) {
-        portalStopLancAluguelLayoutEdit();
-        return;
-      }
-      portalStartLancAluguelLayoutEdit();
-    });
-    document.getElementById("operacaoLancAluguelLayoutSaveBtn")?.addEventListener("click", () => {
-      portalPersistLancAluguelLayoutFromScreen();
-      portalStopLancAluguelLayoutEdit();
-      window.alert("Layout do Lançamento de aluguel salvo.");
-    });
-    document.getElementById("operacaoLancAluguelLayoutResetBtn")?.addEventListener("click", () => {
-      localStorage.removeItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
-      portalStopLancAluguelLayoutEdit();
-      portalClearLancAluguelLayoutInlineStyles();
-      portalSyncLancAluguelLayoutToolbar();
-      window.alert("Layout restaurado para o padrão.");
-    });
-
-    root.addEventListener("pointerdown", (event) => {
-      if (!portalLancAluguelLayoutEditMode) return;
-      const node = event.target instanceof Element ? event.target : null;
-      if (!node) return;
-      if (node.closest("#operacaoLancAluguelLayoutToolbar")) return;
-      const box = node.closest("[data-lanc-layout-box]");
-      if (!box || !(box instanceof HTMLElement) || !root.contains(box)) return;
-      if (!box.classList.contains("is-lanc-layout-placed")) {
-        // Congela posição atual e libera o arraste (ex.: histórico que acabou de aparecer).
-        const snap = portalCollectLancAluguelLayout();
-        const key = String(box.dataset.lancLayoutBox || "").trim();
-        if (key && !snap[key]) {
-          const rootRect = root.getBoundingClientRect();
-          const rect = box.getBoundingClientRect();
-          snap[key] = {
-            left: Math.max(0, Math.round(rect.left - rootRect.left + root.scrollLeft)),
-            top: Math.max(0, Math.round(rect.top - rootRect.top + root.scrollTop)),
-            width: Math.max(160, Math.round(rect.width)),
-            height: Math.max(80, Math.round(rect.height)),
-          };
-        }
-        portalApplyLancAluguelLayout(snap);
-      }
-      const onHandle = Boolean(node.closest(".lanc-layout-resize-handle"));
-      const mode = onHandle || event.shiftKey ? "resize" : "move";
-      if (mode === "move") {
-        /* Em edição: arrastar em qualquer sítio da caixa (tabela, botões, título).
-           Só não inicia arraste em campos de digitação, salvo Alt. */
-        const typingField = node.closest("input, select, textarea");
-        if (typingField && !event.altKey) return;
-      }
-      const rect = box.getBoundingClientRect();
-      const originLeft = parseFloat(box.style.left || "") || Math.max(0, rect.left - root.getBoundingClientRect().left + root.scrollLeft);
-      const originTop = parseFloat(box.style.top || "") || Math.max(0, rect.top - root.getBoundingClientRect().top + root.scrollTop);
-      portalLancAluguelLayoutDrag = {
-        mode,
-        box,
-        pointerId: event.pointerId,
-        startX: event.clientX,
-        startY: event.clientY,
-        originLeft,
-        originTop,
-        boxWidth: rect.width,
-        boxHeight: rect.height,
-      };
-      box.classList.add("is-lanc-layout-dragging");
-      box.style.left = `${Math.round(originLeft)}px`;
-      box.style.top = `${Math.round(originTop)}px`;
-      box.style.width = `${Math.round(rect.width)}px`;
-      box.style.height = `${Math.round(rect.height)}px`;
-      box.classList.add("is-lanc-layout-placed");
-      box.setPointerCapture?.(event.pointerId);
-      event.preventDefault();
-      event.stopPropagation();
-    });
-
-    root.addEventListener("pointermove", (event) => {
-      const drag = portalLancAluguelLayoutDrag;
-      if (!drag || drag.pointerId !== event.pointerId) return;
-      const dx = event.clientX - drag.startX;
-      const dy = event.clientY - drag.startY;
-      if (drag.mode === "resize") {
-        const maxWidth = Math.max(140, root.clientWidth - drag.originLeft);
-        const nextWidth = Math.max(140, Math.min(maxWidth, drag.boxWidth + dx));
-        const nextHeight = Math.max(40, drag.boxHeight + dy);
-        drag.box.style.width = `${Math.round(nextWidth)}px`;
-        drag.box.style.height = `${Math.round(nextHeight)}px`;
-      } else {
-        const maxLeft = Math.max(0, root.clientWidth - drag.boxWidth);
-        const nextLeft = Math.max(0, Math.min(maxLeft, drag.originLeft + dx));
-        const nextTop = Math.max(0, drag.originTop + dy);
-        drag.box.style.left = `${Math.round(nextLeft)}px`;
-        drag.box.style.top = `${Math.round(nextTop)}px`;
-      }
-      const layout = portalCollectLancAluguelLayout();
-      portalSyncLancAluguelLayoutScrollSpacer(layout);
-    });
-
-    const finish = (event) => {
-      if (!portalLancAluguelLayoutDrag) return;
-      if (event && portalLancAluguelLayoutDrag.pointerId !== event.pointerId) return;
-      portalLancAluguelLayoutDrag.box?.classList.remove("is-lanc-layout-dragging");
-      portalLancAluguelLayoutDrag = null;
-    };
-    root.addEventListener("pointerup", finish);
-    root.addEventListener("pointercancel", finish);
-
-    /* Garante que a bola do mouse sempre rola este ecrã (não fica presa em caixas internas). */
+    /* Sem UI de edição; mantém rolagem com a bola do mouse. */
     root.addEventListener(
       "wheel",
       (event) => {

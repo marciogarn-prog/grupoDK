@@ -1761,6 +1761,7 @@ body {
   /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
    * Pain?is internos N?O criam outro scroll que engole a roda.
    */
+  /* Lan�amento de aluguel: um �nico scroll no formul�rio (bola do mouse sobe/desce). */
   /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce). */
   #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
     flex: 1 1 auto;
@@ -8414,15 +8415,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
 
 /* Layout edit?vel ? Lan?amento de aluguel */
 .portal-lanc-layout-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem 0.75rem;
-  margin: 0 0 0.85rem;
-  padding: 0.55rem 0.7rem;
-  border: 1px solid rgba(220, 60, 60, 0.35);
-  border-radius: 8px;
-  background: rgba(80, 20, 20, 0.35);
+  display: none !important;
 }
 .portal-lanc-layout-toolbar .btn-primary {
   font-size: 0.86rem;
