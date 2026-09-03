@@ -7500,13 +7500,58 @@ function aplicarNovoProtocoloLocacaoNoFormulario() {
   if (next) cadLocacaoContratoInput.value = next;
 }
 
-/** Verifica se já existe outra locação com o mesmo número de contrato. */
+/** Verifica se já existe outra locação com o mesmo número de protocolo (ignora fantasma substituído). */
+function locacaoEhFantasmaProtocoloSubstituido(loc, locs) {
+  const nc =
+    typeof normalizeNumeroContratoKey === "function"
+      ? normalizeNumeroContratoKey(loc?.numeroContrato || "")
+      : String(loc?.numeroContrato || "")
+          .trim()
+          .toUpperCase();
+  if (!nc) return false;
+  const list = Array.isArray(locs) ? locs : [];
+  const same =
+    typeof window.__DK_sameLocacaoContratoAssinatura === "function"
+      ? window.__DK_sameLocacaoContratoAssinatura
+      : null;
+  return list.some((other) => {
+    if (!other || other === loc) return false;
+    const ant =
+      typeof normalizeNumeroContratoKey === "function"
+        ? normalizeNumeroContratoKey(other.protocoloAnterior || "")
+        : String(other.protocoloAnterior || "")
+            .trim()
+            .toUpperCase();
+    if (ant !== nc) return false;
+    const otherNc =
+      typeof normalizeNumeroContratoKey === "function"
+        ? normalizeNumeroContratoKey(other.numeroContrato || "")
+        : String(other.numeroContrato || "")
+            .trim()
+            .toUpperCase();
+    if (otherNc === nc) return false;
+    if (same) return same(other, loc);
+    const dig = (c) => onlyDigits(String(c || "")).slice(0, 11);
+    const pl = (p) => normalizePlate(String(p || ""));
+    return Boolean(dig(other.cpf) && dig(loc?.cpf) && dig(other.cpf) === dig(loc.cpf) && pl(other.placa) && pl(loc?.placa) && pl(other.placa) === pl(loc.placa));
+  });
+}
+try {
+  window.__DK_locacaoEhFantasmaProtocoloSubstituido = locacaoEhFantasmaProtocoloSubstituido;
+} catch {
+  /* ignore */
+}
+
+/** Verifica se já existe outra locação viva com o mesmo número de contrato. */
 function contratoNumeroJaExisteNaBase(numeroNorm, excludeLocacaoId) {
   if (!numeroNorm) return false;
   const locs = loadCadastro(CAD_LOCACOES_KEY);
   return locs.some((l) => {
     if (excludeLocacaoId != null && Number(l.id) === Number(excludeLocacaoId)) return false;
-    return normalizeNumeroContratoKey(l.numeroContrato) === numeroNorm;
+    if (normalizeNumeroContratoKey(l.numeroContrato) !== numeroNorm) return false;
+    // Número antigo após rename fica livre — fantasma do mesmo contrato não bloqueia.
+    if (locacaoEhFantasmaProtocoloSubstituido(l, locs)) return false;
+    return true;
   });
 }
 

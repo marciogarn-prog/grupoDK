@@ -16097,6 +16097,9 @@
 
   /** Fantasma: número antigo ainda na base, mas já existe o contrato renomeado (mesmo CPF+placa). */
   function portalLocacaoEhFantasmaProtocoloSubstituido(loc, locs) {
+    if (typeof window.__DK_locacaoEhFantasmaProtocoloSubstituido === "function") {
+      return window.__DK_locacaoEhFantasmaProtocoloSubstituido(loc, locs);
+    }
     const nc = normPortalNumeroContrato(loc?.numeroContrato);
     if (!nc) return false;
     const same =
@@ -16479,7 +16482,8 @@
       window.__DK_refreshOperacaoLocacaoDocumentosUi();
     }
     if (msg) {
-      msg.textContent = `Protocolo alterado de ${de} para ${para}. O número ${de} deixou de existir. Migrados ${contagem.total} lançamento(s) financeiros do contrato${nDocs ? ` e ${nDocs} documento(s)` : ""}.`;
+      msg.textContent =
+        `Protocolo alterado de ${de} para ${para}. O número ${de} ficou LIVRE para o administrador reutilizar noutra alteração. Migrados ${contagem.total} lançamento(s) financeiros do contrato${nDocs ? ` e ${nDocs} documento(s)` : ""}.`;
     }
     return { ok: true, de, para, contagem, nDocs };
   }
@@ -16557,7 +16561,7 @@
         `• Multas no contrato: ${c.multas}\n` +
         `• Total: ${c.total}\n\n` +
         `Documentos do protocolo também passam a usar o novo número.\n` +
-        `O protocolo ${atual} deixa de existir na base (não fica duplicado).\n` +
+        `O protocolo ${atual} fica LIVRE para o administrador CPF 030.378.974-30 aplicar noutra alteração se necessário.\n` +
         `Esta ação não pode ser desfeita automaticamente.`,
       onConfirm: () => {
         closePortalAlterarProtocoloModal();
