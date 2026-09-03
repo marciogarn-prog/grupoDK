@@ -1677,7 +1677,7 @@
             <p class="subtext">Escolha o dia no calendário. O sistema lista os protocolos que <strong>pagaram nesse dia</strong>.</p>
             <p class="subtext portal-relatorio-pagamentos-periodo__hint">
               Padrão: <strong>PROTOCOLO — NOME DO CLIENTE — VALOR DO DIA — VALOR TOTAL — SALDO</strong>
-              (valor do dia = pago na data; valor total = tudo já pago; saldo = pago − devido aluguel sem investimento; ordenado do menor saldo ao maior).
+              (saldo = mesmo valor de «SALDO / VALOR DEVOLVIDO» no lançamento: pago − devido só de aluguel; azul positivo / vermelho negativo; ordenado do menor ao maior).
             </p>
             <div class="operacao-inline-form__grid portal-relatorio-pagamentos-periodo__grid">
               <label class="portal-field">
@@ -3803,7 +3803,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260902rel-saldo" defer></script>
+  <script src="portal-locadora-ui.js?v=20260902rel-saldo-dev" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

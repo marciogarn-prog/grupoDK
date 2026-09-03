@@ -13253,13 +13253,9 @@
         nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
       }
       const plano = portalRelPagAggClassificarPlano(loc);
-      const resumo =
-        typeof computePortalProtocoloResumoFromLoc === "function"
-          ? computePortalProtocoloResumoFromLoc(loc)
-          : null;
-      const devidoAluguel = Number(resumo?.valorDevidoAluguelNum);
-      const valorDevidoAluguel = Number.isFinite(devidoAluguel) ? devidoAluguel : 0;
-      const saldo = valorTotal - valorDevidoAluguel;
+      const infoDev = computePortalSaldoDevolucaoInvestimento(loc);
+      const saldo = Number(infoDev.saldo) || 0;
+      const valorDevidoAluguel = Number(infoDev.devidoAluguel) || 0;
       if (cpfDigits.length === 11) clientes.add(cpfDigits);
       qtdPagamentos += qtdNaFaixa;
       porPlano[plano] = (porPlano[plano] || 0) + qtdNaFaixa;
@@ -13269,7 +13265,7 @@
         prev.valorFaixa += valorFaixa;
         prev.valorTotal = Math.max(prev.valorTotal, valorTotal);
         prev.valorDevidoAluguel = valorDevidoAluguel;
-        prev.saldo = prev.valorTotal - prev.valorDevidoAluguel;
+        prev.saldo = saldo;
         prev.qtdPagamentos += qtdNaFaixa;
         if (!prev.nome || prev.nome === "—") prev.nome = nome || prev.nome;
       } else {
@@ -13337,11 +13333,7 @@
       ? agg.inicioFmt || String(inicioBr || "").trim() || "—"
       : `${agg.inicioFmt || inicioBr || "—"} a ${agg.fimFmt || fimBr || "—"}`;
     const headers = ["Protocolo", "Nome do cliente", colFaixa, "Valor total", "Saldo"];
-    const fmtSaldo = (n) => {
-      const v = Number(n) || 0;
-      if (v < 0) return `-${agg.fmtBrl(Math.abs(v))}`;
-      return agg.fmtBrl(v);
-    };
+    const fmtSaldo = (n) => formatPortalSaldoDevolucaoBrl(n);
     const rows = agg.rows.map((r) => [
       r.proto,
       r.nome,
