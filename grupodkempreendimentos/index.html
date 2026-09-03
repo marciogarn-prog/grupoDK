@@ -36,13 +36,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260903inativo-vermelho">
+  <link rel="stylesheet" href="styles.css?v=20260903multa-ocr">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
   <script src="dk-deploy-channel.js?v=20260829sem-demo"></script>
   <script src="dk-oficial-cadastro-guard.js?v=20260831proto-2801"></script>
-  <script src="dk-pwa-update.js?v=20260901reativa-0303"></script>
+  <script src="dk-pwa-update.js?v=20260903multa-ocr"></script>
 </head>
 <body>
   <div id="dk-pwa-update-bar" class="dk-pwa-update-bar hidden" role="status" aria-live="polite">
@@ -1255,15 +1255,6 @@
               <button
                 type="button"
                 class="btn-primary btn-secondary-outline"
-                id="operacaoLocacaoCaucaoBtn"
-                disabled
-                title="Carregue um protocolo já cadastrado para registrar o pagamento de caução."
-              >
-                Pagamento de caução
-              </button>
-              <button
-                type="button"
-                class="btn-primary btn-secondary-outline"
                 id="operacaoLocacaoFinalizarBtn"
                 disabled
                 title="Informe a data fim (DD/MM/AAAA) e um protocolo já cadastrado."
@@ -1919,7 +1910,7 @@
         
         <div id="operacaoInlineLancamentoMultas" class="operacao-inline-form operacao-inline-form--rodar-mouse hidden" role="region" aria-labelledby="operacao-inline-lanc-multas-title">
           <h3 id="operacao-inline-lanc-multas-title" class="operacao-inline-form__title">Lançamento de multas</h3>
-          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. Deposite o PDF em <strong>Documentos</strong>, pesquise e importe com <strong>Importar multa</strong> e só então cadastre. As parcelas são a cada <strong>7 dias</strong>.</p>
+          <p class="subtext operacao-inline-form__lead">Registe <strong>multas de trânsito</strong> do cliente no protocolo. Cole ou anexe a <strong>imagem da autuação</strong> na caixa abaixo — o sistema <strong>lê os dados</strong> e preenche o formulário. Também pode depositar o PDF em <strong>Documentos</strong> e usar <strong>Importar multa</strong>. As parcelas são a cada <strong>7 dias</strong>.</p>
           <form id="formOperacaoLancamentoMultasInline" class="portal-lanc-aluguel-form" novalidate>
             <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-multas-pesquisa-title">
               <h4 id="portal-lanc-multas-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
@@ -1957,6 +1948,20 @@
                   <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasLimparPesquisaBtn">Limpar dados</button>
                 </div>
               </div>
+            </section>
+            <section id="operacaoLancMultasOcrPanel" class="portal-multas-ocr" aria-labelledby="portal-lanc-multas-ocr-title">
+              <h4 id="portal-lanc-multas-ocr-title" class="portal-lanc-aluguel-section__title">Imagem da autuação</h4>
+              <p class="subtext portal-lanc-aluguel-section__hint">Cole (Ctrl+V), arraste ou anexe a captura. A caixa fica neste tamanho para visualizar a multa. Depois clique em <strong>Ler dados da imagem</strong>.</p>
+              <div id="operacaoLancMultasOcrZone" class="portal-multas-ocr__zone" role="button" tabindex="0" aria-label="Área para colar ou anexar a imagem da multa">
+                <input type="file" id="operacaoLancMultasOcrFile" accept="image/*" hidden>
+                <p id="operacaoLancMultasOcrEmpty" class="portal-multas-ocr__empty">Cole ou solte a imagem da multa aqui</p>
+                <img id="operacaoLancMultasOcrImg" class="portal-multas-ocr__img hidden" alt="Imagem da autuação de trânsito" hidden>
+              </div>
+              <div class="operacao-inline-form__actions portal-multas-ocr__actions">
+                <button type="button" class="btn-primary" id="operacaoLancMultasOcrLerBtn">Ler dados da imagem</button>
+                <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancMultasOcrLimparBtn">Limpar imagem</button>
+              </div>
+              <p id="operacaoLancMultasOcrMsg" class="portal-feedback" role="status" aria-live="polite"></p>
             </section>
             <section id="operacaoLancMultasReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" hidden>
               <h4 class="portal-lanc-aluguel-section__title">Dados do protocolo</h4>
@@ -3369,35 +3374,6 @@
     </div>
   </div>
 
-  <div id="portalCaucaoModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalCaucaoTitulo" aria-hidden="true">
-    <div class="portal-modal__backdrop" data-close-caucao></div>
-    <div class="portal-modal__card portal-modal__card--caucao">
-      <h3 id="portalCaucaoTitulo" class="portal-modal__title">Pagamento de caução</h3>
-      <p id="portalCaucaoResumo" class="portal-modal__text subtext">Carregue um protocolo no cadastro de locação.</p>
-      <div class="portal-caucao-form">
-        <label class="portal-field">
-          <span>DATA DO PAGAMENTO</span>
-          <input type="text" id="portalCaucaoData" name="caucaoData" data-dk-cal="intervalo" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="DATA DO PAGAMENTO DA CAUÇÃO">
-        </label>
-        <label class="portal-field">
-          <span>VALOR (R$)</span>
-          <input type="text" id="portalCaucaoValor" name="caucaoValor" maxlength="16" inputmode="numeric" autocomplete="off" placeholder="R$ 0,00" aria-label="Valor da caução">
-        </label>
-        <label class="portal-field portal-field--wide">
-          <span>COMENTÁRIO (opcional)</span>
-          <textarea id="portalCaucaoComentario" name="caucaoComentario" rows="2" maxlength="500" placeholder="Observação sobre esta caução…" aria-label="Comentário da caução"></textarea>
-        </label>
-      </div>
-      <div class="portal-modal__actions">
-        <button type="button" class="btn-primary" id="portalCaucaoConfirmarBtn">Confirmar pagamento</button>
-        <button type="button" class="btn-primary btn-secondary-outline" data-close-caucao>Fechar</button>
-      </div>
-      <p id="portalCaucaoMsg" class="portal-feedback" role="status" aria-live="polite"></p>
-      <h4 class="portal-caucao-lista__title">Cauções registradas</h4>
-      <ul id="portalCaucaoLista" class="portal-caucao-lista" aria-label="Histórico de pagamentos de caução"></ul>
-    </div>
-  </div>
-
   <div id="portalReciboModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalReciboTitulo">
     <div class="portal-modal__backdrop" data-close-recibo></div>
     <div class="portal-modal__card portal-recibo-modal__card">
@@ -3860,13 +3836,13 @@
   <script src="home-install-pwa.js?v=20260829icones-4apps" defer></script>
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
-  <script src="dk-lancamento-protocolo.js?v=20260901reativa-0303" defer></script>
-  <script src="app.js?v=20260903rot-rec" defer></script>
+  <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
+  <script src="app.js?v=20260903multa-ocr" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260903inativo-vermelho" defer></script>
+  <script src="portal-locadora-ui.js?v=20260903multa-ocr" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
@@ -3907,7 +3883,9 @@
   <script src="portal-contrato-locacao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-contrato-pacote.js?v=20260901cnh-pares" defer></script>
   <script src="portal-multas-relatorio.js?v=20260520manutencao-relatorio" defer></script>
-  <script src="portal-lancamentos-extras.js?v=20260830inativo-datafim" defer></script>
+  <script src="dk-parse-autuacao-transito.js?v=20260903multa-ocr" defer></script>
+  <script src="portal-lancamentos-extras.js?v=20260903multa-ocr" defer></script>
+  <script src="portal-multas-ocr.js?v=20260903multa-ocr" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260826relacao-cols" defer></script>

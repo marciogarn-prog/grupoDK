@@ -1735,8 +1735,8 @@ body {
     margin: 0.1rem 0 0.25rem 0.4rem;
   }
 
-  /* Cadastro de locação, Lançamento de aluguel e Lançamento de multas: a bola do mouse move o conteúdo. */
-  #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
+  /* Cadastro de loca??o, Lan?amento de aluguel e Lan?amento de multas: a bola do mouse move o conte?do. */
+  /* a bola do mouse move o conteÃºdo */\r\n  /* um Ãºnico scroll no formulÃ¡rio */\r\n  #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: contain;
@@ -1758,12 +1758,9 @@ body {
 
   null
   #panel-operacao-locadora:not(.hidden) 
-  /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
-   * Pain?is internos N?O criam outro scroll que engole a roda.
+  /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce).
+   * Painéis internos NÃO criam outro scroll que engole a roda.
    */
-  /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce). */
-  /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce). */
-  /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce). */
   #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
     flex: 1 1 auto;
     min-height: 0 !important;
@@ -2441,7 +2438,8 @@ body {
   display: none;
 }
 
-/* lista suspensa de confirmação ao digitar cadastro (nome, CPF, placa, protocolo, código) */
+/* lista suspensa de confirma??o ao digitar cadastro (nome, CPF, placa, protocolo, c?digo) */
+/* lista suspensa de confirmaÃ§Ã£o ao digitar cadastro */
 .portal-sugestoes-cadastro:not(.hidden) {
   margin: 0.15rem 0 0.45rem;
 }
@@ -2518,7 +2516,7 @@ body {
   color: inherit;
 }
 
-/* Cadastro locação ? protocolo inativo: vermelho */
+/* Cadastro loca??o ? protocolo inativo: vermelho */
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--inativo {
   color: #ff6b6b;
   font-weight: 600;
@@ -2530,7 +2528,7 @@ body {
   opacity: 1;
 }
 
-/* Cadastro locação ? protocolo ativo: azul minha moto · verde meu transporte · marrom carro */
+/* Cadastro loca??o ? protocolo ativo: azul minha moto ? verde meu transporte ? marrom carro */
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--ativo {
   font-weight: 600;
 }
@@ -3338,53 +3336,6 @@ body {
   border: 1px solid rgba(220, 38, 38, 0.35);
   background: var(--bg-elevated);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
-}
-
-.portal-modal__card--caucao {
-  max-width: min(520px, 96vw);
-  max-height: 92vh;
-  overflow: auto;
-}
-
-.portal-caucao-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0.7rem 0.85rem;
-  margin: 0.35rem 0 0.85rem;
-}
-
-.portal-caucao-form .portal-field--wide {
-  grid-column: 1 / -1;
-}
-
-.portal-caucao-lista__title {
-  margin: 0.85rem 0 0.4rem;
-  font-size: 0.92rem;
-  font-weight: 700;
-  color: #f3f4f6;
-}
-
-.portal-caucao-lista {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.portal-caucao-lista li {
-  border: 1px solid rgba(76, 175, 80, 0.3);
-  background: rgba(8, 18, 12, 0.45);
-  border-radius: 8px;
-  padding: 0.45rem 0.6rem;
-  font-size: 0.82rem;
-  line-height: 1.35;
-}
-
-.portal-caucao-lista__vazio {
-  border-style: dashed;
-  color: #9ca3af;
 }
 
 .portal-modal__card--relatorio-preview {
@@ -9982,6 +9933,49 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   border: 1px solid rgba(234, 179, 8, 0.35);
   border-radius: 10px;
   background: rgba(234, 179, 8, 0.06);
+}
+
+.portal-multas-ocr {
+  margin: 0.85rem 0 1.1rem;
+}
+
+.portal-multas-ocr__zone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(58vh, 36rem);
+  height: min(58vh, 36rem);
+  margin: 0.45rem 0 0.7rem;
+  padding: 0.4rem;
+  border: 1px solid rgba(220, 38, 38, 0.45);
+  border-radius: 10px;
+  background: #0a0a0a;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.portal-multas-ocr__zone.is-drag {
+  border-color: #4ade80;
+  box-shadow: inset 0 0 0 2px rgba(74, 222, 128, 0.35);
+}
+
+.portal-multas-ocr__empty {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.98rem;
+  text-align: center;
+  pointer-events: none;
+}
+
+.portal-multas-ocr__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #0a0a0a;
+}
+
+.portal-multas-ocr__actions {
+  margin: 0 0 0.35rem;
 }
 
 .portal-lanc-multas-deposito-lista {

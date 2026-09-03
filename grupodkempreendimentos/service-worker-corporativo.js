@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260901reativa-0303";
+const CACHE_NAME = "dk-corporativo-v20260903multa-ocr";
 const ASSETS = [
   "./",
   "./index.html",
@@ -16,6 +16,8 @@ const ASSETS = [
   "./portal-unidade-financeiro.js",
   "./portal-lanc-aluguel-calendario.js",
   "./portal-lancamentos-extras.js",
+  "./dk-parse-autuacao-transito.js",
+  "./portal-multas-ocr.js",
   "./portal-locacao-documentos.js",
   "./portal-documentos.js",
   "./portal-financeiro.js",

@@ -1767,6 +1767,83 @@
     });
   }
 
+  function parseDataMs(raw) {
+    const s = String(raw || "").trim();
+    const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) return new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1])).getTime();
+    if (typeof parseBrDate === "function") {
+      const d = parseBrDate(s);
+      return d && !Number.isNaN(d.getTime()) ? d.getTime() : NaN;
+    }
+    return NaN;
+  }
+
+  function locCobreData(loc, dataBr) {
+    const alvo = parseDataMs(dataBr);
+    if (!Number.isFinite(alvo)) return false;
+    const ini = parseDataMs(loc.inicio);
+    if (!Number.isFinite(ini) || alvo < ini) return false;
+    const fimRaw = String(loc.fim || loc.dataFim || "").trim();
+    if (!fimRaw || fimRaw === "...") return true;
+    const fim = parseDataMs(fimRaw);
+    return Number.isFinite(fim) ? alvo <= fim : true;
+  }
+
+  function aplicarLeituraMulta(dados) {
+    const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
+    if (!cfg) return { ok: false, aviso: "Tela de multas indisponível." };
+    const placa = normPlate(dados?.placa);
+    const data = String(dados?.data || "").trim();
+    const codigo = String(dados?.codigo || dados?.auto || "").trim();
+    const descricao = String(dados?.descricao || "").trim();
+    const valor = Number(dados?.valor || 0);
+    if ($(cfg, "PlacaBusca") && placa) $(cfg, "PlacaBusca").value = placa;
+    if ($(cfg, "DataMulta") && data) $(cfg, "DataMulta").value = data;
+    if ($(cfg, "CodMulta") && codigo) $(cfg, "CodMulta").value = codigo;
+    if ($(cfg, "Descricao") && descricao) $(cfg, "Descricao").value = descricao.slice(0, 200);
+    if ($(cfg, "ValorMulta") && valor > 0) $(cfg, "ValorMulta").value = fmtBrlNum(valor);
+    if ($(cfg, "DataPrimeiraParcela") && data && !String($(cfg, "DataPrimeiraParcela").value || "").trim()) {
+      $(cfg, "DataPrimeiraParcela").value = data;
+    }
+    $(cfg, "DataMulta")?.dispatchEvent(new Event("input", { bubbles: true }));
+    $(cfg, "ValorMulta")?.dispatchEvent(new Event("input", { bubbles: true }));
+    $(cfg, "QtdParcelas")?.dispatchEvent(new Event("change", { bubbles: true }));
+    refreshPesquisaAvancada(cfg);
+    const locs = collectLocs().filter((l) => normPlate(l.placa) === placa);
+    const cobrindo = locs.filter((l) => locCobreData(l, data));
+    const escolhida = cobrindo[0] || null;
+    if (escolhida) {
+      const proto = normNc(escolhida.numeroContrato);
+      if ($(cfg, "ProtocoloBusca") && proto) $(cfg, "ProtocoloBusca").value = proto;
+      if ($(cfg, "NomeBusca") && escolhida.nome) $(cfg, "NomeBusca").value = String(escolhida.nome);
+      if ($(cfg, "Cpf") && typeof formatCpf === "function") $(cfg, "Cpf").value = formatCpf(dig(escolhida.cpf));
+      refreshProtocoloSelect(cfg, { preserveNc: proto });
+      showDetalhe(cfg);
+      applyLocToForm(cfg, escolhida);
+      if ($(cfg, "DataMulta") && data) $(cfg, "DataMulta").value = data;
+      if ($(cfg, "CodMulta") && codigo) $(cfg, "CodMulta").value = codigo;
+      if ($(cfg, "Descricao") && descricao) $(cfg, "Descricao").value = descricao.slice(0, 200);
+      if ($(cfg, "ValorMulta") && valor > 0) $(cfg, "ValorMulta").value = fmtBrlNum(valor);
+      if ($(cfg, "DataPrimeiraParcela") && data) $(cfg, "DataPrimeiraParcela").value = data;
+      return { ok: true, proto, nome: escolhida.nome };
+    }
+    hideDetalhe(cfg);
+    if (!placa) return { ok: true, aviso: "Confira os campos e pesquise o contrato." };
+    const anteriores = locs
+      .filter((l) => Number.isFinite(parseDataMs(l.inicio)) && parseDataMs(l.inicio) <= parseDataMs(data || l.inicio))
+      .sort((a, b) => parseDataMs(b.inicio) - parseDataMs(a.inicio));
+    const ultimo = anteriores[0];
+    if (ultimo) {
+      return {
+        ok: true,
+        aviso: `Nenhum contrato ativo em ${data || "essa data"}. Último cliente desta placa: ${ultimo.nome} (${ultimo.inicio}${ultimo.fim ? ` a ${ultimo.fim}` : ""}).`,
+      };
+    }
+    return { ok: true, aviso: "Placa lida, mas não há locação desta placa no cadastro." };
+  }
+
+  window.__DK_aplicarLeituraMulta = aplicarLeituraMulta;
+
   function init() {
     TIPOS.forEach(bindTipo);
   }

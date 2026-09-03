@@ -204,6 +204,36 @@
       }
     },
     {
+      "id": "lancamento-multas-leitura-imagem",
+      "descricao": "No Lançamento de multas, a caixa Imagem da autuação fica no tamanho da tela para visualizar a captura; cole/anexe a imagem e Ler dados da imagem preenche placa, data, código, descrição e valor.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancMultasOcrPanel",
+          "operacaoLancMultasOcrZone",
+          "Ler dados da imagem",
+          "Imagem da autuação"
+        ],
+        "portal-multas-ocr.js": [
+          "Ler dados da imagem",
+          "__DK_aplicarLeituraMulta",
+          "ocrOpenAi",
+          "ocrLocal"
+        ],
+        "portal-lancamentos-extras.js": [
+          "aplicarLeituraMulta",
+          "locCobreData"
+        ],
+        "styles.css": [
+          "portal-multas-ocr__zone",
+          "min-height: min(58vh, 36rem)"
+        ],
+        "dk-parse-autuacao-transito.js": [
+          "parseAutuacaoTransito",
+          "renainf"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesas-windows",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas no Windows: o ecrã usa a largura do monitor, Categoria/Subcategoria/Periódico não se sobrepõem, e a bola do mouse move o conteúdo.",
       "ficheiros": {
@@ -742,27 +772,6 @@
         "portal-contrato-locacao.js": [
           "__DK_contratoPacoteBuildRequerimentoPagina",
           "4. Requerimento padrão"
-        ]
-      }
-    },
-    {
-      "id": "janela-pagamento-caucao",
-      "descricao": "No Cadastro de locação, o botão Pagamento de caução abre uma janela para registrar data, valor e comentário da caução do protocolo, com histórico das cauções já gravadas.",
-      "ficheiros": {
-        "index.html": [
-          "operacaoLocacaoCaucaoBtn",
-          "portalCaucaoModal",
-          "portalCaucaoConfirmarBtn",
-          "Pagamento de caução"
-        ],
-        "portal-locadora-ui.js": [
-          "abrirPortalCaucaoModal",
-          "persistPortalLancamentoCaucao",
-          "portalLancamentosCaucao"
-        ],
-        "styles.css": [
-          "portal-modal__card--caucao",
-          "portal-caucao-lista"
         ]
       }
     },
