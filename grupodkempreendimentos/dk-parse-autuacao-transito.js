@@ -61,11 +61,27 @@
     return "";
   }
 
+  function extraiPlacaToken(raw) {
+    const s = String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    const m = s.match(/([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/);
+    return m ? m[1] : "";
+  }
+
   function parsePlaca(text) {
+    const lines = norm(text).split("\n");
+    for (let i = 0; i < lines.length; i += 1) {
+      if (!/placa/i.test(lines[i])) continue;
+      const same = extraiPlacaToken(lines[i]);
+      if (same) return same;
+      const next = extraiPlacaToken(lines[i + 1]);
+      if (next) return next;
+    }
     const src = norm(text).toUpperCase();
-    const labeled = src.match(/PLACA[^\nA-Z0-9]{0,40}([A-Z]{3}\s?[0-9][A-Z0-9][0-9]{2})/);
-    const raw = labeled ? labeled[1] : (src.match(/\b([A-Z]{3}\s?[0-9][A-Z0-9][0-9]{2})\b/) || [])[1];
-    return String(raw || "").replace(/\s+/g, "");
+    const spaced = src.match(/\b([A-Z]{3})\s*([0-9])\s*([A-Z0-9])\s*([0-9]{2})\b/);
+    if (spaced) return `${spaced[1]}${spaced[2]}${spaced[3]}${spaced[4]}`;
+    return extraiPlacaToken(src);
   }
 
   function parseDataHora(text) {
@@ -86,6 +102,7 @@
     const s = String(raw ?? "")
       .replace(/[\u0000-\u001F\u007F-\u00A0\u20AC\u00A2-\u00A5\u25A0-\u25FF$€£¥]/g, " ")
       .replace(/R\s*\$/gi, " ")
+      .replace(/\bR\s*S\b/gi, " ")
       .replace(/[^\d.,]/g, " ")
       .replace(/\s+/g, " ")
       .trim();
@@ -107,8 +124,10 @@
   function blocoAposValorOriginal(text) {
     const lines = norm(text).split("\n");
     for (let i = 0; i < lines.length; i += 1) {
-      if (/valor\s+original|valor\s+da\s+infra/i.test(lines[i])) {
-        return [lines[i], lines[i + 1], lines[i + 2]].filter((l) => String(l || "").trim()).join(" ");
+      if (/valor\s+original|valor\s+da\s+infra|valor\s+da\s+multa/i.test(lines[i])) {
+        return [lines[i], lines[i + 1], lines[i + 2], lines[i + 3]]
+          .filter((l) => String(l || "").trim())
+          .join(" ");
       }
     }
     return "";
@@ -118,8 +137,14 @@
     const fromLabel = parseValorNumero(blocoAposValorOriginal(text));
     if (fromLabel > 0) return fromLabel;
     const src = norm(text);
-    const any = src.match(/R\s*\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/i);
-    return parseValorNumero(any ? any[1] : src);
+    const any = src.match(
+      /(?:R\s*\$|R\s*S|\$)\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/i
+    );
+    if (any) {
+      const n = parseValorNumero(any[1]);
+      if (n > 0) return n;
+    }
+    return parseValorNumero(src);
   }
 
   function parseCodigo(text) {

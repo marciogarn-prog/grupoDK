@@ -88,6 +88,18 @@ R$ 130,16
 const hitIconeValor = parseAutuacaoTransito(sampleIconeValor);
 checks.push(["valor com ícone na linha de cima", Math.abs(Number(hitIconeValor.valor) - 130.16) < 0.001]);
 
+const samplePlacaEspaco = SAMPLE.replace("SPA3F38", "SPA 3F38");
+const hitPlacaEspaco = parseAutuacaoTransito(samplePlacaEspaco);
+checks.push(["placa com espaço SPA 3F38", hitPlacaEspaco.placa === "SPA3F38"]);
+
+const sampleValorSemCifrao = SAMPLE.replace("R$ 130,16", "130,16");
+const hitValorSemCifrao = parseAutuacaoTransito(sampleValorSemCifrao);
+checks.push(["valor 130,16 sem R$", Math.abs(Number(hitValorSemCifrao.valor) - 130.16) < 0.001]);
+
+const sampleValorRS = SAMPLE.replace("R$ 130,16", "RS 130,16");
+const hitValorRS = parseAutuacaoTransito(sampleValorRS);
+checks.push(["valor RS 130,16", Math.abs(Number(hitValorRS.valor) - 130.16) < 0.001]);
+
 let fail = 0;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"} | ${name}${ok ? "" : ` | ${JSON.stringify(hit)}`}`);

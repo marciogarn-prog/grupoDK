@@ -10037,6 +10037,20 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   outline-offset: 1px;
 }
 
+.portal-multas-ocr-form__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.65rem;
+  margin: 0.75rem 0 0.2rem;
+}
+
+.portal-multas-ocr-form__actions .btn-primary {
+  width: 100%;
+  min-height: 2.7rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}
+
 .portal-lanc-multas-deposito-lista {
   display: flex;
   flex-direction: column;

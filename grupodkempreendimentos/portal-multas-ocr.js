@@ -101,7 +101,7 @@
 
   async function ocrOpenAi(imgDataUrl) {
     const prompt =
-      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número do Valor Original, ex. 130.16 — ignore ícone de dinheiro/$ à frente), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
+      "Leia esta autuação/multa de trânsito brasileira. O valor e a placa ESTÃO na imagem — copie os números, ignore ícone de dinheiro/$/círculo azul à frente do Valor Original. Devolva JSON com: placa (Mercosul, ex. SPA3F38, campo Placa à época da infração), data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número do Valor Original, ex. 130.16, nunca 0 se o documento mostra R$ 130,16), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
     const content = [
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imgDataUrl } },
@@ -170,6 +170,10 @@
       }
     }
     if (out.placa) out.placa = String(out.placa).toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (out.placa && !/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(out.placa)) {
+      const fromTxt = String(fromText.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      out.placa = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(fromTxt) ? fromTxt : "";
+    }
     if (out.codigo) out.codigo = String(out.codigo).replace(/\s+/g, "").replace("–", "-");
     if (out.auto && typeof window.__DK_normalizaAutoAutuacao === "function") {
       out.auto = window.__DK_normalizaAutoAutuacao(out.auto) || String(out.auto).trim();
@@ -193,22 +197,18 @@
     let merged = {};
     let used = "";
     try {
-      try {
-        const ia = await ocrOpenAi(dataUrl || src);
+      const iaP = ocrOpenAi(dataUrl || src).catch(() => null);
+      const ocrP = ocrLocal(src).catch(() => "");
+      const [ia, texto] = await Promise.all([iaP, ocrP]);
+      window.__DK_ultimoTextoAutuacao = texto || "";
+      if (ia && texto) {
+        merged = mergeLeitura(ia, texto);
+        used = "ia+ocr";
+      } else if (ia) {
         merged = mergeLeitura(ia, "");
         used = "ia";
-        if (!merged.auto || !merged.codigo || !merged.placa || !(Number(merged.valor) > 0)) {
-          try {
-            const texto = await ocrLocal(src);
-            merged = mergeLeitura(ia, texto);
-            used = "ia+ocr";
-          } catch {
-            /* mantém a leitura da IA */
-          }
-        }
-      } catch {
-        const texto = await ocrLocal(src);
-        merged = mergeLeitura(null, texto);
+      } else {
+        merged = mergeLeitura(null, texto || "");
         used = "ocr";
       }
       if (!merged.placa && !merged.data && !merged.valor) {

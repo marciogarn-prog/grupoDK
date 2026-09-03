@@ -292,6 +292,26 @@
       }
     },
     {
+      "id": "lancamento-multas-botoes-autuacao",
+      "descricao": "No formulário Dados da autuação existem três botões: SALVAR DADOS, LIMPAR DADOS e EXCLUIR DADOS.",
+      "ficheiros": {
+        "index.html": [
+          "SALVAR DADOS",
+          "LIMPAR DADOS",
+          "EXCLUIR DADOS",
+          "operacaoLancMultasOcrSalvarBtn"
+        ],
+        "portal-lancamentos-extras.js": [
+          "salvarDadosAutuacaoForm",
+          "limparDadosAutuacaoForm",
+          "excluirDadosAutuacaoForm"
+        ],
+        "styles.css": [
+          "portal-multas-ocr-form__actions"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesas-windows",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas no Windows: o ecrã usa a largura do monitor, Categoria/Subcategoria/Periódico não se sobrepõem, e a bola do mouse move o conteúdo.",
       "ficheiros": {

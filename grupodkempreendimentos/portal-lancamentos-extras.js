@@ -1845,10 +1845,44 @@
     return lista.slice().sort((a, b) => parseDataMs(b.inicio) - parseDataMs(a.inicio))[0] || null;
   }
 
+  function placasConhecidas() {
+    const set = new Set();
+    collectLocs().forEach((l) => {
+      const p = normPlate(l.placa);
+      if (p.length >= 7) set.add(p);
+    });
+    if (typeof loadCadastro === "function" && typeof CAD_VEICULOS_KEY !== "undefined") {
+      try {
+        loadCadastro(CAD_VEICULOS_KEY).forEach((v) => {
+          const p = normPlate(v.placa);
+          if (p.length >= 7) set.add(p);
+        });
+      } catch {
+        /* frota indisponível */
+      }
+    }
+    return [...set];
+  }
+
+  function acharPlacaConhecidaNoTexto(text) {
+    const compact = String(text || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (!compact) return "";
+    for (const p of placasConhecidas()) {
+      if (compact.includes(p)) return p;
+    }
+    return "";
+  }
+
   function aplicarLeituraMulta(dados) {
     const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
     if (!cfg) return { ok: false, aviso: "Tela de multas indisponível." };
-    const placa = normPlate(dados?.placa);
+    let placa = normPlate(dados?.placa);
+    if (!placa) {
+      placa = acharPlacaConhecidaNoTexto(window.__DK_ultimoTextoAutuacao || "");
+      if (placa && dados) dados.placa = placa;
+    }
     const data = String(dados?.data || "").trim();
     const hora = String(dados?.hora || "").trim();
     const codigo = String(dados?.codigo || dados?.auto || "").trim();
@@ -1897,8 +1931,192 @@
 
   window.__DK_aplicarLeituraMulta = aplicarLeituraMulta;
 
+  const OCR_FORM_IDS = [
+    "operacaoLancMultasOcrDescricao",
+    "operacaoLancMultasOcrCliente",
+    "operacaoLancMultasOcrProtocolo",
+    "operacaoLancMultasOcrPlaca",
+    "operacaoLancMultasOcrOrgaoAutuador",
+    "operacaoLancMultasOcrOrgaoCompetente",
+    "operacaoLancMultasOcrLocal",
+    "operacaoLancMultasOcrDataHora",
+    "operacaoLancMultasOcrAuto",
+    "operacaoLancMultasOcrCodigo",
+    "operacaoLancMultasOcrRenainf",
+    "operacaoLancMultasOcrValor",
+    "operacaoLancMultasOcrNotificacao",
+    "operacaoLancMultasOcrLimiteDefesa",
+    "operacaoLancMultasOcrLimiteCondutor",
+  ];
+
+  function ocrFormMsg(text, kind) {
+    const el = document.getElementById("operacaoLancMultasOcrMsg");
+    if (!el) return;
+    el.textContent = text || "";
+    el.classList.toggle("portal-feedback--ok", kind === "ok");
+    el.classList.toggle("portal-feedback--erro", kind === "erro");
+  }
+
+  function coletarDadosAutuacaoForm() {
+    const dataHora = String(document.getElementById("operacaoLancMultasOcrDataHora")?.value || "").trim();
+    const dm = dataHora.match(/(\d{1,2}\/\d{1,2}\/\d{4})(?:\s+(\d{1,2}:\d{2}))?/);
+    return {
+      descricao: String(document.getElementById("operacaoLancMultasOcrDescricao")?.value || "").trim(),
+      cliente: String(document.getElementById("operacaoLancMultasOcrCliente")?.value || "").trim(),
+      protocolo: normNc(document.getElementById("operacaoLancMultasOcrProtocolo")?.value),
+      placa: normPlate(document.getElementById("operacaoLancMultasOcrPlaca")?.value),
+      auto: String(document.getElementById("operacaoLancMultasOcrAuto")?.value || "").trim(),
+      codigo: String(document.getElementById("operacaoLancMultasOcrCodigo")?.value || "").trim(),
+      renainf: String(document.getElementById("operacaoLancMultasOcrRenainf")?.value || "").trim(),
+      valor: parseVal(document.getElementById("operacaoLancMultasOcrValor")?.value),
+      data: dm ? dm[1] : "",
+      hora: dm && dm[2] ? dm[2] : "",
+    };
+  }
+
+  function limparDadosAutuacaoForm() {
+    OCR_FORM_IDS.forEach((id) => setOcrField(id, ""));
+    ocrFormMsg("Dados da autuação limpos.", "ok");
+  }
+
+  function mesmaMultaAutuacao(reg, dados) {
+    if (!reg || !dados) return false;
+    const auto = String(reg.auto || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    const formAuto = String(dados.auto || "").replace(/[^A-Z0-9]/gi, "").toUpperCase();
+    if (auto && formAuto && auto === formAuto) return true;
+    const ren = String(reg.renainf || "").replace(/\D/g, "");
+    const formRen = String(dados.renainf || "").replace(/\D/g, "");
+    if (ren && formRen && ren === formRen) return true;
+    const cod = String(reg.codMulta || "").replace(/\s+/g, "");
+    const formCod = String(dados.codigo || dados.auto || "").replace(/\s+/g, "");
+    const data = String(reg.dataMulta || "").trim();
+    return Boolean(cod && formCod && data && dados.data && cod === formCod && data === dados.data);
+  }
+
+  function salvarDadosAutuacaoForm() {
+    const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
+    if (!cfg) return;
+    const dados = coletarDadosAutuacaoForm();
+    const admin =
+      typeof window.__DK_getPortalSessaoAdminRole === "function" && window.__DK_getPortalSessaoAdminRole();
+    if (!admin) {
+      ocrFormMsg("Inicie sessão como colaborador ou administrador.", "erro");
+      return;
+    }
+    if (!dados.placa && !dados.descricao && !(dados.valor > 0)) {
+      ocrFormMsg("Preencha os dados da autuação antes de salvar.", "erro");
+      return;
+    }
+    if (!(dados.valor > 0)) {
+      ocrFormMsg("Informe o valor original da autuação.", "erro");
+      return;
+    }
+    if (!dados.data) {
+      ocrFormMsg("Informe a data da infração (DD/MM/AAAA).", "erro");
+      return;
+    }
+    let proto = dados.protocolo || normNc($(cfg, "ProtocoloSelect")?.value);
+    let digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
+    if (!proto && dados.placa) {
+      const escolhida = escolherLocacaoNaData(
+        collectLocs().filter((l) => normPlate(l.placa) === dados.placa),
+        dados.data
+      );
+      if (escolhida) {
+        proto = normNc(escolhida.numeroContrato);
+        digits = dig(escolhida.cpf);
+      }
+    }
+    if (!proto || digits.length !== 11) {
+      ocrFormMsg(
+        "Dados preenchidos. Sem protocolo neste período — pesquise um contrato para gravar a multa.",
+        "erro"
+      );
+      return;
+    }
+    const sk = pStore(cfg);
+    const entry = {
+      descricao: dados.descricao || "Autuação de trânsito",
+      quantidadeParcelas: 1,
+      dataPrimeiraParcela: dados.data,
+      dataUltimaParcela: dados.data,
+      parcelas: buildCronogramaParcelas(dados.data, 1, dados.valor),
+      auto: dados.auto,
+      renainf: dados.renainf,
+    };
+    entry[sk.data] = dados.data;
+    entry[sk.cod] = dados.codigo || dados.auto || dados.renainf || dados.placa;
+    entry[sk.valor] = dados.valor;
+    const texto = `Salvar dados da autuação ${entry[sk.cod]} no valor de ${fmtBrlNum(dados.valor)} (protocolo ${proto})?`;
+    const go = () => {
+      const ok = persistMultaTransito(cfg, digits, proto, entry);
+      if (ok) {
+        setOcrField("operacaoLancMultasOcrProtocolo", proto);
+        ocrFormMsg("Dados da autuação salvos.", "ok");
+        const loc = collectLocs().find((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === proto);
+        if (loc) applyLocToForm(cfg, loc);
+      } else {
+        ocrFormMsg("Não foi possível guardar os dados.", "erro");
+      }
+    };
+    if (typeof window.__DK_openPortalLancConfirmModal === "function") {
+      window.__DK_openPortalLancConfirmModal(texto, go);
+    } else if (window.confirm(texto)) go();
+  }
+
+  function excluirDadosAutuacaoForm() {
+    const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
+    if (!cfg) return;
+    if (!(typeof window.__DK_isPortalTitularAdministrador === "function" && window.__DK_isPortalTitularAdministrador())) {
+      ocrFormMsg("Só o administrador titular pode excluir dados da autuação.", "erro");
+      return;
+    }
+    const dados = coletarDadosAutuacaoForm();
+    const proto = dados.protocolo || normNc($(cfg, "ProtocoloSelect")?.value);
+    const digits = dig($(cfg, "Cpf")?.value).slice(0, 11);
+    const go = () => {
+      if (proto && digits.length === 11 && typeof loadCadastro === "function") {
+        const locs = loadCadastro(CAD_LOCACOES_KEY);
+        const li = locs.findIndex((l) => dig(l.cpf) === digits && normNc(l.numeroContrato) === proto);
+        if (li >= 0) {
+          const loc = locs[li];
+          const arr = getRegistrosParcelados(loc, cfg);
+          const idx = arr.findIndex((reg) => mesmaMultaAutuacao(reg, dados));
+          if (idx >= 0) {
+            arr.splice(idx, 1);
+            loc[cfg.arrayField] = arr.map((x) => ({ ...x }));
+            persistLancamentos(cfg, locs, loc, digits, proto);
+            applyLocToForm(cfg, loc);
+          }
+        }
+      }
+      limparDadosAutuacaoForm();
+      ocrFormMsg("Dados da autuação excluídos.", "ok");
+    };
+    const texto = "Excluir os dados desta autuação?";
+    if (typeof window.__DK_openPortalLancConfirmModal === "function") {
+      window.__DK_openPortalLancConfirmModal(texto, go);
+    } else if (window.confirm(texto)) go();
+  }
+
+  function bindBotoesAutuacao() {
+    document.getElementById("operacaoLancMultasOcrSalvarBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      salvarDadosAutuacaoForm();
+    });
+    document.getElementById("operacaoLancMultasOcrLimparDadosBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      limparDadosAutuacaoForm();
+    });
+    document.getElementById("operacaoLancMultasOcrExcluirBtn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      excluirDadosAutuacaoForm();
+    });
+  }
+
   function init() {
     TIPOS.forEach(bindTipo);
+    bindBotoesAutuacao();
   }
 
   if (document.readyState === "loading") {
