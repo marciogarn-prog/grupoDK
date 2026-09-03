@@ -101,7 +101,7 @@
 
   async function ocrOpenAi(imgDataUrl) {
     const prompt =
-      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo, descricao, valor (número), auto, renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
+      "Leia esta autuação/multa de trânsito brasileira. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número, ex. 130.16), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
     const content = [
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imgDataUrl } },
@@ -125,37 +125,54 @@
         : {};
     const out = { ...fromText };
     if (!parsed || typeof parsed !== "object") return out;
-    const pick = (key) => {
-      const v = parsed[key];
-      if (v == null) return;
-      const s = String(v).trim();
-      if (s) out[key] = key === "valor" ? Number(String(s).replace(/\./g, "").replace(",", ".")) || Number(s) || out[key] : s;
+    const aliases = {
+      placa: ["placa"],
+      data: ["data"],
+      hora: ["hora"],
+      codigo: ["codigo", "codigoInfracao", "codigo_infracao", "codInfracao"],
+      descricao: ["descricao"],
+      auto: ["auto", "numeroAuto", "autoInfracao", "numeroDoAuto", "numero_auto"],
+      renainf: ["renainf"],
+      orgao: ["orgao"],
+      orgaoAutuador: ["orgaoAutuador"],
+      orgaoCompetente: ["orgaoCompetente"],
+      local: ["local"],
+      dataNotificacao: ["dataNotificacao"],
+      dataLimiteDefesa: ["dataLimiteDefesa"],
+      dataLimiteCondutor: ["dataLimiteCondutor"],
     };
-    [
-      "placa",
-      "data",
-      "hora",
-      "codigo",
-      "descricao",
-      "auto",
-      "renainf",
-      "orgao",
-      "orgaoAutuador",
-      "orgaoCompetente",
-      "local",
-      "dataNotificacao",
-      "dataLimiteDefesa",
-      "dataLimiteCondutor",
-    ].forEach(pick);
+    const pickStr = (key) => {
+      for (const k of aliases[key] || [key]) {
+        const v = parsed[k];
+        if (v == null) continue;
+        const s = String(v).trim();
+        if (s) {
+          out[key] = s;
+          return;
+        }
+      }
+    };
+    Object.keys(aliases).forEach(pickStr);
+    const parseVal =
+      typeof window.__DK_parseValorNumeroAutuacao === "function"
+        ? window.__DK_parseValorNumeroAutuacao
+        : (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) && n > 0 ? n : 0;
+          };
     if (parsed.valor != null && parsed.valor !== "") {
-      const n =
-        typeof parsed.valor === "number"
-          ? parsed.valor
-          : Number(String(parsed.valor).replace(/R\$\s?/g, "").replace(/\./g, "").replace(",", "."));
-      if (Number.isFinite(n) && n > 0) out.valor = n;
+      const n = parseVal(parsed.valor);
+      if (n > 0) out.valor = n;
     }
     if (out.placa) out.placa = String(out.placa).toUpperCase().replace(/[^A-Z0-9]/g, "");
     if (out.codigo) out.codigo = String(out.codigo).replace(/\s+/g, "").replace("–", "-");
+    if (out.auto && typeof window.__DK_normalizaAutoAutuacao === "function") {
+      out.auto = window.__DK_normalizaAutoAutuacao(out.auto) || String(out.auto).trim();
+    }
+    if (out.descricao && typeof window.__DK_limparSimboloInicioDescricao === "function") {
+      out.descricao = window.__DK_limparSimboloInicioDescricao(out.descricao);
+    }
+    if (out.data && out.hora && !out.dataHora) out.dataHora = `${out.data} ${out.hora}`;
     return out;
   }
 
@@ -175,6 +192,15 @@
         const ia = await ocrOpenAi(dataUrl || src);
         merged = mergeLeitura(ia, "");
         used = "ia";
+        if (!merged.auto || !merged.codigo || !merged.placa || !(Number(merged.valor) > 0)) {
+          try {
+            const texto = await ocrLocal(src);
+            merged = mergeLeitura(ia, texto);
+            used = "ia+ocr";
+          } catch {
+            /* mantém a leitura da IA */
+          }
+        }
       } catch {
         const texto = await ocrLocal(src);
         merged = mergeLeitura(null, texto);

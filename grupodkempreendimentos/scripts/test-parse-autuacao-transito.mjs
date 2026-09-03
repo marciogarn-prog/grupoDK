@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
-const { parseAutuacaoTransito } = require(path.join(ROOT, "dk-parse-autuacao-transito.js"));
+const { parseAutuacaoTransito, limparSimboloInicioDescricao } = require(path.join(ROOT, "dk-parse-autuacao-transito.js"));
 
 const SAMPLE = `
 PARAR SOBRE FAIXA DE PEDESTRES NA MUDANÇA DE SINAL LUMINOSO (FISC ELETRÔNICA)
@@ -52,7 +52,29 @@ const checks = [
   ["notificacao 29/08/2026", hit.dataNotificacao === "29/08/2026"],
   ["limite defesa 12/10/2026", hit.dataLimiteDefesa === "12/10/2026"],
   ["limite condutor 12/10/2026", hit.dataLimiteCondutor === "12/10/2026"],
+  ["descricao sem letra do ícone", !/^[BDO]\s/i.test(hit.descricao)],
 ];
+
+const sampleDe = SAMPLE.replace("Código da Infração", "Código de Infração")
+  .replace("MB00180959", "M000180669")
+  .replace("R$ 130,16", "R$ 130.16");
+const hitDe = parseAutuacaoTransito(sampleDe);
+checks.push(["codigo de infração 5673-2", hitDe.codigo === "5673-2"]);
+checks.push(["auto M000180669", hitDe.auto === "M000180669"]);
+checks.push(["valor 130.16 com ponto", Math.abs(Number(hitDe.valor) - 130.16) < 0.001]);
+
+const sampleAlfa = SAMPLE.replace("MB00180959", "M5C0350359");
+const hitAlfa = parseAutuacaoTransito(sampleAlfa);
+checks.push(["auto M5C0350359", hitAlfa.auto === "M5C0350359"]);
+
+const sampleIcone = SAMPLE.replace(
+  "PARAR SOBRE FAIXA DE PEDESTRES NA MUDANÇA DE SINAL LUMINOSO (FISC ELETRÔNICA)",
+  "B PARAR SOBRE FAIXA DE PEDESTRES NA MUDANÇA DE SINAL LUMINOSO (FISC ELETRÔNICA)"
+);
+const hitIcone = parseAutuacaoTransito(sampleIcone);
+checks.push(["ícone B no início da infração é descartado", hitIcone.descricao.startsWith("PARAR SOBRE")]);
+checks.push(["limpar B solto", limparSimboloInicioDescricao("B PARAR SOBRE FAIXA") === "PARAR SOBRE FAIXA"]);
+checks.push(["limpar D solto", limparSimboloInicioDescricao("D PARAR SOBRE FAIXA") === "PARAR SOBRE FAIXA"]);
 
 let fail = 0;
 for (const [name, ok] of checks) {

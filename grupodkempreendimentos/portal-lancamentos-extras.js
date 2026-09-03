@@ -1806,7 +1806,10 @@
     const hora = String(dados?.hora || "").trim();
     const dataHora = String(dados?.dataHora || "").trim() || [data, hora].filter(Boolean).join(" ");
     const codigo = String(dados?.codigo || "").trim();
-    const descricao = String(dados?.descricao || "").trim();
+    const descricao =
+      typeof window.__DK_limparSimboloInicioDescricao === "function"
+        ? window.__DK_limparSimboloInicioDescricao(dados?.descricao || "")
+        : String(dados?.descricao || "").trim();
     const valor = Number(dados?.valor || 0);
     setOcrField("operacaoLancMultasOcrDescricao", descricao);
     setOcrField("operacaoLancMultasOcrPlaca", placa);

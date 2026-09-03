@@ -5,7 +5,12 @@
 (function dkParseAutuacaoTransito(root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
-  if (root) root.__DK_parseAutuacaoTransito = api.parseAutuacaoTransito;
+  if (root) {
+    root.__DK_parseAutuacaoTransito = api.parseAutuacaoTransito;
+    root.__DK_parseValorNumeroAutuacao = api.parseValorNumero;
+    root.__DK_normalizaAutoAutuacao = api.normalizaAuto;
+    root.__DK_limparSimboloInicioDescricao = api.limparSimboloInicioDescricao;
+  }
 })(typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : this, function () {
   function norm(text) {
     return String(text || "")
@@ -76,35 +81,103 @@
     return { data, hora };
   }
 
+  function parseValorNumero(raw) {
+    if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+    const s = String(raw ?? "")
+      .replace(/R\$\s?/gi, "")
+      .trim();
+    if (!s) return 0;
+    if (/\d+,\d{2}$/.test(s)) {
+      const n = Number(s.replace(/\./g, "").replace(",", "."));
+      return Number.isFinite(n) ? n : 0;
+    }
+    if (/^\d+\.\d{1,2}$/.test(s)) {
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    }
+    const n = Number(s.replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
   function parseValor(text) {
     const src = norm(text);
-    const labeled = src.match(/valor(?:\s+original)?[^\n]{0,40}?R\$\s*([0-9.]{1,12},[0-9]{2})/i);
-    const any = src.match(/R\$\s*([0-9.]{1,12},[0-9]{2})/);
-    const raw = (labeled || any) ? (labeled || any)[1] : "";
-    if (!raw) return 0;
-    const n = Number(String(raw).replace(/\./g, "").replace(",", "."));
-    return Number.isFinite(n) ? n : 0;
+    const labeled = src.match(
+      /valor(?:\s+original)?[^\n]{0,40}?R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/i
+    );
+    const any = src.match(/R\$\s*([0-9]{1,3}(?:\.[0-9]{3})*,[0-9]{2}|[0-9]+[.,][0-9]{2})/);
+    const raw = labeled || any ? (labeled || any)[1] : "";
+    return parseValorNumero(raw);
   }
 
   function parseCodigo(text) {
+    const labeled = afterLabel(text, [
+      "C[oó]digo da Infra[cç][aã]o",
+      "C[oó]digo de Infra[cç][aã]o",
+      "C[oó]digo da Autua[cç][aã]o",
+    ]);
+    const pick = (raw) => {
+      const m = String(raw || "").match(/([0-9]{3,5}\s*[-–]?\s*[0-9])/);
+      return m ? String(m[1]).replace(/\s+/g, "").replace("–", "-") : "";
+    };
+    const fromLabel = pick(labeled);
+    if (fromLabel) return fromLabel;
     const src = norm(text);
-    const labeled = src.match(/c[oó]digo\s+da\s+infra[cç][aã]o\s*[:\\-]?\s*([0-9]{3,5}\s*[-–]?\s*[0-9])/i);
+    const inline = src.match(
+      /c[oó]digo\s+d[ae]\s+infra[cç][aã]o\s*[:\-–]?\s*([0-9]{3,5}\s*[-–]?\s*[0-9])/i
+    );
+    if (inline) return pick(inline[1]);
     const loose = src.match(/\b([0-9]{4}\s*[-–]\s*[0-9])\b/);
-    const raw = labeled ? labeled[1] : loose ? loose[1] : "";
-    return String(raw || "").replace(/\s+/g, "").replace("–", "-");
+    return loose ? pick(loose[1]) : "";
+  }
+
+  function parecePlacaMercosul(s) {
+    return /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(String(s || ""));
+  }
+
+  function normalizaAuto(raw) {
+    const t = String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+    if (t.length < 7 || t.length > 16) return "";
+    if (parecePlacaMercosul(t)) return "";
+    if (!/[A-Z]/.test(t) || !/[0-9]/.test(t)) return "";
+    return t;
   }
 
   function parseAuto(text) {
+    const labeled = afterLabel(text, [
+      "N[uú]mero do Auto de Infra[cç][aã]o",
+      "Auto de Infra[cç][aã]o",
+    ]);
+    const fromLabel = normalizaAuto(labeled);
+    if (fromLabel) return fromLabel;
     const src = norm(text).toUpperCase();
-    const labeled = src.match(/AUTO\s+DE\s+INFRA[CÇ][AÃ]O\s*[:\\-]?\s*([A-Z]{1,3}[0-9]{6,12})/);
-    const loose = src.match(/\b([A-Z]{2}[0-9]{7,10})\b/);
-    return labeled ? labeled[1] : loose ? loose[1] : "";
+    const inline = src.match(/AUTO\s+DE\s+INFRA[CÇ][AÃ]O[^\nA-Z0-9]{0,24}([A-Z0-9]{7,16})/);
+    if (inline) {
+      const t = normalizaAuto(inline[1]);
+      if (t) return t;
+    }
+    const loose = src.match(/\b([A-Z][A-Z0-9]{6,15})\b/g) || [];
+    for (const cand of loose) {
+      const t = normalizaAuto(cand);
+      if (t) return t;
+    }
+    return "";
   }
 
   function parseRenainf(text) {
     const src = norm(text);
     const labeled = src.match(/renainf\s*[:\\-]?\s*([0-9]{8,14})/i);
     return labeled ? labeled[1] : "";
+  }
+
+  function limparSimboloInicioDescricao(raw) {
+    let s = String(raw || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    s = s.replace(/^[\u0000-\u001F\u007F-\u00A0\u25A0-\u25FF\u2B1B-\u2B1C■□▪▫●•◆◇]+/g, "").trim();
+    s = s.replace(/^[A-ZÁÉÍÓÚÃÕÂÊÔ]\s+(?=[A-ZÁÉÍÓÚÃÕ]{4,})/i, "").trim();
+    return s;
   }
 
   function parseDescricao(text) {
@@ -117,9 +190,11 @@
     for (const line of lines) {
       if (line.length < 18) continue;
       if (skip.test(line) && line.length < 50) continue;
-      if (/[A-ZÁÉÍÓÚÃÕÇ]{8,}/.test(line)) return line.replace(/\s+/g, " ").slice(0, 200);
+      if (/[A-ZÁÉÍÓÚÃÕÇ]{8,}/.test(line)) {
+        return limparSimboloInicioDescricao(line).slice(0, 200);
+      }
     }
-    return afterLabel(src, ["Infra[cç][aã]o", "Descri[cç][aã]o"]).slice(0, 200);
+    return limparSimboloInicioDescricao(afterLabel(src, ["Infra[cç][aã]o", "Descri[cç][aã]o"])).slice(0, 200);
   }
 
   function parseOrgaoAutuador(text) {
@@ -159,5 +234,5 @@
     };
   }
 
-  return { parseAutuacaoTransito };
+  return { parseAutuacaoTransito, parseValorNumero, normalizaAuto, limparSimboloInicioDescricao };
 });
