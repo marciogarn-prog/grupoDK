@@ -5306,6 +5306,43 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   cursor: default;
 }
 
+.portal-disp-admin-move {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin-top: 0.15rem;
+  padding: 0.4rem 0.45rem;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 8px;
+  background: rgba(80, 10, 10, 0.28);
+}
+
+.portal-disp-admin-move__lab {
+  width: 100%;
+  font-size: 0.68rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #fecaca;
+}
+
+.portal-disp-admin-move__sel {
+  flex: 1 1 11rem;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+
+.portal-disp-admin-move__btn {
+  font-size: 0.72rem !important;
+  padding: 0.35rem 0.55rem !important;
+}
+
 .portal-disp-enviar-manut-btn {
   margin-top: 0.35rem;
   width: 100%;

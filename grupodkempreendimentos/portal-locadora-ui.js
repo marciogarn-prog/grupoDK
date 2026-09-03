@@ -768,6 +768,10 @@
     return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
   }
 
+  function portalPodeMoverDisponivelLivreAdmin() {
+    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
+  }
+
   function countOperacaoClientesCadastrados() {
     const seen = new Set();
     if (typeof loadCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") return 0;
@@ -2893,11 +2897,11 @@
     },
     "veiculos-operacionais": {
       title: "Disponíveis — 5.3 Veículos operacionais",
-      lead: "Veículos de uso interno da empresa (não alugam). Envie de «4 — Pronto para alugar» ou de «5.2 — Reserva no pátio». Pode voltar para 4 ou ir para «5.4 — Veículos vendidos».",
+      lead: "Veículos de uso interno da empresa (não alugam). Envie de «4 — Pronto para alugar» ou de «5.2 — Reserva no pátio». O administrador 03037897430 pode enviar para qualquer tela, exceto Locados 1, 2 e 3.",
     },
     "veiculos-vendidos": {
       title: "Disponíveis — 5.4 Veículos vendidos",
-      lead: "Placas que saíram da frota por venda. Entram da manutenção («ENVIAR PARA VENDAS»), de 4, 5.2 ou 5.3. Se a venda for desfeita, use «VOLTAR PARA 4».",
+      lead: "Placas que saíram da frota por venda. Entram da manutenção («ENVIAR PARA VENDAS»), de 4, 5.2 ou 5.3. O administrador 03037897430 pode enviar para qualquer tela, exceto Locados 1, 2 e 3.",
     },
   };
 
@@ -2919,6 +2923,44 @@
     if (sub === "veiculos-vendidos") return "5.4 — Veículos vendidos";
     if (sub === "prontos") return "4 — Pronto para alugar";
     return "Disponíveis";
+  }
+
+  const PORTAL_DISP_ADMIN_DESTINOS = [
+    { dest: "prontos", tipo: "disponivel", label: "4 — Pronto para alugar" },
+    { dest: "reserva-operacao", tipo: "disponivel", label: "5.1 — Reserva em operação" },
+    { dest: "reserva-patio", tipo: "disponivel", label: "5.2 — Reserva no pátio" },
+    { dest: "veiculos-operacionais", tipo: "disponivel", label: "5.3 — Veículos operacionais" },
+    { dest: "veiculos-vendidos", tipo: "disponivel", label: "5.4 — Veículos vendidos" },
+    { dest: "triagem", tipo: "manutencao", label: "6 — Triagem" },
+    { dest: "oficina-propria", tipo: "manutencao", label: "7 — Oficina própria" },
+    { dest: "oficina-terceiros", tipo: "manutencao", label: "8 — Oficina de terceiro" },
+    { dest: "enviado-seguro", tipo: "manutencao", label: "9 — Seguro" },
+    { dest: "sinistrado-roubo", tipo: "manutencao", label: "10 — Sinistro Roubo" },
+  ];
+
+  function portalDestinosDisponivelAdmin(origemSub) {
+    const origem = String(origemSub || "").trim();
+    return PORTAL_DISP_ADMIN_DESTINOS.filter((d) => d.dest !== origem);
+  }
+
+  function portalHtmlDispAdminMover(placa, origemSub) {
+    if (!portalPodeMoverDisponivelLivreAdmin()) return "";
+    const placaKey = portalNkPlate(placa);
+    if (!placaKey) return "";
+    const opts = portalDestinosDisponivelAdmin(origemSub)
+      .map(
+        (d) =>
+          `<option value="${portalEscapeHtml(`${d.tipo}:${d.dest}`)}">${portalEscapeHtml(d.label)}</option>`
+      )
+      .join("");
+    return `<div class="portal-disp-admin-move">
+      <span class="portal-disp-admin-move__lab">Admin 03037897430: enviar para qualquer tela, exceto 1, 2 e 3</span>
+      <select class="portal-disp-admin-move__sel" data-disp-admin-dest data-placa="${portalEscapeHtml(placaKey)}" aria-label="Destino do administrador">
+        <option value="">Escolha o destino</option>
+        ${opts}
+      </select>
+      <button type="button" class="btn-primary portal-disp-admin-move__btn" data-disp-admin-enviar data-placa="${portalEscapeHtml(placaKey)}">ENVIAR</button>
+    </div>`;
   }
 
   /** Disponíveis: 4→5.2 · 5.2→5.1 só via Locados→manutenção */
@@ -3341,7 +3383,7 @@
         let disp = portalNormDisponivelCategoria(veiculo);
         if (disp === "reserva-operacao") {
           const cob = portalResolverCoberturaReservaOperacao(plateKey);
-          if (!cob?.placaLocada) disp = "reserva-patio";
+          if (!cob?.placaLocada && !veiculo?.reservaOperacaoManual) disp = "reserva-patio";
         }
         const labelMap = {
           prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
@@ -5736,6 +5778,7 @@
       delete next.categoriaDisponivel;
       delete next.estadoDisponivel;
       delete next.planoUltimaLocacao;
+      delete next.reservaOperacaoManual;
       veiculos[idx] = next;
       saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
     });
@@ -5920,6 +5963,88 @@
       motivo,
     });
     return { ok: true, placa: placaKey, categoria: "triagem" };
+  }
+
+  function portalEnviarDisponivelParaManutencaoAdmin(placaRaw, categoriaRaw) {
+    const placaKey = portalNkPlate(placaRaw);
+    const categoria = portalNormManutCategoria(categoriaRaw);
+    if (!placaKey) return { ok: false, message: "Placa em falta." };
+    if (!categoria) return { ok: false, message: "Destino de manutenção inválido." };
+    if (!portalPodeMoverDisponivelLivreAdmin()) {
+      return { ok: false, message: "Só o administrador 03037897430 pode enviar para qualquer tela." };
+    }
+    if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
+      return { ok: false, message: "Cadastro indisponível neste ambiente." };
+    }
+    const est = portalResolverEstadoExclusivoPlaca(placaKey);
+    if (est.grupo === "locados") {
+      return { ok: false, message: "Não pode enviar para 1, 2 ou 3 — nem sair de Locados por aqui." };
+    }
+    if (est.grupo === "manutencao") {
+      return { ok: false, message: `A placa já está em «${est.label}».` };
+    }
+    const manutencoes = loadCadastro(CAD_MANUTENCOES_KEY);
+    const jaAtiva = manutencoes.some(
+      (m) => portalNkPlate(m.placa) === placaKey && !String(m.dataRealSaida || "").trim()
+    );
+    if (jaAtiva) return { ok: false, message: "Esta placa já está em manutenção ativa." };
+    const data = typeof todayBrDate === "function" ? todayBrDate() : portalBrDatePlusDays(0);
+    manutencoes.push({
+      id: Date.now(),
+      placa: placaKey,
+      servicos: ["PORTAL_CHECKLIST"],
+      servico: "Portal — envio administrador para manutenção",
+      motivoPrincipal: "Envio do administrador (exceto Locados 1, 2 e 3)",
+      data,
+      dataPrevistaSaida: portalBrDatePlusDays(7),
+      dataRealSaida: "",
+      valor: "",
+      origemPortalChecklist: true,
+      origemAdminLivre: true,
+      categoriaManutencao: categoria,
+      encaminhadoDeTriagem: categoria !== "triagem",
+    });
+    saveCadastro(CAD_MANUTENCOES_KEY, manutencoes);
+    portalClearVeiculoMarcadoresDisponivel(placaKey);
+    if (typeof refreshOperacaoVeiculoPlacasCache === "function") {
+      try {
+        refreshOperacaoVeiculoPlacasCache();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof addAuditLog === "function") {
+      addAuditLog("portal_admin_disp_para_manutencao", "manutencao", `${placaKey}:${categoria}`);
+    }
+    portalSyncFluxoVeiculoNuvem({
+      acao: "admin_disponivel_para_manutencao",
+      placa: placaKey,
+      de: est.sub || "disponiveis",
+      para: categoria,
+    });
+    return { ok: true, placa: placaKey, categoria };
+  }
+
+  function portalExecutarEnvioDisponivelAdmin(placaRaw, destRaw) {
+    if (!portalPodeMoverDisponivelLivreAdmin()) {
+      return { ok: false, message: "Só o administrador 03037897430 pode enviar para qualquer tela." };
+    }
+    const raw = String(destRaw || "").trim();
+    const sep = raw.indexOf(":");
+    const tipo = sep >= 0 ? raw.slice(0, sep) : "";
+    const dest = sep >= 0 ? raw.slice(sep + 1) : raw;
+    if (!dest) return { ok: false, message: "Escolha o destino." };
+    if (dest === "minha-moto" || dest === "meu-transporte" || dest === "carros") {
+      return { ok: false, message: "Não pode enviar para Locados 1, 2 ou 3." };
+    }
+    if (tipo === "manutencao") {
+      const r = portalEnviarDisponivelParaManutencaoAdmin(placaRaw, dest);
+      if (r.ok) openManutencaoEmManutencaoSub(dest);
+      return r;
+    }
+    const r = portalSetDisponivelCategoriaPlaca(placaRaw, dest, { adminLivre: true });
+    if (r.ok) openManutencaoDisponivelSub(dest);
+    return r;
   }
 
   /**
@@ -6688,6 +6813,7 @@
       let changed = false;
       const next = list.map((v) => {
         if (portalNormDisponivelCategoria(v) !== "reserva-operacao") return v;
+        if (v?.reservaOperacaoManual) return v;
         const cob = portalResolverCoberturaReservaOperacao(v.placa);
         if (cob?.placaLocada) return v;
         changed = true;
@@ -6892,6 +7018,7 @@
             <div class="portal-reserva-operacao-card__col portal-reserva-operacao-card__col--locada portal-reserva-operacao-card__locada--${portalEscapeHtml(locada ? plano : "muted")}">${locadaCol}</div>
           </div>
           ${nomeCliente ? `<span class="portal-reserva-operacao-card__cliente">${portalEscapeHtml(nomeCliente)}</span>` : ""}
+          ${portalHtmlDispAdminMover(r.placa, "reserva-operacao")}
         </div>`;
         })
         .join("");
@@ -6939,6 +7066,7 @@
         if (sub === "reserva-patio") {
           extraHtml += `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-enviar-manut-btn" data-disp-enviar-manut="${portalEscapeHtml(r.placa)}">ENVIAR PARA MANUTENÇÃO</button>`;
         }
+        extraHtml += portalHtmlDispAdminMover(r.placa, sub);
         const plateBtnExtraAttrs = planoPosManut
           ? ` data-disp-pronto-pos-manut="1" data-disp-plano="${portalEscapeHtml(planoPosManut)}"`
           : "";
@@ -6961,11 +7089,12 @@
     }
   }
 
-  function portalSetDisponivelCategoriaPlaca(placaRaw, categoria) {
+  function portalSetDisponivelCategoriaPlaca(placaRaw, categoria, opts) {
     const plateKey = portalNkPlate(placaRaw);
     let cat = String(categoria || "").trim().toLowerCase();
     if (cat === "reserva") cat = "reserva-patio";
     if (!MANUT_DISP_SUB_META[cat]) cat = "prontos";
+    const adminLivre = Boolean(opts?.adminLivre) && portalPodeMoverDisponivelLivreAdmin();
     if (!plateKey || typeof loadCadastro !== "function" || typeof saveCadastro !== "function") {
       return { ok: false, message: "Cadastro indisponível." };
     }
@@ -6979,7 +7108,7 @@
     if (estado.grupo !== "disponiveis" && estado.grupo !== "") {
       return { ok: false, message: estado.label || "Placa não está disponível." };
     }
-    if (estado.grupo === "disponiveis") {
+    if (estado.grupo === "disponiveis" && !adminLivre) {
       const valDisp = portalValidarTransicaoDisponivel(estado.sub, cat);
       if (!valDisp.ok) return { ok: false, message: valDisp.message };
       cat = valDisp.destino || cat;
@@ -6999,6 +7128,7 @@
       veiculos[idx] = {
         ...veiculos[idx],
         disponivelCategoria: cat,
+        reservaOperacaoManual: cat === "reserva-operacao" && adminLivre,
         updatedAt: Date.now(),
       };
       saveCadastro(key, veiculos, { bypassImmutabilidadeCadastro: true });
@@ -7064,6 +7194,26 @@
       if (plateBtn && portalManutDispSubAtivo === "prontos") {
         e.preventDefault();
         portalOpenDevolverClienteModal(plateBtn.getAttribute("data-placa") || "");
+        return;
+      }
+      const adminBtn = e.target.closest("[data-disp-admin-enviar]");
+      if (adminBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        const wrap = adminBtn.closest(".portal-disp-admin-move");
+        const sel = wrap?.querySelector("[data-disp-admin-dest]");
+        const dest = String(sel?.value || "").trim();
+        const placa = adminBtn.getAttribute("data-placa") || "";
+        const r = portalExecutarEnvioDisponivelAdmin(placa, dest);
+        const msg = document.getElementById("portalDisponiveisPlacasMsg");
+        if (!r.ok) {
+          if (msg) msg.textContent = r.message || "Não foi possível enviar.";
+          return;
+        }
+        const msg2 = document.getElementById("portalDisponiveisPlacasMsg");
+        if (msg2) {
+          msg2.textContent = `Placa ${r.placa} enviada pelo administrador para o destino escolhido.`;
+        }
         return;
       }
       const moveBtn = e.target.closest("[data-disp-move]");

@@ -253,7 +253,13 @@
           "veiculos-vendidos",
           "5.3 — Veículos operacionais",
           "5.4 — Veículos vendidos",
-          "ENVIAR PARA 5.3"
+          "ENVIAR PARA 5.3",
+          "portalPodeMoverDisponivelLivreAdmin",
+          "exceto 1, 2 e 3",
+          "portal-disp-admin-move"
+        ],
+        "styles.css": [
+          "portal-disp-admin-move"
         ]
       }
     },
