@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260902rel-saldo">
+  <link rel="stylesheet" href="styles.css?v=20260903lanc-layout">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -1319,11 +1319,19 @@
         </div>
 
         <div id="operacaoInlineLancamentoAluguel" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-lanc-aluguel-title">
-          <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title">Lançamento de aluguel</h3>
-          <p id="operacao-lanc-aluguel-subtitulo" class="subtext operacao-inline-form__lead">Pesquise o contrato e registe o pagamento (data e valor).</p>
+          <h3 id="operacao-inline-lanc-aluguel-title" class="operacao-inline-form__title" data-lanc-layout-box="titulo">Lançamento de aluguel</h3>
+          <p id="operacao-lanc-aluguel-subtitulo" class="subtext operacao-inline-form__lead" data-lanc-layout-box="subtitulo">Pesquise o contrato e registe o pagamento (data e valor).</p>
+          <div id="operacaoLancAluguelLayoutToolbar" class="portal-lanc-layout-toolbar" role="toolbar" aria-label="Editar layout do lançamento de aluguel">
+            <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLayoutEditBtn">Editar layout</button>
+            <button type="button" class="btn-primary" id="operacaoLancAluguelLayoutSaveBtn" hidden>Salvar layout</button>
+            <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLayoutResetBtn" hidden>Restaurar padrão</button>
+            <span id="operacaoLancAluguelLayoutHint" class="portal-lanc-layout-toolbar__hint hidden" hidden>
+              Arraste as caixas para mover. Use o canto inferior direito (ou Shift+arrastar) para largura e altura.
+            </span>
+          </div>
 
           <div id="operacaoLancAluguelBlocoPesquisaRef" class="operacao-lanc-aluguel-bloco-pesquisa hidden" role="region" aria-label="Pesquisa de contrato">
-            <section class="portal-lanc-aluguel-pesquisa" aria-labelledby="portal-lanc-aluguel-pesquisa-title">
+            <section class="portal-lanc-aluguel-pesquisa" data-lanc-layout-box="pesquisa" aria-labelledby="portal-lanc-aluguel-pesquisa-title">
               <h4 id="portal-lanc-aluguel-pesquisa-title" class="portal-lanc-aluguel-section__title">Pesquisar contrato</h4>
               <p class="subtext portal-lanc-aluguel-section__hint">Digite <strong>CPF</strong>, <strong>nome</strong>, <strong>protocolo</strong> ou <strong>placa</strong> — as sugestões aparecem enquanto escreve. Confirme para carregar o protocolo.</p>
               <div class="portal-lanc-aluguel-pesquisa__row">
@@ -1397,7 +1405,7 @@
               </div>
               <div id="operacaoLancAluguelPesquisaLista" class="portal-cliente-prefix-list portal-cliente-prefix-list--grid hidden" role="listbox" aria-label="Sugestões filtradas de contrato" hidden></div>
             </section>
-            <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
+            <section id="operacaoLancAluguelReferenciaPanel" class="portal-lanc-aluguel-referencia hidden" data-lanc-layout-box="referencia" aria-labelledby="portal-lanc-aluguel-referencia-title" hidden>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-referencia__grid">
                 <div class="portal-lanc-ref-row-top">
                   <label class="portal-field portal-lanc-ref-proto">
@@ -1449,7 +1457,7 @@
                 </label>
               </div>
             </section>
-            <section id="operacaoLancAluguelContratoPanel" class="portal-lanc-aluguel-contrato hidden" aria-labelledby="portal-lanc-aluguel-contrato-title" hidden>
+            <section id="operacaoLancAluguelContratoPanel" class="portal-lanc-aluguel-contrato hidden" data-lanc-layout-box="contrato" aria-labelledby="portal-lanc-aluguel-contrato-title" hidden>
               <h4 id="portal-lanc-aluguel-contrato-title" class="portal-lanc-aluguel-section__title">Valores do contrato</h4>
               <div class="operacao-inline-form__grid portal-lanc-aluguel-contrato__grid">
                 <label class="portal-field">
@@ -1467,13 +1475,13 @@
           <div id="operacaoLancAluguelPaneAvulso" class="operacao-lanc-aluguel-pane hidden" role="region" aria-label="Lançamento avulso pelo operador">
             <div class="portal-lanc-avulso-workspace">
               <div class="portal-lanc-avulso-workspace__forms">
-                <section id="operacaoLancAluguelResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" aria-live="polite">
+                <section id="operacaoLancAluguelResumoCompacto" class="portal-lanc-aluguel-resumo-compact hidden" data-lanc-layout-box="resumo" aria-live="polite">
                   <p id="operacaoLancAluguelResumoTexto" class="portal-lanc-aluguel-resumo-compact__text"></p>
                 </section>
                 <form id="formOperacaoLancamentoAluguelInline" class="portal-lanc-aluguel-form" novalidate>
                 <section id="operacaoLancAluguelPagamentoPanel" class="portal-lanc-aluguel-pagamento portal-lanc-aluguel-pagamento--simples hidden" aria-label="Registro de pagamento e devolução de investimento" hidden>
                   <div class="portal-lanc-dual-cols">
-                    <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento">
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--pagamento" data-lanc-layout-box="pagamento">
                       <h4 id="portal-lanc-aluguel-pagamento-title" class="portal-lanc-aluguel-section__title">Registrar pagamento</h4>
                       <div class="portal-lanc-dual-col__grid">
                         <label class="portal-field portal-lanc-field--data">
@@ -1500,7 +1508,7 @@
                         <button type="button" class="btn-primary" id="operacaoLancAluguelConfirmarPagamentoBtn">Confirmar pagamento</button>
                       </div>
                     </div>
-                    <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao">
+                    <div class="portal-lanc-dual-col portal-lanc-dual-col--devolucao" data-lanc-layout-box="devolucao">
                       <h4 id="portal-lanc-aluguel-devolucao-title" class="portal-lanc-aluguel-section__title portal-lanc-aluguel-section__title--devolucao">Registrar devolução de investimento</h4>
                       <p class="subtext portal-lanc-devolucao-hint">Sugestão = total pago − devido só de aluguel. Valor registado como saída do caixa.</p>
                       <p id="operacaoLancAluguelDevolucaoAvisoNegativo" class="portal-lanc-devolucao-aviso-negativo hidden" role="alert" hidden>
@@ -1539,7 +1547,7 @@
                       </div>
                     </div>
                   </div>
-                  <div class="portal-lanc-aluguel-pagamento-saldos portal-lanc-aluguel-pagamento-saldos--dual" aria-live="polite">
+                  <div class="portal-lanc-aluguel-pagamento-saldos portal-lanc-aluguel-pagamento-saldos--dual" data-lanc-layout-box="saldos" aria-live="polite">
                     <div class="portal-lanc-aluguel-pagamento-saldo">
                       <span id="operacaoLancAluguelTotalDevidoHojeLabel" class="portal-lanc-aluguel-pagamento-saldo__label">TOTAL DEVIDO ATÉ HOJE</span>
                       <strong id="operacaoLancAluguelTotalDevidoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor">R$ 0,00</strong>
@@ -1549,7 +1557,7 @@
                       <strong id="operacaoLancAluguelTotalPagoHoje" class="portal-lanc-aluguel-pagamento-saldo__valor portal-lanc-aluguel-pagamento-saldo__valor--pago">R$ 0,00</strong>
                     </div>
                   </div>
-                  <div class="operacao-inline-form__actions">
+                  <div class="operacao-inline-form__actions" data-lanc-layout-box="acoes" id="operacaoLancAluguelPagamentoAcoes">
                     <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLancBlocoBtn">Lançamento em bloco</button>
                     <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelLimparBtn">Limpar</button>
                     <button type="button" class="btn-primary btn-secondary-outline" id="operacaoLancAluguelVoltarBtn">Voltar à pesquisa</button>
@@ -1563,7 +1571,7 @@
                   </div>
                 </section>
               </form>
-              <section id="operacaoLancAluguelSituacaoPanel" class="portal-lanc-situacao hidden" aria-live="polite" hidden>
+              <section id="operacaoLancAluguelSituacaoPanel" class="portal-lanc-situacao hidden" data-lanc-layout-box="situacao" aria-live="polite" hidden>
                 <h4 class="portal-lanc-aluguel-section__title">Situação do protocolo após o pagamento</h4>
                 <div class="portal-lanc-situacao__grid">
                   <div class="portal-lanc-situacao__item">
@@ -1588,11 +1596,11 @@
                   </div>
                 </div>
               </section>
-              <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" role="note" hidden>
+              <p id="operacaoLancAluguelTravaAviso" class="subtext portal-feedback hidden" data-lanc-layout-box="trava" role="note" hidden>
                 Colaboradores podem lançar <strong>novos</strong> pagamentos. O <strong>administrador</strong> pode <strong>editar ou apagar</strong> qualquer lançamento já registado na tabela ao lado.
               </p>
               </div>
-              <aside class="portal-lanc-avulso-workspace__hist" aria-label="Lançamentos registados">
+              <aside class="portal-lanc-avulso-workspace__hist" data-lanc-layout-box="historico" aria-label="Lançamentos registados">
                 <div id="operacaoLancAluguelHistorico" class="operacao-lanc-historico hidden" role="region" aria-label="Histórico de pagamentos e devoluções do protocolo" hidden></div>
               </aside>
             </div>
@@ -3803,7 +3811,7 @@
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
-  <script src="portal-locadora-ui.js?v=20260902rel-saldo-dev" defer></script>
+  <script src="portal-locadora-ui.js?v=20260903lanc-layout" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

@@ -13887,6 +13887,305 @@
     syncOperacaoLancamentoAluguelAfterCpfEdit();
     refreshOperacaoLancAluguelAdminControlsVisibility();
     portalRefreshOperacaoDeferred(["aluguel", "rel"]);
+    portalBindLancAluguelLayoutEditorOnce();
+    portalApplyLancAluguelLayoutFromStorage();
+    portalSyncLancAluguelLayoutToolbar();
+  }
+
+  const PORTAL_LANC_ALUGUEL_LAYOUT_KEY = "dk_portal_lanc_aluguel_layout_v1";
+  let portalLancAluguelLayoutEditMode = false;
+  let portalLancAluguelLayoutDrag = null;
+  let portalLancAluguelLayoutBound = false;
+
+  function portalLancAluguelLayoutRoot() {
+    return document.getElementById("operacaoInlineLancamentoAluguel");
+  }
+
+  function portalGetLancAluguelLayoutBoxes() {
+    const root = portalLancAluguelLayoutRoot();
+    if (!root) return [];
+    return Array.from(root.querySelectorAll("[data-lanc-layout-box]")).filter(
+      (el) => el instanceof HTMLElement && el.id !== "operacaoLancAluguelLayoutToolbar"
+    );
+  }
+
+  function portalEnsureLancAluguelResizeHandles() {
+    portalGetLancAluguelLayoutBoxes().forEach((box) => {
+      if (box.querySelector(":scope > .lanc-layout-resize-handle")) return;
+      const handle = document.createElement("span");
+      handle.className = "lanc-layout-resize-handle";
+      handle.setAttribute("aria-hidden", "true");
+      handle.title = "Redimensionar";
+      box.appendChild(handle);
+    });
+  }
+
+  function portalComputeLancAluguelLayoutMinHeight(layout) {
+    let maxBottom = 0;
+    Object.values(layout || {}).forEach((box) => {
+      if (!box) return;
+      const bottom = Number(box.top || 0) + Number(box.height || 0);
+      if (bottom > maxBottom) maxBottom = bottom;
+    });
+    return Math.max(640, Math.ceil(maxBottom + 32));
+  }
+
+  function portalCollectLancAluguelLayout() {
+    const root = portalLancAluguelLayoutRoot();
+    const boxes = portalGetLancAluguelLayoutBoxes();
+    if (!root || !boxes.length) return {};
+    const rootRect = root.getBoundingClientRect();
+    const layout = {};
+    boxes.forEach((box) => {
+      const key = String(box.dataset.lancLayoutBox || "").trim();
+      if (!key) return;
+      const rect = box.getBoundingClientRect();
+      if (rect.width < 2 && rect.height < 2) return;
+      layout[key] = {
+        left: Math.max(0, Math.round(rect.left - rootRect.left)),
+        top: Math.max(0, Math.round(rect.top - rootRect.top)),
+        width: Math.max(120, Math.round(rect.width)),
+        height: Math.max(36, Math.round(rect.height)),
+      };
+    });
+    return layout;
+  }
+
+  function portalApplyLancAluguelLayout(layoutInput) {
+    const root = portalLancAluguelLayoutRoot();
+    const layout = layoutInput && typeof layoutInput === "object" ? layoutInput : {};
+    const boxes = portalGetLancAluguelLayoutBoxes();
+    if (!root || !boxes.length) return;
+    root.classList.add("lanc-custom-layout");
+    portalEnsureLancAluguelResizeHandles();
+    boxes.forEach((box) => {
+      const key = String(box.dataset.lancLayoutBox || "").trim();
+      const shape = layout[key];
+      if (!shape) {
+        box.classList.remove("is-lanc-layout-placed");
+        box.style.left = "";
+        box.style.top = "";
+        box.style.width = "";
+        box.style.height = "";
+        return;
+      }
+      box.classList.add("is-lanc-layout-placed");
+      box.style.left = `${Math.max(0, Number(shape.left || 0))}px`;
+      box.style.top = `${Math.max(0, Number(shape.top || 0))}px`;
+      box.style.width = `${Math.max(120, Number(shape.width || 120))}px`;
+      box.style.height = `${Math.max(36, Number(shape.height || 36))}px`;
+    });
+    root.style.minHeight = `${portalComputeLancAluguelLayoutMinHeight(layout)}px`;
+  }
+
+  function portalClearLancAluguelLayoutInlineStyles() {
+    const root = portalLancAluguelLayoutRoot();
+    portalGetLancAluguelLayoutBoxes().forEach((box) => {
+      box.style.left = "";
+      box.style.top = "";
+      box.style.width = "";
+      box.style.height = "";
+      box.classList.remove("is-lanc-layout-dragging", "is-lanc-layout-placed");
+    });
+    if (root) {
+      root.classList.remove("lanc-custom-layout", "layout-edit-mode");
+      root.style.minHeight = "";
+    }
+    portalLancAluguelLayoutEditMode = false;
+    portalLancAluguelLayoutDrag = null;
+  }
+
+  function portalApplyLancAluguelLayoutFromStorage() {
+    const raw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed !== "object") return;
+      portalApplyLancAluguelLayout(parsed);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalPersistLancAluguelLayoutFromScreen() {
+    const layout = portalCollectLancAluguelLayout();
+    localStorage.setItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY, JSON.stringify(layout));
+    portalApplyLancAluguelLayout(layout);
+    return layout;
+  }
+
+  function portalSyncLancAluguelLayoutToolbar() {
+    const editBtn = document.getElementById("operacaoLancAluguelLayoutEditBtn");
+    const saveBtn = document.getElementById("operacaoLancAluguelLayoutSaveBtn");
+    const resetBtn = document.getElementById("operacaoLancAluguelLayoutResetBtn");
+    const hint = document.getElementById("operacaoLancAluguelLayoutHint");
+    if (editBtn) {
+      editBtn.textContent = portalLancAluguelLayoutEditMode ? "Sair edição" : "Editar layout";
+    }
+    const showSave = portalLancAluguelLayoutEditMode;
+    if (saveBtn) {
+      saveBtn.hidden = !showSave;
+      saveBtn.classList.toggle("hidden", !showSave);
+    }
+    if (resetBtn) {
+      resetBtn.hidden = !showSave;
+      resetBtn.classList.toggle("hidden", !showSave);
+    }
+    if (hint) {
+      hint.hidden = !showSave;
+      hint.classList.toggle("hidden", !showSave);
+    }
+  }
+
+  function portalStartLancAluguelLayoutEdit() {
+    const root = portalLancAluguelLayoutRoot();
+    if (!root) return;
+    portalEnsureLancAluguelResizeHandles();
+    let merged;
+    if (root.classList.contains("lanc-custom-layout")) {
+      merged = portalCollectLancAluguelLayout();
+    } else {
+      const snapshot = portalCollectLancAluguelLayout();
+      merged = { ...snapshot };
+      const storedRaw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
+      if (storedRaw) {
+        try {
+          const stored = JSON.parse(storedRaw);
+          if (stored && typeof stored === "object") merged = { ...snapshot, ...stored };
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    portalApplyLancAluguelLayout(merged);
+    portalLancAluguelLayoutEditMode = true;
+    root.classList.add("layout-edit-mode");
+    portalSyncLancAluguelLayoutToolbar();
+  }
+
+  /** Se há layout salvo, posiciona caixas que acabaram de ficar visíveis. */
+  function portalRefreshLancAluguelLayoutForVisibleBoxes() {
+    const root = portalLancAluguelLayoutRoot();
+    if (!root || !root.classList.contains("lanc-custom-layout")) return;
+    if (portalLancAluguelLayoutEditMode) {
+      const current = portalCollectLancAluguelLayout();
+      portalApplyLancAluguelLayout(current);
+      return;
+    }
+    const raw = localStorage.getItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
+    if (!raw) return;
+    try {
+      const stored = JSON.parse(raw);
+      if (!stored || typeof stored !== "object") return;
+      // Congela caixas visíveis sem posição salva na posição atual do fluxo.
+      root.classList.remove("lanc-custom-layout");
+      const missingSnapshot = portalCollectLancAluguelLayout();
+      root.classList.add("lanc-custom-layout");
+      const merged = { ...missingSnapshot, ...stored };
+      portalApplyLancAluguelLayout(merged);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalStopLancAluguelLayoutEdit() {
+    const root = portalLancAluguelLayoutRoot();
+    portalLancAluguelLayoutEditMode = false;
+    portalLancAluguelLayoutDrag = null;
+    root?.classList.remove("layout-edit-mode");
+    portalGetLancAluguelLayoutBoxes().forEach((box) => box.classList.remove("is-lanc-layout-dragging"));
+    portalSyncLancAluguelLayoutToolbar();
+  }
+
+  function portalBindLancAluguelLayoutEditorOnce() {
+    if (portalLancAluguelLayoutBound) return;
+    const root = portalLancAluguelLayoutRoot();
+    if (!root) return;
+    portalLancAluguelLayoutBound = true;
+    portalEnsureLancAluguelResizeHandles();
+
+    document.getElementById("operacaoLancAluguelLayoutEditBtn")?.addEventListener("click", () => {
+      if (portalLancAluguelLayoutEditMode) {
+        portalStopLancAluguelLayoutEdit();
+        return;
+      }
+      portalStartLancAluguelLayoutEdit();
+    });
+    document.getElementById("operacaoLancAluguelLayoutSaveBtn")?.addEventListener("click", () => {
+      portalPersistLancAluguelLayoutFromScreen();
+      portalStopLancAluguelLayoutEdit();
+      window.alert("Layout do Lançamento de aluguel salvo.");
+    });
+    document.getElementById("operacaoLancAluguelLayoutResetBtn")?.addEventListener("click", () => {
+      localStorage.removeItem(PORTAL_LANC_ALUGUEL_LAYOUT_KEY);
+      portalStopLancAluguelLayoutEdit();
+      portalClearLancAluguelLayoutInlineStyles();
+      portalSyncLancAluguelLayoutToolbar();
+      window.alert("Layout restaurado para o padrão.");
+    });
+
+    root.addEventListener("pointerdown", (event) => {
+      if (!portalLancAluguelLayoutEditMode) return;
+      const node = event.target instanceof Element ? event.target : null;
+      if (!node) return;
+      if (node.closest("#operacaoLancAluguelLayoutToolbar")) return;
+      const box = node.closest("[data-lanc-layout-box]");
+      if (!box || !(box instanceof HTMLElement) || !root.contains(box)) return;
+      const onHandle = Boolean(node.closest(".lanc-layout-resize-handle"));
+      const mode = onHandle || event.shiftKey ? "resize" : "move";
+      if (mode === "move") {
+        const blockInteract = node.closest(
+          "button, a, input, select, textarea, .portal-placa-dropdown, .portal-combobox input"
+        );
+        if (blockInteract && !event.altKey) return;
+      }
+      const rect = box.getBoundingClientRect();
+      portalLancAluguelLayoutDrag = {
+        mode,
+        box,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        originLeft: parseFloat(box.style.left || "0") || 0,
+        originTop: parseFloat(box.style.top || "0") || 0,
+        boxWidth: rect.width,
+        boxHeight: rect.height,
+      };
+      box.classList.add("is-lanc-layout-dragging");
+      box.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+
+    root.addEventListener("pointermove", (event) => {
+      const drag = portalLancAluguelLayoutDrag;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      const dx = event.clientX - drag.startX;
+      const dy = event.clientY - drag.startY;
+      if (drag.mode === "resize") {
+        const maxWidth = Math.max(140, root.clientWidth - drag.originLeft);
+        const nextWidth = Math.max(140, Math.min(maxWidth, drag.boxWidth + dx));
+        const nextHeight = Math.max(40, drag.boxHeight + dy);
+        drag.box.style.width = `${Math.round(nextWidth)}px`;
+        drag.box.style.height = `${Math.round(nextHeight)}px`;
+      } else {
+        const maxLeft = Math.max(0, root.clientWidth - drag.boxWidth);
+        const nextLeft = Math.max(0, Math.min(maxLeft, drag.originLeft + dx));
+        const nextTop = Math.max(0, drag.originTop + dy);
+        drag.box.style.left = `${Math.round(nextLeft)}px`;
+        drag.box.style.top = `${Math.round(nextTop)}px`;
+      }
+      const layout = portalCollectLancAluguelLayout();
+      root.style.minHeight = `${portalComputeLancAluguelLayoutMinHeight(layout)}px`;
+    });
+
+    const finish = (event) => {
+      if (!portalLancAluguelLayoutDrag) return;
+      if (event && portalLancAluguelLayoutDrag.pointerId !== event.pointerId) return;
+      portalLancAluguelLayoutDrag.box?.classList.remove("is-lanc-layout-dragging");
+      portalLancAluguelLayoutDrag = null;
+    };
+    root.addEventListener("pointerup", finish);
+    root.addEventListener("pointercancel", finish);
   }
 
   function hideOperacaoInlineFormsCore() {
@@ -17975,6 +18274,7 @@
     }
     esconderOperacaoLancAluguelSituacao();
     syncPortalOperadorComprovanteSection();
+    requestAnimationFrame(() => portalRefreshLancAluguelLayoutForVisibleBoxes());
   }
 
   function hideOperacaoLancAluguelDetalhePanels() {

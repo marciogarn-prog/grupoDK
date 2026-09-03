@@ -81,7 +81,7 @@ body {
   }
 }
 
-/* �rea da equipa / Opera��o: usar a largura total do monitor (sem faixas laterais vazias). */
+/* ?rea da equipa / Opera??o: usar a largura total do monitor (sem faixas laterais vazias). */
 @media (min-width: 900px) {
   body.portal-body--equipa-sessao #view-unit.view--active,
   body.portal-body--admin-logado #view-unit.view--active {
@@ -918,7 +918,7 @@ body {
   border: 1px solid var(--border-accent);
   border-radius: var(--radius);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
-  /* backdrop-filter no pr�prio painel quebra position:sticky dos menus laterais */
+  /* backdrop-filter no pr?prio painel quebra position:sticky dos menus laterais */
 }
 
 .portal-panel::before {
@@ -952,7 +952,7 @@ body {
   margin-top: 0.75rem;
 }
 
-/* Login / troca de senha ? cart�o compacto (?40% da largura da p�gina) */
+/* Login / troca de senha ? cart?o compacto (?40% da largura da p?gina) */
 .portal-panel--auth {
   align-self: flex-start;
   width: 100%;
@@ -1030,7 +1030,7 @@ body {
   margin: 0 0 1rem;
 }
 
-/* Lista de placas deve flutuar por cima da caixa de opera��o (irm�o seguinte no painel). */
+/* Lista de placas deve flutuar por cima da caixa de opera??o (irm?o seguinte no painel). */
 #panel-manutencao-locadora > .portal-manutencao-panel-head {
   position: relative;
   z-index: 60;
@@ -1212,7 +1212,7 @@ body {
   border-color: rgba(220, 38, 38, 0.55);
 }
 
-/* Lista ao focar: placas livres (datalist nativo n�o abre lista completa com campo vazio) */
+/* Lista ao focar: placas livres (datalist nativo n?o abre lista completa com campo vazio) */
 .portal-field--combobox .portal-combobox {
   position: relative;
 }
@@ -1267,7 +1267,7 @@ body {
   letter-spacing: 0.05em;
 }
 
-/* Pr�-visualizar app: lista CPF clara com cor por plano/status */
+/* Pr?-visualizar app: lista CPF clara com cor por plano/status */
 .portal-admin-cpf-dropdown {
   background: #f5f5f5;
   border-color: #c8c8c8;
@@ -1409,7 +1409,7 @@ body {
   }
 }
 
-/* Sidebar Opera��o: s� os t�tulos dos bot�es (sem textos explicativos) */
+/* Sidebar Opera??o: s? os t?tulos dos bot?es (sem textos explicativos) */
 .portal-operacao-layout__sidebar > .subpage__lead,
 .portal-operacao-layout__sidebar > .subtext {
   display: none;
@@ -1444,8 +1444,8 @@ body {
 }
 
 /*
- * Opera��o (desktop): a vista cabe na janela. Cadastro de loca��o � mais alto
- * que o ecr� ? nessa tela a bola do mouse rola o formul�rio (n�o corta bot�es).
+ * Opera??o (desktop): a vista cabe na janela. Cadastro de loca??o ? mais alto
+ * que o ecr? ? nessa tela a bola do mouse rola o formul?rio (n?o corta bot?es).
  */
 @media (min-width: 900px) {
   body.portal-body--equipa-sessao #view-unit.view--active:has(#panel-operacao-locadora:not(.hidden)) {
@@ -1585,7 +1585,7 @@ body {
     flex: 0 0 auto;
   }
 
-  /* Textos longos: esconder para caber sem scroll; t�tulo + campos bastam. */
+  /* Textos longos: esconder para caber sem scroll; t?tulo + campos bastam. */
   #panel-operacao-locadora:not(.hidden) #operacaoInlineCliente .operacao-inline-form__lead,
   #panel-operacao-locadora:not(.hidden) #operacaoInlineVeiculo .operacao-inline-form__lead,
   #panel-operacao-locadora:not(.hidden) #operacaoInlineLocacao .operacao-inline-form__lead,
@@ -1640,7 +1640,7 @@ body {
     white-space: nowrap;
   }
 
-  /* Cadastro de ve�culo: formul�rio � esquerda + frota � direita */
+  /* Cadastro de ve?culo: formul?rio ? esquerda + frota ? direita */
   #panel-operacao-locadora:not(.hidden) .operacao-inline-form--veiculo-split:not(.hidden) {
     display: flex;
     flex-direction: column;
@@ -1733,7 +1733,7 @@ body {
     margin: 0.1rem 0 0.25rem 0.4rem;
   }
 
-  /* Cadastro de loca��o e Lan�amento de multas: a bola do mouse move o conteúdo. */
+  /* Cadastro de locação e Lançamento de multas: a bola do mouse move o conteúdo. */
   #panel-operacao-locadora:not(.hidden) .operacao-inline-form.operacao-inline-form--rodar-mouse:not(.hidden) {
     overflow-x: hidden;
     overflow-y: auto;
@@ -1887,7 +1887,7 @@ body {
   box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.45);
 }
 
-/* Submenu de lan�amento de aluguel (abaixo do bot�o principal, oculto at� abrir) */
+/* Submenu de lan?amento de aluguel (abaixo do bot?o principal, oculto at? abrir) */
 .operacao-lanc-aluguel-subnav {
   display: flex;
   flex-direction: column;
@@ -2477,7 +2477,7 @@ body {
   color: inherit;
 }
 
-/* Cadastro loca��o ? protocolo ativo: azul minha moto � verde meu transporte � marrom carro */
+/* Cadastro loca??o ? protocolo ativo: azul minha moto ? verde meu transporte ? marrom carro */
 #operacaoLocacaoProtocoloSelect option.portal-locacao-proto-opt--ativo {
   font-weight: 600;
 }
@@ -2503,7 +2503,7 @@ body {
   font-weight: 600;
 }
 
-/* TIPO DE PLANO: azul Minha Moto � verde Meu Transporte moto � marrom carro */
+/* TIPO DE PLANO: azul Minha Moto ? verde Meu Transporte moto ? marrom carro */
 #operacaoLocacaoTipoPlano.portal-tipo-plano--minha-moto,
 #operacaoLancAluguelTipoPlano.portal-tipo-plano--minha-moto {
   color: #5eb8ff !important;
@@ -2819,7 +2819,7 @@ body {
   color: #9e9e9e;
 }
 
-/* Sidebar Manuten��o ? cores dos planos locados e estados de manuten��o */
+/* Sidebar Manuten??o ? cores dos planos locados e estados de manuten??o */
 #btn-locado-sub-minha-moto .btn-operacao-cmd__title,
 #btn-locado-sub-minha-moto.is-active {
   color: #5eb8ff;
@@ -2875,7 +2875,7 @@ body {
   font-size: 0.88rem;
 }
 
-/* Cadastro ambiente teste (admin) ? texto amarelo ap�s grava��o */
+/* Cadastro ambiente teste (admin) ? texto amarelo ap?s grava??o */
 .portal-ambiente-admin {
   border: 1px dashed rgba(245, 197, 24, 0.45);
   border-radius: 8px;
@@ -3532,7 +3532,7 @@ body {
   justify-content: center;
 }
 
-/* Recibo (Relat�rio 1): acima da pr�-visualiza��o PDF (z-index 3000). */
+/* Recibo (Relat?rio 1): acima da pr?-visualiza??o PDF (z-index 3000). */
 #portalReciboModal.portal-modal {
   z-index: 4000;
 }
@@ -3713,7 +3713,7 @@ body {
   margin-top: 0.75rem;
 }
 
-/* Investimento acumulado: negativo (vermelho) ou positivo (verde); zero usa cor padr�o do formul�rio. */
+/* Investimento acumulado: negativo (vermelho) ou positivo (verde); zero usa cor padr?o do formul?rio. */
 #operacaoLocacaoInvestimentoAcumulado.portal-investimento-acumulado--negativo,
 #operacaoLancAluguelInvestimentoAcumulado.portal-investimento-acumulado--negativo {
   color: #f87171;
@@ -3815,7 +3815,7 @@ body {
   border-top: 1px solid var(--border, rgba(255, 255, 255, 0.12));
 }
 
-/* Colaborador: formul�rio � esquerda + lista � direita (usa a largura do monitor). */
+/* Colaborador: formul?rio ? esquerda + lista ? direita (usa a largura do monitor). */
 @media (min-width: 900px) {
   #panel-operacao-locadora:not(.hidden) #operacaoInlineColaborador:not(.hidden) {
     display: grid;
@@ -4044,7 +4044,7 @@ body {
   color: var(--muted);
 }
 
-/* Check-list manuten��o ? Ve�culos em opera��o (tablet / SPen) */
+/* Check-list manuten??o ? Ve?culos em opera??o (tablet / SPen) */
 .portal-checklist-host {
   min-width: 0;
 }
@@ -4310,7 +4310,7 @@ body {
   display: none !important;
 }
 
-/* Triagem: sem campos de sa�da (check-list segue para oficina pr�pria). */
+/* Triagem: sem campos de sa?da (check-list segue para oficina pr?pria). */
 .portal-checklist-workspace--triagem .portal-checklist-saida-field {
   display: none !important;
 }
@@ -4450,7 +4450,7 @@ body {
   letter-spacing: 0.04em;
 }
 
-/* Modo prancheta: s� o check-list, tela cheia tablet, sem zoom/scale */
+/* Modo prancheta: s? o check-list, tela cheia tablet, sem zoom/scale */
 body.portal-checklist-clipboard-mode {
   overflow: hidden !important;
 }
@@ -4731,7 +4731,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
 }
 
 .portal-checklist-no-print {
-  /* marcador sem�ntico; impress�o/PDF remove o header via JS */
+  /* marcador sem?ntico; impress?o/PDF remove o header via JS */
 }
 
 @media print {
@@ -4770,7 +4770,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   width: 100%;
 }
 
-/* Mesma altura/largura da caixinha �Plano� em todo o bloco do check-list. */
+/* Mesma altura/largura da caixinha ?Plano? em todo o bloco do check-list. */
 .portal-checklist-meta-grid input,
 .portal-checklist-ops-grid input,
 .portal-checklist-ops-grid select,
@@ -4869,7 +4869,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   }
 }
 
-/* Fonte das caixinhas conforme origem da loca��o */
+/* Fonte das caixinhas conforme origem da loca??o */
 .portal-checklist--minha-moto .portal-checklist-meta-grid input,
 .portal-checklist--minha-moto .portal-checklist-ops-grid input,
 .portal-checklist--minha-moto .portal-checklist-ops-grid .portal-checklist-odometro-ultimo__box,
@@ -5297,7 +5297,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   color: #c4a574;
 }
 
-/* 5.1 Reserva em opera��o ? cart�o: reserva (laranja) | setas | locada (cor do plano) */
+/* 5.1 Reserva em opera??o ? cart?o: reserva (laranja) | setas | locada (cor do plano) */
 .portal-reserva-operacao-card {
   padding: 0.8rem 0.9rem;
   border: 1px solid rgba(249, 115, 22, 0.45);
@@ -5383,7 +5383,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   line-height: 1.2;
 }
 
-/* Opera��o ? WhatsApp clientes ativos */
+/* Opera??o ? WhatsApp clientes ativos */
 .portal-whatsapp-linha-dk {
   margin: 0.35rem 0 0.75rem;
 }
@@ -6143,7 +6143,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   word-break: break-word;
 }
 
-/* Corpo sem thead duplicado ? cabe�alho fica s� no bloco sticky. */
+/* Corpo sem thead duplicado ? cabe?alho fica s? no bloco sticky. */
 #financeiroPaneRelacaoPagamento .fin-relacao-scroll .fin-table--relacao thead {
   display: none;
 }
@@ -6544,7 +6544,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   width: 100%;
 }
 
-/* Modal confer�ncia comprovante: corpo com scroll; bot�es sempre vis�veis */
+/* Modal confer?ncia comprovante: corpo com scroll; bot?es sempre vis?veis */
 #portalComprovanteClienteDetalheModal.portal-modal {
   z-index: 2400;
   align-items: center;
@@ -6552,7 +6552,7 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
     max(0.5rem, env(safe-area-inset-bottom)) max(0.5rem, env(safe-area-inset-left));
 }
 
-/* Visualiza��o do ficheiro: acima do modal de confer�ncia */
+/* Visualiza??o do ficheiro: acima do modal de confer?ncia */
 #portalComprovanteClienteViewerModal.portal-modal {
   z-index: 2500;
 }
@@ -6982,7 +6982,7 @@ table.validados-app .lnk-comprovante {
   font-size: 0.82rem;
 }
 
-/* ?? Cadastro de patrim�nio (CRLV-e) ?? */
+/* ?? Cadastro de patrim?nio (CRLV-e) ?? */
 .patrimonio-file-hidden {
   position: absolute;
   width: 1px;
@@ -7883,7 +7883,7 @@ table.validados-app .lnk-comprovante {
   }
 }
 
-/* Mapa localiza��o clientes (admin) */
+/* Mapa localiza??o clientes (admin) */
 .dk-geo-mapa-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -8214,13 +8214,13 @@ body.dk-pwa-update-bar-visible {
   margin-left: auto;
 }
 
-/* Admin logado: barra vermelha j� tem Voltar + In�cio ? esconde o cabe�alho grande da unidade. */
+/* Admin logado: barra vermelha j? tem Voltar + In?cio ? esconde o cabe?alho grande da unidade. */
 body.portal-body--admin-logado #view-unit .portal-unit-bar,
 body.portal-body--admin-logado #view-unit .portal-unit-heading {
   display: none !important;
 }
 
-/* Colaborador com sess�o: s� Voltar + In�cio (sem tipo de acesso nem t�tulo/boas-vindas). */
+/* Colaborador com sess?o: s? Voltar + In?cio (sem tipo de acesso nem t?tulo/boas-vindas). */
 body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .portal-unit-bar__left,
 body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .portal-unit-heading {
   display: none !important;
@@ -8326,7 +8326,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   }
 }
 
-/* Lan�amento aluguel ? formul�rio simples + calend�rio anual */
+/* Lan?amento aluguel ? formul?rio simples + calend?rio anual */
 .portal-lanc-aluguel-resumo-compact {
   margin: 0.75rem 0 1rem;
   padding: 0.65rem 0.85rem;
@@ -8346,8 +8346,8 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   width: 100%;
 }
 
-/* Lan�amento avulso: nunca 3 colunas. Zoom altera CSS px ? empilhar pagamento
-   e devolu��o garante campos us�veis; hist�rico s� ao lado com folga de largura. */
+/* Lan?amento avulso: nunca 3 colunas. Zoom altera CSS px ? empilhar pagamento
+   e devolu??o garante campos us?veis; hist?rico s? ao lado com folga de largura. */
 .operacao-lanc-aluguel-pane {
   container-type: inline-size;
   container-name: lanc-pane;
@@ -8371,6 +8371,83 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   align-items: start;
   width: 100%;
   min-width: 0;
+}
+
+/* Layout edit?vel ? Lan?amento de aluguel */
+.portal-lanc-layout-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  margin: 0 0 0.85rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(220, 60, 60, 0.35);
+  border-radius: 8px;
+  background: rgba(80, 20, 20, 0.35);
+}
+.portal-lanc-layout-toolbar .btn-primary {
+  font-size: 0.86rem;
+  padding: 0.38rem 0.75rem;
+}
+.portal-lanc-layout-toolbar__hint {
+  flex: 1 1 14rem;
+  font-size: 0.82rem;
+  color: #fecaca;
+  line-height: 1.35;
+}
+#operacaoInlineLancamentoAluguel.lanc-custom-layout {
+  position: relative;
+  min-height: 640px;
+}
+#operacaoInlineLancamentoAluguel.lanc-custom-layout .operacao-lanc-aluguel-bloco-pesquisa,
+#operacaoInlineLancamentoAluguel.lanc-custom-layout #operacaoLancAluguelPaneAvulso,
+#operacaoInlineLancamentoAluguel.lanc-custom-layout .portal-lanc-avulso-workspace,
+#operacaoInlineLancamentoAluguel.lanc-custom-layout .portal-lanc-avulso-workspace__forms,
+#operacaoInlineLancamentoAluguel.lanc-custom-layout #formOperacaoLancamentoAluguelInline,
+#operacaoInlineLancamentoAluguel.lanc-custom-layout #operacaoLancAluguelPagamentoPanel,
+#operacaoInlineLancamentoAluguel.lanc-custom-layout .portal-lanc-dual-cols {
+  display: contents;
+}
+#operacaoInlineLancamentoAluguel.lanc-custom-layout [data-lanc-layout-box].is-lanc-layout-placed {
+  position: absolute;
+  box-sizing: border-box;
+  margin: 0;
+  max-width: none;
+}
+#operacaoInlineLancamentoAluguel.lanc-custom-layout .portal-lanc-avulso-workspace__hist {
+  max-height: none;
+  position: absolute;
+  overflow: auto;
+}
+#operacaoInlineLancamentoAluguel.layout-edit-mode [data-lanc-layout-box].is-lanc-layout-placed {
+  outline: 2px dashed rgba(248, 113, 113, 0.85);
+  outline-offset: 2px;
+  cursor: move;
+  z-index: 6;
+  touch-action: none;
+  user-select: none;
+}
+#operacaoInlineLancamentoAluguel.layout-edit-mode [data-lanc-layout-box].is-lanc-layout-dragging {
+  outline-color: #f87171;
+  z-index: 20;
+  box-shadow: 0 0 0 1px rgba(248, 113, 113, 0.5), 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+#operacaoInlineLancamentoAluguel.layout-edit-mode .lanc-layout-resize-handle {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px 0 6px 0;
+  background:
+    linear-gradient(135deg, transparent 45%, #f87171 45%, #f87171 55%, transparent 55%),
+    linear-gradient(135deg, transparent 65%, #fca5a5 65%, #fca5a5 75%, transparent 75%);
+  cursor: nwse-resize;
+  z-index: 8;
+  pointer-events: auto;
+}
+#operacaoInlineLancamentoAluguel:not(.layout-edit-mode) .lanc-layout-resize-handle {
+  display: none;
 }
 
 .portal-lanc-avulso-workspace__forms {
@@ -8756,7 +8833,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #93c5fd;
 }
 
-/* Situa��o do protocolo ap�s o pagamento (Lan�amento de aluguel) */
+/* Situa??o do protocolo ap?s o pagamento (Lan?amento de aluguel) */
 .portal-lanc-situacao {
   margin: 1rem 0;
   padding: 0.9rem 1rem 1rem;
@@ -8962,7 +9039,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin-top: 0.5rem;
 }
 
-/* Documentos do contrato ? cadastro de loca��o (substitui ambiente teste) */
+/* Documentos do contrato ? cadastro de loca??o (substitui ambiente teste) */
 .portal-loc-docs--cadastro {
   border: 1px solid rgba(59, 130, 246, 0.55);
   border-radius: 8px;
@@ -9251,7 +9328,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   font-size: 0.75rem;
 }
 
-/* Comunica��o cliente ? opera��o (vendas verde / manuten��o amarelo) */
+/* Comunica??o cliente ? opera??o (vendas verde / manuten??o amarelo) */
 .portal-comunicacao-inbox-grid--fixed {
   position: fixed;
   left: 0;
@@ -9543,7 +9620,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   font-size: 0.78rem;
 }
 
-/* === Documentos (dep�sito CRLV / contratos / multas) === */
+/* === Documentos (dep?sito CRLV / contratos / multas) === */
 .documentos-busca {
   margin: 1.25rem 0 1.5rem;
   padding: 1rem 1.1rem;
@@ -9760,7 +9837,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0;
 }
 
-/* ===== Check-list de manuten��o (Lan�amento de manuten��o) ===== */
+/* ===== Check-list de manuten??o (Lan?amento de manuten??o) ===== */
 
 .portal-manut-check-toggle {
   display: flex;
@@ -9870,7 +9947,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   padding: 0.3rem 0.7rem;
 }
 
-/* ===== Movimenta��es da manuten��o (modal consulta check-lists) ===== */
+/* ===== Movimenta??es da manuten??o (modal consulta check-lists) ===== */
 
 .portal-mov-manut-modal__card {
   max-width: min(960px, 96vw);
@@ -10151,7 +10228,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   color: #c2410c;
 }
 
-/* FINANCEIRO CEO ? ecr� completo no Windows (n�o o bloco estreito de 36rem). */
+/* FINANCEIRO CEO ? ecr? completo no Windows (n?o o bloco estreito de 36rem). */
 #view-financeiro-ceo.view--active {
   max-width: none;
   width: 100%;
@@ -10707,7 +10784,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin-bottom: 0.5rem;
 }
 
-/* Nunca 3 colunas espremidas: labels e selects n�o se sobrep�em no Windows. */
+/* Nunca 3 colunas espremidas: labels e selects n?o se sobrep?em no Windows. */
 #view-financeiro-ceo .fin-ceo-desp-form.operacao-inline-form__grid,
 #view-financeiro-ceo .fin-ceo-desp-form--windows {
   display: grid;
@@ -11063,7 +11140,7 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   }
 }
 
-/* Offline opera��o (PWA Windows) */
+/* Offline opera??o (PWA Windows) */
 body.dk-offline-blocked {
   overflow: hidden;
   pointer-events: none;

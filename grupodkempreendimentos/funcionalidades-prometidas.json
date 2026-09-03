@@ -2,6 +2,28 @@
   "aviso": "Não remover estes itens sem comando explícito do titular na conversa.",
   "itens": [
     {
+      "id": "lanc-aluguel-layout-editavel",
+      "descricao": "No Lançamento de aluguel: botões Editar layout / Salvar layout / Restaurar padrão; arrastar caixas (pesquisa, pagamento, devolução, saldos, histórico, etc.) e redimensionar largura/altura (canto ou Shift+arrastar); layout persistido em localStorage.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoLancAluguelLayoutToolbar",
+          "operacaoLancAluguelLayoutEditBtn",
+          "operacaoLancAluguelLayoutSaveBtn",
+          "data-lanc-layout-box"
+        ],
+        "portal-locadora-ui.js": [
+          "portalBindLancAluguelLayoutEditorOnce",
+          "portalPersistLancAluguelLayoutFromScreen",
+          "PORTAL_LANC_ALUGUEL_LAYOUT_KEY"
+        ],
+        "styles.css": [
+          "portal-lanc-layout-toolbar",
+          "lanc-custom-layout",
+          "lanc-layout-resize-handle"
+        ]
+      }
+    },
+    {
       "id": "pesquisa-inativo-data-fim",
       "descricao": "Na lista de pesquisa do Lançamento de aluguel, depois de inativo deve aparecer a data fim do contrato (ex.: inativo · 22/01/2026).",
       "ficheiros": {
