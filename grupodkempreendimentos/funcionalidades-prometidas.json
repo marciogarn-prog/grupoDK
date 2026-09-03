@@ -592,7 +592,7 @@
     },
     {
       "id": "locacao-odometro-inicio-fim",
-      "descricao": "No Cadastro de locação existem ODOMETRO INICIO e ODOMETRO FIM, gravados em kmInicial e kmFinal.",
+      "descricao": "No Cadastro de locação existem ODOMETRO INICIO e ODOMETRO FIM, gravados em kmInicial e kmFinal. No Relatório de locações cadastradas, abaixo da data Início aparece KM inicial e abaixo da data Fim aparece KM fim.",
       "ficheiros": {
         "index.html": [
           "operacaoLocacaoOdometroInicio",
@@ -602,7 +602,10 @@
         ],
         "portal-locadora-ui.js": [
           "digitsPortalOdometro",
-          "kmFinal"
+          "kmFinal",
+          "portalRelatorioLocacaoDataComKm",
+          "KM inicial",
+          "KM fim"
         ]
       }
     },

@@ -9985,6 +9985,14 @@
     return Number.isFinite(n) ? n.toLocaleString("pt-BR") : d;
   }
 
+  /** Célula Início/Fim do relatório: data + KM na linha de baixo. */
+  function portalRelatorioLocacaoDataComKm(dataRaw, kmRaw, rotuloKm) {
+    const data = String(dataRaw || "").trim() || "—";
+    const kmFmt = formatPortalOdometroKm(kmRaw);
+    const kmLinha = kmFmt ? `${rotuloKm} ${kmFmt}` : `${rotuloKm} —`;
+    return `${data}\n${kmLinha}`;
+  }
+
   function bindOperacaoVeiculoProprietarioCpfCnpjMask() {
     const inp = document.getElementById("operacaoVeiculoProprietarioCpfCnpj");
     if (!inp || inp.dataset.dkCpfCnpjMask === "1") return;
@@ -10469,9 +10477,13 @@
         ? normalizePlate(String(locacao.placa || "")) || "—"
         : String(locacao.placa || "").trim() || "—",
       String(locacao.marcaModelo || "").trim() || "—",
-      String(locacao.inicio || "").trim() || "—",
+      portalRelatorioLocacaoDataComKm(
+        locacao.inicio,
+        locacao.kmInicial || locacao.odometroInicio,
+        "KM inicial"
+      ),
       portalRelatorioLocacaoExecucaoCell(locacao),
-      String(locacao.fim || "").trim() || "—",
+      portalRelatorioLocacaoDataComKm(locacao.fim, locacao.kmFinal || locacao.odometroFim, "KM fim"),
       portalRelatorioLocacaoFinalizacaoCell(locacao),
       String(locacao.plano || "").trim() || "—",
       statusRaw || "—",
@@ -10710,7 +10722,7 @@
       h1{font-size:1.05rem;margin:0 0 0.35rem}
       .meta{color:#444;margin:0.2rem 0;font-size:11px}
       table{width:100%;border-collapse:collapse;table-layout:fixed}
-      th,td{border:1px solid #333;padding:${cellPad};text-align:left;font-size:${cellFs};word-wrap:break-word;vertical-align:top}
+      th,td{border:1px solid #333;padding:${cellPad};text-align:left;font-size:${cellFs};word-wrap:break-word;vertical-align:top;white-space:pre-line}
       th{background:#eee;font-weight:600}
       .portal-rel-table-compact th,.portal-rel-table-compact td{line-height:1.25}
       .portal-rel-status-ativo{background:#c8e6c9}
@@ -12936,7 +12948,7 @@
       h1{font-size:1.05rem;margin:0 0 0.35rem}
       .meta{color:#444;margin:0 0 0.75rem;font-size:11px}
       table{width:100%;border-collapse:collapse}
-      th,td{border:1px solid #333;padding:5px 7px;text-align:left}
+      th,td{border:1px solid #333;padding:5px 7px;text-align:left;vertical-align:top;white-space:pre-line}
       th{background:#eee;font-weight:600}
       .portal-rel-status-ativo{background:#c8e6c9}
       .portal-rel-status-inativo{background:#fff9c4}
