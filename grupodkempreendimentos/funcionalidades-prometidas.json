@@ -19,7 +19,9 @@
         "styles.css": [
           "portal-lanc-layout-toolbar",
           "lanc-custom-layout",
-          "lanc-layout-resize-handle"
+          "lanc-layout-resize-handle",
+          "data-lanc-layout-box=\"historico\"",
+          "position: absolute !important"
         ]
       }
     },

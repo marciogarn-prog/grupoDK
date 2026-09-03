@@ -13911,6 +13911,13 @@
 
   function portalEnsureLancAluguelResizeHandles() {
     portalGetLancAluguelLayoutBoxes().forEach((box) => {
+      if (!box.querySelector(":scope > .lanc-layout-drag-handle")) {
+        const bar = document.createElement("div");
+        bar.className = "lanc-layout-drag-handle";
+        bar.setAttribute("aria-hidden", "true");
+        bar.textContent = "⋮⋮ Arrastar caixa";
+        box.insertBefore(bar, box.firstChild);
+      }
       if (box.querySelector(":scope > .lanc-layout-resize-handle")) return;
       const handle = document.createElement("span");
       handle.className = "lanc-layout-resize-handle";
@@ -14154,29 +14161,53 @@
       if (node.closest("#operacaoLancAluguelLayoutToolbar")) return;
       const box = node.closest("[data-lanc-layout-box]");
       if (!box || !(box instanceof HTMLElement) || !root.contains(box)) return;
+      if (!box.classList.contains("is-lanc-layout-placed")) {
+        // Congela posição atual e libera o arraste (ex.: histórico que acabou de aparecer).
+        const snap = portalCollectLancAluguelLayout();
+        const key = String(box.dataset.lancLayoutBox || "").trim();
+        if (key && !snap[key]) {
+          const rootRect = root.getBoundingClientRect();
+          const rect = box.getBoundingClientRect();
+          snap[key] = {
+            left: Math.max(0, Math.round(rect.left - rootRect.left + root.scrollLeft)),
+            top: Math.max(0, Math.round(rect.top - rootRect.top + root.scrollTop)),
+            width: Math.max(160, Math.round(rect.width)),
+            height: Math.max(80, Math.round(rect.height)),
+          };
+        }
+        portalApplyLancAluguelLayout(snap);
+      }
       const onHandle = Boolean(node.closest(".lanc-layout-resize-handle"));
       const mode = onHandle || event.shiftKey ? "resize" : "move";
       if (mode === "move") {
-        const blockInteract = node.closest(
-          "button, a, input, select, textarea, .portal-placa-dropdown, .portal-combobox input"
-        );
-        if (blockInteract && !event.altKey) return;
+        /* Em edição: arrastar em qualquer sítio da caixa (tabela, botões, título).
+           Só não inicia arraste em campos de digitação, salvo Alt. */
+        const typingField = node.closest("input, select, textarea");
+        if (typingField && !event.altKey) return;
       }
       const rect = box.getBoundingClientRect();
+      const originLeft = parseFloat(box.style.left || "") || Math.max(0, rect.left - root.getBoundingClientRect().left + root.scrollLeft);
+      const originTop = parseFloat(box.style.top || "") || Math.max(0, rect.top - root.getBoundingClientRect().top + root.scrollTop);
       portalLancAluguelLayoutDrag = {
         mode,
         box,
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        originLeft: parseFloat(box.style.left || "0") || 0,
-        originTop: parseFloat(box.style.top || "0") || 0,
+        originLeft,
+        originTop,
         boxWidth: rect.width,
         boxHeight: rect.height,
       };
       box.classList.add("is-lanc-layout-dragging");
+      box.style.left = `${Math.round(originLeft)}px`;
+      box.style.top = `${Math.round(originTop)}px`;
+      box.style.width = `${Math.round(rect.width)}px`;
+      box.style.height = `${Math.round(rect.height)}px`;
+      box.classList.add("is-lanc-layout-placed");
       box.setPointerCapture?.(event.pointerId);
       event.preventDefault();
+      event.stopPropagation();
     });
 
     root.addEventListener("pointermove", (event) => {

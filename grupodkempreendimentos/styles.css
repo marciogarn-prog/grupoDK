@@ -1756,14 +1756,12 @@ body {
     min-width: 0;
   }
 
-  /*
-   * Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
+  null
+  #panel-operacao-locadora:not(.hidden) 
+  /* Lan?amento de aluguel: um ?nico scroll no formul?rio (bola do mouse sobe/desce).
    * Pain?is internos N?O criam outro scroll que engole a roda.
    */
-  #panel-operacao-locadora:not(.hidden) 
-  /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce).
-   * Painéis internos NÃO criam outro scroll que engole a roda.
-   */
+  /* Lançamento de aluguel: um único scroll no formulário (bola do mouse sobe/desce). */
   #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse:not(.hidden) {
     flex: 1 1 auto;
     min-height: 0 !important;
@@ -1785,7 +1783,14 @@ body {
   #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.operacao-inline-form--rodar-mouse .operacao-lanc-historico {
     max-height: none !important;
     overflow: visible !important;
-    position: static;
+  }
+
+  /* Hist?rico m?vel no layout edit?vel (n?o deixar position:static travar left/top). */
+  #panel-operacao-locadora:not(.hidden) #operacaoInlineLancamentoAluguel.lanc-custom-layout [data-lanc-layout-box="historico"].is-lanc-layout-placed {
+    position: absolute !important;
+    overflow: auto !important;
+    z-index: 8;
+    cursor: move;
   }
 }
 
@@ -8459,10 +8464,11 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   margin: 0;
   max-width: none;
 }
-#operacaoInlineLancamentoAluguel.lanc-custom-layout .portal-lanc-avulso-workspace__hist {
+#operacaoInlineLancamentoAluguel.lanc-custom-layout .portal-lanc-avulso-workspace__hist.is-lanc-layout-placed {
   max-height: none;
-  position: absolute;
+  position: absolute !important;
   overflow: auto;
+  z-index: 8;
 }
 #operacaoInlineLancamentoAluguel.layout-edit-mode [data-lanc-layout-box].is-lanc-layout-placed {
   outline: 2px dashed rgba(248, 113, 113, 0.85);
@@ -8471,6 +8477,35 @@ body.portal-body--equipa-sessao:not(.portal-body--admin-logado) #view-unit .port
   z-index: 6;
   touch-action: none;
   user-select: none;
+}
+#operacaoInlineLancamentoAluguel.layout-edit-mode [data-lanc-layout-box="historico"].is-lanc-layout-placed {
+  z-index: 9;
+  pointer-events: auto;
+}
+#operacaoInlineLancamentoAluguel.layout-edit-mode .lanc-layout-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin: 0 0 0.35rem;
+  padding: 0.28rem 0.45rem;
+  border: 1px dashed rgba(248, 113, 113, 0.7);
+  border-radius: 6px;
+  background: rgba(127, 29, 29, 0.55);
+  color: #fecaca;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+#operacaoInlineLancamentoAluguel.layout-edit-mode .lanc-layout-drag-handle:active {
+  cursor: grabbing;
+}
+#operacaoInlineLancamentoAluguel:not(.layout-edit-mode) .lanc-layout-drag-handle {
+  display: none !important;
 }
 #operacaoInlineLancamentoAluguel.layout-edit-mode [data-lanc-layout-box].is-lanc-layout-dragging {
   outline-color: #f87171;
