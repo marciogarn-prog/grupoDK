@@ -175,7 +175,9 @@
           "operacaoRotatividadeRecNovos",
           "operacaoRotatividadeSaldo",
           "operacaoRotatividadeReceitaAtual",
-          "Receita semanal atual (contratos ativos)"
+          "Receita semanal atual (contratos ativos)",
+          "operacaoRotatividadePdfBtn",
+          "Gerar PDF"
         ],
         "portal-locadora-ui.js": [
           "renderOperacaoRelatorioRotatividade",
@@ -185,11 +187,17 @@
           "portalReceitaSemanalAtualContratosAtivos",
           "portalAtualizarReceitaSemanalAtualRotatividadeUi"
         ],
+        "dk-relatorio-operacao-pdf.js": [
+          "operacaoRotatividadePdfBtn",
+          "operacaoInatividadePdfBtn",
+          "Relatório de rotatividade"
+        ],
         "styles.css": [
           "portal-rotatividade__resumo",
           "portal-rotatividade-dia__cols",
           "portal-rotatividade-dia__col--ent",
-          "portal-rotatividade-receita-atual"
+          "portal-rotatividade-receita-atual",
+          "margin-left: auto"
         ]
       }
     },
@@ -203,7 +211,9 @@
           "Relatório de inatividade",
           "operacaoInatividadeInicio",
           "operacaoInatividadeFim",
-          "Placas sem protocolo na data"
+          "Placas sem protocolo na data",
+          "operacaoInatividadePdfBtn",
+          "Gerar PDF"
         ],
         "portal-locadora-ui.js": [
           "renderOperacaoRelatorioInatividade",

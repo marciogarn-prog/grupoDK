@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260903nuvem-admin";
+const CACHE_NAME = "dk-corporativo-v20260903rel-pdf";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,6 +12,7 @@ const ASSETS = [
   "./app.js",
   "./portal-cliente-codigo-admin.js",
   "./dk-relatorio-inatividade.js",
+  "./dk-relatorio-operacao-pdf.js",
   "./portal-locadora-ui.js",
   "./dk-app-scope.js",
   "./portal-unidade-financeiro.js",
