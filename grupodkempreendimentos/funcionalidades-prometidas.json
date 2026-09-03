@@ -21,11 +21,14 @@
           "portalMigrarLancamentosFinanceirosGlobaisProtocolo",
           "portalRegisterProtocoloNcRemap",
           "portalPurgeLocacoesProtocoloSubstituido",
+          "portalLocacaoEhFantasmaProtocoloSubstituido",
+          "ignorarFantasmaSubstituido",
           "allowShrink",
           "DK_LOCADORA_ADMIN_CPF"
         ],
         "app.js": [
-          "dropLocacoesProtocoloSubstituido"
+          "dropLocacoesProtocoloSubstituido",
+          "sameLocacaoContratoAssinatura"
         ],
         "styles.css": [
           "portal-locacao-alterar-proto",

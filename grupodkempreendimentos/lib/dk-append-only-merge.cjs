@@ -383,31 +383,43 @@ function mergeLocacaoCadastroPar(ex, incoming) {
 }
 
 /**
- * Protocolo renomeado: se alguma locação tem `protocoloAnterior`, o número antigo
- * deixa de existir (não ressuscita no merge append-only).
+ * Protocolo renomeado: remove só o fantasma do mesmo contrato (mesmo CPF+placa
+ * ou mesmo id/createdAt). Não apaga outro contrato que reutilize o número libertado.
  */
+function sameLocacaoContratoAssinatura(a, b) {
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const idA = Number(a.id || 0);
+  const idB = Number(b.id || 0);
+  if (idA && idB && idA === idB) return true;
+  const cA = Number(a.createdAt || 0);
+  const cB = Number(b.createdAt || 0);
+  if (cA && cB && cA === cB) return true;
+  const cpfA = onlyDigits(a.cpf).slice(0, 11);
+  const cpfB = onlyDigits(b.cpf).slice(0, 11);
+  const plA = normalizePlate(a.placa);
+  const plB = normalizePlate(b.placa);
+  return Boolean(cpfA && cpfB && plA && plB && cpfA === cpfB && plA === plB);
+}
+
 function dropLocacoesProtocoloSubstituido(list) {
   const arr = Array.isArray(list) ? list : [];
-  const remap = Object.create(null);
+  const killers = [];
   for (const l of arr) {
     if (!l || typeof l !== "object") continue;
     const ant = ncNorm(l.protocoloAnterior);
     const nc = ncNorm(l.numeroContrato);
-    if (ant && nc && ant !== nc) remap[ant] = nc;
+    if (ant && nc && ant !== nc) killers.push({ ant, survivor: l });
   }
-  const olds = Object.keys(remap);
-  if (!olds.length) return arr;
-  const present = new Set();
-  for (const l of arr) {
-    const nc = ncNorm(l?.numeroContrato);
-    if (nc) present.add(nc);
-  }
+  if (!killers.length) return arr;
   return arr.filter((l) => {
     const nc = ncNorm(l?.numeroContrato);
-    if (!nc || !remap[nc]) return true;
-    const dest = ncNorm(remap[nc]);
-    if (!dest || dest === nc) return true;
-    return !present.has(dest);
+    if (!nc) return true;
+    for (const k of killers) {
+      if (nc !== k.ant) continue;
+      if (l === k.survivor) continue;
+      if (sameLocacaoContratoAssinatura(l, k.survivor)) return false;
+    }
+    return true;
   });
 }
 

@@ -3153,60 +3153,59 @@ function mergeCadastroHistoricoImutavel(key, previousList, incomingList) {
 
 /**
  * Quando o protocolo é alterado (ex.: …04 → …05), a locação nova guarda
- * `protocoloAnterior`. O número antigo não pode voltar no merge append-only.
+ * `protocoloAnterior`. Só o fantasma do mesmo contrato (CPF+placa / id) some —
+ * outro contrato pode reutilizar o número libertado.
  */
-function dropLocacoesProtocoloSubstituido(list, extraRemap) {
+function sameLocacaoContratoAssinatura(a, b) {
+  if (!a || !b || typeof a !== "object" || typeof b !== "object") return false;
+  const idA = Number(a.id || 0);
+  const idB = Number(b.id || 0);
+  if (idA && idB && idA === idB) return true;
+  const cA = Number(a.createdAt || 0);
+  const cB = Number(b.createdAt || 0);
+  if (cA && cB && cA === cB) return true;
+  const dig = (cpf) => onlyDigits(String(cpf || "")).slice(0, 11);
+  const pl = (p) =>
+    typeof normalizePlate === "function"
+      ? normalizePlate(String(p || ""))
+      : String(p || "")
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "");
+  const cpfA = dig(a.cpf);
+  const cpfB = dig(b.cpf);
+  const plA = pl(a.placa);
+  const plB = pl(b.placa);
+  return Boolean(cpfA && cpfB && plA && plB && cpfA === cpfB && plA === plB);
+}
+
+function dropLocacoesProtocoloSubstituido(list, _extraRemap) {
   const arr = Array.isArray(list) ? list : [];
   const ncNormLocal = (v) =>
     String(typeof normalizeNumeroContratoKey === "function" ? normalizeNumeroContratoKey(v || "") : String(v || ""))
       .trim()
       .replace(/\s+/g, "");
-  const remap = Object.create(null);
-  if (extraRemap && typeof extraRemap === "object") {
-    for (const [de, para] of Object.entries(extraRemap)) {
-      const d = ncNormLocal(de);
-      const p = ncNormLocal(para);
-      if (d && p && d !== p) remap[d] = p;
-    }
-  }
-  try {
-    if (typeof localStorage !== "undefined") {
-      const raw = localStorage.getItem("dk_protocolo_nc_remap_v1");
-      const map = raw ? JSON.parse(raw) : null;
-      if (map && typeof map === "object") {
-        for (const [de, para] of Object.entries(map)) {
-          const d = ncNormLocal(de);
-          const p = ncNormLocal(para);
-          if (d && p && d !== p) remap[d] = p;
-        }
-      }
-    }
-  } catch {
-    /* ignore */
-  }
+  const killers = [];
   for (const l of arr) {
     if (!l || typeof l !== "object") continue;
     const ant = ncNormLocal(l.protocoloAnterior);
     const nc = ncNormLocal(l.numeroContrato);
-    if (ant && nc && ant !== nc) remap[ant] = nc;
+    if (ant && nc && ant !== nc) killers.push({ ant, survivor: l });
   }
-  const olds = Object.keys(remap);
-  if (!olds.length) return arr;
-  const present = new Set();
-  for (const l of arr) {
-    const nc = ncNormLocal(l?.numeroContrato);
-    if (nc) present.add(nc);
-  }
+  if (!killers.length) return arr;
   return arr.filter((l) => {
     const nc = ncNormLocal(l?.numeroContrato);
-    if (!nc || !remap[nc]) return true;
-    const dest = ncNormLocal(remap[nc]);
-    if (!dest || dest === nc) return true;
-    return !present.has(dest);
+    if (!nc) return true;
+    for (const k of killers) {
+      if (nc !== k.ant) continue;
+      if (l === k.survivor) continue;
+      if (sameLocacaoContratoAssinatura(l, k.survivor)) return false;
+    }
+    return true;
   });
 }
 try {
   window.__DK_dropLocacoesProtocoloSubstituido = dropLocacoesProtocoloSubstituido;
+  window.__DK_sameLocacaoContratoAssinatura = sameLocacaoContratoAssinatura;
 } catch {
   /* ignore */
 }

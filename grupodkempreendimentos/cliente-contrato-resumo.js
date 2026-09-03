@@ -192,19 +192,33 @@
     if (typeof window.__DK_dropLocacoesProtocoloSubstituido === "function") {
       return window.__DK_dropLocacoesProtocoloSubstituido(merged);
     }
-    const remap = Object.create(null);
+    const same =
+      typeof window.__DK_sameLocacaoContratoAssinatura === "function"
+        ? window.__DK_sameLocacaoContratoAssinatura
+        : (a, b) => {
+            const dig = (c) => String(c || "").replace(/\D/g, "").slice(0, 11);
+            const pl = (p) =>
+              String(p || "")
+                .toUpperCase()
+                .replace(/[^A-Z0-9]/g, "");
+            return dig(a?.cpf) && dig(a.cpf) === dig(b?.cpf) && pl(a?.placa) && pl(a.placa) === pl(b?.placa);
+          };
+    const killers = [];
     for (const loc of merged) {
       const ant = normNc(loc?.protocoloAnterior);
       const nc = normNc(loc?.numeroContrato);
-      if (ant && nc && ant !== nc) remap[ant] = nc;
+      if (ant && nc && ant !== nc) killers.push({ ant, survivor: loc });
     }
-    const present = new Set(merged.map((l) => normNc(l?.numeroContrato)).filter(Boolean));
+    if (!killers.length) return merged;
     return merged.filter((loc) => {
       const nc = normNc(loc?.numeroContrato);
-      if (!nc || !remap[nc]) return true;
-      const dest = normNc(remap[nc]);
-      if (!dest || dest === nc) return true;
-      return !present.has(dest);
+      if (!nc) return true;
+      for (const k of killers) {
+        if (nc !== k.ant) continue;
+        if (loc === k.survivor) continue;
+        if (same(loc, k.survivor)) return false;
+      }
+      return true;
     });
   }
 

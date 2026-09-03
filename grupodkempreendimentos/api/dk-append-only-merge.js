@@ -170,19 +170,35 @@ function mergeLocacoesCadastro(previousList, incomingList) {
   prev.forEach(add);
   incoming.forEach(add);
   const list = [...byNc.values(), ...noNc];
-  const remap = Object.create(null);
+  const killers = [];
   for (const l of list) {
     const ant = ncNorm(l?.protocoloAnterior);
     const nc = ncNorm(l?.numeroContrato);
-    if (ant && nc && ant !== nc) remap[ant] = nc;
+    if (ant && nc && ant !== nc) killers.push({ ant, survivor: l });
   }
-  const present = new Set(list.map((l) => ncNorm(l?.numeroContrato)).filter(Boolean));
+  if (!killers.length) return list;
+  const same = (a, b) => {
+    const idA = Number(a?.id || 0);
+    const idB = Number(b?.id || 0);
+    if (idA && idB && idA === idB) return true;
+    const cA = Number(a?.createdAt || 0);
+    const cB = Number(b?.createdAt || 0);
+    if (cA && cB && cA === cB) return true;
+    const cpfA = onlyDigits(a?.cpf).slice(0, 11);
+    const cpfB = onlyDigits(b?.cpf).slice(0, 11);
+    const plA = normalizePlate(a?.placa);
+    const plB = normalizePlate(b?.placa);
+    return Boolean(cpfA && cpfB && plA && plB && cpfA === cpfB && plA === plB);
+  };
   return list.filter((l) => {
     const nc = ncNorm(l?.numeroContrato);
-    if (!nc || !remap[nc]) return true;
-    const dest = ncNorm(remap[nc]);
-    if (!dest || dest === nc) return true;
-    return !present.has(dest);
+    if (!nc) return true;
+    for (const k of killers) {
+      if (nc !== k.ant) continue;
+      if (l === k.survivor) continue;
+      if (same(l, k.survivor)) return false;
+    }
+    return true;
   });
 }
 

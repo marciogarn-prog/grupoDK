@@ -1,5 +1,6 @@
 /**
- * Alteração de protocolo: o número antigo não sobrevive ao merge append-only.
+ * Alteração de protocolo: o número antigo do mesmo contrato some;
+ * outro contrato pode reutilizar o número libertado.
  * node grupodkempreendimentos/scripts/test-protocolo-remap-merge.mjs
  */
 import path from "path";
@@ -18,6 +19,7 @@ const antigo = {
   inicio: "02/09/2026",
   valorSemanal: 350,
   updatedAt: 100,
+  createdAt: 100,
 };
 const novo = {
   ...antigo,
@@ -47,4 +49,43 @@ if (dropped.length !== 1 || String(dropped[0].numeroContrato) !== "2026090205") 
   process.exit(1);
 }
 
-console.log("OK protocolo remap merge — antigo removido, novo mantido");
+const outro03 = {
+  numeroContrato: "2026090203",
+  placa: "ABC1D23",
+  cpf: "22222222222",
+  nome: "OUTRO CLIENTE",
+  inicio: "02/09/2026",
+  updatedAt: 150,
+  createdAt: 150,
+};
+const outro04 = {
+  ...outro03,
+  numeroContrato: "2026090204",
+  protocoloAnterior: "2026090203",
+  updatedAt: 300,
+};
+
+const reuse = merge.dropLocacoesProtocoloSubstituido([novo, outro04, antigo]);
+const reuseNcs = reuse.map((l) => String(l.numeroContrato)).sort();
+if (!reuseNcs.includes("2026090204") || !reuseNcs.includes("2026090205")) {
+  console.error("FALHOU: reuso do número 04 por outro contrato foi apagado", reuseNcs);
+  process.exit(1);
+}
+if (reuseNcs.includes("2026090204") && reuse.filter((l) => String(l.numeroContrato) === "2026090204").length !== 1) {
+  console.error("FALHOU: fantasma 04 do ILMARIO não foi limpo no reuso", reuse);
+  process.exit(1);
+}
+const kept04 = reuse.find((l) => String(l.numeroContrato) === "2026090204");
+if (String(kept04?.cpf) !== "22222222222") {
+  console.error("FALHOU: manteve o fantasma em vez do contrato reutilizado", kept04);
+  process.exit(1);
+}
+
+const mergeReuse = merge.mergeLocacoesCadastro([novo, outro03, antigo], [novo, outro04]);
+const mr = mergeReuse.map((l) => String(l.numeroContrato)).sort();
+if (!mr.includes("2026090204") || !mr.includes("2026090205") || mr.includes("2026090203")) {
+  console.error("FALHOU: merge com reuso", mr);
+  process.exit(1);
+}
+
+console.log("OK protocolo remap merge — antigo do mesmo contrato removido; reuso de número OK");

@@ -16080,16 +16080,51 @@
       : String(x || "").trim();
   }
 
-  function findPortalLocacaoByProtocolo(ncRaw) {
+  function findPortalLocacaoByProtocolo(ncRaw, opts) {
     const nc = normPortalNumeroContrato(ncRaw);
     if (!nc || typeof loadCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return null;
     }
-    return (
-      loadCadastro(CAD_LOCACOES_KEY).find(
-        (l) => normPortalNumeroContrato(l.numeroContrato) === nc
-      ) || null
-    );
+    const locs = loadCadastro(CAD_LOCACOES_KEY);
+    const hit =
+      locs.find((l) => normPortalNumeroContrato(l.numeroContrato) === nc) || null;
+    if (!hit) return null;
+    if (opts?.ignorarFantasmaSubstituido && portalLocacaoEhFantasmaProtocoloSubstituido(hit, locs)) {
+      return null;
+    }
+    return hit;
+  }
+
+  /** Fantasma: número antigo ainda na base, mas já existe o contrato renomeado (mesmo CPF+placa). */
+  function portalLocacaoEhFantasmaProtocoloSubstituido(loc, locs) {
+    const nc = normPortalNumeroContrato(loc?.numeroContrato);
+    if (!nc) return false;
+    const same =
+      typeof window.__DK_sameLocacaoContratoAssinatura === "function"
+        ? window.__DK_sameLocacaoContratoAssinatura
+        : null;
+    const list = Array.isArray(locs) ? locs : [];
+    return list.some((other) => {
+      if (!other || other === loc) return false;
+      if (normPortalNumeroContrato(other.protocoloAnterior) !== nc) return false;
+      if (normPortalNumeroContrato(other.numeroContrato) === nc) return false;
+      if (same) return same(other, loc);
+      const dig = (c) => String(c || "").replace(/\D/g, "").slice(0, 11);
+      const pl = (p) =>
+        typeof normalizePlate === "function"
+          ? normalizePlate(String(p || ""))
+          : String(p || "")
+              .toUpperCase()
+              .replace(/[^A-Z0-9]/g, "");
+      return (
+        dig(other.cpf) &&
+        dig(loc.cpf) &&
+        dig(other.cpf) === dig(loc.cpf) &&
+        pl(other.placa) &&
+        pl(loc.placa) &&
+        pl(other.placa) === pl(loc.placa)
+      );
+    });
   }
 
   /** Protocolo carregado fica seleccionado — Gerar contrato não fica preso em NOVO. */
@@ -16283,7 +16318,7 @@
         ? window.__DK_dropLocacoesProtocoloSubstituido
         : null;
     if (!drop) return 0;
-    const next = drop(locs, portalLoadProtocoloNcRemap());
+    const next = drop(locs);
     if (!Array.isArray(next) || next.length >= locs.length) return 0;
     saveCadastro(CAD_LOCACOES_KEY, next, { bypassImmutabilidadeCadastro: true, allowShrink: true });
     if (opts?.push !== false) {
@@ -16373,7 +16408,7 @@
       if (msg) msg.textContent = "O novo número é igual ao atual.";
       return { ok: false };
     }
-    if (findPortalLocacaoByProtocolo(para)) {
+    if (findPortalLocacaoByProtocolo(para, { ignorarFantasmaSubstituido: true })) {
       return { ok: false, duplicado: true, de, para };
     }
     const locs = loadCadastro(CAD_LOCACOES_KEY);
@@ -16400,17 +16435,24 @@
       );
     }
     locs[idx] = loc;
-    // Remove qualquer duplicata residual do número antigo.
+    // Remove duplicata do número antigo e fantasmas do novo número (mesmo contrato já renomeado).
     for (let i = locs.length - 1; i >= 0; i--) {
       if (i === idx) continue;
-      if (normPortalNumeroContrato(locs[i]?.numeroContrato) === de) locs.splice(i, 1);
+      const ncI = normPortalNumeroContrato(locs[i]?.numeroContrato);
+      if (ncI === de) {
+        locs.splice(i, 1);
+        continue;
+      }
+      if (ncI === para && portalLocacaoEhFantasmaProtocoloSubstituido(locs[i], locs)) {
+        locs.splice(i, 1);
+      }
     }
     portalRegisterProtocoloNcRemap(de, para);
     const drop =
       typeof window.__DK_dropLocacoesProtocoloSubstituido === "function"
         ? window.__DK_dropLocacoesProtocoloSubstituido
         : null;
-    const locsLimpos = drop ? drop(locs, portalLoadProtocoloNcRemap()) : locs;
+    const locsLimpos = drop ? drop(locs) : locs;
     // allowShrink: sem isto o merge histórico reintroduz o protocolo antigo (04 + 05).
     saveCadastro(CAD_LOCACOES_KEY, locsLimpos, {
       bypassImmutabilidadeCadastro: true,
@@ -16477,7 +16519,7 @@
       });
       return;
     }
-    if (findPortalLocacaoByProtocolo(novo)) {
+    if (findPortalLocacaoByProtocolo(novo, { ignorarFantasmaSubstituido: true })) {
       openPortalAlterarProtocoloModal({
         mode: "duplicado",
         titulo: "Protocolo já existe",
