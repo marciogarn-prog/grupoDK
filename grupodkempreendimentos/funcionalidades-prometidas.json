@@ -45,7 +45,7 @@
     },
     {
       "id": "lanc-aluguel-relatorio-pagamento-dia-periodo",
-      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período (protocolo, nome, valor do intervalo, valor total do protocolo).",
+      "descricao": "Em Lançamento de aluguel: 2 — Relatório de pagamento com 2.1 por dia e 2.2 por período (protocolo, nome, valor do intervalo, valor total, saldo = pago − devido aluguel sem investimento; azul positivo / vermelho negativo; ordenado do menor saldo ao maior).",
       "ficheiros": {
         "index.html": [
           "btn-lanc-aluguel-rel-pag",
@@ -56,7 +56,8 @@
           "operacaoLancAluguelPaneRelDia",
           "operacaoLancAluguelPaneRelPeriodo",
           "portalRelPagDiaKpis",
-          "portalRelPagPeriodoKpis"
+          "portalRelPagPeriodoKpis",
+          "<th>Saldo</th>"
         ],
         "portal-locadora-ui.js": [
           "collectPortalRelPagamentoAgregadoPorProtocolo",
@@ -66,11 +67,16 @@
           "DK MEU TRANSPORTE-CARRO",
           "gerarPortalRelPagAgg",
           "rel-dia",
-          "rel-periodo"
+          "rel-periodo",
+          "saldoColumnIndex",
+          "portal-rel-saldo-pos",
+          "valorDevidoAluguel"
         ],
         "styles.css": [
           "portal-rel-pag-agg__table",
-          "portal-rel-pag-agg-kpis"
+          "portal-rel-pag-agg-kpis",
+          "portal-rel-pag-agg__saldo--pos",
+          "portal-rel-pag-agg__saldo--neg"
         ]
       }
     },

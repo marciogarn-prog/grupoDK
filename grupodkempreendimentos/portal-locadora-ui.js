@@ -10669,14 +10669,20 @@
       typeof statusIdx === "number" && typeof isPortalRelatorioStatusCellAtivo === "function"
         ? isPortalRelatorioStatusCellAtivo
         : null;
+    const saldoIdx = reportOptions.saldoColumnIndex;
     const headCells = headers.map((h) => `<th>${eh(h)}</th>`).join("");
     const bodyCells = rows
-      .map((row) => {
+      .map((row, ri) => {
         const tds = row
           .map((c, ci) => {
             let tdExtra = "";
             if (statusFn && statusIdx === ci) {
               tdExtra = statusFn(String(c ?? "")) ? ' class="portal-rel-status-ativo"' : ' class="portal-rel-status-inativo"';
+            }
+            if (typeof saldoIdx === "number" && saldoIdx === ci) {
+              const n = Number(reportOptions.saldoNums?.[ri] ?? 0);
+              if (n > 0) tdExtra = ' class="portal-rel-saldo-pos"';
+              else if (n < 0) tdExtra = ' class="portal-rel-saldo-neg"';
             }
             return `<td${tdExtra}>${eh(c)}</td>`;
           })
@@ -10709,6 +10715,8 @@
       .portal-rel-table-compact th,.portal-rel-table-compact td{line-height:1.25}
       .portal-rel-status-ativo{background:#c8e6c9}
       .portal-rel-status-inativo{background:#fff9c4}
+      .portal-rel-saldo-pos{color:#1565c0;font-weight:700}
+      .portal-rel-saldo-neg{color:#c62828;font-weight:700}
       .portal-rel-resumo{margin:0.65rem 0 0.85rem;padding:0.55rem 0.7rem;border:1px solid #bbb;background:#f7f7f7;font-size:11px;line-height:1.45}
       .portal-rel-resumo h2{font-size:12px;margin:0 0 0.35rem;text-transform:uppercase;letter-spacing:0.03em}
       .portal-rel-resumo ul{margin:0.2rem 0 0.35rem 1.1rem;padding:0}
@@ -10874,32 +10882,34 @@
     const viewer = document.getElementById("portalRelatorioPdfViewer");
     if (!iframe || !viewer || !context) return;
     portalRelatorioAtual = context;
-    const rowsSorted = sortPortalRelatorioRowsCadastro(
-      context.rows || [],
-      context.headers,
-      portalRelatorioOrdemCadastro
-    );
+    const rowsSorted = context.preserveRowOrder
+      ? Array.isArray(context.rows)
+        ? context.rows.slice()
+        : []
+      : sortPortalRelatorioRowsCadastro(
+          context.rows || [],
+          context.headers,
+          portalRelatorioOrdemCadastro
+        );
     const ctxView = { ...context, rows: rowsSorted };
     const temTabela = Array.isArray(ctxView.headers) && ctxView.headers.length && Array.isArray(ctxView.rows);
     const slugsTabela = new Set(["locacoes", "clientes", "pagamentos-periodo"]);
     const slug = String(context.fileSlug || "");
     let html;
+    const htmlOpts = {
+      statusColumnIndex: ctxView.statusColumnIndex,
+      saldoColumnIndex: ctxView.saldoColumnIndex,
+      saldoNums: ctxView.saldoNums,
+      headerSubtitleLines: ctxView.headerSubtitleLines,
+      compactTable: ctxView.compactTable,
+      summaryHtml: ctxView.summaryHtml,
+    };
     if (slugsTabela.has(slug) || (!context.buildPdfHtml && temTabela)) {
-      html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, {
-        statusColumnIndex: ctxView.statusColumnIndex,
-        headerSubtitleLines: ctxView.headerSubtitleLines,
-        compactTable: ctxView.compactTable,
-        summaryHtml: ctxView.summaryHtml,
-      });
+      html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, htmlOpts);
     } else if (typeof context.buildPdfHtml === "function") {
       html = context.buildPdfHtml();
     } else {
-      html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, {
-        statusColumnIndex: ctxView.statusColumnIndex,
-        headerSubtitleLines: ctxView.headerSubtitleLines,
-        compactTable: ctxView.compactTable,
-        summaryHtml: ctxView.summaryHtml,
-      });
+      html = buildPortalRelatorioHtml(ctxView.title, ctxView.headers, ctxView.rows, htmlOpts);
     }
     html = applyPortalPdfDocumentTitle(html, getPortalRelatorioPdfSaveSuggestedBaseName(context));
     hideRelatorioLocacaoPdfViewer();
@@ -13243,6 +13253,13 @@
         nome = String(findClienteByCpfCadastro(cpfDigits)?.nome || "").trim();
       }
       const plano = portalRelPagAggClassificarPlano(loc);
+      const resumo =
+        typeof computePortalProtocoloResumoFromLoc === "function"
+          ? computePortalProtocoloResumoFromLoc(loc)
+          : null;
+      const devidoAluguel = Number(resumo?.valorDevidoAluguelNum);
+      const valorDevidoAluguel = Number.isFinite(devidoAluguel) ? devidoAluguel : 0;
+      const saldo = valorTotal - valorDevidoAluguel;
       if (cpfDigits.length === 11) clientes.add(cpfDigits);
       qtdPagamentos += qtdNaFaixa;
       porPlano[plano] = (porPlano[plano] || 0) + qtdNaFaixa;
@@ -13251,6 +13268,8 @@
       if (prev) {
         prev.valorFaixa += valorFaixa;
         prev.valorTotal = Math.max(prev.valorTotal, valorTotal);
+        prev.valorDevidoAluguel = valorDevidoAluguel;
+        prev.saldo = prev.valorTotal - prev.valorDevidoAluguel;
         prev.qtdPagamentos += qtdNaFaixa;
         if (!prev.nome || prev.nome === "—") prev.nome = nome || prev.nome;
       } else {
@@ -13259,15 +13278,20 @@
           nome: nome || "—",
           valorFaixa,
           valorTotal,
+          valorDevidoAluguel,
+          saldo,
           plano,
           qtdPagamentos: qtdNaFaixa,
           cpf: cpfDigits,
         });
       }
     }
-    const rows = Array.from(map.values()).sort((a, b) =>
-      String(a.proto).localeCompare(String(b.proto), "pt-BR")
-    );
+    const rows = Array.from(map.values()).sort((a, b) => {
+      const sa = Number(a.saldo) || 0;
+      const sb = Number(b.saldo) || 0;
+      if (sa !== sb) return sa - sb;
+      return String(a.proto).localeCompare(String(b.proto), "pt-BR");
+    });
     const totalFaixa = rows.reduce((s, r) => s + r.valorFaixa, 0);
     const totalGeral = rows.reduce((s, r) => s + r.valorTotal, 0);
     return {
@@ -13312,20 +13336,38 @@
     const periodoLabel = isDia
       ? agg.inicioFmt || String(inicioBr || "").trim() || "—"
       : `${agg.inicioFmt || inicioBr || "—"} a ${agg.fimFmt || fimBr || "—"}`;
-    const headers = ["Protocolo", "Nome do cliente", colFaixa, "Valor total"];
+    const headers = ["Protocolo", "Nome do cliente", colFaixa, "Valor total", "Saldo"];
+    const fmtSaldo = (n) => {
+      const v = Number(n) || 0;
+      if (v < 0) return `-${agg.fmtBrl(Math.abs(v))}`;
+      return agg.fmtBrl(v);
+    };
     const rows = agg.rows.map((r) => [
       r.proto,
       r.nome,
       agg.fmtBrl(r.valorFaixa),
       agg.fmtBrl(r.valorTotal),
+      fmtSaldo(r.saldo),
     ]);
+    const saldoNums = agg.rows.map((r) => Number(r.saldo) || 0);
     const summaryHtml = agg.ok ? buildPortalRelPagAggSummaryHtml(agg, modo) : "";
+    const previewHtml = agg.ok
+      ? buildPortalRelatorioHtml(title, headers, rows, {
+          headerSubtitleLines: [isDia ? `Dia: ${periodoLabel}` : `Período: ${periodoLabel}`],
+          summaryHtml,
+          saldoColumnIndex: 4,
+          saldoNums,
+        })
+      : "";
     return {
       title,
       fileSlug: isDia ? "pagamentos-agregado-dia" : "pagamentos-agregado-periodo",
       headers,
       rows,
       textColumns: [0, 1],
+      saldoColumnIndex: 4,
+      saldoNums,
+      preserveRowOrder: true,
       totalFaixa: agg.totalFaixa,
       totalGeral: agg.totalGeral,
       qtdPagamentos: agg.qtdPagamentos,
@@ -13334,6 +13376,7 @@
       ok: agg.ok,
       periodoLabel,
       summaryHtml,
+      previewHtml,
       headerSubtitleLines: [isDia ? `Dia: ${periodoLabel}` : `Período: ${periodoLabel}`],
       excelMetaPairs: [
         [isDia ? "Dia" : "Período", periodoLabel],
@@ -13343,6 +13386,7 @@
         [isDia ? "Soma valores do dia" : "Soma valores do período", agg.fmtBrl(agg.totalFaixa)],
         ["Soma dos valores totais", agg.fmtBrl(agg.totalGeral)],
         ["Protocolos", String(rows.length)],
+        ["Ordenação", "Saldo (menor → maior)"],
       ],
       stats: {
         protocolos: rows.length,
@@ -13406,14 +13450,14 @@
     const fmt = (n) =>
       Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
     if (!ctx?.ok) {
-      if (body) body.innerHTML = `<tr><td colspan="4" class="subtext">Informe data(s) válida(s) no formato DD/MM/AAAA.</td></tr>`;
+      if (body) body.innerHTML = `<tr><td colspan="5" class="subtext">Informe data(s) válida(s) no formato DD/MM/AAAA.</td></tr>`;
       if (resumo) resumo.textContent = "Datas inválidas.";
       renderPortalRelPagAggKpis(modo, ctx);
       return;
     }
     if (!ctx.rows.length) {
       if (body) {
-        body.innerHTML = `<tr><td colspan="4" class="subtext">Nenhum protocolo com pagamento ${
+        body.innerHTML = `<tr><td colspan="5" class="subtext">Nenhum protocolo com pagamento ${
           modo === "dia" ? "neste dia" : "neste período"
         }.</td></tr>`;
       }
@@ -13428,14 +13472,24 @@
     }
     if (body) {
       body.innerHTML = ctx.rows
-        .map((row) => {
+        .map((row, ri) => {
           const proto = String(row[0] || "");
           const nome = String(row[1] || "");
           const faixa = String(row[2] || "");
           const total = String(row[3] || "");
+          const saldoTxt = String(row[4] || "");
+          const saldoN = Number(ctx.saldoNums?.[ri] ?? 0);
+          const saldoCls =
+            saldoN > 0
+              ? "portal-rel-pag-agg__saldo--pos"
+              : saldoN < 0
+                ? "portal-rel-pag-agg__saldo--neg"
+                : "";
           return `<tr><td>${portalEscapeHtml(proto)}</td><td>${portalEscapeHtml(
             nome
-          )}</td><td>${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(total)}</td></tr>`;
+          )}</td><td>${portalEscapeHtml(faixa)}</td><td>${portalEscapeHtml(
+            total
+          )}</td><td class="${saldoCls}">${portalEscapeHtml(saldoTxt)}</td></tr>`;
         })
         .join("");
     }
