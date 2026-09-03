@@ -89,6 +89,13 @@ record(
       { manutencoes: [{ placa: "BBB2C22", categoriaManutencao: "oficina-terceiros", dataRealSaida: "" }] }
     ) === "OFICINA TERCEIRO"
 );
+record(
+  "Localização 5.3 e 5.4 no relatório de inatividade",
+  api.resolverLocalizacaoInatividade("CCC3D33", { disponivelCategoria: "veiculos-operacionais" }, {}) ===
+    "VEICULOS OPERACIONAIS" &&
+    api.resolverLocalizacaoInatividade("DDD4E44", { disponivelCategoria: "veiculos-vendidos" }, {}) ===
+      "VEICULOS VENDIDOS"
+);
 
 const html = read("index.html");
 const css = read("styles.css");

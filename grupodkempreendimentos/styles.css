@@ -1076,6 +1076,16 @@ body {
   color: #ef5350;
 }
 
+.portal-placa-dropdown__opt.portal-placa-opt--veiculos-operacionais .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--veiculos-operacionais .portal-placa-dropdown__model {
+  color: #67e8f9;
+}
+
+.portal-placa-dropdown__opt.portal-placa-opt--veiculos-vendidos .portal-placa-dropdown__plate,
+.portal-placa-dropdown__opt.portal-placa-opt--veiculos-vendidos .portal-placa-dropdown__model {
+  color: #c4b5fd;
+}
+
 .portal-placa-dropdown__opt.portal-placa-opt--indisponivel .portal-placa-dropdown__plate,
 .portal-placa-dropdown__opt.portal-placa-opt--indisponivel .portal-placa-dropdown__model,
 .portal-placa-dropdown__opt.portal-placa-opt--muted .portal-placa-dropdown__plate,
@@ -1154,6 +1164,14 @@ body {
 .portal-manut-placa-lookup__result--reserva-operacao,
 .portal-manut-placa-lookup__result--reserva-patio {
   color: #ef5350;
+}
+
+.portal-manut-placa-lookup__result--veiculos-operacionais {
+  color: #67e8f9;
+}
+
+.portal-manut-placa-lookup__result--veiculos-vendidos {
+  color: #c4b5fd;
 }
 
 .portal-manut-placa-lookup__result--manutencao {

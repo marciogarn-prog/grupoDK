@@ -54,6 +54,10 @@
     const raw = normChaveLocalizacao(
       veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || veiculo?.estadoDisponivel || veiculo?.status || ""
     );
+    if (raw === "veiculos-operacionais" || raw.includes("operacional")) return "VEICULOS OPERACIONAIS";
+    if (raw === "veiculos-vendidos" || raw.includes("vendido") || raw === "vendas" || raw.includes("venda")) {
+      return "VEICULOS VENDIDOS";
+    }
     if ((raw.includes("reserva") && raw.includes("operacao")) || raw === "reserva-operacao") return "RESERVA OPERACAO";
     if ((raw.includes("reserva") && raw.includes("patio")) || raw === "reserva-patio") return "RESERVA PATIO";
     if (raw === "reserva" || raw.includes("reserva")) return "RESERVA PATIO";

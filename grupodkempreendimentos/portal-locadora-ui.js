@@ -2891,9 +2891,22 @@
       title: "Disponíveis — 5.2 Reserva no pátio",
       lead: "Veículos reserva no pátio. Use «ENVIAR PARA MANUTENÇÃO» na caixinha para ir à Triagem. Também entram em «5.1 — Reserva em operação» automaticamente ao enviar um locado (1, 2 ou 3) para manutenção e escolher a placa reserva aqui.",
     },
+    "veiculos-operacionais": {
+      title: "Disponíveis — 5.3 Veículos operacionais",
+      lead: "Veículos de uso interno da empresa (não alugam). Envie de «4 — Pronto para alugar» ou de «5.2 — Reserva no pátio». Pode voltar para 4 ou ir para «5.4 — Veículos vendidos».",
+    },
+    "veiculos-vendidos": {
+      title: "Disponíveis — 5.4 Veículos vendidos",
+      lead: "Placas que saíram da frota por venda. Entram da manutenção («ENVIAR PARA VENDAS»), de 4, 5.2 ou 5.3. Se a venda for desfeita, use «VOLTAR PARA 4».",
+    },
   };
 
-  const MANUT_DISP_RESERVA_SUBS = new Set(["reserva-operacao", "reserva-patio"]);
+  const MANUT_DISP_RESERVA_SUBS = new Set([
+    "reserva-operacao",
+    "reserva-patio",
+    "veiculos-operacionais",
+    "veiculos-vendidos",
+  ]);
 
   function portalIsDispReservaSub(sub) {
     return MANUT_DISP_RESERVA_SUBS.has(String(sub || ""));
@@ -2902,6 +2915,8 @@
   function portalLabelDisponivelSub(sub) {
     if (sub === "reserva-operacao") return "5.1 — Reserva em operação";
     if (sub === "reserva-patio") return "5.2 — Reserva no pátio";
+    if (sub === "veiculos-operacionais") return "5.3 — Veículos operacionais";
+    if (sub === "veiculos-vendidos") return "5.4 — Veículos vendidos";
     if (sub === "prontos") return "4 — Pronto para alugar";
     return "Disponíveis";
   }
@@ -2914,6 +2929,18 @@
     if (origem === destino) return { ok: true, destino };
     if (origem === "prontos" && destino === "reserva-patio") {
       return { ok: true, destino: "reserva-patio" };
+    }
+    if (origem === "prontos" && (destino === "veiculos-operacionais" || destino === "veiculos-vendidos")) {
+      return { ok: true, destino };
+    }
+    if (origem === "reserva-patio" && (destino === "veiculos-operacionais" || destino === "veiculos-vendidos")) {
+      return { ok: true, destino };
+    }
+    if (origem === "veiculos-operacionais" && (destino === "prontos" || destino === "reserva-patio" || destino === "veiculos-vendidos")) {
+      return { ok: true, destino };
+    }
+    if (origem === "veiculos-vendidos" && (destino === "prontos" || destino === "veiculos-operacionais")) {
+      return { ok: true, destino };
     }
     if (origem === "reserva-patio" && destino === "reserva-operacao") {
       return {
@@ -3184,7 +3211,7 @@
     return "";
   }
 
-  /** prontos | reserva-operacao | reserva-patio — default prontos. */
+  /** prontos | reserva-operacao | reserva-patio | veiculos-operacionais | veiculos-vendidos — default prontos. */
   function portalNormDisponivelCategoria(veiculo) {
     const raw = String(
       veiculo?.disponivelCategoria || veiculo?.categoriaDisponivel || veiculo?.estadoDisponivel || ""
@@ -3194,6 +3221,24 @@
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, "-");
+    if (
+      raw === "veiculos-operacionais" ||
+      raw === "operacionais" ||
+      raw.includes("veiculo-operacional") ||
+      raw.includes("veiculos-operacionais") ||
+      (raw.includes("operacional") && !raw.includes("reserva"))
+    ) {
+      return "veiculos-operacionais";
+    }
+    if (
+      raw === "veiculos-vendidos" ||
+      raw === "vendidos" ||
+      raw === "vendas" ||
+      raw.includes("vendido") ||
+      raw.includes("venda")
+    ) {
+      return "veiculos-vendidos";
+    }
     if (
       raw === "reserva-operacao" ||
       raw === "reserva-em-operacao" ||
@@ -3219,6 +3264,8 @@
     if (st.includes("RESERVA") && st.includes("OPERACAO")) return "reserva-operacao";
     if (st.includes("RESERVA") && st.includes("PATIO")) return "reserva-patio";
     if (st.includes("RESERVA")) return "reserva-patio";
+    if (st.includes("VENDIDO") || st.includes("VENDAS")) return "veiculos-vendidos";
+    if (st.includes("OPERACIONAL")) return "veiculos-operacionais";
     return "prontos";
   }
 
@@ -3300,6 +3347,8 @@
           prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
           "reserva-operacao": "DISPONÍVEIS → 5.1 — Reserva em operação",
           "reserva-patio": "DISPONÍVEIS → 5.2 — Reserva no pátio",
+          "veiculos-operacionais": "DISPONÍVEIS → 5.3 — Veículos operacionais",
+          "veiculos-vendidos": "DISPONÍVEIS → 5.4 — Veículos vendidos",
         };
         return {
           ok: true,
@@ -3333,6 +3382,8 @@
         prontos: "DISPONÍVEIS → 4 — Pronto para alugar",
         "reserva-operacao": "DISPONÍVEIS → 5.1 — Reserva em operação",
         "reserva-patio": "DISPONÍVEIS → 5.2 — Reserva no pátio",
+        "veiculos-operacionais": "DISPONÍVEIS → 5.3 — Veículos operacionais",
+        "veiculos-vendidos": "DISPONÍVEIS → 5.4 — Veículos vendidos",
       };
       return {
         ok: true,
@@ -6585,9 +6636,13 @@
       acao: "manutencao_para_vendas",
       placa: placaKey,
       de: "manutencao",
-      para: "vendas",
+      para: "5.4-veiculos-vendidos",
     });
-    return { ok: true };
+    const marked = portalSetDisponivelCategoriaPlaca(placaKey, "veiculos-vendidos");
+    if (marked.ok) {
+      openManutencaoDisponivelSub("veiculos-vendidos");
+    }
+    return { ok: true, placa: placaKey, categoria: "veiculos-vendidos" };
   }
 
   function portalRegistarDevolvidoAoCliente() {
@@ -6800,6 +6855,10 @@
           "Nenhuma reserva em operação. Aparecem aqui quando Locados envia um veículo à manutenção com placa reserva de «5.2 — Reserva no pátio».",
         "reserva-patio":
           "Nenhuma placa em reserva no pátio. Em «4 — Pronto para alugar», use «ENVIAR PARA 5.2».",
+        "veiculos-operacionais":
+          "Nenhum veículo operacional. Em «4 — Pronto para alugar» ou «5.2 — Reserva no pátio», use «ENVIAR PARA 5.3».",
+        "veiculos-vendidos":
+          "Nenhum veículo vendido. Use «ENVIAR PARA VENDAS» na manutenção ou «ENVIAR PARA 5.4» em 4, 5.2 ou 5.3.",
       };
       grid.innerHTML = `<p class="portal-manutencao-empty">${emptyHints[sub] || "Nenhuma placa."}${filtro ? " (filtro)" : ""}</p>`;
       if (msg) msg.textContent = "";
@@ -6839,7 +6898,30 @@
       if (msg) msg.textContent = `${rows.length} cobertura(s) de reserva em operação.`;
       return;
     }
-    const moveTargets = sub === "prontos" ? [{ dest: "reserva-patio", label: "ENVIAR PARA 5.2" }] : [];
+    const moveTargets =
+      sub === "prontos"
+        ? [
+            { dest: "reserva-patio", label: "ENVIAR PARA 5.2" },
+            { dest: "veiculos-operacionais", label: "ENVIAR PARA 5.3" },
+            { dest: "veiculos-vendidos", label: "ENVIAR PARA 5.4" },
+          ]
+        : sub === "reserva-patio"
+          ? [
+              { dest: "veiculos-operacionais", label: "ENVIAR PARA 5.3" },
+              { dest: "veiculos-vendidos", label: "ENVIAR PARA 5.4" },
+            ]
+          : sub === "veiculos-operacionais"
+            ? [
+                { dest: "prontos", label: "VOLTAR PARA 4" },
+                { dest: "reserva-patio", label: "ENVIAR PARA 5.2" },
+                { dest: "veiculos-vendidos", label: "ENVIAR PARA 5.4" },
+              ]
+            : sub === "veiculos-vendidos"
+              ? [
+                  { dest: "prontos", label: "VOLTAR PARA 4" },
+                  { dest: "veiculos-operacionais", label: "ENVIAR PARA 5.3" },
+                ]
+              : [];
     grid.innerHTML = rows
       .map((r) => {
         const planoPosManut = sub === "prontos" ? portalPlanoProntosPosManutencao(r.placa, r.record) : "";
@@ -6853,8 +6935,9 @@
               return `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn" data-placa="${portalEscapeHtml(r.placa)}" data-disp-move="${t.dest}">${t.label}</button>`;
             })
             .join("");
-        } else if (sub === "reserva-patio") {
-          extraHtml = `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-enviar-manut-btn" data-disp-enviar-manut="${portalEscapeHtml(r.placa)}">ENVIAR PARA MANUTENÇÃO</button>`;
+        }
+        if (sub === "reserva-patio") {
+          extraHtml += `<button type="button" class="btn-primary btn-secondary-outline portal-disp-move-btn portal-disp-enviar-manut-btn" data-disp-enviar-manut="${portalEscapeHtml(r.placa)}">ENVIAR PARA MANUTENÇÃO</button>`;
         }
         const plateBtnExtraAttrs = planoPosManut
           ? ` data-disp-pronto-pos-manut="1" data-disp-plano="${portalEscapeHtml(planoPosManut)}"`
@@ -6871,6 +6954,8 @@
       const countHints = {
         prontos: `${rows.length} placa(s) prontas para alugar.`,
         "reserva-patio": `${rows.length} veículo(s) em reserva no pátio.`,
+        "veiculos-operacionais": `${rows.length} veículo(s) operacional(is).`,
+        "veiculos-vendidos": `${rows.length} veículo(s) vendido(s).`,
       };
       msg.textContent = countHints[sub] || `${rows.length} veículo(s).`;
     }
@@ -6894,14 +6979,10 @@
     if (estado.grupo !== "disponiveis" && estado.grupo !== "") {
       return { ok: false, message: estado.label || "Placa não está disponível." };
     }
-    if (estado.grupo === "disponiveis" && (estado.sub === "prontos" || estado.sub === "reserva-patio")) {
+    if (estado.grupo === "disponiveis") {
       const valDisp = portalValidarTransicaoDisponivel(estado.sub, cat);
       if (!valDisp.ok) return { ok: false, message: valDisp.message };
       cat = valDisp.destino || cat;
-    }
-    if (estado.grupo === "disponiveis" && estado.sub === "reserva-operacao" && cat !== "reserva-operacao") {
-      const valDisp = portalValidarTransicaoDisponivel(estado.sub, cat);
-      if (!valDisp.ok) return { ok: false, message: valDisp.message };
     }
     const keys = [];
     if (typeof CAD_VEICULOS_KEY !== "undefined") keys.push(CAD_VEICULOS_KEY);
@@ -6940,7 +7021,11 @@
             ? "5.2-reserva-patio"
             : cat === "reserva-operacao"
               ? "5.1-reserva-operacao"
-              : cat,
+              : cat === "veiculos-operacionais"
+                ? "5.3-veiculos-operacionais"
+                : cat === "veiculos-vendidos"
+                  ? "5.4-veiculos-vendidos"
+                  : cat,
     });
     return { ok: true, placa: plateKey, categoria: cat };
   }
@@ -11443,6 +11528,8 @@
         prontos: { cliente: "Disponível", text: "Disponível — Prontos para alugar" },
         "reserva-operacao": { cliente: "Reserva", text: "Disponível — Reserva em operação" },
         "reserva-patio": { cliente: "Reserva", text: "Disponível — Reserva no pátio" },
+        "veiculos-operacionais": { cliente: "Operacional", text: "Disponível — Veículos operacionais" },
+        "veiculos-vendidos": { cliente: "Vendido", text: "Veículos vendidos" },
       };
       const dl = dispLabels[disp] || dispLabels.prontos;
       cliente = dl.cliente;
@@ -22080,6 +22167,8 @@
     const disp = portalNormDisponivelCategoria(veiculo);
     if (disp === "reserva-operacao") return "RESERVA OPERACAO";
     if (disp === "reserva-patio") return "RESERVA PATIO";
+    if (disp === "veiculos-operacionais") return "VEICULOS OPERACIONAIS";
+    if (disp === "veiculos-vendidos") return "VEICULOS VENDIDOS";
     return "PRONTO PARA ALUGAR";
   }
 

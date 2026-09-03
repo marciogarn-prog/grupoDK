@@ -239,6 +239,25 @@
       }
     },
     {
+      "id": "manutencao-disp-5-3-5-4",
+      "descricao": "Em Manutenção → Disponíveis → 5 Veículo reserva: itens 5.3 Veículos operacionais e 5.4 Veículos vendidos, com grelha de placas e envio a partir de 4, 5.2 e da manutenção (ENVIAR PARA VENDAS cai em 5.4).",
+      "ficheiros": {
+        "index.html": [
+          "btn-disp-sub-veiculos-operacionais",
+          "btn-disp-sub-veiculos-vendidos",
+          "5.3 — Veículos operacionais",
+          "5.4 — Veículos vendidos"
+        ],
+        "portal-locadora-ui.js": [
+          "veiculos-operacionais",
+          "veiculos-vendidos",
+          "5.3 — Veículos operacionais",
+          "5.4 — Veículos vendidos",
+          "ENVIAR PARA 5.3"
+        ]
+      }
+    },
+    {
       "id": "lancamento-multas-scroll-mouse",
       "descricao": "Na tela Lançamento de multas, rodar a bola do mouse move o conteúdo (pesquisa, dados do protocolo, documentos e formulário da multa).",
       "ficheiros": {
