@@ -1056,10 +1056,25 @@
           "TRANSFORMAR EM ADMINISTRADOR",
           "portalColabTornarAdminBtn",
           "adminNivel = 2",
-          "sem FINANCEIRO CEO"
+          "sem FINANCEIRO CEO",
+          "delete f.horarioAcesso"
         ],
         "styles.css": [
           "portal-colab-tornar-admin-wrap"
+        ]
+      }
+    },
+    {
+      "id": "admin-privilegios-titular-cpf",
+      "descricao": "Outros administradores acedem a todo o sistema, inclusive finalização de contrato, sem limite de horário. Só o CPF 03037897430 pode apagar registros, alterar ou apagar pagamentos e alterar protocolo.",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "isPortalAdministradorTitularCpf",
+          "portalFuncionarioTemLimiteHorario",
+          "Apenas o administrador CPF 030.378.974-30 pode alterar ou apagar pagamentos já registados."
+        ],
+        "portal-colab-horario.js": [
+          "ehAdministradorSemHorario"
         ]
       }
     },

@@ -3056,10 +3056,10 @@ O sistema rejeita automaticamente se o valor lido na imagem for diferente do val
   /** Invalida pagamento já confirmado (só administrador titular). Grava local + nuvem e remove lançamento do protocolo. */
   async function invalidarPagamentoConfirmadoAdmin(comprovanteId) {
     const isAdmin =
-      typeof window.__DK_isPortalTitularAdministrador === "function" &&
-      window.__DK_isPortalTitularAdministrador();
+      typeof window.__DK_isPortalAdministradorTitularCpf === "function" &&
+      window.__DK_isPortalAdministradorTitularCpf();
     if (!isAdmin) {
-      return { ok: false, msg: "Apenas o administrador titular pode invalidar pagamentos." };
+      return { ok: false, msg: "Apenas o administrador CPF 030.378.974-30 pode invalidar pagamentos." };
     }
     const id = String(comprovanteId || "").trim();
     if (!id) return { ok: false, msg: "Pagamento sem identificador." };

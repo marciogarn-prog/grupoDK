@@ -577,7 +577,10 @@
   function renderHistorico(cfg, loc) {
     const wrap = $(cfg, "Historico");
     if (!wrap) return;
-    const owner = typeof window.__DK_isPortalTitularAdministrador === "function" && window.__DK_isPortalTitularAdministrador();
+    const owner =
+      typeof window.__DK_isPortalAdministradorTitularCpf === "function"
+        ? window.__DK_isPortalAdministradorTitularCpf()
+        : false;
     const esc = (s) =>
       String(s ?? "")
         .replace(/&/g, "&amp;")
@@ -1748,7 +1751,11 @@
     $(cfg, "Historico")?.addEventListener("click", (e) => {
       const btn = e.target.closest("[data-lanc-extra-del]");
       if (!btn || btn.getAttribute("data-lanc-extra-del") !== cfg.key) return;
-      if (!(typeof window.__DK_isPortalTitularAdministrador === "function" && window.__DK_isPortalTitularAdministrador())) return;
+      if (
+        !(typeof window.__DK_isPortalAdministradorTitularCpf === "function" && window.__DK_isPortalAdministradorTitularCpf())
+      ) {
+        return;
+      }
       const idx = Number(btn.getAttribute("data-idx"));
       const digits = dig($(cfg, "Cpf")?.value);
       const nc = normNc($(cfg, "ProtocoloSelect")?.value);
@@ -2091,8 +2098,10 @@
   function excluirDadosAutuacaoForm() {
     const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
     if (!cfg) return;
-    if (!(typeof window.__DK_isPortalTitularAdministrador === "function" && window.__DK_isPortalTitularAdministrador())) {
-      ocrFormMsg("Só o administrador titular pode excluir dados da autuação.", "erro");
+    if (
+      !(typeof window.__DK_isPortalAdministradorTitularCpf === "function" && window.__DK_isPortalAdministradorTitularCpf())
+    ) {
+      ocrFormMsg("Só o administrador CPF 030.378.974-30 pode excluir dados da autuação.", "erro");
       return;
     }
     const dados = coletarDadosAutuacaoForm();

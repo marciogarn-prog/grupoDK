@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
-const { horarioPadrao, statusHorario, AVISO_TEXTO } = require(path.join(ROOT, "portal-colab-horario.js"));
+const { horarioPadrao, statusHorario, AVISO_TEXTO, ehAdministradorSemHorario } = require(path.join(ROOT, "portal-colab-horario.js"));
 
 const padrao = horarioPadrao();
 const checks = [
@@ -36,6 +36,9 @@ checks.push(["sábado sem acesso", stSab.permitido === false]);
 
 const legado = statusHorario(null, quarta10);
 checks.push(["sem horário cadastrado não bloqueia", legado.permitido === true && legado.legado === true]);
+checks.push(["administrador owner sem horário", ehAdministradorSemHorario({ role: "owner" }) === true]);
+checks.push(["administrador 2 sem horário", ehAdministradorSemHorario({ role: "operacao", adminNivel: 2 }) === true]);
+checks.push(["colaborador tem horário", ehAdministradorSemHorario({ role: "operacao" }) === false]);
 
 let fail = 0;
 for (const [name, ok] of checks) {

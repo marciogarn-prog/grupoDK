@@ -702,14 +702,26 @@
     }
   }
 
-  /** Administrador titular (`owner`) — pode editar ou apagar lançamentos já registados; colaboradores (`operacao`) só lançam novos. */
+  /** Qualquer administrador (`owner`): sistema completo, inclusive finalizar contrato. Sem limite de horário. */
   function isPortalTitularAdministrador() {
     return getPortalSessaoAdminRole() === "owner";
   }
 
+  /** Só o CPF 03037897430: apagar registros, alterar/apagar pagamentos e alterar protocolo. */
+  function isPortalAdministradorTitularCpf() {
+    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF && isPortalTitularAdministrador();
+  }
+
   /** CPF titular com acesso FINANCEIRO CEO. */
   function isPortalAdministradorTitularCeo() {
-    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF && isPortalTitularAdministrador();
+    return isPortalAdministradorTitularCpf();
+  }
+
+  function portalFuncionarioTemLimiteHorario(f) {
+    if (!f) return false;
+    if (String(f.role || "").trim() === "owner") return false;
+    if (Number(f.adminNivel) === 2) return false;
+    return String(f.role || "").trim() === "operacao";
   }
 
   function countPortalAdministradoresSecundarios() {
@@ -2874,7 +2886,7 @@
     if (funcionario.blocked) {
       return { ok: false, msg: "Acesso bloqueado." };
     }
-    if (funcionario.role === "operacao" && typeof window.__DK_colabHorarioStatus === "function") {
+    if (portalFuncionarioTemLimiteHorario(funcionario) && typeof window.__DK_colabHorarioStatus === "function") {
       const st = window.__DK_colabHorarioStatus(funcionario.horarioAcesso);
       if (st && st.permitido === false) {
         return { ok: false, msg: st.motivo || "Fora do horário de acesso." };
@@ -8453,7 +8465,8 @@
     }
     wrap.classList.remove("hidden");
     resetWrap?.classList.remove("hidden");
-    adminWrap?.classList.remove("hidden");
+    if (isPortalAdministradorTitularCpf()) adminWrap?.classList.remove("hidden");
+    else adminWrap?.classList.add("hidden");
     btn.textContent = f.blocked ? "Desbloquear colaborador" : "Bloquear colaborador";
   }
 
@@ -8959,8 +8972,8 @@
 
   document.getElementById("portalColabTornarAdminBtn")?.addEventListener("click", () => {
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
-    if (!isPortalTitularAdministrador()) {
-      if (fb) fb.textContent = "Apenas o administrador titular pode transformar colaborador em administrador.";
+    if (!isPortalAdministradorTitularCpf()) {
+      if (fb) fb.textContent = "Apenas o administrador CPF 030.378.974-30 pode transformar colaborador em administrador.";
       return;
     }
     if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
@@ -8993,6 +9006,7 @@
         f.role = "owner";
         f.adminNivel = 2;
         f.blocked = false;
+        delete f.horarioAcesso;
         saveFuncionariosAccess();
         portalPushCloudSnapshotAfterPersist();
         limparPortalColaboradorFormularioCompleto();
@@ -9416,7 +9430,7 @@
         typeof findClienteByCpfCadastro === "function" && digits.length === 11
           ? findClienteByCpfCadastro(digits)
           : null;
-      let show = Boolean(isOwner && localOnly);
+      let show = Boolean(isPortalAdministradorTitularCpf() && localOnly);
       if (show && portalRegistroEhTeste(localOnly)) {
         btn.textContent = "Apagar cliente (teste)";
         btn.title = "Cadastro de TESTE — remove cliente e protocolos de teste ligados.";
@@ -10052,7 +10066,7 @@
 
     document.getElementById("operacaoClienteApagarBtn")?.addEventListener("click", (ev) => {
       ev.preventDefault();
-      if (!isPortalTitularAdministrador()) return;
+      if (!isPortalAdministradorTitularCpf()) return;
       const digits =
         typeof onlyDigits === "function"
           ? onlyDigits(inpCpf?.value || "")
@@ -10543,7 +10557,7 @@
             .replace(/[^A-Z0-9]/g, "");
     let record = null;
     if (plate && typeof findPortalVeiculoByPlaca === "function") record = findPortalVeiculoByPlaca(plate);
-    const show = Boolean(isPortalTitularAdministrador() && record && portalRegistroEhTeste(record));
+    const show = Boolean(isPortalAdministradorTitularCpf() && record && portalRegistroEhTeste(record));
     btn.classList.toggle("hidden", !show);
   }
 
@@ -16784,7 +16798,7 @@
 
   /** Só o CPF titular 030.378.974-30 pode alterar o número do protocolo. */
   function portalPodeAlterarNumeroProtocoloAdmin() {
-    return portalGetSessaoCpfDigits() === DK_LOCADORA_ADMIN_CPF;
+    return isPortalAdministradorTitularCpf();
   }
 
   function syncOperacaoLocacaoProtocoloAtualCampo() {
@@ -17160,7 +17174,7 @@
     if (!btn) return;
     const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
     const loc = nc ? findPortalLocacaoByProtocolo(nc) : null;
-    btn.classList.toggle("hidden", !isPortalTitularAdministrador() || !portalRegistroEhTeste(loc));
+    btn.classList.toggle("hidden", !isPortalAdministradorTitularCpf() || !portalRegistroEhTeste(loc));
   }
 
   function refreshOperacaoLocacaoSubmitBtn() {
@@ -18692,7 +18706,7 @@
       }
       body += `</tbody></table>`;
       body += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh, {
-        showInvalidateBtn: isPortalTitularAdministrador(),
+        showInvalidateBtn: isPortalAdministradorTitularCpf(),
       });
       body += `<hr />`;
     }
@@ -18850,7 +18864,7 @@
       }
       blocks += `</tbody></table>`;
       blocks += buildPortalRelatorioValidadosAppClienteHtml(validados || [], eh, {
-        showInvalidateBtn: isPortalTitularAdministrador(),
+        showInvalidateBtn: isPortalAdministradorTitularCpf(),
       });
       blocks += `<br><br>`;
     }
@@ -20506,7 +20520,7 @@
   }
 
   function apagarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice) {
-    if (!isPortalTitularAdministrador()) return false;
+    if (!isPortalAdministradorTitularCpf()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
     }
@@ -20565,7 +20579,7 @@
   }
 
   function apagarPortalLancamentoAluguelPorProtocolo(cpfDigits, ncNorm, protocoloLancamento) {
-    if (!isPortalTitularAdministrador()) return false;
+    if (!isPortalAdministradorTitularCpf()) return false;
     const proto = String(protocoloLancamento || "").trim();
     if (!proto) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
@@ -20597,7 +20611,7 @@
   }
 
   function atualizarPortalLancamentoAluguelPorIndice(cpfDigits, ncNorm, indice, valorNum, dataPagamentoBr, comentarioPagamento) {
-    if (!isPortalTitularAdministrador()) return false;
+    if (!isPortalAdministradorTitularCpf()) return false;
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_LOCACOES_KEY === "undefined") {
       return false;
     }
@@ -20664,7 +20678,7 @@
       return;
     }
     const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(loc);
-    const owner = isPortalTitularAdministrador();
+    const owner = isPortalAdministradorTitularCpf();
     const html =
       typeof window.__DK_renderHistoricoLancamentosHtml === "function"
         ? window.__DK_renderHistoricoLancamentosHtml(lancs, { adminActions: owner })
@@ -20683,8 +20697,8 @@
     e.preventDefault();
     e.stopPropagation();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
-    if (!isPortalTitularAdministrador()) {
-      window.alert("Apenas o administrador pode alterar ou apagar pagamentos já registados.");
+    if (!isPortalAdministradorTitularCpf()) {
+      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar ou apagar pagamentos já registados.");
       return;
     }
     const { nc, cpf } = operacaoLancAluguelProtocoloAtual();
@@ -21448,7 +21462,7 @@
   });
   document.getElementById("operacaoVeiculoApagarBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    if (!isPortalTitularAdministrador()) return;
+    if (!isPortalAdministradorTitularCpf()) return;
     const plateRaw = String(document.getElementById("operacaoVeiculoPlaca")?.value || "");
     const plate =
       typeof normalizePlate === "function"
@@ -21559,7 +21573,7 @@
 
   document.getElementById("operacaoLocacaoApagarProtocoloBtn")?.addEventListener("click", (e) => {
     e.preventDefault();
-    if (!isPortalTitularAdministrador()) return;
+    if (!isPortalAdministradorTitularCpf()) return;
     const nc = normPortalNumeroContrato(String(document.getElementById("operacaoLocacaoProtocolo")?.value || ""));
     const msg = document.getElementById("operacaoLocacaoInlineMsg");
     if (!nc) {
@@ -23130,8 +23144,8 @@
 
   document.getElementById("portalLancAluguelEditSalvarBtn")?.addEventListener("click", () => {
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
-    if (!isPortalTitularAdministrador()) {
-      window.alert("Apenas o administrador pode alterar pagamentos já registados.");
+    if (!isPortalAdministradorTitularCpf()) {
+      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar pagamentos já registados.");
       closePortalLancAluguelEditModal();
       return;
     }
@@ -23229,8 +23243,8 @@
     if (!editEl && !delEl) return;
     e.preventDefault();
     const msg = document.getElementById("operacaoLancAluguelInlineMsg");
-    if (!isPortalTitularAdministrador()) {
-      window.alert("Apenas o administrador pode alterar ou apagar pagamentos já registados.");
+    if (!isPortalAdministradorTitularCpf()) {
+      window.alert("Apenas o administrador CPF 030.378.974-30 pode alterar ou apagar pagamentos já registados.");
       return;
     }
     const inpCpf = document.getElementById("operacaoLancAluguelCpf");
@@ -24076,6 +24090,7 @@
   window.__DK_portalRemoverLancamentoComprovanteClienteId = portalRemoverLancamentoComprovanteClienteId;
   window.__DK_refreshPortalRelatorioAberto = refreshPortalRelatorioAberto;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
   window.__DK_portalAdminPodeEditarCodigoCliente = portalAdminPodeEditarCodigoCliente;
   window.__DK_refreshOperacaoClienteCodigoEditavel = refreshOperacaoClienteCodigoEditavel;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
@@ -24169,6 +24184,7 @@
   window.__DK_portalPodeAcessarSistemaMiel = portalPodeAcessarSistemaMiel;
   window.__DK_portalRefreshMielAcesso = refreshPortalMielHomeAcesso;
   window.__DK_isPortalTitularAdministrador = isPortalTitularAdministrador;
+  window.__DK_isPortalAdministradorTitularCpf = isPortalAdministradorTitularCpf;
   window.__DK_portalRegistroEhTeste = portalRegistroEhTeste;
   window.__DK_getPortalOperadorConferenciaSessao = getPortalOperadorConferenciaSessao;
   window.__DK_portalOperadorPodeConferirComprovanteCliente = portalOperadorPodeConferirComprovanteCliente;

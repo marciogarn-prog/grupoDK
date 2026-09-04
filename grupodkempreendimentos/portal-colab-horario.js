@@ -11,6 +11,7 @@
     root.__DK_aplicarHorarioColabPadrao = api.aplicarPadraoNoForm;
     root.__DK_colabHorarioStatus = api.statusHorario;
     root.__DK_iniciarAvisoHorarioFimColab = api.iniciarAvisoFim;
+    root.__DK_colabAdministradorSemHorario = api.ehAdministradorSemHorario;
   }
 })(typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : this, function () {
   const DIAS = [
@@ -190,8 +191,16 @@
     document.getElementById("portalColabHorarioAvisoOkBtn")?.focus();
   }
 
+  function ehAdministradorSemHorario(funcionario) {
+    if (!funcionario) return false;
+    if (String(funcionario.role || "").trim() === "owner") return true;
+    if (Number(funcionario.adminNivel) === 2) return true;
+    return false;
+  }
+
   function checarAviso(funcionario) {
-    if (!funcionario || String(funcionario.role || "").trim() !== "operacao") return;
+    if (!funcionario || ehAdministradorSemHorario(funcionario)) return;
+    if (String(funcionario.role || "").trim() !== "operacao") return;
     const st = statusHorario(funcionario.horarioAcesso);
     if (!st.permitido || !st.avisar30) return;
     const cpf = String(funcionario.cpf || "");
@@ -205,7 +214,8 @@
       clearInterval(avisoTimer);
       avisoTimer = 0;
     }
-    if (!funcionario || String(funcionario.role || "").trim() !== "operacao") return;
+    if (!funcionario || ehAdministradorSemHorario(funcionario)) return;
+    if (String(funcionario.role || "").trim() !== "operacao") return;
     if (!normalizaHorario(funcionario.horarioAcesso)) return;
     checarAviso(funcionario);
     avisoTimer = setInterval(() => checarAviso(funcionario), 15000);
@@ -234,5 +244,6 @@
     aplicarNoForm,
     aplicarPadraoNoForm,
     iniciarAvisoFim,
+    ehAdministradorSemHorario,
   };
 });
