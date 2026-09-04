@@ -226,20 +226,23 @@
           "Localização",
           "portalLocalizacaoInatividade",
           "portal-rotatividade-row__cor",
-          "portal-inatividade-row--pronto"
+          "portal-inatividade-row--pronto",
+          "portal-inatividade-row--roubo"
         ],
         "dk-relatorio-inatividade.js": [
           "locCobreDia",
           "coletarInatividadePeriodo",
           "Placas da frota sem protocolo na data",
           "resolverLocalizacaoInatividade",
-          "sortInatividadePorLocalizacao"
+          "sortInatividadePorLocalizacao",
+          "ehSinistroRoubo"
         ],
         "styles.css": [
           "portal-inatividade",
           "portal-rotatividade-dia__cols",
           "portal-inatividade-folha",
-          "portal-inatividade-row--pronto"
+          "portal-inatividade-row--pronto",
+          "portal-inatividade-row--roubo"
         ]
       }
     },

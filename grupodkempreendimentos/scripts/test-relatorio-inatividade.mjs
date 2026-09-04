@@ -115,6 +115,25 @@ record(
     sortCars[1]?.cor === "PRETO"
 );
 
+const rouboData = api.coletarInatividadePeriodo({
+  periodo,
+  veiculos: [
+    { placa: "UHQ8D98", tipo: "MOTO", modelo: "CG 160 START", cor: "AZUL" },
+    { placa: "AAA1B11", tipo: "MOTO", modelo: "BIZ", cor: "PRETA", disponivelCategoria: "prontos" },
+    { placa: "CCC3C33", tipo: "MOTO", modelo: "POP", cor: "VERMELHA", disponivelCategoria: "reserva-patio" },
+  ],
+  locacoes: [],
+  getTipo: () => "MOTO",
+  manutencoes: [{ placa: "UHQ8D98", categoriaManutencao: "sinistrado-roubo", dataRealSaida: "" }],
+});
+const rouboMotos = rouboData.days[0]?.motos || [];
+record(
+  "SINISTRO ROUBO vai para o fim da fila",
+  rouboMotos[0]?.localizacao === "PRONTO PARA ALUGAR" &&
+    rouboMotos[rouboMotos.length - 1]?.placa === "UHQ8D98" &&
+    rouboMotos[rouboMotos.length - 1]?.localizacao === "SINISTRO ROUBO"
+);
+
 const html = read("index.html");
 const css = read("styles.css");
 const ui = read("portal-locadora-ui.js");
@@ -136,6 +155,10 @@ record(
     ui.includes("portal-inatividade-row--pronto") &&
     css.includes("portal-inatividade-row--pronto") &&
     /<span>Modelo<\/span><span>Cor<\/span><span>Último protocolo<\/span>/.test(ui)
+);
+record(
+  "SINISTRO ROUBO com fundo vermelho no detalhado",
+  ui.includes("portal-inatividade-row--roubo") && css.includes("portal-inatividade-row--roubo")
 );
 record("PDF de um dia compacta a folha", read("dk-relatorio-operacao-pdf.js").includes("um-dia") && read("dk-relatorio-operacao-pdf.js").includes("modo: \"inatividade\""));
 

@@ -11701,6 +11701,21 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 .portal-inatividade-row--pronto .portal-rotatividade-row__val {
   color: #6ee7a0;
 }
+.portal-inatividade-row--roubo {
+  background: #7f1d1d;
+  border-radius: 4px;
+  padding-left: 0.35rem;
+  padding-right: 0.35rem;
+}
+.portal-inatividade-row--roubo,
+.portal-inatividade-row--roubo .portal-rotatividade-row__proto,
+.portal-inatividade-row--roubo .portal-rotatividade-row__cli,
+.portal-inatividade-row--roubo .portal-rotatividade-row__cor,
+.portal-inatividade-row--roubo .portal-rotatividade-row__vei,
+.portal-inatividade-row--roubo .portal-rotatividade-row__loc,
+.portal-inatividade-row--roubo .portal-rotatividade-row__val {
+  color: #fecaca;
+}
 .portal-inatividade-folha--um-dia .portal-rotatividade-row {
   padding: 0.18rem 0;
   font-size: 0.8rem;

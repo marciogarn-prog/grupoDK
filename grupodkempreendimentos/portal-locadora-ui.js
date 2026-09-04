@@ -22326,12 +22326,18 @@
   function portalHtmlLinhaInatividade(row) {
     const loc = String(row.localizacao || "—").trim() || "—";
     const cor = String(row.cor || "—").trim() || "—";
-    const pronto =
-      loc
-        .toUpperCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") === "PRONTO PARA ALUGAR";
-    return `<div class="portal-rotatividade-row${pronto ? " portal-inatividade-row--pronto" : ""}">
+    const locKey = loc
+      .toUpperCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "");
+    const pronto = locKey === "PRONTO PARA ALUGAR";
+    const roubo = locKey === "SINISTRO ROUBO" || (locKey.includes("SINISTRO") && locKey.includes("ROUBO"));
+    const rowCls = pronto
+      ? " portal-inatividade-row--pronto"
+      : roubo
+        ? " portal-inatividade-row--roubo"
+        : "";
+    return `<div class="portal-rotatividade-row${rowCls}">`
       <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.placa)}</span>
       <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
       <span class="portal-rotatividade-row__cor" title="${portalEscapeHtml(cor)}">${portalEscapeHtml(cor)}</span>

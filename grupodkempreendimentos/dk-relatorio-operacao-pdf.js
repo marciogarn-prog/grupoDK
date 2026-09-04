@@ -76,6 +76,9 @@
     body.inatividade .portal-rotatividade-row__loc { font-size: 10px; text-transform: uppercase; }
     body.inatividade .portal-inatividade-row--pronto,
     body.inatividade .portal-inatividade-row--pronto span { color: #15803d; }
+    body.inatividade .portal-inatividade-row--roubo { background: #fecaca; }
+    body.inatividade .portal-inatividade-row--roubo,
+    body.inatividade .portal-inatividade-row--roubo span { color: #7f1d1d; font-weight: 700; }
     body.um-dia { padding: 6px 8px; }
     body.um-dia h1 { font-size: 14px; margin-bottom: 2px; }
     body.um-dia .meta { font-size: 10px; margin-bottom: 6px; }

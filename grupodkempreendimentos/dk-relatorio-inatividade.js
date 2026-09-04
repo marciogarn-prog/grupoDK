@@ -101,10 +101,18 @@
     return normLocalizacaoInatividade(loc) === "PRONTO PARA ALUGAR";
   }
 
+  function ehSinistroRoubo(loc) {
+    const k = normLocalizacaoInatividade(loc);
+    return k === "SINISTRO ROUBO" || (k.includes("SINISTRO") && k.includes("ROUBO"));
+  }
+
   function sortInatividadePorLocalizacao(a, b) {
     const aPronto = ehProntoParaAlugar(a?.localizacao);
     const bPronto = ehProntoParaAlugar(b?.localizacao);
     if (aPronto !== bPronto) return aPronto ? -1 : 1;
+    const aRoubo = ehSinistroRoubo(a?.localizacao);
+    const bRoubo = ehSinistroRoubo(b?.localizacao);
+    if (aRoubo !== bRoubo) return aRoubo ? 1 : -1;
     const locCmp = String(a?.localizacao || "").localeCompare(String(b?.localizacao || ""), "pt-BR");
     if (locCmp) return locCmp;
     return String(a?.placa || "").localeCompare(String(b?.placa || ""));
@@ -237,6 +245,7 @@
     locCobreDia,
     resolverLocalizacaoInatividade,
     ehProntoParaAlugar,
+    ehSinistroRoubo,
     sortInatividadePorLocalizacao,
     coletarInatividadePeriodo,
     contarLivresAgora,
