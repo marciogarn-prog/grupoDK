@@ -7,7 +7,7 @@ import { fileURLToPath } from "url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
-const { parseAutuacaoTransito, limparSimboloInicioDescricao } = require(path.join(ROOT, "dk-parse-autuacao-transito.js"));
+const { parseAutuacaoTransito, limparSimboloInicioDescricao, escolherMelhorPlaca, ehPlacaMercosulAtual } = require(path.join(ROOT, "dk-parse-autuacao-transito.js"));
 
 const SAMPLE = `
 PARAR SOBRE FAIXA DE PEDESTRES NA MUDANÇA DE SINAL LUMINOSO (FISC ELETRÔNICA)
@@ -91,6 +91,22 @@ checks.push(["valor com ícone na linha de cima", Math.abs(Number(hitIconeValor.
 const samplePlacaEspaco = SAMPLE.replace("SPA3F38", "SPA 3F38");
 const hitPlacaEspaco = parseAutuacaoTransito(samplePlacaEspaco);
 checks.push(["placa com espaço SPA 3F38", hitPlacaEspaco.placa === "SPA3F38"]);
+
+const samplePlacaErradaNaFrente = `Consulta placa DKR2252
+Placa à época da infração
+SPA3F38
+Data/Hora do Cometimento da Infração
+17/08/2026 11:08
+`;
+const hitPlacaErrada = parseAutuacaoTransito(samplePlacaErradaNaFrente);
+checks.push(["placa da época vence placa antiga DKR2252", hitPlacaErrada.placa === "SPA3F38"]);
+
+const samplePlacaMesmaLinha = "Placa à época da infração: SPA3F38\nValor Original\nR$ 130,16\n";
+const hitPlacaLinha = parseAutuacaoTransito(samplePlacaMesmaLinha);
+checks.push(["placa na mesma linha do rótulo", hitPlacaLinha.placa === "SPA3F38"]);
+checks.push(["Mercosul SPA3F38", ehPlacaMercosulAtual("SPA3F38") === true]);
+checks.push(["antiga DKR2252 não é Mercosul atual", ehPlacaMercosulAtual("DKR2252") === false]);
+checks.push(["escolhe Mercosul entre DKR2252 e SPA3F38", escolherMelhorPlaca(["DKR2252", "SPA3F38"]) === "SPA3F38"]);
 
 const sampleValorSemCifrao = SAMPLE.replace("R$ 130,16", "130,16");
 const hitValorSemCifrao = parseAutuacaoTransito(sampleValorSemCifrao);

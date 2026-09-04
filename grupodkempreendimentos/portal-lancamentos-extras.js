@@ -1865,12 +1865,18 @@
   }
 
   function acharPlacaConhecidaNoTexto(text) {
-    const compact = String(text || "")
+    const parsed =
+      typeof window.__DK_parseAutuacaoTransito === "function"
+        ? window.__DK_parseAutuacaoTransito(text || "")
+        : null;
+    const parsedPlaca = normPlate(parsed?.placa);
+    if (parsedPlaca) return parsedPlaca;
+    const tokens = String(text || "")
       .toUpperCase()
-      .replace(/[^A-Z0-9]/g, "");
-    if (!compact) return "";
-    for (const p of placasConhecidas()) {
-      if (compact.includes(p)) return p;
+      .match(/[A-Z]{3}[0-9][A-Z][0-9]{2}/g) || [];
+    const known = new Set(placasConhecidas());
+    for (const t of tokens) {
+      if (known.has(t)) return t;
     }
     return "";
   }
@@ -1879,10 +1885,17 @@
     const cfg = TIPOS.find((t) => t.key === "lancamentoMultas");
     if (!cfg) return { ok: false, aviso: "Tela de multas indisponível." };
     let placa = normPlate(dados?.placa);
-    if (!placa) {
-      placa = acharPlacaConhecidaNoTexto(window.__DK_ultimoTextoAutuacao || "");
-      if (placa && dados) dados.placa = placa;
+    const merco = (p) =>
+      typeof window.__DK_ehPlacaMercosulAtual === "function"
+        ? window.__DK_ehPlacaMercosulAtual(p)
+        : /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(p);
+    const fromTxt = acharPlacaConhecidaNoTexto(window.__DK_ultimoTextoAutuacao || "");
+    if (fromTxt && merco(fromTxt) && (!placa || !merco(placa))) {
+      placa = fromTxt;
+    } else if (!placa && fromTxt) {
+      placa = fromTxt;
     }
+    if (placa && dados) dados.placa = placa;
     const data = String(dados?.data || "").trim();
     const hora = String(dados?.hora || "").trim();
     const codigo = String(dados?.codigo || dados?.auto || "").trim();

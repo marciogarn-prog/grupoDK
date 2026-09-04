@@ -101,7 +101,7 @@
 
   async function ocrOpenAi(imgDataUrl) {
     const prompt =
-      "Leia esta autuação/multa de trânsito brasileira. O valor e a placa ESTÃO na imagem — copie os números, ignore ícone de dinheiro/$/círculo azul à frente do Valor Original. Devolva JSON com: placa (Mercosul, ex. SPA3F38, campo Placa à época da infração), data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número do Valor Original, ex. 130.16, nunca 0 se o documento mostra R$ 130,16), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
+      "Leia esta autuação/multa de trânsito brasileira. Copie a placa EXATA do campo «Placa à época da infração» (padrão Mercosul LLLNLNN, letra na 5.ª posição — não invente nem use placa de outro veículo/frota). Ignore ícone de dinheiro/$/círculo azul à frente do Valor Original. Devolva JSON com: placa, data (DD/MM/AAAA), hora (HH:MM), codigo (Código da Infração, ex. 5673-2), descricao (só o texto da infração, ignore ícones/quadrados azuis — nunca comece com B, D ou O solto), valor (número do Valor Original, ex. 130.16, nunca 0 se o documento mostra R$ 130,16), auto (Número do Auto de Infração, ex. M000180669, M5C0350359 ou M800680968), renainf, orgaoAutuador, orgaoCompetente, local, dataNotificacao, dataLimiteDefesa, dataLimiteCondutor. Sem texto extra.";
     const content = [
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imgDataUrl } },
@@ -169,11 +169,18 @@
         break;
       }
     }
-    if (out.placa) out.placa = String(out.placa).toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (out.placa && !/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(out.placa)) {
-      const fromTxt = String(fromText.placa || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
-      out.placa = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(fromTxt) ? fromTxt : "";
-    }
+    const limpaPlaca = (p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+    const merco = (p) =>
+      typeof window.__DK_ehPlacaMercosulAtual === "function"
+        ? window.__DK_ehPlacaMercosulAtual(p)
+        : /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(p);
+    const placaOcr = limpaPlaca(fromText.placa);
+    const placaIa = limpaPlaca(out.placa);
+    if (merco(placaOcr)) out.placa = placaOcr;
+    else if (merco(placaIa)) out.placa = placaIa;
+    else if (placaOcr) out.placa = placaOcr;
+    else if (placaIa && /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/.test(placaIa)) out.placa = placaIa;
+    else out.placa = "";
     if (out.codigo) out.codigo = String(out.codigo).replace(/\s+/g, "").replace("–", "-");
     if (out.auto && typeof window.__DK_normalizaAutoAutuacao === "function") {
       out.auto = window.__DK_normalizaAutoAutuacao(out.auto) || String(out.auto).trim();

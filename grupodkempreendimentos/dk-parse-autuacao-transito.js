@@ -10,6 +10,8 @@
     root.__DK_parseValorNumeroAutuacao = api.parseValorNumero;
     root.__DK_normalizaAutoAutuacao = api.normalizaAuto;
     root.__DK_limparSimboloInicioDescricao = api.limparSimboloInicioDescricao;
+    root.__DK_escolherPlacaAutuacao = api.escolherMelhorPlaca;
+    root.__DK_ehPlacaMercosulAtual = api.ehPlacaMercosulAtual;
   }
 })(typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : this, function () {
   function norm(text) {
@@ -69,19 +71,55 @@
     return m ? m[1] : "";
   }
 
+  function extraiTodasPlacas(raw) {
+    const s = String(raw || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, " ");
+    const out = [];
+    const re = /([A-Z]{3}[0-9][A-Z0-9][0-9]{2})/g;
+    let m;
+    while ((m = re.exec(s))) {
+      if (!out.includes(m[1])) out.push(m[1]);
+    }
+    return out;
+  }
+
+  function ehPlacaMercosulAtual(p) {
+    return /^[A-Z]{3}[0-9][A-Z][0-9]{2}$/.test(String(p || ""));
+  }
+
+  function escolherMelhorPlaca(cands) {
+    const list = (Array.isArray(cands) ? cands : []).map((p) => String(p || "").toUpperCase().replace(/[^A-Z0-9]/g, ""));
+    return list.find(ehPlacaMercosulAtual) || list[0] || "";
+  }
+
   function parsePlaca(text) {
-    const lines = norm(text).split("\n");
+    const src = norm(text);
+    const labeled = afterLabel(text, [
+      "Placa [àa] [ée]poca da infra[cç][aã]o",
+      "Placa do ve[ií]culo",
+    ]);
+    const fromLabel = escolherMelhorPlaca(extraiTodasPlacas(labeled).concat(extraiPlacaToken(labeled) ? [extraiPlacaToken(labeled)] : []));
+    if (fromLabel) return fromLabel;
+
+    const lines = src.split("\n");
+    const epocaHits = [];
+    const otherHits = [];
     for (let i = 0; i < lines.length; i += 1) {
       if (!/placa/i.test(lines[i])) continue;
-      const same = extraiPlacaToken(lines[i]);
-      if (same) return same;
-      const next = extraiPlacaToken(lines[i + 1]);
-      if (next) return next;
+      const bloco = `${lines[i]}\n${lines[i + 1] || ""}`;
+      const epoca = /[ée]poca\s+da\s+infra/i.test(bloco);
+      const cands = extraiTodasPlacas(bloco);
+      if (!cands.length) continue;
+      (epoca ? epocaHits : otherHits).push(...cands);
     }
-    const src = norm(text).toUpperCase();
-    const spaced = src.match(/\b([A-Z]{3})\s*([0-9])\s*([A-Z0-9])\s*([0-9]{2})\b/);
+    const picked = escolherMelhorPlaca(epocaHits) || escolherMelhorPlaca(otherHits);
+    if (picked) return picked;
+
+    const upper = src.toUpperCase();
+    const spaced = upper.match(/\b([A-Z]{3})\s*([0-9])\s*([A-Z])\s*([0-9]{2})\b/);
     if (spaced) return `${spaced[1]}${spaced[2]}${spaced[3]}${spaced[4]}`;
-    return extraiPlacaToken(src);
+    return escolherMelhorPlaca(extraiTodasPlacas(upper));
   }
 
   function parseDataHora(text) {
@@ -272,5 +310,12 @@
     };
   }
 
-  return { parseAutuacaoTransito, parseValorNumero, normalizaAuto, limparSimboloInicioDescricao };
+  return {
+    parseAutuacaoTransito,
+    parseValorNumero,
+    normalizaAuto,
+    limparSimboloInicioDescricao,
+    escolherMelhorPlaca,
+    ehPlacaMercosulAtual,
+  };
 });

@@ -394,7 +394,8 @@
           "Ler dados da imagem",
           "__DK_aplicarLeituraMulta",
           "ocrOpenAi",
-          "ocrLocal"
+          "ocrLocal",
+          "Placa à época da infração"
         ],
         "portal-lancamentos-extras.js": [
           "aplicarLeituraMulta",
@@ -406,7 +407,9 @@
         ],
         "dk-parse-autuacao-transito.js": [
           "parseAutuacaoTransito",
-          "renainf"
+          "renainf",
+          "ehPlacaMercosulAtual",
+          "Placa [àa] [ée]poca da infra"
         ]
       }
     },
