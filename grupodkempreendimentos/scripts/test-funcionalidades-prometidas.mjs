@@ -2,6 +2,7 @@
  * Trava funcionalidades pedidas pelo titular: se sumirem do código, o teste falha.
  * node grupodkempreendimentos/scripts/test-funcionalidades-prometidas.mjs
  */
+import { spawnSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -91,6 +92,21 @@ record("19/08/2026 permanece", coerceDataFimBr("19/08/2026") === "19/08/2026");
 record("ISO 2026-08-19 → 19/08/2026", coerceDataFimBr("2026-08-19") === "19/08/2026");
 record("19/ago/2026 → 19/08/2026", coerceDataFimBr("19/ago/2026") === "19/08/2026");
 record("19/08/2026 + 40 dias = 28/09/2026", somarDiasCorridos(new Date(2026, 7, 19), 40) === "28/09/2026");
+
+const homeNav = fs.readFileSync(path.join(ROOT, "home-unit-nav.js"), "utf8");
+record(
+  "home-unit-nav liga os cartões da home",
+  homeNav.includes("#view-home [data-go]") && homeNav.includes("__DK_homeOpenUnit")
+);
+
+for (const rel of ["portal-locadora-ui.js", "home-unit-nav.js"]) {
+  const chk = spawnSync(process.execPath, ["--check", path.join(ROOT, rel)], { encoding: "utf8" });
+  record(
+    `${rel} analisa sem erro de sintaxe`,
+    chk.status === 0,
+    (chk.stderr || chk.stdout || "").trim().slice(0, 180)
+  );
+}
 
 const pass = results.filter((r) => r.ok).length;
 console.log(`\n--- ${pass}/${results.length} testes funcionalidades prometidas ---`);

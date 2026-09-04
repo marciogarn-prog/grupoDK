@@ -2130,6 +2130,8 @@
     setPortalHash("");
   }
 
+  window.__DK_openUnit = openUnit;
+
   document.querySelectorAll("[data-go]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const go = btn.getAttribute("data-go") || "";
@@ -22337,7 +22339,7 @@
       : roubo
         ? " portal-inatividade-row--roubo"
         : "";
-    return `<div class="portal-rotatividade-row${rowCls}">`
+    return `<div class="portal-rotatividade-row${rowCls}">
       <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.placa)}</span>
       <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
       <span class="portal-rotatividade-row__cor" title="${portalEscapeHtml(cor)}">${portalEscapeHtml(cor)}</span>

@@ -1,9 +1,10 @@
-const CACHE_NAME = "dk-corporativo-v20260903inat-roubo";
+const CACHE_NAME = "dk-corporativo-v20260903home-loc";
 const ASSETS = [
   "./",
   "./index.html",
   "./app.html",
   "./home-install-pwa.js",
+  "./home-unit-nav.js",
   "./dk-pwa-update.js",
   "./dk-deploy-channel.js",
   "./dk-app-entry.js",
