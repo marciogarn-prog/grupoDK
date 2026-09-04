@@ -19,7 +19,17 @@
   }
 
   function adminPodeEditarCodigo() {
-    return cpfSessaoDigits() === ADMIN_CPF;
+    if (typeof window.__DK_isPortalAdministradorTitularCpf === "function") {
+      return window.__DK_isPortalAdministradorTitularCpf();
+    }
+    if (cpfSessaoDigits() !== ADMIN_CPF) return false;
+    try {
+      const m = String(sessionStorage.getItem("dk_titular_ver_como") || "").trim();
+      if (m === "admin" || m === "colaborador" || m === "cliente") return false;
+    } catch {
+      /* ignore */
+    }
+    return true;
   }
 
   function unlockClienteCodigoField() {

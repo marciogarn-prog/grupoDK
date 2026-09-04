@@ -1079,6 +1079,27 @@
       }
     },
     {
+      "id": "titular-ver-como-perfis",
+      "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR 03037897430 e botões azuis só desse titular: VER COMO ADMINISTRADOR (administrador normal sem permissões especiais), VER COMO COLABORADOR e VER COMO CLIENTE.",
+      "ficheiros": {
+        "index.html": [
+          "portalAdminVerComoWrap",
+          "VER COMO ADMINISTRADOR",
+          "VER COMO COLABORADOR",
+          "VER COMO CLIENTE"
+        ],
+        "portal-locadora-ui.js": [
+          "dk_titular_ver_como",
+          "portalTitularVerComo",
+          "LOGADO COMO ADMINISTRADOR 03037897430",
+          "portalAplicarModoVerComo"
+        ],
+        "styles.css": [
+          "portal-admin-ver-como__btn"
+        ]
+      }
+    },
+    {
       "id": "nuvem-opcoes-apenas-administrador",
       "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
       "ficheiros": {
