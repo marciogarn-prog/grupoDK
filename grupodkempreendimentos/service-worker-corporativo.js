@@ -1,4 +1,4 @@
-const CACHE_NAME = "dk-corporativo-v20260904placa-frota";
+const CACHE_NAME = "dk-corporativo-v20260904colab-hora";
 const ASSETS = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const ASSETS = [
   "./portal-cliente-codigo-admin.js",
   "./dk-relatorio-inatividade.js",
   "./dk-relatorio-operacao-pdf.js",
+  "./portal-colab-horario.js",
   "./portal-locadora-ui.js",
   "./dk-app-scope.js",
   "./portal-unidade-financeiro.js",

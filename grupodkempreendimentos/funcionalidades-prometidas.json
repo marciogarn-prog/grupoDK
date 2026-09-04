@@ -1014,6 +1014,37 @@
       }
     },
     {
+      "id": "colab-horario-acesso",
+      "descricao": "No Cadastro de colaborador: dias segunda a domingo com caixinha; Hora de início e Hora fim. Novos cadastros já vêm com seg a sex marcados, 08:00 a 18:00. Colaborador só entra no horário marcado. Em qualquer tela, 30 minutos antes do fim abre a janela O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS com botão ok.",
+      "ficheiros": {
+        "index.html": [
+          "portalColabHorarioAcesso",
+          "Hora de início",
+          "Hora fim",
+          "portalColabHorarioAvisoModal",
+          "O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS",
+          "portalColabHorarioAvisoOkBtn"
+        ],
+        "portal-colab-horario.js": [
+          "horarioAcesso",
+          "O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS",
+          "avisar30",
+          "08:00",
+          "18:00"
+        ],
+        "portal-locadora-ui.js": [
+          "__DK_colherHorarioColab",
+          "__DK_iniciarAvisoHorarioFimColab",
+          "__DK_colabHorarioStatus"
+        ],
+        "styles.css": [
+          "portal-colab-horario__h-dia",
+          "portal-colab-horario__h-ini",
+          "portal-colab-horario__h-fim"
+        ]
+      }
+    },
+    {
       "id": "nuvem-opcoes-apenas-administrador",
       "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
       "ficheiros": {

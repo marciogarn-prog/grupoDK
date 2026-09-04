@@ -3824,6 +3824,103 @@ body {
   grid-column: 1 / -1;
 }
 
+.portal-field--stack.portal-colab-horario {
+  grid-column: 1 / -1;
+  gap: 0.4rem;
+}
+
+.portal-colab-horario__head,
+.portal-colab-horario__row {
+  display: grid;
+  grid-template-columns: minmax(10.5rem, 1.2fr) minmax(8rem, 1fr) minmax(8rem, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.portal-colab-horario__h-dia,
+.portal-colab-horario__h-ini,
+.portal-colab-horario__h-fim {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+}
+
+.portal-colab-horario__h-dia {
+  background: rgba(34, 197, 94, 0.18);
+  border: 1px solid #22c55e;
+  color: #bbf7d0;
+}
+
+.portal-colab-horario__h-ini {
+  background: rgba(37, 99, 235, 0.2);
+  border: 1px solid #3b82f6;
+  color: #93c5fd;
+}
+
+.portal-colab-horario__h-fim {
+  background: rgba(220, 38, 38, 0.18);
+  border: 1px solid #ef4444;
+  color: #fecaca;
+}
+
+.portal-colab-horario__dia {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.1rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.08);
+  cursor: pointer;
+  text-transform: lowercase;
+}
+
+.portal-colab-horario__dia input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #22c55e;
+  flex: 0 0 auto;
+}
+
+.portal-colab-horario__row input[type="time"] {
+  width: 100%;
+  min-height: 2.1rem;
+  border-radius: 6px;
+  border: 1px solid rgba(59, 130, 246, 0.45);
+  background: rgba(15, 23, 42, 0.65);
+  color: inherit;
+  padding: 0.2rem 0.4rem;
+}
+
+.portal-colab-horario__row input[id^="portalColabFim"] {
+  border-color: rgba(239, 68, 68, 0.55);
+}
+
+.portal-colab-horario__row input[type="time"]:disabled {
+  opacity: 0.45;
+}
+
+#portalColabHorarioAvisoModal {
+  z-index: 2600;
+}
+
+#portalColabHorarioAvisoModal .portal-colab-horario-aviso__backdrop {
+  cursor: default;
+}
+
+.portal-colab-horario-aviso__card {
+  text-align: center;
+}
+
+#portalColabHorarioAvisoTexto {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fecaca;
+}
+
 .portal-field__label {
   font-size: 0.85rem;
   color: var(--muted);

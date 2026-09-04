@@ -107,7 +107,7 @@ record(
   homeNav.includes("#view-home [data-go]") && homeNav.includes("__DK_homeOpenUnit")
 );
 
-for (const rel of ["portal-locadora-ui.js", "home-unit-nav.js", "portal-setor-relatorio.js", "portal-cliente-docs.js", "dk-oficial-cadastro-guard.js", "cliente-notificacoes.js"]) {
+for (const rel of ["portal-locadora-ui.js", "home-unit-nav.js", "portal-setor-relatorio.js", "portal-cliente-docs.js", "dk-oficial-cadastro-guard.js", "cliente-notificacoes.js", "portal-colab-horario.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(ROOT, rel)], { encoding: "utf8" });
   record(
     `${rel} analisa sem erro de sintaxe`,

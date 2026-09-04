@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260904avisos-fix">
+  <link rel="stylesheet" href="styles.css?v=20260904colab-hora">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2241,6 +2241,49 @@
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceLancManutencao" checked> Movimentações da manutenção</label>
               <label class="portal-check-label"><input type="checkbox" id="portalColabAceSistemaMiel"> Acesso ao sistema MIEL</label>
             </div>
+            <div id="portalColabHorarioAcesso" class="portal-field portal-field--stack portal-colab-horario" role="group" aria-labelledby="portal-colab-horario-legend">
+              <span id="portal-colab-horario-legend" class="portal-field__label">Horário de acesso</span>
+              <div class="portal-colab-horario__head">
+                <span class="portal-colab-horario__h-dia">Dia</span>
+                <span class="portal-colab-horario__h-ini">Hora de início</span>
+                <span class="portal-colab-horario__h-fim">Hora fim</span>
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaSeg" checked> segunda</label>
+                <input type="time" id="portalColabIniSeg" value="08:00" aria-label="Hora de início segunda">
+                <input type="time" id="portalColabFimSeg" value="18:00" aria-label="Hora fim segunda">
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaTer" checked> terça</label>
+                <input type="time" id="portalColabIniTer" value="08:00" aria-label="Hora de início terça">
+                <input type="time" id="portalColabFimTer" value="18:00" aria-label="Hora fim terça">
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaQua" checked> quarta</label>
+                <input type="time" id="portalColabIniQua" value="08:00" aria-label="Hora de início quarta">
+                <input type="time" id="portalColabFimQua" value="18:00" aria-label="Hora fim quarta">
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaQui" checked> quinta</label>
+                <input type="time" id="portalColabIniQui" value="08:00" aria-label="Hora de início quinta">
+                <input type="time" id="portalColabFimQui" value="18:00" aria-label="Hora fim quinta">
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaSex" checked> sexta</label>
+                <input type="time" id="portalColabIniSex" value="08:00" aria-label="Hora de início sexta">
+                <input type="time" id="portalColabFimSex" value="18:00" aria-label="Hora fim sexta">
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaSab"> sábado</label>
+                <input type="time" id="portalColabIniSab" value="" aria-label="Hora de início sábado" disabled>
+                <input type="time" id="portalColabFimSab" value="" aria-label="Hora fim sábado" disabled>
+              </div>
+              <div class="portal-colab-horario__row">
+                <label class="portal-colab-horario__dia"><input type="checkbox" id="portalColabDiaDom"> domingo</label>
+                <input type="time" id="portalColabIniDom" value="" aria-label="Hora de início domingo" disabled>
+                <input type="time" id="portalColabFimDom" value="" aria-label="Hora fim domingo" disabled>
+              </div>
+            </div>
             <div class="operacao-inline-form__actions portal-colab-actions-row">
               <div class="portal-colab-primary-actions">
                 <button type="submit" id="portalColabBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar colaborador</button>
@@ -3670,6 +3713,17 @@
     </div>
   </div>
 
+  <div id="portalColabHorarioAvisoModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalColabHorarioAvisoTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop portal-colab-horario-aviso__backdrop"></div>
+    <div class="portal-modal__card portal-colab-horario-aviso__card">
+      <h3 id="portalColabHorarioAvisoTitulo" class="portal-modal__title">Aviso de horário</h3>
+      <p id="portalColabHorarioAvisoTexto" class="portal-modal__text">O SISTEMA FICARA INDISPONIVEL EM 30 MINUTOS</p>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalColabHorarioAvisoOkBtn">ok</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalAdminAlteracaoConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalAdminAlteracaoConfirmTitulo">
     <div class="portal-modal__backdrop" data-close-admin-alteracao-confirm></div>
     <div class="portal-modal__card">
@@ -4039,14 +4093,15 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260904placa-frota" defer></script>
+  <script src="app.js?v=20260904colab-hora" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
-  <script src="portal-locadora-ui.js?v=20260904placa-frota" defer></script>
+  <script src="portal-colab-horario.js?v=20260904colab-hora" defer></script>
+  <script src="portal-locadora-ui.js?v=20260904colab-hora" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

@@ -1695,6 +1695,9 @@
     refreshOperacaoLocacaoAdminProtocoloUi();
     portalSyncAmbienteCadastroAdminUi();
     refreshOperacaoClienteCodigoEditavel();
+    if (typeof window.__DK_iniciarAvisoHorarioFimColab === "function") {
+      window.__DK_iniciarAvisoHorarioFimColab(funcionario);
+    }
   }
 
   const portalViews = [
@@ -2870,6 +2873,12 @@
     }
     if (funcionario.blocked) {
       return { ok: false, msg: "Acesso bloqueado." };
+    }
+    if (funcionario.role === "operacao" && typeof window.__DK_colabHorarioStatus === "function") {
+      const st = window.__DK_colabHorarioStatus(funcionario.horarioAcesso);
+      if (st && st.permitido === false) {
+        return { ok: false, msg: st.motivo || "Fora do horário de acesso." };
+      }
     }
     return { ok: true, funcionario };
   }
@@ -8465,6 +8474,9 @@
     if (c5) c5.checked = true;
     if (c6) c6.checked = true;
     if (c7) c7.checked = false;
+    if (typeof window.__DK_aplicarHorarioColabPadrao === "function") {
+      window.__DK_aplicarHorarioColabPadrao();
+    }
   }
 
   /** Limpa o formulário completo (inclui CPF) e volta ao modo de novo cadastro. */
@@ -8629,6 +8641,9 @@
     if (c5) c5.checked = Boolean(a.lancamentoMultas ?? a.lancamentoAluguel);
     if (c6) c6.checked = Boolean(a.lancamentoManutencao ?? a.lancamentoAluguel);
     if (c7) c7.checked = Boolean(a.sistemaMiel);
+    if (typeof window.__DK_aplicarHorarioColab === "function") {
+      window.__DK_aplicarHorarioColab(f.horarioAcesso);
+    }
     setOperacaoResponsavelPorDisplay("operacaoColaboradorCadastradoPor", f);
   }
 
@@ -8744,6 +8759,10 @@
       return;
     }
     const acessos = buildPortalColabAcessosNormalizados();
+    const horarioAcesso =
+      typeof window.__DK_colherHorarioColab === "function"
+        ? window.__DK_colherHorarioColab()
+        : undefined;
     funcionariosAccess.push({
       cpf: cpfRaw,
       senha: "123456",
@@ -8754,6 +8773,7 @@
       funcao,
       dataIngresso,
       acessos,
+      horarioAcesso,
       ...portalResolveResponsavelStamp(null),
     });
     saveFuncionariosAccess();
@@ -8812,6 +8832,10 @@
       return;
     }
     const acessos = buildPortalColabAcessosNormalizados();
+    const horarioAcesso =
+      typeof window.__DK_colherHorarioColab === "function"
+        ? window.__DK_colherHorarioColab()
+        : f.horarioAcesso;
     const antesColab = {
       cpf: portalColabFormatCpfExibicao(cpfOriginal),
       nome: portalNormDiffVal(f.nome),
@@ -8854,6 +8878,7 @@
       f.funcao = funcao;
       f.dataIngresso = dataIngresso;
       f.acessos = acessos;
+      if (horarioAcesso) f.horarioAcesso = horarioAcesso;
       saveFuncionariosAccess();
       portalPushCloudSnapshotAfterPersist();
       refreshPortalMielHomeAcesso();
