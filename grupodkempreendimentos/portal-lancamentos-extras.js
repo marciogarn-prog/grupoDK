@@ -1793,6 +1793,7 @@
   }
 
   const CLIENTE_VEICULO_DISPONIVEL = "NESTE PERIODO VEICULO DISPONIVEL";
+  const PLACA_FORA_DA_FROTA = "Placa não faz parte dos veículos da empresa.";
 
   function setOcrField(id, value) {
     const el = document.getElementById(id);
@@ -1864,6 +1865,12 @@
     return [...set];
   }
 
+  function placaNaFrota(placa) {
+    const p = normPlate(placa);
+    if (p.length < 7) return false;
+    return new Set(placasConhecidas()).has(p);
+  }
+
   function acharPlacaConhecidaNoTexto(text) {
     const parsed =
       typeof window.__DK_parseAutuacaoTransito === "function"
@@ -1896,6 +1903,10 @@
       placa = fromTxt;
     }
     if (placa && dados) dados.placa = placa;
+    if (placa && !placaNaFrota(placa)) {
+      OCR_FORM_IDS.forEach((id) => setOcrField(id, ""));
+      return { ok: false, foraDaFrota: true, aviso: PLACA_FORA_DA_FROTA };
+    }
     const data = String(dados?.data || "").trim();
     const hora = String(dados?.hora || "").trim();
     const codigo = String(dados?.codigo || dados?.auto || "").trim();

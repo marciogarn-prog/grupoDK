@@ -395,11 +395,13 @@
           "__DK_aplicarLeituraMulta",
           "ocrOpenAi",
           "ocrLocal",
-          "Placa à época da infração"
+          "Placa à época da infração",
+          "foraDaFrota"
         ],
         "portal-lancamentos-extras.js": [
           "aplicarLeituraMulta",
-          "locCobreData"
+          "locCobreData",
+          "Placa não faz parte dos veículos da empresa."
         ],
         "styles.css": [
           "portal-multas-ocr__zone",
@@ -415,7 +417,7 @@
     },
     {
       "id": "lancamento-multas-form-autuacao",
-      "descricao": "Abaixo da imagem da autuação existe o formulário com os cabeçalhos da multa (placa, órgãos, local, data/hora, auto, código, RENAINF, valor, prazos). A leitura preenche as caixas; placa+data+hora ligam ao protocolo; sem contrato ativo o Cliente mostra NESTE PERIODO VEICULO DISPONIVEL.",
+      "descricao": "Abaixo da imagem da autuação existe o formulário com os cabeçalhos da multa (placa, órgãos, local, data/hora, auto, código, RENAINF, valor, prazos). A leitura preenche as caixas só se a placa estiver no cadastro de veículos; placa+data+hora ligam ao protocolo; sem contrato ativo o Cliente mostra NESTE PERIODO VEICULO DISPONIVEL. Placa fora da frota: não preenche nada e informa só Placa não faz parte dos veículos da empresa.",
       "ficheiros": {
         "index.html": [
           "operacaoLancMultasOcrForm",
@@ -427,7 +429,8 @@
         "portal-lancamentos-extras.js": [
           "NESTE PERIODO VEICULO DISPONIVEL",
           "preencherFormularioAutuacao",
-          "escolherLocacaoNaData"
+          "escolherLocacaoNaData",
+          "foraDaFrota"
         ],
         "styles.css": [
           "portal-multas-ocr-form__row",

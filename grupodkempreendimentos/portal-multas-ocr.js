@@ -224,13 +224,17 @@
       }
       if (typeof window.__DK_aplicarLeituraMulta === "function") {
         const r = window.__DK_aplicarLeituraMulta(merged);
-        const extra = r?.aviso ? ` ${r.aviso}` : "";
-        setMsg(
-          `Lido: ${merged.placa || "sem placa"} · ${merged.data || "sem data"} · ${
-            merged.valor ? `R$ ${Number(merged.valor).toFixed(2).replace(".", ",")}` : "sem valor"
-          }.${extra}`,
-          r?.ok === false ? "erro" : "ok"
-        );
+        if (r?.foraDaFrota) {
+          setMsg(r.aviso || "Placa não faz parte dos veículos da empresa.", "erro");
+        } else {
+          const extra = r?.aviso ? ` ${r.aviso}` : "";
+          setMsg(
+            `Lido: ${merged.placa || "sem placa"} · ${merged.data || "sem data"} · ${
+              merged.valor ? `R$ ${Number(merged.valor).toFixed(2).replace(".", ",")}` : "sem valor"
+            }.${extra}`,
+            r?.ok === false ? "erro" : "ok"
+          );
+        }
       } else {
         setMsg("Leitura pronta, mas o formulário de multas ainda não carregou.", "erro");
       }
