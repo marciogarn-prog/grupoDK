@@ -1450,7 +1450,7 @@ async function runSuite() {
       clienteAppJs.includes('__DK_pullCloudSnapshotSilentMerge({ force: true })'),
       "Atualizar da nuvem re-funde pagamentos"
     );
-    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260824premio-convite`, {
+    const swClienteJs = await fetch(`${BASE_URL}service-worker-cliente.js?v=20260904avisos-fix`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1462,7 +1462,7 @@ async function runSuite() {
         portalSyncLancJs.includes("mergeRemoteSnapshotsForClienteApp") &&
         clienteAppJs.includes("45000") &&
         !clienteAppJs.includes("consolidarLancamentosClienteLogado(sessao.cpf)") &&
-        swClienteJs.includes("dk-cliente-v20260824premio-convite"),
+        swClienteJs.includes("dk-cliente-v20260904avisos-fix"),
       "Supabase sem lançamentos não apaga pagamentos do Redis no app"
     );
     record(
@@ -1505,7 +1505,7 @@ async function runSuite() {
     const portalLocadoraJs = await fetch(`${BASE_URL}portal-locadora-ui.js?v=20260610avisos-check`, {
       cache: "no-store",
     }).then((r) => r.text());
-    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260610avisos-check`, {
+    const clienteNotifJs = await fetch(`${BASE_URL}cliente-notificacoes.js?v=20260904avisos-fix`, {
       cache: "no-store",
     }).then((r) => r.text());
     record(
@@ -1535,7 +1535,7 @@ async function runSuite() {
         clienteNotifJs.includes("mensagemBoasVindas") &&
         clienteNotifJs.includes("boas_vindas") &&
         clienteAppJs.includes("maybeRegistrarBoasVindasCliente") &&
-        clienteHtml.includes("cliente-notificacoes.js?v=20260610avisos-check"),
+        clienteHtml.includes("cliente-notificacoes.js?v=20260904avisos-fix"),
       "primeiro acesso: aviso personalizado com protocolo"
     );
     record(

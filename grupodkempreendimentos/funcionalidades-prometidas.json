@@ -250,6 +250,25 @@
       }
     },
     {
+      "id": "avisos-dk-pagamento-nao-sumir",
+      "descricao": "Avisos de pagamento registados no portal chegam aos Avisos DK do app cliente. O filtro oficial não apaga dk_cliente_notificacoes (não trata aviso como cadastro de cliente). O app recompõe avisos dos pagamentos recentes se a nuvem veio vazia.",
+      "ficheiros": {
+        "dk-oficial-cadastro-guard.js": [
+          "notificacao",
+          "includes(\"notificac\")",
+          "criadoEm"
+        ],
+        "cliente-notificacoes.js": [
+          "garantirAvisosPagamentosDoCliente",
+          "origemPortal: true",
+          "__DK_clienteNotificacoesGarantirPagamentos"
+        ],
+        "cliente-app.js": [
+          "garantirAvisosPagamentosNoApp"
+        ]
+      }
+    },
+    {
       "id": "finalizacao-locacao-saldo-45-dias",
       "descricao": "Na janela Confirmar finalização da locação aparecem Valor devido (só aluguel, sem investimento), Valor pago e Saldo (= pago − devido). Se o saldo for positivo, mostra Pagamento do saldo só com a data (45 dias corridos após a data fim).",
       "ficheiros": {

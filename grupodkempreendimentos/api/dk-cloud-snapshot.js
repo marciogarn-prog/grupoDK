@@ -87,7 +87,9 @@ function oficialRecordYmd(record, key) {
   const protoYmd = locacaoProtocolYmd(record);
   if (protoYmd && String(key || "").includes("locac")) return protoYmd;
   const k = String(key);
-  const fields = k.includes("locacoes")
+  const fields = k.includes("notificac")
+    ? ["criadoEm", "createdAt", "dataPagamento"]
+    : k.includes("locacoes")
     ? ["dataCadastro", "createdAt", "updatedAt", "inicio", "dataInicio"]
     : k.includes("lancamento") || k.includes("manutencoes")
       ? ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"]
@@ -224,11 +226,19 @@ function sanitizePayloadForOficial(payload, cutoffYmd = oficialTodayYmd(), keepL
   for (const k of OFICIAL_GUARD_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(out, k) || !Array.isArray(out[k])) continue;
     const keyCutoff = oficialCutoffForKey(k);
+    const isNotif = String(k).includes("notificac");
     const isLoc = String(k).includes("locac");
-    const isCli = String(k).includes("cliente");
+    const isCli = String(k).includes("cliente") && !isNotif;
     const isVei = String(k).includes("veiculo") || String(k).includes("frota");
     out[k] = out[k].filter((r) => {
       const cpfEarly = cpfDigitsKey(r);
+      if (isNotif) {
+        if (OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
+        if (!String(r?.mensagem || "").trim()) return false;
+        const ymdN = oficialRecordYmd(r, k);
+        if (!ymdN) return true;
+        return ymdN >= keyCutoff;
+      }
       if (isCli && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfEarly)) return false;
       if (isLoc && isLocacaoNcOficialmenteBloqueado(r)) return false;
       /* Fantasmas (placa LOC/TST ou sem CPF) nunca passam — mesmo com origemPortal ou keepNc. */

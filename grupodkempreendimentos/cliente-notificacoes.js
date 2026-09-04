@@ -183,6 +183,7 @@
     if (cpf.length !== 11) return { ok: false, msg: "CPF inválido." };
     const msg = String(mensagem || "").trim();
     if (!msg) return { ok: false, msg: "Mensagem obrigatória." };
+    const agora = new Date().toISOString();
     const rec = {
       id: `cn_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       tipo,
@@ -195,7 +196,9 @@
       descricao: String(payload.descricao || "").trim(),
       quantidadeParcelas: Number(payload.quantidadeParcelas) || 0,
       mensagem: msg,
-      criadoEm: new Date().toISOString(),
+      criadoEm: agora,
+      createdAt: agora,
+      origemPortal: true,
       lido: false,
     };
     const all = loadAll();
@@ -273,6 +276,8 @@
       mensagem,
       comprovanteId: String(payload.comprovanteId || "").trim(),
       criadoEm: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      origemPortal: true,
       lido: false,
     };
     const all = loadAll();
@@ -299,6 +304,8 @@
       mensagem: mensagemPagamentoInvalidado(valor, dataPagamento),
       comprovanteId: String(payload.comprovanteId || "").trim(),
       criadoEm: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      origemPortal: true,
       lido: false,
     };
     const all = loadAll();
@@ -318,6 +325,8 @@
       setor: setor === "manutencao" ? "manutencao" : "vendas",
       mensagem: "Você tem uma nova mensagem da DK",
       criadoEm: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      origemPortal: true,
       lido: false,
     };
     const all = loadAll();
@@ -353,12 +362,78 @@
       mensagem: mensagemPagamentoConfirmado(valor, dataPagamento),
       comprovanteId: String(payload.comprovanteId || "").trim(),
       criadoEm: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      origemPortal: true,
       lido: false,
     };
     const all = loadAll();
     all.unshift(rec);
     saveAll(all);
     return { ok: true, rec };
+  }
+
+  function avisoPagamentoJaExiste(all, cpf, dataPagamento, valor) {
+    const v = Math.round(Number(valor) * 100);
+    const data = String(dataPagamento || "").trim();
+    return (Array.isArray(all) ? all : []).some((r) => {
+      if (onlyDigits(r?.cpf) !== cpf) return false;
+      if (!["pagamento_lancado", "pagamento_confirmado"].includes(String(r?.tipo || ""))) return false;
+      if (String(r?.dataPagamento || "").trim() !== data) return false;
+      return Math.round(Number(r?.valor) * 100) === v;
+    });
+  }
+
+  function parseDataPagamentoMs(raw) {
+    const s = String(raw || "").trim();
+    const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return 0;
+    const dt = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+    return Number.isNaN(dt.getTime()) ? 0 : dt.getTime();
+  }
+
+  /**
+   * App cliente: se o SMS/push saiu mas o aviso não veio da nuvem, recria na lista local
+   * (sem push) a partir dos pagamentos do contrato.
+   */
+  function garantirAvisosPagamentosDoCliente(cpfDigits, pagamentos) {
+    const cpf = onlyDigits(cpfDigits).slice(0, 11);
+    if (cpf.length !== 11 || !Array.isArray(pagamentos) || !pagamentos.length) {
+      return { ok: true, added: 0 };
+    }
+    const all = loadAll();
+    const cutoff = Date.now() - 90 * 24 * 60 * 60 * 1000;
+    let added = 0;
+    const ordered = pagamentos
+      .slice()
+      .sort((a, b) => parseDataPagamentoMs(b?.dataPagamento || b?.data) - parseDataPagamentoMs(a?.dataPagamento || a?.data));
+    for (const p of ordered) {
+      if (added >= 12) break;
+      const valor = Number(p?.valor);
+      const dataPagamento = String(p?.dataPagamento || p?.data || "").trim();
+      if (!Number.isFinite(valor) || valor <= 0 || !dataPagamento) continue;
+      const ms = parseDataPagamentoMs(dataPagamento);
+      if (ms && ms < cutoff) continue;
+      if (avisoPagamentoJaExiste(all, cpf, dataPagamento, valor)) continue;
+      const rec = {
+        id: `cn_sync_${onlyDigits(dataPagamento)}_${Math.round(valor * 100)}_${cpf.slice(-4)}`,
+        tipo: "pagamento_lancado",
+        cpf,
+        protocolo: String(p.protocolo || "").trim(),
+        placa: String(p.placa || "").trim(),
+        valor,
+        dataPagamento,
+        mensagem: mensagemPagamentoLancado(valor, dataPagamento, p.protocolo, p.placa),
+        criadoEm: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        origemPortal: true,
+        lido: false,
+        origemSyncLocal: true,
+      };
+      all.unshift(rec);
+      added += 1;
+    }
+    if (added) saveAll(all, { skipCloud: true });
+    return { ok: true, added };
   }
 
   function listarPorCpf(cpfDigits, opts) {
@@ -400,5 +475,6 @@
   window.__DK_clienteNotificacaoManutencaoLancada = adicionarNotificacaoManutencaoLancada;
   window.__DK_clienteNotificacoesList = listarPorCpf;
   window.__DK_clienteNotificacoesMarcarLidas = marcarLidasPorCpf;
+  window.__DK_clienteNotificacoesGarantirPagamentos = garantirAvisosPagamentosDoCliente;
   window.__DK_clienteMensagemPagamentoConfirmado = mensagemPagamentoConfirmado;
 })();

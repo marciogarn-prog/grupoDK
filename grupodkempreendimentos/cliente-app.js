@@ -929,6 +929,29 @@
     return `<div class="cliente-notificacao${extraClass ? ` ${extraClass}` : ""}" role="status"><p class="cliente-notificacao__msg">${escapeHtml(n.mensagem)}</p>${notificacaoMetaHtml(n)}</div>`;
   }
 
+  function garantirAvisosPagamentosNoApp(cpf) {
+    const fn = window.__DK_clienteNotificacoesGarantirPagamentos;
+    if (typeof fn !== "function") return;
+    const dados = typeof loadDadosCliente === "function" ? loadDadosCliente(cpf) : { locacoes: [] };
+    const pags = [];
+    for (const loc of dados.locacoes || []) {
+      const proto = normNc(loc.numeroContrato);
+      const placa = String(loc.placa || "").trim();
+      for (const p of getLancamentosFromLoc(loc)) {
+        if (String(p.tipoMovimento || "").toUpperCase() === "DEVOLUCAO_INVESTIMENTO") continue;
+        if (!(Number(p.valor) > 0)) continue;
+        pags.push({
+          valor: p.valor,
+          data: p.data,
+          dataPagamento: p.data,
+          protocolo: proto || p.protocolo,
+          placa,
+        });
+      }
+    }
+    if (pags.length) fn(cpf, pags);
+  }
+
   function renderNotificacoes(cpf) {
     const wrap = $("cliente-notificacoes-wrap");
     const box = $("cliente-notificacoes");
@@ -1448,6 +1471,7 @@
       resumo.innerHTML = `<div class="cliente-premio-wrap">${linhas}</div>`;
     }
 
+    garantirAvisosPagamentosNoApp(cpf);
     renderNotificacoes(cpf);
 
     const lista = $("cliente-contratos");
@@ -1648,7 +1672,7 @@
     if (!("serviceWorker" in navigator) || location.protocol === "file:") return null;
     await unregisterCorporativoServiceWorkers();
     try {
-      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260824premio-convite", {
+      return await navigator.serviceWorker.register("/service-worker-cliente.js?v=20260904avisos-fix", {
         scope: "/",
         updateViaCache: "none",
       });

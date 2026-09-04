@@ -82,6 +82,7 @@
   }
 
   function cadastroKeyFamily(key) {
+    if (String(key).includes("notificac")) return "notificacao";
     if (String(key).includes("cliente")) return "cliente";
     if (String(key).includes("veiculo") || String(key).includes("frota")) return "veiculo";
     if (String(key).includes("locacoes")) return "locacao";
@@ -99,6 +100,7 @@
     lancamento: ["dataCadastro", "data", "dataPagamento", "dataLancamento", "createdAt"],
     comprovante: ["createdAt", "criadoEm", "enviadoEm", "data", "dataPagamento"],
     documento: ["createdAt", "criadoEm", "enviadoClienteEm", "updatedAt"],
+    notificacao: ["criadoEm", "createdAt", "dataPagamento"],
     generic: ["dataCadastro", "createdAt", "criadoEm", "updatedAt"],
   };
 
@@ -225,6 +227,14 @@
 
   function isRecordAllowed(record, key, cutoffYmd) {
     if (!isOficialOnly()) return true;
+    if (cadastroKeyFamily(key) === "notificacao") {
+      const cpfN = cpfDigits(record);
+      if (cpfN.length === 11 && OFICIAL_CLIENTES_CPF_EXCLUIDOS.has(cpfN)) return false;
+      if (!String(record?.mensagem || "").trim()) return false;
+      const ymdN = extractRecordYmd(record, key);
+      if (!ymdN) return true;
+      return ymdN >= (cutoffYmd || cutoffForKey(key));
+    }
     if (
       record &&
       typeof record === "object" &&
