@@ -17217,6 +17217,13 @@
       String(document.getElementById("operacaoLocacaoValorAluguel")?.value || "").trim() ||
       String(prev.valorLocacao || "").trim() ||
       "—";
+    const locParaSaldo = {
+      ...prev,
+      fim: fimBr,
+      valorLocacao: document.getElementById("operacaoLocacaoValorAluguel")?.value || prev.valorLocacao,
+      valorInvestimento: document.getElementById("operacaoLocacaoValorInvestimento")?.value || prev.valorInvestimento,
+    };
+    const saldos = portalLocacaoFinalizacaoSaldos(locParaSaldo, fimBr);
 
     const finalizarLocacao = () => {
       const regFin = getPortalSessaoParaRegistroLancamentoAluguel();
@@ -17281,6 +17288,10 @@
           { label: "Tipo de plano", value: plano || "—" },
           { label: "Valor da locação", value: valorLoc },
           { label: "Data fim", value: fimBr },
+          { label: "Valor devido", value: saldos.devidoFmt },
+          { label: "Valor pago", value: saldos.pagoFmt },
+          { label: "Saldo", value: saldos.saldoFmt },
+          ...(saldos.dataPagamentoSaldo ? [{ label: "Pagamento do saldo", value: saldos.dataPagamentoSaldo }] : []),
         ],
       },
       finalizarLocacao
@@ -18486,6 +18497,38 @@
       investimentoAcumulado: formatPortalLancamentoSumBrl(investimentoAcumuladoNum),
       investimentoAcumuladoNeg: investimentoAcumuladoNum < 0,
       investimentoAcumuladoPos: investimentoAcumuladoNum > 0,
+    };
+  }
+
+  /** Na finalização: devido = só aluguel (sem investimento); saldo = pago − devido. */
+  const PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS = 45;
+
+  function portalLocacaoFinalizacaoSaldos(loc, fimBr) {
+    const locCalc = { ...(loc || {}), fim: String(fimBr || loc?.fim || "").trim() };
+    const valLoc = portalValorAluguelNumFromLoc(locCalc);
+    const tempo = computePortalTempoDiasLoc(locCalc);
+    const devido = tempo * (valLoc / 7);
+    const lancs = getPortalLancamentosAluguelContabilizaveisDoContrato(locCalc);
+    const pago = sumPortalLancamentosAluguelTotal(lancs);
+    const saldo = Number(pago || 0) - Number(devido || 0);
+    const fmtBrl = (n) =>
+      typeof currencyBRL === "function"
+        ? currencyBRL(n)
+        : Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    let dataPagamentoSaldo = "";
+    if (saldo > 0.009) {
+      const d = typeof parseBrDate === "function" ? parseBrDate(locCalc.fim) : null;
+      const dt = portalSomarDiasCorridos(d, PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS);
+      if (dt) dataPagamentoSaldo = formatPortalDataBr(dt);
+    }
+    return {
+      devido,
+      pago,
+      saldo,
+      devidoFmt: fmtBrl(devido),
+      pagoFmt: fmtBrl(pago),
+      saldoFmt: fmtBrl(saldo),
+      dataPagamentoSaldo,
     };
   }
 
@@ -24081,6 +24124,8 @@
   window.__DK_portalFormatDataFinalizacaoLocacao = portalFormatDataFinalizacaoLocacao;
   window.__DK_portalCoerceDataFimBr = portalCoerceDataFimBr;
   window.__DK_PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS = PORTAL_PRAZO_DEVOLUCAO_DIAS_CORRIDOS;
+  window.__DK_PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS = PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS;
+  window.__DK_portalLocacaoFinalizacaoSaldos = portalLocacaoFinalizacaoSaldos;
   window.__DK_portalSomarDiasCorridos = portalSomarDiasCorridos;
   window.__DK_formatPortalDataLimiteDevolucao40d = formatPortalDataLimiteDevolucao40d;
   window.__DK_portalPainelLimiteDevolucaoState = portalPainelLimiteDevolucaoState;

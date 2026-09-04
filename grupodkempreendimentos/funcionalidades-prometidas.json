@@ -250,6 +250,19 @@
       }
     },
     {
+      "id": "finalizacao-locacao-saldo-45-dias",
+      "descricao": "Na janela Confirmar finalização da locação aparecem Valor devido (só aluguel, sem investimento), Valor pago e Saldo (= pago − devido). Se o saldo for positivo, mostra Pagamento do saldo só com a data (45 dias corridos após a data fim).",
+      "ficheiros": {
+        "portal-locadora-ui.js": [
+          "portalLocacaoFinalizacaoSaldos",
+          "PORTAL_PRAZO_PAGAMENTO_SALDO_DIAS",
+          "Valor devido",
+          "Valor pago",
+          "Pagamento do saldo"
+        ]
+      }
+    },
+    {
       "id": "cadastro-cliente-docs-residencia-cnh",
       "descricao": "No Cadastro de cliente, duas caixas verdes para comprovante de residência e CNH (imagem ou PDF). Novos cadastros a partir de 04/09/2026 exigem telefone, Recados 01, Recados 02 e os dois ficheiros; Guardar abre janela com resumo e botões Salvar e Cancelar. Cliente já cadastrado (ou data antes de 04/09/2026) abre a janela só com Atualizar. A numeração do Cód. continua a sequência existente.",
       "ficheiros": {
