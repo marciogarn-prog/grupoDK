@@ -5348,6 +5348,63 @@ body.portal-checklist-clipboard-mode .portal-checklist-disposition-msg {
   width: 100%;
 }
 
+.portal-setor-relatorio-head {
+  align-items: center;
+}
+
+.portal-setor-relatorio-btn {
+  flex: 0 0 auto;
+  font-size: 0.78rem !important;
+  padding: 0.4rem 0.75rem !important;
+  letter-spacing: 0.04em;
+}
+
+.portal-setor-relatorio-modal__card {
+  max-width: min(96vw, 56rem);
+}
+
+.portal-setor-relatorio-placa-filtro {
+  margin-bottom: 0.65rem;
+  max-width: 220px;
+}
+
+.portal-setor-relatorio-lista {
+  max-height: min(52vh, 420px);
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+
+.portal-setor-relatorio-tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.portal-setor-relatorio-tabela th,
+.portal-setor-relatorio-tabela td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  text-align: left;
+  vertical-align: top;
+}
+
+.portal-setor-relatorio-tabela th {
+  background: rgba(0, 0, 0, 0.04);
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.portal-setor-relatorio-empty {
+  margin: 0.5rem 0 0.75rem;
+}
+
+.portal-setor-relatorio-count {
+  margin: 0.55rem 0.35rem 0.25rem;
+}
+
 .portal-disp-devolver-btn {
   margin-top: 0.35rem;
   width: 100%;

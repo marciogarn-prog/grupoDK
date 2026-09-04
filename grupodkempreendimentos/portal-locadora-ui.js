@@ -3712,6 +3712,7 @@
     const leadEl = document.getElementById("portalChecklistLeadOperacao");
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
+    document.getElementById("portalSetorRelatorioBtnLocados")?.setAttribute("data-setor-relatorio", sub);
     portalAttachChecklistWorkspace("operacao");
     /* Locados: só pesquisa de placa + enviar para manutenção (sem check-list). */
     document.getElementById("portalChecklistMount")?.classList.add("hidden");
@@ -3739,6 +3740,7 @@
     const leadEl = document.getElementById("portalDisponiveisLead");
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
+    document.getElementById("portalSetorRelatorioBtnDisponiveis")?.setAttribute("data-setor-relatorio", sub);
     const busca = document.querySelector("#manutencaoInlineDisponiveis .portal-manutencao-busca");
     if (busca) busca.classList.toggle("hidden", sub === "reserva-operacao");
     const grid = document.getElementById("portalDisponiveisPlacasGrid");
@@ -3767,6 +3769,7 @@
     const leadEl = document.getElementById("portalChecklistLeadManutencao");
     if (titleEl) titleEl.textContent = meta.title;
     if (leadEl) leadEl.textContent = meta.lead;
+    document.getElementById("portalSetorRelatorioBtnManutencao")?.setAttribute("data-setor-relatorio", sub);
     portalAttachChecklistWorkspace("manutencao");
     const mount = document.getElementById("portalChecklistMount");
     const usesGrid = MANUT_EM_MANUT_GRID_SUBS.has(sub);
@@ -5561,8 +5564,11 @@
     portalSyncFluxoVeiculoNuvem({
       acao: "locados_para_manutencao",
       placa: placaKey,
-      de: "locados",
-      para: `6-triagem${reservaMovida ? "+5.1-reserva" : ""}`,
+      de:
+        (typeof portalClassificarPlanoLocado === "function" && portalClassificarPlanoLocado(placaKey)) ||
+        portalManutLocadoSubAtivo ||
+        "locados",
+      para: "triagem",
       motivo,
     });
     return {
@@ -5921,6 +5927,10 @@
   function portalEnviarPlacaDiretoTriagem(placaRaw, opts) {
     const placaKey = portalNkPlate(placaRaw);
     if (!placaKey) return { ok: false, message: "Placa em falta." };
+    const estAntes =
+      typeof portalResolverEstadoExclusivoPlaca === "function"
+        ? portalResolverEstadoExclusivoPlaca(placaKey)
+        : { sub: "" };
     if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_MANUTENCOES_KEY === "undefined") {
       return { ok: false, message: "Cadastro indisponível neste ambiente." };
     }
@@ -5960,7 +5970,7 @@
     portalSyncFluxoVeiculoNuvem({
       acao: "reserva_para_triagem",
       placa: placaKey,
-      de: "disponiveis-reserva",
+      de: estAntes.sub || "disponiveis-reserva",
       para: "6-triagem",
       motivo,
     });
@@ -6501,6 +6511,7 @@
     portalSyncFluxoVeiculoNuvem({
       acao: "manutencao_mover",
       placa: placaKey,
+      de: origemSub,
       para: categoria,
     });
     return { ok: true, placa: placaKey, categoria };
@@ -6656,7 +6667,7 @@
     portalSyncFluxoVeiculoNuvem({
       acao: "manutencao_para_disponivel",
       placa: placaKey,
-      de: "manutencao",
+      de: portalManutEmManutSubAtivo || "manutencao",
       para: cat === "prontos" ? "4-prontos" : "5.2-reserva-patio",
       locacaoTransferida: locacaoAjuste?.placaReserva || "",
     });
@@ -6762,10 +6773,10 @@
     portalSyncFluxoVeiculoNuvem({
       acao: "manutencao_para_vendas",
       placa: placaKey,
-      de: "manutencao",
+      de: portalManutEmManutSubAtivo || "manutencao",
       para: "5.4-veiculos-vendidos",
     });
-    const marked = portalSetDisponivelCategoriaPlaca(placaKey, "veiculos-vendidos");
+    const marked = portalSetDisponivelCategoriaPlaca(placaKey, "veiculos-vendidos", { skipFluxoLog: true });
     if (marked.ok) {
       openManutencaoDisponivelSub("veiculos-vendidos");
     }
@@ -7143,22 +7154,27 @@
         /* ignore */
       }
     }
-    portalSyncFluxoVeiculoNuvem({
-      acao: "disponivel_mover",
-      placa: plateKey,
-      para:
-        cat === "prontos"
-          ? "4-prontos"
-          : cat === "reserva-patio"
-            ? "5.2-reserva-patio"
-            : cat === "reserva-operacao"
-              ? "5.1-reserva-operacao"
-              : cat === "veiculos-operacionais"
-                ? "5.3-veiculos-operacionais"
-                : cat === "veiculos-vendidos"
-                  ? "5.4-veiculos-vendidos"
-                  : cat,
-    });
+    if (!opts?.skipFluxoLog) {
+      portalSyncFluxoVeiculoNuvem({
+        acao: "disponivel_mover",
+        placa: plateKey,
+        de: estado.sub || "",
+        para:
+          cat === "prontos"
+            ? "4-prontos"
+            : cat === "reserva-patio"
+              ? "5.2-reserva-patio"
+              : cat === "reserva-operacao"
+                ? "5.1-reserva-operacao"
+                : cat === "veiculos-operacionais"
+                  ? "5.3-veiculos-operacionais"
+                  : cat === "veiculos-vendidos"
+                    ? "5.4-veiculos-vendidos"
+                    : cat,
+      });
+    } else {
+      portalPushCloudSnapshotAfterPersist();
+    }
     return { ok: true, placa: plateKey, categoria: cat };
   }
 
@@ -14432,7 +14448,24 @@
       const det = [meta.placa, meta.de, meta.para, meta.motivo].filter(Boolean).join(" · ");
       addAuditLog("portal_fluxo_veiculo", String(meta.acao || "mover"), det || "fluxo");
     }
+    if (meta && typeof window.__DK_portalRegistrarMovimentacaoSetor === "function") {
+      try {
+        window.__DK_portalRegistrarMovimentacaoSetor(meta);
+      } catch {
+        /* ignore */
+      }
+    }
     portalPushCloudSnapshotAfterPersist();
+  }
+
+  function portalGetManutSetorAtivo() {
+    const locadosOpen = !document.getElementById("manutencaoInlineEmOperacao")?.classList.contains("hidden");
+    const dispOpen = !document.getElementById("manutencaoInlineDisponiveis")?.classList.contains("hidden");
+    const manutOpen = !document.getElementById("manutencaoInlineEmManutencao")?.classList.contains("hidden");
+    if (locadosOpen) return portalManutLocadoSubAtivo;
+    if (dispOpen) return portalManutDispSubAtivo;
+    if (manutOpen) return portalManutEmManutSubAtivo;
+    return "";
   }
 
   function portalRefreshOperacaoDadosAposNuvem() {
@@ -23872,6 +23905,7 @@
     return { ok: true, operador };
   }
 
+  window.__DK_portalGetManutSetorAtivo = portalGetManutSetorAtivo;
   window.__DK_portalResolverEstadoExclusivoPlaca = portalResolverEstadoExclusivoPlaca;
   window.__DK_getPortalSessaoAdminRole = getPortalSessaoAdminRole;
   window.__DK_getPortalSessaoEquipaFuncionario = getPortalSessaoEquipaFuncionario;

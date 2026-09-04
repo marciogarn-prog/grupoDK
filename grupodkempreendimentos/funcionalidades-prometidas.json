@@ -250,6 +250,33 @@
       }
     },
     {
+      "id": "manutencao-relatorio-movimentacao-setor",
+      "descricao": "Em Manutenção, todas as opções 1 a 10 têm botão RELATÓRIO que mostra quem movimentou cada placa de um setor para outro (data, placa, origem, destino e operador).",
+      "ficheiros": {
+        "index.html": [
+          "portalSetorRelatorioBtnLocados",
+          "portalSetorRelatorioBtnDisponiveis",
+          "portalSetorRelatorioBtnManutencao",
+          "portalSetorRelatorioModal",
+          "Quem movimentou"
+        ],
+        "portal-setor-relatorio.js": [
+          "dk_portal_setor_movimentacoes_v1",
+          "portalRegistrarMovimentacaoSetor",
+          "Quem movimentou",
+          "RELATÓRIO"
+        ],
+        "portal-locadora-ui.js": [
+          "__DK_portalRegistrarMovimentacaoSetor",
+          "__DK_portalGetManutSetorAtivo"
+        ],
+        "styles.css": [
+          "portal-setor-relatorio-btn",
+          "portal-setor-relatorio-tabela"
+        ]
+      }
+    },
+    {
       "id": "manutencao-disp-5-3-5-4",
       "descricao": "Em Manutenção → Disponíveis → 5 Veículo reserva: itens 5.3 Veículos operacionais e 5.4 Veículos vendidos, com grelha de placas e envio a partir de 4, 5.2 e da manutenção (ENVIAR PARA VENDAS cai em 5.4).",
       "ficheiros": {

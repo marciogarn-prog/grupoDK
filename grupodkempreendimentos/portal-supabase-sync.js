@@ -156,6 +156,7 @@
     "dk_manutencoes_cadastro",
     "dk_portal_checklist_historico_v1",
     "dk_portal_checklist_movimentacoes_v1",
+    "dk_portal_setor_movimentacoes_v1",
     "dk_lancamentos_aluguel",
     "dk_quadro_receita_overrides",
     "dk_comprovantes_banco",
@@ -182,6 +183,7 @@
   const DK_CONSULTA_SYNC_KEYS = [
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_checklist_historico_v1",
+    "dk_portal_setor_movimentacoes_v1",
   ];
   const DK_CLOUD_RELOAD_GUARD_KEY = "dkCloudAutopullReloadCount";
   /** Após importar backup: não sobrescrever local com nuvem/Redis antigos (ms desde epoch). */

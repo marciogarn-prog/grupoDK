@@ -75,6 +75,14 @@ for (const item of lock.itens || []) {
   }
 }
 
+const setorRel = fs.readFileSync(path.join(ROOT, "portal-setor-relatorio.js"), "utf8");
+record(
+  "Relatório de setor grava quem movimentou a placa",
+  setorRel.includes("operadorLabel") &&
+    setorRel.includes("portalRegistrarMovimentacaoSetor") &&
+    setorRel.includes("Quem movimentou")
+);
+
 const ui = fs.readFileSync(path.join(ROOT, "portal-locadora-ui.js"), "utf8");
 record(
   "Lista de pesquisa usa a data fim depois de inativo",
@@ -99,7 +107,7 @@ record(
   homeNav.includes("#view-home [data-go]") && homeNav.includes("__DK_homeOpenUnit")
 );
 
-for (const rel of ["portal-locadora-ui.js", "home-unit-nav.js"]) {
+for (const rel of ["portal-locadora-ui.js", "home-unit-nav.js", "portal-setor-relatorio.js"]) {
   const chk = spawnSync(process.execPath, ["--check", path.join(ROOT, rel)], { encoding: "utf8" });
   record(
     `${rel} analisa sem erro de sintaxe`,

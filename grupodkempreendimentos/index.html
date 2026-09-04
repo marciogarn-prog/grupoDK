@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260904inat-fim">
+  <link rel="stylesheet" href="styles.css?v=20260904setor-rel">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -2587,12 +2587,18 @@
           <p id="operacaoLancManutencaoInlineMsg" class="portal-feedback" role="status" aria-live="polite"></p>
         </div>
             <div id="manutencaoInlineEmOperacao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-operacao">
-              <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Locados</h3>
+              <div class="operacao-inline-form__title-row portal-setor-relatorio-head">
+                <h3 id="manutencao-title-em-operacao" class="operacao-inline-form__title">Locados</h3>
+                <button type="button" class="btn-primary portal-setor-relatorio-btn" id="portalSetorRelatorioBtnLocados" data-setor-relatorio="">RELATÓRIO</button>
+              </div>
               <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadOperacao">Pesquise a placa e encaminhe para manutenção.</p>
               <div id="portalChecklistHostOperacao" class="portal-checklist-host"></div>
             </div>
             <div id="manutencaoInlineEmManutencao" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-em-manutencao">
-              <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Em manutenção</h3>
+              <div class="operacao-inline-form__title-row portal-setor-relatorio-head">
+                <h3 id="manutencao-title-em-manutencao" class="operacao-inline-form__title">Em manutenção</h3>
+                <button type="button" class="btn-primary portal-setor-relatorio-btn" id="portalSetorRelatorioBtnManutencao" data-setor-relatorio="">RELATÓRIO</button>
+              </div>
               <p class="subtext operacao-inline-form__lead" id="portalChecklistLeadManutencao">Escolha a placa na grelha (6–10). O check-list abre ao clicar na caixinha.</p>
               <div id="portalChecklistHostManutencao" class="portal-checklist-host"></div>
             </div>
@@ -2690,7 +2696,10 @@
               <div id="portalChecklistMount" class="portal-checklist-mount hidden" aria-live="polite"></div>
             </div>
             <div id="manutencaoInlineDisponiveis" class="operacao-inline-form hidden" role="region" aria-labelledby="manutencao-title-disponiveis">
-              <h3 id="manutencao-title-disponiveis" class="operacao-inline-form__title">Disponíveis</h3>
+              <div class="operacao-inline-form__title-row portal-setor-relatorio-head">
+                <h3 id="manutencao-title-disponiveis" class="operacao-inline-form__title">Disponíveis</h3>
+                <button type="button" class="btn-primary portal-setor-relatorio-btn" id="portalSetorRelatorioBtnDisponiveis" data-setor-relatorio="">RELATÓRIO</button>
+              </div>
               <p class="subtext operacao-inline-form__lead" id="portalDisponiveisLead">Veículos livres (sem locação ativa e fora de manutenção).</p>
               <div class="portal-manutencao-busca">
                 <label class="portal-field portal-manutencao-busca__field">
@@ -3726,6 +3735,24 @@
     </div>
   </div>
 
+  <div id="portalSetorRelatorioModal" class="portal-modal portal-setor-relatorio-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalSetorRelatorioTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalSetorRelatorioBackdrop"></div>
+    <div class="portal-modal__card portal-modal__card--wide portal-setor-relatorio-modal__card">
+      <h3 id="portalSetorRelatorioTitulo" class="portal-modal__title">Relatório de movimentações</h3>
+      <p class="portal-modal__text subtext" id="portalSetorRelatorioLead">Quem movimentou cada placa de um setor para outro.</p>
+      <label class="portal-field portal-setor-relatorio-placa-filtro">
+        <span>Filtrar por placa</span>
+        <input type="text" id="portalSetorRelatorioPlacaFiltro" maxlength="8" autocomplete="off" placeholder="Ex.: ABC1D23" autocapitalize="characters">
+      </label>
+      <p id="portalSetorRelatorioEmpty" class="portal-setor-relatorio-empty subtext hidden" role="status"></p>
+      <div id="portalSetorRelatorioLista" class="portal-setor-relatorio-lista"></div>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalSetorRelatorioImprimirBtn">Imprimir</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalSetorRelatorioFecharBtn">Fechar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalMovManutModal" class="portal-modal portal-mov-manut-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalMovManutTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" id="portalMovManutBackdrop"></div>
     <div class="portal-modal__card portal-modal__card--wide portal-mov-manut-modal__card">
@@ -3976,14 +4003,14 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260904inat-fim" defer></script>
+  <script src="app.js?v=20260904setor-rel" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
-  <script src="portal-locadora-ui.js?v=20260904inat-fim" defer></script>
+  <script src="portal-locadora-ui.js?v=20260904setor-rel" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
@@ -4029,8 +4056,9 @@
   <script src="portal-multas-ocr.js?v=20260903inat-roubo" defer></script>
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
+  <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-supabase-sync.js?v=20260903inat-roubo" defer></script>
+  <script src="portal-supabase-sync.js?v=20260904setor-rel" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>
