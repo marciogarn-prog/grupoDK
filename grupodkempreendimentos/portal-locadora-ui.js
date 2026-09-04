@@ -8435,21 +8435,25 @@
     const wrap = document.getElementById("portalColabBloqueioWrap");
     const btn = document.getElementById("portalColabBloqueioBtn");
     const resetWrap = document.getElementById("portalColabResetSenhaWrap");
+    const adminWrap = document.getElementById("portalColabTornarAdminWrap");
     if (!wrap || !btn) return;
     if (!isPortalTitularAdministrador()) {
       wrap.classList.add("hidden");
       resetWrap?.classList.add("hidden");
+      adminWrap?.classList.add("hidden");
       return;
     }
     const f = getPortalColaboradorEmEdicao();
     if (!f) {
       wrap.classList.add("hidden");
       resetWrap?.classList.add("hidden");
+      adminWrap?.classList.add("hidden");
       btn.textContent = "Bloquear colaborador";
       return;
     }
     wrap.classList.remove("hidden");
     resetWrap?.classList.remove("hidden");
+    adminWrap?.classList.remove("hidden");
     btn.textContent = f.blocked ? "Desbloquear colaborador" : "Bloquear colaborador";
   }
 
@@ -8951,6 +8955,54 @@
     if (fb) {
       fb.textContent = `Senha de ${nomeColab} resetada para ${senhaIni} — no próximo login será pedida a nova senha (6 números).`;
     }
+  });
+
+  document.getElementById("portalColabTornarAdminBtn")?.addEventListener("click", () => {
+    const fb = document.getElementById("portalCadastroColaboradorFeedback");
+    if (!isPortalTitularAdministrador()) {
+      if (fb) fb.textContent = "Apenas o administrador titular pode transformar colaborador em administrador.";
+      return;
+    }
+    if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
+    const f = getPortalColaboradorEmEdicao();
+    if (!f) {
+      if (fb) fb.textContent = "CPF não corresponde a um colaborador cadastrado.";
+      return;
+    }
+    const cpfDig = onlyDigits(String(f.cpf || "")).slice(0, 11);
+    if (cpfDig === DK_LOCADORA_ADMIN_CPF) {
+      if (fb) fb.textContent = "Este CPF já é o administrador titular.";
+      return;
+    }
+    if (countPortalAdministradoresSecundarios() >= 1) {
+      if (fb) fb.textContent = "Já existe um Administrador 2. Só são permitidos o titular e mais um administrador (sem FINANCEIRO CEO).";
+      return;
+    }
+    const nomeColab = String(f.nome || "").trim() || "colaborador";
+    portalConfirmarAlteracaoAdministrador(
+      {
+        titulo: "TRANSFORMAR EM ADMINISTRADOR",
+        changes: [
+          { label: "Perfil", antes: "Colaborador", depois: "Administrador 2" },
+          { label: "Nome", antes: nomeColab, depois: nomeColab },
+          { label: "FINANCEIRO", antes: "não", depois: "sim" },
+          { label: "FINANCEIRO CEO", antes: "não", depois: "não — sem acesso" },
+        ],
+      },
+      () => {
+        f.role = "owner";
+        f.adminNivel = 2;
+        f.blocked = false;
+        saveFuncionariosAccess();
+        portalPushCloudSnapshotAfterPersist();
+        limparPortalColaboradorFormularioCompleto();
+        portalRenderColaboradoresLista();
+        portalRenderAdministradoresLista();
+        if (fb) {
+          fb.textContent = `${nomeColab} passou a ser administrador do sistema. Acesso a FINANCEIRO, sem FINANCEIRO CEO. No próximo login use a opção Administrador.`;
+        }
+      }
+    );
   });
 
   document.getElementById("portalColabBtnLimpar")?.addEventListener("click", () => {

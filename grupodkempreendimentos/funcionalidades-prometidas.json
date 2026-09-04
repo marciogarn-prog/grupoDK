@@ -1045,6 +1045,25 @@
       }
     },
     {
+      "id": "colab-transformar-administrador",
+      "descricao": "No Cadastro de colaborador, o botão TRANSFORMAR EM ADMINISTRADOR promove o funcionário a administrador do sistema (Administrador 2) com FINANCEIRO e sem acesso a FINANCEIRO CEO.",
+      "ficheiros": {
+        "index.html": [
+          "TRANSFORMAR EM ADMINISTRADOR",
+          "portalColabTornarAdminBtn"
+        ],
+        "portal-locadora-ui.js": [
+          "TRANSFORMAR EM ADMINISTRADOR",
+          "portalColabTornarAdminBtn",
+          "adminNivel = 2",
+          "sem FINANCEIRO CEO"
+        ],
+        "styles.css": [
+          "portal-colab-tornar-admin-wrap"
+        ]
+      }
+    },
+    {
       "id": "nuvem-opcoes-apenas-administrador",
       "descricao": "Na Área da equipa, Guardar na nuvem, Carregar da nuvem, Gerar backup e Importar backup ficam visíveis e usáveis só para administrador (role owner). Colaborador não vê a barra.",
       "ficheiros": {

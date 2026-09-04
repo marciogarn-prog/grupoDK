@@ -3978,6 +3978,30 @@ body {
   background: rgba(34, 197, 94, 0.18);
 }
 
+.portal-colab-tornar-admin-wrap {
+  flex: 1;
+  min-width: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.6rem 0.85rem;
+  border: 2px solid #a78bfa;
+  border-radius: var(--radius);
+  background: rgba(167, 139, 250, 0.1);
+}
+
+.portal-colab-tornar-admin-wrap .portal-colab-tornar-admin-btn {
+  width: 100%;
+  border-color: #a78bfa;
+  color: #ddd6fe;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.portal-colab-tornar-admin-wrap .portal-colab-tornar-admin-btn:hover {
+  background: rgba(167, 139, 250, 0.2);
+}
+
 .portal-colab-reset-wrap {
   flex: 1;
   min-width: 12rem;
