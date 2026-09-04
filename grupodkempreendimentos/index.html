@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260904ceo-fundo">
+  <link rel="stylesheet" href="styles.css?v=20260904hierarquia">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -560,7 +560,7 @@
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-cliente" aria-expanded="false" aria-controls="operacaoInlineCliente">
                 <span class="btn-operacao-cmd__title">Cadastro de cliente</span>
-                <span class="btn-operacao-cmd__hint">Campos do cadastro (código, datas, CPF, nome, etc.) à direita</span>
+                <span class="btn-operacao-cmd__hint">Colaboradores cadastram novos clientes</span>
               </button>
               <button type="button" class="btn-operacao-cmd" id="btn-operacao-cadastro-veiculo" aria-expanded="false" aria-controls="operacaoInlineVeiculo">
                 <span class="btn-operacao-cmd__title">Cadastro de veículo</span>
@@ -620,11 +620,11 @@
               </button>
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-colaborador" aria-expanded="false" aria-controls="operacaoInlineColaborador">
                 <span class="btn-operacao-cmd__title">Cadastro de colaborador</span>
-                <span class="btn-operacao-cmd__hint">CPF, função, permissóes &mdash; formulário à direita (só administrador)</span>
+                <span class="btn-operacao-cmd__hint">Usuários administradores criam colaboradores</span>
               </button>
               <button type="button" class="btn-operacao-cmd hidden" id="btn-operacao-cadastro-administrador" aria-expanded="false" aria-controls="operacaoInlineAdministrador">
                 <span class="btn-operacao-cmd__title">Cadastro de administrador</span>
-                <span class="btn-operacao-cmd__hint">Administrador 2 &mdash; acesso FINANCEIRO sem FINANCEIRO CEO (só titular)</span>
+                <span class="btn-operacao-cmd__hint">Só o Administrador CEO cria novos administradores</span>
               </button>
             </div>
             <button type="button" class="btn-primary btn-secondary-outline portal-operacao-layout__sidebar-voltar" id="btn-voltar-operacao-locadora">Voltar</button>
@@ -2218,7 +2218,8 @@
 <div id="operacaoInlineColaborador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-colaborador-title">
           <h3 id="operacao-inline-colaborador-title" class="operacao-inline-form__title">Cadastro de colaborador</h3>
           <p class="subtext operacao-inline-form__lead">
-            Visível apenas para o <strong>administrador titular</strong>. Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
+            Usuários administradores criam colaboradores. Colaboradores cadastram novos clientes.
+            Senha inicial <strong>123456</strong>; no primeiro acesso o colaborador define nova senha (6 números).
             Marque quais operações este utilizador poderá aceder. Ao editar um colaborador existente, o <strong>CPF também pode ser corrigido</strong> — use «Salvar alterações».
           </p>
           <p id="operacaoColaboradorCadastradoPor" class="operacao-responsavel-por" role="status" aria-live="polite" hidden></p>
@@ -2331,12 +2332,13 @@
 <div id="operacaoInlineAdministrador" class="operacao-inline-form hidden" role="region" aria-labelledby="operacao-inline-admin-title">
           <h3 id="operacao-inline-admin-title" class="operacao-inline-form__title">Cadastro de administrador</h3>
           <p class="subtext operacao-inline-form__lead">
-            <strong>Administrador 1</strong> (titular CPF 030.378.974-30) tem acesso a FINANCEIRO e FINANCEIRO CEO.
-            <strong>Administrador 2</strong> acede a FINANCEIRO, mas <strong>não</strong> a FINANCEIRO CEO. Só pode existir um Administrador 2 além do titular.
+            Só pode existir um Administrador CEO (CPF 030.378.974-30), com FINANCEIRO CEO.
+            Administradores podem existir vários: acedem a FINANCEIRO, sem FINANCEIRO CEO.
+            Só o Administrador CEO cria novos administradores. Usuários administradores criam colaboradores. Colaboradores cadastram novos clientes.
           </p>
           <form id="formPortalCadastroAdministrador" class="operacao-inline-form__grid" novalidate>
             <label class="portal-field">
-              <span>CPF do administrador 2</span>
+              <span>CPF do administrador</span>
               <input type="text" id="portalAdminCpf" inputmode="numeric" maxlength="14" autocomplete="off" required placeholder="000.000.000-00" aria-label="CPF do administrador">
             </label>
             <label class="portal-field">
@@ -2348,7 +2350,7 @@
               <input type="password" id="portalAdminSenha" maxlength="32" autocomplete="new-password" placeholder="Senha de acesso" aria-label="Senha inicial">
             </label>
             <div class="operacao-inline-form__actions">
-              <button type="submit" id="portalAdminBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar administrador 2</button>
+              <button type="submit" id="portalAdminBtnCadastrar" class="btn-primary btn-secondary-outline">Cadastrar administrador</button>
             </div>
           </form>
           <p id="portalCadastroAdministradorFeedback" class="portal-feedback" role="status"></p>
@@ -4106,15 +4108,15 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260904ceo-fundo" defer></script>
+  <script src="app.js?v=20260904hierarquia" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
-  <script src="portal-cliente-codigo-admin.js?v=20260904ceo-fundo" defer></script>
+  <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
-  <script src="portal-colab-horario.js?v=20260904ceo-fundo" defer></script>
-  <script src="portal-locadora-ui.js?v=20260904ceo-fundo" defer></script>
+  <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
+  <script src="portal-locadora-ui.js?v=20260904hierarquia" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>

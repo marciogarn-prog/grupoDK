@@ -782,6 +782,16 @@
     return isPortalAdministradorTitularCpf();
   }
 
+  /** Só o Administrador CEO cria novos administradores. */
+  function portalPodeCriarAdministrador() {
+    return isPortalAdministradorTitularCeo();
+  }
+
+  /** Usuários administradores criam colaboradores. */
+  function portalPodeCriarColaborador() {
+    return isPortalTitularAdministrador();
+  }
+
   function portalFuncionarioTemLimiteHorario(f) {
     if (!f) return false;
     if (String(f.role || "").trim() === "owner") return false;
@@ -818,7 +828,7 @@
       .map((f) => {
         const cpf = onlyDigits(String(f.cpf || ""));
         const titular = cpf === DK_LOCADORA_ADMIN_CPF;
-        const label = titular ? "Administrador CEO" : "Administrador 2 (FINANCEIRO)";
+        const label = titular ? "Administrador CEO" : "Administrador (FINANCEIRO)";
         return `<li><strong>${portalEscapeHtml(String(f.nome || "").trim() || "—")}</strong> · ${portalColabFormatCpfExibicao(cpf)} · ${portalEscapeHtml(label)}</li>`;
       })
       .join("");
@@ -1666,10 +1676,10 @@
 
   /** Esconde botões da operação para os quais o colaborador não tem permissão em `acessos`. */
   function refreshPortalOperacaoNavPorAcessos() {
-    if (!isPortalTitularAdministrador()) {
+    if (!portalPodeCriarColaborador()) {
       document.getElementById("operacaoInlineColaborador")?.classList.add("hidden");
     }
-    if (!isPortalAdministradorTitularCeo()) {
+    if (!portalPodeCriarAdministrador()) {
       document.getElementById("operacaoInlineAdministrador")?.classList.add("hidden");
     }
 
@@ -1722,9 +1732,9 @@
     }
 
     const btnColab = document.getElementById("btn-operacao-cadastro-colaborador");
-    if (btnColab) btnColab.classList.toggle("hidden", !isPortalTitularAdministrador());
+    if (btnColab) btnColab.classList.toggle("hidden", !portalPodeCriarColaborador());
     const btnAdmin = document.getElementById("btn-operacao-cadastro-administrador");
-    if (btnAdmin) btnAdmin.classList.toggle("hidden", !isPortalAdministradorTitularCeo());
+    if (btnAdmin) btnAdmin.classList.toggle("hidden", !portalPodeCriarAdministrador());
 
     const btnWaTodos = document.getElementById("portalWaBtnTodosAtivos");
     if (btnWaTodos) btnWaTodos.classList.toggle("hidden", !isPortalTitularAdministrador() || !DK_PORTAL_WA_CLIENTE_ATIVO);
@@ -8894,8 +8904,8 @@
   formPortalCadastroColaborador?.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
-    if (!isPortalTitularAdministrador()) {
-      if (fb) fb.textContent = "Apenas o administrador titular pode cadastrar colaboradores.";
+    if (!portalPodeCriarColaborador()) {
+      if (fb) fb.textContent = "Usuários administradores criam colaboradores.";
       return;
     }
     if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess) || typeof saveFuncionariosAccess !== "function") {
@@ -8958,8 +8968,8 @@
 
   document.getElementById("portalColabBtnSalvarAlteracoes")?.addEventListener("click", () => {
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
-    if (!isPortalTitularAdministrador()) {
-      if (fb) fb.textContent = "Apenas o administrador titular pode alterar colaboradores.";
+    if (!portalPodeCriarColaborador()) {
+      if (fb) fb.textContent = "Usuários administradores criam colaboradores.";
       return;
     }
     if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess) || typeof saveFuncionariosAccess !== "function") {
@@ -9090,7 +9100,7 @@
   document.getElementById("portalColabResetSenhaBtn")?.addEventListener("click", () => {
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
     if (!isPortalTitularAdministrador()) {
-      if (fb) fb.textContent = "Apenas o administrador titular pode resetar senhas.";
+      if (fb) fb.textContent = "Apenas um administrador pode resetar senhas.";
       return;
     }
     if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
@@ -9119,8 +9129,8 @@
 
   document.getElementById("portalColabTornarAdminBtn")?.addEventListener("click", () => {
     const fb = document.getElementById("portalCadastroColaboradorFeedback");
-    if (!isPortalAdministradorTitularCpf()) {
-      if (fb) fb.textContent = "Apenas o administrador CPF 030.378.974-30 pode transformar colaborador em administrador.";
+    if (!portalPodeCriarAdministrador()) {
+      if (fb) fb.textContent = "Só o Administrador CEO cria novos administradores.";
       return;
     }
     if (typeof saveFuncionariosAccess !== "function" || typeof funcionariosAccess === "undefined") return;
@@ -9134,16 +9144,12 @@
       if (fb) fb.textContent = "Este CPF já é o administrador titular.";
       return;
     }
-    if (countPortalAdministradoresSecundarios() >= 1) {
-      if (fb) fb.textContent = "Já existe um Administrador 2. Só são permitidos o titular e mais um administrador (sem FINANCEIRO CEO).";
-      return;
-    }
     const nomeColab = String(f.nome || "").trim() || "colaborador";
     portalConfirmarAlteracaoAdministrador(
       {
         titulo: "TRANSFORMAR EM ADMINISTRADOR",
         changes: [
-          { label: "Perfil", antes: "Colaborador", depois: "Administrador 2" },
+          { label: "Perfil", antes: "Colaborador", depois: "Administrador" },
           { label: "Nome", antes: nomeColab, depois: nomeColab },
           { label: "FINANCEIRO", antes: "não", depois: "sim" },
           { label: "FINANCEIRO CEO", antes: "não", depois: "não — sem acesso" },
@@ -22949,7 +22955,7 @@
   });
 
   document.getElementById("btn-operacao-cadastro-colaborador")?.addEventListener("click", () => {
-    if (!isPortalTitularAdministrador()) return;
+    if (!portalPodeCriarColaborador()) return;
     portalOperacaoOnScreenChange();
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineColaborador")?.classList.remove("hidden");
@@ -22960,7 +22966,7 @@
   });
 
   document.getElementById("btn-operacao-cadastro-administrador")?.addEventListener("click", () => {
-    if (!isPortalAdministradorTitularCeo()) return;
+    if (!portalPodeCriarAdministrador()) return;
     hideOperacaoInlineFormsCore();
     document.getElementById("operacaoInlineAdministrador")?.classList.remove("hidden");
     setOperacaoFormPlaceholderVisible(false);
@@ -22971,8 +22977,8 @@
   document.getElementById("formPortalCadastroAdministrador")?.addEventListener("submit", (ev) => {
     ev.preventDefault();
     const fb = document.getElementById("portalCadastroAdministradorFeedback");
-    if (!isPortalAdministradorTitularCeo()) {
-      if (fb) fb.textContent = "Apenas o administrador titular pode cadastrar administradores.";
+    if (!portalPodeCriarAdministrador()) {
+      if (fb) fb.textContent = "Só o Administrador CEO cria novos administradores.";
       return;
     }
     if (typeof funcionariosAccess === "undefined" || !Array.isArray(funcionariosAccess) || typeof saveFuncionariosAccess !== "function") {
@@ -22987,7 +22993,7 @@
       return;
     }
     if (cpfRaw === DK_LOCADORA_ADMIN_CPF) {
-      if (fb) fb.textContent = "O CPF do titular (Administrador 1) já está cadastrado.";
+      if (fb) fb.textContent = "O CPF do Administrador CEO já está cadastrado. Só pode existir um Administrador CEO.";
       return;
     }
     if (!nome) {
@@ -23002,10 +23008,6 @@
       if (fb) fb.textContent = "Já existe cadastro com este CPF.";
       return;
     }
-    if (countPortalAdministradoresSecundarios() >= 1) {
-      if (fb) fb.textContent = "Já existe um Administrador 2 cadastrado. Só são permitidos dois administradores.";
-      return;
-    }
     funcionariosAccess.push({
       cpf: cpfRaw,
       senha,
@@ -23018,7 +23020,7 @@
     portalPushCloudSnapshotAfterPersist();
     document.getElementById("formPortalCadastroAdministrador")?.reset();
     portalRenderAdministradoresLista();
-    if (fb) fb.textContent = "Administrador 2 cadastrado. Acesso a FINANCEIRO (sem FINANCEIRO CEO).";
+    if (fb) fb.textContent = "Administrador cadastrado. Acesso a FINANCEIRO (sem FINANCEIRO CEO).";
   });
 
   document.getElementById("operacaoLancAluguelProtocoloSelect")?.addEventListener("change", () =>

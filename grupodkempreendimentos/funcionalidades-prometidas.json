@@ -1046,7 +1046,7 @@
     },
     {
       "id": "colab-transformar-administrador",
-      "descricao": "No Cadastro de colaborador, o botão TRANSFORMAR EM ADMINISTRADOR promove o funcionário a administrador do sistema (Administrador 2) com FINANCEIRO e sem acesso a FINANCEIRO CEO.",
+      "descricao": "No Cadastro de colaborador, o botão TRANSFORMAR EM ADMINISTRADOR (só o Administrador CEO) promove o funcionário a administrador com FINANCEIRO e sem acesso a FINANCEIRO CEO. Podem existir vários administradores.",
       "ficheiros": {
         "index.html": [
           "TRANSFORMAR EM ADMINISTRADOR",
@@ -1101,6 +1101,25 @@
           "portal-admin-ver-como__btn",
           "portal-body--admin-ceo",
           "#36454f"
+        ]
+      }
+    },
+    {
+      "id": "hierarquia-ceo-admin-colab-cliente",
+      "descricao": "Só pode existir um Administrador CEO. Administradores podem existir vários. Só o Administrador CEO cria novos administradores. Usuários administradores criam colaboradores. Colaboradores cadastram novos clientes.",
+      "ficheiros": {
+        "index.html": [
+          "Só pode existir um Administrador CEO",
+          "Administradores podem existir vários",
+          "Só o Administrador CEO cria novos administradores",
+          "Usuários administradores criam colaboradores",
+          "Colaboradores cadastram novos clientes"
+        ],
+        "portal-locadora-ui.js": [
+          "portalPodeCriarAdministrador",
+          "portalPodeCriarColaborador",
+          "Só o Administrador CEO cria novos administradores",
+          "Usuários administradores criam colaboradores"
         ]
       }
     },
