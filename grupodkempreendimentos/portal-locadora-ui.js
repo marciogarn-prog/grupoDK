@@ -1279,6 +1279,151 @@
     };
   }
 
+  function portalClienteDocNome(tipo) {
+    const fn = window.__DK_portalClienteDocsMeta;
+    if (typeof fn !== "function") return "";
+    const meta = fn(tipo);
+    return meta?.nome ? String(meta.nome) : "";
+  }
+
+  function portalClienteValidarNovoCadastro(msgEl) {
+    const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+    const celular = getVal("operacaoClienteCelular");
+    const recado1 = getVal("operacaoClienteRecado1");
+    const recado2 = getVal("operacaoClienteRecado2");
+    const hasDoc = typeof window.__DK_portalClienteDocsHas === "function" ? window.__DK_portalClienteDocsHas : () => false;
+    if (!celular) {
+      if (msgEl) msgEl.textContent = "Novo cadastro: informe o telefone do cliente.";
+      document.getElementById("operacaoClienteCelular")?.focus();
+      return false;
+    }
+    if (!recado1) {
+      if (msgEl) msgEl.textContent = "Novo cadastro: informe o Recados 01.";
+      document.getElementById("operacaoClienteRecado1")?.focus();
+      return false;
+    }
+    if (!recado2) {
+      if (msgEl) msgEl.textContent = "Novo cadastro: informe o Recados 02.";
+      document.getElementById("operacaoClienteRecado2")?.focus();
+      return false;
+    }
+    if (!hasDoc("residencia")) {
+      if (msgEl) msgEl.textContent = "Novo cadastro: envie o comprovante de residência (imagem ou PDF).";
+      return false;
+    }
+    if (!hasDoc("cnh")) {
+      if (msgEl) msgEl.textContent = "Novo cadastro: envie a CNH (imagem ou PDF).";
+      return false;
+    }
+    return true;
+  }
+
+  function portalClienteEhNovoCadastroUi(known) {
+    const dataVal = String(document.getElementById("operacaoClienteDataCadastro")?.value || "").trim();
+    const orig = known && String(known.dataCadastro || "").trim();
+    const data = orig || dataVal;
+    if (typeof window.__DK_portalClienteEhNovoCadastro === "function") {
+      return window.__DK_portalClienteEhNovoCadastro(data, known);
+    }
+    return !known;
+  }
+
+  function portalFecharClienteConfirmModal() {
+    const modal = document.getElementById("portalClienteConfirmModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.setAttribute("aria-hidden", "true");
+    window.__dkPortalClienteConfirmOnSave = null;
+  }
+
+  function portalAbrirClienteConfirmModal(opts, onConfirm) {
+    const modal = document.getElementById("portalClienteConfirmModal");
+    const titulo = document.getElementById("portalClienteConfirmTitulo");
+    const lead = document.getElementById("portalClienteConfirmLead");
+    const resumo = document.getElementById("portalClienteConfirmResumo");
+    const btnSalvar = document.getElementById("portalClienteConfirmSalvarBtn");
+    const btnAtualizar = document.getElementById("portalClienteConfirmAtualizarBtn");
+    const btnCancelar = document.getElementById("portalClienteConfirmCancelarBtn");
+    if (!modal || !resumo) {
+      if (typeof onConfirm === "function") onConfirm();
+      return;
+    }
+    const novo = Boolean(opts?.novo);
+    if (titulo) titulo.textContent = novo ? "Confirmar cadastro de cliente" : "Atualizar cadastro de cliente";
+    if (lead) {
+      lead.textContent = novo
+        ? "Revise os dados e clique em Salvar. Cadastros a partir de 04/09/2026 exigem telefone, recados e documentos."
+        : "Documentos ou dados atualizados. Clique em Atualizar para gravar.";
+    }
+    const rows = Array.isArray(opts?.rows) ? opts.rows : [];
+    resumo.innerHTML = rows
+      .map(
+        (r) =>
+          `<dt>${portalEscapeHtml(r.label)}</dt><dd>${portalEscapeHtml(r.value || "—")}</dd>`
+      )
+      .join("");
+    if (btnSalvar) {
+      btnSalvar.classList.toggle("hidden", !novo);
+      btnSalvar.hidden = !novo;
+    }
+    if (btnAtualizar) {
+      btnAtualizar.classList.toggle("hidden", novo);
+      btnAtualizar.hidden = novo;
+    }
+    if (btnCancelar) {
+      btnCancelar.classList.toggle("hidden", !novo);
+      btnCancelar.hidden = !novo;
+    }
+    window.__dkPortalClienteConfirmOnSave = onConfirm;
+    modal.classList.remove("hidden");
+    modal.setAttribute("aria-hidden", "false");
+    try {
+      (novo ? btnSalvar : btnAtualizar)?.focus();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  function portalBindClienteConfirmModalOnce() {
+    if (window.__dkPortalClienteConfirmBound) return;
+    window.__dkPortalClienteConfirmBound = true;
+    const run = () => {
+      const fn = window.__dkPortalClienteConfirmOnSave;
+      portalFecharClienteConfirmModal();
+      if (typeof fn === "function") fn();
+    };
+    document.getElementById("portalClienteConfirmSalvarBtn")?.addEventListener("click", run);
+    document.getElementById("portalClienteConfirmAtualizarBtn")?.addEventListener("click", run);
+    document.getElementById("portalClienteConfirmCancelarBtn")?.addEventListener("click", () => {
+      portalFecharClienteConfirmModal();
+    });
+    document.getElementById("portalClienteConfirmBackdrop")?.addEventListener("click", () => {
+      portalFecharClienteConfirmModal();
+    });
+    document.addEventListener("keydown", (ev) => {
+      const modal = document.getElementById("portalClienteConfirmModal");
+      if (!modal || modal.classList.contains("hidden")) return;
+      if (ev.key === "Escape") portalFecharClienteConfirmModal();
+    });
+  }
+
+  function portalClienteResumoConfirmRows(cpfDigits) {
+    const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
+    return [
+      { label: "Cód.", value: getVal("operacaoClienteCodigo") },
+      { label: "Data do cadastro", value: getVal("operacaoClienteDataCadastro") },
+      { label: "CPF", value: typeof formatCpf === "function" ? formatCpf(cpfDigits) : cpfDigits },
+      { label: "Nome", value: getVal("operacaoClienteNome") },
+      { label: "Celular", value: getVal("operacaoClienteCelular") },
+      { label: "Recados 01", value: getVal("operacaoClienteRecado1") },
+      { label: "Recados 02", value: getVal("operacaoClienteRecado2") },
+      { label: "CNH", value: getVal("operacaoClienteCnh") },
+      { label: "Endereço", value: getVal("operacaoClienteEndereco") },
+      { label: "Comprovante", value: portalClienteDocNome("residencia") || "—" },
+      { label: "Ficheiro CNH", value: portalClienteDocNome("cnh") || "—" },
+    ];
+  }
+
   const LOCADORA_LEAD_SEM_SESSAO =
     "Área da empresa: escolha Colaborador ou Administrador e informe CPF e senha. Colaborador: senha inicial 123456 (troque no 1.º acesso, se aplicável).";
 
@@ -9295,6 +9440,9 @@
         saveCadastro(CAD_CLIENTES_KEY, clientes);
       }
       portalPushCloudSnapshotAfterPersist();
+      if (typeof window.__DK_portalClienteDocsPersist === "function") {
+        window.__DK_portalClienteDocsPersist(cpfDigits);
+      }
       if (msg) msg.textContent = "Dados do cliente guardados com sucesso.";
       portalApplyAmbienteVisualForm("Cliente", payloadPortal);
       refreshOperacaoClienteCodigoEditavel();
@@ -9519,6 +9667,9 @@
       portalRefreshOperacaoClienteSenhaField(cpfDigits, cliente);
       refreshOperacaoClienteApagarBtn(cpfDigits);
       setOperacaoResponsavelPorDisplay("operacaoClienteCadastradoPor", cliente);
+      if (typeof window.__DK_portalClienteDocsLoad === "function") {
+        window.__DK_portalClienteDocsLoad(cpfDigits);
+      }
     }
 
     function getPrimeiraLocacaoDateLabelByCpf(cpfDigits) {
@@ -9554,6 +9705,9 @@
         lockImmutableClienteFields(false);
         if (codigoEl) codigoEl.value = "";
         portalRefreshOperacaoClienteSenhaField("", null);
+        if (typeof window.__DK_portalClienteDocsClear === "function") {
+          window.__DK_portalClienteDocsClear();
+        }
         return;
       }
       const candidatos = getByCpfPrefix(digits);
@@ -9584,6 +9738,9 @@
       if (!known) {
         lockImmutableClienteFields(false);
         if (codigoEl) codigoEl.value = getPortalNextClienteCode();
+        if (digits.length === 11 && typeof window.__DK_portalClienteDocsLoad === "function") {
+          window.__DK_portalClienteDocsLoad(digits);
+        }
       }
     });
 
@@ -9626,55 +9783,11 @@
       refreshOperacaoClienteSugestoesLista();
     });
 
-    form?.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const digits =
-        typeof onlyDigits === "function" ? onlyDigits(String(inpCpf.value || "")) : String(inpCpf.value || "").replace(/\D/g, "");
-      if (digits.length !== 11) return;
-      const known = getClienteByCpfAny(digits);
-      if (known) {
-        if (isPortalTitularAdministrador()) {
-          const changes = portalBuildAlteracoesLista(
-            portalSnapshotClienteRecord(known, digits),
-            portalCollectClienteFormPayload(digits),
-            PORTAL_CLIENTE_DIFF_LABELS
-          );
-          portalConfirmarAlteracaoAdministrador(
-            { titulo: "Confirmar alteração — cliente", changes },
-            () => persistOperacaoClienteAtualizacao(digits, known)
-          );
-          return;
-        }
-        const localOnly =
-          typeof findPortalClienteByCpf === "function"
-            ? findPortalClienteByCpf(digits)
-            : typeof findClienteByCpfCadastro === "function"
-              ? findClienteByCpfCadastro(digits)
-              : null;
-        const dataLock =
-          portalClienteDataLabelPreferido(known, digits, getPrimeiraLocacaoDateLabelByCpf) ||
-          String(inpDataCadastro?.value || "").trim() ||
-          (!localOnly ? "08/05/2026" : "");
-        setAtualizarButtonByCpf(digits);
-        lockImmutableClienteFields(true, {
-          codigo: getPortalCanonicalClienteCodeByCpf(digits) || String(known.codigo || "").trim(),
-          cpf: digits,
-          nome: String(known.nome || "").trim(),
-          dataCadastro: dataLock || String(inpDataCadastro?.value || "").trim() || "08/05/2026",
-        });
-        if (msg) {
-          msg.textContent = localOnly
-            ? "CPF já cadastrado. Não é permitido recadastrar este cliente; use o botão 'Atualizar dados do cliente'."
-            : "Este CPF consta na base DK (folha embutida ou outro equipamento), mas ainda não está guardado neste navegador. Use «Atualizar dados do cliente» para gravar no cadastro local.";
-        }
-        return;
-      }
-
+    function persistOperacaoClienteNovo(digits) {
       if (typeof loadCadastro !== "function" || typeof saveCadastro !== "function" || typeof CAD_CLIENTES_KEY === "undefined") {
         if (msg) msg.textContent = "Cadastro indisponível neste ambiente.";
-        return;
+        return false;
       }
-
       const getVal = (id) => String(document.getElementById(id)?.value || "").trim();
       const nextCode = portalResolveClienteCodigoFromForm(getPortalNextClienteCode());
       const codigoDuplicado = portalClienteCodigoEmUsoPorOutroCpf(nextCode, digits);
@@ -9682,7 +9795,7 @@
         if (msg) {
           msg.textContent = `Este Cód. já pertence a ${String(codigoDuplicado.nome || "").trim() || "outro cliente"}. O código do cliente não se repete.`;
         }
-        return;
+        return false;
       }
       const dataCadastro = getVal("operacaoClienteDataCadastro") || new Date().toLocaleDateString("pt-BR");
       const novo = {
@@ -9713,7 +9826,7 @@
         } catch (err) {
           if (msg) msg.textContent = `Não foi possível guardar no navegador: ${err && err.message ? err.message : err}.`;
           console.error(err);
-          return;
+          return false;
         }
       } else {
         const clientes = loadCadastro(CAD_CLIENTES_KEY);
@@ -9724,15 +9837,16 @@
           clientes.pop();
           if (msg) msg.textContent = `Não foi possível guardar no navegador: ${err && err.message ? err.message : err}.`;
           console.error(err);
-          return;
+          return false;
         }
       }
       portalPushCloudSnapshotAfterPersist();
+      if (typeof window.__DK_portalClienteDocsPersist === "function") {
+        window.__DK_portalClienteDocsPersist(digits);
+      }
       const codigoEl = document.getElementById("operacaoClienteCodigo");
       if (codigoEl) codigoEl.value = nextCode;
-      if (msg) {
-        msg.textContent = `Cliente ${nextCode} cadastrado com sucesso.`;
-      }
+      if (msg) msg.textContent = `Cliente ${nextCode} cadastrado com sucesso.`;
       portalApplyAmbienteVisualForm("Cliente", novo);
       portalRefreshOperacaoClienteSenhaField(digits, novo);
       refreshOperacaoClienteApagarBtn(digits);
@@ -9750,6 +9864,34 @@
         portalRelatorioAtual = ctx;
         resumoEl.textContent = `${ctx.rows.length} registro(s) pronto(s) para exportar em PDF ou Excel.`;
       }
+      return true;
+    }
+
+    function iniciarConfirmacaoCliente(digits, known) {
+      const nome = String(document.getElementById("operacaoClienteNome")?.value || "").trim();
+      if (!nome) {
+        if (msg) msg.textContent = "Informe o nome do cliente no campo NOME antes de guardar.";
+        inpNome?.focus();
+        return;
+      }
+      const novo = portalClienteEhNovoCadastroUi(known);
+      if (novo && !portalClienteValidarNovoCadastro(msg)) return;
+      portalAbrirClienteConfirmModal(
+        { novo, rows: portalClienteResumoConfirmRows(digits) },
+        () => {
+          if (known) persistOperacaoClienteAtualizacao(digits, known);
+          else persistOperacaoClienteNovo(digits);
+        }
+      );
+    }
+
+    form?.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const digits =
+        typeof onlyDigits === "function" ? onlyDigits(String(inpCpf.value || "")) : String(inpCpf.value || "").replace(/\D/g, "");
+      if (digits.length !== 11) return;
+      const known = getClienteByCpfAny(digits);
+      iniciarConfirmacaoCliente(digits, known);
     });
 
     btnAtualizar?.addEventListener("click", () => {
@@ -9767,17 +9909,7 @@
         if (msg) msg.textContent = "Atualização indisponível neste ambiente.";
         return;
       }
-      const doSave = () => {
-        if (persistOperacaoClienteAtualizacao(digits, fonte)) {
-          window.alert("Os dados que você alterou foram guardados.");
-        }
-      };
-      const changes = portalBuildAlteracoesLista(
-        portalSnapshotClienteRecord(fonte, digits),
-        portalCollectClienteFormPayload(digits),
-        PORTAL_CLIENTE_DIFF_LABELS
-      );
-      portalConfirmarAlteracaoAdministrador({ titulo: "Confirmar alteração — cliente", changes }, doSave);
+      iniciarConfirmacaoCliente(digits, fonte);
     });
 
     document.getElementById("operacaoClienteLimparBtn")?.addEventListener("click", (e) => {
@@ -9792,6 +9924,9 @@
       lastAlertedCpf = "";
       setAtualizarButtonByCpf("");
       lockImmutableClienteFields(false);
+      if (typeof window.__DK_portalClienteDocsClear === "function") {
+        window.__DK_portalClienteDocsClear();
+      }
       const codigo = document.getElementById("operacaoClienteCodigo");
       if (codigo) codigo.value = "";
       if (msg) msg.textContent = "";
@@ -21167,6 +21302,7 @@
   refreshOperacaoLocacaoProtocoloPicker({ force: true });
   bindOperacaoLocacaoValorPlanoComputed();
   bindOperacaoClienteCpfAssist();
+  portalBindClienteConfirmModalOnce();
   bindOperacaoVeiculoPlacaAssist();
   bindOperacaoVeiculoProprietarioCpfCnpjMask();
   bindOperacaoLocacaoOdometroMask();

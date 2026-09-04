@@ -157,6 +157,7 @@
     "dk_portal_checklist_historico_v1",
     "dk_portal_checklist_movimentacoes_v1",
     "dk_portal_setor_movimentacoes_v1",
+    "dk_cliente_docs_v1",
     "dk_lancamentos_aluguel",
     "dk_quadro_receita_overrides",
     "dk_comprovantes_banco",
@@ -990,6 +991,46 @@
           const localArr = readLocalJsonArray(k);
           localStorage.setItem(k, JSON.stringify(mergeFn(localArr, cloudArr)));
         }
+        continue;
+      }
+      if (k === "dk_cliente_docs_v1") {
+        const parseDocsMap = (raw) => {
+          if (!raw) return {};
+          if (typeof raw === "object" && !Array.isArray(raw)) return { ...raw };
+          if (typeof raw === "string") {
+            try {
+              const p = JSON.parse(raw);
+              return p && typeof p === "object" && !Array.isArray(p) ? p : {};
+            } catch {
+              return {};
+            }
+          }
+          return {};
+        };
+        const pickDoc = (a, b) => {
+          if (!a) return b || null;
+          if (!b) return a;
+          return (Number(a.updatedAt) || 0) >= (Number(b.updatedAt) || 0) ? a : b;
+        };
+        let localMap = {};
+        try {
+          localMap = parseDocsMap(localStorage.getItem(k));
+        } catch {
+          localMap = {};
+        }
+        const cloudMap = parseDocsMap(v);
+        const merged = { ...cloudMap };
+        for (const [cpf, row] of Object.entries(localMap)) {
+          const cloudRow = merged[cpf] && typeof merged[cpf] === "object" ? merged[cpf] : {};
+          const localRow = row && typeof row === "object" ? row : {};
+          merged[cpf] = {
+            ...cloudRow,
+            ...localRow,
+            residencia: pickDoc(localRow.residencia, cloudRow.residencia),
+            cnh: pickDoc(localRow.cnh, cloudRow.cnh),
+          };
+        }
+        localStorage.setItem(k, JSON.stringify(replace ? cloudMap : merged));
         continue;
       }
       if (k === "dk_protocolo_nc_remap_v1") {

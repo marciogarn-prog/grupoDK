@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260904setor-rel">
+  <link rel="stylesheet" href="styles.css?v=20260904cli-docs">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -758,6 +758,28 @@
               <span>Endereço</span>
               <input type="text" id="operacaoClienteEndereco" name="endereco" autocomplete="street-address" maxlength="200" required placeholder="Rua, bairro" aria-label="Endereço">
             </label>
+            <div class="portal-field portal-field--wide portal-cliente-docs" id="operacaoClienteDocsWrap">
+              <div class="portal-cliente-docs__grid">
+                <div class="portal-cliente-docs__box" id="operacaoClienteDocResidenciaBox">
+                  <span class="portal-cliente-docs__label">Comprovante de residência</span>
+                  <p class="subtext portal-cliente-docs__hint">Imagem ou PDF — cole, arraste ou clique.</p>
+                  <input type="file" id="operacaoClienteDocResidenciaFile" class="hidden" accept="image/*,application/pdf,.pdf" tabindex="-1" aria-hidden="true">
+                  <label class="portal-cliente-docs__drop" id="operacaoClienteDocResidenciaDrop" for="operacaoClienteDocResidenciaFile" tabindex="0">
+                    Soltar comprovante aqui
+                  </label>
+                  <div id="operacaoClienteDocResidenciaPreview" class="portal-cliente-docs__preview" aria-live="polite"></div>
+                </div>
+                <div class="portal-cliente-docs__box" id="operacaoClienteDocCnhBox">
+                  <span class="portal-cliente-docs__label">CNH</span>
+                  <p class="subtext portal-cliente-docs__hint">Imagem ou PDF — cole, arraste ou clique.</p>
+                  <input type="file" id="operacaoClienteDocCnhFile" class="hidden" accept="image/*,application/pdf,.pdf" tabindex="-1" aria-hidden="true">
+                  <label class="portal-cliente-docs__drop" id="operacaoClienteDocCnhDrop" for="operacaoClienteDocCnhFile" tabindex="0">
+                    Soltar CNH aqui
+                  </label>
+                  <div id="operacaoClienteDocCnhPreview" class="portal-cliente-docs__preview" aria-live="polite"></div>
+                </div>
+              </div>
+            </div>
             <div class="operacao-inline-form__actions">
               <button type="submit" class="btn-primary">Guardar cliente</button>
               <button type="button" class="btn-primary hidden" id="operacaoClienteAtualizarBtn">Atualizar dados do cliente</button>
@@ -3661,6 +3683,20 @@
     </div>
   </div>
 
+  <div id="portalClienteConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalClienteConfirmTitulo" aria-hidden="true">
+    <div class="portal-modal__backdrop" id="portalClienteConfirmBackdrop"></div>
+    <div class="portal-modal__card portal-cliente-confirm-card">
+      <h3 id="portalClienteConfirmTitulo" class="portal-modal__title">Confirmar cadastro de cliente</h3>
+      <p id="portalClienteConfirmLead" class="subtext">Revise os dados e confirme.</p>
+      <dl id="portalClienteConfirmResumo" class="portal-cliente-confirm-resumo"></dl>
+      <div class="portal-modal__actions">
+        <button type="button" class="btn-primary" id="portalClienteConfirmSalvarBtn">Salvar</button>
+        <button type="button" class="btn-primary" id="portalClienteConfirmAtualizarBtn">Atualizar</button>
+        <button type="button" class="btn-primary btn-secondary-outline" id="portalClienteConfirmCancelarBtn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div id="portalLocacaoConfirmModal" class="portal-modal hidden" role="dialog" aria-modal="true" aria-labelledby="portalLocacaoConfirmTitulo" aria-hidden="true">
     <div class="portal-modal__backdrop" data-close-locacao-confirm></div>
     <div class="portal-modal__card portal-locacao-confirm-card">
@@ -4003,14 +4039,14 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260904setor-rel" defer></script>
+  <script src="app.js?v=20260904cli-docs" defer></script>
   <script src="cliente-notificacoes.js?v=20260610avisos-check" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260826relacao-cols" defer></script>
   <script src="portal-unidade-financeiro.js?v=20260829apps-4" defer></script>
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
-  <script src="portal-locadora-ui.js?v=20260904setor-rel" defer></script>
+  <script src="portal-locadora-ui.js?v=20260904cli-docs" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
@@ -4057,8 +4093,9 @@
   <script src="portal-manutencao-checklist.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-movimentacoes-manutencao.js?v=20260901requerimento-padrao" defer></script>
   <script src="portal-setor-relatorio.js?v=20260904setor-rel" defer></script>
+  <script src="portal-cliente-docs.js?v=20260904cli-docs" defer></script>
   <script src="portal-comprovantes-cliente.js?v=20260826relacao-cols" defer></script>
-  <script src="portal-supabase-sync.js?v=20260904setor-rel" defer></script>
+  <script src="portal-supabase-sync.js?v=20260904cli-docs" defer></script>
   <script src="dk-offline-operacao.js?v=20260829offline-op" defer></script>
 </body>
 </html>

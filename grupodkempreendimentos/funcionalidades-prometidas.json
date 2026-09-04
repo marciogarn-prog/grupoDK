@@ -250,6 +250,35 @@
       }
     },
     {
+      "id": "cadastro-cliente-docs-residencia-cnh",
+      "descricao": "No Cadastro de cliente, duas caixas verdes para comprovante de residência e CNH (imagem ou PDF). Novos cadastros a partir de 04/09/2026 exigem telefone, Recados 01, Recados 02 e os dois ficheiros; Guardar abre janela com resumo e botões Salvar e Cancelar. Cliente já cadastrado (ou data antes de 04/09/2026) abre a janela só com Atualizar. A numeração do Cód. continua a sequência existente.",
+      "ficheiros": {
+        "index.html": [
+          "operacaoClienteDocResidenciaBox",
+          "operacaoClienteDocCnhBox",
+          "Comprovante de residência",
+          "portalClienteConfirmModal",
+          "portalClienteConfirmSalvarBtn",
+          "portalClienteConfirmAtualizarBtn"
+        ],
+        "portal-cliente-docs.js": [
+          "dk_cliente_docs_v1",
+          "2026-09-04",
+          "portalClienteEhNovoCadastro",
+          "Comprovante de residência"
+        ],
+        "portal-locadora-ui.js": [
+          "portalClienteValidarNovoCadastro",
+          "portalAbrirClienteConfirmModal",
+          "iniciarConfirmacaoCliente"
+        ],
+        "styles.css": [
+          "portal-cliente-docs__box",
+          "border: 3px solid #22c55e"
+        ]
+      }
+    },
+    {
       "id": "manutencao-relatorio-movimentacao-setor",
       "descricao": "Em Manutenção, todas as opções 1 a 10 têm botão RELATÓRIO que mostra quem movimentou cada placa de um setor para outro (data, placa, origem, destino e operador).",
       "ficheiros": {
