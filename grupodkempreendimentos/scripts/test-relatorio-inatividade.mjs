@@ -60,6 +60,10 @@ const day = data.days[0];
 record("17/08 — SPA3F38 aparece como inativa (moto)", Boolean(day?.motos.some((r) => r.placa === "SPA3F38")));
 record("17/08 — UIA1G56 não aparece (carro com protocolo ativo)", Boolean(day && !day.carros.some((r) => r.placa === "UIA1G56")));
 record("Último protocolo da placa inativa é o de Marcelo", day?.motos.find((r) => r.placa === "SPA3F38")?.protocolo === "2026080705");
+record(
+  "Data de finalização do último protocolo aparece na linha",
+  day?.motos.find((r) => r.placa === "SPA3F38")?.dataFim === "16/08/2026"
+);
 
 const locManut = api.coletarInatividadePeriodo({
   periodo,
@@ -150,11 +154,17 @@ record(
 );
 record("Coluna Localização no detalhado", ui.includes("Localização") && ui.includes("portal-rotatividade-row__loc") && ui.includes("portalLocalizacaoInatividade"));
 record(
+  "Coluna Finalização entre último protocolo e Localização",
+  ui.includes("portal-rotatividade-row__fim") &&
+    html.includes("Data de finalização") &&
+    /<span>Último protocolo<\/span><span>Finalização<\/span><span>Localização<\/span>/.test(ui)
+);
+record(
   "Coluna Cor entre Modelo e protocolo, PRONTO em verde",
   ui.includes("portal-rotatividade-row__cor") &&
     ui.includes("portal-inatividade-row--pronto") &&
     css.includes("portal-inatividade-row--pronto") &&
-    /<span>Modelo<\/span><span>Cor<\/span><span>Último protocolo<\/span>/.test(ui)
+    /<span>Modelo<\/span><span>Cor<\/span><span>Último protocolo<\/span><span>Finalização<\/span><span>Localização<\/span>/.test(ui)
 );
 record(
   "SINISTRO ROUBO com fundo vermelho no detalhado",

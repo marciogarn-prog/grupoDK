@@ -203,6 +203,7 @@
         const row = {
           placa,
           protocolo: last ? String(last.numeroContrato || last.protocolo || "").trim() || "—" : "—",
+          dataFim: last ? String(getFimBr(last) || "").trim() || "—" : "—",
           cliente: last ? getCliente(last) : "SEM PROTOCOLO",
           veiculo: getModelo(veiculo, last),
           valor: last ? Number(getValor(last)) || 0 : 0,

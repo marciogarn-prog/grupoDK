@@ -217,7 +217,8 @@
           "operacaoInatividadePdfBtn",
           "Gerar PDF",
           "portal-inatividade-folha",
-          "Modelo, Cor, Último protocolo"
+          "Modelo, Cor, Último protocolo",
+          "Data de finalização"
         ],
         "portal-locadora-ui.js": [
           "renderOperacaoRelatorioInatividade",
@@ -226,6 +227,7 @@
           "Localização",
           "portalLocalizacaoInatividade",
           "portal-rotatividade-row__cor",
+          "portal-rotatividade-row__fim",
           "portal-inatividade-row--pronto",
           "portal-inatividade-row--roubo"
         ],
@@ -235,7 +237,8 @@
           "Placas da frota sem protocolo na data",
           "resolverLocalizacaoInatividade",
           "sortInatividadePorLocalizacao",
-          "ehSinistroRoubo"
+          "ehSinistroRoubo",
+          "dataFim"
         ],
         "styles.css": [
           "portal-inatividade",

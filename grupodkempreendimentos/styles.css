@@ -11659,7 +11659,7 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   border-right-color: transparent;
 }
 .portal-inatividade .portal-rotatividade-row {
-  grid-template-columns: 6.2rem minmax(12rem, 2.4fr) 6.4rem 7.4rem minmax(7rem, 1.1fr) 5.2rem;
+  grid-template-columns: 6.2rem minmax(10rem, 2fr) 5.8rem 7.2rem 6.8rem minmax(6.5rem, 1fr) 5rem;
   align-items: center;
 }
 .portal-inatividade .portal-rotatividade-row__cli {
@@ -11673,6 +11673,11 @@ body.dk-offline-blocked .dk-offline-block-overlay {
   text-overflow: ellipsis;
   white-space: nowrap;
   text-transform: uppercase;
+}
+.portal-inatividade .portal-rotatividade-row__fim {
+  color: #e5e5e5;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .portal-inatividade .portal-rotatividade-row__loc {
   color: #fde68a;
@@ -11697,6 +11702,7 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 .portal-inatividade-row--pronto .portal-rotatividade-row__cli,
 .portal-inatividade-row--pronto .portal-rotatividade-row__cor,
 .portal-inatividade-row--pronto .portal-rotatividade-row__vei,
+.portal-inatividade-row--pronto .portal-rotatividade-row__fim,
 .portal-inatividade-row--pronto .portal-rotatividade-row__loc,
 .portal-inatividade-row--pronto .portal-rotatividade-row__val {
   color: #6ee7a0;
@@ -11712,6 +11718,7 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 .portal-inatividade-row--roubo .portal-rotatividade-row__cli,
 .portal-inatividade-row--roubo .portal-rotatividade-row__cor,
 .portal-inatividade-row--roubo .portal-rotatividade-row__vei,
+.portal-inatividade-row--roubo .portal-rotatividade-row__fim,
 .portal-inatividade-row--roubo .portal-rotatividade-row__loc,
 .portal-inatividade-row--roubo .portal-rotatividade-row__val {
   color: #fecaca;

@@ -22339,11 +22339,13 @@
       : roubo
         ? " portal-inatividade-row--roubo"
         : "";
+    const fim = String(row.dataFim || "").trim() || "—";
     return `<div class="portal-rotatividade-row${rowCls}">
       <span class="portal-rotatividade-row__proto">${portalEscapeHtml(row.placa)}</span>
       <span class="portal-rotatividade-row__cli" title="${portalEscapeHtml(row.veiculo)}">${portalEscapeHtml(row.veiculo)}</span>
       <span class="portal-rotatividade-row__cor" title="${portalEscapeHtml(cor)}">${portalEscapeHtml(cor)}</span>
       <span class="portal-rotatividade-row__vei" title="${portalEscapeHtml(row.protocolo)}">${portalEscapeHtml(row.protocolo === "—" ? "sem histórico" : row.protocolo)}</span>
+      <span class="portal-rotatividade-row__fim" title="${portalEscapeHtml(fim)}">${portalEscapeHtml(fim)}</span>
       <span class="portal-rotatividade-row__loc" title="${portalEscapeHtml(loc)}">${portalEscapeHtml(loc)}</span>
       <span class="portal-rotatividade-row__val">${portalEscapeHtml(portalFmtBrlRotatividade(row.valor))}</span>
     </div>`;
@@ -22400,7 +22402,7 @@
       return;
     }
     const cab = `<div class="portal-rotatividade-row portal-inatividade-row--head">
-      <span>Placa</span><span>Modelo</span><span>Cor</span><span>Último protocolo</span><span>Localização</span><span>Valor</span>
+      <span>Placa</span><span>Modelo</span><span>Cor</span><span>Último protocolo</span><span>Finalização</span><span>Localização</span><span>Valor</span>
     </div>`;
     lista.innerHTML = data.days
       .map((day) => {
@@ -22414,11 +22416,11 @@
           <h4 class="portal-rotatividade-dia__data">${portalEscapeHtml(day.dataBr)}</h4>
           <div class="portal-rotatividade-dia__cols">
             <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--sai">
-              <span class="portal-rotatividade-dia__col-title">Carros sem protocolo · Placa · Modelo · Cor · Último protocolo · Localização · Valor</span>
+              <span class="portal-rotatividade-dia__col-title">Carros sem protocolo · Placa · Modelo · Cor · Último protocolo · Data de finalização · Localização · Valor</span>
               ${carroHtml}
             </div>
             <div class="portal-rotatividade-dia__col portal-rotatividade-dia__col--ent">
-              <span class="portal-rotatividade-dia__col-title">Motos sem protocolo · Placa · Modelo · Cor · Último protocolo · Localização · Valor</span>
+              <span class="portal-rotatividade-dia__col-title">Motos sem protocolo · Placa · Modelo · Cor · Último protocolo · Data de finalização · Localização · Valor</span>
               ${motoHtml}
             </div>
           </div>
