@@ -117,15 +117,16 @@
     document.body.classList.toggle("portal-body--admin-logado", on);
     document.body.classList.toggle("portal-body--equipa-sessao", portalTemSessaoEquipaAtiva());
     const titularCeoSessao = on && portalTitularPodeUsarVerComo();
-    document.body.classList.toggle("portal-body--admin-ceo", titularCeoSessao);
-    document.documentElement.classList.toggle("portal-html--admin-ceo", titularCeoSessao);
+    const modo = portalTitularVerComo();
+    const titularCeoVisual = titularCeoSessao && !modo;
+    document.body.classList.toggle("portal-body--admin-ceo", titularCeoVisual);
+    document.documentElement.classList.toggle("portal-html--admin-ceo", titularCeoVisual);
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
     const label = document.getElementById("portalAdminBannerLabel");
     const wrap = document.getElementById("portalAdminVerComoWrap");
     const btnVoltarCeo = document.getElementById("portalAdminVerComoCeoBtn");
     const podeVerComo = titularCeoSessao;
-    const modo = portalTitularVerComo();
     if (label) {
       if (podeVerComo) {
         let txt = "LOGADO COMO ADMINISTRADOR CEO 03037897430";

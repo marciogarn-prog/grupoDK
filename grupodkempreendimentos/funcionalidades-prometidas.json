@@ -1080,7 +1080,7 @@
     },
     {
       "id": "titular-ver-como-perfis",
-      "descricao": "Logado com o CPF 03037897430, o sistema fica com fundo cinza chumbo e o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. Botões só desse titular: VER COMO ADMINISTRADOR, VER COMO COLABORADOR e VER COMO CLIENTE; nessas visualizações aparece VOLTAR A VER COMO CEO.",
+      "descricao": "Logado com o CPF 03037897430, o banner mostra LOGADO COMO ADMINISTRADOR CEO 03037897430. O fundo cinza chumbo só aparece no acesso CEO. Em VER COMO ADMINISTRADOR, VER COMO COLABORADOR ou VER COMO CLIENTE o fundo é o mesmo dos outros perfis e aparece VOLTAR A VER COMO CEO.",
       "ficheiros": {
         "index.html": [
           "portalAdminVerComoWrap",
@@ -1094,7 +1094,8 @@
           "portalTitularVerComo",
           "LOGADO COMO ADMINISTRADOR CEO 03037897430",
           "portalAplicarModoVerComo",
-          "portal-body--admin-ceo"
+          "portal-body--admin-ceo",
+          "titularCeoVisual"
         ],
         "styles.css": [
           "portal-admin-ver-como__btn",

@@ -46,7 +46,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Titular CPF 03037897430 (Administrador CEO): fundo cinza chumbo em todo o sistema. */
+/* Titular CPF 03037897430: fundo cinza chumbo só no acesso CEO (não nas visualizações de outros perfis). */
 html.portal-html--admin-ceo,
 body.portal-body--admin-ceo {
   --bg: #36454f;
