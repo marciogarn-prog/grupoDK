@@ -116,15 +116,19 @@
     banner.classList.toggle("hidden", !on);
     document.body.classList.toggle("portal-body--admin-logado", on);
     document.body.classList.toggle("portal-body--equipa-sessao", portalTemSessaoEquipaAtiva());
+    const titularCeoSessao = on && portalTitularPodeUsarVerComo();
+    document.body.classList.toggle("portal-body--admin-ceo", titularCeoSessao);
+    document.documentElement.classList.toggle("portal-html--admin-ceo", titularCeoSessao);
     const btnPreview = document.getElementById("btn-locadora-preview-cliente");
     if (btnPreview) btnPreview.classList.toggle("hidden", !on);
     const label = document.getElementById("portalAdminBannerLabel");
     const wrap = document.getElementById("portalAdminVerComoWrap");
-    const podeVerComo = on && portalTitularPodeUsarVerComo();
+    const btnVoltarCeo = document.getElementById("portalAdminVerComoCeoBtn");
+    const podeVerComo = titularCeoSessao;
     const modo = portalTitularVerComo();
     if (label) {
       if (podeVerComo) {
-        let txt = "LOGADO COMO ADMINISTRADOR 03037897430";
+        let txt = "LOGADO COMO ADMINISTRADOR CEO 03037897430";
         if (modo === "admin") txt += " · VENDO COMO ADMINISTRADOR";
         else if (modo === "colaborador") txt += " · VENDO COMO COLABORADOR";
         else if (modo === "cliente") txt += " · VENDO COMO CLIENTE";
@@ -137,8 +141,14 @@
       wrap.classList.toggle("hidden", !podeVerComo);
       wrap.hidden = !podeVerComo;
     }
+    if (btnVoltarCeo) {
+      const showVoltar = Boolean(podeVerComo && modo);
+      btnVoltarCeo.classList.toggle("hidden", !showVoltar);
+      btnVoltarCeo.hidden = !showVoltar;
+    }
     document.querySelectorAll(".portal-admin-ver-como__btn").forEach((btn) => {
-      btn.classList.toggle("is-active", Boolean(podeVerComo && btn.getAttribute("data-ver-como") === modo));
+      const v = btn.getAttribute("data-ver-como") || "";
+      btn.classList.toggle("is-active", Boolean(podeVerComo && v && v !== "ceo" && v === modo));
     });
     document.body.classList.toggle("portal-body--ver-como-cliente", modo === "cliente");
     portalSyncAmbienteCadastroAdminUi();
@@ -807,7 +817,7 @@
       .map((f) => {
         const cpf = onlyDigits(String(f.cpf || ""));
         const titular = cpf === DK_LOCADORA_ADMIN_CPF;
-        const label = titular ? "Administrador 1 (titular · FINANCEIRO CEO)" : "Administrador 2 (FINANCEIRO)";
+        const label = titular ? "Administrador CEO" : "Administrador 2 (FINANCEIRO)";
         return `<li><strong>${portalEscapeHtml(String(f.nome || "").trim() || "—")}</strong> · ${portalColabFormatCpfExibicao(cpf)} · ${portalEscapeHtml(label)}</li>`;
       })
       .join("");
@@ -1758,7 +1768,12 @@
     panelLogado?.classList.remove("hidden");
     if (logadoTitulo) logadoTitulo.textContent = "Área da equipa";
     if (logadoTexto) {
-      logadoTexto.textContent = `${funcionario.nome} · ${funcionario.role === "owner" ? "Administrador" : funcionario.role}`;
+      const titularCeo =
+        onlyDigits(String(funcionario.cpf || "")) === DK_LOCADORA_ADMIN_CPF &&
+        funcionario.role === "owner";
+      logadoTexto.textContent = `${funcionario.nome} · ${
+        titularCeo ? "Administrador CEO" : funcionario.role === "owner" ? "Administrador" : funcionario.role
+      }`;
     }
     if (logadoSubtextPreparacao) {
       logadoSubtextPreparacao.classList.toggle("hidden", currentUnit === "locadora");
@@ -1802,7 +1817,13 @@
   function portalAplicarModoVerComo(modoPedido) {
     if (!portalTitularPodeUsarVerComo()) return;
     const atual = portalTitularVerComo();
-    const next = atual === modoPedido ? "" : String(modoPedido || "").trim();
+    const pedido = String(modoPedido || "").trim();
+    const next =
+      pedido === "ceo" || pedido === ""
+        ? ""
+        : pedido === "admin" || pedido === "colaborador" || pedido === "cliente"
+          ? pedido
+          : atual;
     try {
       if (next === "admin" || next === "colaborador" || next === "cliente") {
         sessionStorage.setItem(PORTAL_TITULAR_VER_COMO_KEY, next);

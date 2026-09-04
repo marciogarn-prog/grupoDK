@@ -46,6 +46,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Titular CPF 03037897430 (Administrador CEO): fundo cinza chumbo em todo o sistema. */
+html.portal-html--admin-ceo,
+body.portal-body--admin-ceo {
+  --bg: #36454f;
+  --bg-elevated: rgba(44, 53, 57, 0.92);
+  --bg-glass: rgba(54, 69, 79, 0.9);
+  background-color: #36454f;
+  background-image: none;
+}
+
 .view {
   display: none;
   min-height: 100vh;
@@ -8679,6 +8689,20 @@ body.dk-pwa-update-bar-visible {
 .portal-admin-ver-como__btn.is-active {
   background: #1e3a8a;
   box-shadow: 0 0 0 2px #bfdbfe;
+}
+
+.portal-admin-ver-como__btn--ceo {
+  background: #b45309;
+  border-color: #fcd34d;
+}
+
+.portal-admin-ver-como__btn--ceo:hover {
+  background: #c2410c;
+}
+
+.portal-admin-ver-como__btn--ceo.is-active {
+  background: #9a3412;
+  box-shadow: 0 0 0 2px #fde68a;
 }
 
 .portal-admin-banner__nav {
