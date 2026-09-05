@@ -1455,6 +1455,10 @@
   const COR_SALDO_ACC_NEG = "#ef4444";
   const COR_SALDO_ACC_POS = "#22c55e";
 
+  function ehSextaCeo(d) {
+    return startOfDay(d).getDay() === 5;
+  }
+
   function fluxoSimulacaoNoDia(lotes, dia) {
     const d = startOfDay(dia);
     const t = d.getTime();
@@ -1466,7 +1470,7 @@
         if (startOfDay(pd).getTime() === t) desp += lote.qty * lote.prestacao;
       });
       if (t >= startOfDay(lote.iniAluguel).getTime()) {
-        rec += lote.alugadas * (SIM_ALUGUEL_SEMANA / 7);
+        if (ehSextaCeo(d)) rec += lote.alugadas * SIM_ALUGUEL_SEMANA;
         desp += lote.alugadas * (SIM_DESPESA_SEMANA / 7);
       }
     });
