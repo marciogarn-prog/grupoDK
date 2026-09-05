@@ -1680,6 +1680,93 @@
     return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico">${grid}${zero}${lines}${axis}</svg>`;
   }
 
+  const COR_SALDO_ACC_NEG = "#ef4444";
+  const COR_SALDO_ACC_POS = "#22c55e";
+
+  /** Saldo acumulado: vermelho no negativo, verde no positivo; ponto com a data na virada. */
+  function svgSaldoAccChart(meses, saldoAcc) {
+    const w = 1100;
+    const h = 400;
+    const padL = 72;
+    const padR = 28;
+    const padT = 28;
+    const padB = 44;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const labels = (meses || []).map((m) => m.label);
+    const values = (saldoAcc || []).map((v) => Number(v) || 0);
+    const rawMax = Math.max(0, ...values);
+    const rawMin = Math.min(0, ...values);
+    const span = Math.max(1, rawMax - rawMin);
+    const n = Math.max(1, labels.length - 1);
+    const xAt = (i) => padL + (labels.length <= 1 ? innerW / 2 : (i / n) * innerW);
+    const yAt = (v) => padT + innerH - ((v - rawMin) / span) * innerH;
+    const corDe = (v) => (v < 0 ? COR_SALDO_ACC_NEG : COR_SALDO_ACC_POS);
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+      .map((p) => {
+        const val = rawMin + span * p;
+        const y = yAt(val);
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
+      })
+      .join("");
+    const y0 = yAt(0);
+    const zero = `<line x1="${padL}" y1="${y0}" x2="${w - padR}" y2="${y0}" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4"/>`;
+    const segs = [];
+    const viradas = [];
+    for (let i = 1; i < values.length; i += 1) {
+      const a = values[i - 1];
+      const b = values[i];
+      const x0 = xAt(i - 1);
+      const x1 = xAt(i);
+      const cruzou = (a < 0 && b >= 0) || (a > 0 && b < 0);
+      if (!cruzou) {
+        segs.push({ color: corDe(a === 0 ? b : a), pts: `${x0},${yAt(a)} ${x1},${yAt(b)}` });
+        continue;
+      }
+      const t = Math.abs(b - a) < 1e-9 ? 0.5 : Math.abs(a) / Math.abs(b - a);
+      const xc = x0 + t * (x1 - x0);
+      segs.push({ color: corDe(a), pts: `${x0},${yAt(a)} ${xc},${y0}` });
+      segs.push({ color: corDe(b), pts: `${xc},${y0} ${x1},${yAt(b)}` });
+      const d0 = meses[i - 1]?.date;
+      const d1 = meses[i]?.date;
+      const dataVirada =
+        d0 instanceof Date && d1 instanceof Date
+          ? new Date(d0.getTime() + t * (d1.getTime() - d0.getTime()))
+          : d1 || d0;
+      viradas.push({ xc, data: dataVirada, paraPos: b >= 0 });
+    }
+    if (values.length === 1) {
+      segs.push({
+        color: corDe(values[0]),
+        pts: `${xAt(0)},${yAt(values[0])} ${xAt(0)},${yAt(values[0])}`,
+      });
+    }
+    const lines = segs
+      .map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2.6" points="${s.pts}"/>`)
+      .join("");
+    const marks = viradas
+      .map((v) => {
+        const dataTxt = fmtBrDate(v.data);
+        const labelY = y0 > padT + 22 ? y0 - 14 : y0 + 18;
+        const stroke = v.paraPos ? COR_SALDO_ACC_POS : COR_SALDO_ACC_NEG;
+        const cx = Math.max(padL + 36, Math.min(w - padR - 36, v.xc));
+        return `<circle class="fin-ceo-saldo-acc-virada" cx="${v.xc.toFixed(2)}" cy="${y0.toFixed(2)}" r="5.5" fill="#fff" stroke="${stroke}" stroke-width="2.4">
+          <title>Mudança de saldo em ${esc(dataTxt)}</title>
+        </circle>
+        <text x="${cx.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="middle" fill="#ffffff" stroke="#111111" stroke-width="3" paint-order="stroke" font-size="11" font-weight="700">${esc(dataTxt)}</text>`;
+      })
+      .join("");
+    const step = labels.length > 14 ? Math.ceil(labels.length / 8) : 1;
+    const axis = labels
+      .map((lb, i) => {
+        if (i % step !== 0 && i !== labels.length - 1) return "";
+        return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lb)}</text>`;
+      })
+      .join("");
+    return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Saldo acumulado">${grid}${zero}${lines}${marks}${axis}</svg>`;
+  }
+
   function tomSaldoAnoCeo(ano, positivo) {
     const t = CEO_ANO_SALDO_TONS[ano] || CEO_ANO_SALDO_TONS[2026];
     return positivo ? t.pos : t.neg;
@@ -1811,7 +1898,7 @@
       if (!meses.length) {
         chartAcc.innerHTML = `<p class="subtext">—</p>`;
       } else {
-        chartAcc.innerHTML = svgLineChart(labels, [{ color: "#f5d76e", values: saldoAcc }]);
+        chartAcc.innerHTML = svgSaldoAccChart(meses, saldoAcc);
       }
     }
 
@@ -1839,8 +1926,13 @@
     if (legAcc) {
       const ult = saldoAcc[saldoAcc.length - 1] || 0;
       legAcc.innerHTML = meses.length
-        ? `<span class="fin-legenda__item"><i style="background:#f5d76e"></i>Saldo acumulado no período · ${esc(brl(ult))}${anosTxt ? ` (${esc(anosTxt)})` : ""}</span>`
-        : `<span class="fin-legenda__item"><i style="background:#f5d76e"></i>Saldo acumulado — selecione um ano</span>`;
+        ? `<span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_NEG}"></i>Negativo</span>
+           <span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_POS}"></i>Positivo</span>
+           <span class="fin-legenda__item">Ponto branco: data da virada</span>
+           <span class="fin-legenda__item fin-legenda__item--anos">Saldo acumulado no período · ${esc(brl(ult))}${anosTxt ? ` (${esc(anosTxt)})` : ""}</span>`
+        : `<span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_NEG}"></i>Negativo</span>
+           <span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_POS}"></i>Positivo</span>
+           <span class="fin-legenda__item">Saldo acumulado — selecione um ano</span>`;
     }
 
     const tab = document.getElementById("finCeoTabelaProjecao");

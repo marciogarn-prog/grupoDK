@@ -633,7 +633,7 @@
     },
     {
       "id": "fin-ceo-painel-anos-grafico",
-      "descricao": "No FINANCEIRO CEO → Painel executivo: botões 2026–2030 para incluir ou retirar anos dos gráficos Saldo mês a mês e Saldo acumulado (combinações livres; pelo menos um ano activo). No Saldo mês a mês a despesa usa a mesma escala positiva da receita; o saldo é barra verde para cima e vermelha para baixo, com tom diferente em cada ano.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo: botões 2026–2030 para incluir ou retirar anos dos gráficos Saldo mês a mês e Saldo acumulado (combinações livres; pelo menos um ano activo). No Saldo mês a mês a despesa usa a mesma escala positiva da receita; o saldo é barra verde para cima e vermelha para baixo, com tom diferente em cada ano. No Saldo acumulado a linha fica vermelha no negativo, verde no positivo, e marca um ponto com a data na mudança de cor.",
       "ficheiros": {
         "index.html": [
           "finCeoDashAnosFiltro",
@@ -648,7 +648,12 @@
           "renderDashboardGraficos",
           "svgSaldoMesChart",
           "CEO_ANO_SALDO_TONS",
-          "Despesa na mesma escala da receita (positiva)"
+          "Despesa na mesma escala da receita (positiva)",
+          "svgSaldoAccChart",
+          "COR_SALDO_ACC_NEG",
+          "COR_SALDO_ACC_POS",
+          "Ponto branco: data da virada",
+          "fin-ceo-saldo-acc-virada"
         ],
         "styles.css": [
           "fin-ceo-anos-filtro",
