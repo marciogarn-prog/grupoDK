@@ -3235,19 +3235,11 @@
       </div>`);
     });
 
-    chart.innerHTML = `<div class="fin-ceo-desp-graf">
-      <div class="fin-ceo-desp-graf__head">
-        <span class="fin-ceo-desp-graf__lab-spacer"></span>
-        <div class="fin-ceo-desp-graf__axis">${ticks.join("")}</div>
-        <span class="fin-ceo-desp-graf__val-spacer"></span>
-      </div>
-      ${blocks.join("")}
-    </div>`;
-
-    if (tabela) {
-      const body = rows
-        .map(
-          (r) => `<tr>
+    const tableHtml = `<table class="fin-table fin-ceo-desp-graf__table">
+        <thead><tr><th>Despesa</th><th>Categoria</th><th>Repetições</th><th>Início</th><th>Fim</th><th>Valor mensal</th><th>Total da série</th></tr></thead>
+        <tbody>${rows
+          .map(
+            (r) => `<tr>
             <td>${esc(r.label)}</td>
             <td>${esc(r.categoriaLabel)}</td>
             <td>${esc(String(r.repeticoes))}</td>
@@ -3256,13 +3248,35 @@
             <td>${esc(brl(r.valor))}</td>
             <td>${esc(brl(r.totalSerie))}</td>
           </tr>`
-        )
-        .join("");
-      tabela.innerHTML = `<table class="fin-table">
-        <thead><tr><th>Despesa</th><th>Categoria</th><th>Repetições</th><th>Início</th><th>Fim</th><th>Valor mensal</th><th>Total da série</th></tr></thead>
-        <tbody>${body}</tbody>
+          )
+          .join("")}</tbody>
       </table>`;
-    }
+    chart.innerHTML = `<div class="fin-ceo-desp-graf">
+      <div class="fin-ceo-desp-graf__head">
+        <span class="fin-ceo-desp-graf__lab-spacer"></span>
+        <div class="fin-ceo-desp-graf__axis">${ticks.join("")}</div>
+        <span class="fin-ceo-desp-graf__val-spacer"></span>
+      </div>
+      <div class="fin-ceo-desp-graf__body" id="finCeoGraficoDespesasBody">${blocks.join("")}${tableHtml}</div>
+    </div>`;
+    if (tabela) tabela.innerHTML = "";
+    bindGraficoDespesasScroll();
+  }
+
+  function bindGraficoDespesasScroll() {
+    const pane = document.getElementById("finCeoPaneGraficoDespesas");
+    if (!pane || pane.__dkGrafScrollBound) return;
+    pane.__dkGrafScrollBound = true;
+    pane.addEventListener(
+      "wheel",
+      (ev) => {
+        const body = document.getElementById("finCeoGraficoDespesasBody");
+        if (!body) return;
+        ev.preventDefault();
+        body.scrollTop += ev.deltaY;
+      },
+      { passive: false }
+    );
   }
 
   function abrirPane(id) {
