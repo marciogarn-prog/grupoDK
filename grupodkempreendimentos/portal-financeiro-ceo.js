@@ -1461,7 +1461,7 @@
     let rec = 0;
     let desp = 0;
     (lotes || []).forEach((lote) => {
-      if (startOfDay(lote.compra).getTime() === t) rec += lote.alugadas * lote.aporte;
+      if (startOfDay(lote.compra).getTime() === t) desp += lote.qty * lote.aporte;
       (lote.prestacoes || []).forEach((pd) => {
         if (startOfDay(pd).getTime() === t) desp += lote.qty * lote.prestacao;
       });
