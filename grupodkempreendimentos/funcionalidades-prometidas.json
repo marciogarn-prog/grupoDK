@@ -663,14 +663,15 @@
     },
     {
       "id": "fin-ceo-cartao-finais-banco-doc",
-      "descricao": "No FINANCEIRO CEO → Cadastro de despesas → Cartão de crédito: caixa 1 com 4 números finais (memória + lista suspensa) e caixa 2 com banco e CPF/CNPJ; se os 4 finais já existirem no histórico, preenche automaticamente banco e CPF/CNPJ (aplicarHistoricoCartaoPorFinais).",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas → Cartão de crédito: caixa 1 com 4 números finais (memória + lista suspensa) e caixa 2 com banco e CPF/CNPJ; se os 4 finais já existirem no histórico, preenche automaticamente banco e CPF/CNPJ (aplicarHistoricoCartaoPorFinais). Depois de cadastrar, cartão, data de pagamento e os demais dados ficam na tela até o operador alterar (vários lançamentos no mesmo cartão). Limpar esvazia o formulário.",
       "ficheiros": {
         "index.html": [
           "finCeoDespCartaoFinais",
           "finCeoDespCartaoBanco",
           "finCeoDespCartaoDoc",
           "4 números finais do cartão",
-          "CPF ou CNPJ do cartão"
+          "CPF ou CNPJ do cartão",
+          "Cartão e data mantidos"
         ],
         "portal-financeiro-ceo.js": [
           "BANCOS_CARTAO_CEO",
@@ -680,7 +681,9 @@
           "upsertCartaoFromForm",
           "aplicarHistoricoCartaoPorFinais",
           "buscarCartaoHistoricoPorFinais",
-          "finCeoDespCartaoFinaisList"
+          "finCeoDespCartaoFinaisList",
+          "manterFormAposLancamentoCartao",
+          "Cartão e data mantidos para o próximo lançamento"
         ],
         "styles.css": [
           "fin-ceo-cartao-bloco",

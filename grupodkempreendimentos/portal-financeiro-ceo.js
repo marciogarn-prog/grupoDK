@@ -1994,6 +1994,42 @@
     }
   }
 
+  function lancamentoEhCartaoCredito(entry) {
+    return Boolean(
+      entry &&
+        isParticulares(entry.categoria) &&
+        tipoParticularExigeCartao(entry.tipoParticular)
+    );
+  }
+
+  /** Cartão: os últimos dados ficam na tela até o operador alterar (vários lançamentos no mesmo cartão/data). */
+  function manterFormAposLancamentoCartao(entry) {
+    finCeoDespEditState = null;
+    renderCategoriaSelect();
+    renderRubricaSelect();
+    renderTipoParticularSelect();
+    renderCartaoSelect();
+    const cat = document.getElementById("finCeoDespCategoria");
+    if (cat) cat.value = entry.categoria || "PARTICULARES";
+    toggleCategoriaDespesaUi();
+    const tipo = document.getElementById("finCeoDespTipoParticular");
+    if (tipo && tipoParticularValido(entry.tipoParticular)) tipo.value = entry.tipoParticular;
+    toggleTipoParticularUi();
+    if (entry.cartaoCredito) preencherCamposCartaoForm(entry.cartaoCredito);
+    const desc = document.getElementById("finCeoDespDescricao");
+    if (desc) desc.value = entry.descricao || "";
+    const val = document.getElementById("finCeoDespValor");
+    if (val) val.value = brl(entry.valor);
+    const rep = document.getElementById("finCeoDespRepeticoes");
+    if (rep) rep.value = String(entry.repeticoes || 12);
+    const dt = document.getElementById("finCeoDespDataEvento");
+    if (dt) dt.value = fmtBrDate(entry.dataEvento);
+    bindMascarasCeo(document.getElementById("finCeoPaneDespesas"));
+    updateFormEditUi();
+    desc?.focus();
+    desc?.select();
+  }
+
   function limparFormDespesa() {
     finCeoDespEditState = null;
     renderCategoriaSelect();
@@ -2503,14 +2539,21 @@
         : `${pagos.length} pagamento(s) futuro(s) atualizado(s)`;
     const msg = `Despesa editada — ${escopo} (1ª ${fmtBrDate(entry.dataEvento)} · ${brl(entry.valor)}). Veja na tabela abaixo.`;
     finCeoDespEditState = null;
-    limparFormDespesa();
-    if (fb) fb.textContent = msg;
+    if (lancamentoEhCartaoCredito(entry)) manterFormAposLancamentoCartao(entry);
+    else limparFormDespesa();
+    if (fb) {
+      fb.textContent = lancamentoEhCartaoCredito(entry)
+        ? `${msg} Cartão e data mantidos para o próximo lançamento.`
+        : msg;
+    }
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
     if (paneAberto === "grafico-despesas") renderGraficoDespesas();
-    document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!lancamentoEhCartaoCredito(entry)) {
+      document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }
 
   function persistirDespesaEntry(entry) {
@@ -2524,16 +2567,22 @@
     ultimaDespesaSalvaId = entry.id;
     saveDespesasCeo(list);
     const pagos = expandirPagamentosDespesa(entry, entry.repeticoes);
+    const ehCartao = lancamentoEhCartaoCredito(entry);
+    if (ehCartao) manterFormAposLancamentoCartao(entry);
+    else limparFormDespesa();
     if (fb) {
-      fb.textContent = `Despesa cadastrada — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Veja na tabela abaixo.`;
+      fb.textContent = ehCartao
+        ? `Despesa cadastrada — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Cartão e data mantidos para o próximo lançamento.`
+        : `Despesa cadastrada — ${pagos.length} pagamento(s) de ${brl(entry.valor)} (1ª ${fmtBrDate(entry.dataEvento)}). Veja na tabela abaixo.`;
     }
-    limparFormDespesa();
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
     if (paneAberto === "grafico-despesas") renderGraficoDespesas();
-    document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (!ehCartao) {
+      document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   }
 
   function confirmarDespesaModal() {
