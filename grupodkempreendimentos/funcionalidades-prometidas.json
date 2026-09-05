@@ -601,6 +601,18 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-vencimento-fim-mes",
+      "descricao": "No financeiro de despesas do FINANCEIRO CEO: se o dia de vencimento não existe no mês, a conta acumula no último dia (meses de 30: dia 31 no dia 30; fevereiro: 29/30/31 no dia 28 ou 29 bissexto). Painel, gráfico, lista e relatório usam a mesma regra.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "dataVencimentoDespesaNoMesCeo",
+          "ultimoDiaDoMesCeo",
+          "Meses de 30: dia 31 → dia 30",
+          "Fevereiro: 29/30/31 → 28"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-lista-filtro-excel",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada coluna da tabela tem filtro estilo Excel (▾) com ordenação e seleção de valores, igual ao Relatório de despesas.",
       "ficheiros": {

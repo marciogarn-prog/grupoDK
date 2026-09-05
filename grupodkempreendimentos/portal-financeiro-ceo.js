@@ -167,8 +167,23 @@
     return new Date(d.getFullYear(), d.getMonth(), d.getDate());
   }
 
+  function ultimoDiaDoMesCeo(ano, mes0) {
+    return new Date(ano, mes0 + 1, 0).getDate();
+  }
+
+  /**
+   * Vencimento no mês: se o dia âncora não existe, acumula no último dia.
+   * Meses de 30: dia 31 → dia 30. Fevereiro: 29/30/31 → 28 (ou 29 no bissexto).
+   */
+  function dataVencimentoDespesaNoMesCeo(ano, mes0, diaAncora) {
+    const dia = Math.max(1, Number(diaAncora) || 1);
+    const ultimo = ultimoDiaDoMesCeo(ano, mes0);
+    return new Date(ano, mes0, Math.min(dia, ultimo));
+  }
+
   function addMonths(d, n) {
-    return new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
+    const alvo = new Date(d.getFullYear(), d.getMonth() + n, 1);
+    return dataVencimentoDespesaNoMesCeo(alvo.getFullYear(), alvo.getMonth(), d.getDate());
   }
 
   function slugId(label, prefix) {
@@ -1011,20 +1026,20 @@
     const out = [];
     if (desp.periodic) {
       if (desp.valor <= 0) return out;
-      // Âncora: data do 1º evento; cada repetição cai no mesmo dia do mês seguinte.
-      let dt = startOfDay(desp.dataEvento);
+      // Âncora: dia do 1º evento. Meses curtos: 31→30; fev 29/30/31→último dia.
+      const inicio = startOfDay(desp.dataEvento);
       for (let i = 0; i < desp.repeticoes; i += 1) {
+        const dt = addMonths(inicio, i);
         if (dt >= inicioHorizonte && dt <= fimHorizonte) {
           out.push({ data: new Date(dt), valor: desp.valor, categoria: desp.categoria, subcategoria: desp.subcategoria });
         }
-        if (i < desp.repeticoes - 1) dt = addMonths(dt, 1);
         if (dt > fimHorizonte) break;
       }
     } else {
       (desp.parcelas || []).forEach((p) => {
         if (p.valor <= 0) return;
         for (let y = inicioHorizonte.getFullYear(); y <= fimHorizonte.getFullYear(); y += 1) {
-          const dt = new Date(y, p.mes - 1, Math.min(p.dia, 28));
+          const dt = dataVencimentoDespesaNoMesCeo(y, p.mes - 1, p.dia);
           if (dt >= inicioHorizonte && dt <= fimHorizonte) {
             out.push({ data: dt, valor: p.valor, categoria: desp.categoria, subcategoria: desp.subcategoria });
           }
@@ -2631,17 +2646,17 @@
     const out = [];
     const max = limiteRepeticoes > 0 ? Math.min(limiteRepeticoes, d.repeticoes) : d.repeticoes;
     if (d.periodic) {
-      let dt = startOfDay(d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento));
-      if (!dt) return out;
+      const inicio = startOfDay(d.dataEvento instanceof Date ? d.dataEvento : parseBrDate(d.dataEvento));
+      if (!inicio) return out;
       for (let i = 0; i < max; i += 1) {
+        const dt = addMonths(inicio, i);
         out.push({ numero: i + 1, data: new Date(dt), valor: d.valor, despesa: d });
-        if (i < max - 1) dt = addMonths(dt, 1);
       }
       return out;
     }
     (d.parcelas || []).slice(0, max).forEach((p, i) => {
       const y = new Date().getFullYear();
-      const dt = new Date(y, p.mes - 1, Math.min(p.dia, 28));
+      const dt = dataVencimentoDespesaNoMesCeo(y, p.mes - 1, p.dia);
       out.push({ numero: i + 1, data: dt, valor: p.valor, despesa: d });
     });
     return out;
