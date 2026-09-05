@@ -2302,10 +2302,7 @@
   function renderListaDespesaRowHtml(row) {
     const d = row._d;
     const p = row._p;
-    const primeiro = row._primeiro;
-    const excluir = primeiro
-      ? `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}">Excluir</button>`
-      : "";
+    const excluir = `<button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-excluir" data-id="${esc(d.id)}" data-pag="${p.numero}">Excluir</button>`;
     const acoes = `<div class="fin-ceo-desp-row-acoes">
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-evento" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR EVENTO</button>
           <button type="button" class="btn-primary btn-secondary-outline fin-ceo-desp-editar-futuro" data-id="${esc(d.id)}" data-pag="${p.numero}">EDITAR FUTURO</button>
@@ -3377,9 +3374,69 @@
     aplicarRelatorio();
   }
 
-  function excluirDespesa(id) {
-    const list = loadDespesasCeo().filter((d) => String(d.id) !== String(id));
-    saveDespesasCeo(list);
+  function aplicarExcluirPagamentoDespesa(list, despesaId, pagNum) {
+    const idx = list.findIndex((d) => String(d.id) === String(despesaId));
+    if (idx < 0) return { list, ok: false };
+    const original = normalizeDespesa(list[idx]);
+    const R = original.repeticoes;
+    const pag = Math.max(1, Math.min(R, Number(pagNum) || 1));
+    if (R <= 1) {
+      return { list: list.filter((_, i) => i !== idx), ok: true };
+    }
+    if (pag === 1) {
+      const segundo = getPagamentoDespesa(original, 2);
+      const next = [...list];
+      next[idx] = serializarDespesa({
+        ...original,
+        id: original.id,
+        repeticoes: R - 1,
+        dataEvento: segundo?.data || addMonths(original.dataEvento, 1),
+        cadastradoEm: original.cadastradoEm,
+      });
+      return { list: next, ok: true };
+    }
+    if (pag === R) {
+      const next = [...list];
+      next[idx] = serializarDespesa({
+        ...original,
+        repeticoes: R - 1,
+        cadastradoEm: original.cadastradoEm,
+      });
+      return { list: next, ok: true };
+    }
+    const next = [];
+    for (let i = 0; i < list.length; i++) {
+      if (i !== idx) {
+        next.push(list[i]);
+        continue;
+      }
+      next.push(
+        serializarDespesa({
+          ...original,
+          id: original.id,
+          repeticoes: pag - 1,
+          cadastradoEm: original.cadastradoEm,
+        })
+      );
+      const futuro = getPagamentoDespesa(original, pag + 1);
+      next.push(
+        serializarDespesa({
+          ...original,
+          id: novoIdDespesa(),
+          repeticoes: R - pag,
+          dataEvento: futuro?.data || original.dataEvento,
+          cadastradoEm: new Date().toISOString(),
+        })
+      );
+    }
+    return { list: next, ok: true };
+  }
+
+  /** Excluir some da lista: cada linha (PAGAMENTO 01, 02…) tem o próprio Excluir. */
+  function excluirDespesa(id, pagNum) {
+    const result = aplicarExcluirPagamentoDespesa(loadDespesasCeo(), id, pagNum || 1);
+    if (!result.ok) return;
+    saveDespesasCeo(result.list);
     renderListaDespesas();
     renderResumoCadastroDespesas();
     renderDashboard();
@@ -3722,7 +3779,10 @@
       const btnExcluir = ev.target.closest(".fin-ceo-desp-excluir");
       if (btnExcluir) {
         const id = btnExcluir.getAttribute("data-id");
-        if (id && window.confirm("Excluir esta despesa?")) excluirDespesa(id);
+        const pag = Number(btnExcluir.getAttribute("data-pag")) || 1;
+        if (id && window.confirm("Excluir este pagamento? A linha some da lista.")) {
+          excluirDespesa(id, pag);
+        }
         return;
       }
       const btnEvento = ev.target.closest(".fin-ceo-desp-editar-evento");

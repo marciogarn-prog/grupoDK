@@ -528,6 +528,17 @@
       }
     },
     {
+      "id": "fin-ceo-despesa-excluir-pagamento-some",
+      "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha (PAGAMENTO 01, 02…) tem Excluir. Ao excluir, aquele pagamento some da lista (não some só o botão).",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "aplicarExcluirPagamentoDespesa",
+          "Excluir este pagamento? A linha some da lista.",
+          "data-pag="
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesa-editar-evento-futuro",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha tem botões cinza EDITAR EVENTO (só aquela parcela) e EDITAR FUTURO (desta parcela em diante na mesma série); carrega o formulário, confirma no modal e grava.",
       "ficheiros": {
