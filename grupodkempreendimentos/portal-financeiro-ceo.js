@@ -2417,6 +2417,7 @@
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
+    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
     document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
@@ -2439,6 +2440,7 @@
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
+    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
     document.getElementById("finCeoDespesasTableWrap")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
@@ -3107,6 +3109,161 @@
     renderResumoCadastroDespesas();
     renderDashboard();
     if (paneAberto === "relatorio") aplicarRelatorio();
+    if (paneAberto === "grafico-despesas") renderGraficoDespesas();
+  }
+
+  const MES_ABREV_CEO = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+  function mesLabelCurtoCeo(d) {
+    if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "—";
+    return `${MES_ABREV_CEO[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+  }
+
+  function monthIndexFromBaseCeo(base, d) {
+    return (d.getFullYear() - base.getFullYear()) * 12 + (d.getMonth() - base.getMonth());
+  }
+
+  function fillClassGraficoDespesa(catId) {
+    if (catId === "DK_CONSTRUTORA") return "fin-ceo-desp-graf__fill--construtora";
+    if (catId === "DK_CENTRO_AUTOMOTIVO") return "fin-ceo-desp-graf__fill--centro";
+    if (catId === "PARTICULARES") return "fin-ceo-desp-graf__fill--part";
+    return "fin-ceo-desp-graf__fill--locadora";
+  }
+
+  function labelLinhaGraficoDespesa(d) {
+    const detalhe = String(d.descricao || "").trim();
+    const base = isParticulares(d.categoria)
+      ? labelTipoParticular(d.tipoParticular || inferirTipoParticularLegado(d))
+      : labelRubrica(d.rubrica);
+    const cat = labelCategoria(d.categoria);
+    const nome = detalhe ? `${base} · ${detalhe}` : base;
+    return `${nome} (${cat})`;
+  }
+
+  function coletarLinhasGraficoDespesas() {
+    const agora = new Date();
+    const base = new Date(agora.getFullYear(), agora.getMonth(), 1);
+    const list = loadDespesasCeo().map(normalizeDespesa);
+    const totaisPorMes = new Map();
+    const rows = [];
+    let maxIdx = 11;
+
+    list.forEach((d) => {
+      const pagos = expandirPagamentosDespesa(d, d.repeticoes);
+      if (!pagos.length) return;
+      let startIdx = Infinity;
+      let endIdx = -Infinity;
+      pagos.forEach((p) => {
+        const idx = monthIndexFromBaseCeo(base, p.data);
+        startIdx = Math.min(startIdx, idx);
+        endIdx = Math.max(endIdx, idx);
+        const key = monthKey(p.data);
+        totaisPorMes.set(key, (totaisPorMes.get(key) || 0) + (Number(p.valor) || 0));
+        if (idx > maxIdx) maxIdx = idx;
+      });
+      if (!Number.isFinite(startIdx)) return;
+      rows.push({
+        id: d.id,
+        label: labelLinhaGraficoDespesa(d),
+        categoria: d.categoria,
+        categoriaLabel: labelCategoria(d.categoria),
+        repeticoes: d.repeticoes,
+        valor: d.valor,
+        startIdx,
+        endIdx,
+        inicio: pagos[0].data,
+        fim: pagos[pagos.length - 1].data,
+        totalSerie: pagos.reduce((s, p) => s + (Number(p.valor) || 0), 0),
+      });
+    });
+
+    const horizonte = Math.max(12, maxIdx + 1);
+    rows.sort((a, b) => {
+      const ia = CATEGORIAS_CEO.findIndex((c) => c.id === a.categoria);
+      const ib = CATEGORIAS_CEO.findIndex((c) => c.id === b.categoria);
+      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      if (b.repeticoes !== a.repeticoes) return b.repeticoes - a.repeticoes;
+      return a.label.localeCompare(b.label, "pt-BR");
+    });
+    return { base, horizonte, rows, totaisPorMes };
+  }
+
+  /** Totais no mês atual e de 3 em 3 meses, escritos na vertical. */
+  function renderGraficoDespesas() {
+    const chart = document.getElementById("finCeoGraficoDespesasChart");
+    const tabela = document.getElementById("finCeoGraficoDespesasTabela");
+    if (!chart) return;
+    const { base, horizonte, rows, totaisPorMes } = coletarLinhasGraficoDespesas();
+    if (!rows.length) {
+      chart.innerHTML = `<p class="subtext">Nenhuma despesa cadastrada ainda — use Cadastro de despesas.</p>`;
+      if (tabela) tabela.innerHTML = "";
+      return;
+    }
+
+    const ticks = [];
+    for (let i = 0; i < horizonte; i += 1) {
+      if (i % 3 !== 0) continue;
+      const mes = new Date(base.getFullYear(), base.getMonth() + i, 1);
+      const tot = totaisPorMes.get(monthKey(mes)) || 0;
+      const left = ((i + 0.5) / horizonte) * 100;
+      ticks.push(
+        `<span class="fin-ceo-desp-graf__tick" style="left:${left.toFixed(3)}%">
+          <span class="fin-ceo-desp-graf__total">${esc(brl(tot))}</span>
+          <span class="fin-ceo-desp-graf__mes">${esc(mesLabelCurtoCeo(mes))}</span>
+        </span>`
+      );
+    }
+
+    const blocks = [];
+    let lastCat = "";
+    rows.forEach((r) => {
+      if (r.categoria !== lastCat) {
+        lastCat = r.categoria;
+        blocks.push(`<div class="fin-ceo-desp-graf__group">${esc(r.categoriaLabel)}</div>`);
+      }
+      const clipStart = Math.max(0, r.startIdx);
+      const clipEnd = Math.min(horizonte - 1, r.endIdx);
+      const span = Math.max(0, clipEnd - clipStart + 1);
+      const left = (clipStart / horizonte) * 100;
+      const width = span > 0 ? (span / horizonte) * 100 : 0;
+      const mesesTxt = r.repeticoes === 1 ? "1 mês" : `${r.repeticoes} meses`;
+      blocks.push(`<div class="fin-ceo-desp-graf__row">
+        <span class="fin-ceo-desp-graf__lab" title="${esc(r.label)}">${esc(r.label)}</span>
+        <span class="fin-ceo-desp-graf__track">
+          <span class="fin-ceo-desp-graf__fill ${fillClassGraficoDespesa(r.categoria)}" style="left:${left.toFixed(3)}%;width:${Math.max(width, 1.2).toFixed(3)}%"></span>
+        </span>
+        <span class="fin-ceo-desp-graf__val">${esc(mesesTxt)}</span>
+      </div>`);
+    });
+
+    chart.innerHTML = `<div class="fin-ceo-desp-graf">
+      <div class="fin-ceo-desp-graf__head">
+        <span class="fin-ceo-desp-graf__lab-spacer"></span>
+        <div class="fin-ceo-desp-graf__axis">${ticks.join("")}</div>
+        <span class="fin-ceo-desp-graf__val-spacer"></span>
+      </div>
+      ${blocks.join("")}
+    </div>`;
+
+    if (tabela) {
+      const body = rows
+        .map(
+          (r) => `<tr>
+            <td>${esc(r.label)}</td>
+            <td>${esc(r.categoriaLabel)}</td>
+            <td>${esc(String(r.repeticoes))}</td>
+            <td>${esc(fmtBrDate(r.inicio))}</td>
+            <td>${esc(fmtBrDate(r.fim))}</td>
+            <td>${esc(brl(r.valor))}</td>
+            <td>${esc(brl(r.totalSerie))}</td>
+          </tr>`
+        )
+        .join("");
+      tabela.innerHTML = `<table class="fin-table">
+        <thead><tr><th>Despesa</th><th>Categoria</th><th>Repetições</th><th>Início</th><th>Fim</th><th>Valor mensal</th><th>Total da série</th></tr></thead>
+        <tbody>${body}</tbody>
+      </table>`;
+    }
   }
 
   function abrirPane(id) {
@@ -3130,6 +3287,7 @@
       renderResumoPeriodoCeo();
     }
     if (id === "despesas") renderCadastroDespesas();
+    if (id === "grafico-despesas") renderGraficoDespesas();
     if (id === "relatorio") renderRelatorio();
   }
 
