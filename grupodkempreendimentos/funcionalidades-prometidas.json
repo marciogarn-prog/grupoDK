@@ -515,6 +515,19 @@
       }
     },
     {
+      "id": "fin-ceo-rubricas-emprestimo-financiamento",
+      "descricao": "Na rubrica das 3 empresas (DK Locadora, DK Centro Automotivo e DK Construtora) existem EMPRÉSTIMO, FINANCIAMENTO DE VEÍCULOS e FINANCIAMENTO DE IMÓVEIS.",
+      "ficheiros": {
+        "portal-financeiro-ceo.js": [
+          "EMPRESTIMO",
+          "FINANCIAMENTO_VEICULOS",
+          "FINANCIAMENTO_IMOVEIS",
+          "FINANCIAMENTO DE VEÍCULOS",
+          "FINANCIAMENTO DE IMÓVEIS"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-despesa-editar-evento-futuro",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas (Últimos lançamentos): cada linha tem botões cinza EDITAR EVENTO (só aquela parcela) e EDITAR FUTURO (desta parcela em diante na mesma série); carrega o formulário, confirma no modal e grava.",
       "ficheiros": {

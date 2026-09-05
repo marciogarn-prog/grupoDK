@@ -62,6 +62,9 @@
     { id: "DOCUMENTOS", label: "DOCUMENTOS" },
     { id: "MULTAS", label: "MULTAS" },
     { id: "SALARIOS", label: "SALARIOS" },
+    { id: "EMPRESTIMO", label: "EMPRÉSTIMO" },
+    { id: "FINANCIAMENTO_VEICULOS", label: "FINANCIAMENTO DE VEÍCULOS" },
+    { id: "FINANCIAMENTO_IMOVEIS", label: "FINANCIAMENTO DE IMÓVEIS" },
   ];
 
   const TIPOS_PARTICULARES = [
