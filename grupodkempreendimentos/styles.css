@@ -12283,3 +12283,26 @@ body.dk-offline-blocked .dk-offline-block-overlay {
 .fin-ceo-desp-graf__table {
   margin-top: 0.85rem;
 }
+
+.fin-ceo-desp-graf__filtro-hint,
+.fin-ceo-desp-graf__filtro-vazio {
+  margin: 0.55rem 0 0.15rem;
+}
+
+#finCeoGraficoDespesasTable.fin-table--excel-cols .fin-excel-th {
+  white-space: nowrap;
+  vertical-align: middle;
+  padding-right: 0.25rem;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: #36454f;
+}
+
+#finCeoGraficoDespesasTable.fin-table--excel-cols .fin-excel-th__label {
+  margin-right: 0.15rem;
+}
+
+#finCeoGraficoDespesasTable.fin-table--excel-cols .fin-excel-th--active .fin-excel-th__label {
+  color: #ffd54f;
+}

@@ -1125,12 +1125,13 @@
     },
     {
       "id": "fin-ceo-grafico-despesas",
-      "descricao": "No FINANCEIRO CEO, abaixo de Cadastro de despesas existe o botão GRÁFICO DE DESPESAS. O gráfico é de barras horizontais: o tamanho da linha é o tempo que a despesa se repete. No topo, totais de 3 em 3 meses escritos na vertical — cada soma é só daquele mês (ex.: 09/2026, 12/2026, 03/2027), não do trimestre. A parte superior (números) congela na linha amarela; a bola do mouse move só as barras.",
+      "descricao": "No FINANCEIRO CEO, abaixo de Cadastro de despesas existe o botão GRÁFICO DE DESPESAS. O gráfico é de barras horizontais: o tamanho da linha é o tempo que a despesa se repete. No topo, totais de 3 em 3 meses escritos na vertical — cada soma é só daquele mês (ex.: 09/2026, 12/2026, 03/2027), não do trimestre. A parte superior (números) congela na linha amarela; a bola do mouse move só as barras. O filtro ▾ no cabeçalho da tabela (estilo Excel) esconde linhas e reflete na hora no gráfico e nos totais do mês.",
       "ficheiros": {
         "index.html": [
           "GRÁFICO DE DESPESAS",
           "finCeoPaneGraficoDespesas",
-          "btn-fin-ceo-grafico-despesas"
+          "btn-fin-ceo-grafico-despesas",
+          "reflete na hora no gráfico"
         ],
         "portal-financeiro-ceo.js": [
           "renderGraficoDespesas",
@@ -1140,13 +1141,17 @@
           "09/2026, 12/2026, 03/2027",
           "bindGraficoDespesasScroll",
           "finCeoGraficoDespesasBody",
-          "return `${brl(d.valor)} ${nome}`;"
+          "return `${brl(d.valor)} ${nome}`;",
+          "data-ceo-graf-excel-col",
+          "ceoGrafExcelState",
+          "aplicarCeoGrafExcelFiltroSort"
         ],
         "styles.css": [
           "fin-ceo-desp-graf",
           "writing-mode: vertical-rl",
           "fin-ceo-desp-graf__body",
-          "#eab308"
+          "#eab308",
+          "finCeoGraficoDespesasTable"
         ]
       }
     },

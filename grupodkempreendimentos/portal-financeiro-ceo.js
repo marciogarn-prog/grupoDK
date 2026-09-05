@@ -11,6 +11,7 @@
   const CARTAO_BANCOS_MEM_KEY = "dk_financeiro_ceo_cartao_bancos_v1";
   const CARTAO_DOCS_MEM_KEY = "dk_financeiro_ceo_cartao_docs_v1";
   const CEO_LISTA_SORT_VENCIMENTO = "__vencimento_ceo";
+  const CEO_GRAF_SORT_NATURAL = "__natural_graf";
   const HORIZONTE_MESES = 24;
   const CEO_ANO_FIM_PAINEL = 2030;
   const CEO_ANOS_PAINEL = [2026, 2027, 2028, 2029, 2030];
@@ -2572,7 +2573,21 @@
     sortDir: "asc",
     cols: {},
   };
-  const ceoPagExcelOpen = { rel: "", lista: "" };
+  const CEO_GRAF_COLS = [
+    { key: "despesa", label: "Despesa", type: "text" },
+    { key: "categoria", label: "Categoria", type: "text" },
+    { key: "repeticoes", label: "Repetições", type: "num" },
+    { key: "inicio", label: "Início", type: "date" },
+    { key: "fim", label: "Fim", type: "date" },
+    { key: "valorMensal", label: "Valor mensal", type: "num" },
+    { key: "totalSerie", label: "Total da série", type: "num" },
+  ];
+  let ceoGrafExcelState = {
+    sortKey: CEO_GRAF_SORT_NATURAL,
+    sortDir: "asc",
+    cols: {},
+  };
+  const ceoPagExcelOpen = { rel: "", lista: "", graf: "" };
   let ceoPagExcelBoundDoc = false;
 
   function resetCeoRelExcelFiltros() {
@@ -2602,12 +2617,22 @@
     if (key === "data") return row.dataLabel;
     if (key === "valor") return row.valorLabel;
     if (key === "situacao") return row.situacaoLabel || labelSituacaoPagamento(row.situacao);
+    if (key === "despesa") return String(row.despesa ?? row.label ?? "—");
+    if (key === "inicio") return row.inicioLabel || fmtBrDate(row.inicio);
+    if (key === "fim") return row.fimLabel || fmtBrDate(row.fim);
+    if (key === "valorMensal") return row.valorMensalLabel || brl(row.valorMensal);
+    if (key === "totalSerie") return row.totalSerieLabel || brl(row.totalSerie);
+    if (key === "repeticoes") return String(row.repeticoes ?? "—");
     return String(row[key] ?? "—");
   }
 
   function ceoRelCellSortValue(row, key, cols = CEO_PAG_COLS) {
     const col = cols.find((c) => c.key === key);
     if (key === "situacao") return row.situacao === "PAGO" ? 1 : 0;
+    if (key === "inicio") return row.inicio?.getTime?.() || 0;
+    if (key === "fim") return row.fim?.getTime?.() || 0;
+    if (key === "valorMensal") return Number(row.valorMensal) || 0;
+    if (key === "totalSerie") return Number(row.totalSerie) || 0;
     if (col?.type === "num") return Number(row[key]) || 0;
     if (col?.type === "date") return row.data?.getTime() || 0;
     return nkRel(String(row[key] ?? ""));
@@ -2680,6 +2705,53 @@
     return aplicarCeoPagExcelFiltroSort(rows, ceoRelExcelState);
   }
 
+  function ceoGrafLinhaFromRow(r) {
+    return {
+      despesa: r.label,
+      categoria: r.categoriaLabel,
+      repeticoes: r.repeticoes,
+      inicio: r.inicio,
+      inicioLabel: fmtBrDate(r.inicio),
+      fim: r.fim,
+      fimLabel: fmtBrDate(r.fim),
+      valorMensal: r.valor,
+      valorMensalLabel: brl(r.valor),
+      totalSerie: r.totalSerie,
+      totalSerieLabel: brl(r.totalSerie),
+      _row: r,
+    };
+  }
+
+  function aplicarCeoGrafExcelFiltroSort(rows) {
+    let out = (rows || []).slice();
+    CEO_GRAF_COLS.forEach((col) => {
+      const set = ceoGrafExcelState.cols[col.key];
+      if (!(set instanceof Set)) return;
+      out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key, CEO_GRAF_COLS)));
+    });
+    if (ceoGrafExcelState.sortKey === CEO_GRAF_SORT_NATURAL) return out;
+    return aplicarCeoPagExcelFiltroSort(out, ceoGrafExcelState, CEO_GRAF_COLS);
+  }
+
+  function ceoGrafColFilterActive(key) {
+    return ceoPagColFilterActive(ceoGrafExcelState, key);
+  }
+
+  function ceoGrafTemFiltroColunaAtivo() {
+    return CEO_GRAF_COLS.some((c) => ceoGrafColFilterActive(c.key));
+  }
+
+  function somarTotaisMesLinhasGrafico(rows) {
+    const totaisPorMes = new Map();
+    (rows || []).forEach((r) => {
+      (r.pagos || []).forEach((p) => {
+        const key = monthKey(p.data);
+        totaisPorMes.set(key, (totaisPorMes.get(key) || 0) + (Number(p.valor) || 0));
+      });
+    });
+    return totaisPorMes;
+  }
+
   function ceoPagValoresUnicosColuna(rows, key, cols = CEO_PAG_COLS) {
     const map = new Map();
     (rows || []).forEach((r) => {
@@ -2703,6 +2775,7 @@
   function fecharCeoPagExcelFiltroPopup() {
     ceoPagExcelOpen.rel = "";
     ceoPagExcelOpen.lista = "";
+    ceoPagExcelOpen.graf = "";
     document.querySelectorAll(".fin-excel-filter-pop").forEach((el) => el.remove());
     document.querySelectorAll(".fin-excel-filter-btn.is-open").forEach((b) => b.classList.remove("is-open"));
   }
@@ -2836,8 +2909,16 @@
     pop.querySelector("[data-excel-clear]")?.addEventListener("click", () => {
       delete state.cols[key];
       if (state.sortKey === key) {
-        state.sortKey = scope === "lista" ? CEO_LISTA_SORT_VENCIMENTO : "data";
-        state.sortDir = scope === "lista" ? "asc" : "desc";
+        if (scope === "lista") {
+          state.sortKey = CEO_LISTA_SORT_VENCIMENTO;
+          state.sortDir = "asc";
+        } else if (scope === "graf") {
+          state.sortKey = CEO_GRAF_SORT_NATURAL;
+          state.sortDir = "asc";
+        } else {
+          state.sortKey = "data";
+          state.sortDir = "desc";
+        }
       }
       rerender();
     });
@@ -2870,6 +2951,10 @@
       buildCeoPagHeadHtml(ceoListaExcelState, "data-ceo-lista-excel-col", ceoListaColFilterActive, CEO_LISTA_COLS) +
       '<th class="fin-ceo-desp-lista__col-acoes" scope="col"><span class="fin-excel-th__label">Ações</span></th>'
     );
+  }
+
+  function buildCeoGrafHeadHtml() {
+    return buildCeoPagHeadHtml(ceoGrafExcelState, "data-ceo-graf-excel-col", ceoGrafColFilterActive, CEO_GRAF_COLS);
   }
 
   function bindCeoPagExcelFiltros() {
@@ -2906,19 +2991,45 @@
       abrirCeoPagExcelFiltroPopup("lista", btn, key, coletarLinhasExcelListaDespesas(), ceoListaExcelState, renderListaDespesas, CEO_LISTA_COLS);
     });
 
+    const paneGraf = document.getElementById("finCeoPaneGraficoDespesas");
+    paneGraf?.addEventListener("click", (e) => {
+      const btn = e.target?.closest?.("[data-ceo-graf-excel-col]");
+      if (!btn || !paneGraf.contains(btn)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const key = btn.getAttribute("data-ceo-graf-excel-col") || "";
+      if (ceoPagExcelOpen.graf === key) {
+        fecharCeoPagExcelFiltroPopup();
+        return;
+      }
+      const { rows } = coletarLinhasGraficoDespesas();
+      abrirCeoPagExcelFiltroPopup(
+        "graf",
+        btn,
+        key,
+        rows.map(ceoGrafLinhaFromRow),
+        ceoGrafExcelState,
+        renderGraficoDespesas,
+        CEO_GRAF_COLS
+      );
+    });
+
     if (!ceoPagExcelBoundDoc) {
       ceoPagExcelBoundDoc = true;
       document.addEventListener("mousedown", (e) => {
-        if (!ceoPagExcelOpen.rel && !ceoPagExcelOpen.lista) return;
+        if (!ceoPagExcelOpen.rel && !ceoPagExcelOpen.lista && !ceoPagExcelOpen.graf) return;
         const pop = document.querySelector(".fin-excel-filter-pop");
         const t = e.target;
         if (pop?.contains(t)) return;
         if (t?.closest?.("[data-ceo-rel-excel-col]")) return;
         if (t?.closest?.("[data-ceo-lista-excel-col]")) return;
+        if (t?.closest?.("[data-ceo-graf-excel-col]")) return;
         fecharCeoPagExcelFiltroPopup();
       });
       document.addEventListener("keydown", (e) => {
-        if (e.key === "Escape" && (ceoPagExcelOpen.rel || ceoPagExcelOpen.lista)) fecharCeoPagExcelFiltroPopup();
+        if (e.key === "Escape" && (ceoPagExcelOpen.rel || ceoPagExcelOpen.lista || ceoPagExcelOpen.graf)) {
+          fecharCeoPagExcelFiltroPopup();
+        }
       });
     }
   }
@@ -3171,6 +3282,7 @@
         inicio: pagos[0].data,
         fim: pagos[pagos.length - 1].data,
         totalSerie: pagos.reduce((s, p) => s + (Number(p.valor) || 0), 0),
+        pagos,
       });
     });
 
@@ -3190,12 +3302,19 @@
     const chart = document.getElementById("finCeoGraficoDespesasChart");
     const tabela = document.getElementById("finCeoGraficoDespesasTabela");
     if (!chart) return;
-    const { base, horizonte, rows, totaisPorMes } = coletarLinhasGraficoDespesas();
-    if (!rows.length) {
+    ensureCeoPagExcelBound();
+    const { base, horizonte, rows: rowsBase } = coletarLinhasGraficoDespesas();
+    if (!rowsBase.length) {
       chart.innerHTML = `<p class="subtext">Nenhuma despesa cadastrada ainda — use Cadastro de despesas.</p>`;
       if (tabela) tabela.innerHTML = "";
       return;
     }
+
+    const excelBase = rowsBase.map(ceoGrafLinhaFromRow);
+    const excelFiltradas = aplicarCeoGrafExcelFiltroSort(excelBase);
+    const rows = excelFiltradas.map((r) => r._row);
+    const totaisPorMes = somarTotaisMesLinhasGrafico(rows);
+    const filtroAtivo = ceoGrafTemFiltroColunaAtivo() || rows.length !== rowsBase.length;
 
     const ticks = [];
     for (let i = 0; i < horizonte; i += 1) {
@@ -3213,30 +3332,38 @@
     }
 
     const blocks = [];
-    let lastCat = "";
-    rows.forEach((r) => {
-      if (r.categoria !== lastCat) {
-        lastCat = r.categoria;
-        blocks.push(`<div class="fin-ceo-desp-graf__group">${esc(r.categoriaLabel)}</div>`);
-      }
-      const clipStart = Math.max(0, r.startIdx);
-      const clipEnd = Math.min(horizonte - 1, r.endIdx);
-      const span = Math.max(0, clipEnd - clipStart + 1);
-      const left = (clipStart / horizonte) * 100;
-      const width = span > 0 ? (span / horizonte) * 100 : 0;
-      const mesesTxt = r.repeticoes === 1 ? "1 mês" : `${r.repeticoes} meses`;
-      blocks.push(`<div class="fin-ceo-desp-graf__row">
+    if (!rows.length) {
+      blocks.push(
+        `<p class="subtext fin-ceo-desp-graf__filtro-vazio">Nenhuma despesa no filtro ▾ — ajuste as colunas da tabela. O gráfico e os totais do mês usam só o que estiver filtrado.</p>`
+      );
+    } else {
+      let lastCat = "";
+      rows.forEach((r) => {
+        if (r.categoria !== lastCat) {
+          lastCat = r.categoria;
+          blocks.push(`<div class="fin-ceo-desp-graf__group">${esc(r.categoriaLabel)}</div>`);
+        }
+        const clipStart = Math.max(0, r.startIdx);
+        const clipEnd = Math.min(horizonte - 1, r.endIdx);
+        const span = Math.max(0, clipEnd - clipStart + 1);
+        const left = (clipStart / horizonte) * 100;
+        const width = span > 0 ? (span / horizonte) * 100 : 0;
+        const mesesTxt = r.repeticoes === 1 ? "1 mês" : `${r.repeticoes} meses`;
+        blocks.push(`<div class="fin-ceo-desp-graf__row">
         <span class="fin-ceo-desp-graf__lab" title="${esc(r.label)}">${esc(r.label)}</span>
         <span class="fin-ceo-desp-graf__track">
           <span class="fin-ceo-desp-graf__fill ${fillClassGraficoDespesa(r.categoria)}" style="left:${left.toFixed(3)}%;width:${Math.max(width, 1.2).toFixed(3)}%"></span>
         </span>
         <span class="fin-ceo-desp-graf__val">${esc(mesesTxt)}</span>
       </div>`);
-    });
+      });
+    }
 
-    const tableHtml = `<table class="fin-table fin-ceo-desp-graf__table">
-        <thead><tr><th>Despesa</th><th>Categoria</th><th>Repetições</th><th>Início</th><th>Fim</th><th>Valor mensal</th><th>Total da série</th></tr></thead>
-        <tbody>${rows
+    const hintFiltro = filtroAtivo
+      ? `<p class="subtext fin-ceo-desp-graf__filtro-hint">Gráfico e totais do mês com o filtro ▾ da tabela: ${rows.length} de ${rowsBase.length} despesa(s).</p>`
+      : "";
+    const corpoTabela = rows.length
+      ? rows
           .map(
             (r) => `<tr>
             <td>${esc(r.label)}</td>
@@ -3248,7 +3375,11 @@
             <td>${esc(brl(r.totalSerie))}</td>
           </tr>`
           )
-          .join("")}</tbody>
+          .join("")
+      : `<tr><td colspan="7" class="subtext">Nenhuma despesa corresponde ao filtro ▾ — ajuste as colunas.</td></tr>`;
+    const tableHtml = `<table class="fin-table fin-table--excel-cols fin-ceo-desp-graf__table" id="finCeoGraficoDespesasTable">
+        <thead><tr>${buildCeoGrafHeadHtml()}</tr></thead>
+        <tbody>${corpoTabela}</tbody>
       </table>`;
     chart.innerHTML = `<div class="fin-ceo-desp-graf">
       <div class="fin-ceo-desp-graf__head">
@@ -3256,7 +3387,7 @@
         <div class="fin-ceo-desp-graf__axis">${ticks.join("")}</div>
         <span class="fin-ceo-desp-graf__val-spacer"></span>
       </div>
-      <div class="fin-ceo-desp-graf__body" id="finCeoGraficoDespesasBody">${blocks.join("")}${tableHtml}</div>
+      <div class="fin-ceo-desp-graf__body" id="finCeoGraficoDespesasBody">${blocks.join("")}${hintFiltro}${tableHtml}</div>
     </div>`;
     if (tabela) tabela.innerHTML = "";
     bindGraficoDespesasScroll();
