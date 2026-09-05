@@ -704,7 +704,7 @@
     },
     {
       "id": "fin-ceo-painel-simulacao",
-      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Cada moto é alugada 20 dias depois a R$ 330/semana; cada moto alugada tem R$ 80/semana de manutenção, seguro e operação. O gráfico soma o real com a simulação; o saldo fica vermelho no negativo, verde no positivo, com ponto na data da virada.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Cada moto é alugada 20 dias depois a R$ 330/semana; cada moto alugada tem R$ 80/semana de manutenção, seguro e operação. Os gráficos são os mesmos do Painel executivo (Saldo mês a mês em barras verde/vermelho e Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada), somando a simulação.",
       "ficheiros": {
         "index.html": [
           "btn-fin-ceo-simulacao",
@@ -719,12 +719,17 @@
           "finCeoSimOciosidade",
           "Taxa de ociosidade",
           "finCeoSimRecPrevistaSim",
-          "Regras da simulação"
+          "Regras da simulação",
+          "finCeoSimChartSaldoMes",
+          "finCeoSimChartSaldoAcc",
+          "finCeoSimAnosFiltro"
         ],
         "portal-financeiro-ceo.js": [
           "lotesSimulacaoCeo",
           "renderResumoSimulacaoCeo",
-          "svgSimulacaoSaldoChart",
+          "aplicarSimulacaoNaProjecao",
+          "svgSaldoMesChart",
+          "svgSaldoAccChart",
           "SIM_ALUGUEL_SEMANA",
           "SIM_DESPESA_SEMANA",
           "SIM_DIAS_ATE_ALUGUEL",

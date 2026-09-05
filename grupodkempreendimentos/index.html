@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260905sim-motos">
+  <link rel="stylesheet" href="styles.css?v=20260905sim-graf">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3523,10 +3523,24 @@
               </section>
               <div class="fin-ceo-sim-graf-row">
                 <div class="fin-ceo-sim-graf-col">
-                  <h4 class="fin-subh" id="finCeoSimChartTitulo">Saldo acumulado mês a mês</h4>
-                  <p class="subtext" id="finCeoSimChartHint">O gráfico soma o real com a simulação de compra de motos. A linha do saldo fica vermelha no negativo e verde no positivo; o ponto marca a data da virada.</p>
-                  <div id="finCeoSimChartSaldo" class="fin-chart-wrap" role="img" aria-label="Gráfico saldo simulado no período"></div>
+                  <div class="fin-ceo-anos-filtro-wrap">
+                    <span class="fin-ceo-anos-filtro__label">Anos no gráfico <span class="subtext">(clique para incluir ou retirar)</span></span>
+                    <div class="fin-ceo-anos-filtro" id="finCeoSimAnosFiltro" role="group" aria-label="Selecionar anos para os gráficos da simulação">
+                      <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2026" aria-pressed="true">2026</button>
+                      <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2027" aria-pressed="true">2027</button>
+                      <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2028" aria-pressed="true">2028</button>
+                      <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2029" aria-pressed="true">2029</button>
+                      <button type="button" class="fin-ceo-ano-btn is-active" data-ceo-ano="2030" aria-pressed="true">2030</button>
+                    </div>
+                  </div>
+                  <h4 class="fin-subh">Saldo mês a mês</h4>
+                  <p class="subtext" id="finCeoSimChartHint">Despesa na mesma escala da receita (positiva): a linha vermelha acima da verde mostra despesa maior que a receita. O saldo é barra: verde para cima quando positivo, vermelho para baixo quando negativo. O tom muda em cada ano seleccionado. Os valores incluem a simulação de compra de motos.</p>
+                  <div id="finCeoSimChartSaldoMes" class="fin-chart-wrap" role="img" aria-label="Saldo mês a mês da simulação"></div>
                   <div id="finCeoSimLegendaSaldo" class="fin-legenda"></div>
+                  <h4 class="fin-subh">Saldo acumulado</h4>
+                  <div id="finCeoSimChartSaldoAcc" class="fin-chart-wrap" role="img" aria-label="Saldo acumulado da simulação"></div>
+                  <div id="finCeoSimLegendaAcc" class="fin-legenda"></div>
+                  <div id="finCeoSimTabelaProjecao" class="fin-table-wrap"></div>
                 </div>
                 <aside class="fin-ceo-sim-regras" id="finCeoSimRegrasBox" aria-labelledby="finCeoSimRegrasTitulo">
                   <h4 id="finCeoSimRegrasTitulo" class="fin-subh">Regras da simulação</h4>
@@ -4287,7 +4301,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260905sim-motos" defer></script>
+  <script src="app.js?v=20260905sim-graf" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4295,11 +4309,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260905sim-motos" defer></script>
+  <script src="portal-locadora-ui.js?v=20260905sim-graf" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260905sim-motos" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260905sim-graf" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

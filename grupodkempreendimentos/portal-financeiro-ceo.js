@@ -1675,132 +1675,96 @@
     if (fim && !String(fim.value || "").trim() && per.ok) fim.value = fmtBrDate(per.d1);
   }
 
-  function svgSimulacaoSaldoChart(labels, receita, despesaNeg, saldo, datas) {
-    const w = 1100;
-    const h = 400;
-    const padL = 72;
-    const padR = 28;
-    const padT = 28;
-    const padB = 44;
-    const innerW = w - padL - padR;
-    const innerH = h - padT - padB;
-    const allVals = [...(receita || []), ...(despesaNeg || []), ...(saldo || []), 0];
-    const rawMax = Math.max(0, ...allVals);
-    const rawMin = Math.min(0, ...allVals);
-    const span = Math.max(1, rawMax - rawMin);
-    const n = Math.max(1, labels.length - 1);
-    const xAt = (i) => padL + (labels.length <= 1 ? innerW / 2 : (i / n) * innerW);
-    const yAt = (v) => padT + innerH - ((v - rawMin) / span) * innerH;
-    const grid = [0, 0.25, 0.5, 0.75, 1]
-      .map((p) => {
-        const val = rawMin + span * p;
-        const y = yAt(val);
-        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
-          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
-      })
-      .join("");
-    const y0 = yAt(0);
-    const zero = `<line x1="${padL}" y1="${y0}" x2="${w - padR}" y2="${y0}" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4"/>`;
-    const linePts = (vals) => (vals || []).map((v, i) => `${xAt(i)},${yAt(v || 0)}`).join(" ");
-    const lineRec = receita?.length
-      ? `<polyline fill="none" stroke="#6ee7a0" stroke-width="2.2" points="${linePts(receita)}"/>`
-      : "";
-    const lineDesp = despesaNeg?.length
-      ? `<polyline fill="none" stroke="#ff6b6b" stroke-width="2.2" points="${linePts(despesaNeg)}"/>`
-      : "";
-    const values = (saldo || []).map((v) => Number(v) || 0);
-    const corDe = (v) => (v < 0 ? COR_SALDO_ACC_NEG : COR_SALDO_ACC_POS);
-    const segs = [];
-    const viradas = [];
-    for (let i = 1; i < values.length; i += 1) {
-      const a = values[i - 1];
-      const b = values[i];
-      const x0 = xAt(i - 1);
-      const x1 = xAt(i);
-      const cruzou = (a < 0 && b >= 0) || (a > 0 && b < 0);
-      if (!cruzou) {
-        segs.push({ color: corDe(a === 0 ? b : a), pts: `${x0},${yAt(a)} ${x1},${yAt(b)}` });
-        continue;
+  function aplicarSimulacaoNaProjecao(proj, lotes) {
+    const recPorMes = new Map(proj.recPorMes);
+    const debPorMes = new Map(proj.debPorMes);
+    if (lotes?.length && proj.meses?.length) {
+      const inicio = startOfDay(proj.meses[0].date);
+      const last = proj.meses[proj.meses.length - 1].date;
+      const fim = new Date(last.getFullYear(), last.getMonth() + 1, 0);
+      for (let t = inicio.getTime(); t <= fim.getTime(); t += 86400000) {
+        const dt = new Date(t);
+        const f = fluxoSimulacaoNoDia(lotes, dt);
+        if (!f.rec && !f.desp) continue;
+        const k = monthKey(dt);
+        recPorMes.set(k, (recPorMes.get(k) || 0) + f.rec);
+        debPorMes.set(k, (debPorMes.get(k) || 0) + f.desp);
       }
-      const t = Math.abs(b - a) < 1e-9 ? 0.5 : Math.abs(a) / Math.abs(b - a);
-      const xc = x0 + t * (x1 - x0);
-      segs.push({ color: corDe(a), pts: `${x0},${yAt(a)} ${xc},${y0}` });
-      segs.push({ color: corDe(b), pts: `${xc},${y0} ${x1},${yAt(b)}` });
-      const d0 = datas?.[i - 1];
-      const d1 = datas?.[i];
-      const dataVirada =
-        d0 instanceof Date && d1 instanceof Date
-          ? new Date(d0.getTime() + t * (d1.getTime() - d0.getTime()))
-          : d1 || d0;
-      viradas.push({ xc, data: dataVirada, paraPos: b >= 0 });
     }
-    const lineSaldo = segs
-      .map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2.6" points="${s.pts}"/>`)
-      .join("");
-    const marks = viradas
-      .map((v) => {
-        const dataTxt = fmtBrDate(v.data);
-        const labelY = y0 > padT + 22 ? y0 - 14 : y0 + 18;
-        const stroke = v.paraPos ? COR_SALDO_ACC_POS : COR_SALDO_ACC_NEG;
-        const cx = Math.max(padL + 36, Math.min(w - padR - 36, v.xc));
-        return `<circle class="fin-ceo-saldo-acc-virada" cx="${v.xc.toFixed(2)}" cy="${y0.toFixed(2)}" r="5.5" fill="#fff" stroke="${stroke}" stroke-width="2.4">
-          <title>Mudança de saldo em ${esc(dataTxt)}</title>
-        </circle>
-        <text x="${cx.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="middle" fill="#ffffff" stroke="#111111" stroke-width="3" paint-order="stroke" font-size="11" font-weight="700">${esc(dataTxt)}</text>`;
-      })
-      .join("");
-    const step = labels.length > 14 ? Math.ceil(labels.length / 8) : 1;
-    const axis = labels
-      .map((lb, i) => {
-        if (i % step !== 0 && i !== labels.length - 1) return "";
-        return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lb)}</text>`;
-      })
-      .join("");
-    return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Saldo simulado">${grid}${zero}${lineRec}${lineDesp}${lineSaldo}${marks}${axis}</svg>`;
+    const saldoMes = (proj.meses || []).map((m) => (recPorMes.get(m.key) || 0) - (debPorMes.get(m.key) || 0));
+    return { ...proj, recPorMes, debPorMes, saldoMes };
   }
 
   function renderGraficoSimulacaoCeo(lotes) {
-    const chart = document.getElementById("finCeoSimChartSaldo");
-    const leg = document.getElementById("finCeoSimLegendaSaldo");
-    const tit = document.getElementById("finCeoSimChartTitulo");
-    const hint = document.getElementById("finCeoSimChartHint");
-    if (!chart) return;
-    const periodo = obterPeriodoCeoDash("finCeoSimPeriodoInicio", "finCeoSimPeriodoFim");
-    if (!periodo.ok) {
-      chart.innerHTML = `<p class="subtext">Informe início e fim do período para ver o gráfico.</p>`;
-      if (leg) leg.innerHTML = "";
-      if (tit) tit.textContent = "Saldo acumulado no período";
-      return;
+    const chartMes = document.getElementById("finCeoSimChartSaldoMes");
+    const chartAcc = document.getElementById("finCeoSimChartSaldoAcc");
+    if (!chartMes && !chartAcc) return;
+    const base = ceoDashProjCache || buildProjecao24Meses();
+    ceoDashProjCache = base;
+    const proj = aplicarSimulacaoNaProjecao(base, lotes);
+    const view = filtrarProjecaoPorAnos(proj);
+    const { meses, saldoMes, saldoAcc, debPorMes, recPorMes } = view;
+    syncCeoDashAnosBotoes();
+
+    if (chartMes) {
+      chartMes.innerHTML = meses.length
+        ? svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes)
+        : `<p class="subtext">Selecione pelo menos um ano nos botões acima.</p>`;
     }
-    const view = buildProjecaoPeriodoCeo(periodo, lotes);
-    if (tit) {
-      tit.textContent =
-        view.modo === "dia" ? "Saldo acumulado dia a dia" : "Saldo acumulado mês a mês";
+    if (chartAcc) {
+      chartAcc.innerHTML = meses.length ? svgSaldoAccChart(meses, saldoAcc) : `<p class="subtext">—</p>`;
     }
-    if (hint) {
-      hint.textContent = lotes?.length
-        ? "Valores acumulados com a simulação: receita (verde), despesa (vermelho) e saldo (vermelho no negativo, verde no positivo)."
-        : "Valores acumulados do período real. Preencha as regras à direita para somar a compra de motos.";
-    }
-    if (!view.labels.length) {
-      chart.innerHTML = `<p class="subtext">Sem dados no período.</p>`;
-      if (leg) leg.innerHTML = "";
-      return;
-    }
-    chart.innerHTML = svgSimulacaoSaldoChart(view.labels, view.receita, view.despesaNeg, view.saldo, view.datas);
-    if (leg) {
-      leg.innerHTML = [
-        { c: COR_SALDO_ACC_NEG, t: "Saldo negativo" },
-        { c: COR_SALDO_ACC_POS, t: "Saldo positivo" },
-        { c: "#6ee7a0", t: "Receita acumulada" },
-        { c: "#ff6b6b", t: "Despesas acumuladas (negativo)" },
-      ]
+
+    const anosTxt = CEO_ANOS_PAINEL.filter((y) => ceoDashAnosAtivos.has(y)).join(", ");
+    const legSaldo = document.getElementById("finCeoSimLegendaSaldo");
+    if (legSaldo) {
+      const itens = [
+        { c: "#6ee7a0", t: "Receita prevista" },
+        { c: "#ff6b6b", t: "Despesas (escala positiva)" },
+      ];
+      CEO_ANOS_PAINEL.filter((y) => ceoDashAnosAtivos.has(y)).forEach((y) => {
+        const t = CEO_ANO_SALDO_TONS[y];
+        itens.push({ c: t.pos, t: `Saldo + ${y}` });
+        itens.push({ c: t.neg, t: `Saldo − ${y}` });
+      });
+      legSaldo.innerHTML = itens
         .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
         .join("");
-      leg.innerHTML += `<span class="fin-legenda__item">Ponto branco: data da virada</span>`;
-      leg.innerHTML += `<span class="fin-legenda__item fin-legenda__item--anos">${esc(fmtBrDate(periodo.d0))} a ${esc(
-        fmtBrDate(periodo.d1)
-      )} · ${view.n} ${view.modo === "dia" ? "dia(s)" : "mês(es)"}</span>`;
+      if (anosTxt) {
+        legSaldo.innerHTML += `<span class="fin-legenda__item fin-legenda__item--anos">Anos: ${esc(anosTxt)} · ${meses.length} mês(es)${lotes?.length ? " · com simulação" : ""}</span>`;
+      }
+    }
+
+    const legAcc = document.getElementById("finCeoSimLegendaAcc");
+    if (legAcc) {
+      const ult = saldoAcc[saldoAcc.length - 1] || 0;
+      legAcc.innerHTML = meses.length
+        ? `<span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_NEG}"></i>Negativo</span>
+           <span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_POS}"></i>Positivo</span>
+           <span class="fin-legenda__item">Ponto branco: data da virada</span>
+           <span class="fin-legenda__item fin-legenda__item--anos">Saldo acumulado no período · ${esc(brl(ult))}${anosTxt ? ` (${esc(anosTxt)})` : ""}</span>`
+        : `<span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_NEG}"></i>Negativo</span>
+           <span class="fin-legenda__item"><i style="background:${COR_SALDO_ACC_POS}"></i>Positivo</span>
+           <span class="fin-legenda__item">Saldo acumulado — selecione um ano</span>`;
+    }
+
+    const tab = document.getElementById("finCeoSimTabelaProjecao");
+    if (tab) {
+      const head = `<tr><th>Mês</th><th>Despesas</th><th>Receita prevista</th><th>Taxa endiv.</th><th>Saldo mês</th><th>Saldo acumulado</th></tr>`;
+      if (!meses.length) {
+        tab.innerHTML = `<p class="subtext">Nenhum mês nos anos seleccionados.</p>`;
+      } else {
+        const body = meses
+          .map((m, i) => {
+            const deb = debPorMes.get(m.key) || 0;
+            const rec = recPorMes.get(m.key) || 0;
+            const taxa = calcTaxaEndividamento(deb, rec);
+            const taxaTxt = rec <= 0 && deb > 0 ? "—" : fmtPct(taxa);
+            return `<tr><td>${esc(m.label)}</td><td>${esc(brl(deb))}</td><td>${esc(brl(rec))}</td><td>${esc(taxaTxt)}</td><td>${esc(brl(saldoMes[i] || 0))}</td><td>${esc(brl(saldoAcc[i] || 0))}</td></tr>`;
+          })
+          .join("");
+        tab.innerHTML = `<table class="fin-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+      }
     }
   }
 
@@ -2211,7 +2175,7 @@
   }
 
   function syncCeoDashAnosBotoes() {
-    document.querySelectorAll("#finCeoDashAnosFiltro [data-ceo-ano]").forEach((btn) => {
+    document.querySelectorAll("#finCeoDashAnosFiltro [data-ceo-ano], #finCeoSimAnosFiltro [data-ceo-ano]").forEach((btn) => {
       const ano = Number(btn.getAttribute("data-ceo-ano"));
       const on = ceoDashAnosAtivos.has(ano);
       btn.classList.toggle("is-active", on);
@@ -2304,6 +2268,7 @@
     }
     syncCeoDashAnosBotoes();
     renderDashboardGraficos(ceoDashProjCache || buildProjecao24Meses());
+    if (paneAberto === "simulacao") renderGraficoSimulacaoCeo(lotesSimulacaoCeo(obterRegrasSimulacaoCeo()));
   }
 
   function renderDashboard() {
@@ -4110,6 +4075,12 @@
     });
 
     document.getElementById("finCeoDashAnosFiltro")?.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-ceo-ano]");
+      if (!btn) return;
+      const ano = Number(btn.getAttribute("data-ceo-ano"));
+      if (ano) toggleCeoDashAno(ano);
+    });
+    document.getElementById("finCeoSimAnosFiltro")?.addEventListener("click", (ev) => {
       const btn = ev.target.closest("[data-ceo-ano]");
       if (!btn) return;
       const ano = Number(btn.getAttribute("data-ceo-ano"));
