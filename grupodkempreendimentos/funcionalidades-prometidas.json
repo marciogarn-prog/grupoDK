@@ -1139,7 +1139,8 @@
           "soma só do mês determinado",
           "09/2026, 12/2026, 03/2027",
           "bindGraficoDespesasScroll",
-          "finCeoGraficoDespesasBody"
+          "finCeoGraficoDespesasBody",
+          "return `${brl(d.valor)} ${nome}`;"
         ],
         "styles.css": [
           "fin-ceo-desp-graf",

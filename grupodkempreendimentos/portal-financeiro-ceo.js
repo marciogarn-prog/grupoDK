@@ -3133,9 +3133,8 @@
     const base = isParticulares(d.categoria)
       ? labelTipoParticular(d.tipoParticular || inferirTipoParticularLegado(d))
       : labelRubrica(d.rubrica);
-    const cat = labelCategoria(d.categoria);
     const nome = detalhe ? `${base} · ${detalhe}` : base;
-    return `${nome} (${cat})`;
+    return `${brl(d.valor)} ${nome}`;
   }
 
   function coletarLinhasGraficoDespesas() {
