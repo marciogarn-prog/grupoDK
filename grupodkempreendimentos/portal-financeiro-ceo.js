@@ -3112,11 +3112,9 @@
     if (paneAberto === "grafico-despesas") renderGraficoDespesas();
   }
 
-  const MES_ABREV_CEO = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-
   function mesLabelCurtoCeo(d) {
     if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "—";
-    return `${MES_ABREV_CEO[d.getMonth()]}/${String(d.getFullYear()).slice(-2)}`;
+    return `${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
   }
 
   function monthIndexFromBaseCeo(base, d) {
@@ -3188,7 +3186,7 @@
     return { base, horizonte, rows, totaisPorMes };
   }
 
-  /** Totais no mês atual e de 3 em 3 meses, escritos na vertical. */
+  /** Totais de 3 em 3 meses: soma só do mês determinado (09/2026, 12/2026, 03/2027), não do trimestre. */
   function renderGraficoDespesas() {
     const chart = document.getElementById("finCeoGraficoDespesasChart");
     const tabela = document.getElementById("finCeoGraficoDespesasTabela");
@@ -3206,10 +3204,11 @@
       const mes = new Date(base.getFullYear(), base.getMonth() + i, 1);
       const tot = totaisPorMes.get(monthKey(mes)) || 0;
       const left = ((i + 0.5) / horizonte) * 100;
+      const rotuloMes = mesLabelCurtoCeo(mes);
       ticks.push(
-        `<span class="fin-ceo-desp-graf__tick" style="left:${left.toFixed(3)}%">
+        `<span class="fin-ceo-desp-graf__tick" style="left:${left.toFixed(3)}%" title="Soma só do mês ${rotuloMes} (não do trimestre)">
           <span class="fin-ceo-desp-graf__total">${esc(brl(tot))}</span>
-          <span class="fin-ceo-desp-graf__mes">${esc(mesLabelCurtoCeo(mes))}</span>
+          <span class="fin-ceo-desp-graf__mes">${esc(rotuloMes)}</span>
         </span>`
       );
     }
