@@ -2723,8 +2723,8 @@
     { key: "totalSerie", label: "Total da série", type: "num" },
   ];
   let ceoGrafExcelState = {
-    sortKey: "valorMensal",
-    sortDir: "asc",
+    sortKey: CEO_GRAF_SORT_NATURAL,
+    sortDir: "desc",
     cols: {},
   };
   const ceoPagExcelOpen = { rel: "", lista: "", graf: "" };
@@ -2862,6 +2862,25 @@
     };
   }
 
+  function indiceCategoriaCeo(catId) {
+    const i = CATEGORIAS_CEO.findIndex((c) => c.id === catId);
+    return i < 0 ? 99 : i;
+  }
+
+  function ordenarGraficoBlocosValorDesc(rows) {
+    return (rows || []).slice().sort((a, b) => {
+      const ra = a._row || a;
+      const rb = b._row || b;
+      const ia = indiceCategoriaCeo(ra.categoria);
+      const ib = indiceCategoriaCeo(rb.categoria);
+      if (ia !== ib) return ia - ib;
+      const va = Number(ra.valor ?? a.valorMensal) || 0;
+      const vb = Number(rb.valor ?? b.valorMensal) || 0;
+      if (va !== vb) return vb - va;
+      return String(ra.label || a.despesa || "").localeCompare(String(rb.label || b.despesa || ""), "pt-BR");
+    });
+  }
+
   function aplicarCeoGrafExcelFiltroSort(rows) {
     let out = (rows || []).slice();
     CEO_GRAF_COLS.forEach((col) => {
@@ -2870,13 +2889,7 @@
       out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key, CEO_GRAF_COLS)));
     });
     if (ceoGrafExcelState.sortKey === CEO_GRAF_SORT_NATURAL) {
-      out.sort((a, b) => {
-        const va = Number(a.valorMensal) || 0;
-        const vb = Number(b.valorMensal) || 0;
-        if (va !== vb) return va - vb;
-        return String(a.despesa || "").localeCompare(String(b.despesa || ""), "pt-BR");
-      });
-      return out;
+      return ordenarGraficoBlocosValorDesc(out);
     }
     return aplicarCeoPagExcelFiltroSort(out, ceoGrafExcelState, CEO_GRAF_COLS);
   }
@@ -3061,8 +3074,8 @@
           state.sortKey = CEO_LISTA_SORT_VENCIMENTO;
           state.sortDir = "asc";
         } else if (scope === "graf") {
-          state.sortKey = "valorMensal";
-          state.sortDir = "asc";
+          state.sortKey = CEO_GRAF_SORT_NATURAL;
+          state.sortDir = "desc";
         } else {
           state.sortKey = "data";
           state.sortDir = "desc";
@@ -3435,13 +3448,7 @@
     });
 
     const horizonte = Math.max(12, maxIdx + 1);
-    rows.sort((a, b) => {
-      const va = Number(a.valor) || 0;
-      const vb = Number(b.valor) || 0;
-      if (va !== vb) return va - vb;
-      return String(a.label || "").localeCompare(String(b.label || ""), "pt-BR");
-    });
-    return { base, horizonte, rows, totaisPorMes };
+    return { base, horizonte, rows: ordenarGraficoBlocosValorDesc(rows), totaisPorMes };
   }
 
   /** Totais de 3 em 3 meses: soma só do mês determinado (09/2026, 12/2026, 03/2027), não do trimestre. */
@@ -3484,7 +3491,8 @@
         `<p class="subtext fin-ceo-desp-graf__filtro-vazio">Nenhuma despesa no filtro ▾ — ajuste as colunas da tabela. O gráfico e os totais do mês usam só o que estiver filtrado.</p>`
       );
     } else {
-      const agruparCategoria = ceoGrafExcelState.sortKey === "categoria";
+      const agruparCategoria =
+        ceoGrafExcelState.sortKey === CEO_GRAF_SORT_NATURAL || ceoGrafExcelState.sortKey === "categoria";
       let lastCat = "";
       rows.forEach((r) => {
         if (agruparCategoria && r.categoria !== lastCat) {
