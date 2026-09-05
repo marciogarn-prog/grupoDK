@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260905acc-cor">
+  <link rel="stylesheet" href="styles.css?v=20260905sim-motos">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3266,6 +3266,10 @@
                 <span class="btn-operacao-cmd__title">Painel executivo por período</span>
                 <span class="btn-operacao-cmd__hint">Dia, semana, quinzena, trimestre…</span>
               </button>
+              <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-simulacao" data-ceo-mod="simulacao" aria-expanded="false" aria-controls="finCeoPaneSimulacao">
+                <span class="btn-operacao-cmd__title">Painel executivo simulação</span>
+                <span class="btn-operacao-cmd__hint">Compra de motos, ociosidade e impacto no saldo</span>
+              </button>
               <button type="button" class="btn-operacao-cmd" id="btn-fin-ceo-despesas" data-ceo-mod="despesas" aria-expanded="false" aria-controls="finCeoPaneDespesas">
                 <span class="btn-operacao-cmd__title">Cadastro de despesas</span>
                 <span class="btn-operacao-cmd__hint">Categoria, rubrica e repetições</span>
@@ -3405,6 +3409,168 @@
               <p class="subtext" id="finCeoPeriodoChartHint">O gráfico acompanha o início e o fim do período seleccionados acima.</p>
               <div id="finCeoPeriodoChartSaldo" class="fin-chart-wrap" role="img" aria-label="Gráfico saldo no período"></div>
               <div id="finCeoPeriodoLegendaSaldo" class="fin-legenda"></div>
+            </div>
+
+            <div id="finCeoPaneSimulacao" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="simulacao" role="region">
+              <h3 class="operacao-inline-form__title">Painel executivo simulação</h3>
+              <section class="fin-ceo-periodo fin-ceo-periodo--destaque" id="finCeoSimPeriodoBox" aria-labelledby="finCeoSimPeriodoTitulo">
+                <h4 id="finCeoSimPeriodoTitulo" class="fin-subh">Selecionar período</h4>
+                <p class="subtext">Escolha o <strong>início do período</strong> e o <strong>fim do período</strong> nos calendários. Em cada caixinha o valor de <strong>cima é o real</strong> e o de <strong>baixo é o simulado</strong> (real + compra de motos).</p>
+                <div class="fin-ceo-periodo__filtros">
+                  <label class="portal-field">
+                    <span>Início do período</span>
+                    <span class="dk-date-cal fin-date-cal">
+                      <input type="text" id="finCeoSimPeriodoInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Início do período da simulação" title="Clique para abrir o calendário">
+                    </span>
+                  </label>
+                  <label class="portal-field">
+                    <span>Fim do período</span>
+                    <span class="dk-date-cal fin-date-cal">
+                      <input type="text" id="finCeoSimPeriodoFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Fim do período da simulação" title="Clique para abrir o calendário">
+                    </span>
+                  </label>
+                  <div class="fin-ceo-periodo__acoes">
+                    <button type="button" class="btn-primary" id="finCeoSimPeriodoAtualizarBtn">Atualizar período</button>
+                  </div>
+                </div>
+                <p id="finCeoSimPeriodoHint" class="fin-ceo-periodo__hint subtext" role="status">—</p>
+                <div class="fin-ceo-kpis fin-kpis fin-ceo-periodo-kpis" id="finCeoSimKpis">
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-prev fin-kpi--duo">
+                    <span class="fin-kpi__lab">Receita prevista no período</span>
+                    <div class="fin-kpi__duo">
+                      <div class="fin-kpi__duo-real">
+                        <span class="fin-kpi__duo-tag">Real</span>
+                        <strong id="finCeoSimRecPrevista">—</strong>
+                      </div>
+                      <div class="fin-kpi__duo-sim">
+                        <span class="fin-kpi__duo-tag">Simulado</span>
+                        <strong id="finCeoSimRecPrevistaSim">—</strong>
+                      </div>
+                    </div>
+                    <span class="fin-kpi__hint">locadora + unidades · abaixo soma o aluguel das motos da simulação</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-rec-real fin-kpi--duo">
+                    <span class="fin-kpi__lab">Receita real ocorrida no período</span>
+                    <div class="fin-kpi__duo">
+                      <div class="fin-kpi__duo-real">
+                        <span class="fin-kpi__duo-tag">Real</span>
+                        <strong id="finCeoSimRecReal">—</strong>
+                      </div>
+                      <div class="fin-kpi__duo-sim">
+                        <span class="fin-kpi__duo-tag">Simulado</span>
+                        <strong id="finCeoSimRecRealSim">—</strong>
+                      </div>
+                    </div>
+                    <span class="fin-kpi__hint">pagamentos de aluguel + receitas das unidades</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-prev fin-kpi--duo">
+                    <span class="fin-kpi__lab">Despesas previstas no período</span>
+                    <div class="fin-kpi__duo">
+                      <div class="fin-kpi__duo-real">
+                        <span class="fin-kpi__duo-tag">Real</span>
+                        <strong id="finCeoSimDespPrevista">—</strong>
+                      </div>
+                      <div class="fin-kpi__duo-sim">
+                        <span class="fin-kpi__duo-tag">Simulado</span>
+                        <strong id="finCeoSimDespPrevistaSim">—</strong>
+                      </div>
+                    </div>
+                    <span class="fin-kpi__hint">parcelas + aporte, prestação e R$ 80/semana das motos alugadas</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-desp-paga fin-kpi--duo">
+                    <span class="fin-kpi__lab">Despesas pagas no período</span>
+                    <div class="fin-kpi__duo">
+                      <div class="fin-kpi__duo-real">
+                        <span class="fin-kpi__duo-tag">Real</span>
+                        <strong id="finCeoSimDespPaga">—</strong>
+                      </div>
+                      <div class="fin-kpi__duo-sim">
+                        <span class="fin-kpi__duo-tag">Simulado</span>
+                        <strong id="finCeoSimDespPagaSim">—</strong>
+                      </div>
+                    </div>
+                    <span class="fin-kpi__hint">parcelas do intervalo marcadas PAGO</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-prev fin-kpi--duo">
+                    <span class="fin-kpi__lab">Saldo previsto</span>
+                    <div class="fin-kpi__duo">
+                      <div class="fin-kpi__duo-real">
+                        <span class="fin-kpi__duo-tag">Real</span>
+                        <strong id="finCeoSimSaldoPrevisto">—</strong>
+                      </div>
+                      <div class="fin-kpi__duo-sim">
+                        <span class="fin-kpi__duo-tag">Simulado</span>
+                        <strong id="finCeoSimSaldoPrevistoSim">—</strong>
+                      </div>
+                    </div>
+                    <span class="fin-kpi__hint">receita prevista − despesa prevista</span>
+                  </div>
+                  <div class="fin-kpi fin-kpi--periodo fin-kpi--periodo-saldo-real fin-kpi--duo">
+                    <span class="fin-kpi__lab">Saldo real</span>
+                    <div class="fin-kpi__duo">
+                      <div class="fin-kpi__duo-real">
+                        <span class="fin-kpi__duo-tag">Real</span>
+                        <strong id="finCeoSimSaldoReal">—</strong>
+                      </div>
+                      <div class="fin-kpi__duo-sim">
+                        <span class="fin-kpi__duo-tag">Simulado</span>
+                        <strong id="finCeoSimSaldoRealSim">—</strong>
+                      </div>
+                    </div>
+                    <span class="fin-kpi__hint">receita real − despesas pagas</span>
+                  </div>
+                </div>
+              </section>
+              <div class="fin-ceo-sim-graf-row">
+                <div class="fin-ceo-sim-graf-col">
+                  <h4 class="fin-subh" id="finCeoSimChartTitulo">Saldo acumulado mês a mês</h4>
+                  <p class="subtext" id="finCeoSimChartHint">O gráfico soma o real com a simulação de compra de motos. A linha do saldo fica vermelha no negativo e verde no positivo; o ponto marca a data da virada.</p>
+                  <div id="finCeoSimChartSaldo" class="fin-chart-wrap" role="img" aria-label="Gráfico saldo simulado no período"></div>
+                  <div id="finCeoSimLegendaSaldo" class="fin-legenda"></div>
+                </div>
+                <aside class="fin-ceo-sim-regras" id="finCeoSimRegrasBox" aria-labelledby="finCeoSimRegrasTitulo">
+                  <h4 id="finCeoSimRegrasTitulo" class="fin-subh">Regras da simulação</h4>
+                  <p class="subtext">Calendário de <strong>início</strong> e <strong>fim</strong> do intervalo de compra. Em cada mês desse intervalo entram as motos abaixo.</p>
+                  <div class="fin-ceo-sim-regras__filtros">
+                    <label class="portal-field">
+                      <span>Início da compra</span>
+                      <span class="dk-date-cal fin-date-cal">
+                        <input type="text" id="finCeoSimCompraInicio" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Início do intervalo de compra" title="Clique para abrir o calendário">
+                      </span>
+                    </label>
+                    <label class="portal-field">
+                      <span>Fim da compra</span>
+                      <span class="dk-date-cal fin-date-cal">
+                        <input type="text" id="finCeoSimCompraFim" data-dk-cal="intervalo" data-dk-mask="date" inputmode="numeric" maxlength="10" autocomplete="off" placeholder="DD/MM/AAAA" aria-label="Fim do intervalo de compra" title="Clique para abrir o calendário">
+                      </span>
+                    </label>
+                  </div>
+                  <label class="portal-field">
+                    <span>1 — Quantidade de motos compradas a cada mês</span>
+                    <input type="text" id="finCeoSimQtdMotos" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0" aria-label="Quantidade de motos compradas a cada mês">
+                  </label>
+                  <label class="portal-field">
+                    <span>2 — Aporte feito por moto (valor único na aquisição)</span>
+                    <input type="text" id="finCeoSimAporte" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off" aria-label="Aporte feito por moto">
+                  </label>
+                  <label class="portal-field">
+                    <span>3 — Valor da prestação por moto (começa 30 dias após a aquisição)</span>
+                    <input type="text" id="finCeoSimPrestacao" data-dk-mask="currency" inputmode="decimal" placeholder="R$ 0,00" autocomplete="off" aria-label="Valor da prestação por moto">
+                  </label>
+                  <label class="portal-field">
+                    <span>4 — Quantidade de prestações por moto adquirida</span>
+                    <input type="text" id="finCeoSimQtdPrest" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="0" aria-label="Quantidade de prestações por moto">
+                  </label>
+                  <label class="portal-field">
+                    <span>5 — Taxa de ociosidade (%)</span>
+                    <input type="text" id="finCeoSimOciosidade" inputmode="decimal" maxlength="6" autocomplete="off" placeholder="0" aria-label="Taxa de ociosidade em porcentagem">
+                    <span class="subtext">10 motos e 20% = 2 sem alugar e 8 gerando receita.</span>
+                  </label>
+                  <p class="subtext fin-ceo-sim-regras__fixas">Cada moto comprada é alugada <strong>20 dias depois</strong> por <strong>R$ 330,00 por semana</strong>. Cada moto alugada tem despesa de manutenção, seguro e operação de <strong>R$ 80,00 semanais</strong>.</p>
+                  <p id="finCeoSimRegrasHint" class="fin-ceo-sim-regras__hint subtext" role="status">Preencha as regras para ver o impacto.</p>
+                  <button type="button" class="btn-primary" id="finCeoSimAtualizarBtn">Atualizar simulação</button>
+                </aside>
+              </div>
             </div>
 
             <div id="finCeoPaneDespesas" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="despesas" role="region">
@@ -4121,7 +4287,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260905acc-cor" defer></script>
+  <script src="app.js?v=20260905sim-motos" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4129,11 +4295,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260905acc-cor" defer></script>
+  <script src="portal-locadora-ui.js?v=20260905sim-motos" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260905acc-cor" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260905sim-motos" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

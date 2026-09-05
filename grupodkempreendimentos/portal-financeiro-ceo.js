@@ -186,6 +186,12 @@
     return dataVencimentoDespesaNoMesCeo(alvo.getFullYear(), alvo.getMonth(), d.getDate());
   }
 
+  function addDaysCeo(d, n) {
+    const x = startOfDay(d);
+    x.setDate(x.getDate() + Number(n) || 0);
+    return x;
+  }
+
   function slugId(label, prefix) {
     const base = String(label || "")
       .normalize("NFD")
@@ -1002,6 +1008,7 @@
     fecharModalConfirmPagoDespesa();
     renderListaDespesas();
     if (paneAberto === "dashboard" || paneAberto === "periodo") renderResumoPeriodoCeo();
+    if (paneAberto === "simulacao") renderResumoSimulacaoCeo();
   }
 
   function bindCalendariosCeo(root) {
@@ -1261,10 +1268,10 @@
     return total;
   }
 
-  function obterPeriodoCeoDash() {
+  function obterPeriodoCeoDash(iniId, fimId) {
     const hoje = startOfDay(new Date());
-    const inpIni = document.getElementById("finCeoPeriodoInicio");
-    const inpFim = document.getElementById("finCeoPeriodoFim");
+    const inpIni = document.getElementById(iniId || "finCeoPeriodoInicio");
+    const inpFim = document.getElementById(fimId || "finCeoPeriodoFim");
     let d0 = parseBrDate(inpIni?.value);
     let d1 = parseBrDate(inpFim?.value);
     if (!d0 && !d1) {
@@ -1363,9 +1370,9 @@
     return { receita, despesaNeg, saldo };
   }
 
-  /** Série do gráfico do período: valores acumulados (receita, despesa e saldo). */
-  function buildProjecaoPeriodoCeo(periodo) {
-    const vazio = { labels: [], saldo: [], receita: [], despesaNeg: [], modo: "mes", n: 0 };
+  /** Séries brutas (não acumuladas) do período: receita e despesa por dia ou mês. */
+  function seriesPeriodoBrutasCeo(periodo) {
+    const vazio = { labels: [], receita: [], despesa: [], datas: [], modo: "mes" };
     if (!periodo?.ok) return vazio;
     const locs = carregarLocacoes();
     const uniRows = carregarUnidadeFinanceiro();
@@ -1397,31 +1404,26 @@
     const useDaily = periodo.dias <= 62;
     if (useDaily) {
       const labels = [];
-      const receitaDia = [];
-      const despesaDia = [];
+      const receita = [];
+      const despesa = [];
+      const datas = [];
       for (let t = periodo.d0.getTime(); t <= periodo.d1.getTime(); t += 86400000) {
         const dt = startOfDay(new Date(t));
         const k = chaveDiaCeo(dt);
         labels.push(
           `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}`
         );
-        receitaDia.push(recDiaLoc + (recUniPorDia.get(k) || 0));
-        despesaDia.push(debPorDia.get(k) || 0);
+        datas.push(new Date(dt));
+        receita.push(recDiaLoc + (recUniPorDia.get(k) || 0));
+        despesa.push(debPorDia.get(k) || 0);
       }
-      const acum = acumularSeriesPeriodoCeo(receitaDia, despesaDia);
-      return {
-        labels,
-        saldo: acum.saldo,
-        receita: acum.receita,
-        despesaNeg: acum.despesaNeg,
-        modo: "dia",
-        n: labels.length,
-      };
+      return { labels, receita, despesa, datas, modo: "dia" };
     }
 
     const labels = [];
-    const receitaMes = [];
-    const despesaMes = [];
+    const receita = [];
+    const despesa = [];
+    const datas = [];
     let cur = new Date(periodo.d0.getFullYear(), periodo.d0.getMonth(), 1);
     const last = new Date(periodo.d1.getFullYear(), periodo.d1.getMonth(), 1);
     while (cur.getTime() <= last.getTime()) {
@@ -1438,18 +1440,85 @@
       }
       const rec = recDiaLoc * dias + receitaUnidadesNoPeriodo(uniRows, startMs, endMs);
       labels.push(`${String(cur.getMonth() + 1).padStart(2, "0")}/${cur.getFullYear()}`);
-      receitaMes.push(rec);
-      despesaMes.push(deb);
+      datas.push(new Date(slice0));
+      receita.push(rec);
+      despesa.push(deb);
       cur = addMonths(cur, 1);
     }
-    const acum = acumularSeriesPeriodoCeo(receitaMes, despesaMes);
+    return { labels, receita, despesa, datas, modo: "mes" };
+  }
+
+  const SIM_ALUGUEL_SEMANA = 330;
+  const SIM_DESPESA_SEMANA = 80;
+  const SIM_DIAS_ATE_ALUGUEL = 20;
+  const SIM_DIAS_ATE_PRESTACAO = 30;
+  const COR_SALDO_ACC_NEG = "#ef4444";
+  const COR_SALDO_ACC_POS = "#22c55e";
+
+  function fluxoSimulacaoNoDia(lotes, dia) {
+    const d = startOfDay(dia);
+    const t = d.getTime();
+    let rec = 0;
+    let desp = 0;
+    (lotes || []).forEach((lote) => {
+      if (startOfDay(lote.compra).getTime() === t) desp += lote.qty * lote.aporte;
+      (lote.prestacoes || []).forEach((pd) => {
+        if (startOfDay(pd).getTime() === t) desp += lote.qty * lote.prestacao;
+      });
+      if (t >= startOfDay(lote.iniAluguel).getTime()) {
+        rec += lote.alugadas * (SIM_ALUGUEL_SEMANA / 7);
+        desp += lote.alugadas * (SIM_DESPESA_SEMANA / 7);
+      }
+    });
+    return { rec, desp };
+  }
+
+  function somarSimNasSeriesBrutasCeo(periodo, raw, lotes) {
+    if (!periodo?.ok || !raw?.labels?.length || !lotes?.length) return raw;
+    const receita = raw.receita.slice();
+    const despesa = raw.despesa.slice();
+    if (raw.modo === "dia") {
+      raw.datas.forEach((dt, i) => {
+        const f = fluxoSimulacaoNoDia(lotes, dt);
+        receita[i] += f.rec;
+        despesa[i] += f.desp;
+      });
+      return { ...raw, receita, despesa };
+    }
+    let cur = new Date(periodo.d0.getFullYear(), periodo.d0.getMonth(), 1);
+    const last = new Date(periodo.d1.getFullYear(), periodo.d1.getMonth(), 1);
+    let i = 0;
+    while (cur.getTime() <= last.getTime() && i < receita.length) {
+      const mesIni = new Date(cur.getFullYear(), cur.getMonth(), 1);
+      const mesFim = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+      const slice0 = startOfDay(new Date(Math.max(mesIni.getTime(), periodo.d0.getTime())));
+      const slice1 = startOfDay(new Date(Math.min(mesFim.getTime(), periodo.d1.getTime())));
+      for (let t = slice0.getTime(); t <= slice1.getTime(); t += 86400000) {
+        const f = fluxoSimulacaoNoDia(lotes, new Date(t));
+        receita[i] += f.rec;
+        despesa[i] += f.desp;
+      }
+      i += 1;
+      cur = addMonths(cur, 1);
+    }
+    return { ...raw, receita, despesa };
+  }
+
+  /** Série do gráfico do período: valores acumulados (receita, despesa e saldo). */
+  function buildProjecaoPeriodoCeo(periodo, lotesSim) {
+    const vazio = { labels: [], saldo: [], receita: [], despesaNeg: [], datas: [], modo: "mes", n: 0 };
+    const raw = seriesPeriodoBrutasCeo(periodo);
+    if (!raw.labels.length) return { ...vazio, modo: raw.modo };
+    const merged = somarSimNasSeriesBrutasCeo(periodo, raw, lotesSim);
+    const acum = acumularSeriesPeriodoCeo(merged.receita, merged.despesa);
     return {
-      labels,
+      labels: merged.labels,
+      datas: merged.datas,
       saldo: acum.saldo,
       receita: acum.receita,
       despesaNeg: acum.despesaNeg,
-      modo: "mes",
-      n: labels.length,
+      modo: merged.modo,
+      n: merged.labels.length,
     };
   }
 
@@ -1534,6 +1603,279 @@
       )} · saldo real ${brl(r.saldoReal)}.`;
     }
     renderGraficoPeriodoCeo();
+  }
+
+  function obterRegrasSimulacaoCeo() {
+    let d0 = parseBrDate(document.getElementById("finCeoSimCompraInicio")?.value);
+    let d1 = parseBrDate(document.getElementById("finCeoSimCompraFim")?.value);
+    if (d0 && d1 && d0.getTime() > d1.getTime()) {
+      const t = d0;
+      d0 = d1;
+      d1 = t;
+    }
+    const qty = Math.max(0, Math.floor(Number(String(document.getElementById("finCeoSimQtdMotos")?.value || "").replace(/\D/g, "")) || 0));
+    const aporte = parseValor(document.getElementById("finCeoSimAporte")?.value);
+    const prestacao = parseValor(document.getElementById("finCeoSimPrestacao")?.value);
+    const nPrest = Math.max(0, Math.floor(Number(String(document.getElementById("finCeoSimQtdPrest")?.value || "").replace(/\D/g, "")) || 0));
+    const ociosa = Math.min(
+      100,
+      Math.max(0, Number(String(document.getElementById("finCeoSimOciosidade")?.value || "0").replace("%", "").replace(",", ".")) || 0)
+    );
+    return { d0, d1, qty, aporte, prestacao, nPrest, ociosa };
+  }
+
+  function datasCompraSimulacaoCeo(dIni, dFim) {
+    if (!(dIni instanceof Date) || !(dFim instanceof Date)) return [];
+    const ini = startOfDay(dIni);
+    const fim = startOfDay(dFim);
+    if (ini.getTime() > fim.getTime()) return datasCompraSimulacaoCeo(fim, ini);
+    const out = [];
+    let d = new Date(ini);
+    while (d.getTime() <= fim.getTime()) {
+      out.push(new Date(d));
+      d = addMonths(d, 1);
+    }
+    return out;
+  }
+
+  function lotesSimulacaoCeo(regras) {
+    if (!regras?.qty || !regras.d0 || !regras.d1) return [];
+    const idle = Math.round((regras.qty * regras.ociosa) / 100);
+    const alugadas = Math.max(0, regras.qty - idle);
+    return datasCompraSimulacaoCeo(regras.d0, regras.d1).map((compra) => ({
+      compra,
+      qty: regras.qty,
+      idle,
+      alugadas,
+      aporte: regras.aporte,
+      prestacao: regras.prestacao,
+      nPrest: regras.nPrest,
+      iniAluguel: addDaysCeo(compra, SIM_DIAS_ATE_ALUGUEL),
+      prestacoes: Array.from({ length: regras.nPrest }, (_, i) => addMonths(addDaysCeo(compra, SIM_DIAS_ATE_PRESTACAO), i)),
+    }));
+  }
+
+  function totaisSimulacaoNoPeriodo(lotes, periodo) {
+    let rec = 0;
+    let desp = 0;
+    if (!periodo?.ok || !lotes?.length) return { rec: 0, desp: 0 };
+    for (let t = periodo.d0.getTime(); t <= periodo.d1.getTime(); t += 86400000) {
+      const f = fluxoSimulacaoNoDia(lotes, new Date(t));
+      rec += f.rec;
+      desp += f.desp;
+    }
+    return { rec, desp };
+  }
+
+  function garantirDatasSimulacaoCeo() {
+    const per = obterPeriodoCeoDash("finCeoSimPeriodoInicio", "finCeoSimPeriodoFim");
+    const ini = document.getElementById("finCeoSimCompraInicio");
+    const fim = document.getElementById("finCeoSimCompraFim");
+    if (ini && !String(ini.value || "").trim() && per.ok) ini.value = fmtBrDate(per.d0);
+    if (fim && !String(fim.value || "").trim() && per.ok) fim.value = fmtBrDate(per.d1);
+  }
+
+  function svgSimulacaoSaldoChart(labels, receita, despesaNeg, saldo, datas) {
+    const w = 1100;
+    const h = 400;
+    const padL = 72;
+    const padR = 28;
+    const padT = 28;
+    const padB = 44;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const allVals = [...(receita || []), ...(despesaNeg || []), ...(saldo || []), 0];
+    const rawMax = Math.max(0, ...allVals);
+    const rawMin = Math.min(0, ...allVals);
+    const span = Math.max(1, rawMax - rawMin);
+    const n = Math.max(1, labels.length - 1);
+    const xAt = (i) => padL + (labels.length <= 1 ? innerW / 2 : (i / n) * innerW);
+    const yAt = (v) => padT + innerH - ((v - rawMin) / span) * innerH;
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+      .map((p) => {
+        const val = rawMin + span * p;
+        const y = yAt(val);
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
+      })
+      .join("");
+    const y0 = yAt(0);
+    const zero = `<line x1="${padL}" y1="${y0}" x2="${w - padR}" y2="${y0}" stroke="rgba(255,255,255,0.4)" stroke-dasharray="4 4"/>`;
+    const linePts = (vals) => (vals || []).map((v, i) => `${xAt(i)},${yAt(v || 0)}`).join(" ");
+    const lineRec = receita?.length
+      ? `<polyline fill="none" stroke="#6ee7a0" stroke-width="2.2" points="${linePts(receita)}"/>`
+      : "";
+    const lineDesp = despesaNeg?.length
+      ? `<polyline fill="none" stroke="#ff6b6b" stroke-width="2.2" points="${linePts(despesaNeg)}"/>`
+      : "";
+    const values = (saldo || []).map((v) => Number(v) || 0);
+    const corDe = (v) => (v < 0 ? COR_SALDO_ACC_NEG : COR_SALDO_ACC_POS);
+    const segs = [];
+    const viradas = [];
+    for (let i = 1; i < values.length; i += 1) {
+      const a = values[i - 1];
+      const b = values[i];
+      const x0 = xAt(i - 1);
+      const x1 = xAt(i);
+      const cruzou = (a < 0 && b >= 0) || (a > 0 && b < 0);
+      if (!cruzou) {
+        segs.push({ color: corDe(a === 0 ? b : a), pts: `${x0},${yAt(a)} ${x1},${yAt(b)}` });
+        continue;
+      }
+      const t = Math.abs(b - a) < 1e-9 ? 0.5 : Math.abs(a) / Math.abs(b - a);
+      const xc = x0 + t * (x1 - x0);
+      segs.push({ color: corDe(a), pts: `${x0},${yAt(a)} ${xc},${y0}` });
+      segs.push({ color: corDe(b), pts: `${xc},${y0} ${x1},${yAt(b)}` });
+      const d0 = datas?.[i - 1];
+      const d1 = datas?.[i];
+      const dataVirada =
+        d0 instanceof Date && d1 instanceof Date
+          ? new Date(d0.getTime() + t * (d1.getTime() - d0.getTime()))
+          : d1 || d0;
+      viradas.push({ xc, data: dataVirada, paraPos: b >= 0 });
+    }
+    const lineSaldo = segs
+      .map((s) => `<polyline fill="none" stroke="${s.color}" stroke-width="2.6" points="${s.pts}"/>`)
+      .join("");
+    const marks = viradas
+      .map((v) => {
+        const dataTxt = fmtBrDate(v.data);
+        const labelY = y0 > padT + 22 ? y0 - 14 : y0 + 18;
+        const stroke = v.paraPos ? COR_SALDO_ACC_POS : COR_SALDO_ACC_NEG;
+        const cx = Math.max(padL + 36, Math.min(w - padR - 36, v.xc));
+        return `<circle class="fin-ceo-saldo-acc-virada" cx="${v.xc.toFixed(2)}" cy="${y0.toFixed(2)}" r="5.5" fill="#fff" stroke="${stroke}" stroke-width="2.4">
+          <title>Mudança de saldo em ${esc(dataTxt)}</title>
+        </circle>
+        <text x="${cx.toFixed(2)}" y="${labelY.toFixed(2)}" text-anchor="middle" fill="#ffffff" stroke="#111111" stroke-width="3" paint-order="stroke" font-size="11" font-weight="700">${esc(dataTxt)}</text>`;
+      })
+      .join("");
+    const step = labels.length > 14 ? Math.ceil(labels.length / 8) : 1;
+    const axis = labels
+      .map((lb, i) => {
+        if (i % step !== 0 && i !== labels.length - 1) return "";
+        return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lb)}</text>`;
+      })
+      .join("");
+    return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Saldo simulado">${grid}${zero}${lineRec}${lineDesp}${lineSaldo}${marks}${axis}</svg>`;
+  }
+
+  function renderGraficoSimulacaoCeo(lotes) {
+    const chart = document.getElementById("finCeoSimChartSaldo");
+    const leg = document.getElementById("finCeoSimLegendaSaldo");
+    const tit = document.getElementById("finCeoSimChartTitulo");
+    const hint = document.getElementById("finCeoSimChartHint");
+    if (!chart) return;
+    const periodo = obterPeriodoCeoDash("finCeoSimPeriodoInicio", "finCeoSimPeriodoFim");
+    if (!periodo.ok) {
+      chart.innerHTML = `<p class="subtext">Informe início e fim do período para ver o gráfico.</p>`;
+      if (leg) leg.innerHTML = "";
+      if (tit) tit.textContent = "Saldo acumulado no período";
+      return;
+    }
+    const view = buildProjecaoPeriodoCeo(periodo, lotes);
+    if (tit) {
+      tit.textContent =
+        view.modo === "dia" ? "Saldo acumulado dia a dia" : "Saldo acumulado mês a mês";
+    }
+    if (hint) {
+      hint.textContent = lotes?.length
+        ? "Valores acumulados com a simulação: receita (verde), despesa (vermelho) e saldo (vermelho no negativo, verde no positivo)."
+        : "Valores acumulados do período real. Preencha as regras à direita para somar a compra de motos.";
+    }
+    if (!view.labels.length) {
+      chart.innerHTML = `<p class="subtext">Sem dados no período.</p>`;
+      if (leg) leg.innerHTML = "";
+      return;
+    }
+    chart.innerHTML = svgSimulacaoSaldoChart(view.labels, view.receita, view.despesaNeg, view.saldo, view.datas);
+    if (leg) {
+      leg.innerHTML = [
+        { c: COR_SALDO_ACC_NEG, t: "Saldo negativo" },
+        { c: COR_SALDO_ACC_POS, t: "Saldo positivo" },
+        { c: "#6ee7a0", t: "Receita acumulada" },
+        { c: "#ff6b6b", t: "Despesas acumuladas (negativo)" },
+      ]
+        .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
+        .join("");
+      leg.innerHTML += `<span class="fin-legenda__item">Ponto branco: data da virada</span>`;
+      leg.innerHTML += `<span class="fin-legenda__item fin-legenda__item--anos">${esc(fmtBrDate(periodo.d0))} a ${esc(
+        fmtBrDate(periodo.d1)
+      )} · ${view.n} ${view.modo === "dia" ? "dia(s)" : "mês(es)"}</span>`;
+    }
+  }
+
+  function renderResumoSimulacaoCeo() {
+    garantirDatasSimulacaoCeo();
+    const hint = document.getElementById("finCeoSimPeriodoHint");
+    const regrasHint = document.getElementById("finCeoSimRegrasHint");
+    const setVal = (id, n) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = brl(n);
+    };
+    const periodo = obterPeriodoCeoDash("finCeoSimPeriodoInicio", "finCeoSimPeriodoFim");
+    const ids = [
+      "finCeoSimRecPrevista",
+      "finCeoSimRecPrevistaSim",
+      "finCeoSimRecReal",
+      "finCeoSimRecRealSim",
+      "finCeoSimDespPrevista",
+      "finCeoSimDespPrevistaSim",
+      "finCeoSimDespPaga",
+      "finCeoSimDespPagaSim",
+      "finCeoSimSaldoPrevisto",
+      "finCeoSimSaldoPrevistoSim",
+      "finCeoSimSaldoReal",
+      "finCeoSimSaldoRealSim",
+    ];
+    if (!periodo.ok) {
+      ids.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "—";
+      });
+      if (hint) hint.textContent = "Informe data de início e fim válidas (DD/MM/AAAA).";
+      renderGraficoSimulacaoCeo([]);
+      return;
+    }
+    const real = calcResumoPeriodoCeo(periodo);
+    const regras = obterRegrasSimulacaoCeo();
+    const lotes = lotesSimulacaoCeo(regras);
+    const extra = totaisSimulacaoNoPeriodo(lotes, periodo);
+    const recPrevSim = real.receitaPrevista + extra.rec;
+    const recRealSim = real.receitaReal + extra.rec;
+    const despPrevSim = real.despesaPrevista + extra.desp;
+    const despPagaSim = real.despesaPaga + extra.desp;
+    const saldoPrevSim = recPrevSim - despPrevSim;
+    const saldoRealSim = recRealSim - despPagaSim;
+    setVal("finCeoSimRecPrevista", real.receitaPrevista);
+    setVal("finCeoSimRecPrevistaSim", recPrevSim);
+    setVal("finCeoSimRecReal", real.receitaReal);
+    setVal("finCeoSimRecRealSim", recRealSim);
+    setVal("finCeoSimDespPrevista", real.despesaPrevista);
+    setVal("finCeoSimDespPrevistaSim", despPrevSim);
+    setVal("finCeoSimDespPaga", real.despesaPaga);
+    setVal("finCeoSimDespPagaSim", despPagaSim);
+    setVal("finCeoSimSaldoPrevisto", real.saldoPrevisto);
+    setVal("finCeoSimSaldoPrevistoSim", saldoPrevSim);
+    setVal("finCeoSimSaldoReal", real.saldoReal);
+    setVal("finCeoSimSaldoRealSim", saldoRealSim);
+    aplicarClasseSaldoPeriodo(document.getElementById("finCeoSimSaldoPrevistoSim")?.closest(".fin-kpi"), saldoPrevSim);
+    aplicarClasseSaldoPeriodo(document.getElementById("finCeoSimSaldoRealSim")?.closest(".fin-kpi"), saldoRealSim);
+    if (hint) {
+      hint.textContent = `Período ${fmtBrDate(periodo.d0)} a ${fmtBrDate(periodo.d1)} · ${real.dias} dia(s) · saldo previsto real ${brl(
+        real.saldoPrevisto
+      )} · simulado ${brl(saldoPrevSim)}.`;
+    }
+    if (regrasHint) {
+      if (!lotes.length) {
+        regrasHint.textContent = "Preencha a quantidade de motos e o intervalo de compra para simular.";
+      } else {
+        const meses = lotes.length;
+        const idle = lotes[0].idle;
+        const alug = lotes[0].alugadas;
+        regrasHint.textContent = `${meses} compra(s) de ${regras.qty} moto(s) · ${alug} alugada(s) e ${idle} ociosa(s) por lote · +${brl(extra.rec)} de receita e +${brl(extra.desp)} de despesa no período.`;
+      }
+    }
+    renderGraficoSimulacaoCeo(lotes);
   }
 
   function fmtPct(n) {
@@ -1679,9 +2021,6 @@
       .join("");
     return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico">${grid}${zero}${lines}${axis}</svg>`;
   }
-
-  const COR_SALDO_ACC_NEG = "#ef4444";
-  const COR_SALDO_ACC_POS = "#22c55e";
 
   /** Saldo acumulado: vermelho no negativo, verde no positivo; ponto com a data na virada. */
   function svgSaldoAccChart(meses, saldoAcc) {
@@ -3752,6 +4091,11 @@
       bindCalendariosCeo(document.getElementById("finCeoPanePeriodo"));
       renderResumoPeriodoCeo();
     }
+    if (id === "simulacao") {
+      bindMascarasCeo(document.getElementById("finCeoPaneSimulacao"));
+      bindCalendariosCeo(document.getElementById("finCeoPaneSimulacao"));
+      renderResumoSimulacaoCeo();
+    }
     if (id === "despesas") renderCadastroDespesas();
     if (id === "grafico-despesas") renderGraficoDespesas();
     if (id === "relatorio") renderRelatorio();
@@ -3780,6 +4124,29 @@
       if (!inp) return;
       inp.addEventListener("change", () => renderResumoPeriodoCeo());
       inp.addEventListener("blur", () => renderResumoPeriodoCeo());
+    });
+
+    document.getElementById("finCeoSimPeriodoAtualizarBtn")?.addEventListener("click", () => {
+      renderResumoSimulacaoCeo();
+    });
+    document.getElementById("finCeoSimAtualizarBtn")?.addEventListener("click", () => {
+      renderResumoSimulacaoCeo();
+    });
+    [
+      "finCeoSimPeriodoInicio",
+      "finCeoSimPeriodoFim",
+      "finCeoSimCompraInicio",
+      "finCeoSimCompraFim",
+      "finCeoSimQtdMotos",
+      "finCeoSimAporte",
+      "finCeoSimPrestacao",
+      "finCeoSimQtdPrest",
+      "finCeoSimOciosidade",
+    ].forEach((id) => {
+      const inp = document.getElementById(id);
+      if (!inp) return;
+      inp.addEventListener("change", () => renderResumoSimulacaoCeo());
+      inp.addEventListener("blur", () => renderResumoSimulacaoCeo());
     });
 
     const finaisInp = document.getElementById("finCeoDespCartaoFinais");

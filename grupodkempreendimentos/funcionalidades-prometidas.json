@@ -703,6 +703,45 @@
       }
     },
     {
+      "id": "fin-ceo-painel-simulacao",
+      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Cada moto é alugada 20 dias depois a R$ 330/semana; cada moto alugada tem R$ 80/semana de manutenção, seguro e operação. O gráfico soma o real com a simulação; o saldo fica vermelho no negativo, verde no positivo, com ponto na data da virada.",
+      "ficheiros": {
+        "index.html": [
+          "btn-fin-ceo-simulacao",
+          "finCeoPaneSimulacao",
+          "Painel executivo simulação",
+          "finCeoSimCompraInicio",
+          "finCeoSimCompraFim",
+          "finCeoSimQtdMotos",
+          "finCeoSimAporte",
+          "finCeoSimPrestacao",
+          "finCeoSimQtdPrest",
+          "finCeoSimOciosidade",
+          "Taxa de ociosidade",
+          "finCeoSimRecPrevistaSim",
+          "Regras da simulação"
+        ],
+        "portal-financeiro-ceo.js": [
+          "lotesSimulacaoCeo",
+          "renderResumoSimulacaoCeo",
+          "svgSimulacaoSaldoChart",
+          "SIM_ALUGUEL_SEMANA",
+          "SIM_DESPESA_SEMANA",
+          "SIM_DIAS_ATE_ALUGUEL",
+          "SIM_DIAS_ATE_PRESTACAO",
+          "id === \"simulacao\"",
+          "totaisSimulacaoNoPeriodo",
+          "fluxoSimulacaoNoDia"
+        ],
+        "styles.css": [
+          "fin-ceo-sim-regras",
+          "fin-kpi__duo",
+          "fin-ceo-sim-graf-row",
+          "fin-kpi__duo-sim"
+        ]
+      }
+    },
+    {
       "id": "fin-ceo-cartao-finais-banco-doc",
       "descricao": "No FINANCEIRO CEO → Cadastro de despesas → Cartão de crédito: caixa 1 com 4 números finais (memória + lista suspensa) e caixa 2 com banco e CPF/CNPJ; se os 4 finais já existirem no histórico, preenche automaticamente banco e CPF/CNPJ (aplicarHistoricoCartaoPorFinais). Depois de cadastrar, cartão, data de pagamento e os demais dados ficam na tela até o operador alterar (vários lançamentos no mesmo cartão). Limpar esvazia o formulário.",
       "ficheiros": {
