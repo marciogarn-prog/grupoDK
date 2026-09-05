@@ -2583,7 +2583,7 @@
     { key: "totalSerie", label: "Total da série", type: "num" },
   ];
   let ceoGrafExcelState = {
-    sortKey: CEO_GRAF_SORT_NATURAL,
+    sortKey: "valorMensal",
     sortDir: "asc",
     cols: {},
   };
@@ -2729,7 +2729,15 @@
       if (!(set instanceof Set)) return;
       out = out.filter((r) => set.has(ceoRelCellDisplay(r, col.key, CEO_GRAF_COLS)));
     });
-    if (ceoGrafExcelState.sortKey === CEO_GRAF_SORT_NATURAL) return out;
+    if (ceoGrafExcelState.sortKey === CEO_GRAF_SORT_NATURAL) {
+      out.sort((a, b) => {
+        const va = Number(a.valorMensal) || 0;
+        const vb = Number(b.valorMensal) || 0;
+        if (va !== vb) return va - vb;
+        return String(a.despesa || "").localeCompare(String(b.despesa || ""), "pt-BR");
+      });
+      return out;
+    }
     return aplicarCeoPagExcelFiltroSort(out, ceoGrafExcelState, CEO_GRAF_COLS);
   }
 
@@ -2913,7 +2921,7 @@
           state.sortKey = CEO_LISTA_SORT_VENCIMENTO;
           state.sortDir = "asc";
         } else if (scope === "graf") {
-          state.sortKey = CEO_GRAF_SORT_NATURAL;
+          state.sortKey = "valorMensal";
           state.sortDir = "asc";
         } else {
           state.sortKey = "data";
@@ -3288,11 +3296,10 @@
 
     const horizonte = Math.max(12, maxIdx + 1);
     rows.sort((a, b) => {
-      const ia = CATEGORIAS_CEO.findIndex((c) => c.id === a.categoria);
-      const ib = CATEGORIAS_CEO.findIndex((c) => c.id === b.categoria);
-      if (ia !== ib) return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
-      if (b.repeticoes !== a.repeticoes) return b.repeticoes - a.repeticoes;
-      return a.label.localeCompare(b.label, "pt-BR");
+      const va = Number(a.valor) || 0;
+      const vb = Number(b.valor) || 0;
+      if (va !== vb) return va - vb;
+      return String(a.label || "").localeCompare(String(b.label || ""), "pt-BR");
     });
     return { base, horizonte, rows, totaisPorMes };
   }
@@ -3337,9 +3344,10 @@
         `<p class="subtext fin-ceo-desp-graf__filtro-vazio">Nenhuma despesa no filtro ▾ — ajuste as colunas da tabela. O gráfico e os totais do mês usam só o que estiver filtrado.</p>`
       );
     } else {
+      const agruparCategoria = ceoGrafExcelState.sortKey === "categoria";
       let lastCat = "";
       rows.forEach((r) => {
-        if (r.categoria !== lastCat) {
+        if (agruparCategoria && r.categoria !== lastCat) {
           lastCat = r.categoria;
           blocks.push(`<div class="fin-ceo-desp-graf__group">${esc(r.categoriaLabel)}</div>`);
         }

@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260905graf-filtro">
+  <link rel="stylesheet" href="styles.css?v=20260905graf-val">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3526,7 +3526,7 @@
 
             <div id="finCeoPaneGraficoDespesas" class="operacao-inline-form operacao-inline-form--rodar-mouse fin-ceo-pane hidden" data-ceo-pane="grafico-despesas" role="region">
               <h3 class="operacao-inline-form__title">Gráfico de despesas</h3>
-              <p class="subtext">O tamanho da linha é o <strong>tempo que a despesa se repete</strong>. No topo, a soma é <strong>só daquele mês</strong> (não do trimestre): mês atual (ex.: 09/2026), depois 12/2026, 03/2027… escritos na vertical. O filtro ▾ no cabeçalho da tabela (estilo Excel) reflete na hora no gráfico e nos totais do mês.</p>
+              <p class="subtext">O tamanho da linha é o <strong>tempo que a despesa se repete</strong>. As linhas estão em <strong>ordem crescente de valor mensal</strong>. No topo, a soma é <strong>só daquele mês</strong> (não do trimestre): mês atual (ex.: 09/2026), depois 12/2026, 03/2027… escritos na vertical. O filtro ▾ no cabeçalho da tabela (estilo Excel) reflete na hora no gráfico e nos totais do mês.</p>
               <div id="finCeoGraficoDespesasChart" class="fin-chart-wrap fin-ceo-desp-graf-wrap" role="img" aria-label="Gráfico de despesas pelo tempo de repetição"></div>
               <div id="finCeoGraficoDespesasTabela" class="fin-table-wrap"></div>
             </div>
@@ -4119,7 +4119,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260905graf-filtro" defer></script>
+  <script src="app.js?v=20260905graf-val" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4127,11 +4127,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260905graf-filtro" defer></script>
+  <script src="portal-locadora-ui.js?v=20260905graf-val" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260905graf-filtro" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260905graf-val" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>
