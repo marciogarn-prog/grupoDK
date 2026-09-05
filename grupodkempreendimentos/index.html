@@ -36,7 +36,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Grupo DK">
   <link rel="apple-touch-icon" id="dk-apple-touch-icon" href="/icons/icon-grupodk-192.png">
-  <link rel="stylesheet" href="styles.css?v=20260905sim-sexta">
+  <link rel="stylesheet" href="styles.css?v=20260905sim-stack">
   <link rel="stylesheet" href="portal-miel.css?v=20260820check-n2">
   <link rel="icon" id="dk-icon" href="/icons/icon-grupodk-192.png" type="image/png">
   <script src="dk-app-scope.js?v=20260829icones-4apps"></script>
@@ -3580,7 +3580,7 @@
                     <input type="text" id="finCeoSimOciosidade" inputmode="decimal" maxlength="6" autocomplete="off" placeholder="0" aria-label="Taxa de ociosidade em porcentagem">
                     <span class="subtext">10 motos e 20% = 2 ociosas (aporte + prestação, sem aluguel e sem manutenção) e 8 com aluguel e manutenção.</span>
                   </label>
-                  <p class="subtext fin-ceo-sim-regras__fixas">Receita = só o aluguel: R$ 330 por moto alugada, pago na sexta-feira (a partir de 20 dias após a compra). Despesa = aporte (uma vez na compra) + prestação (acumula: 1 moto = 150, 2 motos = 300) + manutenção (R$ 80/semana por moto alugada: 1 moto = 80, 2 motos = 160). Moto ociosa não tem aluguel nem manutenção; tem aporte e prestação.</p>
+                  <p class="subtext fin-ceo-sim-regras__fixas">Receita = só o aluguel, pago na sexta-feira, acumulando no mês da compra: 1 moto = R$ 330/semana, 2 motos = R$ 660/semana. Despesa = aporte (uma vez na compra) + prestação (acumula: 1 moto = 150, 2 motos = 300) + manutenção (R$ 80/semana por moto alugada: 1 moto = 80, 2 motos = 160). Moto ociosa não tem aluguel nem manutenção; tem aporte e prestação.</p>
                   <p id="finCeoSimRegrasHint" class="fin-ceo-sim-regras__hint subtext" role="status">Preencha as regras para ver o impacto.</p>
                   <button type="button" class="btn-primary" id="finCeoSimAtualizarBtn">Atualizar simulação</button>
                 </aside>
@@ -4301,7 +4301,7 @@
   <script src="data/dk-banco-cadastro-vazio.js?v=20260607instalacao-limpa"></script>
   <script type="module" src="supabase-init.js?v=3"></script>
   <script src="dk-lancamento-protocolo.js?v=20260903sem-caucao" defer></script>
-  <script src="app.js?v=20260905sim-sexta" defer></script>
+  <script src="app.js?v=20260905sim-stack" defer></script>
   <script src="cliente-notificacoes.js?v=20260904avisos-fix" defer></script>
   <script src="portal-cliente-geo-mapa.js?v=20260521geo-v3" defer></script>
   <script src="portal-cliente-codigo-admin.js?v=20260904hierarquia" defer></script>
@@ -4309,11 +4309,11 @@
   <script src="dk-relatorio-inatividade.js?v=20260904inat-fim" defer></script>
   <script src="dk-relatorio-operacao-pdf.js?v=20260904inat-fim" defer></script>
   <script src="portal-colab-horario.js?v=20260904hierarquia" defer></script>
-  <script src="portal-locadora-ui.js?v=20260905sim-sexta" defer></script>
+  <script src="portal-locadora-ui.js?v=20260905sim-stack" defer></script>
   <script src="portal-financeiro.js?v=20260826relacao-cols" defer></script>
   <script src="data/dk-despesas-historico.js?v=20260825fin-reimport" defer></script>
   <script src="portal-financeiro-modulos.js?v=20260829fin-ceo"></script>
-  <script src="portal-financeiro-ceo.js?v=20260905sim-sexta" defer></script>
+  <script src="portal-financeiro-ceo.js?v=20260905sim-stack" defer></script>
   <script src="data/miel/miel-cadastros.js?v=20260820check-n2" defer></script>
   <script src="data/miel/miel-sheet-index.js?v=20260820check-n2" defer></script>
   <script src="data/miel/cad-clientes-layout.js?v=20260820check-n2" defer></script>

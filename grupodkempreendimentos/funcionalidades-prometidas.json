@@ -704,7 +704,7 @@
     },
     {
       "id": "fin-ceo-painel-simulacao",
-      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Receita = só o aluguel: R$ 330 por moto alugada, pago na sexta-feira (a partir de 20 dias após a compra). Despesa = aporte (uma vez na compra de cada moto) + prestação (acumula conforme entram motos) + manutenção (R$ 80/semana por moto alugada, acumula). Moto ociosa não tem aluguel nem manutenção; tem aporte e prestação. Os gráficos são os mesmos do Painel executivo (Saldo mês a mês em barras verde/vermelho e Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada), somando a simulação.",
+      "descricao": "No FINANCEIRO CEO → Painel executivo simulação: mesma tela do painel por período, com real em cima e simulado embaixo em cada caixinha; à direita, calendário de início/fim do intervalo de compra, quantidade de motos por mês, aporte por moto, prestação (30 dias após a aquisição), quantidade de prestações e taxa de ociosidade. Receita = só o aluguel, pago na sexta-feira, acumulando no mês da compra (1 moto = R$ 330/semana, 2 motos = R$ 660/semana). Despesa = aporte (uma vez na compra de cada moto) + prestação (acumula conforme entram motos) + manutenção (R$ 80/semana por moto alugada, acumula). Moto ociosa não tem aluguel nem manutenção; tem aporte e prestação. Os gráficos são os mesmos do Painel executivo (Saldo mês a mês em barras verde/vermelho e Saldo acumulado vermelho no negativo, verde no positivo, com ponto na data da virada), somando a simulação.",
       "ficheiros": {
         "index.html": [
           "btn-fin-ceo-simulacao",
@@ -725,7 +725,8 @@
           "finCeoSimAnosFiltro",
           "Moto ociosa não tem aluguel",
           "Receita = só o aluguel",
-          "pago na sexta-feira"
+          "pago na sexta-feira",
+          "2 motos = R$ 660/semana"
         ],
         "portal-financeiro-ceo.js": [
           "lotesSimulacaoCeo",

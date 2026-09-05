@@ -1450,7 +1450,7 @@
 
   const SIM_ALUGUEL_SEMANA = 330;
   const SIM_DESPESA_SEMANA = 80;
-  const SIM_DIAS_ATE_ALUGUEL = 20;
+  const SIM_DIAS_ATE_ALUGUEL = 0;
   const SIM_DIAS_ATE_PRESTACAO = 30;
   const COR_SALDO_ACC_NEG = "#ef4444";
   const COR_SALDO_ACC_POS = "#22c55e";
