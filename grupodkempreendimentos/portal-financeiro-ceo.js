@@ -15,6 +15,14 @@
   const HORIZONTE_MESES = 24;
   const CEO_ANO_FIM_PAINEL = 2030;
   const CEO_ANOS_PAINEL = [2026, 2027, 2028, 2029, 2030];
+  /** Tom de verde/vermelho das barras de saldo — um par por ano para ver onde começa e termina. */
+  const CEO_ANO_SALDO_TONS = {
+    2026: { pos: "#22c55e", neg: "#ef4444" },
+    2027: { pos: "#86efac", neg: "#fda4af" },
+    2028: { pos: "#15803d", neg: "#b91c1c" },
+    2029: { pos: "#4ade80", neg: "#fb7185" },
+    2030: { pos: "#14532d", neg: "#7f1d1d" },
+  };
 
   const BANCOS_CARTAO_CEO = [
     "BANCO DO BRASIL",
@@ -1654,6 +1662,88 @@
     return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Gráfico">${grid}${zero}${lines}${axis}</svg>`;
   }
 
+  function tomSaldoAnoCeo(ano, positivo) {
+    const t = CEO_ANO_SALDO_TONS[ano] || CEO_ANO_SALDO_TONS[2026];
+    return positivo ? t.pos : t.neg;
+  }
+
+  /** Despesa na mesma escala da receita (positiva); saldo em barras por ano. */
+  function svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes) {
+    const w = 1100;
+    const h = 400;
+    const padL = 72;
+    const padR = 16;
+    const padT = 22;
+    const padB = 44;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    const labels = meses.map((m) => m.label);
+    const receita = meses.map((m) => recPorMes.get(m.key) || 0);
+    const despesa = meses.map((m) => debPorMes.get(m.key) || 0);
+    const saldo = saldoMes || meses.map((_, i) => receita[i] - despesa[i]);
+    const allVals = [...receita, ...despesa, ...saldo, 0];
+    const rawMax = Math.max(1, ...allVals);
+    const rawMin = Math.min(0, ...allVals);
+    const span = Math.max(1, rawMax - rawMin);
+    const n = Math.max(1, labels.length - 1);
+    const xAt = (i) => padL + (labels.length <= 1 ? innerW / 2 : (i / n) * innerW);
+    const yAt = (v) => padT + innerH - ((v - rawMin) / span) * innerH;
+    const grid = [0, 0.25, 0.5, 0.75, 1]
+      .map((p) => {
+        const val = rawMin + span * p;
+        const y = yAt(val);
+        return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="rgba(255,255,255,0.12)"/>
+          <text x="${padL - 6}" y="${y + 4}" text-anchor="end" fill="#bdbdbd" font-size="10">${esc(brl(val))}</text>`;
+      })
+      .join("");
+    const y0 = yAt(0);
+    const zero = `<line x1="${padL}" y1="${y0}" x2="${w - padR}" y2="${y0}" stroke="rgba(255,255,255,0.45)" stroke-dasharray="4 4"/>`;
+    const yearMarks = [];
+    meses.forEach((m, i) => {
+      const ano = m.date.getFullYear();
+      const prev = i > 0 ? meses[i - 1].date.getFullYear() : null;
+      if (i === 0 || ano !== prev) {
+        const x = i === 0 ? padL : (xAt(i - 1) + xAt(i)) / 2;
+        if (i > 0) {
+          yearMarks.push(
+            `<line x1="${x}" y1="${padT}" x2="${x}" y2="${h - padB}" stroke="rgba(255,255,255,0.28)" stroke-dasharray="3 4"/>`
+          );
+        }
+        yearMarks.push(
+          `<text x="${x + 4}" y="${padT - 6}" fill="#e5e7eb" font-size="11" font-weight="700">${ano}</text>`
+        );
+      }
+    });
+    const slot = labels.length ? innerW / Math.max(labels.length, 1) : innerW;
+    const barW = Math.max(4, Math.min(22, slot * 0.58));
+    const bars = saldo
+      .map((v, i) => {
+        const ano = meses[i].date.getFullYear();
+        const x = xAt(i) - barW / 2;
+        const yVal = yAt(v || 0);
+        const top = Math.min(y0, yVal);
+        const hBar = Math.max(1.6, Math.abs(y0 - yVal));
+        const fill = tomSaldoAnoCeo(ano, (v || 0) >= 0);
+        return `<rect x="${x.toFixed(2)}" y="${top.toFixed(2)}" width="${barW.toFixed(2)}" height="${hBar.toFixed(2)}" fill="${fill}" rx="2" opacity="0.92"><title>${esc(labels[i])} saldo ${esc(brl(v || 0))}</title></rect>`;
+      })
+      .join("");
+    const linePts = (vals) => vals.map((v, i) => `${xAt(i)},${yAt(v || 0)}`).join(" ");
+    const lineRec = receita.length
+      ? `<polyline fill="none" stroke="#6ee7a0" stroke-width="2.4" points="${linePts(receita)}"/>`
+      : "";
+    const lineDesp = despesa.length
+      ? `<polyline fill="none" stroke="#ff6b6b" stroke-width="2.4" points="${linePts(despesa)}"/>`
+      : "";
+    const step = labels.length > 14 ? Math.ceil(labels.length / 8) : 1;
+    const axis = labels
+      .map((lb, i) => {
+        if (i % step !== 0 && i !== labels.length - 1) return "";
+        return `<text x="${xAt(i)}" y="${h - 12}" text-anchor="middle" fill="#bdbdbd" font-size="10">${esc(lb)}</text>`;
+      })
+      .join("");
+    return `<svg class="fin-chart-svg fin-ceo-chart" viewBox="0 0 ${w} ${h}" role="img" aria-label="Saldo mês a mês">${grid}${zero}${yearMarks.join("")}${bars}${lineRec}${lineDesp}${axis}</svg>`;
+  }
+
   function filtrarProjecaoPorAnos(proj) {
     const indices = [];
     proj.meses.forEach((m, i) => {
@@ -1694,11 +1784,7 @@
       if (!meses.length) {
         chartSaldo.innerHTML = `<p class="subtext">Selecione pelo menos um ano nos botões acima.</p>`;
       } else {
-        chartSaldo.innerHTML = svgLineChart(labels, [
-          { color: "#5eb8ff", values: saldoMes },
-          { color: "#6ee7a0", values: meses.map((m) => recPorMes.get(m.key) || 0) },
-          { color: "#ff6b6b", values: meses.map((m) => -(debPorMes.get(m.key) || 0)) },
-        ]);
+        chartSaldo.innerHTML = svgSaldoMesChart(meses, recPorMes, debPorMes, saldoMes);
       }
     }
 
@@ -1714,11 +1800,16 @@
     const anosTxt = CEO_ANOS_PAINEL.filter((y) => ceoDashAnosAtivos.has(y)).join(", ");
     const legSaldo = document.getElementById("finCeoLegendaSaldo");
     if (legSaldo) {
-      legSaldo.innerHTML = [
-        { c: "#5eb8ff", t: "Saldo mensal (receita − despesas)" },
+      const itens = [
         { c: "#6ee7a0", t: "Receita prevista" },
-        { c: "#ff6b6b", t: "Despesas (negativo)" },
-      ]
+        { c: "#ff6b6b", t: "Despesas (escala positiva)" },
+      ];
+      CEO_ANOS_PAINEL.filter((y) => ceoDashAnosAtivos.has(y)).forEach((y) => {
+        const t = CEO_ANO_SALDO_TONS[y];
+        itens.push({ c: t.pos, t: `Saldo + ${y}` });
+        itens.push({ c: t.neg, t: `Saldo − ${y}` });
+      });
+      legSaldo.innerHTML = itens
         .map((x) => `<span class="fin-legenda__item"><i style="background:${x.c}"></i>${esc(x.t)}</span>`)
         .join("");
       if (anosTxt) {
